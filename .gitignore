@@ -1,3 +1,5 @@
+NRG.code-workspace
 /.vscode
 /target
-NRG.code-workspace
+core/target
+math/target

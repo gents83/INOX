@@ -1,6 +1,7 @@
 use super::vector::Vector3;
 use super::vector::Vector4;
 use super::zero::*;
+use super::one::*;
 
 #[derive(PartialEq, Eq, Copy, Clone, Hash)]
 pub struct Matrix3<T> {
@@ -37,9 +38,10 @@ macro_rules! implement_matrix {
             
             pub fn identity() -> Self {
                 type Vector = $VecType;
+                type BaseType = $Type;
                 let mut vec_array : [$VecType; $n] = [Vector::zero(); $n];
                 for i in 0..$n {
-                    vec_array[i].as_mut()[i] = 1.0;
+                    vec_array[i].as_mut()[i] = BaseType::one();
                 }
                 $MatrixN::from_axis( &vec_array )
             }
@@ -49,23 +51,3 @@ macro_rules! implement_matrix {
 
 implement_matrix!(Matrix3 { axis_x, axis_y, axis_z }, 3, Vector3<f32>, f32);
 implement_matrix!(Matrix4 { axis_x, axis_y, axis_z, axis_w }, 4, Vector4<f32>, f32);
-
-/*
-impl Matrix3<f32> {
-    pub fn identity() -> Self {
-        Matrix3::new(Vector3::new(1.0, 0.0, 0.0),
-                     Vector3::new(0.0, 1.0, 0.0),
-                     Vector3::new(0.0, 0.0, 1.0))
-    }
-}
-
-impl Matrix4<f32> {
-    pub fn identity() -> Self {
-        Matrix4::new(Vector4::new(1.0, 0.0, 0.0, 0.0),
-                     Vector4::new(0.0, 1.0, 0.0, 0.0),
-                     Vector4::new(0.0, 0.0, 1.0, 0.0),
-                     Vector4::new(0.0, 0.0, 0.0, 1.0))
-    }
-}
-
-*/
