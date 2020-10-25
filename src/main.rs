@@ -1,3 +1,8 @@
+use nrg_core::*;
+use nrg_math::*;
+
 fn main() {
-    println!("NRGEngine - New Rust Gents Engine");
+    let _entity = Entity::new();
+    let _transf = Matrix4::identity();
+    _transf.print();    
 }

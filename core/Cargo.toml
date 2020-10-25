@@ -1,0 +1,5 @@
+[package]
+name = "nrg_core"
+version = "0.1.0"
+authors = ["gents83 <gents83@gmail.com>"]
+edition = "2018"
