@@ -7,4 +7,12 @@ fn main() {
     _transf.print();    
 
     let _handle = TrustedHandle::new();
+
+    let mut window = create_window( "NRGWindow", "NRG - Window" );
+
+    loop {
+        if !handle_message( &mut window ) {
+            break;
+        }
+    }
 }

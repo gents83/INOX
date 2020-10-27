@@ -3,6 +3,7 @@
 // Common 
 
 pub use self::platform_impl::*;
+pub use self::platform_impl::platform::*;
 pub use self::handle::*;
 
 pub use self::entity::*;
