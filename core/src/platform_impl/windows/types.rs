@@ -1,27 +1,7 @@
 #![allow(bad_style, overflowing_literals)]
-#![no_std]
 
-macro_rules! declare_handle {
-    ($name:ident, $inner:ident) => {
-        pub enum $inner {}
-        pub type $name = *mut $inner;
-    };
-}
-
-macro_rules! declare_extern_function {
-    (stdcall $func:ident($($t:ty,)*) -> $ret:ty) => (
-        pub type $func = Option<unsafe extern "system" fn($($t,)*) -> $ret>;
-    );
-    (stdcall $func:ident($($p:ident: $t:ty,)*) -> $ret:ty) => (
-        pub type $func = Option<unsafe extern "system" fn($($p: $t,)*) -> $ret>;
-    );
-    (cdecl $func:ident($($t:ty,)*) -> $ret:ty) => (
-        pub type $func = Option<unsafe extern "C" fn($($t,)*) -> $ret>;
-    );
-    (cdecl $func:ident($($p:ident: $t:ty,)*) -> $ret:ty) => (
-        pub type $func = Option<unsafe extern "C" fn($($p: $t,)*) -> $ret>;
-    );
-}
+use crate::declare_handle;
+use super::externs::*;
 
 declare_handle!{HWND, HWND__}
 declare_handle!{HINSTANCE, HINSTANCE__}
@@ -68,12 +48,6 @@ pub const WS_OVERLAPPEDWINDOW: DWORD = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU |
     | WS_MINIMIZEBOX | WS_MAXIMIZEBOX;
 pub const WS_VISIBLE: DWORD = 0x10000000;
 
-declare_extern_function!{stdcall WNDPROC(
-    HWND,
-    UINT,
-    WPARAM,
-    LPARAM,
-) -> LRESULT}
 
 #[repr(C)] 
 #[derive(Clone, Copy)]
@@ -108,47 +82,4 @@ pub struct MSG {
     pub pt: POINT,
 }
 
-pub struct Window {
-    pub handle : HWND,
-}
 
-extern "system" {
-    pub fn GetModuleHandleW(
-        lpModuleName: LPCWSTR,
-    ) -> HMODULE;
-    pub fn DefWindowProcW(
-        hWnd: HWND,
-        Msg: UINT,
-        wParam: WPARAM,
-        lParam: LPARAM,
-    ) -> LRESULT;
-    pub fn RegisterClassW(
-        lpWndClass: *const WNDCLASSW,
-    ) -> ATOM;
-    pub fn CreateWindowExW(
-        dwExStyle: DWORD,
-        lpClassName: LPCWSTR,
-        lpWindowName: LPCWSTR,
-        dwStyle: DWORD,
-        x: c_int,
-        y: c_int,
-        nWidth: c_int,
-        nHeight: c_int,
-        hWndParent: HWND,
-        hMenu: HMENU,
-        hInstance: HINSTANCE,
-        lpParam: LPVOID,
-    ) -> HWND;
-    pub fn GetMessageW(
-        lpMsg: LPMSG,
-        hWnd: HWND,
-        wMsgFilterMin: UINT,
-        wMsgFilterMax: UINT,
-    ) -> BOOL;
-    pub fn TranslateMessage(
-        lpmsg: *const MSG,
-    ) -> BOOL;
-    pub fn DispatchMessageW(
-        lpmsg: *const MSG,
-    ) -> LRESULT;
-}

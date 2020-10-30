@@ -1,4 +1,4 @@
-use super::implement_zero;
+use crate::implement_zero;
 use super::zero::*;
 
 #[derive(PartialEq, Eq, Copy, Clone, Hash)]

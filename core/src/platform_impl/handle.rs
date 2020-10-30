@@ -1,7 +1,4 @@
-pub trait Handle
+pub struct Handle
 {
-    fn is_valid(&self) -> bool;
+    pub handle_impl: super::platform::handle::HandleImpl,
 }
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct TrustedHandle;

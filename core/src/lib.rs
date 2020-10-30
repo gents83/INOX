@@ -2,9 +2,9 @@
 
 // Common 
 
-pub use self::platform_impl::*;
 pub use self::platform_impl::platform::*;
-pub use self::handle::*;
+pub use self::platform_impl::handle::*;
+pub use self::platform_impl::window::*;
 
 pub use self::entity::*;
 pub use self::component::*;
@@ -15,6 +15,7 @@ pub use self::system::*;
 pub mod platform_impl
 {
     pub mod handle;
+    pub mod window;
 
     #[cfg(target_os = "android")]
     #[path = "android/platform.rs"]

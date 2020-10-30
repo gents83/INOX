@@ -6,9 +6,11 @@ fn main() {
     let _transf = Matrix4::identity();
     _transf.print();    
 
-    let _handle = TrustedHandle::new();
-
-    let mut window = create_window( "NRGWindow", "NRG - Window" );
+    let mut window = 
+    Window::create( String::from("NRGWindow"),
+                   String::from("NRG - Window"),
+                   100, 100,
+                   800, 600 );
 
     loop {
         if !handle_message( &mut window ) {
