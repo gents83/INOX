@@ -1,19 +1,23 @@
 use nrg_core::*;
 use nrg_math::*;
+use nrg_platform::*;
 
 fn main() {
     let _entity = Entity::new();
     let _transf = Matrix4::identity();
     _transf.print();    
 
-    let mut window = 
+    let window = 
     Window::create( String::from("NRGWindow"),
                    String::from("NRG - Window"),
                    100, 100,
-                   800, 600 );
+                   1024, 768 );
 
-    loop {
-        if !handle_message( &mut window ) {
+    loop 
+    {
+        let is_ended = window.update() ;
+        if is_ended
+        {
             break;
         }
     }

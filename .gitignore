@@ -1,5 +1,6 @@
 NRG.code-workspace
 /.vscode
 /target
+platform/target
 core/target
 math/target

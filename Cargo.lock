@@ -6,6 +6,7 @@ version = "0.1.0"
 dependencies = [
  "nrg_core",
  "nrg_math",
+ "nrg_platform",
 ]
 
 [[package]]
@@ -14,4 +15,8 @@ version = "0.1.0"
 
 [[package]]
 name = "nrg_math"
+version = "0.1.0"
+
+[[package]]
+name = "nrg_platform"
 version = "0.1.0"

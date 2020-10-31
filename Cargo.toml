@@ -8,5 +8,6 @@ build = "build.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-nrg_core = { path = "core" }
+nrg_platform = { path = "platform" }
 nrg_math = { path = "math" }
+nrg_core = { path = "core" }

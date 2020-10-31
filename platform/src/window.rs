@@ -1,5 +1,4 @@
-use super::handle::*;
-use super::platform::window::*;
+use crate::handle::*;
 
 pub struct Window {
     pub handle: Handle,
@@ -22,5 +21,10 @@ impl Window {
 
         Window::new(_name, _title, _x, _y, _width, _height)
 
+    }
+
+    pub fn update(&self) -> bool {
+        let is_ended = Window::internal_update(self);
+        is_ended
     }
 }

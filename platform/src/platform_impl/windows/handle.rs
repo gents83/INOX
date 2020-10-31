@@ -1,4 +1,4 @@
-use super::super::handle::*;
+use crate::handle::*;
 use super::types::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

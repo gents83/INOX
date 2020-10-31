@@ -36,7 +36,6 @@ pub type LPMSG = *mut MSG;
 pub const CS_VREDRAW: UINT = 0x0001;
 pub const CS_HREDRAW: UINT = 0x0002;
 pub const CS_OWNDC: UINT = 0x0020;
-pub const CW_USEDEFAULT: c_int = 0x80000000;
 
 pub const WS_OVERLAPPED: DWORD = 0x00000000;
 pub const WS_CAPTION: DWORD = 0x00C00000;

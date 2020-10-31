@@ -3,8 +3,8 @@
 use super::externs::*;
 use super::types::*;
 use super::handle::*;
-use super::super::handle::*;
-use super::super::window::*;
+use crate::handle::*;
+use crate::window::*;
 
 impl Window {
     pub fn new(
@@ -67,5 +67,19 @@ impl Window {
                 title: _title
             }        
         }
+    }
+
+    pub fn internal_update(&self) -> bool {
+        unsafe {
+            let mut message : MSG = ::std::mem::MaybeUninit::zeroed().assume_init();
+            if GetMessageW( &mut message as *mut MSG, self.handle.handle_impl.hwnd, 0, 0 ) > 0 {
+                TranslateMessage( &message as *const MSG );
+                DispatchMessageW( &message as *const MSG );
+    
+                false
+            } else {
+                true
+            }
+        } 
     }
 }
