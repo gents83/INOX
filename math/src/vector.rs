@@ -1,4 +1,4 @@
-use crate::implement_zero;
+use crate::implement_zero_as_default;
 use super::zero::*;
 
 #[derive(PartialEq, Eq, Copy, Clone, Hash)]
@@ -28,9 +28,11 @@ pub struct Vector4<T> {
 }
 
 macro_rules! implement_vector {
-    ($VectorN:ident { $($field:ident),+ }, $n:expr, $Type:ty) => {
+    ($VectorType:ident, $Type:ty, $VectorN:ident { $($field:ident),+ }, $n:expr) => {
+    
+        pub type $VectorType = $VectorN<$Type>;
 
-        impl $VectorN<$Type> {            
+        impl $VectorN<$Type> {  
             #[inline]
             pub const fn new($($field: $Type),+) -> $VectorN<$Type> {
                 $VectorN { $($field),+ }
@@ -44,6 +46,14 @@ macro_rules! implement_vector {
                     }
                     println!("]");
                 }
+            }
+        }
+
+        impl Default for $VectorN<$Type> {
+            fn default() -> $VectorN<$Type>
+            {
+                type ParamType = $Type;
+                $VectorN { $($field : ParamType::zero()),+ }
             }
         }
 
@@ -74,18 +84,33 @@ macro_rules! implement_vector {
                 match v { [$($field),+] => $VectorN { $($field),+ } }
             }
         }
+        
+
+        impl From<$Type> for $VectorN<$Type> {
+            #[inline]
+            fn from(v: $Type) -> $VectorN<$Type> {
+                 $VectorN { $($field: v),+ }
+            }
+        }
 
         impl ::std::ops::Add for $VectorN<$Type> {
             type Output = $VectorN<$Type>;
             #[inline]
-            fn add(self, other: $VectorN<$Type>) -> $VectorN<$Type> { self + other }
+            fn add(self, other: $VectorN<$Type>) -> $VectorN<$Type> {
+                $VectorN { $($field: self.$field + other.$field),+ }
+            }
         }
         
-        implement_zero!($VectorN<$Type>, $VectorN { $($field : 0.0),+ });
+        implement_zero_as_default!($VectorN<$Type>);
     }
 }
 
-implement_vector!(Vector1 { x }, 1, f32);
-implement_vector!(Vector2 { x, y }, 2, f32);
-implement_vector!(Vector3 { x, y, z }, 3, f32);
-implement_vector!(Vector4 { x, y, z, w }, 4, f32);
+implement_vector!(Vector1f, f32, Vector1 { x }, 1);
+implement_vector!(Vector2f, f32, Vector2 { x, y }, 2);
+implement_vector!(Vector3f, f32, Vector3 { x, y, z }, 3);
+implement_vector!(Vector4f, f32, Vector4 { x, y, z, w }, 4);
+
+implement_vector!(Vector1u, u32, Vector1 { x }, 1);
+implement_vector!(Vector2u, u32, Vector2 { x, y }, 2);
+implement_vector!(Vector3u, u32, Vector3 { x, y, z }, 3);
+implement_vector!(Vector4u, u32, Vector4 { x, y, z, w }, 4);

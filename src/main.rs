@@ -7,11 +7,14 @@ fn main() {
     let _transf = Matrix4::identity();
     _transf.print();    
 
+    let _pos = Vector2u::new(100, 100);
+    let _size = Vector2u::new(1024, 768);
+
     let window = 
     Window::create( String::from("NRGWindow"),
                    String::from("NRG - Window"),
-                   100, 100,
-                   1024, 768 );
+                   _pos.x, _pos.y,
+                   _size.x, _size.y );
 
     loop 
     {

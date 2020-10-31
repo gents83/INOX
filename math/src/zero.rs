@@ -26,6 +26,24 @@ macro_rules! implement_zero {
     };
 }
 
+#[macro_export]
+macro_rules! implement_zero_as_default {
+    ($Type:ty) => {
+        impl Zero for $Type {
+            #[inline]
+            fn zero() -> $Type {
+                type Type = $Type;
+                Type::default()
+            }
+            #[inline]
+            fn is_zero(&self) -> bool {
+                type Type = $Type;
+                *self == Type::default()
+            }
+        }
+    };
+}
+
 implement_zero!(usize, 0);
 implement_zero!(u8, 0);
 implement_zero!(u16, 0);
