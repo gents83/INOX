@@ -3,3 +3,6 @@ name = "nrg_platform"
 version = "0.1.0"
 authors = ["gents83 <gents83@gmail.com>"]
 edition = "2018"
+
+[dependencies]
+vulkan_bindings = { path = "../bindings/vulkan_bindings"}

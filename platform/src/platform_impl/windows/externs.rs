@@ -1,4 +1,5 @@
 use crate::declare_extern_function;
+use crate::ctypes::*;
 use super::types::*;
 
 declare_extern_function!{stdcall WNDPROC(

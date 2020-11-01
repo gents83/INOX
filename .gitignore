@@ -4,3 +4,4 @@ NRG.code-workspace
 platform/target
 core/target
 math/target
+bindings/vulkan_bindings/target

@@ -1,6 +1,7 @@
 #![allow(bad_style, overflowing_literals)]
 
 use crate::declare_handle;
+use crate::ctypes::*;
 use super::externs::*;
 
 declare_handle!{HWND, HWND__}
@@ -11,11 +12,6 @@ declare_handle!{HMENU, HMENU__}
 
 pub type HMODULE = HINSTANCE;
 pub type HCURSOR = HICON;
-pub type c_int = i32;
-pub type c_long = i32;
-pub type c_uint = u32;
-pub type c_ushort = u16;
-pub type c_ulong = u32;
 pub type wchar_t = u16;
 pub type BOOL = c_int;
 pub type WCHAR = wchar_t;
