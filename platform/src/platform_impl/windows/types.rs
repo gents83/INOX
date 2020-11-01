@@ -10,10 +10,12 @@ declare_handle!{HICON, HICON__}
 declare_handle!{HBRUSH, HBRUSH__}
 declare_handle!{HMENU, HMENU__}
 
+pub type HANDLE = *mut c_void;
 pub type HMODULE = HINSTANCE;
 pub type HCURSOR = HICON;
 pub type wchar_t = u16;
 pub type BOOL = c_int;
+pub type CHAR = c_char;
 pub type WCHAR = wchar_t;
 pub type WORD = c_ushort;
 pub type DWORD = c_ulong;
@@ -22,12 +24,17 @@ pub type LONG = c_long;
 pub type UINT_PTR = usize;
 pub type LONG_PTR = isize;
 pub type ATOM = WORD;
+pub type LPCSTR = *const CHAR;
 pub type LPCWSTR = *const WCHAR;
 pub type WPARAM = UINT_PTR;
 pub type LPARAM = LONG_PTR;
 pub type LRESULT = LONG_PTR;
 pub type LPVOID = *mut ::std::ffi::c_void;
 pub type LPMSG = *mut MSG;
+
+pub enum __some_function {}
+/// Pointer to a function with unknown type signature.
+pub type FARPROC = *mut __some_function;
 
 pub const CS_VREDRAW: UINT = 0x0001;
 pub const CS_HREDRAW: UINT = 0x0002;

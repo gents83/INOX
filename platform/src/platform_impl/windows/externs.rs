@@ -48,4 +48,17 @@ extern "system" {
     pub fn DispatchMessageW(
         lpmsg: *const MSG,
     ) -> LRESULT;
+    pub fn LoadLibraryExW(
+        lpLibFileName: LPCWSTR,
+        hFile: HANDLE,
+        dwFlags: DWORD,
+    ) -> HMODULE;
+    pub fn GetProcAddress(
+        hModule: HMODULE,
+        lpProcName: LPCSTR,
+    ) -> FARPROC;
+    pub fn FreeLibrary(
+        hLibModule: HMODULE,
+    ) -> BOOL;
+    pub fn GetLastError() -> DWORD;
 }

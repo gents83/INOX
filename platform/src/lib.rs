@@ -8,6 +8,8 @@ pub use self::window::*;
 mod ctypes;
 pub mod handle;
 pub mod window;
+pub mod loader;
+pub mod symbol;
 
 pub mod api
 {

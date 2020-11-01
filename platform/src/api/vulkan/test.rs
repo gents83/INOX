@@ -3,6 +3,8 @@ fn test_vulkan()
 {
     use vulkan_bindings::*;
     use super::types::*;
+    use super::lib::*;
+    use crate::loader::*;
 
     let app_info = VkApplicationInfo {
         sType: VkStructureType_VK_STRUCTURE_TYPE_APPLICATION_INFO,
@@ -24,6 +26,20 @@ fn test_vulkan()
         enabledExtensionCount: 0,
         ppEnabledExtensionNames: ::std::ptr::null_mut(), 
     };
-    
+
+    let library_path = get_vulkan_lib_path();
+    let lib = LibLoader::new(library_path);
+
+    let vkCreateInstance = lib.get::<PFN_vkCreateInstance>("vkCreateInstance").unwrap();
+    let mut instance:VkInstance = ::std::ptr::null_mut();
+    unsafe {        
+        assert_eq!(
+            VkResult_VK_SUCCESS,
+            vkCreateInstance(&create_info, ::std::ptr::null_mut(), &mut instance)
+        );
+    }
+
+    lib.close();
+
     assert_eq!(true, true);
 }
