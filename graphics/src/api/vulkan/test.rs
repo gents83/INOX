@@ -3,17 +3,15 @@ fn test_vulkan()
 {
     use vulkan_bindings::*;
     use super::types::*;
-    use super::lib::*;
-    use crate::loader::*;
 
     let app_info = VkApplicationInfo {
         sType: VkStructureType_VK_STRUCTURE_TYPE_APPLICATION_INFO,
         pNext: ::std::ptr::null_mut(),
         pApplicationName: ::std::ffi::CString::new("NRG").unwrap().as_ptr(),
-        applicationVersion: VK_API_VERSION_1_0,
+        applicationVersion: VK_API_VERSION_1_1,
         pEngineName: ::std::ffi::CString::new("NRGEngine").unwrap().as_ptr(),
-        engineVersion: VK_API_VERSION_1_0,
-        apiVersion: VK_API_VERSION_1_0,
+        engineVersion: VK_API_VERSION_1_1,
+        apiVersion: VK_API_VERSION_1_1,
     };
 
     let create_info = VkInstanceCreateInfo {
@@ -27,19 +25,32 @@ fn test_vulkan()
         ppEnabledExtensionNames: ::std::ptr::null_mut(), 
     };
 
-    let library_path = get_vulkan_lib_path();
-    let lib = LibLoader::new(library_path);
-
-    let vkCreateInstance = lib.get::<PFN_vkCreateInstance>("vkCreateInstance").unwrap();
+    let lib = LibLoader::new(&vulkan_bindings::Library::new(), "1.1").unwrap();
+    
     let mut instance:VkInstance = ::std::ptr::null_mut();
     unsafe {        
         assert_eq!(
             VkResult_VK_SUCCESS,
-            vkCreateInstance(&create_info, ::std::ptr::null_mut(), &mut instance)
+            lib.vkCreateInstance.unwrap()(&create_info, ::std::ptr::null_mut(), &mut instance)
         );
     }
 
-    lib.close();
+    let mut physical_device_count = 0;
+    unsafe {
+        assert_eq!(
+            VkResult_VK_SUCCESS,
+            lib.vkEnumeratePhysicalDevices.unwrap()(instance, &mut physical_device_count, ::std::ptr::null_mut())
+        );
+    }
+    assert_ne!(physical_device_count, 0);
 
-    assert_eq!(true, true);
+    let mut extension_count = 0;
+    unsafe {
+        assert_eq!(
+            VkResult_VK_SUCCESS,
+            lib.vkEnumerateInstanceExtensionProperties.unwrap()(::std::ptr::null_mut(), &mut extension_count, ::std::ptr::null_mut())
+        );
+    }
+    assert_ne!(extension_count, 0);
+
 }

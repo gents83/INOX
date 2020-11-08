@@ -1,7 +1,9 @@
 NRG.code-workspace
 /.vscode
 bindings/vulkan_bindings/target
+graphics/target
 platform/target
+xml/target
 core/target
 math/target
 /target

@@ -1,6 +1,7 @@
 use nrg_core::*;
 use nrg_math::*;
 use nrg_platform::*;
+use nrg_graphics::*;
 
 fn main() {
     let _entity = Entity::new();

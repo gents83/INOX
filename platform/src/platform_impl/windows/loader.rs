@@ -52,7 +52,7 @@ impl LibLoader
 
     pub fn close(self) {
         let result = unsafe { FreeLibrary(self.0) };
-        if result != 0 {
+        if result == 0 {
             panic!("Unable to close library with error {}", result)
         } 
     }

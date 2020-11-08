@@ -1,3 +1,5 @@
+#![allow(bad_style, overflowing_literals, dead_code)]
+
 use crate::declare_extern_function;
 use crate::ctypes::*;
 use super::types::*;

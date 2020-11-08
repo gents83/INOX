@@ -1,4 +1,3 @@
-use super::externs::*;
 use super::types::*;
 
 use std::marker;

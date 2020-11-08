@@ -7,6 +7,5 @@ pub use types::*;
 
 mod macros;
 mod types;
-mod lib;
 
 mod test;

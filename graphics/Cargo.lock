@@ -196,31 +196,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "nrg"
-version = "0.1.0"
-dependencies = [
- "nrg_core",
- "nrg_graphics",
- "nrg_math",
- "nrg_platform",
- "xml",
-]
-
-[[package]]
-name = "nrg_core"
-version = "0.1.0"
-
-[[package]]
 name = "nrg_graphics"
 version = "0.1.0"
 dependencies = [
  "nrg_platform",
  "vulkan_bindings",
 ]
-
-[[package]]
-name = "nrg_math"
-version = "0.1.0"
 
 [[package]]
 name = "nrg_platform"
