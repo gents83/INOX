@@ -7,3 +7,5 @@ xml/target
 core/target
 math/target
 /target
+*.gfxr
+*.foz
