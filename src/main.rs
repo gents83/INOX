@@ -1,9 +1,8 @@
 use nrg_core::*;
 use nrg_math::*;
 use nrg_platform::*;
-use nrg_graphics::*;
 
-fn main() {
+fn main() {    
     let _entity = Entity::new();
     let _transf = Matrix4::identity();
     _transf.print();    

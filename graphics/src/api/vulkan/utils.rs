@@ -60,3 +60,55 @@ pub fn is_device_suitable(lib:&LibLoader, device:&VkPhysicalDevice) -> bool {
     }
     return false
 }
+
+pub fn find_plane_for_display(lib:&LibLoader, device:&VkPhysicalDevice, display:&VkDisplayKHR, plane_properties:&Vec<VkDisplayPlanePropertiesKHR>) -> i32 {
+
+    for (index, plane) in plane_properties.iter().enumerate() {
+        if (plane.currentDisplay != ::std::ptr::null_mut()) &&
+            (plane.currentDisplay != *display) {
+            continue;
+        }
+
+        let mut supported_count: u32 = unsafe {
+            let mut output = ::std::mem::MaybeUninit::uninit();
+            lib.vkGetDisplayPlaneSupportedDisplaysKHR.unwrap()(*device, index as u32, output.as_mut_ptr(), ::std::ptr::null_mut());
+            output.assume_init()
+        };
+
+        if supported_count == 0 {
+            continue;
+        }            
+        
+        let mut supported_displays: Vec<VkDisplayKHR> = Vec::with_capacity(supported_count as usize);
+        unsafe {
+            supported_displays.set_len(supported_count as usize);
+            lib.vkGetDisplayPlaneSupportedDisplaysKHR.unwrap()(*device, index as u32, &mut supported_count, supported_displays.as_mut_ptr());
+        }
+        
+        let found = match supported_displays.iter().find(|item| *item == display ) {
+            Some(_) => true,
+            None => false, 
+        };
+        
+        if found {
+            return index as i32
+        }
+    }
+    return -1;
+}
+
+pub fn get_supported_alpha_mode(display_plane_capabilities:&VkDisplayPlaneCapabilitiesKHR) -> VkCompositeAlphaFlagBitsKHR {
+    let alpha_mode_types : [u32; 4] = [
+        VkDisplayPlaneAlphaFlagBitsKHR_VK_DISPLAY_PLANE_ALPHA_OPAQUE_BIT_KHR as u32,
+        VkDisplayPlaneAlphaFlagBitsKHR_VK_DISPLAY_PLANE_ALPHA_GLOBAL_BIT_KHR as u32,
+        VkDisplayPlaneAlphaFlagBitsKHR_VK_DISPLAY_PLANE_ALPHA_PER_PIXEL_BIT_KHR as u32,
+        VkDisplayPlaneAlphaFlagBitsKHR_VK_DISPLAY_PLANE_ALPHA_PER_PIXEL_PREMULTIPLIED_BIT_KHR as u32
+    ];
+
+    for item in alpha_mode_types.iter() {
+        if (display_plane_capabilities.supportedAlpha & *item) == 1{
+            return *item as VkCompositeAlphaFlagBitsKHR
+        }
+    }
+    return VkDisplayPlaneAlphaFlagBitsKHR_VK_DISPLAY_PLANE_ALPHA_OPAQUE_BIT_KHR
+}

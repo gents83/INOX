@@ -38,9 +38,11 @@ impl LibLoader
     }
     
     pub unsafe fn get<T>(&self, symbol: &str) -> Symbol<T>{
-        let ret = GetProcAddress(self.0, CString::new(symbol).unwrap().as_ptr());
+        let fn_name = CString::new(symbol).unwrap();
+        let ret = GetProcAddress(self.0, fn_name.as_ptr());
         if ret.is_null() {
-            panic!("Unable to get required symbol {}", str::from_utf8(::std::mem::transmute(symbol)).unwrap())
+            let error = GetLastError();
+            panic!("Unable to get required symbol {} with error {}", str::from_utf8(::std::mem::transmute(symbol)).unwrap(), error)
         } 
         else {
             Symbol {

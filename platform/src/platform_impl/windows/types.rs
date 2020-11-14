@@ -1,4 +1,4 @@
-#![allow(bad_style, overflowing_literals)]
+#![allow(bad_style, overflowing_literals, dead_code)]
 
 use crate::declare_handle;
 use crate::ctypes::*;
@@ -32,9 +32,8 @@ pub type LRESULT = LONG_PTR;
 pub type LPVOID = *mut ::std::ffi::c_void;
 pub type LPMSG = *mut MSG;
 
-pub enum __some_function {}
 /// Pointer to a function with unknown type signature.
-pub type FARPROC = *mut __some_function;
+pub type FARPROC = *mut *const ();
 
 pub const CS_VREDRAW: UINT = 0x0001;
 pub const CS_HREDRAW: UINT = 0x0002;
@@ -50,6 +49,7 @@ pub const WS_OVERLAPPEDWINDOW: DWORD = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU |
     | WS_MINIMIZEBOX | WS_MAXIMIZEBOX;
 pub const WS_VISIBLE: DWORD = 0x10000000;
 
+pub const LOAD_LIBRARY_SEARCH_SYSTEM32: DWORD = 0x00000800;
 
 #[repr(C)] 
 #[derive(Clone, Copy)]

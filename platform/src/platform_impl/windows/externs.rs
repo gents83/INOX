@@ -50,6 +50,12 @@ extern "system" {
     pub fn DispatchMessageW(
         lpmsg: *const MSG,
     ) -> LRESULT;
+    pub fn LoadLibraryA(
+        lpLibFileName: LPCWSTR,
+    ) -> HMODULE;
+    pub fn LoadLibraryW(
+        lpLibFileName: LPCWSTR,
+    ) -> HMODULE;
     pub fn LoadLibraryExW(
         lpLibFileName: LPCWSTR,
         hFile: HANDLE,

@@ -12,7 +12,7 @@ use std::{
 use xml::reader::{ EventReader, XmlEvent };
 
 fn main() {
-
+  
   // Write the bindings to the $OUT_DIR/bindings.rs file.
   let out_dir = env::var("OUT_DIR").unwrap();
   let dest_path = Path::new(&out_dir).join("bindings.rs");
@@ -46,6 +46,7 @@ fn main() {
   let mut is_extension = false;
   let mut is_platform_specific = false;
   let mut is_deprecated = false;
+  let mut is_special_use = false;
   let mut is_feature_requirement = false;
   let mut version_number = String::from("1.0");
   
@@ -56,7 +57,7 @@ fn main() {
           match name.to_string().as_str() {
             "command" => { 
               is_command = true;
-              if is_extension && (is_platform_specific || is_deprecated) {
+              if is_extension && (is_platform_specific || is_deprecated || is_special_use) {
                 match attributes.iter().find(|ref attr| {
                   attr.to_string().contains("name")
                 }) {
@@ -111,6 +112,14 @@ fn main() {
                   None => false
                 }
               };
+              is_special_use = {
+                match attributes.iter().find(|ref attr| {
+                  attr.to_string().contains("specialuse")
+                }) {
+                  Some(_) => true,
+                  None => false
+                }
+              };
             },
             "name" => is_fn_name = true,
             _ => (),
@@ -118,7 +127,7 @@ fn main() {
         }
         Ok(XmlEvent::Characters(text)) => {
           if is_fn_name {
-            if is_platform_specific || is_deprecated {
+            if is_platform_specific || is_deprecated || is_special_use {
               commands_extensions.insert(text.clone());
             }
             if is_command && is_proto {
@@ -131,7 +140,7 @@ fn main() {
             "command" => is_command = false,
             "feature" => is_feature_requirement = false,
             "proto" => is_proto = false,
-            "extension" => { is_extension = false; is_platform_specific = false; },
+            "extension" => { is_extension = false; is_platform_specific = false; is_deprecated = false; is_special_use = false; },
             "name" => is_fn_name = false,
             _ => (),
           }
