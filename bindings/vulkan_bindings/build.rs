@@ -12,13 +12,16 @@ use std::{
 use xml::reader::{ EventReader, XmlEvent };
 
 fn main() {
-  
+
   // Write the bindings to the $OUT_DIR/bindings.rs file.
   let out_dir = env::var("OUT_DIR").unwrap();
   let dest_path = Path::new(&out_dir).join("bindings.rs");
 
+  let vulkan_sdk_path = env::var("VULKAN_SDK").unwrap();
+  let mut vulkan_header = vulkan_sdk_path.clone();
+  vulkan_header.push_str("\\include\\vulkan\\vulkan.h");
   let bindings = bindgen::Builder::default()
-    .header("data/Vulkan-Headers/include/vulkan/vulkan.h")
+    .header(vulkan_header.to_owned())
     .ignore_functions()
     .clang_arg("-DVK_NO_PROTOTYPES")
     .generate()
@@ -31,7 +34,9 @@ fn main() {
   
   let mut f = OpenOptions::new().append(true).open(dest_path).unwrap();
 
-  let file = File::open("data/Vulkan-Headers/registry/vk.xml").unwrap();
+  let mut vulkan_xml = vulkan_sdk_path.clone();
+  vulkan_xml.push_str("\\share\\vulkan\\registry\\vk.xml");
+  let file = File::open(vulkan_xml.to_owned()).unwrap();
   let file = BufReader::new(file);
 
   let mut allcommands: HashSet<_> = HashSet::new();
@@ -161,6 +166,9 @@ fn main() {
     
   let allcommands = allcommands.difference(&commands_extensions)
                      .collect::<HashSet<_>>();
+  
+  let mut allcommands:Vec<_> = allcommands.into_iter().collect();
+  allcommands.sort_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()));
   
   writeln!(f, "").unwrap();
 
