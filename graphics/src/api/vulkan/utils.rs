@@ -6,7 +6,7 @@ pub struct QueueFamilyIndices {
     pub graphics_family_index: i32,
 }
 
-pub fn find_queue_family_indices(lib:&LibLoader, device: &VkPhysicalDevice) -> QueueFamilyIndices {
+pub fn find_queue_family_indices(lib:&VK, device: &VkPhysicalDevice) -> QueueFamilyIndices {
  
     let mut queue_family_count: u32 = unsafe {
         let mut output = ::std::mem::MaybeUninit::uninit();
@@ -34,7 +34,7 @@ pub fn find_queue_family_indices(lib:&LibLoader, device: &VkPhysicalDevice) -> Q
     }
 }
 
-pub fn is_device_suitable(lib:&LibLoader, device:&VkPhysicalDevice) -> bool {
+pub fn is_device_suitable(lib:&VK, device:&VkPhysicalDevice) -> bool {
 
     let device_properties: VkPhysicalDeviceProperties = unsafe {
         let mut output = ::std::mem::MaybeUninit::uninit();
@@ -61,7 +61,7 @@ pub fn is_device_suitable(lib:&LibLoader, device:&VkPhysicalDevice) -> bool {
     return false
 }
 
-pub fn find_plane_for_display(lib:&LibLoader, device:&VkPhysicalDevice, display:&VkDisplayKHR, plane_properties:&Vec<VkDisplayPlanePropertiesKHR>) -> i32 {
+pub fn find_plane_for_display(lib:&VK, device:&VkPhysicalDevice, display:&VkDisplayKHR, plane_properties:&Vec<VkDisplayPlanePropertiesKHR>) -> i32 {
 
     for (index, plane) in plane_properties.iter().enumerate() {
         if (plane.currentDisplay != ::std::ptr::null_mut()) &&

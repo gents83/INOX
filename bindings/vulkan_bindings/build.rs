@@ -49,9 +49,7 @@ fn main() {
   let mut is_proto = false;
   let mut is_fn_name = false;
   let mut is_extension = false;
-  let mut is_platform_specific = false;
-  let mut is_deprecated = false;
-  let mut is_special_use = false;
+  let mut should_be_excluded = false;
   let mut is_feature_requirement = false;
   let mut version_number = String::from("1.0");
   
@@ -62,7 +60,7 @@ fn main() {
           match name.to_string().as_str() {
             "command" => { 
               is_command = true;
-              if is_extension && (is_platform_specific || is_deprecated || is_special_use) {
+              if is_extension && should_be_excluded {
                 match attributes.iter().find(|ref attr| {
                   attr.to_string().contains("name")
                 }) {
@@ -101,25 +99,13 @@ fn main() {
             "proto" => is_proto = true,
             "extension" => {
               is_extension = true;
-              is_platform_specific = {
+              should_be_excluded = {
                 match attributes.iter().find(|ref attr| {
-                  attr.to_string().contains("platform")
-                }) {
-                  Some(_) => true,
-                  None => false
-                }
-              };
-              is_deprecated = {
-                match attributes.iter().find(|ref attr| {
-                  attr.to_string().contains("deprecated")
-                }) {
-                  Some(_) => true,
-                  None => false
-                }
-              };
-              is_special_use = {
-                match attributes.iter().find(|ref attr| {
-                  attr.to_string().contains("specialuse")
+                  attr.to_string().contains("platform") ||
+                  attr.to_string().contains("deprecated") ||
+                  attr.to_string().contains("specialuse") ||
+                  attr.value.to_string() == "NV" ||
+                  attr.value.to_string() == "EXT"
                 }) {
                   Some(_) => true,
                   None => false
@@ -132,10 +118,10 @@ fn main() {
         }
         Ok(XmlEvent::Characters(text)) => {
           if is_fn_name {
-            if is_platform_specific || is_deprecated || is_special_use {
+            if should_be_excluded {
               commands_extensions.insert(text.clone());
             }
-            if is_command && is_proto {
+            else if is_command && is_proto {
               allcommands.insert(text);
             }
           }
@@ -145,7 +131,7 @@ fn main() {
             "command" => is_command = false,
             "feature" => is_feature_requirement = false,
             "proto" => is_proto = false,
-            "extension" => { is_extension = false; is_platform_specific = false; is_deprecated = false; is_special_use = false; },
+            "extension" => { is_extension = false; should_be_excluded = false; },
             "name" => is_fn_name = false,
             _ => (),
           }
@@ -157,7 +143,6 @@ fn main() {
         _ => {}
     }
   }
-  
   
   writeln!(f, "").unwrap();
   writeln!(f, "").unwrap();
@@ -172,7 +157,7 @@ fn main() {
   
   writeln!(f, "").unwrap();
 
-  writeln!(f, "pub struct LibLoader {{").unwrap();
+  writeln!(f, "pub struct VK {{").unwrap();
   for command in allcommands.clone() {
       writeln!(f, "    pub {}: PFN_{},", command, command).unwrap();
   }
@@ -181,42 +166,20 @@ fn main() {
   writeln!(f, "").unwrap();
   
   
-  writeln!(f, "impl<'a> LibLoader {{").unwrap();
+  writeln!(f, "impl<'a> VK {{").unwrap();
   writeln!(
       f,
-      "   pub fn new(lib : &'a Library, version_number: &str) -> Result<LibLoader, VkResult> {{"
+      "   pub fn new(lib : &'a Lib) -> VK {{"
   ).unwrap();
   writeln!(f, "").unwrap();
-  writeln!(f, "       match version_number {{").unwrap();
-
-  writeln!(f, "         \"1.2\" => Ok(LibLoader {{").unwrap();
+  
+  writeln!(f, "         VK {{").unwrap();
     for command in allcommands.clone() {
-        writeln!(f, "               {}: unsafe {{ Some( lib.library.get::<PFN_{}>(\"{}\").unwrap() ) }},", command, command, command).unwrap();
+        writeln!(f, "               {}: lib.library.get::<PFN_{}>(\"{}\"),", command, command, command).unwrap();
     }
-  writeln!(f, "         }}),").unwrap();
-  writeln!(f, "         \"1.1\" => Ok(LibLoader {{").unwrap();
-    for command in allcommands.clone() {
-      if commands_v12.contains(command) {
-        writeln!(f, "               {}: None,", command).unwrap();
-      }
-      else {
-        writeln!(f, "               {}: unsafe {{ Some( lib.library.get::<PFN_{}>(\"{}\").unwrap() ) }},", command, command, command).unwrap();
-      }
-    }
-  writeln!(f, "         }}),").unwrap();
-  writeln!(f, "         _ => Ok(LibLoader {{").unwrap();
-    for command in allcommands.clone() {
-      if commands_v12.contains(command) || commands_v11.contains(command) {
-        writeln!(f, "               {}: None,", command).unwrap();
-      }
-      else {
-        writeln!(f, "               {}: unsafe {{ Some( lib.library.get::<PFN_{}>(\"{}\").unwrap() ) }},", command, command, command).unwrap();
-      }
-    }
-  writeln!(f, "         }})").unwrap();
-
-  writeln!(f, "       }}").unwrap();
+  writeln!(f, "         }}").unwrap();
 
   writeln!(f, "   }}").unwrap();
   writeln!(f, "}}").unwrap();
+  
 }

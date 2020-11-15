@@ -32,8 +32,9 @@ pub type LRESULT = LONG_PTR;
 pub type LPVOID = *mut ::std::ffi::c_void;
 pub type LPMSG = *mut MSG;
 
+pub enum __some_function {}
 /// Pointer to a function with unknown type signature.
-pub type FARPROC = *mut *const ();
+pub type FARPROC = *mut __some_function;
 
 pub const CS_VREDRAW: UINT = 0x0001;
 pub const CS_HREDRAW: UINT = 0x0002;

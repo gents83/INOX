@@ -20,17 +20,35 @@ pub fn get_vulkan_lib_path() -> &'static str {
     "libvulkan.so"
 }
 
-pub struct Library {
-    pub library: nrg_platform::loader::LibLoader,
+pub struct Lib {
+    pub library: nrg_platform::library::Library,
 }
 
-impl Library {
-    pub fn new() -> Library {
+impl Lib {
+    pub fn new() -> Lib {
         let library_path = get_vulkan_lib_path();
-        Library { library: nrg_platform::loader::LibLoader::new(library_path) }
+        Lib { library: nrg_platform::library::Library::new(library_path) }
     }
 }
 
 
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
+
+/*
+pub struct Library {
+    pub vkAcquireNextImage2KHR: PFN_vkAcquireNextImage2KHR,
+    pub vkCmdBlitImage2KHR: PFN_vkCmdBlitImage2KHR,
+}
+
+impl<'a> Library {
+    pub fn new(lib : &'a Library) -> Library {
+        Library {
+            vkAcquireNextImage2KHR:
+                lib.library.get::<PFN_vkAcquireNextImage2KHR>("vkAcquireNextImage2KHR"),
+            vkCmdBlitImage2KHR: 
+                lib.library.get::<PFN_vkCmdBlitImage2KHR>("vkCmdBlitImage2KHR"),
+        }
+    }
+}
+*/

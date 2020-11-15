@@ -4,7 +4,6 @@ mod externs;
 mod macros;
 mod types;
 
-pub mod loader;
-pub mod symbol;
+pub mod library;
 pub mod handle;
 pub mod window;

@@ -1,11 +1,9 @@
 use super::externs::*;
 use super::types::*;
-use super::symbol::*;
 
 use std::env::consts::*;
 use std::ffi::*;
 use std::str;
-use std::marker;
 use std::os::windows::ffi::*;
 
 
@@ -19,11 +17,11 @@ pub fn library_filename<S: AsRef<OsStr>>(name: S) -> OsString {
 }
 
 
-pub struct LibLoader(HMODULE);
+pub struct Library(HMODULE);
 
-impl LibLoader
+impl Library
 {
-    pub fn load<S: AsRef<OsStr>>(filename: S) -> LibLoader {
+    pub fn load<S: AsRef<OsStr>>(filename: S) -> Library {
         let wide_filename: Vec<u16> = filename.as_ref().encode_wide().chain(Some(0)).collect();
         let handle = unsafe {
             LoadLibraryExW(wide_filename.as_ptr(), std::ptr::null_mut(), 0)
@@ -33,23 +31,18 @@ impl LibLoader
         }
         else
         {
-            LibLoader(handle)
+            Library(handle)
         }
     }
     
-    pub unsafe fn get<T>(&self, symbol: &str) -> Symbol<T>{
+    pub unsafe fn get<T>(&self, symbol: &str) -> T{
         let fn_name = CString::new(symbol).unwrap();
         let ret = GetProcAddress(self.0, fn_name.as_ptr());
         if ret.is_null() {
             let error = GetLastError();
-            panic!("Unable to get required symbol {} with error {}", str::from_utf8(::std::mem::transmute(symbol)).unwrap(), error)
-        } 
-        else {
-            Symbol {
-                pointer: ret,
-                pd: marker::PhantomData
-            }
-        }
+            eprintln!("Unable to get required symbol {} with error {}", symbol, error);
+        }        
+        ::std::mem::transmute_copy(&ret)
     }
 
     pub fn close(self) {

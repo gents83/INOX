@@ -5,7 +5,7 @@ fn test_vulkan()
     use super::types::*;
     use super::utils::*;
     
-    let lib = LibLoader::new(&vulkan_bindings::Library::new(), "1.1").unwrap();
+    let lib = VK::new(&vulkan_bindings::Lib::new());
 
     let app_info = VkApplicationInfo {
         sType: VkStructureType_VK_STRUCTURE_TYPE_APPLICATION_INFO,
