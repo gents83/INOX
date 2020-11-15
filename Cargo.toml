@@ -11,5 +11,3 @@ nrg_platform = { path = "platform" }
 nrg_graphics = { path = "graphics" }
 nrg_math = { path = "math" }
 nrg_core = { path = "core" }
-
-xml = { path = "xml" }

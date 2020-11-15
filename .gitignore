@@ -7,5 +7,6 @@ xml/target
 core/target
 math/target
 /target
+*.lock
 *.gfxr
 *.foz

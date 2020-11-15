@@ -1,9 +1,10 @@
  #![allow(dead_code)]
 
 use vulkan_bindings::*;
+use nrg_platform::*;
 use super::utils::*;
 
- #[test]
+#[test]
 fn test_vulkan()
 {
     use super::types::*;
@@ -211,6 +212,8 @@ fn test_vulkan()
         };
         assert_ne!(graphics_queue, ::std::ptr::null_mut());
 
+        test_vulkan_create_win32_display_surface(&mut instance);
+        //test_vulkan_create_khr_display_surface(&lib, &mut physical_device, &mut instance);
 
         unsafe {        
             lib.vkDestroyDevice.unwrap()(device, ::std::ptr::null_mut());
@@ -224,9 +227,36 @@ fn test_vulkan()
     }
 }
 
+#[allow(non_snake_case)]
+fn test_vulkan_create_win32_display_surface(instance:&mut VkInstance)
+{
+    let window =  Window::create( String::from("Test Window"),
+                    String::from("Test Window"),
+                    100, 100,
+                    1024, 768 );
+
+    let surface_create_info = VkWin32SurfaceCreateInfoKHR {
+        sType: VkStructureType_VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR,
+        pNext: ::std::ptr::null_mut(),
+        flags: 0,
+        hinstance: unsafe {::std::mem::transmute(window.handle.handle_impl.hinstance)},
+        hwnd: unsafe {::std::mem::transmute(window.handle.handle_impl.hwnd)},
+    };
+    
+    let vklib = &vulkan_bindings::Lib::new();
+
+    let mut surface:VkSurfaceKHR = ::std::ptr::null_mut();
+    unsafe {
+        let vkCreateWin32SurfaceKHR = vklib.library.get::<PFN_vkCreateWin32SurfaceKHR>("vkCreateWin32SurfaceKHR");
+        assert_eq!(
+            VkResult_VK_SUCCESS,
+            vkCreateWin32SurfaceKHR.unwrap()(*instance, &surface_create_info, ::std::ptr::null_mut(), &mut surface)
+        );
+    }
+}
 
 
-fn test_vulkan_create_display_surface(lib:&VK, physical_device:&mut VkPhysicalDevice, instance:&mut VkInstance)
+fn test_vulkan_create_khr_display_surface(lib:&VK, physical_device:&mut VkPhysicalDevice, instance:&mut VkInstance)
 {
     let mut display_count:u32 = 0;
     unsafe {
