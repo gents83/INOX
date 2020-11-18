@@ -17,6 +17,7 @@ pub fn library_filename<S: AsRef<OsStr>>(name: S) -> OsString {
 }
 
 
+#[derive(Clone, Copy)]
 pub struct Library(HMODULE);
 
 impl Library

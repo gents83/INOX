@@ -1,5 +1,6 @@
 use super::platform_impl::platform::library as platform;
 
+#[derive(Clone, Copy)]
 pub struct Library(platform::Library);
 
 impl Library {

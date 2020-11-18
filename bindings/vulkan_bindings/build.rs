@@ -56,7 +56,6 @@ fn main() {
         .write_to_file(dest_path.clone())
         .expect("Couldn't write bindings!");
 
-  
     let mut f = OpenOptions::new().append(true).open(dest_path).unwrap();
 
     let mut vulkan_xml = vulkan_sdk_path.clone();
@@ -180,31 +179,25 @@ fn main() {
     let mut allcommands:Vec<_> = allcommands.into_iter().collect();
     allcommands.sort_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()));
 
-    writeln!(f, "").unwrap();
-
-    writeln!(f, "pub struct VK {{").unwrap();
     for command in allcommands.clone() {
-        writeln!(f, "    pub {}: PFN_{},", command, command).unwrap();
+        writeln!(f, "pub static mut {}: PFN_{} = None;", command, command).unwrap();
     }
-    writeln!(f, "}}").unwrap();
 
     writeln!(f, "").unwrap();
 
+    writeln!(f, "pub struct VK;").unwrap();
+
+    writeln!(f, "").unwrap();
+
+    writeln!(f, "").unwrap();
 
     writeln!(f, "impl<'a> VK {{").unwrap();
-    writeln!(
-        f,
-        "   pub fn new(lib : &'a Lib) -> VK {{"
-    ).unwrap();
-    writeln!(f, "").unwrap();
-
-    writeln!(f, "         VK {{").unwrap();
+    writeln!( f, "  pub fn initialize(lib : &'a Lib) {{").unwrap();
+    writeln!(f, "       unsafe {{").unwrap();    
     for command in allcommands.clone() {
-        writeln!(f, "               {}: lib.library.get::<PFN_{}>(\"{}\"),", command, command, command).unwrap();
+        writeln!(f, "       {} = lib.library.get::<PFN_{}>(\"{}\");", command, command, command).unwrap();
     }
-    writeln!(f, "         }}").unwrap();
-
+    writeln!(f, "       }}").unwrap();
     writeln!(f, "   }}").unwrap();
     writeln!(f, "}}").unwrap();
-  
 }

@@ -8,9 +8,9 @@ use super::utils::*;
 fn test_vulkan()
 {
     use super::types::*;
-    
-    let lib = VK::new(&vulkan_bindings::Lib::new());
 
+    VK::initialize(&vulkan_bindings::Lib::new());
+    
     let app_info = VkApplicationInfo {
         sType: VkStructureType_VK_STRUCTURE_TYPE_APPLICATION_INFO,
         pNext: ::std::ptr::null_mut(),
@@ -38,7 +38,7 @@ fn test_vulkan()
     unsafe {
         assert_eq!(
             VkResult_VK_SUCCESS,
-            lib.vkEnumerateInstanceLayerProperties.unwrap()(&mut layers_count, ::std::ptr::null_mut())
+            vkEnumerateInstanceLayerProperties.unwrap()(&mut layers_count, ::std::ptr::null_mut())
         );
     }
     assert_ne!(layers_count, 0);    
@@ -48,7 +48,7 @@ fn test_vulkan()
         available_layers.set_len(layers_count as usize);
         assert_eq!(
             VkResult_VK_SUCCESS,
-            lib.vkEnumerateInstanceLayerProperties.unwrap()(&mut layers_count, available_layers.as_mut_ptr())
+            vkEnumerateInstanceLayerProperties.unwrap()(&mut layers_count, available_layers.as_mut_ptr())
         );
     }    
     assert_ne!(available_layers.len(), 0);
@@ -72,7 +72,7 @@ fn test_vulkan()
     unsafe {
         assert_eq!(
             VkResult_VK_SUCCESS,
-            lib.vkEnumerateInstanceExtensionProperties.unwrap()(::std::ptr::null_mut(), &mut extension_count, ::std::ptr::null_mut())
+            vkEnumerateInstanceExtensionProperties.unwrap()(::std::ptr::null_mut(), &mut extension_count, ::std::ptr::null_mut())
         );
     }
     assert_ne!(extension_count, 0);
@@ -82,7 +82,7 @@ fn test_vulkan()
         supported_extensions.set_len(extension_count as usize);
         assert_eq!(
             VkResult_VK_SUCCESS,
-            lib.vkEnumerateInstanceExtensionProperties.unwrap()(::std::ptr::null_mut(), &mut extension_count, supported_extensions.as_mut_ptr())
+            vkEnumerateInstanceExtensionProperties.unwrap()(::std::ptr::null_mut(), &mut extension_count, supported_extensions.as_mut_ptr())
         );
     }    
     assert_ne!(supported_extensions.len(), 0);
@@ -106,7 +106,7 @@ fn test_vulkan()
     unsafe {        
         assert_eq!(
             VkResult_VK_SUCCESS,
-            lib.vkCreateInstance.unwrap()(&create_info, ::std::ptr::null_mut(), &mut instance)
+            vkCreateInstance.unwrap()(&create_info, ::std::ptr::null_mut(), &mut instance)
         );
     }
 
@@ -116,7 +116,7 @@ fn test_vulkan()
     unsafe {
         assert_eq!(
             VkResult_VK_SUCCESS,
-            lib.vkEnumeratePhysicalDevices.unwrap()(instance, &mut physical_device_count, ::std::ptr::null_mut())
+            vkEnumeratePhysicalDevices.unwrap()(instance, &mut physical_device_count, ::std::ptr::null_mut())
         );
     }
     assert_ne!(physical_device_count, 0);
@@ -126,16 +126,16 @@ fn test_vulkan()
         physical_devices.set_len(physical_device_count as usize);
         assert_eq!(
             VkResult_VK_SUCCESS,
-            lib.vkEnumeratePhysicalDevices.unwrap()(instance, &mut physical_device_count, physical_devices.as_mut_ptr())
+            vkEnumeratePhysicalDevices.unwrap()(instance, &mut physical_device_count, physical_devices.as_mut_ptr())
         );
     }    
     assert_ne!(physical_devices.len(), 0);
     assert_eq!(physical_devices.len(), physical_device_count as usize);
 
     for physical_device in physical_devices.into_iter() {
-        assert_eq!(is_device_suitable(&lib, &physical_device), true);
+        assert_eq!(is_device_suitable(&physical_device), true);
         
-        let queue_family_indices = find_queue_family_indices(&lib, &physical_device);
+        let queue_family_indices = find_queue_family_indices(&physical_device);
 
         let queue_priority:f32 = 1.0;
         let queue_create_info = VkDeviceQueueCreateInfo {
@@ -149,7 +149,7 @@ fn test_vulkan()
 
         let device_features: VkPhysicalDeviceFeatures = unsafe {
             let mut output = ::std::mem::MaybeUninit::uninit();
-            lib.vkGetPhysicalDeviceFeatures.unwrap()(physical_device, output.as_mut_ptr());
+            vkGetPhysicalDeviceFeatures.unwrap()(physical_device, output.as_mut_ptr());
             output.assume_init()
         };
 
@@ -157,7 +157,7 @@ fn test_vulkan()
         unsafe {
             assert_eq!(
                 VkResult_VK_SUCCESS,
-                lib.vkEnumerateDeviceExtensionProperties.unwrap()(physical_device, ::std::ptr::null_mut(), &mut device_extension_count, ::std::ptr::null_mut())
+                vkEnumerateDeviceExtensionProperties.unwrap()(physical_device, ::std::ptr::null_mut(), &mut device_extension_count, ::std::ptr::null_mut())
             );
         }
         assert_ne!(device_extension_count, 0);
@@ -167,7 +167,7 @@ fn test_vulkan()
             supported_device_extensions.set_len(device_extension_count as usize);
             assert_eq!(
                 VkResult_VK_SUCCESS,
-                lib.vkEnumerateDeviceExtensionProperties.unwrap()(physical_device, ::std::ptr::null_mut(), &mut device_extension_count, supported_device_extensions.as_mut_ptr())
+                vkEnumerateDeviceExtensionProperties.unwrap()(physical_device, ::std::ptr::null_mut(), &mut device_extension_count, supported_device_extensions.as_mut_ptr())
             );
         }    
         assert_ne!(supported_device_extensions.len(), 0);
@@ -200,14 +200,14 @@ fn test_vulkan()
         unsafe {
             assert_eq!(
                 VkResult_VK_SUCCESS,
-                lib.vkCreateDevice.unwrap()(physical_device, &device_create_info, ::std::ptr::null_mut(), &mut device)
+                vkCreateDevice.unwrap()(physical_device, &device_create_info, ::std::ptr::null_mut(), &mut device)
             );
         }
         assert_ne!(device, ::std::ptr::null_mut());
 
         let graphics_queue: VkQueue = unsafe {
             let mut output = ::std::mem::MaybeUninit::uninit();
-            lib.vkGetDeviceQueue.unwrap()(device, queue_family_indices.graphics_family_index as u32, 0, output.as_mut_ptr());
+            vkGetDeviceQueue.unwrap()(device, queue_family_indices.graphics_family_index as u32, 0, output.as_mut_ptr());
             output.assume_init()
         };
         assert_ne!(graphics_queue, ::std::ptr::null_mut());
@@ -216,14 +216,14 @@ fn test_vulkan()
         //test_vulkan_create_khr_display_surface(&lib, &mut physical_device, &mut instance);
 
         unsafe {        
-            lib.vkDestroyDevice.unwrap()(device, ::std::ptr::null_mut());
+            vkDestroyDevice.unwrap()(device, ::std::ptr::null_mut());
         }
     }    
 
     //Destroy Instance
 
     unsafe {        
-        lib.vkDestroyInstance.unwrap()(instance, ::std::ptr::null_mut());
+        vkDestroyInstance.unwrap()(instance, ::std::ptr::null_mut());
     }
 }
 
@@ -243,26 +243,25 @@ fn test_vulkan_create_win32_display_surface(instance:&mut VkInstance)
         hwnd: unsafe {::std::mem::transmute(window.handle.handle_impl.hwnd)},
     };
     
-    let vklib = &vulkan_bindings::Lib::new();
-
+/*
     let mut surface:VkSurfaceKHR = ::std::ptr::null_mut();
     unsafe {
-        let vkCreateWin32SurfaceKHR = vklib.library.get::<PFN_vkCreateWin32SurfaceKHR>("vkCreateWin32SurfaceKHR");
         assert_eq!(
             VkResult_VK_SUCCESS,
-            vkCreateWin32SurfaceKHR.unwrap()(*instance, &surface_create_info, ::std::ptr::null_mut(), &mut surface)
+            vkCreateWin32SurfaceKHR(*instance, &surface_create_info, ::std::ptr::null_mut(), &mut surface)
         );
     }
+*/
 }
 
 
-fn test_vulkan_create_khr_display_surface(lib:&VK, physical_device:&mut VkPhysicalDevice, instance:&mut VkInstance)
+fn test_vulkan_create_khr_display_surface(physical_device:&mut VkPhysicalDevice, instance:&mut VkInstance)
 {
     let mut display_count:u32 = 0;
     unsafe {
         assert_eq!(
             VkResult_VK_SUCCESS,
-            lib.vkGetPhysicalDeviceDisplayPropertiesKHR.unwrap()(*physical_device, &mut display_count, ::std::ptr::null_mut())
+            vkGetPhysicalDeviceDisplayPropertiesKHR.unwrap()(*physical_device, &mut display_count, ::std::ptr::null_mut())
         );
     }
     assert_ne!(display_count, 0);
@@ -272,7 +271,7 @@ fn test_vulkan_create_khr_display_surface(lib:&VK, physical_device:&mut VkPhysic
         display_properties.set_len(display_count as usize);
         assert_eq!(
             VkResult_VK_SUCCESS,
-            lib.vkGetPhysicalDeviceDisplayPropertiesKHR.unwrap()(*physical_device, &mut display_count, display_properties.as_mut_ptr())
+            vkGetPhysicalDeviceDisplayPropertiesKHR.unwrap()(*physical_device, &mut display_count, display_properties.as_mut_ptr())
         );
     }  
     assert_ne!(display_properties.len(), 0);
@@ -283,7 +282,7 @@ fn test_vulkan_create_khr_display_surface(lib:&VK, physical_device:&mut VkPhysic
     unsafe {
         assert_eq!(
             VkResult_VK_SUCCESS,
-            lib.vkGetDisplayModePropertiesKHR.unwrap()(*physical_device, display_properties[display_selected].display, &mut mode_count, ::std::ptr::null_mut())
+            vkGetDisplayModePropertiesKHR.unwrap()(*physical_device, display_properties[display_selected].display, &mut mode_count, ::std::ptr::null_mut())
         );
     }
     assert_ne!(mode_count, 0);
@@ -293,7 +292,7 @@ fn test_vulkan_create_khr_display_surface(lib:&VK, physical_device:&mut VkPhysic
         display_modes.set_len(mode_count as usize);
         assert_eq!(
             VkResult_VK_SUCCESS,
-            lib.vkGetDisplayModePropertiesKHR.unwrap()(*physical_device, display_properties[display_selected].display, &mut mode_count, display_modes.as_mut_ptr())
+            vkGetDisplayModePropertiesKHR.unwrap()(*physical_device, display_properties[display_selected].display, &mut mode_count, display_modes.as_mut_ptr())
         );
     }  
     assert_ne!(display_modes.len(), 0);
@@ -304,7 +303,7 @@ fn test_vulkan_create_khr_display_surface(lib:&VK, physical_device:&mut VkPhysic
     unsafe {
         assert_eq!(
             VkResult_VK_SUCCESS,
-            lib.vkGetPhysicalDeviceDisplayPlanePropertiesKHR.unwrap()(*physical_device, &mut plane_count, ::std::ptr::null_mut())
+            vkGetPhysicalDeviceDisplayPlanePropertiesKHR.unwrap()(*physical_device, &mut plane_count, ::std::ptr::null_mut())
         );
     }
     assert_ne!(plane_count, 0);
@@ -314,20 +313,20 @@ fn test_vulkan_create_khr_display_surface(lib:&VK, physical_device:&mut VkPhysic
         display_planes.set_len(plane_count as usize);
         assert_eq!(
             VkResult_VK_SUCCESS,
-            lib.vkGetPhysicalDeviceDisplayPlanePropertiesKHR.unwrap()(*physical_device, &mut plane_count, display_planes.as_mut_ptr())
+            vkGetPhysicalDeviceDisplayPlanePropertiesKHR.unwrap()(*physical_device, &mut plane_count, display_planes.as_mut_ptr())
         );
     }  
     assert_ne!(display_planes.len(), 0);
     assert_eq!(display_planes.len(), plane_count as usize);
 
-    let plane_selected = find_plane_for_display(&lib, physical_device, &display_properties[display_selected].display, &display_planes);
+    let plane_selected = find_plane_for_display(physical_device, &display_properties[display_selected].display, &display_planes);
     assert_ne!(plane_selected, -1);
 
     let display_plane_capabilities = unsafe {
         let mut output = ::std::mem::MaybeUninit::uninit();
         assert_eq!(
             VkResult_VK_SUCCESS,
-            lib.vkGetDisplayPlaneCapabilitiesKHR.unwrap()(*physical_device, display_modes[mode_selected].displayMode, plane_selected as u32, output.as_mut_ptr())
+            vkGetDisplayPlaneCapabilitiesKHR.unwrap()(*physical_device, display_modes[mode_selected].displayMode, plane_selected as u32, output.as_mut_ptr())
         );
         output.assume_init()
     };        
@@ -353,11 +352,11 @@ fn test_vulkan_create_khr_display_surface(lib:&VK, physical_device:&mut VkPhysic
     unsafe {
         assert_eq!(
             VkResult_VK_SUCCESS,
-            lib.vkCreateDisplayPlaneSurfaceKHR.unwrap()(*instance, &surface_info, ::std::ptr::null(), &mut surface)
+            vkCreateDisplayPlaneSurfaceKHR.unwrap()(*instance, &surface_info, ::std::ptr::null(), &mut surface)
         );
     }  
 
     unsafe {        
-        lib.vkDestroySurfaceKHR.unwrap()(*instance, surface, ::std::ptr::null_mut());
+        vkDestroySurfaceKHR.unwrap()(*instance, surface, ::std::ptr::null_mut());
     }
 }

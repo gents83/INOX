@@ -31,24 +31,4 @@ impl Lib {
     }
 }
 
-
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
-
-
-/*
-pub struct Library {
-    pub vkAcquireNextImage2KHR: PFN_vkAcquireNextImage2KHR,
-    pub vkCmdBlitImage2KHR: PFN_vkCmdBlitImage2KHR,
-}
-
-impl<'a> Library {
-    pub fn new(lib : &'a Library) -> Library {
-        Library {
-            vkAcquireNextImage2KHR:
-                lib.library.get::<PFN_vkAcquireNextImage2KHR>("vkAcquireNextImage2KHR"),
-            vkCmdBlitImage2KHR: 
-                lib.library.get::<PFN_vkCmdBlitImage2KHR>("vkCmdBlitImage2KHR"),
-        }
-    }
-}
-*/

@@ -1,9 +1,13 @@
 
 #[macro_export]
 macro_rules! declare_handle {
-    ($name:ident, $inner:ident) => {
+    ($name:ident, $inner:ident) => {        
+        #[derive(Clone, Copy)]
         pub enum $inner {}
         pub type $name = *mut $inner;
+        
+        unsafe impl Send for $inner {}
+        unsafe impl Sync for $inner {}
     };
 }
 
