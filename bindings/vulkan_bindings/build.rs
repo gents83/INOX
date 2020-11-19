@@ -19,6 +19,8 @@ fn main() {
     let vulkan_sdk_path = env::var("VULKAN_SDK").unwrap();
     let mut vulkan_header = vulkan_sdk_path.clone();
     vulkan_header.push_str("\\include\\vulkan\\vulkan.h");
+
+    let mut vulkan_plaftorm = "";
     
     let mut builder = bindgen::Builder::default()
                             .header(vulkan_header.to_owned())
@@ -28,22 +30,32 @@ fn main() {
 
     #[cfg(windows)]
     {
+        vulkan_plaftorm = "win32";
         builder = builder
                     .clang_arg("-DVK_USE_PLATFORM_WIN32_KHR")
                     .opaque_type("_IMAGE_TLS_DIRECTORY64");
     }
     #[cfg(all(unix, not(target_os = "android"), not(target_os = "macos")))]
     {
+        vulkan_plaftorm = "xlib";
         builder = builder
                     .clang_arg("-VK_USE_PLATFORM_XLIB_KHR");
     }
     #[cfg(target_os = "macos")]
     {
+        vulkan_plaftorm = "macos";
         builder = builder
                     .clang_arg("-VK_USE_PLATFORM_MACOS_MVK");
     }
-    #[cfg(target_os = "macos")]
+    #[cfg(target_os = "ios")]
     {
+        vulkan_plaftorm = "ios";
+        builder = builder
+                    .clang_arg("-VK_USE_PLATFORM_IOS_MVK");
+    }
+    #[cfg(target_os = "android")]
+    {
+        vulkan_plaftorm = "android";
         builder = builder
                     .clang_arg("-VK_USE_PLATFORM_ANDROID_KHR");
     }
@@ -125,11 +137,9 @@ fn main() {
                     is_extension = true;
                     should_be_excluded = {
                     match attributes.iter().find(|ref attr| {
-                        attr.to_string().contains("platform") ||
+                        attr.to_string().contains("platform")  && attr.value.to_string() != vulkan_plaftorm ||
                         attr.to_string().contains("deprecated") ||
-                        attr.to_string().contains("specialuse") ||
-                        attr.value.to_string() == "NV" ||
-                        attr.value.to_string() == "EXT"
+                        attr.to_string().contains("specialuse")
                     }) {
                         Some(_) => true,
                         None => false

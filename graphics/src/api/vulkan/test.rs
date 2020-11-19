@@ -8,7 +8,7 @@ use super::utils::*;
 fn test_vulkan()
 {
     use super::types::*;
-
+    
     VK::initialize(&vulkan_bindings::Lib::new());
     
     let app_info = VkApplicationInfo {
@@ -243,15 +243,13 @@ fn test_vulkan_create_win32_display_surface(instance:&mut VkInstance)
         hwnd: unsafe {::std::mem::transmute(window.handle.handle_impl.hwnd)},
     };
     
-/*
     let mut surface:VkSurfaceKHR = ::std::ptr::null_mut();
     unsafe {
         assert_eq!(
             VkResult_VK_SUCCESS,
-            vkCreateWin32SurfaceKHR(*instance, &surface_create_info, ::std::ptr::null_mut(), &mut surface)
+            vkCreateWin32SurfaceKHR.unwrap()(*instance, &surface_create_info, ::std::ptr::null_mut(), &mut surface)
         );
     }
-*/
 }
 
 
