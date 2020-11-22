@@ -21,6 +21,7 @@ fn main() {
     vulkan_header.push_str("\\include\\vulkan\\vulkan.h");
 
     let mut vulkan_plaftorm = "";
+    println!("Building bindings for platform {}", vulkan_plaftorm);
     
     let mut builder = bindgen::Builder::default()
                             .header(vulkan_header.to_owned())
