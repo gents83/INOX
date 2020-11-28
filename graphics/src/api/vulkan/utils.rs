@@ -213,13 +213,13 @@ pub fn get_supported_alpha_mode(display_plane_capabilities:&VkDisplayPlaneCapabi
     return VkDisplayPlaneAlphaFlagBitsKHR_VK_DISPLAY_PLANE_ALPHA_OPAQUE_BIT_KHR
 }
 
-pub fn create_shader_module(device:&mut VkDevice, shader_content:&str) -> VkShaderModule {
+pub fn create_shader_module<'a>(device:&mut VkDevice, shader_content:&'a [u32]) -> VkShaderModule {
     let shader_create_info = VkShaderModuleCreateInfo {
         sType: VkStructureType_VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
         pNext: ::std::ptr::null_mut(),
         flags: 0,
-        codeSize: (shader_content.len() * ::std::mem::size_of::<u32>()) as u64,
-        pCode: shader_content.as_bytes().as_ptr() as *const _,
+        codeSize: (shader_content.len() * 4) as _,
+        pCode: shader_content.as_ptr() as *const _,
     };
 
     let shader_module = unsafe {
@@ -238,4 +238,35 @@ pub fn destroy_shader_module(device:&mut VkDevice, shader_module:&mut VkShaderMo
     unsafe{
         vkDestroyShaderModule.unwrap()(*device, *shader_module, ::std::ptr::null_mut());
     }
+}
+
+
+pub fn read_spirv_from_bytes<Data: ::std::io::Read + ::std::io::Seek>(data: &mut Data) -> ::std::vec::Vec<u32> {
+    let size = data.seek(::std::io::SeekFrom::End(0)).unwrap();
+    if size % 4 != 0 {
+        panic!("Input data length not divisible by 4");
+    }
+    if size > usize::max_value() as u64 {
+        panic!("Input data too long");
+    }
+    let words = (size / 4) as usize;
+    let mut result = Vec::<u32>::with_capacity(words);
+    data.seek(::std::io::SeekFrom::Start(0)).unwrap();
+    unsafe {
+        data.read_exact(::std::slice::from_raw_parts_mut(
+            result.as_mut_ptr() as *mut u8,
+            words * 4,
+        )).unwrap();
+        result.set_len(words);
+    }
+    const MAGIC_NUMBER: u32 = 0x0723_0203;
+    if !result.is_empty() && result[0] == MAGIC_NUMBER.swap_bytes() {
+        for word in &mut result {
+            *word = word.swap_bytes();
+        }
+    }
+    if result.is_empty() || result[0] != MAGIC_NUMBER {
+        panic!("Input data is missing SPIR-V magic number");
+    }
+    result
 }
