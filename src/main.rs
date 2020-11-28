@@ -1,6 +1,7 @@
 use nrg_core::*;
 use nrg_math::*;
 use nrg_platform::*;
+use nrg_graphics::*;
 
 fn main() {    
     let _entity = Entity::new();
@@ -15,6 +16,9 @@ fn main() {
                    String::from("NRG - Window"),
                    _pos.x, _pos.y,
                    _size.x, _size.y );
+
+    let mut instance = Instance::create();
+    let _device = Device::create(&mut instance);
 
     loop 
     {

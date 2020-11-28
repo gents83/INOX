@@ -58,7 +58,12 @@ impl Window {
                 ::std::ptr::null_mut() );						// lpParam
 
             Window {
-                handle : Handle { handle_impl: HandleImpl{ hwnd : win_handle, hinstance : win_hinstance }, },
+                handle : Handle { 
+                    handle_impl: HandleImpl { 
+                        hwnd : win_handle, 
+                        hinstance : win_hinstance 
+                    }, 
+                },
                 x: _x,
                 y: _y,
                 width: _width,
