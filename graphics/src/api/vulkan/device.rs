@@ -46,7 +46,7 @@ impl<'a> Device<'a> {
         hash_family_indices.insert(instance.get_physical_device().get_queue_family_info().present_family_index as _);
 
         let mut queue_infos: Vec<VkDeviceQueueCreateInfo> = Vec::new();
-        for (i, family_index) in hash_family_indices.into_iter().enumerate() {
+        for family_index in hash_family_indices.into_iter() {
             let queue_create_info = VkDeviceQueueCreateInfo {
                 sType: VkStructureType_VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
                 pNext: ::std::ptr::null_mut(),
@@ -681,11 +681,9 @@ impl<'a> Device<'a> {
             self.destroy_shader_modules();
                     
             for i in 0..MAX_FRAMES_IN_FLIGHT {
-                unsafe {        
-                    vkDestroySemaphore.unwrap()(self.device, self.render_finished_semaphores[i as usize], ::std::ptr::null_mut());
-                    vkDestroySemaphore.unwrap()(self.device, self.image_available_semaphores[i as usize], ::std::ptr::null_mut());
-                    vkDestroyFence.unwrap()(self.device, self.inflight_fences[i as usize], ::std::ptr::null_mut());
-                }
+                vkDestroySemaphore.unwrap()(self.device, self.render_finished_semaphores[i as usize], ::std::ptr::null_mut());
+                vkDestroySemaphore.unwrap()(self.device, self.image_available_semaphores[i as usize], ::std::ptr::null_mut());
+                vkDestroyFence.unwrap()(self.device, self.inflight_fences[i as usize], ::std::ptr::null_mut());
             }
 
             vkDestroyCommandPool.unwrap()(self.device, self.command_pool, ::std::ptr::null_mut());
@@ -699,12 +697,12 @@ impl<'a> Device<'a> {
 
     pub fn temp_draw_frame(&mut self) {
         unsafe {
-            let mut current_frame_index = 0;
+            let mut _current_frame_index = 0;
 
-            vkWaitForFences.unwrap()(self.device, 1, &self.inflight_fences[current_frame_index as usize], VK_TRUE, std::u64::MAX);
+            vkWaitForFences.unwrap()(self.device, 1, &self.inflight_fences[_current_frame_index as usize], VK_TRUE, std::u64::MAX);
                 
             let mut image_index: u32 = 0;
-            let mut result = vkAcquireNextImageKHR.unwrap()(self.device, self.swap_chain.ptr, ::std::u64::MAX, self.image_available_semaphores[current_frame_index], ::std::ptr::null_mut(), &mut image_index);
+            let mut result = vkAcquireNextImageKHR.unwrap()(self.device, self.swap_chain.ptr, ::std::u64::MAX, self.image_available_semaphores[_current_frame_index], ::std::ptr::null_mut(), &mut image_index);
             
             if result == VkResult_VK_ERROR_OUT_OF_DATE_KHR {
                 self.recreate_swap_chain();
@@ -717,7 +715,7 @@ impl<'a> Device<'a> {
             if self.inflight_images[image_index as usize] != ::std::ptr::null_mut() {
                 vkWaitForFences.unwrap()(self.device, 1, &self.inflight_images[image_index as usize], VK_TRUE, std::u64::MAX);
             }
-            self.inflight_images[image_index as usize] = self.inflight_fences[current_frame_index as usize];
+            self.inflight_images[image_index as usize] = self.inflight_fences[_current_frame_index as usize];
             
             
             let wait_stages = [VkPipelineStageFlagBits_VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT];
@@ -725,33 +723,33 @@ impl<'a> Device<'a> {
                 sType: VkStructureType_VK_STRUCTURE_TYPE_SUBMIT_INFO,
                 pNext: ::std::ptr::null_mut(),
                 waitSemaphoreCount: 1,
-                pWaitSemaphores: &self.image_available_semaphores[current_frame_index as usize],
+                pWaitSemaphores: &self.image_available_semaphores[_current_frame_index as usize],
                 pWaitDstStageMask: wait_stages.as_ptr() as *const _,
                 commandBufferCount: 1,
                 pCommandBuffers: self.command_buffers.as_mut_ptr(),
                 signalSemaphoreCount: 1,
-                pSignalSemaphores: &self.render_finished_semaphores[current_frame_index as usize],
+                pSignalSemaphores: &self.render_finished_semaphores[_current_frame_index as usize],
             };
             
-            vkResetFences.unwrap()(self.device, 1, &self.inflight_fences[current_frame_index as usize]);
+            vkResetFences.unwrap()(self.device, 1, &self.inflight_fences[_current_frame_index as usize]);
             
             assert_eq!(
                 VkResult_VK_SUCCESS,
-                vkQueueSubmit.unwrap()(self.graphics_queue, 1, &submit_info, self.inflight_fences[current_frame_index as usize])
+                vkQueueSubmit.unwrap()(self.graphics_queue, 1, &submit_info, self.inflight_fences[_current_frame_index as usize])
             );
                 
             let present_info = VkPresentInfoKHR {
                 sType: VkStructureType_VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
                 pNext: ::std::ptr::null_mut(),
                 waitSemaphoreCount: 1,
-                pWaitSemaphores: &self.render_finished_semaphores[current_frame_index as usize],
+                pWaitSemaphores: &self.render_finished_semaphores[_current_frame_index as usize],
                 swapchainCount: 1,
                 pSwapchains: &self.swap_chain.ptr,
                 pImageIndices: &image_index,
                 pResults: ::std::ptr::null_mut(),
             };
 
-            result = vkQueuePresentKHR.unwrap()(self.graphics_queue, &present_info);
+            result = vkQueuePresentKHR.unwrap()(self.present_queue, &present_info);
             
             if result == VkResult_VK_ERROR_OUT_OF_DATE_KHR || result == VkResult_VK_SUBOPTIMAL_KHR {
                 self.recreate_swap_chain();
@@ -760,9 +758,10 @@ impl<'a> Device<'a> {
                 eprintln!("Failed to present swap chain image!");
             }
             
-            vkQueueWaitIdle.unwrap()(self.graphics_queue);
+            vkQueueWaitIdle.unwrap()(self.present_queue);
 
-            current_frame_index = (current_frame_index + 1) % MAX_FRAMES_IN_FLIGHT as usize;
+            _current_frame_index = (_current_frame_index + 1) % MAX_FRAMES_IN_FLIGHT as usize;
+            println!("Frame drawn {}", _current_frame_index);
         }
     }
 }
