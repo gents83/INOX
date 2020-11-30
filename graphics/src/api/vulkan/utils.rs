@@ -2,163 +2,96 @@
 
 use vulkan_bindings::*;
 
-pub struct QueueFamilyIndices {
-    pub graphics_family_index: i32,
-    pub present_family_index: i32,
-}
-pub struct SwapChainSupportDetails {
-    pub capabilities: VkSurfaceCapabilitiesKHR,
-    pub formats: Vec<VkSurfaceFormatKHR>,
-    pub present_modes: Vec<VkPresentModeKHR>,
-}
-
-pub fn find_queue_family_indices(device: &VkPhysicalDevice, surface:&VkSurfaceKHR) -> QueueFamilyIndices {
- 
-    let mut queue_family_count: u32 = unsafe {
-        let mut output = ::std::mem::MaybeUninit::uninit();
-        vkGetPhysicalDeviceQueueFamilyProperties.unwrap()(*device, output.as_mut_ptr(), ::std::ptr::null_mut());
-        output.assume_init()
-    };
-    
-    let mut queue_family_properties: Vec<VkQueueFamilyProperties> = Vec::with_capacity(queue_family_count as usize);
-    unsafe {
-        queue_family_properties.set_len(queue_family_count as usize);
-        vkGetPhysicalDeviceQueueFamilyProperties.unwrap()(*device, &mut queue_family_count, queue_family_properties.as_mut_ptr());
-    }    
-
-    let mut graphic_index = -1;
-    let mut present_index = -1;
-    
-    for (index, q) in queue_family_properties.iter().enumerate() {
-        let mut present_support:VkBool32 = VK_FALSE;
-        unsafe {
-            vkGetPhysicalDeviceSurfaceSupportKHR.unwrap()(*device, index as u32, *surface, &mut present_support);
-        }
-        let mut graphic_support:VkBool32 = VK_FALSE;
-        if (q.queueFlags & VkQueueFlagBits_VK_QUEUE_GRAPHICS_BIT as u32) != 0 {
-            graphic_support = VK_TRUE;
-        }
-        if present_support != VK_FALSE && graphic_support != VK_FALSE {
-            graphic_index = index as i32;
-            present_index = index as i32;
-            break;
-        }
-    }
-
-    QueueFamilyIndices {
-        graphics_family_index: graphic_index,
-        present_family_index: present_index,
-    }
-}
-
-
-pub fn find_swap_chain_support(device: &VkPhysicalDevice, surface:&VkSurfaceKHR) -> SwapChainSupportDetails {
-
-    let surface_capabilities = unsafe {
+pub fn get_available_layers_count() -> u32 {
+    let layers_count = unsafe {
         let mut option = ::std::mem::MaybeUninit::uninit();
-        vkGetPhysicalDeviceSurfaceCapabilitiesKHR.unwrap()(*device, *surface, option.as_mut_ptr());
-        option.assume_init()
-    };
-
-    let mut format_count = unsafe {
-        let mut option = ::std::mem::MaybeUninit::uninit();
-        vkGetPhysicalDeviceSurfaceFormatsKHR.unwrap()(*device, *surface, option.as_mut_ptr(), ::std::ptr::null_mut());
-        option.assume_init()
-    };
-        
-    let mut supported_formats: Vec<VkSurfaceFormatKHR> = Vec::with_capacity(format_count as usize);
-    unsafe {
-        supported_formats.set_len(format_count as usize);
         assert_eq!(
             VkResult_VK_SUCCESS,
-            vkGetPhysicalDeviceSurfaceFormatsKHR.unwrap()(*device, *surface, &mut format_count, supported_formats.as_mut_ptr())
+            vkEnumerateInstanceLayerProperties.unwrap()(option.as_mut_ptr(), ::std::ptr::null_mut())
         );
-    }       
-
-    let mut present_mode_count = unsafe {
-        let mut option = ::std::mem::MaybeUninit::uninit();
-        vkGetPhysicalDeviceSurfacePresentModesKHR.unwrap()(*device, *surface, option.as_mut_ptr(), ::std::ptr::null_mut());
         option.assume_init()
     };
-        
-    let mut supported_present_modes: Vec<VkPresentModeKHR> = Vec::with_capacity(present_mode_count as usize);
-    unsafe {
-        supported_present_modes.set_len(present_mode_count as usize);
-        assert_eq!(
-            VkResult_VK_SUCCESS,
-            vkGetPhysicalDeviceSurfacePresentModesKHR.unwrap()(*device, *surface, &mut present_mode_count, supported_present_modes.as_mut_ptr())
-        );
-    }    
-
-    SwapChainSupportDetails {
-        capabilities: surface_capabilities,
-        formats: supported_formats,
-        present_modes: supported_present_modes,
-    }
+    layers_count
 }
 
-pub fn get_device_extensions(device:&VkPhysicalDevice) -> Vec<VkExtensionProperties> {
+pub fn enumerate_available_layers() -> Vec<VkLayerProperties> {
+    let mut layers_count = get_available_layers_count();
     
-    let mut device_extension_count = unsafe {
-        let mut output = ::std::mem::MaybeUninit::uninit();
-        vkEnumerateDeviceExtensionProperties.unwrap()(*device, ::std::ptr::null_mut(), output.as_mut_ptr(), ::std::ptr::null_mut());
-        output.assume_init()
-    };
-    
-    let mut supported_device_extensions: Vec<VkExtensionProperties> = Vec::with_capacity(device_extension_count as usize);
+    let mut available_layers: Vec<VkLayerProperties> = Vec::with_capacity(layers_count as usize);
     unsafe {
-        supported_device_extensions.set_len(device_extension_count as usize);
+        available_layers.set_len(layers_count as usize);
         assert_eq!(
             VkResult_VK_SUCCESS,
-            vkEnumerateDeviceExtensionProperties.unwrap()(*device, ::std::ptr::null_mut(), &mut device_extension_count, supported_device_extensions.as_mut_ptr())
+            vkEnumerateInstanceLayerProperties.unwrap()(&mut layers_count, available_layers.as_mut_ptr())
         );
     }    
-
-    supported_device_extensions
+    available_layers
 }
 
-pub fn is_device_suitable(device:&VkPhysicalDevice, surface:&VkSurfaceKHR) -> bool {
 
-    let device_properties: VkPhysicalDeviceProperties = unsafe {
-        let mut output = ::std::mem::MaybeUninit::uninit();
-        vkGetPhysicalDeviceProperties.unwrap()(*device, output.as_mut_ptr());
-        output.assume_init()
+pub fn get_available_layers_names(supported_layers: &Vec<VkLayerProperties>) -> Vec<::std::ffi::CString>{
+    supported_layers
+        .iter()
+        .map(|layer| unsafe {::std::ffi::CStr::from_ptr(layer.layerName.as_ptr())}.to_owned())
+        .collect::<Vec<::std::ffi::CString>>()
+}
+
+pub fn get_available_extensions_count() -> u32 {
+    let extension_count = unsafe {
+        let mut option = ::std::mem::MaybeUninit::uninit();
+        assert_eq!(
+            VkResult_VK_SUCCESS,
+            vkEnumerateInstanceExtensionProperties.unwrap()(::std::ptr::null_mut(), option.as_mut_ptr(), ::std::ptr::null_mut())
+        );
+        option.assume_init()
     };
-    
-    let device_features: VkPhysicalDeviceFeatures = unsafe {
-        let mut output = ::std::mem::MaybeUninit::uninit();
-        vkGetPhysicalDeviceFeatures.unwrap()(*device, output.as_mut_ptr());
-        output.assume_init()
+    extension_count
+
+}
+
+pub fn enumerate_available_extensions() -> Vec<VkExtensionProperties> {
+    let mut extensions_count = get_available_extensions_count();
+    let mut supported_extensions: Vec<VkExtensionProperties> = Vec::with_capacity(extensions_count as usize);
+    unsafe {
+        supported_extensions.set_len(extensions_count as usize);
+        assert_eq!(
+            VkResult_VK_SUCCESS,
+            vkEnumerateInstanceExtensionProperties.unwrap()(::std::ptr::null_mut(), &mut extensions_count, supported_extensions.as_mut_ptr())
+        );
+    }    
+    supported_extensions
+}
+
+pub fn get_available_extensions_names(supported_extensions: &Vec<VkExtensionProperties>) -> Vec<::std::ffi::CString>{
+    supported_extensions
+        .iter()
+        .map(|ext| unsafe {::std::ffi::CStr::from_ptr(ext.extensionName.as_ptr())}.to_owned())
+        .collect::<Vec<::std::ffi::CString>>()
+}
+
+pub fn get_physical_devices_count(instance: VkInstance) -> u32 {            
+    let physical_device_count =  unsafe {
+        let mut option = ::std::mem::MaybeUninit::uninit();
+        assert_eq!(
+            VkResult_VK_SUCCESS,
+            vkEnumeratePhysicalDevices.unwrap()(instance, option.as_mut_ptr(), ::std::ptr::null_mut())
+        );
+        option.assume_init()
     };
+    physical_device_count
+}
 
-    let device_extensions = get_device_extensions(device);
-
-    let device_extension_names_str = device_extensions.iter()
-                                                .map(|ext| unsafe {::std::ffi::CStr::from_ptr(ext.extensionName.as_ptr())}.to_owned())
-                                                .collect::<Vec<::std::ffi::CString>>();
-    let has_required_ext = device_extension_names_str.iter()
-                                            .find(|elem| {
-                                                elem.to_owned().to_str() == unsafe{ ::std::ffi::CStr::from_ptr(VK_KHR_SWAPCHAIN_EXTENSION_NAME.as_ptr() as *const i8) }.to_str()
-                                            })
-                                            .map_or(false, |_| true);
-
-    let queue_family_indices = find_queue_family_indices(device, surface);
-    let swap_chain_details = find_swap_chain_support(device, surface);
-
-    let has_swap_chain_support = has_required_ext && swap_chain_details.formats.len() > 0 && swap_chain_details.present_modes.len() > 0;
-
-    if (device_properties.deviceType == VkPhysicalDeviceType_VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU || 
-        device_properties.deviceType == VkPhysicalDeviceType_VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU)
-        && device_features.geometryShader != 0 
-        && device_features.logicOp != 0
-        && queue_family_indices.graphics_family_index >= 0
-        && queue_family_indices.present_family_index >= 0
-        && has_required_ext 
-        && has_swap_chain_support
-    {
-        return true
-    }
-    return false
+pub fn enumerate_physical_devices(instance: VkInstance) -> Vec<VkPhysicalDevice> {
+    let mut physical_device_count = get_physical_devices_count(instance);            
+    let mut physical_devices: Vec<VkPhysicalDevice> = Vec::with_capacity(physical_device_count as usize);
+    unsafe {
+        physical_devices.set_len(physical_device_count as usize);
+        assert_eq!(
+            VkResult_VK_SUCCESS,
+            vkEnumeratePhysicalDevices.unwrap()(instance, &mut physical_device_count, physical_devices.as_mut_ptr())
+        );
+    }   
+    physical_devices 
 }
 
 pub fn find_plane_for_display(device:&VkPhysicalDevice, display:&VkDisplayKHR, plane_properties:&Vec<VkDisplayPlanePropertiesKHR>) -> i32 {
@@ -212,34 +145,6 @@ pub fn get_supported_alpha_mode(display_plane_capabilities:&VkDisplayPlaneCapabi
     }
     return VkDisplayPlaneAlphaFlagBitsKHR_VK_DISPLAY_PLANE_ALPHA_OPAQUE_BIT_KHR
 }
-
-pub fn create_shader_module<'a>(device:&mut VkDevice, shader_content:&'a [u32]) -> VkShaderModule {
-    let shader_create_info = VkShaderModuleCreateInfo {
-        sType: VkStructureType_VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
-        pNext: ::std::ptr::null_mut(),
-        flags: 0,
-        codeSize: (shader_content.len() * 4) as _,
-        pCode: shader_content.as_ptr() as *const _,
-    };
-
-    let shader_module = unsafe {
-        let mut option = ::std::mem::MaybeUninit::uninit();
-        let result = vkCreateShaderModule.unwrap()(*device, &shader_create_info, ::std::ptr::null_mut(), option.as_mut_ptr());
-        if result != VkResult_VK_SUCCESS {
-            eprintln!("Failed to create shader module")
-        }
-        option.assume_init()
-    };
-
-    shader_module
-}
-
-pub fn destroy_shader_module(device:&mut VkDevice, shader_module:&mut VkShaderModule) {
-    unsafe{
-        vkDestroyShaderModule.unwrap()(*device, *shader_module, ::std::ptr::null_mut());
-    }
-}
-
 
 pub fn read_spirv_from_bytes<Data: ::std::io::Read + ::std::io::Seek>(data: &mut Data) -> ::std::vec::Vec<u32> {
     let size = data.seek(::std::io::SeekFrom::End(0)).unwrap();

@@ -3,11 +3,15 @@
 
 pub use self::device::*;
 pub use self::instance::*;
+pub use self::viewport::*;
+pub use self::rasterizer::*;
 
 //Modules
 
 pub mod device;
 pub mod instance;
+pub mod viewport;
+pub mod rasterizer;
 
 pub mod api
 {

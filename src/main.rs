@@ -17,8 +17,8 @@ fn main() {
                    _pos.x, _pos.y,
                    _size.x, _size.y );
 
-    let mut instance = Instance::create();
-    let _device = Device::create(&mut instance);
+    let mut instance = Instance::create(&window.handle);
+    let device = Device::create(&mut instance);
 
     loop 
     {
@@ -28,4 +28,7 @@ fn main() {
             break;
         }
     }
+
+    device.destroy();
+    instance.destroy();
 }
