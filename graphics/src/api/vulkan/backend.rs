@@ -12,6 +12,7 @@ pub mod device;
 pub mod instance;
 mod physical_device;
 mod shader;
+mod data_formats;
 
 mod macros;
 mod types;

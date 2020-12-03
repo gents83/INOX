@@ -1,6 +1,8 @@
 
 use std::os::raw::c_char;
+use std::os::raw::c_void;
 use vulkan_bindings::*;
+use crate::data_formats::*;
 use super::instance::*;
 use super::shader::*;
 use super::types::*;
@@ -31,6 +33,10 @@ pub struct Device<'a> {
     graphics_pipeline: VkPipeline,
     framebuffers: Vec::<VkFramebuffer>,
     command_pool: VkCommandPool,
+    vertex_buffer: VkBuffer,
+    vertex_buffer_memory: VkDeviceMemory,
+    index_buffer: VkBuffer,
+    index_buffer_memory: VkDeviceMemory,
     command_buffers: Vec::<VkCommandBuffer>,
     image_available_semaphores: Vec<VkSemaphore>,
     render_finished_semaphores: Vec<VkSemaphore>,
@@ -119,6 +125,10 @@ impl<'a> Device<'a> {
             graphics_pipeline: ::std::ptr::null_mut(),
             framebuffers: Vec::new(),
             command_pool: ::std::ptr::null_mut(),
+            vertex_buffer: ::std::ptr::null_mut(),
+            vertex_buffer_memory: ::std::ptr::null_mut(),
+            index_buffer: ::std::ptr::null_mut(),
+            index_buffer_memory: ::std::ptr::null_mut(),
             command_buffers: Vec::new(),
             image_available_semaphores: Vec::new(),
             render_finished_semaphores: Vec::new(),
@@ -292,8 +302,8 @@ impl<'a> Device<'a> {
     }
 
     pub fn create_graphics_pipeline(&mut self) -> &mut Self {
-        let mut vert_shader_file = std::fs::File::open("../data/vert.spv").unwrap();
-        let mut frag_shader_file = std::fs::File::open("../data/frag.spv").unwrap();
+        let mut vert_shader_file = std::fs::File::open("C:\\PROJECTS\\NRG\\data\\vert.spv").unwrap();
+        let mut frag_shader_file = std::fs::File::open("C:\\PROJECTS\\NRG\\data\\frag.spv").unwrap();
         let vert_shader_code = read_spirv_from_bytes(&mut vert_shader_file);
         let frag_shader_code = read_spirv_from_bytes(&mut frag_shader_file);
 
@@ -305,14 +315,17 @@ impl<'a> Device<'a> {
             shader_stages.push(shader.stage_info());
         }
 
+        let binding_info = VertexData::get_binding_desc();
+        let attr_info = VertexData::get_attributes_desc();
+
         let vertex_input_info = VkPipelineVertexInputStateCreateInfo{
             sType: VkStructureType_VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
             pNext: ::std::ptr::null_mut(),
             flags: 0,
-            vertexBindingDescriptionCount: 0,
-            pVertexBindingDescriptions: ::std::ptr::null_mut(),
-            vertexAttributeDescriptionCount: 0,
-            pVertexAttributeDescriptions: ::std::ptr::null_mut(),
+            vertexBindingDescriptionCount: 1,
+            pVertexBindingDescriptions: &binding_info,
+            vertexAttributeDescriptionCount: attr_info.len() as _,
+            pVertexAttributeDescriptions: attr_info.as_ptr(),
         };
 
         let input_assembly = VkPipelineInputAssemblyStateCreateInfo {
@@ -560,7 +573,13 @@ impl<'a> Device<'a> {
 
                 vkCmdBindPipeline.unwrap()(*command_buffer, VkPipelineBindPoint_VK_PIPELINE_BIND_POINT_GRAPHICS, self.graphics_pipeline);
 
-                vkCmdDraw.unwrap()(*command_buffer, vertex_count, 1, 0, 0);
+                let vertex_buffers = [self.vertex_buffer];
+                let offsets = [0_u64];
+                vkCmdBindVertexBuffers.unwrap()(*command_buffer, 0, 1, vertex_buffers.as_ptr(), offsets.as_ptr());
+
+                vkCmdBindIndexBuffer.unwrap()(*command_buffer, self.index_buffer, 0, VkIndexType_VK_INDEX_TYPE_UINT32);
+
+                vkCmdDrawIndexed.unwrap()(*command_buffer, ::std::mem::size_of_val(&self.index_buffer) as _, 1, 0, 0, 0);
 
                 vkCmdEndRenderPass.unwrap()(*command_buffer);
             }
@@ -581,12 +600,12 @@ impl<'a> Device<'a> {
         let mut image_available_semaphores: Vec<VkSemaphore> = Vec::with_capacity(MAX_FRAMES_IN_FLIGHT as usize);
         let mut render_finished_semaphores: Vec<VkSemaphore> = Vec::with_capacity(MAX_FRAMES_IN_FLIGHT as usize);
         let mut inflight_fences: Vec<VkFence> = Vec::with_capacity(MAX_FRAMES_IN_FLIGHT as usize); 
-        let mut inflight_images: Vec<VkFence> = Vec::with_capacity(MAX_FRAMES_IN_FLIGHT as usize); 
+        let mut inflight_images: Vec<VkFence> = Vec::with_capacity(self.swap_chain.images.len()); 
         unsafe {
             image_available_semaphores.set_len(MAX_FRAMES_IN_FLIGHT as usize);
             render_finished_semaphores.set_len(MAX_FRAMES_IN_FLIGHT as usize);
             inflight_fences.set_len(MAX_FRAMES_IN_FLIGHT as usize);
-            inflight_images.set_len(MAX_FRAMES_IN_FLIGHT as usize);
+            inflight_images.set_len(self.swap_chain.images.len());
         }
         let semaphore_create_info = VkSemaphoreCreateInfo {
             sType: VkStructureType_VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
@@ -614,8 +633,11 @@ impl<'a> Device<'a> {
                     VkResult_VK_SUCCESS,
                     vkCreateFence.unwrap()(self.device, &fence_create_info, ::std::ptr::null_mut(), &mut inflight_fences[i as usize])
                 );
-                inflight_images[i as usize] = ::std::ptr::null_mut();
             }
+        }
+        
+        for i in 0..inflight_images.len() {
+            inflight_images[i as usize] = ::std::ptr::null_mut();
         }
 
         self.image_available_semaphores = image_available_semaphores;
@@ -679,6 +701,9 @@ impl<'a> Device<'a> {
         unsafe {    
             self.cleanup_swap_chain();
             self.destroy_shader_modules();
+
+            self.destroy_buffer(&self.vertex_buffer, &self.vertex_buffer_memory);
+            self.destroy_buffer(&self.index_buffer, &self.index_buffer_memory);
                     
             for i in 0..MAX_FRAMES_IN_FLIGHT {
                 vkDestroySemaphore.unwrap()(self.device, self.render_finished_semaphores[i as usize], ::std::ptr::null_mut());
@@ -695,18 +720,18 @@ impl<'a> Device<'a> {
         &self.swap_chain
     }
 
-    pub fn temp_draw_frame(&mut self) {
-        unsafe {
-            let mut _current_frame_index = 0;
+    pub fn temp_draw_frame(&mut self, current_frame_index: u32 ) -> u32 {
+        let frame_index =  current_frame_index % MAX_FRAMES_IN_FLIGHT as u32;
 
-            vkWaitForFences.unwrap()(self.device, 1, &self.inflight_fences[_current_frame_index as usize], VK_TRUE, std::u64::MAX);
+        unsafe {
+            vkWaitForFences.unwrap()(self.device, 1, &self.inflight_fences[frame_index as usize], VK_TRUE, std::u64::MAX);
                 
             let mut image_index: u32 = 0;
-            let mut result = vkAcquireNextImageKHR.unwrap()(self.device, self.swap_chain.ptr, ::std::u64::MAX, self.image_available_semaphores[_current_frame_index], ::std::ptr::null_mut(), &mut image_index);
+            let mut result = vkAcquireNextImageKHR.unwrap()(self.device, self.swap_chain.ptr, ::std::u64::MAX, self.image_available_semaphores[frame_index as usize], ::std::ptr::null_mut(), &mut image_index);
             
             if result == VkResult_VK_ERROR_OUT_OF_DATE_KHR {
                 self.recreate_swap_chain();
-                return;
+                return frame_index;
             } 
             else if result != VkResult_VK_SUCCESS && result != VkResult_VK_SUBOPTIMAL_KHR {
                 eprintln!("Failed to acquire swap chain image");
@@ -715,7 +740,7 @@ impl<'a> Device<'a> {
             if self.inflight_images[image_index as usize] != ::std::ptr::null_mut() {
                 vkWaitForFences.unwrap()(self.device, 1, &self.inflight_images[image_index as usize], VK_TRUE, std::u64::MAX);
             }
-            self.inflight_images[image_index as usize] = self.inflight_fences[_current_frame_index as usize];
+            self.inflight_images[image_index as usize] = self.inflight_fences[frame_index as usize];
             
             
             let wait_stages = [VkPipelineStageFlagBits_VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT];
@@ -723,26 +748,26 @@ impl<'a> Device<'a> {
                 sType: VkStructureType_VK_STRUCTURE_TYPE_SUBMIT_INFO,
                 pNext: ::std::ptr::null_mut(),
                 waitSemaphoreCount: 1,
-                pWaitSemaphores: &self.image_available_semaphores[_current_frame_index as usize],
+                pWaitSemaphores: &self.image_available_semaphores[frame_index as usize],
                 pWaitDstStageMask: wait_stages.as_ptr() as *const _,
                 commandBufferCount: 1,
-                pCommandBuffers: self.command_buffers.as_mut_ptr(),
+                pCommandBuffers: &self.command_buffers[image_index as usize],
                 signalSemaphoreCount: 1,
-                pSignalSemaphores: &self.render_finished_semaphores[_current_frame_index as usize],
+                pSignalSemaphores: &self.render_finished_semaphores[frame_index as usize],
             };
             
-            vkResetFences.unwrap()(self.device, 1, &self.inflight_fences[_current_frame_index as usize]);
+            vkResetFences.unwrap()(self.device, 1, &self.inflight_fences[frame_index as usize]);
             
             assert_eq!(
                 VkResult_VK_SUCCESS,
-                vkQueueSubmit.unwrap()(self.graphics_queue, 1, &submit_info, self.inflight_fences[_current_frame_index as usize])
+                vkQueueSubmit.unwrap()(self.graphics_queue, 1, &submit_info, self.inflight_fences[frame_index as usize])
             );
                 
             let present_info = VkPresentInfoKHR {
                 sType: VkStructureType_VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
                 pNext: ::std::ptr::null_mut(),
                 waitSemaphoreCount: 1,
-                pWaitSemaphores: &self.render_finished_semaphores[_current_frame_index as usize],
+                pWaitSemaphores: &self.render_finished_semaphores[frame_index as usize],
                 swapchainCount: 1,
                 pSwapchains: &self.swap_chain.ptr,
                 pImageIndices: &image_index,
@@ -760,8 +785,206 @@ impl<'a> Device<'a> {
             
             vkQueueWaitIdle.unwrap()(self.present_queue);
 
-            _current_frame_index = (_current_frame_index + 1) % MAX_FRAMES_IN_FLIGHT as usize;
-            println!("Frame drawn {}", _current_frame_index);
+            current_frame_index + 1
         }
+    }
+
+    fn create_buffer(&self, buffer_size: VkDeviceSize, usage: VkBufferUsageFlags, properties: VkMemoryPropertyFlags, buffer: &mut VkBuffer, buffer_memory: &mut VkDeviceMemory) {
+
+        let buffer_info = VkBufferCreateInfo {
+            sType: VkStructureType_VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+            pNext: ::std::ptr::null_mut(),
+            flags: 0,
+            size:  buffer_size as _,
+            usage: usage as _,
+            sharingMode: VkSharingMode_VK_SHARING_MODE_EXCLUSIVE,
+            queueFamilyIndexCount: 0,
+            pQueueFamilyIndices: ::std::ptr::null_mut(),
+        };      
+        unsafe {      
+            assert_eq!(
+                VkResult_VK_SUCCESS,
+                vkCreateBuffer.unwrap()(self.device, &buffer_info, ::std::ptr::null_mut(), buffer)
+            );
+        }
+        
+        let mem_requirement = unsafe {
+            let mut option = ::std::mem::MaybeUninit::uninit();            
+            vkGetBufferMemoryRequirements.unwrap()(self.device, *buffer, option.as_mut_ptr());
+            option.assume_init()
+        };  
+
+        let mem_alloc_info = VkMemoryAllocateInfo {
+            sType: VkStructureType_VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+            pNext: ::std::ptr::null_mut(),
+            allocationSize: mem_requirement.size,
+            memoryTypeIndex: find_available_memory_type(self.instance.get_physical_device().into(), mem_requirement.memoryTypeBits, properties as _ ),
+        };
+        
+        unsafe {
+            assert_eq!(
+                VkResult_VK_SUCCESS,
+                vkAllocateMemory.unwrap()(self.device, &mem_alloc_info, ::std::ptr::null_mut(), buffer_memory)
+            );         
+
+            vkBindBufferMemory.unwrap()(self.device, *buffer, *buffer_memory, 0);
+        }
+    }
+
+    fn destroy_buffer(&self, buffer:&VkBuffer, buffer_memory: &VkDeviceMemory) {
+        unsafe {
+            vkDestroyBuffer.unwrap()(self.device, *buffer, ::std::ptr::null_mut());
+            vkFreeMemory.unwrap()(self.device, *buffer_memory, ::std::ptr::null_mut());
+        }
+    }
+
+    fn map_buffer_memory<T>(&self, buffer_memory: &mut VkDeviceMemory, data_src: &[T]) {
+        unsafe {
+            let length = ::std::mem::size_of::<T>() * data_src.len();
+        
+            let mut data_ptr = {
+                let mut option = ::std::mem::MaybeUninit::uninit();
+                assert_eq!(
+                    VkResult_VK_SUCCESS,
+                    vkMapMemory.unwrap()(self.device, *buffer_memory, 0, length as _, 0, option.as_mut_ptr())
+                );
+                option.assume_init()
+            };
+            ::std::ptr::copy_nonoverlapping(data_src.as_ptr() as _, data_ptr, length as _);
+            vkUnmapMemory.unwrap()(self.device, *buffer_memory);
+        }
+    }
+
+    fn copy_buffer(&self, buffer_src: &VkBuffer, buffer_dst: &mut VkBuffer, buffer_size: VkDeviceSize) {
+        let command_alloc_info = VkCommandBufferAllocateInfo {
+            sType: VkStructureType_VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+            pNext: ::std::ptr::null_mut(),
+            commandPool: self.command_pool,
+            level: VkCommandBufferLevel_VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+            commandBufferCount: 1,
+        };
+
+        let command_buffer = unsafe {
+            let mut option = ::std::mem::MaybeUninit::uninit();
+            assert_eq!(
+                VkResult_VK_SUCCESS,
+                vkAllocateCommandBuffers.unwrap()(self.device, &command_alloc_info, option.as_mut_ptr())
+            );
+            option.assume_init()
+        };
+
+        let begin_info = VkCommandBufferBeginInfo {
+            sType: VkStructureType_VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+            flags: VkCommandBufferUsageFlagBits_VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT as _,
+            pNext: ::std::ptr::null_mut(),
+            pInheritanceInfo: ::std::ptr::null_mut(),
+        };
+            
+        unsafe {
+            assert_eq!(
+                VkResult_VK_SUCCESS,
+                vkBeginCommandBuffer.unwrap()(command_buffer, &begin_info)
+            );
+            
+            let copy_region = VkBufferCopy {
+                srcOffset: 0,
+                dstOffset: 0,
+                size: buffer_size,
+            };  
+        
+            vkCmdCopyBuffer.unwrap()(command_buffer, *buffer_src, *buffer_dst, 1, &copy_region);
+            
+            assert_eq!(
+                VkResult_VK_SUCCESS,
+                vkEndCommandBuffer.unwrap()(command_buffer)
+            );
+        }
+
+        let submit_info = VkSubmitInfo {
+            sType: VkStructureType_VK_STRUCTURE_TYPE_SUBMIT_INFO,
+            pNext: ::std::ptr::null_mut(),
+            waitSemaphoreCount: 0,
+            pWaitSemaphores: ::std::ptr::null_mut(),
+            pWaitDstStageMask: ::std::ptr::null_mut(),
+            commandBufferCount: 1,
+            pCommandBuffers: &command_buffer,
+            signalSemaphoreCount: 0,
+            pSignalSemaphores: ::std::ptr::null_mut(),
+        };
+        
+        unsafe {
+            assert_eq!(
+                VkResult_VK_SUCCESS,
+                vkQueueSubmit.unwrap()(self.graphics_queue, 1, &submit_info, ::std::ptr::null_mut())
+            );
+            
+            vkQueueWaitIdle.unwrap()(self.graphics_queue);
+
+            vkFreeCommandBuffers.unwrap()(self.device, self.command_pool, 1, &command_buffer);
+        }
+    }
+    
+    pub fn create_vertex_buffer(&mut self, vertices: &[VertexData]) -> &mut Self {
+        let length = unsafe { ::std::mem::size_of::<VertexData>() * vertices.len() };
+        let flags = VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+        
+        let mut staging_buffer: VkBuffer = ::std::ptr::null_mut();
+        let mut staging_buffer_memory : VkDeviceMemory = ::std::ptr::null_mut();
+        self.create_buffer(length as _, 
+                            VkBufferUsageFlagBits_VK_BUFFER_USAGE_TRANSFER_SRC_BIT as _, 
+                            flags as _,
+                            &mut staging_buffer,
+                            &mut staging_buffer_memory);
+        
+        self.map_buffer_memory(&mut staging_buffer_memory, &vertices);
+
+        let mut vertex_buffer: VkBuffer = ::std::ptr::null_mut();
+        let mut vertex_buffer_memory : VkDeviceMemory = ::std::ptr::null_mut();
+        let flags = VkBufferUsageFlagBits_VK_BUFFER_USAGE_TRANSFER_DST_BIT | VkBufferUsageFlagBits_VK_BUFFER_USAGE_VERTEX_BUFFER_BIT; 
+        self.create_buffer(length as _, 
+                            flags as _, 
+                            VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT as _,
+                            &mut vertex_buffer,
+                            &mut vertex_buffer_memory);
+
+        self.copy_buffer(&staging_buffer, &mut vertex_buffer, length as _);
+        
+        self.destroy_buffer(&staging_buffer, &staging_buffer_memory);
+
+        self.vertex_buffer = vertex_buffer;
+        self.vertex_buffer_memory = vertex_buffer_memory;
+        self
+    }
+
+    pub fn create_index_buffer(&mut self, indices: &[u32]) -> &mut Self{
+        let length = unsafe { ::std::mem::size_of::<u32>() * indices.len() };
+        let flags = VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+        
+        let mut staging_buffer: VkBuffer = ::std::ptr::null_mut();
+        let mut staging_buffer_memory : VkDeviceMemory = ::std::ptr::null_mut();
+        self.create_buffer(length as _, 
+                            VkBufferUsageFlagBits_VK_BUFFER_USAGE_TRANSFER_SRC_BIT as _, 
+                            flags as _,
+                            &mut staging_buffer,
+                            &mut staging_buffer_memory);
+        
+        self.map_buffer_memory(&mut staging_buffer_memory, &indices);
+
+        let mut index_buffer: VkBuffer = ::std::ptr::null_mut();
+        let mut index_buffer_memory : VkDeviceMemory = ::std::ptr::null_mut();
+        let flags = VkBufferUsageFlagBits_VK_BUFFER_USAGE_TRANSFER_DST_BIT | VkBufferUsageFlagBits_VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+        self.create_buffer(length as _, 
+                            flags as _, 
+                            VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT as _,
+                            &mut index_buffer,
+                            &mut index_buffer_memory);
+
+        self.copy_buffer(&staging_buffer, &mut index_buffer, length as _);
+        
+        self.destroy_buffer(&staging_buffer, &staging_buffer_memory);
+
+        self.index_buffer = index_buffer;
+        self.index_buffer_memory = index_buffer_memory;
+        self
     }
 }

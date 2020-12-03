@@ -32,9 +32,9 @@ macro_rules! implement_vector {
     
         pub type $VectorType = $VectorN<$Type>;
 
-        impl $VectorN<$Type> {  
+        impl $VectorType {  
             #[inline]
-            pub const fn new($($field: $Type),+) -> $VectorN<$Type> {
+            pub const fn new($($field: $Type),+) -> $VectorType {
                 $VectorN { $($field),+ }
             }
 
@@ -49,59 +49,58 @@ macro_rules! implement_vector {
             }
         }
 
-        impl Default for $VectorN<$Type> {
-            fn default() -> $VectorN<$Type>
+        impl Default for $VectorType {
+            fn default() -> $VectorType
             {
                 type ParamType = $Type;
                 $VectorN { $($field : ParamType::zero()),+ }
             }
         }
 
-        impl AsRef<[$Type; $n]> for $VectorN<$Type> {
+        impl AsRef<[$Type; $n]> for $VectorType {
             #[inline]
             fn as_ref(&self) -> &[$Type; $n] {
                 unsafe { ::std::mem::transmute(self) }
             }
         }
 
-        impl AsMut<[$Type; $n]> for $VectorN<$Type> {
+        impl AsMut<[$Type; $n]> for $VectorType {
             #[inline]
             fn as_mut(&mut self) -> &mut [$Type; $n] {
                 unsafe { ::std::mem::transmute(self) }
             }
         }
         
-        impl Into<[$Type; $n]> for $VectorN<$Type> {
+        impl Into<[$Type; $n]> for $VectorType {
             #[inline]
             fn into(self) -> [$Type; $n] {
                 match self { $VectorN { $($field),+ } => [$($field),+] }
             }
         }
 
-        impl From<[$Type; $n]> for $VectorN<$Type> {
+        impl From<[$Type; $n]> for $VectorType {
             #[inline]
-            fn from(v: [$Type; $n]) -> $VectorN<$Type> {
+            fn from(v: [$Type; $n]) -> $VectorType {
                 match v { [$($field),+] => $VectorN { $($field),+ } }
             }
         }
-        
 
-        impl From<$Type> for $VectorN<$Type> {
+        impl From<$Type> for $VectorType {
             #[inline]
-            fn from(v: $Type) -> $VectorN<$Type> {
+            fn from(v: $Type) -> $VectorType {
                  $VectorN { $($field: v),+ }
             }
         }
 
-        impl ::std::ops::Add for $VectorN<$Type> {
-            type Output = $VectorN<$Type>;
+        impl ::std::ops::Add for $VectorType {
+            type Output = $VectorType;
             #[inline]
-            fn add(self, other: $VectorN<$Type>) -> $VectorN<$Type> {
+            fn add(self, other: $VectorType) -> $VectorType {
                 $VectorN { $($field: self.$field + other.$field),+ }
             }
         }
         
-        implement_zero_as_default!($VectorN<$Type>);
+        implement_zero_as_default!($VectorType);
     }
 }
 

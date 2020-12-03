@@ -1,22 +1,44 @@
  #![allow(dead_code)]
 
 use vulkan_bindings::*;
+use nrg_math::*;
 use nrg_platform::*;
 use super::utils::*;
 
 #[test]
 fn test_vulkan()
-{
-    use super::types::*;  
+{ 
+    use crate::data_formats::*;
     use super::instance::*;
     use super::device::*;
-    use super::shader::*;
+    use super::data_formats::*;
 
     let window = 
-    Window::create( String::from("NRG TEST"),
-                   String::from("NRG - Vulkan Test"),
-                   10, 10,
+    Window::create( String::from("TEST"),
+                   String::from("Vulkan Test"),
+                   100, 100,
                    1024, 768 );
+
+    let vertices: [VertexData; 4] = [
+        VertexData { pos: [-0.5, -0.5].into(), color: [1.0, 0.0, 0.0].into() },
+        VertexData { pos: [ 0.5, -0.5].into(), color: [0.0, 1.0, 0.0].into() },
+        VertexData { pos: [ 0.5,  0.5].into(), color: [0.0, 0.0, 1.0].into() },
+        VertexData { pos: [-0.5,  0.5].into(), color: [1.0, 1.0, 1.0].into() },
+    ]; 
+    let indices: [u32; 6] = [0, 1, 2, 2, 3, 0];
+
+    let binding_info = VertexData::get_binding_desc();
+    let attr_info = VertexData::get_attributes_desc();
+
+    let vertex_input = VkPipelineVertexInputStateCreateInfo {        
+        sType: VkStructureType_VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+        pNext: ::std::ptr::null_mut(),
+        flags: 0,
+        vertexBindingDescriptionCount: 1,
+        pVertexBindingDescriptions: &binding_info,
+        vertexAttributeDescriptionCount: attr_info.len() as _,
+        pVertexAttributeDescriptions: attr_info.as_ptr(),
+    };
 
     let mut instance = Instance::new(&window.handle, false);
     let mut device = Device::new(&mut instance);
@@ -26,10 +48,18 @@ fn test_vulkan()
             .create_graphics_pipeline()
             .create_framebuffers()
             .create_command_pool()
+            .create_vertex_buffer(&vertices)
+            .create_index_buffer(&indices)
             .create_command_buffers()
             .create_sync_objects();
     
-    device.temp_draw_frame();
+    let mut frame_index = 0;
+    loop {
+        frame_index = device.temp_draw_frame(frame_index);
+        if frame_index > 1000 {
+            break;
+        }
+    }
                         
     device.delete();        
     instance.delete();

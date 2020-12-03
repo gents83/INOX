@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 use vulkan_bindings::*;
+use super::types::*;
 
 pub fn get_available_layers_count() -> u32 {
     let layers_count = unsafe {
@@ -144,6 +145,24 @@ pub fn get_supported_alpha_mode(display_plane_capabilities:&VkDisplayPlaneCapabi
         }
     }
     return VkDisplayPlaneAlphaFlagBitsKHR_VK_DISPLAY_PLANE_ALPHA_OPAQUE_BIT_KHR
+}
+
+pub fn find_available_memory_type(physical_device: VkPhysicalDevice, filter: u32, properties: VkMemoryPropertyFlags) -> u32 {
+    let mem_properties = unsafe {
+        let mut option = ::std::mem::MaybeUninit::uninit();            
+        vkGetPhysicalDeviceMemoryProperties.unwrap()(physical_device, option.as_mut_ptr());
+        option.assume_init()
+    };  
+    for i in 0..mem_properties.memoryTypeCount {
+        let is_correct_type = (filter & (1 << i)) != 0;
+        let mem_type = mem_properties.memoryTypes[i as usize];
+        let has_needed_properties = (mem_type.propertyFlags & properties) == properties;
+        if  is_correct_type && has_needed_properties {
+            return i;
+        }
+    }
+    eprintln!("Unable to find suitable memory type with filter {} and flags {}", filter, properties);
+    return VK_INVALID_ID as _;
 }
 
 pub fn read_spirv_from_bytes<Data: ::std::io::Read + ::std::io::Seek>(data: &mut Data) -> ::std::vec::Vec<u32> {
