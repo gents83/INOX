@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use super::vector::Vector3;
 use super::vector::Vector4;
 use super::zero::*;
