@@ -1,7 +1,6 @@
  #![allow(dead_code)]
 
 use vulkan_bindings::*;
-use nrg_math::*;
 use nrg_platform::*;
 use super::utils::*;
 
@@ -27,29 +26,20 @@ fn test_vulkan()
     ]; 
     let indices: [u32; 6] = [0, 1, 2, 2, 3, 0];
 
-    let binding_info = VertexData::get_binding_desc();
-    let attr_info = VertexData::get_attributes_desc();
-
-    let vertex_input = VkPipelineVertexInputStateCreateInfo {        
-        sType: VkStructureType_VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-        pNext: ::std::ptr::null_mut(),
-        flags: 0,
-        vertexBindingDescriptionCount: 1,
-        pVertexBindingDescriptions: &binding_info,
-        vertexAttributeDescriptionCount: attr_info.len() as _,
-        pVertexAttributeDescriptions: attr_info.as_ptr(),
-    };
-
     let mut instance = Instance::new(&window.handle, false);
     let mut device = Device::new(&mut instance);
     device.create_swap_chain()
             .create_image_views()
             .create_render_pass()
+            .create_descriptor_set_layout()
             .create_graphics_pipeline()
             .create_framebuffers()
             .create_command_pool()
             .create_vertex_buffer(&vertices)
             .create_index_buffer(&indices)
+            .create_uniform_buffers()
+            .create_descriptor_pool()
+            .create_descriptor_sets()
             .create_command_buffers()
             .create_sync_objects();
     

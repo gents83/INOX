@@ -1,7 +1,7 @@
 
 use std::os::raw::c_char;
-use std::os::raw::c_void;
 use vulkan_bindings::*;
+use nrg_math::*;
 use crate::data_formats::*;
 use super::instance::*;
 use super::shader::*;
@@ -29,6 +29,7 @@ pub struct Device<'a> {
     swap_chain: SwapChain<'a>,
     shaders: Vec<Shader>,
     render_pass: VkRenderPass,
+    descriptor_set_layout: VkDescriptorSetLayout,
     pipeline_layout: VkPipelineLayout,
     graphics_pipeline: VkPipeline,
     framebuffers: Vec::<VkFramebuffer>,
@@ -37,6 +38,10 @@ pub struct Device<'a> {
     vertex_buffer_memory: VkDeviceMemory,
     index_buffer: VkBuffer,
     index_buffer_memory: VkDeviceMemory,
+    uniform_buffers: Vec<VkBuffer>,
+    uniform_buffers_memory: Vec<VkDeviceMemory>,
+    descriptor_pool: VkDescriptorPool,
+    descriptor_sets: Vec<VkDescriptorSet>,
     command_buffers: Vec::<VkCommandBuffer>,
     image_available_semaphores: Vec<VkSemaphore>,
     render_finished_semaphores: Vec<VkSemaphore>,
@@ -121,6 +126,7 @@ impl<'a> Device<'a> {
             },
             shaders: Vec::new(),
             render_pass: ::std::ptr::null_mut(),
+            descriptor_set_layout: ::std::ptr::null_mut(),
             pipeline_layout: ::std::ptr::null_mut(),
             graphics_pipeline: ::std::ptr::null_mut(),
             framebuffers: Vec::new(),
@@ -129,6 +135,10 @@ impl<'a> Device<'a> {
             vertex_buffer_memory: ::std::ptr::null_mut(),
             index_buffer: ::std::ptr::null_mut(),
             index_buffer_memory: ::std::ptr::null_mut(),
+            uniform_buffers: Vec::new(),
+            uniform_buffers_memory: Vec::new(),
+            descriptor_pool: ::std::ptr::null_mut(),
+            descriptor_sets: Vec::new(),
             command_buffers: Vec::new(),
             image_available_semaphores: Vec::new(),
             render_finished_semaphores: Vec::new(),
@@ -417,8 +427,8 @@ impl<'a> Device<'a> {
             sType: VkStructureType_VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
             pNext: ::std::ptr::null_mut(),
             flags: 0,
-            setLayoutCount: 0,
-            pSetLayouts: ::std::ptr::null_mut(),
+            setLayoutCount: 1,
+            pSetLayouts: &self.descriptor_set_layout,
             pushConstantRangeCount: 0,
             pPushConstantRanges: ::std::ptr::null_mut(),
         };
@@ -566,8 +576,6 @@ impl<'a> Device<'a> {
                 pClearValues: &clear_value,
             };
 
-            let vertex_count = 3;
-
             unsafe {
                 vkCmdBeginRenderPass.unwrap()(*command_buffer, &render_pass_begin_info, VkSubpassContents_VK_SUBPASS_CONTENTS_INLINE);
 
@@ -578,6 +586,8 @@ impl<'a> Device<'a> {
                 vkCmdBindVertexBuffers.unwrap()(*command_buffer, 0, 1, vertex_buffers.as_ptr(), offsets.as_ptr());
 
                 vkCmdBindIndexBuffer.unwrap()(*command_buffer, self.index_buffer, 0, VkIndexType_VK_INDEX_TYPE_UINT32);
+
+                vkCmdBindDescriptorSets.unwrap()(*command_buffer, VkPipelineBindPoint_VK_PIPELINE_BIND_POINT_GRAPHICS, self.pipeline_layout, 0, 1, &self.descriptor_sets[i], 0, ::std::ptr::null_mut());
 
                 vkCmdDrawIndexed.unwrap()(*command_buffer, ::std::mem::size_of_val(&self.index_buffer) as _, 1, 0, 0, 0);
 
@@ -694,6 +704,9 @@ impl<'a> Device<'a> {
         .create_render_pass()
         .create_graphics_pipeline()
         .create_framebuffers()
+        .create_uniform_buffers()
+        .create_descriptor_pool()
+        .create_descriptor_sets()
         .create_command_buffers();
     }
 
@@ -718,75 +731,6 @@ impl<'a> Device<'a> {
 
     pub fn get_swap_chain(&self) -> &SwapChain {
         &self.swap_chain
-    }
-
-    pub fn temp_draw_frame(&mut self, current_frame_index: u32 ) -> u32 {
-        let frame_index =  current_frame_index % MAX_FRAMES_IN_FLIGHT as u32;
-
-        unsafe {
-            vkWaitForFences.unwrap()(self.device, 1, &self.inflight_fences[frame_index as usize], VK_TRUE, std::u64::MAX);
-                
-            let mut image_index: u32 = 0;
-            let mut result = vkAcquireNextImageKHR.unwrap()(self.device, self.swap_chain.ptr, ::std::u64::MAX, self.image_available_semaphores[frame_index as usize], ::std::ptr::null_mut(), &mut image_index);
-            
-            if result == VkResult_VK_ERROR_OUT_OF_DATE_KHR {
-                self.recreate_swap_chain();
-                return frame_index;
-            } 
-            else if result != VkResult_VK_SUCCESS && result != VkResult_VK_SUBOPTIMAL_KHR {
-                eprintln!("Failed to acquire swap chain image");
-            }
-
-            if self.inflight_images[image_index as usize] != ::std::ptr::null_mut() {
-                vkWaitForFences.unwrap()(self.device, 1, &self.inflight_images[image_index as usize], VK_TRUE, std::u64::MAX);
-            }
-            self.inflight_images[image_index as usize] = self.inflight_fences[frame_index as usize];
-            
-            
-            let wait_stages = [VkPipelineStageFlagBits_VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT];
-            let submit_info = VkSubmitInfo {
-                sType: VkStructureType_VK_STRUCTURE_TYPE_SUBMIT_INFO,
-                pNext: ::std::ptr::null_mut(),
-                waitSemaphoreCount: 1,
-                pWaitSemaphores: &self.image_available_semaphores[frame_index as usize],
-                pWaitDstStageMask: wait_stages.as_ptr() as *const _,
-                commandBufferCount: 1,
-                pCommandBuffers: &self.command_buffers[image_index as usize],
-                signalSemaphoreCount: 1,
-                pSignalSemaphores: &self.render_finished_semaphores[frame_index as usize],
-            };
-            
-            vkResetFences.unwrap()(self.device, 1, &self.inflight_fences[frame_index as usize]);
-            
-            assert_eq!(
-                VkResult_VK_SUCCESS,
-                vkQueueSubmit.unwrap()(self.graphics_queue, 1, &submit_info, self.inflight_fences[frame_index as usize])
-            );
-                
-            let present_info = VkPresentInfoKHR {
-                sType: VkStructureType_VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
-                pNext: ::std::ptr::null_mut(),
-                waitSemaphoreCount: 1,
-                pWaitSemaphores: &self.render_finished_semaphores[frame_index as usize],
-                swapchainCount: 1,
-                pSwapchains: &self.swap_chain.ptr,
-                pImageIndices: &image_index,
-                pResults: ::std::ptr::null_mut(),
-            };
-
-            result = vkQueuePresentKHR.unwrap()(self.present_queue, &present_info);
-            
-            if result == VkResult_VK_ERROR_OUT_OF_DATE_KHR || result == VkResult_VK_SUBOPTIMAL_KHR {
-                self.recreate_swap_chain();
-            } 
-            else if result != VkResult_VK_SUCCESS {
-                eprintln!("Failed to present swap chain image!");
-            }
-            
-            vkQueueWaitIdle.unwrap()(self.present_queue);
-
-            current_frame_index + 1
-        }
     }
 
     fn create_buffer(&self, buffer_size: VkDeviceSize, usage: VkBufferUsageFlags, properties: VkMemoryPropertyFlags, buffer: &mut VkBuffer, buffer_memory: &mut VkDeviceMemory) {
@@ -842,7 +786,7 @@ impl<'a> Device<'a> {
         unsafe {
             let length = ::std::mem::size_of::<T>() * data_src.len();
         
-            let mut data_ptr = {
+            let data_ptr = {
                 let mut option = ::std::mem::MaybeUninit::uninit();
                 assert_eq!(
                     VkResult_VK_SUCCESS,
@@ -925,7 +869,7 @@ impl<'a> Device<'a> {
     }
     
     pub fn create_vertex_buffer(&mut self, vertices: &[VertexData]) -> &mut Self {
-        let length = unsafe { ::std::mem::size_of::<VertexData>() * vertices.len() };
+        let length = ::std::mem::size_of::<VertexData>() * vertices.len();
         let flags = VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
         
         let mut staging_buffer: VkBuffer = ::std::ptr::null_mut();
@@ -957,7 +901,7 @@ impl<'a> Device<'a> {
     }
 
     pub fn create_index_buffer(&mut self, indices: &[u32]) -> &mut Self{
-        let length = unsafe { ::std::mem::size_of::<u32>() * indices.len() };
+        let length = ::std::mem::size_of::<u32>() * indices.len();
         let flags = VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
         
         let mut staging_buffer: VkBuffer = ::std::ptr::null_mut();
@@ -987,4 +931,225 @@ impl<'a> Device<'a> {
         self.index_buffer_memory = index_buffer_memory;
         self
     }
+
+    pub fn create_descriptor_set_layout(&mut self) -> &mut Self {
+        let uniform_buffer_layout_binding = VkDescriptorSetLayoutBinding {
+            binding: 0,
+            descriptorCount: 1,
+            descriptorType: VkDescriptorType_VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+            pImmutableSamplers: ::std::ptr::null_mut(),
+            stageFlags: VkShaderStageFlagBits_VK_SHADER_STAGE_VERTEX_BIT as _,
+        };
+        
+        let layout_create_info = VkDescriptorSetLayoutCreateInfo {
+            sType: VkStructureType_VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+            flags: 0,
+            pNext: ::std::ptr::null_mut(),
+            bindingCount: 1,
+            pBindings: &uniform_buffer_layout_binding,
+        };
+
+        let descriptor_set_layout = unsafe {
+            let mut option = ::std::mem::MaybeUninit::uninit();
+            assert_eq!(
+                VkResult_VK_SUCCESS,
+                vkCreateDescriptorSetLayout.unwrap()(self.device, &layout_create_info, ::std::ptr::null_mut(), option.as_mut_ptr())
+            );
+            option.assume_init()
+        };  
+
+        self.descriptor_set_layout = descriptor_set_layout;
+        self
+    }
+
+    pub fn create_uniform_buffers(&mut self) -> &mut Self {  
+        let mut uniform_buffers = Vec::<VkBuffer>::with_capacity(self.swap_chain.images.len());
+        let mut uniform_buffers_memory = Vec::<VkDeviceMemory>::with_capacity(self.swap_chain.images.len());
+        unsafe {
+            uniform_buffers.set_len(self.swap_chain.images.len());
+            uniform_buffers_memory.set_len(self.swap_chain.images.len());
+        }
+
+        let uniform_buffer_size = std::mem::size_of::<UniformData>();
+        let flags = VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+        for i in 0..uniform_buffers.len() {
+            self.create_buffer(uniform_buffer_size as _, VkBufferUsageFlagBits_VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT as _, flags as _, &mut uniform_buffers[i], &mut uniform_buffers_memory[i]);
+        }
+
+        self.uniform_buffers = uniform_buffers;
+        self.uniform_buffers_memory = uniform_buffers_memory;
+        self
+    }
+
+    pub fn create_descriptor_pool(&mut self) -> &mut Self {
+        let pool_size = VkDescriptorPoolSize {
+            type_: VkDescriptorType_VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+            descriptorCount: self.swap_chain.images.len() as _,
+        };
+
+        let pool_info = VkDescriptorPoolCreateInfo {
+            sType: VkStructureType_VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+            flags: 0,
+            pNext: ::std::ptr::null_mut(),
+            poolSizeCount: 1,
+            pPoolSizes: &pool_size,
+            maxSets: self.swap_chain.images.len() as _,
+        };
+
+        let descriptor_pool = unsafe {
+            let mut option = ::std::mem::MaybeUninit::uninit();
+            assert_eq!(
+                VkResult_VK_SUCCESS,
+                vkCreateDescriptorPool.unwrap()(self.device, &pool_info, ::std::ptr::null_mut(), option.as_mut_ptr())
+            );
+            option.assume_init()
+        };  
+
+        self.descriptor_pool = descriptor_pool;
+        self
+    }
+
+    pub fn create_descriptor_sets(& mut self) -> &mut Self {
+        let mut layouts = Vec::<VkDescriptorSetLayout>::with_capacity(self.swap_chain.images.len());
+        unsafe {
+            layouts.set_len(self.swap_chain.images.len());
+        }
+        for layout in layouts.iter_mut() {
+            *layout = self.descriptor_set_layout;
+        }
+
+        let alloc_info = VkDescriptorSetAllocateInfo{
+            sType: VkStructureType_VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+            pNext: ::std::ptr::null_mut(),
+            descriptorPool: self.descriptor_pool,
+            descriptorSetCount: self.swap_chain.images.len() as _,
+            pSetLayouts: layouts.as_mut_ptr(),
+        };
+
+        let mut descriptor_sets = Vec::<VkDescriptorSet>::with_capacity(self.swap_chain.images.len());
+        unsafe {
+            descriptor_sets.set_len(self.swap_chain.images.len());
+            assert_eq!(
+                VkResult_VK_SUCCESS,
+                vkAllocateDescriptorSets.unwrap()(self.device, &alloc_info, descriptor_sets.as_mut_ptr())
+            );
+        }
+
+        for i in 0..self.swap_chain.images.len() {
+            let buffer_info = VkDescriptorBufferInfo {
+                buffer: self.uniform_buffers[i],
+                offset: 0,
+                range: ::std::mem::size_of::<UniformData>() as _,
+            };
+
+            let descriptor_write = VkWriteDescriptorSet {
+                sType: VkStructureType_VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                pNext: ::std::ptr::null_mut(),
+                dstSet: descriptor_sets[i],
+                dstBinding: 0,
+                dstArrayElement: 0,
+                descriptorCount: 1,
+                descriptorType: VkDescriptorType_VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                pImageInfo: ::std::ptr::null_mut(),
+                pBufferInfo: &buffer_info,
+                pTexelBufferView: ::std::ptr::null_mut(),
+            };
+
+            unsafe {
+                vkUpdateDescriptorSets.unwrap()(self.device, 1, &descriptor_write, 0, ::std::ptr::null_mut());
+            }
+        }
+
+        self.descriptor_sets = descriptor_sets;
+        self
+    }
+
+    fn update_uniform_buffer(&mut self, image_index: usize) {
+
+        let uniform_data: [UniformData; 1] = [
+            UniformData {
+                model: Matrix4::identity(),
+                view: Matrix4::identity(),
+                proj: Matrix4::identity(),
+            }
+        ];
+
+        let mut buffer_memory = self.uniform_buffers_memory[image_index];
+        self.map_buffer_memory(&mut buffer_memory, &uniform_data);
+        self.uniform_buffers_memory[image_index] = buffer_memory;
+    }
+
+    
+
+    pub fn temp_draw_frame(&mut self, current_frame_index: u32 ) -> u32 {
+        let frame_index =  current_frame_index % MAX_FRAMES_IN_FLIGHT as u32;
+
+        unsafe {
+            vkWaitForFences.unwrap()(self.device, 1, &self.inflight_fences[frame_index as usize], VK_TRUE, std::u64::MAX);
+                
+            let mut image_index: u32 = 0;
+            let mut result = vkAcquireNextImageKHR.unwrap()(self.device, self.swap_chain.ptr, ::std::u64::MAX, self.image_available_semaphores[frame_index as usize], ::std::ptr::null_mut(), &mut image_index);
+            
+            if result == VkResult_VK_ERROR_OUT_OF_DATE_KHR {
+                self.recreate_swap_chain();
+                return frame_index;
+            } 
+            else if result != VkResult_VK_SUCCESS && result != VkResult_VK_SUBOPTIMAL_KHR {
+                eprintln!("Failed to acquire swap chain image");
+            }
+
+            self.update_uniform_buffer(image_index as _);
+
+            if self.inflight_images[image_index as usize] != ::std::ptr::null_mut() {
+                vkWaitForFences.unwrap()(self.device, 1, &self.inflight_images[image_index as usize], VK_TRUE, std::u64::MAX);
+            }
+            self.inflight_images[image_index as usize] = self.inflight_fences[frame_index as usize];
+            
+            
+            let wait_stages = [VkPipelineStageFlagBits_VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT];
+            let submit_info = VkSubmitInfo {
+                sType: VkStructureType_VK_STRUCTURE_TYPE_SUBMIT_INFO,
+                pNext: ::std::ptr::null_mut(),
+                waitSemaphoreCount: 1,
+                pWaitSemaphores: &self.image_available_semaphores[frame_index as usize],
+                pWaitDstStageMask: wait_stages.as_ptr() as *const _,
+                commandBufferCount: 1,
+                pCommandBuffers: &self.command_buffers[image_index as usize],
+                signalSemaphoreCount: 1,
+                pSignalSemaphores: &self.render_finished_semaphores[frame_index as usize],
+            };
+            
+            vkResetFences.unwrap()(self.device, 1, &self.inflight_fences[frame_index as usize]);
+            
+            assert_eq!(
+                VkResult_VK_SUCCESS,
+                vkQueueSubmit.unwrap()(self.graphics_queue, 1, &submit_info, self.inflight_fences[frame_index as usize])
+            );
+                
+            let present_info = VkPresentInfoKHR {
+                sType: VkStructureType_VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+                pNext: ::std::ptr::null_mut(),
+                waitSemaphoreCount: 1,
+                pWaitSemaphores: &self.render_finished_semaphores[frame_index as usize],
+                swapchainCount: 1,
+                pSwapchains: &self.swap_chain.ptr,
+                pImageIndices: &image_index,
+                pResults: ::std::ptr::null_mut(),
+            };
+
+            result = vkQueuePresentKHR.unwrap()(self.present_queue, &present_info);
+            
+            if result == VkResult_VK_ERROR_OUT_OF_DATE_KHR || result == VkResult_VK_SUBOPTIMAL_KHR {
+                self.recreate_swap_chain();
+            } 
+            else if result != VkResult_VK_SUCCESS {
+                eprintln!("Failed to present swap chain image!");
+            }
+            
+            vkQueueWaitIdle.unwrap()(self.present_queue);
+
+            current_frame_index + 1
+        }
+    }
+
 }
