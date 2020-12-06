@@ -1,5 +1,8 @@
 
-pub trait One: Sized + ::std::ops::Add<Self, Output = Self> {
+use core::ops::*;
+use core::num::Wrapping;
+
+pub trait One: Sized + Mul<Self, Output = Self> {
     
     fn one() -> Self;
 
@@ -8,6 +11,11 @@ pub trait One: Sized + ::std::ops::Add<Self, Output = Self> {
     }
 
     fn is_one(&self) -> bool;
+}
+
+#[inline(always)]
+pub fn one<T: One>() -> T {
+    One::one()
 }
 
 #[macro_export]
@@ -45,3 +53,21 @@ implement_one!(i128, 1);
 implement_one!(f32, 1.0);
 implement_one!(f64, 1.0);
 
+
+
+impl<T: One> One for Wrapping<T>
+where
+    Wrapping<T>: Mul<Output = Wrapping<T>>,
+{
+    fn set_one(&mut self) {
+        self.0.set_one();
+    }
+
+    fn one() -> Self {
+        Wrapping(T::one())
+    }
+
+    fn is_one(&self) -> bool {
+        self.0.is_one()
+    }
+}

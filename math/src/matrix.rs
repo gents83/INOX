@@ -1,7 +1,7 @@
 #![allow(dead_code)]
+#![allow(unused_must_use)]
 
-use super::vector::Vector3;
-use super::vector::Vector4;
+use super::vector::*;
 use super::zero::*;
 use super::one::*;
 
@@ -34,10 +34,6 @@ macro_rules! implement_matrix {
                 match v { [$($field),+] => $MatrixN { $($field),+ } }
             }
             
-            pub fn print(&self) {
-                $(self.$field.print()); +
-            }
-            
             pub fn identity() -> Self {
                 type Vector = $VecType;
                 type BaseType = $Type;
@@ -48,8 +44,26 @@ macro_rules! implement_matrix {
                 $MatrixN::from_axis( &vec_array )
             }
         }
+        
+                
+        impl ::std::fmt::Debug for $MatrixN<$Type> {
+            fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {                 
+                $(self.$field.fmt(f)); +
+            }
+        }
     }
 }
 
 implement_matrix!(Matrix3 { axis_x, axis_y, axis_z }, 3, Vector3<f32>, f32);
 implement_matrix!(Matrix4 { axis_x, axis_y, axis_z, axis_w }, 4, Vector4<f32>, f32);
+
+/*
+impl<T: std::ops::Mul<Output = T> + std::ops::Sub<Output = T> + std::ops::Deref> Matrix3<T> 
+where T: num::Float {
+    pub fn create_from_translation(self, v: Vector2<T>) -> Matrix3<T> {
+        Self {  axis_x: Vector3 {x: 1.0, y: 0.0, z: 0.0},
+                axis_y: [0.0, 1.0, 0.0].into(),
+                axis_z: [v.x, v.y, 1.0].into() }
+    }
+}
+*/

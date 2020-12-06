@@ -1,5 +1,8 @@
 
-pub trait Zero: Sized + ::std::ops::Add<Self, Output = Self> {
+use core::ops::*;
+use core::num::Wrapping;
+
+pub trait Zero: Sized + Add<Self, Output = Self> {
     
     fn zero() -> Self;
 
@@ -8,6 +11,11 @@ pub trait Zero: Sized + ::std::ops::Add<Self, Output = Self> {
     }
 
     fn is_zero(&self) -> bool;
+}
+
+#[inline(always)]
+pub fn zero<T: Zero>() -> T {
+    Zero::zero()
 }
 
 #[macro_export]
@@ -28,17 +36,16 @@ macro_rules! implement_zero {
 
 #[macro_export]
 macro_rules! implement_zero_as_default {
-    ($Type:ty) => {
-        impl Zero for $Type {
+    ($Type:ident) => {
+        impl<T> Zero for $Type<T> 
+        where T: Number {  
             #[inline]
-            fn zero() -> $Type {
-                type Type = $Type;
-                Type::default()
+            fn zero() -> $Type<T> {
+                $Type::default()
             }
             #[inline]
             fn is_zero(&self) -> bool {
-                type Type = $Type;
-                *self == Type::default()
+                *self == $Type::default()
             }
         }
     };
@@ -63,3 +70,21 @@ implement_zero!(i128, 0);
 implement_zero!(f32, 0.0);
 implement_zero!(f64, 0.0);
 
+
+
+impl<T: Zero> Zero for Wrapping<T>
+where
+    Wrapping<T>: Add<Output = Wrapping<T>>,
+{
+    fn is_zero(&self) -> bool {
+        self.0.is_zero()
+    }
+
+    fn set_zero(&mut self) {
+        self.0.set_zero();
+    }
+
+    fn zero() -> Self {
+        Wrapping(T::zero())
+    }
+}
