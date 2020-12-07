@@ -75,27 +75,27 @@ macro_rules! implement_vector {
             }
             
             #[inline]
-            fn normalize(&mut self) -> Self 
+            pub fn normalize(&mut self) -> Self 
             where T: Float {
                 self.normalize_to(T::one());
                 *self
             }
 
             #[inline]
-            fn normalize_to(&mut self, magnitude: T) -> Self 
+            pub fn normalize_to(&mut self, magnitude: T) -> Self 
             where T: Float {
                 self.mul(magnitude / self.length());
                 *self
             }
             
             #[inline]
-            fn get_normalized(&self) -> $VectorN<T> 
+            pub fn get_normalized(&self) -> $VectorN<T> 
             where T: Float {
                 self.get_normalized_to(T::one())
             }
 
             #[inline]
-            fn get_normalized_to(&self, magnitude: T) -> $VectorN<T> 
+            pub fn get_normalized_to(&self, magnitude: T) -> $VectorN<T> 
             where T: Float {
                 $VectorN { $($field: (self.$field * (magnitude / self.length()))),+ }
             }

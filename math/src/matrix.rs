@@ -1,9 +1,11 @@
 #![allow(dead_code)]
 #![allow(unused_must_use)]
 
+use super::angle::*;
 use super::float::*;
 use super::number::*;
 use super::vector::*;
+use super::zero::*;
 
 #[derive(PartialEq, Eq, Copy, Clone, Hash)]
 pub struct Matrix3<T> {
@@ -191,6 +193,12 @@ where T: Float {
             self[0][2], self[1][2], self[2][2],
         )
     }
+    fn from_look_at(direction: Vector3<T>, up: Vector3<T>) -> Matrix3<T> {
+        let dir = direction.get_normalized();
+        let side = dir.cross(up).get_normalized();
+        let new_up = side.cross(dir).get_normalized();
+        Matrix3::from_columns(side, new_up, dir)
+    }
 }
 
 impl<T> Matrix4<T> 
@@ -229,6 +237,124 @@ where T: Float {
                 axis_y: Vector4 {x: T::zero(), y: y, z: T::zero(), w: T::zero()},
                 axis_z: Vector4 {x: T::zero(), y: T::zero(), z: z, w: T::zero()},
                 axis_w: Vector4 {x: T::zero(), y: T::zero(), z: T::zero(), w: T::one()}  }
+    }
+    pub fn create_perspective(fovy_in_radians: Radians<T>, aspect_ratio: T, near_plane: T, far_plane: T) -> Matrix4<T> { 
+        assert!(fovy_in_radians > Radians::zero(),
+                "The vertical field of view cannot be below zero, FoV: {:?}", Degree(fovy_in_radians).0);
+        assert!( fovy_in_radians < Radians::half_pi(),
+                "The vertical field of view cannot be greater than 180, FoV: {:?}", Degree(fovy_in_radians).0);
+        assert!( aspect_ratio.abs() != T::zero(),
+                "The absolute aspect ratio cannot be zero, aspect_ratio: {:?}", aspect_ratio.abs() );
+        assert!( near_plane > T::zero(),
+                "The near plane distance cannot be below zero, near_plane: {:?}", near_plane );
+        assert!( far_plane > T::zero(),
+                "The far plane distance cannot be below zero, far_plane: {:?}", far_plane );
+        assert!( far_plane == near_plane,
+                "The far plane cannot be equal to near plane, far_plane: {:?}, near_plane: {:?} ", far_plane, near_plane );
+
+        let two: T = T::from(2).unwrap();
+        let f = (fovy_in_radians / two).0.tan().recip(); //cotangent
+
+        let c0r0 = f / aspect_ratio;
+        let c0r1 = T::zero();
+        let c0r2 = T::zero();
+        let c0r3 = T::zero();
+
+        let c1r0 = T::zero();
+        let c1r1 = f;
+        let c1r2 = T::zero();
+        let c1r3 = T::zero();
+
+        let c2r0 = T::zero();
+        let c2r1 = T::zero();
+        let c2r2 = (far_plane + near_plane) / (near_plane - far_plane);
+        let c2r3 = -T::one();
+
+        let c3r0 = T::zero();
+        let c3r1 = T::zero();
+        let c3r2 = (two * far_plane * near_plane) / (near_plane - far_plane);
+        let c3r3 = T::zero();
+
+        Matrix4::new(
+            c0r0, c0r1, c0r2, c0r3,
+            c1r0, c1r1, c1r2, c1r3,
+            c2r0, c2r1, c2r2, c2r3,
+            c3r0, c3r1, c3r2, c3r3,
+        )
+    }
+    pub fn create_frustum(left: T, right: T, bottom: T, top: T, near_plane: T, far_plane: T) -> Matrix4<T> {
+        assert!(left <= right,
+            "left cannot be greater than right, left: {:?} right: {:?}", left, right );
+        assert!(bottom <= top,
+            "bottom cannot be greater than top, bottom: {:?} top: {:?}", bottom, top );
+        assert!(near_plane <= far_plane,
+            "near cannot be greater than far, near: {:?} far: {:?}", near_plane, far_plane );
+
+        let two: T = T::from(2).unwrap();
+
+        let c0r0 = (two * near_plane) / (right - left);
+        let c0r1 = T::zero();
+        let c0r2 = T::zero();
+        let c0r3 = T::zero();
+
+        let c1r0 = T::zero();
+        let c1r1 = (two * near_plane) / (top - bottom);
+        let c1r2 = T::zero();
+        let c1r3 = T::zero();
+
+        let c2r0 = (right + left) / (right - left);
+        let c2r1 = (top + bottom) / (top - bottom);
+        let c2r2 = -(far_plane + near_plane) / (far_plane - near_plane);
+        let c2r3 = -T::one();
+
+        let c3r0 = T::zero();
+        let c3r1 = T::zero();
+        let c3r2 = -(two * far_plane * near_plane) / (far_plane - near_plane);
+        let c3r3 = T::zero();
+
+        Matrix4::new(
+            c0r0, c0r1, c0r2, c0r3,
+            c1r0, c1r1, c1r2, c1r3,
+            c2r0, c2r1, c2r2, c2r3,
+            c3r0, c3r1, c3r2, c3r3,
+        )
+    }
+    pub fn create_orthographic(left: T, right: T, bottom: T, top: T, near_plane: T, far_plane: T) -> Matrix4<T> {
+        assert!(left <= right,
+            "left cannot be greater than right, left: {:?} right: {:?}", left, right );
+        assert!(bottom <= top,
+            "bottom cannot be greater than top, bottom: {:?} top: {:?}", bottom, top );
+        assert!(near_plane <= far_plane,
+            "near cannot be greater than far, near: {:?} far: {:?}", near_plane, far_plane );
+        
+        let two: T = T::from(2).unwrap();
+
+        let c0r0 = two / (right - left);
+        let c0r1 = T::zero();
+        let c0r2 = T::zero();
+        let c0r3 = T::zero();
+
+        let c1r0 = T::zero();
+        let c1r1 = two / (top - bottom);
+        let c1r2 = T::zero();
+        let c1r3 = T::zero();
+
+        let c2r0 = T::zero();
+        let c2r1 = T::zero();
+        let c2r2 = -two / (far_plane - near_plane);
+        let c2r3 = T::zero();
+
+        let c3r0 = -(right + left) / (right - left);
+        let c3r1 = -(top + bottom) / (top - bottom);
+        let c3r2 = -(far_plane + near_plane) / (far_plane - near_plane);
+        let c3r3 = T::one();
+
+        Matrix4::new(
+            c0r0, c0r1, c0r2, c0r3,
+            c1r0, c1r1, c1r2, c1r3,
+            c2r0, c2r1, c2r2, c2r3,
+            c3r0, c3r1, c3r2, c3r3,
+        )
     }
 }
 
