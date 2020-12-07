@@ -1,5 +1,3 @@
-
-
 #[macro_export]
 macro_rules! implement_method_with_return_value {
     ($( $method:ident = $ret:expr, )*)

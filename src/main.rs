@@ -4,7 +4,7 @@ use nrg_platform::*;
 
 fn main() {    
     let _entity = Entity::new();
-    let _transf = Matrix4::identity();
+    let _transf = Matrix4f::identity();
     println!("{:?}", _transf);
 
     let _pos = Vector2u::new(100, 100);

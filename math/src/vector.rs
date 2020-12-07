@@ -168,14 +168,6 @@ macro_rules! implement_vector {
             }
         }
         
-        impl<T> Into<[T; $n]> for $VectorN<T> 
-        where T: Number {  
-            #[inline]
-            fn into(self) -> [T; $n] {
-                match self { $VectorN { $($field),+ } => [$($field),+] }
-            }
-        }
-
         impl<T> From<[T; $n]> for $VectorN<T> 
         where T: Number {  
             #[inline]
@@ -184,11 +176,11 @@ macro_rules! implement_vector {
             }
         }
 
-        impl<T> From<&[T; $n]> for $VectorN<T> 
+        impl<T> From<$VectorN<T>> for [T; $n] 
         where T: Number {  
             #[inline]
-            fn from(v: &[T; $n]) -> $VectorN<T> {
-                match *v { [$($field),+] => $VectorN { $($field),+ } }
+            fn from(v: $VectorN<T>) -> [T; $n] {
+                match v { $VectorN { $($field),+ } => [$($field),+] }
             }
         }
 
@@ -213,6 +205,38 @@ macro_rules! implement_vector {
             #[inline]
             fn from(v: T) -> $VectorN<T> {
                  $VectorN { $($field: v),+ }
+            }
+        }
+
+        impl<'a, T> From<&[T]> for &'a $VectorN<T> 
+        where T: Number, [T]: std::marker::Sized {  
+            #[inline]
+            fn from(v: &[T]) -> &'a $VectorN<T> {
+                unsafe { ::std::mem::transmute(v) }
+            }
+        }
+
+        impl<'a, T> From<&[T;$n]> for &'a $VectorN<T> 
+        where T: Number, [T]: std::marker::Sized {  
+            #[inline]
+            fn from(v: &[T;$n]) -> &'a $VectorN<T> {
+                unsafe { ::std::mem::transmute(v) }
+            }
+        }
+        
+        impl<'a, T> From<&mut [T;$n]> for &'a mut $VectorN<T> 
+        where T: Number, [T]: std::marker::Sized {  
+            #[inline]
+            fn from(v: &mut [T;$n]) -> &'a mut $VectorN<T> {
+                unsafe { ::std::mem::transmute(v) }
+            }
+        }
+
+        impl<'a, T> Into<&'a $VectorN<T>> for &[T] 
+        where [T]: std::marker::Sized {
+            #[inline]
+            fn into(self) -> &'a $VectorN<T> {
+                unsafe { ::std::mem::transmute(self) }
             }
         }
 
@@ -247,8 +271,27 @@ macro_rules! implement_vector {
             fn div(self, other: $VectorN<T>) -> $VectorN<T> {
                 $VectorN { $($field: self.$field / other.$field),+ }
             }
+        }              
+
+        impl<T, Idx> ::std::ops::Index<Idx> for $VectorN<T> 
+        where T: Number, Idx: std::slice::SliceIndex<[T]> + std::slice::SliceIndex<[T], Output = T> {
+            type Output = T;
+
+            #[inline]
+            fn index<'a>(&'a self, i: Idx) -> &'a T {
+                let v: &[T; $n] = self.as_ref();
+                &v[i]
+            }
         }
-              
+
+        impl<T, Idx> ::std::ops::IndexMut<Idx> for $VectorN<T> 
+        where T: Number, Idx: std::slice::SliceIndex<[T]> + std::slice::SliceIndex<[T], Output = T> {
+            #[inline]
+            fn index_mut<'a>(&'a mut self, i: Idx) -> &'a mut T {
+                let v: &mut [T; $n] = self.as_mut();
+                &mut v[i]
+            }
+        }
         
         impl<T: ::std::fmt::Debug> ::std::fmt::Debug for $VectorN<T> 
         where T: Number {
@@ -326,6 +369,9 @@ fn test_vector()
 
     vec3 = vec3 + Vector3f::new(1.0, 2.0, 3.0);
     assert_eq!(vec3, Vector3f::new(1.0, 2.0, 3.0));
+    assert_eq!(vec3[0], 1.0);
+    assert_eq!(vec3[1], 2.0);
+    assert_eq!(vec3[2], 3.0);
 
     vec3 = Vector3f::new(3.0, 4.0, 0.0);
     assert_eq!(vec3.squared_length(), 25.0);
