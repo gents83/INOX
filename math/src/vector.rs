@@ -40,27 +40,6 @@ macro_rules! implement_vector {
             pub fn new($($field: T),+) -> $VectorN<T> {
                 $VectorN { $($field: $field),+ }
             }
-
-            #[inline]
-            fn add(&mut self, other: T) -> Self {
-                self.for_each_fields(|el| *el += other);
-                *self
-            }
-            #[inline]
-            fn sub(&mut self, other: T) -> Self {
-                self.for_each_fields(|el| *el -= other);
-                *self
-            }
-            #[inline]
-            fn mul(&mut self, other: T) -> Self {
-                self.for_each_fields(|el| *el *= other);
-                *self
-            }
-            #[inline]
-            fn div(&mut self, other: T) -> Self {
-                self.for_each_fields(|el| *el /= other);
-                *self
-            }
             
             #[inline]
             pub fn squared_length(&self) -> T {
@@ -84,7 +63,7 @@ macro_rules! implement_vector {
             #[inline]
             pub fn normalize_to(&mut self, magnitude: T) -> Self 
             where T: Float {
-                self.mul(magnitude / self.length());
+                *self = self.clone() * (magnitude / self.length());
                 *self
             }
             
@@ -240,7 +219,7 @@ macro_rules! implement_vector {
             }
         }
 
-        impl<T> ::std::ops::Add for $VectorN<T> 
+        impl<T> ::std::ops::Add<$VectorN<T>> for $VectorN<T> 
         where T: Number {  
             type Output = $VectorN<T>;
             #[inline]
@@ -248,7 +227,7 @@ macro_rules! implement_vector {
                 $VectorN { $($field: self.$field + other.$field),+ }
             }
         }
-        impl<T> ::std::ops::Sub for $VectorN<T> 
+        impl<T> ::std::ops::Sub<$VectorN<T>> for $VectorN<T> 
         where T: Number {  
             type Output = $VectorN<T>;
             #[inline]
@@ -256,7 +235,7 @@ macro_rules! implement_vector {
                 $VectorN { $($field: self.$field - other.$field),+ }
             }
         }
-        impl<T> ::std::ops::Mul for $VectorN<T> 
+        impl<T> ::std::ops::Mul<$VectorN<T>> for $VectorN<T> 
         where T: Number {  
             type Output = $VectorN<T>;
             #[inline]
@@ -264,14 +243,38 @@ macro_rules! implement_vector {
                 $VectorN { $($field: self.$field * other.$field),+ }
             }
         }
-        impl<T> ::std::ops::Div for $VectorN<T> 
+        impl<T> ::std::ops::Div<$VectorN<T>> for $VectorN<T> 
         where T: Number {  
             type Output = $VectorN<T>;
             #[inline]
             fn div(self, other: $VectorN<T>) -> $VectorN<T> {
                 $VectorN { $($field: self.$field / other.$field),+ }
             }
-        }              
+        }
+        impl<T: ::std::ops::Neg<Output = T>> ::std::ops::Neg for $VectorN<T> {
+            type Output = $VectorN<T>;
+            #[inline]
+            fn neg(self) -> $VectorN<T> {
+                $VectorN { $($field: -self.$field),+ }
+            }
+        }  
+        
+        impl<T> ::std::ops::Mul<T> for $VectorN<T> 
+        where T: Number {  
+            type Output = $VectorN<T>;
+            #[inline]
+            fn mul(self, other: T) -> $VectorN<T> {
+                $VectorN { $($field: self.$field * other),+ }
+            }
+        }
+        impl<T> ::std::ops::Div<T> for $VectorN<T> 
+        where T: Number {  
+            type Output = $VectorN<T>;
+            #[inline]
+            fn div(self, other: T) -> $VectorN<T> {
+                $VectorN { $($field: self.$field / other),+ }
+            }
+        }
 
         impl<T, Idx> ::std::ops::Index<Idx> for $VectorN<T> 
         where T: Number, Idx: std::slice::SliceIndex<[T]> + std::slice::SliceIndex<[T], Output = T> {
@@ -283,7 +286,6 @@ macro_rules! implement_vector {
                 &v[i]
             }
         }
-
         impl<T, Idx> ::std::ops::IndexMut<Idx> for $VectorN<T> 
         where T: Number, Idx: std::slice::SliceIndex<[T]> + std::slice::SliceIndex<[T], Output = T> {
             #[inline]

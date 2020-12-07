@@ -8,6 +8,7 @@ use super::utils::*;
 fn test_vulkan()
 { 
     use crate::data_formats::*;
+    use nrg_math::*;
     use super::instance::*;
     use super::device::*;
     use super::data_formats::*;
@@ -17,6 +18,9 @@ fn test_vulkan()
                    String::from("Vulkan Test"),
                    100, 100,
                    1024, 768 );
+
+    let mut model_transform:Matrix4f = Matrix4f::identity();
+    let cam_pos:Vector3f = [0.0, 2.0, -2.0].into();
 
     let vertices: [VertexData; 4] = [
         VertexData { pos: [-0.5, -0.5].into(), color: [1.0, 0.0, 0.0].into() },
@@ -45,8 +49,12 @@ fn test_vulkan()
     
     let mut frame_index = 0;
     loop {
-        frame_index = device.temp_draw_frame(frame_index);
-        if frame_index > 1000 {
+
+        let rotation = Matrix4::from_axis_angle([0.0, 0.0, 1.0].into(), Degree(0.05).into());
+        model_transform = rotation * model_transform;
+
+        frame_index = device.temp_draw_frame(frame_index, &model_transform, cam_pos);
+        if frame_index > 10000 {
             break;
         }
     }

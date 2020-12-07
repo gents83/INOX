@@ -146,6 +146,38 @@ macro_rules! implement_matrix {
     }
 }
 
+
+impl<T> ::std::ops::Mul for Matrix3<T> 
+where T: Float {  
+    type Output = Matrix3<T>;
+    #[inline]
+    fn mul(self, rhs: Matrix3<T>) -> Matrix3<T> {
+        Matrix3::new(self.row(0).dot(rhs[0].into()), self.row(1).dot(rhs[0].into()), self.row(2).dot(rhs[0].into()),
+                     self.row(0).dot(rhs[1].into()), self.row(1).dot(rhs[1].into()), self.row(2).dot(rhs[1].into()),
+                     self.row(0).dot(rhs[2].into()), self.row(1).dot(rhs[2].into()), self.row(2).dot(rhs[2].into()))
+    }
+}
+
+impl<T> ::std::ops::Mul for Matrix4<T> 
+where T: Float {  
+    type Output = Matrix4<T>;
+    #[inline]
+    fn mul(self, rhs: Matrix4<T>) -> Matrix4<T> {
+        let a: Vector4<T> = self[0].into();
+        let b: Vector4<T> = self[1].into();
+        let c: Vector4<T> = self[2].into();
+        let d: Vector4<T> = self[3].into();
+
+        Matrix4::from_columns(
+            a*rhs[0][0] + b*rhs[0][1] + c*rhs[0][2] + d*rhs[0][3],
+            a*rhs[1][0] + b*rhs[1][1] + c*rhs[1][2] + d*rhs[1][3],
+            a*rhs[2][0] + b*rhs[2][1] + c*rhs[2][2] + d*rhs[2][3],
+            a*rhs[3][0] + b*rhs[3][1] + c*rhs[3][2] + d*rhs[3][3],
+        )
+    }
+}
+
+
 implement_matrix!(Matrix3<T> { axis_x: 0, axis_y: 1, axis_z: 2 }, 3, Vector3);
 implement_matrix!(Matrix4<T> { axis_x: 0, axis_y: 1, axis_z: 2, axis_w: 3 }, 4, Vector4);
 
@@ -166,6 +198,10 @@ where T: Float {
             Vector3::new(c1r0, c1r1, c1r2),
             Vector3::new(c2r0, c2r1, c2r2),
         )
+    }
+    #[inline]
+    pub fn row(&self, r: usize) -> Vector3<T> {
+        Vector3::new(self[0][r], self[1][r], self[2][r])
     }
     #[inline]
     pub fn from_translation(v: Vector2<T>) -> Matrix3<T> {
@@ -196,8 +232,8 @@ where T: Float {
     fn from_look_at(direction: Vector3<T>, up: Vector3<T>) -> Matrix3<T> {
         let dir = direction.get_normalized();
         let side = dir.cross(up).get_normalized();
-        let new_up = side.cross(dir).get_normalized();
-        Matrix3::from_columns(side, new_up, dir)
+        let up = side.cross(dir).get_normalized();
+        Matrix3::from_columns(side, up, dir)
     }
 }
 
@@ -216,6 +252,10 @@ where T: Float {
             Vector4::new(c2r0, c2r1, c2r2, c2r3),
             Vector4::new(c3r0, c3r1, c3r2, c3r3),
         )
+    }
+    #[inline]
+    pub fn row(&self, r: usize) -> Vector4<T> {
+        Vector4::new(self[0][r], self[1][r], self[2][r], self[3][r])
     }
     #[inline]
     pub fn from_translation(v: Vector3<T>) -> Matrix4<T> {
@@ -237,6 +277,42 @@ where T: Float {
                 axis_y: Vector4 {x: T::zero(), y: y, z: T::zero(), w: T::zero()},
                 axis_z: Vector4 {x: T::zero(), y: T::zero(), z: z, w: T::zero()},
                 axis_w: Vector4 {x: T::zero(), y: T::zero(), z: T::zero(), w: T::one()}  }
+    }    
+    pub fn from_look_at(pos: Vector3<T>, target: Vector3<T>, up: Vector3<T>) -> Matrix4<T> {
+        Matrix4::from_look_at_dir(pos, target - pos, up)
+    }
+    pub fn from_look_at_dir(pos: Vector3<T>, direction: Vector3<T>, up: Vector3<T>) -> Matrix4<T> {
+        let dir = direction.get_normalized();
+        let side = dir.cross(up).get_normalized();
+        let up = side.cross(dir).get_normalized();
+        Matrix4::new(side.x.clone(), up.x.clone(), -dir.x.clone(), T::zero(),
+                     side.y.clone(), up.y.clone(), -dir.y.clone(), T::zero(),
+                     side.z.clone(), up.z.clone(), -dir.z.clone(), T::zero(),
+                     -pos.dot(side), -pos.dot(up), pos.dot(dir), T::one() )
+    }
+    pub fn from_axis_angle(axis: Vector3<T>, angle_in_radians: Radians<T>) -> Matrix4<T> {
+        let sin = angle_in_radians.0.sin();
+        let cos = angle_in_radians.0.cos();
+        let _1subc = T::one() - cos;
+
+        Matrix4::new(
+            _1subc * axis.x * axis.x + cos,
+            _1subc * axis.x * axis.y + sin * axis.z,
+            _1subc * axis.x * axis.z - sin * axis.y,
+            T::zero(),
+
+            _1subc * axis.x * axis.y - sin * axis.z,
+            _1subc * axis.y * axis.y + cos,
+            _1subc * axis.y * axis.z + sin * axis.x,
+            T::zero(),
+
+            _1subc * axis.x * axis.z + sin * axis.y,
+            _1subc * axis.y * axis.z - sin * axis.x,
+            _1subc * axis.z * axis.z + cos,
+            T::zero(),
+
+            T::zero(), T::zero(), T::zero(), T::one(),
+        )
     }
     pub fn create_perspective(fovy_in_radians: Radians<T>, aspect_ratio: T, near_plane: T, far_plane: T) -> Matrix4<T> { 
         assert!(fovy_in_radians > Radians::zero(),
@@ -249,7 +325,7 @@ where T: Float {
                 "The near plane distance cannot be below zero, near_plane: {:?}", near_plane );
         assert!( far_plane > T::zero(),
                 "The far plane distance cannot be below zero, far_plane: {:?}", far_plane );
-        assert!( far_plane == near_plane,
+        assert!( far_plane != near_plane,
                 "The far plane cannot be equal to near plane, far_plane: {:?}, near_plane: {:?} ", far_plane, near_plane );
 
         let two: T = T::from(2).unwrap();

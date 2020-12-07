@@ -377,7 +377,7 @@ impl<'a> Device<'a> {
             depthClampEnable: VK_FALSE,
             rasterizerDiscardEnable: VK_FALSE,
             polygonMode: VkPolygonMode_VK_POLYGON_MODE_FILL,
-            cullMode: VkCullModeFlagBits_VK_CULL_MODE_BACK_BIT as VkCullModeFlags,
+            cullMode: VkCullModeFlagBits_VK_CULL_MODE_NONE as VkCullModeFlags,
             frontFace: VkFrontFace_VK_FRONT_FACE_CLOCKWISE,
             depthBiasEnable: VK_FALSE,
             depthBiasConstantFactor: 0.0,
@@ -1064,13 +1064,17 @@ impl<'a> Device<'a> {
         self
     }
 
-    fn update_uniform_buffer(&mut self, image_index: usize) {
+    fn update_uniform_buffer(&mut self, image_index: usize, model_transform: &Matrix4f, cam_pos: Vector3f) {
 
         let uniform_data: [UniformData; 1] = [
             UniformData {
-                model: Matrix4::identity(),
-                view: Matrix4::identity(),
-                proj: Matrix4::identity(),
+                model: *model_transform,
+                view: Matrix4::from_look_at(cam_pos.into(), 
+                                            [0.0, 0.0, 0.0].into(),
+                                            [0.0, 0.0, 1.0].into()),
+                proj: Matrix4::create_perspective(Degree(45.0).into(), 
+                                                    self.swap_chain.details.capabilities.currentExtent.width as f32 / self.swap_chain.details.capabilities.currentExtent.height as f32, 
+                                                    0.1, 10.0),
             }
         ];
 
@@ -1081,7 +1085,7 @@ impl<'a> Device<'a> {
 
     
 
-    pub fn temp_draw_frame(&mut self, current_frame_index: u32 ) -> u32 {
+    pub fn temp_draw_frame(&mut self, current_frame_index: u32, model_transform: &Matrix4f, cam_pos: Vector3f) -> u32 {
         let frame_index =  current_frame_index % MAX_FRAMES_IN_FLIGHT as u32;
 
         unsafe {
@@ -1098,7 +1102,7 @@ impl<'a> Device<'a> {
                 eprintln!("Failed to acquire swap chain image");
             }
 
-            self.update_uniform_buffer(image_index as _);
+            self.update_uniform_buffer(image_index as _, model_transform, cam_pos);
 
             if self.inflight_images[image_index as usize] != ::std::ptr::null_mut() {
                 vkWaitForFences.unwrap()(self.device, 1, &self.inflight_images[image_index as usize], VK_TRUE, std::u64::MAX);
