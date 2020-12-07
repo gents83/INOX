@@ -2,6 +2,7 @@
 #![allow(unused_must_use)]
 
 use crate::implement_zero_as_default;
+use super::cast_to::*;
 use super::number::*;
 use super::float::*;
 use super::zero::*;
@@ -292,6 +293,19 @@ macro_rules! implement_vector {
             fn index_mut<'a>(&'a mut self, i: Idx) -> &'a mut T {
                 let v: &mut [T; $n] = self.as_mut();
                 &mut v[i]
+            }
+        }       
+
+        impl<T: NumberCast + Copy> $VectorN<T> {
+            #[inline]
+            pub fn cast<F: NumberCast>(&self) -> Option<$VectorN<F>> {
+                $(
+                    let $field = match NumberCast::from(self.$field) {
+                        Some(field) => field,
+                        None => return None
+                    };
+                )+
+                Some($VectorN { $($field),+ })
             }
         }
         

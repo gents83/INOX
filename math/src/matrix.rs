@@ -210,6 +210,11 @@ where T: Float {
                 axis_z: Vector3 {x: v.x, y: v.y, z: T::one()} }
     }
     #[inline]
+    pub fn set_translation(&mut self, pos: Vector2<T>) {
+        self[2][0] = pos.x;
+        self[2][1] = pos.y;
+    }
+    #[inline]
     pub fn from_scale_vector(v: Vector3<T>) -> Matrix3<T> {
         Self {  axis_x: Vector3 {x: v.x, y: T::zero(), z: T::zero()},
                 axis_y: Vector3 {x: T::zero(), y: v.y, z: T::zero()},
@@ -222,14 +227,14 @@ where T: Float {
                 axis_z: Vector3 {x: T::zero(), y: T::zero(), z: T::one()} }
     }    
     #[inline]
-    fn get_transpose(&self) -> Matrix3<T> {
+    pub fn get_transpose(&self) -> Matrix3<T> {
         Matrix3::new(
             self[0][0], self[1][0], self[2][0],
             self[0][1], self[1][1], self[2][1],
             self[0][2], self[1][2], self[2][2],
         )
     }
-    fn from_look_at(direction: Vector3<T>, up: Vector3<T>) -> Matrix3<T> {
+    pub fn from_look_at(direction: Vector3<T>, up: Vector3<T>) -> Matrix3<T> {
         let dir = direction.get_normalized();
         let side = dir.cross(up).get_normalized();
         let up = side.cross(dir).get_normalized();
@@ -263,6 +268,12 @@ where T: Float {
                 axis_y: Vector4 {x: T::zero(), y: T::one(), z: T::zero(), w: T::zero()},
                 axis_z: Vector4 {x: T::zero(), y: T::zero(), z: T::one(), w: T::zero()},
                 axis_w: Vector4 {x: v.x, y: v.y, z: v.z, w: T::one()}  }
+    }
+    #[inline]
+    pub fn set_translation(&mut self, pos: Vector3<T>) {
+        self[3][0] = pos.x;
+        self[3][1] = pos.y;
+        self[3][2] = pos.z;
     }
     #[inline]
     pub fn from_scale_vector(v: Vector4<T>) -> Matrix4<T> {

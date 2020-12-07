@@ -20,7 +20,7 @@ fn test_vulkan()
                    1024, 768 );
 
     let mut model_transform:Matrix4f = Matrix4f::identity();
-    let cam_pos:Vector3f = [0.0, 2.0, -2.0].into();
+    let cam_pos:Vector3f = [0.0, -2.0, -2.0].into();
 
     let vertices: [VertexData; 4] = [
         VertexData { pos: [-0.5, -0.5].into(), color: [1.0, 0.0, 0.0].into() },
@@ -51,10 +51,11 @@ fn test_vulkan()
     loop {
 
         let rotation = Matrix4::from_axis_angle([0.0, 0.0, 1.0].into(), Degree(0.05).into());
+        model_transform.set_translation([0.0 * frame_index as f32, 0.0 * frame_index as f32, 0.0 * frame_index as f32].into());
         model_transform = rotation * model_transform;
 
         frame_index = device.temp_draw_frame(frame_index, &model_transform, cam_pos);
-        if frame_index > 10000 {
+        if frame_index > 1000 {
             break;
         }
     }
