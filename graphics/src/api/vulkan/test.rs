@@ -23,10 +23,10 @@ fn test_vulkan()
     let cam_pos:Vector3f = [0.0, -2.0, -2.0].into();
 
     let vertices: [VertexData; 4] = [
-        VertexData { pos: [-0.5, -0.5].into(), color: [1.0, 0.0, 0.0].into() },
-        VertexData { pos: [ 0.5, -0.5].into(), color: [0.0, 1.0, 0.0].into() },
-        VertexData { pos: [ 0.5,  0.5].into(), color: [0.0, 0.0, 1.0].into() },
-        VertexData { pos: [-0.5,  0.5].into(), color: [1.0, 1.0, 1.0].into() },
+        VertexData { pos: [-0.5, -0.5].into(), color: [1.0, 0.0, 0.0].into(), tex_coord: [1.0, 0.0].into()},
+        VertexData { pos: [ 0.5, -0.5].into(), color: [0.0, 1.0, 0.0].into(), tex_coord: [0.0, 0.0].into()},
+        VertexData { pos: [ 0.5,  0.5].into(), color: [0.0, 0.0, 1.0].into(), tex_coord: [0.0, 1.0].into()},
+        VertexData { pos: [-0.5,  0.5].into(), color: [1.0, 1.0, 1.0].into(), tex_coord: [1.0, 1.0].into()},
     ]; 
     let indices: [u32; 6] = [0, 1, 2, 2, 3, 0];
 
@@ -39,6 +39,9 @@ fn test_vulkan()
             .create_graphics_pipeline()
             .create_framebuffers()
             .create_command_pool()
+            .create_texture_image()
+            .create_texture_image_view()
+            .create_texture_sampler()
             .create_vertex_buffer(&vertices)
             .create_index_buffer(&indices)
             .create_uniform_buffers()

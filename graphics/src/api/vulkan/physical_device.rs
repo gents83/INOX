@@ -194,6 +194,10 @@ impl PhysicalDevice {
     pub fn get_available_features(&self) -> &VkPhysicalDeviceFeatures {
         &self.physical_device_features
     }
+
+    pub fn get_properties(&self) -> &VkPhysicalDeviceProperties {
+        &self.physical_device_properties
+    }
 }
 
 impl From<&PhysicalDevice> for VkPhysicalDevice {

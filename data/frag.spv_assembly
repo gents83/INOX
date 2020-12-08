@@ -1,12 +1,12 @@
 ; SPIR-V
 ; Version: 1.0
 ; Generator: Google Shaderc over Glslang; 10
-; Bound: 19
+; Bound: 26
 ; Schema: 0
                OpCapability Shader
           %1 = OpExtInstImport "GLSL.std.450"
                OpMemoryModel Logical GLSL450
-               OpEntryPoint Fragment %main "main" %outColor %fragColor
+               OpEntryPoint Fragment %main "main" %outColor %fragColor %fragTexCoord
                OpExecutionMode %main OriginUpperLeft
                OpSource GLSL 450
                OpSourceExtension "GL_ARB_separate_shader_objects"
@@ -15,8 +15,13 @@
                OpName %main "main"
                OpName %outColor "outColor"
                OpName %fragColor "fragColor"
+               OpName %texSampler "texSampler"
+               OpName %fragTexCoord "fragTexCoord"
                OpDecorate %outColor Location 0
                OpDecorate %fragColor Location 0
+               OpDecorate %texSampler DescriptorSet 0
+               OpDecorate %texSampler Binding 1
+               OpDecorate %fragTexCoord Location 1
        %void = OpTypeVoid
           %3 = OpTypeFunction %void
       %float = OpTypeFloat 32
@@ -27,6 +32,13 @@
 %_ptr_Input_v3float = OpTypePointer Input %v3float
   %fragColor = OpVariable %_ptr_Input_v3float Input
     %float_1 = OpConstant %float 1
+         %19 = OpTypeImage %float 2D 0 0 0 1 Unknown
+         %20 = OpTypeSampledImage %19
+%_ptr_UniformConstant_20 = OpTypePointer UniformConstant %20
+ %texSampler = OpVariable %_ptr_UniformConstant_20 UniformConstant
+    %v2float = OpTypeVector %float 2
+%_ptr_Input_v2float = OpTypePointer Input %v2float
+%fragTexCoord = OpVariable %_ptr_Input_v2float Input
        %main = OpFunction %void None %3
           %5 = OpLabel
          %13 = OpLoad %v3float %fragColor

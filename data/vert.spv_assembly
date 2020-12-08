@@ -1,12 +1,12 @@
 ; SPIR-V
 ; Version: 1.0
 ; Generator: Google Shaderc over Glslang; 10
-; Bound: 49
+; Bound: 53
 ; Schema: 0
                OpCapability Shader
           %1 = OpExtInstImport "GLSL.std.450"
                OpMemoryModel Logical GLSL450
-               OpEntryPoint Vertex %main "main" %_ %inPosition %fragColor %inColor
+               OpEntryPoint Vertex %main "main" %_ %inPosition %fragColor %inColor %fragTexCoord %inTexCoord
                OpSource GLSL 450
                OpSourceExtension "GL_ARB_separate_shader_objects"
                OpSourceExtension "GL_GOOGLE_cpp_style_line_directive"
@@ -26,6 +26,8 @@
                OpName %inPosition "inPosition"
                OpName %fragColor "fragColor"
                OpName %inColor "inColor"
+               OpName %fragTexCoord "fragTexCoord"
+               OpName %inTexCoord "inTexCoord"
                OpMemberDecorate %gl_PerVertex 0 BuiltIn Position
                OpMemberDecorate %gl_PerVertex 1 BuiltIn PointSize
                OpMemberDecorate %gl_PerVertex 2 BuiltIn ClipDistance
@@ -46,6 +48,8 @@
                OpDecorate %inPosition Location 0
                OpDecorate %fragColor Location 0
                OpDecorate %inColor Location 1
+               OpDecorate %fragTexCoord Location 1
+               OpDecorate %inTexCoord Location 2
        %void = OpTypeVoid
           %3 = OpTypeFunction %void
       %float = OpTypeFloat 32
@@ -76,6 +80,9 @@
   %fragColor = OpVariable %_ptr_Output_v3float Output
 %_ptr_Input_v3float = OpTypePointer Input %v3float
     %inColor = OpVariable %_ptr_Input_v3float Input
+%_ptr_Output_v2float = OpTypePointer Output %v2float
+%fragTexCoord = OpVariable %_ptr_Output_v2float Output
+ %inTexCoord = OpVariable %_ptr_Input_v2float Input
        %main = OpFunction %void None %3
           %5 = OpLabel
          %22 = OpAccessChain %_ptr_Uniform_mat4v4float %ubo %int_2
@@ -95,5 +102,7 @@
                OpStore %42 %40
          %48 = OpLoad %v3float %inColor
                OpStore %fragColor %48
+         %52 = OpLoad %v2float %inTexCoord
+               OpStore %fragTexCoord %52
                OpReturn
                OpFunctionEnd

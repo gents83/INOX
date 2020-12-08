@@ -34,6 +34,10 @@ pub struct Device<'a> {
     graphics_pipeline: VkPipeline,
     framebuffers: Vec::<VkFramebuffer>,
     command_pool: VkCommandPool,
+    texture_image: VkImage,
+    texture_image_memory: VkDeviceMemory,
+    texture_image_view: VkImageView,
+    texture_sampler: VkSampler,
     vertex_buffer: VkBuffer,
     vertex_buffer_memory: VkDeviceMemory,
     index_buffer: VkBuffer,
@@ -81,6 +85,9 @@ impl<'a> Device<'a> {
                                                         .map(|e| e.as_ptr())
                                                         .collect::<Vec<*const c_char>>();
 
+        let mut device_features = instance.get_physical_device().get_available_features().clone();                                                        
+        device_features.samplerAnisotropy = VK_TRUE;
+
         let device_create_info = VkDeviceCreateInfo {
             sType: VkStructureType_VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
             pNext: ::std::ptr::null_mut(),
@@ -91,7 +98,7 @@ impl<'a> Device<'a> {
             ppEnabledLayerNames: layer_names_ptr.as_ptr(),
             enabledExtensionCount: device_extension_names_ptr.len() as u32,
             ppEnabledExtensionNames: device_extension_names_ptr.as_ptr(),
-            pEnabledFeatures: instance.get_physical_device().get_available_features(),
+            pEnabledFeatures: &device_features,
         };
 
         let mut device: VkDevice = ::std::ptr::null_mut();
@@ -131,6 +138,10 @@ impl<'a> Device<'a> {
             graphics_pipeline: ::std::ptr::null_mut(),
             framebuffers: Vec::new(),
             command_pool: ::std::ptr::null_mut(),
+            texture_image: ::std::ptr::null_mut(),
+            texture_image_memory: ::std::ptr::null_mut(),
+            texture_image_view: ::std::ptr::null_mut(),
+            texture_sampler: ::std::ptr::null_mut(),
             vertex_buffer: ::std::ptr::null_mut(),
             vertex_buffer_memory: ::std::ptr::null_mut(),
             index_buffer: ::std::ptr::null_mut(),
@@ -446,7 +457,7 @@ impl<'a> Device<'a> {
             sType: VkStructureType_VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
             pNext: ::std::ptr::null_mut(),
             flags: 0,
-            stageCount: 2,
+            stageCount: shader_stages.len() as _,
             pStages: shader_stages.as_ptr(),
             pVertexInputState: &vertex_input_info,
             pInputAssemblyState: &input_assembly,
@@ -472,6 +483,8 @@ impl<'a> Device<'a> {
             );
             option.assume_init()
         };
+
+        self.destroy_shader_modules();
 
         self
     }
@@ -524,6 +537,332 @@ impl<'a> Device<'a> {
         };  
         self.command_pool = command_pool;  
         self
+    }
+
+    pub fn create_texture_image(&mut self) -> &mut Self {
+        let image_info:Vector3u = [256, 256, 1].into(); //width, height, channels
+        //TODO read image
+        let image_data:Vec<u8> = Vec::new();
+        let image_size: VkDeviceSize = (image_info[0] * image_info[1] * 4) as _;
+        let flags = VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+                
+        let mut staging_buffer: VkBuffer = ::std::ptr::null_mut();
+        let mut staging_buffer_memory : VkDeviceMemory = ::std::ptr::null_mut();
+        self.create_buffer(image_size as _, 
+                            VkBufferUsageFlagBits_VK_BUFFER_USAGE_TRANSFER_SRC_BIT as _, 
+                            flags as _,
+                            &mut staging_buffer,
+                            &mut staging_buffer_memory);
+        
+        self.map_buffer_memory(&mut staging_buffer_memory, &image_data);
+
+        let mut texture_image: VkImage = ::std::ptr::null_mut();
+        let mut texture_image_memory: VkDeviceMemory = ::std::ptr::null_mut();
+        let flags = VkImageUsageFlagBits_VK_IMAGE_USAGE_TRANSFER_DST_BIT | VkImageUsageFlagBits_VK_IMAGE_USAGE_SAMPLED_BIT; 
+        self.create_image(image_info[0] as _,
+                          image_info[1] as _, 
+                          VkFormat_VK_FORMAT_R8G8B8A8_SRGB,
+                          VkImageTiling_VK_IMAGE_TILING_OPTIMAL,
+                          flags as _, 
+                          VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT as _,
+                          &mut texture_image,
+                          &mut texture_image_memory);
+
+        self.transition_image_layout(texture_image, VkImageLayout_VK_IMAGE_LAYOUT_UNDEFINED, VkImageLayout_VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+        
+        self.copy_buffer_to_image(staging_buffer, texture_image, image_info[0], image_info[1]);
+        
+        self.transition_image_layout(texture_image, VkImageLayout_VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VkImageLayout_VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+        self.destroy_buffer(&staging_buffer, &staging_buffer_memory);
+
+        self.texture_image = texture_image;
+        self.texture_image_memory = texture_image_memory;
+        self
+    }
+
+    pub fn create_texture_image_view(&mut self) -> &mut Self {
+        self.texture_image_view = self.create_image_view(self.texture_image, VkFormat_VK_FORMAT_R8G8B8A8_SRGB);
+        self
+    } 
+
+    pub fn create_texture_sampler(&mut self) -> &mut Self {
+        let properties = self.instance.get_physical_device().get_properties();
+
+        let sampler_info = VkSamplerCreateInfo {
+            sType: VkStructureType_VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+            pNext: ::std::ptr::null_mut(),
+            flags: 0,
+            magFilter: VkFilter_VK_FILTER_LINEAR,
+            minFilter: VkFilter_VK_FILTER_LINEAR,
+            mipmapMode: VkSamplerMipmapMode_VK_SAMPLER_MIPMAP_MODE_LINEAR,
+            addressModeU: VkSamplerAddressMode_VK_SAMPLER_ADDRESS_MODE_REPEAT,
+            addressModeV: VkSamplerAddressMode_VK_SAMPLER_ADDRESS_MODE_REPEAT,
+            addressModeW: VkSamplerAddressMode_VK_SAMPLER_ADDRESS_MODE_REPEAT,
+            mipLodBias: 0.0,
+            anisotropyEnable: VK_TRUE,
+            maxAnisotropy: properties.limits.maxSamplerAnisotropy,
+            compareEnable: VK_FALSE,
+            compareOp: VkCompareOp_VK_COMPARE_OP_ALWAYS,
+            minLod: 0.0,
+            maxLod: 0.0,
+            borderColor: VkBorderColor_VK_BORDER_COLOR_INT_OPAQUE_BLACK,
+            unnormalizedCoordinates: VK_FALSE,
+        };
+
+        let texture_sampler = unsafe {
+            let mut option = ::std::mem::MaybeUninit::uninit();
+            assert_eq!(
+                VkResult_VK_SUCCESS,
+                vkCreateSampler.unwrap()(self.device, &sampler_info, ::std::ptr::null_mut(), option.as_mut_ptr())
+            );
+            option.assume_init()
+        };
+
+        self.texture_sampler = texture_sampler;
+        self
+    }
+
+    pub fn create_image_view(&mut self, image: VkImage, format: VkFormat) -> VkImageView {
+        let view_info = VkImageViewCreateInfo {
+            sType: VkStructureType_VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+            pNext: ::std::ptr::null_mut(),
+            flags: 0,
+            image: image,
+            viewType: VkImageViewType_VK_IMAGE_VIEW_TYPE_2D,
+            format: format,
+            components: VkComponentMapping {
+                r: VkComponentSwizzle_VK_COMPONENT_SWIZZLE_IDENTITY,
+                g: VkComponentSwizzle_VK_COMPONENT_SWIZZLE_IDENTITY,
+                b: VkComponentSwizzle_VK_COMPONENT_SWIZZLE_IDENTITY,
+                a: VkComponentSwizzle_VK_COMPONENT_SWIZZLE_IDENTITY,
+            },
+            subresourceRange: VkImageSubresourceRange {
+                aspectMask: VkImageAspectFlagBits_VK_IMAGE_ASPECT_COLOR_BIT as _,
+                baseMipLevel: 0,
+                levelCount: 1,
+                baseArrayLayer: 0,
+                layerCount: 1,
+            },
+        };
+
+        let image_view = unsafe {
+            let mut option = ::std::mem::MaybeUninit::uninit();
+            assert_eq!(
+                VkResult_VK_SUCCESS,
+                vkCreateImageView.unwrap()(self.device, &view_info, ::std::ptr::null_mut(), option.as_mut_ptr())
+            );
+            option.assume_init()
+        };
+
+        image_view
+    }
+
+    pub fn create_image(&mut self, image_width: u32, image_height: u32, format: VkFormat, tiling: VkImageTiling, usage: VkImageUsageFlags, properties: VkMemoryPropertyFlags, image: &mut VkImage, image_memory: &mut VkDeviceMemory) {
+        let image_info = VkImageCreateInfo {
+            sType: VkStructureType_VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+            pNext: ::std::ptr::null_mut(),
+            flags: 0,
+            imageType: VkImageType_VK_IMAGE_TYPE_2D,
+            format: format,
+            extent: VkExtent3D {
+                width: image_width,
+                height: image_height,
+                depth: 1,
+            },
+            mipLevels: 1,
+            arrayLayers: 1,
+            samples: VkSampleCountFlagBits_VK_SAMPLE_COUNT_1_BIT,
+            tiling: tiling as _,
+            usage: usage as _,
+            sharingMode: VkSharingMode_VK_SHARING_MODE_EXCLUSIVE,
+            queueFamilyIndexCount: 0,
+            pQueueFamilyIndices: ::std::ptr::null_mut(),
+            initialLayout: VkImageLayout_VK_IMAGE_LAYOUT_UNDEFINED,
+        };
+        
+        unsafe {
+            assert_eq!(
+                VkResult_VK_SUCCESS,
+                vkCreateImage.unwrap()(self.device, &image_info, ::std::ptr::null_mut(), image)
+            );
+        }
+        
+        let mem_requirement = unsafe {
+            let mut option = ::std::mem::MaybeUninit::uninit();            
+            vkGetImageMemoryRequirements.unwrap()(self.device, *image, option.as_mut_ptr());
+            option.assume_init()
+        };  
+
+        let mem_alloc_info = VkMemoryAllocateInfo {
+            sType: VkStructureType_VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+            pNext: ::std::ptr::null_mut(),
+            allocationSize: mem_requirement.size,
+            memoryTypeIndex: find_available_memory_type(self.instance.get_physical_device().into(), mem_requirement.memoryTypeBits, properties as _ ),
+        };
+        
+        unsafe {
+            assert_eq!(
+                VkResult_VK_SUCCESS,
+                vkAllocateMemory.unwrap()(self.device, &mem_alloc_info, ::std::ptr::null_mut(), image_memory)
+            );         
+
+            vkBindImageMemory.unwrap()(self.device, *image, *image_memory, 0);
+        }
+    }
+
+    pub fn transition_image_layout(& mut self, image: VkImage, old_layout: VkImageLayout, new_layout: VkImageLayout) {
+        let command_buffer = self.begin_single_time_commands();
+
+        let mut barrier = VkImageMemoryBarrier {
+            sType: VkStructureType_VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+            pNext: ::std::ptr::null_mut(),
+            srcAccessMask: 0,
+            dstAccessMask: 0,
+            oldLayout: old_layout,
+            newLayout: new_layout,
+            srcQueueFamilyIndex: VK_QUEUE_FAMILY_IGNORED as _,
+            dstQueueFamilyIndex: VK_QUEUE_FAMILY_IGNORED as _,
+            image: image,
+            subresourceRange: VkImageSubresourceRange {
+                aspectMask: VkImageAspectFlagBits_VK_IMAGE_ASPECT_COLOR_BIT as _,
+                baseMipLevel: 0,
+                levelCount: 1,
+                baseArrayLayer: 0,
+                layerCount: 1,
+            },
+        };
+
+        let source_stage_flags:VkPipelineStageFlags;
+        let destination_stage_flags: VkPipelineStageFlags;
+
+        if old_layout == VkImageLayout_VK_IMAGE_LAYOUT_UNDEFINED && new_layout == VkImageLayout_VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL {
+            barrier.srcAccessMask = 0;
+            barrier.dstAccessMask = VkAccessFlagBits_VK_ACCESS_TRANSFER_WRITE_BIT as _;
+
+            source_stage_flags = VkPipelineStageFlagBits_VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT as _;
+            destination_stage_flags = VkPipelineStageFlagBits_VK_PIPELINE_STAGE_TRANSFER_BIT as _;
+        }
+        else if old_layout == VkImageLayout_VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && new_layout == VkImageLayout_VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL {
+            barrier.srcAccessMask = VkAccessFlagBits_VK_ACCESS_TRANSFER_WRITE_BIT as _;
+            barrier.dstAccessMask = VkAccessFlagBits_VK_ACCESS_SHADER_READ_BIT as _;
+
+            source_stage_flags = VkPipelineStageFlagBits_VK_PIPELINE_STAGE_TRANSFER_BIT as _;
+            destination_stage_flags = VkPipelineStageFlagBits_VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT as _;
+        }
+        else {
+            panic!("Unsupported couple of old_layout and new_layout");
+        }
+
+        unsafe {
+            vkCmdPipelineBarrier.unwrap()(
+                command_buffer,
+                source_stage_flags, destination_stage_flags,
+                0,
+                0, ::std::ptr::null_mut(),
+                0, ::std::ptr::null_mut(),
+                1, &barrier
+            );
+        }
+
+        self.end_single_time_commands(command_buffer);
+    }
+
+    pub fn copy_buffer_to_image(&mut self, buffer: VkBuffer, image: VkImage, image_width: u32, image_height: u32) {
+        let command_buffer = self.begin_single_time_commands();
+
+        let region = VkBufferImageCopy {
+            bufferOffset: 0,
+            bufferRowLength: 0,
+            bufferImageHeight: 0,
+            imageSubresource: VkImageSubresourceLayers {
+                aspectMask: VkImageAspectFlagBits_VK_IMAGE_ASPECT_COLOR_BIT as _,
+                mipLevel: 0,
+                baseArrayLayer: 0,
+                layerCount: 1,
+            },
+            imageOffset: VkOffset3D {
+                x: 0, y: 0, z: 0,
+            },
+            imageExtent: VkExtent3D{
+                width: image_width, 
+                height: image_height, 
+                depth: 1,
+            },
+        };
+
+        unsafe {
+            vkCmdCopyBufferToImage.unwrap()(command_buffer, buffer, image, VkImageLayout_VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+        }
+
+        self.end_single_time_commands(command_buffer);
+    }
+
+    pub fn begin_single_time_commands(&mut self) -> VkCommandBuffer {    
+        let command_alloc_info = VkCommandBufferAllocateInfo {
+            sType: VkStructureType_VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+            pNext: ::std::ptr::null_mut(),
+            commandPool: self.command_pool,
+            level: VkCommandBufferLevel_VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+            commandBufferCount: 1,
+        };
+
+        let command_buffer = unsafe {
+            let mut option = ::std::mem::MaybeUninit::uninit();
+            assert_eq!(
+                VkResult_VK_SUCCESS,
+                vkAllocateCommandBuffers.unwrap()(self.device, &command_alloc_info, option.as_mut_ptr())
+            );
+            option.assume_init()
+        };
+
+        let begin_info = VkCommandBufferBeginInfo {
+            sType: VkStructureType_VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+            flags: VkCommandBufferUsageFlagBits_VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT as _,
+            pNext: ::std::ptr::null_mut(),
+            pInheritanceInfo: ::std::ptr::null_mut(),
+        };
+            
+        unsafe {
+            assert_eq!(
+                VkResult_VK_SUCCESS,
+                vkBeginCommandBuffer.unwrap()(command_buffer, &begin_info)
+            );
+        }
+
+        command_buffer
+    }
+
+    pub fn end_single_time_commands(&mut self, command_buffer: VkCommandBuffer) {         
+        unsafe {
+            assert_eq!(
+                VkResult_VK_SUCCESS,
+                vkEndCommandBuffer.unwrap()(command_buffer)
+            );
+        }
+        
+        let submit_info = VkSubmitInfo {
+            sType: VkStructureType_VK_STRUCTURE_TYPE_SUBMIT_INFO,
+            pNext: ::std::ptr::null_mut(),
+            waitSemaphoreCount: 0,
+            pWaitSemaphores: ::std::ptr::null_mut(),
+            pWaitDstStageMask: ::std::ptr::null_mut(),
+            commandBufferCount: 1,
+            pCommandBuffers: &command_buffer,
+            signalSemaphoreCount: 0,
+            pSignalSemaphores: ::std::ptr::null_mut(),
+        };
+        
+        unsafe {
+            assert_eq!(
+                VkResult_VK_SUCCESS,
+                vkQueueSubmit.unwrap()(self.graphics_queue, 1, &submit_info, ::std::ptr::null_mut())
+            );
+            
+            vkQueueWaitIdle.unwrap()(self.graphics_queue);
+
+            vkFreeCommandBuffers.unwrap()(self.device, self.command_pool, 1, &command_buffer);
+        }
     }
 
     pub fn create_command_buffers(&mut self) -> &mut Self {        
@@ -713,7 +1052,14 @@ impl<'a> Device<'a> {
     pub fn delete(&self) {       
         unsafe {    
             self.cleanup_swap_chain();
-            self.destroy_shader_modules();
+
+            vkDestroySampler.unwrap()(self.device, self.texture_sampler, ::std::ptr::null_mut());
+            vkDestroyImageView.unwrap()(self.device, self.texture_image_view, ::std::ptr::null_mut());
+    
+            vkDestroyImage.unwrap()(self.device, self.texture_image, ::std::ptr::null_mut());
+            vkFreeMemory.unwrap()(self.device, self.texture_image_memory, ::std::ptr::null_mut());
+
+            vkDestroyDescriptorSetLayout.unwrap()(self.device, self.descriptor_set_layout, ::std::ptr::null_mut());
 
             self.destroy_buffer(&self.vertex_buffer, &self.vertex_buffer_memory);
             self.destroy_buffer(&self.index_buffer, &self.index_buffer_memory);
@@ -799,37 +1145,10 @@ impl<'a> Device<'a> {
         }
     }
 
-    fn copy_buffer(&self, buffer_src: &VkBuffer, buffer_dst: &mut VkBuffer, buffer_size: VkDeviceSize) {
-        let command_alloc_info = VkCommandBufferAllocateInfo {
-            sType: VkStructureType_VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-            pNext: ::std::ptr::null_mut(),
-            commandPool: self.command_pool,
-            level: VkCommandBufferLevel_VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-            commandBufferCount: 1,
-        };
-
-        let command_buffer = unsafe {
-            let mut option = ::std::mem::MaybeUninit::uninit();
-            assert_eq!(
-                VkResult_VK_SUCCESS,
-                vkAllocateCommandBuffers.unwrap()(self.device, &command_alloc_info, option.as_mut_ptr())
-            );
-            option.assume_init()
-        };
-
-        let begin_info = VkCommandBufferBeginInfo {
-            sType: VkStructureType_VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-            flags: VkCommandBufferUsageFlagBits_VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT as _,
-            pNext: ::std::ptr::null_mut(),
-            pInheritanceInfo: ::std::ptr::null_mut(),
-        };
+    fn copy_buffer(&mut self, buffer_src: &VkBuffer, buffer_dst: &mut VkBuffer, buffer_size: VkDeviceSize) {
+        let command_buffer = self.begin_single_time_commands();
             
-        unsafe {
-            assert_eq!(
-                VkResult_VK_SUCCESS,
-                vkBeginCommandBuffer.unwrap()(command_buffer, &begin_info)
-            );
-            
+        unsafe {            
             let copy_region = VkBufferCopy {
                 srcOffset: 0,
                 dstOffset: 0,
@@ -837,35 +1156,8 @@ impl<'a> Device<'a> {
             };  
         
             vkCmdCopyBuffer.unwrap()(command_buffer, *buffer_src, *buffer_dst, 1, &copy_region);
-            
-            assert_eq!(
-                VkResult_VK_SUCCESS,
-                vkEndCommandBuffer.unwrap()(command_buffer)
-            );
         }
-
-        let submit_info = VkSubmitInfo {
-            sType: VkStructureType_VK_STRUCTURE_TYPE_SUBMIT_INFO,
-            pNext: ::std::ptr::null_mut(),
-            waitSemaphoreCount: 0,
-            pWaitSemaphores: ::std::ptr::null_mut(),
-            pWaitDstStageMask: ::std::ptr::null_mut(),
-            commandBufferCount: 1,
-            pCommandBuffers: &command_buffer,
-            signalSemaphoreCount: 0,
-            pSignalSemaphores: ::std::ptr::null_mut(),
-        };
-        
-        unsafe {
-            assert_eq!(
-                VkResult_VK_SUCCESS,
-                vkQueueSubmit.unwrap()(self.graphics_queue, 1, &submit_info, ::std::ptr::null_mut())
-            );
-            
-            vkQueueWaitIdle.unwrap()(self.graphics_queue);
-
-            vkFreeCommandBuffers.unwrap()(self.device, self.command_pool, 1, &command_buffer);
-        }
+        self.end_single_time_commands(command_buffer);
     }
     
     pub fn create_vertex_buffer(&mut self, vertices: &[VertexData]) -> &mut Self {
@@ -940,13 +1232,21 @@ impl<'a> Device<'a> {
             pImmutableSamplers: ::std::ptr::null_mut(),
             stageFlags: VkShaderStageFlagBits_VK_SHADER_STAGE_VERTEX_BIT as _,
         };
-        
+
+        let sampler_layout_binding = VkDescriptorSetLayoutBinding {
+            binding: 1,
+            descriptorCount: 1,
+            descriptorType: VkDescriptorType_VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+            pImmutableSamplers: ::std::ptr::null_mut(),
+            stageFlags: VkShaderStageFlagBits_VK_SHADER_STAGE_FRAGMENT_BIT as _,
+        };
+        let bindings = [uniform_buffer_layout_binding, sampler_layout_binding];
         let layout_create_info = VkDescriptorSetLayoutCreateInfo {
             sType: VkStructureType_VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
             flags: 0,
             pNext: ::std::ptr::null_mut(),
-            bindingCount: 1,
-            pBindings: &uniform_buffer_layout_binding,
+            bindingCount: bindings.len() as _,
+            pBindings: bindings.as_ptr(),
         };
 
         let descriptor_set_layout = unsafe {
@@ -982,17 +1282,23 @@ impl<'a> Device<'a> {
     }
 
     pub fn create_descriptor_pool(&mut self) -> &mut Self {
-        let pool_size = VkDescriptorPoolSize {
-            type_: VkDescriptorType_VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-            descriptorCount: self.swap_chain.images.len() as _,
-        };
+        let pool_sizes = [
+            VkDescriptorPoolSize {
+                type_: VkDescriptorType_VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                descriptorCount: self.swap_chain.images.len() as _,
+            },
+            VkDescriptorPoolSize {
+                type_: VkDescriptorType_VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                descriptorCount: self.swap_chain.images.len() as _,
+            },
+        ];
 
         let pool_info = VkDescriptorPoolCreateInfo {
             sType: VkStructureType_VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
             flags: 0,
             pNext: ::std::ptr::null_mut(),
-            poolSizeCount: 1,
-            pPoolSizes: &pool_size,
+            poolSizeCount: pool_sizes.len() as _,
+            pPoolSizes: pool_sizes.as_ptr(),
             maxSets: self.swap_chain.images.len() as _,
         };
 
@@ -1041,22 +1347,42 @@ impl<'a> Device<'a> {
                 offset: 0,
                 range: ::std::mem::size_of::<UniformData>() as _,
             };
-
-            let descriptor_write = VkWriteDescriptorSet {
-                sType: VkStructureType_VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-                pNext: ::std::ptr::null_mut(),
-                dstSet: descriptor_sets[i],
-                dstBinding: 0,
-                dstArrayElement: 0,
-                descriptorCount: 1,
-                descriptorType: VkDescriptorType_VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-                pImageInfo: ::std::ptr::null_mut(),
-                pBufferInfo: &buffer_info,
-                pTexelBufferView: ::std::ptr::null_mut(),
+            
+            let image_info = VkDescriptorImageInfo {
+                imageLayout: VkImageLayout_VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                imageView: self.texture_image_view  ,
+                sampler: self.texture_sampler,
             };
 
+            let descriptor_write = [
+                VkWriteDescriptorSet {
+                    sType: VkStructureType_VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                    pNext: ::std::ptr::null_mut(),
+                    dstSet: descriptor_sets[i],
+                    dstBinding: 0,
+                    dstArrayElement: 0,
+                    descriptorCount: 1,
+                    descriptorType: VkDescriptorType_VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                    pImageInfo: ::std::ptr::null_mut(),
+                    pBufferInfo: &buffer_info,
+                    pTexelBufferView: ::std::ptr::null_mut(),
+                },
+                VkWriteDescriptorSet {
+                    sType: VkStructureType_VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                    pNext: ::std::ptr::null_mut(),
+                    dstSet: descriptor_sets[i],
+                    dstBinding: 1,
+                    dstArrayElement: 0,
+                    descriptorCount: 1,
+                    descriptorType: VkDescriptorType_VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                    pImageInfo: &image_info,
+                    pBufferInfo: ::std::ptr::null_mut(),
+                    pTexelBufferView: ::std::ptr::null_mut(),
+                },
+            ];
+
             unsafe {
-                vkUpdateDescriptorSets.unwrap()(self.device, 1, &descriptor_write, 0, ::std::ptr::null_mut());
+                vkUpdateDescriptorSets.unwrap()(self.device, descriptor_write.len() as _, descriptor_write.as_ptr(), 0, ::std::ptr::null_mut());
             }
         }
 
