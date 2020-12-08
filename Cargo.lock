@@ -198,6 +198,7 @@ version = "0.1.0"
 dependencies = [
  "nrg_core",
  "nrg_graphics",
+ "nrg_image",
  "nrg_math",
  "nrg_platform",
 ]
@@ -210,10 +211,15 @@ version = "0.1.0"
 name = "nrg_graphics"
 version = "0.1.0"
 dependencies = [
+ "nrg_image",
  "nrg_math",
  "nrg_platform",
  "vulkan_bindings",
 ]
+
+[[package]]
+name = "nrg_image"
+version = "0.1.0"
 
 [[package]]
 name = "nrg_math"

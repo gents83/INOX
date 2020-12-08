@@ -5,11 +5,13 @@ authors = ["gents83 <gents83@gmail.com>"]
 edition = "2018"
 
 [dependencies]
+nrg_image = { path = "../image" }
 nrg_math = { path = "../math" }
 nrg_platform = { path = "../platform" }
 vulkan_bindings = { path = "../bindings/vulkan_bindings" }
 
 [build-dependencies]
+nrg_image = { path = "../image" }
 nrg_math = { path = "../math" }
 nrg_platform = { path = "../platform"}
 vulkan_bindings = { path = "../bindings/vulkan_bindings" }

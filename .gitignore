@@ -6,7 +6,9 @@ platform/target
 xml/target
 core/target
 math/target
+image/target
 /target
 *.lock
 *.gfxr
 *.foz
+Cargo.lock

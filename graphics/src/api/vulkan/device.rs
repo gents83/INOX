@@ -541,8 +541,9 @@ impl<'a> Device<'a> {
 
     pub fn create_texture_image(&mut self) -> &mut Self {
         let image_info:Vector3u = [256, 256, 1].into(); //width, height, channels
-        //TODO read image
-        let image_data:Vec<u8> = Vec::new();
+
+        let image_data = nrg_image::reader::Reader::load("C:\\PROJECTS\\NRG\\data\\Test.bmp".as_ref());
+        
         let image_size: VkDeviceSize = (image_info[0] * image_info[1] * 4) as _;
         let flags = VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
                 
@@ -554,7 +555,7 @@ impl<'a> Device<'a> {
                             &mut staging_buffer,
                             &mut staging_buffer_memory);
         
-        self.map_buffer_memory(&mut staging_buffer_memory, &image_data);
+        self.map_buffer_memory(&mut staging_buffer_memory, image_data.data.as_ref());
 
         let mut texture_image: VkImage = ::std::ptr::null_mut();
         let mut texture_image_memory: VkDeviceMemory = ::std::ptr::null_mut();

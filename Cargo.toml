@@ -11,3 +11,4 @@ nrg_math = { path = "math" }
 nrg_platform = { path = "platform" }
 nrg_graphics = { path = "graphics" }
 nrg_core = { path = "core" }
+nrg_image = { path = "image" }
