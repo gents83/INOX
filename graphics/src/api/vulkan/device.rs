@@ -226,33 +226,7 @@ impl<'a> Device<'a> {
         let selected_format = self.swap_chain.details.formats[0].format;
 
         for (i, image) in self.swap_chain.images.iter().enumerate() {
-            let mut image_view_create_info = VkImageViewCreateInfo {
-                sType: VkStructureType_VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-                pNext: ::std::ptr::null_mut(),
-                flags: 0,
-                image: *image,
-                viewType: VkImageViewType_VK_IMAGE_VIEW_TYPE_2D,
-                format: selected_format,
-                components: VkComponentMapping {
-                    r: VkComponentSwizzle_VK_COMPONENT_SWIZZLE_IDENTITY,
-                    g: VkComponentSwizzle_VK_COMPONENT_SWIZZLE_IDENTITY,
-                    b: VkComponentSwizzle_VK_COMPONENT_SWIZZLE_IDENTITY,
-                    a: VkComponentSwizzle_VK_COMPONENT_SWIZZLE_IDENTITY,
-                },
-                subresourceRange : VkImageSubresourceRange {
-                    aspectMask: VkImageAspectFlagBits_VK_IMAGE_ASPECT_COLOR_BIT as VkImageAspectFlags,
-                    baseMipLevel: 0,
-                    levelCount: 1,
-                    baseArrayLayer: 0,
-                    layerCount: 1
-                },
-            };
-            unsafe {
-                assert_eq!(
-                    VkResult_VK_SUCCESS,
-                    vkCreateImageView.unwrap()(self.device, &mut image_view_create_info, ::std::ptr::null_mut(), &mut swap_chain_image_views[i])
-                );
-            }
+            swap_chain_image_views[i] = self.create_image_view(*image, selected_format);
         }
         self.swap_chain.image_views = swap_chain_image_views;
         self
@@ -540,11 +514,8 @@ impl<'a> Device<'a> {
     }
 
     pub fn create_texture_image(&mut self) -> &mut Self {
-        let image_info:Vector3u = [256, 256, 1].into(); //width, height, channels
-
         let image_data = nrg_image::reader::Reader::load("C:\\PROJECTS\\NRG\\data\\Test.bmp".as_ref());
-        
-        let image_size: VkDeviceSize = (image_info[0] * image_info[1] * 4) as _;
+        let image_size: VkDeviceSize = (image_data.width * image_data.height * image_data.channel_count as u32) as _;
         let flags = VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
                 
         let mut staging_buffer: VkBuffer = ::std::ptr::null_mut();
@@ -560,8 +531,8 @@ impl<'a> Device<'a> {
         let mut texture_image: VkImage = ::std::ptr::null_mut();
         let mut texture_image_memory: VkDeviceMemory = ::std::ptr::null_mut();
         let flags = VkImageUsageFlagBits_VK_IMAGE_USAGE_TRANSFER_DST_BIT | VkImageUsageFlagBits_VK_IMAGE_USAGE_SAMPLED_BIT; 
-        self.create_image(image_info[0] as _,
-                          image_info[1] as _, 
+        self.create_image(image_data.width as _,
+                          image_data.height as _, 
                           VkFormat_VK_FORMAT_R8G8B8A8_SRGB,
                           VkImageTiling_VK_IMAGE_TILING_OPTIMAL,
                           flags as _, 
@@ -571,7 +542,7 @@ impl<'a> Device<'a> {
 
         self.transition_image_layout(texture_image, VkImageLayout_VK_IMAGE_LAYOUT_UNDEFINED, VkImageLayout_VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
         
-        self.copy_buffer_to_image(staging_buffer, texture_image, image_info[0], image_info[1]);
+        self.copy_buffer_to_image(staging_buffer, texture_image, image_data.width, image_data.height);
         
         self.transition_image_layout(texture_image, VkImageLayout_VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VkImageLayout_VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
@@ -624,7 +595,7 @@ impl<'a> Device<'a> {
         self
     }
 
-    pub fn create_image_view(&mut self, image: VkImage, format: VkFormat) -> VkImageView {
+    pub fn create_image_view(&self, image: VkImage, format: VkFormat) -> VkImageView {
         let view_info = VkImageViewCreateInfo {
             sType: VkStructureType_VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
             pNext: ::std::ptr::null_mut(),
@@ -1233,7 +1204,6 @@ impl<'a> Device<'a> {
             pImmutableSamplers: ::std::ptr::null_mut(),
             stageFlags: VkShaderStageFlagBits_VK_SHADER_STAGE_VERTEX_BIT as _,
         };
-
         let sampler_layout_binding = VkDescriptorSetLayoutBinding {
             binding: 1,
             descriptorCount: 1,

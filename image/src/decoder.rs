@@ -1,6 +1,4 @@
 use std::io::Read;
-use std::convert::TryFrom;
-
 use super::colors::*;
 
 
@@ -24,5 +22,5 @@ pub trait ImageDecoder<'a>: Sized {
         self.total_bytes()
     }
 
-    fn read_image(self, buf: &mut [u8]);
+    fn read_image(&mut self, buf: &mut [u8]);
 }

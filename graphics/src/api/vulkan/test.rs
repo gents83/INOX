@@ -11,7 +11,6 @@ fn test_vulkan()
     use nrg_math::*;
     use super::instance::*;
     use super::device::*;
-    use super::data_formats::*;
 
     let window = 
     Window::create( String::from("TEST"),
@@ -20,7 +19,7 @@ fn test_vulkan()
                    1024, 768 );
 
     let mut model_transform:Matrix4f = Matrix4f::identity();
-    let cam_pos:Vector3f = [0.0, -2.0, -2.0].into();
+    let cam_pos:Vector3f = [0.0, 2.0, -2.0].into();
 
     let vertices: [VertexData; 4] = [
         VertexData { pos: [-0.5, -0.5].into(), color: [1.0, 0.0, 0.0].into(), tex_coord: [1.0, 0.0].into()},
@@ -53,7 +52,7 @@ fn test_vulkan()
     let mut frame_index = 0;
     loop {
 
-        let rotation = Matrix4::from_axis_angle([0.0, 0.0, 1.0].into(), Degree(0.05).into());
+        let rotation = Matrix4::from_axis_angle([0.0, 0.0, 0.0].into(), Degree(0.05).into());
         model_transform.set_translation([0.0 * frame_index as f32, 0.0 * frame_index as f32, 0.0 * frame_index as f32].into());
         model_transform = rotation * model_transform;
 

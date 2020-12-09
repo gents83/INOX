@@ -1,14 +1,12 @@
 use std::io::{BufRead, Seek};
 
-use crate::reader::*;
+use crate::image::*;
 
 
 pub struct Reader {}
 
 impl Reader {
-    pub fn create_from<'a, R: BufRead + Seek>(buffer: R) -> Image {
-        Image {
-            data: Vec::new(),
-        }
+    pub fn create_from<'a, R: BufRead + Seek>(_buffer: R) -> Image {
+        Image::default()
     }
 }

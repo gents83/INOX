@@ -10,6 +10,7 @@ mod macros;
 
 pub mod colors;
 pub mod decoder;
+pub mod image;
 pub mod reader;
 pub mod utils;
 

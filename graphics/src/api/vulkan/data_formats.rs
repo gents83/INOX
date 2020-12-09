@@ -26,7 +26,7 @@ impl VertexData {
         });
         attr.push( VkVertexInputAttributeDescription {
             binding: 0,
-            format: VkFormat_VK_FORMAT_R32G32B32_SFLOAT,
+            format: VkFormat_VK_FORMAT_R32G32_SFLOAT,
             location: 2,
             offset: unsafe { &(*(::std::ptr::null::<VertexData>())).tex_coord as *const _ as _ },
         });

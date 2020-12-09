@@ -4,11 +4,8 @@ use crate::PngReader;
 use crate::JpgReader;
 use crate::BmpReader;
 
+use super::image::*;
 use super::formats::*;
-
-pub struct Image {
-    pub data: Vec<u8>,
-}
 
 pub struct Reader {}
 

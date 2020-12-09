@@ -34,7 +34,5 @@ pub fn read_u16_le<R: Read + Seek>(reader: &mut R) -> u16 {
 
 #[inline]
 pub fn read_u8<R: Read>(reader: &mut R) -> u8 {
-    let mut buf = [0; 1];
-    let _res = reader.read_exact(&mut buf); 
-    buf[0]
+    read_bytes!(u8, 1, reader, to_le)
 }
