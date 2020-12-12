@@ -517,7 +517,10 @@ impl<'a> Device<'a> {
         let image_data = nrg_image::reader::Reader::load("C:\\PROJECTS\\NRG\\data\\Test.bmp".as_ref());
         let image_size: VkDeviceSize = (image_data.width * image_data.height * image_data.channel_count as u32) as _;
         let flags = VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-                
+        let format = match image_data.color_type {
+            nrg_image::ColorType::Rgb8 => VkFormat_VK_FORMAT_R8G8B8_UNORM,
+            _ => VkFormat_VK_FORMAT_R8G8B8A8_UNORM,
+        };
         let mut staging_buffer: VkBuffer = ::std::ptr::null_mut();
         let mut staging_buffer_memory : VkDeviceMemory = ::std::ptr::null_mut();
         self.create_buffer(image_size as _, 
@@ -533,7 +536,7 @@ impl<'a> Device<'a> {
         let flags = VkImageUsageFlagBits_VK_IMAGE_USAGE_TRANSFER_DST_BIT | VkImageUsageFlagBits_VK_IMAGE_USAGE_SAMPLED_BIT; 
         self.create_image(image_data.width as _,
                           image_data.height as _, 
-                          VkFormat_VK_FORMAT_R8G8B8A8_SRGB,
+                          format,
                           VkImageTiling_VK_IMAGE_TILING_OPTIMAL,
                           flags as _, 
                           VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT as _,
@@ -550,13 +553,9 @@ impl<'a> Device<'a> {
 
         self.texture_image = texture_image;
         self.texture_image_memory = texture_image_memory;
+        self.texture_image_view = self.create_image_view(self.texture_image, format);
         self
     }
-
-    pub fn create_texture_image_view(&mut self) -> &mut Self {
-        self.texture_image_view = self.create_image_view(self.texture_image, VkFormat_VK_FORMAT_R8G8B8A8_SRGB);
-        self
-    } 
 
     pub fn create_texture_sampler(&mut self) -> &mut Self {
         let properties = self.instance.get_physical_device().get_properties();

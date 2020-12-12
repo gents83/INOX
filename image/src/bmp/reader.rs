@@ -18,6 +18,7 @@ impl Reader {
             width: dim.0,
             height: dim.1,
             channel_count: decoder.color_type().channel_count(),
+            color_type: decoder.color_type(),
         }
     }    
 }

@@ -1,4 +1,5 @@
 
+pub use crate::colors::*;
 pub use crate::formats::*;
 pub use crate::utils::*;
 pub use crate::bmp::reader::Reader as BmpReader;
