@@ -1,11 +1,8 @@
-use std::io::Read;
 use super::colors::*;
 
 
 /// The trait that all decoders implement
 pub trait ImageDecoder<'a>: Sized {
-    type Reader: Read + 'a;
-
     fn dimensions(&self) -> (u32, u32);
     fn color_type(&self) -> ColorType;
 

@@ -1,4 +1,4 @@
-use std::{io::{Cursor, Read, Seek, SeekFrom}, marker::PhantomData};
+use std::io::{Read, Seek, SeekFrom};
 use std::cmp::{self, Ordering};
 use std::convert::TryFrom;
 use std::slice::ChunksMut;
@@ -398,18 +398,18 @@ impl<'a, R: Read> Iterator for RLEInsnIterator<'a, R> {
     type Item = RLEInsn;
 
     fn next(&mut self) -> Option<RLEInsn> {
-        let control_byte = read_u8(self.r);
+        let control_byte = read_u8_from_reader(self.r);
 
         match control_byte {
             RLE_ESCAPE => {
-                let op = read_u8(self.r);
+                let op = read_u8_from_reader(self.r);
 
                 match op {
                     RLE_ESCAPE_EOL => Some(RLEInsn::EndOfRow),
                     RLE_ESCAPE_EOF => Some(RLEInsn::EndOfFile),
                     RLE_ESCAPE_DELTA => {
-                        let xdelta = read_u8(self.r);
-                        let ydelta = read_u8(self.r);
+                        let xdelta = read_u8_from_reader(self.r);
+                        let ydelta = read_u8_from_reader(self.r);
                         Some(RLEInsn::Delta(xdelta, ydelta))
                     }
                     _ => {
@@ -426,7 +426,7 @@ impl<'a, R: Read> Iterator for RLEInsnIterator<'a, R> {
                     }
                 }
             }
-            _ => Some(RLEInsn::PixelRun(control_byte, read_u8(self.r))),
+            _ => Some(RLEInsn::PixelRun(control_byte, read_u8_from_reader(self.r))),
         }
     }
 }
@@ -512,7 +512,7 @@ impl<R: Read + Seek> BmpDecoder<R> {
             self.read_file_header();
             
             let bmp_header_offset = self.reader.seek(SeekFrom::Current(0)).unwrap();
-            let bmp_header_size = read_u32_le(&mut self.reader);
+            let bmp_header_size = read_u32_from_reader_le(&mut self.reader);
             let bmp_header_end = bmp_header_offset + u64::from(bmp_header_size);
             
             self.bmp_header_type = match bmp_header_size {
@@ -566,21 +566,21 @@ impl<R: Read + Seek> BmpDecoder<R> {
             panic!("Invalid signature in BMP file header");
         }
         
-        let _filesize = read_u32_le(&mut self.reader);
-        let _reserved = read_u32_le(&mut self.reader);
+        let _filesize = read_u32_from_reader_le(&mut self.reader);
+        let _reserved = read_u32_from_reader_le(&mut self.reader);
 
-        self.data_offset = u64::from(read_u32_le(&mut self.reader));
+        self.data_offset = u64::from(read_u32_from_reader_le(&mut self.reader));
     }
 
     fn read_bitmap_core_header(&mut self) {
-        self.width = i32::from(read_u16_le(&mut self.reader));
-        self.height = i32::from(read_u16_le(&mut self.reader));
+        self.width = i32::from(read_u16_from_reader_le(&mut self.reader));
+        self.height = i32::from(read_u16_from_reader_le(&mut self.reader));
 
-        if read_u16_le(&mut self.reader) != 1 {
+        if read_u16_from_reader_le(&mut self.reader) != 1 {
             panic!("More than one plane in BMP file header");
         }
         
-        self.bit_count = read_u16_le(&mut self.reader);
+        self.bit_count = read_u16_from_reader_le(&mut self.reader);
         self.image_type = match self.bit_count {
             1 | 4 | 8 => ImageType::Palette,
             24 => ImageType::RGB24,
@@ -589,8 +589,8 @@ impl<R: Read + Seek> BmpDecoder<R> {
     }
     
     fn read_bitmap_info_header(&mut self) {
-        self.width = read_i32_le(&mut self.reader);
-        self.height = read_i32_le(&mut self.reader);
+        self.width = read_i32_from_reader_le(&mut self.reader);
+        self.height = read_i32_from_reader_le(&mut self.reader);
 
         // Width can not be negative
         if self.width < 0 || self.width > MAX_WIDTH_HEIGHT || self.height > MAX_WIDTH_HEIGHT {
@@ -605,11 +605,11 @@ impl<R: Read + Seek> BmpDecoder<R> {
             self.top_down = true;
         }
         
-        if read_u16_le(&mut self.reader) != 1 {
+        if read_u16_from_reader_le(&mut self.reader) != 1 {
             panic!("More than one plane in BMP file header");
         }
-        self.bit_count = read_u16_le(&mut self.reader);
-        let image_type_u32 = read_u32_le(&mut self.reader);
+        self.bit_count = read_u16_from_reader_le(&mut self.reader);
+        let image_type_u32 = read_u32_from_reader_le(&mut self.reader);
         if self.top_down && image_type_u32 != 0 && image_type_u32 != 3 {
             panic!("Top down images cannot be compressed");
         }
@@ -642,23 +642,23 @@ impl<R: Read + Seek> BmpDecoder<R> {
             _ => panic!("Unknown compression not supported in BMP file header"),
         };
 
-        let _data_size = read_u32_le(&mut self.reader);
-        let _printing_width = read_u32_le(&mut self.reader);
-        let _printing_height = read_u32_le(&mut self.reader);
+        let _data_size = read_u32_from_reader_le(&mut self.reader);
+        let _printing_width = read_u32_from_reader_le(&mut self.reader);
+        let _printing_height = read_u32_from_reader_le(&mut self.reader);
         
-        self.colors_used = read_u32_le(&mut self.reader);
+        self.colors_used = read_u32_from_reader_le(&mut self.reader);
         
-        let _important_colors = read_u32_le(&mut self.reader);
+        let _important_colors = read_u32_from_reader_le(&mut self.reader);
     }
 
     fn read_bitmasks(&mut self) {
-        let r_mask = read_u32_le(&mut self.reader);
-        let g_mask = read_u32_le(&mut self.reader);
-        let b_mask = read_u32_le(&mut self.reader);
+        let r_mask = read_u32_from_reader_le(&mut self.reader);
+        let g_mask = read_u32_from_reader_le(&mut self.reader);
+        let b_mask = read_u32_from_reader_le(&mut self.reader);
 
         let a_mask = match self.bmp_header_type {
             BmpHeaderType::V3 | BmpHeaderType::V4 | BmpHeaderType::V5 => {
-                read_u32_le(&mut self.reader)
+                read_u32_from_reader_le(&mut self.reader)
             }
             _ => 0,
         };
@@ -789,7 +789,7 @@ impl<R: Read + Seek> BmpDecoder<R> {
             self.top_down,
             |row| {
                 for pixel in row.chunks_mut(num_channels) {
-                    let data = u32::from(read_u16_le(reader));
+                    let data = u32::from(read_u16_from_reader_le(reader));
 
                     pixel[0] = bitfields.r.read(data);
                     pixel[1] = bitfields.g.read(data);
@@ -823,7 +823,7 @@ impl<R: Read + Seek> BmpDecoder<R> {
             self.top_down,
             |row| {
                 for pixel in row.chunks_mut(num_channels) {
-                    let data = read_u32_le(reader);
+                    let data = read_u32_from_reader_le(reader);
 
                     pixel[0] = bitfields.r.read(data);
                     pixel[1] = bitfields.g.read(data);
@@ -862,7 +862,7 @@ impl<R: Read + Seek> BmpDecoder<R> {
             |row| {
                 for pixel in row.chunks_mut(num_channels) {
                     if *format == FormatFullBytes::Format888 {
-                        read_u8(reader);
+                        read_u8_from_reader(reader);
                     }
 
                     // Read the colour values (b, g, r).
@@ -872,7 +872,7 @@ impl<R: Read + Seek> BmpDecoder<R> {
                     pixel[0..3].reverse();
 
                     if *format == FormatFullBytes::RGB32 {
-                        read_u8(reader);
+                        read_u8_from_reader(reader);
                     }
 
                     // Read the alpha channel if present
@@ -1084,24 +1084,7 @@ impl<R: Read + Seek> BmpDecoder<R> {
     }
 }
 
-pub struct BmpReader<R>(Cursor<Vec<u8>>, PhantomData<R>);
-impl<R> Read for BmpReader<R> {
-    fn read(&mut self, buf: &mut [u8]) -> ::std::io::Result<usize> {
-        self.0.read(buf)
-    }
-    fn read_to_end(&mut self, buf: &mut Vec<u8>) -> ::std::io::Result<usize> {
-        if self.0.position() == 0 && buf.is_empty() {
-            ::std::mem::swap(buf, self.0.get_mut());
-            Ok(buf.len())
-        } else {
-            self.0.read_to_end(buf)
-        }
-    }
-}
-
 impl<'a, R: 'a + Read + Seek> ImageDecoder<'a> for BmpDecoder<R> {
-    type Reader = BmpReader<R>;
-
     fn dimensions(&self) -> (u32, u32) {
         (self.width as u32, self.height as u32)
     }

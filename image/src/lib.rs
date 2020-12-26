@@ -24,4 +24,5 @@ mod jpg {
 }
 mod png {
     pub mod reader;
+    pub mod decoder;
 }
