@@ -11,6 +11,10 @@ mod viewport;
 mod rasterizer;
 mod data_formats;
 
+mod block;
+mod chunk;
+mod world;
+
 pub mod api
 {
     #[cfg(target_os = "ios")]

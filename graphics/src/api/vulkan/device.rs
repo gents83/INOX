@@ -38,6 +38,7 @@ pub struct Device<'a> {
     texture_image_memory: VkDeviceMemory,
     texture_image_view: VkImageView,
     texture_sampler: VkSampler,
+    vertex_count: u32,
     vertex_buffer: VkBuffer,
     vertex_buffer_memory: VkDeviceMemory,
     index_buffer: VkBuffer,
@@ -120,7 +121,7 @@ impl<'a> Device<'a> {
             output.assume_init()
         };
 
-        Self {
+        let mut inner_device = Self {
             instance: instance,
             device: device,
             graphics_queue: graphics_queue,
@@ -142,6 +143,7 @@ impl<'a> Device<'a> {
             texture_image_memory: ::std::ptr::null_mut(),
             texture_image_view: ::std::ptr::null_mut(),
             texture_sampler: ::std::ptr::null_mut(),
+            vertex_count: 0,
             vertex_buffer: ::std::ptr::null_mut(),
             vertex_buffer_memory: ::std::ptr::null_mut(),
             index_buffer: ::std::ptr::null_mut(),
@@ -155,7 +157,16 @@ impl<'a> Device<'a> {
             render_finished_semaphores: Vec::new(),
             inflight_fences: Vec::new(),
             inflight_images: Vec::new(),
-        }
+        };
+        inner_device.create_swap_chain()
+                    .create_image_views()
+                    .create_render_pass()
+                    .create_descriptor_set_layout()
+                    .create_framebuffers()
+                    .create_command_pool()
+                    .create_descriptor_pool()
+                    .create_sync_objects();
+        inner_device
     }
 
     pub fn create_swap_chain(&mut self) -> &mut Self {       
@@ -895,11 +906,18 @@ impl<'a> Device<'a> {
                 let offsets = [0_u64];
                 vkCmdBindVertexBuffers.unwrap()(*command_buffer, 0, 1, vertex_buffers.as_ptr(), offsets.as_ptr());
 
-                vkCmdBindIndexBuffer.unwrap()(*command_buffer, self.index_buffer, 0, VkIndexType_VK_INDEX_TYPE_UINT32);
-
+                if self.index_buffer != std::ptr::null_mut() {
+                    vkCmdBindIndexBuffer.unwrap()(*command_buffer, self.index_buffer, 0, VkIndexType_VK_INDEX_TYPE_UINT32);
+                }
+                
                 vkCmdBindDescriptorSets.unwrap()(*command_buffer, VkPipelineBindPoint_VK_PIPELINE_BIND_POINT_GRAPHICS, self.pipeline_layout, 0, 1, &self.descriptor_sets[i], 0, ::std::ptr::null_mut());
 
-                vkCmdDrawIndexed.unwrap()(*command_buffer, ::std::mem::size_of_val(&self.index_buffer) as _, 1, 0, 0, 0);
+                if self.index_buffer != std::ptr::null_mut() {
+                    vkCmdDrawIndexed.unwrap()(*command_buffer, ::std::mem::size_of_val(&self.index_buffer) as _, 1, 0, 0, 0);
+                }
+                else {
+                    vkCmdDraw.unwrap()(*command_buffer, self.vertex_count, 1, 0, 0);
+                }
 
                 vkCmdEndRenderPass.unwrap()(*command_buffer);
             }
@@ -1158,6 +1176,7 @@ impl<'a> Device<'a> {
         
         self.destroy_buffer(&staging_buffer, &staging_buffer_memory);
 
+        self.vertex_count = vertices.len() as _;
         self.vertex_buffer = vertex_buffer;
         self.vertex_buffer_memory = vertex_buffer_memory;
         self
@@ -1370,7 +1389,7 @@ impl<'a> Device<'a> {
                                             [0.0, 0.0, 1.0].into()),
                 proj: Matrix4::create_perspective(Degree(45.0).into(), 
                                                     self.swap_chain.details.capabilities.currentExtent.width as f32 / self.swap_chain.details.capabilities.currentExtent.height as f32, 
-                                                    0.1, 10.0),
+                                                    0.1, 1000.0),
             }
         ];
 

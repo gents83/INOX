@@ -69,19 +69,18 @@
       %int_2 = OpConstant %int 2
 %_ptr_Uniform_mat4v4float = OpTypePointer Uniform %mat4v4float
       %int_1 = OpConstant %int 1
-    %v2float = OpTypeVector %float 2
-%_ptr_Input_v2float = OpTypePointer Input %v2float
- %inPosition = OpVariable %_ptr_Input_v2float Input
-    %float_0 = OpConstant %float 0
+    %v3float = OpTypeVector %float 3
+%_ptr_Input_v3float = OpTypePointer Input %v3float
+ %inPosition = OpVariable %_ptr_Input_v3float Input
     %float_1 = OpConstant %float 1
 %_ptr_Output_v4float = OpTypePointer Output %v4float
-    %v3float = OpTypeVector %float 3
 %_ptr_Output_v3float = OpTypePointer Output %v3float
   %fragColor = OpVariable %_ptr_Output_v3float Output
-%_ptr_Input_v3float = OpTypePointer Input %v3float
     %inColor = OpVariable %_ptr_Input_v3float Input
+    %v2float = OpTypeVector %float 2
 %_ptr_Output_v2float = OpTypePointer Output %v2float
 %fragTexCoord = OpVariable %_ptr_Output_v2float Output
+%_ptr_Input_v2float = OpTypePointer Input %v2float
  %inTexCoord = OpVariable %_ptr_Input_v2float Input
        %main = OpFunction %void None %3
           %5 = OpLabel
@@ -93,15 +92,16 @@
          %28 = OpAccessChain %_ptr_Uniform_mat4v4float %ubo %int_0
          %29 = OpLoad %mat4v4float %28
          %30 = OpMatrixTimesMatrix %mat4v4float %27 %29
-         %34 = OpLoad %v2float %inPosition
-         %37 = OpCompositeExtract %float %34 0
-         %38 = OpCompositeExtract %float %34 1
-         %39 = OpCompositeConstruct %v4float %37 %38 %float_0 %float_1
+         %34 = OpLoad %v3float %inPosition
+         %36 = OpCompositeExtract %float %34 0
+         %37 = OpCompositeExtract %float %34 1
+         %38 = OpCompositeExtract %float %34 2
+         %39 = OpCompositeConstruct %v4float %36 %37 %38 %float_1
          %40 = OpMatrixTimesVector %v4float %30 %39
          %42 = OpAccessChain %_ptr_Output_v4float %_ %int_0
                OpStore %42 %40
-         %48 = OpLoad %v3float %inColor
-               OpStore %fragColor %48
+         %46 = OpLoad %v3float %inColor
+               OpStore %fragColor %46
          %52 = OpLoad %v2float %inTexCoord
                OpStore %fragTexCoord %52
                OpReturn

@@ -8,6 +8,9 @@ use super::utils::*;
 fn test_vulkan()
 { 
     use crate::data_formats::*;
+    use crate::block::*;
+    use crate::chunk::*;
+    use crate::world::*;
     use nrg_math::*;
     use super::instance::*;
     use super::device::*;
@@ -19,40 +22,51 @@ fn test_vulkan()
                    1024, 768 );
 
     let mut model_transform:Matrix4f = Matrix4f::identity();
-    let cam_pos:Vector3f = [0.0, 2.0, -2.0].into();
+    let cam_pos:Vector3f = [0.0, 16.0, -64.0].into();
 
+    /*
     let vertices: [VertexData; 4] = [
-        VertexData { pos: [-0.5, -0.5].into(), color: [1.0, 0.0, 0.0].into(), tex_coord: [1.0, 0.0].into()},
-        VertexData { pos: [ 0.5, -0.5].into(), color: [0.0, 1.0, 0.0].into(), tex_coord: [0.0, 0.0].into()},
-        VertexData { pos: [ 0.5,  0.5].into(), color: [0.0, 0.0, 1.0].into(), tex_coord: [0.0, 1.0].into()},
-        VertexData { pos: [-0.5,  0.5].into(), color: [1.0, 1.0, 1.0].into(), tex_coord: [1.0, 1.0].into()},
+        VertexData { pos: [-20., -20., 0.].into(), normal: [0., 0., 1.].into(), color: [1., 0., 0.].into(), tex_coord: [1., 0.].into()},
+        VertexData { pos: [ 20., -20., 0.].into(), normal: [0., 0., 1.].into(), color: [0., 1., 0.].into(), tex_coord: [0., 0.].into()},
+        VertexData { pos: [ 20.,  20., 0.].into(), normal: [0., 0., 1.].into(), color: [0., 0., 1.].into(), tex_coord: [0., 1.].into()},
+        VertexData { pos: [-20.,  20., 0.].into(), normal: [0., 0., 1.].into(), color: [1., 1., 1.].into(), tex_coord: [1., 1.].into()},
     ]; 
     let indices: [u32; 6] = [0, 1, 2, 2, 3, 0];
+    */
+
+    // Add sphere
+    let radius = 6;
+    let chunk_size = 8;
+    let mut world = World::default();
+    BlockConfig::new("Solid", true, false);
+    world.create_sphere(Block::from_name("Solid"), 
+                        &WorldBlockCoordinate::new(chunk_size - radius, chunk_size - radius, chunk_size - radius),
+                        &WorldBlockCoordinate::new(chunk_size + radius, chunk_size + radius, chunk_size + radius));
+
+    world.update(10, cam_pos);
+
+    let mut vertices: Vec<VertexData> = Vec::new();
+    for (index, chunk) in world.visible_chunks.iter_mut() {
+        vertices.append(&mut chunk.vertices);
+    }
 
     let mut instance = Instance::new(&window.handle, false);
     let mut device = Device::new(&mut instance);
-    device.create_swap_chain()
-            .create_image_views()
-            .create_render_pass()
-            .create_descriptor_set_layout()
-            .create_graphics_pipeline()
-            .create_framebuffers()
-            .create_command_pool()
+    device.create_graphics_pipeline()
             .create_texture_image()
             .create_texture_sampler()
-            .create_vertex_buffer(&vertices)
-            .create_index_buffer(&indices)
+            .create_vertex_buffer(vertices.as_slice())
+            //.create_vertex_buffer(&vertices)
+            //.create_index_buffer(&indices)
             .create_uniform_buffers()
-            .create_descriptor_pool()
             .create_descriptor_sets()
-            .create_command_buffers()
-            .create_sync_objects();
+            .create_command_buffers();
     
     let mut frame_index = 0;
     loop {
 
-        let rotation = Matrix4::from_axis_angle([0.0, 0.0, 0.0].into(), Degree(0.05).into());
-        model_transform.set_translation([0.0 * frame_index as f32, 0.0 * frame_index as f32, 0.0 * frame_index as f32].into());
+        let rotation = Matrix4::from_axis_angle([0.0, 0.0, 0.0].into(), Degree(0.1).into());
+        model_transform.set_translation([0.0, 0.0, 0.0].into());
         model_transform = rotation * model_transform;
 
         frame_index = device.temp_draw_frame(frame_index, &model_transform, cam_pos);
