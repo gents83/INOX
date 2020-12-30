@@ -364,24 +364,6 @@ impl Material {
     }
 }
 
-impl EventListener for MaterialInstance {
-    fn on_event_received(&self, event_type: u32) {
-        if event_type == DeviceEvent::OnSwapChainCreated as u32 {
-
-        }
-        else if event_type == DeviceEvent::OnSwapChainCleanUp as u32 {
-
-        }
-    }
-}
-
-impl PartialEq<dyn EventListener> for MaterialInstance {
-    fn eq(&self, other: &dyn EventListener) -> bool {
-        true
-    }
-}
-
-
 impl MaterialInstance {
     pub fn create_from(device: &mut Device, material: &Material) -> Self {
         let mut instance = MaterialInstance {
@@ -389,12 +371,7 @@ impl MaterialInstance {
             descriptor_sets: Vec::new(),
         };
         instance.create_descriptor_sets(&device, &material);
-        //device.register_listener(|ev|{ /*instance.on_device_callback(ev);*/ } );
         instance       
-    }
-
-    pub fn on_device_callback(&mut self, event_type: u32) {
-
     }
 
     pub fn destroy(&self, device: &Device) {

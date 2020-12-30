@@ -32,6 +32,11 @@ impl Instance {
         self.inner.borrow_mut().delete();
     }
 
+    pub fn compute_swap_chain_details(&self) {
+        let inner = self.inner.borrow_mut();
+        inner.physical_device.compute_swap_chain_details(inner.surface);
+    }
+
     pub fn get_surface(&self) -> VkSurfaceKHR {
         self.inner.borrow().surface
     }

@@ -41,15 +41,15 @@ impl Renderer {
         self
     }
 
-    pub fn begin_frame(&mut self) {
-        self.device.begin_frame();
+    pub fn begin_frame(&mut self) -> bool{
+        self.device.begin_frame()
     }
     
-    pub fn end_frame(&mut self) {
+    pub fn end_frame(&mut self) -> bool{
         self.device.end_frame();
 
         //TEMP
-        self.device.submit();
+        self.device.submit()
     }
 
 }

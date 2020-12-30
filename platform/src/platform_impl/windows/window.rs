@@ -77,13 +77,19 @@ impl Window {
     pub fn internal_update(&self) -> bool {
         unsafe {
             let mut message : MSG = ::std::mem::MaybeUninit::zeroed().assume_init();
-            if GetMessageW( &mut message as *mut MSG, self.handle.handle_impl.hwnd, 0, 0 ) > 0 {
-                TranslateMessage( &message as *const MSG );
-                DispatchMessageW( &message as *const MSG );
-    
+            if PeekMessageW(&mut message as *mut MSG, ::std::ptr::null_mut(), 0, 0, 0) > 0 {
+                if GetMessageW( &mut message as *mut MSG, self.handle.handle_impl.hwnd, 0, 0 ) > 0 {
+                    TranslateMessage( &message as *const MSG );
+                    DispatchMessageW( &message as *const MSG );
+        
+                    false
+                } 
+                else {
+                    true
+                }
+            }
+            else {
                 false
-            } else {
-                true
             }
         } 
     }

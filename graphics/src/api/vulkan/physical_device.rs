@@ -25,6 +25,12 @@ impl PhysicalDevice {
         }
     }
 
+    pub fn compute_swap_chain_details(&self, surface: VkSurfaceKHR) {
+        let mut inner = self.inner.borrow_mut();
+        inner.find_queue_family_indices(surface);
+        inner.find_swap_chain_support(surface);
+    }
+
     pub fn get_internal_device(&self) -> VkPhysicalDevice {
         self.inner.borrow().physical_device
     }

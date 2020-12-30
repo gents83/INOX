@@ -2,7 +2,6 @@
 use std::{cell::RefCell, os::raw::c_char, rc::Rc};
 use vulkan_bindings::*;
 use nrg_common::*;
-use nrg_common::implement_dispatcher;
 
 use super::instance::*;
 use super::types::*;
@@ -29,12 +28,11 @@ pub struct DeviceImmutable {
     render_finished_semaphores: Vec<VkSemaphore>,
     inflight_fences: Vec<VkFence>,
     inflight_images: Vec<VkFence>,
-    dispatcher: EventDispatcher,
 }
 
-#[derive(Clone)]
 pub struct Device {
     instance: Instance,
+    dispatcher: EventDispatcher,
     inner: Rc<RefCell<DeviceImmutable>>,
 }
 
@@ -43,6 +41,7 @@ impl Device {
         let immutable = Rc::new(RefCell::new(DeviceImmutable::new(instance)));
         Device {
             instance: instance.clone(),
+            dispatcher: EventDispatcher::default(),
             inner: immutable,
         }
     }    
@@ -108,7 +107,7 @@ impl Device {
         self.inner.borrow().copy_buffer_to_image(buffer, image, image_width, image_height);
     }
 
-    pub fn begin_frame(&self) -> bool {
+    pub fn begin_frame(&mut self) -> bool {
         if !self.inner.borrow_mut().prepare_for_new_frame() {
             return false;
         }
@@ -126,15 +125,11 @@ impl Device {
         let command_buffer = self.get_current_command_buffer();
         self.inner.borrow_mut().submit(command_buffer)
     }
-}
 
-#[derive(Copy, Clone)]
-pub enum DeviceEvent{
-    OnSwapChainCreated = 0,
-    OnSwapChainCleanUp = 1,
+    pub fn recreate_swap_chain(&mut self) {
+        self.inner.borrow_mut().recreate_swap_chain(&self.instance);
+    }
 }
-
-implement_dispatcher!(DeviceImmutable, dispatcher, DeviceEvent);
 
 impl DeviceImmutable {
     pub fn new(instance: &Instance) -> Self {   
@@ -166,7 +161,7 @@ impl DeviceImmutable {
             let result = vkAcquireNextImageKHR.unwrap()(self.device, self.swap_chain.ptr, ::std::u64::MAX, self.image_available_semaphores[new_frame_index as usize], ::std::ptr::null_mut(), &mut self.current_image_index);
             
             if result == VkResult_VK_ERROR_OUT_OF_DATE_KHR {
-                
+                self.wait_device();
                 return false;
             } 
             else if result != VkResult_VK_SUCCESS && result != VkResult_VK_SUBOPTIMAL_KHR {
@@ -245,6 +240,7 @@ impl DeviceImmutable {
             let result = vkQueuePresentKHR.unwrap()(self.present_queue, &present_info);
             
             if result == VkResult_VK_ERROR_OUT_OF_DATE_KHR || result == VkResult_VK_SUBOPTIMAL_KHR {
+                self.wait_device();
                 return false;
             } 
             else if result != VkResult_VK_SUCCESS {
@@ -666,7 +662,6 @@ impl DeviceImmutable {
             render_finished_semaphores: Vec::new(),
             inflight_fences: Vec::new(),
             inflight_images: Vec::new(),
-            dispatcher: EventDispatcher::default(),
         };
         inner_device.create_swap_chain(&instance)
                     .create_command_pool(&instance)
@@ -676,20 +671,27 @@ impl DeviceImmutable {
         inner_device
     }
 
-    fn create_swap_chain(&mut self, instance: &Instance) -> &mut Self {       
+    fn create_swap_chain(&mut self, instance: &Instance) -> &mut Self {     
         let details = instance.get_swap_chain_info();
         let queue_family_info = instance.get_queue_family_info();
         let mut family_indices: Vec<u32> = Vec::new();
 
+        let mut swap_chain_extent = VkExtent2D {
+            width: details.capabilities.currentExtent.width,
+            height: details.capabilities.currentExtent.height,
+        };
+        swap_chain_extent.width = ::std::cmp::max(details.capabilities.minImageExtent.width, std::cmp::min(details.capabilities.maxImageExtent.width, swap_chain_extent.width));
+        swap_chain_extent.height = ::std::cmp::max(details.capabilities.minImageExtent.height, std::cmp::min(details.capabilities.maxImageExtent.height, swap_chain_extent.height));
+        
         let mut swap_chain_create_info = VkSwapchainCreateInfoKHR{
             sType: VkStructureType_VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
             pNext: ::std::ptr::null_mut(),
             flags: 0,
             surface: instance.get_surface(),
-            minImageCount: ::std::cmp::max(details.capabilities.minImageCount + 1, details.capabilities.maxImageCount),
+            minImageCount: ::std::cmp::min(details.capabilities.minImageCount + 1, details.capabilities.maxImageCount),
             imageFormat: details.formats[0].format,
             imageColorSpace: details.formats[0].colorSpace,
-            imageExtent: details.capabilities.currentExtent,
+            imageExtent: swap_chain_extent,
             imageArrayLayers: 1,
             imageUsage: VkImageUsageFlagBits_VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT as u32,
             imageSharingMode: VkSharingMode_VK_SHARING_MODE_EXCLUSIVE,
@@ -699,7 +701,7 @@ impl DeviceImmutable {
             compositeAlpha: VkCompositeAlphaFlagBitsKHR_VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
             presentMode: details.present_modes[0],
             clipped: VK_TRUE,
-            oldSwapchain: ::std::ptr::null_mut(),
+            oldSwapchain: self.swap_chain.ptr,
         };
 
         if  queue_family_info.graphics_family_index != queue_family_info.present_family_index {
@@ -732,9 +734,6 @@ impl DeviceImmutable {
         }     
 
         self.swap_chain.images = swap_chain_images;
-
-        self.notify(DeviceEvent::OnSwapChainCreated);
-
         self
     }
 
@@ -832,9 +831,22 @@ impl DeviceImmutable {
         }
     }
 
-    fn cleanup_swap_chain(&mut self) {         
-        self.notify(DeviceEvent::OnSwapChainCleanUp);    
+    fn wait_device(&mut self) {                  
         unsafe {   
+            for fence in self.inflight_fences.iter_mut() {
+                vkWaitForFences.unwrap()(self.device, 1, fence, VK_TRUE, std::u64::MAX);
+            }
+            for fence in self.inflight_images.iter_mut() {
+                vkWaitForFences.unwrap()(self.device, 1, fence, VK_TRUE, std::u64::MAX);
+            }
+            
+            vkDeviceWaitIdle.unwrap()(self.device);
+        }
+    }
+    fn cleanup_swap_chain(&mut self) {          
+        unsafe {   
+            self.wait_device();
+
             vkFreeCommandBuffers.unwrap()(self.device, self.command_pool, self.command_buffers.len() as _, self.command_buffers.as_ptr());
             
             self.destroy_image_views();
@@ -844,15 +856,13 @@ impl DeviceImmutable {
     }
 
     fn recreate_swap_chain(&mut self, instance:&Instance) {
-        unsafe {            
-            vkDeviceWaitIdle.unwrap()(self.device);
-        }
         self.cleanup_swap_chain();
+        
+        instance.compute_swap_chain_details();
 
         self.create_swap_chain(instance)
-        .create_image_views(instance)
-        .allocate_command_buffers();
-        //.create_command_buffers();
+            .create_image_views(instance)
+            .allocate_command_buffers();
     }
 
     fn allocate_command_buffers(&mut self) -> &mut Self {          

@@ -38,6 +38,13 @@ extern "system" {
         hInstance: HINSTANCE,
         lpParam: LPVOID,
     ) -> HWND;
+    pub fn PeekMessageW(
+        lpMsg: LPMSG,
+        hWnd: HWND,
+        wMsgFilterMin: UINT,
+        wMsgFilterMax: UINT,
+        wRemoveMsg: UINT,
+    ) -> BOOL;
     pub fn GetMessageW(
         lpMsg: LPMSG,
         hWnd: HWND,
@@ -49,7 +56,10 @@ extern "system" {
     ) -> BOOL;
     pub fn DispatchMessageW(
         lpmsg: *const MSG,
-    ) -> LRESULT;
+    ) -> LRESULT;   
+    pub fn IsIconic(
+        hWnd: HWND,
+    ) -> BOOL;
     pub fn LoadLibraryA(
         lpLibFileName: LPCWSTR,
     ) -> HMODULE;

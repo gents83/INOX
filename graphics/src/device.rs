@@ -19,15 +19,19 @@ impl Device {
         self.inner.delete();
     }
 
-    pub fn begin_frame(&mut self) {
-        self.inner.begin_frame();
+    pub fn begin_frame(&mut self) -> bool {
+        self.inner.begin_frame()
     }
 
     pub fn end_frame(&self) {
         self.inner.end_frame();
     }
 
-    pub fn submit(&mut self) {
-        self.inner.submit();
+    pub fn submit(&mut self) -> bool {
+        self.inner.submit()
+    }    
+
+    pub fn recreate_swap_chain(&mut self) {
+        self.inner.recreate_swap_chain();
     }
 }

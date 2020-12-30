@@ -22,7 +22,7 @@ fn main() {
     
     let mut renderer = Renderer::new(&window.handle, false);
     renderer.set_viewport_size(size);
-    let default_render_pass = renderer.create_default_render_pass();
+    let mut default_render_pass = renderer.create_default_render_pass();
     let mut material = Material::create(&mut renderer.device, "C:\\PROJECTS\\NRG\\data\\vert.spv", "C:\\PROJECTS\\NRG\\data\\frag.spv");
     material.add_texture(&renderer.device, "C:\\PROJECTS\\NRG\\data\\Test.bmp");
 
@@ -39,33 +39,48 @@ fn main() {
         .set_indices(&renderer.device, &indices);
 
     let mut frame_count = 0;
-    let mut time = std::time::Instant::now();
+    
     loop 
-    {
+    {                
         let is_ended = window.update();
         if is_ended
         {
             break;
         }
-        
+
         let rotation = Matrix4::from_axis_angle([0.0, 0.0, 0.0].into(), Degree(0.1).into());
         model_transform.set_translation([0.0, 0.0, 0.0].into());
         model_transform = rotation * model_transform;
 
-        renderer.begin_frame();
-        default_render_pass.begin(&renderer.device);
-
-        material.update_uniform_buffer(&renderer.device, &model_transform, cam_pos);
-        material.prepare_pipeline(&renderer.device, &default_render_pass);
-        mesh.draw(&renderer.device);
-        
-        default_render_pass.end(&renderer.device);
-        renderer.end_frame();
-
         let time = std::time::Instant::now();
+        let mut result = renderer.begin_frame();
+        if result {
+            default_render_pass.begin(&renderer.device);
+
+            material.update_uniform_buffer(&renderer.device, &model_transform, cam_pos);
+            material.prepare_pipeline(&renderer.device, &default_render_pass);
+            mesh.draw(&renderer.device);
+            
+            default_render_pass.end(&renderer.device);
+            result = renderer.end_frame();
+        }
+
+        if !result {
+            material.destroy(&renderer.device);
+            default_render_pass.destroy(&renderer.device);
+
+            renderer.device.recreate_swap_chain();
+
+            default_render_pass = renderer.create_default_render_pass();
+   
+            material = Material::create(&mut renderer.device, "C:\\PROJECTS\\NRG\\data\\vert.spv", "C:\\PROJECTS\\NRG\\data\\frag.spv");
+            material.add_texture(&renderer.device, "C:\\PROJECTS\\NRG\\data\\Test.bmp");
+        } 
+
         println!("Frame {} rendered in {} ", frame_count, time.elapsed().as_secs_f32());
         frame_count += 1;
     }
 
-    //material.destroy(&renderer.device);
+    material.destroy(&renderer.device);
+    default_render_pass.destroy(&renderer.device);
 }
