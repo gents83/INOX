@@ -1,10 +1,5 @@
 use vulkan_bindings::*;
-
-pub enum ShaderType {
-    Invalid,
-    Vertex,
-    Fragment,
-}
+use crate::material::*;
 
 pub struct Shader {
     shader_type: ShaderType,
@@ -13,31 +8,26 @@ pub struct Shader {
     stage_info: ::std::option::Option<VkPipelineShaderStageCreateInfo>,
 }
 
-impl Default for Shader {
-    fn default() -> Shader {
-        Shader {
+impl Shader {
+    pub fn create(device: VkDevice, shader_type: ShaderType, shader_content: Vec<u32>, entry_point: &str) -> Self {
+        let mut shader = Shader {
             shader_type: ShaderType::Invalid,
             content: Vec::new(),
             module: ::std::ptr::null_mut(),
             stage_info: None,
-        }
-    }
-}
-
-impl Shader {
-    pub fn create<'a>(mut self, device: VkDevice, shader_type: ShaderType, shader_content: Vec<u32>, entry_point: &'a str) -> Self {
-        self.shader_type = shader_type;
-        self.content = shader_content;
+        };
+        shader.shader_type = shader_type;
+        shader.content = shader_content;
         
         let shader_create_info = VkShaderModuleCreateInfo {
             sType: VkStructureType_VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
             pNext: ::std::ptr::null_mut(),
             flags: 0,
-            codeSize: (self.content.len() * 4) as _,
-            pCode: self.content.as_ptr() as *const _,
+            codeSize: (shader.content.len() * 4) as _,
+            pCode: shader.content.as_ptr() as *const _,
         };
     
-        self.module = unsafe {
+        shader.module = unsafe {
             let mut option = ::std::mem::MaybeUninit::uninit();
             let result = vkCreateShaderModule.unwrap()(device, &shader_create_info, ::std::ptr::null_mut(), option.as_mut_ptr());
             if result != VkResult_VK_SUCCESS {
@@ -46,21 +36,20 @@ impl Shader {
             option.assume_init()
         };    
                        
-        self.stage_info = Some(VkPipelineShaderStageCreateInfo {
+        shader.stage_info = Some(VkPipelineShaderStageCreateInfo {
             sType: VkStructureType_VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
             pNext: ::std::ptr::null_mut(),
             flags: 0,
-            stage: match self.shader_type {
+            stage: match shader.shader_type {
                 ShaderType::Vertex => VkShaderStageFlagBits_VK_SHADER_STAGE_VERTEX_BIT,
                 ShaderType::Fragment => VkShaderStageFlagBits_VK_SHADER_STAGE_FRAGMENT_BIT,
                 _ => VkShaderStageFlagBits_VK_SHADER_STAGE_VERTEX_BIT,
             },
-            module: self.module,
+            module: shader.module,
             pName: entry_point.as_bytes().as_ptr() as *const _,
             pSpecializationInfo: ::std::ptr::null_mut(),
         });
-
-        self
+        shader
     }
 
     pub fn destroy(&self, device: VkDevice) {

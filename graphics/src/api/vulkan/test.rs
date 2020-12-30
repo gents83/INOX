@@ -52,14 +52,9 @@ fn test_vulkan()
 
     let mut instance = Instance::new(&window.handle, false);
     let mut device = Device::new(&mut instance);
-    device.create_graphics_pipeline()
-            .create_texture_image()
-            .create_texture_sampler()
-            .create_vertex_buffer(vertices.as_slice())
+    device.create_vertex_buffer(vertices.as_slice())
             //.create_vertex_buffer(&vertices)
             //.create_index_buffer(&indices)
-            .create_uniform_buffers()
-            .create_descriptor_sets()
             .create_command_buffers();
     
     let mut frame_index = 0;

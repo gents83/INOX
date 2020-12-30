@@ -2,6 +2,7 @@
 pub use crate::colors::*;
 pub use crate::formats::*;
 pub use crate::utils::*;
+pub use crate::image::*;
 pub use crate::bmp::reader::Reader as BmpReader;
 pub use crate::jpg::reader::Reader as JpgReader;
 pub use crate::png::reader::Reader as PngReader;

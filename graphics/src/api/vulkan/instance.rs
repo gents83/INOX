@@ -1,13 +1,13 @@
 
 
-use std::os::raw::c_char;
+use std::{cell::RefCell, os::raw::c_char, rc::Rc};
 use vulkan_bindings::*;
 use nrg_platform::Handle;
 use super::types::*;
 use super::utils::*;
 use super::physical_device::*;
 
-pub struct Instance {
+struct InstanceImmutable {
     supported_layers: Vec<VkLayerProperties>,
     supported_extensions: Vec<VkExtensionProperties>,
     instance: VkInstance,
@@ -15,8 +15,62 @@ pub struct Instance {
     physical_device: PhysicalDevice,
 }
 
-impl Instance {
+#[derive(Clone)]
+pub struct Instance {
+    inner: Rc<RefCell<InstanceImmutable>>,
+}
+
+impl Instance {    
     pub fn new(handle: &Handle, enable_validation: bool) -> Instance {
+        let immutable = Rc::new(RefCell::new(InstanceImmutable::new(handle, enable_validation)));
+        Instance{
+            inner: immutable,
+        }
+    }
+    
+    pub fn delete(&self) {
+        self.inner.borrow_mut().delete();
+    }
+
+    pub fn get_surface(&self) -> VkSurfaceKHR {
+        self.inner.borrow().surface
+    }
+
+    pub fn get_queue_family_info(&self) -> QueueFamilyIndices {
+        self.inner.borrow().physical_device.get_queue_family_info()
+    }
+
+    pub fn get_physical_device(&self) -> VkPhysicalDevice {
+        self.inner.borrow().physical_device.get_internal_device()
+    }
+    
+    pub fn get_swap_chain_info(&self) -> SwapChainSupportDetails {
+        self.inner.borrow().physical_device.get_swap_chain_info()
+    }
+
+    pub fn get_physical_device_properties(&self) -> VkPhysicalDeviceProperties {
+        self.inner.borrow().physical_device.get_properties()
+    }
+
+    pub fn get_available_extensions(&self) -> Vec<VkExtensionProperties> {
+        self.inner.borrow().physical_device.get_available_extensions()
+    }
+
+    pub fn get_available_features(&self) -> VkPhysicalDeviceFeatures {
+        self.inner.borrow().physical_device.get_available_features()
+    }
+
+    pub fn get_supported_layers(&self) -> Vec<VkLayerProperties> {
+        self.inner.borrow().supported_layers.clone()
+    }
+
+    pub fn get_supported_extensions(&self) -> Vec<VkExtensionProperties> {
+        self.inner.borrow().supported_extensions.clone()
+    }
+}
+
+impl InstanceImmutable {
+    pub fn new(handle: &Handle, enable_validation: bool) -> InstanceImmutable {
         VK::initialize(&vulkan_bindings::Lib::new());
         let available_layers = if enable_validation { enumerate_available_layers() } else { Vec::new() };
         let available_extensions = enumerate_available_extensions();
@@ -26,7 +80,7 @@ impl Instance {
         if physical_dev.is_none() {
             eprintln!("Unable to find a physical device that support Vulkan needed API");
         }
-        Instance {
+        InstanceImmutable {
             supported_layers: available_layers,
             supported_extensions: available_extensions,
             instance: inst,
@@ -40,22 +94,6 @@ impl Instance {
             vkDestroySurfaceKHR.unwrap()(self.instance, self.surface, ::std::ptr::null_mut());
             vkDestroyInstance.unwrap()(self.instance, ::std::ptr::null_mut());
         }
-    }
-
-    pub fn get_surface(&self) -> VkSurfaceKHR {
-        self.surface
-    }
-
-    pub fn get_physical_device(&self) -> &PhysicalDevice {
-        &self.physical_device
-    }
-
-    pub fn get_supported_layers(&self) -> &Vec<VkLayerProperties> {
-        &self.supported_layers
-    }
-
-    pub fn get_supported_extensions(&self) -> &Vec<VkExtensionProperties> {
-        &self.supported_extensions
     }
 }
 

@@ -14,7 +14,7 @@ impl VertexData {
         let mut attr: Vec<VkVertexInputAttributeDescription> = Vec::new();
         attr.push( VkVertexInputAttributeDescription {
             binding: 0,
-            format: VkFormat_VK_FORMAT_R32G32_SFLOAT,
+            format: VkFormat_VK_FORMAT_R32G32B32_SFLOAT,
             location: 0,
             offset: unsafe { &(*(::std::ptr::null::<VertexData>())).pos as *const _ as _ },
         });
@@ -29,6 +29,12 @@ impl VertexData {
             format: VkFormat_VK_FORMAT_R32G32_SFLOAT,
             location: 2,
             offset: unsafe { &(*(::std::ptr::null::<VertexData>())).tex_coord as *const _ as _ },
+        });
+        attr.push( VkVertexInputAttributeDescription {
+            binding: 0,
+            format: VkFormat_VK_FORMAT_R32G32B32_SFLOAT,
+            location: 3,
+            offset: unsafe { &(*(::std::ptr::null::<VertexData>())).normal as *const _ as _ },
         });
         attr
     }

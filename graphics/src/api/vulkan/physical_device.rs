@@ -1,8 +1,9 @@
 
+use std::{cell::RefCell, rc::Rc};
 use vulkan_bindings::*;
 use super::types::*;
 
-pub struct PhysicalDevice {    
+struct PhysicalDeviceImmutable {    
     physical_device: VkPhysicalDevice,
     physical_device_properties: VkPhysicalDeviceProperties,
     physical_device_features: VkPhysicalDeviceFeatures,
@@ -11,8 +12,54 @@ pub struct PhysicalDevice {
     swap_chain_details: SwapChainSupportDetails,
 }
 
-impl PhysicalDevice {
+#[derive(Clone)]
+pub struct PhysicalDevice {
+    inner: Rc<RefCell<PhysicalDeviceImmutable>>,
+}
+
+impl PhysicalDevice {    
     pub fn create(physical_device: VkPhysicalDevice, surface: VkSurfaceKHR) -> PhysicalDevice {
+        let immutable = Rc::new(RefCell::new(PhysicalDeviceImmutable::new(physical_device, surface)));
+        PhysicalDevice{
+            inner: immutable,
+        }
+    }
+
+    pub fn get_internal_device(&self) -> VkPhysicalDevice {
+        self.inner.borrow().physical_device
+    }
+
+    pub fn get_queue_family_info(&self) -> QueueFamilyIndices {
+        self.inner.borrow().queue_family_indices
+    }
+
+    pub fn is_initialized(&self) -> bool {
+        self.inner.borrow().physical_device != ::std::ptr::null_mut()
+    }    
+
+    pub fn get_swap_chain_info(&self) -> SwapChainSupportDetails {
+        self.inner.borrow().swap_chain_details.clone()
+    }
+
+    pub fn get_available_extensions(&self) -> Vec<VkExtensionProperties> {
+        self.inner.borrow().physical_device_extensions.clone()
+    }
+
+    pub fn get_available_features(&self) -> VkPhysicalDeviceFeatures {
+        self.inner.borrow().physical_device_features
+    }
+
+    pub fn get_properties(&self) -> VkPhysicalDeviceProperties {
+        self.inner.borrow().physical_device_properties
+    }
+    
+    pub fn is_device_suitable(&self) -> bool {
+        self.inner.borrow().is_device_suitable()
+    }
+}
+
+impl PhysicalDeviceImmutable {
+    pub fn new(physical_device: VkPhysicalDevice, surface: VkSurfaceKHR) -> PhysicalDeviceImmutable {
                           
         let physical_device_properties: VkPhysicalDeviceProperties = unsafe {
             let mut output = ::std::mem::MaybeUninit::uninit();
@@ -38,7 +85,7 @@ impl PhysicalDevice {
             );
         }   
 
-        let mut result = PhysicalDevice {
+        let mut result = PhysicalDeviceImmutable {
             physical_device: physical_device,
             physical_device_properties: physical_device_properties, 
             physical_device_features: physical_device_features,
@@ -58,10 +105,6 @@ impl PhysicalDevice {
         result.find_swap_chain_support(surface);
         
         result
-    }
-
-    pub fn is_initialized(&self) -> bool {
-        self.physical_device != ::std::ptr::null_mut()
     }
 
     fn find_queue_family_indices(&mut self, surface: VkSurfaceKHR) {    
@@ -177,31 +220,5 @@ impl PhysicalDevice {
             return true
         }
         false
-    }
-
-    pub fn get_queue_family_info(&self) -> &QueueFamilyIndices {
-        &self.queue_family_indices
-    }
-
-    pub fn get_swap_chain_info(&self) -> &SwapChainSupportDetails {
-        &self.swap_chain_details
-    }
-
-    pub fn get_available_extensions(&self) -> &Vec<VkExtensionProperties> {
-        &self.physical_device_extensions
-    }
-
-    pub fn get_available_features(&self) -> &VkPhysicalDeviceFeatures {
-        &self.physical_device_features
-    }
-
-    pub fn get_properties(&self) -> &VkPhysicalDeviceProperties {
-        &self.physical_device_properties
-    }
-}
-
-impl From<&PhysicalDevice> for VkPhysicalDevice {
-    fn from(physical_device: &PhysicalDevice) -> VkPhysicalDevice {
-        physical_device.physical_device
     }
 }

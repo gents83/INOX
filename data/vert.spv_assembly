@@ -1,12 +1,12 @@
 ; SPIR-V
 ; Version: 1.0
 ; Generator: Google Shaderc over Glslang; 10
-; Bound: 53
+; Bound: 54
 ; Schema: 0
                OpCapability Shader
           %1 = OpExtInstImport "GLSL.std.450"
                OpMemoryModel Logical GLSL450
-               OpEntryPoint Vertex %main "main" %_ %inPosition %fragColor %inColor %fragTexCoord %inTexCoord
+               OpEntryPoint Vertex %main "main" %_ %inPosition %fragColor %inColor %fragTexCoord %inTexCoord %inNormal
                OpSource GLSL 450
                OpSourceExtension "GL_ARB_separate_shader_objects"
                OpSourceExtension "GL_GOOGLE_cpp_style_line_directive"
@@ -28,6 +28,7 @@
                OpName %inColor "inColor"
                OpName %fragTexCoord "fragTexCoord"
                OpName %inTexCoord "inTexCoord"
+               OpName %inNormal "inNormal"
                OpMemberDecorate %gl_PerVertex 0 BuiltIn Position
                OpMemberDecorate %gl_PerVertex 1 BuiltIn PointSize
                OpMemberDecorate %gl_PerVertex 2 BuiltIn ClipDistance
@@ -50,6 +51,7 @@
                OpDecorate %inColor Location 1
                OpDecorate %fragTexCoord Location 1
                OpDecorate %inTexCoord Location 2
+               OpDecorate %inNormal Location 3
        %void = OpTypeVoid
           %3 = OpTypeFunction %void
       %float = OpTypeFloat 32
@@ -82,6 +84,7 @@
 %fragTexCoord = OpVariable %_ptr_Output_v2float Output
 %_ptr_Input_v2float = OpTypePointer Input %v2float
  %inTexCoord = OpVariable %_ptr_Input_v2float Input
+   %inNormal = OpVariable %_ptr_Input_v3float Input
        %main = OpFunction %void None %3
           %5 = OpLabel
          %22 = OpAccessChain %_ptr_Uniform_mat4v4float %ubo %int_2

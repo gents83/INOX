@@ -204,13 +204,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "nrg_common"
+version = "0.1.0"
+
+[[package]]
 name = "nrg_core"
 version = "0.1.0"
+dependencies = [
+ "nrg_common",
+ "nrg_math",
+]
 
 [[package]]
 name = "nrg_graphics"
 version = "0.1.0"
 dependencies = [
+ "nrg_common",
  "nrg_image",
  "nrg_math",
  "nrg_platform",

@@ -9,6 +9,7 @@ pub const VK_INVALID_ID: i32 = -1;
 pub const MAX_FRAMES_IN_FLIGHT:u32 = 2;
 
 
+#[derive(Clone, Copy)]
 pub struct QueueFamilyIndices {
     pub graphics_family_index: i32,
     pub present_family_index: i32,
@@ -22,6 +23,7 @@ impl QueueFamilyIndices {
 }
 
 
+#[derive(Clone)]
 pub struct SwapChainSupportDetails {
     pub capabilities: VkSurfaceCapabilitiesKHR,
     pub formats: Vec<VkSurfaceFormatKHR>,

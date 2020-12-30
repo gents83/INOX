@@ -8,10 +8,12 @@ edition = "2018"
 nrg_image = { path = "../image" }
 nrg_math = { path = "../math" }
 nrg_platform = { path = "../platform" }
+nrg_common = { path = "../common" }
 vulkan_bindings = { path = "../bindings/vulkan_bindings" }
 
 [build-dependencies]
 nrg_image = { path = "../image" }
 nrg_math = { path = "../math" }
 nrg_platform = { path = "../platform"}
+nrg_common = { path = "../common" }
 vulkan_bindings = { path = "../bindings/vulkan_bindings" }

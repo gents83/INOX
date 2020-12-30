@@ -1,11 +1,15 @@
 use nrg_math::*;
 
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub struct UniformData {
     pub model: Matrix4<f32>,
     pub view: Matrix4<f32>,
     pub proj: Matrix4<f32>, 
 }
 
+
+
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub struct VertexData {
     pub pos: Vector3f,
     pub color: Vector3f,

@@ -5,10 +5,10 @@ pub struct Instance {
 }
 
 impl Instance {
-    pub fn create(handle: &Handle) -> Instance {
-        Instance {
-            inner: super::api::backend::instance::Instance::new(handle, false),
-        } 
+    pub fn create(handle: &Handle, debug_enabled: bool) -> Instance {
+        Self {
+            inner: super::api::backend::instance::Instance::new(handle, debug_enabled),
+        }
     }
 
     pub fn destroy(&self) {
