@@ -60,6 +60,9 @@ extern "system" {
     pub fn IsIconic(
         hWnd: HWND,
     ) -> BOOL;
+    pub fn PostQuitMessage(
+        nExitCode: INT,
+    );
     pub fn LoadLibraryA(
         lpLibFileName: LPCWSTR,
     ) -> HMODULE;

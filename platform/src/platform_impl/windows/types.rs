@@ -19,6 +19,7 @@ pub type CHAR = c_char;
 pub type WCHAR = wchar_t;
 pub type WORD = c_ushort;
 pub type DWORD = c_ulong;
+pub type INT = c_int;
 pub type UINT = c_uint;
 pub type LONG = c_long;
 pub type UINT_PTR = usize;
@@ -49,6 +50,22 @@ pub const WS_MAXIMIZEBOX: DWORD = 0x00010000;
 pub const WS_OVERLAPPEDWINDOW: DWORD = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME
     | WS_MINIMIZEBOX | WS_MAXIMIZEBOX;
 pub const WS_VISIBLE: DWORD = 0x10000000;
+
+pub const WM_DESTROY: UINT = 0x0002;
+pub const WM_MOVE: UINT = 0x0003;
+pub const WM_SIZE: UINT = 0x0005;
+pub const WM_ACTIVATE: UINT = 0x0006;
+pub const WM_CLOSE: UINT = 0x0010;
+pub const WM_QUIT: UINT = 0x0012;
+pub const WM_NCDESTROY: UINT = 0x0082;
+pub const WM_KEYDOWN: UINT = 0x0100;
+pub const WM_KEYUP: UINT = 0x0101;
+pub const WM_SIZING: UINT = 0x0214;
+pub const WM_MOVING: UINT = 0x0216;
+
+pub const PM_NOREMOVE: UINT = 0x0000;
+pub const PM_REMOVE: UINT = 0x0001;
+pub const PM_NOYIELD: UINT = 0x0002;
 
 pub const LOAD_LIBRARY_SEARCH_SYSTEM32: DWORD = 0x00000800;
 

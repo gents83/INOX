@@ -27,7 +27,7 @@ impl Window {
             // Create "class" for window, using WNDCLASSW struct (different from Window our struct)
             let wnd_class = WNDCLASSW {
                 style : CS_OWNDC | CS_HREDRAW | CS_VREDRAW,		// Style
-                lpfnWndProc : Some( DefWindowProcW ),			// The callbackfunction for any window event that can occur in our window!!! Here you could react to events like WM_SIZE or WM_QUIT.
+                lpfnWndProc : Some( Window::window_process ),			// The callbackfunction for any window event that can occur in our window!!! Here you could react to events like WM_SIZE or WM_QUIT.
                 hInstance : win_hinstance,							// The instance handle for our application which we can retrieve by calling GetModuleHandleW.
                 lpszClassName : name.as_ptr(),					// Our class name which needs to be a UTF-16 string (defined earlier before unsafe). as_ptr() (Rust's own function) returns a raw pointer to the slice's buffer
                 cbClsExtra : 0,									
@@ -76,21 +76,33 @@ impl Window {
 
     pub fn internal_update(&self) -> bool {
         unsafe {
+            let mut is_ended = false;
             let mut message : MSG = ::std::mem::MaybeUninit::zeroed().assume_init();
-            if PeekMessageW(&mut message as *mut MSG, ::std::ptr::null_mut(), 0, 0, 0) > 0 {
-                if GetMessageW( &mut message as *mut MSG, self.handle.handle_impl.hwnd, 0, 0 ) > 0 {
-                    TranslateMessage( &message as *const MSG );
-                    DispatchMessageW( &message as *const MSG );
-        
-                    false
-                } 
-                else {
-                    true
+            while PeekMessageW(&mut message as *mut MSG, ::std::ptr::null_mut(), 0, 0, PM_REMOVE) > 0 {
+                TranslateMessage( &message as *const MSG );
+                DispatchMessageW( &message as *const MSG );
+                
+                if message.message == WM_DESTROY ||
+                   message.message == WM_CLOSE ||
+                   message.message == WM_QUIT ||
+                   message.message == WM_NCDESTROY {
+                    is_ended = true;
                 }
             }
-            else {
-                false
-            }
+            is_ended
         } 
+    }
+
+    unsafe extern "system"
+    fn window_process(hwnd: HWND, msg: UINT, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
+        match msg {
+            WM_DESTROY => {
+                PostQuitMessage(0); 
+                0
+            },
+            _ => {
+                DefWindowProcW(hwnd, msg, wparam, lparam)
+            }
+        }
     }
 }
