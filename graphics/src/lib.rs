@@ -29,6 +29,12 @@ mod block;
 mod chunk;
 mod world;
 
+pub mod font 
+{
+    pub mod font;
+    pub mod glyph;
+}
+
 pub mod api
 {
     #[cfg(target_os = "ios")]
