@@ -1,8 +1,6 @@
 
 use std::{cell::RefCell, os::raw::c_char, rc::Rc};
 use vulkan_bindings::*;
-use nrg_common::*;
-
 use super::instance::*;
 use super::types::*;
 use super::utils::*;
@@ -32,7 +30,6 @@ pub struct DeviceImmutable {
 
 pub struct Device {
     instance: Instance,
-    dispatcher: EventDispatcher,
     inner: Rc<RefCell<DeviceImmutable>>,
 }
 
@@ -41,7 +38,6 @@ impl Device {
         let immutable = Rc::new(RefCell::new(DeviceImmutable::new(instance)));
         Device {
             instance: instance.clone(),
-            dispatcher: EventDispatcher::default(),
             inner: immutable,
         }
     }    

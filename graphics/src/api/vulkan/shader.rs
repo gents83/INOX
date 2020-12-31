@@ -1,5 +1,5 @@
 use vulkan_bindings::*;
-use crate::material::*;
+use crate::shader::*;
 
 pub struct Shader {
     shader_type: ShaderType,

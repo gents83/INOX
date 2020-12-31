@@ -1,24 +1,28 @@
 
 // Common 
 
+pub use self::data_formats::*;
 pub use self::device::*;
 pub use self::instance::*;
-pub use self::data_formats::*;
 pub use self::material::*;
 pub use self::mesh::*;
+pub use self::pipeline::*;
 pub use self::renderer::*;
+pub use self::shader::*;
 
 //Modules
 
-mod instance;
+mod data_formats;
 mod device;
+mod instance;
 mod material;
 mod mesh;
+mod pipeline;
 mod renderer;
-mod viewport;
 mod rasterizer;
 mod render_pass;
-mod data_formats;
+mod shader;
+mod viewport;
 mod utils;
 
 mod block;

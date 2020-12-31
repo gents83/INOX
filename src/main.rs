@@ -23,7 +23,8 @@ fn main() {
     let mut renderer = Renderer::new(&window.handle, false);
     renderer.set_viewport_size(size);
     let mut default_render_pass = renderer.create_default_render_pass();
-    let mut material = Material::create(&mut renderer.device, "C:\\PROJECTS\\NRG\\data\\vert.spv", "C:\\PROJECTS\\NRG\\data\\frag.spv");
+    let mut pipeline = Pipeline::create(&mut renderer.device, "C:\\PROJECTS\\NRG\\data\\vert.spv", "C:\\PROJECTS\\NRG\\data\\frag.spv");
+    let mut material = Material::create(&mut renderer.device, &pipeline);
     material.add_texture(&renderer.device, "C:\\PROJECTS\\NRG\\data\\Test.bmp");
 
     let vertices: [VertexData; 4] = [
@@ -57,8 +58,11 @@ fn main() {
         if result {
             default_render_pass.begin(&renderer.device);
 
-            material.update_uniform_buffer(&renderer.device, &model_transform, cam_pos);
-            material.prepare_pipeline(&renderer.device, &default_render_pass);
+            pipeline.prepare(&renderer.device, &default_render_pass);
+            pipeline.update_uniform_buffer(&renderer.device, &model_transform, cam_pos);
+
+            material.update(&renderer.device);
+
             mesh.draw(&renderer.device);
             
             default_render_pass.end(&renderer.device);
@@ -72,8 +76,10 @@ fn main() {
             renderer.device.recreate_swap_chain();
 
             default_render_pass = renderer.create_default_render_pass();
-   
-            material = Material::create(&mut renderer.device, "C:\\PROJECTS\\NRG\\data\\vert.spv", "C:\\PROJECTS\\NRG\\data\\frag.spv");
+               
+            pipeline = Pipeline::create(&mut renderer.device, "C:\\PROJECTS\\NRG\\data\\vert.spv", "C:\\PROJECTS\\NRG\\data\\frag.spv");
+            
+            material = Material::create(&mut renderer.device, &pipeline);
             material.add_texture(&renderer.device, "C:\\PROJECTS\\NRG\\data\\Test.bmp");
         } 
 
