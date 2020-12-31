@@ -1,5 +1,4 @@
 use std::{cell::RefCell, rc::Rc};
-use nrg_math::*;
 use vulkan_bindings::*;
 use crate::data_formats::*;
 use crate::shader::*;
@@ -10,10 +9,6 @@ use super::shader::*;
 
 pub struct PipelineImmutable {
     descriptor_set_layout: VkDescriptorSetLayout,
-    descriptor_pool: VkDescriptorPool,
-    uniform_buffers_size: usize,
-    uniform_buffers: Vec<VkBuffer>,
-    uniform_buffers_memory: Vec<VkDeviceMemory>,
     shaders: Vec<Shader>,
     pipeline_layout: VkPipelineLayout,
     graphics_pipeline: VkPipeline,
@@ -29,10 +24,6 @@ impl Default for Pipeline {
     fn default() -> Pipeline {
         let immutable = PipelineImmutable {
             descriptor_set_layout: ::std::ptr::null_mut(),
-            descriptor_pool: ::std::ptr::null_mut(),
-            uniform_buffers_size: 0,
-            uniform_buffers: Vec::new(),
-            uniform_buffers_memory: Vec::new(),
             shaders: Vec::new(),
             pipeline_layout: ::std::ptr::null_mut(),
             graphics_pipeline: ::std::ptr::null_mut(),
@@ -45,24 +36,12 @@ impl Default for Pipeline {
 }
 
 impl Pipeline {
-    pub fn get_descriptor_set_layout(&self) -> VkDescriptorSetLayout {
-        self.inner.borrow().descriptor_set_layout
-    }
-
-    pub fn get_descriptor_pool(&self) -> VkDescriptorPool {
-        self.inner.borrow().descriptor_pool
-    }
-
     pub fn get_pipeline_layout(&self) -> VkPipelineLayout {
         self.inner.borrow().pipeline_layout
     }
-
-    pub fn get_uniform_buffers_size(&self) -> usize {
-        self.inner.borrow().uniform_buffers_size
-    }
-
-    pub fn get_uniform_buffer(&self, index: usize) -> VkBuffer {
-        self.inner.borrow().uniform_buffers[index]
+    
+    pub fn get_descriptor_set_layout(&self) -> VkDescriptorSetLayout {
+        self.inner.borrow().descriptor_set_layout
     }
 
     pub fn delete(&self, device:&Device) {
@@ -83,12 +62,6 @@ impl Pipeline {
     pub fn build(&mut self, device: &Device) {
         let mut inner = self.inner.borrow_mut();
         inner.create_descriptor_set_layout(device);
-        inner.create_uniform_buffers(device);
-        inner.create_descriptor_pool(device);
-    }
-    
-    pub fn update_uniform_buffer(&mut self, device:&Device, image_index: usize, model_transform: &Matrix4f, cam_pos: Vector3f) {
-        self.inner.borrow_mut().update_uniform_buffer(device, image_index, model_transform, cam_pos);
     }
 }
 
@@ -267,24 +240,6 @@ impl PipelineImmutable {
     }
 
 
-    fn update_uniform_buffer(&mut self, device:&Device, image_index: usize, model_transform: &Matrix4f, cam_pos: Vector3f) {
-        let details = device.get_instance().get_swap_chain_info();
-        let uniform_data: [UniformData; 1] = [
-            UniformData {
-                model: *model_transform,
-                view: Matrix4::from_look_at(cam_pos.into(), 
-                                            [0.0, 0.0, 0.0].into(),
-                                            [0.0, 0.0, 1.0].into()),
-                proj: Matrix4::create_perspective(Degree(45.0).into(), 
-                                                    details.capabilities.currentExtent.width as f32 / details.capabilities.currentExtent.height as f32, 
-                                                    0.1, 1000.0),
-            }
-        ];
-
-        let mut buffer_memory = self.uniform_buffers_memory[image_index];
-        device.map_buffer_memory(&mut buffer_memory, &uniform_data);
-        self.uniform_buffers_memory[image_index] = buffer_memory;
-    }
 
     fn create_shader_module(&mut self, device:&Device, shader_type: ShaderType, shader_content: Vec<u32>, entry_point: &'static str) {
         let shader = Shader::create(device.get_device(), shader_type, shader_content, entry_point);
@@ -329,55 +284,5 @@ impl PipelineImmutable {
             );
             option.assume_init()
         };  
-    }
-
-    fn create_descriptor_pool(&mut self, device: &Device) {
-        let pool_sizes = [
-            VkDescriptorPoolSize {
-                type_: VkDescriptorType_VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-                descriptorCount: device.get_images_count() as _,
-            },
-            VkDescriptorPoolSize {
-                type_: VkDescriptorType_VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                descriptorCount: device.get_images_count() as _,
-            },
-        ];
-
-        let pool_info = VkDescriptorPoolCreateInfo {
-            sType: VkStructureType_VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-            flags: 0,
-            pNext: ::std::ptr::null_mut(),
-            poolSizeCount: pool_sizes.len() as _,
-            pPoolSizes: pool_sizes.as_ptr(),
-            maxSets: device.get_images_count() as _,
-        };
-
-        self.descriptor_pool = unsafe {
-            let mut option = ::std::mem::MaybeUninit::uninit();
-            assert_eq!(
-                VkResult_VK_SUCCESS,
-                vkCreateDescriptorPool.unwrap()(device.get_device(), &pool_info, ::std::ptr::null_mut(), option.as_mut_ptr())
-            );
-            option.assume_init()
-        };  
-    }
-
-    fn create_uniform_buffers(&mut self, device: &Device) {  
-        let mut uniform_buffers = Vec::<VkBuffer>::with_capacity(device.get_images_count());
-        let mut uniform_buffers_memory = Vec::<VkDeviceMemory>::with_capacity(device.get_images_count());
-        unsafe {
-            uniform_buffers.set_len(device.get_images_count());
-            uniform_buffers_memory.set_len(device.get_images_count());
-        }
-
-        let uniform_buffers_size = std::mem::size_of::<UniformData>();
-        let flags = VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-        for i in 0..uniform_buffers.len() {
-            device.create_buffer(uniform_buffers_size as _, VkBufferUsageFlagBits_VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT as _, flags as _, &mut uniform_buffers[i], &mut uniform_buffers_memory[i]);
-        }
-
-        self.uniform_buffers_size = uniform_buffers_size;
-        self.uniform_buffers = uniform_buffers;
-        self.uniform_buffers_memory = uniform_buffers_memory;
     }
 }

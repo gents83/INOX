@@ -1,4 +1,3 @@
-use nrg_math::*;
 use crate::device::*;
 use crate::render_pass::*;
 use crate::shader::*;
@@ -27,9 +26,5 @@ impl Pipeline {
 
     pub fn prepare(&mut self, device:&Device, render_pass: &RenderPass) {
         self.inner.prepare(device.get_internal_device(), render_pass.get_pass());
-    }
-
-    pub fn update_uniform_buffer(&mut self, device:&Device, model_transform: &Matrix4f, cam_pos: Vector3f) {
-        self.inner.update_uniform_buffer(device.get_internal_device(), device.get_internal_device().get_current_image_index(), model_transform, cam_pos);
     }
 }

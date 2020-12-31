@@ -1,3 +1,4 @@
+use nrg_math::*;
 use crate::device::*;
 use crate::pipeline::*;
 
@@ -23,7 +24,8 @@ impl Material {
         self
     }
 
-    pub fn update(&mut self, device:&Device) {
+    pub fn update_uniform_buffer(&mut self, device:&Device, model_transform: &Matrix4f, cam_pos: Vector3f) {
+        self.inner.update_uniform_buffer(device.get_internal_device(), device.get_internal_device().get_current_image_index(), model_transform, cam_pos);
         self.inner.update_descriptor_sets(device.get_internal_device(), &self.pipeline, device.get_internal_device().get_current_image_index()) ;
     }
 }
