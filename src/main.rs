@@ -3,6 +3,10 @@ use nrg_core::*;
 use nrg_math::*;
 use nrg_platform::*;
 
+const VS_PATH: &'static str = "C:\\PROJECTS\\NRG\\data\\shaders\\vert.spv";
+const FRAG_PATH: &'static str = "C:\\PROJECTS\\NRG\\data\\shaders\\frag.spv";
+const IMAGE_PATH: &'static str = "C:\\PROJECTS\\NRG\\data\\textures\\Test.bmp";
+
 fn main() {    
     let _entity = Entity::new();
     let _transf = Matrix4f::identity();
@@ -30,7 +34,7 @@ fn main() {
     let mut renderer = Renderer::new(&window.handle, false);
     renderer.set_viewport_size(size);
     let mut default_render_pass = renderer.create_default_render_pass();
-    let mut pipeline = Pipeline::create(&mut renderer.device, "C:\\PROJECTS\\NRG\\data\\vert.spv", "C:\\PROJECTS\\NRG\\data\\frag.spv");
+    let mut pipeline = Pipeline::create(&mut renderer.device, VS_PATH, FRAG_PATH);
     
     let mut vertices: [VertexData; 4] = [
         VertexData { pos: [-20., -20., 0.].into(), normal: [0., 0., 1.].into(), color: [1., 0., 0.].into(), tex_coord: [1., 0.].into()},
@@ -48,7 +52,7 @@ fn main() {
              .set_indices(&renderer.device, &indices);
              
     let mut material_left = Material::create(&mut renderer.device, &pipeline);
-    material_left.add_texture(&renderer.device, "C:\\PROJECTS\\NRG\\data\\Test.bmp");
+    material_left.add_texture(&renderer.device, IMAGE_PATH);
         
     let mut mesh_right = Mesh::create();
     for vertex in vertices.iter_mut() {
@@ -58,7 +62,7 @@ fn main() {
               .set_indices(&renderer.device, &indices);
 
     let mut material_right = Material::create(&mut renderer.device, &pipeline);
-    material_right.add_texture(&renderer.device, "C:\\PROJECTS\\NRG\\data\\Test.bmp");
+    material_right.add_texture(&renderer.device, IMAGE_PATH);
 
     let mut frame_count = 0;
     
@@ -97,13 +101,13 @@ fn main() {
 
             default_render_pass = renderer.create_default_render_pass();
                
-            pipeline = Pipeline::create(&mut renderer.device, "C:\\PROJECTS\\NRG\\data\\vert.spv", "C:\\PROJECTS\\NRG\\data\\frag.spv");
+            pipeline = Pipeline::create(&mut renderer.device, VS_PATH, FRAG_PATH);
             
             material_left = Material::create(&mut renderer.device, &pipeline);
-            material_left.add_texture(&renderer.device, "C:\\PROJECTS\\NRG\\data\\Test.bmp");
+            material_left.add_texture(&renderer.device, IMAGE_PATH);
             
             material_right = Material::create(&mut renderer.device, &pipeline);
-            material_right.add_texture(&renderer.device, "C:\\PROJECTS\\NRG\\data\\Test.bmp");
+            material_right.add_texture(&renderer.device, IMAGE_PATH);
         } 
 
         println!("Frame {} rendered in {} ", frame_count, time.elapsed().as_secs_f32());
