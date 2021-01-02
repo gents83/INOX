@@ -3,12 +3,12 @@ use nrg_core::*;
 use nrg_math::*;
 use nrg_platform::*;
 
-const VS_PATH: &'static str = "C:\\PROJECTS\\NRG\\data\\shaders\\vert.spv";
-const FRAG_PATH: &'static str = "C:\\PROJECTS\\NRG\\data\\shaders\\frag.spv";
-const IMAGE_PATH: &'static str = "C:\\PROJECTS\\NRG\\data\\textures\\Test.bmp";
+const VS_PATH: &str = "C:\\PROJECTS\\NRG\\data\\shaders\\vert.spv";
+const FRAG_PATH: &str = "C:\\PROJECTS\\NRG\\data\\shaders\\frag.spv";
+const IMAGE_PATH: &str = "C:\\PROJECTS\\NRG\\data\\textures\\Test.bmp";
 
 fn main() {    
-    let _entity = Entity::new();
+    let _entity = Entity::default();
     let _transf = Matrix4f::identity();
     println!("{:?}", _transf);
 

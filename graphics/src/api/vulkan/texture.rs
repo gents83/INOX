@@ -1,5 +1,5 @@
 use vulkan_bindings::*;
-use nrg_image::*;
+use image::*;
 use super::device::*;
 
 
@@ -19,7 +19,7 @@ impl Texture {
             texture_image_view: ::std::ptr::null_mut(),
             texture_sampler: ::std::ptr::null_mut(),
         };
-        let image_data = nrg_image::reader::Reader::load(filepath.as_ref());
+        let image_data = image::open(filepath).unwrap();
         texture.create_texture_image(device, &image_data);
         texture.create_texture_sampler(device);
         texture
@@ -46,11 +46,11 @@ impl Texture {
 }
 
 impl Texture {
-    fn create_texture_image(&mut self, device:&Device, image_data: &Image) {
-        let image_size: VkDeviceSize = (image_data.width * image_data.height * image_data.channel_count as u32) as _;
+    fn create_texture_image(&mut self, device:&Device, image_data: &image::DynamicImage) {
+        let image_size: VkDeviceSize = (image_data.width() * image_data.height() * image_data.color().channel_count() as u32) as _;
         let flags = VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-        let format = match image_data.color_type {
-            nrg_image::ColorType::Rgb8 => VkFormat_VK_FORMAT_R8G8B8_UNORM,
+        let format = match image_data.color() {
+            image::ColorType::Rgb8 => VkFormat_VK_FORMAT_R8G8B8_UNORM,
             _ => VkFormat_VK_FORMAT_R8G8B8A8_UNORM,
         };
         let mut staging_buffer: VkBuffer = ::std::ptr::null_mut();
@@ -61,13 +61,13 @@ impl Texture {
                             &mut staging_buffer,
                             &mut staging_buffer_memory);
         
-        device.map_buffer_memory(&mut staging_buffer_memory, image_data.data.as_ref());
+        device.map_buffer_memory(&mut staging_buffer_memory, image_data.as_bytes());
 
         let mut texture_image: VkImage = ::std::ptr::null_mut();
         let mut texture_image_memory: VkDeviceMemory = ::std::ptr::null_mut();
         let flags = VkImageUsageFlagBits_VK_IMAGE_USAGE_TRANSFER_DST_BIT | VkImageUsageFlagBits_VK_IMAGE_USAGE_SAMPLED_BIT; 
-        device.create_image(image_data.width as _,
-                          image_data.height as _, 
+        device.create_image(image_data.width(),
+                          image_data.height(), 
                           format,
                           VkImageTiling_VK_IMAGE_TILING_OPTIMAL,
                           flags as _, 
@@ -77,7 +77,7 @@ impl Texture {
 
         device.transition_image_layout(texture_image, VkImageLayout_VK_IMAGE_LAYOUT_UNDEFINED, VkImageLayout_VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
         
-        device.copy_buffer_to_image(staging_buffer, texture_image, image_data.width, image_data.height);
+        device.copy_buffer_to_image(staging_buffer, texture_image, image_data.width(), image_data.height());
         
         device.transition_image_layout(texture_image, VkImageLayout_VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VkImageLayout_VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 

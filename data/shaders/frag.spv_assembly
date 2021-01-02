@@ -1,7 +1,7 @@
 ; SPIR-V
 ; Version: 1.0
 ; Generator: Google Shaderc over Glslang; 10
-; Bound: 26
+; Bound: 31
 ; Schema: 0
                OpCapability Shader
           %1 = OpExtInstImport "GLSL.std.450"
@@ -31,21 +31,26 @@
     %v3float = OpTypeVector %float 3
 %_ptr_Input_v3float = OpTypePointer Input %v3float
   %fragColor = OpVariable %_ptr_Input_v3float Input
-    %float_1 = OpConstant %float 1
-         %19 = OpTypeImage %float 2D 0 0 0 1 Unknown
-         %20 = OpTypeSampledImage %19
-%_ptr_UniformConstant_20 = OpTypePointer UniformConstant %20
- %texSampler = OpVariable %_ptr_UniformConstant_20 UniformConstant
+         %14 = OpTypeImage %float 2D 0 0 0 1 Unknown
+         %15 = OpTypeSampledImage %14
+%_ptr_UniformConstant_15 = OpTypePointer UniformConstant %15
+ %texSampler = OpVariable %_ptr_UniformConstant_15 UniformConstant
     %v2float = OpTypeVector %float 2
 %_ptr_Input_v2float = OpTypePointer Input %v2float
 %fragTexCoord = OpVariable %_ptr_Input_v2float Input
+    %float_1 = OpConstant %float 1
        %main = OpFunction %void None %3
           %5 = OpLabel
          %13 = OpLoad %v3float %fragColor
-         %15 = OpCompositeExtract %float %13 0
-         %16 = OpCompositeExtract %float %13 1
-         %17 = OpCompositeExtract %float %13 2
-         %18 = OpCompositeConstruct %v4float %15 %16 %17 %float_1
-               OpStore %outColor %18
+         %18 = OpLoad %15 %texSampler
+         %22 = OpLoad %v2float %fragTexCoord
+         %23 = OpImageSampleImplicitLod %v4float %18 %22
+         %24 = OpVectorShuffle %v3float %23 %23 0 1 2
+         %25 = OpFMul %v3float %13 %24
+         %27 = OpCompositeExtract %float %25 0
+         %28 = OpCompositeExtract %float %25 1
+         %29 = OpCompositeExtract %float %25 2
+         %30 = OpCompositeConstruct %v4float %27 %28 %29 %float_1
+               OpStore %outColor %30
                OpReturn
                OpFunctionEnd

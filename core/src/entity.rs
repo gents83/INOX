@@ -2,9 +2,11 @@ pub struct Entity {
     transform: u32,
 }
 
-impl Entity {
-    pub fn new() -> Self {
-        Entity { transform: 0, }
+impl Default for Entity {
+    fn default() -> Self {
+        Self { 
+            transform: 0, 
+        }
     }
 }
 

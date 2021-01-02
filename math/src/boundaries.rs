@@ -44,3 +44,24 @@ impl<T: Boundaries> Boundaries for Wrapping<T> {
         Wrapping(T::max_value())
     }
 }
+
+#[inline]
+pub fn clamp_into_boundaries_i16(min: i16, val: i16, max: i16) -> i16 {
+    use core::cmp;
+    cmp::max(min, cmp::min(max, val))
+}
+
+#[inline]
+pub fn clamp_into_boundaries_f32(min: f32, val: f32, max: f32) -> f32 {
+    debug_assert!(min.is_finite());
+    debug_assert!(val.is_finite());
+    debug_assert!(max.is_finite());
+
+    if val > max {
+        return max;
+    } else if val < min {
+        return min;
+    }
+
+    val
+}

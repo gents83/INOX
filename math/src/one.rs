@@ -28,7 +28,7 @@ macro_rules! implement_one {
             }
             #[inline]
             fn is_one(&self) -> bool {
-                *self == $value
+                ((*self - $value) as f32).abs() < f32::EPSILON
             }
         }
     };

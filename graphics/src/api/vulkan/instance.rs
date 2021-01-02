@@ -76,7 +76,7 @@ impl Instance {
 
 impl InstanceImmutable {
     pub fn new(handle: &Handle, enable_validation: bool) -> InstanceImmutable {
-        VK::initialize(&vulkan_bindings::Lib::new());
+        VK::initialize(&vulkan_bindings::Lib::default());
         let available_layers = if enable_validation { enumerate_available_layers() } else { Vec::new() };
         let available_extensions = enumerate_available_extensions();
         let inst = create_instance(&available_layers, &available_extensions);

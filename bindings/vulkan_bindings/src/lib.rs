@@ -24,10 +24,12 @@ pub struct Lib {
     pub library: nrg_platform::library::Library,
 }
 
-impl Lib {
-    pub fn new() -> Lib {
+impl Default for Lib {
+    fn default() -> Self {
         let library_path = get_vulkan_lib_path();
-        Lib { library: nrg_platform::library::Library::new(library_path) }
+        Self { 
+            library: nrg_platform::library::Library::new(library_path) 
+        }
     }
 }
 

@@ -5,15 +5,13 @@ use nrg_platform::*;
 use super::utils::*;
 
 #[test]
-fn test_vulkan()
+fn test_chunks()
 { 
     use crate::data_formats::*;
     use crate::block::*;
     use crate::chunk::*;
     use crate::world::*;
     use nrg_math::*;
-    use super::instance::*;
-    use super::device::*;
 
     let window = 
     Window::create( String::from("TEST"),
@@ -23,16 +21,6 @@ fn test_vulkan()
 
     let mut model_transform:Matrix4f = Matrix4f::identity();
     let cam_pos:Vector3f = [0.0, 16.0, -64.0].into();
-
-    /*
-    let vertices: [VertexData; 4] = [
-        VertexData { pos: [-20., -20., 0.].into(), normal: [0., 0., 1.].into(), color: [1., 0., 0.].into(), tex_coord: [1., 0.].into()},
-        VertexData { pos: [ 20., -20., 0.].into(), normal: [0., 0., 1.].into(), color: [0., 1., 0.].into(), tex_coord: [0., 0.].into()},
-        VertexData { pos: [ 20.,  20., 0.].into(), normal: [0., 0., 1.].into(), color: [0., 0., 1.].into(), tex_coord: [0., 1.].into()},
-        VertexData { pos: [-20.,  20., 0.].into(), normal: [0., 0., 1.].into(), color: [1., 1., 1.].into(), tex_coord: [1., 1.].into()},
-    ]; 
-    let indices: [u32; 6] = [0, 1, 2, 2, 3, 0];
-    */
 
     // Add sphere
     let radius = 6;
@@ -44,37 +32,8 @@ fn test_vulkan()
                         &WorldBlockCoordinate::new(chunk_size + radius, chunk_size + radius, chunk_size + radius));
 
     world.update(10, cam_pos);
-
-    let mut vertices: Vec<VertexData> = Vec::new();
-    for (index, chunk) in world.visible_chunks.iter_mut() {
-        vertices.append(&mut chunk.vertices);
-    }
-
-    let mut instance = Instance::new(&window.handle, false);
-    let mut device = Device::new(&mut instance);
-    device.create_vertex_buffer(vertices.as_slice())
-            //.create_vertex_buffer(&vertices)
-            //.create_index_buffer(&indices)
-            .create_command_buffers();
-    
-    let mut frame_index = 0;
-    loop {
-
-        let rotation = Matrix4::from_axis_angle([0.0, 0.0, 0.0].into(), Degree(0.1).into());
-        model_transform.set_translation([0.0, 0.0, 0.0].into());
-        model_transform = rotation * model_transform;
-
-        frame_index = device.temp_draw_frame(frame_index, &model_transform, cam_pos);
-        if frame_index > 1000 {
-            break;
-        }
-    }
-                        
-    device.delete();        
-    instance.delete();
 }
 
-#[allow(non_snake_case)]
 fn test_vulkan_create_win32_display_surface(instance:&mut VkInstance) -> VkSurfaceKHR
 {
     let window =  Window::create( String::from("Test Window"),
