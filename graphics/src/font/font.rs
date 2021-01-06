@@ -62,9 +62,7 @@ impl Font {
 
     fn create_texture(&mut self, face: &Face, size: usize) {
         let num_glyphs:u32 = face.number_of_glyphs() as _;
-        let rounded_to_next_pow2 = round_to_next_pow2(num_glyphs);
-        let cell_size:u32 = (((size*size) as u32 / rounded_to_next_pow2) as f64).sqrt().ceil() as u32;
-        let num_columns: u32 = size as u32 / cell_size ;
+        let cell_size:u32 = (((size*size) as u32 / num_glyphs) as f64).sqrt().ceil() as u32;
         
         let mut image = GrayImage::new(size as _, size as _);
 
@@ -72,11 +70,19 @@ impl Font {
         let mut column: u32 = 0;
         for id in 0..num_glyphs 
         {
-            let starting_x = column * cell_size;
+            let mut starting_x = column * cell_size;
+            if (starting_x + cell_size) > size as _ {
+                starting_x = 0;
+                column = 0;
+                row += 1;
+            }
             let starting_y = row * cell_size;
+            if (starting_y + cell_size) > size as _ {
+                break;
+            }
         
             let g = &self.glyphs[id as usize];
-            let mut glyph_data: Vec<f32> = vec![0.0; g.width as usize * g.height as usize + 4];
+            let mut glyph_data: Vec<f32> = vec![0.0; g.width as usize * g.height as usize * 2];
 
             self.glyphs[id as usize].render(&face, 
                 cell_size as _, 
@@ -88,10 +94,6 @@ impl Font {
             );
             
             column += 1;
-            if column == num_columns {
-                column = 0;
-                row += 1;
-            }
         }
 
         self.image = image;

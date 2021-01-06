@@ -33,15 +33,15 @@ impl<'a> Raster<'a> {
             x -= p0.y * dxdy;
         }
         for y in y0..self.height.min(p1.y.ceil() as usize) {
-            let linestart = y * self.width;
+            let linestart:isize = (y * self.width) as isize;
             let dy = ((y + 1) as f32).min(p1.y) - (y as f32).max(p0.y);
             let xnext = x + dxdy * dy;
             let d = dy * dir;
             let (x0, x1) = if x < xnext { (x, xnext) } else { (xnext, x) };
             let x0floor = x0.floor();
-            let x0i = x0floor as i32;
+            let x0i = x0floor as isize;
             let x1ceil = x1.ceil();
-            let x1i = x1ceil as i32;
+            let x1i = x1ceil as isize;
             if x1i <= x0i + 1 {
                 let xmf = 0.5 * (x + xnext) - x0floor;
                 let linestart_x0i = linestart as isize + x0i as isize;
@@ -67,12 +67,12 @@ impl<'a> Raster<'a> {
                     let a1 = s * (1.5 - x0f);
                     self.data[linestart_x0i as usize + 1] += d * (a1 - a0);
                     for xi in x0i + 2..x1i - 1 {
-                        self.data[linestart + xi as usize] += d * s;
+                        self.data[(linestart + xi) as usize] += d * s;
                     }
                     let a2 = a1 + (x1i - x0i - 3) as f32 * s;
-                    self.data[linestart + (x1i - 1) as usize] += d * (1.0 - a2 - am);
+                    self.data[(linestart + (x1i - 1)) as usize] += d * (1.0 - a2 - am);
                 }
-                self.data[linestart + x1i as usize] += d * am;
+                self.data[(linestart + x1i) as usize] += d * am;
             }
             x = xnext;
         }
