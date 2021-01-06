@@ -1,21 +1,28 @@
 
 use std::{collections::HashMap, num::NonZeroU16};
 use image::*;
-use nrg_math::*;
 use ttf_parser::*;
+use nrg_math::*;
+use crate::data_formats::*;
+use crate::device::*;
+use crate::material::*;
+use crate::mesh::*;
+use crate::pipeline::*;
+
 use super::glyph::*;
 
 const FONT_COLUMNS: u32 = 24;
 
 pub struct Font {
-    image: GrayImage,
+    image: DynamicImage,
     glyphs: Vec<Glyph>,
     char_to_glyph: HashMap<u32, NonZeroU16>,
     units_per_em: f32,
+    material: Material,
 }
 
 impl Font {
-    pub fn new(filepath: &str, size: usize) -> Self {
+    pub fn new(device:&Device, ui_pipeline: &Pipeline, filepath: &str, size: usize) -> Self {
         let font_data = ::std::fs::read(filepath).unwrap();
 
         let face = Face::from_slice(font_data.as_slice(), 0).unwrap();
@@ -43,21 +50,28 @@ impl Font {
             let glyph_id = GlyphId(id as u16);  
             glyphs.push(Glyph::create(glyph_id, &face) );   
         }
+
         let mut font = Self {
-            image: GrayImage::default(), 
+            image: DynamicImage::new_rgb8(1,1), 
             glyphs,
             char_to_glyph,
             units_per_em,
+            material: Material::create(&device, &ui_pipeline),
         };
-        font.create_texture(&face, size);
+
+        font.create_texture(&device, &face, size);
         font
     }
 
-    pub fn get_bitmap(&self) -> &GrayImage {
+    pub fn get_material(&self) -> &Material {
+        &self.material
+    }
+
+    pub fn get_bitmap(&self) -> &DynamicImage {
         &self.image
     }
 
-    fn create_texture(&mut self, face: &Face, size: usize) {
+    fn create_texture(&mut self, device:&Device, face: &Face, size: usize) {
         let num_glyphs:u32 = self.glyphs.len() as _;
         let cell_size:u32 = (((size*size) as u32 / num_glyphs) as f64).sqrt().ceil() as u32;
         
@@ -86,10 +100,46 @@ impl Font {
                 }
             );
             
+            g.texture_coord = [(starting_x + cell_size) as f32 / size as f32, 
+                               (starting_y) as f32 / size as f32,
+                               (starting_x) as f32 / size as f32, 
+                               (starting_y + cell_size) as f32 / size as f32].into();
+            
             column += 1;
         }
 
-        self.image = image;
+        self.image = DynamicImage::ImageRgb8(DynamicImage::ImageLuma8(image.clone()).into_rgb8());
+        
+        self.material.add_texture_from_image(&device, &self.image);
+    }
+
+    pub fn create_text(&self, device:&Device, text: &str, position: Vector2f, scale: f32) -> Mesh {
+        const VERTICES_COUNT: usize = 4;
+        const INDICES_COUNT: usize = 6;
+
+        let mut vertex_data: Vec<VertexData> = Vec::new();
+        let mut indices_data: Vec<u32> = Vec::new();
+        let mut prev_pos = position;
+        for (i, c) in text.as_bytes().iter().enumerate() {
+            let id = self.get_glyph_index(*c as _);
+            
+            let(mut vertices, mut indices) = Mesh::create_quad(Vector4f::new(prev_pos.x, prev_pos.y, prev_pos.x+scale, prev_pos.y+scale), 
+                                                                                self.glyphs[id].texture_coord,
+                                                                                Some(i * VERTICES_COUNT));
+            
+            assert_eq!(vertices.len(), VERTICES_COUNT, "Trying to create a quad with more than {} vertices", VERTICES_COUNT);
+            assert_eq!(indices.len(), INDICES_COUNT, "Trying to create a quad with more than {} indices", INDICES_COUNT);
+            vertex_data.append(&mut vertices);
+            indices_data.append(&mut indices);
+
+            prev_pos.x += scale;
+        }
+
+        let mut mesh = Mesh::create();
+        mesh.set_vertices(&device, &vertex_data)
+            .set_indices(&device, &indices_data);
+
+        mesh
     }
     
     #[inline]

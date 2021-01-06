@@ -12,6 +12,7 @@ pub struct Glyph {
     pub horizontal_offset: f32,
     pub vertical_offset: f32,
     pub is_upside_down: bool,
+    pub texture_coord: Vector4f,
     data: Vec<f32>,
 }
 
@@ -65,6 +66,7 @@ impl Glyph {
             horizontal_offset,
             vertical_offset,
             is_upside_down,
+            texture_coord: [0.0, 0.0, 1.0, 1.0].into(),
             data,
         }
     }

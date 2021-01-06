@@ -1,13 +1,15 @@
-use image::*;
 use nrg_graphics::*;
 use nrg_core::*;
 use nrg_math::*;
 use nrg_platform::*;
 
-const VS_PATH: &str = "C:\\PROJECTS\\NRG\\data\\shaders\\vert.spv";
-const FRAG_PATH: &str = "C:\\PROJECTS\\NRG\\data\\shaders\\frag.spv";
-const IMAGE_PATH: &str = "C:\\PROJECTS\\NRG\\data\\textures\\Test.bmp";
-const FONT_PATH: & str = "C:\\PROJECTS\\NRG\\data\\fonts\\BasicFont.ttf";
+const VS_PATH: &str = "C:\\PROJECTS\\NRG\\data\\shaders\\compiled\\shader_vert.spv";
+const FRAG_PATH: &str = "C:\\PROJECTS\\NRG\\data\\shaders\\compiled\\shader_frag.spv";
+const IMAGE_PATH: &str = "C:\\PROJECTS\\NRG\\data\\textures\\Test.jpg";
+
+const FONT_VS_PATH: &str = "C:\\PROJECTS\\NRG\\data\\shaders\\compiled\\text_shader_vert.spv";
+const FONT_FRAG_PATH: &str = "C:\\PROJECTS\\NRG\\data\\shaders\\compiled\\text_shader_frag.spv";
+const FONT_PATH: & str = "C:\\PROJECTS\\NRG\\data\\fonts\\Caladea-Regular.ttf";
 const FONT_SIZE: usize = 1024;
 
 fn main() {        
@@ -38,6 +40,7 @@ fn main() {
     renderer.set_viewport_size(size);
     let mut default_render_pass = renderer.create_default_render_pass();
     let mut pipeline = Pipeline::create(&mut renderer.device, VS_PATH, FRAG_PATH);
+    let mut ui_pipeline = Pipeline::create(&mut renderer.device, FONT_VS_PATH, FONT_FRAG_PATH);
     
     let mut vertices: [VertexData; 4] = [
         VertexData { pos: [-20., -20., 0.].into(), normal: [0., 0., 1.].into(), color: [1., 0., 0.].into(), tex_coord: [1., 0.].into()},
@@ -47,12 +50,12 @@ fn main() {
     ]; 
     let indices: [u32; 6] = [0, 1, 2, 2, 3, 0];
 
-    let font = font::font::Font::new(FONT_PATH, FONT_SIZE);
-    let img = DynamicImage::ImageRgb8(DynamicImage::ImageLuma8(font.get_bitmap().clone()).into_rgb8());
+    let font = font::font::Font::new(&renderer.device, &ui_pipeline, FONT_PATH, FONT_SIZE);
+    let img = font.get_bitmap();
 
     let mut mesh_left = Mesh::create();
     for vertex in vertices.iter_mut() {
-        vertex.color = [1., 0., 0.].into();
+        vertex.color = [1., 1., 0.5].into();
     }
     mesh_left.set_vertices(&renderer.device, &vertices)
              .set_indices(&renderer.device, &indices);
@@ -93,6 +96,12 @@ fn main() {
             model_transform_right = rotation_right * model_transform_right;
             material_right.update_uniform_buffer(&renderer.device, &model_transform_right, cam_pos);
             mesh_right.draw(&renderer.device);
+            
+            ui_pipeline.prepare(&renderer.device, &default_render_pass);
+            
+            let text_mesh = font.create_text(&renderer.device, "Gents text font atlas", [-0.9, -0.9].into(), 0.04);
+            font.get_material().update_simple(&renderer.device);
+            text_mesh.draw(&renderer.device);
 
             default_render_pass.end(&renderer.device);
             result = renderer.end_frame();
@@ -108,6 +117,7 @@ fn main() {
             default_render_pass = renderer.create_default_render_pass();
                
             pipeline = Pipeline::create(&mut renderer.device, VS_PATH, FRAG_PATH);
+            ui_pipeline = Pipeline::create(&mut renderer.device, FONT_VS_PATH, FONT_FRAG_PATH);
             
             material_left = Material::create(&mut renderer.device, &pipeline);
             material_left.add_texture_from_image(&renderer.device, &img);

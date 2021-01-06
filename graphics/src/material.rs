@@ -9,8 +9,8 @@ pub struct Material {
 }
 
 impl Material {
-    pub fn create(device:&mut Device, pipeline:&Pipeline) -> Material {
-        let instance = super::api::backend::material::MaterialInstance::create_from(&mut device.inner, &pipeline.inner);
+    pub fn create(device:&Device, pipeline:&Pipeline) -> Material {
+        let instance = super::api::backend::material::MaterialInstance::create_from(&device.inner, &pipeline.inner);
         Material {
             inner: instance,
             pipeline: pipeline.inner.clone(),
@@ -33,6 +33,10 @@ impl Material {
 
     pub fn update_uniform_buffer(&mut self, device:&Device, model_transform: &Matrix4f, cam_pos: Vector3f) {
         self.inner.update_uniform_buffer(device.get_internal_device(), device.get_internal_device().get_current_image_index(), model_transform, cam_pos);
+        self.update_simple(device);
+    }
+
+    pub fn update_simple(&self, device:&Device) {
         self.inner.update_descriptor_sets(device.get_internal_device(), &self.pipeline, device.get_internal_device().get_current_image_index()) ;
     }
 }

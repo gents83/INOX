@@ -18,7 +18,7 @@ pub struct MaterialInstance {
 }
 
 impl MaterialInstance {
-    pub fn create_from(device: &mut Device, pipeline: &super::pipeline::Pipeline) -> Self {
+    pub fn create_from(device: &Device, pipeline: &super::pipeline::Pipeline) -> Self {
         let mut instance = MaterialInstance {
             textures: Vec::new(),
             descriptor_sets: Vec::new(),
@@ -147,7 +147,7 @@ impl MaterialInstance {
         self.uniform_buffers_memory[image_index] = buffer_memory;
     }
     
-    pub fn update_descriptor_sets(&mut self, device: &Device, pipeline: &Pipeline, image_index: usize) {
+    pub fn update_descriptor_sets(&self, device: &Device, pipeline: &Pipeline, image_index: usize) {
         let buffer_info = VkDescriptorBufferInfo {
             buffer: self.uniform_buffers[image_index],
             offset: 0,

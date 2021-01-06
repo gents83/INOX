@@ -1,7 +1,29 @@
-%VULKAN_SDK%\Bin\glslc.exe -S shader.vert -o vert.spv_assembly
-%VULKAN_SDK%\Bin\glslc.exe -O shader.vert -o vert.spv
-%VULKAN_SDK%\Bin\spirv-val.exe vert.spv
-%VULKAN_SDK%\Bin\glslc.exe -S shader.frag -o frag.spv_assembly
-%VULKAN_SDK%\Bin\glslc.exe -O shader.frag -o frag.spv
-%VULKAN_SDK%\Bin\spirv-val.exe frag.spv
-pause
+@ECHO OFF
+
+ECHO "---------------------------------------------------------"
+ECHO "Processing VERTEX SHADERS"
+ECHO "---------------------------------------------------------"
+
+for %%I in (.\source\*.vert) do (
+	ECHO Processing '%%~nI'
+	%VULKAN_SDK%\Bin\glslc.exe -S %%I -o .\temp\%%~nI_vert.spv_assembly
+	%VULKAN_SDK%\Bin\glslc.exe -O %%I -o .\compiled\%%~nI_vert.spv
+	%VULKAN_SDK%\Bin\spirv-val.exe .\compiled\%%~nI_vert.spv
+)
+
+ECHO "---------------------------------------------------------"
+ECHO "Processing FRAGMENT SHADERS"
+ECHO "---------------------------------------------------------"
+
+for %%I in (.\source\*.frag) do (
+	ECHO Processing '%%~nI'
+	%VULKAN_SDK%\Bin\glslc.exe -S %%I -o .\temp\%%~nI_frag.spv_assembly
+	%VULKAN_SDK%\Bin\glslc.exe -O %%I -o .\compiled\%%~nI_frag.spv
+	%VULKAN_SDK%\Bin\spirv-val.exe .\compiled\%%~nI_frag.spv
+)
+
+ECHO "---------------------------------------------------------"
+ECHO "Process ended"
+ECHO "---------------------------------------------------------"
+
+PAUSE

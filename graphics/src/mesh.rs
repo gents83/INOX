@@ -1,3 +1,4 @@
+use nrg_math::*;
 use crate::data_formats::*;
 use crate::device::*;
 
@@ -38,5 +39,18 @@ impl Mesh {
 
     pub fn draw(&self, device:&Device) {
         self.inner.draw(&device.get_internal_device());
+    }
+
+    pub fn create_quad(rect: Vector4f, tex_coords: Vector4f, index_start: Option<usize>) -> (Vec<VertexData>, Vec<u32>) {    
+        let vertices: [VertexData; 4] = [
+            VertexData { pos: [rect.x, rect.y, 0.].into(), normal: [0., 0., 1.].into(), color: [1., 1., 1.].into(), tex_coord: [tex_coords.z, tex_coords.y].into()},
+            VertexData { pos: [rect.z, rect.y, 0.].into(), normal: [0., 0., 1.].into(), color: [1., 1., 1.].into(), tex_coord: [tex_coords.x, tex_coords.y].into()},
+            VertexData { pos: [rect.z, rect.w, 0.].into(), normal: [0., 0., 1.].into(), color: [1., 1., 1.].into(), tex_coord: [tex_coords.x, tex_coords.w].into()},
+            VertexData { pos: [rect.x, rect.w, 0.].into(), normal: [0., 0., 1.].into(), color: [1., 1., 1.].into(), tex_coord: [tex_coords.z, tex_coords.w].into()},
+        ]; 
+        let index_offset:u32 = index_start.unwrap_or(0) as _;
+        let indices: [u32; 6] = [index_offset, 1 + index_offset, 2 + index_offset, 2 + index_offset, 3 + index_offset, index_offset];
+
+        (vertices.to_vec(), indices.to_vec())
     }
 }
