@@ -8,7 +8,7 @@ const VS_PATH: &str = "C:\\PROJECTS\\NRG\\data\\shaders\\vert.spv";
 const FRAG_PATH: &str = "C:\\PROJECTS\\NRG\\data\\shaders\\frag.spv";
 const IMAGE_PATH: &str = "C:\\PROJECTS\\NRG\\data\\textures\\Test.bmp";
 const FONT_PATH: & str = "C:\\PROJECTS\\NRG\\data\\fonts\\BasicFont.ttf";
-const FONT_SIZE: usize = 512;
+const FONT_SIZE: usize = 1024;
 
 fn main() {        
     let _entity = Entity::default();

@@ -37,14 +37,11 @@ impl Font {
         }
         
         let glyph_count = face.number_of_glyphs() as usize;
-        let mut glyphs: Vec<Glyph> = Vec::with_capacity(glyph_count as usize);
-        unsafe {
-            glyphs.set_len(glyph_count as usize);
-        }
+        let mut glyphs: Vec<Glyph> = Vec::new();
         for id in 0..glyph_count 
         {
             let glyph_id = GlyphId(id as u16);  
-            glyphs[id] = Glyph::create(glyph_id, &face);   
+            glyphs.push(Glyph::create(glyph_id, &face) );   
         }
         let mut font = Self {
             image: GrayImage::default(), 
@@ -61,14 +58,14 @@ impl Font {
     }
 
     fn create_texture(&mut self, face: &Face, size: usize) {
-        let num_glyphs:u32 = face.number_of_glyphs() as _;
+        let num_glyphs:u32 = self.glyphs.len() as _;
         let cell_size:u32 = (((size*size) as u32 / num_glyphs) as f64).sqrt().ceil() as u32;
         
         let mut image = GrayImage::new(size as _, size as _);
 
         let mut row: u32 = 0;
         let mut column: u32 = 0;
-        for id in 0..num_glyphs 
+        for g in self.glyphs.iter_mut()
         {
             let mut starting_x = column * cell_size;
             if (starting_x + cell_size) > size as _ {
@@ -81,13 +78,9 @@ impl Font {
                 break;
             }
         
-            let g = &self.glyphs[id as usize];
-            let mut glyph_data: Vec<f32> = vec![0.0; g.width as usize * g.height as usize * 2];
-
-            self.glyphs[id as usize].render(&face, 
+            g.render(&face, 
                 cell_size as _, 
                 cell_size as _,  
-                &mut glyph_data,
                 |x, y, alpha| {
                     image.put_pixel(starting_x + x, starting_y + y, Luma([(alpha * 255.0).round() as u8; 1]))
                 }
