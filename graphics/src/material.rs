@@ -1,3 +1,4 @@
+use image::*;
 use nrg_math::*;
 use crate::device::*;
 use crate::pipeline::*;
@@ -19,8 +20,14 @@ impl Material {
     pub fn destroy(&mut self, device:&Device) {
         self.inner.destroy(device.get_internal_device());
     }
-    pub fn add_texture(&mut self, device: &Device, filepath: &str) -> &mut Self {
-        self.inner.add_texture( device.get_internal_device(), filepath );
+    
+    pub fn add_texture_from_image(&mut self, device: &Device, image: &DynamicImage) -> &mut Self {
+        self.inner.add_texture_from_image( device.get_internal_device(), image );
+        self
+    }
+
+    pub fn add_texture_from_path(&mut self, device: &Device, filepath: &str) -> &mut Self {
+        self.inner.add_texture_from_path( device.get_internal_device(), filepath );
         self
     }
 

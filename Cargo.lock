@@ -374,11 +374,13 @@ dependencies = [
 name = "nrg"
 version = "0.1.0"
 dependencies = [
+ "image",
  "nrg_common",
  "nrg_core",
  "nrg_graphics",
  "nrg_math",
  "nrg_platform",
+ "ttf-parser",
 ]
 
 [[package]]

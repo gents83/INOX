@@ -138,3 +138,15 @@ implement_integer!(i16, i16, u16);
 implement_integer!(i32, i32, u32);
 implement_integer!(i64, i64, u64);
 implement_integer!(isize, isize, usize);
+
+
+pub fn round_to_next_pow2(value: u32) -> u32 {
+    let mut v = value + 1;
+    v |= v >> 1;
+    v |= v >> 2;
+    v |= v >> 4;
+    v |= v >> 8;
+    v |= v >> 16;
+    v += 1;
+    v
+}

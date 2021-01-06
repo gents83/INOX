@@ -13,13 +13,17 @@ pub struct Texture {
 
 impl Texture {
     pub fn create_from(device: &Device, filepath: &str) -> Self {
+        let image_data = image::open(filepath).unwrap();
+        Texture::create(&device, &image_data)
+    }
+
+    pub fn create(device: &Device, image_data: &DynamicImage) -> Self {
         let mut texture = Self {
             texture_image: ::std::ptr::null_mut(),
             texture_image_memory: ::std::ptr::null_mut(),
             texture_image_view: ::std::ptr::null_mut(),
             texture_sampler: ::std::ptr::null_mut(),
         };
-        let image_data = image::open(filepath).unwrap();
         texture.create_texture_image(device, &image_data);
         texture.create_texture_sampler(device);
         texture

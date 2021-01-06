@@ -1,12 +1,13 @@
 NRG.code-workspace
 /.vscode
 bindings/vulkan_bindings/target
-graphics/target
-xml/target
-core/target
+external/image-rs/target
+external/ttf-parser/target
+external/xml-rs/target
 common/target
+core/target
+graphics/target
 math/target
-image/target
 platform/target
 /target
 *.lock

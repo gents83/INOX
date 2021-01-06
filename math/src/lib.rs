@@ -12,6 +12,9 @@ pub use self::one::*;
 pub use self::vector::*;
 pub use self::zero::*;
 
+pub use self::points::*;
+pub use self::curves::*;
+
 //Modules
 
 pub mod angle;
@@ -26,3 +29,6 @@ pub mod number;
 pub mod one;
 pub mod vector;
 pub mod zero;
+
+pub mod points;
+pub mod curves;

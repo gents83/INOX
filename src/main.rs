@@ -1,3 +1,4 @@
+use image::*;
 use nrg_graphics::*;
 use nrg_core::*;
 use nrg_math::*;
@@ -6,8 +7,10 @@ use nrg_platform::*;
 const VS_PATH: &str = "C:\\PROJECTS\\NRG\\data\\shaders\\vert.spv";
 const FRAG_PATH: &str = "C:\\PROJECTS\\NRG\\data\\shaders\\frag.spv";
 const IMAGE_PATH: &str = "C:\\PROJECTS\\NRG\\data\\textures\\Test.bmp";
+const FONT_PATH: & str = "C:\\PROJECTS\\NRG\\data\\fonts\\BasicFont.ttf";
+const FONT_SIZE: usize = 1024;
 
-fn main() {    
+fn main() {        
     let _entity = Entity::default();
     let _transf = Matrix4f::identity();
     println!("{:?}", _transf);
@@ -23,8 +26,8 @@ fn main() {
                    
     let mut model_transform_left:Matrix4f = Matrix4f::identity();
     let mut model_transform_right:Matrix4f = Matrix4f::identity();
-    let rotation_left = Matrix4::from_axis_angle([0.0, 0.0, -1.0].into(), Degree(0.1).into());
-    let rotation_right = Matrix4::from_axis_angle([0.0, 0.0, 1.0].into(), Degree(0.1).into());
+    let rotation_left = Matrix4::from_axis_angle([0.0, 0.0, 0.0].into(), Degree(0.1).into());
+    let rotation_right = Matrix4::from_axis_angle([0.0, 0.0, 0.0].into(), Degree(0.1).into());
     
     model_transform_left.set_translation([-30.0, 0.0, 0.0].into());
     model_transform_right.set_translation([30.0, 0.0, 0.0].into());
@@ -44,6 +47,9 @@ fn main() {
     ]; 
     let indices: [u32; 6] = [0, 1, 2, 2, 3, 0];
 
+    let font = font::font::Font::new(FONT_PATH, FONT_SIZE);
+    let img = DynamicImage::ImageRgb8(DynamicImage::ImageLuma8(font.get_bitmap().clone()).into_rgb8());
+
     let mut mesh_left = Mesh::create();
     for vertex in vertices.iter_mut() {
         vertex.color = [1., 0., 0.].into();
@@ -52,7 +58,7 @@ fn main() {
              .set_indices(&renderer.device, &indices);
              
     let mut material_left = Material::create(&mut renderer.device, &pipeline);
-    material_left.add_texture(&renderer.device, IMAGE_PATH);
+    material_left.add_texture_from_image(&renderer.device, &img);
         
     let mut mesh_right = Mesh::create();
     for vertex in vertices.iter_mut() {
@@ -62,7 +68,7 @@ fn main() {
               .set_indices(&renderer.device, &indices);
 
     let mut material_right = Material::create(&mut renderer.device, &pipeline);
-    material_right.add_texture(&renderer.device, IMAGE_PATH);
+    material_right.add_texture_from_path(&renderer.device, IMAGE_PATH);
 
     let mut frame_count = 0;
     
@@ -104,10 +110,10 @@ fn main() {
             pipeline = Pipeline::create(&mut renderer.device, VS_PATH, FRAG_PATH);
             
             material_left = Material::create(&mut renderer.device, &pipeline);
-            material_left.add_texture(&renderer.device, IMAGE_PATH);
+            material_left.add_texture_from_image(&renderer.device, &img);
             
             material_right = Material::create(&mut renderer.device, &pipeline);
-            material_right.add_texture(&renderer.device, IMAGE_PATH);
+            material_right.add_texture_from_path(&renderer.device, IMAGE_PATH);
         } 
 
         println!("Frame {} rendered in {} ", frame_count, time.elapsed().as_secs_f32());

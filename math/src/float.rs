@@ -8,6 +8,7 @@ use super::cast_to::*;
 
 pub trait Float: Number + Copy + NumberCast + PartialOrd + Neg<Output = Self> {
     
+    fn is_equal(a:Self, other: Self) -> bool;
     fn nan() -> Self;
     fn infinity() -> Self;
     fn neg_infinity() -> Self;
@@ -127,6 +128,10 @@ macro_rules! implement_std_float {
                 Self::asinh(self) -> Self;
                 Self::acosh(self) -> Self;
                 Self::atanh(self) -> Self;
+            }
+
+            fn is_equal(a:Self, b: Self) -> bool {
+                (a - b).abs() < $T::EPSILON
             }
         }
     };

@@ -52,6 +52,22 @@ macro_rules! implement_vector {
             pub fn length(&self) -> T 
             where T: Float {
                 Float::sqrt(self.squared_length())
+            }            
+            
+            #[inline]
+            pub fn sqrt(&mut self) -> Self
+            where T: Float {
+                let vec = $VectorN { $($field: (self.$field.sqrt())),+ };
+                *self = vec;
+                *self
+            }    
+            
+            #[inline]
+            pub fn trunc(&mut self) -> Self
+            where T: Float {
+                let vec = $VectorN { $($field: (self.$field.trunc())),+ };
+                *self = vec;
+                *self
             }
             
             #[inline]
@@ -228,12 +244,44 @@ macro_rules! implement_vector {
                 $VectorN { $($field: self.$field + other.$field),+ }
             }
         }
+        impl<T> ::std::ops::AddAssign<$VectorN<T>> for $VectorN<T> 
+        where T: Number {  
+            #[inline]
+            fn add_assign(&mut self, other: $VectorN<T>) {
+                let vec = $VectorN { $($field: self.$field + other.$field),+ };
+                *self = vec;
+            }
+        }
+        impl<T> ::std::ops::AddAssign<T> for $VectorN<T> 
+        where T: Number {  
+            #[inline]
+            fn add_assign(&mut self, other: T) {
+                let vec = $VectorN { $($field: self.$field + other),+ };
+                *self = vec;
+            }
+        }
         impl<T> ::std::ops::Sub<$VectorN<T>> for $VectorN<T> 
         where T: Number {  
             type Output = $VectorN<T>;
             #[inline]
             fn sub(self, other: $VectorN<T>) -> $VectorN<T> {
                 $VectorN { $($field: self.$field - other.$field),+ }
+            }
+        }
+        impl<T> ::std::ops::SubAssign<$VectorN<T>> for $VectorN<T> 
+        where T: Number {  
+            #[inline]
+            fn sub_assign(&mut self, other: $VectorN<T>) {
+                let vec = $VectorN { $($field: self.$field - other.$field),+ };
+                *self = vec;
+            }
+        }
+        impl<T> ::std::ops::SubAssign<T> for $VectorN<T> 
+        where T: Number {  
+            #[inline]
+            fn sub_assign(&mut self, other: T) {
+                let vec = $VectorN { $($field: self.$field - other),+ };
+                *self = vec;
             }
         }
         impl<T> ::std::ops::Mul<$VectorN<T>> for $VectorN<T> 
@@ -244,12 +292,44 @@ macro_rules! implement_vector {
                 $VectorN { $($field: self.$field * other.$field),+ }
             }
         }
+        impl<T> ::std::ops::MulAssign<$VectorN<T>> for $VectorN<T> 
+        where T: Number {  
+            #[inline]
+            fn mul_assign(&mut self, other: $VectorN<T>) {
+                let vec = $VectorN { $($field: self.$field * other.$field),+ };
+                *self = vec
+            }
+        }
+        impl<T> ::std::ops::MulAssign<T> for $VectorN<T> 
+        where T: Number {  
+            #[inline]
+            fn mul_assign(&mut self, other: T) {
+                let vec = $VectorN { $($field: self.$field * other),+ };
+                *self = vec
+            }
+        }
         impl<T> ::std::ops::Div<$VectorN<T>> for $VectorN<T> 
         where T: Number {  
             type Output = $VectorN<T>;
             #[inline]
             fn div(self, other: $VectorN<T>) -> $VectorN<T> {
                 $VectorN { $($field: self.$field / other.$field),+ }
+            }
+        }
+        impl<T> ::std::ops::DivAssign<$VectorN<T>> for $VectorN<T> 
+        where T: Number {  
+            #[inline]
+            fn div_assign(&mut self, other: $VectorN<T>) {
+                let vec = $VectorN { $($field: self.$field / other.$field),+ };
+                *self = vec;
+            }
+        }
+        impl<T> ::std::ops::DivAssign<T> for $VectorN<T> 
+        where T: Number {  
+            #[inline]
+            fn div_assign(&mut self, other: T) {
+                let vec = $VectorN { $($field: self.$field / other),+ };
+                *self = vec;
             }
         }
         impl<T: ::std::ops::Neg<Output = T>> ::std::ops::Neg for $VectorN<T> {

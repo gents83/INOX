@@ -1,4 +1,5 @@
 
+use image::*;
 use nrg_math::*;
 use vulkan_bindings::*;
 use crate::data_formats::*;
@@ -38,7 +39,12 @@ impl MaterialInstance {
         }
     }  
 
-    pub fn add_texture(&mut self, device: &Device, filepath: &str) -> &mut Self {
+    pub fn add_texture_from_image(&mut self, device: &Device, image: &DynamicImage) -> &mut Self {
+        self.textures.push( Texture::create(device, image) );
+        self
+    }
+
+    pub fn add_texture_from_path(&mut self, device: &Device, filepath: &str) -> &mut Self {
         self.textures.push( Texture::create_from(device, filepath) );
         self
     }

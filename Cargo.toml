@@ -6,6 +6,9 @@ license = "MIT"
 edition = "2018"
 
 [dependencies]
+image = { path = "external/image-rs" }
+ttf-parser = { path = "external/ttf-parser" }
+
 nrg_math = { path = "math" }
 nrg_common = { path = "common" }
 nrg_platform = { path = "platform" }
