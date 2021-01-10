@@ -403,6 +403,22 @@ macro_rules! implement_vector {
                     writeln!(f, "")
                 }
             }
+        }        
+        
+        impl<T: ::std::fmt::Display> ::std::fmt::Display for $VectorN<T> 
+        where T: Number {
+            fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result { 
+                if let Some((first, elements)) = self.as_ref().split_first() {            
+                    write!(f, "[{}", first );
+                    for item in elements {
+                        write!(f, ", {}", item);
+                    }
+                    write!(f, "]")
+                }
+                else {
+                    write!(f, "")
+                }
+            }
         }
 
         implement_zero_as_default!($VectorN);
@@ -418,6 +434,11 @@ pub type Vector1f = Vector1<f32>;
 pub type Vector2f = Vector2<f32>;
 pub type Vector3f = Vector3<f32>;
 pub type Vector4f = Vector4<f32>;
+
+pub type Vector1i = Vector1<i32>;
+pub type Vector2i = Vector2<i32>;
+pub type Vector3i = Vector3<i32>;
+pub type Vector4i = Vector4<i32>;
 
 pub type Vector1u = Vector1<u32>;
 pub type Vector2u = Vector2<u32>;

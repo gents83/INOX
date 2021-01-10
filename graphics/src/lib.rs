@@ -34,7 +34,9 @@ pub mod font
     pub mod font;
     pub mod geometry;
     pub mod glyph;
+    pub mod hershey;
     pub mod raster;
+    mod test;
 }
 
 pub mod api

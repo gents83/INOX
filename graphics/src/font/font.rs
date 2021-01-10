@@ -1,5 +1,5 @@
 
-use std::{collections::HashMap, num::NonZeroU16};
+use std::{collections::HashMap, ffi::OsStr, num::NonZeroU16, path::Path};
 use image::*;
 use ttf_parser::*;
 use nrg_math::*;
@@ -10,24 +10,49 @@ use crate::mesh::*;
 use crate::pipeline::*;
 
 use super::glyph::*;
-
-const FONT_COLUMNS: u32 = 24;
+use super::hershey::*;
 
 pub struct Font {
     image: DynamicImage,
     glyphs: Vec<Glyph>,
     char_to_glyph: HashMap<u32, NonZeroU16>,
-    units_per_em: f32,
     material: Material,
 }
 
 impl Font {
+    #[inline]
     pub fn new(device:&Device, ui_pipeline: &Pipeline, filepath: &str, size: usize) -> Self {
+        let path = Path::new(filepath);
+        match path.extension().unwrap().to_str() {
+            Some("jhf") => Font::new_jhf_font(&device, &ui_pipeline, &filepath, size),
+            _ => Font::new_ttf_font(&device, &ui_pipeline, &filepath, size),
+        }
+    }
+
+    pub fn get_material(&self) -> &Material {
+        &self.material
+    }
+
+    pub fn get_bitmap(&self) -> &DynamicImage {
+        &self.image
+    }
+
+}
+
+
+impl Font{    
+    fn new_jhf_font(device:&Device, ui_pipeline: &Pipeline, filepath: &str, size: usize) -> Self {
+        
+        let font_data = ::std::fs::read(filepath).unwrap();
+        let font = HersheyFont::from_data(font_data.as_slice());
+
+        Font::new_ttf_font(&device, &ui_pipeline, &filepath, size)
+    }
+
+    fn new_ttf_font(device:&Device, ui_pipeline: &Pipeline, filepath: &str, size: usize) -> Self {
         let font_data = ::std::fs::read(filepath).unwrap();
 
         let face = Face::from_slice(font_data.as_slice(), 0).unwrap();
-
-        let units_per_em = face.units_per_em().unwrap_or(1000) as f32;
 
         // Collect all the unique codepoint to glyph mappings.
         let mut char_to_glyph = HashMap::new();
@@ -55,20 +80,11 @@ impl Font {
             image: DynamicImage::new_rgb8(1,1), 
             glyphs,
             char_to_glyph,
-            units_per_em,
             material: Material::create(&device, &ui_pipeline),
         };
 
         font.create_texture(&device, &face, size);
         font
-    }
-
-    pub fn get_material(&self) -> &Material {
-        &self.material
-    }
-
-    pub fn get_bitmap(&self) -> &DynamicImage {
-        &self.image
     }
 
     fn create_texture(&mut self, device:&Device, face: &Face, size: usize) {
