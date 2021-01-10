@@ -3,7 +3,7 @@ use ttf_parser::*;
 use nrg_math::*;
 use super::geometry::*;
 
-const DEFAULT_FONT_SIZE:usize = 64;
+const DEFAULT_FONT_SIZE:usize = 100;
 
 pub struct Glyph {
     pub id: GlyphId,
@@ -45,7 +45,7 @@ impl Glyph {
         let scale_y = DEFAULT_FONT_SIZE as f32 / glyph_height as f32;
 
         if glyph_width > f32::EPSILON && glyph_height > f32::EPSILON {
-            data =  vec![0.0; (glyph_width * glyph_height) as _];
+            data =  vec![0.0; (glyph_width * glyph_height)  as _];
             let draw_offset = Point2f::new(0.0, vertical_offset);
             let draw_scale = Point2f::new(scale_x, scale_y);
             

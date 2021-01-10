@@ -9,7 +9,7 @@ const IMAGE_PATH: &str = "C:\\PROJECTS\\NRG\\data\\textures\\Test.jpg";
 
 const FONT_VS_PATH: &str = "C:\\PROJECTS\\NRG\\data\\shaders\\compiled\\text_shader_vert.spv";
 const FONT_FRAG_PATH: &str = "C:\\PROJECTS\\NRG\\data\\shaders\\compiled\\text_shader_frag.spv";
-const FONT_PATH: & str = "C:\\PROJECTS\\NRG\\data\\fonts\\Caladea-Regular.ttf";
+const FONT_PATH: & str = "C:\\PROJECTS\\NRG\\data\\fonts\\BasicFont.ttf";
 const FONT_SIZE: usize = 1024;
 
 fn main() {        
@@ -55,26 +55,25 @@ fn main() {
 
     let mut mesh_left = Mesh::create();
     for vertex in vertices.iter_mut() {
-        vertex.color = [1., 1., 0.5].into();
+        vertex.color = [1., 0., 0.].into();
     }
     mesh_left.set_vertices(&renderer.device, &vertices)
              .set_indices(&renderer.device, &indices);
              
-    let mut material_left = Material::create(&mut renderer.device, &pipeline);
+    let mut material_left = Material::create(&renderer.device, &pipeline);
     material_left.add_texture_from_image(&renderer.device, &img);
         
     let mut mesh_right = Mesh::create();
     for vertex in vertices.iter_mut() {
-        vertex.color = [0., 1., 0.].into();
+        vertex.color = [1., 1., 1.].into();
     }
     mesh_right.set_vertices(&renderer.device, &vertices)
               .set_indices(&renderer.device, &indices);
 
-    let mut material_right = Material::create(&mut renderer.device, &pipeline);
+    let mut material_right = Material::create(&renderer.device, &pipeline);
     material_right.add_texture_from_path(&renderer.device, IMAGE_PATH);
 
-    let mut frame_count = 0;
-    
+    let mut time_per_frame:f32 = 1.0;
     loop 
     {                
         let is_ended = window.update();
@@ -82,7 +81,8 @@ fn main() {
         {
             break;
         }
-
+            
+        let fps = (1.0 / time_per_frame) as u32;
         let time = std::time::Instant::now();
         let mut result = renderer.begin_frame();
         if result {
@@ -98,8 +98,10 @@ fn main() {
             mesh_right.draw(&renderer.device);
             
             ui_pipeline.prepare(&renderer.device, &default_render_pass);
-            
-            let text_mesh = font.create_text(&renderer.device, "Gents text font atlas", [-0.9, -0.9].into(), 0.04);
+
+            let mut str:String = String::from("FPS: ");
+            str += fps.to_string().as_str();
+            let text_mesh = font.create_text(&renderer.device, str.as_str(), [-0.9, -0.9].into(), 0.04);
             font.get_material().update_simple(&renderer.device);
             text_mesh.draw(&renderer.device);
 
@@ -108,26 +110,12 @@ fn main() {
         }
 
         if !result {
-            material_right.destroy(&renderer.device);
-            material_left.destroy(&renderer.device);
             default_render_pass.destroy(&renderer.device);
-
             renderer.device.recreate_swap_chain();
-
             default_render_pass = renderer.create_default_render_pass();
-               
-            pipeline = Pipeline::create(&mut renderer.device, VS_PATH, FRAG_PATH);
-            ui_pipeline = Pipeline::create(&mut renderer.device, FONT_VS_PATH, FONT_FRAG_PATH);
-            
-            material_left = Material::create(&mut renderer.device, &pipeline);
-            material_left.add_texture_from_image(&renderer.device, &img);
-            
-            material_right = Material::create(&mut renderer.device, &pipeline);
-            material_right.add_texture_from_path(&renderer.device, IMAGE_PATH);
         } 
 
-        println!("Frame {} rendered in {} ", frame_count, time.elapsed().as_secs_f32());
-        frame_count += 1;
+        time_per_frame = time.elapsed().as_secs_f32();
     }
 
     material_right.destroy(&renderer.device);
