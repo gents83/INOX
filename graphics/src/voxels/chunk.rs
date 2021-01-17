@@ -1,6 +1,6 @@
 use nrg_math::*;
 
-use super::data_formats::*;
+use crate::data_formats::*;
 use super::block::*;
 
 const N: DeltaDir = DeltaDir::Negative;

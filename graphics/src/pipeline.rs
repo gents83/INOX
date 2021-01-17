@@ -8,23 +8,23 @@ pub struct Pipeline {
 
 impl Pipeline {
     pub fn create(device:&mut Device, vert_filepath: &str, frag_filepath: &str) -> Pipeline {
-        
+        let inner_device = device.inner.borrow();
         //TODO pipeline could be reused - while instance should be unique
-        let mut pipeline = super::api::backend::pipeline::Pipeline::default();
-        pipeline.set_shader(device.get_internal_device(), ShaderType::Vertex, vert_filepath);
-        pipeline.set_shader(device.get_internal_device(), ShaderType::Fragment, frag_filepath);
-        pipeline.build(device.get_internal_device());
+        let mut pipeline = super::api::backend::pipeline::Pipeline::create(&inner_device);
+        pipeline.set_shader(ShaderType::Vertex, vert_filepath)
+                .set_shader(ShaderType::Fragment, frag_filepath)
+                .build();
 
         Pipeline {
-            inner: pipeline,
+            inner: pipeline
         }
     }
 
-    pub fn destroy(&mut self, device:&Device) {
-        self.inner.delete(device.get_internal_device());
+    pub fn destroy(&mut self) {
+        self.inner.delete();
     }
 
-    pub fn prepare(&mut self, device:&Device, render_pass: &RenderPass) {
-        self.inner.prepare(device.get_internal_device(), render_pass.get_pass());
+    pub fn prepare(&mut self, render_pass: &RenderPass) {
+        self.inner.prepare(render_pass.get_pass());
     }
 }

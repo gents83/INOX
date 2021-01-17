@@ -28,6 +28,8 @@ pub struct DeviceImmutable {
     inflight_images: Vec<VkFence>,
 }
 
+
+#[derive(Clone)]
 pub struct Device {
     instance: Instance,
     inner: Rc<RefCell<DeviceImmutable>>,
@@ -91,8 +93,8 @@ impl Device {
         self.inner.borrow().create_image_view(image, format)
     }
     
-    pub fn create_image(&self, image_width: u32, image_height: u32, format: VkFormat, tiling: VkImageTiling, usage: VkImageUsageFlags, properties: VkMemoryPropertyFlags, image: &mut VkImage, image_memory: &mut VkDeviceMemory) {
-        self.inner.borrow().create_image(self.instance.get_physical_device(), image_width, image_height, format, tiling, usage, properties, image, image_memory);
+    pub fn create_image(&self, image_properties: (u32, u32, VkFormat), tiling: VkImageTiling, usage: VkImageUsageFlags, properties: VkMemoryPropertyFlags) -> (VkImage, VkDeviceMemory){
+        self.inner.borrow().create_image(self.instance.get_physical_device(), image_properties, tiling, usage, properties)
     }
     
     pub fn transition_image_layout(&self, image: VkImage, old_layout: VkImageLayout, new_layout: VkImageLayout) {
@@ -109,7 +111,7 @@ impl Device {
         }
         let command_buffer = self.get_current_command_buffer();
         self.inner.borrow_mut().begin_frame(command_buffer);
-        return true;
+        true
     }
     
     pub fn end_frame(&self) {
@@ -172,7 +174,7 @@ impl DeviceImmutable {
             self.current_frame_index = new_frame_index;
         }
 
-        return true
+        true
     }
 
     fn begin_frame(&mut self, command_buffer: VkCommandBuffer) {
@@ -245,7 +247,7 @@ impl DeviceImmutable {
             
             vkQueueWaitIdle.unwrap()(self.present_queue);
         }
-        return true
+        true
     }
 
     fn create_image_view(&self, image: VkImage, format: VkFormat) -> VkImageView {
@@ -253,9 +255,9 @@ impl DeviceImmutable {
             sType: VkStructureType_VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
             pNext: ::std::ptr::null_mut(),
             flags: 0,
-            image: image,
+            image,
             viewType: VkImageViewType_VK_IMAGE_VIEW_TYPE_2D,
-            format: format,
+            format,
             components: VkComponentMapping {
                 r: VkComponentSwizzle_VK_COMPONENT_SWIZZLE_IDENTITY,
                 g: VkComponentSwizzle_VK_COMPONENT_SWIZZLE_IDENTITY,
@@ -271,28 +273,29 @@ impl DeviceImmutable {
             },
         };
 
-        let image_view = unsafe {
+        unsafe {
             let mut option = ::std::mem::MaybeUninit::uninit();
             assert_eq!(
                 VkResult_VK_SUCCESS,
                 vkCreateImageView.unwrap()(self.device, &view_info, ::std::ptr::null_mut(), option.as_mut_ptr())
             );
             option.assume_init()
-        };
-
-        image_view
+        }
     }
 
-    pub fn create_image(&self, physical_device: VkPhysicalDevice, image_width: u32, image_height: u32, format: VkFormat, tiling: VkImageTiling, usage: VkImageUsageFlags, properties: VkMemoryPropertyFlags, image: &mut VkImage, image_memory: &mut VkDeviceMemory) {
+    pub fn create_image(&self, physical_device: VkPhysicalDevice, image_properties: (u32, u32, VkFormat), tiling: VkImageTiling, usage: VkImageUsageFlags, properties: VkMemoryPropertyFlags) -> (VkImage, VkDeviceMemory) {
+        let mut image: VkImage = ::std::ptr::null_mut();
+        let mut image_memory: VkDeviceMemory = ::std::ptr::null_mut();
+        
         let image_info = VkImageCreateInfo {
             sType: VkStructureType_VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
             pNext: ::std::ptr::null_mut(),
             flags: 0,
             imageType: VkImageType_VK_IMAGE_TYPE_2D,
-            format: format,
+            format: image_properties.2,
             extent: VkExtent3D {
-                width: image_width,
-                height: image_height,
+                width: image_properties.0,
+                height: image_properties.1,
                 depth: 1,
             },
             mipLevels: 1,
@@ -309,13 +312,13 @@ impl DeviceImmutable {
         unsafe {
             assert_eq!(
                 VkResult_VK_SUCCESS,
-                vkCreateImage.unwrap()(self.device, &image_info, ::std::ptr::null_mut(), image)
+                vkCreateImage.unwrap()(self.device, &image_info, ::std::ptr::null_mut(), &mut image)
             );
         }
         
         let mem_requirement = unsafe {
             let mut option = ::std::mem::MaybeUninit::uninit();            
-            vkGetImageMemoryRequirements.unwrap()(self.device, *image, option.as_mut_ptr());
+            vkGetImageMemoryRequirements.unwrap()(self.device, image, option.as_mut_ptr());
             option.assume_init()
         };  
 
@@ -329,11 +332,13 @@ impl DeviceImmutable {
         unsafe {
             assert_eq!(
                 VkResult_VK_SUCCESS,
-                vkAllocateMemory.unwrap()(self.device, &mem_alloc_info, ::std::ptr::null_mut(), image_memory)
+                vkAllocateMemory.unwrap()(self.device, &mem_alloc_info, ::std::ptr::null_mut(), &mut image_memory)
             );         
 
-            vkBindImageMemory.unwrap()(self.device, *image, *image_memory, 0);
+            vkBindImageMemory.unwrap()(self.device, image, image_memory, 0);
         }
+
+        (image, image_memory)
     }
 
     fn transition_image_layout(&self, image: VkImage, old_layout: VkImageLayout, new_layout: VkImageLayout) {
@@ -348,7 +353,7 @@ impl DeviceImmutable {
             newLayout: new_layout,
             srcQueueFamilyIndex: VK_QUEUE_FAMILY_IGNORED as _,
             dstQueueFamilyIndex: VK_QUEUE_FAMILY_IGNORED as _,
-            image: image,
+            image,
             subresourceRange: VkImageSubresourceRange {
                 aspectMask: VkImageAspectFlagBits_VK_IMAGE_ASPECT_COLOR_BIT as _,
                 baseMipLevel: 0,
@@ -606,7 +611,7 @@ impl DeviceImmutable {
                                                         .map(|e| e.as_ptr())
                                                         .collect::<Vec<*const c_char>>();
 
-        let mut device_features = instance.get_available_features().clone();                                                        
+        let mut device_features = instance.get_available_features();                                                        
         device_features.samplerAnisotropy = VK_TRUE;
 
         let device_create_info = VkDeviceCreateInfo {

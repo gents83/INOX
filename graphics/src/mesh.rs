@@ -6,39 +6,49 @@ pub struct Mesh {
     pub inner: super::api::backend::mesh::Mesh,
     pub vertices: Vec<VertexData>,
     pub indices: Vec<u32>,
+    device: Device,
 }
 
 impl Mesh {
-    pub fn create() -> Mesh {
+    pub fn create(device:&Device) -> Mesh {
         Self {
-            inner: super::api::backend::mesh::Mesh::new(),
+            inner: super::api::backend::mesh::Mesh::default(),
             vertices: Vec::new(),
             indices: Vec::new(),
+            device: device.clone(),
         }
     }
 
-    pub fn set_vertices(&mut self, device:&Device, vertex_data:&[VertexData]) -> &mut Self {
+    pub fn set_vertices(&mut self, vertex_data:&[VertexData]) -> &mut Self {
         self.vertices.clear();
         self.vertices.extend_from_slice(vertex_data);
-        self.inner.create_vertex_buffer(&device.get_internal_device(), self.vertices.as_slice());
         self
     }
 
-    pub fn set_indices(&mut self, device:&Device, indices_data:&[u32]) -> &mut Self {
+    pub fn set_indices(&mut self, indices_data:&[u32]) -> &mut Self {
         self.indices.clear();
         self.indices.extend_from_slice(indices_data);
-        self.inner.create_index_buffer(&device.get_internal_device(), self.indices.as_slice());
         self
     }
     
-    pub fn destroy(&mut self, device:&Device) {
+    pub fn destroy(&mut self) {
+        let inner_device = self.device.inner.borrow();
         self.vertices.clear();
         self.indices.clear();
-        self.inner.delete(&device.get_internal_device());
+        self.inner.delete(&inner_device);
     }
 
-    pub fn draw(&self, device:&Device) {
-        self.inner.draw(&device.get_internal_device());
+    pub fn finalize(&mut self) -> &mut Self {
+        let inner_device = self.device.inner.borrow();
+        self.inner.create_vertex_buffer(&inner_device, self.vertices.as_slice());
+        self.inner.create_index_buffer(&inner_device, self.indices.as_slice());
+        drop(inner_device);
+        self
+    }
+
+    pub fn draw(&self) {
+        let inner_device = self.device.inner.borrow();
+        self.inner.draw(&inner_device);
     }
 
     pub fn create_quad(rect: Vector4f, tex_coords: Vector4f, index_start: Option<usize>) -> (Vec<VertexData>, Vec<u32>) {    
@@ -53,4 +63,11 @@ impl Mesh {
 
         (vertices.to_vec(), indices.to_vec())
     }
+
+    pub fn set_vertex_color(&mut self, color:Vector3f) -> &mut Self {
+        for v in self.vertices.iter_mut() {
+            v.color = color;
+        }
+        self
+    } 
 }

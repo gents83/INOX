@@ -27,9 +27,9 @@ impl MaterialInstance {
             uniform_buffers: Vec::new(),
             uniform_buffers_memory: Vec::new(),
         };
-        instance.create_uniform_buffers(device);
-        instance.create_descriptor_pool(device);
-        instance.create_descriptor_sets(&device, &pipeline);
+        instance.create_uniform_buffers(device)
+                .create_descriptor_pool(device)
+                .create_descriptor_sets(&device, &pipeline);
         instance       
     }
 
@@ -49,7 +49,7 @@ impl MaterialInstance {
         self
     }
 
-    pub fn create_descriptor_sets(&mut self, device: &Device, pipeline: &Pipeline) {
+    pub fn create_descriptor_sets(&mut self, device: &Device, pipeline: &Pipeline) -> &mut Self{
         let mut layouts = Vec::<VkDescriptorSetLayout>::with_capacity(device.get_images_count());
         unsafe {
             layouts.set_len(device.get_images_count());
@@ -76,9 +76,10 @@ impl MaterialInstance {
         }
         
         self.descriptor_sets = descriptor_sets;
+        self
     }
 
-    fn create_descriptor_pool(&mut self, device: &Device) {
+    fn create_descriptor_pool(&mut self, device: &Device) -> &mut Self {
         let pool_sizes = [
             VkDescriptorPoolSize {
                 type_: VkDescriptorType_VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
@@ -107,9 +108,10 @@ impl MaterialInstance {
             );
             option.assume_init()
         };  
+        self
     }
 
-    fn create_uniform_buffers(&mut self, device: &Device) {  
+    fn create_uniform_buffers(&mut self, device: &Device) -> &mut Self {  
         let mut uniform_buffers = Vec::<VkBuffer>::with_capacity(device.get_images_count());
         let mut uniform_buffers_memory = Vec::<VkDeviceMemory>::with_capacity(device.get_images_count());
         unsafe {
@@ -126,14 +128,16 @@ impl MaterialInstance {
         self.uniform_buffers_size = uniform_buffers_size;
         self.uniform_buffers = uniform_buffers;
         self.uniform_buffers_memory = uniform_buffers_memory;
+        self
     }
     
-    pub fn update_uniform_buffer(&mut self, device:&Device, image_index: usize, model_transform: &Matrix4f, cam_pos: Vector3f) {
+    pub fn update_uniform_buffer(&mut self, device:&Device, model_transform: &Matrix4f, cam_pos: Vector3f) {
+        let image_index = device.get_current_image_index();
         let details = device.get_instance().get_swap_chain_info();
         let uniform_data: [UniformData; 1] = [
             UniformData {
                 model: *model_transform,
-                view: Matrix4::from_look_at(cam_pos.into(), 
+                view: Matrix4::from_look_at(cam_pos, 
                                             [0.0, 0.0, 0.0].into(),
                                             [0.0, 0.0, 1.0].into()),
                 proj: Matrix4::create_perspective(Degree(45.0).into(), 
@@ -147,7 +151,8 @@ impl MaterialInstance {
         self.uniform_buffers_memory[image_index] = buffer_memory;
     }
     
-    pub fn update_descriptor_sets(&self, device: &Device, pipeline: &Pipeline, image_index: usize) {
+    pub fn update_descriptor_sets(&self, device: &Device, pipeline: &Pipeline) {
+        let image_index = device.get_current_image_index();
         let buffer_info = VkDescriptorBufferInfo {
             buffer: self.uniform_buffers[image_index],
             offset: 0,

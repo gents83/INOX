@@ -1,5 +1,5 @@
 
-use std::{collections::HashMap, ffi::OsStr, num::NonZeroU16, path::Path};
+use std::{collections::HashMap, num::NonZeroU16, path::Path};
 use image::*;
 use ttf_parser::*;
 use nrg_math::*;
@@ -12,20 +12,24 @@ use crate::pipeline::*;
 use super::glyph::*;
 use super::hershey::*;
 
+const DEFAULT_FONT_COUNT: u8 = 255;
+const DEFAULT_FONT_TEXTURE_SIZE: usize = 1024;
+
 pub struct Font {
     image: DynamicImage,
     glyphs: Vec<Glyph>,
     char_to_glyph: HashMap<u32, NonZeroU16>,
     material: Material,
+    device: Device,
 }
 
 impl Font {
     #[inline]
-    pub fn new(device:&Device, ui_pipeline: &Pipeline, filepath: &str, size: usize) -> Self {
+    pub fn new(device:&Device, ui_pipeline: &Pipeline, filepath: &str) -> Self {
         let path = Path::new(filepath);
         match path.extension().unwrap().to_str() {
-            Some("jhf") => Font::new_jhf_font(&device, &ui_pipeline, &filepath, size),
-            _ => Font::new_ttf_font(&device, &ui_pipeline, &filepath, size),
+            Some("jhf") => Font::new_jhf_font(&device, &ui_pipeline, &filepath),
+            _ => Font::new_ttf_font(&device, &ui_pipeline, &filepath),
         }
     }
 
@@ -36,20 +40,19 @@ impl Font {
     pub fn get_bitmap(&self) -> &DynamicImage {
         &self.image
     }
-
 }
 
 
 impl Font{    
-    fn new_jhf_font(device:&Device, ui_pipeline: &Pipeline, filepath: &str, size: usize) -> Self {
+    fn new_jhf_font(device:&Device, ui_pipeline: &Pipeline, filepath: &str) -> Self {
         
-        let font_data = ::std::fs::read(filepath).unwrap();
-        let font = HersheyFont::from_data(font_data.as_slice());
-
-        Font::new_ttf_font(&device, &ui_pipeline, &filepath, size)
+        let _font_data = ::std::fs::read(filepath).unwrap();
+        let _font = HersheyFont::from_data(_font_data.as_slice());
+        //NOT SUPPORTED YET - returning normal ttf font
+        Font::new_ttf_font(&device, &ui_pipeline, &filepath)
     }
 
-    fn new_ttf_font(device:&Device, ui_pipeline: &Pipeline, filepath: &str, size: usize) -> Self {
+    fn new_ttf_font(device:&Device, ui_pipeline: &Pipeline, filepath: &str) -> Self {
         let font_data = ::std::fs::read(filepath).unwrap();
 
         let face = Face::from_slice(font_data.as_slice(), 0).unwrap();
@@ -68,33 +71,32 @@ impl Font{
             });
         }
         
-        let glyph_count = face.number_of_glyphs() as usize;
         let mut glyphs: Vec<Glyph> = Vec::new();
-        for id in 0..glyph_count 
+        for character in 0..DEFAULT_FONT_COUNT 
         {
-            let glyph_id = GlyphId(id as u16);  
+            let glyph_id = GlyphId(character as u16);  
             glyphs.push(Glyph::create(glyph_id, &face) );   
         }
 
         let mut font = Self {
-            image: DynamicImage::new_rgb8(1,1), 
+            image: DynamicImage::new_rgb8(DEFAULT_FONT_TEXTURE_SIZE as _,DEFAULT_FONT_TEXTURE_SIZE as _), 
             glyphs,
             char_to_glyph,
             material: Material::create(&device, &ui_pipeline),
+            device: device.clone(),
         };
 
-        font.create_texture(&device, &face, size);
+        font.create_texture(DEFAULT_FONT_TEXTURE_SIZE);
         font
     }
 
-    fn create_texture(&mut self, device:&Device, face: &Face, size: usize) {
+    fn create_texture(&mut self, size: usize) {
         let num_glyphs:u32 = self.glyphs.len() as _;
         let cell_size:u32 = (((size*size) as u32 / num_glyphs) as f64).sqrt().ceil() as u32;
         
-        let mut image = GrayImage::new(size as _, size as _);
-
         let mut row: u32 = 0;
         let mut column: u32 = 0;
+        let image = &mut self.image;
         for g in self.glyphs.iter_mut()
         {
             let mut starting_x = column * cell_size;
@@ -108,11 +110,11 @@ impl Font{
                 break;
             }
         
-            g.render(&face, 
-                cell_size as _, 
-                cell_size as _,  
+            g.render(cell_size as _, 
+                    cell_size as _,  
                 |x, y, alpha| {
-                    image.put_pixel(starting_x + x, starting_y + y, Luma([(alpha * 255.0).round() as u8; 1]))
+                    let v = (alpha * 255.0).round() as u8;
+                    image.put_pixel(starting_x + x, starting_y + y, Rgba([v; 4]))
                 }
             );
             
@@ -123,13 +125,11 @@ impl Font{
             
             column += 1;
         }
-
-        self.image = DynamicImage::ImageRgb8(DynamicImage::ImageLuma8(image.clone()).into_rgb8());
         
-        self.material.add_texture_from_image(&device, &self.image);
+        self.material.add_texture_from_image(&self.image);
     }
 
-    pub fn create_text(&self, device:&Device, text: &str, position: Vector2f, scale: f32) -> Mesh {
+    pub fn create_text(&self, text: &str, position: Vector2f, scale: f32) -> Mesh {
         const VERTICES_COUNT: usize = 4;
         const INDICES_COUNT: usize = 6;
 
@@ -151,17 +151,22 @@ impl Font{
             prev_pos.x += scale;
         }
 
-        let mut mesh = Mesh::create();
-        mesh.set_vertices(&device, &vertex_data)
-            .set_indices(&device, &indices_data);
+        let mut mesh = Mesh::create(&self.device);
+        mesh.set_vertices(&vertex_data)
+            .set_indices(&indices_data);
 
         mesh
     }
     
     #[inline]
     fn get_glyph_index(&self, character: char) -> usize {
+        Font::get_glyph_index_from_map(&self.char_to_glyph, character)
+    }
+
+    #[inline]
+    fn get_glyph_index_from_map(char_to_glyph: &HashMap<u32, NonZeroU16>, character: char) -> usize {
         unsafe {
-            ::std::mem::transmute::<Option<NonZeroU16>, u16>(self.char_to_glyph.get(&(character as u32)).copied())
+            ::std::mem::transmute::<Option<NonZeroU16>, u16>(char_to_glyph.get(&(character as u32)).copied())
                 as usize
         }
     }

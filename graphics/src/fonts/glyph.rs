@@ -3,7 +3,7 @@ use ttf_parser::*;
 use nrg_math::*;
 use super::geometry::*;
 
-const DEFAULT_FONT_SIZE:usize = 100;
+pub const DEFAULT_FONT_SIZE:usize = 64;
 
 pub struct Glyph {
     pub id: GlyphId,
@@ -13,7 +13,8 @@ pub struct Glyph {
     pub vertical_offset: f32,
     pub is_upside_down: bool,
     pub texture_coord: Vector4f,
-    data: Vec<f32>,
+    pub data: Vec<f32>,
+    pub lines: Vec<Line>,
 }
 
 impl Glyph {
@@ -41,21 +42,17 @@ impl Glyph {
         glyph_height = (glyph_height as i16 + glyph_v_bearing) as _;
 
         let mut data = Vec::new();
+        let mut lines: Vec<Line> = Vec::new();
         let scale_x = DEFAULT_FONT_SIZE as f32 / glyph_width as f32;
         let scale_y = DEFAULT_FONT_SIZE as f32 / glyph_height as f32;
 
-        if glyph_width > f32::EPSILON && glyph_height > f32::EPSILON {
-            data =  vec![0.0; (glyph_width * glyph_height)  as _];
-            let draw_offset = Point2f::new(0.0, vertical_offset);
-            let draw_scale = Point2f::new(scale_x, scale_y);
-            
-            let mut geometry = Geometry::new(draw_offset, draw_scale, DEFAULT_FONT_SIZE as _, DEFAULT_FONT_SIZE as _, &mut data);
-            face.outline_glyph(id, &mut geometry);
-        }
-        else {
-            glyph_width = 0.0;
-            glyph_height = 0.0;
-        }
+        data =  vec![0.0; (glyph_width * glyph_height)  as _];
+        let draw_offset = Vector2f::new(0.0, vertical_offset);
+        let draw_scale = Vector2f::new(scale_x, scale_y);
+        
+        let mut geometry = Geometry::new(draw_offset, draw_scale, DEFAULT_FONT_SIZE as _, DEFAULT_FONT_SIZE as _, &mut data);
+        face.outline_glyph(id, &mut geometry);
+        lines = geometry.get_lines().clone();
 
         let is_upside_down = face.has_table(TableName::GlyphVariations) || face.has_table(TableName::GlyphData);
 
@@ -68,10 +65,11 @@ impl Glyph {
             is_upside_down,
             texture_coord: [0.0, 0.0, 1.0, 1.0].into(),
             data,
+            lines,
         }
     }
 
-    pub fn render<WritePixelFunc: FnMut(u32, u32, f32)>(&mut self, face: &Face, width: u32, height: u32, mut write_pixel_func: WritePixelFunc) {
+    pub fn render<WritePixelFunc: FnMut(u32, u32, f32)>(&mut self, width: u32, height: u32, mut write_pixel_func: WritePixelFunc) {
         
         if self.width < f32::EPSILON || self.height < f32::EPSILON {
             return;

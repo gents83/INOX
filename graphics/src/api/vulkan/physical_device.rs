@@ -92,10 +92,10 @@ impl PhysicalDeviceImmutable {
         }   
 
         let mut result = PhysicalDeviceImmutable {
-            physical_device: physical_device,
-            physical_device_properties: physical_device_properties, 
-            physical_device_features: physical_device_features,
-            physical_device_extensions: physical_device_extensions,
+            physical_device,
+            physical_device_properties, 
+            physical_device_features,
+            physical_device_extensions,
             queue_family_indices: QueueFamilyIndices {
                 graphics_family_index: VK_INVALID_ID, 
                 present_family_index: VK_INVALID_ID, 
@@ -211,8 +211,8 @@ impl PhysicalDeviceImmutable {
                                     .map_or(false, |_| true);
 
         let has_swap_chain_support =   has_required_ext && 
-                                            self.swap_chain_details.formats.len() > 0 && 
-                                            self.swap_chain_details.present_modes.len() > 0;
+                                            !self.swap_chain_details.formats.is_empty() && 
+                                            !self.swap_chain_details.present_modes.is_empty();
 
         let has_required_device_type = self.physical_device_properties.deviceType == VkPhysicalDeviceType_VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU ||
                                             self.physical_device_properties.deviceType == VkPhysicalDeviceType_VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU;

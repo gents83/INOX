@@ -25,11 +25,14 @@ mod shader;
 mod viewport;
 mod utils;
 
-mod block;
-mod chunk;
-mod world;
+pub mod voxels 
+{
+    pub mod block;
+    pub mod chunk;
+    pub mod world;
+}
 
-pub mod font 
+pub mod fonts
 {
     pub mod font;
     pub mod geometry;

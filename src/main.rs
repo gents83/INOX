@@ -10,7 +10,6 @@ const IMAGE_PATH: &str = "C:\\PROJECTS\\NRG\\data\\textures\\Test.jpg";
 const FONT_VS_PATH: &str = "C:\\PROJECTS\\NRG\\data\\shaders\\compiled\\text_shader_vert.spv";
 const FONT_FRAG_PATH: &str = "C:\\PROJECTS\\NRG\\data\\shaders\\compiled\\text_shader_frag.spv";
 const FONT_PATH: & str = "C:\\PROJECTS\\NRG\\data\\fonts\\BasicFont.ttf";
-const FONT_SIZE: usize = 1024;
 
 fn main() {        
     let _entity = Entity::default();
@@ -50,28 +49,30 @@ fn main() {
     ]; 
     let indices: [u32; 6] = [0, 1, 2, 2, 3, 0];
 
-    let font = font::font::Font::new(&renderer.device, &ui_pipeline, FONT_PATH, FONT_SIZE);
+    let font = fonts::font::Font::new(&renderer.device, &ui_pipeline, FONT_PATH);
     let img = font.get_bitmap();
 
-    let mut mesh_left = Mesh::create();
+    let mut mesh_left = Mesh::create(&renderer.device);
     for vertex in vertices.iter_mut() {
         vertex.color = [1., 0., 0.].into();
     }
-    mesh_left.set_vertices(&renderer.device, &vertices)
-             .set_indices(&renderer.device, &indices);
+    mesh_left.set_vertices( &vertices)
+             .set_indices(&indices)
+             .finalize();
              
     let mut material_left = Material::create(&renderer.device, &pipeline);
-    material_left.add_texture_from_image(&renderer.device, &img);
+    material_left.add_texture_from_image(&img);
         
-    let mut mesh_right = Mesh::create();
+    let mut mesh_right = Mesh::create(&renderer.device);
     for vertex in vertices.iter_mut() {
         vertex.color = [1., 1., 1.].into();
     }
-    mesh_right.set_vertices(&renderer.device, &vertices)
-              .set_indices(&renderer.device, &indices);
+    mesh_right.set_vertices(&vertices)
+              .set_indices(&indices)
+              .finalize();
 
     let mut material_right = Material::create(&renderer.device, &pipeline);
-    material_right.add_texture_from_path(&renderer.device, IMAGE_PATH);
+    material_right.add_texture_from_path(IMAGE_PATH);
 
     let mut time_per_frame:f32 = 1.0;
     loop 
@@ -86,31 +87,38 @@ fn main() {
         let time = std::time::Instant::now();
         let mut result = renderer.begin_frame();
         if result {
-            default_render_pass.begin(&renderer.device);
-            pipeline.prepare(&renderer.device, &default_render_pass);
+            default_render_pass.begin();
+            pipeline.prepare(&default_render_pass);
 
             model_transform_left = rotation_left * model_transform_left;
-            material_left.update_uniform_buffer(&renderer.device, &model_transform_left, cam_pos);
-            mesh_left.draw(&renderer.device);
+            material_left.update_uniform_buffer(&model_transform_left, cam_pos);
+            mesh_left.draw();
             
             model_transform_right = rotation_right * model_transform_right;
-            material_right.update_uniform_buffer(&renderer.device, &model_transform_right, cam_pos);
-            mesh_right.draw(&renderer.device);
+            material_right.update_uniform_buffer(&model_transform_right, cam_pos);
+            mesh_right.draw();
             
-            ui_pipeline.prepare(&renderer.device, &default_render_pass);
+            ui_pipeline.prepare(&default_render_pass);
+            font.get_material().update_simple();
 
             let mut str:String = String::from("FPS: ");
             str += fps.to_string().as_str();
-            let text_mesh = font.create_text(&renderer.device, str.as_str(), [-0.9, -0.9].into(), 0.04);
-            font.get_material().update_simple(&renderer.device);
-            text_mesh.draw(&renderer.device);
+            let mut text_mesh = font.create_text(str.as_str(), [-0.9, -0.9].into(), 0.04);
+            text_mesh.finalize()
+                     .draw();
 
-            default_render_pass.end(&renderer.device);
+            str = String::from("Mauro Gentile aka gents");
+            let mut signature_mesh = font.create_text( str.as_str(), [0.2, 0.9].into(), 0.03);
+            signature_mesh.set_vertex_color([0.2, 0.6, 1.0].into())
+                          .finalize()
+                          .draw();
+
+            default_render_pass.end();
             result = renderer.end_frame();
         }
 
         if !result {
-            default_render_pass.destroy(&renderer.device);
+            default_render_pass.destroy();
             renderer.device.recreate_swap_chain();
             default_render_pass = renderer.create_default_render_pass();
         } 
@@ -118,7 +126,7 @@ fn main() {
         time_per_frame = time.elapsed().as_secs_f32();
     }
 
-    material_right.destroy(&renderer.device);
-    material_left.destroy(&renderer.device);
-    default_render_pass.destroy(&renderer.device);
+    material_right.destroy();
+    material_left.destroy();
+    default_render_pass.destroy();
 }

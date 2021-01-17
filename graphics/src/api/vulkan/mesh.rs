@@ -11,8 +11,8 @@ pub struct Mesh {
     index_buffer_memory: VkDeviceMemory,
 }
 
-impl Mesh {
-    pub fn new() -> Mesh {
+impl Default for Mesh {
+    fn default() -> Self {
         Self {
             vertex_count: 0,
             vertex_buffer: ::std::ptr::null_mut(),
@@ -22,7 +22,9 @@ impl Mesh {
             index_buffer_memory: ::std::ptr::null_mut(),
         }
     }
+}
 
+impl Mesh {
     pub fn delete(&self, device: &Device) {
         device.destroy_buffer(&self.vertex_buffer, &self.vertex_buffer_memory);
         device.destroy_buffer(&self.index_buffer, &self.index_buffer_memory);

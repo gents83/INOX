@@ -17,11 +17,13 @@ pub struct PipelineImmutable {
 #[derive(Clone)]
 pub struct Pipeline {
     inner: Rc<RefCell<PipelineImmutable>>,
+    device: Device,
 }
 
 
-impl Default for Pipeline {
-    fn default() -> Pipeline {
+impl Pipeline {
+
+    pub fn create(device:&Device) -> Pipeline {
         let immutable = PipelineImmutable {
             descriptor_set_layout: ::std::ptr::null_mut(),
             shaders: Vec::new(),
@@ -30,12 +32,11 @@ impl Default for Pipeline {
         };
         let inner = Rc::new(RefCell::new(immutable));
         Pipeline {
-            inner
+            inner,
+            device: device.clone(),
         }
     }
-}
 
-impl Pipeline {
     pub fn get_pipeline_layout(&self) -> VkPipelineLayout {
         self.inner.borrow().pipeline_layout
     }
@@ -44,31 +45,34 @@ impl Pipeline {
         self.inner.borrow().descriptor_set_layout
     }
 
-    pub fn delete(&self, device:&Device) {
-        self.inner.borrow().delete(device);
+    pub fn delete(&self) {
+        let inner = self.inner.borrow();
+        inner.delete(&self.device);
     }
     
-    pub fn set_shader(&mut self, device:&Device, shader_type: ShaderType, shader_filepath: &str) {     
+    pub fn set_shader(&mut self, shader_type: ShaderType, shader_filepath: &str) -> &mut Self {     
         let mut shader_file = std::fs::File::open(shader_filepath).unwrap();
         let shader_code = read_spirv_from_bytes(&mut shader_file);
         
-        self.inner.borrow_mut().create_shader_module(device, shader_type, shader_code, "main");
+        self.inner.borrow_mut().create_shader_module(&self.device, shader_type, shader_code, "main");
+        self
     }
     
-    pub fn prepare(&mut self, device: &Device, render_pass: &RenderPass) {
-        self.inner.borrow_mut().prepare(device, render_pass);
+    pub fn prepare(&mut self, render_pass: &RenderPass) -> &mut Self {
+        self.inner.borrow_mut().prepare(&self.device, render_pass);
+        self
     }
 
-    pub fn build(&mut self, device: &Device) {
-        let mut inner = self.inner.borrow_mut();
-        inner.create_descriptor_set_layout(device);
+    pub fn build(&mut self) -> &mut Self {
+        self.inner.borrow_mut().create_descriptor_set_layout(&self.device);
+        self
     }
 }
 
 impl PipelineImmutable {       
 
-    fn delete(&self, device:&Device) {
-        self.destroy_shader_modules(device);
+    fn delete(&self, device: &Device) {
+        self.destroy_shader_modules(&device);
         unsafe {
             vkDestroyDescriptorSetLayout.unwrap()(device.get_device(), self.descriptor_set_layout, ::std::ptr::null_mut());
         
@@ -241,9 +245,10 @@ impl PipelineImmutable {
 
 
 
-    fn create_shader_module(&mut self, device:&Device, shader_type: ShaderType, shader_content: Vec<u32>, entry_point: &'static str) {
+    fn create_shader_module(&mut self, device: &Device, shader_type: ShaderType, shader_content: Vec<u32>, entry_point: &'static str) -> &mut Self {
         let shader = Shader::create(device.get_device(), shader_type, shader_content, entry_point);
         self.shaders.push( shader );
+        self
     }
 
     fn destroy_shader_modules(&self, device: &Device) {

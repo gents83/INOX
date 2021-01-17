@@ -114,15 +114,14 @@ impl RenderPass {
             pDependencies: &subpass_dependency,
         };
         
-        let render_pass = unsafe {
+        unsafe {
             let mut option = ::std::mem::MaybeUninit::uninit();
             assert_eq!(
                 VkResult_VK_SUCCESS,
                 vkCreateRenderPass.unwrap()(device.get_device(), &render_pass_create_info, ::std::ptr::null_mut(), option.as_mut_ptr())
             );
             option.assume_init()
-        };
-        render_pass
+        }
     }
     
 
@@ -133,7 +132,7 @@ impl RenderPass {
         }
         
         let details = device.get_instance().get_swap_chain_info();  
-        for i in 0..device.get_images_count() {            
+        for (i, framebuffer) in framebuffers.iter_mut().enumerate().take(device.get_images_count()) {            
             let framebuffer_create_info = VkFramebufferCreateInfo {
                 sType: VkStructureType_VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
                 pNext: ::std::ptr::null_mut(),
@@ -149,7 +148,7 @@ impl RenderPass {
             unsafe {
                 assert_eq!(
                     VkResult_VK_SUCCESS,
-                    vkCreateFramebuffer.unwrap()(device.get_device(), &framebuffer_create_info, ::std::ptr::null_mut(), &mut framebuffers[i])
+                    vkCreateFramebuffer.unwrap()(device.get_device(), &framebuffer_create_info, ::std::ptr::null_mut(), framebuffer)
                 );
             }
         }

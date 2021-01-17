@@ -39,7 +39,7 @@ macro_rules! implement_vector {
         where T: Number {  
             #[inline]
             pub fn new($($field: T),+) -> $VectorN<T> {
-                $VectorN { $($field: $field),+ }
+                $VectorN { $($field),+ }
             }
             
             #[inline]
@@ -105,6 +105,12 @@ macro_rules! implement_vector {
             #[inline]
             pub fn dot(&self, other: $VectorN<T>) -> T {
                 (*self * other).sum_fields()
+            }
+
+            #[inline]
+            pub fn squared_distance(&self, other: $VectorN<T>) -> T {
+                let v = *self - other;
+                v.squared_length()
             }
 
             #[inline]
@@ -462,6 +468,11 @@ impl<T: std::ops::Mul<Output = T> + std::ops::Sub<Output = T> + std::clone::Clon
     }
 }
 
+#[inline]
+pub fn lerp<T>(t: T, p0: Vector2<T>, p1: Vector2<T>) -> Vector2<T> 
+where T: Float {
+    Vector2::new(p0.x + t * (p1.x - p0.x), p0.y + t * (p1.y - p0.y))
+}
 
 #[test]
 fn test_vector()

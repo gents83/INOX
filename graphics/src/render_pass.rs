@@ -1,26 +1,36 @@
 use crate::device::*;
 
-pub struct RenderPass(super::api::backend::render_pass::RenderPass);
+pub struct RenderPass {
+    inner : super::api::backend::render_pass::RenderPass,
+    device: Device,
+}
 
 
 impl RenderPass {
     pub fn create_default(device: &Device) -> RenderPass {
-        RenderPass(super::api::backend::render_pass::RenderPass::create_default(&device.inner))
+        let inner_device = device.inner.borrow();
+        RenderPass {
+            inner: super::api::backend::render_pass::RenderPass::create_default(&inner_device),
+            device: device.clone(),
+        }
     }
 
-    pub fn destroy(&mut self, device:&Device) {
-        self.0.destroy(&device.inner);
+    pub fn destroy(&mut self) {
+        let inner_device = self.device.inner.borrow();
+        self.inner.destroy(&inner_device);
     }
 
     pub fn get_pass(&self) ->  &super::api::backend::render_pass::RenderPass {
-        &self.0
+        &self.inner
     }
 
-    pub fn begin(&self, device:&Device) {
-        self.0.begin(&device.inner);
+    pub fn begin(&self) {
+        let inner_device = self.device.inner.borrow();
+        self.inner.begin(&inner_device);
     }
 
-    pub fn end(&self, device:&Device) {
-        self.0.end(&device.inner);
+    pub fn end(&self) {
+        let inner_device = self.device.inner.borrow();
+        self.inner.end(&inner_device);
     }
 }

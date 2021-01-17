@@ -1,5 +1,3 @@
-
-
 use std::{cell::RefCell, os::raw::c_char, rc::Rc};
 use vulkan_bindings::*;
 use nrg_platform::Handle;
@@ -104,14 +102,15 @@ impl InstanceImmutable {
 
 
 
-fn create_instance( supported_layers: &Vec<VkLayerProperties>, 
-                    supported_extensions: &Vec<VkExtensionProperties> ) -> VkInstance {    
+fn create_instance( supported_layers: &[VkLayerProperties], 
+                    supported_extensions: &[VkExtensionProperties] ) -> VkInstance {    
+
     let app_info = VkApplicationInfo {
         sType: VkStructureType_VK_STRUCTURE_TYPE_APPLICATION_INFO,
         pNext: ::std::ptr::null_mut(),
-        pApplicationName: ::std::ffi::CString::new("NRG").unwrap().as_ptr(),
+        pApplicationName: ::std::ptr::null_mut(),
         applicationVersion: VK_API_VERSION_1_1,
-        pEngineName: ::std::ffi::CString::new("NRGEngine").unwrap().as_ptr(),
+        pEngineName: ::std::ptr::null_mut(),
         engineVersion: VK_API_VERSION_1_1,
         apiVersion: VK_API_VERSION_1_1,
     };
@@ -209,8 +208,8 @@ fn create_surface_win32(instance:VkInstance, handle: &Handle) -> VkSurfaceKHR {
         sType: VkStructureType_VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR,
         pNext: ::std::ptr::null_mut(),
         flags: 0,
-        hinstance: unsafe {::std::mem::transmute(handle.handle_impl.hinstance)},
-        hwnd: unsafe {::std::mem::transmute(handle.handle_impl.hwnd)},
+        hinstance: handle.handle_impl.hinstance as *mut vulkan_bindings::HINSTANCE__,
+        hwnd: handle.handle_impl.hwnd as *mut vulkan_bindings::HWND__,
     };
     
     let surface:VkSurfaceKHR = unsafe {

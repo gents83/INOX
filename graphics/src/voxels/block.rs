@@ -1,4 +1,4 @@
-use super::data_formats::*;
+use crate::data_formats::*;
 
 pub static mut CONFIG: Vec<BlockConfig> = Vec::new();
 
@@ -35,10 +35,7 @@ impl BlockConfig {
 
     pub fn exists(name: &'static str) -> bool {
         unsafe {
-            match CONFIG.iter().find(|el| el.name == name) {
-                Some(_) => true,
-                _ => false,
-            }
+            matches!(CONFIG.iter().find(|el| el.name == name), Some(_))
         }
     }
 }

@@ -1,14 +1,12 @@
 use nrg_math::*;
 
-
 pub struct Raster<'a> {
     width: usize,
     height: usize,
     data: &'a mut Vec<f32>,
 }
 
-impl<'a> Raster<'a> {
-    
+impl<'a> Raster<'a> {    
     pub fn new(width: usize, height: usize, data: &'a mut Vec<f32>) -> Self {
         Self {
             width, 
@@ -17,7 +15,7 @@ impl<'a> Raster<'a> {
         }
     }
 
-    pub fn draw_line(&mut self, p0: Point2f, p1: Point2f) {
+    pub fn draw_line(&mut self, p0: Vector2f, p1: Vector2f) {
         if (p0.y - p1.y).abs() <= core::f32::EPSILON {
             return;
         }
@@ -77,57 +75,4 @@ impl<'a> Raster<'a> {
             x = xnext;
         }
     }
-
-    pub fn draw_quad(&mut self, p0: Point2f, p1: Point2f, p2: Point2f) {
-        let devx = p0.x - 2.0 * p1.x + p2.x;
-        let devy = p0.y - 2.0 * p1.y + p2.y;
-        let devsq = devx * devx + devy * devy;
-        if devsq < 0.333 {
-            self.draw_line(p0, p2);
-            return;
-        }
-        let tol = 3.0;
-        let n = 1 + (tol * devsq).sqrt().sqrt().floor() as usize;
-        let mut p = p0;
-        let nrecip = (n as f32).recip();
-        let mut t = 0.0;
-        for _i in 0..n - 1 {
-            t += nrecip;
-            let pn = lerp(t, lerp(t, p0, p1), lerp(t, p1, p2));
-            self.draw_line(p, pn);
-            p = pn;
-        }
-        self.draw_line(p, p2);
-    }
-
-    pub fn draw_cubic(&mut self, p0: Point2f, p1: Point2f, p2: Point2f, p3: Point2f) {
-        self.tesselate_cubic(p0, p1, p2, p3, 0);
-    }
-
-    fn tesselate_cubic(&mut self, p0: Point2f, p1: Point2f, p2: Point2f, p3: Point2f, n: u8) {
-        const OBJSPACE_FLATNESS: f32 = 0.35;
-        const OBJSPACE_FLATNESS_SQUARED: f32 = OBJSPACE_FLATNESS * OBJSPACE_FLATNESS;
-        const MAX_RECURSION_DEPTH: u8 = 16;
-
-        let longlen = p0.squared_distance(p1) + p1.squared_distance(p2) + p2.squared_distance(p3);
-        let shortlen = p0.squared_distance(p3);
-        let flatness_squared = longlen - shortlen;
-
-        if n < MAX_RECURSION_DEPTH && flatness_squared > OBJSPACE_FLATNESS_SQUARED {
-            let p01 = lerp(0.5, p0, p1);
-            let p12 = lerp(0.5, p1, p2);
-            let p23 = lerp(0.5, p2, p3);
-
-            let pa = lerp(0.5, p01, p12);
-            let pb = lerp(0.5, p12, p23);
-
-            let mp = lerp(0.5, pa, pb);
-
-            self.tesselate_cubic(p0, p01, pa, mp, n + 1);
-            self.tesselate_cubic(mp, pb, p23, p3, n + 1);
-        } else {
-            self.draw_line(p0, p3);
-        }
-    }
-
 }

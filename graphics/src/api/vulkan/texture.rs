@@ -40,12 +40,11 @@ impl Texture {
     }
 
     pub fn get_descriptor(&self) -> VkDescriptorImageInfo {
-        let image_info = VkDescriptorImageInfo {
+        VkDescriptorImageInfo {
             imageLayout: VkImageLayout_VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
             imageView: self.texture_image_view,
             sampler: self.texture_sampler,
-        };
-        image_info
+        }
     }
 }
 
@@ -67,28 +66,23 @@ impl Texture {
         
         device.map_buffer_memory(&mut staging_buffer_memory, image_data.as_bytes());
 
-        let mut texture_image: VkImage = ::std::ptr::null_mut();
-        let mut texture_image_memory: VkDeviceMemory = ::std::ptr::null_mut();
         let flags = VkImageUsageFlagBits_VK_IMAGE_USAGE_TRANSFER_DST_BIT | VkImageUsageFlagBits_VK_IMAGE_USAGE_SAMPLED_BIT; 
-        device.create_image(image_data.width(),
-                          image_data.height(), 
-                          format,
+        let device_image = device.create_image((image_data.width(), image_data.height(), format), 
                           VkImageTiling_VK_IMAGE_TILING_OPTIMAL,
                           flags as _, 
-                          VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT as _,
-                          &mut texture_image,
-                          &mut texture_image_memory);
+                          VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT as _);
 
-        device.transition_image_layout(texture_image, VkImageLayout_VK_IMAGE_LAYOUT_UNDEFINED, VkImageLayout_VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+        self.texture_image = device_image.0;
+        self.texture_image_memory = device_image.1;
         
-        device.copy_buffer_to_image(staging_buffer, texture_image, image_data.width(), image_data.height());
+        device.transition_image_layout(self.texture_image, VkImageLayout_VK_IMAGE_LAYOUT_UNDEFINED, VkImageLayout_VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
         
-        device.transition_image_layout(texture_image, VkImageLayout_VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VkImageLayout_VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        device.copy_buffer_to_image(staging_buffer, self.texture_image, image_data.width(), image_data.height());
+        
+        device.transition_image_layout(self.texture_image, VkImageLayout_VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VkImageLayout_VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
         device.destroy_buffer(&staging_buffer, &staging_buffer_memory);
 
-        self.texture_image = texture_image;
-        self.texture_image_memory = texture_image_memory;
         self.texture_image_view = device.create_image_view(self.texture_image, format);
     }
     

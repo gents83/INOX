@@ -4,15 +4,14 @@ use vulkan_bindings::*;
 use super::types::*;
 
 pub fn get_available_layers_count() -> u32 {
-    let layers_count = unsafe {
+    unsafe {
         let mut option = ::std::mem::MaybeUninit::uninit();
         assert_eq!(
             VkResult_VK_SUCCESS,
             vkEnumerateInstanceLayerProperties.unwrap()(option.as_mut_ptr(), ::std::ptr::null_mut())
         );
         option.assume_init()
-    };
-    layers_count
+    }
 }
 
 pub fn enumerate_available_layers() -> Vec<VkLayerProperties> {
@@ -30,7 +29,7 @@ pub fn enumerate_available_layers() -> Vec<VkLayerProperties> {
 }
 
 
-pub fn get_available_layers_names(supported_layers: &Vec<VkLayerProperties>) -> Vec<::std::ffi::CString>{
+pub fn get_available_layers_names(supported_layers: &[VkLayerProperties]) -> Vec<::std::ffi::CString>{
     supported_layers
         .iter()
         .map(|layer| unsafe {::std::ffi::CStr::from_ptr(layer.layerName.as_ptr())}.to_owned())
@@ -38,16 +37,14 @@ pub fn get_available_layers_names(supported_layers: &Vec<VkLayerProperties>) -> 
 }
 
 pub fn get_available_extensions_count() -> u32 {
-    let extension_count = unsafe {
+    unsafe {
         let mut option = ::std::mem::MaybeUninit::uninit();
         assert_eq!(
             VkResult_VK_SUCCESS,
             vkEnumerateInstanceExtensionProperties.unwrap()(::std::ptr::null_mut(), option.as_mut_ptr(), ::std::ptr::null_mut())
         );
         option.assume_init()
-    };
-    extension_count
-
+    }
 }
 
 pub fn enumerate_available_extensions() -> Vec<VkExtensionProperties> {
@@ -63,7 +60,7 @@ pub fn enumerate_available_extensions() -> Vec<VkExtensionProperties> {
     supported_extensions
 }
 
-pub fn get_available_extensions_names(supported_extensions: &Vec<VkExtensionProperties>) -> Vec<::std::ffi::CString>{
+pub fn get_available_extensions_names(supported_extensions: &[VkExtensionProperties]) -> Vec<::std::ffi::CString>{
     supported_extensions
         .iter()
         .map(|ext| unsafe {::std::ffi::CStr::from_ptr(ext.extensionName.as_ptr())}.to_owned())
@@ -71,15 +68,14 @@ pub fn get_available_extensions_names(supported_extensions: &Vec<VkExtensionProp
 }
 
 pub fn get_physical_devices_count(instance: VkInstance) -> u32 {            
-    let physical_device_count =  unsafe {
+    unsafe {
         let mut option = ::std::mem::MaybeUninit::uninit();
         assert_eq!(
             VkResult_VK_SUCCESS,
             vkEnumeratePhysicalDevices.unwrap()(instance, option.as_mut_ptr(), ::std::ptr::null_mut())
         );
         option.assume_init()
-    };
-    physical_device_count
+    }
 }
 
 pub fn enumerate_physical_devices(instance: VkInstance) -> Vec<VkPhysicalDevice> {
@@ -95,7 +91,7 @@ pub fn enumerate_physical_devices(instance: VkInstance) -> Vec<VkPhysicalDevice>
     physical_devices 
 }
 
-pub fn find_plane_for_display(device:&VkPhysicalDevice, display:&VkDisplayKHR, plane_properties:&Vec<VkDisplayPlanePropertiesKHR>) -> i32 {
+pub fn find_plane_for_display(device:&VkPhysicalDevice, display:&VkDisplayKHR, plane_properties:&[VkDisplayPlanePropertiesKHR]) -> i32 {
 
     for (index, plane) in plane_properties.iter().enumerate() {
         if (plane.currentDisplay != ::std::ptr::null_mut()) &&
@@ -119,16 +115,13 @@ pub fn find_plane_for_display(device:&VkPhysicalDevice, display:&VkDisplayKHR, p
             vkGetDisplayPlaneSupportedDisplaysKHR.unwrap()(*device, index as u32, &mut supported_count, supported_displays.as_mut_ptr());
         }
         
-        let found = match supported_displays.iter().find(|item| *item == display ) {
-            Some(_) => true,
-            None => false, 
-        };
+        let found = supported_displays.iter().any(|item| item == display);
         
         if found {
             return index as i32
         }
     }
-    return -1;
+    -1
 }
 
 pub fn get_supported_alpha_mode(display_plane_capabilities:&VkDisplayPlaneCapabilitiesKHR) -> VkCompositeAlphaFlagBitsKHR {
@@ -144,7 +137,7 @@ pub fn get_supported_alpha_mode(display_plane_capabilities:&VkDisplayPlaneCapabi
             return *item as VkCompositeAlphaFlagBitsKHR
         }
     }
-    return VkDisplayPlaneAlphaFlagBitsKHR_VK_DISPLAY_PLANE_ALPHA_OPAQUE_BIT_KHR
+    VkDisplayPlaneAlphaFlagBitsKHR_VK_DISPLAY_PLANE_ALPHA_OPAQUE_BIT_KHR
 }
 
 pub fn find_available_memory_type(physical_device: VkPhysicalDevice, filter: u32, properties: VkMemoryPropertyFlags) -> u32 {
@@ -162,5 +155,5 @@ pub fn find_available_memory_type(physical_device: VkPhysicalDevice, filter: u32
         }
     }
     eprintln!("Unable to find suitable memory type with filter {} and flags {}", filter, properties);
-    return VK_INVALID_ID as _;
+    VK_INVALID_ID as _
 }
