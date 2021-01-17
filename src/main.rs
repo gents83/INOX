@@ -101,14 +101,14 @@ fn main() {
             ui_pipeline.prepare(&default_render_pass);
             font.get_material().update_simple();
 
-            let mut str:String = String::from("FPS: ");
+            let mut str:String = String::from("FPS = ");
             str += fps.to_string().as_str();
-            let mut text_mesh = font.create_text(str.as_str(), [-0.9, -0.9].into(), 0.04);
+            let mut text_mesh = font.create_text(str.as_str(), [-0.9, -0.9].into(), 1.0);
             text_mesh.finalize()
                      .draw();
 
             str = String::from("Mauro Gentile aka gents");
-            let mut signature_mesh = font.create_text( str.as_str(), [0.2, 0.9].into(), 0.03);
+            let mut signature_mesh = font.create_text( str.as_str(), [-0.9, 0.9].into(), 0.8);
             signature_mesh.set_vertex_color([0.2, 0.6, 1.0].into())
                           .finalize()
                           .draw();

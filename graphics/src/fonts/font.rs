@@ -17,6 +17,7 @@ const DEFAULT_FONT_TEXTURE_SIZE: usize = 1024;
 
 pub struct Font {
     image: DynamicImage,
+    metrics: Metrics,
     glyphs: Vec<Glyph>,
     char_to_glyph: HashMap<u32, NonZeroU16>,
     material: Material,
@@ -70,16 +71,24 @@ impl Font{
                 char_to_glyph.insert(codepoint, unsafe { NonZeroU16::new_unchecked(mapping) });
             });
         }
-        
+        let mut max_glyph_metrics = Metrics::default();
+        for character in 0..DEFAULT_FONT_COUNT 
+        {
+            let glyph_id = GlyphId(character as u16);  
+            let metrics = Glyph::compute_metrics(glyph_id, &face);
+            max_glyph_metrics = max_glyph_metrics.max(&metrics);
+        }
+
         let mut glyphs: Vec<Glyph> = Vec::new();
         for character in 0..DEFAULT_FONT_COUNT 
         {
             let glyph_id = GlyphId(character as u16);  
-            glyphs.push(Glyph::create(glyph_id, &face) );   
+            glyphs.push(Glyph::create(glyph_id, &face, &max_glyph_metrics) );   
         }
 
         let mut font = Self {
             image: DynamicImage::new_rgb8(DEFAULT_FONT_TEXTURE_SIZE as _,DEFAULT_FONT_TEXTURE_SIZE as _), 
+            metrics: max_glyph_metrics,
             glyphs,
             char_to_glyph,
             material: Material::create(&device, &ui_pipeline),
@@ -110,9 +119,7 @@ impl Font{
                 break;
             }
         
-            g.render(cell_size as _, 
-                    cell_size as _,  
-                |x, y, alpha| {
+            g.render(|x, y, alpha| {
                     let v = (alpha * 255.0).round() as u8;
                     image.put_pixel(starting_x + x, starting_y + y, Rgba([v; 4]))
                 }
@@ -138,9 +145,11 @@ impl Font{
         let mut prev_pos = position;
         for (i, c) in text.as_bytes().iter().enumerate() {
             let id = self.get_glyph_index(*c as _);
-            
-            let(mut vertices, mut indices) = Mesh::create_quad(Vector4f::new(prev_pos.x, prev_pos.y, prev_pos.x+scale, prev_pos.y+scale), 
-                                                                                self.glyphs[id].texture_coord,
+            let g = &self.glyphs[id];
+            let width = (DEFAULT_FONT_GLYPH_SIZE as f32 / self.metrics.width) * scale;
+            let heigth = (DEFAULT_FONT_GLYPH_SIZE as f32 / self.metrics.height) * scale;
+            let(mut vertices, mut indices) = Mesh::create_quad(Vector4f::new(prev_pos.x, prev_pos.y, prev_pos.x+width, prev_pos.y+heigth), 
+                                                                                g.texture_coord,
                                                                                 Some(i * VERTICES_COUNT));
             
             assert_eq!(vertices.len(), VERTICES_COUNT, "Trying to create a quad with more than {} vertices", VERTICES_COUNT);
@@ -148,7 +157,7 @@ impl Font{
             vertex_data.append(&mut vertices);
             indices_data.append(&mut indices);
 
-            prev_pos.x += scale;
+            prev_pos.x += width * scale;
         }
 
         let mut mesh = Mesh::create(&self.device);
