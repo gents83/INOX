@@ -1,5 +1,5 @@
 pub struct Entity {
-    transform: u32,
+    pub transform: u32,
 }
 
 impl Default for Entity {
@@ -10,14 +10,14 @@ impl Default for Entity {
     }
 }
 
-pub trait EntityInterface {
-    fn get_transform(&self) -> u32;
+#[no_mangle]
+pub unsafe extern "C" fn create_entity() -> Entity {
+    Entity::default()
 }
 
-impl EntityInterface for Entity
-{
-    fn get_transform(&self) -> u32
-    {
-        self.transform
-    }
+#[no_mangle]
+pub unsafe extern "C" fn create_entity_with_param(_integer:u32) -> Entity {
+    let mut e = Entity::default();
+    e.transform = _integer;
+    e
 }

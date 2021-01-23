@@ -1,0 +1,12 @@
+[package]
+name = "nrg_app"
+version = "0.1.0"
+authors = ["gents83 <gents83@gmail.com>"]
+edition = "2018"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+
+[build-dependencies]

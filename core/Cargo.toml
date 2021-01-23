@@ -3,7 +3,10 @@ name = "nrg_core"
 version = "0.1.0"
 authors = ["gents83 <gents83@gmail.com>"]
 edition = "2018"
+build = "build.rs"
 
+[lib]
+crate-type = ["cdylib"]
 
 [dependencies]
 nrg_math = { path = "../math" }

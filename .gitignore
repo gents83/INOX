@@ -4,6 +4,7 @@ bindings/vulkan_bindings/target
 external/image-rs/target
 external/ttf-parser/target
 external/xml-rs/target
+app/target
 common/target
 core/target
 graphics/target

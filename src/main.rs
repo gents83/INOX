@@ -1,5 +1,5 @@
+use core::*;
 use nrg_graphics::*;
-use nrg_core::*;
 use nrg_math::*;
 use nrg_platform::*;
 
@@ -12,10 +12,22 @@ const FONT_FRAG_PATH: &str = "C:\\PROJECTS\\NRG\\data\\shaders\\compiled\\text_s
 const FONT_PATH: & str = "C:\\PROJECTS\\NRG\\data\\fonts\\BasicFont.ttf";
 
 fn main() {        
+/*
+    let NRG_CORE = nrg::CoreLib::load();
+    unsafe {
+        let _entity = nrg::CreateEntity.unwrap()();
+        let _myentity = nrg::CoreLib::CreateEntity();
+        let _entity2 = nrg::CreateEntityWithParam.unwrap()(3);
+        println!("{:?}", _entity.transform);
+        println!("{:?}", _myentity.transform);
+        println!("{:?}", _entity2.transform);
+    }
+*/
+/*
     let _entity = Entity::default();
     let _transf = Matrix4f::identity();
     println!("{:?}", _transf);
-
+*/
     let _pos = Vector2u::new(10, 10);
     let size = Vector2u::new(1024, 768);
 

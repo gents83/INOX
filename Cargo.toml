@@ -9,8 +9,13 @@ edition = "2018"
 image = { path = "external/image-rs" }
 ttf-parser = { path = "external/ttf-parser" }
 
+nrg_app = { path = "app" }
 nrg_math = { path = "math" }
 nrg_common = { path = "common" }
 nrg_platform = { path = "platform" }
 nrg_graphics = { path = "graphics" }
+
+
+[build-dependencies]
+nrg_platform = { path = "platform" }
 nrg_core = { path = "core" }
