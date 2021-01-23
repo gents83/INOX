@@ -391,6 +391,7 @@ name = "nrg_app"
 version = "0.1.0"
 dependencies = [
  "downcast-rs",
+ "nrg_platform",
 ]
 
 [[package]]

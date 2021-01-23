@@ -6,5 +6,6 @@ edition = "2018"
 
 [dependencies]
 downcast-rs = { path = "../external/downcast-rs" }
+nrg_platform = { path = "../platform" }
 
 [build-dependencies]
