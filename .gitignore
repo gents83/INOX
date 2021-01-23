@@ -8,6 +8,7 @@ external/xml-rs/target
 app/target
 common/target
 core/target
+game/target
 graphics/target
 math/target
 platform/target
