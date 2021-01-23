@@ -1,0 +1,15 @@
+[package]
+name = "nrg"
+version = "0.1.0"
+authors = ["gents83 <gents83@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+nrg_app = { path = "../app" }
+
+[dev-dependencies]
+image = { path = "../external/image-rs" }
+nrg_math = { path = "../math" }
+nrg_common = { path = "../common" }
+nrg_platform = { path = "../platform" }
+nrg_graphics = { path = "../graphics" }

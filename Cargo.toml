@@ -1,16 +1,12 @@
-[package]
-name = "nrg"
-version = "0.1.0"
-authors = ["gents83 <gents83@gmail.com>"]
-license = "MIT"
-edition = "2018"
+[workspace]
 
-[dependencies]
-nrg_app = { path = "app" }
-
-[dev-dependencies]
-image = { path = "external/image-rs" }
-nrg_math = { path = "math" }
-nrg_common = { path = "common" }
-nrg_platform = { path = "platform" }
-nrg_graphics = { path = "graphics" }
+members = [
+    "app",
+    "common",
+    "core",
+    "game",
+    "graphics",
+    "main",
+    "math",
+    "platform",
+]
