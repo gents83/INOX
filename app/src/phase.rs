@@ -2,29 +2,26 @@ use std::collections::HashSet;
 use downcast_rs::{impl_downcast, Downcast};
 use super::system::*;
 
-pub trait Stage: Downcast + Send + Sync {
+pub trait Phase: Downcast + Send + Sync {
+    fn get_name(&self) -> &str;
     fn init(&mut self);
     fn run(&mut self);
     fn uninit(&mut self);
 }
-impl_downcast!(Stage);
+impl_downcast!(Phase);
 
-pub struct SystemStage {
+pub struct PhaseWithSystems {
+    name: String,
     systems: HashSet<SystemId>,
     systems_running: Vec<SystemBoxed>,
     systems_to_add: Vec<SystemBoxed>,
     systems_to_remove: Vec<SystemBoxed>,
 }
 
-impl Default for SystemStage {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl SystemStage {
-    pub fn new() -> Self {
+impl PhaseWithSystems {
+    pub fn new(name: &str) -> Self {
         Self {
+            name : String::from(name),
             systems: HashSet::new(),
             systems_running: Vec::new(),
             systems_to_add: Vec::new(),
@@ -70,7 +67,7 @@ impl SystemStage {
 
     fn add_system_boxed(&mut self, system:SystemBoxed) -> &mut Self {
         if self.systems.contains(&system.id()) {
-            eprintln!("Trying to add twice a System with id {:?} from this Stage", system.id());
+            eprintln!("Trying to add twice a System with id {:?} in this Phase", system.id());
         } 
         else {
             self.systems_to_add.push(system);
@@ -80,7 +77,7 @@ impl SystemStage {
 
     fn remove_system_boxed(&mut self, system:SystemBoxed) -> &mut Self {
         if !self.systems.contains(&system.id()) {
-            eprintln!("Trying to remove a System with id {:?} that is not in this Stage", system.id());
+            eprintln!("Trying to remove a System with id {:?} that is not in this Phase", system.id());
         } 
         else {
             self.systems_to_remove.push(system);
@@ -90,13 +87,17 @@ impl SystemStage {
 }
 
 
-impl Stage for SystemStage {
+impl Phase for PhaseWithSystems {
+    fn get_name(&self) -> &str {
+        &self.name
+    }
+
     fn init(&mut self) {
-        println!("Executing init() for SystemStage");
+        println!("Executing init() for Phase");
     }
 
     fn run(&mut self) {
-        println!("Executing systems for SystemStage");
+        println!("Executing systems for Phase {}", self.get_name());
         
         self.execute_systems()
             .remove_systems_from_execution()
@@ -104,7 +105,7 @@ impl Stage for SystemStage {
     }
     
     fn uninit(&mut self) {
-        println!("Executing uninit() for SystemStage");
+        println!("Executing uninit() for Phase");
     }
     
 

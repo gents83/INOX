@@ -1,15 +1,15 @@
-pub const INIT: &str = "app_init";
+pub const INIT: &str = "APP_INIT";
 
-pub const BEGIN_FRAME: &str = "begin_frame_loop";
+pub const BEGIN_FRAME: &str = "BEGIN_FRAME";
 
-pub const PRE_UPDATE: &str = "pre_update_loop";
-pub const UPDATE: &str = "update_loop";
-pub const POST_UPDATE: &str = "post_update_loop";
+pub const PRE_UPDATE: &str = "PRE_UPDATE";
+pub const UPDATE: &str = "UPDATE";
+pub const POST_UPDATE: &str = "POST_UPDATE";
 
-pub const PRE_RENDER: &str = "pre_render_loop";
-pub const RENDER: &str = "render_loop";
-pub const POST_RENDER: &str = "post_render_loop";
+pub const PRE_RENDER: &str = "PRE_RENDER";
+pub const RENDER: &str = "RENDER";
+pub const POST_RENDER: &str = "POST_RENDER";
 
-pub const END_FRAME: &str = "end_frame_loop";
+pub const END_FRAME: &str = "END_FRAME";
 
-pub const UNINIT: &str = "app_uninit";
+pub const UNINIT: &str = "APP_UNINIT";

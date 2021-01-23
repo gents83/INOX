@@ -24,4 +24,9 @@ impl App {
     pub fn run(&mut self) {
         self.scheduler.run();
     }
+
+    pub fn create_phase(&mut self, phase_name: &str) -> &mut Self {
+        self.scheduler.create_phase(phase_name);
+        self
+    }
 }
