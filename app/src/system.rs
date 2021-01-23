@@ -24,10 +24,10 @@ pub trait System: Send + Sync + 'static {
     type Out;
     
     fn id(&self) -> SystemId;
-    unsafe fn run_unsafe(&mut self, input: Self::In) -> Self::Out;
-    fn run(&mut self, input: Self::In) -> Self::Out {
-        unsafe { self.run_unsafe(input) }
-    }
+    
+    fn init(&mut self);
+    fn run(&mut self, input: Self::In) -> Self::Out;
+    fn uninit(&mut self);
 }
 
 pub type SystemBoxed<In = (), Out = ()> = Box<dyn System<In = In, Out = Out>>;

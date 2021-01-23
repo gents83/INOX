@@ -1,3 +1,1 @@
-pub use self::core::*;
-
-pub mod core;
+mod test;

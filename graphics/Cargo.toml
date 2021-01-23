@@ -11,11 +11,3 @@ vulkan_bindings = { path = "../bindings/vulkan_bindings" }
 nrg_math = { path = "../math" }
 nrg_platform = { path = "../platform" }
 nrg_common = { path = "../common" }
-
-[build-dependencies]
-image = { path = "../external/image-rs" }
-ttf-parser = { path = "../external/ttf-parser" }
-vulkan_bindings = { path = "../bindings/vulkan_bindings" }
-nrg_math = { path = "../math" }
-nrg_platform = { path = "../platform"}
-nrg_common = { path = "../common" }

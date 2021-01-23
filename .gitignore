@@ -1,6 +1,7 @@
 NRG.code-workspace
 /.vscode
 bindings/vulkan_bindings/target
+external/downcast-rs/target
 external/image-rs/target
 external/ttf-parser/target
 external/xml-rs/target

@@ -213,6 +213,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "downcast-rs"
+version = "1.2.0"
+
+[[package]]
 name = "either"
 version = "1.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -377,28 +381,21 @@ dependencies = [
  "image",
  "nrg_app",
  "nrg_common",
- "nrg_core",
  "nrg_graphics",
  "nrg_math",
  "nrg_platform",
- "ttf-parser",
 ]
 
 [[package]]
 name = "nrg_app"
 version = "0.1.0"
+dependencies = [
+ "downcast-rs",
+]
 
 [[package]]
 name = "nrg_common"
 version = "0.1.0"
-
-[[package]]
-name = "nrg_core"
-version = "0.1.0"
-dependencies = [
- "nrg_common",
- "nrg_math",
-]
 
 [[package]]
 name = "nrg_graphics"
