@@ -6,6 +6,7 @@ edition = "2018"
 
 [dependencies]
 nrg_app = { path = "../app" }
+nrg_platform = { path = "../platform" }
 
 [dev-dependencies]
 image = { path = "../external/image-rs" }

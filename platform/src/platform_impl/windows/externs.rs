@@ -11,6 +11,8 @@ declare_extern_function!{stdcall WNDPROC(
     LPARAM,
 ) -> LRESULT}
 
+pub type LPOVERLAPPED_COMPLETION_ROUTINE = Option<unsafe extern "system" fn(dwErrorCode: DWORD, dwNumberOfBytesTransfered: DWORD, lpOverlapped: LPOVERLAPPED)>;
+
 extern "system" {
     pub fn GetModuleHandleW(
         lpModuleName: LPCWSTR,
@@ -82,4 +84,53 @@ extern "system" {
         hLibModule: HMODULE,
     ) -> BOOL;
     pub fn GetLastError() -> DWORD;
+    pub fn CreateFileW(
+        lpFileName: LPCWSTR,
+        dwDesiredAccess: DWORD,
+        dwShareMode: DWORD,
+        lpSecurityAttributes: LPSECURITY_ATTRIBUTES,
+        dwCreationDisposition: DWORD,
+        dwFlagsAndAttributes: DWORD,
+        hTemplateFile: HANDLE,
+    ) -> HANDLE;
+    pub fn ReadDirectoryChangesW(
+        hDirectory: HANDLE,
+        lpBuffer: LPVOID,
+        nBufferLength: DWORD,
+        bWatchSubtree: BOOL,
+        dwNotifyFilter: DWORD,
+        lpBytesReturned: LPDWORD,
+        lpOverlapped: LPOVERLAPPED,
+        lpCompletionRoutine: LPOVERLAPPED_COMPLETION_ROUTINE,
+    ) -> BOOL;
+    pub fn CreateSemaphoreW(
+        lpSemaphoreAttributes: LPSECURITY_ATTRIBUTES,
+        lInitialCount: LONG,
+        lMaximumCount: LONG,
+        lpName: LPCWSTR,
+    ) -> HANDLE;
+    pub fn CancelIoEx(
+        hFile: HANDLE,
+        lpOverlapped: LPOVERLAPPED,
+    ) -> BOOL;
+    pub fn CancelIo(
+        hFile: HANDLE,
+    ) -> BOOL;
+    pub fn CloseHandle(
+        hObject: HANDLE,
+    ) -> BOOL;
+    pub fn ReleaseSemaphore(
+        hSemaphore: HANDLE,
+        lReleaseCount: LONG,
+        lpPreviousCount: LPLONG,
+    ) -> BOOL;
+    pub fn WaitForSingleObject(
+        hHandle: HANDLE,
+        dwMilliseconds: DWORD,
+    ) -> DWORD;
+    pub fn WaitForSingleObjectEx(
+        hHandle: HANDLE,
+        dwMilliseconds: DWORD,
+        bAlertable: BOOL,
+    ) -> DWORD;
 }

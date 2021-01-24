@@ -30,8 +30,7 @@ impl Library
         if handle.is_null() {
             panic!("Unable to load library {}", filename.as_ref().to_str().unwrap())
         }
-        else
-        {
+        else {
             Library(handle)
         }
     }

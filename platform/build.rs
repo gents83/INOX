@@ -13,6 +13,7 @@ fn main()
     if is_windows_platform 
     {
         link_library("user32");
+        link_library("kernel32");
     } 
     else 
     {

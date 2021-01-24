@@ -8,12 +8,9 @@ build = "build.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bindgen = { git = "https://github.com/rust-lang/rust-bindgen"}
-xml-rs = { path = "../../external/xml-rs" }
 nrg_platform = { path = "../../platform"}
 
 [build-dependencies]
 bindgen = { git = "https://github.com/rust-lang/rust-bindgen"}
 xml-rs = { path = "../../external/xml-rs" }
-nrg_platform = { path = "../../platform"}
 
