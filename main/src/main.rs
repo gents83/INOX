@@ -10,7 +10,7 @@ fn main() {
     
     app.run_once();
 
-    let file_watcher = FileWatcher::new(PathBuf::from("C:\\PROJECTS\\NRG\\data\\"),true);
+    let file_watcher = FileWatcher::new(PathBuf::from("C:\\PROJECTS\\NRG\\data\\"));
 
     for event in file_watcher.read_events() {
         match event {
