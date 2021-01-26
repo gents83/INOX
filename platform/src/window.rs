@@ -24,7 +24,6 @@ impl Window {
     }
 
     pub fn update(&self) -> bool {
-        let is_ended = Window::internal_update(self);
-        is_ended
+        Window::internal_update(self)
     }
 }

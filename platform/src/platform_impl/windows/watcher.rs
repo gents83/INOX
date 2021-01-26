@@ -1,4 +1,4 @@
-use std::{collections::HashMap, env, ffi::{CString, OsString}, mem, path::{Path, PathBuf}, ptr, slice, sync::{self, Arc, Mutex, mpsc::{self, Receiver, Sender}}, thread};
+use std::{collections::HashMap, env, ffi::OsString, mem, path::{Path, PathBuf}, ptr, slice, sync::{Arc, Mutex, mpsc::{self, Receiver, Sender}}, thread};
 use std::os::windows::ffi::{OsStrExt, OsStringExt};
 
 use crate::{watcher::*, ctypes::*};
@@ -10,7 +10,7 @@ const BUFFER_SIZE: usize = 2048 * std::mem::size_of::<c_char>();
 const THREAD_WAIT_INTERVAL: u32 = 100;
 
 #[derive(Clone)]
-struct ReadData {
+struct FolderData {
     dir: PathBuf,          // directory that is being watched
     complete_sem: HANDLE,
 }
@@ -23,7 +23,7 @@ struct WatchRequest {
     event_fn: Arc<Mutex<dyn EventFn>>,
     buffer: [u8; BUFFER_SIZE as usize],
     handle: HANDLE,
-    data: ReadData,
+    data: FolderData,
 }
 
 struct FileWatcherServer {
@@ -92,7 +92,7 @@ impl FileWatcherServer {
             unsafe { CloseHandle(handle) };
             return dir;
         }
-        let rd = ReadData {
+        let folder = FolderData {
             dir,
             complete_sem: semaphore,
         };
@@ -101,7 +101,7 @@ impl FileWatcherServer {
             complete_sem: semaphore,
         };
         self.watches.insert(path.clone(), watch_handles);
-        process_folder(&rd, self.event_fn.clone(), handle);
+        process_folder(&folder, self.event_fn.clone(), handle);
 
         path
     }
@@ -167,7 +167,7 @@ impl FileWatcherImpl {
 
     pub fn watch(&mut self, path: &Path) {        
         let pb = self.get_absolute_path(path);
-        self.send_action_require_ack(WatcherRequest::Watch(pb.clone()), &pb);
+        self.send_action_require_ack(WatcherRequest::Watch(pb));
     }
 
     pub fn unwatch(&mut self, path: &Path) {
@@ -195,7 +195,7 @@ impl FileWatcherImpl {
         }
     }
 
-    fn send_action_require_ack(&mut self, action: WatcherRequest, pb: &PathBuf) {
+    fn send_action_require_ack(&mut self, action: WatcherRequest) {
         let _res = self.tx.send(action);
         self.wakeup_server();
     }
@@ -226,12 +226,12 @@ fn stop_watch(ws: &WatchHandles) {
     }
 }
 
-fn process_folder(rd: &ReadData, event_fn: Arc<Mutex<dyn EventFn>>, handle: HANDLE) {
+fn process_folder(folder: &FolderData, event_fn: Arc<Mutex<dyn EventFn>>, handle: HANDLE) {
     let mut request = Box::new(WatchRequest {
         event_fn,
         handle,
         buffer: [0u8; BUFFER_SIZE as usize],
-        data: rd.clone(),
+        data: folder.clone(),
     });
         
     let flags = FILE_NOTIFY_CHANGE_FILE_NAME
@@ -291,15 +291,15 @@ unsafe extern "system" fn handle_event(error_code: u32,_bytes_written: u32, over
     let mut cur_offset: *const u8 = request.buffer.as_ptr();
     let mut cur_entry = cur_offset as *const FILE_NOTIFY_INFORMATION;    
     loop {
-        let entry = *cur_entry;
-        let encoded_path: &[u16] = slice::from_raw_parts(entry.FileName.as_ptr(), entry.FileNameLength as usize / 2);
+        let encoded_path: &[u16] = slice::from_raw_parts((*cur_entry).FileName.as_ptr(), (*cur_entry).FileNameLength as usize / 2);
         let path = request.data.dir.join(PathBuf::from(OsString::from_wide(encoded_path)));
         let event_fn = |res| send_event(&request.event_fn, res);
-
-        if entry.Action == FILE_ACTION_RENAMED_OLD_NAME {
+        
+        let action = (*cur_entry).Action;
+        if action == FILE_ACTION_RENAMED_OLD_NAME {
             event_fn(FileEvent::RenamedFrom(path));
         } else {
-            match entry.Action {
+            match action {
                 FILE_ACTION_RENAMED_NEW_NAME => {
                     event_fn(FileEvent::RenamedTo(path));                        
                 }
@@ -316,10 +316,10 @@ unsafe extern "system" fn handle_event(error_code: u32,_bytes_written: u32, over
             };
         }            
         
-        if entry.NextEntryOffset == 0 {
+        if (*cur_entry).NextEntryOffset == 0 {
             break;
         }
-        cur_offset = cur_offset.offset(entry.NextEntryOffset as isize);
+        cur_offset = cur_offset.offset((*cur_entry).NextEntryOffset as isize);
         cur_entry = cur_offset as *const FILE_NOTIFY_INFORMATION;
     }
 }

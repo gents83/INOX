@@ -9,7 +9,7 @@ impl Library {
         Library(_lib)
     }
 
-    pub fn get<'lib, T>(&'lib self, symbol: &str) -> T {
+    pub fn get<T>(&self, symbol: &str) -> T {
         unsafe {
             self.0.get(symbol)
         }

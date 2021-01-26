@@ -1,4 +1,4 @@
-use std::{path::PathBuf, sync::mpsc::{self, Receiver, Sender}};
+use std::{path::PathBuf, sync::mpsc::{self, Receiver}};
 use super::platform_impl::platform::watcher::FileWatcherImpl;
 
 
@@ -29,7 +29,7 @@ impl<F> EventFn for F where F: 'static + Fn(FileEvent) + Send {}
 
 pub struct FileWatcher {
     rx: Receiver<FileEvent>,
-    file_watcher: FileWatcherImpl,
+    _file_watcher: FileWatcherImpl,
 }
 unsafe impl Send for FileWatcher {}
 unsafe impl Sync for FileWatcher {}
@@ -42,7 +42,7 @@ impl FileWatcher {
         w.watch(path.as_ref());
         Self {
             rx,
-            file_watcher: w,
+            _file_watcher: w,
         }
     }
 

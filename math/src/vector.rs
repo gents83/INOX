@@ -485,16 +485,16 @@ fn test_vector()
     let mut vec3 = Vector3f::zero();
     assert_eq!(vec3, Vector3f::zero());
 
-    vec3.add(1.0);
+    vec3 += 1.0;
     assert_eq!(vec3, Vector3f::new(1.0, 1.0, 1.0));
     
-    vec3.mul(4.0);
+    vec3 *= 4.0;
     assert_eq!(vec3, Vector3f::new(4.0, 4.0, 4.0));
     
-    vec3.div(2.0);
+    vec3 /= 2.0;
     assert_eq!(vec3, Vector3f::new(2.0, 2.0, 2.0));
     
-    vec3.sub(2.0);
+    vec3 -= 2.0;
     assert_eq!(vec3, Vector3f::zero());
 
     vec3 = vec3 + Vector3f::new(1.0, 2.0, 3.0);
