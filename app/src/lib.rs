@@ -1,3 +1,5 @@
+#![warn(clippy::all)]
+
 pub use crate::app::*;
 pub use crate::phase::*;
 pub use crate::plugin::*;

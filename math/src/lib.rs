@@ -1,3 +1,4 @@
+#![warn(clippy::all)]
 
 pub use self::angle::*;
 pub use self::boundaries::*;

@@ -1,4 +1,4 @@
-
+#![warn(clippy::all)]
 
 // Common 
 

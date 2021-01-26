@@ -36,6 +36,7 @@ impl Scheduler {
         self
     }
 
+    #[allow(dead_code)]
     pub fn add_phase_after(&mut self, previous_phase_name: &str, phase_name: &str) -> &mut Self {
         let phase_index:i32 = self.get_phase_index(previous_phase_name);
         if phase_index >= 0 && phase_index < self.phases_order.len() as _ {
@@ -47,6 +48,7 @@ impl Scheduler {
         self
     }
 
+    #[allow(dead_code)]
     pub fn add_phase_before(&mut self, previous_phase_name: &str, phase_name: &str) -> &mut Self {
         let phase_index:i32 = self.get_phase_index(previous_phase_name);
         if phase_index >= 0 && phase_index < self.phases_order.len() as _ {

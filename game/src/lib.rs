@@ -1,3 +1,4 @@
+#![warn(clippy::all)]
 
 mod game;
 mod system;

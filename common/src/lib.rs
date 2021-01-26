@@ -1,3 +1,5 @@
+#![warn(clippy::all)]
+
 // Common 
 pub use self::events::*;
 
