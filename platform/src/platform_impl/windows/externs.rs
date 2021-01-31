@@ -97,6 +97,12 @@ extern "system" {
         dwFlagsAndAttributes: DWORD,
         hTemplateFile: HANDLE,
     ) -> HANDLE;
+    pub fn SetFileInformationByHandle(
+        hFile: HANDLE,
+        FileInformationClass: FILE_INFO_BY_HANDLE_CLASS,
+        lpFileInformation: LPVOID,
+        dwBufferSize: DWORD,
+    ) -> BOOL;
     pub fn ReadDirectoryChangesW(
         hDirectory: HANDLE,
         lpBuffer: LPVOID,

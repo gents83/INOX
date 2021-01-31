@@ -48,7 +48,7 @@ impl FileWatcher {
             rx,
             file_watcher: w,
             filepath: filepath.to_path_buf(),
-            filename: filename,
+            filename,
         }
     }
 

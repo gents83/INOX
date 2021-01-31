@@ -11,8 +11,7 @@ pub use crate::scheduler::*;
 pub mod app;
 pub mod phase;
 pub mod plugin;
+pub mod plugin_manager;
+pub mod scheduler;
 pub mod shared_data;
 pub mod system;
-
-mod plugin_manager;
-mod scheduler;

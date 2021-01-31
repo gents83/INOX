@@ -3,14 +3,16 @@ name = "nrg"
 version = "0.1.0"
 authors = ["gents83 <gents83@gmail.com>"]
 edition = "2018"
+build = "build.rs"
 
 [dependencies]
 nrg_app = { path = "../app" }
 nrg_platform = { path = "../platform" }
 
-[dev-dependencies]
+[build-dependencies]
+nrg_app = { path = "../app" }
+nrg_platform = { path = "../platform" }
 image = { path = "../external/image-rs" }
 nrg_math = { path = "../math" }
 nrg_common = { path = "../common" }
-nrg_platform = { path = "../platform" }
 nrg_graphics = { path = "../graphics" }

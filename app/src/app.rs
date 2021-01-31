@@ -25,7 +25,7 @@ impl Drop for App {
 }
 
 impl App {
-    pub fn new() -> Self {
+    pub fn new() -> Self {  
         Self {
             scheduler: Scheduler::new(),
             plugin_manager: PluginManager::new(),
@@ -34,8 +34,8 @@ impl App {
     }
 
     pub fn run_once(&mut self) {
-        self.scheduler.run_once();            
-        self.plugin_manager.update(&mut self.shared_data, &mut self.scheduler);
+        self.scheduler.run_once();    
+        self.plugin_manager.update(&mut self.shared_data, &mut self.scheduler);        
     }
 
     pub fn run(&mut self) {            
@@ -69,7 +69,7 @@ impl App {
     }
     
     pub fn add_plugin(&mut self, lib_path: PathBuf) -> PluginId {
-        self.plugin_manager.add_plugin(lib_path.clone(), &mut self.shared_data, &mut self.scheduler)
+        self.plugin_manager.add_plugin(lib_path, &mut self.shared_data, &mut self.scheduler)
     }
 
     pub fn remove_plugin(&mut self, plugin_id: &PluginId) {

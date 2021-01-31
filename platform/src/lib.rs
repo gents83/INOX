@@ -2,6 +2,8 @@
 
 // Common 
 pub use self::handle::*;
+pub use self::library::*;
+pub use self::utils::*;
 pub use self::watcher::*;
 pub use self::window::*;
 
@@ -10,6 +12,7 @@ mod ctypes;
 pub mod handle;
 pub mod window;
 pub mod library;
+pub mod utils;
 pub mod watcher;
 
 

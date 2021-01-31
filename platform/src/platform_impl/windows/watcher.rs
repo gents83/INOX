@@ -102,8 +102,6 @@ impl FileWatcherServer {
         };
         self.watches.insert(path.clone(), watch_handles);
         process_folder(&folder, self.event_fn.clone(), handle);
-
-        eprintln!("Start watching operation on {}", path.to_str().unwrap());
         path
     }
     

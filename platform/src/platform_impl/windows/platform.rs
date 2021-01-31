@@ -7,5 +7,6 @@ mod errors;
 
 pub mod library;
 pub mod handle;
+pub mod utils;
 pub mod watcher;
 pub mod window;

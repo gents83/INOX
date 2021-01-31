@@ -1,20 +1,10 @@
 use super::externs::*;
 use super::types::*;
 
-use std::env::consts::*;
 use std::ffi::*;
 use std::str;
 use std::os::windows::ffi::*;
 
-
-pub fn library_filename<S: AsRef<OsStr>>(name: S) -> OsString {
-    let name = name.as_ref();
-    let mut string = OsString::with_capacity(name.len() + DLL_PREFIX.len() + DLL_SUFFIX.len());
-    string.push(DLL_PREFIX);
-    string.push(name);
-    string.push(DLL_SUFFIX);
-    string
-}
 pub struct Library(HMODULE);
 
 impl Library
@@ -43,9 +33,9 @@ impl Library
     }
 
     pub fn close(&mut self) {
-        let result = unsafe { FreeLibrary(self.0) };
-        if result == 0 {
-            panic!("Unable to close library with error {}", result)
+        let mut res = unsafe { FreeLibrary(self.0) };
+        while res > 0 {
+            res =  unsafe { FreeLibrary(self.0) };
         } 
     }
 }

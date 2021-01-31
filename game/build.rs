@@ -1,29 +1,23 @@
+extern crate nrg_app;
+extern crate nrg_platform;
 
-use std::{env, path::{Path, PathBuf}};
+use std::path::Path;
+use nrg_app::plugin_manager::IN_USE_PREFIX;
+use nrg_platform::utils::*;
 
-fn move_pdb(path:PathBuf) {
-    let locked_path = path.join("nrg_game.pdb.locked");
-    let pdb_path = path.join("nrg_game.pdb");
-    
-    if locked_path.exists() {
-        let res = ::std::fs::remove_file(locked_path.clone());
-        if !res.is_ok() {
-            println!("Remove {} failed", locked_path.to_str().unwrap());
-        }
-    }
-    if pdb_path.exists() { 
-        let res = ::std::fs::rename(pdb_path.clone(), locked_path.clone());
-        if !res.is_ok() {
-            println!("Rename {} to {} failed", pdb_path.to_str().unwrap(), locked_path.to_str().unwrap());
-        }
-    }
-}
+const LIB_NAME:&str = "nrg_game";
+const EXTENSION:&str = ".pdb";
 
 fn main() {
-    let out_dir = env::current_dir().unwrap();
+    let out_dir = std::env::current_dir().unwrap();
     let build_path = Path::new(&out_dir).join("..\\target\\debug").canonicalize().unwrap(); 
     let deps_path = Path::new(&out_dir).join("..\\target\\debug\\deps").canonicalize().unwrap(); 
     
-    move_pdb(deps_path);
-    move_pdb(build_path);
+    let in_use_build_path = build_path.join(IN_USE_PREFIX);    
+
+    remove_files_containing_with_ext(deps_path.clone(), LIB_NAME, EXTENSION);
+    remove_files_containing_with_ext(build_path.clone(), LIB_NAME, EXTENSION);
+
+    copy_with_random_name(deps_path.clone(), in_use_build_path.clone(), LIB_NAME, EXTENSION);
+    copy_with_random_name(build_path.clone(), in_use_build_path.clone(), LIB_NAME, EXTENSION);
 }

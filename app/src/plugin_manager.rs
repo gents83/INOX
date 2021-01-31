@@ -3,18 +3,16 @@ use std::{collections::HashMap, path::PathBuf};
 
 use nrg_platform::*;
 
-use crate::plugin;
-
 use super::plugin::*;
 use super::scheduler::*;
 use super::shared_data::*;
 
-static IN_USE_PREFIX:&str = "in_use";
+pub static IN_USE_PREFIX:&str = "in_use";
 static WAIT_TIME_BEFORE_RELOADING: u64 = 500;
 static mut UNIQUE_LIB_INDEX:u32 = 0;
 
 struct PluginData {
-    lib: library::Library,
+    lib: Box<Library>,
     plugin: Box<dyn Plugin>,
     filewatcher: FileWatcher,
     original_path: PathBuf,
@@ -51,7 +49,7 @@ impl PluginManager {
     }
 
     pub fn add_plugin(&mut self, lib_path: PathBuf, shared_data: &mut SharedData, scheduler: &mut Scheduler) -> PluginId {
-        let mut plugin_data = PluginManager::create_plugin_data(lib_path.clone());
+        let mut plugin_data = PluginManager::create_plugin_data(lib_path);
         plugin_data.plugin.prepare(scheduler, shared_data);
         
         let id = plugin_data.plugin.id();
@@ -61,15 +59,14 @@ impl PluginManager {
 
     pub fn remove_plugin(&mut self, plugin_id: &PluginId, shared_data: &mut SharedData, scheduler: &mut Scheduler) {
         if self.plugins.contains_key(plugin_id) {
+            let in_use_path = {
+                let plugin_data = self.plugins.remove_entry(plugin_id).unwrap().1;
+                let path = plugin_data.in_use_path.clone();
+                PluginManager::clear_plugin_data(plugin_data, shared_data, scheduler);
+                path
+            };
 
-            let plugin_data = self.plugins.remove_entry(plugin_id).unwrap().1;
-            let in_use_path = plugin_data.in_use_path.clone();
-            PluginManager::clear_plugin_data(plugin_data, shared_data, scheduler);
-
-            let res = std::fs::remove_file(in_use_path.clone());
-            if !res.is_ok() {
-                println!("Remove failed {:?} - unable to remove {}", res.err(), in_use_path.to_str().unwrap());
-            }
+            delete_file(in_use_path);
         }
         else {
             eprintln!("Unable to find requested plugin with id {:?}", plugin_id);
@@ -100,7 +97,7 @@ impl PluginManager {
             let in_use_path = path.join(IN_USE_PREFIX);
             if !in_use_path.exists() {
                 let res = std::fs::create_dir(in_use_path.clone());
-                if !res.is_ok() {
+                if res.is_err() {
                     eprintln!("Folder creation failed {:?} - unable to create in_use folder {}", res.err(), in_use_path.to_str().unwrap());
                 }
             }
@@ -124,7 +121,7 @@ impl PluginManager {
         let (lib, plugin) = PluginManager::load_plugin(in_use_fullpath.clone());
 
         PluginData {
-            lib,
+            lib: Box::new(lib),
             plugin,
             filewatcher: FileWatcher::new(fullpath.clone()),
             original_path: fullpath,
@@ -141,18 +138,18 @@ impl PluginManager {
     }
 
     fn clear_plugin_data(mut plugin_data: PluginData, shared_data: &mut SharedData, scheduler: &mut Scheduler) {
-        let in_use_path = plugin_data.in_use_path.clone();
         plugin_data.filewatcher.stop();
         
         thread::sleep(time::Duration::from_millis(WAIT_TIME_BEFORE_RELOADING));
 
         plugin_data.plugin.unprepare(scheduler, shared_data);
 
-        let destroy_fn = plugin_data.lib.get::<PFNDestroyPlugin>(DESTROY_PLUGIN_FUNCTION_NAME);
+        let lib = unsafe{ Box::into_raw(plugin_data.lib).as_mut().unwrap() };
+        let destroy_fn = lib.get::<PFNDestroyPlugin>(DESTROY_PLUGIN_FUNCTION_NAME);
         let ptr = Box::leak(plugin_data.plugin);
         unsafe { destroy_fn.unwrap()(std::mem::transmute(ptr)) };
         
-        plugin_data.lib.close();
+        lib.close();
 
         thread::sleep(time::Duration::from_millis(WAIT_TIME_BEFORE_RELOADING));
     }

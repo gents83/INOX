@@ -712,6 +712,7 @@ name = "nrg_game"
 version = "0.1.0"
 dependencies = [
  "nrg_app",
+ "nrg_platform",
 ]
 
 [[package]]
