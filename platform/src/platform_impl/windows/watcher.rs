@@ -7,7 +7,7 @@ use super::externs::*;
 use super::types::*;
 
 const BUFFER_SIZE: usize = 2048 * std::mem::size_of::<c_char>();
-const THREAD_WAIT_INTERVAL: u32 = 100;
+const THREAD_WAIT_INTERVAL: u32 = 500;
 
 #[derive(Clone)]
 struct FolderData {
@@ -103,6 +103,7 @@ impl FileWatcherServer {
         self.watches.insert(path.clone(), watch_handles);
         process_folder(&folder, self.event_fn.clone(), handle);
 
+        eprintln!("Start watching operation on {}", path.to_str().unwrap());
         path
     }
     

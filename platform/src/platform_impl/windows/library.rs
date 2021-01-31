@@ -28,11 +28,11 @@ impl Library
             LoadLibraryExW(wide_filename.as_ptr(), std::ptr::null_mut(), 0)
         };
         if handle.is_null() {
-            panic!("Unable to load library {}", filename.as_ref().to_str().unwrap())
+            let error = unsafe { GetLastError() };
+            eprintln!("Unable to load library {} and received error {}", filename.as_ref().to_str().unwrap(), error);
         }
-        else {
-            Library(handle)
-        }
+        drop(wide_filename);
+        Library(handle)
     }
     //# Safety 
     pub unsafe fn get<T>(&self, symbol: &str) -> T{
@@ -50,5 +50,6 @@ impl Library
         if result == 0 {
             panic!("Unable to close library with error {}", result)
         } 
+        std::mem::forget(self);
     }
 }

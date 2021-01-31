@@ -1,22 +1,47 @@
 use std::any::Any;
-use nrg_platform::*;
-use super::app::*;
+use std::time::{SystemTime, UNIX_EPOCH};
+
+use super::scheduler::*;
+use super::shared_data::*;
+
+
 
 pub const CREATE_PLUGIN_FUNCTION_NAME:&str = "create_plugin";
-pub type PFNCreatePlugin = ::std::option::Option<unsafe extern "C" fn()-> *mut dyn Plugin>;
+pub type PFNCreatePlugin = ::std::option::Option<unsafe extern fn()-> *mut dyn Plugin>;
+
+
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub struct PluginId(u64);
+
+impl Default for PluginId {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl PluginId {
+    pub fn new() -> Self {
+        let secs = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+        PluginId(secs)
+    }
+}
 
 pub trait Plugin: Any + Send + Sync {
-    fn build(&mut self, main_app: &mut App);
+    #[no_mangle]
+    fn prepare(&mut self, scheduler: &mut Scheduler, shared_data: &mut SharedData);
+    #[no_mangle]
+    fn unprepare(&mut self, scheduler: &mut Scheduler, shared_data: &mut SharedData);
+    #[no_mangle]
+    fn id(&self) -> PluginId {
+        PluginId::new()
+    }
+    #[no_mangle]
     fn name(&self) -> &str {
         std::any::type_name::<Self>()
     }
 }
 
-
-pub fn load_plugin(main_app: &mut App, lib_name: &str) -> Box<dyn Plugin> {
-    let lib = library::Library::new(lib_name);
-    let create_fn = lib.get::<PFNCreatePlugin>(CREATE_PLUGIN_FUNCTION_NAME);
-    let mut plugin = unsafe { Box::from_raw(create_fn.unwrap()() ) };
-    plugin.build(main_app);
-    plugin
-}

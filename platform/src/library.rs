@@ -15,7 +15,7 @@ impl Library {
         }
     }
 
-    pub fn close(self) {
+    pub fn close(&self) {
         self.0.close()
     }
 }

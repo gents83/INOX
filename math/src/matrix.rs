@@ -29,7 +29,7 @@ macro_rules! implement_matrix {
         where $T: Float {
             #[inline]
             pub fn from_columns($($field: $VecType<$T>),+) -> $MatrixN<$T> {
-                $MatrixN { $($field: $field),+ }
+                $MatrixN { $($field),+ }
             }
             #[inline]
             pub fn from_axis( &v: &[$VecType<$T>; $n] ) -> $MatrixN<$T> {

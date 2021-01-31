@@ -43,7 +43,7 @@ impl PhaseWithSystems {
         if !self.systems.contains(&system_id) {
             eprintln!("Trying to remove a System with id {:?} in this Phase", system_id);
         } 
-        else {
+        else if !self.systems_to_remove.contains(&system_id) {
             self.systems_to_remove.push(*system_id);
         }
         self
@@ -51,7 +51,9 @@ impl PhaseWithSystems {
 
     fn remove_all_systems(&mut self) -> &mut Self {
         for s in self.systems_running.iter() {
-            self.systems_to_remove.push(s.id());
+            if !self.systems_to_remove.contains(&s.id()) {
+                self.systems_to_remove.push(s.id());
+            }
         }
         self
     }
@@ -90,13 +92,13 @@ impl Phase for PhaseWithSystems {
     }
 
     fn init(&mut self) {
-        println!("Phase {} initialization...", self.get_name());
+        //println!("Phase {} initialization...", self.get_name());
 
         self.add_pending_systems_into_execution();
     }
 
     fn run(&mut self) {
-        println!("Phase {} systems executing...", self.get_name());
+        //println!("Phase {} systems executing...", self.get_name());
         
         self.remove_pending_systems_from_execution()
             .add_pending_systems_into_execution()
@@ -104,7 +106,7 @@ impl Phase for PhaseWithSystems {
     }
     
     fn uninit(&mut self) {
-        println!("Phase {} uninitialization...", self.get_name());
+        //println!("Phase {} uninitialization...", self.get_name());
 
         self.remove_all_systems()
         .remove_pending_systems_from_execution();

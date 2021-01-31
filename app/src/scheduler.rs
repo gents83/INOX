@@ -35,6 +35,14 @@ impl Scheduler {
         self.phases_order.push(String::from(phase_name));
         self
     }
+    
+    fn remove_phase(&mut self, phase_name: &str) -> &mut Self {
+        let index = self.get_phase_index(phase_name);
+        if index >= 0 {
+            self.phases_order.remove(index as _);
+        }
+        self
+    }
 
     #[allow(dead_code)]
     pub fn add_phase_after(&mut self, previous_phase_name: &str, phase_name: &str) -> &mut Self {
@@ -79,6 +87,20 @@ impl Scheduler {
         self
     }
 
+    pub fn destroy_phase(&mut self, phase_name: &str) -> &mut Self {
+        self.remove_phase(phase_name);
+        self.phases.retain(|name, boxed_phase| {
+            if name == phase_name {
+                boxed_phase.uninit();
+                false
+            }
+            else {
+                true
+            }
+        });
+        self
+    }
+
     pub fn get_phase_index(&self, phase_name:&str) -> i32 {
         self.phases_order
             .iter()
@@ -110,18 +132,6 @@ impl Scheduler {
         for name in self.phases_order.iter() {
             if let Some(phase) = self.phases.get_mut(name) {
                 phase.run();
-            }
-        }
-    }
-    
-    pub fn run(&mut self) {        
-        loop 
-        {                
-            let is_ended = false;
-            self.run_once();
-            if is_ended
-            {
-                break;
             }
         }
     }
