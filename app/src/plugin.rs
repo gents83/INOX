@@ -8,6 +8,8 @@ use super::shared_data::*;
 
 pub const CREATE_PLUGIN_FUNCTION_NAME:&str = "create_plugin";
 pub type PFNCreatePlugin = ::std::option::Option<unsafe extern fn()-> *mut dyn Plugin>;
+pub const DESTROY_PLUGIN_FUNCTION_NAME:&str = "destroy_plugin";
+pub type PFNDestroyPlugin = ::std::option::Option<unsafe extern fn(ptr: *mut dyn Plugin)>;
 
 
 

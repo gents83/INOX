@@ -12,10 +12,18 @@ pub struct Game {
 
 impl Default for Game {
     fn default() -> Self {
-        Self{
+        let game = Self{
             game_name: String::from("Game"),
             system_id: SystemId::default(),
-        }
+        };
+        println!("Created {} plugin", game.game_name);
+        game
+    }
+}
+
+impl Drop for Game {
+    fn drop(&mut self) {
+        println!("Destroyed {} plugin", self.game_name);
     }
 }
 

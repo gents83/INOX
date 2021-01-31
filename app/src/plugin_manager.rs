@@ -38,10 +38,14 @@ impl PluginManager {
     }
 
     pub fn release(&mut self, shared_data: &mut SharedData, scheduler: &mut Scheduler) {
-        self.plugins.retain(|_id, plugin_data| {
-            PluginManager::clear_plugin_data(plugin_data, shared_data, scheduler);
-            false
-        });
+        let mut plugins_to_remove: Vec<PluginId> = Vec::new();
+        for (id, _p) in self.plugins.iter() {
+            plugins_to_remove.push(*id);
+        }
+        for id in plugins_to_remove.iter() {
+            self.remove_plugin(id, shared_data, scheduler);
+        }
+        self.plugins.clear();
     }
 
     pub fn add_plugin(&mut self, lib_path: PathBuf, shared_data: &mut SharedData, scheduler: &mut Scheduler) -> PluginId {
@@ -55,7 +59,8 @@ impl PluginManager {
 
     pub fn remove_plugin(&mut self, plugin_id: &PluginId, shared_data: &mut SharedData, scheduler: &mut Scheduler) {
         if self.plugins.contains_key(plugin_id) {
-            PluginManager::clear_plugin_data( self.plugins.get_mut(plugin_id).unwrap(), shared_data, scheduler);
+            let plugin_data = self.plugins.remove_entry(plugin_id).unwrap().1;
+            PluginManager::clear_plugin_data(plugin_data, shared_data, scheduler);
             self.plugins.remove(plugin_id);
         }
         else {
@@ -120,13 +125,18 @@ impl PluginManager {
         (lib, plugin)
     }
 
-    fn clear_plugin_data(plugin_data:&mut PluginData, shared_data: &mut SharedData, scheduler: &mut Scheduler) {
+    fn clear_plugin_data(mut plugin_data: PluginData, shared_data: &mut SharedData, scheduler: &mut Scheduler) {
         let in_use_path = plugin_data.in_use_path.clone();
         plugin_data.filewatcher.stop();
         
         thread::sleep(time::Duration::from_millis(WAIT_TIME_BEFORE_RELOADING));
 
         plugin_data.plugin.unprepare(scheduler, shared_data);
+
+        let destroy_fn = plugin_data.lib.get::<PFNDestroyPlugin>(DESTROY_PLUGIN_FUNCTION_NAME);
+        let ptr = Box::leak(plugin_data.plugin);
+        unsafe { destroy_fn.unwrap()(std::mem::transmute(ptr)) };
+        
         plugin_data.lib.close();
 
         thread::sleep(time::Duration::from_millis(WAIT_TIME_BEFORE_RELOADING));
