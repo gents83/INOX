@@ -15,9 +15,6 @@ pub fn library_filename<S: AsRef<OsStr>>(name: S) -> OsString {
     string.push(DLL_SUFFIX);
     string
 }
-
-
-#[derive(Clone, Copy)]
 pub struct Library(HMODULE);
 
 impl Library
@@ -45,11 +42,15 @@ impl Library
         ::std::mem::transmute_copy(&ret)
     }
 
-    pub fn close(self) {
+    pub fn close(&mut self) {
         let result = unsafe { FreeLibrary(self.0) };
         if result == 0 {
             panic!("Unable to close library with error {}", result)
         } 
-        std::mem::forget(self);
+    }
+}
+impl Drop for Library {
+    fn drop(&mut self) {
+        unsafe { FreeLibrary(self.0) };
     }
 }

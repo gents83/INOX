@@ -21,6 +21,7 @@ impl System for MySystem {
     }    
     fn init(&mut self) {
         //println!("Executing init() for MySystem[{:?}]", self.id());
+        println!("\n 3 \n");
     }
     fn run(&mut self, _input: Self::In) -> Self::Out {
         //println!("Executing run() for MySystem[{:?}]", self.id());

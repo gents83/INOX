@@ -3,6 +3,8 @@ use std::{collections::HashMap, path::PathBuf};
 
 use nrg_platform::*;
 
+use crate::plugin;
+
 use super::plugin::*;
 use super::scheduler::*;
 use super::shared_data::*;
@@ -59,9 +61,15 @@ impl PluginManager {
 
     pub fn remove_plugin(&mut self, plugin_id: &PluginId, shared_data: &mut SharedData, scheduler: &mut Scheduler) {
         if self.plugins.contains_key(plugin_id) {
+
             let plugin_data = self.plugins.remove_entry(plugin_id).unwrap().1;
+            let in_use_path = plugin_data.in_use_path.clone();
             PluginManager::clear_plugin_data(plugin_data, shared_data, scheduler);
-            self.plugins.remove(plugin_id);
+
+            let res = std::fs::remove_file(in_use_path.clone());
+            if !res.is_ok() {
+                println!("Remove failed {:?} - unable to remove {}", res.err(), in_use_path.to_str().unwrap());
+            }
         }
         else {
             eprintln!("Unable to find requested plugin with id {:?}", plugin_id);
@@ -89,7 +97,14 @@ impl PluginManager {
             let mut in_use_filename = format!("{}_{}_", IN_USE_PREFIX, UNIQUE_LIB_INDEX);
             in_use_filename.push_str(filename.to_str().unwrap());
             UNIQUE_LIB_INDEX += 1;
-            path.join(in_use_filename)
+            let in_use_path = path.join(IN_USE_PREFIX);
+            if !in_use_path.exists() {
+                let res = std::fs::create_dir(in_use_path.clone());
+                if !res.is_ok() {
+                    eprintln!("Folder creation failed {:?} - unable to create in_use folder {}", res.err(), in_use_path.to_str().unwrap());
+                }
+            }
+            in_use_path.join(in_use_filename)
         }
     }
     
@@ -103,7 +118,7 @@ impl PluginManager {
         let in_use_fullpath = PluginManager::compute_dynamic_name(fullpath.clone());
         let res = std::fs::copy(fullpath.clone(), in_use_fullpath.clone());
         if !res.is_ok() {
-            println!("Copy failed {:?} - unable to create in_use version of the lib {}", res.err(), in_use_fullpath.to_str().unwrap());
+            eprintln!("Copy failed {:?} - unable to create in_use version of the lib {}", res.err(), in_use_fullpath.to_str().unwrap());
         }
 
         let (lib, plugin) = PluginManager::load_plugin(in_use_fullpath.clone());
@@ -140,11 +155,6 @@ impl PluginManager {
         plugin_data.lib.close();
 
         thread::sleep(time::Duration::from_millis(WAIT_TIME_BEFORE_RELOADING));
-
-        let res = std::fs::remove_file(in_use_path.clone());
-        if !res.is_ok() {
-            println!("Remove failed {:?} - unable to remove {}", res.err(), in_use_path.to_str().unwrap());
-        }
     }
 
     pub fn update(&mut self, shared_data: &mut SharedData, scheduler: &mut Scheduler) {

@@ -11,10 +11,10 @@ fn move_pdb(path:PathBuf) {
             println!("Remove {} failed", locked_path.to_str().unwrap());
         }
     }
-    if pdb_path.exists() && !locked_path.exists() {
+    if pdb_path.exists() { 
         let res = ::std::fs::rename(pdb_path.clone(), locked_path.clone());
         if !res.is_ok() {
-            println!("Renamo {} to {} failed", pdb_path.to_str().unwrap(), locked_path.to_str().unwrap());
+            println!("Rename {} to {} failed", pdb_path.to_str().unwrap(), locked_path.to_str().unwrap());
         }
     }
 }

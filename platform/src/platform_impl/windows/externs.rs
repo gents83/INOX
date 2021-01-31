@@ -83,6 +83,10 @@ extern "system" {
     pub fn FreeLibrary(
         hLibModule: HMODULE,
     ) -> BOOL;
+    pub fn FreeLibraryAndExitThread(
+        hLibModule: HMODULE,
+        dwExitCode: DWORD,
+    );
     pub fn GetLastError() -> DWORD;
     pub fn CreateFileW(
         lpFileName: LPCWSTR,
