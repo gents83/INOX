@@ -15,7 +15,7 @@ pub fn copy_with_random_name(src_path:PathBuf, target_path:PathBuf, name: &str, 
     let secs = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
-        .as_secs();
+        .as_micros();
     let new_name = format!("{}_{}.{}", name, secs, extension);
     let new_pdb_path = target_path.join(new_name);
     

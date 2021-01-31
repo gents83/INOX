@@ -1,11 +1,14 @@
 use nrg_app::*;
+use nrg_math::*;
+use nrg_platform::*;
+
 
 pub struct MySystem {
     id: SystemId,
 }
 
 impl MySystem {
-    pub fn new() -> Self {
+    pub fn new(game_name: String) -> Self {
         Self {
             id: SystemId::new(),
         }

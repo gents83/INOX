@@ -14,7 +14,7 @@ impl SystemId {
         let secs = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
-        .as_secs();
+        .as_micros() as _;
         SystemId(secs)
     }
 }

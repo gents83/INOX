@@ -10,6 +10,10 @@ pub struct Window {
     pub title: String,
 }
 
+unsafe impl Send for Window {}
+unsafe impl Sync for Window {}
+
+
 impl Window {
     pub fn create(
         _name: String,

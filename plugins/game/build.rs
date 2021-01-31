@@ -10,8 +10,14 @@ const EXTENSION:&str = ".pdb";
 
 fn main() {
     let out_dir = std::env::current_dir().unwrap();
-    let build_path = Path::new(&out_dir).join("..\\target\\debug").canonicalize().unwrap(); 
-    let deps_path = Path::new(&out_dir).join("..\\target\\debug\\deps").canonicalize().unwrap(); 
+    let mut build_path = Path::new(&out_dir).join("..\\..\\target\\debug");
+    if build_path.exists() {
+        build_path = build_path.canonicalize().unwrap(); 
+    } 
+    let mut deps_path = Path::new(&out_dir).join("..\\..\\target\\debug\\deps");
+    if deps_path.exists() {
+        deps_path = deps_path.canonicalize().unwrap(); 
+    } 
     
     let in_use_build_path = build_path.join(IN_USE_PREFIX);    
 

@@ -13,7 +13,7 @@ pub struct Game {
 impl Default for Game {
     fn default() -> Self {
         let game = Self{
-            game_name: String::from("Game"),
+            game_name: String::from("NRG Game"),
             system_id: SystemId::default(),
         };
         println!("Created {} plugin", game.game_name);
@@ -27,12 +27,15 @@ impl Drop for Game {
     }
 }
 
+unsafe impl Send for Game {}
+unsafe impl Sync for Game {}
+
 impl Plugin for Game {
     fn prepare(&mut self, scheduler: &mut Scheduler, _shared_data: &mut SharedData) {    
         println!("Prepare {} plugin", self.game_name);
         
         let mut update_phase = PhaseWithSystems::new(UPDATE_PHASE);
-        let system = MySystem::new();
+        let system = MySystem::new(self.game_name.clone());
 
         self.system_id = system.id();
 

@@ -114,7 +114,7 @@ impl PluginManager {
         }
         let in_use_fullpath = PluginManager::compute_dynamic_name(fullpath.clone());
         let res = std::fs::copy(fullpath.clone(), in_use_fullpath.clone());
-        if !res.is_ok() {
+        if res.is_err() {
             eprintln!("Copy failed {:?} - unable to create in_use version of the lib {}", res.err(), in_use_fullpath.to_str().unwrap());
         }
 

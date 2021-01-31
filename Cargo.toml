@@ -4,9 +4,10 @@ members = [
     "app",
     "common",
     "core",
-    "game",
     "graphics",
     "main",
     "math",
     "platform",
+    "plugins/game",
+    "plugins/window",
 ]

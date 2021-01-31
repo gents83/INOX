@@ -712,6 +712,7 @@ name = "nrg_game"
 version = "0.1.0"
 dependencies = [
  "nrg_app",
+ "nrg_math",
  "nrg_platform",
 ]
 
@@ -734,6 +735,15 @@ version = "0.1.0"
 [[package]]
 name = "nrg_platform"
 version = "0.1.0"
+
+[[package]]
+name = "nrg_window"
+version = "0.1.0"
+dependencies = [
+ "nrg_app",
+ "nrg_math",
+ "nrg_platform",
+]
 
 [[package]]
 name = "num-complex"

@@ -280,7 +280,6 @@ unsafe extern "system" fn handle_event(error_code: u32,_bytes_written: u32, over
     let request: Box<WatchRequest> = Box::from_raw(overlapped.hEvent as *mut _);
 
     if error_code == ERROR_OPERATION_ABORTED {
-        eprintln!("Watching operation aborted");
         ReleaseSemaphore(request.data.complete_sem, 1, ptr::null_mut());
         return;
     }
