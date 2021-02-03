@@ -1,4 +1,4 @@
-use nrg_app::*;
+use nrg_core::*;
 
 use super::window_system::*;
 

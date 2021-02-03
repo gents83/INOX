@@ -1,9 +1,9 @@
 use std::path::PathBuf;
-use super::scheduler::*;
-use super::plugin::*;
-use super::plugin_manager::*;
-use super::phase::*;
-use super::shared_data::*;
+use crate::schedule::scheduler::*;
+use crate::plugins::plugin::*;
+use crate::plugins::plugin_manager::*;
+use crate::schedule::phase::*;
+use crate::resources::shared_data::*;
 
 
 pub struct App {

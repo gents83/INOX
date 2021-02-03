@@ -1,4 +1,4 @@
-use nrg_app::*;
+use nrg_core::*;
 use nrg_math::*;
 use nrg_platform::*;
 

@@ -3,9 +3,9 @@ use std::{collections::HashMap, path::PathBuf};
 
 use nrg_platform::*;
 
+use crate::resources::shared_data::*;
+use crate::schedule::scheduler::*;
 use super::plugin::*;
-use super::scheduler::*;
-use super::shared_data::*;
 
 pub static IN_USE_PREFIX:&str = "in_use";
 static WAIT_TIME_BEFORE_RELOADING: u64 = 500;

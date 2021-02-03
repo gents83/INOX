@@ -1,9 +1,14 @@
 [package]
-name = "nrg_app"
+name = "nrg"
 version = "0.1.0"
 authors = ["gents83 <gents83@gmail.com>"]
 edition = "2018"
+build = "build.rs"
 
 [dependencies]
-downcast-rs = { path = "../external/downcast-rs" }
+nrg_core = { path = "../core" }
+nrg_platform = { path = "../platform" }
+
+[build-dependencies]
+nrg_core = { path = "../core" }
 nrg_platform = { path = "../platform" }

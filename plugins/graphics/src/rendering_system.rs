@@ -1,4 +1,4 @@
-use nrg_app::*;
+use nrg_core::*;
 
 pub struct RenderingSystem {
     id: SystemId,

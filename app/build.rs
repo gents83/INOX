@@ -1,8 +1,8 @@
-extern crate nrg_app;
+extern crate nrg_core;
 extern crate nrg_platform;
 
 use std::{env::{self, consts::*}, path::Path};
-use nrg_app::plugin_manager::IN_USE_PREFIX;
+use nrg_core::plugins::plugin_manager::IN_USE_PREFIX;
 use nrg_platform::utils::*;
 
 fn main() {

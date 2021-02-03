@@ -9,10 +9,10 @@ build = "build.rs"
 crate-type = ["rlib", "cdylib"] 
 
 [dependencies]
-nrg_app = { path = "../../app" }
+nrg_core = { path = "../../core" }
 nrg_math = { path = "../../math" }
 nrg_platform = { path = "../../platform" }
 
 [build-dependencies]
-nrg_app = { path = "../../app" }
+nrg_core = { path = "../../core" }
 nrg_platform = { path = "../../platform" }

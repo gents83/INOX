@@ -672,12 +672,12 @@ checksum = "0676bb32a98c1a483ce53e500a81ad9c3d5b3f7c920c28c24e9cb0980d0b5bc8"
 name = "nrg"
 version = "0.1.0"
 dependencies = [
- "nrg_app",
+ "nrg_core",
  "nrg_platform",
 ]
 
 [[package]]
-name = "nrg_app"
+name = "nrg_core"
 version = "0.1.0"
 dependencies = [
  "downcast-rs",
@@ -688,7 +688,7 @@ dependencies = [
 name = "nrg_game"
 version = "0.1.0"
 dependencies = [
- "nrg_app",
+ "nrg_core",
  "nrg_math",
  "nrg_platform",
 ]
@@ -698,7 +698,7 @@ name = "nrg_graphics"
 version = "0.1.0"
 dependencies = [
  "image",
- "nrg_app",
+ "nrg_core",
  "nrg_math",
  "nrg_platform",
  "ttf-parser",
@@ -717,7 +717,7 @@ version = "0.1.0"
 name = "nrg_window"
 version = "0.1.0"
 dependencies = [
- "nrg_app",
+ "nrg_core",
  "nrg_math",
  "nrg_platform",
 ]

@@ -1,6 +1,4 @@
-use nrg_app::*;
-use nrg_math::*;
-use nrg_platform::*;
+use nrg_core::*;
 
 
 pub struct MySystem {

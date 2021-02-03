@@ -1,8 +1,8 @@
 [workspace]
 
 members = [
-    "main",
     "app",
+    "core",
     "math",
     "platform",
     "plugins/game",

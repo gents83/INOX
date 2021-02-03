@@ -61,14 +61,14 @@ mod rendering_system;
 
 
 #[no_mangle]
-pub extern fn create_plugin() -> *mut dyn nrg_app::Plugin {
+pub extern fn create_plugin() -> *mut dyn nrg_core::Plugin {
     let plugin = gfx::GfxPlugin::default();
     let boxed = Box::new(plugin);
     Box::into_raw(boxed)
 }
 
 #[no_mangle]
-pub extern fn destroy_plugin(ptr: *mut dyn nrg_app::Plugin) {
+pub extern fn destroy_plugin(ptr: *mut dyn nrg_core::Plugin) {
     let boxed: Box<gfx::GfxPlugin> = unsafe { Box::from_raw( std::mem::transmute_copy(&ptr) ) };
     let plugin = *boxed;
     drop(plugin);

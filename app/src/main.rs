@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use nrg_app::*;
+use nrg_core::*;
 use nrg_platform::*;
 
 
