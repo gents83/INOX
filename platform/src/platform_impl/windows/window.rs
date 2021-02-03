@@ -76,7 +76,7 @@ impl Window {
 
     pub fn internal_update(&self) -> bool {
         unsafe {
-            let mut is_ended = false;
+            let mut can_continue = true;
             let mut message : MSG = ::std::mem::MaybeUninit::zeroed().assume_init();
             while PeekMessageW(&mut message as *mut MSG, ::std::ptr::null_mut(), 0, 0, PM_REMOVE) > 0 {
                 TranslateMessage( &message as *const MSG );
@@ -86,10 +86,10 @@ impl Window {
                    message.message == WM_CLOSE ||
                    message.message == WM_QUIT ||
                    message.message == WM_NCDESTROY {
-                    is_ended = true;
+                    can_continue = false;
                 }
             }
-            is_ended
+            can_continue
         } 
     }
 

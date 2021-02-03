@@ -26,18 +26,15 @@ impl WindowSystem {
 } 
 
 impl System for WindowSystem {
-    type In = ();
-    type Out = ();
-
     fn id(&self) -> SystemId {
         self.id
     }    
     fn init(&mut self) {
         //println!("Executing init() for WindowSystem[{:?}]", self.id());
     }
-    fn run(&mut self, _input: Self::In) -> Self::Out {
-        self.window.update();
+    fn run(&mut self) -> bool {
         //println!("Executing run() for WindowSystem[{:?}]", self.id());
+        self.window.update()
     }
     fn uninit(&mut self) {
         //println!("Executing uninit() for WindowSystem[{:?}]", self.id());

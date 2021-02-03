@@ -128,11 +128,13 @@ impl Scheduler {
         )
     }
 
-    pub fn run_once(&mut self) {
+    pub fn run_once(&mut self) -> bool {
+        let mut can_continue = true;
         for name in self.phases_order.iter() {
             if let Some(phase) = self.phases.get_mut(name) {
-                phase.run();
+                can_continue &= phase.run();
             }
         }
+        can_continue
     }
 }

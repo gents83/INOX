@@ -33,17 +33,17 @@ impl App {
         }
     }
 
-    pub fn run_once(&mut self) {
-        self.scheduler.run_once();    
-        self.plugin_manager.update(&mut self.shared_data, &mut self.scheduler);        
+    pub fn run_once(&mut self) -> bool {
+        let can_continue = self.scheduler.run_once();    
+        self.plugin_manager.update(&mut self.shared_data, &mut self.scheduler);  
+        can_continue      
     }
 
     pub fn run(&mut self) {            
         loop 
         {                
-            let is_ended = false;
-            self.run_once();
-            if is_ended
+            let can_continue = self.run_once();
+            if can_continue == false
             {
                 break;
             }

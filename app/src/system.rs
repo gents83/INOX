@@ -19,15 +19,12 @@ impl SystemId {
     }
 }
 
-pub trait System: Send + Sync + 'static {
-    type In;
-    type Out;
-    
+pub trait System: Send + Sync + 'static {    
     fn id(&self) -> SystemId;
     
     fn init(&mut self);
-    fn run(&mut self, input: Self::In) -> Self::Out;
+    fn run(&mut self) -> bool;
     fn uninit(&mut self);
 }
 
-pub type SystemBoxed<In = (), Out = ()> = Box<dyn System<In = In, Out = Out>>;
+pub type SystemBoxed = Box<dyn System>;

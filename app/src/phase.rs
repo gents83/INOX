@@ -5,7 +5,7 @@ use super::system::*;
 pub trait Phase: Downcast + Send + Sync {
     fn get_name(&self) -> &str;
     fn init(&mut self);
-    fn run(&mut self);
+    fn run(&mut self) -> bool;
     fn uninit(&mut self);
 }
 impl_downcast!(Phase);
@@ -29,7 +29,7 @@ impl PhaseWithSystems {
         }
     }
 
-    pub fn add_system<S: System<In = (), Out = ()>>(&mut self, system: S) -> &mut Self {        
+    pub fn add_system<S: System>(&mut self, system: S) -> &mut Self {        
         if self.systems.contains(&system.id()) {
             eprintln!("Trying to add twice a System with id {:?} in this Phase", system.id());
         } 
@@ -58,11 +58,12 @@ impl PhaseWithSystems {
         self
     }
 
-    fn execute_systems(&mut self) -> &mut Self {
+    fn execute_systems(&mut self) -> bool {
+        let mut can_continue = true;
         for s in self.systems_running.iter_mut() {
-            s.run(());
+            can_continue &= s.run();
         }
-        self
+        can_continue
     }
 
     fn remove_pending_systems_from_execution(&mut self) -> &mut Self {
@@ -97,12 +98,12 @@ impl Phase for PhaseWithSystems {
         self.add_pending_systems_into_execution();
     }
 
-    fn run(&mut self) {
+    fn run(&mut self) -> bool {
         //println!("Phase {} systems executing...", self.get_name());
         
         self.remove_pending_systems_from_execution()
             .add_pending_systems_into_execution()
-            .execute_systems();
+            .execute_systems()
     }
     
     fn uninit(&mut self) {
