@@ -1,13 +1,11 @@
 [workspace]
 
 members = [
-    "app",
-    "common",
-    "core",
-    "graphics",
     "main",
+    "app",
     "math",
     "platform",
     "plugins/game",
+    "plugins/graphics",
     "plugins/window",
 ]

@@ -12,7 +12,3 @@ nrg_platform = { path = "../platform" }
 [build-dependencies]
 nrg_app = { path = "../app" }
 nrg_platform = { path = "../platform" }
-image = { path = "../external/image-rs" }
-nrg_math = { path = "../math" }
-nrg_common = { path = "../common" }
-nrg_graphics = { path = "../graphics" }

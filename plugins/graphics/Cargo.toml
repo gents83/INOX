@@ -1,0 +1,22 @@
+[package]
+name = "nrg_graphics"
+version = "0.1.0"
+authors = ["gents83 <gents83@gmail.com>"]
+edition = "2018"
+build = "build.rs"
+
+[lib]
+crate-type = ["rlib", "cdylib"] 
+
+[dependencies]
+image = { path = "../../external/image-rs" }
+ttf-parser = { path = "../../external/ttf-parser" }
+vulkan_bindings = { path = "../../bindings/vulkan_bindings" }
+nrg_app = { path = "../../app" }
+nrg_math = { path = "../../math" }
+nrg_platform = { path = "../../platform" }
+
+
+[build-dependencies]
+nrg_app = { path = "../../app" }
+nrg_platform = { path = "../../platform" }

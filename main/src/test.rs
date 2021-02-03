@@ -1,3 +1,4 @@
+/*
 #[test]
 fn main_test() {
     use nrg_graphics::*;
@@ -126,3 +127,4 @@ fn main_test() {
     material_left.destroy();
     default_render_pass.destroy();
 }
+*/
