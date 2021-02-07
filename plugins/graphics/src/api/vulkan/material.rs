@@ -22,7 +22,7 @@ impl MaterialInstance {
         let mut instance = MaterialInstance {
             textures: Vec::new(),
             descriptor_sets: Vec::new(),
-            descriptor_pool: VK_NULL_HANDLE.into(),
+            descriptor_pool: ::std::ptr::null_mut(),
             uniform_buffers_size: 0,
             uniform_buffers: Vec::new(),
             uniform_buffers_memory: Vec::new(),

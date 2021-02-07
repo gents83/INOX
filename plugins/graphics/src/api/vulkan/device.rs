@@ -156,7 +156,7 @@ impl DeviceImmutable {
      
             let new_frame_index = (self.current_frame_index + 1) % MAX_FRAMES_IN_FLIGHT as u32;
 
-            let result = vkAcquireNextImageKHR.unwrap()(self.device, self.swap_chain.ptr, ::std::u64::MAX, self.image_available_semaphores[new_frame_index as usize], VK_NULL_HANDLE.into(), &mut self.current_image_index);
+            let result = vkAcquireNextImageKHR.unwrap()(self.device, self.swap_chain.ptr, ::std::u64::MAX, self.image_available_semaphores[new_frame_index as usize], ::std::ptr::null_mut(), &mut self.current_image_index);
             
             if result == VkResult_VK_ERROR_OUT_OF_DATE_KHR {
                 self.wait_device();
@@ -166,7 +166,7 @@ impl DeviceImmutable {
                 eprintln!("Failed to acquire swap chain image");
             }
 
-            if self.inflight_images[self.current_image_index as usize] != VK_NULL_HANDLE.into() {
+            if self.inflight_images[self.current_image_index as usize] != ::std::ptr::null_mut() {
                 vkWaitForFences.unwrap()(self.device, 1, &self.inflight_images[self.current_image_index as usize], VK_TRUE, std::u64::MAX);
             }
             self.inflight_images[self.current_image_index as usize] = self.inflight_fences[new_frame_index as usize];   
@@ -284,8 +284,8 @@ impl DeviceImmutable {
     }
 
     pub fn create_image(&self, physical_device: VkPhysicalDevice, image_properties: (u32, u32, VkFormat), tiling: VkImageTiling, usage: VkImageUsageFlags, properties: VkMemoryPropertyFlags) -> (VkImage, VkDeviceMemory) {
-        let mut image: VkImage = VK_NULL_HANDLE.into();
-        let mut image_memory: VkDeviceMemory = VK_NULL_HANDLE.into();
+        let mut image: VkImage = ::std::ptr::null_mut();
+        let mut image_memory: VkDeviceMemory = ::std::ptr::null_mut();
         
         let image_info = VkImageCreateInfo {
             sType: VkStructureType_VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
@@ -486,7 +486,7 @@ impl DeviceImmutable {
         unsafe {
             assert_eq!(
                 VkResult_VK_SUCCESS,
-                vkQueueSubmit.unwrap()(self.graphics_queue, 1, &submit_info, VK_NULL_HANDLE.into())
+                vkQueueSubmit.unwrap()(self.graphics_queue, 1, &submit_info, ::std::ptr::null_mut())
             );
             
             vkQueueWaitIdle.unwrap()(self.graphics_queue);
@@ -651,11 +651,11 @@ impl DeviceImmutable {
             graphics_queue,
             present_queue,
             swap_chain: SwapChain {
-                ptr: VK_NULL_HANDLE.into(),
+                ptr: ::std::ptr::null_mut(),
                 images: Vec::new(),
                 image_views: Vec::new(),
             },
-            command_pool: VK_NULL_HANDLE.into(),
+            command_pool: ::std::ptr::null_mut(),
             command_buffers: Vec::new(),
             current_frame_index: 0,
             current_image_index: 0,
@@ -814,7 +814,7 @@ impl DeviceImmutable {
         }
         
         for i in 0..inflight_images.len() {
-            inflight_images[i as usize] = VK_NULL_HANDLE.into();
+            inflight_images[i as usize] = ::std::ptr::null_mut();
         }
 
         self.image_available_semaphores = image_available_semaphores;

@@ -34,7 +34,7 @@ fn main() {
         vulkan_plaftorm = "win32";
         builder = builder
                     .clang_arg("-DVK_USE_PLATFORM_WIN32_KHR")
-                    .clang_arg("--target=i686-pc-windows-msvc")
+                    //.clang_arg("--target=i686-pc-windows-msvc")
                     .opaque_type("_IMAGE_TLS_DIRECTORY64");
     }
     #[cfg(all(unix, not(target_os = "android"), not(target_os = "macos")))]

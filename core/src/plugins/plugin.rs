@@ -1,5 +1,4 @@
 use std::any::Any;
-use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::schedule::scheduler::*;

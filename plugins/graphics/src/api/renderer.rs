@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use nrg_math::*;
 use nrg_platform::Handle;
 
@@ -5,7 +7,11 @@ use super::viewport::*;
 use super::rasterizer::*;
 use super::device::*;
 use super::instance::*;
+use super::pipeline::*;
 use super::render_pass::*;
+
+
+pub const DEFAULT_RENDER_PASS:&str = "Default";
 
 pub struct Renderer {
     pub instance: Instance,
@@ -13,6 +19,8 @@ pub struct Renderer {
     viewport: Viewport,
     scissors: Scissors,
     rasterizer: Rasterizer,
+    render_passes: HashMap<String, RenderPass>,
+    pipelines: HashMap<String, Pipeline>,
 }
 
 
@@ -26,11 +34,29 @@ impl Renderer {
             viewport: Viewport::default(),
             scissors: Scissors::default(),
             rasterizer: Rasterizer::default(),
+            render_passes: HashMap::new(),
+            pipelines: HashMap::new(),
         }
     }
 
-    pub fn create_default_render_pass(&self) -> RenderPass {
-        RenderPass::create_default(&self.device)
+    pub fn get_default_render_pass(&mut self) -> &RenderPass {
+        let rp = self.render_passes
+            .entry(String::from(DEFAULT_RENDER_PASS))
+            .or_insert(RenderPass::create_default(&self.device));
+        rp
+    }
+
+    pub fn get_render_pass(&self, name:String) -> &RenderPass {
+        self.render_passes.get(&name).unwrap()
+    }
+
+    pub fn add_pipeline(&mut self, name:String, pipeline: Pipeline) -> &Pipeline {
+        self.pipelines.insert(name.clone(), pipeline);
+        self.get_pipeline(name)
+    }
+
+    pub fn get_pipeline(&self, name:String) -> &Pipeline {
+        self.pipelines.get(&name).unwrap()
     }
 
     pub fn set_viewport_size(&mut self, size:Vector2u) -> &mut Self {
@@ -52,6 +78,14 @@ impl Renderer {
         self.device.submit()
     }
 
+    pub fn process_pipelines(&mut self) {
+        for (_name, pipeline) in self.pipelines.iter_mut() {
+            pipeline.begin();
+
+            
+            pipeline.end();
+        }
+    }
 }
 
 

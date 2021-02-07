@@ -13,12 +13,12 @@ fn main() {
     }
 
     {
-        let path = PathBuf::from(library_filename("nrg_game"));
+        let path = PathBuf::from(library_filename("nrg_graphics"));
         app.add_plugin(path);
     }
 
     {
-        let path = PathBuf::from(library_filename("nrg_graphics"));
+        let path = PathBuf::from(library_filename("nrg_game"));
         app.add_plugin(path);
     }
     

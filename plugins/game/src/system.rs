@@ -1,14 +1,15 @@
 use nrg_core::*;
 
-
 pub struct MySystem {
     id: SystemId,
+    shared_data: SharedDataRw,
 }
 
 impl MySystem {
-    pub fn new() -> Self {
+    pub fn new(shared_data: &SharedDataRw) -> Self {
         Self {
             id: SystemId::new(),
+            shared_data: shared_data.clone(),
         }
     }
 } 
@@ -19,6 +20,7 @@ impl System for MySystem {
     }    
     fn init(&mut self) {
         //println!("Executing init() for MySystem[{:?}]", self.id());
+        
     }
     fn run(&mut self) -> bool {
         //println!("Executing run() for MySystem[{:?}]", self.id());

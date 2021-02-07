@@ -1,4 +1,4 @@
-use std::{env, sync::Arc, thread, time};
+use std::{env, thread, time};
 use std::{collections::HashMap, path::PathBuf};
 
 use nrg_platform::*;

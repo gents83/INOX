@@ -3,34 +3,33 @@ use std::{cell::RefCell, rc::Rc};
 
 #[derive(Clone)]
 pub struct Device {
-    pub inner: Rc<RefCell<super::backend::device::Device>>,
+    pub inner: super::backend::device::Device,
 }
 
 impl Device {
     pub fn create(instance:&super::instance::Instance) -> Self {
-        let device = Rc::new( RefCell::new( super::backend::device::Device::new(&instance.inner) ) );
         Device {
-            inner: device,
+            inner: super::backend::device::Device::new(&instance.inner) ,
         } 
     }
 
     pub fn destroy(&self) {
-        self.inner.borrow().delete();
+        self.inner.delete();
     }
 
-    pub fn begin_frame(&self) -> bool {
-        self.inner.borrow_mut().begin_frame()
+    pub fn begin_frame(&mut self) -> bool {
+        self.inner.begin_frame()
     }
 
     pub fn end_frame(&self) {
-        self.inner.borrow().end_frame();
+        self.inner.end_frame();
     }
 
-    pub fn submit(&self) -> bool {
-        self.inner.borrow_mut().submit()
+    pub fn submit(&mut self) -> bool {
+        self.inner.submit()
     }    
 
-    pub fn recreate_swap_chain(&self) {
-        self.inner.borrow_mut().recreate_swap_chain();
+    pub fn recreate_swap_chain(&mut self) {
+        self.inner.recreate_swap_chain();
     }
 }

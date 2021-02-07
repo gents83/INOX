@@ -19,10 +19,10 @@ impl Texture {
 
     pub fn create(device: &Device, image_data: &DynamicImage) -> Self {
         let mut texture = Self {
-            texture_image: VK_NULL_HANDLE.into(),
-            texture_image_memory: VK_NULL_HANDLE.into(),
-            texture_image_view: VK_NULL_HANDLE.into(),
-            texture_sampler: VK_NULL_HANDLE.into(),
+            texture_image: ::std::ptr::null_mut(),
+            texture_image_memory: ::std::ptr::null_mut(),
+            texture_image_view: ::std::ptr::null_mut(),
+            texture_sampler: ::std::ptr::null_mut(),
         };
         texture.create_texture_image(device, &image_data);
         texture.create_texture_sampler(device);
@@ -56,8 +56,8 @@ impl Texture {
             image::ColorType::Rgb8 => VkFormat_VK_FORMAT_R8G8B8_UNORM,
             _ => VkFormat_VK_FORMAT_R8G8B8A8_UNORM,
         };
-        let mut staging_buffer: VkBuffer = VK_NULL_HANDLE.into();
-        let mut staging_buffer_memory : VkDeviceMemory = VK_NULL_HANDLE.into();
+        let mut staging_buffer: VkBuffer = ::std::ptr::null_mut();
+        let mut staging_buffer_memory : VkDeviceMemory = ::std::ptr::null_mut();
         device.create_buffer(image_size as _, 
                             VkBufferUsageFlagBits_VK_BUFFER_USAGE_TRANSFER_SRC_BIT as _, 
                             flags as _,

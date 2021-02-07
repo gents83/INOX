@@ -11,6 +11,8 @@ pub use crate::api::pipeline::*;
 pub use crate::api::renderer::*;
 pub use crate::api::shader::*;
 
+pub use crate::fonts::font::*;
+
 //Modules
 pub mod api
 {
@@ -44,9 +46,9 @@ mod voxels
     mod world;
 }
 
-mod fonts
+pub mod fonts
 {
-    mod font;
+    pub mod font;
     mod geometry;
     mod glyph;
     mod hershey;

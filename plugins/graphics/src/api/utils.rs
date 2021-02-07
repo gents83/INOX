@@ -18,13 +18,18 @@ pub fn read_spirv_from_bytes<Data: ::std::io::Read + ::std::io::Seek>(data: &mut
         result.set_len(words);
     }
     const MAGIC_NUMBER: u32 = 0x0723_0203;
-    if !result.is_empty() && result[0] == MAGIC_NUMBER.swap_bytes() {
-        for word in &mut result {
-            *word = word.swap_bytes();
+    if !result.is_empty() {
+        if result[0] == MAGIC_NUMBER.swap_bytes() {
+            for word in &mut result {
+                *word = word.swap_bytes();
+            }
+        }
+        else if result[0] != MAGIC_NUMBER {
+            panic!("Input data is missing SPIR-V magic number");
         }
     }
-    if result.is_empty() || result[0] != MAGIC_NUMBER {
-        panic!("Input data is missing SPIR-V magic number");
+    else {
+        panic!("Input data is empty");
     }
     result
 }

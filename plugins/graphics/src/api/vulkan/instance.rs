@@ -159,7 +159,7 @@ fn create_instance( supported_layers: &[VkLayerProperties],
 
 #[allow(unused_assignments)]
 pub fn create_surface(instance: VkInstance, handle: &Handle) -> VkSurfaceKHR {
-    let mut surface: VkSurfaceKHR = VK_NULL_HANDLE.into();
+    let mut surface: VkSurfaceKHR = ::std::ptr::null_mut();
 
     #[cfg(target_os = "android")]
     {
@@ -186,7 +186,7 @@ pub fn create_surface(instance: VkInstance, handle: &Handle) -> VkSurfaceKHR {
         surface = create_surface_win32(instance, handle);
     }
 
-    if surface == VK_NULL_HANDLE.into() {
+    if surface == ::std::ptr::null_mut() {
         eprintln!("Unable to create a surface to support Vulkan needed API");
     }
     surface

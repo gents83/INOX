@@ -1,27 +1,39 @@
+use std::{cell::RefCell, rc::Rc};
 use vulkan_bindings::*;
 use super::device::*;
 
-pub struct RenderPass {
+
+#[derive(Clone)]
+pub struct RenderPassImmutable {
     render_pass: VkRenderPass,
     framebuffers: Vec::<VkFramebuffer>,
 }
 
 
+#[derive(Clone)]
+pub struct RenderPass {
+    inner: Rc<RefCell<RenderPassImmutable>>,
+}
+
+
 
 impl RenderPass {
-    pub fn create_default(device:&Device) -> RenderPass {
-        let mut pass = RenderPass {
-            render_pass: RenderPass::base_pass(device),
+    pub fn create_default(device:&Device) -> Self {
+        let mut immutable = RenderPassImmutable {
+            render_pass: RenderPassImmutable::base_pass(device),
             framebuffers: Vec::new(),
-        };
-        pass.create_framebuffers(device);
-        pass
+        };        
+        let inner = Rc::new(RefCell::new(immutable));
+        inner.borrow_mut().create_framebuffers(device);
+        Self {
+            inner,
+        }
     }
 
     pub fn destroy(&mut self, device:&Device) {
-        self.destroy_framebuffers(device);
+        self.inner.borrow_mut().destroy_framebuffers(device);
         unsafe {
-            vkDestroyRenderPass.unwrap()(device.get_device(), self.render_pass, ::std::ptr::null_mut());
+            vkDestroyRenderPass.unwrap()(device.get_device(), self.inner.borrow().render_pass, ::std::ptr::null_mut());
         }
     }
     
@@ -30,8 +42,8 @@ impl RenderPass {
         let render_pass_begin_info = VkRenderPassBeginInfo {
             sType: VkStructureType_VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
             pNext: ::std::ptr::null_mut(),
-            renderPass: self.render_pass,
-            framebuffer: self.framebuffers[device.get_current_image_index()],
+            renderPass: self.inner.borrow().render_pass,
+            framebuffer: self.inner.borrow().framebuffers[device.get_current_image_index()],
             renderArea: VkRect2D { 
                 offset: VkOffset2D {x: 0, y: 0},
                 extent: device.get_instance().get_swap_chain_info().capabilities.currentExtent,
@@ -54,12 +66,12 @@ impl RenderPass {
 
 impl From<&RenderPass> for VkRenderPass {
     fn from(render_pass: &RenderPass) -> VkRenderPass {
-        render_pass.render_pass
+        render_pass.inner.borrow().render_pass
     }
 }
 
 
-impl RenderPass {
+impl RenderPassImmutable {
     fn base_pass(device:&Device) -> VkRenderPass {        
         let details = device.get_instance().get_swap_chain_info();     
         let color_attachment = VkAttachmentDescription {

@@ -122,7 +122,7 @@ pub struct ResourceRefMut<'a, T> {
 }
 
 impl<'a, T> ResourceRefMut<'a, T> {
-    fn new(Resource{data, atomic}: &'a Resource<T>) -> Self {
+    pub fn new(Resource{data, atomic}: &'a Resource<T>) -> Self {
         if atomic.request_borrow_mut() {
             Self {
                 borrow: atomic,

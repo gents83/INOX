@@ -689,6 +689,7 @@ name = "nrg_game"
 version = "0.1.0"
 dependencies = [
  "nrg_core",
+ "nrg_graphics",
  "nrg_math",
  "nrg_platform",
 ]

@@ -13,7 +13,7 @@ impl Shader {
         let mut shader = Shader {
             shader_type: ShaderType::Invalid,
             content: Vec::new(),
-            module: VK_NULL_HANDLE.into(),
+            module: ::std::ptr::null_mut(),
             stage_info: None,
         };
         shader.shader_type = shader_type;

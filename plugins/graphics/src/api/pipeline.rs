@@ -2,21 +2,24 @@ use super::device::*;
 use super::render_pass::*;
 use super::shader::*;
 
+#[derive(Clone)]
 pub struct Pipeline {
     pub inner: super::backend::pipeline::Pipeline,
+    render_pass: RenderPass,
 }
 
 impl Pipeline {
-    pub fn create(device:&mut Device, vert_filepath: &str, frag_filepath: &str) -> Pipeline {
-        let inner_device = device.inner.borrow();
+    pub fn create(device:&Device, vert_filepath: &str, frag_filepath: &str, render_pass: RenderPass) -> Pipeline {
+        
         //TODO pipeline could be reused - while instance should be unique
-        let mut pipeline = super::backend::pipeline::Pipeline::create(&inner_device);
+        let mut pipeline = super::backend::pipeline::Pipeline::create(&device.inner);
         pipeline.set_shader(ShaderType::Vertex, vert_filepath)
                 .set_shader(ShaderType::Fragment, frag_filepath)
                 .build();
 
         Pipeline {
-            inner: pipeline
+            inner: pipeline,
+            render_pass: render_pass,
         }
     }
 
@@ -24,7 +27,12 @@ impl Pipeline {
         self.inner.delete();
     }
 
-    pub fn prepare(&mut self, render_pass: &RenderPass) {
-        self.inner.prepare(render_pass.get_pass());
+    pub fn begin(&mut self) {
+        self.render_pass.begin();
+        self.inner.prepare(self.render_pass.get_pass());
+    }
+
+    pub fn end(&mut self) {
+        self.render_pass.end();
     }
 }

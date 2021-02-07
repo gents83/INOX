@@ -32,23 +32,19 @@ impl Mesh {
     }
     
     pub fn destroy(&mut self) {
-        let inner_device = self.device.inner.borrow();
         self.vertices.clear();
         self.indices.clear();
-        self.inner.delete(&inner_device);
+        self.inner.delete(&self.device.inner);
     }
 
     pub fn finalize(&mut self) -> &mut Self {
-        let inner_device = self.device.inner.borrow();
-        self.inner.create_vertex_buffer(&inner_device, self.vertices.as_slice());
-        self.inner.create_index_buffer(&inner_device, self.indices.as_slice());
-        drop(inner_device);
+        self.inner.create_vertex_buffer(&self.device.inner, self.vertices.as_slice());
+        self.inner.create_index_buffer(&self.device.inner, self.indices.as_slice());
         self
     }
 
     pub fn draw(&self) {
-        let inner_device = self.device.inner.borrow();
-        self.inner.draw(&inner_device);
+        self.inner.draw(&self.device.inner);
     }
 
     pub fn create_quad(rect: Vector4f, tex_coords: Vector4f, index_start: Option<usize>) -> (Vec<VertexData>, Vec<u32>) {    

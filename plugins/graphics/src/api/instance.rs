@@ -1,5 +1,6 @@
 use nrg_platform::Handle;
 
+#[derive(Clone)]
 pub struct Instance {
     pub inner: super::backend::instance::Instance,
 }

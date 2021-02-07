@@ -41,6 +41,14 @@ impl ResourceStorage {
         let res = Arc::into_raw(item);
         ResourceRef::new( unsafe{ &*res })
     }
+    
+    pub fn get_unique_resource_mut<T: 'static>(&self) -> ResourceRefMut<T> {
+        debug_assert!(self.stored.len() == 1, "Trying to get unique resource but multiple resource of same type exists");
+        let item = self.stored.first().unwrap();
+        let item: Arc<Resource<T>> = unsafe { std::mem::transmute_copy(item ) };
+        let res = Arc::into_raw(item);
+        ResourceRefMut::new( unsafe{ &*res })
+    }
 }
 
 pub struct SharedData {
@@ -71,6 +79,11 @@ impl SharedData {
     pub fn get_unique_resource<T: 'static>(&self) -> ResourceRef<T> {
         let vec = self.resources.get(&TypeId::of::<T>()).unwrap();
         vec.get_unique_resource()
+    }
+    
+    pub fn get_unique_resource_mut<T: 'static>(&self) -> ResourceRefMut<T> {
+        let vec = self.resources.get(&TypeId::of::<T>()).unwrap();
+        vec.get_unique_resource_mut()
     }
 }
 
