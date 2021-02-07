@@ -48,7 +48,7 @@ impl PluginManager {
         self.plugins.clear();
     }
 
-    pub fn add_plugin(&mut self, lib_path: PathBuf, shared_data: &mut Arc<SharedData>, scheduler: &mut Scheduler) -> PluginId {
+    pub fn add_plugin(&mut self, lib_path: PathBuf, shared_data: &mut SharedDataRw, scheduler: &mut Scheduler) -> PluginId {
         let mut plugin_data = PluginManager::create_plugin_data(lib_path);
         plugin_data.plugin.prepare(scheduler, shared_data);
         
@@ -154,7 +154,7 @@ impl PluginManager {
         thread::sleep(time::Duration::from_millis(WAIT_TIME_BEFORE_RELOADING));
     }
 
-    pub fn update(&mut self, shared_data: &mut Arc<SharedData>, scheduler: &mut Scheduler) {
+    pub fn update(&mut self, shared_data: &mut SharedDataRw, scheduler: &mut Scheduler) {
         let mut plugins_to_remove: Vec<PluginId> = Vec::new();
         for (id, plugin_data) in self.plugins.iter_mut() {
             if let Ok(event) = plugin_data.filewatcher.read_events().try_recv() {               

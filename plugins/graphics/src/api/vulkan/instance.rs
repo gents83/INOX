@@ -6,6 +6,7 @@ use super::utils::*;
 use super::physical_device::*;
 
 struct InstanceImmutable {
+    lib: vulkan_bindings::Lib,
     supported_layers: Vec<VkLayerProperties>,
     supported_extensions: Vec<VkExtensionProperties>,
     instance: VkInstance,
@@ -74,7 +75,8 @@ impl Instance {
 
 impl InstanceImmutable {
     pub fn new(handle: &Handle, enable_validation: bool) -> InstanceImmutable {
-        VK::initialize(&vulkan_bindings::Lib::default());
+        let lib = vulkan_bindings::Lib::default();
+        VK::initialize(&lib);
         let available_layers = if enable_validation { enumerate_available_layers() } else { Vec::new() };
         let available_extensions = enumerate_available_extensions();
         let inst = create_instance(&available_layers, &available_extensions);
@@ -84,6 +86,7 @@ impl InstanceImmutable {
             eprintln!("Unable to find a physical device that support Vulkan needed API");
         }
         InstanceImmutable {
+            lib,
             supported_layers: available_layers,
             supported_extensions: available_extensions,
             instance: inst,

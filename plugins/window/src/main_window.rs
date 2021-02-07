@@ -30,7 +30,7 @@ unsafe impl Send for MainWindow {}
 unsafe impl Sync for MainWindow {}
 
 impl Plugin for MainWindow {
-    fn prepare(&mut self, scheduler: &mut Scheduler, shared_data: &mut Arc<SharedData>) {    
+    fn prepare(&mut self, scheduler: &mut Scheduler, shared_data: &mut SharedDataRw) {    
         println!("Prepare {} plugin", ::std::any::type_name::<MainWindow>().to_string());
         
         let mut update_phase = PhaseWithSystems::new(MAIN_WINDOW_PHASE);

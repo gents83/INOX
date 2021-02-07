@@ -13,7 +13,7 @@ impl Window {
         _x: u32,
         _y: u32,
         _width: u32,
-        _height: u32) -> Window {
+        _height: u32) -> Handle {
             
         let mut name: Vec<u16> = _name.encode_utf16().collect();
         let mut title: Vec<u16> = _title.encode_utf16().collect();
@@ -57,20 +57,12 @@ impl Window {
                 win_hinstance,							// hInstance
                 ::std::ptr::null_mut() );						// lpParam
 
-            Window {
-                handle : Handle { 
-                    handle_impl: HandleImpl { 
-                        hwnd : win_handle, 
-                        hinstance : win_hinstance 
-                    }, 
-                },
-                x: _x,
-                y: _y,
-                width: _width,
-                height: _height,
-                name: _name,
-                title: _title
-            }        
+            Handle { 
+                handle_impl: HandleImpl { 
+                    hwnd : win_handle, 
+                    hinstance : win_hinstance 
+                }, 
+            }  
         }
     }
 

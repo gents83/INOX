@@ -45,8 +45,8 @@ fn test_vulkan_create_win32_display_surface(instance:&mut VkInstance) -> VkSurfa
         sType: VkStructureType_VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR,
         pNext: ::std::ptr::null_mut(),
         flags: 0,
-        hinstance: window.handle.handle_impl.hinstance as *mut vulkan_bindings::HINSTANCE__,
-        hwnd: window.handle.handle_impl.hwnd as *mut vulkan_bindings::HWND__,
+        hinstance: window.get_handle().handle_impl.hinstance as *mut vulkan_bindings::HINSTANCE__,
+        hwnd: window.get_handle().handle_impl.hwnd as *mut vulkan_bindings::HWND__,
     };
     
     let surface:VkSurfaceKHR = unsafe {

@@ -1,4 +1,4 @@
-use std::{path::PathBuf, sync::Arc};
+use std::{path::PathBuf, sync::{Arc, RwLock}};
 use crate::schedule::scheduler::*;
 use crate::plugins::plugin::*;
 use crate::plugins::plugin_manager::*;
@@ -9,7 +9,7 @@ use crate::resources::shared_data::*;
 pub struct App {
     scheduler: Scheduler,
     plugin_manager: PluginManager,
-    shared_data: Arc<SharedData>,
+    shared_data: SharedDataRw,
 }
 
 impl Default for App {
@@ -29,8 +29,12 @@ impl App {
         Self {
             scheduler: Scheduler::new(),
             plugin_manager: PluginManager::new(),
-            shared_data: Arc::new(SharedData::default()),
+            shared_data: Arc::new(RwLock::new(SharedData::default())),
         }
+    }
+
+    pub fn get_shared_data(&self) -> SharedDataRw {
+        self.shared_data.clone()
     }
 
     pub fn run_once(&mut self) -> bool {

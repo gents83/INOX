@@ -35,7 +35,7 @@ impl PluginId {
 
 pub trait Plugin: Any + Send + Sync {
     #[no_mangle]
-    fn prepare<'a>(&mut self, scheduler: &mut Scheduler, shared_data: &mut Arc<SharedData>);
+    fn prepare<'a>(&mut self, scheduler: &mut Scheduler, shared_data: &mut SharedDataRw);
     #[no_mangle]
     fn unprepare(&mut self, scheduler: &mut Scheduler);
     #[no_mangle]

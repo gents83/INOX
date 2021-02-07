@@ -29,7 +29,7 @@ unsafe impl Send for GfxPlugin {}
 unsafe impl Sync for GfxPlugin {}
 
 impl Plugin for GfxPlugin {
-    fn prepare<'a>(&mut self, scheduler: &mut Scheduler, shared_data: &mut Arc<SharedData>) {    
+    fn prepare<'a>(&mut self, scheduler: &mut Scheduler, shared_data: &mut SharedDataRw) {    
         println!("Prepare {} plugin", ::std::any::type_name::<GfxPlugin>().to_string());
         
         let mut update_phase = PhaseWithSystems::new(RENDERING_PHASE);

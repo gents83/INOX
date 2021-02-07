@@ -1,4 +1,4 @@
-use std::{any::TypeId, collections::HashMap, sync::Arc};
+use std::{any::TypeId, collections::HashMap, sync::{Arc, RwLock}};
 
 use super::resource::*;
 
@@ -73,3 +73,5 @@ impl SharedData {
         vec.get_unique_resource()
     }
 }
+
+pub type SharedDataRw = Arc<RwLock<SharedData>>;

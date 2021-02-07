@@ -33,7 +33,7 @@ unsafe impl Send for Game {}
 unsafe impl Sync for Game {}
 
 impl Plugin for Game {
-    fn prepare<'a>(&mut self, scheduler: &mut Scheduler, _shared_data: &mut Arc<SharedData>) {    
+    fn prepare<'a>(&mut self, scheduler: &mut Scheduler, _shared_data: &mut SharedDataRw) {    
         println!("Prepare {} plugin", self.game_name);
         
         let mut update_phase = PhaseWithSystems::new(UPDATE_PHASE);

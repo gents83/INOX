@@ -7,11 +7,11 @@ use nrg_platform::*;
 
 pub struct WindowSystem {
     id: SystemId,
-    shared_data: Arc<SharedData>,
+    shared_data: SharedDataRw,
 }
 
 impl WindowSystem {
-    pub fn new(game_name: String, shared_data: &mut Arc<SharedData>) -> Self {
+    pub fn new(game_name: String, shared_data: &mut SharedDataRw) -> Self {
         let _pos = Vector2u::new(10, 10);
         let size = Vector2u::new(1024, 768);
     
@@ -21,7 +21,7 @@ impl WindowSystem {
             size.x, size.y );
 
         let data = Arc::get_mut(shared_data).unwrap();
-        data.add_resource(window);
+        data.write().unwrap().add_resource(window);
 
         Self {
             id: SystemId::new(),
@@ -39,7 +39,8 @@ impl System for WindowSystem {
     }
     fn run(&mut self) -> bool {
         //println!("Executing run() for WindowSystem[{:?}]", self.id());
-        let window_res = self.shared_data.get_unique_resource::<Window>();
+        let data = self.shared_data.read().unwrap();
+        let window_res = data.get_unique_resource::<Window>();
         (*window_res).update()
     }
     fn uninit(&mut self) {

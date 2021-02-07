@@ -5,7 +5,6 @@ use nrg_platform::*;
 
 
 fn main() {
-
     let mut app = App::new();
 
     {
