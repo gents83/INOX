@@ -143,4 +143,7 @@ extern "system" {
         dwMilliseconds: DWORD,
         bAlertable: BOOL,
     ) -> DWORD;
+    pub fn SetProcessDEPPolicy(
+        dwFlags: DWORD,
+    ) -> BOOL;
 }

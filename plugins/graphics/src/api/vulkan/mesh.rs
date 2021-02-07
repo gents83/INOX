@@ -15,11 +15,11 @@ impl Default for Mesh {
     fn default() -> Self {
         Self {
             vertex_count: 0,
-            vertex_buffer: ::std::ptr::null_mut(),
-            vertex_buffer_memory: ::std::ptr::null_mut(),
+            vertex_buffer: VK_NULL_HANDLE.into(),
+            vertex_buffer_memory: VK_NULL_HANDLE.into(),
             indices_count: 0,
-            index_buffer: ::std::ptr::null_mut(),
-            index_buffer_memory: ::std::ptr::null_mut(),
+            index_buffer: VK_NULL_HANDLE.into(),
+            index_buffer_memory: VK_NULL_HANDLE.into(),
         }
     }
 }
@@ -32,7 +32,7 @@ impl Mesh {
     
 
     pub fn create_vertex_buffer(&mut self, device: &Device, vertices: &[VertexData]) {
-        if self.vertex_buffer != std::ptr::null_mut() {
+        if self.vertex_buffer != VK_NULL_HANDLE.into() {
             device.destroy_buffer(&self.vertex_buffer, &self.vertex_buffer_memory);
             self.vertex_count = 0;
         }
@@ -40,8 +40,8 @@ impl Mesh {
         let length = ::std::mem::size_of::<VertexData>() * vertices.len();
         let flags = VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
         
-        let mut staging_buffer: VkBuffer = ::std::ptr::null_mut();
-        let mut staging_buffer_memory : VkDeviceMemory = ::std::ptr::null_mut();
+        let mut staging_buffer: VkBuffer = VK_NULL_HANDLE.into();
+        let mut staging_buffer_memory : VkDeviceMemory = VK_NULL_HANDLE.into();
         device.create_buffer(length as _, 
                             VkBufferUsageFlagBits_VK_BUFFER_USAGE_TRANSFER_SRC_BIT as _, 
                             flags as _,
@@ -50,8 +50,8 @@ impl Mesh {
         
         device.map_buffer_memory(&mut staging_buffer_memory, &vertices);
 
-        let mut vertex_buffer: VkBuffer = ::std::ptr::null_mut();
-        let mut vertex_buffer_memory : VkDeviceMemory = ::std::ptr::null_mut();
+        let mut vertex_buffer: VkBuffer = VK_NULL_HANDLE.into();
+        let mut vertex_buffer_memory : VkDeviceMemory = VK_NULL_HANDLE.into();
         let flags = VkBufferUsageFlagBits_VK_BUFFER_USAGE_TRANSFER_DST_BIT | VkBufferUsageFlagBits_VK_BUFFER_USAGE_VERTEX_BUFFER_BIT; 
         device.create_buffer(length as _, 
                             flags as _, 
@@ -72,8 +72,8 @@ impl Mesh {
         let length = ::std::mem::size_of::<u32>() * indices.len();
         let flags = VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
         
-        let mut staging_buffer: VkBuffer = ::std::ptr::null_mut();
-        let mut staging_buffer_memory : VkDeviceMemory = ::std::ptr::null_mut();
+        let mut staging_buffer: VkBuffer = VK_NULL_HANDLE.into();
+        let mut staging_buffer_memory : VkDeviceMemory = VK_NULL_HANDLE.into();
         device.create_buffer(length as _, 
                             VkBufferUsageFlagBits_VK_BUFFER_USAGE_TRANSFER_SRC_BIT as _, 
                             flags as _,
@@ -82,8 +82,8 @@ impl Mesh {
         
         device.map_buffer_memory(&mut staging_buffer_memory, &indices);
 
-        let mut index_buffer: VkBuffer = ::std::ptr::null_mut();
-        let mut index_buffer_memory : VkDeviceMemory = ::std::ptr::null_mut();
+        let mut index_buffer: VkBuffer = VK_NULL_HANDLE.into();
+        let mut index_buffer_memory : VkDeviceMemory = VK_NULL_HANDLE.into();
         let flags = VkBufferUsageFlagBits_VK_BUFFER_USAGE_TRANSFER_DST_BIT | VkBufferUsageFlagBits_VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
         device.create_buffer(length as _, 
                             flags as _, 
@@ -106,7 +106,7 @@ impl Mesh {
             let offsets = [0_u64];
             vkCmdBindVertexBuffers.unwrap()(device.get_current_command_buffer(), 0, 1, vertex_buffers.as_ptr(), offsets.as_ptr());
 
-            if self.index_buffer != std::ptr::null_mut() {
+            if self.index_buffer != VK_NULL_HANDLE.into() {
                 vkCmdBindIndexBuffer.unwrap()(device.get_current_command_buffer(), self.index_buffer, 0, VkIndexType_VK_INDEX_TYPE_UINT32);
                 vkCmdDrawIndexed.unwrap()(device.get_current_command_buffer(), self.indices_count as _, 1, 0, 0, 0);
             }

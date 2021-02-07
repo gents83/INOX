@@ -138,7 +138,7 @@ fn test_vulkan_create_khr_display_surface(physical_device:&mut VkPhysicalDevice,
         output.assume_init()
     };        
     
-    let mut surface:VkSurfaceKHR = ::std::ptr::null_mut();
+    let mut surface:VkSurfaceKHR = VK_NULL_HANDLE.into();
 
     let surface_info = VkDisplaySurfaceCreateInfoKHR {
         sType: VkStructureType_VK_STRUCTURE_TYPE_DISPLAY_SURFACE_CREATE_INFO_KHR,

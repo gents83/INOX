@@ -94,7 +94,7 @@ pub fn enumerate_physical_devices(instance: VkInstance) -> Vec<VkPhysicalDevice>
 pub fn find_plane_for_display(device:&VkPhysicalDevice, display:&VkDisplayKHR, plane_properties:&[VkDisplayPlanePropertiesKHR]) -> i32 {
 
     for (index, plane) in plane_properties.iter().enumerate() {
-        if (plane.currentDisplay != ::std::ptr::null_mut()) &&
+        if (plane.currentDisplay != VK_NULL_HANDLE.into()) &&
             (plane.currentDisplay != *display) {
             continue;
         }

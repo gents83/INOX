@@ -25,10 +25,10 @@ impl Pipeline {
 
     pub fn create(device:&Device) -> Pipeline {
         let immutable = PipelineImmutable {
-            descriptor_set_layout: ::std::ptr::null_mut(),
+            descriptor_set_layout: VK_NULL_HANDLE.into(),
             shaders: Vec::new(),
-            pipeline_layout: ::std::ptr::null_mut(),
-            graphics_pipeline: ::std::ptr::null_mut(),
+            pipeline_layout: VK_NULL_HANDLE.into(),
+            graphics_pipeline: VK_NULL_HANDLE.into(),
         };
         let inner = Rc::new(RefCell::new(immutable));
         Pipeline {
@@ -225,7 +225,7 @@ impl PipelineImmutable {
             layout: self.pipeline_layout,
             renderPass: render_pass.into(),
             subpass: 0,
-            basePipelineHandle: ::std::ptr::null_mut(),
+            basePipelineHandle: VK_NULL_HANDLE.into(),
             basePipelineIndex: -1,
         };
         
@@ -233,7 +233,7 @@ impl PipelineImmutable {
             let mut option = ::std::mem::MaybeUninit::uninit();
             assert_eq!(
                 VkResult_VK_SUCCESS,
-                vkCreateGraphicsPipelines.unwrap()(device.get_device(), ::std::ptr::null_mut(), 1, &pipeline_info, ::std::ptr::null_mut(), option.as_mut_ptr())
+                vkCreateGraphicsPipelines.unwrap()(device.get_device(), VK_NULL_HANDLE.into(), 1, &pipeline_info, ::std::ptr::null_mut(), option.as_mut_ptr())
             );
             option.assume_init()
         };
