@@ -1,4 +1,4 @@
-use std::{env, thread, time};
+use std::{env, sync::Arc, thread, time};
 use std::{collections::HashMap, path::PathBuf};
 
 use nrg_platform::*;
@@ -37,18 +37,18 @@ impl PluginManager {
         }
     }
 
-    pub fn release(&mut self, shared_data: &mut SharedData, scheduler: &mut Scheduler) {
+    pub fn release(&mut self, scheduler: &mut Scheduler) {
         let mut plugins_to_remove: Vec<PluginId> = Vec::new();
         for (id, _p) in self.plugins.iter() {
             plugins_to_remove.push(*id);
         }
         for id in plugins_to_remove.iter() {
-            self.remove_plugin(id, shared_data, scheduler);
+            self.remove_plugin(id, scheduler);
         }
         self.plugins.clear();
     }
 
-    pub fn add_plugin(&mut self, lib_path: PathBuf, shared_data: &mut SharedData, scheduler: &mut Scheduler) -> PluginId {
+    pub fn add_plugin(&mut self, lib_path: PathBuf, shared_data: &mut Arc<SharedData>, scheduler: &mut Scheduler) -> PluginId {
         let mut plugin_data = PluginManager::create_plugin_data(lib_path);
         plugin_data.plugin.prepare(scheduler, shared_data);
         
@@ -57,12 +57,12 @@ impl PluginManager {
         id
     }
 
-    pub fn remove_plugin(&mut self, plugin_id: &PluginId, shared_data: &mut SharedData, scheduler: &mut Scheduler) {
+    pub fn remove_plugin(&mut self, plugin_id: &PluginId, scheduler: &mut Scheduler) {
         if self.plugins.contains_key(plugin_id) {
             let in_use_path = {
                 let plugin_data = self.plugins.remove_entry(plugin_id).unwrap().1;
                 let path = plugin_data.in_use_path.clone();
-                PluginManager::clear_plugin_data(plugin_data, shared_data, scheduler);
+                PluginManager::clear_plugin_data(plugin_data, scheduler);
                 path
             };
 
@@ -137,12 +137,12 @@ impl PluginManager {
         (lib, plugin)
     }
 
-    fn clear_plugin_data(mut plugin_data: PluginData, shared_data: &mut SharedData, scheduler: &mut Scheduler) {
+    fn clear_plugin_data(mut plugin_data: PluginData, scheduler: &mut Scheduler) {
         plugin_data.filewatcher.stop();
         
         thread::sleep(time::Duration::from_millis(WAIT_TIME_BEFORE_RELOADING));
 
-        plugin_data.plugin.unprepare(scheduler, shared_data);
+        plugin_data.plugin.unprepare(scheduler);
 
         let lib = unsafe{ Box::into_raw(plugin_data.lib).as_mut().unwrap() };
         let destroy_fn = lib.get::<PFNDestroyPlugin>(DESTROY_PLUGIN_FUNCTION_NAME);
@@ -154,7 +154,7 @@ impl PluginManager {
         thread::sleep(time::Duration::from_millis(WAIT_TIME_BEFORE_RELOADING));
     }
 
-    pub fn update(&mut self, shared_data: &mut SharedData, scheduler: &mut Scheduler) {
+    pub fn update(&mut self, shared_data: &mut Arc<SharedData>, scheduler: &mut Scheduler) {
         let mut plugins_to_remove: Vec<PluginId> = Vec::new();
         for (id, plugin_data) in self.plugins.iter_mut() {
             if let Ok(event) = plugin_data.filewatcher.read_events().try_recv() {               
@@ -170,7 +170,7 @@ impl PluginManager {
         }
         for id in plugins_to_remove.iter() {
             let lib_path = self.plugins[id].original_path.clone();
-            self.remove_plugin(id, shared_data, scheduler);
+            self.remove_plugin(id, scheduler);
             self.add_plugin(lib_path, shared_data, scheduler);
         }
     }

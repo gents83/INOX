@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use nrg_core::*;
 
 use super::window_system::*;
@@ -28,11 +30,11 @@ unsafe impl Send for MainWindow {}
 unsafe impl Sync for MainWindow {}
 
 impl Plugin for MainWindow {
-    fn prepare(&mut self, scheduler: &mut Scheduler, _shared_data: &mut SharedData) {    
+    fn prepare(&mut self, scheduler: &mut Scheduler, shared_data: &mut Arc<SharedData>) {    
         println!("Prepare {} plugin", ::std::any::type_name::<MainWindow>().to_string());
         
         let mut update_phase = PhaseWithSystems::new(MAIN_WINDOW_PHASE);
-        let system = WindowSystem::new(String::from("NRG"));
+        let system = WindowSystem::new(String::from("NRG"), shared_data);
 
         self.system_id = system.id();
 
@@ -40,7 +42,7 @@ impl Plugin for MainWindow {
         scheduler.create_phase(update_phase); 
     }
     
-    fn unprepare(&mut self, scheduler: &mut Scheduler, _shared_data: &mut SharedData) {   
+    fn unprepare(&mut self, scheduler: &mut Scheduler) {   
         let update_phase:&mut PhaseWithSystems = scheduler.get_phase_mut(MAIN_WINDOW_PHASE);
         update_phase.remove_system(&self.system_id);
         scheduler.destroy_phase(MAIN_WINDOW_PHASE);

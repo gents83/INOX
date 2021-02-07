@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use nrg_core::*;
 
 use super::system::*;
@@ -31,11 +33,11 @@ unsafe impl Send for Game {}
 unsafe impl Sync for Game {}
 
 impl Plugin for Game {
-    fn prepare(&mut self, scheduler: &mut Scheduler, _shared_data: &mut SharedData) {    
+    fn prepare<'a>(&mut self, scheduler: &mut Scheduler, _shared_data: &mut Arc<SharedData>) {    
         println!("Prepare {} plugin", self.game_name);
         
         let mut update_phase = PhaseWithSystems::new(UPDATE_PHASE);
-        let system = MySystem::new(self.game_name.clone());
+        let system = MySystem::new();
 
         self.system_id = system.id();
 
@@ -43,7 +45,7 @@ impl Plugin for Game {
         scheduler.create_phase(update_phase); 
     }
     
-    fn unprepare(&mut self, scheduler: &mut Scheduler, _shared_data: &mut SharedData) {   
+    fn unprepare(&mut self, scheduler: &mut Scheduler) {   
         let update_phase:&mut PhaseWithSystems = scheduler.get_phase_mut(UPDATE_PHASE);
         update_phase.remove_system(&self.system_id);
         scheduler.destroy_phase(UPDATE_PHASE);

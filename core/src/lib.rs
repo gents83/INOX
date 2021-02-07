@@ -3,6 +3,7 @@
 pub use crate::app::*;
 pub use crate::schedule::phase::*;
 pub use crate::plugins::plugin::*;
+pub use crate::resources::resource::*;
 pub use crate::resources::shared_data::*;
 pub use crate::schedule::system::*;
 pub use crate::plugins::plugin_manager::*;
@@ -15,6 +16,7 @@ pub mod plugins {
     pub mod plugin_manager;
 }
 pub mod resources {
+    pub mod resource;
     pub mod shared_data;
 }
 pub mod schedule {

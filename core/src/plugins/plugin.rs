@@ -1,4 +1,5 @@
 use std::any::Any;
+use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::schedule::scheduler::*;
@@ -34,9 +35,9 @@ impl PluginId {
 
 pub trait Plugin: Any + Send + Sync {
     #[no_mangle]
-    fn prepare(&mut self, scheduler: &mut Scheduler, shared_data: &mut SharedData);
+    fn prepare<'a>(&mut self, scheduler: &mut Scheduler, shared_data: &mut Arc<SharedData>);
     #[no_mangle]
-    fn unprepare(&mut self, scheduler: &mut Scheduler, shared_data: &mut SharedData);
+    fn unprepare(&mut self, scheduler: &mut Scheduler);
     #[no_mangle]
     fn id(&self) -> PluginId {
         PluginId::new()

@@ -2,8 +2,6 @@
 
 // Common 
 
-use gfx::GfxPlugin;
-
 pub use crate::api::data_formats::*;
 pub use crate::api::device::*;
 pub use crate::api::instance::*;

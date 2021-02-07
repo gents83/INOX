@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::Arc};
 use crate::schedule::scheduler::*;
 use crate::plugins::plugin::*;
 use crate::plugins::plugin_manager::*;
@@ -9,7 +9,7 @@ use crate::resources::shared_data::*;
 pub struct App {
     scheduler: Scheduler,
     plugin_manager: PluginManager,
-    shared_data: SharedData,
+    shared_data: Arc<SharedData>,
 }
 
 impl Default for App {
@@ -20,7 +20,7 @@ impl Default for App {
 
 impl Drop for App {
     fn drop(&mut self) {
-        self.plugin_manager.release(&mut self.shared_data, &mut self.scheduler);
+        self.plugin_manager.release(&mut self.scheduler);
     }
 }
 
@@ -29,7 +29,7 @@ impl App {
         Self {
             scheduler: Scheduler::new(),
             plugin_manager: PluginManager::new(),
-            shared_data: SharedData::default(),
+            shared_data: Arc::new(SharedData::default()),
         }
     }
 
@@ -73,6 +73,6 @@ impl App {
     }
 
     pub fn remove_plugin(&mut self, plugin_id: &PluginId) {
-        self.plugin_manager.remove_plugin(plugin_id, &mut self.shared_data, &mut self.scheduler)
+        self.plugin_manager.remove_plugin(plugin_id, &mut self.scheduler)
     }
 }

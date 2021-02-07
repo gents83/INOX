@@ -21,7 +21,7 @@ impl Library
         drop(wide_filename);
         Library(handle)
     }
-    //# Safety 
+    ///# Safety 
     pub unsafe fn get<T>(&self, symbol: &str) -> T{
         let fn_name = CString::new(symbol).unwrap();
         let ret = GetProcAddress(self.0, fn_name.as_ptr());

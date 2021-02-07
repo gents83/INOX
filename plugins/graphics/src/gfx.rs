@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use nrg_core::*;
 
 use super::rendering_system::*;
@@ -28,11 +29,11 @@ unsafe impl Send for GfxPlugin {}
 unsafe impl Sync for GfxPlugin {}
 
 impl Plugin for GfxPlugin {
-    fn prepare(&mut self, scheduler: &mut Scheduler, _shared_data: &mut SharedData) {    
+    fn prepare<'a>(&mut self, scheduler: &mut Scheduler, shared_data: &mut Arc<SharedData>) {    
         println!("Prepare {} plugin", ::std::any::type_name::<GfxPlugin>().to_string());
         
         let mut update_phase = PhaseWithSystems::new(RENDERING_PHASE);
-        let system = RenderingSystem::new();
+        let system = RenderingSystem::new(shared_data);
 
         self.system_id = system.id();
 
@@ -40,7 +41,7 @@ impl Plugin for GfxPlugin {
         scheduler.create_phase(update_phase); 
     }
     
-    fn unprepare(&mut self, scheduler: &mut Scheduler, _shared_data: &mut SharedData) {   
+    fn unprepare(&mut self, scheduler: &mut Scheduler) {   
         let update_phase:&mut PhaseWithSystems = scheduler.get_phase_mut(RENDERING_PHASE);
         update_phase.remove_system(&self.system_id);
         scheduler.destroy_phase(RENDERING_PHASE);

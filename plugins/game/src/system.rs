@@ -6,7 +6,7 @@ pub struct MySystem {
 }
 
 impl MySystem {
-    pub fn new(game_name: String) -> Self {
+    pub fn new() -> Self {
         Self {
             id: SystemId::new(),
         }
