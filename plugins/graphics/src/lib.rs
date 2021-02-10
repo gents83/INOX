@@ -41,9 +41,9 @@ pub mod api
 
 mod voxels 
 {
-    mod block;
-    mod chunk;
-    mod world;
+    pub mod block;
+    pub mod chunk;
+    pub mod world;
 }
 
 pub mod fonts

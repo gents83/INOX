@@ -5,6 +5,7 @@ members = [
     "core",
     "math",
     "platform",
+    "bindings/vulkan_bindings",
     "plugins/game",
     "plugins/graphics",
     "plugins/window",

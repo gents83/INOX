@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use nrg_core::*;
 
 use super::window_system::*;

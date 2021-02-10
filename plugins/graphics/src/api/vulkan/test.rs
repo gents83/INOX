@@ -1,45 +1,58 @@
- #![allow(dead_code)]
+#![allow(dead_code)]
 
-use vulkan_bindings::*;
-use nrg_platform::*;
 use super::utils::*;
+use nrg_platform::*;
+use vulkan_bindings::*;
 
 #[test]
-fn test_chunks()
-{ 
-    use crate::api::data_formats::*;
-    use crate::api::block::*;
-    use crate::api::chunk::*;
-    use crate::api::world::*;
+fn test_chunks() {
+    use crate::voxels::block::*;
+    use crate::voxels::world::*;
     use nrg_math::*;
 
-    let window = 
-    Window::create( String::from("TEST"),
-                   String::from("Vulkan Test"),
-                   100, 100,
-                   1024, 768 );
+    Window::create(
+        String::from("TEST"),
+        String::from("Vulkan Test"),
+        100,
+        100,
+        1024,
+        768,
+    );
 
-    let mut model_transform:Matrix4f = Matrix4f::identity();
-    let cam_pos:Vector3f = [0.0, 16.0, -64.0].into();
+    let mut model_transform: Matrix4f = Matrix4f::identity();
+    let cam_pos: Vector3f = [0.0, 16.0, -64.0].into();
 
     // Add sphere
     let radius = 6;
     let chunk_size = 8;
     let mut world = World::default();
     BlockConfig::new("Solid", true, false);
-    world.create_sphere(Block::from_name("Solid"), 
-                        &WorldBlockCoordinate::new(chunk_size - radius, chunk_size - radius, chunk_size - radius),
-                        &WorldBlockCoordinate::new(chunk_size + radius, chunk_size + radius, chunk_size + radius));
+    world.create_sphere(
+        Block::from_name("Solid"),
+        &WorldBlockCoordinate::new(
+            chunk_size - radius,
+            chunk_size - radius,
+            chunk_size - radius,
+        ),
+        &WorldBlockCoordinate::new(
+            chunk_size + radius,
+            chunk_size + radius,
+            chunk_size + radius,
+        ),
+    );
 
     world.update(10, cam_pos);
 }
 
-fn test_vulkan_create_win32_display_surface(instance:&mut VkInstance) -> VkSurfaceKHR
-{
-    let window =  Window::create( String::from("Test Window"),
-                    String::from("Test Window"),
-                    100, 100,
-                    1024, 768 );
+fn test_vulkan_create_win32_display_surface(instance: &mut VkInstance) -> VkSurfaceKHR {
+    let window = Window::create(
+        String::from("Test Window"),
+        String::from("Test Window"),
+        100,
+        100,
+        1024,
+        768,
+    );
 
     let surface_create_info = VkWin32SurfaceCreateInfoKHR {
         sType: VkStructureType_VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR,
@@ -48,39 +61,53 @@ fn test_vulkan_create_win32_display_surface(instance:&mut VkInstance) -> VkSurfa
         hinstance: window.get_handle().handle_impl.hinstance as *mut vulkan_bindings::HINSTANCE__,
         hwnd: window.get_handle().handle_impl.hwnd as *mut vulkan_bindings::HWND__,
     };
-    
-    let surface:VkSurfaceKHR = unsafe {
+
+    let surface: VkSurfaceKHR = unsafe {
         let mut output = ::std::mem::MaybeUninit::uninit();
         assert_eq!(
             VkResult_VK_SUCCESS,
-            vkCreateWin32SurfaceKHR.unwrap()(*instance, &surface_create_info, ::std::ptr::null_mut(), output.as_mut_ptr())
+            vkCreateWin32SurfaceKHR.unwrap()(
+                *instance,
+                &surface_create_info,
+                ::std::ptr::null_mut(),
+                output.as_mut_ptr()
+            )
         );
         output.assume_init()
     };
-    
     surface
 }
 
-
-fn test_vulkan_create_khr_display_surface(physical_device:&mut VkPhysicalDevice, instance:&mut VkInstance) -> VkSurfaceKHR
-{
-    let mut display_count:u32 = 0;
+fn test_vulkan_create_khr_display_surface(
+    physical_device: &mut VkPhysicalDevice,
+    instance: &mut VkInstance,
+) -> VkSurfaceKHR {
+    let mut display_count: u32 = 0;
     unsafe {
         assert_eq!(
             VkResult_VK_SUCCESS,
-            vkGetPhysicalDeviceDisplayPropertiesKHR.unwrap()(*physical_device, &mut display_count, ::std::ptr::null_mut())
+            vkGetPhysicalDeviceDisplayPropertiesKHR.unwrap()(
+                *physical_device,
+                &mut display_count,
+                ::std::ptr::null_mut()
+            )
         );
     }
     assert_ne!(display_count, 0);
 
-    let mut display_properties: Vec<VkDisplayPropertiesKHR> = Vec::with_capacity(display_count as usize);
+    let mut display_properties: Vec<VkDisplayPropertiesKHR> =
+        Vec::with_capacity(display_count as usize);
     unsafe {
         display_properties.set_len(display_count as usize);
         assert_eq!(
             VkResult_VK_SUCCESS,
-            vkGetPhysicalDeviceDisplayPropertiesKHR.unwrap()(*physical_device, &mut display_count, display_properties.as_mut_ptr())
+            vkGetPhysicalDeviceDisplayPropertiesKHR.unwrap()(
+                *physical_device,
+                &mut display_count,
+                display_properties.as_mut_ptr()
+            )
         );
-    }  
+    }
     assert_ne!(display_properties.len(), 0);
     assert_eq!(display_properties.len(), display_count as usize);
 
@@ -89,57 +116,84 @@ fn test_vulkan_create_khr_display_surface(physical_device:&mut VkPhysicalDevice,
     unsafe {
         assert_eq!(
             VkResult_VK_SUCCESS,
-            vkGetDisplayModePropertiesKHR.unwrap()(*physical_device, display_properties[display_selected].display, &mut mode_count, ::std::ptr::null_mut())
+            vkGetDisplayModePropertiesKHR.unwrap()(
+                *physical_device,
+                display_properties[display_selected].display,
+                &mut mode_count,
+                ::std::ptr::null_mut()
+            )
         );
     }
     assert_ne!(mode_count, 0);
-    
-    let mut display_modes: Vec<VkDisplayModePropertiesKHR> = Vec::with_capacity(mode_count as usize);
+
+    let mut display_modes: Vec<VkDisplayModePropertiesKHR> =
+        Vec::with_capacity(mode_count as usize);
     unsafe {
         display_modes.set_len(mode_count as usize);
         assert_eq!(
             VkResult_VK_SUCCESS,
-            vkGetDisplayModePropertiesKHR.unwrap()(*physical_device, display_properties[display_selected].display, &mut mode_count, display_modes.as_mut_ptr())
+            vkGetDisplayModePropertiesKHR.unwrap()(
+                *physical_device,
+                display_properties[display_selected].display,
+                &mut mode_count,
+                display_modes.as_mut_ptr()
+            )
         );
-    }  
+    }
     assert_ne!(display_modes.len(), 0);
     assert_eq!(display_modes.len(), mode_count as usize);
-    
     let mode_selected = 0;
     let mut plane_count = 0;
     unsafe {
         assert_eq!(
             VkResult_VK_SUCCESS,
-            vkGetPhysicalDeviceDisplayPlanePropertiesKHR.unwrap()(*physical_device, &mut plane_count, ::std::ptr::null_mut())
+            vkGetPhysicalDeviceDisplayPlanePropertiesKHR.unwrap()(
+                *physical_device,
+                &mut plane_count,
+                ::std::ptr::null_mut()
+            )
         );
     }
     assert_ne!(plane_count, 0);
-            
-    let mut display_planes: Vec<VkDisplayPlanePropertiesKHR> = Vec::with_capacity(plane_count as usize);
+
+    let mut display_planes: Vec<VkDisplayPlanePropertiesKHR> =
+        Vec::with_capacity(plane_count as usize);
     unsafe {
         display_planes.set_len(plane_count as usize);
         assert_eq!(
             VkResult_VK_SUCCESS,
-            vkGetPhysicalDeviceDisplayPlanePropertiesKHR.unwrap()(*physical_device, &mut plane_count, display_planes.as_mut_ptr())
+            vkGetPhysicalDeviceDisplayPlanePropertiesKHR.unwrap()(
+                *physical_device,
+                &mut plane_count,
+                display_planes.as_mut_ptr()
+            )
         );
-    }  
+    }
     assert_ne!(display_planes.len(), 0);
     assert_eq!(display_planes.len(), plane_count as usize);
 
-    let plane_selected = find_plane_for_display(physical_device, &display_properties[display_selected].display, &display_planes);
+    let plane_selected = find_plane_for_display(
+        physical_device,
+        &display_properties[display_selected].display,
+        &display_planes,
+    );
     assert_ne!(plane_selected, -1);
 
     let display_plane_capabilities = unsafe {
         let mut output = ::std::mem::MaybeUninit::uninit();
         assert_eq!(
             VkResult_VK_SUCCESS,
-            vkGetDisplayPlaneCapabilitiesKHR.unwrap()(*physical_device, display_modes[mode_selected].displayMode, plane_selected as u32, output.as_mut_ptr())
+            vkGetDisplayPlaneCapabilitiesKHR.unwrap()(
+                *physical_device,
+                display_modes[mode_selected].displayMode,
+                plane_selected as u32,
+                output.as_mut_ptr()
+            )
         );
         output.assume_init()
-    };        
-    
-    let mut surface:VkSurfaceKHR = ::std::ptr::null_mut();
+    };
 
+    let mut surface: VkSurfaceKHR = ::std::ptr::null_mut();
     let surface_info = VkDisplaySurfaceCreateInfoKHR {
         sType: VkStructureType_VK_STRUCTURE_TYPE_DISPLAY_SURFACE_CREATE_INFO_KHR,
         pNext: ::std::ptr::null_mut(),
@@ -150,7 +204,7 @@ fn test_vulkan_create_khr_display_surface(physical_device:&mut VkPhysicalDevice,
         transform: VkSurfaceTransformFlagBitsKHR_VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR,
         globalAlpha: 1.0,
         alphaMode: get_supported_alpha_mode(&display_plane_capabilities),
-        imageExtent: VkExtent2D { 
+        imageExtent: VkExtent2D {
             width: display_modes[mode_selected].parameters.visibleRegion.width,
             height: display_modes[mode_selected].parameters.visibleRegion.height,
         },
@@ -159,10 +213,14 @@ fn test_vulkan_create_khr_display_surface(physical_device:&mut VkPhysicalDevice,
     unsafe {
         assert_eq!(
             VkResult_VK_SUCCESS,
-            vkCreateDisplayPlaneSurfaceKHR.unwrap()(*instance, &surface_info, ::std::ptr::null(), &mut surface)
+            vkCreateDisplayPlaneSurfaceKHR.unwrap()(
+                *instance,
+                &surface_info,
+                ::std::ptr::null(),
+                &mut surface
+            )
         );
-    }  
+    }
 
     surface
 }
-

@@ -1,7 +1,8 @@
-use nrg_math::*;
 use super::data_formats::*;
 use super::device::*;
+use nrg_math::*;
 
+#[derive(Clone)]
 pub struct Mesh {
     pub inner: super::backend::mesh::Mesh,
     pub vertices: Vec<VertexData>,
@@ -10,7 +11,7 @@ pub struct Mesh {
 }
 
 impl Mesh {
-    pub fn create(device:&Device) -> Mesh {
+    pub fn create(device: &Device) -> Mesh {
         Self {
             inner: super::backend::mesh::Mesh::default(),
             vertices: Vec::new(),
@@ -19,18 +20,17 @@ impl Mesh {
         }
     }
 
-    pub fn set_vertices(&mut self, vertex_data:&[VertexData]) -> &mut Self {
+    pub fn set_vertices(&mut self, vertex_data: &[VertexData]) -> &mut Self {
         self.vertices.clear();
         self.vertices.extend_from_slice(vertex_data);
         self
     }
 
-    pub fn set_indices(&mut self, indices_data:&[u32]) -> &mut Self {
+    pub fn set_indices(&mut self, indices_data: &[u32]) -> &mut Self {
         self.indices.clear();
         self.indices.extend_from_slice(indices_data);
         self
     }
-    
     pub fn destroy(&mut self) {
         self.vertices.clear();
         self.indices.clear();
@@ -38,8 +38,10 @@ impl Mesh {
     }
 
     pub fn finalize(&mut self) -> &mut Self {
-        self.inner.create_vertex_buffer(&self.device.inner, self.vertices.as_slice());
-        self.inner.create_index_buffer(&self.device.inner, self.indices.as_slice());
+        self.inner
+            .create_vertex_buffer(&self.device.inner, self.vertices.as_slice());
+        self.inner
+            .create_index_buffer(&self.device.inner, self.indices.as_slice());
         self
     }
 
@@ -47,23 +49,54 @@ impl Mesh {
         self.inner.draw(&self.device.inner);
     }
 
-    pub fn create_quad(rect: Vector4f, tex_coords: Vector4f, index_start: Option<usize>) -> (Vec<VertexData>, Vec<u32>) {    
+    pub fn create_quad(
+        rect: Vector4f,
+        tex_coords: Vector4f,
+        index_start: Option<usize>,
+    ) -> (Vec<VertexData>, Vec<u32>) {
         let vertices: [VertexData; 4] = [
-            VertexData { pos: [rect.x, rect.y, 0.].into(), normal: [0., 0., 1.].into(), color: [1., 1., 1.].into(), tex_coord: [tex_coords.z, tex_coords.y].into()},
-            VertexData { pos: [rect.z, rect.y, 0.].into(), normal: [0., 0., 1.].into(), color: [1., 1., 1.].into(), tex_coord: [tex_coords.x, tex_coords.y].into()},
-            VertexData { pos: [rect.z, rect.w, 0.].into(), normal: [0., 0., 1.].into(), color: [1., 1., 1.].into(), tex_coord: [tex_coords.x, tex_coords.w].into()},
-            VertexData { pos: [rect.x, rect.w, 0.].into(), normal: [0., 0., 1.].into(), color: [1., 1., 1.].into(), tex_coord: [tex_coords.z, tex_coords.w].into()},
-        ]; 
-        let index_offset:u32 = index_start.unwrap_or(0) as _;
-        let indices: [u32; 6] = [index_offset, 1 + index_offset, 2 + index_offset, 2 + index_offset, 3 + index_offset, index_offset];
+            VertexData {
+                pos: [rect.x, rect.y, 0.].into(),
+                normal: [0., 0., 1.].into(),
+                color: [1., 1., 1.].into(),
+                tex_coord: [tex_coords.z, tex_coords.y].into(),
+            },
+            VertexData {
+                pos: [rect.z, rect.y, 0.].into(),
+                normal: [0., 0., 1.].into(),
+                color: [1., 1., 1.].into(),
+                tex_coord: [tex_coords.x, tex_coords.y].into(),
+            },
+            VertexData {
+                pos: [rect.z, rect.w, 0.].into(),
+                normal: [0., 0., 1.].into(),
+                color: [1., 1., 1.].into(),
+                tex_coord: [tex_coords.x, tex_coords.w].into(),
+            },
+            VertexData {
+                pos: [rect.x, rect.w, 0.].into(),
+                normal: [0., 0., 1.].into(),
+                color: [1., 1., 1.].into(),
+                tex_coord: [tex_coords.z, tex_coords.w].into(),
+            },
+        ];
+        let index_offset: u32 = index_start.unwrap_or(0) as _;
+        let indices: [u32; 6] = [
+            index_offset,
+            1 + index_offset,
+            2 + index_offset,
+            2 + index_offset,
+            3 + index_offset,
+            index_offset,
+        ];
 
         (vertices.to_vec(), indices.to_vec())
     }
 
-    pub fn set_vertex_color(&mut self, color:Vector3f) -> &mut Self {
+    pub fn set_vertex_color(&mut self, color: Vector3f) -> &mut Self {
         for v in self.vertices.iter_mut() {
             v.color = color;
         }
         self
-    } 
+    }
 }

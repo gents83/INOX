@@ -1,16 +1,13 @@
-
-use std::{cell::RefCell, rc::Rc};
-
 #[derive(Clone)]
 pub struct Device {
     pub inner: super::backend::device::Device,
 }
 
 impl Device {
-    pub fn create(instance:&super::instance::Instance) -> Self {
+    pub fn create(instance: &super::instance::Instance) -> Self {
         Device {
-            inner: super::backend::device::Device::new(&instance.inner) ,
-        } 
+            inner: super::backend::device::Device::new(&instance.inner),
+        }
     }
 
     pub fn destroy(&self) {
@@ -27,7 +24,7 @@ impl Device {
 
     pub fn submit(&mut self) -> bool {
         self.inner.submit()
-    }    
+    }
 
     pub fn recreate_swap_chain(&mut self) {
         self.inner.recreate_swap_chain();

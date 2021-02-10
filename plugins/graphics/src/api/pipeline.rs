@@ -9,17 +9,22 @@ pub struct Pipeline {
 }
 
 impl Pipeline {
-    pub fn create(device:&Device, vert_filepath: &str, frag_filepath: &str, render_pass: RenderPass) -> Pipeline {
-        
+    pub fn create(
+        device: &Device,
+        vert_filepath: &str,
+        frag_filepath: &str,
+        render_pass: RenderPass,
+    ) -> Pipeline {
         //TODO pipeline could be reused - while instance should be unique
         let mut pipeline = super::backend::pipeline::Pipeline::create(&device.inner);
-        pipeline.set_shader(ShaderType::Vertex, vert_filepath)
-                .set_shader(ShaderType::Fragment, frag_filepath)
-                .build();
+        pipeline
+            .set_shader(ShaderType::Vertex, vert_filepath)
+            .set_shader(ShaderType::Fragment, frag_filepath)
+            .build();
 
         Pipeline {
             inner: pipeline,
-            render_pass: render_pass,
+            render_pass,
         }
     }
 
