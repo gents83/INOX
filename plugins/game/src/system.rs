@@ -22,11 +22,8 @@ impl System for MySystem {
     fn id(&self) -> SystemId {
         self.id
     }
-    fn init(&mut self) {
-        //println!("Executing init() for MySystem[{:?}]", self.id());
-    }
+    fn init(&mut self) {}
     fn run(&mut self) -> bool {
-        //println!("Executing run() for MySystem[{:?}]", self.id());
         let read_data = self.shared_data.read().unwrap();
         let renderer = &mut *read_data.get_unique_resource_mut::<Renderer>();
         if renderer.get_fonts_count() < 1 {
@@ -42,7 +39,5 @@ impl System for MySystem {
         }
         true
     }
-    fn uninit(&mut self) {
-        //println!("Executing uninit() for MySystem[{:?}]", self.id());
-    }
+    fn uninit(&mut self) {}
 }

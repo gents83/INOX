@@ -1,4 +1,5 @@
 use nrg_core::*;
+use std::any::type_name;
 
 use super::window_system::*;
 
@@ -11,10 +12,7 @@ pub struct MainWindow {
 
 impl Default for MainWindow {
     fn default() -> Self {
-        println!(
-            "Created {} plugin",
-            ::std::any::type_name::<MainWindow>().to_string()
-        );
+        println!("Created {} plugin", type_name::<Self>().to_string());
         Self {
             system_id: SystemId::default(),
         }
@@ -23,10 +21,7 @@ impl Default for MainWindow {
 
 impl Drop for MainWindow {
     fn drop(&mut self) {
-        println!(
-            "Destroyed {} plugin",
-            ::std::any::type_name::<MainWindow>().to_string()
-        );
+        println!("Destroyed {} plugin", type_name::<Self>().to_string());
     }
 }
 
@@ -35,10 +30,7 @@ unsafe impl Sync for MainWindow {}
 
 impl Plugin for MainWindow {
     fn prepare(&mut self, scheduler: &mut Scheduler, shared_data: &mut SharedDataRw) {
-        println!(
-            "Prepare {} plugin",
-            ::std::any::type_name::<MainWindow>().to_string()
-        );
+        println!("Prepare {} plugin", type_name::<Self>().to_string());
 
         let mut update_phase = PhaseWithSystems::new(MAIN_WINDOW_PHASE);
         let system = WindowSystem::new(shared_data);
@@ -53,9 +45,6 @@ impl Plugin for MainWindow {
         let update_phase: &mut PhaseWithSystems = scheduler.get_phase_mut(MAIN_WINDOW_PHASE);
         update_phase.remove_system(&self.system_id);
         scheduler.destroy_phase(MAIN_WINDOW_PHASE);
-        println!(
-            "Unprepare {} plugin",
-            ::std::any::type_name::<MainWindow>().to_string()
-        );
+        println!("Unprepare {} plugin", type_name::<Self>().to_string());
     }
 }

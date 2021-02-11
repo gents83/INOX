@@ -28,7 +28,6 @@ impl System for RenderingSystem {
         self.id
     }
     fn init(&mut self) {
-        //println!("Executing init() for RenderingSystem[{:?}]", self.id());
         {
             let renderer = {
                 let read_data = self.shared_data.read().unwrap();
@@ -54,7 +53,6 @@ impl System for RenderingSystem {
     }
 
     fn run(&mut self) -> bool {
-        //println!("Executing run() for RenderingSystem[{:?}]", self.id());
         let read_data = self.shared_data.read().unwrap();
         let renderer = &mut *read_data.get_unique_resource_mut::<Renderer>();
 
@@ -65,7 +63,9 @@ impl System for RenderingSystem {
         true
     }
     fn uninit(&mut self) {
-        //println!("Executing uninit() for RenderingSystem[{:?}]", self.id());
-            self.shared_data.write().unwrap().remove_resources_of_type::<Renderer>();
+        self.shared_data
+            .write()
+            .unwrap()
+            .remove_resources_of_type::<Renderer>();
     }
 }
