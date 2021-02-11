@@ -66,5 +66,6 @@ impl System for RenderingSystem {
     }
     fn uninit(&mut self) {
         //println!("Executing uninit() for RenderingSystem[{:?}]", self.id());
+            self.shared_data.write().unwrap().remove_resources_of_type::<Renderer>();
     }
 }

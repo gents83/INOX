@@ -182,17 +182,17 @@ impl Font {
         let mut vertex_data: Vec<VertexData> = Vec::new();
         let mut indices_data: Vec<u32> = Vec::new();
         let mut prev_pos = text_data.position;
+        let width = (DEFAULT_FONT_GLYPH_SIZE as f32 / self.metrics.width) * text_data.scale;
+        let heigth = (DEFAULT_FONT_GLYPH_SIZE as f32 / self.metrics.height) * text_data.scale;
+
         for (i, c) in text_data.text.as_bytes().iter().enumerate() {
             if *c == b'\n' {
-                let heigth =
-                    (DEFAULT_FONT_GLYPH_SIZE as f32 / self.metrics.height) * text_data.scale;
-                prev_pos.x = text_data.position.x;
-                prev_pos.y += heigth;
+                prev_pos.x = text_data.position.x - width * text_data.scale;
+                prev_pos.y += heigth * text_data.scale;
             }
+        
             let id = self.get_glyph_index(*c as _);
             let g = &self.glyphs[id];
-            let width = (DEFAULT_FONT_GLYPH_SIZE as f32 / self.metrics.width) * text_data.scale;
-            let heigth = (DEFAULT_FONT_GLYPH_SIZE as f32 / self.metrics.height) * text_data.scale;
             let (mut vertices, mut indices) = Mesh::create_quad(
                 Vector4f::new(
                     prev_pos.x,
@@ -203,7 +203,7 @@ impl Font {
                 g.texture_coord,
                 Some(i * VERTICES_COUNT),
             );
-
+            
             assert_eq!(
                 vertices.len(),
                 VERTICES_COUNT,
@@ -218,7 +218,7 @@ impl Font {
             );
             vertex_data.append(&mut vertices);
             indices_data.append(&mut indices);
-
+            
             prev_pos.x += width * text_data.scale;
         }
 

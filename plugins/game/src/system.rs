@@ -24,17 +24,17 @@ impl System for MySystem {
     }
     fn init(&mut self) {
         //println!("Executing init() for MySystem[{:?}]", self.id());
-        let read_data = self.shared_data.read().unwrap();
-        let renderer = &mut *read_data.get_unique_resource_mut::<Renderer>();
-        renderer.request_font(PathBuf::from(FONT_PATH));
     }
     fn run(&mut self) -> bool {
         //println!("Executing run() for MySystem[{:?}]", self.id());
         let read_data = self.shared_data.read().unwrap();
         let renderer = &mut *read_data.get_unique_resource_mut::<Renderer>();
+        if renderer.get_fonts_count() < 1 {
+            renderer.request_font(PathBuf::from(FONT_PATH));
+        }
         if let Some(ref mut font) = renderer.get_default_font() {
             font.add_text(
-                String::from(" Hi, GENTS!\n\nThis is new\n\nNRG plugin architecture").as_str(),
+                String::from("Hi, GENTS!\n\nThis is new\n\nNRG\n\nplugin architecture").as_str(),
                 [-0.9, -0.7].into(),
                 1.0,
                 [0.0, 0.8, 1.0].into(),
