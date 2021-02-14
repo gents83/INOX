@@ -1,5 +1,8 @@
-use nrg_math::Vector2u;
+use nrg_core::*;
+use nrg_math::*;
+use serde::{Deserialize, Serialize};
 
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Config {
     name: String,
     position: Vector2u,
@@ -17,6 +20,9 @@ impl Default for Config {
         }
     }
 }
+
+impl Data for Config {}
+impl ConfigBase for Config {}
 
 impl Config {
     pub fn get_name(&self) -> &String {

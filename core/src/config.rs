@@ -1,19 +1,12 @@
+#![allow(dead_code)]
+
+use crate::resources::data::*;
 use std::path::PathBuf;
 
-pub struct Config {
-    data_folder: PathBuf,
-}
+pub const CONFIG_FOLDER: &str = "config";
 
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            data_folder: PathBuf::from("./data/"),
-        }
-    }
-}
-
-impl Config {
-    pub fn get_data_folder(&self) -> &PathBuf {
-        &self.data_folder
+pub trait ConfigBase: Data {
+    fn get_folder(&self) -> PathBuf {
+        self.get_data_folder().join(CONFIG_FOLDER)
     }
 }

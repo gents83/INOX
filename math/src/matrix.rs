@@ -6,15 +6,16 @@ use super::float::*;
 use super::number::*;
 use super::vector::*;
 use super::zero::*;
+use serde::{Deserialize, Serialize};
 
-#[derive(PartialEq, Eq, Copy, Clone, Hash)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Copy, Clone, Hash)]
 pub struct Matrix3<T> {
     pub axis_x: Vector3<T>,
     pub axis_y: Vector3<T>,
     pub axis_z: Vector3<T>,
 }
 
-#[derive(PartialEq, Eq, Copy, Clone, Hash)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Copy, Clone, Hash)]
 pub struct Matrix4<T> {
     pub axis_x: Vector4<T>,
     pub axis_y: Vector4<T>,

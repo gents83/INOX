@@ -9,9 +9,11 @@ build = "build.rs"
 crate-type = ["rlib", "cdylib"] 
 
 [dependencies]
+serde = {version = "1.0", features = ["derive"]}
 nrg_core = { path = "../../core" }
 nrg_math = { path = "../../math" }
 nrg_platform = { path = "../../platform" }
+nrg_serialize = { path = "../../serialize" }
 
 [build-dependencies]
 nrg_core = { path = "../../core" }

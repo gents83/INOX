@@ -1,4 +1,3 @@
-use crate::config::*;
 use crate::plugins::plugin::*;
 use crate::plugins::plugin_manager::*;
 use crate::resources::shared_data::*;
@@ -29,11 +28,10 @@ impl Drop for App {
 
 impl App {
     pub fn new() -> Self {
-        let config = Config::default();
         Self {
             scheduler: Scheduler::new(),
             plugin_manager: PluginManager::new(),
-            shared_data: Arc::new(RwLock::new(SharedData::new(config.get_data_folder()))),
+            shared_data: Arc::new(RwLock::new(SharedData::default())),
         }
     }
 

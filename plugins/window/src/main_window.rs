@@ -1,4 +1,5 @@
 use nrg_core::*;
+use nrg_serialize::*;
 use std::any::type_name;
 
 use crate::config::*;
@@ -34,6 +35,12 @@ unsafe impl Sync for MainWindow {}
 impl Plugin for MainWindow {
     fn prepare(&mut self, scheduler: &mut Scheduler, shared_data: &mut SharedDataRw) {
         println!("Prepare {} plugin", type_name::<Self>().to_string());
+
+        {
+            let data = shared_data.read().unwrap();
+            let path = data.get_data_folder().join("config").join("window.cfg");
+            deserialize(&mut self.config, path);
+        }
 
         let mut update_phase = PhaseWithSystems::new(MAIN_WINDOW_PHASE);
         let system = WindowSystem::new(&self.config, shared_data);
