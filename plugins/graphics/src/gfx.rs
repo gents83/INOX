@@ -6,7 +6,6 @@ use crate::config::*;
 
 use super::rendering_system::*;
 
-const GFX_CFG_NAME: &str = "graphics.cfg";
 const RENDERING_PHASE: &str = "RENDERING_PHASE";
 
 #[repr(C)]
@@ -36,7 +35,7 @@ unsafe impl Sync for GfxPlugin {}
 
 impl Plugin for GfxPlugin {
     fn prepare<'a>(&mut self, scheduler: &mut Scheduler, shared_data: &mut SharedDataRw) {
-        let path = self.config.get_folder().join(GFX_CFG_NAME);
+        let path = self.config.get_filepath();
         deserialize(&mut self.config, path);
 
         let mut update_phase = PhaseWithSystems::new(RENDERING_PHASE);
@@ -49,7 +48,7 @@ impl Plugin for GfxPlugin {
     }
 
     fn unprepare(&mut self, scheduler: &mut Scheduler) {
-        let path = self.config.get_folder().join(GFX_CFG_NAME);
+        let path = self.config.get_filepath();
         serialize(&self.config, path);
 
         let update_phase: &mut PhaseWithSystems = scheduler.get_phase_mut(RENDERING_PHASE);

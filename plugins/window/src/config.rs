@@ -23,7 +23,11 @@ impl Default for Config {
 }
 
 impl Data for Config {}
-impl ConfigBase for Config {}
+impl ConfigBase for Config {
+    fn get_filename(&self) -> &'static str {
+        "window.cfg"
+    }
+}
 
 impl Config {
     pub fn get_name(&self) -> &String {

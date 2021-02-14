@@ -5,7 +5,6 @@ use std::any::type_name;
 
 use super::system::*;
 
-const GAME_CFG_NAME: &str = "game.cfg";
 const UPDATE_PHASE: &str = "UPDATE_PHASE";
 
 #[repr(C)]
@@ -35,7 +34,7 @@ unsafe impl Sync for Game {}
 
 impl Plugin for Game {
     fn prepare<'a>(&mut self, scheduler: &mut Scheduler, shared_data: &mut SharedDataRw) {
-        let path = self.config.get_folder().join(GAME_CFG_NAME);
+        let path = self.config.get_filepath();
         deserialize(&mut self.config, path);
 
         let mut update_phase = PhaseWithSystems::new(UPDATE_PHASE);
@@ -48,7 +47,7 @@ impl Plugin for Game {
     }
 
     fn unprepare(&mut self, scheduler: &mut Scheduler) {
-        let path = self.config.get_folder().join(GAME_CFG_NAME);
+        let path = self.config.get_filepath();
         serialize(&self.config, path);
 
         let update_phase: &mut PhaseWithSystems = scheduler.get_phase_mut(UPDATE_PHASE);

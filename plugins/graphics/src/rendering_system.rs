@@ -46,10 +46,7 @@ impl System for RenderingSystem {
                 let read_data = self.shared_data.read().unwrap();
                 let renderer = &mut *read_data.get_unique_resource_mut::<Renderer>();
                 let def_rp = RenderPass::create_default(&renderer.device);
-                let pipeline_data = self
-                    .config
-                    .get_pipeline_data(String::from("Default"))
-                    .unwrap();
+                let pipeline_data = self.config.get_pipeline_data(pipeline_id.clone()).unwrap();
                 let def_pipeline = Pipeline::create(
                     &renderer.device,
                     pipeline_data.vertex_shader.clone(),

@@ -1,5 +1,7 @@
 #![allow(dead_code)]
 #![allow(unused_must_use)]
+#![allow(clippy::transmute_ptr_to_ptr)]
+#![allow(clippy::float_cmp)]
 
 use super::cast_to::*;
 use super::float::*;
@@ -500,7 +502,7 @@ fn test_vector() {
     vec3 -= 2.0;
     assert_eq!(vec3, Vector3f::zero());
 
-    vec3 = vec3 + Vector3f::new(1.0, 2.0, 3.0);
+    vec3 += Vector3f::new(1.0, 2.0, 3.0);
     assert_eq!(vec3, Vector3f::new(1.0, 2.0, 3.0));
     assert_eq!(vec3[0], 1.0);
     assert_eq!(vec3[1], 2.0);
