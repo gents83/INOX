@@ -33,7 +33,7 @@ unsafe impl Sync for Game {}
 
 impl Plugin for Game {
     fn prepare<'a>(&mut self, scheduler: &mut Scheduler, shared_data: &mut SharedDataRw) {
-        println!("Prepare {} plugin", type_name::<Self>().to_string());
+        //println!("Prepare {} plugin", type_name::<Self>().to_string());
         let mut update_phase = PhaseWithSystems::new(UPDATE_PHASE);
         let system = MySystem::new(shared_data);
 
@@ -47,6 +47,6 @@ impl Plugin for Game {
         let update_phase: &mut PhaseWithSystems = scheduler.get_phase_mut(UPDATE_PHASE);
         update_phase.remove_system(&self.system_id);
         scheduler.destroy_phase(UPDATE_PHASE);
-        println!("Unprepare {} plugin", type_name::<Self>().to_string());
+        //println!("Unprepare {} plugin", type_name::<Self>().to_string());
     }
 }

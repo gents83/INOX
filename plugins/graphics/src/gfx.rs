@@ -30,7 +30,7 @@ unsafe impl Sync for GfxPlugin {}
 
 impl Plugin for GfxPlugin {
     fn prepare<'a>(&mut self, scheduler: &mut Scheduler, shared_data: &mut SharedDataRw) {
-        println!("Prepare {} plugin", type_name::<Self>().to_string());
+        //println!("Prepare {} plugin", type_name::<Self>().to_string());
         let mut update_phase = PhaseWithSystems::new(RENDERING_PHASE);
         let system = RenderingSystem::new(shared_data);
 
@@ -44,6 +44,6 @@ impl Plugin for GfxPlugin {
         let update_phase: &mut PhaseWithSystems = scheduler.get_phase_mut(RENDERING_PHASE);
         update_phase.remove_system(&self.system_id);
         scheduler.destroy_phase(RENDERING_PHASE);
-        println!("Unprepare {} plugin", type_name::<Self>().to_string());
+        //println!("Unprepare {} plugin", type_name::<Self>().to_string());
     }
 }

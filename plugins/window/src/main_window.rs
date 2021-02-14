@@ -34,7 +34,7 @@ unsafe impl Sync for MainWindow {}
 
 impl Plugin for MainWindow {
     fn prepare(&mut self, scheduler: &mut Scheduler, shared_data: &mut SharedDataRw) {
-        println!("Prepare {} plugin", type_name::<Self>().to_string());
+        //println!("Prepare {} plugin", type_name::<Self>().to_string());
 
         {
             let data = shared_data.read().unwrap();
@@ -55,6 +55,6 @@ impl Plugin for MainWindow {
         let update_phase: &mut PhaseWithSystems = scheduler.get_phase_mut(MAIN_WINDOW_PHASE);
         update_phase.remove_system(&self.system_id);
         scheduler.destroy_phase(MAIN_WINDOW_PHASE);
-        println!("Unprepare {} plugin", type_name::<Self>().to_string());
+        //println!("Unprepare {} plugin", type_name::<Self>().to_string());
     }
 }
