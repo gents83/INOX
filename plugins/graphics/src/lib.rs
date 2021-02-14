@@ -50,9 +50,7 @@ pub mod fonts {
     pub mod font;
     mod geometry;
     mod glyph;
-    mod hershey;
     mod raster;
-    mod test;
 }
 
 mod gfx;

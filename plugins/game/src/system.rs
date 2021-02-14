@@ -33,7 +33,8 @@ impl System for MySystem {
         }
         if let Some(ref mut font) = renderer.get_default_font() {
             font.add_text(
-                String::from("Hi, GENTS!\n\nThis is new\n\nNRG\n\nplugin architecture").as_str(),
+                String::from("Hi, GENTS!\n\nThis is new\n\nNRG\n\nengine plugin architecture")
+                    .as_str(),
                 [-0.9, -0.7].into(),
                 1.0,
                 [0.0, 0.8, 1.0].into(),

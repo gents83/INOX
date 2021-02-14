@@ -1,16 +1,22 @@
-#![allow(bad_style, overflowing_literals, dead_code)]
+#![allow(
+    bad_style,
+    overflowing_literals,
+    dead_code,
+    improper_ctypes,
+    improper_ctypes_definitions
+)]
 
 use std::os::raw::c_ulonglong;
 
-use crate::declare_handle;
-use crate::ctypes::*;
 use super::externs::*;
+use crate::ctypes::*;
+use crate::declare_handle;
 
-declare_handle!{HWND, HWND__}
-declare_handle!{HINSTANCE, HINSTANCE__}
-declare_handle!{HICON, HICON__}
-declare_handle!{HBRUSH, HBRUSH__}
-declare_handle!{HMENU, HMENU__}
+declare_handle! {HWND, HWND__}
+declare_handle! {HINSTANCE, HINSTANCE__}
+declare_handle! {HICON, HICON__}
+declare_handle! {HBRUSH, HBRUSH__}
+declare_handle! {HMENU, HMENU__}
 
 pub type HANDLE = *mut c_void;
 pub type PHANDLE = *mut HANDLE;
@@ -59,8 +65,8 @@ pub const WS_SYSMENU: DWORD = 0x00080000;
 pub const WS_THICKFRAME: DWORD = 0x00040000;
 pub const WS_MINIMIZEBOX: DWORD = 0x00020000;
 pub const WS_MAXIMIZEBOX: DWORD = 0x00010000;
-pub const WS_OVERLAPPEDWINDOW: DWORD = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME
-    | WS_MINIMIZEBOX | WS_MAXIMIZEBOX;
+pub const WS_OVERLAPPEDWINDOW: DWORD =
+    WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX;
 pub const WS_VISIBLE: DWORD = 0x10000000;
 
 pub const WM_DESTROY: UINT = 0x0002;
@@ -131,12 +137,16 @@ pub const FILE_DELETE_CHILD: DWORD = 0x0040;
 pub const FILE_READ_ATTRIBUTES: DWORD = 0x0080;
 pub const FILE_WRITE_ATTRIBUTES: DWORD = 0x0100;
 pub const FILE_ALL_ACCESS: DWORD = STANDARD_RIGHTS_REQUIRED | SYNCHRONIZE | 0x1FF;
-pub const FILE_GENERIC_READ: DWORD = STANDARD_RIGHTS_READ | FILE_READ_DATA
-    | FILE_READ_ATTRIBUTES | FILE_READ_EA | SYNCHRONIZE;
-pub const FILE_GENERIC_WRITE: DWORD = STANDARD_RIGHTS_WRITE | FILE_WRITE_DATA
-    | FILE_WRITE_ATTRIBUTES | FILE_WRITE_EA | FILE_APPEND_DATA | SYNCHRONIZE;
-pub const FILE_GENERIC_EXECUTE: DWORD = STANDARD_RIGHTS_EXECUTE | FILE_READ_ATTRIBUTES
-    | FILE_EXECUTE | SYNCHRONIZE;
+pub const FILE_GENERIC_READ: DWORD =
+    STANDARD_RIGHTS_READ | FILE_READ_DATA | FILE_READ_ATTRIBUTES | FILE_READ_EA | SYNCHRONIZE;
+pub const FILE_GENERIC_WRITE: DWORD = STANDARD_RIGHTS_WRITE
+    | FILE_WRITE_DATA
+    | FILE_WRITE_ATTRIBUTES
+    | FILE_WRITE_EA
+    | FILE_APPEND_DATA
+    | SYNCHRONIZE;
+pub const FILE_GENERIC_EXECUTE: DWORD =
+    STANDARD_RIGHTS_EXECUTE | FILE_READ_ATTRIBUTES | FILE_EXECUTE | SYNCHRONIZE;
 pub const FILE_SHARE_READ: DWORD = 0x00000001;
 pub const FILE_SHARE_WRITE: DWORD = 0x00000002;
 pub const FILE_SHARE_DELETE: DWORD = 0x00000004;
@@ -191,8 +201,7 @@ pub const FILE_ACTION_MODIFIED: DWORD = 0x00000003;
 pub const FILE_ACTION_RENAMED_OLD_NAME: DWORD = 0x00000004;
 pub const FILE_ACTION_RENAMED_NEW_NAME: DWORD = 0x00000005;
 
-
-#[repr(C)] 
+#[repr(C)]
 #[derive(Clone, Copy)]
 pub struct WNDCLASSW {
     pub style: UINT,
@@ -204,17 +213,17 @@ pub struct WNDCLASSW {
     pub hCursor: HCURSOR,
     pub hbrBackground: HBRUSH,
     pub lpszMenuName: LPCWSTR,
-    pub lpszClassName: LPCWSTR
+    pub lpszClassName: LPCWSTR,
 }
 
-#[repr(C)] 
+#[repr(C)]
 #[derive(Clone, Copy)]
 pub struct POINT {
     pub x: LONG,
     pub y: LONG,
 }
 
-#[repr(C)] 
+#[repr(C)]
 #[derive(Clone, Copy)]
 pub struct MSG {
     pub hwnd: HWND,
@@ -225,7 +234,7 @@ pub struct MSG {
     pub pt: POINT,
 }
 
-#[repr(C)] 
+#[repr(C)]
 #[derive(Clone, Copy)]
 pub struct SECURITY_ATTRIBUTES {
     pub nLength: DWORD,
@@ -235,8 +244,7 @@ pub struct SECURITY_ATTRIBUTES {
 
 pub type LPSECURITY_ATTRIBUTES = *mut SECURITY_ATTRIBUTES;
 
-
-#[repr(C)] 
+#[repr(C)]
 #[derive(Clone, Copy)]
 pub struct OVERLAPPED {
     pub Internal: ULONG_PTR,
@@ -248,8 +256,7 @@ pub struct OVERLAPPED {
 
 pub type LPOVERLAPPED = *mut OVERLAPPED;
 
-
-#[repr(C)] 
+#[repr(C)]
 #[derive(Clone, Copy)]
 pub struct FILE_NOTIFY_INFORMATION {
     pub NextEntryOffset: DWORD,
@@ -258,13 +265,13 @@ pub struct FILE_NOTIFY_INFORMATION {
     pub FileName: [WCHAR; 1],
 }
 
-#[repr(C)] 
+#[repr(C)]
 #[derive(Clone, Copy)]
 pub struct FILE_DISPOSITION_INFO {
     pub DeleteFile: BOOL,
 }
 
-
+#[repr(C)]
 pub enum FILE_INFO_BY_HANDLE_CLASS {
     FileBasicInfo,
     FileStandardInfo,

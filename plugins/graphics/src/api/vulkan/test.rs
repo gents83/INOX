@@ -19,7 +19,6 @@ fn test_chunks() {
         768,
     );
 
-    let mut model_transform: Matrix4f = Matrix4f::identity();
     let cam_pos: Vector3f = [0.0, 16.0, -64.0].into();
 
     // Add sphere

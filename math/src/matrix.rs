@@ -98,21 +98,21 @@ macro_rules! implement_matrix {
         impl<$T> AsMut<[$T; ($n * $n)]> for $MatrixN<$T> {
             #[inline]
             fn as_mut(&mut self) -> &mut [$T; ($n * $n)] {
-                unsafe { ::std::mem::transmute(self) }
+                unsafe { &mut *(self as *mut $MatrixN<$T> as *mut [$T; ($n * $n)]) }
             }
         }
 
         impl<'a, $T> From<&'a [$T; ($n * $n)]> for &'a $MatrixN<$T> {
             #[inline]
             fn from(m: &'a [$T; ($n * $n)]) -> &'a $MatrixN<$T> {
-                unsafe { ::std::mem::transmute(m) }
+                unsafe { &*(m as *const [$T; ($n * $n)] as *const $MatrixN<$T>) }
             }
         }
 
         impl<'a, $T> From<&'a mut [$T; ($n * $n)]> for &'a mut $MatrixN<$T> {
             #[inline]
             fn from(m: &'a mut [$T; ($n * $n)]) -> &'a mut $MatrixN<$T> {
-                unsafe { ::std::mem::transmute(m) }
+                unsafe { &mut *(m as *mut [$T; ($n * $n)] as *mut $MatrixN<$T>) }
             }
         }
 
@@ -268,13 +268,13 @@ where
     pub fn from_scale(x: T, y: T) -> Matrix3<T> {
         Self {
             axis_x: Vector3 {
-                x: x,
+                x,
                 y: T::zero(),
                 z: T::zero(),
             },
             axis_y: Vector3 {
                 x: T::zero(),
-                y: y,
+                y,
                 z: T::zero(),
             },
             axis_z: Vector3 {
@@ -401,21 +401,21 @@ where
     pub fn from_scale(x: T, y: T, z: T) -> Matrix4<T> {
         Self {
             axis_x: Vector4 {
-                x: x,
+                x,
                 y: T::zero(),
                 z: T::zero(),
                 w: T::zero(),
             },
             axis_y: Vector4 {
                 x: T::zero(),
-                y: y,
+                y,
                 z: T::zero(),
                 w: T::zero(),
             },
             axis_z: Vector4 {
                 x: T::zero(),
                 y: T::zero(),
-                z: z,
+                z,
                 w: T::zero(),
             },
             axis_w: Vector4 {
@@ -434,17 +434,17 @@ where
         let side = dir.cross(up).get_normalized();
         let up = side.cross(dir).get_normalized();
         Matrix4::new(
-            side.x.clone(),
-            up.x.clone(),
-            -dir.x.clone(),
+            side.x,
+            up.x,
+            -dir.x,
             T::zero(),
-            side.y.clone(),
-            up.y.clone(),
-            -dir.y.clone(),
+            side.y,
+            up.y,
+            -dir.y,
             T::zero(),
-            side.z.clone(),
-            up.z.clone(),
-            -dir.z.clone(),
+            side.z,
+            up.z,
+            -dir.z,
             T::zero(),
             -pos.dot(side),
             -pos.dot(up),

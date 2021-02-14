@@ -2,6 +2,7 @@
     bad_style,
     overflowing_literals,
     dead_code,
+    improper_ctypes,
     improper_ctypes_definitions
 )]
 

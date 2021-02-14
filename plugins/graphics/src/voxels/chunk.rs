@@ -1,7 +1,9 @@
+#![allow(dead_code)]
+
 use nrg_math::*;
 
-use crate::api::data_formats::*;
 use super::block::*;
+use crate::api::data_formats::*;
 
 const N: DeltaDir = DeltaDir::Negative;
 const Z: DeltaDir = DeltaDir::Zero;
@@ -9,7 +11,9 @@ const P: DeltaDir = DeltaDir::Positive;
 
 #[derive(Eq, PartialEq, Copy, Clone)]
 enum DeltaDir {
-    Negative, Zero, Positive
+    Negative,
+    Zero,
+    Positive,
 }
 
 impl DeltaDir {
@@ -17,16 +21,16 @@ impl DeltaDir {
         match self {
             DeltaDir::Negative => base.checked_sub(1),
             DeltaDir::Zero => Some(base),
-            DeltaDir::Positive => base.checked_add(1)
+            DeltaDir::Positive => base.checked_add(1),
         }
     }
 }
 
 #[derive(Debug)]
-pub struct BlockCoordinate { 
+pub struct BlockCoordinate {
     pub x: usize,
     pub y: usize,
-    pub z: usize
+    pub z: usize,
 }
 impl BlockCoordinate {
     #[inline]
@@ -35,9 +39,9 @@ impl BlockCoordinate {
     }
 }
 
-pub type BlockSides = u8;  // 0b000000 flags for each side
-pub type BlockEdges = u32;  // 0b00000000000 flags for each edge
-pub type BlockCorners = u8;  // 0b0000000 flags for each corner
+pub type BlockSides = u8; // 0b000000 flags for each side
+pub type BlockEdges = u32; // 0b00000000000 flags for each edge
+pub type BlockCorners = u8; // 0b0000000 flags for each corner
 
 type BlockData<T> = [[[T; Chunk::SIZE_Z]; Chunk::SIZE_Y]; Chunk::SIZE_X];
 type Blocks = BlockData<Block>;
@@ -55,10 +59,12 @@ pub struct Chunk {
 impl Default for Chunk {
     fn default() -> Self {
         Self {
-            blocks: Box::new([[[Block::DEFAULT_BLOCK; Chunk::SIZE_Z]; Chunk::SIZE_Y]; Chunk::SIZE_X]),
+            blocks: Box::new(
+                [[[Block::DEFAULT_BLOCK; Chunk::SIZE_Z]; Chunk::SIZE_Y]; Chunk::SIZE_X],
+            ),
             sides: Box::new([[[0b000000; Chunk::SIZE_Z]; Chunk::SIZE_Y]; Chunk::SIZE_X]),
             edges: Box::new([[[0b00000000000; Chunk::SIZE_Z]; Chunk::SIZE_Y]; Chunk::SIZE_X]),
-            corners: Box::new([[[0b0000000; Chunk::SIZE_Z]; Chunk::SIZE_Y]; Chunk::SIZE_X])
+            corners: Box::new([[[0b0000000; Chunk::SIZE_Z]; Chunk::SIZE_Y]; Chunk::SIZE_X]),
         }
     }
 }
@@ -72,38 +78,39 @@ impl Chunk {
     pub const EDGE_COUNT: usize = 12;
 
     const SIDE_DIRS: [[DeltaDir; 3]; Chunk::FACE_COUNT] = [
-        [Z, N, Z],  // Close
-        [Z, P, Z],  // Far
-        [P, Z, Z],  // Right
-        [N, Z, Z],  // Left
-        [Z, Z, P],  // Top
-        [Z, Z, N],  // Bottom
+        [Z, N, Z], // Close
+        [Z, P, Z], // Far
+        [P, Z, Z], // Right
+        [N, Z, Z], // Left
+        [Z, Z, P], // Top
+        [Z, Z, N], // Bottom
     ];
 
     const EDGE_DIRS: [[DeltaDir; 3]; Chunk::EDGE_COUNT] = [
-        [P, N, Z],  //  0: CR
-        [N, N, Z],  //  1: CL
-        [Z, N, P],  //  2: CT
-        [Z, N, N],  //  3: CB
-        [P, P, Z],  //  4: FR
-        [N, P, Z],  //  5: FL
-        [Z, P, P],  //  6: FT
-        [Z, P, N],  //  7: FB
-        [P, Z, P],  //  8: RT
-        [P, Z, N],  //  9: RB
-        [N, Z, P],  // 10: LT
-        [N, Z, N],  // 11: LB
+        [P, N, Z], //  0: CR
+        [N, N, Z], //  1: CL
+        [Z, N, P], //  2: CT
+        [Z, N, N], //  3: CB
+        [P, P, Z], //  4: FR
+        [N, P, Z], //  5: FL
+        [Z, P, P], //  6: FT
+        [Z, P, N], //  7: FB
+        [P, Z, P], //  8: RT
+        [P, Z, N], //  9: RB
+        [N, Z, P], // 10: LT
+        [N, Z, N], // 11: LB
     ];
 
-    const CORNER_DIRS: [[DeltaDir; 3]; Chunk::VERTICES_COUNT] = [  // Y and Z are flipped
-        [N, N, N],  // 0: LBC
-        [P, N, N],  // 1: RBC
-        [P, P, N],  // 2: RBF
-        [N, P, N],  // 3: LBF
-        [N, N, P],  // 4: LTC
-        [P, N, P],  // 5: RTC
-        [P, P, P],  // 6: RTF
-        [N, P, P],  // 7: LTF
+    const CORNER_DIRS: [[DeltaDir; 3]; Chunk::VERTICES_COUNT] = [
+        // Y and Z are flipped
+        [N, N, N], // 0: LBC
+        [P, N, N], // 1: RBC
+        [P, P, N], // 2: RBF
+        [N, P, N], // 3: LBF
+        [N, N, P], // 4: LTC
+        [P, N, P], // 5: RTC
+        [P, P, P], // 6: RTF
+        [N, P, P], // 7: LTF
     ];
 
     pub fn visible_count(&self) -> u32 {
@@ -119,12 +126,12 @@ impl Chunk {
         }
         count
     }
-    
+
     pub fn set_block(&mut self, position: &BlockCoordinate, block: Block) {
         self.blocks[position.x][position.y][position.z] = block;
     }
-    
-    pub fn clean_sides(&mut self) { 
+
+    pub fn clean_sides(&mut self) {
         for x in 0..Chunk::SIZE_X {
             for y in 0..Chunk::SIZE_Y {
                 for z in 0..Chunk::SIZE_Z {
@@ -133,7 +140,7 @@ impl Chunk {
             }
         }
     }
-    
+
     fn process_sides_for_index(&mut self, x: usize, y: usize, z: usize) {
         let mut sides = 0b000000;
         let mut edges = 0b00000000000;
@@ -147,8 +154,7 @@ impl Chunk {
                     if block.is_transparent() {
                         sides |= 1 << side;
                     }
-                } 
-                else {
+                } else {
                     sides |= 1 << side;
                 }
             }
@@ -160,8 +166,7 @@ impl Chunk {
                     if block.is_transparent() {
                         edges |= 1 << edge;
                     }
-                } 
-                else {
+                } else {
                     edges |= 1 << edge;
                 }
             }
@@ -173,8 +178,7 @@ impl Chunk {
                     if block.is_transparent() {
                         corners |= 1 << corner;
                     }
-                } 
-                else {
+                } else {
                     corners |= 1 << corner;
                 }
             }
@@ -185,13 +189,29 @@ impl Chunk {
         self.corners[x][y][z] = corners as _;
     }
 
-    
-    fn get_block_from_dir(&self, x: usize, y: usize, z: usize, dir: &[DeltaDir; 3]) -> Option<Block> {
-        let dx = if let Some(x) = dir[0].checked_add_usize(x) { x } else { return None; };
-        let dy = if let Some(y) = dir[1].checked_add_usize(y) { y } else { return None; };
-        let dz = if let Some(z) = dir[2].checked_add_usize(z) { z } else { return None; };
+    fn get_block_from_dir(
+        &self,
+        x: usize,
+        y: usize,
+        z: usize,
+        dir: &[DeltaDir; 3],
+    ) -> Option<Block> {
+        let dx = match dir[0].checked_add_usize(x) {
+            Some(x) => x,
+            None => return None,
+        };
+        let dy = match dir[1].checked_add_usize(y) {
+            Some(y) => y,
+            None => return None,
+        };
+        let dz = match dir[2].checked_add_usize(z) {
+            Some(z) => z,
+            None => return None,
+        };
 
-        if dx >= Chunk::SIZE_X || dy >= Chunk::SIZE_Y || dz >= Chunk::SIZE_Z { return None; }
+        if dx >= Chunk::SIZE_X || dy >= Chunk::SIZE_Y || dz >= Chunk::SIZE_Z {
+            return None;
+        }
 
         Some(self.blocks[dx][dy][dz])
     }
@@ -200,7 +220,13 @@ impl Chunk {
         for x in 0..Chunk::SIZE_X {
             for y in 0..Chunk::SIZE_Y {
                 for z in 0..Chunk::SIZE_Z {
-                    self.blocks[x][y][z].generate_mesh(vertices, x as f32, y as f32, z as f32, self.sides[x][y][z], self.edges[x][y][z], self.corners[x][y][z]);
+                    self.blocks[x][y][z].generate_mesh(
+                        vertices,
+                        Vector3f::new(x as f32, y as f32, z as f32),
+                        self.sides[x][y][z],
+                        self.edges[x][y][z],
+                        self.corners[x][y][z],
+                    );
                 }
             }
         }

@@ -7,7 +7,6 @@ use nrg_platform::Handle;
 use super::device::*;
 use super::instance::*;
 use super::pipeline::*;
-use super::rasterizer::*;
 use super::render_pass::*;
 use super::viewport::*;
 
@@ -21,7 +20,6 @@ pub struct Renderer {
     pub device: Device,
     viewport: Viewport,
     scissors: Scissors,
-    rasterizer: Rasterizer,
     render_passes: HashMap<String, RenderPass>,
     pipelines: HashMap<String, Pipeline>,
     fonts: HashMap<String, Option<Font>>,
@@ -36,7 +34,6 @@ impl Renderer {
             device,
             viewport: Viewport::default(),
             scissors: Scissors::default(),
-            rasterizer: Rasterizer::default(),
             render_passes: HashMap::new(),
             pipelines: HashMap::new(),
             fonts: HashMap::new(),

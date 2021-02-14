@@ -166,11 +166,10 @@ impl PluginManager {
     pub fn update(&mut self, shared_data: &mut SharedDataRw, scheduler: &mut Scheduler) {
         let mut plugins_to_remove: Vec<PluginId> = Vec::new();
         for (id, plugin_data) in self.plugins.iter_mut() {
-            if let Ok(event) = plugin_data.filewatcher.read_events().try_recv() {
-                if let FileEvent::Modified(path) = event {
-                    if plugin_data.filewatcher.get_path().eq(&path) {
-                        plugins_to_remove.push(*id);
-                    }
+            if let Ok(FileEvent::Modified(path)) = plugin_data.filewatcher.read_events().try_recv()
+            {
+                if plugin_data.filewatcher.get_path().eq(&path) {
+                    plugins_to_remove.push(*id);
                 }
             }
         }

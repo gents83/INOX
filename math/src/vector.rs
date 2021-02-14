@@ -1,8 +1,6 @@
 #![allow(dead_code)]
 #![allow(unused_must_use)]
 
-use std::ops::Add;
-
 use crate::implement_zero_as_default;
 use super::cast_to::*;
 use super::number::*;
@@ -479,7 +477,7 @@ where T: Float {
 #[test]
 fn test_vector()
 { 
-    let mut vec2 = Vector2f::zero();
+    let vec2 = Vector2f::zero();
     assert_eq!(vec2, Vector2f::zero());
 
     let mut vec3 = Vector3f::zero();

@@ -9,7 +9,6 @@ use std::{collections::HashMap, num::NonZeroU16, path::PathBuf};
 use ttf_parser::*;
 
 use super::glyph::*;
-use super::hershey::*;
 
 const DEFAULT_FONT_COUNT: u8 = 255;
 const DEFAULT_FONT_TEXTURE_SIZE: usize = 1024;
@@ -37,11 +36,7 @@ struct TextData {
 impl Font {
     #[inline]
     pub fn new(device: &Device, ui_pipeline: Pipeline, filepath: PathBuf) -> Self {
-        let path = filepath.as_path();
-        match path.extension().unwrap().to_str() {
-            Some("jhf") => Font::new_jhf_font(&device, ui_pipeline, filepath),
-            _ => Font::new_ttf_font(&device, ui_pipeline, filepath),
-        }
+        Font::new_ttf_font(&device, ui_pipeline, filepath)
     }
 
     pub fn add_text(&mut self, text: &str, position: Vector2f, scale: f32, color: Vector3f) {
@@ -81,13 +76,6 @@ impl Font {
 }
 
 impl Font {
-    fn new_jhf_font(device: &Device, pipeline: Pipeline, filepath: PathBuf) -> Self {
-        let _font_data = ::std::fs::read(filepath.as_path()).unwrap();
-        let _font = HersheyFont::from_data(_font_data.as_slice());
-        //NOT SUPPORTED YET - returning normal ttf font
-        Font::new_ttf_font(&device, pipeline, filepath)
-    }
-
     fn new_ttf_font(device: &Device, pipeline: Pipeline, filepath: PathBuf) -> Self {
         let font_data = ::std::fs::read(filepath.as_path()).unwrap();
 
@@ -190,7 +178,7 @@ impl Font {
                 prev_pos.x = text_data.position.x - width * text_data.scale;
                 prev_pos.y += heigth * text_data.scale;
             }
-        
+
             let id = self.get_glyph_index(*c as _);
             let g = &self.glyphs[id];
             let (mut vertices, mut indices) = Mesh::create_quad(
@@ -203,7 +191,7 @@ impl Font {
                 g.texture_coord,
                 Some(i * VERTICES_COUNT),
             );
-            
+
             assert_eq!(
                 vertices.len(),
                 VERTICES_COUNT,
@@ -218,7 +206,7 @@ impl Font {
             );
             vertex_data.append(&mut vertices);
             indices_data.append(&mut indices);
-            
+
             prev_pos.x += width * text_data.scale;
         }
 

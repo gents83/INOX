@@ -3,7 +3,6 @@ use std::path::PathBuf;
 use nrg_core::*;
 use nrg_platform::*;
 
-
 fn main() {
     let mut app = App::new();
 
@@ -21,6 +20,6 @@ fn main() {
         let path = PathBuf::from(library_filename("nrg_game"));
         app.add_plugin(path);
     }
-    
+
     app.run();
 }

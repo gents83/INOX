@@ -105,20 +105,6 @@ impl Glyph {
         }
     }
 
-    pub fn width(&self) -> f32 {
-        if self.metrics.width > f32::EPSILON {
-            return DEFAULT_FONT_GLYPH_SIZE as f32 / self.metrics.width as f32;
-        }
-        0.0
-    }
-
-    pub fn height(&self) -> f32 {
-        if self.metrics.height > f32::EPSILON {
-            return DEFAULT_FONT_GLYPH_SIZE as f32 / self.metrics.height as f32;
-        }
-        0.0
-    }
-
     pub fn render<WritePixelFunc: FnMut(u32, u32, f32)>(
         &mut self,
         mut write_pixel_func: WritePixelFunc,

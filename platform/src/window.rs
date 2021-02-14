@@ -2,12 +2,8 @@ use crate::handle::*;
 
 pub struct Window {
     handle: Handle,
-    x: u32,
-    y: u32,
     width: u32,
     height: u32,
-    name: String,
-    title: String,
 }
 
 unsafe impl Send for Window {}
@@ -19,12 +15,8 @@ impl Window {
         let handle = Window::new(name.clone(), title.clone(), x, y, width, height);        
         Self {
             handle,
-            x,
-            y,
             width,
             height,
-            name,
-            title,
         }      
     }
 
