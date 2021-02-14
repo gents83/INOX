@@ -1,4 +1,10 @@
-use std::{any::TypeId, cell::UnsafeCell, ops::{Deref, DerefMut}, path::PathBuf, sync::atomic::{AtomicUsize, Ordering}};
+use std::{
+    any::TypeId,
+    cell::UnsafeCell,
+    ops::{Deref, DerefMut},
+    path::PathBuf,
+    sync::atomic::{AtomicUsize, Ordering},
+};
 
 const VALUE_ZERO: usize = 0;
 const VALUE_ONE: usize = 1;
@@ -11,7 +17,10 @@ impl Atomic {
         Self(AtomicUsize::new(0))
     }
     pub fn request_borrow(&self) -> bool {
-        let result = self.0.fetch_add(VALUE_ONE, Ordering::Acquire).wrapping_add(VALUE_ONE);
+        let result = self
+            .0
+            .fetch_add(VALUE_ONE, Ordering::Acquire)
+            .wrapping_add(VALUE_ONE);
         debug_assert!(result != 0, "Invalid borrow request on atomic element");
         if result & UNIQUE_BIT != VALUE_ZERO {
             self.0.fetch_sub(VALUE_ONE, Ordering::Release);
@@ -19,7 +28,7 @@ impl Atomic {
         } else {
             true
         }
-    }    
+    }
     pub fn request_borrow_mut(&self) -> bool {
         self.0
             .compare_exchange(VALUE_ZERO, UNIQUE_BIT, Ordering::Acquire, Ordering::Relaxed)
@@ -27,15 +36,20 @@ impl Atomic {
     }
     pub fn release_borrow(&self) {
         let result = self.0.fetch_sub(VALUE_ONE, Ordering::Release);
-        debug_assert!(result != VALUE_ZERO, "Release borrow seems to be unbalanced");
-        debug_assert!(result & UNIQUE_BIT == VALUE_ZERO, "Releasing shared unique borrow");
+        debug_assert!(
+            result != VALUE_ZERO,
+            "Release borrow seems to be unbalanced"
+        );
+        debug_assert!(
+            result & UNIQUE_BIT == VALUE_ZERO,
+            "Releasing shared unique borrow"
+        );
     }
     pub fn release_borrow_mut(&self) {
         let result = self.0.fetch_and(!UNIQUE_BIT, Ordering::Release);
         debug_assert_ne!(result & UNIQUE_BIT, 0, "Releasing shared unique borrow");
     }
 }
-
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub struct ResourceId(pub TypeId);
@@ -53,7 +67,7 @@ unsafe impl<T> Send for Resource<T> {}
 unsafe impl<T> Sync for Resource<T> {}
 
 impl<T> Resource<T> {
-    pub fn new(data:T) -> Self {
+    pub fn new(data: T) -> Self {
         Self {
             data: UnsafeCell::new(data),
             atomic: Atomic::new(),
@@ -68,7 +82,9 @@ impl<T> Resource<T> {
 }
 
 impl<T> ResourceTrait for Resource<T>
-where T: Sized + 'static {
+where
+    T: Sized + 'static,
+{
     fn id(&self) -> ResourceId {
         ResourceId(TypeId::of::<T>())
     }
@@ -83,11 +99,11 @@ pub struct ResourceRef<'a, T> {
 }
 
 impl<'a, T> ResourceRef<'a, T> {
-    pub fn new(Resource{data, atomic}: &'a Resource<T>) -> Self {
+    pub fn new(Resource { data, atomic }: &'a Resource<T>) -> Self {
         if atomic.request_borrow() {
             Self {
                 borrow: atomic,
-                resource: unsafe{ &*data.get() },
+                resource: unsafe { &*data.get() },
             }
         } else {
             panic!(
@@ -114,19 +130,17 @@ impl<'a, T> Deref for ResourceRef<'a, T> {
     }
 }
 
-
-
 pub struct ResourceRefMut<'a, T> {
     borrow: &'a Atomic,
     resource: &'a mut T,
 }
 
 impl<'a, T> ResourceRefMut<'a, T> {
-    pub fn new(Resource{data, atomic}: &'a Resource<T>) -> Self {
+    pub fn new(Resource { data, atomic }: &'a Resource<T>) -> Self {
         if atomic.request_borrow_mut() {
             Self {
                 borrow: atomic,
-                resource: unsafe{ &mut *data.get() },
+                resource: unsafe { &mut *data.get() },
             }
         } else {
             panic!(

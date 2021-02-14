@@ -12,5 +12,5 @@ nrg_platform = { path = "../../platform"}
 
 [build-dependencies]
 bindgen = { git = "https://github.com/rust-lang/rust-bindgen"}
-xml-rs = { path = "../../external/xml-rs" }
+xml-rs = { git = "https://github.com/netvl/xml-rs" }
 

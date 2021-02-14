@@ -1,14 +1,18 @@
-use std::{path::PathBuf, sync::{Arc, RwLock}};
-use crate::schedule::scheduler::*;
+use crate::config::*;
 use crate::plugins::plugin::*;
 use crate::plugins::plugin_manager::*;
-use crate::schedule::phase::*;
 use crate::resources::shared_data::*;
-
+use crate::schedule::phase::*;
+use crate::schedule::scheduler::*;
+use std::{
+    path::PathBuf,
+    sync::{Arc, RwLock},
+};
 
 pub struct App {
-    scheduler: Scheduler,
+    config: Config,
     plugin_manager: PluginManager,
+    scheduler: Scheduler,
     shared_data: SharedDataRw,
 }
 
@@ -25,11 +29,13 @@ impl Drop for App {
 }
 
 impl App {
-    pub fn new() -> Self {  
+    pub fn new() -> Self {
+        let config = Config::default(); 
         Self {
             scheduler: Scheduler::new(),
             plugin_manager: PluginManager::new(),
-            shared_data: Arc::new(RwLock::new(SharedData::default())),
+            shared_data: Arc::new(RwLock::new(SharedData::new(config.get_data_folder()))),
+            config,
         }
     }
 
@@ -38,17 +44,16 @@ impl App {
     }
 
     pub fn run_once(&mut self) -> bool {
-        let can_continue = self.scheduler.run_once();    
-        self.plugin_manager.update(&mut self.shared_data, &mut self.scheduler);  
-        can_continue      
+        let can_continue = self.scheduler.run_once();
+        self.plugin_manager
+            .update(&mut self.shared_data, &mut self.scheduler);
+        can_continue
     }
 
-    pub fn run(&mut self) {            
-        loop 
-        {                
+    pub fn run(&mut self) {
+        loop {
             let can_continue = self.run_once();
-            if can_continue == false
-            {
+            if !can_continue {
                 break;
             }
         }
@@ -64,19 +69,20 @@ impl App {
         self
     }
 
-    pub fn get_phase<S: Phase>(&mut self, phase_name:&str) -> &S {
+    pub fn get_phase<S: Phase>(&mut self, phase_name: &str) -> &S {
         self.scheduler.get_phase(phase_name)
     }
 
-    pub fn get_phase_mut<S: Phase>(&mut self, phase_name:&str) -> &mut S {
+    pub fn get_phase_mut<S: Phase>(&mut self, phase_name: &str) -> &mut S {
         self.scheduler.get_phase_mut(phase_name)
     }
-    
     pub fn add_plugin(&mut self, lib_path: PathBuf) -> PluginId {
-        self.plugin_manager.add_plugin(lib_path, &mut self.shared_data, &mut self.scheduler)
+        self.plugin_manager
+            .add_plugin(lib_path, &mut self.shared_data, &mut self.scheduler)
     }
 
     pub fn remove_plugin(&mut self, plugin_id: &PluginId) {
-        self.plugin_manager.remove_plugin(plugin_id, &mut self.scheduler)
+        self.plugin_manager
+            .remove_plugin(plugin_id, &mut self.scheduler)
     }
 }

@@ -2,7 +2,7 @@ use nrg_core::*;
 use nrg_graphics::*;
 use std::path::PathBuf;
 
-const FONT_PATH: &str = "C:\\PROJECTS\\NRG\\data\\fonts\\BasicFont.ttf";
+const FONT_PATH: &str = "fonts\\BasicFont.ttf";
 
 pub struct MySystem {
     id: SystemId,
@@ -27,7 +27,9 @@ impl System for MySystem {
         let read_data = self.shared_data.read().unwrap();
         let renderer = &mut *read_data.get_unique_resource_mut::<Renderer>();
         if renderer.get_fonts_count() < 1 {
-            renderer.request_font(PathBuf::from(FONT_PATH));
+            let mut font_path = read_data.get_data_folder().clone();
+            font_path.push(PathBuf::from(FONT_PATH));
+            renderer.request_font(font_path);
         }
         if let Some(ref mut font) = renderer.get_default_font() {
             font.add_text(

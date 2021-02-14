@@ -1,12 +1,14 @@
 use nrg_core::*;
 use std::any::type_name;
 
-use super::window_system::*;
+use crate::config::*;
+use crate::window_system::*;
 
 const MAIN_WINDOW_PHASE: &str = "MAIN_WINDOW_PHASE";
 
 #[repr(C)]
 pub struct MainWindow {
+    config: Config,
     system_id: SystemId,
 }
 
@@ -14,6 +16,7 @@ impl Default for MainWindow {
     fn default() -> Self {
         println!("Created {} plugin", type_name::<Self>().to_string());
         Self {
+            config: Config::default(),
             system_id: SystemId::default(),
         }
     }
@@ -33,7 +36,7 @@ impl Plugin for MainWindow {
         println!("Prepare {} plugin", type_name::<Self>().to_string());
 
         let mut update_phase = PhaseWithSystems::new(MAIN_WINDOW_PHASE);
-        let system = WindowSystem::new(shared_data);
+        let system = WindowSystem::new(&self.config, shared_data);
 
         self.system_id = system.id();
 

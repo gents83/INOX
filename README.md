@@ -26,3 +26,14 @@ Not ready yet for production.
 - [ ] Hot reload of data
 
 
+
+[Dependencies](#dependencies)
+
+External crate dependencies - all with MIT license:
+
+- https://github.com/rust-lang/rust-bindgen (FFI bindings from C\C++ - used for vulkan_bindings)
+- https://github.com/netvl/xml-rs (xml parser - used for Vulkan xml specification)
+- https://github.com/image-rs/image (image processing library)
+- https://github.com/marcianx/downcast-rs (trait casting)
+
+

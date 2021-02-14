@@ -1,6 +1,5 @@
 use nrg_core::*;
 use std::any::type_name;
-use std::sync::Arc;
 
 use super::rendering_system::*;
 

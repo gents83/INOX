@@ -9,8 +9,8 @@ build = "build.rs"
 crate-type = ["rlib", "cdylib"] 
 
 [dependencies]
-image = { path = "../../external/image-rs" }
-ttf-parser = { path = "../../external/ttf-parser" }
+image = { git = "https://github.com/image-rs/image" }
+ttf-parser = { git = "https://github.com/RazrFalcon/ttf-parser" }
 vulkan_bindings = { path = "../../bindings/vulkan_bindings" }
 nrg_core = { path = "../../core" }
 nrg_math = { path = "../../math" }

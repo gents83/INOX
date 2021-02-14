@@ -1,6 +1,7 @@
 use std::{
     any::TypeId,
     collections::HashMap,
+    path::PathBuf,
     sync::{Arc, RwLock},
 };
 
@@ -61,25 +62,27 @@ impl ResourceStorage {
 }
 
 pub struct SharedData {
+    data_folder: PathBuf,
     resources: HashMap<TypeId, ResourceStorage>,
 }
 unsafe impl Send for SharedData {}
 unsafe impl Sync for SharedData {}
 
-impl Default for SharedData {
-    fn default() -> Self {
+impl SharedData {
+    pub fn new(data_folder: &PathBuf) -> Self {
         Self {
+            data_folder: data_folder.clone(),
             resources: HashMap::new(),
         }
     }
-}
-
-impl SharedData {
+    pub fn get_data_folder(&self) -> &PathBuf {
+        &self.data_folder
+    }
     pub fn add_resource<T: 'static>(&mut self, data: T) -> ResourceId {
         let vec = self
             .resources
             .entry(TypeId::of::<T>())
-            .or_insert(ResourceStorage::default());
+            .or_insert_with(ResourceStorage::default);
         vec.add_resource(Resource::new(data))
     }
     pub fn get_resource<T: 'static>(&self, resource_id: ResourceId) -> ResourceRef<T> {

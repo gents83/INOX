@@ -1,15 +1,16 @@
 #![warn(clippy::all)]
 
 pub use crate::app::*;
-pub use crate::schedule::phase::*;
 pub use crate::plugins::plugin::*;
+pub use crate::plugins::plugin_manager::*;
 pub use crate::resources::resource::*;
 pub use crate::resources::shared_data::*;
-pub use crate::schedule::system::*;
-pub use crate::plugins::plugin_manager::*;
+pub use crate::schedule::phase::*;
 pub use crate::schedule::scheduler::*;
+pub use crate::schedule::system::*;
 
 pub mod app;
+mod config;
 
 pub mod plugins {
     pub mod plugin;

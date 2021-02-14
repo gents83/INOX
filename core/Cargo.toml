@@ -5,5 +5,5 @@ authors = ["gents83 <gents83@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-downcast-rs = { path = "../external/downcast-rs" }
+downcast-rs = { git = "https://github.com/marcianx/downcast-rs" }
 nrg_platform = { path = "../platform" }
