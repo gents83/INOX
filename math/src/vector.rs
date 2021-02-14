@@ -6,20 +6,23 @@ use super::float::*;
 use super::number::*;
 use super::zero::*;
 use crate::implement_zero_as_default;
-use serde::{Deserialize, Serialize};
+use nrg_serialize::*;
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Copy, Clone, Hash)]
+#[serde(crate = "nrg_serialize")]
 pub struct Vector1<T> {
     pub x: T,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Copy, Clone, Hash)]
+#[serde(crate = "nrg_serialize")]
 pub struct Vector2<T> {
     pub x: T,
     pub y: T,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Copy, Clone, Hash)]
+#[serde(crate = "nrg_serialize")]
 pub struct Vector3<T> {
     pub x: T,
     pub y: T,
@@ -27,6 +30,7 @@ pub struct Vector3<T> {
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Copy, Clone, Hash)]
+#[serde(crate = "nrg_serialize")]
 pub struct Vector4<T> {
     pub x: T,
     pub y: T,
@@ -463,7 +467,7 @@ impl<T: std::ops::Mul<Output = T> + std::ops::Sub<Output = T> + std::clone::Clon
         Self {
             x: (self.y.clone() * other.z.clone()) - (self.z.clone() * other.y.clone()),
             y: (self.z.clone() * other.x.clone()) - (self.x.clone() * other.z.clone()),
-            z: (self.x.clone() * other.y.clone()) - (self.y.clone() * other.x.clone()),
+            z: (self.x.clone() * other.y.clone()) - (self.y * other.x),
         }
     }
 }

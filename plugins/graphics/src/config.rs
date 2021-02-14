@@ -1,9 +1,10 @@
 use std::path::PathBuf;
 
 use nrg_core::*;
-use serde::{Deserialize, Serialize};
+use nrg_serialize::*;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(crate = "nrg_serialize")]
 pub struct VkData {
     pub debug_validation_layers: bool,
 }
@@ -17,6 +18,7 @@ impl Default for VkData {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(crate = "nrg_serialize")]
 pub struct PipelineData {
     pub name: String,
     pub fragment_shader: PathBuf,
@@ -34,6 +36,7 @@ impl Default for PipelineData {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(crate = "nrg_serialize")]
 pub struct Config {
     pub vk_data: VkData,
     pub pipelines: Vec<PipelineData>,

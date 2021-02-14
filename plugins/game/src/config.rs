@@ -1,10 +1,11 @@
 use std::path::PathBuf;
 
 use nrg_core::*;
-use serde::{Deserialize, Serialize};
+use nrg_serialize::*;
 
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(crate = "nrg_serialize")]
 pub struct Config {
     pub fonts: Vec<PathBuf>,
 }

@@ -1,14 +1,16 @@
 #![allow(dead_code)]
 #![allow(unused_must_use)]
+#![allow(clippy::clippy::too_many_arguments)]
 
 use super::angle::*;
 use super::float::*;
 use super::number::*;
 use super::vector::*;
 use super::zero::*;
-use serde::{Deserialize, Serialize};
+use nrg_serialize::*;
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Copy, Clone, Hash)]
+#[serde(crate = "nrg_serialize")]
 pub struct Matrix3<T> {
     pub axis_x: Vector3<T>,
     pub axis_y: Vector3<T>,
@@ -16,6 +18,7 @@ pub struct Matrix3<T> {
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Copy, Clone, Hash)]
+#[serde(crate = "nrg_serialize")]
 pub struct Matrix4<T> {
     pub axis_x: Vector4<T>,
     pub axis_y: Vector4<T>,

@@ -399,7 +399,6 @@ dependencies = [
  "nrg_math",
  "nrg_platform",
  "nrg_serialize",
- "serde",
 ]
 
 [[package]]
@@ -411,7 +410,6 @@ dependencies = [
  "nrg_math",
  "nrg_platform",
  "nrg_serialize",
- "serde",
  "ttf-parser",
  "vulkan_bindings",
 ]
@@ -420,7 +418,7 @@ dependencies = [
 name = "nrg_math"
 version = "0.1.0"
 dependencies = [
- "serde",
+ "nrg_serialize",
 ]
 
 [[package]]
@@ -431,7 +429,9 @@ version = "0.1.0"
 name = "nrg_serialize"
 version = "0.1.0"
 dependencies = [
+ "proc-macro2",
  "serde",
+ "serde_derive",
  "serde_json",
 ]
 
@@ -443,7 +443,6 @@ dependencies = [
  "nrg_math",
  "nrg_platform",
  "nrg_serialize",
- "serde",
 ]
 
 [[package]]
