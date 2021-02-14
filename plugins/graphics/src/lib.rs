@@ -53,6 +53,7 @@ pub mod fonts {
     mod raster;
 }
 
+mod config;
 mod gfx;
 mod rendering_system;
 

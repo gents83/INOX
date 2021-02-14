@@ -1,11 +1,11 @@
-use std::{cell::RefCell, rc::Rc};
-use vulkan_bindings::*;
-use crate::api::data_formats::*;
-use crate::api::shader::*;
-use crate::api::utils::*;
 use super::device::*;
 use super::render_pass::*;
 use super::shader::*;
+use crate::api::data_formats::*;
+use crate::api::shader::*;
+use crate::api::utils::*;
+use std::{cell::RefCell, path::PathBuf, rc::Rc};
+use vulkan_bindings::*;
 
 pub struct PipelineImmutable {
     descriptor_set_layout: VkDescriptorSetLayout,
@@ -20,10 +20,8 @@ pub struct Pipeline {
     device: Device,
 }
 
-
 impl Pipeline {
-
-    pub fn create(device:&Device) -> Pipeline {
+    pub fn create(device: &Device) -> Pipeline {
         let immutable = PipelineImmutable {
             descriptor_set_layout: ::std::ptr::null_mut(),
             shaders: Vec::new(),
@@ -40,7 +38,7 @@ impl Pipeline {
     pub fn get_pipeline_layout(&self) -> VkPipelineLayout {
         self.inner.borrow().pipeline_layout
     }
-    
+
     pub fn get_descriptor_set_layout(&self) -> VkDescriptorSetLayout {
         self.inner.borrow().descriptor_set_layout
     }
@@ -49,39 +47,59 @@ impl Pipeline {
         let inner = self.inner.borrow();
         inner.delete(&self.device);
     }
-    
-    pub fn set_shader(&mut self, shader_type: ShaderType, shader_filepath: &str) -> &mut Self {     
-        let mut shader_file = std::fs::File::open(shader_filepath).unwrap();
-        let shader_code = read_spirv_from_bytes(&mut shader_file);
-        
-        self.inner.borrow_mut().create_shader_module(&self.device, shader_type, shader_code, "main");
+
+    pub fn set_shader(&mut self, shader_type: ShaderType, shader_filepath: PathBuf) -> &mut Self {
+        if shader_filepath.exists() {
+            let mut shader_file = std::fs::File::open(shader_filepath).unwrap();
+            let shader_code = read_spirv_from_bytes(&mut shader_file);
+
+            self.inner.borrow_mut().create_shader_module(
+                &self.device,
+                shader_type,
+                shader_code,
+                "main",
+            );
+        }
         self
     }
-    
+
     pub fn prepare(&mut self, render_pass: &RenderPass) -> &mut Self {
         self.inner.borrow_mut().prepare(&self.device, render_pass);
         self
     }
 
     pub fn build(&mut self) -> &mut Self {
-        self.inner.borrow_mut().create_descriptor_set_layout(&self.device);
+        self.inner
+            .borrow_mut()
+            .create_descriptor_set_layout(&self.device);
         self
     }
 }
 
-impl PipelineImmutable {       
-
+impl PipelineImmutable {
     fn delete(&self, device: &Device) {
         self.destroy_shader_modules(&device);
         unsafe {
-            vkDestroyDescriptorSetLayout.unwrap()(device.get_device(), self.descriptor_set_layout, ::std::ptr::null_mut());
-        
-            vkDestroyPipeline.unwrap()(device.get_device(), self.graphics_pipeline, ::std::ptr::null_mut());
-            vkDestroyPipelineLayout.unwrap()(device.get_device(), self.pipeline_layout, ::std::ptr::null_mut());
+            vkDestroyDescriptorSetLayout.unwrap()(
+                device.get_device(),
+                self.descriptor_set_layout,
+                ::std::ptr::null_mut(),
+            );
+
+            vkDestroyPipeline.unwrap()(
+                device.get_device(),
+                self.graphics_pipeline,
+                ::std::ptr::null_mut(),
+            );
+            vkDestroyPipelineLayout.unwrap()(
+                device.get_device(),
+                self.pipeline_layout,
+                ::std::ptr::null_mut(),
+            );
         }
     }
 
-    fn prepare(&mut self, device: &Device, render_pass: &RenderPass) {  
+    fn prepare(&mut self, device: &Device, render_pass: &RenderPass) {
         let details = device.get_instance().get_swap_chain_info();
 
         let mut shader_stages: Vec<VkPipelineShaderStageCreateInfo> = Vec::new();
@@ -92,7 +110,7 @@ impl PipelineImmutable {
         let binding_info = VertexData::get_binding_desc();
         let attr_info = VertexData::get_attributes_desc();
 
-        let vertex_input_info = VkPipelineVertexInputStateCreateInfo{
+        let vertex_input_info = VkPipelineVertexInputStateCreateInfo {
             sType: VkStructureType_VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
             pNext: ::std::ptr::null_mut(),
             flags: 0,
@@ -101,7 +119,6 @@ impl PipelineImmutable {
             vertexAttributeDescriptionCount: attr_info.len() as _,
             pVertexAttributeDescriptions: attr_info.as_ptr(),
         };
-        
 
         let input_assembly = VkPipelineInputAssemblyStateCreateInfo {
             sType: VkStructureType_VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
@@ -121,7 +138,7 @@ impl PipelineImmutable {
         };
 
         let scissors = VkRect2D {
-            offset: VkOffset2D {x: 0, y: 0},
+            offset: VkOffset2D { x: 0, y: 0 },
             extent: details.capabilities.currentExtent,
         };
 
@@ -171,10 +188,11 @@ impl PipelineImmutable {
             srcAlphaBlendFactor: VkBlendFactor_VK_BLEND_FACTOR_ONE,
             dstAlphaBlendFactor: VkBlendFactor_VK_BLEND_FACTOR_ZERO,
             alphaBlendOp: VkBlendOp_VK_BLEND_OP_ADD,
-            colorWriteMask: (VkColorComponentFlagBits_VK_COLOR_COMPONENT_R_BIT | 
-                            VkColorComponentFlagBits_VK_COLOR_COMPONENT_G_BIT |
-                            VkColorComponentFlagBits_VK_COLOR_COMPONENT_B_BIT |
-                            VkColorComponentFlagBits_VK_COLOR_COMPONENT_A_BIT) as VkColorComponentFlags,
+            colorWriteMask: (VkColorComponentFlagBits_VK_COLOR_COMPONENT_R_BIT
+                | VkColorComponentFlagBits_VK_COLOR_COMPONENT_G_BIT
+                | VkColorComponentFlagBits_VK_COLOR_COMPONENT_B_BIT
+                | VkColorComponentFlagBits_VK_COLOR_COMPONENT_A_BIT)
+                as VkColorComponentFlags,
         };
 
         let color_blending = VkPipelineColorBlendStateCreateInfo {
@@ -202,7 +220,12 @@ impl PipelineImmutable {
             let mut option = ::std::mem::MaybeUninit::uninit();
             assert_eq!(
                 VkResult_VK_SUCCESS,
-                vkCreatePipelineLayout.unwrap()(device.get_device(), &pipeline_layout_info, ::std::ptr::null_mut(), option.as_mut_ptr())
+                vkCreatePipelineLayout.unwrap()(
+                    device.get_device(),
+                    &pipeline_layout_info,
+                    ::std::ptr::null_mut(),
+                    option.as_mut_ptr()
+                )
             );
             option.assume_init()
         };
@@ -228,26 +251,46 @@ impl PipelineImmutable {
             basePipelineHandle: ::std::ptr::null_mut(),
             basePipelineIndex: -1,
         };
-        
+
         self.graphics_pipeline = unsafe {
             let mut option = ::std::mem::MaybeUninit::uninit();
             assert_eq!(
                 VkResult_VK_SUCCESS,
-                vkCreateGraphicsPipelines.unwrap()(device.get_device(), ::std::ptr::null_mut(), 1, &pipeline_info, ::std::ptr::null_mut(), option.as_mut_ptr())
+                vkCreateGraphicsPipelines.unwrap()(
+                    device.get_device(),
+                    ::std::ptr::null_mut(),
+                    1,
+                    &pipeline_info,
+                    ::std::ptr::null_mut(),
+                    option.as_mut_ptr()
+                )
             );
             option.assume_init()
         };
 
         unsafe {
-            vkCmdBindPipeline.unwrap()(device.get_current_command_buffer(), VkPipelineBindPoint_VK_PIPELINE_BIND_POINT_GRAPHICS, self.graphics_pipeline);
+            vkCmdBindPipeline.unwrap()(
+                device.get_current_command_buffer(),
+                VkPipelineBindPoint_VK_PIPELINE_BIND_POINT_GRAPHICS,
+                self.graphics_pipeline,
+            );
         }
     }
 
-
-
-    fn create_shader_module(&mut self, device: &Device, shader_type: ShaderType, shader_content: Vec<u32>, entry_point: &'static str) -> &mut Self {
-        let shader = Shader::create(device.get_device(), shader_type, shader_content, entry_point);
-        self.shaders.push( shader );
+    fn create_shader_module(
+        &mut self,
+        device: &Device,
+        shader_type: ShaderType,
+        shader_content: Vec<u32>,
+        entry_point: &'static str,
+    ) -> &mut Self {
+        let shader = Shader::create(
+            device.get_device(),
+            shader_type,
+            shader_content,
+            entry_point,
+        );
+        self.shaders.push(shader);
         self
     }
 
@@ -285,9 +328,14 @@ impl PipelineImmutable {
             let mut option = ::std::mem::MaybeUninit::uninit();
             assert_eq!(
                 VkResult_VK_SUCCESS,
-                vkCreateDescriptorSetLayout.unwrap()(device.get_device(), &layout_create_info, ::std::ptr::null_mut(), option.as_mut_ptr())
+                vkCreateDescriptorSetLayout.unwrap()(
+                    device.get_device(),
+                    &layout_create_info,
+                    ::std::ptr::null_mut(),
+                    option.as_mut_ptr()
+                )
             );
             option.assume_init()
-        };  
+        };
     }
 }

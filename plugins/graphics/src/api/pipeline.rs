@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use super::device::*;
 use super::render_pass::*;
 use super::shader::*;
@@ -11,8 +13,8 @@ pub struct Pipeline {
 impl Pipeline {
     pub fn create(
         device: &Device,
-        vert_filepath: &str,
-        frag_filepath: &str,
+        vert_filepath: PathBuf,
+        frag_filepath: PathBuf,
         render_pass: RenderPass,
     ) -> Pipeline {
         //TODO pipeline could be reused - while instance should be unique

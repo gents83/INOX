@@ -398,6 +398,8 @@ dependencies = [
  "nrg_graphics",
  "nrg_math",
  "nrg_platform",
+ "nrg_serialize",
+ "serde",
 ]
 
 [[package]]
@@ -408,6 +410,8 @@ dependencies = [
  "nrg_core",
  "nrg_math",
  "nrg_platform",
+ "nrg_serialize",
+ "serde",
  "ttf-parser",
  "vulkan_bindings",
 ]

@@ -2,6 +2,7 @@
 
 use nrg_core::*;
 
+mod config;
 mod game;
 mod system;
 

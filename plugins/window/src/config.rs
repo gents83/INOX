@@ -2,7 +2,7 @@ use nrg_core::*;
 use nrg_math::*;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Config {
     name: String,
     position: Vector2u,

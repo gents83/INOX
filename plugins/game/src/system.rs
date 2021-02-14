@@ -1,18 +1,20 @@
+use super::config::*;
+
 use nrg_core::*;
 use nrg_graphics::*;
-
-const FONT_PATH: &str = "fonts\\BasicFont.ttf";
 
 pub struct MySystem {
     id: SystemId,
     shared_data: SharedDataRw,
+    config: Config,
 }
 
 impl MySystem {
-    pub fn new(shared_data: &SharedDataRw) -> Self {
+    pub fn new(shared_data: &SharedDataRw, config: &Config) -> Self {
         Self {
             id: SystemId::new(),
             shared_data: shared_data.clone(),
+            config: config.clone(),
         }
     }
 }
@@ -25,9 +27,8 @@ impl System for MySystem {
     fn run(&mut self) -> bool {
         let read_data = self.shared_data.read().unwrap();
         let renderer = &mut *read_data.get_unique_resource_mut::<Renderer>();
-        if renderer.get_fonts_count() < 1 {
-            let font_path = read_data.get_data_folder().join(FONT_PATH);
-            renderer.request_font(font_path);
+        if renderer.get_fonts_count() < 1 && !self.config.fonts.is_empty() {
+            renderer.request_font(self.config.fonts.first().unwrap());
         }
         if let Some(ref mut font) = renderer.get_default_font() {
             font.add_text(

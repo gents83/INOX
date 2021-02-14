@@ -1,5 +1,6 @@
 use std::{collections::HashMap, path::PathBuf};
 
+use crate::config::*;
 use crate::fonts::font::*;
 use nrg_math::*;
 use nrg_platform::Handle;
@@ -12,8 +13,11 @@ use super::viewport::*;
 
 pub const DEFAULT_RENDER_PASS: &str = "Default";
 pub const DEFAULT_FONT_PIPELINE: &str = "Font_Pipeline";
-const FONT_VS_PATH: &str = "C:\\PROJECTS\\NRG\\data\\shaders\\compiled\\text_shader_vert.spv";
-const FONT_FRAG_PATH: &str = "C:\\PROJECTS\\NRG\\data\\shaders\\compiled\\text_shader_frag.spv";
+
+struct Fonts {
+    pub data: PipelineData,
+    pub loaded: HashMap<String, Option<Font>>,
+}
 
 pub struct Renderer {
     pub instance: Instance,
@@ -22,12 +26,12 @@ pub struct Renderer {
     scissors: Scissors,
     render_passes: HashMap<String, RenderPass>,
     pipelines: HashMap<String, Pipeline>,
-    fonts: HashMap<String, Option<Font>>,
+    fonts: Fonts,
 }
 
 impl Renderer {
-    pub fn new(handle: &Handle, debug_enabled: bool) -> Self {
-        let instance = Instance::create(handle, debug_enabled);
+    pub fn new(handle: &Handle, config: &Config) -> Self {
+        let instance = Instance::create(handle, config.vk_data.debug_validation_layers);
         let device = Device::create(&instance);
         Renderer {
             instance,
@@ -36,7 +40,13 @@ impl Renderer {
             scissors: Scissors::default(),
             render_passes: HashMap::new(),
             pipelines: HashMap::new(),
-            fonts: HashMap::new(),
+            fonts: Fonts {
+                data: config
+                    .get_pipeline_data(String::from("Font"))
+                    .unwrap()
+                    .clone(),
+                loaded: HashMap::new(),
+            },
         }
     }
 
@@ -45,17 +55,18 @@ impl Renderer {
     }
 
     pub fn get_fonts_count(&self) -> usize {
-        self.fonts.len()
+        self.fonts.loaded.len()
     }
 
     pub fn get_font(&mut self, font_path: PathBuf) -> &mut Option<Font> {
         self.fonts
+            .loaded
             .get_mut(&font_path.to_str().unwrap().to_string())
             .unwrap()
     }
 
     pub fn get_default_font(&mut self) -> &mut Option<Font> {
-        self.fonts.iter_mut().next().unwrap().1
+        self.fonts.loaded.iter_mut().next().unwrap().1
     }
 
     pub fn add_pipeline(&mut self, name: String, pipeline: Pipeline) -> &Pipeline {
@@ -93,28 +104,33 @@ impl Renderer {
 
             pipeline.end();
         }
-        for (_name, option) in self.fonts.iter_mut() {
+        for (_name, option) in self.fonts.loaded.iter_mut() {
             if let Some(ref mut font) = option {
                 font.render()
             }
         }
     }
 
-    pub fn request_font(&mut self, font_path: PathBuf) {
-        self.fonts
-            .entry(font_path.to_str().unwrap().to_string())
-            .or_insert(None);
+    pub fn request_font(&mut self, font_path: &PathBuf) {
+        if font_path.exists() {
+            self.fonts
+                .loaded
+                .entry(font_path.to_str().unwrap().to_string())
+                .or_insert(None);
+        }
     }
 }
 
 impl Renderer {
     fn load_data(&mut self) {
         let device = &self.device;
-        self.fonts.iter_mut().for_each(|(path, option)| {
+        let vs_path = self.fonts.data.vertex_shader.clone();
+        let frag_path = self.fonts.data.fragment_shader.clone();
+        self.fonts.loaded.iter_mut().for_each(|(path, option)| {
             if option.is_none() {
                 let font_pipeline = {
                     let def_rp = RenderPass::create_default(device);
-                    Pipeline::create(device, FONT_VS_PATH, FONT_FRAG_PATH, def_rp)
+                    Pipeline::create(device, vs_path.clone(), frag_path.clone(), def_rp)
                 };
                 option.get_or_insert(Font::new(device, font_pipeline, PathBuf::from(path)));
             }

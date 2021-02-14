@@ -5,6 +5,7 @@ use std::any::type_name;
 use crate::config::*;
 use crate::window_system::*;
 
+const WINDOW_CFG_NAME: &str = "window.cfg";
 const MAIN_WINDOW_PHASE: &str = "MAIN_WINDOW_PHASE";
 
 #[repr(C)]
@@ -34,13 +35,8 @@ unsafe impl Sync for MainWindow {}
 
 impl Plugin for MainWindow {
     fn prepare(&mut self, scheduler: &mut Scheduler, shared_data: &mut SharedDataRw) {
-        //println!("Prepare {} plugin", type_name::<Self>().to_string());
-
-        {
-            let data = shared_data.read().unwrap();
-            let path = data.get_data_folder().join("config").join("window.cfg");
-            deserialize(&mut self.config, path);
-        }
+        let path = self.config.get_folder().join(WINDOW_CFG_NAME);
+        deserialize(&mut self.config, path);
 
         let mut update_phase = PhaseWithSystems::new(MAIN_WINDOW_PHASE);
         let system = WindowSystem::new(&self.config, shared_data);
@@ -52,9 +48,11 @@ impl Plugin for MainWindow {
     }
 
     fn unprepare(&mut self, scheduler: &mut Scheduler) {
+        let path = self.config.get_folder().join(WINDOW_CFG_NAME);
+        serialize(&self.config, path);
+
         let update_phase: &mut PhaseWithSystems = scheduler.get_phase_mut(MAIN_WINDOW_PHASE);
         update_phase.remove_system(&self.system_id);
         scheduler.destroy_phase(MAIN_WINDOW_PHASE);
-        //println!("Unprepare {} plugin", type_name::<Self>().to_string());
     }
 }
