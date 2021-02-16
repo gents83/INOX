@@ -34,7 +34,7 @@ impl System for MySystem {
         let renderer = &mut *read_data.get_unique_resource_mut::<Renderer>();
         let window = &*read_data.get_unique_resource::<Window>();
 
-        for (key, state) in self.keys.iter_mut() {
+        for (_key, state) in self.keys.iter_mut() {
             if *state == InputState::JustReleased {
                 *state = InputState::Released;
             }
