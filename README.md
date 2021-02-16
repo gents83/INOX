@@ -27,13 +27,15 @@ Not ready yet for production.
 
 
 
-[Dependencies](#dependencies)
+[External crates dependencies](#dependencies)
 
-External crate dependencies - all with MIT license:
+Focus is to have all of them with MIT license.
 
-- https://github.com/rust-lang/rust-bindgen (FFI bindings from C\C++ - used for vulkan_bindings)
-- https://github.com/netvl/xml-rs (xml parser - used for Vulkan xml specification)
-- https://github.com/image-rs/image (image processing library)
-- https://github.com/marcianx/downcast-rs (trait casting)
+- FFI bindings from C\C++ - used for vulkan_bindings: https://github.com/rust-lang/rust-bindgen
+- XML parser - used for Vulkan xml specification: https://github.com/netvl/xml-rs 
+- Image processing library: https://github.com/image-rs/image
+- Trait casting: https://github.com/marcianx/downcast-rs
+- Serialization - serde, serde_derive & serde_json: https://github.com/serde-rs/serde
 
 
+![Image](https://pbs.twimg.com/media/ErY_fFnW4AAIN5Q?format=jpg)
