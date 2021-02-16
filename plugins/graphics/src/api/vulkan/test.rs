@@ -10,14 +10,7 @@ fn test_chunks() {
     use crate::voxels::world::*;
     use nrg_math::*;
 
-    Window::create(
-        String::from("TEST"),
-        String::from("Vulkan Test"),
-        100,
-        100,
-        1024,
-        768,
-    );
+    Window::create(String::from("Vulkan Test"), 100, 100, 1024, 768);
 
     let cam_pos: Vector3f = [0.0, 16.0, -64.0].into();
 
@@ -44,14 +37,7 @@ fn test_chunks() {
 }
 
 fn test_vulkan_create_win32_display_surface(instance: &mut VkInstance) -> VkSurfaceKHR {
-    let window = Window::create(
-        String::from("Test Window"),
-        String::from("Test Window"),
-        100,
-        100,
-        1024,
-        768,
-    );
+    let window = Window::create(String::from("Test Window"), 100, 100, 1024, 768);
 
     let surface_create_info = VkWin32SurfaceCreateInfoKHR {
         sType: VkStructureType_VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR,

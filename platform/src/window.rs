@@ -1,23 +1,29 @@
+use crate::events::*;
 use crate::handle::*;
-
+use crate::input::*;
 pub struct Window {
     handle: Handle,
     width: u32,
     height: u32,
+    events: Events,
 }
 
 unsafe impl Send for Window {}
 unsafe impl Sync for Window {}
 
-
 impl Window {
-    pub fn create(name: String, title: String, x: u32, y: u32, width: u32, height: u32) -> Self {
-        let handle = Window::new(name.clone(), title.clone(), x, y, width, height);        
+    pub fn create(title: String, x: u32, y: u32, width: u32, height: u32) -> Self {
+        let mut events = Events::default();
+        let handle = Window::create_handle(title, x, y, width, height);
+
+        events.register_event::<KeyEvent>();
+
         Self {
             handle,
             width,
             height,
-        }      
+            events,
+        }
     }
 
     pub fn get_width(&self) -> u32 {
@@ -32,7 +38,12 @@ impl Window {
         &self.handle
     }
 
-    pub fn update(&self) -> bool {
-        Window::internal_update(self)
+    pub fn get_events(&self) -> &Events {
+        &self.events
+    }
+
+    pub fn update(&mut self) -> bool {
+        self.events.clear_events::<KeyEvent>();
+        Window::internal_update(&mut self.events)
     }
 }

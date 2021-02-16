@@ -13,7 +13,7 @@ impl WindowSystem {
         let pos = config.get_position();
         let size = config.get_resolution();
         let name = config.get_name();
-        let window = Window::create(name.clone(), name.clone(), pos.x, pos.y, size.x, size.y);
+        let window = Window::create(name.clone(), pos.x, pos.y, size.x, size.y);
 
         shared_data.write().unwrap().add_resource(window);
 
@@ -40,7 +40,7 @@ impl System for WindowSystem {
     fn init(&mut self) {}
     fn run(&mut self) -> bool {
         let data = self.shared_data.read().unwrap();
-        let window_res = data.get_unique_resource::<Window>();
+        let mut window_res = data.get_unique_resource_mut::<Window>();
         (*window_res).update()
     }
     fn uninit(&mut self) {}

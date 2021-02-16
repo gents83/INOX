@@ -1,26 +1,23 @@
 use std::mem::size_of;
-use std::{fs::OpenOptions, path::PathBuf};
 use std::os::windows::fs::OpenOptionsExt;
 use std::os::windows::prelude::*;
+use std::{fs::OpenOptions, path::PathBuf};
 
 use super::externs::*;
 use super::types::*;
-
 
 pub fn delete_file(filepath: PathBuf) {
     let mut opts = OpenOptions::new();
     opts.access_mode(DELETE | FILE_READ_ATTRIBUTES | FILE_WRITE_ATTRIBUTES);
     opts.custom_flags(FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT);
-    
+
     let metadata = filepath.metadata().unwrap();
-    let file = opts.open(filepath.clone()).unwrap();
+    let file = opts.open(filepath).unwrap();
     let mut perms = metadata.permissions();
     perms.set_readonly(false);
     let _res = file.set_permissions(perms);
 
-    let mut info = FILE_DISPOSITION_INFO {
-        DeleteFile: TRUE,
-    };
+    let mut info = FILE_DISPOSITION_INFO { DeleteFile: TRUE };
     unsafe {
         SetFileInformationByHandle(
             file.as_raw_handle(),

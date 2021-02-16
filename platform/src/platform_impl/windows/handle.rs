@@ -1,5 +1,5 @@
-use crate::handle::*;
 use super::types::*;
+use crate::handle::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct HandleImpl {

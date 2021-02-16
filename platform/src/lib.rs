@@ -1,7 +1,9 @@
 #![warn(clippy::all)]
 
-// Common 
+// Common
+pub use self::events::*;
 pub use self::handle::*;
+pub use self::input::*;
 pub use self::library::*;
 pub use self::utils::*;
 pub use self::watcher::*;
@@ -9,15 +11,16 @@ pub use self::window::*;
 
 //Modules
 mod ctypes;
+pub mod events;
 pub mod handle;
-pub mod window;
 pub mod library;
 pub mod utils;
 pub mod watcher;
+pub mod window;
 
+pub mod input;
 
-pub mod platform_impl
-{
+pub mod platform_impl {
     #[cfg(target_os = "android")]
     #[path = "android/platform.rs"]
     pub mod platform;
