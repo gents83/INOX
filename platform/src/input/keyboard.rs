@@ -714,3 +714,12 @@ pub struct KeyEvent {
     pub state: InputState,
 }
 impl Event for KeyEvent {}
+
+impl Default for KeyEvent {
+    fn default() -> Self {
+        Self {
+            code: Key::Unidentified,
+            state: InputState::Invalid,
+        }
+    }
+}

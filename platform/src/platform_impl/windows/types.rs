@@ -395,6 +395,42 @@ pub const WM_KEYDOWN: UINT = 0x0100;
 pub const WM_KEYUP: UINT = 0x0101;
 pub const WM_SIZING: UINT = 0x0214;
 pub const WM_MOVING: UINT = 0x0216;
+pub const WM_MOUSEFIRST: UINT = 0x0200;
+pub const WM_MOUSEMOVE: UINT = 0x0200;
+pub const WM_LBUTTONDOWN: UINT = 0x0201;
+pub const WM_LBUTTONUP: UINT = 0x0202;
+pub const WM_LBUTTONDBLCLK: UINT = 0x0203;
+pub const WM_RBUTTONDOWN: UINT = 0x0204;
+pub const WM_RBUTTONUP: UINT = 0x0205;
+pub const WM_RBUTTONDBLCLK: UINT = 0x0206;
+pub const WM_MBUTTONDOWN: UINT = 0x0207;
+pub const WM_MBUTTONUP: UINT = 0x0208;
+pub const WM_MBUTTONDBLCLK: UINT = 0x0209;
+pub const WM_MOUSEWHEEL: UINT = 0x020A;
+pub const WM_XBUTTONDOWN: UINT = 0x020B;
+pub const WM_XBUTTONUP: UINT = 0x020C;
+pub const WM_XBUTTONDBLCLK: UINT = 0x020D;
+pub const WM_MOUSEHWHEEL: UINT = 0x020E;
+pub const WM_MOUSELAST: UINT = 0x020E;
+pub const WHEEL_DELTA: c_short = 120;
+
+#[inline]
+pub fn LOWORD(l: DWORD) -> WORD {
+    (l & 0xffff) as WORD
+}
+#[inline]
+pub fn HIWORD(l: DWORD) -> WORD {
+    ((l >> 16) & 0xffff) as WORD
+}
+
+#[inline]
+pub fn GET_X_LPARAM(lp: LPARAM) -> c_int {
+    LOWORD(lp as DWORD) as c_short as c_int
+}
+#[inline]
+pub fn GET_Y_LPARAM(lp: LPARAM) -> c_int {
+    HIWORD(lp as DWORD) as c_short as c_int
+}
 
 pub const PM_NOREMOVE: UINT = 0x0000;
 pub const PM_REMOVE: UINT = 0x0001;

@@ -17,6 +17,7 @@ impl Window {
         let handle = Window::create_handle(title, x, y, width, height);
 
         events.register_event::<KeyEvent>();
+        events.register_event::<MouseEvent>();
 
         Self {
             handle,
@@ -44,6 +45,7 @@ impl Window {
 
     pub fn update(&mut self) -> bool {
         self.events.clear_events::<KeyEvent>();
+        self.events.clear_events::<MouseEvent>();
         Window::internal_update(&mut self.events)
     }
 }

@@ -79,12 +79,56 @@ impl Window {
                     || message.message == WM_NCDESTROY
                 {
                     can_continue = false;
+                } else if message.message == WM_MOUSEMOVE
+                    || message.message == WM_LBUTTONDOWN
+                    || message.message == WM_LBUTTONUP
+                    || message.message == WM_LBUTTONDBLCLK
+                    || message.message == WM_RBUTTONDOWN
+                    || message.message == WM_RBUTTONUP
+                    || message.message == WM_RBUTTONDBLCLK
+                    || message.message == WM_MBUTTONDOWN
+                    || message.message == WM_MBUTTONUP
+                    || message.message == WM_MBUTTONDBLCLK
+                {
+                    let x = GET_X_LPARAM(message.lParam);
+                    let y = GET_Y_LPARAM(message.lParam);
+                    events.send_event(MouseEvent {
+                        x: x as _,
+                        y: y as _,
+                        button: match message.message {
+                            WM_LBUTTONDOWN | WM_LBUTTONUP | WM_LBUTTONDBLCLK => MouseButton::Left,
+                            WM_RBUTTONDOWN | WM_RBUTTONUP | WM_RBUTTONDBLCLK => MouseButton::Right,
+                            WM_MBUTTONDOWN | WM_MBUTTONUP | WM_MBUTTONDBLCLK => MouseButton::Middle,
+                            _ => MouseButton::None,
+                        },
+                        state: match message.message {
+                            WM_LBUTTONDOWN | WM_RBUTTONDOWN | WM_MBUTTONDOWN => MouseState::Down,
+                            WM_LBUTTONUP | WM_RBUTTONUP | WM_MBUTTONUP => MouseState::Up,
+                            WM_LBUTTONDBLCLK | WM_RBUTTONDBLCLK | WM_MBUTTONDBLCLK => {
+                                MouseState::DoubleClick
+                            }
+                            _ => MouseState::Move,
+                        },
+                    });
                 } else if message.message == WM_KEYDOWN || message.message == WM_KEYUP {
+                    let is_repeat = (message.lParam >> 30) & 1 == 1;
                     events.send_event(KeyEvent {
                         code: convert_key(message.wParam as INT),
                         state: match message.message {
-                            WM_KEYDOWN => InputState::Pressed,
-                            WM_KEYUP => InputState::Released,
+                            WM_KEYDOWN => {
+                                if is_repeat {
+                                    InputState::Pressed
+                                } else {
+                                    InputState::JustPressed
+                                }
+                            }
+                            WM_KEYUP => {
+                                if is_repeat {
+                                    InputState::Released
+                                } else {
+                                    InputState::JustReleased
+                                }
+                            }
                             _ => InputState::Invalid,
                         },
                     });
