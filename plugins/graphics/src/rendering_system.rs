@@ -1,5 +1,3 @@
-use crate::api::pipeline::*;
-use crate::api::render_pass::*;
 use crate::api::renderer::*;
 use crate::config::*;
 
@@ -45,15 +43,8 @@ impl System for RenderingSystem {
             {
                 let read_data = self.shared_data.read().unwrap();
                 let renderer = &mut *read_data.get_unique_resource_mut::<Renderer>();
-                let def_rp = RenderPass::create_default(&renderer.device);
-                let pipeline_data = self.config.get_pipeline_data(pipeline_id.clone()).unwrap();
-                let def_pipeline = Pipeline::create(
-                    &renderer.device,
-                    pipeline_data.vertex_shader.clone(),
-                    pipeline_data.fragment_shader.clone(),
-                    def_rp,
-                );
-                renderer.add_pipeline(pipeline_id, def_pipeline);
+                let pipeline_data = self.config.get_pipeline_data(pipeline_id).unwrap();
+                renderer.add_pipeline(pipeline_data);
             }
         }
     }
@@ -63,7 +54,7 @@ impl System for RenderingSystem {
         let renderer = &mut *read_data.get_unique_resource_mut::<Renderer>();
 
         let mut _result = renderer.begin_frame();
-        renderer.process_pipelines();
+        renderer.draw();
         _result = renderer.end_frame();
 
         true

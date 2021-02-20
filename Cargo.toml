@@ -9,5 +9,6 @@ members = [
     "bindings/vulkan_bindings",
     "plugins/game",
     "plugins/graphics",
+    "plugins/gui",
     "plugins/window",
 ]

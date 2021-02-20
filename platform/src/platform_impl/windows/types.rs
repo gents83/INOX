@@ -302,60 +302,60 @@ pub const WH_MAX: c_int = 14;
 pub const WH_MINHOOK: c_int = WH_MIN;
 pub const WH_MAXHOOK: c_int = WH_MAX;
 
-pub const APPCOMMAND_BROWSER_BACKWARD: c_int = 1;
-pub const APPCOMMAND_BROWSER_FORWARD: c_int = 2;
-pub const APPCOMMAND_BROWSER_REFRESH: c_int = 3;
-pub const APPCOMMAND_BROWSER_STOP: c_int = 4;
-pub const APPCOMMAND_BROWSER_SEARCH: c_int = 5;
-pub const APPCOMMAND_BROWSER_FAVORITES: c_int = 6;
-pub const APPCOMMAND_BROWSER_HOME: c_int = 7;
-pub const APPCOMMAND_VOLUME_MUTE: c_int = 8;
-pub const APPCOMMAND_VOLUME_DOWN: c_int = 9;
-pub const APPCOMMAND_VOLUME_UP: c_int = 10;
-pub const APPCOMMAND_MEDIA_NEXTTRACK: c_int = 11;
-pub const APPCOMMAND_MEDIA_PREVIOUSTRACK: c_int = 12;
-pub const APPCOMMAND_MEDIA_STOP: c_int = 13;
-pub const APPCOMMAND_MEDIA_PLAY_PAUSE: c_int = 14;
-pub const APPCOMMAND_LAUNCH_MAIL: c_int = 15;
-pub const APPCOMMAND_LAUNCH_MEDIA_SELECT: c_int = 16;
-pub const APPCOMMAND_LAUNCH_APP1: c_int = 17;
-pub const APPCOMMAND_LAUNCH_APP2: c_int = 18;
-pub const APPCOMMAND_BASS_DOWN: c_int = 19;
-pub const APPCOMMAND_BASS_BOOST: c_int = 20;
-pub const APPCOMMAND_BASS_UP: c_int = 21;
-pub const APPCOMMAND_TREBLE_DOWN: c_int = 22;
-pub const APPCOMMAND_TREBLE_UP: c_int = 23;
-pub const APPCOMMAND_MICROPHONE_VOLUME_MUTE: c_int = 24;
-pub const APPCOMMAND_MICROPHONE_VOLUME_DOWN: c_int = 25;
-pub const APPCOMMAND_MICROPHONE_VOLUME_UP: c_int = 26;
-pub const APPCOMMAND_HELP: c_int = 27;
-pub const APPCOMMAND_FIND: c_int = 28;
-pub const APPCOMMAND_NEW: c_int = 29;
-pub const APPCOMMAND_OPEN: c_int = 30;
-pub const APPCOMMAND_CLOSE: c_int = 31;
-pub const APPCOMMAND_SAVE: c_int = 32;
-pub const APPCOMMAND_PRINT: c_int = 33;
-pub const APPCOMMAND_UNDO: c_int = 34;
-pub const APPCOMMAND_REDO: c_int = 35;
-pub const APPCOMMAND_COPY: c_int = 36;
-pub const APPCOMMAND_CUT: c_int = 37;
-pub const APPCOMMAND_PASTE: c_int = 38;
-pub const APPCOMMAND_REPLY_TO_MAIL: c_int = 39;
-pub const APPCOMMAND_FORWARD_MAIL: c_int = 40;
-pub const APPCOMMAND_SEND_MAIL: c_int = 41;
-pub const APPCOMMAND_SPELL_CHECK: c_int = 42;
-pub const APPCOMMAND_DICTATE_OR_COMMAND_CONTROL_TOGGLE: c_int = 43;
-pub const APPCOMMAND_MIC_ON_OFF_TOGGLE: c_int = 44;
-pub const APPCOMMAND_CORRECTION_LIST: c_int = 45;
-pub const APPCOMMAND_MEDIA_PLAY: c_int = 46;
-pub const APPCOMMAND_MEDIA_PAUSE: c_int = 47;
-pub const APPCOMMAND_MEDIA_RECORD: c_int = 48;
-pub const APPCOMMAND_MEDIA_FAST_FORWARD: c_int = 49;
-pub const APPCOMMAND_MEDIA_REWIND: c_int = 50;
-pub const APPCOMMAND_MEDIA_CHANNEL_UP: c_int = 51;
-pub const APPCOMMAND_MEDIA_CHANNEL_DOWN: c_int = 52;
-pub const APPCOMMAND_DELETE: c_int = 53;
-pub const APPCOMMAND_DWM_FLIP3D: c_int = 54;
+pub const APPCOMMAND_BROWSER_BACKWARD: c_short = 1;
+pub const APPCOMMAND_BROWSER_FORWARD: c_short = 2;
+pub const APPCOMMAND_BROWSER_REFRESH: c_short = 3;
+pub const APPCOMMAND_BROWSER_STOP: c_short = 4;
+pub const APPCOMMAND_BROWSER_SEARCH: c_short = 5;
+pub const APPCOMMAND_BROWSER_FAVORITES: c_short = 6;
+pub const APPCOMMAND_BROWSER_HOME: c_short = 7;
+pub const APPCOMMAND_VOLUME_MUTE: c_short = 8;
+pub const APPCOMMAND_VOLUME_DOWN: c_short = 9;
+pub const APPCOMMAND_VOLUME_UP: c_short = 10;
+pub const APPCOMMAND_MEDIA_NEXTTRACK: c_short = 11;
+pub const APPCOMMAND_MEDIA_PREVIOUSTRACK: c_short = 12;
+pub const APPCOMMAND_MEDIA_STOP: c_short = 13;
+pub const APPCOMMAND_MEDIA_PLAY_PAUSE: c_short = 14;
+pub const APPCOMMAND_LAUNCH_MAIL: c_short = 15;
+pub const APPCOMMAND_LAUNCH_MEDIA_SELECT: c_short = 16;
+pub const APPCOMMAND_LAUNCH_APP1: c_short = 17;
+pub const APPCOMMAND_LAUNCH_APP2: c_short = 18;
+pub const APPCOMMAND_BASS_DOWN: c_short = 19;
+pub const APPCOMMAND_BASS_BOOST: c_short = 20;
+pub const APPCOMMAND_BASS_UP: c_short = 21;
+pub const APPCOMMAND_TREBLE_DOWN: c_short = 22;
+pub const APPCOMMAND_TREBLE_UP: c_short = 23;
+pub const APPCOMMAND_MICROPHONE_VOLUME_MUTE: c_short = 24;
+pub const APPCOMMAND_MICROPHONE_VOLUME_DOWN: c_short = 25;
+pub const APPCOMMAND_MICROPHONE_VOLUME_UP: c_short = 26;
+pub const APPCOMMAND_HELP: c_short = 27;
+pub const APPCOMMAND_FIND: c_short = 28;
+pub const APPCOMMAND_NEW: c_short = 29;
+pub const APPCOMMAND_OPEN: c_short = 30;
+pub const APPCOMMAND_CLOSE: c_short = 31;
+pub const APPCOMMAND_SAVE: c_short = 32;
+pub const APPCOMMAND_PRINT: c_short = 33;
+pub const APPCOMMAND_UNDO: c_short = 34;
+pub const APPCOMMAND_REDO: c_short = 35;
+pub const APPCOMMAND_COPY: c_short = 36;
+pub const APPCOMMAND_CUT: c_short = 37;
+pub const APPCOMMAND_PASTE: c_short = 38;
+pub const APPCOMMAND_REPLY_TO_MAIL: c_short = 39;
+pub const APPCOMMAND_FORWARD_MAIL: c_short = 40;
+pub const APPCOMMAND_SEND_MAIL: c_short = 41;
+pub const APPCOMMAND_SPELL_CHECK: c_short = 42;
+pub const APPCOMMAND_DICTATE_OR_COMMAND_CONTROL_TOGGLE: c_short = 43;
+pub const APPCOMMAND_MIC_ON_OFF_TOGGLE: c_short = 44;
+pub const APPCOMMAND_CORRECTION_LIST: c_short = 45;
+pub const APPCOMMAND_MEDIA_PLAY: c_short = 46;
+pub const APPCOMMAND_MEDIA_PAUSE: c_short = 47;
+pub const APPCOMMAND_MEDIA_RECORD: c_short = 48;
+pub const APPCOMMAND_MEDIA_FAST_FORWARD: c_short = 49;
+pub const APPCOMMAND_MEDIA_REWIND: c_short = 50;
+pub const APPCOMMAND_MEDIA_CHANNEL_UP: c_short = 51;
+pub const APPCOMMAND_MEDIA_CHANNEL_DOWN: c_short = 52;
+pub const APPCOMMAND_DELETE: c_short = 53;
+pub const APPCOMMAND_DWM_FLIP3D: c_short = 54;
 pub const FAPPCOMMAND_MOUSE: WORD = 0x8000;
 pub const FAPPCOMMAND_KEY: WORD = 0;
 pub const FAPPCOMMAND_OEM: WORD = 0x1000;
@@ -422,7 +422,6 @@ pub fn LOWORD(l: DWORD) -> WORD {
 pub fn HIWORD(l: DWORD) -> WORD {
     ((l >> 16) & 0xffff) as WORD
 }
-
 #[inline]
 pub fn GET_X_LPARAM(lp: LPARAM) -> c_int {
     LOWORD(lp as DWORD) as c_short as c_int
@@ -430,6 +429,14 @@ pub fn GET_X_LPARAM(lp: LPARAM) -> c_int {
 #[inline]
 pub fn GET_Y_LPARAM(lp: LPARAM) -> c_int {
     HIWORD(lp as DWORD) as c_short as c_int
+}
+#[inline]
+pub fn GET_APPCOMMAND_LPARAM(lParam: LPARAM) -> c_short {
+    (HIWORD(lParam as DWORD) & !FAPPCOMMAND_MASK) as c_short
+}
+#[inline]
+pub fn GET_DEVICE_LPARAM(lParam: LPARAM) -> WORD {
+    HIWORD(lParam as DWORD) & FAPPCOMMAND_MASK
 }
 
 pub const PM_NOREMOVE: UINT = 0x0000;

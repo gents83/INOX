@@ -1,6 +1,8 @@
-use std::{path::{Path, PathBuf}, sync::mpsc::{self, Receiver}};
 use super::platform_impl::platform::watcher::FileWatcherImpl;
-
+use std::{
+    path::{Path, PathBuf},
+    sync::mpsc::{self, Receiver},
+};
 
 pub enum WatcherRequest {
     Watch(PathBuf),
@@ -13,7 +15,7 @@ pub enum MetaEvent {
     WatcherAwakened,
 }
 
-pub enum FileEvent{
+pub enum FileEvent {
     RenamedFrom(PathBuf),
     RenamedTo(PathBuf),
     Created(PathBuf),
@@ -36,18 +38,17 @@ pub struct FileWatcher {
 unsafe impl Send for FileWatcher {}
 unsafe impl Sync for FileWatcher {}
 
-
 impl FileWatcher {
     pub fn new(path: PathBuf) -> Self {
         let filepath = Path::new(path.to_str().unwrap()).canonicalize().unwrap();
-        let filename:PathBuf = PathBuf::from(filepath.file_name().unwrap());
+        let filename: PathBuf = PathBuf::from(filepath.file_name().unwrap());
         let (tx, rx) = mpsc::channel();
-        let mut w = FileWatcherImpl::new(move |res| tx.send(res).unwrap() ).unwrap();
+        let mut w = FileWatcherImpl::new(move |res| tx.send(res).unwrap()).unwrap();
         w.watch(path.as_ref());
         Self {
             rx,
             file_watcher: w,
-            filepath: filepath.to_path_buf(),
+            filepath,
             filename,
         }
     }

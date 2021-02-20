@@ -10,6 +10,7 @@ pub use crate::api::instance::*;
 pub use crate::api::material::*;
 pub use crate::api::mesh::*;
 pub use crate::api::pipeline::*;
+pub use crate::api::render_pass::*;
 pub use crate::api::renderer::*;
 pub use crate::api::shader::*;
 

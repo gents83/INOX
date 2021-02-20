@@ -415,6 +415,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "nrg_gui"
+version = "0.1.0"
+dependencies = [
+ "nrg_core",
+ "nrg_graphics",
+ "nrg_math",
+ "nrg_platform",
+ "nrg_serialize",
+]
+
+[[package]]
 name = "nrg_math"
 version = "0.1.0"
 dependencies = [

@@ -10,20 +10,20 @@ use super::zero::*;
 use crate::implement_zero_as_default;
 use nrg_serialize::*;
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Copy, Clone, Hash)]
+#[derive(Serialize, Deserialize, PartialOrd, PartialEq, Eq, Clone, Copy)]
 #[serde(crate = "nrg_serialize")]
 pub struct Vector1<T> {
     pub x: T,
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Copy, Clone, Hash)]
+#[derive(Serialize, Deserialize, PartialOrd, PartialEq, Eq, Clone, Copy)]
 #[serde(crate = "nrg_serialize")]
 pub struct Vector2<T> {
     pub x: T,
     pub y: T,
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Copy, Clone, Hash)]
+#[derive(Serialize, Deserialize, PartialOrd, PartialEq, Eq, Clone, Copy)]
 #[serde(crate = "nrg_serialize")]
 pub struct Vector3<T> {
     pub x: T,
@@ -31,7 +31,7 @@ pub struct Vector3<T> {
     pub z: T,
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Copy, Clone, Hash)]
+#[derive(Serialize, Deserialize, PartialOrd, PartialEq, Eq, Clone, Copy)]
 #[serde(crate = "nrg_serialize")]
 pub struct Vector4<T> {
     pub x: T,

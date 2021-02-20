@@ -9,7 +9,7 @@ use super::vector::*;
 use super::zero::*;
 use nrg_serialize::*;
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Copy, Clone, Hash)]
+#[derive(Serialize, Deserialize, PartialOrd, PartialEq, Eq, Clone, Copy)]
 #[serde(crate = "nrg_serialize")]
 pub struct Matrix3<T> {
     pub axis_x: Vector3<T>,
@@ -17,7 +17,7 @@ pub struct Matrix3<T> {
     pub axis_z: Vector3<T>,
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Copy, Clone, Hash)]
+#[derive(Serialize, Deserialize, PartialOrd, PartialEq, Eq, Clone, Copy)]
 #[serde(crate = "nrg_serialize")]
 pub struct Matrix4<T> {
     pub axis_x: Vector4<T>,

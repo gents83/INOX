@@ -17,6 +17,11 @@ fn main() {
     }
 
     {
+        let path = PathBuf::from(library_filename("nrg_gui"));
+        app.add_plugin(path);
+    }
+
+    {
         let path = PathBuf::from(library_filename("nrg_game"));
         app.add_plugin(path);
     }

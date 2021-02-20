@@ -12,13 +12,13 @@ pub struct HandleImpl {
 impl AsRef<Handle> for HandleImpl {
     #[inline]
     fn as_ref(&self) -> &Handle {
-        unsafe { ::std::mem::transmute(self) }
+        unsafe { &*(self as *const HandleImpl as *const Handle) }
     }
 }
 
 impl AsMut<Handle> for HandleImpl {
     #[inline]
     fn as_mut(&mut self) -> &mut Handle {
-        unsafe { ::std::mem::transmute(self) }
+        unsafe { &mut *(self as *mut HandleImpl as *mut Handle) }
     }
 }

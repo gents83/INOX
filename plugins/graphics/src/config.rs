@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use crate::api::data_formats::*;
 
 use nrg_core::*;
 use nrg_serialize::*;
@@ -13,24 +13,6 @@ impl Default for VkData {
     fn default() -> Self {
         Self {
             debug_validation_layers: false,
-        }
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(crate = "nrg_serialize")]
-pub struct PipelineData {
-    pub name: String,
-    pub fragment_shader: PathBuf,
-    pub vertex_shader: PathBuf,
-}
-
-impl Default for PipelineData {
-    fn default() -> Self {
-        Self {
-            name: String::from("Default"),
-            fragment_shader: PathBuf::new(),
-            vertex_shader: PathBuf::new(),
         }
     }
 }

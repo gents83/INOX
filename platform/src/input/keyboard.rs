@@ -143,8 +143,6 @@ pub enum Key {
     Accept,
     /** The Again key. Redoes or repeats a previous action. */
     Again,
-    /** The Attn (Attention) key. */
-    Attn,
     /** The Cancel key. */
     Cancel,
     /** Shows the context menu. Typically found between the Windows (or OS) key and the Control key on the right side of the keyboard. */

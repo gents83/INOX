@@ -1,8 +1,6 @@
 use crate::api::data_formats::*;
 use crate::api::device::*;
-use crate::api::material::*;
 use crate::api::mesh::*;
-use crate::api::pipeline::*;
 use image::*;
 use nrg_math::*;
 use std::{collections::HashMap, num::NonZeroU16, path::PathBuf};
@@ -18,8 +16,6 @@ pub struct Font {
     metrics: Metrics,
     glyphs: Vec<Glyph>,
     char_to_glyph: HashMap<u32, NonZeroU16>,
-    pipeline: Pipeline,
-    material: Material,
     device: Device,
     text_data: Vec<TextData>,
 }
@@ -30,13 +26,12 @@ struct TextData {
     position: Vector2f,
     scale: f32,
     color: Vector3f,
-    mesh: Mesh,
 }
 
 impl Font {
     #[inline]
-    pub fn new(device: &Device, ui_pipeline: Pipeline, filepath: PathBuf) -> Self {
-        Font::new_ttf_font(&device, ui_pipeline, filepath)
+    pub fn new(device: &Device, filepath: PathBuf) -> Self {
+        Font::new_ttf_font(&device, filepath)
     }
 
     pub fn add_text(&mut self, text: &str, position: Vector2f, scale: f32, color: Vector3f) {
@@ -45,28 +40,18 @@ impl Font {
             position,
             scale,
             color,
-            mesh: Mesh::create(&self.device),
         });
     }
 
-    pub fn create_meshes(&mut self) {
+    pub fn create_meshes(&mut self, meshes: &mut Vec<Mesh>) {
         let mut new_text_data = self.text_data.clone();
         new_text_data.iter_mut().for_each(|data| {
-            self.create_mesh_from_text(data);
+            self.create_mesh_from_text(data, meshes);
         });
         self.text_data = new_text_data;
     }
 
-    pub fn render(&mut self) {
-        self.pipeline.begin();
-        self.material.update_simple();
-
-        for text_data in self.text_data.iter() {
-            text_data.mesh.draw();
-        }
-
-        self.pipeline.end();
-
+    pub fn clear(&mut self) {
         self.text_data.clear();
     }
 
@@ -76,7 +61,7 @@ impl Font {
 }
 
 impl Font {
-    fn new_ttf_font(device: &Device, pipeline: Pipeline, filepath: PathBuf) -> Self {
+    fn new_ttf_font(device: &Device, filepath: PathBuf) -> Self {
         let font_data = ::std::fs::read(filepath.as_path()).unwrap();
 
         let face = Face::from_slice(font_data.as_slice(), 0).unwrap();
@@ -115,8 +100,6 @@ impl Font {
             metrics: max_glyph_metrics,
             glyphs,
             char_to_glyph,
-            material: Material::create(&device, &pipeline),
-            pipeline,
             device: device.clone(),
             text_data: Vec::new(),
         };
@@ -159,11 +142,9 @@ impl Font {
 
             column += 1;
         }
-
-        self.material.add_texture_from_image(&self.image);
     }
 
-    fn create_mesh_from_text(&mut self, text_data: &mut TextData) {
+    fn create_mesh_from_text(&mut self, text_data: &mut TextData, meshes: &mut Vec<Mesh>) {
         const VERTICES_COUNT: usize = 4;
         const INDICES_COUNT: usize = 6;
 
@@ -210,12 +191,13 @@ impl Font {
             prev_pos.x += width * text_data.scale;
         }
 
-        text_data
-            .mesh
-            .set_vertices(&vertex_data)
+        let mut mesh = Mesh::create(&self.device);
+        mesh.set_vertices(&vertex_data)
             .set_indices(&indices_data)
             .set_vertex_color(text_data.color)
             .finalize();
+
+        meshes.push(mesh);
     }
 
     #[inline]

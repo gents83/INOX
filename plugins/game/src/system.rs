@@ -43,36 +43,36 @@ impl System for MySystem {
             *entry = event.state;
         }
 
-        if renderer.get_fonts_count() < 1 && !self.config.fonts.is_empty() {
-            renderer.request_font(self.config.fonts.first().unwrap());
+        let pipeline_id = String::from("Font");
+        let font_index = renderer.request_font(&pipeline_id, self.config.fonts.first().unwrap());
+
+        let mouse_events = window.get_events().read_events::<MouseEvent>();
+        if let Some(&event) = mouse_events.last() {
+            self.mouse = *event;
         }
-        if let Some(ref mut font) = renderer.get_default_font() {
-            let mouse_events = window.get_events().read_events::<MouseEvent>();
-            if let Some(event) = mouse_events.last() {
-                self.mouse = (*event).clone();
-            }
-            let string = format!(
-                "Mouse [{:?}, {:?}], {:?}, , {:?}",
-                self.mouse.x, self.mouse.y, self.mouse.button, self.mouse.state
-            );
-            font.add_text(
+        let string = format!(
+            "Mouse [{:?}, {:?}], {:?}, , {:?}",
+            self.mouse.x, self.mouse.y, self.mouse.button, self.mouse.state
+        );
+        renderer.add_text(
+            font_index,
+            string.as_str(),
+            [-0.9, -0.9 + line].into(),
+            1.0,
+            [0.0, 0.8, 1.0].into(),
+        );
+        line += 0.05;
+
+        for (key, state) in self.keys.iter_mut() {
+            let string = format!("{:?} = {:?}", key, state);
+            renderer.add_text(
+                font_index,
                 string.as_str(),
                 [-0.9, -0.9 + line].into(),
                 1.0,
                 [0.0, 0.8, 1.0].into(),
             );
             line += 0.05;
-
-            for (key, state) in self.keys.iter_mut() {
-                let string = format!("{:?} = {:?}", key, state);
-                font.add_text(
-                    string.as_str(),
-                    [-0.9, -0.9 + line].into(),
-                    1.0,
-                    [0.0, 0.8, 1.0].into(),
-                );
-                line += 0.05;
-            }
         }
         true
     }
