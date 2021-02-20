@@ -1,36 +1,10 @@
 #![warn(clippy::all)]
 
+pub use crate::common::*;
+pub use crate::fonts::*;
+
 use nrg_core::*;
-
-// Common
-
-pub use crate::api::data_formats::*;
-pub use crate::api::device::*;
-pub use crate::api::instance::*;
-pub use crate::api::material::*;
-pub use crate::api::mesh::*;
-pub use crate::api::pipeline::*;
-pub use crate::api::render_pass::*;
-pub use crate::api::renderer::*;
-pub use crate::api::shader::*;
-
-pub use crate::fonts::font::*;
-
-//Modules
 pub mod api {
-    pub mod data_formats;
-    pub mod device;
-    pub mod instance;
-    pub mod material;
-    pub mod mesh;
-    pub mod pipeline;
-    pub mod rasterizer;
-    pub mod render_pass;
-    pub mod renderer;
-    pub mod shader;
-    pub mod utils;
-    pub mod viewport;
-
     #[cfg(target_os = "ios")]
     #[path = "metal/backend.rs"]
     pub mod backend;
@@ -41,18 +15,9 @@ pub mod api {
     pub mod backend;
 }
 
-mod voxels {
-    pub mod block;
-    pub mod chunk;
-    pub mod world;
-}
-
-pub mod fonts {
-    pub mod font;
-    mod geometry;
-    mod glyph;
-    mod raster;
-}
+pub mod common;
+pub mod fonts;
+mod voxels;
 
 mod config;
 mod gfx;

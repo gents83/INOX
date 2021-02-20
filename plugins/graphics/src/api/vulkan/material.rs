@@ -1,11 +1,10 @@
-
+use super::device::*;
+use super::pipeline::*;
+use super::texture::*;
+use crate::common::data_formats::*;
 use image::*;
 use nrg_math::*;
 use vulkan_bindings::*;
-use crate::api::data_formats::*;
-use super::pipeline::*;
-use super::device::*;
-use super::texture::*;
 
 #[derive(PartialEq)]
 pub struct MaterialInstance {
@@ -27,29 +26,30 @@ impl MaterialInstance {
             uniform_buffers: Vec::new(),
             uniform_buffers_memory: Vec::new(),
         };
-        instance.create_uniform_buffers(device)
-                .create_descriptor_pool(device)
-                .create_descriptor_sets(&device, &pipeline);
-        instance       
+        instance
+            .create_uniform_buffers(device)
+            .create_descriptor_pool(device)
+            .create_descriptor_sets(&device, &pipeline);
+        instance
     }
 
     pub fn destroy(&self, device: &Device) {
         for texture in self.textures.iter() {
             texture.destroy(device);
         }
-    }  
+    }
 
     pub fn add_texture_from_image(&mut self, device: &Device, image: &DynamicImage) -> &mut Self {
-        self.textures.push( Texture::create(device, image) );
+        self.textures.push(Texture::create(device, image));
         self
     }
 
     pub fn add_texture_from_path(&mut self, device: &Device, filepath: &str) -> &mut Self {
-        self.textures.push( Texture::create_from(device, filepath) );
+        self.textures.push(Texture::create_from(device, filepath));
         self
     }
 
-    pub fn create_descriptor_sets(&mut self, device: &Device, pipeline: &Pipeline) -> &mut Self{
+    pub fn create_descriptor_sets(&mut self, device: &Device, pipeline: &Pipeline) -> &mut Self {
         let mut layouts = Vec::<VkDescriptorSetLayout>::with_capacity(device.get_images_count());
         unsafe {
             layouts.set_len(device.get_images_count());
@@ -58,7 +58,7 @@ impl MaterialInstance {
             *layout = pipeline.get_descriptor_set_layout();
         }
 
-        let alloc_info = VkDescriptorSetAllocateInfo{
+        let alloc_info = VkDescriptorSetAllocateInfo {
             sType: VkStructureType_VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
             pNext: ::std::ptr::null_mut(),
             descriptorPool: self.descriptor_pool,
@@ -71,10 +71,14 @@ impl MaterialInstance {
             descriptor_sets.set_len(device.get_images_count());
             assert_eq!(
                 VkResult_VK_SUCCESS,
-                vkAllocateDescriptorSets.unwrap()(device.get_device(), &alloc_info, descriptor_sets.as_mut_ptr())
+                vkAllocateDescriptorSets.unwrap()(
+                    device.get_device(),
+                    &alloc_info,
+                    descriptor_sets.as_mut_ptr()
+                )
             );
         }
-        
+
         self.descriptor_sets = descriptor_sets;
         self
     }
@@ -104,25 +108,38 @@ impl MaterialInstance {
             let mut option = ::std::mem::MaybeUninit::uninit();
             assert_eq!(
                 VkResult_VK_SUCCESS,
-                vkCreateDescriptorPool.unwrap()(device.get_device(), &pool_info, ::std::ptr::null_mut(), option.as_mut_ptr())
+                vkCreateDescriptorPool.unwrap()(
+                    device.get_device(),
+                    &pool_info,
+                    ::std::ptr::null_mut(),
+                    option.as_mut_ptr()
+                )
             );
             option.assume_init()
-        };  
+        };
         self
     }
 
-    fn create_uniform_buffers(&mut self, device: &Device) -> &mut Self {  
+    fn create_uniform_buffers(&mut self, device: &Device) -> &mut Self {
         let mut uniform_buffers = Vec::<VkBuffer>::with_capacity(device.get_images_count());
-        let mut uniform_buffers_memory = Vec::<VkDeviceMemory>::with_capacity(device.get_images_count());
+        let mut uniform_buffers_memory =
+            Vec::<VkDeviceMemory>::with_capacity(device.get_images_count());
         unsafe {
             uniform_buffers.set_len(device.get_images_count());
             uniform_buffers_memory.set_len(device.get_images_count());
         }
 
         let uniform_buffers_size = std::mem::size_of::<UniformData>();
-        let flags = VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+        let flags = VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+            | VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
         for i in 0..uniform_buffers.len() {
-            device.create_buffer(uniform_buffers_size as _, VkBufferUsageFlagBits_VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT as _, flags as _, &mut uniform_buffers[i], &mut uniform_buffers_memory[i]);
+            device.create_buffer(
+                uniform_buffers_size as _,
+                VkBufferUsageFlagBits_VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT as _,
+                flags as _,
+                &mut uniform_buffers[i],
+                &mut uniform_buffers_memory[i],
+            );
         }
 
         self.uniform_buffers_size = uniform_buffers_size;
@@ -130,27 +147,32 @@ impl MaterialInstance {
         self.uniform_buffers_memory = uniform_buffers_memory;
         self
     }
-    
-    pub fn update_uniform_buffer(&mut self, device:&Device, model_transform: &Matrix4f, cam_pos: Vector3f) {
+
+    pub fn update_uniform_buffer(
+        &mut self,
+        device: &Device,
+        model_transform: &Matrix4f,
+        cam_pos: Vector3f,
+    ) {
         let image_index = device.get_current_image_index();
         let details = device.get_instance().get_swap_chain_info();
-        let uniform_data: [UniformData; 1] = [
-            UniformData {
-                model: *model_transform,
-                view: Matrix4::from_look_at(cam_pos, 
-                                            [0.0, 0.0, 0.0].into(),
-                                            [0.0, 0.0, 1.0].into()),
-                proj: Matrix4::create_perspective(Degree(45.0).into(), 
-                                                    details.capabilities.currentExtent.width as f32 / details.capabilities.currentExtent.height as f32, 
-                                                    0.1, 1000.0),
-            }
-        ];
+        let uniform_data: [UniformData; 1] = [UniformData {
+            model: *model_transform,
+            view: Matrix4::from_look_at(cam_pos, [0.0, 0.0, 0.0].into(), [0.0, 0.0, 1.0].into()),
+            proj: Matrix4::create_perspective(
+                Degree(45.0).into(),
+                details.capabilities.currentExtent.width as f32
+                    / details.capabilities.currentExtent.height as f32,
+                0.1,
+                1000.0,
+            ),
+        }];
 
         let mut buffer_memory = self.uniform_buffers_memory[image_index];
         device.map_buffer_memory(&mut buffer_memory, &uniform_data);
         self.uniform_buffers_memory[image_index] = buffer_memory;
     }
-    
+
     pub fn update_descriptor_sets(&self, device: &Device, pipeline: &Pipeline) {
         let image_index = device.get_current_image_index();
         let buffer_info = VkDescriptorBufferInfo {
@@ -187,10 +209,24 @@ impl MaterialInstance {
         ];
 
         unsafe {
-            vkUpdateDescriptorSets.unwrap()(device.get_device(), descriptor_write.len() as _, descriptor_write.as_ptr(), 0, ::std::ptr::null_mut());
+            vkUpdateDescriptorSets.unwrap()(
+                device.get_device(),
+                descriptor_write.len() as _,
+                descriptor_write.as_ptr(),
+                0,
+                ::std::ptr::null_mut(),
+            );
 
-            vkCmdBindDescriptorSets.unwrap()(device.get_current_command_buffer(), VkPipelineBindPoint_VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.get_pipeline_layout(), 0, 1, &self.descriptor_sets[image_index], 0, ::std::ptr::null_mut());
+            vkCmdBindDescriptorSets.unwrap()(
+                device.get_current_command_buffer(),
+                VkPipelineBindPoint_VK_PIPELINE_BIND_POINT_GRAPHICS,
+                pipeline.get_pipeline_layout(),
+                0,
+                1,
+                &self.descriptor_sets[image_index],
+                0,
+                ::std::ptr::null_mut(),
+            );
         }
     }
 }
-

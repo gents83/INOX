@@ -6,7 +6,7 @@ use super::shader::*;
 
 #[derive(Clone)]
 pub struct Pipeline {
-    pub inner: super::backend::pipeline::Pipeline,
+    pub inner: crate::api::backend::pipeline::Pipeline,
     render_pass: RenderPass,
 }
 
@@ -18,7 +18,7 @@ impl Pipeline {
         render_pass: RenderPass,
     ) -> Pipeline {
         //TODO pipeline could be reused - while instance should be unique
-        let mut pipeline = super::backend::pipeline::Pipeline::create(&device.inner);
+        let mut pipeline = crate::api::backend::pipeline::Pipeline::create(&device.inner);
         pipeline
             .set_shader(ShaderType::Vertex, vert_filepath)
             .set_shader(ShaderType::Fragment, frag_filepath)

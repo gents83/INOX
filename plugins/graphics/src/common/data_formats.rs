@@ -1,5 +1,7 @@
 use std::path::PathBuf;
 
+use crate::common::utils::*;
+
 use nrg_math::*;
 use nrg_serialize::*;
 
@@ -65,5 +67,55 @@ impl Default for MaterialData {
             pipeline_id: String::from("Default"),
             textures: Vec::new(),
         }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Clone)]
+#[serde(crate = "nrg_serialize")]
+pub struct MeshData {
+    pub vertices: Vec<VertexData>,
+    pub indices: Vec<u32>,
+}
+
+impl Default for MeshData {
+    fn default() -> Self {
+        Self {
+            vertices: Vec::new(),
+            indices: Vec::new(),
+        }
+    }
+}
+
+impl MeshData {
+    pub fn set_vertices(&mut self, vertex_data: &[VertexData]) -> &mut Self {
+        self.vertices.clear();
+        self.vertices.extend_from_slice(vertex_data);
+        self
+    }
+
+    pub fn set_indices(&mut self, indices_data: &[u32]) -> &mut Self {
+        self.indices.clear();
+        self.indices.extend_from_slice(indices_data);
+        self
+    }
+
+    pub fn set_vertex_color(&mut self, color: Vector3f) -> &mut Self {
+        for v in self.vertices.iter_mut() {
+            v.color = color;
+        }
+        self
+    }
+
+    pub fn add_quad(
+        &mut self,
+        rect: Vector4f,
+        tex_coords: Vector4f,
+        index_start: Option<usize>,
+    ) -> &mut Self {
+        let (vertices, indices) = create_quad(rect, tex_coords, index_start);
+
+        self.vertices.append(&mut vertices.to_vec());
+        self.indices.append(&mut indices.to_vec());
+        self
     }
 }

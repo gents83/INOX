@@ -1,6 +1,4 @@
-use crate::api::data_formats::*;
-use crate::api::device::*;
-use crate::api::mesh::*;
+use crate::common::data_formats::*;
 use image::*;
 use nrg_math::*;
 use std::{collections::HashMap, num::NonZeroU16, path::PathBuf};
@@ -16,7 +14,6 @@ pub struct Font {
     metrics: Metrics,
     glyphs: Vec<Glyph>,
     char_to_glyph: HashMap<u32, NonZeroU16>,
-    device: Device,
     text_data: Vec<TextData>,
 }
 
@@ -30,25 +27,26 @@ struct TextData {
 
 impl Font {
     #[inline]
-    pub fn new(device: &Device, filepath: PathBuf) -> Self {
-        Font::new_ttf_font(&device, filepath)
+    pub fn new(filepath: PathBuf) -> Self {
+        Font::new_ttf_font(filepath)
     }
 
-    pub fn add_text(&mut self, text: &str, position: Vector2f, scale: f32, color: Vector3f) {
-        self.text_data.push(TextData {
+    pub fn add_text(
+        &mut self,
+        text: &str,
+        position: Vector2f,
+        scale: f32,
+        color: Vector3f,
+    ) -> MeshData {
+        let data = TextData {
             text: String::from(text),
             position,
             scale,
             color,
-        });
-    }
-
-    pub fn create_meshes(&mut self, meshes: &mut Vec<Mesh>) {
-        let mut new_text_data = self.text_data.clone();
-        new_text_data.iter_mut().for_each(|data| {
-            self.create_mesh_from_text(data, meshes);
-        });
-        self.text_data = new_text_data;
+        };
+        let mesh_data = self.create_mesh_from_text(&data);
+        self.text_data.push(data);
+        mesh_data
     }
 
     pub fn clear(&mut self) {
@@ -61,7 +59,7 @@ impl Font {
 }
 
 impl Font {
-    fn new_ttf_font(device: &Device, filepath: PathBuf) -> Self {
+    fn new_ttf_font(filepath: PathBuf) -> Self {
         let font_data = ::std::fs::read(filepath.as_path()).unwrap();
 
         let face = Face::from_slice(font_data.as_slice(), 0).unwrap();
@@ -100,7 +98,6 @@ impl Font {
             metrics: max_glyph_metrics,
             glyphs,
             char_to_glyph,
-            device: device.clone(),
             text_data: Vec::new(),
         };
 
@@ -144,12 +141,10 @@ impl Font {
         }
     }
 
-    fn create_mesh_from_text(&mut self, text_data: &mut TextData, meshes: &mut Vec<Mesh>) {
+    fn create_mesh_from_text(&mut self, text_data: &TextData) -> MeshData {
+        let mut mesh_data = MeshData::default();
         const VERTICES_COUNT: usize = 4;
-        const INDICES_COUNT: usize = 6;
 
-        let mut vertex_data: Vec<VertexData> = Vec::new();
-        let mut indices_data: Vec<u32> = Vec::new();
         let mut prev_pos = text_data.position;
         let width = (DEFAULT_FONT_GLYPH_SIZE as f32 / self.metrics.width) * text_data.scale;
         let heigth = (DEFAULT_FONT_GLYPH_SIZE as f32 / self.metrics.height) * text_data.scale;
@@ -162,7 +157,7 @@ impl Font {
 
             let id = self.get_glyph_index(*c as _);
             let g = &self.glyphs[id];
-            let (mut vertices, mut indices) = Mesh::create_quad(
+            mesh_data.add_quad(
                 Vector4f::new(
                     prev_pos.x,
                     prev_pos.y,
@@ -173,31 +168,11 @@ impl Font {
                 Some(i * VERTICES_COUNT),
             );
 
-            assert_eq!(
-                vertices.len(),
-                VERTICES_COUNT,
-                "Trying to create a quad with more than {} vertices",
-                VERTICES_COUNT
-            );
-            assert_eq!(
-                indices.len(),
-                INDICES_COUNT,
-                "Trying to create a quad with more than {} indices",
-                INDICES_COUNT
-            );
-            vertex_data.append(&mut vertices);
-            indices_data.append(&mut indices);
-
             prev_pos.x += width * text_data.scale;
         }
 
-        let mut mesh = Mesh::create(&self.device);
-        mesh.set_vertices(&vertex_data)
-            .set_indices(&indices_data)
-            .set_vertex_color(text_data.color)
-            .finalize();
-
-        meshes.push(mesh);
+        mesh_data.set_vertex_color(text_data.color);
+        mesh_data
     }
 
     #[inline]

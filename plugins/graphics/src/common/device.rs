@@ -1,12 +1,12 @@
 #[derive(Clone)]
 pub struct Device {
-    pub inner: super::backend::device::Device,
+    pub inner: crate::api::backend::device::Device,
 }
 
 impl Device {
     pub fn create(instance: &super::instance::Instance) -> Self {
         Device {
-            inner: super::backend::device::Device::new(&instance.inner),
+            inner: crate::api::backend::device::Device::new(&instance.inner),
         }
     }
 

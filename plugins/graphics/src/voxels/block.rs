@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use crate::api::data_formats::*;
+use crate::common::data_formats::*;
 use nrg_math::*;
 
 pub static mut CONFIG: Vec<BlockConfig> = Vec::new();

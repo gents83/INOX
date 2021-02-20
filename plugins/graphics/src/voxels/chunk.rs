@@ -3,7 +3,7 @@
 use nrg_math::*;
 
 use super::block::*;
-use crate::api::data_formats::*;
+use crate::common::data_formats::*;
 
 const N: DeltaDir = DeltaDir::Negative;
 const Z: DeltaDir = DeltaDir::Zero;

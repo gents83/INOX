@@ -1,9 +1,9 @@
 use super::device::*;
 use super::render_pass::*;
 use super::shader::*;
-use crate::api::data_formats::*;
-use crate::api::shader::*;
-use crate::api::utils::*;
+use crate::common::data_formats::*;
+use crate::common::shader::*;
+use crate::common::utils::*;
 use std::{cell::RefCell, path::PathBuf, rc::Rc};
 use vulkan_bindings::*;
 

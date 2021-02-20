@@ -2,7 +2,7 @@ use super::device::*;
 
 #[derive(Clone)]
 pub struct RenderPass {
-    inner : super::backend::render_pass::RenderPass,
+    inner : crate::api::backend::render_pass::RenderPass,
     device: Device,
 }
 
@@ -10,7 +10,7 @@ pub struct RenderPass {
 impl RenderPass {
     pub fn create_default(device: &Device) -> RenderPass {
         RenderPass {
-            inner: super::backend::render_pass::RenderPass::create_default(&device.inner),
+            inner: crate::api::backend::render_pass::RenderPass::create_default(&device.inner),
             device: device.clone(),
         }
     }
@@ -19,7 +19,7 @@ impl RenderPass {
         self.inner.destroy(&self.device.inner);
     }
 
-    pub fn get_pass(&self) ->  &super::backend::render_pass::RenderPass {
+    pub fn get_pass(&self) ->  &crate::api::backend::render_pass::RenderPass {
         &self.inner
     }
 

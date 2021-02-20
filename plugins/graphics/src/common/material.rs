@@ -4,14 +4,14 @@ use super::device::*;
 use super::pipeline::*;
 
 pub struct Material {
-    inner: super::backend::material::MaterialInstance,
+    inner: crate::api::backend::material::MaterialInstance,
     pipeline: Pipeline,
     device: Device,
 }
 
 impl Material {
     pub fn create(device:&Device, pipeline:&Pipeline) -> Material {
-        let instance = super::backend::material::MaterialInstance::create_from(&device.inner, &pipeline.inner);
+        let instance = crate::api::backend::material::MaterialInstance::create_from(&device.inner, &pipeline.inner);
         Material {
             inner: instance,
             pipeline: pipeline.clone(),

@@ -16,6 +16,8 @@ use super::viewport::*;
 
 pub type MaterialId = usize;
 pub type PipelineId = usize;
+pub type FontId = usize;
+
 struct PipelineInstance {
     id: PipelineId,
     data: PipelineData,
@@ -25,9 +27,11 @@ struct MaterialInstance {
     id: MaterialId,
     pipeline_id: PipelineId,
     material: Option<Material>,
-    meshes: Vec<Mesh>,
+    meshes: Vec<MeshData>,
+    finalized_mesh: Mesh,
 }
 struct FontInstance {
+    id: FontId,
     name: String,
     material_id: MaterialId,
     font: Option<Font>,
@@ -67,20 +71,31 @@ impl Renderer {
         }
         false
     }
+    pub fn get_font_index(&self, font_id: FontId) -> i32 {
+        get_font_index_from_id(&self.fonts, font_id)
+    }
 
     pub fn add_text(
         &mut self,
-        font_index: usize,
+        font_id: FontId,
         text: &str,
         position: Vector2f,
         scale: f32,
         color: Vector3f,
     ) {
-        if font_index >= self.get_fonts_count() {
-            return;
-        }
-        if let Some(font) = &mut self.fonts[font_index].font {
-            font.add_text(text, position, scale, color);
+        let font_index = self.get_font_index(font_id);
+        if font_index >= 0 {
+            let materials = &self.materials;
+            let font_instance = &mut self.fonts[font_index as usize];
+            if let Some(font) = &mut font_instance.font {
+                let material_index =
+                    get_material_index_from_id(&materials, font_instance.material_id);
+                if material_index >= 0 {
+                    let material_instance = &mut self.materials[material_index as usize];
+                    let mesh_data = font.add_text(text, position, scale, color);
+                    material_instance.meshes.push(mesh_data);
+                }
+            }
         }
     }
 
@@ -125,7 +140,10 @@ impl Renderer {
     pub fn begin_frame(&mut self) -> bool {
         self.load_pipelines();
         self.load_fonts();
-        self.create_fonts_meshes();
+
+        self.prepare_pipelines();
+        self.prepare_materials();
+        self.prepare_meshes();
 
         self.device.begin_frame()
     }
@@ -141,35 +159,36 @@ impl Renderer {
 
     pub fn draw(&mut self) {
         let pipelines = &mut self.pipelines;
-
-        for material in self.materials.iter_mut() {
-            let pipeline_index = get_pipeline_index_from_id(pipelines, material.pipeline_id);
-            if pipeline_index >= 0 {
-                let pipeline = pipelines[pipeline_index as usize]
-                    .pipeline
-                    .as_mut()
-                    .unwrap();
-
-                pipeline.begin();
-
-                if material.material.is_some() {
-                    let mat = material.material.as_ref().unwrap();
-                    mat.update_simple();
+        let material_count = self.materials.len();
+        let mut last_pipeline_index = -1;
+        for (i, material_instance) in self.materials.iter_mut().enumerate() {
+            let pipeline_index =
+                get_pipeline_index_from_id(pipelines, material_instance.pipeline_id);
+            if last_pipeline_index != pipeline_index {
+                if last_pipeline_index >= 0 {
+                    end_pipeline(pipelines, last_pipeline_index as usize);
                 }
+                last_pipeline_index = pipeline_index;
+                begin_pipeline(pipelines, pipeline_index as usize);
+            }
 
-                for mesh in material.meshes.iter() {
-                    mesh.draw();
-                }
+            if material_instance.material.is_some() {
+                let material = material_instance.material.as_ref().unwrap();
+                material.update_simple();
+            }
+            material_instance.finalized_mesh.draw();
 
-                pipeline.end();
+            if i == material_count - 1 {
+                end_pipeline(pipelines, pipeline_index as usize);
             }
         }
     }
 
-    pub fn request_font(&mut self, pipeline_id: &str, font_path: &PathBuf) -> usize {
+    pub fn request_font(&mut self, pipeline_id: &str, font_path: &PathBuf) -> FontId {
         let font_name = font_path.to_str().unwrap().to_string();
         if font_path.exists() && !self.has_font(&font_name) {
-            if let Some(loaded_pipeline) = self
+            let font_id = self.fonts.len();
+            if let Some(pipeline_instance) = self
                 .pipelines
                 .iter()
                 .find(|&pipeline| pipeline.data.name.eq(pipeline_id))
@@ -178,21 +197,25 @@ impl Renderer {
                 self.materials.push(MaterialInstance {
                     id: material_id,
                     material: None,
-                    pipeline_id: loaded_pipeline.id,
+                    pipeline_id: pipeline_instance.id,
                     meshes: Vec::new(),
+                    finalized_mesh: Mesh::create(&self.device),
                 });
                 self.fonts.push(FontInstance {
+                    id: font_id,
                     name: font_name,
                     material_id,
                     font: None,
                 });
             }
-            self.fonts.len()
+            font_id
         } else {
-            self.fonts
+            let index = self
+                .fonts
                 .iter()
                 .position(|font| font.name.eq(&font_name))
-                .unwrap()
+                .unwrap();
+            self.fonts[index].id
         }
     }
 }
@@ -201,16 +224,16 @@ impl Renderer {
     fn load_pipelines(&mut self) {
         let device = &mut self.device;
         let pipelines = &mut self.pipelines;
-        pipelines.iter_mut().for_each(|loaded_pipeline| {
-            if loaded_pipeline.pipeline.is_none() {
+        pipelines.iter_mut().for_each(|pipeline_instance| {
+            if pipeline_instance.pipeline.is_none() {
                 let render_pass = RenderPass::create_default(&device);
                 let pipeline = Pipeline::create(
                     &device,
-                    loaded_pipeline.data.vertex_shader.clone(),
-                    loaded_pipeline.data.fragment_shader.clone(),
+                    pipeline_instance.data.vertex_shader.clone(),
+                    pipeline_instance.data.fragment_shader.clone(),
                     render_pass,
                 );
-                loaded_pipeline.pipeline.get_or_insert(pipeline);
+                pipeline_instance.pipeline.get_or_insert(pipeline);
             }
         });
     }
@@ -221,10 +244,10 @@ impl Renderer {
         let pipelines = &mut self.pipelines;
         let materials = &mut self.materials;
 
-        fonts.iter_mut().for_each(|loaded_font| {
-            if loaded_font.font.is_none() {
+        fonts.iter_mut().for_each(|font_instance| {
+            if font_instance.font.is_none() {
                 let material_index =
-                    get_material_index_from_id(&materials, loaded_font.material_id);
+                    get_material_index_from_id(&materials, font_instance.material_id);
                 if material_index >= 0 {
                     let material = &mut materials[material_index as usize];
                     let pipeline_index =
@@ -237,10 +260,9 @@ impl Renderer {
                         let mat = material
                             .material
                             .get_or_insert(Material::create(&device, &pipeline));
-                        let font = loaded_font.font.get_or_insert(Font::new(
-                            &device,
-                            PathBuf::from(loaded_font.name.clone()),
-                        ));
+                        let font = font_instance
+                            .font
+                            .get_or_insert(Font::new(PathBuf::from(font_instance.name.clone())));
                         mat.add_texture_from_image(font.get_bitmap());
                     }
                 }
@@ -248,24 +270,45 @@ impl Renderer {
         });
     }
 
-    fn create_fonts_meshes(&mut self) {
-        let materials = &mut self.materials;
-        self.fonts.iter_mut().for_each(|loaded_font| {
-            let material_index = get_material_index_from_id(&materials, loaded_font.material_id);
-            if material_index >= 0 {
-                let material = &mut materials[material_index as usize];
-                loaded_font
-                    .font
-                    .as_mut()
-                    .unwrap()
-                    .create_meshes(&mut material.meshes);
-            }
+    fn prepare_pipelines(&mut self) {
+        self.pipelines.sort_by(|a, b| a.id.cmp(&b.id));
+    }
+
+    fn prepare_materials(&mut self) {
+        self.materials.sort_by(|a, b| a.id.cmp(&b.id));
+    }
+
+    fn prepare_meshes(&mut self) {
+        self.materials.iter_mut().for_each(|material_instance| {
+            let mut unique_mesh_data = MeshData::default();
+            let mut starting_index = 0;
+            material_instance.meshes.iter_mut().for_each(|mesh_data| {
+                mesh_data
+                    .indices
+                    .iter_mut()
+                    .for_each(|i| *i += starting_index);
+                unique_mesh_data
+                    .vertices
+                    .extend_from_slice(&mesh_data.vertices);
+                unique_mesh_data
+                    .indices
+                    .extend_from_slice(&mesh_data.indices);
+                starting_index += mesh_data.vertices.len() as u32;
+            });
+            material_instance.finalized_mesh.data = unique_mesh_data;
+            material_instance.finalized_mesh.finalize();
         });
     }
 
     fn clear_fonts_meshes(&mut self) {
-        self.fonts.iter_mut().for_each(|loaded_font| {
-            if let Some(ref mut font) = loaded_font.font {
+        let materials = &mut self.materials;
+        self.fonts.iter_mut().for_each(|font_instance| {
+            let material_index = get_material_index_from_id(&materials, font_instance.material_id);
+            if material_index >= 0 {
+                let material_instance = &mut materials[material_index as usize];
+                material_instance.meshes.clear();
+            }
+            if let Some(ref mut font) = font_instance.font {
                 font.clear();
             }
         });
@@ -297,4 +340,21 @@ fn get_material_index_from_id(materials: &[MaterialInstance], material_id: Mater
         return index as _;
     }
     -1
+}
+
+fn get_font_index_from_id(fonts: &[FontInstance], font_id: FontId) -> i32 {
+    if let Some(index) = fonts.iter().position(|font| font.id == font_id) {
+        return index as _;
+    }
+    -1
+}
+
+fn begin_pipeline(pipelines: &mut Vec<PipelineInstance>, index: usize) {
+    let pipeline = pipelines[index].pipeline.as_mut().unwrap();
+    pipeline.begin();
+}
+
+fn end_pipeline(pipelines: &mut Vec<PipelineInstance>, index: usize) {
+    let pipeline = pipelines[index].pipeline.as_mut().unwrap();
+    pipeline.end();
 }

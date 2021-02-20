@@ -1,5 +1,5 @@
 use super::device::*;
-use crate::api::data_formats::*;
+use crate::common::data_formats::*;
 use vulkan_bindings::*;
 
 #[derive(Clone)]

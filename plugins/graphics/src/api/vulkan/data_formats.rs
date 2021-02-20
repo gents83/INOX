@@ -1,5 +1,5 @@
+use crate::common::data_formats::*;
 use vulkan_bindings::*;
-use crate::api::data_formats::*;
 
 impl VertexData {
     pub fn get_binding_desc() -> VkVertexInputBindingDescription {
@@ -12,25 +12,25 @@ impl VertexData {
 
     pub fn get_attributes_desc() -> Vec<VkVertexInputAttributeDescription> {
         let mut attr: Vec<VkVertexInputAttributeDescription> = Vec::new();
-        attr.push( VkVertexInputAttributeDescription {
+        attr.push(VkVertexInputAttributeDescription {
             binding: 0,
             format: VkFormat_VK_FORMAT_R32G32B32_SFLOAT,
             location: 0,
             offset: unsafe { &(*(::std::ptr::null::<VertexData>())).pos as *const _ as _ },
         });
-        attr.push( VkVertexInputAttributeDescription {
+        attr.push(VkVertexInputAttributeDescription {
             binding: 0,
             format: VkFormat_VK_FORMAT_R32G32B32_SFLOAT,
             location: 1,
             offset: unsafe { &(*(::std::ptr::null::<VertexData>())).color as *const _ as _ },
         });
-        attr.push( VkVertexInputAttributeDescription {
+        attr.push(VkVertexInputAttributeDescription {
             binding: 0,
             format: VkFormat_VK_FORMAT_R32G32_SFLOAT,
             location: 2,
             offset: unsafe { &(*(::std::ptr::null::<VertexData>())).tex_coord as *const _ as _ },
         });
-        attr.push( VkVertexInputAttributeDescription {
+        attr.push(VkVertexInputAttributeDescription {
             binding: 0,
             format: VkFormat_VK_FORMAT_R32G32B32_SFLOAT,
             location: 3,

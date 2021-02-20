@@ -1,4 +1,4 @@
-use crate::api::data_formats::*;
+use crate::common::data_formats::*;
 
 use nrg_core::*;
 use nrg_serialize::*;
