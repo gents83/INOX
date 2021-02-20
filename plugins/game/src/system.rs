@@ -10,6 +10,7 @@ pub struct MySystem {
     id: SystemId,
     shared_data: SharedDataRw,
     config: Config,
+    font_id: FontId,
     keys: HashMap<Key, InputState>,
     mouse: MouseEvent,
 }
@@ -20,6 +21,7 @@ impl MySystem {
             id: SystemId::new(),
             shared_data: shared_data.clone(),
             config: config.clone(),
+            font_id: INVALID_ID,
             keys: HashMap::new(),
             mouse: MouseEvent::default(),
         }
@@ -30,7 +32,14 @@ impl System for MySystem {
     fn id(&self) -> SystemId {
         self.id
     }
-    fn init(&mut self) {}
+    fn init(&mut self) {
+        let read_data = self.shared_data.read().unwrap();
+        let renderer = &mut *read_data.get_unique_resource_mut::<Renderer>();
+
+        let pipeline_id = renderer.get_pipeline_id("Font");
+        self.font_id = renderer.add_font(pipeline_id, self.config.fonts.first().unwrap());
+    }
+
     fn run(&mut self) -> bool {
         let read_data = self.shared_data.read().unwrap();
         let renderer = &mut *read_data.get_unique_resource_mut::<Renderer>();
@@ -43,9 +52,6 @@ impl System for MySystem {
             *entry = event.state;
         }
 
-        let pipeline_id = String::from("Font");
-        let font_index = renderer.request_font(&pipeline_id, self.config.fonts.first().unwrap());
-
         let mouse_events = window.get_events().read_events::<MouseEvent>();
         if let Some(&event) = mouse_events.last() {
             self.mouse = *event;
@@ -55,7 +61,7 @@ impl System for MySystem {
             self.mouse.x, self.mouse.y, self.mouse.button, self.mouse.state
         );
         renderer.add_text(
-            font_index,
+            self.font_id,
             string.as_str(),
             [-0.9, -0.9 + line].into(),
             1.0,
@@ -66,7 +72,7 @@ impl System for MySystem {
         for (key, state) in self.keys.iter_mut() {
             let string = format!("{:?} = {:?}", key, state);
             renderer.add_text(
-                font_index,
+                self.font_id,
                 string.as_str(),
                 [-0.9, -0.9 + line].into(),
                 1.0,

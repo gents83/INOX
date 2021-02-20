@@ -106,6 +106,15 @@ impl MeshData {
         self
     }
 
+    pub fn add_quad_default(&mut self, rect: Vector4f) -> &mut Self {
+        let tex_coords = [0.0, 0.0, 1.0, 1.0].into();
+        let (vertices, indices) = create_quad(rect, tex_coords, None);
+
+        self.vertices.append(&mut vertices.to_vec());
+        self.indices.append(&mut indices.to_vec());
+        self
+    }
+
     pub fn add_quad(
         &mut self,
         rect: Vector4f,

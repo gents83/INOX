@@ -181,20 +181,21 @@ impl MaterialInstance {
             range: self.uniform_buffers_size as _,
         };
 
-        let descriptor_write = [
-            VkWriteDescriptorSet {
-                sType: VkStructureType_VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-                pNext: ::std::ptr::null_mut(),
-                dstSet: self.descriptor_sets[image_index],
-                dstBinding: 0,
-                dstArrayElement: 0,
-                descriptorCount: 1,
-                descriptorType: VkDescriptorType_VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-                pImageInfo: ::std::ptr::null_mut(),
-                pBufferInfo: &buffer_info,
-                pTexelBufferView: ::std::ptr::null_mut(),
-            },
-            VkWriteDescriptorSet {
+        let mut descriptor_write: Vec<VkWriteDescriptorSet> = Vec::new();
+        descriptor_write.push(VkWriteDescriptorSet {
+            sType: VkStructureType_VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            pNext: ::std::ptr::null_mut(),
+            dstSet: self.descriptor_sets[image_index],
+            dstBinding: 0,
+            dstArrayElement: 0,
+            descriptorCount: 1,
+            descriptorType: VkDescriptorType_VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+            pImageInfo: ::std::ptr::null_mut(),
+            pBufferInfo: &buffer_info,
+            pTexelBufferView: ::std::ptr::null_mut(),
+        });
+        for texture in self.textures.iter() {
+            descriptor_write.push(VkWriteDescriptorSet {
                 sType: VkStructureType_VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                 pNext: ::std::ptr::null_mut(),
                 dstSet: self.descriptor_sets[image_index],
@@ -202,11 +203,11 @@ impl MaterialInstance {
                 dstArrayElement: 0,
                 descriptorCount: 1,
                 descriptorType: VkDescriptorType_VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                pImageInfo: &self.textures[0].get_descriptor(),
+                pImageInfo: &texture.get_descriptor(),
                 pBufferInfo: ::std::ptr::null_mut(),
                 pTexelBufferView: ::std::ptr::null_mut(),
-            },
-        ];
+            });
+        }
 
         unsafe {
             vkUpdateDescriptorSets.unwrap()(

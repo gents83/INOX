@@ -17,6 +17,7 @@ use super::viewport::*;
 pub type MaterialId = usize;
 pub type PipelineId = usize;
 pub type FontId = usize;
+pub const INVALID_ID: usize = 0xFFFFFFFF;
 
 struct PipelineInstance {
     id: PipelineId,
@@ -34,7 +35,8 @@ struct FontInstance {
     id: FontId,
     name: String,
     material_id: MaterialId,
-    font: Option<Font>,
+    font: Font,
+    initialized: bool,
 }
 
 pub struct Renderer {
@@ -62,17 +64,59 @@ impl Renderer {
         }
     }
 
-    pub fn get_fonts_count(&self) -> usize {
-        self.fonts.len()
+    pub fn add_material(&mut self, pipeline_id: PipelineId) -> MaterialId {
+        let material_id = self.materials.len();
+        self.materials.push(MaterialInstance {
+            id: material_id,
+            material: None,
+            pipeline_id,
+            meshes: Vec::new(),
+            finalized_mesh: Mesh::create(&self.device),
+        });
+        material_id
     }
-    pub fn has_font(&self, name: &str) -> bool {
-        if let Some(_entry) = self.fonts.iter().find(|&font| font.name.eq(name)) {
-            return true;
+
+    pub fn add_pipeline(&mut self, data: &PipelineData) {
+        if !self.has_pipeline(&data.name) {
+            let pipeline_id = self.pipelines.len();
+            self.pipelines.push(PipelineInstance {
+                id: pipeline_id,
+                data: data.clone(),
+                pipeline: None,
+            });
         }
-        false
     }
-    pub fn get_font_index(&self, font_id: FontId) -> i32 {
-        get_font_index_from_id(&self.fonts, font_id)
+
+    pub fn add_font(&mut self, pipeline_id: PipelineId, font_path: &PathBuf) -> FontId {
+        let font_name = font_path.to_str().unwrap().to_string();
+        if font_path.exists() && !self.has_font(&font_name) {
+            let font_id = self.fonts.len();
+            let material_id = self.add_material(pipeline_id);
+            self.fonts.push(FontInstance {
+                id: font_id,
+                name: font_name,
+                material_id,
+                font: Font::new(font_path.clone()),
+                initialized: false,
+            });
+            font_id
+        } else {
+            let index = self
+                .fonts
+                .iter()
+                .position(|font| font.name.eq(&font_name))
+                .unwrap();
+            self.fonts[index].id
+        }
+    }
+
+    pub fn add_mesh(&mut self, material_id: MaterialId, mesh_data: &MeshData) {
+        let material_index = self.get_material_index(material_id);
+        if material_index >= 0 {
+            self.materials[material_index as usize]
+                .meshes
+                .push(mesh_data.clone());
+        }
     }
 
     pub fn add_text(
@@ -87,29 +131,35 @@ impl Renderer {
         if font_index >= 0 {
             let materials = &self.materials;
             let font_instance = &mut self.fonts[font_index as usize];
-            if let Some(font) = &mut font_instance.font {
-                let material_index =
-                    get_material_index_from_id(&materials, font_instance.material_id);
-                if material_index >= 0 {
-                    let material_instance = &mut self.materials[material_index as usize];
-                    let mesh_data = font.add_text(text, position, scale, color);
-                    material_instance.meshes.push(mesh_data);
-                }
+            let font = &mut font_instance.font;
+            let material_index = get_material_index_from_id(&materials, font_instance.material_id);
+            if material_index >= 0 {
+                let material_instance = &mut self.materials[material_index as usize];
+                let mesh_data = font.add_text(text, position, scale, color);
+                material_instance.meshes.push(mesh_data);
             }
         }
     }
 
-    pub fn add_pipeline(&mut self, data: &PipelineData) {
-        if !self.has_pipeline(&data.name) {
-            let pipeline_id = self.pipelines.len();
-            self.pipelines.push(PipelineInstance {
-                id: pipeline_id,
-                data: data.clone(),
-                pipeline: None,
-            });
+    pub fn get_fonts_count(&self) -> usize {
+        self.fonts.len()
+    }
+    pub fn has_font(&self, name: &str) -> bool {
+        if let Some(_entry) = self.fonts.iter().find(|&font| font.name.eq(name)) {
+            return true;
         }
+        false
+    }
+    pub fn get_font_id(&self, name: &str) -> FontId {
+        if let Some(entry) = self.fonts.iter().find(|&font| font.name.eq(name)) {
+            return entry.id;
+        }
+        INVALID_ID
     }
 
+    pub fn get_font_index(&self, font_id: FontId) -> i32 {
+        get_font_index_from_id(&self.fonts, font_id)
+    }
     pub fn has_pipeline(&self, name: &str) -> bool {
         if let Some(_entry) = self
             .pipelines
@@ -119,6 +169,17 @@ impl Renderer {
             return true;
         }
         false
+    }
+
+    pub fn get_pipeline_id(&self, name: &str) -> PipelineId {
+        if let Some(entry) = self
+            .pipelines
+            .iter()
+            .find(|&pipeline| pipeline.data.name.eq(name))
+        {
+            return entry.id;
+        }
+        INVALID_ID
     }
 
     pub fn get_pipeline_index(&self, pipeline_id: PipelineId) -> i32 {
@@ -139,6 +200,7 @@ impl Renderer {
 
     pub fn begin_frame(&mut self) -> bool {
         self.load_pipelines();
+        self.load_materials();
         self.load_fonts();
 
         self.prepare_pipelines();
@@ -183,41 +245,6 @@ impl Renderer {
             }
         }
     }
-
-    pub fn request_font(&mut self, pipeline_id: &str, font_path: &PathBuf) -> FontId {
-        let font_name = font_path.to_str().unwrap().to_string();
-        if font_path.exists() && !self.has_font(&font_name) {
-            let font_id = self.fonts.len();
-            if let Some(pipeline_instance) = self
-                .pipelines
-                .iter()
-                .find(|&pipeline| pipeline.data.name.eq(pipeline_id))
-            {
-                let material_id = self.materials.len();
-                self.materials.push(MaterialInstance {
-                    id: material_id,
-                    material: None,
-                    pipeline_id: pipeline_instance.id,
-                    meshes: Vec::new(),
-                    finalized_mesh: Mesh::create(&self.device),
-                });
-                self.fonts.push(FontInstance {
-                    id: font_id,
-                    name: font_name,
-                    material_id,
-                    font: None,
-                });
-            }
-            font_id
-        } else {
-            let index = self
-                .fonts
-                .iter()
-                .position(|font| font.name.eq(&font_name))
-                .unwrap();
-            self.fonts[index].id
-        }
-    }
 }
 
 impl Renderer {
@@ -237,33 +264,40 @@ impl Renderer {
             }
         });
     }
+    fn load_materials(&mut self) {
+        let device = &mut self.device;
+        let pipelines = &mut self.pipelines;
+        let materials = &mut self.materials;
+        materials.iter_mut().for_each(|material_instance| {
+            if material_instance.material.is_none() {
+                let pipeline_index =
+                    get_pipeline_index_from_id(&pipelines, material_instance.pipeline_id);
+                if pipeline_index >= 0 {
+                    let pipeline = pipelines[pipeline_index as usize]
+                        .pipeline
+                        .as_ref()
+                        .unwrap();
+                    material_instance
+                        .material
+                        .get_or_insert(Material::create(&device, &pipeline));
+                }
+            }
+        });
+    }
 
     fn load_fonts(&mut self) {
-        let device = &mut self.device;
         let fonts = &mut self.fonts;
-        let pipelines = &mut self.pipelines;
         let materials = &mut self.materials;
 
         fonts.iter_mut().for_each(|font_instance| {
-            if font_instance.font.is_none() {
+            if !font_instance.initialized {
                 let material_index =
                     get_material_index_from_id(&materials, font_instance.material_id);
                 if material_index >= 0 {
-                    let material = &mut materials[material_index as usize];
-                    let pipeline_index =
-                        get_pipeline_index_from_id(&pipelines, material.pipeline_id);
-                    if pipeline_index >= 0 {
-                        let pipeline = pipelines[pipeline_index as usize]
-                            .pipeline
-                            .as_ref()
-                            .unwrap();
-                        let mat = material
-                            .material
-                            .get_or_insert(Material::create(&device, &pipeline));
-                        let font = font_instance
-                            .font
-                            .get_or_insert(Font::new(PathBuf::from(font_instance.name.clone())));
-                        mat.add_texture_from_image(font.get_bitmap());
+                    let material_instance = &mut materials[material_index as usize];
+                    if let Some(material) = &mut material_instance.material {
+                        material.add_texture_from_image(font_instance.font.get_bitmap());
+                        font_instance.initialized = true;
                     }
                 }
             }
@@ -308,9 +342,7 @@ impl Renderer {
                 let material_instance = &mut materials[material_index as usize];
                 material_instance.meshes.clear();
             }
-            if let Some(ref mut font) = font_instance.font {
-                font.clear();
-            }
+            font_instance.font.clear();
         });
     }
 }

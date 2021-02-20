@@ -86,11 +86,11 @@ impl RenderPassImmutable {
             flags: 0,
             format: details.formats[0].format,
             samples: VkSampleCountFlagBits_VK_SAMPLE_COUNT_1_BIT,
-            loadOp: VkAttachmentLoadOp_VK_ATTACHMENT_LOAD_OP_CLEAR,
+            loadOp: VkAttachmentLoadOp_VK_ATTACHMENT_LOAD_OP_LOAD,
             storeOp: VkAttachmentStoreOp_VK_ATTACHMENT_STORE_OP_STORE,
             stencilLoadOp: VkAttachmentLoadOp_VK_ATTACHMENT_LOAD_OP_DONT_CARE,
             stencilStoreOp: VkAttachmentStoreOp_VK_ATTACHMENT_STORE_OP_DONT_CARE,
-            initialLayout: VkImageLayout_VK_IMAGE_LAYOUT_UNDEFINED,
+            initialLayout: VkImageLayout_VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
             finalLayout: VkImageLayout_VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
         };
 
@@ -112,17 +112,34 @@ impl RenderPassImmutable {
             pPreserveAttachments: ::std::ptr::null_mut(),
         };
 
-        let subpass_dependency = VkSubpassDependency {
-            srcSubpass: VK_SUBPASS_EXTERNAL as _,
-            dstSubpass: 0,
-            srcStageMask: VkPipelineStageFlagBits_VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
-                as _,
-            dstStageMask: VkPipelineStageFlagBits_VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
-                as _,
-            srcAccessMask: 0,
-            dstAccessMask: VkAccessFlagBits_VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT as _,
-            dependencyFlags: 0,
-        };
+        let subpass_dependency = [
+            // Transition from final to initial (VK_SUBPASS_EXTERNAL refers to all commands executed outside of the actual renderpass)
+            VkSubpassDependency {
+                srcSubpass: VK_SUBPASS_EXTERNAL as _,
+                dstSubpass: 0,
+                srcStageMask: VkPipelineStageFlagBits_VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT as _,
+                dstStageMask: VkPipelineStageFlagBits_VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+                    as _,
+                srcAccessMask: VkAccessFlagBits_VK_ACCESS_MEMORY_READ_BIT as _,
+                dstAccessMask: (VkAccessFlagBits_VK_ACCESS_COLOR_ATTACHMENT_READ_BIT
+                    | VkAccessFlagBits_VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
+                    as _,
+                dependencyFlags: VkDependencyFlagBits_VK_DEPENDENCY_BY_REGION_BIT as _,
+            },
+            // Transition from initial to final
+            VkSubpassDependency {
+                srcSubpass: 0,
+                dstSubpass: VK_SUBPASS_EXTERNAL as _,
+                srcStageMask: VkPipelineStageFlagBits_VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+                    as _,
+                dstStageMask: VkPipelineStageFlagBits_VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT as _,
+                srcAccessMask: (VkAccessFlagBits_VK_ACCESS_COLOR_ATTACHMENT_READ_BIT
+                    | VkAccessFlagBits_VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
+                    as _,
+                dstAccessMask: VkAccessFlagBits_VK_ACCESS_MEMORY_READ_BIT as _,
+                dependencyFlags: VkDependencyFlagBits_VK_DEPENDENCY_BY_REGION_BIT as _,
+            },
+        ];
 
         let render_pass_create_info = VkRenderPassCreateInfo {
             sType: VkStructureType_VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
@@ -132,8 +149,8 @@ impl RenderPassImmutable {
             pAttachments: &color_attachment,
             subpassCount: 1,
             pSubpasses: &subpass1,
-            dependencyCount: 1,
-            pDependencies: &subpass_dependency,
+            dependencyCount: subpass_dependency.len() as _,
+            pDependencies: subpass_dependency.as_ptr(),
         };
         unsafe {
             let mut option = ::std::mem::MaybeUninit::uninit();

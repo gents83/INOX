@@ -4,7 +4,6 @@ use nrg_core::*;
 
 mod config;
 mod gui;
-mod gui_renderer;
 mod gui_updater;
 mod widgets;
 

@@ -1,18 +1,15 @@
-use std::collections::HashMap;
-
 use crate::widgets::*;
 
 use super::config::*;
 
 use nrg_core::*;
-use nrg_platform::*;
+use nrg_graphics::*;
 
 pub struct GuiUpdater {
     id: SystemId,
     shared_data: SharedDataRw,
     config: Config,
-    keys: HashMap<Key, InputState>,
-    mouse: MouseEvent,
+    panel: Panel,
 }
 
 impl GuiUpdater {
@@ -21,8 +18,7 @@ impl GuiUpdater {
             id: SystemId::new(),
             shared_data: shared_data.clone(),
             config: config.clone(),
-            keys: HashMap::new(),
-            mouse: MouseEvent::default(),
+            panel: Panel::default(),
         }
     }
 }
@@ -31,9 +27,13 @@ impl System for GuiUpdater {
     fn id(&self) -> SystemId {
         self.id
     }
+
     fn init(&mut self) {
-        let panel = Panel::default();
-        self.shared_data.write().unwrap().add_resource(panel);
+        self.load_pipelines();
+
+        let read_data = self.shared_data.read().unwrap();
+        let renderer = &mut *read_data.get_unique_resource_mut::<Renderer>();
+        self.panel.init(renderer);
     }
     fn run(&mut self) -> bool {
         true
@@ -43,5 +43,16 @@ impl System for GuiUpdater {
             .write()
             .unwrap()
             .remove_resources_of_type::<Panel>();
+    }
+}
+
+impl GuiUpdater {
+    fn load_pipelines(&mut self) {
+        let read_data = self.shared_data.read().unwrap();
+        let renderer = &mut *read_data.get_unique_resource_mut::<Renderer>();
+
+        for pipeline_data in self.config.pipelines.iter() {
+            renderer.add_pipeline(pipeline_data);
+        }
     }
 }

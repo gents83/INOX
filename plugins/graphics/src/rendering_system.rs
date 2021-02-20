@@ -38,14 +38,11 @@ impl System for RenderingSystem {
             self.shared_data.write().unwrap().add_resource(renderer);
         }
 
-        {
-            let pipeline_id = String::from("Default");
-            {
-                let read_data = self.shared_data.read().unwrap();
-                let renderer = &mut *read_data.get_unique_resource_mut::<Renderer>();
-                let pipeline_data = self.config.get_pipeline_data(pipeline_id).unwrap();
-                renderer.add_pipeline(pipeline_data);
-            }
+        let read_data = self.shared_data.read().unwrap();
+        let renderer = &mut *read_data.get_unique_resource_mut::<Renderer>();
+
+        for pipeline_data in self.config.pipelines.iter() {
+            renderer.add_pipeline(pipeline_data);
         }
     }
 
