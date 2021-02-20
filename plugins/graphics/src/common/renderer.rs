@@ -221,27 +221,22 @@ impl Renderer {
 
     pub fn draw(&mut self) {
         let pipelines = &mut self.pipelines;
-        let material_count = self.materials.len();
-        let mut last_pipeline_index = -1;
-        for (i, material_instance) in self.materials.iter_mut().enumerate() {
-            let pipeline_index =
-                get_pipeline_index_from_id(pipelines, material_instance.pipeline_id);
-            if last_pipeline_index != pipeline_index {
-                if last_pipeline_index >= 0 {
-                    end_pipeline(pipelines, last_pipeline_index as usize);
+        let materials = &mut self.materials;
+
+        for pipeline_instance in pipelines.iter_mut() {
+            if let Some(pipeline) = &mut pipeline_instance.pipeline {
+                pipeline.begin();
+
+                for material_instance in materials.iter_mut() {
+                    if material_instance.pipeline_id == pipeline_instance.id {
+                        if let Some(material) = &mut material_instance.material {
+                            material.update_simple();
+                        }
+                        material_instance.finalized_mesh.draw();
+                    }
                 }
-                last_pipeline_index = pipeline_index;
-                begin_pipeline(pipelines, pipeline_index as usize);
-            }
 
-            if material_instance.material.is_some() {
-                let material = material_instance.material.as_ref().unwrap();
-                material.update_simple();
-            }
-            material_instance.finalized_mesh.draw();
-
-            if i == material_count - 1 {
-                end_pipeline(pipelines, pipeline_index as usize);
+                pipeline.end();
             }
         }
     }
@@ -253,7 +248,7 @@ impl Renderer {
         let pipelines = &mut self.pipelines;
         pipelines.iter_mut().for_each(|pipeline_instance| {
             if pipeline_instance.pipeline.is_none() {
-                let render_pass = RenderPass::create_default(&device);
+                let render_pass = RenderPass::create_default(&device, &pipeline_instance.data.data);
                 let pipeline = Pipeline::create(
                     &device,
                     pipeline_instance.data.vertex_shader.clone(),
@@ -305,7 +300,8 @@ impl Renderer {
     }
 
     fn prepare_pipelines(&mut self) {
-        self.pipelines.sort_by(|a, b| a.id.cmp(&b.id));
+        self.pipelines
+            .sort_by(|a, b| a.data.data.index.cmp(&b.data.data.index));
     }
 
     fn prepare_materials(&mut self) {
@@ -379,14 +375,4 @@ fn get_font_index_from_id(fonts: &[FontInstance], font_id: FontId) -> i32 {
         return index as _;
     }
     -1
-}
-
-fn begin_pipeline(pipelines: &mut Vec<PipelineInstance>, index: usize) {
-    let pipeline = pipelines[index].pipeline.as_mut().unwrap();
-    pipeline.begin();
-}
-
-fn end_pipeline(pipelines: &mut Vec<PipelineInstance>, index: usize) {
-    let pipeline = pipelines[index].pipeline.as_mut().unwrap();
-    pipeline.end();
 }

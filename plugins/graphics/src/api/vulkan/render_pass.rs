@@ -1,4 +1,5 @@
 use super::device::*;
+use crate::common::data_formats::*;
 use std::{cell::RefCell, rc::Rc};
 use vulkan_bindings::*;
 
@@ -14,9 +15,9 @@ pub struct RenderPass {
 }
 
 impl RenderPass {
-    pub fn create_default(device: &Device) -> Self {
+    pub fn create_default(device: &Device, data: &RenderPassData) -> Self {
         let immutable = RenderPassImmutable {
-            render_pass: RenderPassImmutable::base_pass(device),
+            render_pass: RenderPassImmutable::base_pass(device, data),
             framebuffers: Vec::new(),
         };
         let inner = Rc::new(RefCell::new(immutable));
@@ -80,13 +81,16 @@ impl From<&RenderPass> for VkRenderPass {
 }
 
 impl RenderPassImmutable {
-    fn base_pass(device: &Device) -> VkRenderPass {
+    fn base_pass(device: &Device, data: &RenderPassData) -> VkRenderPass {
         let details = device.get_instance().get_swap_chain_info();
         let color_attachment = VkAttachmentDescription {
             flags: 0,
             format: details.formats[0].format,
             samples: VkSampleCountFlagBits_VK_SAMPLE_COUNT_1_BIT,
-            loadOp: VkAttachmentLoadOp_VK_ATTACHMENT_LOAD_OP_LOAD,
+            loadOp: match data.clear {
+                true => VkAttachmentLoadOp_VK_ATTACHMENT_LOAD_OP_CLEAR,
+                _ => VkAttachmentLoadOp_VK_ATTACHMENT_LOAD_OP_LOAD,
+            },
             storeOp: VkAttachmentStoreOp_VK_ATTACHMENT_STORE_OP_STORE,
             stencilLoadOp: VkAttachmentLoadOp_VK_ATTACHMENT_LOAD_OP_DONT_CARE,
             stencilStoreOp: VkAttachmentStoreOp_VK_ATTACHMENT_STORE_OP_DONT_CARE,

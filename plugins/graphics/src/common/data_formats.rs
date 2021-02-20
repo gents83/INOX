@@ -34,8 +34,27 @@ impl Default for VertexData {
 
 #[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Clone)]
 #[serde(crate = "nrg_serialize")]
+pub struct RenderPassData {
+    pub clear: bool,
+    pub index: i32,
+}
+unsafe impl Send for RenderPassData {}
+unsafe impl Sync for RenderPassData {}
+
+impl Default for RenderPassData {
+    fn default() -> Self {
+        Self {
+            clear: true,
+            index: -1,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Clone)]
+#[serde(crate = "nrg_serialize")]
 pub struct PipelineData {
     pub name: String,
+    pub data: RenderPassData,
     pub fragment_shader: PathBuf,
     pub vertex_shader: PathBuf,
 }
@@ -46,6 +65,7 @@ impl Default for PipelineData {
     fn default() -> Self {
         Self {
             name: String::from("Default"),
+            data: RenderPassData::default(),
             fragment_shader: PathBuf::new(),
             vertex_shader: PathBuf::new(),
         }

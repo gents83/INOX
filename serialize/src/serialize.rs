@@ -21,6 +21,8 @@ where
     if filepath.exists() {
         let file = File::open(filepath).unwrap();
         let reader = BufReader::new(file);
-        *data = serde_json::from_reader(reader).unwrap();
+        if let Ok(result) = serde_json::from_reader(reader) {
+            *data = result;
+        }
     }
 }
