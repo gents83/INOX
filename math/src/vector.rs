@@ -443,20 +443,53 @@ implement_vector!(Vector2 { x, y }, 2);
 implement_vector!(Vector3 { x, y, z }, 3);
 implement_vector!(Vector4 { x, y, z, w }, 4);
 
-pub type Vector1f = Vector1<f32>;
 pub type Vector2f = Vector2<f32>;
 pub type Vector3f = Vector3<f32>;
 pub type Vector4f = Vector4<f32>;
 
-pub type Vector1i = Vector1<i32>;
 pub type Vector2i = Vector2<i32>;
 pub type Vector3i = Vector3<i32>;
 pub type Vector4i = Vector4<i32>;
 
-pub type Vector1u = Vector1<u32>;
 pub type Vector2u = Vector2<u32>;
 pub type Vector3u = Vector3<u32>;
 pub type Vector4u = Vector4<u32>;
+
+impl<T> From<Vector3<T>> for Vector2<T>
+where
+    T: Number,
+{
+    #[inline]
+    fn from(v: Vector3<T>) -> Vector2<T> {
+        Vector2 { x: v.x, y: v.y }
+    }
+}
+impl<T> From<Vector4<T>> for Vector3<T>
+where
+    T: Number,
+{
+    #[inline]
+    fn from(v: Vector4<T>) -> Vector3<T> {
+        Vector3 {
+            x: v.x,
+            y: v.y,
+            z: v.z,
+        }
+    }
+}
+impl<T> Into<Vector3<T>> for Vector2<T>
+where
+    T: Number,
+{
+    #[inline]
+    fn into(self) -> Vector3<T> {
+        Vector3 {
+            x: self.x,
+            y: self.y,
+            z: T::zero(),
+        }
+    }
+}
 
 impl<T: std::ops::Mul<Output = T> + std::ops::Sub<Output = T> + std::ops::Deref> Vector2<T> {
     pub fn perpendicular_dot(self, other: Vector2<T>) -> T {

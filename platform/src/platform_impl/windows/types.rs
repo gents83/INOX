@@ -17,6 +17,7 @@ declare_handle! {HINSTANCE, HINSTANCE__}
 declare_handle! {HICON, HICON__}
 declare_handle! {HBRUSH, HBRUSH__}
 declare_handle! {HMENU, HMENU__}
+declare_handle! {HMONITOR, HMONITOR__}
 
 pub type HANDLE = *mut c_void;
 pub type PHANDLE = *mut HANDLE;
@@ -36,6 +37,14 @@ pub type LONG = c_long;
 pub type UINT_PTR = usize;
 pub type LONG_PTR = isize;
 pub type ULONG_PTR = c_ulonglong;
+pub type OLECHAR = WCHAR;
+pub type LPOLESTR = *mut OLECHAR;
+pub type LPCOLESTR = *const OLECHAR;
+pub type UCHAR = c_uchar;
+pub type SHORT = c_short;
+pub type USHORT = c_ushort;
+pub type ULONG = DWORD;
+pub type DOUBLE = c_double;
 pub type ATOM = WORD;
 pub type LPCSTR = *const CHAR;
 pub type LPCWSTR = *const WCHAR;
@@ -45,6 +54,9 @@ pub type LRESULT = LONG_PTR;
 pub type LPVOID = *mut ::std::ffi::c_void;
 pub type LPLONG = *mut c_long;
 pub type LPMSG = *mut MSG;
+pub type PVOID = *mut c_void;
+
+pub const UINT_MAX: c_uint = 0xffffffff;
 
 pub const KF_EXTENDED: WORD = 0x0100;
 pub const KF_DLGMODE: WORD = 0x0800;
@@ -383,18 +395,187 @@ pub const WS_MAXIMIZEBOX: DWORD = 0x00010000;
 pub const WS_OVERLAPPEDWINDOW: DWORD =
     WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX;
 pub const WS_VISIBLE: DWORD = 0x10000000;
-
+pub const WM_NULL: UINT = 0x0000;
+pub const WM_CREATE: UINT = 0x0001;
 pub const WM_DESTROY: UINT = 0x0002;
 pub const WM_MOVE: UINT = 0x0003;
 pub const WM_SIZE: UINT = 0x0005;
 pub const WM_ACTIVATE: UINT = 0x0006;
+pub const WA_INACTIVE: WORD = 0;
+pub const WA_ACTIVE: WORD = 1;
+pub const WA_CLICKACTIVE: WORD = 2;
+pub const WM_SETFOCUS: UINT = 0x0007;
+pub const WM_KILLFOCUS: UINT = 0x0008;
+pub const WM_ENABLE: UINT = 0x000A;
+pub const WM_SETREDRAW: UINT = 0x000B;
+pub const WM_SETTEXT: UINT = 0x000C;
+pub const WM_GETTEXT: UINT = 0x000D;
+pub const WM_GETTEXTLENGTH: UINT = 0x000E;
+pub const WM_PAINT: UINT = 0x000F;
 pub const WM_CLOSE: UINT = 0x0010;
+pub const WM_QUERYENDSESSION: UINT = 0x0011;
+pub const WM_QUERYOPEN: UINT = 0x0013;
+pub const WM_ENDSESSION: UINT = 0x0016;
 pub const WM_QUIT: UINT = 0x0012;
+pub const WM_ERASEBKGND: UINT = 0x0014;
+pub const WM_SYSCOLORCHANGE: UINT = 0x0015;
+pub const WM_SHOWWINDOW: UINT = 0x0018;
+pub const WM_WININICHANGE: UINT = 0x001A;
+pub const WM_SETTINGCHANGE: UINT = WM_WININICHANGE;
+pub const WM_DEVMODECHANGE: UINT = 0x001B;
+pub const WM_ACTIVATEAPP: UINT = 0x001C;
+pub const WM_FONTCHANGE: UINT = 0x001D;
+pub const WM_TIMECHANGE: UINT = 0x001E;
+pub const WM_CANCELMODE: UINT = 0x001F;
+pub const WM_SETCURSOR: UINT = 0x0020;
+pub const WM_MOUSEACTIVATE: UINT = 0x0021;
+pub const WM_CHILDACTIVATE: UINT = 0x0022;
+pub const WM_QUEUESYNC: UINT = 0x0023;
+pub const WM_GETMINMAXINFO: UINT = 0x0024;
+#[repr(C)]
+pub struct MINMAXINFO {
+    ptReserved: POINT,
+    ptMaxSize: POINT,
+    ptMaxPosition: POINT,
+    ptMinTrackSize: POINT,
+    ptMaxTrackSize: POINT,
+}
+pub type PMINMAXINFO = *mut MINMAXINFO;
+pub type LPMINMAXINFO = *mut MINMAXINFO;
+pub const WM_PAINTICON: UINT = 0x0026;
+pub const WM_ICONERASEBKGND: UINT = 0x0027;
+pub const WM_NEXTDLGCTL: UINT = 0x0028;
+pub const WM_SPOOLERSTATUS: UINT = 0x002A;
+pub const WM_DRAWITEM: UINT = 0x002B;
+pub const WM_MEASUREITEM: UINT = 0x002C;
+pub const WM_DELETEITEM: UINT = 0x002D;
+pub const WM_VKEYTOITEM: UINT = 0x002E;
+pub const WM_CHARTOITEM: UINT = 0x002F;
+pub const WM_SETFONT: UINT = 0x0030;
+pub const WM_GETFONT: UINT = 0x0031;
+pub const WM_SETHOTKEY: UINT = 0x0032;
+pub const WM_GETHOTKEY: UINT = 0x0033;
+pub const WM_QUERYDRAGICON: UINT = 0x0037;
+pub const WM_COMPAREITEM: UINT = 0x0039;
+pub const WM_GETOBJECT: UINT = 0x003D;
+pub const WM_COMPACTING: UINT = 0x0041;
+pub const WM_COMMNOTIFY: UINT = 0x0044;
+pub const WM_WINDOWPOSCHANGING: UINT = 0x0046;
+pub const WM_WINDOWPOSCHANGED: UINT = 0x0047;
+pub const WM_POWER: UINT = 0x0048;
+pub const PWR_OK: WPARAM = 1;
+pub const PWR_FAIL: WPARAM = -1isize as usize;
+pub const PWR_SUSPENDREQUEST: WPARAM = 1;
+pub const PWR_SUSPENDRESUME: WPARAM = 2;
+pub const PWR_CRITICALRESUME: WPARAM = 3;
+pub const WM_COPYDATA: UINT = 0x004A;
+pub const WM_CANCELJOURNAL: UINT = 0x004B;
+#[repr(C)]
+pub struct COPYDATASTRUCT {
+    dwData: ULONG_PTR,
+    cbData: DWORD,
+    lpData: PVOID,
+}
+pub type PCOPYDATASTRUCT = *mut COPYDATASTRUCT;
+#[repr(C)]
+pub struct MDINEXTMENU {
+    hmenuIn: HMENU,
+    hmenuNext: HMENU,
+    hwndNext: HWND,
+}
+pub type PMDINEXTMENU = *mut MDINEXTMENU;
+pub type LPMDINEXTMENU = *mut MDINEXTMENU;
+pub const WM_NOTIFY: UINT = 0x004E;
+pub const WM_INPUTLANGCHANGEREQUEST: UINT = 0x0050;
+pub const WM_INPUTLANGCHANGE: UINT = 0x0051;
+pub const WM_TCARD: UINT = 0x0052;
+pub const WM_HELP: UINT = 0x0053;
+pub const WM_USERCHANGED: UINT = 0x0054;
+pub const WM_NOTIFYFORMAT: UINT = 0x0055;
+pub const NFR_ANSI: LRESULT = 1;
+pub const NFR_UNICODE: LRESULT = 2;
+pub const NF_QUERY: LPARAM = 3;
+pub const NF_REQUERY: LPARAM = 4;
+pub const WM_CONTEXTMENU: UINT = 0x007B;
+pub const WM_STYLECHANGING: UINT = 0x007C;
+pub const WM_STYLECHANGED: UINT = 0x007D;
+pub const WM_DISPLAYCHANGE: UINT = 0x007E;
+pub const WM_GETICON: UINT = 0x007F;
+pub const WM_SETICON: UINT = 0x0080;
+pub const WM_NCCREATE: UINT = 0x0081;
 pub const WM_NCDESTROY: UINT = 0x0082;
+pub const WM_NCCALCSIZE: UINT = 0x0083;
+pub const WM_NCHITTEST: UINT = 0x0084;
+pub const WM_NCPAINT: UINT = 0x0085;
+pub const WM_NCACTIVATE: UINT = 0x0086;
+pub const WM_GETDLGCODE: UINT = 0x0087;
+pub const WM_SYNCPAINT: UINT = 0x0088;
+pub const WM_NCMOUSEMOVE: UINT = 0x00A0;
+pub const WM_NCLBUTTONDOWN: UINT = 0x00A1;
+pub const WM_NCLBUTTONUP: UINT = 0x00A2;
+pub const WM_NCLBUTTONDBLCLK: UINT = 0x00A3;
+pub const WM_NCRBUTTONDOWN: UINT = 0x00A4;
+pub const WM_NCRBUTTONUP: UINT = 0x00A5;
+pub const WM_NCRBUTTONDBLCLK: UINT = 0x00A6;
+pub const WM_NCMBUTTONDOWN: UINT = 0x00A7;
+pub const WM_NCMBUTTONUP: UINT = 0x00A8;
+pub const WM_NCMBUTTONDBLCLK: UINT = 0x00A9;
+pub const WM_NCXBUTTONDOWN: UINT = 0x00AB;
+pub const WM_NCXBUTTONUP: UINT = 0x00AC;
+pub const WM_NCXBUTTONDBLCLK: UINT = 0x00AD;
+pub const WM_INPUT_DEVICE_CHANGE: UINT = 0x00FE;
+pub const WM_INPUT: UINT = 0x00FF;
+pub const WM_KEYFIRST: UINT = 0x0100;
 pub const WM_KEYDOWN: UINT = 0x0100;
 pub const WM_KEYUP: UINT = 0x0101;
-pub const WM_SIZING: UINT = 0x0214;
-pub const WM_MOVING: UINT = 0x0216;
+pub const WM_CHAR: UINT = 0x0102;
+pub const WM_DEADCHAR: UINT = 0x0103;
+pub const WM_SYSKEYDOWN: UINT = 0x0104;
+pub const WM_SYSKEYUP: UINT = 0x0105;
+pub const WM_SYSCHAR: UINT = 0x0106;
+pub const WM_SYSDEADCHAR: UINT = 0x0107;
+pub const WM_UNICHAR: UINT = 0x0109;
+pub const WM_KEYLAST: UINT = 0x0109;
+pub const UNICODE_NOCHAR: WPARAM = 0xFFFF;
+pub const WM_IME_STARTCOMPOSITION: UINT = 0x010D;
+pub const WM_IME_ENDCOMPOSITION: UINT = 0x010E;
+pub const WM_IME_COMPOSITION: UINT = 0x010F;
+pub const WM_IME_KEYLAST: UINT = 0x010F;
+pub const WM_INITDIALOG: UINT = 0x0110;
+pub const WM_COMMAND: UINT = 0x0111;
+pub const WM_SYSCOMMAND: UINT = 0x0112;
+pub const WM_TIMER: UINT = 0x0113;
+pub const WM_HSCROLL: UINT = 0x0114;
+pub const WM_VSCROLL: UINT = 0x0115;
+pub const WM_INITMENU: UINT = 0x0116;
+pub const WM_INITMENUPOPUP: UINT = 0x0117;
+pub const WM_GESTURE: UINT = 0x0119;
+pub const WM_GESTURENOTIFY: UINT = 0x011A;
+pub const WM_MENUSELECT: UINT = 0x011F;
+pub const WM_MENUCHAR: UINT = 0x0120;
+pub const WM_ENTERIDLE: UINT = 0x0121;
+pub const WM_MENURBUTTONUP: UINT = 0x0122;
+pub const WM_MENUDRAG: UINT = 0x0123;
+pub const WM_MENUGETOBJECT: UINT = 0x0124;
+pub const WM_UNINITMENUPOPUP: UINT = 0x0125;
+pub const WM_MENUCOMMAND: UINT = 0x0126;
+pub const WM_CHANGEUISTATE: UINT = 0x0127;
+pub const WM_UPDATEUISTATE: UINT = 0x0128;
+pub const WM_QUERYUISTATE: UINT = 0x0129;
+pub const UIS_SET: WORD = 1;
+pub const UIS_CLEAR: WORD = 2;
+pub const UIS_INITIALIZE: WORD = 3;
+pub const UISF_HIDEFOCUS: WORD = 0x1;
+pub const UISF_HIDEACCEL: WORD = 0x2;
+pub const UISF_ACTIVE: WORD = 0x4;
+pub const WM_CTLCOLORMSGBOX: UINT = 0x0132;
+pub const WM_CTLCOLOREDIT: UINT = 0x0133;
+pub const WM_CTLCOLORLISTBOX: UINT = 0x0134;
+pub const WM_CTLCOLORBTN: UINT = 0x0135;
+pub const WM_CTLCOLORDLG: UINT = 0x0136;
+pub const WM_CTLCOLORSCROLLBAR: UINT = 0x0137;
+pub const WM_CTLCOLORSTATIC: UINT = 0x0138;
+pub const MN_GETHMENU: UINT = 0x01E1;
 pub const WM_MOUSEFIRST: UINT = 0x0200;
 pub const WM_MOUSEMOVE: UINT = 0x0200;
 pub const WM_LBUTTONDOWN: UINT = 0x0201;
@@ -413,6 +594,155 @@ pub const WM_XBUTTONDBLCLK: UINT = 0x020D;
 pub const WM_MOUSEHWHEEL: UINT = 0x020E;
 pub const WM_MOUSELAST: UINT = 0x020E;
 pub const WHEEL_DELTA: c_short = 120;
+#[inline]
+pub fn GET_WHEEL_DELTA_WPARAM(wParam: WPARAM) -> c_short {
+    HIWORD(wParam as DWORD) as c_short
+}
+pub const WHEEL_PAGESCROLL: UINT = UINT_MAX;
+#[inline]
+pub fn GET_KEYSTATE_WPARAM(wParam: WPARAM) -> WORD {
+    LOWORD(wParam as DWORD)
+}
+#[inline]
+pub fn GET_NCHITTEST_WPARAM(wParam: WPARAM) -> c_short {
+    LOWORD(wParam as DWORD) as c_short
+}
+#[inline]
+pub fn GET_XBUTTON_WPARAM(wParam: WPARAM) -> WORD {
+    HIWORD(wParam as DWORD)
+}
+pub const XBUTTON1: WORD = 0x0001;
+pub const XBUTTON2: WORD = 0x0002;
+pub const WM_PARENTNOTIFY: UINT = 0x0210;
+pub const WM_ENTERMENULOOP: UINT = 0x0211;
+pub const WM_EXITMENULOOP: UINT = 0x0212;
+pub const WM_NEXTMENU: UINT = 0x0213;
+pub const WM_SIZING: UINT = 0x0214;
+pub const WM_CAPTURECHANGED: UINT = 0x0215;
+pub const WM_MOVING: UINT = 0x0216;
+pub const WM_POWERBROADCAST: UINT = 0x0218;
+pub const WM_DEVICECHANGE: UINT = 0x0219;
+pub const WM_MDICREATE: UINT = 0x0220;
+pub const WM_MDIDESTROY: UINT = 0x0221;
+pub const WM_MDIACTIVATE: UINT = 0x0222;
+pub const WM_MDIRESTORE: UINT = 0x0223;
+pub const WM_MDINEXT: UINT = 0x0224;
+pub const WM_MDIMAXIMIZE: UINT = 0x0225;
+pub const WM_MDITILE: UINT = 0x0226;
+pub const WM_MDICASCADE: UINT = 0x0227;
+pub const WM_MDIICONARRANGE: UINT = 0x0228;
+pub const WM_MDIGETACTIVE: UINT = 0x0229;
+pub const WM_MDISETMENU: UINT = 0x0230;
+pub const WM_ENTERSIZEMOVE: UINT = 0x0231;
+pub const WM_EXITSIZEMOVE: UINT = 0x0232;
+pub const WM_DROPFILES: UINT = 0x0233;
+pub const WM_MDIREFRESHMENU: UINT = 0x0234;
+pub const WM_POINTERDEVICECHANGE: UINT = 0x238;
+pub const WM_POINTERDEVICEINRANGE: UINT = 0x239;
+pub const WM_POINTERDEVICEOUTOFRANGE: UINT = 0x23A;
+pub const WM_TOUCH: UINT = 0x0240;
+pub const WM_NCPOINTERUPDATE: UINT = 0x0241;
+pub const WM_NCPOINTERDOWN: UINT = 0x0242;
+pub const WM_NCPOINTERUP: UINT = 0x0243;
+pub const WM_POINTERUPDATE: UINT = 0x0245;
+pub const WM_POINTERDOWN: UINT = 0x0246;
+pub const WM_POINTERUP: UINT = 0x0247;
+pub const WM_POINTERENTER: UINT = 0x0249;
+pub const WM_POINTERLEAVE: UINT = 0x024A;
+pub const WM_POINTERACTIVATE: UINT = 0x024B;
+pub const WM_POINTERCAPTURECHANGED: UINT = 0x024C;
+pub const WM_TOUCHHITTESTING: UINT = 0x024D;
+pub const WM_POINTERWHEEL: UINT = 0x024E;
+pub const WM_POINTERHWHEEL: UINT = 0x024F;
+pub const DM_POINTERHITTEST: UINT = 0x0250;
+pub const WM_POINTERROUTEDTO: UINT = 0x0251;
+pub const WM_POINTERROUTEDAWAY: UINT = 0x0252;
+pub const WM_POINTERROUTEDRELEASED: UINT = 0x0253;
+pub const WM_IME_SETCONTEXT: UINT = 0x0281;
+pub const WM_IME_NOTIFY: UINT = 0x0282;
+pub const WM_IME_CONTROL: UINT = 0x0283;
+pub const WM_IME_COMPOSITIONFULL: UINT = 0x0284;
+pub const WM_IME_SELECT: UINT = 0x0285;
+pub const WM_IME_CHAR: UINT = 0x0286;
+pub const WM_IME_REQUEST: UINT = 0x0288;
+pub const WM_IME_KEYDOWN: UINT = 0x0290;
+pub const WM_IME_KEYUP: UINT = 0x0291;
+pub const WM_MOUSEHOVER: UINT = 0x02A1;
+pub const WM_MOUSELEAVE: UINT = 0x02A3;
+pub const WM_NCMOUSEHOVER: UINT = 0x02A0;
+pub const WM_NCMOUSELEAVE: UINT = 0x02A2;
+pub const WM_WTSSESSION_CHANGE: UINT = 0x02B1;
+pub const WM_TABLET_FIRST: UINT = 0x02c0;
+pub const WM_TABLET_LAST: UINT = 0x02df;
+pub const WM_DPICHANGED: UINT = 0x02E0;
+pub const WM_DPICHANGED_BEFOREPARENT: UINT = 0x02E2;
+pub const WM_DPICHANGED_AFTERPARENT: UINT = 0x02E3;
+pub const WM_GETDPISCALEDSIZE: UINT = 0x02E4;
+pub const WM_CUT: UINT = 0x0300;
+pub const WM_COPY: UINT = 0x0301;
+pub const WM_PASTE: UINT = 0x0302;
+pub const WM_CLEAR: UINT = 0x0303;
+pub const WM_UNDO: UINT = 0x0304;
+pub const WM_RENDERFORMAT: UINT = 0x0305;
+pub const WM_RENDERALLFORMATS: UINT = 0x0306;
+pub const WM_DESTROYCLIPBOARD: UINT = 0x0307;
+pub const WM_DRAWCLIPBOARD: UINT = 0x0308;
+pub const WM_PAINTCLIPBOARD: UINT = 0x0309;
+pub const WM_VSCROLLCLIPBOARD: UINT = 0x030A;
+pub const WM_SIZECLIPBOARD: UINT = 0x030B;
+pub const WM_ASKCBFORMATNAME: UINT = 0x030C;
+pub const WM_CHANGECBCHAIN: UINT = 0x030D;
+pub const WM_HSCROLLCLIPBOARD: UINT = 0x030E;
+pub const WM_QUERYNEWPALETTE: UINT = 0x030F;
+pub const WM_PALETTEISCHANGING: UINT = 0x0310;
+pub const WM_PALETTECHANGED: UINT = 0x0311;
+pub const WM_HOTKEY: UINT = 0x0312;
+pub const WM_PRINT: UINT = 0x0317;
+pub const WM_PRINTCLIENT: UINT = 0x0318;
+pub const WM_APPCOMMAND: UINT = 0x0319;
+pub const WM_THEMECHANGED: UINT = 0x031A;
+pub const WM_CLIPBOARDUPDATE: UINT = 0x031D;
+pub const WM_DWMCOMPOSITIONCHANGED: UINT = 0x031E;
+pub const WM_DWMNCRENDERINGCHANGED: UINT = 0x031F;
+pub const WM_DWMCOLORIZATIONCOLORCHANGED: UINT = 0x0320;
+pub const WM_DWMWINDOWMAXIMIZEDCHANGE: UINT = 0x0321;
+pub const WM_DWMSENDICONICTHUMBNAIL: UINT = 0x0323;
+pub const WM_DWMSENDICONICLIVEPREVIEWBITMAP: UINT = 0x0326;
+pub const WM_GETTITLEBARINFOEX: UINT = 0x033F;
+pub const WM_HANDHELDFIRST: UINT = 0x0358;
+pub const WM_HANDHELDLAST: UINT = 0x035F;
+pub const WM_AFXFIRST: UINT = 0x0360;
+pub const WM_AFXLAST: UINT = 0x037F;
+pub const WM_PENWINFIRST: UINT = 0x0380;
+pub const WM_PENWINLAST: UINT = 0x038F;
+pub const WM_APP: UINT = 0x8000;
+pub const WM_USER: UINT = 0x0400;
+pub const MONITOR_DEFAULTTONULL: DWORD = 0x00000000;
+pub const MONITOR_DEFAULTTOPRIMARY: DWORD = 0x00000001;
+pub const MONITOR_DEFAULTTONEAREST: DWORD = 0x00000002;
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct RECT {
+    pub left: LONG,
+    pub top: LONG,
+    pub right: LONG,
+    pub bottom: LONG,
+}
+pub type PRECT = *mut RECT;
+pub type NPRECT = *mut RECT;
+pub type LPRECT = *mut RECT;
+pub type LPCRECT = *const RECT;
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct POINTS {
+    pub x: SHORT,
+    pub y: SHORT,
+}
+
+pub type PPOINTS = *mut POINTS;
+pub type LPPOINTS = *mut POINTS;
 
 #[inline]
 pub fn LOWORD(l: DWORD) -> WORD {
@@ -438,7 +768,27 @@ pub fn GET_APPCOMMAND_LPARAM(lParam: LPARAM) -> c_short {
 pub fn GET_DEVICE_LPARAM(lParam: LPARAM) -> WORD {
     HIWORD(lParam as DWORD) & FAPPCOMMAND_MASK
 }
+#[inline]
+pub fn MAKEPOINTS(l: DWORD) -> POINTS {
+    unsafe { ::core::mem::transmute::<DWORD, POINTS>(l) }
+}
+pub const SWP_NOSIZE: UINT = 0x0001;
+pub const SWP_NOMOVE: UINT = 0x0002;
+pub const SWP_NOZORDER: UINT = 0x0004;
+pub const SWP_NOREDRAW: UINT = 0x0008;
+pub const SWP_NOACTIVATE: UINT = 0x0010;
+pub const SWP_FRAMECHANGED: UINT = 0x0020;
+pub const SWP_SHOWWINDOW: UINT = 0x0040;
+pub const SWP_HIDEWINDOW: UINT = 0x0080;
+pub const SWP_NOCOPYBITS: UINT = 0x0100;
+pub const SWP_NOOWNERZORDER: UINT = 0x0200;
+pub const SWP_NOSENDCHANGING: UINT = 0x0400;
+pub const SWP_DRAWFRAME: UINT = SWP_FRAMECHANGED;
+pub const SWP_NOREPOSITION: UINT = SWP_NOOWNERZORDER;
+pub const SWP_DEFERERASE: UINT = 0x2000;
+pub const SWP_ASYNCWINDOWPOS: UINT = 0x4000;
 
+pub const USER_DEFAULT_SCREEN_DPI: LONG = 96;
 pub const PM_NOREMOVE: UINT = 0x0000;
 pub const PM_REMOVE: UINT = 0x0001;
 pub const PM_NOYIELD: UINT = 0x0002;
@@ -657,3 +1007,18 @@ pub enum FILE_INFO_BY_HANDLE_CLASS {
     MaximumFileInfoByHandleClass,
 }
 pub type PFILE_INFO_BY_HANDLE_CLASS = *mut FILE_INFO_BY_HANDLE_CLASS;
+
+#[repr(C)]
+pub enum PROCESS_DPI_AWARENESS {
+    PROCESS_DPI_UNAWARE = 0,
+    PROCESS_SYSTEM_DPI_AWARE = 1,
+    PROCESS_PER_MONITOR_DPI_AWARE = 2,
+}
+
+#[repr(C)]
+pub enum MONITOR_DPI_TYPE {
+    MDT_EFFECTIVE_DPI = 0,
+    MDT_ANGULAR_DPI = 1,
+    MDT_RAW_DPI = 2,
+}
+pub const MDT_DEFAULT: MONITOR_DPI_TYPE = MONITOR_DPI_TYPE::MDT_EFFECTIVE_DPI;

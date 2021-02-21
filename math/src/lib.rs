@@ -10,6 +10,7 @@ pub use self::macros::*;
 pub use self::matrix::*;
 pub use self::number::*;
 pub use self::one::*;
+pub use self::triangle::*;
 pub use self::vector::*;
 pub use self::zero::*;
 
@@ -25,5 +26,6 @@ pub mod macros;
 pub mod matrix;
 pub mod number;
 pub mod one;
+pub mod triangle;
 pub mod vector;
 pub mod zero;

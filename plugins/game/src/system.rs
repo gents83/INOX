@@ -44,15 +44,16 @@ impl System for MySystem {
         let read_data = self.shared_data.read().unwrap();
         let renderer = &mut *read_data.get_unique_resource_mut::<Renderer>();
         let window = &*read_data.get_unique_resource::<Window>();
-
-        let key_events = window.get_events().read_events::<KeyEvent>();
+        let window_events = window.get_events();
+        let events = window_events.read().unwrap();
+        let key_events = events.read_events::<KeyEvent>();
         let mut line = 0.05;
         for event in key_events.iter() {
             let entry = self.keys.entry(event.code).or_insert(InputState::Released);
             *entry = event.state;
         }
 
-        let mouse_events = window.get_events().read_events::<MouseEvent>();
+        let mouse_events = events.read_events::<MouseEvent>();
         if let Some(&event) = mouse_events.last() {
             self.mouse = *event;
         }

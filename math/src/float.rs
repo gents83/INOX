@@ -1,14 +1,15 @@
-
-use core::ops::*;
-use core::num::FpCategory;
+use super::cast_from::*;
+use super::cast_to::*;
+use super::number::*;
 use crate::implement_method_with_base;
 use crate::implement_method_with_return_value;
-use super::number::*;
-use super::cast_to::*;
+use core::num::FpCategory;
+use core::ops::*;
 
-pub trait Float: Number + Copy + NumberCast + PartialOrd + Neg<Output = Self> {
-    
-    fn is_equal(a:Self, other: Self) -> bool;
+pub trait Float:
+    Number + Copy + NumberCast + CastFromType + PartialOrd + Neg<Output = Self>
+{
+    fn is_equal(a: Self, other: Self) -> bool;
     fn nan() -> Self;
     fn infinity() -> Self;
     fn neg_infinity() -> Self;
@@ -130,13 +131,12 @@ macro_rules! implement_std_float {
                 Self::atanh(self) -> Self;
             }
 
-            fn is_equal(a:Self, b: Self) -> bool {
+            fn is_equal(a: Self, b: Self) -> bool {
                 (a - b).abs() < $T::EPSILON
             }
         }
     };
 }
-
 
 implement_std_float!(f32);
 implement_std_float!(f64);

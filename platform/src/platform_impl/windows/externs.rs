@@ -43,6 +43,26 @@ extern "system" {
         hInstance: HINSTANCE,
         lpParam: LPVOID,
     ) -> HWND;
+    pub fn ShowOwnedPopups(hWnd: HWND, fShow: BOOL) -> BOOL;
+    pub fn OpenIcon(hWnd: HWND) -> BOOL;
+    pub fn CloseWindow(hWnd: HWND) -> BOOL;
+    pub fn MoveWindow(
+        hWnd: HWND,
+        X: c_int,
+        Y: c_int,
+        nWidth: c_int,
+        nHeight: c_int,
+        bRepaint: BOOL,
+    ) -> BOOL;
+    pub fn SetWindowPos(
+        hWnd: HWND,
+        hWndInsertAfter: HWND,
+        X: c_int,
+        Y: c_int,
+        cx: c_int,
+        cy: c_int,
+        uFlags: UINT,
+    ) -> BOOL;
     pub fn PeekMessageW(
         lpMsg: LPMSG,
         hWnd: HWND,
@@ -54,6 +74,22 @@ extern "system" {
     pub fn TranslateMessage(lpmsg: *const MSG) -> BOOL;
     pub fn DispatchMessageW(lpmsg: *const MSG) -> LRESULT;
     pub fn IsIconic(hWnd: HWND) -> BOOL;
+    pub fn GetCursorPos(lpPoint: &mut POINT) -> BOOL;
+    pub fn GetForegroundWindow() -> HWND;
+    pub fn ScreenToClient(hWnd: HWND, lpPoint: &mut POINT);
+    pub fn SetProcessDPIAware() -> BOOL;
+    pub fn SetProcessDpiAwareness(value: PROCESS_DPI_AWARENESS) -> HRESULT;
+    pub fn GetProcessDpiAwareness(hProcess: HANDLE, value: *mut PROCESS_DPI_AWARENESS) -> HRESULT;
+    pub fn GetDpiForMonitor(
+        hmonitor: HMONITOR,
+        dpiType: MONITOR_DPI_TYPE,
+        dpiX: *mut UINT,
+        dpiY: *mut UINT,
+    ) -> HRESULT;
+    pub fn MonitorFromPoint(pt: POINT, dwFlags: DWORD) -> HMONITOR;
+    pub fn MonitorFromRect(lprc: LPCRECT, dwFlags: DWORD) -> HMONITOR;
+    pub fn MonitorFromWindow(hwnd: HWND, dwFlags: DWORD) -> HMONITOR;
+
     pub fn PostQuitMessage(nExitCode: INT);
     pub fn LoadLibraryA(lpLibFileName: LPCWSTR) -> HMODULE;
     pub fn LoadLibraryW(lpLibFileName: LPCWSTR) -> HMODULE;

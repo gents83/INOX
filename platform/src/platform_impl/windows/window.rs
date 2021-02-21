@@ -1,13 +1,27 @@
 use super::externs::*;
 use super::handle::*;
 use super::types::*;
+use crate::ctypes::*;
 use crate::events::*;
 use crate::handle::*;
 use crate::input::*;
 use crate::window::*;
 
+static mut EVENTS: *mut EventsRw = std::ptr::null_mut();
+
 impl Window {
-    pub fn create_handle(title: String, x: u32, y: u32, width: u32, height: u32) -> Handle {
+    pub fn create_handle(
+        title: String,
+        x: u32,
+        y: u32,
+        width: u32,
+        height: u32,
+        events: &mut EventsRw,
+    ) -> Handle {
+        unsafe {
+            EVENTS = events as *mut EventsRw;
+        };
+
         let mut title: Vec<u16> = title.encode_utf16().collect();
         title.push(0);
 
@@ -49,6 +63,12 @@ impl Window {
                 ::std::ptr::null_mut(),
             ); // lpParam
 
+            SetProcessDpiAwareness(PROCESS_DPI_AWARENESS::PROCESS_PER_MONITOR_DPI_AWARE);
+
+            let (dpi_x, dpi_y) = Self::create_window_handler();
+            let mut events = events.write().unwrap();
+            events.send_event(WindowEvent::DpiChanged(dpi_x as _, dpi_y as _));
+
             Handle {
                 handle_impl: HandleImpl {
                     hwnd: win_handle,
@@ -58,13 +78,15 @@ impl Window {
         }
     }
 
-    pub fn internal_update(events: &mut Events) -> bool {
+    pub fn internal_update(handle: &Handle, events: &mut EventsRw) -> bool {
         unsafe {
+            EVENTS = events as *mut EventsRw;
+
             let mut can_continue = true;
             let mut message: MSG = ::std::mem::MaybeUninit::zeroed().assume_init();
             while PeekMessageW(
                 &mut message as *mut MSG,
-                ::std::ptr::null_mut(),
+                handle.handle_impl.hwnd,
                 0,
                 0,
                 PM_REMOVE,
@@ -90,11 +112,13 @@ impl Window {
                     || message.message == WM_MBUTTONUP
                     || message.message == WM_MBUTTONDBLCLK
                 {
-                    let x = GET_X_LPARAM(message.lParam);
-                    let y = GET_Y_LPARAM(message.lParam);
+                    let mut mouse_pos = POINT { x: 0, y: 0 };
+                    GetCursorPos(&mut mouse_pos);
+                    ScreenToClient(handle.handle_impl.hwnd, &mut mouse_pos);
+                    let mut events = events.write().unwrap();
                     events.send_event(MouseEvent {
-                        x: x as _,
-                        y: y as _,
+                        x: mouse_pos.x as _,
+                        y: mouse_pos.y as _,
                         button: match message.message {
                             WM_LBUTTONDOWN | WM_LBUTTONUP | WM_LBUTTONDBLCLK => MouseButton::Left,
                             WM_RBUTTONDOWN | WM_RBUTTONUP | WM_RBUTTONDBLCLK => MouseButton::Right,
@@ -116,6 +140,7 @@ impl Window {
                     if key == Key::Unidentified {
                         key = convert_command(message.wParam as INT);
                     }
+                    let mut events = events.write().unwrap();
                     events.send_event(KeyEvent {
                         code: key,
                         state: match message.message {
@@ -143,6 +168,19 @@ impl Window {
         }
     }
 
+    fn create_window_handler() -> (UINT, UINT) {
+        unsafe {
+            let window = GetForegroundWindow();
+            let monitor = MonitorFromWindow(window, MONITOR_DEFAULTTONEAREST);
+            let mut x: UINT = 0;
+            let mut y: UINT = 0;
+
+            GetDpiForMonitor(monitor, MONITOR_DPI_TYPE::MDT_EFFECTIVE_DPI, &mut x, &mut y);
+
+            (x, y)
+        }
+    }
+
     unsafe extern "system" fn window_process(
         hwnd: HWND,
         msg: UINT,
@@ -150,7 +188,52 @@ impl Window {
         lparam: LPARAM,
     ) -> LRESULT {
         match msg {
-            WM_DESTROY => {
+            WM_DPICHANGED => {
+                let rect: RECT = *(lparam as *const c_void as *const RECT);
+                let dpi_x = LOWORD(wparam as _);
+                let dpi_y = HIWORD(wparam as _);
+                SetWindowPos(
+                    hwnd,
+                    0 as _, // No relative window
+                    rect.left,
+                    rect.top,
+                    rect.right - rect.left,
+                    rect.bottom - rect.top,
+                    SWP_NOACTIVATE | SWP_NOZORDER,
+                );
+                if EVENTS != ::std::ptr::null_mut() {
+                    let mut events = (*EVENTS).write().unwrap();
+                    events.send_event(WindowEvent::DpiChanged(dpi_x as _, dpi_y as _));
+                }
+                DefWindowProcW(hwnd, msg, wparam, lparam)
+            }
+            WM_CREATE => {
+                let (dpi_x, dpi_y) = Self::create_window_handler();
+                if EVENTS != ::std::ptr::null_mut() {
+                    let mut events = (*EVENTS).write().unwrap();
+                    events.send_event(WindowEvent::DpiChanged(dpi_x as _, dpi_y as _));
+                }
+                DefWindowProcW(hwnd, msg, wparam, lparam)
+            }
+            WM_SIZE => {
+                let width = LOWORD(lparam as _);
+                let height = HIWORD(lparam as _);
+                if EVENTS != ::std::ptr::null_mut() {
+                    let mut events = (*EVENTS).write().unwrap();
+                    events.send_event(WindowEvent::SizeChanged(width as _, height as _));
+                }
+                DefWindowProcW(hwnd, msg, wparam, lparam)
+            }
+            WM_MOVE => {
+                let x = LOWORD(lparam as _);
+                let y = HIWORD(lparam as _);
+                if EVENTS != ::std::ptr::null_mut() {
+                    let mut events = (*EVENTS).write().unwrap();
+                    events.send_event(WindowEvent::PosChanged(x as _, y as _));
+                }
+                DefWindowProcW(hwnd, msg, wparam, lparam)
+            }
+            WM_DESTROY | WM_QUIT => {
                 PostQuitMessage(0);
                 0
             }

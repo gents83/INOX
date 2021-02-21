@@ -1,24 +1,25 @@
-
-use core::ops::*;
 use super::boundaries::*;
+use super::cast_from::*;
 use super::cast_to::*;
 use super::number::*;
+use core::ops::*;
 
 pub trait Integer:
-Sized
-+ Copy
-+ Number
-+ NumberCast
-+ Boundaries
-+ PartialOrd
-+ Ord
-+ Eq
-+ Not<Output = Self>
-+ BitAnd<Output = Self>
-+ BitOr<Output = Self>
-+ BitXor<Output = Self>
-+ Shl<usize, Output = Self>
-+ Shr<usize, Output = Self>
+    Sized
+    + Copy
+    + Number
+    + NumberCast
+    + CastFromType
+    + Boundaries
+    + PartialOrd
+    + Ord
+    + Eq
+    + Not<Output = Self>
+    + BitAnd<Output = Self>
+    + BitOr<Output = Self>
+    + BitXor<Output = Self>
+    + Shl<usize, Output = Self>
+    + Shr<usize, Output = Self>
 {
     /// Returns the number of ones in the binary representation
     fn count_ones(self) -> u32;
@@ -58,7 +59,7 @@ Sized
 
     /// Reverses the byte order of the integer
     fn swap_bytes(self) -> Self;
-    
+
     fn pow(self, exp: u32) -> Self;
 }
 
@@ -119,7 +120,7 @@ macro_rules! implement_integer {
             fn swap_bytes(self) -> Self {
                 <$T>::swap_bytes(self)
             }
-            
+
             #[inline]
             fn pow(self, exp: u32) -> Self {
                 <$T>::pow(self, exp)
@@ -138,7 +139,6 @@ implement_integer!(i16, i16, u16);
 implement_integer!(i32, i32, u32);
 implement_integer!(i64, i64, u64);
 implement_integer!(isize, isize, usize);
-
 
 pub fn round_to_next_pow2(value: u32) -> u32 {
     let mut v = value + 1;

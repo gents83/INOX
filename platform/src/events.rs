@@ -1,4 +1,8 @@
-use std::{any::TypeId, collections::HashMap, sync::Arc};
+use std::{
+    any::TypeId,
+    collections::HashMap,
+    sync::{Arc, RwLock},
+};
 
 pub trait Event {}
 
@@ -59,3 +63,5 @@ impl Events {
         self.list.get_mut(&TypeId::of::<T>()).unwrap().clear();
     }
 }
+
+pub type EventsRw = Arc<RwLock<Events>>;
