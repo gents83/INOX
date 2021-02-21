@@ -17,6 +17,7 @@ use super::viewport::*;
 pub type MaterialId = usize;
 pub type PipelineId = usize;
 pub type FontId = usize;
+pub type MeshId = usize;
 pub const INVALID_ID: usize = 0xFFFFFFFF;
 
 struct PipelineInstance {
@@ -28,8 +29,12 @@ struct MaterialInstance {
     id: MaterialId,
     pipeline_id: PipelineId,
     material: Option<Material>,
-    meshes: Vec<MeshData>,
+    meshes: Vec<MeshInstance>,
     finalized_mesh: Mesh,
+}
+struct MeshInstance {
+    id: MeshId,
+    mesh: MeshData,
 }
 struct FontInstance {
     id: FontId,
@@ -76,6 +81,10 @@ impl Renderer {
         material_id
     }
 
+    pub fn remove_material(&mut self, material_id: MaterialId) {
+        self.materials.retain(|material| material.id != material_id)
+    }
+
     pub fn add_pipeline(&mut self, data: &PipelineData) {
         if !self.has_pipeline(&data.name) {
             let pipeline_id = self.pipelines.len();
@@ -110,12 +119,39 @@ impl Renderer {
         }
     }
 
-    pub fn add_mesh(&mut self, material_id: MaterialId, mesh_data: &MeshData) {
+    pub fn add_mesh(&mut self, material_id: MaterialId, mesh_data: &MeshData) -> MeshId {
+        let material_index = self.get_material_index(material_id);
+        if material_index >= 0 {
+            let mesh_id = self.materials[material_index as usize].meshes.len();
+            self.materials[material_index as usize]
+                .meshes
+                .push(MeshInstance {
+                    id: mesh_id,
+                    mesh: mesh_data.clone(),
+                });
+            return mesh_id;
+        }
+        INVALID_ID
+    }
+
+    pub fn update_mesh(&mut self, material_id: MaterialId, mesh_id: MeshId, mesh_data: &MeshData) {
+        let material_index = self.get_material_index(material_id);
+        if material_index >= 0 {
+            let mesh_index =
+                get_mesh_index_from_id(&self.materials[material_index as usize].meshes, mesh_id);
+            if mesh_index >= 0 {
+                self.materials[material_index as usize].meshes[mesh_index as usize].mesh =
+                    mesh_data.clone();
+            }
+        }
+    }
+
+    pub fn remove_mesh(&mut self, material_id: MaterialId, mesh_id: MeshId) {
         let material_index = self.get_material_index(material_id);
         if material_index >= 0 {
             self.materials[material_index as usize]
                 .meshes
-                .push(mesh_data.clone());
+                .retain(|mesh| mesh.id != mesh_id)
         }
     }
 
@@ -126,7 +162,7 @@ impl Renderer {
         position: Vector2f,
         scale: f32,
         color: Vector3f,
-    ) {
+    ) -> MeshId {
         let font_index = self.get_font_index(font_id);
         if font_index >= 0 {
             let materials = &self.materials;
@@ -136,9 +172,15 @@ impl Renderer {
             if material_index >= 0 {
                 let material_instance = &mut self.materials[material_index as usize];
                 let mesh_data = font.add_text(text, position, scale, color);
-                material_instance.meshes.push(mesh_data);
+                let mesh_id = material_instance.meshes.len();
+                material_instance.meshes.push(MeshInstance {
+                    id: mesh_id,
+                    mesh: mesh_data,
+                });
+                return mesh_id;
             }
         }
+        INVALID_ID
     }
 
     pub fn get_fonts_count(&self) -> usize {
@@ -196,6 +238,13 @@ impl Renderer {
         self.scissors.width = self.viewport.width;
         self.scissors.height = self.viewport.height;
         self
+    }
+
+    pub fn get_viewport_size(&self) -> Vector2f {
+        Vector2f {
+            x: self.viewport.width,
+            y: self.viewport.height,
+        }
     }
 
     pub fn begin_frame(&mut self) -> bool {
@@ -314,16 +363,17 @@ impl Renderer {
             let mut starting_index = 0;
             material_instance.meshes.iter_mut().for_each(|mesh_data| {
                 mesh_data
+                    .mesh
                     .indices
                     .iter_mut()
                     .for_each(|i| *i += starting_index);
                 unique_mesh_data
                     .vertices
-                    .extend_from_slice(&mesh_data.vertices);
+                    .extend_from_slice(&mesh_data.mesh.vertices);
                 unique_mesh_data
                     .indices
-                    .extend_from_slice(&mesh_data.indices);
-                starting_index += mesh_data.vertices.len() as u32;
+                    .extend_from_slice(&mesh_data.mesh.indices);
+                starting_index += mesh_data.mesh.vertices.len() as u32;
             });
             material_instance.finalized_mesh.data = unique_mesh_data;
             material_instance.finalized_mesh.finalize();
@@ -372,6 +422,13 @@ fn get_material_index_from_id(materials: &[MaterialInstance], material_id: Mater
 
 fn get_font_index_from_id(fonts: &[FontInstance], font_id: FontId) -> i32 {
     if let Some(index) = fonts.iter().position(|font| font.id == font_id) {
+        return index as _;
+    }
+    -1
+}
+
+fn get_mesh_index_from_id(meshes: &[MeshInstance], mesh_id: MeshId) -> i32 {
+    if let Some(index) = meshes.iter().position(|mesh| mesh.id == mesh_id) {
         return index as _;
     }
     -1

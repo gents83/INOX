@@ -33,16 +33,26 @@ impl System for GuiUpdater {
 
         let read_data = self.shared_data.read().unwrap();
         let renderer = &mut *read_data.get_unique_resource_mut::<Renderer>();
-        self.panel.init(renderer);
+
+        self.panel
+            .init(renderer)
+            .set_position(0.25, 0.25)
+            .set_size(0.5, 0.5)
+            .set_color(1.0, 0.0, 0.0);
     }
     fn run(&mut self) -> bool {
+        let read_data = self.shared_data.read().unwrap();
+        let renderer = &mut *read_data.get_unique_resource_mut::<Renderer>();
+
+        self.panel.update(renderer);
+
         true
     }
     fn uninit(&mut self) {
-        self.shared_data
-            .write()
-            .unwrap()
-            .remove_resources_of_type::<Panel>();
+        let read_data = self.shared_data.read().unwrap();
+        let renderer = &mut *read_data.get_unique_resource_mut::<Renderer>();
+
+        self.panel.uninit(renderer);
     }
 }
 

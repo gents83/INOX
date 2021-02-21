@@ -107,6 +107,12 @@ impl Default for MeshData {
 }
 
 impl MeshData {
+    pub fn clear(&mut self) -> &mut Self {
+        self.vertices.clear();
+        self.indices.clear();
+        self
+    }
+
     pub fn set_vertices(&mut self, vertex_data: &[VertexData]) -> &mut Self {
         self.vertices.clear();
         self.vertices.extend_from_slice(vertex_data);
@@ -123,6 +129,22 @@ impl MeshData {
         for v in self.vertices.iter_mut() {
             v.color = color;
         }
+        self
+    }
+
+    pub fn translate(&mut self, movement: Vector2f) -> &mut Self {
+        self.vertices.iter_mut().for_each(|v| {
+            v.pos.x += movement.x;
+            v.pos.y += movement.y;
+        });
+        self
+    }
+
+    pub fn scale(&mut self, scale: Vector2f) -> &mut Self {
+        self.vertices.iter_mut().for_each(|v| {
+            v.pos.x *= scale.x;
+            v.pos.y *= scale.y;
+        });
         self
     }
 
