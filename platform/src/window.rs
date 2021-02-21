@@ -12,6 +12,7 @@ pub enum WindowEvent {
     DpiChanged(f32, f32),
     SizeChanged(u32, u32),
     PosChanged(u32, u32),
+    Close,
 }
 impl Event for WindowEvent {}
 
@@ -23,6 +24,7 @@ pub struct Window {
     height: u32,
     scale_factor: f32,
     events: EventsRw,
+    can_continue: bool,
 }
 
 unsafe impl Send for Window {}
@@ -43,6 +45,7 @@ impl Window {
             height,
             scale_factor: 1.0,
             events,
+            can_continue: true,
         }
     }
 
@@ -77,7 +80,8 @@ impl Window {
         self.manage_window_events();
         clear_events(&mut self.events);
 
-        Window::internal_update(&self.handle, &mut self.events)
+        Window::internal_update(&self.handle, &mut self.events);
+        self.can_continue
     }
 
     fn manage_window_events(&mut self) {
@@ -95,6 +99,9 @@ impl Window {
                 WindowEvent::PosChanged(x, y) => {
                     self.x = *x;
                     self.y = *y;
+                }
+                WindowEvent::Close => {
+                    self.can_continue = false;
                 }
                 WindowEvent::None => {}
             }

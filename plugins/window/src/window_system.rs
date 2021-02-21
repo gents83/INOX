@@ -29,7 +29,7 @@ impl Drop for WindowSystem {
         self.shared_data
             .write()
             .unwrap()
-            .remove_resources_of_type::<Window>();
+            .request_remove_resources_of_type::<Window>();
     }
 }
 

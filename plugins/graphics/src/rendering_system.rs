@@ -60,6 +60,6 @@ impl System for RenderingSystem {
         self.shared_data
             .write()
             .unwrap()
-            .remove_resources_of_type::<Renderer>();
+            .request_remove_resources_of_type::<Renderer>();
     }
 }

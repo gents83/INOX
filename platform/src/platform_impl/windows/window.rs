@@ -95,13 +95,7 @@ impl Window {
                 TranslateMessage(&message as *const MSG);
                 DispatchMessageW(&message as *const MSG);
 
-                if message.message == WM_DESTROY
-                    || message.message == WM_CLOSE
-                    || message.message == WM_QUIT
-                    || message.message == WM_NCDESTROY
-                {
-                    can_continue = false;
-                } else if message.message == WM_MOUSEMOVE
+                if message.message == WM_MOUSEMOVE
                     || message.message == WM_LBUTTONDOWN
                     || message.message == WM_LBUTTONUP
                     || message.message == WM_LBUTTONDBLCLK
@@ -233,7 +227,11 @@ impl Window {
                 }
                 DefWindowProcW(hwnd, msg, wparam, lparam)
             }
-            WM_DESTROY | WM_QUIT => {
+            WM_DESTROY | WM_CLOSE | WM_QUIT | WM_NCDESTROY => {
+                if EVENTS != ::std::ptr::null_mut() {
+                    let mut events = (*EVENTS).write().unwrap();
+                    events.send_event(WindowEvent::Close);
+                }
                 PostQuitMessage(0);
                 0
             }

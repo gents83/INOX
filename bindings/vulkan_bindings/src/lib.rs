@@ -2,6 +2,7 @@
 #![allow(non_snake_case)]
 #![allow(non_upper_case_globals)]
 #![allow(non_camel_case_types)]
+#![allow(clippy::all)]
 
 #[cfg(windows)]
 pub fn get_vulkan_lib_path() -> &'static str {
@@ -27,8 +28,8 @@ pub struct Lib {
 impl Default for Lib {
     fn default() -> Self {
         let library_path = get_vulkan_lib_path();
-        Self { 
-            library: nrg_platform::library::Library::new(library_path) 
+        Self {
+            library: nrg_platform::library::Library::new(library_path),
         }
     }
 }

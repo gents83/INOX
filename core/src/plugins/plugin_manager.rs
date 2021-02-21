@@ -8,7 +8,7 @@ use crate::resources::shared_data::*;
 use crate::schedule::scheduler::*;
 
 pub static IN_USE_PREFIX: &str = "in_use";
-static WAIT_TIME_BEFORE_RELOADING: u64 = 500;
+static WAIT_TIME_BEFORE_RELOADING: u64 = 100;
 static mut UNIQUE_LIB_INDEX: u32 = 0;
 
 struct PluginData {

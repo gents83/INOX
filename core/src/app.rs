@@ -22,6 +22,7 @@ impl Default for App {
 
 impl Drop for App {
     fn drop(&mut self) {
+        self.shared_data.write().unwrap().process_pending_requests();
         self.plugin_manager.release(&mut self.scheduler);
     }
 }
@@ -41,6 +42,7 @@ impl App {
 
     pub fn run_once(&mut self) -> bool {
         let can_continue = self.scheduler.run_once();
+        self.shared_data.write().unwrap().process_pending_requests();
         self.plugin_manager
             .update(&mut self.shared_data, &mut self.scheduler);
         can_continue
