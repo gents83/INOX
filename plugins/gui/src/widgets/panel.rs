@@ -67,4 +67,8 @@ impl Panel {
         self.widget.mesh_id = renderer.add_mesh(self.widget.material_id, &self.widget.mesh_data);
         self
     }
+
+    pub fn get_widget(&self) -> &Widget {
+        &self.widget
+    }
 }

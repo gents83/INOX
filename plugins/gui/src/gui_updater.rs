@@ -58,6 +58,12 @@ impl System for GuiUpdater {
             format!("Mouse [{}, {}]", self.mouse_pos.x, self.mouse_pos.y),
             line,
         );
+        let pos: Vector2f = Vector2f {
+            x: self.mouse_pos.x,
+            y: self.mouse_pos.y,
+        } * 2.0
+            - [1.0, 1.0].into();
+        line = self.write_line(format!("Screen mouse [{}, {}]", pos.x, pos.y), line);
         line = self.write_line(
             format!(
                 "Panel [{}, {}]",
@@ -66,6 +72,42 @@ impl System for GuiUpdater {
             ),
             line,
         );
+
+        let mut i = 0;
+        let indices_count = self.panel.get_widget().mesh_data.indices.len();
+        while i < indices_count {
+            line = self.write_line(
+                format!(
+                    "Triangle [{},{}] [{},{}] [{},{}]",
+                    self.panel.get_widget().mesh_data.vertices
+                        [self.panel.get_widget().mesh_data.indices[i] as usize]
+                        .pos
+                        .x,
+                    self.panel.get_widget().mesh_data.vertices
+                        [self.panel.get_widget().mesh_data.indices[i] as usize]
+                        .pos
+                        .y,
+                    self.panel.get_widget().mesh_data.vertices
+                        [self.panel.get_widget().mesh_data.indices[i + 1] as usize]
+                        .pos
+                        .x,
+                    self.panel.get_widget().mesh_data.vertices
+                        [self.panel.get_widget().mesh_data.indices[i + 1] as usize]
+                        .pos
+                        .y,
+                    self.panel.get_widget().mesh_data.vertices
+                        [self.panel.get_widget().mesh_data.indices[i + 2] as usize]
+                        .pos
+                        .x,
+                    self.panel.get_widget().mesh_data.vertices
+                        [self.panel.get_widget().mesh_data.indices[i + 2] as usize]
+                        .pos
+                        .y,
+                ),
+                line,
+            );
+            i += 3;
+        }
 
         {
             let read_data = self.shared_data.read().unwrap();
@@ -103,7 +145,7 @@ impl GuiUpdater {
         renderer.add_text(
             font_id,
             string.as_str(),
-            [0.0, -0.9 + line].into(),
+            [-0.9, 0.65 + line].into(),
             1.0,
             [0.0, 0.8, 1.0].into(),
         );

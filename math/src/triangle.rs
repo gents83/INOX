@@ -3,11 +3,11 @@ use crate::{Float, Vector2};
 const EPSILON: f64 = 0.001;
 const EPSILON_SQUARE: f64 = EPSILON * EPSILON;
 
-pub fn compute_side<T>(v1: Vector2<T>, v2: Vector2<T>, x: T, y: T) -> T
+pub fn compute_sign<T>(v1: Vector2<T>, v2: Vector2<T>, x: T, y: T) -> T
 where
     T: Float,
 {
-    (v2.y - v1.y) * (x - v1.x) + (v1.x - v2.x) * (y - v1.y)
+    (x - v2.x) * (v1.y - v2.y) - (v1.x - v2.x) * (y - v2.y)
 }
 
 pub fn is_point_in_triangle_naive<T>(
@@ -20,10 +20,14 @@ pub fn is_point_in_triangle_naive<T>(
 where
     T: Float,
 {
-    let check_side1 = compute_side(v1, v2, x, y) >= T::zero();
-    let check_side2 = compute_side(v2, v3, x, y) >= T::zero();
-    let check_side3 = compute_side(v3, v1, x, y) >= T::zero();
-    check_side1 && check_side2 && check_side3
+    let d1 = compute_sign(v1, v2, x, y);
+    let d2 = compute_sign(v2, v3, x, y);
+    let d3 = compute_sign(v3, v1, x, y);
+
+    let has_neg = (d1 < T::zero()) || (d2 < T::zero()) || (d3 < T::zero());
+    let has_pos = (d1 > T::zero()) || (d2 > T::zero()) || (d3 > T::zero());
+
+    !(has_neg && has_pos)
 }
 
 pub fn is_point_in_triangle_boundingbox<T>(
