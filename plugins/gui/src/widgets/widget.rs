@@ -7,6 +7,7 @@ pub struct Widget {
     pub material_id: MaterialId,
     pub mesh_id: MeshId,
     pub mesh_data: MeshData,
+    pub is_draggable: bool,
 }
 
 impl Default for Widget {
@@ -16,25 +17,14 @@ impl Default for Widget {
             material_id: INVALID_ID,
             mesh_id: INVALID_ID,
             mesh_data: MeshData::default(),
+            is_draggable: true,
         }
     }
 }
 
 impl Widget {
     pub fn update(&mut self, renderer: &mut Renderer, input_handler: &InputHandler) {
-        let is_inside = self.is_inside(
-            input_handler.get_mouse_data().get_x() as _,
-            input_handler.get_mouse_data().get_y() as _,
-        );
-        if is_inside && input_handler.get_mouse_data().is_dragging() {
-            let pos = self.get_position()
-                + Vector2f {
-                    x: input_handler.get_mouse_data().movement_x() as _,
-                    y: input_handler.get_mouse_data().movement_y() as _,
-                };
-            self.set_position(pos.x, pos.y);
-        }
-
+        self.manage_dragging(input_handler);
         renderer.update_mesh(self.material_id, self.mesh_id, &self.mesh_data);
     }
 
@@ -88,5 +78,24 @@ impl Widget {
             i += 3;
         }
         false
+    }
+
+    fn manage_dragging(&mut self, input_handler: &InputHandler) -> &mut Self {
+        if !self.is_draggable {
+            return self;
+        }
+        let is_inside = self.is_inside(
+            input_handler.get_mouse_data().get_x() as _,
+            input_handler.get_mouse_data().get_y() as _,
+        );
+        if is_inside && input_handler.get_mouse_data().is_dragging() {
+            let pos = self.get_position()
+                + Vector2f {
+                    x: input_handler.get_mouse_data().movement_x() as _,
+                    y: input_handler.get_mouse_data().movement_y() as _,
+                };
+            self.set_position(pos.x, pos.y);
+        }
+        self
     }
 }
