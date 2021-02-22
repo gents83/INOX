@@ -22,6 +22,7 @@ impl Default for App {
 
 impl Drop for App {
     fn drop(&mut self) {
+        self.scheduler.uninit();
         self.shared_data.write().unwrap().process_pending_requests();
         self.plugin_manager.release(&mut self.scheduler);
     }

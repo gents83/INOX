@@ -1,5 +1,5 @@
 use std::{
-    any::TypeId,
+    any::*,
     collections::HashMap,
     sync::{Arc, RwLock},
 };
@@ -89,7 +89,6 @@ impl SharedData {
             .resources
             .entry(TypeId::of::<T>())
             .or_insert_with(ResourceStorage::default);
-        eprintln!("add_resource {:?}", TypeId::of::<T>());
         vec.add_resource(Resource::new(data))
     }
     pub fn get_resource<T: 'static>(&self, resource_id: ResourceId) -> ResourceRef<T> {
@@ -99,10 +98,6 @@ impl SharedData {
 
     pub fn request_remove_resources_of_type<T: 'static>(&mut self) {
         self.types_to_remove.push(TypeId::of::<T>());
-        eprintln!(
-            "request_remove_resources_of_type {:?}",
-            self.types_to_remove.last().unwrap()
-        );
     }
     pub fn get_unique_resource<T: 'static>(&self) -> ResourceRef<T> {
         let vec = self.resources.get(&TypeId::of::<T>()).unwrap();
@@ -125,9 +120,6 @@ impl SharedData {
 
 impl Drop for SharedData {
     fn drop(&mut self) {
-        for (typeid, _s) in self.resources.iter() {
-            eprintln!("{:?} has not been unloaded", typeid);
-        }
         self.process_pending_requests();
         self.resources.clear();
     }

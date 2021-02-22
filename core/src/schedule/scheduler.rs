@@ -13,16 +13,6 @@ impl Default for Scheduler {
     }
 }
 
-impl Drop for Scheduler {
-    fn drop(&mut self) {
-        for name in self.phases_order.iter() {
-            if let Some(phase) = self.phases.get_mut(name) {
-                phase.uninit();
-            }
-        }
-    }
-}
-
 impl Scheduler {
     pub fn new() -> Self {
         Self {
@@ -31,11 +21,19 @@ impl Scheduler {
         }
     }
 
+    pub fn uninit(&mut self) {
+        for name in self.phases_order.iter() {
+            if let Some(phase) = self.phases.get_mut(name) {
+                phase.uninit();
+            }
+        }
+    }
+
     fn append_phase(&mut self, phase_name: &str) -> &mut Self {
         self.phases_order.push(String::from(phase_name));
         self
     }
-    
+
     fn remove_phase(&mut self, phase_name: &str) -> &mut Self {
         let index = self.get_phase_index(phase_name);
         if index >= 0 {
@@ -46,24 +44,30 @@ impl Scheduler {
 
     #[allow(dead_code)]
     pub fn add_phase_after(&mut self, previous_phase_name: &str, phase_name: &str) -> &mut Self {
-        let phase_index:i32 = self.get_phase_index(previous_phase_name);
+        let phase_index: i32 = self.get_phase_index(previous_phase_name);
         if phase_index >= 0 && phase_index < self.phases_order.len() as _ {
-            self.phases_order.insert((phase_index + 1) as _, phase_name.to_string());
-        }
-        else {
-            eprintln!("Previous Phase witn name {} does not exist", previous_phase_name);
+            self.phases_order
+                .insert((phase_index + 1) as _, phase_name.to_string());
+        } else {
+            eprintln!(
+                "Previous Phase witn name {} does not exist",
+                previous_phase_name
+            );
         }
         self
     }
 
     #[allow(dead_code)]
     pub fn add_phase_before(&mut self, previous_phase_name: &str, phase_name: &str) -> &mut Self {
-        let phase_index:i32 = self.get_phase_index(previous_phase_name);
+        let phase_index: i32 = self.get_phase_index(previous_phase_name);
         if phase_index >= 0 && phase_index < self.phases_order.len() as _ {
-            self.phases_order.insert(phase_index as _, phase_name.to_string());
-        }
-        else {
-            eprintln!("Next Phase witn name {} does not exist", previous_phase_name);
+            self.phases_order
+                .insert(phase_index as _, phase_name.to_string());
+        } else {
+            eprintln!(
+                "Next Phase witn name {} does not exist",
+                previous_phase_name
+            );
         }
         self
     }
@@ -73,7 +77,8 @@ impl Scheduler {
             self.append_phase(phase.get_name());
         }
         phase.init();
-        self.phases.insert(String::from(phase.get_name()), Box::new(phase));
+        self.phases
+            .insert(String::from(phase.get_name()), Box::new(phase));
         self
     }
 
@@ -93,15 +98,14 @@ impl Scheduler {
             if name == phase_name {
                 boxed_phase.uninit();
                 false
-            }
-            else {
+            } else {
                 true
             }
         });
         self
     }
 
-    pub fn get_phase_index(&self, phase_name:&str) -> i32 {
+    pub fn get_phase_index(&self, phase_name: &str) -> i32 {
         self.phases_order
             .iter()
             .enumerate()
@@ -110,22 +114,28 @@ impl Scheduler {
             .unwrap_or(-1)
     }
 
-    pub fn get_phase<S:Phase>(&self, phase_name:&str) -> &S {
+    pub fn get_phase<S: Phase>(&self, phase_name: &str) -> &S {
         self.phases
             .get(phase_name)
             .and_then(|phase| phase.downcast_ref::<S>())
-        .unwrap_or_else(|| 
-            panic!("Trying to retrieve a Phase {} that does not exist", phase_name)
-        )
+            .unwrap_or_else(|| {
+                panic!(
+                    "Trying to retrieve a Phase {} that does not exist",
+                    phase_name
+                )
+            })
     }
 
-    pub fn get_phase_mut<S:Phase>(&mut self, phase_name:&str) -> &mut S {
+    pub fn get_phase_mut<S: Phase>(&mut self, phase_name: &str) -> &mut S {
         self.phases
             .get_mut(phase_name)
             .and_then(|phase| phase.downcast_mut::<S>())
-        .unwrap_or_else(|| 
-            panic!("Trying to retrieve a Phase {} that does not exist", phase_name)
-        )
+            .unwrap_or_else(|| {
+                panic!(
+                    "Trying to retrieve a Phase {} that does not exist",
+                    phase_name
+                )
+            })
     }
 
     pub fn run_once(&mut self) -> bool {
