@@ -1,5 +1,6 @@
 use nrg_graphics::*;
 use nrg_math::*;
+use nrg_platform::*;
 
 use super::widget::*;
 
@@ -19,8 +20,8 @@ impl Default for Panel {
 }
 
 impl Panel {
-    pub fn update(&self, renderer: &mut Renderer) {
-        self.widget.update(renderer);
+    pub fn update(&mut self, renderer: &mut Renderer, input_handler: &InputHandler) {
+        self.widget.update(renderer, input_handler);
     }
     pub fn uninit(&mut self, renderer: &mut Renderer) -> &mut Self {
         self.widget.uninit(renderer);

@@ -1,5 +1,6 @@
 use nrg_graphics::*;
 use nrg_math::*;
+use nrg_platform::*;
 
 pub struct Widget {
     pub pos: Vector2f,
@@ -20,9 +21,23 @@ impl Default for Widget {
 }
 
 impl Widget {
-    pub fn update(&self, renderer: &mut Renderer) {
+    pub fn update(&mut self, renderer: &mut Renderer, input_handler: &InputHandler) {
+        let is_inside = self.is_inside(
+            input_handler.get_mouse_data().get_x() as _,
+            input_handler.get_mouse_data().get_y() as _,
+        );
+        if is_inside && input_handler.get_mouse_data().is_dragging() {
+            let pos = self.get_position()
+                + Vector2f {
+                    x: input_handler.get_mouse_data().movement_x() as _,
+                    y: input_handler.get_mouse_data().movement_y() as _,
+                };
+            self.set_position(pos.x, pos.y);
+        }
+
         renderer.update_mesh(self.material_id, self.mesh_id, &self.mesh_data);
     }
+
     pub fn uninit(&mut self, renderer: &mut Renderer) -> &mut Self {
         renderer.remove_mesh(self.material_id, self.mesh_id);
         renderer.remove_material(self.material_id);

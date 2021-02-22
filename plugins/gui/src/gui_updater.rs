@@ -12,7 +12,7 @@ pub struct GuiUpdater {
     shared_data: SharedDataRw,
     config: Config,
     panel: Panel,
-    mouse_pos: Vector2f,
+    input_handler: InputHandler,
 }
 
 impl GuiUpdater {
@@ -21,7 +21,7 @@ impl GuiUpdater {
             id: SystemId::new(),
             shared_data: shared_data.clone(),
             config: config.clone(),
-            mouse_pos: Vector2f::default(),
+            input_handler: InputHandler::default(),
             panel: Panel::default(),
         }
     }
@@ -37,6 +37,10 @@ impl System for GuiUpdater {
 
         let read_data = self.shared_data.read().unwrap();
         let renderer = &mut *read_data.get_unique_resource_mut::<Renderer>();
+        let window = &*read_data.get_unique_resource::<Window>();
+
+        self.input_handler
+            .init(window.get_width() as _, window.get_heigth() as _);
 
         self.panel
             .init(renderer)
@@ -47,7 +51,10 @@ impl System for GuiUpdater {
     fn run(&mut self) -> bool {
         self.update_mouse_pos();
 
-        if self.panel.is_inside(self.mouse_pos.x, self.mouse_pos.y) {
+        if self.panel.is_inside(
+            self.input_handler.get_mouse_data().get_x() as _,
+            self.input_handler.get_mouse_data().get_y() as _,
+        ) {
             self.panel.set_color(0.0, 1.0, 0.0);
         } else {
             self.panel.set_color(1.0, 0.0, 0.0);
@@ -55,12 +62,16 @@ impl System for GuiUpdater {
 
         let mut line = 0.0;
         line = self.write_line(
-            format!("Mouse [{}, {}]", self.mouse_pos.x, self.mouse_pos.y),
+            format!(
+                "Mouse [{}, {}]",
+                self.input_handler.get_mouse_data().get_x(),
+                self.input_handler.get_mouse_data().get_y()
+            ),
             line,
         );
         let pos: Vector2f = Vector2f {
-            x: self.mouse_pos.x,
-            y: self.mouse_pos.y,
+            x: self.input_handler.get_mouse_data().get_x() as _,
+            y: self.input_handler.get_mouse_data().get_y() as _,
         } * 2.0
             - [1.0, 1.0].into();
         line = self.write_line(format!("Screen mouse [{}, {}]", pos.x, pos.y), line);
@@ -112,7 +123,8 @@ impl System for GuiUpdater {
         {
             let read_data = self.shared_data.read().unwrap();
             let renderer = &mut *read_data.get_unique_resource_mut::<Renderer>();
-            self.panel.update(renderer);
+
+            self.panel.update(renderer, &self.input_handler);
         }
 
         true
@@ -158,13 +170,6 @@ impl GuiUpdater {
         let window = &*read_data.get_unique_resource::<Window>();
 
         let window_events = window.get_events();
-        let events = window_events.read().unwrap();
-        let mouse_events = events.read_events::<MouseEvent>();
-        if let Some(&event) = mouse_events.last() {
-            self.mouse_pos = Vector2f {
-                x: event.x as f32 / window.get_width() as f32,
-                y: event.y as f32 / window.get_heigth() as f32,
-            };
-        }
+        self.input_handler.update(&window_events);
     }
 }
