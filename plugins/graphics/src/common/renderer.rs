@@ -3,7 +3,8 @@ use std::path::PathBuf;
 use crate::config::*;
 use crate::fonts::font::*;
 use nrg_math::*;
-use nrg_platform::Handle;
+use nrg_platform::*;
+use nrg_serialize::*;
 
 use super::data_formats::*;
 use super::device::*;
@@ -14,11 +15,11 @@ use super::pipeline::*;
 use super::render_pass::*;
 use super::viewport::*;
 
-pub type MaterialId = usize;
-pub type PipelineId = usize;
-pub type FontId = usize;
-pub type MeshId = usize;
-pub const INVALID_ID: usize = 0xFFFFFFFF;
+pub type MaterialId = UID;
+pub type PipelineId = UID;
+pub type FontId = UID;
+pub type MeshId = UID;
+pub const INVALID_ID: UID = UID::nil();
 
 struct PipelineInstance {
     id: PipelineId,
@@ -70,7 +71,7 @@ impl Renderer {
     }
 
     pub fn add_material(&mut self, pipeline_id: PipelineId) -> MaterialId {
-        let material_id = self.materials.len();
+        let material_id = generate_random_uid();
         self.materials.push(MaterialInstance {
             id: material_id,
             material: None,
@@ -87,7 +88,7 @@ impl Renderer {
 
     pub fn add_pipeline(&mut self, data: &PipelineData) {
         if !self.has_pipeline(&data.name) {
-            let pipeline_id = self.pipelines.len();
+            let pipeline_id = generate_uid_from_string(data.name.as_str());
             self.pipelines.push(PipelineInstance {
                 id: pipeline_id,
                 data: data.clone(),
@@ -99,7 +100,7 @@ impl Renderer {
     pub fn add_font(&mut self, pipeline_id: PipelineId, font_path: &PathBuf) -> FontId {
         let font_name = font_path.to_str().unwrap().to_string();
         if font_path.exists() && !self.has_font(&font_name) {
-            let font_id = self.fonts.len();
+            let font_id = generate_random_uid();
             let material_id = self.add_material(pipeline_id);
             self.fonts.push(FontInstance {
                 id: font_id,
@@ -122,7 +123,7 @@ impl Renderer {
     pub fn add_mesh(&mut self, material_id: MaterialId, mesh_data: &MeshData) -> MeshId {
         let material_index = self.get_material_index(material_id);
         if material_index >= 0 {
-            let mesh_id = self.materials[material_index as usize].meshes.len();
+            let mesh_id = generate_random_uid();
             self.materials[material_index as usize]
                 .meshes
                 .push(MeshInstance {
@@ -172,7 +173,7 @@ impl Renderer {
             if material_index >= 0 {
                 let material_instance = &mut self.materials[material_index as usize];
                 let mesh_data = font.add_text(text, position, scale, color);
-                let mesh_id = material_instance.meshes.len();
+                let mesh_id = generate_random_uid();
                 material_instance.meshes.push(MeshInstance {
                     id: mesh_id,
                     mesh: mesh_data,

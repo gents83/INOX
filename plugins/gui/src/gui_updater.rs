@@ -46,7 +46,7 @@ impl System for GuiUpdater {
             .init(renderer)
             .set_position(0.25, 0.25)
             .set_size(0.5, 0.5)
-            .set_color(1.0, 0.0, 0.0);
+            .set_color(0.0, 0.0, 1.0);
     }
     fn run(&mut self) -> bool {
         self.update_mouse_pos();
