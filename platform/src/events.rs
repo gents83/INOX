@@ -4,7 +4,7 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-pub trait Event {}
+pub trait Event: Send + Sync {}
 
 pub struct Events {
     list: HashMap<TypeId, Vec<Arc<dyn Event>>>,

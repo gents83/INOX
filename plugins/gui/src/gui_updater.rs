@@ -11,18 +11,21 @@ pub struct GuiUpdater {
     id: SystemId,
     shared_data: SharedDataRw,
     config: Config,
-    panel: Panel,
+    screen: Screen,
+    panel: Widget<Panel>,
     input_handler: InputHandler,
 }
 
 impl GuiUpdater {
     pub fn new(shared_data: &SharedDataRw, config: &Config) -> Self {
+        let screen = Screen::default();
         Self {
             id: SystemId::new(),
             shared_data: shared_data.clone(),
             config: config.clone(),
             input_handler: InputHandler::default(),
-            panel: Panel::default(),
+            panel: Widget::<Panel>::new(Panel::default(), screen.clone()),
+            screen,
         }
     }
 }
@@ -42,22 +45,36 @@ impl System for GuiUpdater {
         self.input_handler
             .init(window.get_width() as _, window.get_heigth() as _);
 
+        self.screen.init(window);
         self.panel
             .init(renderer)
-            .set_position(0.25, 0.25)
-            .set_size(0.5, 0.5)
+            .set_position([200.0, 200.0].into())
+            .set_size([800.0, 500.0].into())
             .set_color(0.0, 0.0, 1.0);
+        /*
+        let mut subpanel = Panel::default();
+        subpanel
+            .init(renderer)
+            .set_position(0.1, 0.1)
+            .set_size(0.2, 0.2)
+            .set_color(0.0, 0.0, 1.0);
+        //self.panel.add_child(subpanel);
+        */
     }
     fn run(&mut self) -> bool {
+        self.screen.update();
         self.update_mouse_pos();
 
-        if self.panel.is_inside(
-            self.input_handler.get_mouse_data().get_x() as _,
-            self.input_handler.get_mouse_data().get_y() as _,
-        ) {
-            self.panel.set_color(0.0, 1.0, 0.0);
-        } else {
-            self.panel.set_color(1.0, 0.0, 0.0);
+        {
+            let read_data = self.shared_data.read().unwrap();
+            let renderer = &mut *read_data.get_unique_resource_mut::<Renderer>();
+
+            self.panel.update(renderer, &self.input_handler);
+            if self.panel.is_hover() {
+                self.panel.set_color(0.0, 1.0, 0.0);
+            } else {
+                self.panel.set_color(1.0, 0.0, 0.0);
+            }
         }
 
         let mut line = 0.0;
@@ -75,58 +92,28 @@ impl System for GuiUpdater {
         } * 2.0
             - [1.0, 1.0].into();
         line = self.write_line(format!("Screen mouse [{}, {}]", pos.x, pos.y), line);
+
         line = self.write_line(
             format!(
-                "Panel [{}, {}]",
+                "Panel in pixels Pos:[{}, {}] - Size:[{}, {}]",
                 self.panel.get_position().x,
-                self.panel.get_position().y
+                self.panel.get_position().y,
+                self.panel.get_size().x,
+                self.panel.get_size().y
             ),
             line,
         );
-
-        let mut i = 0;
-        let indices_count = self.panel.get_widget().mesh_data.indices.len();
-        while i < indices_count {
-            line = self.write_line(
-                format!(
-                    "Triangle [{},{}] [{},{}] [{},{}]",
-                    self.panel.get_widget().mesh_data.vertices
-                        [self.panel.get_widget().mesh_data.indices[i] as usize]
-                        .pos
-                        .x,
-                    self.panel.get_widget().mesh_data.vertices
-                        [self.panel.get_widget().mesh_data.indices[i] as usize]
-                        .pos
-                        .y,
-                    self.panel.get_widget().mesh_data.vertices
-                        [self.panel.get_widget().mesh_data.indices[i + 1] as usize]
-                        .pos
-                        .x,
-                    self.panel.get_widget().mesh_data.vertices
-                        [self.panel.get_widget().mesh_data.indices[i + 1] as usize]
-                        .pos
-                        .y,
-                    self.panel.get_widget().mesh_data.vertices
-                        [self.panel.get_widget().mesh_data.indices[i + 2] as usize]
-                        .pos
-                        .x,
-                    self.panel.get_widget().mesh_data.vertices
-                        [self.panel.get_widget().mesh_data.indices[i + 2] as usize]
-                        .pos
-                        .y,
-                ),
-                line,
-            );
-            i += 3;
-        }
-
-        {
-            let read_data = self.shared_data.read().unwrap();
-            let renderer = &mut *read_data.get_unique_resource_mut::<Renderer>();
-
-            self.panel.update(renderer, &self.input_handler);
-        }
-
+        let pos = self
+            .screen
+            .convert_into_screen_space(self.panel.get_position());
+        let size = self.screen.convert_into_screen_space(self.panel.get_size());
+        self.write_line(
+            format!(
+                "Panel in screen Pos:[{}, {}] - Size:[{}, {}]",
+                pos.x, pos.y, size.x, size.y
+            ),
+            line,
+        );
         true
     }
     fn uninit(&mut self) {

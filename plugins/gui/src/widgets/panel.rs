@@ -2,74 +2,46 @@ use nrg_graphics::*;
 use nrg_math::*;
 use nrg_platform::*;
 
-use super::widget::*;
+use super::{screen::*, widget::*};
 
-const DEFAULT_WIDTH: f32 = 0.5;
-const DEFAULT_HEIGHT: f32 = 0.5;
-
-pub struct Panel {
-    widget: Widget,
-}
+pub struct Panel {}
 
 impl Default for Panel {
     fn default() -> Self {
-        Self {
-            widget: Widget::default(),
-        }
+        Self {}
     }
 }
 
-impl Panel {
-    pub fn update(&mut self, renderer: &mut Renderer, input_handler: &InputHandler) {
-        self.widget.update(renderer, input_handler);
-    }
-    pub fn uninit(&mut self, renderer: &mut Renderer) -> &mut Self {
-        self.widget.uninit(renderer);
-        self
-    }
-
-    pub fn get_position(&self) -> Vector2f {
-        self.widget.get_position()
-    }
-    pub fn set_position(&mut self, x: f32, y: f32) -> &mut Self {
-        self.widget.set_position(x, y);
-        self
-    }
-    pub fn set_size(&mut self, scale_x: f32, scale_y: f32) -> &mut Self {
-        self.widget.set_size(scale_x, scale_y);
-        self
-    }
-    pub fn set_color(&mut self, r: f32, g: f32, b: f32) -> &mut Self {
-        self.widget.set_color(r, g, b);
-        self
-    }
-    pub fn is_inside(&self, x: f32, y: f32) -> bool {
-        self.widget.is_inside(x, y)
-    }
-}
-
-impl Panel {
-    pub fn init(&mut self, renderer: &mut Renderer) -> &mut Self {
+impl WidgetTrait for Panel {
+    fn init(&mut self, data: &mut WidgetData, screen: &Screen, renderer: &mut Renderer) {
         let pipeline_id = renderer.get_pipeline_id("UI");
-        self.widget.material_id = renderer.add_material(pipeline_id);
-        self.widget
-            .mesh_data
-            .add_quad_default(
-                [
-                    self.widget.pos.x,
-                    self.widget.pos.y,
-                    self.widget.pos.x + DEFAULT_WIDTH * 2.0,
-                    self.widget.pos.y + DEFAULT_HEIGHT * 2.0,
-                ]
-                .into(),
-            )
+        data.graphics.material_id = renderer.add_material(pipeline_id);
+        data.state.pos = Vector2f::default();
+        data.state.size = [1.0, 1.0].into();
+        let pos = screen.convert_into_screen_space(data.state.pos);
+        let size = screen.convert_into_screen_space(data.state.size);
+        let mut mesh_data = MeshData::default();
+        mesh_data
+            .add_quad_default([pos.x, pos.y, size.x, size.y].into())
             .set_vertex_color([0.3, 0.8, 1.0].into());
+        data.graphics.mesh_data = mesh_data;
 
-        self.widget.mesh_id = renderer.add_mesh(self.widget.material_id, &self.widget.mesh_data);
-        self
+        data.graphics.mesh_id =
+            renderer.add_mesh(data.graphics.material_id, &data.graphics.mesh_data);
     }
 
-    pub fn get_widget(&self) -> &Widget {
-        &self.widget
+    fn update(
+        &mut self,
+        _data: &mut WidgetData,
+        _screen: &Screen,
+        _renderer: &mut Renderer,
+        _input_handler: &InputHandler,
+    ) {
+    }
+
+    fn uninit(&mut self, _data: &mut WidgetData, _screen: &Screen, _renderer: &mut Renderer) {}
+
+    fn get_type(&self) -> &'static str {
+        std::any::type_name::<Self>()
     }
 }
