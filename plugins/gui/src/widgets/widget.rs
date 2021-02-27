@@ -1,9 +1,9 @@
+use super::screen::*;
+use crate::colors::*;
 use nrg_graphics::*;
 use nrg_math::*;
 use nrg_platform::*;
 use nrg_serialize::*;
-
-use super::screen::*;
 
 const LAYER_OFFSET: f32 = 0.001;
 
@@ -94,10 +94,37 @@ impl WidgetState {
     }
 }
 
+pub struct WidgetStyle {
+    pub inactive_color: Vector3f,
+    pub active_color: Vector3f,
+    pub hover_color: Vector3f,
+    pub dragging_color: Vector3f,
+    pub inactive_border_color: Vector3f,
+    pub active_border_color: Vector3f,
+    pub hover_border_color: Vector3f,
+    pub dragging_border_color: Vector3f,
+}
+
+impl Default for WidgetStyle {
+    fn default() -> Self {
+        Self {
+            inactive_color: COLOR_LIGHT_GRAY,
+            active_color: COLOR_DARK_GRAY,
+            hover_color: COLOR_LIGHT_CYAN,
+            dragging_color: COLOR_LIGHT_BLUE,
+            inactive_border_color: COLOR_WHITE,
+            active_border_color: COLOR_WHITE,
+            hover_border_color: COLOR_WHITE,
+            dragging_border_color: COLOR_WHITE,
+        }
+    }
+}
+
 pub struct WidgetGraphics {
     pub material_id: MaterialId,
     pub mesh_id: MeshId,
     pub mesh_data: MeshData,
+    pub style: WidgetStyle,
 }
 
 impl Default for WidgetGraphics {
@@ -106,6 +133,7 @@ impl Default for WidgetGraphics {
             material_id: INVALID_ID,
             mesh_id: INVALID_ID,
             mesh_data: MeshData::default(),
+            style: WidgetStyle::default(),
         }
     }
 }
