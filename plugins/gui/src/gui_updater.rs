@@ -49,17 +49,16 @@ impl System for GuiUpdater {
         self.panel
             .init(renderer)
             .set_position([200.0, 200.0].into())
-            .set_size([800.0, 500.0].into())
+            .set_size([500.0, 500.0].into())
             .set_color(0.0, 0.0, 1.0);
-        /*
-        let mut subpanel = Panel::default();
+
+        let mut subpanel = Widget::<Panel>::new(Panel::default(), self.screen.clone());
         subpanel
             .init(renderer)
-            .set_position(0.1, 0.1)
-            .set_size(0.2, 0.2)
+            .set_position([100.0, 100.0].into())
+            .set_size([100.0, 100.0].into())
             .set_color(0.0, 0.0, 1.0);
-        //self.panel.add_child(subpanel);
-        */
+        self.panel.add_child(subpanel);
     }
     fn run(&mut self) -> bool {
         self.screen.update();
@@ -106,7 +105,7 @@ impl System for GuiUpdater {
         let pos = self
             .screen
             .convert_into_screen_space(self.panel.get_position());
-        let size = self.screen.convert_into_screen_space(self.panel.get_size());
+        let size = self.screen.convert_from_pixels(self.panel.get_size());
         self.write_line(
             format!(
                 "Panel in screen Pos:[{}, {}] - Size:[{}, {}]",

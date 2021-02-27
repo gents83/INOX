@@ -3,7 +3,9 @@ use nrg_math::*;
 use nrg_platform::*;
 use nrg_serialize::*;
 
-use super::Screen;
+use super::screen::*;
+
+const LAYER_OFFSET: f32 = 0.001;
 
 pub struct WidgetState {
     pub pos: Vector2f,
@@ -36,15 +38,6 @@ impl WidgetState {
     }
     pub fn get_size(&self) -> Vector2f {
         self.size
-    }
-
-    pub fn set_width(&mut self, width: f32) -> &mut Self {
-        self.size.x = width;
-        self
-    }
-    pub fn set_height(&mut self, height: f32) -> &mut Self {
-        self.size.y = height;
-        self
     }
     pub fn set_size(&mut self, size: Vector2f) -> &mut Self {
         self.size = size;
@@ -84,16 +77,17 @@ impl WidgetGraphics {
         self.mesh_data.set_vertex_color([r, g, b].into());
         self
     }
-    pub fn translate(&mut self, movement: Vector2f) -> &mut Self {
-        self.mesh_data.translate(movement);
+    pub fn move_to_up_layer(&mut self) -> &mut Self {
+        self.mesh_data.translate([0.0, 0.0, LAYER_OFFSET].into());
         self
     }
-    pub fn scale(&mut self, scale_x: f32, scale_y: f32) -> &mut Self {
-        let scale = Vector2f {
-            x: scale_x,
-            y: scale_y,
-        };
-        self.mesh_data.scale(scale);
+
+    pub fn translate(&mut self, movement: Vector2f) -> &mut Self {
+        self.mesh_data.translate(movement.into());
+        self
+    }
+    pub fn scale(&mut self, scale: Vector2f) -> &mut Self {
+        self.mesh_data.scale(scale.into());
         self
     }
     pub fn is_inside(&self, pos: Vector2f) -> bool {
@@ -128,7 +122,7 @@ impl WidgetGraphics {
 
 pub struct WidgetNode {
     pub id: UID,
-    pub children: Vec<Box<dyn WidgetTrait>>,
+    pub children: Vec<Box<dyn WidgetBase>>,
 }
 
 impl Default for WidgetNode {
@@ -137,6 +131,20 @@ impl Default for WidgetNode {
             id: generate_random_uid(),
             children: Vec::new(),
         }
+    }
+}
+
+impl WidgetNode {
+    pub fn add_child<W: 'static + WidgetTrait>(&mut self, widget: Widget<W>) -> &mut Self {
+        self.children.push(Box::new(widget));
+        self
+    }
+    pub fn propagate_on_children<F>(&mut self, mut f: F) -> &mut Self
+    where
+        F: FnMut(&mut dyn WidgetBase),
+    {
+        self.children.iter_mut().for_each(|w| f(w.as_mut()));
+        self
     }
 }
 
@@ -177,6 +185,106 @@ pub trait WidgetTrait: Send + Sync {
     fn uninit(&mut self, data: &mut WidgetData, screen: &Screen, renderer: &mut Renderer);
 }
 
+pub trait WidgetBase: Send + Sync {
+    fn update(&mut self, renderer: &mut Renderer, input_handler: &InputHandler);
+    fn uninit(&mut self, renderer: &mut Renderer);
+    fn scale(&mut self, scale: Vector2f);
+    fn translate(&mut self, offset: Vector2f);
+    fn manage_input(&mut self, input_handler: &InputHandler) -> bool;
+    fn update_layout(&mut self);
+}
+
+impl<T> WidgetBase for Widget<T>
+where
+    T: WidgetTrait,
+{
+    fn update(&mut self, renderer: &mut Renderer, input_handler: &InputHandler) {
+        self.data
+            .node
+            .propagate_on_children(|w| w.update(renderer, input_handler));
+        self.manage_input(input_handler);
+        self.inner
+            .update(&mut self.data, &self.screen, renderer, input_handler);
+        self.data.graphics.update(renderer);
+    }
+
+    fn uninit(&mut self, renderer: &mut Renderer) {
+        self.data.node.propagate_on_children(|w| w.uninit(renderer));
+        self.inner.uninit(&mut self.data, &self.screen, renderer);
+        self.data.graphics.uninit(renderer);
+    }
+    fn translate(&mut self, offset: Vector2f) {
+        self.data
+            .node
+            .propagate_on_children(|w| w.translate(offset));
+        let screen_old_pos = self
+            .screen
+            .convert_into_screen_space(self.data.state.get_position());
+        self.data.graphics.translate(-screen_old_pos);
+        self.data
+            .state
+            .set_position(self.data.state.get_position() + offset);
+        let screen_pos = self
+            .screen
+            .convert_into_screen_space(self.data.state.get_position());
+        self.data.graphics.translate(screen_pos);
+    }
+    fn scale(&mut self, scale: Vector2f) {
+        self.data.node.propagate_on_children(|w| w.translate(scale));
+        self.data.state.set_size(self.data.state.get_size() * scale);
+        let pos = self
+            .screen
+            .convert_into_screen_space(self.data.state.get_position());
+        self.data.graphics.translate(-pos);
+        self.data.graphics.scale(scale);
+        self.data.graphics.translate(pos);
+    }
+
+    fn manage_input(&mut self, input_handler: &InputHandler) -> bool {
+        let mut managed_by_children = false;
+        self.data
+            .node
+            .propagate_on_children(|w| managed_by_children |= w.manage_input(input_handler));
+        if managed_by_children {
+            return true;
+        }
+        if !self.is_draggable() {
+            return false;
+        }
+        let mouse = self.screen.convert_into_pixels(Vector2f {
+            x: input_handler.get_mouse_data().get_x() as _,
+            y: input_handler.get_mouse_data().get_y() as _,
+        });
+        self.data.state.is_hover = self.data.state.is_inside(mouse);
+        if !self.data.state.is_hover {
+            return false;
+        }
+        let mouse_in_screen_space = self.screen.convert_into_screen_space(mouse);
+        if !self.data.graphics.is_inside(mouse_in_screen_space) {
+            return false;
+        }
+        if !input_handler.get_mouse_data().is_dragging() {
+            return false;
+        }
+        let movement = Vector2f {
+            x: input_handler.get_mouse_data().movement_x() as _,
+            y: input_handler.get_mouse_data().movement_y() as _,
+        };
+        let movement_in_pixels = self.screen.convert_into_pixels(movement);
+        let pos = self.data.state.get_position() + movement_in_pixels;
+        self.set_position(pos);
+        true
+    }
+
+    fn update_layout(&mut self) {
+        let pos = self.get_position();
+        self.data.node.propagate_on_children(|w| {
+            w.translate(pos);
+            w.update_layout();
+        });
+    }
+}
+
 impl<T> Widget<T>
 where
     T: WidgetTrait,
@@ -188,47 +296,23 @@ where
             screen,
         }
     }
+    pub fn add_child<W: 'static + WidgetTrait>(&mut self, widget: Widget<W>) -> &mut Self {
+        let mut widget = widget;
+        widget.data.graphics.move_to_up_layer();
+        self.data.node.add_child(widget);
+        self.update_layout();
+        self
+    }
 
     pub fn is_hover(&self) -> bool {
         self.data.state.is_hover
     }
-    pub fn is_active(&self) -> bool {
-        self.data.state.is_active
-    }
-    pub fn set_active(&mut self, active: bool) -> &mut Self {
-        self.data.state.is_active = active;
-        self
-    }
     pub fn is_draggable(&self) -> bool {
         self.data.state.is_active
-    }
-    pub fn set_draggable(&mut self, draggable: bool) -> &mut Self {
-        self.data.state.is_draggable = draggable;
-        self
-    }
-
-    pub fn id(&self) -> UID {
-        self.data.node.id
-    }
-
-    pub fn get_type(&self) -> &'static str {
-        self.inner.get_type()
     }
 
     pub fn init(&mut self, renderer: &mut Renderer) -> &mut Self {
         self.inner.init(&mut self.data, &self.screen, renderer);
-        self
-    }
-    pub fn update(&mut self, renderer: &mut Renderer, input_handler: &InputHandler) -> &mut Self {
-        self.manage_input(input_handler);
-        self.inner
-            .update(&mut self.data, &self.screen, renderer, input_handler);
-        self.data.graphics.update(renderer);
-        self
-    }
-    pub fn uninit(&mut self, renderer: &mut Renderer) -> &mut Self {
-        self.inner.uninit(&mut self.data, &self.screen, renderer);
-        self.data.graphics.uninit(renderer);
         self
     }
 
@@ -241,62 +325,21 @@ where
     }
 
     pub fn set_position(&mut self, pos: Vector2f) -> &mut Self {
-        let old_screen_pos = self
-            .screen
-            .convert_into_screen_space(self.data.state.get_position());
-        let screen_pos = self.screen.convert_into_screen_space(pos);
-        self.data.graphics.translate(-old_screen_pos);
-        self.data.state.set_position(pos);
-        self.data.graphics.translate(screen_pos);
+        let offset = pos - self.data.state.get_position();
+        self.translate(offset);
         self
     }
 
     pub fn set_size(&mut self, size: Vector2f) -> &mut Self {
-        let old_screen_pos = self
-            .screen
-            .convert_into_screen_space(self.data.state.get_position());
         let old_screen_scale = self.screen.convert_from_pixels(self.data.state.get_size());
         let screen_size = self.screen.convert_from_pixels(size);
-        self.data.graphics.translate(-old_screen_pos);
-        self.data.state.set_size(size);
-        self.data.graphics.scale(
-            screen_size.x / old_screen_scale.x,
-            screen_size.y / old_screen_scale.y,
-        );
-        self.data.graphics.translate(old_screen_pos);
-        self
-    }
-    pub fn set_color(&mut self, r: f32, g: f32, b: f32) -> &mut Self {
-        self.data.graphics.set_color(r, g, b);
+        let scale = screen_size / old_screen_scale;
+        self.scale(scale);
         self
     }
 
-    fn manage_input(&mut self, input_handler: &InputHandler) -> &mut Self {
-        if !self.is_draggable() {
-            return self;
-        }
-        let mouse = self.screen.convert_into_pixels(Vector2f {
-            x: input_handler.get_mouse_data().get_x() as _,
-            y: input_handler.get_mouse_data().get_y() as _,
-        });
-        self.data.state.is_hover = self.data.state.is_inside(mouse);
-        if !self.data.state.is_hover {
-            return self;
-        }
-        let mouse_in_screen_space = self.screen.convert_into_screen_space(mouse);
-        if !self.data.graphics.is_inside(mouse_in_screen_space) {
-            return self;
-        }
-        if !input_handler.get_mouse_data().is_dragging() {
-            return self;
-        }
-        let movement = Vector2f {
-            x: input_handler.get_mouse_data().movement_x() as _,
-            y: input_handler.get_mouse_data().movement_y() as _,
-        };
-        let movement_in_pixels = self.screen.convert_into_pixels(movement);
-        let pos = self.data.state.get_position() + movement_in_pixels;
-        self.set_position(pos);
+    pub fn set_color(&mut self, r: f32, g: f32, b: f32) -> &mut Self {
+        self.data.graphics.set_color(r, g, b);
         self
     }
 }

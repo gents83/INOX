@@ -63,10 +63,6 @@ impl Screen {
         inner.size = size;
     }
 
-    pub fn get_size(&self) -> Vector2f {
-        self.inner.borrow().size
-    }
-
     pub fn convert_into_pixels(&self, value: Vector2f) -> Vector2f {
         value * self.inner.borrow().size
     }

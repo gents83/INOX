@@ -132,18 +132,20 @@ impl MeshData {
         self
     }
 
-    pub fn translate(&mut self, movement: Vector2f) -> &mut Self {
+    pub fn translate(&mut self, movement: Vector3f) -> &mut Self {
         self.vertices.iter_mut().for_each(|v| {
             v.pos.x += movement.x;
             v.pos.y += movement.y;
+            v.pos.z += movement.z;
         });
         self
     }
 
-    pub fn scale(&mut self, scale: Vector2f) -> &mut Self {
+    pub fn scale(&mut self, scale: Vector3f) -> &mut Self {
         self.vertices.iter_mut().for_each(|v| {
             v.pos.x *= scale.x;
             v.pos.y *= scale.y;
+            v.pos.z *= scale.z;
         });
         self
     }
