@@ -6,6 +6,7 @@ use nrg_core::*;
 use nrg_graphics::*;
 use nrg_math::*;
 use nrg_platform::*;
+use nrg_serialize::*;
 
 pub struct GuiUpdater {
     id: SystemId,
@@ -13,6 +14,7 @@ pub struct GuiUpdater {
     config: Config,
     screen: Screen,
     panel: Widget<Panel>,
+    subpanel_id: UID,
     input_handler: InputHandler,
 }
 
@@ -25,6 +27,7 @@ impl GuiUpdater {
             config: config.clone(),
             input_handler: InputHandler::default(),
             panel: Widget::<Panel>::new(Panel::default(), screen.clone()),
+            subpanel_id: INVALID_ID,
             screen,
         }
     }
@@ -48,17 +51,22 @@ impl System for GuiUpdater {
         self.screen.init(window);
         self.panel
             .init(renderer)
-            .set_position([200.0, 200.0].into())
-            .set_size([500.0, 500.0].into())
-            .set_color(0.0, 0.0, 1.0);
+            .position([200.0, 200.0].into())
+            .size([500.0, 500.0].into())
+            .color(0.0, 0.0, 1.0);
 
         let mut subpanel = Widget::<Panel>::new(Panel::default(), self.screen.clone());
         subpanel
             .init(renderer)
-            .set_position([100.0, 100.0].into())
-            .set_size([100.0, 100.0].into())
-            .set_color(0.0, 0.0, 1.0);
-        self.panel.add_child(subpanel);
+            .position([100.0, 100.0].into())
+            .size([100.0, 100.0].into())
+            .color(0.0, 0.0, 1.0);
+        self.subpanel_id = self.panel.add_child(subpanel);
+        if let Some(subpanel) = self.panel.get_child_mut(self.subpanel_id) {
+            subpanel.set_margins(450.0, 450.0, 0.0, 0.0);
+            subpanel.set_draggable(false);
+        }
+        self.panel.update_layout();
     }
     fn run(&mut self) -> bool {
         self.screen.update();
@@ -68,11 +76,19 @@ impl System for GuiUpdater {
             let read_data = self.shared_data.read().unwrap();
             let renderer = &mut *read_data.get_unique_resource_mut::<Renderer>();
 
-            self.panel.update(renderer, &self.input_handler);
-            if self.panel.is_hover() {
+            let is_managed = self.panel.update(renderer, &self.input_handler);
+            if is_managed {
                 self.panel.set_color(0.0, 1.0, 0.0);
             } else {
                 self.panel.set_color(1.0, 0.0, 0.0);
+            }
+
+            if let Some(subpanel) = self.panel.get_child_mut(self.subpanel_id) {
+                if subpanel.is_hover() {
+                    subpanel.set_color(0.0, 1.0, 0.0);
+                } else {
+                    subpanel.set_color(0.0, 0.0, 1.0);
+                }
             }
         }
 

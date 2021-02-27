@@ -18,6 +18,7 @@ impl WidgetTrait for Panel {
         data.graphics.material_id = renderer.add_material(pipeline_id);
         data.state.pos = Vector2f::default();
         data.state.size = [100.0, 100.0].into();
+        data.state.is_draggable = true;
         let pos = screen.convert_into_screen_space(data.state.pos);
         let size = screen.convert_into_screen_space(data.state.size);
         let mut mesh_data = MeshData::default();
