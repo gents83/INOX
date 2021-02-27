@@ -6,15 +6,13 @@ use nrg_core::*;
 use nrg_graphics::*;
 use nrg_math::*;
 use nrg_platform::*;
-use nrg_serialize::*;
 
 pub struct GuiUpdater {
     id: SystemId,
     shared_data: SharedDataRw,
     config: Config,
     screen: Screen,
-    panel: Widget<Panel>,
-    subpanel_id: UID,
+    widget: Widget<Container>,
     input_handler: InputHandler,
 }
 
@@ -26,8 +24,7 @@ impl GuiUpdater {
             shared_data: shared_data.clone(),
             config: config.clone(),
             input_handler: InputHandler::default(),
-            panel: Widget::<Panel>::new(Panel::default(), screen.clone()),
-            subpanel_id: INVALID_ID,
+            widget: Widget::<Container>::new(Container::default(), screen.clone()),
             screen,
         }
     }
@@ -49,24 +46,11 @@ impl System for GuiUpdater {
             .init(window.get_width() as _, window.get_heigth() as _);
 
         self.screen.init(window);
-        self.panel
+        self.widget
             .init(renderer)
             .position([200.0, 200.0].into())
             .size([500.0, 500.0].into())
             .color(0.0, 0.0, 1.0);
-
-        let mut subpanel = Widget::<Panel>::new(Panel::default(), self.screen.clone());
-        subpanel
-            .init(renderer)
-            .position([100.0, 100.0].into())
-            .size([100.0, 100.0].into())
-            .color(0.0, 0.0, 1.0);
-        self.subpanel_id = self.panel.add_child(subpanel);
-        if let Some(subpanel) = self.panel.get_child_mut(self.subpanel_id) {
-            subpanel.set_margins(450.0, 450.0, 0.0, 0.0);
-            subpanel.set_draggable(false);
-        }
-        self.panel.update_layout();
     }
     fn run(&mut self) -> bool {
         self.screen.update();
@@ -76,20 +60,21 @@ impl System for GuiUpdater {
             let read_data = self.shared_data.read().unwrap();
             let renderer = &mut *read_data.get_unique_resource_mut::<Renderer>();
 
-            let is_managed = self.panel.update(renderer, &self.input_handler);
-            if is_managed {
-                self.panel.set_color(0.0, 1.0, 0.0);
-            } else {
-                self.panel.set_color(1.0, 0.0, 0.0);
-            }
+            self.widget.update(renderer, &self.input_handler);
 
+            if self.widget.is_hover() {
+                self.widget.set_color(0.0, 1.0, 0.0);
+            } else {
+                self.widget.set_color(0.0, 1.0, 1.0);
+            }
+            /*
             if let Some(subpanel) = self.panel.get_child_mut(self.subpanel_id) {
                 if subpanel.is_hover() {
                     subpanel.set_color(0.0, 1.0, 0.0);
                 } else {
                     subpanel.set_color(0.0, 0.0, 1.0);
                 }
-            }
+            }*/
         }
 
         let mut line = 0.0;
@@ -108,24 +93,13 @@ impl System for GuiUpdater {
             - [1.0, 1.0].into();
         line = self.write_line(format!("Screen mouse [{}, {}]", pos.x, pos.y), line);
 
-        line = self.write_line(
-            format!(
-                "Panel in pixels Pos:[{}, {}] - Size:[{}, {}]",
-                self.panel.get_position().x,
-                self.panel.get_position().y,
-                self.panel.get_size().x,
-                self.panel.get_size().y
-            ),
-            line,
-        );
-        let pos = self
-            .screen
-            .convert_into_screen_space(self.panel.get_position());
-        let size = self.screen.convert_from_pixels(self.panel.get_size());
         self.write_line(
             format!(
-                "Panel in screen Pos:[{}, {}] - Size:[{}, {}]",
-                pos.x, pos.y, size.x, size.y
+                "Widget in pixels Pos:[{}, {}] - Size:[{}, {}]",
+                self.widget.get_position().x,
+                self.widget.get_position().y,
+                self.widget.get_size().x,
+                self.widget.get_size().y
             ),
             line,
         );
@@ -135,7 +109,7 @@ impl System for GuiUpdater {
         let read_data = self.shared_data.read().unwrap();
         let renderer = &mut *read_data.get_unique_resource_mut::<Renderer>();
 
-        self.panel.uninit(renderer);
+        self.widget.uninit(renderer);
     }
 }
 

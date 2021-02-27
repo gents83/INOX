@@ -3,15 +3,15 @@ use nrg_graphics::*;
 use nrg_math::*;
 use nrg_platform::*;
 
-pub struct Panel {}
+pub struct Container {}
 
-impl Default for Panel {
+impl Default for Container {
     fn default() -> Self {
         Self {}
     }
 }
 
-impl WidgetTrait for Panel {
+impl WidgetTrait for Container {
     fn init<T: WidgetTrait>(widget: &mut Widget<T>, renderer: &mut Renderer) {
         let screen = widget.get_screen();
         let data = widget.get_data_mut();
@@ -30,6 +30,17 @@ impl WidgetTrait for Panel {
 
         data.graphics.mesh_id =
             renderer.add_mesh(data.graphics.material_id, &data.graphics.mesh_data);
+
+        let mut subpanel = Widget::<Panel>::new(Panel::default(), screen);
+        subpanel
+            .init(renderer)
+            .size([800.0, 100.0].into())
+            .color(0.0, 0.0, 1.0);
+        let subpanel_id = widget.add_child(subpanel);
+        widget.propagate_on_child(subpanel_id, |subpanel| {
+            subpanel.set_margins(10.0, 10.0, 0.0, 0.0);
+            subpanel.set_draggable(false);
+        });
         widget.update_layout();
     }
 

@@ -202,27 +202,6 @@ impl Default for WidgetData {
     }
 }
 
-pub struct Widget<T> {
-    data: WidgetData,
-    inner: T,
-    screen: Screen,
-}
-
-pub trait WidgetTrait: Send + Sync {
-    fn get_type(&self) -> &'static str {
-        std::any::type_name::<Self>()
-    }
-    fn init(&mut self, data: &mut WidgetData, screen: &Screen, renderer: &mut Renderer);
-    fn update(
-        &mut self,
-        data: &mut WidgetData,
-        screen: &Screen,
-        renderer: &mut Renderer,
-        input_handler: &InputHandler,
-    );
-    fn uninit(&mut self, data: &mut WidgetData, screen: &Screen, renderer: &mut Renderer);
-}
-
 pub trait WidgetBase: Send + Sync {
     fn get_screen(&self) -> Screen;
     fn get_data(&self) -> &WidgetData;
@@ -310,6 +289,7 @@ pub trait WidgetBase: Send + Sync {
     }
     fn set_color(&mut self, r: f32, g: f32, b: f32);
     fn set_position(&mut self, pos: Vector2f);
+    fn set_size(&mut self, size: Vector2f);
     fn set_margins(&mut self, top: f32, left: f32, right: f32, bottom: f32);
     fn set_draggable(&mut self, draggable: bool) {
         self.get_data_mut().state.is_draggable = draggable;
@@ -320,6 +300,12 @@ pub trait WidgetBase: Send + Sync {
     fn is_draggable(&self) -> bool {
         self.get_data().state.is_draggable
     }
+}
+
+pub struct Widget<T> {
+    data: WidgetData,
+    screen: Screen,
+    _inner: T,
 }
 
 impl<T> WidgetBase for Widget<T>
@@ -339,8 +325,7 @@ where
     fn update(&mut self, renderer: &mut Renderer, input_handler: &InputHandler) -> bool {
         let mut input_managed = false;
         input_managed |= self.manage_input(input_handler);
-        self.inner
-            .update(&mut self.data, &self.screen, renderer, input_handler);
+        T::update::<T>(self, renderer, input_handler);
         self.data.graphics.update(renderer);
         self.data.node.propagate_on_children(|w| {
             input_managed |= w.update(renderer, input_handler);
@@ -350,7 +335,7 @@ where
 
     fn uninit(&mut self, renderer: &mut Renderer) {
         self.data.node.propagate_on_children(|w| w.uninit(renderer));
-        self.inner.uninit(&mut self.data, &self.screen, renderer);
+        T::uninit::<T>(self, renderer);
         self.data.graphics.uninit(renderer);
     }
     fn set_color(&mut self, r: f32, g: f32, b: f32) {
@@ -359,9 +344,25 @@ where
     fn set_position(&mut self, pos: Vector2f) {
         self.position(pos);
     }
+    fn set_size(&mut self, size: Vector2f) {
+        self.size(size);
+    }
     fn set_margins(&mut self, top: f32, left: f32, right: f32, bottom: f32) {
         self.margins(top, left, right, bottom);
     }
+}
+
+pub trait WidgetTrait: Send + Sync {
+    fn get_type(&self) -> &'static str {
+        std::any::type_name::<Self>()
+    }
+    fn init<T: WidgetTrait>(widget: &mut Widget<T>, renderer: &mut Renderer);
+    fn update<T: WidgetTrait>(
+        widget: &mut Widget<T>,
+        renderer: &mut Renderer,
+        input_handler: &InputHandler,
+    );
+    fn uninit<T: WidgetTrait>(widget: &mut Widget<T>, renderer: &mut Renderer);
 }
 
 impl<T> Widget<T>
@@ -371,10 +372,16 @@ where
     pub fn new(inner: T, screen: Screen) -> Self {
         Self {
             data: WidgetData::default(),
-            inner,
+            _inner: inner,
             screen,
         }
     }
+
+    pub fn init(&mut self, renderer: &mut Renderer) -> &mut Self {
+        T::init::<T>(self, renderer);
+        self
+    }
+
     pub fn add_child<W: 'static + WidgetTrait>(&mut self, mut widget: Widget<W>) -> UID {
         let id = widget.data.node.id;
         widget.data.state.margins.left = widget.get_position().x;
@@ -385,7 +392,10 @@ where
         id
     }
 
-    pub fn get_child_mut(&mut self, uid: UID) -> Option<&mut dyn WidgetBase> {
+    pub fn propagate_on_child<F>(&mut self, uid: UID, mut f: F)
+    where
+        F: FnMut(&mut dyn WidgetBase),
+    {
         if let Some(index) = self
             .data
             .node
@@ -394,14 +404,8 @@ where
             .position(|child| child.id() == uid)
         {
             let w = &mut self.data.node.children[index as usize];
-            return Some(w.as_mut());
+            return f(w.as_mut());
         }
-        None
-    }
-
-    pub fn init(&mut self, renderer: &mut Renderer) -> &mut Self {
-        self.inner.init(&mut self.data, &self.screen, renderer);
-        self
     }
 
     pub fn get_position(&self) -> Vector2f {
