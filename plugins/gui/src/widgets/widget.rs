@@ -95,14 +95,10 @@ impl WidgetState {
 }
 
 pub struct WidgetStyle {
-    pub inactive_color: Vector3f,
-    pub active_color: Vector3f,
-    pub hover_color: Vector3f,
-    pub dragging_color: Vector3f,
-    pub inactive_border_color: Vector3f,
-    pub active_border_color: Vector3f,
-    pub hover_border_color: Vector3f,
-    pub dragging_border_color: Vector3f,
+    inactive_color: Vector3f,
+    active_color: Vector3f,
+    hover_color: Vector3f,
+    dragging_color: Vector3f,
 }
 
 impl Default for WidgetStyle {
@@ -112,19 +108,16 @@ impl Default for WidgetStyle {
             active_color: COLOR_DARK_GRAY,
             hover_color: COLOR_LIGHT_CYAN,
             dragging_color: COLOR_LIGHT_BLUE,
-            inactive_border_color: COLOR_WHITE,
-            active_border_color: COLOR_WHITE,
-            hover_border_color: COLOR_WHITE,
-            dragging_border_color: COLOR_WHITE,
         }
     }
 }
 
 pub struct WidgetGraphics {
-    pub material_id: MaterialId,
-    pub mesh_id: MeshId,
-    pub mesh_data: MeshData,
-    pub style: WidgetStyle,
+    material_id: MaterialId,
+    mesh_id: MeshId,
+    mesh_data: MeshData,
+    color: Vector3f,
+    style: WidgetStyle,
 }
 
 impl Default for WidgetGraphics {
@@ -133,27 +126,34 @@ impl Default for WidgetGraphics {
             material_id: INVALID_ID,
             mesh_id: INVALID_ID,
             mesh_data: MeshData::default(),
+            color: Vector3f::default(),
             style: WidgetStyle::default(),
         }
     }
 }
 
 impl WidgetGraphics {
-    pub fn set_color(&mut self, r: f32, g: f32, b: f32) -> &mut Self {
-        self.mesh_data.set_vertex_color([r, g, b].into());
+    pub fn init(&mut self, renderer: &mut Renderer, pipeline: &str) -> &mut Self {
+        let pipeline_id = renderer.get_pipeline_id(pipeline);
+        self.material_id = renderer.add_material(pipeline_id);
+        self
+    }
+    pub fn set_mesh_data(&mut self, renderer: &mut Renderer, mesh_data: MeshData) -> &mut Self {
+        self.mesh_data = mesh_data;
+        if self.mesh_id == INVALID_ID {
+            self.mesh_id = renderer.add_mesh(self.material_id, &self.mesh_data);
+        }
+        self
+    }
+    pub fn get_color(&self) -> Vector3f {
+        self.color
+    }
+    pub fn set_color(&mut self, rgb: Vector3f) -> &mut Self {
+        self.color = rgb;
         self
     }
     pub fn move_to_layer(&mut self, layer: f32) -> &mut Self {
         self.mesh_data.translate([0.0, 0.0, layer].into());
-        self
-    }
-
-    pub fn translate(&mut self, movement: Vector2f) -> &mut Self {
-        self.mesh_data.translate(movement.into());
-        self
-    }
-    pub fn scale(&mut self, scale: Vector2f) -> &mut Self {
-        self.mesh_data.scale(scale.into());
         self
     }
     pub fn is_inside(&self, pos: Vector2f) -> bool {
@@ -187,8 +187,8 @@ impl WidgetGraphics {
 }
 
 pub struct WidgetNode {
-    pub id: UID,
-    pub children: Vec<Box<dyn WidgetBase>>,
+    id: UID,
+    children: Vec<Box<dyn WidgetBase>>,
 }
 
 impl Default for WidgetNode {
@@ -240,32 +240,20 @@ pub trait WidgetBase: Send + Sync {
         self.get_data().node.id
     }
     fn translate(&mut self, offset: Vector2f) {
-        let screen = self.get_screen();
         let data = self.get_data_mut();
-        let screen_old_pos = screen.convert_from_pixels_into_screen_space(data.state.get_position());
-        data.graphics.translate(-screen_old_pos);
         data.state.set_position(data.state.get_position() + offset);
-        let screen_pos = screen.convert_from_pixels_into_screen_space(data.state.get_position());
-        data.graphics.translate(screen_pos);
     }
 
     fn scale(&mut self, scale: Vector2f) {
-        let screen = self.get_screen();
         let data = self.get_data_mut();
         data.state.set_size(data.state.get_size() * scale);
-        let pos = screen.convert_from_pixels_into_screen_space(data.state.get_position());
-        data.graphics.translate(-pos);
-        data.graphics.scale(scale);
-        data.graphics.translate(pos);
     }
 
     fn manage_input(&mut self, input_handler: &InputHandler) -> bool {
         let screen = self.get_screen();
         let data = self.get_data_mut();
         if !data.state.is_active {
-            data.graphics
-                .mesh_data
-                .set_vertex_color(data.graphics.style.inactive_color);
+            data.graphics.set_color(data.graphics.style.inactive_color);
             return false;
         }
         let mut is_on_children = false;
@@ -274,6 +262,7 @@ pub trait WidgetBase: Send + Sync {
         });
         if is_on_children {
             data.state.is_hover = false;
+            data.graphics.set_color(data.graphics.style.active_color);
             return true;
         }
         let mouse = screen.convert_into_pixels(Vector2f {
@@ -282,9 +271,7 @@ pub trait WidgetBase: Send + Sync {
         });
         data.state.is_hover = data.state.is_inside(mouse);
         if !data.state.is_hover {
-            data.graphics
-                .mesh_data
-                .set_vertex_color(data.graphics.style.active_color);
+            data.graphics.set_color(data.graphics.style.active_color);
             return false;
         }
         let mouse_in_screen_space = screen.convert_from_pixels_into_screen_space(mouse);
@@ -292,9 +279,7 @@ pub trait WidgetBase: Send + Sync {
             data.state.is_hover = false;
             return false;
         } else {
-            data.graphics
-                .mesh_data
-                .set_vertex_color(data.graphics.style.hover_color);
+            data.graphics.set_color(data.graphics.style.hover_color);
         }
         if !data.state.is_draggable {
             return false;
@@ -302,9 +287,7 @@ pub trait WidgetBase: Send + Sync {
         if !input_handler.get_mouse_data().is_dragging() {
             return false;
         } else {
-            data.graphics
-                .mesh_data
-                .set_vertex_color(data.graphics.style.dragging_color);
+            data.graphics.set_color(data.graphics.style.dragging_color);
         }
         let movement = Vector2f {
             x: input_handler.get_mouse_data().movement_x() as _,
@@ -371,7 +354,6 @@ where
         let mut input_managed = false;
         input_managed |= self.manage_input(input_handler);
         T::update::<T>(self, renderer, input_handler);
-        self.data.graphics.update(renderer);
         self.data.node.propagate_on_children(|w| {
             input_managed |= w.update(renderer, input_handler);
         });
@@ -479,7 +461,7 @@ where
     }
 
     pub fn color(&mut self, r: f32, g: f32, b: f32) -> &mut Self {
-        self.data.graphics.set_color(r, g, b);
+        self.data.graphics.set_color([r, g, b].into());
         self
     }
 }

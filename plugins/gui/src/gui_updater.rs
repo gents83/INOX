@@ -110,7 +110,7 @@ impl GuiUpdater {
         renderer.add_text(
             font_id,
             string.as_str(),
-            [-0.9, 0.65 + *line].into(),
+            [-0.9, 0.85 + *line].into(),
             1.0,
             [0.0, 0.8, 1.0].into(),
         );
