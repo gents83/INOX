@@ -70,6 +70,9 @@ impl Screen {
         value / self.inner.borrow().size
     }
     pub fn convert_into_screen_space(&self, position: Vector2f) -> Vector2f {
-        (position / self.inner.borrow().size) * 2.0 - [1.0, 1.0].into()
+        position * 2.0 - [1.0, 1.0].into()
+    }
+    pub fn convert_from_pixels_into_screen_space(&self, position: Vector2f) -> Vector2f {
+        self.convert_from_pixels(position) * 2.0 - [1.0, 1.0].into()
     }
 }

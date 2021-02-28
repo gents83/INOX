@@ -16,6 +16,7 @@ declare_handle! {HWND, HWND__}
 declare_handle! {HINSTANCE, HINSTANCE__}
 declare_handle! {HICON, HICON__}
 declare_handle! {HBRUSH, HBRUSH__}
+declare_handle! {HDC, HDC__}
 declare_handle! {HMENU, HMENU__}
 declare_handle! {HMONITOR, HMONITOR__}
 
@@ -930,6 +931,9 @@ pub struct POINT {
     pub x: LONG,
     pub y: LONG,
 }
+pub type PPOINT = *mut POINT;
+pub type NPPOINT = *mut POINT;
+pub type LPPOINT = *mut POINT;
 
 #[repr(C)]
 #[derive(Clone, Copy)]

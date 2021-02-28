@@ -61,48 +61,25 @@ impl System for GuiUpdater {
             let renderer = &mut *read_data.get_unique_resource_mut::<Renderer>();
 
             self.widget.update(renderer, &self.input_handler);
-
-            if self.widget.is_hover() {
-                self.widget.set_color(0.0, 1.0, 0.0);
-            } else {
-                self.widget.set_color(0.0, 1.0, 1.0);
-            }
-            /*
-            if let Some(subpanel) = self.panel.get_child_mut(self.subpanel_id) {
-                if subpanel.is_hover() {
-                    subpanel.set_color(0.0, 1.0, 0.0);
-                } else {
-                    subpanel.set_color(0.0, 0.0, 1.0);
-                }
-            }*/
         }
 
         let mut line = 0.0;
-        line = self.write_line(
-            format!(
-                "Mouse [{}, {}]",
-                self.input_handler.get_mouse_data().get_x(),
-                self.input_handler.get_mouse_data().get_y()
-            ),
-            line,
-        );
-        let pos: Vector2f = Vector2f {
+        let mouse_pos = Vector2f {
             x: self.input_handler.get_mouse_data().get_x() as _,
             y: self.input_handler.get_mouse_data().get_y() as _,
-        } * 2.0
-            - [1.0, 1.0].into();
-        line = self.write_line(format!("Screen mouse [{}, {}]", pos.x, pos.y), line);
-
+        };
         self.write_line(
-            format!(
-                "Widget in pixels Pos:[{}, {}] - Size:[{}, {}]",
-                self.widget.get_position().x,
-                self.widget.get_position().y,
-                self.widget.get_size().x,
-                self.widget.get_size().y
-            ),
-            line,
+            format!("Mouse Input [{}, {}]", mouse_pos.x, mouse_pos.y,),
+            &mut line,
         );
+        let pos: Vector2f = self.screen.convert_into_pixels(mouse_pos);
+        self.write_line(format!("Mouse Pixels[{}, {}]", pos.x, pos.y), &mut line);
+        let pos: Vector2f = self.screen.convert_into_screen_space(mouse_pos);
+        self.write_line(
+            format!("Mouse ScreenSpace[{}, {}]", pos.x, pos.y),
+            &mut line,
+        );
+
         true
     }
     fn uninit(&mut self) {
@@ -123,7 +100,7 @@ impl GuiUpdater {
         }
     }
 
-    fn write_line(&self, string: String, mut line: f32) -> f32 {
+    fn write_line(&self, string: String, line: &mut f32) {
         let read_data = self.shared_data.read().unwrap();
         let renderer = &mut *read_data.get_unique_resource_mut::<Renderer>();
 
@@ -133,12 +110,11 @@ impl GuiUpdater {
         renderer.add_text(
             font_id,
             string.as_str(),
-            [-0.9, 0.65 + line].into(),
+            [-0.9, 0.65 + *line].into(),
             1.0,
             [0.0, 0.8, 1.0].into(),
         );
-        line += 0.05;
-        line
+        *line += 0.05;
     }
 
     fn update_mouse_pos(&mut self) {

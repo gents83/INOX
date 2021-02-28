@@ -242,10 +242,10 @@ pub trait WidgetBase: Send + Sync {
     fn translate(&mut self, offset: Vector2f) {
         let screen = self.get_screen();
         let data = self.get_data_mut();
-        let screen_old_pos = screen.convert_into_screen_space(data.state.get_position());
+        let screen_old_pos = screen.convert_from_pixels_into_screen_space(data.state.get_position());
         data.graphics.translate(-screen_old_pos);
         data.state.set_position(data.state.get_position() + offset);
-        let screen_pos = screen.convert_into_screen_space(data.state.get_position());
+        let screen_pos = screen.convert_from_pixels_into_screen_space(data.state.get_position());
         data.graphics.translate(screen_pos);
     }
 
@@ -253,7 +253,7 @@ pub trait WidgetBase: Send + Sync {
         let screen = self.get_screen();
         let data = self.get_data_mut();
         data.state.set_size(data.state.get_size() * scale);
-        let pos = screen.convert_into_screen_space(data.state.get_position());
+        let pos = screen.convert_from_pixels_into_screen_space(data.state.get_position());
         data.graphics.translate(-pos);
         data.graphics.scale(scale);
         data.graphics.translate(pos);
@@ -262,6 +262,12 @@ pub trait WidgetBase: Send + Sync {
     fn manage_input(&mut self, input_handler: &InputHandler) -> bool {
         let screen = self.get_screen();
         let data = self.get_data_mut();
+        if !data.state.is_active {
+            data.graphics
+                .mesh_data
+                .set_vertex_color(data.graphics.style.inactive_color);
+            return false;
+        }
         let mut is_on_children = false;
         data.node.propagate_on_children(|child| {
             is_on_children |= child.is_hover();
@@ -276,18 +282,29 @@ pub trait WidgetBase: Send + Sync {
         });
         data.state.is_hover = data.state.is_inside(mouse);
         if !data.state.is_hover {
+            data.graphics
+                .mesh_data
+                .set_vertex_color(data.graphics.style.active_color);
             return false;
         }
-        let mouse_in_screen_space = screen.convert_into_screen_space(mouse);
+        let mouse_in_screen_space = screen.convert_from_pixels_into_screen_space(mouse);
         if !data.graphics.is_inside(mouse_in_screen_space) {
             data.state.is_hover = false;
             return false;
+        } else {
+            data.graphics
+                .mesh_data
+                .set_vertex_color(data.graphics.style.hover_color);
         }
         if !data.state.is_draggable {
             return false;
         }
         if !input_handler.get_mouse_data().is_dragging() {
             return false;
+        } else {
+            data.graphics
+                .mesh_data
+                .set_vertex_color(data.graphics.style.dragging_color);
         }
         let movement = Vector2f {
             x: input_handler.get_mouse_data().movement_x() as _,
@@ -439,11 +456,6 @@ where
     pub fn get_position(&self) -> Vector2f {
         self.data.state.get_position()
     }
-
-    pub fn get_size(&self) -> Vector2f {
-        self.data.state.get_size()
-    }
-
     pub fn margins(&mut self, top: f32, left: f32, right: f32, bottom: f32) -> &mut Self {
         self.data.state.set_margins(top, left, right, bottom);
         self.update_layout();

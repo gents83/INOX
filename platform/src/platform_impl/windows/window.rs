@@ -14,8 +14,8 @@ impl Window {
         title: String,
         x: u32,
         y: u32,
-        width: u32,
-        height: u32,
+        width: &mut u32,
+        height: &mut u32,
         events: &mut EventsRw,
     ) -> Handle {
         unsafe {
@@ -55,8 +55,8 @@ impl Window {
                 WS_OVERLAPPEDWINDOW | WS_VISIBLE, // dwStyle
                 x as i32,       // Int x
                 y as i32,       // Int y
-                width as i32,   // Int nWidth
-                height as i32,  // Int nHeight
+                *width as i32,  // Int nWidth
+                *height as i32, // Int nHeight
                 ::std::ptr::null_mut(), // hWndParent
                 ::std::ptr::null_mut(), // hMenu
                 win_hinstance,  // hInstance
@@ -64,10 +64,10 @@ impl Window {
             ); // lpParam
 
             SetProcessDpiAwareness(PROCESS_DPI_AWARENESS::PROCESS_PER_MONITOR_DPI_AWARE);
+            let (dpi_x, dpi_y) = Self::compute_dpi();
 
-            let (dpi_x, dpi_y) = Self::create_window_handler();
-            let mut events = events.write().unwrap();
-            events.send_event(WindowEvent::DpiChanged(dpi_x as _, dpi_y as _));
+            *width = *width * 96 / dpi_x as u32;
+            *height = *height * 96 / dpi_y as u32;
 
             Handle {
                 handle_impl: HandleImpl {
@@ -107,12 +107,12 @@ impl Window {
                     || message.message == WM_MBUTTONDBLCLK
                 {
                     let mut mouse_pos = POINT { x: 0, y: 0 };
-                    GetCursorPos(&mut mouse_pos);
-                    ScreenToClient(handle.handle_impl.hwnd, &mut mouse_pos);
+                    GetPhysicalCursorPos(&mut mouse_pos);
+                    PhysicalToLogicalPoint(handle.handle_impl.hwnd, &mut mouse_pos);
                     let mut events = events.write().unwrap();
                     events.send_event(MouseEvent {
-                        x: mouse_pos.x as _,
-                        y: mouse_pos.y as _,
+                        x: mouse_pos.x as f64,
+                        y: mouse_pos.y as f64,
                         button: match message.message {
                             WM_LBUTTONDOWN | WM_LBUTTONUP | WM_LBUTTONDBLCLK => MouseButton::Left,
                             WM_RBUTTONDOWN | WM_RBUTTONUP | WM_RBUTTONDBLCLK => MouseButton::Right,
@@ -162,7 +162,7 @@ impl Window {
         }
     }
 
-    fn create_window_handler() -> (UINT, UINT) {
+    fn compute_dpi() -> (UINT, UINT) {
         unsafe {
             let window = GetForegroundWindow();
             let monitor = MonitorFromWindow(window, MONITOR_DEFAULTTONEAREST);
@@ -202,7 +202,7 @@ impl Window {
                 DefWindowProcW(hwnd, msg, wparam, lparam)
             }
             WM_CREATE => {
-                let (dpi_x, dpi_y) = Self::create_window_handler();
+                let (dpi_x, dpi_y) = Self::compute_dpi();
                 if EVENTS != ::std::ptr::null_mut() {
                     let mut events = (*EVENTS).write().unwrap();
                     events.send_event(WindowEvent::DpiChanged(dpi_x as _, dpi_y as _));

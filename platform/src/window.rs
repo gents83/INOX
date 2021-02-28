@@ -31,12 +31,12 @@ unsafe impl Send for Window {}
 unsafe impl Sync for Window {}
 
 impl Window {
-    pub fn create(title: String, x: u32, y: u32, width: u32, height: u32) -> Self {
+    pub fn create(title: String, x: u32, y: u32, mut width: u32, mut height: u32) -> Self {
         let mut events = Arc::new(RwLock::new(Events::default()));
 
         register_events(&mut events);
 
-        let handle = Window::create_handle(title, x, y, width, height, &mut events);
+        let handle = Window::create_handle(title, x, y, &mut width, &mut height, &mut events);
         Self {
             handle,
             x,
@@ -79,7 +79,6 @@ impl Window {
     pub fn update(&mut self) -> bool {
         self.manage_window_events();
         clear_events(&mut self.events);
-
         Window::internal_update(&self.handle, &mut self.events);
         self.can_continue
     }

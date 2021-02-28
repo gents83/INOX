@@ -20,8 +20,8 @@ impl WidgetTrait for Container {
         data.state.pos = Vector2f::default();
         data.state.size = [100.0, 100.0].into();
         data.state.is_draggable = true;
-        let pos = screen.convert_into_screen_space(data.state.pos);
-        let size = screen.convert_into_screen_space(data.state.size);
+        let pos = screen.convert_from_pixels_into_screen_space(data.state.pos);
+        let size = screen.convert_from_pixels_into_screen_space(data.state.size);
         let mut mesh_data = MeshData::default();
         mesh_data
             .add_quad_default([pos.x, pos.y, size.x, size.y].into())
