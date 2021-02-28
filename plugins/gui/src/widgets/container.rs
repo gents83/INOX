@@ -45,7 +45,8 @@ impl WidgetTrait for Container {
         let data = widget.get_data_mut();
 
         let pos = screen.convert_from_pixels_into_screen_space(data.state.pos);
-        let size = screen.convert_from_pixels(data.state.size) * 2.0;
+        let size =
+            screen.convert_from_pixels_into_screen_space(screen.get_center() + data.state.size);
         let mut mesh_data = MeshData::default();
         mesh_data
             .add_quad_default([0.0, 0.0, size.x, size.y].into())

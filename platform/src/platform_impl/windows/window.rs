@@ -7,6 +7,7 @@ use crate::handle::*;
 use crate::input::*;
 use crate::window::*;
 
+const DEFAULT_CURSOR_SIZE: f64 = 48.0;
 static mut EVENTS: *mut EventsRw = std::ptr::null_mut();
 
 impl Window {
@@ -66,8 +67,8 @@ impl Window {
             SetProcessDpiAwareness(PROCESS_DPI_AWARENESS::PROCESS_PER_MONITOR_DPI_AWARE);
             let (dpi_x, dpi_y) = Self::compute_dpi();
 
-            *width = *width * 96 / dpi_x as u32;
-            *height = *height * 96 / dpi_y as u32;
+            *width = *width * DEFAULT_DPI as u32 / dpi_x as u32;
+            *height = *height * DEFAULT_DPI as u32 / dpi_y as u32;
 
             Handle {
                 handle_impl: HandleImpl {
@@ -112,7 +113,7 @@ impl Window {
                     let mut events = events.write().unwrap();
                     events.send_event(MouseEvent {
                         x: mouse_pos.x as f64,
-                        y: mouse_pos.y as f64,
+                        y: mouse_pos.y as f64 - DEFAULT_CURSOR_SIZE,
                         button: match message.message {
                             WM_LBUTTONDOWN | WM_LBUTTONUP | WM_LBUTTONDBLCLK => MouseButton::Left,
                             WM_RBUTTONDOWN | WM_RBUTTONUP | WM_RBUTTONDBLCLK => MouseButton::Right,

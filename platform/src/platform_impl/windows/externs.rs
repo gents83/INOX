@@ -77,6 +77,7 @@ extern "system" {
     pub fn GetCursorPos(lpPoint: &mut POINT) -> BOOL;
     pub fn GetPhysicalCursorPos(lpPoint: &mut POINT) -> BOOL;
     pub fn PhysicalToLogicalPoint(hWnd: HWND, lpPoint: &mut POINT) -> BOOL;
+    pub fn PhysicalToLogicalPointForPerMonitorDPI(hWnd: HWND, lpPoint: &mut POINT) -> BOOL;
     pub fn GetDeviceCaps(hdc: HDC, nIndex: c_int) -> c_int;
     pub fn GetForegroundWindow() -> HWND;
     pub fn ScreenToClient(hWnd: HWND, lpPoint: &mut POINT);

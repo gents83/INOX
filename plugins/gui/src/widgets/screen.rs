@@ -74,6 +74,9 @@ impl Screen {
         inner.scale_factor = scale_factor;
     }
 
+    pub fn get_center(&self) -> Vector2f {
+        self.inner.borrow().size * 0.5
+    }
     pub fn convert_into_pixels(&self, value: Vector2f) -> Vector2f {
         value * self.inner.borrow().size
     }
