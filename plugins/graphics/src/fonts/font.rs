@@ -164,6 +164,7 @@ impl Font {
                     prev_pos.x + width,
                     prev_pos.y + heigth,
                 ),
+                0.0,
                 g.texture_coord,
                 Some(i * VERTICES_COUNT),
             );

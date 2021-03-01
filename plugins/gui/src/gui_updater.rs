@@ -48,8 +48,8 @@ impl System for GuiUpdater {
         self.screen.init(window);
         self.widget
             .init(renderer)
-            .position([200.0, 200.0].into())
-            .size([500.0, 500.0].into())
+            .position([500.0, 500.0].into())
+            .size([1000.0, 700.0].into())
             .color(0.0, 0.0, 1.0);
     }
     fn run(&mut self) -> bool {

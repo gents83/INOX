@@ -180,9 +180,9 @@ impl MeshData {
         self
     }
 
-    pub fn add_quad_default(&mut self, rect: Vector4f) -> &mut Self {
+    pub fn add_quad_default(&mut self, rect: Vector4f, z: f32) -> &mut Self {
         let tex_coords = [0.0, 0.0, 1.0, 1.0].into();
-        let (vertices, indices) = create_quad(rect, tex_coords, None);
+        let (vertices, indices) = create_quad(rect, z, tex_coords, None);
 
         self.vertices.append(&mut vertices.to_vec());
         self.indices.append(&mut indices.to_vec());
@@ -193,10 +193,11 @@ impl MeshData {
     pub fn add_quad(
         &mut self,
         rect: Vector4f,
+        z: f32,
         tex_coords: Vector4f,
         index_start: Option<usize>,
     ) -> &mut Self {
-        let (vertices, indices) = create_quad(rect, tex_coords, index_start);
+        let (vertices, indices) = create_quad(rect, z, tex_coords, index_start);
 
         self.vertices.append(&mut vertices.to_vec());
         self.indices.append(&mut indices.to_vec());

@@ -51,11 +51,10 @@ impl WidgetTrait for Container {
             screen.convert_from_pixels_into_screen_space(screen.get_center() + data.state.size);
         let mut mesh_data = MeshData::default();
         mesh_data
-            .add_quad_default([0.0, 0.0, size.x, size.y].into())
+            .add_quad_default([0.0, 0.0, size.x, size.y].into(), data.state.layer)
             .set_vertex_color(data.graphics.get_color());
         data.graphics.set_mesh_data(renderer, &screen, mesh_data);
-        data.graphics
-            .translate([pos.x, pos.y, data.state.layer].into());
+        data.graphics.translate([pos.x, pos.y, 0.0].into());
 
         data.graphics.update(renderer);
     }
