@@ -32,6 +32,11 @@ pub const COLOR_GREEN: Vector3f = Vector3f {
     y: 1.0,
     z: 0.0,
 };
+pub const COLOR_YELLOW: Vector3f = Vector3f {
+    x: 1.0,
+    y: 1.0,
+    z: 0.0,
+};
 pub const COLOR_BLUE: Vector3f = Vector3f {
     x: 0.0,
     y: 0.0,

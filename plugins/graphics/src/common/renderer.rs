@@ -121,6 +121,9 @@ impl Renderer {
     }
 
     pub fn add_mesh(&mut self, material_id: MaterialId, mesh_data: &MeshData) -> MeshId {
+        if material_id == INVALID_ID {
+            return INVALID_ID;
+        }
         let material_index = self.get_material_index(material_id);
         if material_index >= 0 {
             let mesh_id = generate_random_uid();
@@ -136,6 +139,9 @@ impl Renderer {
     }
 
     pub fn update_mesh(&mut self, material_id: MaterialId, mesh_id: MeshId, mesh_data: &MeshData) {
+        if mesh_id == INVALID_ID || material_id == INVALID_ID {
+            return;
+        }
         let material_index = self.get_material_index(material_id);
         if material_index >= 0 {
             let mesh_index =

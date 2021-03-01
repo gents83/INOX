@@ -26,7 +26,9 @@ impl WidgetTrait for Container {
         subpanel
             .init(renderer)
             .size([800.0, 100.0].into())
-            .color(0.0, 0.0, 1.0);
+            .border_color(1.0, 1.0, 1.0)
+            .color(0.0, 0.0, 1.0)
+            .stroke(10.0);
         let subpanel_id = widget.add_child(subpanel);
         widget.propagate_on_child(subpanel_id, |subpanel| {
             subpanel.set_margins(10.0, 10.0, 0.0, 0.0);
@@ -51,8 +53,9 @@ impl WidgetTrait for Container {
         mesh_data
             .add_quad_default([0.0, 0.0, size.x, size.y].into())
             .set_vertex_color(data.graphics.get_color());
-        mesh_data.translate([pos.x, pos.y, data.state.layer].into());
-        data.graphics.set_mesh_data(renderer, mesh_data);
+        data.graphics.set_mesh_data(renderer, &screen, mesh_data);
+        data.graphics
+            .translate([pos.x, pos.y, data.state.layer].into());
 
         data.graphics.update(renderer);
     }

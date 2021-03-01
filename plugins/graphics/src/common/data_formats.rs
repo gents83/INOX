@@ -93,6 +93,7 @@ impl Default for MaterialData {
 #[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Clone)]
 #[serde(crate = "nrg_serialize")]
 pub struct MeshData {
+    pub center: Vector3f,
     pub vertices: Vec<VertexData>,
     pub indices: Vec<u32>,
 }
@@ -100,6 +101,7 @@ pub struct MeshData {
 impl Default for MeshData {
     fn default() -> Self {
         Self {
+            center: Vector3f::default(),
             vertices: Vec::new(),
             indices: Vec::new(),
         }
@@ -113,9 +115,35 @@ impl MeshData {
         self
     }
 
+    pub fn compute_center(&mut self) -> &mut Self {
+        let mut min = Vector3f {
+            x: Float::max_value(),
+            y: Float::max_value(),
+            z: Float::max_value(),
+        };
+        let mut max = Vector3f {
+            x: Float::min_value(),
+            y: Float::min_value(),
+            z: Float::min_value(),
+        };
+        for v in self.vertices.iter() {
+            min.x = min.x.min(v.pos.x);
+            min.y = min.y.min(v.pos.y);
+            min.z = min.z.min(v.pos.z);
+            max.x = max.x.max(v.pos.x);
+            max.y = max.y.max(v.pos.y);
+            max.z = max.z.max(v.pos.z);
+        }
+        self.center.x = min.x + (max.x - min.x) * 0.5;
+        self.center.y = min.y + (max.y - min.y) * 0.5;
+        self.center.z = min.z + (max.z - min.z) * 0.5;
+        self
+    }
+
     pub fn set_vertices(&mut self, vertex_data: &[VertexData]) -> &mut Self {
         self.vertices.clear();
         self.vertices.extend_from_slice(vertex_data);
+        self.compute_center();
         self
     }
 
@@ -138,6 +166,7 @@ impl MeshData {
             v.pos.y += movement.y;
             v.pos.z += movement.z;
         });
+        self.compute_center();
         self
     }
 
@@ -147,6 +176,7 @@ impl MeshData {
             v.pos.y *= scale.y;
             v.pos.z *= scale.z;
         });
+        self.compute_center();
         self
     }
 
@@ -156,6 +186,7 @@ impl MeshData {
 
         self.vertices.append(&mut vertices.to_vec());
         self.indices.append(&mut indices.to_vec());
+        self.compute_center();
         self
     }
 
@@ -169,6 +200,7 @@ impl MeshData {
 
         self.vertices.append(&mut vertices.to_vec());
         self.indices.append(&mut indices.to_vec());
+        self.compute_center();
         self
     }
 }

@@ -111,13 +111,28 @@ impl Default for WidgetStyle {
         }
     }
 }
+impl WidgetStyle {
+    pub fn default_border() -> Self {
+        Self {
+            inactive_color: COLOR_DARK_GRAY,
+            active_color: COLOR_WHITE,
+            hover_color: COLOR_YELLOW,
+            dragging_color: COLOR_LIGHT_CYAN,
+        }
+    }
+}
 
 pub struct WidgetGraphics {
     material_id: MaterialId,
     mesh_id: MeshId,
     mesh_data: MeshData,
+    border_mesh_id: MeshId,
+    border_mesh_data: MeshData,
     color: Vector3f,
+    border_color: Vector3f,
+    stroke: f32,
     style: WidgetStyle,
+    border_style: WidgetStyle,
 }
 
 impl Default for WidgetGraphics {
@@ -126,8 +141,13 @@ impl Default for WidgetGraphics {
             material_id: INVALID_ID,
             mesh_id: INVALID_ID,
             mesh_data: MeshData::default(),
+            border_mesh_id: INVALID_ID,
+            border_mesh_data: MeshData::default(),
             color: Vector3f::default(),
+            border_color: Vector3f::default(),
+            stroke: 0.0,
             style: WidgetStyle::default(),
+            border_style: WidgetStyle::default_border(),
         }
     }
 }
@@ -138,8 +158,41 @@ impl WidgetGraphics {
         self.material_id = renderer.add_material(pipeline_id);
         self
     }
-    pub fn set_mesh_data(&mut self, renderer: &mut Renderer, mesh_data: MeshData) -> &mut Self {
+
+    fn compute_border(&mut self, screen: &Screen) -> &mut Self {
+        if self.stroke <= 0.0 {
+            return self;
+        }
+        let center = self.mesh_data.center;
+        self.border_mesh_data = MeshData::default();
+        for v in self.mesh_data.vertices.iter() {
+            let mut dir = (v.pos - center).normalize();
+            let stroke: Vector3f = screen
+                .convert_from_pixels([self.stroke, self.stroke].into())
+                .into();
+            dir.x = dir.x.signum();
+            dir.y = dir.y.signum();
+            let mut border_vertex = v.clone();
+            border_vertex.pos += dir * stroke;
+            border_vertex.color = self.border_color;
+            self.border_mesh_data.vertices.push(border_vertex);
+        }
+        self.border_mesh_data.indices = self.mesh_data.indices.clone();
+        self.border_mesh_data.compute_center();
+        self
+    }
+
+    pub fn set_mesh_data(
+        &mut self,
+        renderer: &mut Renderer,
+        screen: &Screen,
+        mesh_data: MeshData,
+    ) -> &mut Self {
         self.mesh_data = mesh_data;
+        self.compute_border(screen);
+        if self.border_mesh_id == INVALID_ID && self.stroke > 0.0 {
+            self.border_mesh_id = renderer.add_mesh(self.material_id, &self.border_mesh_data);
+        }
         if self.mesh_id == INVALID_ID {
             self.mesh_id = renderer.add_mesh(self.material_id, &self.mesh_data);
         }
@@ -152,8 +205,18 @@ impl WidgetGraphics {
         self.color = rgb;
         self
     }
+    pub fn set_border_color(&mut self, rgb: Vector3f) -> &mut Self {
+        self.border_color = rgb;
+        self
+    }
+    pub fn translate(&mut self, movement: Vector3f) -> &mut Self {
+        self.mesh_data.translate(movement);
+        self.border_mesh_data.translate(movement);
+        self
+    }
     pub fn move_to_layer(&mut self, layer: f32) -> &mut Self {
         self.mesh_data.translate([0.0, 0.0, layer].into());
+        self.border_mesh_data.translate([0.0, 0.0, layer].into());
         self
     }
     pub fn is_inside(&self, pos: Vector2f) -> bool {
@@ -172,14 +235,22 @@ impl WidgetGraphics {
     }
 
     pub fn update(&mut self, renderer: &mut Renderer) -> &mut Self {
+        renderer.update_mesh(
+            self.material_id,
+            self.border_mesh_id,
+            &self.border_mesh_data,
+        );
         renderer.update_mesh(self.material_id, self.mesh_id, &self.mesh_data);
         self
     }
 
     pub fn uninit(&mut self, renderer: &mut Renderer) -> &mut Self {
+        renderer.remove_mesh(self.material_id, self.border_mesh_id);
         renderer.remove_mesh(self.material_id, self.mesh_id);
         renderer.remove_material(self.material_id);
         self.material_id = INVALID_ID;
+        self.border_mesh_id = INVALID_ID;
+        self.border_mesh_data.clear();
         self.mesh_id = INVALID_ID;
         self.mesh_data.clear();
         self
@@ -254,6 +325,8 @@ pub trait WidgetBase: Send + Sync {
         let data = self.get_data_mut();
         if !data.state.is_active {
             data.graphics.set_color(data.graphics.style.inactive_color);
+            data.graphics
+                .set_border_color(data.graphics.border_style.inactive_color);
             return false;
         }
         let mut is_on_children = false;
@@ -263,6 +336,8 @@ pub trait WidgetBase: Send + Sync {
         if is_on_children {
             data.state.is_hover = false;
             data.graphics.set_color(data.graphics.style.active_color);
+            data.graphics
+                .set_border_color(data.graphics.border_style.active_color);
             return true;
         }
         let mouse = screen.convert_into_pixels(Vector2f {
@@ -272,6 +347,8 @@ pub trait WidgetBase: Send + Sync {
         data.state.is_hover = data.state.is_inside(mouse);
         if !data.state.is_hover {
             data.graphics.set_color(data.graphics.style.active_color);
+            data.graphics
+                .set_border_color(data.graphics.border_style.active_color);
             return false;
         }
         let mouse_in_screen_space = screen.convert_from_pixels_into_screen_space(mouse);
@@ -280,6 +357,8 @@ pub trait WidgetBase: Send + Sync {
             return false;
         } else {
             data.graphics.set_color(data.graphics.style.hover_color);
+            data.graphics
+                .set_border_color(data.graphics.border_style.hover_color);
         }
         if !data.state.is_draggable {
             return false;
@@ -288,6 +367,8 @@ pub trait WidgetBase: Send + Sync {
             return false;
         } else {
             data.graphics.set_color(data.graphics.style.dragging_color);
+            data.graphics
+                .set_border_color(data.graphics.border_style.dragging_color);
         }
         let movement = Vector2f {
             x: input_handler.get_mouse_data().movement_x() as _,
@@ -315,10 +396,13 @@ pub trait WidgetBase: Send + Sync {
             w.update_layout();
         });
     }
+    fn set_stroke(&mut self, stroke: f32);
     fn set_color(&mut self, r: f32, g: f32, b: f32);
+    fn set_border_color(&mut self, r: f32, g: f32, b: f32);
     fn set_position(&mut self, pos: Vector2f);
     fn set_size(&mut self, size: Vector2f);
     fn set_margins(&mut self, top: f32, left: f32, right: f32, bottom: f32);
+
     fn set_draggable(&mut self, draggable: bool) {
         self.get_data_mut().state.is_draggable = draggable;
     }
@@ -365,8 +449,14 @@ where
         T::uninit::<T>(self, renderer);
         self.data.graphics.uninit(renderer);
     }
+    fn set_stroke(&mut self, stroke: f32) {
+        self.stroke(stroke);
+    }
     fn set_color(&mut self, r: f32, g: f32, b: f32) {
         self.color(r, g, b);
+    }
+    fn set_border_color(&mut self, r: f32, g: f32, b: f32) {
+        self.border_color(r, g, b);
     }
     fn set_position(&mut self, pos: Vector2f) {
         self.position(pos);
@@ -462,6 +552,14 @@ where
 
     pub fn color(&mut self, r: f32, g: f32, b: f32) -> &mut Self {
         self.data.graphics.set_color([r, g, b].into());
+        self
+    }
+    pub fn border_color(&mut self, r: f32, g: f32, b: f32) -> &mut Self {
+        self.data.graphics.set_border_color([r, g, b].into());
+        self
+    }
+    pub fn stroke(&mut self, stroke: f32) -> &mut Self {
+        self.data.graphics.stroke = stroke;
         self
     }
 }

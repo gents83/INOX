@@ -39,8 +39,9 @@ impl WidgetTrait for Panel {
         mesh_data
             .add_quad_default([0.0, 0.0, size.x, size.y].into())
             .set_vertex_color(data.graphics.get_color());
-        mesh_data.translate([pos.x, pos.y, data.state.layer].into());
-        data.graphics.set_mesh_data(renderer, mesh_data);
+        data.graphics.set_mesh_data(renderer, &screen, mesh_data);
+        data.graphics
+            .translate([pos.x, pos.y, data.state.layer].into());
 
         data.graphics.update(renderer);
     }
