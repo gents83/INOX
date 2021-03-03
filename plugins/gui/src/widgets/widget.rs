@@ -159,7 +159,7 @@ impl WidgetGraphics {
         self
     }
 
-    fn compute_border(&mut self, screen: &Screen) -> &mut Self {
+    fn compute_border(&mut self) -> &mut Self {
         if self.stroke <= 0.0 {
             return self;
         }
@@ -167,13 +167,10 @@ impl WidgetGraphics {
         self.border_mesh_data = MeshData::default();
         for v in self.mesh_data.vertices.iter() {
             let mut dir = (v.pos - center).normalize();
-            let stroke: Vector3f = screen
-                .convert_from_pixels([self.stroke, self.stroke].into())
-                .into();
             dir.x = dir.x.signum();
             dir.y = dir.y.signum();
             let mut border_vertex = v.clone();
-            border_vertex.pos += dir * stroke;
+            border_vertex.pos += dir * self.stroke;
             border_vertex.color = self.border_color;
             self.border_mesh_data.vertices.push(border_vertex);
         }
@@ -185,11 +182,13 @@ impl WidgetGraphics {
     pub fn set_mesh_data(
         &mut self,
         renderer: &mut Renderer,
-        screen: &Screen,
+        clip_rect: Vector4f,
         mesh_data: MeshData,
     ) -> &mut Self {
         self.mesh_data = mesh_data;
-        self.compute_border(screen);
+        self.compute_border();
+        self.mesh_data.clip(clip_rect);
+        self.border_mesh_data.clip(clip_rect);
         if self.border_mesh_id == INVALID_ID && self.stroke > 0.0 {
             self.border_mesh_id = renderer.add_mesh(self.material_id, &self.border_mesh_data);
         }
@@ -207,11 +206,6 @@ impl WidgetGraphics {
     }
     pub fn set_border_color(&mut self, rgb: Vector3f) -> &mut Self {
         self.border_color = rgb;
-        self
-    }
-    pub fn translate(&mut self, movement: Vector3f) -> &mut Self {
-        self.mesh_data.translate(movement);
-        self.border_mesh_data.translate(movement);
         self
     }
     pub fn move_to_layer(&mut self, layer: f32) -> &mut Self {
@@ -305,7 +299,12 @@ pub trait WidgetBase: Send + Sync {
     fn get_screen(&self) -> Screen;
     fn get_data(&self) -> &WidgetData;
     fn get_data_mut(&mut self) -> &mut WidgetData;
-    fn update(&mut self, renderer: &mut Renderer, input_handler: &InputHandler) -> bool;
+    fn update(
+        &mut self,
+        parent_data: Option<&WidgetState>,
+        renderer: &mut Renderer,
+        input_handler: &InputHandler,
+    ) -> bool;
     fn uninit(&mut self, renderer: &mut Renderer);
     fn id(&self) -> UID {
         self.get_data().node.id
@@ -434,12 +433,20 @@ where
     fn get_data_mut(&mut self) -> &mut WidgetData {
         &mut self.data
     }
-    fn update(&mut self, renderer: &mut Renderer, input_handler: &InputHandler) -> bool {
+    fn update(
+        &mut self,
+        parent_data: Option<&WidgetState>,
+        renderer: &mut Renderer,
+        input_handler: &InputHandler,
+    ) -> bool {
         let mut input_managed = false;
         input_managed |= self.manage_input(input_handler);
-        T::update::<T>(self, renderer, input_handler);
+        T::update::<T>(self, parent_data, renderer, input_handler);
+        self.data.graphics.update(renderer);
+
+        let parent_data = Some(&self.data.state);
         self.data.node.propagate_on_children(|w| {
-            input_managed |= w.update(renderer, input_handler);
+            input_managed |= w.update(parent_data, renderer, input_handler);
         });
         input_managed
     }
@@ -476,6 +483,7 @@ pub trait WidgetTrait: Send + Sync {
     fn init<T: WidgetTrait>(widget: &mut Widget<T>, renderer: &mut Renderer);
     fn update<T: WidgetTrait>(
         widget: &mut Widget<T>,
+        parent_data: Option<&WidgetState>,
         renderer: &mut Renderer,
         input_handler: &InputHandler,
     );
@@ -559,7 +567,11 @@ where
         self
     }
     pub fn stroke(&mut self, stroke: f32) -> &mut Self {
-        self.data.graphics.stroke = stroke;
+        let stroke: Vector3f = self
+            .screen
+            .convert_from_pixels([stroke, stroke].into())
+            .into();
+        self.data.graphics.stroke = stroke.x;
         self
     }
 }

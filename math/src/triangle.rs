@@ -3,6 +3,39 @@ use crate::{Float, Vector2};
 const EPSILON: f64 = 0.001;
 const EPSILON_SQUARE: f64 = EPSILON * EPSILON;
 
+pub fn compute_intersection<T>(
+    cp1: Vector2<T>,
+    cp2: Vector2<T>,
+    s: Vector2<T>,
+    e: Vector2<T>,
+) -> Vector2<T>
+where
+    T: Float,
+{
+    let dc = Vector2 {
+        x: cp1.x - cp2.x,
+        y: cp1.y - cp2.y,
+    };
+    let dp = Vector2 {
+        x: s.x - e.x,
+        y: s.y - e.y,
+    };
+    let n1 = cp1.x * cp2.y - cp1.y * cp2.x;
+    let n2 = s.x * e.y - s.y * e.x;
+    let n3 = T::one() / (dc.x * dp.y - dc.y * dp.x);
+    Vector2 {
+        x: (n1 * dp.x - n2 * dc.x) * n3,
+        y: (n1 * dp.y - n2 * dc.y) * n3,
+    }
+}
+
+pub fn is_inside<T>(p: Vector2<T>, cp1: Vector2<T>, cp2: Vector2<T>) -> bool
+where
+    T: Float,
+{
+    (cp2.x - cp1.x) * (p.y - cp1.y) > (cp2.y - cp1.y) * (p.x - cp1.x)
+}
+
 pub fn compute_sign<T>(v1: Vector2<T>, v2: Vector2<T>, x: T, y: T) -> T
 where
     T: Float,

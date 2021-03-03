@@ -48,8 +48,8 @@ impl System for GuiUpdater {
         self.screen.init(window);
         self.widget
             .init(renderer)
-            .position([500.0, 500.0].into())
-            .size([1000.0, 700.0].into())
+            .position([300.0, 300.0].into())
+            .size([800.0, 600.0].into())
             .color(0.0, 0.0, 1.0);
     }
     fn run(&mut self) -> bool {
@@ -60,7 +60,7 @@ impl System for GuiUpdater {
             let read_data = self.shared_data.read().unwrap();
             let renderer = &mut *read_data.get_unique_resource_mut::<Renderer>();
 
-            self.widget.update(renderer, &self.input_handler);
+            self.widget.update(None, renderer, &self.input_handler);
         }
 
         let mut line = 0.0;
