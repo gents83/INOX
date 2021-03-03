@@ -5,7 +5,7 @@ use nrg_math::*;
 use nrg_platform::*;
 use nrg_serialize::*;
 
-const LAYER_OFFSET: f32 = 0.001;
+const LAYER_OFFSET: f32 = 0.1;
 
 pub struct WidgetMargins {
     pub top: f32,

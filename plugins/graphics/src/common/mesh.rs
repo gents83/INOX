@@ -24,6 +24,8 @@ impl Mesh {
         if !self.data.vertices.is_empty() {
             self.inner
                 .create_vertex_buffer(&self.device.inner, self.data.vertices.as_slice());
+        }
+        if !self.data.indices.is_empty() {
             self.inner
                 .create_index_buffer(&self.device.inner, self.data.indices.as_slice());
         }
