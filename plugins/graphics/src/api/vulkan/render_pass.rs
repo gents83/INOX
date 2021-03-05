@@ -1,4 +1,5 @@
 use super::device::*;
+use super::utils::*;
 use crate::common::data_formats::*;
 use std::{cell::RefCell, rc::Rc};
 use vulkan_bindings::*;
@@ -37,11 +38,19 @@ impl RenderPass {
     }
 
     pub fn begin(&self, device: &Device) {
-        let clear_value = VkClearValue {
-            color: VkClearColorValue {
-                float32: [0.0, 0.0, 0.0, 1.0],
+        let clear_value = [
+            VkClearValue {
+                color: VkClearColorValue {
+                    float32: [0.0, 0.0, 0.0, 1.0],
+                },
             },
-        };
+            VkClearValue {
+                depthStencil: VkClearDepthStencilValue {
+                    depth: 1.0,
+                    stencil: 0,
+                },
+            },
+        ];
         let render_pass_begin_info = VkRenderPassBeginInfo {
             sType: VkStructureType_VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
             pNext: ::std::ptr::null_mut(),
@@ -55,8 +64,8 @@ impl RenderPass {
                     .capabilities
                     .currentExtent,
             },
-            clearValueCount: 1,
-            pClearValues: &clear_value,
+            clearValueCount: clear_value.len() as _,
+            pClearValues: clear_value.as_ptr(),
         };
         unsafe {
             vkCmdBeginRenderPass.unwrap()(
@@ -103,6 +112,26 @@ impl RenderPassImmutable {
             layout: VkImageLayout_VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
         };
 
+        let depth_attachment = VkAttachmentDescription {
+            flags: 0,
+            format: find_depth_format(device.get_instance().get_physical_device()),
+            samples: VkSampleCountFlagBits_VK_SAMPLE_COUNT_1_BIT,
+            loadOp: match data.clear {
+                true => VkAttachmentLoadOp_VK_ATTACHMENT_LOAD_OP_CLEAR,
+                _ => VkAttachmentLoadOp_VK_ATTACHMENT_LOAD_OP_LOAD,
+            },
+            storeOp: VkAttachmentStoreOp_VK_ATTACHMENT_STORE_OP_DONT_CARE,
+            stencilLoadOp: VkAttachmentLoadOp_VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+            stencilStoreOp: VkAttachmentStoreOp_VK_ATTACHMENT_STORE_OP_DONT_CARE,
+            initialLayout: VkImageLayout_VK_IMAGE_LAYOUT_UNDEFINED,
+            finalLayout: VkImageLayout_VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+        };
+
+        let depth_attachment_ref = VkAttachmentReference {
+            attachment: 1,
+            layout: VkImageLayout_VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+        };
+
         let subpass1 = VkSubpassDescription {
             flags: 0,
             pipelineBindPoint: VkPipelineBindPoint_VK_PIPELINE_BIND_POINT_GRAPHICS,
@@ -111,7 +140,7 @@ impl RenderPassImmutable {
             colorAttachmentCount: 1,
             pColorAttachments: &color_attachment_ref,
             pResolveAttachments: ::std::ptr::null_mut(),
-            pDepthStencilAttachment: ::std::ptr::null_mut(),
+            pDepthStencilAttachment: &depth_attachment_ref,
             preserveAttachmentCount: 0,
             pPreserveAttachments: ::std::ptr::null_mut(),
         };
@@ -122,11 +151,14 @@ impl RenderPassImmutable {
                 srcSubpass: VK_SUBPASS_EXTERNAL as _,
                 dstSubpass: 0,
                 srcStageMask: VkPipelineStageFlagBits_VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT as _,
-                dstStageMask: VkPipelineStageFlagBits_VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+                dstStageMask: (VkPipelineStageFlagBits_VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+                    | VkPipelineStageFlagBits_VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT)
                     as _,
                 srcAccessMask: VkAccessFlagBits_VK_ACCESS_MEMORY_READ_BIT as _,
                 dstAccessMask: (VkAccessFlagBits_VK_ACCESS_COLOR_ATTACHMENT_READ_BIT
-                    | VkAccessFlagBits_VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
+                    | VkAccessFlagBits_VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT
+                    | VkAccessFlagBits_VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT
+                    | VkAccessFlagBits_VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT)
                     as _,
                 dependencyFlags: VkDependencyFlagBits_VK_DEPENDENCY_BY_REGION_BIT as _,
             },
@@ -134,23 +166,27 @@ impl RenderPassImmutable {
             VkSubpassDependency {
                 srcSubpass: 0,
                 dstSubpass: VK_SUBPASS_EXTERNAL as _,
-                srcStageMask: VkPipelineStageFlagBits_VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+                srcStageMask: (VkPipelineStageFlagBits_VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+                    | VkPipelineStageFlagBits_VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT)
                     as _,
                 dstStageMask: VkPipelineStageFlagBits_VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT as _,
                 srcAccessMask: (VkAccessFlagBits_VK_ACCESS_COLOR_ATTACHMENT_READ_BIT
-                    | VkAccessFlagBits_VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
+                    | VkAccessFlagBits_VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT
+                    | VkAccessFlagBits_VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT
+                    | VkAccessFlagBits_VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT)
                     as _,
                 dstAccessMask: VkAccessFlagBits_VK_ACCESS_MEMORY_READ_BIT as _,
                 dependencyFlags: VkDependencyFlagBits_VK_DEPENDENCY_BY_REGION_BIT as _,
             },
         ];
 
+        let attachments = [color_attachment, depth_attachment];
         let render_pass_create_info = VkRenderPassCreateInfo {
             sType: VkStructureType_VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
             pNext: ::std::ptr::null_mut(),
             flags: 0,
-            attachmentCount: 1,
-            pAttachments: &color_attachment,
+            attachmentCount: attachments.len() as _,
+            pAttachments: attachments.as_ptr(),
             subpassCount: 1,
             pSubpasses: &subpass1,
             dependencyCount: subpass_dependency.len() as _,
@@ -183,13 +219,17 @@ impl RenderPassImmutable {
             .enumerate()
             .take(device.get_images_count())
         {
+            let mut attachments: Vec<VkImageView> = Vec::new();
+            attachments.push(device.get_image_view(i));
+            attachments.push(device.get_depth_image_view(0));
+
             let framebuffer_create_info = VkFramebufferCreateInfo {
                 sType: VkStructureType_VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
                 pNext: ::std::ptr::null_mut(),
                 flags: 0,
                 renderPass: self.render_pass,
-                attachmentCount: 1,
-                pAttachments: &device.get_image_view(i),
+                attachmentCount: attachments.len() as _,
+                pAttachments: attachments.as_ptr(),
                 width: details.capabilities.currentExtent.width,
                 height: details.capabilities.currentExtent.height,
                 layers: 1,

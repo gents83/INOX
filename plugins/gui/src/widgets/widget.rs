@@ -5,7 +5,7 @@ use nrg_math::*;
 use nrg_platform::*;
 use nrg_serialize::*;
 
-const LAYER_OFFSET: f32 = 0.1;
+const LAYER_OFFSET: f32 = 0.001;
 
 pub struct WidgetMargins {
     pub top: f32,
@@ -52,7 +52,7 @@ impl Default for WidgetState {
             is_draggable: false,
             is_hover: false,
             margins: WidgetMargins::default(),
-            layer: 0.0,
+            layer: 1.0 - LAYER_OFFSET,
         }
     }
 }
@@ -171,6 +171,7 @@ impl WidgetGraphics {
             dir.y = dir.y.signum();
             let mut border_vertex = v.clone();
             border_vertex.pos += dir * self.stroke;
+            border_vertex.pos.z += LAYER_OFFSET;
             border_vertex.color = self.border_color;
             self.border_mesh_data.vertices.push(border_vertex);
         }
@@ -187,8 +188,8 @@ impl WidgetGraphics {
     ) -> &mut Self {
         self.mesh_data = mesh_data;
         self.compute_border();
-        self.mesh_data.clip(clip_rect);
-        self.border_mesh_data.clip(clip_rect);
+        self.mesh_data.clip_in_rect(clip_rect);
+        self.border_mesh_data.clip_in_rect(clip_rect);
         if self.border_mesh_id == INVALID_ID && self.stroke > 0.0 {
             self.border_mesh_id = renderer.add_mesh(self.material_id, &self.border_mesh_data);
         }
@@ -210,7 +211,8 @@ impl WidgetGraphics {
     }
     pub fn move_to_layer(&mut self, layer: f32) -> &mut Self {
         self.mesh_data.translate([0.0, 0.0, layer].into());
-        self.border_mesh_data.translate([0.0, 0.0, layer].into());
+        self.border_mesh_data
+            .translate([0.0, 0.0, layer + LAYER_OFFSET].into());
         self
     }
     pub fn is_inside(&self, pos: Vector2f) -> bool {
@@ -391,7 +393,7 @@ pub trait WidgetBase: Send + Sync {
         data.node.propagate_on_children(|w| {
             let widget_pos = pos + w.get_data().state.margins.top_left();
             w.set_position(widget_pos);
-            w.move_to_layer(layer + LAYER_OFFSET);
+            w.move_to_layer(layer - LAYER_OFFSET * 2.0);
             w.update_layout();
         });
     }

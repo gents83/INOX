@@ -159,7 +159,7 @@ impl PipelineImmutable {
             depthClampEnable: VK_FALSE,
             rasterizerDiscardEnable: VK_FALSE,
             polygonMode: VkPolygonMode_VK_POLYGON_MODE_FILL,
-            cullMode: VkCullModeFlagBits_VK_CULL_MODE_NONE as VkCullModeFlags,
+            cullMode: VkCullModeFlagBits_VK_CULL_MODE_BACK_BIT as VkCullModeFlags,
             frontFace: VkFrontFace_VK_FRONT_FACE_CLOCKWISE,
             depthBiasEnable: VK_FALSE,
             depthBiasConstantFactor: 0.0,
@@ -178,6 +178,37 @@ impl PipelineImmutable {
             pSampleMask: ::std::ptr::null_mut(),
             alphaToCoverageEnable: VK_FALSE,
             alphaToOneEnable: VK_FALSE,
+        };
+
+        let depth_stencil = VkPipelineDepthStencilStateCreateInfo {
+            sType: VkStructureType_VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+            pNext: ::std::ptr::null_mut(),
+            flags: 0,
+            depthTestEnable: VK_TRUE,
+            depthWriteEnable: VK_TRUE,
+            depthCompareOp: VkCompareOp_VK_COMPARE_OP_LESS,
+            depthBoundsTestEnable: VK_FALSE,
+            stencilTestEnable: VK_FALSE,
+            front: VkStencilOpState {
+                failOp: VkStencilOp_VK_STENCIL_OP_KEEP,
+                passOp: VkStencilOp_VK_STENCIL_OP_KEEP,
+                depthFailOp: VkStencilOp_VK_STENCIL_OP_KEEP,
+                compareOp: VkCompareOp_VK_COMPARE_OP_NEVER,
+                compareMask: 0,
+                writeMask: 0,
+                reference: 0,
+            },
+            back: VkStencilOpState {
+                failOp: VkStencilOp_VK_STENCIL_OP_KEEP,
+                passOp: VkStencilOp_VK_STENCIL_OP_KEEP,
+                depthFailOp: VkStencilOp_VK_STENCIL_OP_KEEP,
+                compareOp: VkCompareOp_VK_COMPARE_OP_NEVER,
+                compareMask: 0,
+                writeMask: 0,
+                reference: 0,
+            },
+            minDepthBounds: 0.0,
+            maxDepthBounds: 1.0,
         };
 
         let color_blend_attachment = VkPipelineColorBlendAttachmentState {
@@ -242,7 +273,7 @@ impl PipelineImmutable {
             pRasterizationState: &rasterizer,
             pTessellationState: ::std::ptr::null_mut(),
             pMultisampleState: &multisampling,
-            pDepthStencilState: ::std::ptr::null_mut(),
+            pDepthStencilState: &depth_stencil,
             pColorBlendState: &color_blending,
             pDynamicState: ::std::ptr::null_mut(),
             layout: self.pipeline_layout,

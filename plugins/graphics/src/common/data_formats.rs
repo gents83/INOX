@@ -205,68 +205,13 @@ impl MeshData {
         self
     }
 
-    pub fn clip(&mut self, clip_rect: Vector4f) -> &mut Self {
-        if self.indices.len() <= 1 {
-            return self;
+    pub fn clip_in_rect(&mut self, clip_rect: Vector4f) -> &mut Self {
+        for v in self.vertices.iter_mut() {
+            v.pos.x = v.pos.x.max(clip_rect.x);
+            v.pos.x = v.pos.x.min(clip_rect.z);
+            v.pos.y = v.pos.y.max(clip_rect.y);
+            v.pos.y = v.pos.y.min(clip_rect.w);
         }
-        self.clip_to_segment(
-            [clip_rect.x, clip_rect.y].into(),
-            [clip_rect.z, clip_rect.y].into(),
-        )
-        .clip_to_segment(
-            [clip_rect.z, clip_rect.y].into(),
-            [clip_rect.z, clip_rect.w].into(),
-        )
-        .clip_to_segment(
-            [clip_rect.z, clip_rect.w].into(),
-            [clip_rect.x, clip_rect.w].into(),
-        )
-        .clip_to_segment(
-            [clip_rect.x, clip_rect.w].into(),
-            [clip_rect.x, clip_rect.y].into(),
-        )
-    }
-
-    fn clip_to_segment(&mut self, clip1: Vector2f, clip2: Vector2f) -> &mut Self {
-        let vertices = self.vertices.clone();
-        self.vertices.clear();
-        let mut idx = 0;
-        let mut add_previous = true;
-        for i in 1..vertices.len() {
-            let mut skip = false;
-            let mut v1 = vertices[idx].clone();
-            let mut v2 = vertices[i].clone();
-            if !is_inside(v1.pos.into(), clip1, clip2) && !is_inside(v2.pos.into(), clip1, clip2) {
-                skip = true;
-            } else if !is_inside(v1.pos.into(), clip1, clip2)
-                && is_inside(v2.pos.into(), clip1, clip2)
-            {
-                let pos: Vector2f =
-                    compute_intersection(clip1, clip2, v1.pos.into(), v2.pos.into());
-                v1.pos.x = pos.x;
-                v1.pos.y = pos.y;
-                add_previous = true;
-            } else if is_inside(v1.pos.into(), clip1, clip2)
-                && !is_inside(v2.pos.into(), clip1, clip2)
-            {
-                let pos: Vector2f =
-                    compute_intersection(clip1, clip2, v1.pos.into(), v2.pos.into());
-                v2.pos.x = pos.x;
-                v2.pos.y = pos.y;
-            }
-
-            if !skip {
-                if add_previous {
-                    self.vertices.push(v1);
-                }
-                self.vertices.push(v2);
-                add_previous = false;
-            } else {
-                add_previous = true;
-            }
-            idx = i;
-        }
-
         self.compute_center();
         self
     }
