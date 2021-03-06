@@ -25,7 +25,7 @@ impl WidgetTrait for Container {
         let mut subpanel = Widget::<Panel>::new(Panel::default(), screen.clone());
         subpanel
             .init(renderer)
-            .size([500.0, 100.0].into())
+            .size([550., 250.].into())
             .border_color(1., 1., 1., 1.)
             .color(0., 0., 1., 1.)
             .stroke(10.);

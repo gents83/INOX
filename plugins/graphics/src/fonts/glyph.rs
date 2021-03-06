@@ -24,7 +24,7 @@ impl Default for Metrics {
 
 pub struct Glyph {
     pub id: GlyphId,
-    metrics: Metrics,
+    pub metrics: Metrics,
     is_upside_down: bool,
     pub texture_coord: Vector4f,
     pub data: Vec<f32>,
@@ -44,10 +44,12 @@ impl Metrics {
 
 impl Glyph {
     pub fn compute_metrics(id: GlyphId, face: &Face) -> Metrics {
+        let mut bb_width: f32 = 0.0;
         let mut glyph_height: f32 = 0.0;
         let mut vertical_offset: f32 = 0.0;
         if let Some(bb) = face.glyph_bounding_box(id) {
             glyph_height = (bb.y_max - bb.y_min) as _;
+            bb_width = (bb.x_max - bb.x_min) as _;
             vertical_offset = -bb.y_min as f32;
         }
         let horizontal_offset = match face.glyph_hor_side_bearing(id) {
@@ -68,7 +70,7 @@ impl Glyph {
         Metrics {
             width: glyph_width,
             height: glyph_height,
-            horizontal_offset,
+            horizontal_offset: horizontal_offset + bb_width,
             vertical_offset,
         }
     }

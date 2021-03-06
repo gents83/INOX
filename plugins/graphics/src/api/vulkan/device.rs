@@ -1113,8 +1113,6 @@ impl DeviceImmutable {
                     image_data.image_view,
                     ::std::ptr::null_mut(),
                 );
-                vkDestroyImage.unwrap()(self.device, image_data.image, ::std::ptr::null_mut());
-                vkFreeMemory.unwrap()(self.device, image_data.image_memory, ::std::ptr::null_mut());
             }
         }
     }

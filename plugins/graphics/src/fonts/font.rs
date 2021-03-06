@@ -23,6 +23,7 @@ struct TextData {
     position: Vector2f,
     scale: f32,
     color: Vector4f,
+    spacing: Vector2f,
 }
 
 impl Font {
@@ -37,12 +38,14 @@ impl Font {
         position: Vector2f,
         scale: f32,
         color: Vector4f,
+        spacing: Vector2f,
     ) -> MeshData {
         let data = TextData {
             text: String::from(text),
             position,
             scale,
             color,
+            spacing,
         };
         let mesh_data = self.create_mesh_from_text(&data);
         self.text_data.push(data);
@@ -53,8 +56,23 @@ impl Font {
         self.text_data.clear();
     }
 
+    #[inline]
     pub fn get_bitmap(&self) -> &DynamicImage {
         &self.image
+    }
+
+    #[inline]
+    pub fn get_metrics(&self) -> &Metrics {
+        &self.metrics
+    }
+
+    #[inline]
+    pub fn get_glyph_index(&self, character: char) -> usize {
+        Font::get_glyph_index_from_map(&self.char_to_glyph, character)
+    }
+
+    pub fn get_glyph(&self, index: usize) -> &Glyph {
+        &self.glyphs[index]
     }
 }
 
@@ -63,7 +81,6 @@ impl Font {
         let font_data = ::std::fs::read(filepath.as_path()).unwrap();
 
         let face = Face::from_slice(font_data.as_slice(), 0).unwrap();
-
         // Collect all the unique codepoint to glyph mappings.
         let mut char_to_glyph = HashMap::new();
         for subtable in face.character_mapping_subtables() {
@@ -124,9 +141,16 @@ impl Font {
                 break;
             }
 
+            let _offset = (cell_size as f32 * (g.metrics.width / self.metrics.horizontal_offset)
+                - cell_size as f32)
+                * 0.5;
+            let x_pos: i32 = (starting_x as i32 - _offset as i32)
+                .max(0)
+                .min(size as i32 - cell_size as i32);
+
             g.render(|x, y, alpha| {
                 let v = (alpha * 255.0).round() as u8;
-                image.put_pixel(starting_x + x, starting_y + y, Rgba([v; 4]))
+                image.put_pixel(x_pos as u32 + x, starting_y + y, Rgba([v; 4]))
             });
 
             g.texture_coord = [
@@ -152,7 +176,7 @@ impl Font {
         for (i, c) in text_data.text.as_bytes().iter().enumerate() {
             if *c == b'\n' {
                 prev_pos.x = text_data.position.x - width;
-                prev_pos.y += heigth * text_data.scale;
+                prev_pos.y += heigth * text_data.scale + text_data.spacing.y;
             }
 
             let id = self.get_glyph_index(*c as _);
@@ -169,16 +193,11 @@ impl Font {
                 Some(i * VERTICES_COUNT),
             );
 
-            prev_pos.x += width;
+            prev_pos.x += width + text_data.spacing.x;
         }
 
         mesh_data.set_vertex_color(text_data.color);
         mesh_data
-    }
-
-    #[inline]
-    fn get_glyph_index(&self, character: char) -> usize {
-        Font::get_glyph_index_from_map(&self.char_to_glyph, character)
     }
 
     #[inline]

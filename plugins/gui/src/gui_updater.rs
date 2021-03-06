@@ -113,6 +113,7 @@ impl GuiUpdater {
             [-0.9, 0.85 + *line].into(),
             1.,
             [0., 0.8, 1.0, 1.].into(),
+            Vector2f::default(),
         );
         *line += 0.05;
     }

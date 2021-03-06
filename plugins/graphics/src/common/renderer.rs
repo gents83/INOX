@@ -169,6 +169,7 @@ impl Renderer {
         position: Vector2f,
         scale: f32,
         color: Vector4f,
+        spacing: Vector2f,
     ) -> MeshId {
         let font_index = self.get_font_index(font_id);
         if font_index >= 0 {
@@ -178,7 +179,7 @@ impl Renderer {
             let material_index = get_material_index_from_id(&materials, font_instance.material_id);
             if material_index >= 0 {
                 let material_instance = &mut self.materials[material_index as usize];
-                let mesh_data = font.add_text(text, position, scale, color);
+                let mesh_data = font.add_text(text, position, scale, color, spacing);
                 let mesh_id = generate_random_uid();
                 material_instance.meshes.push(MeshInstance {
                     id: mesh_id,
@@ -205,6 +206,15 @@ impl Renderer {
         }
         INVALID_ID
     }
+
+    pub fn get_font(&self, id: FontId) -> Option<&Font> {
+        let index = get_font_index_from_id(&self.fonts, id);
+        if index >= 0 {
+            return Some(&self.fonts[index as usize].font);
+        }
+        None
+    }
+
     pub fn get_default_font_id(&self) -> FontId {
         if let Some(entry) = self.fonts.first() {
             return entry.id;

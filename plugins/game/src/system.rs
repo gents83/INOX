@@ -4,6 +4,7 @@ use super::config::*;
 
 use nrg_core::*;
 use nrg_graphics::*;
+use nrg_math::*;
 use nrg_platform::*;
 
 pub struct MySystem {
@@ -67,6 +68,7 @@ impl System for MySystem {
             [-0.9, -0.9 + line].into(),
             1.,
             [0., 0.8, 1., 1.].into(),
+            Vector2f::default(),
         );
         line += 0.05;
 
@@ -78,6 +80,7 @@ impl System for MySystem {
                 [-0.9, -0.9 + line].into(),
                 1.,
                 [0., 0.8, 1., 1.].into(),
+                Vector2f::default(),
             );
             line += 0.05;
         }

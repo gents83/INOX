@@ -90,6 +90,6 @@ impl Screen {
         position * 2.0 - [1.0, 1.0].into()
     }
     pub fn convert_from_pixels_into_screen_space(&self, position: Vector2f) -> Vector2f {
-        self.convert_from_pixels(position) * 2.0 - [1.0, 1.0].into()
+        self.convert_into_screen_space(self.convert_from_pixels(position))
     }
 }
