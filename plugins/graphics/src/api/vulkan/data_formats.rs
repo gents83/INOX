@@ -20,7 +20,7 @@ impl VertexData {
         });
         attr.push(VkVertexInputAttributeDescription {
             binding: 0,
-            format: VkFormat_VK_FORMAT_R32G32B32_SFLOAT,
+            format: VkFormat_VK_FORMAT_R32G32B32A32_SFLOAT,
             location: 1,
             offset: unsafe { &(*(::std::ptr::null::<VertexData>())).color as *const _ as _ },
         });

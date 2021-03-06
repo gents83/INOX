@@ -95,10 +95,10 @@ impl WidgetState {
 }
 
 pub struct WidgetStyle {
-    inactive_color: Vector3f,
-    active_color: Vector3f,
-    hover_color: Vector3f,
-    dragging_color: Vector3f,
+    inactive_color: Vector4f,
+    active_color: Vector4f,
+    hover_color: Vector4f,
+    dragging_color: Vector4f,
 }
 
 impl Default for WidgetStyle {
@@ -120,6 +120,14 @@ impl WidgetStyle {
             dragging_color: COLOR_LIGHT_CYAN,
         }
     }
+    pub fn default_text() -> Self {
+        Self {
+            inactive_color: COLOR_LIGHT_GRAY,
+            active_color: COLOR_WHITE,
+            hover_color: COLOR_LIGHT_BLUE,
+            dragging_color: COLOR_WHITE,
+        }
+    }
 }
 
 pub struct WidgetGraphics {
@@ -128,8 +136,8 @@ pub struct WidgetGraphics {
     mesh_data: MeshData,
     border_mesh_id: MeshId,
     border_mesh_data: MeshData,
-    color: Vector3f,
-    border_color: Vector3f,
+    color: Vector4f,
+    border_color: Vector4f,
     stroke: f32,
     style: WidgetStyle,
     border_style: WidgetStyle,
@@ -143,8 +151,8 @@ impl Default for WidgetGraphics {
             mesh_data: MeshData::default(),
             border_mesh_id: INVALID_ID,
             border_mesh_data: MeshData::default(),
-            color: Vector3f::default(),
-            border_color: Vector3f::default(),
+            color: Vector4f::default(),
+            border_color: Vector4f::default(),
             stroke: 0.0,
             style: WidgetStyle::default(),
             border_style: WidgetStyle::default_border(),
@@ -156,6 +164,11 @@ impl WidgetGraphics {
     pub fn init(&mut self, renderer: &mut Renderer, pipeline: &str) -> &mut Self {
         let pipeline_id = renderer.get_pipeline_id(pipeline);
         self.material_id = renderer.add_material(pipeline_id);
+        self
+    }
+
+    pub fn set_style(&mut self, style: WidgetStyle) -> &mut Self {
+        self.style = style;
         self
     }
 
@@ -198,14 +211,14 @@ impl WidgetGraphics {
         }
         self
     }
-    pub fn get_color(&self) -> Vector3f {
+    pub fn get_color(&self) -> Vector4f {
         self.color
     }
-    pub fn set_color(&mut self, rgb: Vector3f) -> &mut Self {
+    pub fn set_color(&mut self, rgb: Vector4f) -> &mut Self {
         self.color = rgb;
         self
     }
-    pub fn set_border_color(&mut self, rgb: Vector3f) -> &mut Self {
+    pub fn set_border_color(&mut self, rgb: Vector4f) -> &mut Self {
         self.border_color = rgb;
         self
     }
@@ -398,8 +411,8 @@ pub trait WidgetBase: Send + Sync {
         });
     }
     fn set_stroke(&mut self, stroke: f32);
-    fn set_color(&mut self, r: f32, g: f32, b: f32);
-    fn set_border_color(&mut self, r: f32, g: f32, b: f32);
+    fn set_color(&mut self, r: f32, g: f32, b: f32, a: f32);
+    fn set_border_color(&mut self, r: f32, g: f32, b: f32, a: f32);
     fn set_position(&mut self, pos: Vector2f);
     fn set_size(&mut self, size: Vector2f);
     fn set_margins(&mut self, top: f32, left: f32, right: f32, bottom: f32);
@@ -415,10 +428,13 @@ pub trait WidgetBase: Send + Sync {
     }
 }
 
-pub struct Widget<T> {
+pub struct Widget<T>
+where
+    T: WidgetTrait,
+{
     data: WidgetData,
     screen: Screen,
-    _inner: T,
+    inner: T,
 }
 
 impl<T> WidgetBase for Widget<T>
@@ -443,7 +459,7 @@ where
     ) -> bool {
         let mut input_managed = false;
         input_managed |= self.manage_input(input_handler);
-        T::update::<T>(self, parent_data, renderer, input_handler);
+        T::update(self, parent_data, renderer, input_handler);
         self.data.graphics.update(renderer);
 
         let parent_data = Some(&self.data.state);
@@ -455,17 +471,17 @@ where
 
     fn uninit(&mut self, renderer: &mut Renderer) {
         self.data.node.propagate_on_children(|w| w.uninit(renderer));
-        T::uninit::<T>(self, renderer);
+        T::uninit(self, renderer);
         self.data.graphics.uninit(renderer);
     }
     fn set_stroke(&mut self, stroke: f32) {
         self.stroke(stroke);
     }
-    fn set_color(&mut self, r: f32, g: f32, b: f32) {
-        self.color(r, g, b);
+    fn set_color(&mut self, r: f32, g: f32, b: f32, a: f32) {
+        self.color(r, g, b, a);
     }
-    fn set_border_color(&mut self, r: f32, g: f32, b: f32) {
-        self.border_color(r, g, b);
+    fn set_border_color(&mut self, r: f32, g: f32, b: f32, a: f32) {
+        self.border_color(r, g, b, a);
     }
     fn set_position(&mut self, pos: Vector2f) {
         self.position(pos);
@@ -478,18 +494,18 @@ where
     }
 }
 
-pub trait WidgetTrait: Send + Sync {
+pub trait WidgetTrait: Send + Sync + Sized {
     fn get_type(&self) -> &'static str {
         std::any::type_name::<Self>()
     }
-    fn init<T: WidgetTrait>(widget: &mut Widget<T>, renderer: &mut Renderer);
-    fn update<T: WidgetTrait>(
-        widget: &mut Widget<T>,
+    fn init(widget: &mut Widget<Self>, renderer: &mut Renderer);
+    fn update(
+        widget: &mut Widget<Self>,
         parent_data: Option<&WidgetState>,
         renderer: &mut Renderer,
         input_handler: &InputHandler,
     );
-    fn uninit<T: WidgetTrait>(widget: &mut Widget<T>, renderer: &mut Renderer);
+    fn uninit(widget: &mut Widget<Self>, renderer: &mut Renderer);
 }
 
 impl<T> Widget<T>
@@ -499,13 +515,17 @@ where
     pub fn new(inner: T, screen: Screen) -> Self {
         Self {
             data: WidgetData::default(),
-            _inner: inner,
+            inner,
             screen,
         }
     }
 
+    pub fn get_mut(&mut self) -> &mut T {
+        &mut self.inner
+    }
+
     pub fn init(&mut self, renderer: &mut Renderer) -> &mut Self {
-        T::init::<T>(self, renderer);
+        T::init(self, renderer);
         self
     }
 
@@ -560,12 +580,12 @@ where
         self
     }
 
-    pub fn color(&mut self, r: f32, g: f32, b: f32) -> &mut Self {
-        self.data.graphics.set_color([r, g, b].into());
+    pub fn color(&mut self, r: f32, g: f32, b: f32, a: f32) -> &mut Self {
+        self.data.graphics.set_color([r, g, b, a].into());
         self
     }
-    pub fn border_color(&mut self, r: f32, g: f32, b: f32) -> &mut Self {
-        self.data.graphics.set_border_color([r, g, b].into());
+    pub fn border_color(&mut self, r: f32, g: f32, b: f32, a: f32) -> &mut Self {
+        self.data.graphics.set_border_color([r, g, b, a].into());
         self
     }
     pub fn stroke(&mut self, stroke: f32) -> &mut Self {

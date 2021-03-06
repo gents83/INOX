@@ -22,7 +22,7 @@ struct TextData {
     text: String,
     position: Vector2f,
     scale: f32,
-    color: Vector3f,
+    color: Vector4f,
 }
 
 impl Font {
@@ -36,7 +36,7 @@ impl Font {
         text: &str,
         position: Vector2f,
         scale: f32,
-        color: Vector3f,
+        color: Vector4f,
     ) -> MeshData {
         let data = TextData {
             text: String::from(text),
@@ -91,7 +91,7 @@ impl Font {
         }
 
         let mut font = Self {
-            image: DynamicImage::new_rgb8(
+            image: DynamicImage::new_rgba8(
                 DEFAULT_FONT_TEXTURE_SIZE as _,
                 DEFAULT_FONT_TEXTURE_SIZE as _,
             ),
@@ -151,7 +151,7 @@ impl Font {
 
         for (i, c) in text_data.text.as_bytes().iter().enumerate() {
             if *c == b'\n' {
-                prev_pos.x = text_data.position.x - width * text_data.scale;
+                prev_pos.x = text_data.position.x - width;
                 prev_pos.y += heigth * text_data.scale;
             }
 
@@ -169,7 +169,7 @@ impl Font {
                 Some(i * VERTICES_COUNT),
             );
 
-            prev_pos.x += width * text_data.scale;
+            prev_pos.x += width;
         }
 
         mesh_data.set_vertex_color(text_data.color);

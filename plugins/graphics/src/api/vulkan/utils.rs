@@ -222,10 +222,10 @@ pub fn create_image_view(
         viewType: VkImageViewType_VK_IMAGE_VIEW_TYPE_2D,
         format,
         components: VkComponentMapping {
-            r: VkComponentSwizzle_VK_COMPONENT_SWIZZLE_IDENTITY,
-            g: VkComponentSwizzle_VK_COMPONENT_SWIZZLE_IDENTITY,
-            b: VkComponentSwizzle_VK_COMPONENT_SWIZZLE_IDENTITY,
-            a: VkComponentSwizzle_VK_COMPONENT_SWIZZLE_IDENTITY,
+            r: VkComponentSwizzle_VK_COMPONENT_SWIZZLE_R,
+            g: VkComponentSwizzle_VK_COMPONENT_SWIZZLE_G,
+            b: VkComponentSwizzle_VK_COMPONENT_SWIZZLE_B,
+            a: VkComponentSwizzle_VK_COMPONENT_SWIZZLE_A,
         },
         subresourceRange: VkImageSubresourceRange {
             aspectMask: aspect_flags,

@@ -16,7 +16,7 @@ pub struct UniformData {
 #[serde(crate = "nrg_serialize")]
 pub struct VertexData {
     pub pos: Vector3f,
-    pub color: Vector3f,
+    pub color: Vector4f,
     pub tex_coord: Vector2f,
     pub normal: Vector3f,
 }
@@ -25,7 +25,7 @@ impl Default for VertexData {
     fn default() -> VertexData {
         VertexData {
             pos: [0.0, 0.0, 0.0].into(),
-            color: [1.0, 1.0, 1.0].into(),
+            color: [0.0, 0.0, 0.0, 0.0].into(),
             tex_coord: [0.0, 0.0].into(),
             normal: [0.0, 0.0, 1.0].into(),
         }
@@ -153,7 +153,7 @@ impl MeshData {
         self
     }
 
-    pub fn set_vertex_color(&mut self, color: Vector3f) -> &mut Self {
+    pub fn set_vertex_color(&mut self, color: Vector4f) -> &mut Self {
         for v in self.vertices.iter_mut() {
             v.color = color;
         }

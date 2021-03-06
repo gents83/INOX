@@ -12,7 +12,7 @@ impl Default for Container {
 }
 
 impl WidgetTrait for Container {
-    fn init<T: WidgetTrait>(widget: &mut Widget<T>, renderer: &mut Renderer) {
+    fn init(widget: &mut Widget<Self>, renderer: &mut Renderer) {
         let screen = widget.get_screen();
         let data = widget.get_data_mut();
 
@@ -22,13 +22,22 @@ impl WidgetTrait for Container {
         data.state.size = [100.0, 100.0].into();
         data.state.is_draggable = true;
 
-        let mut subpanel = Widget::<Panel>::new(Panel::default(), screen);
+        let mut subpanel = Widget::<Panel>::new(Panel::default(), screen.clone());
         subpanel
             .init(renderer)
-            .size([800.0, 100.0].into())
-            .border_color(1.0, 1.0, 1.0)
-            .color(0.0, 0.0, 1.0)
-            .stroke(10.0);
+            .size([500.0, 100.0].into())
+            .border_color(1., 1., 1., 1.)
+            .color(0., 0., 1., 1.)
+            .stroke(10.);
+
+        let mut text = Widget::<Text>::new(Text::default(), screen);
+        text.init(renderer)
+            .color(1., 0., 1., 1.)
+            .set_draggable(false);
+        text.get_mut().set_text("Prova");
+
+        subpanel.add_child(text);
+
         let subpanel_id = widget.add_child(subpanel);
         widget.propagate_on_child(subpanel_id, |subpanel| {
             subpanel.set_margins(10.0, 10.0, 0.0, 0.0);
@@ -38,8 +47,8 @@ impl WidgetTrait for Container {
         widget.update_layout();
     }
 
-    fn update<T: WidgetTrait>(
-        widget: &mut Widget<T>,
+    fn update(
+        widget: &mut Widget<Self>,
         parent_data: Option<&WidgetState>,
         renderer: &mut Renderer,
         _input_handler: &InputHandler,
@@ -72,7 +81,7 @@ impl WidgetTrait for Container {
         data.graphics.set_mesh_data(renderer, clip_area, mesh_data);
     }
 
-    fn uninit<T: WidgetTrait>(_widget: &mut Widget<T>, _renderer: &mut Renderer) {}
+    fn uninit(_widget: &mut Widget<Self>, _renderer: &mut Renderer) {}
 
     fn get_type(&self) -> &'static str {
         std::any::type_name::<Self>()

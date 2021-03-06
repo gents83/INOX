@@ -12,7 +12,7 @@ impl Default for Panel {
 }
 
 impl WidgetTrait for Panel {
-    fn init<T: WidgetTrait>(widget: &mut Widget<T>, renderer: &mut Renderer) {
+    fn init(widget: &mut Widget<Self>, renderer: &mut Renderer) {
         let data = widget.get_data_mut();
 
         data.graphics.init(renderer, "UI");
@@ -24,8 +24,8 @@ impl WidgetTrait for Panel {
         widget.update_layout();
     }
 
-    fn update<T: WidgetTrait>(
-        widget: &mut Widget<T>,
+    fn update(
+        widget: &mut Widget<Self>,
         parent_data: Option<&WidgetState>,
         renderer: &mut Renderer,
         _input_handler: &InputHandler,
@@ -58,7 +58,7 @@ impl WidgetTrait for Panel {
         data.graphics.set_mesh_data(renderer, clip_area, mesh_data);
     }
 
-    fn uninit<T: WidgetTrait>(_widget: &mut Widget<T>, _renderer: &mut Renderer) {}
+    fn uninit(_widget: &mut Widget<Self>, _renderer: &mut Renderer) {}
 
     fn get_type(&self) -> &'static str {
         std::any::type_name::<Self>()

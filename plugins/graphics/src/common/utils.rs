@@ -48,25 +48,25 @@ pub fn create_quad(
         VertexData {
             pos: [rect.x, rect.y, z].into(),
             normal: [0., 0., 1.].into(),
-            color: [1., 1., 1.].into(),
+            color: [1., 1., 1., 1.].into(),
             tex_coord: [tex_coords.z, tex_coords.y].into(),
         },
         VertexData {
             pos: [rect.z, rect.y, z].into(),
             normal: [0., 0., 1.].into(),
-            color: [1., 1., 1.].into(),
+            color: [1., 1., 1., 1.].into(),
             tex_coord: [tex_coords.x, tex_coords.y].into(),
         },
         VertexData {
             pos: [rect.z, rect.w, z].into(),
             normal: [0., 0., 1.].into(),
-            color: [1., 1., 1.].into(),
+            color: [1., 1., 1., 1.].into(),
             tex_coord: [tex_coords.x, tex_coords.w].into(),
         },
         VertexData {
             pos: [rect.x, rect.w, z].into(),
             normal: [0., 0., 1.].into(),
-            color: [1., 1., 1.].into(),
+            color: [1., 1., 1., 1.].into(),
             tex_coord: [tex_coords.z, tex_coords.w].into(),
         },
     ];

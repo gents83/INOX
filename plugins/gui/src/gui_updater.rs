@@ -50,7 +50,7 @@ impl System for GuiUpdater {
             .init(renderer)
             .position([300.0, 300.0].into())
             .size([800.0, 600.0].into())
-            .color(0.0, 0.0, 1.0);
+            .color(0., 0., 1., 1.);
     }
     fn run(&mut self) -> bool {
         self.screen.update();
@@ -98,21 +98,21 @@ impl GuiUpdater {
         for pipeline_data in self.config.pipelines.iter() {
             renderer.add_pipeline(pipeline_data);
         }
+
+        let pipeline_id = renderer.get_pipeline_id("Font");
+        renderer.add_font(pipeline_id, self.config.fonts.first().unwrap());
     }
 
     fn write_line(&self, string: String, line: &mut f32) {
         let read_data = self.shared_data.read().unwrap();
         let renderer = &mut *read_data.get_unique_resource_mut::<Renderer>();
 
-        let pipeline_id = renderer.get_pipeline_id("Font");
-        let font_id = renderer.add_font(pipeline_id, self.config.fonts.first().unwrap());
-
         renderer.add_text(
-            font_id,
+            renderer.get_default_font_id(),
             string.as_str(),
             [-0.9, 0.85 + *line].into(),
-            1.0,
-            [0.0, 0.8, 1.0].into(),
+            1.,
+            [0., 0.8, 1.0, 1.].into(),
         );
         *line += 0.05;
     }

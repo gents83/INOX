@@ -168,7 +168,7 @@ impl Renderer {
         text: &str,
         position: Vector2f,
         scale: f32,
-        color: Vector3f,
+        color: Vector4f,
     ) -> MeshId {
         let font_index = self.get_font_index(font_id);
         if font_index >= 0 {
@@ -201,6 +201,12 @@ impl Renderer {
     }
     pub fn get_font_id(&self, name: &str) -> FontId {
         if let Some(entry) = self.fonts.iter().find(|&font| font.name.eq(name)) {
+            return entry.id;
+        }
+        INVALID_ID
+    }
+    pub fn get_default_font_id(&self) -> FontId {
+        if let Some(entry) = self.fonts.first() {
             return entry.id;
         }
         INVALID_ID

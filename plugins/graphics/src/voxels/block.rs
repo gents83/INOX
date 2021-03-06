@@ -151,9 +151,9 @@ impl Block {
                 let shade_corner = !has_edge_a || !has_edge_b || !has_corner;
                 let darkness = 0.5;
                 let color = if shade_corner {
-                    [darkness, darkness, darkness]
+                    [darkness, darkness, darkness, darkness]
                 } else {
-                    [1., 1., 1.]
+                    [1., 1., 1., 1.]
                 };
 
                 let normal = Block::NORMALS[side as usize];

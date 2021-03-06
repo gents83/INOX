@@ -76,9 +76,9 @@
  %inPosition = OpVariable %_ptr_Input_v3float Input
     %float_1 = OpConstant %float 1
 %_ptr_Output_v4float = OpTypePointer Output %v4float
-%_ptr_Output_v3float = OpTypePointer Output %v3float
-  %fragColor = OpVariable %_ptr_Output_v3float Output
-    %inColor = OpVariable %_ptr_Input_v3float Input
+  %fragColor = OpVariable %_ptr_Output_v4float Output
+%_ptr_Input_v4float = OpTypePointer Input %v4float
+    %inColor = OpVariable %_ptr_Input_v4float Input
     %v2float = OpTypeVector %float 2
 %_ptr_Output_v2float = OpTypePointer Output %v2float
 %fragTexCoord = OpVariable %_ptr_Output_v2float Output
@@ -103,7 +103,7 @@
          %40 = OpMatrixTimesVector %v4float %30 %39
          %42 = OpAccessChain %_ptr_Output_v4float %_ %int_0
                OpStore %42 %40
-         %46 = OpLoad %v3float %inColor
+         %46 = OpLoad %v4float %inColor
                OpStore %fragColor %46
          %52 = OpLoad %v2float %inTexCoord
                OpStore %fragTexCoord %52

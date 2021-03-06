@@ -65,8 +65,8 @@ impl System for MySystem {
             self.font_id,
             string.as_str(),
             [-0.9, -0.9 + line].into(),
-            1.0,
-            [0.0, 0.8, 1.0].into(),
+            1.,
+            [0., 0.8, 1., 1.].into(),
         );
         line += 0.05;
 
@@ -76,8 +76,8 @@ impl System for MySystem {
                 self.font_id,
                 string.as_str(),
                 [-0.9, -0.9 + line].into(),
-                1.0,
-                [0.0, 0.8, 1.0].into(),
+                1.,
+                [0., 0.8, 1., 1.].into(),
             );
             line += 0.05;
         }

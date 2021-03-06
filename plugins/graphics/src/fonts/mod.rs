@@ -1,6 +1,7 @@
 pub use crate::fonts::font::*;
+pub use crate::fonts::glyph::*;
 
 pub mod font;
 mod geometry;
-mod glyph;
+pub mod glyph;
 mod raster;
