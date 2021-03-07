@@ -34,7 +34,10 @@ impl WidgetTrait for Container {
         text.init(renderer)
             .color(1., 0., 1., 1.)
             .set_draggable(false);
-        text.get_mut().set_text("Prova");
+        text.get_mut()
+            .set_text("Click on me")
+            .set_horizontal_alignment(HorizontalAlignment::Stretch)
+            .set_vertical_alignment(VerticalAlignment::Stretch);
 
         subpanel.add_child(text);
 
