@@ -1,13 +1,16 @@
 use crate::common::data_formats::*;
 use image::*;
 use nrg_math::*;
+use nrg_platform::*;
 use std::{collections::HashMap, num::NonZeroU16, path::PathBuf};
 use ttf_parser::*;
 
 use super::glyph::*;
 
 const DEFAULT_FONT_COUNT: u8 = 255;
-const DEFAULT_FONT_TEXTURE_SIZE: usize = 1024;
+pub const DEFAULT_FONT_TEXTURE_SIZE: usize = 1024;
+//12pt = 16px = 1em = 100%
+pub const FONT_PT_TO_PIXEL: f32 = DEFAULT_DPI / (72. * 2048.);
 
 pub struct Font {
     image: DynamicImage,
@@ -170,30 +173,26 @@ impl Font {
         const VERTICES_COUNT: usize = 4;
 
         let mut prev_pos = text_data.position;
-        let width = (DEFAULT_FONT_GLYPH_SIZE as f32 / self.metrics.width) * text_data.scale;
-        let heigth = (DEFAULT_FONT_GLYPH_SIZE as f32 / self.metrics.height) * text_data.scale;
+        let size = FONT_PT_TO_PIXEL * text_data.scale;
+        let spacing_x = FONT_PT_TO_PIXEL * text_data.spacing.x;
+        let spacing_y = FONT_PT_TO_PIXEL * text_data.spacing.y;
 
         for (i, c) in text_data.text.as_bytes().iter().enumerate() {
-            if *c == b'\n' {
-                prev_pos.x = text_data.position.x - width;
-                prev_pos.y += heigth * text_data.scale + text_data.spacing.y;
-            }
-
             let id = self.get_glyph_index(*c as _);
             let g = &self.glyphs[id];
             mesh_data.add_quad(
-                Vector4f::new(
-                    prev_pos.x,
-                    prev_pos.y,
-                    prev_pos.x + width,
-                    prev_pos.y + heigth,
-                ),
+                Vector4f::new(prev_pos.x, prev_pos.y, prev_pos.x + size, prev_pos.y + size),
                 0.0,
                 g.texture_coord,
                 Some(i * VERTICES_COUNT),
             );
 
-            prev_pos.x += width + text_data.spacing.x;
+            if *c == b'\n' {
+                prev_pos.x = text_data.position.x;
+                prev_pos.y += size + spacing_y;
+            } else {
+                prev_pos.x += size * 0.5 + spacing_x;
+            }
         }
 
         mesh_data.set_vertex_color(text_data.color);

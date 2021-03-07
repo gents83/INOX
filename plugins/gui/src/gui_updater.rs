@@ -106,14 +106,15 @@ impl GuiUpdater {
     fn write_line(&self, string: String, line: &mut f32) {
         let read_data = self.shared_data.read().unwrap();
         let renderer = &mut *read_data.get_unique_resource_mut::<Renderer>();
+        let window = &*read_data.get_unique_resource::<Window>();
 
         renderer.add_text(
             renderer.get_default_font_id(),
             string.as_str(),
-            [-0.9, 0.85 + *line].into(),
-            1.,
-            [0., 0.8, 1.0, 1.].into(),
-            Vector2f::default(),
+            [-0.9, 0.8 + *line].into(),
+            25. * window.get_scale_factor(),
+            [0., 0.8, 1., 1.].into(),
+            Vector2f { x: 0., y: 0. } * window.get_scale_factor(),
         );
         *line += 0.05;
     }

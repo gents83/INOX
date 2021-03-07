@@ -59,16 +59,16 @@ impl System for MySystem {
             self.mouse = *event;
         }
         let string = format!(
-            "Mouse [{:?}, {:?}], {:?}, , {:?}",
+            "Mouse [{:?}, {:?}], {:?}, {:?}",
             self.mouse.x, self.mouse.y, self.mouse.button, self.mouse.state
         );
         renderer.add_text(
             self.font_id,
             string.as_str(),
             [-0.9, -0.9 + line].into(),
-            1.,
+            25. * window.get_scale_factor(),
             [0., 0.8, 1., 1.].into(),
-            Vector2f::default(),
+            Vector2f { x: 0., y: 0. } * window.get_scale_factor(),
         );
         line += 0.05;
 
@@ -78,9 +78,9 @@ impl System for MySystem {
                 self.font_id,
                 string.as_str(),
                 [-0.9, -0.9 + line].into(),
-                1.,
+                25. * window.get_scale_factor(),
                 [0., 0.8, 1., 1.].into(),
-                Vector2f::default(),
+                Vector2f { x: 0., y: 0. } * window.get_scale_factor(),
             );
             line += 0.05;
         }

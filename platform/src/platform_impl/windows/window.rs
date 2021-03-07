@@ -70,6 +70,9 @@ impl Window {
             *width = *width * DEFAULT_DPI as u32 / dpi_x as u32;
             *height = *height * DEFAULT_DPI as u32 / dpi_y as u32;
 
+            let mut events = events.write().unwrap();
+            events.send_event(WindowEvent::DpiChanged(dpi_x as _, dpi_y as _));
+
             Handle {
                 handle_impl: HandleImpl {
                     hwnd: win_handle,

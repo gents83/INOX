@@ -51,9 +51,10 @@ impl WidgetTrait for Text {
     ) {
         let screen = widget.get_screen();
         let pos = screen.convert_from_pixels_into_screen_space(widget.get_data_mut().state.pos);
-        let size =
+        let converted_scale =
             screen.convert_from_pixels([widget.get_mut().scale, widget.get_mut().scale].into());
-        let spacing = screen.convert_from_pixels(widget.get_mut().spacing);
+        /*let spacing = screen.convert_from_pixels(widget.get_mut().spacing);
+         */
         let color = widget.get_data_mut().graphics.get_color();
 
         widget.get_mut().text = "A\nCIAO".to_string();
@@ -63,19 +64,17 @@ impl WidgetTrait for Text {
         const VERTICES_COUNT: usize = 4;
 
         let mut prev_pos = Vector2f::default();
-        let width = size.x;
-        let heigth = size.y;
+        let scale = 2. * DEFAULT_FONT_GLYPH_SIZE as f32 / DEFAULT_FONT_TEXTURE_SIZE as f32;
+        let size =
+            converted_scale.y * widget.get_mut().scale / DEFAULT_FONT_GLYPH_SIZE as f32 * scale;
+        let spacing_x = scale * widget.get_mut().spacing.x / DEFAULT_FONT_GLYPH_SIZE as f32;
+        let spacing_y = scale * widget.get_mut().spacing.y / DEFAULT_FONT_GLYPH_SIZE as f32;
 
         for (i, c) in widget.get_mut().text.as_bytes().iter().enumerate() {
             let id = font.get_glyph_index(*c as _);
             let g = font.get_glyph(id);
             mesh_data.add_quad(
-                Vector4f::new(
-                    prev_pos.x,
-                    prev_pos.y,
-                    prev_pos.x + width,
-                    prev_pos.y + heigth,
-                ),
+                Vector4f::new(prev_pos.x, prev_pos.y, prev_pos.x + size, prev_pos.y + size),
                 0.0,
                 g.texture_coord,
                 Some(i * VERTICES_COUNT),
@@ -83,9 +82,9 @@ impl WidgetTrait for Text {
 
             if *c == b'\n' {
                 prev_pos.x = 0.;
-                prev_pos.y += heigth + spacing.y;
+                prev_pos.y += size + spacing_y;
             } else {
-                prev_pos.x += width + spacing.x;
+                prev_pos.x += size + spacing_x;
             }
         }
 
