@@ -58,12 +58,12 @@ impl Screen {
             let events = inner.window_events.read().unwrap();
             let window_events = events.read_events::<WindowEvent>();
             for event in window_events.iter() {
-                match event {
-                    WindowEvent::SizeChanged(width, height) => {
-                        size.x = *width as _;
-                        size.y = *height as _;
+                match event.event {
+                    SystemEvent::SizeChanged(width, height) => {
+                        size.x = width as _;
+                        size.y = height as _;
                     }
-                    WindowEvent::DpiChanged(x, _y) => {
+                    SystemEvent::DpiChanged(x, _y) => {
                         scale_factor = x / DEFAULT_DPI;
                     }
                     _ => {}
@@ -79,6 +79,9 @@ impl Screen {
     }
     pub fn get_center(&self) -> Vector2f {
         self.get_size() * 0.5
+    }
+    pub fn get_scale_factor(&self) -> f32 {
+        self.inner.borrow().scale_factor
     }
     pub fn convert_into_pixels(&self, value: Vector2f) -> Vector2f {
         value * self.inner.borrow().size

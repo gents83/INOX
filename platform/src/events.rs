@@ -4,7 +4,9 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-pub trait Event: Send + Sync {}
+pub trait Event: Send + Sync {
+    fn get_frame(&self) -> u64;
+}
 
 pub struct Events {
     list: HashMap<TypeId, Vec<Arc<dyn Event>>>,
@@ -56,11 +58,14 @@ impl Events {
             .collect()
     }
 
-    pub fn clear_events<T>(&mut self)
+    pub fn clear_events<T>(&mut self, frame_count: u64)
     where
         T: Event + 'static,
     {
-        self.list.get_mut(&TypeId::of::<T>()).unwrap().clear();
+        self.list
+            .get_mut(&TypeId::of::<T>())
+            .unwrap()
+            .retain(|el| el.get_frame() == frame_count);
     }
 }
 

@@ -7,14 +7,24 @@ use crate::input::*;
 pub const DEFAULT_DPI: f32 = 96.0;
 
 #[derive(Debug, PartialOrd, PartialEq, Clone, Copy)]
-pub enum WindowEvent {
+pub enum SystemEvent {
     None,
     DpiChanged(f32, f32),
     SizeChanged(u32, u32),
     PosChanged(u32, u32),
     Close,
 }
-impl Event for WindowEvent {}
+#[derive(Debug, PartialOrd, PartialEq, Clone, Copy)]
+pub struct WindowEvent {
+    pub frame: u64,
+    pub event: SystemEvent,
+}
+
+impl Event for WindowEvent {
+    fn get_frame(&self) -> u64 {
+        self.frame
+    }
+}
 
 pub struct Window {
     handle: Handle,
@@ -76,10 +86,10 @@ impl Window {
         self.events.clone()
     }
 
-    pub fn update(&mut self) -> bool {
+    pub fn update(&mut self, frame_count: u64) -> bool {
         self.manage_window_events();
-        clear_events(&mut self.events);
-        Window::internal_update(&self.handle, &mut self.events);
+        clear_events(&mut self.events, frame_count);
+        Window::internal_update(&self.handle, &mut self.events, frame_count);
         self.can_continue
     }
 
@@ -87,22 +97,22 @@ impl Window {
         let events = self.events.read().unwrap();
         let window_events = events.read_events::<WindowEvent>();
         for event in window_events.iter() {
-            match event {
-                WindowEvent::DpiChanged(x, _y) => {
+            match event.event {
+                SystemEvent::DpiChanged(x, _y) => {
                     self.scale_factor = x / DEFAULT_DPI;
                 }
-                WindowEvent::SizeChanged(width, height) => {
-                    self.width = *width;
-                    self.height = *height;
+                SystemEvent::SizeChanged(width, height) => {
+                    self.width = width;
+                    self.height = height;
                 }
-                WindowEvent::PosChanged(x, y) => {
-                    self.x = *x;
-                    self.y = *y;
+                SystemEvent::PosChanged(x, y) => {
+                    self.x = x;
+                    self.y = y;
                 }
-                WindowEvent::Close => {
+                SystemEvent::Close => {
                     self.can_continue = false;
                 }
-                WindowEvent::None => {}
+                SystemEvent::None => {}
             }
         }
     }
@@ -115,9 +125,9 @@ fn register_events(events: &mut EventsRw) {
     events.register_event::<MouseEvent>();
 }
 
-fn clear_events(events: &mut EventsRw) {
+fn clear_events(events: &mut EventsRw, frame_count: u64) {
     let mut events = events.write().unwrap();
-    events.clear_events::<WindowEvent>();
-    events.clear_events::<KeyEvent>();
-    events.clear_events::<MouseEvent>();
+    events.clear_events::<WindowEvent>(frame_count);
+    events.clear_events::<KeyEvent>(frame_count);
+    events.clear_events::<MouseEvent>(frame_count);
 }

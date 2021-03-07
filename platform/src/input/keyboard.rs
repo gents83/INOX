@@ -708,14 +708,20 @@ pub enum Key {
 
 #[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone, Copy)]
 pub struct KeyEvent {
+    pub frame: u64,
     pub code: Key,
     pub state: InputState,
 }
-impl Event for KeyEvent {}
+impl Event for KeyEvent {
+    fn get_frame(&self) -> u64 {
+        self.frame
+    }
+}
 
 impl Default for KeyEvent {
     fn default() -> Self {
         Self {
+            frame: 0,
             code: Key::Unidentified,
             state: InputState::Invalid,
         }

@@ -1,4 +1,4 @@
-use crate::{events::*, WindowEvent};
+use crate::{events::*, SystemEvent, WindowEvent};
 
 use super::mouse::*;
 
@@ -39,9 +39,9 @@ impl InputHandler {
         let events = events.read().unwrap();
         let window_events = events.read_events::<WindowEvent>();
         for event in window_events.iter() {
-            if let WindowEvent::SizeChanged(width, height) = event {
-                self.input_area_width = *width as _;
-                self.input_area_height = *height as _;
+            if let SystemEvent::SizeChanged(width, height) = event.event {
+                self.input_area_width = width as _;
+                self.input_area_height = height as _;
             }
         }
     }

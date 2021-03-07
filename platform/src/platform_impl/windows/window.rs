@@ -9,6 +9,7 @@ use crate::window::*;
 
 const DEFAULT_CURSOR_SIZE: f64 = 48.0;
 static mut EVENTS: *mut EventsRw = std::ptr::null_mut();
+static mut FRAME_COUNT: u64 = 0;
 
 impl Window {
     pub fn create_handle(
@@ -71,7 +72,10 @@ impl Window {
             *height = *height * DEFAULT_DPI as u32 / dpi_y as u32;
 
             let mut events = events.write().unwrap();
-            events.send_event(WindowEvent::DpiChanged(dpi_x as _, dpi_y as _));
+            events.send_event(WindowEvent {
+                frame: 0,
+                event: SystemEvent::DpiChanged(dpi_x as _, dpi_y as _),
+            });
 
             Handle {
                 handle_impl: HandleImpl {
@@ -82,9 +86,10 @@ impl Window {
         }
     }
 
-    pub fn internal_update(handle: &Handle, events: &mut EventsRw) -> bool {
+    pub fn internal_update(handle: &Handle, events: &mut EventsRw, frame: u64) -> bool {
         unsafe {
             EVENTS = events as *mut EventsRw;
+            FRAME_COUNT = frame;
 
             let mut can_continue = true;
             let mut message: MSG = ::std::mem::MaybeUninit::zeroed().assume_init();
@@ -115,6 +120,7 @@ impl Window {
                     PhysicalToLogicalPoint(handle.handle_impl.hwnd, &mut mouse_pos);
                     let mut events = events.write().unwrap();
                     events.send_event(MouseEvent {
+                        frame,
                         x: mouse_pos.x as f64,
                         y: mouse_pos.y as f64 - DEFAULT_CURSOR_SIZE,
                         button: match message.message {
@@ -140,6 +146,7 @@ impl Window {
                     }
                     let mut events = events.write().unwrap();
                     events.send_event(KeyEvent {
+                        frame,
                         code: key,
                         state: match message.message {
                             WM_KEYDOWN => {
@@ -201,7 +208,10 @@ impl Window {
                 );
                 if EVENTS != ::std::ptr::null_mut() {
                     let mut events = (*EVENTS).write().unwrap();
-                    events.send_event(WindowEvent::DpiChanged(dpi_x as _, dpi_y as _));
+                    events.send_event(WindowEvent {
+                        frame: FRAME_COUNT,
+                        event: SystemEvent::DpiChanged(dpi_x as _, dpi_y as _),
+                    });
                 }
                 DefWindowProcW(hwnd, msg, wparam, lparam)
             }
@@ -209,7 +219,10 @@ impl Window {
                 let (dpi_x, dpi_y) = Self::compute_dpi();
                 if EVENTS != ::std::ptr::null_mut() {
                     let mut events = (*EVENTS).write().unwrap();
-                    events.send_event(WindowEvent::DpiChanged(dpi_x as _, dpi_y as _));
+                    events.send_event(WindowEvent {
+                        frame: FRAME_COUNT,
+                        event: SystemEvent::DpiChanged(dpi_x as _, dpi_y as _),
+                    });
                 }
                 DefWindowProcW(hwnd, msg, wparam, lparam)
             }
@@ -218,7 +231,10 @@ impl Window {
                 let height = HIWORD(lparam as _);
                 if EVENTS != ::std::ptr::null_mut() {
                     let mut events = (*EVENTS).write().unwrap();
-                    events.send_event(WindowEvent::SizeChanged(width as _, height as _));
+                    events.send_event(WindowEvent {
+                        frame: FRAME_COUNT,
+                        event: SystemEvent::SizeChanged(width as _, height as _),
+                    });
                 }
                 DefWindowProcW(hwnd, msg, wparam, lparam)
             }
@@ -227,14 +243,20 @@ impl Window {
                 let y = HIWORD(lparam as _);
                 if EVENTS != ::std::ptr::null_mut() {
                     let mut events = (*EVENTS).write().unwrap();
-                    events.send_event(WindowEvent::PosChanged(x as _, y as _));
+                    events.send_event(WindowEvent {
+                        frame: FRAME_COUNT,
+                        event: SystemEvent::PosChanged(x as _, y as _),
+                    });
                 }
                 DefWindowProcW(hwnd, msg, wparam, lparam)
             }
             WM_DESTROY | WM_CLOSE | WM_QUIT | WM_NCDESTROY => {
                 if EVENTS != ::std::ptr::null_mut() {
                     let mut events = (*EVENTS).write().unwrap();
-                    events.send_event(WindowEvent::Close);
+                    events.send_event(WindowEvent {
+                        frame: FRAME_COUNT,
+                        event: SystemEvent::Close,
+                    });
                 }
                 PostQuitMessage(0);
                 0

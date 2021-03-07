@@ -21,12 +21,12 @@ pub struct Font {
 }
 
 #[derive(Clone)]
-struct TextData {
-    text: String,
-    position: Vector2f,
-    scale: f32,
-    color: Vector4f,
-    spacing: Vector2f,
+pub struct TextData {
+    pub text: String,
+    pub position: Vector2f,
+    pub scale: f32,
+    pub color: Vector4f,
+    pub spacing: Vector2f,
 }
 
 impl Font {
@@ -76,6 +76,37 @@ impl Font {
 
     pub fn get_glyph(&self, index: usize) -> &Glyph {
         &self.glyphs[index]
+    }
+
+    pub fn create_mesh_from_text(&self, text_data: &TextData) -> MeshData {
+        let mut mesh_data = MeshData::default();
+        const VERTICES_COUNT: usize = 4;
+
+        let mut prev_pos = text_data.position;
+        let size = FONT_PT_TO_PIXEL * text_data.scale;
+        let spacing_x = FONT_PT_TO_PIXEL * text_data.spacing.x;
+        let spacing_y = FONT_PT_TO_PIXEL * text_data.spacing.y;
+
+        for (i, c) in text_data.text.as_bytes().iter().enumerate() {
+            let id = self.get_glyph_index(*c as _);
+            let g = &self.glyphs[id];
+            mesh_data.add_quad(
+                Vector4f::new(prev_pos.x, prev_pos.y, prev_pos.x + size, prev_pos.y + size),
+                0.0,
+                g.texture_coord,
+                Some(i * VERTICES_COUNT),
+            );
+
+            if *c == b'\n' {
+                prev_pos.x = text_data.position.x;
+                prev_pos.y += size + spacing_y;
+            } else {
+                prev_pos.x += size * 0.5 + spacing_x;
+            }
+        }
+
+        mesh_data.set_vertex_color(text_data.color);
+        mesh_data
     }
 }
 
@@ -166,37 +197,6 @@ impl Font {
 
             column += 1;
         }
-    }
-
-    fn create_mesh_from_text(&mut self, text_data: &TextData) -> MeshData {
-        let mut mesh_data = MeshData::default();
-        const VERTICES_COUNT: usize = 4;
-
-        let mut prev_pos = text_data.position;
-        let size = FONT_PT_TO_PIXEL * text_data.scale;
-        let spacing_x = FONT_PT_TO_PIXEL * text_data.spacing.x;
-        let spacing_y = FONT_PT_TO_PIXEL * text_data.spacing.y;
-
-        for (i, c) in text_data.text.as_bytes().iter().enumerate() {
-            let id = self.get_glyph_index(*c as _);
-            let g = &self.glyphs[id];
-            mesh_data.add_quad(
-                Vector4f::new(prev_pos.x, prev_pos.y, prev_pos.x + size, prev_pos.y + size),
-                0.0,
-                g.texture_coord,
-                Some(i * VERTICES_COUNT),
-            );
-
-            if *c == b'\n' {
-                prev_pos.x = text_data.position.x;
-                prev_pos.y += size + spacing_y;
-            } else {
-                prev_pos.x += size * 0.5 + spacing_x;
-            }
-        }
-
-        mesh_data.set_vertex_color(text_data.color);
-        mesh_data
     }
 
     #[inline]

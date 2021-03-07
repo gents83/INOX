@@ -21,16 +21,22 @@ pub enum MouseState {
 
 #[derive(Debug, PartialOrd, PartialEq, Clone, Copy)]
 pub struct MouseEvent {
+    pub frame: u64,
     pub x: f64,
     pub y: f64,
     pub button: MouseButton,
     pub state: MouseState,
 }
-impl Event for MouseEvent {}
+impl Event for MouseEvent {
+    fn get_frame(&self) -> u64 {
+        self.frame
+    }
+}
 
 impl Default for MouseEvent {
     fn default() -> Self {
         Self {
+            frame: 0,
             x: 0.0,
             y: 0.0,
             button: MouseButton::None,

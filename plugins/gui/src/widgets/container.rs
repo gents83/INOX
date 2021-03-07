@@ -29,7 +29,7 @@ impl WidgetTrait for Container {
             .border_color(1., 1., 1., 1.)
             .color(0., 0., 1., 1.)
             .stroke(10.);
-        /*
+
         let mut text = Widget::<Text>::new(Text::default(), screen);
         text.init(renderer)
             .color(1., 0., 1., 1.)
@@ -37,7 +37,7 @@ impl WidgetTrait for Container {
         text.get_mut().set_text("Prova");
 
         subpanel.add_child(text);
-        */
+
         let subpanel_id = widget.add_child(subpanel);
         widget.propagate_on_child(subpanel_id, |subpanel| {
             subpanel.set_margins(10.0, 10.0, 0.0, 0.0);

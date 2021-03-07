@@ -53,44 +53,20 @@ impl WidgetTrait for Text {
         let pos = screen.convert_from_pixels_into_screen_space(widget.get_data_mut().state.pos);
         let converted_scale =
             screen.convert_from_pixels([widget.get_mut().scale, widget.get_mut().scale].into());
-        /*let spacing = screen.convert_from_pixels(widget.get_mut().spacing);
-         */
-        let color = widget.get_data_mut().graphics.get_color();
 
-        widget.get_mut().text = "A\nCIAO".to_string();
+        widget.get_mut().text = "Click me!".to_string();
 
         let font = renderer.get_font(widget.get_mut().font_id).unwrap();
-        let mut mesh_data = MeshData::default();
-        const VERTICES_COUNT: usize = 4;
-
-        let mut prev_pos = Vector2f::default();
-        let scale = 2. * DEFAULT_FONT_GLYPH_SIZE as f32 / DEFAULT_FONT_TEXTURE_SIZE as f32;
-        let size =
-            converted_scale.y * widget.get_mut().scale / DEFAULT_FONT_GLYPH_SIZE as f32 * scale;
-        let spacing_x = scale * widget.get_mut().spacing.x / DEFAULT_FONT_GLYPH_SIZE as f32;
-        let spacing_y = scale * widget.get_mut().spacing.y / DEFAULT_FONT_GLYPH_SIZE as f32;
-
-        for (i, c) in widget.get_mut().text.as_bytes().iter().enumerate() {
-            let id = font.get_glyph_index(*c as _);
-            let g = font.get_glyph(id);
-            mesh_data.add_quad(
-                Vector4f::new(prev_pos.x, prev_pos.y, prev_pos.x + size, prev_pos.y + size),
-                0.0,
-                g.texture_coord,
-                Some(i * VERTICES_COUNT),
-            );
-
-            if *c == b'\n' {
-                prev_pos.x = 0.;
-                prev_pos.y += size + spacing_y;
-            } else {
-                prev_pos.x += size + spacing_x;
-            }
-        }
-
-        mesh_data.set_vertex_color(color);
+        let text_data = TextData {
+            text: widget.get_mut().text.clone(),
+            position: Vector2f::default(),
+            color: widget.get_data_mut().graphics.get_color(),
+            spacing: widget.get_mut().spacing,
+            scale: 200. * screen.get_scale_factor(),
+        };
+        let mut mesh_data = font.create_mesh_from_text(&text_data);
         mesh_data.translate([pos.x, pos.y, 0.0].into());
-
+        /*
         let clip_area: Vector4f = if let Some(parent_state) = parent_data {
             let parent_pos = screen.convert_from_pixels_into_screen_space(parent_state.pos);
             let parent_size = screen
@@ -105,10 +81,11 @@ impl WidgetTrait for Text {
         } else {
             [-1.0, -1.0, 1.0, 1.0].into()
         };
-        widget
-            .get_data_mut()
-            .graphics
-            .set_mesh_data(renderer, clip_area, mesh_data);
+        widget.get_data_mut().graphics.set_mesh_data(
+            renderer,
+            [-1.0, -1.0, 1.0, 1.0].into(),
+            mesh_data,
+        );*/
     }
 
     fn uninit(_widget: &mut Widget<Self>, _renderer: &mut Renderer) {}
