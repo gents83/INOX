@@ -36,8 +36,8 @@ impl WidgetTrait for Container {
             .set_draggable(false);
         text.get_mut()
             .set_text("Click on me")
-            .set_horizontal_alignment(HorizontalAlignment::Stretch)
-            .set_vertical_alignment(VerticalAlignment::Stretch);
+            .set_horizontal_alignment(HorizontalAlignment::Center)
+            .set_vertical_alignment(VerticalAlignment::Top);
 
         subpanel.add_child(text);
 
