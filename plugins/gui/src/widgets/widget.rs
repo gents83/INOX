@@ -37,11 +37,19 @@ pub trait WidgetBase: Send + Sync {
     fn translate(&mut self, offset: Vector2f) {
         let data = self.get_data_mut();
         data.state.set_position(data.state.get_position() + offset);
+
+        data.node.propagate_on_children(|w| {
+            w.translate(offset);
+        });
     }
 
     fn scale(&mut self, scale: Vector2f) {
         let data = self.get_data_mut();
         data.state.set_size(data.state.get_size() * scale);
+
+        data.node.propagate_on_children(|w| {
+            w.scale(scale);
+        });
     }
 
     fn manage_input(&mut self, input_handler: &InputHandler) -> bool {
@@ -121,9 +129,7 @@ pub trait WidgetBase: Send + Sync {
         let clip_area: Vector4f = if let Some(parent_state) = parent_data {
             let parent_pos =
                 screen.convert_from_pixels_into_screen_space(parent_state.get_position());
-            let parent_size = screen.convert_from_pixels_into_screen_space(
-                screen.get_center() + parent_state.get_size(),
-            );
+            let parent_size = screen.convert_size_from_pixels(parent_state.get_size());
             [
                 parent_pos.x,
                 parent_pos.y,
@@ -185,20 +191,13 @@ pub trait WidgetBase: Send + Sync {
             .set_size(screen.convert_size_into_pixels(size));
     }
 
-    fn update_layout(&mut self, parent_data: Option<&WidgetState>) {
-        let clip_area = self.compute_clip_area(parent_data);
-        self.manage_alignment(clip_area);
-
+    fn update_layers(&mut self) {
         let data = self.get_data_mut();
-        let pos = data.state.get_position();
         let layer = data.state.get_layer();
-        let parent_data = Some(&data.state);
 
         data.node.propagate_on_children(|w| {
-            let widget_pos = pos + w.get_data().state.get_margins().top_left();
-            w.set_position(widget_pos);
             w.move_to_layer(layer - LAYER_OFFSET * 2.0);
-            w.update_layout(parent_data);
+            w.update_layers();
         });
     }
     fn set_stroke(&mut self, stroke: f32);
@@ -251,12 +250,13 @@ where
         let mut input_managed = false;
         input_managed |= self.manage_input(input_handler);
 
+        let clip_area = self.compute_clip_area(parent_data);
         if !self.data.state.is_dragging() {
-            self.update_layout(parent_data);
+            self.manage_alignment(clip_area);
         }
 
         T::update(self, parent_data, renderer, input_handler);
-        self.data.graphics.update(renderer);
+        self.data.graphics.update(renderer, clip_area);
 
         let parent_data = Some(&self.data.state);
         self.data.node.propagate_on_children(|w| {
@@ -338,6 +338,7 @@ where
         widget.data.state.set_margins(margins);
         widget.set_position([0.0, 0.0].into());
         self.data.node.add_child(widget);
+        self.update_layers();
         id
     }
 

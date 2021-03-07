@@ -73,22 +73,9 @@ impl WidgetGraphics {
         self
     }
 
-    pub fn set_mesh_data(
-        &mut self,
-        renderer: &mut Renderer,
-        clip_rect: Vector4f,
-        mesh_data: MeshData,
-    ) -> &mut Self {
+    pub fn set_mesh_data(&mut self, mesh_data: MeshData) -> &mut Self {
         self.mesh_data = mesh_data;
         self.compute_border();
-        self.mesh_data.clip_in_rect(clip_rect);
-        self.border_mesh_data.clip_in_rect(clip_rect);
-        if self.border_mesh_id == INVALID_ID && self.stroke > 0.0 {
-            self.border_mesh_id = renderer.add_mesh(self.material_id, &self.border_mesh_data);
-        }
-        if self.mesh_id == INVALID_ID {
-            self.mesh_id = renderer.add_mesh(self.material_id, &self.mesh_data);
-        }
         self
     }
     pub fn get_color(&self) -> Vector4f {
@@ -127,13 +114,24 @@ impl WidgetGraphics {
         false
     }
 
-    pub fn update(&mut self, renderer: &mut Renderer) -> &mut Self {
-        renderer.update_mesh(
-            self.material_id,
-            self.border_mesh_id,
-            &self.border_mesh_data,
-        );
-        renderer.update_mesh(self.material_id, self.mesh_id, &self.mesh_data);
+    pub fn update(&mut self, renderer: &mut Renderer, clip_area: Vector4f) -> &mut Self {
+        self.mesh_data.clip_in_rect(clip_area);
+        self.border_mesh_data.clip_in_rect(clip_area);
+
+        if self.border_mesh_id == INVALID_ID && self.stroke > 0.0 {
+            self.border_mesh_id = renderer.add_mesh(self.material_id, &self.border_mesh_data);
+        } else {
+            renderer.update_mesh(
+                self.material_id,
+                self.border_mesh_id,
+                &self.border_mesh_data,
+            );
+        }
+        if self.mesh_id == INVALID_ID {
+            self.mesh_id = renderer.add_mesh(self.material_id, &self.mesh_data);
+        } else {
+            renderer.update_mesh(self.material_id, self.mesh_id, &self.mesh_data);
+        }
         self
     }
 

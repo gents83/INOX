@@ -39,14 +39,14 @@ impl WidgetTrait for Text {
 
         data.state
             .set_position(Vector2f::default())
-            .set_size([500.0, 100.0].into())
+            .set_size([300.0, 50.0].into())
             .set_draggable(false);
         data.graphics.set_style(WidgetStyle::default_text());
     }
 
     fn update(
         widget: &mut Widget<Self>,
-        parent_data: Option<&WidgetState>,
+        _parent_data: Option<&WidgetState>,
         renderer: &mut Renderer,
         _input_handler: &InputHandler,
     ) {
@@ -55,64 +55,11 @@ impl WidgetTrait for Text {
             .convert_from_pixels_into_screen_space(widget.get_data_mut().state.get_position());
         let size = screen.convert_size_from_pixels(widget.get_data_mut().state.get_size());
 
-        let clip_area: Vector4f = if let Some(parent_state) = parent_data {
-            let parent_pos =
-                screen.convert_from_pixels_into_screen_space(parent_state.get_position());
-            let parent_size = screen.convert_from_pixels_into_screen_space(
-                screen.get_center() + parent_state.get_size(),
-            );
-            [
-                parent_pos.x,
-                parent_pos.y,
-                parent_pos.x + parent_size.x,
-                parent_pos.y + parent_size.y,
-            ]
-            .into()
-        } else {
-            [-1.0, -1.0, 1.0, 1.0].into()
-        };
-
         let lines_count = widget.get_mut().text.lines().count().max(1);
         let mut max_chars = 1;
         for text in widget.get_mut().text.lines() {
             max_chars = max_chars.max(text.len());
         }
-        /*
-        match widget.get().horizontal_alignment {
-            HorizontalAlignment::Left => {
-                pos.x = clip_area.x;
-            }
-            HorizontalAlignment::Right => {
-                pos.x = clip_area.x + (clip_area.z - clip_area.x).abs() - size.x;
-            }
-            HorizontalAlignment::Center => {
-                pos.x = clip_area.x + (clip_area.z - clip_area.x).abs() * 0.5 - size.x * 0.5;
-            }
-            HorizontalAlignment::Stretch => {
-                pos.x = clip_area.x;
-                size.x = (clip_area.z - clip_area.x).abs();
-            }
-        }
-
-        match widget.get().vertical_alignment {
-            VerticalAlignment::Top => {
-                pos.y = clip_area.y;
-            }
-            VerticalAlignment::Bottom => {
-                pos.y = clip_area.y + (clip_area.w - clip_area.y).abs() - size.y;
-            }
-            VerticalAlignment::Center => {
-                pos.y = clip_area.y + (clip_area.w - clip_area.y).abs() * 0.5 - size.y * 0.5;
-            }
-            VerticalAlignment::Stretch => {
-                pos.y = clip_area.y;
-                size.y = (clip_area.w - clip_area.y).abs();
-            }
-        }
-
-        widget.get_data_mut().state.pos = screen.convert_from_screen_space_into_pixels(pos);
-        widget.get_data_mut().state.size = screen.convert_size_into_pixels(size);
-        */
 
         let char_height = size.y / lines_count as f32;
         let char_width = size.x / max_chars as f32;
@@ -147,10 +94,7 @@ impl WidgetTrait for Text {
             }
             pos_y += char_height;
         }
-        widget
-            .get_data_mut()
-            .graphics
-            .set_mesh_data(renderer, clip_area, mesh_data);
+        widget.get_data_mut().graphics.set_mesh_data(mesh_data);
     }
 
     fn uninit(_widget: &mut Widget<Self>, _renderer: &mut Renderer) {}
