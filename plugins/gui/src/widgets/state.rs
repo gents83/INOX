@@ -20,7 +20,7 @@ impl Default for WidgetState {
     fn default() -> Self {
         Self {
             pos: Vector2f::default(),
-            size: Vector2f::default(),
+            size: [1., 1.].into(),
             is_active: true,
             is_draggable: false,
             is_dragging: false,

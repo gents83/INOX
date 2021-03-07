@@ -36,11 +36,6 @@ impl WidgetTrait for Text {
 
         let data = widget.get_data_mut();
         data.graphics.init(renderer, "Font");
-
-        data.state
-            .set_position(Vector2f::default())
-            .set_size([300.0, 50.0].into())
-            .set_draggable(false);
         data.graphics.set_style(WidgetStyle::default_text());
     }
 

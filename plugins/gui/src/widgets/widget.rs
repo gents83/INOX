@@ -149,38 +149,51 @@ pub trait WidgetBase: Send + Sync {
             screen.convert_from_pixels_into_screen_space(self.get_data().state.get_position());
         let mut size = screen.convert_size_from_pixels(self.get_data().state.get_size());
 
-        match self.get_data().state.get_horizontal_alignment() {
-            HorizontalAlignment::Left => {
-                pos.x = clip_area.x;
+        if !self.get_data().state.is_dragging() {
+            match self.get_data().state.get_horizontal_alignment() {
+                HorizontalAlignment::Left => {
+                    pos.x = clip_area.x;
+                }
+                HorizontalAlignment::Right => {
+                    pos.x = clip_area.x + (clip_area.z - clip_area.x).abs() - size.x;
+                }
+                HorizontalAlignment::Center => {
+                    pos.x = clip_area.x + (clip_area.z - clip_area.x).abs() * 0.5 - size.x * 0.5;
+                }
+                HorizontalAlignment::Stretch => {
+                    pos.x = clip_area.x;
+                    size.x = (clip_area.z - clip_area.x).abs();
+                }
+                _ => {}
             }
-            HorizontalAlignment::Right => {
-                pos.x = clip_area.x + (clip_area.z - clip_area.x).abs() - size.x;
+
+            match self.get_data().state.get_vertical_alignment() {
+                VerticalAlignment::Top => {
+                    pos.y = clip_area.y;
+                }
+                VerticalAlignment::Bottom => {
+                    pos.y = clip_area.y + (clip_area.w - clip_area.y).abs() - size.y;
+                }
+                VerticalAlignment::Center => {
+                    pos.y = clip_area.y + (clip_area.w - clip_area.y).abs() * 0.5 - size.y * 0.5;
+                }
+                VerticalAlignment::Stretch => {
+                    pos.y = clip_area.y;
+                    size.y = (clip_area.w - clip_area.y).abs();
+                }
+                _ => {}
             }
-            HorizontalAlignment::Center => {
-                pos.x = clip_area.x + (clip_area.z - clip_area.x).abs() * 0.5 - size.x * 0.5;
-            }
-            HorizontalAlignment::Stretch => {
-                pos.x = clip_area.x;
-                size.x = (clip_area.z - clip_area.x).abs();
-            }
-            _ => {}
         }
 
-        match self.get_data().state.get_vertical_alignment() {
-            VerticalAlignment::Top => {
-                pos.y = clip_area.y;
-            }
-            VerticalAlignment::Bottom => {
-                pos.y = clip_area.y + (clip_area.w - clip_area.y).abs() - size.y;
-            }
-            VerticalAlignment::Center => {
-                pos.y = clip_area.y + (clip_area.w - clip_area.y).abs() * 0.5 - size.y * 0.5;
-            }
-            VerticalAlignment::Stretch => {
-                pos.y = clip_area.y;
-                size.y = (clip_area.w - clip_area.y).abs();
-            }
-            _ => {}
+        if pos.x < clip_area.x {
+            pos.x = clip_area.x;
+        } else if pos.x > clip_area.z - size.x {
+            pos.x = clip_area.z - size.x;
+        }
+        if pos.y < clip_area.y {
+            pos.y = clip_area.y;
+        } else if pos.y > clip_area.w - size.y {
+            pos.y = clip_area.w - size.y;
         }
 
         self.get_data_mut()
@@ -251,9 +264,7 @@ where
         input_managed |= self.manage_input(input_handler);
 
         let clip_area = self.compute_clip_area(parent_data);
-        if !self.data.state.is_dragging() {
-            self.manage_alignment(clip_area);
-        }
+        self.manage_alignment(clip_area);
 
         T::update(self, parent_data, renderer, input_handler);
         self.data.graphics.update(renderer, clip_area);
@@ -332,10 +343,6 @@ where
 
     pub fn add_child<W: 'static + WidgetTrait>(&mut self, mut widget: Widget<W>) -> UID {
         let id = widget.id();
-        let mut margins = widget.data.state.get_margins().clone();
-        margins.left = widget.get_position().x;
-        margins.top = widget.get_position().y;
-        widget.data.state.set_margins(margins);
         widget.set_position([0.0, 0.0].into());
         self.data.node.add_child(widget);
         self.update_layers();
@@ -379,8 +386,8 @@ where
     pub fn size(&mut self, size: Vector2f) -> &mut Self {
         let old_screen_scale = self
             .screen
-            .convert_position_from_pixels(self.data.state.get_size());
-        let screen_size = self.screen.convert_position_from_pixels(size);
+            .convert_size_from_pixels(self.data.state.get_size());
+        let screen_size = self.screen.convert_size_from_pixels(size);
         let scale = screen_size / old_screen_scale;
         self.scale(scale);
         self

@@ -49,8 +49,25 @@ impl System for GuiUpdater {
         self.widget
             .init(renderer)
             .position([300.0, 300.0].into())
-            .size([800.0, 600.0].into())
-            .color(0., 0., 1., 1.);
+            .size([800.0, 600.0].into());
+        self.widget.set_draggable(true);
+
+        let mut subpanel = Widget::<Panel>::new(Panel::default(), self.screen.clone());
+        subpanel
+            .init(renderer)
+            .size([550., 250.].into())
+            .stroke(20.);
+        subpanel.set_draggable(true);
+
+        let mut text = Widget::<Text>::new(Text::default(), self.screen.clone());
+        text.init(renderer)
+            .size([300.0, 50.0].into())
+            .horizontal_alignment(HorizontalAlignment::Center)
+            .vertical_alignment(VerticalAlignment::Center);
+        text.get_mut().set_text("Title");
+
+        subpanel.add_child(text);
+        self.widget.add_child(subpanel);
     }
     fn run(&mut self) -> bool {
         self.screen.update();

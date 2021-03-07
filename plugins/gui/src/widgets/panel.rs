@@ -1,6 +1,5 @@
 use super::*;
 use nrg_graphics::*;
-use nrg_math::*;
 use nrg_platform::*;
 
 pub struct Panel {}
@@ -14,13 +13,7 @@ impl Default for Panel {
 impl WidgetTrait for Panel {
     fn init(widget: &mut Widget<Self>, renderer: &mut Renderer) {
         let data = widget.get_data_mut();
-
         data.graphics.init(renderer, "UI");
-
-        data.state
-            .set_position(Vector2f::default())
-            .set_size([100.0, 100.0].into())
-            .set_draggable(false);
     }
 
     fn update(
