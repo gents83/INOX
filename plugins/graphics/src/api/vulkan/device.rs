@@ -337,14 +337,11 @@ impl DeviceImmutable {
                 &self.inflight_fences[self.current_frame_index as usize],
             );
 
-            assert_eq!(
-                VkResult_VK_SUCCESS,
-                vkQueueSubmit.unwrap()(
-                    self.graphics_queue,
-                    1,
-                    &submit_info,
-                    self.inflight_fences[self.current_frame_index as usize]
-                )
+            vkQueueSubmit.unwrap()(
+                self.graphics_queue,
+                1,
+                &submit_info,
+                self.inflight_fences[self.current_frame_index as usize],
             );
 
             let present_info = VkPresentInfoKHR {
@@ -622,15 +619,7 @@ impl DeviceImmutable {
         };
 
         unsafe {
-            assert_eq!(
-                VkResult_VK_SUCCESS,
-                vkQueueSubmit.unwrap()(
-                    self.graphics_queue,
-                    1,
-                    &submit_info,
-                    ::std::ptr::null_mut()
-                )
-            );
+            vkQueueSubmit.unwrap()(self.graphics_queue, 1, &submit_info, ::std::ptr::null_mut());
 
             vkQueueWaitIdle.unwrap()(self.graphics_queue);
 

@@ -3,28 +3,11 @@ use nrg_graphics::*;
 use nrg_math::*;
 use nrg_platform::*;
 
-#[allow(dead_code)]
-pub enum HorizontalAlignment {
-    Left,
-    Right,
-    Center,
-    Stretch,
-}
-#[allow(dead_code)]
-pub enum VerticalAlignment {
-    Top,
-    Bottom,
-    Center,
-    Stretch,
-}
-
 pub struct Text {
     font_id: FontId,
     text: String,
     scale: f32,
     spacing: Vector2f,
-    horizontal_alignment: HorizontalAlignment,
-    vertical_alignment: VerticalAlignment,
 }
 
 impl Default for Text {
@@ -34,8 +17,6 @@ impl Default for Text {
             text: String::new(),
             scale: 1.0,
             spacing: Vector2f::default(),
-            horizontal_alignment: HorizontalAlignment::Left,
-            vertical_alignment: VerticalAlignment::Top,
         }
     }
 }
@@ -43,16 +24,6 @@ impl Default for Text {
 impl Text {
     pub fn set_text(&mut self, text: &str) -> &mut Self {
         self.text = String::from(text);
-        self
-    }
-
-    pub fn set_horizontal_alignment(&mut self, alignment: HorizontalAlignment) -> &mut Self {
-        self.horizontal_alignment = alignment;
-        self
-    }
-
-    pub fn set_vertical_alignment(&mut self, alignment: VerticalAlignment) -> &mut Self {
-        self.vertical_alignment = alignment;
         self
     }
 }
@@ -66,12 +37,11 @@ impl WidgetTrait for Text {
         let data = widget.get_data_mut();
         data.graphics.init(renderer, "Font");
 
-        data.state.pos = [0., 0.].into();
-        data.state.size = [500.0, 100.0].into();
-        data.state.is_draggable = false;
+        data.state
+            .set_position(Vector2f::default())
+            .set_size([500.0, 100.0].into())
+            .set_draggable(false);
         data.graphics.set_style(WidgetStyle::default_text());
-
-        widget.update_layout();
     }
 
     fn update(
@@ -81,14 +51,16 @@ impl WidgetTrait for Text {
         _input_handler: &InputHandler,
     ) {
         let screen = widget.get_screen();
-        let mut pos = screen.convert_from_pixels_into_screen_space(widget.get_data_mut().state.pos);
-        let mut size = screen
-            .convert_from_pixels(widget.get_data_mut().state.size * screen.get_scale_factor());
+        let pos = screen
+            .convert_from_pixels_into_screen_space(widget.get_data_mut().state.get_position());
+        let size = screen.convert_size_from_pixels(widget.get_data_mut().state.get_size());
 
         let clip_area: Vector4f = if let Some(parent_state) = parent_data {
-            let parent_pos = screen.convert_from_pixels_into_screen_space(parent_state.pos);
-            let parent_size = screen
-                .convert_from_pixels_into_screen_space(screen.get_center() + parent_state.size);
+            let parent_pos =
+                screen.convert_from_pixels_into_screen_space(parent_state.get_position());
+            let parent_size = screen.convert_from_pixels_into_screen_space(
+                screen.get_center() + parent_state.get_size(),
+            );
             [
                 parent_pos.x,
                 parent_pos.y,
@@ -105,7 +77,7 @@ impl WidgetTrait for Text {
         for text in widget.get_mut().text.lines() {
             max_chars = max_chars.max(text.len());
         }
-
+        /*
         match widget.get().horizontal_alignment {
             HorizontalAlignment::Left => {
                 pos.x = clip_area.x;
@@ -139,12 +111,13 @@ impl WidgetTrait for Text {
         }
 
         widget.get_data_mut().state.pos = screen.convert_from_screen_space_into_pixels(pos);
-        widget.get_data_mut().state.size = screen.convert_into_pixels(size) * 0.5;
+        widget.get_data_mut().state.size = screen.convert_size_into_pixels(size);
+        */
 
         let char_height = size.y / lines_count as f32;
         let char_width = size.x / max_chars as f32;
         let char_color = widget.get_data().graphics.get_color();
-        let char_layer = widget.get_data().state.layer;
+        let char_layer = widget.get_data().state.get_layer();
 
         let font = renderer.get_font(widget.get_mut().font_id).unwrap();
 
@@ -178,8 +151,6 @@ impl WidgetTrait for Text {
             .get_data_mut()
             .graphics
             .set_mesh_data(renderer, clip_area, mesh_data);
-
-        widget.update_layout();
     }
 
     fn uninit(_widget: &mut Widget<Self>, _renderer: &mut Renderer) {}

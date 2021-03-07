@@ -2,7 +2,6 @@
 
 use nrg_core::*;
 
-mod colors;
 mod config;
 mod gui;
 mod gui_updater;

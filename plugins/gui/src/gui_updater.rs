@@ -72,7 +72,7 @@ impl System for GuiUpdater {
             format!("Mouse Input [{}, {}]", mouse_pos.x, mouse_pos.y,),
             &mut line,
         );
-        let pos: Vector2f = self.screen.convert_into_pixels(mouse_pos);
+        let pos: Vector2f = self.screen.convert_position_into_pixels(mouse_pos);
         self.write_line(format!("Mouse Pixels[{}, {}]", pos.x, pos.y), &mut line);
         let pos: Vector2f = self.screen.convert_into_screen_space(mouse_pos);
         self.write_line(

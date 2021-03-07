@@ -83,22 +83,30 @@ impl Screen {
     pub fn get_scale_factor(&self) -> f32 {
         self.inner.borrow().scale_factor
     }
-    pub fn convert_into_pixels(&self, value: Vector2f) -> Vector2f {
+    pub fn convert_position_into_pixels(&self, value: Vector2f) -> Vector2f {
         value * self.inner.borrow().size
     }
-    pub fn convert_from_pixels(&self, value: Vector2f) -> Vector2f {
+    pub fn convert_size_into_pixels(&self, value: Vector2f) -> Vector2f {
+        value * self.inner.borrow().size * 0.5
+    }
+    pub fn convert_position_from_pixels(&self, value: Vector2f) -> Vector2f {
         value / self.inner.borrow().size
+    }
+    pub fn convert_size_from_pixels(&self, value: Vector2f) -> Vector2f {
+        value * 2. / self.inner.borrow().size
     }
     pub fn convert_into_screen_space(&self, position: Vector2f) -> Vector2f {
         position * 2.0 - [1.0, 1.0].into()
     }
     pub fn convert_from_pixels_into_screen_space(&self, position: Vector2f) -> Vector2f {
-        self.convert_into_screen_space(self.convert_from_pixels(position))
+        self.convert_into_screen_space(self.convert_position_from_pixels(position))
     }
+    #[allow(dead_code)]
     pub fn convert_from_screen_space(&self, position: Vector2f) -> Vector2f {
         (position + [1.0, 1.0].into()) * 0.5
     }
+    #[allow(dead_code)]
     pub fn convert_from_screen_space_into_pixels(&self, position: Vector2f) -> Vector2f {
-        self.convert_into_pixels(self.convert_from_screen_space(position))
+        self.convert_position_into_pixels(self.convert_from_screen_space(position))
     }
 }
