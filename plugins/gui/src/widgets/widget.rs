@@ -145,9 +145,10 @@ pub trait WidgetBase: Send + Sync {
 
     fn manage_alignment(&mut self, clip_area: Vector4f) {
         let screen = self.get_screen();
-        let mut pos =
-            screen.convert_from_pixels_into_screen_space(self.get_data().state.get_position());
-        let mut size = screen.convert_size_from_pixels(self.get_data().state.get_size());
+        let old_pos = self.get_data().state.get_position();
+        let old_size = self.get_data().state.get_size();
+        let mut pos = screen.convert_from_pixels_into_screen_space(old_pos);
+        let mut size = screen.convert_size_from_pixels(old_size);
 
         if !self.get_data().state.is_dragging() {
             match self.get_data().state.get_horizontal_alignment() {
@@ -196,12 +197,19 @@ pub trait WidgetBase: Send + Sync {
             pos.y = clip_area.w - size.y;
         }
 
-        self.get_data_mut()
-            .state
-            .set_position(screen.convert_from_screen_space_into_pixels(pos));
-        self.get_data_mut()
-            .state
-            .set_size(screen.convert_size_into_pixels(size));
+        let pos_in_px = screen.convert_from_screen_space_into_pixels(pos);
+        let size_in_px = screen.convert_size_into_pixels(size);
+
+        let offset = pos_in_px - old_pos;
+        let mut scale = size_in_px - old_size;
+        if scale.x <= 0. {
+            scale.x = 1.;
+        }
+        if scale.y <= 0. {
+            scale.y = 1.;
+        }
+        self.translate(offset);
+        self.scale(scale);
     }
 
     fn update_layers(&mut self) {
@@ -374,6 +382,11 @@ where
     }
     pub fn vertical_alignment(&mut self, alignment: VerticalAlignment) -> &mut Self {
         self.data.state.set_vertical_alignment(alignment);
+        self
+    }
+
+    pub fn draggable(&mut self, draggable: bool) -> &mut Self {
+        self.set_draggable(draggable);
         self
     }
 
