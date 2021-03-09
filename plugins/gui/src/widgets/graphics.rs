@@ -52,6 +52,10 @@ impl WidgetGraphics {
         )
     }
 
+    pub fn get_stroke(&self) -> f32 {
+        self.stroke
+    }
+
     fn compute_border(&mut self) -> &mut Self {
         if self.stroke <= 0.0 {
             return self;

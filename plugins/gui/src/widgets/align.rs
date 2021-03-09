@@ -34,6 +34,7 @@ pub enum HorizontalAlignment {
     Right,
     Center,
     Stretch,
+    FitToContent,
 }
 #[allow(dead_code)]
 pub enum VerticalAlignment {
@@ -42,4 +43,5 @@ pub enum VerticalAlignment {
     Bottom,
     Center,
     Stretch,
+    FitToContent,
 }

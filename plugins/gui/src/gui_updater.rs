@@ -50,7 +50,8 @@ impl System for GuiUpdater {
             .init(renderer)
             .position([300.0, 300.0].into())
             .size([800.0, 600.0].into())
-            .draggable(true);
+            .draggable(true)
+            .horizontal_alignment(HorizontalAlignment::FitToContent);
 
         let mut subpanel = Widget::<Panel>::new(Panel::default(), self.screen.clone());
         subpanel
@@ -64,7 +65,8 @@ impl System for GuiUpdater {
             .size([300.0, 50.0].into())
             .horizontal_alignment(HorizontalAlignment::Center)
             .vertical_alignment(VerticalAlignment::Center)
-            .get_mut().set_text("Title");
+            .get_mut()
+            .set_text("Title");
 
         subpanel.add_child(text);
         self.widget.add_child(subpanel);

@@ -23,15 +23,32 @@ impl WidgetNode {
         self.children.push(Box::new(widget));
         self
     }
-    pub fn propagate_on_children<F>(&mut self, mut f: F) -> &mut Self
+
+    pub fn has_children(&self) -> bool {
+        !self.children.is_empty()
+    }
+    pub fn propagate_on_children<F>(&self, mut f: F)
+    where
+        F: FnMut(&dyn WidgetBase),
+    {
+        self.children.iter().for_each(|w| f(w.as_ref()));
+    }
+    pub fn propagate_on_children_mut<F>(&mut self, mut f: F)
     where
         F: FnMut(&mut dyn WidgetBase),
     {
         self.children.iter_mut().for_each(|w| f(w.as_mut()));
-        self
     }
-
-    pub fn propagate_on_child<F>(&mut self, uid: UID, mut f: F)
+    pub fn propagate_on_child<F>(&self, uid: UID, mut f: F)
+    where
+        F: FnMut(&dyn WidgetBase),
+    {
+        if let Some(index) = self.children.iter().position(|child| child.id() == uid) {
+            let w = &self.children[index as usize];
+            return f(w.as_ref());
+        }
+    }
+    pub fn propagate_on_child_mut<F>(&mut self, uid: UID, mut f: F)
     where
         F: FnMut(&mut dyn WidgetBase),
     {

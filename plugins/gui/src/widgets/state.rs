@@ -27,8 +27,8 @@ impl Default for WidgetState {
             is_hover: false,
             margins: WidgetMargins::default(),
             layer: 1.0 - LAYER_OFFSET,
-            horizontal_alignment: HorizontalAlignment::Center,
-            vertical_alignment: VerticalAlignment::Center,
+            horizontal_alignment: HorizontalAlignment::None,
+            vertical_alignment: VerticalAlignment::None,
         }
     }
 }
@@ -39,13 +39,6 @@ impl WidgetState {
     }
 
     pub fn set_position(&mut self, pos: Vector2f) -> &mut Self {
-        /*
-        let offset = pos - self.pos;
-        self.margins.top += offset.y;
-        self.margins.bottom += offset.y;
-        self.margins.left += offset.x;
-        self.margins.right += offset.x;
-        */
         self.pos = pos;
         self
     }

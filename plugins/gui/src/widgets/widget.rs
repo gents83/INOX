@@ -38,7 +38,7 @@ pub trait WidgetBase: Send + Sync {
         let data = self.get_data_mut();
         data.state.set_position(data.state.get_position() + offset);
 
-        data.node.propagate_on_children(|w| {
+        data.node.propagate_on_children_mut(|w| {
             w.translate(offset);
         });
     }
@@ -47,12 +47,122 @@ pub trait WidgetBase: Send + Sync {
         let data = self.get_data_mut();
         data.state.set_size(data.state.get_size() * scale);
 
-        data.node.propagate_on_children(|w| {
+        data.node.propagate_on_children_mut(|w| {
             w.scale(scale);
         });
     }
 
-    fn manage_input(&mut self, input_handler: &InputHandler) -> bool {
+    fn compute_offset_and_scale_from_alignment(&mut self, clip_area: Vector4f) {
+        let state = &self.get_data().state;
+        let node = &self.get_data().node;
+        let screen = &self.get_screen();
+
+        let old_pos = state.get_position();
+        let old_size = state.get_size();
+        let mut pos = screen.convert_from_pixels_into_screen_space(old_pos);
+        let mut size = screen.convert_size_from_pixels(old_size);
+
+        if !state.is_dragging() {
+            match state.get_horizontal_alignment() {
+                HorizontalAlignment::Left => {
+                    pos.x = clip_area.x;
+                }
+                HorizontalAlignment::Right => {
+                    pos.x = clip_area.x + (clip_area.z - clip_area.x).abs() - size.x;
+                }
+                HorizontalAlignment::Center => {
+                    pos.x = clip_area.x + (clip_area.z - clip_area.x).abs() * 0.5 - size.x * 0.5;
+                }
+                HorizontalAlignment::Stretch => {
+                    pos.x = clip_area.x;
+                    size.x = (clip_area.z - clip_area.x).abs();
+                }
+                HorizontalAlignment::FitToContent => {
+                    if node.has_children() {
+                        let mut children_min_pos: f32 = Float::max_value();
+                        let mut children_size: f32 = Float::max_value();
+                        node.propagate_on_children(|w| {
+                            let stroke = screen.convert_size_into_pixels(
+                                w.get_data().graphics.get_stroke().into(),
+                            );
+                            children_min_pos = children_min_pos
+                                .min(w.get_data().state.get_position().x - stroke.x);
+                            children_size =
+                                children_size.min(w.get_data().state.get_size().x + stroke.x * 2.);
+                        });
+                        pos.x = screen
+                            .convert_from_pixels_into_screen_space([children_min_pos, 0.].into())
+                            .x;
+                        if children_size >= 0. {
+                            size.x = screen
+                                .convert_size_from_pixels([children_size, 1.].into())
+                                .x;
+                        }
+                    }
+                }
+                _ => {}
+            }
+            if pos.x < clip_area.x {
+                pos.x = clip_area.x;
+            } else if pos.x > clip_area.z - size.x {
+                pos.x = clip_area.z - size.x;
+            }
+
+            match state.get_vertical_alignment() {
+                VerticalAlignment::Top => {
+                    pos.y = clip_area.y;
+                }
+                VerticalAlignment::Bottom => {
+                    pos.y = clip_area.y + (clip_area.w - clip_area.y).abs() - size.y;
+                }
+                VerticalAlignment::Center => {
+                    pos.y = clip_area.y + (clip_area.w - clip_area.y).abs() * 0.5 - size.y * 0.5;
+                }
+                VerticalAlignment::Stretch => {
+                    pos.y = clip_area.y;
+                    size.y = (clip_area.w - clip_area.y).abs();
+                }
+                VerticalAlignment::FitToContent => {
+                    if node.has_children() {
+                        let mut children_min_pos: f32 = Float::max_value();
+                        let mut children_size: f32 = Float::max_value();
+                        node.propagate_on_children(|w| {
+                            let stroke = screen.convert_size_into_pixels(
+                                w.get_data().graphics.get_stroke().into(),
+                            );
+                            children_min_pos = children_min_pos
+                                .min(w.get_data().state.get_position().y - stroke.y);
+                            children_size =
+                                children_size.min(w.get_data().state.get_size().y + stroke.y * 2.);
+                        });
+                        pos.y = screen
+                            .convert_from_pixels_into_screen_space([0., children_min_pos].into())
+                            .y;
+                        if children_size >= 0. {
+                            size.y = screen
+                                .convert_size_from_pixels([1., children_size].into())
+                                .y;
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+        if pos.y < clip_area.y {
+            pos.y = clip_area.y;
+        } else if pos.y > clip_area.w - size.y {
+            pos.y = clip_area.w - size.y;
+        }
+
+        self.get_data_mut()
+            .state
+            .set_position(screen.convert_from_screen_space_into_pixels(pos));
+        self.get_data_mut()
+            .state
+            .set_size(screen.convert_size_into_pixels(size));
+    }
+
+    fn manage_input(&mut self, input_managed: bool, input_handler: &InputHandler) -> bool {
         let screen = self.get_screen();
         let data = self.get_data_mut();
         if !data.state.is_active() {
@@ -62,24 +172,12 @@ pub trait WidgetBase: Send + Sync {
                 .set_border_color(border_color);
             return false;
         }
-        let mut is_on_children = false;
-        data.node.propagate_on_children(|child| {
-            is_on_children |= child.is_hover();
-        });
-        if is_on_children {
-            data.state.set_hover(false);
-            let (color, border_color) = data.graphics.get_colors(WidgetInteractiveState::Active);
-            data.graphics
-                .set_color(color)
-                .set_border_color(border_color);
-            return true;
-        }
         let mouse = screen.convert_position_into_pixels(Vector2f {
             x: input_handler.get_mouse_data().get_x() as _,
             y: input_handler.get_mouse_data().get_y() as _,
         });
         data.state.set_hover(data.state.is_inside(mouse));
-        if !data.state.is_hover() {
+        if input_managed || !data.state.is_hover() {
             let (color, border_color) = data.graphics.get_colors(WidgetInteractiveState::Active);
             data.graphics
                 .set_color(color)
@@ -97,11 +195,11 @@ pub trait WidgetBase: Send + Sync {
                 .set_border_color(border_color);
         }
         if !data.state.is_draggable() {
-            return false;
+            return true;
         }
         if !input_handler.get_mouse_data().is_dragging() {
             data.state.set_dragging(false);
-            return false;
+            return true;
         } else {
             let (color, border_color) = data.graphics.get_colors(WidgetInteractiveState::Dragging);
             data.graphics
@@ -124,7 +222,7 @@ pub trait WidgetBase: Send + Sync {
         data.graphics.move_to_layer(layer);
     }
 
-    fn compute_clip_area(&mut self, parent_data: Option<&WidgetState>) -> Vector4f {
+    fn compute_clip_area(&self, parent_data: Option<&WidgetState>) -> Vector4f {
         let screen = self.get_screen();
         let clip_area: Vector4f = if let Some(parent_state) = parent_data {
             let parent_pos =
@@ -143,80 +241,27 @@ pub trait WidgetBase: Send + Sync {
         clip_area
     }
 
-    fn manage_alignment(&mut self, clip_area: Vector4f) {
-        let screen = self.get_screen();
-        let old_pos = self.get_data().state.get_position();
-        let old_size = self.get_data().state.get_size();
-        let mut pos = screen.convert_from_pixels_into_screen_space(old_pos);
-        let mut size = screen.convert_size_from_pixels(old_size);
-
-        if !self.get_data().state.is_dragging() {
-            match self.get_data().state.get_horizontal_alignment() {
-                HorizontalAlignment::Left => {
-                    pos.x = clip_area.x;
-                }
-                HorizontalAlignment::Right => {
-                    pos.x = clip_area.x + (clip_area.z - clip_area.x).abs() - size.x;
-                }
-                HorizontalAlignment::Center => {
-                    pos.x = clip_area.x + (clip_area.z - clip_area.x).abs() * 0.5 - size.x * 0.5;
-                }
-                HorizontalAlignment::Stretch => {
-                    pos.x = clip_area.x;
-                    size.x = (clip_area.z - clip_area.x).abs();
-                }
-                _ => {}
-            }
-
-            match self.get_data().state.get_vertical_alignment() {
-                VerticalAlignment::Top => {
-                    pos.y = clip_area.y;
-                }
-                VerticalAlignment::Bottom => {
-                    pos.y = clip_area.y + (clip_area.w - clip_area.y).abs() - size.y;
-                }
-                VerticalAlignment::Center => {
-                    pos.y = clip_area.y + (clip_area.w - clip_area.y).abs() * 0.5 - size.y * 0.5;
-                }
-                VerticalAlignment::Stretch => {
-                    pos.y = clip_area.y;
-                    size.y = (clip_area.w - clip_area.y).abs();
-                }
-                _ => {}
-            }
-        }
-
-        if pos.x < clip_area.x {
-            pos.x = clip_area.x;
-        } else if pos.x > clip_area.z - size.x {
-            pos.x = clip_area.z - size.x;
-        }
-        if pos.y < clip_area.y {
-            pos.y = clip_area.y;
-        } else if pos.y > clip_area.w - size.y {
-            pos.y = clip_area.w - size.y;
-        }
-
-        let pos_in_px = screen.convert_from_screen_space_into_pixels(pos);
-        let size_in_px = screen.convert_size_into_pixels(size);
-
-        let offset = pos_in_px - old_pos;
-        let mut scale = size_in_px - old_size;
-        if scale.x <= 0. {
-            scale.x = 1.;
-        }
-        if scale.y <= 0. {
-            scale.y = 1.;
-        }
-        self.translate(offset);
-        self.scale(scale);
+    fn update_layout(&mut self, parent_data: Option<&WidgetState>) {
+        let clip_area = self.compute_clip_area(parent_data);
+        self.compute_offset_and_scale_from_alignment(clip_area);
+        self.update_layers();
+        /*
+        println!("{}", std::any::type_name::<Self>());
+        println!("{:?}", self.get_data().state.get_position());
+        println!("{:?}", self.get_data().state.get_size());
+        */
+        let data = self.get_data_mut();
+        let parent_data = Some(&data.state);
+        data.node.propagate_on_children_mut(|w| {
+            w.update_layout(parent_data);
+        });
     }
 
     fn update_layers(&mut self) {
         let data = self.get_data_mut();
         let layer = data.state.get_layer();
 
-        data.node.propagate_on_children(|w| {
+        data.node.propagate_on_children_mut(|w| {
             w.move_to_layer(layer - LAYER_OFFSET * 2.0);
             w.update_layers();
         });
@@ -268,24 +313,24 @@ where
         renderer: &mut Renderer,
         input_handler: &InputHandler,
     ) -> bool {
-        let mut input_managed = false;
-        input_managed |= self.manage_input(input_handler);
-
         let clip_area = self.compute_clip_area(parent_data);
-        self.manage_alignment(clip_area);
 
         T::update(self, parent_data, renderer, input_handler);
         self.data.graphics.update(renderer, clip_area);
 
+        let mut input_managed = false;
         let parent_data = Some(&self.data.state);
-        self.data.node.propagate_on_children(|w| {
+        self.data.node.propagate_on_children_mut(|w| {
             input_managed |= w.update(parent_data, renderer, input_handler);
         });
+        input_managed |= self.manage_input(input_managed, input_handler);
         input_managed
     }
 
     fn uninit(&mut self, renderer: &mut Renderer) {
-        self.data.node.propagate_on_children(|w| w.uninit(renderer));
+        self.data
+            .node
+            .propagate_on_children_mut(|w| w.uninit(renderer));
         T::uninit(self, renderer);
         self.data.graphics.uninit(renderer);
     }
@@ -351,17 +396,26 @@ where
 
     pub fn add_child<W: 'static + WidgetTrait>(&mut self, mut widget: Widget<W>) -> UID {
         let id = widget.id();
-        widget.set_position([0.0, 0.0].into());
+        let stroke = widget
+            .get_screen()
+            .convert_size_into_pixels(widget.get_data().graphics.get_stroke().into());
+        widget.translate(self.data.state.get_position() + stroke);
         self.data.node.add_child(widget);
-        self.update_layers();
+        self.update_layout(None);
         id
     }
 
-    pub fn propagate_on_child<F>(&mut self, uid: UID, f: F)
+    pub fn propagate_on_child<F>(&self, uid: UID, f: F)
+    where
+        F: Fn(&dyn WidgetBase),
+    {
+        self.data.node.propagate_on_child(uid, f);
+    }
+    pub fn propagate_on_child_mut<F>(&mut self, uid: UID, f: F)
     where
         F: FnMut(&mut dyn WidgetBase),
     {
-        self.data.node.propagate_on_child(uid, f);
+        self.data.node.propagate_on_child_mut(uid, f);
     }
 
     pub fn get_position(&self) -> Vector2f {
@@ -378,10 +432,12 @@ where
     }
     pub fn horizontal_alignment(&mut self, alignment: HorizontalAlignment) -> &mut Self {
         self.data.state.set_horizontal_alignment(alignment);
+        self.update_layout(None);
         self
     }
     pub fn vertical_alignment(&mut self, alignment: VerticalAlignment) -> &mut Self {
         self.data.state.set_vertical_alignment(alignment);
+        self.update_layout(None);
         self
     }
 
@@ -393,6 +449,7 @@ where
     pub fn position(&mut self, pos: Vector2f) -> &mut Self {
         let offset = pos - self.data.state.get_position();
         self.translate(offset);
+        self.update_layout(None);
         self
     }
 
@@ -403,6 +460,7 @@ where
         let screen_size = self.screen.convert_size_from_pixels(size);
         let scale = screen_size / old_screen_scale;
         self.scale(scale);
+        self.update_layout(None);
         self
     }
 
@@ -417,7 +475,7 @@ where
     pub fn stroke(&mut self, stroke: f32) -> &mut Self {
         let stroke: Vector3f = self
             .screen
-            .convert_position_from_pixels([stroke, stroke].into())
+            .convert_size_from_pixels([stroke, stroke].into())
             .into();
         self.data.graphics.set_stroke(stroke.x);
         self
