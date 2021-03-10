@@ -104,13 +104,14 @@ pub trait WidgetBase: Send + Sync {
 
         self.get_data_mut().state.set_position(pos);
         self.get_data_mut().state.set_size(size);
-
+        /*
         println!("{}", std::any::type_name::<Self>());
         println!(
             "FIT - Pos{:?} - Size{:?}",
             self.get_data().state.get_position(),
             self.get_data().state.get_size()
         );
+        */
     }
 
     fn compute_offset_and_scale_from_alignment(&mut self, clip_rect: Vector4f) {
@@ -175,12 +176,14 @@ pub trait WidgetBase: Send + Sync {
         self.get_data_mut().state.set_position(pos);
         self.get_data_mut().state.set_size(size);
 
+        /*
         println!("{}", std::any::type_name::<Self>());
         println!(
             "ALIGN - Pos{:?} - Size{:?}",
             self.get_data().state.get_position(),
             self.get_data().state.get_size()
         );
+        */
     }
 
     fn manage_input(&mut self, input_managed: bool, input_handler: &InputHandler) -> bool {
