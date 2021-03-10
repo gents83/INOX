@@ -52,114 +52,135 @@ pub trait WidgetBase: Send + Sync {
         });
     }
 
-    fn compute_offset_and_scale_from_alignment(&mut self, clip_area: Vector4f) {
+    fn apply_fit_to_content(&mut self, clip_rect: Vector4f) {
         let state = &self.get_data().state;
         let node = &self.get_data().node;
+        if !state.has_to_fit_content() || !node.has_children() {
+            return;
+        }
+
+        let graphics = &self.get_data().graphics;
         let screen = &self.get_screen();
 
-        let old_pos = state.get_position();
-        let old_size = state.get_size();
-        let mut pos = screen.convert_from_pixels_into_screen_space(old_pos);
-        let mut size = screen.convert_size_from_pixels(old_size);
+        let clip_min =
+            screen.convert_from_screen_space_into_pixels([clip_rect.x, clip_rect.y].into());
+        let clip_max =
+            screen.convert_from_screen_space_into_pixels([clip_rect.z, clip_rect.w].into());
 
-        if !state.is_dragging() {
-            match state.get_horizontal_alignment() {
-                HorizontalAlignment::Left => {
-                    pos.x = clip_area.x;
-                }
-                HorizontalAlignment::Right => {
-                    pos.x = clip_area.x + (clip_area.z - clip_area.x).abs() - size.x;
-                }
-                HorizontalAlignment::Center => {
-                    pos.x = clip_area.x + (clip_area.z - clip_area.x).abs() * 0.5 - size.x * 0.5;
-                }
-                HorizontalAlignment::Stretch => {
-                    pos.x = clip_area.x;
-                    size.x = (clip_area.z - clip_area.x).abs();
-                }
-                HorizontalAlignment::FitToContent => {
-                    if node.has_children() {
-                        let mut children_min_pos: f32 = Float::max_value();
-                        let mut children_size: f32 = Float::max_value();
-                        node.propagate_on_children(|w| {
-                            let stroke = screen.convert_size_into_pixels(
-                                w.get_data().graphics.get_stroke().into(),
-                            );
-                            children_min_pos = children_min_pos
-                                .min(w.get_data().state.get_position().x - stroke.x);
-                            children_size =
-                                children_size.min(w.get_data().state.get_size().x + stroke.x * 2.);
-                        });
-                        pos.x = screen
-                            .convert_from_pixels_into_screen_space([children_min_pos, 0.].into())
-                            .x;
-                        if children_size >= 0. {
-                            size.x = screen
-                                .convert_size_from_pixels([children_size, 1.].into())
-                                .x;
-                        }
-                    }
-                }
-                _ => {}
-            }
-            if pos.x < clip_area.x {
-                pos.x = clip_area.x;
-            } else if pos.x > clip_area.z - size.x {
-                pos.x = clip_area.z - size.x;
-            }
+        let mut pos = state.get_position();
+        let mut size = state.get_size();
+        let stroke = screen.convert_size_into_pixels(graphics.get_stroke().into());
 
-            match state.get_vertical_alignment() {
-                VerticalAlignment::Top => {
-                    pos.y = clip_area.y;
-                }
-                VerticalAlignment::Bottom => {
-                    pos.y = clip_area.y + (clip_area.w - clip_area.y).abs() - size.y;
-                }
-                VerticalAlignment::Center => {
-                    pos.y = clip_area.y + (clip_area.w - clip_area.y).abs() * 0.5 - size.y * 0.5;
-                }
-                VerticalAlignment::Stretch => {
-                    pos.y = clip_area.y;
-                    size.y = (clip_area.w - clip_area.y).abs();
-                }
-                VerticalAlignment::FitToContent => {
-                    if node.has_children() {
-                        let mut children_min_pos: f32 = Float::max_value();
-                        let mut children_size: f32 = Float::max_value();
-                        node.propagate_on_children(|w| {
-                            let stroke = screen.convert_size_into_pixels(
-                                w.get_data().graphics.get_stroke().into(),
-                            );
-                            children_min_pos = children_min_pos
-                                .min(w.get_data().state.get_position().y - stroke.y);
-                            children_size =
-                                children_size.min(w.get_data().state.get_size().y + stroke.y * 2.);
-                        });
-                        pos.y = screen
-                            .convert_from_pixels_into_screen_space([0., children_min_pos].into())
-                            .y;
-                        if children_size >= 0. {
-                            size.y = screen
-                                .convert_size_from_pixels([1., children_size].into())
-                                .y;
-                        }
-                    }
-                }
-                _ => {}
-            }
+        if state.has_to_fit_content() && node.has_children() {
+            let mut children_min_pos: Vector2f = [Float::max_value(), Float::max_value()].into();
+            let mut children_size: Vector2f = [Float::max_value(), Float::max_value()].into();
+            node.propagate_on_children(|w| {
+                let child_stroke =
+                    screen.convert_size_into_pixels(w.get_data().graphics.get_stroke().into());
+                children_min_pos.x = children_min_pos
+                    .x
+                    .min(w.get_data().state.get_position().x - child_stroke.x);
+                children_min_pos.y = children_min_pos
+                    .y
+                    .min(w.get_data().state.get_position().y - child_stroke.y);
+                children_size.x = children_size
+                    .x
+                    .min(w.get_data().state.get_size().x + child_stroke.x * 2.);
+                children_size.y = children_size
+                    .y
+                    .min(w.get_data().state.get_size().y + child_stroke.y * 2.);
+            });
+            pos = children_min_pos;
+            size = children_size;
         }
-        if pos.y < clip_area.y {
-            pos.y = clip_area.y;
-        } else if pos.y > clip_area.w - size.y {
-            pos.y = clip_area.w - size.y;
+        pos.x = pos
+            .x
+            .max(clip_min.x + stroke.x)
+            .min(clip_max.x - size.x - stroke.x);
+        pos.y = pos
+            .y
+            .max(clip_min.y + stroke.y)
+            .min(clip_max.y - size.y - stroke.y);
+
+        self.get_data_mut().state.set_position(pos);
+        self.get_data_mut().state.set_size(size);
+
+        println!("{}", std::any::type_name::<Self>());
+        println!(
+            "FIT - Pos{:?} - Size{:?}",
+            self.get_data().state.get_position(),
+            self.get_data().state.get_size()
+        );
+    }
+
+    fn compute_offset_and_scale_from_alignment(&mut self, clip_rect: Vector4f) {
+        let state = &self.get_data().state;
+        let graphics = &self.get_data().graphics;
+        let screen = &self.get_screen();
+
+        let clip_min =
+            screen.convert_from_screen_space_into_pixels([clip_rect.x, clip_rect.y].into());
+        let clip_max =
+            screen.convert_from_screen_space_into_pixels([clip_rect.z, clip_rect.w].into());
+
+        let mut pos = state.get_position();
+        let mut size = state.get_size();
+        let stroke = screen.convert_size_into_pixels(graphics.get_stroke().into());
+
+        match state.get_horizontal_alignment() {
+            HorizontalAlignment::Left => {
+                pos.x = clip_min.x + stroke.x;
+            }
+            HorizontalAlignment::Right => {
+                pos.x = clip_max.x - (size.x + stroke.x);
+            }
+            HorizontalAlignment::Center => {
+                pos.x = clip_min.x + (clip_max.x - clip_min.x).abs() * 0.5
+                    - (size.x + stroke.x * 2.) * 0.5;
+            }
+            HorizontalAlignment::Stretch => {
+                pos.x = clip_min.x + stroke.x;
+                size.x = (clip_max.x - clip_min.x).abs() - stroke.x * 2.;
+            }
+            _ => {}
         }
 
-        self.get_data_mut()
-            .state
-            .set_position(screen.convert_from_screen_space_into_pixels(pos));
-        self.get_data_mut()
-            .state
-            .set_size(screen.convert_size_into_pixels(size));
+        match state.get_vertical_alignment() {
+            VerticalAlignment::Top => {
+                pos.y = clip_min.y + stroke.y;
+            }
+            VerticalAlignment::Bottom => {
+                pos.y = clip_max.y - (size.y + stroke.y);
+            }
+            VerticalAlignment::Center => {
+                pos.y = clip_min.y + (clip_max.y - clip_min.y).abs() * 0.5
+                    - (size.y + stroke.y * 2.) * 0.5;
+            }
+            VerticalAlignment::Stretch => {
+                pos.y = clip_min.y + stroke.y;
+                size.y = (clip_max.y - clip_min.y).abs() - stroke.y * 2.;
+            }
+            _ => {}
+        }
+
+        pos.x = pos
+            .x
+            .max(clip_min.x + stroke.x)
+            .min(clip_max.x - size.x - stroke.x);
+        pos.y = pos
+            .y
+            .max(clip_min.y + stroke.y)
+            .min(clip_max.y - size.y - stroke.y);
+
+        self.get_data_mut().state.set_position(pos);
+        self.get_data_mut().state.set_size(size);
+
+        println!("{}", std::any::type_name::<Self>());
+        println!(
+            "ALIGN - Pos{:?} - Size{:?}",
+            self.get_data().state.get_position(),
+            self.get_data().state.get_size()
+        );
     }
 
     fn manage_input(&mut self, input_managed: bool, input_handler: &InputHandler) -> bool {
@@ -243,13 +264,12 @@ pub trait WidgetBase: Send + Sync {
 
     fn update_layout(&mut self, parent_data: Option<&WidgetState>) {
         let clip_area = self.compute_clip_area(parent_data);
-        self.compute_offset_and_scale_from_alignment(clip_area);
-        self.update_layers();
-        /*
-        println!("{}", std::any::type_name::<Self>());
-        println!("{:?}", self.get_data().state.get_position());
-        println!("{:?}", self.get_data().state.get_size());
-        */
+
+        if !self.get_data().state.is_dragging() {
+            self.apply_fit_to_content(clip_area);
+            self.compute_offset_and_scale_from_alignment(clip_area);
+            self.update_layers();
+        }
         let data = self.get_data_mut();
         let parent_data = Some(&data.state);
         data.node.propagate_on_children_mut(|w| {
@@ -271,8 +291,6 @@ pub trait WidgetBase: Send + Sync {
     fn set_border_color(&mut self, r: f32, g: f32, b: f32, a: f32);
     fn set_position(&mut self, pos: Vector2f);
     fn set_size(&mut self, size: Vector2f);
-    fn set_margins(&mut self, top: f32, left: f32, right: f32, bottom: f32);
-
     fn set_draggable(&mut self, draggable: bool) {
         self.get_data_mut().state.set_draggable(draggable);
     }
@@ -349,9 +367,6 @@ where
     fn set_size(&mut self, size: Vector2f) {
         self.size(size);
     }
-    fn set_margins(&mut self, top: f32, left: f32, right: f32, bottom: f32) {
-        self.margins(top, left, right, bottom);
-    }
 }
 
 pub trait WidgetTrait: Send + Sync + Sized {
@@ -421,13 +436,9 @@ where
     pub fn get_position(&self) -> Vector2f {
         self.data.state.get_position()
     }
-    pub fn margins(&mut self, top: f32, left: f32, right: f32, bottom: f32) -> &mut Self {
-        self.data.state.set_margins(WidgetMargins {
-            top,
-            left,
-            right,
-            bottom,
-        });
+
+    pub fn fit_to_content(&mut self, has_to_fit_content: bool) -> &mut Self {
+        self.data.state.set_fit_to_content(has_to_fit_content);
         self
     }
     pub fn horizontal_alignment(&mut self, alignment: HorizontalAlignment) -> &mut Self {

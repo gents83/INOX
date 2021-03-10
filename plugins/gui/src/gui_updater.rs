@@ -51,20 +51,24 @@ impl System for GuiUpdater {
             .position([300.0, 300.0].into())
             .size([800.0, 600.0].into())
             .draggable(true)
-            .horizontal_alignment(HorizontalAlignment::FitToContent);
+            .vertical_alignment(VerticalAlignment::Top)
+            .horizontal_alignment(HorizontalAlignment::Right);
 
         let mut subpanel = Widget::<Panel>::new(Panel::default(), self.screen.clone());
         subpanel
             .init(renderer)
             .size([550., 250.].into())
-            .stroke(20.)
-            .draggable(true);
+            .stroke(10.)
+            .draggable(true)
+            .vertical_alignment(VerticalAlignment::Top)
+            .horizontal_alignment(HorizontalAlignment::Left)
+            .fit_to_content(true);
 
         let mut text = Widget::<Text>::new(Text::default(), self.screen.clone());
         text.init(renderer)
             .size([300.0, 50.0].into())
-            .horizontal_alignment(HorizontalAlignment::Center)
             .vertical_alignment(VerticalAlignment::Center)
+            .horizontal_alignment(HorizontalAlignment::Center)
             .get_mut()
             .set_text("Title");
 
