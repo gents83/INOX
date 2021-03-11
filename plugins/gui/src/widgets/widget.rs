@@ -337,6 +337,8 @@ where
         let clip_area = self.compute_clip_area(parent_data);
 
         T::update(self, parent_data, renderer, input_handler);
+        self.update_layout(parent_data);
+
         self.data.graphics.update(renderer, clip_area);
 
         let mut input_managed = false;
@@ -446,12 +448,10 @@ where
     }
     pub fn horizontal_alignment(&mut self, alignment: HorizontalAlignment) -> &mut Self {
         self.data.state.set_horizontal_alignment(alignment);
-        self.update_layout(None);
         self
     }
     pub fn vertical_alignment(&mut self, alignment: VerticalAlignment) -> &mut Self {
         self.data.state.set_vertical_alignment(alignment);
-        self.update_layout(None);
         self
     }
 
@@ -463,7 +463,6 @@ where
     pub fn position(&mut self, pos: Vector2f) -> &mut Self {
         let offset = pos - self.data.state.get_position();
         self.translate(offset);
-        self.update_layout(None);
         self
     }
 
@@ -474,7 +473,6 @@ where
         let screen_size = self.screen.convert_size_from_pixels(size);
         let scale = screen_size / old_screen_scale;
         self.scale(scale);
-        self.update_layout(None);
         self
     }
 

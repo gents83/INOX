@@ -1,4 +1,4 @@
-#[allow(dead_code)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HorizontalAlignment {
     None,
     Left,
@@ -6,7 +6,7 @@ pub enum HorizontalAlignment {
     Center,
     Stretch,
 }
-#[allow(dead_code)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum VerticalAlignment {
     None,
     Top,
