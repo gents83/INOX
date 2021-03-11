@@ -1,3 +1,5 @@
+use std::any::Any;
+
 use super::{align::*, graphics::*, node::*, screen::*, state::*, style::*};
 use nrg_graphics::*;
 use nrg_math::*;
@@ -20,7 +22,9 @@ impl Default for WidgetData {
     }
 }
 
-pub trait WidgetBase: Send + Sync {
+pub trait WidgetBase: Send + Sync + Any {
+    fn as_any(&self) -> &dyn Any;
+    fn as_any_mut(&mut self) -> &mut dyn Any;
     fn get_screen(&self) -> Screen;
     fn get_data(&self) -> &WidgetData;
     fn get_data_mut(&mut self) -> &mut WidgetData;
@@ -316,8 +320,15 @@ where
 
 impl<T> WidgetBase for Widget<T>
 where
-    T: WidgetTrait,
+    T: WidgetTrait + 'static,
 {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+    fn as_any_mut(&mut self) -> &mut dyn Any
+    {
+        self
+    }
     fn get_screen(&self) -> Screen {
         self.screen.clone()
     }
@@ -390,7 +401,7 @@ pub trait WidgetTrait: Send + Sync + Sized {
 
 impl<T> Widget<T>
 where
-    T: WidgetTrait,
+    T: WidgetTrait + 'static,
 {
     pub fn new(inner: T, screen: Screen) -> Self {
         Self {
@@ -400,7 +411,6 @@ where
         }
     }
 
-    #[allow(dead_code)]
     pub fn get(&self) -> &T {
         &self.inner
     }
@@ -423,6 +433,17 @@ where
         self.data.node.add_child(widget);
         self.update_layout(None);
         id
+    }
+
+    pub fn get_child<W>(&mut self, uid: UID) -> Option<&mut Widget<W>>
+    where
+        W: WidgetTrait + 'static,
+    {
+        if let Some(widget) = self.data.node.get_child(uid) {
+            let w = widget as &mut Widget<W>;
+            return Some(w);
+        }
+        None
     }
 
     pub fn propagate_on_child<F>(&self, uid: UID, f: F)

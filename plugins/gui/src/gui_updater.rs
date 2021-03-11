@@ -6,6 +6,7 @@ use nrg_core::*;
 use nrg_graphics::*;
 use nrg_math::*;
 use nrg_platform::*;
+use nrg_serialize::*;
 
 pub struct GuiUpdater {
     id: SystemId,
@@ -14,6 +15,9 @@ pub struct GuiUpdater {
     screen: Screen,
     widget: Widget<Container>,
     input_handler: InputHandler,
+    fps_text_widget_id: UID,
+    frame_count: usize,
+    time_per_fps: f64,
 }
 
 impl GuiUpdater {
@@ -26,6 +30,9 @@ impl GuiUpdater {
             input_handler: InputHandler::default(),
             widget: Widget::<Container>::new(Container::default(), screen.clone()),
             screen,
+            fps_text_widget_id: INVALID_ID,
+            frame_count: 0,
+            time_per_fps: 0.,
         }
     }
 }
@@ -53,7 +60,16 @@ impl System for GuiUpdater {
             .draggable(false)
             .vertical_alignment(VerticalAlignment::Top)
             .horizontal_alignment(HorizontalAlignment::Right)
-            .fit_to_content(true);
+            .fit_to_content(false);
+
+        let mut fps_text = Widget::<Text>::new(Text::default(), self.screen.clone());
+        fps_text
+            .init(renderer)
+            .size([500.0, 50.0].into())
+            .vertical_alignment(VerticalAlignment::Top)
+            .horizontal_alignment(HorizontalAlignment::Left)
+            .get_mut()
+            .set_text("FPS: ");
 
         let mut subpanel = Widget::<Panel>::new(Panel::default(), self.screen.clone());
         subpanel
@@ -70,12 +86,15 @@ impl System for GuiUpdater {
             .vertical_alignment(VerticalAlignment::Center)
             .horizontal_alignment(HorizontalAlignment::Center)
             .get_mut()
-            .set_text("Ciao");
+            .set_text("Test Button");
 
         subpanel.add_child(text);
         self.widget.add_child(subpanel);
+        self.fps_text_widget_id = self.widget.add_child(fps_text);
     }
     fn run(&mut self) -> bool {
+        let time = std::time::Instant::now();
+
         self.screen.update();
         self.update_mouse_pos();
 
@@ -102,6 +121,18 @@ impl System for GuiUpdater {
             format!("Mouse ScreenSpace[{}, {}]", pos.x, pos.y),
             &mut line,
         );
+
+        self.frame_count += 1;
+        self.time_per_fps += time.elapsed().as_secs_f64();
+        if self.time_per_fps > 0.1 {
+            if let Some(widget) = self.widget.get_child::<Text>(self.fps_text_widget_id) {
+                let str = format!("FPS: {}", self.frame_count * 10);
+                let fps_text = widget.get_mut();
+                fps_text.set_text(str.as_str());
+            }
+            self.frame_count = 0;
+            self.time_per_fps = 0.;
+        }
 
         true
     }

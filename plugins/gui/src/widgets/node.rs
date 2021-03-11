@@ -24,6 +24,19 @@ impl WidgetNode {
         self
     }
 
+    pub fn get_child<W>(&mut self, uid: UID) -> Option<&mut Widget<W>>
+    where
+        W: WidgetTrait + 'static,
+    {
+        if let Some(index) = self.children.iter().position(|el| el.id() == uid) {
+            let widget = self.children[index]
+                .as_any_mut()
+                .downcast_mut::<Widget<W>>();
+            return widget;
+        }
+        None
+    }
+
     pub fn has_children(&self) -> bool {
         !self.children.is_empty()
     }
