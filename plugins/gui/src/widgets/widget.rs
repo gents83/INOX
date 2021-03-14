@@ -70,7 +70,7 @@ pub trait WidgetBase: Send + Sync + Any {
 
         if state.has_to_fit_content() && node.has_children() {
             let mut children_min_pos: Vector2f = [Float::max_value(), Float::max_value()].into();
-            let mut children_size: Vector2f = [Float::max_value(), Float::max_value()].into();
+            let mut children_size: Vector2f = [1., 1.].into();
             node.propagate_on_children(|w| {
                 let child_stroke =
                     screen.convert_size_into_pixels(w.get_data().graphics.get_stroke().into());
@@ -82,10 +82,10 @@ pub trait WidgetBase: Send + Sync + Any {
                     .min(w.get_data().state.get_position().y - child_stroke.y);
                 children_size.x = children_size
                     .x
-                    .min(w.get_data().state.get_size().x + child_stroke.x * 2.);
+                    .max(w.get_data().state.get_size().x + child_stroke.x * 2.);
                 children_size.y = children_size
                     .y
-                    .min(w.get_data().state.get_size().y + child_stroke.y * 2.);
+                    .max(w.get_data().state.get_size().y + child_stroke.y * 2.);
             });
             pos = children_min_pos;
             size = children_size;
