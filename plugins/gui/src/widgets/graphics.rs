@@ -39,6 +39,10 @@ impl WidgetGraphics {
         self.material_id = renderer.add_material(pipeline_id);
         self
     }
+    pub fn init_from(&mut self, material_id: MaterialId) -> &mut Self {
+        self.material_id = material_id;
+        self
+    }
 
     pub fn set_style(&mut self, style: WidgetStyle) -> &mut Self {
         self.style = style;

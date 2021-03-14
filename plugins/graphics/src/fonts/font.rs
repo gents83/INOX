@@ -17,7 +17,6 @@ pub struct Font {
     metrics: Metrics,
     glyphs: Vec<Glyph>,
     char_to_glyph: HashMap<u32, NonZeroU16>,
-    text_data: Vec<TextData>,
 }
 
 #[derive(Clone)]
@@ -50,13 +49,7 @@ impl Font {
             color,
             spacing,
         };
-        let mesh_data = self.create_mesh_from_text(&data);
-        self.text_data.push(data);
-        mesh_data
-    }
-
-    pub fn clear(&mut self) {
-        self.text_data.clear();
+        self.create_mesh_from_text(&data)
     }
 
     #[inline]
@@ -105,6 +98,7 @@ impl Font {
             }
         }
 
+        mesh_data.is_transient = true;
         mesh_data.set_vertex_color(text_data.color);
         mesh_data
     }
@@ -149,7 +143,6 @@ impl Font {
             metrics: max_glyph_metrics,
             glyphs,
             char_to_glyph,
-            text_data: Vec::new(),
         };
 
         font.create_texture(DEFAULT_FONT_TEXTURE_SIZE);

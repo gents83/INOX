@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use crate::config::*;
 use crate::fonts::font::*;
+use image::*;
 use nrg_math::*;
 use nrg_platform::*;
 use nrg_serialize::*;
@@ -215,6 +216,14 @@ impl Renderer {
         None
     }
 
+    pub fn get_font_material_id(&self, id: FontId) -> MaterialId {
+        let index = get_font_index_from_id(&self.fonts, id);
+        if index >= 0 {
+            return self.fonts[index as usize].material_id;
+        }
+        INVALID_ID
+    }
+
     pub fn get_default_font_id(&self) -> FontId {
         if let Some(entry) = self.fonts.first() {
             return entry.id;
@@ -279,16 +288,23 @@ impl Renderer {
         self.prepare_materials();
         self.prepare_meshes();
 
-        self.device.begin_frame()
+        let result = self.device.begin_frame();
+        if !result {
+            self.recreate();
+        }
+        result
     }
 
     pub fn end_frame(&mut self) -> bool {
         self.device.end_frame();
 
-        self.clear_fonts_meshes();
+        self.clear_transient_meshes();
 
-        //TEMP
-        self.device.submit()
+        let result = self.device.submit();
+        if !result {
+            self.recreate();
+        }
+        result
     }
 
     pub fn draw(&mut self) {
@@ -315,6 +331,19 @@ impl Renderer {
 }
 
 impl Renderer {
+    fn recreate(&mut self) {
+        self.device.recreate_swap_chain();
+
+        let pipelines = &mut self.pipelines;
+        for pipeline_instance in pipelines.iter_mut() {
+            if let Some(pipeline) = &mut pipeline_instance.pipeline {
+                let render_pass =
+                    RenderPass::create_default(&self.device, &pipeline_instance.data.data);
+                pipeline.recreate(render_pass);
+            }
+        }
+    }
+
     fn load_pipelines(&mut self) {
         let device = &mut self.device;
         let pipelines = &mut self.pipelines;
@@ -378,6 +407,15 @@ impl Renderer {
 
     fn prepare_materials(&mut self) {
         self.materials.sort_by(|a, b| a.id.cmp(&b.id));
+
+        self.materials.iter_mut().for_each(|material_instance| {
+            if let Some(material) = &mut material_instance.material {
+                if material.get_num_textures() == 0 {
+                    let image = DynamicImage::new_rgba8(1, 1);
+                    material.add_texture_from_image(&image);
+                }
+            }
+        });
     }
 
     fn prepare_meshes(&mut self) {
@@ -403,15 +441,11 @@ impl Renderer {
         });
     }
 
-    fn clear_fonts_meshes(&mut self) {
-        let materials = &mut self.materials;
-        self.fonts.iter_mut().for_each(|font_instance| {
-            let material_index = get_material_index_from_id(&materials, font_instance.material_id);
-            if material_index >= 0 {
-                let material_instance = &mut materials[material_index as usize];
-                material_instance.meshes.clear();
-            }
-            font_instance.font.clear();
+    fn clear_transient_meshes(&mut self) {
+        self.materials.iter_mut().for_each(|material_instance| {
+            material_instance
+                .meshes
+                .retain(|mesh_instance| !mesh_instance.mesh.is_transient);
         });
     }
 }

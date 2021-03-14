@@ -39,6 +39,15 @@ impl MaterialInstance {
         }
     }
 
+    pub fn get_num_textures(&self) -> usize {
+        self.textures.len()
+    }
+
+    pub fn remove_all_textures(&mut self) -> &mut Self {
+        self.textures.clear();
+        self
+    }
+
     pub fn add_texture_from_image(&mut self, device: &Device, image: &DynamicImage) -> &mut Self {
         self.textures.push(Texture::create(device, image));
         self
@@ -154,7 +163,7 @@ impl MaterialInstance {
         model_transform: &Matrix4f,
         cam_pos: Vector3f,
     ) {
-        let image_index = device.get_current_image_index();
+        let image_index = device.get_current_buffer_index();
         let details = device.get_instance().get_swap_chain_info();
         let uniform_data: [UniformData; 1] = [UniformData {
             model: *model_transform,
@@ -174,7 +183,7 @@ impl MaterialInstance {
     }
 
     pub fn update_descriptor_sets(&self, device: &Device, pipeline: &Pipeline) {
-        let image_index = device.get_current_image_index();
+        let image_index = device.get_current_buffer_index();
         let buffer_info = VkDescriptorBufferInfo {
             buffer: self.uniform_buffers[image_index],
             offset: 0,

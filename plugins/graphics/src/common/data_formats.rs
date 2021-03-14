@@ -96,6 +96,7 @@ pub struct MeshData {
     pub center: Vector3f,
     pub vertices: Vec<VertexData>,
     pub indices: Vec<u32>,
+    pub is_transient: bool,
 }
 
 impl Default for MeshData {
@@ -104,6 +105,7 @@ impl Default for MeshData {
             center: Vector3f::default(),
             vertices: Vec::new(),
             indices: Vec::new(),
+            is_transient: false,
         }
     }
 }

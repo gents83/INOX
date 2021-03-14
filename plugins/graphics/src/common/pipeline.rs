@@ -34,6 +34,11 @@ impl Pipeline {
         self.inner.delete();
     }
 
+    pub fn recreate(&mut self, render_pass: RenderPass) {
+        self.render_pass.destroy();
+        self.render_pass = render_pass;
+    }
+
     pub fn begin(&mut self) {
         self.render_pass.begin();
         self.inner.prepare(self.render_pass.get_pass());

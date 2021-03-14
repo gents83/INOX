@@ -16,7 +16,6 @@ pub struct GuiUpdater {
     widget: Widget<Container>,
     input_handler: InputHandler,
     fps_text_widget_id: UID,
-    frame_count: usize,
     time_per_fps: f64,
 }
 
@@ -31,7 +30,6 @@ impl GuiUpdater {
             widget: Widget::<Container>::new(Container::default(), screen.clone()),
             screen,
             fps_text_widget_id: INVALID_ID,
-            frame_count: 0,
             time_per_fps: 0.,
         }
     }
@@ -122,16 +120,11 @@ impl System for GuiUpdater {
             &mut line,
         );
 
-        self.frame_count += 1;
-        self.time_per_fps += time.elapsed().as_secs_f64();
-        if self.time_per_fps > 0.1 {
-            if let Some(widget) = self.widget.get_child::<Text>(self.fps_text_widget_id) {
-                let str = format!("FPS: {}", self.frame_count * 10);
-                let fps_text = widget.get_mut();
-                fps_text.set_text(str.as_str());
-            }
-            self.frame_count = 0;
-            self.time_per_fps = 0.;
+        self.time_per_fps = time.elapsed().as_secs_f64();
+        if let Some(widget) = self.widget.get_child::<Text>(self.fps_text_widget_id) {
+            let str = format!("FPS: {:.3}", (60. * self.time_per_fps / 0.001) as u32);
+            let fps_text = widget.get_mut();
+            fps_text.set_text(str.as_str());
         }
 
         true

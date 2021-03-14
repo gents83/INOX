@@ -174,10 +174,20 @@ impl PipelineImmutable {
             flags: 0,
             rasterizationSamples: VkSampleCountFlagBits_VK_SAMPLE_COUNT_1_BIT,
             sampleShadingEnable: VK_FALSE,
-            minSampleShading: 1.0,
+            minSampleShading: 0.0,
             pSampleMask: ::std::ptr::null_mut(),
             alphaToCoverageEnable: VK_FALSE,
             alphaToOneEnable: VK_FALSE,
+        };
+
+        let stencil_state = VkStencilOpState {
+            failOp: VkStencilOp_VK_STENCIL_OP_KEEP,
+            passOp: VkStencilOp_VK_STENCIL_OP_KEEP,
+            depthFailOp: VkStencilOp_VK_STENCIL_OP_KEEP,
+            compareOp: VkCompareOp_VK_COMPARE_OP_NEVER,
+            compareMask: 0,
+            writeMask: 0,
+            reference: 0,
         };
 
         let depth_stencil = VkPipelineDepthStencilStateCreateInfo {
@@ -189,24 +199,8 @@ impl PipelineImmutable {
             depthCompareOp: VkCompareOp_VK_COMPARE_OP_LESS,
             depthBoundsTestEnable: VK_FALSE,
             stencilTestEnable: VK_FALSE,
-            front: VkStencilOpState {
-                failOp: VkStencilOp_VK_STENCIL_OP_KEEP,
-                passOp: VkStencilOp_VK_STENCIL_OP_KEEP,
-                depthFailOp: VkStencilOp_VK_STENCIL_OP_KEEP,
-                compareOp: VkCompareOp_VK_COMPARE_OP_NEVER,
-                compareMask: 0,
-                writeMask: 0,
-                reference: 0,
-            },
-            back: VkStencilOpState {
-                failOp: VkStencilOp_VK_STENCIL_OP_KEEP,
-                passOp: VkStencilOp_VK_STENCIL_OP_KEEP,
-                depthFailOp: VkStencilOp_VK_STENCIL_OP_KEEP,
-                compareOp: VkCompareOp_VK_COMPARE_OP_NEVER,
-                compareMask: 0,
-                writeMask: 0,
-                reference: 0,
-            },
+            front: stencil_state,
+            back: stencil_state,
             minDepthBounds: 0.0,
             maxDepthBounds: 1.0,
         };
@@ -289,7 +283,7 @@ impl PipelineImmutable {
                 VkResult_VK_SUCCESS,
                 vkCreateGraphicsPipelines.unwrap()(
                     device.get_device(),
-                    ::std::ptr::null_mut(),
+                    device.get_pipeline_cache(),
                     1,
                     &pipeline_info,
                     ::std::ptr::null_mut(),

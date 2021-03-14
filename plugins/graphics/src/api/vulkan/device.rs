@@ -1,5 +1,4 @@
 use super::instance::*;
-use super::types::*;
 use super::utils::*;
 use std::{cell::RefCell, os::raw::c_char, rc::Rc};
 use vulkan_bindings::*;
@@ -43,12 +42,12 @@ pub struct DeviceImmutable {
     swap_chain: SwapChain,
     command_pool: VkCommandPool,
     command_buffers: Vec<VkCommandBuffer>,
-    current_frame_index: u32,
-    current_image_index: u32,
-    image_available_semaphores: Vec<VkSemaphore>,
-    render_finished_semaphores: Vec<VkSemaphore>,
-    inflight_fences: Vec<VkFence>,
-    inflight_images: Vec<VkFence>,
+    pipeline_cache: VkPipelineCache,
+    semaphore_id: usize,
+    current_buffer_index: u32,
+    semaphore_image_available: Vec<VkSemaphore>,
+    semaphore_render_complete: Vec<VkSemaphore>,
+    command_buffer_fences: Vec<VkFence>,
 }
 
 #[derive(Clone)]
@@ -78,6 +77,10 @@ impl Device {
         &self.instance
     }
 
+    pub fn get_pipeline_cache(&self) -> VkPipelineCache {
+        self.inner.borrow_mut().pipeline_cache
+    }
+
     pub fn get_images_count(&self) -> usize {
         self.inner.borrow().swap_chain.image_data.len()
     }
@@ -90,13 +93,13 @@ impl Device {
         self.inner.borrow().swap_chain.depth_image_data[index].image_view
     }
 
-    pub fn get_current_image_index(&self) -> usize {
-        self.inner.borrow().current_image_index as _
+    pub fn get_current_buffer_index(&self) -> usize {
+        self.inner.borrow().current_buffer_index as _
     }
 
     pub fn get_current_command_buffer(&self) -> VkCommandBuffer {
         let inner = self.inner.borrow();
-        inner.command_buffers[inner.current_image_index as usize]
+        inner.command_buffers[inner.current_buffer_index as usize]
     }
 
     pub fn create_buffer(
@@ -138,13 +141,13 @@ impl Device {
             .map_buffer_memory(buffer_memory, data_src);
     }
 
-    pub fn create_image_view(&self, image: VkImage, format: VkFormat) -> VkImageView {
-        create_image_view(
-            self.inner.borrow().device,
-            image,
-            format,
-            VkImageAspectFlagBits_VK_IMAGE_ASPECT_COLOR_BIT as _,
-        )
+    pub fn create_image_view(
+        &self,
+        image: VkImage,
+        format: VkFormat,
+        aspect_flags: VkImageUsageFlags,
+    ) -> VkImageView {
+        create_image_view(self.inner.borrow().device, image, format, aspect_flags)
     }
 
     pub fn create_image(
@@ -187,12 +190,12 @@ impl Device {
     }
 
     pub fn begin_frame(&mut self) -> bool {
-        if !self.inner.borrow_mut().prepare_for_new_frame() {
-            return false;
+        let result = self.inner.borrow_mut().acquire_image();
+        if result {
+            let command_buffer = self.get_current_command_buffer();
+            self.inner.borrow_mut().begin_frame(command_buffer);
         }
-        let command_buffer = self.get_current_command_buffer();
-        self.inner.borrow_mut().begin_frame(command_buffer);
-        true
+        result
     }
 
     pub fn end_frame(&self) {
@@ -217,22 +220,23 @@ impl DeviceImmutable {
 
     pub fn delete(&mut self) {
         unsafe {
+            let count = self.swap_chain.image_data.len();
             self.cleanup_swap_chain();
 
-            for i in 0..MAX_FRAMES_IN_FLIGHT {
+            for i in 0..count {
                 vkDestroySemaphore.unwrap()(
                     self.device,
-                    self.render_finished_semaphores[i as usize],
+                    self.semaphore_image_available[i as usize],
                     ::std::ptr::null_mut(),
                 );
                 vkDestroySemaphore.unwrap()(
                     self.device,
-                    self.image_available_semaphores[i as usize],
+                    self.semaphore_render_complete[i as usize],
                     ::std::ptr::null_mut(),
                 );
                 vkDestroyFence.unwrap()(
                     self.device,
-                    self.inflight_fences[i as usize],
+                    self.command_buffer_fences[i as usize],
                     ::std::ptr::null_mut(),
                 );
             }
@@ -242,61 +246,51 @@ impl DeviceImmutable {
         }
     }
 
-    fn prepare_for_new_frame(&mut self) -> bool {
+    fn acquire_image(&mut self) -> bool {
         unsafe {
             vkWaitForFences.unwrap()(
                 self.device,
                 1,
-                &self.inflight_fences[self.current_frame_index as usize],
+                &self.command_buffer_fences[self.current_buffer_index as usize],
                 VK_TRUE,
                 std::u64::MAX,
             );
-
-            let new_frame_index = (self.current_frame_index + 1) % MAX_FRAMES_IN_FLIGHT as u32;
-
             let result = vkAcquireNextImageKHR.unwrap()(
                 self.device,
                 self.swap_chain.ptr,
                 ::std::u64::MAX,
-                self.image_available_semaphores[new_frame_index as usize],
+                self.semaphore_image_available[self.semaphore_id],
                 ::std::ptr::null_mut(),
-                &mut self.current_image_index,
+                &mut self.current_buffer_index,
             );
-
             if result == VkResult_VK_ERROR_OUT_OF_DATE_KHR {
                 self.wait_device();
                 return false;
             } else if result != VkResult_VK_SUCCESS && result != VkResult_VK_SUBOPTIMAL_KHR {
                 eprintln!("Failed to acquire swap chain image");
+                return false;
             }
-
-            if self.inflight_images[self.current_image_index as usize] != ::std::ptr::null_mut() {
-                vkWaitForFences.unwrap()(
-                    self.device,
-                    1,
-                    &self.inflight_images[self.current_image_index as usize],
-                    VK_TRUE,
-                    std::u64::MAX,
-                );
-            }
-            self.inflight_images[self.current_image_index as usize] =
-                self.inflight_fences[new_frame_index as usize];
-
-            self.current_frame_index = new_frame_index;
         }
-
         true
     }
 
     fn begin_frame(&mut self, command_buffer: VkCommandBuffer) {
         let begin_info = VkCommandBufferBeginInfo {
             sType: VkStructureType_VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-            flags: 0,
+            flags: VkCommandBufferUsageFlagBits_VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT as _,
             pNext: ::std::ptr::null_mut(),
             pInheritanceInfo: ::std::ptr::null_mut(),
         };
 
         unsafe {
+            vkWaitForFences.unwrap()(
+                self.device,
+                1,
+                &self.command_buffer_fences[self.current_buffer_index as usize],
+                VK_TRUE,
+                std::u64::MAX,
+            );
+
             assert_eq!(
                 VkResult_VK_SUCCESS,
                 vkBeginCommandBuffer.unwrap()(command_buffer, &begin_info)
@@ -310,49 +304,49 @@ impl DeviceImmutable {
                 VkResult_VK_SUCCESS,
                 vkEndCommandBuffer.unwrap()(command_buffer)
             );
+            vkResetFences.unwrap()(
+                self.device,
+                1,
+                &self.command_buffer_fences[self.current_buffer_index as usize],
+            );
         }
     }
 
     fn submit(&mut self, command_buffer: VkCommandBuffer) -> bool {
         unsafe {
             let wait_stages =
-                [VkPipelineStageFlagBits_VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT];
+                [VkPipelineStageFlagBits_VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT as _];
             let submit_info = VkSubmitInfo {
                 sType: VkStructureType_VK_STRUCTURE_TYPE_SUBMIT_INFO,
                 pNext: ::std::ptr::null_mut(),
                 waitSemaphoreCount: 1,
-                pWaitSemaphores: &self.image_available_semaphores
-                    [self.current_frame_index as usize],
-                pWaitDstStageMask: wait_stages.as_ptr() as *const _,
+                pWaitSemaphores: &self.semaphore_image_available[self.semaphore_id],
+                pWaitDstStageMask: wait_stages.as_ptr(),
                 commandBufferCount: 1,
                 pCommandBuffers: &command_buffer,
                 signalSemaphoreCount: 1,
-                pSignalSemaphores: &self.render_finished_semaphores
-                    [self.current_frame_index as usize],
+                pSignalSemaphores: &self.semaphore_render_complete[self.semaphore_id],
             };
 
-            vkResetFences.unwrap()(
-                self.device,
-                1,
-                &self.inflight_fences[self.current_frame_index as usize],
+            assert_eq!(
+                VkResult_VK_SUCCESS,
+                vkQueueSubmit.unwrap()(
+                    self.graphics_queue,
+                    1,
+                    &submit_info,
+                    self.command_buffer_fences[self.current_buffer_index as usize],
+                )
             );
-
-            vkQueueSubmit.unwrap()(
-                self.graphics_queue,
-                1,
-                &submit_info,
-                self.inflight_fences[self.current_frame_index as usize],
-            );
+            vkQueueWaitIdle.unwrap()(self.graphics_queue);
 
             let present_info = VkPresentInfoKHR {
                 sType: VkStructureType_VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
                 pNext: ::std::ptr::null_mut(),
                 waitSemaphoreCount: 1,
-                pWaitSemaphores: &self.render_finished_semaphores
-                    [self.current_frame_index as usize],
+                pWaitSemaphores: &self.semaphore_render_complete[self.semaphore_id],
                 swapchainCount: 1,
                 pSwapchains: &self.swap_chain.ptr,
-                pImageIndices: &self.current_image_index,
+                pImageIndices: &self.current_buffer_index,
                 pResults: ::std::ptr::null_mut(),
             };
 
@@ -363,10 +357,14 @@ impl DeviceImmutable {
                 return false;
             } else if result != VkResult_VK_SUCCESS {
                 eprintln!("Failed to present swap chain image!");
+                return false;
             }
 
             vkQueueWaitIdle.unwrap()(self.present_queue);
+
+            self.semaphore_id = (self.semaphore_id + 1) % self.semaphore_image_available.len();
         }
+
         true
     }
 
@@ -821,6 +819,27 @@ impl DeviceImmutable {
             output.assume_init()
         };
 
+        let pipeline_cache_info = VkPipelineCacheCreateInfo {
+            sType: VkStructureType_VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO,
+            pNext: ::std::ptr::null_mut(),
+            flags: 0,
+            initialDataSize: 0,
+            pInitialData: ::std::ptr::null_mut(),
+        };
+        let pipeline_cache: VkPipelineCache = unsafe {
+            let mut output = ::std::mem::MaybeUninit::uninit();
+            assert_eq!(
+                VkResult_VK_SUCCESS,
+                vkCreatePipelineCache.unwrap()(
+                    device,
+                    &pipeline_cache_info,
+                    ::std::ptr::null_mut(),
+                    output.as_mut_ptr(),
+                )
+            );
+            output.assume_init()
+        };
+
         let mut inner_device = Self {
             device,
             graphics_queue,
@@ -828,12 +847,12 @@ impl DeviceImmutable {
             swap_chain: SwapChain::default(),
             command_pool: ::std::ptr::null_mut(),
             command_buffers: Vec::new(),
-            current_frame_index: 0,
-            current_image_index: 0,
-            image_available_semaphores: Vec::new(),
-            render_finished_semaphores: Vec::new(),
-            inflight_fences: Vec::new(),
-            inflight_images: Vec::new(),
+            pipeline_cache,
+            semaphore_id: 0,
+            current_buffer_index: 0,
+            semaphore_image_available: Vec::new(),
+            semaphore_render_complete: Vec::new(),
+            command_buffer_fences: Vec::new(),
         };
         inner_device
             .create_swap_chain(&instance)
@@ -911,6 +930,8 @@ impl DeviceImmutable {
             output.assume_init()
         };
 
+        self.swap_chain.depth_image_data.clear();
+
         let mut swapchain_images_count = unsafe {
             let mut option = ::std::mem::MaybeUninit::uninit();
             vkGetSwapchainImagesKHR.unwrap()(
@@ -956,7 +977,8 @@ impl DeviceImmutable {
                 depth_format,
             ),
             VkImageTiling_VK_IMAGE_TILING_OPTIMAL,
-            VkImageUsageFlagBits_VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT as _,
+            (VkImageUsageFlagBits_VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
+                | VkImageUsageFlagBits_VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT) as _,
             VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT as _,
         );
         let image_view = create_image_view(
@@ -1014,40 +1036,37 @@ impl DeviceImmutable {
     }
 
     fn create_sync_objects(&mut self) -> &mut Self {
-        let mut image_available_semaphores: Vec<VkSemaphore> =
-            Vec::with_capacity(MAX_FRAMES_IN_FLIGHT as usize);
-        let mut render_finished_semaphores: Vec<VkSemaphore> =
-            Vec::with_capacity(MAX_FRAMES_IN_FLIGHT as usize);
-        let mut inflight_fences: Vec<VkFence> = Vec::with_capacity(MAX_FRAMES_IN_FLIGHT as usize);
-        let mut inflight_images: Vec<VkFence> =
-            Vec::with_capacity(self.swap_chain.image_data.len());
+        let count = self.swap_chain.image_data.len();
+
+        self.semaphore_image_available = Vec::with_capacity(count);
+        self.semaphore_render_complete = Vec::with_capacity(count);
+        self.command_buffer_fences = Vec::with_capacity(count);
         unsafe {
-            image_available_semaphores.set_len(MAX_FRAMES_IN_FLIGHT as usize);
-            render_finished_semaphores.set_len(MAX_FRAMES_IN_FLIGHT as usize);
-            inflight_fences.set_len(MAX_FRAMES_IN_FLIGHT as usize);
-            inflight_images.set_len(self.swap_chain.image_data.len());
+            self.semaphore_image_available.set_len(count);
+            self.semaphore_render_complete.set_len(count);
+            self.command_buffer_fences.set_len(count);
         }
+
         let semaphore_create_info = VkSemaphoreCreateInfo {
             sType: VkStructureType_VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
             pNext: ::std::ptr::null_mut(),
-            flags: 0,
+            flags: VkSemaphoreType_VK_SEMAPHORE_TYPE_BINARY as _,
         };
-
         let fence_create_info = VkFenceCreateInfo {
             sType: VkStructureType_VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
             pNext: ::std::ptr::null_mut(),
             flags: VkFenceCreateFlagBits_VK_FENCE_CREATE_SIGNALED_BIT as _,
         };
 
-        for i in 0..MAX_FRAMES_IN_FLIGHT {
-            unsafe {
+        unsafe {
+            for i in 0..count {
                 assert_eq!(
                     VkResult_VK_SUCCESS,
                     vkCreateSemaphore.unwrap()(
                         self.device,
                         &semaphore_create_info,
                         ::std::ptr::null_mut(),
-                        &mut image_available_semaphores[i as usize]
+                        &mut self.semaphore_image_available[i as usize]
                     )
                 );
                 assert_eq!(
@@ -1056,7 +1075,7 @@ impl DeviceImmutable {
                         self.device,
                         &semaphore_create_info,
                         ::std::ptr::null_mut(),
-                        &mut render_finished_semaphores[i as usize]
+                        &mut self.semaphore_render_complete[i as usize]
                     )
                 );
                 assert_eq!(
@@ -1065,20 +1084,12 @@ impl DeviceImmutable {
                         self.device,
                         &fence_create_info,
                         ::std::ptr::null_mut(),
-                        &mut inflight_fences[i as usize]
+                        &mut self.command_buffer_fences[i as usize]
                     )
                 );
             }
         }
 
-        for i in 0..inflight_images.len() {
-            inflight_images[i as usize] = ::std::ptr::null_mut();
-        }
-
-        self.image_available_semaphores = image_available_semaphores;
-        self.render_finished_semaphores = render_finished_semaphores;
-        self.inflight_fences = inflight_fences;
-        self.inflight_images = inflight_images;
         self
     }
 
@@ -1108,13 +1119,6 @@ impl DeviceImmutable {
 
     fn wait_device(&mut self) {
         unsafe {
-            for fence in self.inflight_fences.iter_mut() {
-                vkWaitForFences.unwrap()(self.device, 1, fence, VK_TRUE, std::u64::MAX);
-            }
-            for fence in self.inflight_images.iter_mut() {
-                vkWaitForFences.unwrap()(self.device, 1, fence, VK_TRUE, std::u64::MAX);
-            }
-
             vkDeviceWaitIdle.unwrap()(self.device);
         }
     }
@@ -1146,7 +1150,8 @@ impl DeviceImmutable {
 
         self.create_swap_chain(instance)
             .create_image_views(instance)
-            .allocate_command_buffers();
+            .allocate_command_buffers()
+            .create_sync_objects();
     }
 
     fn allocate_command_buffers(&mut self) -> &mut Self {

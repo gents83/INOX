@@ -50,9 +50,10 @@ impl System for RenderingSystem {
         let read_data = self.shared_data.read().unwrap();
         let renderer = &mut *read_data.get_unique_resource_mut::<Renderer>();
 
-        let mut _result = renderer.begin_frame();
-        renderer.draw();
-        _result = renderer.end_frame();
+        if renderer.begin_frame() {
+            renderer.draw();
+            renderer.end_frame();
+        }
 
         true
     }

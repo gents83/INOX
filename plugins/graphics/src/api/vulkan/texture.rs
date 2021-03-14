@@ -119,7 +119,11 @@ impl Texture {
 
         device.destroy_buffer(&staging_buffer, &staging_buffer_memory);
 
-        self.texture_image_view = device.create_image_view(self.texture_image, format);
+        self.texture_image_view = device.create_image_view(
+            self.texture_image,
+            format,
+            VkImageAspectFlagBits_VK_IMAGE_ASPECT_COLOR_BIT as _,
+        );
     }
 
     fn create_texture_sampler(&mut self, device: &Device) {

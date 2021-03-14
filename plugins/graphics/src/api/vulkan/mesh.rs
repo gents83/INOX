@@ -108,10 +108,11 @@ impl Mesh {
 
     pub fn draw(&self, device: &Device) {
         unsafe {
+            let command_buffer = device.get_current_command_buffer();
             let vertex_buffers = [self.vertex_buffer];
             let offsets = [0_u64];
             vkCmdBindVertexBuffers.unwrap()(
-                device.get_current_command_buffer(),
+                command_buffer,
                 0,
                 1,
                 vertex_buffers.as_ptr(),
@@ -120,27 +121,14 @@ impl Mesh {
 
             if self.index_buffer != ::std::ptr::null_mut() {
                 vkCmdBindIndexBuffer.unwrap()(
-                    device.get_current_command_buffer(),
+                    command_buffer,
                     self.index_buffer,
                     0,
                     VkIndexType_VK_INDEX_TYPE_UINT32,
                 );
-                vkCmdDrawIndexed.unwrap()(
-                    device.get_current_command_buffer(),
-                    self.indices_count as _,
-                    1,
-                    0,
-                    0,
-                    0,
-                );
+                vkCmdDrawIndexed.unwrap()(command_buffer, self.indices_count as _, 1, 0, 0, 0);
             } else {
-                vkCmdDraw.unwrap()(
-                    device.get_current_command_buffer(),
-                    self.vertex_count,
-                    1,
-                    0,
-                    0,
-                );
+                vkCmdDraw.unwrap()(command_buffer, self.vertex_count, 1, 0, 0);
             }
         }
     }

@@ -55,7 +55,7 @@ impl RenderPass {
             sType: VkStructureType_VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
             pNext: ::std::ptr::null_mut(),
             renderPass: self.inner.borrow().render_pass,
-            framebuffer: self.inner.borrow().framebuffers[device.get_current_image_index()],
+            framebuffer: self.inner.borrow().framebuffers[device.get_current_buffer_index()],
             renderArea: VkRect2D {
                 offset: VkOffset2D { x: 0, y: 0 },
                 extent: device
@@ -98,12 +98,12 @@ impl RenderPassImmutable {
             samples: VkSampleCountFlagBits_VK_SAMPLE_COUNT_1_BIT,
             loadOp: match data.clear {
                 true => VkAttachmentLoadOp_VK_ATTACHMENT_LOAD_OP_CLEAR,
-                _ => VkAttachmentLoadOp_VK_ATTACHMENT_LOAD_OP_LOAD,
+                _ => VkAttachmentLoadOp_VK_ATTACHMENT_LOAD_OP_DONT_CARE,
             },
             storeOp: VkAttachmentStoreOp_VK_ATTACHMENT_STORE_OP_STORE,
             stencilLoadOp: VkAttachmentLoadOp_VK_ATTACHMENT_LOAD_OP_DONT_CARE,
             stencilStoreOp: VkAttachmentStoreOp_VK_ATTACHMENT_STORE_OP_DONT_CARE,
-            initialLayout: VkImageLayout_VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+            initialLayout: VkImageLayout_VK_IMAGE_LAYOUT_GENERAL,
             finalLayout: VkImageLayout_VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
         };
 
@@ -116,14 +116,11 @@ impl RenderPassImmutable {
             flags: 0,
             format: find_depth_format(device.get_instance().get_physical_device()),
             samples: VkSampleCountFlagBits_VK_SAMPLE_COUNT_1_BIT,
-            loadOp: match data.clear {
-                true => VkAttachmentLoadOp_VK_ATTACHMENT_LOAD_OP_CLEAR,
-                _ => VkAttachmentLoadOp_VK_ATTACHMENT_LOAD_OP_LOAD,
-            },
+            loadOp: VkAttachmentStoreOp_VK_ATTACHMENT_STORE_OP_DONT_CARE,
             storeOp: VkAttachmentStoreOp_VK_ATTACHMENT_STORE_OP_DONT_CARE,
             stencilLoadOp: VkAttachmentLoadOp_VK_ATTACHMENT_LOAD_OP_DONT_CARE,
             stencilStoreOp: VkAttachmentStoreOp_VK_ATTACHMENT_STORE_OP_DONT_CARE,
-            initialLayout: VkImageLayout_VK_IMAGE_LAYOUT_UNDEFINED,
+            initialLayout: VkImageLayout_VK_IMAGE_LAYOUT_GENERAL,
             finalLayout: VkImageLayout_VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
         };
 

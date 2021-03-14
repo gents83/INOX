@@ -6,8 +6,6 @@ use nrg_platform::*;
 pub struct Text {
     font_id: FontId,
     text: String,
-    scale: f32,
-    spacing: Vector2f,
 }
 
 impl Default for Text {
@@ -15,8 +13,6 @@ impl Default for Text {
         Self {
             font_id: INVALID_ID,
             text: String::new(),
-            scale: 1.0,
-            spacing: Vector2f::default(),
         }
     }
 }
@@ -30,12 +26,13 @@ impl Text {
 
 impl WidgetTrait for Text {
     fn init(widget: &mut Widget<Self>, renderer: &mut Renderer) {
-        widget.get_mut().font_id = renderer.get_default_font_id();
-        widget.get_mut().scale = 100.;
-        widget.get_mut().spacing = [0., 0.].into();
+        let font_id = renderer.get_default_font_id();
+        let material_id = renderer.get_font_material_id(font_id);
+
+        widget.get_mut().font_id = font_id;
 
         let data = widget.get_data_mut();
-        data.graphics.init(renderer, "Font");
+        data.graphics.init_from(material_id);
         data.graphics.set_style(WidgetStyle::default_text());
     }
 
@@ -104,10 +101,10 @@ impl WidgetTrait for Text {
         if *widget.get_data().state.get_vertical_alignment() == VerticalAlignment::Stretch {
             new_size.y = size.y;
         }
-        widget
-            .get_data_mut()
-            .state
-            .set_size(screen.convert_size_into_pixels(new_size));
+        /*widget
+        .get_data_mut()
+        .state
+        .set_size(screen.convert_size_into_pixels(new_size));*/
         widget.get_data_mut().graphics.set_mesh_data(mesh_data);
     }
 
