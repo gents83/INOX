@@ -57,8 +57,8 @@ impl System for GuiUpdater {
             .size([800.0, 600.0].into())
             .draggable(false)
             .vertical_alignment(VerticalAlignment::Top)
-            .horizontal_alignment(HorizontalAlignment::Right)
-            .fit_to_content(true);
+            .horizontal_alignment(HorizontalAlignment::Right);
+        self.widget.get_mut().set_fit_to_content(true);
 
         let mut fps_text = Widget::<Text>::new(Text::default(), self.screen.clone());
         fps_text

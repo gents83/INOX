@@ -13,7 +13,6 @@ pub struct WidgetState {
     layer: f32,
     horizontal_alignment: HorizontalAlignment,
     vertical_alignment: VerticalAlignment,
-    fit_to_content: bool,
 }
 
 impl Default for WidgetState {
@@ -28,7 +27,6 @@ impl Default for WidgetState {
             layer: 1.0 - LAYER_OFFSET,
             horizontal_alignment: HorizontalAlignment::None,
             vertical_alignment: VerticalAlignment::None,
-            fit_to_content: false,
         }
     }
 }
@@ -102,15 +100,6 @@ impl WidgetState {
 
     pub fn get_vertical_alignment(&self) -> &VerticalAlignment {
         &self.vertical_alignment
-    }
-
-    pub fn has_to_fit_content(&self) -> bool {
-        self.fit_to_content
-    }
-
-    pub fn set_fit_to_content(&mut self, has_to_fit_content: bool) -> &mut Self {
-        self.fit_to_content = has_to_fit_content;
-        self
     }
 
     pub fn is_inside(&self, pos: Vector2f) -> bool {

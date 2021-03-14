@@ -56,44 +56,6 @@ pub trait WidgetBase: Send + Sync + Any {
         });
     }
 
-    fn apply_fit_to_content(&mut self) {
-        let state = &self.get_data().state;
-        let node = &self.get_data().node;
-        if !state.has_to_fit_content() || !node.has_children() {
-            return;
-        }
-
-        let screen = &self.get_screen();
-
-        let mut pos = state.get_position();
-        let mut size = state.get_size();
-
-        if state.has_to_fit_content() && node.has_children() {
-            let mut children_min_pos: Vector2f = [Float::max_value(), Float::max_value()].into();
-            let mut children_size: Vector2f = [1., 1.].into();
-            node.propagate_on_children(|w| {
-                let child_stroke =
-                    screen.convert_size_into_pixels(w.get_data().graphics.get_stroke().into());
-                children_min_pos.x = children_min_pos
-                    .x
-                    .min(w.get_data().state.get_position().x - child_stroke.x);
-                children_min_pos.y = children_min_pos
-                    .y
-                    .min(w.get_data().state.get_position().y - child_stroke.y);
-                children_size.x = children_size
-                    .x
-                    .max(w.get_data().state.get_size().x + child_stroke.x * 2.);
-                children_size.y = children_size
-                    .y
-                    .max(w.get_data().state.get_size().y + child_stroke.y * 2.);
-            });
-            pos = children_min_pos;
-            size = children_size;
-        }
-        self.get_data_mut().state.set_position(pos);
-        self.get_data_mut().state.set_size(size);
-    }
-
     fn compute_offset_and_scale_from_alignment(&mut self, clip_rect: Vector4f) {
         let state = &self.get_data().state;
         let graphics = &self.get_data().graphics;
@@ -251,7 +213,6 @@ pub trait WidgetBase: Send + Sync + Any {
         let clip_area = self.compute_clip_area(parent_data);
 
         if !self.get_data().state.is_dragging() {
-            self.apply_fit_to_content();
             self.compute_offset_and_scale_from_alignment(clip_area);
         }
         self.clip_in_area(clip_area);
@@ -438,11 +399,6 @@ where
 
     pub fn get_position(&self) -> Vector2f {
         self.data.state.get_position()
-    }
-
-    pub fn fit_to_content(&mut self, has_to_fit_content: bool) -> &mut Self {
-        self.data.state.set_fit_to_content(has_to_fit_content);
-        self
     }
     pub fn horizontal_alignment(&mut self, alignment: HorizontalAlignment) -> &mut Self {
         self.data.state.set_horizontal_alignment(alignment);
