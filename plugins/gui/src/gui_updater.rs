@@ -55,40 +55,43 @@ impl System for GuiUpdater {
             .init(renderer)
             .position([300.0, 300.0].into())
             .size([800.0, 600.0].into())
-            .draggable(false)
+            .draggable(true)
             .vertical_alignment(VerticalAlignment::Top)
-            .horizontal_alignment(HorizontalAlignment::Right);
-        self.widget.get_mut().set_fit_to_content(true);
+            .horizontal_alignment(HorizontalAlignment::Right)
+            .get_mut()
+            .set_fill_type(ContainerFillType::Vertical)
+            .set_fit_to_content(true)
+            .set_space_between_elements(20.);
 
         let mut fps_text = Widget::<Text>::new(Text::default(), self.screen.clone());
         fps_text
             .init(renderer)
-            .size([500.0, 30.0].into())
+            .size([400.0, 20.0].into())
             .vertical_alignment(VerticalAlignment::Top)
             .horizontal_alignment(HorizontalAlignment::Left)
             .get_mut()
             .set_text("FPS: ");
 
-        let mut subpanel = Widget::<Panel>::new(Panel::default(), self.screen.clone());
+        let mut subpanel = Widget::<Container>::new(Container::default(), self.screen.clone());
         subpanel
             .init(renderer)
-            .size([550., 250.].into())
+            .size([550., 150.].into())
             .stroke(10.)
-            .draggable(true)
-            .vertical_alignment(VerticalAlignment::Center)
-            .horizontal_alignment(HorizontalAlignment::Center);
+            .get_mut()
+            .set_fill_type(ContainerFillType::Horizontal)
+            .set_fit_to_content(false);
 
         let mut text = Widget::<Text>::new(Text::default(), self.screen.clone());
         text.init(renderer)
-            .size([300.0, 50.0].into())
+            .size([400.0, 50.0].into())
             .vertical_alignment(VerticalAlignment::Center)
             .horizontal_alignment(HorizontalAlignment::Center)
             .get_mut()
             .set_text("Test Button");
 
+        self.fps_text_widget_id = self.widget.add_child(fps_text);
         subpanel.add_child(text);
         self.widget.add_child(subpanel);
-        self.fps_text_widget_id = self.widget.add_child(fps_text);
     }
     fn run(&mut self) -> bool {
         let time = std::time::Instant::now();

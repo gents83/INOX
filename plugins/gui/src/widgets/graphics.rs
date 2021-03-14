@@ -39,8 +39,21 @@ impl WidgetGraphics {
         self.material_id = renderer.add_material(pipeline_id);
         self
     }
-    pub fn init_from(&mut self, material_id: MaterialId) -> &mut Self {
+    pub fn link_to_material(&mut self, material_id: MaterialId) -> &mut Self {
         self.material_id = material_id;
+        self
+    }
+    pub fn unlink_from_material(&mut self) -> &mut Self {
+        self.material_id = INVALID_ID;
+        self
+    }
+    pub fn remove_meshes(&mut self, renderer: &mut Renderer) -> &mut Self {
+        renderer.remove_mesh(self.material_id, self.border_mesh_id);
+        renderer.remove_mesh(self.material_id, self.mesh_id);
+        self.border_mesh_id = INVALID_ID;
+        self.border_mesh_data.clear();
+        self.mesh_id = INVALID_ID;
+        self.mesh_data.clear();
         self
     }
 
@@ -148,14 +161,9 @@ impl WidgetGraphics {
     }
 
     pub fn uninit(&mut self, renderer: &mut Renderer) -> &mut Self {
-        renderer.remove_mesh(self.material_id, self.border_mesh_id);
-        renderer.remove_mesh(self.material_id, self.mesh_id);
+        self.remove_meshes(renderer);
         renderer.remove_material(self.material_id);
         self.material_id = INVALID_ID;
-        self.border_mesh_id = INVALID_ID;
-        self.border_mesh_data.clear();
-        self.mesh_id = INVALID_ID;
-        self.mesh_data.clear();
         self
     }
 }

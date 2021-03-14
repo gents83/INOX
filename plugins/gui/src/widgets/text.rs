@@ -5,6 +5,7 @@ use nrg_platform::*;
 
 pub struct Text {
     font_id: FontId,
+    material_id: MaterialId,
     text: String,
 }
 
@@ -12,6 +13,7 @@ impl Default for Text {
     fn default() -> Self {
         Self {
             font_id: INVALID_ID,
+            material_id: INVALID_ID,
             text: String::new(),
         }
     }
@@ -30,9 +32,10 @@ impl WidgetTrait for Text {
         let material_id = renderer.get_font_material_id(font_id);
 
         widget.get_mut().font_id = font_id;
+        widget.get_mut().material_id = material_id;
 
         let data = widget.get_data_mut();
-        data.graphics.init_from(material_id);
+        data.graphics.link_to_material(material_id);
         data.graphics.set_style(WidgetStyle::default_text());
     }
 
@@ -96,7 +99,10 @@ impl WidgetTrait for Text {
         widget.get_data_mut().graphics.set_mesh_data(mesh_data);
     }
 
-    fn uninit(_widget: &mut Widget<Self>, _renderer: &mut Renderer) {}
+    fn uninit(widget: &mut Widget<Self>, renderer: &mut Renderer) {
+        let data = widget.get_data_mut();
+        data.graphics.remove_meshes(renderer).unlink_from_material();
+    }
 
     fn get_type(&self) -> &'static str {
         std::any::type_name::<Self>()
