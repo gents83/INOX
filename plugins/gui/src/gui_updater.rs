@@ -63,7 +63,7 @@ impl System for GuiUpdater {
         let mut fps_text = Widget::<Text>::new(Text::default(), self.screen.clone());
         fps_text
             .init(renderer)
-            .size([500.0, 50.0].into())
+            .size([500.0, 30.0].into())
             .vertical_alignment(VerticalAlignment::Top)
             .horizontal_alignment(HorizontalAlignment::Left)
             .get_mut()

@@ -93,18 +93,6 @@ impl WidgetTrait for Text {
             }
             pos_y += char_height;
         }
-        let mut new_size: Vector2f =
-            [char_size * max_chars as f32, char_size * lines_count as f32].into();
-        if *widget.get_data().state.get_horizontal_alignment() == HorizontalAlignment::Stretch {
-            new_size.x = size.x;
-        }
-        if *widget.get_data().state.get_vertical_alignment() == VerticalAlignment::Stretch {
-            new_size.y = size.y;
-        }
-        /*widget
-        .get_data_mut()
-        .state
-        .set_size(screen.convert_size_into_pixels(new_size));*/
         widget.get_data_mut().graphics.set_mesh_data(mesh_data);
     }
 
