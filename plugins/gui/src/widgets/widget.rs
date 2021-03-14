@@ -56,24 +56,17 @@ pub trait WidgetBase: Send + Sync + Any {
         });
     }
 
-    fn apply_fit_to_content(&mut self, clip_rect: Vector4f) {
+    fn apply_fit_to_content(&mut self) {
         let state = &self.get_data().state;
         let node = &self.get_data().node;
         if !state.has_to_fit_content() || !node.has_children() {
             return;
         }
 
-        let graphics = &self.get_data().graphics;
         let screen = &self.get_screen();
-
-        let clip_min =
-            screen.convert_from_screen_space_into_pixels([clip_rect.x, clip_rect.y].into());
-        let clip_max =
-            screen.convert_from_screen_space_into_pixels([clip_rect.z, clip_rect.w].into());
 
         let mut pos = state.get_position();
         let mut size = state.get_size();
-        let stroke = screen.convert_size_into_pixels(graphics.get_stroke().into());
 
         if state.has_to_fit_content() && node.has_children() {
             let mut children_min_pos: Vector2f = [Float::max_value(), Float::max_value()].into();
@@ -97,25 +90,8 @@ pub trait WidgetBase: Send + Sync + Any {
             pos = children_min_pos;
             size = children_size;
         }
-        pos.x = pos
-            .x
-            .max(clip_min.x + stroke.x)
-            .min(clip_max.x - size.x - stroke.x);
-        pos.y = pos
-            .y
-            .max(clip_min.y + stroke.y)
-            .min(clip_max.y - size.y - stroke.y);
-
         self.get_data_mut().state.set_position(pos);
         self.get_data_mut().state.set_size(size);
-        /*
-        println!("{}", std::any::type_name::<Self>());
-        println!(
-            "FIT - Pos{:?} - Size{:?}",
-            self.get_data().state.get_position(),
-            self.get_data().state.get_size()
-        );
-        */
     }
 
     fn compute_offset_and_scale_from_alignment(&mut self, clip_rect: Vector4f) {
@@ -123,10 +99,8 @@ pub trait WidgetBase: Send + Sync + Any {
         let graphics = &self.get_data().graphics;
         let screen = &self.get_screen();
 
-        let clip_min =
-            screen.convert_from_screen_space_into_pixels([clip_rect.x, clip_rect.y].into());
-        let clip_max =
-            screen.convert_from_screen_space_into_pixels([clip_rect.z, clip_rect.w].into());
+        let clip_min: Vector2f = [clip_rect.x, clip_rect.y].into();
+        let clip_max: Vector2f = [clip_rect.z, clip_rect.w].into();
 
         let mut pos = state.get_position();
         let mut size = state.get_size();
@@ -168,6 +142,22 @@ pub trait WidgetBase: Send + Sync + Any {
             _ => {}
         }
 
+        self.get_data_mut().state.set_position(pos);
+        self.get_data_mut().state.set_size(size);
+    }
+
+    fn clip_in_area(&mut self, clip_rect: Vector4f) {
+        let state = &self.get_data().state;
+        let graphics = &self.get_data().graphics;
+        let screen = &self.get_screen();
+
+        let clip_min: Vector2f = [clip_rect.x, clip_rect.y].into();
+        let clip_max: Vector2f = [clip_rect.z, clip_rect.w].into();
+
+        let mut pos = state.get_position();
+        let size = state.get_size();
+        let stroke = screen.convert_size_into_pixels(graphics.get_stroke().into());
+
         pos.x = pos
             .x
             .max(clip_min.x + stroke.x)
@@ -178,16 +168,6 @@ pub trait WidgetBase: Send + Sync + Any {
             .min(clip_max.y - size.y - stroke.y);
 
         self.get_data_mut().state.set_position(pos);
-        self.get_data_mut().state.set_size(size);
-
-        /*
-        println!("{}", std::any::type_name::<Self>());
-        println!(
-            "ALIGN - Pos{:?} - Size{:?}",
-            self.get_data().state.get_position(),
-            self.get_data().state.get_size()
-        );
-        */
     }
 
     fn manage_input(&mut self, input_managed: bool, input_handler: &InputHandler) -> bool {
@@ -212,8 +192,7 @@ pub trait WidgetBase: Send + Sync + Any {
                 .set_border_color(border_color);
             return false;
         }
-        let mouse_in_screen_space = screen.convert_from_pixels_into_screen_space(mouse);
-        if !data.graphics.is_inside(mouse_in_screen_space) {
+        if !data.graphics.is_inside(mouse, &screen) {
             data.state.set_hover(false);
             return false;
         } else {
@@ -235,11 +214,10 @@ pub trait WidgetBase: Send + Sync + Any {
                 .set_border_color(border_color);
         }
         data.state.set_dragging(true);
-        let movement = Vector2f {
+        let movement_in_pixels = screen.convert_position_into_pixels(Vector2f {
             x: input_handler.get_mouse_data().movement_x() as _,
             y: input_handler.get_mouse_data().movement_y() as _,
-        };
-        let movement_in_pixels = screen.convert_position_into_pixels(movement);
+        });
         let pos = data.state.get_position() + movement_in_pixels;
         self.set_position(pos);
         true
@@ -253,9 +231,8 @@ pub trait WidgetBase: Send + Sync + Any {
     fn compute_clip_area(&self, parent_data: Option<&WidgetState>) -> Vector4f {
         let screen = self.get_screen();
         let clip_area: Vector4f = if let Some(parent_state) = parent_data {
-            let parent_pos =
-                screen.convert_from_pixels_into_screen_space(parent_state.get_position());
-            let parent_size = screen.convert_size_from_pixels(parent_state.get_size());
+            let parent_pos = parent_state.get_position();
+            let parent_size = parent_state.get_size();
             [
                 parent_pos.x,
                 parent_pos.y,
@@ -264,7 +241,8 @@ pub trait WidgetBase: Send + Sync + Any {
             ]
             .into()
         } else {
-            [-1.0, -1.0, 1.0, 1.0].into()
+            let size = screen.get_size();
+            [0., 0., size.x, size.y].into()
         };
         clip_area
     }
@@ -273,10 +251,12 @@ pub trait WidgetBase: Send + Sync + Any {
         let clip_area = self.compute_clip_area(parent_data);
 
         if !self.get_data().state.is_dragging() {
-            self.apply_fit_to_content(clip_area);
+            self.apply_fit_to_content();
             self.compute_offset_and_scale_from_alignment(clip_area);
-            self.update_layers();
         }
+        self.clip_in_area(clip_area);
+        self.update_layers();
+
         let data = self.get_data_mut();
         let parent_data = Some(&data.state);
         data.node.propagate_on_children_mut(|w| {
@@ -325,8 +305,7 @@ where
     fn as_any(&self) -> &dyn Any {
         self
     }
-    fn as_any_mut(&mut self) -> &mut dyn Any
-    {
+    fn as_any_mut(&mut self) -> &mut dyn Any {
         self
     }
     fn get_screen(&self) -> Screen {
@@ -345,12 +324,10 @@ where
         renderer: &mut Renderer,
         input_handler: &InputHandler,
     ) -> bool {
-        let clip_area = self.compute_clip_area(parent_data);
-
         T::update(self, parent_data, renderer, input_handler);
         self.update_layout(parent_data);
 
-        self.data.graphics.update(renderer, clip_area);
+        self.data.graphics.update(renderer);
 
         let mut input_managed = false;
         let parent_data = Some(&self.data.state);
@@ -488,11 +465,7 @@ where
     }
 
     pub fn size(&mut self, size: Vector2f) -> &mut Self {
-        let old_screen_scale = self
-            .screen
-            .convert_size_from_pixels(self.data.state.get_size());
-        let screen_size = self.screen.convert_size_from_pixels(size);
-        let scale = screen_size / old_screen_scale;
+        let scale = size / self.data.state.get_size();
         self.scale(scale);
         self
     }

@@ -1,5 +1,5 @@
-use super::state::*;
 use super::style::*;
+use super::{screen::*, state::*};
 use nrg_graphics::*;
 use nrg_math::*;
 
@@ -107,14 +107,21 @@ impl WidgetGraphics {
             .translate([0.0, 0.0, layer + LAYER_OFFSET].into());
         self
     }
-    pub fn is_inside(&self, pos: Vector2f) -> bool {
+    pub fn is_inside(&self, pos: Vector2f, screen: &Screen) -> bool {
+        let pos_in_screen_space = screen.convert_from_pixels_into_screen_space(pos);
         let mut i = 0;
         let count = self.mesh_data.indices.len();
         while i < count {
             let v1 = self.mesh_data.vertices[self.mesh_data.indices[i] as usize].pos;
             let v2 = self.mesh_data.vertices[self.mesh_data.indices[i + 1] as usize].pos;
             let v3 = self.mesh_data.vertices[self.mesh_data.indices[i + 2] as usize].pos;
-            if is_point_in_triangle(v1.into(), v2.into(), v3.into(), pos.x, pos.y) {
+            if is_point_in_triangle(
+                v1.into(),
+                v2.into(),
+                v3.into(),
+                pos_in_screen_space.x,
+                pos_in_screen_space.y,
+            ) {
                 return true;
             }
             i += 3;
@@ -122,10 +129,7 @@ impl WidgetGraphics {
         false
     }
 
-    pub fn update(&mut self, renderer: &mut Renderer, clip_area: Vector4f) -> &mut Self {
-        self.mesh_data.clip_in_rect(clip_area);
-        self.border_mesh_data.clip_in_rect(clip_area);
-
+    pub fn update(&mut self, renderer: &mut Renderer) -> &mut Self {
         if self.border_mesh_id == INVALID_ID && self.stroke > 0.0 {
             self.border_mesh_id = renderer.add_mesh(self.material_id, &self.border_mesh_data);
         } else {
