@@ -87,8 +87,8 @@ impl Window {
     }
 
     pub fn update(&mut self) -> bool {
-        self.manage_window_events();
         Window::internal_update(&self.handle, &mut self.events);
+        self.manage_window_events();
         self.can_continue
     }
 

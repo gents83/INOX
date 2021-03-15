@@ -1,6 +1,6 @@
 use std::any::Any;
 
-use super::{align::*, graphics::*, node::*, screen::*, state::*, style::*};
+use super::*;
 use nrg_graphics::*;
 use nrg_math::*;
 use nrg_platform::*;
@@ -133,7 +133,14 @@ pub trait WidgetBase: Send + Sync + Any {
         self.get_data_mut().state.set_position(pos);
     }
 
-    fn manage_input(&mut self, input_managed: bool, input_handler: &InputHandler) -> bool {
+    fn manage_input(
+        &mut self,
+        input_managed: bool,
+        events: &mut EventsRw,
+        input_handler: &InputHandler,
+    ) -> bool {
+        let id = self.id();
+        let mut events = events.write().unwrap();
         let screen = self.get_screen();
         let data = self.get_data_mut();
         if !data.state.is_active() {
@@ -154,11 +161,11 @@ pub trait WidgetBase: Send + Sync + Any {
             x: input_handler.get_mouse_data().get_x() as _,
             y: input_handler.get_mouse_data().get_y() as _,
         });
-        data.state.set_hover(data.state.is_inside(mouse));
-        if input_managed || !data.state.is_hover() {
-            return false;
-        }
-        if !data.graphics.is_inside(mouse, &screen) {
+        let is_hover = data.state.is_inside(mouse);
+        if input_managed || !is_hover || !data.graphics.is_inside(mouse, &screen) {
+            if data.state.is_hover() {
+                events.send_event(WidgetEvent::Exiting(id));
+            }
             data.state.set_hover(false);
             return false;
         } else {
@@ -167,10 +174,20 @@ pub trait WidgetBase: Send + Sync + Any {
                 .set_color(color)
                 .set_border_color(border_color);
         }
+        if !data.state.is_hover() {
+            events.send_event(WidgetEvent::Entering(id));
+        }
+        data.state.set_hover(true);
         if !input_handler.get_mouse_data().is_pressed() {
+            if data.state.is_pressed() {
+                events.send_event(WidgetEvent::Released(id));
+            }
             data.state.set_pressed(false);
             return true;
         } else {
+            if !data.state.is_pressed() {
+                events.send_event(WidgetEvent::Pressed(id));
+            }
             let (color, border_color) = data.graphics.get_colors(WidgetInteractiveState::Pressed);
             data.graphics
                 .set_color(color)
@@ -310,7 +327,7 @@ where
         self.data.node.propagate_on_children_mut(|w| {
             input_managed |= w.update(parent_data, renderer, events, input_handler);
         });
-        input_managed |= self.manage_input(input_managed, input_handler);
+        input_managed |= self.manage_input(input_managed, events, input_handler);
         input_managed
     }
 

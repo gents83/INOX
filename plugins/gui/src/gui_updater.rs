@@ -16,6 +16,8 @@ pub struct GuiUpdater {
     widget: Widget<Panel>,
     input_handler: InputHandler,
     fps_text_widget_id: UID,
+    button_widget_id: UID,
+    button_text_id: UID,
     time_per_fps: f64,
 }
 
@@ -30,6 +32,8 @@ impl GuiUpdater {
             widget: Widget::<Panel>::new(Panel::default(), screen.clone()),
             screen,
             fps_text_widget_id: INVALID_ID,
+            button_widget_id: INVALID_ID,
+            button_text_id: INVALID_ID,
             time_per_fps: 0.,
         }
     }
@@ -48,7 +52,7 @@ impl System for GuiUpdater {
         let window = &*read_data.get_unique_resource::<Window>();
 
         let events = &mut *read_data.get_unique_resource_mut::<EventsRw>();
-        Button::register_events(events);
+        GUI::register_widget_events(events);
 
         self.input_handler
             .init(window.get_width() as _, window.get_heigth() as _);
@@ -90,11 +94,11 @@ impl System for GuiUpdater {
             .vertical_alignment(VerticalAlignment::Center)
             .horizontal_alignment(HorizontalAlignment::Center)
             .get_mut()
-            .set_text("Test Button");
+            .set_text("Click on me");
 
         self.fps_text_widget_id = self.widget.add_child(fps_text);
-        button.add_child(text);
-        self.widget.add_child(button);
+        self.button_text_id = button.add_child(text);
+        self.button_widget_id = self.widget.add_child(button);
     }
 
     fn run(&mut self) -> bool {
@@ -140,15 +144,36 @@ impl System for GuiUpdater {
             let read_data = self.shared_data.read().unwrap();
             let events = &mut *read_data.get_unique_resource_mut::<EventsRw>();
             let events = events.read().unwrap();
-            for event in events.read_events::<ButtonEvent>() {
-                if *event == ButtonEvent::Released {
-                    let mut line = 0.3;
-                    self.write_line("Released!!!".to_string(), &mut line);
-                } else {
-                    let mut line = 0.3;
-                    self.write_line("Pressed!!!".to_string(), &mut line);
+
+            let button = self
+                .widget
+                .get_child::<Button>(self.button_widget_id)
+                .unwrap();
+            let title = button.get_child::<Text>(self.button_text_id).unwrap();
+
+            for event in events.read_events::<WidgetEvent>() {
+                match event {
+                    WidgetEvent::Entering(widget_id) => {
+                        if *widget_id == self.button_widget_id {
+                            title.get_mut().set_text("Entered!!!");
+                        }
+                    }
+                    WidgetEvent::Exiting(widget_id) => {
+                        if *widget_id == self.button_widget_id {
+                            title.get_mut().set_text("Exited!!!");
+                        }
+                    }
+                    WidgetEvent::Released(widget_id) => {
+                        if *widget_id == self.button_widget_id {
+                            title.get_mut().set_text("Released!!!");
+                        }
+                    }
+                    WidgetEvent::Pressed(widget_id) => {
+                        if *widget_id == self.button_widget_id {
+                            title.get_mut().set_text("Pressed!!!");
+                        }
+                    }
                 }
-                println!("Event = {:?}", event);
             }
         }
 
@@ -161,7 +186,7 @@ impl System for GuiUpdater {
         self.widget.uninit(renderer);
 
         let events = &mut *read_data.get_unique_resource_mut::<EventsRw>();
-        Button::unregister_events(events);
+        GUI::unregister_widget_events(events);
     }
 }
 

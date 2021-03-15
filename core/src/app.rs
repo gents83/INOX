@@ -27,7 +27,6 @@ impl Drop for App {
     fn drop(&mut self) {
         self.scheduler.uninit();
         let mut data = self.shared_data.write().unwrap();
-        data.request_remove_resources_of_type::<Events>();
         data.process_pending_requests();
         self.plugin_manager.release(&mut self.scheduler);
     }
