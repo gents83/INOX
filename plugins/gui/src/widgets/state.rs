@@ -7,8 +7,9 @@ pub struct WidgetState {
     pos: Vector2f,
     size: Vector2f,
     is_active: bool,
+    is_selectable: bool,
     is_draggable: bool,
-    is_dragging: bool,
+    is_pressed: bool,
     is_hover: bool,
     layer: f32,
     horizontal_alignment: HorizontalAlignment,
@@ -21,8 +22,9 @@ impl Default for WidgetState {
             pos: Vector2f::default(),
             size: [1., 1.].into(),
             is_active: true,
+            is_selectable: true,
             is_draggable: false,
-            is_dragging: false,
+            is_pressed: false,
             is_hover: false,
             layer: 1.0 - LAYER_OFFSET,
             horizontal_alignment: HorizontalAlignment::None,
@@ -63,19 +65,25 @@ impl WidgetState {
     pub fn is_draggable(&self) -> bool {
         self.is_draggable
     }
+    pub fn is_selectable(&self) -> bool {
+        self.is_selectable
+    }
+
+    pub fn set_selectable(&mut self, is_selectable: bool) -> &mut Self {
+        self.is_selectable = is_selectable;
+        self
+    }
 
     pub fn set_draggable(&mut self, is_draggable: bool) -> &mut Self {
         self.is_draggable = is_draggable;
         self
     }
-    pub fn is_dragging(&self) -> bool {
-        self.is_dragging
+    pub fn is_pressed(&self) -> bool {
+        self.is_pressed
     }
 
-    pub fn set_dragging(&mut self, is_dragging: bool) -> &mut Self {
-        self.is_dragging = is_dragging;
-        self.vertical_alignment = VerticalAlignment::None;
-        self.horizontal_alignment = HorizontalAlignment::None;
+    pub fn set_pressed(&mut self, is_pressed: bool) -> &mut Self {
+        self.is_pressed = is_pressed;
         self
     }
 

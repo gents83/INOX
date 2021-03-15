@@ -7,7 +7,6 @@ pub struct WindowSystem {
     id: SystemId,
     config: Config,
     shared_data: SharedDataRw,
-    frame_count: u64,
 }
 
 impl WindowSystem {
@@ -16,7 +15,6 @@ impl WindowSystem {
             id: SystemId::new(),
             config: config.clone(),
             shared_data: shared_data.clone(),
-            frame_count: 0,
         }
     }
 }
@@ -26,19 +24,22 @@ impl System for WindowSystem {
         self.id
     }
     fn init(&mut self) {
-        let pos = self.config.get_position();
-        let size = self.config.get_resolution();
-        let name = self.config.get_name();
-        let window = Window::create(name.clone(), pos.x, pos.y, size.x, size.y);
+        let window = {
+            let read_data = self.shared_data.read().unwrap();
+            let events = &mut *read_data.get_unique_resource_mut::<EventsRw>();
+
+            let pos = self.config.get_position();
+            let size = self.config.get_resolution();
+            let name = self.config.get_name();
+            Window::create(name.clone(), pos.x, pos.y, size.x, size.y, events.clone())
+        };
 
         self.shared_data.write().unwrap().add_resource(window);
     }
     fn run(&mut self) -> bool {
         let data = self.shared_data.read().unwrap();
         let mut window_res = data.get_unique_resource_mut::<Window>();
-        let result = (*window_res).update(self.frame_count);
-        self.frame_count += 1;
-        result
+        (*window_res).update()
     }
     fn uninit(&mut self) {
         self.shared_data

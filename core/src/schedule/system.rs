@@ -12,16 +12,16 @@ impl Default for SystemId {
 impl SystemId {
     pub fn new() -> Self {
         let secs = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_micros() as _;
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_micros() as _;
         SystemId(secs)
     }
 }
 
-pub trait System: Send + Sync + 'static {    
+pub trait System: Send + Sync {
     fn id(&self) -> SystemId;
-    
+
     fn init(&mut self);
     fn run(&mut self) -> bool;
     fn uninit(&mut self);

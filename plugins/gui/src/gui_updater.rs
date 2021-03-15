@@ -13,7 +13,7 @@ pub struct GuiUpdater {
     shared_data: SharedDataRw,
     config: Config,
     screen: Screen,
-    widget: Widget<Container>,
+    widget: Widget<Panel>,
     input_handler: InputHandler,
     fps_text_widget_id: UID,
     time_per_fps: f64,
@@ -27,7 +27,7 @@ impl GuiUpdater {
             shared_data: shared_data.clone(),
             config: config.clone(),
             input_handler: InputHandler::default(),
-            widget: Widget::<Container>::new(Container::default(), screen.clone()),
+            widget: Widget::<Panel>::new(Panel::default(), screen.clone()),
             screen,
             fps_text_widget_id: INVALID_ID,
             time_per_fps: 0.,
@@ -46,6 +46,9 @@ impl System for GuiUpdater {
         let read_data = self.shared_data.read().unwrap();
         let renderer = &mut *read_data.get_unique_resource_mut::<Renderer>();
         let window = &*read_data.get_unique_resource::<Window>();
+
+        let events = &mut *read_data.get_unique_resource_mut::<EventsRw>();
+        Button::register_events(events);
 
         self.input_handler
             .init(window.get_width() as _, window.get_heigth() as _);
@@ -72,8 +75,8 @@ impl System for GuiUpdater {
             .get_mut()
             .set_text("FPS: ");
 
-        let mut subpanel = Widget::<Container>::new(Container::default(), self.screen.clone());
-        subpanel
+        let mut button = Widget::<Button>::new(Button::default(), self.screen.clone());
+        button
             .init(renderer)
             .size([550., 150.].into())
             .stroke(10.)
@@ -90,9 +93,10 @@ impl System for GuiUpdater {
             .set_text("Test Button");
 
         self.fps_text_widget_id = self.widget.add_child(fps_text);
-        subpanel.add_child(text);
-        self.widget.add_child(subpanel);
+        button.add_child(text);
+        self.widget.add_child(button);
     }
+
     fn run(&mut self) -> bool {
         let time = std::time::Instant::now();
 
@@ -101,9 +105,11 @@ impl System for GuiUpdater {
 
         {
             let read_data = self.shared_data.read().unwrap();
+            let events = &mut *read_data.get_unique_resource_mut::<EventsRw>();
             let renderer = &mut *read_data.get_unique_resource_mut::<Renderer>();
 
-            self.widget.update(None, renderer, &self.input_handler);
+            self.widget
+                .update(None, renderer, events, &self.input_handler);
         }
 
         let mut line = 0.0;
@@ -130,6 +136,22 @@ impl System for GuiUpdater {
             fps_text.set_text(str.as_str());
         }
 
+        {
+            let read_data = self.shared_data.read().unwrap();
+            let events = &mut *read_data.get_unique_resource_mut::<EventsRw>();
+            let events = events.read().unwrap();
+            for event in events.read_events::<ButtonEvent>() {
+                if *event == ButtonEvent::Released {
+                    let mut line = 0.3;
+                    self.write_line("Released!!!".to_string(), &mut line);
+                } else {
+                    let mut line = 0.3;
+                    self.write_line("Pressed!!!".to_string(), &mut line);
+                }
+                println!("Event = {:?}", event);
+            }
+        }
+
         true
     }
     fn uninit(&mut self) {
@@ -137,6 +159,9 @@ impl System for GuiUpdater {
         let renderer = &mut *read_data.get_unique_resource_mut::<Renderer>();
 
         self.widget.uninit(renderer);
+
+        let events = &mut *read_data.get_unique_resource_mut::<EventsRw>();
+        Button::unregister_events(events);
     }
 }
 

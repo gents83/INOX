@@ -1,7 +1,5 @@
 use super::*;
-use nrg_graphics::*;
 use nrg_math::*;
-use nrg_platform::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ContainerFillType {
@@ -9,13 +7,13 @@ pub enum ContainerFillType {
     Horizontal,
 }
 
-pub struct Container {
-    fill_type: ContainerFillType,
-    fit_to_content: bool,
-    space_between_elements: f32,
+pub struct ContainerData {
+    pub fill_type: ContainerFillType,
+    pub fit_to_content: bool,
+    pub space_between_elements: f32,
 }
 
-impl Default for Container {
+impl Default for ContainerData {
     fn default() -> Self {
         Self {
             fill_type: ContainerFillType::Vertical,
@@ -25,30 +23,35 @@ impl Default for Container {
     }
 }
 
-impl Container {
-    pub fn set_fill_type(&mut self, fill_type: ContainerFillType) -> &mut Self {
-        self.fill_type = fill_type;
+pub trait ContainerTrait: WidgetTrait {
+    fn get_container_data(&self) -> &ContainerData;
+    fn get_container_data_mut(&mut self) -> &mut ContainerData;
+    fn set_fill_type(&mut self, fill_type: ContainerFillType) -> &mut Self {
+        self.get_container_data_mut().fill_type = fill_type;
         self
     }
-    pub fn get_fill_type(&self) -> ContainerFillType {
-        self.fill_type
+    fn get_fill_type(&self) -> ContainerFillType {
+        self.get_container_data().fill_type
     }
-    pub fn set_fit_to_content(&mut self, fit_to_content: bool) -> &mut Self {
-        self.fit_to_content = fit_to_content;
+    fn set_fit_to_content(&mut self, fit_to_content: bool) -> &mut Self {
+        self.get_container_data_mut().fit_to_content = fit_to_content;
         self
     }
-    pub fn has_fit_to_content(&self) -> bool {
-        self.fit_to_content
+    fn has_fit_to_content(&self) -> bool {
+        self.get_container_data().fit_to_content
     }
-    pub fn set_space_between_elements(&mut self, space_in_px: f32) -> &mut Self {
-        self.space_between_elements = space_in_px;
+    fn set_space_between_elements(&mut self, space_in_px: f32) -> &mut Self {
+        self.get_container_data_mut().space_between_elements = space_in_px;
         self
     }
-    pub fn get_space_between_elements(&self) -> f32 {
-        self.space_between_elements
+    fn get_space_between_elements(&self) -> f32 {
+        self.get_container_data().space_between_elements
     }
 
-    fn fit_to_content(widget: &mut Widget<Self>) {
+    fn fit_to_content<W>(widget: &mut Widget<W>)
+    where
+        W: WidgetTrait + ContainerTrait + 'static,
+    {
         if !widget.get_data().node.has_children() {
             return;
         }
@@ -80,7 +83,7 @@ impl Container {
                     if index > 0 {
                         children_size.y += space;
                     }
-                    if !child_state.is_dragging() {
+                    if !child_state.is_pressed() {
                         child_state
                             .set_position([child_pos.x, parent_pos.y + children_size.y].into());
                     }
@@ -96,7 +99,7 @@ impl Container {
                     if index > 0 {
                         children_size.x += space;
                     }
-                    if !child_state.is_dragging() {
+                    if !child_state.is_pressed() {
                         child_state
                             .set_position([parent_pos.x + children_size.x, child_pos.y].into());
                     }
@@ -112,38 +115,5 @@ impl Container {
         });
         //data.state.set_position(children_min_pos);
         data.state.set_size(children_size);
-    }
-}
-
-impl WidgetTrait for Container {
-    fn init(widget: &mut Widget<Self>, renderer: &mut Renderer) {
-        let data = widget.get_data_mut();
-        data.graphics.init(renderer, "UI");
-    }
-
-    fn update(
-        widget: &mut Widget<Self>,
-        _parent_data: Option<&WidgetState>,
-        _renderer: &mut Renderer,
-        _input_handler: &InputHandler,
-    ) {
-        Container::fit_to_content(widget);
-
-        let screen = widget.get_screen();
-        let data = widget.get_data_mut();
-        let pos = screen.convert_from_pixels_into_screen_space(data.state.get_position());
-        let size = screen.convert_size_from_pixels(data.state.get_size());
-        let mut mesh_data = MeshData::default();
-        mesh_data
-            .add_quad_default([0.0, 0.0, size.x, size.y].into(), data.state.get_layer())
-            .set_vertex_color(data.graphics.get_color());
-        mesh_data.translate([pos.x, pos.y, 0.0].into());
-        data.graphics.set_mesh_data(mesh_data);
-    }
-
-    fn uninit(_widget: &mut Widget<Self>, _renderer: &mut Renderer) {}
-
-    fn get_type(&self) -> &'static str {
-        std::any::type_name::<Self>()
     }
 }

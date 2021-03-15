@@ -1,3 +1,5 @@
+use nrg_platform::*;
+
 use crate::plugins::plugin::*;
 use crate::plugins::plugin_manager::*;
 use crate::resources::shared_data::*;
@@ -9,6 +11,7 @@ use std::{
 };
 
 pub struct App {
+    frame_count: u64,
     plugin_manager: PluginManager,
     scheduler: Scheduler,
     shared_data: SharedDataRw,
@@ -23,17 +26,25 @@ impl Default for App {
 impl Drop for App {
     fn drop(&mut self) {
         self.scheduler.uninit();
-        self.shared_data.write().unwrap().process_pending_requests();
+        let mut data = self.shared_data.write().unwrap();
+        data.request_remove_resources_of_type::<Events>();
+        data.process_pending_requests();
         self.plugin_manager.release(&mut self.scheduler);
     }
 }
 
 impl App {
     pub fn new() -> Self {
+        let shared_data = Arc::new(RwLock::new(SharedData::default()));
+        {
+            let mut data = shared_data.write().unwrap();
+            data.add_resource(EventsRw::default());
+        }
         Self {
+            frame_count: 0,
             scheduler: Scheduler::new(),
             plugin_manager: PluginManager::new(),
-            shared_data: Arc::new(RwLock::new(SharedData::default())),
+            shared_data,
         }
     }
 
@@ -46,6 +57,14 @@ impl App {
         self.shared_data.write().unwrap().process_pending_requests();
         self.plugin_manager
             .update(&mut self.shared_data, &mut self.scheduler);
+
+        let data = self.shared_data.write().unwrap();
+        let events_rw = &mut *data.get_unique_resource_mut::<EventsRw>();
+        let mut events = events_rw.write().unwrap();
+        events.update(self.frame_count);
+
+        self.frame_count += 1;
+
         can_continue
     }
 

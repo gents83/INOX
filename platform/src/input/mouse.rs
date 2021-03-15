@@ -21,22 +21,16 @@ pub enum MouseState {
 
 #[derive(Debug, PartialOrd, PartialEq, Clone, Copy)]
 pub struct MouseEvent {
-    pub frame: u64,
     pub x: f64,
     pub y: f64,
     pub button: MouseButton,
     pub state: MouseState,
 }
-impl Event for MouseEvent {
-    fn get_frame(&self) -> u64 {
-        self.frame
-    }
-}
+impl Event for MouseEvent {}
 
 impl Default for MouseEvent {
     fn default() -> Self {
         Self {
-            frame: 0,
             x: 0.0,
             y: 0.0,
             button: MouseButton::None,
@@ -50,7 +44,7 @@ pub struct MouseData {
     pub(super) pos_y: f64,
     pub(super) move_x: f64,
     pub(super) move_y: f64,
-    pub(super) is_dragging: bool,
+    pub(super) is_pressed: bool,
     pub(super) buttons: HashMap<MouseButton, MouseState>,
 }
 
@@ -61,7 +55,7 @@ impl Default for MouseData {
             pos_y: 0.0,
             move_x: 0.0,
             move_y: 0.0,
-            is_dragging: false,
+            is_pressed: false,
             buttons: HashMap::new(),
         }
     }
@@ -80,8 +74,8 @@ impl MouseData {
     pub fn movement_y(&self) -> f64 {
         self.move_y
     }
-    pub fn is_dragging(&self) -> bool {
-        self.is_dragging
+    pub fn is_pressed(&self) -> bool {
+        self.is_pressed
     }
     pub fn get_button_state(&self, button: MouseButton) -> MouseState {
         if let Some(button) = self.buttons.get(&button) {

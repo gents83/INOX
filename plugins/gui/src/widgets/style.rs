@@ -6,7 +6,7 @@ pub enum WidgetInteractiveState {
     Inactive = 0,
     Active = 1,
     Hover = 2,
-    Dragging = 3,
+    Pressed = 3,
     Count = 4,
 }
 

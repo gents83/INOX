@@ -1,6 +1,6 @@
-use std::collections::HashSet;
-use downcast_rs::{impl_downcast, Downcast};
 use super::system::*;
+use downcast_rs::{impl_downcast, Downcast};
+use std::collections::HashSet;
 
 pub trait Phase: Downcast + Send + Sync {
     fn get_name(&self) -> &str;
@@ -21,7 +21,7 @@ pub struct PhaseWithSystems {
 impl PhaseWithSystems {
     pub fn new(name: &str) -> Self {
         Self {
-            name : String::from(name),
+            name: String::from(name),
             systems: HashSet::new(),
             systems_running: Vec::new(),
             systems_to_add: Vec::new(),
@@ -29,11 +29,13 @@ impl PhaseWithSystems {
         }
     }
 
-    pub fn add_system<S: System>(&mut self, system: S) -> &mut Self {        
+    pub fn add_system<S: System + 'static>(&mut self, system: S) -> &mut Self {
         if self.systems.contains(&system.id()) {
-            eprintln!("Trying to add twice a System with id {:?} in this Phase", system.id());
-        } 
-        else {
+            eprintln!(
+                "Trying to add twice a System with id {:?} in this Phase",
+                system.id()
+            );
+        } else {
             self.systems_to_add.push(Box::new(system));
         }
         self
@@ -41,9 +43,11 @@ impl PhaseWithSystems {
 
     pub fn remove_system(&mut self, system_id: &SystemId) -> &mut Self {
         if !self.systems.contains(&system_id) {
-            eprintln!("Trying to remove a System with id {:?} in this Phase", system_id);
-        } 
-        else if !self.systems_to_remove.contains(&system_id) {
+            eprintln!(
+                "Trying to remove a System with id {:?} in this Phase",
+                system_id
+            );
+        } else if !self.systems_to_remove.contains(&system_id) {
             self.systems_to_remove.push(*system_id);
         }
         self
@@ -86,7 +90,6 @@ impl PhaseWithSystems {
     }
 }
 
-
 impl Phase for PhaseWithSystems {
     fn get_name(&self) -> &str {
         &self.name
@@ -100,18 +103,18 @@ impl Phase for PhaseWithSystems {
 
     fn run(&mut self) -> bool {
         //println!("Phase {} systems executing...", self.get_name());
-        
+
         self.remove_pending_systems_from_execution()
             .add_pending_systems_into_execution()
             .execute_systems()
     }
-    
+
     fn uninit(&mut self) {
         //println!("Phase {} uninitialization...", self.get_name());
 
         self.remove_all_systems()
-        .remove_pending_systems_from_execution();
-        
+            .remove_pending_systems_from_execution();
+
         self.systems_running.clear();
     }
 }

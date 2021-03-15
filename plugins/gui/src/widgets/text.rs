@@ -37,12 +37,15 @@ impl WidgetTrait for Text {
         let data = widget.get_data_mut();
         data.graphics.link_to_material(material_id);
         data.graphics.set_style(WidgetStyle::default_text());
+
+        data.state.set_draggable(false).set_selectable(false);
     }
 
     fn update(
         widget: &mut Widget<Self>,
         _parent_data: Option<&WidgetState>,
         renderer: &mut Renderer,
+        _events: &mut EventsRw,
         _input_handler: &InputHandler,
     ) {
         let screen = widget.get_screen();

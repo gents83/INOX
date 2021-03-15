@@ -4,18 +4,20 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-pub trait Event: Send + Sync {
-    fn get_frame(&self) -> u64;
-}
+pub trait Event: Send + Sync {}
+
+type FrameEvent = (u64, Arc<dyn Event>);
 
 pub struct Events {
-    list: HashMap<TypeId, Vec<Arc<dyn Event>>>,
+    frame: u64,
+    map: HashMap<TypeId, Vec<FrameEvent>>,
 }
 
 impl Default for Events {
     fn default() -> Self {
         Self {
-            list: HashMap::new(),
+            frame: 0,
+            map: HashMap::new(),
         }
     }
 }
@@ -25,32 +27,33 @@ impl Events {
     where
         T: Event + 'static,
     {
-        self.list.insert(TypeId::of::<T>(), Vec::new());
+        self.map.insert(TypeId::of::<T>(), Vec::new());
     }
 
     pub fn unregister_event<T>(&mut self)
     where
         T: Event + 'static,
     {
-        self.list.remove(&TypeId::of::<T>());
+        self.map.remove(&TypeId::of::<T>());
     }
 
     pub fn send_event<T>(&mut self, event: T)
     where
         T: Event + 'static,
     {
-        self.list
+        self.map
             .get_mut(&TypeId::of::<T>())
             .unwrap()
-            .push(Arc::new(event));
+            .push((self.frame, Arc::new(event)));
     }
 
     pub fn read_events<T>(&self) -> Vec<&T>
     where
         T: Event + 'static,
     {
-        let map = |i: &Arc<dyn Event>| unsafe { &*Arc::into_raw(std::mem::transmute_copy(i)) };
-        self.list
+        let map =
+            |i: &(u64, Arc<dyn Event>)| unsafe { &*Arc::into_raw(std::mem::transmute_copy(&i.1)) };
+        self.map
             .get(&TypeId::of::<T>())
             .unwrap()
             .iter()
@@ -58,14 +61,10 @@ impl Events {
             .collect()
     }
 
-    pub fn clear_events<T>(&mut self, frame_count: u64)
-    where
-        T: Event + 'static,
-    {
-        self.list
-            .get_mut(&TypeId::of::<T>())
-            .unwrap()
-            .retain(|el| el.get_frame() == frame_count);
+    pub fn update(&mut self, frame_count: u64) {
+        for (_id, map) in self.map.iter_mut() {
+            map.retain(|(frame, _el)| *frame == frame_count);
+        }
     }
 }
 

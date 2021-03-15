@@ -1,4 +1,4 @@
-use crate::{events::*, SystemEvent, WindowEvent};
+use crate::{events::*, WindowEvent};
 
 use super::mouse::*;
 
@@ -39,9 +39,9 @@ impl InputHandler {
         let events = events.read().unwrap();
         let window_events = events.read_events::<WindowEvent>();
         for event in window_events.iter() {
-            if let SystemEvent::SizeChanged(width, height) = event.event {
-                self.input_area_width = width as _;
-                self.input_area_height = height as _;
+            if let WindowEvent::SizeChanged(width, height) = event {
+                self.input_area_width = *width as _;
+                self.input_area_height = *height as _;
             }
         }
     }
@@ -55,15 +55,15 @@ impl InputHandler {
         for event in mouse_events.iter() {
             pos_x = event.x / self.input_area_width;
             pos_y = event.y / self.input_area_height;
-            if !self.mouse.is_dragging
+            if !self.mouse.is_pressed
                 && event.button == MouseButton::Left
                 && event.state == MouseState::Down
             {
-                self.mouse.is_dragging = true
+                self.mouse.is_pressed = true
             } else if event.button == MouseButton::Left && event.state == MouseState::Up {
-                self.mouse.is_dragging = false;
+                self.mouse.is_pressed = false;
             }
-            if self.mouse.is_dragging {
+            if self.mouse.is_pressed {
                 self.mouse.move_x = pos_x - self.mouse.pos_x;
                 self.mouse.move_y = pos_y - self.mouse.pos_y;
             }

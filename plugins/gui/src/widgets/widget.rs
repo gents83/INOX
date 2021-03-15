@@ -32,6 +32,7 @@ pub trait WidgetBase: Send + Sync + Any {
         &mut self,
         parent_data: Option<&WidgetState>,
         renderer: &mut Renderer,
+        events: &mut EventsRw,
         input_handler: &InputHandler,
     ) -> bool;
     fn uninit(&mut self, renderer: &mut Renderer);
@@ -142,16 +143,19 @@ pub trait WidgetBase: Send + Sync + Any {
                 .set_border_color(border_color);
             return false;
         }
+        let (color, border_color) = data.graphics.get_colors(WidgetInteractiveState::Active);
+        data.graphics
+            .set_color(color)
+            .set_border_color(border_color);
+        if !data.state.is_selectable() {
+            return false;
+        }
         let mouse = screen.convert_position_into_pixels(Vector2f {
             x: input_handler.get_mouse_data().get_x() as _,
             y: input_handler.get_mouse_data().get_y() as _,
         });
         data.state.set_hover(data.state.is_inside(mouse));
         if input_managed || !data.state.is_hover() {
-            let (color, border_color) = data.graphics.get_colors(WidgetInteractiveState::Active);
-            data.graphics
-                .set_color(color)
-                .set_border_color(border_color);
             return false;
         }
         if !data.graphics.is_inside(mouse, &screen) {
@@ -163,19 +167,23 @@ pub trait WidgetBase: Send + Sync + Any {
                 .set_color(color)
                 .set_border_color(border_color);
         }
-        if !data.state.is_draggable() {
-            return true;
-        }
-        if !input_handler.get_mouse_data().is_dragging() {
-            data.state.set_dragging(false);
+        if !input_handler.get_mouse_data().is_pressed() {
+            data.state.set_pressed(false);
             return true;
         } else {
-            let (color, border_color) = data.graphics.get_colors(WidgetInteractiveState::Dragging);
+            let (color, border_color) = data.graphics.get_colors(WidgetInteractiveState::Pressed);
             data.graphics
                 .set_color(color)
                 .set_border_color(border_color);
         }
-        data.state.set_dragging(true);
+        data.state.set_pressed(true);
+        if !data.state.is_draggable() {
+            return true;
+        } else {
+            data.state
+                .set_horizontal_alignment(HorizontalAlignment::None);
+            data.state.set_vertical_alignment(VerticalAlignment::None);
+        }
         let movement_in_pixels = screen.convert_position_into_pixels(Vector2f {
             x: input_handler.get_mouse_data().movement_x() as _,
             y: input_handler.get_mouse_data().movement_y() as _,
@@ -212,7 +220,7 @@ pub trait WidgetBase: Send + Sync + Any {
     fn update_layout(&mut self, parent_data: Option<&WidgetState>) {
         let clip_area = self.compute_clip_area(parent_data);
 
-        if !self.get_data().state.is_dragging() {
+        if !self.get_data().state.is_pressed() {
             self.compute_offset_and_scale_from_alignment(clip_area);
         }
         self.clip_in_area(clip_area);
@@ -239,14 +247,20 @@ pub trait WidgetBase: Send + Sync + Any {
     fn set_border_color(&mut self, r: f32, g: f32, b: f32, a: f32);
     fn set_position(&mut self, pos: Vector2f);
     fn set_size(&mut self, size: Vector2f);
-    fn set_draggable(&mut self, draggable: bool) {
-        self.get_data_mut().state.set_draggable(draggable);
-    }
     fn is_hover(&self) -> bool {
         self.get_data().state.is_hover()
     }
+    fn set_draggable(&mut self, draggable: bool) {
+        self.get_data_mut().state.set_draggable(draggable);
+    }
     fn is_draggable(&self) -> bool {
         self.get_data().state.is_draggable()
+    }
+    fn set_selectable(&mut self, selectable: bool) {
+        self.get_data_mut().state.set_selectable(selectable);
+    }
+    fn is_selectable(&self) -> bool {
+        self.get_data().state.is_selectable()
     }
 }
 
@@ -283,9 +297,10 @@ where
         &mut self,
         parent_data: Option<&WidgetState>,
         renderer: &mut Renderer,
+        events: &mut EventsRw,
         input_handler: &InputHandler,
     ) -> bool {
-        T::update(self, parent_data, renderer, input_handler);
+        T::update(self, parent_data, renderer, events, input_handler);
         self.update_layout(parent_data);
 
         self.data.graphics.update(renderer);
@@ -293,7 +308,7 @@ where
         let mut input_managed = false;
         let parent_data = Some(&self.data.state);
         self.data.node.propagate_on_children_mut(|w| {
-            input_managed |= w.update(parent_data, renderer, input_handler);
+            input_managed |= w.update(parent_data, renderer, events, input_handler);
         });
         input_managed |= self.manage_input(input_managed, input_handler);
         input_managed
@@ -332,6 +347,7 @@ pub trait WidgetTrait: Send + Sync + Sized {
         widget: &mut Widget<Self>,
         parent_data: Option<&WidgetState>,
         renderer: &mut Renderer,
+        events: &mut EventsRw,
         input_handler: &InputHandler,
     );
     fn uninit(widget: &mut Widget<Self>, renderer: &mut Renderer);
@@ -362,7 +378,10 @@ where
         self
     }
 
-    pub fn add_child<W: 'static + WidgetTrait>(&mut self, mut widget: Widget<W>) -> UID {
+    pub fn add_child<W>(&mut self, mut widget: Widget<W>) -> UID
+    where
+        W: WidgetTrait + 'static,
+    {
         let id = widget.id();
         let stroke = widget
             .get_screen()
@@ -411,6 +430,10 @@ where
 
     pub fn draggable(&mut self, draggable: bool) -> &mut Self {
         self.set_draggable(draggable);
+        self
+    }
+    pub fn selectable(&mut self, selectable: bool) -> &mut Self {
+        self.set_selectable(selectable);
         self
     }
 
