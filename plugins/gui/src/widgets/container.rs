@@ -51,7 +51,7 @@ pub trait ContainerTrait: WidgetTrait {
 
     fn fit_to_content<W>(widget: &mut Widget<W>)
     where
-        W: WidgetTrait + ContainerTrait + 'static,
+        W: WidgetTrait + Default + ContainerTrait + 'static,
     {
         if !widget.get_data().node.has_children() {
             return;

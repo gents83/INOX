@@ -290,7 +290,7 @@ where
 
 impl<T> WidgetBase for Widget<T>
 where
-    T: WidgetTrait + 'static,
+    T: WidgetTrait + Default + 'static,
 {
     fn as_any(&self) -> &dyn Any {
         self
@@ -315,17 +315,18 @@ where
         events: &mut EventsRw,
         input_handler: &InputHandler,
     ) -> bool {
+        let mut input_managed = false;
+        let state_data = Some(&self.data.state);
+        self.data.node.propagate_on_children_mut(|w| {
+            input_managed |= w.update(state_data, renderer, events, input_handler);
+        });
+        input_managed |= self.manage_input(input_managed, events, input_handler);
+
         T::update(self, parent_data, renderer, events, input_handler);
         self.update_layout(parent_data);
 
         self.data.graphics.update(renderer);
 
-        let mut input_managed = false;
-        let parent_data = Some(&self.data.state);
-        self.data.node.propagate_on_children_mut(|w| {
-            input_managed |= w.update(parent_data, renderer, events, input_handler);
-        });
-        input_managed |= self.manage_input(input_managed, events, input_handler);
         input_managed
     }
 
@@ -370,12 +371,12 @@ pub trait WidgetTrait: Send + Sync + Sized {
 
 impl<T> Widget<T>
 where
-    T: WidgetTrait + 'static,
+    T: WidgetTrait + Default + 'static,
 {
-    pub fn new(inner: T, screen: Screen) -> Self {
+    pub fn new(screen: Screen) -> Self {
         Self {
             data: WidgetData::default(),
-            inner,
+            inner: T::default(),
             screen,
         }
     }
@@ -395,7 +396,7 @@ where
 
     pub fn add_child<W>(&mut self, mut widget: Widget<W>) -> UID
     where
-        W: WidgetTrait + 'static,
+        W: WidgetTrait + Default + 'static,
     {
         let id = widget.id();
         let stroke = widget
@@ -409,7 +410,7 @@ where
 
     pub fn get_child<W>(&mut self, uid: UID) -> Option<&mut Widget<W>>
     where
-        W: WidgetTrait + 'static,
+        W: WidgetTrait + Default + 'static,
     {
         if let Some(widget) = self.data.node.get_child(uid) {
             let w = widget as &mut Widget<W>;

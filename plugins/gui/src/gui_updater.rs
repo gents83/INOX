@@ -29,7 +29,7 @@ impl GuiUpdater {
             shared_data: shared_data.clone(),
             config: config.clone(),
             input_handler: InputHandler::default(),
-            widget: Widget::<Panel>::new(Panel::default(), screen.clone()),
+            widget: Widget::<Panel>::new(screen.clone()),
             screen,
             fps_text_widget_id: INVALID_ID,
             button_widget_id: INVALID_ID,
@@ -67,7 +67,7 @@ impl System for GuiUpdater {
             .set_fit_to_content(true)
             .set_space_between_elements(20.);
 
-        let mut fps_text = Widget::<Text>::new(Text::default(), self.screen.clone());
+        let mut fps_text = Widget::<Text>::new(self.screen.clone());
         fps_text
             .init(renderer)
             .size([400.0, 20.0].into())
@@ -76,7 +76,7 @@ impl System for GuiUpdater {
             .get_mut()
             .set_text("FPS: ");
 
-        let mut button = Widget::<Button>::new(Button::default(), self.screen.clone());
+        let mut button = Widget::<Button>::new(self.screen.clone());
         button
             .init(renderer)
             .size([550., 150.].into())
@@ -85,7 +85,7 @@ impl System for GuiUpdater {
             .set_fill_type(ContainerFillType::Horizontal)
             .set_fit_to_content(false);
 
-        let mut text = Widget::<Text>::new(Text::default(), self.screen.clone());
+        let mut text = Widget::<Text>::new(self.screen.clone());
         text.init(renderer)
             .size([400.0, 50.0].into())
             .vertical_alignment(VerticalAlignment::Center)
@@ -97,7 +97,7 @@ impl System for GuiUpdater {
         self.button_text_id = button.add_child(text);
         self.button_widget_id = self.widget.add_child(button);
 
-        let mut checkbox = Widget::<Checkbox>::new(Checkbox::default(), self.screen.clone());
+        let mut checkbox = Widget::<Checkbox>::new(self.screen.clone());
         checkbox.init(renderer);
         self.widget.add_child(checkbox);
     }

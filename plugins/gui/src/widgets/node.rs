@@ -19,14 +19,17 @@ impl WidgetNode {
     pub fn get_id(&self) -> UID {
         self.id
     }
-    pub fn add_child<W: 'static + WidgetTrait>(&mut self, widget: Widget<W>) -> &mut Self {
+    pub fn add_child<W>(&mut self, widget: Widget<W>) -> &mut Self
+    where
+        W: WidgetTrait + Default + 'static,
+    {
         self.children.push(Box::new(widget));
         self
     }
 
     pub fn get_child<W>(&mut self, uid: UID) -> Option<&mut Widget<W>>
     where
-        W: WidgetTrait + 'static,
+        W: WidgetTrait + Default + 'static,
     {
         if let Some(index) = self.children.iter().position(|el| el.id() == uid) {
             let widget = self.children[index]

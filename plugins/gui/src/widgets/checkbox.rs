@@ -43,15 +43,55 @@ impl Checkbox {
         self
     }
 
-    pub fn update_checked(&mut self, id: UID, checked: bool, events: &mut EventsRw) -> &mut Self {
-        let mut events = events.write().unwrap();
-        if !self.is_checked && checked {
-            events.send_event(CheckboxEvent::Checked(id));
-        } else if self.is_checked && !checked {
-            events.send_event(CheckboxEvent::Unchecked(id));
+    fn check_state_change(id: UID, old_state: bool, events_rw: &mut EventsRw) -> (bool, bool) {
+        let mut changed = false;
+        let mut new_state = false;
+
+        let events = events_rw.read().unwrap();
+        if let Some(widget_events) = events.read_events::<WidgetEvent>() {
+            for event in widget_events.iter() {
+                if let WidgetEvent::Released(widget_id) = event {
+                    if id == *widget_id {
+                        if !old_state {
+                            changed = true;
+                            new_state = true;
+                        } else if old_state {
+                            changed = true;
+                            new_state = false;
+                        }
+                    }
+                }
+            }
         }
-        self.set_checked(checked);
-        self
+
+        (changed, new_state)
+    }
+
+    pub fn update_checked(widget: &mut Widget<Self>, events_rw: &mut EventsRw) {
+        let id = widget.id();
+        let (changed, new_state) = Self::check_state_change(id, widget.get().is_checked, events_rw);
+
+        let mut events = events_rw.write().unwrap();
+        if changed {
+            if let Some(inner_widget) = widget.get_child::<Panel>(widget.get().checked_widget) {
+                if new_state {
+                    inner_widget
+                        .get_data_mut()
+                        .graphics
+                        .set_style(WidgetStyle::full_active());
+
+                    events.send_event(CheckboxEvent::Checked(id));
+                } else {
+                    inner_widget
+                        .get_data_mut()
+                        .graphics
+                        .set_style(WidgetStyle::full_inactive());
+
+                    events.send_event(CheckboxEvent::Unchecked(id));
+                }
+                widget.get_mut().set_checked(new_state);
+            }
+        }
     }
 }
 
@@ -64,20 +104,24 @@ impl WidgetTrait for Checkbox {
         widget
             .size(DEFAULT_WIDGET_SIZE)
             .draggable(false)
+            .selectable(true)
             .stroke(2.)
             .get_mut()
             .set_fill_type(ContainerFillType::None)
             .set_fit_to_content(false);
 
         let inner_size = widget.get_data().state.get_size() - [8., 8.].into();
-        let mut panel = Widget::<Panel>::new(Panel::default(), screen);
+        let mut panel = Widget::<Panel>::new(screen);
         panel
             .init(renderer)
             .draggable(false)
             .size(inner_size)
             .vertical_alignment(VerticalAlignment::Center)
             .horizontal_alignment(HorizontalAlignment::Center)
-            .stroke(2.);
+            .selectable(false)
+            .get_data_mut()
+            .graphics
+            .set_style(WidgetStyle::full_inactive());
         widget.get_mut().checked_widget = widget.add_child(panel);
     }
 
@@ -89,12 +133,7 @@ impl WidgetTrait for Checkbox {
         _input_handler: &InputHandler,
     ) {
         Self::fit_to_content(widget);
-
-        if widget.get_data().state.is_pressed() {
-            let id = widget.id();
-            let status = widget.get_mut().is_checked;
-            widget.get_mut().update_checked(id, !status, events);
-        }
+        Self::update_checked(widget, events);
 
         let screen = widget.get_screen();
         let data = widget.get_data_mut();
