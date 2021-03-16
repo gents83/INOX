@@ -56,17 +56,18 @@ impl Screen {
         let mut scale_factor = inner.scale_factor;
         {
             let events = inner.window_events.read().unwrap();
-            let window_events = events.read_events::<WindowEvent>();
-            for event in window_events.iter() {
-                match event {
-                    WindowEvent::SizeChanged(width, height) => {
-                        size.x = *width as _;
-                        size.y = *height as _;
+            if let Some(window_events) = events.read_events::<WindowEvent>() {
+                for event in window_events.iter() {
+                    match event {
+                        WindowEvent::SizeChanged(width, height) => {
+                            size.x = *width as _;
+                            size.y = *height as _;
+                        }
+                        WindowEvent::DpiChanged(x, _y) => {
+                            scale_factor = x / DEFAULT_DPI;
+                        }
+                        _ => {}
                     }
-                    WindowEvent::DpiChanged(x, _y) => {
-                        scale_factor = x / DEFAULT_DPI;
-                    }
-                    _ => {}
                 }
             }
         }

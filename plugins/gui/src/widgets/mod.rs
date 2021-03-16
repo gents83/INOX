@@ -2,6 +2,7 @@
 
 pub use self::align::*;
 pub use self::button::*;
+pub use self::checkbox::*;
 pub use self::colors::*;
 pub use self::container::*;
 pub use self::events::*;
@@ -16,6 +17,7 @@ pub use self::widget::*;
 
 pub mod align;
 pub mod button;
+pub mod checkbox;
 pub mod colors;
 pub mod container;
 pub mod events;

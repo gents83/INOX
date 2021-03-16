@@ -77,8 +77,7 @@ pub trait WidgetBase: Send + Sync + Any {
                 pos.x = clip_max.x - (size.x + stroke.x);
             }
             HorizontalAlignment::Center => {
-                pos.x = clip_min.x + (clip_max.x - clip_min.x).abs() * 0.5
-                    - (size.x + stroke.x * 2.) * 0.5;
+                pos.x = clip_min.x + (clip_max.x - clip_min.x).abs() * 0.5 - size.x * 0.5;
             }
             HorizontalAlignment::Stretch => {
                 pos.x = clip_min.x + stroke.x;
@@ -95,8 +94,7 @@ pub trait WidgetBase: Send + Sync + Any {
                 pos.y = clip_max.y - (size.y + stroke.y);
             }
             VerticalAlignment::Center => {
-                pos.y = clip_min.y + (clip_max.y - clip_min.y).abs() * 0.5
-                    - (size.y + stroke.y * 2.) * 0.5;
+                pos.y = clip_min.y + (clip_max.y - clip_min.y).abs() * 0.5 - size.y * 0.5;
             }
             VerticalAlignment::Stretch => {
                 pos.y = clip_min.y + stroke.y;

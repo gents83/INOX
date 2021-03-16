@@ -37,43 +37,45 @@ impl InputHandler {
 impl InputHandler {
     fn manage_window_events(&mut self, events: &EventsRw) {
         let events = events.read().unwrap();
-        let window_events = events.read_events::<WindowEvent>();
-        for event in window_events.iter() {
-            if let WindowEvent::SizeChanged(width, height) = event {
-                self.input_area_width = *width as _;
-                self.input_area_height = *height as _;
+        if let Some(window_events) = events.read_events::<WindowEvent>() {
+            for event in window_events.iter() {
+                if let WindowEvent::SizeChanged(width, height) = event {
+                    self.input_area_width = *width as _;
+                    self.input_area_height = *height as _;
+                }
             }
         }
     }
     fn manage_mouse_events(&mut self, events: &EventsRw) {
-        let events = events.read().unwrap();
-        let mouse_events = events.read_events::<MouseEvent>();
-        let mut pos_x = self.mouse.pos_x;
-        let mut pos_y = self.mouse.pos_y;
         self.mouse.move_x = 0.0;
         self.mouse.move_y = 0.0;
-        for event in mouse_events.iter() {
-            pos_x = event.x / self.input_area_width;
-            pos_y = event.y / self.input_area_height;
-            if !self.mouse.is_pressed
-                && event.button == MouseButton::Left
-                && event.state == MouseState::Down
-            {
-                self.mouse.is_pressed = true
-            } else if event.button == MouseButton::Left && event.state == MouseState::Up {
-                self.mouse.is_pressed = false;
+        let events = events.read().unwrap();
+        if let Some(mouse_events) = events.read_events::<MouseEvent>() {
+            let mut pos_x = self.mouse.pos_x;
+            let mut pos_y = self.mouse.pos_y;
+            for event in mouse_events.iter() {
+                pos_x = event.x / self.input_area_width;
+                pos_y = event.y / self.input_area_height;
+                if !self.mouse.is_pressed
+                    && event.button == MouseButton::Left
+                    && event.state == MouseState::Down
+                {
+                    self.mouse.is_pressed = true
+                } else if event.button == MouseButton::Left && event.state == MouseState::Up {
+                    self.mouse.is_pressed = false;
+                }
+                if self.mouse.is_pressed {
+                    self.mouse.move_x = pos_x - self.mouse.pos_x;
+                    self.mouse.move_y = pos_y - self.mouse.pos_y;
+                }
+                self.mouse
+                    .buttons
+                    .entry(event.button)
+                    .and_modify(|e| *e = event.state)
+                    .or_insert(event.state);
             }
-            if self.mouse.is_pressed {
-                self.mouse.move_x = pos_x - self.mouse.pos_x;
-                self.mouse.move_y = pos_y - self.mouse.pos_y;
-            }
-            self.mouse
-                .buttons
-                .entry(event.button)
-                .and_modify(|e| *e = event.state)
-                .or_insert(event.state);
+            self.mouse.pos_x = pos_x;
+            self.mouse.pos_y = pos_y;
         }
-        self.mouse.pos_x = pos_x;
-        self.mouse.pos_y = pos_y;
     }
 }

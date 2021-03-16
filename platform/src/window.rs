@@ -1,6 +1,5 @@
 use crate::events::*;
 use crate::handle::*;
-use crate::input::*;
 
 pub const DEFAULT_DPI: f32 = 96.0;
 
@@ -29,12 +28,6 @@ pub struct Window {
 unsafe impl Send for Window {}
 unsafe impl Sync for Window {}
 
-impl Drop for Window {
-    fn drop(&mut self) {
-        unregister_events(&mut self.events);
-    }
-}
-
 impl Window {
     pub fn create(
         title: String,
@@ -44,8 +37,6 @@ impl Window {
         mut height: u32,
         mut events: EventsRw,
     ) -> Self {
-        register_events(&mut events);
-
         let handle = Window::create_handle(title, x, y, &mut width, &mut height, &mut events);
         Self {
             handle,
@@ -94,39 +85,26 @@ impl Window {
 
     fn manage_window_events(&mut self) {
         let events = self.events.read().unwrap();
-        let window_events = events.read_events::<WindowEvent>();
-        for event in window_events.iter() {
-            match event {
-                WindowEvent::DpiChanged(x, _y) => {
-                    self.scale_factor = x / DEFAULT_DPI;
+        if let Some(window_events) = events.read_events::<WindowEvent>() {
+            for event in window_events.iter() {
+                match event {
+                    WindowEvent::DpiChanged(x, _y) => {
+                        self.scale_factor = x / DEFAULT_DPI;
+                    }
+                    WindowEvent::SizeChanged(width, height) => {
+                        self.width = *width;
+                        self.height = *height;
+                    }
+                    WindowEvent::PosChanged(x, y) => {
+                        self.x = *x;
+                        self.y = *y;
+                    }
+                    WindowEvent::Close => {
+                        self.can_continue = false;
+                    }
+                    WindowEvent::None => {}
                 }
-                WindowEvent::SizeChanged(width, height) => {
-                    self.width = *width;
-                    self.height = *height;
-                }
-                WindowEvent::PosChanged(x, y) => {
-                    self.x = *x;
-                    self.y = *y;
-                }
-                WindowEvent::Close => {
-                    self.can_continue = false;
-                }
-                WindowEvent::None => {}
             }
         }
     }
-}
-
-fn register_events(events: &mut EventsRw) {
-    let mut events = events.write().unwrap();
-    events.register_event::<WindowEvent>();
-    events.register_event::<KeyEvent>();
-    events.register_event::<MouseEvent>();
-}
-
-fn unregister_events(events: &mut EventsRw) {
-    let mut events = events.write().unwrap();
-    events.unregister_event::<MouseEvent>();
-    events.unregister_event::<KeyEvent>();
-    events.unregister_event::<WindowEvent>();
 }

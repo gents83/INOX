@@ -3,6 +3,7 @@ use nrg_math::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ContainerFillType {
+    None,
     Vertical,
     Horizontal,
 }
@@ -110,10 +111,14 @@ pub trait ContainerTrait: WidgetTrait {
                         children_size.y = parent_size.y;
                     }
                 }
+                _ => {
+                    children_size.x = parent_size.x;
+                    children_size.y = parent_size.y;
+                }
             }
             index += 1;
         });
-        //data.state.set_position(children_min_pos);
+
         data.state.set_size(children_size);
     }
 }
