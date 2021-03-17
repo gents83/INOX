@@ -1,10 +1,13 @@
-use std::any::Any;
-use crate::screen::*;
 use super::*;
+use crate::screen::*;
 use nrg_graphics::*;
 use nrg_math::*;
 use nrg_platform::*;
 use nrg_serialize::*;
+use std::any::Any;
+
+pub const DEFAULT_LAYER_OFFSET: f32 = 0.001;
+pub const DEFAULT_WIDGET_SIZE: Vector2f = Vector2f { x: 24., y: 24. };
 
 pub struct WidgetData {
     pub node: WidgetNode,
@@ -253,7 +256,7 @@ pub trait WidgetBase: Send + Sync + Any {
         let layer = data.state.get_layer();
 
         data.node.propagate_on_children_mut(|w| {
-            w.move_to_layer(layer - LAYER_OFFSET * 2.0);
+            w.move_to_layer(layer - DEFAULT_LAYER_OFFSET * 2.0);
             w.update_layers();
         });
     }

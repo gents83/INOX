@@ -3,6 +3,8 @@
 pub use self::button::*;
 pub use self::checkbox::*;
 pub use self::common::*;
+pub use self::editable_text::*;
+pub use self::indicator::*;
 pub use self::panel::*;
 pub use self::screen::*;
 pub use self::text::*;
@@ -10,6 +12,8 @@ pub use self::text::*;
 pub mod button;
 pub mod checkbox;
 pub mod common;
+pub mod editable_text;
+pub mod indicator;
 pub mod panel;
 pub mod screen;
 pub mod text;

@@ -1,7 +1,5 @@
-use super::align::*;
+use super::*;
 use nrg_math::*;
-
-pub const LAYER_OFFSET: f32 = 0.001;
 
 pub struct WidgetState {
     pos: Vector2f,
@@ -26,7 +24,7 @@ impl Default for WidgetState {
             is_draggable: false,
             is_pressed: false,
             is_hover: false,
-            layer: 1.0 - LAYER_OFFSET,
+            layer: 1.0 - DEFAULT_LAYER_OFFSET,
             horizontal_alignment: HorizontalAlignment::None,
             vertical_alignment: VerticalAlignment::None,
         }

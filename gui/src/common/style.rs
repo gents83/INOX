@@ -49,10 +49,10 @@ impl WidgetStyle {
     pub fn full_inactive() -> Self {
         Self {
             color: [
-                COLOR_LIGHT_GRAY,
-                COLOR_LIGHT_GRAY,
-                COLOR_LIGHT_GRAY,
-                COLOR_LIGHT_GRAY,
+                COLOR_DARK_GRAY,
+                COLOR_DARK_GRAY,
+                COLOR_DARK_GRAY,
+                COLOR_DARK_GRAY,
             ],
         }
     }

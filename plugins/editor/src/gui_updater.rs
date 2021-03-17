@@ -57,7 +57,7 @@ impl System for GuiUpdater {
         self.widget
             .init(renderer)
             .position([300.0, 300.0].into())
-            .size([800.0, 600.0].into())
+            .size([500.0, 800.0].into())
             .draggable(true)
             .vertical_alignment(VerticalAlignment::Top)
             .horizontal_alignment(HorizontalAlignment::Right)
@@ -78,8 +78,9 @@ impl System for GuiUpdater {
         let mut button = Widget::<Button>::new(self.screen.clone());
         button
             .init(renderer)
-            .size([550., 150.].into())
+            .size([400., 150.].into())
             .stroke(10.)
+            .horizontal_alignment(HorizontalAlignment::Stretch)
             .get_mut()
             .set_fill_type(ContainerFillType::Horizontal)
             .set_fit_to_content(false);
@@ -99,6 +100,10 @@ impl System for GuiUpdater {
         let mut checkbox = Widget::<Checkbox>::new(self.screen.clone());
         checkbox.init(renderer);
         self.widget.add_child(checkbox);
+
+        let mut editable_text = Widget::<EditableText>::new(self.screen.clone());
+        editable_text.init(renderer);
+        self.widget.add_child(editable_text);
     }
 
     fn run(&mut self) -> bool {

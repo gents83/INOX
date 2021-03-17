@@ -43,7 +43,7 @@ impl WidgetTrait for Text {
 
     fn update(
         widget: &mut Widget<Self>,
-        _parent_data: Option<&WidgetState>,
+        parent_data: Option<&WidgetState>,
         renderer: &mut Renderer,
         _events: &mut EventsRw,
         _input_handler: &InputHandler,
@@ -51,7 +51,11 @@ impl WidgetTrait for Text {
         let screen = widget.get_screen();
         let pos = screen
             .convert_from_pixels_into_screen_space(widget.get_data_mut().state.get_position());
-        let size = screen.convert_size_from_pixels(widget.get_data_mut().state.get_size());
+        let mut size = screen.convert_size_from_pixels(widget.get_data_mut().state.get_size());
+        if let Some(parent_state) = parent_data {
+            size = screen.convert_size_from_pixels(parent_state.get_size());
+        }
+        let min_size = screen.convert_size_from_pixels(DEFAULT_WIDGET_SIZE);
 
         let lines_count = widget.get_mut().text.lines().count().max(1);
         let mut max_chars = 1;
@@ -65,11 +69,20 @@ impl WidgetTrait for Text {
         let char_layer = widget.get_data().state.get_layer();
         let char_size = char_height.min(char_width);
         if *widget.get_data().state.get_horizontal_alignment() != HorizontalAlignment::Stretch {
-            char_width = char_size;
+            char_width = min_size.x.min(char_size);
         }
         if *widget.get_data().state.get_vertical_alignment() != VerticalAlignment::Stretch {
-            char_height = char_size;
+            char_height = min_size.y.min(char_size);
         }
+        size = [
+            char_width * max_chars as f32,
+            char_height * lines_count as f32,
+        ]
+        .into();
+        widget
+            .get_data_mut()
+            .state
+            .set_size(screen.convert_size_into_pixels(size));
 
         let font = renderer.get_font(widget.get_mut().font_id).unwrap();
 

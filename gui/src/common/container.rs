@@ -80,7 +80,6 @@ pub trait ContainerTrait: WidgetTrait {
             children_min_pos.y = children_min_pos.y.min(child_pos.y - child_stroke.y);
             match fill_type {
                 ContainerFillType::Vertical => {
-                    child_state.set_vertical_alignment(VerticalAlignment::None);
                     if index > 0 {
                         children_size.y += space;
                     }
@@ -89,14 +88,9 @@ pub trait ContainerTrait: WidgetTrait {
                             .set_position([child_pos.x, parent_pos.y + children_size.y].into());
                     }
                     children_size.y += child_size.y + child_stroke.y * 2.;
-                    if fit_to_content {
-                        children_size.x = children_size.x.max(child_size.x + child_stroke.x * 2.);
-                    } else {
-                        children_size.x = parent_size.x;
-                    }
+                    children_size.x = children_size.x.max(child_size.x + child_stroke.x * 2.);
                 }
                 ContainerFillType::Horizontal => {
-                    child_state.set_horizontal_alignment(HorizontalAlignment::None);
                     if index > 0 {
                         children_size.x += space;
                     }
@@ -105,8 +99,8 @@ pub trait ContainerTrait: WidgetTrait {
                             .set_position([parent_pos.x + children_size.x, child_pos.y].into());
                     }
                     children_size.x += child_size.x + child_stroke.x * 2.;
+                    children_size.y = children_size.y.max(child_size.y + child_stroke.y * 2.);
                     if fit_to_content {
-                        children_size.y = children_size.y.max(child_size.y + child_stroke.y * 2.);
                     } else {
                         children_size.y = parent_size.y;
                     }
@@ -118,7 +112,10 @@ pub trait ContainerTrait: WidgetTrait {
             }
             index += 1;
         });
-
+        if !fit_to_content {
+            children_size.x = parent_size.x;
+            children_size.y = parent_size.y;
+        }
         data.state.set_size(children_size);
     }
 }

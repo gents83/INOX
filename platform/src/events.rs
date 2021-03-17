@@ -49,6 +49,10 @@ impl Events {
         }
     }
 
+    pub fn get_current_frame(&self) -> u64 {
+        self.frame
+    }
+
     pub fn update(&mut self, frame_count: u64) {
         for (_id, map) in self.map.iter_mut() {
             map.retain(|(frame, _el)| *frame == frame_count);

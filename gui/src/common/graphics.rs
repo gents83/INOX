@@ -1,5 +1,5 @@
-use crate::screen::*;
 use super::*;
+use crate::screen::*;
 use nrg_graphics::*;
 use nrg_math::*;
 
@@ -62,6 +62,11 @@ impl WidgetGraphics {
         self
     }
 
+    pub fn set_border_style(&mut self, style: WidgetStyle) -> &mut Self {
+        self.border_style = style;
+        self
+    }
+
     pub fn get_colors(&self, state: WidgetInteractiveState) -> (Vector4f, Vector4f) {
         (
             self.style.get_color(state),
@@ -85,7 +90,7 @@ impl WidgetGraphics {
             dir.y = dir.y.signum();
             let mut border_vertex = v.clone();
             border_vertex.pos += dir * self.stroke;
-            border_vertex.pos.z += LAYER_OFFSET;
+            border_vertex.pos.z += DEFAULT_LAYER_OFFSET;
             border_vertex.color = self.border_color;
             self.border_mesh_data.vertices.push(border_vertex);
         }
@@ -117,7 +122,7 @@ impl WidgetGraphics {
     pub fn move_to_layer(&mut self, layer: f32) -> &mut Self {
         self.mesh_data.translate([0.0, 0.0, layer].into());
         self.border_mesh_data
-            .translate([0.0, 0.0, layer + LAYER_OFFSET].into());
+            .translate([0.0, 0.0, layer + DEFAULT_LAYER_OFFSET].into());
         self
     }
     pub fn is_inside(&self, pos: Vector2f, screen: &Screen) -> bool {
