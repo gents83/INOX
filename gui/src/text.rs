@@ -3,10 +3,18 @@ use nrg_graphics::*;
 use nrg_math::*;
 use nrg_platform::*;
 
+struct Character {
+    line: usize,
+    index: usize,
+    min: Vector2f,
+    max: Vector2f,
+}
+
 pub struct Text {
     font_id: FontId,
     material_id: MaterialId,
     text: String,
+    current_char: Option<Character>,
 }
 
 impl Default for Text {
@@ -15,6 +23,7 @@ impl Default for Text {
             font_id: INVALID_ID,
             material_id: INVALID_ID,
             text: String::new(),
+            current_char: None,
         }
     }
 }
@@ -23,6 +32,20 @@ impl Text {
     pub fn set_text(&mut self, text: &str) -> &mut Self {
         self.text = String::from(text);
         self
+    }
+
+    pub fn get_text(&self) -> &str {
+        self.text.as_ref()
+    }
+    pub fn is_hover_char(&self) -> bool {
+        self.current_char.is_some()
+    }
+    pub fn get_hover_char_position(&self) -> Vector2f {
+        if let Some(char) = &self.current_char {
+            char.min
+        } else {
+            Vector2f::default()
+        }
     }
 }
 
@@ -46,9 +69,16 @@ impl WidgetTrait for Text {
         parent_data: Option<&WidgetState>,
         renderer: &mut Renderer,
         _events: &mut EventsRw,
-        _input_handler: &InputHandler,
+        input_handler: &InputHandler,
     ) {
         let screen = widget.get_screen();
+
+        let mouse_pos = Vector2f {
+            x: input_handler.get_mouse_data().get_x() as _,
+            y: input_handler.get_mouse_data().get_y() as _,
+        };
+        let mouse_pos = screen.convert_into_screen_space(mouse_pos);
+
         let pos = screen
             .convert_from_pixels_into_screen_space(widget.get_data_mut().state.get_position());
         let mut size = screen.convert_size_from_pixels(widget.get_data_mut().state.get_size());
@@ -89,9 +119,10 @@ impl WidgetTrait for Text {
         let mut mesh_data = MeshData::default();
         let mut pos_y = pos.y;
         let mut mesh_index = 0;
-        for text in widget.get_mut().text.lines() {
+        let mut current_char: Option<Character> = None;
+        for (line_index, text) in widget.get_mut().text.lines().enumerate() {
             let mut pos_x = pos.x;
-            for c in text.as_bytes().iter() {
+            for (char_index, c) in text.as_bytes().iter().enumerate() {
                 let id = font.get_glyph_index(*c as _);
                 let g = font.get_glyph(id);
                 mesh_data
@@ -109,9 +140,19 @@ impl WidgetTrait for Text {
                     .set_vertex_color(char_color);
                 mesh_index += 4;
                 pos_x += char_width;
+
+                if current_char.is_none() && mesh_data.is_inside(mouse_pos) {
+                    current_char = Some(Character {
+                        line: line_index,
+                        index: char_index,
+                        min: [pos_x, pos_y].into(),
+                        max: [pos_x + char_width, pos_y + char_height].into(),
+                    })
+                }
             }
             pos_y += char_height;
         }
+        widget.get_mut().current_char = current_char;
         widget.get_data_mut().graphics.set_mesh_data(mesh_data);
     }
 

@@ -217,4 +217,25 @@ impl MeshData {
         self.compute_center();
         self
     }
+
+    pub fn is_inside(&self, pos_in_screen_space: Vector2f) -> bool {
+        let mut i = 0;
+        let count = self.indices.len();
+        while i < count {
+            let v1 = self.vertices[self.indices[i] as usize].pos;
+            let v2 = self.vertices[self.indices[i + 1] as usize].pos;
+            let v3 = self.vertices[self.indices[i + 2] as usize].pos;
+            if is_point_in_triangle(
+                v1.into(),
+                v2.into(),
+                v3.into(),
+                pos_in_screen_space.x,
+                pos_in_screen_space.y,
+            ) {
+                return true;
+            }
+            i += 3;
+        }
+        false
+    }
 }

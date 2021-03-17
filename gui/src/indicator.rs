@@ -23,6 +23,13 @@ impl Default for Indicator {
 }
 
 impl Indicator {
+    pub fn is_active(&self) -> bool {
+        self.is_active
+    }
+    pub fn set_active(&mut self, active: bool) -> &mut Self {
+        self.is_active = active;
+        self
+    }
     fn update_blinkng(widget: &mut Widget<Self>) {
         if widget.get().elapsed_time.elapsed() >= widget.get().refresh_time {
             let blinking = widget.get().is_blinking;
@@ -66,22 +73,27 @@ impl WidgetTrait for Indicator {
     fn update(
         widget: &mut Widget<Self>,
         _parent_data: Option<&WidgetState>,
-        _renderer: &mut Renderer,
+        renderer: &mut Renderer,
         _events: &mut EventsRw,
         _input_handler: &InputHandler,
     ) {
-        Self::update_blinkng(widget);
+        if widget.get().is_active {
+            Self::update_blinkng(widget);
 
-        let screen = widget.get_screen();
-        let data = widget.get_data_mut();
-        let pos = screen.convert_from_pixels_into_screen_space(data.state.get_position());
-        let size = screen.convert_size_from_pixels(data.state.get_size());
-        let mut mesh_data = MeshData::default();
-        mesh_data
-            .add_quad_default([0.0, 0.0, size.x, size.y].into(), data.state.get_layer())
-            .set_vertex_color(data.graphics.get_color());
-        mesh_data.translate([pos.x, pos.y, 0.0].into());
-        data.graphics.set_mesh_data(mesh_data);
+            let screen = widget.get_screen();
+            let data = widget.get_data_mut();
+            let pos = screen.convert_from_pixels_into_screen_space(data.state.get_position());
+            let size = screen.convert_size_from_pixels(data.state.get_size());
+            let mut mesh_data = MeshData::default();
+            mesh_data
+                .add_quad_default([0.0, 0.0, size.x, size.y].into(), data.state.get_layer())
+                .set_vertex_color(data.graphics.get_color());
+            mesh_data.translate([pos.x, pos.y, 0.0].into());
+            data.graphics.set_mesh_data(mesh_data);
+        } else {
+            let data = widget.get_data_mut();
+            data.graphics.remove_meshes(renderer);
+        }
     }
 
     fn uninit(_widget: &mut Widget<Self>, _renderer: &mut Renderer) {}
