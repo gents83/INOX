@@ -1,6 +1,5 @@
 use std::path::PathBuf;
 
-use crate::config::*;
 use crate::fonts::font::*;
 use image::*;
 use nrg_math::*;
@@ -57,8 +56,8 @@ pub struct Renderer {
 }
 
 impl Renderer {
-    pub fn new(handle: &Handle, config: &Config) -> Self {
-        let instance = Instance::create(handle, config.vk_data.debug_validation_layers);
+    pub fn new(handle: &Handle, enable_debug: bool) -> Self {
+        let instance = Instance::create(handle, enable_debug);
         let device = Device::create(&instance);
         Renderer {
             instance,

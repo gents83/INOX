@@ -1,6 +1,5 @@
-use crate::common::data_formats::*;
-
 use nrg_core::*;
+use nrg_graphics::*;
 use nrg_serialize::*;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -37,22 +36,5 @@ impl Data for Config {}
 impl ConfigBase for Config {
     fn get_filename(&self) -> &'static str {
         "graphics.cfg"
-    }
-}
-
-impl Config {
-    pub fn get_pipeline_data(&self, name: String) -> Option<&PipelineData> {
-        let option = self.pipelines.iter().find(|&el| el.name == name);
-        if option.is_none() {
-            eprintln!(
-                "Unable to find any pipeline data in config file {} for name {}",
-                self.get_folder()
-                    .join(self.get_filename())
-                    .to_str()
-                    .unwrap(),
-                name
-            );
-        }
-        option
     }
 }

@@ -1,7 +1,7 @@
-use crate::common::renderer::*;
 use crate::config::*;
 
 use nrg_core::*;
+use nrg_graphics::*;
 use nrg_math::*;
 use nrg_platform::*;
 
@@ -30,7 +30,7 @@ impl System for RenderingSystem {
             let renderer = {
                 let read_data = self.shared_data.read().unwrap();
                 let window = &*read_data.get_unique_resource::<Window>();
-                let mut renderer = Renderer::new(window.get_handle(), &self.config);
+                let mut renderer = Renderer::new(window.get_handle(), self.config.vk_data.debug_validation_layers);
                 let size = Vector2u::new(window.get_width(), window.get_heigth());
                 renderer.set_viewport_size(size);
                 renderer

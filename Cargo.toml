@@ -3,12 +3,14 @@
 members = [
     "app",
     "core",
+    "gui",
+    "graphics",
     "math",
     "platform",
     "serialize",
     "bindings/vulkan_bindings",
+    "plugins/editor",
     "plugins/game",
-    "plugins/graphics",
-    "plugins/gui",
-    "plugins/window",
+    "plugins/game_renderer",
+    "plugins/game_window",
 ]

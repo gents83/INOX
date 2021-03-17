@@ -7,17 +7,17 @@ fn main() {
     let mut app = App::new();
 
     {
-        let path = PathBuf::from(library_filename("nrg_window"));
+        let path = PathBuf::from(library_filename("game_window"));
         app.add_plugin(path);
     }
 
     {
-        let path = PathBuf::from(library_filename("nrg_graphics"));
+        let path = PathBuf::from(library_filename("game_renderer"));
         app.add_plugin(path);
     }
 
     {
-        let path = PathBuf::from(library_filename("nrg_gui"));
+        let path = PathBuf::from(library_filename("nrg_editor"));
         app.add_plugin(path);
     }
 

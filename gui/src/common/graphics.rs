@@ -1,5 +1,5 @@
-use super::style::*;
-use super::{screen::*, state::*};
+use crate::screen::*;
+use super::*;
 use nrg_graphics::*;
 use nrg_math::*;
 

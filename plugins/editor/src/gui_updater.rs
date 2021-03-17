@@ -1,9 +1,8 @@
-use crate::widgets::*;
-
 use super::config::*;
 
 use nrg_core::*;
 use nrg_graphics::*;
+use nrg_gui::*;
 use nrg_math::*;
 use nrg_platform::*;
 use nrg_serialize::*;

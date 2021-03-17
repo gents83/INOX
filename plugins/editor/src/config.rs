@@ -23,6 +23,6 @@ impl Default for Config {
 impl Data for Config {}
 impl ConfigBase for Config {
     fn get_filename(&self) -> &'static str {
-        "gui.cfg"
+        "editor.cfg"
     }
 }

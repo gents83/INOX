@@ -5,7 +5,7 @@ use nrg_core::plugins::plugin_manager::IN_USE_PREFIX;
 use nrg_platform::utils::*;
 use std::path::Path;
 
-const LIB_NAME: &str = "nrg_gui";
+const LIB_NAME: &str = "game_window";
 const EXTENSION: &str = ".pdb";
 
 fn main() {

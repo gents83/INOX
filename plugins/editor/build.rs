@@ -5,7 +5,7 @@ use nrg_core::plugins::plugin_manager::IN_USE_PREFIX;
 use nrg_platform::utils::*;
 use std::path::Path;
 
-const LIB_NAME: &str = "nrg_window";
+const LIB_NAME: &str = "nrg_editor";
 const EXTENSION: &str = ".pdb";
 
 fn main() {
