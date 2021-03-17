@@ -4,7 +4,6 @@ use nrg_platform::*;
 use nrg_serialize::*;
 
 pub struct EditableText {
-    container_data: ContainerData,
     text_widget: UID,
     indicator_widget: UID,
     is_focused: bool,
@@ -13,19 +12,9 @@ pub struct EditableText {
 unsafe impl Send for EditableText {}
 unsafe impl Sync for EditableText {}
 
-impl ContainerTrait for EditableText {
-    fn get_container_data(&self) -> &ContainerData {
-        &self.container_data
-    }
-    fn get_container_data_mut(&mut self) -> &mut ContainerData {
-        &mut self.container_data
-    }
-}
-
 impl Default for EditableText {
     fn default() -> Self {
         Self {
-            container_data: ContainerData::default(),
             text_widget: INVALID_ID,
             indicator_widget: INVALID_ID,
             is_focused: false,
@@ -34,6 +23,8 @@ impl Default for EditableText {
 }
 
 impl EditableText {
+    fn update_text(widget: &mut Widget<Self>, events_rw: &mut EventsRw) {}
+
     fn check_focus(widget: &mut Widget<Self>, events_rw: &mut EventsRw) -> bool {
         let events = events_rw.read().unwrap();
         if let Some(mouse_events) = events.read_events::<MouseEvent>() {
@@ -93,11 +84,7 @@ impl WidgetTrait for EditableText {
             .draggable(false)
             .selectable(true)
             .stroke(2.)
-            .horizontal_alignment(HorizontalAlignment::Stretch)
-            .get_mut()
-            .set_fill_type(ContainerFillType::None)
-            .set_space_between_elements(2.)
-            .set_fit_to_content(false);
+            .horizontal_alignment(HorizontalAlignment::Stretch);
 
         let mut text = Widget::<Text>::new(screen.clone());
         text.init(renderer)
@@ -120,9 +107,10 @@ impl WidgetTrait for EditableText {
         events_rw: &mut EventsRw,
         _input_handler: &InputHandler,
     ) {
-        Self::fit_to_content(widget);
         let just_pressed = Self::check_focus(widget, events_rw);
         Self::update_indicator(widget, just_pressed);
+
+        Self::update_text(widget, events_rw);
 
         let screen = widget.get_screen();
         let data = widget.get_data_mut();
