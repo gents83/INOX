@@ -3,18 +3,18 @@ use nrg_graphics::*;
 use nrg_math::*;
 use nrg_platform::*;
 
-struct Character {
-    line: usize,
-    index: usize,
-    min: Vector2f,
-    max: Vector2f,
+#[derive(Debug, Clone, Copy)]
+pub struct TextChar {
+    pub min: Vector2f,
+    pub max: Vector2f,
 }
 
 pub struct Text {
     font_id: FontId,
     material_id: MaterialId,
     text: String,
-    current_char: Option<Character>,
+    characters: Vec<TextChar>,
+    hover_char_index: i32,
 }
 
 impl Default for Text {
@@ -23,7 +23,8 @@ impl Default for Text {
             font_id: INVALID_ID,
             material_id: INVALID_ID,
             text: String::new(),
-            current_char: None,
+            characters: Vec::new(),
+            hover_char_index: -1,
         }
     }
 }
@@ -38,14 +39,30 @@ impl Text {
         self.text.as_ref()
     }
     pub fn is_hover_char(&self) -> bool {
-        self.current_char.is_some()
+        self.hover_char_index >= 0 && self.hover_char_index <= self.text.len() as _
     }
-    pub fn get_hover_char_position(&self) -> Vector2f {
-        if let Some(char) = &self.current_char {
-            char.min
-        } else {
-            Vector2f::default()
+    pub fn get_hover_char(&self) -> i32 {
+        self.hover_char_index
+    }
+    pub fn get_char_pos(&self, index: i32) -> Vector2f {
+        if index >= 0 && index < self.text.len() as _ {
+            return self.characters[index as usize].min;
         }
+        Vector2f::default()
+    }
+    pub fn remove_char(&mut self, index: i32) -> i32 {
+        let mut new_index = index;
+        if new_index < 0 && !self.text.is_empty() {
+            new_index = self.text.len() as i32 - 1;
+        }
+        if new_index >= 0 && new_index < self.text.len() as _ {
+            self.text.remove(new_index as usize);
+        }
+        new_index -= 1;
+        if new_index < 0 && !self.text.is_empty() {
+            new_index = 0;
+        }
+        new_index
     }
 }
 
@@ -119,10 +136,11 @@ impl WidgetTrait for Text {
         let mut mesh_data = MeshData::default();
         let mut pos_y = pos.y;
         let mut mesh_index = 0;
-        let mut current_char: Option<Character> = None;
-        for (line_index, text) in widget.get_mut().text.lines().enumerate() {
+        let mut characters: Vec<TextChar> = Vec::new();
+        let mut hover_char_index = -1;
+        for text in widget.get_mut().text.lines() {
             let mut pos_x = pos.x;
-            for (char_index, c) in text.as_bytes().iter().enumerate() {
+            for c in text.as_bytes().iter() {
                 let id = font.get_glyph_index(*c as _);
                 let g = font.get_glyph(id);
                 mesh_data
@@ -140,19 +158,18 @@ impl WidgetTrait for Text {
                     .set_vertex_color(char_color);
                 mesh_index += 4;
                 pos_x += char_width;
-
-                if current_char.is_none() && mesh_data.is_inside(mouse_pos) {
-                    current_char = Some(Character {
-                        line: line_index,
-                        index: char_index,
-                        min: [pos_x, pos_y].into(),
-                        max: [pos_x + char_width, pos_y + char_height].into(),
-                    })
+                characters.push(TextChar {
+                    min: [pos_x, pos_y].into(),
+                    max: [pos_x + char_width, pos_y + char_height].into(),
+                });
+                if hover_char_index < 0 && mesh_data.is_inside(mouse_pos) {
+                    hover_char_index = characters.len() as i32 - 1;
                 }
             }
             pos_y += char_height;
         }
-        widget.get_mut().current_char = current_char;
+        widget.get_mut().hover_char_index = hover_char_index;
+        widget.get_mut().characters = characters;
         widget.get_data_mut().graphics.set_mesh_data(mesh_data);
     }
 

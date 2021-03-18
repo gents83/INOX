@@ -7,6 +7,7 @@ pub struct EditableText {
     text_widget: UID,
     indicator_widget: UID,
     is_focused: bool,
+    current_char: i32,
 }
 
 unsafe impl Send for EditableText {}
@@ -18,14 +19,29 @@ impl Default for EditableText {
             text_widget: INVALID_ID,
             indicator_widget: INVALID_ID,
             is_focused: false,
+            current_char: -1,
         }
     }
 }
 
 impl EditableText {
-    fn update_text(widget: &mut Widget<Self>, events_rw: &mut EventsRw) {}
+    fn update_text(widget: &mut Widget<Self>, events_rw: &mut EventsRw) {
+        let events = events_rw.read().unwrap();
+        if let Some(key_events) = events.read_events::<KeyEvent>() {
+            for event in key_events.iter() {
+                if (event.state == InputState::JustPressed || event.state == InputState::Pressed)
+                    && event.code == Key::Backspace
+                {
+                    let character = widget.get().current_char;
+                    if let Some(text) = widget.get_child::<Text>(widget.get().text_widget) {
+                        widget.get_mut().current_char = text.get_mut().remove_char(character);
+                    }
+                }
+            }
+        }
+    }
 
-    fn check_focus(widget: &mut Widget<Self>, events_rw: &mut EventsRw) -> bool {
+    fn check_focus(widget: &mut Widget<Self>, events_rw: &mut EventsRw) {
         let events = events_rw.read().unwrap();
         if let Some(mouse_events) = events.read_events::<MouseEvent>() {
             for event in mouse_events.iter() {
@@ -39,35 +55,46 @@ impl EditableText {
                 if let WidgetEvent::Pressed(widget_id) = event {
                     if widget.id() == *widget_id {
                         widget.get_mut().is_focused = true;
-                        return true;
+                        Self::update_character_from_indicator(widget);
                     } else {
                         widget.get_mut().is_focused = false;
                     }
                 }
             }
         }
-        false
     }
 
-    fn update_indicator(widget: &mut Widget<Self>, just_pressed: bool) {
+    fn update_character_from_indicator(widget: &mut Widget<Self>) {
         let focused = widget.get_mut().is_focused;
-        let mut pos = widget.get_position();
-
+        let mut current_char = widget.get().current_char;
         if let Some(text) = widget.get_child::<Text>(widget.get().text_widget) {
-            if text.get().is_hover_char() {
-                let pos_in_screen_space = text.get().get_hover_char_position();
-                pos = widget
-                    .get_screen()
-                    .convert_from_screen_space_into_pixels(pos_in_screen_space);
-            } else {
-                pos = text.get_data().state.get_position() + text.get_data().state.get_size();
-            }
+            current_char = text.get().get_hover_char();
         }
+        widget.get_mut().current_char = current_char;
         if let Some(indicator) = widget.get_child::<Indicator>(widget.get().indicator_widget) {
-            if focused && just_pressed {
+            indicator.get_mut().set_active(focused);
+        }
+    }
+
+    fn update_indicator_position(widget: &mut Widget<Self>) {
+        let mut current_char = widget.get().current_char;
+        if let Some(text) = widget.get_child::<Text>(widget.get().text_widget) {
+            if current_char < 0 {
+                current_char = text.get().get_text().len() as i32 - 1;
+            }
+            let pos = {
+                if current_char >= 0 {
+                    let pos_in_screen_space = text.get().get_char_pos(current_char);
+                    widget
+                        .get_screen()
+                        .convert_from_screen_space_into_pixels(pos_in_screen_space)
+                } else {
+                    text.get_data().state.get_position()
+                }
+            };
+            if let Some(indicator) = widget.get_child::<Indicator>(widget.get().indicator_widget) {
                 indicator.position(pos);
             }
-            indicator.get_mut().set_active(focused);
         }
     }
 }
@@ -107,9 +134,8 @@ impl WidgetTrait for EditableText {
         events_rw: &mut EventsRw,
         _input_handler: &InputHandler,
     ) {
-        let just_pressed = Self::check_focus(widget, events_rw);
-        Self::update_indicator(widget, just_pressed);
-
+        Self::check_focus(widget, events_rw);
+        Self::update_indicator_position(widget);
         Self::update_text(widget, events_rw);
 
         let screen = widget.get_screen();
