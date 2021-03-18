@@ -50,6 +50,17 @@ impl Text {
         }
         Vector2f::default()
     }
+    pub fn add_char(&mut self, index: i32, character: char) -> i32 {
+        let mut new_index = index + 1;
+        if (new_index < 0 && !self.text.is_empty()) || (new_index > self.text.len() as i32) {
+            new_index = self.text.len() as i32;
+        }
+        if new_index < 0 {
+            new_index = 0;
+        }
+        self.text.insert(new_index as _, character);
+        new_index
+    }
     pub fn remove_char(&mut self, index: i32) -> i32 {
         let mut new_index = index;
         if new_index < 0 && !self.text.is_empty() {

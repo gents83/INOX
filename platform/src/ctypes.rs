@@ -1,5 +1,6 @@
 pub use std::os::raw::c_char;
 pub use std::os::raw::c_double;
+pub use std::os::raw::c_float;
 pub use std::os::raw::c_int;
 pub use std::os::raw::c_long;
 pub use std::os::raw::c_short;

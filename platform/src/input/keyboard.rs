@@ -708,6 +708,7 @@ pub enum Key {
 
 #[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone, Copy)]
 pub struct KeyEvent {
+    pub char: char,
     pub code: Key,
     pub state: InputState,
 }
@@ -716,6 +717,7 @@ impl Event for KeyEvent {}
 impl Default for KeyEvent {
     fn default() -> Self {
         Self {
+            char: ' ',
             code: Key::Unidentified,
             state: InputState::Invalid,
         }

@@ -145,4 +145,36 @@ extern "system" {
     pub fn WaitForSingleObjectEx(hHandle: HANDLE, dwMilliseconds: DWORD, bAlertable: BOOL)
         -> DWORD;
     pub fn SetProcessDEPPolicy(dwFlags: DWORD) -> BOOL;
+    pub fn ToUnicodeEx(
+        wVirtKey: UINT,
+        wScanCode: UINT,
+        lpKeyState: *const BYTE,
+        pwszBuff: LPWSTR,
+        cchBuff: c_int,
+        wFlags: UINT,
+        dwhkl: HKL,
+    ) -> c_int;
+    pub fn ToAscii(
+        uVirtKey: UINT,
+        uScanCode: UINT,
+        lpKeyState: *const BYTE,
+        lpChar: LPWORD,
+        uFlags: UINT,
+    ) -> c_int;
+    pub fn ToAsciiEx(
+        uVirtKey: UINT,
+        uScanCode: UINT,
+        lpKeyState: *const BYTE,
+        lpChar: LPWORD,
+        uFlags: UINT,
+        dwhkl: HKL,
+    ) -> c_int;
+    pub fn ToUnicode(
+        wVirtKey: UINT,
+        wScanCode: UINT,
+        lpKeyState: *const BYTE,
+        lwszBuff: LPWSTR,
+        cchBuff: c_int,
+        wFlags: UINT,
+    ) -> c_int;
 }

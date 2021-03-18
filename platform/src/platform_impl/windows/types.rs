@@ -19,6 +19,7 @@ declare_handle! {HBRUSH, HBRUSH__}
 declare_handle! {HDC, HDC__}
 declare_handle! {HMENU, HMENU__}
 declare_handle! {HMONITOR, HMONITOR__}
+declare_handle! {HKL, HKL__}
 
 pub type HANDLE = *mut c_void;
 pub type PHANDLE = *mut HANDLE;
@@ -27,10 +28,14 @@ pub type HCURSOR = HICON;
 pub type HRESULT = c_long;
 pub type wchar_t = u16;
 pub type BOOL = c_int;
+pub type BYTE = c_uchar;
+pub type FLOAT = c_float;
 pub type CHAR = c_char;
 pub type WCHAR = wchar_t;
 pub type WORD = c_ushort;
 pub type DWORD = c_ulong;
+pub type LPWSTR = *mut WCHAR;
+pub type LPWORD = *mut WORD;
 pub type LPDWORD = *mut DWORD;
 pub type INT = c_int;
 pub type UINT = c_uint;

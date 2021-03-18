@@ -132,24 +132,40 @@ impl Window {
                             _ => MouseState::Move,
                         },
                     });
-                } else if message.message == WM_KEYDOWN || message.message == WM_KEYUP {
-                    let is_repeat = (message.lParam >> 30) & 1 == 1;
-                    let mut key = convert_key(message.wParam as INT);
-                    if key == Key::Unidentified {
-                        key = convert_command(message.wParam as INT);
+                } else if message.message == WM_CHAR
+                    || message.message == WM_DEADCHAR
+                    || message.message == WM_KEYDOWN
+                    || message.message == WM_KEYUP
+                    || message.message == WM_SYSCHAR
+                    || message.message == WM_SYSDEADCHAR
+                    || message.message == WM_SYSKEYDOWN
+                    || message.message == WM_SYSKEYUP
+                {
+                    let is_extended = (message.lParam >> 24) & 1 == 1;
+                    let char = message.wParam as INT;
+                    if !is_extended as _
+                        && (message.message != WM_CHAR && message.message != WM_DEADCHAR)
+                    {
+                        continue;
                     }
+                    let mut key = convert_key(char);
+                    if key == Key::Unidentified {
+                        key = convert_command(char);
+                    }
+                    let is_repeat = (message.lParam >> 30) & 1 == 1;
                     let mut events = events.write().unwrap();
                     events.send_event(KeyEvent {
+                        char: (char as u8) as _,
                         code: key,
                         state: match message.message {
-                            WM_KEYDOWN => {
+                            WM_CHAR | WM_KEYDOWN | WM_SYSCHAR | WM_SYSKEYDOWN => {
                                 if is_repeat {
                                     InputState::Pressed
                                 } else {
                                     InputState::JustPressed
                                 }
                             }
-                            WM_KEYUP => {
+                            WM_DEADCHAR | WM_KEYUP | WM_SYSDEADCHAR | WM_SYSKEYUP => {
                                 if is_repeat {
                                     InputState::Released
                                 } else {

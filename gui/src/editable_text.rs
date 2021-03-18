@@ -25,16 +25,29 @@ impl Default for EditableText {
 }
 
 impl EditableText {
+    fn manage_key_pressed(event: &KeyEvent, current_index: i32, text_widget: &mut Text) -> i32 {
+        match event.code {
+            Key::Backspace => text_widget.remove_char(current_index),
+            Key::Delete => text_widget.remove_char(current_index + 1),
+            _ => {
+                if event.char.is_ascii_alphanumeric() {
+                    text_widget.add_char(current_index, event.char)
+                } else {
+                    current_index
+                }
+            }
+        }
+    }
+
     fn update_text(widget: &mut Widget<Self>, events_rw: &mut EventsRw) {
         let events = events_rw.read().unwrap();
         if let Some(key_events) = events.read_events::<KeyEvent>() {
             for event in key_events.iter() {
-                if (event.state == InputState::JustPressed || event.state == InputState::Pressed)
-                    && event.code == Key::Backspace
-                {
+                if event.state == InputState::JustPressed || event.state == InputState::Pressed {
                     let character = widget.get().current_char;
                     if let Some(text) = widget.get_child::<Text>(widget.get().text_widget) {
-                        widget.get_mut().current_char = text.get_mut().remove_char(character);
+                        widget.get_mut().current_char =
+                            Self::manage_key_pressed(*event, character, text.get_mut());
                     }
                 }
             }
@@ -69,6 +82,9 @@ impl EditableText {
         let mut current_char = widget.get().current_char;
         if let Some(text) = widget.get_child::<Text>(widget.get().text_widget) {
             current_char = text.get().get_hover_char();
+            if current_char < 0 {
+                current_char = text.get().get_text().len() as i32 - 1;
+            }
         }
         widget.get_mut().current_char = current_char;
         if let Some(indicator) = widget.get_child::<Indicator>(widget.get().indicator_widget) {
