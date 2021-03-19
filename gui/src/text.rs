@@ -13,6 +13,7 @@ pub struct Text {
     font_id: FontId,
     material_id: MaterialId,
     text: String,
+    multiline: bool,
     characters: Vec<TextChar>,
     hover_char_index: i32,
 }
@@ -23,6 +24,7 @@ impl Default for Text {
             font_id: INVALID_ID,
             material_id: INVALID_ID,
             text: String::new(),
+            multiline: false,
             characters: Vec::new(),
             hover_char_index: -1,
         }
@@ -37,6 +39,13 @@ impl Text {
 
     pub fn get_text(&self) -> &str {
         self.text.as_ref()
+    }
+    pub fn set_multiline(&mut self, is_multiline: bool) -> &mut Self {
+        self.multiline = is_multiline;
+        self
+    }
+    pub fn is_multiline(&self) -> bool {
+        self.multiline
     }
     pub fn is_hover_char(&self) -> bool {
         self.hover_char_index >= 0 && self.hover_char_index <= self.text.len() as _

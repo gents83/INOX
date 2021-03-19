@@ -25,13 +25,32 @@ impl Default for EditableText {
 }
 
 impl EditableText {
-    fn manage_key_pressed(event: &KeyEvent, current_index: i32, text_widget: &mut Text) -> i32 {
+    fn manage_key_pressed(event: &KeyEvent, current_index: i32, text: &mut Text) -> i32 {
         match event.code {
-            Key::Backspace => text_widget.remove_char(current_index),
-            Key::Delete => text_widget.remove_char(current_index + 1),
+            Key::Enter => {
+                if text.is_multiline() {}
+                current_index
+            }
+            Key::Backspace => text.remove_char(current_index),
+            Key::Delete => text.remove_char(current_index + 1),
+            Key::ArrowLeft => {
+                let mut new_index = current_index - 1;
+                if new_index < 0 {
+                    new_index = 0;
+                }
+                new_index
+            }
+            Key::ArrowRight => {
+                let mut new_index = current_index + 1;
+                let length = text.get_text().len() as i32;
+                if new_index >= length {
+                    new_index = length - 1;
+                }
+                new_index
+            }
             _ => {
-                if event.char.is_ascii_alphanumeric() {
-                    text_widget.add_char(current_index, event.char)
+                if event.char.is_ascii() {
+                    text.add_char(current_index, event.char)
                 } else {
                     current_index
                 }
@@ -95,8 +114,9 @@ impl EditableText {
     fn update_indicator_position(widget: &mut Widget<Self>) {
         let mut current_char = widget.get().current_char;
         if let Some(text) = widget.get_child::<Text>(widget.get().text_widget) {
-            if current_char < 0 {
-                current_char = text.get().get_text().len() as i32 - 1;
+            let length = text.get().get_text().len() as i32;
+            if current_char < 0 || current_char >= length {
+                current_char = length - 1;
             }
             let pos = {
                 if current_char >= 0 {
