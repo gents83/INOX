@@ -8,10 +8,23 @@ pub const COLOR_LIGHT_GRAY: Vector4f = Vector4f {
     z: 0.36,
     w: 1.,
 };
+pub const COLOR_GRAY: Vector4f = Vector4f {
+    x: 0.3,
+    y: 0.3,
+    z: 0.3,
+    w: 1.,
+};
 pub const COLOR_DARK_GRAY: Vector4f = Vector4f {
     x: 0.21,
     y: 0.21,
     z: 0.21,
+    w: 1.,
+};
+
+pub const COLOR_DARKEST_GRAY: Vector4f = Vector4f {
+    x: 0.12,
+    y: 0.12,
+    z: 0.12,
     w: 1.,
 };
 pub const COLOR_LIGHT_CYAN: Vector4f = Vector4f {

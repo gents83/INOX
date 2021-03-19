@@ -100,7 +100,9 @@ impl WidgetTrait for Checkbox {
         let screen = widget.get_screen();
         let data = widget.get_data_mut();
 
-        data.graphics.init(renderer, "UI");
+        data.graphics
+            .init(renderer, "UI")
+            .set_style(WidgetStyle::default());
         widget
             .size(DEFAULT_WIDGET_SIZE)
             .draggable(false)

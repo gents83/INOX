@@ -26,7 +26,9 @@ impl ContainerTrait for Panel {
 impl WidgetTrait for Panel {
     fn init(widget: &mut Widget<Self>, renderer: &mut Renderer) {
         let data = widget.get_data_mut();
-        data.graphics.init(renderer, "UI");
+        data.graphics
+            .init(renderer, "UI")
+            .set_style(WidgetStyle::default_background());
     }
 
     fn update(

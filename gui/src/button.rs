@@ -29,7 +29,9 @@ impl Default for Button {
 impl WidgetTrait for Button {
     fn init(widget: &mut Widget<Self>, renderer: &mut Renderer) {
         let data = widget.get_data_mut();
-        data.graphics.init(renderer, "UI");
+        data.graphics
+            .init(renderer, "UI")
+            .set_style(WidgetStyle::default());
     }
 
     fn update(

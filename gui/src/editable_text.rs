@@ -141,7 +141,9 @@ impl WidgetTrait for EditableText {
         let data = widget.get_data_mut();
         let size = DEFAULT_WIDGET_SIZE * screen.get_scale_factor();
 
-        data.graphics.init(renderer, "UI");
+        data.graphics
+            .init(renderer, "UI")
+            .set_style(WidgetStyle::default());
         widget
             .size(size)
             .draggable(false)
