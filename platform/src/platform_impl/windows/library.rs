@@ -21,15 +21,15 @@ impl Library
         drop(wide_filename);
         Library(handle)
     }
-    ///# Safety 
-    pub unsafe fn get<T>(&self, symbol: &str) -> T{
-        let fn_name = CString::new(symbol).unwrap();
-        let ret = GetProcAddress(self.0, fn_name.as_ptr());
-        if ret.is_null() {
-            let error = GetLastError();
-            eprintln!("Unable to get required symbol {} with error {}", symbol, error);
-        }        
-        ::std::mem::transmute_copy(&ret)
+    pub fn get<T>(&self, symbol: &str) -> Option<T> {
+        unsafe {
+            let fn_name = CString::new(symbol).unwrap();
+            let ret = GetProcAddress(self.0, fn_name.as_ptr());
+            if ret.is_null() {
+                return None;
+            }
+            Some(::std::mem::transmute_copy(&ret))  
+        }      
     }
 
     pub fn close(&mut self) {

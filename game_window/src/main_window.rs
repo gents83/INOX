@@ -1,6 +1,5 @@
 use nrg_core::*;
 use nrg_serialize::*;
-use std::any::type_name;
 
 use crate::config::*;
 use crate::window_system::*;
@@ -15,17 +14,10 @@ pub struct MainWindow {
 
 impl Default for MainWindow {
     fn default() -> Self {
-        println!("Created {} plugin", type_name::<Self>().to_string());
         Self {
             config: Config::default(),
             system_id: SystemId::default(),
         }
-    }
-}
-
-impl Drop for MainWindow {
-    fn drop(&mut self) {
-        println!("Destroyed {} plugin", type_name::<Self>().to_string());
     }
 }
 

@@ -7,7 +7,7 @@ use nrg_math::*;
 use nrg_platform::*;
 use nrg_serialize::*;
 
-pub struct GuiUpdater {
+pub struct EditorUpdater {
     id: SystemId,
     shared_data: SharedDataRw,
     config: Config,
@@ -20,7 +20,7 @@ pub struct GuiUpdater {
     time_per_fps: f64,
 }
 
-impl GuiUpdater {
+impl EditorUpdater {
     pub fn new(shared_data: &SharedDataRw, config: &Config) -> Self {
         let screen = Screen::default();
         Self {
@@ -38,7 +38,7 @@ impl GuiUpdater {
     }
 }
 
-impl System for GuiUpdater {
+impl System for EditorUpdater {
     fn id(&self) -> SystemId {
         self.id
     }
@@ -194,7 +194,7 @@ impl System for GuiUpdater {
     }
 }
 
-impl GuiUpdater {
+impl EditorUpdater {
     fn load_pipelines(&mut self) {
         let read_data = self.shared_data.read().unwrap();
         let renderer = &mut *read_data.get_unique_resource_mut::<Renderer>();

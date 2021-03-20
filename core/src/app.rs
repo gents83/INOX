@@ -93,7 +93,7 @@ impl App {
     pub fn get_phase_mut<S: Phase>(&mut self, phase_name: &str) -> &mut S {
         self.scheduler.get_phase_mut(phase_name)
     }
-    pub fn add_plugin(&mut self, lib_path: PathBuf) -> PluginId {
+    pub fn add_plugin(&mut self, lib_path: PathBuf) {
         self.plugin_manager
             .add_plugin(lib_path, &mut self.shared_data, &mut self.scheduler)
     }

@@ -9,8 +9,8 @@ members = [
     "platform",
     "serialize",
     "bindings/vulkan_bindings",
-    "plugins/editor",
-    "plugins/game",
-    "plugins/game_renderer",
-    "plugins/game_window",
+    "game_renderer",
+    "game_window",
+    "game",
+    "editor",
 ]

@@ -1,5 +1,5 @@
 [package]
-name = "nrg_math"
+name = "nrg_game"
 version = "0.1.0"
 authors = ["gents83 <gents83@gmail.com>"]
 edition = "2018"
@@ -9,4 +9,8 @@ build = "build.rs"
 crate-type = ["cdylib",'rlib']
 
 [dependencies]
+nrg_core = { path = "../core" }
+nrg_math = { path = "../math" }
+nrg_graphics = { path = "../graphics" }
+nrg_platform = { path = "../platform" }
 nrg_serialize = { path = "../serialize" }

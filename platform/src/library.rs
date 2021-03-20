@@ -20,10 +20,8 @@ impl Library {
         Library(_lib)
     }
 
-    pub fn get<T>(&self, symbol: &str) -> T {
-        unsafe {
-            self.0.get(symbol)
-        }
+    pub fn get<T>(&self, symbol: &str) -> Option<T> {
+        self.0.get(symbol)
     }
 
     pub fn close(&mut self) {

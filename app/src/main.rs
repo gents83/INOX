@@ -6,23 +6,21 @@ use nrg_platform::*;
 fn main() {
     let mut app = App::new();
 
-    {
-        let path = PathBuf::from(library_filename("game_window"));
-        app.add_plugin(path);
-    }
+    let plugins = [
+        "nrg_core",
+        "nrg_graphics",
+        "nrg_gui",
+        "nrg_math",
+        "nrg_platform",
+        "nrg_serialize",
+        "game_window",
+        "game_renderer",
+        "nrg_editor",
+        "nrg_game",
+    ];
 
-    {
-        let path = PathBuf::from(library_filename("game_renderer"));
-        app.add_plugin(path);
-    }
-
-    {
-        let path = PathBuf::from(library_filename("nrg_editor"));
-        app.add_plugin(path);
-    }
-
-    {
-        let path = PathBuf::from(library_filename("nrg_game"));
+    for name in plugins.iter() {
+        let path = PathBuf::from(library_filename(*name));
         app.add_plugin(path);
     }
 

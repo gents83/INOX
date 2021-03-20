@@ -200,7 +200,7 @@ fn main() {
     for command in allcommands.clone() {
         writeln!(
             f,
-            "       {} = lib.library.get::<PFN_{}>(\"{}\");",
+            "       {} = if let Some(func) = lib.library.get::<PFN_{}>(\"{}\") {{ func }} else {{ None }};",
             command, command, command
         )
         .unwrap();

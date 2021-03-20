@@ -115,7 +115,7 @@ impl Window {
                     PhysicalToLogicalPoint(handle.handle_impl.hwnd, &mut mouse_pos);
                     let mut events = events.write().unwrap();
                     events.send_event(MouseEvent {
-                        x: mouse_pos.x as f64 - DEFAULT_CURSOR_SIZE * 0.25,
+                        x: mouse_pos.x as f64,
                         y: mouse_pos.y as f64 - DEFAULT_CURSOR_SIZE,
                         button: match message.message {
                             WM_LBUTTONDOWN | WM_LBUTTONUP | WM_LBUTTONDBLCLK => MouseButton::Left,
