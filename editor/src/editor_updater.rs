@@ -132,8 +132,8 @@ impl System for EditorUpdater {
 
         let mut line = 0.0;
         let mouse_pos = Vector2f {
-            x: self.input_handler.get_mouse_data().get_x() as _,
-            y: self.input_handler.get_mouse_data().get_y() as _,
+            x: 0f32.max(self.input_handler.get_mouse_data().get_x() as _),
+            y: 0f32.max(self.input_handler.get_mouse_data().get_y() as _),
         };
         self.write_line(
             format!("Mouse Input [{}, {}]", mouse_pos.x, mouse_pos.y,),

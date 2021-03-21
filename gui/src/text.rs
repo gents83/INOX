@@ -61,7 +61,7 @@ impl Text {
     }
     pub fn add_char(&mut self, index: i32, character: char) -> i32 {
         let mut new_index = index + 1;
-        if (new_index < 0 && !self.text.is_empty()) || (new_index > self.text.len() as i32) {
+        if new_index > self.text.len() as i32 {
             new_index = self.text.len() as i32;
         }
         if new_index < 0 {
@@ -72,15 +72,15 @@ impl Text {
     }
     pub fn remove_char(&mut self, index: i32) -> i32 {
         let mut new_index = index;
-        if new_index < 0 && !self.text.is_empty() {
-            new_index = self.text.len() as i32 - 1;
+        if new_index < 0 {
+            return new_index;
         }
         if new_index >= 0 && new_index < self.text.len() as _ {
             self.text.remove(new_index as usize);
         }
         new_index -= 1;
         if new_index < 0 && !self.text.is_empty() {
-            new_index = 0;
+            new_index = -1;
         }
         new_index
     }

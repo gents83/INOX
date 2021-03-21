@@ -37,14 +37,23 @@ impl Window {
         mut height: u32,
         mut events: EventsRw,
     ) -> Self {
-        let handle = Window::create_handle(title, x, y, &mut width, &mut height, &mut events);
+        let mut scale_factor = 1.0;
+        let handle = Window::create_handle(
+            title,
+            x,
+            y,
+            &mut width,
+            &mut height,
+            &mut scale_factor,
+            &mut events,
+        );
         Self {
             handle,
             x,
             y,
             width,
             height,
-            scale_factor: 1.0,
+            scale_factor,
             events,
             can_continue: true,
         }

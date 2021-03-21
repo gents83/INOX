@@ -36,7 +36,7 @@ impl EditableText {
             Key::ArrowLeft => {
                 let mut new_index = current_index - 1;
                 if new_index < 0 {
-                    new_index = 0;
+                    new_index = -1;
                 }
                 new_index
             }
@@ -115,7 +115,10 @@ impl EditableText {
         let mut current_char = widget.get().current_char;
         if let Some(text) = widget.get_child::<Text>(widget.get().text_widget) {
             let length = text.get().get_text().len() as i32;
-            if current_char < 0 || current_char >= length {
+            if current_char < 0 {
+                current_char = -1;
+            }
+            if current_char >= length {
                 current_char = length - 1;
             }
             let pos = {

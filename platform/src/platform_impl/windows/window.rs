@@ -16,6 +16,7 @@ impl Window {
         y: u32,
         width: &mut u32,
         height: &mut u32,
+        scale_factor: &mut f32,
         events: &mut EventsRw,
     ) -> Handle {
         unsafe {
@@ -66,11 +67,9 @@ impl Window {
             SetProcessDpiAwareness(PROCESS_DPI_AWARENESS::PROCESS_PER_MONITOR_DPI_AWARE);
             let (dpi_x, dpi_y) = Self::compute_dpi();
 
-            *width = *width * DEFAULT_DPI as u32 / dpi_x as u32;
-            *height = *height * DEFAULT_DPI as u32 / dpi_y as u32;
-
-            let mut events = events.write().unwrap();
-            events.send_event(WindowEvent::DpiChanged(dpi_x as _, dpi_y as _));
+            *width = *width * DEFAULT_DPI as u32 / dpi_x;
+            *height = *height * DEFAULT_DPI as u32 / dpi_y;
+            *scale_factor = dpi_x as f32 / DEFAULT_DPI as f32;
 
             Handle {
                 handle_impl: HandleImpl {
@@ -214,14 +213,6 @@ impl Window {
                     rect.bottom - rect.top,
                     SWP_NOACTIVATE | SWP_NOZORDER,
                 );
-                if EVENTS != ::std::ptr::null_mut() {
-                    let mut events = (*EVENTS).write().unwrap();
-                    events.send_event(WindowEvent::DpiChanged(dpi_x as _, dpi_y as _));
-                }
-                DefWindowProcW(hwnd, msg, wparam, lparam)
-            }
-            WM_CREATE => {
-                let (dpi_x, dpi_y) = Self::compute_dpi();
                 if EVENTS != ::std::ptr::null_mut() {
                     let mut events = (*EVENTS).write().unwrap();
                     events.send_event(WindowEvent::DpiChanged(dpi_x as _, dpi_y as _));
