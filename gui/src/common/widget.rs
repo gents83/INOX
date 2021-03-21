@@ -7,7 +7,7 @@ use nrg_serialize::*;
 use std::any::Any;
 
 pub const DEFAULT_LAYER_OFFSET: f32 = 0.001;
-pub const DEFAULT_WIDGET_SIZE: Vector2u = Vector2u { x: 24, y: 24 };
+pub const DEFAULT_WIDGET_SIZE: Vector2u = Vector2u { x: 20, y: 20 };
 
 pub struct WidgetData {
     pub node: WidgetNode,

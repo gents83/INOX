@@ -139,13 +139,13 @@ impl WidgetTrait for EditableText {
     fn init(widget: &mut Widget<Self>, renderer: &mut Renderer) {
         let screen = widget.get_screen();
         let data = widget.get_data_mut();
-        let size = DEFAULT_WIDGET_SIZE * screen.get_scale_factor();
+        let default_size = DEFAULT_WIDGET_SIZE * screen.get_scale_factor();
 
         data.graphics
             .init(renderer, "UI")
             .set_style(WidgetStyle::default());
         widget
-            .size(size)
+            .size(default_size)
             .draggable(false)
             .selectable(true)
             .stroke(2)
@@ -154,8 +154,8 @@ impl WidgetTrait for EditableText {
         let mut text = Widget::<Text>::new(screen.clone());
         text.init(renderer)
             .draggable(false)
-            .size(size)
-            .vertical_alignment(VerticalAlignment::Stretch)
+            .size([0, default_size.y].into())
+            .vertical_alignment(VerticalAlignment::Center)
             .horizontal_alignment(HorizontalAlignment::Left);
         text.get_mut().set_text("Edit me");
         widget.get_mut().text_widget = widget.add_child(text);

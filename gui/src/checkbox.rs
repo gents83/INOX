@@ -99,12 +99,13 @@ impl WidgetTrait for Checkbox {
     fn init(widget: &mut Widget<Self>, renderer: &mut Renderer) {
         let screen = widget.get_screen();
         let data = widget.get_data_mut();
+        let default_size = DEFAULT_WIDGET_SIZE * screen.get_scale_factor();
 
         data.graphics
             .init(renderer, "UI")
             .set_style(WidgetStyle::default());
         widget
-            .size(DEFAULT_WIDGET_SIZE)
+            .size(default_size)
             .draggable(false)
             .selectable(true)
             .stroke(2)
@@ -112,7 +113,7 @@ impl WidgetTrait for Checkbox {
             .set_fill_type(ContainerFillType::None)
             .set_fit_to_content(false);
 
-        let inner_size = widget.get_data().state.get_size() - [8, 8].into();
+        let inner_size = default_size - default_size / 4;
         let mut panel = Widget::<Panel>::new(screen);
         panel
             .init(renderer)

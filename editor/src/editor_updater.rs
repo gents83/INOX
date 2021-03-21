@@ -71,7 +71,7 @@ impl System for EditorUpdater {
         let mut fps_text = Widget::<Text>::new(self.screen.clone());
         fps_text
             .init(renderer)
-            .size([400, 20].into())
+            .size([500, 20].into())
             .vertical_alignment(VerticalAlignment::Top)
             .horizontal_alignment(HorizontalAlignment::Left)
             .get_mut()
@@ -89,7 +89,7 @@ impl System for EditorUpdater {
 
         let mut text = Widget::<Text>::new(self.screen.clone());
         text.init(renderer)
-            .size([400, 50].into())
+            .size([300, 20].into())
             .vertical_alignment(VerticalAlignment::Center)
             .horizontal_alignment(HorizontalAlignment::Center)
             .get_mut()

@@ -2,15 +2,18 @@ use super::*;
 use nrg_graphics::*;
 use nrg_math::*;
 use nrg_platform::*;
+use nrg_serialize::*;
 
 pub struct GraphNode {
     container_data: ContainerData,
+    title_widget: UID,
 }
 
 impl Default for GraphNode {
     fn default() -> Self {
         Self {
             container_data: ContainerData::default(),
+            title_widget: INVALID_ID,
         }
     }
 }
@@ -28,6 +31,8 @@ impl WidgetTrait for GraphNode {
     fn init(widget: &mut Widget<Self>, renderer: &mut Renderer) {
         let screen = widget.get_screen();
         let data = widget.get_data_mut();
+        let default_size = DEFAULT_WIDGET_SIZE * screen.get_scale_factor();
+
         data.graphics
             .init(renderer, "UI")
             .set_style(WidgetStyle::default_background());
@@ -36,6 +41,22 @@ impl WidgetTrait for GraphNode {
         data.state
             .set_position(screen.get_center() - size / 2)
             .set_size(size);
+
+        widget
+            .draggable(true)
+            .get_mut()
+            .set_fill_type(ContainerFillType::Vertical)
+            .set_fit_to_content(true);
+
+        let mut title = Widget::<Text>::new(screen);
+        title
+            .init(renderer)
+            .draggable(false)
+            .size([0, default_size.y].into())
+            .vertical_alignment(VerticalAlignment::Top)
+            .horizontal_alignment(HorizontalAlignment::Center);
+        title.get_mut().set_text("Title");
+        widget.get_mut().title_widget = widget.add_child(title);
     }
 
     fn update(

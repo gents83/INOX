@@ -119,10 +119,10 @@ impl WidgetTrait for Text {
         let pos = screen
             .convert_from_pixels_into_screen_space(widget.get_data_mut().state.get_position());
         let mut size = screen.convert_size_from_pixels(widget.get_data_mut().state.get_size());
+        let min_size = size;
         if let Some(parent_state) = parent_data {
             size = screen.convert_size_from_pixels(parent_state.get_size());
         }
-        let min_size = screen.convert_size_from_pixels(DEFAULT_WIDGET_SIZE);
 
         let lines_count = widget.get_mut().text.lines().count().max(1);
         let mut max_chars = 1;
@@ -130,26 +130,27 @@ impl WidgetTrait for Text {
             max_chars = max_chars.max(text.len());
         }
 
-        let mut char_height = size.y / lines_count as f32;
-        let mut char_width = size.x / max_chars as f32;
-        let char_color = widget.get_data().graphics.get_color();
-        let char_layer = widget.get_data().state.get_layer();
-        let char_size = char_height.min(char_width);
-        if *widget.get_data().state.get_horizontal_alignment() != HorizontalAlignment::Stretch {
-            char_width = min_size.x.min(char_size);
+        let char_size = min_size.y / lines_count as f32;
+        let min_char_width = min_size.x / max_chars as f32;
+        let max_char_width = size.x / max_chars as f32;
+        let char_size = char_size.min(min_char_width.max(max_char_width));
+        let mut char_width = char_size;
+        let mut char_height = char_size;
+        if *widget.get_data().state.get_horizontal_alignment() == HorizontalAlignment::Stretch {
+            char_width = size.x / max_chars as f32;
         }
-        if *widget.get_data().state.get_vertical_alignment() != VerticalAlignment::Stretch {
-            char_height = min_size.y.min(char_size);
+        if *widget.get_data().state.get_vertical_alignment() == VerticalAlignment::Stretch {
+            char_height = size.y / lines_count as f32;
         }
-        size = [
-            char_width * max_chars as f32,
-            char_height * lines_count as f32,
+
+        let new_size: Vector2f = [
+            min_size.x.max(char_width * max_chars as f32).min(size.x),
+            min_size.y.max(char_height * lines_count as f32).min(size.y),
         ]
         .into();
-        widget
-            .get_data_mut()
-            .state
-            .set_size(screen.convert_size_into_pixels(size));
+
+        let char_color = widget.get_data().graphics.get_color();
+        let char_layer = widget.get_data().state.get_layer();
 
         let font = renderer.get_font(widget.get_mut().font_id).unwrap();
 
@@ -190,6 +191,11 @@ impl WidgetTrait for Text {
         }
         widget.get_mut().hover_char_index = hover_char_index;
         widget.get_mut().characters = characters;
+        widget
+            .get_data_mut()
+            .state
+            .set_size(screen.convert_size_into_pixels(new_size));
+
         widget.get_data_mut().graphics.set_mesh_data(mesh_data);
     }
 
