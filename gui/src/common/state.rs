@@ -2,8 +2,8 @@ use super::*;
 use nrg_math::*;
 
 pub struct WidgetState {
-    pos: Vector2f,
-    size: Vector2f,
+    pos_in_px: Vector2u,
+    size_in_px: Vector2u,
     is_active: bool,
     is_selectable: bool,
     is_draggable: bool,
@@ -17,8 +17,8 @@ pub struct WidgetState {
 impl Default for WidgetState {
     fn default() -> Self {
         Self {
-            pos: Vector2f::default(),
-            size: [1., 1.].into(),
+            pos_in_px: Vector2u::default(),
+            size_in_px: DEFAULT_WIDGET_SIZE,
             is_active: true,
             is_selectable: true,
             is_draggable: false,
@@ -32,19 +32,19 @@ impl Default for WidgetState {
 }
 
 impl WidgetState {
-    pub fn get_position(&self) -> Vector2f {
-        self.pos
+    pub fn get_position(&self) -> Vector2u {
+        self.pos_in_px
     }
 
-    pub fn set_position(&mut self, pos: Vector2f) -> &mut Self {
-        self.pos = pos;
+    pub fn set_position(&mut self, pos_in_px: Vector2u) -> &mut Self {
+        self.pos_in_px = pos_in_px;
         self
     }
-    pub fn get_size(&self) -> Vector2f {
-        self.size
+    pub fn get_size(&self) -> Vector2u {
+        self.size_in_px
     }
-    pub fn set_size(&mut self, size: Vector2f) -> &mut Self {
-        self.size = size;
+    pub fn set_size(&mut self, size_in_px: Vector2u) -> &mut Self {
+        self.size_in_px = size_in_px;
         self
     }
     pub fn get_layer(&self) -> f32 {
@@ -108,11 +108,11 @@ impl WidgetState {
         &self.vertical_alignment
     }
 
-    pub fn is_inside(&self, pos: Vector2f) -> bool {
-        if pos.x >= self.pos.x
-            && pos.x <= self.pos.x + self.size.x
-            && pos.y >= self.pos.y
-            && pos.y <= self.pos.y + self.size.y
+    pub fn is_inside(&self, pos_in_px: Vector2u) -> bool {
+        if pos_in_px.x >= self.pos_in_px.x
+            && pos_in_px.x <= self.pos_in_px.x + self.size_in_px.x
+            && pos_in_px.y >= self.pos_in_px.y
+            && pos_in_px.y <= self.pos_in_px.y + self.size_in_px.y
         {
             return true;
         }

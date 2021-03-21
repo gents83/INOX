@@ -18,6 +18,7 @@ pub struct EditorUpdater {
     button_widget_id: UID,
     button_text_id: UID,
     time_per_fps: f64,
+    node: Widget<GraphNode>,
 }
 
 impl EditorUpdater {
@@ -28,12 +29,13 @@ impl EditorUpdater {
             shared_data: shared_data.clone(),
             config: config.clone(),
             input_handler: InputHandler::default(),
+            node: Widget::<GraphNode>::new(screen.clone()),
             widget: Widget::<Panel>::new(screen.clone()),
-            screen,
             fps_text_widget_id: INVALID_ID,
             button_widget_id: INVALID_ID,
             button_text_id: INVALID_ID,
             time_per_fps: 0.,
+            screen,
         }
     }
 }
@@ -56,20 +58,20 @@ impl System for EditorUpdater {
         self.screen.init(window);
         self.widget
             .init(renderer)
-            .position([300.0, 300.0].into())
-            .size([500.0, 800.0].into())
+            .position([300, 300].into())
+            .size([500, 800].into())
             .draggable(true)
             .vertical_alignment(VerticalAlignment::Top)
             .horizontal_alignment(HorizontalAlignment::Right)
             .get_mut()
             .set_fill_type(ContainerFillType::Vertical)
             .set_fit_to_content(true)
-            .set_space_between_elements(20.);
+            .set_space_between_elements(20);
 
         let mut fps_text = Widget::<Text>::new(self.screen.clone());
         fps_text
             .init(renderer)
-            .size([400.0, 20.0].into())
+            .size([400, 20].into())
             .vertical_alignment(VerticalAlignment::Top)
             .horizontal_alignment(HorizontalAlignment::Left)
             .get_mut()
@@ -78,8 +80,8 @@ impl System for EditorUpdater {
         let mut button = Widget::<Button>::new(self.screen.clone());
         button
             .init(renderer)
-            .size([400., 150.].into())
-            .stroke(10.)
+            .size([400, 150].into())
+            .stroke(10)
             .horizontal_alignment(HorizontalAlignment::Stretch)
             .get_mut()
             .set_fill_type(ContainerFillType::Horizontal)
@@ -87,7 +89,7 @@ impl System for EditorUpdater {
 
         let mut text = Widget::<Text>::new(self.screen.clone());
         text.init(renderer)
-            .size([400.0, 50.0].into())
+            .size([400, 50].into())
             .vertical_alignment(VerticalAlignment::Center)
             .horizontal_alignment(HorizontalAlignment::Center)
             .get_mut()
@@ -106,6 +108,8 @@ impl System for EditorUpdater {
         let mut editable_text = Widget::<EditableText>::new(self.screen.clone());
         editable_text.init(renderer);
         self.widget.add_child(editable_text);
+
+        self.node.init(renderer);
     }
 
     fn run(&mut self) -> bool {
@@ -121,6 +125,9 @@ impl System for EditorUpdater {
 
             self.widget
                 .update(None, renderer, events, &self.input_handler);
+
+            self.node
+                .update(None, renderer, events, &self.input_handler);
         }
 
         let mut line = 0.0;
@@ -132,9 +139,9 @@ impl System for EditorUpdater {
             format!("Mouse Input [{}, {}]", mouse_pos.x, mouse_pos.y,),
             &mut line,
         );
-        let pos: Vector2f = self.screen.convert_position_into_pixels(mouse_pos);
+        let pos: Vector2u = self.screen.from_normalized_into_pixels(mouse_pos).convert();
         self.write_line(format!("Mouse Pixels[{}, {}]", pos.x, pos.y), &mut line);
-        let pos: Vector2f = self.screen.convert_into_screen_space(mouse_pos);
+        let pos: Vector2f = self.screen.from_normalized_into_screen_space(mouse_pos);
         self.write_line(
             format!("Mouse ScreenSpace[{}, {}]", pos.x, pos.y),
             &mut line,
@@ -197,6 +204,7 @@ impl System for EditorUpdater {
         let read_data = self.shared_data.read().unwrap();
         let renderer = &mut *read_data.get_unique_resource_mut::<Renderer>();
 
+        self.node.uninit(renderer);
         self.widget.uninit(renderer);
     }
 }

@@ -114,7 +114,7 @@ impl WidgetTrait for Text {
             x: input_handler.get_mouse_data().get_x() as _,
             y: input_handler.get_mouse_data().get_y() as _,
         };
-        let mouse_pos = screen.convert_into_screen_space(mouse_pos);
+        let mouse_pos = screen.from_normalized_into_screen_space(mouse_pos);
 
         let pos = screen
             .convert_from_pixels_into_screen_space(widget.get_data_mut().state.get_position());

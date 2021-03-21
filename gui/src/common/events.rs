@@ -7,6 +7,6 @@ pub enum WidgetEvent {
     Exiting(UID),
     Pressed(UID),
     Released(UID),
-    Dragging(UID, Vector2f),
+    Dragging(UID, Vector2i),
 }
 impl Event for WidgetEvent {}

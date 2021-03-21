@@ -7,7 +7,7 @@ use nrg_serialize::*;
 use std::any::Any;
 
 pub const DEFAULT_LAYER_OFFSET: f32 = 0.001;
-pub const DEFAULT_WIDGET_SIZE: Vector2f = Vector2f { x: 24., y: 24. };
+pub const DEFAULT_WIDGET_SIZE: Vector2u = Vector2u { x: 24, y: 24 };
 
 pub struct WidgetData {
     pub node: WidgetNode,
@@ -42,31 +42,37 @@ pub trait WidgetBase: Send + Sync + Any {
     fn id(&self) -> UID {
         self.get_data().node.get_id()
     }
-    fn translate(&mut self, offset: Vector2f) {
+    fn translate(&mut self, offset_in_px: Vector2i) {
         let data = self.get_data_mut();
-        data.state.set_position(data.state.get_position() + offset);
+        let new_pos: Vector2i = data.state.get_position().convert() + offset_in_px;
+        data.state.set_position(new_pos.convert());
 
         data.node.propagate_on_children_mut(|w| {
-            w.translate(offset);
+            w.translate(offset_in_px);
         });
     }
 
     fn scale(&mut self, scale: Vector2f) {
         let data = self.get_data_mut();
-        data.state.set_size(data.state.get_size() * scale);
+        let scaled_size: Vector2u = [
+            (data.state.get_size().x as f32 * scale.x) as _,
+            (data.state.get_size().y as f32 * scale.y) as _,
+        ]
+        .into();
+        data.state.set_size(scaled_size);
 
         data.node.propagate_on_children_mut(|w| {
             w.scale(scale);
         });
     }
 
-    fn compute_offset_and_scale_from_alignment(&mut self, clip_rect: Vector4f) {
+    fn compute_offset_and_scale_from_alignment(&mut self, clip_rect: Vector4u) {
         let state = &self.get_data().state;
         let graphics = &self.get_data().graphics;
         let screen = &self.get_screen();
 
-        let clip_min: Vector2f = [clip_rect.x, clip_rect.y].into();
-        let clip_max: Vector2f = [clip_rect.z, clip_rect.w].into();
+        let clip_min: Vector2u = [clip_rect.x, clip_rect.y].into();
+        let clip_max: Vector2u = [clip_rect.z, clip_rect.w].into();
 
         let mut pos = state.get_position();
         let mut size = state.get_size();
@@ -80,11 +86,11 @@ pub trait WidgetBase: Send + Sync + Any {
                 pos.x = clip_max.x - (size.x + stroke.x);
             }
             HorizontalAlignment::Center => {
-                pos.x = clip_min.x + (clip_max.x - clip_min.x).abs() * 0.5 - size.x * 0.5;
+                pos.x = clip_min.x + (clip_max.x - clip_min.x) / 2 - size.x / 2;
             }
             HorizontalAlignment::Stretch => {
                 pos.x = clip_min.x + stroke.x;
-                size.x = (clip_max.x - clip_min.x).abs() - stroke.x * 2.;
+                size.x = (clip_max.x - clip_min.x) - stroke.x * 2;
             }
             _ => {}
         }
@@ -97,11 +103,11 @@ pub trait WidgetBase: Send + Sync + Any {
                 pos.y = clip_max.y - (size.y + stroke.y);
             }
             VerticalAlignment::Center => {
-                pos.y = clip_min.y + (clip_max.y - clip_min.y).abs() * 0.5 - size.y * 0.5;
+                pos.y = clip_min.y + (clip_max.y - clip_min.y) / 2 - size.y / 2;
             }
             VerticalAlignment::Stretch => {
                 pos.y = clip_min.y + stroke.y;
-                size.y = (clip_max.y - clip_min.y).abs() - stroke.y * 2.;
+                size.y = (clip_max.y - clip_min.y) - stroke.y * 2;
             }
             _ => {}
         }
@@ -110,13 +116,13 @@ pub trait WidgetBase: Send + Sync + Any {
         self.get_data_mut().state.set_size(size);
     }
 
-    fn clip_in_area(&mut self, clip_rect: Vector4f) {
+    fn clip_in_area(&mut self, clip_rect: Vector4u) {
         let state = &self.get_data().state;
         let graphics = &self.get_data().graphics;
         let screen = &self.get_screen();
 
-        let clip_min: Vector2f = [clip_rect.x, clip_rect.y].into();
-        let clip_max: Vector2f = [clip_rect.z, clip_rect.w].into();
+        let clip_min: Vector2u = [clip_rect.x, clip_rect.y].into();
+        let clip_max: Vector2u = [clip_rect.z, clip_rect.w].into();
 
         let mut pos = state.get_position();
         let size = state.get_size();
@@ -197,8 +203,9 @@ pub trait WidgetBase: Send + Sync + Any {
                             data.state
                                 .set_horizontal_alignment(HorizontalAlignment::None);
                             data.state.set_vertical_alignment(VerticalAlignment::None);
-                            let pos = data.state.get_position() + *mouse_in_px;
-                            data.state.set_position(pos);
+                            let mut pos = data.state.get_position().convert() + *mouse_in_px;
+                            pos = pos.max(Vector2i::default());
+                            data.state.set_position(pos.convert());
                         }
                     }
                 }
@@ -221,11 +228,15 @@ pub trait WidgetBase: Send + Sync + Any {
         if is_on_child {
             return;
         }
-        let mouse = screen.convert_position_into_pixels(Vector2f {
-            x: input_handler.get_mouse_data().get_x() as _,
-            y: input_handler.get_mouse_data().get_y() as _,
-        });
-        let is_inside = data.state.is_inside(mouse) && data.graphics.is_inside(mouse, &screen);
+        let mouse_in_px: Vector2u = screen
+            .from_normalized_into_pixels(Vector2f {
+                x: input_handler.get_mouse_data().get_x() as _,
+                y: input_handler.get_mouse_data().get_y() as _,
+            })
+            .max(Vector2i::default())
+            .convert();
+        let is_inside =
+            data.state.is_inside(mouse_in_px) && data.graphics.is_inside(mouse_in_px, &screen);
         if is_inside && !data.state.is_hover() {
             events.send_event(WidgetEvent::Entering(id));
             return;
@@ -246,7 +257,7 @@ pub trait WidgetBase: Send + Sync + Any {
             return;
         }
         if data.state.is_pressed() && data.state.is_draggable() {
-            let movement_in_pixels = screen.convert_position_into_pixels(Vector2f {
+            let movement_in_pixels = screen.from_normalized_into_pixels(Vector2f {
                 x: input_handler.get_mouse_data().movement_x() as _,
                 y: input_handler.get_mouse_data().movement_y() as _,
             });
@@ -259,9 +270,9 @@ pub trait WidgetBase: Send + Sync + Any {
         data.graphics.move_to_layer(layer);
     }
 
-    fn compute_clip_area(&self, parent_data: Option<&WidgetState>) -> Vector4f {
+    fn compute_clip_area(&self, parent_data: Option<&WidgetState>) -> Vector4u {
         let screen = self.get_screen();
-        let clip_area: Vector4f = if let Some(parent_state) = parent_data {
+        let clip_area: Vector4u = if let Some(parent_state) = parent_data {
             let parent_pos = parent_state.get_position();
             let parent_size = parent_state.get_size();
             [
@@ -273,7 +284,7 @@ pub trait WidgetBase: Send + Sync + Any {
             .into()
         } else {
             let size = screen.get_size();
-            [0., 0., size.x, size.y].into()
+            [0, 0, size.x, size.y].into()
         };
         clip_area
     }
@@ -303,11 +314,11 @@ pub trait WidgetBase: Send + Sync + Any {
             w.update_layers();
         });
     }
-    fn set_stroke(&mut self, stroke: f32);
+    fn set_stroke(&mut self, stroke: u32);
     fn set_color(&mut self, r: f32, g: f32, b: f32, a: f32);
     fn set_border_color(&mut self, r: f32, g: f32, b: f32, a: f32);
-    fn set_position(&mut self, pos: Vector2f);
-    fn set_size(&mut self, size: Vector2f);
+    fn set_position(&mut self, pos_in_px: Vector2u);
+    fn set_size(&mut self, size_in_px: Vector2u);
     fn is_hover(&self) -> bool {
         self.get_data().state.is_hover()
     }
@@ -383,7 +394,7 @@ where
         T::uninit(self, renderer);
         self.data.graphics.uninit(renderer);
     }
-    fn set_stroke(&mut self, stroke: f32) {
+    fn set_stroke(&mut self, stroke: u32) {
         self.stroke(stroke);
     }
     fn set_color(&mut self, r: f32, g: f32, b: f32, a: f32) {
@@ -392,11 +403,11 @@ where
     fn set_border_color(&mut self, r: f32, g: f32, b: f32, a: f32) {
         self.border_color(r, g, b, a);
     }
-    fn set_position(&mut self, pos: Vector2f) {
-        self.position(pos);
+    fn set_position(&mut self, pos_in_px: Vector2u) {
+        self.position(pos_in_px);
     }
-    fn set_size(&mut self, size: Vector2f) {
-        self.size(size);
+    fn set_size(&mut self, size_in_px: Vector2u) {
+        self.size(size_in_px);
     }
 }
 
@@ -448,7 +459,7 @@ where
         let stroke = widget
             .get_screen()
             .convert_size_into_pixels(widget.get_data().graphics.get_stroke().into());
-        widget.translate(self.data.state.get_position() + stroke);
+        widget.translate((self.data.state.get_position() + stroke).convert());
         self.data.node.add_child(widget);
         self.update_layout(None);
         id
@@ -478,7 +489,7 @@ where
         self.data.node.propagate_on_child_mut(uid, f);
     }
 
-    pub fn get_position(&self) -> Vector2f {
+    pub fn get_position(&self) -> Vector2u {
         self.data.state.get_position()
     }
     pub fn horizontal_alignment(&mut self, alignment: HorizontalAlignment) -> &mut Self {
@@ -499,14 +510,18 @@ where
         self
     }
 
-    pub fn position(&mut self, pos: Vector2f) -> &mut Self {
-        let offset = pos - self.data.state.get_position();
+    pub fn position(&mut self, pos_in_px: Vector2u) -> &mut Self {
+        let offset: Vector2i = pos_in_px.convert() - self.data.state.get_position().convert();
         self.translate(offset);
         self
     }
 
-    pub fn size(&mut self, size: Vector2f) -> &mut Self {
-        let scale = size / self.data.state.get_size();
+    pub fn size(&mut self, size_in_px: Vector2u) -> &mut Self {
+        let scale: Vector2f = [
+            size_in_px.x as f32 / self.data.state.get_size().x as f32,
+            size_in_px.y as f32 / self.data.state.get_size().y as f32,
+        ]
+        .into();
         self.scale(scale);
         self
     }
@@ -519,7 +534,7 @@ where
         self.data.graphics.set_border_color([r, g, b, a].into());
         self
     }
-    pub fn stroke(&mut self, stroke: f32) -> &mut Self {
+    pub fn stroke(&mut self, stroke: u32) -> &mut Self {
         let stroke: Vector3f = self
             .screen
             .convert_size_from_pixels([stroke, stroke].into())

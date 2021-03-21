@@ -11,7 +11,7 @@ pub enum ContainerFillType {
 pub struct ContainerData {
     pub fill_type: ContainerFillType,
     pub fit_to_content: bool,
-    pub space_between_elements: f32,
+    pub space_between_elements: u32,
 }
 
 impl Default for ContainerData {
@@ -19,7 +19,7 @@ impl Default for ContainerData {
         Self {
             fill_type: ContainerFillType::Vertical,
             fit_to_content: true,
-            space_between_elements: 0.,
+            space_between_elements: 0,
         }
     }
 }
@@ -41,11 +41,11 @@ pub trait ContainerTrait: WidgetTrait {
     fn has_fit_to_content(&self) -> bool {
         self.get_container_data().fit_to_content
     }
-    fn set_space_between_elements(&mut self, space_in_px: f32) -> &mut Self {
+    fn set_space_between_elements(&mut self, space_in_px: u32) -> &mut Self {
         self.get_container_data_mut().space_between_elements = space_in_px;
         self
     }
-    fn get_space_between_elements(&self) -> f32 {
+    fn get_space_between_elements(&self) -> u32 {
         self.get_container_data().space_between_elements
     }
 
@@ -67,8 +67,8 @@ pub trait ContainerTrait: WidgetTrait {
         let parent_pos = data.state.get_position();
         let parent_size = data.state.get_size();
 
-        let mut children_min_pos: Vector2f = [Float::max_value(), Float::max_value()].into();
-        let mut children_size: Vector2f = [0., 0.].into();
+        let mut children_min_pos: Vector2u = [u32::max_value(), u32::max_value()].into();
+        let mut children_size: Vector2u = [0, 0].into();
         let mut index = 0;
         node.propagate_on_children_mut(|w| {
             let child_stroke =
@@ -87,8 +87,8 @@ pub trait ContainerTrait: WidgetTrait {
                         child_state
                             .set_position([child_pos.x, parent_pos.y + children_size.y].into());
                     }
-                    children_size.y += child_size.y + child_stroke.y * 2.;
-                    children_size.x = children_size.x.max(child_size.x + child_stroke.x * 2.);
+                    children_size.y += child_size.y + child_stroke.y * 2;
+                    children_size.x = children_size.x.max(child_size.x + child_stroke.x * 2);
                 }
                 ContainerFillType::Horizontal => {
                     if index > 0 {
@@ -98,8 +98,8 @@ pub trait ContainerTrait: WidgetTrait {
                         child_state
                             .set_position([parent_pos.x + children_size.x, child_pos.y].into());
                     }
-                    children_size.x += child_size.x + child_stroke.x * 2.;
-                    children_size.y = children_size.y.max(child_size.y + child_stroke.y * 2.);
+                    children_size.x += child_size.x + child_stroke.x * 2;
+                    children_size.y = children_size.y.max(child_size.y + child_stroke.y * 2);
                     if fit_to_content {
                     } else {
                         children_size.y = parent_size.y;

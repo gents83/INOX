@@ -60,8 +60,8 @@ impl WidgetTrait for Indicator {
 
         widget
             .draggable(false)
-            .size([1., DEFAULT_WIDGET_SIZE.y - 2.].into())
-            .stroke(1.)
+            .size([1, DEFAULT_WIDGET_SIZE.y - 2].into())
+            .stroke(1)
             .vertical_alignment(VerticalAlignment::Stretch)
             .selectable(false)
             .get_data_mut()

@@ -125,8 +125,8 @@ impl WidgetGraphics {
             .translate([0.0, 0.0, layer + DEFAULT_LAYER_OFFSET].into());
         self
     }
-    pub fn is_inside(&self, pos: Vector2f, screen: &Screen) -> bool {
-        let pos_in_screen_space = screen.convert_from_pixels_into_screen_space(pos);
+    pub fn is_inside(&self, pos_in_px: Vector2u, screen: &Screen) -> bool {
+        let pos_in_screen_space = screen.convert_from_pixels_into_screen_space(pos_in_px);
         self.mesh_data.is_inside(pos_in_screen_space)
     }
 

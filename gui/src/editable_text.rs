@@ -123,7 +123,7 @@ impl EditableText {
                     let pos_in_screen_space = text.get().get_char_pos(current_char);
                     widget
                         .get_screen()
-                        .convert_from_screen_space_into_pixels(pos_in_screen_space)
+                        .from_screen_space_into_pixels(pos_in_screen_space)
                 } else {
                     text.get_data().state.get_position()
                 }
@@ -148,7 +148,7 @@ impl WidgetTrait for EditableText {
             .size(size)
             .draggable(false)
             .selectable(true)
-            .stroke(2.)
+            .stroke(2)
             .horizontal_alignment(HorizontalAlignment::Stretch);
 
         let mut text = Widget::<Text>::new(screen.clone());

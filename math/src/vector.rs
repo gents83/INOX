@@ -151,6 +151,29 @@ macro_rules! implement_vector {
                 array.iter_mut().for_each(|el| f(el));
                 *self = array.into();
             }
+
+            #[inline]
+            pub fn convert<F>(self) -> $VectorN<F>
+            where
+                T: Number,
+                F: Number,
+            {
+                $VectorN { $($field : cast(self.$field).unwrap()),+ }
+            }
+
+            #[inline]
+            pub fn min(&self, other:$VectorN<T>) -> $VectorN<T>
+            where T: Number + std::cmp::Ord
+            {
+                $VectorN { $($field : self.$field.min(other.$field)),+ }
+            }
+
+            #[inline]
+            pub fn max(&self, other:$VectorN<T>) -> $VectorN<T>
+            where T: Number + std::cmp::Ord
+            {
+                $VectorN { $($field : self.$field.max(other.$field)),+ }
+            }
         }
 
         impl<T> Default for $VectorN<T>
@@ -241,14 +264,6 @@ macro_rules! implement_vector {
             }
         }
 
-        impl<'a, T> Into<&'a $VectorN<T>> for &[T]
-        where [T]: std::marker::Sized {
-            #[inline]
-            fn into(self) -> &'a $VectorN<T> {
-                unsafe { ::std::mem::transmute(self) }
-            }
-        }
-
         impl<T> ::std::ops::Add<$VectorN<T>> for $VectorN<T>
         where T: Number {
             type Output = $VectorN<T>;
@@ -313,14 +328,6 @@ macro_rules! implement_vector {
                 *self = vec
             }
         }
-        impl<T> ::std::ops::MulAssign<T> for $VectorN<T>
-        where T: Number {
-            #[inline]
-            fn mul_assign(&mut self, other: T) {
-                let vec = $VectorN { $($field: self.$field * other),+ };
-                *self = vec
-            }
-        }
         impl<T> ::std::ops::Div<$VectorN<T>> for $VectorN<T>
         where T: Number {
             type Output = $VectorN<T>;
@@ -337,14 +344,6 @@ macro_rules! implement_vector {
                 *self = vec;
             }
         }
-        impl<T> ::std::ops::DivAssign<T> for $VectorN<T>
-        where T: Number {
-            #[inline]
-            fn div_assign(&mut self, other: T) {
-                let vec = $VectorN { $($field: self.$field / other),+ };
-                *self = vec;
-            }
-        }
         impl<T: ::std::ops::Neg<Output = T>> ::std::ops::Neg for $VectorN<T> {
             type Output = $VectorN<T>;
             #[inline]
@@ -353,20 +352,36 @@ macro_rules! implement_vector {
             }
         }
 
-        impl<T> ::std::ops::Mul<T> for $VectorN<T>
-        where T: Number {
+        impl<F, T> ::std::ops::Mul<F> for $VectorN<T>
+        where F: Number, T: Number {
             type Output = $VectorN<T>;
             #[inline]
-            fn mul(self, other: T) -> $VectorN<T> {
-                $VectorN { $($field: self.$field * other),+ }
+            fn mul(self, other: F) -> $VectorN<T> {
+                $VectorN { $($field: cast::<F, T>(cast::<T, F>(self.$field).unwrap() * other).unwrap()),+ }
             }
         }
-        impl<T> ::std::ops::Div<T> for $VectorN<T>
-        where T: Number {
+        impl<F, T> ::std::ops::Div<F> for $VectorN<T>
+        where F: Number, T: Number {
             type Output = $VectorN<T>;
             #[inline]
-            fn div(self, other: T) -> $VectorN<T> {
-                $VectorN { $($field: self.$field / other),+ }
+            fn div(self, other: F) -> $VectorN<T> {
+                $VectorN { $($field: cast::<F, T>(cast::<T, F>(self.$field).unwrap() / other).unwrap()),+ }
+            }
+        }
+        impl<F, T> ::std::ops::MulAssign<F> for $VectorN<T>
+        where F:Number, T: Number {
+            #[inline]
+            fn mul_assign(&mut self, other: F) {
+                let vec = $VectorN { $($field: cast::<F, T>(cast::<T, F>(self.$field).unwrap() * other).unwrap()),+ };
+                *self = vec
+            }
+        }
+        impl<F, T> ::std::ops::DivAssign<F> for $VectorN<T>
+        where F: Number, T: Number {
+            #[inline]
+            fn div_assign(&mut self, other: F) {
+                let vec = $VectorN { $($field: cast::<F, T>(cast::<T, F>(self.$field).unwrap() / other).unwrap()),+ };
+                *self = vec;
             }
         }
 
@@ -389,16 +404,10 @@ macro_rules! implement_vector {
             }
         }
 
-        impl<T: NumberCast + Copy> $VectorN<T> {
+        impl<T: Number> $VectorN<T> {
             #[inline]
-            pub fn cast<F: NumberCast>(&self) -> Option<$VectorN<F>> {
-                $(
-                    let $field = match NumberCast::from(self.$field) {
-                        Some(field) => field,
-                        None => return None
-                    };
-                )+
-                Some($VectorN { $($field),+ })
+            pub fn cast<F: Number>(&self) -> $VectorN<F> {
+                $VectorN { $($field: cast::<T, F>(self.$field).unwrap()),+ }
             }
         }
 
