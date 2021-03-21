@@ -7,7 +7,6 @@ use crate::handle::*;
 use crate::input::*;
 use crate::window::*;
 
-const DEFAULT_CURSOR_SIZE: f64 = 32.0;
 static mut EVENTS: *mut EventsRw = std::ptr::null_mut();
 
 impl Window {
@@ -111,12 +110,12 @@ impl Window {
                     || message.message == WM_MBUTTONDBLCLK
                 {
                     let mut mouse_pos = POINT { x: 0, y: 0 };
-                    GetPhysicalCursorPos(&mut mouse_pos);
-                    PhysicalToLogicalPoint(handle.handle_impl.hwnd, &mut mouse_pos);
+                    GetCursorPos(&mut mouse_pos);
+                    ScreenToClient(handle.handle_impl.hwnd, &mut mouse_pos);
                     let mut events = events.write().unwrap();
                     events.send_event(MouseEvent {
                         x: mouse_pos.x as f64,
-                        y: mouse_pos.y as f64 - DEFAULT_CURSOR_SIZE,
+                        y: mouse_pos.y as f64,
                         button: match message.message {
                             WM_LBUTTONDOWN | WM_LBUTTONUP | WM_LBUTTONDBLCLK => MouseButton::Left,
                             WM_RBUTTONDOWN | WM_RBUTTONUP | WM_RBUTTONDBLCLK => MouseButton::Right,
