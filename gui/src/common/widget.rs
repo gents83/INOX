@@ -37,7 +37,7 @@ pub trait WidgetBase: Send + Sync + Any {
         renderer: &mut Renderer,
         events: &mut EventsRw,
         input_handler: &InputHandler,
-    ) -> bool;
+    );
     fn uninit(&mut self, renderer: &mut Renderer);
     fn id(&self) -> UID {
         self.get_data().node.get_id()
@@ -134,81 +134,124 @@ pub trait WidgetBase: Send + Sync + Any {
         self.get_data_mut().state.set_position(pos);
     }
 
-    fn manage_input(
-        &mut self,
-        input_managed: bool,
-        events: &mut EventsRw,
-        input_handler: &InputHandler,
-    ) -> bool {
-        let id = self.id();
-        let mut events = events.write().unwrap();
-        let screen = self.get_screen();
+    fn manage_style(&mut self) {
         let data = self.get_data_mut();
-        if !data.state.is_active() {
+
+        if data.state.is_hover() {
+            let (color, border_color) = data.graphics.get_colors(WidgetInteractiveState::Hover);
+            data.graphics
+                .set_color(color)
+                .set_border_color(border_color);
+        } else if data.state.is_pressed() {
+            let (color, border_color) = data.graphics.get_colors(WidgetInteractiveState::Pressed);
+            data.graphics
+                .set_color(color)
+                .set_border_color(border_color);
+        } else if data.state.is_active() {
+            let (color, border_color) = data.graphics.get_colors(WidgetInteractiveState::Active);
+            data.graphics
+                .set_color(color)
+                .set_border_color(border_color);
+        } else {
             let (color, border_color) = data.graphics.get_colors(WidgetInteractiveState::Inactive);
             data.graphics
                 .set_color(color)
                 .set_border_color(border_color);
-            return false;
         }
-        let (color, border_color) = data.graphics.get_colors(WidgetInteractiveState::Active);
-        data.graphics
-            .set_color(color)
-            .set_border_color(border_color);
-        if !data.state.is_selectable() {
-            return false;
+    }
+
+    fn manage_events(&mut self, events: &mut EventsRw) {
+        let id = self.id();
+        let data = self.get_data_mut();
+        let events = events.read().unwrap();
+        if let Some(widget_events) = events.read_events::<WidgetEvent>() {
+            for event in widget_events.iter() {
+                match event {
+                    WidgetEvent::Entering(widget_id) => {
+                        if *widget_id == id && data.state.is_selectable() {
+                            data.state.set_hover(true);
+                        } else {
+                            data.state.set_hover(false);
+                        }
+                    }
+                    WidgetEvent::Exiting(widget_id) => {
+                        if *widget_id == id && data.state.is_selectable() {
+                            data.state.set_hover(false);
+                            data.state.set_pressed(false);
+                        }
+                    }
+                    WidgetEvent::Released(widget_id) => {
+                        if *widget_id == id && data.state.is_selectable() {
+                            data.state.set_pressed(false);
+                        }
+                    }
+                    WidgetEvent::Pressed(widget_id) => {
+                        if *widget_id == id && data.state.is_selectable() {
+                            data.state.set_pressed(true);
+                        } else {
+                            data.state.set_pressed(false);
+                        }
+                    }
+                    WidgetEvent::Dragging(widget_id, mouse_in_px) => {
+                        if *widget_id == id && data.state.is_draggable() {
+                            data.state
+                                .set_horizontal_alignment(HorizontalAlignment::None);
+                            data.state.set_vertical_alignment(VerticalAlignment::None);
+                            let pos = data.state.get_position() + *mouse_in_px;
+                            data.state.set_position(pos);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fn manage_input(&mut self, events: &mut EventsRw, input_handler: &InputHandler) {
+        let id = self.id();
+        let mut events = events.write().unwrap();
+        let screen = self.get_screen();
+        let data = self.get_data_mut();
+        if !data.state.is_active() || !data.state.is_selectable() {
+            return;
+        }
+        let mut is_on_child = false;
+        data.node.propagate_on_children(|w| {
+            is_on_child |= w.is_hover();
+        });
+        if is_on_child {
+            return;
         }
         let mouse = screen.convert_position_into_pixels(Vector2f {
             x: input_handler.get_mouse_data().get_x() as _,
             y: input_handler.get_mouse_data().get_y() as _,
         });
-        let is_hover = data.state.is_inside(mouse);
-        if input_managed || !is_hover || !data.graphics.is_inside(mouse, &screen) {
+        let is_inside = data.state.is_inside(mouse) && data.graphics.is_inside(mouse, &screen);
+        if is_inside && !data.state.is_hover() {
+            events.send_event(WidgetEvent::Entering(id));
+            return;
+        } else if !is_inside {
             if data.state.is_hover() {
                 events.send_event(WidgetEvent::Exiting(id));
             }
-            data.state.set_hover(false);
-            return false;
-        } else {
-            let (color, border_color) = data.graphics.get_colors(WidgetInteractiveState::Hover);
-            data.graphics
-                .set_color(color)
-                .set_border_color(border_color);
+            return;
         }
-        if !data.state.is_hover() {
-            events.send_event(WidgetEvent::Entering(id));
-        }
-        data.state.set_hover(true);
-        if !input_handler.get_mouse_data().is_pressed() {
+        let is_mouse_down = input_handler.get_mouse_data().is_pressed();
+        if is_mouse_down && !data.state.is_pressed() {
+            events.send_event(WidgetEvent::Pressed(id));
+            return;
+        } else if !is_mouse_down {
             if data.state.is_pressed() {
                 events.send_event(WidgetEvent::Released(id));
             }
-            data.state.set_pressed(false);
-            return true;
-        } else {
-            if !data.state.is_pressed() {
-                events.send_event(WidgetEvent::Pressed(id));
-            }
-            let (color, border_color) = data.graphics.get_colors(WidgetInteractiveState::Pressed);
-            data.graphics
-                .set_color(color)
-                .set_border_color(border_color);
+            return;
         }
-        data.state.set_pressed(true);
-        if !data.state.is_draggable() {
-            return true;
-        } else {
-            data.state
-                .set_horizontal_alignment(HorizontalAlignment::None);
-            data.state.set_vertical_alignment(VerticalAlignment::None);
+        if data.state.is_pressed() && data.state.is_draggable() {
+            let movement_in_pixels = screen.convert_position_into_pixels(Vector2f {
+                x: input_handler.get_mouse_data().movement_x() as _,
+                y: input_handler.get_mouse_data().movement_y() as _,
+            });
+            events.send_event(WidgetEvent::Dragging(id, movement_in_pixels));
         }
-        let movement_in_pixels = screen.convert_position_into_pixels(Vector2f {
-            x: input_handler.get_mouse_data().movement_x() as _,
-            y: input_handler.get_mouse_data().movement_y() as _,
-        });
-        let pos = data.state.get_position() + movement_in_pixels;
-        self.set_position(pos);
-        true
     }
     fn move_to_layer(&mut self, layer: f32) {
         let data = self.get_data_mut();
@@ -317,20 +360,20 @@ where
         renderer: &mut Renderer,
         events: &mut EventsRw,
         input_handler: &InputHandler,
-    ) -> bool {
-        let mut input_managed = false;
+    ) {
         let state_data = Some(&self.data.state);
         self.data.node.propagate_on_children_mut(|w| {
-            input_managed |= w.update(state_data, renderer, events, input_handler);
+            w.update(state_data, renderer, events, input_handler);
         });
-        input_managed |= self.manage_input(input_managed, events, input_handler);
+
+        self.manage_input(events, input_handler);
+        self.manage_events(events);
+        self.manage_style();
 
         T::update(self, parent_data, renderer, events, input_handler);
         self.update_layout(parent_data);
 
         self.data.graphics.update(renderer);
-
-        input_managed
     }
 
     fn uninit(&mut self, renderer: &mut Renderer) {

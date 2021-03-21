@@ -98,7 +98,9 @@ impl System for EditorUpdater {
         self.button_widget_id = self.widget.add_child(button);
 
         let mut checkbox = Widget::<Checkbox>::new(self.screen.clone());
-        checkbox.init(renderer);
+        checkbox
+            .init(renderer)
+            .horizontal_alignment(HorizontalAlignment::Left);
         self.widget.add_child(checkbox);
 
         let mut editable_text = Widget::<EditableText>::new(self.screen.clone());
@@ -177,6 +179,11 @@ impl System for EditorUpdater {
                         WidgetEvent::Pressed(widget_id) => {
                             if *widget_id == self.button_widget_id {
                                 title.get_mut().set_text("Pressed!!!");
+                            }
+                        }
+                        WidgetEvent::Dragging(widget_id, _mouse_in_px) => {
+                            if *widget_id == self.button_widget_id {
+                                title.get_mut().set_text("Dragging!!!");
                             }
                         }
                     }

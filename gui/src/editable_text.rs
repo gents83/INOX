@@ -94,10 +94,13 @@ impl EditableText {
                 }
             }
         }
+        let focused = widget.get_mut().is_focused;
+        if let Some(indicator) = widget.get_child::<Indicator>(widget.get().indicator_widget) {
+            indicator.get_mut().set_active(focused);
+        }
     }
 
     fn update_character_from_indicator(widget: &mut Widget<Self>) {
-        let focused = widget.get_mut().is_focused;
         let mut current_char = widget.get().current_char;
         if let Some(text) = widget.get_child::<Text>(widget.get().text_widget) {
             current_char = text.get().get_hover_char();
@@ -106,9 +109,6 @@ impl EditableText {
             }
         }
         widget.get_mut().current_char = current_char;
-        if let Some(indicator) = widget.get_child::<Indicator>(widget.get().indicator_widget) {
-            indicator.get_mut().set_active(focused);
-        }
     }
 
     fn update_indicator_position(widget: &mut Widget<Self>) {
