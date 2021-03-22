@@ -8,6 +8,7 @@ fn main() {
 
     let plugins = [
         "nrg_core",
+        "nrg_commands",
         "nrg_graphics",
         "nrg_gui",
         "nrg_math",

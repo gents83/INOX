@@ -415,6 +415,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "nrg_commands"
+version = "0.1.0"
+dependencies = [
+ "nrg_core",
+ "nrg_math",
+ "nrg_platform",
+ "nrg_serialize",
+]
+
+[[package]]
 name = "nrg_core"
 version = "0.1.0"
 dependencies = [

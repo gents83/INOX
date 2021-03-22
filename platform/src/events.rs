@@ -34,6 +34,17 @@ impl Events {
             self.send_event(event);
         }
     }
+    pub fn push_event_to_next_frame<T>(&mut self, event: T)
+    where
+        T: Event + 'static,
+    {
+        if let Some(list) = self.map.get_mut(&TypeId::of::<T>()) {
+            list.push((self.frame + 1, Arc::new(event)));
+        } else {
+            self.map.insert(TypeId::of::<T>(), Vec::new());
+            self.send_event(event);
+        }
+    }
 
     pub fn read_events<T>(&self) -> Option<Vec<&T>>
     where
