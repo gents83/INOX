@@ -1,5 +1,6 @@
 use super::config::*;
 
+use nrg_commands::*;
 use nrg_core::*;
 use nrg_graphics::*;
 use nrg_gui::*;
@@ -11,7 +12,8 @@ pub struct EditorUpdater {
     id: SystemId,
     shared_data: SharedDataRw,
     config: Config,
-    screen: Screen,
+    is_ctrl_pressed: bool,
+    history: CommandsHistory,
     widget: Widget<Panel>,
     input_handler: InputHandler,
     fps_text_widget_id: UID,
@@ -19,6 +21,7 @@ pub struct EditorUpdater {
     button_text_id: UID,
     time_per_fps: f64,
     node: Widget<GraphNode>,
+    screen: Screen,
 }
 
 impl EditorUpdater {
@@ -28,6 +31,8 @@ impl EditorUpdater {
             id: SystemId::new(),
             shared_data: shared_data.clone(),
             config: config.clone(),
+            is_ctrl_pressed: false,
+            history: CommandsHistory::default(),
             input_handler: InputHandler::default(),
             node: Widget::<GraphNode>::new(screen.clone()),
             widget: Widget::<Panel>::new(screen.clone()),
@@ -51,6 +56,11 @@ impl System for EditorUpdater {
         let read_data = self.shared_data.read().unwrap();
         let renderer = &mut *read_data.get_unique_resource_mut::<Renderer>();
         let window = &*read_data.get_unique_resource::<Window>();
+
+        {
+            let events = &mut *read_data.get_unique_resource_mut::<EventsRw>();
+            self.history.set_events(events.clone());
+        }
 
         self.input_handler
             .init(window.get_width() as _, window.get_heigth() as _);
@@ -117,6 +127,7 @@ impl System for EditorUpdater {
 
         self.screen.update();
         self.update_mouse_pos();
+        self.update_keyboard_input();
 
         {
             let read_data = self.shared_data.read().unwrap();
@@ -244,5 +255,29 @@ impl EditorUpdater {
 
         let window_events = window.get_events();
         self.input_handler.update(&window_events);
+    }
+
+    fn update_keyboard_input(&mut self) {
+        let read_data = self.shared_data.read().unwrap();
+        let events_rw = &mut *read_data.get_unique_resource_mut::<EventsRw>();
+        let events = events_rw.read().unwrap();
+        if let Some(key_events) = events.read_events::<KeyEvent>() {
+            for event in key_events.iter() {
+                if event.code == Key::Control {
+                    if event.state == InputState::Pressed || event.state == InputState::JustPressed
+                    {
+                        self.is_ctrl_pressed = true;
+                    } else if event.state == InputState::Released
+                        || event.state == InputState::JustReleased
+                    {
+                        self.is_ctrl_pressed = false;
+                    }
+                } else if self.is_ctrl_pressed && event.code == Key::Z {
+                    self.history.undo_last_command();
+                } else if self.is_ctrl_pressed && event.code == Key::Y {
+                    self.history.redo_last_command();
+                }
+            }
+        }
     }
 }

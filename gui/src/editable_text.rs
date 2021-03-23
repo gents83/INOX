@@ -25,6 +25,13 @@ impl Default for EditableText {
 }
 
 impl EditableText {
+    fn manage_char_input(event: &KeyTextEvent, current_index: i32, text: &mut Text) -> i32 {
+        if !event.char.is_control() {
+            return text.add_char(current_index, event.char);
+        }
+        current_index
+    }
+
     fn manage_key_pressed(event: &KeyEvent, current_index: i32, text: &mut Text) -> i32 {
         match event.code {
             Key::Enter => {
@@ -48,18 +55,21 @@ impl EditableText {
                 }
                 new_index
             }
-            _ => {
-                if event.char.is_ascii() {
-                    text.add_char(current_index, event.char)
-                } else {
-                    current_index
-                }
-            }
+            _ => current_index,
         }
     }
 
     fn update_text(widget: &mut Widget<Self>, events_rw: &mut EventsRw) {
         let events = events_rw.read().unwrap();
+        if let Some(key_text_events) = events.read_events::<KeyTextEvent>() {
+            for event in key_text_events.iter() {
+                let character = widget.get().current_char;
+                if let Some(text) = widget.get_child::<Text>(widget.get().text_widget) {
+                    widget.get_mut().current_char =
+                        Self::manage_char_input(*event, character, text.get_mut());
+                }
+            }
+        }
         if let Some(key_events) = events.read_events::<KeyEvent>() {
             for event in key_events.iter() {
                 if event.state == InputState::JustPressed || event.state == InputState::Pressed {
