@@ -27,9 +27,9 @@ unsafe impl Send for Editor {}
 unsafe impl Sync for Editor {}
 
 impl Plugin for Editor {
-    fn prepare<'a>(&mut self, scheduler: &mut Scheduler, shared_data: &mut SharedDataRw) {
+    fn prepare(&mut self, scheduler: &mut Scheduler, shared_data: &mut SharedDataRw) {
         let path = self.config.get_filepath();
-        deserialize(&mut self.config, path);
+        deserialize_from_file(&mut self.config, path);
 
         let mut update_phase = PhaseWithSystems::new(EDITOR_UPDATE_PHASE);
         let system = EditorUpdater::new(shared_data, &self.config);
@@ -40,7 +40,7 @@ impl Plugin for Editor {
 
     fn unprepare(&mut self, scheduler: &mut Scheduler) {
         let path = self.config.get_filepath();
-        serialize(&self.config, path);
+        serialize_to_file(&self.config, path);
 
         let update_phase: &mut PhaseWithSystems = scheduler.get_phase_mut(EDITOR_UPDATE_PHASE);
         update_phase.remove_system(&self.updater_id);

@@ -42,6 +42,7 @@ pub trait WidgetBase: Send + Sync + Any {
     fn id(&self) -> UID {
         self.get_data().node.get_id()
     }
+
     fn translate(&mut self, offset_in_px: Vector2i) {
         let data = self.get_data_mut();
         let new_pos: Vector2i = data.state.get_position().convert() + offset_in_px;
@@ -66,11 +67,12 @@ pub trait WidgetBase: Send + Sync + Any {
         });
     }
 
-    fn compute_offset_and_scale_from_alignment(&mut self, clip_rect: Vector4u) {
+    fn compute_offset_and_scale_from_alignment(&mut self) {
         let state = &self.get_data().state;
         let graphics = &self.get_data().graphics;
         let screen = &self.get_screen();
 
+        let clip_rect = state.get_clip_area();
         let clip_min: Vector2u = [clip_rect.x, clip_rect.y].into();
         let clip_max: Vector2u = [clip_rect.z, clip_rect.w].into();
 
@@ -116,28 +118,31 @@ pub trait WidgetBase: Send + Sync + Any {
         self.get_data_mut().state.set_size(size);
     }
 
-    fn clip_in_area(&mut self, clip_rect: Vector4u) {
+    fn clip_in_area(&mut self) {
         let state = &self.get_data().state;
         let graphics = &self.get_data().graphics;
         let screen = &self.get_screen();
 
+        let clip_rect = state.get_clip_area();
         let clip_min: Vector2u = [clip_rect.x, clip_rect.y].into();
         let clip_max: Vector2u = [clip_rect.z, clip_rect.w].into();
 
-        let mut pos = state.get_position();
+        let mut pos: Vector2i = state.get_position().convert();
         let size = state.get_size();
         let stroke = screen.convert_size_into_pixels(graphics.get_stroke().into());
 
         pos.x = pos
             .x
-            .max(clip_min.x + stroke.x)
-            .min(clip_max.x - size.x - stroke.x);
+            .max(clip_min.x as i32 + stroke.x as i32)
+            .min(clip_max.x as i32 - size.x as i32 - stroke.x as i32)
+            .max(0);
         pos.y = pos
             .y
-            .max(clip_min.y + stroke.y)
-            .min(clip_max.y - size.y - stroke.y);
+            .max(clip_min.y as i32 + stroke.y as i32)
+            .min(clip_max.y as i32 - size.y as i32 - stroke.y as i32)
+            .max(0);
 
-        self.get_data_mut().state.set_position(pos);
+        self.get_data_mut().state.set_position(pos.convert());
     }
 
     fn manage_style(&mut self) {
@@ -270,8 +275,9 @@ pub trait WidgetBase: Send + Sync + Any {
         data.graphics.move_to_layer(layer);
     }
 
-    fn compute_clip_area(&self, parent_data: Option<&WidgetState>) -> Vector4u {
+    fn compute_clip_area(&mut self, parent_data: Option<&WidgetState>) {
         let screen = self.get_screen();
+        let current_area = self.get_data().state.get_clip_area();
         let clip_area: Vector4u = if let Some(parent_state) = parent_data {
             let parent_pos = parent_state.get_position();
             let parent_size = parent_state.get_size();
@@ -282,20 +288,22 @@ pub trait WidgetBase: Send + Sync + Any {
                 parent_pos.y + parent_size.y,
             ]
             .into()
-        } else {
+        } else if current_area == Vector4u::default() {
             let size = screen.get_size();
             [0, 0, size.x, size.y].into()
+        } else {
+            current_area
         };
-        clip_area
+        self.get_data_mut().state.set_clip_area(clip_area);
     }
 
     fn update_layout(&mut self, parent_data: Option<&WidgetState>) {
-        let clip_area = self.compute_clip_area(parent_data);
+        self.compute_clip_area(parent_data);
 
         if !self.get_data().state.is_pressed() {
-            self.compute_offset_and_scale_from_alignment(clip_area);
+            self.compute_offset_and_scale_from_alignment();
         }
-        self.clip_in_area(clip_area);
+        self.clip_in_area();
         self.update_layers();
 
         let data = self.get_data_mut();
@@ -394,6 +402,7 @@ where
         T::uninit(self, renderer);
         self.data.graphics.uninit(renderer);
     }
+
     fn set_stroke(&mut self, stroke: u32) {
         self.stroke(stroke);
     }
@@ -461,8 +470,14 @@ where
             .convert_size_into_pixels(widget.get_data().graphics.get_stroke().into());
         widget.translate((self.data.state.get_position() + stroke).convert());
         self.data.node.add_child(widget);
-        self.update_layout(None);
         id
+    }
+
+    pub fn remove_children(&mut self, renderer: &mut Renderer) {
+        self.data.node.propagate_on_children_mut(|w| {
+            w.get_data_mut().graphics.remove_meshes(renderer);
+        });
+        self.data.node.remove_children();
     }
 
     pub fn get_child<W>(&mut self, uid: UID) -> Option<&mut Widget<W>>

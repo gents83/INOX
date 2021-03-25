@@ -67,7 +67,7 @@ pub trait ContainerTrait: WidgetTrait {
         let parent_pos = data.state.get_position();
         let parent_size = data.state.get_size();
 
-        let mut children_min_pos: Vector2u = [u32::max_value(), u32::max_value()].into();
+        let mut children_min_pos: Vector2i = [i32::max_value(), i32::max_value()].into();
         let mut children_size: Vector2u = [0, 0].into();
         let mut index = 0;
         node.propagate_on_children_mut(|w| {
@@ -76,13 +76,17 @@ pub trait ContainerTrait: WidgetTrait {
             let child_state = &mut w.get_data_mut().state;
             let child_pos = child_state.get_position();
             let child_size = child_state.get_size();
-            children_min_pos.x = children_min_pos.x.min(child_pos.x - child_stroke.x);
-            children_min_pos.y = children_min_pos.y.min(child_pos.y - child_stroke.y);
+            children_min_pos.x = children_min_pos
+                .x
+                .min(child_pos.x as i32 - child_stroke.x as i32)
+                .max(0);
+            children_min_pos.y = children_min_pos
+                .y
+                .min(child_pos.y as i32 - child_stroke.y as i32)
+                .max(0);
             match fill_type {
                 ContainerFillType::Vertical => {
-                    if index > 0 {
-                        children_size.y += space;
-                    }
+                    children_size.y += space;
                     if !child_state.is_pressed() {
                         child_state
                             .set_position([child_pos.x, parent_pos.y + children_size.y].into());
@@ -91,9 +95,7 @@ pub trait ContainerTrait: WidgetTrait {
                     children_size.x = children_size.x.max(child_size.x + child_stroke.x * 2);
                 }
                 ContainerFillType::Horizontal => {
-                    if index > 0 {
-                        children_size.x += space;
-                    }
+                    children_size.x += space;
                     if !child_state.is_pressed() {
                         child_state
                             .set_position([parent_pos.x + children_size.x, child_pos.y].into());

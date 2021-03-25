@@ -28,7 +28,7 @@ unsafe impl Sync for GfxPlugin {}
 impl Plugin for GfxPlugin {
     fn prepare<'a>(&mut self, scheduler: &mut Scheduler, shared_data: &mut SharedDataRw) {
         let path = self.config.get_filepath();
-        deserialize(&mut self.config, path);
+        deserialize_from_file(&mut self.config, path);
 
         let mut update_phase = PhaseWithSystems::new(RENDERING_PHASE);
         let system = RenderingSystem::new(shared_data, &self.config);
@@ -41,7 +41,7 @@ impl Plugin for GfxPlugin {
 
     fn unprepare(&mut self, scheduler: &mut Scheduler) {
         let path = self.config.get_filepath();
-        serialize(&self.config, path);
+        serialize_to_file(&self.config, path);
 
         let update_phase: &mut PhaseWithSystems = scheduler.get_phase_mut(RENDERING_PHASE);
         update_phase.remove_system(&self.system_id);

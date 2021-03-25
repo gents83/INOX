@@ -6,9 +6,16 @@ pub trait Command
 where
     Self: Send + Sync + Any,
 {
-    fn execute(&mut self);
-    fn undo(&mut self);
+    fn execute(&mut self, events_rw: &mut EventsRw);
+    fn undo(&mut self, events_rw: &mut EventsRw);
     fn box_clone(&self) -> Box<dyn Command>;
+    fn get_type_name(&self) -> String {
+        let v: Vec<&str> = std::any::type_name::<Self>().split(':').collect();
+        let mut string = v.last().unwrap().to_string();
+        string.push_str(self.get_debug_info().as_str());
+        string
+    }
+    fn get_debug_info(&self) -> String;
 }
 
 impl Clone for Box<dyn Command> {
@@ -35,5 +42,9 @@ impl ExecuteCommand {
 
     pub fn get_command(&self) -> Box<dyn Command> {
         self.command.clone()
+    }
+
+    pub fn get_type_name(&self) -> String {
+        self.command.as_ref().get_type_name()
     }
 }

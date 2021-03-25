@@ -472,6 +472,7 @@ dependencies = [
 name = "nrg_gui"
 version = "0.1.0"
 dependencies = [
+ "nrg_commands",
  "nrg_core",
  "nrg_graphics",
  "nrg_math",

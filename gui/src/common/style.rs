@@ -48,9 +48,15 @@ impl WidgetStyle {
     }
     pub fn full_active() -> Self {
         Self {
-            color: [COLOR_LIGHT_BLUE, COLOR_WHITE, COLOR_WHITE, COLOR_WHITE],
+            color: [COLOR_WHITE, COLOR_WHITE, COLOR_WHITE, COLOR_WHITE],
         }
     }
+    pub fn full_highlight() -> Self {
+        Self {
+            color: [COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW],
+        }
+    }
+
     pub fn full_inactive() -> Self {
         Self {
             color: [

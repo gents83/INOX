@@ -1,4 +1,5 @@
 use super::*;
+use nrg_commands::*;
 use nrg_graphics::*;
 use nrg_platform::*;
 use nrg_serialize::*;
@@ -25,62 +26,103 @@ impl Default for EditableText {
 }
 
 impl EditableText {
-    fn manage_char_input(event: &KeyTextEvent, current_index: i32, text: &mut Text) -> i32 {
-        if !event.char.is_control() {
-            return text.add_char(current_index, event.char);
-        }
-        current_index
-    }
-
-    fn manage_key_pressed(event: &KeyEvent, current_index: i32, text: &mut Text) -> i32 {
-        match event.code {
-            Key::Enter => {
-                if text.is_multiline() {}
-                current_index
-            }
-            Key::Backspace => text.remove_char(current_index),
-            Key::Delete => text.remove_char(current_index + 1),
-            Key::ArrowLeft => {
-                let mut new_index = current_index - 1;
-                if new_index < 0 {
-                    new_index = -1;
-                }
-                new_index
-            }
-            Key::ArrowRight => {
-                let mut new_index = current_index + 1;
-                let length = text.get_text().len() as i32;
-                if new_index >= length {
-                    new_index = length - 1;
-                }
-                new_index
-            }
-            _ => current_index,
-        }
-    }
-
-    fn update_text(widget: &mut Widget<Self>, events_rw: &mut EventsRw) {
-        let events = events_rw.read().unwrap();
-        if let Some(key_text_events) = events.read_events::<KeyTextEvent>() {
-            for event in key_text_events.iter() {
-                let character = widget.get().current_char;
-                if let Some(text) = widget.get_child::<Text>(widget.get().text_widget) {
-                    widget.get_mut().current_char =
-                        Self::manage_char_input(*event, character, text.get_mut());
-                }
-            }
-        }
-        if let Some(key_events) = events.read_events::<KeyEvent>() {
-            for event in key_events.iter() {
-                if event.state == InputState::JustPressed || event.state == InputState::Pressed {
-                    let character = widget.get().current_char;
-                    if let Some(text) = widget.get_child::<Text>(widget.get().text_widget) {
-                        widget.get_mut().current_char =
-                            Self::manage_key_pressed(*event, character, text.get_mut());
+    fn manage_char_input(widget: &mut Widget<Self>, events_rw: &EventsRw) {
+        let mut commands: Vec<AddCharCommand> = Vec::new();
+        let mut current_index = widget.get_mut().current_char;
+        {
+            let events = events_rw.read().unwrap();
+            if let Some(key_text_events) = events.read_events::<KeyTextEvent>() {
+                for event in key_text_events.iter() {
+                    if !event.char.is_control() {
+                        commands.push(AddCharCommand::new(
+                            widget.get().text_widget,
+                            current_index,
+                            event.char,
+                        ));
+                        current_index += 1;
                     }
                 }
             }
         }
+        widget.get_mut().current_char = current_index;
+        let mut events = events_rw.write().unwrap();
+        for command in commands.into_iter() {
+            events.send_event::<ExecuteCommand>(ExecuteCommand::new(command));
+        }
+    }
+
+    fn manage_key_pressed(widget: &mut Widget<Self>, events_rw: &mut EventsRw) {
+        let mut commands: Vec<RemoveCharCommand> = Vec::new();
+        let mut current_index = widget.get_mut().current_char;
+        {
+            let events = events_rw.read().unwrap();
+            if let Some(key_events) = events.read_events::<KeyEvent>() {
+                for event in key_events.iter() {
+                    if event.state == InputState::JustPressed || event.state == InputState::Pressed
+                    {
+                        match event.code {
+                            Key::Backspace => {
+                                if let Some(text) =
+                                    widget.get_child::<Text>(widget.get().text_widget)
+                                {
+                                    if let Some(c) = text.get().get_char_at(current_index) {
+                                        commands.push(RemoveCharCommand::new(
+                                            widget.get().text_widget,
+                                            current_index,
+                                            c,
+                                        ));
+                                        current_index -= 1;
+                                    }
+                                }
+                            }
+                            Key::Delete => {
+                                if let Some(text) =
+                                    widget.get_child::<Text>(widget.get().text_widget)
+                                {
+                                    if let Some(c) = text.get().get_char_at(current_index + 1) {
+                                        commands.push(RemoveCharCommand::new(
+                                            widget.get().text_widget,
+                                            current_index + 1,
+                                            c,
+                                        ));
+                                    }
+                                }
+                            }
+                            Key::ArrowLeft => {
+                                let mut new_index = current_index - 1;
+                                if new_index < 0 {
+                                    new_index = -1;
+                                }
+                                current_index = new_index;
+                            }
+                            Key::ArrowRight => {
+                                let mut new_index = current_index + 1;
+                                if let Some(text) =
+                                    widget.get_child::<Text>(widget.get().text_widget)
+                                {
+                                    let length = text.get().get_text().len() as i32;
+                                    if new_index >= length {
+                                        new_index = length - 1;
+                                    }
+                                }
+                                current_index = new_index;
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+            }
+        }
+        widget.get_mut().current_char = current_index;
+        let mut events = events_rw.write().unwrap();
+        for command in commands.into_iter() {
+            events.send_event::<ExecuteCommand>(ExecuteCommand::new(command));
+        }
+    }
+
+    fn update_text(widget: &mut Widget<Self>, events_rw: &mut EventsRw) {
+        Self::manage_char_input(widget, events_rw);
+        Self::manage_key_pressed(widget, events_rw);
     }
 
     fn check_focus(widget: &mut Widget<Self>, events_rw: &mut EventsRw) {

@@ -60,9 +60,8 @@ impl App {
         let data = self.shared_data.write().unwrap();
         let events_rw = &mut *data.get_unique_resource_mut::<EventsRw>();
         let mut events = events_rw.write().unwrap();
-        events.update(self.frame_count);
-
         self.frame_count += 1;
+        events.update(self.frame_count);
 
         can_continue
     }

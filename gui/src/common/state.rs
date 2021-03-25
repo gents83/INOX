@@ -4,6 +4,7 @@ use nrg_math::*;
 pub struct WidgetState {
     pos_in_px: Vector2u,
     size_in_px: Vector2u,
+    clip_area: Vector4u,
     is_active: bool,
     is_selectable: bool,
     is_draggable: bool,
@@ -19,6 +20,7 @@ impl Default for WidgetState {
         Self {
             pos_in_px: Vector2u::default(),
             size_in_px: DEFAULT_WIDGET_SIZE,
+            clip_area: Vector4u::default(),
             is_active: true,
             is_selectable: true,
             is_draggable: false,
@@ -45,6 +47,14 @@ impl WidgetState {
     }
     pub fn set_size(&mut self, size_in_px: Vector2u) -> &mut Self {
         self.size_in_px = size_in_px;
+        self
+    }
+    pub fn get_clip_area(&self) -> Vector4u {
+        self.clip_area
+    }
+
+    pub fn set_clip_area(&mut self, clip_area: Vector4u) -> &mut Self {
+        self.clip_area = clip_area;
         self
     }
     pub fn get_layer(&self) -> f32 {

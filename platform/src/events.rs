@@ -25,7 +25,7 @@ impl Default for Events {
 impl Events {
     pub fn send_event<T>(&mut self, event: T)
     where
-        T: Event + 'static,
+        T: Event + 'static + Sized,
     {
         if let Some(list) = self.map.get_mut(&TypeId::of::<T>()) {
             list.push((self.frame, Arc::new(event)));
@@ -36,13 +36,13 @@ impl Events {
     }
     pub fn push_event_to_next_frame<T>(&mut self, event: T)
     where
-        T: Event + 'static,
+        T: Event + 'static + Sized,
     {
         if let Some(list) = self.map.get_mut(&TypeId::of::<T>()) {
             list.push((self.frame + 1, Arc::new(event)));
         } else {
             self.map.insert(TypeId::of::<T>(), Vec::new());
-            self.send_event(event);
+            self.push_event_to_next_frame(event);
         }
     }
 
@@ -60,14 +60,11 @@ impl Events {
         }
     }
 
-    pub fn get_current_frame(&self) -> u64 {
-        self.frame
-    }
-
     pub fn update(&mut self, frame_count: u64) {
         for (_id, map) in self.map.iter_mut() {
-            map.retain(|(frame, _el)| *frame == frame_count);
+            map.retain(|(frame, _el)| *frame >= frame_count);
         }
+        self.frame = frame_count;
     }
 }
 

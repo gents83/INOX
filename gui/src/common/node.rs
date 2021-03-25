@@ -27,17 +27,24 @@ impl WidgetNode {
         self
     }
 
+    pub fn remove_children(&mut self) -> &mut Self {
+        self.children.clear();
+        self
+    }
+
     pub fn get_child<W>(&mut self, uid: UID) -> Option<&mut Widget<W>>
     where
         W: WidgetTrait + Default + 'static,
     {
-        if let Some(index) = self.children.iter().position(|el| el.id() == uid) {
-            let widget = self.children[index]
-                .as_any_mut()
-                .downcast_mut::<Widget<W>>();
-            return widget;
-        }
-        None
+        let mut result: Option<&mut Widget<W>> = None;
+        self.children.iter_mut().for_each(|w| {
+            if w.id() == uid {
+                result = w.as_any_mut().downcast_mut::<Widget<W>>();
+            } else if result.is_none() {
+                result = w.get_data_mut().node.get_child(uid);
+            }
+        });
+        result
     }
 
     pub fn has_children(&self) -> bool {

@@ -27,7 +27,7 @@ unsafe impl Sync for MainWindow {}
 impl Plugin for MainWindow {
     fn prepare(&mut self, scheduler: &mut Scheduler, shared_data: &mut SharedDataRw) {
         let path = self.config.get_filepath();
-        deserialize(&mut self.config, path);
+        deserialize_from_file(&mut self.config, path);
 
         let mut update_phase = PhaseWithSystems::new(MAIN_WINDOW_PHASE);
         let system = WindowSystem::new(&self.config, shared_data);
@@ -40,7 +40,7 @@ impl Plugin for MainWindow {
 
     fn unprepare(&mut self, scheduler: &mut Scheduler) {
         let path = self.config.get_filepath();
-        serialize(&self.config, path);
+        serialize_to_file(&self.config, path);
 
         let update_phase: &mut PhaseWithSystems = scheduler.get_phase_mut(MAIN_WINDOW_PHASE);
         update_phase.remove_system(&self.system_id);

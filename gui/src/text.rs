@@ -2,6 +2,13 @@ use super::*;
 use nrg_graphics::*;
 use nrg_math::*;
 use nrg_platform::*;
+use nrg_serialize::*;
+
+pub enum TextEvent {
+    AddChar(UID, i32, char),
+    RemoveChar(UID, i32, char),
+}
+impl Event for TextEvent {}
 
 #[derive(Debug, Clone, Copy)]
 pub struct TextChar {
@@ -59,7 +66,34 @@ impl Text {
         }
         Vector2f::default()
     }
-    pub fn add_char(&mut self, index: i32, character: char) -> i32 {
+    pub fn get_char_at(&self, index: i32) -> Option<char> {
+        if index >= 0 && index < self.text.len() as _ {
+            return Some(self.text.as_bytes()[index as usize] as _);
+        }
+        None
+    }
+
+    fn update_text(widget: &mut Widget<Self>, events_rw: &mut EventsRw) {
+        let events = events_rw.read().unwrap();
+        if let Some(mut text_events) = events.read_events::<TextEvent>() {
+            for event in text_events.iter_mut() {
+                match event {
+                    TextEvent::AddChar(widget_id, char_index, character) => {
+                        if *widget_id == widget.id() {
+                            widget.get_mut().add_char(*char_index, *character);
+                        }
+                    }
+                    TextEvent::RemoveChar(widget_id, char_index, _character) => {
+                        if *widget_id == widget.id() {
+                            widget.get_mut().remove_char(*char_index);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fn add_char(&mut self, index: i32, character: char) {
         let mut new_index = index + 1;
         if new_index > self.text.len() as i32 {
             new_index = self.text.len() as i32;
@@ -68,21 +102,12 @@ impl Text {
             new_index = 0;
         }
         self.text.insert(new_index as _, character);
-        new_index
     }
-    pub fn remove_char(&mut self, index: i32) -> i32 {
-        let mut new_index = index;
-        if new_index < 0 {
-            return new_index;
+    fn remove_char(&mut self, index: i32) -> char {
+        if index >= 0 && index < self.text.len() as _ {
+            return self.text.remove(index as usize);
         }
-        if new_index >= 0 && new_index < self.text.len() as _ {
-            self.text.remove(new_index as usize);
-        }
-        new_index -= 1;
-        if new_index < 0 && !self.text.is_empty() {
-            new_index = -1;
-        }
-        new_index
+        char::default()
     }
 }
 
@@ -105,9 +130,11 @@ impl WidgetTrait for Text {
         widget: &mut Widget<Self>,
         parent_data: Option<&WidgetState>,
         renderer: &mut Renderer,
-        _events: &mut EventsRw,
+        events_rw: &mut EventsRw,
         input_handler: &InputHandler,
     ) {
+        Self::update_text(widget, events_rw);
+
         let screen = widget.get_screen();
 
         let mouse_pos = Vector2f {
