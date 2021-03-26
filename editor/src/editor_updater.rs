@@ -74,7 +74,7 @@ impl System for EditorUpdater {
             .size([500, 800].into())
             .selectable(false)
             .vertical_alignment(VerticalAlignment::Top)
-            .horizontal_alignment(HorizontalAlignment::Right)
+            .horizontal_alignment(HorizontalAlignment::Left)
             .get_mut()
             .set_fill_type(ContainerFillType::Vertical)
             .set_fit_to_content(true)
@@ -179,7 +179,7 @@ impl EditorUpdater {
         let mut history_undo = Widget::<Button>::new(self.screen.clone());
         history_undo
             .init(renderer)
-            .size([200, 100].into())
+            .size([150, 100].into())
             .stroke(10);
         let mut text = Widget::<Text>::new(self.screen.clone());
         text.init(renderer)
@@ -193,7 +193,7 @@ impl EditorUpdater {
         let mut history_redo = Widget::<Button>::new(self.screen.clone());
         history_redo
             .init(renderer)
-            .size([200, 100].into())
+            .size([150, 100].into())
             .stroke(10);
         let mut text = Widget::<Text>::new(self.screen.clone());
         text.init(renderer)
@@ -207,7 +207,7 @@ impl EditorUpdater {
         let mut history_clear = Widget::<Button>::new(self.screen.clone());
         history_clear
             .init(renderer)
-            .size([200, 100].into())
+            .size([150, 100].into())
             .stroke(10);
         let mut text = Widget::<Text>::new(self.screen.clone());
         text.init(renderer)
@@ -402,6 +402,12 @@ impl EditorUpdater {
                         && event.state == InputState::JustPressed
                     {
                         self.history.redo_last_command();
+                    } else if event.state == InputState::JustPressed && event.code == Key::F5 {
+                        println!("Launch game");
+                        let result = std::process::Command::new("nrg_game_app").spawn().is_ok();
+                        if !result {
+                            println!("Failed to execute process");
+                        }
                     }
                 }
             }

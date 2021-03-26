@@ -230,27 +230,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "game_renderer"
-version = "0.1.0"
-dependencies = [
- "nrg_core",
- "nrg_graphics",
- "nrg_math",
- "nrg_platform",
- "nrg_serialize",
-]
-
-[[package]]
-name = "game_window"
-version = "0.1.0"
-dependencies = [
- "nrg_core",
- "nrg_math",
- "nrg_platform",
- "nrg_serialize",
-]
-
-[[package]]
 name = "getrandom"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -407,14 +386,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nrg"
-version = "0.1.0"
-dependencies = [
- "nrg_core",
- "nrg_platform",
-]
-
-[[package]]
 name = "nrg_commands"
 version = "0.1.0"
 dependencies = [
@@ -446,6 +417,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "nrg_editor_app"
+version = "0.1.0"
+dependencies = [
+ "nrg_core",
+ "nrg_platform",
+]
+
+[[package]]
 name = "nrg_game"
 version = "0.1.0"
 dependencies = [
@@ -454,6 +433,14 @@ dependencies = [
  "nrg_math",
  "nrg_platform",
  "nrg_serialize",
+]
+
+[[package]]
+name = "nrg_game_app"
+version = "0.1.0"
+dependencies = [
+ "nrg_core",
+ "nrg_platform",
 ]
 
 [[package]]
@@ -481,6 +468,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "nrg_main_app"
+version = "0.1.0"
+dependencies = [
+ "nrg_core",
+ "nrg_platform",
+]
+
+[[package]]
 name = "nrg_math"
 version = "0.1.0"
 dependencies = [
@@ -492,6 +487,17 @@ name = "nrg_platform"
 version = "0.1.0"
 
 [[package]]
+name = "nrg_renderer"
+version = "0.1.0"
+dependencies = [
+ "nrg_core",
+ "nrg_graphics",
+ "nrg_math",
+ "nrg_platform",
+ "nrg_serialize",
+]
+
+[[package]]
 name = "nrg_serialize"
 version = "0.1.0"
 dependencies = [
@@ -500,6 +506,16 @@ dependencies = [
  "serde_derive",
  "serde_json",
  "uuid",
+]
+
+[[package]]
+name = "nrg_window"
+version = "0.1.0"
+dependencies = [
+ "nrg_core",
+ "nrg_math",
+ "nrg_platform",
+ "nrg_serialize",
 ]
 
 [[package]]

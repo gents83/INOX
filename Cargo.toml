@@ -1,7 +1,9 @@
 [workspace]
 
 members = [
-    "app",
+    "apps/main_app",
+    "apps/game_app",
+    "apps/editor_app",
     "core",
     "commands",
     "gui",
@@ -10,8 +12,8 @@ members = [
     "platform",
     "serialize",
     "bindings/vulkan_bindings",
-    "game_renderer",
-    "game_window",
+    "renderer",
+    "window",
     "game",
     "editor",
 ]

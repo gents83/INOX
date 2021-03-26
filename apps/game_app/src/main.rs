@@ -14,9 +14,8 @@ fn main() {
         "nrg_math",
         "nrg_platform",
         "nrg_serialize",
-        "game_window",
-        "game_renderer",
-        "nrg_editor",
+        "nrg_window",
+        "nrg_renderer",
         "nrg_game",
     ];
 
