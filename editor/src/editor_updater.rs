@@ -19,6 +19,9 @@ pub struct EditorUpdater {
     input_handler: InputHandler,
     fps_text_widget_id: UID,
     history_text_widget_id: UID,
+    history_redo_button: UID,
+    history_undo_button: UID,
+    history_clear_button: UID,
     time_per_fps: f64,
     node: Widget<GraphNode>,
     screen: Screen,
@@ -40,6 +43,9 @@ impl EditorUpdater {
             widget: Widget::<Panel>::new(screen.clone()),
             fps_text_widget_id: INVALID_ID,
             history_text_widget_id: INVALID_ID,
+            history_redo_button: INVALID_ID,
+            history_undo_button: INVALID_ID,
+            history_clear_button: INVALID_ID,
             time_per_fps: 0.,
             screen,
         }
@@ -84,9 +90,18 @@ impl System for EditorUpdater {
             .set_text("FPS: ");
         self.fps_text_widget_id = self.widget.add_child(fps_text);
 
-        let (history_panel, history_text_id) = self.create_history_widget(renderer);
+        let (
+            history_panel,
+            history_text_id,
+            history_undo_button_id,
+            history_redo_button_id,
+            history_clear_button_id,
+        ) = self.create_history_widget(renderer);
         self.widget.add_child(history_panel);
         self.history_text_widget_id = history_text_id;
+        self.history_undo_button = history_undo_button_id;
+        self.history_redo_button = history_redo_button_id;
+        self.history_clear_button = history_clear_button_id;
 
         let mut checkbox = Widget::<Checkbox>::new(self.screen.clone());
         checkbox
@@ -107,7 +122,8 @@ impl System for EditorUpdater {
         self.screen.update();
         self.update_mouse_pos()
             .update_keyboard_input()
-            .update_widgets();
+            .update_widgets()
+            .manage_history_interactions();
 
         self.history.update();
 
@@ -124,7 +140,10 @@ impl System for EditorUpdater {
 }
 
 impl EditorUpdater {
-    fn create_history_widget(&self, renderer: &mut Renderer) -> (Widget<Panel>, UID) {
+    fn create_history_widget(
+        &self,
+        renderer: &mut Renderer,
+    ) -> (Widget<Panel>, UID, UID, UID, UID) {
         let mut history_panel = Widget::<Panel>::new(self.screen.clone());
         history_panel
             .init(renderer)
@@ -199,9 +218,9 @@ impl EditorUpdater {
             .set_text("Clear");
         history_clear.add_child(text);
 
-        button_box.add_child(history_undo);
-        button_box.add_child(history_redo);
-        button_box.add_child(history_clear);
+        let history_undo_button_id = button_box.add_child(history_undo);
+        let history_redo_button_id = button_box.add_child(history_redo);
+        let history_clear_button_id = button_box.add_child(history_clear);
 
         history_panel.add_child(button_box);
 
@@ -227,7 +246,13 @@ impl EditorUpdater {
         separator.init(renderer);
         history_panel.add_child(separator);
 
-        (history_panel, history_text_id)
+        (
+            history_panel,
+            history_text_id,
+            history_undo_button_id,
+            history_redo_button_id,
+            history_clear_button_id,
+        )
     }
 
     fn update_history_widget(&mut self) -> &mut Self {
@@ -300,6 +325,29 @@ impl EditorUpdater {
                 .update(None, renderer, events, &self.input_handler);
         }
 
+        self
+    }
+
+    fn manage_history_interactions(&mut self) -> &mut Self {
+        {
+            let read_data = self.shared_data.read().unwrap();
+            let events_rw = &mut *read_data.get_unique_resource_mut::<EventsRw>();
+            let events = events_rw.read().unwrap();
+
+            if let Some(button_events) = events.read_events::<WidgetEvent>() {
+                for event in button_events.iter() {
+                    if let WidgetEvent::Pressed(widget_id) = event {
+                        if *widget_id == self.history_redo_button {
+                            self.history.redo_last_command();
+                        } else if *widget_id == self.history_undo_button {
+                            self.history.undo_last_command();
+                        } else if *widget_id == self.history_clear_button {
+                            self.history.clear();
+                        }
+                    }
+                }
+            }
+        }
         self
     }
 

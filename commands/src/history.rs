@@ -97,4 +97,10 @@ impl CommandsHistory {
             Some(str)
         }
     }
+
+    pub fn clear(&mut self) -> &mut Self {
+        self.redoable_commands.clear();
+        self.undoable_commands.clear();
+        self
+    }
 }

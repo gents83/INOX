@@ -53,10 +53,6 @@ pub trait ContainerTrait: WidgetTrait {
     where
         W: WidgetTrait + Default + ContainerTrait + 'static,
     {
-        if !widget.get_data().node.has_children() {
-            return;
-        }
-
         let fill_type = widget.get().get_fill_type();
         let fit_to_content = widget.get().has_fit_to_content();
         let space = widget.get().get_space_between_elements();
