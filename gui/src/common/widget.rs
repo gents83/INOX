@@ -480,6 +480,10 @@ where
         self.data.node.remove_children();
     }
 
+    pub fn get_num_children(&self) -> usize {
+        self.data.node.get_num_children()
+    }
+
     pub fn get_child<W>(&mut self, uid: UID) -> Option<&mut Widget<W>>
     where
         W: WidgetTrait + Default + 'static,

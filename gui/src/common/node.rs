@@ -47,6 +47,10 @@ impl WidgetNode {
         result
     }
 
+    pub fn get_num_children(&self) -> usize {
+        self.children.len()
+    }
+
     pub fn has_children(&self) -> bool {
         !self.children.is_empty()
     }

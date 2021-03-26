@@ -7,8 +7,8 @@ enum CommandHistoryOperation {
 }
 pub struct CommandsHistory {
     events_rw: EventsRw,
-    current_index: i32,
-    commands: Vec<Box<dyn Command>>,
+    undoable_commands: Vec<Box<dyn Command>>,
+    redoable_commands: Vec<Box<dyn Command>>,
     operations: Vec<CommandHistoryOperation>,
 }
 
@@ -16,8 +16,8 @@ impl CommandsHistory {
     pub fn new(events_rw: &EventsRw) -> Self {
         Self {
             events_rw: events_rw.clone(),
-            current_index: -1,
-            commands: Vec::new(),
+            undoable_commands: Vec::new(),
+            redoable_commands: Vec::new(),
             operations: Vec::new(),
         }
     }
@@ -45,46 +45,22 @@ impl CommandsHistory {
         for op in self.operations.iter() {
             match *op {
                 CommandHistoryOperation::Redo => {
-                    if !self.commands.is_empty() && self.current_index < self.commands.len() as i32
-                    {
-                        let last_command = {
-                            if self.current_index < 0 {
-                                self.current_index = 0;
-                                &mut self.commands[0]
-                            } else {
-                                &mut self.commands[self.current_index as usize]
-                            }
-                        };
+                    if !self.redoable_commands.is_empty() {
+                        let mut last_command = self.redoable_commands.pop().unwrap();
                         last_command.as_mut().execute(&mut self.events_rw);
-                        self.current_index = self.update_current_index(self.current_index + 1);
+                        self.undoable_commands.push(last_command);
                     }
                 }
                 CommandHistoryOperation::Undo => {
-                    if !self.commands.is_empty() && self.current_index >= 0 {
-                        let last_command = {
-                            if self.current_index >= self.commands.len() as i32 {
-                                let last = self.commands.len() - 1;
-                                &mut self.commands[last]
-                            } else {
-                                &mut self.commands[self.current_index as usize]
-                            }
-                        };
+                    if !self.undoable_commands.is_empty() {
+                        let mut last_command = self.undoable_commands.pop().unwrap();
                         last_command.as_mut().undo(&mut self.events_rw);
-                        self.current_index = self.update_current_index(self.current_index - 1);
+                        self.redoable_commands.push(last_command);
                     }
                 }
             }
         }
         self.operations.clear();
-    }
-
-    fn update_current_index(&self, index: i32) -> i32 {
-        if self.commands.is_empty() || index < 0 {
-            return -1;
-        } else if index as usize >= self.commands.len() {
-            return self.commands.len() as i32;
-        }
-        index as _
     }
 
     pub fn update(&mut self) {
@@ -94,26 +70,28 @@ impl CommandsHistory {
             command.as_mut().execute(&mut self.events_rw);
         }
         if !new_commands.is_empty() {
-            if self.current_index >= 0 {
-                self.commands.truncate(self.current_index as usize + 1);
-            } else {
-                self.commands.clear();
-            }
-            self.commands.append(&mut new_commands);
-            self.current_index = self.update_current_index(self.commands.len() as i32 - 1);
+            self.undoable_commands.append(&mut new_commands);
+            self.redoable_commands.clear();
         }
     }
 
-    pub fn get_current_index(&self) -> i32 {
-        self.current_index
-    }
-
-    pub fn get_commands_history_as_string(&self) -> Option<Vec<String>> {
-        if self.commands.is_empty() {
+    pub fn get_undoable_commands_history_as_string(&self) -> Option<Vec<String>> {
+        if self.undoable_commands.is_empty() {
             None
         } else {
             let mut str: Vec<String> = Vec::new();
-            for c in self.commands.iter() {
+            for c in self.undoable_commands.iter() {
+                str.push(c.get_type_name().to_string());
+            }
+            Some(str)
+        }
+    }
+    pub fn get_redoable_commands_history_as_string(&self) -> Option<Vec<String>> {
+        if self.redoable_commands.is_empty() {
+            None
+        } else {
+            let mut str: Vec<String> = Vec::new();
+            for c in self.redoable_commands.iter() {
                 str.push(c.get_type_name().to_string());
             }
             Some(str)
