@@ -1,5 +1,6 @@
 use super::colors::*;
 use nrg_math::*;
+use nrg_serialize::*;
 
 #[derive(Clone, Copy)]
 pub enum WidgetInteractiveState {
@@ -10,6 +11,8 @@ pub enum WidgetInteractiveState {
     Count = 4,
 }
 
+#[derive(Serialize, Deserialize)]
+#[serde(crate = "nrg_serialize")]
 pub struct WidgetStyle {
     color: [Vector4f; WidgetInteractiveState::Count as _],
 }

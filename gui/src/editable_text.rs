@@ -4,10 +4,16 @@ use nrg_graphics::*;
 use nrg_platform::*;
 use nrg_serialize::*;
 
+#[derive(Serialize, Deserialize)]
+#[serde(crate = "nrg_serialize")]
 pub struct EditableText {
+    #[serde(skip)]
     text_widget: UID,
+    #[serde(skip)]
     indicator_widget: UID,
+    #[serde(skip)]
     is_focused: bool,
+    #[serde(skip)]
     current_char: i32,
 }
 

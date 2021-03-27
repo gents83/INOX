@@ -2,12 +2,20 @@ use super::*;
 use crate::screen::*;
 use nrg_graphics::*;
 use nrg_math::*;
+use nrg_serialize::*;
 
+#[derive(Serialize, Deserialize)]
+#[serde(crate = "nrg_serialize")]
 pub struct WidgetGraphics {
+    #[serde(skip)]
     material_id: MaterialId,
+    #[serde(skip)]
     mesh_id: MeshId,
+    #[serde(skip)]
     mesh_data: MeshData,
+    #[serde(skip)]
     border_mesh_id: MeshId,
+    #[serde(skip)]
     border_mesh_data: MeshData,
     color: Vector4f,
     border_color: Vector4f,

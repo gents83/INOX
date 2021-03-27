@@ -1,8 +1,11 @@
-use super::widget::*;
+use super::*;
 use nrg_serialize::*;
 
+#[derive(Serialize, Deserialize)]
+#[serde(crate = "nrg_serialize")]
 pub struct WidgetNode {
     id: UID,
+    #[serde(skip)]
     children: Vec<Box<dyn WidgetBase>>,
 }
 
@@ -19,9 +22,9 @@ impl WidgetNode {
     pub fn get_id(&self) -> UID {
         self.id
     }
-    pub fn add_child<W>(&mut self, widget: Widget<W>) -> &mut Self
+    pub fn add_child<W: 'static>(&mut self, widget: Widget<W>) -> &mut Self
     where
-        W: WidgetTrait + Default + 'static,
+        W: WidgetTrait,
     {
         self.children.push(Box::new(widget));
         self
@@ -34,12 +37,17 @@ impl WidgetNode {
 
     pub fn get_child<W>(&mut self, uid: UID) -> Option<&mut Widget<W>>
     where
-        W: WidgetTrait + Default + 'static,
+        W: WidgetTrait,
     {
         let mut result: Option<&mut Widget<W>> = None;
         self.children.iter_mut().for_each(|w| {
             if w.id() == uid {
-                result = w.as_any_mut().downcast_mut::<Widget<W>>();
+                unsafe {
+                    let boxed = Box::from_raw(w.as_mut());
+                    let ptr = Box::into_raw(boxed);
+                    let widget = ptr as *mut Widget<W>;
+                    result = Some(&mut *widget);
+                }
             } else if result.is_none() {
                 result = w.get_data_mut().node.get_child(uid);
             }

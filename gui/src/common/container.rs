@@ -51,7 +51,7 @@ pub trait ContainerTrait: WidgetTrait {
 
     fn fit_to_content<W>(widget: &mut Widget<W>)
     where
-        W: WidgetTrait + Default + ContainerTrait + 'static,
+        W: WidgetTrait + Default + ContainerTrait,
     {
         let fill_type = widget.get().get_fill_type();
         let fit_to_content = widget.get().has_fit_to_content();

@@ -1,4 +1,7 @@
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+use nrg_serialize::*;
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(crate = "nrg_serialize")]
 pub enum HorizontalAlignment {
     None,
     Left,
@@ -6,7 +9,8 @@ pub enum HorizontalAlignment {
     Center,
     Stretch,
 }
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(crate = "nrg_serialize")]
 pub enum VerticalAlignment {
     None,
     Top,

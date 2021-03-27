@@ -9,6 +9,8 @@ pub use self::node::*;
 pub use self::state::*;
 pub use self::style::*;
 pub use self::widget::*;
+pub use self::widget_base::*;
+pub use self::widget_trait::*;
 
 pub mod align;
 pub mod colors;
@@ -19,3 +21,5 @@ pub mod node;
 pub mod state;
 pub mod style;
 pub mod widget;
+pub mod widget_base;
+pub mod widget_trait;

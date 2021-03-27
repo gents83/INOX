@@ -3,11 +3,18 @@ use std::time::{Duration, Instant};
 use super::*;
 use nrg_graphics::*;
 use nrg_platform::*;
+use nrg_serialize::*;
 
+#[derive(Serialize, Deserialize)]
+#[serde(crate = "nrg_serialize")]
 pub struct Indicator {
+    #[serde(skip)]
     is_active: bool,
+    #[serde(skip)]
     is_blinking: bool,
+    #[serde(skip)]
     refresh_time: Duration,
+    #[serde(skip, default = "Instant::now")]
     elapsed_time: Instant,
 }
 

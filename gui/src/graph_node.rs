@@ -4,8 +4,12 @@ use nrg_math::*;
 use nrg_platform::*;
 use nrg_serialize::*;
 
+#[derive(Serialize, Deserialize)]
+#[serde(crate = "nrg_serialize")]
 pub struct GraphNode {
+    #[serde(skip)]
     container_data: ContainerData,
+    #[serde(skip)]
     title_widget: UID,
 }
 

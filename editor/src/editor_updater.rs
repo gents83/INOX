@@ -1,4 +1,4 @@
-use std::time::Instant;
+use std::{path::PathBuf, time::Instant};
 
 use super::config::*;
 
@@ -113,7 +113,18 @@ impl System for EditorUpdater {
         editable_text.init(renderer);
         self.widget.add_child(editable_text);
 
+        /*
+        let filepath = PathBuf::from(format!(
+            "./data/widgets/{}.widget",
+            self.node.id().to_simple().to_string()
+        ));
+        serialize_to_file(&self.node, filepath);
+        */
+        /*
+        let filepath = PathBuf::from("./data/widgets/2cbbe60c59194b0983026b24dad5b69b.widget");
+        deserialize_from_file(&mut self.node, filepath);
         self.node.init(renderer);
+        */
     }
 
     fn run(&mut self) -> bool {

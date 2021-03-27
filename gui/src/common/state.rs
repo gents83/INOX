@@ -1,14 +1,20 @@
 use super::*;
 use nrg_math::*;
+use nrg_serialize::*;
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(crate = "nrg_serialize")]
 pub struct WidgetState {
     pos_in_px: Vector2u,
     size_in_px: Vector2u,
+    #[serde(skip)]
     clip_area: Vector4u,
     is_active: bool,
     is_selectable: bool,
     is_draggable: bool,
+    #[serde(skip)]
     is_pressed: bool,
+    #[serde(skip)]
     is_hover: bool,
     layer: f32,
     horizontal_alignment: HorizontalAlignment,

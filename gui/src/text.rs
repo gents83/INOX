@@ -16,12 +16,18 @@ pub struct TextChar {
     pub max: Vector2f,
 }
 
+#[derive(Serialize, Deserialize)]
+#[serde(crate = "nrg_serialize")]
 pub struct Text {
+    #[serde(skip)]
     font_id: FontId,
+    #[serde(skip)]
     material_id: MaterialId,
     text: String,
     multiline: bool,
+    #[serde(skip)]
     characters: Vec<TextChar>,
+    #[serde(skip)]
     hover_char_index: i32,
 }
 

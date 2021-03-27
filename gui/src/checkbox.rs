@@ -9,9 +9,13 @@ pub enum CheckboxEvent {
 }
 impl Event for CheckboxEvent {}
 
+#[derive(Serialize, Deserialize)]
+#[serde(crate = "nrg_serialize")]
 pub struct Checkbox {
+    #[serde(skip)]
     container_data: ContainerData,
     is_checked: bool,
+    #[serde(skip)]
     checked_widget: UID,
 }
 

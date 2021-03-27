@@ -1,7 +1,10 @@
 use super::*;
 use nrg_graphics::*;
 use nrg_platform::*;
+use nrg_serialize::*;
 
+#[derive(Serialize, Deserialize)]
+#[serde(crate = "nrg_serialize")]
 pub struct Separator {}
 
 impl Default for Separator {
