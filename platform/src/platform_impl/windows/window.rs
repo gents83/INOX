@@ -47,6 +47,10 @@ impl Window {
             // We have to register this class for Windows to use
             RegisterClassW(&wnd_class);
 
+            SetProcessDpiAwareness(PROCESS_DPI_AWARENESS::PROCESS_PER_MONITOR_DPI_AWARE);
+            let (dpi_x, _dpi_y) = Self::compute_dpi();
+            *scale_factor = dpi_x as f32 / DEFAULT_DPI as f32;
+
             // More info: https://msdn.microsoft.com/en-us/library/windows/desktop/ms632680(v=vs.85).aspx
             // Create a window based on registered class
             let win_handle = CreateWindowExW(
@@ -63,13 +67,6 @@ impl Window {
                 win_hinstance,  // hInstance
                 ::std::ptr::null_mut(),
             ); // lpParam
-
-            SetProcessDpiAwareness(PROCESS_DPI_AWARENESS::PROCESS_PER_MONITOR_DPI_AWARE);
-            let (dpi_x, dpi_y) = Self::compute_dpi();
-
-            *width = *width * DEFAULT_DPI as u32 / dpi_x;
-            *height = *height * DEFAULT_DPI as u32 / dpi_y;
-            *scale_factor = dpi_x as f32 / DEFAULT_DPI as f32;
 
             Handle {
                 handle_impl: HandleImpl {
