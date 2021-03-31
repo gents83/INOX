@@ -21,9 +21,10 @@ impl Default for Separator {
 
 impl InternalWidget for Separator {
     fn widget_init(&mut self, renderer: &mut Renderer) {
-        let data = self.get_data_mut();
-        data.graphics.init(renderer, "UI");
-
+        self.get_data_mut().graphics.init(renderer, "UI");
+        if self.is_initialized() {
+            return;
+        }
         self.draggable(false)
             .size([DEFAULT_WIDGET_SIZE.x, 1].into())
             .stroke(1)

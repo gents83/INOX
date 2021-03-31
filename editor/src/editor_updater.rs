@@ -72,8 +72,8 @@ impl System for EditorUpdater {
             events_rw.clone(),
         );
 
+        self.widget.init(renderer);
         self.widget
-            .init(renderer)
             .position([300, 300].into())
             .size([500, 800].into())
             .selectable(false)
@@ -84,8 +84,8 @@ impl System for EditorUpdater {
             .space_between_elements(20);
 
         let mut fps_text = Text::default();
+        fps_text.init(renderer);
         fps_text
-            .init(renderer)
             .size([500, 20].into())
             .vertical_alignment(VerticalAlignment::Top)
             .horizontal_alignment(HorizontalAlignment::Left)
@@ -106,9 +106,8 @@ impl System for EditorUpdater {
         self.history_clear_button = history_clear_button_id;
 
         let mut checkbox = Checkbox::default();
-        checkbox
-            .init(renderer)
-            .horizontal_alignment(HorizontalAlignment::Left);
+        checkbox.init(renderer);
+        checkbox.horizontal_alignment(HorizontalAlignment::Left);
         self.widget.add_child(Box::new(checkbox));
 
         let mut editable_text = EditableText::default();
@@ -116,17 +115,10 @@ impl System for EditorUpdater {
         self.widget.add_child(Box::new(editable_text));
 
         self.node.init(renderer);
-        /*
-        let filepath = PathBuf::from(format!(
-            "./data/widgets/{}.widget",
-            self.node.id().to_simple().to_string()
-        ));
-        serialize_to_file(&self.node, filepath);
-        */
-        /*
-        let filepath = PathBuf::from("./data/widgets/2cbbe60c59194b0983026b24dad5b69b.widget");
-        deserialize_from_file(&mut self.node, filepath);
-        */
+        self.serialize();
+
+        self.node = self.deserialize();
+        self.node.init(renderer);
     }
 
     fn run(&mut self) -> bool {
@@ -154,10 +146,31 @@ impl System for EditorUpdater {
 }
 
 impl EditorUpdater {
+    fn serialize(&self) {
+        /*
+        let filepath = std::path::PathBuf::from(format!(
+            "./data/widgets/{}.widget",
+            self.node.id().to_simple().to_string()
+        ));*/
+
+        let filepath =
+            std::path::PathBuf::from("./data/widgets/9a06ae7e3633421fa6edcc63c3a7dcd8.widget");
+        serialize_to_file(&self.node, filepath);
+    }
+    pub fn deserialize<'a, T>(&self) -> T
+    where
+        T: for<'de> Deserialize<'de> + Default,
+    {
+        let mut data = T::default();
+        let filepath =
+            std::path::PathBuf::from("./data/widgets/9a06ae7e3633421fa6edcc63c3a7dcd8.widget");
+        deserialize_from_file(&mut data, filepath);
+        data
+    }
     fn create_history_widget(&self, renderer: &mut Renderer) -> (Panel, UID, UID, UID, UID) {
         let mut history_panel = Panel::default();
+        history_panel.init(renderer);
         history_panel
-            .init(renderer)
             .size([400, 100].into())
             .horizontal_alignment(HorizontalAlignment::Stretch)
             .selectable(false)
@@ -166,8 +179,8 @@ impl EditorUpdater {
             .space_between_elements(5);
 
         let mut label = Text::default();
+        label.init(renderer);
         label
-            .init(renderer)
             .size([0, 16].into())
             .vertical_alignment(VerticalAlignment::Top)
             .horizontal_alignment(HorizontalAlignment::Left)
@@ -175,8 +188,8 @@ impl EditorUpdater {
         history_panel.add_child(Box::new(label));
 
         let mut button_box = Panel::default();
+        button_box.init(renderer);
         button_box
-            .init(renderer)
             .horizontal_alignment(HorizontalAlignment::Stretch)
             .selectable(false)
             .draggable(false)
@@ -185,39 +198,33 @@ impl EditorUpdater {
             .space_between_elements(10);
 
         let mut history_undo = Button::default();
-        history_undo
-            .init(renderer)
-            .size([150, 100].into())
-            .stroke(10);
+        history_undo.init(renderer);
+        history_undo.size([150, 100].into()).stroke(10);
         let mut text = Text::default();
-        text.init(renderer)
-            .size([0, 20].into())
+        text.init(renderer);
+        text.size([0, 20].into())
             .vertical_alignment(VerticalAlignment::Center)
             .horizontal_alignment(HorizontalAlignment::Center)
             .set_text("Undo");
         history_undo.add_child(Box::new(text));
 
         let mut history_redo = Button::default();
-        history_redo
-            .init(renderer)
-            .size([150, 100].into())
-            .stroke(10);
+        history_redo.init(renderer);
+        history_redo.size([150, 100].into()).stroke(10);
         let mut text = Text::default();
-        text.init(renderer)
-            .size([0, 20].into())
+        text.init(renderer);
+        text.size([0, 20].into())
             .vertical_alignment(VerticalAlignment::Center)
             .horizontal_alignment(HorizontalAlignment::Center)
             .set_text("Redo");
         history_redo.add_child(Box::new(text));
 
         let mut history_clear = Button::default();
-        history_clear
-            .init(renderer)
-            .size([150, 100].into())
-            .stroke(10);
+        history_clear.init(renderer);
+        history_clear.size([150, 100].into()).stroke(10);
         let mut text = Text::default();
-        text.init(renderer)
-            .size([0, 20].into())
+        text.init(renderer);
+        text.size([0, 20].into())
             .vertical_alignment(VerticalAlignment::Center)
             .horizontal_alignment(HorizontalAlignment::Center)
             .set_text("Clear");
@@ -234,8 +241,8 @@ impl EditorUpdater {
         history_panel.add_child(Box::new(separator));
 
         let mut history_commands_box = Panel::default();
+        history_commands_box.init(renderer);
         history_commands_box
-            .init(renderer)
             .size([300, 20].into())
             .horizontal_alignment(HorizontalAlignment::Stretch)
             .selectable(false)
@@ -274,17 +281,16 @@ impl EditorUpdater {
             {
                 for (index, str) in history_debug_commands.iter().enumerate() {
                     let mut text = Text::default();
-                    text.init(renderer)
-                        .position(
-                            [
-                                0,
-                                20 * history_commands_box.get_data_mut().node.get_num_children()
-                                    as u32,
-                            ]
-                            .into(),
-                        )
-                        .size([300, 20].into())
-                        .set_text(str);
+                    text.init(renderer);
+                    text.position(
+                        [
+                            0,
+                            20 * history_commands_box.get_data_mut().node.get_num_children() as u32,
+                        ]
+                        .into(),
+                    )
+                    .size([300, 20].into())
+                    .set_text(str);
                     if index >= history_debug_commands.len() - 1 {
                         text.get_data_mut()
                             .graphics
@@ -302,17 +308,16 @@ impl EditorUpdater {
             {
                 for str in history_debug_commands.iter().rev() {
                     let mut text = Text::default();
-                    text.init(renderer)
-                        .position(
-                            [
-                                0,
-                                20 * history_commands_box.get_data_mut().node.get_num_children()
-                                    as u32,
-                            ]
-                            .into(),
-                        )
-                        .size([300, 20].into())
-                        .set_text(str);
+                    text.init(renderer);
+                    text.position(
+                        [
+                            0,
+                            20 * history_commands_box.get_data_mut().node.get_num_children() as u32,
+                        ]
+                        .into(),
+                    )
+                    .size([300, 20].into())
+                    .set_text(str);
                     history_commands_box.add_child(Box::new(text));
                 }
             }

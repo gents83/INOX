@@ -64,9 +64,10 @@ impl Indicator {
 
 impl InternalWidget for Indicator {
     fn widget_init(&mut self, renderer: &mut Renderer) {
-        let data = self.get_data_mut();
-        data.graphics.init(renderer, "UI");
-
+        self.get_data_mut().graphics.init(renderer, "UI");
+        if self.is_initialized() {
+            return;
+        }
         self.draggable(false)
             .size([1, DEFAULT_WIDGET_SIZE.y - 2].into())
             .stroke(1)

@@ -210,12 +210,15 @@ impl EditableText {
 
 impl InternalWidget for EditableText {
     fn widget_init(&mut self, renderer: &mut Renderer) {
+        self.get_data_mut().graphics.init(renderer, "UI");
+        if self.is_initialized() {
+            return;
+        }
+
         let data = self.get_data_mut();
         let default_size = DEFAULT_WIDGET_SIZE * Screen::get_scale_factor();
 
-        data.graphics
-            .init(renderer, "UI")
-            .set_style(WidgetStyle::default());
+        data.graphics.set_style(WidgetStyle::default());
         self.size(default_size)
             .draggable(false)
             .selectable(true)
@@ -223,8 +226,8 @@ impl InternalWidget for EditableText {
             .horizontal_alignment(HorizontalAlignment::Stretch);
 
         let mut text = Text::default();
-        text.init(renderer)
-            .draggable(false)
+        text.init(renderer);
+        text.draggable(false)
             .size([0, default_size.y].into())
             .vertical_alignment(VerticalAlignment::Center)
             .horizontal_alignment(HorizontalAlignment::Left);
@@ -232,7 +235,8 @@ impl InternalWidget for EditableText {
         self.text_widget = self.add_child(Box::new(text));
 
         let mut indicator = Indicator::default();
-        indicator.init(renderer).set_active(false);
+        indicator.init(renderer);
+        indicator.set_active(false);
         self.indicator_widget = self.add_child(Box::new(indicator));
     }
 

@@ -92,12 +92,15 @@ impl Checkbox {
 
 impl InternalWidget for Checkbox {
     fn widget_init(&mut self, renderer: &mut Renderer) {
+        self.get_data_mut().graphics.init(renderer, "UI");
+        if self.is_initialized() {
+            return;
+        }
+
         let data = self.get_data_mut();
         let default_size = DEFAULT_WIDGET_SIZE * Screen::get_scale_factor();
 
-        data.graphics
-            .init(renderer, "UI")
-            .set_style(WidgetStyle::default());
+        data.graphics.set_style(WidgetStyle::default());
         self.size(default_size)
             .draggable(false)
             .selectable(true)
@@ -105,8 +108,8 @@ impl InternalWidget for Checkbox {
 
         let inner_size = default_size - default_size / 4;
         let mut panel = Panel::default();
+        panel.init(renderer);
         panel
-            .init(renderer)
             .draggable(false)
             .size(inner_size)
             .vertical_alignment(VerticalAlignment::Center)

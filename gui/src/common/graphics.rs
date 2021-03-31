@@ -17,7 +17,9 @@ pub struct WidgetGraphics {
     border_mesh_id: MeshId,
     #[serde(skip)]
     border_mesh_data: MeshData,
+    #[serde(skip)]
     color: Vector4f,
+    #[serde(skip)]
     border_color: Vector4f,
     stroke: f32,
     style: WidgetStyle,

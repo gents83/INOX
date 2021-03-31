@@ -28,6 +28,13 @@ pub trait InternalWidget {
 }
 
 pub trait BaseWidget: InternalWidget + WidgetDataGetter {
+    fn init(&mut self, renderer: &mut Renderer) {
+        self.get_data_mut()
+            .node
+            .propagate_on_children_mut(|w| w.init(renderer));
+        self.widget_init(renderer);
+        self.mark_as_initialized();
+    }
     fn update(
         &mut self,
         drawing_area_in_px: Vector4u,

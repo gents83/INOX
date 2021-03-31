@@ -5,7 +5,6 @@ use nrg_serialize::*;
 #[serde(crate = "nrg_serialize")]
 pub struct WidgetNode {
     id: UID,
-    #[serde(skip)]
     children: Vec<Box<dyn Widget>>,
 }
 

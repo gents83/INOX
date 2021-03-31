@@ -28,13 +28,15 @@ impl Default for GraphNode {
 
 impl InternalWidget for GraphNode {
     fn widget_init(&mut self, renderer: &mut Renderer) {
+        self.get_data_mut().graphics.init(renderer, "UI");
+        if self.is_initialized() {
+            return;
+        }
+
         let data = self.get_data_mut();
+        data.graphics.set_style(WidgetStyle::default_background());
+
         let default_size = DEFAULT_WIDGET_SIZE * Screen::get_scale_factor();
-
-        data.graphics
-            .init(renderer, "UI")
-            .set_style(WidgetStyle::default_background());
-
         let size: Vector2u = [200, 100].into();
         data.state
             .set_position(Screen::get_center() - size / 2)
@@ -45,8 +47,8 @@ impl InternalWidget for GraphNode {
             .fit_to_content(true);
 
         let mut title = Text::default();
+        title.init(renderer);
         title
-            .init(renderer)
             .draggable(false)
             .size([0, default_size.y].into())
             .vertical_alignment(VerticalAlignment::Top)

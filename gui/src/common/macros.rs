@@ -21,10 +21,6 @@ macro_rules! implement_widget {
         impl Widget for $Type {}
 
         impl $Type {
-            pub fn init(&mut self, renderer: &mut Renderer) -> &mut Self {
-                self.widget_init(renderer);
-                self
-            }
             pub fn stroke(&mut self, stroke: u32) -> &mut Self {
                 let stroke: nrg_math::Vector3f =
                     Screen::convert_size_from_pixels([stroke, stroke].into()).into();

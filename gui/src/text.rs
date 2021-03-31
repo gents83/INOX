@@ -128,10 +128,13 @@ impl InternalWidget for Text {
         self.font_id = font_id;
         self.material_id = material_id;
 
-        let data = self.get_data_mut();
-        data.graphics.link_to_material(material_id);
-        data.graphics.set_style(WidgetStyle::default_text());
+        self.get_data_mut().graphics.link_to_material(material_id);
+        if self.is_initialized() {
+            return;
+        }
 
+        let data = self.get_data_mut();
+        data.graphics.set_style(WidgetStyle::default_text());
         data.state.set_draggable(false).set_selectable(false);
     }
 

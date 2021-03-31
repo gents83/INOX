@@ -7,6 +7,7 @@ pub struct WidgetData {
     pub node: WidgetNode,
     pub graphics: WidgetGraphics,
     pub state: WidgetState,
+    initialized: bool,
 }
 
 impl Default for WidgetData {
@@ -15,6 +16,7 @@ impl Default for WidgetData {
             node: WidgetNode::default(),
             graphics: WidgetGraphics::default(),
             state: WidgetState::default(),
+            initialized: false,
         }
     }
 }
@@ -23,4 +25,10 @@ impl Default for WidgetData {
 pub trait WidgetDataGetter {
     fn get_data(&self) -> &WidgetData;
     fn get_data_mut(&mut self) -> &mut WidgetData;
+    fn is_initialized(&self) -> bool {
+        self.get_data().initialized
+    }
+    fn mark_as_initialized(&mut self) {
+        self.get_data_mut().initialized = true;
+    }
 }

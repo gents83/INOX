@@ -25,10 +25,12 @@ impl Default for Button {
 
 impl InternalWidget for Button {
     fn widget_init(&mut self, renderer: &mut Renderer) {
+        self.get_data_mut().graphics.init(renderer, "UI");
+        if self.is_initialized() {
+            return;
+        }
         let data = self.get_data_mut();
-        data.graphics
-            .init(renderer, "UI")
-            .set_style(WidgetStyle::default());
+        data.graphics.set_style(WidgetStyle::default());
     }
 
     fn widget_update(
