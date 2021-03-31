@@ -1,5 +1,6 @@
 use super::*;
 use nrg_graphics::*;
+use nrg_math::*;
 use nrg_platform::*;
 use nrg_serialize::*;
 
@@ -7,50 +8,41 @@ use nrg_serialize::*;
 #[serde(crate = "nrg_serialize")]
 pub struct Button {
     #[serde(skip)]
-    container_data: ContainerData,
+    container: ContainerData,
+    data: WidgetData,
 }
-
-unsafe impl Send for Button {}
-unsafe impl Sync for Button {}
-
-impl ContainerTrait for Button {
-    fn get_container_data(&self) -> &ContainerData {
-        &self.container_data
-    }
-    fn get_container_data_mut(&mut self) -> &mut ContainerData {
-        &mut self.container_data
-    }
-}
+implement_widget!(Button);
+implement_container!(Button);
 
 impl Default for Button {
     fn default() -> Self {
         Self {
-            container_data: ContainerData::default(),
+            container: ContainerData::default(),
+            data: WidgetData::default(),
         }
     }
 }
 
-impl WidgetTrait for Button {
-    fn init(widget: &mut Widget<Self>, renderer: &mut Renderer) {
-        let data = widget.get_data_mut();
+impl InternalWidget for Button {
+    fn widget_init(&mut self, renderer: &mut Renderer) {
+        let data = self.get_data_mut();
         data.graphics
             .init(renderer, "UI")
             .set_style(WidgetStyle::default());
     }
 
-    fn update(
-        widget: &mut Widget<Self>,
-        _parent_data: Option<&WidgetState>,
+    fn widget_update(
+        &mut self,
+        _drawing_area_in_px: Vector4u,
         _renderer: &mut Renderer,
         _events: &mut EventsRw,
         _input_handler: &InputHandler,
     ) {
-        Self::fit_to_content(widget);
+        self.apply_fit_to_content();
 
-        let screen = widget.get_screen();
-        let data = widget.get_data_mut();
-        let pos = screen.convert_from_pixels_into_screen_space(data.state.get_position());
-        let size = screen.convert_size_from_pixels(data.state.get_size());
+        let data = self.get_data_mut();
+        let pos = Screen::convert_from_pixels_into_screen_space(data.state.get_position());
+        let size = Screen::convert_size_from_pixels(data.state.get_size());
         let mut mesh_data = MeshData::default();
         mesh_data
             .add_quad_default([0.0, 0.0, size.x, size.y].into(), data.state.get_layer())
@@ -59,9 +51,5 @@ impl WidgetTrait for Button {
         data.graphics.set_mesh_data(mesh_data);
     }
 
-    fn uninit(_widget: &mut Widget<Self>, _renderer: &mut Renderer) {}
-
-    fn get_type(&self) -> &'static str {
-        std::any::type_name::<Self>()
-    }
+    fn widget_uninit(&mut self, _renderer: &mut Renderer) {}
 }

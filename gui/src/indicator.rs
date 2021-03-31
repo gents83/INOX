@@ -2,6 +2,7 @@ use std::time::{Duration, Instant};
 
 use super::*;
 use nrg_graphics::*;
+use nrg_math::*;
 use nrg_platform::*;
 use nrg_serialize::*;
 
@@ -16,7 +17,9 @@ pub struct Indicator {
     refresh_time: Duration,
     #[serde(skip, default = "Instant::now")]
     elapsed_time: Instant,
+    data: WidgetData,
 }
+implement_widget!(Indicator);
 
 impl Default for Indicator {
     fn default() -> Self {
@@ -25,6 +28,7 @@ impl Default for Indicator {
             is_blinking: true,
             refresh_time: Duration::from_millis(500),
             elapsed_time: Instant::now(),
+            data: WidgetData::default(),
         }
     }
 }
@@ -37,36 +41,33 @@ impl Indicator {
         self.is_active = active;
         self
     }
-    fn update_blinkng(widget: &mut Widget<Self>) {
-        if widget.get().elapsed_time.elapsed() >= widget.get().refresh_time {
-            let blinking = widget.get().is_blinking;
-            widget.get_mut().elapsed_time = Instant::now();
+    fn update_blinkng(&mut self) {
+        if self.elapsed_time.elapsed() >= self.refresh_time {
+            let blinking = self.is_blinking;
+            self.elapsed_time = Instant::now();
 
             if !blinking {
-                widget
-                    .get_data_mut()
+                self.get_data_mut()
                     .graphics
                     .set_style(WidgetStyle::full_active())
                     .set_border_style(WidgetStyle::full_active());
             } else {
-                widget
-                    .get_data_mut()
+                self.get_data_mut()
                     .graphics
                     .set_style(WidgetStyle::full_inactive())
                     .set_border_style(WidgetStyle::full_inactive());
             }
-            widget.get_mut().is_blinking = !blinking;
+            self.is_blinking = !blinking;
         }
     }
 }
 
-impl WidgetTrait for Indicator {
-    fn init(widget: &mut Widget<Self>, renderer: &mut Renderer) {
-        let data = widget.get_data_mut();
+impl InternalWidget for Indicator {
+    fn widget_init(&mut self, renderer: &mut Renderer) {
+        let data = self.get_data_mut();
         data.graphics.init(renderer, "UI");
 
-        widget
-            .draggable(false)
+        self.draggable(false)
             .size([1, DEFAULT_WIDGET_SIZE.y - 2].into())
             .stroke(1)
             .vertical_alignment(VerticalAlignment::Stretch)
@@ -77,20 +78,19 @@ impl WidgetTrait for Indicator {
             .set_border_style(WidgetStyle::full_active());
     }
 
-    fn update(
-        widget: &mut Widget<Self>,
-        _parent_data: Option<&WidgetState>,
+    fn widget_update(
+        &mut self,
+        _drawing_area_in_px: Vector4u,
         renderer: &mut Renderer,
         _events: &mut EventsRw,
         _input_handler: &InputHandler,
     ) {
-        if widget.get().is_active {
-            Self::update_blinkng(widget);
+        if self.is_active {
+            self.update_blinkng();
 
-            let screen = widget.get_screen();
-            let data = widget.get_data_mut();
-            let pos = screen.convert_from_pixels_into_screen_space(data.state.get_position());
-            let size = screen.convert_size_from_pixels(data.state.get_size());
+            let data = self.get_data_mut();
+            let pos = Screen::convert_from_pixels_into_screen_space(data.state.get_position());
+            let size = Screen::convert_size_from_pixels(data.state.get_size());
             let mut mesh_data = MeshData::default();
             mesh_data
                 .add_quad_default([0.0, 0.0, size.x, size.y].into(), data.state.get_layer())
@@ -98,14 +98,10 @@ impl WidgetTrait for Indicator {
             mesh_data.translate([pos.x, pos.y, 0.0].into());
             data.graphics.set_mesh_data(mesh_data);
         } else {
-            let data = widget.get_data_mut();
+            let data = self.get_data_mut();
             data.graphics.remove_meshes(renderer);
         }
     }
 
-    fn uninit(_widget: &mut Widget<Self>, _renderer: &mut Renderer) {}
-
-    fn get_type(&self) -> &'static str {
-        std::any::type_name::<Self>()
-    }
+    fn widget_uninit(&mut self, _renderer: &mut Renderer) {}
 }

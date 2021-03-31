@@ -29,7 +29,9 @@ pub struct Text {
     characters: Vec<TextChar>,
     #[serde(skip)]
     hover_char_index: i32,
+    data: WidgetData,
 }
+implement_widget!(Text);
 
 impl Default for Text {
     fn default() -> Self {
@@ -40,6 +42,7 @@ impl Default for Text {
             multiline: false,
             characters: Vec::new(),
             hover_char_index: -1,
+            data: WidgetData::default(),
         }
     }
 }
@@ -79,19 +82,19 @@ impl Text {
         None
     }
 
-    fn update_text(widget: &mut Widget<Self>, events_rw: &mut EventsRw) {
+    fn update_text(&mut self, events_rw: &mut EventsRw) {
         let events = events_rw.read().unwrap();
         if let Some(mut text_events) = events.read_events::<TextEvent>() {
             for event in text_events.iter_mut() {
                 match event {
                     TextEvent::AddChar(widget_id, char_index, character) => {
-                        if *widget_id == widget.id() {
-                            widget.get_mut().add_char(*char_index, *character);
+                        if *widget_id == self.id() {
+                            self.add_char(*char_index, *character);
                         }
                     }
                     TextEvent::RemoveChar(widget_id, char_index, _character) => {
-                        if *widget_id == widget.id() {
-                            widget.get_mut().remove_char(*char_index);
+                        if *widget_id == self.id() {
+                            self.remove_char(*char_index);
                         }
                     }
                 }
@@ -117,49 +120,46 @@ impl Text {
     }
 }
 
-impl WidgetTrait for Text {
-    fn init(widget: &mut Widget<Self>, renderer: &mut Renderer) {
+impl InternalWidget for Text {
+    fn widget_init(&mut self, renderer: &mut Renderer) {
         let font_id = renderer.get_default_font_id();
         let material_id = renderer.get_font_material_id(font_id);
 
-        widget.get_mut().font_id = font_id;
-        widget.get_mut().material_id = material_id;
+        self.font_id = font_id;
+        self.material_id = material_id;
 
-        let data = widget.get_data_mut();
+        let data = self.get_data_mut();
         data.graphics.link_to_material(material_id);
         data.graphics.set_style(WidgetStyle::default_text());
 
         data.state.set_draggable(false).set_selectable(false);
     }
 
-    fn update(
-        widget: &mut Widget<Self>,
-        parent_data: Option<&WidgetState>,
+    fn widget_update(
+        &mut self,
+        drawing_area_in_px: Vector4u,
         renderer: &mut Renderer,
         events_rw: &mut EventsRw,
         input_handler: &InputHandler,
     ) {
-        Self::update_text(widget, events_rw);
-
-        let screen = widget.get_screen();
+        self.update_text(events_rw);
 
         let mouse_pos = Vector2f {
             x: input_handler.get_mouse_data().get_x() as _,
             y: input_handler.get_mouse_data().get_y() as _,
         };
-        let mouse_pos = screen.from_normalized_into_screen_space(mouse_pos);
+        let mouse_pos = Screen::from_normalized_into_screen_space(mouse_pos);
 
-        let pos = screen
-            .convert_from_pixels_into_screen_space(widget.get_data_mut().state.get_position());
-        let mut size = screen.convert_size_from_pixels(widget.get_data_mut().state.get_size());
+        let pos =
+            Screen::convert_from_pixels_into_screen_space(self.get_data_mut().state.get_position());
+        let mut size = Screen::convert_size_from_pixels(self.get_data_mut().state.get_size());
         let min_size = size;
-        if let Some(parent_state) = parent_data {
-            size = screen.convert_size_from_pixels(parent_state.get_size());
-        }
+        size =
+            Screen::convert_size_from_pixels([drawing_area_in_px.z, drawing_area_in_px.w].into());
 
-        let lines_count = widget.get_mut().text.lines().count().max(1);
+        let lines_count = self.text.lines().count().max(1);
         let mut max_chars = 1;
-        for text in widget.get_mut().text.lines() {
+        for text in self.text.lines() {
             max_chars = max_chars.max(text.len());
         }
 
@@ -169,10 +169,10 @@ impl WidgetTrait for Text {
         let char_size = char_size.min(min_char_width.max(max_char_width));
         let mut char_width = char_size;
         let mut char_height = char_size;
-        if *widget.get_data().state.get_horizontal_alignment() == HorizontalAlignment::Stretch {
+        if *self.get_data().state.get_horizontal_alignment() == HorizontalAlignment::Stretch {
             char_width = size.x / max_chars as f32;
         }
-        if *widget.get_data().state.get_vertical_alignment() == VerticalAlignment::Stretch {
+        if *self.get_data().state.get_vertical_alignment() == VerticalAlignment::Stretch {
             char_height = size.y / lines_count as f32;
         }
 
@@ -182,17 +182,17 @@ impl WidgetTrait for Text {
         ]
         .into();
 
-        let char_color = widget.get_data().graphics.get_color();
-        let char_layer = widget.get_data().state.get_layer();
+        let char_color = self.get_data().graphics.get_color();
+        let char_layer = self.get_data().state.get_layer();
 
-        let font = renderer.get_font(widget.get_mut().font_id).unwrap();
+        let font = renderer.get_font(self.font_id).unwrap();
 
         let mut mesh_data = MeshData::default();
         let mut pos_y = pos.y;
         let mut mesh_index = 0;
         let mut characters: Vec<TextChar> = Vec::new();
         let mut hover_char_index = -1;
-        for text in widget.get_mut().text.lines() {
+        for text in self.text.lines() {
             let mut pos_x = pos.x;
             for c in text.as_bytes().iter() {
                 let id = font.get_glyph_index(*c as _);
@@ -222,22 +222,17 @@ impl WidgetTrait for Text {
             }
             pos_y += char_height;
         }
-        widget.get_mut().hover_char_index = hover_char_index;
-        widget.get_mut().characters = characters;
-        widget
-            .get_data_mut()
+        self.hover_char_index = hover_char_index;
+        self.characters = characters;
+        self.get_data_mut()
             .state
-            .set_size(screen.convert_size_into_pixels(new_size));
+            .set_size(Screen::convert_size_into_pixels(new_size));
 
-        widget.get_data_mut().graphics.set_mesh_data(mesh_data);
+        self.get_data_mut().graphics.set_mesh_data(mesh_data);
     }
 
-    fn uninit(widget: &mut Widget<Self>, renderer: &mut Renderer) {
-        let data = widget.get_data_mut();
+    fn widget_uninit(&mut self, renderer: &mut Renderer) {
+        let data = self.get_data_mut();
         data.graphics.remove_meshes(renderer).unlink_from_material();
-    }
-
-    fn get_type(&self) -> &'static str {
-        std::any::type_name::<Self>()
     }
 }

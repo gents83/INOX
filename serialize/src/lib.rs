@@ -1,5 +1,7 @@
 #![warn(clippy::all)]
 
+pub extern crate typetag;
+
 pub use serde::*;
 pub use serde_derive::*;
 

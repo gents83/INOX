@@ -1,4 +1,4 @@
-use std::{cell::RefCell, sync::Arc};
+use std::{borrow::Borrow, cell::*, sync::Arc, sync::Once};
 
 use nrg_math::*;
 use nrg_platform::*;
@@ -25,33 +25,43 @@ impl Default for ScreenData {
     }
 }
 
-#[derive(Clone)]
-pub struct Screen {
-    inner: Arc<RefCell<ScreenData>>,
-}
-unsafe impl Send for Screen {}
-unsafe impl Sync for Screen {}
+static mut SCREEN_DATA: Option<Arc<RefCell<ScreenData>>> = None;
+static mut INIT: Once = Once::new();
 
-impl Default for Screen {
-    fn default() -> Self {
-        Self {
-            inner: Arc::new(RefCell::new(ScreenData::default())),
-        }
-    }
-}
+pub struct Screen {}
 
 impl Screen {
-    pub fn init(&mut self, window: &Window) {
-        self.inner.borrow_mut().window_events = window.get_events();
-        self.inner.borrow_mut().size = Vector2u {
-            x: window.get_width(),
-            y: window.get_heigth(),
-        };
-        self.inner.borrow_mut().scale_factor = window.get_scale_factor();
+    fn get_and_init_once() -> &'static Option<Arc<RefCell<ScreenData>>> {
+        unsafe {
+            INIT.call_once(|| {
+                SCREEN_DATA = Some(Arc::new(RefCell::new(ScreenData::default())));
+            });
+            &SCREEN_DATA
+        }
     }
 
-    pub fn update(&mut self) {
-        let mut inner = self.inner.borrow_mut();
+    fn get() -> &'static RefCell<ScreenData> {
+        let screen_data = Screen::get_and_init_once();
+        screen_data.as_ref().unwrap().borrow()
+    }
+
+    fn get_mut<'a>() -> RefMut<'a, ScreenData> {
+        let screen_data = Screen::get_and_init_once();
+        screen_data.as_ref().unwrap().borrow_mut()
+    }
+
+    pub fn create(width: u32, height: u32, scale_factor: f32, events_rw: EventsRw) {
+        let mut screen_data = Screen::get_mut();
+        screen_data.window_events = events_rw;
+        screen_data.size = Vector2u {
+            x: width,
+            y: height,
+        };
+        screen_data.scale_factor = scale_factor;
+    }
+
+    pub fn update() {
+        let mut inner = Screen::get().borrow_mut();
         let mut size = inner.size;
         let mut scale_factor = inner.scale_factor;
         {
@@ -75,54 +85,65 @@ impl Screen {
         inner.scale_factor = scale_factor;
     }
 
-    pub fn get_size(&self) -> Vector2u {
-        self.inner.borrow().size
+    pub fn get_draw_area() -> Vector4u {
+        let inner = Screen::get().borrow();
+        let size = inner.size;
+        [0, 0, size.x, size.y].into()
     }
-    pub fn get_center(&self) -> Vector2u {
-        self.get_size() / 2
+    pub fn get_size() -> Vector2u {
+        let inner = Screen::get().borrow();
+        inner.size
     }
-    pub fn get_scale_factor(&self) -> f32 {
-        self.inner.borrow().scale_factor
+    pub fn get_center() -> Vector2u {
+        Screen::get_size() / 2
+    }
+    pub fn get_scale_factor() -> f32 {
+        let inner = Screen::get().borrow();
+        inner.scale_factor
     }
 
-    pub fn from_normalized_into_pixels(&self, normalized_value: Vector2f) -> Vector2i {
+    pub fn from_normalized_into_pixels(normalized_value: Vector2f) -> Vector2i {
+        let inner = Screen::get().borrow();
         Vector2i {
-            x: (normalized_value.x * self.inner.borrow().size.x as f32) as _,
-            y: (normalized_value.y * self.inner.borrow().size.y as f32) as _,
+            x: (normalized_value.x * inner.size.x as f32) as _,
+            y: (normalized_value.y * inner.size.y as f32) as _,
         }
     }
-    pub fn from_pixels_into_normalized(&self, value_in_px: Vector2i) -> Vector2f {
+    pub fn from_pixels_into_normalized(value_in_px: Vector2i) -> Vector2f {
+        let inner = Screen::get().borrow();
         Vector2f {
-            x: value_in_px.x as f32 / self.inner.borrow().size.x as f32,
-            y: value_in_px.y as f32 / self.inner.borrow().size.y as f32,
+            x: value_in_px.x as f32 / inner.size.x as f32,
+            y: value_in_px.y as f32 / inner.size.y as f32,
         }
     }
-    pub fn convert_size_into_pixels(&self, value: Vector2f) -> Vector2u {
+    pub fn convert_size_into_pixels(value: Vector2f) -> Vector2u {
+        let inner = Screen::get().borrow();
         Vector2u {
-            x: (value.x * self.inner.borrow().size.x as f32 * 0.5) as _,
-            y: (value.y * self.inner.borrow().size.y as f32 * 0.5) as _,
+            x: (value.x * inner.size.x as f32 * 0.5) as _,
+            y: (value.y * inner.size.y as f32 * 0.5) as _,
         }
     }
-    pub fn convert_size_from_pixels(&self, value_in_px: Vector2u) -> Vector2f {
+    pub fn convert_size_from_pixels(value_in_px: Vector2u) -> Vector2f {
+        let inner = Screen::get().borrow();
         Vector2f {
-            x: value_in_px.x as f32 * 2. / self.inner.borrow().size.x as f32,
-            y: value_in_px.y as f32 * 2. / self.inner.borrow().size.y as f32,
+            x: value_in_px.x as f32 * 2. / inner.size.x as f32,
+            y: value_in_px.y as f32 * 2. / inner.size.y as f32,
         }
     }
-    pub fn from_normalized_into_screen_space(&self, normalized_pos: Vector2f) -> Vector2f {
+    pub fn from_normalized_into_screen_space(normalized_pos: Vector2f) -> Vector2f {
         normalized_pos * 2.0 - [1.0, 1.0].into()
     }
-    pub fn convert_from_pixels_into_screen_space(&self, pos_in_px: Vector2u) -> Vector2f {
-        let normalized_pos = self.from_pixels_into_normalized(pos_in_px.convert());
-        self.from_normalized_into_screen_space(normalized_pos)
+    pub fn convert_from_pixels_into_screen_space(pos_in_px: Vector2u) -> Vector2f {
+        let normalized_pos = Screen::from_pixels_into_normalized(pos_in_px.convert());
+        Screen::from_normalized_into_screen_space(normalized_pos)
     }
 
-    pub fn from_screen_space_into_normalized(&self, pos_in_screen_space: Vector2f) -> Vector2f {
+    pub fn from_screen_space_into_normalized(pos_in_screen_space: Vector2f) -> Vector2f {
         (pos_in_screen_space + [1.0, 1.0].into()) * 0.5
     }
 
-    pub fn from_screen_space_into_pixels(&self, pos_in_screen_space: Vector2f) -> Vector2u {
-        let normalized_pos = self.from_screen_space_into_normalized(pos_in_screen_space);
-        self.from_normalized_into_pixels(normalized_pos).convert()
+    pub fn from_screen_space_into_pixels(pos_in_screen_space: Vector2f) -> Vector2u {
+        let normalized_pos = Screen::from_screen_space_into_normalized(pos_in_screen_space);
+        Screen::from_normalized_into_pixels(normalized_pos).convert()
     }
 }

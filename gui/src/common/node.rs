@@ -6,7 +6,7 @@ use nrg_serialize::*;
 pub struct WidgetNode {
     id: UID,
     #[serde(skip)]
-    children: Vec<Box<dyn WidgetBase>>,
+    children: Vec<Box<dyn Widget>>,
 }
 
 impl Default for WidgetNode {
@@ -22,11 +22,8 @@ impl WidgetNode {
     pub fn get_id(&self) -> UID {
         self.id
     }
-    pub fn add_child<W: 'static>(&mut self, widget: Widget<W>) -> &mut Self
-    where
-        W: WidgetTrait,
-    {
-        self.children.push(Box::new(widget));
+    pub fn add_child(&mut self, widget: Box<dyn Widget>) -> &mut Self {
+        self.children.push(widget);
         self
     }
 
@@ -35,17 +32,17 @@ impl WidgetNode {
         self
     }
 
-    pub fn get_child<W>(&mut self, uid: UID) -> Option<&mut Widget<W>>
+    pub fn get_child<W>(&mut self, uid: UID) -> Option<&mut W>
     where
-        W: WidgetTrait,
+        W: Widget,
     {
-        let mut result: Option<&mut Widget<W>> = None;
+        let mut result: Option<&mut W> = None;
         self.children.iter_mut().for_each(|w| {
             if w.id() == uid {
                 unsafe {
                     let boxed = Box::from_raw(w.as_mut());
                     let ptr = Box::into_raw(boxed);
-                    let widget = ptr as *mut Widget<W>;
+                    let widget = ptr as *mut W;
                     result = Some(&mut *widget);
                 }
             } else if result.is_none() {
@@ -64,19 +61,19 @@ impl WidgetNode {
     }
     pub fn propagate_on_children<F>(&self, mut f: F)
     where
-        F: FnMut(&dyn WidgetBase),
+        F: FnMut(&dyn Widget),
     {
         self.children.iter().for_each(|w| f(w.as_ref()));
     }
     pub fn propagate_on_children_mut<F>(&mut self, mut f: F)
     where
-        F: FnMut(&mut dyn WidgetBase),
+        F: FnMut(&mut dyn Widget),
     {
         self.children.iter_mut().for_each(|w| f(w.as_mut()));
     }
     pub fn propagate_on_child<F>(&self, uid: UID, mut f: F)
     where
-        F: FnMut(&dyn WidgetBase),
+        F: FnMut(&dyn Widget),
     {
         if let Some(index) = self.children.iter().position(|child| child.id() == uid) {
             let w = &self.children[index as usize];
@@ -85,7 +82,7 @@ impl WidgetNode {
     }
     pub fn propagate_on_child_mut<F>(&mut self, uid: UID, mut f: F)
     where
-        F: FnMut(&mut dyn WidgetBase),
+        F: FnMut(&mut dyn Widget),
     {
         if let Some(index) = self.children.iter().position(|child| child.id() == uid) {
             let w = &mut self.children[index as usize];

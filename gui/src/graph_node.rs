@@ -8,34 +8,28 @@ use nrg_serialize::*;
 #[serde(crate = "nrg_serialize")]
 pub struct GraphNode {
     #[serde(skip)]
-    container_data: ContainerData,
-    #[serde(skip)]
     title_widget: UID,
+    #[serde(skip)]
+    container: ContainerData,
+    data: WidgetData,
 }
+implement_widget!(GraphNode);
+implement_container!(GraphNode);
 
 impl Default for GraphNode {
     fn default() -> Self {
         Self {
-            container_data: ContainerData::default(),
+            container: ContainerData::default(),
+            data: WidgetData::default(),
             title_widget: INVALID_ID,
         }
     }
 }
 
-impl ContainerTrait for GraphNode {
-    fn get_container_data(&self) -> &ContainerData {
-        &self.container_data
-    }
-    fn get_container_data_mut(&mut self) -> &mut ContainerData {
-        &mut self.container_data
-    }
-}
-
-impl WidgetTrait for GraphNode {
-    fn init(widget: &mut Widget<Self>, renderer: &mut Renderer) {
-        let screen = widget.get_screen();
-        let data = widget.get_data_mut();
-        let default_size = DEFAULT_WIDGET_SIZE * screen.get_scale_factor();
+impl InternalWidget for GraphNode {
+    fn widget_init(&mut self, renderer: &mut Renderer) {
+        let data = self.get_data_mut();
+        let default_size = DEFAULT_WIDGET_SIZE * Screen::get_scale_factor();
 
         data.graphics
             .init(renderer, "UI")
@@ -43,39 +37,36 @@ impl WidgetTrait for GraphNode {
 
         let size: Vector2u = [200, 100].into();
         data.state
-            .set_position(screen.get_center() - size / 2)
+            .set_position(Screen::get_center() - size / 2)
             .set_size(size);
 
-        widget
-            .draggable(true)
-            .get_mut()
-            .set_fill_type(ContainerFillType::Vertical)
-            .set_fit_to_content(true);
+        self.draggable(true)
+            .fill_type(ContainerFillType::Vertical)
+            .fit_to_content(true);
 
-        let mut title = Widget::<Text>::new(screen);
+        let mut title = Text::default();
         title
             .init(renderer)
             .draggable(false)
             .size([0, default_size.y].into())
             .vertical_alignment(VerticalAlignment::Top)
             .horizontal_alignment(HorizontalAlignment::Center);
-        title.get_mut().set_text("Title");
-        widget.get_mut().title_widget = widget.add_child(title);
+        title.set_text("Title");
+        self.title_widget = self.add_child(Box::new(title));
     }
 
-    fn update(
-        widget: &mut Widget<Self>,
-        _parent_data: Option<&WidgetState>,
+    fn widget_update(
+        &mut self,
+        _drawing_area_in_px: Vector4u,
         _renderer: &mut Renderer,
         _events: &mut EventsRw,
         _input_handler: &InputHandler,
     ) {
-        Self::fit_to_content(widget);
+        self.apply_fit_to_content();
 
-        let screen = widget.get_screen();
-        let data = widget.get_data_mut();
-        let pos = screen.convert_from_pixels_into_screen_space(data.state.get_position());
-        let size = screen.convert_size_from_pixels(data.state.get_size());
+        let data = self.get_data_mut();
+        let pos = Screen::convert_from_pixels_into_screen_space(data.state.get_position());
+        let size = Screen::convert_size_from_pixels(data.state.get_size());
         let mut mesh_data = MeshData::default();
         mesh_data
             .add_quad_default([0.0, 0.0, size.x, size.y].into(), data.state.get_layer())
@@ -84,9 +75,5 @@ impl WidgetTrait for GraphNode {
         data.graphics.set_mesh_data(mesh_data);
     }
 
-    fn uninit(_widget: &mut Widget<Self>, _renderer: &mut Renderer) {}
-
-    fn get_type(&self) -> &'static str {
-        std::any::type_name::<Self>()
-    }
+    fn widget_uninit(&mut self, _renderer: &mut Renderer) {}
 }

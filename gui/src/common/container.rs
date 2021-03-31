@@ -1,4 +1,5 @@
 use super::*;
+use crate::screen::*;
 use nrg_math::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -24,24 +25,24 @@ impl Default for ContainerData {
     }
 }
 
-pub trait ContainerTrait: WidgetTrait {
+pub trait ContainerTrait: WidgetDataGetter {
     fn get_container_data(&self) -> &ContainerData;
     fn get_container_data_mut(&mut self) -> &mut ContainerData;
-    fn set_fill_type(&mut self, fill_type: ContainerFillType) -> &mut Self {
+    fn fill_type(&mut self, fill_type: ContainerFillType) -> &mut Self {
         self.get_container_data_mut().fill_type = fill_type;
         self
     }
     fn get_fill_type(&self) -> ContainerFillType {
         self.get_container_data().fill_type
     }
-    fn set_fit_to_content(&mut self, fit_to_content: bool) -> &mut Self {
+    fn fit_to_content(&mut self, fit_to_content: bool) -> &mut Self {
         self.get_container_data_mut().fit_to_content = fit_to_content;
         self
     }
     fn has_fit_to_content(&self) -> bool {
         self.get_container_data().fit_to_content
     }
-    fn set_space_between_elements(&mut self, space_in_px: u32) -> &mut Self {
+    fn space_between_elements(&mut self, space_in_px: u32) -> &mut Self {
         self.get_container_data_mut().space_between_elements = space_in_px;
         self
     }
@@ -49,16 +50,12 @@ pub trait ContainerTrait: WidgetTrait {
         self.get_container_data().space_between_elements
     }
 
-    fn fit_to_content<W>(widget: &mut Widget<W>)
-    where
-        W: WidgetTrait + Default + ContainerTrait,
-    {
-        let fill_type = widget.get().get_fill_type();
-        let fit_to_content = widget.get().has_fit_to_content();
-        let space = widget.get().get_space_between_elements();
+    fn apply_fit_to_content(&mut self) {
+        let fill_type = self.get_fill_type();
+        let fit_to_content = self.has_fit_to_content();
+        let space = self.get_space_between_elements();
 
-        let screen = widget.get_screen();
-        let data = widget.get_data_mut();
+        let data = self.get_data_mut();
         let node = &mut data.node;
         let parent_pos = data.state.get_position();
         let parent_size = data.state.get_size();
@@ -68,7 +65,7 @@ pub trait ContainerTrait: WidgetTrait {
         let mut index = 0;
         node.propagate_on_children_mut(|w| {
             let child_stroke =
-                screen.convert_size_into_pixels(w.get_data().graphics.get_stroke().into());
+                Screen::convert_size_into_pixels(w.get_data().graphics.get_stroke().into());
             let child_state = &mut w.get_data_mut().state;
             let child_pos = child_state.get_position();
             let child_size = child_state.get_size();

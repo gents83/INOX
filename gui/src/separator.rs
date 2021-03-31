@@ -1,25 +1,30 @@
 use super::*;
 use nrg_graphics::*;
+use nrg_math::*;
 use nrg_platform::*;
 use nrg_serialize::*;
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]
-pub struct Separator {}
+pub struct Separator {
+    data: WidgetData,
+}
+implement_widget!(Separator);
 
 impl Default for Separator {
     fn default() -> Self {
-        Self {}
+        Self {
+            data: WidgetData::default(),
+        }
     }
 }
 
-impl WidgetTrait for Separator {
-    fn init(widget: &mut Widget<Self>, renderer: &mut Renderer) {
-        let data = widget.get_data_mut();
+impl InternalWidget for Separator {
+    fn widget_init(&mut self, renderer: &mut Renderer) {
+        let data = self.get_data_mut();
         data.graphics.init(renderer, "UI");
 
-        widget
-            .draggable(false)
+        self.draggable(false)
             .size([DEFAULT_WIDGET_SIZE.x, 1].into())
             .stroke(1)
             .horizontal_alignment(HorizontalAlignment::Stretch)
@@ -30,17 +35,16 @@ impl WidgetTrait for Separator {
             .set_border_style(WidgetStyle::full_active());
     }
 
-    fn update(
-        widget: &mut Widget<Self>,
-        _parent_data: Option<&WidgetState>,
+    fn widget_update(
+        &mut self,
+        _drawing_area_in_px: Vector4u,
         _renderer: &mut Renderer,
         _events: &mut EventsRw,
         _input_handler: &InputHandler,
     ) {
-        let screen = widget.get_screen();
-        let data = widget.get_data_mut();
-        let pos = screen.convert_from_pixels_into_screen_space(data.state.get_position());
-        let size = screen.convert_size_from_pixels(data.state.get_size());
+        let data = self.get_data_mut();
+        let pos = Screen::convert_from_pixels_into_screen_space(data.state.get_position());
+        let size = Screen::convert_size_from_pixels(data.state.get_size());
         let mut mesh_data = MeshData::default();
         mesh_data
             .add_quad_default([0.0, 0.0, size.x, size.y].into(), data.state.get_layer())
@@ -49,9 +53,5 @@ impl WidgetTrait for Separator {
         data.graphics.set_mesh_data(mesh_data);
     }
 
-    fn uninit(_widget: &mut Widget<Self>, _renderer: &mut Renderer) {}
-
-    fn get_type(&self) -> &'static str {
-        std::any::type_name::<Self>()
-    }
+    fn widget_uninit(&mut self, _renderer: &mut Renderer) {}
 }
