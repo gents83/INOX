@@ -73,14 +73,14 @@ impl Checkbox {
                     inner_widget
                         .get_data_mut()
                         .graphics
-                        .set_style(WidgetStyle::full_active());
+                        .set_style(WidgetStyle::FullActive);
 
                     events.send_event(CheckboxEvent::Checked(id));
                 } else {
                     inner_widget
                         .get_data_mut()
                         .graphics
-                        .set_style(WidgetStyle::full_inactive());
+                        .set_style(WidgetStyle::FullInactive);
 
                     events.send_event(CheckboxEvent::Unchecked(id));
                 }
@@ -97,10 +97,8 @@ impl InternalWidget for Checkbox {
             return;
         }
 
-        let data = self.get_data_mut();
         let default_size = DEFAULT_WIDGET_SIZE * Screen::get_scale_factor();
 
-        data.graphics.set_style(WidgetStyle::default());
         self.size(default_size)
             .draggable(false)
             .selectable(true)
@@ -118,7 +116,7 @@ impl InternalWidget for Checkbox {
             .fit_to_content(false)
             .get_data_mut()
             .graphics
-            .set_style(WidgetStyle::full_inactive());
+            .set_style(WidgetStyle::FullInactive);
         self.checked_widget = self.add_child(Box::new(panel));
     }
 

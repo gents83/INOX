@@ -6,27 +6,20 @@ use nrg_serialize::*;
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]
-pub struct GraphNode {
-    #[serde(skip)]
-    title_widget: UID,
-    #[serde(skip)]
-    container: ContainerData,
+pub struct Canvas {
     data: WidgetData,
 }
-implement_widget!(GraphNode);
-implement_container!(GraphNode);
+implement_widget!(Canvas);
 
-impl Default for GraphNode {
+impl Default for Canvas {
     fn default() -> Self {
         Self {
-            container: ContainerData::default(),
             data: WidgetData::default(),
-            title_widget: INVALID_ID,
         }
     }
 }
 
-impl InternalWidget for GraphNode {
+impl InternalWidget for Canvas {
     fn widget_init(&mut self, renderer: &mut Renderer) {
         self.get_data_mut().graphics.init(renderer, "UI");
         if self.is_initialized() {
@@ -35,26 +28,10 @@ impl InternalWidget for GraphNode {
 
         let data = self.get_data_mut();
         data.graphics.set_style(WidgetStyle::DefaultBackground);
-
-        let default_size = DEFAULT_WIDGET_SIZE * Screen::get_scale_factor();
-        let size: Vector2u = [200, 100].into();
-        data.state
-            .set_position(Screen::get_center() - size / 2)
-            .set_size(size);
-
-        self.draggable(true)
-            .fill_type(ContainerFillType::Vertical)
-            .fit_to_content(true);
-
-        let mut title = Text::default();
-        title.init(renderer);
-        title
-            .draggable(false)
-            .size([0, default_size.y].into())
-            .vertical_alignment(VerticalAlignment::Top)
-            .horizontal_alignment(HorizontalAlignment::Center);
-        title.set_text("Title");
-        self.title_widget = self.add_child(Box::new(title));
+        
+        self.size(Screen::get_size())
+        .selectable(false)
+        .draggable(false);
     }
 
     fn widget_update(
@@ -64,8 +41,6 @@ impl InternalWidget for GraphNode {
         _events: &mut EventsRw,
         _input_handler: &InputHandler,
     ) {
-        self.apply_fit_to_content();
-
         let data = self.get_data_mut();
         let pos = Screen::convert_from_pixels_into_screen_space(data.state.get_position());
         let size = Screen::convert_size_from_pixels(data.state.get_size());

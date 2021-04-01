@@ -134,7 +134,7 @@ impl InternalWidget for Text {
         }
 
         let data = self.get_data_mut();
-        data.graphics.set_style(WidgetStyle::default_text());
+        data.graphics.set_style(WidgetStyle::DefaultText);
         data.state.set_draggable(false).set_selectable(false);
     }
 

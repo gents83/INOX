@@ -29,8 +29,6 @@ impl InternalWidget for Button {
         if self.is_initialized() {
             return;
         }
-        let data = self.get_data_mut();
-        data.graphics.set_style(WidgetStyle::default());
     }
 
     fn widget_update(

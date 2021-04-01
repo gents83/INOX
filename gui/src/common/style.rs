@@ -4,70 +4,69 @@ use nrg_serialize::*;
 
 #[derive(Clone, Copy)]
 pub enum WidgetInteractiveState {
-    Inactive = 0,
-    Active = 1,
-    Hover = 2,
-    Pressed = 3,
-    Count = 4,
+    Inactive,
+    Active,
+    Hover,
+    Pressed,
 }
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]
-pub struct WidgetStyle {
-    color: [Vector4f; WidgetInteractiveState::Count as _],
-}
-
-impl Default for WidgetStyle {
-    fn default() -> Self {
-        Self {
-            color: [COLOR_BLACK, COLOR_GRAY, COLOR_LIGHT_GRAY, COLOR_GRAY],
-        }
-    }
+pub enum WidgetStyle {
+    Default,
+    DefaultBackground,
+    DefaultBorder,
+    DefaultText,
+    FullActive,
+    FullInactive,
+    FullHighlight,
 }
 
 impl WidgetStyle {
-    pub fn get_color(&self, state: WidgetInteractiveState) -> Vector4f {
-        self.color[state as usize]
-    }
-    pub fn default_background() -> Self {
-        Self {
-            color: [
-                COLOR_BLACK,
-                COLOR_DARKEST_GRAY,
-                COLOR_LIGHT_GRAY,
-                COLOR_DARKEST_GRAY,
-            ],
-        }
-    }
-    pub fn default_border() -> Self {
-        Self {
-            color: [COLOR_BLACK, COLOR_DARK_GRAY, COLOR_GRAY, COLOR_LIGHT_GRAY],
-        }
-    }
-    pub fn default_text() -> Self {
-        Self {
-            color: [COLOR_LIGHT_GRAY, COLOR_WHITE, COLOR_LIGHT_GRAY, COLOR_WHITE],
-        }
-    }
-    pub fn full_active() -> Self {
-        Self {
-            color: [COLOR_WHITE, COLOR_WHITE, COLOR_WHITE, COLOR_WHITE],
-        }
-    }
-    pub fn full_highlight() -> Self {
-        Self {
-            color: [COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW, COLOR_YELLOW],
-        }
-    }
-
-    pub fn full_inactive() -> Self {
-        Self {
-            color: [
-                COLOR_DARK_GRAY,
-                COLOR_DARK_GRAY,
-                COLOR_DARK_GRAY,
-                COLOR_DARK_GRAY,
-            ],
+    pub fn color(style: &WidgetStyle, state: WidgetInteractiveState) -> Vector4f {
+        match style {
+            Self::Default => match state {
+                WidgetInteractiveState::Inactive => COLOR_BLACK,
+                WidgetInteractiveState::Active => COLOR_GRAY,
+                WidgetInteractiveState::Hover => COLOR_LIGHT_GRAY,
+                WidgetInteractiveState::Pressed => COLOR_GRAY,
+            },
+            Self::DefaultBackground => match state {
+                WidgetInteractiveState::Inactive => COLOR_BLACK,
+                WidgetInteractiveState::Active => COLOR_DARKEST_GRAY,
+                WidgetInteractiveState::Hover => COLOR_LIGHT_GRAY,
+                WidgetInteractiveState::Pressed => COLOR_DARKEST_GRAY,
+            },
+            Self::DefaultBorder => match state {
+                WidgetInteractiveState::Inactive => COLOR_BLACK,
+                WidgetInteractiveState::Active => COLOR_DARK_GRAY,
+                WidgetInteractiveState::Hover => COLOR_GRAY,
+                WidgetInteractiveState::Pressed => COLOR_LIGHT_GRAY,
+            },
+            Self::DefaultText => match state {
+                WidgetInteractiveState::Inactive => COLOR_LIGHT_GRAY,
+                WidgetInteractiveState::Active => COLOR_WHITE,
+                WidgetInteractiveState::Hover => COLOR_LIGHT_GRAY,
+                WidgetInteractiveState::Pressed => COLOR_WHITE,
+            },
+            Self::FullActive => match state {
+                WidgetInteractiveState::Inactive => COLOR_WHITE,
+                WidgetInteractiveState::Active => COLOR_WHITE,
+                WidgetInteractiveState::Hover => COLOR_WHITE,
+                WidgetInteractiveState::Pressed => COLOR_WHITE,
+            },
+            Self::FullInactive => match state {
+                WidgetInteractiveState::Inactive => COLOR_DARK_GRAY,
+                WidgetInteractiveState::Active => COLOR_DARK_GRAY,
+                WidgetInteractiveState::Hover => COLOR_DARK_GRAY,
+                WidgetInteractiveState::Pressed => COLOR_DARK_GRAY,
+            },
+            Self::FullHighlight => match state {
+                WidgetInteractiveState::Inactive => COLOR_YELLOW,
+                WidgetInteractiveState::Active => COLOR_YELLOW,
+                WidgetInteractiveState::Hover => COLOR_YELLOW,
+                WidgetInteractiveState::Pressed => COLOR_YELLOW,
+            },
         }
     }
 }

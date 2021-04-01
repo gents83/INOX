@@ -1,6 +1,7 @@
-use std::time::Instant;
+use std::{path::PathBuf, time::Instant};
 
 use super::config::*;
+use super::widgets::*;
 
 use nrg_commands::*;
 use nrg_core::*;
@@ -17,13 +18,10 @@ pub struct EditorUpdater {
     history: CommandsHistory,
     input_handler: InputHandler,
     fps_text_widget_id: UID,
-    history_text_widget_id: UID,
-    history_redo_button: UID,
-    history_undo_button: UID,
-    history_clear_button: UID,
     time_per_fps: f64,
     widget: Panel,
-    node: GraphNode,
+    history_panel: HistoryPanel,
+    canvas: Canvas,
 }
 
 impl EditorUpdater {
@@ -35,15 +33,12 @@ impl EditorUpdater {
             shared_data: shared_data.clone(),
             config: config.clone(),
             is_ctrl_pressed: false,
+            history_panel: HistoryPanel::default(),
             history: CommandsHistory::new(&events_rw),
             input_handler: InputHandler::default(),
-            node: GraphNode::default(),
+            canvas: Canvas::default(),
             widget: Panel::default(),
             fps_text_widget_id: INVALID_ID,
-            history_text_widget_id: INVALID_ID,
-            history_redo_button: INVALID_ID,
-            history_undo_button: INVALID_ID,
-            history_clear_button: INVALID_ID,
             time_per_fps: 0.,
         }
     }
@@ -72,13 +67,16 @@ impl System for EditorUpdater {
             events_rw.clone(),
         );
 
+        self.history_panel.init(renderer);
+        self.canvas.init(renderer);
+
         self.widget.init(renderer);
         self.widget
             .position([300, 300].into())
             .size([500, 800].into())
             .selectable(false)
             .vertical_alignment(VerticalAlignment::Top)
-            .horizontal_alignment(HorizontalAlignment::Left)
+            .horizontal_alignment(HorizontalAlignment::Right)
             .fill_type(ContainerFillType::Vertical)
             .fit_to_content(true)
             .space_between_elements(20);
@@ -92,19 +90,6 @@ impl System for EditorUpdater {
             .set_text("FPS: ");
         self.fps_text_widget_id = self.widget.add_child(Box::new(fps_text));
 
-        let (
-            history_panel,
-            history_text_id,
-            history_undo_button_id,
-            history_redo_button_id,
-            history_clear_button_id,
-        ) = self.create_history_widget(renderer);
-        self.widget.add_child(Box::new(history_panel));
-        self.history_text_widget_id = history_text_id;
-        self.history_undo_button = history_undo_button_id;
-        self.history_redo_button = history_redo_button_id;
-        self.history_clear_button = history_clear_button_id;
-
         let mut checkbox = Checkbox::default();
         checkbox.init(renderer);
         checkbox.horizontal_alignment(HorizontalAlignment::Left);
@@ -113,12 +98,23 @@ impl System for EditorUpdater {
         let mut editable_text = EditableText::default();
         editable_text.init(renderer);
         self.widget.add_child(Box::new(editable_text));
-
+        /*
         self.node.init(renderer);
-        self.serialize();
-
-        self.node = self.deserialize();
-        self.node.init(renderer);
+        */
+        let dir = "./data/widgets/";
+        if let Ok(dir) = std::fs::read_dir(dir) {
+            for entry in dir {
+                if let Ok(entry) = entry {
+                    let path = entry.path();
+                    if !path.is_dir() {
+                        let mut boxed_node = Box::new(GraphNode::default());
+                        deserialize_from_file(&mut boxed_node, path);
+                        boxed_node.as_mut().init(renderer);
+                        self.canvas.add_child(boxed_node);
+                    }
+                }
+            }
+        }
     }
 
     fn run(&mut self) -> bool {
@@ -128,8 +124,7 @@ impl System for EditorUpdater {
 
         self.update_mouse_pos()
             .update_keyboard_input()
-            .update_widgets()
-            .manage_history_interactions();
+            .update_widgets();
 
         self.history.update();
 
@@ -140,191 +135,21 @@ impl System for EditorUpdater {
         let read_data = self.shared_data.read().unwrap();
         let renderer = &mut *read_data.get_unique_resource_mut::<Renderer>();
 
-        self.node.uninit(renderer);
+        let childrens = self.canvas.get_data_mut().node.get_children();
+        for child in childrens {
+            let filepath = PathBuf::from(format!(
+                "./data/widgets/{}.widget",
+                child.id().to_simple().to_string()
+            ));
+            serialize_to_file(child, filepath);
+        }
+
+        self.canvas.uninit(renderer);
         self.widget.uninit(renderer);
     }
 }
 
 impl EditorUpdater {
-    fn serialize(&self) {
-        /*
-        let filepath = std::path::PathBuf::from(format!(
-            "./data/widgets/{}.widget",
-            self.node.id().to_simple().to_string()
-        ));*/
-
-        let filepath =
-            std::path::PathBuf::from("./data/widgets/9a06ae7e3633421fa6edcc63c3a7dcd8.widget");
-        serialize_to_file(&self.node, filepath);
-    }
-    pub fn deserialize<'a, T>(&self) -> T
-    where
-        T: for<'de> Deserialize<'de> + Default,
-    {
-        let mut data = T::default();
-        let filepath =
-            std::path::PathBuf::from("./data/widgets/9a06ae7e3633421fa6edcc63c3a7dcd8.widget");
-        deserialize_from_file(&mut data, filepath);
-        data
-    }
-    fn create_history_widget(&self, renderer: &mut Renderer) -> (Panel, UID, UID, UID, UID) {
-        let mut history_panel = Panel::default();
-        history_panel.init(renderer);
-        history_panel
-            .size([400, 100].into())
-            .horizontal_alignment(HorizontalAlignment::Stretch)
-            .selectable(false)
-            .draggable(false)
-            .fill_type(ContainerFillType::Vertical)
-            .space_between_elements(5);
-
-        let mut label = Text::default();
-        label.init(renderer);
-        label
-            .size([0, 16].into())
-            .vertical_alignment(VerticalAlignment::Top)
-            .horizontal_alignment(HorizontalAlignment::Left)
-            .set_text("Command History:");
-        history_panel.add_child(Box::new(label));
-
-        let mut button_box = Panel::default();
-        button_box.init(renderer);
-        button_box
-            .horizontal_alignment(HorizontalAlignment::Stretch)
-            .selectable(false)
-            .draggable(false)
-            .fit_to_content(true)
-            .fill_type(ContainerFillType::Horizontal)
-            .space_between_elements(10);
-
-        let mut history_undo = Button::default();
-        history_undo.init(renderer);
-        history_undo.size([150, 100].into()).stroke(10);
-        let mut text = Text::default();
-        text.init(renderer);
-        text.size([0, 20].into())
-            .vertical_alignment(VerticalAlignment::Center)
-            .horizontal_alignment(HorizontalAlignment::Center)
-            .set_text("Undo");
-        history_undo.add_child(Box::new(text));
-
-        let mut history_redo = Button::default();
-        history_redo.init(renderer);
-        history_redo.size([150, 100].into()).stroke(10);
-        let mut text = Text::default();
-        text.init(renderer);
-        text.size([0, 20].into())
-            .vertical_alignment(VerticalAlignment::Center)
-            .horizontal_alignment(HorizontalAlignment::Center)
-            .set_text("Redo");
-        history_redo.add_child(Box::new(text));
-
-        let mut history_clear = Button::default();
-        history_clear.init(renderer);
-        history_clear.size([150, 100].into()).stroke(10);
-        let mut text = Text::default();
-        text.init(renderer);
-        text.size([0, 20].into())
-            .vertical_alignment(VerticalAlignment::Center)
-            .horizontal_alignment(HorizontalAlignment::Center)
-            .set_text("Clear");
-        history_clear.add_child(Box::new(text));
-
-        let history_undo_button_id = button_box.add_child(Box::new(history_undo));
-        let history_redo_button_id = button_box.add_child(Box::new(history_redo));
-        let history_clear_button_id = button_box.add_child(Box::new(history_clear));
-
-        history_panel.add_child(Box::new(button_box));
-
-        let mut separator = Separator::default();
-        separator.init(renderer);
-        history_panel.add_child(Box::new(separator));
-
-        let mut history_commands_box = Panel::default();
-        history_commands_box.init(renderer);
-        history_commands_box
-            .size([300, 20].into())
-            .horizontal_alignment(HorizontalAlignment::Stretch)
-            .selectable(false)
-            .draggable(false)
-            .fit_to_content(true)
-            .fill_type(ContainerFillType::Vertical)
-            .space_between_elements(10);
-
-        let history_text_id = history_panel.add_child(Box::new(history_commands_box));
-
-        let mut separator = Separator::default();
-        separator.init(renderer);
-        history_panel.add_child(Box::new(separator));
-
-        (
-            history_panel,
-            history_text_id,
-            history_undo_button_id,
-            history_redo_button_id,
-            history_clear_button_id,
-        )
-    }
-
-    fn update_history_widget(&mut self) -> &mut Self {
-        if let Some(history_commands_box) = self
-            .widget
-            .get_data_mut()
-            .node
-            .get_child::<Panel>(self.history_text_widget_id)
-        {
-            let read_data = self.shared_data.read().unwrap();
-            let renderer = &mut *read_data.get_unique_resource_mut::<Renderer>();
-            history_commands_box.remove_children(renderer);
-            if let Some(history_debug_commands) =
-                self.history.get_undoable_commands_history_as_string()
-            {
-                for (index, str) in history_debug_commands.iter().enumerate() {
-                    let mut text = Text::default();
-                    text.init(renderer);
-                    text.position(
-                        [
-                            0,
-                            20 * history_commands_box.get_data_mut().node.get_num_children() as u32,
-                        ]
-                        .into(),
-                    )
-                    .size([300, 20].into())
-                    .set_text(str);
-                    if index >= history_debug_commands.len() - 1 {
-                        text.get_data_mut()
-                            .graphics
-                            .set_style(WidgetStyle::full_highlight())
-                            .set_border_style(WidgetStyle::full_highlight());
-                        let mut string = String::from("-> ");
-                        string.push_str(str);
-                        text.set_text(string.as_str());
-                    }
-                    history_commands_box.add_child(Box::new(text));
-                }
-            }
-            if let Some(history_debug_commands) =
-                self.history.get_redoable_commands_history_as_string()
-            {
-                for str in history_debug_commands.iter().rev() {
-                    let mut text = Text::default();
-                    text.init(renderer);
-                    text.position(
-                        [
-                            0,
-                            20 * history_commands_box.get_data_mut().node.get_num_children() as u32,
-                        ]
-                        .into(),
-                    )
-                    .size([300, 20].into())
-                    .set_text(str);
-                    history_commands_box.add_child(Box::new(text));
-                }
-            }
-        }
-        self
-    }
-
     fn update_fps_counter(&mut self, time: &Instant) -> &mut Self {
         if let Some(widget) = self
             .widget
@@ -339,8 +164,6 @@ impl EditorUpdater {
         self
     }
     fn update_widgets(&mut self) -> &mut Self {
-        self.update_history_widget();
-
         {
             let read_data = self.shared_data.read().unwrap();
             let events = &mut *read_data.get_unique_resource_mut::<EventsRw>();
@@ -353,7 +176,10 @@ impl EditorUpdater {
                 &self.input_handler,
             );
 
-            self.node.update(
+            self.history_panel
+                .update(renderer, events, &self.input_handler, &mut self.history);
+
+            self.canvas.update(
                 Screen::get_draw_area(),
                 renderer,
                 events,
@@ -364,39 +190,18 @@ impl EditorUpdater {
         self
     }
 
-    fn manage_history_interactions(&mut self) -> &mut Self {
+    fn load_pipelines(&mut self) {
         {
             let read_data = self.shared_data.read().unwrap();
-            let events_rw = &mut *read_data.get_unique_resource_mut::<EventsRw>();
-            let events = events_rw.read().unwrap();
+            let renderer = &mut *read_data.get_unique_resource_mut::<Renderer>();
 
-            if let Some(button_events) = events.read_events::<WidgetEvent>() {
-                for event in button_events.iter() {
-                    if let WidgetEvent::Pressed(widget_id) = event {
-                        if *widget_id == self.history_redo_button {
-                            self.history.redo_last_command();
-                        } else if *widget_id == self.history_undo_button {
-                            self.history.undo_last_command();
-                        } else if *widget_id == self.history_clear_button {
-                            self.history.clear();
-                        }
-                    }
-                }
+            for pipeline_data in self.config.pipelines.iter() {
+                renderer.add_pipeline(pipeline_data);
             }
+
+            let pipeline_id = renderer.get_pipeline_id("Font");
+            renderer.add_font(pipeline_id, self.config.fonts.first().unwrap());
         }
-        self
-    }
-
-    fn load_pipelines(&mut self) {
-        let read_data = self.shared_data.read().unwrap();
-        let renderer = &mut *read_data.get_unique_resource_mut::<Renderer>();
-
-        for pipeline_data in self.config.pipelines.iter() {
-            renderer.add_pipeline(pipeline_data);
-        }
-
-        let pipeline_id = renderer.get_pipeline_id("Font");
-        renderer.add_font(pipeline_id, self.config.fonts.first().unwrap());
     }
 
     fn update_mouse_pos(&mut self) -> &mut Self {

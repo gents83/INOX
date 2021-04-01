@@ -31,6 +31,9 @@ impl WidgetNode {
         self
     }
 
+    pub fn get_children(&self) -> &Vec<Box<dyn Widget>> {
+        &self.children
+    }
     pub fn get_child<W>(&mut self, uid: UID) -> Option<&mut W>
     where
         W: Widget,

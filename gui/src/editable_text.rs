@@ -215,10 +215,8 @@ impl InternalWidget for EditableText {
             return;
         }
 
-        let data = self.get_data_mut();
         let default_size = DEFAULT_WIDGET_SIZE * Screen::get_scale_factor();
 
-        data.graphics.set_style(WidgetStyle::default());
         self.size(default_size)
             .draggable(false)
             .selectable(true)

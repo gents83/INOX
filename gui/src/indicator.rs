@@ -49,13 +49,13 @@ impl Indicator {
             if !blinking {
                 self.get_data_mut()
                     .graphics
-                    .set_style(WidgetStyle::full_active())
-                    .set_border_style(WidgetStyle::full_active());
+                    .set_style(WidgetStyle::FullActive)
+                    .set_border_style(WidgetStyle::FullActive);
             } else {
                 self.get_data_mut()
                     .graphics
-                    .set_style(WidgetStyle::full_inactive())
-                    .set_border_style(WidgetStyle::full_inactive());
+                    .set_style(WidgetStyle::FullInactive)
+                    .set_border_style(WidgetStyle::FullInactive);
             }
             self.is_blinking = !blinking;
         }
@@ -75,8 +75,8 @@ impl InternalWidget for Indicator {
             .selectable(false)
             .get_data_mut()
             .graphics
-            .set_style(WidgetStyle::full_active())
-            .set_border_style(WidgetStyle::full_active());
+            .set_style(WidgetStyle::FullActive)
+            .set_border_style(WidgetStyle::FullActive);
     }
 
     fn widget_update(

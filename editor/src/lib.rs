@@ -5,6 +5,7 @@ use nrg_core::*;
 mod config;
 mod editor;
 mod editor_updater;
+mod widgets;
 
 #[no_mangle]
 pub extern "C" fn create_plugin() -> PluginHolder {

@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 pub use self::button::*;
+pub use self::canvas::*;
 pub use self::checkbox::*;
 pub use self::commands::*;
 pub use self::common::*;
@@ -13,6 +14,7 @@ pub use self::separator::*;
 pub use self::text::*;
 
 pub mod button;
+pub mod canvas;
 pub mod checkbox;
 pub mod commands;
 pub mod common;

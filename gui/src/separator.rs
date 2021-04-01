@@ -32,8 +32,8 @@ impl InternalWidget for Separator {
             .selectable(false)
             .get_data_mut()
             .graphics
-            .set_style(WidgetStyle::full_active())
-            .set_border_style(WidgetStyle::full_active());
+            .set_style(WidgetStyle::FullActive)
+            .set_border_style(WidgetStyle::FullActive);
     }
 
     fn widget_update(

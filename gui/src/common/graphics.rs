@@ -37,8 +37,8 @@ impl Default for WidgetGraphics {
             color: Vector4f::default(),
             border_color: Vector4f::default(),
             stroke: 0.0,
-            style: WidgetStyle::default(),
-            border_style: WidgetStyle::default_border(),
+            style: WidgetStyle::Default,
+            border_style: WidgetStyle::DefaultBorder,
         }
     }
 }
@@ -79,8 +79,8 @@ impl WidgetGraphics {
 
     pub fn get_colors(&self, state: WidgetInteractiveState) -> (Vector4f, Vector4f) {
         (
-            self.style.get_color(state),
-            self.border_style.get_color(state),
+            WidgetStyle::color(&self.style, state),
+            WidgetStyle::color(&self.border_style, state),
         )
     }
 
