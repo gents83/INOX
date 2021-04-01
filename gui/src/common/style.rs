@@ -41,7 +41,7 @@ impl WidgetStyle {
             Self::DefaultBackground => match state {
                 WidgetInteractiveState::Inactive => COLOR_DARKEST_GRAY,
                 WidgetInteractiveState::Active => COLOR_DARKEST_GRAY,
-                WidgetInteractiveState::Hover => COLOR_DARKEST_GRAY,
+                WidgetInteractiveState::Hover => COLOR_LIGHT_GRAY,
                 WidgetInteractiveState::Pressed => COLOR_DARKEST_GRAY,
             },
             Self::DefaultBorder => match state {

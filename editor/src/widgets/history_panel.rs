@@ -1,6 +1,7 @@
 use nrg_commands::*;
 use nrg_graphics::*;
 use nrg_gui::*;
+use nrg_math::*;
 use nrg_platform::*;
 use nrg_serialize::*;
 
@@ -57,36 +58,15 @@ impl HistoryPanel {
 
         let mut history_undo = Button::default();
         history_undo.init(renderer);
-        history_undo.size([150, 100].into()).stroke(10);
-        let mut text = Text::default();
-        text.init(renderer);
-        text.size([0, 20].into())
-            .vertical_alignment(VerticalAlignment::Center)
-            .horizontal_alignment(HorizontalAlignment::Center)
-            .set_text("Undo");
-        history_undo.add_child(Box::new(text));
+        history_undo.stroke(10).set_text("Undo");
 
         let mut history_redo = Button::default();
         history_redo.init(renderer);
-        history_redo.size([150, 100].into()).stroke(10);
-        let mut text = Text::default();
-        text.init(renderer);
-        text.size([0, 20].into())
-            .vertical_alignment(VerticalAlignment::Center)
-            .horizontal_alignment(HorizontalAlignment::Center)
-            .set_text("Redo");
-        history_redo.add_child(Box::new(text));
+        history_redo.stroke(10).set_text("Redo");
 
         let mut history_clear = Button::default();
         history_clear.init(renderer);
-        history_clear.size([150, 100].into()).stroke(10);
-        let mut text = Text::default();
-        text.init(renderer);
-        text.size([0, 20].into())
-            .vertical_alignment(VerticalAlignment::Center)
-            .horizontal_alignment(HorizontalAlignment::Center)
-            .set_text("Clear");
-        history_clear.add_child(Box::new(text));
+        history_clear.stroke(10).set_text("Clear");
 
         let history_undo_button_id = button_box.add_child(Box::new(history_undo));
         let history_redo_button_id = button_box.add_child(Box::new(history_redo));
@@ -230,6 +210,7 @@ impl HistoryPanel {
 
     pub fn update(
         &mut self,
+        drawing_area_in_px: Vector4u,
         renderer: &mut Renderer,
         events: &mut EventsRw,
         input_handler: &InputHandler,
@@ -238,7 +219,7 @@ impl HistoryPanel {
         self.update_history_widget(renderer, &history);
 
         self.history_panel
-            .update(Screen::get_draw_area(), renderer, events, input_handler);
+            .update(drawing_area_in_px, renderer, events, input_handler);
 
         self.manage_history_interactions(events, history);
     }

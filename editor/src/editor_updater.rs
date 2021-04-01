@@ -19,9 +19,10 @@ pub struct EditorUpdater {
     input_handler: InputHandler,
     fps_text_widget_id: UID,
     time_per_fps: f64,
+    main_menu: MainMenu,
+    canvas: Canvas,
     widget: Panel,
     history_panel: HistoryPanel,
-    canvas: Canvas,
 }
 
 impl EditorUpdater {
@@ -36,6 +37,7 @@ impl EditorUpdater {
             history_panel: HistoryPanel::default(),
             history: CommandsHistory::new(&events_rw),
             input_handler: InputHandler::default(),
+            main_menu: MainMenu::default(),
             canvas: Canvas::default(),
             widget: Panel::default(),
             fps_text_widget_id: INVALID_ID,
@@ -67,8 +69,9 @@ impl System for EditorUpdater {
             events_rw.clone(),
         );
 
-        self.history_panel.init(renderer);
+        self.main_menu.init(renderer);
         self.canvas.init(renderer);
+        self.history_panel.init(renderer);
 
         self.widget.init(renderer);
         self.widget
@@ -169,22 +172,28 @@ impl EditorUpdater {
             let events = &mut *read_data.get_unique_resource_mut::<EventsRw>();
             let renderer = &mut *read_data.get_unique_resource_mut::<Renderer>();
 
-            self.widget.update(
-                Screen::get_draw_area(),
+            self.main_menu.update(renderer, events, &self.input_handler);
+            let draw_area = [
+                0,
+                self.main_menu.get_size().y + DEFAULT_WIDGET_SIZE.y,
+                Screen::get_size().x,
+                Screen::get_size().y,
+            ]
+            .into();
+
+            self.widget
+                .update(draw_area, renderer, events, &self.input_handler);
+
+            self.history_panel.update(
+                draw_area,
                 renderer,
                 events,
                 &self.input_handler,
+                &mut self.history,
             );
 
-            self.history_panel
-                .update(renderer, events, &self.input_handler, &mut self.history);
-
-            self.canvas.update(
-                Screen::get_draw_area(),
-                renderer,
-                events,
-                &self.input_handler,
-            );
+            self.canvas
+                .update(draw_area, renderer, events, &self.input_handler);
         }
 
         self

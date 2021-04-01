@@ -4,54 +4,60 @@ use nrg_math::*;
 use nrg_platform::*;
 use nrg_serialize::*;
 
-const DEFAULT_BUTTON_SIZE: Vector2u = Vector2u { x: 150, y: 100 };
+const DEFAULT_MENU_SIZE: Vector2u = Vector2u { x: 0, y: 20 };
+const DEFAULT_MENU_ITEM_SIZE: Vector2u = Vector2u { x: 200, y: 100 };
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]
-pub struct Button {
+pub struct Menu {
     #[serde(skip)]
     container: ContainerData,
     data: WidgetData,
-    label_id: UID,
 }
-implement_widget!(Button);
-implement_container!(Button);
+implement_widget!(Menu);
+implement_container!(Menu);
 
-impl Default for Button {
+impl Default for Menu {
     fn default() -> Self {
         Self {
             container: ContainerData::default(),
             data: WidgetData::default(),
-            label_id: INVALID_ID,
         }
     }
 }
 
-impl Button {
-    pub fn set_text(&mut self, text: &str) -> &mut Self {
-        let label_id = self.label_id;
-        if let Some(label) = self.get_data_mut().node.get_child::<Text>(label_id) {
-            label.set_text(text);
-        }
-        self
+impl Menu {
+    pub fn add_menu_item(&mut self, renderer: &mut Renderer, label: &str) {
+        let mut button = Button::default();
+        button.init(renderer);
+        button
+            .size(DEFAULT_MENU_ITEM_SIZE * Screen::get_scale_factor())
+            .set_text(label);
+        button
+            .get_data_mut()
+            .graphics
+            .set_style(WidgetStyle::DefaultBackground);
+
+        self.add_child(Box::new(button));
     }
 }
 
-impl InternalWidget for Button {
+impl InternalWidget for Menu {
     fn widget_init(&mut self, renderer: &mut Renderer) {
         self.get_data_mut().graphics.init(renderer, "UI");
         if self.is_initialized() {
             return;
         }
-        self.size(DEFAULT_BUTTON_SIZE * Screen::get_scale_factor());
 
-        let mut text = Text::default();
-        text.init(renderer);
-        text.size([0, 20].into())
-            .vertical_alignment(VerticalAlignment::Center)
-            .horizontal_alignment(HorizontalAlignment::Center)
-            .set_text("Button");
-        self.label_id = self.add_child(Box::new(text));
+        self.size(DEFAULT_MENU_SIZE * Screen::get_scale_factor())
+            .selectable(false)
+            .vertical_alignment(VerticalAlignment::Top)
+            .horizontal_alignment(HorizontalAlignment::Stretch)
+            .fill_type(ContainerFillType::Horizontal)
+            .fit_to_content(false);
+
+        let data = self.get_data_mut();
+        data.graphics.set_style(WidgetStyle::DefaultBackground);
     }
 
     fn widget_update(
@@ -61,8 +67,6 @@ impl InternalWidget for Button {
         _events: &mut EventsRw,
         _input_handler: &InputHandler,
     ) {
-        self.apply_fit_to_content();
-
         let data = self.get_data_mut();
         let pos = Screen::convert_from_pixels_into_screen_space(data.state.get_position());
         let size = Screen::convert_size_from_pixels(data.state.get_size());
