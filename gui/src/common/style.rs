@@ -14,6 +14,7 @@ pub enum WidgetInteractiveState {
 #[serde(crate = "nrg_serialize")]
 pub enum WidgetStyle {
     Default,
+    DefaultCanvas,
     DefaultBackground,
     DefaultBorder,
     DefaultText,
@@ -31,10 +32,16 @@ impl WidgetStyle {
                 WidgetInteractiveState::Hover => COLOR_LIGHT_GRAY,
                 WidgetInteractiveState::Pressed => COLOR_GRAY,
             },
-            Self::DefaultBackground => match state {
+            Self::DefaultCanvas => match state {
                 WidgetInteractiveState::Inactive => COLOR_BLACK,
+                WidgetInteractiveState::Active => COLOR_BLACK,
+                WidgetInteractiveState::Hover => COLOR_BLACK,
+                WidgetInteractiveState::Pressed => COLOR_BLACK,
+            },
+            Self::DefaultBackground => match state {
+                WidgetInteractiveState::Inactive => COLOR_DARKEST_GRAY,
                 WidgetInteractiveState::Active => COLOR_DARKEST_GRAY,
-                WidgetInteractiveState::Hover => COLOR_LIGHT_GRAY,
+                WidgetInteractiveState::Hover => COLOR_DARKEST_GRAY,
                 WidgetInteractiveState::Pressed => COLOR_DARKEST_GRAY,
             },
             Self::DefaultBorder => match state {

@@ -29,7 +29,7 @@ impl HistoryPanel {
         let mut history_panel = Panel::default();
         history_panel.init(renderer);
         history_panel
-            .size([400, 100].into())
+            .size([500, 100].into())
             .horizontal_alignment(HorizontalAlignment::Stretch)
             .selectable(false)
             .draggable(false)
@@ -53,7 +53,7 @@ impl HistoryPanel {
             .draggable(false)
             .fit_to_content(true)
             .fill_type(ContainerFillType::Horizontal)
-            .space_between_elements(5);
+            .space_between_elements(25);
 
         let mut history_undo = Button::default();
         history_undo.init(renderer);
@@ -207,8 +207,7 @@ impl HistoryPanel {
     pub fn init(&mut self, renderer: &mut Renderer) {
         self.history_panel.init(renderer);
         self.history_panel
-            .position([300, 300].into())
-            .size([500, 800].into())
+            .size([600, 800].into())
             .selectable(false)
             .vertical_alignment(VerticalAlignment::Top)
             .horizontal_alignment(HorizontalAlignment::Left)

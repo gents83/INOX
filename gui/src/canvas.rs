@@ -27,7 +27,7 @@ impl InternalWidget for Canvas {
         }
 
         let data = self.get_data_mut();
-        data.graphics.set_style(WidgetStyle::DefaultBackground);
+        data.graphics.set_style(WidgetStyle::DefaultCanvas);
         
         self.size(Screen::get_size())
         .selectable(false)
