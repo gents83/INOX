@@ -58,12 +58,14 @@ impl WidgetGraphics {
         self
     }
     pub fn remove_meshes(&mut self, renderer: &mut Renderer) -> &mut Self {
-        renderer.remove_mesh(self.material_id, self.border_mesh_id);
-        renderer.remove_mesh(self.material_id, self.mesh_id);
-        self.border_mesh_id = INVALID_ID;
-        self.border_mesh_data.clear();
-        self.mesh_id = INVALID_ID;
-        self.mesh_data.clear();
+        if self.border_mesh_id != INVALID_ID || self.mesh_id != INVALID_ID {
+            renderer.remove_mesh(self.material_id, self.border_mesh_id);
+            renderer.remove_mesh(self.material_id, self.mesh_id);
+            self.border_mesh_id = INVALID_ID;
+            self.border_mesh_data.clear();
+            self.mesh_id = INVALID_ID;
+            self.mesh_data.clear();
+        }
         self
     }
 
@@ -157,12 +159,7 @@ impl WidgetGraphics {
                 renderer.update_mesh(self.material_id, self.mesh_id, &self.mesh_data);
             }
         } else {
-            if self.border_mesh_id != INVALID_ID {
-                renderer.remove_mesh(self.material_id, self.border_mesh_id);
-            }
-            if self.mesh_id != INVALID_ID {
-                renderer.remove_mesh(self.material_id, self.mesh_id);
-            }
+            self.remove_meshes(renderer);
         }
         self
     }

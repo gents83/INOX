@@ -4,6 +4,7 @@ use nrg_math::*;
 use nrg_platform::*;
 use nrg_serialize::*;
 
+const DEFAULT_MENU_LAYER: f32 = 0.5;
 const DEFAULT_MENU_SIZE: Vector2u = Vector2u { x: 200, y: 20 };
 const DEFAULT_MENU_ITEM_SIZE: Vector2u = Vector2u { x: 100, y: 20 };
 const DEFAULT_SUBMENU_ITEM_SIZE: Vector2u = Vector2u { x: 300, y: 500 };
@@ -71,6 +72,8 @@ impl Menu {
             .graphics
             .set_style(WidgetStyle::DefaultBackground);
 
+        submenu.move_to_layer(DEFAULT_MENU_LAYER);
+
         let menu_item_id = self.add_child(Box::new(button));
         self.entries.push(MenuItemPanel {
             menu_item_id,
@@ -115,7 +118,7 @@ impl Menu {
             for event in widget_events.iter() {
                 if let WidgetEvent::Released(widget_id) = event {
                     self.entries.iter_mut().for_each(|e| {
-                        if e.submenu.id() == *widget_id {
+                        if e.menu_item_id == *widget_id {
                             e.opened = !e.opened;
                             e.submenu.visible(e.opened);
                         }

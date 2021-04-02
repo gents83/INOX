@@ -48,14 +48,15 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
             w.set_visible(is_visible);
             w.update(widget_clip, renderer, events, input_handler);
         });
+        if is_visible {
+            self.manage_input(events, input_handler);
+            self.manage_events(events);
+            self.manage_style();
 
-        self.manage_input(events, input_handler);
-        self.manage_events(events);
-        self.manage_style();
+            self.widget_update(drawing_area_in_px, renderer, events, input_handler);
 
-        self.widget_update(drawing_area_in_px, renderer, events, input_handler);
-
-        self.update_layout(drawing_area_in_px);
+            self.update_layout(drawing_area_in_px);
+        }
         self.get_data_mut().graphics.update(renderer, is_visible);
     }
 
@@ -352,7 +353,16 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         });
         self.get_data_mut().node.remove_children();
     }
-
+    fn has_child(&self, uid: UID) -> bool {
+        let mut found = false;
+        self.get_data().node.propagate_on_children(|w| {
+            println!("child {}", w.id().to_simple().to_string().as_str());
+            if w.id() == uid {
+                found = true;
+            }
+        });
+        found
+    }
     fn set_visible(&mut self, visible: bool) {
         self.get_data_mut().node.propagate_on_children_mut(|w| {
             w.set_visible(visible);
