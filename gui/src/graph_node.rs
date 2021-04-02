@@ -42,9 +42,7 @@ impl InternalWidget for GraphNode {
             .set_position(Screen::get_center() - size / 2)
             .set_size(size);
 
-        self.draggable(true)
-            .fill_type(ContainerFillType::Vertical)
-            .fit_to_content(true);
+        self.draggable(true);
 
         let mut title = Text::default();
         title.init(renderer);

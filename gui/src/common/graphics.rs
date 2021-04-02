@@ -140,20 +140,29 @@ impl WidgetGraphics {
         self.mesh_data.is_inside(pos_in_screen_space)
     }
 
-    pub fn update(&mut self, renderer: &mut Renderer) -> &mut Self {
-        if self.border_mesh_id == INVALID_ID && self.stroke > 0.0 {
-            self.border_mesh_id = renderer.add_mesh(self.material_id, &self.border_mesh_data);
+    pub fn update(&mut self, renderer: &mut Renderer, is_visible: bool) -> &mut Self {
+        if is_visible {
+            if self.border_mesh_id == INVALID_ID && self.stroke > 0.0 {
+                self.border_mesh_id = renderer.add_mesh(self.material_id, &self.border_mesh_data);
+            } else {
+                renderer.update_mesh(
+                    self.material_id,
+                    self.border_mesh_id,
+                    &self.border_mesh_data,
+                );
+            }
+            if self.mesh_id == INVALID_ID {
+                self.mesh_id = renderer.add_mesh(self.material_id, &self.mesh_data);
+            } else {
+                renderer.update_mesh(self.material_id, self.mesh_id, &self.mesh_data);
+            }
         } else {
-            renderer.update_mesh(
-                self.material_id,
-                self.border_mesh_id,
-                &self.border_mesh_data,
-            );
-        }
-        if self.mesh_id == INVALID_ID {
-            self.mesh_id = renderer.add_mesh(self.material_id, &self.mesh_data);
-        } else {
-            renderer.update_mesh(self.material_id, self.mesh_id, &self.mesh_data);
+            if self.border_mesh_id != INVALID_ID {
+                renderer.remove_mesh(self.material_id, self.border_mesh_id);
+            }
+            if self.mesh_id != INVALID_ID {
+                renderer.remove_mesh(self.material_id, self.mesh_id);
+            }
         }
         self
     }

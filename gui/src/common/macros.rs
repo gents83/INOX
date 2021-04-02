@@ -60,6 +60,10 @@ macro_rules! implement_widget {
                 self.get_data_mut().state.set_vertical_alignment(alignment);
                 self
             }
+            pub fn visible(&mut self, visible: bool) -> &mut Self {
+                self.set_visible(visible);
+                self
+            }
         }
     };
 }

@@ -80,8 +80,6 @@ impl System for EditorUpdater {
             .selectable(false)
             .vertical_alignment(VerticalAlignment::Top)
             .horizontal_alignment(HorizontalAlignment::Right)
-            .fill_type(ContainerFillType::Vertical)
-            .fit_to_content(true)
             .space_between_elements(20);
 
         let mut fps_text = Text::default();
@@ -130,7 +128,6 @@ impl System for EditorUpdater {
             .update_widgets();
 
         self.history.update();
-
         self.update_fps_counter(&time);
         true
     }
@@ -173,6 +170,7 @@ impl EditorUpdater {
             let renderer = &mut *read_data.get_unique_resource_mut::<Renderer>();
 
             self.main_menu.update(renderer, events, &self.input_handler);
+
             let draw_area = [
                 0,
                 self.main_menu.get_size().y + DEFAULT_WIDGET_SIZE.y,
@@ -191,7 +189,6 @@ impl EditorUpdater {
                 &self.input_handler,
                 &mut self.history,
             );
-
             self.canvas
                 .update(draw_area, renderer, events, &self.input_handler);
         }

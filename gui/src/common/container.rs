@@ -62,7 +62,6 @@ pub trait ContainerTrait: WidgetDataGetter {
 
         let mut children_min_pos: Vector2i = [i32::max_value(), i32::max_value()].into();
         let mut children_size: Vector2u = [0, 0].into();
-        let mut index = 0;
         node.propagate_on_children_mut(|w| {
             let child_stroke =
                 Screen::convert_size_into_pixels(w.get_data().graphics.get_stroke().into());
@@ -105,7 +104,6 @@ pub trait ContainerTrait: WidgetDataGetter {
                     children_size.y = parent_size.y;
                 }
             }
-            index += 1;
         });
         if !fit_to_content {
             children_size.x = parent_size.x;

@@ -42,8 +42,10 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         events: &mut EventsRw,
         input_handler: &InputHandler,
     ) {
+        let is_visible = self.get_data().state.is_visible();
         let widget_clip = self.compute_children_clip_area();
         self.get_data_mut().node.propagate_on_children_mut(|w| {
+            w.set_visible(is_visible);
             w.update(widget_clip, renderer, events, input_handler);
         });
 
@@ -54,7 +56,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         self.widget_update(drawing_area_in_px, renderer, events, input_handler);
 
         self.update_layout(drawing_area_in_px);
-        self.get_data_mut().graphics.update(renderer);
+        self.get_data_mut().graphics.update(renderer, is_visible);
     }
 
     fn uninit(&mut self, renderer: &mut Renderer) {
@@ -349,5 +351,12 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
             w.get_data_mut().graphics.remove_meshes(renderer);
         });
         self.get_data_mut().node.remove_children();
+    }
+
+    fn set_visible(&mut self, visible: bool) {
+        self.get_data_mut().node.propagate_on_children_mut(|w| {
+            w.set_visible(visible);
+        });
+        self.get_data_mut().state.set_visible(visible);
     }
 }

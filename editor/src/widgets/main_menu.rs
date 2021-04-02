@@ -2,15 +2,18 @@ use nrg_graphics::*;
 use nrg_gui::*;
 use nrg_math::*;
 use nrg_platform::*;
+use nrg_serialize::*;
 
 pub struct MainMenu {
     menu: Menu,
+    file_id: UID,
 }
 
 impl Default for MainMenu {
     fn default() -> Self {
         Self {
             menu: Menu::default(),
+            file_id: INVALID_ID,
         }
     }
 }
@@ -23,7 +26,11 @@ impl MainMenu {
     pub fn init(&mut self, renderer: &mut Renderer) {
         self.menu.init(renderer);
 
-        self.menu.add_menu_item(renderer, "File");
+        self.file_id = self.menu.add_menu_item(renderer, "File");
+        self.menu
+            .add_submenu_entry_for(renderer, self.file_id, "New");
+        self.menu
+            .add_submenu_entry_for(renderer, self.file_id, "Exit");
     }
 
     pub fn update(

@@ -30,11 +30,9 @@ impl HistoryPanel {
         let mut history_panel = Panel::default();
         history_panel.init(renderer);
         history_panel
-            .size([500, 100].into())
-            .horizontal_alignment(HorizontalAlignment::Stretch)
+            .size([650, 100].into())
             .selectable(false)
             .draggable(false)
-            .fill_type(ContainerFillType::Vertical)
             .space_between_elements(5);
 
         let mut label = Text::default();
@@ -49,24 +47,22 @@ impl HistoryPanel {
         let mut button_box = Panel::default();
         button_box.init(renderer);
         button_box
-            .horizontal_alignment(HorizontalAlignment::Stretch)
             .selectable(false)
             .draggable(false)
-            .fit_to_content(true)
             .fill_type(ContainerFillType::Horizontal)
-            .space_between_elements(25);
+            .space_between_elements(10);
 
         let mut history_undo = Button::default();
         history_undo.init(renderer);
-        history_undo.stroke(10).set_text("Undo");
+        history_undo.stroke(2).set_text("Undo");
 
         let mut history_redo = Button::default();
         history_redo.init(renderer);
-        history_redo.stroke(10).set_text("Redo");
+        history_redo.stroke(2).set_text("Redo");
 
         let mut history_clear = Button::default();
         history_clear.init(renderer);
-        history_clear.stroke(10).set_text("Clear");
+        history_clear.stroke(2).set_text("Clear");
 
         let history_undo_button_id = button_box.add_child(Box::new(history_undo));
         let history_redo_button_id = button_box.add_child(Box::new(history_redo));
@@ -81,12 +77,10 @@ impl HistoryPanel {
         let mut history_commands_box = Panel::default();
         history_commands_box.init(renderer);
         history_commands_box
-            .size([300, 20].into())
+            .size([500, 20].into())
             .horizontal_alignment(HorizontalAlignment::Stretch)
             .selectable(false)
             .draggable(false)
-            .fit_to_content(true)
-            .fill_type(ContainerFillType::Vertical)
             .space_between_elements(10);
 
         let history_text_id = history_panel.add_child(Box::new(history_commands_box));
@@ -190,9 +184,7 @@ impl HistoryPanel {
             .size([600, 800].into())
             .selectable(false)
             .vertical_alignment(VerticalAlignment::Top)
-            .horizontal_alignment(HorizontalAlignment::Left)
-            .fill_type(ContainerFillType::Vertical)
-            .fit_to_content(true);
+            .horizontal_alignment(HorizontalAlignment::Left);
 
         let (
             history_panel,
