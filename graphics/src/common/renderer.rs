@@ -1,7 +1,6 @@
 use std::path::PathBuf;
 
 use crate::fonts::font::*;
-use image::*;
 use nrg_math::*;
 use nrg_platform::*;
 use nrg_serialize::*;
@@ -406,15 +405,6 @@ impl Renderer {
 
     fn prepare_materials(&mut self) {
         self.materials.sort_by(|a, b| a.id.cmp(&b.id));
-
-        self.materials.iter_mut().for_each(|material_instance| {
-            if let Some(material) = &mut material_instance.material {
-                if material.get_num_textures() == 0 {
-                    let image = DynamicImage::new_rgba8(1, 1);
-                    material.add_texture_from_image(&image);
-                }
-            }
-        });
     }
 
     fn prepare_meshes(&mut self) {

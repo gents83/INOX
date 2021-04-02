@@ -37,7 +37,7 @@ impl System for MySystem {
         let read_data = self.shared_data.read().unwrap();
         let renderer = &mut *read_data.get_unique_resource_mut::<Renderer>();
 
-        let pipeline_id = renderer.get_pipeline_id("Font");
+        let pipeline_id = renderer.get_pipeline_id("UI");
         self.font_id = renderer.add_font(pipeline_id, self.config.fonts.first().unwrap());
     }
 

@@ -9,6 +9,8 @@ pub struct Texture {
     texture_image_view: VkImageView,
     texture_sampler: VkSampler,
 }
+unsafe impl Send for Texture {}
+unsafe impl Sync for Texture {}
 
 impl Texture {
     pub fn create_from(device: &Device, filepath: &str) -> Self {

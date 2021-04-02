@@ -4,7 +4,11 @@ use super::texture::*;
 use crate::common::data_formats::*;
 use image::*;
 use nrg_math::*;
+use std::sync::Once;
 use vulkan_bindings::*;
+
+static mut DEFAULT_TEXTURE: Option<Texture> = None;
+static mut INIT: Once = Once::new();
 
 #[derive(PartialEq)]
 pub struct MaterialInstance {
@@ -17,6 +21,21 @@ pub struct MaterialInstance {
 }
 
 impl MaterialInstance {
+    fn get_default_texture(&self, device: &Device) -> &'static Texture {
+        unsafe {
+            INIT.call_once(|| {
+                let mut image_data = DynamicImage::new_rgba8(1, 1);
+                let (width, height) = image_data.dimensions();
+                for x in 0..width {
+                    for y in 0..height {
+                        image_data.put_pixel(x, y, Pixel::from_channels(255, 255, 255, 255))
+                    }
+                }
+                DEFAULT_TEXTURE = Some(Texture::create(device, &image_data));
+            });
+            &DEFAULT_TEXTURE.as_ref().unwrap()
+        }
+    }
     pub fn create_from(device: &Device, pipeline: &super::pipeline::Pipeline) -> Self {
         let mut instance = MaterialInstance {
             textures: Vec::new(),
@@ -203,7 +222,7 @@ impl MaterialInstance {
             pBufferInfo: &buffer_info,
             pTexelBufferView: ::std::ptr::null_mut(),
         });
-        for texture in self.textures.iter() {
+        if self.textures.is_empty() {
             descriptor_write.push(VkWriteDescriptorSet {
                 sType: VkStructureType_VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                 pNext: ::std::ptr::null_mut(),
@@ -212,10 +231,25 @@ impl MaterialInstance {
                 dstArrayElement: 0,
                 descriptorCount: 1,
                 descriptorType: VkDescriptorType_VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                pImageInfo: &texture.get_descriptor(),
+                pImageInfo: &self.get_default_texture(device).get_descriptor(),
                 pBufferInfo: ::std::ptr::null_mut(),
                 pTexelBufferView: ::std::ptr::null_mut(),
             });
+        } else {
+            for texture in self.textures.iter() {
+                descriptor_write.push(VkWriteDescriptorSet {
+                    sType: VkStructureType_VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                    pNext: ::std::ptr::null_mut(),
+                    dstSet: self.descriptor_sets[image_index],
+                    dstBinding: 1,
+                    dstArrayElement: 0,
+                    descriptorCount: 1,
+                    descriptorType: VkDescriptorType_VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                    pImageInfo: &texture.get_descriptor(),
+                    pBufferInfo: ::std::ptr::null_mut(),
+                    pTexelBufferView: ::std::ptr::null_mut(),
+                });
+            }
         }
 
         unsafe {

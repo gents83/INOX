@@ -1,4 +1,4 @@
-use std::{path::PathBuf, time::Instant};
+use std::time::Instant;
 
 use super::config::*;
 use super::widgets::*;
@@ -99,23 +99,23 @@ impl System for EditorUpdater {
         let mut editable_text = EditableText::default();
         editable_text.init(renderer);
         self.widget.add_child(Box::new(editable_text));
+
         /*
-        self.node.init(renderer);
-        */
-        let dir = "./data/widgets/";
-        if let Ok(dir) = std::fs::read_dir(dir) {
-            for entry in dir {
-                if let Ok(entry) = entry {
-                    let path = entry.path();
-                    if !path.is_dir() {
-                        let mut boxed_node = Box::new(GraphNode::default());
-                        deserialize_from_file(&mut boxed_node, path);
-                        boxed_node.as_mut().init(renderer);
-                        self.canvas.add_child(boxed_node);
+                let dir = "./data/widgets/";
+                if let Ok(dir) = std::fs::read_dir(dir) {
+                    for entry in dir {
+                        if let Ok(entry) = entry {
+                            let path = entry.path();
+                            if !path.is_dir() {
+                                let mut boxed_node = Box::new(GraphNode::default());
+                                deserialize_from_file(&mut boxed_node, path);
+                                boxed_node.as_mut().init(renderer);
+                                self.canvas.add_child(boxed_node);
+                            }
+                        }
                     }
                 }
-            }
-        }
+        */
     }
 
     fn run(&mut self) -> bool {
@@ -134,16 +134,16 @@ impl System for EditorUpdater {
     fn uninit(&mut self) {
         let read_data = self.shared_data.read().unwrap();
         let renderer = &mut *read_data.get_unique_resource_mut::<Renderer>();
-
-        let childrens = self.canvas.get_data_mut().node.get_children();
-        for child in childrens {
-            let filepath = PathBuf::from(format!(
-                "./data/widgets/{}.widget",
-                child.id().to_simple().to_string()
-            ));
-            serialize_to_file(child, filepath);
-        }
-
+        /*
+                let childrens = self.canvas.get_data_mut().node.get_children();
+                for child in childrens {
+                    let filepath = PathBuf::from(format!(
+                        "./data/widgets/{}.widget",
+                        child.id().to_simple().to_string()
+                    ));
+                    serialize_to_file(child, filepath);
+                }
+        */
         self.canvas.uninit(renderer);
         self.widget.uninit(renderer);
     }
@@ -205,7 +205,7 @@ impl EditorUpdater {
                 renderer.add_pipeline(pipeline_data);
             }
 
-            let pipeline_id = renderer.get_pipeline_id("Font");
+            let pipeline_id = renderer.get_pipeline_id("UI");
             renderer.add_font(pipeline_id, self.config.fonts.first().unwrap());
         }
     }
