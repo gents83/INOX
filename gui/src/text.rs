@@ -133,7 +133,8 @@ impl InternalWidget for Text {
             return;
         }
 
-        self.selectable(false);
+        self.selectable(false)
+            .size(DEFAULT_WIDGET_SIZE * Screen::get_scale_factor());
 
         let data = self.get_data_mut();
         data.graphics.set_style(WidgetStyle::DefaultText);

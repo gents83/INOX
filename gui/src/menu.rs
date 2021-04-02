@@ -5,8 +5,14 @@ use nrg_platform::*;
 use nrg_serialize::*;
 
 const DEFAULT_MENU_LAYER: f32 = 0.5;
-const DEFAULT_MENU_SIZE: Vector2u = Vector2u { x: 200, y: 20 };
-const DEFAULT_MENU_ITEM_SIZE: Vector2u = Vector2u { x: 100, y: 20 };
+const DEFAULT_MENU_SIZE: Vector2u = Vector2u {
+    x: DEFAULT_WIDGET_SIZE.y * 20,
+    y: DEFAULT_WIDGET_SIZE.y,
+};
+const DEFAULT_MENU_ITEM_SIZE: Vector2u = Vector2u {
+    x: DEFAULT_WIDGET_SIZE.y * 8,
+    y: DEFAULT_WIDGET_SIZE.y,
+};
 const DEFAULT_SUBMENU_ITEM_SIZE: Vector2u = Vector2u { x: 300, y: 500 };
 
 #[derive(Serialize, Deserialize)]

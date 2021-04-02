@@ -4,7 +4,10 @@ use nrg_math::*;
 use nrg_platform::*;
 use nrg_serialize::*;
 
-const DEFAULT_BUTTON_SIZE: Vector2u = Vector2u { x: 100, y: 18 };
+const DEFAULT_BUTTON_SIZE: Vector2u = Vector2u {
+    x: DEFAULT_WIDGET_SIZE.x * 8,
+    y: DEFAULT_WIDGET_SIZE.y,
+};
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]

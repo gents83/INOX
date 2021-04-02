@@ -36,7 +36,6 @@ impl InternalWidget for GraphNode {
         let data = self.get_data_mut();
         data.graphics.set_style(WidgetStyle::DefaultBackground);
 
-        let default_size = DEFAULT_WIDGET_SIZE * Screen::get_scale_factor();
         let size: Vector2u = [200, 100].into();
         data.state
             .set_position(Screen::get_center() - size / 2)
@@ -48,7 +47,6 @@ impl InternalWidget for GraphNode {
         title.init(renderer);
         title
             .draggable(false)
-            .size([0, default_size.y].into())
             .vertical_alignment(VerticalAlignment::Top)
             .horizontal_alignment(HorizontalAlignment::Center);
         title.set_text("Title");

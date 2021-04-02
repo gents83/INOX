@@ -226,7 +226,6 @@ impl InternalWidget for EditableText {
         let mut text = Text::default();
         text.init(renderer);
         text.draggable(false)
-            .size([0, default_size.y].into())
             .vertical_alignment(VerticalAlignment::Center)
             .horizontal_alignment(HorizontalAlignment::Left);
         text.set_text("Edit me");
