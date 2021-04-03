@@ -11,6 +11,7 @@ pub enum ContainerFillType {
 
 pub struct ContainerData {
     pub fill_type: ContainerFillType,
+    pub use_space_before_after: bool,
     pub fit_to_content: bool,
     pub space_between_elements: u32,
 }
@@ -19,6 +20,7 @@ impl Default for ContainerData {
     fn default() -> Self {
         Self {
             fill_type: ContainerFillType::Vertical,
+            use_space_before_after: true,
             fit_to_content: true,
             space_between_elements: 0,
         }
@@ -49,11 +51,19 @@ pub trait ContainerTrait: WidgetDataGetter {
     fn get_space_between_elements(&self) -> u32 {
         self.get_container_data().space_between_elements
     }
+    fn use_space_before_and_after(&mut self, use_space_before_after: bool) -> &mut Self {
+        self.get_container_data_mut().use_space_before_after = use_space_before_after;
+        self
+    }
+    fn should_use_space_before_and_after(&self) -> bool {
+        self.get_container_data().use_space_before_after
+    }
 
     fn apply_fit_to_content(&mut self) {
         let fill_type = self.get_fill_type();
         let fit_to_content = self.has_fit_to_content();
         let space = self.get_space_between_elements();
+        let use_space_before_after = self.should_use_space_before_and_after();
 
         let data = self.get_data_mut();
         let node = &mut data.node;
@@ -62,6 +72,7 @@ pub trait ContainerTrait: WidgetDataGetter {
 
         let mut children_min_pos: Vector2i = [i32::max_value(), i32::max_value()].into();
         let mut children_size: Vector2u = [0, 0].into();
+        let mut index = 0;
         node.propagate_on_children_mut(|w| {
             let child_stroke =
                 Screen::convert_size_into_pixels(w.get_data().graphics.get_stroke().into());
@@ -78,7 +89,9 @@ pub trait ContainerTrait: WidgetDataGetter {
                 .max(0);
             match fill_type {
                 ContainerFillType::Vertical => {
-                    children_size.y += space;
+                    if (use_space_before_after && index == 0) || index > 0 {
+                        children_size.y += space;
+                    }
                     if !child_state.is_pressed() {
                         child_state
                             .set_position([child_pos.x, parent_pos.y + children_size.y].into());
@@ -87,7 +100,9 @@ pub trait ContainerTrait: WidgetDataGetter {
                     children_size.x = children_size.x.max(child_size.x + child_stroke.x * 2);
                 }
                 ContainerFillType::Horizontal => {
-                    children_size.x += space;
+                    if (use_space_before_after && index == 0) || index > 0 {
+                        children_size.x += space;
+                    }
                     if !child_state.is_pressed() {
                         child_state
                             .set_position([parent_pos.x + children_size.x, child_pos.y].into());
@@ -104,7 +119,14 @@ pub trait ContainerTrait: WidgetDataGetter {
                     children_size.y = parent_size.y;
                 }
             }
+            index += 1;
         });
+        if use_space_before_after && fill_type == ContainerFillType::Vertical {
+            children_size.y += space;
+        }
+        if use_space_before_after && fill_type == ContainerFillType::Horizontal {
+            children_size.x += space;
+        }
         if !fit_to_content {
             children_size.x = parent_size.x;
             children_size.y = parent_size.y;

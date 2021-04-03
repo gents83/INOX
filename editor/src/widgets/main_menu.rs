@@ -7,6 +7,7 @@ use nrg_serialize::*;
 pub struct MainMenu {
     menu: Menu,
     file_id: UID,
+    settings_id: UID,
 }
 
 impl Default for MainMenu {
@@ -14,6 +15,7 @@ impl Default for MainMenu {
         Self {
             menu: Menu::default(),
             file_id: INVALID_ID,
+            settings_id: INVALID_ID,
         }
     }
 }
@@ -31,6 +33,10 @@ impl MainMenu {
             .add_submenu_entry_for(renderer, self.file_id, "New");
         self.menu
             .add_submenu_entry_for(renderer, self.file_id, "Exit");
+
+        self.settings_id = self.menu.add_menu_item(renderer, "Settings");
+        self.menu
+            .add_submenu_entry_for(renderer, self.settings_id, "Show Command History");
     }
 
     pub fn update(

@@ -12,14 +12,18 @@ const DEFAULT_BUTTON_SIZE: Vector2u = Vector2u {
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]
 pub struct Button {
+    #[serde(skip)]
+    container: ContainerData,
     data: WidgetData,
     label_id: UID,
 }
 implement_widget!(Button);
+implement_container!(Button);
 
 impl Default for Button {
     fn default() -> Self {
         Self {
+            container: ContainerData::default(),
             data: WidgetData::default(),
             label_id: INVALID_ID,
         }
@@ -34,6 +38,20 @@ impl Button {
         }
         self
     }
+
+    pub fn set_text_alignment(
+        &mut self,
+        vertical_alignment: VerticalAlignment,
+        horizontal_alignment: HorizontalAlignment,
+    ) -> &mut Self {
+        let label_id = self.label_id;
+        if let Some(label) = self.get_data_mut().node.get_child::<Text>(label_id) {
+            label
+                .vertical_alignment(vertical_alignment)
+                .horizontal_alignment(horizontal_alignment);
+        }
+        self
+    }
 }
 
 impl InternalWidget for Button {
@@ -42,7 +60,9 @@ impl InternalWidget for Button {
         if self.is_initialized() {
             return;
         }
-        self.size(DEFAULT_BUTTON_SIZE * Screen::get_scale_factor());
+        self.size(DEFAULT_BUTTON_SIZE * Screen::get_scale_factor())
+            .fit_to_content(true)
+            .fill_type(ContainerFillType::Horizontal);
 
         let mut text = Text::default();
         text.init(renderer);
@@ -60,6 +80,8 @@ impl InternalWidget for Button {
         _events: &mut EventsRw,
         _input_handler: &InputHandler,
     ) {
+        self.apply_fit_to_content();
+
         let data = self.get_data_mut();
         let pos = Screen::convert_from_pixels_into_screen_space(data.state.get_position());
         let size = Screen::convert_size_from_pixels(data.state.get_size());

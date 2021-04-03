@@ -6,14 +6,17 @@ use nrg_serialize::*;
 
 const DEFAULT_MENU_LAYER: f32 = 0.5;
 const DEFAULT_MENU_SIZE: Vector2u = Vector2u {
-    x: DEFAULT_WIDGET_SIZE.y * 20,
+    x: DEFAULT_WIDGET_SIZE.x * 10,
     y: DEFAULT_WIDGET_SIZE.y,
 };
 const DEFAULT_MENU_ITEM_SIZE: Vector2u = Vector2u {
-    x: DEFAULT_WIDGET_SIZE.y * 8,
+    x: DEFAULT_WIDGET_SIZE.x * 10,
     y: DEFAULT_WIDGET_SIZE.y,
 };
-const DEFAULT_SUBMENU_ITEM_SIZE: Vector2u = Vector2u { x: 300, y: 500 };
+const DEFAULT_SUBMENU_ITEM_SIZE: Vector2u = Vector2u {
+    x: DEFAULT_WIDGET_SIZE.x * 30,
+    y: DEFAULT_WIDGET_SIZE.y * 50,
+};
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]
@@ -51,7 +54,8 @@ impl Menu {
         button
             .size(DEFAULT_MENU_ITEM_SIZE * Screen::get_scale_factor())
             .vertical_alignment(VerticalAlignment::Center)
-            .set_text(label);
+            .set_text(label)
+            .set_text_alignment(VerticalAlignment::Center, HorizontalAlignment::Left);
         button
             .get_data_mut()
             .graphics
@@ -106,7 +110,8 @@ impl Menu {
             button
                 .size(DEFAULT_MENU_ITEM_SIZE * Screen::get_scale_factor())
                 .vertical_alignment(VerticalAlignment::None)
-                .set_text(label);
+                .set_text(label)
+                .set_text_alignment(VerticalAlignment::Center, HorizontalAlignment::Left);
             button
                 .get_data_mut()
                 .graphics
@@ -123,9 +128,15 @@ impl Menu {
         if let Some(widget_events) = events.read_events::<WidgetEvent>() {
             for event in widget_events.iter() {
                 if let WidgetEvent::Released(widget_id) = event {
+                    let mut pos = Vector2u::default();
+                    if let Some(button) = self.get_data_mut().node.get_child::<Button>(*widget_id) {
+                        pos.x = button.get_data().state.get_position().x;
+                        pos.y = self.get_data().state.get_size().y;
+                    }
                     self.entries.iter_mut().for_each(|e| {
                         if e.menu_item_id == *widget_id {
                             e.opened = !e.opened;
+                            e.submenu.position(pos);
                             e.submenu.visible(e.opened);
                         }
                     });
@@ -146,7 +157,9 @@ impl InternalWidget for Menu {
             .selectable(false)
             .vertical_alignment(VerticalAlignment::Top)
             .horizontal_alignment(HorizontalAlignment::Stretch)
+            .space_between_elements(20)
             .fill_type(ContainerFillType::Horizontal)
+            .use_space_before_and_after(false)
             .fit_to_content(false);
 
         let data = self.get_data_mut();
