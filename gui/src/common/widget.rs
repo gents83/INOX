@@ -211,14 +211,14 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
             for event in widget_events.iter() {
                 match event {
                     WidgetEvent::Entering(widget_id) => {
-                        if *widget_id == id && data.state.is_selectable() {
+                        if *widget_id == id {
                             data.state.set_hover(true);
                         } else {
                             data.state.set_hover(false);
                         }
                     }
                     WidgetEvent::Exiting(widget_id) => {
-                        if *widget_id == id && data.state.is_selectable() {
+                        if *widget_id == id {
                             data.state.set_hover(false);
                             data.state.set_pressed(false);
                         }
@@ -331,6 +331,17 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
     fn is_hover(&self) -> bool {
         self.get_data().state.is_hover()
     }
+    fn is_hover_recursive(&self) -> bool {
+        let mut is_hover = self.get_data().state.is_hover();
+        if !is_hover {
+            self.get_data().node.propagate_on_children(|w| {
+                if w.is_hover_recursive() {
+                    is_hover = true;
+                }
+            });
+        }
+        is_hover
+    }
     fn is_draggable(&self) -> bool {
         self.get_data().state.is_draggable()
     }
@@ -356,8 +367,16 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
     fn has_child(&self, uid: UID) -> bool {
         let mut found = false;
         self.get_data().node.propagate_on_children(|w| {
-            println!("child {}", w.id().to_simple().to_string().as_str());
             if w.id() == uid {
+                found = true;
+            }
+        });
+        found
+    }
+    fn has_child_recursive(&self, uid: UID) -> bool {
+        let mut found = false;
+        self.get_data().node.propagate_on_children(|w| {
+            if w.id() == uid || w.has_child_recursive(uid) {
                 found = true;
             }
         });

@@ -21,7 +21,6 @@ const DEFAULT_SUBMENU_ITEM_SIZE: Vector2u = Vector2u {
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]
 struct MenuItemPanel {
-    menu_item_id: UID,
     submenu: Menu,
     opened: bool,
 }
@@ -33,6 +32,7 @@ pub struct Menu {
     container: ContainerData,
     data: WidgetData,
     entries: Vec<MenuItemPanel>,
+    entries_uid: Vec<UID>,
 }
 implement_widget!(Menu);
 implement_container!(Menu);
@@ -43,6 +43,7 @@ impl Default for Menu {
             container: ContainerData::default(),
             data: WidgetData::default(),
             entries: Vec::new(),
+            entries_uid: Vec::new(),
         }
     }
 }
@@ -85,8 +86,8 @@ impl Menu {
         submenu.move_to_layer(DEFAULT_MENU_LAYER);
 
         let menu_item_id = self.add_child(Box::new(button));
+        self.entries_uid.push(menu_item_id);
         self.entries.push(MenuItemPanel {
-            menu_item_id,
             submenu,
             opened: false,
         });
@@ -100,11 +101,7 @@ impl Menu {
         label: &str,
     ) -> UID {
         let mut id = INVALID_ID;
-        if let Some(index) = self
-            .entries
-            .iter()
-            .position(|el| el.menu_item_id == menu_item_id)
-        {
+        if let Some(index) = self.entries_uid.iter().position(|el| *el == menu_item_id) {
             let mut button = Button::default();
             button.init(renderer);
             button
@@ -122,8 +119,49 @@ impl Menu {
         }
         id
     }
+    fn is_submenu_opened(&self) -> bool {
+        let mut is_opened = false;
+        self.entries.iter().for_each(|e| {
+            is_opened |= e.opened;
+        });
+        is_opened
+    }
+    fn is_hovering_entry(&mut self, entry_uid: UID) -> bool {
+        let mut is_hover = false;
+        if let Some(widget) = self.get_data_mut().node.get_child::<Button>(entry_uid) {
+            if widget.is_hover() {
+                is_hover = true;
+            }
+        }
+        if !is_hover {
+            if let Some(index) = self.entries_uid.iter().position(|el| *el == entry_uid) {
+                let item = &self.entries[index];
+                if item.opened && item.submenu.is_hover_recursive() {
+                    is_hover = true;
+                }
+            }
+        }
+        is_hover
+    }
+    fn manage_hovering(&mut self) {
+        if self.is_submenu_opened() {
+            let count = self.entries.len();
+            for i in 0..count {
+                if self.entries[i].opened {
+                    let entry_uid = self.entries_uid[i];
+                    if !self.is_hovering_entry(entry_uid) {
+                        let item = &mut self.entries[i];
+                        item.opened = false;
+                        item.submenu.visible(item.opened);
+                    }
+                }
+            }
+        }
+    }
 
     fn manage_menu_interactions(&mut self, events_rw: &mut EventsRw) {
+        self.manage_hovering();
+
         let events = events_rw.read().unwrap();
         if let Some(widget_events) = events.read_events::<WidgetEvent>() {
             for event in widget_events.iter() {
@@ -133,13 +171,11 @@ impl Menu {
                         pos.x = button.get_data().state.get_position().x;
                         pos.y = self.get_data().state.get_size().y;
                     }
-                    self.entries.iter_mut().for_each(|e| {
-                        if e.menu_item_id == *widget_id {
-                            e.opened = !e.opened;
-                            e.submenu.position(pos);
-                            e.submenu.visible(e.opened);
-                        }
-                    });
+                    if let Some(index) = self.entries_uid.iter().position(|el| *el == *widget_id) {
+                        let item = &mut self.entries[index];
+                        item.opened = !item.opened;
+                        item.submenu.position(pos).visible(item.opened);
+                    }
                 }
             }
         }
