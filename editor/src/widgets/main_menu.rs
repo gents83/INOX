@@ -30,13 +30,13 @@ impl MainMenu {
 
         self.file_id = self.menu.add_menu_item(renderer, "File");
         self.menu
-            .add_submenu_entry_for(renderer, self.file_id, "New");
+            .add_submenu_entry_default(renderer, self.file_id, "New");
         self.menu
-            .add_submenu_entry_for(renderer, self.file_id, "Exit");
+            .add_submenu_entry_default(renderer, self.file_id, "Exit");
 
         self.settings_id = self.menu.add_menu_item(renderer, "Settings");
         self.menu
-            .add_submenu_entry_for(renderer, self.settings_id, "Show Command History");
+            .add_submenu_entry_default(renderer, self.settings_id, "Show Command History");
     }
 
     pub fn update(

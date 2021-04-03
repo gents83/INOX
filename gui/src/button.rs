@@ -66,8 +66,7 @@ impl InternalWidget for Button {
 
         let mut text = Text::default();
         text.init(renderer);
-        text.size([DEFAULT_BUTTON_SIZE.x, 20].into())
-            .vertical_alignment(VerticalAlignment::Center)
+        text.vertical_alignment(VerticalAlignment::Center)
             .horizontal_alignment(HorizontalAlignment::Center)
             .set_text("Button");
         self.label_id = self.add_child(Box::new(text));

@@ -21,6 +21,7 @@ pub enum WidgetStyle {
     FullActive,
     FullInactive,
     FullHighlight,
+    Invisible,
 }
 
 impl WidgetStyle {
@@ -73,6 +74,12 @@ impl WidgetStyle {
                 WidgetInteractiveState::Active => COLOR_YELLOW,
                 WidgetInteractiveState::Hover => COLOR_YELLOW,
                 WidgetInteractiveState::Pressed => COLOR_YELLOW,
+            },
+            Self::Invisible => match state {
+                WidgetInteractiveState::Inactive => COLOR_TRANSPARENT,
+                WidgetInteractiveState::Active => COLOR_TRANSPARENT,
+                WidgetInteractiveState::Hover => COLOR_TRANSPARENT,
+                WidgetInteractiveState::Pressed => COLOR_TRANSPARENT,
             },
         }
     }

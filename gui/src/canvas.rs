@@ -26,12 +26,10 @@ impl InternalWidget for Canvas {
             return;
         }
 
-        let data = self.get_data_mut();
-        data.graphics.set_style(WidgetStyle::DefaultCanvas);
-        
         self.size(Screen::get_size())
-        .selectable(false)
-        .draggable(false);
+            .selectable(false)
+            .draggable(false)
+            .style(WidgetStyle::DefaultCanvas);
     }
 
     fn widget_update(

@@ -30,8 +30,7 @@ impl InternalWidget for Panel {
             return;
         }
 
-        let data = self.get_data_mut();
-        data.graphics.set_style(WidgetStyle::DefaultBackground);
+        self.style(WidgetStyle::DefaultBackground);
     }
 
     fn widget_update(

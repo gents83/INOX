@@ -93,7 +93,9 @@ impl System for EditorUpdater {
 
         let mut checkbox = Checkbox::default();
         checkbox.init(renderer);
-        checkbox.horizontal_alignment(HorizontalAlignment::Left);
+        checkbox
+            .horizontal_alignment(HorizontalAlignment::Left)
+            .with_label(renderer, "Prova");
         self.widget.add_child(Box::new(checkbox));
 
         let mut editable_text = EditableText::default();

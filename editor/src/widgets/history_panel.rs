@@ -125,10 +125,8 @@ impl HistoryPanel {
                     .size([300, 20].into())
                     .set_text(str);
                     if index >= history_debug_commands.len() - 1 {
-                        text.get_data_mut()
-                            .graphics
-                            .set_style(WidgetStyle::FullHighlight)
-                            .set_border_style(WidgetStyle::FullHighlight);
+                        text.style(WidgetStyle::FullHighlight)
+                            .border_style(WidgetStyle::FullHighlight);
                         let mut string = String::from("-> ");
                         string.push_str(str);
                         text.set_text(string.as_str());

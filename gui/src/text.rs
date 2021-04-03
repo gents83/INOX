@@ -4,6 +4,8 @@ use nrg_math::*;
 use nrg_platform::*;
 use nrg_serialize::*;
 
+const DEFAULT_TEXT_SIZE: Vector2u = Vector2u { x: 100, y: 10 };
+
 pub enum TextEvent {
     AddChar(UID, i32, char),
     RemoveChar(UID, i32, char),
@@ -133,12 +135,10 @@ impl InternalWidget for Text {
             return;
         }
 
-        self.selectable(false)
-            .size(DEFAULT_WIDGET_SIZE * Screen::get_scale_factor());
-
-        let data = self.get_data_mut();
-        data.graphics.set_style(WidgetStyle::DefaultText);
-        data.state.set_draggable(false).set_selectable(false);
+        self.size(DEFAULT_TEXT_SIZE * Screen::get_scale_factor())
+            .style(WidgetStyle::DefaultText)
+            .draggable(false)
+            .selectable(false);
     }
 
     fn widget_update(

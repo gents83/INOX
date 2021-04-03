@@ -56,11 +56,8 @@ impl Menu {
             .size(DEFAULT_MENU_ITEM_SIZE * Screen::get_scale_factor())
             .vertical_alignment(VerticalAlignment::Center)
             .set_text(label)
-            .set_text_alignment(VerticalAlignment::Center, HorizontalAlignment::Left);
-        button
-            .get_data_mut()
-            .graphics
-            .set_style(WidgetStyle::DefaultBackground);
+            .set_text_alignment(VerticalAlignment::Center, HorizontalAlignment::Left)
+            .style(WidgetStyle::DefaultBackground);
 
         let mut submenu = Menu::default();
         submenu.init(renderer);
@@ -80,9 +77,7 @@ impl Menu {
             .stroke(5)
             .fill_type(ContainerFillType::Vertical)
             .fit_to_content(true)
-            .get_data_mut()
-            .graphics
-            .set_style(WidgetStyle::FullInactive);
+            .style(WidgetStyle::FullInactive);
 
         submenu.move_to_layer(DEFAULT_MENU_LAYER);
 
@@ -95,7 +90,15 @@ impl Menu {
         menu_item_id
     }
 
-    pub fn add_submenu_entry_for(
+    pub fn add_submenu_entry(&mut self, menu_item_id: UID, widget: Box<dyn Widget>) -> UID {
+        let mut id = INVALID_ID;
+        if let Some(index) = self.entries_uid.iter().position(|el| *el == menu_item_id) {
+            let entry = &mut self.entries[index];
+            id = entry.submenu.add_child(widget);
+        }
+        id
+    }
+    pub fn add_submenu_entry_default(
         &mut self,
         renderer: &mut Renderer,
         menu_item_id: UID,
@@ -109,11 +112,8 @@ impl Menu {
                 .size(DEFAULT_MENU_ITEM_SIZE * Screen::get_scale_factor())
                 .vertical_alignment(VerticalAlignment::None)
                 .set_text(label)
-                .set_text_alignment(VerticalAlignment::Center, HorizontalAlignment::Left);
-            button
-                .get_data_mut()
-                .graphics
-                .set_style(WidgetStyle::DefaultBackground);
+                .set_text_alignment(VerticalAlignment::Center, HorizontalAlignment::Left)
+                .style(WidgetStyle::DefaultBackground);
 
             let entry = &mut self.entries[index];
             id = entry.submenu.add_child(Box::new(button));
@@ -197,10 +197,8 @@ impl InternalWidget for Menu {
             .space_between_elements(20)
             .fill_type(ContainerFillType::Horizontal)
             .use_space_before_and_after(false)
-            .fit_to_content(false);
-
-        let data = self.get_data_mut();
-        data.graphics.set_style(WidgetStyle::DefaultBackground);
+            .fit_to_content(false)
+            .style(WidgetStyle::DefaultBackground);
     }
 
     fn widget_update(

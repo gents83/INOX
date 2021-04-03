@@ -47,15 +47,11 @@ impl Indicator {
             self.elapsed_time = Instant::now();
 
             if !blinking {
-                self.get_data_mut()
-                    .graphics
-                    .set_style(WidgetStyle::FullActive)
-                    .set_border_style(WidgetStyle::FullActive);
+                self.style(WidgetStyle::FullActive)
+                    .border_style(WidgetStyle::FullActive);
             } else {
-                self.get_data_mut()
-                    .graphics
-                    .set_style(WidgetStyle::FullInactive)
-                    .set_border_style(WidgetStyle::FullInactive);
+                self.style(WidgetStyle::Invisible)
+                    .border_style(WidgetStyle::Invisible);
             }
             self.is_blinking = !blinking;
         }
@@ -73,10 +69,8 @@ impl InternalWidget for Indicator {
             .stroke(1)
             .vertical_alignment(VerticalAlignment::Stretch)
             .selectable(false)
-            .get_data_mut()
-            .graphics
-            .set_style(WidgetStyle::FullActive)
-            .set_border_style(WidgetStyle::FullActive);
+            .style(WidgetStyle::FullActive)
+            .border_style(WidgetStyle::FullActive);
     }
 
     fn widget_update(

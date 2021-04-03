@@ -33,15 +33,12 @@ impl InternalWidget for GraphNode {
             return;
         }
 
-        let data = self.get_data_mut();
-        data.graphics.set_style(WidgetStyle::DefaultBackground);
-
         let size: Vector2u = [200, 100].into();
-        data.state
-            .set_position(Screen::get_center() - size / 2)
-            .set_size(size);
 
-        self.draggable(true);
+        self.position(Screen::get_center() - size / 2)
+            .size(size)
+            .draggable(true)
+            .style(WidgetStyle::DefaultBackground);
 
         let mut title = Text::default();
         title.init(renderer);

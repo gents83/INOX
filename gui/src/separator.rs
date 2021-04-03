@@ -30,10 +30,8 @@ impl InternalWidget for Separator {
             .stroke(1)
             .horizontal_alignment(HorizontalAlignment::Stretch)
             .selectable(false)
-            .get_data_mut()
-            .graphics
-            .set_style(WidgetStyle::FullActive)
-            .set_border_style(WidgetStyle::FullActive);
+            .style(WidgetStyle::FullActive)
+            .border_style(WidgetStyle::FullActive);
     }
 
     fn widget_update(

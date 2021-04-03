@@ -40,39 +40,46 @@ pub const COLOR_LIGHT_BLUE: Vector4f = Vector4f {
     w: 1.,
 };
 pub const COLOR_RED: Vector4f = Vector4f {
-    x: 1.0,
-    y: 0.0,
-    z: 0.0,
+    x: 1.,
+    y: 0.,
+    z: 0.,
     w: 1.,
 };
 pub const COLOR_GREEN: Vector4f = Vector4f {
-    x: 0.0,
-    y: 1.0,
-    z: 0.0,
+    x: 0.,
+    y: 1.,
+    z: 0.,
     w: 1.,
 };
 pub const COLOR_YELLOW: Vector4f = Vector4f {
-    x: 1.0,
-    y: 1.0,
-    z: 0.0,
+    x: 1.,
+    y: 1.,
+    z: 0.,
     w: 1.,
 };
 pub const COLOR_BLUE: Vector4f = Vector4f {
-    x: 0.0,
-    y: 0.0,
-    z: 1.0,
+    x: 0.,
+    y: 0.,
+    z: 1.,
     w: 1.,
 };
 pub const COLOR_BLACK: Vector4f = Vector4f {
-    x: 0.0,
-    y: 0.0,
-    z: 0.0,
+    x: 0.,
+    y: 0.,
+    z: 0.,
     w: 1.,
 };
 
 pub const COLOR_WHITE: Vector4f = Vector4f {
-    x: 1.0,
-    y: 1.0,
-    z: 1.0,
+    x: 1.,
+    y: 1.,
+    z: 1.,
     w: 1.,
+};
+
+pub const COLOR_TRANSPARENT: Vector4f = Vector4f {
+    x: 1.,
+    y: 1.,
+    z: 1.,
+    w: 0.,
 };

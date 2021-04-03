@@ -13,26 +13,50 @@ impl Event for CheckboxEvent {}
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]
 pub struct Checkbox {
+    #[serde(skip)]
+    container: ContainerData,
+    data: WidgetData,
     is_checked: bool,
+    #[serde(skip)]
+    outer_widget: UID,
     #[serde(skip)]
     checked_widget: UID,
     #[serde(skip)]
-    data: WidgetData,
+    label_widget: UID,
 }
 implement_widget!(Checkbox);
+implement_container!(Checkbox);
 
 impl Default for Checkbox {
     fn default() -> Self {
         Self {
-            is_checked: false,
-            checked_widget: INVALID_ID,
+            container: ContainerData::default(),
             data: WidgetData::default(),
+            is_checked: false,
+            outer_widget: INVALID_ID,
+            checked_widget: INVALID_ID,
+            label_widget: INVALID_ID,
         }
     }
 }
 
 impl Checkbox {
-    pub fn set_checked(&mut self, checked: bool) -> &mut Self {
+    pub fn with_label(&mut self, renderer: &mut Renderer, text: &str) -> &mut Self {
+        if self.label_widget != INVALID_ID {
+            let uid = self.label_widget;
+            self.get_data_mut().node.remove_child(uid);
+            self.label_widget = INVALID_ID;
+        }
+        let mut label = Text::default();
+        label.init(renderer);
+        label
+            .vertical_alignment(VerticalAlignment::Center)
+            .horizontal_alignment(HorizontalAlignment::Center)
+            .set_text(text);
+        self.label_widget = self.add_child(Box::new(label));
+        self
+    }
+    pub fn checked(&mut self, checked: bool) -> &mut Self {
         self.is_checked = checked;
         self
     }
@@ -70,21 +94,15 @@ impl Checkbox {
             let checked_id = self.checked_widget;
             if let Some(inner_widget) = self.get_data_mut().node.get_child::<Panel>(checked_id) {
                 if new_state {
-                    inner_widget
-                        .get_data_mut()
-                        .graphics
-                        .set_style(WidgetStyle::FullActive);
+                    inner_widget.style(WidgetStyle::FullActive);
 
                     events.send_event(CheckboxEvent::Checked(id));
                 } else {
-                    inner_widget
-                        .get_data_mut()
-                        .graphics
-                        .set_style(WidgetStyle::FullInactive);
+                    inner_widget.style(WidgetStyle::FullInactive);
 
                     events.send_event(CheckboxEvent::Unchecked(id));
                 }
-                self.set_checked(new_state);
+                self.checked(new_state);
             }
         }
     }
@@ -98,26 +116,31 @@ impl InternalWidget for Checkbox {
         }
 
         let default_size = DEFAULT_WIDGET_SIZE * Screen::get_scale_factor();
-
         self.size(default_size)
-            .draggable(false)
-            .selectable(true)
-            .stroke(2);
+            .horizontal_alignment(HorizontalAlignment::Stretch)
+            .fill_type(ContainerFillType::Horizontal)
+            .space_between_elements(40)
+            .use_space_before_and_after(false)
+            .style(WidgetStyle::Invisible);
+
+        let mut outer_widget = Panel::default();
+        outer_widget
+            .size(default_size)
+            .stroke(4)
+            .style(WidgetStyle::DefaultBackground);
 
         let inner_size = default_size - default_size / 4;
-        let mut panel = Panel::default();
-        panel.init(renderer);
-        panel
-            .draggable(false)
+        let mut inner_check = Panel::default();
+        inner_check.init(renderer);
+        inner_check
             .size(inner_size)
             .vertical_alignment(VerticalAlignment::Center)
             .horizontal_alignment(HorizontalAlignment::Center)
-            .selectable(false)
             .fit_to_content(false)
-            .get_data_mut()
-            .graphics
-            .set_style(WidgetStyle::FullInactive);
-        self.checked_widget = self.add_child(Box::new(panel));
+            .style(WidgetStyle::FullInactive);
+
+        self.checked_widget = outer_widget.add_child(Box::new(inner_check));
+        self.outer_widget = self.add_child(Box::new(outer_widget));
     }
 
     fn widget_update(
@@ -127,6 +150,7 @@ impl InternalWidget for Checkbox {
         events: &mut EventsRw,
         _input_handler: &InputHandler,
     ) {
+        self.apply_fit_to_content();
         self.update_checked(events);
 
         let data = self.get_data_mut();

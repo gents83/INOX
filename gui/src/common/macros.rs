@@ -64,6 +64,14 @@ macro_rules! implement_widget {
                 self.set_visible(visible);
                 self
             }
+            pub fn style(&mut self, style: WidgetStyle) -> &mut Self {
+                self.get_data_mut().graphics.set_style(style);
+                self
+            }
+            pub fn border_style(&mut self, style: WidgetStyle) -> &mut Self {
+                self.get_data_mut().graphics.set_border_style(style);
+                self
+            }
         }
     };
 }

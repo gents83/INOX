@@ -31,6 +31,11 @@ impl WidgetNode {
         self
     }
 
+    pub fn remove_child(&mut self, uid: UID) -> &mut Self {
+        self.children.retain(|el| el.as_ref().id() != uid);
+        self
+    }
+
     pub fn get_children(&self) -> &Vec<Box<dyn Widget>> {
         &self.children
     }
