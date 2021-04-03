@@ -211,14 +211,14 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
             for event in widget_events.iter() {
                 match event {
                     WidgetEvent::Entering(widget_id) => {
-                        if *widget_id == id {
+                        if *widget_id == id && data.state.is_selectable() {
                             data.state.set_hover(true);
                         } else {
                             data.state.set_hover(false);
                         }
                     }
                     WidgetEvent::Exiting(widget_id) => {
-                        if *widget_id == id {
+                        if *widget_id == id && data.state.is_selectable() {
                             data.state.set_hover(false);
                             data.state.set_pressed(false);
                         }

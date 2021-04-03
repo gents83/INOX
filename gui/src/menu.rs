@@ -73,15 +73,16 @@ impl Menu {
                 .into(),
             )
             .size(DEFAULT_SUBMENU_ITEM_SIZE * Screen::get_scale_factor())
-            .selectable(false)
             .visible(false)
+            .selectable(true)
             .vertical_alignment(VerticalAlignment::None)
             .horizontal_alignment(HorizontalAlignment::None)
+            .stroke(5)
             .fill_type(ContainerFillType::Vertical)
             .fit_to_content(true)
             .get_data_mut()
             .graphics
-            .set_style(WidgetStyle::DefaultBackground);
+            .set_style(WidgetStyle::FullInactive);
 
         submenu.move_to_layer(DEFAULT_MENU_LAYER);
 

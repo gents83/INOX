@@ -63,10 +63,10 @@ impl WidgetStyle {
                 WidgetInteractiveState::Pressed => COLOR_WHITE,
             },
             Self::FullInactive => match state {
-                WidgetInteractiveState::Inactive => COLOR_DARK_GRAY,
-                WidgetInteractiveState::Active => COLOR_DARK_GRAY,
-                WidgetInteractiveState::Hover => COLOR_DARK_GRAY,
-                WidgetInteractiveState::Pressed => COLOR_DARK_GRAY,
+                WidgetInteractiveState::Inactive => COLOR_DARKEST_GRAY,
+                WidgetInteractiveState::Active => COLOR_DARKEST_GRAY,
+                WidgetInteractiveState::Hover => COLOR_DARKEST_GRAY,
+                WidgetInteractiveState::Pressed => COLOR_DARKEST_GRAY,
             },
             Self::FullHighlight => match state {
                 WidgetInteractiveState::Inactive => COLOR_YELLOW,
