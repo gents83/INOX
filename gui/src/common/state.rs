@@ -1,6 +1,7 @@
-use super::*;
-use nrg_math::*;
-use nrg_serialize::*;
+use nrg_math::{Vector2u, Vector4u};
+use nrg_serialize::{Deserialize, Serialize};
+
+use crate::{HorizontalAlignment, VerticalAlignment, DEFAULT_LAYER_OFFSET, DEFAULT_WIDGET_SIZE};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(crate = "nrg_serialize")]

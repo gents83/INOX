@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use nrg_math::Vector4f;
 
 pub const COLOR_LIGHT_GRAY: Vector4f = Vector4f {

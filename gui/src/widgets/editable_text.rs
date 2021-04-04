@@ -1,9 +1,16 @@
-use super::*;
-use nrg_commands::*;
-use nrg_graphics::*;
-use nrg_math::*;
-use nrg_platform::*;
-use nrg_serialize::*;
+use nrg_commands::ExecuteCommand;
+use nrg_graphics::{MeshData, Renderer};
+use nrg_math::Vector4u;
+use nrg_platform::{
+    EventsRw, InputHandler, InputState, Key, KeyEvent, KeyTextEvent, MouseButton, MouseEvent,
+    MouseState,
+};
+use nrg_serialize::{Deserialize, Serialize, INVALID_UID, UID};
+
+use crate::{
+    implement_widget, AddCharCommand, Indicator, InternalWidget, RemoveCharCommand, Text,
+    WidgetData, WidgetEvent, DEFAULT_WIDGET_SIZE,
+};
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]
@@ -23,8 +30,8 @@ implement_widget!(EditableText);
 impl Default for EditableText {
     fn default() -> Self {
         Self {
-            text_widget: INVALID_ID,
-            indicator_widget: INVALID_ID,
+            text_widget: INVALID_UID,
+            indicator_widget: INVALID_UID,
             is_focused: false,
             current_char: -1,
             data: WidgetData::default(),

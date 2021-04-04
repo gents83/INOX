@@ -1,6 +1,7 @@
-use super::colors::*;
-use nrg_math::*;
-use nrg_serialize::*;
+use nrg_math::Vector4f;
+use nrg_serialize::{Deserialize, Serialize};
+
+use crate::colors::*;
 
 #[derive(Clone, Copy)]
 pub enum WidgetInteractiveState {

@@ -1,8 +1,12 @@
-use super::*;
-use nrg_graphics::*;
-use nrg_math::*;
-use nrg_platform::*;
-use nrg_serialize::*;
+use nrg_graphics::{MeshData, Renderer};
+use nrg_math::Vector4u;
+use nrg_platform::{Event, EventsRw, InputHandler};
+use nrg_serialize::{Deserialize, Serialize, INVALID_UID, UID};
+
+use crate::{
+    implement_container, implement_widget, ContainerData, ContainerFillType, InternalWidget, Panel,
+    Text, WidgetData, WidgetEvent, DEFAULT_WIDGET_SIZE,
+};
 
 pub enum CheckboxEvent {
     Checked(UID),
@@ -33,19 +37,19 @@ impl Default for Checkbox {
             container: ContainerData::default(),
             data: WidgetData::default(),
             is_checked: false,
-            outer_widget: INVALID_ID,
-            checked_widget: INVALID_ID,
-            label_widget: INVALID_ID,
+            outer_widget: INVALID_UID,
+            checked_widget: INVALID_UID,
+            label_widget: INVALID_UID,
         }
     }
 }
 
 impl Checkbox {
     pub fn with_label(&mut self, renderer: &mut Renderer, text: &str) -> &mut Self {
-        if self.label_widget != INVALID_ID {
+        if !self.label_widget.is_nil() {
             let uid = self.label_widget;
             self.get_data_mut().node.remove_child(uid);
-            self.label_widget = INVALID_ID;
+            self.label_widget = INVALID_UID;
         }
         let mut label = Text::default();
         label.init(renderer);

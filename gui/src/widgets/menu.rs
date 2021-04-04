@@ -1,8 +1,12 @@
-use super::*;
-use nrg_graphics::*;
-use nrg_math::*;
-use nrg_platform::*;
-use nrg_serialize::*;
+use nrg_graphics::{MeshData, Renderer};
+use nrg_math::{Vector2u, Vector4u};
+use nrg_platform::{EventsRw, InputHandler};
+use nrg_serialize::{Deserialize, Serialize, INVALID_UID, UID};
+
+use crate::{
+    implement_container, implement_widget, Button, ContainerData, ContainerFillType,
+    InternalWidget, WidgetData, WidgetEvent, DEFAULT_WIDGET_SIZE,
+};
 
 const DEFAULT_MENU_LAYER: f32 = 0.5;
 const DEFAULT_MENU_SIZE: Vector2u = Vector2u {
@@ -91,7 +95,7 @@ impl Menu {
     }
 
     pub fn add_submenu_entry(&mut self, menu_item_id: UID, widget: Box<dyn Widget>) -> UID {
-        let mut id = INVALID_ID;
+        let mut id = INVALID_UID;
         if let Some(index) = self.entries_uid.iter().position(|el| *el == menu_item_id) {
             let entry = &mut self.entries[index];
             id = entry.submenu.add_child(widget);
@@ -104,7 +108,7 @@ impl Menu {
         menu_item_id: UID,
         label: &str,
     ) -> UID {
-        let mut id = INVALID_ID;
+        let mut id = INVALID_UID;
         if let Some(index) = self.entries_uid.iter().position(|el| *el == menu_item_id) {
             let mut button = Button::default();
             button.init(renderer);

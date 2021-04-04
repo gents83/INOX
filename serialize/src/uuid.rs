@@ -1,4 +1,4 @@
-use uuid::*;
+use uuid::Uuid;
 
 pub type UID = Uuid;
 pub const INVALID_UID: UID = Uuid::nil();

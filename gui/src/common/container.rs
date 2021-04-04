@@ -1,14 +1,18 @@
-use super::*;
-use crate::screen::*;
-use nrg_math::*;
+use nrg_math::{Vector2i, Vector2u};
+use nrg_serialize::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+use crate::{Screen, WidgetDataGetter};
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(crate = "nrg_serialize")]
 pub enum ContainerFillType {
     None,
     Vertical,
     Horizontal,
 }
 
+#[derive(Serialize, Deserialize)]
+#[serde(crate = "nrg_serialize")]
 pub struct ContainerData {
     pub fill_type: ContainerFillType,
     pub use_space_before_after: bool,

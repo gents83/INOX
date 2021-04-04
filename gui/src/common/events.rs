@@ -1,6 +1,6 @@
-use nrg_math::*;
-use nrg_platform::*;
-use nrg_serialize::*;
+use nrg_math::Vector2i;
+use nrg_platform::Event;
+use nrg_serialize::UID;
 
 pub enum WidgetEvent {
     Entering(UID),

@@ -1,5 +1,6 @@
-use super::*;
-use nrg_serialize::*;
+use nrg_serialize::{typetag, Deserialize, Serialize};
+
+use crate::{WidgetGraphics, WidgetNode, WidgetState};
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]

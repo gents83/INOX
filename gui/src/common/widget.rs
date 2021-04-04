@@ -1,9 +1,12 @@
-use super::*;
-use crate::screen::*;
-use nrg_graphics::*;
-use nrg_math::*;
-use nrg_platform::*;
-use nrg_serialize::*;
+use nrg_graphics::Renderer;
+use nrg_math::{Vector2f, Vector2i, Vector2u, Vector4u};
+use nrg_platform::{EventsRw, InputHandler};
+use nrg_serialize::{typetag, UID};
+
+use crate::{
+    HorizontalAlignment, Screen, VerticalAlignment, WidgetDataGetter, WidgetEvent,
+    WidgetInteractiveState,
+};
 
 pub const DEFAULT_LAYER_OFFSET: f32 = 0.001;
 pub const DEFAULT_WIDGET_SIZE: Vector2u = Vector2u { x: 12, y: 12 };

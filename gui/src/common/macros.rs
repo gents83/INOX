@@ -1,6 +1,12 @@
 #[macro_export]
 macro_rules! implement_widget {
     ($Type:ident) => {
+        use crate::{
+            BaseWidget, HorizontalAlignment, Screen, VerticalAlignment, Widget, WidgetDataGetter,
+            WidgetStyle,
+        };
+        use nrg_serialize::typetag;
+
         #[typetag::serde]
         impl WidgetDataGetter for $Type {
             #[inline]
@@ -79,6 +85,8 @@ macro_rules! implement_widget {
 #[macro_export]
 macro_rules! implement_container {
     ($Type:ident) => {
+        use crate::ContainerTrait;
+
         impl ContainerTrait for $Type {
             fn get_container_data(&self) -> &ContainerData {
                 &self.container

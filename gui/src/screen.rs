@@ -1,7 +1,7 @@
 use std::{borrow::Borrow, cell::*, sync::Arc, sync::Once};
 
-use nrg_math::*;
-use nrg_platform::*;
+use nrg_math::{Vector2f, Vector2i, Vector2u, Vector4u};
+use nrg_platform::{EventsRw, WindowEvent, DEFAULT_DPI};
 
 const DEFAULT_WIDTH: u32 = 1920;
 const DEFAULT_HEIGTH: u32 = 1080;

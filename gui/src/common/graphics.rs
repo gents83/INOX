@@ -1,9 +1,8 @@
-use super::*;
-use crate::screen::*;
-use nrg_graphics::*;
-use nrg_math::*;
-use nrg_serialize::*;
+use nrg_graphics::{MaterialId, MeshData, MeshId, Renderer, INVALID_ID};
+use nrg_math::{Vector2u, Vector4f};
+use nrg_serialize::{Deserialize, Serialize};
 
+use crate::{Screen, WidgetInteractiveState, WidgetStyle, DEFAULT_LAYER_OFFSET};
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]
 pub struct WidgetGraphics {

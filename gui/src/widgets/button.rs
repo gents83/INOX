@@ -1,8 +1,12 @@
-use super::*;
-use nrg_graphics::*;
-use nrg_math::*;
-use nrg_platform::*;
-use nrg_serialize::*;
+use nrg_graphics::{MeshData, Renderer};
+use nrg_math::{Vector2u, Vector4u};
+use nrg_platform::{EventsRw, InputHandler};
+use nrg_serialize::{Deserialize, Serialize, INVALID_UID, UID};
+
+use crate::{
+    implement_container, implement_widget, ContainerData, ContainerFillType, InternalWidget, Text,
+    WidgetData, DEFAULT_WIDGET_SIZE,
+};
 
 const DEFAULT_BUTTON_SIZE: Vector2u = Vector2u {
     x: DEFAULT_WIDGET_SIZE.x * 8,
@@ -25,7 +29,7 @@ impl Default for Button {
         Self {
             container: ContainerData::default(),
             data: WidgetData::default(),
-            label_id: INVALID_ID,
+            label_id: INVALID_UID,
         }
     }
 }

@@ -1,8 +1,9 @@
-use super::*;
-use nrg_graphics::*;
-use nrg_math::*;
-use nrg_platform::*;
-use nrg_serialize::*;
+use nrg_graphics::{MeshData, Renderer};
+use nrg_math::Vector4u;
+use nrg_platform::{EventsRw, InputHandler};
+use nrg_serialize::{Deserialize, Serialize};
+
+use crate::{implement_widget, InternalWidget, WidgetData};
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]

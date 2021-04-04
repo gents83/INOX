@@ -1,8 +1,8 @@
-use nrg_commands::*;
-use nrg_platform::*;
-use nrg_serialize::*;
+use nrg_commands::Command;
+use nrg_platform::{Event, EventsRw};
+use nrg_serialize::UID;
 
-use crate::text::*;
+use crate::TextEvent;
 
 #[derive(Clone)]
 pub struct AddCharCommand {

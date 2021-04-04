@@ -1,36 +1,38 @@
-use super::*;
-use nrg_graphics::*;
-use nrg_math::*;
-use nrg_platform::*;
-use nrg_serialize::*;
+use nrg_graphics::{MeshData, Renderer};
+use nrg_math::Vector4u;
+use nrg_platform::{EventsRw, InputHandler};
+use nrg_serialize::{Deserialize, Serialize};
+
+use crate::{implement_widget, InternalWidget, WidgetData, DEFAULT_WIDGET_SIZE};
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]
-pub struct Panel {
-    #[serde(skip)]
-    container: ContainerData,
+pub struct Separator {
     data: WidgetData,
 }
-implement_widget!(Panel);
-implement_container!(Panel);
+implement_widget!(Separator);
 
-impl Default for Panel {
+impl Default for Separator {
     fn default() -> Self {
         Self {
-            container: ContainerData::default(),
             data: WidgetData::default(),
         }
     }
 }
 
-impl InternalWidget for Panel {
+impl InternalWidget for Separator {
     fn widget_init(&mut self, renderer: &mut Renderer) {
         self.get_data_mut().graphics.init(renderer, "UI");
         if self.is_initialized() {
             return;
         }
-
-        self.style(WidgetStyle::DefaultBackground);
+        self.draggable(false)
+            .size([DEFAULT_WIDGET_SIZE.x, 1].into())
+            .stroke(1)
+            .horizontal_alignment(HorizontalAlignment::Stretch)
+            .selectable(false)
+            .style(WidgetStyle::FullActive)
+            .border_style(WidgetStyle::FullActive);
     }
 
     fn widget_update(
@@ -40,8 +42,6 @@ impl InternalWidget for Panel {
         _events: &mut EventsRw,
         _input_handler: &InputHandler,
     ) {
-        self.apply_fit_to_content();
-
         let data = self.get_data_mut();
         let pos = Screen::convert_from_pixels_into_screen_space(data.state.get_position());
         let size = Screen::convert_size_from_pixels(data.state.get_size());

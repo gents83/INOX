@@ -1,5 +1,6 @@
-use super::*;
-use nrg_serialize::*;
+use nrg_serialize::{generate_random_uid, Deserialize, Serialize, INVALID_UID, UID};
+
+use crate::Widget;
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]

@@ -1,8 +1,9 @@
-use super::*;
-use nrg_graphics::*;
-use nrg_math::*;
-use nrg_platform::*;
-use nrg_serialize::*;
+use nrg_graphics::{FontId, MaterialId, MeshData, Renderer, INVALID_ID};
+use nrg_math::{Vector2f, Vector2u, Vector4f, Vector4u};
+use nrg_platform::{Event, EventsRw, InputHandler};
+use nrg_serialize::{Deserialize, Serialize, UID};
+
+use crate::{implement_widget, InternalWidget, WidgetData};
 
 const DEFAULT_TEXT_SIZE: Vector2u = Vector2u { x: 100, y: 10 };
 
