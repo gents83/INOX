@@ -9,7 +9,7 @@ use crate::{
 };
 
 pub const DEFAULT_LAYER_OFFSET: f32 = 0.001;
-pub const DEFAULT_WIDGET_SIZE: Vector2u = Vector2u { x: 12, y: 12 };
+pub const DEFAULT_WIDGET_SIZE: Vector2u = Vector2u { x: 10, y: 10 };
 
 #[typetag::serde(tag = "widget")]
 pub trait Widget: BaseWidget + InternalWidget + Send + Sync {

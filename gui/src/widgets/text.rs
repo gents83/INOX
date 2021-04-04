@@ -5,7 +5,7 @@ use nrg_serialize::{Deserialize, Serialize, UID};
 
 use crate::{implement_widget, InternalWidget, WidgetData};
 
-const DEFAULT_TEXT_SIZE: Vector2u = Vector2u { x: 100, y: 10 };
+pub const DEFAULT_TEXT_SIZE: Vector2u = Vector2u { x: 50, y: 8 };
 
 pub enum TextEvent {
     AddChar(UID, i32, char),

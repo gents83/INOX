@@ -9,7 +9,7 @@ use crate::{
 };
 
 const DEFAULT_BUTTON_SIZE: Vector2u = Vector2u {
-    x: DEFAULT_WIDGET_SIZE.x * 8,
+    x: DEFAULT_WIDGET_SIZE.x * 5,
     y: DEFAULT_WIDGET_SIZE.y,
 };
 

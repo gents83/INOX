@@ -42,7 +42,6 @@ impl HistoryPanel {
         let mut label = Text::default();
         label.init(renderer);
         label
-            .size([0, 16].into())
             .vertical_alignment(VerticalAlignment::Top)
             .horizontal_alignment(HorizontalAlignment::Left)
             .set_text("Command History:");

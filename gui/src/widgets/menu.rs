@@ -5,17 +5,17 @@ use nrg_serialize::{Deserialize, Serialize, INVALID_UID, UID};
 
 use crate::{
     implement_container, implement_widget, Button, ContainerData, ContainerFillType,
-    InternalWidget, WidgetData, WidgetEvent, DEFAULT_WIDGET_SIZE,
+    InternalWidget, WidgetData, WidgetEvent, DEFAULT_TEXT_SIZE, DEFAULT_WIDGET_SIZE,
 };
 
 const DEFAULT_MENU_LAYER: f32 = 0.5;
 const DEFAULT_MENU_SIZE: Vector2u = Vector2u {
     x: DEFAULT_WIDGET_SIZE.x * 10,
-    y: DEFAULT_WIDGET_SIZE.y,
+    y: 14,
 };
 const DEFAULT_MENU_ITEM_SIZE: Vector2u = Vector2u {
-    x: DEFAULT_WIDGET_SIZE.x * 10,
-    y: DEFAULT_WIDGET_SIZE.y,
+    x: DEFAULT_TEXT_SIZE.x,
+    y: 10,
 };
 const DEFAULT_SUBMENU_ITEM_SIZE: Vector2u = Vector2u {
     x: DEFAULT_WIDGET_SIZE.x * 30,
@@ -58,7 +58,7 @@ impl Menu {
         button.init(renderer);
         button
             .size(DEFAULT_MENU_ITEM_SIZE * Screen::get_scale_factor())
-            .vertical_alignment(VerticalAlignment::Center)
+            .vertical_alignment(VerticalAlignment::Stretch)
             .set_text(label)
             .set_text_alignment(VerticalAlignment::Center, HorizontalAlignment::Left)
             .style(WidgetStyle::DefaultBackground);
@@ -78,7 +78,6 @@ impl Menu {
             .selectable(true)
             .vertical_alignment(VerticalAlignment::None)
             .horizontal_alignment(HorizontalAlignment::None)
-            .stroke(5)
             .fill_type(ContainerFillType::Vertical)
             .fit_to_content(true)
             .style(WidgetStyle::FullInactive);
@@ -198,7 +197,7 @@ impl InternalWidget for Menu {
             .selectable(false)
             .vertical_alignment(VerticalAlignment::Top)
             .horizontal_alignment(HorizontalAlignment::Stretch)
-            .space_between_elements(20)
+            .space_between_elements(DEFAULT_WIDGET_SIZE.x * 2 * Screen::get_scale_factor() as u32)
             .fill_type(ContainerFillType::Horizontal)
             .use_space_before_and_after(false)
             .fit_to_content(false)
