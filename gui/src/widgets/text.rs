@@ -3,9 +3,12 @@ use nrg_math::{Vector2f, Vector2u, Vector4f, Vector4u};
 use nrg_platform::{Event, EventsRw, InputHandler};
 use nrg_serialize::{Deserialize, Serialize, UID};
 
-use crate::{implement_widget, InternalWidget, WidgetData};
+use crate::{implement_widget, InternalWidget, WidgetData, DEFAULT_WIDGET_SIZE};
 
-pub const DEFAULT_TEXT_SIZE: Vector2u = Vector2u { x: 50, y: 8 };
+pub const DEFAULT_TEXT_SIZE: Vector2u = Vector2u {
+    x: DEFAULT_WIDGET_SIZE.x * 5,
+    y: DEFAULT_WIDGET_SIZE.y / 5 * 4,
+};
 
 pub enum TextEvent {
     AddChar(UID, i32, char),

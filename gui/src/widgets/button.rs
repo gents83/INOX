@@ -8,8 +8,8 @@ use crate::{
     WidgetData, DEFAULT_WIDGET_SIZE,
 };
 
-const DEFAULT_BUTTON_SIZE: Vector2u = Vector2u {
-    x: DEFAULT_WIDGET_SIZE.x * 5,
+pub const DEFAULT_BUTTON_SIZE: Vector2u = Vector2u {
+    x: DEFAULT_WIDGET_SIZE.x * 10,
     y: DEFAULT_WIDGET_SIZE.y,
 };
 
@@ -35,7 +35,7 @@ impl Default for Button {
 }
 
 impl Button {
-    pub fn set_text(&mut self, text: &str) -> &mut Self {
+    pub fn with_text(&mut self, text: &str) -> &mut Self {
         let label_id = self.label_id;
         if let Some(label) = self.get_data_mut().node.get_child::<Text>(label_id) {
             label.set_text(text);
@@ -43,7 +43,7 @@ impl Button {
         self
     }
 
-    pub fn set_text_alignment(
+    pub fn text_alignment(
         &mut self,
         vertical_alignment: VerticalAlignment,
         horizontal_alignment: HorizontalAlignment,
@@ -65,14 +65,14 @@ impl InternalWidget for Button {
             return;
         }
         self.size(DEFAULT_BUTTON_SIZE * Screen::get_scale_factor())
-            .fit_to_content(true)
-            .fill_type(ContainerFillType::Horizontal);
+            .fill_type(ContainerFillType::Horizontal)
+            .fit_to_content(true);
 
         let mut text = Text::default();
         text.init(renderer);
         text.vertical_alignment(VerticalAlignment::Center)
             .horizontal_alignment(HorizontalAlignment::Center)
-            .set_text("Button");
+            .set_text("Button Text");
         self.label_id = self.add_child(Box::new(text));
     }
 

@@ -101,7 +101,7 @@ pub trait ContainerTrait: WidgetDataGetter {
                             .set_position([child_pos.x, parent_pos.y + children_size.y].into());
                     }
                     children_size.y += child_size.y + child_stroke.y * 2;
-                    children_size.x = children_size.x.max(child_size.x + child_stroke.x * 2);
+                    children_size.x = parent_size.x.max(child_size.x + child_stroke.x * 2);
                 }
                 ContainerFillType::Horizontal => {
                     if (use_space_before_after && index == 0) || index > 0 {
@@ -112,11 +112,7 @@ pub trait ContainerTrait: WidgetDataGetter {
                             .set_position([parent_pos.x + children_size.x, child_pos.y].into());
                     }
                     children_size.x += child_size.x + child_stroke.x * 2;
-                    children_size.y = children_size.y.max(child_size.y + child_stroke.y * 2);
-                    if fit_to_content {
-                    } else {
-                        children_size.y = parent_size.y;
-                    }
+                    children_size.y = parent_size.y.max(child_size.y + child_stroke.y * 2);
                 }
                 _ => {
                     children_size.x = parent_size.x;

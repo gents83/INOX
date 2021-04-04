@@ -37,6 +37,8 @@ impl HistoryPanel {
             .size([650, 100].into())
             .selectable(false)
             .draggable(false)
+            .fit_to_content(true)
+            .fill_type(ContainerFillType::Vertical)
             .space_between_elements(5);
 
         let mut label = Text::default();
@@ -53,19 +55,22 @@ impl HistoryPanel {
             .selectable(false)
             .draggable(false)
             .fill_type(ContainerFillType::Horizontal)
-            .space_between_elements(10);
+            .fit_to_content(false)
+            .horizontal_alignment(HorizontalAlignment::Stretch)
+            .size([DEFAULT_BUTTON_SIZE.x * 4, DEFAULT_BUTTON_SIZE.y * 2].into())
+            .space_between_elements(DEFAULT_WIDGET_SIZE.x * 2 * Screen::get_scale_factor() as u32);
 
         let mut history_undo = Button::default();
         history_undo.init(renderer);
-        history_undo.stroke(2).set_text("Undo");
+        history_undo.stroke(2).with_text("Undo");
 
         let mut history_redo = Button::default();
         history_redo.init(renderer);
-        history_redo.stroke(2).set_text("Redo");
+        history_redo.stroke(2).with_text("Redo");
 
         let mut history_clear = Button::default();
         history_clear.init(renderer);
-        history_clear.stroke(2).set_text("Clear");
+        history_clear.stroke(2).with_text("Clear");
 
         let history_undo_button_id = button_box.add_child(Box::new(history_undo));
         let history_redo_button_id = button_box.add_child(Box::new(history_redo));
@@ -80,11 +85,12 @@ impl HistoryPanel {
         let mut history_commands_box = Panel::default();
         history_commands_box.init(renderer);
         history_commands_box
-            .size([500, 20].into())
             .horizontal_alignment(HorizontalAlignment::Stretch)
+            .fit_to_content(true)
+            .fill_type(ContainerFillType::Vertical)
             .selectable(false)
             .draggable(false)
-            .space_between_elements(10);
+            .space_between_elements(2);
 
         let history_text_id = history_panel.add_child(Box::new(history_commands_box));
 
@@ -125,7 +131,6 @@ impl HistoryPanel {
                         ]
                         .into(),
                     )
-                    .size([300, 20].into())
                     .set_text(str);
                     if index >= history_debug_commands.len() - 1 {
                         text.style(WidgetStyle::FullHighlight)
@@ -149,7 +154,6 @@ impl HistoryPanel {
                         ]
                         .into(),
                     )
-                    .size([300, 20].into())
                     .set_text(str);
                     history_commands_box.add_child(Box::new(text));
                 }

@@ -5,21 +5,21 @@ use nrg_serialize::{Deserialize, Serialize, INVALID_UID, UID};
 
 use crate::{
     implement_container, implement_widget, Button, ContainerData, ContainerFillType,
-    InternalWidget, WidgetData, WidgetEvent, DEFAULT_TEXT_SIZE, DEFAULT_WIDGET_SIZE,
+    InternalWidget, WidgetData, WidgetEvent, DEFAULT_BUTTON_SIZE, DEFAULT_WIDGET_SIZE,
 };
 
 const DEFAULT_MENU_LAYER: f32 = 0.5;
 const DEFAULT_MENU_SIZE: Vector2u = Vector2u {
     x: DEFAULT_WIDGET_SIZE.x * 10,
-    y: 14,
+    y: DEFAULT_WIDGET_SIZE.y * 3 / 2,
 };
 const DEFAULT_MENU_ITEM_SIZE: Vector2u = Vector2u {
-    x: DEFAULT_TEXT_SIZE.x,
-    y: 10,
+    x: DEFAULT_BUTTON_SIZE.x,
+    y: DEFAULT_BUTTON_SIZE.y,
 };
 const DEFAULT_SUBMENU_ITEM_SIZE: Vector2u = Vector2u {
-    x: DEFAULT_WIDGET_SIZE.x * 30,
-    y: DEFAULT_WIDGET_SIZE.y * 50,
+    x: DEFAULT_BUTTON_SIZE.x * 2,
+    y: DEFAULT_BUTTON_SIZE.y * 2,
 };
 
 #[derive(Serialize, Deserialize)]
@@ -57,10 +57,11 @@ impl Menu {
         let mut button = Button::default();
         button.init(renderer);
         button
-            .size(DEFAULT_MENU_ITEM_SIZE * Screen::get_scale_factor())
             .vertical_alignment(VerticalAlignment::Stretch)
-            .set_text(label)
-            .set_text_alignment(VerticalAlignment::Center, HorizontalAlignment::Left)
+            .fill_type(ContainerFillType::Horizontal)
+            .fit_to_content(true)
+            .with_text(label)
+            .text_alignment(VerticalAlignment::Center, HorizontalAlignment::Left)
             .style(WidgetStyle::DefaultBackground);
 
         let mut submenu = Menu::default();
@@ -112,10 +113,9 @@ impl Menu {
             let mut button = Button::default();
             button.init(renderer);
             button
-                .size(DEFAULT_MENU_ITEM_SIZE * Screen::get_scale_factor())
                 .vertical_alignment(VerticalAlignment::None)
-                .set_text(label)
-                .set_text_alignment(VerticalAlignment::Center, HorizontalAlignment::Left)
+                .with_text(label)
+                .text_alignment(VerticalAlignment::Center, HorizontalAlignment::Left)
                 .style(WidgetStyle::DefaultBackground);
 
             let entry = &mut self.entries[index];
@@ -201,7 +201,7 @@ impl InternalWidget for Menu {
             .fill_type(ContainerFillType::Horizontal)
             .use_space_before_and_after(false)
             .fit_to_content(false)
-            .style(WidgetStyle::DefaultBackground);
+            .style(WidgetStyle::FullHighlight);
     }
 
     fn widget_update(
@@ -215,8 +215,8 @@ impl InternalWidget for Menu {
             e.submenu
                 .update(drawing_area_in_px, renderer, events_rw, input_handler);
         });
-        self.apply_fit_to_content();
 
+        self.apply_fit_to_content();
         self.manage_menu_interactions(events_rw);
 
         let data = self.get_data_mut();

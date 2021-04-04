@@ -116,6 +116,9 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         let mut size = state.get_size();
         let stroke = Screen::convert_size_into_pixels(graphics.get_stroke().into());
 
+        size.x = size.x.min(clip_max.x - clip_min.x);
+        size.y = size.y.min(clip_max.y - clip_min.y);
+
         match state.get_horizontal_alignment() {
             HorizontalAlignment::Left => {
                 pos.x = clip_min.x + stroke.x;

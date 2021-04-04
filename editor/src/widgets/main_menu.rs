@@ -46,7 +46,7 @@ impl MainMenu {
         checkbox.init(renderer);
         checkbox
             .horizontal_alignment(HorizontalAlignment::Left)
-            .with_label(renderer, "Show Command History");
+            .with_label(renderer, "Show History");
         self.show_history_id = checkbox.id();
         self.menu
             .add_submenu_entry(self.settings_id, Box::new(checkbox));

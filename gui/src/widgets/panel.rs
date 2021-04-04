@@ -1,9 +1,17 @@
 use nrg_graphics::{MeshData, Renderer};
-use nrg_math::Vector4u;
+use nrg_math::{Vector2u, Vector4u};
 use nrg_platform::{EventsRw, InputHandler};
 use nrg_serialize::{Deserialize, Serialize};
 
-use crate::{implement_container, implement_widget, ContainerData, InternalWidget, WidgetData};
+use crate::{
+    implement_container, implement_widget, ContainerData, InternalWidget, WidgetData,
+    DEFAULT_WIDGET_SIZE,
+};
+
+pub const DEFAULT_PANEL_SIZE: Vector2u = Vector2u {
+    x: DEFAULT_WIDGET_SIZE.x * 10,
+    y: DEFAULT_WIDGET_SIZE.y * 10,
+};
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]
@@ -31,7 +39,8 @@ impl InternalWidget for Panel {
             return;
         }
 
-        self.style(WidgetStyle::DefaultBackground);
+        self.size(DEFAULT_PANEL_SIZE)
+            .style(WidgetStyle::DefaultBackground);
     }
 
     fn widget_update(
