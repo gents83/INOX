@@ -1,4 +1,9 @@
-use std::{borrow::Borrow, cell::*, sync::Arc, sync::Once};
+use std::{
+    borrow::Borrow,
+    cell::{RefCell, RefMut},
+    sync::Arc,
+    sync::Once,
+};
 
 use nrg_math::{Vector2f, Vector2i, Vector2u, Vector4u};
 use nrg_platform::{EventsRw, WindowEvent, DEFAULT_DPI};

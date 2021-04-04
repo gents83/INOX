@@ -6,7 +6,7 @@ use std::{
 
 use crate::{Data, Resource, ResourceId, ResourceRef, ResourceRefMut, ResourceTrait};
 
-struct ResourceStorage {
+pub struct ResourceStorage {
     stored: Vec<Arc<dyn ResourceTrait>>,
 }
 unsafe impl Send for ResourceStorage {}
@@ -32,15 +32,21 @@ impl ResourceStorage {
         let item = self
             .stored
             .iter()
-            .find(|&x| {
-                let item: Arc<Resource<T>> = unsafe { std::mem::transmute_copy(x) };
-                let res = unsafe { &*Arc::into_raw(item) };
-                res.id() == resource_id
-            })
+            .find(|&x| x.as_ref().id() == resource_id)
             .unwrap();
         let item: Arc<Resource<T>> = unsafe { std::mem::transmute_copy(item) };
         let res = Arc::into_raw(item);
         ResourceRef::new(unsafe { &*res })
+    }
+    pub fn get_resource_mut<T: 'static>(&self, resource_id: ResourceId) -> ResourceRefMut<T> {
+        let item = self
+            .stored
+            .iter()
+            .find(|&x| x.as_ref().id() == resource_id)
+            .unwrap();
+        let item: Arc<Resource<T>> = unsafe { std::mem::transmute_copy(item) };
+        let res = Arc::into_raw(item);
+        ResourceRefMut::new(unsafe { &*res })
     }
     pub fn get_unique_resource<T: 'static>(&self) -> ResourceRef<T> {
         debug_assert!(

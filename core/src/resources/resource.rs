@@ -1,5 +1,5 @@
+use nrg_serialize::{generate_random_uid, UID};
 use std::{
-    any::TypeId,
     cell::UnsafeCell,
     ops::{Deref, DerefMut},
     path::PathBuf,
@@ -51,8 +51,7 @@ impl Atomic {
     }
 }
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-pub struct ResourceId(pub TypeId);
+pub type ResourceId = UID;
 
 pub trait ResourceTrait {
     fn id(&self) -> ResourceId;
@@ -60,6 +59,7 @@ pub trait ResourceTrait {
 }
 
 pub struct Resource<T> {
+    id: ResourceId,
     data: UnsafeCell<T>,
     atomic: Atomic,
 }
@@ -69,6 +69,7 @@ unsafe impl<T> Sync for Resource<T> {}
 impl<T> Resource<T> {
     pub fn new(data: T) -> Self {
         Self {
+            id: generate_random_uid(),
             data: UnsafeCell::new(data),
             atomic: Atomic::new(),
         }
@@ -86,7 +87,7 @@ where
     T: Sized + 'static,
 {
     fn id(&self) -> ResourceId {
-        ResourceId(TypeId::of::<T>())
+        self.id
     }
     fn path(&self) -> PathBuf {
         PathBuf::default()
@@ -94,14 +95,16 @@ where
 }
 
 pub struct ResourceRef<'a, T> {
+    id: &'a ResourceId,
     borrow: &'a Atomic,
     resource: &'a T,
 }
 
 impl<'a, T> ResourceRef<'a, T> {
-    pub fn new(Resource { data, atomic }: &'a Resource<T>) -> Self {
+    pub fn new(Resource { id, data, atomic }: &'a Resource<T>) -> Self {
         if atomic.request_borrow() {
             Self {
+                id,
                 borrow: atomic,
                 resource: unsafe { &*data.get() },
             }
@@ -131,14 +134,16 @@ impl<'a, T> Deref for ResourceRef<'a, T> {
 }
 
 pub struct ResourceRefMut<'a, T> {
+    id: &'a ResourceId,
     borrow: &'a Atomic,
     resource: &'a mut T,
 }
 
 impl<'a, T> ResourceRefMut<'a, T> {
-    pub fn new(Resource { data, atomic }: &'a Resource<T>) -> Self {
+    pub fn new(Resource { id, data, atomic }: &'a Resource<T>) -> Self {
         if atomic.request_borrow_mut() {
             Self {
+                id,
                 borrow: atomic,
                 resource: unsafe { &mut *data.get() },
             }

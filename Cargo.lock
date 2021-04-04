@@ -453,6 +453,7 @@ version = "0.1.0"
 dependencies = [
  "downcast-rs",
  "nrg_platform",
+ "nrg_serialize",
 ]
 
 [[package]]
