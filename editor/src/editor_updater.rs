@@ -184,6 +184,8 @@ impl EditorUpdater {
             self.widget
                 .update(draw_area, renderer, events, &self.input_handler);
 
+            self.history_panel
+                .set_visible(self.main_menu.show_history());
             self.history_panel.update(
                 draw_area,
                 renderer,

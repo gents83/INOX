@@ -26,6 +26,10 @@ impl Default for HistoryPanel {
 }
 
 impl HistoryPanel {
+    pub fn set_visible(&mut self, visible: bool) -> &mut Self {
+        self.history_panel.visible(visible);
+        self
+    }
     fn create_history_widget(&mut self, renderer: &mut Renderer) -> (Panel, UID, UID, UID, UID) {
         let mut history_panel = Panel::default();
         history_panel.init(renderer);
