@@ -1,8 +1,7 @@
 use std::any::Any;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::resources::shared_data::*;
-use crate::schedule::scheduler::*;
+use crate::{Scheduler, SharedDataRw};
 
 pub const CREATE_PLUGIN_FUNCTION_NAME: &str = "create_plugin";
 pub type PFNCreatePlugin = ::std::option::Option<unsafe extern "C" fn() -> PluginHolder>;

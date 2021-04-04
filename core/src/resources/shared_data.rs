@@ -1,11 +1,10 @@
 use std::{
-    any::*,
+    any::TypeId,
     collections::HashMap,
     sync::{Arc, RwLock},
 };
 
-use super::data::*;
-use super::resource::*;
+use crate::{Data, Resource, ResourceId, ResourceRef, ResourceRefMut, ResourceTrait};
 
 struct ResourceStorage {
     stored: Vec<Arc<dyn ResourceTrait>>,

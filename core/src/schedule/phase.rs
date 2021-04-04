@@ -1,6 +1,7 @@
-use super::system::*;
 use downcast_rs::{impl_downcast, Downcast};
 use std::collections::HashSet;
+
+use crate::{System, SystemBoxed, SystemId};
 
 pub trait Phase: Downcast + Send + Sync {
     fn get_name(&self) -> &str;

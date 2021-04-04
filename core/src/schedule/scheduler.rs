@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use super::phase::*;
+use crate::{Phase, PhaseWithSystems};
 
 pub struct Scheduler {
     phases_order: Vec<String>,

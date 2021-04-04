@@ -1,14 +1,11 @@
-use nrg_platform::*;
-
-use crate::plugins::plugin::*;
-use crate::plugins::plugin_manager::*;
-use crate::resources::shared_data::*;
-use crate::schedule::phase::*;
-use crate::schedule::scheduler::*;
 use std::{
     path::PathBuf,
     sync::{Arc, RwLock},
 };
+
+use nrg_platform::EventsRw;
+
+use crate::{Phase, PluginId, PluginManager, Scheduler, SharedData, SharedDataRw};
 
 pub struct App {
     frame_count: u64,

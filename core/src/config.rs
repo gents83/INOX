@@ -1,7 +1,8 @@
 #![allow(dead_code)]
 
-use crate::resources::data::*;
 use std::path::PathBuf;
+
+use crate::Data;
 
 pub const CONFIG_FOLDER: &str = "config";
 

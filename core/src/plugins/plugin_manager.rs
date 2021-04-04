@@ -1,11 +1,12 @@
 use std::env;
 use std::path::PathBuf;
 
-use nrg_platform::*;
+use nrg_platform::{delete_file, library, FileEvent, FileWatcher, Library};
 
-use super::plugin::*;
-use crate::resources::shared_data::*;
-use crate::schedule::scheduler::*;
+use crate::{
+    PFNCreatePlugin, PFNDestroyPlugin, PluginHolder, PluginId, Scheduler, SharedDataRw,
+    CREATE_PLUGIN_FUNCTION_NAME, DESTROY_PLUGIN_FUNCTION_NAME,
+};
 
 pub static IN_USE_PREFIX: &str = "in_use";
 static mut UNIQUE_LIB_INDEX: u32 = 0;
