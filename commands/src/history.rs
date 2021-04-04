@@ -1,5 +1,6 @@
-use super::command::*;
-use nrg_platform::*;
+use nrg_platform::EventsRw;
+
+use crate::{Command, ExecuteCommand};
 
 enum CommandHistoryOperation {
     Undo,

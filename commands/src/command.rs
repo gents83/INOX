@@ -1,6 +1,6 @@
 use std::any::Any;
 
-use nrg_platform::*;
+use nrg_platform::{Event, EventsRw};
 
 pub trait Command
 where
