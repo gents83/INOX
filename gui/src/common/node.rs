@@ -5,6 +5,7 @@ use nrg_serialize::*;
 #[serde(crate = "nrg_serialize")]
 pub struct WidgetNode {
     id: UID,
+    parent_id: UID,
     children: Vec<Box<dyn Widget>>,
 }
 
@@ -12,6 +13,7 @@ impl Default for WidgetNode {
     fn default() -> Self {
         Self {
             id: generate_random_uid(),
+            parent_id: INVALID_UID,
             children: Vec::new(),
         }
     }
@@ -21,18 +23,27 @@ impl WidgetNode {
     pub fn get_id(&self) -> UID {
         self.id
     }
-    pub fn add_child(&mut self, widget: Box<dyn Widget>) -> &mut Self {
+    pub fn add_child(&mut self, mut widget: Box<dyn Widget>) -> &mut Self {
+        widget.get_data_mut().node.parent_id = self.id;
         self.children.push(widget);
         self
     }
 
     pub fn remove_children(&mut self) -> &mut Self {
+        self.children.iter_mut().for_each(|w| {
+            w.get_data_mut().node.parent_id = INVALID_UID;
+        });
         self.children.clear();
         self
     }
 
     pub fn remove_child(&mut self, uid: UID) -> &mut Self {
-        self.children.retain(|el| el.as_ref().id() != uid);
+        self.children.iter_mut().for_each(|w| {
+            if w.as_ref().id() == uid {
+                w.get_data_mut().node.parent_id = INVALID_UID;
+            }
+        });
+        self.children.retain(|w| w.as_ref().id() != uid);
         self
     }
 
@@ -58,11 +69,15 @@ impl WidgetNode {
         });
         result
     }
-
+    pub fn get_parent(&self) -> UID {
+        self.parent_id
+    }
+    pub fn has_parent(&self) -> bool {
+        !self.parent_id.is_nil()
+    }
     pub fn get_num_children(&self) -> usize {
         self.children.len()
     }
-
     pub fn has_children(&self) -> bool {
         !self.children.is_empty()
     }

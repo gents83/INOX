@@ -1,6 +1,7 @@
 use uuid::*;
 
 pub type UID = Uuid;
+pub const INVALID_UID: UID = Uuid::nil();
 
 pub fn generate_random_uid() -> UID {
     Uuid::new_v4()
