@@ -3,31 +3,24 @@ use nrg_math::{Vector2u, Vector4u};
 use nrg_platform::{EventsRw, InputHandler};
 use nrg_serialize::{Deserialize, Serialize, INVALID_UID, UID};
 
-use crate::{
-    implement_container, implement_widget, ContainerData, ContainerFillType, InternalWidget, Text,
-    WidgetData, DEFAULT_WIDGET_SIZE,
-};
+use crate::{implement_widget, InternalWidget, Text, WidgetData, DEFAULT_WIDGET_SIZE};
 
 pub const DEFAULT_BUTTON_SIZE: Vector2u = Vector2u {
-    x: DEFAULT_WIDGET_SIZE.x * 10,
+    x: DEFAULT_WIDGET_SIZE.x * 20,
     y: DEFAULT_WIDGET_SIZE.y,
 };
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]
 pub struct Button {
-    #[serde(skip)]
-    container: ContainerData,
     data: WidgetData,
     label_id: UID,
 }
 implement_widget!(Button);
-implement_container!(Button);
 
 impl Default for Button {
     fn default() -> Self {
         Self {
-            container: ContainerData::default(),
             data: WidgetData::default(),
             label_id: INVALID_UID,
         }
@@ -66,7 +59,8 @@ impl InternalWidget for Button {
         }
         self.size(DEFAULT_BUTTON_SIZE * Screen::get_scale_factor())
             .fill_type(ContainerFillType::Horizontal)
-            .fit_to_content(true);
+            .space_between_elements(DEFAULT_WIDGET_SIZE.x / 5 * Screen::get_scale_factor() as u32)
+            .use_space_before_and_after(true);
 
         let mut text = Text::default();
         text.init(renderer);
@@ -83,8 +77,6 @@ impl InternalWidget for Button {
         _events: &mut EventsRw,
         _input_handler: &InputHandler,
     ) {
-        self.apply_fit_to_content();
-
         let data = self.get_data_mut();
         let pos = Screen::convert_from_pixels_into_screen_space(data.state.get_position());
         let size = Screen::convert_size_from_pixels(data.state.get_size());

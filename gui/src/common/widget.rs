@@ -4,11 +4,11 @@ use nrg_platform::{EventsRw, InputHandler};
 use nrg_serialize::{typetag, UID};
 
 use crate::{
-    HorizontalAlignment, Screen, VerticalAlignment, WidgetDataGetter, WidgetEvent,
+    ContainerTrait, HorizontalAlignment, Screen, VerticalAlignment, WidgetDataGetter, WidgetEvent,
     WidgetInteractiveState,
 };
 
-pub const DEFAULT_LAYER_OFFSET: f32 = 0.001;
+pub const DEFAULT_LAYER_OFFSET: f32 = 0.01;
 pub const DEFAULT_WIDGET_SIZE: Vector2u = Vector2u { x: 10, y: 10 };
 
 #[typetag::serde(tag = "widget")]
@@ -30,8 +30,10 @@ pub trait InternalWidget {
     fn widget_uninit(&mut self, renderer: &mut Renderer);
 }
 
-pub trait BaseWidget: InternalWidget + WidgetDataGetter {
+pub trait BaseWidget: InternalWidget + WidgetDataGetter + ContainerTrait {
     fn init(&mut self, renderer: &mut Renderer) {
+        let clip_area_in_px = Screen::get_draw_area();
+        self.get_data_mut().state.set_clip_area(clip_area_in_px);
         self.get_data_mut()
             .node
             .propagate_on_children_mut(|w| w.init(renderer));
@@ -313,16 +315,17 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
     fn update_layout(&mut self, drawing_area_in_px: Vector4u) {
         self.get_data_mut().state.set_clip_area(drawing_area_in_px);
 
-        if !self.get_data().state.is_pressed() {
-            self.compute_offset_and_scale_from_alignment();
-        }
-        self.clip_in_area();
-        self.update_layers();
-
         let widget_clip = self.compute_children_clip_area();
         self.get_data_mut().node.propagate_on_children_mut(|w| {
             w.update_layout(widget_clip);
         });
+
+        if !self.get_data().state.is_pressed() {
+            self.apply_fit_to_content();
+            self.compute_offset_and_scale_from_alignment();
+        }
+        self.clip_in_area();
+        self.update_layers();
     }
 
     fn update_layers(&mut self) {
@@ -330,7 +333,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         let layer = data.state.get_layer();
 
         data.node.propagate_on_children_mut(|w| {
-            w.move_to_layer(layer - DEFAULT_LAYER_OFFSET * 2.0);
+            w.move_to_layer(layer - DEFAULT_LAYER_OFFSET);
             w.update_layers();
         });
     }
@@ -354,14 +357,10 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
     fn is_selectable(&self) -> bool {
         self.get_data().state.is_selectable()
     }
-    fn add_child(&mut self, mut widget: Box<dyn Widget>) -> UID {
+    fn add_child(&mut self, widget: Box<dyn Widget>) -> UID {
         let id = widget.id();
-        let stroke_in_px: Vector2f = widget.as_mut().get_data().graphics.get_stroke().into();
-        let stroke = Screen::convert_size_into_pixels(stroke_in_px);
-        widget
-            .as_mut()
-            .translate((self.get_data().state.get_position() + stroke).convert());
         self.get_data_mut().node.add_child(widget);
+        self.update_layout(self.get_data().state.get_clip_area());
         id
     }
     fn remove_children(&mut self, renderer: &mut Renderer) {

@@ -3,10 +3,7 @@ use nrg_math::{Vector2u, Vector4u};
 use nrg_platform::{EventsRw, InputHandler};
 use nrg_serialize::{Deserialize, Serialize};
 
-use crate::{
-    implement_container, implement_widget, ContainerData, InternalWidget, WidgetData,
-    DEFAULT_WIDGET_SIZE,
-};
+use crate::{implement_widget, InternalWidget, WidgetData, DEFAULT_WIDGET_SIZE};
 
 pub const DEFAULT_PANEL_SIZE: Vector2u = Vector2u {
     x: DEFAULT_WIDGET_SIZE.x * 10,
@@ -16,17 +13,13 @@ pub const DEFAULT_PANEL_SIZE: Vector2u = Vector2u {
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]
 pub struct Panel {
-    #[serde(skip)]
-    container: ContainerData,
     data: WidgetData,
 }
 implement_widget!(Panel);
-implement_container!(Panel);
 
 impl Default for Panel {
     fn default() -> Self {
         Self {
-            container: ContainerData::default(),
             data: WidgetData::default(),
         }
     }
@@ -40,6 +33,8 @@ impl InternalWidget for Panel {
         }
 
         self.size(DEFAULT_PANEL_SIZE)
+            .selectable(false)
+            .draggable(false)
             .style(WidgetStyle::DefaultBackground);
     }
 
@@ -50,8 +45,6 @@ impl InternalWidget for Panel {
         _events: &mut EventsRw,
         _input_handler: &InputHandler,
     ) {
-        self.apply_fit_to_content();
-
         let data = self.get_data_mut();
         let pos = Screen::convert_from_pixels_into_screen_space(data.state.get_position());
         let size = Screen::convert_size_from_pixels(data.state.get_size());

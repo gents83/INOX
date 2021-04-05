@@ -30,35 +30,22 @@ impl HistoryPanel {
         self.history_panel.visible(visible);
         self
     }
-    fn create_history_widget(&mut self, renderer: &mut Renderer) -> (Panel, UID, UID, UID, UID) {
-        let mut history_panel = Panel::default();
-        history_panel.init(renderer);
-        history_panel
-            .size([650, 100].into())
-            .selectable(false)
-            .draggable(false)
-            .fit_to_content(true)
-            .fill_type(ContainerFillType::Vertical)
-            .space_between_elements(5);
-
+    fn create_history_widget(&mut self, renderer: &mut Renderer) -> (UID, UID, UID, UID) {
         let mut label = Text::default();
         label.init(renderer);
         label
             .vertical_alignment(VerticalAlignment::Top)
             .horizontal_alignment(HorizontalAlignment::Left)
             .set_text("Command History:");
-        history_panel.add_child(Box::new(label));
+        self.history_panel.add_child(Box::new(label));
 
         let mut button_box = Panel::default();
         button_box.init(renderer);
         button_box
-            .selectable(false)
-            .draggable(false)
             .fill_type(ContainerFillType::Horizontal)
-            .fit_to_content(false)
-            .horizontal_alignment(HorizontalAlignment::Stretch)
+            .horizontal_alignment(HorizontalAlignment::Center)
             .size([DEFAULT_BUTTON_SIZE.x * 4, DEFAULT_BUTTON_SIZE.y * 2].into())
-            .space_between_elements(DEFAULT_WIDGET_SIZE.x * 2 * Screen::get_scale_factor() as u32);
+            .space_between_elements(DEFAULT_WIDGET_SIZE.x * 4 * Screen::get_scale_factor() as u32);
 
         let mut history_undo = Button::default();
         history_undo.init(renderer);
@@ -76,30 +63,27 @@ impl HistoryPanel {
         let history_redo_button_id = button_box.add_child(Box::new(history_redo));
         let history_clear_button_id = button_box.add_child(Box::new(history_clear));
 
-        history_panel.add_child(Box::new(button_box));
+        self.history_panel.add_child(Box::new(button_box));
 
         let mut separator = Separator::default();
         separator.init(renderer);
-        history_panel.add_child(Box::new(separator));
+        self.history_panel.add_child(Box::new(separator));
 
         let mut history_commands_box = Panel::default();
         history_commands_box.init(renderer);
         history_commands_box
             .horizontal_alignment(HorizontalAlignment::Stretch)
-            .fit_to_content(true)
             .fill_type(ContainerFillType::Vertical)
-            .selectable(false)
-            .draggable(false)
-            .space_between_elements(2);
+            .space_between_elements(2)
+            .style(WidgetStyle::Invisible);
 
-        let history_text_id = history_panel.add_child(Box::new(history_commands_box));
+        let history_text_id = self.history_panel.add_child(Box::new(history_commands_box));
 
         let mut separator = Separator::default();
         separator.init(renderer);
-        history_panel.add_child(Box::new(separator));
+        self.history_panel.add_child(Box::new(separator));
 
         (
-            history_panel,
             history_text_id,
             history_undo_button_id,
             history_redo_button_id,
@@ -186,19 +170,18 @@ impl HistoryPanel {
     pub fn init(&mut self, renderer: &mut Renderer) {
         self.history_panel.init(renderer);
         self.history_panel
-            .size([600, 800].into())
-            .selectable(false)
-            .vertical_alignment(VerticalAlignment::Top)
-            .horizontal_alignment(HorizontalAlignment::Left);
+            .size([650, 100].into())
+            .vertical_alignment(VerticalAlignment::Bottom)
+            .horizontal_alignment(HorizontalAlignment::Left)
+            .fill_type(ContainerFillType::Vertical)
+            .space_between_elements(5);
 
         let (
-            history_panel,
             history_text_id,
             history_undo_button_id,
             history_redo_button_id,
             history_clear_button_id,
         ) = self.create_history_widget(renderer);
-        self.history_panel.add_child(Box::new(history_panel));
         self.history_text_widget_id = history_text_id;
         self.history_undo_button = history_undo_button_id;
         self.history_redo_button = history_redo_button_id;

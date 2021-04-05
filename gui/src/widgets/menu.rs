@@ -4,8 +4,8 @@ use nrg_platform::{EventsRw, InputHandler};
 use nrg_serialize::{Deserialize, Serialize, INVALID_UID, UID};
 
 use crate::{
-    implement_container, implement_widget, Button, ContainerData, ContainerFillType,
-    InternalWidget, WidgetData, WidgetEvent, DEFAULT_BUTTON_SIZE, DEFAULT_WIDGET_SIZE,
+    implement_widget, Button, InternalWidget, WidgetData, WidgetEvent, DEFAULT_BUTTON_SIZE,
+    DEFAULT_WIDGET_SIZE,
 };
 
 const DEFAULT_MENU_LAYER: f32 = 0.5;
@@ -18,8 +18,8 @@ const DEFAULT_MENU_ITEM_SIZE: Vector2u = Vector2u {
     y: DEFAULT_BUTTON_SIZE.y,
 };
 const DEFAULT_SUBMENU_ITEM_SIZE: Vector2u = Vector2u {
-    x: DEFAULT_BUTTON_SIZE.x * 2,
-    y: DEFAULT_BUTTON_SIZE.y * 2,
+    x: DEFAULT_MENU_ITEM_SIZE.x * 5,
+    y: DEFAULT_MENU_ITEM_SIZE.y * 5,
 };
 
 #[derive(Serialize, Deserialize)]
@@ -32,19 +32,15 @@ struct MenuItemPanel {
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]
 pub struct Menu {
-    #[serde(skip)]
-    container: ContainerData,
     data: WidgetData,
     entries: Vec<MenuItemPanel>,
     entries_uid: Vec<UID>,
 }
 implement_widget!(Menu);
-implement_container!(Menu);
 
 impl Default for Menu {
     fn default() -> Self {
         Self {
-            container: ContainerData::default(),
             data: WidgetData::default(),
             entries: Vec::new(),
             entries_uid: Vec::new(),
@@ -59,7 +55,6 @@ impl Menu {
         button
             .vertical_alignment(VerticalAlignment::Stretch)
             .fill_type(ContainerFillType::Horizontal)
-            .fit_to_content(true)
             .with_text(label)
             .text_alignment(VerticalAlignment::Center, HorizontalAlignment::Left)
             .style(WidgetStyle::DefaultBackground);
@@ -80,7 +75,8 @@ impl Menu {
             .vertical_alignment(VerticalAlignment::None)
             .horizontal_alignment(HorizontalAlignment::None)
             .fill_type(ContainerFillType::Vertical)
-            .fit_to_content(true)
+            .keep_fixed_width(false)
+            .space_between_elements(DEFAULT_WIDGET_SIZE.x / 2 * Screen::get_scale_factor() as u32)
             .style(WidgetStyle::FullInactive);
 
         submenu.move_to_layer(DEFAULT_MENU_LAYER);
@@ -93,7 +89,13 @@ impl Menu {
         });
         menu_item_id
     }
-
+    pub fn get_submenu(&mut self, menu_item_id: UID) -> Option<&mut Menu> {
+        if let Some(index) = self.entries_uid.iter().position(|el| *el == menu_item_id) {
+            let entry = &mut self.entries[index];
+            return Some(&mut entry.submenu);
+        }
+        None
+    }
     pub fn add_submenu_entry(&mut self, menu_item_id: UID, widget: Box<dyn Widget>) -> UID {
         let mut id = INVALID_UID;
         if let Some(index) = self.entries_uid.iter().position(|el| *el == menu_item_id) {
@@ -113,7 +115,6 @@ impl Menu {
             let mut button = Button::default();
             button.init(renderer);
             button
-                .vertical_alignment(VerticalAlignment::None)
                 .with_text(label)
                 .text_alignment(VerticalAlignment::Center, HorizontalAlignment::Left)
                 .style(WidgetStyle::DefaultBackground);
@@ -197,11 +198,10 @@ impl InternalWidget for Menu {
             .selectable(false)
             .vertical_alignment(VerticalAlignment::Top)
             .horizontal_alignment(HorizontalAlignment::Stretch)
-            .space_between_elements(DEFAULT_WIDGET_SIZE.x * 2 * Screen::get_scale_factor() as u32)
+            .space_between_elements(DEFAULT_WIDGET_SIZE.x * Screen::get_scale_factor() as u32)
             .fill_type(ContainerFillType::Horizontal)
             .use_space_before_and_after(false)
-            .fit_to_content(false)
-            .style(WidgetStyle::FullHighlight);
+            .style(WidgetStyle::DefaultBorder);
     }
 
     fn widget_update(
@@ -215,8 +215,6 @@ impl InternalWidget for Menu {
             e.submenu
                 .update(drawing_area_in_px, renderer, events_rw, input_handler);
         });
-
-        self.apply_fit_to_content();
         self.manage_menu_interactions(events_rw);
 
         let data = self.get_data_mut();

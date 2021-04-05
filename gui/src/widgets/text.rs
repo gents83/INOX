@@ -6,7 +6,7 @@ use nrg_serialize::{Deserialize, Serialize, UID};
 use crate::{implement_widget, InternalWidget, WidgetData, DEFAULT_WIDGET_SIZE};
 
 pub const DEFAULT_TEXT_SIZE: Vector2u = Vector2u {
-    x: DEFAULT_WIDGET_SIZE.x * 5,
+    x: DEFAULT_WIDGET_SIZE.x * 8,
     y: DEFAULT_WIDGET_SIZE.y / 5 * 4,
 };
 
@@ -140,9 +140,8 @@ impl InternalWidget for Text {
         }
 
         self.size(DEFAULT_TEXT_SIZE * Screen::get_scale_factor())
-            .style(WidgetStyle::DefaultText)
-            .draggable(false)
-            .selectable(false);
+            .selectable(false)
+            .style(WidgetStyle::DefaultText);
     }
 
     fn widget_update(
@@ -174,9 +173,6 @@ impl InternalWidget for Text {
         }
 
         let char_size = min_size.y / lines_count as f32;
-        let min_char_width = min_size.x / max_chars as f32;
-        let max_char_width = size.x / max_chars as f32;
-        let char_size = char_size.min(min_char_width.max(max_char_width));
         let mut char_width = char_size;
         let mut char_height = char_size;
         if *self.get_data().state.get_horizontal_alignment() == HorizontalAlignment::Stretch {
@@ -187,8 +183,8 @@ impl InternalWidget for Text {
         }
 
         let new_size: Vector2f = [
-            min_size.x.max(char_width * max_chars as f32).min(size.x),
-            min_size.y.max(char_height * lines_count as f32).min(size.y),
+            char_width * max_chars as f32,
+            char_height * lines_count as f32,
         ]
         .into();
 

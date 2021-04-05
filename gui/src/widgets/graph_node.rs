@@ -3,26 +3,19 @@ use nrg_math::{Vector2u, Vector4u};
 use nrg_platform::{EventsRw, InputHandler};
 use nrg_serialize::{Deserialize, Serialize, INVALID_UID, UID};
 
-use crate::{
-    implement_container, implement_widget, ContainerData, InternalWidget, Text, WidgetData,
-};
+use crate::{implement_widget, InternalWidget, Text, WidgetData};
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]
 pub struct GraphNode {
-    #[serde(skip)]
     title_widget: UID,
-    #[serde(skip)]
-    container: ContainerData,
     data: WidgetData,
 }
 implement_widget!(GraphNode);
-implement_container!(GraphNode);
 
 impl Default for GraphNode {
     fn default() -> Self {
         Self {
-            container: ContainerData::default(),
             data: WidgetData::default(),
             title_widget: INVALID_UID,
         }
@@ -60,8 +53,6 @@ impl InternalWidget for GraphNode {
         _events: &mut EventsRw,
         _input_handler: &InputHandler,
     ) {
-        self.apply_fit_to_content();
-
         let data = self.get_data_mut();
         let pos = Screen::convert_from_pixels_into_screen_space(data.state.get_position());
         let size = Screen::convert_size_from_pixels(data.state.get_size());

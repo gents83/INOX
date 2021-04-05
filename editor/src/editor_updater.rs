@@ -80,7 +80,8 @@ impl System for EditorUpdater {
             .selectable(false)
             .vertical_alignment(VerticalAlignment::Top)
             .horizontal_alignment(HorizontalAlignment::Right)
-            .space_between_elements(20);
+            .space_between_elements(20)
+            .fill_type(ContainerFillType::Vertical);
 
         let mut fps_text = Text::default();
         fps_text.init(renderer);
@@ -95,7 +96,7 @@ impl System for EditorUpdater {
         checkbox.init(renderer);
         checkbox
             .horizontal_alignment(HorizontalAlignment::Left)
-            .with_label(renderer, "Prova");
+            .with_label(renderer, "Checkbox");
         self.widget.add_child(Box::new(checkbox));
 
         let mut editable_text = EditableText::default();

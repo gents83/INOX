@@ -9,7 +9,6 @@ pub struct MainMenu {
     file_id: UID,
     settings_id: UID,
     show_history_id: UID,
-    show_history: bool,
 }
 
 impl Default for MainMenu {
@@ -19,7 +18,6 @@ impl Default for MainMenu {
             file_id: INVALID_UID,
             settings_id: INVALID_UID,
             show_history_id: INVALID_UID,
-            show_history: false,
         }
     }
 }
@@ -28,8 +26,16 @@ impl MainMenu {
     pub fn get_size(&self) -> Vector2u {
         self.menu.get_data().state.get_size()
     }
-    pub fn show_history(&self) -> bool {
-        self.show_history
+    pub fn show_history(&mut self) -> bool {
+        let mut show = false;
+        let settings_uid = self.settings_id;
+        if let Some(submenu) = self.menu.get_submenu(settings_uid) {
+            let uid = self.show_history_id;
+            if let Some(checkbox) = submenu.get_data_mut().node.get_child::<Checkbox>(uid) {
+                show = checkbox.is_checked();
+            }
+        }
+        show
     }
 
     pub fn init(&mut self, renderer: &mut Renderer) {
@@ -44,29 +50,10 @@ impl MainMenu {
         self.settings_id = self.menu.add_menu_item(renderer, "Settings");
         let mut checkbox = Checkbox::default();
         checkbox.init(renderer);
-        checkbox
-            .horizontal_alignment(HorizontalAlignment::Left)
-            .with_label(renderer, "Show History");
+        checkbox.with_label(renderer, "Show History").checked(false);
         self.show_history_id = checkbox.id();
         self.menu
             .add_submenu_entry(self.settings_id, Box::new(checkbox));
-    }
-
-    fn manage_events(&mut self, events_rw: &mut EventsRw) {
-        let events = events_rw.read().unwrap();
-        if let Some(widget_events) = events.read_events::<CheckboxEvent>() {
-            for event in widget_events.iter() {
-                if let CheckboxEvent::Checked(widget_id) = event {
-                    if *widget_id == self.show_history_id {
-                        self.show_history = true;
-                    }
-                } else if let CheckboxEvent::Unchecked(widget_id) = event {
-                    if *widget_id == self.show_history_id {
-                        self.show_history = false;
-                    }
-                }
-            }
-        }
     }
 
     pub fn update(
@@ -77,7 +64,5 @@ impl MainMenu {
     ) {
         self.menu
             .update(Screen::get_draw_area(), renderer, events, input_handler);
-
-        self.manage_events(events);
     }
 }

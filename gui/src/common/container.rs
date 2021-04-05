@@ -11,65 +11,15 @@ pub enum ContainerFillType {
     Horizontal,
 }
 
-#[derive(Serialize, Deserialize)]
-#[serde(crate = "nrg_serialize")]
-pub struct ContainerData {
-    pub fill_type: ContainerFillType,
-    pub use_space_before_after: bool,
-    pub fit_to_content: bool,
-    pub space_between_elements: u32,
-}
-
-impl Default for ContainerData {
-    fn default() -> Self {
-        Self {
-            fill_type: ContainerFillType::Vertical,
-            use_space_before_after: true,
-            fit_to_content: true,
-            space_between_elements: 0,
-        }
-    }
-}
-
 pub trait ContainerTrait: WidgetDataGetter {
-    fn get_container_data(&self) -> &ContainerData;
-    fn get_container_data_mut(&mut self) -> &mut ContainerData;
-    fn fill_type(&mut self, fill_type: ContainerFillType) -> &mut Self {
-        self.get_container_data_mut().fill_type = fill_type;
-        self
-    }
-    fn get_fill_type(&self) -> ContainerFillType {
-        self.get_container_data().fill_type
-    }
-    fn fit_to_content(&mut self, fit_to_content: bool) -> &mut Self {
-        self.get_container_data_mut().fit_to_content = fit_to_content;
-        self
-    }
-    fn has_fit_to_content(&self) -> bool {
-        self.get_container_data().fit_to_content
-    }
-    fn space_between_elements(&mut self, space_in_px: u32) -> &mut Self {
-        self.get_container_data_mut().space_between_elements = space_in_px;
-        self
-    }
-    fn get_space_between_elements(&self) -> u32 {
-        self.get_container_data().space_between_elements
-    }
-    fn use_space_before_and_after(&mut self, use_space_before_after: bool) -> &mut Self {
-        self.get_container_data_mut().use_space_before_after = use_space_before_after;
-        self
-    }
-    fn should_use_space_before_and_after(&self) -> bool {
-        self.get_container_data().use_space_before_after
-    }
-
     fn apply_fit_to_content(&mut self) {
-        let fill_type = self.get_fill_type();
-        let fit_to_content = self.has_fit_to_content();
-        let space = self.get_space_between_elements();
-        let use_space_before_after = self.should_use_space_before_and_after();
-
         let data = self.get_data_mut();
+        let fill_type = data.state.get_fill_type();
+        let keep_fixed_height = data.state.should_keep_fixed_height();
+        let keep_fixed_width = data.state.should_keep_fixed_width();
+        let space = data.state.get_space_between_elements();
+        let use_space_before_after = data.state.should_use_space_before_and_after();
+
         let node = &mut data.node;
         let parent_pos = data.state.get_position();
         let parent_size = data.state.get_size();
@@ -101,7 +51,7 @@ pub trait ContainerTrait: WidgetDataGetter {
                             .set_position([child_pos.x, parent_pos.y + children_size.y].into());
                     }
                     children_size.y += child_size.y + child_stroke.y * 2;
-                    children_size.x = parent_size.x.max(child_size.x + child_stroke.x * 2);
+                    children_size.x = children_size.x.max(child_size.x + child_stroke.x * 2);
                 }
                 ContainerFillType::Horizontal => {
                     if (use_space_before_after && index == 0) || index > 0 {
@@ -112,7 +62,7 @@ pub trait ContainerTrait: WidgetDataGetter {
                             .set_position([parent_pos.x + children_size.x, child_pos.y].into());
                     }
                     children_size.x += child_size.x + child_stroke.x * 2;
-                    children_size.y = parent_size.y.max(child_size.y + child_stroke.y * 2);
+                    children_size.y = children_size.y.max(child_size.y + child_stroke.y * 2);
                 }
                 _ => {
                     children_size.x = parent_size.x;
@@ -127,8 +77,10 @@ pub trait ContainerTrait: WidgetDataGetter {
         if use_space_before_after && fill_type == ContainerFillType::Horizontal {
             children_size.x += space;
         }
-        if !fit_to_content {
+        if keep_fixed_width {
             children_size.x = parent_size.x;
+        }
+        if keep_fixed_height {
             children_size.y = parent_size.y;
         }
         data.state.set_size(children_size);

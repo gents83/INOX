@@ -1,7 +1,10 @@
 use nrg_math::{Vector2u, Vector4u};
 use nrg_serialize::{Deserialize, Serialize};
 
-use crate::{HorizontalAlignment, VerticalAlignment, DEFAULT_LAYER_OFFSET, DEFAULT_WIDGET_SIZE};
+use crate::{
+    ContainerFillType, HorizontalAlignment, VerticalAlignment, DEFAULT_LAYER_OFFSET,
+    DEFAULT_WIDGET_SIZE,
+};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(crate = "nrg_serialize")]
@@ -21,6 +24,11 @@ pub struct WidgetState {
     layer: f32,
     horizontal_alignment: HorizontalAlignment,
     vertical_alignment: VerticalAlignment,
+    fill_type: ContainerFillType,
+    use_space_before_after: bool,
+    keep_fixed_width: bool,
+    keep_fixed_height: bool,
+    space_between_elements: u32,
 }
 
 impl Default for WidgetState {
@@ -38,11 +46,57 @@ impl Default for WidgetState {
             layer: 1.0 - DEFAULT_LAYER_OFFSET,
             horizontal_alignment: HorizontalAlignment::None,
             vertical_alignment: VerticalAlignment::None,
+            fill_type: ContainerFillType::None,
+            use_space_before_after: false,
+            keep_fixed_width: true,
+            keep_fixed_height: true,
+            space_between_elements: 0,
         }
     }
 }
 
 impl WidgetState {
+    pub fn fill_type(&mut self, fill_type: ContainerFillType) -> &mut Self {
+        self.fill_type = fill_type;
+        if fill_type == ContainerFillType::Horizontal {
+            self.keep_fixed_width = false;
+        } else if fill_type == ContainerFillType::Vertical {
+            self.keep_fixed_height = false;
+        }
+        self
+    }
+    pub fn get_fill_type(&self) -> ContainerFillType {
+        self.fill_type
+    }
+    pub fn keep_fixed_width(&mut self, keep_fixed_width: bool) -> &mut Self {
+        self.keep_fixed_width = keep_fixed_width;
+        self
+    }
+    pub fn should_keep_fixed_width(&self) -> bool {
+        self.keep_fixed_width
+    }
+    pub fn keep_fixed_height(&mut self, keep_fixed_height: bool) -> &mut Self {
+        self.keep_fixed_height = keep_fixed_height;
+        self
+    }
+    pub fn should_keep_fixed_height(&self) -> bool {
+        self.keep_fixed_height
+    }
+    pub fn space_between_elements(&mut self, space_in_px: u32) -> &mut Self {
+        self.space_between_elements = space_in_px;
+        self
+    }
+    pub fn get_space_between_elements(&self) -> u32 {
+        self.space_between_elements
+    }
+    pub fn use_space_before_and_after(&mut self, use_space_before_after: bool) -> &mut Self {
+        self.use_space_before_after = use_space_before_after;
+        self
+    }
+    pub fn should_use_space_before_and_after(&self) -> bool {
+        self.use_space_before_after
+    }
+
     pub fn get_position(&self) -> Vector2u {
         self.pos_in_px
     }

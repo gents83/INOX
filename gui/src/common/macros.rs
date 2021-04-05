@@ -2,8 +2,8 @@
 macro_rules! implement_widget {
     ($Type:ident) => {
         use crate::{
-            BaseWidget, HorizontalAlignment, Screen, VerticalAlignment, Widget, WidgetDataGetter,
-            WidgetStyle,
+            BaseWidget, ContainerFillType, ContainerTrait, HorizontalAlignment, Screen,
+            VerticalAlignment, Widget, WidgetDataGetter, WidgetStyle,
         };
         use nrg_serialize::typetag;
 
@@ -22,6 +22,7 @@ macro_rules! implement_widget {
         unsafe impl Send for $Type {}
         unsafe impl Sync for $Type {}
         impl BaseWidget for $Type {}
+        impl ContainerTrait for $Type {}
 
         #[typetag::serde]
         impl Widget for $Type {}
@@ -78,21 +79,34 @@ macro_rules! implement_widget {
                 self.get_data_mut().graphics.set_border_style(style);
                 self
             }
-        }
-    };
-}
-
-#[macro_export]
-macro_rules! implement_container {
-    ($Type:ident) => {
-        use crate::ContainerTrait;
-
-        impl ContainerTrait for $Type {
-            fn get_container_data(&self) -> &ContainerData {
-                &self.container
+            pub fn fill_type(&mut self, fill_type: ContainerFillType) -> &mut Self {
+                self.get_data_mut().state.fill_type(fill_type);
+                self
             }
-            fn get_container_data_mut(&mut self) -> &mut ContainerData {
-                &mut self.container
+            pub fn keep_fixed_height(&mut self, keep_fixed_height: bool) -> &mut Self {
+                self.get_data_mut()
+                    .state
+                    .keep_fixed_height(keep_fixed_height);
+                self
+            }
+            pub fn keep_fixed_width(&mut self, keep_fixed_width: bool) -> &mut Self {
+                self.get_data_mut().state.keep_fixed_width(keep_fixed_width);
+                self
+            }
+            pub fn space_between_elements(&mut self, space_in_px: u32) -> &mut Self {
+                self.get_data_mut()
+                    .state
+                    .space_between_elements(space_in_px);
+                self
+            }
+            pub fn use_space_before_and_after(
+                &mut self,
+                use_space_before_after: bool,
+            ) -> &mut Self {
+                self.get_data_mut()
+                    .state
+                    .use_space_before_and_after(use_space_before_after);
+                self
             }
         }
     };
