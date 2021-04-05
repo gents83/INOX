@@ -203,4 +203,8 @@ impl HistoryPanel {
 
         self.manage_history_interactions(events, history);
     }
+
+    pub fn uninit(&mut self, renderer: &mut Renderer) {
+        self.history_panel.uninit(renderer);
+    }
 }

@@ -40,6 +40,14 @@ impl Default for EditableText {
 }
 
 impl EditableText {
+    pub fn get_text(&mut self) -> String {
+        let mut text_result = String::new();
+        let text_widget_id = self.text_widget;
+        if let Some(text) = self.get_data_mut().node.get_child::<Text>(text_widget_id) {
+            text_result = text.get_text().to_string();
+        }
+        text_result
+    }
     fn manage_char_input(&mut self, events_rw: &EventsRw) {
         let mut commands: Vec<AddCharCommand> = Vec::new();
         let mut current_index = self.current_char;
@@ -136,8 +144,11 @@ impl EditableText {
     }
 
     fn update_text(&mut self, events_rw: &mut EventsRw) {
-        self.manage_char_input(events_rw);
-        self.manage_key_pressed(events_rw);
+        if self.is_focused {
+            self.update_indicator_position();
+            self.manage_char_input(events_rw);
+            self.manage_key_pressed(events_rw);
+        }
     }
 
     fn check_focus(&mut self, events_rw: &mut EventsRw) {
@@ -248,7 +259,6 @@ impl InternalWidget for EditableText {
         _input_handler: &InputHandler,
     ) {
         self.check_focus(events_rw);
-        self.update_indicator_position();
         self.update_text(events_rw);
 
         let data = self.get_data_mut();
