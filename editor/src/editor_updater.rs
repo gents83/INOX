@@ -1,4 +1,7 @@
-use std::time::Instant;
+use std::{
+    collections::VecDeque,
+    time::{Duration, Instant},
+};
 
 use super::config::*;
 use super::widgets::*;
@@ -12,13 +15,13 @@ use nrg_serialize::*;
 
 pub struct EditorUpdater {
     id: SystemId,
+    frame_seconds: VecDeque<Instant>,
     shared_data: SharedDataRw,
     config: Config,
     is_ctrl_pressed: bool,
     history: CommandsHistory,
     input_handler: InputHandler,
     fps_text_widget_id: UID,
-    time_per_fps: f64,
     main_menu: MainMenu,
     canvas: Canvas,
     widget: Panel,
@@ -31,6 +34,7 @@ impl EditorUpdater {
         let events_rw = &mut *read_data.get_unique_resource_mut::<EventsRw>();
         Self {
             id: SystemId::new(),
+            frame_seconds: VecDeque::default(),
             shared_data: shared_data.clone(),
             config: config.clone(),
             is_ctrl_pressed: false,
@@ -41,7 +45,6 @@ impl EditorUpdater {
             canvas: Canvas::default(),
             widget: Panel::default(),
             fps_text_widget_id: INVALID_ID,
-            time_per_fps: 0.,
         }
     }
 }
@@ -123,8 +126,6 @@ impl System for EditorUpdater {
     }
 
     fn run(&mut self) -> bool {
-        let time = std::time::Instant::now();
-
         Screen::update();
 
         self.update_mouse_pos()
@@ -132,7 +133,7 @@ impl System for EditorUpdater {
             .update_widgets();
 
         self.history.update();
-        self.update_fps_counter(&time);
+        self.update_fps_counter();
         true
     }
     fn uninit(&mut self) {
@@ -154,17 +155,21 @@ impl System for EditorUpdater {
 }
 
 impl EditorUpdater {
-    fn update_fps_counter(&mut self, time: &Instant) -> &mut Self {
+    fn update_fps_counter(&mut self) -> &mut Self {
+        let now = Instant::now();
+        let one_sec_before = now - Duration::from_secs(1);
+        self.frame_seconds.retain(|t| *t >= one_sec_before);
+        self.frame_seconds.push_back(now);
+
         if let Some(widget) = self
             .widget
             .get_data_mut()
             .node
             .get_child::<Text>(self.fps_text_widget_id)
         {
-            let str = format!("FPS: {:.3}", (60. * self.time_per_fps / 0.001) as u32);
+            let str = format!("FPS: {}", self.frame_seconds.len());
             widget.set_text(str.as_str());
         }
-        self.time_per_fps = time.elapsed().as_secs_f64();
         self
     }
     fn update_widgets(&mut self) -> &mut Self {

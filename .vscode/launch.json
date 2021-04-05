@@ -1,0 +1,40 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "LAUNCH DEBUG",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/target/debug/nrg_editor_app",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "stopOnEntry": false,
+            "sourceLanguages": [
+                "rust"
+            ],
+            "postDebugTask": "CLEANUP",
+            "windows": {
+                "program": "${workspaceFolder}/target/debug/nrg_editor_app.exe"
+            },
+        },
+        {
+            "name": "LAUNCH RELEASE",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/target/release/nrg_editor_app",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "stopOnEntry": false,
+            "sourceLanguages": [
+                "rust"
+            ],
+            "postDebugTask": "CLEANUP",
+            "windows": {
+                "program": "${workspaceFolder}/target/release/nrg_editor_app.exe"
+            },
+        },
+    ]
+}

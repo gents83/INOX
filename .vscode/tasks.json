@@ -1,0 +1,135 @@
+// Available variables which can be used inside of strings.
+// ${workspaceRoot}: the root folder of the team
+// ${file}: the current opened file
+// ${fileBasename}: the current opened file's basename
+// ${fileDirname}: the current opened file's dirname
+// ${fileExtname}: the current opened file's extension
+// ${cwd}: the current working directory of the spawned process
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "CLEANUP",
+			"type": "shell",
+			"isBackground": true,
+			"command": "Remove-Item -Path ${workspaceFolder}\\target\\debug\\in_use\\* -Recurse -Force",
+			"presentation": {
+				"clear": true,
+				"reveal": "never", //process does not switch terminal (focus on program output)
+			}
+		},
+		{
+			"label": "CREATE IN_USE FOLDER",
+			"type": "shell",
+			"isBackground": true,
+			"command": "New-Item -Path ${workspaceFolder}\\target\\debug\\ -Force -Name in_use -ItemType directory",
+			"presentation": {
+				"clear": true,
+				"reveal": "never", //process does not switch terminal (focus on program output)
+			}
+		},
+		{
+			"label": "CREATE DEPS IN_USE FOLDER",
+			"type": "shell",
+			"isBackground": true,
+			"command": "New-Item -Path ${workspaceFolder}\\target\\debug\\in_use\\ -Force -Name deps -ItemType directory",
+			"presentation": {
+				"clear": true,
+				"reveal": "never", //process does not switch terminal (focus on program output)
+			}
+		},
+		{
+			"label": "COMPILE DEBUG",
+			"args": [
+				"build",
+				"-v",
+				"--all"
+			],
+			"command": "cargo",
+			"problemMatcher": [
+				{
+					"owner": "rust",
+					"fileLocation": [
+						"relative",
+						"${workspaceRoot}"
+					],
+					"pattern": {
+						"regexp": "^(.*):(\\d+):(\\d+):\\s+(\\d+):(\\d+)\\s+(warning|error):\\s+(.*)$",
+						"file": 1,
+						"line": 2,
+						"column": 3,
+						"endLine": 4,
+						"endColumn": 5,
+						"severity": 6,
+						"message": 7
+					}
+				}
+			],
+			"presentation": {
+				"clear": true,
+			}
+		},
+		{
+			"label": "COMPILE RELEASE",
+			"args": [
+				"build",
+				"-v",
+				"--all",
+				"--release"
+			],
+			"command": "cargo",
+			"problemMatcher": [
+				{
+					"owner": "rust",
+					"fileLocation": [
+						"relative",
+						"${workspaceRoot}"
+					],
+					"pattern": {
+						"regexp": "^(.*):(\\d+):(\\d+):\\s+(\\d+):(\\d+)\\s+(warning|error):\\s+(.*)$",
+						"file": 1,
+						"line": 2,
+						"column": 3,
+						"endLine": 4,
+						"endColumn": 5,
+						"severity": 6,
+						"message": 7
+					}
+				}
+			],
+			"presentation": {
+				"clear": true,
+			}
+		},
+		{
+			"label": "BUILD DEBUG",
+			"group": "build",
+			"isBackground": true,
+			"dependsOn": [
+				"CREATE IN_USE FOLDER",
+				"CREATE DEPS IN_USE FOLDER",
+				"COMPILE DEBUG",
+			],
+			"problemMatcher": [],
+			"presentation": {
+				"clear": true,
+				"reveal": "never", //process does not switch terminal (focus on program output)
+			}
+		},
+		{
+			"label": "BUILD RELEASE",
+			"group": "build",
+			"isBackground": true,
+			"dependsOn": [
+				"CREATE IN_USE FOLDER",
+				"CREATE DEPS IN_USE FOLDER",
+				"COMPILE RELEASE",
+			],
+			"problemMatcher": [],
+			"presentation": {
+				"clear": true,
+				"reveal": "never", //process does not switch terminal (focus on program output)
+			}
+		}
+	]
+}

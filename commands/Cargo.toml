@@ -13,7 +13,3 @@ nrg_core = { path = "../core" }
 nrg_math = { path = "../math" }
 nrg_platform = { path = "../platform" }
 nrg_serialize = { path = "../serialize" }
-
-[build-dependencies]
-nrg_core = { path = "../core" }
-nrg_platform = { path = "../platform" }
