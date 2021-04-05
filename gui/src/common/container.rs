@@ -46,10 +46,7 @@ pub trait ContainerTrait: WidgetDataGetter {
                     if (use_space_before_after && index == 0) || index > 0 {
                         children_size.y += space;
                     }
-                    if !child_state.is_pressed() {
-                        child_state
-                            .set_position([child_pos.x, parent_pos.y + children_size.y].into());
-                    }
+                    child_state.set_position([child_pos.x, parent_pos.y + children_size.y].into());
                     children_size.y += child_size.y + child_stroke.y * 2;
                     children_size.x = children_size.x.max(child_size.x + child_stroke.x * 2);
                 }
@@ -57,10 +54,7 @@ pub trait ContainerTrait: WidgetDataGetter {
                     if (use_space_before_after && index == 0) || index > 0 {
                         children_size.x += space;
                     }
-                    if !child_state.is_pressed() {
-                        child_state
-                            .set_position([parent_pos.x + children_size.x, child_pos.y].into());
-                    }
+                    child_state.set_position([parent_pos.x + children_size.x, child_pos.y].into());
                     children_size.x += child_size.x + child_stroke.x * 2;
                     children_size.y = children_size.y.max(child_size.y + child_stroke.y * 2);
                 }

@@ -34,8 +34,8 @@ impl InternalWidget for Panel {
 
         self.size(DEFAULT_PANEL_SIZE)
             .selectable(false)
-            .draggable(false)
-            .style(WidgetStyle::DefaultBackground);
+            .style(WidgetStyle::DefaultBackground)
+            .border_style(WidgetStyle::DefaultBorder);
     }
 
     fn widget_update(

@@ -105,16 +105,21 @@ impl FilenameDialog {
         button_box.init(renderer);
         button_box
             .fill_type(ContainerFillType::Horizontal)
-            .horizontal_alignment(HorizontalAlignment::Right)
+            .vertical_alignment(VerticalAlignment::Bottom)
+            .horizontal_alignment(HorizontalAlignment::Stretch)
             .space_between_elements(20);
 
         let mut button_ok = Button::default();
         button_ok.init(renderer);
-        button_ok.with_text("Ok");
+        button_ok
+            .with_text("Ok")
+            .horizontal_alignment(HorizontalAlignment::Left);
 
         let mut button_cancel = Button::default();
         button_cancel.init(renderer);
-        button_cancel.with_text("Cancel");
+        button_cancel
+            .with_text("Cancel")
+            .horizontal_alignment(HorizontalAlignment::Right);
 
         self.ok_uid = button_box.add_child(Box::new(button_ok));
         self.cancel_uid = button_box.add_child(Box::new(button_cancel));
@@ -143,6 +148,9 @@ impl FilenameDialog {
             .horizontal_alignment(HorizontalAlignment::Center)
             .fill_type(ContainerFillType::Vertical)
             .keep_fixed_width(false)
+            .stroke(20)
+            .selectable(true)
+            .draggable(true)
             .style(WidgetStyle::DefaultBackground);
 
         self.add_title(renderer);

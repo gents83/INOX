@@ -320,10 +320,9 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter + ContainerTrait {
             w.update_layout(widget_clip);
         });
 
-        if !self.get_data().state.is_pressed() {
-            self.apply_fit_to_content();
-            self.compute_offset_and_scale_from_alignment();
-        }
+        self.apply_fit_to_content();
+        self.compute_offset_and_scale_from_alignment();
+
         self.clip_in_area();
         self.update_layers();
     }
