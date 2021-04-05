@@ -23,6 +23,7 @@ pub struct EditorUpdater {
     canvas: Canvas,
     widget: Panel,
     history_panel: HistoryPanel,
+    filename_dialog: FilenameDialog,
 }
 
 impl EditorUpdater {
@@ -42,6 +43,7 @@ impl EditorUpdater {
             widget: Panel::default(),
             fps_text_widget_id: INVALID_ID,
             time_per_fps: 0.,
+            filename_dialog: FilenameDialog::default(),
         }
     }
 }
@@ -72,6 +74,7 @@ impl System for EditorUpdater {
         self.main_menu.init(renderer);
         self.canvas.init(renderer);
         self.history_panel.init(renderer);
+        self.filename_dialog.init(renderer);
 
         self.widget.init(renderer);
         self.widget
@@ -101,6 +104,7 @@ impl System for EditorUpdater {
 
         let mut editable_text = EditableText::default();
         editable_text.init(renderer);
+        editable_text.horizontal_alignment(HorizontalAlignment::Stretch);
         self.widget.add_child(Box::new(editable_text));
 
         /*
@@ -184,6 +188,9 @@ impl EditorUpdater {
 
             self.widget
                 .update(draw_area, renderer, events, &self.input_handler);
+
+            self.filename_dialog
+                .update(renderer, events, &self.input_handler);
 
             self.history_panel
                 .set_visible(self.main_menu.show_history());

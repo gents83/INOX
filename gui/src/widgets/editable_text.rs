@@ -9,7 +9,7 @@ use nrg_serialize::{Deserialize, Serialize, INVALID_UID, UID};
 
 use crate::{
     implement_widget, AddCharCommand, Indicator, InternalWidget, RemoveCharCommand, Text,
-    WidgetData, WidgetEvent, DEFAULT_WIDGET_SIZE,
+    WidgetData, WidgetEvent, DEFAULT_TEXT_SIZE,
 };
 
 #[derive(Serialize, Deserialize)]
@@ -222,18 +222,14 @@ impl InternalWidget for EditableText {
             return;
         }
 
-        let default_size = DEFAULT_WIDGET_SIZE * Screen::get_scale_factor();
+        let default_size = DEFAULT_TEXT_SIZE * Screen::get_scale_factor();
 
         self.size(default_size)
-            .draggable(false)
-            .selectable(true)
-            .stroke(2)
-            .horizontal_alignment(HorizontalAlignment::Stretch);
+            .horizontal_alignment(HorizontalAlignment::Right);
 
         let mut text = Text::default();
         text.init(renderer);
-        text.draggable(false)
-            .vertical_alignment(VerticalAlignment::Center)
+        text.vertical_alignment(VerticalAlignment::Center)
             .horizontal_alignment(HorizontalAlignment::Left);
         text.set_text("Edit me");
         self.text_widget = self.add_child(Box::new(text));

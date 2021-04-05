@@ -6,7 +6,7 @@ use nrg_serialize::{Deserialize, Serialize, UID};
 use crate::{implement_widget, InternalWidget, WidgetData, DEFAULT_WIDGET_SIZE};
 
 pub const DEFAULT_TEXT_SIZE: Vector2u = Vector2u {
-    x: DEFAULT_WIDGET_SIZE.x * 8,
+    x: DEFAULT_WIDGET_SIZE.x * 20,
     y: DEFAULT_WIDGET_SIZE.y / 5 * 4,
 };
 
@@ -161,9 +161,8 @@ impl InternalWidget for Text {
 
         let pos =
             Screen::convert_from_pixels_into_screen_space(self.get_data_mut().state.get_position());
-        let mut size = Screen::convert_size_from_pixels(self.get_data_mut().state.get_size());
-        let min_size = size;
-        size =
+        let min_size = Screen::convert_size_from_pixels(self.get_data_mut().state.get_size());
+        let size =
             Screen::convert_size_from_pixels([drawing_area_in_px.z, drawing_area_in_px.w].into());
 
         let lines_count = self.text.lines().count().max(1);
