@@ -146,6 +146,12 @@ impl Font {
         };
 
         font.create_texture(DEFAULT_FONT_TEXTURE_SIZE);
+
+        let name = format!(
+            "./data/textures/{}.png",
+            filepath.file_stem().unwrap().to_str().unwrap()
+        );
+        let _res = font.get_bitmap().save(name);
         font
     }
 
