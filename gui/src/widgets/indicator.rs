@@ -10,8 +10,6 @@ use crate::{implement_widget, InternalWidget, WidgetData, DEFAULT_WIDGET_SIZE};
 #[serde(crate = "nrg_serialize")]
 pub struct Indicator {
     #[serde(skip)]
-    is_active: bool,
-    #[serde(skip)]
     is_blinking: bool,
     #[serde(skip)]
     refresh_time: Duration,
@@ -24,7 +22,6 @@ implement_widget!(Indicator);
 impl Default for Indicator {
     fn default() -> Self {
         Self {
-            is_active: true,
             is_blinking: true,
             refresh_time: Duration::from_millis(500),
             elapsed_time: Instant::now(),
@@ -34,13 +31,6 @@ impl Default for Indicator {
 }
 
 impl Indicator {
-    pub fn is_active(&self) -> bool {
-        self.is_active
-    }
-    pub fn set_active(&mut self, active: bool) -> &mut Self {
-        self.is_active = active;
-        self
-    }
     fn update_blinkng(&mut self) {
         if self.elapsed_time.elapsed() >= self.refresh_time {
             let blinking = self.is_blinking;
@@ -80,7 +70,7 @@ impl InternalWidget for Indicator {
         _events: &mut EventsRw,
         _input_handler: &InputHandler,
     ) {
-        if self.is_active {
+        if self.get_data().state.is_visible() {
             self.update_blinkng();
 
             let data = self.get_data_mut();

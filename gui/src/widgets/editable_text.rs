@@ -179,7 +179,7 @@ impl EditableText {
             .node
             .get_child::<Indicator>(indicator_id)
         {
-            indicator.set_active(focused);
+            indicator.visible(focused);
         }
     }
 
@@ -247,7 +247,7 @@ impl InternalWidget for EditableText {
 
         let mut indicator = Indicator::default();
         indicator.init(renderer);
-        indicator.set_active(false);
+        indicator.visible(false);
         self.indicator_widget = self.add_child(Box::new(indicator));
     }
 

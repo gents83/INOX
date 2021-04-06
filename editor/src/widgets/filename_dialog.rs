@@ -106,7 +106,7 @@ impl FilenameDialog {
         button_box
             .fill_type(ContainerFillType::Horizontal)
             .vertical_alignment(VerticalAlignment::Bottom)
-            .horizontal_alignment(HorizontalAlignment::Stretch)
+            .horizontal_alignment(HorizontalAlignment::Right)
             .space_between_elements(20);
 
         let mut button_ok = Button::default();
@@ -149,8 +149,7 @@ impl FilenameDialog {
             .fill_type(ContainerFillType::Vertical)
             .keep_fixed_width(false)
             .stroke(20)
-            .selectable(true)
-            .draggable(true)
+            .selectable(false)
             .style(WidgetStyle::DefaultBackground);
 
         self.add_title(renderer);

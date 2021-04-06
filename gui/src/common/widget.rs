@@ -50,7 +50,9 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter + ContainerTrait {
         let is_visible = self.get_data().state.is_visible();
         let widget_clip = self.compute_children_clip_area();
         self.get_data_mut().node.propagate_on_children_mut(|w| {
-            w.set_visible(is_visible);
+            if !is_visible && w.get_data().state.is_visible() {
+                w.set_visible(is_visible);
+            }
             w.update(widget_clip, renderer, events, input_handler);
         });
         if is_visible {
