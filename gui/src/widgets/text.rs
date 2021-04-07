@@ -229,9 +229,7 @@ impl InternalWidget for Text {
         }
         self.hover_char_index = hover_char_index;
         self.characters = characters;
-        self.get_data_mut()
-            .state
-            .set_size(Screen::convert_size_into_pixels(new_size));
+        self.set_size(Screen::convert_size_into_pixels(new_size));
 
         self.get_data_mut().graphics.set_mesh_data(mesh_data);
     }

@@ -1,8 +1,10 @@
 use nrg_graphics::{MaterialId, MeshData, MeshId, Renderer, INVALID_ID};
-use nrg_math::{Vector2u, Vector4f};
+use nrg_math::{Vector2f, Vector2u, Vector4f};
 use nrg_serialize::{Deserialize, Serialize};
 
-use crate::{Screen, WidgetInteractiveState, WidgetStyle, DEFAULT_LAYER_OFFSET};
+use crate::{
+    Screen, WidgetInteractiveState, WidgetStyle, DEFAULT_LAYER_OFFSET, DEFAULT_WIDGET_SIZE,
+};
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]
 pub struct WidgetGraphics {
@@ -46,6 +48,17 @@ impl WidgetGraphics {
     pub fn init(&mut self, renderer: &mut Renderer, pipeline: &str) -> &mut Self {
         let pipeline_id = renderer.get_pipeline_id(pipeline);
         self.material_id = renderer.add_material(pipeline_id);
+
+        let zero_px = Screen::convert_from_pixels_into_screen_space(Vector2u::default());
+        let one_px = Screen::convert_from_pixels_into_screen_space(DEFAULT_WIDGET_SIZE);
+
+        let mut mesh_data = MeshData::default();
+        mesh_data.add_quad_default(
+            [zero_px.x, zero_px.y, one_px.x, one_px.y].into(),
+            1.0 - DEFAULT_LAYER_OFFSET,
+        );
+        self.set_mesh_data(mesh_data);
+
         self
     }
     pub fn link_to_material(&mut self, material_id: MaterialId) -> &mut Self {
@@ -61,9 +74,7 @@ impl WidgetGraphics {
             renderer.remove_mesh(self.material_id, self.border_mesh_id);
             renderer.remove_mesh(self.material_id, self.mesh_id);
             self.border_mesh_id = INVALID_ID;
-            self.border_mesh_data.clear();
             self.mesh_id = INVALID_ID;
-            self.mesh_data.clear();
         }
         self
     }
@@ -109,21 +120,40 @@ impl WidgetGraphics {
         self.border_mesh_data.compute_center();
         self
     }
-
+    pub fn get_mesh_id(&mut self) -> MeshId {
+        self.mesh_id
+    }
+    pub fn get_mesh_data(&mut self) -> &mut MeshData {
+        &mut self.mesh_data
+    }
     pub fn set_mesh_data(&mut self, mesh_data: MeshData) -> &mut Self {
         self.mesh_data = mesh_data;
         self.compute_border();
+        self
+    }
+    pub fn translate(&mut self, offset: Vector2f) -> &mut Self {
+        self.mesh_data.translate([offset.x, offset.y, 0.].into());
+        self
+    }
+    pub fn scale(&mut self, scale: Vector2f) -> &mut Self {
+        self.mesh_data.scale([scale.x, scale.y, 1.].into());
         self
     }
     pub fn get_color(&self) -> Vector4f {
         self.color
     }
     pub fn set_color(&mut self, rgb: Vector4f) -> &mut Self {
-        self.color = rgb;
+        if self.color != rgb {
+            self.color = rgb;
+            self.mesh_data.set_vertex_color(rgb);
+        }
         self
     }
     pub fn set_border_color(&mut self, rgb: Vector4f) -> &mut Self {
-        self.border_color = rgb;
+        if self.border_color != rgb {
+            self.border_color = rgb;
+            self.border_mesh_data.set_vertex_color(rgb);
+        }
         self
     }
     pub fn set_stroke(&mut self, stroke: f32) -> &mut Self {

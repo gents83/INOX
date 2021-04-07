@@ -4,19 +4,15 @@ use nrg_platform::{EventsRw, InputHandler};
 use nrg_serialize::{typetag, UID};
 
 use crate::{
-    ContainerTrait, HorizontalAlignment, Screen, VerticalAlignment, WidgetDataGetter, WidgetEvent,
-    WidgetInteractiveState,
+    ContainerFillType, HorizontalAlignment, Screen, VerticalAlignment, WidgetDataGetter,
+    WidgetEvent, WidgetInteractiveState,
 };
 
 pub const DEFAULT_LAYER_OFFSET: f32 = 0.01;
 pub const DEFAULT_WIDGET_SIZE: Vector2u = Vector2u { x: 12, y: 12 };
 
 #[typetag::serde(tag = "widget")]
-pub trait Widget: BaseWidget + InternalWidget + Send + Sync {
-    fn get_type(&self) -> &'static str {
-        std::any::type_name::<Self>()
-    }
-}
+pub trait Widget: BaseWidget + InternalWidget + Send + Sync {}
 
 pub trait InternalWidget {
     fn widget_init(&mut self, renderer: &mut Renderer);
@@ -30,7 +26,10 @@ pub trait InternalWidget {
     fn widget_uninit(&mut self, renderer: &mut Renderer);
 }
 
-pub trait BaseWidget: InternalWidget + WidgetDataGetter + ContainerTrait {
+pub trait BaseWidget: InternalWidget + WidgetDataGetter {
+    fn get_type(&self) -> &'static str {
+        std::any::type_name::<Self>()
+    }
     fn init(&mut self, renderer: &mut Renderer) {
         let clip_area_in_px = Screen::get_draw_area();
         self.get_data_mut().state.set_clip_area(clip_area_in_px);
@@ -38,6 +37,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter + ContainerTrait {
             .node
             .propagate_on_children_mut(|w| w.init(renderer));
         self.widget_init(renderer);
+        self.move_to_layer(self.get_data().state.get_layer());
         self.mark_as_initialized();
     }
     fn update(
@@ -78,28 +78,28 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter + ContainerTrait {
     fn id(&self) -> UID {
         self.get_data().node.get_id()
     }
-    fn translate(&mut self, offset_in_px: Vector2i) {
-        let data = self.get_data_mut();
-        let new_pos: Vector2i = data.state.get_position().convert() + offset_in_px;
-        data.state.set_position(new_pos.convert());
-
-        data.node.propagate_on_children_mut(|w| {
-            w.translate(offset_in_px);
-        });
+    fn set_position(&mut self, pos_in_px: Vector2u) {
+        if pos_in_px != self.get_data().state.get_position() {
+            let data = self.get_data_mut();
+            let current_pos = data.state.get_position();
+            data.state.set_position(pos_in_px);
+            let old_pos = Screen::convert_from_pixels_into_screen_space(current_pos);
+            let new_pos = Screen::convert_from_pixels_into_screen_space(pos_in_px);
+            data.graphics.translate(new_pos - old_pos);
+        }
     }
-
-    fn scale(&mut self, scale: Vector2f) {
-        let data = self.get_data_mut();
-        let scaled_size: Vector2u = [
-            (data.state.get_size().x as f32 * scale.x) as _,
-            (data.state.get_size().y as f32 * scale.y) as _,
-        ]
-        .into();
-        data.state.set_size(scaled_size);
-
-        data.node.propagate_on_children_mut(|w| {
-            w.scale(scale);
-        });
+    fn set_size(&mut self, size_in_px: Vector2u) {
+        if size_in_px != self.get_data().state.get_size() {
+            let data = self.get_data_mut();
+            let old_screen_scale = Screen::convert_size_from_pixels(data.state.get_size());
+            let screen_size = Screen::convert_size_from_pixels(size_in_px);
+            let scale = screen_size / old_screen_scale;
+            data.state.set_size(size_in_px);
+            let pos = Screen::convert_from_pixels_into_screen_space(data.state.get_position());
+            data.graphics.translate(-pos.convert());
+            data.graphics.scale(scale);
+            data.graphics.translate(pos.convert());
+        }
     }
 
     fn compute_children_clip_area(&self) -> Vector4u {
@@ -110,7 +110,6 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter + ContainerTrait {
 
     fn compute_offset_and_scale_from_alignment(&mut self) {
         let state = &self.get_data().state;
-        let graphics = &self.get_data().graphics;
 
         let clip_rect = state.get_clip_area();
         let clip_min: Vector2u = [clip_rect.x, clip_rect.y].into();
@@ -118,49 +117,113 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter + ContainerTrait {
 
         let mut pos = state.get_position();
         let mut size = state.get_size();
-        let stroke = Screen::convert_size_into_pixels(graphics.get_stroke().into());
 
-        size.x = size.x.min(clip_max.x - clip_min.x);
-        size.y = size.y.min(clip_max.y - clip_min.y);
+        size = size.min(clip_max - clip_min);
 
         match state.get_horizontal_alignment() {
             HorizontalAlignment::Left => {
-                pos.x = clip_min.x + stroke.x;
+                pos.x = clip_min.x;
             }
             HorizontalAlignment::Right => {
-                pos.x = clip_max.x - (size.x + stroke.x);
+                pos.x = clip_max.x - size.x;
             }
             HorizontalAlignment::Center => {
                 pos.x = clip_min.x + (clip_max.x - clip_min.x) / 2 - size.x / 2;
             }
             HorizontalAlignment::Stretch => {
-                pos.x = clip_min.x + stroke.x;
-                size.x = (clip_max.x - clip_min.x) - stroke.x * 2;
+                pos.x = clip_min.x;
+                size.x = clip_max.x - clip_min.x;
             }
             _ => {}
         }
 
         match state.get_vertical_alignment() {
             VerticalAlignment::Top => {
-                pos.y = clip_min.y + stroke.y;
+                pos.y = clip_min.y;
             }
             VerticalAlignment::Bottom => {
-                pos.y = clip_max.y - (size.y + stroke.y);
+                pos.y = clip_max.y - size.y;
             }
             VerticalAlignment::Center => {
                 pos.y = clip_min.y + (clip_max.y - clip_min.y) / 2 - size.y / 2;
             }
             VerticalAlignment::Stretch => {
-                pos.y = clip_min.y + stroke.y;
-                size.y = (clip_max.y - clip_min.y) - stroke.y * 2;
+                pos.y = clip_min.y;
+                size.y = clip_max.y - clip_min.y;
             }
             _ => {}
         }
-
-        self.get_data_mut().state.set_position(pos);
-        self.get_data_mut().state.set_size(size);
+        self.set_position(pos);
+        self.set_size(size);
     }
 
+    fn apply_fit_to_content(&mut self) {
+        let data = self.get_data_mut();
+        let fill_type = data.state.get_fill_type();
+        let keep_fixed_height = data.state.should_keep_fixed_height();
+        let keep_fixed_width = data.state.should_keep_fixed_width();
+        let space = data.state.get_space_between_elements();
+        let use_space_before_after = data.state.should_use_space_before_and_after();
+
+        let node = &mut data.node;
+        let parent_pos = data.state.get_position();
+        let parent_size = data.state.get_size();
+
+        let mut children_min_pos: Vector2i = [i32::max_value(), i32::max_value()].into();
+        let mut children_size: Vector2u = [0, 0].into();
+        let mut index = 0;
+        node.propagate_on_children_mut(|w| {
+            let child_stroke =
+                Screen::convert_size_into_pixels(w.get_data().graphics.get_stroke().into());
+            let child_state = &mut w.get_data_mut().state;
+            let child_pos = child_state.get_position();
+            let child_size = child_state.get_size();
+            children_min_pos.x = children_min_pos
+                .x
+                .min(child_pos.x as i32 - child_stroke.x as i32)
+                .max(0);
+            children_min_pos.y = children_min_pos
+                .y
+                .min(child_pos.y as i32 - child_stroke.y as i32)
+                .max(0);
+            match fill_type {
+                ContainerFillType::Vertical => {
+                    if (use_space_before_after && index == 0) || index > 0 {
+                        children_size.y += space;
+                    }
+                    w.set_position([child_pos.x, parent_pos.y + children_size.y].into());
+                    children_size.y += child_size.y + child_stroke.y * 2;
+                    children_size.x = children_size.x.max(child_size.x + child_stroke.x * 2);
+                }
+                ContainerFillType::Horizontal => {
+                    if (use_space_before_after && index == 0) || index > 0 {
+                        children_size.x += space;
+                    }
+                    w.set_position([parent_pos.x + children_size.x, child_pos.y].into());
+                    children_size.x += child_size.x + child_stroke.x * 2;
+                    children_size.y = children_size.y.max(child_size.y + child_stroke.y * 2);
+                }
+                _ => {
+                    children_size.x = parent_size.x;
+                    children_size.y = parent_size.y;
+                }
+            }
+            index += 1;
+        });
+        if use_space_before_after && fill_type == ContainerFillType::Vertical {
+            children_size.y += space;
+        }
+        if use_space_before_after && fill_type == ContainerFillType::Horizontal {
+            children_size.x += space;
+        }
+        if keep_fixed_width {
+            children_size.x = parent_size.x;
+        }
+        if keep_fixed_height {
+            children_size.y = parent_size.y;
+        }
+        self.set_size(children_size);
+    }
     fn clip_in_area(&mut self) {
         let state = &self.get_data().state;
         let graphics = &self.get_data().graphics;
@@ -184,7 +247,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter + ContainerTrait {
             .min(clip_max.y as i32 - size.y as i32 - stroke.y as i32)
             .max(0);
 
-        self.get_data_mut().state.set_position(pos.convert());
+        self.set_position(pos.convert());
     }
 
     fn manage_style(&mut self) {
@@ -215,12 +278,12 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter + ContainerTrait {
 
     fn manage_events(&mut self, events: &mut EventsRw) {
         let id = self.id();
-        let data = self.get_data_mut();
         let events = events.read().unwrap();
         if let Some(widget_events) = events.read_events::<WidgetEvent>() {
             for event in widget_events.iter() {
                 match event {
                     WidgetEvent::Entering(widget_id) => {
+                        let data = self.get_data_mut();
                         if *widget_id == id && data.state.is_selectable() {
                             data.state.set_hover(true);
                         } else {
@@ -228,17 +291,20 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter + ContainerTrait {
                         }
                     }
                     WidgetEvent::Exiting(widget_id) => {
+                        let data = self.get_data_mut();
                         if *widget_id == id && data.state.is_selectable() {
                             data.state.set_hover(false);
                             data.state.set_pressed(false);
                         }
                     }
                     WidgetEvent::Released(widget_id) => {
+                        let data = self.get_data_mut();
                         if *widget_id == id && data.state.is_selectable() {
                             data.state.set_pressed(false);
                         }
                     }
                     WidgetEvent::Pressed(widget_id) => {
+                        let data = self.get_data_mut();
                         if *widget_id == id && data.state.is_selectable() {
                             data.state.set_pressed(true);
                         } else {
@@ -246,13 +312,18 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter + ContainerTrait {
                         }
                     }
                     WidgetEvent::Dragging(widget_id, mouse_in_px) => {
-                        if *widget_id == id && data.state.is_draggable() {
-                            data.state
+                        if *widget_id == id && self.get_data().state.is_draggable() {
+                            self.get_data_mut()
+                                .state
                                 .set_horizontal_alignment(HorizontalAlignment::None);
-                            data.state.set_vertical_alignment(VerticalAlignment::None);
-                            let mut pos = data.state.get_position().convert() + *mouse_in_px;
+                            self.get_data_mut()
+                                .state
+                                .set_vertical_alignment(VerticalAlignment::None);
+                            let mut pos =
+                                self.get_data().state.get_position().convert() + *mouse_in_px;
                             pos = pos.max(Vector2i::default());
-                            data.state.set_position(pos.convert());
+
+                            self.set_position(pos.convert());
                         }
                     }
                 }
@@ -309,9 +380,12 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter + ContainerTrait {
         }
     }
     fn move_to_layer(&mut self, layer: f32) {
-        let data = self.get_data_mut();
-        data.state.set_layer(layer);
-        data.graphics.move_to_layer(layer);
+        if (layer - self.get_data().state.get_layer()).abs() > f32::EPSILON {
+            let data = self.get_data_mut();
+            data.graphics.move_to_layer(-data.state.get_layer());
+            data.state.set_layer(layer);
+            data.graphics.move_to_layer(layer);
+        }
     }
 
     fn update_layout(&mut self, drawing_area_in_px: Vector4u) {
@@ -330,10 +404,8 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter + ContainerTrait {
     }
 
     fn update_layers(&mut self) {
-        let data = self.get_data_mut();
-        let layer = data.state.get_layer();
-
-        data.node.propagate_on_children_mut(|w| {
+        let layer = self.get_data().state.get_layer();
+        self.get_data_mut().node.propagate_on_children_mut(|w| {
             w.move_to_layer(layer - DEFAULT_LAYER_OFFSET);
             w.update_layers();
         });

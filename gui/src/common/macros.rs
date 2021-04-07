@@ -2,8 +2,8 @@
 macro_rules! implement_widget {
     ($Type:ident) => {
         use crate::{
-            BaseWidget, ContainerFillType, ContainerTrait, HorizontalAlignment, Screen,
-            VerticalAlignment, Widget, WidgetDataGetter, WidgetStyle,
+            BaseWidget, ContainerFillType, HorizontalAlignment, Screen, VerticalAlignment, Widget,
+            WidgetDataGetter, WidgetStyle,
         };
         use nrg_serialize::typetag;
 
@@ -22,7 +22,6 @@ macro_rules! implement_widget {
         unsafe impl Send for $Type {}
         unsafe impl Sync for $Type {}
         impl BaseWidget for $Type {}
-        impl ContainerTrait for $Type {}
 
         #[typetag::serde]
         impl Widget for $Type {}
@@ -43,18 +42,11 @@ macro_rules! implement_widget {
                 self
             }
             pub fn position(&mut self, pos_in_px: nrg_math::Vector2u) -> &mut Self {
-                let offset: nrg_math::Vector2i =
-                    pos_in_px.convert() - self.get_data().state.get_position().convert();
-                self.translate(offset);
+                self.set_position(pos_in_px);
                 self
             }
             pub fn size(&mut self, size_in_px: nrg_math::Vector2u) -> &mut Self {
-                let scale: nrg_math::Vector2f = [
-                    size_in_px.x as f32 / self.get_data().state.get_size().x as f32,
-                    size_in_px.y as f32 / self.get_data().state.get_size().y as f32,
-                ]
-                .into();
-                self.scale(scale);
+                self.set_size(size_in_px);
                 self
             }
             pub fn horizontal_alignment(&mut self, alignment: HorizontalAlignment) -> &mut Self {
