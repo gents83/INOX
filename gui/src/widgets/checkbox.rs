@@ -63,7 +63,7 @@ impl Checkbox {
             if checked {
                 inner_widget.style(WidgetStyle::FullActive);
             } else {
-                inner_widget.style(WidgetStyle::FullInactive);
+                inner_widget.style(WidgetStyle::Invisible);
             }
         }
         self
@@ -131,7 +131,6 @@ impl InternalWidget for Checkbox {
         outer_widget.init(renderer);
         outer_widget
             .size(default_size)
-            .stroke(4)
             .selectable(true)
             .style(WidgetStyle::Default);
 
@@ -143,7 +142,7 @@ impl InternalWidget for Checkbox {
             .selectable(false)
             .vertical_alignment(VerticalAlignment::Center)
             .horizontal_alignment(HorizontalAlignment::Center)
-            .style(WidgetStyle::FullInactive);
+            .style(WidgetStyle::Invisible);
 
         self.checked_widget = outer_widget.add_child(Box::new(inner_check));
         self.outer_widget = self.add_child(Box::new(outer_widget));

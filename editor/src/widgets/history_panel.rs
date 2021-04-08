@@ -49,15 +49,15 @@ impl HistoryPanel {
 
         let mut history_undo = Button::default();
         history_undo.init(renderer);
-        history_undo.stroke(2).with_text("Undo");
+        history_undo.with_text("Undo");
 
         let mut history_redo = Button::default();
         history_redo.init(renderer);
-        history_redo.stroke(2).with_text("Redo");
+        history_redo.with_text("Redo");
 
         let mut history_clear = Button::default();
         history_clear.init(renderer);
-        history_clear.stroke(2).with_text("Clear");
+        history_clear.with_text("Clear");
 
         let history_undo_button_id = button_box.add_child(Box::new(history_undo));
         let history_redo_button_id = button_box.add_child(Box::new(history_redo));

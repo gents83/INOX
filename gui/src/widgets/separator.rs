@@ -28,7 +28,6 @@ impl InternalWidget for Separator {
         }
         self.draggable(false)
             .size([DEFAULT_WIDGET_SIZE.x, 1].into())
-            .stroke(1)
             .horizontal_alignment(HorizontalAlignment::Stretch)
             .selectable(false)
             .style(WidgetStyle::FullActive)

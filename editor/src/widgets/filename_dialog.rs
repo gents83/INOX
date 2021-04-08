@@ -148,7 +148,6 @@ impl FilenameDialog {
             .horizontal_alignment(HorizontalAlignment::Center)
             .fill_type(ContainerFillType::Vertical)
             .keep_fixed_width(false)
-            .stroke(20)
             .selectable(false)
             .style(WidgetStyle::DefaultBackground);
 

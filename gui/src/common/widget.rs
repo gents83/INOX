@@ -171,35 +171,27 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         let mut children_size: Vector2u = [0, 0].into();
         let mut index = 0;
         node.propagate_on_children_mut(|w| {
-            let child_stroke =
-                Screen::convert_size_into_pixels(w.get_data().graphics.get_stroke().into());
             let child_state = &mut w.get_data_mut().state;
             let child_pos = child_state.get_position();
             let child_size = child_state.get_size();
-            children_min_pos.x = children_min_pos
-                .x
-                .min(child_pos.x as i32 - child_stroke.x as i32)
-                .max(0);
-            children_min_pos.y = children_min_pos
-                .y
-                .min(child_pos.y as i32 - child_stroke.y as i32)
-                .max(0);
+            children_min_pos.x = children_min_pos.x.min(child_pos.x as i32).max(0);
+            children_min_pos.y = children_min_pos.y.min(child_pos.y as i32).max(0);
             match fill_type {
                 ContainerFillType::Vertical => {
                     if (use_space_before_after && index == 0) || index > 0 {
                         children_size.y += space;
                     }
                     w.set_position([child_pos.x, parent_pos.y + children_size.y].into());
-                    children_size.y += child_size.y + child_stroke.y * 2;
-                    children_size.x = children_size.x.max(child_size.x + child_stroke.x * 2);
+                    children_size.y += child_size.y;
+                    children_size.x = children_size.x.max(child_size.x);
                 }
                 ContainerFillType::Horizontal => {
                     if (use_space_before_after && index == 0) || index > 0 {
                         children_size.x += space;
                     }
                     w.set_position([parent_pos.x + children_size.x, child_pos.y].into());
-                    children_size.x += child_size.x + child_stroke.x * 2;
-                    children_size.y = children_size.y.max(child_size.y + child_stroke.y * 2);
+                    children_size.x += child_size.x;
+                    children_size.y = children_size.y.max(child_size.y);
                 }
                 _ => {
                     children_size.x = parent_size.x;
@@ -224,7 +216,6 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
     }
     fn clip_in_area(&mut self) {
         let state = &self.get_data().state;
-        let graphics = &self.get_data().graphics;
 
         let clip_rect = state.get_clip_area();
         let clip_min: Vector2u = [clip_rect.x, clip_rect.y].into();
@@ -232,17 +223,16 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
 
         let mut pos: Vector2i = state.get_position().convert();
         let size = state.get_size();
-        let stroke = Screen::convert_size_into_pixels(graphics.get_stroke().into());
 
         pos.x = pos
             .x
-            .max(clip_min.x as i32 + stroke.x as i32)
-            .min(clip_max.x as i32 - size.x as i32 - stroke.x as i32)
+            .max(clip_min.x as i32)
+            .min(clip_max.x as i32 - size.x as i32)
             .max(0);
         pos.y = pos
             .y
-            .max(clip_min.y as i32 + stroke.y as i32)
-            .min(clip_max.y as i32 - size.y as i32 - stroke.y as i32)
+            .max(clip_min.y as i32)
+            .min(clip_max.y as i32 - size.y as i32)
             .max(0);
 
         self.set_position(pos.convert());
