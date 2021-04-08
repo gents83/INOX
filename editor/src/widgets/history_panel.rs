@@ -193,13 +193,12 @@ impl HistoryPanel {
         drawing_area_in_px: Vector4u,
         renderer: &mut Renderer,
         events: &mut EventsRw,
-        input_handler: &InputHandler,
         history: &mut CommandsHistory,
     ) {
         self.update_history_widget(renderer, &history);
 
         self.history_panel
-            .update(drawing_area_in_px, renderer, events, input_handler);
+            .update(drawing_area_in_px, renderer, events);
 
         self.manage_history_interactions(events, history);
     }

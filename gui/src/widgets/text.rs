@@ -1,6 +1,6 @@
 use nrg_graphics::{FontId, MaterialId, MeshData, Renderer, INVALID_ID};
 use nrg_math::{Vector2f, Vector2u, Vector4f, Vector4u};
-use nrg_platform::{Event, EventsRw, InputHandler};
+use nrg_platform::{Event, EventsRw, MouseEvent, MouseState};
 use nrg_serialize::{Deserialize, Serialize, UID};
 
 use crate::{implement_widget, InternalWidget, WidgetData, DEFAULT_WIDGET_SIZE};
@@ -35,6 +35,8 @@ pub struct Text {
     characters: Vec<TextChar>,
     #[serde(skip)]
     hover_char_index: i32,
+    #[serde(skip)]
+    is_dirty: bool,
     data: WidgetData,
 }
 implement_widget!(Text);
@@ -48,6 +50,7 @@ impl Default for Text {
             multiline: false,
             characters: Vec::new(),
             hover_char_index: -1,
+            is_dirty: true,
             data: WidgetData::default(),
         }
     }
@@ -55,6 +58,7 @@ impl Default for Text {
 
 impl Text {
     pub fn set_text(&mut self, text: &str) -> &mut Self {
+        self.is_dirty = true;
         self.text = String::from(text);
         self
     }
@@ -106,6 +110,27 @@ impl Text {
                 }
             }
         }
+        if let Some(mut mouse_events) = events.read_events::<MouseEvent>() {
+            for event in mouse_events.iter_mut() {
+                if event.state == MouseState::Move {
+                    let mouse_pos = Vector2f {
+                        x: event.x as _,
+                        y: event.y as _,
+                    };
+                    let mouse_pos = Screen::from_normalized_into_screen_space(mouse_pos);
+
+                    for (i, c) in self.characters.iter().enumerate() {
+                        if mouse_pos.x >= c.min.x
+                            && mouse_pos.x <= c.max.x
+                            && mouse_pos.y >= c.min.y
+                            && mouse_pos.y <= c.max.y
+                        {
+                            self.hover_char_index = 1 + i as i32;
+                        }
+                    }
+                }
+            }
+        }
     }
 
     fn add_char(&mut self, index: i32, character: char) {
@@ -116,49 +141,18 @@ impl Text {
         if new_index < 0 {
             new_index = 0;
         }
+        self.is_dirty = true;
         self.text.insert(new_index as _, character);
     }
     fn remove_char(&mut self, index: i32) -> char {
         if index >= 0 && index < self.text.len() as _ {
+            self.is_dirty = true;
             return self.text.remove(index as usize);
         }
         char::default()
     }
-}
 
-impl InternalWidget for Text {
-    fn widget_init(&mut self, renderer: &mut Renderer) {
-        let font_id = renderer.get_default_font_id();
-        let material_id = renderer.get_font_material_id(font_id);
-
-        self.font_id = font_id;
-        self.material_id = material_id;
-
-        self.get_data_mut().graphics.link_to_material(material_id);
-        if self.is_initialized() {
-            return;
-        }
-
-        self.size(DEFAULT_TEXT_SIZE * Screen::get_scale_factor())
-            .selectable(false)
-            .style(WidgetStyle::DefaultText);
-    }
-
-    fn widget_update(
-        &mut self,
-        drawing_area_in_px: Vector4u,
-        renderer: &mut Renderer,
-        events_rw: &mut EventsRw,
-        input_handler: &InputHandler,
-    ) {
-        self.update_text(events_rw);
-
-        let mouse_pos = Vector2f {
-            x: input_handler.get_mouse_data().get_x() as _,
-            y: input_handler.get_mouse_data().get_y() as _,
-        };
-        let mouse_pos = Screen::from_normalized_into_screen_space(mouse_pos);
-
+    fn update_mesh_from_text(&mut self, renderer: &mut Renderer, drawing_area_in_px: Vector4u) {
         let pos =
             Screen::convert_from_pixels_into_screen_space(self.get_data_mut().state.get_position());
         let min_size = Screen::convert_size_from_pixels(self.get_data_mut().state.get_size());
@@ -196,7 +190,7 @@ impl InternalWidget for Text {
         let mut pos_y = pos.y;
         let mut mesh_index = 0;
         let mut characters: Vec<TextChar> = Vec::new();
-        let mut hover_char_index = -1;
+
         for text in self.text.lines() {
             let mut pos_x = pos.x;
             for c in text.as_bytes().iter() {
@@ -221,17 +215,44 @@ impl InternalWidget for Text {
                     min: [pos_x, pos_y].into(),
                     max: [pos_x + char_width, pos_y + char_height].into(),
                 });
-                if hover_char_index < 0 && mesh_data.is_inside(mouse_pos) {
-                    hover_char_index = characters.len() as i32 - 1;
-                }
             }
             pos_y += char_height;
         }
-        self.hover_char_index = hover_char_index;
         self.characters = characters;
         self.set_size(Screen::convert_size_into_pixels(new_size));
 
         self.get_data_mut().graphics.set_mesh_data(mesh_data);
+    }
+}
+
+impl InternalWidget for Text {
+    fn widget_init(&mut self, renderer: &mut Renderer) {
+        let font_id = renderer.get_default_font_id();
+        let material_id = renderer.get_font_material_id(font_id);
+
+        self.font_id = font_id;
+        self.material_id = material_id;
+
+        self.get_data_mut().graphics.link_to_material(material_id);
+        if self.is_initialized() {
+            return;
+        }
+
+        self.size(DEFAULT_TEXT_SIZE * Screen::get_scale_factor())
+            .selectable(false)
+            .style(WidgetStyle::DefaultText);
+    }
+
+    fn widget_update(
+        &mut self,
+        drawing_area_in_px: Vector4u,
+        renderer: &mut Renderer,
+        events_rw: &mut EventsRw,
+    ) {
+        self.update_text(events_rw);
+        if self.is_dirty {
+            self.update_mesh_from_text(renderer, drawing_area_in_px);
+        }
     }
 
     fn widget_uninit(&mut self, renderer: &mut Renderer) {

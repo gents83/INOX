@@ -79,14 +79,9 @@ impl MainMenu {
             .add_submenu_entry(self.settings_id, Box::new(checkbox));
     }
 
-    pub fn update(
-        &mut self,
-        renderer: &mut Renderer,
-        events_rw: &mut EventsRw,
-        input_handler: &InputHandler,
-    ) {
+    pub fn update(&mut self, renderer: &mut Renderer, events_rw: &mut EventsRw) {
         self.menu
-            .update(Screen::get_draw_area(), renderer, events_rw, input_handler);
+            .update(Screen::get_draw_area(), renderer, events_rw);
 
         self.manage_events(events_rw, renderer);
 
@@ -100,7 +95,7 @@ impl MainMenu {
                 dialog.uninit(renderer);
                 self.filename_dialog = None;
             } else {
-                dialog.update(renderer, events_rw, input_handler);
+                dialog.update(renderer, events_rw);
             }
         }
     }

@@ -1,6 +1,6 @@
 use nrg_graphics::Renderer;
 use nrg_math::{Vector2u, Vector4u};
-use nrg_platform::{EventsRw, InputHandler};
+use nrg_platform::EventsRw;
 use nrg_serialize::{Deserialize, Serialize};
 
 use crate::{implement_widget, InternalWidget, WidgetData, DEFAULT_WIDGET_SIZE};
@@ -43,7 +43,6 @@ impl InternalWidget for Panel {
         _drawing_area_in_px: Vector4u,
         _renderer: &mut Renderer,
         _events: &mut EventsRw,
-        _input_handler: &InputHandler,
     ) {
     }
 

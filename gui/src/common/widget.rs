@@ -1,6 +1,6 @@
 use nrg_graphics::Renderer;
-use nrg_math::{Vector2f, Vector2i, Vector2u, Vector4u};
-use nrg_platform::{EventsRw, InputHandler};
+use nrg_math::{Vector2i, Vector2u, Vector4u};
+use nrg_platform::{EventsRw, MouseEvent, MouseState};
 use nrg_serialize::{typetag, UID};
 
 use crate::{
@@ -21,7 +21,6 @@ pub trait InternalWidget {
         drawing_area_in_px: Vector4u,
         renderer: &mut Renderer,
         events: &mut EventsRw,
-        input_handler: &InputHandler,
     );
     fn widget_uninit(&mut self, renderer: &mut Renderer);
 }
@@ -45,7 +44,6 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         drawing_area_in_px: Vector4u,
         renderer: &mut Renderer,
         events: &mut EventsRw,
-        input_handler: &InputHandler,
     ) {
         let is_visible = self.get_data().state.is_visible();
         let widget_clip = self.compute_children_clip_area();
@@ -53,14 +51,14 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
             if !is_visible && w.get_data().state.is_visible() {
                 w.set_visible(is_visible);
             }
-            w.update(widget_clip, renderer, events, input_handler);
+            w.update(widget_clip, renderer, events);
         });
         if is_visible {
-            self.manage_input(events, input_handler);
+            self.manage_input(events);
             self.manage_events(events);
             self.manage_style();
 
-            self.widget_update(drawing_area_in_px, renderer, events, input_handler);
+            self.widget_update(drawing_area_in_px, renderer, events);
 
             self.update_layout(drawing_area_in_px);
         }
@@ -319,11 +317,8 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
                             self.get_data_mut()
                                 .state
                                 .set_vertical_alignment(VerticalAlignment::None);
-                            let mut pos =
-                                self.get_data().state.get_position().convert() + *mouse_in_px;
-                            pos = pos.max(Vector2i::default());
 
-                            self.set_position(pos.convert());
+                            self.set_position(*mouse_in_px);
                         }
                     }
                 }
@@ -331,9 +326,29 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         }
     }
 
-    fn manage_input(&mut self, events: &mut EventsRw, input_handler: &InputHandler) {
+    fn manage_mouse_event(&mut self, event: &MouseEvent) -> Option<WidgetEvent> {
         let id = self.id();
-        let mut events = events.write().unwrap();
+        let data = self.get_data_mut();
+        let mouse_in_px: Vector2u = [event.x as _, event.y as _].into();
+        let is_inside = data.state.is_inside(mouse_in_px) && data.graphics.is_inside(mouse_in_px);
+
+        if event.state == MouseState::Move {
+            if is_inside && !data.state.is_hover() {
+                return Some(WidgetEvent::Entering(id));
+            } else if !is_inside && data.state.is_hover() {
+                return Some(WidgetEvent::Exiting(id));
+            } else if data.state.is_pressed() && data.state.is_draggable() {
+                return Some(WidgetEvent::Dragging(id, mouse_in_px));
+            }
+        } else if event.state == MouseState::Down && is_inside && !data.state.is_pressed() {
+            return Some(WidgetEvent::Pressed(id));
+        } else if event.state == MouseState::Up && data.state.is_pressed() {
+            return Some(WidgetEvent::Released(id));
+        }
+        None
+    }
+
+    fn manage_input(&mut self, events_rw: &mut EventsRw) {
         let data = self.get_data_mut();
         if !data.state.is_active() || !data.state.is_selectable() {
             return;
@@ -345,38 +360,17 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         if is_on_child {
             return;
         }
-        let mouse_in_px: Vector2u = Screen::from_normalized_into_pixels(Vector2f {
-            x: input_handler.get_mouse_data().get_x() as _,
-            y: input_handler.get_mouse_data().get_y() as _,
-        })
-        .max(Vector2i::default())
-        .convert();
-        let is_inside = data.state.is_inside(mouse_in_px) && data.graphics.is_inside(mouse_in_px);
-        if is_inside && !data.state.is_hover() {
-            events.send_event(WidgetEvent::Entering(id));
-            return;
-        } else if !is_inside {
-            if data.state.is_hover() {
-                events.send_event(WidgetEvent::Exiting(id));
+        let mut widget_events: Vec<WidgetEvent> = Vec::new();
+        if let Some(mut mouse_events) = events_rw.read().unwrap().read_events::<MouseEvent>() {
+            for event in mouse_events.iter_mut() {
+                if let Some(widget_event) = self.manage_mouse_event(event) {
+                    widget_events.push(widget_event);
+                }
             }
-            return;
         }
-        let is_mouse_down = input_handler.get_mouse_data().is_pressed();
-        if is_mouse_down && !data.state.is_pressed() {
-            events.send_event(WidgetEvent::Pressed(id));
-            return;
-        } else if !is_mouse_down {
-            if data.state.is_pressed() {
-                events.send_event(WidgetEvent::Released(id));
-            }
-            return;
-        }
-        if data.state.is_pressed() && data.state.is_draggable() {
-            let movement_in_pixels = Screen::from_normalized_into_pixels(Vector2f {
-                x: input_handler.get_mouse_data().movement_x() as _,
-                y: input_handler.get_mouse_data().movement_y() as _,
-            });
-            events.send_event(WidgetEvent::Dragging(id, movement_in_pixels));
+        for e in widget_events {
+            let mut events = events_rw.write().unwrap();
+            events.send_event(e);
         }
     }
     fn move_to_layer(&mut self, layer: f32) {

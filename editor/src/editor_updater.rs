@@ -20,7 +20,6 @@ pub struct EditorUpdater {
     config: Config,
     is_ctrl_pressed: bool,
     history: CommandsHistory,
-    input_handler: InputHandler,
     fps_text_widget_id: UID,
     main_menu: MainMenu,
     canvas: Canvas,
@@ -40,7 +39,6 @@ impl EditorUpdater {
             is_ctrl_pressed: false,
             history_panel: HistoryPanel::default(),
             history: CommandsHistory::new(&events_rw),
-            input_handler: InputHandler::default(),
             main_menu: MainMenu::default(),
             canvas: Canvas::default(),
             widget: Panel::default(),
@@ -61,9 +59,6 @@ impl System for EditorUpdater {
         let renderer = &mut *read_data.get_unique_resource_mut::<Renderer>();
         let window = &*read_data.get_unique_resource::<Window>();
         let events_rw = &mut *read_data.get_unique_resource_mut::<EventsRw>();
-
-        self.input_handler
-            .init(window.get_width() as _, window.get_heigth() as _);
 
         Screen::create(
             window.get_width(),
@@ -128,9 +123,7 @@ impl System for EditorUpdater {
     fn run(&mut self) -> bool {
         Screen::update();
 
-        self.update_mouse_pos()
-            .update_keyboard_input()
-            .update_widgets();
+        self.update_keyboard_input().update_widgets();
 
         self.history.update();
         self.update_fps_counter();
@@ -178,7 +171,7 @@ impl EditorUpdater {
             let events = &mut *read_data.get_unique_resource_mut::<EventsRw>();
             let renderer = &mut *read_data.get_unique_resource_mut::<Renderer>();
 
-            self.main_menu.update(renderer, events, &self.input_handler);
+            self.main_menu.update(renderer, events);
 
             let draw_area = [
                 0,
@@ -188,20 +181,13 @@ impl EditorUpdater {
             ]
             .into();
 
-            self.widget
-                .update(draw_area, renderer, events, &self.input_handler);
+            self.widget.update(draw_area, renderer, events);
 
             self.history_panel
                 .set_visible(self.main_menu.show_history());
-            self.history_panel.update(
-                draw_area,
-                renderer,
-                events,
-                &self.input_handler,
-                &mut self.history,
-            );
-            self.canvas
-                .update(draw_area, renderer, events, &self.input_handler);
+            self.history_panel
+                .update(draw_area, renderer, events, &mut self.history);
+            self.canvas.update(draw_area, renderer, events);
         }
 
         self
@@ -219,17 +205,6 @@ impl EditorUpdater {
             let pipeline_id = renderer.get_pipeline_id("UI");
             renderer.add_font(pipeline_id, self.config.fonts.first().unwrap());
         }
-    }
-
-    fn update_mouse_pos(&mut self) -> &mut Self {
-        {
-            let read_data = self.shared_data.read().unwrap();
-            let window = &*read_data.get_unique_resource::<Window>();
-
-            let window_events = window.get_events();
-            self.input_handler.update(&window_events);
-        }
-        self
     }
 
     fn update_keyboard_input(&mut self) -> &mut Self {

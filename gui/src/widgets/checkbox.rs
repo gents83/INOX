@@ -1,6 +1,6 @@
 use nrg_graphics::Renderer;
 use nrg_math::{Vector2u, Vector4u};
-use nrg_platform::{Event, EventsRw, InputHandler};
+use nrg_platform::{Event, EventsRw};
 use nrg_serialize::{Deserialize, Serialize, INVALID_UID, UID};
 
 use crate::{
@@ -154,7 +154,6 @@ impl InternalWidget for Checkbox {
         _drawing_area_in_px: Vector4u,
         _renderer: &mut Renderer,
         events: &mut EventsRw,
-        _input_handler: &InputHandler,
     ) {
         self.update_checked(events);
     }

@@ -3,7 +3,7 @@ use nrg_gui::{
     BaseWidget, Button, ContainerFillType, EditableText, HorizontalAlignment, Panel, Screen, Text,
     VerticalAlignment, WidgetDataGetter, WidgetEvent, WidgetStyle,
 };
-use nrg_platform::{EventsRw, InputHandler};
+use nrg_platform::EventsRw;
 use nrg_serialize::{INVALID_UID, UID};
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum DialogResult {
@@ -157,14 +157,9 @@ impl FilenameDialog {
         self.add_buttons(renderer);
     }
 
-    pub fn update(
-        &mut self,
-        renderer: &mut Renderer,
-        events_rw: &mut EventsRw,
-        input_handler: &InputHandler,
-    ) {
+    pub fn update(&mut self, renderer: &mut Renderer, events_rw: &mut EventsRw) {
         self.dialog
-            .update(Screen::get_draw_area(), renderer, events_rw, input_handler);
+            .update(Screen::get_draw_area(), renderer, events_rw);
 
         self.manage_events(events_rw);
     }

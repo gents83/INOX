@@ -2,8 +2,7 @@ use nrg_commands::ExecuteCommand;
 use nrg_graphics::Renderer;
 use nrg_math::Vector4u;
 use nrg_platform::{
-    EventsRw, InputHandler, InputState, Key, KeyEvent, KeyTextEvent, MouseButton, MouseEvent,
-    MouseState,
+    EventsRw, InputState, Key, KeyEvent, KeyTextEvent, MouseButton, MouseEvent, MouseState,
 };
 use nrg_serialize::{Deserialize, Serialize, INVALID_UID, UID};
 
@@ -256,7 +255,6 @@ impl InternalWidget for EditableText {
         _drawing_area_in_px: Vector4u,
         _renderer: &mut Renderer,
         events_rw: &mut EventsRw,
-        _input_handler: &InputHandler,
     ) {
         self.check_focus(events_rw);
         self.update_text(events_rw);

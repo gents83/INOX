@@ -1,6 +1,6 @@
 use nrg_graphics::Renderer;
 use nrg_math::{Vector2u, Vector4u};
-use nrg_platform::{EventsRw, InputHandler};
+use nrg_platform::EventsRw;
 use nrg_serialize::{Deserialize, Serialize, INVALID_UID, UID};
 
 use crate::{
@@ -209,11 +209,9 @@ impl InternalWidget for Menu {
         drawing_area_in_px: Vector4u,
         renderer: &mut Renderer,
         events_rw: &mut EventsRw,
-        input_handler: &InputHandler,
     ) {
         self.entries.iter_mut().for_each(|e| {
-            e.submenu
-                .update(drawing_area_in_px, renderer, events_rw, input_handler);
+            e.submenu.update(drawing_area_in_px, renderer, events_rw);
         });
         self.manage_menu_interactions(events_rw);
     }
