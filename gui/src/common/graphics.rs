@@ -2,9 +2,7 @@ use nrg_graphics::{MaterialId, MeshData, MeshId, Renderer, INVALID_ID};
 use nrg_math::{Vector2f, Vector2u, Vector4f};
 use nrg_serialize::{Deserialize, Serialize};
 
-use crate::{
-    Screen, WidgetInteractiveState, WidgetStyle, DEFAULT_LAYER_OFFSET, DEFAULT_WIDGET_SIZE,
-};
+use crate::{Screen, DEFAULT_LAYER_OFFSET, DEFAULT_WIDGET_SIZE};
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]
 pub struct WidgetGraphics {
@@ -18,9 +16,10 @@ pub struct WidgetGraphics {
     color: Vector4f,
     #[serde(skip)]
     border_color: Vector4f,
+    #[serde(skip)]
+    is_dirty: bool,
     stroke: f32,
-    style: WidgetStyle,
-    border_style: WidgetStyle,
+    layer: f32,
 }
 
 impl Default for WidgetGraphics {
@@ -31,9 +30,9 @@ impl Default for WidgetGraphics {
             mesh_data: MeshData::default(),
             color: Vector4f::default(),
             border_color: Vector4f::default(),
+            is_dirty: true,
             stroke: 0.0,
-            style: WidgetStyle::Default,
-            border_style: WidgetStyle::DefaultBorder,
+            layer: 1.0 - DEFAULT_LAYER_OFFSET,
         }
     }
 }
@@ -57,37 +56,27 @@ impl WidgetGraphics {
     }
     pub fn link_to_material(&mut self, material_id: MaterialId) -> &mut Self {
         self.material_id = material_id;
+        self.is_dirty = true;
         self
     }
     pub fn unlink_from_material(&mut self) -> &mut Self {
         self.material_id = INVALID_ID;
+        self.is_dirty = true;
         self
     }
     pub fn remove_meshes(&mut self, renderer: &mut Renderer) -> &mut Self {
-        if self.mesh_id != INVALID_ID {
-            renderer.remove_mesh(self.material_id, self.mesh_id);
-            self.mesh_id = INVALID_ID;
-        }
+        renderer.remove_mesh(self.material_id, self.mesh_id);
+        self.mesh_id = INVALID_ID;
+        self.is_dirty = true;
         self
     }
-
-    pub fn set_style(&mut self, style: WidgetStyle) -> &mut Self {
-        self.style = style;
+    pub fn get_layer(&self) -> f32 {
+        self.layer
+    }
+    pub fn set_layer(&mut self, layer: f32) -> &mut Self {
+        self.layer = layer;
         self
     }
-
-    pub fn set_border_style(&mut self, style: WidgetStyle) -> &mut Self {
-        self.border_style = style;
-        self
-    }
-
-    pub fn get_colors(&self, state: WidgetInteractiveState) -> (Vector4f, Vector4f) {
-        (
-            WidgetStyle::color(&self.style, state),
-            WidgetStyle::color(&self.border_style, state),
-        )
-    }
-
     pub fn get_stroke(&self) -> f32 {
         self.stroke
     }
@@ -99,18 +88,22 @@ impl WidgetGraphics {
     }
     pub fn set_mesh_data(&mut self, mesh_data: MeshData) -> &mut Self {
         self.mesh_data = mesh_data;
+        self.is_dirty = true;
         self
     }
     pub fn translate(&mut self, offset: Vector2f) -> &mut Self {
         self.mesh_data.translate([offset.x, offset.y, 0.].into());
+        self.is_dirty = true;
         self
     }
     pub fn scale(&mut self, scale: Vector2f) -> &mut Self {
         self.mesh_data.scale([scale.x, scale.y, 1.].into());
+        self.is_dirty = true;
         self
     }
     pub fn move_to_layer(&mut self, layer: f32) -> &mut Self {
         self.mesh_data.translate([0.0, 0.0, layer].into());
+        self.is_dirty = true;
         self
     }
     pub fn get_color(&self) -> Vector4f {
@@ -120,6 +113,7 @@ impl WidgetGraphics {
         if self.color != rgb {
             self.color = rgb;
             self.mesh_data.set_vertex_color(rgb);
+            self.is_dirty = true;
         }
         self
     }
@@ -140,12 +134,14 @@ impl WidgetGraphics {
 
     pub fn update(&mut self, renderer: &mut Renderer, is_visible: bool) -> &mut Self {
         if is_visible {
-            if self.mesh_id == INVALID_ID {
-                self.mesh_id = renderer.add_mesh(self.material_id, &self.mesh_data);
-            } else {
-                renderer.update_mesh(self.material_id, self.mesh_id, &self.mesh_data);
+            if self.is_dirty {
+                if self.mesh_id == INVALID_ID {
+                    self.mesh_id = renderer.add_mesh(self.material_id, &self.mesh_data);
+                } else {
+                    renderer.update_mesh(self.material_id, self.mesh_id, &self.mesh_data);
+                }
             }
-        } else {
+        } else if self.mesh_id != INVALID_ID {
             self.remove_meshes(renderer);
         }
         self

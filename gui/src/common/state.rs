@@ -1,8 +1,8 @@
-use nrg_math::{Vector2u, Vector4u};
+use nrg_math::{Vector2u, Vector4f, Vector4u};
 use nrg_serialize::{Deserialize, Serialize};
 
 use crate::{
-    ContainerFillType, HorizontalAlignment, VerticalAlignment, DEFAULT_LAYER_OFFSET,
+    ContainerFillType, HorizontalAlignment, VerticalAlignment, WidgetInteractiveState, WidgetStyle,
     DEFAULT_WIDGET_SIZE,
 };
 
@@ -21,7 +21,8 @@ pub struct WidgetState {
     is_pressed: bool,
     #[serde(skip)]
     is_hover: bool,
-    layer: f32,
+    style: WidgetStyle,
+    border_style: WidgetStyle,
     horizontal_alignment: HorizontalAlignment,
     vertical_alignment: VerticalAlignment,
     fill_type: ContainerFillType,
@@ -43,7 +44,8 @@ impl Default for WidgetState {
             is_draggable: false,
             is_pressed: false,
             is_hover: false,
-            layer: 1.0 - DEFAULT_LAYER_OFFSET,
+            style: WidgetStyle::Default,
+            border_style: WidgetStyle::DefaultBorder,
             horizontal_alignment: HorizontalAlignment::None,
             vertical_alignment: VerticalAlignment::None,
             fill_type: ContainerFillType::None,
@@ -56,6 +58,22 @@ impl Default for WidgetState {
 }
 
 impl WidgetState {
+    pub fn set_style(&mut self, style: WidgetStyle) -> &mut Self {
+        self.style = style;
+        self
+    }
+
+    pub fn set_border_style(&mut self, style: WidgetStyle) -> &mut Self {
+        self.border_style = style;
+        self
+    }
+
+    pub fn get_colors(&self, state: WidgetInteractiveState) -> (Vector4f, Vector4f) {
+        (
+            WidgetStyle::color(&self.style, state),
+            WidgetStyle::color(&self.border_style, state),
+        )
+    }
     pub fn fill_type(&mut self, fill_type: ContainerFillType) -> &mut Self {
         self.fill_type = fill_type;
         if fill_type == ContainerFillType::Horizontal {
@@ -118,13 +136,6 @@ impl WidgetState {
 
     pub fn set_clip_area(&mut self, clip_area: Vector4u) -> &mut Self {
         self.clip_area = clip_area;
-        self
-    }
-    pub fn get_layer(&self) -> f32 {
-        self.layer
-    }
-    pub fn set_layer(&mut self, layer: f32) -> &mut Self {
-        self.layer = layer;
         self
     }
     pub fn is_active(&self) -> bool {

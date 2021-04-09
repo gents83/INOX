@@ -182,7 +182,7 @@ impl Text {
         .into();
 
         let char_color = self.get_data().graphics.get_color();
-        let char_layer = self.get_data().state.get_layer();
+        let char_layer = self.get_data().graphics.get_layer();
 
         let font = renderer.get_font(self.font_id).unwrap();
 

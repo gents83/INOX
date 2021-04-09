@@ -11,7 +11,7 @@ pub enum WidgetInteractiveState {
     Pressed,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(crate = "nrg_serialize")]
 pub enum WidgetStyle {
     Default,

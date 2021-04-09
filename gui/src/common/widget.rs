@@ -37,7 +37,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
                 .propagate_on_children_mut(|w| w.init(renderer));
         }
 
-        self.move_to_layer(self.get_data().state.get_layer());
+        self.move_to_layer(self.get_data().graphics.get_layer());
         self.update_layout();
         self.mark_as_initialized();
     }
@@ -246,22 +246,22 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         let data = self.get_data_mut();
 
         if data.state.is_hover() {
-            let (color, border_color) = data.graphics.get_colors(WidgetInteractiveState::Hover);
+            let (color, border_color) = data.state.get_colors(WidgetInteractiveState::Hover);
             data.graphics
                 .set_color(color)
                 .set_border_color(border_color);
         } else if data.state.is_pressed() {
-            let (color, border_color) = data.graphics.get_colors(WidgetInteractiveState::Pressed);
+            let (color, border_color) = data.state.get_colors(WidgetInteractiveState::Pressed);
             data.graphics
                 .set_color(color)
                 .set_border_color(border_color);
         } else if data.state.is_active() {
-            let (color, border_color) = data.graphics.get_colors(WidgetInteractiveState::Active);
+            let (color, border_color) = data.state.get_colors(WidgetInteractiveState::Active);
             data.graphics
                 .set_color(color)
                 .set_border_color(border_color);
         } else {
-            let (color, border_color) = data.graphics.get_colors(WidgetInteractiveState::Inactive);
+            let (color, border_color) = data.state.get_colors(WidgetInteractiveState::Inactive);
             data.graphics
                 .set_color(color)
                 .set_border_color(border_color);
@@ -368,10 +368,10 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         }
     }
     fn move_to_layer(&mut self, layer: f32) {
-        if (layer - self.get_data().state.get_layer()).abs() > f32::EPSILON {
+        if (layer - self.get_data().graphics.get_layer()).abs() > f32::EPSILON {
             let data = self.get_data_mut();
-            data.graphics.move_to_layer(-data.state.get_layer());
-            data.state.set_layer(layer);
+            data.graphics.move_to_layer(-data.graphics.get_layer());
+            data.graphics.set_layer(layer);
             data.graphics.move_to_layer(layer);
         }
     }
@@ -385,7 +385,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
     }
 
     fn update_layers(&mut self) {
-        let layer = self.get_data().state.get_layer();
+        let layer = self.get_data().graphics.get_layer();
         self.get_data_mut().node.propagate_on_children_mut(|w| {
             w.move_to_layer(layer - DEFAULT_LAYER_OFFSET);
             w.update_layers();

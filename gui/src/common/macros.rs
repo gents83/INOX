@@ -64,11 +64,11 @@ macro_rules! implement_widget {
                 self
             }
             pub fn style(&mut self, style: WidgetStyle) -> &mut Self {
-                self.get_data_mut().graphics.set_style(style);
+                self.get_data_mut().state.set_style(style);
                 self
             }
             pub fn border_style(&mut self, style: WidgetStyle) -> &mut Self {
-                self.get_data_mut().graphics.set_border_style(style);
+                self.get_data_mut().state.set_border_style(style);
                 self
             }
             pub fn fill_type(&mut self, fill_type: ContainerFillType) -> &mut Self {
