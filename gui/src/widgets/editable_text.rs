@@ -1,6 +1,6 @@
 use nrg_commands::ExecuteCommand;
 use nrg_graphics::Renderer;
-use nrg_math::Vector4u;
+
 use nrg_platform::{
     EventsRw, InputState, Key, KeyEvent, KeyTextEvent, MouseButton, MouseEvent, MouseState,
 };
@@ -227,7 +227,6 @@ impl EditableText {
 
 impl InternalWidget for EditableText {
     fn widget_init(&mut self, renderer: &mut Renderer) {
-        self.get_data_mut().graphics.init(renderer, "UI");
         if self.is_initialized() {
             return;
         }
@@ -250,12 +249,7 @@ impl InternalWidget for EditableText {
         self.indicator_widget = self.add_child(Box::new(indicator));
     }
 
-    fn widget_update(
-        &mut self,
-        _drawing_area_in_px: Vector4u,
-        _renderer: &mut Renderer,
-        events_rw: &mut EventsRw,
-    ) {
+    fn widget_update(&mut self, _renderer: &mut Renderer, events_rw: &mut EventsRw) {
         self.check_focus(events_rw);
         self.update_text(events_rw);
     }

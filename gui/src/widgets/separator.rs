@@ -1,5 +1,5 @@
 use nrg_graphics::Renderer;
-use nrg_math::Vector4u;
+
 use nrg_platform::EventsRw;
 use nrg_serialize::{Deserialize, Serialize};
 
@@ -21,8 +21,7 @@ impl Default for Separator {
 }
 
 impl InternalWidget for Separator {
-    fn widget_init(&mut self, renderer: &mut Renderer) {
-        self.get_data_mut().graphics.init(renderer, "UI");
+    fn widget_init(&mut self, _renderer: &mut Renderer) {
         if self.is_initialized() {
             return;
         }
@@ -34,13 +33,7 @@ impl InternalWidget for Separator {
             .border_style(WidgetStyle::FullActive);
     }
 
-    fn widget_update(
-        &mut self,
-        _drawing_area_in_px: Vector4u,
-        _renderer: &mut Renderer,
-        _events: &mut EventsRw,
-    ) {
-    }
+    fn widget_update(&mut self, _renderer: &mut Renderer, _events: &mut EventsRw) {}
 
     fn widget_uninit(&mut self, _renderer: &mut Renderer) {}
 }

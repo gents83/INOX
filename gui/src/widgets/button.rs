@@ -1,5 +1,5 @@
 use nrg_graphics::Renderer;
-use nrg_math::{Vector2u, Vector4u};
+use nrg_math::Vector2u;
 use nrg_platform::EventsRw;
 use nrg_serialize::{Deserialize, Serialize, INVALID_UID, UID};
 
@@ -53,9 +53,6 @@ impl Button {
 
 impl InternalWidget for Button {
     fn widget_init(&mut self, renderer: &mut Renderer) {
-        let data = self.get_data_mut();
-        data.graphics.init(renderer, "UI");
-
         if self.is_initialized() {
             return;
         }
@@ -73,13 +70,7 @@ impl InternalWidget for Button {
         self.label_id = self.add_child(Box::new(text));
     }
 
-    fn widget_update(
-        &mut self,
-        _drawing_area_in_px: Vector4u,
-        _renderer: &mut Renderer,
-        _events: &mut EventsRw,
-    ) {
-    }
+    fn widget_update(&mut self, _renderer: &mut Renderer, _events: &mut EventsRw) {}
 
     fn widget_uninit(&mut self, _renderer: &mut Renderer) {}
 }

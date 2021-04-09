@@ -326,10 +326,8 @@ impl Renderer {
             }
         }
     }
-}
 
-impl Renderer {
-    fn recreate(&mut self) {
+    pub fn recreate(&mut self) {
         self.device.recreate_swap_chain();
 
         let pipelines = &mut self.pipelines;
@@ -341,7 +339,9 @@ impl Renderer {
             }
         }
     }
+}
 
+impl Renderer {
     fn load_pipelines(&mut self) {
         let device = &mut self.device;
         let pipelines = &mut self.pipelines;

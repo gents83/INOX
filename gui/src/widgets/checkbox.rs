@@ -1,5 +1,5 @@
 use nrg_graphics::Renderer;
-use nrg_math::{Vector2u, Vector4u};
+use nrg_math::Vector2u;
 use nrg_platform::{Event, EventsRw};
 use nrg_serialize::{Deserialize, Serialize, INVALID_UID, UID};
 
@@ -115,7 +115,6 @@ impl Checkbox {
 
 impl InternalWidget for Checkbox {
     fn widget_init(&mut self, renderer: &mut Renderer) {
-        self.get_data_mut().graphics.init(renderer, "UI");
         if self.is_initialized() {
             return;
         }
@@ -148,12 +147,7 @@ impl InternalWidget for Checkbox {
         self.outer_widget = self.add_child(Box::new(outer_widget));
     }
 
-    fn widget_update(
-        &mut self,
-        _drawing_area_in_px: Vector4u,
-        _renderer: &mut Renderer,
-        events: &mut EventsRw,
-    ) {
+    fn widget_update(&mut self, _renderer: &mut Renderer, events: &mut EventsRw) {
         self.update_checked(events);
     }
 

@@ -243,14 +243,10 @@ impl InternalWidget for Text {
             .style(WidgetStyle::DefaultText);
     }
 
-    fn widget_update(
-        &mut self,
-        drawing_area_in_px: Vector4u,
-        renderer: &mut Renderer,
-        events_rw: &mut EventsRw,
-    ) {
+    fn widget_update(&mut self, renderer: &mut Renderer, events_rw: &mut EventsRw) {
         self.update_text(events_rw);
         if self.is_dirty {
+            let drawing_area_in_px = self.get_data().state.get_clip_area();
             self.update_mesh_from_text(renderer, drawing_area_in_px);
         }
     }

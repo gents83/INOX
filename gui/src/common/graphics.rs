@@ -109,6 +109,10 @@ impl WidgetGraphics {
         self.mesh_data.scale([scale.x, scale.y, 1.].into());
         self
     }
+    pub fn move_to_layer(&mut self, layer: f32) -> &mut Self {
+        self.mesh_data.translate([0.0, 0.0, layer].into());
+        self
+    }
     pub fn get_color(&self) -> Vector4f {
         self.color
     }
@@ -127,10 +131,6 @@ impl WidgetGraphics {
     }
     pub fn set_stroke(&mut self, stroke: f32) -> &mut Self {
         self.stroke = stroke;
-        self
-    }
-    pub fn move_to_layer(&mut self, layer: f32) -> &mut Self {
-        self.mesh_data.translate([0.0, 0.0, layer].into());
         self
     }
     pub fn is_inside(&self, pos_in_px: Vector2u) -> bool {

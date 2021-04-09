@@ -68,6 +68,16 @@ impl Window {
                 ::std::ptr::null_mut(),
             ); // lpParam
 
+            let mut rc: RECT = RECT {
+                left: 0,
+                top: 0,
+                right: *width as _,
+                bottom: *height as _,
+            };
+            GetClientRect(win_handle, &mut rc);
+            *width = rc.right as _;
+            *height = rc.bottom as _;
+
             Handle {
                 handle_impl: HandleImpl {
                     hwnd: win_handle,

@@ -1,5 +1,5 @@
 use nrg_graphics::Renderer;
-use nrg_math::{Vector2u, Vector4u};
+use nrg_math::Vector2u;
 use nrg_platform::EventsRw;
 use nrg_serialize::{Deserialize, Serialize, INVALID_UID, UID};
 
@@ -188,8 +188,7 @@ impl Menu {
 }
 
 impl InternalWidget for Menu {
-    fn widget_init(&mut self, renderer: &mut Renderer) {
-        self.get_data_mut().graphics.init(renderer, "UI");
+    fn widget_init(&mut self, _renderer: &mut Renderer) {
         if self.is_initialized() {
             return;
         }
@@ -204,16 +203,12 @@ impl InternalWidget for Menu {
             .style(WidgetStyle::DefaultBorder);
     }
 
-    fn widget_update(
-        &mut self,
-        drawing_area_in_px: Vector4u,
-        renderer: &mut Renderer,
-        events_rw: &mut EventsRw,
-    ) {
+    fn widget_update(&mut self, renderer: &mut Renderer, events_rw: &mut EventsRw) {
+        self.manage_menu_interactions(events_rw);
+        let drawing_area_in_px = self.get_data().state.get_clip_area();
         self.entries.iter_mut().for_each(|e| {
             e.submenu.update(drawing_area_in_px, renderer, events_rw);
         });
-        self.manage_menu_interactions(events_rw);
     }
 
     fn widget_uninit(&mut self, _renderer: &mut Renderer) {}

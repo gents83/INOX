@@ -25,7 +25,7 @@ impl Event for RemoveCharCommand {}
 impl Command for RemoveCharCommand {
     fn execute(&mut self, events_rw: &mut EventsRw) {
         let mut events = events_rw.write().unwrap();
-        events.push_event_to_next_frame::<TextEvent>(TextEvent::RemoveChar(
+        events.send_event::<TextEvent>(TextEvent::RemoveChar(
             self.widget_id,
             self.character_index,
             self.character,
@@ -33,7 +33,7 @@ impl Command for RemoveCharCommand {
     }
     fn undo(&mut self, events_rw: &mut EventsRw) {
         let mut events = events_rw.write().unwrap();
-        events.push_event_to_next_frame::<TextEvent>(TextEvent::AddChar(
+        events.send_event::<TextEvent>(TextEvent::AddChar(
             self.widget_id,
             self.character_index - 1,
             self.character,

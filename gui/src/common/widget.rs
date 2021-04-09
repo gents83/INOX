@@ -16,12 +16,7 @@ pub trait Widget: BaseWidget + InternalWidget + Send + Sync {}
 
 pub trait InternalWidget {
     fn widget_init(&mut self, renderer: &mut Renderer);
-    fn widget_update(
-        &mut self,
-        drawing_area_in_px: Vector4u,
-        renderer: &mut Renderer,
-        events: &mut EventsRw,
-    );
+    fn widget_update(&mut self, renderer: &mut Renderer, events: &mut EventsRw);
     fn widget_uninit(&mut self, renderer: &mut Renderer);
 }
 
@@ -32,36 +27,45 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
     fn init(&mut self, renderer: &mut Renderer) {
         let clip_area_in_px = Screen::get_draw_area();
         self.get_data_mut().state.set_clip_area(clip_area_in_px);
-        self.get_data_mut()
-            .node
-            .propagate_on_children_mut(|w| w.init(renderer));
+        self.get_data_mut().graphics.init(renderer, "UI");
+
         self.widget_init(renderer);
+
+        if self.is_initialized() {
+            self.get_data_mut()
+                .node
+                .propagate_on_children_mut(|w| w.init(renderer));
+        }
+
         self.move_to_layer(self.get_data().state.get_layer());
+        self.update_layout();
         self.mark_as_initialized();
     }
     fn update(
         &mut self,
         drawing_area_in_px: Vector4u,
         renderer: &mut Renderer,
-        events: &mut EventsRw,
+        events_rw: &mut EventsRw,
     ) {
+        self.get_data_mut().state.set_clip_area(drawing_area_in_px);
+
         let is_visible = self.get_data().state.is_visible();
+        self.manage_input(events_rw);
+        self.manage_events(events_rw);
+        self.manage_style();
+
+        self.widget_update(renderer, events_rw);
+
+        self.update_layout();
+
         let widget_clip = self.compute_children_clip_area();
         self.get_data_mut().node.propagate_on_children_mut(|w| {
             if !is_visible && w.get_data().state.is_visible() {
                 w.set_visible(is_visible);
             }
-            w.update(widget_clip, renderer, events);
+            w.update(widget_clip, renderer, events_rw);
         });
-        if is_visible {
-            self.manage_input(events);
-            self.manage_events(events);
-            self.manage_style();
 
-            self.widget_update(drawing_area_in_px, renderer, events);
-
-            self.update_layout(drawing_area_in_px);
-        }
         self.get_data_mut().graphics.update(renderer, is_visible);
     }
 
@@ -340,7 +344,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
 
     fn manage_input(&mut self, events_rw: &mut EventsRw) {
         let data = self.get_data_mut();
-        if !data.state.is_active() || !data.state.is_selectable() {
+        if !data.state.is_visible() || !data.state.is_active() || !data.state.is_selectable() {
             return;
         }
         let mut is_on_child = false;
@@ -372,16 +376,9 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         }
     }
 
-    fn update_layout(&mut self, drawing_area_in_px: Vector4u) {
-        self.get_data_mut().state.set_clip_area(drawing_area_in_px);
-
-        let widget_clip = self.compute_children_clip_area();
-        self.get_data_mut().node.propagate_on_children_mut(|w| {
-            w.update_layout(widget_clip);
-        });
-
-        self.apply_fit_to_content();
+    fn update_layout(&mut self) {
         self.compute_offset_and_scale_from_alignment();
+        self.apply_fit_to_content();
 
         self.clip_in_area();
         self.update_layers();
@@ -417,7 +414,8 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
     fn add_child(&mut self, widget: Box<dyn Widget>) -> UID {
         let id = widget.id();
         self.get_data_mut().node.add_child(widget);
-        self.update_layout(self.get_data().state.get_clip_area());
+
+        self.update_layout();
         id
     }
     fn remove_children(&mut self, renderer: &mut Renderer) {
@@ -425,6 +423,8 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
             w.get_data_mut().graphics.remove_meshes(renderer);
         });
         self.get_data_mut().node.remove_children();
+
+        self.update_layout();
     }
     fn has_child(&self, uid: UID) -> bool {
         let mut found = false;

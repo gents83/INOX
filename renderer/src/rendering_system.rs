@@ -30,7 +30,10 @@ impl System for RenderingSystem {
             let renderer = {
                 let read_data = self.shared_data.read().unwrap();
                 let window = &*read_data.get_unique_resource::<Window>();
-                let mut renderer = Renderer::new(window.get_handle(), self.config.vk_data.debug_validation_layers);
+                let mut renderer = Renderer::new(
+                    window.get_handle(),
+                    self.config.vk_data.debug_validation_layers,
+                );
                 let size = Vector2u::new(window.get_width(), window.get_heigth());
                 renderer.set_viewport_size(size);
                 renderer
@@ -48,9 +51,22 @@ impl System for RenderingSystem {
 
     fn run(&mut self) -> bool {
         let read_data = self.shared_data.read().unwrap();
+        let events_rw = &mut *read_data.get_unique_resource_mut::<EventsRw>();
         let renderer = &mut *read_data.get_unique_resource_mut::<Renderer>();
 
-        if renderer.begin_frame() {
+        let mut should_recreate_swap_chain = false;
+        let events = events_rw.read().unwrap();
+        if let Some(window_events) = events.read_events::<WindowEvent>() {
+            for event in window_events {
+                if let WindowEvent::SizeChanged(_width, _height) = event {
+                    should_recreate_swap_chain = true;
+                }
+            }
+        }
+
+        if should_recreate_swap_chain {
+            renderer.recreate();
+        } else if renderer.begin_frame() {
             renderer.draw();
             renderer.end_frame();
         }

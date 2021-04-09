@@ -80,6 +80,7 @@ extern "system" {
     pub fn PhysicalToLogicalPointForPerMonitorDPI(hWnd: HWND, lpPoint: &mut POINT) -> BOOL;
     pub fn GetDeviceCaps(hdc: HDC, nIndex: c_int) -> c_int;
     pub fn GetForegroundWindow() -> HWND;
+    pub fn GetClientRect(aWnd: HWND, lpRect: &mut RECT);
     pub fn ScreenToClient(hWnd: HWND, lpPoint: &mut POINT);
     pub fn SetProcessDPIAware() -> BOOL;
     pub fn SetProcessDpiAwareness(value: PROCESS_DPI_AWARENESS) -> HRESULT;
