@@ -1,0 +1,13 @@
+[package]
+name = "nrg_profiler"
+version = "0.1.0"
+authors = ["gents83 <gents83@gmail.com>"]
+edition = "2018"
+build = "build.rs"
+
+[lib]
+crate-type = ["cdylib",'rlib']
+
+[dependencies]
+proc-macro2 = {version = "1.0" }
+serde_json = {git = "https://github.com/serde-rs/json"}

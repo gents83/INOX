@@ -10,6 +10,7 @@ members = [
     "graphics",
     "math",
     "platform",
+    "profiler",
     "serialize",
     "bindings/vulkan_bindings",
     "renderer",

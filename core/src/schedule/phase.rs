@@ -21,6 +21,7 @@ pub struct PhaseWithSystems {
 
 impl PhaseWithSystems {
     pub fn new(name: &str) -> Self {
+        nrg_profiler::register_thread_into_profiler!();
         Self {
             name: String::from(name),
             systems: HashSet::new(),
@@ -64,8 +65,14 @@ impl PhaseWithSystems {
     }
 
     fn execute_systems(&mut self) -> bool {
+        nrg_profiler::scoped_profile!("phase::execute_systems");
         let mut can_continue = true;
         for s in self.systems_running.iter_mut() {
+            nrg_profiler::scoped_profile!(format!(
+                "{}[{:?}]",
+                "phase::execute_system",
+                s.as_mut().id()
+            ));
             can_continue &= s.run();
         }
         can_continue

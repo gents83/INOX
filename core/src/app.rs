@@ -31,6 +31,7 @@ impl Drop for App {
 
 impl App {
     pub fn new() -> Self {
+        nrg_profiler::register_thread_into_profiler!();
         let shared_data = Arc::new(RwLock::new(SharedData::default()));
         {
             let mut data = shared_data.write().unwrap();
@@ -49,6 +50,8 @@ impl App {
     }
 
     pub fn run_once(&mut self) -> bool {
+        nrg_profiler::scoped_profile!(format!("run frame [{}]", self.frame_count));
+
         let can_continue = self.scheduler.run_once();
         self.shared_data.write().unwrap().process_pending_requests();
         self.plugin_manager
@@ -70,6 +73,7 @@ impl App {
                 break;
             }
         }
+        nrg_profiler::write_profile_file!();
     }
 
     pub fn create_phase<T: Phase>(&mut self, phase: T) -> &mut Self {

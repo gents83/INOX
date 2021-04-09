@@ -5,3 +5,4 @@ NRG.code-workspace
 *.foz
 Cargo.lock
 Cargo.lock
+app.nrg_profile

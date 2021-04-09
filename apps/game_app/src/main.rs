@@ -17,6 +17,7 @@ fn main() {
         "nrg_window",
         "nrg_renderer",
         "nrg_game",
+        "nrg_profiler",
     ];
 
     for name in plugins.iter() {

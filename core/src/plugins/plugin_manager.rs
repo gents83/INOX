@@ -54,6 +54,7 @@ impl PluginManager {
         shared_data: &mut SharedDataRw,
         scheduler: &mut Scheduler,
     ) {
+        nrg_profiler::scoped_profile!("plugin_manager::add_plugin");
         let mut plugin_data = PluginManager::create_plugin_data(lib_path);
         if let Some(plugin_holder) = &mut plugin_data.plugin_holder {
             plugin_holder.get_plugin().prepare(scheduler, shared_data);
@@ -62,6 +63,7 @@ impl PluginManager {
     }
 
     pub fn remove_plugin(&mut self, plugin_id: &PluginId, scheduler: &mut Scheduler) {
+        nrg_profiler::scoped_profile!("plugin_manager::remove_plugin");
         if let Some(index) = self.plugins.iter().position(|el| el.id == *plugin_id) {
             let in_use_path = {
                 let plugin_data = self.plugins.remove(index);
@@ -144,6 +146,7 @@ impl PluginManager {
     }
 
     fn load_plugin(fullpath: PathBuf) -> (library::Library, Option<PluginHolder>) {
+        nrg_profiler::scoped_profile!("plugin_manager::load_plugin");
         let lib = library::Library::new(fullpath);
         if let Some(create_fn) = lib.get::<PFNCreatePlugin>(CREATE_PLUGIN_FUNCTION_NAME) {
             let plugin_holder = unsafe { create_fn.unwrap()() };
@@ -153,6 +156,7 @@ impl PluginManager {
     }
 
     fn clear_plugin_data(mut plugin_data: PluginData, scheduler: &mut Scheduler) {
+        nrg_profiler::scoped_profile!("plugin_manager::clear_plugin_data");
         plugin_data.filewatcher.stop();
 
         let lib = unsafe { Box::into_raw(plugin_data.lib).as_mut().unwrap() };
@@ -171,6 +175,8 @@ impl PluginManager {
     }
 
     pub fn update(&mut self, shared_data: &mut SharedDataRw, scheduler: &mut Scheduler) {
+        nrg_profiler::scoped_profile!("plugin_manager::update");
+
         let mut plugins_to_remove: Vec<PluginId> = Vec::new();
         for plugin_data in self.plugins.iter_mut() {
             if let Ok(FileEvent::Modified(path)) = plugin_data.filewatcher.read_events().try_recv()

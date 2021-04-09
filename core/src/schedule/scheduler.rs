@@ -139,9 +139,11 @@ impl Scheduler {
     }
 
     pub fn run_once(&mut self) -> bool {
+        nrg_profiler::scoped_profile!("scheduler::run_once");
         let mut can_continue = true;
         for name in self.phases_order.iter() {
             if let Some(phase) = self.phases.get_mut(name) {
+                nrg_profiler::scoped_profile!(format!("{}[{}]", "scheduler::run_phase", name));
                 can_continue &= phase.run();
             }
         }
