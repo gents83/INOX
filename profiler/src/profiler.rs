@@ -3,6 +3,7 @@
 use std::{
     cell::Cell,
     collections::HashMap,
+    convert::TryInto,
     fs::File,
     io::BufWriter,
     sync::{
@@ -10,10 +11,9 @@ use std::{
         Mutex,
     },
     thread::{self, ThreadId},
-    time::SystemTime,
+    time::Instant,
+    u64,
 };
-
-use crate::load_profiler_lib;
 
 pub static mut NRG_PROFILER_LIB: Option<nrg_platform::Library> = None;
 
@@ -21,9 +21,10 @@ pub const CREATE_PROFILER_FUNCTION_NAME: &str = "create_profiler";
 pub type PFNCreateProfiler = ::std::option::Option<unsafe extern "C" fn()>;
 pub const REGISTER_THREAD_FUNCTION_NAME: &str = "register_thread";
 pub type PFNRegisterThread = ::std::option::Option<unsafe extern "C" fn(*const u8)>;
+pub const GET_ELAPSED_TIME_FUNCTION_NAME: &str = "get_elapsed_time";
+pub type PFNGetElapsedTime = ::std::option::Option<unsafe extern "C" fn() -> u64>;
 pub const ADD_SAMPLE_FOR_THREAD_FUNCTION_NAME: &str = "add_sample_for_thread";
-pub type PFNAddSampleForThread =
-    ::std::option::Option<unsafe extern "C" fn(&str, SystemTime, SystemTime)>;
+pub type PFNAddSampleForThread = ::std::option::Option<unsafe extern "C" fn(&str, u64, u64)>;
 pub const WRITE_PROFILE_FILE_FUNCTION_NAME: &str = "write_profile_file";
 pub type PFNWriteProfileFile = ::std::option::Option<unsafe extern "C" fn()>;
 
@@ -60,7 +61,7 @@ pub extern "C" fn register_thread(name: *const u8) {
 }
 
 #[no_mangle]
-pub extern "C" fn add_sample_for_thread(name: &str, start: SystemTime, end: SystemTime) {
+pub extern "C" fn add_sample_for_thread(name: &str, start: u64, end: u64) {
     unsafe {
         match *GLOBAL_PROFILER.0.as_ptr() {
             Some(ref x) => {
@@ -68,6 +69,18 @@ pub extern "C" fn add_sample_for_thread(name: &str, start: SystemTime, end: Syst
             }
             None => {
                 panic!("Trying to add_sample_for_thread on an uninitialized static global variable")
+            }
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn get_elapsed_time() -> u64 {
+    unsafe {
+        match *GLOBAL_PROFILER.0.as_ptr() {
+            Some(ref x) => x.lock().unwrap().get_elapsed_time(),
+            None => {
+                panic!("Trying to write_profile_file on an uninitialized static global variable")
             }
         }
     }
@@ -100,7 +113,7 @@ struct ThreadProfiler {
 }
 
 impl ThreadProfiler {
-    fn push_sample(&self, name: String, time_start: SystemTime, time_end: SystemTime) {
+    fn push_sample(&self, name: String, time_start: u64, time_end: u64) {
         let sample = Sample {
             tid: self.id,
             name,
@@ -115,12 +128,13 @@ impl ThreadProfiler {
 struct Sample {
     tid: ThreadId,
     name: String,
-    time_start: SystemTime,
-    time_end: SystemTime,
+    time_start: u64,
+    time_end: u64,
 }
 
 #[repr(C)]
 pub struct Profiler {
+    time_start: Instant,
     rx: Receiver<Sample>,
     tx: Sender<Sample>,
     threads: HashMap<ThreadId, ThreadInfo>,
@@ -133,10 +147,15 @@ impl Profiler {
         let (tx, rx) = channel();
 
         Profiler {
+            time_start: Instant::now(),
             rx,
             tx,
             threads: HashMap::new(),
         }
+    }
+    pub fn get_elapsed_time(&self) -> u64 {
+        let elapsed = self.time_start.elapsed();
+        elapsed.as_millis().try_into().unwrap()
     }
 
     pub fn register_thread(&mut self, optional_name: Option<&str>) {
@@ -160,7 +179,7 @@ impl Profiler {
             },
         });
     }
-    pub fn add_sample_for_thread(&mut self, name: &str, start: SystemTime, end: SystemTime) {
+    pub fn add_sample_for_thread(&mut self, name: &str, start: u64, end: u64) {
         let id = thread::current().id();
         if let Some(thread) = self.threads.get(&id) {
             thread.profiler.push_sample(String::from(name), start, end);
@@ -170,7 +189,7 @@ impl Profiler {
     }
 
     pub fn write_profile_file(&self, filename: &str) {
-        let start_time = SystemTime::now();
+        let start_time = self.get_elapsed_time();
         let mut data = Vec::new();
 
         while let Ok(sample) = self.rx.try_recv() {
@@ -180,23 +199,19 @@ impl Profiler {
 
             if let Some(thread) = self.threads.get(&sample.tid) {
                 let thread_id = thread.name.as_str();
-                if let Ok(time_start) = sample.time_start.duration_since(SystemTime::UNIX_EPOCH) {
-                    data.push(serde_json::json!({
-                        "pid": 0,
-                        "tid": thread_id,
-                        "name": sample.name,
-                        "ph": "B",
-                        "ts": time_start.as_millis() as u64
-                    }));
-                };
-                if let Ok(time_end) = sample.time_end.duration_since(SystemTime::UNIX_EPOCH) {
-                    data.push(serde_json::json!({
-                        "pid": 0,
-                        "tid": thread_id,
-                        "ph": "E",
-                        "ts": time_end.as_millis() as u64
-                    }));
-                }
+                data.push(serde_json::json!({
+                    "pid": 0,
+                    "tid": thread_id,
+                    "name": sample.name,
+                    "ph": "B",
+                    "ts": sample.time_start
+                }));
+                data.push(serde_json::json!({
+                    "pid": 0,
+                    "tid": thread_id,
+                    "ph": "E",
+                    "ts": sample.time_end
+                }));
             } else {
                 panic!("Invalid thread id {:?}", sample.tid);
             }
@@ -209,14 +224,25 @@ impl Profiler {
 
 pub struct ScopedProfile {
     name: String,
-    time_start: SystemTime,
+    time_start: u64,
 }
 
 impl ScopedProfile {
     pub fn new(name: String) -> ScopedProfile {
-        load_profiler_lib!();
-        let time_start = SystemTime::now();
-        ScopedProfile { name, time_start }
+        let mut time: u64 = 0;
+        unsafe {
+            if let Some(get_elapsed_fn) = NRG_PROFILER_LIB
+                .as_ref()
+                .unwrap()
+                .get::<PFNGetElapsedTime>(GET_ELAPSED_TIME_FUNCTION_NAME)
+            {
+                time = get_elapsed_fn.unwrap()();
+            }
+        }
+        ScopedProfile {
+            name,
+            time_start: time,
+        }
     }
 }
 
@@ -228,8 +254,17 @@ impl Drop for ScopedProfile {
                 .unwrap()
                 .get::<PFNAddSampleForThread>(ADD_SAMPLE_FOR_THREAD_FUNCTION_NAME)
             {
-                let time_end = SystemTime::now();
-                add_sample_fn.unwrap()(self.name.as_str(), self.time_start, time_end);
+                if let Some(get_elapsed_fn) = NRG_PROFILER_LIB
+                    .as_ref()
+                    .unwrap()
+                    .get::<PFNGetElapsedTime>(GET_ELAPSED_TIME_FUNCTION_NAME)
+                {
+                    add_sample_fn.unwrap()(
+                        self.name.as_str(),
+                        self.time_start,
+                        get_elapsed_fn.unwrap()(),
+                    );
+                }
             }
         }
     }
