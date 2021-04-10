@@ -11,3 +11,4 @@ crate-type = ["cdylib",'rlib']
 [dependencies]
 proc-macro2 = {version = "1.0" }
 serde_json = {git = "https://github.com/serde-rs/json"}
+nrg_platform = { path = "../platform" }

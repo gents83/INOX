@@ -31,7 +31,7 @@ impl Drop for App {
 
 impl App {
     pub fn new() -> Self {
-        nrg_profiler::register_thread_into_profiler!();
+        nrg_profiler::create_profiler!();
         let shared_data = Arc::new(RwLock::new(SharedData::default()));
         {
             let mut data = shared_data.write().unwrap();

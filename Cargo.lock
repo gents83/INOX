@@ -504,6 +504,7 @@ dependencies = [
  "image",
  "nrg_math",
  "nrg_platform",
+ "nrg_profiler",
  "nrg_serialize",
  "ttf-parser",
  "vulkan_bindings",
@@ -544,6 +545,7 @@ version = "0.1.0"
 name = "nrg_profiler"
 version = "0.1.0"
 dependencies = [
+ "nrg_platform",
  "proc-macro2",
  "serde_json",
 ]

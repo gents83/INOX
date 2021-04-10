@@ -2,13 +2,13 @@
 #![allow(dead_code)]
 
 pub use self::macros::*;
-mod macros;
+pub mod macros;
 
 #[cfg(debug_assertions)]
 pub use self::profiler::*;
 
 #[cfg(debug_assertions)]
-mod profiler;
+pub mod profiler;
 
 //Using Chrome browser for profiling
 //https://www.chromium.org/developers/how-tos/trace-event-profiling-tool

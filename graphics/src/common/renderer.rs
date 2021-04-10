@@ -278,6 +278,7 @@ impl Renderer {
     }
 
     pub fn begin_frame(&mut self) -> bool {
+        nrg_profiler::scoped_profile!("renderer::begin_frame");
         self.load_pipelines();
         self.load_materials();
         self.load_fonts();
@@ -294,6 +295,7 @@ impl Renderer {
     }
 
     pub fn end_frame(&mut self) -> bool {
+        nrg_profiler::scoped_profile!("renderer::end_frame");
         self.device.end_frame();
 
         self.clear_transient_meshes();
@@ -306,28 +308,46 @@ impl Renderer {
     }
 
     pub fn draw(&mut self) {
+        nrg_profiler::scoped_profile!("renderer::draw");
         let pipelines = &mut self.pipelines;
         let materials = &mut self.materials;
 
         for pipeline_instance in pipelines.iter_mut() {
             if let Some(pipeline) = &mut pipeline_instance.pipeline {
-                pipeline.begin();
+                {
+                    nrg_profiler::scoped_profile!(format!(
+                        "renderer::draw_pipeline_begin[{}]",
+                        pipeline_instance.id
+                    ));
+                    pipeline.begin();
+                }
 
                 for material_instance in materials.iter_mut() {
                     if material_instance.pipeline_id == pipeline_instance.id {
                         if let Some(material) = &mut material_instance.material {
                             material.update_simple();
                         }
+                        nrg_profiler::scoped_profile!(format!(
+                            "renderer::draw_material[{}]",
+                            material_instance.id
+                        ));
                         material_instance.finalized_mesh.draw();
                     }
                 }
 
-                pipeline.end();
+                {
+                    nrg_profiler::scoped_profile!(format!(
+                        "renderer::draw_pipeline_end[{}]",
+                        pipeline_instance.id
+                    ));
+                    pipeline.end();
+                }
             }
         }
     }
 
     pub fn recreate(&mut self) {
+        nrg_profiler::scoped_profile!("renderer::recreate");
         self.device.recreate_swap_chain();
 
         let pipelines = &mut self.pipelines;
@@ -343,6 +363,7 @@ impl Renderer {
 
 impl Renderer {
     fn load_pipelines(&mut self) {
+        nrg_profiler::scoped_profile!("renderer::load_pipelines");
         let device = &mut self.device;
         let pipelines = &mut self.pipelines;
         pipelines.iter_mut().for_each(|pipeline_instance| {
@@ -359,6 +380,7 @@ impl Renderer {
         });
     }
     fn load_materials(&mut self) {
+        nrg_profiler::scoped_profile!("renderer::load_materials");
         let device = &mut self.device;
         let pipelines = &mut self.pipelines;
         let materials = &mut self.materials;
@@ -380,6 +402,7 @@ impl Renderer {
     }
 
     fn load_fonts(&mut self) {
+        nrg_profiler::scoped_profile!("renderer::load_fonts");
         let fonts = &mut self.fonts;
         let materials = &mut self.materials;
 
@@ -399,15 +422,18 @@ impl Renderer {
     }
 
     fn prepare_pipelines(&mut self) {
+        nrg_profiler::scoped_profile!("renderer::prepare_pipelines");
         self.pipelines
             .sort_by(|a, b| a.data.data.index.cmp(&b.data.data.index));
     }
 
     fn prepare_materials(&mut self) {
+        nrg_profiler::scoped_profile!("renderer::prepare_materials");
         self.materials.sort_by(|a, b| a.id.cmp(&b.id));
     }
 
     fn prepare_meshes(&mut self) {
+        nrg_profiler::scoped_profile!("renderer::prepare_meshes");
         self.materials.iter_mut().for_each(|material_instance| {
             let mut unique_mesh_data = MeshData::default();
             let mut starting_index = 0;
@@ -431,6 +457,7 @@ impl Renderer {
     }
 
     fn clear_transient_meshes(&mut self) {
+        nrg_profiler::scoped_profile!("renderer::clear_transient_meshes");
         self.materials.iter_mut().for_each(|material_instance| {
             material_instance
                 .meshes

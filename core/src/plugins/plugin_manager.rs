@@ -1,4 +1,3 @@
-use std::env;
 use std::path::PathBuf;
 
 use nrg_platform::{delete_file, library, FileEvent, FileWatcher, Library};
@@ -78,22 +77,9 @@ impl PluginManager {
         }
     }
 
-    fn compute_folder_and_filename(lib_path: PathBuf) -> (PathBuf, PathBuf) {
-        let mut path = lib_path;
-        let mut filename = path.clone();
-        if path.is_absolute() {
-            filename = PathBuf::from(path.file_name().unwrap());
-            path = PathBuf::from(path.parent().unwrap());
-        } else {
-            path = env::current_exe().unwrap().parent().unwrap().to_path_buf();
-        }
-        path = path.canonicalize().unwrap();
-        (path, filename)
-    }
-
     fn compute_dynamic_name(lib_path: PathBuf) -> PathBuf {
         unsafe {
-            let (path, filename) = PluginManager::compute_folder_and_filename(lib_path);
+            let (path, filename) = library::compute_folder_and_filename(lib_path);
             let mut in_use_filename = format!("{}_{}_", IN_USE_PREFIX, UNIQUE_LIB_INDEX);
             in_use_filename.push_str(filename.to_str().unwrap());
             UNIQUE_LIB_INDEX += 1;
@@ -113,7 +99,7 @@ impl PluginManager {
     }
 
     fn create_plugin_data(lib_path: PathBuf) -> PluginData {
-        let (path, filename) = PluginManager::compute_folder_and_filename(lib_path);
+        let (path, filename) = library::compute_folder_and_filename(lib_path);
         let fullpath = path.join(filename);
         if !fullpath.exists() {
             panic!(

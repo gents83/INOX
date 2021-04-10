@@ -21,7 +21,7 @@ pub struct PhaseWithSystems {
 
 impl PhaseWithSystems {
     pub fn new(name: &str) -> Self {
-        nrg_profiler::register_thread_into_profiler!();
+        nrg_profiler::register_thread_into_profiler_with_name!(name);
         Self {
             name: String::from(name),
             systems: HashSet::new(),

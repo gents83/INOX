@@ -13,4 +13,5 @@ ttf-parser = { git = "https://github.com/RazrFalcon/ttf-parser" }
 vulkan_bindings = { path = "../bindings/vulkan_bindings" }
 nrg_math = { path = "../math" }
 nrg_platform = { path = "../platform" }
+nrg_profiler = { path = "../profiler" }
 nrg_serialize = { path = "../serialize" }

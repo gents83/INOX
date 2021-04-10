@@ -1,4 +1,4 @@
-use std::{env::consts::*, ffi::{OsStr, OsString}};
+use std::{env::{self, consts::*}, ffi::{OsStr, OsString}, path::PathBuf};
 
 use super::platform_impl::platform::library as platform;
 
@@ -11,6 +11,19 @@ pub fn library_filename<S: AsRef<OsStr>>(name: S) -> OsString {
     string
 }
 
+
+pub fn compute_folder_and_filename(lib_path: PathBuf) -> (PathBuf, PathBuf) {
+    let mut path = lib_path;
+    let mut filename = path.clone();
+    if path.is_absolute() {
+        filename = PathBuf::from(path.file_name().unwrap());
+        path = PathBuf::from(path.parent().unwrap());
+    } else {
+        path = env::current_exe().unwrap().parent().unwrap().to_path_buf();
+    }
+    path = path.canonicalize().unwrap();
+    (path, filename)
+}
 
 pub struct Library(platform::Library);
 

@@ -7,6 +7,7 @@ fn main() {
     let mut app = App::new();
 
     let plugins = [
+        "nrg_profiler",
         "nrg_core",
         "nrg_commands",
         "nrg_graphics",
@@ -17,7 +18,6 @@ fn main() {
         "nrg_window",
         "nrg_renderer",
         "nrg_editor",
-        "nrg_profiler",
     ];
 
     for name in plugins.iter() {
