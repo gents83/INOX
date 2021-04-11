@@ -51,7 +51,7 @@ impl App {
     }
 
     pub fn run_once(&mut self) -> bool {
-        nrg_profiler::scoped_profile!("run frame");
+        nrg_profiler::scoped_profile!("app::run_frame");
 
         let can_continue = self.scheduler.run_once();
         self.shared_data.write().unwrap().process_pending_requests();

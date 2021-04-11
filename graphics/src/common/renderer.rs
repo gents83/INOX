@@ -318,7 +318,8 @@ impl Renderer {
                     nrg_profiler::scoped_profile!(format!(
                         "renderer::draw_pipeline_begin[{}]",
                         pipeline_instance.id
-                    ).as_str());
+                    )
+                    .as_str());
                     pipeline.begin();
                 }
 
@@ -330,7 +331,8 @@ impl Renderer {
                         nrg_profiler::scoped_profile!(format!(
                             "renderer::draw_material[{}]",
                             material_instance.id
-                        ).as_str());
+                        )
+                        .as_str());
                         material_instance.finalized_mesh.draw();
                     }
                 }
@@ -339,7 +341,8 @@ impl Renderer {
                     nrg_profiler::scoped_profile!(format!(
                         "renderer::draw_pipeline_end[{}]",
                         pipeline_instance.id
-                    ).as_str());
+                    )
+                    .as_str());
                     pipeline.end();
                 }
             }
@@ -435,6 +438,11 @@ impl Renderer {
     fn prepare_meshes(&mut self) {
         nrg_profiler::scoped_profile!("renderer::prepare_meshes");
         self.materials.iter_mut().for_each(|material_instance| {
+            nrg_profiler::scoped_profile!(format!(
+                "renderer::prepare_meshes_on_material[{:?}]",
+                material_instance.id
+            )
+            .as_str());
             let mut unique_mesh_data = MeshData::default();
             let mut starting_index = 0;
             material_instance.meshes.iter_mut().for_each(|mesh_data| {
@@ -452,7 +460,14 @@ impl Renderer {
                 starting_index += mesh_data.mesh.vertices.len() as u32;
             });
             material_instance.finalized_mesh.data = unique_mesh_data;
-            material_instance.finalized_mesh.finalize();
+            {
+                nrg_profiler::scoped_profile!(format!(
+                    "renderer::prepare_meshes_on_material[{:?}]_finalize_mesh",
+                    material_instance.id
+                )
+                .as_str());
+                material_instance.finalized_mesh.finalize();
+            }
         });
     }
 
