@@ -22,6 +22,7 @@ impl Default for App {
 
 impl Drop for App {
     fn drop(&mut self) {
+        nrg_profiler::write_profile_file!();
         self.scheduler.uninit();
         let mut data = self.shared_data.write().unwrap();
         data.process_pending_requests();
@@ -50,7 +51,7 @@ impl App {
     }
 
     pub fn run_once(&mut self) -> bool {
-        nrg_profiler::scoped_profile!(format!("run frame [{}]", self.frame_count));
+        nrg_profiler::scoped_profile!("run frame");
 
         let can_continue = self.scheduler.run_once();
         self.shared_data.write().unwrap().process_pending_requests();
@@ -73,7 +74,6 @@ impl App {
                 break;
             }
         }
-        nrg_profiler::write_profile_file!();
     }
 
     pub fn create_phase<T: Phase>(&mut self, phase: T) -> &mut Self {

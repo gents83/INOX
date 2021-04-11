@@ -143,7 +143,9 @@ impl Scheduler {
         let mut can_continue = true;
         for name in self.phases_order.iter() {
             if let Some(phase) = self.phases.get_mut(name) {
-                nrg_profiler::scoped_profile!(format!("{}[{}]", "scheduler::run_phase", name));
+                nrg_profiler::scoped_profile!(
+                    format!("{}[{}]", "scheduler::run_phase", name).as_str()
+                );
                 can_continue &= phase.run();
             }
         }

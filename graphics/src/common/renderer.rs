@@ -318,7 +318,7 @@ impl Renderer {
                     nrg_profiler::scoped_profile!(format!(
                         "renderer::draw_pipeline_begin[{}]",
                         pipeline_instance.id
-                    ));
+                    ).as_str());
                     pipeline.begin();
                 }
 
@@ -330,7 +330,7 @@ impl Renderer {
                         nrg_profiler::scoped_profile!(format!(
                             "renderer::draw_material[{}]",
                             material_instance.id
-                        ));
+                        ).as_str());
                         material_instance.finalized_mesh.draw();
                     }
                 }
@@ -339,7 +339,7 @@ impl Renderer {
                     nrg_profiler::scoped_profile!(format!(
                         "renderer::draw_pipeline_end[{}]",
                         pipeline_instance.id
-                    ));
+                    ).as_str());
                     pipeline.end();
                 }
             }

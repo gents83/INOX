@@ -72,7 +72,8 @@ impl PhaseWithSystems {
                 "{}[{:?}]",
                 "phase::execute_system",
                 s.as_mut().id()
-            ));
+            )
+            .as_str());
             can_continue &= s.run();
         }
         can_continue

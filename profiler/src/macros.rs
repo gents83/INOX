@@ -107,9 +107,6 @@ macro_rules! write_profile_file {
 macro_rules! scoped_profile {
     ($string:expr) => {
         #[cfg(debug_assertions)]
-        {
-            let _profile_scope =
-                $crate::ScopedProfile::new(format!("{}: {}", module_path!(), $string));
-        }
+        let _profile_scope = $crate::ScopedProfile::new(module_path!(), $string);
     };
 }

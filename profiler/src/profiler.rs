@@ -24,7 +24,7 @@ pub type PFNRegisterThread = ::std::option::Option<unsafe extern "C" fn(*const u
 pub const GET_ELAPSED_TIME_FUNCTION_NAME: &str = "get_elapsed_time";
 pub type PFNGetElapsedTime = ::std::option::Option<unsafe extern "C" fn() -> u64>;
 pub const ADD_SAMPLE_FOR_THREAD_FUNCTION_NAME: &str = "add_sample_for_thread";
-pub type PFNAddSampleForThread = ::std::option::Option<unsafe extern "C" fn(&str, u64, u64)>;
+pub type PFNAddSampleForThread = ::std::option::Option<unsafe extern "C" fn(&str, &str, u64, u64)>;
 pub const WRITE_PROFILE_FILE_FUNCTION_NAME: &str = "write_profile_file";
 pub type PFNWriteProfileFile = ::std::option::Option<unsafe extern "C" fn()>;
 
@@ -61,11 +61,13 @@ pub extern "C" fn register_thread(name: *const u8) {
 }
 
 #[no_mangle]
-pub extern "C" fn add_sample_for_thread(name: &str, start: u64, end: u64) {
+pub extern "C" fn add_sample_for_thread(category: &str, name: &str, start: u64, end: u64) {
     unsafe {
         match *GLOBAL_PROFILER.0.as_ptr() {
             Some(ref x) => {
-                x.lock().unwrap().add_sample_for_thread(name, start, end);
+                x.lock()
+                    .unwrap()
+                    .add_sample_for_thread(category, name, start, end);
             }
             None => {
                 panic!("Trying to add_sample_for_thread on an uninitialized static global variable")
@@ -113,9 +115,10 @@ struct ThreadProfiler {
 }
 
 impl ThreadProfiler {
-    fn push_sample(&self, name: String, time_start: u64, time_end: u64) {
+    fn push_sample(&self, category: String, name: String, time_start: u64, time_end: u64) {
         let sample = Sample {
             tid: self.id,
+            category,
             name,
             time_start,
             time_end,
@@ -127,6 +130,7 @@ impl ThreadProfiler {
 #[repr(C)]
 struct Sample {
     tid: ThreadId,
+    category: String,
     name: String,
     time_start: u64,
     time_end: u64,
@@ -155,7 +159,7 @@ impl Profiler {
     }
     pub fn get_elapsed_time(&self) -> u64 {
         let elapsed = self.time_start.elapsed();
-        elapsed.as_millis().try_into().unwrap()
+        elapsed.as_micros().try_into().unwrap()
     }
 
     pub fn register_thread(&mut self, optional_name: Option<&str>) {
@@ -179,10 +183,12 @@ impl Profiler {
             },
         });
     }
-    pub fn add_sample_for_thread(&mut self, name: &str, start: u64, end: u64) {
+    pub fn add_sample_for_thread(&mut self, category: &str, name: &str, start: u64, end: u64) {
         let id = thread::current().id();
         if let Some(thread) = self.threads.get(&id) {
-            thread.profiler.push_sample(String::from(name), start, end);
+            thread
+                .profiler
+                .push_sample(String::from(category), String::from(name), start, end);
         } else {
             panic!("Invalid thread id {:?}", id);
         }
@@ -192,6 +198,7 @@ impl Profiler {
         let start_time = self.get_elapsed_time();
         let mut data = Vec::new();
 
+        let index = 0;
         while let Ok(sample) = self.rx.try_recv() {
             if sample.time_start > start_time {
                 break;
@@ -201,16 +208,21 @@ impl Profiler {
                 let thread_id = thread.name.as_str();
                 data.push(serde_json::json!({
                     "pid": 0,
+                    "id": index,
+                    "cat": sample.category,
                     "tid": thread_id,
                     "name": sample.name,
-                    "ph": "B",
-                    "ts": sample.time_start
+                    "ph": "b",
+                    "ts": sample.time_start,
                 }));
                 data.push(serde_json::json!({
                     "pid": 0,
+                    "id": index,
+                    "cat": sample.category,
                     "tid": thread_id,
-                    "ph": "E",
-                    "ts": sample.time_end
+                    "name": sample.name,
+                    "ph": "e",
+                    "ts": sample.time_end,
                 }));
             } else {
                 panic!("Invalid thread id {:?}", sample.tid);
@@ -223,12 +235,13 @@ impl Profiler {
 }
 
 pub struct ScopedProfile {
+    category: String,
     name: String,
     time_start: u64,
 }
 
 impl ScopedProfile {
-    pub fn new(name: String) -> ScopedProfile {
+    pub fn new(category: &str, name: &str) -> ScopedProfile {
         let mut time: u64 = 0;
         unsafe {
             if let Some(get_elapsed_fn) = NRG_PROFILER_LIB
@@ -240,7 +253,8 @@ impl ScopedProfile {
             }
         }
         ScopedProfile {
-            name,
+            category: category.to_string(),
+            name: name.to_string(),
             time_start: time,
         }
     }
@@ -249,22 +263,25 @@ impl ScopedProfile {
 impl Drop for ScopedProfile {
     fn drop(&mut self) {
         unsafe {
+            let mut time_end = self.time_start;
+            if let Some(get_elapsed_fn) = NRG_PROFILER_LIB
+                .as_ref()
+                .unwrap()
+                .get::<PFNGetElapsedTime>(GET_ELAPSED_TIME_FUNCTION_NAME)
+            {
+                time_end = get_elapsed_fn.unwrap()();
+            }
             if let Some(add_sample_fn) = NRG_PROFILER_LIB
                 .as_ref()
                 .unwrap()
                 .get::<PFNAddSampleForThread>(ADD_SAMPLE_FOR_THREAD_FUNCTION_NAME)
             {
-                if let Some(get_elapsed_fn) = NRG_PROFILER_LIB
-                    .as_ref()
-                    .unwrap()
-                    .get::<PFNGetElapsedTime>(GET_ELAPSED_TIME_FUNCTION_NAME)
-                {
-                    add_sample_fn.unwrap()(
-                        self.name.as_str(),
-                        self.time_start,
-                        get_elapsed_fn.unwrap()(),
-                    );
-                }
+                add_sample_fn.unwrap()(
+                    self.name.as_str(),
+                    self.name.as_str(),
+                    self.time_start,
+                    time_end,
+                );
             }
         }
     }
