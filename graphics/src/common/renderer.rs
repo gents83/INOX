@@ -31,6 +31,8 @@ struct MaterialInstance {
     material: Option<Material>,
     meshes: Vec<MeshInstance>,
     finalized_mesh: Mesh,
+    vertex_count: usize,
+    indices_count: usize,
 }
 struct MeshInstance {
     id: MeshId,
@@ -77,6 +79,8 @@ impl Renderer {
             pipeline_id,
             meshes: Vec::new(),
             finalized_mesh: Mesh::create(&self.device),
+            vertex_count: 0,
+            indices_count: 0,
         });
         material_id
     }
@@ -333,7 +337,10 @@ impl Renderer {
                             material_instance.id
                         )
                         .as_str());
-                        material_instance.finalized_mesh.draw();
+                        material_instance.finalized_mesh.draw(
+                            material_instance.vertex_count,
+                            material_instance.indices_count,
+                        );
                     }
                 }
 
@@ -438,36 +445,36 @@ impl Renderer {
     fn prepare_meshes(&mut self) {
         nrg_profiler::scoped_profile!("renderer::prepare_meshes");
         self.materials.iter_mut().for_each(|material_instance| {
+            if material_instance.finalized_mesh.data.vertices.is_empty() {
+                nrg_profiler::scoped_profile!(format!(
+                    "renderer::fill_mesh_with_max_buffers[{:?}]",
+                    material_instance.id
+                )
+                .as_str());
+                material_instance
+                    .finalized_mesh
+                    .fill_mesh_with_max_buffers();
+            }
             nrg_profiler::scoped_profile!(format!(
                 "renderer::prepare_meshes_on_material[{:?}]",
                 material_instance.id
             )
             .as_str());
-            let mut unique_mesh_data = MeshData::default();
-            let mut starting_index = 0;
+            let mut vertex_count = 0;
+            let mut indices_count = 0;
+            let material_mesh_data = &mut material_instance.finalized_mesh.data;
             material_instance.meshes.iter_mut().for_each(|mesh_data| {
-                mesh_data
-                    .mesh
-                    .indices
-                    .iter_mut()
-                    .for_each(|i| *i += starting_index);
-                unique_mesh_data
-                    .vertices
-                    .extend_from_slice(&mesh_data.mesh.vertices);
-                unique_mesh_data
-                    .indices
-                    .extend_from_slice(&mesh_data.mesh.indices);
-                starting_index += mesh_data.mesh.vertices.len() as u32;
+                let (_left, right) = material_mesh_data.vertices.split_at_mut(vertex_count);
+                let (left, _right) = right.split_at_mut(mesh_data.mesh.vertices.len());
+                left.clone_from_slice(&mesh_data.mesh.vertices);
+                for (i, index) in mesh_data.mesh.indices.iter().enumerate() {
+                    material_mesh_data.indices[indices_count + i] = *index + vertex_count as u32;
+                }
+                vertex_count += mesh_data.mesh.vertices.len();
+                indices_count += mesh_data.mesh.indices.len();
             });
-            material_instance.finalized_mesh.data = unique_mesh_data;
-            {
-                nrg_profiler::scoped_profile!(format!(
-                    "renderer::prepare_meshes_on_material[{:?}]_finalize_mesh",
-                    material_instance.id
-                )
-                .as_str());
-                material_instance.finalized_mesh.finalize();
-            }
+            material_instance.vertex_count = vertex_count;
+            material_instance.indices_count = indices_count;
         });
     }
 

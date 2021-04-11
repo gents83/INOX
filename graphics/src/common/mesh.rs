@@ -20,6 +20,14 @@ impl Mesh {
         self.inner.delete(&self.device.inner);
     }
 
+    pub fn fill_mesh_with_max_buffers(&mut self) {
+        self.data
+            .vertices
+            .resize_with(4 * 1024, VertexData::default);
+        self.data.indices.resize_with(4 * 1024, u32::default);
+        self.finalize();
+    }
+
     pub fn finalize(&mut self) -> &mut Self {
         if !self.data.vertices.is_empty() {
             self.inner
@@ -32,9 +40,15 @@ impl Mesh {
         self
     }
 
-    pub fn draw(&self) {
+    pub fn draw(&mut self, num_vertices: usize, num_indices: usize) {
         if !self.data.vertices.is_empty() {
-            self.inner.draw(&self.device.inner);
+            self.inner.draw(
+                &self.device.inner,
+                &self.data.vertices,
+                num_vertices,
+                &self.data.indices,
+                num_indices,
+            );
         }
     }
 }
