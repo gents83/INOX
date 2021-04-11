@@ -72,6 +72,11 @@ impl Mesh {
     }
 
     pub fn create_index_buffer(&mut self, device: &Device, indices: &[u32]) {
+        if self.index_buffer != ::std::ptr::null_mut() {
+            device.destroy_buffer(&self.index_buffer, &self.index_buffer_memory);
+            self.indices_count = 0;
+        }
+
         let length = ::std::mem::size_of::<u32>() * indices.len();
         let flags = VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
             | VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
