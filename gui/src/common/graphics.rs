@@ -134,12 +134,13 @@ impl WidgetGraphics {
 
     pub fn update(&mut self, renderer: &mut Renderer, is_visible: bool) -> &mut Self {
         if is_visible {
-            if self.is_dirty {
+            if self.is_dirty && !self.mesh_data.vertices.is_empty() {
                 if self.mesh_id == INVALID_ID {
                     self.mesh_id = renderer.add_mesh(self.material_id, &self.mesh_data);
                 } else {
                     renderer.update_mesh(self.material_id, self.mesh_id, &self.mesh_data);
                 }
+                self.is_dirty = false;
             }
         } else if self.mesh_id != INVALID_ID {
             self.remove_meshes(renderer);

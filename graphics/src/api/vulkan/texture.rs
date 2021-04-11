@@ -12,20 +12,26 @@ pub struct Texture {
 unsafe impl Send for Texture {}
 unsafe impl Sync for Texture {}
 
-impl Texture {
-    pub fn create_from(device: &Device, filepath: &str) -> Self {
-        let image_data = image::open(filepath).unwrap();
-        Texture::create(&device, &image_data)
-    }
-
-    pub fn create(device: &Device, image_data: &DynamicImage) -> Self {
-        let mut texture = Self {
+impl Default for Texture {
+    fn default() -> Self {
+        Self {
             texture_image: ::std::ptr::null_mut(),
             texture_image_memory: ::std::ptr::null_mut(),
             texture_image_view: ::std::ptr::null_mut(),
             texture_sampler: ::std::ptr::null_mut(),
-        };
-        texture.create_texture_image(device, &image_data);
+        }
+    }
+}
+
+impl Texture {
+    pub fn create_from(device: &Device, filepath: &str) -> Self {
+        let image_data = image::open(filepath).unwrap();
+        Texture::create(&device, &image_data, 1)
+    }
+
+    pub fn create(device: &Device, image_data: &DynamicImage, layers_count: usize) -> Self {
+        let mut texture = Self::default();
+        texture.create_texture_image(device, &image_data, layers_count);
         texture.create_texture_sampler(device);
         texture
     }
@@ -66,7 +72,12 @@ impl Texture {
 }
 
 impl Texture {
-    fn create_texture_image(&mut self, device: &Device, image_data: &image::DynamicImage) {
+    fn create_texture_image(
+        &mut self,
+        device: &Device,
+        image_data: &image::DynamicImage,
+        layers_count: usize,
+    ) {
         let image_size: VkDeviceSize =
             (image_data.width() * image_data.height() * image_data.color().channel_count() as u32)
                 as _;
@@ -95,6 +106,7 @@ impl Texture {
             VkImageTiling_VK_IMAGE_TILING_OPTIMAL,
             flags as _,
             VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT as _,
+            layers_count,
         );
 
         self.texture_image = device_image.0;
@@ -104,6 +116,7 @@ impl Texture {
             self.texture_image,
             VkImageLayout_VK_IMAGE_LAYOUT_UNDEFINED,
             VkImageLayout_VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            layers_count,
         );
 
         device.copy_buffer_to_image(
@@ -117,6 +130,7 @@ impl Texture {
             self.texture_image,
             VkImageLayout_VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
             VkImageLayout_VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            layers_count,
         );
 
         device.destroy_buffer(&staging_buffer, &staging_buffer_memory);
@@ -125,6 +139,7 @@ impl Texture {
             self.texture_image,
             format,
             VkImageAspectFlagBits_VK_IMAGE_ASPECT_COLOR_BIT as _,
+            layers_count,
         );
     }
 

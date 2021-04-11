@@ -10,16 +10,16 @@ pub use texture::*;
 pub use types::*;
 pub use utils::*;
 
+mod data_formats;
 pub mod device;
 pub mod instance;
 pub mod material;
 pub mod mesh;
+mod physical_device;
 pub mod pipeline;
 pub mod render_pass;
-mod physical_device;
 mod shader;
 mod texture;
-mod data_formats;
 
 mod types;
 mod utils;

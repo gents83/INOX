@@ -10,6 +10,8 @@ use vulkan_bindings::*;
 static mut DEFAULT_TEXTURE: Option<Texture> = None;
 static mut INIT: Once = Once::new();
 
+const MAX_DESCRIPTOR_COUNT: usize = 128;
+
 #[derive(PartialEq)]
 pub struct MaterialInstance {
     textures: Vec<Texture>,
@@ -31,7 +33,7 @@ impl MaterialInstance {
                         image_data.put_pixel(x, y, Pixel::from_channels(255, 255, 255, 255))
                     }
                 }
-                DEFAULT_TEXTURE = Some(Texture::create(device, &image_data));
+                DEFAULT_TEXTURE = Some(Texture::create(device, &image_data, 1));
             });
             &DEFAULT_TEXTURE.as_ref().unwrap()
         }
@@ -68,7 +70,7 @@ impl MaterialInstance {
     }
 
     pub fn add_texture_from_image(&mut self, device: &Device, image: &DynamicImage) -> &mut Self {
-        self.textures.push(Texture::create(device, image));
+        self.textures.push(Texture::create(device, image, 1));
         self
     }
 

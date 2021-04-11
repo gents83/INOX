@@ -146,8 +146,15 @@ impl Device {
         image: VkImage,
         format: VkFormat,
         aspect_flags: VkImageUsageFlags,
+        layers_count: usize,
     ) -> VkImageView {
-        create_image_view(self.inner.borrow().device, image, format, aspect_flags)
+        create_image_view(
+            self.inner.borrow().device,
+            image,
+            format,
+            aspect_flags,
+            layers_count,
+        )
     }
 
     pub fn create_image(
@@ -156,6 +163,7 @@ impl Device {
         tiling: VkImageTiling,
         usage: VkImageUsageFlags,
         properties: VkMemoryPropertyFlags,
+        layers_count: usize,
     ) -> (VkImage, VkDeviceMemory) {
         self.inner.borrow().create_image(
             self.instance.get_physical_device(),
@@ -163,6 +171,7 @@ impl Device {
             tiling,
             usage,
             properties,
+            layers_count,
         )
     }
 
@@ -171,10 +180,11 @@ impl Device {
         image: VkImage,
         old_layout: VkImageLayout,
         new_layout: VkImageLayout,
+        layers_count: usize,
     ) {
         self.inner
             .borrow()
-            .transition_image_layout(image, old_layout, new_layout);
+            .transition_image_layout(image, old_layout, new_layout, layers_count);
     }
 
     pub fn copy_buffer_to_image(
@@ -375,6 +385,7 @@ impl DeviceImmutable {
         tiling: VkImageTiling,
         usage: VkImageUsageFlags,
         properties: VkMemoryPropertyFlags,
+        layers_count: usize,
     ) -> (VkImage, VkDeviceMemory) {
         let mut image: VkImage = ::std::ptr::null_mut();
         let mut image_memory: VkDeviceMemory = ::std::ptr::null_mut();
@@ -391,7 +402,7 @@ impl DeviceImmutable {
                 depth: 1,
             },
             mipLevels: 1,
-            arrayLayers: 1,
+            arrayLayers: layers_count as _,
             samples: VkSampleCountFlagBits_VK_SAMPLE_COUNT_1_BIT,
             tiling: tiling as _,
             usage: usage as _,
@@ -452,6 +463,7 @@ impl DeviceImmutable {
         image: VkImage,
         old_layout: VkImageLayout,
         new_layout: VkImageLayout,
+        layers_count: usize,
     ) {
         let command_buffer = self.begin_single_time_commands();
 
@@ -470,7 +482,7 @@ impl DeviceImmutable {
                 baseMipLevel: 0,
                 levelCount: 1,
                 baseArrayLayer: 0,
-                layerCount: 1,
+                layerCount: layers_count as _,
             },
         };
 
@@ -980,12 +992,14 @@ impl DeviceImmutable {
             (VkImageUsageFlagBits_VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
                 | VkImageUsageFlagBits_VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT) as _,
             VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT as _,
+            1,
         );
         let image_view = create_image_view(
             self.device,
             image,
             depth_format,
             VkImageAspectFlagBits_VK_IMAGE_ASPECT_DEPTH_BIT as _,
+            1,
         );
         self.swap_chain.depth_image_data.push(ImageViewData {
             image,
@@ -1005,6 +1019,7 @@ impl DeviceImmutable {
                 image_data.image,
                 selected_format,
                 VkImageAspectFlagBits_VK_IMAGE_ASPECT_COLOR_BIT as _,
+                1,
             );
         }
         self

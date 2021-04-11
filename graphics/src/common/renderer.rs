@@ -24,15 +24,15 @@ struct PipelineInstance {
     id: PipelineId,
     data: PipelineData,
     pipeline: Option<Pipeline>,
+    finalized_mesh: Mesh,
+    vertex_count: usize,
+    indices_count: usize,
 }
 struct MaterialInstance {
     id: MaterialId,
     pipeline_id: PipelineId,
     material: Option<Material>,
     meshes: Vec<MeshInstance>,
-    finalized_mesh: Mesh,
-    vertex_count: usize,
-    indices_count: usize,
 }
 struct MeshInstance {
     id: MeshId,
@@ -78,9 +78,6 @@ impl Renderer {
             material: None,
             pipeline_id,
             meshes: Vec::new(),
-            finalized_mesh: Mesh::create(&self.device),
-            vertex_count: 0,
-            indices_count: 0,
         });
         material_id
     }
@@ -96,6 +93,9 @@ impl Renderer {
                 id: pipeline_id,
                 data: data.clone(),
                 pipeline: None,
+                finalized_mesh: Mesh::create(&self.device),
+                vertex_count: 0,
+                indices_count: 0,
             });
         }
     }
@@ -316,38 +316,45 @@ impl Renderer {
         let pipelines = &mut self.pipelines;
         let materials = &mut self.materials;
 
-        for pipeline_instance in pipelines.iter_mut() {
+        for (pipeline_index, pipeline_instance) in pipelines.iter_mut().enumerate() {
             if let Some(pipeline) = &mut pipeline_instance.pipeline {
                 {
                     nrg_profiler::scoped_profile!(format!(
                         "renderer::draw_pipeline_begin[{}]",
-                        pipeline_instance.id
+                        pipeline_index
                     )
                     .as_str());
                     pipeline.begin();
                 }
 
-                for material_instance in materials.iter_mut() {
+                for (material_index, material_instance) in materials.iter_mut().enumerate() {
                     if material_instance.pipeline_id == pipeline_instance.id {
                         if let Some(material) = &mut material_instance.material {
+                            nrg_profiler::scoped_profile!(format!(
+                                "renderer::update_material[{}]",
+                                material_index
+                            )
+                            .as_str());
                             material.update_simple();
                         }
-                        nrg_profiler::scoped_profile!(format!(
-                            "renderer::draw_material[{}]",
-                            material_instance.id
-                        )
-                        .as_str());
-                        material_instance.finalized_mesh.draw(
-                            material_instance.vertex_count,
-                            material_instance.indices_count,
-                        );
                     }
+                }
+                {
+                    nrg_profiler::scoped_profile!(format!(
+                        "renderer::draw_pipeline[{}]",
+                        pipeline_index
+                    )
+                    .as_str());
+                    pipeline_instance.finalized_mesh.draw(
+                        pipeline_instance.vertex_count,
+                        pipeline_instance.indices_count,
+                    );
                 }
 
                 {
                     nrg_profiler::scoped_profile!(format!(
                         "renderer::draw_pipeline_end[{}]",
-                        pipeline_instance.id
+                        pipeline_index
                     )
                     .as_str());
                     pipeline.end();
@@ -439,42 +446,57 @@ impl Renderer {
 
     fn prepare_materials(&mut self) {
         nrg_profiler::scoped_profile!("renderer::prepare_materials");
-        self.materials.sort_by(|a, b| a.id.cmp(&b.id));
+        let pipelines = &self.pipelines;
+        self.materials.sort_by(|a, b| {
+            let pipeline_a =
+                &pipelines[get_pipeline_index_from_id(pipelines, a.pipeline_id) as usize];
+            let pipeline_b =
+                &pipelines[get_pipeline_index_from_id(pipelines, b.pipeline_id) as usize];
+            pipeline_a.data.data.index.cmp(&pipeline_b.data.data.index)
+        });
     }
 
     fn prepare_meshes(&mut self) {
         nrg_profiler::scoped_profile!("renderer::prepare_meshes");
+        let pipelines = &mut self.pipelines;
+        let mut material_index = 0;
+        let mut pipeline_index = -1;
         self.materials.iter_mut().for_each(|material_instance| {
-            if material_instance.finalized_mesh.data.vertices.is_empty() {
+            let index = get_pipeline_index_from_id(pipelines, material_instance.pipeline_id);
+            let pipeline = &mut pipelines[index as usize];
+            if pipeline_index != index {
+                pipeline.vertex_count = 0;
+                pipeline.indices_count = 0;
+                pipeline_index = index;
+            }
+            if pipeline.finalized_mesh.data.vertices.is_empty() {
                 nrg_profiler::scoped_profile!(format!(
-                    "renderer::fill_mesh_with_max_buffers[{:?}]",
-                    material_instance.id
+                    "renderer::fill_mesh_with_max_buffers[{}]",
+                    material_index
                 )
                 .as_str());
-                material_instance
-                    .finalized_mesh
-                    .fill_mesh_with_max_buffers();
+                pipeline.finalized_mesh.fill_mesh_with_max_buffers();
             }
             nrg_profiler::scoped_profile!(format!(
-                "renderer::prepare_meshes_on_material[{:?}]",
-                material_instance.id
+                "renderer::prepare_meshes_on_material[{}]",
+                material_index
             )
             .as_str());
-            let mut vertex_count = 0;
-            let mut indices_count = 0;
-            let material_mesh_data = &mut material_instance.finalized_mesh.data;
+            let vertex_count = &mut pipeline.vertex_count;
+            let indices_count = &mut pipeline.indices_count;
+            let material_mesh_data = &mut pipeline.finalized_mesh.data;
             material_instance.meshes.iter_mut().for_each(|mesh_data| {
-                let (_left, right) = material_mesh_data.vertices.split_at_mut(vertex_count);
+                let (_left, right) = material_mesh_data.vertices.split_at_mut(*vertex_count);
                 let (left, _right) = right.split_at_mut(mesh_data.mesh.vertices.len());
                 left.clone_from_slice(&mesh_data.mesh.vertices);
                 for (i, index) in mesh_data.mesh.indices.iter().enumerate() {
-                    material_mesh_data.indices[indices_count + i] = *index + vertex_count as u32;
+                    material_mesh_data.indices[*indices_count + i] = *index + *vertex_count as u32;
                 }
-                vertex_count += mesh_data.mesh.vertices.len();
-                indices_count += mesh_data.mesh.indices.len();
+                *vertex_count += mesh_data.mesh.vertices.len();
+                *indices_count += mesh_data.mesh.indices.len();
             });
-            material_instance.vertex_count = vertex_count;
-            material_instance.indices_count = indices_count;
+            pipeline.finalized_mesh.data.compute_center();
+            material_index += 1;
         });
     }
 

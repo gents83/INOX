@@ -213,6 +213,7 @@ pub fn create_image_view(
     image: VkImage,
     format: VkFormat,
     aspect_flags: VkImageAspectFlags,
+    layers_count: usize,
 ) -> VkImageView {
     let view_info = VkImageViewCreateInfo {
         sType: VkStructureType_VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
@@ -232,7 +233,7 @@ pub fn create_image_view(
             baseMipLevel: 0,
             levelCount: 1,
             baseArrayLayer: 0,
-            layerCount: 1,
+            layerCount: layers_count as _,
         },
     };
 

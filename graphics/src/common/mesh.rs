@@ -1,6 +1,8 @@
 use super::data_formats::*;
 use super::device::*;
 
+const MAX_BUFFER_SIZE: usize = 4096;
+
 #[derive(Clone)]
 pub struct Mesh {
     inner: crate::api::backend::mesh::Mesh,
@@ -23,8 +25,8 @@ impl Mesh {
     pub fn fill_mesh_with_max_buffers(&mut self) {
         self.data
             .vertices
-            .resize_with(4 * 1024, VertexData::default);
-        self.data.indices.resize_with(4 * 1024, u32::default);
+            .resize_with(MAX_BUFFER_SIZE, VertexData::default);
+        self.data.indices.resize_with(MAX_BUFFER_SIZE, u32::default);
         self.finalize();
     }
 
