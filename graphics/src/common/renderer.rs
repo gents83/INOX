@@ -486,11 +486,6 @@ impl Renderer {
                     {
                         material_instance.textures.push(font_instance.texture_id)
                     }
-                    /*
-                    if let Some(material) = &mut material_instance.material {
-                        material.add_texture_from_image(font_instance.font.get_bitmap());
-                    }
-                    */
                 }
             }
         });
