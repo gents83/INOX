@@ -19,6 +19,10 @@ pub static mut NRG_PROFILER_LIB: Option<nrg_platform::Library> = None;
 
 pub const CREATE_PROFILER_FUNCTION_NAME: &str = "create_profiler";
 pub type PFNCreateProfiler = ::std::option::Option<unsafe extern "C" fn()>;
+pub const START_PROFILER_FUNCTION_NAME: &str = "start_profiler";
+pub type PFNStartProfiler = ::std::option::Option<unsafe extern "C" fn()>;
+pub const STOP_PROFILER_FUNCTION_NAME: &str = "stop_profiler";
+pub type PFNStopProfiler = ::std::option::Option<unsafe extern "C" fn()>;
 pub const REGISTER_THREAD_FUNCTION_NAME: &str = "register_thread";
 pub type PFNRegisterThread = ::std::option::Option<unsafe extern "C" fn(*const u8)>;
 pub const GET_ELAPSED_TIME_FUNCTION_NAME: &str = "get_elapsed_time";
@@ -40,6 +44,32 @@ pub extern "C" fn create_profiler() {
     GLOBAL_PROFILER.0.set(Some(Mutex::new(Profiler::new())));
     let main = "main\0";
     register_thread(main.as_ptr());
+}
+
+#[no_mangle]
+pub extern "C" fn start_profiler() {
+    unsafe {
+        match *GLOBAL_PROFILER.0.as_ptr() {
+            Some(ref x) => {
+                x.lock().unwrap().start();
+                println!("Starting profiler");
+            }
+            None => panic!("Trying to start_profiler on an uninitialized static global variable"),
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn stop_profiler() {
+    unsafe {
+        match *GLOBAL_PROFILER.0.as_ptr() {
+            Some(ref x) => {
+                println!("Stopping profiler");
+                x.lock().unwrap().stop();
+            }
+            None => panic!("Trying to stop_profiler on an uninitialized static global variable"),
+        }
+    }
 }
 
 #[no_mangle]
@@ -93,8 +123,7 @@ pub extern "C" fn write_profile_file() {
     unsafe {
         match *GLOBAL_PROFILER.0.as_ptr() {
             Some(ref x) => {
-                let _profile_file = format!("{}/{}", env!("CARGO_MANIFEST_DIR"), "app.nrg_profile");
-                x.lock().unwrap().write_profile_file("app.nrg_profile");
+                x.lock().unwrap().write_profile_file();
             }
             None => {
                 panic!("Trying to write_profile_file on an uninitialized static global variable")
@@ -138,6 +167,7 @@ struct Sample {
 
 #[repr(C)]
 pub struct Profiler {
+    started: bool,
     time_start: Instant,
     rx: Receiver<Sample>,
     tx: Sender<Sample>,
@@ -151,11 +181,21 @@ impl Profiler {
         let (tx, rx) = channel();
 
         Profiler {
+            started: false,
             time_start: Instant::now(),
             rx,
             tx,
             threads: HashMap::new(),
         }
+    }
+    pub fn start(&mut self) {
+        let _ = self.rx.try_recv();
+        self.started = true;
+        self.time_start = Instant::now();
+    }
+    pub fn stop(&mut self) {
+        self.started = false;
+        self.write_profile_file();
     }
     pub fn get_elapsed_time(&self) -> u64 {
         let elapsed = self.time_start.elapsed();
@@ -184,6 +224,10 @@ impl Profiler {
         });
     }
     pub fn add_sample_for_thread(&mut self, category: &str, name: &str, start: u64, end: u64) {
+        if !self.started {
+            return;
+        }
+
         let id = thread::current().id();
         if let Some(thread) = self.threads.get(&id) {
             thread
@@ -194,7 +238,7 @@ impl Profiler {
         }
     }
 
-    pub fn write_profile_file(&self, filename: &str) {
+    pub fn write_profile_file(&self) {
         let start_time = self.get_elapsed_time();
         let mut data = Vec::new();
 
@@ -229,7 +273,7 @@ impl Profiler {
             }
         }
 
-        let f = BufWriter::new(File::create(filename).unwrap());
+        let f = BufWriter::new(File::create("app.nrg_profile").unwrap());
         serde_json::to_writer(f, &data).unwrap();
     }
 }

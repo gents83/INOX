@@ -1,6 +1,6 @@
 pub use crate::common::{
     data_formats::*, device::*, instance::*, material::*, mesh::*, pipeline::*, rasterizer::*,
-    render_pass::*, renderer::*, shader::*, viewport::*,
+    render_pass::*, renderer::*, shader::*, texture::*, viewport::*,
 };
 
 pub mod data_formats;
@@ -11,6 +11,7 @@ pub mod mesh;
 pub mod pipeline;
 pub mod render_pass;
 pub mod shader;
+pub mod texture;
 pub mod utils;
 
 pub mod rasterizer;

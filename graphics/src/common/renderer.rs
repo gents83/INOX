@@ -12,10 +12,12 @@ use super::material::*;
 use super::mesh::*;
 use super::pipeline::*;
 use super::render_pass::*;
+use super::texture::*;
 use super::viewport::*;
 
 pub type MaterialId = UID;
 pub type PipelineId = UID;
+pub type TextureId = UID;
 pub type FontId = UID;
 pub type MeshId = UID;
 pub const INVALID_ID: UID = UID::nil();
@@ -24,6 +26,7 @@ struct PipelineInstance {
     id: PipelineId,
     data: PipelineData,
     pipeline: Option<Pipeline>,
+    material: Option<Material>,
     finalized_mesh: Mesh,
     vertex_count: usize,
     indices_count: usize,
@@ -31,8 +34,13 @@ struct PipelineInstance {
 struct MaterialInstance {
     id: MaterialId,
     pipeline_id: PipelineId,
-    material: Option<Material>,
     meshes: Vec<MeshInstance>,
+    textures: Vec<TextureId>,
+}
+struct TextureInstance {
+    id: TextureId,
+    path: PathBuf,
+    texture: Texture,
 }
 struct MeshInstance {
     id: MeshId,
@@ -40,10 +48,10 @@ struct MeshInstance {
 }
 struct FontInstance {
     id: FontId,
-    name: String,
+    path: PathBuf,
     material_id: MaterialId,
+    texture_id: TextureId,
     font: Font,
-    initialized: bool,
 }
 
 pub struct Renderer {
@@ -53,6 +61,7 @@ pub struct Renderer {
     scissors: Scissors,
     pipelines: Vec<PipelineInstance>,
     materials: Vec<MaterialInstance>,
+    textures: Vec<TextureInstance>,
     fonts: Vec<FontInstance>,
 }
 
@@ -67,6 +76,7 @@ impl Renderer {
             scissors: Scissors::default(),
             pipelines: Vec::new(),
             materials: Vec::new(),
+            textures: Vec::new(),
             fonts: Vec::new(),
         }
     }
@@ -75,9 +85,9 @@ impl Renderer {
         let material_id = generate_random_uid();
         self.materials.push(MaterialInstance {
             id: material_id,
-            material: None,
             pipeline_id,
             meshes: Vec::new(),
+            textures: Vec::new(),
         });
         material_id
     }
@@ -93,6 +103,7 @@ impl Renderer {
                 id: pipeline_id,
                 data: data.clone(),
                 pipeline: None,
+                material: None,
                 finalized_mesh: Mesh::create(&self.device),
                 vertex_count: 0,
                 indices_count: 0,
@@ -101,25 +112,20 @@ impl Renderer {
     }
 
     pub fn add_font(&mut self, pipeline_id: PipelineId, font_path: &PathBuf) -> FontId {
-        let font_name = font_path.to_str().unwrap().to_string();
-        if font_path.exists() && !self.has_font(&font_name) {
+        if font_path.exists() && !self.has_font(font_path.clone()) {
             let font_id = generate_random_uid();
             let material_id = self.add_material(pipeline_id);
             self.fonts.push(FontInstance {
                 id: font_id,
-                name: font_name,
+                path: font_path.clone(),
                 material_id,
                 font: Font::new(font_path.clone()),
-                initialized: false,
+                texture_id: INVALID_ID,
             });
             font_id
         } else {
-            let index = self
-                .fonts
-                .iter()
-                .position(|font| font.name.eq(&font_name))
-                .unwrap();
-            self.fonts[index].id
+            let index = self.get_font_index_from_path(font_path.clone());
+            self.fonts[index as usize].id
         }
     }
 
@@ -194,18 +200,38 @@ impl Renderer {
         INVALID_ID
     }
 
+    pub fn get_textures_count(&self) -> usize {
+        self.textures.len()
+    }
+    pub fn has_texture(&self, filepath: PathBuf) -> bool {
+        self.get_texture_id(filepath) != INVALID_ID
+    }
+    pub fn get_texture_id(&self, filepath: PathBuf) -> TextureId {
+        let index = get_texture_index_from_path(&self.textures, filepath);
+        if index >= 0 {
+            return self.textures[index as usize].id;
+        }
+        INVALID_ID
+    }
+
+    pub fn get_texture(&self, id: TextureId) -> Option<&Texture> {
+        let index = get_texture_index_from_id(&self.textures, id);
+        if index >= 0 {
+            return Some(&self.textures[index as usize].texture);
+        }
+        None
+    }
+
     pub fn get_fonts_count(&self) -> usize {
         self.fonts.len()
     }
-    pub fn has_font(&self, name: &str) -> bool {
-        if let Some(_entry) = self.fonts.iter().find(|&font| font.name.eq(name)) {
-            return true;
-        }
-        false
+    pub fn has_font(&self, filepath: PathBuf) -> bool {
+        self.get_font_id(filepath) != INVALID_ID
     }
-    pub fn get_font_id(&self, name: &str) -> FontId {
-        if let Some(entry) = self.fonts.iter().find(|&font| font.name.eq(name)) {
-            return entry.id;
+    pub fn get_font_id(&self, filepath: PathBuf) -> FontId {
+        let index = get_font_index_from_path(&self.fonts, filepath);
+        if index >= 0 {
+            return self.fonts[index as usize].id;
         }
         INVALID_ID
     }
@@ -235,6 +261,9 @@ impl Renderer {
 
     pub fn get_font_index(&self, font_id: FontId) -> i32 {
         get_font_index_from_id(&self.fonts, font_id)
+    }
+    pub fn get_font_index_from_path(&self, filepath: PathBuf) -> i32 {
+        get_font_index_from_path(&self.fonts, filepath)
     }
     pub fn has_pipeline(&self, name: &str) -> bool {
         if let Some(_entry) = self
@@ -284,8 +313,7 @@ impl Renderer {
     pub fn begin_frame(&mut self) -> bool {
         nrg_profiler::scoped_profile!("renderer::begin_frame");
         self.load_pipelines();
-        self.load_materials();
-        self.load_fonts();
+        self.load_textures();
 
         self.prepare_pipelines();
         self.prepare_materials();
@@ -315,9 +343,16 @@ impl Renderer {
         nrg_profiler::scoped_profile!("renderer::draw");
         let pipelines = &mut self.pipelines;
         let materials = &mut self.materials;
+        let textures = &mut self.textures;
 
         for (pipeline_index, pipeline_instance) in pipelines.iter_mut().enumerate() {
             if let Some(pipeline) = &mut pipeline_instance.pipeline {
+                nrg_profiler::scoped_profile!(format!(
+                    "renderer::draw_pipeline[{}]",
+                    pipeline_index
+                )
+                .as_str());
+
                 {
                     nrg_profiler::scoped_profile!(format!(
                         "renderer::draw_pipeline_begin[{}]",
@@ -327,21 +362,31 @@ impl Renderer {
                     pipeline.begin();
                 }
 
-                for (material_index, material_instance) in materials.iter_mut().enumerate() {
-                    if material_instance.pipeline_id == pipeline_instance.id {
-                        if let Some(material) = &mut material_instance.material {
+                if let Some(material) = &mut pipeline_instance.material {
+                    for (material_index, material_instance) in materials.iter_mut().enumerate() {
+                        if !material_instance.textures.is_empty() {
                             nrg_profiler::scoped_profile!(format!(
                                 "renderer::update_material[{}]",
                                 material_index
                             )
                             .as_str());
-                            material.update_simple();
+                            let mut material_textures = Vec::new();
+                            for texture_id in material_instance.textures.iter() {
+                                let texture_index =
+                                    get_texture_index_from_id(textures, *texture_id);
+                                if texture_index >= 0 {
+                                    material_textures
+                                        .push(&textures[texture_index as usize].texture);
+                                }
+                            }
+                            material.update_simple(&material_textures);
                         }
                     }
                 }
+
                 {
                     nrg_profiler::scoped_profile!(format!(
-                        "renderer::draw_pipeline[{}]",
+                        "renderer::draw_pipeline_call[{}]",
                         pipeline_index
                     )
                     .as_str());
@@ -392,47 +437,60 @@ impl Renderer {
                     pipeline_instance.data.fragment_shader.clone(),
                     render_pass,
                 );
+                pipeline_instance
+                    .material
+                    .get_or_insert(Material::create(&device, &pipeline));
                 pipeline_instance.pipeline.get_or_insert(pipeline);
             }
         });
     }
-    fn load_materials(&mut self) {
-        nrg_profiler::scoped_profile!("renderer::load_materials");
-        let device = &mut self.device;
-        let pipelines = &mut self.pipelines;
-        let materials = &mut self.materials;
-        materials.iter_mut().for_each(|material_instance| {
-            if material_instance.material.is_none() {
-                let pipeline_index =
-                    get_pipeline_index_from_id(&pipelines, material_instance.pipeline_id);
-                if pipeline_index >= 0 {
-                    let pipeline = pipelines[pipeline_index as usize]
-                        .pipeline
-                        .as_ref()
-                        .unwrap();
-                    material_instance
-                        .material
-                        .get_or_insert(Material::create(&device, &pipeline));
-                }
-            }
-        });
-    }
 
-    fn load_fonts(&mut self) {
-        nrg_profiler::scoped_profile!("renderer::load_fonts");
+    fn load_textures(&mut self) {
+        nrg_profiler::scoped_profile!("renderer::load_textures");
         let fonts = &mut self.fonts;
+        let textures = &mut self.textures;
         let materials = &mut self.materials;
+        let device = &self.device;
+
+        if textures.is_empty() {
+            textures.push(TextureInstance {
+                id: generate_random_uid(),
+                texture: Texture::empty(&device),
+                path: PathBuf::default(),
+            });
+        }
 
         fonts.iter_mut().for_each(|font_instance| {
-            if !font_instance.initialized {
+            if font_instance.texture_id == INVALID_ID {
+                let texture_index =
+                    get_texture_index_from_path(textures, font_instance.path.clone());
+                if texture_index >= 0 {
+                    font_instance.texture_id = textures[texture_index as usize].id;
+                } else {
+                    let id = generate_random_uid();
+                    let path = font_instance.path.clone();
+                    textures.push(TextureInstance {
+                        id,
+                        texture: Texture::create(&device, font_instance.font.get_texture_path()),
+                        path,
+                    });
+                    font_instance.texture_id = id;
+                }
                 let material_index =
                     get_material_index_from_id(&materials, font_instance.material_id);
                 if material_index >= 0 {
                     let material_instance = &mut materials[material_index as usize];
+                    if !material_instance
+                        .textures
+                        .contains(&font_instance.texture_id)
+                    {
+                        material_instance.textures.push(font_instance.texture_id)
+                    }
+                    /*
                     if let Some(material) = &mut material_instance.material {
                         material.add_texture_from_image(font_instance.font.get_bitmap());
-                        font_instance.initialized = true;
                     }
+                    */
                 }
             }
         });
@@ -539,6 +597,27 @@ fn get_material_index_from_id(materials: &[MaterialInstance], material_id: Mater
 
 fn get_font_index_from_id(fonts: &[FontInstance], font_id: FontId) -> i32 {
     if let Some(index) = fonts.iter().position(|font| font.id == font_id) {
+        return index as _;
+    }
+    -1
+}
+
+fn get_font_index_from_path(fonts: &[FontInstance], filepath: PathBuf) -> i32 {
+    if let Some(index) = fonts.iter().position(|font| font.path == filepath) {
+        return index as _;
+    }
+    -1
+}
+
+fn get_texture_index_from_id(textures: &[TextureInstance], texture_id: TextureId) -> i32 {
+    if let Some(index) = textures.iter().position(|texture| texture.id == texture_id) {
+        return index as _;
+    }
+    -1
+}
+
+fn get_texture_index_from_path(textures: &[TextureInstance], filepath: PathBuf) -> i32 {
+    if let Some(index) = textures.iter().position(|texture| texture.path == filepath) {
         return index as _;
     }
     -1

@@ -3,12 +3,13 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use nrg_platform::EventsRw;
+use nrg_platform::{EventsRw, InputState, Key, KeyEvent};
 
 use crate::{Phase, PluginId, PluginManager, Scheduler, SharedData, SharedDataRw};
 
 pub struct App {
     frame_count: u64,
+    is_profiling: bool,
     plugin_manager: PluginManager,
     scheduler: Scheduler,
     shared_data: SharedDataRw,
@@ -40,6 +41,7 @@ impl App {
         }
         Self {
             frame_count: 0,
+            is_profiling: false,
             scheduler: Scheduler::new(),
             plugin_manager: PluginManager::new(),
             shared_data,
@@ -70,8 +72,30 @@ impl App {
     pub fn run(&mut self) {
         loop {
             let can_continue = self.run_once();
+
+            self.manage_hotkeys();
+
             if !can_continue {
                 break;
+            }
+        }
+    }
+
+    fn manage_hotkeys(&mut self) {
+        let data = self.shared_data.write().unwrap();
+        let events_rw = &mut *data.get_unique_resource_mut::<EventsRw>();
+        let events = events_rw.read().unwrap();
+        if let Some(key_events) = events.read_events::<KeyEvent>() {
+            for event in key_events.iter() {
+                if event.code == Key::F9 && event.state == InputState::JustPressed {
+                    if !self.is_profiling {
+                        nrg_profiler::start_profiler!();
+                        self.is_profiling = true;
+                    } else {
+                        nrg_profiler::stop_profiler!();
+                        self.is_profiling = false;
+                    }
+                }
             }
         }
     }

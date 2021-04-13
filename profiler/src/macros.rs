@@ -41,6 +41,48 @@ macro_rules! create_profiler {
 }
 
 #[macro_export]
+macro_rules! start_profiler {
+    () => {
+        #[cfg(debug_assertions)]
+        unsafe {
+            use nrg_platform::*;
+            use std::path::PathBuf;
+            use $crate::*;
+
+            $crate::load_profiler_lib!();
+            if let Some(start_fn) = NRG_PROFILER_LIB
+                .as_ref()
+                .unwrap()
+                .get::<PFNStartProfiler>(START_PROFILER_FUNCTION_NAME)
+            {
+                unsafe { start_fn.unwrap()() };
+            }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! stop_profiler {
+    () => {
+        #[cfg(debug_assertions)]
+        unsafe {
+            use nrg_platform::*;
+            use std::path::PathBuf;
+            use $crate::*;
+
+            $crate::load_profiler_lib!();
+            if let Some(stop_fn) = NRG_PROFILER_LIB
+                .as_ref()
+                .unwrap()
+                .get::<PFNStopProfiler>(STOP_PROFILER_FUNCTION_NAME)
+            {
+                unsafe { stop_fn.unwrap()() };
+            }
+        }
+    };
+}
+
+#[macro_export]
 macro_rules! register_thread_into_profiler_with_name {
     ($string:expr) => {
         #[cfg(debug_assertions)]

@@ -13,7 +13,7 @@ pub const DEFAULT_FONT_TEXTURE_SIZE: usize = 1024;
 pub const FONT_PT_TO_PIXEL: f32 = DEFAULT_DPI / (72. * 2048.);
 
 pub struct Font {
-    image: DynamicImage,
+    filepath: PathBuf,
     metrics: Metrics,
     glyphs: Vec<Glyph>,
     char_to_glyph: HashMap<u32, NonZeroU16>,
@@ -53,8 +53,17 @@ impl Font {
     }
 
     #[inline]
-    pub fn get_bitmap(&self) -> &DynamicImage {
-        &self.image
+    pub fn get_filepath(&self) -> &PathBuf {
+        &self.filepath
+    }
+
+    #[inline]
+    pub fn get_texture_path(&self) -> PathBuf {
+        let name = format!(
+            "./data/textures/{}.png",
+            self.filepath.file_stem().unwrap().to_str().unwrap()
+        );
+        PathBuf::from(name)
     }
 
     #[inline]
@@ -136,32 +145,28 @@ impl Font {
         }
 
         let mut font = Self {
-            image: DynamicImage::new_rgba8(
-                DEFAULT_FONT_TEXTURE_SIZE as _,
-                DEFAULT_FONT_TEXTURE_SIZE as _,
-            ),
+            filepath,
             metrics: max_glyph_metrics,
             glyphs,
             char_to_glyph,
         };
 
-        font.create_texture(DEFAULT_FONT_TEXTURE_SIZE);
+        let image = font.create_texture();
+        let _res = image.save(font.get_texture_path());
 
-        let name = format!(
-            "./data/textures/{}.png",
-            filepath.file_stem().unwrap().to_str().unwrap()
-        );
-        let _res = font.get_bitmap().save(name);
         font
     }
 
-    fn create_texture(&mut self, size: usize) {
+    fn create_texture(&mut self) -> DynamicImage {
+        let size = DEFAULT_FONT_TEXTURE_SIZE;
+
+        let mut image = DynamicImage::new_rgba8(size as _, size as _);
+
         let num_glyphs: u32 = self.glyphs.len() as _;
         let cell_size: u32 = (((size * size) as u32 / num_glyphs) as f64).sqrt().ceil() as u32;
 
         let mut row: u32 = 0;
         let mut column: u32 = 0;
-        let image = &mut self.image;
         for g in self.glyphs.iter_mut() {
             let mut starting_x = column * cell_size;
             if (starting_x + cell_size) > size as _ {
@@ -196,6 +201,8 @@ impl Font {
 
             column += 1;
         }
+
+        image
     }
 
     #[inline]

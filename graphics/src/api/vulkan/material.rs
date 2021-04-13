@@ -2,19 +2,11 @@ use super::device::*;
 use super::pipeline::*;
 use super::texture::*;
 use crate::common::data_formats::*;
-use image::*;
 use nrg_math::*;
-use std::sync::Once;
 use vulkan_bindings::*;
-
-static mut DEFAULT_TEXTURE: Option<Texture> = None;
-static mut INIT: Once = Once::new();
-
-const MAX_DESCRIPTOR_COUNT: usize = 128;
 
 #[derive(PartialEq)]
 pub struct MaterialInstance {
-    textures: Vec<Texture>,
     descriptor_pool: VkDescriptorPool,
     descriptor_sets: Vec<VkDescriptorSet>,
     uniform_buffers_size: usize,
@@ -23,24 +15,8 @@ pub struct MaterialInstance {
 }
 
 impl MaterialInstance {
-    fn get_default_texture(&self, device: &Device) -> &'static Texture {
-        unsafe {
-            INIT.call_once(|| {
-                let mut image_data = DynamicImage::new_rgba8(1, 1);
-                let (width, height) = image_data.dimensions();
-                for x in 0..width {
-                    for y in 0..height {
-                        image_data.put_pixel(x, y, Pixel::from_channels(255, 255, 255, 255))
-                    }
-                }
-                DEFAULT_TEXTURE = Some(Texture::create(device, &image_data, 1));
-            });
-            &DEFAULT_TEXTURE.as_ref().unwrap()
-        }
-    }
     pub fn create_from(device: &Device, pipeline: &super::pipeline::Pipeline) -> Self {
         let mut instance = MaterialInstance {
-            textures: Vec::new(),
             descriptor_sets: Vec::new(),
             descriptor_pool: ::std::ptr::null_mut(),
             uniform_buffers_size: 0,
@@ -53,32 +29,6 @@ impl MaterialInstance {
             .create_descriptor_sets(&device, &pipeline);
         instance
     }
-
-    pub fn destroy(&self, device: &Device) {
-        for texture in self.textures.iter() {
-            texture.destroy(device);
-        }
-    }
-
-    pub fn get_num_textures(&self) -> usize {
-        self.textures.len()
-    }
-
-    pub fn remove_all_textures(&mut self) -> &mut Self {
-        self.textures.clear();
-        self
-    }
-
-    pub fn add_texture_from_image(&mut self, device: &Device, image: &DynamicImage) -> &mut Self {
-        self.textures.push(Texture::create(device, image, 1));
-        self
-    }
-
-    pub fn add_texture_from_path(&mut self, device: &Device, filepath: &str) -> &mut Self {
-        self.textures.push(Texture::create_from(device, filepath));
-        self
-    }
-
     pub fn create_descriptor_sets(&mut self, device: &Device, pipeline: &Pipeline) -> &mut Self {
         let mut layouts = Vec::<VkDescriptorSetLayout>::with_capacity(device.get_images_count());
         unsafe {
@@ -203,7 +153,12 @@ impl MaterialInstance {
         self.uniform_buffers_memory[image_index] = buffer_memory;
     }
 
-    pub fn update_descriptor_sets(&self, device: &Device, pipeline: &Pipeline) {
+    pub fn update_descriptor_sets(
+        &self,
+        device: &Device,
+        pipeline: &Pipeline,
+        textures: &[&Texture],
+    ) {
         let image_index = device.get_current_buffer_index();
         let buffer_info = VkDescriptorBufferInfo {
             buffer: self.uniform_buffers[image_index],
@@ -224,34 +179,20 @@ impl MaterialInstance {
             pBufferInfo: &buffer_info,
             pTexelBufferView: ::std::ptr::null_mut(),
         });
-        if self.textures.is_empty() {
+        let binding_index = 1;
+        for (i, texture) in textures.iter().enumerate() {
             descriptor_write.push(VkWriteDescriptorSet {
                 sType: VkStructureType_VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                 pNext: ::std::ptr::null_mut(),
                 dstSet: self.descriptor_sets[image_index],
-                dstBinding: 1,
+                dstBinding: (binding_index + i) as _,
                 dstArrayElement: 0,
                 descriptorCount: 1,
                 descriptorType: VkDescriptorType_VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                pImageInfo: &self.get_default_texture(device).get_descriptor(),
+                pImageInfo: &texture.get_descriptor(),
                 pBufferInfo: ::std::ptr::null_mut(),
                 pTexelBufferView: ::std::ptr::null_mut(),
             });
-        } else {
-            for texture in self.textures.iter() {
-                descriptor_write.push(VkWriteDescriptorSet {
-                    sType: VkStructureType_VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-                    pNext: ::std::ptr::null_mut(),
-                    dstSet: self.descriptor_sets[image_index],
-                    dstBinding: 1,
-                    dstArrayElement: 0,
-                    descriptorCount: 1,
-                    descriptorType: VkDescriptorType_VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                    pImageInfo: &texture.get_descriptor(),
-                    pBufferInfo: ::std::ptr::null_mut(),
-                    pTexelBufferView: ::std::ptr::null_mut(),
-                });
-            }
         }
 
         unsafe {
