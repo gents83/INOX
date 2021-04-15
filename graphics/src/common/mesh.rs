@@ -30,7 +30,7 @@ impl Mesh {
         self.finalize();
     }
 
-    pub fn finalize(&mut self) -> &mut Self {
+    fn finalize(&mut self) -> &mut Self {
         if !self.data.vertices.is_empty() {
             self.inner
                 .create_vertex_buffer(&self.device.inner, self.data.vertices.as_slice());

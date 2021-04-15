@@ -49,7 +49,7 @@ macro_rules! implement_matrix {
         }
 
         impl<$T> Into<[[$T; $n]; $n]> for $MatrixN<$T>
-        where T: Number {
+        where $T: Float {
             #[inline]
             fn into(self) -> [[$T; $n]; $n] {
                 match self { $MatrixN { $($field),+ } => [$($field.into()),+] }
@@ -85,7 +85,7 @@ macro_rules! implement_matrix {
         }
 
         impl<$T> From<[[$T; $n]; $n]> for $MatrixN<$T>
-        where T: Number{
+        where $T: Float{
             #[inline]
             fn from(m: [[$T; $n]; $n]) -> $MatrixN<$T> {
                 $MatrixN { $($field: From::from(m[$index])),+ }
@@ -137,6 +137,55 @@ macro_rules! implement_matrix {
             fn index_mut<'a>(&'a mut self, i: Idx) -> &'a mut [T;$n] {
                 let v: &mut [[T;$n]; $n] = self.as_mut();
                 &mut v[i]
+            }
+        }
+
+        impl<$T> Default for $MatrixN<$T>
+        where $T: Float {
+            fn default() -> Self {
+                $MatrixN::identity()
+            }
+        }
+
+
+        impl<$T> ::std::ops::Add<$MatrixN<$T>> for $MatrixN<$T>
+        where $T: Float {
+            type Output = $MatrixN<$T>;
+            #[inline]
+            fn add(self, other: $MatrixN<$T>) -> $MatrixN<$T> {
+                $MatrixN { $($field: self.$field + other.$field),+ }
+            }
+        }
+        impl<$T> ::std::ops::AddAssign<$MatrixN<$T>> for $MatrixN<$T>
+        where $T: Float {
+            #[inline]
+            fn add_assign(&mut self, other: $MatrixN<$T>) {
+                let vec = $MatrixN { $($field: self.$field + other.$field),+ };
+                *self = vec;
+            }
+        }
+        impl<$T> ::std::ops::Sub<$MatrixN<$T>> for $MatrixN<$T>
+        where $T: Float {
+            type Output = $MatrixN<$T>;
+            #[inline]
+            fn sub(self, other: $MatrixN<$T>) -> $MatrixN<$T> {
+                $MatrixN { $($field: self.$field - other.$field),+ }
+            }
+        }
+        impl<$T> ::std::ops::SubAssign<$MatrixN<$T>> for $MatrixN<$T>
+        where $T: Float {
+            #[inline]
+            fn sub_assign(&mut self, other: $MatrixN<$T>) {
+                let vec = $MatrixN { $($field: self.$field - other.$field),+ };
+                *self = vec;
+            }
+        }
+        impl<T> ::std::ops::MulAssign<$MatrixN<T>> for $MatrixN<T>
+        where T: Float {
+            #[inline]
+            fn mul_assign(&mut self, other: $MatrixN<T>) {
+                let mat = *self * other;
+                *self = mat
             }
         }
 
