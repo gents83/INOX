@@ -20,7 +20,7 @@ pub struct EditorUpdater {
     config: Config,
     is_ctrl_pressed: bool,
     history: CommandsHistory,
-    fps_text_widget_id: UID,
+    fps_text_widget_id: Uid,
     main_menu: MainMenu,
     canvas: Canvas,
     widget: Panel,
@@ -73,8 +73,8 @@ impl System for EditorUpdater {
 
         self.widget.init(renderer);
         self.widget
-            .position([300, 300].into())
-            .size([500, 800].into())
+            .position([300., 300.].into())
+            .size([500., 800.].into())
             .selectable(false)
             .vertical_alignment(VerticalAlignment::Top)
             .horizontal_alignment(HorizontalAlignment::Right)
@@ -84,7 +84,7 @@ impl System for EditorUpdater {
         let mut fps_text = Text::default();
         fps_text.init(renderer);
         fps_text
-            .size([500, 20].into())
+            .size([500., 20.].into())
             .vertical_alignment(VerticalAlignment::Top)
             .horizontal_alignment(HorizontalAlignment::Left)
             .set_text("FPS: ");
@@ -174,10 +174,10 @@ impl EditorUpdater {
             self.main_menu.update(renderer, events);
 
             let draw_area = [
-                0,
+                0.,
                 self.main_menu.get_size().y + DEFAULT_WIDGET_SIZE.y,
-                Screen::get_size().x,
-                Screen::get_size().y,
+                Screen::get_size().x as _,
+                Screen::get_size().y as _,
             ]
             .into();
 

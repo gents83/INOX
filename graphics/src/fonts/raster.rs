@@ -6,16 +6,16 @@ pub struct Raster<'a> {
     data: &'a mut Vec<f32>,
 }
 
-impl<'a> Raster<'a> {    
+impl<'a> Raster<'a> {
     pub fn new(width: usize, height: usize, data: &'a mut Vec<f32>) -> Self {
         Self {
-            width, 
-            height, 
+            width,
+            height,
             data,
         }
     }
 
-    pub fn draw_line(&mut self, p0: Vector2f, p1: Vector2f) {
+    pub fn draw_line(&mut self, p0: Vector2, p1: Vector2) {
         if (p0.y - p1.y).abs() <= core::f32::EPSILON {
             return;
         }
@@ -31,7 +31,7 @@ impl<'a> Raster<'a> {
             x -= p0.y * dxdy;
         }
         for y in y0..self.height.min(p1.y.ceil() as usize) {
-            let linestart:isize = (y * self.width) as isize;
+            let linestart: isize = (y * self.width) as isize;
             let dy = ((y + 1) as f32).min(p1.y) - (y as f32).max(p0.y);
             let xnext = x + dxdy * dy;
             let d = dy * dir;

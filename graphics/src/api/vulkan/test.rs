@@ -19,7 +19,7 @@ fn test_chunks() {
         EventsRw::default(),
     );
 
-    let cam_pos: Vector3f = [0.0, 16.0, -64.0].into();
+    let cam_pos: Vector3 = [0.0, 16.0, -64.0].into();
 
     // Add sphere
     let radius = 6;

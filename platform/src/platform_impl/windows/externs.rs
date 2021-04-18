@@ -3,7 +3,8 @@
     overflowing_literals,
     dead_code,
     improper_ctypes,
-    improper_ctypes_definitions
+    improper_ctypes_definitions,
+    clippy::upper_case_acronyms
 )]
 
 use super::types::*;

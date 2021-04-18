@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use nrg_platform::{delete_file, library, FileEvent, FileWatcher, Library};
 
 use crate::{
-    PFNCreatePlugin, PFNDestroyPlugin, PluginHolder, PluginId, Scheduler, SharedDataRw,
+    PfnCreatePlugin, PfnDestroyPlugin, PluginHolder, PluginId, Scheduler, SharedDataRw,
     CREATE_PLUGIN_FUNCTION_NAME, DESTROY_PLUGIN_FUNCTION_NAME,
 };
 
@@ -134,7 +134,7 @@ impl PluginManager {
     fn load_plugin(fullpath: PathBuf) -> (library::Library, Option<PluginHolder>) {
         nrg_profiler::scoped_profile!("plugin_manager::load_plugin");
         let lib = library::Library::new(fullpath);
-        if let Some(create_fn) = lib.get::<PFNCreatePlugin>(CREATE_PLUGIN_FUNCTION_NAME) {
+        if let Some(create_fn) = lib.get::<PfnCreatePlugin>(CREATE_PLUGIN_FUNCTION_NAME) {
             let plugin_holder = unsafe { create_fn.unwrap()() };
             return (lib, Some(plugin_holder));
         }
@@ -148,7 +148,7 @@ impl PluginManager {
         let lib = unsafe { Box::into_raw(plugin_data.lib).as_mut().unwrap() };
         if let Some(mut plugin_holder) = plugin_data.plugin_holder {
             plugin_holder.get_plugin().unprepare(scheduler);
-            if let Some(destroy_fn) = lib.get::<PFNDestroyPlugin>(DESTROY_PLUGIN_FUNCTION_NAME) {
+            if let Some(destroy_fn) = lib.get::<PfnDestroyPlugin>(DESTROY_PLUGIN_FUNCTION_NAME) {
                 unsafe { destroy_fn.unwrap()(plugin_holder) };
             }
         }

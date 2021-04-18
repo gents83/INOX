@@ -28,9 +28,8 @@ macro_rules! implement_widget {
 
         impl $Type {
             pub fn stroke(&mut self, stroke: u32) -> &mut Self {
-                let stroke: nrg_math::Vector3f =
-                    Screen::convert_size_from_pixels([stroke, stroke].into()).into();
-                self.get_data_mut().graphics.set_stroke(stroke.x);
+                let stroke = Screen::convert_size_from_pixels([stroke as _, stroke as _].into()).x;
+                self.get_data_mut().graphics.set_stroke(stroke);
                 self
             }
             pub fn selectable(&mut self, selectable: bool) -> &mut Self {
@@ -41,11 +40,11 @@ macro_rules! implement_widget {
                 self.get_data_mut().state.set_draggable(draggable);
                 self
             }
-            pub fn position(&mut self, pos_in_px: nrg_math::Vector2u) -> &mut Self {
+            pub fn position(&mut self, pos_in_px: nrg_math::Vector2) -> &mut Self {
                 self.set_position(pos_in_px);
                 self
             }
-            pub fn size(&mut self, size_in_px: nrg_math::Vector2u) -> &mut Self {
+            pub fn size(&mut self, size_in_px: nrg_math::Vector2) -> &mut Self {
                 self.set_size(size_in_px);
                 self
             }

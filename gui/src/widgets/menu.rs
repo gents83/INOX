@@ -1,26 +1,19 @@
 use nrg_graphics::Renderer;
-use nrg_math::Vector2u;
+use nrg_math::{const_vec2, Vector2};
 use nrg_platform::EventsRw;
-use nrg_serialize::{Deserialize, Serialize, INVALID_UID, UID};
+use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{
-    implement_widget, Button, InternalWidget, WidgetData, WidgetEvent, DEFAULT_BUTTON_SIZE,
-    DEFAULT_WIDGET_SIZE,
+    implement_widget, Button, InternalWidget, WidgetData, WidgetEvent, DEFAULT_BUTTON_WIDTH,
+    DEFAULT_WIDGET_HEIGHT, DEFAULT_WIDGET_SIZE,
 };
 
 const DEFAULT_MENU_LAYER: f32 = 0.5;
-const DEFAULT_MENU_SIZE: Vector2u = Vector2u {
-    x: DEFAULT_WIDGET_SIZE.x * 10,
-    y: DEFAULT_WIDGET_SIZE.y * 3 / 2,
-};
-const DEFAULT_MENU_ITEM_SIZE: Vector2u = Vector2u {
-    x: DEFAULT_BUTTON_SIZE.x,
-    y: DEFAULT_BUTTON_SIZE.y,
-};
-const DEFAULT_SUBMENU_ITEM_SIZE: Vector2u = Vector2u {
-    x: DEFAULT_MENU_ITEM_SIZE.x * 5,
-    y: DEFAULT_MENU_ITEM_SIZE.y * 5,
-};
+const DEFAULT_MENU_SIZE: Vector2 =
+    const_vec2!([DEFAULT_WIDGET_HEIGHT * 10., DEFAULT_WIDGET_HEIGHT * 3. / 2.]);
+const DEFAULT_MENU_ITEM_SIZE: Vector2 = const_vec2!([DEFAULT_BUTTON_WIDTH, DEFAULT_WIDGET_HEIGHT]);
+const DEFAULT_SUBMENU_ITEM_SIZE: Vector2 =
+    const_vec2!([DEFAULT_BUTTON_WIDTH * 5., DEFAULT_WIDGET_HEIGHT * 5.]);
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]
@@ -34,7 +27,7 @@ struct MenuItemPanel {
 pub struct Menu {
     data: WidgetData,
     entries: Vec<MenuItemPanel>,
-    entries_uid: Vec<UID>,
+    entries_uid: Vec<Uid>,
 }
 implement_widget!(Menu);
 
@@ -49,7 +42,7 @@ impl Default for Menu {
 }
 
 impl Menu {
-    pub fn add_menu_item(&mut self, renderer: &mut Renderer, label: &str) -> UID {
+    pub fn add_menu_item(&mut self, renderer: &mut Renderer, label: &str) -> Uid {
         let mut button = Button::default();
         button.init(renderer);
         button
@@ -76,7 +69,7 @@ impl Menu {
             .horizontal_alignment(HorizontalAlignment::None)
             .fill_type(ContainerFillType::Vertical)
             .keep_fixed_width(false)
-            .space_between_elements(DEFAULT_WIDGET_SIZE.x / 2 * Screen::get_scale_factor() as u32)
+            .space_between_elements((DEFAULT_WIDGET_SIZE.x / 2. * Screen::get_scale_factor()) as _)
             .style(WidgetStyle::FullInactive);
 
         submenu.move_to_layer(DEFAULT_MENU_LAYER);
@@ -89,14 +82,14 @@ impl Menu {
         });
         menu_item_id
     }
-    pub fn get_submenu(&mut self, menu_item_id: UID) -> Option<&mut Menu> {
+    pub fn get_submenu(&mut self, menu_item_id: Uid) -> Option<&mut Menu> {
         if let Some(index) = self.entries_uid.iter().position(|el| *el == menu_item_id) {
             let entry = &mut self.entries[index];
             return Some(&mut entry.submenu);
         }
         None
     }
-    pub fn add_submenu_entry(&mut self, menu_item_id: UID, widget: Box<dyn Widget>) -> UID {
+    pub fn add_submenu_entry(&mut self, menu_item_id: Uid, widget: Box<dyn Widget>) -> Uid {
         let mut id = INVALID_UID;
         if let Some(index) = self.entries_uid.iter().position(|el| *el == menu_item_id) {
             let entry = &mut self.entries[index];
@@ -107,9 +100,9 @@ impl Menu {
     pub fn add_submenu_entry_default(
         &mut self,
         renderer: &mut Renderer,
-        menu_item_id: UID,
+        menu_item_id: Uid,
         label: &str,
-    ) -> UID {
+    ) -> Uid {
         let mut id = INVALID_UID;
         if let Some(index) = self.entries_uid.iter().position(|el| *el == menu_item_id) {
             let mut button = Button::default();
@@ -131,7 +124,7 @@ impl Menu {
         });
         is_opened
     }
-    fn is_hovering_entry(&mut self, entry_uid: UID) -> bool {
+    fn is_hovering_entry(&mut self, entry_uid: Uid) -> bool {
         let mut is_hover = false;
         if let Some(widget) = self.get_data_mut().node.get_child::<Button>(entry_uid) {
             if widget.is_hover() {
@@ -171,7 +164,7 @@ impl Menu {
         if let Some(widget_events) = events.read_events::<WidgetEvent>() {
             for event in widget_events.iter() {
                 if let WidgetEvent::Released(widget_id) = event {
-                    let mut pos = Vector2u::default();
+                    let mut pos = Vector2::ZERO;
                     if let Some(button) = self.get_data_mut().node.get_child::<Button>(*widget_id) {
                         pos.x = button.get_data().state.get_position().x;
                         pos.y = self.get_data().state.get_size().y;
@@ -197,7 +190,7 @@ impl InternalWidget for Menu {
             .selectable(false)
             .vertical_alignment(VerticalAlignment::Top)
             .horizontal_alignment(HorizontalAlignment::Stretch)
-            .space_between_elements(DEFAULT_WIDGET_SIZE.x * Screen::get_scale_factor() as u32)
+            .space_between_elements((DEFAULT_WIDGET_SIZE.x * Screen::get_scale_factor()) as _)
             .fill_type(ContainerFillType::Horizontal)
             .use_space_before_and_after(false)
             .style(WidgetStyle::DefaultBorder);

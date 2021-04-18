@@ -1,12 +1,12 @@
-use nrg_serialize::{generate_random_uid, Deserialize, Serialize, INVALID_UID, UID};
+use nrg_serialize::{generate_random_uid, Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::Widget;
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]
 pub struct WidgetNode {
-    id: UID,
-    parent_id: UID,
+    id: Uid,
+    parent_id: Uid,
     children: Vec<Box<dyn Widget>>,
 }
 
@@ -21,7 +21,7 @@ impl Default for WidgetNode {
 }
 
 impl WidgetNode {
-    pub fn get_id(&self) -> UID {
+    pub fn get_id(&self) -> Uid {
         self.id
     }
     pub fn add_child(&mut self, mut widget: Box<dyn Widget>) -> &mut Self {
@@ -38,7 +38,7 @@ impl WidgetNode {
         self
     }
 
-    pub fn remove_child(&mut self, uid: UID) -> &mut Self {
+    pub fn remove_child(&mut self, uid: Uid) -> &mut Self {
         self.children.iter_mut().for_each(|w| {
             if w.as_ref().id() == uid {
                 w.get_data_mut().node.parent_id = INVALID_UID;
@@ -51,7 +51,7 @@ impl WidgetNode {
     pub fn get_children(&self) -> &Vec<Box<dyn Widget>> {
         &self.children
     }
-    pub fn get_child<W>(&mut self, uid: UID) -> Option<&mut W>
+    pub fn get_child<W>(&mut self, uid: Uid) -> Option<&mut W>
     where
         W: Widget,
     {
@@ -70,7 +70,7 @@ impl WidgetNode {
         });
         result
     }
-    pub fn get_parent(&self) -> UID {
+    pub fn get_parent(&self) -> Uid {
         self.parent_id
     }
     pub fn has_parent(&self) -> bool {
@@ -94,7 +94,7 @@ impl WidgetNode {
     {
         self.children.iter_mut().for_each(|w| f(w.as_mut()));
     }
-    pub fn propagate_on_child<F>(&self, uid: UID, mut f: F)
+    pub fn propagate_on_child<F>(&self, uid: Uid, mut f: F)
     where
         F: FnMut(&dyn Widget),
     {
@@ -103,7 +103,7 @@ impl WidgetNode {
             return f(w.as_ref());
         }
     }
-    pub fn propagate_on_child_mut<F>(&mut self, uid: UID, mut f: F)
+    pub fn propagate_on_child_mut<F>(&mut self, uid: Uid, mut f: F)
     where
         F: FnMut(&mut dyn Widget),
     {

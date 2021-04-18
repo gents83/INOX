@@ -1,4 +1,4 @@
-use nrg_math::{Vector2u, Vector4f, Vector4u};
+use nrg_math::{Vector2, Vector4};
 use nrg_serialize::{Deserialize, Serialize};
 
 use crate::{
@@ -9,10 +9,10 @@ use crate::{
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(crate = "nrg_serialize")]
 pub struct WidgetState {
-    pos_in_px: Vector2u,
-    size_in_px: Vector2u,
+    pos_in_px: Vector2,
+    size_in_px: Vector2,
     #[serde(skip)]
-    clip_area: Vector4u,
+    clip_area: Vector4,
     is_active: bool,
     is_selectable: bool,
     is_visible: bool,
@@ -35,9 +35,9 @@ pub struct WidgetState {
 impl Default for WidgetState {
     fn default() -> Self {
         Self {
-            pos_in_px: Vector2u::default(),
+            pos_in_px: Vector2::ZERO,
             size_in_px: DEFAULT_WIDGET_SIZE,
-            clip_area: Vector4u::default(),
+            clip_area: Vector4::ZERO,
             is_active: true,
             is_visible: true,
             is_selectable: true,
@@ -68,7 +68,7 @@ impl WidgetState {
         self
     }
 
-    pub fn get_colors(&self, state: WidgetInteractiveState) -> (Vector4f, Vector4f) {
+    pub fn get_colors(&self, state: WidgetInteractiveState) -> (Vector4, Vector4) {
         (
             WidgetStyle::color(&self.style, state),
             WidgetStyle::color(&self.border_style, state),
@@ -115,26 +115,26 @@ impl WidgetState {
         self.use_space_before_after
     }
 
-    pub fn get_position(&self) -> Vector2u {
+    pub fn get_position(&self) -> Vector2 {
         self.pos_in_px
     }
 
-    pub fn set_position(&mut self, pos_in_px: Vector2u) -> &mut Self {
+    pub fn set_position(&mut self, pos_in_px: Vector2) -> &mut Self {
         self.pos_in_px = pos_in_px;
         self
     }
-    pub fn get_size(&self) -> Vector2u {
+    pub fn get_size(&self) -> Vector2 {
         self.size_in_px
     }
-    pub fn set_size(&mut self, size_in_px: Vector2u) -> &mut Self {
+    pub fn set_size(&mut self, size_in_px: Vector2) -> &mut Self {
         self.size_in_px = size_in_px;
         self
     }
-    pub fn get_clip_area(&self) -> Vector4u {
+    pub fn get_clip_area(&self) -> Vector4 {
         self.clip_area
     }
 
-    pub fn set_clip_area(&mut self, clip_area: Vector4u) -> &mut Self {
+    pub fn set_clip_area(&mut self, clip_area: Vector4) -> &mut Self {
         self.clip_area = clip_area;
         self
     }
@@ -200,7 +200,7 @@ impl WidgetState {
         &self.vertical_alignment
     }
 
-    pub fn is_inside(&self, pos_in_px: Vector2u) -> bool {
+    pub fn is_inside(&self, pos_in_px: Vector2) -> bool {
         if pos_in_px.x >= self.pos_in_px.x
             && pos_in_px.x <= self.pos_in_px.x + self.size_in_px.x
             && pos_in_px.y >= self.pos_in_px.y

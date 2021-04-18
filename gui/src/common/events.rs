@@ -1,12 +1,12 @@
-use nrg_math::Vector2u;
+use nrg_math::Vector2;
 use nrg_platform::Event;
-use nrg_serialize::UID;
+use nrg_serialize::Uid;
 
 pub enum WidgetEvent {
-    Entering(UID),
-    Exiting(UID),
-    Pressed(UID),
-    Released(UID),
-    Dragging(UID, Vector2u),
+    Entering(Uid),
+    Exiting(Uid),
+    Pressed(Uid),
+    Released(Uid),
+    Dragging(Uid, Vector2),
 }
 impl Event for WidgetEvent {}

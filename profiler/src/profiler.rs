@@ -18,19 +18,19 @@ use std::{
 pub static mut NRG_PROFILER_LIB: Option<nrg_platform::Library> = None;
 
 pub const CREATE_PROFILER_FUNCTION_NAME: &str = "create_profiler";
-pub type PFNCreateProfiler = ::std::option::Option<unsafe extern "C" fn()>;
+pub type PfnCreateProfiler = ::std::option::Option<unsafe extern "C" fn()>;
 pub const START_PROFILER_FUNCTION_NAME: &str = "start_profiler";
-pub type PFNStartProfiler = ::std::option::Option<unsafe extern "C" fn()>;
+pub type PfnStartProfiler = ::std::option::Option<unsafe extern "C" fn()>;
 pub const STOP_PROFILER_FUNCTION_NAME: &str = "stop_profiler";
-pub type PFNStopProfiler = ::std::option::Option<unsafe extern "C" fn()>;
+pub type PfnStopProfiler = ::std::option::Option<unsafe extern "C" fn()>;
 pub const REGISTER_THREAD_FUNCTION_NAME: &str = "register_thread";
-pub type PFNRegisterThread = ::std::option::Option<unsafe extern "C" fn(*const u8)>;
+pub type PfnRegisterThread = ::std::option::Option<unsafe extern "C" fn(*const u8)>;
 pub const GET_ELAPSED_TIME_FUNCTION_NAME: &str = "get_elapsed_time";
-pub type PFNGetElapsedTime = ::std::option::Option<unsafe extern "C" fn() -> u64>;
+pub type PfnGetElapsedTime = ::std::option::Option<unsafe extern "C" fn() -> u64>;
 pub const ADD_SAMPLE_FOR_THREAD_FUNCTION_NAME: &str = "add_sample_for_thread";
-pub type PFNAddSampleForThread = ::std::option::Option<unsafe extern "C" fn(&str, &str, u64, u64)>;
+pub type PfnAddSampleForThread = ::std::option::Option<unsafe extern "C" fn(&str, &str, u64, u64)>;
 pub const WRITE_PROFILE_FILE_FUNCTION_NAME: &str = "write_profile_file";
-pub type PFNWriteProfileFile = ::std::option::Option<unsafe extern "C" fn()>;
+pub type PfnWriteProfileFile = ::std::option::Option<unsafe extern "C" fn()>;
 
 pub static GLOBAL_PROFILER: GlobalProfiler = GlobalProfiler(Cell::new(None));
 
@@ -291,7 +291,7 @@ impl ScopedProfile {
             if let Some(get_elapsed_fn) = NRG_PROFILER_LIB
                 .as_ref()
                 .unwrap()
-                .get::<PFNGetElapsedTime>(GET_ELAPSED_TIME_FUNCTION_NAME)
+                .get::<PfnGetElapsedTime>(GET_ELAPSED_TIME_FUNCTION_NAME)
             {
                 time = get_elapsed_fn.unwrap()();
             }
@@ -311,14 +311,14 @@ impl Drop for ScopedProfile {
             if let Some(get_elapsed_fn) = NRG_PROFILER_LIB
                 .as_ref()
                 .unwrap()
-                .get::<PFNGetElapsedTime>(GET_ELAPSED_TIME_FUNCTION_NAME)
+                .get::<PfnGetElapsedTime>(GET_ELAPSED_TIME_FUNCTION_NAME)
             {
                 time_end = get_elapsed_fn.unwrap()();
             }
             if let Some(add_sample_fn) = NRG_PROFILER_LIB
                 .as_ref()
                 .unwrap()
-                .get::<PFNAddSampleForThread>(ADD_SAMPLE_FOR_THREAD_FUNCTION_NAME)
+                .get::<PfnAddSampleForThread>(ADD_SAMPLE_FOR_THREAD_FUNCTION_NAME)
             {
                 add_sample_fn.unwrap()(
                     self.name.as_str(),

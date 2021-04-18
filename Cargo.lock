@@ -281,6 +281,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "glam"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "333928d5eb103c5d4050533cec0384302db6be8ef7d3cebd30ec6a35350353da"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "glob"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -534,6 +543,7 @@ dependencies = [
 name = "nrg_math"
 version = "0.1.0"
 dependencies = [
+ "glam",
  "nrg_serialize",
 ]
 

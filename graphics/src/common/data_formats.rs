@@ -6,19 +6,41 @@ use nrg_math::*;
 use nrg_serialize::*;
 
 #[derive(Debug, PartialEq, Clone, Copy)]
-pub struct UniformData {
-    pub model: Matrix4<f32>,
-    pub view: Matrix4<f32>,
-    pub proj: Matrix4<f32>,
+pub struct InstanceCommand {
+    pub mesh_index: usize,
+    pub index_count: usize,
+    pub vertex_count: usize,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub struct InstanceData {
+    pub transform: Matrix4,
+    pub diffuse_texture_index: usize,
+    pub diffuse_layer_index: usize,
+}
+
+impl Default for InstanceData {
+    fn default() -> Self {
+        Self {
+            transform: Matrix4::IDENTITY,
+            diffuse_texture_index: 0,
+            diffuse_layer_index: 0,
+        }
+    }
+}
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub struct UniformData {
+    pub view: Matrix4,
+    pub proj: Matrix4,
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Copy)]
 #[serde(crate = "nrg_serialize")]
 pub struct VertexData {
-    pub pos: Vector3f,
-    pub color: Vector4f,
-    pub tex_coord: Vector2f,
-    pub normal: Vector3f,
+    pub pos: Vector3,
+    pub color: Vector4,
+    pub tex_coord: Vector2,
+    pub normal: Vector3,
 }
 
 impl Default for VertexData {
@@ -90,10 +112,10 @@ impl Default for MaterialData {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 #[serde(crate = "nrg_serialize")]
 pub struct MeshData {
-    pub center: Vector3f,
+    pub center: Vector3,
     pub vertices: Vec<VertexData>,
     pub indices: Vec<u32>,
     pub is_transient: bool,
@@ -102,7 +124,7 @@ pub struct MeshData {
 impl Default for MeshData {
     fn default() -> Self {
         Self {
-            center: Vector3f::default(),
+            center: Vector3::ZERO,
             vertices: Vec::new(),
             indices: Vec::new(),
             is_transient: false,
@@ -118,16 +140,8 @@ impl MeshData {
     }
 
     pub fn compute_center(&mut self) -> &mut Self {
-        let mut min = Vector3f {
-            x: Float::max_value(),
-            y: Float::max_value(),
-            z: Float::max_value(),
-        };
-        let mut max = Vector3f {
-            x: Float::min_value(),
-            y: Float::min_value(),
-            z: Float::min_value(),
-        };
+        let mut min = Vector3::new(f32::MAX, f32::MAX, f32::MAX);
+        let mut max = Vector3::new(f32::MIN, f32::MIN, f32::MIN);
         for v in self.vertices.iter() {
             min.x = min.x.min(v.pos.x);
             min.y = min.y.min(v.pos.y);
@@ -155,14 +169,14 @@ impl MeshData {
         self
     }
 
-    pub fn set_vertex_color(&mut self, color: Vector4f) -> &mut Self {
+    pub fn set_vertex_color(&mut self, color: Vector4) -> &mut Self {
         for v in self.vertices.iter_mut() {
             v.color = color;
         }
         self
     }
 
-    pub fn translate(&mut self, movement: Vector3f) -> &mut Self {
+    pub fn translate(&mut self, movement: Vector3) -> &mut Self {
         self.vertices.iter_mut().for_each(|v| {
             v.pos.x += movement.x;
             v.pos.y += movement.y;
@@ -172,7 +186,7 @@ impl MeshData {
         self
     }
 
-    pub fn scale(&mut self, scale: Vector3f) -> &mut Self {
+    pub fn scale(&mut self, scale: Vector3) -> &mut Self {
         self.vertices.iter_mut().for_each(|v| {
             v.pos.x *= scale.x;
             v.pos.y *= scale.y;
@@ -182,7 +196,7 @@ impl MeshData {
         self
     }
 
-    pub fn add_quad_default(&mut self, rect: Vector4f, z: f32) -> &mut Self {
+    pub fn add_quad_default(&mut self, rect: Vector4, z: f32) -> &mut Self {
         let tex_coords = [0.0, 0.0, 1.0, 1.0].into();
         let (vertices, indices) = create_quad(rect, z, tex_coords, None);
 
@@ -194,9 +208,9 @@ impl MeshData {
 
     pub fn add_quad(
         &mut self,
-        rect: Vector4f,
+        rect: Vector4,
         z: f32,
-        tex_coords: Vector4f,
+        tex_coords: Vector4,
         index_start: Option<usize>,
     ) -> &mut Self {
         let (vertices, indices) = create_quad(rect, z, tex_coords, index_start);
@@ -207,7 +221,7 @@ impl MeshData {
         self
     }
 
-    pub fn clip_in_rect(&mut self, clip_rect: Vector4f) -> &mut Self {
+    pub fn clip_in_rect(&mut self, clip_rect: Vector4) -> &mut Self {
         for v in self.vertices.iter_mut() {
             v.pos.x = v.pos.x.max(clip_rect.x);
             v.pos.x = v.pos.x.min(clip_rect.z);
@@ -218,20 +232,14 @@ impl MeshData {
         self
     }
 
-    pub fn is_inside(&self, pos_in_screen_space: Vector2f) -> bool {
+    pub fn is_inside(&self, pos_in_screen_space: Vector2) -> bool {
         let mut i = 0;
         let count = self.indices.len();
         while i < count {
-            let v1 = self.vertices[self.indices[i] as usize].pos;
-            let v2 = self.vertices[self.indices[i + 1] as usize].pos;
-            let v3 = self.vertices[self.indices[i + 2] as usize].pos;
-            if is_point_in_triangle(
-                v1.into(),
-                v2.into(),
-                v3.into(),
-                pos_in_screen_space.x,
-                pos_in_screen_space.y,
-            ) {
+            let v1 = self.vertices[self.indices[i] as usize].pos.xy();
+            let v2 = self.vertices[self.indices[i + 1] as usize].pos.xy();
+            let v3 = self.vertices[self.indices[i + 2] as usize].pos.xy();
+            if is_point_in_triangle(v1, v2, v3, pos_in_screen_space.x, pos_in_screen_space.y) {
                 return true;
             }
             i += 3;

@@ -39,9 +39,9 @@ pub fn read_spirv_from_bytes<Data: ::std::io::Read + ::std::io::Seek>(
 }
 
 pub fn create_quad(
-    rect: Vector4f,
+    rect: Vector4,
     z: f32,
-    tex_coords: Vector4f,
+    tex_coords: Vector4,
     index_start: Option<usize>,
 ) -> ([VertexData; 4], [u32; 6]) {
     let vertices = [

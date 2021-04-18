@@ -1,4 +1,4 @@
-use nrg_math::Vector4f;
+use nrg_math::Vector4;
 use nrg_serialize::{Deserialize, Serialize};
 
 use crate::colors::*;
@@ -26,7 +26,7 @@ pub enum WidgetStyle {
 }
 
 impl WidgetStyle {
-    pub fn color(style: &WidgetStyle, state: WidgetInteractiveState) -> Vector4f {
+    pub fn color(style: &WidgetStyle, state: WidgetInteractiveState) -> Vector4 {
         match style {
             Self::Default => match state {
                 WidgetInteractiveState::Inactive => COLOR_BLACK,

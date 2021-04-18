@@ -4,7 +4,7 @@ use nrg_gui::{
     VerticalAlignment, WidgetDataGetter, WidgetEvent, WidgetStyle,
 };
 use nrg_platform::EventsRw;
-use nrg_serialize::{INVALID_UID, UID};
+use nrg_serialize::{Uid, INVALID_UID};
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum DialogResult {
     Waiting,
@@ -14,14 +14,14 @@ pub enum DialogResult {
 
 pub struct FilenameDialog {
     dialog: Panel,
-    title_box_uid: UID,
-    title_uid: UID,
-    content_box_uid: UID,
-    label_uid: UID,
-    editable_text_uid: UID,
-    button_box_uid: UID,
-    ok_uid: UID,
-    cancel_uid: UID,
+    title_box_uid: Uid,
+    title_uid: Uid,
+    content_box_uid: Uid,
+    label_uid: Uid,
+    editable_text_uid: Uid,
+    button_box_uid: Uid,
+    ok_uid: Uid,
+    cancel_uid: Uid,
     result: DialogResult,
 }
 
@@ -143,7 +143,7 @@ impl FilenameDialog {
     pub fn init(&mut self, renderer: &mut Renderer) {
         self.dialog.init(renderer);
         self.dialog
-            .size([800, 400].into())
+            .size([800., 400.].into())
             .vertical_alignment(VerticalAlignment::Center)
             .horizontal_alignment(HorizontalAlignment::Center)
             .fill_type(ContainerFillType::Vertical)

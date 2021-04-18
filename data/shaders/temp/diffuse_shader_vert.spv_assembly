@@ -1,0 +1,97 @@
+; SPIR-V
+; Version: 1.0
+; Generator: Google Shaderc over Glslang; 10
+; Bound: 51
+; Schema: 0
+               OpCapability Shader
+          %1 = OpExtInstImport "GLSL.std.450"
+               OpMemoryModel Logical GLSL450
+               OpEntryPoint Vertex %main "main" %_ %instanceMatrix %inPosition %fragColor %inColor %fragTexCoord %inTexCoord %instanceDiffuseLayerIndex %inNormal %instanceDiffuseTextureIndex
+               OpSource GLSL 450
+               OpSourceExtension "GL_ARB_separate_shader_objects"
+               OpSourceExtension "GL_GOOGLE_cpp_style_line_directive"
+               OpSourceExtension "GL_GOOGLE_include_directive"
+               OpName %main "main"
+               OpName %gl_PerVertex "gl_PerVertex"
+               OpMemberName %gl_PerVertex 0 "gl_Position"
+               OpMemberName %gl_PerVertex 1 "gl_PointSize"
+               OpMemberName %gl_PerVertex 2 "gl_ClipDistance"
+               OpMemberName %gl_PerVertex 3 "gl_CullDistance"
+               OpName %_ ""
+               OpName %instanceMatrix "instanceMatrix"
+               OpName %inPosition "inPosition"
+               OpName %fragColor "fragColor"
+               OpName %inColor "inColor"
+               OpName %fragTexCoord "fragTexCoord"
+               OpName %inTexCoord "inTexCoord"
+               OpName %instanceDiffuseLayerIndex "instanceDiffuseLayerIndex"
+               OpName %inNormal "inNormal"
+               OpName %instanceDiffuseTextureIndex "instanceDiffuseTextureIndex"
+               OpMemberDecorate %gl_PerVertex 0 BuiltIn Position
+               OpMemberDecorate %gl_PerVertex 1 BuiltIn PointSize
+               OpMemberDecorate %gl_PerVertex 2 BuiltIn ClipDistance
+               OpMemberDecorate %gl_PerVertex 3 BuiltIn CullDistance
+               OpDecorate %gl_PerVertex Block
+               OpDecorate %instanceMatrix Location 4
+               OpDecorate %inPosition Location 0
+               OpDecorate %fragColor Location 0
+               OpDecorate %inColor Location 1
+               OpDecorate %fragTexCoord Location 1
+               OpDecorate %inTexCoord Location 2
+               OpDecorate %instanceDiffuseLayerIndex Location 9
+               OpDecorate %inNormal Location 3
+               OpDecorate %instanceDiffuseTextureIndex Location 8
+       %void = OpTypeVoid
+          %3 = OpTypeFunction %void
+      %float = OpTypeFloat 32
+    %v4float = OpTypeVector %float 4
+       %uint = OpTypeInt 32 0
+     %uint_1 = OpConstant %uint 1
+%_arr_float_uint_1 = OpTypeArray %float %uint_1
+%gl_PerVertex = OpTypeStruct %v4float %float %_arr_float_uint_1 %_arr_float_uint_1
+%_ptr_Output_gl_PerVertex = OpTypePointer Output %gl_PerVertex
+          %_ = OpVariable %_ptr_Output_gl_PerVertex Output
+        %int = OpTypeInt 32 1
+      %int_0 = OpConstant %int 0
+%mat4v4float = OpTypeMatrix %v4float 4
+%_ptr_Input_mat4v4float = OpTypePointer Input %mat4v4float
+%instanceMatrix = OpVariable %_ptr_Input_mat4v4float Input
+    %v3float = OpTypeVector %float 3
+%_ptr_Input_v3float = OpTypePointer Input %v3float
+ %inPosition = OpVariable %_ptr_Input_v3float Input
+    %float_1 = OpConstant %float 1
+%_ptr_Output_v4float = OpTypePointer Output %v4float
+  %fragColor = OpVariable %_ptr_Output_v4float Output
+%_ptr_Input_v4float = OpTypePointer Input %v4float
+    %inColor = OpVariable %_ptr_Input_v4float Input
+%_ptr_Output_v3float = OpTypePointer Output %v3float
+%fragTexCoord = OpVariable %_ptr_Output_v3float Output
+    %v2float = OpTypeVector %float 2
+%_ptr_Input_v2float = OpTypePointer Input %v2float
+ %inTexCoord = OpVariable %_ptr_Input_v2float Input
+%_ptr_Input_int = OpTypePointer Input %int
+%instanceDiffuseLayerIndex = OpVariable %_ptr_Input_int Input
+   %inNormal = OpVariable %_ptr_Input_v3float Input
+%instanceDiffuseTextureIndex = OpVariable %_ptr_Input_int Input
+       %main = OpFunction %void None %3
+          %5 = OpLabel
+         %19 = OpLoad %mat4v4float %instanceMatrix
+         %23 = OpLoad %v3float %inPosition
+         %25 = OpCompositeExtract %float %23 0
+         %26 = OpCompositeExtract %float %23 1
+         %27 = OpCompositeExtract %float %23 2
+         %28 = OpCompositeConstruct %v4float %25 %26 %27 %float_1
+         %29 = OpMatrixTimesVector %v4float %19 %28
+         %31 = OpAccessChain %_ptr_Output_v4float %_ %int_0
+               OpStore %31 %29
+         %35 = OpLoad %v4float %inColor
+               OpStore %fragColor %35
+         %41 = OpLoad %v2float %inTexCoord
+         %44 = OpLoad %int %instanceDiffuseLayerIndex
+         %45 = OpConvertSToF %float %44
+         %46 = OpCompositeExtract %float %41 0
+         %47 = OpCompositeExtract %float %41 1
+         %48 = OpCompositeConstruct %v3float %46 %47 %45
+               OpStore %fragTexCoord %48
+               OpReturn
+               OpFunctionEnd

@@ -1,25 +1,23 @@
 use nrg_graphics::{FontId, MaterialId, MeshData, Renderer, INVALID_ID};
-use nrg_math::{Vector2f, Vector2u, Vector4f, Vector4u};
+use nrg_math::{const_vec2, Vector2, Vector4};
 use nrg_platform::{Event, EventsRw, MouseEvent, MouseState};
-use nrg_serialize::{Deserialize, Serialize, UID};
+use nrg_serialize::{Deserialize, Serialize, Uid};
 
-use crate::{implement_widget, InternalWidget, WidgetData, DEFAULT_WIDGET_SIZE};
+use crate::{implement_widget, InternalWidget, WidgetData, DEFAULT_WIDGET_HEIGHT};
 
-pub const DEFAULT_TEXT_SIZE: Vector2u = Vector2u {
-    x: DEFAULT_WIDGET_SIZE.x * 20,
-    y: DEFAULT_WIDGET_SIZE.y / 5 * 4,
-};
+pub const DEFAULT_TEXT_SIZE: Vector2 =
+    const_vec2!([DEFAULT_WIDGET_HEIGHT * 20., DEFAULT_WIDGET_HEIGHT / 5. * 4.]);
 
 pub enum TextEvent {
-    AddChar(UID, i32, char),
-    RemoveChar(UID, i32, char),
+    AddChar(Uid, i32, char),
+    RemoveChar(Uid, i32, char),
 }
 impl Event for TextEvent {}
 
 #[derive(Debug, Clone, Copy)]
 pub struct TextChar {
-    pub min: Vector2f,
-    pub max: Vector2f,
+    pub min: Vector2,
+    pub max: Vector2,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -79,11 +77,11 @@ impl Text {
     pub fn get_hover_char(&self) -> i32 {
         self.hover_char_index
     }
-    pub fn get_char_pos(&self, index: i32) -> Vector2f {
+    pub fn get_char_pos(&self, index: i32) -> Vector2 {
         if index >= 0 && index < self.text.len() as _ {
             return self.characters[index as usize].min;
         }
-        Vector2f::default()
+        Vector2::ZERO
     }
     pub fn get_char_at(&self, index: i32) -> Option<char> {
         if index >= 0 && index < self.text.len() as _ {
@@ -113,10 +111,7 @@ impl Text {
         if let Some(mut mouse_events) = events.read_events::<MouseEvent>() {
             for event in mouse_events.iter_mut() {
                 if event.state == MouseState::Move {
-                    let mouse_pos = Vector2f {
-                        x: event.x as _,
-                        y: event.y as _,
-                    };
+                    let mouse_pos = Vector2::new(event.x as _, event.y as _);
                     let mouse_pos = Screen::from_normalized_into_screen_space(mouse_pos);
 
                     for (i, c) in self.characters.iter().enumerate() {
@@ -152,7 +147,7 @@ impl Text {
         char::default()
     }
 
-    fn update_mesh_from_text(&mut self, renderer: &mut Renderer, drawing_area_in_px: Vector4u) {
+    fn update_mesh_from_text(&mut self, renderer: &mut Renderer, drawing_area_in_px: Vector4) {
         let pos =
             Screen::convert_from_pixels_into_screen_space(self.get_data_mut().state.get_position());
         let min_size = Screen::convert_size_from_pixels(self.get_data_mut().state.get_size());
@@ -175,7 +170,7 @@ impl Text {
             char_height = size.y / lines_count as f32;
         }
 
-        let new_size: Vector2f = [
+        let new_size: Vector2 = [
             char_width * max_chars as f32,
             char_height * lines_count as f32,
         ]
@@ -198,12 +193,7 @@ impl Text {
                 let g = font.get_glyph(id);
                 mesh_data
                     .add_quad(
-                        Vector4f {
-                            x: pos_x,
-                            y: pos_y,
-                            z: pos_x + char_width,
-                            w: pos_y + char_height,
-                        },
+                        Vector4::new(pos_x, pos_y, pos_x + char_width, pos_y + char_height),
                         char_layer,
                         g.texture_coord,
                         Some(mesh_index),

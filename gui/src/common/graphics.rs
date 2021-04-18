@@ -1,5 +1,5 @@
 use nrg_graphics::{MaterialId, MeshData, MeshId, Renderer, INVALID_ID};
-use nrg_math::{Vector2f, Vector2u, Vector4f};
+use nrg_math::{Matrix4, Vector2, Vector4};
 use nrg_serialize::{Deserialize, Serialize};
 
 use crate::{Screen, DEFAULT_LAYER_OFFSET, DEFAULT_WIDGET_SIZE};
@@ -13,13 +13,15 @@ pub struct WidgetGraphics {
     #[serde(skip)]
     mesh_data: MeshData,
     #[serde(skip)]
-    color: Vector4f,
+    color: Vector4,
     #[serde(skip)]
-    border_color: Vector4f,
+    border_color: Vector4,
     #[serde(skip)]
     is_dirty: bool,
     stroke: f32,
     layer: f32,
+    #[serde(skip)]
+    transform: Matrix4,
 }
 
 impl Default for WidgetGraphics {
@@ -28,11 +30,12 @@ impl Default for WidgetGraphics {
             material_id: INVALID_ID,
             mesh_id: INVALID_ID,
             mesh_data: MeshData::default(),
-            color: Vector4f::default(),
-            border_color: Vector4f::default(),
+            color: Vector4::ZERO,
+            border_color: Vector4::ZERO,
             is_dirty: true,
             stroke: 0.0,
             layer: 1.0 - DEFAULT_LAYER_OFFSET,
+            transform: Matrix4::IDENTITY,
         }
     }
 }
@@ -42,7 +45,7 @@ impl WidgetGraphics {
         let pipeline_id = renderer.get_pipeline_id(pipeline);
         self.material_id = renderer.add_material(pipeline_id);
 
-        let zero_px = Screen::convert_from_pixels_into_screen_space(Vector2u::default());
+        let zero_px = Screen::convert_from_pixels_into_screen_space(Vector2::ZERO);
         let one_px = Screen::convert_from_pixels_into_screen_space(DEFAULT_WIDGET_SIZE);
 
         let mut mesh_data = MeshData::default();
@@ -91,25 +94,28 @@ impl WidgetGraphics {
         self.is_dirty = true;
         self
     }
-    pub fn translate(&mut self, offset: Vector2f) -> &mut Self {
-        self.mesh_data.translate([offset.x, offset.y, 0.].into());
+    pub fn translate(&mut self, offset: Vector2) -> &mut Self {
+        self.transform
+            .mul_mat4(&Matrix4::from_translation([offset.x, offset.y, 0.].into()));
         self.is_dirty = true;
         self
     }
-    pub fn scale(&mut self, scale: Vector2f) -> &mut Self {
-        self.mesh_data.scale([scale.x, scale.y, 1.].into());
+    pub fn scale(&mut self, scale: Vector2) -> &mut Self {
+        self.transform
+            .mul_mat4(&Matrix4::from_scale([scale.x, scale.y, 1.].into()));
         self.is_dirty = true;
         self
     }
     pub fn move_to_layer(&mut self, layer: f32) -> &mut Self {
-        self.mesh_data.translate([0.0, 0.0, layer].into());
+        self.transform
+            .mul_mat4(&Matrix4::from_translation([0.0, 0.0, layer].into()));
         self.is_dirty = true;
         self
     }
-    pub fn get_color(&self) -> Vector4f {
+    pub fn get_color(&self) -> Vector4 {
         self.color
     }
-    pub fn set_color(&mut self, rgb: Vector4f) -> &mut Self {
+    pub fn set_color(&mut self, rgb: Vector4) -> &mut Self {
         if self.color != rgb {
             self.color = rgb;
             self.mesh_data.set_vertex_color(rgb);
@@ -117,7 +123,7 @@ impl WidgetGraphics {
         }
         self
     }
-    pub fn set_border_color(&mut self, rgb: Vector4f) -> &mut Self {
+    pub fn set_border_color(&mut self, rgb: Vector4) -> &mut Self {
         if self.border_color != rgb {
             self.border_color = rgb;
         }
@@ -127,7 +133,7 @@ impl WidgetGraphics {
         self.stroke = stroke;
         self
     }
-    pub fn is_inside(&self, pos_in_px: Vector2u) -> bool {
+    pub fn is_inside(&self, pos_in_px: Vector2) -> bool {
         let pos_in_screen_space = Screen::convert_from_pixels_into_screen_space(pos_in_px);
         self.mesh_data.is_inside(pos_in_screen_space)
     }
@@ -138,7 +144,7 @@ impl WidgetGraphics {
                 if self.mesh_id == INVALID_ID {
                     self.mesh_id = renderer.add_mesh(self.material_id, &self.mesh_data);
                 } else {
-                    renderer.update_mesh(self.material_id, self.mesh_id, &self.mesh_data);
+                    renderer.update_mesh(self.material_id, self.mesh_id, &self.transform);
                 }
                 self.is_dirty = false;
             }

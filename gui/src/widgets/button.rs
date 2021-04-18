@@ -1,20 +1,20 @@
 use nrg_graphics::Renderer;
-use nrg_math::Vector2u;
+use nrg_math::{const_vec2, Vector2};
 use nrg_platform::EventsRw;
-use nrg_serialize::{Deserialize, Serialize, INVALID_UID, UID};
+use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
-use crate::{implement_widget, InternalWidget, Text, WidgetData, DEFAULT_WIDGET_SIZE};
-
-pub const DEFAULT_BUTTON_SIZE: Vector2u = Vector2u {
-    x: DEFAULT_WIDGET_SIZE.x * 20,
-    y: DEFAULT_WIDGET_SIZE.y,
+use crate::{
+    implement_widget, InternalWidget, Text, WidgetData, DEFAULT_WIDGET_HEIGHT, DEFAULT_WIDGET_SIZE,
 };
+
+pub const DEFAULT_BUTTON_WIDTH: f32 = DEFAULT_WIDGET_HEIGHT * 20.;
+pub const DEFAULT_BUTTON_SIZE: Vector2 = const_vec2!([DEFAULT_BUTTON_WIDTH, DEFAULT_WIDGET_HEIGHT]);
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]
 pub struct Button {
     data: WidgetData,
-    label_id: UID,
+    label_id: Uid,
 }
 implement_widget!(Button);
 
@@ -59,7 +59,7 @@ impl InternalWidget for Button {
 
         self.size(DEFAULT_BUTTON_SIZE * Screen::get_scale_factor())
             .fill_type(ContainerFillType::Horizontal)
-            .space_between_elements(DEFAULT_WIDGET_SIZE.x / 5 * Screen::get_scale_factor() as u32)
+            .space_between_elements((DEFAULT_WIDGET_SIZE.x / 5. * Screen::get_scale_factor()) as _)
             .use_space_before_and_after(true);
 
         let mut text = Text::default();

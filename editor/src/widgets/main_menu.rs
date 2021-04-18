@@ -8,11 +8,11 @@ use super::{DialogResult, FilenameDialog};
 
 pub struct MainMenu {
     menu: Menu,
-    file_id: UID,
-    new_id: UID,
-    exit_id: UID,
-    settings_id: UID,
-    show_history_id: UID,
+    file_id: Uid,
+    new_id: Uid,
+    exit_id: Uid,
+    settings_id: Uid,
+    show_history_id: Uid,
     filename_dialog: Option<FilenameDialog>,
 }
 
@@ -31,7 +31,7 @@ impl Default for MainMenu {
 }
 
 impl MainMenu {
-    pub fn get_size(&self) -> Vector2u {
+    pub fn get_size(&self) -> Vector2 {
         self.menu.get_data().state.get_size()
     }
     pub fn show_history(&mut self) -> bool {

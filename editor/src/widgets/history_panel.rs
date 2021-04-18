@@ -7,10 +7,10 @@ use nrg_serialize::*;
 
 pub struct HistoryPanel {
     history_panel: Panel,
-    history_text_widget_id: UID,
-    history_redo_button: UID,
-    history_undo_button: UID,
-    history_clear_button: UID,
+    history_text_widget_id: Uid,
+    history_redo_button: Uid,
+    history_undo_button: Uid,
+    history_clear_button: Uid,
 }
 
 impl Default for HistoryPanel {
@@ -30,7 +30,7 @@ impl HistoryPanel {
         self.history_panel.visible(visible);
         self
     }
-    fn create_history_widget(&mut self, renderer: &mut Renderer) -> (UID, UID, UID, UID) {
+    fn create_history_widget(&mut self, renderer: &mut Renderer) -> (Uid, Uid, Uid, Uid) {
         let mut label = Text::default();
         label.init(renderer);
         label
@@ -44,8 +44,8 @@ impl HistoryPanel {
         button_box
             .fill_type(ContainerFillType::Horizontal)
             .horizontal_alignment(HorizontalAlignment::Center)
-            .size([DEFAULT_BUTTON_SIZE.x * 4, DEFAULT_BUTTON_SIZE.y * 2].into())
-            .space_between_elements(DEFAULT_WIDGET_SIZE.x * 4 * Screen::get_scale_factor() as u32);
+            .size([DEFAULT_BUTTON_SIZE.x * 4., DEFAULT_BUTTON_SIZE.y * 2.].into())
+            .space_between_elements((DEFAULT_WIDGET_SIZE.x * 4. * Screen::get_scale_factor()) as _);
 
         let mut history_undo = Button::default();
         history_undo.init(renderer);
@@ -110,8 +110,9 @@ impl HistoryPanel {
                     text.init(renderer);
                     text.position(
                         [
-                            0,
-                            20 * history_commands_box.get_data_mut().node.get_num_children() as u32,
+                            0.,
+                            20. * history_commands_box.get_data_mut().node.get_num_children()
+                                as f32,
                         ]
                         .into(),
                     )
@@ -133,8 +134,9 @@ impl HistoryPanel {
                     text.init(renderer);
                     text.position(
                         [
-                            0,
-                            20 * history_commands_box.get_data_mut().node.get_num_children() as u32,
+                            0.,
+                            20. * history_commands_box.get_data_mut().node.get_num_children()
+                                as f32,
                         ]
                         .into(),
                     )
@@ -170,7 +172,7 @@ impl HistoryPanel {
     pub fn init(&mut self, renderer: &mut Renderer) {
         self.history_panel.init(renderer);
         self.history_panel
-            .size([650, 100].into())
+            .size([650., 100.].into())
             .vertical_alignment(VerticalAlignment::Bottom)
             .horizontal_alignment(HorizontalAlignment::Left)
             .fill_type(ContainerFillType::Vertical)
@@ -190,7 +192,7 @@ impl HistoryPanel {
 
     pub fn update(
         &mut self,
-        drawing_area_in_px: Vector4u,
+        drawing_area_in_px: Vector4,
         renderer: &mut Renderer,
         events: &mut EventsRw,
         history: &mut CommandsHistory,

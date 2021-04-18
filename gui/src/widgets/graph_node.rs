@@ -1,14 +1,14 @@
 use nrg_graphics::Renderer;
-use nrg_math::Vector2u;
+use nrg_math::Vector2;
 use nrg_platform::EventsRw;
-use nrg_serialize::{Deserialize, Serialize, INVALID_UID, UID};
+use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{implement_widget, InternalWidget, Text, WidgetData};
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]
 pub struct GraphNode {
-    title_widget: UID,
+    title_widget: Uid,
     data: WidgetData,
 }
 implement_widget!(GraphNode);
@@ -28,9 +28,9 @@ impl InternalWidget for GraphNode {
             return;
         }
 
-        let size: Vector2u = [200, 100].into();
+        let size: Vector2 = [200., 100.].into();
 
-        self.position(Screen::get_center() - size / 2)
+        self.position(Screen::get_center() - size / 2.)
             .size(size)
             .draggable(true)
             .style(WidgetStyle::DefaultBackground);

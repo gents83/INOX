@@ -5,14 +5,14 @@ use std::{
     sync::Once,
 };
 
-use nrg_math::{Vector2f, Vector2i, Vector2u, Vector4u};
+use nrg_math::{Vector2, Vector4};
 use nrg_platform::{EventsRw, WindowEvent, DEFAULT_DPI};
 
 const DEFAULT_WIDTH: u32 = 1920;
 const DEFAULT_HEIGTH: u32 = 1080;
 
 struct ScreenData {
-    size: Vector2u,
+    size: Vector2,
     scale_factor: f32,
     window_events: EventsRw,
 }
@@ -21,10 +21,7 @@ impl Default for ScreenData {
     fn default() -> Self {
         Self {
             scale_factor: 1.0,
-            size: Vector2u {
-                x: DEFAULT_WIDTH,
-                y: DEFAULT_HEIGTH,
-            },
+            size: Vector2::new(DEFAULT_WIDTH as _, DEFAULT_HEIGTH as _),
             window_events: EventsRw::default(),
         }
     }
@@ -58,10 +55,7 @@ impl Screen {
     pub fn create(width: u32, height: u32, scale_factor: f32, events_rw: EventsRw) {
         let mut screen_data = Screen::get_mut();
         screen_data.window_events = events_rw;
-        screen_data.size = Vector2u {
-            x: width,
-            y: height,
-        };
+        screen_data.size = Vector2::new(width as _, height as _);
         screen_data.scale_factor = scale_factor;
     }
 
@@ -75,8 +69,8 @@ impl Screen {
                 for event in window_events.iter() {
                     match event {
                         WindowEvent::SizeChanged(width, height) => {
-                            size.x = *width;
-                            size.y = *height;
+                            size.x = *width as _;
+                            size.y = *height as _;
                         }
                         WindowEvent::DpiChanged(x, _y) => {
                             scale_factor = x / DEFAULT_DPI;
@@ -90,65 +84,71 @@ impl Screen {
         inner.scale_factor = scale_factor;
     }
 
-    pub fn get_draw_area() -> Vector4u {
+    pub fn get_draw_area() -> Vector4 {
         let inner = Screen::get().borrow();
         let size = inner.size;
-        [0, 0, size.x, size.y].into()
+        [0., 0., size.x as _, size.y as _].into()
     }
-    pub fn get_size() -> Vector2u {
+    pub fn get_size() -> Vector2 {
         let inner = Screen::get().borrow();
         inner.size
     }
-    pub fn get_center() -> Vector2u {
-        Screen::get_size() / 2
+    pub fn get_center() -> Vector2 {
+        Screen::get_size() / 2.
     }
     pub fn get_scale_factor() -> f32 {
         let inner = Screen::get().borrow();
         inner.scale_factor
     }
 
-    pub fn from_normalized_into_pixels(normalized_value: Vector2f) -> Vector2i {
+    pub fn from_normalized_into_pixels(normalized_value: Vector2) -> Vector2 {
         let inner = Screen::get().borrow();
-        Vector2i {
-            x: (normalized_value.x * inner.size.x as f32) as _,
-            y: (normalized_value.y * inner.size.y as f32) as _,
-        }
+        Vector2::new(
+            (normalized_value.x * inner.size.x as f32) as _,
+            (normalized_value.y * inner.size.y as f32) as _,
+        )
     }
-    pub fn from_pixels_into_normalized(value_in_px: Vector2i) -> Vector2f {
+    pub fn from_pixels_into_normalized(value_in_px: Vector2) -> Vector2 {
         let inner = Screen::get().borrow();
-        Vector2f {
-            x: value_in_px.x as f32 / inner.size.x as f32,
-            y: value_in_px.y as f32 / inner.size.y as f32,
-        }
+        Vector2::new(
+            value_in_px.x as f32 / inner.size.x as f32,
+            value_in_px.y as f32 / inner.size.y as f32,
+        )
     }
-    pub fn convert_size_into_pixels(value: Vector2f) -> Vector2u {
+    pub fn convert_size_into_pixels(value: Vector2) -> Vector2 {
         let inner = Screen::get().borrow();
-        Vector2u {
-            x: (value.x * inner.size.x as f32 * 0.5) as _,
-            y: (value.y * inner.size.y as f32 * 0.5) as _,
-        }
+        Vector2::new(
+            (value.x * inner.size.x as f32 * 0.5) as _,
+            (value.y * inner.size.y as f32 * 0.5) as _,
+        )
     }
-    pub fn convert_size_from_pixels(value_in_px: Vector2u) -> Vector2f {
+    pub fn convert_size_from_pixels(value_in_px: Vector2) -> Vector2 {
         let inner = Screen::get().borrow();
-        Vector2f {
-            x: value_in_px.x as f32 * 2. / inner.size.x as f32,
-            y: value_in_px.y as f32 * 2. / inner.size.y as f32,
-        }
+        Vector2::new(
+            value_in_px.x as f32 * 2. / inner.size.x as f32,
+            value_in_px.y as f32 * 2. / inner.size.y as f32,
+        )
     }
-    pub fn from_normalized_into_screen_space(normalized_pos: Vector2f) -> Vector2f {
-        normalized_pos * 2.0 - [1.0, 1.0].into()
+    pub fn from_normalized_into_screen_space(normalized_pos: Vector2) -> Vector2 {
+        [normalized_pos.x * 2.0 - 1., normalized_pos.y * 2.0 - 1.].into()
     }
-    pub fn convert_from_pixels_into_screen_space(pos_in_px: Vector2u) -> Vector2f {
-        let normalized_pos = Screen::from_pixels_into_normalized(pos_in_px.convert());
+    pub fn convert_from_pixels_into_screen_space(pos_in_px: Vector2) -> Vector2 {
+        let normalized_pos =
+            Screen::from_pixels_into_normalized([pos_in_px.x as _, pos_in_px.y as _].into());
         Screen::from_normalized_into_screen_space(normalized_pos)
     }
 
-    pub fn from_screen_space_into_normalized(pos_in_screen_space: Vector2f) -> Vector2f {
-        (pos_in_screen_space + [1.0, 1.0].into()) * 0.5
+    pub fn from_screen_space_into_normalized(pos_in_screen_space: Vector2) -> Vector2 {
+        [
+            (pos_in_screen_space.x + 1.) * 0.5,
+            (pos_in_screen_space.y + 1.) * 0.5,
+        ]
+        .into()
     }
 
-    pub fn from_screen_space_into_pixels(pos_in_screen_space: Vector2f) -> Vector2u {
+    pub fn from_screen_space_into_pixels(pos_in_screen_space: Vector2) -> Vector2 {
         let normalized_pos = Screen::from_screen_space_into_normalized(pos_in_screen_space);
-        Screen::from_normalized_into_pixels(normalized_pos).convert()
+        let pos = Screen::from_normalized_into_pixels(normalized_pos);
+        [pos.x as _, pos.y as _].into()
     }
 }

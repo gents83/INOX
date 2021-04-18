@@ -26,7 +26,7 @@ pub struct Glyph {
     pub id: GlyphId,
     pub metrics: Metrics,
     is_upside_down: bool,
-    pub texture_coord: Vector4f,
+    pub texture_coord: Vector4,
     pub data: Vec<f32>,
     pub lines: Vec<Line>,
 }
@@ -81,8 +81,8 @@ impl Glyph {
         let scale_y = DEFAULT_FONT_GLYPH_SIZE as f32 / max_metrics.height as f32;
 
         let mut data = vec![0.0; (max_metrics.width * max_metrics.height) as _];
-        let draw_offset = Vector2f::new(max_metrics.horizontal_offset, max_metrics.vertical_offset);
-        let draw_scale = Vector2f::new(scale_x, scale_y);
+        let draw_offset = Vector2::new(max_metrics.horizontal_offset, max_metrics.vertical_offset);
+        let draw_scale = Vector2::new(scale_x, scale_y);
 
         let mut geometry = Geometry::new(
             draw_offset,

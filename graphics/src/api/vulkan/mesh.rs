@@ -1,4 +1,4 @@
-use super::device::*;
+use super::{data_formats::VERTEX_BUFFER_BIND_ID, device::*};
 use crate::common::data_formats::*;
 use vulkan_bindings::*;
 
@@ -87,40 +87,60 @@ impl Mesh {
         indices: &[u32],
         num_indices: usize,
     ) {
+        self.bind_vertices(device, vertices, num_vertices);
+        self.bind_indices(device, indices, num_indices);
+
+        unsafe {
+            let command_buffer = device.get_current_command_buffer();
+            if self.index_buffer != ::std::ptr::null_mut() && num_indices > 0 {
+                vkCmdDrawIndexed.unwrap()(command_buffer, num_indices as _, 1, 0, 0, 0);
+            } else {
+                vkCmdDraw.unwrap()(command_buffer, num_vertices as _, 1, 0, 0);
+            }
+        }
+    }
+
+    pub fn bind_vertices(&mut self, device: &Device, vertices: &[VertexData], num_vertices: usize) {
+        if num_vertices == 0 {
+            return;
+        }
         if num_vertices >= self.vertex_count as _ {
             panic!("Trying to render more vertices then allocated ones");
-        } else if num_vertices > 0 {
+        } else {
             device.map_buffer_memory(&mut self.vertex_buffer_memory, &vertices);
         }
-        if num_indices >= self.indices_count as _ {
-            panic!("Trying to render more indices then allocated ones");
-        } else if num_indices > 0 {
-            device.map_buffer_memory(&mut self.index_buffer_memory, &indices);
-        }
-        if self.vertex_buffer != ::std::ptr::null_mut() && num_vertices > 0 {
+        if self.vertex_buffer != ::std::ptr::null_mut() {
             unsafe {
-                let command_buffer = device.get_current_command_buffer();
                 let vertex_buffers = [self.vertex_buffer];
                 let offsets = [0_u64];
                 vkCmdBindVertexBuffers.unwrap()(
-                    command_buffer,
-                    0,
+                    device.get_current_command_buffer(),
+                    VERTEX_BUFFER_BIND_ID as _,
                     1,
                     vertex_buffers.as_ptr(),
                     offsets.as_ptr(),
                 );
+            }
+        }
+    }
 
-                if self.index_buffer != ::std::ptr::null_mut() && num_indices > 0 {
-                    vkCmdBindIndexBuffer.unwrap()(
-                        command_buffer,
-                        self.index_buffer,
-                        0,
-                        VkIndexType_VK_INDEX_TYPE_UINT32,
-                    );
-                    vkCmdDrawIndexed.unwrap()(command_buffer, num_indices as _, 1, 0, 0, 0);
-                } else {
-                    vkCmdDraw.unwrap()(command_buffer, num_vertices as _, 1, 0, 0);
-                }
+    pub fn bind_indices(&mut self, device: &Device, indices: &[u32], num_indices: usize) {
+        if num_indices == 0 {
+            return;
+        }
+        if num_indices >= self.indices_count as _ {
+            panic!("Trying to render more indices then allocated ones");
+        } else {
+            device.map_buffer_memory(&mut self.index_buffer_memory, &indices);
+        }
+        if self.index_buffer != ::std::ptr::null_mut() {
+            unsafe {
+                vkCmdBindIndexBuffer.unwrap()(
+                    device.get_current_command_buffer(),
+                    self.index_buffer,
+                    0,
+                    VkIndexType_VK_INDEX_TYPE_UINT32,
+                );
             }
         }
     }

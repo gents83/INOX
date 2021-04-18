@@ -1,7 +1,7 @@
 use nrg_graphics::Renderer;
-use nrg_math::{Vector2i, Vector2u, Vector4u};
+use nrg_math::{const_vec2, Vector2, Vector4};
 use nrg_platform::{EventsRw, MouseEvent, MouseState};
-use nrg_serialize::{typetag, UID};
+use nrg_serialize::{typetag, Uid};
 
 use crate::{
     ContainerFillType, HorizontalAlignment, Screen, VerticalAlignment, WidgetDataGetter,
@@ -9,7 +9,9 @@ use crate::{
 };
 
 pub const DEFAULT_LAYER_OFFSET: f32 = 0.01;
-pub const DEFAULT_WIDGET_SIZE: Vector2u = Vector2u { x: 12, y: 12 };
+pub const DEFAULT_WIDGET_HEIGHT: f32 = 12.;
+pub const DEFAULT_WIDGET_SIZE: Vector2 =
+    const_vec2!([DEFAULT_WIDGET_HEIGHT, DEFAULT_WIDGET_HEIGHT]);
 
 #[typetag::serde(tag = "widget")]
 pub trait Widget: BaseWidget + InternalWidget + Send + Sync {}
@@ -43,7 +45,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
     }
     fn update(
         &mut self,
-        drawing_area_in_px: Vector4u,
+        drawing_area_in_px: Vector4,
         renderer: &mut Renderer,
         events_rw: &mut EventsRw,
     ) {
@@ -77,10 +79,10 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         self.get_data_mut().graphics.uninit(renderer);
     }
 
-    fn id(&self) -> UID {
+    fn id(&self) -> Uid {
         self.get_data().node.get_id()
     }
-    fn set_position(&mut self, pos_in_px: Vector2u) {
+    fn set_position(&mut self, pos_in_px: Vector2) {
         if pos_in_px != self.get_data().state.get_position() {
             let data = self.get_data_mut();
             let current_pos = data.state.get_position();
@@ -90,7 +92,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
             data.graphics.translate(new_pos - old_pos);
         }
     }
-    fn set_size(&mut self, size_in_px: Vector2u) {
+    fn set_size(&mut self, size_in_px: Vector2) {
         if size_in_px != self.get_data().state.get_size() {
             let data = self.get_data_mut();
             let old_screen_scale = Screen::convert_size_from_pixels(data.state.get_size());
@@ -98,13 +100,13 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
             let scale = screen_size / old_screen_scale;
             data.state.set_size(size_in_px);
             let pos = Screen::convert_from_pixels_into_screen_space(data.state.get_position());
-            data.graphics.translate(-pos.convert());
+            data.graphics.translate(-pos);
             data.graphics.scale(scale);
-            data.graphics.translate(pos.convert());
+            data.graphics.translate(pos);
         }
     }
 
-    fn compute_children_clip_area(&self) -> Vector4u {
+    fn compute_children_clip_area(&self) -> Vector4 {
         let pos = self.get_data().state.get_position();
         let size = self.get_data().state.get_size();
         [pos.x, pos.y, pos.x + size.x, pos.y + size.y].into()
@@ -114,13 +116,14 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         let state = &self.get_data().state;
 
         let clip_rect = state.get_clip_area();
-        let clip_min: Vector2u = [clip_rect.x, clip_rect.y].into();
-        let clip_max: Vector2u = [clip_rect.z, clip_rect.w].into();
+        let clip_min: Vector2 = [clip_rect.x, clip_rect.y].into();
+        let clip_max: Vector2 = [clip_rect.z, clip_rect.w].into();
 
         let mut pos = state.get_position();
         let mut size = state.get_size();
 
-        size = size.min(clip_max - clip_min);
+        size.x = size.x.min((clip_max - clip_min).x);
+        size.y = size.y.min((clip_max - clip_min).y);
 
         match state.get_horizontal_alignment() {
             HorizontalAlignment::Left => {
@@ -130,7 +133,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
                 pos.x = clip_max.x - size.x;
             }
             HorizontalAlignment::Center => {
-                pos.x = clip_min.x + (clip_max.x - clip_min.x) / 2 - size.x / 2;
+                pos.x = clip_min.x + (clip_max.x - clip_min.x) / 2. - size.x / 2.;
             }
             HorizontalAlignment::Stretch => {
                 pos.x = clip_min.x;
@@ -147,7 +150,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
                 pos.y = clip_max.y - size.y;
             }
             VerticalAlignment::Center => {
-                pos.y = clip_min.y + (clip_max.y - clip_min.y) / 2 - size.y / 2;
+                pos.y = clip_min.y + (clip_max.y - clip_min.y) / 2. - size.y / 2.;
             }
             VerticalAlignment::Stretch => {
                 pos.y = clip_min.y;
@@ -164,22 +167,22 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         let fill_type = data.state.get_fill_type();
         let keep_fixed_height = data.state.should_keep_fixed_height();
         let keep_fixed_width = data.state.should_keep_fixed_width();
-        let space = data.state.get_space_between_elements();
+        let space = data.state.get_space_between_elements() as f32;
         let use_space_before_after = data.state.should_use_space_before_and_after();
 
         let node = &mut data.node;
         let parent_pos = data.state.get_position();
         let parent_size = data.state.get_size();
 
-        let mut children_min_pos: Vector2i = [i32::max_value(), i32::max_value()].into();
-        let mut children_size: Vector2u = [0, 0].into();
+        let mut children_min_pos: Vector2 = [f32::MAX, f32::MAX].into();
+        let mut children_size: Vector2 = [0., 0.].into();
         let mut index = 0;
         node.propagate_on_children_mut(|w| {
             let child_state = &mut w.get_data_mut().state;
             let child_pos = child_state.get_position();
             let child_size = child_state.get_size();
-            children_min_pos.x = children_min_pos.x.min(child_pos.x as i32).max(0);
-            children_min_pos.y = children_min_pos.y.min(child_pos.y as i32).max(0);
+            children_min_pos.x = children_min_pos.x.min(child_pos.x as _).max(0.);
+            children_min_pos.y = children_min_pos.y.min(child_pos.y as _).max(0.);
             match fill_type {
                 ContainerFillType::Vertical => {
                     if (use_space_before_after && index == 0) || index > 0 {
@@ -222,24 +225,18 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         let state = &self.get_data().state;
 
         let clip_rect = state.get_clip_area();
-        let clip_min: Vector2u = [clip_rect.x, clip_rect.y].into();
-        let clip_max: Vector2u = [clip_rect.z, clip_rect.w].into();
+        let clip_min: Vector2 = [clip_rect.x, clip_rect.y].into();
+        let clip_max: Vector2 = [clip_rect.z, clip_rect.w].into();
 
-        let mut pos: Vector2i = state.get_position().convert();
+        let mut pos = Vector2::ZERO;
+        pos.x = state.get_position().x as _;
+        pos.y = state.get_position().y as _;
         let size = state.get_size();
 
-        pos.x = pos
-            .x
-            .max(clip_min.x as i32)
-            .min(clip_max.x as i32 - size.x as i32)
-            .max(0);
-        pos.y = pos
-            .y
-            .max(clip_min.y as i32)
-            .min(clip_max.y as i32 - size.y as i32)
-            .max(0);
+        pos.x = pos.x.max(clip_min.x).min(clip_max.x - size.x).max(0.);
+        pos.y = pos.y.max(clip_min.y).min(clip_max.y - size.y).max(0.);
 
-        self.set_position(pos.convert());
+        self.set_position([pos.x as _, pos.y as _].into());
     }
 
     fn manage_style(&mut self) {
@@ -323,8 +320,8 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
     fn manage_mouse_event(&mut self, event: &MouseEvent) -> Option<WidgetEvent> {
         let id = self.id();
         let data = self.get_data_mut();
-        let mouse_in_px: Vector2u = [event.x as _, event.y as _].into();
-        let is_inside = data.state.is_inside(mouse_in_px) && data.graphics.is_inside(mouse_in_px);
+        let mouse_in_px: Vector2 = [event.x as _, event.y as _].into();
+        let is_inside = data.state.is_inside(mouse_in_px) /*&& data.graphics.is_inside(mouse_in_px)*/;
 
         if event.state == MouseState::Move {
             if is_inside && !data.state.is_hover() {
@@ -411,7 +408,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
     fn is_selectable(&self) -> bool {
         self.get_data().state.is_selectable()
     }
-    fn add_child(&mut self, widget: Box<dyn Widget>) -> UID {
+    fn add_child(&mut self, widget: Box<dyn Widget>) -> Uid {
         let id = widget.id();
         self.get_data_mut().node.add_child(widget);
 
@@ -426,7 +423,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
 
         self.update_layout();
     }
-    fn has_child(&self, uid: UID) -> bool {
+    fn has_child(&self, uid: Uid) -> bool {
         let mut found = false;
         self.get_data().node.propagate_on_children(|w| {
             if w.id() == uid {
@@ -435,7 +432,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         });
         found
     }
-    fn has_child_recursive(&self, uid: UID) -> bool {
+    fn has_child_recursive(&self, uid: Uid) -> bool {
         let mut found = false;
         self.get_data().node.propagate_on_children(|w| {
             if w.id() == uid || w.has_child_recursive(uid) {

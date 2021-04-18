@@ -1,17 +1,31 @@
-use super::device::*;
-use super::render_pass::*;
 use super::shader::*;
+use super::{data_formats::INSTANCE_BUFFER_BIND_ID, device::*};
+use super::{render_pass::*, Texture};
 use crate::common::data_formats::*;
 use crate::common::shader::*;
 use crate::common::utils::*;
+use crate::texture::MAX_TEXTURE_COUNT;
+use nrg_math::{Matrix4, Vector3};
 use std::{cell::RefCell, path::PathBuf, rc::Rc};
 use vulkan_bindings::*;
 
+pub const MAX_INSTANCES_COUNT: usize = 4096;
+
 pub struct PipelineImmutable {
     descriptor_set_layout: VkDescriptorSetLayout,
+    descriptor_pool: VkDescriptorPool,
+    descriptor_sets: Vec<VkDescriptorSet>,
+    uniform_buffers_size: usize,
+    uniform_buffers: Vec<VkBuffer>,
+    uniform_buffers_memory: Vec<VkDeviceMemory>,
     shaders: Vec<Shader>,
     pipeline_layout: VkPipelineLayout,
     graphics_pipeline: VkPipeline,
+    instance_buffer: VkBuffer,
+    instance_buffer_memory: VkDeviceMemory,
+    indirect_command_buffer: VkBuffer,
+    indirect_command_buffer_memory: VkDeviceMemory,
+    indirect_commands: Vec<VkDrawIndexedIndirectCommand>,
 }
 
 #[derive(Clone)]
@@ -24,9 +38,19 @@ impl Pipeline {
     pub fn create(device: &Device) -> Pipeline {
         let immutable = PipelineImmutable {
             descriptor_set_layout: ::std::ptr::null_mut(),
+            descriptor_sets: Vec::new(),
+            descriptor_pool: ::std::ptr::null_mut(),
+            uniform_buffers_size: 0,
+            uniform_buffers: Vec::new(),
+            uniform_buffers_memory: Vec::new(),
             shaders: Vec::new(),
             pipeline_layout: ::std::ptr::null_mut(),
             graphics_pipeline: ::std::ptr::null_mut(),
+            instance_buffer: ::std::ptr::null_mut(),
+            instance_buffer_memory: ::std::ptr::null_mut(),
+            indirect_command_buffer: ::std::ptr::null_mut(),
+            indirect_command_buffer_memory: ::std::ptr::null_mut(),
+            indirect_commands: Vec::new(),
         };
         let inner = Rc::new(RefCell::new(immutable));
         Pipeline {
@@ -50,6 +74,8 @@ impl Pipeline {
 
     pub fn set_shader(&mut self, shader_type: ShaderType, shader_filepath: PathBuf) -> &mut Self {
         if shader_filepath.exists() {
+            println!("Loading shader {:?}", shader_filepath);
+
             let mut shader_file = std::fs::File::open(shader_filepath).unwrap();
             let shader_code = read_spirv_from_bytes(&mut shader_file);
 
@@ -63,20 +89,151 @@ impl Pipeline {
         self
     }
 
-    pub fn prepare(&mut self, render_pass: &RenderPass) -> &mut Self {
-        self.inner.borrow_mut().prepare(&self.device, render_pass);
+    pub fn bind(&mut self, commands: &[InstanceCommand], instances: &[InstanceData]) -> &mut Self {
+        self.inner
+            .borrow_mut()
+            .bind(&self.device, commands, instances);
         self
     }
 
-    pub fn build(&mut self) -> &mut Self {
+    pub fn update_uniform_buffer(&self, cam_pos: Vector3) -> &Self {
         self.inner
             .borrow_mut()
-            .create_descriptor_set_layout(&self.device);
+            .update_uniform_buffer(&self.device, cam_pos);
+        self
+    }
+    pub fn update_descriptor_sets(&self, textures: &[&Texture]) -> &Self {
+        self.inner
+            .borrow_mut()
+            .update_descriptor_sets(&self.device, textures);
+        self
+    }
+
+    pub fn bind_descriptors(&self) -> &Self {
+        self.inner.borrow_mut().bind_descriptors(&self.device);
+        self
+    }
+
+    pub fn bind_indirect(&self) -> &Self {
+        self.inner.borrow_mut().bind_indirect(&self.device);
+        self
+    }
+
+    pub fn draw_indirect(&mut self, count: usize) -> &mut Self {
+        self.inner.borrow_mut().draw_indirect(&self.device, count);
+        self
+    }
+
+    pub fn build(&mut self, device: &Device, render_pass: &RenderPass) -> &mut Self {
+        self.inner
+            .borrow_mut()
+            .create_descriptor_set_layout(&self.device)
+            .create_uniform_buffers(device)
+            .create_descriptor_pool(device)
+            .create_descriptor_sets(&device)
+            .create(device, render_pass)
+            .create_instance_buffers(device);
         self
     }
 }
 
 impl PipelineImmutable {
+    fn create_uniform_buffers(&mut self, device: &Device) -> &mut Self {
+        let mut uniform_buffers = Vec::<VkBuffer>::with_capacity(device.get_images_count());
+        let mut uniform_buffers_memory =
+            Vec::<VkDeviceMemory>::with_capacity(device.get_images_count());
+        unsafe {
+            uniform_buffers.set_len(device.get_images_count());
+            uniform_buffers_memory.set_len(device.get_images_count());
+        }
+
+        let uniform_buffers_size = std::mem::size_of::<UniformData>();
+        let flags = VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+            | VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+        for i in 0..uniform_buffers.len() {
+            device.create_buffer(
+                uniform_buffers_size as _,
+                VkBufferUsageFlagBits_VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT as _,
+                flags as _,
+                &mut uniform_buffers[i],
+                &mut uniform_buffers_memory[i],
+            );
+        }
+
+        self.uniform_buffers_size = uniform_buffers_size;
+        self.uniform_buffers = uniform_buffers;
+        self.uniform_buffers_memory = uniform_buffers_memory;
+        self
+    }
+    fn create_descriptor_pool(&mut self, device: &Device) -> &mut Self {
+        let mut pool_sizes: Vec<VkDescriptorPoolSize> = vec![VkDescriptorPoolSize {
+            type_: VkDescriptorType_VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+            descriptorCount: device.get_images_count() as _,
+        }];
+        for _i in 0..MAX_TEXTURE_COUNT {
+            pool_sizes.push(VkDescriptorPoolSize {
+                type_: VkDescriptorType_VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                descriptorCount: device.get_images_count() as u32,
+            });
+        }
+
+        let pool_info = VkDescriptorPoolCreateInfo {
+            sType: VkStructureType_VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+            flags: 0,
+            pNext: ::std::ptr::null_mut(),
+            poolSizeCount: pool_sizes.len() as _,
+            pPoolSizes: pool_sizes.as_ptr(),
+            maxSets: device.get_images_count() as _,
+        };
+
+        self.descriptor_pool = unsafe {
+            let mut option = ::std::mem::MaybeUninit::uninit();
+            assert_eq!(
+                VkResult_VK_SUCCESS,
+                vkCreateDescriptorPool.unwrap()(
+                    device.get_device(),
+                    &pool_info,
+                    ::std::ptr::null_mut(),
+                    option.as_mut_ptr()
+                )
+            );
+            option.assume_init()
+        };
+        self
+    }
+    pub fn create_descriptor_sets(&mut self, device: &Device) -> &mut Self {
+        let mut layouts = Vec::<VkDescriptorSetLayout>::with_capacity(device.get_images_count());
+        unsafe {
+            layouts.set_len(device.get_images_count());
+        }
+        for layout in layouts.iter_mut() {
+            *layout = self.descriptor_set_layout;
+        }
+
+        let alloc_info = VkDescriptorSetAllocateInfo {
+            sType: VkStructureType_VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+            pNext: ::std::ptr::null_mut(),
+            descriptorPool: self.descriptor_pool,
+            descriptorSetCount: device.get_images_count() as _,
+            pSetLayouts: layouts.as_mut_ptr(),
+        };
+
+        let mut descriptor_sets = Vec::<VkDescriptorSet>::with_capacity(device.get_images_count());
+        unsafe {
+            descriptor_sets.set_len(device.get_images_count());
+            assert_eq!(
+                VkResult_VK_SUCCESS,
+                vkAllocateDescriptorSets.unwrap()(
+                    device.get_device(),
+                    &alloc_info,
+                    descriptor_sets.as_mut_ptr()
+                )
+            );
+        }
+
+        self.descriptor_sets = descriptor_sets;
+        self
+    }
     fn delete(&self, device: &Device) {
         self.destroy_shader_modules(&device);
         unsafe {
@@ -99,7 +256,7 @@ impl PipelineImmutable {
         }
     }
 
-    fn prepare(&mut self, device: &Device, render_pass: &RenderPass) {
+    fn create(&mut self, device: &Device, render_pass: &RenderPass) -> &mut Self {
         let details = device.get_instance().get_swap_chain_info();
 
         let mut shader_stages: Vec<VkPipelineShaderStageCreateInfo> = Vec::new();
@@ -107,15 +264,21 @@ impl PipelineImmutable {
             shader_stages.push(shader.stage_info());
         }
 
-        let binding_info = VertexData::get_binding_desc();
-        let attr_info = VertexData::get_attributes_desc();
+        let vertex_data_binding_info = VertexData::get_binding_desc();
+        let vertex_data_attr_info = VertexData::get_attributes_desc();
+
+        let instance_data_binding_info = InstanceData::get_binding_desc();
+        let instance_data_attr_info = InstanceData::get_attributes_desc();
+
+        let binding_info = [vertex_data_binding_info, instance_data_binding_info];
+        let attr_info = [vertex_data_attr_info, instance_data_attr_info].concat();
 
         let vertex_input_info = VkPipelineVertexInputStateCreateInfo {
             sType: VkStructureType_VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
             pNext: ::std::ptr::null_mut(),
             flags: 0,
-            vertexBindingDescriptionCount: 1,
-            pVertexBindingDescriptions: &binding_info,
+            vertexBindingDescriptionCount: binding_info.len() as _,
+            pVertexBindingDescriptions: binding_info.as_ptr(),
             vertexAttributeDescriptionCount: attr_info.len() as _,
             pVertexAttributeDescriptions: attr_info.as_ptr(),
         };
@@ -293,6 +456,13 @@ impl PipelineImmutable {
             option.assume_init()
         };
 
+        self
+    }
+
+    fn bind(&mut self, device: &Device, commands: &[InstanceCommand], instances: &[InstanceData]) {
+        self.prepare_indirect_commands(device, commands)
+            .fill_instance_buffer(device, instances);
+
         unsafe {
             vkCmdBindPipeline.unwrap()(
                 device.get_current_command_buffer(),
@@ -301,7 +471,6 @@ impl PipelineImmutable {
             );
         }
     }
-
     fn create_shader_module(
         &mut self,
         device: &Device,
@@ -325,22 +494,24 @@ impl PipelineImmutable {
         }
     }
 
-    fn create_descriptor_set_layout(&mut self, device: &Device) {
-        let uniform_buffer_layout_binding = VkDescriptorSetLayoutBinding {
+    fn create_descriptor_set_layout(&mut self, device: &Device) -> &mut Self {
+        let mut bindings: Vec<VkDescriptorSetLayoutBinding> = vec![VkDescriptorSetLayoutBinding {
             binding: 0,
             descriptorCount: 1,
             descriptorType: VkDescriptorType_VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
             pImmutableSamplers: ::std::ptr::null_mut(),
             stageFlags: VkShaderStageFlagBits_VK_SHADER_STAGE_VERTEX_BIT as _,
-        };
-        let sampler_layout_binding = VkDescriptorSetLayoutBinding {
-            binding: 1,
-            descriptorCount: 1,
-            descriptorType: VkDescriptorType_VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-            pImmutableSamplers: ::std::ptr::null_mut(),
-            stageFlags: VkShaderStageFlagBits_VK_SHADER_STAGE_FRAGMENT_BIT as _,
-        };
-        let bindings = [uniform_buffer_layout_binding, sampler_layout_binding];
+        }];
+        let binding_index = 1;
+        for i in 0..MAX_TEXTURE_COUNT {
+            bindings.push(VkDescriptorSetLayoutBinding {
+                binding: (binding_index + i) as _,
+                descriptorCount: 1,
+                descriptorType: VkDescriptorType_VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                pImmutableSamplers: ::std::ptr::null_mut(),
+                stageFlags: VkShaderStageFlagBits_VK_SHADER_STAGE_FRAGMENT_BIT as _,
+            });
+        }
         let layout_create_info = VkDescriptorSetLayoutCreateInfo {
             sType: VkStructureType_VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
             flags: 0,
@@ -362,5 +533,198 @@ impl PipelineImmutable {
             );
             option.assume_init()
         };
+
+        self
+    }
+
+    fn create_instance_buffers(&mut self, device: &Device) -> &mut Self {
+        let buffer_size = std::mem::size_of::<InstanceData>() * MAX_INSTANCES_COUNT;
+        let flags = VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+            | VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+        let usage = VkBufferUsageFlagBits_VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+            | VkBufferUsageFlagBits_VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+        device.create_buffer(
+            buffer_size as _,
+            usage as _,
+            flags as _,
+            &mut self.instance_buffer,
+            &mut self.instance_buffer_memory,
+        );
+
+        let indirect_buffer_size =
+            std::mem::size_of::<VkDrawIndexedIndirectCommand>() * MAX_INSTANCES_COUNT;
+        let flags = VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+            | VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+        let usage = VkBufferUsageFlagBits_VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+            | VkBufferUsageFlagBits_VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
+        device.create_buffer(
+            indirect_buffer_size as _,
+            usage as _,
+            flags as _,
+            &mut self.indirect_command_buffer,
+            &mut self.indirect_command_buffer_memory,
+        );
+        self
+    }
+
+    fn fill_instance_buffer(&mut self, device: &Device, instances: &[InstanceData]) -> &mut Self {
+        device.map_buffer_memory(&mut self.instance_buffer_memory, instances);
+        self
+    }
+
+    fn prepare_indirect_commands(
+        &mut self,
+        device: &Device,
+        commands: &[InstanceCommand],
+    ) -> &mut Self {
+        self.indirect_commands.clear();
+
+        let mut last_index = 0;
+        for c in commands.iter() {
+            let indirect_command = VkDrawIndexedIndirectCommand {
+                instanceCount: 1,
+                firstInstance: c.mesh_index as _,
+                firstIndex: last_index as _,
+                indexCount: c.index_count as _,
+                vertexOffset: 0,
+            };
+            last_index = c.index_count;
+            self.indirect_commands.push(indirect_command);
+        }
+
+        device.map_buffer_memory(
+            &mut self.indirect_command_buffer_memory,
+            self.indirect_commands.as_slice(),
+        );
+
+        self
+    }
+
+    fn bind_indirect(&mut self, device: &Device) -> &mut Self {
+        unsafe {
+            let offsets = [0_u64];
+            vkCmdBindVertexBuffers.unwrap()(
+                device.get_current_command_buffer(),
+                INSTANCE_BUFFER_BIND_ID as _,
+                1,
+                &mut self.instance_buffer,
+                offsets.as_ptr(),
+            );
+        }
+        self
+    }
+    fn draw_indirect(&mut self, device: &Device, count: usize) {
+        if count > 0 {
+            unsafe {
+                vkCmdDrawIndexedIndirect.unwrap()(
+                    device.get_current_command_buffer(),
+                    self.indirect_command_buffer,
+                    0,
+                    count as _,
+                    std::mem::size_of::<VkDrawIndexedIndirectCommand>() as _,
+                );
+            }
+        }
+    }
+
+    fn update_uniform_buffer(&mut self, device: &Device, cam_pos: Vector3) {
+        let image_index = device.get_current_buffer_index();
+        let details = device.get_instance().get_swap_chain_info();
+        let uniform_data: [UniformData; 1] = [UniformData {
+            view: Matrix4::look_at_rh(
+                [cam_pos.x, cam_pos.y, cam_pos.z].into(),
+                [0.0, 0.0, 0.0].into(),
+                [0.0, 0.0, 1.0].into(),
+            ),
+            proj: Matrix4::perspective_rh(
+                f32::to_radians(45.0),
+                details.capabilities.currentExtent.width as f32
+                    / details.capabilities.currentExtent.height as f32,
+                0.001,
+                1000.0,
+            ),
+        }];
+
+        let mut buffer_memory = self.uniform_buffers_memory[image_index];
+        device.map_buffer_memory(&mut buffer_memory, &uniform_data);
+        self.uniform_buffers_memory[image_index] = buffer_memory;
+
+        let buffer_info = VkDescriptorBufferInfo {
+            buffer: self.uniform_buffers[image_index],
+            offset: 0,
+            range: self.uniform_buffers_size as _,
+        };
+
+        let descriptor_write: Vec<VkWriteDescriptorSet> = vec![VkWriteDescriptorSet {
+            sType: VkStructureType_VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            pNext: ::std::ptr::null_mut(),
+            dstSet: self.descriptor_sets[image_index],
+            dstBinding: 0,
+            dstArrayElement: 0,
+            descriptorCount: 1,
+            descriptorType: VkDescriptorType_VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+            pImageInfo: ::std::ptr::null_mut(),
+            pBufferInfo: &buffer_info,
+            pTexelBufferView: ::std::ptr::null_mut(),
+        }];
+
+        unsafe {
+            vkUpdateDescriptorSets.unwrap()(
+                device.get_device(),
+                descriptor_write.len() as _,
+                descriptor_write.as_ptr(),
+                0,
+                ::std::ptr::null_mut(),
+            );
+        }
+    }
+
+    pub fn update_descriptor_sets(&self, device: &Device, textures: &[&Texture]) {
+        let image_index = device.get_current_buffer_index();
+
+        let mut descriptor_write: Vec<VkWriteDescriptorSet> = Vec::new();
+        let binding_index = 1;
+        for i in 0..MAX_TEXTURE_COUNT {
+            let index = if i < textures.len() { i } else { 0 };
+            descriptor_write.push(VkWriteDescriptorSet {
+                sType: VkStructureType_VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                pNext: ::std::ptr::null_mut(),
+                dstSet: self.descriptor_sets[image_index],
+                dstBinding: (binding_index + i) as _,
+                dstArrayElement: 0,
+                descriptorCount: 1,
+                descriptorType: VkDescriptorType_VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                pImageInfo: &textures[index].get_descriptor(),
+                pBufferInfo: ::std::ptr::null_mut(),
+                pTexelBufferView: ::std::ptr::null_mut(),
+            });
+        }
+
+        unsafe {
+            vkUpdateDescriptorSets.unwrap()(
+                device.get_device(),
+                descriptor_write.len() as _,
+                descriptor_write.as_ptr(),
+                0,
+                ::std::ptr::null_mut(),
+            );
+        }
+    }
+
+    pub fn bind_descriptors(&self, device: &Device) {
+        let image_index = device.get_current_buffer_index();
+
+        unsafe {
+            vkCmdBindDescriptorSets.unwrap()(
+                device.get_current_command_buffer(),
+                VkPipelineBindPoint_VK_PIPELINE_BIND_POINT_GRAPHICS,
+                self.pipeline_layout,
+                0,
+                1,
+                &self.descriptor_sets[image_index],
+                0,
+                ::std::ptr::null_mut(),
+            );
+        }
     }
 }

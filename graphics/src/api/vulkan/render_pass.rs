@@ -103,7 +103,7 @@ impl RenderPassImmutable {
             storeOp: VkAttachmentStoreOp_VK_ATTACHMENT_STORE_OP_STORE,
             stencilLoadOp: VkAttachmentLoadOp_VK_ATTACHMENT_LOAD_OP_DONT_CARE,
             stencilStoreOp: VkAttachmentStoreOp_VK_ATTACHMENT_STORE_OP_DONT_CARE,
-            initialLayout: VkImageLayout_VK_IMAGE_LAYOUT_GENERAL,
+            initialLayout: VkImageLayout_VK_IMAGE_LAYOUT_UNDEFINED,
             finalLayout: VkImageLayout_VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
         };
 
@@ -120,7 +120,7 @@ impl RenderPassImmutable {
             storeOp: VkAttachmentStoreOp_VK_ATTACHMENT_STORE_OP_DONT_CARE,
             stencilLoadOp: VkAttachmentLoadOp_VK_ATTACHMENT_LOAD_OP_DONT_CARE,
             stencilStoreOp: VkAttachmentStoreOp_VK_ATTACHMENT_STORE_OP_DONT_CARE,
-            initialLayout: VkImageLayout_VK_IMAGE_LAYOUT_GENERAL,
+            initialLayout: VkImageLayout_VK_IMAGE_LAYOUT_UNDEFINED,
             finalLayout: VkImageLayout_VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
         };
 
@@ -216,9 +216,8 @@ impl RenderPassImmutable {
             .enumerate()
             .take(device.get_images_count())
         {
-            let mut attachments: Vec<VkImageView> = Vec::new();
-            attachments.push(device.get_image_view(i));
-            attachments.push(device.get_depth_image_view(0));
+            let attachments: Vec<VkImageView> =
+                vec![device.get_image_view(i), device.get_depth_image_view(0)];
 
             let framebuffer_create_info = VkFramebufferCreateInfo {
                 sType: VkStructureType_VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,

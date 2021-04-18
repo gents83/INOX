@@ -1,17 +1,19 @@
 use nrg_graphics::Renderer;
-use nrg_math::Vector2u;
+use nrg_math::{const_vec2, Vector2};
 use nrg_platform::{Event, EventsRw};
-use nrg_serialize::{Deserialize, Serialize, INVALID_UID, UID};
+use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{
-    implement_widget, InternalWidget, Panel, Text, WidgetData, WidgetEvent, DEFAULT_WIDGET_SIZE,
+    implement_widget, InternalWidget, Panel, Text, WidgetData, WidgetEvent, DEFAULT_WIDGET_HEIGHT,
+    DEFAULT_WIDGET_SIZE,
 };
 
-pub const DEFAULT_CHECKBOX_SIZE: Vector2u = Vector2u { x: 12, y: 12 };
+pub const DEFAULT_CHECKBOX_SIZE: Vector2 =
+    const_vec2!([DEFAULT_WIDGET_HEIGHT as _, DEFAULT_WIDGET_HEIGHT as _]);
 
 pub enum CheckboxEvent {
-    Checked(UID),
-    Unchecked(UID),
+    Checked(Uid),
+    Unchecked(Uid),
 }
 impl Event for CheckboxEvent {}
 
@@ -21,11 +23,11 @@ pub struct Checkbox {
     data: WidgetData,
     is_checked: bool,
     #[serde(skip)]
-    outer_widget: UID,
+    outer_widget: Uid,
     #[serde(skip)]
-    checked_widget: UID,
+    checked_widget: Uid,
     #[serde(skip)]
-    label_widget: UID,
+    label_widget: Uid,
 }
 implement_widget!(Checkbox);
 
@@ -73,7 +75,7 @@ impl Checkbox {
         self.is_checked
     }
 
-    fn check_state_change(id: UID, old_state: bool, events_rw: &mut EventsRw) -> (bool, bool) {
+    fn check_state_change(id: Uid, old_state: bool, events_rw: &mut EventsRw) -> (bool, bool) {
         let mut changed = false;
         let mut new_state = false;
 
@@ -122,7 +124,7 @@ impl InternalWidget for Checkbox {
         let default_size = DEFAULT_CHECKBOX_SIZE * Screen::get_scale_factor();
         self.size(default_size)
             .fill_type(ContainerFillType::Horizontal)
-            .space_between_elements(DEFAULT_WIDGET_SIZE.x / 2 * Screen::get_scale_factor() as u32)
+            .space_between_elements((DEFAULT_WIDGET_SIZE.x / 2. * Screen::get_scale_factor()) as _)
             .use_space_before_and_after(false)
             .style(WidgetStyle::Invisible);
 
@@ -133,7 +135,7 @@ impl InternalWidget for Checkbox {
             .selectable(true)
             .style(WidgetStyle::Default);
 
-        let inner_size = default_size / 4 * 3;
+        let inner_size = default_size / 4. * 3.;
         let mut inner_check = Panel::default();
         inner_check.init(renderer);
         inner_check

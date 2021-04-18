@@ -34,7 +34,7 @@ impl System for RenderingSystem {
                     window.get_handle(),
                     self.config.vk_data.debug_validation_layers,
                 );
-                let size = Vector2u::new(window.get_width(), window.get_heigth());
+                let size = Vector2::new(window.get_width() as _, window.get_heigth() as _);
                 renderer.set_viewport_size(size);
                 renderer
             };

@@ -109,7 +109,7 @@ impl World {
         chunk.set_block(&coords.convert_into_block(), block_type);
     }
 
-    pub fn update(&mut self, view_distance: u32, cam_pos: Vector3f) {
+    pub fn update(&mut self, view_distance: u32, cam_pos: Vector3) {
         let nearest_chunk = ChunkCoordinate::new(
             (cam_pos[0] / Chunk::SIZE_X as f32).chunk_clamp_x() as u32,
             (cam_pos[2] / Chunk::SIZE_Y as f32).chunk_clamp_y() as u32, // Flip Y with Z
@@ -150,7 +150,7 @@ impl World {
                     let mut vertices = Vec::new();
                     chunk.generate_mesh(&mut vertices);
 
-                    let transform = Matrix4f::from_translation(
+                    let transform = Matrix4::from_translation(
                         [
                             chunk_x as f32 * Chunk::SIZE_X as f32,
                             chunk_z as f32 * Chunk::SIZE_Z as f32, // Flip Y with Z

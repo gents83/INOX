@@ -2,7 +2,11 @@ use crate::common::data_formats::*;
 use image::*;
 use nrg_math::*;
 use nrg_platform::*;
-use std::{collections::HashMap, num::NonZeroU16, path::PathBuf};
+use std::{
+    collections::HashMap,
+    num::NonZeroU16,
+    path::{Path, PathBuf},
+};
 use ttf_parser::*;
 
 use super::glyph::*;
@@ -22,25 +26,25 @@ pub struct Font {
 #[derive(Clone)]
 pub struct TextData {
     pub text: String,
-    pub position: Vector2f,
+    pub position: Vector2,
     pub scale: f32,
-    pub color: Vector4f,
-    pub spacing: Vector2f,
+    pub color: Vector4,
+    pub spacing: Vector2,
 }
 
 impl Font {
     #[inline]
-    pub fn new(filepath: PathBuf) -> Self {
+    pub fn new(filepath: &Path) -> Self {
         Font::new_ttf_font(filepath)
     }
 
     pub fn add_text(
         &mut self,
         text: &str,
-        position: Vector2f,
+        position: Vector2,
         scale: f32,
-        color: Vector4f,
-        spacing: Vector2f,
+        color: Vector4,
+        spacing: Vector2,
     ) -> MeshData {
         let data = TextData {
             text: String::from(text),
@@ -93,7 +97,7 @@ impl Font {
             let id = self.get_glyph_index(*c as _);
             let g = &self.glyphs[id];
             mesh_data.add_quad(
-                Vector4f::new(prev_pos.x, prev_pos.y, prev_pos.x + size, prev_pos.y + size),
+                Vector4::new(prev_pos.x, prev_pos.y, prev_pos.x + size, prev_pos.y + size),
                 0.0,
                 g.texture_coord,
                 Some(i * VERTICES_COUNT),
@@ -114,8 +118,8 @@ impl Font {
 }
 
 impl Font {
-    fn new_ttf_font(filepath: PathBuf) -> Self {
-        let font_data = ::std::fs::read(filepath.as_path()).unwrap();
+    fn new_ttf_font(filepath: &Path) -> Self {
+        let font_data = ::std::fs::read(filepath).unwrap();
 
         let face = Face::from_slice(font_data.as_slice(), 0).unwrap();
         // Collect all the unique codepoint to glyph mappings.
@@ -145,7 +149,7 @@ impl Font {
         }
 
         let mut font = Self {
-            filepath,
+            filepath: PathBuf::from(filepath),
             metrics: max_glyph_metrics,
             glyphs,
             char_to_glyph,

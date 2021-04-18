@@ -2,7 +2,6 @@
 
 pub use device::*;
 pub use instance::*;
-pub use material::*;
 pub use mesh::*;
 pub use pipeline::*;
 pub use render_pass::*;
@@ -13,7 +12,6 @@ pub use utils::*;
 mod data_formats;
 pub mod device;
 pub mod instance;
-pub mod material;
 pub mod mesh;
 mod physical_device;
 pub mod pipeline;

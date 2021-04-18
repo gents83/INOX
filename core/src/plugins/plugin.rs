@@ -4,9 +4,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use crate::{Scheduler, SharedDataRw};
 
 pub const CREATE_PLUGIN_FUNCTION_NAME: &str = "create_plugin";
-pub type PFNCreatePlugin = ::std::option::Option<unsafe extern "C" fn() -> PluginHolder>;
+pub type PfnCreatePlugin = ::std::option::Option<unsafe extern "C" fn() -> PluginHolder>;
 pub const DESTROY_PLUGIN_FUNCTION_NAME: &str = "destroy_plugin";
-pub type PFNDestroyPlugin =
+pub type PfnDestroyPlugin =
     ::std::option::Option<unsafe extern "C" fn(plugin_holder: PluginHolder)>;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]

@@ -32,7 +32,7 @@ macro_rules! create_profiler {
             if let Some(create_fn) = NRG_PROFILER_LIB
                 .as_ref()
                 .unwrap()
-                .get::<PFNCreateProfiler>(CREATE_PROFILER_FUNCTION_NAME)
+                .get::<PfnCreateProfiler>(CREATE_PROFILER_FUNCTION_NAME)
             {
                 unsafe { create_fn.unwrap()() };
             }
@@ -53,7 +53,7 @@ macro_rules! start_profiler {
             if let Some(start_fn) = NRG_PROFILER_LIB
                 .as_ref()
                 .unwrap()
-                .get::<PFNStartProfiler>(START_PROFILER_FUNCTION_NAME)
+                .get::<PfnStartProfiler>(START_PROFILER_FUNCTION_NAME)
             {
                 unsafe { start_fn.unwrap()() };
             }
@@ -74,7 +74,7 @@ macro_rules! stop_profiler {
             if let Some(stop_fn) = NRG_PROFILER_LIB
                 .as_ref()
                 .unwrap()
-                .get::<PFNStopProfiler>(STOP_PROFILER_FUNCTION_NAME)
+                .get::<PfnStopProfiler>(STOP_PROFILER_FUNCTION_NAME)
             {
                 unsafe { stop_fn.unwrap()() };
             }
@@ -95,7 +95,7 @@ macro_rules! register_thread_into_profiler_with_name {
             if let Some(register_thread_fn) = NRG_PROFILER_LIB
                 .as_ref()
                 .unwrap()
-                .get::<PFNRegisterThread>(REGISTER_THREAD_FUNCTION_NAME)
+                .get::<PfnRegisterThread>(REGISTER_THREAD_FUNCTION_NAME)
             {
                 unsafe { register_thread_fn.unwrap()($string.as_bytes().as_ptr()) };
             }
@@ -116,7 +116,7 @@ macro_rules! register_thread_into_profiler {
             if let Some(register_thread_fn) = NRG_PROFILER_LIB
                 .as_ref()
                 .unwrap()
-                .get::<PFNRegisterThread>(REGISTER_THREAD_FUNCTION_NAME)
+                .get::<PfnRegisterThread>(REGISTER_THREAD_FUNCTION_NAME)
             {
                 unsafe { register_thread_fn.unwrap()(::std::ptr::null()) };
             }
@@ -137,7 +137,7 @@ macro_rules! write_profile_file {
             if let Some(write_profile_fn) = NRG_PROFILER_LIB
                 .as_ref()
                 .unwrap()
-                .get::<PFNWriteProfileFile>(WRITE_PROFILE_FILE_FUNCTION_NAME)
+                .get::<PfnWriteProfileFile>(WRITE_PROFILE_FILE_FUNCTION_NAME)
             {
                 unsafe { write_profile_fn.unwrap()() };
             }

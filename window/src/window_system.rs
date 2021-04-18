@@ -31,7 +31,14 @@ impl System for WindowSystem {
             let pos = self.config.get_position();
             let size = self.config.get_resolution();
             let name = self.config.get_name();
-            Window::create(name.clone(), pos.x, pos.y, size.x, size.y, events.clone())
+            Window::create(
+                name.clone(),
+                pos.x as _,
+                pos.y as _,
+                size.x as _,
+                size.y as _,
+                events.clone(),
+            )
         };
 
         self.shared_data.write().unwrap().add_resource(window);

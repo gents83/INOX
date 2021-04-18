@@ -1,8 +1,12 @@
-use std::path::PathBuf;
+use nrg_math::Vector3;
 
+use crate::api::backend::Texture;
+
+use super::data_formats::*;
 use super::device::*;
 use super::render_pass::*;
 use super::shader::*;
+use std::path::PathBuf;
 
 #[derive(Clone)]
 pub struct Pipeline {
@@ -22,7 +26,7 @@ impl Pipeline {
         pipeline
             .set_shader(ShaderType::Vertex, vert_filepath)
             .set_shader(ShaderType::Fragment, frag_filepath)
-            .build();
+            .build(&device.inner, &render_pass.get_pass());
 
         Pipeline {
             inner: pipeline,
@@ -39,9 +43,29 @@ impl Pipeline {
         self.render_pass = render_pass;
     }
 
-    pub fn begin(&mut self) {
+    pub fn begin(&mut self, commands: &[InstanceCommand], instances: &[InstanceData]) {
         self.render_pass.begin();
-        self.inner.prepare(self.render_pass.get_pass());
+        self.inner.bind(commands, instances);
+    }
+
+    pub fn update_uniform_buffer(&self, cam_pos: Vector3) {
+        self.inner.update_uniform_buffer(cam_pos);
+    }
+
+    pub fn update_descriptor_sets(&self, textures: &[&Texture]) {
+        self.inner.update_descriptor_sets(textures);
+    }
+
+    pub fn bind_descriptors(&self) {
+        self.inner.bind_descriptors();
+    }
+
+    pub fn bind_indirect(&mut self) {
+        self.inner.bind_indirect();
+    }
+
+    pub fn draw_indirect(&mut self, count: usize) {
+        self.inner.draw_indirect(count);
     }
 
     pub fn end(&mut self) {

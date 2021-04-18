@@ -4,7 +4,7 @@ use nrg_graphics::Renderer;
 use nrg_platform::{
     EventsRw, InputState, Key, KeyEvent, KeyTextEvent, MouseButton, MouseEvent, MouseState,
 };
-use nrg_serialize::{Deserialize, Serialize, INVALID_UID, UID};
+use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{
     implement_widget, AddCharCommand, Indicator, InternalWidget, RemoveCharCommand, Text,
@@ -15,9 +15,9 @@ use crate::{
 #[serde(crate = "nrg_serialize")]
 pub struct EditableText {
     #[serde(skip)]
-    text_widget: UID,
+    text_widget: Uid,
     #[serde(skip)]
-    indicator_widget: UID,
+    indicator_widget: Uid,
     #[serde(skip)]
     is_focused: bool,
     #[serde(skip)]

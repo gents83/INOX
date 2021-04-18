@@ -1,14 +1,12 @@
 use nrg_graphics::Renderer;
-use nrg_math::Vector2u;
+use nrg_math::{const_vec2, Vector2};
 use nrg_platform::EventsRw;
 use nrg_serialize::{Deserialize, Serialize};
 
-use crate::{implement_widget, InternalWidget, WidgetData, DEFAULT_WIDGET_SIZE};
+use crate::{implement_widget, InternalWidget, WidgetData, DEFAULT_WIDGET_HEIGHT};
 
-pub const DEFAULT_PANEL_SIZE: Vector2u = Vector2u {
-    x: DEFAULT_WIDGET_SIZE.x * 10,
-    y: DEFAULT_WIDGET_SIZE.y * 10,
-};
+pub const DEFAULT_PANEL_SIZE: Vector2 =
+    const_vec2!([DEFAULT_WIDGET_HEIGHT * 10., DEFAULT_WIDGET_HEIGHT * 10.]);
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]

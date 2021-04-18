@@ -123,7 +123,7 @@ impl Block {
     pub fn generate_mesh(
         &self,
         vertices: &mut Vec<VertexData>,
-        coord: Vector3f,
+        coord: Vector3,
         sides: u8,
         edges: u32,
         corners: u8,

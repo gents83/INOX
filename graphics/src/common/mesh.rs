@@ -42,6 +42,16 @@ impl Mesh {
         self
     }
 
+    pub fn bind_vertices(&mut self, num_vertices: usize) {
+        self.inner
+            .bind_vertices(&self.device.inner, &self.data.vertices, num_vertices);
+    }
+
+    pub fn bind_indices(&mut self, num_indices: usize) {
+        self.inner
+            .bind_indices(&self.device.inner, &self.data.indices, num_indices);
+    }
+
     pub fn draw(&mut self, num_vertices: usize, num_indices: usize) {
         if !self.data.vertices.is_empty() {
             self.inner.draw(

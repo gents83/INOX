@@ -1,18 +1,18 @@
 use nrg_commands::Command;
 use nrg_platform::{Event, EventsRw};
-use nrg_serialize::UID;
+use nrg_serialize::Uid;
 
 use crate::TextEvent;
 
 #[derive(Clone)]
 pub struct RemoveCharCommand {
-    widget_id: UID,
+    widget_id: Uid,
     character_index: i32,
     character: char,
 }
 
 impl RemoveCharCommand {
-    pub fn new(widget_id: UID, character_index: i32, character: char) -> Self {
+    pub fn new(widget_id: Uid, character_index: i32, character: char) -> Self {
         Self {
             widget_id,
             character_index,

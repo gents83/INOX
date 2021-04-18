@@ -222,7 +222,7 @@ impl Chunk {
                 for z in 0..Chunk::SIZE_Z {
                     self.blocks[x][y][z].generate_mesh(
                         vertices,
-                        Vector3f::new(x as f32, y as f32, z as f32),
+                        Vector3::new(x as f32, y as f32, z as f32),
                         self.sides[x][y][z],
                         self.edges[x][y][z],
                         self.corners[x][y][z],
@@ -234,7 +234,7 @@ impl Chunk {
 }
 
 pub struct ChunkMesh {
-    pub transform: Matrix4f,
+    pub transform: Matrix4,
     pub vertices: Vec<VertexData>,
 }
 

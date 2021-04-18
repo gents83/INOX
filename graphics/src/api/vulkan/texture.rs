@@ -1,9 +1,14 @@
+use crate::Area;
+
 use super::device::*;
-use image::*;
 use vulkan_bindings::*;
+
+const TEXTURE_CHANNEL_COUNT: u32 = 4;
 
 #[derive(PartialEq)]
 pub struct Texture {
+    width: u32,
+    height: u32,
     texture_image: VkImage,
     texture_image_memory: VkDeviceMemory,
     texture_image_view: VkImageView,
@@ -12,26 +17,23 @@ pub struct Texture {
 unsafe impl Send for Texture {}
 unsafe impl Sync for Texture {}
 
-impl Default for Texture {
-    fn default() -> Self {
-        Self {
+impl Texture {
+    pub fn width(&self) -> u32 {
+        self.width
+    }
+    pub fn height(&self) -> u32 {
+        self.height
+    }
+    pub fn create(device: &Device, width: u32, height: u32, layers_count: usize) -> Self {
+        let mut texture = Self {
+            width,
+            height,
             texture_image: ::std::ptr::null_mut(),
             texture_image_memory: ::std::ptr::null_mut(),
             texture_image_view: ::std::ptr::null_mut(),
             texture_sampler: ::std::ptr::null_mut(),
-        }
-    }
-}
-
-impl Texture {
-    pub fn create_from(device: &Device, filepath: &str) -> Self {
-        let image_data = image::open(filepath).unwrap();
-        Texture::create(&device, &image_data, 1)
-    }
-
-    pub fn create(device: &Device, image_data: &DynamicImage, layers_count: usize) -> Self {
-        let mut texture = Self::default();
-        texture.create_texture_image(device, &image_data, layers_count);
+        };
+        texture.create_texture_image(device, layers_count);
         texture.create_texture_sampler(device);
         texture
     }
@@ -69,24 +71,14 @@ impl Texture {
             sampler: self.texture_sampler,
         }
     }
-}
 
-impl Texture {
-    fn create_texture_image(
-        &mut self,
-        device: &Device,
-        image_data: &image::DynamicImage,
-        layers_count: usize,
-    ) {
-        let image_size: VkDeviceSize =
-            (image_data.width() * image_data.height() * image_data.color().channel_count() as u32)
-                as _;
+    pub fn add_in_layer(&mut self, device: &Device, index: usize, area: &Area, image_data: &[u8]) {
+        if self.width < area.width || self.height < area.height {
+            panic!("Image resolution is different from texture one");
+        }
+        let image_size: VkDeviceSize = (area.width * area.height * TEXTURE_CHANNEL_COUNT) as _;
         let flags = VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
             | VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-        let format = match image_data.color() {
-            image::ColorType::Rgb8 => VkFormat_VK_FORMAT_R8G8B8_UNORM,
-            _ => VkFormat_VK_FORMAT_R8G8B8A8_UNORM,
-        };
         let mut staging_buffer: VkBuffer = ::std::ptr::null_mut();
         let mut staging_buffer_memory: VkDeviceMemory = ::std::ptr::null_mut();
         device.create_buffer(
@@ -97,12 +89,37 @@ impl Texture {
             &mut staging_buffer_memory,
         );
 
-        device.map_buffer_memory(&mut staging_buffer_memory, image_data.as_bytes());
+        device.map_buffer_memory(&mut staging_buffer_memory, image_data);
 
+        device.transition_image_layout(
+            self.texture_image,
+            VkImageLayout_VK_IMAGE_LAYOUT_UNDEFINED,
+            VkImageLayout_VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            index,
+            1,
+        );
+
+        device.copy_buffer_to_image(staging_buffer, self.texture_image, index, area);
+
+        device.transition_image_layout(
+            self.texture_image,
+            VkImageLayout_VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            VkImageLayout_VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            index,
+            1,
+        );
+
+        device.destroy_buffer(&staging_buffer, &staging_buffer_memory);
+    }
+}
+
+impl Texture {
+    fn create_texture_image(&mut self, device: &Device, layers_count: usize) {
+        let format = VkFormat_VK_FORMAT_R8G8B8A8_UNORM;
         let flags = VkImageUsageFlagBits_VK_IMAGE_USAGE_TRANSFER_DST_BIT
             | VkImageUsageFlagBits_VK_IMAGE_USAGE_SAMPLED_BIT;
         let device_image = device.create_image(
-            (image_data.width(), image_data.height(), format),
+            (self.width, self.height, format),
             VkImageTiling_VK_IMAGE_TILING_OPTIMAL,
             flags as _,
             VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT as _,
@@ -111,34 +128,25 @@ impl Texture {
 
         self.texture_image = device_image.0;
         self.texture_image_memory = device_image.1;
+        self.texture_image_view = device.create_image_view(
+            self.texture_image,
+            format,
+            VkImageAspectFlagBits_VK_IMAGE_ASPECT_COLOR_BIT as _,
+            layers_count,
+        );
 
         device.transition_image_layout(
             self.texture_image,
             VkImageLayout_VK_IMAGE_LAYOUT_UNDEFINED,
             VkImageLayout_VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            0,
             layers_count,
         );
-
-        device.copy_buffer_to_image(
-            staging_buffer,
-            self.texture_image,
-            image_data.width(),
-            image_data.height(),
-        );
-
         device.transition_image_layout(
             self.texture_image,
             VkImageLayout_VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
             VkImageLayout_VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-            layers_count,
-        );
-
-        device.destroy_buffer(&staging_buffer, &staging_buffer_memory);
-
-        self.texture_image_view = device.create_image_view(
-            self.texture_image,
-            format,
-            VkImageAspectFlagBits_VK_IMAGE_ASPECT_COLOR_BIT as _,
+            0,
             layers_count,
         );
     }

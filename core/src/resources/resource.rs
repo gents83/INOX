@@ -1,4 +1,4 @@
-use nrg_serialize::{generate_random_uid, UID};
+use nrg_serialize::{generate_random_uid, Uid};
 use std::{
     cell::UnsafeCell,
     ops::{Deref, DerefMut},
@@ -51,7 +51,7 @@ impl Atomic {
     }
 }
 
-pub type ResourceId = UID;
+pub type ResourceId = Uid;
 
 pub trait ResourceTrait {
     fn id(&self) -> ResourceId;

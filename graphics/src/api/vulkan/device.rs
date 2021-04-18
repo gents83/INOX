@@ -1,3 +1,5 @@
+use crate::Area;
+
 use super::instance::*;
 use super::utils::*;
 use std::{cell::RefCell, os::raw::c_char, rc::Rc};
@@ -180,23 +182,28 @@ impl Device {
         image: VkImage,
         old_layout: VkImageLayout,
         new_layout: VkImageLayout,
+        layer_index: usize,
         layers_count: usize,
     ) {
-        self.inner
-            .borrow()
-            .transition_image_layout(image, old_layout, new_layout, layers_count);
+        self.inner.borrow().transition_image_layout(
+            image,
+            old_layout,
+            new_layout,
+            layer_index,
+            layers_count,
+        );
     }
 
     pub fn copy_buffer_to_image(
         &self,
         buffer: VkBuffer,
         image: VkImage,
-        image_width: u32,
-        image_height: u32,
+        layer_index: usize,
+        area: &Area,
     ) {
         self.inner
             .borrow()
-            .copy_buffer_to_image(buffer, image, image_width, image_height);
+            .copy_buffer_to_image(buffer, image, layer_index, area);
     }
 
     pub fn begin_frame(&mut self) -> bool {
@@ -463,6 +470,7 @@ impl DeviceImmutable {
         image: VkImage,
         old_layout: VkImageLayout,
         new_layout: VkImageLayout,
+        layer_index: usize,
         layers_count: usize,
     ) {
         let command_buffer = self.begin_single_time_commands();
@@ -481,7 +489,7 @@ impl DeviceImmutable {
                 aspectMask: VkImageAspectFlagBits_VK_IMAGE_ASPECT_COLOR_BIT as _,
                 baseMipLevel: 0,
                 levelCount: 1,
-                baseArrayLayer: 0,
+                baseArrayLayer: layer_index as _,
                 layerCount: layers_count as _,
             },
         };
@@ -532,8 +540,8 @@ impl DeviceImmutable {
         &self,
         buffer: VkBuffer,
         image: VkImage,
-        image_width: u32,
-        image_height: u32,
+        layer_index: usize,
+        area: &Area,
     ) {
         let command_buffer = self.begin_single_time_commands();
 
@@ -544,13 +552,17 @@ impl DeviceImmutable {
             imageSubresource: VkImageSubresourceLayers {
                 aspectMask: VkImageAspectFlagBits_VK_IMAGE_ASPECT_COLOR_BIT as _,
                 mipLevel: 0,
-                baseArrayLayer: 0,
+                baseArrayLayer: layer_index as _,
                 layerCount: 1,
             },
-            imageOffset: VkOffset3D { x: 0, y: 0, z: 0 },
+            imageOffset: VkOffset3D {
+                x: area.x as _,
+                y: area.y as _,
+                z: 0,
+            },
             imageExtent: VkExtent3D {
-                width: image_width,
-                height: image_height,
+                width: area.width,
+                height: area.height,
                 depth: 1,
             },
         };

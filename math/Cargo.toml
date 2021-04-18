@@ -9,4 +9,5 @@ build = "build.rs"
 crate-type = ["cdylib",'rlib']
 
 [dependencies]
+glam = { version = "0.14.0", features = ["serde"] }
 nrg_serialize = { path = "../serialize" }

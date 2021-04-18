@@ -1,11 +1,11 @@
 use uuid::Uuid;
 
-pub type UID = Uuid;
-pub const INVALID_UID: UID = Uuid::nil();
+pub type Uid = Uuid;
+pub const INVALID_UID: Uid = Uuid::nil();
 
-pub fn generate_random_uid() -> UID {
+pub fn generate_random_uid() -> Uid {
     Uuid::new_v4()
 }
-pub fn generate_uid_from_string(string: &str) -> UID {
+pub fn generate_uid_from_string(string: &str) -> Uid {
     Uuid::new_v5(&Uuid::NAMESPACE_URL, string.as_bytes())
 }

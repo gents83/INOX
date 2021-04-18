@@ -220,7 +220,11 @@ pub fn create_image_view(
         pNext: ::std::ptr::null_mut(),
         flags: 0,
         image,
-        viewType: VkImageViewType_VK_IMAGE_VIEW_TYPE_2D,
+        viewType: if layers_count <= 1 {
+            VkImageViewType_VK_IMAGE_VIEW_TYPE_2D
+        } else {
+            VkImageViewType_VK_IMAGE_VIEW_TYPE_2D_ARRAY
+        },
         format,
         components: VkComponentMapping {
             r: VkComponentSwizzle_VK_COMPONENT_SWIZZLE_R,
