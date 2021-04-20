@@ -9,5 +9,5 @@ build = "build.rs"
 crate-type = ["cdylib",'rlib']
 
 [dependencies]
-glam = { version = "0.14.0", features = ["serde"] }
+cgmath = { git = "https://github.com/rustgd/cgmath", features = ["serde", "swizzle"] }
 nrg_serialize = { path = "../serialize" }

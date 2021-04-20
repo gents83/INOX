@@ -1,4 +1,4 @@
-use nrg_math::{Vector2, Vector4};
+use nrg_math::{VecBase, Vector2, Vector4};
 use nrg_serialize::{Deserialize, Serialize};
 
 use crate::{
@@ -11,7 +11,7 @@ use crate::{
 pub struct WidgetState {
     pos_in_px: Vector2,
     size_in_px: Vector2,
-    #[serde(skip)]
+    #[serde(skip, default = "nrg_math::VecBase::default_zero")]
     clip_area: Vector4,
     is_active: bool,
     is_selectable: bool,
@@ -35,9 +35,9 @@ pub struct WidgetState {
 impl Default for WidgetState {
     fn default() -> Self {
         Self {
-            pos_in_px: Vector2::ZERO,
-            size_in_px: DEFAULT_WIDGET_SIZE,
-            clip_area: Vector4::ZERO,
+            pos_in_px: Vector2::default_zero(),
+            size_in_px: DEFAULT_WIDGET_SIZE.into(),
+            clip_area: Vector4::default_zero(),
             is_active: true,
             is_visible: true,
             is_selectable: true,

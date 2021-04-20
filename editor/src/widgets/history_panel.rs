@@ -44,8 +44,10 @@ impl HistoryPanel {
         button_box
             .fill_type(ContainerFillType::Horizontal)
             .horizontal_alignment(HorizontalAlignment::Center)
-            .size([DEFAULT_BUTTON_SIZE.x * 4., DEFAULT_BUTTON_SIZE.y * 2.].into())
-            .space_between_elements((DEFAULT_WIDGET_SIZE.x * 4. * Screen::get_scale_factor()) as _);
+            .size([DEFAULT_BUTTON_SIZE[0] * 4., DEFAULT_BUTTON_SIZE[1] * 2.].into())
+            .space_between_elements(
+                (DEFAULT_WIDGET_SIZE[0] * 4. * Screen::get_scale_factor()) as _,
+            );
 
         let mut history_undo = Button::default();
         history_undo.init(renderer);

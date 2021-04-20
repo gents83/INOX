@@ -9,7 +9,6 @@
                OpEntryPoint Fragment %main "main" %fragTexCoord %outColor %fragColor
                OpExecutionMode %main OriginUpperLeft
                OpSource GLSL 450
-               OpSourceExtension "GL_ARB_separate_shader_objects"
                OpSourceExtension "GL_GOOGLE_cpp_style_line_directive"
                OpSourceExtension "GL_GOOGLE_include_directive"
                OpName %main "main"

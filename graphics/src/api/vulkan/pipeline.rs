@@ -322,7 +322,7 @@ impl PipelineImmutable {
             depthClampEnable: VK_FALSE,
             rasterizerDiscardEnable: VK_FALSE,
             polygonMode: VkPolygonMode_VK_POLYGON_MODE_FILL,
-            cullMode: VkCullModeFlagBits_VK_CULL_MODE_BACK_BIT as VkCullModeFlags,
+            cullMode: VkCullModeFlagBits_VK_CULL_MODE_NONE as VkCullModeFlags,
             frontFace: VkFrontFace_VK_FRONT_FACE_CLOCKWISE,
             depthBiasEnable: VK_FALSE,
             depthBiasConstantFactor: 0.0,
@@ -633,14 +633,24 @@ impl PipelineImmutable {
         let uniform_data: [UniformData; 1] = [UniformData {
             view: Matrix4::look_at_rh(
                 [cam_pos.x, cam_pos.y, cam_pos.z].into(),
-                [0.0, 0.0, 0.0].into(),
-                [0.0, 0.0, 1.0].into(),
+                [0., 0., 0.].into(),
+                [0., 1., 0.].into(),
             ),
-            proj: Matrix4::perspective_rh(
-                f32::to_radians(45.0),
+            /*
+            proj: nrg_math::perspective(
+                nrg_math::Deg(45.0),
                 details.capabilities.currentExtent.width as f32
                     / details.capabilities.currentExtent.height as f32,
                 0.001,
+                1000.0,
+            ),
+            */
+            proj: nrg_math::ortho(
+                0.,
+                details.capabilities.currentExtent.width as f32,
+                0.,
+                details.capabilities.currentExtent.height as f32,
+                0.0,
                 1000.0,
             ),
         }];

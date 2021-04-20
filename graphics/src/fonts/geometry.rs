@@ -29,7 +29,7 @@ impl<'a> Geometry<'a> {
             rasterizer: Raster::new(width, height, data),
             offset,
             scale,
-            current_point: Vector2::ZERO,
+            current_point: Vector2::default_zero(),
             last_movement: None,
             lines: Vec::new(),
         }
@@ -140,8 +140,8 @@ impl<'a> Geometry<'a> {
         const OBJSPACE_FLATNESS_SQUARED: f32 = OBJSPACE_FLATNESS * OBJSPACE_FLATNESS;
         const MAX_RECURSION_DEPTH: u8 = 16;
 
-        let longlen = p0.distance_squared(p1) + p1.distance_squared(p2) + p2.distance_squared(p3);
-        let shortlen = p0.distance_squared(p3);
+        let longlen = p0.squared_distance(p1) + p1.squared_distance(p2) + p2.squared_distance(p3);
+        let shortlen = p0.squared_distance(p3);
         let flatness_squared = longlen - shortlen;
 
         if n < MAX_RECURSION_DEPTH && flatness_squared > OBJSPACE_FLATNESS_SQUARED {

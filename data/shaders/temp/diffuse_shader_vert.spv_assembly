@@ -1,14 +1,13 @@
 ; SPIR-V
 ; Version: 1.0
 ; Generator: Google Shaderc over Glslang; 10
-; Bound: 51
+; Bound: 62
 ; Schema: 0
                OpCapability Shader
           %1 = OpExtInstImport "GLSL.std.450"
                OpMemoryModel Logical GLSL450
                OpEntryPoint Vertex %main "main" %_ %instanceMatrix %inPosition %fragColor %inColor %fragTexCoord %inTexCoord %instanceDiffuseLayerIndex %inNormal %instanceDiffuseTextureIndex
                OpSource GLSL 450
-               OpSourceExtension "GL_ARB_separate_shader_objects"
                OpSourceExtension "GL_GOOGLE_cpp_style_line_directive"
                OpSourceExtension "GL_GOOGLE_include_directive"
                OpName %main "main"
@@ -18,6 +17,10 @@
                OpMemberName %gl_PerVertex 2 "gl_ClipDistance"
                OpMemberName %gl_PerVertex 3 "gl_CullDistance"
                OpName %_ ""
+               OpName %UniformBufferObject "UniformBufferObject"
+               OpMemberName %UniformBufferObject 0 "view"
+               OpMemberName %UniformBufferObject 1 "proj"
+               OpName %ubo "ubo"
                OpName %instanceMatrix "instanceMatrix"
                OpName %inPosition "inPosition"
                OpName %fragColor "fragColor"
@@ -32,6 +35,15 @@
                OpMemberDecorate %gl_PerVertex 2 BuiltIn ClipDistance
                OpMemberDecorate %gl_PerVertex 3 BuiltIn CullDistance
                OpDecorate %gl_PerVertex Block
+               OpMemberDecorate %UniformBufferObject 0 ColMajor
+               OpMemberDecorate %UniformBufferObject 0 Offset 0
+               OpMemberDecorate %UniformBufferObject 0 MatrixStride 16
+               OpMemberDecorate %UniformBufferObject 1 ColMajor
+               OpMemberDecorate %UniformBufferObject 1 Offset 64
+               OpMemberDecorate %UniformBufferObject 1 MatrixStride 16
+               OpDecorate %UniformBufferObject Block
+               OpDecorate %ubo DescriptorSet 0
+               OpDecorate %ubo Binding 0
                OpDecorate %instanceMatrix Location 4
                OpDecorate %inPosition Location 0
                OpDecorate %fragColor Location 0
@@ -54,6 +66,11 @@
         %int = OpTypeInt 32 1
       %int_0 = OpConstant %int 0
 %mat4v4float = OpTypeMatrix %v4float 4
+%UniformBufferObject = OpTypeStruct %mat4v4float %mat4v4float
+%_ptr_Uniform_UniformBufferObject = OpTypePointer Uniform %UniformBufferObject
+        %ubo = OpVariable %_ptr_Uniform_UniformBufferObject Uniform
+      %int_1 = OpConstant %int 1
+%_ptr_Uniform_mat4v4float = OpTypePointer Uniform %mat4v4float
 %_ptr_Input_mat4v4float = OpTypePointer Input %mat4v4float
 %instanceMatrix = OpVariable %_ptr_Input_mat4v4float Input
     %v3float = OpTypeVector %float 3
@@ -75,23 +92,29 @@
 %instanceDiffuseTextureIndex = OpVariable %_ptr_Input_int Input
        %main = OpFunction %void None %3
           %5 = OpLabel
-         %19 = OpLoad %mat4v4float %instanceMatrix
-         %23 = OpLoad %v3float %inPosition
-         %25 = OpCompositeExtract %float %23 0
-         %26 = OpCompositeExtract %float %23 1
-         %27 = OpCompositeExtract %float %23 2
-         %28 = OpCompositeConstruct %v4float %25 %26 %27 %float_1
-         %29 = OpMatrixTimesVector %v4float %19 %28
-         %31 = OpAccessChain %_ptr_Output_v4float %_ %int_0
-               OpStore %31 %29
-         %35 = OpLoad %v4float %inColor
-               OpStore %fragColor %35
-         %41 = OpLoad %v2float %inTexCoord
-         %44 = OpLoad %int %instanceDiffuseLayerIndex
-         %45 = OpConvertSToF %float %44
-         %46 = OpCompositeExtract %float %41 0
-         %47 = OpCompositeExtract %float %41 1
-         %48 = OpCompositeConstruct %v3float %46 %47 %45
-               OpStore %fragTexCoord %48
+         %22 = OpAccessChain %_ptr_Uniform_mat4v4float %ubo %int_1
+         %23 = OpLoad %mat4v4float %22
+         %24 = OpAccessChain %_ptr_Uniform_mat4v4float %ubo %int_0
+         %25 = OpLoad %mat4v4float %24
+         %26 = OpMatrixTimesMatrix %mat4v4float %23 %25
+         %29 = OpLoad %mat4v4float %instanceMatrix
+         %30 = OpMatrixTimesMatrix %mat4v4float %26 %29
+         %34 = OpLoad %v3float %inPosition
+         %36 = OpCompositeExtract %float %34 0
+         %37 = OpCompositeExtract %float %34 1
+         %38 = OpCompositeExtract %float %34 2
+         %39 = OpCompositeConstruct %v4float %36 %37 %38 %float_1
+         %40 = OpMatrixTimesVector %v4float %30 %39
+         %42 = OpAccessChain %_ptr_Output_v4float %_ %int_0
+               OpStore %42 %40
+         %46 = OpLoad %v4float %inColor
+               OpStore %fragColor %46
+         %52 = OpLoad %v2float %inTexCoord
+         %55 = OpLoad %int %instanceDiffuseLayerIndex
+         %56 = OpConvertSToF %float %55
+         %57 = OpCompositeExtract %float %52 0
+         %58 = OpCompositeExtract %float %52 1
+         %59 = OpCompositeConstruct %v3float %57 %58 %56
+               OpStore %fragTexCoord %59
                OpReturn
                OpFunctionEnd

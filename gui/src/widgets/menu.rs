@@ -1,5 +1,5 @@
 use nrg_graphics::Renderer;
-use nrg_math::{const_vec2, Vector2};
+use nrg_math::{VecBase, Vector2};
 use nrg_platform::EventsRw;
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
@@ -9,11 +9,9 @@ use crate::{
 };
 
 const DEFAULT_MENU_LAYER: f32 = 0.5;
-const DEFAULT_MENU_SIZE: Vector2 =
-    const_vec2!([DEFAULT_WIDGET_HEIGHT * 10., DEFAULT_WIDGET_HEIGHT * 3. / 2.]);
-const DEFAULT_MENU_ITEM_SIZE: Vector2 = const_vec2!([DEFAULT_BUTTON_WIDTH, DEFAULT_WIDGET_HEIGHT]);
-const DEFAULT_SUBMENU_ITEM_SIZE: Vector2 =
-    const_vec2!([DEFAULT_BUTTON_WIDTH * 5., DEFAULT_WIDGET_HEIGHT * 5.]);
+const DEFAULT_MENU_SIZE: [f32; 2] = [DEFAULT_WIDGET_HEIGHT * 10., DEFAULT_WIDGET_HEIGHT * 3. / 2.];
+const DEFAULT_MENU_ITEM_SIZE: [f32; 2] = [DEFAULT_BUTTON_WIDTH, DEFAULT_WIDGET_HEIGHT];
+const DEFAULT_SUBMENU_ITEM_SIZE: [f32; 2] = [DEFAULT_BUTTON_WIDTH * 5., DEFAULT_WIDGET_HEIGHT * 5.];
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]
@@ -52,6 +50,7 @@ impl Menu {
             .text_alignment(VerticalAlignment::Center, HorizontalAlignment::Left)
             .style(WidgetStyle::DefaultBackground);
 
+        let size: Vector2 = DEFAULT_SUBMENU_ITEM_SIZE.into();
         let mut submenu = Menu::default();
         submenu.init(renderer);
         submenu
@@ -62,14 +61,14 @@ impl Menu {
                 ]
                 .into(),
             )
-            .size(DEFAULT_SUBMENU_ITEM_SIZE * Screen::get_scale_factor())
+            .size(size * Screen::get_scale_factor())
             .visible(false)
             .selectable(true)
             .vertical_alignment(VerticalAlignment::None)
             .horizontal_alignment(HorizontalAlignment::None)
             .fill_type(ContainerFillType::Vertical)
             .keep_fixed_width(false)
-            .space_between_elements((DEFAULT_WIDGET_SIZE.x / 2. * Screen::get_scale_factor()) as _)
+            .space_between_elements((DEFAULT_WIDGET_SIZE[0] / 2. * Screen::get_scale_factor()) as _)
             .style(WidgetStyle::FullInactive);
 
         submenu.move_to_layer(DEFAULT_MENU_LAYER);
@@ -164,7 +163,7 @@ impl Menu {
         if let Some(widget_events) = events.read_events::<WidgetEvent>() {
             for event in widget_events.iter() {
                 if let WidgetEvent::Released(widget_id) = event {
-                    let mut pos = Vector2::ZERO;
+                    let mut pos = Vector2::default_zero();
                     if let Some(button) = self.get_data_mut().node.get_child::<Button>(*widget_id) {
                         pos.x = button.get_data().state.get_position().x;
                         pos.y = self.get_data().state.get_size().y;
@@ -186,11 +185,12 @@ impl InternalWidget for Menu {
             return;
         }
 
-        self.size(DEFAULT_MENU_SIZE * Screen::get_scale_factor())
+        let size: Vector2 = DEFAULT_MENU_SIZE.into();
+        self.size(size * Screen::get_scale_factor())
             .selectable(false)
             .vertical_alignment(VerticalAlignment::Top)
             .horizontal_alignment(HorizontalAlignment::Stretch)
-            .space_between_elements((DEFAULT_WIDGET_SIZE.x * Screen::get_scale_factor()) as _)
+            .space_between_elements((DEFAULT_WIDGET_SIZE[0] * Screen::get_scale_factor()) as _)
             .fill_type(ContainerFillType::Horizontal)
             .use_space_before_and_after(false)
             .style(WidgetStyle::DefaultBorder);

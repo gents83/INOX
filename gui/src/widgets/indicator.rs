@@ -54,7 +54,7 @@ impl InternalWidget for Indicator {
             return;
         }
         self.draggable(false)
-            .size([2., DEFAULT_WIDGET_SIZE.y - 2.].into())
+            .size([2., DEFAULT_WIDGET_SIZE[1] - 2.].into())
             .vertical_alignment(VerticalAlignment::Stretch)
             .selectable(false)
             .style(WidgetStyle::FullActive)

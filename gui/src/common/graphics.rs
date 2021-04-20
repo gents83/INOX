@@ -1,5 +1,5 @@
 use nrg_graphics::{MaterialId, MeshData, MeshId, Renderer, INVALID_ID};
-use nrg_math::{Matrix4, Vector2, Vector4};
+use nrg_math::{MatBase, Matrix4, Transform, VecBase, Vector2, Vector4};
 use nrg_serialize::{Deserialize, Serialize};
 
 use crate::{Screen, DEFAULT_LAYER_OFFSET, DEFAULT_WIDGET_SIZE};
@@ -12,15 +12,15 @@ pub struct WidgetGraphics {
     mesh_id: MeshId,
     #[serde(skip)]
     mesh_data: MeshData,
-    #[serde(skip)]
+    #[serde(skip, default = "nrg_math::VecBase::default_zero")]
     color: Vector4,
-    #[serde(skip)]
+    #[serde(skip, default = "nrg_math::VecBase::default_zero")]
     border_color: Vector4,
     #[serde(skip)]
     is_dirty: bool,
     stroke: f32,
     layer: f32,
-    #[serde(skip)]
+    #[serde(skip, default = "nrg_math::MatBase::default_identity")]
     transform: Matrix4,
 }
 
@@ -30,12 +30,12 @@ impl Default for WidgetGraphics {
             material_id: INVALID_ID,
             mesh_id: INVALID_ID,
             mesh_data: MeshData::default(),
-            color: Vector4::ZERO,
-            border_color: Vector4::ZERO,
+            color: Vector4::default_zero(),
+            border_color: Vector4::default_zero(),
             is_dirty: true,
             stroke: 0.0,
             layer: 1.0 - DEFAULT_LAYER_OFFSET,
-            transform: Matrix4::IDENTITY,
+            transform: Matrix4::default_identity(),
         }
     }
 }
@@ -45,8 +45,8 @@ impl WidgetGraphics {
         let pipeline_id = renderer.get_pipeline_id(pipeline);
         self.material_id = renderer.add_material(pipeline_id);
 
-        let zero_px = Screen::convert_from_pixels_into_screen_space(Vector2::ZERO);
-        let one_px = Screen::convert_from_pixels_into_screen_space(DEFAULT_WIDGET_SIZE);
+        let zero_px = Screen::convert_from_pixels_into_screen_space(Vector2::default_zero());
+        let one_px = Screen::convert_from_pixels_into_screen_space(DEFAULT_WIDGET_SIZE.into());
 
         let mut mesh_data = MeshData::default();
         mesh_data.add_quad_default(
@@ -95,20 +95,23 @@ impl WidgetGraphics {
         self
     }
     pub fn translate(&mut self, offset: Vector2) -> &mut Self {
-        self.transform
-            .mul_mat4(&Matrix4::from_translation([offset.x, offset.y, 0.].into()));
+        self.transform = self
+            .transform
+            .concat(&Matrix4::from_translation([offset.x, offset.y, 0.].into()));
         self.is_dirty = true;
         self
     }
     pub fn scale(&mut self, scale: Vector2) -> &mut Self {
-        self.transform
-            .mul_mat4(&Matrix4::from_scale([scale.x, scale.y, 1.].into()));
+        self.transform = self
+            .transform
+            .concat(&Matrix4::from_nonuniform_scale(scale.x, scale.y, 1.));
         self.is_dirty = true;
         self
     }
     pub fn move_to_layer(&mut self, layer: f32) -> &mut Self {
-        self.transform
-            .mul_mat4(&Matrix4::from_translation([0.0, 0.0, layer].into()));
+        self.transform = self
+            .transform
+            .concat(&Matrix4::from_translation([0.0, 0.0, layer].into()));
         self.is_dirty = true;
         self
     }

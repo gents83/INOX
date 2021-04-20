@@ -61,25 +61,33 @@ impl InstanceData {
                 binding: INSTANCE_BUFFER_BIND_ID as _,
                 format: VkFormat_VK_FORMAT_R32G32B32A32_SFLOAT,
                 location: 4,
-                offset: 0, //Matrix row 1
+                offset: unsafe {
+                    &(*(::std::ptr::null::<InstanceData>())).transform.x as *const _ as _
+                },
             },
             VkVertexInputAttributeDescription {
                 binding: INSTANCE_BUFFER_BIND_ID as _,
                 format: VkFormat_VK_FORMAT_R32G32B32A32_SFLOAT,
                 location: 5,
-                offset: ::std::mem::size_of::<f32>() as u32 * 4, //Matrix row 2
+                offset: unsafe {
+                    &(*(::std::ptr::null::<InstanceData>())).transform.y as *const _ as _
+                },
             },
             VkVertexInputAttributeDescription {
                 binding: INSTANCE_BUFFER_BIND_ID as _,
                 format: VkFormat_VK_FORMAT_R32G32B32A32_SFLOAT,
                 location: 6,
-                offset: ::std::mem::size_of::<f32>() as u32 * 8, //Matrix row 3
+                offset: unsafe {
+                    &(*(::std::ptr::null::<InstanceData>())).transform.z as *const _ as _
+                },
             },
             VkVertexInputAttributeDescription {
                 binding: INSTANCE_BUFFER_BIND_ID as _,
                 format: VkFormat_VK_FORMAT_R32G32B32A32_SFLOAT,
                 location: 7,
-                offset: ::std::mem::size_of::<f32>() as u32 * 12, //Matrix row 4
+                offset: unsafe {
+                    &(*(::std::ptr::null::<InstanceData>())).transform.w as *const _ as _
+                },
             },
             VkVertexInputAttributeDescription {
                 binding: INSTANCE_BUFFER_BIND_ID as _,

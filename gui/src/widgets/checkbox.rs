@@ -1,5 +1,5 @@
 use nrg_graphics::Renderer;
-use nrg_math::{const_vec2, Vector2};
+use nrg_math::Vector2;
 use nrg_platform::{Event, EventsRw};
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
@@ -8,8 +8,8 @@ use crate::{
     DEFAULT_WIDGET_SIZE,
 };
 
-pub const DEFAULT_CHECKBOX_SIZE: Vector2 =
-    const_vec2!([DEFAULT_WIDGET_HEIGHT as _, DEFAULT_WIDGET_HEIGHT as _]);
+pub const DEFAULT_CHECKBOX_SIZE: [f32; 2] =
+    [DEFAULT_WIDGET_HEIGHT as _, DEFAULT_WIDGET_HEIGHT as _];
 
 pub enum CheckboxEvent {
     Checked(Uid),
@@ -121,10 +121,10 @@ impl InternalWidget for Checkbox {
             return;
         }
 
-        let default_size = DEFAULT_CHECKBOX_SIZE * Screen::get_scale_factor();
-        self.size(default_size)
+        let default_size: Vector2 = DEFAULT_CHECKBOX_SIZE.into();
+        self.size(default_size * Screen::get_scale_factor())
             .fill_type(ContainerFillType::Horizontal)
-            .space_between_elements((DEFAULT_WIDGET_SIZE.x / 2. * Screen::get_scale_factor()) as _)
+            .space_between_elements((DEFAULT_WIDGET_SIZE[0] / 2. * Screen::get_scale_factor()) as _)
             .use_space_before_and_after(false)
             .style(WidgetStyle::Invisible);
 

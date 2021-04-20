@@ -15,7 +15,7 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             name: String::from("NRG"),
-            position: Vector2::ZERO,
+            position: Vector2::default_zero(),
             width: 1280,
             height: 720,
         }

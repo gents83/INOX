@@ -175,7 +175,7 @@ impl EditorUpdater {
 
             let draw_area = [
                 0.,
-                self.main_menu.get_size().y + DEFAULT_WIDGET_SIZE.y,
+                self.main_menu.get_size().y + DEFAULT_WIDGET_SIZE[1],
                 Screen::get_size().x as _,
                 Screen::get_size().y as _,
             ]

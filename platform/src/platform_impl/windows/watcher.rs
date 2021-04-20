@@ -1,17 +1,29 @@
-use std::{collections::HashMap, env, ffi::OsString, mem, path::{Path, PathBuf}, ptr, slice, sync::{Arc, Mutex, mpsc::{self, Receiver, Sender}}, thread};
 use std::os::windows::ffi::{OsStrExt, OsStringExt};
+use std::{
+    collections::HashMap,
+    env,
+    ffi::OsString,
+    mem,
+    path::{Path, PathBuf},
+    ptr, slice,
+    sync::{
+        mpsc::{self, Receiver, Sender},
+        Arc, Mutex,
+    },
+    thread,
+};
 
-use crate::{watcher::*, ctypes::*};
 use super::errors::*;
 use super::externs::*;
 use super::types::*;
+use crate::{ctypes::*, watcher::*};
 
 const BUFFER_SIZE: usize = 2048 * std::mem::size_of::<c_char>();
 const THREAD_WAIT_INTERVAL: u32 = 500;
 
 #[derive(Clone)]
 struct FolderData {
-    dir: PathBuf,          // directory that is being watched
+    dir: PathBuf, // directory that is being watched
     complete_sem: HANDLE,
 }
 
@@ -38,13 +50,13 @@ pub struct FileWatcherImpl {
     semaphore: HANDLE,
 }
 
-
 impl FileWatcherServer {
     fn start(event_fn: Arc<Mutex<dyn EventFn>>, semaphore: HANDLE) -> Sender<WatcherRequest> {
-        let (action_tx, action_rx): (Sender<WatcherRequest>, Receiver<WatcherRequest>) = mpsc::channel();
+        let (action_tx, action_rx): (Sender<WatcherRequest>, Receiver<WatcherRequest>) =
+            mpsc::channel();
         let wakeup_semaphore = semaphore as u64;
         thread::spawn(move || {
-            let server = FileWatcherServer{
+            let server = FileWatcherServer {
                 rx: action_rx,
                 event_fn,
                 semaphore: wakeup_semaphore as HANDLE,
@@ -55,24 +67,23 @@ impl FileWatcherServer {
         action_tx
     }
 
-    fn add_watch(&mut self, path:PathBuf) -> PathBuf {        
+    fn add_watch(&mut self, path: PathBuf) -> PathBuf {
         if !path.is_dir() && !path.is_file() {
-            eprintln!("Unable to create a FileWatcher on a p thatath is neither a folder or a file: {}", path.to_str().unwrap());
+            eprintln!(
+                "Unable to create a FileWatcher on a p thatath is neither a folder or a file: {}",
+                path.to_str().unwrap()
+            );
         }
-        let dir:PathBuf = if path.is_dir() {
+        let dir: PathBuf = if path.is_dir() {
             path.clone()
-        }
-        else {
+        } else {
             path.parent().unwrap().to_path_buf()
-        };    
-        let folder_name: Vec<u16> = dir
-            .as_os_str()
-            .encode_wide()
-            .chain(Some(0))
-            .collect();    
-        let handle:HANDLE = unsafe {
-            CreateFileW(folder_name.as_ptr(), 
-                FILE_LIST_DIRECTORY,    
+        };
+        let folder_name: Vec<u16> = dir.as_os_str().encode_wide().chain(Some(0)).collect();
+        let handle: HANDLE = unsafe {
+            CreateFileW(
+                folder_name.as_ptr(),
+                FILE_LIST_DIRECTORY,
                 FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
                 ptr::null_mut(),
                 OPEN_EXISTING,
@@ -80,15 +91,21 @@ impl FileWatcherServer {
                 ptr::null_mut(),
             )
         };
-         
+
         if handle == INVALID_HANDLE_VALUE {
-            eprintln!("Path {} cannot be opened or not found", dir.to_str().unwrap());
+            eprintln!(
+                "Path {} cannot be opened or not found",
+                dir.to_str().unwrap()
+            );
             return dir;
         }
 
         let semaphore = unsafe { CreateSemaphoreW(ptr::null_mut(), 0, 1, ptr::null_mut()) };
         if semaphore.is_null() || semaphore == INVALID_HANDLE_VALUE {
-            eprintln!("Failed to create a semaphore for file watcher on Path {}", dir.to_str().unwrap());
+            eprintln!(
+                "Failed to create a semaphore for file watcher on Path {}",
+                dir.to_str().unwrap()
+            );
             unsafe { CloseHandle(handle) };
             return dir;
         }
@@ -104,7 +121,7 @@ impl FileWatcherServer {
         process_folder(&folder, self.event_fn.clone(), handle);
         path
     }
-    
+
     fn remove_watch(&mut self, path: PathBuf) {
         if let Some(ws) = self.watches.remove(&path) {
             stop_watch(&ws);
@@ -146,16 +163,16 @@ impl FileWatcherServer {
     }
 }
 
-
-
 impl FileWatcherImpl {
-    pub fn new<F: EventFn>(event_func: F) -> Result<Self> {          
-        let event_fn = Arc::new(Mutex::new(event_func));     
-        
+    pub fn new<F: EventFn>(event_func: F) -> Result<Self> {
+        let event_fn = Arc::new(Mutex::new(event_func));
+
         let semaphore = unsafe { CreateSemaphoreW(ptr::null_mut(), 0, 1, ptr::null_mut()) };
         if semaphore.is_null() || semaphore == INVALID_HANDLE_VALUE {
             eprintln!("Failed to create a semaphore for file watcher");
-            return Err(String::from("Failed to create a semaphore for file watcher"));
+            return Err(String::from(
+                "Failed to create a semaphore for file watcher",
+            ));
         }
 
         Ok(Self {
@@ -164,7 +181,7 @@ impl FileWatcherImpl {
         })
     }
 
-    pub fn watch(&mut self, path: &Path) {        
+    pub fn watch(&mut self, path: &Path) {
         let pb = self.get_absolute_path(path);
         self.send_action_require_ack(WatcherRequest::Watch(pb));
     }
@@ -175,7 +192,7 @@ impl FileWatcherImpl {
         self.wakeup_server();
     }
 
-    fn get_absolute_path(&self, path: &Path) -> PathBuf {        
+    fn get_absolute_path(&self, path: &Path) -> PathBuf {
         let pb = if path.is_absolute() {
             path.to_owned()
         } else {
@@ -183,11 +200,14 @@ impl FileWatcherImpl {
             p.join(path)
         };
         if !pb.is_dir() && !pb.is_file() {
-            eprintln!("Requesting to watch a path that is neither a file nor a directory {}", path.to_str().unwrap());
+            eprintln!(
+                "Requesting to watch a path that is neither a file nor a directory {}",
+                path.to_str().unwrap()
+            );
         }
         pb
     }
-    
+
     fn wakeup_server(&mut self) {
         unsafe {
             ReleaseSemaphore(self.semaphore, 1, ptr::null_mut());
@@ -211,8 +231,6 @@ impl Drop for FileWatcherImpl {
 unsafe impl Send for FileWatcherImpl {}
 unsafe impl Sync for FileWatcherImpl {}
 
-
-
 fn stop_watch(ws: &WatchHandles) {
     unsafe {
         let cio = CancelIo(ws.dir_handle);
@@ -232,7 +250,7 @@ fn process_folder(folder: &FolderData, event_fn: Arc<Mutex<dyn EventFn>>, handle
         buffer: [0u8; BUFFER_SIZE as usize],
         data: folder.clone(),
     });
-        
+
     let flags = FILE_NOTIFY_CHANGE_FILE_NAME
         | FILE_NOTIFY_CHANGE_DIR_NAME
         | FILE_NOTIFY_CHANGE_ATTRIBUTES
@@ -240,33 +258,36 @@ fn process_folder(folder: &FolderData, event_fn: Arc<Mutex<dyn EventFn>>, handle
         | FILE_NOTIFY_CHANGE_LAST_WRITE
         | FILE_NOTIFY_CHANGE_CREATION
         | FILE_NOTIFY_CHANGE_SECURITY;
-        
+
     let mut overlapped: Box<OVERLAPPED> = unsafe { Box::new(mem::zeroed()) };
     let req_buf = request.buffer.as_mut_ptr() as *mut c_void;
     let request_p = Box::into_raw(request) as *mut c_void;
     overlapped.hEvent = request_p;
 
-    let res = unsafe { ReadDirectoryChangesW(
-        handle,
-        req_buf,
-        BUFFER_SIZE as _,
-        TRUE,
-        flags,
-        &mut 0u32 as *mut u32,
-        &mut *overlapped as *mut OVERLAPPED,
-        Some(handle_event),
-    )};
-    
+    let res = unsafe {
+        ReadDirectoryChangesW(
+            handle,
+            req_buf,
+            BUFFER_SIZE as _,
+            TRUE,
+            flags,
+            &mut 0u32 as *mut u32,
+            &mut *overlapped as *mut OVERLAPPED,
+            Some(handle_event),
+        )
+    };
+
     if res == 0 {
         let request: Box<WatchRequest> = unsafe { mem::transmute(request_p) };
-        eprintln!("Failed to create file watcher on Path {}", request.data.dir.to_str().unwrap());
+        eprintln!(
+            "Failed to create file watcher on Path {}",
+            request.data.dir.to_str().unwrap()
+        );
         unsafe { ReleaseSemaphore(request.data.complete_sem, 1, ptr::null_mut()) };
-    }
-    else {
+    } else {
         mem::forget(overlapped);
     }
 }
-
 
 fn send_event(event_fn: &Mutex<dyn EventFn>, event_type: FileEvent) {
     if let Ok(guard) = event_fn.lock() {
@@ -275,7 +296,11 @@ fn send_event(event_fn: &Mutex<dyn EventFn>, event_type: FileEvent) {
     }
 }
 
-unsafe extern "system" fn handle_event(error_code: u32,_bytes_written: u32, overlapped: LPOVERLAPPED) {
+unsafe extern "system" fn handle_event(
+    error_code: u32,
+    _bytes_written: u32,
+    overlapped: LPOVERLAPPED,
+) {
     let overlapped: Box<OVERLAPPED> = Box::from_raw(overlapped);
     let request: Box<WatchRequest> = Box::from_raw(overlapped.hEvent as *mut _);
 
@@ -287,33 +312,39 @@ unsafe extern "system" fn handle_event(error_code: u32,_bytes_written: u32, over
     process_folder(&request.data, request.event_fn.clone(), request.handle);
 
     let mut cur_offset: *const u8 = request.buffer.as_ptr();
-    let mut cur_entry = cur_offset as *const FILE_NOTIFY_INFORMATION;    
+    let mut cur_entry = cur_offset as *const FILE_NOTIFY_INFORMATION;
     loop {
-        let encoded_path: &[u16] = slice::from_raw_parts((*cur_entry).FileName.as_ptr(), (*cur_entry).FileNameLength as usize / 2);
-        let path = request.data.dir.join(PathBuf::from(OsString::from_wide(encoded_path)));
+        let encoded_path: &[u16] = slice::from_raw_parts(
+            (*cur_entry).FileName.as_ptr(),
+            (*cur_entry).FileNameLength as usize / 2,
+        );
+        let path = request
+            .data
+            .dir
+            .join(PathBuf::from(OsString::from_wide(encoded_path)));
         let event_fn = |res| send_event(&request.event_fn, res);
-        
+
         let action = (*cur_entry).Action;
         if action == FILE_ACTION_RENAMED_OLD_NAME {
             event_fn(FileEvent::RenamedFrom(path));
         } else {
             match action {
                 FILE_ACTION_RENAMED_NEW_NAME => {
-                    event_fn(FileEvent::RenamedTo(path));                        
+                    event_fn(FileEvent::RenamedTo(path));
                 }
                 FILE_ACTION_ADDED => {
-                    event_fn(FileEvent::Created(path));                                
+                    event_fn(FileEvent::Created(path));
                 }
                 FILE_ACTION_REMOVED => {
-                    event_fn(FileEvent::Deleted(path));        
+                    event_fn(FileEvent::Deleted(path));
                 }
                 FILE_ACTION_MODIFIED => {
-                    event_fn(FileEvent::Modified(path));        
+                    event_fn(FileEvent::Modified(path));
                 }
                 _ => (),
             };
-        }            
-        
+        }
+
         if (*cur_entry).NextEntryOffset == 0 {
             break;
         }

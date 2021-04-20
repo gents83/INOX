@@ -1,12 +1,12 @@
 use nrg_graphics::{FontId, MaterialId, MeshData, Renderer, INVALID_ID};
-use nrg_math::{const_vec2, Vector2, Vector4};
+use nrg_math::{VecBase, Vector2, Vector4};
 use nrg_platform::{Event, EventsRw, MouseEvent, MouseState};
 use nrg_serialize::{Deserialize, Serialize, Uid};
 
 use crate::{implement_widget, InternalWidget, WidgetData, DEFAULT_WIDGET_HEIGHT};
 
-pub const DEFAULT_TEXT_SIZE: Vector2 =
-    const_vec2!([DEFAULT_WIDGET_HEIGHT * 20., DEFAULT_WIDGET_HEIGHT / 5. * 4.]);
+pub const DEFAULT_TEXT_SIZE: [f32; 2] =
+    [DEFAULT_WIDGET_HEIGHT * 20., DEFAULT_WIDGET_HEIGHT / 5. * 4.];
 
 pub enum TextEvent {
     AddChar(Uid, i32, char),
@@ -81,7 +81,7 @@ impl Text {
         if index >= 0 && index < self.text.len() as _ {
             return self.characters[index as usize].min;
         }
-        Vector2::ZERO
+        Vector2::default_zero()
     }
     pub fn get_char_at(&self, index: i32) -> Option<char> {
         if index >= 0 && index < self.text.len() as _ {
@@ -228,7 +228,8 @@ impl InternalWidget for Text {
             return;
         }
 
-        self.size(DEFAULT_TEXT_SIZE * Screen::get_scale_factor())
+        let size: Vector2 = DEFAULT_TEXT_SIZE.into();
+        self.size(size * Screen::get_scale_factor())
             .selectable(false)
             .style(WidgetStyle::DefaultText);
     }

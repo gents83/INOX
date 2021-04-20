@@ -1,5 +1,5 @@
 use nrg_graphics::Renderer;
-use nrg_math::{const_vec2, Vector2};
+use nrg_math::Vector2;
 use nrg_platform::EventsRw;
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
@@ -8,7 +8,7 @@ use crate::{
 };
 
 pub const DEFAULT_BUTTON_WIDTH: f32 = DEFAULT_WIDGET_HEIGHT * 20.;
-pub const DEFAULT_BUTTON_SIZE: Vector2 = const_vec2!([DEFAULT_BUTTON_WIDTH, DEFAULT_WIDGET_HEIGHT]);
+pub const DEFAULT_BUTTON_SIZE: [f32; 2] = [DEFAULT_BUTTON_WIDTH, DEFAULT_WIDGET_HEIGHT];
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]
@@ -56,10 +56,10 @@ impl InternalWidget for Button {
         if self.is_initialized() {
             return;
         }
-
-        self.size(DEFAULT_BUTTON_SIZE * Screen::get_scale_factor())
+        let size: Vector2 = DEFAULT_BUTTON_SIZE.into();
+        self.size(size * Screen::get_scale_factor())
             .fill_type(ContainerFillType::Horizontal)
-            .space_between_elements((DEFAULT_WIDGET_SIZE.x / 5. * Screen::get_scale_factor()) as _)
+            .space_between_elements((DEFAULT_WIDGET_SIZE[0] / 5. * Screen::get_scale_factor()) as _)
             .use_space_before_and_after(true);
 
         let mut text = Text::default();

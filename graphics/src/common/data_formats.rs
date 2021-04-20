@@ -22,7 +22,7 @@ pub struct InstanceData {
 impl Default for InstanceData {
     fn default() -> Self {
         Self {
-            transform: Matrix4::IDENTITY,
+            transform: Matrix4::default_identity(),
             diffuse_texture_index: 0,
             diffuse_layer_index: 0,
         }
@@ -124,7 +124,7 @@ pub struct MeshData {
 impl Default for MeshData {
     fn default() -> Self {
         Self {
-            center: Vector3::ZERO,
+            center: Vector3::default_zero(),
             vertices: Vec::new(),
             indices: Vec::new(),
             is_transient: false,

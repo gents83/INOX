@@ -181,7 +181,7 @@ impl Renderer {
                 .push(MeshInstance {
                     id: mesh_id,
                     mesh: mesh_data.clone(),
-                    transform: Matrix4::IDENTITY,
+                    transform: Matrix4::default_identity(),
                 });
             return mesh_id;
         }
@@ -234,7 +234,7 @@ impl Renderer {
                 material_instance.meshes.push(MeshInstance {
                     id: mesh_id,
                     mesh: mesh_data,
-                    transform: Matrix4::IDENTITY,
+                    transform: Matrix4::default_identity(),
                 });
                 return mesh_id;
             }
@@ -383,7 +383,7 @@ impl Renderer {
                     pipeline.begin(instance_commands, instance_data);
                 }
 
-                pipeline.update_uniform_buffer(Vector3::default());
+                pipeline.update_uniform_buffer([0., 0., 800.].into());
                 self.texture_handler.update_descriptor_sets(&pipeline);
                 pipeline.bind_descriptors();
 

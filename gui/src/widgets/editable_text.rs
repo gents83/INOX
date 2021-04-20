@@ -1,6 +1,7 @@
 use nrg_commands::ExecuteCommand;
 use nrg_graphics::Renderer;
 
+use nrg_math::Vector2;
 use nrg_platform::{
     EventsRw, InputState, Key, KeyEvent, KeyTextEvent, MouseButton, MouseEvent, MouseState,
 };
@@ -231,9 +232,9 @@ impl InternalWidget for EditableText {
             return;
         }
 
-        let default_size = DEFAULT_TEXT_SIZE * Screen::get_scale_factor();
+        let default_size: Vector2 = DEFAULT_TEXT_SIZE.into();
 
-        self.size(default_size)
+        self.size(default_size * Screen::get_scale_factor())
             .horizontal_alignment(HorizontalAlignment::Right);
 
         let mut text = Text::default();

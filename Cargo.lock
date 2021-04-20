@@ -31,6 +31,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "approx"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3f2a05fd1bd10b2527e20a2cd32d8873d115b8b39fe219ee25f42a8aca6ba278"
+dependencies = [
+ "num-traits",
+]
+
+[[package]]
 name = "atty"
 version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -101,6 +110,16 @@ name = "cfg-if"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
+
+[[package]]
+name = "cgmath"
+version = "0.18.0"
+source = "git+https://github.com/rustgd/cgmath#3e93bac9f58c7e2b4089cd9fd0a09c7395100fda"
+dependencies = [
+ "approx",
+ "num-traits",
+ "serde",
+]
 
 [[package]]
 name = "clang-sys"
@@ -278,15 +297,6 @@ checksum = "02efba560f227847cb41463a7395c514d127d4f74fff12ef0137fff1b84b96c4"
 dependencies = [
  "color_quant",
  "weezl",
-]
-
-[[package]]
-name = "glam"
-version = "0.14.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "333928d5eb103c5d4050533cec0384302db6be8ef7d3cebd30ec6a35350353da"
-dependencies = [
- "serde",
 ]
 
 [[package]]
@@ -543,7 +553,7 @@ dependencies = [
 name = "nrg_math"
 version = "0.1.0"
 dependencies = [
- "glam",
+ "cgmath",
  "nrg_serialize",
 ]
 

@@ -1,5 +1,5 @@
 use nrg_graphics::Renderer;
-use nrg_math::{const_vec2, Vector2, Vector4};
+use nrg_math::{VecBase, Vector2, Vector4};
 use nrg_platform::{EventsRw, MouseEvent, MouseState};
 use nrg_serialize::{typetag, Uid};
 
@@ -9,9 +9,9 @@ use crate::{
 };
 
 pub const DEFAULT_LAYER_OFFSET: f32 = 0.01;
+pub const DEFAULT_WIDGET_WIDTH: f32 = 12.;
 pub const DEFAULT_WIDGET_HEIGHT: f32 = 12.;
-pub const DEFAULT_WIDGET_SIZE: Vector2 =
-    const_vec2!([DEFAULT_WIDGET_HEIGHT, DEFAULT_WIDGET_HEIGHT]);
+pub const DEFAULT_WIDGET_SIZE: [f32; 2] = [DEFAULT_WIDGET_WIDTH, DEFAULT_WIDGET_HEIGHT];
 
 #[typetag::serde(tag = "widget")]
 pub trait Widget: BaseWidget + InternalWidget + Send + Sync {}
@@ -97,7 +97,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
             let data = self.get_data_mut();
             let old_screen_scale = Screen::convert_size_from_pixels(data.state.get_size());
             let screen_size = Screen::convert_size_from_pixels(size_in_px);
-            let scale = screen_size / old_screen_scale;
+            let scale = screen_size.div(old_screen_scale);
             data.state.set_size(size_in_px);
             let pos = Screen::convert_from_pixels_into_screen_space(data.state.get_position());
             data.graphics.translate(-pos);
@@ -228,7 +228,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         let clip_min: Vector2 = [clip_rect.x, clip_rect.y].into();
         let clip_max: Vector2 = [clip_rect.z, clip_rect.w].into();
 
-        let mut pos = Vector2::ZERO;
+        let mut pos = Vector2::default_zero();
         pos.x = state.get_position().x as _;
         pos.y = state.get_position().y as _;
         let size = state.get_size();
