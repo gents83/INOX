@@ -133,7 +133,7 @@ impl Menu {
         if !is_hover {
             if let Some(index) = self.entries_uid.iter().position(|el| *el == entry_uid) {
                 let item = &self.entries[index];
-                if item.opened && item.submenu.is_hover_recursive() {
+                if item.opened && item.submenu.is_hover() {
                     is_hover = true;
                 }
             }
@@ -141,16 +141,14 @@ impl Menu {
         is_hover
     }
     fn manage_hovering(&mut self) {
-        if self.is_submenu_opened() {
-            let count = self.entries.len();
-            for i in 0..count {
-                if self.entries[i].opened {
-                    let entry_uid = self.entries_uid[i];
-                    if !self.is_hovering_entry(entry_uid) {
-                        let item = &mut self.entries[i];
-                        item.opened = false;
-                        item.submenu.visible(item.opened);
-                    }
+        let count = self.entries.len();
+        for i in 0..count {
+            if self.entries[i].opened {
+                let entry_uid = self.entries_uid[i];
+                if !self.is_hovering_entry(entry_uid) {
+                    let item = &mut self.entries[i];
+                    item.opened = false;
+                    item.submenu.visible(item.opened);
                 }
             }
         }

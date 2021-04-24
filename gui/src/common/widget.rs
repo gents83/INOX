@@ -266,8 +266,6 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
                         let data = self.get_data_mut();
                         if *widget_id == id && data.state.is_selectable() {
                             data.state.set_hover(true);
-                        } else {
-                            data.state.set_hover(false);
                         }
                     }
                     WidgetEvent::Exiting(widget_id) => {
@@ -378,13 +376,10 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         });
     }
     fn is_hover(&self) -> bool {
-        self.get_data().state.is_hover()
-    }
-    fn is_hover_recursive(&self) -> bool {
         let mut is_hover = self.get_data().state.is_hover();
         if !is_hover {
             self.get_data().node.propagate_on_children(|w| {
-                if w.is_hover_recursive() {
+                if w.is_hover() {
                     is_hover = true;
                 }
             });
