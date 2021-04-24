@@ -79,11 +79,13 @@ pub struct TextureHandler {
 
 impl TextureHandler {
     pub fn create(device: &Device) -> Self {
-        Self {
+        let mut texture_handler = Self {
             device: device.clone(),
             layered_textures: vec![LayeredTexture::create(device)],
             textures: Vec::new(),
-        }
+        };
+        texture_handler.add_empty();
+        texture_handler
     }
 
     pub fn get_texture(&self, index: usize) -> &Texture {

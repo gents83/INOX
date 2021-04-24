@@ -641,7 +641,15 @@ impl DeviceImmutable {
         };
 
         unsafe {
-            vkQueueSubmit.unwrap()(self.graphics_queue, 1, &submit_info, ::std::ptr::null_mut());
+            assert_eq!(
+                VkResult_VK_SUCCESS,
+                vkQueueSubmit.unwrap()(
+                    self.graphics_queue,
+                    1,
+                    &submit_info,
+                    ::std::ptr::null_mut()
+                )
+            );
 
             vkQueueWaitIdle.unwrap()(self.graphics_queue);
 

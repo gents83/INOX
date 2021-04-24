@@ -1,8 +1,7 @@
 use nrg_graphics::{MaterialId, MeshData, MeshId, Renderer, INVALID_ID};
-use nrg_math::{MatBase, Matrix4, Transform, VecBase, Vector2, Vector4};
+use nrg_math::{MatBase, Matrix4, VecBase, Vector2, Vector4};
 use nrg_serialize::{Deserialize, Serialize};
 
-use crate::{Screen, DEFAULT_LAYER_OFFSET, DEFAULT_WIDGET_SIZE};
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]
 pub struct WidgetGraphics {
@@ -33,8 +32,8 @@ impl Default for WidgetGraphics {
             color: Vector4::default_zero(),
             border_color: Vector4::default_zero(),
             is_dirty: true,
-            stroke: 0.0,
-            layer: 1.0 - DEFAULT_LAYER_OFFSET,
+            stroke: 0.,
+            layer: 0.,
             transform: Matrix4::default_identity(),
         }
     }
@@ -45,16 +44,9 @@ impl WidgetGraphics {
         let pipeline_id = renderer.get_pipeline_id(pipeline);
         self.material_id = renderer.add_material(pipeline_id);
 
-        let zero_px = Screen::convert_from_pixels_into_screen_space(Vector2::default_zero());
-        let one_px = Screen::convert_from_pixels_into_screen_space(DEFAULT_WIDGET_SIZE.into());
-
         let mut mesh_data = MeshData::default();
-        mesh_data.add_quad_default(
-            [zero_px.x, zero_px.y, one_px.x, one_px.y].into(),
-            1.0 - DEFAULT_LAYER_OFFSET,
-        );
-        self.set_mesh_data(mesh_data);
-
+        mesh_data.add_quad_default([0., 0., 1., 1.].into(), 0.);
+        self.set_mesh_data(renderer, mesh_data);
         self
     }
     pub fn link_to_material(&mut self, material_id: MaterialId) -> &mut Self {
@@ -89,29 +81,28 @@ impl WidgetGraphics {
     pub fn get_mesh_data(&mut self) -> &mut MeshData {
         &mut self.mesh_data
     }
-    pub fn set_mesh_data(&mut self, mesh_data: MeshData) -> &mut Self {
+    pub fn set_mesh_data(&mut self, renderer: &mut Renderer, mesh_data: MeshData) -> &mut Self {
+        self.remove_meshes(renderer);
         self.mesh_data = mesh_data;
         self.is_dirty = true;
         self
     }
-    pub fn translate(&mut self, offset: Vector2) -> &mut Self {
-        self.transform = self
-            .transform
-            .concat(&Matrix4::from_translation([offset.x, offset.y, 0.].into()));
+    pub fn set_position(&mut self, pos_in_px: Vector2) -> &mut Self {
+        self.transform.w[0] = pos_in_px.x;
+        self.transform.w[1] = pos_in_px.y;
         self.is_dirty = true;
         self
     }
-    pub fn scale(&mut self, scale: Vector2) -> &mut Self {
-        self.transform = self
-            .transform
-            .concat(&Matrix4::from_nonuniform_scale(scale.x, scale.y, 1.));
+    pub fn set_size(&mut self, scale: Vector2) -> &mut Self {
+        let pos_in_px: Vector2 = [self.transform.w[0], self.transform.w[1]].into();
+        self.transform = Matrix4::from_nonuniform_scale(scale.x, scale.y, 1.);
+        self.transform.w[0] = pos_in_px.x;
+        self.transform.w[1] = pos_in_px.y;
         self.is_dirty = true;
         self
     }
     pub fn move_to_layer(&mut self, layer: f32) -> &mut Self {
-        self.transform = self
-            .transform
-            .concat(&Matrix4::from_translation([0.0, 0.0, layer].into()));
+        self.transform.w[2] = layer;
         self.is_dirty = true;
         self
     }
@@ -136,19 +127,14 @@ impl WidgetGraphics {
         self.stroke = stroke;
         self
     }
-    pub fn is_inside(&self, pos_in_px: Vector2) -> bool {
-        let pos_in_screen_space = Screen::convert_from_pixels_into_screen_space(pos_in_px);
-        self.mesh_data.is_inside(pos_in_screen_space)
-    }
 
     pub fn update(&mut self, renderer: &mut Renderer, is_visible: bool) -> &mut Self {
         if is_visible {
             if self.is_dirty && !self.mesh_data.vertices.is_empty() {
                 if self.mesh_id == INVALID_ID {
                     self.mesh_id = renderer.add_mesh(self.material_id, &self.mesh_data);
-                } else {
-                    renderer.update_mesh(self.material_id, self.mesh_id, &self.transform);
                 }
+                renderer.update_mesh(self.material_id, self.mesh_id, &self.transform);
                 self.is_dirty = false;
             }
         } else if self.mesh_id != INVALID_ID {

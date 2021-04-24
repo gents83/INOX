@@ -2,7 +2,7 @@ use super::physical_device::*;
 use super::types::*;
 use super::utils::*;
 use nrg_platform::Handle;
-use std::{cell::RefCell, os::raw::c_char, rc::Rc};
+use std::{cell::RefCell, ffi::CString, os::raw::c_char, rc::Rc};
 use vulkan_bindings::*;
 
 struct InstanceImmutable {
@@ -12,6 +12,7 @@ struct InstanceImmutable {
     instance: VkInstance,
     surface: VkSurfaceKHR,
     physical_device: PhysicalDevice,
+    debug_messenger: VkDebugUtilsMessengerEXT,
 }
 
 #[derive(Clone)]
@@ -93,6 +94,43 @@ impl InstanceImmutable {
         if physical_dev.is_none() {
             eprintln!("Unable to find a physical device that support Vulkan needed API");
         }
+
+        let mut debug_messenger: VkDebugUtilsMessengerEXT = ::std::ptr::null_mut();
+        unsafe {
+            let func_name = CString::new("vkCreateDebugUtilsMessengerEXT").unwrap();
+            let debug_create_opt_fn: PFN_vkCreateDebugUtilsMessengerEXT = ::std::mem::transmute(
+                vkGetInstanceProcAddr.unwrap()(inst, func_name.as_ptr() as _),
+            );
+            if let Some(debug_create_fn) = debug_create_opt_fn {
+                let severity_flags =
+                    VkDebugUtilsMessageSeverityFlagBitsEXT_VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT
+                | VkDebugUtilsMessageSeverityFlagBitsEXT_VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
+                | VkDebugUtilsMessageSeverityFlagBitsEXT_VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+                let message_type =
+                    VkDebugUtilsMessageTypeFlagBitsEXT_VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT
+                | VkDebugUtilsMessageTypeFlagBitsEXT_VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT
+                | VkDebugUtilsMessageTypeFlagBitsEXT_VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+                let debug_create_info = VkDebugUtilsMessengerCreateInfoEXT {
+                    sType: VkStructureType_VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
+                    pNext: ::std::ptr::null_mut(),
+                    flags: 0,
+                    messageSeverity: severity_flags as _,
+                    messageType: message_type as _,
+                    pfnUserCallback: Some(debug_callback),
+                    pUserData: ::std::ptr::null_mut(),
+                };
+
+                debug_create_fn(
+                    inst,
+                    &debug_create_info,
+                    ::std::ptr::null_mut(),
+                    &mut debug_messenger,
+                );
+            } else {
+                eprintln!("No support for Vulkan debug callback");
+            }
+        }
+
         InstanceImmutable {
             _lib: lib,
             supported_layers: available_layers,
@@ -100,15 +138,51 @@ impl InstanceImmutable {
             instance: inst,
             surface: surf,
             physical_device: physical_dev.unwrap(),
+            debug_messenger,
         }
     }
 
     pub fn delete(&self) {
         unsafe {
+            if self.debug_messenger != ::std::ptr::null_mut() {
+                let func_name = CString::new("vkDestroyDebugUtilsMessengerEXT").unwrap();
+                let debug_destroy_opt_fn: PFN_vkDestroyDebugUtilsMessengerEXT =
+                    ::std::mem::transmute(vkGetInstanceProcAddr.unwrap()(
+                        self.instance,
+                        func_name.as_ptr() as _,
+                    ));
+                if let Some(debug_destroy_fn) = debug_destroy_opt_fn {
+                    debug_destroy_fn(self.instance, self.debug_messenger, ::std::ptr::null_mut());
+                }
+            }
             vkDestroySurfaceKHR.unwrap()(self.instance, self.surface, ::std::ptr::null_mut());
             vkDestroyInstance.unwrap()(self.instance, ::std::ptr::null_mut());
         }
     }
+}
+extern "C" fn debug_callback(
+    message_severity: VkDebugUtilsMessageSeverityFlagBitsEXT,
+    _message_types: VkDebugUtilsMessageTypeFlagsEXT,
+    p_callback_data: *const VkDebugUtilsMessengerCallbackDataEXT,
+    _p_user_data: *mut ::std::os::raw::c_void,
+) -> VkBool32 {
+    if message_severity
+        < VkDebugUtilsMessageSeverityFlagBitsEXT_VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
+    {
+    } else {
+        if message_severity >= VkDebugUtilsMessageSeverityFlagBitsEXT_VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT
+        {
+            eprintln!("VK Validation Layer ERROR:");
+        } else if message_severity >= VkDebugUtilsMessageSeverityFlagBitsEXT_VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
+        {
+            eprintln!("VK Validation Layer WARNING:");
+        }
+        unsafe {
+            let str = std::ffi::CStr::from_ptr((*p_callback_data).pMessage);
+            eprintln!("{}", std::str::from_utf8_unchecked(str.to_bytes()));
+        }
+    }
+    VK_FALSE
 }
 
 fn create_instance(

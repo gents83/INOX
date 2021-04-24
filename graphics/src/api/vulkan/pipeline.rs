@@ -690,6 +690,11 @@ impl PipelineImmutable {
     }
 
     pub fn update_descriptor_sets(&self, device: &Device, textures: &[&Texture]) {
+        debug_assert!(
+            !textures.is_empty(),
+            "At least one texture should be received"
+        );
+
         let image_index = device.get_current_buffer_index();
 
         let mut descriptor_write: Vec<VkWriteDescriptorSet> = Vec::new();

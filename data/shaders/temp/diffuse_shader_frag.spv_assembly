@@ -1,7 +1,7 @@
 ; SPIR-V
 ; Version: 1.0
 ; Generator: Google Shaderc over Glslang; 10
-; Bound: 39
+; Bound: 57
 ; Schema: 0
                OpCapability Shader
           %1 = OpExtInstImport "GLSL.std.450"
@@ -12,57 +12,81 @@
                OpSourceExtension "GL_GOOGLE_cpp_style_line_directive"
                OpSourceExtension "GL_GOOGLE_include_directive"
                OpName %main "main"
+               OpName %fragTexCoord "fragTexCoord"
                OpName %texColor "texColor"
                OpName %texSamplerArray "texSamplerArray"
-               OpName %fragTexCoord "fragTexCoord"
                OpName %outColor "outColor"
                OpName %fragColor "fragColor"
+               OpDecorate %fragTexCoord Location 1
                OpDecorate %texSamplerArray DescriptorSet 0
                OpDecorate %texSamplerArray Binding 1
-               OpDecorate %fragTexCoord Location 1
                OpDecorate %outColor Location 0
                OpDecorate %fragColor Location 0
        %void = OpTypeVoid
           %3 = OpTypeFunction %void
       %float = OpTypeFloat 32
-    %v4float = OpTypeVector %float 4
-%_ptr_Function_v4float = OpTypePointer Function %v4float
-         %10 = OpTypeImage %float 2D 0 1 0 1 Unknown
-         %11 = OpTypeSampledImage %10
-%_ptr_UniformConstant_11 = OpTypePointer UniformConstant %11
-%texSamplerArray = OpVariable %_ptr_UniformConstant_11 UniformConstant
     %v3float = OpTypeVector %float 3
 %_ptr_Input_v3float = OpTypePointer Input %v3float
 %fragTexCoord = OpVariable %_ptr_Input_v3float Input
        %uint = OpTypeInt 32 0
+     %uint_2 = OpConstant %uint 2
+%_ptr_Input_float = OpTypePointer Input %float
+    %float_0 = OpConstant %float 0
+       %bool = OpTypeBool
+    %v4float = OpTypeVector %float 4
+%_ptr_Function_v4float = OpTypePointer Function %v4float
+         %23 = OpTypeImage %float 2D 0 1 0 1 Unknown
+         %24 = OpTypeSampledImage %23
+%_ptr_UniformConstant_24 = OpTypePointer UniformConstant %24
+%texSamplerArray = OpVariable %_ptr_UniformConstant_24 UniformConstant
      %uint_3 = OpConstant %uint 3
 %_ptr_Function_float = OpTypePointer Function %float
   %float_0_5 = OpConstant %float 0.5
-       %bool = OpTypeBool
 %_ptr_Output_v4float = OpTypePointer Output %v4float
    %outColor = OpVariable %_ptr_Output_v4float Output
 %_ptr_Input_v4float = OpTypePointer Input %v4float
   %fragColor = OpVariable %_ptr_Input_v4float Input
+%_ptr_Output_float = OpTypePointer Output %float
        %main = OpFunction %void None %3
           %5 = OpLabel
    %texColor = OpVariable %_ptr_Function_v4float Function
-         %14 = OpLoad %11 %texSamplerArray
-         %18 = OpLoad %v3float %fragTexCoord
-         %19 = OpImageSampleImplicitLod %v4float %14 %18
-               OpStore %texColor %19
-         %23 = OpAccessChain %_ptr_Function_float %texColor %uint_3
-         %24 = OpLoad %float %23
-         %27 = OpFOrdLessThan %bool %24 %float_0_5
-               OpSelectionMerge %29 None
-               OpBranchConditional %27 %28 %31
-         %28 = OpLabel
+         %13 = OpAccessChain %_ptr_Input_float %fragTexCoord %uint_2
+         %14 = OpLoad %float %13
+         %17 = OpFOrdGreaterThanEqual %bool %14 %float_0
+               OpSelectionMerge %19 None
+               OpBranchConditional %17 %18 %55
+         %18 = OpLabel
+         %27 = OpLoad %24 %texSamplerArray
+         %28 = OpLoad %v3float %fragTexCoord
+         %29 = OpImageSampleImplicitLod %v4float %27 %28
+               OpStore %texColor %29
+         %32 = OpAccessChain %_ptr_Function_float %texColor %uint_3
+         %33 = OpLoad %float %32
+         %35 = OpFOrdGreaterThan %bool %33 %float_0_5
+               OpSelectionMerge %37 None
+               OpBranchConditional %35 %36 %53
+         %36 = OpLabel
+         %40 = OpLoad %v4float %texColor
+         %41 = OpVectorShuffle %v3float %40 %40 0 1 2
+         %44 = OpLoad %v4float %fragColor
+         %45 = OpVectorShuffle %v3float %44 %44 0 1 2
+         %46 = OpFMul %v3float %41 %45
+         %47 = OpLoad %v4float %outColor
+         %48 = OpVectorShuffle %v4float %47 %46 4 5 6 3
+               OpStore %outColor %48
+         %49 = OpAccessChain %_ptr_Input_float %fragColor %uint_3
+         %50 = OpLoad %float %49
+         %52 = OpAccessChain %_ptr_Output_float %outColor %uint_3
+               OpStore %52 %50
+               OpBranch %37
+         %53 = OpLabel
                OpKill
-         %31 = OpLabel
-         %36 = OpLoad %v4float %fragColor
-         %37 = OpLoad %v4float %texColor
-         %38 = OpFMul %v4float %36 %37
-               OpStore %outColor %38
-               OpBranch %29
-         %29 = OpLabel
+         %37 = OpLabel
+               OpBranch %19
+         %55 = OpLabel
+         %56 = OpLoad %v4float %fragColor
+               OpStore %outColor %56
+               OpBranch %19
+         %19 = OpLabel
                OpReturn
                OpFunctionEnd

@@ -85,24 +85,15 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
     fn set_position(&mut self, pos_in_px: Vector2) {
         if pos_in_px != self.get_data().state.get_position() {
             let data = self.get_data_mut();
-            let current_pos = data.state.get_position();
             data.state.set_position(pos_in_px);
-            let old_pos = Screen::convert_from_pixels_into_screen_space(current_pos);
-            let new_pos = Screen::convert_from_pixels_into_screen_space(pos_in_px);
-            data.graphics.translate(new_pos - old_pos);
+            data.graphics.set_position(pos_in_px);
         }
     }
     fn set_size(&mut self, size_in_px: Vector2) {
         if size_in_px != self.get_data().state.get_size() {
             let data = self.get_data_mut();
-            let old_screen_scale = Screen::convert_size_from_pixels(data.state.get_size());
-            let screen_size = Screen::convert_size_from_pixels(size_in_px);
-            let scale = screen_size.div(old_screen_scale);
             data.state.set_size(size_in_px);
-            let pos = Screen::convert_from_pixels_into_screen_space(data.state.get_position());
-            data.graphics.translate(-pos);
-            data.graphics.scale(scale);
-            data.graphics.translate(pos);
+            data.graphics.set_size(size_in_px);
         }
     }
 
@@ -321,7 +312,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         let id = self.id();
         let data = self.get_data_mut();
         let mouse_in_px: Vector2 = [event.x as _, event.y as _].into();
-        let is_inside = data.state.is_inside(mouse_in_px) /*&& data.graphics.is_inside(mouse_in_px)*/;
+        let is_inside = data.state.is_inside(mouse_in_px);
 
         if event.state == MouseState::Move {
             if is_inside && !data.state.is_hover() {
@@ -384,7 +375,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
     fn update_layers(&mut self) {
         let layer = self.get_data().graphics.get_layer();
         self.get_data_mut().node.propagate_on_children_mut(|w| {
-            w.move_to_layer(layer - DEFAULT_LAYER_OFFSET);
+            w.move_to_layer(layer + DEFAULT_LAYER_OFFSET);
             w.update_layers();
         });
     }
