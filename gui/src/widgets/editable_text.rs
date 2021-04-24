@@ -208,8 +208,7 @@ impl EditableText {
             }
             let pos = {
                 if current_char >= 0 {
-                    let pos_in_screen_space = text.get_char_pos(current_char);
-                    Screen::from_screen_space_into_pixels(pos_in_screen_space)
+                    text.get_char_pos(current_char)
                 } else {
                     text.get_data().state.get_position()
                 }

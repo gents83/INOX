@@ -5,11 +5,13 @@ use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{
     implement_widget, InternalWidget, Panel, Text, WidgetData, WidgetEvent, DEFAULT_WIDGET_HEIGHT,
-    DEFAULT_WIDGET_SIZE,
+    DEFAULT_WIDGET_SIZE, DEFAULT_WIDGET_WIDTH,
 };
 
-pub const DEFAULT_CHECKBOX_SIZE: [f32; 2] =
-    [DEFAULT_WIDGET_HEIGHT as _, DEFAULT_WIDGET_HEIGHT as _];
+pub const DEFAULT_CHECKBOX_SIZE: [f32; 2] = [
+    DEFAULT_WIDGET_WIDTH / 2. * 3.,
+    DEFAULT_WIDGET_HEIGHT / 2. * 3.,
+];
 
 pub enum CheckboxEvent {
     Checked(Uid),
@@ -133,6 +135,7 @@ impl InternalWidget for Checkbox {
         outer_widget
             .size(default_size)
             .selectable(true)
+            .vertical_alignment(VerticalAlignment::Center)
             .style(WidgetStyle::Default);
 
         let inner_size = default_size / 4. * 3.;

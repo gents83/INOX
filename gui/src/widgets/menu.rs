@@ -5,11 +5,11 @@ use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{
     implement_widget, Button, InternalWidget, WidgetData, WidgetEvent, DEFAULT_BUTTON_WIDTH,
-    DEFAULT_WIDGET_HEIGHT, DEFAULT_WIDGET_SIZE,
+    DEFAULT_WIDGET_HEIGHT, DEFAULT_WIDGET_SIZE, DEFAULT_WIDGET_WIDTH,
 };
 
 const DEFAULT_MENU_LAYER: f32 = 0.5;
-const DEFAULT_MENU_SIZE: [f32; 2] = [DEFAULT_WIDGET_HEIGHT * 10., DEFAULT_WIDGET_HEIGHT * 3. / 2.];
+const DEFAULT_MENU_SIZE: [f32; 2] = [DEFAULT_WIDGET_WIDTH * 10., DEFAULT_WIDGET_HEIGHT * 5. / 4.];
 const DEFAULT_MENU_ITEM_SIZE: [f32; 2] = [DEFAULT_BUTTON_WIDTH, DEFAULT_WIDGET_HEIGHT];
 const DEFAULT_SUBMENU_ITEM_SIZE: [f32; 2] = [DEFAULT_BUTTON_WIDTH * 5., DEFAULT_WIDGET_HEIGHT * 5.];
 
@@ -188,7 +188,7 @@ impl InternalWidget for Menu {
             .selectable(false)
             .vertical_alignment(VerticalAlignment::Top)
             .horizontal_alignment(HorizontalAlignment::Stretch)
-            .space_between_elements((DEFAULT_WIDGET_SIZE[0] * Screen::get_scale_factor()) as _)
+            .space_between_elements((DEFAULT_WIDGET_SIZE[0] / 2. * Screen::get_scale_factor()) as _)
             .fill_type(ContainerFillType::Horizontal)
             .use_space_before_and_after(false)
             .style(WidgetStyle::DefaultBorder);

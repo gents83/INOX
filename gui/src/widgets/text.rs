@@ -3,22 +3,18 @@ use nrg_math::{VecBase, Vector2, Vector4};
 use nrg_platform::{Event, EventsRw, MouseEvent, MouseState};
 use nrg_serialize::{Deserialize, Serialize, Uid};
 
-use crate::{implement_widget, InternalWidget, WidgetData, DEFAULT_WIDGET_HEIGHT};
+use crate::{
+    implement_widget, InternalWidget, WidgetData, DEFAULT_WIDGET_HEIGHT, DEFAULT_WIDGET_WIDTH,
+};
 
 pub const DEFAULT_TEXT_SIZE: [f32; 2] =
-    [DEFAULT_WIDGET_HEIGHT * 20., DEFAULT_WIDGET_HEIGHT / 5. * 4.];
+    [DEFAULT_WIDGET_WIDTH * 20., DEFAULT_WIDGET_HEIGHT / 4. * 3.];
 
 pub enum TextEvent {
     AddChar(Uid, i32, char),
     RemoveChar(Uid, i32, char),
 }
 impl Event for TextEvent {}
-
-#[derive(Debug, Clone, Copy)]
-pub struct TextChar {
-    pub min: Vector2,
-    pub max: Vector2,
-}
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]
@@ -30,9 +26,9 @@ pub struct Text {
     text: String,
     multiline: bool,
     #[serde(skip)]
-    characters: Vec<TextChar>,
-    #[serde(skip)]
     hover_char_index: i32,
+    #[serde(skip)]
+    char_width: u32,
     #[serde(skip)]
     is_dirty: bool,
     data: WidgetData,
@@ -46,8 +42,8 @@ impl Default for Text {
             material_id: INVALID_ID,
             text: String::new(),
             multiline: false,
-            characters: Vec::new(),
             hover_char_index: -1,
+            char_width: 0,
             is_dirty: true,
             data: WidgetData::default(),
         }
@@ -79,7 +75,8 @@ impl Text {
     }
     pub fn get_char_pos(&self, index: i32) -> Vector2 {
         if index >= 0 && index < self.text.len() as _ {
-            return self.characters[index as usize].min;
+            let pos = self.get_data().state.get_position();
+            return [pos.x + self.char_width as f32 * (index as f32 + 1.), pos.y].into();
         }
         Vector2::default_zero()
     }
@@ -112,15 +109,19 @@ impl Text {
             for event in mouse_events.iter_mut() {
                 if event.state == MouseState::Move {
                     let mouse_pos = Vector2::new(event.x as _, event.y as _);
-                    let mouse_pos = Screen::from_normalized_into_screen_space(mouse_pos);
-
-                    for (i, c) in self.characters.iter().enumerate() {
-                        if mouse_pos.x >= c.min.x
-                            && mouse_pos.x <= c.max.x
-                            && mouse_pos.y >= c.min.y
-                            && mouse_pos.y <= c.max.y
-                        {
-                            self.hover_char_index = 1 + i as i32;
+                    let pos = self.get_data().state.get_position();
+                    let size = self.get_data().state.get_size();
+                    let count = self.text.lines().count();
+                    let line_height = size.y / count as f32;
+                    for (line_index, t) in self.text.lines().enumerate() {
+                        for (i, _c) in t.as_bytes().iter().enumerate() {
+                            if mouse_pos.x >= pos.x + self.char_width as f32 * i as f32
+                                && mouse_pos.x <= pos.x + self.char_width as f32 * (i as f32 + 1.)
+                                && mouse_pos.y >= pos.y + line_height * line_index as f32
+                                && mouse_pos.y <= pos.y + size.y + line_height * line_index as f32
+                            {
+                                self.hover_char_index = 1 + i as i32;
+                            }
                         }
                     }
                 }
@@ -181,8 +182,6 @@ impl Text {
         let mut mesh_data = MeshData::default();
         let mut pos_y = 0.;
         let mut mesh_index = 0;
-        let mut characters: Vec<TextChar> = Vec::new();
-
         let char_width = new_size.y / new_size.x;
         let char_height = 1.;
         for text in self.text.lines() {
@@ -200,14 +199,10 @@ impl Text {
                     .set_vertex_color(char_color);
                 mesh_index += 4;
                 pos_x += char_width;
-                characters.push(TextChar {
-                    min: [pos_x, pos_y].into(),
-                    max: [pos_x + char_width, pos_y + char_height].into(),
-                });
             }
             pos_y += char_height;
         }
-        self.characters = characters;
+        self.char_width = char_size as _;
         self.set_size(new_size);
 
         self.get_data_mut()

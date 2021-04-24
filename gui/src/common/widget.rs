@@ -361,8 +361,8 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
     }
 
     fn update_layout(&mut self) {
-        self.compute_offset_and_scale_from_alignment();
         self.apply_fit_to_content();
+        self.compute_offset_and_scale_from_alignment();
 
         self.clip_in_area();
         self.update_layers();

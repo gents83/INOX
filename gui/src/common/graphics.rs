@@ -18,7 +18,6 @@ pub struct WidgetGraphics {
     #[serde(skip)]
     is_dirty: bool,
     stroke: f32,
-    layer: f32,
     #[serde(skip, default = "nrg_math::MatBase::default_identity")]
     transform: Matrix4,
 }
@@ -33,7 +32,6 @@ impl Default for WidgetGraphics {
             border_color: Vector4::default_zero(),
             is_dirty: true,
             stroke: 0.,
-            layer: 0.,
             transform: Matrix4::default_identity(),
         }
     }
@@ -65,15 +63,6 @@ impl WidgetGraphics {
         self.is_dirty = true;
         self
     }
-    pub fn get_layer(&self) -> f32 {
-        self.layer
-    }
-    pub fn set_layer(&mut self, layer: f32) -> &mut Self {
-        self.transform.w[2] = layer;
-        self.layer = layer;
-        self.is_dirty = true;
-        self
-    }
     pub fn get_stroke(&self) -> f32 {
         self.stroke
     }
@@ -86,24 +75,42 @@ impl WidgetGraphics {
         self.is_dirty = true;
         self
     }
+    pub fn get_layer(&self) -> f32 {
+        self.transform.w[2]
+    }
+    pub fn set_layer(&mut self, layer: f32) -> &mut Self {
+        if (self.transform.w[2] - layer).abs() >= f32::EPSILON {
+            self.transform.w[2] = layer;
+            self.is_dirty = true;
+        }
+        self
+    }
     pub fn set_position(&mut self, pos_in_px: Vector2) -> &mut Self {
-        self.transform.w[0] = pos_in_px.x;
-        self.transform.w[1] = pos_in_px.y;
-        self.is_dirty = true;
+        if (self.transform.w[0] - pos_in_px.x).abs() >= f32::EPSILON
+            || (self.transform.w[1] - pos_in_px.y).abs() >= f32::EPSILON
+        {
+            self.transform.w[0] = pos_in_px.x;
+            self.transform.w[1] = pos_in_px.y;
+            self.is_dirty = true;
+        }
         self
     }
     pub fn set_size(&mut self, scale: Vector2) -> &mut Self {
-        let pos_in_px: Vector3 = [
-            self.transform.w[0],
-            self.transform.w[1],
-            self.transform.w[2],
-        ]
-        .into();
-        self.transform = Matrix4::from_nonuniform_scale(scale.x, scale.y, 1.);
-        self.transform.w[0] = pos_in_px.x;
-        self.transform.w[1] = pos_in_px.y;
-        self.transform.w[2] = pos_in_px.z;
-        self.is_dirty = true;
+        if (self.transform.x[0] - scale.x).abs() >= f32::EPSILON
+            || (self.transform.y[1] - scale.y).abs() >= f32::EPSILON
+        {
+            let pos_in_px: Vector3 = [
+                self.transform.w[0],
+                self.transform.w[1],
+                self.transform.w[2],
+            ]
+            .into();
+            self.transform = Matrix4::from_nonuniform_scale(scale.x, scale.y, 1.);
+            self.transform.w[0] = pos_in_px.x;
+            self.transform.w[1] = pos_in_px.y;
+            self.transform.w[2] = pos_in_px.z;
+            self.is_dirty = true;
+        }
         self
     }
     pub fn get_color(&self) -> Vector4 {
