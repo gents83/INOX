@@ -358,9 +358,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
     fn move_to_layer(&mut self, layer: f32) {
         if (layer - self.get_data().graphics.get_layer()).abs() > f32::EPSILON {
             let data = self.get_data_mut();
-            data.graphics.move_to_layer(-data.graphics.get_layer());
             data.graphics.set_layer(layer);
-            data.graphics.move_to_layer(layer);
         }
     }
 

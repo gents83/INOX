@@ -1,5 +1,5 @@
 use nrg_graphics::{MaterialId, MeshData, MeshId, Renderer, INVALID_ID};
-use nrg_math::{MatBase, Matrix4, VecBase, Vector2, Vector4};
+use nrg_math::{MatBase, Matrix4, VecBase, Vector2, Vector3, Vector4};
 use nrg_serialize::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
@@ -69,7 +69,9 @@ impl WidgetGraphics {
         self.layer
     }
     pub fn set_layer(&mut self, layer: f32) -> &mut Self {
+        self.transform.w[2] = layer;
         self.layer = layer;
+        self.is_dirty = true;
         self
     }
     pub fn get_stroke(&self) -> f32 {
@@ -91,15 +93,16 @@ impl WidgetGraphics {
         self
     }
     pub fn set_size(&mut self, scale: Vector2) -> &mut Self {
-        let pos_in_px: Vector2 = [self.transform.w[0], self.transform.w[1]].into();
+        let pos_in_px: Vector3 = [
+            self.transform.w[0],
+            self.transform.w[1],
+            self.transform.w[2],
+        ]
+        .into();
         self.transform = Matrix4::from_nonuniform_scale(scale.x, scale.y, 1.);
         self.transform.w[0] = pos_in_px.x;
         self.transform.w[1] = pos_in_px.y;
-        self.is_dirty = true;
-        self
-    }
-    pub fn move_to_layer(&mut self, layer: f32) -> &mut Self {
-        self.transform.w[2] = layer;
+        self.transform.w[2] = pos_in_px.z;
         self.is_dirty = true;
         self
     }
@@ -109,7 +112,6 @@ impl WidgetGraphics {
     pub fn set_color(&mut self, rgb: Vector4) -> &mut Self {
         if self.color != rgb {
             self.color = rgb;
-            self.mesh_data.set_vertex_color(rgb);
             self.is_dirty = true;
         }
         self
@@ -131,7 +133,10 @@ impl WidgetGraphics {
                 if self.mesh_id == INVALID_ID {
                     self.mesh_id = renderer.add_mesh(self.material_id, &self.mesh_data);
                 }
-                renderer.update_mesh(self.material_id, self.mesh_id, &self.transform);
+                if let Some(mesh_data) = renderer.get_mesh(self.material_id, self.mesh_id) {
+                    mesh_data.set_vertex_color(self.color);
+                    renderer.update_mesh(self.material_id, self.mesh_id, &self.transform);
+                }
                 self.is_dirty = false;
             }
         } else if self.mesh_id != INVALID_ID {

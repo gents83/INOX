@@ -178,7 +178,8 @@ impl HistoryPanel {
             .vertical_alignment(VerticalAlignment::Bottom)
             .horizontal_alignment(HorizontalAlignment::Left)
             .fill_type(ContainerFillType::Vertical)
-            .space_between_elements(5);
+            .space_between_elements(5)
+            .move_to_layer(0.5);
 
         let (
             history_text_id,

@@ -69,17 +69,19 @@ impl System for EditorUpdater {
 
         self.main_menu.init(renderer);
         self.canvas.init(renderer);
+        self.canvas.move_to_layer(0.);
         self.history_panel.init(renderer);
 
         self.widget.init(renderer);
         self.widget
             .position([300., 300.].into())
-            .size([500., 800.].into())
+            .size([300., 800.].into())
             .selectable(false)
             .vertical_alignment(VerticalAlignment::Top)
             .horizontal_alignment(HorizontalAlignment::Right)
             .space_between_elements(20)
-            .fill_type(ContainerFillType::Vertical);
+            .fill_type(ContainerFillType::Vertical)
+            .move_to_layer(0.5);
 
         let mut fps_text = Text::default();
         fps_text.init(renderer);

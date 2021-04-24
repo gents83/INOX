@@ -202,6 +202,23 @@ impl Renderer {
         }
     }
 
+    pub fn get_mesh(&mut self, material_id: MaterialId, mesh_id: MeshId) -> Option<&mut MeshData> {
+        if mesh_id == INVALID_ID || material_id == INVALID_ID {
+            return None;
+        }
+        let material_index = self.get_material_index(material_id);
+        if material_index >= 0 {
+            let mesh_index =
+                get_mesh_index_from_id(&self.materials[material_index as usize].meshes, mesh_id);
+            if mesh_index >= 0 {
+                return Some(
+                    &mut self.materials[material_index as usize].meshes[mesh_index as usize].mesh,
+                );
+            }
+        }
+        None
+    }
+
     pub fn remove_mesh(&mut self, material_id: MaterialId, mesh_id: MeshId) {
         let material_index = self.get_material_index(material_id);
         if material_index >= 0 {

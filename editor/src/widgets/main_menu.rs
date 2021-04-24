@@ -61,6 +61,7 @@ impl MainMenu {
     }
     pub fn init(&mut self, renderer: &mut Renderer) {
         self.menu.init(renderer);
+        self.menu.move_to_layer(0.5);
 
         self.file_id = self.menu.add_menu_item(renderer, "File");
         self.new_id = self
