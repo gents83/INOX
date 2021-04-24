@@ -148,11 +148,8 @@ impl Text {
     }
 
     fn update_mesh_from_text(&mut self, renderer: &mut Renderer, drawing_area_in_px: Vector4) {
-        let pos =
-            Screen::convert_from_pixels_into_screen_space(self.get_data_mut().state.get_position());
-        let min_size = Screen::convert_size_from_pixels(self.get_data_mut().state.get_size());
-        let size =
-            Screen::convert_size_from_pixels([drawing_area_in_px.z, drawing_area_in_px.w].into());
+        let min_size = self.get_data_mut().state.get_size();
+        let size: Vector2 = [drawing_area_in_px.z, drawing_area_in_px.w].into();
 
         let lines_count = self.text.lines().count().max(1);
         let mut max_chars = 1;
@@ -182,12 +179,14 @@ impl Text {
         let font = renderer.get_font(self.font_id).unwrap();
 
         let mut mesh_data = MeshData::default();
-        let mut pos_y = pos.y;
+        let mut pos_y = 0.;
         let mut mesh_index = 0;
         let mut characters: Vec<TextChar> = Vec::new();
 
+        let char_width = new_size.y / new_size.x;
+        let char_height = 1.;
         for text in self.text.lines() {
-            let mut pos_x = pos.x;
+            let mut pos_x = 0.;
             for c in text.as_bytes().iter() {
                 let id = font.get_glyph_index(*c as _);
                 let g = font.get_glyph(id);
@@ -209,9 +208,11 @@ impl Text {
             pos_y += char_height;
         }
         self.characters = characters;
-        self.set_size(Screen::convert_size_into_pixels(new_size));
+        self.set_size(new_size);
 
-        self.get_data_mut().graphics.set_mesh_data(mesh_data);
+        self.get_data_mut()
+            .graphics
+            .set_mesh_data(renderer, mesh_data);
     }
 }
 

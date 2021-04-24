@@ -15,16 +15,16 @@ pub struct InstanceCommand {
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct InstanceData {
     pub transform: Matrix4,
-    pub diffuse_texture_index: usize,
-    pub diffuse_layer_index: usize,
+    pub diffuse_texture_index: i32,
+    pub diffuse_layer_index: i32,
 }
 
 impl Default for InstanceData {
     fn default() -> Self {
         Self {
             transform: Matrix4::default_identity(),
-            diffuse_texture_index: 0,
-            diffuse_layer_index: 0,
+            diffuse_texture_index: -1,
+            diffuse_layer_index: -1,
         }
     }
 }

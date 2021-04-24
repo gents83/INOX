@@ -45,7 +45,7 @@ impl Pipeline {
 
     pub fn begin(&mut self, commands: &[InstanceCommand], instances: &[InstanceData]) {
         self.render_pass.begin();
-        self.inner.bind(commands, instances);
+        self.inner.bind(commands, instances).bind_descriptors();
     }
 
     pub fn update_uniform_buffer(&self, cam_pos: Vector3) {
@@ -54,10 +54,6 @@ impl Pipeline {
 
     pub fn update_descriptor_sets(&self, textures: &[&Texture]) {
         self.inner.update_descriptor_sets(textures);
-    }
-
-    pub fn bind_descriptors(&self) {
-        self.inner.bind_descriptors();
     }
 
     pub fn bind_indirect(&mut self) {

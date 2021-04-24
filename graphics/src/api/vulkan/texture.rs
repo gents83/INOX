@@ -161,9 +161,9 @@ impl Texture {
             magFilter: VkFilter_VK_FILTER_LINEAR,
             minFilter: VkFilter_VK_FILTER_LINEAR,
             mipmapMode: VkSamplerMipmapMode_VK_SAMPLER_MIPMAP_MODE_LINEAR,
-            addressModeU: VkSamplerAddressMode_VK_SAMPLER_ADDRESS_MODE_REPEAT,
-            addressModeV: VkSamplerAddressMode_VK_SAMPLER_ADDRESS_MODE_REPEAT,
-            addressModeW: VkSamplerAddressMode_VK_SAMPLER_ADDRESS_MODE_REPEAT,
+            addressModeU: VkSamplerAddressMode_VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+            addressModeV: VkSamplerAddressMode_VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+            addressModeW: VkSamplerAddressMode_VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
             mipLodBias: 0.0,
             anisotropyEnable: VK_TRUE,
             maxAnisotropy: properties.limits.maxSamplerAnisotropy,
@@ -171,7 +171,7 @@ impl Texture {
             compareOp: VkCompareOp_VK_COMPARE_OP_NEVER,
             minLod: 0.0,
             maxLod: 1.0,
-            borderColor: VkBorderColor_VK_BORDER_COLOR_INT_OPAQUE_WHITE,
+            borderColor: VkBorderColor_VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK,
             unnormalizedCoordinates: VK_FALSE,
         };
 

@@ -72,12 +72,11 @@ impl Renderer {
     pub fn new(handle: &Handle, enable_debug: bool) -> Self {
         let instance = Instance::create(handle, enable_debug);
         let device = Device::create(&instance);
-        let mut texture_handler = TextureHandler::create(&device);
-        let texture_index = texture_handler.add_empty() as _;
+        let texture_handler = TextureHandler::create(&device);
         let textures = vec![TextureInstance {
             id: generate_random_uid(),
-            path: PathBuf::default(),
-            texture_index,
+            path: PathBuf::new(),
+            texture_index: 0,
         }];
         Renderer {
             instance,
@@ -361,7 +360,9 @@ impl Renderer {
 
         for (pipeline_index, pipeline_instance) in pipelines.iter_mut().enumerate() {
             if let Some(pipeline) = &mut pipeline_instance.pipeline {
-                if pipeline_instance.instance_commands.is_empty() {
+                if pipeline_instance.instance_commands.is_empty()
+                    || pipeline_instance.vertex_count == 0
+                {
                     continue;
                 }
 
@@ -374,6 +375,9 @@ impl Renderer {
                 let instance_data = &pipeline_instance.instance_data;
                 let instance_commands = &pipeline_instance.instance_commands;
 
+                pipeline.update_uniform_buffer([0., 0., 800.].into());
+                self.texture_handler.update_descriptor_sets(&pipeline);
+
                 {
                     nrg_profiler::scoped_profile!(format!(
                         "renderer::draw_pipeline_begin[{}]",
@@ -383,26 +387,20 @@ impl Renderer {
                     pipeline.begin(instance_commands, instance_data);
                 }
 
-                pipeline.update_uniform_buffer([0., 0., 800.].into());
-                self.texture_handler.update_descriptor_sets(&pipeline);
-                pipeline.bind_descriptors();
-
                 {
                     nrg_profiler::scoped_profile!(format!(
                         "renderer::draw_pipeline_call[{}]",
                         pipeline_index
                     )
                     .as_str());
-                    if pipeline_instance.vertex_count > 0 {
-                        pipeline_instance
-                            .finalized_mesh
-                            .bind_vertices(pipeline_instance.vertex_count);
-                        pipeline.bind_indirect();
-                        pipeline_instance
-                            .finalized_mesh
-                            .bind_indices(pipeline_instance.indices_count);
-                        pipeline.draw_indirect(instance_commands.len());
-                    }
+                    pipeline_instance
+                        .finalized_mesh
+                        .bind_vertices(pipeline_instance.vertex_count);
+                    pipeline.bind_indirect();
+                    pipeline_instance
+                        .finalized_mesh
+                        .bind_indices(pipeline_instance.indices_count);
+                    pipeline.draw_indirect(instance_commands.len());
                 }
 
                 {
@@ -460,8 +458,10 @@ impl Renderer {
 
         fonts.iter_mut().for_each(|font_instance| {
             if font_instance.texture_id == INVALID_ID {
-                let texture_index =
-                    get_texture_index_from_path(textures, font_instance.path.as_path());
+                let texture_index = get_texture_index_from_path(
+                    textures,
+                    font_instance.font.get_texture_path().as_path(),
+                );
                 if texture_index >= 0 {
                     font_instance.texture_id = textures[texture_index as usize].id;
                 } else {
@@ -488,6 +488,13 @@ impl Renderer {
         nrg_profiler::scoped_profile!("renderer::prepare_pipelines");
         self.pipelines
             .sort_by(|a, b| a.data.data.index.cmp(&b.data.data.index));
+
+        self.pipelines.iter_mut().for_each(|pipeline| {
+            pipeline.vertex_count = 0;
+            pipeline.indices_count = 0;
+            pipeline.instance_data.clear();
+            pipeline.instance_commands.clear();
+        });
     }
 
     fn prepare_materials(&mut self) {
@@ -511,13 +518,12 @@ impl Renderer {
         let mut pipeline_index = INVALID_INDEX;
         let mut mesh_index = 0;
         self.materials.iter_mut().for_each(|material_instance| {
+            if material_instance.meshes.is_empty() {
+                return;
+            }
             let index = get_pipeline_index_from_id(pipelines, material_instance.pipeline_id);
             let pipeline = &mut pipelines[index as usize];
             if pipeline_index != index {
-                pipeline.vertex_count = 0;
-                pipeline.indices_count = 0;
-                pipeline.instance_data.clear();
-                pipeline.instance_commands.clear();
                 pipeline_index = index;
                 mesh_index = 0;
             }
@@ -549,19 +555,22 @@ impl Renderer {
                 .meshes
                 .iter_mut()
                 .for_each(|mesh_instance| {
-                    let texture_index = if material_textures.is_empty() {
-                        0
+                    let texture_index: i32 = if material_textures.is_empty() {
+                        -1
                     } else {
                         textures[material_textures[0] as usize].texture_index as _
                     };
                     for (i, v) in mesh_instance.mesh.vertices.iter().enumerate() {
                         material_mesh_data.vertices[*vertex_count + i] = *v;
-                        if !material_textures.is_empty() {
+                        if texture_index >= 0 {
                             let (u, v) = texture_handler
-                                .get_texture(texture_index)
+                                .get_texture(texture_index as _)
                                 .convert_uv(v.tex_coord.x, v.tex_coord.y);
                             material_mesh_data.vertices[*vertex_count + i].tex_coord =
                                 [u, v].into();
+                        } else {
+                            material_mesh_data.vertices[*vertex_count + i].tex_coord =
+                                [0., 0.].into();
                         }
                     }
                     for (i, index) in mesh_instance.mesh.indices.iter().enumerate() {
@@ -578,13 +587,20 @@ impl Renderer {
                     });
                     material_instance_data.push(InstanceData {
                         transform: mesh_instance.transform,
-                        diffuse_texture_index: texture_handler
-                            .get_texture(texture_index)
-                            .get_texture_index()
-                            as _,
-                        diffuse_layer_index: texture_handler
-                            .get_texture(texture_index)
-                            .get_layer_index() as _,
+                        diffuse_texture_index: if texture_index >= 0 {
+                            texture_handler
+                                .get_texture(texture_index as _)
+                                .get_texture_index() as _
+                        } else {
+                            INVALID_INDEX
+                        },
+                        diffuse_layer_index: if texture_index >= 0 {
+                            texture_handler
+                                .get_texture(texture_index as _)
+                                .get_layer_index() as _
+                        } else {
+                            INVALID_INDEX
+                        },
                     });
 
                     mesh_index += 1;
