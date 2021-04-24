@@ -588,7 +588,7 @@ impl PipelineImmutable {
                 indexCount: c.index_count as _,
                 vertexOffset: 0,
             };
-            last_index = c.index_count;
+            last_index += c.index_count;
             self.indirect_commands.push(indirect_command);
         }
 

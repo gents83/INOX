@@ -78,9 +78,6 @@ impl WidgetGraphics {
     pub fn get_mesh_id(&mut self) -> MeshId {
         self.mesh_id
     }
-    pub fn get_mesh_data(&mut self) -> &mut MeshData {
-        &mut self.mesh_data
-    }
     pub fn set_mesh_data(&mut self, renderer: &mut Renderer, mesh_data: MeshData) -> &mut Self {
         self.remove_meshes(renderer);
         self.mesh_data = mesh_data;
