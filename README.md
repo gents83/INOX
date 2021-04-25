@@ -43,4 +43,7 @@ Focus is to have all of them with MIT license.
 - CG Math library: https://github.com/rustgd/cgmath
 
 
-![Image](https://pbs.twimg.com/media/ErY_fFnW4AAIN5Q?format=jpg)
+![Hot code reload test](https://pbs.twimg.com/media/ErY_fFnW4AAIN5Q?format=jpg)
+
+![GUI test](https://user-images.githubusercontent.com/62186646/116011134-c428b380-a623-11eb-8979-34d23f0532fd.jpg)
+
