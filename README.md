@@ -22,6 +22,10 @@ Not ready yet for production.
 
 - [x] Multi-platform support (Windows-only implemented right now)
 - [x] Multi-GFX api support (Vulkan-only implemented right now)
+- [x] CPU Profiler using Chrome Trace Event format and usable through chrome://tracing/
+- [x] GUI library
+- [x] Indirect drawing support
+- [x] Texture array and atlas support
 - [x] Hot reload of code
 - [ ] Hot reload of data
 
@@ -36,6 +40,7 @@ Focus is to have all of them with MIT license.
 - Image processing library: https://github.com/image-rs/image
 - Trait casting: https://github.com/marcianx/downcast-rs
 - Serialization - serde, serde_derive & serde_json: https://github.com/serde-rs/serde
+- CG Math library: https://github.com/rustgd/cgmath
 
 
 ![Image](https://pbs.twimg.com/media/ErY_fFnW4AAIN5Q?format=jpg)
