@@ -43,7 +43,19 @@ Focus is to have all of them with MIT license.
 - CG Math library: https://github.com/rustgd/cgmath
 
 
+[Hotkeys](#hotkeys)
+
+Useful hotkeys to know:
+- F5: Launch Game from Editor app
+- F9: Start\Stop Profiler and generate profile file on stop
+
+
+
+[Screenshots](#screenshot)
+
+
 ![Hot code reload test](https://pbs.twimg.com/media/ErY_fFnW4AAIN5Q?format=jpg)
 
 ![GUI test](https://user-images.githubusercontent.com/62186646/116011134-c428b380-a623-11eb-8979-34d23f0532fd.jpg)
 
+![Profiler example](https://user-images.githubusercontent.com/62186646/116011269-6f396d00-a624-11eb-8e49-36699fff2a0f.jpg)
