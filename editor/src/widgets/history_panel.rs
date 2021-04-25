@@ -198,12 +198,16 @@ impl HistoryPanel {
         events: &mut EventsRw,
         history: &mut CommandsHistory,
     ) {
-        self.update_history_widget(renderer, &history);
+        if self.history_panel.get_data().graphics.is_visible() {
+            self.update_history_widget(renderer, &history);
+        }
 
         self.history_panel
             .update(drawing_area_in_px, renderer, events);
 
-        self.manage_history_interactions(events, history);
+        if self.history_panel.get_data().graphics.is_visible() {
+            self.manage_history_interactions(events, history);
+        }
     }
 
     pub fn uninit(&mut self, renderer: &mut Renderer) {

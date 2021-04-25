@@ -1,5 +1,5 @@
 use nrg_graphics::{FontId, MaterialId, MeshData, Renderer, INVALID_ID};
-use nrg_math::{VecBase, Vector2, Vector4};
+use nrg_math::{Vector2, Vector4};
 use nrg_platform::{Event, EventsRw, MouseEvent, MouseState};
 use nrg_serialize::{Deserialize, Serialize, Uid};
 
@@ -74,11 +74,11 @@ impl Text {
         self.hover_char_index
     }
     pub fn get_char_pos(&self, index: i32) -> Vector2 {
+        let pos = self.get_data().state.get_position();
         if index >= 0 && index < self.text.len() as _ {
-            let pos = self.get_data().state.get_position();
             return [pos.x + self.char_width as f32 * (index as f32 + 1.), pos.y].into();
         }
-        Vector2::default_zero()
+        pos
     }
     pub fn get_char_at(&self, index: i32) -> Option<char> {
         if index >= 0 && index < self.text.len() as _ {

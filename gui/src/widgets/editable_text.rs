@@ -187,7 +187,7 @@ impl EditableText {
         let mut current_char = self.current_char;
         let text_widget_id = self.text_widget;
         if let Some(text) = self.get_data_mut().node.get_child::<Text>(text_widget_id) {
-            current_char = text.get_hover_char();
+            current_char = text.get_hover_char() - 1;
             if current_char < 0 {
                 current_char = text.get_text().len() as i32 - 1;
             }

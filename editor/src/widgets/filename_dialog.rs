@@ -155,8 +155,9 @@ impl FilenameDialog {
             .horizontal_alignment(HorizontalAlignment::Center)
             .fill_type(ContainerFillType::Vertical)
             .keep_fixed_width(true)
-            .selectable(true)
-            .style(WidgetStyle::FullHighlight);
+            .selectable(false)
+            .style(WidgetStyle::DefaultBackground)
+            .move_to_layer(1.);
 
         self.add_title(renderer);
         self.add_content(renderer);
