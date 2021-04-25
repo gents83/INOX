@@ -8,8 +8,7 @@ use nrg_serialize::*;
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct InstanceCommand {
     pub mesh_index: usize,
-    pub index_count: usize,
-    pub vertex_count: usize,
+    pub mesh_data_ref: MeshDataRef,
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -24,7 +23,7 @@ impl Default for InstanceData {
     fn default() -> Self {
         Self {
             transform: Matrix4::default_identity(),
-            diffuse_color: [1.,1.,1.,1.].into(),
+            diffuse_color: [1., 1., 1., 1.].into(),
             diffuse_texture_index: -1,
             diffuse_layer_index: -1,
         }
@@ -114,6 +113,14 @@ impl Default for MaterialData {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct MeshDataRef {
+    pub first_vertex: u32,
+    pub last_vertex: u32,
+    pub first_index: u32,
+    pub last_index: u32,
+}
+
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 #[serde(crate = "nrg_serialize")]
 pub struct MeshData {
@@ -158,26 +165,6 @@ impl MeshData {
         self
     }
 
-    pub fn set_vertices(&mut self, vertex_data: &[VertexData]) -> &mut Self {
-        self.vertices.clear();
-        self.vertices.extend_from_slice(vertex_data);
-        self.compute_center();
-        self
-    }
-
-    pub fn set_indices(&mut self, indices_data: &[u32]) -> &mut Self {
-        self.indices.clear();
-        self.indices.extend_from_slice(indices_data);
-        self
-    }
-
-    pub fn set_vertex_color(&mut self, color: Vector4) -> &mut Self {
-        for v in self.vertices.iter_mut() {
-            v.color = color;
-        }
-        self
-    }
-
     pub fn translate(&mut self, movement: Vector3) -> &mut Self {
         self.vertices.iter_mut().for_each(|v| {
             v.pos.x += movement.x;
@@ -198,14 +185,86 @@ impl MeshData {
         self
     }
 
-    pub fn add_quad_default(&mut self, rect: Vector4, z: f32) -> &mut Self {
-        let tex_coords = [0.0, 0.0, 1.0, 1.0].into();
-        let (vertices, indices) = create_quad(rect, z, tex_coords, None);
+    pub fn set_vertex_color(&mut self, color: Vector4) -> &mut Self {
+        for v in self.vertices.iter_mut() {
+            v.color = color;
+        }
+        self
+    }
+
+    pub fn set_vertices(&mut self, vertex_data: &[VertexData]) -> &mut Self {
+        self.vertices.clear();
+        self.vertices.extend_from_slice(vertex_data);
+        self.compute_center();
+        self
+    }
+
+    pub fn set_indices(&mut self, indices_data: &[u32]) -> &mut Self {
+        self.indices.clear();
+        self.indices.extend_from_slice(indices_data);
+        self
+    }
+
+    pub fn set_mesh_at_index(
+        &mut self,
+        vertices: &[VertexData],
+        first_vertex: u32,
+        indices: &[u32],
+        first_index: u32,
+    ) -> MeshDataRef {
+        for (i, v) in vertices.iter().enumerate() {
+            self.vertices[first_vertex as usize + i] = *v;
+        }
+        for (i, idx) in indices.iter().enumerate() {
+            self.indices[first_index as usize + i] = first_vertex as u32 + *idx;
+        }
+        self.compute_center();
+        MeshDataRef {
+            first_vertex,
+            last_vertex: first_vertex + vertices.len() as u32,
+            first_index,
+            last_index: first_index + indices.len() as u32,
+        }
+    }
+
+    pub fn append_mesh(&mut self, vertices: &[VertexData], indices: &[u32]) -> MeshDataRef {
+        let first_vertex = self.vertices.len() as u32;
+        let first_index = self.indices.len() as u32;
 
         self.vertices.append(&mut vertices.to_vec());
         self.indices.append(&mut indices.to_vec());
         self.compute_center();
+
+        let last_vertex = self.vertices.len() as u32 - 1;
+        let last_index = self.indices.len() as u32 - 1;
+
+        MeshDataRef {
+            first_vertex,
+            last_vertex,
+            first_index,
+            last_index,
+        }
+    }
+
+    pub fn swap_remove_mesh(&mut self, mesh_data_ref: &MeshDataRef) -> &mut Self {
+        let num_vertex_removed = mesh_data_ref.last_vertex - mesh_data_ref.first_vertex;
+        let (_left, right) = self.vertices.split_at_mut(mesh_data_ref.first_vertex as _);
+        right.rotate_left(num_vertex_removed as _);
+        let num_index_shifted = mesh_data_ref.last_index - mesh_data_ref.first_index;
+        for i in mesh_data_ref.last_index..self.indices.len() as _ {
+            self.indices
+                .swap(i as usize, (i - num_index_shifted) as usize);
+            if self.indices[(i - num_index_shifted) as usize] >= mesh_data_ref.first_vertex as u32 {
+                self.indices[(i - num_index_shifted) as usize] -= num_vertex_removed;
+            }
+        }
         self
+    }
+
+    pub fn add_quad_default(&mut self, rect: Vector4, z: f32) -> MeshDataRef {
+        let tex_coords = [0.0, 0.0, 1.0, 1.0].into();
+        let (vertices, indices) = create_quad(rect, z, tex_coords, None);
+        self.append_mesh(&vertices, &indices)
     }
 
     pub fn add_quad(
@@ -214,13 +273,9 @@ impl MeshData {
         z: f32,
         tex_coords: Vector4,
         index_start: Option<usize>,
-    ) -> &mut Self {
+    ) -> MeshDataRef {
         let (vertices, indices) = create_quad(rect, z, tex_coords, index_start);
-
-        self.vertices.append(&mut vertices.to_vec());
-        self.indices.append(&mut indices.to_vec());
-        self.compute_center();
-        self
+        self.append_mesh(&vertices, &indices)
     }
 
     pub fn clip_in_rect(&mut self, clip_rect: Vector4) -> &mut Self {

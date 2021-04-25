@@ -83,9 +83,9 @@ impl Mesh {
         &mut self,
         device: &Device,
         vertices: &[VertexData],
-        num_vertices: usize,
+        num_vertices: u32,
         indices: &[u32],
-        num_indices: usize,
+        num_indices: u32,
     ) {
         self.bind_vertices(device, vertices, num_vertices);
         self.bind_indices(device, indices, num_indices);
@@ -100,7 +100,7 @@ impl Mesh {
         }
     }
 
-    pub fn bind_vertices(&mut self, device: &Device, vertices: &[VertexData], num_vertices: usize) {
+    pub fn bind_vertices(&mut self, device: &Device, vertices: &[VertexData], num_vertices: u32) {
         if num_vertices == 0 {
             return;
         }
@@ -124,7 +124,7 @@ impl Mesh {
         }
     }
 
-    pub fn bind_indices(&mut self, device: &Device, indices: &[u32], num_indices: usize) {
+    pub fn bind_indices(&mut self, device: &Device, indices: &[u32], num_indices: u32) {
         if num_indices == 0 {
             return;
         }

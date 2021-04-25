@@ -56,7 +56,6 @@ impl System for MySystem {
 
         let mut mesh = MeshData::default();
         mesh.add_quad_default([0., 0., 1., 1.].into(), 0.);
-
         self.left_mesh_id = renderer.add_mesh(self.left_material_id, &mesh);
 
         let mut mesh = MeshData::default();
@@ -68,15 +67,27 @@ impl System for MySystem {
         let read_data = self.shared_data.read().unwrap();
         let renderer = &mut *read_data.get_unique_resource_mut::<Renderer>();
 
+        let is_visible = true;
+
         let mut left_matrix = Matrix4::from_nonuniform_scale(400., 400., 1.);
         left_matrix[3][0] = 100.;
         left_matrix[3][1] = 100.;
-        renderer.update_mesh(self.left_material_id, self.left_mesh_id, &left_matrix);
+        renderer.update_mesh(
+            self.left_material_id,
+            self.left_mesh_id,
+            &left_matrix,
+            &is_visible,
+        );
 
         let mut right_matrix = Matrix4::from_nonuniform_scale(400., 600., 1.);
         right_matrix[3][0] = 700.;
         right_matrix[3][1] = 0.;
-        renderer.update_mesh(self.right_material_id, self.right_mesh_id, &right_matrix);
+        renderer.update_mesh(
+            self.right_material_id,
+            self.right_mesh_id,
+            &right_matrix,
+            &is_visible,
+        );
 
         true
     }

@@ -9,15 +9,15 @@ pub struct WidgetGraphics {
     material_id: MaterialId,
     #[serde(skip)]
     mesh_id: MeshId,
-    #[serde(skip)]
-    mesh_data: MeshData,
     #[serde(skip, default = "nrg_math::VecBase::default_zero")]
     color: Vector4,
     #[serde(skip, default = "nrg_math::VecBase::default_zero")]
     border_color: Vector4,
+    stroke: f32,
     #[serde(skip)]
     is_dirty: bool,
-    stroke: f32,
+    #[serde(skip)]
+    is_visible: bool,
     #[serde(skip, default = "nrg_math::MatBase::default_identity")]
     transform: Matrix4,
 }
@@ -27,9 +27,9 @@ impl Default for WidgetGraphics {
         Self {
             material_id: INVALID_ID,
             mesh_id: INVALID_ID,
-            mesh_data: MeshData::default(),
             color: Vector4::default_zero(),
             border_color: Vector4::default_zero(),
+            is_visible: true,
             is_dirty: true,
             stroke: 0.,
             transform: Matrix4::default_identity(),
@@ -44,7 +44,9 @@ impl WidgetGraphics {
 
         let mut mesh_data = MeshData::default();
         mesh_data.add_quad_default([0., 0., 1., 1.].into(), 0.);
-        self.set_mesh_data(renderer, mesh_data);
+        self.mesh_id = renderer.add_mesh(self.material_id, &mesh_data);
+        self.is_dirty = true;
+
         self
     }
     pub fn link_to_material(&mut self, material_id: MaterialId) -> &mut Self {
@@ -69,9 +71,9 @@ impl WidgetGraphics {
     pub fn get_mesh_id(&mut self) -> MeshId {
         self.mesh_id
     }
-    pub fn set_mesh_data(&mut self, renderer: &mut Renderer, mesh_data: MeshData) -> &mut Self {
+    pub fn set_mesh_data(&mut self, renderer: &mut Renderer, mesh_data: &MeshData) -> &mut Self {
         self.remove_meshes(renderer);
-        self.mesh_data = mesh_data;
+        self.mesh_id = renderer.add_mesh(self.material_id, &mesh_data);
         self.is_dirty = true;
         self
     }
@@ -134,18 +136,24 @@ impl WidgetGraphics {
         self
     }
 
-    pub fn update(&mut self, renderer: &mut Renderer, is_visible: bool) -> &mut Self {
-        if is_visible {
-            if self.is_dirty && !self.mesh_data.vertices.is_empty() {
-                if self.mesh_id == INVALID_ID {
-                    self.mesh_id = renderer.add_mesh(self.material_id, &self.mesh_data);
-                }
-                renderer.update_material(self.material_id, self.color);
-                renderer.update_mesh(self.material_id, self.mesh_id, &self.transform);
-                self.is_dirty = false;
-            }
-        } else if self.mesh_id != INVALID_ID {
-            self.remove_meshes(renderer);
+    pub fn set_visible(&mut self, visible: bool) -> &mut Self {
+        self.is_visible = visible;
+        self.is_dirty = true;
+        self
+    }
+    pub fn is_visible(&self) -> bool {
+        self.is_visible
+    }
+    pub fn update(&mut self, renderer: &mut Renderer) -> &mut Self {
+        if self.is_dirty {
+            renderer.update_material(self.material_id, self.color);
+            renderer.update_mesh(
+                self.material_id,
+                self.mesh_id,
+                &self.transform,
+                &self.is_visible,
+            );
+            self.is_dirty = false;
         }
         self
     }

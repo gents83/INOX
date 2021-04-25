@@ -15,7 +15,6 @@ pub struct WidgetState {
     clip_area: Vector4,
     is_active: bool,
     is_selectable: bool,
-    is_visible: bool,
     is_draggable: bool,
     #[serde(skip)]
     is_pressed: bool,
@@ -39,7 +38,6 @@ impl Default for WidgetState {
             size_in_px: DEFAULT_WIDGET_SIZE.into(),
             clip_area: Vector4::default_zero(),
             is_active: true,
-            is_visible: true,
             is_selectable: true,
             is_draggable: false,
             is_pressed: false,
@@ -153,14 +151,6 @@ impl WidgetState {
 
     pub fn set_selectable(&mut self, is_selectable: bool) -> &mut Self {
         self.is_selectable = is_selectable;
-        self
-    }
-    pub fn is_visible(&self) -> bool {
-        self.is_visible
-    }
-
-    pub fn set_visible(&mut self, is_visible: bool) -> &mut Self {
-        self.is_visible = is_visible;
         self
     }
 

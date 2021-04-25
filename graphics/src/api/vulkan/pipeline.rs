@@ -579,16 +579,14 @@ impl PipelineImmutable {
     ) -> &mut Self {
         self.indirect_commands.clear();
 
-        let mut last_index = 0;
         for c in commands.iter() {
             let indirect_command = VkDrawIndexedIndirectCommand {
+                indexCount: (c.mesh_data_ref.last_index - c.mesh_data_ref.first_index) as _,
                 instanceCount: 1,
-                firstInstance: c.mesh_index as _,
-                firstIndex: last_index as _,
-                indexCount: c.index_count as _,
+                firstIndex: c.mesh_data_ref.first_index as _,
                 vertexOffset: 0,
+                firstInstance: c.mesh_index as _,
             };
-            last_index += c.index_count;
             self.indirect_commands.push(indirect_command);
         }
 
