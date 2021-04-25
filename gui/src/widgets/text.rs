@@ -202,7 +202,7 @@ impl Text {
 
         self.get_data_mut()
             .graphics
-            .set_mesh_data(renderer, &mesh_data);
+            .set_mesh_data(renderer, mesh_data);
     }
 }
 

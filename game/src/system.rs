@@ -56,11 +56,11 @@ impl System for MySystem {
 
         let mut mesh = MeshData::default();
         mesh.add_quad_default([0., 0., 1., 1.].into(), 0.);
-        self.left_mesh_id = renderer.add_mesh(self.left_material_id, &mesh);
+        self.left_mesh_id = renderer.add_mesh(self.left_material_id, mesh);
 
         let mut mesh = MeshData::default();
         mesh.add_quad_default([0., 0., 1., 1.].into(), 0.);
-        self.right_mesh_id = renderer.add_mesh(self.right_material_id, &mesh);
+        self.right_mesh_id = renderer.add_mesh(self.right_material_id, mesh);
     }
 
     fn run(&mut self) -> bool {

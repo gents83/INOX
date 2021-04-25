@@ -44,7 +44,7 @@ impl WidgetGraphics {
 
         let mut mesh_data = MeshData::default();
         mesh_data.add_quad_default([0., 0., 1., 1.].into(), 0.);
-        self.mesh_id = renderer.add_mesh(self.material_id, &mesh_data);
+        self.mesh_id = renderer.add_mesh(self.material_id, mesh_data);
         self.is_dirty = true;
 
         self
@@ -71,9 +71,9 @@ impl WidgetGraphics {
     pub fn get_mesh_id(&mut self) -> MeshId {
         self.mesh_id
     }
-    pub fn set_mesh_data(&mut self, renderer: &mut Renderer, mesh_data: &MeshData) -> &mut Self {
+    pub fn set_mesh_data(&mut self, renderer: &mut Renderer, mesh_data: MeshData) -> &mut Self {
         self.remove_meshes(renderer);
-        self.mesh_id = renderer.add_mesh(self.material_id, &mesh_data);
+        self.mesh_id = renderer.add_mesh(self.material_id, mesh_data);
         self.is_dirty = true;
         self
     }

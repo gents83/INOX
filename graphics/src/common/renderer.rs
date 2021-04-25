@@ -29,6 +29,7 @@ struct PipelineInstance {
     finalized_mesh: Mesh,
     vertex_count: u32,
     index_count: u32,
+    instance_id: usize,
     instance_data: Vec<InstanceData>,
     instance_commands: Vec<InstanceCommand>,
 }
@@ -49,7 +50,7 @@ struct TextureInstance {
 #[derive(Clone)]
 struct MeshInstance {
     id: MeshId,
-    mesh_data_ref: MeshDataRef,
+    mesh_data: MeshData,
     transform: Matrix4,
     visible: bool,
     uv_converted: bool,
@@ -169,6 +170,7 @@ impl Renderer {
                 finalized_mesh,
                 vertex_count: 0,
                 index_count: 0,
+                instance_id: 0,
                 instance_data: Vec::new(),
                 instance_commands: Vec::new(),
             });
@@ -204,36 +206,23 @@ impl Renderer {
         }
     }
 
-    pub fn add_mesh(&mut self, material_id: MaterialId, mesh_data: &MeshData) -> MeshId {
+    pub fn add_mesh(&mut self, material_id: MaterialId, mesh_data: MeshData) -> MeshId {
         if material_id == INVALID_ID {
             return INVALID_ID;
         }
         let material_index = self.get_material_index(material_id);
         if material_index >= 0 {
-            let pipeline_index =
-                self.get_pipeline_index(self.materials[material_index as usize].pipeline_id);
-            if pipeline_index >= 0 {
-                let pipeline_instance = &mut self.pipelines[pipeline_index as usize];
-                let mesh_data_ref = pipeline_instance.finalized_mesh.data.set_mesh_at_index(
-                    &mesh_data.vertices,
-                    pipeline_instance.vertex_count,
-                    &mesh_data.indices,
-                    pipeline_instance.index_count,
-                );
-                pipeline_instance.vertex_count += mesh_data.vertices.len() as u32;
-                pipeline_instance.index_count += mesh_data.indices.len() as u32;
-                let mesh_id = generate_random_uid();
-                self.materials[material_index as usize]
-                    .meshes
-                    .push(MeshInstance {
-                        id: mesh_id,
-                        mesh_data_ref,
-                        transform: Matrix4::default_identity(),
-                        visible: true,
-                        uv_converted: false,
-                    });
-                return mesh_id;
-            }
+            let mesh_id = generate_random_uid();
+            self.materials[material_index as usize]
+                .meshes
+                .push(MeshInstance {
+                    id: mesh_id,
+                    mesh_data,
+                    transform: Matrix4::default_identity(),
+                    visible: true,
+                    uv_converted: false,
+                });
+            return mesh_id;
         }
         INVALID_ID
     }
@@ -277,50 +266,12 @@ impl Renderer {
         let material_index = self.get_material_index(material_id);
         if material_index >= 0 {
             let materials = &mut self.materials;
-            let pipelines = &mut self.pipelines;
-            let pipeline_index = get_pipeline_index_from_id(
-                pipelines,
-                materials[material_index as usize].pipeline_id,
-            );
             let mesh_index =
                 get_mesh_index_from_id(&materials[material_index as usize].meshes, mesh_id);
             if mesh_index >= 0 {
-                let mesh_data_ref =
-                    &materials[material_index as usize].meshes[mesh_index as usize].mesh_data_ref;
-                let last_vertex = mesh_data_ref.last_vertex;
-                let last_index = mesh_data_ref.last_index;
-                let vertex_shift_count = mesh_data_ref.last_vertex - mesh_data_ref.first_vertex;
-                let index_shift_count = mesh_data_ref.last_index - mesh_data_ref.first_index;
-                if pipeline_index >= 0 {
-                    let pipeline_instance = &mut pipelines[pipeline_index as usize];
-                    pipeline_instance
-                        .finalized_mesh
-                        .data
-                        .swap_remove_mesh(mesh_data_ref);
-                    pipeline_instance.vertex_count -= vertex_shift_count;
-                    pipeline_instance.index_count -= index_shift_count;
-
-                    materials[material_index as usize]
-                        .meshes
-                        .remove(mesh_index as usize);
-
-                    materials.iter_mut().for_each(|material_instance| {
-                        if material_instance.pipeline_id == pipeline_instance.id {
-                            material_instance.meshes.iter_mut().for_each(|mesh| {
-                                if mesh.id != mesh_id {
-                                    if mesh.mesh_data_ref.first_vertex >= last_vertex {
-                                        mesh.mesh_data_ref.first_vertex -= vertex_shift_count;
-                                        mesh.mesh_data_ref.last_vertex -= vertex_shift_count;
-                                    }
-                                    if mesh.mesh_data_ref.first_index >= last_index {
-                                        mesh.mesh_data_ref.first_index -= index_shift_count;
-                                        mesh.mesh_data_ref.last_index -= index_shift_count;
-                                    }
-                                }
-                            });
-                        }
-                    })
-                }
+                materials[material_index as usize]
+                    .meshes
+                    .remove(mesh_index as usize);
             }
         }
     }
@@ -336,36 +287,22 @@ impl Renderer {
     ) -> MeshId {
         let font_index = self.get_font_index(font_id);
         if font_index >= 0 {
-            let pipelines = &self.pipelines;
             let materials = &self.materials;
             let font_instance = &mut self.fonts[font_index as usize];
             let font = &mut font_instance.font;
             let material_index = get_material_index_from_id(&materials, font_instance.material_id);
             if material_index >= 0 {
                 let material_instance = &mut self.materials[material_index as usize];
-                let pipeline_index =
-                    get_pipeline_index_from_id(pipelines, material_instance.pipeline_id);
-                if pipeline_index >= 0 {
-                    let mesh_data = font.add_text(text, position, scale, color, spacing);
-                    let pipeline_instance = &mut self.pipelines[pipeline_index as usize];
-                    let mesh_data_ref = pipeline_instance.finalized_mesh.data.set_mesh_at_index(
-                        &mesh_data.vertices,
-                        pipeline_instance.vertex_count,
-                        &mesh_data.indices,
-                        pipeline_instance.index_count,
-                    );
-                    pipeline_instance.vertex_count += mesh_data.vertices.len() as u32;
-                    pipeline_instance.index_count += mesh_data.indices.len() as u32;
-                    let mesh_id = generate_random_uid();
-                    material_instance.meshes.push(MeshInstance {
-                        id: mesh_id,
-                        mesh_data_ref,
-                        transform: Matrix4::default_identity(),
-                        visible: true,
-                        uv_converted: false,
-                    });
-                    return mesh_id;
-                }
+                let mesh_id = generate_random_uid();
+                let mesh_data = font.add_text(text, position, scale, color, spacing);
+                material_instance.meshes.push(MeshInstance {
+                    id: mesh_id,
+                    mesh_data,
+                    transform: Matrix4::default_identity(),
+                    visible: true,
+                    uv_converted: false,
+                });
+                return mesh_id;
             }
         }
         INVALID_ID
@@ -554,7 +491,7 @@ impl Renderer {
                             pipeline_index
                         )
                         .as_str());
-                        pipeline.draw_indirect(instance_commands.len());
+                        pipeline.draw_indirect(pipeline_instance.instance_id);
                     }
                 }
 
@@ -624,8 +561,9 @@ impl Renderer {
 
         let mut pipeline_index = 0;
         self.pipelines.iter_mut().for_each(|pipeline| {
-            pipeline.instance_data.clear();
-            pipeline.instance_commands.clear();
+            pipeline.vertex_count = 0;
+            pipeline.index_count = 0;
+            pipeline.instance_id = 0;
             if !pipeline.finalized_mesh.is_finalized() {
                 nrg_profiler::scoped_profile!(format!(
                     "renderer::finalize mesh for pipeline[{}]",
@@ -676,6 +614,10 @@ impl Renderer {
             let pipeline_mesh_data = &mut pipeline.finalized_mesh.data;
             let pipeline_instance_data = &mut pipeline.instance_data;
             let pipeline_instance_commands = &mut pipeline.instance_commands;
+            let pipeline_vertex_count = &mut pipeline.vertex_count;
+            let pipeline_index_count = &mut pipeline.index_count;
+            let pipeline_instance_id = &mut pipeline.instance_id;
+
             let mut material_textures: Vec<i32> = Vec::new();
             material_textures.resize(material_instance.textures.len(), INVALID_INDEX);
             for (i, uid) in material_instance.textures.iter().enumerate() {
@@ -691,21 +633,26 @@ impl Renderer {
                         return;
                     }
 
-                    let texture_index: i32 = if material_textures.is_empty() {
+                    let diffuse_texture_index: i32 = if material_textures.is_empty() {
                         -1
                     } else {
+                        //assuming that 0 is diffuse in this material for now
                         textures[material_textures[0] as usize].texture_index as _
                     };
 
                     if !mesh_instance.uv_converted {
+                        nrg_profiler::scoped_profile!(format!(
+                            "renderer::prepare_meshes_on_material[{}]_convert_uv",
+                            material_index
+                        )
+                        .as_str());
+
                         mesh_instance.uv_converted = true;
-                        for i in mesh_instance.mesh_data_ref.first_vertex
-                            ..mesh_instance.mesh_data_ref.last_vertex
-                        {
-                            let tex_coord = &mut pipeline_mesh_data.vertices[i as usize].tex_coord;
-                            if texture_index >= 0 {
+                        for v in mesh_instance.mesh_data.vertices.iter_mut() {
+                            let tex_coord = &mut v.tex_coord;
+                            if diffuse_texture_index >= 0 {
                                 let (u, v) = texture_handler
-                                    .get_texture(texture_index as _)
+                                    .get_texture(diffuse_texture_index as _)
                                     .convert_uv(tex_coord.x, tex_coord.y);
                                 *tex_coord = [u, v].into();
                             } else {
@@ -714,28 +661,51 @@ impl Renderer {
                         }
                     }
 
-                    pipeline_instance_commands.push(InstanceCommand {
-                        mesh_index: pipeline_instance_commands.len(),
-                        mesh_data_ref: mesh_instance.mesh_data_ref,
-                    });
-                    pipeline_instance_data.push(InstanceData {
+                    nrg_profiler::scoped_profile!(format!(
+                        "renderer::prepare_meshes_on_material[{}]_add_mesh_to_pipeline",
+                        material_index
+                    )
+                    .as_str());
+
+                    let mesh_data_ref = pipeline_mesh_data.set_mesh_at_index(
+                        &mesh_instance.mesh_data.vertices,
+                        *pipeline_vertex_count,
+                        &mesh_instance.mesh_data.indices,
+                        *pipeline_index_count,
+                    );
+                    *pipeline_vertex_count += mesh_instance.mesh_data.vertices.len() as u32;
+                    *pipeline_index_count += mesh_instance.mesh_data.indices.len() as u32;
+
+                    let command = InstanceCommand {
+                        mesh_index: *pipeline_instance_id,
+                        mesh_data_ref,
+                    };
+                    let data = InstanceData {
                         transform: mesh_instance.transform,
                         diffuse_color,
-                        diffuse_texture_index: if texture_index >= 0 {
+                        diffuse_texture_index: if diffuse_texture_index >= 0 {
                             texture_handler
-                                .get_texture(texture_index as _)
+                                .get_texture(diffuse_texture_index as _)
                                 .get_texture_index() as _
                         } else {
                             INVALID_INDEX
                         },
-                        diffuse_layer_index: if texture_index >= 0 {
+                        diffuse_layer_index: if diffuse_texture_index >= 0 {
                             texture_handler
-                                .get_texture(texture_index as _)
+                                .get_texture(diffuse_texture_index as _)
                                 .get_layer_index() as _
                         } else {
                             INVALID_INDEX
                         },
-                    });
+                    };
+                    if *pipeline_instance_id >= pipeline_instance_commands.len() {
+                        pipeline_instance_commands.push(command);
+                        pipeline_instance_data.push(data);
+                    } else {
+                        pipeline_instance_commands[*pipeline_instance_id] = command;
+                        pipeline_instance_data[*pipeline_instance_id] = data;
+                    }
+                    *pipeline_instance_id += 1;
                 });
             material_index += 1;
         });

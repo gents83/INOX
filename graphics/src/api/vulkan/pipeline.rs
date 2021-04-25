@@ -584,7 +584,7 @@ impl PipelineImmutable {
                 indexCount: (c.mesh_data_ref.last_index - c.mesh_data_ref.first_index) as _,
                 instanceCount: 1,
                 firstIndex: c.mesh_data_ref.first_index as _,
-                vertexOffset: 0,
+                vertexOffset: c.mesh_data_ref.first_vertex as _,
                 firstInstance: c.mesh_index as _,
             };
             self.indirect_commands.push(indirect_command);

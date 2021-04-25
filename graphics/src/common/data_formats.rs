@@ -212,13 +212,14 @@ impl MeshData {
         indices: &[u32],
         first_index: u32,
     ) -> MeshDataRef {
-        for (i, v) in vertices.iter().enumerate() {
-            self.vertices[first_vertex as usize + i] = *v;
-        }
-        for (i, idx) in indices.iter().enumerate() {
-            self.indices[first_index as usize + i] = first_vertex as u32 + *idx;
-        }
-        self.compute_center();
+        let start = first_vertex as usize;
+        let end = start + vertices.len();
+        self.vertices[start..end].copy_from_slice(vertices);
+
+        let start = first_index as usize;
+        let end = start + indices.len();
+        self.indices[start..end].copy_from_slice(indices);
+
         MeshDataRef {
             first_vertex,
             last_vertex: first_vertex + vertices.len() as u32,
@@ -244,21 +245,6 @@ impl MeshData {
             first_index,
             last_index,
         }
-    }
-
-    pub fn swap_remove_mesh(&mut self, mesh_data_ref: &MeshDataRef) -> &mut Self {
-        let num_vertex_removed = mesh_data_ref.last_vertex - mesh_data_ref.first_vertex;
-        let (_left, right) = self.vertices.split_at_mut(mesh_data_ref.first_vertex as _);
-        right.rotate_left(num_vertex_removed as _);
-        let num_index_shifted = mesh_data_ref.last_index - mesh_data_ref.first_index;
-        for i in mesh_data_ref.last_index..self.indices.len() as _ {
-            self.indices
-                .swap(i as usize, (i - num_index_shifted) as usize);
-            if self.indices[(i - num_index_shifted) as usize] >= mesh_data_ref.first_vertex as u32 {
-                self.indices[(i - num_index_shifted) as usize] -= num_vertex_removed;
-            }
-        }
-        self
     }
 
     pub fn add_quad_default(&mut self, rect: Vector4, z: f32) -> MeshDataRef {
