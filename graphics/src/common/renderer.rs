@@ -52,7 +52,8 @@ struct MeshInstance {
     id: MeshId,
     mesh_data: MeshData,
     transform: Matrix4,
-    visible: bool,
+    is_visible: bool,
+    is_dirty: bool,
     uv_converted: bool,
 }
 struct FontInstance {
@@ -219,7 +220,8 @@ impl Renderer {
                     id: mesh_id,
                     mesh_data,
                     transform: Matrix4::default_identity(),
-                    visible: true,
+                    is_visible: true,
+                    is_dirty: true,
                     uv_converted: false,
                 });
             return mesh_id;
@@ -242,7 +244,7 @@ impl Renderer {
         material_id: MaterialId,
         mesh_id: MeshId,
         transform: &Matrix4,
-        visible: &bool,
+        is_visible: &bool,
     ) {
         if mesh_id == INVALID_ID || material_id == INVALID_ID {
             return;
@@ -254,7 +256,7 @@ impl Renderer {
             if mesh_index >= 0 {
                 let mesh_instance =
                     &mut self.materials[material_index as usize].meshes[mesh_index as usize];
-                mesh_instance.visible = *visible;
+                mesh_instance.is_visible = *is_visible;
                 mesh_instance.transform = *transform;
             }
         }
@@ -299,7 +301,8 @@ impl Renderer {
                     id: mesh_id,
                     mesh_data,
                     transform: Matrix4::default_identity(),
-                    visible: true,
+                    is_visible: true,
+                    is_dirty: true,
                     uv_converted: false,
                 });
                 return mesh_id;
@@ -621,14 +624,14 @@ impl Renderer {
                 material_textures[i] = index;
             }
             let diffuse_color = material_instance.diffuse_color;
+
             material_instance
                 .meshes
                 .iter_mut()
                 .for_each(|mesh_instance| {
-                    if !mesh_instance.visible {
+                    if !mesh_instance.is_visible {
                         return;
                     }
-
                     let diffuse_texture_index: i32 = if material_textures.is_empty() {
                         -1
                     } else {

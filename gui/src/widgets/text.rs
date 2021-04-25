@@ -214,7 +214,9 @@ impl InternalWidget for Text {
         self.font_id = font_id;
         self.material_id = material_id;
 
-        self.get_data_mut().graphics.link_to_material(material_id);
+        self.get_data_mut()
+            .graphics
+            .link_to_material(renderer, material_id);
         if self.is_initialized() {
             return;
         }
@@ -236,6 +238,6 @@ impl InternalWidget for Text {
 
     fn widget_uninit(&mut self, renderer: &mut Renderer) {
         let data = self.get_data_mut();
-        data.graphics.remove_meshes(renderer).unlink_from_material();
+        data.graphics.remove_meshes(renderer);
     }
 }

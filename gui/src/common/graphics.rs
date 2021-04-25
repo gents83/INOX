@@ -49,7 +49,14 @@ impl WidgetGraphics {
 
         self
     }
-    pub fn link_to_material(&mut self, material_id: MaterialId) -> &mut Self {
+    pub fn link_to_material(
+        &mut self,
+        renderer: &mut Renderer,
+        material_id: MaterialId,
+    ) -> &mut Self {
+        if self.material_id != INVALID_ID {
+            renderer.remove_material(self.material_id);
+        }
         self.material_id = material_id;
         self.is_dirty = true;
         self
