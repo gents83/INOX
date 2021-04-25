@@ -568,7 +568,7 @@ impl PipelineImmutable {
     }
 
     fn fill_instance_buffer(&mut self, device: &Device, instances: &[InstanceData]) -> &mut Self {
-        device.map_buffer_memory(&mut self.instance_buffer_memory, instances);
+        device.map_buffer_memory(&mut self.instance_buffer_memory, 0, instances);
         self
     }
 
@@ -592,6 +592,7 @@ impl PipelineImmutable {
 
         device.map_buffer_memory(
             &mut self.indirect_command_buffer_memory,
+            0,
             self.indirect_commands.as_slice(),
         );
 
@@ -654,7 +655,7 @@ impl PipelineImmutable {
         }];
 
         let mut buffer_memory = self.uniform_buffers_memory[image_index];
-        device.map_buffer_memory(&mut buffer_memory, &uniform_data);
+        device.map_buffer_memory(&mut buffer_memory, 0, &uniform_data);
         self.uniform_buffers_memory[image_index] = buffer_memory;
 
         let buffer_info = VkDescriptorBufferInfo {

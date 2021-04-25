@@ -137,10 +137,15 @@ impl Device {
             .copy_buffer(buffer_src, buffer_dst, buffer_size);
     }
 
-    pub fn map_buffer_memory<T>(&self, buffer_memory: &mut VkDeviceMemory, data_src: &[T]) {
+    pub fn map_buffer_memory<T>(
+        &self,
+        buffer_memory: &mut VkDeviceMemory,
+        starting_index: usize,
+        data_src: &[T],
+    ) {
         self.inner
             .borrow()
-            .map_buffer_memory(buffer_memory, data_src);
+            .map_buffer_memory(buffer_memory, starting_index, data_src);
     }
 
     pub fn create_image_view(
@@ -742,9 +747,16 @@ impl DeviceImmutable {
         self.end_single_time_commands(command_buffer);
     }
 
-    fn map_buffer_memory<T>(&self, buffer_memory: &mut VkDeviceMemory, data_src: &[T]) {
+    fn map_buffer_memory<T>(
+        &self,
+        buffer_memory: &mut VkDeviceMemory,
+        starting_index: usize,
+        data_src: &[T],
+    ) {
         unsafe {
-            let length = ::std::mem::size_of::<T>() * data_src.len();
+            let element_size = ::std::mem::size_of::<T>();
+            let offset = starting_index * element_size;
+            let length = data_src.len() * element_size;
 
             let data_ptr = {
                 let mut option = ::std::mem::MaybeUninit::uninit();
@@ -753,7 +765,7 @@ impl DeviceImmutable {
                     vkMapMemory.unwrap()(
                         self.device,
                         *buffer_memory,
-                        0,
+                        offset as _,
                         length as _,
                         0,
                         option.as_mut_ptr()

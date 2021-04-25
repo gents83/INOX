@@ -463,9 +463,7 @@ impl Renderer {
                             pipeline_index
                         )
                         .as_str());
-                        pipeline_instance
-                            .finalized_mesh
-                            .bind_vertices(pipeline_instance.vertex_count);
+                        pipeline_instance.finalized_mesh.bind_vertices();
                     }
                     {
                         nrg_profiler::scoped_profile!(format!(
@@ -481,9 +479,7 @@ impl Renderer {
                             pipeline_index
                         )
                         .as_str());
-                        pipeline_instance
-                            .finalized_mesh
-                            .bind_indices(pipeline_instance.index_count);
+                        pipeline_instance.finalized_mesh.bind_indices();
                     }
                     {
                         nrg_profiler::scoped_profile!(format!(
@@ -611,7 +607,7 @@ impl Renderer {
             )
             .as_str());
 
-            let pipeline_mesh_data = &mut pipeline.finalized_mesh.data;
+            let pipeline_mesh = &mut pipeline.finalized_mesh;
             let pipeline_instance_data = &mut pipeline.instance_data;
             let pipeline_instance_commands = &mut pipeline.instance_commands;
             let pipeline_vertex_count = &mut pipeline.vertex_count;
@@ -667,7 +663,7 @@ impl Renderer {
                     )
                     .as_str());
 
-                    let mesh_data_ref = pipeline_mesh_data.set_mesh_at_index(
+                    let mesh_data_ref = pipeline_mesh.bind_at_index(
                         &mesh_instance.mesh_data.vertices,
                         *pipeline_vertex_count,
                         &mesh_instance.mesh_data.indices,

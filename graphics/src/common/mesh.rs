@@ -1,7 +1,7 @@
 use super::data_formats::*;
 use super::device::*;
 
-const MAX_BUFFER_SIZE: usize = 4096;
+const MAX_BUFFER_SIZE: usize = 4096 * 4096;
 
 #[derive(Clone)]
 pub struct Mesh {
@@ -49,14 +49,30 @@ impl Mesh {
         self
     }
 
-    pub fn bind_vertices(&mut self, num_vertices: u32) {
-        self.inner
-            .bind_vertices(&self.device.inner, &self.data.vertices, num_vertices);
+    pub fn bind_at_index(
+        &mut self,
+        vertices: &[VertexData],
+        first_vertex: u32,
+        indices: &[u32],
+        first_index: u32,
+    ) -> MeshDataRef {
+        self.inner.bind_at_index(
+            &self.device.inner,
+            vertices,
+            first_vertex,
+            indices,
+            first_index,
+        );
+        self.data
+            .set_mesh_at_index(vertices, first_vertex, indices, first_index)
     }
 
-    pub fn bind_indices(&mut self, num_indices: u32) {
-        self.inner
-            .bind_indices(&self.device.inner, &self.data.indices, num_indices);
+    pub fn bind_vertices(&mut self) {
+        self.inner.bind_vertices(&self.device.inner);
+    }
+
+    pub fn bind_indices(&mut self) {
+        self.inner.bind_indices(&self.device.inner);
     }
 
     pub fn draw(&mut self, num_vertices: u32, num_indices: u32) {

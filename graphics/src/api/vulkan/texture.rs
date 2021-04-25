@@ -89,7 +89,7 @@ impl Texture {
             &mut staging_buffer_memory,
         );
 
-        device.map_buffer_memory(&mut staging_buffer_memory, image_data);
+        device.map_buffer_memory(&mut staging_buffer_memory, 0, image_data);
 
         device.transition_image_layout(
             self.texture_image,

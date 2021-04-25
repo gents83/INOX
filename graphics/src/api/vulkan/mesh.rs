@@ -87,8 +87,9 @@ impl Mesh {
         indices: &[u32],
         num_indices: u32,
     ) {
-        self.bind_vertices(device, vertices, num_vertices);
-        self.bind_indices(device, indices, num_indices);
+        self.bind_at_index(device, vertices, 0, indices, 0);
+        self.bind_vertices(device);
+        self.bind_indices(device);
 
         unsafe {
             let command_buffer = device.get_current_command_buffer();
@@ -100,15 +101,19 @@ impl Mesh {
         }
     }
 
-    pub fn bind_vertices(&mut self, device: &Device, vertices: &[VertexData], num_vertices: u32) {
-        if num_vertices == 0 {
-            return;
-        }
-        if num_vertices >= self.vertex_count as _ {
-            panic!("Trying to render more vertices then allocated ones");
-        } else {
-            device.map_buffer_memory(&mut self.vertex_buffer_memory, &vertices);
-        }
+    pub fn bind_at_index(
+        &mut self,
+        device: &Device,
+        vertices: &[VertexData],
+        first_vertex: u32,
+        indices: &[u32],
+        first_index: u32,
+    ) {
+        device.map_buffer_memory(&mut self.vertex_buffer_memory, first_vertex as _, &vertices);
+        device.map_buffer_memory(&mut self.index_buffer_memory, first_index as _, &indices);
+    }
+
+    pub fn bind_vertices(&mut self, device: &Device) {
         if self.vertex_buffer != ::std::ptr::null_mut() {
             unsafe {
                 let vertex_buffers = [self.vertex_buffer];
@@ -124,15 +129,7 @@ impl Mesh {
         }
     }
 
-    pub fn bind_indices(&mut self, device: &Device, indices: &[u32], num_indices: u32) {
-        if num_indices == 0 {
-            return;
-        }
-        if num_indices >= self.indices_count as _ {
-            panic!("Trying to render more indices then allocated ones");
-        } else {
-            device.map_buffer_memory(&mut self.index_buffer_memory, &indices);
-        }
+    pub fn bind_indices(&mut self, device: &Device) {
         if self.index_buffer != ::std::ptr::null_mut() {
             unsafe {
                 vkCmdBindIndexBuffer.unwrap()(
