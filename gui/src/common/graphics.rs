@@ -140,10 +140,8 @@ impl WidgetGraphics {
                 if self.mesh_id == INVALID_ID {
                     self.mesh_id = renderer.add_mesh(self.material_id, &self.mesh_data);
                 }
-                if let Some(mesh_data) = renderer.get_mesh(self.material_id, self.mesh_id) {
-                    mesh_data.set_vertex_color(self.color);
-                    renderer.update_mesh(self.material_id, self.mesh_id, &self.transform);
-                }
+                renderer.update_material(self.material_id, self.color);
+                renderer.update_mesh(self.material_id, self.mesh_id, &self.transform);
                 self.is_dirty = false;
             }
         } else if self.mesh_id != INVALID_ID {

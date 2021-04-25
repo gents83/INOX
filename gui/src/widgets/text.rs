@@ -174,9 +174,6 @@ impl Text {
         ]
         .into();
 
-        let char_color = self.get_data().graphics.get_color();
-        let char_layer = self.get_data().graphics.get_layer();
-
         let font = renderer.get_font(self.font_id).unwrap();
 
         let mut mesh_data = MeshData::default();
@@ -189,14 +186,12 @@ impl Text {
             for c in text.as_bytes().iter() {
                 let id = font.get_glyph_index(*c as _);
                 let g = font.get_glyph(id);
-                mesh_data
-                    .add_quad(
-                        Vector4::new(pos_x, pos_y, pos_x + char_width, pos_y + char_height),
-                        char_layer,
-                        g.texture_coord,
-                        Some(mesh_index),
-                    )
-                    .set_vertex_color(char_color);
+                mesh_data.add_quad(
+                    Vector4::new(pos_x, pos_y, pos_x + char_width, pos_y + char_height),
+                    0.,
+                    g.texture_coord,
+                    Some(mesh_index),
+                );
                 mesh_index += 4;
                 pos_x += char_width;
             }
@@ -235,6 +230,7 @@ impl InternalWidget for Text {
         if self.is_dirty {
             let drawing_area_in_px = self.get_data().state.get_clip_area();
             self.update_mesh_from_text(renderer, drawing_area_in_px);
+            self.is_dirty = false;
         }
     }
 

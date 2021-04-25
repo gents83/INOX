@@ -1,12 +1,12 @@
 ; SPIR-V
 ; Version: 1.0
 ; Generator: Google Shaderc over Glslang; 10
-; Bound: 62
+; Bound: 65
 ; Schema: 0
                OpCapability Shader
           %1 = OpExtInstImport "GLSL.std.450"
                OpMemoryModel Logical GLSL450
-               OpEntryPoint Vertex %main "main" %_ %instanceMatrix %inPosition %fragColor %inColor %fragTexCoord %inTexCoord %instanceDiffuseLayerIndex %inNormal %instanceDiffuseTextureIndex
+               OpEntryPoint Vertex %main "main" %_ %instanceMatrix %inPosition %fragColor %inColor %instanceDiffuseColor %fragTexCoord %inTexCoord %instanceDiffuseLayerIndex %inNormal %instanceDiffuseTextureIndex
                OpSource GLSL 450
                OpSourceExtension "GL_GOOGLE_cpp_style_line_directive"
                OpSourceExtension "GL_GOOGLE_include_directive"
@@ -25,6 +25,7 @@
                OpName %inPosition "inPosition"
                OpName %fragColor "fragColor"
                OpName %inColor "inColor"
+               OpName %instanceDiffuseColor "instanceDiffuseColor"
                OpName %fragTexCoord "fragTexCoord"
                OpName %inTexCoord "inTexCoord"
                OpName %instanceDiffuseLayerIndex "instanceDiffuseLayerIndex"
@@ -48,11 +49,12 @@
                OpDecorate %inPosition Location 0
                OpDecorate %fragColor Location 0
                OpDecorate %inColor Location 1
+               OpDecorate %instanceDiffuseColor Location 8
                OpDecorate %fragTexCoord Location 1
                OpDecorate %inTexCoord Location 2
-               OpDecorate %instanceDiffuseLayerIndex Location 9
+               OpDecorate %instanceDiffuseLayerIndex Location 10
                OpDecorate %inNormal Location 3
-               OpDecorate %instanceDiffuseTextureIndex Location 8
+               OpDecorate %instanceDiffuseTextureIndex Location 9
        %void = OpTypeVoid
           %3 = OpTypeFunction %void
       %float = OpTypeFloat 32
@@ -81,6 +83,7 @@
   %fragColor = OpVariable %_ptr_Output_v4float Output
 %_ptr_Input_v4float = OpTypePointer Input %v4float
     %inColor = OpVariable %_ptr_Input_v4float Input
+%instanceDiffuseColor = OpVariable %_ptr_Input_v4float Input
 %_ptr_Output_v3float = OpTypePointer Output %v3float
 %fragTexCoord = OpVariable %_ptr_Output_v3float Output
     %v2float = OpTypeVector %float 2
@@ -108,13 +111,15 @@
          %42 = OpAccessChain %_ptr_Output_v4float %_ %int_0
                OpStore %42 %40
          %46 = OpLoad %v4float %inColor
-               OpStore %fragColor %46
-         %52 = OpLoad %v2float %inTexCoord
-         %55 = OpLoad %int %instanceDiffuseLayerIndex
-         %56 = OpConvertSToF %float %55
-         %57 = OpCompositeExtract %float %52 0
-         %58 = OpCompositeExtract %float %52 1
-         %59 = OpCompositeConstruct %v3float %57 %58 %56
-               OpStore %fragTexCoord %59
+         %48 = OpLoad %v4float %instanceDiffuseColor
+         %49 = OpFMul %v4float %46 %48
+               OpStore %fragColor %49
+         %55 = OpLoad %v2float %inTexCoord
+         %58 = OpLoad %int %instanceDiffuseLayerIndex
+         %59 = OpConvertSToF %float %58
+         %60 = OpCompositeExtract %float %55 0
+         %61 = OpCompositeExtract %float %55 1
+         %62 = OpCompositeConstruct %v3float %60 %61 %59
+               OpStore %fragTexCoord %62
                OpReturn
                OpFunctionEnd

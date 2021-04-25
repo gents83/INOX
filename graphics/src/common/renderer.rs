@@ -37,6 +37,7 @@ struct MaterialInstance {
     pipeline_id: PipelineId,
     meshes: Vec<MeshInstance>,
     textures: Vec<TextureId>,
+    diffuse_color: Vector4,
 }
 struct TextureInstance {
     id: TextureId,
@@ -52,7 +53,6 @@ struct FontInstance {
     id: FontId,
     path: PathBuf,
     material_id: MaterialId,
-    texture_id: TextureId,
     font: Font,
 }
 
@@ -98,6 +98,7 @@ impl Renderer {
             pipeline_id,
             meshes: Vec::new(),
             textures: Vec::new(),
+            diffuse_color: [1., 1., 1., 1.].into(),
         });
         material_id
     }
@@ -154,12 +155,23 @@ impl Renderer {
         if font_path.exists() && !self.has_font(font_path) {
             let font_id = generate_random_uid();
             let material_id = self.add_material(pipeline_id);
+            let font = Font::new(font_path);
+            let texture_index =
+                get_texture_index_from_path(&self.textures, font.get_texture_path().as_path());
+            if texture_index == INVALID_INDEX {
+                add_texture_in_material(
+                    material_id,
+                    &mut self.materials,
+                    font.get_texture_path().as_path(),
+                    &mut self.textures,
+                );
+            }
+
             self.fonts.push(FontInstance {
                 id: font_id,
                 path: PathBuf::from(font_path),
                 material_id,
-                font: Font::new(font_path),
-                texture_id: INVALID_ID,
+                font,
             });
             font_id
         } else {
@@ -185,6 +197,16 @@ impl Renderer {
             return mesh_id;
         }
         INVALID_ID
+    }
+
+    pub fn update_material(&mut self, material_id: MaterialId, diffuse_color: Vector4) {
+        if material_id == INVALID_ID {
+            return;
+        }
+        let material_index = self.get_material_index(material_id);
+        if material_index >= 0 {
+            self.materials[material_index as usize].diffuse_color = diffuse_color;
+        }
     }
 
     pub fn update_mesh(&mut self, material_id: MaterialId, mesh_id: MeshId, transform: &Matrix4) {
@@ -468,30 +490,8 @@ impl Renderer {
 
     fn load_textures(&mut self) {
         nrg_profiler::scoped_profile!("renderer::load_textures");
-        let fonts = &mut self.fonts;
-        let materials = &mut self.materials;
         let textures = &mut self.textures;
         let texture_handler = &mut self.texture_handler;
-
-        fonts.iter_mut().for_each(|font_instance| {
-            if font_instance.texture_id == INVALID_ID {
-                let texture_index = get_texture_index_from_path(
-                    textures,
-                    font_instance.font.get_texture_path().as_path(),
-                );
-                if texture_index >= 0 {
-                    font_instance.texture_id = textures[texture_index as usize].id;
-                } else {
-                    let id = add_texture_in_material(
-                        font_instance.material_id,
-                        materials,
-                        font_instance.font.get_texture_path().as_path(),
-                        textures,
-                    );
-                    font_instance.texture_id = id;
-                }
-            }
-        });
 
         textures.iter_mut().for_each(|texture_instance| {
             if texture_instance.texture_index < 0 {
@@ -568,6 +568,7 @@ impl Renderer {
                 let index = get_texture_index_from_id(textures, *uid);
                 material_textures[i] = index;
             }
+            let diffuse_color = material_instance.diffuse_color;
             material_instance
                 .meshes
                 .iter_mut()
@@ -604,6 +605,7 @@ impl Renderer {
                     });
                     material_instance_data.push(InstanceData {
                         transform: mesh_instance.transform,
+                        diffuse_color,
                         diffuse_texture_index: if texture_index >= 0 {
                             texture_handler
                                 .get_texture(texture_index as _)

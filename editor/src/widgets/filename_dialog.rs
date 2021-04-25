@@ -1,8 +1,9 @@
 use nrg_graphics::Renderer;
 use nrg_gui::{
     BaseWidget, Button, ContainerFillType, EditableText, HorizontalAlignment, Panel, Screen, Text,
-    VerticalAlignment, WidgetDataGetter, WidgetEvent, WidgetStyle,
+    VerticalAlignment, WidgetDataGetter, WidgetEvent, WidgetStyle, DEFAULT_BUTTON_SIZE,
 };
+use nrg_math::Vector2;
 use nrg_platform::EventsRw;
 use nrg_serialize::{Uid, INVALID_UID};
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -82,6 +83,8 @@ impl FilenameDialog {
         let mut content_box = Panel::default();
         content_box.init(renderer);
         content_box
+            .fill_type(ContainerFillType::Horizontal)
+            .keep_fixed_height(false)
             .vertical_alignment(VerticalAlignment::Center)
             .horizontal_alignment(HorizontalAlignment::Stretch);
 
@@ -94,6 +97,7 @@ impl FilenameDialog {
 
         let mut editable_text = EditableText::default();
         editable_text.init(renderer);
+        editable_text.vertical_alignment(VerticalAlignment::Center);
 
         self.label_uid = content_box.add_child(Box::new(label));
         self.editable_text_uid = content_box.add_child(Box::new(editable_text));
@@ -103,11 +107,14 @@ impl FilenameDialog {
     fn add_buttons(&mut self, renderer: &mut Renderer) {
         let mut button_box = Panel::default();
         button_box.init(renderer);
+
+        let default_size: Vector2 = DEFAULT_BUTTON_SIZE.into();
         button_box
+            .size(default_size * Screen::get_scale_factor())
             .fill_type(ContainerFillType::Horizontal)
-            .vertical_alignment(VerticalAlignment::Bottom)
             .horizontal_alignment(HorizontalAlignment::Right)
-            .space_between_elements(20);
+            .keep_fixed_height(true)
+            .space_between_elements(40);
 
         let mut button_ok = Button::default();
         button_ok.init(renderer);
@@ -143,13 +150,13 @@ impl FilenameDialog {
     pub fn init(&mut self, renderer: &mut Renderer) {
         self.dialog.init(renderer);
         self.dialog
-            .size([800., 400.].into())
+            .size([800., 200.].into())
             .vertical_alignment(VerticalAlignment::Center)
             .horizontal_alignment(HorizontalAlignment::Center)
             .fill_type(ContainerFillType::Vertical)
-            .keep_fixed_width(false)
-            .selectable(false)
-            .style(WidgetStyle::DefaultBackground);
+            .keep_fixed_width(true)
+            .selectable(true)
+            .style(WidgetStyle::FullHighlight);
 
         self.add_title(renderer);
         self.add_content(renderer);
@@ -157,10 +164,9 @@ impl FilenameDialog {
     }
 
     pub fn update(&mut self, renderer: &mut Renderer, events_rw: &mut EventsRw) {
+        self.manage_events(events_rw);
         self.dialog
             .update(Screen::get_draw_area(), renderer, events_rw);
-
-        self.manage_events(events_rw);
     }
 
     pub fn uninit(&mut self, renderer: &mut Renderer) {

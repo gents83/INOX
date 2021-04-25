@@ -91,8 +91,16 @@ impl InstanceData {
             },
             VkVertexInputAttributeDescription {
                 binding: INSTANCE_BUFFER_BIND_ID as _,
-                format: VkFormat_VK_FORMAT_R32_SINT,
+                format: VkFormat_VK_FORMAT_R32G32B32A32_SFLOAT,
                 location: 8,
+                offset: unsafe {
+                    &(*(::std::ptr::null::<InstanceData>())).diffuse_color as *const _ as _
+                },
+            },
+            VkVertexInputAttributeDescription {
+                binding: INSTANCE_BUFFER_BIND_ID as _,
+                format: VkFormat_VK_FORMAT_R32_SINT,
+                location: 9,
                 offset: unsafe {
                     &(*(::std::ptr::null::<InstanceData>())).diffuse_texture_index as *const _ as _
                 },
@@ -100,7 +108,7 @@ impl InstanceData {
             VkVertexInputAttributeDescription {
                 binding: INSTANCE_BUFFER_BIND_ID as _,
                 format: VkFormat_VK_FORMAT_R32_SINT,
-                location: 9,
+                location: 10,
                 offset: unsafe {
                     &(*(::std::ptr::null::<InstanceData>())).diffuse_layer_index as *const _ as _
                 },

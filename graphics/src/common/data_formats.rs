@@ -15,6 +15,7 @@ pub struct InstanceCommand {
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct InstanceData {
     pub transform: Matrix4,
+    pub diffuse_color: Vector4,
     pub diffuse_texture_index: i32,
     pub diffuse_layer_index: i32,
 }
@@ -23,6 +24,7 @@ impl Default for InstanceData {
     fn default() -> Self {
         Self {
             transform: Matrix4::default_identity(),
+            diffuse_color: [1.,1.,1.,1.].into(),
             diffuse_texture_index: -1,
             diffuse_layer_index: -1,
         }
