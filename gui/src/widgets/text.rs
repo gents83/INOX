@@ -209,7 +209,7 @@ impl Text {
 impl InternalWidget for Text {
     fn widget_init(&mut self, renderer: &mut Renderer) {
         let font_id = renderer.get_default_font_id();
-        let material_id = renderer.get_font_material_id(font_id);
+        let material_id = renderer.add_material_from_font_id(font_id);
 
         self.font_id = font_id;
         self.material_id = material_id;

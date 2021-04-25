@@ -32,6 +32,8 @@ struct PipelineInstance {
     instance_data: Vec<InstanceData>,
     instance_commands: Vec<InstanceCommand>,
 }
+
+#[derive(Clone)]
 struct MaterialInstance {
     id: MaterialId,
     pipeline_id: PipelineId,
@@ -44,6 +46,7 @@ struct TextureInstance {
     path: PathBuf,
     texture_index: i32,
 }
+#[derive(Clone)]
 struct MeshInstance {
     id: MeshId,
     mesh: MeshData,
@@ -101,6 +104,23 @@ impl Renderer {
             diffuse_color: [1., 1., 1., 1.].into(),
         });
         material_id
+    }
+
+    pub fn add_material_from_font_id(&mut self, id: FontId) -> MaterialId {
+        let index = get_font_index_from_id(&self.fonts, id);
+        if index >= 0 {
+            let material_index =
+                get_material_index_from_id(&self.materials, self.fonts[index as usize].material_id);
+            if material_index >= 0 {
+                let material_id = generate_random_uid();
+                let mut material = self.materials[material_index as usize].clone();
+                material.meshes.clear();
+                material.id = material_id;
+                self.materials.push(material);
+                return material_id;
+            }
+        }
+        INVALID_ID
     }
 
     pub fn remove_material(&mut self, material_id: MaterialId) {
@@ -299,14 +319,6 @@ impl Renderer {
             return Some(&self.fonts[index as usize].font);
         }
         None
-    }
-
-    pub fn get_font_material_id(&self, id: FontId) -> MaterialId {
-        let index = get_font_index_from_id(&self.fonts, id);
-        if index >= 0 {
-            return self.fonts[index as usize].material_id;
-        }
-        INVALID_ID
     }
 
     pub fn get_default_font_id(&self) -> FontId {
