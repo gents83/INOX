@@ -15,4 +15,5 @@ nrg_math = { path = "../math" }
 nrg_gui = { path = "../gui" }
 nrg_graphics = { path = "../graphics" }
 nrg_platform = { path = "../platform" }
+nrg_profiler = { path = "../profiler" }
 nrg_serialize = { path = "../serialize" }

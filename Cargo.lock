@@ -486,6 +486,7 @@ dependencies = [
  "nrg_gui",
  "nrg_math",
  "nrg_platform",
+ "nrg_profiler",
  "nrg_serialize",
 ]
 

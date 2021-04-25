@@ -272,6 +272,8 @@ impl Renderer {
     }
 
     pub fn remove_mesh(&mut self, material_id: MaterialId, mesh_id: MeshId) {
+        nrg_profiler::scoped_profile!("rendered::remove_mesh");
+
         let material_index = self.get_material_index(material_id);
         if material_index >= 0 {
             let materials = &mut self.materials;
@@ -493,8 +495,15 @@ impl Renderer {
                 let instance_data = &pipeline_instance.instance_data;
                 let instance_commands = &pipeline_instance.instance_commands;
 
-                pipeline.update_uniform_buffer([0., 0., 800.].into());
-                self.texture_handler.update_descriptor_sets(&pipeline);
+                {
+                    nrg_profiler::scoped_profile!(format!(
+                        "renderer::update_uniforms_and_descriptors[{}]",
+                        pipeline_index
+                    )
+                    .as_str());
+                    pipeline.update_uniform_buffer([0., 0., 800.].into());
+                    self.texture_handler.update_descriptor_sets(&pipeline);
+                }
 
                 {
                     nrg_profiler::scoped_profile!(format!(
@@ -511,14 +520,42 @@ impl Renderer {
                         pipeline_index
                     )
                     .as_str());
-                    pipeline_instance
-                        .finalized_mesh
-                        .bind_vertices(pipeline_instance.vertex_count);
-                    pipeline.bind_indirect();
-                    pipeline_instance
-                        .finalized_mesh
-                        .bind_indices(pipeline_instance.index_count);
-                    pipeline.draw_indirect(instance_commands.len());
+                    {
+                        nrg_profiler::scoped_profile!(format!(
+                            "renderer::draw_pipeline_call[{}]_bind_vertices",
+                            pipeline_index
+                        )
+                        .as_str());
+                        pipeline_instance
+                            .finalized_mesh
+                            .bind_vertices(pipeline_instance.vertex_count);
+                    }
+                    {
+                        nrg_profiler::scoped_profile!(format!(
+                            "renderer::draw_pipeline_call[{}]_bind_indirect",
+                            pipeline_index
+                        )
+                        .as_str());
+                        pipeline.bind_indirect();
+                    }
+                    {
+                        nrg_profiler::scoped_profile!(format!(
+                            "renderer::draw_pipeline_call[{}]_bind_indices",
+                            pipeline_index
+                        )
+                        .as_str());
+                        pipeline_instance
+                            .finalized_mesh
+                            .bind_indices(pipeline_instance.index_count);
+                    }
+                    {
+                        nrg_profiler::scoped_profile!(format!(
+                            "renderer::draw_pipeline_call[{}]_draw_indirect",
+                            pipeline_index
+                        )
+                        .as_str());
+                        pipeline.draw_indirect(instance_commands.len());
+                    }
                 }
 
                 {

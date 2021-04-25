@@ -149,6 +149,8 @@ impl System for EditorUpdater {
 
 impl EditorUpdater {
     fn update_fps_counter(&mut self) -> &mut Self {
+        nrg_profiler::scoped_profile!("update_fps_counter");
+
         let now = Instant::now();
         let one_sec_before = now - Duration::from_secs(1);
         self.frame_seconds.retain(|t| *t >= one_sec_before);
@@ -167,6 +169,8 @@ impl EditorUpdater {
     }
     fn update_widgets(&mut self) -> &mut Self {
         {
+            nrg_profiler::scoped_profile!("update_widgets");
+
             let read_data = self.shared_data.read().unwrap();
             let events = &mut *read_data.get_unique_resource_mut::<EventsRw>();
             let renderer = &mut *read_data.get_unique_resource_mut::<Renderer>();
@@ -181,13 +185,23 @@ impl EditorUpdater {
             ]
             .into();
 
-            self.widget.update(draw_area, renderer, events);
+            {
+                nrg_profiler::scoped_profile!("widget.update");
+                self.widget.update(draw_area, renderer, events);
+            }
 
-            self.history_panel
-                .set_visible(self.main_menu.show_history());
-            self.history_panel
-                .update(draw_area, renderer, events, &mut self.history);
-            self.canvas.update(draw_area, renderer, events);
+            {
+                nrg_profiler::scoped_profile!("history_panel.update");
+                self.history_panel
+                    .set_visible(self.main_menu.show_history());
+                self.history_panel
+                    .update(draw_area, renderer, events, &mut self.history);
+            }
+
+            {
+                nrg_profiler::scoped_profile!("canvas.update");
+                self.canvas.update(draw_area, renderer, events);
+            }
         }
 
         self
@@ -209,6 +223,8 @@ impl EditorUpdater {
 
     fn update_keyboard_input(&mut self) -> &mut Self {
         {
+            nrg_profiler::scoped_profile!("update_keyboard_input");
+
             let read_data = self.shared_data.read().unwrap();
             let events_rw = &mut *read_data.get_unique_resource_mut::<EventsRw>();
             let events = events_rw.read().unwrap();
