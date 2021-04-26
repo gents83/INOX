@@ -8,7 +8,7 @@ use crate::{
     WidgetEvent, WidgetInteractiveState,
 };
 
-pub const DEFAULT_LAYER_OFFSET: f32 = 0.01;
+pub const DEFAULT_LAYER_OFFSET: f32 = 0.1;
 pub const DEFAULT_WIDGET_WIDTH: f32 = 12.;
 pub const DEFAULT_WIDGET_HEIGHT: f32 = 12.;
 pub const DEFAULT_WIDGET_SIZE: [f32; 2] = [DEFAULT_WIDGET_WIDTH, DEFAULT_WIDGET_HEIGHT];

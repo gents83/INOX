@@ -19,6 +19,7 @@ pub enum WidgetStyle {
     DefaultBackground,
     DefaultBorder,
     DefaultText,
+    DefaultTitleBar,
     FullActive,
     FullInactive,
     FullHighlight,
@@ -57,6 +58,12 @@ impl WidgetStyle {
                 WidgetInteractiveState::Active => COLOR_WHITE.into(),
                 WidgetInteractiveState::Hover => COLOR_LIGHT_GRAY.into(),
                 WidgetInteractiveState::Pressed => COLOR_WHITE.into(),
+            },
+            Self::DefaultTitleBar => match state {
+                WidgetInteractiveState::Inactive => COLOR_BLUE.into(),
+                WidgetInteractiveState::Active => COLOR_LIGHT_BLUE.into(),
+                WidgetInteractiveState::Hover => COLOR_LIGHT_BLUE.into(),
+                WidgetInteractiveState::Pressed => COLOR_LIGHT_BLUE.into(),
             },
             Self::FullActive => match state {
                 WidgetInteractiveState::Inactive => COLOR_WHITE.into(),
