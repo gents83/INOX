@@ -84,7 +84,7 @@ impl Checkbox {
         let events = events_rw.read().unwrap();
         if let Some(widget_events) = events.read_events::<WidgetEvent>() {
             for event in widget_events.iter() {
-                if let WidgetEvent::Released(widget_id) = event {
+                if let WidgetEvent::Released(widget_id, _mouse_in_px) = event {
                     if id == *widget_id {
                         if !old_state {
                             changed = true;

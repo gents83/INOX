@@ -20,6 +20,8 @@ pub struct WidgetState {
     is_pressed: bool,
     #[serde(skip)]
     is_hover: bool,
+    #[serde(skip, default = "nrg_math::VecBase::default_zero")]
+    dragging_pos_in_px: Vector2,
     style: WidgetStyle,
     border_style: WidgetStyle,
     horizontal_alignment: HorizontalAlignment,
@@ -42,6 +44,7 @@ impl Default for WidgetState {
             is_draggable: false,
             is_pressed: false,
             is_hover: false,
+            dragging_pos_in_px: Vector2::default_zero(),
             style: WidgetStyle::Default,
             border_style: WidgetStyle::DefaultBorder,
             horizontal_alignment: HorizontalAlignment::None,
@@ -169,6 +172,14 @@ impl WidgetState {
 
     pub fn set_hover(&mut self, is_hover: bool) -> &mut Self {
         self.is_hover = is_hover;
+        self
+    }
+    pub fn get_dragging_position(&self) -> Vector2 {
+        self.dragging_pos_in_px
+    }
+
+    pub fn set_dragging_position(&mut self, pos_in_px: Vector2) -> &mut Self {
+        self.dragging_pos_in_px = pos_in_px;
         self
     }
 

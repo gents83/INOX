@@ -5,8 +5,8 @@ use nrg_serialize::Uid;
 pub enum WidgetEvent {
     Entering(Uid),
     Exiting(Uid),
-    Pressed(Uid),
-    Released(Uid),
+    Pressed(Uid, Vector2),
+    Released(Uid, Vector2),
     Dragging(Uid, Vector2),
 }
 impl Event for WidgetEvent {}

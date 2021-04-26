@@ -272,30 +272,35 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
                             data.state.set_pressed(false);
                         }
                     }
-                    WidgetEvent::Released(widget_id) => {
+                    WidgetEvent::Released(widget_id, mouse_in_px) => {
                         let data = self.get_data_mut();
                         if *widget_id == id && data.state.is_selectable() {
                             data.state.set_pressed(false);
+                            if data.state.is_draggable() {
+                                data.state.set_dragging_position(*mouse_in_px);
+                            }
                         }
                     }
-                    WidgetEvent::Pressed(widget_id) => {
+                    WidgetEvent::Pressed(widget_id, mouse_in_px) => {
                         let data = self.get_data_mut();
                         if *widget_id == id && data.state.is_selectable() {
                             data.state.set_pressed(true);
-                        } else {
-                            data.state.set_pressed(false);
+                            if data.state.is_draggable() {
+                                data.state.set_dragging_position(*mouse_in_px);
+                            }
                         }
                     }
                     WidgetEvent::Dragging(widget_id, mouse_in_px) => {
-                        if *widget_id == id && self.get_data().state.is_draggable() {
-                            self.get_data_mut()
-                                .state
+                        let data = self.get_data_mut();
+                        if *widget_id == id && data.state.is_draggable() {
+                            data.state
                                 .set_horizontal_alignment(HorizontalAlignment::None);
-                            self.get_data_mut()
-                                .state
-                                .set_vertical_alignment(VerticalAlignment::None);
-
-                            self.set_position(*mouse_in_px);
+                            data.state.set_vertical_alignment(VerticalAlignment::None);
+                            let old_mouse_pos = data.state.get_dragging_position();
+                            let offset = mouse_in_px - old_mouse_pos;
+                            data.state.set_dragging_position(*mouse_in_px);
+                            let current_pos = data.state.get_position();
+                            self.set_position(current_pos + offset);
                         }
                     }
                 }
@@ -318,9 +323,9 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
                 return Some(WidgetEvent::Dragging(id, mouse_in_px));
             }
         } else if event.state == MouseState::Down && is_inside && !data.state.is_pressed() {
-            return Some(WidgetEvent::Pressed(id));
+            return Some(WidgetEvent::Pressed(id, mouse_in_px));
         } else if event.state == MouseState::Up && data.state.is_pressed() {
-            return Some(WidgetEvent::Released(id));
+            return Some(WidgetEvent::Released(id, mouse_in_px));
         }
         None
     }

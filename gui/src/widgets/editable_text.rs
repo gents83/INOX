@@ -162,7 +162,7 @@ impl EditableText {
         }
         if let Some(widget_events) = events.read_events::<WidgetEvent>() {
             for event in widget_events.iter() {
-                if let WidgetEvent::Pressed(widget_id) = event {
+                if let WidgetEvent::Pressed(widget_id, _mouse_in_px) = event {
                     if self.id() == *widget_id {
                         self.is_focused = true;
                         self.update_character_from_indicator();

@@ -136,7 +136,7 @@ impl FilenameDialog {
         let events = events_rw.read().unwrap();
         if let Some(widget_events) = events.read_events::<WidgetEvent>() {
             for event in widget_events.iter() {
-                if let WidgetEvent::Pressed(widget_id) = event {
+                if let WidgetEvent::Pressed(widget_id, _mouse_in_px) = event {
                     if self.ok_uid == *widget_id {
                         self.result = DialogResult::Ok;
                     } else if self.cancel_uid == *widget_id {

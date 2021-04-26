@@ -51,7 +51,7 @@ impl MainMenu {
         let events = events_rw.read().unwrap();
         if let Some(widget_events) = events.read_events::<WidgetEvent>() {
             for event in widget_events.iter() {
-                if let WidgetEvent::Pressed(widget_id) = event {
+                if let WidgetEvent::Pressed(widget_id, _mouse_in_px) = event {
                     if self.new_id == *widget_id && self.filename_dialog.is_none() {
                         let mut dialog = FilenameDialog::default();
                         dialog.init(renderer);

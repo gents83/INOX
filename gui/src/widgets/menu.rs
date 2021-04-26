@@ -160,7 +160,7 @@ impl Menu {
         let events = events_rw.read().unwrap();
         if let Some(widget_events) = events.read_events::<WidgetEvent>() {
             for event in widget_events.iter() {
-                if let WidgetEvent::Released(widget_id) = event {
+                if let WidgetEvent::Released(widget_id, _mouse_in_px) = event {
                     let mut pos = Vector2::default_zero();
                     if let Some(button) = self.get_data_mut().node.get_child::<Button>(*widget_id) {
                         pos.x = button.get_data().state.get_position().x;

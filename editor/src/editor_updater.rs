@@ -25,6 +25,7 @@ pub struct EditorUpdater {
     canvas: Canvas,
     widget: Panel,
     history_panel: HistoryPanel,
+    node: GraphNode,
 }
 
 impl EditorUpdater {
@@ -43,6 +44,7 @@ impl EditorUpdater {
             canvas: Canvas::default(),
             widget: Panel::default(),
             fps_text_widget_id: INVALID_ID,
+            node: GraphNode::default(),
         }
     }
 }
@@ -66,6 +68,8 @@ impl System for EditorUpdater {
             window.get_scale_factor(),
             events_rw.clone(),
         );
+
+        self.node.init(renderer);
 
         self.main_menu.init(renderer);
         self.canvas.init(renderer);
@@ -141,6 +145,7 @@ impl System for EditorUpdater {
                     serialize_to_file(child, filepath);
                 }
         */
+        self.node.uninit(renderer);
         self.canvas.uninit(renderer);
         self.widget.uninit(renderer);
     }
@@ -171,10 +176,10 @@ impl EditorUpdater {
             nrg_profiler::scoped_profile!("update_widgets");
 
             let read_data = self.shared_data.read().unwrap();
-            let events = &mut *read_data.get_unique_resource_mut::<EventsRw>();
+            let events_rw = &mut *read_data.get_unique_resource_mut::<EventsRw>();
             let renderer = &mut *read_data.get_unique_resource_mut::<Renderer>();
 
-            self.main_menu.update(renderer, events);
+            self.main_menu.update(renderer, events_rw);
 
             let draw_area = [
                 0.,
@@ -184,9 +189,11 @@ impl EditorUpdater {
             ]
             .into();
 
+            self.node.update(draw_area, renderer, events_rw);
+
             {
                 nrg_profiler::scoped_profile!("widget.update");
-                self.widget.update(draw_area, renderer, events);
+                self.widget.update(draw_area, renderer, events_rw);
             }
 
             {
@@ -194,12 +201,12 @@ impl EditorUpdater {
                 self.history_panel
                     .set_visible(self.main_menu.show_history());
                 self.history_panel
-                    .update(draw_area, renderer, events, &mut self.history);
+                    .update(draw_area, renderer, events_rw, &mut self.history);
             }
 
             {
                 nrg_profiler::scoped_profile!("canvas.update");
-                self.canvas.update(draw_area, renderer, events);
+                self.canvas.update(draw_area, renderer, events_rw);
             }
         }
 

@@ -149,7 +149,7 @@ impl HistoryPanel {
         let events = events_rw.read().unwrap();
         if let Some(button_events) = events.read_events::<WidgetEvent>() {
             for event in button_events.iter() {
-                if let WidgetEvent::Pressed(widget_id) = event {
+                if let WidgetEvent::Pressed(widget_id, _mouse_in_px) = event {
                     if *widget_id == self.history_redo_button {
                         history.redo_last_command();
                     } else if *widget_id == self.history_undo_button {
