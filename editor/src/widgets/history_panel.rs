@@ -100,11 +100,7 @@ impl HistoryPanel {
         )
     }
 
-    fn update_history_widget(
-        &mut self,
-        renderer: &mut Renderer,
-        history: &CommandsHistory,
-    ) -> &mut Self {
+    fn update_history_widget(&mut self, history: &CommandsHistory) -> &mut Self {
         let mut min_size: Vector2 = Vector2::default_zero();
         if let Some(history_text) = self
             .history_panel
@@ -202,9 +198,7 @@ impl HistoryPanel {
             .update(drawing_area_in_px, renderer, events);
 
         if self.history_panel.get_data().graphics.is_visible() {
-            self.update_history_widget(renderer, &history);
-        }
-        if self.history_panel.get_data().graphics.is_visible() {
+            self.update_history_widget(&history);
             self.manage_history_interactions(events, history);
         }
     }
