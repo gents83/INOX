@@ -7,6 +7,7 @@ use nrg_serialize::*;
 
 pub struct HistoryPanel {
     history_panel: Panel,
+    history_commands_box_id: Uid,
     history_text_widget_id: Uid,
     history_redo_button: Uid,
     history_undo_button: Uid,
@@ -17,6 +18,7 @@ impl Default for HistoryPanel {
     fn default() -> Self {
         Self {
             history_panel: Panel::default(),
+            history_commands_box_id: INVALID_ID,
             history_text_widget_id: INVALID_ID,
             history_redo_button: INVALID_ID,
             history_undo_button: INVALID_ID,
@@ -30,7 +32,7 @@ impl HistoryPanel {
         self.history_panel.visible(visible);
         self
     }
-    fn create_history_widget(&mut self, renderer: &mut Renderer) -> (Uid, Uid, Uid, Uid) {
+    fn create_history_widget(&mut self, renderer: &mut Renderer) -> (Uid, Uid, Uid, Uid, Uid) {
         let mut label = Text::default();
         label.init(renderer);
         label
@@ -77,7 +79,13 @@ impl HistoryPanel {
             .space_between_elements(2)
             .style(WidgetStyle::Invisible);
 
-        let history_text_id = self.history_panel.add_child(Box::new(history_commands_box));
+        let mut text = Text::default();
+        text.init(renderer);
+        text.set_text("Prova1\nProva2 \nProva3");
+
+        let history_text_id = history_commands_box.add_child(Box::new(text));
+
+        let history_commands_box_id = self.history_panel.add_child(Box::new(history_commands_box));
 
         let mut separator = Separator::default();
         separator.init(renderer);
@@ -85,6 +93,7 @@ impl HistoryPanel {
 
         (
             history_text_id,
+            history_commands_box_id,
             history_undo_button_id,
             history_redo_button_id,
             history_clear_button_id,
@@ -96,54 +105,43 @@ impl HistoryPanel {
         renderer: &mut Renderer,
         history: &CommandsHistory,
     ) -> &mut Self {
-        if let Some(history_commands_box) = self
+        let mut min_size: Vector2 = Vector2::default_zero();
+        if let Some(history_text) = self
             .history_panel
             .get_data_mut()
             .node
-            .get_child::<Panel>(self.history_text_widget_id)
+            .get_child::<Text>(self.history_text_widget_id)
         {
-            history_commands_box.remove_children(renderer);
+            let mut text = String::new();
+
             if let Some(history_debug_commands) = history.get_undoable_commands_history_as_string()
             {
-                for (index, str) in history_debug_commands.iter().enumerate() {
-                    let mut text = Text::default();
-                    text.init(renderer);
-                    text.position(
-                        [
-                            0.,
-                            20. * history_commands_box.get_data_mut().node.get_num_children()
-                                as f32,
-                        ]
-                        .into(),
-                    )
-                    .set_text(str);
-                    if index >= history_debug_commands.len() - 1 {
-                        text.style(WidgetStyle::FullHighlight)
-                            .border_style(WidgetStyle::FullHighlight);
-                        let mut string = String::from("-> ");
-                        string.push_str(str);
-                        text.set_text(string.as_str());
-                    }
-                    history_commands_box.add_child(Box::new(text));
+                for str in history_debug_commands.iter() {
+                    text += str;
+                    text += "\n";
                 }
             }
             if let Some(history_debug_commands) = history.get_redoable_commands_history_as_string()
             {
-                for str in history_debug_commands.iter().rev() {
-                    let mut text = Text::default();
-                    text.init(renderer);
-                    text.position(
-                        [
-                            0.,
-                            20. * history_commands_box.get_data_mut().node.get_num_children()
-                                as f32,
-                        ]
-                        .into(),
-                    )
-                    .set_text(str);
-                    history_commands_box.add_child(Box::new(text));
+                for str in history_debug_commands.iter() {
+                    text += str;
+                    text += "\n";
                 }
             }
+            history_text.set_text(text.as_str());
+            min_size = history_text.get_data().state.get_size();
+            min_size.y *= text.lines().count() as f32;
+        }
+        if let Some(history_commands_box) = self
+            .history_panel
+            .get_data_mut()
+            .node
+            .get_child::<Panel>(self.history_commands_box_id)
+        {
+            let size = history_commands_box.get_data().state.get_size();
+            min_size.x = min_size.x.max(size.x);
+            min_size.y = min_size.y.max(size.y);
+            history_commands_box.get_data_mut().state.set_size(min_size);
         }
         self
     }
@@ -181,11 +179,13 @@ impl HistoryPanel {
 
         let (
             history_text_id,
+            history_commands_box_id,
             history_undo_button_id,
             history_redo_button_id,
             history_clear_button_id,
         ) = self.create_history_widget(renderer);
         self.history_text_widget_id = history_text_id;
+        self.history_commands_box_id = history_commands_box_id;
         self.history_undo_button = history_undo_button_id;
         self.history_redo_button = history_redo_button_id;
         self.history_clear_button = history_clear_button_id;
@@ -198,13 +198,12 @@ impl HistoryPanel {
         events: &mut EventsRw,
         history: &mut CommandsHistory,
     ) {
-        if self.history_panel.get_data().graphics.is_visible() {
-            self.update_history_widget(renderer, &history);
-        }
-
         self.history_panel
             .update(drawing_area_in_px, renderer, events);
 
+        if self.history_panel.get_data().graphics.is_visible() {
+            self.update_history_widget(renderer, &history);
+        }
         if self.history_panel.get_data().graphics.is_visible() {
             self.manage_history_interactions(events, history);
         }

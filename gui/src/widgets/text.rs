@@ -24,7 +24,6 @@ pub struct Text {
     #[serde(skip)]
     material_id: MaterialId,
     text: String,
-    multiline: bool,
     #[serde(skip)]
     hover_char_index: i32,
     #[serde(skip)]
@@ -41,7 +40,6 @@ impl Default for Text {
             font_id: INVALID_ID,
             material_id: INVALID_ID,
             text: String::new(),
-            multiline: false,
             hover_char_index: -1,
             char_width: 0,
             is_dirty: true,
@@ -59,13 +57,6 @@ impl Text {
 
     pub fn get_text(&self) -> &str {
         self.text.as_ref()
-    }
-    pub fn set_multiline(&mut self, is_multiline: bool) -> &mut Self {
-        self.multiline = is_multiline;
-        self
-    }
-    pub fn is_multiline(&self) -> bool {
-        self.multiline
     }
     pub fn is_hover_char(&self) -> bool {
         self.hover_char_index >= 0 && self.hover_char_index <= self.text.len() as _

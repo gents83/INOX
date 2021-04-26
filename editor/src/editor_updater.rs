@@ -86,7 +86,6 @@ impl System for EditorUpdater {
         let mut fps_text = Text::default();
         fps_text.init(renderer);
         fps_text
-            .size([500., 20.].into())
             .vertical_alignment(VerticalAlignment::Top)
             .horizontal_alignment(HorizontalAlignment::Left)
             .set_text("FPS: ");
