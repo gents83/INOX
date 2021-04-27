@@ -1,7 +1,7 @@
 use nrg_graphics::Renderer;
 use nrg_gui::{
     BaseWidget, Button, ContainerFillType, EditableText, HorizontalAlignment, Panel, Screen, Text,
-    VerticalAlignment, WidgetDataGetter, WidgetEvent, WidgetStyle, DEFAULT_BUTTON_SIZE,
+    TitleBar, VerticalAlignment, WidgetDataGetter, WidgetEvent, WidgetStyle, DEFAULT_BUTTON_SIZE,
 };
 use nrg_math::Vector2;
 use nrg_platform::EventsRw;
@@ -15,8 +15,7 @@ pub enum DialogResult {
 
 pub struct FilenameDialog {
     dialog: Panel,
-    title_box_uid: Uid,
-    title_uid: Uid,
+    title_bar_uid: Uid,
     content_box_uid: Uid,
     label_uid: Uid,
     editable_text_uid: Uid,
@@ -30,8 +29,7 @@ impl Default for FilenameDialog {
     fn default() -> Self {
         Self {
             dialog: Panel::default(),
-            title_box_uid: INVALID_UID,
-            title_uid: INVALID_UID,
+            title_bar_uid: INVALID_UID,
             content_box_uid: INVALID_UID,
             label_uid: INVALID_UID,
             editable_text_uid: INVALID_UID,
@@ -61,23 +59,11 @@ impl FilenameDialog {
         self.result
     }
     fn add_title(&mut self, renderer: &mut Renderer) {
-        let mut title_box = Panel::default();
-        title_box.init(renderer);
-        title_box
-            .horizontal_alignment(HorizontalAlignment::Stretch)
-            .fill_type(ContainerFillType::Vertical)
-            .space_between_elements(10)
-            .use_space_before_and_after(true);
+        let mut title_bar = TitleBar::default();
+        title_bar.collapsible(false);
+        title_bar.init(renderer);
 
-        let mut title = Text::default();
-        title.init(renderer);
-        title
-            .vertical_alignment(VerticalAlignment::Top)
-            .horizontal_alignment(HorizontalAlignment::Center)
-            .set_text("New file");
-
-        self.title_uid = title_box.add_child(Box::new(title));
-        self.title_box_uid = self.dialog.add_child(Box::new(title_box));
+        self.title_bar_uid = self.dialog.add_child(Box::new(title_bar));
     }
     fn add_content(&mut self, renderer: &mut Renderer) {
         let mut content_box = Panel::default();
@@ -156,6 +142,7 @@ impl FilenameDialog {
             .fill_type(ContainerFillType::Vertical)
             .keep_fixed_width(true)
             .selectable(false)
+            .space_between_elements(20)
             .style(WidgetStyle::DefaultBackground)
             .move_to_layer(1.);
 
