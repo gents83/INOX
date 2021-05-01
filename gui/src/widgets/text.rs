@@ -16,9 +16,9 @@ pub enum TextEvent {
     AddChar(Uid, i32, char),
     RemoveChar(Uid, i32, char),
 }
-implement_undoable_event!(TextEvent, undo_text_event, debug_info_text_event);
-fn undo_text_event(text_event: &TextEvent) -> TextEvent {
-    match text_event {
+implement_undoable_event!(TextEvent, undo_event, debug_info_event);
+fn undo_event(event: &TextEvent) -> TextEvent {
+    match event {
         TextEvent::AddChar(widget_id, character_index, character) => {
             TextEvent::RemoveChar(*widget_id, *character_index + 1, *character)
         }
@@ -27,8 +27,8 @@ fn undo_text_event(text_event: &TextEvent) -> TextEvent {
         }
     }
 }
-fn debug_info_text_event(text_event: &TextEvent) -> String {
-    match text_event {
+fn debug_info_event(event: &TextEvent) -> String {
+    match event {
         TextEvent::AddChar(_widget_id, _character_index, character) => {
             let mut str = String::from("AddChar[");
             str.push(*character);

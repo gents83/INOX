@@ -31,6 +31,7 @@ pub struct EditorUpdater {
 impl EditorUpdater {
     fn register(&mut self) {
         self.history.register_event_as_undoable::<TextEvent>();
+        self.history.register_event_as_undoable::<CheckboxEvent>();
     }
 
     pub fn new(shared_data: &SharedDataRw, config: &Config) -> Self {

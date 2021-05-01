@@ -1,6 +1,6 @@
+use nrg_events::{implement_undoable_event, Event, EventsRw};
 use nrg_graphics::Renderer;
 use nrg_math::Vector2;
-use nrg_events::{implement_event, Event, EventsRw};
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{
@@ -18,7 +18,19 @@ pub enum CheckboxEvent {
     Checked(Uid),
     Unchecked(Uid),
 }
-implement_event!(CheckboxEvent);
+implement_undoable_event!(CheckboxEvent, undo_event, debug_info_event);
+fn undo_event(event: &CheckboxEvent) -> CheckboxEvent {
+    match event {
+        CheckboxEvent::Checked(widget_id) => CheckboxEvent::Unchecked(*widget_id),
+        CheckboxEvent::Unchecked(widget_id) => CheckboxEvent::Checked(*widget_id),
+    }
+}
+fn debug_info_event(event: &CheckboxEvent) -> String {
+    match event {
+        CheckboxEvent::Checked(_widget_id) => String::from("Checked"),
+        CheckboxEvent::Unchecked(_widget_id) => String::from("Unchecked"),
+    }
+}
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]
@@ -78,42 +90,56 @@ impl Checkbox {
         self.is_checked
     }
 
-    fn check_state_change(id: Uid, old_state: bool, events_rw: &mut EventsRw) -> (bool, bool) {
+    fn check_state_change(&self, id: Uid, events_rw: &mut EventsRw) {
         let mut changed = false;
         let mut new_state = false;
-
-        let events = events_rw.read().unwrap();
-        if let Some(widget_events) = events.read_all_events::<WidgetEvent>() {
-            for event in widget_events.iter() {
-                if let WidgetEvent::Released(widget_id, _mouse_in_px) = event {
-                    if id == *widget_id {
-                        if !old_state {
-                            changed = true;
-                            new_state = true;
-                        } else if old_state {
-                            changed = true;
-                            new_state = false;
+        {
+            let events = events_rw.read().unwrap();
+            if let Some(widget_events) = events.read_all_events::<WidgetEvent>() {
+                for event in widget_events.iter() {
+                    if let WidgetEvent::Released(widget_id, _mouse_in_px) = event {
+                        if id == *widget_id {
+                            if !self.is_checked {
+                                changed = true;
+                                new_state = true;
+                            } else if self.is_checked {
+                                changed = true;
+                                new_state = false;
+                            }
                         }
                     }
                 }
             }
         }
-
-        (changed, new_state)
+        {
+            let mut events = events_rw.write().unwrap();
+            if changed {
+                if new_state {
+                    events.send_event(CheckboxEvent::Checked(id));
+                } else {
+                    events.send_event(CheckboxEvent::Unchecked(id));
+                }
+            }
+        }
     }
 
     pub fn update_checked(&mut self, events_rw: &mut EventsRw) {
         let id = self.outer_widget;
-        let (changed, new_state) = Self::check_state_change(id, self.is_checked, events_rw);
+        self.check_state_change(id, events_rw);
 
-        let mut events = events_rw.write().unwrap();
-        if changed {
-            if new_state {
-                events.send_event(CheckboxEvent::Checked(id));
-            } else {
-                events.send_event(CheckboxEvent::Unchecked(id));
+        let events = events_rw.read().unwrap();
+        if let Some(checkbox_events) = events.read_all_events::<CheckboxEvent>() {
+            for event in checkbox_events.iter() {
+                if let CheckboxEvent::Checked(widget_id) = event {
+                    if *widget_id == id {
+                        self.checked(true);
+                    }
+                } else if let CheckboxEvent::Unchecked(widget_id) = event {
+                    if *widget_id == id {
+                        self.checked(false);
+                    }
+                }
             }
-            self.checked(new_state);
         }
     }
 }
