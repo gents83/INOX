@@ -4,7 +4,7 @@ use nrg_gui::{
     TitleBar, VerticalAlignment, WidgetDataGetter, WidgetEvent, WidgetStyle, DEFAULT_BUTTON_SIZE,
 };
 use nrg_math::Vector2;
-use nrg_platform::EventsRw;
+use nrg_events::EventsRw;
 use nrg_serialize::{Uid, INVALID_UID};
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum DialogResult {
@@ -120,7 +120,7 @@ impl FilenameDialog {
     }
     fn manage_events(&mut self, events_rw: &mut EventsRw) {
         let events = events_rw.read().unwrap();
-        if let Some(widget_events) = events.read_events::<WidgetEvent>() {
+        if let Some(widget_events) = events.read_all_events::<WidgetEvent>() {
             for event in widget_events.iter() {
                 if let WidgetEvent::Pressed(widget_id, _mouse_in_px) = event {
                     if self.ok_uid == *widget_id {

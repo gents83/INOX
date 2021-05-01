@@ -5,8 +5,9 @@ use std::{
     sync::Once,
 };
 
+use nrg_events::EventsRw;
+use nrg_platform::{WindowEvent, DEFAULT_DPI};
 use nrg_math::{Vector2, Vector4};
-use nrg_platform::{EventsRw, WindowEvent, DEFAULT_DPI};
 
 const DEFAULT_WIDTH: u32 = 1920;
 const DEFAULT_HEIGTH: u32 = 1080;
@@ -65,7 +66,7 @@ impl Screen {
         let mut scale_factor = inner.scale_factor;
         {
             let events = inner.window_events.read().unwrap();
-            if let Some(window_events) = events.read_events::<WindowEvent>() {
+            if let Some(window_events) = events.read_all_events::<WindowEvent>() {
                 for event in window_events.iter() {
                     match event {
                         WindowEvent::SizeChanged(width, height) => {

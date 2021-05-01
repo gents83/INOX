@@ -1,7 +1,7 @@
 #![allow(clippy::upper_case_acronyms)]
 
 use super::state::*;
-use crate::events::*;
+use nrg_events::{events::*, implement_event};
 
 // Please refer to
 // https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/key/Key_Values
@@ -712,7 +712,7 @@ pub enum Key {
 pub struct KeyTextEvent {
     pub char: char,
 }
-impl Event for KeyTextEvent {}
+implement_event!(KeyTextEvent);
 
 impl Default for KeyTextEvent {
     fn default() -> Self {
@@ -727,7 +727,7 @@ pub struct KeyEvent {
     pub code: Key,
     pub state: InputState,
 }
-impl Event for KeyEvent {}
+implement_event!(KeyEvent);
 
 impl Default for KeyEvent {
     fn default() -> Self {

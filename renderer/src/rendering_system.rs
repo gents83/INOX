@@ -4,6 +4,7 @@ use nrg_core::*;
 use nrg_graphics::*;
 use nrg_math::*;
 use nrg_platform::*;
+use nrg_events::EventsRw;
 
 pub struct RenderingSystem {
     id: SystemId,
@@ -56,7 +57,7 @@ impl System for RenderingSystem {
 
         let mut should_recreate_swap_chain = false;
         let events = events_rw.read().unwrap();
-        if let Some(window_events) = events.read_events::<WindowEvent>() {
+        if let Some(window_events) = events.read_all_events::<WindowEvent>() {
             for event in window_events {
                 if let WindowEvent::SizeChanged(_width, _height) = event {
                     should_recreate_swap_chain = true;

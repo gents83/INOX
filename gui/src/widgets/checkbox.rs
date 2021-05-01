@@ -1,6 +1,6 @@
 use nrg_graphics::Renderer;
 use nrg_math::Vector2;
-use nrg_platform::{Event, EventsRw};
+use nrg_events::{implement_event, Event, EventsRw};
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{
@@ -13,11 +13,12 @@ pub const DEFAULT_CHECKBOX_SIZE: [f32; 2] = [
     DEFAULT_WIDGET_HEIGHT / 2. * 3.,
 ];
 
+#[derive(Clone, Copy)]
 pub enum CheckboxEvent {
     Checked(Uid),
     Unchecked(Uid),
 }
-impl Event for CheckboxEvent {}
+implement_event!(CheckboxEvent);
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]
@@ -82,7 +83,7 @@ impl Checkbox {
         let mut new_state = false;
 
         let events = events_rw.read().unwrap();
-        if let Some(widget_events) = events.read_events::<WidgetEvent>() {
+        if let Some(widget_events) = events.read_all_events::<WidgetEvent>() {
             for event in widget_events.iter() {
                 if let WidgetEvent::Released(widget_id, _mouse_in_px) = event {
                     if id == *widget_id {

@@ -3,7 +3,8 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use nrg_platform::{EventsRw, InputState, Key, KeyEvent};
+use nrg_events::EventsRw;
+use nrg_platform::{InputState, Key, KeyEvent};
 
 use crate::{Phase, PluginId, PluginManager, Scheduler, SharedData, SharedDataRw};
 
@@ -85,7 +86,7 @@ impl App {
         let data = self.shared_data.write().unwrap();
         let events_rw = &mut *data.get_unique_resource_mut::<EventsRw>();
         let events = events_rw.read().unwrap();
-        if let Some(key_events) = events.read_events::<KeyEvent>() {
+        if let Some(key_events) = events.read_all_events::<KeyEvent>() {
             for event in key_events.iter() {
                 if event.code == Key::F9 && event.state == InputState::JustPressed {
                     if !self.is_profiling {

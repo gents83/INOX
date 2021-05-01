@@ -3,7 +3,7 @@ use nrg_graphics::{
     MeshData, Renderer,
 };
 use nrg_math::Vector2;
-use nrg_platform::{Event, EventsRw};
+use nrg_events::{implement_event, Event, EventsRw};
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{
@@ -15,11 +15,12 @@ pub const DEFAULT_ICON_SIZE: [f32; 2] = [
     DEFAULT_WIDGET_HEIGHT * 2. / 3.,
 ];
 
+#[derive(Clone, Copy)]
 pub enum TitleBarEvent {
     Collapsed(Uid),
     Expanded(Uid),
 }
-impl Event for TitleBarEvent {}
+implement_event!(TitleBarEvent);
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]
@@ -116,7 +117,7 @@ impl TitleBar {
     fn manage_interactions(&mut self, events_rw: &mut EventsRw) -> &mut Self {
         {
             let events = events_rw.read().unwrap();
-            if let Some(widget_events) = events.read_events::<WidgetEvent>() {
+            if let Some(widget_events) = events.read_all_events::<WidgetEvent>() {
                 for event in widget_events.iter() {
                     if let WidgetEvent::Pressed(widget_id, _mouse_in_px) = event {
                         if self.id() == *widget_id || self.collapse_icon_widget == *widget_id {

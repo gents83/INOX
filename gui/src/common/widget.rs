@@ -1,6 +1,7 @@
+use nrg_events::EventsRw;
+use nrg_platform::{MouseEvent, MouseState};
 use nrg_graphics::Renderer;
 use nrg_math::{VecBase, Vector2, Vector4};
-use nrg_platform::{EventsRw, MouseEvent, MouseState};
 use nrg_serialize::{typetag, Uid};
 
 use crate::{
@@ -256,7 +257,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
     fn manage_events(&mut self, events: &mut EventsRw) {
         let id = self.id();
         let events = events.read().unwrap();
-        if let Some(widget_events) = events.read_events::<WidgetEvent>() {
+        if let Some(widget_events) = events.read_all_events::<WidgetEvent>() {
             for event in widget_events.iter() {
                 match event {
                     WidgetEvent::Entering(widget_id) => {
@@ -343,7 +344,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
             return;
         }
         let mut widget_events: Vec<WidgetEvent> = Vec::new();
-        if let Some(mut mouse_events) = events_rw.read().unwrap().read_events::<MouseEvent>() {
+        if let Some(mut mouse_events) = events_rw.read().unwrap().read_all_events::<MouseEvent>() {
             for event in mouse_events.iter_mut() {
                 if let Some(widget_event) = self.manage_mouse_event(event) {
                     widget_events.push(widget_event);

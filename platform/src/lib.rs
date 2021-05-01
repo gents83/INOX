@@ -1,7 +1,6 @@
 #![warn(clippy::all)]
 
 // Common
-pub use self::events::*;
 pub use self::handle::*;
 pub use self::input::*;
 pub use self::library::*;
@@ -11,7 +10,6 @@ pub use self::window::*;
 
 //Modules
 mod ctypes;
-pub mod events;
 pub mod handle;
 pub mod library;
 pub mod utils;

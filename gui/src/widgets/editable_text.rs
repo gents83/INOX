@@ -1,15 +1,13 @@
-use nrg_commands::ExecuteCommand;
 use nrg_graphics::Renderer;
 
+use nrg_events::EventsRw;
 use nrg_math::Vector2;
-use nrg_platform::{
-    EventsRw, InputState, Key, KeyEvent, KeyTextEvent, MouseButton, MouseEvent, MouseState,
-};
+use nrg_platform::{InputState, Key, KeyEvent, KeyTextEvent, MouseButton, MouseEvent, MouseState};
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{
-    implement_widget, AddCharCommand, Indicator, InternalWidget, RemoveCharCommand, Text,
-    WidgetData, WidgetEvent, DEFAULT_TEXT_SIZE,
+    implement_widget, Indicator, InternalWidget, Text, TextEvent, WidgetData, WidgetEvent,
+    DEFAULT_TEXT_SIZE,
 };
 
 #[derive(Serialize, Deserialize)]
@@ -49,14 +47,14 @@ impl EditableText {
         text_result
     }
     fn manage_char_input(&mut self, events_rw: &EventsRw) {
-        let mut commands: Vec<AddCharCommand> = Vec::new();
+        let mut new_events: Vec<TextEvent> = Vec::new();
         let mut current_index = self.current_char;
         {
             let events = events_rw.read().unwrap();
-            if let Some(key_text_events) = events.read_events::<KeyTextEvent>() {
+            if let Some(key_text_events) = events.read_all_events::<KeyTextEvent>() {
                 for event in key_text_events.iter() {
                     if !event.char.is_control() {
-                        commands.push(AddCharCommand::new(
+                        new_events.push(TextEvent::AddChar(
                             self.text_widget,
                             current_index,
                             event.char,
@@ -68,18 +66,18 @@ impl EditableText {
         }
         self.current_char = current_index;
         let mut events = events_rw.write().unwrap();
-        for command in commands.into_iter() {
-            events.send_event::<ExecuteCommand>(ExecuteCommand::new(command));
+        for e in new_events.into_iter() {
+            events.send_event::<TextEvent>(e);
         }
     }
 
     fn manage_key_pressed(&mut self, events_rw: &mut EventsRw) {
-        let mut commands: Vec<RemoveCharCommand> = Vec::new();
+        let mut new_events: Vec<TextEvent> = Vec::new();
         let mut current_index = self.current_char;
         {
             let text_widget_id = self.text_widget;
             let events = events_rw.read().unwrap();
-            if let Some(key_events) = events.read_events::<KeyEvent>() {
+            if let Some(key_events) = events.read_all_events::<KeyEvent>() {
                 for event in key_events.iter() {
                     if event.state == InputState::JustPressed || event.state == InputState::Pressed
                     {
@@ -89,7 +87,7 @@ impl EditableText {
                                     self.get_data_mut().node.get_child::<Text>(text_widget_id)
                                 {
                                     if let Some(c) = text.get_char_at(current_index) {
-                                        commands.push(RemoveCharCommand::new(
+                                        new_events.push(TextEvent::RemoveChar(
                                             text_widget_id,
                                             current_index,
                                             c,
@@ -103,7 +101,7 @@ impl EditableText {
                                     self.get_data_mut().node.get_child::<Text>(text_widget_id)
                                 {
                                     if let Some(c) = text.get_char_at(current_index + 1) {
-                                        commands.push(RemoveCharCommand::new(
+                                        new_events.push(TextEvent::RemoveChar(
                                             text_widget_id,
                                             current_index + 1,
                                             c,
@@ -138,8 +136,8 @@ impl EditableText {
         }
         self.current_char = current_index;
         let mut events = events_rw.write().unwrap();
-        for command in commands.into_iter() {
-            events.send_event::<ExecuteCommand>(ExecuteCommand::new(command));
+        for e in new_events.into_iter() {
+            events.send_event::<TextEvent>(e);
         }
     }
 
@@ -153,14 +151,14 @@ impl EditableText {
 
     fn check_focus(&mut self, events_rw: &mut EventsRw) {
         let events = events_rw.read().unwrap();
-        if let Some(mouse_events) = events.read_events::<MouseEvent>() {
+        if let Some(mouse_events) = events.read_all_events::<MouseEvent>() {
             for event in mouse_events.iter() {
                 if event.button == MouseButton::Left && event.state == MouseState::Down {
                     self.is_focused = false;
                 }
             }
         }
-        if let Some(widget_events) = events.read_events::<WidgetEvent>() {
+        if let Some(widget_events) = events.read_all_events::<WidgetEvent>() {
             for event in widget_events.iter() {
                 if let WidgetEvent::Pressed(widget_id, _mouse_in_px) = event {
                     if self.id() == *widget_id {

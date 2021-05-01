@@ -5,7 +5,7 @@ members = [
     "apps/game_app",
     "apps/editor_app",
     "core",
-    "commands",
+    "events",
     "gui",
     "graphics",
     "math",

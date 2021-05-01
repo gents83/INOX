@@ -1,4 +1,5 @@
 use nrg_core::*;
+use nrg_events::EventsRw;
 use nrg_platform::*;
 
 use crate::config::*;

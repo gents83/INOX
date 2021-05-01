@@ -9,7 +9,7 @@ fn main() {
     let plugins = [
         "nrg_profiler",
         "nrg_core",
-        "nrg_commands",
+        "nrg_events",
         "nrg_graphics",
         "nrg_gui",
         "nrg_math",

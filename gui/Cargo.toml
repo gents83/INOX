@@ -10,7 +10,7 @@ crate-type = ["cdylib",'rlib']
 
 [dependencies]
 nrg_core = { path = "../core" }
-nrg_commands = { path = "../commands" }
+nrg_events = { path = "../events" }
 nrg_math = { path = "../math" }
 nrg_graphics = { path = "../graphics" }
 nrg_platform = { path = "../platform" }

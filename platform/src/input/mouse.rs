@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::events::*;
+use nrg_events::{events::*, implement_event};
 
 #[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone, Copy)]
 pub enum MouseButton {
@@ -26,7 +26,7 @@ pub struct MouseEvent {
     pub button: MouseButton,
     pub state: MouseState,
 }
-impl Event for MouseEvent {}
+implement_event!(MouseEvent);
 
 impl Default for MouseEvent {
     fn default() -> Self {

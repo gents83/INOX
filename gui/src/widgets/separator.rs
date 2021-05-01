@@ -1,6 +1,6 @@
 use nrg_graphics::Renderer;
 
-use nrg_platform::EventsRw;
+use nrg_events::EventsRw;
 use nrg_serialize::{Deserialize, Serialize};
 
 use crate::{implement_widget, InternalWidget, WidgetData, DEFAULT_WIDGET_SIZE};

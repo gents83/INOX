@@ -3,6 +3,7 @@ use nrg_gui::*;
 use nrg_math::*;
 use nrg_platform::*;
 use nrg_serialize::*;
+use nrg_events::EventsRw;
 
 use super::{DialogResult, FilenameDialog};
 
@@ -49,7 +50,7 @@ impl MainMenu {
     }
     fn manage_events(&mut self, events_rw: &mut EventsRw, renderer: &mut Renderer) -> bool {
         let events = events_rw.read().unwrap();
-        if let Some(widget_events) = events.read_events::<WidgetEvent>() {
+        if let Some(widget_events) = events.read_all_events::<WidgetEvent>() {
             for event in widget_events.iter() {
                 if let WidgetEvent::Pressed(widget_id, _mouse_in_px) = event {
                     if self.new_id == *widget_id && self.filename_dialog.is_none() {

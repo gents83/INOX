@@ -1,7 +1,8 @@
 use nrg_math::Vector2;
-use nrg_platform::Event;
+use nrg_events::{implement_event, Event, EventsRw};
 use nrg_serialize::Uid;
 
+#[derive(Clone, Copy)]
 pub enum WidgetEvent {
     Entering(Uid),
     Exiting(Uid),
@@ -9,4 +10,5 @@ pub enum WidgetEvent {
     Released(Uid, Vector2),
     Dragging(Uid, Vector2),
 }
-impl Event for WidgetEvent {}
+
+implement_event!(WidgetEvent);

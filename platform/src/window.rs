@@ -1,5 +1,5 @@
-use crate::events::*;
 use crate::handle::*;
+use nrg_events::{events::*, implement_event};
 
 pub const DEFAULT_DPI: f32 = 96.0;
 
@@ -11,8 +11,7 @@ pub enum WindowEvent {
     PosChanged(u32, u32),
     Close,
 }
-
-impl Event for WindowEvent {}
+implement_event!(WindowEvent);
 
 pub struct Window {
     handle: Handle,
@@ -94,7 +93,7 @@ impl Window {
 
     fn manage_window_events(&mut self) {
         let events = self.events.read().unwrap();
-        if let Some(window_events) = events.read_events::<WindowEvent>() {
+        if let Some(window_events) = events.read_all_events::<WindowEvent>() {
             for event in window_events.iter() {
                 match event {
                     WindowEvent::DpiChanged(x, _y) => {

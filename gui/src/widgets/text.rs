@@ -1,6 +1,7 @@
+use nrg_events::{implement_undoable_event, Event, EventsRw};
 use nrg_graphics::{FontId, MaterialId, MeshData, Renderer, INVALID_ID};
 use nrg_math::{Vector2, Vector4};
-use nrg_platform::{Event, EventsRw, MouseEvent, MouseState};
+use nrg_platform::{MouseEvent, MouseState};
 use nrg_serialize::{Deserialize, Serialize, Uid};
 
 use crate::{
@@ -10,11 +11,38 @@ use crate::{
 pub const DEFAULT_TEXT_SIZE: [f32; 2] =
     [DEFAULT_WIDGET_WIDTH * 20., DEFAULT_WIDGET_HEIGHT / 4. * 3.];
 
+#[derive(Clone, Copy)]
 pub enum TextEvent {
     AddChar(Uid, i32, char),
     RemoveChar(Uid, i32, char),
 }
-impl Event for TextEvent {}
+implement_undoable_event!(TextEvent, undo_text_event, debug_info_text_event);
+fn undo_text_event(text_event: &TextEvent) -> TextEvent {
+    match text_event {
+        TextEvent::AddChar(widget_id, character_index, character) => {
+            TextEvent::RemoveChar(*widget_id, *character_index + 1, *character)
+        }
+        TextEvent::RemoveChar(widget_id, character_index, character) => {
+            TextEvent::AddChar(*widget_id, *character_index - 1, *character)
+        }
+    }
+}
+fn debug_info_text_event(text_event: &TextEvent) -> String {
+    match text_event {
+        TextEvent::AddChar(_widget_id, _character_index, character) => {
+            let mut str = String::from("AddChar[");
+            str.push(*character);
+            str.push(']');
+            str
+        }
+        TextEvent::RemoveChar(_widget_id, _character_index, character) => {
+            let mut str = String::from("RemoveChar[");
+            str.push(*character);
+            str.push(']');
+            str
+        }
+    }
+}
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]
@@ -80,7 +108,7 @@ impl Text {
 
     fn update_text(&mut self, events_rw: &mut EventsRw) {
         let events = events_rw.read().unwrap();
-        if let Some(mut text_events) = events.read_events::<TextEvent>() {
+        if let Some(mut text_events) = events.read_all_events::<TextEvent>() {
             for event in text_events.iter_mut() {
                 match event {
                     TextEvent::AddChar(widget_id, char_index, character) => {
@@ -96,7 +124,7 @@ impl Text {
                 }
             }
         }
-        if let Some(mut mouse_events) = events.read_events::<MouseEvent>() {
+        if let Some(mut mouse_events) = events.read_all_events::<MouseEvent>() {
             for event in mouse_events.iter_mut() {
                 if event.state == MouseState::Move {
                     let mouse_pos = Vector2::new(event.x as _, event.y as _);

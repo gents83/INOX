@@ -1,6 +1,6 @@
 use nrg_graphics::{Renderer, INVALID_ID};
 use nrg_math::{VecBase, Vector2};
-use nrg_platform::EventsRw;
+use nrg_events::EventsRw;
 use nrg_serialize::{Deserialize, Serialize, Uid};
 
 use crate::{implement_widget, InternalWidget, TitleBar, TitleBarEvent, WidgetData};
@@ -28,7 +28,7 @@ impl Default for GraphNode {
 impl GraphNode {
     fn manage_events(&mut self, events_rw: &mut EventsRw) -> &mut Self {
         let events = events_rw.read().unwrap();
-        if let Some(widget_events) = events.read_events::<TitleBarEvent>() {
+        if let Some(widget_events) = events.read_all_events::<TitleBarEvent>() {
             for event in widget_events.iter() {
                 if let TitleBarEvent::Collapsed(widget_id) = event {
                     if *widget_id == self.title_bar {

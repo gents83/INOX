@@ -2,10 +2,10 @@ use super::externs::*;
 use super::handle::*;
 use super::types::*;
 use crate::ctypes::*;
-use crate::events::*;
 use crate::handle::*;
 use crate::input::*;
 use crate::window::*;
+use nrg_events::events::*;
 
 static mut EVENTS: *mut EventsRw = std::ptr::null_mut();
 

@@ -1,6 +1,6 @@
 use nrg_graphics::Renderer;
 use nrg_math::Vector2;
-use nrg_platform::EventsRw;
+use nrg_events::EventsRw;
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{

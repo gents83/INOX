@@ -1,6 +1,6 @@
 use nrg_graphics::Renderer;
 use nrg_math::{VecBase, Vector2};
-use nrg_platform::EventsRw;
+use nrg_events::EventsRw;
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{
@@ -158,7 +158,7 @@ impl Menu {
         self.manage_hovering();
 
         let events = events_rw.read().unwrap();
-        if let Some(widget_events) = events.read_events::<WidgetEvent>() {
+        if let Some(widget_events) = events.read_all_events::<WidgetEvent>() {
             for event in widget_events.iter() {
                 if let WidgetEvent::Released(widget_id, _mouse_in_px) = event {
                     let mut pos = Vector2::default_zero();

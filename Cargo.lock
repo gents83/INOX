@@ -457,20 +457,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "nrg_commands"
-version = "0.1.0"
-dependencies = [
- "nrg_core",
- "nrg_math",
- "nrg_platform",
- "nrg_serialize",
-]
-
-[[package]]
 name = "nrg_core"
 version = "0.1.0"
 dependencies = [
  "downcast-rs",
+ "nrg_events",
  "nrg_platform",
  "nrg_profiler",
  "nrg_serialize",
@@ -480,8 +471,8 @@ dependencies = [
 name = "nrg_editor"
 version = "0.1.0"
 dependencies = [
- "nrg_commands",
  "nrg_core",
+ "nrg_events",
  "nrg_graphics",
  "nrg_gui",
  "nrg_math",
@@ -497,6 +488,10 @@ dependencies = [
  "nrg_core",
  "nrg_platform",
 ]
+
+[[package]]
+name = "nrg_events"
+version = "0.1.0"
 
 [[package]]
 name = "nrg_game"
@@ -522,6 +517,7 @@ name = "nrg_graphics"
 version = "0.1.0"
 dependencies = [
  "image",
+ "nrg_events",
  "nrg_math",
  "nrg_platform",
  "nrg_profiler",
@@ -534,8 +530,8 @@ dependencies = [
 name = "nrg_gui"
 version = "0.1.0"
 dependencies = [
- "nrg_commands",
  "nrg_core",
+ "nrg_events",
  "nrg_graphics",
  "nrg_math",
  "nrg_platform",
@@ -561,6 +557,9 @@ dependencies = [
 [[package]]
 name = "nrg_platform"
 version = "0.1.0"
+dependencies = [
+ "nrg_events",
+]
 
 [[package]]
 name = "nrg_profiler"
@@ -576,6 +575,7 @@ name = "nrg_renderer"
 version = "0.1.0"
 dependencies = [
  "nrg_core",
+ "nrg_events",
  "nrg_graphics",
  "nrg_math",
  "nrg_platform",
@@ -599,6 +599,7 @@ name = "nrg_window"
 version = "0.1.0"
 dependencies = [
  "nrg_core",
+ "nrg_events",
  "nrg_math",
  "nrg_platform",
  "nrg_serialize",

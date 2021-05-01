@@ -6,8 +6,8 @@ use std::{
 use super::config::*;
 use super::widgets::*;
 
-use nrg_commands::*;
 use nrg_core::*;
+use nrg_events::*;
 use nrg_graphics::*;
 use nrg_gui::*;
 use nrg_platform::*;
@@ -19,7 +19,7 @@ pub struct EditorUpdater {
     shared_data: SharedDataRw,
     config: Config,
     is_ctrl_pressed: bool,
-    history: CommandsHistory,
+    history: EventsHistory,
     fps_text_widget_id: Uid,
     main_menu: MainMenu,
     canvas: Canvas,
@@ -29,23 +29,28 @@ pub struct EditorUpdater {
 }
 
 impl EditorUpdater {
+    fn register(&mut self) {
+        self.history.register_event_as_undoable::<TextEvent>();
+    }
+
     pub fn new(shared_data: &SharedDataRw, config: &Config) -> Self {
-        let read_data = shared_data.read().unwrap();
-        let events_rw = &mut *read_data.get_unique_resource_mut::<EventsRw>();
-        Self {
+        let mut updater = Self {
             id: SystemId::new(),
             frame_seconds: VecDeque::default(),
             shared_data: shared_data.clone(),
             config: config.clone(),
             is_ctrl_pressed: false,
             history_panel: HistoryPanel::default(),
-            history: CommandsHistory::new(&events_rw),
+            history: EventsHistory::default(),
             main_menu: MainMenu::default(),
             canvas: Canvas::default(),
             widget: Panel::default(),
             fps_text_widget_id: INVALID_ID,
             node: GraphNode::default(),
-        }
+        };
+        updater.register();
+
+        updater
     }
 }
 
@@ -128,8 +133,11 @@ impl System for EditorUpdater {
 
         self.update_keyboard_input().update_widgets();
 
-        self.history.update();
         self.update_fps_counter();
+
+        let read_data = self.shared_data.read().unwrap();
+        let events_rw = &mut *read_data.get_unique_resource_mut::<EventsRw>();
+        self.history.update(events_rw);
         true
     }
     fn uninit(&mut self) {
@@ -235,7 +243,7 @@ impl EditorUpdater {
             let events_rw = &mut *read_data.get_unique_resource_mut::<EventsRw>();
             let events = events_rw.read().unwrap();
 
-            if let Some(key_events) = events.read_events::<KeyEvent>() {
+            if let Some(key_events) = events.read_all_events::<KeyEvent>() {
                 for event in key_events.iter() {
                     if event.code == Key::Control {
                         if event.state == InputState::Pressed
@@ -251,12 +259,12 @@ impl EditorUpdater {
                         && event.code == Key::Z
                         && event.state == InputState::JustPressed
                     {
-                        self.history.undo_last_command();
+                        self.history.undo_last_event();
                     } else if self.is_ctrl_pressed
                         && event.code == Key::Y
                         && event.state == InputState::JustPressed
                     {
-                        self.history.redo_last_command();
+                        self.history.redo_last_event();
                     } else if event.state == InputState::JustPressed && event.code == Key::F5 {
                         println!("Launch game");
                         let result = std::process::Command::new("nrg_game_app").spawn().is_ok();

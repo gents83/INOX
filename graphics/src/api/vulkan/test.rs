@@ -2,6 +2,7 @@
 
 use super::utils::*;
 use nrg_platform::*;
+use nrg_events::EventsRw;
 use vulkan_bindings::*;
 
 #[test]

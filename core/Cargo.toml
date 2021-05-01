@@ -10,6 +10,7 @@ crate-type = ["cdylib",'rlib']
 
 [dependencies]
 downcast-rs = { git = "https://github.com/marcianx/downcast-rs" }
+nrg_events = { path = "../events" }
 nrg_platform = { path = "../platform" }
 nrg_serialize = { path = "../serialize" }
 nrg_profiler = { path = "../profiler" }
