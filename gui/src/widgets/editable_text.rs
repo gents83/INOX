@@ -38,6 +38,14 @@ impl Default for EditableText {
 }
 
 impl EditableText {
+    pub fn set_text(&mut self, string: &str) -> &mut Self {
+        let uid = self.text_widget;
+        if let Some(text) = self.get_data_mut().node.get_child::<Text>(uid) {
+            text.set_text(string);
+        }
+        self.update_indicator_position();
+        self
+    }
     pub fn get_text(&mut self) -> String {
         let mut text_result = String::new();
         let text_widget_id = self.text_widget;
@@ -232,12 +240,13 @@ impl InternalWidget for EditableText {
         let default_size: Vector2 = DEFAULT_TEXT_SIZE.into();
 
         self.size(default_size * Screen::get_scale_factor())
-            .horizontal_alignment(HorizontalAlignment::Right);
+            .fill_type(ContainerFillType::Horizontal)
+            .keep_fixed_width(false)
+            .keep_fixed_height(true);
 
         let mut text = Text::default();
         text.init(renderer);
-        text.vertical_alignment(VerticalAlignment::Center)
-            .horizontal_alignment(HorizontalAlignment::Left);
+        text.vertical_alignment(VerticalAlignment::Center);
         text.set_text("Edit me");
         self.text_widget = self.add_child(Box::new(text));
 

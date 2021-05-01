@@ -106,10 +106,10 @@ impl System for EditorUpdater {
         checkbox.with_label(renderer, "Checkbox");
         self.widget.add_child(Box::new(checkbox));
 
-        let mut editable_text = EditableText::default();
-        editable_text.init(renderer);
-        editable_text.horizontal_alignment(HorizontalAlignment::Stretch);
-        self.widget.add_child(Box::new(editable_text));
+        let mut textbox = TextBox::default();
+        textbox.init(renderer);
+        textbox.horizontal_alignment(HorizontalAlignment::Stretch);
+        self.widget.add_child(Box::new(textbox));
 
         /*
                 let dir = "./data/widgets/";

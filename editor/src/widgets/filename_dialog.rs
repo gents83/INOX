@@ -1,10 +1,10 @@
+use nrg_events::EventsRw;
 use nrg_graphics::Renderer;
 use nrg_gui::{
-    BaseWidget, Button, ContainerFillType, EditableText, HorizontalAlignment, Panel, Screen, Text,
-    TitleBar, VerticalAlignment, WidgetDataGetter, WidgetEvent, WidgetStyle, DEFAULT_BUTTON_SIZE,
+    BaseWidget, Button, ContainerFillType, HorizontalAlignment, Panel, Screen, TextBox, TitleBar,
+    VerticalAlignment, WidgetDataGetter, WidgetEvent, WidgetStyle, DEFAULT_BUTTON_SIZE,
 };
 use nrg_math::Vector2;
-use nrg_events::EventsRw;
 use nrg_serialize::{Uid, INVALID_UID};
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum DialogResult {
@@ -16,9 +16,7 @@ pub enum DialogResult {
 pub struct FilenameDialog {
     dialog: Panel,
     title_bar_uid: Uid,
-    content_box_uid: Uid,
-    label_uid: Uid,
-    editable_text_uid: Uid,
+    text_box_uid: Uid,
     button_box_uid: Uid,
     ok_uid: Uid,
     cancel_uid: Uid,
@@ -30,9 +28,7 @@ impl Default for FilenameDialog {
         Self {
             dialog: Panel::default(),
             title_bar_uid: INVALID_UID,
-            content_box_uid: INVALID_UID,
-            label_uid: INVALID_UID,
-            editable_text_uid: INVALID_UID,
+            text_box_uid: INVALID_UID,
             button_box_uid: INVALID_UID,
             ok_uid: INVALID_UID,
             cancel_uid: INVALID_UID,
@@ -44,14 +40,9 @@ impl Default for FilenameDialog {
 impl FilenameDialog {
     pub fn get_filename(&mut self) -> String {
         let mut filename = String::new();
-        let uid = self.editable_text_uid;
-        if let Some(editable_text) = self
-            .dialog
-            .get_data_mut()
-            .node
-            .get_child::<EditableText>(uid)
-        {
-            filename = editable_text.get_text();
+        let uid = self.text_box_uid;
+        if let Some(text_box) = self.dialog.get_data_mut().node.get_child::<TextBox>(uid) {
+            filename = text_box.get_text();
         }
         filename
     }
@@ -66,28 +57,13 @@ impl FilenameDialog {
         self.title_bar_uid = self.dialog.add_child(Box::new(title_bar));
     }
     fn add_content(&mut self, renderer: &mut Renderer) {
-        let mut content_box = Panel::default();
-        content_box.init(renderer);
-        content_box
-            .fill_type(ContainerFillType::Horizontal)
-            .keep_fixed_height(false)
-            .vertical_alignment(VerticalAlignment::Center)
-            .horizontal_alignment(HorizontalAlignment::Stretch);
+        let mut text_box = TextBox::default();
+        text_box.init(renderer);
+        text_box
+            .with_label("Filename: ")
+            .set_text("Insert text here");
 
-        let mut label = Text::default();
-        label.init(renderer);
-        label
-            .vertical_alignment(VerticalAlignment::Center)
-            .horizontal_alignment(HorizontalAlignment::Left)
-            .set_text("Filename: ");
-
-        let mut editable_text = EditableText::default();
-        editable_text.init(renderer);
-        editable_text.vertical_alignment(VerticalAlignment::Center);
-
-        self.label_uid = content_box.add_child(Box::new(label));
-        self.editable_text_uid = content_box.add_child(Box::new(editable_text));
-        self.content_box_uid = self.dialog.add_child(Box::new(content_box));
+        self.text_box_uid = self.dialog.add_child(Box::new(text_box));
     }
 
     fn add_buttons(&mut self, renderer: &mut Renderer) {

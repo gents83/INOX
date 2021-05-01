@@ -8,6 +8,7 @@ pub use self::menu::*;
 pub use self::panel::*;
 pub use self::separator::*;
 pub use self::text::*;
+pub use self::textbox::*;
 pub use self::titlebar::*;
 
 pub mod button;
@@ -20,4 +21,5 @@ pub mod menu;
 pub mod panel;
 pub mod separator;
 pub mod text;
+pub mod textbox;
 pub mod titlebar;

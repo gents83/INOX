@@ -8,8 +8,7 @@ use crate::{
     implement_widget, InternalWidget, WidgetData, DEFAULT_WIDGET_HEIGHT, DEFAULT_WIDGET_WIDTH,
 };
 
-pub const DEFAULT_TEXT_SIZE: [f32; 2] =
-    [DEFAULT_WIDGET_WIDTH * 20., DEFAULT_WIDGET_HEIGHT / 4. * 3.];
+pub const DEFAULT_TEXT_SIZE: [f32; 2] = [DEFAULT_WIDGET_WIDTH, DEFAULT_WIDGET_HEIGHT / 4. * 3.];
 
 #[derive(Clone, Copy)]
 pub enum TextEvent {
