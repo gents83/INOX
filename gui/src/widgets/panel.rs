@@ -1,6 +1,6 @@
+use nrg_events::EventsRw;
 use nrg_graphics::Renderer;
 use nrg_math::Vector2;
-use nrg_events::EventsRw;
 use nrg_serialize::{Deserialize, Serialize};
 
 use crate::{implement_widget, InternalWidget, WidgetData, DEFAULT_WIDGET_HEIGHT};
@@ -31,8 +31,7 @@ impl InternalWidget for Panel {
         let size: Vector2 = DEFAULT_PANEL_SIZE.into();
         self.size(size * Screen::get_scale_factor())
             .selectable(false)
-            .style(WidgetStyle::DefaultBackground)
-            .border_style(WidgetStyle::DefaultBorder);
+            .style(WidgetStyle::Invisible);
     }
 
     fn widget_update(&mut self, _renderer: &mut Renderer, _events: &mut EventsRw) {}

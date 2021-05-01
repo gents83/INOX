@@ -91,6 +91,7 @@ impl System for EditorUpdater {
             .horizontal_alignment(HorizontalAlignment::Right)
             .space_between_elements(20)
             .fill_type(ContainerFillType::Vertical)
+            .style(WidgetStyle::DefaultBackground)
             .move_to_layer(0.5);
 
         let mut fps_text = Text::default();

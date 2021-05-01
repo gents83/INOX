@@ -168,6 +168,7 @@ impl HistoryPanel {
             .horizontal_alignment(HorizontalAlignment::Left)
             .fill_type(ContainerFillType::Vertical)
             .space_between_elements((DEFAULT_WIDGET_WIDTH / 2. * Screen::get_scale_factor()) as _)
+            .style(WidgetStyle::DefaultBackground)
             .move_to_layer(0.5);
 
         let (

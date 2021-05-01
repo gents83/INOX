@@ -1,7 +1,7 @@
 use nrg_events::EventsRw;
-use nrg_platform::{MouseEvent, MouseState};
 use nrg_graphics::Renderer;
 use nrg_math::{VecBase, Vector2, Vector4};
+use nrg_platform::{MouseEvent, MouseState};
 use nrg_serialize::{typetag, Uid};
 
 use crate::{
@@ -52,22 +52,31 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
     ) {
         self.get_data_mut().state.set_clip_area(drawing_area_in_px);
 
+        let is_visible = self.get_data().graphics.is_visible();
+        let filltype = self.get_data().state.get_fill_type();
+        let space = self.get_data().state.get_space_between_elements() as f32;
+        let use_space_before_after = self.get_data().state.should_use_space_before_and_after();
+        let mut widget_clip = self.compute_children_clip_area();
+        self.get_data_mut().node.propagate_on_children_mut(|w| {
+            if !is_visible && w.get_data().graphics.is_visible() {
+                w.set_visible(is_visible);
+            }
+            if use_space_before_after {
+                widget_clip = add_space_before_after(widget_clip, filltype, space);
+            }
+            w.update(widget_clip, renderer, events_rw);
+            widget_clip = remove_widget_size(widget_clip, filltype, w);
+            if use_space_before_after {
+                widget_clip = add_space_before_after(widget_clip, filltype, space);
+            }
+        });
+
         self.manage_input(events_rw);
         self.manage_events(events_rw);
         self.manage_style();
 
         self.widget_update(renderer, events_rw);
-
         self.update_layout();
-
-        let is_visible = self.get_data().graphics.is_visible();
-        let widget_clip = self.compute_children_clip_area();
-        self.get_data_mut().node.propagate_on_children_mut(|w| {
-            if !is_visible && w.get_data().graphics.is_visible() {
-                w.set_visible(is_visible);
-            }
-            w.update(widget_clip, renderer, events_rw);
-        });
 
         self.get_data_mut().graphics.update(renderer);
     }
@@ -434,4 +443,44 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         });
         self.get_data_mut().graphics.set_visible(visible);
     }
+}
+
+fn add_space_before_after(
+    mut widget_clip: Vector4,
+    filltype: ContainerFillType,
+    space: f32,
+) -> Vector4 {
+    match filltype {
+        ContainerFillType::Horizontal => {
+            widget_clip.x += space;
+            widget_clip.x = widget_clip.x.min(widget_clip.z).max(0.);
+        }
+        ContainerFillType::Vertical => {
+            widget_clip.y += space;
+            widget_clip.y = widget_clip.y.min(widget_clip.z).max(0.);
+        }
+        _ => {}
+    }
+    widget_clip
+}
+
+fn remove_widget_size(
+    mut widget_clip: Vector4,
+    filltype: ContainerFillType,
+    widget: &dyn Widget,
+) -> Vector4 {
+    match filltype {
+        ContainerFillType::Horizontal => {
+            widget_clip.x =
+                widget.get_data().state.get_position().x + widget.get_data().state.get_size().x;
+            widget_clip.x = widget_clip.x.min(widget_clip.z);
+        }
+        ContainerFillType::Vertical => {
+            widget_clip.y =
+                widget.get_data().state.get_position().y + widget.get_data().state.get_size().y;
+            widget_clip.y = widget_clip.x.min(widget_clip.w);
+        }
+        _ => {}
+    }
+    widget_clip
 }
