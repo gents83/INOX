@@ -1,5 +1,5 @@
 use nrg_graphics::{MaterialId, MeshData, MeshId, Renderer, INVALID_ID};
-use nrg_math::{MatBase, Matrix4, VecBase, Vector2, Vector3, Vector4};
+use nrg_math::{MatBase, Matrix4, VecBase, Vector2, Vector3, Vector4, Zero};
 use nrg_serialize::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
@@ -153,13 +153,12 @@ impl WidgetGraphics {
     }
     pub fn update(&mut self, renderer: &mut Renderer) -> &mut Self {
         if self.is_dirty {
+            let mut visible = self.is_visible;
+            if visible && self.color.w.is_zero() {
+                visible = false;
+            }
             renderer.update_material(self.material_id, self.color);
-            renderer.update_mesh(
-                self.material_id,
-                self.mesh_id,
-                &self.transform,
-                &self.is_visible,
-            );
+            renderer.update_mesh(self.material_id, self.mesh_id, &self.transform, &visible);
             self.is_dirty = false;
         }
         self
