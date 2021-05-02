@@ -40,8 +40,8 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
                 .propagate_on_children_mut(|w| w.init(renderer));
         }
 
-        self.move_to_layer(self.get_data().graphics.get_layer());
         self.update_layout();
+        self.move_to_layer(self.get_data().graphics.get_layer());
         self.mark_as_initialized();
     }
     fn update(
@@ -365,7 +365,6 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
     fn update_layout(&mut self) {
         self.apply_fit_to_content();
         self.compute_offset_and_scale_from_alignment();
-        self.update_layers();
     }
 
     fn update_layers(&mut self) {
@@ -397,6 +396,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         self.get_data_mut().node.add_child(widget);
 
         self.update_layout();
+        self.update_layers();
         id
     }
     fn remove_children(&mut self, renderer: &mut Renderer) {
@@ -406,6 +406,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         self.get_data_mut().node.remove_children();
 
         self.update_layout();
+        self.update_layers();
     }
     fn has_child(&self, uid: Uid) -> bool {
         let mut found = false;
