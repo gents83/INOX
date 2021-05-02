@@ -158,6 +158,8 @@ impl System for EditorUpdater {
         self.node.uninit(renderer);
         self.canvas.uninit(renderer);
         self.widget.uninit(renderer);
+        self.main_menu.uninit(renderer);
+        self.history_panel.uninit(renderer);
     }
 }
 
