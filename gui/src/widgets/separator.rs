@@ -30,8 +30,7 @@ impl InternalWidget for Separator {
             .horizontal_alignment(HorizontalAlignment::Stretch)
             .vertical_alignment(VerticalAlignment::Top)
             .selectable(false)
-            .style(WidgetStyle::FullActive)
-            .border_style(WidgetStyle::FullActive);
+            .style(WidgetStyle::FullActive);
     }
 
     fn widget_update(&mut self, _renderer: &mut Renderer, _events: &mut EventsRw) {}
