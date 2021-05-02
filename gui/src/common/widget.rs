@@ -56,12 +56,20 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         self.update_layout();
 
         let is_visible = self.get_data().graphics.is_visible();
+        let filltype = self.get_data().state.get_fill_type();
+        let space = self.get_data().state.get_space_between_elements() as f32;
+        let use_space_before_after = self.get_data().state.should_use_space_before_and_after();
+        let mut widget_clip = self.compute_children_drawing_area();
+        if use_space_before_after {
+            widget_clip = add_space_before_after(widget_clip, filltype, space);
+        }
         self.get_data_mut().node.propagate_on_children_mut(|w| {
             if !is_visible && w.get_data().graphics.is_visible() {
                 w.set_visible(is_visible);
             }
-            let widget_clip = w.get_data().state.get_drawing_area();
             w.update(widget_clip, renderer, events_rw);
+            widget_clip = add_widget_size(widget_clip, filltype, w);
+            widget_clip = add_space_before_after(widget_clip, filltype, space);
         });
 
         self.manage_input(events_rw);
@@ -358,20 +366,6 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         self.apply_fit_to_content();
         self.compute_offset_and_scale_from_alignment();
         self.update_layers();
-
-        let filltype = self.get_data().state.get_fill_type();
-        let space = self.get_data().state.get_space_between_elements() as f32;
-        let use_space_before_after = self.get_data().state.should_use_space_before_and_after();
-        let mut widget_clip = self.compute_children_drawing_area();
-        if use_space_before_after {
-            widget_clip = add_space_before_after(widget_clip, filltype, space);
-        }
-        self.get_data_mut().node.propagate_on_children_mut(|w| {
-            w.get_data_mut().state.set_drawing_area(widget_clip);
-            w.update_layout();
-            widget_clip = add_widget_size(widget_clip, filltype, w);
-            widget_clip = add_space_before_after(widget_clip, filltype, space);
-        });
     }
 
     fn update_layers(&mut self) {

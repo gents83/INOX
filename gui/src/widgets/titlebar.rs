@@ -101,9 +101,8 @@ impl TitleBar {
             collapse_icon.init(renderer);
             collapse_icon
                 .size(icon_size * Screen::get_scale_factor())
-                .position([20., 0.].into())
                 .vertical_alignment(VerticalAlignment::Center)
-                .horizontal_alignment(HorizontalAlignment::None)
+                .horizontal_alignment(HorizontalAlignment::Left)
                 .selectable(true)
                 .style(WidgetStyle::FullActive);
             self.collapse_icon_widget = self.add_child(Box::new(collapse_icon));
