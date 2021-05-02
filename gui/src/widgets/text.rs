@@ -8,7 +8,8 @@ use crate::{
     implement_widget, InternalWidget, WidgetData, DEFAULT_WIDGET_HEIGHT, DEFAULT_WIDGET_WIDTH,
 };
 
-pub const DEFAULT_TEXT_SIZE: [f32; 2] = [DEFAULT_WIDGET_WIDTH, DEFAULT_WIDGET_HEIGHT / 4. * 3.];
+pub const DEFAULT_TEXT_SIZE: [f32; 2] =
+    [DEFAULT_WIDGET_WIDTH * 100., DEFAULT_WIDGET_HEIGHT / 4. * 3.];
 
 #[derive(Clone, Copy)]
 pub enum TextEvent {
@@ -68,7 +69,7 @@ impl Default for Text {
             material_id: INVALID_ID,
             text: String::new(),
             hover_char_index: -1,
-            char_width: 0,
+            char_width: DEFAULT_TEXT_SIZE[1] as _,
             is_dirty: true,
             data: WidgetData::default(),
         }
@@ -79,6 +80,7 @@ impl Text {
     pub fn set_text(&mut self, text: &str) -> &mut Self {
         self.is_dirty = true;
         self.text = String::from(text);
+        self.compute_size();
         self
     }
 
@@ -157,17 +159,20 @@ impl Text {
         }
         self.is_dirty = true;
         self.text.insert(new_index as _, character);
+        self.compute_size();
     }
     fn remove_char(&mut self, index: i32) -> char {
         if index >= 0 && index < self.text.len() as _ {
             self.is_dirty = true;
-            return self.text.remove(index as usize);
+            let c = self.text.remove(index as usize);
+            self.compute_size();
+            return c;
         }
         char::default()
     }
 
-    fn update_mesh_from_text(&mut self, renderer: &mut Renderer, drawing_area_in_px: Vector4) {
-        let min_size = self.get_data_mut().state.get_size();
+    fn compute_size(&mut self) -> &mut Self {
+        let drawing_area_in_px = self.get_data().state.get_drawing_area();
         let size: Vector2 = [drawing_area_in_px.z, drawing_area_in_px.w].into();
 
         let lines_count = self.text.lines().count().max(1);
@@ -176,7 +181,7 @@ impl Text {
             max_chars = max_chars.max(text.len());
         }
 
-        let char_size = min_size.y / lines_count as f32;
+        let char_size = self.char_width as f32;
         let mut char_width = char_size;
         let mut char_height = char_size;
         if *self.get_data().state.get_horizontal_alignment() == HorizontalAlignment::Stretch {
@@ -192,13 +197,20 @@ impl Text {
         ]
         .into();
 
+        self.set_size(new_size);
+        self
+    }
+
+    fn update_mesh_from_text(&mut self, renderer: &mut Renderer) {
         let font = renderer.get_font(self.font_id).unwrap();
 
         let mut mesh_data = MeshData::default();
         let mut pos_y = 0.;
         let mut mesh_index = 0;
-        let char_width = new_size.y / new_size.x;
-        let char_height = 1.;
+        let lines_count = self.text.lines().count().max(1);
+        let size = self.get_data_mut().state.get_size();
+        let char_width = self.char_width as f32 / size.x;
+        let char_height = 1. / lines_count as f32;
         for text in self.text.lines() {
             let mut pos_x = 0.;
             for c in text.as_bytes().iter() {
@@ -215,8 +227,6 @@ impl Text {
             }
             pos_y += char_height;
         }
-        self.char_width = char_size as _;
-        self.set_size(new_size);
 
         self.get_data_mut()
             .graphics
@@ -243,13 +253,14 @@ impl InternalWidget for Text {
         self.size(size * Screen::get_scale_factor())
             .selectable(false)
             .style(WidgetStyle::DefaultText);
+
+        self.char_width = (DEFAULT_TEXT_SIZE[1] * Screen::get_scale_factor()) as _;
     }
 
     fn widget_update(&mut self, renderer: &mut Renderer, events_rw: &mut EventsRw) {
         self.update_text(events_rw);
         if self.is_dirty {
-            let drawing_area_in_px = self.get_data().state.get_clip_area();
-            self.update_mesh_from_text(renderer, drawing_area_in_px);
+            self.update_mesh_from_text(renderer);
             self.is_dirty = false;
         }
     }

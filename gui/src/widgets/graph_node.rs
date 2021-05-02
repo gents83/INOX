@@ -1,6 +1,6 @@
+use nrg_events::EventsRw;
 use nrg_graphics::{Renderer, INVALID_ID};
 use nrg_math::{VecBase, Vector2};
-use nrg_events::EventsRw;
 use nrg_serialize::{Deserialize, Serialize, Uid};
 
 use crate::{implement_widget, InternalWidget, TitleBar, TitleBarEvent, WidgetData};
@@ -63,6 +63,8 @@ impl InternalWidget for GraphNode {
         self.position(Screen::get_center() - size / 2.)
             .size(size)
             .draggable(true)
+            .horizontal_alignment(HorizontalAlignment::None)
+            .vertical_alignment(VerticalAlignment::None)
             .style(WidgetStyle::DefaultBackground);
 
         let mut title_bar = TitleBar::default();

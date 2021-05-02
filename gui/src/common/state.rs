@@ -12,7 +12,7 @@ pub struct WidgetState {
     pos_in_px: Vector2,
     size_in_px: Vector2,
     #[serde(skip, default = "nrg_math::VecBase::default_zero")]
-    clip_area: Vector4,
+    drawing_area: Vector4,
     is_active: bool,
     is_selectable: bool,
     is_draggable: bool,
@@ -38,7 +38,7 @@ impl Default for WidgetState {
         Self {
             pos_in_px: Vector2::default_zero(),
             size_in_px: DEFAULT_WIDGET_SIZE.into(),
-            clip_area: Vector4::default_zero(),
+            drawing_area: Vector4::default_zero(),
             is_active: true,
             is_selectable: true,
             is_draggable: false,
@@ -47,8 +47,8 @@ impl Default for WidgetState {
             dragging_pos_in_px: Vector2::default_zero(),
             style: WidgetStyle::Default,
             border_style: WidgetStyle::DefaultBorder,
-            horizontal_alignment: HorizontalAlignment::None,
-            vertical_alignment: VerticalAlignment::None,
+            horizontal_alignment: HorizontalAlignment::Left,
+            vertical_alignment: VerticalAlignment::Top,
             fill_type: ContainerFillType::None,
             use_space_before_after: false,
             keep_fixed_width: true,
@@ -131,12 +131,12 @@ impl WidgetState {
         self.size_in_px = size_in_px;
         self
     }
-    pub fn get_clip_area(&self) -> Vector4 {
-        self.clip_area
+    pub fn get_drawing_area(&self) -> Vector4 {
+        self.drawing_area
     }
 
-    pub fn set_clip_area(&mut self, clip_area: Vector4) -> &mut Self {
-        self.clip_area = clip_area;
+    pub fn set_drawing_area(&mut self, clip_area: Vector4) -> &mut Self {
+        self.drawing_area = clip_area;
         self
     }
     pub fn is_active(&self) -> bool {

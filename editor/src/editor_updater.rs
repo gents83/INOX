@@ -87,7 +87,6 @@ impl System for EditorUpdater {
             .position([300., 300.].into())
             .size([300., 800.].into())
             .selectable(false)
-            .vertical_alignment(VerticalAlignment::Top)
             .horizontal_alignment(HorizontalAlignment::Right)
             .space_between_elements(20)
             .fill_type(ContainerFillType::Vertical)
@@ -96,10 +95,7 @@ impl System for EditorUpdater {
 
         let mut fps_text = Text::default();
         fps_text.init(renderer);
-        fps_text
-            .vertical_alignment(VerticalAlignment::Top)
-            .horizontal_alignment(HorizontalAlignment::Left)
-            .set_text("FPS: ");
+        fps_text.set_text("FPS: ");
         self.fps_text_widget_id = self.widget.add_child(Box::new(fps_text));
 
         let mut checkbox = Checkbox::default();
@@ -109,7 +105,11 @@ impl System for EditorUpdater {
 
         let mut textbox = TextBox::default();
         textbox.init(renderer);
-        textbox.horizontal_alignment(HorizontalAlignment::Stretch);
+        textbox
+            .horizontal_alignment(HorizontalAlignment::Stretch)
+            .with_label("Sample:")
+            .editable(true)
+            .set_text("Ciao");
         self.widget.add_child(Box::new(textbox));
 
         /*
@@ -194,8 +194,8 @@ impl EditorUpdater {
             let draw_area = [
                 0.,
                 self.main_menu.get_size().y + DEFAULT_WIDGET_SIZE[1],
-                Screen::get_size().x as _,
-                Screen::get_size().y as _,
+                Screen::get_size().x,
+                Screen::get_size().y - (self.main_menu.get_size().y + DEFAULT_WIDGET_SIZE[1]),
             ]
             .into();
 

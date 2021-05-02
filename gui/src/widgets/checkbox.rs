@@ -155,6 +155,7 @@ impl InternalWidget for Checkbox {
             .fill_type(ContainerFillType::Horizontal)
             .space_between_elements((DEFAULT_WIDGET_SIZE[0] / 2. * Screen::get_scale_factor()) as _)
             .use_space_before_and_after(false)
+            .keep_fixed_height(false)
             .style(WidgetStyle::Invisible);
 
         let mut outer_widget = Panel::default();

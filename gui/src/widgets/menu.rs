@@ -1,6 +1,6 @@
+use nrg_events::EventsRw;
 use nrg_graphics::Renderer;
 use nrg_math::{VecBase, Vector2};
-use nrg_events::EventsRw;
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{
@@ -10,12 +10,13 @@ use crate::{
 
 const DEFAULT_MENU_LAYER: f32 = 0.5;
 const DEFAULT_MENU_SIZE: [f32; 2] = [DEFAULT_WIDGET_WIDTH * 10., DEFAULT_WIDGET_HEIGHT * 5. / 4.];
-const DEFAULT_MENU_ITEM_SIZE: [f32; 2] = [DEFAULT_BUTTON_WIDTH, DEFAULT_WIDGET_HEIGHT];
+const DEFAULT_MENU_ITEM_SIZE: [f32; 2] = [DEFAULT_BUTTON_WIDTH * 10., DEFAULT_WIDGET_HEIGHT * 10.];
 const DEFAULT_SUBMENU_ITEM_SIZE: [f32; 2] = [DEFAULT_BUTTON_WIDTH * 5., DEFAULT_WIDGET_HEIGHT * 5.];
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]
 struct MenuItemPanel {
+    uid: Uid,
     submenu: Menu,
     opened: bool,
 }
@@ -25,7 +26,6 @@ struct MenuItemPanel {
 pub struct Menu {
     data: WidgetData,
     entries: Vec<MenuItemPanel>,
-    entries_uid: Vec<Uid>,
 }
 implement_widget!(Menu);
 
@@ -34,7 +34,6 @@ impl Default for Menu {
         Self {
             data: WidgetData::default(),
             entries: Vec::new(),
-            entries_uid: Vec::new(),
         }
     }
 }
@@ -46,6 +45,7 @@ impl Menu {
         button
             .vertical_alignment(VerticalAlignment::Stretch)
             .fill_type(ContainerFillType::Horizontal)
+            .keep_fixed_width(false)
             .with_text(label)
             .text_alignment(VerticalAlignment::Center, HorizontalAlignment::Left)
             .style(WidgetStyle::DefaultBackground);
@@ -64,35 +64,41 @@ impl Menu {
             .size(size * Screen::get_scale_factor())
             .visible(false)
             .selectable(true)
+            .fill_type(ContainerFillType::Vertical)
             .vertical_alignment(VerticalAlignment::None)
             .horizontal_alignment(HorizontalAlignment::None)
-            .fill_type(ContainerFillType::Vertical)
             .keep_fixed_width(false)
-            .space_between_elements((DEFAULT_WIDGET_SIZE[0] / 2. * Screen::get_scale_factor()) as _)
+            .keep_fixed_height(false)
             .style(WidgetStyle::FullInactive);
 
         submenu.move_to_layer(DEFAULT_MENU_LAYER);
 
-        let menu_item_id = self.add_child(Box::new(button));
-        self.entries_uid.push(menu_item_id);
+        let uid = self.add_child(Box::new(button));
         self.entries.push(MenuItemPanel {
+            uid,
             submenu,
             opened: false,
         });
-        menu_item_id
+        uid
     }
     pub fn get_submenu(&mut self, menu_item_id: Uid) -> Option<&mut Menu> {
-        if let Some(index) = self.entries_uid.iter().position(|el| *el == menu_item_id) {
-            let entry = &mut self.entries[index];
-            return Some(&mut entry.submenu);
+        if let Some(index) = self
+            .entries
+            .iter_mut()
+            .position(|el| el.uid == menu_item_id)
+        {
+            return Some(&mut self.entries[index].submenu);
         }
         None
     }
     pub fn add_submenu_entry(&mut self, menu_item_id: Uid, widget: Box<dyn Widget>) -> Uid {
         let mut id = INVALID_UID;
-        if let Some(index) = self.entries_uid.iter().position(|el| *el == menu_item_id) {
-            let entry = &mut self.entries[index];
-            id = entry.submenu.add_child(widget);
+        if let Some(index) = self
+            .entries
+            .iter_mut()
+            .position(|el| el.uid == menu_item_id)
+        {
+            id = self.entries[index].submenu.add_child(widget);
         }
         id
     }
@@ -103,7 +109,7 @@ impl Menu {
         label: &str,
     ) -> Uid {
         let mut id = INVALID_UID;
-        if let Some(index) = self.entries_uid.iter().position(|el| *el == menu_item_id) {
+        if let Some(index) = self.entries.iter().position(|el| el.uid == menu_item_id) {
             let mut button = Button::default();
             button.init(renderer);
             button
@@ -131,7 +137,7 @@ impl Menu {
             }
         }
         if !is_hover {
-            if let Some(index) = self.entries_uid.iter().position(|el| *el == entry_uid) {
+            if let Some(index) = self.entries.iter().position(|el| el.uid == entry_uid) {
                 let item = &self.entries[index];
                 if item.opened && item.submenu.is_hover() {
                     is_hover = true;
@@ -144,7 +150,7 @@ impl Menu {
         let count = self.entries.len();
         for i in 0..count {
             if self.entries[i].opened {
-                let entry_uid = self.entries_uid[i];
+                let entry_uid = self.entries[i].uid;
                 if !self.is_hovering_entry(entry_uid) {
                     let item = &mut self.entries[i];
                     item.opened = false;
@@ -166,7 +172,7 @@ impl Menu {
                         pos.x = button.get_data().state.get_position().x;
                         pos.y = self.get_data().state.get_size().y;
                     }
-                    if let Some(index) = self.entries_uid.iter().position(|el| *el == *widget_id) {
+                    if let Some(index) = self.entries.iter().position(|el| el.uid == *widget_id) {
                         let item = &mut self.entries[index];
                         item.opened = !item.opened;
                         item.submenu.position(pos).visible(item.opened);
@@ -186,19 +192,29 @@ impl InternalWidget for Menu {
         let size: Vector2 = DEFAULT_MENU_SIZE.into();
         self.size(size * Screen::get_scale_factor())
             .selectable(false)
-            .vertical_alignment(VerticalAlignment::Top)
             .horizontal_alignment(HorizontalAlignment::Stretch)
             .space_between_elements((DEFAULT_WIDGET_SIZE[0] / 2. * Screen::get_scale_factor()) as _)
             .fill_type(ContainerFillType::Horizontal)
             .use_space_before_and_after(false)
-            .style(WidgetStyle::DefaultBorder);
+            .style(WidgetStyle::DefaultBackground);
     }
 
     fn widget_update(&mut self, renderer: &mut Renderer, events_rw: &mut EventsRw) {
         self.manage_menu_interactions(events_rw);
-        let drawing_area_in_px = self.get_data().state.get_clip_area();
-        self.entries.iter_mut().for_each(|e| {
-            e.submenu.update(drawing_area_in_px, renderer, events_rw);
+        let drawing_area_in_px = self.get_data().state.get_drawing_area();
+        let mut buttons: Vec<(Vector2, Vector2)> = Vec::new();
+        self.get_data().node.propagate_on_children(|w| {
+            let pos = w.get_data().state.get_position();
+            let size = w.get_data().state.get_size();
+            buttons.push((pos, size));
+        });
+        self.entries.iter_mut().enumerate().for_each(|(i, e)| {
+            let mut clip_area = drawing_area_in_px;
+            clip_area.x = buttons[i].0.x;
+            clip_area.y = buttons[i].0.y + buttons[i].1.y;
+            clip_area.z -= clip_area.x;
+            clip_area.w -= clip_area.y;
+            e.submenu.update(clip_area, renderer, events_rw);
         });
     }
 

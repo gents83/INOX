@@ -80,9 +80,7 @@ impl FilenameDialog {
 
         let mut button_ok = Button::default();
         button_ok.init(renderer);
-        button_ok
-            .with_text("Ok")
-            .horizontal_alignment(HorizontalAlignment::Left);
+        button_ok.with_text("Ok");
 
         let mut button_cancel = Button::default();
         button_cancel.init(renderer);
@@ -111,8 +109,9 @@ impl FilenameDialog {
 
     pub fn init(&mut self, renderer: &mut Renderer) {
         self.dialog.init(renderer);
+        let size: Vector2 = [500., 200.].into();
         self.dialog
-            .size([800., 200.].into())
+            .size(size * Screen::get_scale_factor())
             .vertical_alignment(VerticalAlignment::Center)
             .horizontal_alignment(HorizontalAlignment::Center)
             .fill_type(ContainerFillType::Vertical)

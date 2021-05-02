@@ -51,6 +51,10 @@ impl Default for TextBox {
 impl TextBox {
     pub fn editable(&mut self, is_editable: bool) -> &mut Self {
         self.is_editable = is_editable;
+        let uid = self.text_panel;
+        if let Some(text_panel) = self.get_data_mut().node.get_child::<Panel>(uid) {
+            text_panel.selectable(is_editable);
+        }
         self
     }
     pub fn is_editable(&self) -> bool {
@@ -264,21 +268,19 @@ impl InternalWidget for TextBox {
 
         let size: Vector2 = [400., DEFAULT_TEXT_SIZE[1]].into();
 
-        self.position(Screen::get_center() - size / 2.)
-            .size(size * Screen::get_scale_factor())
+        self.size(size * Screen::get_scale_factor())
             .fill_type(ContainerFillType::Horizontal)
             .keep_fixed_width(false)
+            .keep_fixed_height(false)
             .horizontal_alignment(HorizontalAlignment::Stretch)
             .space_between_elements(10)
             .use_space_before_and_after(false)
-            .draggable(false)
             .selectable(false)
             .style(WidgetStyle::Invisible);
 
         let mut label = Text::default();
         label.init(renderer);
         label
-            .draggable(false)
             .selectable(false)
             .vertical_alignment(VerticalAlignment::Center);
         label.set_text("Label: ");
@@ -298,9 +300,8 @@ impl InternalWidget for TextBox {
         editable_text.init(renderer);
         editable_text
             .size(size * Screen::get_scale_factor())
-            .draggable(false)
             .vertical_alignment(VerticalAlignment::Center)
-            .horizontal_alignment(HorizontalAlignment::Left)
+            .horizontal_alignment(HorizontalAlignment::Stretch)
             .set_text("Edit me");
 
         let mut indicator = Indicator::default();
@@ -313,8 +314,10 @@ impl InternalWidget for TextBox {
     }
 
     fn widget_update(&mut self, _renderer: &mut Renderer, events_rw: &mut EventsRw) {
-        self.check_focus(events_rw);
-        self.update_text(events_rw);
+        if self.is_editable() {
+            self.check_focus(events_rw);
+            self.update_text(events_rw);
+        }
     }
 
     fn widget_uninit(&mut self, _renderer: &mut Renderer) {}

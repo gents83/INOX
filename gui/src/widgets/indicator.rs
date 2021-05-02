@@ -56,6 +56,7 @@ impl InternalWidget for Indicator {
         self.draggable(false)
             .size([2., DEFAULT_WIDGET_SIZE[1] - 2.].into())
             .vertical_alignment(VerticalAlignment::Stretch)
+            .horizontal_alignment(HorizontalAlignment::None)
             .selectable(false)
             .style(WidgetStyle::FullActive)
             .border_style(WidgetStyle::FullActive);

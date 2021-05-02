@@ -1,9 +1,9 @@
+use nrg_events::{implement_event, Event, EventsRw};
 use nrg_graphics::{
     utils::{create_triangle_down, create_triangle_up},
     MeshData, Renderer,
 };
 use nrg_math::Vector2;
-use nrg_events::{implement_event, Event, EventsRw};
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{
@@ -149,14 +149,11 @@ impl InternalWidget for TitleBar {
             return;
         }
 
-        let size: Vector2 = [400., 100.].into();
+        let size: Vector2 = [400., DEFAULT_WIDGET_WIDTH as _].into();
 
         self.position(Screen::get_center() - size / 2.)
-            .size(size)
-            .fill_type(ContainerFillType::Horizontal)
-            .keep_fixed_width(true)
-            .keep_fixed_height(false)
-            .vertical_alignment(VerticalAlignment::Top)
+            .size(size * Screen::get_scale_factor())
+            .keep_fixed_height(true)
             .horizontal_alignment(HorizontalAlignment::Stretch)
             .space_between_elements(10)
             .use_space_before_and_after(true)

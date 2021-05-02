@@ -34,19 +34,18 @@ impl HistoryPanel {
     fn create_history_widget(&mut self, renderer: &mut Renderer) -> (Uid, Uid, Uid, Uid, Uid) {
         let mut label = Text::default();
         label.init(renderer);
-        label
-            .vertical_alignment(VerticalAlignment::Top)
-            .horizontal_alignment(HorizontalAlignment::Left)
-            .set_text("Event History:");
+        label.set_text("Event History:");
         self.history_panel.add_child(Box::new(label));
 
         let mut button_box = Panel::default();
         button_box.init(renderer);
         button_box
             .fill_type(ContainerFillType::Horizontal)
-            .horizontal_alignment(HorizontalAlignment::Center)
+            .horizontal_alignment(HorizontalAlignment::Stretch)
+            .keep_fixed_height(false)
             .size([DEFAULT_BUTTON_SIZE[0] * 4., DEFAULT_BUTTON_SIZE[1] * 2.].into())
-            .space_between_elements((DEFAULT_WIDGET_WIDTH * Screen::get_scale_factor()) as _);
+            .space_between_elements((DEFAULT_WIDGET_WIDTH * Screen::get_scale_factor()) as _)
+            .use_space_before_and_after(true);
 
         let mut history_undo = Button::default();
         history_undo.init(renderer);
@@ -75,7 +74,7 @@ impl HistoryPanel {
         history_events_box
             .horizontal_alignment(HorizontalAlignment::Stretch)
             .fill_type(ContainerFillType::Vertical)
-            .space_between_elements(2)
+            .space_between_elements((2. * Screen::get_scale_factor()) as u32)
             .style(WidgetStyle::Invisible);
 
         let mut text = Text::default();
@@ -100,7 +99,6 @@ impl HistoryPanel {
     }
 
     fn update_history_widget(&mut self, history: &EventsHistory) -> &mut Self {
-        let mut min_size: Vector2 = Vector2::default_zero();
         if let Some(history_text) = self
             .history_panel
             .get_data_mut()
@@ -122,19 +120,6 @@ impl HistoryPanel {
                 }
             }
             history_text.set_text(text.as_str());
-            min_size = history_text.get_data().state.get_size();
-            min_size.y *= text.lines().count() as f32;
-        }
-        if let Some(history_events_box) = self
-            .history_panel
-            .get_data_mut()
-            .node
-            .get_child::<Panel>(self.history_events_box_id)
-        {
-            let size = history_events_box.get_data().state.get_size();
-            min_size.x = min_size.x.max(size.x);
-            min_size.y = min_size.y.max(size.y);
-            history_events_box.get_data_mut().state.set_size(min_size);
         }
         self
     }
@@ -163,11 +148,11 @@ impl HistoryPanel {
     pub fn init(&mut self, renderer: &mut Renderer) {
         self.history_panel.init(renderer);
         self.history_panel
-            .size([450., 100.].into())
+            .size([450., 1000.].into())
             .vertical_alignment(VerticalAlignment::Bottom)
-            .horizontal_alignment(HorizontalAlignment::Left)
             .fill_type(ContainerFillType::Vertical)
             .space_between_elements((DEFAULT_WIDGET_WIDTH / 2. * Screen::get_scale_factor()) as _)
+            .use_space_before_and_after(true)
             .style(WidgetStyle::DefaultBackground)
             .move_to_layer(0.5);
 
@@ -192,13 +177,12 @@ impl HistoryPanel {
         events: &mut EventsRw,
         history: &mut EventsHistory,
     ) {
-        self.history_panel
-            .update(drawing_area_in_px, renderer, events);
-
         if self.history_panel.get_data().graphics.is_visible() {
             self.update_history_widget(&history);
             self.manage_history_interactions(events, history);
         }
+        self.history_panel
+            .update(drawing_area_in_px, renderer, events);
     }
 
     pub fn uninit(&mut self, renderer: &mut Renderer) {

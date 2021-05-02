@@ -1,12 +1,12 @@
 use nrg_events::EventsRw;
 use nrg_graphics::Renderer;
-use nrg_math::{VecBase, Vector2, Vector4};
+use nrg_math::{Vector2, Vector4};
 use nrg_platform::{MouseEvent, MouseState};
 use nrg_serialize::{typetag, Uid};
 
 use crate::{
-    ContainerFillType, HorizontalAlignment, Screen, VerticalAlignment, WidgetDataGetter,
-    WidgetEvent, WidgetInteractiveState,
+    add_space_before_after, add_widget_size, ContainerFillType, HorizontalAlignment, Screen,
+    VerticalAlignment, WidgetDataGetter, WidgetEvent, WidgetInteractiveState,
 };
 
 pub const DEFAULT_LAYER_OFFSET: f32 = 0.1;
@@ -29,7 +29,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
     }
     fn init(&mut self, renderer: &mut Renderer) {
         let clip_area_in_px = Screen::get_draw_area();
-        self.get_data_mut().state.set_clip_area(clip_area_in_px);
+        self.get_data_mut().state.set_drawing_area(clip_area_in_px);
         self.get_data_mut().graphics.init(renderer, "UI");
 
         self.widget_init(renderer);
@@ -50,25 +50,18 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         renderer: &mut Renderer,
         events_rw: &mut EventsRw,
     ) {
-        self.get_data_mut().state.set_clip_area(drawing_area_in_px);
+        self.get_data_mut()
+            .state
+            .set_drawing_area(drawing_area_in_px);
+        self.update_layout();
 
         let is_visible = self.get_data().graphics.is_visible();
-        let filltype = self.get_data().state.get_fill_type();
-        let space = self.get_data().state.get_space_between_elements() as f32;
-        let use_space_before_after = self.get_data().state.should_use_space_before_and_after();
-        let mut widget_clip = self.compute_children_clip_area();
         self.get_data_mut().node.propagate_on_children_mut(|w| {
             if !is_visible && w.get_data().graphics.is_visible() {
                 w.set_visible(is_visible);
             }
-            if use_space_before_after {
-                widget_clip = add_space_before_after(widget_clip, filltype, space);
-            }
+            let widget_clip = w.get_data().state.get_drawing_area();
             w.update(widget_clip, renderer, events_rw);
-            widget_clip = remove_widget_size(widget_clip, filltype, w);
-            if use_space_before_after {
-                widget_clip = add_space_before_after(widget_clip, filltype, space);
-            }
         });
 
         self.manage_input(events_rw);
@@ -76,7 +69,6 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         self.manage_style();
 
         self.widget_update(renderer, events_rw);
-        self.update_layout();
 
         self.get_data_mut().graphics.update(renderer);
     }
@@ -107,55 +99,70 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         }
     }
 
-    fn compute_children_clip_area(&self) -> Vector4 {
+    fn compute_children_drawing_area(&self) -> Vector4 {
+        let drawing_area = self.get_data().state.get_drawing_area();
         let pos = self.get_data().state.get_position();
         let size = self.get_data().state.get_size();
-        [pos.x, pos.y, pos.x + size.x, pos.y + size.y].into()
+        let x = pos.x.max(drawing_area.x);
+        let y = pos.y.max(drawing_area.y);
+        [
+            x,
+            y,
+            (size.x).min(drawing_area.z),
+            (size.y).min(drawing_area.w),
+        ]
+        .into()
     }
 
     fn compute_offset_and_scale_from_alignment(&mut self) {
         let state = &self.get_data().state;
 
-        let clip_rect = state.get_clip_area();
-        let clip_min: Vector2 = [clip_rect.x, clip_rect.y].into();
-        let clip_max: Vector2 = [clip_rect.z, clip_rect.w].into();
+        let clip_rect = state.get_drawing_area();
+        let clip_pos: Vector2 = [clip_rect.x, clip_rect.y].into();
+        let clip_size: Vector2 = [clip_rect.z, clip_rect.w].into();
 
         let mut pos = state.get_position();
         let mut size = state.get_size();
 
         match state.get_horizontal_alignment() {
             HorizontalAlignment::Left => {
-                pos.x = clip_min.x;
+                pos.x = clip_pos.x;
             }
             HorizontalAlignment::Right => {
-                pos.x = clip_max.x - size.x;
+                pos.x = clip_pos.x + clip_size.x - size.x;
             }
             HorizontalAlignment::Center => {
-                pos.x = clip_min.x + (clip_max.x - clip_min.x) / 2. - size.x / 2.;
+                pos.x = clip_pos.x + clip_size.x / 2. - size.x / 2.;
             }
             HorizontalAlignment::Stretch => {
-                pos.x = clip_min.x;
-                size.x = clip_max.x - clip_min.x;
+                pos.x = clip_pos.x;
+                size.x = clip_size.x;
             }
             _ => {}
         }
 
         match state.get_vertical_alignment() {
             VerticalAlignment::Top => {
-                pos.y = clip_min.y;
+                pos.y = clip_pos.y;
             }
             VerticalAlignment::Bottom => {
-                pos.y = clip_max.y - size.y;
+                pos.y = clip_pos.y + clip_size.y - size.y;
             }
             VerticalAlignment::Center => {
-                pos.y = clip_min.y + (clip_max.y - clip_min.y) / 2. - size.y / 2.;
+                pos.y = clip_pos.y + clip_size.y / 2. - size.y / 2.;
             }
             VerticalAlignment::Stretch => {
-                pos.y = clip_min.y;
-                size.y = clip_max.y - clip_min.y;
+                pos.y = clip_pos.y;
+                size.y = clip_size.y;
             }
             _ => {}
         }
+
+        size.x = size.x.min(clip_size.x);
+        size.y = size.y.min(clip_size.y);
+        pos.x = pos.x.max(clip_pos.x).min(clip_pos.x + clip_size.x - size.x);
+        pos.y = pos.y.max(clip_pos.y).min(clip_pos.y + clip_size.y - size.y);
+
         self.set_position(pos);
         self.set_size(size);
     }
@@ -169,24 +176,18 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         let use_space_before_after = data.state.should_use_space_before_and_after();
 
         let node = &mut data.node;
-        let parent_pos = data.state.get_position();
         let parent_size = data.state.get_size();
 
-        let mut children_min_pos: Vector2 = [f32::MAX, f32::MAX].into();
         let mut children_size: Vector2 = [0., 0.].into();
         let mut index = 0;
         node.propagate_on_children_mut(|w| {
             let child_state = &mut w.get_data_mut().state;
-            let child_pos = child_state.get_position();
             let child_size = child_state.get_size();
-            children_min_pos.x = children_min_pos.x.min(child_pos.x as _).max(0.);
-            children_min_pos.y = children_min_pos.y.min(child_pos.y as _).max(0.);
             match fill_type {
                 ContainerFillType::Vertical => {
                     if (use_space_before_after && index == 0) || index > 0 {
                         children_size.y += space;
                     }
-                    w.set_position([child_pos.x, parent_pos.y + children_size.y].into());
                     children_size.y += child_size.y;
                     children_size.x = children_size.x.max(child_size.x);
                 }
@@ -194,7 +195,6 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
                     if (use_space_before_after && index == 0) || index > 0 {
                         children_size.x += space;
                     }
-                    w.set_position([parent_pos.x + children_size.x, child_pos.y].into());
                     children_size.x += child_size.x;
                     children_size.y = children_size.y.max(child_size.y);
                 }
@@ -219,24 +219,6 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         }
         self.set_size(children_size);
     }
-    fn clip_in_area(&mut self) {
-        let state = &self.get_data().state;
-
-        let clip_rect = state.get_clip_area();
-        let clip_min: Vector2 = [clip_rect.x, clip_rect.y].into();
-        let clip_max: Vector2 = [clip_rect.z, clip_rect.w].into();
-
-        let mut pos = Vector2::default_zero();
-        pos.x = state.get_position().x as _;
-        pos.y = state.get_position().y as _;
-        let size = state.get_size();
-
-        pos.x = pos.x.max(clip_min.x).min(clip_max.x - size.x).max(0.);
-        pos.y = pos.y.max(clip_min.y).min(clip_max.y - size.y).max(0.);
-
-        self.set_position([pos.x as _, pos.y as _].into());
-    }
-
     fn manage_style(&mut self) {
         let data = self.get_data_mut();
 
@@ -375,9 +357,21 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
     fn update_layout(&mut self) {
         self.apply_fit_to_content();
         self.compute_offset_and_scale_from_alignment();
-
-        self.clip_in_area();
         self.update_layers();
+
+        let filltype = self.get_data().state.get_fill_type();
+        let space = self.get_data().state.get_space_between_elements() as f32;
+        let use_space_before_after = self.get_data().state.should_use_space_before_and_after();
+        let mut widget_clip = self.compute_children_drawing_area();
+        if use_space_before_after {
+            widget_clip = add_space_before_after(widget_clip, filltype, space);
+        }
+        self.get_data_mut().node.propagate_on_children_mut(|w| {
+            w.get_data_mut().state.set_drawing_area(widget_clip);
+            w.update_layout();
+            widget_clip = add_widget_size(widget_clip, filltype, w);
+            widget_clip = add_space_before_after(widget_clip, filltype, space);
+        });
     }
 
     fn update_layers(&mut self) {
@@ -443,44 +437,4 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         });
         self.get_data_mut().graphics.set_visible(visible);
     }
-}
-
-fn add_space_before_after(
-    mut widget_clip: Vector4,
-    filltype: ContainerFillType,
-    space: f32,
-) -> Vector4 {
-    match filltype {
-        ContainerFillType::Horizontal => {
-            widget_clip.x += space;
-            widget_clip.x = widget_clip.x.min(widget_clip.z).max(0.);
-        }
-        ContainerFillType::Vertical => {
-            widget_clip.y += space;
-            widget_clip.y = widget_clip.y.min(widget_clip.z).max(0.);
-        }
-        _ => {}
-    }
-    widget_clip
-}
-
-fn remove_widget_size(
-    mut widget_clip: Vector4,
-    filltype: ContainerFillType,
-    widget: &dyn Widget,
-) -> Vector4 {
-    match filltype {
-        ContainerFillType::Horizontal => {
-            widget_clip.x =
-                widget.get_data().state.get_position().x + widget.get_data().state.get_size().x;
-            widget_clip.x = widget_clip.x.min(widget_clip.z);
-        }
-        ContainerFillType::Vertical => {
-            widget_clip.y =
-                widget.get_data().state.get_position().y + widget.get_data().state.get_size().y;
-            widget_clip.y = widget_clip.x.min(widget_clip.w);
-        }
-        _ => {}
-    }
-    widget_clip
 }

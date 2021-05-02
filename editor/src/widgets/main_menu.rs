@@ -1,9 +1,9 @@
+use nrg_events::EventsRw;
 use nrg_graphics::*;
 use nrg_gui::*;
 use nrg_math::*;
 use nrg_platform::*;
 use nrg_serialize::*;
-use nrg_events::EventsRw;
 
 use super::{DialogResult, FilenameDialog};
 
@@ -83,7 +83,7 @@ impl MainMenu {
         self.settings_id = self.menu.add_menu_item(renderer, "Settings");
         let mut checkbox = Checkbox::default();
         checkbox.init(renderer);
-        checkbox.with_label(renderer, "Show History").checked(false);
+        checkbox.with_label(renderer, "Show History").checked(true);
         self.show_history_id = self
             .menu
             .add_submenu_entry(self.settings_id, Box::new(checkbox));
