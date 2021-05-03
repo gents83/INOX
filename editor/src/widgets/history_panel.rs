@@ -85,10 +85,6 @@ impl HistoryPanel {
 
         let history_events_box_id = self.history_panel.add_child(Box::new(history_events_box));
 
-        let mut separator = Separator::default();
-        separator.init(renderer);
-        self.history_panel.add_child(Box::new(separator));
-
         (
             history_text_id,
             history_events_box_id,
