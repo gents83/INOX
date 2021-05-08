@@ -2,9 +2,11 @@ use std::any::TypeId;
 
 use crate::{Event, EventsRw};
 
-enum EventsHistoryOperation {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EventsHistoryOperation {
     Undo,
     Redo,
+    Clear,
 }
 pub struct EventsHistory {
     undoable_events: Vec<Box<dyn Event>>,
@@ -42,6 +44,10 @@ impl EventsHistory {
                         self.redoable_events.push(last_event);
                     }
                 }
+                EventsHistoryOperation::Clear => {
+                    self.redoable_events.clear();
+                    self.undoable_events.clear();
+                }
             }
         }
         self.operations.clear();
@@ -72,12 +78,8 @@ impl EventsHistory {
         self
     }
 
-    pub fn undo_last_event(&mut self) {
-        self.operations.push(EventsHistoryOperation::Undo);
-    }
-
-    pub fn redo_last_event(&mut self) {
-        self.operations.push(EventsHistoryOperation::Redo);
+    pub fn push(&mut self, operation: EventsHistoryOperation) {
+        self.operations.push(operation);
     }
 
     pub fn update(&mut self, events_rw: &mut EventsRw) {
@@ -109,10 +111,5 @@ impl EventsHistory {
             }
             Some(str)
         }
-    }
-
-    pub fn clear(&mut self) {
-        self.redoable_events.clear();
-        self.undoable_events.clear();
     }
 }

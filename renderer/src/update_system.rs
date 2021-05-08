@@ -37,25 +37,25 @@ impl System for UpdateSystem {
         }
     }
 
-    fn run(&mut self) -> bool {
+    fn run(&mut self) -> (bool, Vec<Job>) {
         let state = self.renderer.read().unwrap().get_state();
         if state != RendererState::Init && state != RendererState::Submitted {
-            return true;
+            return (true, Vec::new());
         }
 
         let should_recreate_swap_chain = {
             let read_data = self.shared_data.read().unwrap();
             let events_rw = &mut *read_data.get_unique_resource_mut::<EventsRw>();
-
             let events = events_rw.read().unwrap();
+            let mut size_changed = false;
             if let Some(window_events) = events.read_all_events::<WindowEvent>() {
                 for event in window_events {
                     if let WindowEvent::SizeChanged(_width, _height) = event {
-                        return true;
+                        size_changed = true;
                     }
                 }
             }
-            false
+            size_changed
         };
 
         {
@@ -73,7 +73,7 @@ impl System for UpdateSystem {
             renderer.prepare_frame(&mut pipelines, &mut materials, &mut meshes, &mut textures);
         }
 
-        true
+        (true, Vec::new())
     }
     fn uninit(&mut self) {}
 }

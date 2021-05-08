@@ -29,19 +29,20 @@ pub struct Menu {
 }
 implement_widget!(Menu);
 
-impl Default for Menu {
-    fn default() -> Self {
-        Self {
-            data: WidgetData::default(),
+impl Menu {
+    pub fn new(shared_data: &SharedDataRw) -> Self {
+        let mut w = Self {
+            data: WidgetData::new(shared_data),
             entries: Vec::new(),
-        }
+        };
+        w.init();
+        w
     }
 }
 
 impl Menu {
-    pub fn add_menu_item(&mut self, shared_data: &SharedDataRw, label: &str) -> Uid {
-        let mut button = Button::default();
-        button.init(shared_data);
+    pub fn add_menu_item(&mut self, label: &str) -> Uid {
+        let mut button = Button::new(self.get_shared_data());
         button
             .vertical_alignment(VerticalAlignment::Stretch)
             .fill_type(ContainerFillType::Horizontal)
@@ -51,8 +52,7 @@ impl Menu {
             .style(WidgetStyle::DefaultBackground);
 
         let size: Vector2 = DEFAULT_SUBMENU_ITEM_SIZE.into();
-        let mut submenu = Menu::default();
-        submenu.init(shared_data);
+        let mut submenu = Menu::new(self.get_shared_data());
         submenu
             .position(
                 [
@@ -102,16 +102,10 @@ impl Menu {
         }
         id
     }
-    pub fn add_submenu_entry_default(
-        &mut self,
-        shared_data: &SharedDataRw,
-        menu_item_id: Uid,
-        label: &str,
-    ) -> Uid {
+    pub fn add_submenu_entry_default(&mut self, menu_item_id: Uid, label: &str) -> Uid {
         let mut id = INVALID_UID;
         if let Some(index) = self.entries.iter().position(|el| el.uid == menu_item_id) {
-            let mut button = Button::default();
-            button.init(shared_data);
+            let mut button = Button::new(self.get_shared_data());
             button
                 .with_text(label)
                 .text_alignment(VerticalAlignment::Center, HorizontalAlignment::Left)
@@ -160,33 +154,40 @@ impl Menu {
         }
     }
 
-    fn manage_menu_interactions(&mut self, shared_data: &SharedDataRw) {
-        self.manage_hovering();
-
-        let read_data = shared_data.read().unwrap();
+    fn manage_click(&self) -> Uid {
+        let read_data = self.get_shared_data().read().unwrap();
         let events_rw = &mut *read_data.get_unique_resource_mut::<EventsRw>();
         let events = events_rw.read().unwrap();
         if let Some(widget_events) = events.read_all_events::<WidgetEvent>() {
-            for event in widget_events.iter() {
+            for &event in widget_events.iter() {
                 if let WidgetEvent::Released(widget_id, _mouse_in_px) = event {
-                    let mut pos = Vector2::default_zero();
-                    if let Some(button) = self.get_data_mut().node.get_child::<Button>(*widget_id) {
-                        pos.x = button.get_data().state.get_position().x;
-                        pos.y = self.get_data().state.get_size().y;
-                    }
-                    if let Some(index) = self.entries.iter().position(|el| el.uid == *widget_id) {
-                        let item = &mut self.entries[index];
-                        item.opened = !item.opened;
-                        item.submenu.position(pos).visible(item.opened);
-                    }
+                    return *widget_id;
                 }
+            }
+        }
+        INVALID_UID
+    }
+
+    fn manage_menu_interactions(&mut self) {
+        self.manage_hovering();
+        let widget_id = self.manage_click();
+        if widget_id != INVALID_UID {
+            let mut pos = Vector2::default_zero();
+            if let Some(button) = self.get_data_mut().node.get_child::<Button>(widget_id) {
+                pos.x = button.get_data().state.get_position().x;
+                pos.y = self.get_data().state.get_size().y;
+            }
+            if let Some(index) = self.entries.iter().position(|el| el.uid == widget_id) {
+                let item = &mut self.entries[index];
+                item.opened = !item.opened;
+                item.submenu.position(pos).visible(item.opened);
             }
         }
     }
 }
 
 impl InternalWidget for Menu {
-    fn widget_init(&mut self, _shared_data: &SharedDataRw) {
+    fn widget_init(&mut self) {
         if self.is_initialized() {
             return;
         }
@@ -201,8 +202,8 @@ impl InternalWidget for Menu {
             .style(WidgetStyle::DefaultBackground);
     }
 
-    fn widget_update(&mut self, shared_data: &SharedDataRw) {
-        self.manage_menu_interactions(shared_data);
+    fn widget_update(&mut self) {
+        self.manage_menu_interactions();
         let drawing_area_in_px = self.get_data().state.get_drawing_area();
         let mut buttons: Vec<(Vector2, Vector2)> = Vec::new();
         self.get_data().node.propagate_on_children(|w| {
@@ -216,9 +217,9 @@ impl InternalWidget for Menu {
             clip_area.y = buttons[i].0.y + buttons[i].1.y;
             clip_area.z -= clip_area.x;
             clip_area.w -= clip_area.y;
-            e.submenu.update(clip_area, shared_data);
+            e.submenu.update(clip_area);
         });
     }
 
-    fn widget_uninit(&mut self, _shared_data: &SharedDataRw) {}
+    fn widget_uninit(&mut self) {}
 }

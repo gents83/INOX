@@ -17,14 +17,16 @@ pub struct Indicator {
 }
 implement_widget!(Indicator);
 
-impl Default for Indicator {
-    fn default() -> Self {
-        Self {
+impl Indicator {
+    pub fn new(shared_data: &SharedDataRw) -> Self {
+        let mut w = Self {
+            data: WidgetData::new(shared_data),
             is_blinking: true,
             refresh_time: Duration::from_millis(500),
             elapsed_time: Instant::now(),
-            data: WidgetData::default(),
-        }
+        };
+        w.init();
+        w
     }
 }
 
@@ -47,7 +49,7 @@ impl Indicator {
 }
 
 impl InternalWidget for Indicator {
-    fn widget_init(&mut self, _shared_data: &SharedDataRw) {
+    fn widget_init(&mut self) {
         if self.is_initialized() {
             return;
         }
@@ -60,9 +62,9 @@ impl InternalWidget for Indicator {
             .border_style(WidgetStyle::FullActive);
     }
 
-    fn widget_update(&mut self, _shared_data: &SharedDataRw) {
+    fn widget_update(&mut self) {
         self.update_blinkng();
     }
 
-    fn widget_uninit(&mut self, _shared_data: &SharedDataRw) {}
+    fn widget_uninit(&mut self) {}
 }

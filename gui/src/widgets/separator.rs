@@ -10,16 +10,18 @@ pub struct Separator {
 }
 implement_widget!(Separator);
 
-impl Default for Separator {
-    fn default() -> Self {
-        Self {
-            data: WidgetData::default(),
-        }
+impl Separator {
+    pub fn new(shared_data: &SharedDataRw) -> Self {
+        let mut w = Self {
+            data: WidgetData::new(shared_data),
+        };
+        w.init();
+        w
     }
 }
 
 impl InternalWidget for Separator {
-    fn widget_init(&mut self, _shared_data: &SharedDataRw) {
+    fn widget_init(&mut self) {
         if self.is_initialized() {
             return;
         }
@@ -31,7 +33,7 @@ impl InternalWidget for Separator {
             .style(WidgetStyle::FullActive);
     }
 
-    fn widget_update(&mut self, _shared_data: &SharedDataRw) {}
+    fn widget_update(&mut self) {}
 
-    fn widget_uninit(&mut self, _shared_data: &SharedDataRw) {}
+    fn widget_uninit(&mut self) {}
 }

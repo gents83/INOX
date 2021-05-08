@@ -1,5 +1,5 @@
 use nrg_events::EventsRw;
-use nrg_gui::*;
+use nrg_gui::{implement_widget, *};
 use nrg_math::*;
 use nrg_platform::*;
 use nrg_resources::SharedDataRw;
@@ -7,21 +7,33 @@ use nrg_serialize::*;
 
 use super::{DialogResult, FilenameDialog};
 
+#[derive(Serialize, Deserialize)]
+#[serde(crate = "nrg_serialize")]
 pub struct MainMenu {
+    data: WidgetData,
     menu: Menu,
+    #[serde(skip)]
     file_id: Uid,
+    #[serde(skip)]
     new_id: Uid,
+    #[serde(skip)]
     open_id: Uid,
+    #[serde(skip)]
     exit_id: Uid,
+    #[serde(skip)]
     settings_id: Uid,
+    #[serde(skip)]
     show_history_id: Uid,
+    #[serde(skip)]
     filename_dialog: Option<FilenameDialog>,
 }
+implement_widget!(MainMenu);
 
-impl Default for MainMenu {
-    fn default() -> Self {
-        Self {
-            menu: Menu::default(),
+impl MainMenu {
+    pub fn new(shared_data: &SharedDataRw) -> Self {
+        let mut w = Self {
+            data: WidgetData::new(shared_data),
+            menu: Menu::new(shared_data),
             file_id: INVALID_UID,
             new_id: INVALID_UID,
             open_id: INVALID_UID,
@@ -29,7 +41,9 @@ impl Default for MainMenu {
             settings_id: INVALID_UID,
             show_history_id: INVALID_UID,
             filename_dialog: None,
-        }
+        };
+        w.init();
+        w
     }
 }
 
@@ -48,17 +62,16 @@ impl MainMenu {
         }
         show
     }
-    fn manage_events(&mut self, shared_data: &SharedDataRw) -> bool {
+    fn manage_events(&mut self) -> bool {
         let mut need_init = false;
         {
-            let read_data = shared_data.read().unwrap();
+            let read_data = self.get_shared_data().read().unwrap();
             let events_rw = &mut *read_data.get_unique_resource_mut::<EventsRw>();
             let events = events_rw.read().unwrap();
             if let Some(widget_events) = events.read_all_events::<WidgetEvent>() {
                 for event in widget_events.iter() {
                     if let WidgetEvent::Pressed(widget_id, _mouse_in_px) = event {
                         if self.new_id == *widget_id && self.filename_dialog.is_none() {
-                            self.filename_dialog = Some(FilenameDialog::default());
                             need_init = true;
                         } else if self.exit_id == *widget_id {
                             return true;
@@ -68,44 +81,35 @@ impl MainMenu {
             }
         }
         if need_init {
-            if let Some(dialog) = &mut self.filename_dialog {
-                dialog.init(shared_data);
-            }
+            self.filename_dialog = Some(FilenameDialog::new(self.get_shared_data()));
         }
         false
     }
-    pub fn init(&mut self, shared_data: &SharedDataRw) {
-        self.menu.init(shared_data);
+}
+
+impl InternalWidget for MainMenu {
+    fn widget_init(&mut self) {
         self.menu.move_to_layer(0.5);
 
-        self.file_id = self.menu.add_menu_item(shared_data, "File");
-        self.new_id = self
-            .menu
-            .add_submenu_entry_default(shared_data, self.file_id, "New");
-        self.open_id = self
-            .menu
-            .add_submenu_entry_default(shared_data, self.file_id, "Open");
-        self.exit_id = self
-            .menu
-            .add_submenu_entry_default(shared_data, self.file_id, "Exit");
+        self.file_id = self.menu.add_menu_item("File");
+        self.new_id = self.menu.add_submenu_entry_default(self.file_id, "New");
+        self.open_id = self.menu.add_submenu_entry_default(self.file_id, "Open");
+        self.exit_id = self.menu.add_submenu_entry_default(self.file_id, "Exit");
 
-        self.settings_id = self.menu.add_menu_item(shared_data, "Settings");
-        let mut checkbox = Checkbox::default();
-        checkbox.init(shared_data);
-        checkbox
-            .with_label(shared_data, "Show History")
-            .checked(false);
+        self.settings_id = self.menu.add_menu_item("Settings");
+        let mut checkbox = Checkbox::new(self.get_shared_data());
+        checkbox.with_label("Show History").checked(false);
         self.show_history_id = self
             .menu
             .add_submenu_entry(self.settings_id, Box::new(checkbox));
     }
 
-    pub fn update(&mut self, shared_data: &SharedDataRw) {
-        self.menu.update(Screen::get_draw_area(), shared_data);
+    fn widget_update(&mut self) {
+        self.menu.update(Screen::get_draw_area());
 
-        let should_exit = self.manage_events(shared_data);
+        let should_exit = self.manage_events();
         if should_exit {
-            let read_data = shared_data.read().unwrap();
+            let read_data = self.get_shared_data().read().unwrap();
             let events_rw = &mut *read_data.get_unique_resource_mut::<EventsRw>();
             let mut events = events_rw.write().unwrap();
             events.send_event(WindowEvent::Close);
@@ -115,22 +119,22 @@ impl MainMenu {
             if dialog.get_result() == DialogResult::Ok {
                 let filename = dialog.get_filename();
                 println!("Filename = {}", filename);
-                dialog.uninit(shared_data);
+                dialog.uninit();
                 self.filename_dialog = None;
             } else if dialog.get_result() == DialogResult::Cancel {
-                dialog.uninit(shared_data);
+                dialog.uninit();
                 self.filename_dialog = None;
             } else {
-                dialog.update(shared_data);
+                dialog.update(Screen::get_draw_area());
             }
         }
     }
 
-    pub fn uninit(&mut self, shared_data: &SharedDataRw) {
+    fn widget_uninit(&mut self) {
         if let Some(dialog) = &mut self.filename_dialog {
-            dialog.uninit(shared_data);
+            dialog.uninit();
             self.filename_dialog = None;
         }
-        self.menu.uninit(shared_data);
+        self.menu.uninit();
     }
 }

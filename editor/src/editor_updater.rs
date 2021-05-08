@@ -19,40 +19,29 @@ pub struct EditorUpdater {
     frame_seconds: VecDeque<Instant>,
     shared_data: SharedDataRw,
     config: Config,
-    is_ctrl_pressed: bool,
-    history: EventsHistory,
     fps_text_widget_id: Uid,
-    main_menu: MainMenu,
-    canvas: Canvas,
-    widget: Panel,
-    history_panel: HistoryPanel,
-    node: GraphNode,
+    main_menu_id: Uid,
+    history_panel_id: Uid,
+    widgets: Vec<Box<dyn Widget>>,
 }
 
 impl EditorUpdater {
-    fn register(&mut self) {
-        self.history.register_event_as_undoable::<TextEvent>();
-        self.history.register_event_as_undoable::<CheckboxEvent>();
-    }
-
     pub fn new(shared_data: &SharedDataRw, config: &Config) -> Self {
-        let mut updater = Self {
+        Self {
             id: SystemId::new(),
             frame_seconds: VecDeque::default(),
             shared_data: shared_data.clone(),
             config: config.clone(),
-            is_ctrl_pressed: false,
-            history_panel: HistoryPanel::default(),
-            history: EventsHistory::default(),
-            main_menu: MainMenu::default(),
-            canvas: Canvas::default(),
-            widget: Panel::default(),
+            widgets: Vec::new(),
             fps_text_widget_id: INVALID_UID,
-            node: GraphNode::default(),
-        };
-        updater.register();
+            main_menu_id: INVALID_UID,
+            history_panel_id: INVALID_UID,
+        }
+    }
 
-        updater
+    pub fn registered_event_types(history: &mut EventsHistory) {
+        history.register_event_as_undoable::<TextEvent>();
+        history.register_event_as_undoable::<CheckboxEvent>();
     }
 }
 
@@ -65,15 +54,20 @@ impl System for EditorUpdater {
         self.load_pipelines();
         self.create_screen();
 
-        self.node.init(&self.shared_data);
+        let mut history_panel = HistoryPanel::new(&self.shared_data);
+        let history = history_panel.get_history();
+        EditorUpdater::registered_event_types(history);
+        self.history_panel_id = history_panel.id();
 
-        self.main_menu.init(&self.shared_data);
-        self.canvas.init(&self.shared_data);
-        self.canvas.move_to_layer(0.);
-        self.history_panel.init(&self.shared_data);
+        let main_menu = MainMenu::new(&self.shared_data);
+        self.main_menu_id = main_menu.id();
 
-        self.widget.init(&self.shared_data);
-        self.widget
+        let mut canvas = Canvas::new(&self.shared_data);
+        canvas.move_to_layer(-1.);
+        let node = GraphNode::new(&self.shared_data);
+        let mut widget = Panel::new(&self.shared_data);
+
+        widget
             .position([300., 300.].into())
             .size([300., 800.].into())
             .selectable(false)
@@ -83,25 +77,27 @@ impl System for EditorUpdater {
             .style(WidgetStyle::DefaultBackground)
             .move_to_layer(0.5);
 
-        let mut fps_text = Text::default();
-        fps_text.init(&self.shared_data);
+        let mut fps_text = Text::new(&self.shared_data);
         fps_text.set_text("FPS: ");
-        self.fps_text_widget_id = self.widget.add_child(Box::new(fps_text));
+        self.fps_text_widget_id = widget.add_child(Box::new(fps_text));
 
-        let mut checkbox = Checkbox::default();
-        checkbox.init(&self.shared_data);
-        checkbox.with_label(&self.shared_data, "Checkbox");
-        self.widget.add_child(Box::new(checkbox));
+        let mut checkbox = Checkbox::new(&self.shared_data);
+        checkbox.with_label("Checkbox");
+        widget.add_child(Box::new(checkbox));
 
-        let mut textbox = TextBox::default();
-        textbox.init(&self.shared_data);
+        let mut textbox = TextBox::new(&self.shared_data);
         textbox
             .horizontal_alignment(HorizontalAlignment::Stretch)
             .with_label("Sample:")
             .editable(true)
             .set_text("Ciao");
-        self.widget.add_child(Box::new(textbox));
+        widget.add_child(Box::new(textbox));
 
+        self.widgets.push(Box::new(canvas));
+        self.widgets.push(Box::new(node));
+        self.widgets.push(Box::new(widget));
+        self.widgets.push(Box::new(main_menu));
+        self.widgets.push(Box::new(history_panel));
         /*
                 let dir = "./data/widgets/";
                 if let Ok(dir) = std::fs::read_dir(dir) {
@@ -120,7 +116,7 @@ impl System for EditorUpdater {
         */
     }
 
-    fn run(&mut self) -> bool {
+    fn run(&mut self) -> (bool, Vec<Job>) {
         Screen::update();
 
         self.update_keyboard_input();
@@ -128,10 +124,14 @@ impl System for EditorUpdater {
 
         self.update_fps_counter();
 
-        let read_data = self.shared_data.read().unwrap();
-        let events_rw = &mut *read_data.get_unique_resource_mut::<EventsRw>();
-        self.history.update(events_rw);
-        true
+        let jobs = Vec::new();
+        /*
+        let job = Job::new(move || {
+            self.main_menu.update(&self.shared_data);
+        });
+        jobs.push(job);
+        */
+        (true, jobs)
     }
     fn uninit(&mut self) {
         /*
@@ -144,15 +144,32 @@ impl System for EditorUpdater {
                     serialize_to_file(child, filepath);
                 }
         */
-        self.node.uninit(&self.shared_data);
-        self.canvas.uninit(&self.shared_data);
-        self.widget.uninit(&self.shared_data);
-        self.main_menu.uninit(&self.shared_data);
-        self.history_panel.uninit(&self.shared_data);
+        for w in self.widgets.iter_mut() {
+            w.uninit();
+        }
     }
 }
 
 impl EditorUpdater {
+    pub fn get_widget<W>(&mut self, uid: Uid) -> Option<&mut W>
+    where
+        W: Widget,
+    {
+        let mut result: Option<&mut W> = None;
+        self.widgets.iter_mut().for_each(|w| {
+            if w.id() == uid {
+                unsafe {
+                    let boxed = Box::from_raw(w.as_mut());
+                    let ptr = Box::into_raw(boxed);
+                    let widget = ptr as *mut W;
+                    result = Some(&mut *widget);
+                }
+            } else if result.is_none() {
+                result = w.get_data_mut().node.get_child(uid);
+            }
+        });
+        result
+    }
     fn create_screen(&mut self) {
         let read_data = self.shared_data.read().unwrap();
         let window = &*read_data.get_unique_resource::<Window>();
@@ -170,16 +187,11 @@ impl EditorUpdater {
 
         let now = Instant::now();
         let one_sec_before = now - Duration::from_secs(1);
-        self.frame_seconds.retain(|t| *t >= one_sec_before);
         self.frame_seconds.push_back(now);
-
-        if let Some(widget) = self
-            .widget
-            .get_data_mut()
-            .node
-            .get_child::<Text>(self.fps_text_widget_id)
-        {
-            let str = format!("FPS: {}", self.frame_seconds.len());
+        self.frame_seconds.retain(|t| *t >= one_sec_before);
+        let num_fps = self.frame_seconds.len();
+        if let Some(widget) = self.get_widget::<Text>(self.fps_text_widget_id) {
+            let str = format!("FPS: {}", num_fps);
             widget.set_text(str.as_str());
         }
         self
@@ -187,34 +199,32 @@ impl EditorUpdater {
     fn update_widgets(&mut self) {
         nrg_profiler::scoped_profile!("update_widgets");
 
-        self.main_menu.update(&self.shared_data);
-
-        let draw_area = [
-            0.,
-            self.main_menu.get_size().y + DEFAULT_WIDGET_SIZE[1],
-            Screen::get_size().x,
-            Screen::get_size().y - (self.main_menu.get_size().y + DEFAULT_WIDGET_SIZE[1]),
-        ]
-        .into();
-
-        self.node.update(draw_area, &self.shared_data);
-
-        {
-            nrg_profiler::scoped_profile!("widget.update");
-            self.widget.update(draw_area, &self.shared_data);
+        let size = Screen::get_size();
+        let mut is_visible = false;
+        let draw_area = {
+            if let Some(main_menu) = self.get_widget::<MainMenu>(self.main_menu_id) {
+                is_visible = main_menu.show_history();
+                [
+                    0.,
+                    main_menu.get_data().state.get_size().y + DEFAULT_WIDGET_SIZE[1],
+                    size.x,
+                    size.y - (main_menu.get_data().state.get_size().y + DEFAULT_WIDGET_SIZE[1]),
+                ]
+                .into()
+            } else {
+                Screen::get_draw_area()
+            }
+        };
+        if let Some(history_panel) = self.get_widget::<HistoryPanel>(self.history_panel_id) {
+            history_panel.set_visible(is_visible);
         }
 
-        {
-            nrg_profiler::scoped_profile!("history_panel.update");
-            self.history_panel
-                .set_visible(self.main_menu.show_history());
-            self.history_panel
-                .update(draw_area, &self.shared_data, &mut self.history);
-        }
-
-        {
-            nrg_profiler::scoped_profile!("canvas.update");
-            self.canvas.update(draw_area, &self.shared_data);
+        for w in self.widgets.iter_mut() {
+            if w.id() == self.main_menu_id {
+                w.update(Screen::get_draw_area());
+            } else {
+                w.update(draw_area);
+            }
         }
     }
 
@@ -240,26 +250,7 @@ impl EditorUpdater {
 
         if let Some(key_events) = events.read_all_events::<KeyEvent>() {
             for event in key_events.iter() {
-                if event.code == Key::Control {
-                    if event.state == InputState::Pressed || event.state == InputState::JustPressed
-                    {
-                        self.is_ctrl_pressed = true;
-                    } else if event.state == InputState::Released
-                        || event.state == InputState::JustReleased
-                    {
-                        self.is_ctrl_pressed = false;
-                    }
-                } else if self.is_ctrl_pressed
-                    && event.code == Key::Z
-                    && event.state == InputState::JustPressed
-                {
-                    self.history.undo_last_event();
-                } else if self.is_ctrl_pressed
-                    && event.code == Key::Y
-                    && event.state == InputState::JustPressed
-                {
-                    self.history.redo_last_event();
-                } else if event.state == InputState::JustPressed && event.code == Key::F5 {
+                if event.state == InputState::JustPressed && event.code == Key::F5 {
                     println!("Launch game");
                     let result = std::process::Command::new("nrg_game_app").spawn().is_ok();
                     if !result {

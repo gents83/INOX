@@ -1,9 +1,12 @@
 use std::{
-    sync::{Arc, RwLock},
+    sync::{mpsc::Receiver, Arc, Mutex, RwLock},
     thread::{self, JoinHandle},
+    time::{Duration, Instant},
 };
 
-use crate::{Phase, Scheduler};
+use crate::{Job, Phase, Scheduler};
+
+const MAX_WORKER_DURATION: Duration = Duration::from_millis(3);
 
 pub struct Worker {
     scheduler: Arc<RwLock<Scheduler>>,
@@ -29,7 +32,7 @@ impl Worker {
     pub fn is_started(&self) -> bool {
         self.thread_handle.is_some()
     }
-    pub fn start(&mut self, name: &'static str) {
+    pub fn start(&mut self, name: &'static str, receiver: Arc<Mutex<Receiver<Job>>>) {
         if self.thread_handle.is_none() {
             println!("Starting thread {}", name);
             let builder = thread::Builder::new().name(name.into());
@@ -37,8 +40,28 @@ impl Worker {
             let t = builder
                 .spawn(move || {
                     nrg_profiler::register_thread_into_profiler_with_name!(name);
+                    let mut last_update_time = Instant::now();
                     loop {
-                        let can_continue = scheduler.write().unwrap().run_once();
+                        let mut instant = Instant::now();
+                        let (can_continue, jobs) = scheduler.write().unwrap().run_once();
+                        if !jobs.is_empty() {
+                            for j in jobs {
+                                j.execute();
+                            }
+                            println!(
+                                "Executing specific thread {} jobs in {:.3}",
+                                name,
+                                (Instant::now() - instant).as_secs() as f64
+                            );
+                        }
+                        while instant - last_update_time < MAX_WORKER_DURATION {
+                            if let Ok(job) = receiver.lock().unwrap().try_recv() {
+                                println!("Executing job on thread {}", name);
+                                job.execute();
+                            }
+                            instant = Instant::now();
+                        }
+                        last_update_time = instant;
                         if !can_continue {
                             return false;
                         }

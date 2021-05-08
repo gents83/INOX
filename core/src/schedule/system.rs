@@ -1,5 +1,7 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use crate::Job;
+
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub struct SystemId(pub u64);
 
@@ -23,7 +25,7 @@ pub trait System: Send + Sync {
     fn id(&self) -> SystemId;
 
     fn init(&mut self);
-    fn run(&mut self) -> bool;
+    fn run(&mut self) -> (bool, Vec<Job>);
     fn uninit(&mut self);
 }
 

@@ -1,14 +1,18 @@
 #[macro_export]
 macro_rules! implement_widget {
     ($Type:ident) => {
-        use crate::{
+        use nrg_serialize::typetag;
+        use $crate::{
             BaseWidget, ContainerFillType, HorizontalAlignment, Screen, VerticalAlignment, Widget,
             WidgetDataGetter, WidgetStyle,
         };
-        use nrg_serialize::typetag;
 
         #[typetag::serde]
         impl WidgetDataGetter for $Type {
+            #[inline]
+            fn get_shared_data(&self) -> &SharedDataRw {
+                &self.data.get_shared_data()
+            }
             #[inline]
             fn get_data(&self) -> &WidgetData {
                 &self.data

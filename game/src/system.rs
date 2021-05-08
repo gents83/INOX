@@ -90,7 +90,7 @@ impl System for MySystem {
         );
     }
 
-    fn run(&mut self) -> bool {
+    fn run(&mut self) -> (bool, Vec<Job>) {
         let mut left_matrix = Matrix4::from_nonuniform_scale(400., 400., 1.);
         left_matrix[3][0] = 100.;
         left_matrix[3][1] = 100.;
@@ -103,7 +103,7 @@ impl System for MySystem {
 
         MeshInstance::set_transform(&self.shared_data, self.right_mesh_id, right_matrix);
 
-        true
+        (true, Vec::new())
     }
     fn uninit(&mut self) {}
 }

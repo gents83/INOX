@@ -1,10 +1,17 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::{
+    collections::HashMap,
+    path::PathBuf,
+    sync::{
+        mpsc::{channel, Receiver, Sender},
+        Arc, Mutex,
+    },
+};
 
 use nrg_events::EventsRw;
 use nrg_platform::{InputState, Key, KeyEvent};
 use nrg_resources::SharedDataRw;
 
-use crate::{Phase, PluginId, PluginManager, Scheduler, Worker};
+use crate::{Job, Phase, PluginId, PluginManager, Scheduler, Worker};
 
 pub struct App {
     frame_count: u64,
@@ -13,6 +20,8 @@ pub struct App {
     plugin_manager: PluginManager,
     scheduler: Scheduler,
     workers: HashMap<String, Worker>,
+    sender: Sender<Job>,
+    receiver: Arc<Mutex<Receiver<Job>>>,
 }
 
 impl Default for App {
@@ -46,14 +55,26 @@ impl App {
             let mut data = shared_data.write().unwrap();
             data.add_resource(EventsRw::default());
         }
-        Self {
+        let (sender, receiver) = channel();
+
+        let mut app = Self {
             frame_count: 0,
             is_profiling: false,
             scheduler: Scheduler::new(),
             plugin_manager: PluginManager::new(),
             workers: HashMap::new(),
+            sender,
+            receiver: Arc::new(Mutex::new(receiver)),
             shared_data,
-        }
+        };
+
+        app.add_worker("Worker1");
+        app.add_worker("Worker2");
+        app.add_worker("Worker3");
+        app.add_worker("Worker4");
+        app.add_worker("Worker5");
+
+        app
     }
 
     fn update_plugins(&mut self, plugins_to_remove: Vec<PluginId>, reload: bool) {
@@ -72,7 +93,13 @@ impl App {
     pub fn run_once(&mut self) -> bool {
         nrg_profiler::scoped_profile!("app::run_frame");
 
-        let can_continue = self.scheduler.run_once();
+        let (can_continue, jobs) = self.scheduler.run_once();
+        for j in jobs {
+            let res = self.sender.send(j);
+            if res.is_err() {
+                panic!("Failed to add job to execution queue");
+            }
+        }
 
         let plugins_to_remove = self.plugin_manager.update();
         self.update_plugins(plugins_to_remove, true);
@@ -133,7 +160,7 @@ impl App {
         let key = String::from(name);
         let w = self.workers.entry(key).or_insert_with(Worker::default);
         if !w.is_started() {
-            w.start(name);
+            w.start(name, self.receiver.clone());
         }
         w
     }

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{Phase, PhaseWithSystems};
+use crate::{Job, Phase, PhaseWithSystems};
 
 pub struct Scheduler {
     is_running: bool,
@@ -148,17 +148,20 @@ impl Scheduler {
             })
     }
 
-    pub fn run_once(&mut self) -> bool {
+    pub fn run_once(&mut self) -> (bool, Vec<Job>) {
         nrg_profiler::scoped_profile!("scheduler::run_once");
         let mut can_continue = self.is_running;
+        let mut jobs = Vec::new();
         for name in self.phases_order.iter() {
             if let Some(phase) = self.phases.get_mut(name) {
                 nrg_profiler::scoped_profile!(
                     format!("{}[{}]", "scheduler::run_phase", name).as_str()
                 );
-                can_continue &= phase.run();
+                let (ok, new_jobs) = phase.run();
+                jobs.extend(new_jobs.into_iter());
+                can_continue &= ok;
             }
         }
-        can_continue
+        (can_continue, jobs)
     }
 }

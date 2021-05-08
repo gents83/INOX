@@ -2,7 +2,6 @@ use nrg_events::EventsRw;
 
 use nrg_math::{Vector2, Vector4};
 use nrg_platform::{MouseEvent, MouseState};
-use nrg_resources::SharedDataRw;
 use nrg_serialize::{typetag, Uid};
 
 use crate::{
@@ -19,33 +18,33 @@ pub const DEFAULT_WIDGET_SIZE: [f32; 2] = [DEFAULT_WIDGET_WIDTH, DEFAULT_WIDGET_
 pub trait Widget: BaseWidget + InternalWidget + Send + Sync {}
 
 pub trait InternalWidget {
-    fn widget_init(&mut self, shared_data: &SharedDataRw);
-    fn widget_update(&mut self, shared_data: &SharedDataRw);
-    fn widget_uninit(&mut self, shared_data: &SharedDataRw);
+    fn widget_init(&mut self);
+    fn widget_update(&mut self);
+    fn widget_uninit(&mut self);
 }
 
 pub trait BaseWidget: InternalWidget + WidgetDataGetter {
     fn get_type(&self) -> &'static str {
         std::any::type_name::<Self>()
     }
-    fn init(&mut self, shared_data: &SharedDataRw) {
+    fn init(&mut self) {
         let clip_area_in_px = Screen::get_draw_area();
         self.get_data_mut().state.set_drawing_area(clip_area_in_px);
-        self.get_data_mut().graphics.init(shared_data, "UI");
+        self.get_data_mut().graphics.init("UI");
 
-        self.widget_init(shared_data);
+        self.widget_init();
 
         if self.is_initialized() {
             self.get_data_mut()
                 .node
-                .propagate_on_children_mut(|w| w.init(shared_data));
+                .propagate_on_children_mut(|w| w.init());
         }
 
         self.update_layout();
         self.move_to_layer(self.get_data().graphics.get_layer());
         self.mark_as_initialized();
     }
-    fn update(&mut self, drawing_area_in_px: Vector4, shared_data: &SharedDataRw) {
+    fn update(&mut self, drawing_area_in_px: Vector4) {
         self.get_data_mut()
             .state
             .set_drawing_area(drawing_area_in_px);
@@ -63,26 +62,26 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
             if !is_visible && w.get_data().graphics.is_visible() {
                 w.set_visible(is_visible);
             }
-            w.update(widget_clip, shared_data);
+            w.update(widget_clip);
             widget_clip = add_widget_size(widget_clip, filltype, w);
             widget_clip = add_space_before_after(widget_clip, filltype, space);
         });
 
-        self.manage_input(shared_data);
-        self.manage_events(shared_data);
+        self.manage_input();
+        self.manage_events();
         self.manage_style();
 
-        self.widget_update(shared_data);
+        self.widget_update();
 
-        self.get_data_mut().graphics.update(shared_data);
+        self.get_data_mut().graphics.update();
     }
 
-    fn uninit(&mut self, shared_data: &SharedDataRw) {
+    fn uninit(&mut self) {
         self.get_data_mut()
             .node
-            .propagate_on_children_mut(|w| w.uninit(shared_data));
-        self.widget_uninit(shared_data);
-        self.get_data_mut().graphics.uninit(shared_data);
+            .propagate_on_children_mut(|w| w.uninit());
+        self.widget_uninit();
+        self.get_data_mut().graphics.uninit();
     }
 
     fn id(&self) -> Uid {
@@ -249,86 +248,128 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         }
     }
 
-    fn manage_events(&mut self, shared_data: &SharedDataRw) {
+    fn read_events(&self) -> Vec<WidgetEvent> {
+        let mut my_events = Vec::new();
         let id = self.id();
-        let read_data = shared_data.read().unwrap();
+        let read_data = self.get_shared_data().read().unwrap();
         let events_rw = &mut *read_data.get_unique_resource_mut::<EventsRw>();
         let events = events_rw.read().unwrap();
         if let Some(widget_events) = events.read_all_events::<WidgetEvent>() {
-            for event in widget_events.iter() {
-                match event {
+            for &event in widget_events.iter() {
+                match &event {
                     WidgetEvent::Entering(widget_id) => {
-                        let data = self.get_data_mut();
-                        if *widget_id == id && data.state.is_selectable() {
-                            data.state.set_hover(true);
+                        if *widget_id == id {
+                            my_events.push(*event);
                         }
                     }
                     WidgetEvent::Exiting(widget_id) => {
-                        let data = self.get_data_mut();
-                        if *widget_id == id && data.state.is_selectable() {
-                            data.state.set_hover(false);
-                            data.state.set_pressed(false);
+                        if *widget_id == id {
+                            my_events.push(*event);
                         }
                     }
-                    WidgetEvent::Released(widget_id, mouse_in_px) => {
-                        let data = self.get_data_mut();
-                        if *widget_id == id && data.state.is_selectable() {
-                            data.state.set_pressed(false);
-                            if data.state.is_draggable() {
-                                data.state.set_dragging_position(*mouse_in_px);
-                            }
+                    WidgetEvent::Released(widget_id, _mouse_in_px) => {
+                        if *widget_id == id {
+                            my_events.push(*event);
                         }
                     }
-                    WidgetEvent::Pressed(widget_id, mouse_in_px) => {
-                        let data = self.get_data_mut();
-                        if *widget_id == id && data.state.is_selectable() {
-                            data.state.set_pressed(true);
-                            if data.state.is_draggable() {
-                                data.state.set_dragging_position(*mouse_in_px);
-                            }
+                    WidgetEvent::Pressed(widget_id, _mouse_in_px) => {
+                        if *widget_id == id {
+                            my_events.push(*event);
                         }
                     }
-                    WidgetEvent::Dragging(widget_id, mouse_in_px) => {
-                        let data = self.get_data_mut();
-                        if *widget_id == id && data.state.is_draggable() {
-                            data.state
-                                .set_horizontal_alignment(HorizontalAlignment::None);
-                            data.state.set_vertical_alignment(VerticalAlignment::None);
-                            let old_mouse_pos = data.state.get_dragging_position();
-                            let offset = mouse_in_px - old_mouse_pos;
+                    WidgetEvent::Dragging(widget_id, _mouse_in_px) => {
+                        if *widget_id == id {
+                            my_events.push(*event);
+                        }
+                    }
+                }
+            }
+        }
+        my_events
+    }
+    fn manage_events(&mut self) {
+        let id = self.id();
+        let events = self.read_events();
+        for e in events.iter() {
+            match e {
+                WidgetEvent::Entering(widget_id) => {
+                    let data = self.get_data_mut();
+                    if *widget_id == id && data.state.is_selectable() {
+                        data.state.set_hover(true);
+                    }
+                }
+                WidgetEvent::Exiting(widget_id) => {
+                    let data = self.get_data_mut();
+                    if *widget_id == id && data.state.is_selectable() {
+                        data.state.set_hover(false);
+                        data.state.set_pressed(false);
+                    }
+                }
+                WidgetEvent::Released(widget_id, mouse_in_px) => {
+                    let data = self.get_data_mut();
+                    if *widget_id == id && data.state.is_selectable() {
+                        data.state.set_pressed(false);
+                        if data.state.is_draggable() {
                             data.state.set_dragging_position(*mouse_in_px);
-                            let current_pos = data.state.get_position();
-                            self.set_position(current_pos + offset);
                         }
+                    }
+                }
+                WidgetEvent::Pressed(widget_id, mouse_in_px) => {
+                    let data = self.get_data_mut();
+                    if *widget_id == id && data.state.is_selectable() {
+                        data.state.set_pressed(true);
+                        if data.state.is_draggable() {
+                            data.state.set_dragging_position(*mouse_in_px);
+                        }
+                    }
+                }
+                WidgetEvent::Dragging(widget_id, mouse_in_px) => {
+                    let data = self.get_data_mut();
+                    if *widget_id == id && data.state.is_draggable() {
+                        data.state
+                            .set_horizontal_alignment(HorizontalAlignment::None);
+                        data.state.set_vertical_alignment(VerticalAlignment::None);
+                        let old_mouse_pos = data.state.get_dragging_position();
+                        let offset = mouse_in_px - old_mouse_pos;
+                        data.state.set_dragging_position(*mouse_in_px);
+                        let current_pos = data.state.get_position();
+                        self.set_position(current_pos + offset);
                     }
                 }
             }
         }
     }
 
-    fn manage_mouse_event(&mut self, event: &MouseEvent) -> Option<WidgetEvent> {
+    fn manage_mouse_event(&mut self) -> Vec<WidgetEvent> {
+        let mut widget_events = Vec::new();
         let id = self.id();
-        let data = self.get_data_mut();
-        let mouse_in_px: Vector2 = [event.x as _, event.y as _].into();
-        let is_inside = data.state.is_inside(mouse_in_px);
+        let data = self.get_data();
+        let read_data = self.get_shared_data().read().unwrap();
+        let events_rw = &mut *read_data.get_unique_resource_mut::<EventsRw>();
+        if let Some(mut mouse_events) = events_rw.read().unwrap().read_all_events::<MouseEvent>() {
+            for event in mouse_events.iter_mut() {
+                let mouse_in_px: Vector2 = [event.x as _, event.y as _].into();
+                let is_inside = self.get_data().state.is_inside(mouse_in_px);
 
-        if event.state == MouseState::Move {
-            if is_inside && !data.state.is_hover() {
-                return Some(WidgetEvent::Entering(id));
-            } else if !is_inside && data.state.is_hover() {
-                return Some(WidgetEvent::Exiting(id));
-            } else if data.state.is_pressed() && data.state.is_draggable() {
-                return Some(WidgetEvent::Dragging(id, mouse_in_px));
+                if event.state == MouseState::Move {
+                    if is_inside && !data.state.is_hover() {
+                        widget_events.push(WidgetEvent::Entering(id));
+                    } else if !is_inside && data.state.is_hover() {
+                        widget_events.push(WidgetEvent::Exiting(id));
+                    } else if data.state.is_pressed() && data.state.is_draggable() {
+                        widget_events.push(WidgetEvent::Dragging(id, mouse_in_px));
+                    }
+                } else if event.state == MouseState::Down && is_inside && !data.state.is_pressed() {
+                    widget_events.push(WidgetEvent::Pressed(id, mouse_in_px));
+                } else if event.state == MouseState::Up && data.state.is_pressed() {
+                    widget_events.push(WidgetEvent::Released(id, mouse_in_px));
+                }
             }
-        } else if event.state == MouseState::Down && is_inside && !data.state.is_pressed() {
-            return Some(WidgetEvent::Pressed(id, mouse_in_px));
-        } else if event.state == MouseState::Up && data.state.is_pressed() {
-            return Some(WidgetEvent::Released(id, mouse_in_px));
         }
-        None
+        widget_events
     }
 
-    fn manage_input(&mut self, shared_data: &SharedDataRw) {
+    fn manage_input(&mut self) {
         let data = self.get_data_mut();
         if !data.graphics.is_visible() || !data.state.is_active() || !data.state.is_selectable() {
             return;
@@ -340,16 +381,9 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         if is_on_child {
             return;
         }
-        let mut widget_events: Vec<WidgetEvent> = Vec::new();
-        let read_data = shared_data.read().unwrap();
+        let widget_events = self.manage_mouse_event();
+        let read_data = self.get_shared_data().read().unwrap();
         let events_rw = &mut *read_data.get_unique_resource_mut::<EventsRw>();
-        if let Some(mut mouse_events) = events_rw.read().unwrap().read_all_events::<MouseEvent>() {
-            for event in mouse_events.iter_mut() {
-                if let Some(widget_event) = self.manage_mouse_event(event) {
-                    widget_events.push(widget_event);
-                }
-            }
-        }
         for e in widget_events {
             let mut events = events_rw.write().unwrap();
             events.send_event(e);
@@ -399,9 +433,9 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         self.update_layers();
         id
     }
-    fn remove_children(&mut self, shared_data: &SharedDataRw) {
+    fn remove_children(&mut self) {
         self.get_data_mut().node.propagate_on_children_mut(|w| {
-            w.get_data_mut().graphics.remove_meshes(shared_data);
+            w.get_data_mut().graphics.remove_meshes();
         });
         self.get_data_mut().node.remove_children();
 

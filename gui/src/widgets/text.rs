@@ -63,17 +63,19 @@ pub struct Text {
 }
 implement_widget!(Text);
 
-impl Default for Text {
-    fn default() -> Self {
-        Self {
+impl Text {
+    pub fn new(shared_data: &SharedDataRw) -> Self {
+        let mut w = Self {
+            data: WidgetData::new(shared_data),
             font_id: INVALID_UID,
             material_id: INVALID_UID,
             text: String::new(),
             hover_char_index: -1,
             char_width: DEFAULT_TEXT_SIZE[1] as _,
             is_dirty: true,
-            data: WidgetData::default(),
-        }
+        };
+        w.init();
+        w
     }
 }
 
@@ -108,43 +110,74 @@ impl Text {
         None
     }
 
-    fn update_text(&mut self, shared_data: &SharedDataRw) {
-        let read_data = shared_data.read().unwrap();
+    fn read_text_events(&self) -> Vec<TextEvent> {
+        let mut output_events = Vec::new();
+        let id = self.id();
+        let read_data = self.get_shared_data().read().unwrap();
         let events_rw = &mut *read_data.get_unique_resource_mut::<EventsRw>();
         let events = events_rw.read().unwrap();
-        if let Some(mut text_events) = events.read_all_events::<TextEvent>() {
-            for event in text_events.iter_mut() {
+        if let Some(text_events) = events.read_all_events::<TextEvent>() {
+            for &event in text_events.iter() {
                 match event {
-                    TextEvent::AddChar(widget_id, char_index, character) => {
-                        if *widget_id == self.id() {
-                            self.add_char(*char_index, *character);
+                    TextEvent::AddChar(widget_id, _char_index, _character) => {
+                        if *widget_id == id {
+                            output_events.push(*event);
                         }
                     }
-                    TextEvent::RemoveChar(widget_id, char_index, _character) => {
-                        if *widget_id == self.id() {
-                            self.remove_char(*char_index);
+                    TextEvent::RemoveChar(widget_id, _char_index, _character) => {
+                        if *widget_id == id {
+                            output_events.push(*event);
                         }
                     }
                 }
             }
         }
-        if let Some(mut mouse_events) = events.read_all_events::<MouseEvent>() {
-            for event in mouse_events.iter_mut() {
+        output_events
+    }
+
+    fn read_mouse_events(&self) -> Option<MouseEvent> {
+        let read_data = self.get_shared_data().read().unwrap();
+        let events_rw = &mut *read_data.get_unique_resource_mut::<EventsRw>();
+        let events = events_rw.read().unwrap();
+
+        if let Some(mouse_events) = events.read_all_events::<MouseEvent>() {
+            for &event in mouse_events.iter() {
                 if event.state == MouseState::Move {
-                    let mouse_pos = Vector2::new(event.x as _, event.y as _);
-                    let pos = self.get_data().state.get_position();
-                    let size = self.get_data().state.get_size();
-                    let count = self.text.lines().count();
-                    let line_height = size.y / count as f32;
-                    for (line_index, t) in self.text.lines().enumerate() {
-                        for (i, _c) in t.as_bytes().iter().enumerate() {
-                            if mouse_pos.x >= pos.x + self.char_width as f32 * i as f32
-                                && mouse_pos.x <= pos.x + self.char_width as f32 * (i as f32 + 1.)
-                                && mouse_pos.y >= pos.y + line_height * line_index as f32
-                                && mouse_pos.y <= pos.y + size.y + line_height * line_index as f32
-                            {
-                                self.hover_char_index = 1 + i as i32;
-                            }
+                    return Some(*event);
+                }
+            }
+        }
+        None
+    }
+
+    fn update_text(&mut self) {
+        let text_events = self.read_text_events();
+        for &e in text_events.iter() {
+            match e {
+                TextEvent::AddChar(_widget_id, char_index, character) => {
+                    self.add_char(char_index, character);
+                }
+                TextEvent::RemoveChar(_widget_id, char_index, _character) => {
+                    self.remove_char(char_index);
+                }
+            }
+        }
+
+        if let Some(mouse_events) = self.read_mouse_events() {
+            if mouse_events.state == MouseState::Move {
+                let mouse_pos = Vector2::new(mouse_events.x as _, mouse_events.y as _);
+                let pos = self.get_data().state.get_position();
+                let size = self.get_data().state.get_size();
+                let count = self.text.lines().count();
+                let line_height = size.y / count as f32;
+                for (line_index, t) in self.text.lines().enumerate() {
+                    for (i, _c) in t.as_bytes().iter().enumerate() {
+                        if mouse_pos.x >= pos.x + self.char_width as f32 * i as f32
+                            && mouse_pos.x <= pos.x + self.char_width as f32 * (i as f32 + 1.)
+                            && mouse_pos.y >= pos.y + line_height * line_index as f32
+                            && mouse_pos.y <= pos.y + size.y + line_height * line_index as f32
+                        {
+                            self.hover_char_index = 1 + i as i32;
                         }
                     }
                 }
@@ -204,7 +237,7 @@ impl Text {
         self
     }
 
-    fn update_mesh_from_text(&mut self, shared_data: &SharedDataRw) {
+    fn update_mesh_from_text(&mut self) {
         let mut mesh_data = MeshData::default();
         let mut pos_y = 0.;
         let mut mesh_index = 0;
@@ -218,7 +251,11 @@ impl Text {
                 mesh_data.add_quad(
                     Vector4::new(pos_x, pos_y, pos_x + char_width, pos_y + char_height),
                     0.,
-                    FontInstance::get_glyph_texture_coord(shared_data, self.font_id, *c as _),
+                    FontInstance::get_glyph_texture_coord(
+                        self.get_shared_data(),
+                        self.font_id,
+                        *c as _,
+                    ),
                     Some(mesh_index),
                 );
                 mesh_index += 4;
@@ -227,23 +264,19 @@ impl Text {
             pos_y += char_height;
         }
 
-        self.get_data_mut()
-            .graphics
-            .set_mesh_data(shared_data, mesh_data);
+        self.get_data_mut().graphics.set_mesh_data(mesh_data);
     }
 }
 
 impl InternalWidget for Text {
-    fn widget_init(&mut self, shared_data: &SharedDataRw) {
-        let font_id = FontInstance::get_default(shared_data);
-        let material_id = MaterialInstance::create_from_font(shared_data, font_id);
+    fn widget_init(&mut self) {
+        let font_id = FontInstance::get_default(self.get_shared_data());
+        let material_id = MaterialInstance::create_from_font(self.get_shared_data(), font_id);
 
         self.font_id = font_id;
         self.material_id = material_id;
 
-        self.get_data_mut()
-            .graphics
-            .link_to_material(shared_data, material_id);
+        self.get_data_mut().graphics.link_to_material(material_id);
         if self.is_initialized() {
             return;
         }
@@ -256,16 +289,15 @@ impl InternalWidget for Text {
         self.char_width = (DEFAULT_TEXT_SIZE[1] * Screen::get_scale_factor()) as _;
     }
 
-    fn widget_update(&mut self, shared_data: &SharedDataRw) {
-        self.update_text(shared_data);
+    fn widget_update(&mut self) {
+        self.update_text();
         if self.is_dirty {
-            self.update_mesh_from_text(shared_data);
+            self.update_mesh_from_text();
             self.is_dirty = false;
         }
     }
 
-    fn widget_uninit(&mut self, shared_data: &SharedDataRw) {
-        let data = self.get_data_mut();
-        data.graphics.remove_meshes(shared_data);
+    fn widget_uninit(&mut self) {
+        self.get_data_mut().graphics.remove_meshes();
     }
 }

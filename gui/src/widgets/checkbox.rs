@@ -46,27 +46,28 @@ pub struct Checkbox {
 }
 implement_widget!(Checkbox);
 
-impl Default for Checkbox {
-    fn default() -> Self {
-        Self {
-            data: WidgetData::default(),
+impl Checkbox {
+    pub fn new(shared_data: &SharedDataRw) -> Self {
+        let mut w = Self {
+            data: WidgetData::new(shared_data),
             is_checked: false,
             outer_widget: INVALID_UID,
             checked_widget: INVALID_UID,
             label_widget: INVALID_UID,
-        }
+        };
+        w.init();
+        w
     }
 }
 
 impl Checkbox {
-    pub fn with_label(&mut self, shared_data: &SharedDataRw, text: &str) -> &mut Self {
+    pub fn with_label(&mut self, text: &str) -> &mut Self {
         if !self.label_widget.is_nil() {
             let uid = self.label_widget;
             self.get_data_mut().node.remove_child(uid);
             self.label_widget = INVALID_UID;
         }
-        let mut label = Text::default();
-        label.init(shared_data);
+        let mut label = Text::new(self.get_shared_data());
         label
             .vertical_alignment(VerticalAlignment::Center)
             .set_text(text);
@@ -74,13 +75,15 @@ impl Checkbox {
         self
     }
     pub fn checked(&mut self, checked: bool) -> &mut Self {
-        self.is_checked = checked;
-        let checked_id = self.checked_widget;
-        if let Some(inner_widget) = self.get_data_mut().node.get_child::<Panel>(checked_id) {
-            if checked {
-                inner_widget.style(WidgetStyle::FullActive);
-            } else {
-                inner_widget.style(WidgetStyle::Invisible);
+        if self.is_checked != checked {
+            self.is_checked = checked;
+            let checked_id = self.checked_widget;
+            if let Some(inner_widget) = self.get_data_mut().node.get_child::<Panel>(checked_id) {
+                if checked {
+                    inner_widget.style(WidgetStyle::FullActive);
+                } else {
+                    inner_widget.style(WidgetStyle::Invisible);
+                }
             }
         }
         self
@@ -123,31 +126,36 @@ impl Checkbox {
         }
     }
 
-    pub fn update_checked(&mut self, shared_data: &SharedDataRw) {
+    pub fn update_checked(&mut self) {
         let id = self.outer_widget;
-        let read_data = shared_data.read().unwrap();
-        let events_rw = &mut *read_data.get_unique_resource_mut::<EventsRw>();
-        self.check_state_change(id, events_rw);
+        let is_checked = {
+            let mut is_checked = self.is_checked;
+            let read_data = self.get_shared_data().read().unwrap();
+            let events_rw = &mut *read_data.get_unique_resource_mut::<EventsRw>();
+            self.check_state_change(id, events_rw);
 
-        let events = events_rw.read().unwrap();
-        if let Some(checkbox_events) = events.read_all_events::<CheckboxEvent>() {
-            for event in checkbox_events.iter() {
-                if let CheckboxEvent::Checked(widget_id) = event {
-                    if *widget_id == id {
-                        self.checked(true);
-                    }
-                } else if let CheckboxEvent::Unchecked(widget_id) = event {
-                    if *widget_id == id {
-                        self.checked(false);
+            let events = events_rw.read().unwrap();
+            if let Some(checkbox_events) = events.read_all_events::<CheckboxEvent>() {
+                for event in checkbox_events.iter() {
+                    if let CheckboxEvent::Checked(widget_id) = event {
+                        if *widget_id == id {
+                            is_checked = true;
+                        }
+                    } else if let CheckboxEvent::Unchecked(widget_id) = event {
+                        if *widget_id == id {
+                            is_checked = false;
+                        }
                     }
                 }
             }
-        }
+            is_checked
+        };
+        self.checked(is_checked);
     }
 }
 
 impl InternalWidget for Checkbox {
-    fn widget_init(&mut self, shared_data: &SharedDataRw) {
+    fn widget_init(&mut self) {
         if self.is_initialized() {
             return;
         }
@@ -160,8 +168,7 @@ impl InternalWidget for Checkbox {
             .keep_fixed_height(false)
             .style(WidgetStyle::Invisible);
 
-        let mut outer_widget = Panel::default();
-        outer_widget.init(shared_data);
+        let mut outer_widget = Panel::new(self.get_shared_data());
         outer_widget
             .size(default_size)
             .selectable(true)
@@ -169,8 +176,7 @@ impl InternalWidget for Checkbox {
             .style(WidgetStyle::Default);
 
         let inner_size = default_size / 4. * 3.;
-        let mut inner_check = Panel::default();
-        inner_check.init(shared_data);
+        let mut inner_check = Panel::new(self.get_shared_data());
         inner_check
             .size(inner_size)
             .selectable(false)
@@ -182,9 +188,9 @@ impl InternalWidget for Checkbox {
         self.outer_widget = self.add_child(Box::new(outer_widget));
     }
 
-    fn widget_update(&mut self, shared_data: &SharedDataRw) {
-        self.update_checked(shared_data);
+    fn widget_update(&mut self) {
+        self.update_checked();
     }
 
-    fn widget_uninit(&mut self, _shared_data: &SharedDataRw) {}
+    fn widget_uninit(&mut self) {}
 }

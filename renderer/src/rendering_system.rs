@@ -24,10 +24,10 @@ impl System for RenderingSystem {
     }
     fn init(&mut self) {}
 
-    fn run(&mut self) -> bool {
+    fn run(&mut self) -> (bool, Vec<Job>) {
         let state = self.renderer.read().unwrap().get_state();
         if state != RendererState::Prepared {
-            return true;
+            return (true, Vec::new());
         }
 
         {
@@ -35,7 +35,7 @@ impl System for RenderingSystem {
             renderer.draw();
         }
 
-        true
+        (true, Vec::new())
     }
     fn uninit(&mut self) {}
 }

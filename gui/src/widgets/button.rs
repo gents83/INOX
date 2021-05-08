@@ -18,12 +18,14 @@ pub struct Button {
 }
 implement_widget!(Button);
 
-impl Default for Button {
-    fn default() -> Self {
-        Self {
-            data: WidgetData::default(),
+impl Button {
+    pub fn new(shared_data: &SharedDataRw) -> Self {
+        let mut w = Self {
+            data: WidgetData::new(shared_data),
             label_id: INVALID_UID,
-        }
+        };
+        w.init();
+        w
     }
 }
 
@@ -52,7 +54,7 @@ impl Button {
 }
 
 impl InternalWidget for Button {
-    fn widget_init(&mut self, shared_data: &SharedDataRw) {
+    fn widget_init(&mut self) {
         if self.is_initialized() {
             return;
         }
@@ -63,14 +65,13 @@ impl InternalWidget for Button {
             .use_space_before_and_after(true)
             .keep_fixed_width(false);
 
-        let mut text = Text::default();
-        text.init(shared_data);
+        let mut text = Text::new(self.get_shared_data());
         text.vertical_alignment(VerticalAlignment::Center)
             .horizontal_alignment(HorizontalAlignment::Center)
             .set_text("Button Text");
         self.label_id = self.add_child(Box::new(text));
     }
-    fn widget_update(&mut self, _shared_data: &SharedDataRw) {}
+    fn widget_update(&mut self) {}
 
-    fn widget_uninit(&mut self, _shared_data: &SharedDataRw) {}
+    fn widget_uninit(&mut self) {}
 }

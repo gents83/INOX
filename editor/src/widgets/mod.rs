@@ -1,5 +1,7 @@
 #![allow(dead_code)]
 
+extern crate nrg_gui;
+
 pub use filename_dialog::*;
 pub use history_panel::*;
 pub use main_menu::*;

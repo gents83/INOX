@@ -35,16 +35,18 @@ pub struct TitleBar {
 }
 implement_widget!(TitleBar);
 
-impl Default for TitleBar {
-    fn default() -> Self {
-        Self {
-            data: WidgetData::default(),
+impl TitleBar {
+    pub fn new(shared_data: &SharedDataRw) -> Self {
+        let mut w = Self {
+            data: WidgetData::new(shared_data),
             title_widget: INVALID_UID,
             collapse_icon_widget: INVALID_UID,
             is_collapsible: true,
             is_collapsed: false,
             is_dirty: true,
-        }
+        };
+        w.init();
+        w
     }
 }
 
@@ -71,7 +73,7 @@ impl TitleBar {
         self
     }
 
-    fn change_collapse_icon(&mut self, shared_data: &SharedDataRw) -> &mut Self {
+    fn change_collapse_icon(&mut self) -> &mut Self {
         if !self.is_dirty || !self.is_collapsible {
             return self;
         }
@@ -90,16 +92,15 @@ impl TitleBar {
             collapse_icon
                 .get_data_mut()
                 .graphics
-                .set_mesh_data(shared_data, mesh_data);
+                .set_mesh_data(mesh_data);
         }
         self
     }
 
-    fn create_collapse_icon(&mut self, shared_data: &SharedDataRw) -> &mut Self {
+    fn create_collapse_icon(&mut self) -> &mut Self {
         if self.is_collapsible {
             let icon_size: Vector2 = DEFAULT_ICON_SIZE.into();
-            let mut collapse_icon = Canvas::default();
-            collapse_icon.init(shared_data);
+            let mut collapse_icon = Canvas::new(self.get_shared_data());
             collapse_icon
                 .size(icon_size * Screen::get_scale_factor())
                 .vertical_alignment(VerticalAlignment::Center)
@@ -108,32 +109,39 @@ impl TitleBar {
                 .style(WidgetStyle::FullActive);
             self.collapse_icon_widget = self.add_child(Box::new(collapse_icon));
 
-            self.change_collapse_icon(shared_data);
+            self.change_collapse_icon();
         }
 
         self
     }
 
-    fn manage_interactions(&mut self, shared_data: &SharedDataRw) -> &mut Self {
-        let read_data = shared_data.read().unwrap();
-        let events_rw = &mut *read_data.get_unique_resource_mut::<EventsRw>();
-        {
+    fn manage_interactions(&mut self) -> &mut Self {
+        let should_change = {
+            let mut should_change = false;
+            let read_data = self.get_shared_data().read().unwrap();
+            let events_rw = &mut *read_data.get_unique_resource_mut::<EventsRw>();
             let events = events_rw.read().unwrap();
             if let Some(widget_events) = events.read_all_events::<WidgetEvent>() {
                 for event in widget_events.iter() {
                     if let WidgetEvent::Pressed(widget_id, _mouse_in_px) = event {
                         if self.id() == *widget_id || self.collapse_icon_widget == *widget_id {
-                            if self.is_collapsed {
-                                self.expand();
-                            } else {
-                                self.collapse();
-                            }
+                            should_change = true;
                         }
                     }
                 }
             }
+            should_change
+        };
+        if should_change {
+            if self.is_collapsed {
+                self.expand();
+            } else {
+                self.collapse();
+            }
         }
         if self.is_dirty {
+            let read_data = self.get_shared_data().read().unwrap();
+            let events_rw = &mut *read_data.get_unique_resource_mut::<EventsRw>();
             let mut events = events_rw.write().unwrap();
             if self.is_collapsed {
                 events.send_event(TitleBarEvent::Collapsed(self.id()));
@@ -146,7 +154,7 @@ impl TitleBar {
 }
 
 impl InternalWidget for TitleBar {
-    fn widget_init(&mut self, shared_data: &SharedDataRw) {
+    fn widget_init(&mut self) {
         if self.is_initialized() {
             return;
         }
@@ -163,10 +171,9 @@ impl InternalWidget for TitleBar {
             .selectable(false)
             .style(WidgetStyle::DefaultTitleBar);
 
-        self.create_collapse_icon(shared_data);
+        self.create_collapse_icon();
 
-        let mut title = Text::default();
-        title.init(shared_data);
+        let mut title = Text::new(self.get_shared_data());
         title
             .draggable(false)
             .selectable(false)
@@ -177,10 +184,9 @@ impl InternalWidget for TitleBar {
         self.title_widget = self.add_child(Box::new(title));
     }
 
-    fn widget_update(&mut self, shared_data: &SharedDataRw) {
-        self.manage_interactions(shared_data)
-            .change_collapse_icon(shared_data);
+    fn widget_update(&mut self) {
+        self.manage_interactions().change_collapse_icon();
     }
 
-    fn widget_uninit(&mut self, _shared_data: &SharedDataRw) {}
+    fn widget_uninit(&mut self) {}
 }
