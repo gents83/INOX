@@ -1,4 +1,11 @@
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        mpsc::Sender,
+        Arc, Mutex,
+    },
+};
 
 use crate::{Job, Phase, PhaseWithSystems};
 
@@ -148,20 +155,31 @@ impl Scheduler {
             })
     }
 
-    pub fn run_once(&mut self) -> (bool, Vec<Job>) {
+    pub fn run_once(&mut self, sender: Arc<Mutex<Sender<Job>>>) -> bool {
         nrg_profiler::scoped_profile!("scheduler::run_once");
         let mut can_continue = self.is_running;
-        let mut jobs = Vec::new();
         for name in self.phases_order.iter() {
             if let Some(phase) = self.phases.get_mut(name) {
                 nrg_profiler::scoped_profile!(
                     format!("{}[{}]", "scheduler::run_phase", name).as_str()
                 );
-                let (ok, new_jobs) = phase.run();
-                jobs.extend(new_jobs.into_iter());
+                let (ok, jobs) = phase.run();
+                if !jobs.is_empty() {
+                    let wait_count = Arc::new(AtomicUsize::new(jobs.len()));
+                    for mut j in jobs {
+                        j.set_wait_count(wait_count.clone());
+                        let res = sender.lock().unwrap().send(j);
+                        if res.is_err() {
+                            panic!("Failed to add job to execution queue");
+                        }
+                    }
+
+                    while wait_count.load(Ordering::SeqCst) > 0 {}
+                }
+
                 can_continue &= ok;
             }
         }
-        (can_continue, jobs)
+        can_continue
     }
 }

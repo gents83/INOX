@@ -1,12 +1,15 @@
 use std::{
-    sync::{mpsc::Receiver, Arc, Mutex, RwLock},
+    sync::{
+        mpsc::{Receiver, Sender},
+        Arc, Mutex, RwLock,
+    },
     thread::{self, JoinHandle},
     time::{Duration, Instant},
 };
 
 use crate::{Job, Phase, Scheduler};
 
-const MAX_WORKER_DURATION: Duration = Duration::from_millis(3);
+const MAX_WORKER_DURATION: Duration = Duration::from_millis(2);
 
 pub struct Worker {
     scheduler: Arc<RwLock<Scheduler>>,
@@ -32,7 +35,12 @@ impl Worker {
     pub fn is_started(&self) -> bool {
         self.thread_handle.is_some()
     }
-    pub fn start(&mut self, name: &'static str, receiver: Arc<Mutex<Receiver<Job>>>) {
+    pub fn start(
+        &mut self,
+        name: &'static str,
+        sender: Arc<Mutex<Sender<Job>>>,
+        receiver: Arc<Mutex<Receiver<Job>>>,
+    ) {
         if self.thread_handle.is_none() {
             println!("Starting thread {}", name);
             let builder = thread::Builder::new().name(name.into());
@@ -43,20 +51,9 @@ impl Worker {
                     let mut last_update_time = Instant::now();
                     loop {
                         let mut instant = Instant::now();
-                        let (can_continue, jobs) = scheduler.write().unwrap().run_once();
-                        if !jobs.is_empty() {
-                            for j in jobs {
-                                j.execute();
-                            }
-                            println!(
-                                "Executing specific thread {} jobs in {:.3}",
-                                name,
-                                (Instant::now() - instant).as_secs() as f64
-                            );
-                        }
+                        let can_continue = scheduler.write().unwrap().run_once(sender.clone());
                         while instant - last_update_time < MAX_WORKER_DURATION {
                             if let Ok(job) = receiver.lock().unwrap().try_recv() {
-                                println!("Executing job on thread {}", name);
                                 job.execute();
                             }
                             instant = Instant::now();

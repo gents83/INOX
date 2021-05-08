@@ -20,7 +20,7 @@ pub struct App {
     plugin_manager: PluginManager,
     scheduler: Scheduler,
     workers: HashMap<String, Worker>,
-    sender: Sender<Job>,
+    sender: Arc<Mutex<Sender<Job>>>,
     receiver: Arc<Mutex<Receiver<Job>>>,
 }
 
@@ -63,7 +63,7 @@ impl App {
             scheduler: Scheduler::new(),
             plugin_manager: PluginManager::new(),
             workers: HashMap::new(),
-            sender,
+            sender: Arc::new(Mutex::new(sender)),
             receiver: Arc::new(Mutex::new(receiver)),
             shared_data,
         };
@@ -93,13 +93,7 @@ impl App {
     pub fn run_once(&mut self) -> bool {
         nrg_profiler::scoped_profile!("app::run_frame");
 
-        let (can_continue, jobs) = self.scheduler.run_once();
-        for j in jobs {
-            let res = self.sender.send(j);
-            if res.is_err() {
-                panic!("Failed to add job to execution queue");
-            }
-        }
+        let can_continue = self.scheduler.run_once(self.sender.clone());
 
         let plugins_to_remove = self.plugin_manager.update();
         self.update_plugins(plugins_to_remove, true);
@@ -160,7 +154,7 @@ impl App {
         let key = String::from(name);
         let w = self.workers.entry(key).or_insert_with(Worker::default);
         if !w.is_started() {
-            w.start(name, self.receiver.clone());
+            w.start(name, self.sender.clone(), self.receiver.clone());
         }
         w
     }

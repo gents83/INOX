@@ -1,5 +1,6 @@
 use std::{
     collections::VecDeque,
+    sync::{Arc, RwLock},
     time::{Duration, Instant},
 };
 
@@ -19,10 +20,11 @@ pub struct EditorUpdater {
     frame_seconds: VecDeque<Instant>,
     shared_data: SharedDataRw,
     config: Config,
-    fps_text_widget_id: Uid,
+    fps_text: Uid,
+    fps_widget_id: Uid,
     main_menu_id: Uid,
     history_panel_id: Uid,
-    widgets: Vec<Box<dyn Widget>>,
+    widgets: Vec<Arc<RwLock<Box<dyn Widget>>>>,
 }
 
 impl EditorUpdater {
@@ -33,7 +35,8 @@ impl EditorUpdater {
             shared_data: shared_data.clone(),
             config: config.clone(),
             widgets: Vec::new(),
-            fps_text_widget_id: INVALID_UID,
+            fps_text: INVALID_UID,
+            fps_widget_id: INVALID_UID,
             main_menu_id: INVALID_UID,
             history_panel_id: INVALID_UID,
         }
@@ -64,9 +67,10 @@ impl System for EditorUpdater {
 
         let mut canvas = Canvas::new(&self.shared_data);
         canvas.move_to_layer(-1.);
-        let node = GraphNode::new(&self.shared_data);
-        let mut widget = Panel::new(&self.shared_data);
 
+        let node = GraphNode::new(&self.shared_data);
+
+        let mut widget = Panel::new(&self.shared_data);
         widget
             .position([300., 300.].into())
             .size([300., 800.].into())
@@ -76,10 +80,11 @@ impl System for EditorUpdater {
             .fill_type(ContainerFillType::Vertical)
             .style(WidgetStyle::DefaultBackground)
             .move_to_layer(0.5);
+        self.fps_widget_id = widget.id();
 
         let mut fps_text = Text::new(&self.shared_data);
         fps_text.set_text("FPS: ");
-        self.fps_text_widget_id = widget.add_child(Box::new(fps_text));
+        self.fps_text = widget.add_child(Box::new(fps_text));
 
         let mut checkbox = Checkbox::new(&self.shared_data);
         checkbox.with_label("Checkbox");
@@ -93,11 +98,13 @@ impl System for EditorUpdater {
             .set_text("Ciao");
         widget.add_child(Box::new(textbox));
 
-        self.widgets.push(Box::new(canvas));
-        self.widgets.push(Box::new(node));
-        self.widgets.push(Box::new(widget));
-        self.widgets.push(Box::new(main_menu));
-        self.widgets.push(Box::new(history_panel));
+        self.widgets.push(Arc::new(RwLock::new(Box::new(canvas))));
+        self.widgets.push(Arc::new(RwLock::new(Box::new(node))));
+        self.widgets.push(Arc::new(RwLock::new(Box::new(widget))));
+        self.widgets
+            .push(Arc::new(RwLock::new(Box::new(main_menu))));
+        self.widgets
+            .push(Arc::new(RwLock::new(Box::new(history_panel))));
         /*
                 let dir = "./data/widgets/";
                 if let Ok(dir) = std::fs::read_dir(dir) {
@@ -120,17 +127,11 @@ impl System for EditorUpdater {
         Screen::update();
 
         self.update_keyboard_input();
-        self.update_widgets();
 
         self.update_fps_counter();
 
-        let jobs = Vec::new();
-        /*
-        let job = Job::new(move || {
-            self.main_menu.update(&self.shared_data);
-        });
-        jobs.push(job);
-        */
+        let jobs = self.update_widgets();
+
         (true, jobs)
     }
     fn uninit(&mut self) {
@@ -144,8 +145,8 @@ impl System for EditorUpdater {
                     serialize_to_file(child, filepath);
                 }
         */
-        for w in self.widgets.iter_mut() {
-            w.uninit();
+        for w in self.widgets.iter() {
+            w.write().unwrap().uninit();
         }
     }
 }
@@ -157,15 +158,13 @@ impl EditorUpdater {
     {
         let mut result: Option<&mut W> = None;
         self.widgets.iter_mut().for_each(|w| {
-            if w.id() == uid {
+            if w.read().unwrap().id() == uid {
                 unsafe {
-                    let boxed = Box::from_raw(w.as_mut());
-                    let ptr = Box::into_raw(boxed);
-                    let widget = ptr as *mut W;
+                    let mut data = w.write().unwrap();
+                    let ptr = data.as_mut();
+                    let widget = ptr as *mut dyn Widget as *mut W;
                     result = Some(&mut *widget);
                 }
-            } else if result.is_none() {
-                result = w.get_data_mut().node.get_child(uid);
             }
         });
         result
@@ -189,15 +188,21 @@ impl EditorUpdater {
         let one_sec_before = now - Duration::from_secs(1);
         self.frame_seconds.push_back(now);
         self.frame_seconds.retain(|t| *t >= one_sec_before);
+
         let num_fps = self.frame_seconds.len();
-        if let Some(widget) = self.get_widget::<Text>(self.fps_text_widget_id) {
-            let str = format!("FPS: {}", num_fps);
-            widget.set_text(str.as_str());
+        let text_id = self.fps_text;
+        if let Some(widget) = self.get_widget::<Panel>(self.fps_widget_id) {
+            if let Some(text) = widget.get_data_mut().node.get_child::<Text>(text_id) {
+                let str = format!("FPS: {}", num_fps);
+                text.set_text(str.as_str());
+            }
         }
+
         self
     }
-    fn update_widgets(&mut self) {
+    fn update_widgets(&mut self) -> Vec<Job> {
         nrg_profiler::scoped_profile!("update_widgets");
+        let mut jobs = Vec::new();
 
         let size = Screen::get_size();
         let mut is_visible = false;
@@ -219,13 +224,25 @@ impl EditorUpdater {
             history_panel.set_visible(is_visible);
         }
 
-        for w in self.widgets.iter_mut() {
-            if w.id() == self.main_menu_id {
-                w.update(Screen::get_draw_area());
-            } else {
-                w.update(draw_area);
-            }
+        for (i, w) in self.widgets.iter_mut().enumerate() {
+            let job = {
+                let widget = w.clone();
+                if widget.read().unwrap().id() == self.main_menu_id {
+                    Job::new(move || {
+                        nrg_profiler::scoped_profile!(format!("widget[{}]", i).as_str());
+                        widget.write().unwrap().update(Screen::get_draw_area());
+                    })
+                } else {
+                    Job::new(move || {
+                        nrg_profiler::scoped_profile!(format!("widget[{}]", i).as_str());
+                        widget.write().unwrap().update(draw_area);
+                    })
+                }
+            };
+            jobs.push(job);
         }
+
+        jobs
     }
 
     fn load_pipelines(&mut self) {
