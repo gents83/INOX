@@ -1,8 +1,9 @@
 use nrg_events::{implement_undoable_event, Event, EventsRw};
-use nrg_graphics::{FontId, MaterialId, MeshData, Renderer, INVALID_ID};
+use nrg_graphics::{FontId, FontInstance, MaterialId, MaterialInstance, MeshData};
 use nrg_math::{Vector2, Vector4};
 use nrg_platform::{MouseEvent, MouseState};
-use nrg_serialize::{Deserialize, Serialize, Uid};
+use nrg_resources::SharedDataRw;
+use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{
     implement_widget, InternalWidget, WidgetData, DEFAULT_WIDGET_HEIGHT, DEFAULT_WIDGET_WIDTH,
@@ -65,8 +66,8 @@ implement_widget!(Text);
 impl Default for Text {
     fn default() -> Self {
         Self {
-            font_id: INVALID_ID,
-            material_id: INVALID_ID,
+            font_id: INVALID_UID,
+            material_id: INVALID_UID,
             text: String::new(),
             hover_char_index: -1,
             char_width: DEFAULT_TEXT_SIZE[1] as _,
@@ -107,7 +108,9 @@ impl Text {
         None
     }
 
-    fn update_text(&mut self, events_rw: &mut EventsRw) {
+    fn update_text(&mut self, shared_data: &SharedDataRw) {
+        let read_data = shared_data.read().unwrap();
+        let events_rw = &mut *read_data.get_unique_resource_mut::<EventsRw>();
         let events = events_rw.read().unwrap();
         if let Some(mut text_events) = events.read_all_events::<TextEvent>() {
             for event in text_events.iter_mut() {
@@ -201,9 +204,7 @@ impl Text {
         self
     }
 
-    fn update_mesh_from_text(&mut self, renderer: &mut Renderer) {
-        let font = renderer.get_font(self.font_id).unwrap();
-
+    fn update_mesh_from_text(&mut self, shared_data: &SharedDataRw) {
         let mut mesh_data = MeshData::default();
         let mut pos_y = 0.;
         let mut mesh_index = 0;
@@ -214,12 +215,10 @@ impl Text {
         for text in self.text.lines() {
             let mut pos_x = 0.;
             for c in text.as_bytes().iter() {
-                let id = font.get_glyph_index(*c as _);
-                let g = font.get_glyph(id);
                 mesh_data.add_quad(
                     Vector4::new(pos_x, pos_y, pos_x + char_width, pos_y + char_height),
                     0.,
-                    g.texture_coord,
+                    FontInstance::get_glyph_texture_coord(shared_data, self.font_id, *c as _),
                     Some(mesh_index),
                 );
                 mesh_index += 4;
@@ -230,21 +229,21 @@ impl Text {
 
         self.get_data_mut()
             .graphics
-            .set_mesh_data(renderer, mesh_data);
+            .set_mesh_data(shared_data, mesh_data);
     }
 }
 
 impl InternalWidget for Text {
-    fn widget_init(&mut self, renderer: &mut Renderer) {
-        let font_id = renderer.get_default_font_id();
-        let material_id = renderer.add_material_from_font_id(font_id);
+    fn widget_init(&mut self, shared_data: &SharedDataRw) {
+        let font_id = FontInstance::get_default(shared_data);
+        let material_id = MaterialInstance::create_from_font(shared_data, font_id);
 
         self.font_id = font_id;
         self.material_id = material_id;
 
         self.get_data_mut()
             .graphics
-            .link_to_material(renderer, material_id);
+            .link_to_material(shared_data, material_id);
         if self.is_initialized() {
             return;
         }
@@ -257,16 +256,16 @@ impl InternalWidget for Text {
         self.char_width = (DEFAULT_TEXT_SIZE[1] * Screen::get_scale_factor()) as _;
     }
 
-    fn widget_update(&mut self, renderer: &mut Renderer, events_rw: &mut EventsRw) {
-        self.update_text(events_rw);
+    fn widget_update(&mut self, shared_data: &SharedDataRw) {
+        self.update_text(shared_data);
         if self.is_dirty {
-            self.update_mesh_from_text(renderer);
+            self.update_mesh_from_text(shared_data);
             self.is_dirty = false;
         }
     }
 
-    fn widget_uninit(&mut self, renderer: &mut Renderer) {
+    fn widget_uninit(&mut self, shared_data: &SharedDataRw) {
         let data = self.get_data_mut();
-        data.graphics.remove_meshes(renderer);
+        data.graphics.remove_meshes(shared_data);
     }
 }

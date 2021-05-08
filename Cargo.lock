@@ -464,6 +464,7 @@ dependencies = [
  "nrg_events",
  "nrg_platform",
  "nrg_profiler",
+ "nrg_resources",
  "nrg_serialize",
 ]
 
@@ -478,6 +479,7 @@ dependencies = [
  "nrg_math",
  "nrg_platform",
  "nrg_profiler",
+ "nrg_resources",
  "nrg_serialize",
 ]
 
@@ -501,6 +503,7 @@ dependencies = [
  "nrg_graphics",
  "nrg_math",
  "nrg_platform",
+ "nrg_resources",
  "nrg_serialize",
 ]
 
@@ -521,6 +524,7 @@ dependencies = [
  "nrg_math",
  "nrg_platform",
  "nrg_profiler",
+ "nrg_resources",
  "nrg_serialize",
  "ttf-parser",
  "vulkan_bindings",
@@ -535,6 +539,7 @@ dependencies = [
  "nrg_graphics",
  "nrg_math",
  "nrg_platform",
+ "nrg_resources",
  "nrg_serialize",
 ]
 
@@ -579,6 +584,14 @@ dependencies = [
  "nrg_graphics",
  "nrg_math",
  "nrg_platform",
+ "nrg_resources",
+ "nrg_serialize",
+]
+
+[[package]]
+name = "nrg_resources"
+version = "0.1.0"
+dependencies = [
  "nrg_serialize",
 ]
 
@@ -602,6 +615,7 @@ dependencies = [
  "nrg_events",
  "nrg_math",
  "nrg_platform",
+ "nrg_resources",
  "nrg_serialize",
 ]
 

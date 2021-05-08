@@ -113,7 +113,7 @@ impl Mesh {
         device.map_buffer_memory(&mut self.index_buffer_memory, first_index as _, &indices);
     }
 
-    pub fn bind_vertices(&mut self, device: &Device) {
+    pub fn bind_vertices(&self, device: &Device) {
         if self.vertex_buffer != ::std::ptr::null_mut() {
             unsafe {
                 let vertex_buffers = [self.vertex_buffer];
@@ -129,7 +129,7 @@ impl Mesh {
         }
     }
 
-    pub fn bind_indices(&mut self, device: &Device) {
+    pub fn bind_indices(&self, device: &Device) {
         if self.index_buffer != ::std::ptr::null_mut() {
             unsafe {
                 vkCmdBindIndexBuffer.unwrap()(

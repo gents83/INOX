@@ -5,6 +5,7 @@ use nrg_core::*;
 mod config;
 mod gfx;
 mod rendering_system;
+mod update_system;
 
 #[no_mangle]
 pub extern "C" fn create_plugin() -> PluginHolder {

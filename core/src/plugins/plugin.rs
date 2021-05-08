@@ -1,7 +1,7 @@
 use std::any::Any;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::{Scheduler, SharedDataRw};
+use crate::App;
 
 pub const CREATE_PLUGIN_FUNCTION_NAME: &str = "create_plugin";
 pub type PfnCreatePlugin = ::std::option::Option<unsafe extern "C" fn() -> PluginHolder>;
@@ -30,9 +30,9 @@ impl PluginId {
 
 pub trait Plugin: Any + Send + Sync {
     #[no_mangle]
-    fn prepare(&mut self, scheduler: &mut Scheduler, shared_data: &mut SharedDataRw);
+    fn prepare(&mut self, app: &mut App);
     #[no_mangle]
-    fn unprepare(&mut self, scheduler: &mut Scheduler);
+    fn unprepare(&mut self, app: &mut App);
     #[no_mangle]
     fn id(&self) -> PluginId {
         PluginId::new()

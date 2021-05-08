@@ -1,4 +1,4 @@
-use nrg_core::*;
+use nrg_resources::{ConfigBase, Data};
 use nrg_graphics::*;
 use nrg_serialize::*;
 

@@ -1,7 +1,7 @@
 use nrg_events::*;
-use nrg_graphics::*;
 use nrg_gui::*;
 use nrg_math::*;
+use nrg_resources::SharedDataRw;
 use nrg_serialize::*;
 
 pub struct HistoryPanel {
@@ -17,11 +17,11 @@ impl Default for HistoryPanel {
     fn default() -> Self {
         Self {
             history_panel: Panel::default(),
-            history_events_box_id: INVALID_ID,
-            history_text_widget_id: INVALID_ID,
-            history_redo_button: INVALID_ID,
-            history_undo_button: INVALID_ID,
-            history_clear_button: INVALID_ID,
+            history_events_box_id: INVALID_UID,
+            history_text_widget_id: INVALID_UID,
+            history_redo_button: INVALID_UID,
+            history_undo_button: INVALID_UID,
+            history_clear_button: INVALID_UID,
         }
     }
 }
@@ -31,14 +31,14 @@ impl HistoryPanel {
         self.history_panel.visible(visible);
         self
     }
-    fn create_history_widget(&mut self, renderer: &mut Renderer) -> (Uid, Uid, Uid, Uid, Uid) {
+    fn create_history_widget(&mut self, shared_data: &SharedDataRw) -> (Uid, Uid, Uid, Uid, Uid) {
         let mut label = Text::default();
-        label.init(renderer);
+        label.init(shared_data);
         label.set_text("Event History:");
         self.history_panel.add_child(Box::new(label));
 
         let mut button_box = Panel::default();
-        button_box.init(renderer);
+        button_box.init(shared_data);
         button_box
             .fill_type(ContainerFillType::Horizontal)
             .horizontal_alignment(HorizontalAlignment::Stretch)
@@ -48,15 +48,15 @@ impl HistoryPanel {
             .use_space_before_and_after(true);
 
         let mut history_undo = Button::default();
-        history_undo.init(renderer);
+        history_undo.init(shared_data);
         history_undo.with_text("Undo");
 
         let mut history_redo = Button::default();
-        history_redo.init(renderer);
+        history_redo.init(shared_data);
         history_redo.with_text("Redo");
 
         let mut history_clear = Button::default();
-        history_clear.init(renderer);
+        history_clear.init(shared_data);
         history_clear.with_text("Clear");
 
         let history_undo_button_id = button_box.add_child(Box::new(history_undo));
@@ -66,11 +66,11 @@ impl HistoryPanel {
         self.history_panel.add_child(Box::new(button_box));
 
         let mut separator = Separator::default();
-        separator.init(renderer);
+        separator.init(shared_data);
         self.history_panel.add_child(Box::new(separator));
 
         let mut history_events_box = Panel::default();
-        history_events_box.init(renderer);
+        history_events_box.init(shared_data);
         history_events_box
             .horizontal_alignment(HorizontalAlignment::Stretch)
             .fill_type(ContainerFillType::Vertical)
@@ -78,7 +78,7 @@ impl HistoryPanel {
             .style(WidgetStyle::Invisible);
 
         let mut text = Text::default();
-        text.init(renderer);
+        text.init(shared_data);
         text.set_text("Prova1\nProva2 \nProva3");
 
         let history_text_id = history_events_box.add_child(Box::new(text));
@@ -121,9 +121,11 @@ impl HistoryPanel {
     }
     fn manage_history_interactions(
         &mut self,
-        events_rw: &mut EventsRw,
+        shared_data: &SharedDataRw,
         history: &mut EventsHistory,
     ) -> &mut Self {
+        let read_data = shared_data.read().unwrap();
+        let events_rw = &mut *read_data.get_unique_resource_mut::<EventsRw>();
         let events = events_rw.read().unwrap();
         if let Some(button_events) = events.read_all_events::<WidgetEvent>() {
             for event in button_events.iter() {
@@ -141,8 +143,8 @@ impl HistoryPanel {
         self
     }
 
-    pub fn init(&mut self, renderer: &mut Renderer) {
-        self.history_panel.init(renderer);
+    pub fn init(&mut self, shared_data: &SharedDataRw) {
+        self.history_panel.init(shared_data);
         self.history_panel
             .size([450., 1000.].into())
             .vertical_alignment(VerticalAlignment::Bottom)
@@ -158,7 +160,7 @@ impl HistoryPanel {
             history_undo_button_id,
             history_redo_button_id,
             history_clear_button_id,
-        ) = self.create_history_widget(renderer);
+        ) = self.create_history_widget(shared_data);
         self.history_text_widget_id = history_text_id;
         self.history_events_box_id = history_events_box_id;
         self.history_undo_button = history_undo_button_id;
@@ -169,19 +171,17 @@ impl HistoryPanel {
     pub fn update(
         &mut self,
         drawing_area_in_px: Vector4,
-        renderer: &mut Renderer,
-        events: &mut EventsRw,
+        shared_data: &SharedDataRw,
         history: &mut EventsHistory,
     ) {
         if self.history_panel.get_data().graphics.is_visible() {
             self.update_history_widget(&history);
-            self.manage_history_interactions(events, history);
+            self.manage_history_interactions(shared_data, history);
         }
-        self.history_panel
-            .update(drawing_area_in_px, renderer, events);
+        self.history_panel.update(drawing_area_in_px, shared_data);
     }
 
-    pub fn uninit(&mut self, renderer: &mut Renderer) {
-        self.history_panel.uninit(renderer);
+    pub fn uninit(&mut self, shared_data: &SharedDataRw) {
+        self.history_panel.uninit(shared_data);
     }
 }

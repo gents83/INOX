@@ -1,6 +1,6 @@
 use nrg_events::{implement_undoable_event, Event, EventsRw};
-use nrg_graphics::Renderer;
 use nrg_math::Vector2;
+use nrg_resources::SharedDataRw;
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{
@@ -59,14 +59,14 @@ impl Default for Checkbox {
 }
 
 impl Checkbox {
-    pub fn with_label(&mut self, renderer: &mut Renderer, text: &str) -> &mut Self {
+    pub fn with_label(&mut self, shared_data: &SharedDataRw, text: &str) -> &mut Self {
         if !self.label_widget.is_nil() {
             let uid = self.label_widget;
             self.get_data_mut().node.remove_child(uid);
             self.label_widget = INVALID_UID;
         }
         let mut label = Text::default();
-        label.init(renderer);
+        label.init(shared_data);
         label
             .vertical_alignment(VerticalAlignment::Center)
             .set_text(text);
@@ -123,8 +123,10 @@ impl Checkbox {
         }
     }
 
-    pub fn update_checked(&mut self, events_rw: &mut EventsRw) {
+    pub fn update_checked(&mut self, shared_data: &SharedDataRw) {
         let id = self.outer_widget;
+        let read_data = shared_data.read().unwrap();
+        let events_rw = &mut *read_data.get_unique_resource_mut::<EventsRw>();
         self.check_state_change(id, events_rw);
 
         let events = events_rw.read().unwrap();
@@ -145,7 +147,7 @@ impl Checkbox {
 }
 
 impl InternalWidget for Checkbox {
-    fn widget_init(&mut self, renderer: &mut Renderer) {
+    fn widget_init(&mut self, shared_data: &SharedDataRw) {
         if self.is_initialized() {
             return;
         }
@@ -159,7 +161,7 @@ impl InternalWidget for Checkbox {
             .style(WidgetStyle::Invisible);
 
         let mut outer_widget = Panel::default();
-        outer_widget.init(renderer);
+        outer_widget.init(shared_data);
         outer_widget
             .size(default_size)
             .selectable(true)
@@ -168,7 +170,7 @@ impl InternalWidget for Checkbox {
 
         let inner_size = default_size / 4. * 3.;
         let mut inner_check = Panel::default();
-        inner_check.init(renderer);
+        inner_check.init(shared_data);
         inner_check
             .size(inner_size)
             .selectable(false)
@@ -180,9 +182,9 @@ impl InternalWidget for Checkbox {
         self.outer_widget = self.add_child(Box::new(outer_widget));
     }
 
-    fn widget_update(&mut self, _renderer: &mut Renderer, events: &mut EventsRw) {
-        self.update_checked(events);
+    fn widget_update(&mut self, shared_data: &SharedDataRw) {
+        self.update_checked(shared_data);
     }
 
-    fn widget_uninit(&mut self, _renderer: &mut Renderer) {}
+    fn widget_uninit(&mut self, _shared_data: &SharedDataRw) {}
 }

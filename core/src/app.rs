@@ -1,19 +1,18 @@
-use std::{
-    path::PathBuf,
-    sync::{Arc, RwLock},
-};
+use std::{collections::HashMap, path::PathBuf};
 
 use nrg_events::EventsRw;
 use nrg_platform::{InputState, Key, KeyEvent};
+use nrg_resources::SharedDataRw;
 
-use crate::{Phase, PluginId, PluginManager, Scheduler, SharedData, SharedDataRw};
+use crate::{Phase, PluginId, PluginManager, Scheduler, Worker};
 
 pub struct App {
     frame_count: u64,
     is_profiling: bool,
+    shared_data: SharedDataRw,
     plugin_manager: PluginManager,
     scheduler: Scheduler,
-    shared_data: SharedDataRw,
+    workers: HashMap<String, Worker>,
 }
 
 impl Default for App {
@@ -24,18 +23,23 @@ impl Default for App {
 
 impl Drop for App {
     fn drop(&mut self) {
-        nrg_profiler::write_profile_file!();
+        for (_name, w) in self.workers.iter_mut() {
+            w.stop();
+        }
         self.scheduler.uninit();
-        let mut data = self.shared_data.write().unwrap();
-        data.process_pending_requests();
-        self.plugin_manager.release(&mut self.scheduler);
+        self.shared_data.write().unwrap().clear();
+
+        let plugins_to_remove = self.plugin_manager.release();
+        self.update_plugins(plugins_to_remove, false);
+
+        nrg_profiler::write_profile_file!();
     }
 }
 
 impl App {
     pub fn new() -> Self {
         nrg_profiler::create_profiler!();
-        let shared_data = Arc::new(RwLock::new(SharedData::default()));
+        let shared_data = SharedDataRw::default();
         {
             let mut data = shared_data.write().unwrap();
             data.add_resource(EventsRw::default());
@@ -45,27 +49,39 @@ impl App {
             is_profiling: false,
             scheduler: Scheduler::new(),
             plugin_manager: PluginManager::new(),
+            workers: HashMap::new(),
             shared_data,
         }
     }
 
-    pub fn get_shared_data(&self) -> SharedDataRw {
-        self.shared_data.clone()
+    fn update_plugins(&mut self, plugins_to_remove: Vec<PluginId>, reload: bool) {
+        for id in plugins_to_remove.iter() {
+            if let Some(plugin_data) = self.plugin_manager.remove_plugin(id) {
+                let lib_path = plugin_data.original_path.clone();
+                PluginManager::clear_plugin_data(plugin_data, self);
+                if reload {
+                    let reloaded_plugin_data = PluginManager::create_plugin_data(lib_path, self);
+                    self.plugin_manager.add_plugin(reloaded_plugin_data);
+                }
+            }
+        }
     }
 
     pub fn run_once(&mut self) -> bool {
         nrg_profiler::scoped_profile!("app::run_frame");
 
         let can_continue = self.scheduler.run_once();
-        self.shared_data.write().unwrap().process_pending_requests();
-        self.plugin_manager
-            .update(&mut self.shared_data, &mut self.scheduler);
 
-        let data = self.shared_data.write().unwrap();
-        let events_rw = &mut *data.get_unique_resource_mut::<EventsRw>();
-        let mut events = events_rw.write().unwrap();
-        self.frame_count += 1;
-        events.update(self.frame_count);
+        let plugins_to_remove = self.plugin_manager.update();
+        self.update_plugins(plugins_to_remove, true);
+
+        {
+            let data = self.shared_data.write().unwrap();
+            let events_rw = &mut *data.get_unique_resource_mut::<EventsRw>();
+            let mut events = events_rw.write().unwrap();
+            self.frame_count += 1;
+            events.update(self.frame_count);
+        }
 
         can_continue
     }
@@ -100,31 +116,50 @@ impl App {
             }
         }
     }
-
-    pub fn create_phase<T: Phase>(&mut self, phase: T) -> &mut Self {
-        self.scheduler.create_phase(phase);
-        self
-    }
-
-    pub fn create_phase_with_systems(&mut self, phase_name: &str) -> &mut Self {
-        self.scheduler.create_phase_with_systems(phase_name);
-        self
-    }
-
-    pub fn get_phase<S: Phase>(&mut self, phase_name: &str) -> &S {
-        self.scheduler.get_phase(phase_name)
-    }
-
-    pub fn get_phase_mut<S: Phase>(&mut self, phase_name: &str) -> &mut S {
-        self.scheduler.get_phase_mut(phase_name)
-    }
     pub fn add_plugin(&mut self, lib_path: PathBuf) {
-        self.plugin_manager
-            .add_plugin(lib_path, &mut self.shared_data, &mut self.scheduler)
+        let plugin_data = PluginManager::create_plugin_data(lib_path, self);
+        self.plugin_manager.add_plugin(plugin_data);
     }
 
     pub fn remove_plugin(&mut self, plugin_id: &PluginId) {
-        self.plugin_manager
-            .remove_plugin(plugin_id, &mut self.scheduler)
+        if let Some(plugin_data) = self.plugin_manager.remove_plugin(plugin_id) {
+            PluginManager::clear_plugin_data(plugin_data, self);
+        }
+    }
+    fn add_worker(&mut self, name: &str) -> &mut Worker {
+        let key = String::from(name);
+        let w = self.workers.entry(key).or_insert_with(Worker::default);
+        if !w.is_started() {
+            w.start(name);
+        }
+        w
+    }
+    fn get_worker(&mut self, name: &str) -> &mut Worker {
+        let key = String::from(name);
+        self.workers.get_mut(&key).unwrap()
+    }
+
+    pub fn get_shared_data(&self) -> SharedDataRw {
+        self.shared_data.clone()
+    }
+    pub fn create_phase_on_worker<P: Phase>(&mut self, phase: P, name: &str) {
+        let w = self.add_worker(name);
+        w.create_phase(phase);
+    }
+    pub fn destroy_phase_on_worker(&mut self, phase_name: &str, name: &str) {
+        let w = self.get_worker(name);
+        w.destroy_phase(phase_name);
+    }
+    pub fn create_phase<P: Phase>(&mut self, phase: P) {
+        self.scheduler.create_phase(phase);
+    }
+    pub fn destroy_phase(&mut self, phase_name: &str) {
+        self.scheduler.destroy_phase(phase_name);
+    }
+    pub fn get_phase<P: Phase>(&mut self, phase_name: &str) -> &P {
+        self.scheduler.get_phase(phase_name)
+    }
+    pub fn get_phase_mut<P: Phase>(&mut self, phase_name: &str) -> &mut P {
+        self.scheduler.get_phase_mut(phase_name)
     }
 }

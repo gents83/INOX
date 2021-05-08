@@ -1,5 +1,5 @@
-use nrg_core::*;
 use nrg_math::*;
+use nrg_resources::*;
 use nrg_serialize::*;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

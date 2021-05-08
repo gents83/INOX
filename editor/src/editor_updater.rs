@@ -11,6 +11,7 @@ use nrg_events::*;
 use nrg_graphics::*;
 use nrg_gui::*;
 use nrg_platform::*;
+use nrg_resources::SharedDataRw;
 use nrg_serialize::*;
 
 pub struct EditorUpdater {
@@ -46,7 +47,7 @@ impl EditorUpdater {
             main_menu: MainMenu::default(),
             canvas: Canvas::default(),
             widget: Panel::default(),
-            fps_text_widget_id: INVALID_ID,
+            fps_text_widget_id: INVALID_UID,
             node: GraphNode::default(),
         };
         updater.register();
@@ -62,27 +63,16 @@ impl System for EditorUpdater {
 
     fn init(&mut self) {
         self.load_pipelines();
+        self.create_screen();
 
-        let read_data = self.shared_data.read().unwrap();
-        let renderer = &mut *read_data.get_unique_resource_mut::<Renderer>();
-        let window = &*read_data.get_unique_resource::<Window>();
-        let events_rw = &mut *read_data.get_unique_resource_mut::<EventsRw>();
+        self.node.init(&self.shared_data);
 
-        Screen::create(
-            window.get_width(),
-            window.get_heigth(),
-            window.get_scale_factor(),
-            events_rw.clone(),
-        );
-
-        self.node.init(renderer);
-
-        self.main_menu.init(renderer);
-        self.canvas.init(renderer);
+        self.main_menu.init(&self.shared_data);
+        self.canvas.init(&self.shared_data);
         self.canvas.move_to_layer(0.);
-        self.history_panel.init(renderer);
+        self.history_panel.init(&self.shared_data);
 
-        self.widget.init(renderer);
+        self.widget.init(&self.shared_data);
         self.widget
             .position([300., 300.].into())
             .size([300., 800.].into())
@@ -94,17 +84,17 @@ impl System for EditorUpdater {
             .move_to_layer(0.5);
 
         let mut fps_text = Text::default();
-        fps_text.init(renderer);
+        fps_text.init(&self.shared_data);
         fps_text.set_text("FPS: ");
         self.fps_text_widget_id = self.widget.add_child(Box::new(fps_text));
 
         let mut checkbox = Checkbox::default();
-        checkbox.init(renderer);
-        checkbox.with_label(renderer, "Checkbox");
+        checkbox.init(&self.shared_data);
+        checkbox.with_label(&self.shared_data, "Checkbox");
         self.widget.add_child(Box::new(checkbox));
 
         let mut textbox = TextBox::default();
-        textbox.init(renderer);
+        textbox.init(&self.shared_data);
         textbox
             .horizontal_alignment(HorizontalAlignment::Stretch)
             .with_label("Sample:")
@@ -121,7 +111,7 @@ impl System for EditorUpdater {
                             if !path.is_dir() {
                                 let mut boxed_node = Box::new(GraphNode::default());
                                 deserialize_from_file(&mut boxed_node, path);
-                                boxed_node.as_mut().init(renderer);
+                                boxed_node.as_mut().init(&self.shared_data);
                                 self.canvas.add_child(boxed_node);
                             }
                         }
@@ -143,8 +133,6 @@ impl System for EditorUpdater {
         true
     }
     fn uninit(&mut self) {
-        let read_data = self.shared_data.read().unwrap();
-        let renderer = &mut *read_data.get_unique_resource_mut::<Renderer>();
         /*
                 let childrens = self.canvas.get_data_mut().node.get_children();
                 for child in childrens {
@@ -155,15 +143,27 @@ impl System for EditorUpdater {
                     serialize_to_file(child, filepath);
                 }
         */
-        self.node.uninit(renderer);
-        self.canvas.uninit(renderer);
-        self.widget.uninit(renderer);
-        self.main_menu.uninit(renderer);
-        self.history_panel.uninit(renderer);
+        self.node.uninit(&self.shared_data);
+        self.canvas.uninit(&self.shared_data);
+        self.widget.uninit(&self.shared_data);
+        self.main_menu.uninit(&self.shared_data);
+        self.history_panel.uninit(&self.shared_data);
     }
 }
 
 impl EditorUpdater {
+    fn create_screen(&mut self) {
+        let read_data = self.shared_data.read().unwrap();
+        let window = &*read_data.get_unique_resource::<Window>();
+        let events_rw = &mut *read_data.get_unique_resource_mut::<EventsRw>();
+
+        Screen::create(
+            window.get_width(),
+            window.get_heigth(),
+            window.get_scale_factor(),
+            events_rw.clone(),
+        );
+    }
     fn update_fps_counter(&mut self) -> &mut Self {
         nrg_profiler::scoped_profile!("update_fps_counter");
 
@@ -187,11 +187,7 @@ impl EditorUpdater {
         {
             nrg_profiler::scoped_profile!("update_widgets");
 
-            let read_data = self.shared_data.read().unwrap();
-            let events_rw = &mut *read_data.get_unique_resource_mut::<EventsRw>();
-            let renderer = &mut *read_data.get_unique_resource_mut::<Renderer>();
-
-            self.main_menu.update(renderer, events_rw);
+            self.main_menu.update(&self.shared_data);
 
             let draw_area = [
                 0.,
@@ -201,11 +197,11 @@ impl EditorUpdater {
             ]
             .into();
 
-            self.node.update(draw_area, renderer, events_rw);
+            self.node.update(draw_area, &self.shared_data);
 
             {
                 nrg_profiler::scoped_profile!("widget.update");
-                self.widget.update(draw_area, renderer, events_rw);
+                self.widget.update(draw_area, &self.shared_data);
             }
 
             {
@@ -213,12 +209,12 @@ impl EditorUpdater {
                 self.history_panel
                     .set_visible(self.main_menu.show_history());
                 self.history_panel
-                    .update(draw_area, renderer, events_rw, &mut self.history);
+                    .update(draw_area, &self.shared_data, &mut self.history);
             }
 
             {
                 nrg_profiler::scoped_profile!("canvas.update");
-                self.canvas.update(draw_area, renderer, events_rw);
+                self.canvas.update(draw_area, &self.shared_data);
             }
         }
 
@@ -226,17 +222,16 @@ impl EditorUpdater {
     }
 
     fn load_pipelines(&mut self) {
-        {
-            let read_data = self.shared_data.read().unwrap();
-            let renderer = &mut *read_data.get_unique_resource_mut::<Renderer>();
-
-            for pipeline_data in self.config.pipelines.iter() {
-                renderer.add_pipeline(pipeline_data);
-            }
-
-            let pipeline_id = renderer.get_pipeline_id("UI");
-            renderer.add_font(pipeline_id, self.config.fonts.first().unwrap());
+        for pipeline_data in self.config.pipelines.iter() {
+            PipelineInstance::create(&self.shared_data, pipeline_data);
         }
+
+        let pipeline_id = PipelineInstance::find_id(&self.shared_data, "UI");
+        FontInstance::create_from_path(
+            &self.shared_data,
+            pipeline_id,
+            self.config.fonts.first().unwrap(),
+        );
     }
 
     fn update_keyboard_input(&mut self) -> &mut Self {

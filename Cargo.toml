@@ -11,6 +11,7 @@ members = [
     "math",
     "platform",
     "profiler",
+    "resources",
     "serialize",
     "bindings/vulkan_bindings",
     "renderer",

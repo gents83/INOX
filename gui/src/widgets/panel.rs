@@ -1,6 +1,5 @@
-use nrg_events::EventsRw;
-use nrg_graphics::Renderer;
 use nrg_math::Vector2;
+use nrg_resources::SharedDataRw;
 use nrg_serialize::{Deserialize, Serialize};
 
 use crate::{implement_widget, InternalWidget, WidgetData, DEFAULT_WIDGET_HEIGHT};
@@ -23,7 +22,7 @@ impl Default for Panel {
 }
 
 impl InternalWidget for Panel {
-    fn widget_init(&mut self, _renderer: &mut Renderer) {
+    fn widget_init(&mut self, _shared_data: &SharedDataRw) {
         if self.is_initialized() {
             return;
         }
@@ -34,7 +33,7 @@ impl InternalWidget for Panel {
             .style(WidgetStyle::Invisible);
     }
 
-    fn widget_update(&mut self, _renderer: &mut Renderer, _events: &mut EventsRw) {}
+    fn widget_update(&mut self, _shared_data: &SharedDataRw) {}
 
-    fn widget_uninit(&mut self, _renderer: &mut Renderer) {}
+    fn widget_uninit(&mut self, _shared_data: &SharedDataRw) {}
 }

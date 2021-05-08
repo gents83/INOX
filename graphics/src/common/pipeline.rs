@@ -1,11 +1,10 @@
 use nrg_math::Vector3;
 
-use crate::api::backend::Texture;
-
 use super::data_formats::*;
 use super::device::*;
 use super::render_pass::*;
 use super::shader::*;
+use super::texture::*;
 use std::path::PathBuf;
 
 #[derive(Clone)]
@@ -52,7 +51,7 @@ impl Pipeline {
         self.inner.update_uniform_buffer(cam_pos);
     }
 
-    pub fn update_descriptor_sets(&self, textures: &[&Texture]) {
+    pub fn update_descriptor_sets(&self, textures: &[TextureAtlas]) {
         self.inner.update_descriptor_sets(textures);
     }
 

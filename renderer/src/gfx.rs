@@ -1,23 +1,33 @@
+use std::sync::{Arc, RwLock};
+
 use nrg_core::*;
+use nrg_graphics::Renderer;
+use nrg_math::Vector2;
+use nrg_platform::Window;
+use nrg_resources::ConfigBase;
 use nrg_serialize::*;
 
-use crate::config::*;
+use crate::{config::*, update_system::UpdateSystem};
 
 use super::rendering_system::*;
 
+const RENDERING_THREAD: &str = "RENDERING_THREAD";
+const RENDERING_UPDATE: &str = "RENDERING_UPDATE";
 const RENDERING_PHASE: &str = "RENDERING_PHASE";
 
 #[repr(C)]
 pub struct GfxPlugin {
     config: Config,
-    system_id: SystemId,
+    update_system_id: SystemId,
+    rendering_system_id: SystemId,
 }
 
 impl Default for GfxPlugin {
     fn default() -> Self {
         Self {
             config: Config::default(),
-            system_id: SystemId::default(),
+            update_system_id: SystemId::default(),
+            rendering_system_id: SystemId::default(),
         }
     }
 }
@@ -26,25 +36,44 @@ unsafe impl Send for GfxPlugin {}
 unsafe impl Sync for GfxPlugin {}
 
 impl Plugin for GfxPlugin {
-    fn prepare<'a>(&mut self, scheduler: &mut Scheduler, shared_data: &mut SharedDataRw) {
+    fn prepare(&mut self, app: &mut App) {
         let path = self.config.get_filepath();
         deserialize_from_file(&mut self.config, path);
 
-        let mut update_phase = PhaseWithSystems::new(RENDERING_PHASE);
-        let system = RenderingSystem::new(shared_data, &self.config);
+        let renderer = {
+            let shared_data = app.get_shared_data();
+            let data = shared_data.read().unwrap();
+            let window = data.get_unique_resource::<Window>();
+            let mut renderer = Renderer::new(
+                window.get_handle(),
+                self.config.vk_data.debug_validation_layers,
+            );
+            let size = Vector2::new(window.get_width() as _, window.get_heigth() as _);
+            renderer.set_viewport_size(size);
+            renderer
+        };
+        let renderer = Arc::new(RwLock::new(renderer));
 
-        self.system_id = system.id();
+        let mut update_phase = PhaseWithSystems::new(RENDERING_UPDATE);
+        let system = UpdateSystem::new(renderer.clone(), &app.get_shared_data(), &self.config);
+        self.update_system_id = system.id();
+
+        let mut rendering_phase = PhaseWithSystems::new(RENDERING_PHASE);
+        let rendering_system = RenderingSystem::new(renderer, &app.get_shared_data());
+        self.rendering_system_id = rendering_system.id();
 
         update_phase.add_system(system);
-        scheduler.create_phase(update_phase);
+        rendering_phase.add_system(rendering_system);
+
+        app.create_phase(update_phase);
+        app.create_phase_on_worker(rendering_phase, RENDERING_THREAD);
     }
 
-    fn unprepare(&mut self, scheduler: &mut Scheduler) {
+    fn unprepare(&mut self, app: &mut App) {
         let path = self.config.get_filepath();
         serialize_to_file(&self.config, path);
 
-        let update_phase: &mut PhaseWithSystems = scheduler.get_phase_mut(RENDERING_PHASE);
-        update_phase.remove_system(&self.system_id);
-        scheduler.destroy_phase(RENDERING_PHASE);
+        app.destroy_phase_on_worker(RENDERING_PHASE, RENDERING_THREAD);
+        app.destroy_phase(RENDERING_UPDATE);
     }
 }

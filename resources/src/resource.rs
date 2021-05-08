@@ -101,6 +101,9 @@ pub struct ResourceRef<'a, T> {
 }
 
 impl<'a, T> ResourceRef<'a, T> {
+    pub fn id(&self) -> ResourceId {
+        *self.id
+    }
     pub fn new(Resource { id, data, atomic }: &'a Resource<T>) -> Self {
         if atomic.request_borrow() {
             Self {
@@ -140,6 +143,9 @@ pub struct ResourceRefMut<'a, T> {
 }
 
 impl<'a, T> ResourceRefMut<'a, T> {
+    pub fn id(&self) -> ResourceId {
+        *self.id
+    }
     pub fn new(Resource { id, data, atomic }: &'a Resource<T>) -> Self {
         if atomic.request_borrow_mut() {
             Self {

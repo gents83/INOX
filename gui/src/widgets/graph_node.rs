@@ -1,7 +1,7 @@
 use nrg_events::EventsRw;
-use nrg_graphics::{Renderer, INVALID_ID};
 use nrg_math::{VecBase, Vector2};
-use nrg_serialize::{Deserialize, Serialize, Uid};
+use nrg_resources::SharedDataRw;
+use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{implement_widget, InternalWidget, TitleBar, TitleBarEvent, WidgetData};
 
@@ -19,14 +19,16 @@ impl Default for GraphNode {
     fn default() -> Self {
         Self {
             data: WidgetData::default(),
-            title_bar: INVALID_ID,
+            title_bar: INVALID_UID,
             expanded_size: Vector2::default_zero(),
         }
     }
 }
 
 impl GraphNode {
-    fn manage_events(&mut self, events_rw: &mut EventsRw) -> &mut Self {
+    fn manage_events(&mut self, shared_data: &SharedDataRw) -> &mut Self {
+        let read_data = shared_data.read().unwrap();
+        let events_rw = &mut *read_data.get_unique_resource_mut::<EventsRw>();
         let events = events_rw.read().unwrap();
         if let Some(widget_events) = events.read_all_events::<TitleBarEvent>() {
             for event in widget_events.iter() {
@@ -53,7 +55,7 @@ impl GraphNode {
 }
 
 impl InternalWidget for GraphNode {
-    fn widget_init(&mut self, renderer: &mut Renderer) {
+    fn widget_init(&mut self, shared_data: &SharedDataRw) {
         if self.is_initialized() {
             return;
         }
@@ -68,13 +70,13 @@ impl InternalWidget for GraphNode {
             .style(WidgetStyle::DefaultBackground);
 
         let mut title_bar = TitleBar::default();
-        title_bar.init(renderer);
+        title_bar.init(shared_data);
         self.title_bar = self.add_child(Box::new(title_bar));
     }
 
-    fn widget_update(&mut self, _renderer: &mut Renderer, events: &mut EventsRw) {
-        self.manage_events(events);
+    fn widget_update(&mut self, shared_data: &SharedDataRw) {
+        self.manage_events(shared_data);
     }
 
-    fn widget_uninit(&mut self, _renderer: &mut Renderer) {}
+    fn widget_uninit(&mut self, _shared_data: &SharedDataRw) {}
 }

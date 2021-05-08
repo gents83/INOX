@@ -1,4 +1,7 @@
 use nrg_core::*;
+use nrg_events::EventsRw;
+use nrg_platform::Window;
+use nrg_resources::{ConfigBase, ResourceId};
 use nrg_serialize::*;
 
 use crate::config::*;
@@ -10,6 +13,7 @@ const MAIN_WINDOW_PHASE: &str = "MAIN_WINDOW_PHASE";
 pub struct MainWindow {
     config: Config,
     system_id: SystemId,
+    window_id: ResourceId,
 }
 
 impl Default for MainWindow {
@@ -17,6 +21,7 @@ impl Default for MainWindow {
         Self {
             config: Config::default(),
             system_id: SystemId::default(),
+            window_id: INVALID_UID,
         }
     }
 }
@@ -25,25 +30,50 @@ unsafe impl Send for MainWindow {}
 unsafe impl Sync for MainWindow {}
 
 impl Plugin for MainWindow {
-    fn prepare(&mut self, scheduler: &mut Scheduler, shared_data: &mut SharedDataRw) {
+    fn prepare(&mut self, app: &mut App) {
         let path = self.config.get_filepath();
         deserialize_from_file(&mut self.config, path);
 
+        let window = {
+            let shared_data = app.get_shared_data();
+            let data = shared_data.read().unwrap();
+            let events = data.get_unique_resource_mut::<EventsRw>();
+
+            let pos = self.config.get_position();
+            let size = self.config.get_resolution();
+            let name = self.config.get_name();
+            Window::create(
+                name.clone(),
+                pos.x as _,
+                pos.y as _,
+                size.x as _,
+                size.y as _,
+                events.clone(),
+            )
+        };
+        self.window_id = app.get_shared_data().write().unwrap().add_resource(window);
+
         let mut update_phase = PhaseWithSystems::new(MAIN_WINDOW_PHASE);
-        let system = WindowSystem::new(&self.config, shared_data);
+        let system = WindowSystem::new(&mut app.get_shared_data());
 
         self.system_id = system.id();
 
         update_phase.add_system(system);
-        scheduler.create_phase(update_phase);
+        app.create_phase(update_phase);
     }
 
-    fn unprepare(&mut self, scheduler: &mut Scheduler) {
+    fn unprepare(&mut self, app: &mut App) {
         let path = self.config.get_filepath();
         serialize_to_file(&self.config, path);
 
-        let update_phase: &mut PhaseWithSystems = scheduler.get_phase_mut(MAIN_WINDOW_PHASE);
+        let update_phase: &mut PhaseWithSystems = app.get_phase_mut(MAIN_WINDOW_PHASE);
         update_phase.remove_system(&self.system_id);
-        scheduler.destroy_phase(MAIN_WINDOW_PHASE);
+        app.destroy_phase(MAIN_WINDOW_PHASE);
+
+        let shared_data = app.get_shared_data();
+        shared_data
+            .write()
+            .unwrap()
+            .remove_resource::<Window>(self.window_id);
     }
 }

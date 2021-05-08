@@ -1,7 +1,8 @@
 use nrg_events::EventsRw;
-use nrg_graphics::Renderer;
+
 use nrg_math::{Vector2, Vector4};
 use nrg_platform::{MouseEvent, MouseState};
+use nrg_resources::SharedDataRw;
 use nrg_serialize::{typetag, Uid};
 
 use crate::{
@@ -18,38 +19,33 @@ pub const DEFAULT_WIDGET_SIZE: [f32; 2] = [DEFAULT_WIDGET_WIDTH, DEFAULT_WIDGET_
 pub trait Widget: BaseWidget + InternalWidget + Send + Sync {}
 
 pub trait InternalWidget {
-    fn widget_init(&mut self, renderer: &mut Renderer);
-    fn widget_update(&mut self, renderer: &mut Renderer, events: &mut EventsRw);
-    fn widget_uninit(&mut self, renderer: &mut Renderer);
+    fn widget_init(&mut self, shared_data: &SharedDataRw);
+    fn widget_update(&mut self, shared_data: &SharedDataRw);
+    fn widget_uninit(&mut self, shared_data: &SharedDataRw);
 }
 
 pub trait BaseWidget: InternalWidget + WidgetDataGetter {
     fn get_type(&self) -> &'static str {
         std::any::type_name::<Self>()
     }
-    fn init(&mut self, renderer: &mut Renderer) {
+    fn init(&mut self, shared_data: &SharedDataRw) {
         let clip_area_in_px = Screen::get_draw_area();
         self.get_data_mut().state.set_drawing_area(clip_area_in_px);
-        self.get_data_mut().graphics.init(renderer, "UI");
+        self.get_data_mut().graphics.init(shared_data, "UI");
 
-        self.widget_init(renderer);
+        self.widget_init(shared_data);
 
         if self.is_initialized() {
             self.get_data_mut()
                 .node
-                .propagate_on_children_mut(|w| w.init(renderer));
+                .propagate_on_children_mut(|w| w.init(shared_data));
         }
 
         self.update_layout();
         self.move_to_layer(self.get_data().graphics.get_layer());
         self.mark_as_initialized();
     }
-    fn update(
-        &mut self,
-        drawing_area_in_px: Vector4,
-        renderer: &mut Renderer,
-        events_rw: &mut EventsRw,
-    ) {
+    fn update(&mut self, drawing_area_in_px: Vector4, shared_data: &SharedDataRw) {
         self.get_data_mut()
             .state
             .set_drawing_area(drawing_area_in_px);
@@ -67,26 +63,26 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
             if !is_visible && w.get_data().graphics.is_visible() {
                 w.set_visible(is_visible);
             }
-            w.update(widget_clip, renderer, events_rw);
+            w.update(widget_clip, shared_data);
             widget_clip = add_widget_size(widget_clip, filltype, w);
             widget_clip = add_space_before_after(widget_clip, filltype, space);
         });
 
-        self.manage_input(events_rw);
-        self.manage_events(events_rw);
+        self.manage_input(shared_data);
+        self.manage_events(shared_data);
         self.manage_style();
 
-        self.widget_update(renderer, events_rw);
+        self.widget_update(shared_data);
 
-        self.get_data_mut().graphics.update(renderer);
+        self.get_data_mut().graphics.update(shared_data);
     }
 
-    fn uninit(&mut self, renderer: &mut Renderer) {
+    fn uninit(&mut self, shared_data: &SharedDataRw) {
         self.get_data_mut()
             .node
-            .propagate_on_children_mut(|w| w.uninit(renderer));
-        self.widget_uninit(renderer);
-        self.get_data_mut().graphics.uninit(renderer);
+            .propagate_on_children_mut(|w| w.uninit(shared_data));
+        self.widget_uninit(shared_data);
+        self.get_data_mut().graphics.uninit(shared_data);
     }
 
     fn id(&self) -> Uid {
@@ -253,9 +249,11 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         }
     }
 
-    fn manage_events(&mut self, events: &mut EventsRw) {
+    fn manage_events(&mut self, shared_data: &SharedDataRw) {
         let id = self.id();
-        let events = events.read().unwrap();
+        let read_data = shared_data.read().unwrap();
+        let events_rw = &mut *read_data.get_unique_resource_mut::<EventsRw>();
+        let events = events_rw.read().unwrap();
         if let Some(widget_events) = events.read_all_events::<WidgetEvent>() {
             for event in widget_events.iter() {
                 match event {
@@ -330,7 +328,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         None
     }
 
-    fn manage_input(&mut self, events_rw: &mut EventsRw) {
+    fn manage_input(&mut self, shared_data: &SharedDataRw) {
         let data = self.get_data_mut();
         if !data.graphics.is_visible() || !data.state.is_active() || !data.state.is_selectable() {
             return;
@@ -343,6 +341,8 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
             return;
         }
         let mut widget_events: Vec<WidgetEvent> = Vec::new();
+        let read_data = shared_data.read().unwrap();
+        let events_rw = &mut *read_data.get_unique_resource_mut::<EventsRw>();
         if let Some(mut mouse_events) = events_rw.read().unwrap().read_all_events::<MouseEvent>() {
             for event in mouse_events.iter_mut() {
                 if let Some(widget_event) = self.manage_mouse_event(event) {
@@ -399,9 +399,9 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         self.update_layers();
         id
     }
-    fn remove_children(&mut self, renderer: &mut Renderer) {
+    fn remove_children(&mut self, shared_data: &SharedDataRw) {
         self.get_data_mut().node.propagate_on_children_mut(|w| {
-            w.get_data_mut().graphics.remove_meshes(renderer);
+            w.get_data_mut().graphics.remove_meshes(shared_data);
         });
         self.get_data_mut().node.remove_children();
 

@@ -67,11 +67,11 @@ impl Mesh {
             .set_mesh_at_index(vertices, first_vertex, indices, first_index)
     }
 
-    pub fn bind_vertices(&mut self) {
+    pub fn bind_vertices(&self) {
         self.inner.bind_vertices(&self.device.inner);
     }
 
-    pub fn bind_indices(&mut self) {
+    pub fn bind_indices(&self) {
         self.inner.bind_indices(&self.device.inner);
     }
 

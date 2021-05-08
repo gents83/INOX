@@ -1,6 +1,4 @@
-use nrg_graphics::Renderer;
-
-use nrg_events::EventsRw;
+use nrg_resources::SharedDataRw;
 use nrg_serialize::{Deserialize, Serialize};
 use std::time::{Duration, Instant};
 
@@ -49,7 +47,7 @@ impl Indicator {
 }
 
 impl InternalWidget for Indicator {
-    fn widget_init(&mut self, _renderer: &mut Renderer) {
+    fn widget_init(&mut self, _shared_data: &SharedDataRw) {
         if self.is_initialized() {
             return;
         }
@@ -62,9 +60,9 @@ impl InternalWidget for Indicator {
             .border_style(WidgetStyle::FullActive);
     }
 
-    fn widget_update(&mut self, _renderer: &mut Renderer, _events: &mut EventsRw) {
+    fn widget_update(&mut self, _shared_data: &SharedDataRw) {
         self.update_blinkng();
     }
 
-    fn widget_uninit(&mut self, _renderer: &mut Renderer) {}
+    fn widget_uninit(&mut self, _shared_data: &SharedDataRw) {}
 }

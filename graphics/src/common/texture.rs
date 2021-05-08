@@ -2,19 +2,19 @@ use std::path::Path;
 
 use image::{DynamicImage, EncodableLayout, Pixel};
 
-use crate::{api::backend, Area, AreaAllocator, Pipeline, DEFAULT_AREA_SIZE, INVALID_INDEX};
+use crate::{api::backend, Area, AreaAllocator, DEFAULT_AREA_SIZE, INVALID_INDEX};
 
 use super::device::*;
 
 pub const MAX_TEXTURE_COUNT: usize = 32;
 pub const DEFAULT_LAYER_COUNT: usize = 32;
 
-struct LayeredTexture {
+pub struct TextureAtlas {
     texture: backend::Texture,
     allocators: Vec<AreaAllocator>,
 }
 
-impl LayeredTexture {
+impl TextureAtlas {
     fn create(device: &Device) -> Self {
         let mut allocators: Vec<AreaAllocator> = Vec::new();
         for _i in 0..DEFAULT_LAYER_COUNT {
@@ -73,7 +73,7 @@ impl Texture {
 
 pub struct TextureHandler {
     device: Device,
-    layered_textures: Vec<LayeredTexture>,
+    layered_textures: Vec<TextureAtlas>,
     textures: Vec<Texture>,
 }
 
@@ -81,7 +81,7 @@ impl TextureHandler {
     pub fn create(device: &Device) -> Self {
         let mut texture_handler = Self {
             device: device.clone(),
-            layered_textures: vec![LayeredTexture::create(device)],
+            layered_textures: vec![TextureAtlas::create(device)],
             textures: Vec::new(),
         };
         texture_handler.add_empty();
@@ -90,6 +90,10 @@ impl TextureHandler {
 
     pub fn get_texture(&self, index: usize) -> &Texture {
         &self.textures[index]
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.textures.is_empty()
     }
 
     pub fn add(&mut self, filepath: &Path) -> usize {
@@ -152,11 +156,7 @@ impl TextureHandler {
         }
         (INVALID_INDEX, INVALID_INDEX, Area::default())
     }
-    pub fn update_descriptor_sets(&self, pipeline: &Pipeline) {
-        let mut textures: Vec<&backend::Texture> = Vec::new();
-        for t in self.layered_textures.iter() {
-            textures.push(t.get_texture());
-        }
-        pipeline.update_descriptor_sets(textures.as_slice());
+    pub fn get_textures(&self) -> &[TextureAtlas] {
+        self.layered_textures.as_slice()
     }
 }

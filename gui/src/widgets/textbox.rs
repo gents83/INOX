@@ -1,7 +1,7 @@
 use nrg_events::EventsRw;
-use nrg_graphics::Renderer;
 use nrg_math::Vector2;
 use nrg_platform::{InputState, Key, KeyEvent, KeyTextEvent, MouseButton, MouseEvent, MouseState};
+use nrg_resources::SharedDataRw;
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{
@@ -83,7 +83,10 @@ impl TextBox {
         }
         str
     }
-    fn manage_char_input(&mut self, events_rw: &EventsRw) {
+    fn manage_char_input(&mut self, shared_data: &SharedDataRw) {
+        let read_data = shared_data.read().unwrap();
+        let events_rw = &mut *read_data.get_unique_resource_mut::<EventsRw>();
+
         let mut new_events: Vec<TextEvent> = Vec::new();
         let mut current_index = self.current_char;
         {
@@ -108,7 +111,9 @@ impl TextBox {
         }
     }
 
-    fn manage_key_pressed(&mut self, events_rw: &mut EventsRw) {
+    fn manage_key_pressed(&mut self, shared_data: &SharedDataRw) {
+        let read_data = shared_data.read().unwrap();
+        let events_rw = &mut *read_data.get_unique_resource_mut::<EventsRw>();
         let mut new_events: Vec<TextEvent> = Vec::new();
         let mut current_index = self.current_char;
         {
@@ -178,15 +183,17 @@ impl TextBox {
         }
     }
 
-    fn update_text(&mut self, events_rw: &mut EventsRw) {
+    fn update_text(&mut self, shared_data: &SharedDataRw) {
         if self.is_focused {
             self.update_indicator_position();
-            self.manage_char_input(events_rw);
-            self.manage_key_pressed(events_rw);
+            self.manage_char_input(shared_data);
+            self.manage_key_pressed(shared_data);
         }
     }
 
-    fn check_focus(&mut self, events_rw: &mut EventsRw) {
+    fn check_focus(&mut self, shared_data: &SharedDataRw) {
+        let read_data = shared_data.read().unwrap();
+        let events_rw = &mut *read_data.get_unique_resource_mut::<EventsRw>();
         let events = events_rw.read().unwrap();
         if let Some(mouse_events) = events.read_all_events::<MouseEvent>() {
             for event in mouse_events.iter() {
@@ -261,7 +268,7 @@ impl TextBox {
 }
 
 impl InternalWidget for TextBox {
-    fn widget_init(&mut self, renderer: &mut Renderer) {
+    fn widget_init(&mut self, shared_data: &SharedDataRw) {
         if self.is_initialized() {
             return;
         }
@@ -279,7 +286,7 @@ impl InternalWidget for TextBox {
             .style(WidgetStyle::Invisible);
 
         let mut label = Text::default();
-        label.init(renderer);
+        label.init(shared_data);
         label
             .selectable(false)
             .vertical_alignment(VerticalAlignment::Center);
@@ -288,7 +295,7 @@ impl InternalWidget for TextBox {
         self.label = self.add_child(Box::new(label));
 
         let mut panel = Panel::default();
-        panel.init(renderer);
+        panel.init(shared_data);
         panel
             .size(size * Screen::get_scale_factor())
             .draggable(false)
@@ -297,7 +304,7 @@ impl InternalWidget for TextBox {
             .style(WidgetStyle::Default);
 
         let mut editable_text = Text::default();
-        editable_text.init(renderer);
+        editable_text.init(shared_data);
         editable_text
             .size(size * Screen::get_scale_factor())
             .vertical_alignment(VerticalAlignment::Center)
@@ -305,7 +312,7 @@ impl InternalWidget for TextBox {
             .set_text("Edit me");
 
         let mut indicator = Indicator::default();
-        indicator.init(renderer);
+        indicator.init(shared_data);
         indicator.visible(false);
         self.indicator_widget = editable_text.add_child(Box::new(indicator));
 
@@ -313,12 +320,12 @@ impl InternalWidget for TextBox {
         self.text_panel = self.add_child(Box::new(panel));
     }
 
-    fn widget_update(&mut self, _renderer: &mut Renderer, events_rw: &mut EventsRw) {
+    fn widget_update(&mut self, shared_data: &SharedDataRw) {
         if self.is_editable() {
-            self.check_focus(events_rw);
-            self.update_text(events_rw);
+            self.check_focus(shared_data);
+            self.update_text(shared_data);
         }
     }
 
-    fn widget_uninit(&mut self, _renderer: &mut Renderer) {}
+    fn widget_uninit(&mut self, _shared_data: &SharedDataRw) {}
 }

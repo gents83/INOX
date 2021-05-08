@@ -1,6 +1,6 @@
 use nrg_events::EventsRw;
-use nrg_graphics::Renderer;
 use nrg_math::{VecBase, Vector2};
+use nrg_resources::SharedDataRw;
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{
@@ -39,9 +39,9 @@ impl Default for Menu {
 }
 
 impl Menu {
-    pub fn add_menu_item(&mut self, renderer: &mut Renderer, label: &str) -> Uid {
+    pub fn add_menu_item(&mut self, shared_data: &SharedDataRw, label: &str) -> Uid {
         let mut button = Button::default();
-        button.init(renderer);
+        button.init(shared_data);
         button
             .vertical_alignment(VerticalAlignment::Stretch)
             .fill_type(ContainerFillType::Horizontal)
@@ -52,7 +52,7 @@ impl Menu {
 
         let size: Vector2 = DEFAULT_SUBMENU_ITEM_SIZE.into();
         let mut submenu = Menu::default();
-        submenu.init(renderer);
+        submenu.init(shared_data);
         submenu
             .position(
                 [
@@ -104,14 +104,14 @@ impl Menu {
     }
     pub fn add_submenu_entry_default(
         &mut self,
-        renderer: &mut Renderer,
+        shared_data: &SharedDataRw,
         menu_item_id: Uid,
         label: &str,
     ) -> Uid {
         let mut id = INVALID_UID;
         if let Some(index) = self.entries.iter().position(|el| el.uid == menu_item_id) {
             let mut button = Button::default();
-            button.init(renderer);
+            button.init(shared_data);
             button
                 .with_text(label)
                 .text_alignment(VerticalAlignment::Center, HorizontalAlignment::Left)
@@ -160,9 +160,11 @@ impl Menu {
         }
     }
 
-    fn manage_menu_interactions(&mut self, events_rw: &mut EventsRw) {
+    fn manage_menu_interactions(&mut self, shared_data: &SharedDataRw) {
         self.manage_hovering();
 
+        let read_data = shared_data.read().unwrap();
+        let events_rw = &mut *read_data.get_unique_resource_mut::<EventsRw>();
         let events = events_rw.read().unwrap();
         if let Some(widget_events) = events.read_all_events::<WidgetEvent>() {
             for event in widget_events.iter() {
@@ -184,7 +186,7 @@ impl Menu {
 }
 
 impl InternalWidget for Menu {
-    fn widget_init(&mut self, _renderer: &mut Renderer) {
+    fn widget_init(&mut self, _shared_data: &SharedDataRw) {
         if self.is_initialized() {
             return;
         }
@@ -199,8 +201,8 @@ impl InternalWidget for Menu {
             .style(WidgetStyle::DefaultBackground);
     }
 
-    fn widget_update(&mut self, renderer: &mut Renderer, events_rw: &mut EventsRw) {
-        self.manage_menu_interactions(events_rw);
+    fn widget_update(&mut self, shared_data: &SharedDataRw) {
+        self.manage_menu_interactions(shared_data);
         let drawing_area_in_px = self.get_data().state.get_drawing_area();
         let mut buttons: Vec<(Vector2, Vector2)> = Vec::new();
         self.get_data().node.propagate_on_children(|w| {
@@ -214,9 +216,9 @@ impl InternalWidget for Menu {
             clip_area.y = buttons[i].0.y + buttons[i].1.y;
             clip_area.z -= clip_area.x;
             clip_area.w -= clip_area.y;
-            e.submenu.update(clip_area, renderer, events_rw);
+            e.submenu.update(clip_area, shared_data);
         });
     }
 
-    fn widget_uninit(&mut self, _renderer: &mut Renderer) {}
+    fn widget_uninit(&mut self, _shared_data: &SharedDataRw) {}
 }

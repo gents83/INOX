@@ -1,10 +1,10 @@
 use nrg_events::EventsRw;
-use nrg_graphics::Renderer;
 use nrg_gui::{
     BaseWidget, Button, ContainerFillType, HorizontalAlignment, Panel, Screen, TextBox, TitleBar,
     VerticalAlignment, WidgetDataGetter, WidgetEvent, WidgetStyle, DEFAULT_BUTTON_SIZE,
 };
 use nrg_math::Vector2;
+use nrg_resources::SharedDataRw;
 use nrg_serialize::{Uid, INVALID_UID};
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum DialogResult {
@@ -49,16 +49,16 @@ impl FilenameDialog {
     pub fn get_result(&self) -> DialogResult {
         self.result
     }
-    fn add_title(&mut self, renderer: &mut Renderer) {
+    fn add_title(&mut self, shared_data: &SharedDataRw) {
         let mut title_bar = TitleBar::default();
         title_bar.collapsible(false);
-        title_bar.init(renderer);
+        title_bar.init(shared_data);
 
         self.title_bar_uid = self.dialog.add_child(Box::new(title_bar));
     }
-    fn add_content(&mut self, renderer: &mut Renderer) {
+    fn add_content(&mut self, shared_data: &SharedDataRw) {
         let mut text_box = TextBox::default();
-        text_box.init(renderer);
+        text_box.init(shared_data);
         text_box
             .with_label("Filename: ")
             .set_text("Insert text here");
@@ -66,9 +66,9 @@ impl FilenameDialog {
         self.text_box_uid = self.dialog.add_child(Box::new(text_box));
     }
 
-    fn add_buttons(&mut self, renderer: &mut Renderer) {
+    fn add_buttons(&mut self, shared_data: &SharedDataRw) {
         let mut button_box = Panel::default();
-        button_box.init(renderer);
+        button_box.init(shared_data);
 
         let default_size: Vector2 = DEFAULT_BUTTON_SIZE.into();
         button_box
@@ -79,11 +79,11 @@ impl FilenameDialog {
             .space_between_elements(40);
 
         let mut button_ok = Button::default();
-        button_ok.init(renderer);
+        button_ok.init(shared_data);
         button_ok.with_text("Ok");
 
         let mut button_cancel = Button::default();
-        button_cancel.init(renderer);
+        button_cancel.init(shared_data);
         button_cancel
             .with_text("Cancel")
             .horizontal_alignment(HorizontalAlignment::Right);
@@ -92,7 +92,9 @@ impl FilenameDialog {
         self.cancel_uid = button_box.add_child(Box::new(button_cancel));
         self.button_box_uid = self.dialog.add_child(Box::new(button_box));
     }
-    fn manage_events(&mut self, events_rw: &mut EventsRw) {
+    fn manage_events(&mut self, shared_data: &SharedDataRw) {
+        let read_data = shared_data.read().unwrap();
+        let events_rw = &mut *read_data.get_unique_resource_mut::<EventsRw>();
         let events = events_rw.read().unwrap();
         if let Some(widget_events) = events.read_all_events::<WidgetEvent>() {
             for event in widget_events.iter() {
@@ -107,8 +109,8 @@ impl FilenameDialog {
         }
     }
 
-    pub fn init(&mut self, renderer: &mut Renderer) {
-        self.dialog.init(renderer);
+    pub fn init(&mut self, shared_data: &SharedDataRw) {
+        self.dialog.init(shared_data);
         let size: Vector2 = [500., 200.].into();
         self.dialog
             .size(size * Screen::get_scale_factor())
@@ -121,18 +123,17 @@ impl FilenameDialog {
             .style(WidgetStyle::DefaultBackground)
             .move_to_layer(1.);
 
-        self.add_title(renderer);
-        self.add_content(renderer);
-        self.add_buttons(renderer);
+        self.add_title(shared_data);
+        self.add_content(shared_data);
+        self.add_buttons(shared_data);
     }
 
-    pub fn update(&mut self, renderer: &mut Renderer, events_rw: &mut EventsRw) {
-        self.manage_events(events_rw);
-        self.dialog
-            .update(Screen::get_draw_area(), renderer, events_rw);
+    pub fn update(&mut self, shared_data: &SharedDataRw) {
+        self.manage_events(shared_data);
+        self.dialog.update(Screen::get_draw_area(), shared_data);
     }
 
-    pub fn uninit(&mut self, renderer: &mut Renderer) {
-        self.dialog.uninit(renderer);
+    pub fn uninit(&mut self, shared_data: &SharedDataRw) {
+        self.dialog.uninit(shared_data);
     }
 }

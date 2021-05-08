@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use crate::{Phase, PhaseWithSystems};
 
 pub struct Scheduler {
+    is_running: bool,
     phases_order: Vec<String>,
     phases: HashMap<String, Box<dyn Phase>>,
 }
@@ -13,15 +14,24 @@ impl Default for Scheduler {
     }
 }
 
+unsafe impl Sync for Scheduler {}
+unsafe impl Send for Scheduler {}
+
 impl Scheduler {
     pub fn new() -> Self {
         Self {
+            is_running: true,
             phases_order: Vec::new(),
             phases: HashMap::default(),
         }
     }
 
+    pub fn cancel(&mut self) {
+        self.is_running = false;
+    }
+
     pub fn uninit(&mut self) {
+        self.cancel();
         for name in self.phases_order.iter() {
             if let Some(phase) = self.phases.get_mut(name) {
                 phase.uninit();
@@ -140,7 +150,7 @@ impl Scheduler {
 
     pub fn run_once(&mut self) -> bool {
         nrg_profiler::scoped_profile!("scheduler::run_once");
-        let mut can_continue = true;
+        let mut can_continue = self.is_running;
         for name in self.phases_order.iter() {
             if let Some(phase) = self.phases.get_mut(name) {
                 nrg_profiler::scoped_profile!(

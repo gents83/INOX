@@ -1,10 +1,11 @@
+use super::render_pass::*;
 use super::shader::*;
 use super::{data_formats::INSTANCE_BUFFER_BIND_ID, device::*};
-use super::{render_pass::*, Texture};
 use crate::common::data_formats::*;
 use crate::common::shader::*;
+use crate::common::texture::MAX_TEXTURE_COUNT;
+use crate::common::texture::*;
 use crate::common::utils::*;
-use crate::texture::MAX_TEXTURE_COUNT;
 use nrg_math::{Matrix4, Vector3};
 use std::{cell::RefCell, path::PathBuf, rc::Rc};
 use vulkan_bindings::*;
@@ -102,7 +103,7 @@ impl Pipeline {
             .update_uniform_buffer(&self.device, cam_pos);
         self
     }
-    pub fn update_descriptor_sets(&self, textures: &[&Texture]) -> &Self {
+    pub fn update_descriptor_sets(&self, textures: &[TextureAtlas]) -> &Self {
         self.inner
             .borrow_mut()
             .update_descriptor_sets(&self.device, textures);
@@ -688,7 +689,7 @@ impl PipelineImmutable {
         }
     }
 
-    pub fn update_descriptor_sets(&self, device: &Device, textures: &[&Texture]) {
+    pub fn update_descriptor_sets(&self, device: &Device, textures: &[TextureAtlas]) {
         debug_assert!(
             !textures.is_empty(),
             "At least one texture should be received"
@@ -708,7 +709,7 @@ impl PipelineImmutable {
                 dstArrayElement: 0,
                 descriptorCount: 1,
                 descriptorType: VkDescriptorType_VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                pImageInfo: &textures[index].get_descriptor(),
+                pImageInfo: &textures[index].get_texture().get_descriptor(),
                 pBufferInfo: ::std::ptr::null_mut(),
                 pTexelBufferView: ::std::ptr::null_mut(),
             });

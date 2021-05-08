@@ -1,8 +1,7 @@
-use std::path::PathBuf;
-
-use nrg_core::*;
-use nrg_graphics::*;
+use nrg_graphics::PipelineData;
+use nrg_resources::{ConfigBase, Data};
 use nrg_serialize::*;
+use std::path::PathBuf;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(crate = "nrg_serialize")]

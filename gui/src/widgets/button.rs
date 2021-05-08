@@ -1,6 +1,5 @@
-use nrg_events::EventsRw;
-use nrg_graphics::Renderer;
 use nrg_math::Vector2;
+use nrg_resources::SharedDataRw;
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{
@@ -53,7 +52,7 @@ impl Button {
 }
 
 impl InternalWidget for Button {
-    fn widget_init(&mut self, renderer: &mut Renderer) {
+    fn widget_init(&mut self, shared_data: &SharedDataRw) {
         if self.is_initialized() {
             return;
         }
@@ -65,14 +64,13 @@ impl InternalWidget for Button {
             .keep_fixed_width(false);
 
         let mut text = Text::default();
-        text.init(renderer);
+        text.init(shared_data);
         text.vertical_alignment(VerticalAlignment::Center)
             .horizontal_alignment(HorizontalAlignment::Center)
             .set_text("Button Text");
         self.label_id = self.add_child(Box::new(text));
     }
+    fn widget_update(&mut self, _shared_data: &SharedDataRw) {}
 
-    fn widget_update(&mut self, _renderer: &mut Renderer, _events: &mut EventsRw) {}
-
-    fn widget_uninit(&mut self, _renderer: &mut Renderer) {}
+    fn widget_uninit(&mut self, _shared_data: &SharedDataRw) {}
 }

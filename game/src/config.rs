@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use nrg_core::*;
+use nrg_resources::{ConfigBase, Data};
 use nrg_serialize::*;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
