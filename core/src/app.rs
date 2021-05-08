@@ -26,13 +26,15 @@ impl Drop for App {
         for (_name, w) in self.workers.iter_mut() {
             w.stop();
         }
+        if self.is_profiling {
+            nrg_profiler::write_profile_file!();
+        }
+
         self.scheduler.uninit();
         self.shared_data.write().unwrap().clear();
 
         let plugins_to_remove = self.plugin_manager.release();
         self.update_plugins(plugins_to_remove, false);
-
-        nrg_profiler::write_profile_file!();
     }
 }
 
@@ -76,7 +78,7 @@ impl App {
         self.update_plugins(plugins_to_remove, true);
 
         {
-            let data = self.shared_data.write().unwrap();
+            let data = self.shared_data.read().unwrap();
             let events_rw = &mut *data.get_unique_resource_mut::<EventsRw>();
             let mut events = events_rw.write().unwrap();
             self.frame_count += 1;
@@ -99,7 +101,7 @@ impl App {
     }
 
     fn manage_hotkeys(&mut self) {
-        let data = self.shared_data.write().unwrap();
+        let data = self.shared_data.read().unwrap();
         let events_rw = &mut *data.get_unique_resource_mut::<EventsRw>();
         let events = events_rw.read().unwrap();
         if let Some(key_events) = events.read_all_events::<KeyEvent>() {
@@ -109,8 +111,9 @@ impl App {
                         nrg_profiler::start_profiler!();
                         self.is_profiling = true;
                     } else {
-                        nrg_profiler::stop_profiler!();
                         self.is_profiling = false;
+                        nrg_profiler::stop_profiler!();
+                        nrg_profiler::write_profile_file!();
                     }
                 }
             }
@@ -126,7 +129,7 @@ impl App {
             PluginManager::clear_plugin_data(plugin_data, self);
         }
     }
-    fn add_worker(&mut self, name: &str) -> &mut Worker {
+    fn add_worker(&mut self, name: &'static str) -> &mut Worker {
         let key = String::from(name);
         let w = self.workers.entry(key).or_insert_with(Worker::default);
         if !w.is_started() {
@@ -142,7 +145,7 @@ impl App {
     pub fn get_shared_data(&self) -> SharedDataRw {
         self.shared_data.clone()
     }
-    pub fn create_phase_on_worker<P: Phase>(&mut self, phase: P, name: &str) {
+    pub fn create_phase_on_worker<P: Phase>(&mut self, phase: P, name: &'static str) {
         let w = self.add_worker(name);
         w.create_phase(phase);
     }

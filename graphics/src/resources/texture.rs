@@ -37,11 +37,14 @@ impl TextureInstance {
         self.texture_index
     }
     pub fn create_from_path(shared_data: &SharedDataRw, texture_path: &Path) -> TextureId {
-        let mut data = shared_data.write().unwrap();
-        let texture_id = data.match_resource(|t: &TextureInstance| t.path == texture_path);
+        let texture_id = {
+            let data = shared_data.read().unwrap();
+            data.match_resource(|t: &TextureInstance| t.path == texture_path)
+        };
         if texture_id != INVALID_UID {
             return texture_id;
         }
+        let mut data = shared_data.write().unwrap();
         data.add_resource(TextureInstance {
             path: PathBuf::from(texture_path),
             texture_index: INVALID_INDEX,

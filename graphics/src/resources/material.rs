@@ -46,19 +46,19 @@ impl MaterialInstance {
     }
 
     pub fn add_texture(shared_data: &SharedDataRw, material_id: MaterialId, texture_id: TextureId) {
-        let data = shared_data.write().unwrap();
+        let data = shared_data.read().unwrap();
         let mut material = data.get_resource_mut::<Self>(material_id);
         material.textures.push(texture_id);
     }
 
     pub fn add_mesh(shared_data: &SharedDataRw, material_id: MaterialId, mesh_id: MeshId) {
-        let data = shared_data.write().unwrap();
+        let data = shared_data.read().unwrap();
         let mut material = data.get_resource_mut::<Self>(material_id);
         material.meshes.push(mesh_id);
     }
 
     pub fn remove_mesh(shared_data: &SharedDataRw, material_id: MaterialId, mesh_id: MeshId) {
-        let data = shared_data.write().unwrap();
+        let data = shared_data.read().unwrap();
         let mut material = data.get_resource_mut::<Self>(material_id);
         if let Some(index) = material.meshes.iter().position(|&id| id == mesh_id) {
             material.meshes.remove(index);
@@ -70,7 +70,7 @@ impl MaterialInstance {
         material_id: MaterialId,
         diffuse_color: Vector4,
     ) {
-        let data = shared_data.write().unwrap();
+        let data = shared_data.read().unwrap();
         let mut material = data.get_resource_mut::<Self>(material_id);
         material.diffuse_color = diffuse_color;
     }

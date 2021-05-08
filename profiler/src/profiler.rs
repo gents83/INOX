@@ -201,7 +201,6 @@ impl Profiler {
         let elapsed = self.time_start.elapsed();
         elapsed.as_micros().try_into().unwrap()
     }
-
     pub fn register_thread(&mut self, optional_name: Option<&str>) {
         let id = thread::current().id();
 
@@ -227,7 +226,6 @@ impl Profiler {
         if !self.started {
             return;
         }
-
         let id = thread::current().id();
         if let Some(thread) = self.threads.get(&id) {
             thread

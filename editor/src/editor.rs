@@ -16,6 +16,7 @@ pub struct Editor {
 
 impl Default for Editor {
     fn default() -> Self {
+        nrg_profiler::register_thread_into_profiler_with_name!("EditorPlugin");
         Self {
             config: Config::default(),
             updater_id: SystemId::default(),

@@ -123,7 +123,8 @@ impl System for EditorUpdater {
     fn run(&mut self) -> bool {
         Screen::update();
 
-        self.update_keyboard_input().update_widgets();
+        self.update_keyboard_input();
+        self.update_widgets();
 
         self.update_fps_counter();
 
@@ -183,42 +184,38 @@ impl EditorUpdater {
         }
         self
     }
-    fn update_widgets(&mut self) -> &mut Self {
+    fn update_widgets(&mut self) {
+        nrg_profiler::scoped_profile!("update_widgets");
+
+        self.main_menu.update(&self.shared_data);
+
+        let draw_area = [
+            0.,
+            self.main_menu.get_size().y + DEFAULT_WIDGET_SIZE[1],
+            Screen::get_size().x,
+            Screen::get_size().y - (self.main_menu.get_size().y + DEFAULT_WIDGET_SIZE[1]),
+        ]
+        .into();
+
+        self.node.update(draw_area, &self.shared_data);
+
         {
-            nrg_profiler::scoped_profile!("update_widgets");
-
-            self.main_menu.update(&self.shared_data);
-
-            let draw_area = [
-                0.,
-                self.main_menu.get_size().y + DEFAULT_WIDGET_SIZE[1],
-                Screen::get_size().x,
-                Screen::get_size().y - (self.main_menu.get_size().y + DEFAULT_WIDGET_SIZE[1]),
-            ]
-            .into();
-
-            self.node.update(draw_area, &self.shared_data);
-
-            {
-                nrg_profiler::scoped_profile!("widget.update");
-                self.widget.update(draw_area, &self.shared_data);
-            }
-
-            {
-                nrg_profiler::scoped_profile!("history_panel.update");
-                self.history_panel
-                    .set_visible(self.main_menu.show_history());
-                self.history_panel
-                    .update(draw_area, &self.shared_data, &mut self.history);
-            }
-
-            {
-                nrg_profiler::scoped_profile!("canvas.update");
-                self.canvas.update(draw_area, &self.shared_data);
-            }
+            nrg_profiler::scoped_profile!("widget.update");
+            self.widget.update(draw_area, &self.shared_data);
         }
 
-        self
+        {
+            nrg_profiler::scoped_profile!("history_panel.update");
+            self.history_panel
+                .set_visible(self.main_menu.show_history());
+            self.history_panel
+                .update(draw_area, &self.shared_data, &mut self.history);
+        }
+
+        {
+            nrg_profiler::scoped_profile!("canvas.update");
+            self.canvas.update(draw_area, &self.shared_data);
+        }
     }
 
     fn load_pipelines(&mut self) {
@@ -226,7 +223,7 @@ impl EditorUpdater {
             PipelineInstance::create(&self.shared_data, pipeline_data);
         }
 
-        let pipeline_id = PipelineInstance::find_id(&self.shared_data, "UI");
+        let pipeline_id = PipelineInstance::find_id_from_name(&self.shared_data, "UI");
         FontInstance::create_from_path(
             &self.shared_data,
             pipeline_id,
@@ -234,46 +231,42 @@ impl EditorUpdater {
         );
     }
 
-    fn update_keyboard_input(&mut self) -> &mut Self {
-        {
-            nrg_profiler::scoped_profile!("update_keyboard_input");
+    fn update_keyboard_input(&mut self) {
+        nrg_profiler::scoped_profile!("update_keyboard_input");
 
-            let read_data = self.shared_data.read().unwrap();
-            let events_rw = &mut *read_data.get_unique_resource_mut::<EventsRw>();
-            let events = events_rw.read().unwrap();
+        let read_data = self.shared_data.read().unwrap();
+        let events_rw = &mut *read_data.get_unique_resource_mut::<EventsRw>();
+        let events = events_rw.read().unwrap();
 
-            if let Some(key_events) = events.read_all_events::<KeyEvent>() {
-                for event in key_events.iter() {
-                    if event.code == Key::Control {
-                        if event.state == InputState::Pressed
-                            || event.state == InputState::JustPressed
-                        {
-                            self.is_ctrl_pressed = true;
-                        } else if event.state == InputState::Released
-                            || event.state == InputState::JustReleased
-                        {
-                            self.is_ctrl_pressed = false;
-                        }
-                    } else if self.is_ctrl_pressed
-                        && event.code == Key::Z
-                        && event.state == InputState::JustPressed
+        if let Some(key_events) = events.read_all_events::<KeyEvent>() {
+            for event in key_events.iter() {
+                if event.code == Key::Control {
+                    if event.state == InputState::Pressed || event.state == InputState::JustPressed
                     {
-                        self.history.undo_last_event();
-                    } else if self.is_ctrl_pressed
-                        && event.code == Key::Y
-                        && event.state == InputState::JustPressed
+                        self.is_ctrl_pressed = true;
+                    } else if event.state == InputState::Released
+                        || event.state == InputState::JustReleased
                     {
-                        self.history.redo_last_event();
-                    } else if event.state == InputState::JustPressed && event.code == Key::F5 {
-                        println!("Launch game");
-                        let result = std::process::Command::new("nrg_game_app").spawn().is_ok();
-                        if !result {
-                            println!("Failed to execute process");
-                        }
+                        self.is_ctrl_pressed = false;
+                    }
+                } else if self.is_ctrl_pressed
+                    && event.code == Key::Z
+                    && event.state == InputState::JustPressed
+                {
+                    self.history.undo_last_event();
+                } else if self.is_ctrl_pressed
+                    && event.code == Key::Y
+                    && event.state == InputState::JustPressed
+                {
+                    self.history.redo_last_event();
+                } else if event.state == InputState::JustPressed && event.code == Key::F5 {
+                    println!("Launch game");
+                    let result = std::process::Command::new("nrg_game_app").spawn().is_ok();
+                    if !result {
+                        println!("Failed to execute process");
                     }
                 }
             }
         }
-        self
     }
 }

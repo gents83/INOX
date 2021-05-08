@@ -29,16 +29,19 @@ impl Worker {
     pub fn is_started(&self) -> bool {
         self.thread_handle.is_some()
     }
-    pub fn start(&mut self, name: &str) {
+    pub fn start(&mut self, name: &'static str) {
         if self.thread_handle.is_none() {
             println!("Starting thread {}", name);
             let builder = thread::Builder::new().name(name.into());
             let scheduler = Arc::clone(&self.scheduler);
             let t = builder
-                .spawn(move || loop {
-                    let can_continue = scheduler.write().unwrap().run_once();
-                    if !can_continue {
-                        return false;
+                .spawn(move || {
+                    nrg_profiler::register_thread_into_profiler_with_name!(name);
+                    loop {
+                        let can_continue = scheduler.write().unwrap().run_once();
+                        if !can_continue {
+                            return false;
+                        }
                     }
                 })
                 .unwrap();

@@ -1,20 +1,16 @@
 use nrg_core::*;
 use nrg_graphics::*;
 
-use nrg_resources::SharedDataRw;
-
 pub struct RenderingSystem {
     id: SystemId,
     renderer: RendererRw,
-    shared_data: SharedDataRw,
 }
 
 impl RenderingSystem {
-    pub fn new(renderer: RendererRw, shared_data: &SharedDataRw) -> Self {
+    pub fn new(renderer: RendererRw) -> Self {
         Self {
             id: SystemId::new(),
             renderer,
-            shared_data: shared_data.clone(),
         }
     }
 }
@@ -36,9 +32,7 @@ impl System for RenderingSystem {
 
         {
             let mut renderer = self.renderer.write().unwrap();
-            let data = self.shared_data.write().unwrap();
-            let mut pipelines = data.get_resources_of_type_mut::<PipelineInstance>();
-            renderer.draw(&mut pipelines);
+            renderer.draw();
         }
 
         true

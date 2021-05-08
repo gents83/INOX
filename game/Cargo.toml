@@ -13,5 +13,6 @@ nrg_core = { path = "../core" }
 nrg_math = { path = "../math" }
 nrg_graphics = { path = "../graphics" }
 nrg_platform = { path = "../platform" }
+nrg_profiler = { path = "../profiler" }
 nrg_resources = { path = "../resources" }
 nrg_serialize = { path = "../serialize" }

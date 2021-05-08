@@ -1,6 +1,6 @@
 use std::sync::{Arc, RwLock};
 
-use crate::{MaterialInstance, MeshInstance, PipelineInstance, TextureInstance};
+use crate::{MaterialInstance, MeshInstance, Pipeline, PipelineInstance, TextureInstance};
 use nrg_math::*;
 use nrg_platform::*;
 use nrg_resources::ResourceRefMut;
@@ -26,6 +26,7 @@ pub struct Renderer {
     scissors: Scissors,
     texture_handler: TextureHandler,
     state: RendererState,
+    pipelines: Vec<Pipeline>,
 }
 pub type RendererRw = Arc<RwLock<Renderer>>;
 
@@ -40,6 +41,7 @@ impl Renderer {
             viewport: Viewport::default(),
             scissors: Scissors::default(),
             texture_handler,
+            pipelines: Vec::new(),
             state: RendererState::Init,
         }
     }
@@ -71,9 +73,9 @@ impl Renderer {
         self.load_pipelines(pipelines);
         self.load_textures(textures);
 
-        self.prepare_pipelines(pipelines);
+        self.prepare_pipelines();
         self.prepare_materials(pipelines, materials);
-        self.prepare_meshes(pipelines, materials, meshes, textures);
+        self.prepare_meshes(materials, meshes, textures);
 
         self.state = RendererState::Prepared;
         self
@@ -92,15 +94,15 @@ impl Renderer {
         self.device.submit()
     }
 
-    pub fn draw(&mut self, pipelines: &mut [ResourceRefMut<PipelineInstance>]) {
+    pub fn draw(&mut self) {
         let mut success = self.begin_frame();
         if !success {
-            self.recreate(pipelines);
+            self.recreate();
         } else {
             nrg_profiler::scoped_profile!("renderer::draw");
 
-            for (pipeline_index, pipeline_instance) in pipelines.iter_mut().enumerate() {
-                if pipeline_instance.is_initialized() && !pipeline_instance.is_empty() {
+            for (pipeline_index, pipeline) in self.pipelines.iter_mut().enumerate() {
+                if !pipeline.is_empty() {
                     nrg_profiler::scoped_profile!(format!(
                         "renderer::draw_pipeline[{}]",
                         pipeline_index
@@ -113,9 +115,8 @@ impl Renderer {
                             pipeline_index
                         )
                         .as_str());
-                        pipeline_instance.update_uniform_buffer([0., 0., 800.].into());
-                        pipeline_instance
-                            .update_descriptor_sets(self.texture_handler.get_textures());
+                        pipeline.update_uniform_buffer([0., 0., 800.].into());
+                        pipeline.update_descriptor_sets(self.texture_handler.get_textures());
                     }
 
                     {
@@ -124,7 +125,7 @@ impl Renderer {
                             pipeline_index
                         )
                         .as_str());
-                        pipeline_instance.begin();
+                        pipeline.begin();
                     }
 
                     {
@@ -139,7 +140,7 @@ impl Renderer {
                                 pipeline_index
                             )
                             .as_str());
-                            pipeline_instance.bind_vertices();
+                            pipeline.bind_vertices();
                         }
                         {
                             nrg_profiler::scoped_profile!(format!(
@@ -147,7 +148,7 @@ impl Renderer {
                                 pipeline_index
                             )
                             .as_str());
-                            pipeline_instance.bind_indirect();
+                            pipeline.bind_indirect();
                         }
                         {
                             nrg_profiler::scoped_profile!(format!(
@@ -155,7 +156,7 @@ impl Renderer {
                                 pipeline_index
                             )
                             .as_str());
-                            pipeline_instance.bind_indices();
+                            pipeline.bind_indices();
                         }
                         {
                             nrg_profiler::scoped_profile!(format!(
@@ -163,7 +164,7 @@ impl Renderer {
                                 pipeline_index
                             )
                             .as_str());
-                            pipeline_instance.draw_indirect();
+                            pipeline.draw_indirect();
                         }
                     }
 
@@ -173,7 +174,7 @@ impl Renderer {
                             pipeline_index
                         )
                         .as_str());
-                        pipeline_instance.end();
+                        pipeline.end();
                     }
                 }
             }
@@ -181,30 +182,41 @@ impl Renderer {
             success = self.end_frame();
         }
         if !success {
-            self.recreate(pipelines);
+            self.recreate();
         }
 
         self.state = RendererState::Submitted;
     }
 
-    pub fn recreate(&mut self, pipelines: &mut [ResourceRefMut<PipelineInstance>]) {
+    pub fn recreate(&mut self) {
         nrg_profiler::scoped_profile!("renderer::recreate");
         self.device.recreate_swap_chain();
 
-        for pipeline_instance in pipelines.iter_mut() {
-            if pipeline_instance.is_initialized() {
-                pipeline_instance.recreate(&self.device);
-            }
-        }
+        let device = &self.device;
+        self.pipelines.iter_mut().for_each(|p| {
+            p.recreate(device);
+        });
     }
 }
 
 impl Renderer {
     fn load_pipelines(&mut self, pipelines: &mut [ResourceRefMut<PipelineInstance>]) {
         nrg_profiler::scoped_profile!("renderer::load_pipelines");
-        let device = &mut self.device;
         pipelines.iter_mut().for_each(|pipeline_instance| {
-            pipeline_instance.init(&device);
+            if self
+                .pipelines
+                .iter()
+                .find(|p| p.id() == pipeline_instance.id())
+                .is_none()
+            {
+                let device = &mut self.device;
+                self.pipelines.push(Pipeline::create(
+                    device,
+                    pipeline_instance.id(),
+                    pipeline_instance.get_data(),
+                ));
+                pipeline_instance.init();
+            }
         });
     }
 
@@ -219,14 +231,12 @@ impl Renderer {
         });
     }
 
-    fn prepare_pipelines(&mut self, pipelines: &mut [ResourceRefMut<PipelineInstance>]) {
+    fn prepare_pipelines(&mut self) {
         nrg_profiler::scoped_profile!("renderer::prepare_pipelines");
-        pipelines.sort_by(|a, b| a.get_data().data.index.cmp(&b.get_data().data.index));
-
-        let mut pipeline_index = 0;
-        pipelines.iter_mut().for_each(|pipeline| {
+        self.pipelines
+            .sort_by(|a, b| a.get_data().data.index.cmp(&b.get_data().data.index));
+        self.pipelines.iter_mut().for_each(|pipeline| {
             pipeline.prepare();
-            pipeline_index += 1;
         });
     }
 
@@ -255,7 +265,6 @@ impl Renderer {
 
     fn prepare_meshes(
         &mut self,
-        pipelines: &mut [ResourceRefMut<PipelineInstance>],
         materials: &mut [ResourceRefMut<MaterialInstance>],
         meshes: &mut [ResourceRefMut<MeshInstance>],
         textures: &[ResourceRefMut<TextureInstance>],
@@ -266,7 +275,8 @@ impl Renderer {
             if !material_instance.has_meshes() {
                 return;
             }
-            let pipeline = pipelines
+            let pipeline = self
+                .pipelines
                 .iter_mut()
                 .find(|p| p.id() == material_instance.get_pipeline_id())
                 .unwrap();

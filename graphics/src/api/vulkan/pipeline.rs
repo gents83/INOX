@@ -7,7 +7,7 @@ use crate::common::texture::MAX_TEXTURE_COUNT;
 use crate::common::texture::*;
 use crate::common::utils::*;
 use nrg_math::{Matrix4, Vector3};
-use std::{cell::RefCell, path::PathBuf, rc::Rc};
+use std::{cell::RefCell, path::Path, rc::Rc};
 use vulkan_bindings::*;
 
 pub const MAX_INSTANCES_COUNT: usize = 4096;
@@ -73,7 +73,7 @@ impl Pipeline {
         inner.delete(&self.device);
     }
 
-    pub fn set_shader(&mut self, shader_type: ShaderType, shader_filepath: PathBuf) -> &mut Self {
+    pub fn set_shader(&mut self, shader_type: ShaderType, shader_filepath: &Path) -> &mut Self {
         if shader_filepath.exists() {
             println!("Loading shader {:?}", shader_filepath);
 

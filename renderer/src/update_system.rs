@@ -60,14 +60,14 @@ impl System for UpdateSystem {
 
         {
             let mut renderer = self.renderer.write().unwrap();
-            let data = self.shared_data.write().unwrap();
+            let data = self.shared_data.read().unwrap();
             let mut pipelines = data.get_resources_of_type_mut::<PipelineInstance>();
             let mut materials = data.get_resources_of_type_mut::<MaterialInstance>();
             let mut meshes = data.get_resources_of_type_mut::<MeshInstance>();
             let mut textures = data.get_resources_of_type_mut::<TextureInstance>();
 
             if should_recreate_swap_chain {
-                renderer.recreate(&mut pipelines);
+                renderer.recreate();
             }
 
             renderer.prepare_frame(&mut pipelines, &mut materials, &mut meshes, &mut textures);

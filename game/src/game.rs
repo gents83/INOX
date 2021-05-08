@@ -15,6 +15,7 @@ pub struct Game {
 
 impl Default for Game {
     fn default() -> Self {
+        nrg_profiler::register_thread_into_profiler_with_name!("GamePlugin");
         Self {
             config: Config::default(),
             system_id: SystemId::default(),

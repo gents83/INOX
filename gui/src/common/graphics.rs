@@ -42,7 +42,7 @@ impl Default for WidgetGraphics {
 
 impl WidgetGraphics {
     pub fn init(&mut self, shared_data: &SharedDataRw, pipeline: &str) -> &mut Self {
-        let pipeline_id = PipelineInstance::find_id(shared_data, pipeline);
+        let pipeline_id = PipelineInstance::find_id_from_name(shared_data, pipeline);
         self.material_id = MaterialInstance::create_from_pipeline(shared_data, pipeline_id);
 
         let mut mesh_data = MeshData::default();

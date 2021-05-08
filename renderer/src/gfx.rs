@@ -24,6 +24,7 @@ pub struct GfxPlugin {
 
 impl Default for GfxPlugin {
     fn default() -> Self {
+        nrg_profiler::register_thread_into_profiler_with_name!("GfxPlugin");
         Self {
             config: Config::default(),
             update_system_id: SystemId::default(),
@@ -59,7 +60,7 @@ impl Plugin for GfxPlugin {
         self.update_system_id = system.id();
 
         let mut rendering_phase = PhaseWithSystems::new(RENDERING_PHASE);
-        let rendering_system = RenderingSystem::new(renderer, &app.get_shared_data());
+        let rendering_system = RenderingSystem::new(renderer);
         self.rendering_system_id = rendering_system.id();
 
         update_phase.add_system(system);

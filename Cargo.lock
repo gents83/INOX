@@ -503,6 +503,7 @@ dependencies = [
  "nrg_graphics",
  "nrg_math",
  "nrg_platform",
+ "nrg_profiler",
  "nrg_resources",
  "nrg_serialize",
 ]
@@ -584,6 +585,7 @@ dependencies = [
  "nrg_graphics",
  "nrg_math",
  "nrg_platform",
+ "nrg_profiler",
  "nrg_resources",
  "nrg_serialize",
 ]
@@ -615,6 +617,7 @@ dependencies = [
  "nrg_events",
  "nrg_math",
  "nrg_platform",
+ "nrg_profiler",
  "nrg_resources",
  "nrg_serialize",
 ]
