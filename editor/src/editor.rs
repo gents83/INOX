@@ -34,7 +34,7 @@ impl Plugin for Editor {
         deserialize_from_file(&mut self.config, path);
 
         let mut update_phase = PhaseWithSystems::new(EDITOR_UPDATE_PHASE);
-        let system = EditorUpdater::new(&app.get_shared_data(), &self.config);
+        let system = EditorUpdater::new(&app.get_shared_data(), &app.get_events(), &self.config);
         self.updater_id = system.id();
         update_phase.add_system(system);
         app.create_phase(update_phase);

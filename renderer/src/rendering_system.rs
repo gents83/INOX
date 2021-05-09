@@ -25,7 +25,7 @@ impl System for RenderingSystem {
     fn init(&mut self) {}
 
     fn run(&mut self) -> (bool, Vec<Job>) {
-        let state = self.renderer.read().unwrap().get_state();
+        let state = self.renderer.read().unwrap().state();
         if state != RendererState::Prepared {
             return (true, Vec::new());
         }

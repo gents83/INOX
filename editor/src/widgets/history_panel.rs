@@ -1,7 +1,6 @@
-use nrg_events::*;
+use nrg_events::{EventsHistory, EventsHistoryOperation};
 use nrg_gui::*;
 use nrg_platform::{InputState, Key, KeyEvent};
-use nrg_resources::SharedDataRw;
 use nrg_serialize::*;
 
 #[derive(Serialize, Deserialize)]
@@ -23,35 +22,26 @@ pub struct HistoryPanel {
     #[serde(skip)]
     is_ctrl_pressed: bool,
 }
-implement_widget!(HistoryPanel);
-
-impl HistoryPanel {
-    pub fn new(shared_data: &SharedDataRw) -> Self {
-        let mut w = Self {
-            data: WidgetData::new(shared_data),
-            history: EventsHistory::default(),
-            history_events_box_id: INVALID_UID,
-            history_text_widget_id: INVALID_UID,
-            history_redo_button: INVALID_UID,
-            history_undo_button: INVALID_UID,
-            history_clear_button: INVALID_UID,
-            is_ctrl_pressed: false,
-        };
-        w.init();
-        w
-    }
-}
+implement_widget_with_custom_members!(HistoryPanel {
+    history: EventsHistory::default(),
+    history_events_box_id: INVALID_UID,
+    history_text_widget_id: INVALID_UID,
+    history_redo_button: INVALID_UID,
+    history_undo_button: INVALID_UID,
+    history_clear_button: INVALID_UID,
+    is_ctrl_pressed: false
+});
 
 impl HistoryPanel {
     pub fn get_history(&mut self) -> &mut EventsHistory {
         &mut self.history
     }
     fn create_history_widget(&mut self) -> (Uid, Uid, Uid, Uid, Uid) {
-        let mut label = Text::new(self.get_shared_data());
+        let mut label = Text::new(self.get_shared_data(), self.get_events());
         label.set_text("Event History:");
         self.add_child(Box::new(label));
 
-        let mut button_box = Panel::new(self.get_shared_data());
+        let mut button_box = Panel::new(self.get_shared_data(), self.get_events());
         button_box
             .fill_type(ContainerFillType::Horizontal)
             .horizontal_alignment(HorizontalAlignment::Stretch)
@@ -60,13 +50,13 @@ impl HistoryPanel {
             .space_between_elements((DEFAULT_WIDGET_WIDTH * Screen::get_scale_factor()) as _)
             .use_space_before_and_after(true);
 
-        let mut history_undo = Button::new(self.get_shared_data());
+        let mut history_undo = Button::new(self.get_shared_data(), self.get_events());
         history_undo.with_text("Undo");
 
-        let mut history_redo = Button::new(self.get_shared_data());
+        let mut history_redo = Button::new(self.get_shared_data(), self.get_events());
         history_redo.with_text("Redo");
 
-        let mut history_clear = Button::new(self.get_shared_data());
+        let mut history_clear = Button::new(self.get_shared_data(), self.get_events());
         history_clear.with_text("Clear");
 
         let history_undo_button_id = button_box.add_child(Box::new(history_undo));
@@ -75,17 +65,17 @@ impl HistoryPanel {
 
         self.add_child(Box::new(button_box));
 
-        let separator = Separator::new(self.get_shared_data());
+        let separator = Separator::new(self.get_shared_data(), self.get_events());
         self.add_child(Box::new(separator));
 
-        let mut history_events_box = Panel::new(self.get_shared_data());
+        let mut history_events_box = Panel::new(self.get_shared_data(), self.get_events());
         history_events_box
             .horizontal_alignment(HorizontalAlignment::Stretch)
             .fill_type(ContainerFillType::Vertical)
             .space_between_elements((2. * Screen::get_scale_factor()) as u32)
             .style(WidgetStyle::Invisible);
 
-        let mut text = Text::new(self.get_shared_data());
+        let mut text = Text::new(self.get_shared_data(), self.get_events());
         text.set_text("Prova1\nProva2 \nProva3");
 
         let history_text_id = history_events_box.add_child(Box::new(text));
@@ -123,9 +113,7 @@ impl HistoryPanel {
 
         self.is_ctrl_pressed = {
             let mut is_ctrl_pressed = self.is_ctrl_pressed;
-            let read_data = self.get_shared_data().read().unwrap();
-            let events_rw = &mut *read_data.get_unique_resource_mut::<EventsRw>();
-            let events = events_rw.read().unwrap();
+            let events = self.get_events().read().unwrap();
             if let Some(key_events) = events.read_all_events::<KeyEvent>() {
                 for event in key_events.iter() {
                     if event.code == Key::Control {
@@ -165,9 +153,7 @@ impl HistoryPanel {
     fn manage_history_interactions(&mut self) {
         let operation = {
             let mut op = None;
-            let read_data = self.get_shared_data().read().unwrap();
-            let events_rw = &mut *read_data.get_unique_resource_mut::<EventsRw>();
-            let events = events_rw.read().unwrap();
+            let events = self.get_events().read().unwrap();
             if let Some(button_events) = events.read_all_events::<WidgetEvent>() {
                 for event in button_events.iter() {
                     if let WidgetEvent::Pressed(widget_id, _mouse_in_px) = event {
@@ -215,17 +201,13 @@ impl InternalWidget for HistoryPanel {
 
     fn widget_update(&mut self) {
         self.manage_keyboard_events();
-        let mut events_rw = {
-            let read_data = self.get_shared_data().read().unwrap();
-            let events_rw = &mut *read_data.get_unique_resource_mut::<EventsRw>();
-            events_rw.clone()
-        };
+        let mut events_rw = self.get_events().clone();
         self.history.update(&mut events_rw);
 
-        if self.get_data().graphics.is_visible() {
+        if self.graphics().is_visible() {
             let widget_id = self.history_text_widget_id;
             let text = self.update_history_widget();
-            if let Some(history_text) = self.get_data_mut().node.get_child::<Text>(widget_id) {
+            if let Some(history_text) = self.node_mut().get_child::<Text>(widget_id) {
                 history_text.set_text(text.as_str());
             }
             self.manage_history_interactions();

@@ -3,7 +3,7 @@ use std::{
     collections::HashMap,
     sync::{Arc, RwLock},
 };
-pub type EventsRw = Arc<RwLock<Events>>;
+
 pub trait Event: Send + Sync + Any {
     fn get_type_name(&self) -> String {
         let mut str = type_name::<Self>()
@@ -139,3 +139,5 @@ impl Events {
         self.frame = frame_count;
     }
 }
+
+pub type EventsRw = Arc<RwLock<Events>>;

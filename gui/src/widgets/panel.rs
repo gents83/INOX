@@ -1,8 +1,7 @@
 use nrg_math::Vector2;
-use nrg_resources::SharedDataRw;
 use nrg_serialize::{Deserialize, Serialize};
 
-use crate::{implement_widget, InternalWidget, WidgetData, DEFAULT_WIDGET_HEIGHT};
+use crate::{implement_widget_with_data, InternalWidget, WidgetData, DEFAULT_WIDGET_HEIGHT};
 
 pub const DEFAULT_PANEL_SIZE: [f32; 2] = [DEFAULT_WIDGET_HEIGHT * 10., DEFAULT_WIDGET_HEIGHT * 10.];
 
@@ -11,17 +10,7 @@ pub const DEFAULT_PANEL_SIZE: [f32; 2] = [DEFAULT_WIDGET_HEIGHT * 10., DEFAULT_W
 pub struct Panel {
     data: WidgetData,
 }
-implement_widget!(Panel);
-
-impl Panel {
-    pub fn new(shared_data: &SharedDataRw) -> Self {
-        let mut w = Self {
-            data: WidgetData::new(shared_data),
-        };
-        w.init();
-        w
-    }
-}
+implement_widget_with_data!(Panel);
 
 impl InternalWidget for Panel {
     fn widget_init(&mut self) {

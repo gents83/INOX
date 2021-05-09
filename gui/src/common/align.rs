@@ -49,13 +49,13 @@ pub fn add_widget_size(
 ) -> Vector4 {
     match filltype {
         ContainerFillType::Horizontal => {
-            widget_clip.x += widget.get_data().state.get_size().x;
-            widget_clip.z -= widget.get_data().state.get_size().x;
+            widget_clip.x += widget.state().get_size().x;
+            widget_clip.z -= widget.state().get_size().x;
             widget_clip.x = widget_clip.x.min(widget_clip.x + widget_clip.z);
         }
         ContainerFillType::Vertical => {
-            widget_clip.y += widget.get_data().state.get_size().y;
-            widget_clip.w -= widget.get_data().state.get_size().y;
+            widget_clip.y += widget.state().get_size().y;
+            widget_clip.w -= widget.state().get_size().y;
             widget_clip.y = widget_clip.y.min(widget_clip.y + widget_clip.w);
         }
         _ => {}

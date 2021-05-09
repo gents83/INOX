@@ -25,14 +25,14 @@ impl WidgetNode {
         self.id
     }
     pub fn add_child(&mut self, mut widget: Box<dyn Widget>) -> &mut Self {
-        widget.get_data_mut().node.parent_id = self.id;
+        widget.node_mut().parent_id = self.id;
         self.children.push(widget);
         self
     }
 
     pub fn remove_children(&mut self) -> &mut Self {
         self.children.iter_mut().for_each(|w| {
-            w.get_data_mut().node.parent_id = INVALID_UID;
+            w.node_mut().parent_id = INVALID_UID;
         });
         self.children.clear();
         self
@@ -41,7 +41,7 @@ impl WidgetNode {
     pub fn remove_child(&mut self, uid: Uid) -> &mut Self {
         self.children.iter_mut().for_each(|w| {
             if w.as_ref().id() == uid {
-                w.get_data_mut().node.parent_id = INVALID_UID;
+                w.node_mut().parent_id = INVALID_UID;
             }
         });
         self.children.retain(|w| w.as_ref().id() != uid);
@@ -65,7 +65,7 @@ impl WidgetNode {
                     result = Some(&mut *widget);
                 }
             } else if result.is_none() {
-                result = w.get_data_mut().node.get_child(uid);
+                result = w.node_mut().get_child(uid);
             }
         });
         result

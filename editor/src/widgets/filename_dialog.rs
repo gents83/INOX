@@ -1,10 +1,8 @@
-use nrg_events::EventsRw;
 use nrg_gui::{
-    implement_widget, Button, InternalWidget, Panel, TextBox, TitleBar, WidgetData, WidgetEvent,
-    DEFAULT_BUTTON_SIZE,
+    implement_widget_with_custom_members, Button, InternalWidget, Panel, TextBox, TitleBar,
+    WidgetData, WidgetEvent, DEFAULT_BUTTON_SIZE,
 };
 use nrg_math::Vector2;
-use nrg_resources::SharedDataRw;
 use nrg_serialize::*;
 
 #[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -38,29 +36,20 @@ pub struct FilenameDialog {
     #[serde(skip)]
     result: DialogResult,
 }
-implement_widget!(FilenameDialog);
-
-impl FilenameDialog {
-    pub fn new(shared_data: &SharedDataRw) -> Self {
-        let mut w = Self {
-            data: WidgetData::new(shared_data),
-            title_bar_uid: INVALID_UID,
-            text_box_uid: INVALID_UID,
-            button_box_uid: INVALID_UID,
-            ok_uid: INVALID_UID,
-            cancel_uid: INVALID_UID,
-            result: DialogResult::Waiting,
-        };
-        w.init();
-        w
-    }
-}
+implement_widget_with_custom_members!(FilenameDialog {
+    title_bar_uid: INVALID_UID,
+    text_box_uid: INVALID_UID,
+    button_box_uid: INVALID_UID,
+    ok_uid: INVALID_UID,
+    cancel_uid: INVALID_UID,
+    result: DialogResult::Waiting
+});
 
 impl FilenameDialog {
     pub fn get_filename(&mut self) -> String {
         let mut filename = String::new();
         let uid = self.text_box_uid;
-        if let Some(text_box) = self.get_data_mut().node.get_child::<TextBox>(uid) {
+        if let Some(text_box) = self.node_mut().get_child::<TextBox>(uid) {
             filename = text_box.get_text();
         }
         filename
@@ -69,13 +58,13 @@ impl FilenameDialog {
         self.result
     }
     fn add_title(&mut self) {
-        let mut title_bar = TitleBar::new(self.get_shared_data());
+        let mut title_bar = TitleBar::new(self.get_shared_data(), self.get_events());
         title_bar.collapsible(false);
 
         self.title_bar_uid = self.add_child(Box::new(title_bar));
     }
     fn add_content(&mut self) {
-        let mut text_box = TextBox::new(self.get_shared_data());
+        let mut text_box = TextBox::new(self.get_shared_data(), self.get_events());
         text_box
             .with_label("Filename: ")
             .set_text("Insert text here");
@@ -84,7 +73,7 @@ impl FilenameDialog {
     }
 
     fn add_buttons(&mut self) {
-        let mut button_box = Panel::new(self.get_shared_data());
+        let mut button_box = Panel::new(self.get_shared_data(), self.get_events());
 
         let default_size: Vector2 = DEFAULT_BUTTON_SIZE.into();
         button_box
@@ -94,10 +83,10 @@ impl FilenameDialog {
             .keep_fixed_height(true)
             .space_between_elements(40);
 
-        let mut button_ok = Button::new(self.get_shared_data());
+        let mut button_ok = Button::new(self.get_shared_data(), self.get_events());
         button_ok.with_text("Ok");
 
-        let mut button_cancel = Button::new(self.get_shared_data());
+        let mut button_cancel = Button::new(self.get_shared_data(), self.get_events());
         button_cancel
             .with_text("Cancel")
             .horizontal_alignment(HorizontalAlignment::Right);
@@ -109,9 +98,7 @@ impl FilenameDialog {
     fn manage_events(&mut self) {
         let result = {
             let mut result = DialogResult::Waiting;
-            let read_data = self.get_shared_data().read().unwrap();
-            let events_rw = &mut *read_data.get_unique_resource_mut::<EventsRw>();
-            let events = events_rw.read().unwrap();
+            let events = self.get_events().read().unwrap();
             if let Some(widget_events) = events.read_all_events::<WidgetEvent>() {
                 for event in widget_events.iter() {
                     if let WidgetEvent::Pressed(widget_id, _mouse_in_px) = event {

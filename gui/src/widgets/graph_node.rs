@@ -1,9 +1,9 @@
-use nrg_events::EventsRw;
 use nrg_math::{VecBase, Vector2};
-use nrg_resources::SharedDataRw;
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
-use crate::{implement_widget, InternalWidget, TitleBar, TitleBarEvent, WidgetData};
+use crate::{
+    implement_widget_with_custom_members, InternalWidget, TitleBar, TitleBarEvent, WidgetData,
+};
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]
@@ -14,20 +14,11 @@ pub struct GraphNode {
     expanded_size: Vector2,
     is_collapsed: bool,
 }
-implement_widget!(GraphNode);
-
-impl GraphNode {
-    pub fn new(shared_data: &SharedDataRw) -> Self {
-        let mut w = Self {
-            data: WidgetData::new(shared_data),
-            title_bar: INVALID_UID,
-            expanded_size: Vector2::default_zero(),
-            is_collapsed: false,
-        };
-        w.init();
-        w
-    }
-}
+implement_widget_with_custom_members!(GraphNode {
+    title_bar: INVALID_UID,
+    expanded_size: Vector2::default_zero(),
+    is_collapsed: false
+});
 
 impl GraphNode {
     fn collapse(&mut self, is_collapsed: bool) {
@@ -35,10 +26,10 @@ impl GraphNode {
             self.is_collapsed = is_collapsed;
             let uid = self.title_bar;
             if is_collapsed {
-                self.expanded_size = self.get_data().state.get_size();
+                self.expanded_size = self.state().get_size();
                 let mut size = self.expanded_size;
-                if let Some(title_bar) = self.get_data_mut().node.get_child::<TitleBar>(uid) {
-                    size = title_bar.get_data().state.get_size();
+                if let Some(title_bar) = self.node_mut().get_child::<TitleBar>(uid) {
+                    size = title_bar.state().get_size();
                 }
                 self.size(size);
             } else {
@@ -49,9 +40,7 @@ impl GraphNode {
     fn manage_events(&mut self) -> &mut Self {
         let is_collapsed = {
             let mut collapse = self.is_collapsed;
-            let read_data = self.get_shared_data().read().unwrap();
-            let events_rw = &mut *read_data.get_unique_resource_mut::<EventsRw>();
-            let events = events_rw.read().unwrap();
+            let events = self.get_events().read().unwrap();
             if let Some(widget_events) = events.read_all_events::<TitleBarEvent>() {
                 for event in widget_events.iter() {
                     if let TitleBarEvent::Collapsed(widget_id) = event {
@@ -87,7 +76,7 @@ impl InternalWidget for GraphNode {
             .vertical_alignment(VerticalAlignment::None)
             .style(WidgetStyle::DefaultBackground);
 
-        let title_bar = TitleBar::new(self.get_shared_data());
+        let title_bar = TitleBar::new(self.get_shared_data(), self.get_events());
         self.title_bar = self.add_child(Box::new(title_bar));
     }
 

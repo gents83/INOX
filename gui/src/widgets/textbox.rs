@@ -1,12 +1,10 @@
-use nrg_events::EventsRw;
 use nrg_math::Vector2;
 use nrg_platform::{InputState, Key, KeyEvent, KeyTextEvent, MouseButton, MouseEvent, MouseState};
-use nrg_resources::SharedDataRw;
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{
-    implement_widget, Indicator, InternalWidget, Panel, Text, TextEvent, WidgetData, WidgetEvent,
-    DEFAULT_TEXT_SIZE, DEFAULT_WIDGET_HEIGHT, DEFAULT_WIDGET_WIDTH,
+    implement_widget_with_custom_members, Indicator, InternalWidget, Panel, Text, TextEvent,
+    WidgetData, WidgetEvent, DEFAULT_TEXT_SIZE, DEFAULT_WIDGET_HEIGHT, DEFAULT_WIDGET_WIDTH,
 };
 pub const DEFAULT_ICON_SIZE: [f32; 2] = [
     DEFAULT_WIDGET_WIDTH * 2. / 3.,
@@ -31,30 +29,21 @@ pub struct TextBox {
     #[serde(skip)]
     current_char: i32,
 }
-implement_widget!(TextBox);
-
-impl TextBox {
-    pub fn new(shared_data: &SharedDataRw) -> Self {
-        let mut w = Self {
-            data: WidgetData::new(shared_data),
-            is_editable: true,
-            label: INVALID_UID,
-            editable_text: INVALID_UID,
-            text_panel: INVALID_UID,
-            indicator_widget: INVALID_UID,
-            is_focused: false,
-            current_char: -1,
-        };
-        w.init();
-        w
-    }
-}
+implement_widget_with_custom_members!(TextBox {
+    is_editable: true,
+    label: INVALID_UID,
+    editable_text: INVALID_UID,
+    text_panel: INVALID_UID,
+    indicator_widget: INVALID_UID,
+    is_focused: false,
+    current_char: -1
+});
 
 impl TextBox {
     pub fn editable(&mut self, is_editable: bool) -> &mut Self {
         self.is_editable = is_editable;
         let uid = self.text_panel;
-        if let Some(text_panel) = self.get_data_mut().node.get_child::<Panel>(uid) {
+        if let Some(text_panel) = self.node_mut().get_child::<Panel>(uid) {
             text_panel.selectable(is_editable);
         }
         self
@@ -64,14 +53,14 @@ impl TextBox {
     }
     pub fn with_label(&mut self, text: &str) -> &mut Self {
         let uid = self.label;
-        if let Some(label) = self.get_data_mut().node.get_child::<Text>(uid) {
+        if let Some(label) = self.node_mut().get_child::<Text>(uid) {
             label.set_text(text);
         }
         self
     }
     pub fn set_text(&mut self, text: &str) -> &mut Self {
         let uid = self.editable_text;
-        if let Some(editable_text) = self.get_data_mut().node.get_child::<Text>(uid) {
+        if let Some(editable_text) = self.node_mut().get_child::<Text>(uid) {
             editable_text.set_text(text);
         }
         self
@@ -80,7 +69,7 @@ impl TextBox {
     pub fn get_text(&mut self) -> String {
         let mut str = String::new();
         let uid = self.editable_text;
-        if let Some(editable_text) = self.get_data_mut().node.get_child::<Text>(uid) {
+        if let Some(editable_text) = self.node_mut().get_child::<Text>(uid) {
             str = String::from(editable_text.get_text());
         }
         str
@@ -89,9 +78,7 @@ impl TextBox {
         let mut new_events: Vec<TextEvent> = Vec::new();
         self.current_char = {
             let mut current_index = self.current_char;
-            let read_data = self.get_shared_data().read().unwrap();
-            let events_rw = &mut *read_data.get_unique_resource_mut::<EventsRw>();
-            let events = events_rw.read().unwrap();
+            let events = self.get_events().read().unwrap();
             if let Some(key_text_events) = events.read_all_events::<KeyTextEvent>() {
                 for event in key_text_events.iter() {
                     if !event.char.is_control() {
@@ -107,19 +94,15 @@ impl TextBox {
             current_index
         };
 
-        let read_data = self.get_shared_data().read().unwrap();
-        let events_rw = &mut *read_data.get_unique_resource_mut::<EventsRw>();
-        let mut events = events_rw.write().unwrap();
+        let mut events = self.get_events().write().unwrap();
         for e in new_events.into_iter() {
             events.send_event::<TextEvent>(e);
         }
     }
 
-    fn manage_key_pressed(shared_data: &SharedDataRw, text: &Text, current_char: i32) -> i32 {
+    fn manage_key_pressed(events_rw: &EventsRw, text: &Text, current_char: i32) -> i32 {
         let mut new_events: Vec<TextEvent> = Vec::new();
         let new_char = {
-            let read_data = shared_data.read().unwrap();
-            let events_rw = &mut *read_data.get_unique_resource_mut::<EventsRw>();
             let mut current_index = current_char;
             let events = events_rw.read().unwrap();
             if let Some(key_events) = events.read_all_events::<KeyEvent>() {
@@ -168,8 +151,6 @@ impl TextBox {
             }
             current_index
         };
-        let read_data = shared_data.read().unwrap();
-        let events_rw = &mut *read_data.get_unique_resource_mut::<EventsRw>();
         let mut events = events_rw.write().unwrap();
         for e in new_events.into_iter() {
             events.send_event::<TextEvent>(e);
@@ -183,9 +164,9 @@ impl TextBox {
             self.manage_char_input();
             let text_widget_id = self.editable_text;
             let current_char = self.current_char;
-            let shared_data = self.get_shared_data().clone();
-            if let Some(text) = self.get_data_mut().node.get_child::<Text>(text_widget_id) {
-                self.current_char = TextBox::manage_key_pressed(&shared_data, text, current_char);
+            let events_rw = self.get_events().clone();
+            if let Some(text) = self.node_mut().get_child::<Text>(text_widget_id) {
+                self.current_char = TextBox::manage_key_pressed(&events_rw, text, current_char);
             }
         }
     }
@@ -193,9 +174,7 @@ impl TextBox {
     fn check_focus(&mut self) {
         let focused = {
             let mut focused = self.is_focused;
-            let read_data = self.get_shared_data().read().unwrap();
-            let events_rw = &mut *read_data.get_unique_resource_mut::<EventsRw>();
-            let events = events_rw.read().unwrap();
+            let events = self.get_events().read().unwrap();
             if let Some(mouse_events) = events.read_all_events::<MouseEvent>() {
                 for event in mouse_events.iter() {
                     if event.button == MouseButton::Left && event.state == MouseState::Down {
@@ -220,11 +199,7 @@ impl TextBox {
             self.is_focused = focused;
             self.update_character_from_indicator();
             let indicator_id = self.indicator_widget;
-            if let Some(indicator) = self
-                .get_data_mut()
-                .node
-                .get_child::<Indicator>(indicator_id)
-            {
+            if let Some(indicator) = self.node_mut().get_child::<Indicator>(indicator_id) {
                 indicator.visible(focused);
             }
         }
@@ -233,7 +208,7 @@ impl TextBox {
     fn update_character_from_indicator(&mut self) {
         let mut current_char = self.current_char;
         let text_widget_id = self.editable_text;
-        if let Some(text) = self.get_data_mut().node.get_child::<Text>(text_widget_id) {
+        if let Some(text) = self.node_mut().get_child::<Text>(text_widget_id) {
             current_char = text.get_hover_char() - 1;
             if current_char < 0 {
                 current_char = text.get_text().len() as i32 - 1;
@@ -245,7 +220,7 @@ impl TextBox {
     fn update_indicator_position(&mut self) {
         let mut current_char = self.current_char;
         let text_widget_id = self.editable_text;
-        if let Some(text) = self.get_data_mut().node.get_child::<Text>(text_widget_id) {
+        if let Some(text) = self.node_mut().get_child::<Text>(text_widget_id) {
             let length = text.get_text().len() as i32;
             if current_char < 0 {
                 current_char = -1;
@@ -257,15 +232,11 @@ impl TextBox {
                 if current_char >= 0 {
                     text.get_char_pos(current_char)
                 } else {
-                    text.get_data().state.get_position()
+                    text.state().get_position()
                 }
             };
             let indicator_id = self.indicator_widget;
-            if let Some(indicator) = self
-                .get_data_mut()
-                .node
-                .get_child::<Indicator>(indicator_id)
-            {
+            if let Some(indicator) = self.node_mut().get_child::<Indicator>(indicator_id) {
                 indicator.position(pos);
             }
         }
@@ -290,7 +261,7 @@ impl InternalWidget for TextBox {
             .selectable(false)
             .style(WidgetStyle::Invisible);
 
-        let mut label = Text::new(self.get_shared_data());
+        let mut label = Text::new(self.get_shared_data(), self.get_events());
         label
             .selectable(false)
             .vertical_alignment(VerticalAlignment::Center);
@@ -298,7 +269,7 @@ impl InternalWidget for TextBox {
 
         self.label = self.add_child(Box::new(label));
 
-        let mut panel = Panel::new(self.get_shared_data());
+        let mut panel = Panel::new(self.get_shared_data(), self.get_events());
         panel
             .size(size * Screen::get_scale_factor())
             .draggable(false)
@@ -306,14 +277,14 @@ impl InternalWidget for TextBox {
             .horizontal_alignment(HorizontalAlignment::Stretch)
             .style(WidgetStyle::Default);
 
-        let mut editable_text = Text::new(self.get_shared_data());
+        let mut editable_text = Text::new(self.get_shared_data(), self.get_events());
         editable_text
             .size(size * Screen::get_scale_factor())
             .vertical_alignment(VerticalAlignment::Center)
             .horizontal_alignment(HorizontalAlignment::Stretch)
             .set_text("Edit me");
 
-        let mut indicator = Indicator::new(self.get_shared_data());
+        let mut indicator = Indicator::new(self.get_shared_data(), self.get_events());
         indicator.visible(false);
         self.indicator_widget = editable_text.add_child(Box::new(indicator));
 

@@ -56,7 +56,12 @@ impl Plugin for GfxPlugin {
         let renderer = Arc::new(RwLock::new(renderer));
 
         let mut update_phase = PhaseWithSystems::new(RENDERING_UPDATE);
-        let system = UpdateSystem::new(renderer.clone(), &app.get_shared_data(), &self.config);
+        let system = UpdateSystem::new(
+            renderer.clone(),
+            &app.get_shared_data(),
+            &app.get_events(),
+            &self.config,
+        );
         self.update_system_id = system.id();
 
         let mut rendering_phase = PhaseWithSystems::new(RENDERING_PHASE);

@@ -1,15 +1,14 @@
-use nrg_events::{implement_event, Event, EventsRw};
+use nrg_events::{implement_event, Event};
 use nrg_graphics::{
     utils::{create_triangle_down, create_triangle_up},
     MeshData,
 };
 use nrg_math::Vector2;
-use nrg_resources::SharedDataRw;
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{
-    implement_widget, Canvas, InternalWidget, Text, WidgetData, WidgetEvent, DEFAULT_WIDGET_HEIGHT,
-    DEFAULT_WIDGET_WIDTH,
+    implement_widget_with_custom_members, Canvas, InternalWidget, Text, WidgetData, WidgetEvent,
+    DEFAULT_WIDGET_HEIGHT, DEFAULT_WIDGET_WIDTH,
 };
 pub const DEFAULT_ICON_SIZE: [f32; 2] = [
     DEFAULT_WIDGET_WIDTH * 2. / 3.,
@@ -33,22 +32,13 @@ pub struct TitleBar {
     is_collapsed: bool,
     is_dirty: bool,
 }
-implement_widget!(TitleBar);
-
-impl TitleBar {
-    pub fn new(shared_data: &SharedDataRw) -> Self {
-        let mut w = Self {
-            data: WidgetData::new(shared_data),
-            title_widget: INVALID_UID,
-            collapse_icon_widget: INVALID_UID,
-            is_collapsible: true,
-            is_collapsed: false,
-            is_dirty: true,
-        };
-        w.init();
-        w
-    }
-}
+implement_widget_with_custom_members!(TitleBar {
+    title_widget: INVALID_UID,
+    collapse_icon_widget: INVALID_UID,
+    is_collapsible: true,
+    is_collapsed: false,
+    is_dirty: true
+});
 
 impl TitleBar {
     pub fn collapsible(&mut self, can_collapse: bool) -> &mut Self {
@@ -88,11 +78,8 @@ impl TitleBar {
         mesh_data.append_mesh(&vertices, &indices);
 
         let icon_id = self.collapse_icon_widget;
-        if let Some(collapse_icon) = self.get_data_mut().node.get_child::<Canvas>(icon_id) {
-            collapse_icon
-                .get_data_mut()
-                .graphics
-                .set_mesh_data(mesh_data);
+        if let Some(collapse_icon) = self.node_mut().get_child::<Canvas>(icon_id) {
+            collapse_icon.graphics_mut().set_mesh_data(mesh_data);
         }
         self
     }
@@ -100,7 +87,7 @@ impl TitleBar {
     fn create_collapse_icon(&mut self) -> &mut Self {
         if self.is_collapsible {
             let icon_size: Vector2 = DEFAULT_ICON_SIZE.into();
-            let mut collapse_icon = Canvas::new(self.get_shared_data());
+            let mut collapse_icon = Canvas::new(self.get_shared_data(), self.get_events());
             collapse_icon
                 .size(icon_size * Screen::get_scale_factor())
                 .vertical_alignment(VerticalAlignment::Center)
@@ -118,9 +105,7 @@ impl TitleBar {
     fn manage_interactions(&mut self) -> &mut Self {
         let should_change = {
             let mut should_change = false;
-            let read_data = self.get_shared_data().read().unwrap();
-            let events_rw = &mut *read_data.get_unique_resource_mut::<EventsRw>();
-            let events = events_rw.read().unwrap();
+            let events = self.get_events().read().unwrap();
             if let Some(widget_events) = events.read_all_events::<WidgetEvent>() {
                 for event in widget_events.iter() {
                     if let WidgetEvent::Pressed(widget_id, _mouse_in_px) = event {
@@ -140,9 +125,7 @@ impl TitleBar {
             }
         }
         if self.is_dirty {
-            let read_data = self.get_shared_data().read().unwrap();
-            let events_rw = &mut *read_data.get_unique_resource_mut::<EventsRw>();
-            let mut events = events_rw.write().unwrap();
+            let mut events = self.get_events().write().unwrap();
             if self.is_collapsed {
                 events.send_event(TitleBarEvent::Collapsed(self.id()));
             } else {
@@ -173,7 +156,7 @@ impl InternalWidget for TitleBar {
 
         self.create_collapse_icon();
 
-        let mut title = Text::new(self.get_shared_data());
+        let mut title = Text::new(self.get_shared_data(), self.get_events());
         title
             .draggable(false)
             .selectable(false)

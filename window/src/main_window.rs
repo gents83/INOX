@@ -1,5 +1,4 @@
 use nrg_core::*;
-use nrg_events::EventsRw;
 use nrg_platform::Window;
 use nrg_resources::{ConfigBase, ResourceId};
 use nrg_serialize::*;
@@ -36,10 +35,6 @@ impl Plugin for MainWindow {
         deserialize_from_file(&mut self.config, path);
 
         let window = {
-            let shared_data = app.get_shared_data();
-            let data = shared_data.read().unwrap();
-            let events = data.get_unique_resource_mut::<EventsRw>();
-
             let pos = self.config.get_position();
             let size = self.config.get_resolution();
             let name = self.config.get_name();
@@ -49,7 +44,7 @@ impl Plugin for MainWindow {
                 pos.y as _,
                 size.x as _,
                 size.y as _,
-                events.clone(),
+                app.get_events(),
             )
         };
         self.window_id = app.get_shared_data().write().unwrap().add_resource(window);

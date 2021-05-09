@@ -1,12 +1,12 @@
-use nrg_events::{implement_undoable_event, Event, EventsRw};
+use nrg_events::{implement_undoable_event, Event};
 use nrg_graphics::{FontId, FontInstance, MaterialId, MaterialInstance, MeshData};
 use nrg_math::{Vector2, Vector4};
 use nrg_platform::{MouseEvent, MouseState};
-use nrg_resources::SharedDataRw;
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{
-    implement_widget, InternalWidget, WidgetData, DEFAULT_WIDGET_HEIGHT, DEFAULT_WIDGET_WIDTH,
+    implement_widget_with_custom_members, InternalWidget, WidgetData, DEFAULT_WIDGET_HEIGHT,
+    DEFAULT_WIDGET_WIDTH,
 };
 
 pub const DEFAULT_TEXT_SIZE: [f32; 2] =
@@ -61,23 +61,14 @@ pub struct Text {
     is_dirty: bool,
     data: WidgetData,
 }
-implement_widget!(Text);
-
-impl Text {
-    pub fn new(shared_data: &SharedDataRw) -> Self {
-        let mut w = Self {
-            data: WidgetData::new(shared_data),
-            font_id: INVALID_UID,
-            material_id: INVALID_UID,
-            text: String::new(),
-            hover_char_index: -1,
-            char_width: DEFAULT_TEXT_SIZE[1] as _,
-            is_dirty: true,
-        };
-        w.init();
-        w
-    }
-}
+implement_widget_with_custom_members!(Text {
+    font_id: INVALID_UID,
+    material_id: INVALID_UID,
+    text: String::new(),
+    hover_char_index: -1,
+    char_width: DEFAULT_TEXT_SIZE[1] as _,
+    is_dirty: true
+});
 
 impl Text {
     pub fn set_text(&mut self, text: &str) -> &mut Self {
@@ -97,7 +88,7 @@ impl Text {
         self.hover_char_index
     }
     pub fn get_char_pos(&self, index: i32) -> Vector2 {
-        let pos = self.get_data().state.get_position();
+        let pos = self.state().get_position();
         if index >= 0 && index < self.text.len() as _ {
             return [pos.x + self.char_width as f32 * (index as f32 + 1.), pos.y].into();
         }
@@ -113,9 +104,7 @@ impl Text {
     fn read_text_events(&self) -> Vec<TextEvent> {
         let mut output_events = Vec::new();
         let id = self.id();
-        let read_data = self.get_shared_data().read().unwrap();
-        let events_rw = &mut *read_data.get_unique_resource_mut::<EventsRw>();
-        let events = events_rw.read().unwrap();
+        let events = self.get_events().read().unwrap();
         if let Some(text_events) = events.read_all_events::<TextEvent>() {
             for &event in text_events.iter() {
                 match event {
@@ -136,9 +125,7 @@ impl Text {
     }
 
     fn read_mouse_events(&self) -> Option<MouseEvent> {
-        let read_data = self.get_shared_data().read().unwrap();
-        let events_rw = &mut *read_data.get_unique_resource_mut::<EventsRw>();
-        let events = events_rw.read().unwrap();
+        let events = self.get_events().read().unwrap();
 
         if let Some(mouse_events) = events.read_all_events::<MouseEvent>() {
             for &event in mouse_events.iter() {
@@ -166,8 +153,8 @@ impl Text {
         if let Some(mouse_events) = self.read_mouse_events() {
             if mouse_events.state == MouseState::Move {
                 let mouse_pos = Vector2::new(mouse_events.x as _, mouse_events.y as _);
-                let pos = self.get_data().state.get_position();
-                let size = self.get_data().state.get_size();
+                let pos = self.state().get_position();
+                let size = self.state().get_size();
                 let count = self.text.lines().count();
                 let line_height = size.y / count as f32;
                 for (line_index, t) in self.text.lines().enumerate() {
@@ -208,7 +195,7 @@ impl Text {
     }
 
     fn compute_size(&mut self) -> &mut Self {
-        let drawing_area_in_px = self.get_data().state.get_drawing_area();
+        let drawing_area_in_px = self.state().get_drawing_area();
         let size: Vector2 = [drawing_area_in_px.z, drawing_area_in_px.w].into();
 
         let lines_count = self.text.lines().count().max(1);
@@ -220,10 +207,10 @@ impl Text {
         let char_size = self.char_width as f32;
         let mut char_width = char_size;
         let mut char_height = char_size;
-        if *self.get_data().state.get_horizontal_alignment() == HorizontalAlignment::Stretch {
+        if *self.state().get_horizontal_alignment() == HorizontalAlignment::Stretch {
             char_width = size.x / max_chars as f32;
         }
-        if *self.get_data().state.get_vertical_alignment() == VerticalAlignment::Stretch {
+        if *self.state().get_vertical_alignment() == VerticalAlignment::Stretch {
             char_height = size.y / lines_count as f32;
         }
 
@@ -242,7 +229,7 @@ impl Text {
         let mut pos_y = 0.;
         let mut mesh_index = 0;
         let lines_count = self.text.lines().count().max(1);
-        let size = self.get_data_mut().state.get_size();
+        let size = self.state_mut().get_size();
         let char_width = self.char_width as f32 / size.x;
         let char_height = 1. / lines_count as f32;
         for text in self.text.lines() {
@@ -264,7 +251,7 @@ impl Text {
             pos_y += char_height;
         }
 
-        self.get_data_mut().graphics.set_mesh_data(mesh_data);
+        self.graphics_mut().set_mesh_data(mesh_data);
     }
 }
 
@@ -276,7 +263,7 @@ impl InternalWidget for Text {
         self.font_id = font_id;
         self.material_id = material_id;
 
-        self.get_data_mut().graphics.link_to_material(material_id);
+        self.graphics_mut().link_to_material(material_id);
         if self.is_initialized() {
             return;
         }
@@ -298,6 +285,6 @@ impl InternalWidget for Text {
     }
 
     fn widget_uninit(&mut self) {
-        self.get_data_mut().graphics.remove_meshes();
+        self.graphics_mut().remove_meshes();
     }
 }

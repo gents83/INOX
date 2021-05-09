@@ -19,6 +19,7 @@ pub struct EditorUpdater {
     id: SystemId,
     frame_seconds: VecDeque<Instant>,
     shared_data: SharedDataRw,
+    events_rw: EventsRw,
     config: Config,
     fps_text: Uid,
     fps_widget_id: Uid,
@@ -28,11 +29,12 @@ pub struct EditorUpdater {
 }
 
 impl EditorUpdater {
-    pub fn new(shared_data: &SharedDataRw, config: &Config) -> Self {
+    pub fn new(shared_data: &SharedDataRw, events_rw: &EventsRw, config: &Config) -> Self {
         Self {
             id: SystemId::new(),
             frame_seconds: VecDeque::default(),
             shared_data: shared_data.clone(),
+            events_rw: events_rw.clone(),
             config: config.clone(),
             widgets: Vec::new(),
             fps_text: INVALID_UID,
@@ -57,20 +59,20 @@ impl System for EditorUpdater {
         self.load_pipelines();
         self.create_screen();
 
-        let mut history_panel = HistoryPanel::new(&self.shared_data);
+        let mut history_panel = HistoryPanel::new(&self.shared_data, &self.events_rw);
         let history = history_panel.get_history();
         EditorUpdater::registered_event_types(history);
         self.history_panel_id = history_panel.id();
 
-        let main_menu = MainMenu::new(&self.shared_data);
+        let main_menu = MainMenu::new(&self.shared_data, &self.events_rw);
         self.main_menu_id = main_menu.id();
 
-        let mut canvas = Canvas::new(&self.shared_data);
+        let mut canvas = Canvas::new(&self.shared_data, &self.events_rw);
         canvas.move_to_layer(-1.);
 
-        let node = GraphNode::new(&self.shared_data);
+        let node = GraphNode::new(&self.shared_data, &self.events_rw);
 
-        let mut widget = Panel::new(&self.shared_data);
+        let mut widget = Panel::new(&self.shared_data, &self.events_rw);
         widget
             .position([300., 300.].into())
             .size([300., 800.].into())
@@ -82,15 +84,15 @@ impl System for EditorUpdater {
             .move_to_layer(0.5);
         self.fps_widget_id = widget.id();
 
-        let mut fps_text = Text::new(&self.shared_data);
+        let mut fps_text = Text::new(&self.shared_data, &self.events_rw);
         fps_text.set_text("FPS: ");
         self.fps_text = widget.add_child(Box::new(fps_text));
 
-        let mut checkbox = Checkbox::new(&self.shared_data);
+        let mut checkbox = Checkbox::new(&self.shared_data, &self.events_rw);
         checkbox.with_label("Checkbox");
         widget.add_child(Box::new(checkbox));
 
-        let mut textbox = TextBox::new(&self.shared_data);
+        let mut textbox = TextBox::new(&self.shared_data, &self.events_rw);
         textbox
             .horizontal_alignment(HorizontalAlignment::Stretch)
             .with_label("Sample:")
@@ -136,7 +138,7 @@ impl System for EditorUpdater {
     }
     fn uninit(&mut self) {
         /*
-                let childrens = self.canvas.get_data_mut().node.get_children();
+                let childrens = self.canvas.node_mut().get_children();
                 for child in childrens {
                     let filepath = PathBuf::from(format!(
                         "./data/widgets/{}.widget",
@@ -172,13 +174,12 @@ impl EditorUpdater {
     fn create_screen(&mut self) {
         let read_data = self.shared_data.read().unwrap();
         let window = &*read_data.get_unique_resource::<Window>();
-        let events_rw = &mut *read_data.get_unique_resource_mut::<EventsRw>();
 
         Screen::create(
             window.get_width(),
             window.get_heigth(),
             window.get_scale_factor(),
-            events_rw.clone(),
+            self.events_rw.clone(),
         );
     }
     fn update_fps_counter(&mut self) -> &mut Self {
@@ -192,7 +193,7 @@ impl EditorUpdater {
         let num_fps = self.frame_seconds.len();
         let text_id = self.fps_text;
         if let Some(widget) = self.get_widget::<Panel>(self.fps_widget_id) {
-            if let Some(text) = widget.get_data_mut().node.get_child::<Text>(text_id) {
+            if let Some(text) = widget.node_mut().get_child::<Text>(text_id) {
                 let str = format!("FPS: {}", num_fps);
                 text.set_text(str.as_str());
             }
@@ -211,9 +212,9 @@ impl EditorUpdater {
                 is_visible = main_menu.show_history();
                 [
                     0.,
-                    main_menu.get_data().state.get_size().y + DEFAULT_WIDGET_SIZE[1],
+                    main_menu.state().get_size().y + DEFAULT_WIDGET_SIZE[1],
                     size.x,
-                    size.y - (main_menu.get_data().state.get_size().y + DEFAULT_WIDGET_SIZE[1]),
+                    size.y - (main_menu.state().get_size().y + DEFAULT_WIDGET_SIZE[1]),
                 ]
                 .into()
             } else {
@@ -261,9 +262,7 @@ impl EditorUpdater {
     fn update_keyboard_input(&mut self) {
         nrg_profiler::scoped_profile!("update_keyboard_input");
 
-        let read_data = self.shared_data.read().unwrap();
-        let events_rw = &mut *read_data.get_unique_resource_mut::<EventsRw>();
-        let events = events_rw.read().unwrap();
+        let events = self.events_rw.read().unwrap();
 
         if let Some(key_events) = events.read_all_events::<KeyEvent>() {
             for event in key_events.iter() {

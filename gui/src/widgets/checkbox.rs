@@ -1,11 +1,10 @@
-use nrg_events::{implement_undoable_event, Event, EventsRw};
+use nrg_events::{implement_undoable_event, Event};
 use nrg_math::Vector2;
-use nrg_resources::SharedDataRw;
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{
-    implement_widget, InternalWidget, Panel, Text, WidgetData, WidgetEvent, DEFAULT_WIDGET_HEIGHT,
-    DEFAULT_WIDGET_SIZE, DEFAULT_WIDGET_WIDTH,
+    implement_widget_with_custom_members, InternalWidget, Panel, Text, WidgetData, WidgetEvent,
+    DEFAULT_WIDGET_HEIGHT, DEFAULT_WIDGET_SIZE, DEFAULT_WIDGET_WIDTH,
 };
 
 pub const DEFAULT_CHECKBOX_SIZE: [f32; 2] = [
@@ -44,30 +43,21 @@ pub struct Checkbox {
     #[serde(skip)]
     label_widget: Uid,
 }
-implement_widget!(Checkbox);
-
-impl Checkbox {
-    pub fn new(shared_data: &SharedDataRw) -> Self {
-        let mut w = Self {
-            data: WidgetData::new(shared_data),
-            is_checked: false,
-            outer_widget: INVALID_UID,
-            checked_widget: INVALID_UID,
-            label_widget: INVALID_UID,
-        };
-        w.init();
-        w
-    }
-}
+implement_widget_with_custom_members!(Checkbox {
+    is_checked: false,
+    outer_widget: INVALID_UID,
+    checked_widget: INVALID_UID,
+    label_widget: INVALID_UID
+});
 
 impl Checkbox {
     pub fn with_label(&mut self, text: &str) -> &mut Self {
         if !self.label_widget.is_nil() {
             let uid = self.label_widget;
-            self.get_data_mut().node.remove_child(uid);
+            self.node_mut().remove_child(uid);
             self.label_widget = INVALID_UID;
         }
-        let mut label = Text::new(self.get_shared_data());
+        let mut label = Text::new(self.get_shared_data(), self.get_events());
         label
             .vertical_alignment(VerticalAlignment::Center)
             .set_text(text);
@@ -78,7 +68,7 @@ impl Checkbox {
         if self.is_checked != checked {
             self.is_checked = checked;
             let checked_id = self.checked_widget;
-            if let Some(inner_widget) = self.get_data_mut().node.get_child::<Panel>(checked_id) {
+            if let Some(inner_widget) = self.node_mut().get_child::<Panel>(checked_id) {
                 if checked {
                     inner_widget.style(WidgetStyle::FullActive);
                 } else {
@@ -130,11 +120,9 @@ impl Checkbox {
         let id = self.outer_widget;
         let is_checked = {
             let mut is_checked = self.is_checked;
-            let read_data = self.get_shared_data().read().unwrap();
-            let events_rw = &mut *read_data.get_unique_resource_mut::<EventsRw>();
-            self.check_state_change(id, events_rw);
+            self.check_state_change(id, &mut self.get_events().clone());
 
-            let events = events_rw.read().unwrap();
+            let events = self.get_events().read().unwrap();
             if let Some(checkbox_events) = events.read_all_events::<CheckboxEvent>() {
                 for event in checkbox_events.iter() {
                     if let CheckboxEvent::Checked(widget_id) = event {
@@ -168,7 +156,7 @@ impl InternalWidget for Checkbox {
             .keep_fixed_height(false)
             .style(WidgetStyle::Invisible);
 
-        let mut outer_widget = Panel::new(self.get_shared_data());
+        let mut outer_widget = Panel::new(self.get_shared_data(), self.get_events());
         outer_widget
             .size(default_size)
             .selectable(true)
@@ -176,7 +164,7 @@ impl InternalWidget for Checkbox {
             .style(WidgetStyle::Default);
 
         let inner_size = default_size / 4. * 3.;
-        let mut inner_check = Panel::new(self.get_shared_data());
+        let mut inner_check = Panel::new(self.get_shared_data(), self.get_events());
         inner_check
             .size(inner_size)
             .selectable(false)

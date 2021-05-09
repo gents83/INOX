@@ -1,24 +1,13 @@
-use nrg_resources::SharedDataRw;
 use nrg_serialize::{Deserialize, Serialize};
 
-use crate::{implement_widget, InternalWidget, WidgetData, DEFAULT_WIDGET_SIZE};
+use crate::{implement_widget_with_data, InternalWidget, WidgetData, DEFAULT_WIDGET_SIZE};
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]
 pub struct Separator {
     data: WidgetData,
 }
-implement_widget!(Separator);
-
-impl Separator {
-    pub fn new(shared_data: &SharedDataRw) -> Self {
-        let mut w = Self {
-            data: WidgetData::new(shared_data),
-        };
-        w.init();
-        w
-    }
-}
+implement_widget_with_data!(Separator);
 
 impl InternalWidget for Separator {
     fn widget_init(&mut self) {

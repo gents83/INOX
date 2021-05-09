@@ -1,10 +1,9 @@
 use nrg_math::Vector2;
-use nrg_resources::SharedDataRw;
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{
-    implement_widget, InternalWidget, Text, WidgetData, DEFAULT_WIDGET_HEIGHT, DEFAULT_WIDGET_SIZE,
-    DEFAULT_WIDGET_WIDTH,
+    implement_widget_with_custom_members, InternalWidget, Text, WidgetData, DEFAULT_WIDGET_HEIGHT,
+    DEFAULT_WIDGET_SIZE, DEFAULT_WIDGET_WIDTH,
 };
 
 pub const DEFAULT_BUTTON_WIDTH: f32 = DEFAULT_WIDGET_WIDTH * 20.;
@@ -16,23 +15,14 @@ pub struct Button {
     data: WidgetData,
     label_id: Uid,
 }
-implement_widget!(Button);
-
-impl Button {
-    pub fn new(shared_data: &SharedDataRw) -> Self {
-        let mut w = Self {
-            data: WidgetData::new(shared_data),
-            label_id: INVALID_UID,
-        };
-        w.init();
-        w
-    }
-}
+implement_widget_with_custom_members!(Button {
+    label_id: INVALID_UID
+});
 
 impl Button {
     pub fn with_text(&mut self, text: &str) -> &mut Self {
         let label_id = self.label_id;
-        if let Some(label) = self.get_data_mut().node.get_child::<Text>(label_id) {
+        if let Some(label) = self.node_mut().get_child::<Text>(label_id) {
             label.set_text(text);
         }
         self
@@ -44,7 +34,7 @@ impl Button {
         horizontal_alignment: HorizontalAlignment,
     ) -> &mut Self {
         let label_id = self.label_id;
-        if let Some(label) = self.get_data_mut().node.get_child::<Text>(label_id) {
+        if let Some(label) = self.node_mut().get_child::<Text>(label_id) {
             label
                 .vertical_alignment(vertical_alignment)
                 .horizontal_alignment(horizontal_alignment);
@@ -65,7 +55,7 @@ impl InternalWidget for Button {
             .use_space_before_and_after(true)
             .keep_fixed_width(false);
 
-        let mut text = Text::new(self.get_shared_data());
+        let mut text = Text::new(self.get_shared_data(), self.get_events());
         text.vertical_alignment(VerticalAlignment::Center)
             .horizontal_alignment(HorizontalAlignment::Center)
             .set_text("Button Text");

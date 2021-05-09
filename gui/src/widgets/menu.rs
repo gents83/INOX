@@ -1,11 +1,9 @@
-use nrg_events::EventsRw;
 use nrg_math::{VecBase, Vector2};
-use nrg_resources::SharedDataRw;
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{
-    implement_widget, Button, InternalWidget, WidgetData, WidgetEvent, DEFAULT_BUTTON_WIDTH,
-    DEFAULT_WIDGET_HEIGHT, DEFAULT_WIDGET_SIZE, DEFAULT_WIDGET_WIDTH,
+    implement_widget_with_custom_members, Button, InternalWidget, WidgetData, WidgetEvent,
+    DEFAULT_BUTTON_WIDTH, DEFAULT_WIDGET_HEIGHT, DEFAULT_WIDGET_SIZE, DEFAULT_WIDGET_WIDTH,
 };
 
 const DEFAULT_MENU_LAYER: f32 = 0.5;
@@ -27,22 +25,13 @@ pub struct Menu {
     data: WidgetData,
     entries: Vec<MenuItemPanel>,
 }
-implement_widget!(Menu);
-
-impl Menu {
-    pub fn new(shared_data: &SharedDataRw) -> Self {
-        let mut w = Self {
-            data: WidgetData::new(shared_data),
-            entries: Vec::new(),
-        };
-        w.init();
-        w
-    }
-}
+implement_widget_with_custom_members!(Menu {
+    entries: Vec::new()
+});
 
 impl Menu {
     pub fn add_menu_item(&mut self, label: &str) -> Uid {
-        let mut button = Button::new(self.get_shared_data());
+        let mut button = Button::new(self.get_shared_data(), self.get_events());
         button
             .vertical_alignment(VerticalAlignment::Stretch)
             .fill_type(ContainerFillType::Horizontal)
@@ -52,15 +41,9 @@ impl Menu {
             .style(WidgetStyle::DefaultBackground);
 
         let size: Vector2 = DEFAULT_SUBMENU_ITEM_SIZE.into();
-        let mut submenu = Menu::new(self.get_shared_data());
+        let mut submenu = Menu::new(self.get_shared_data(), self.get_events());
         submenu
-            .position(
-                [
-                    button.get_data().state.get_position().x,
-                    self.get_data().state.get_size().y,
-                ]
-                .into(),
-            )
+            .position([button.state().get_position().x, self.state().get_size().y].into())
             .size(size * Screen::get_scale_factor())
             .visible(false)
             .selectable(true)
@@ -105,7 +88,7 @@ impl Menu {
     pub fn add_submenu_entry_default(&mut self, menu_item_id: Uid, label: &str) -> Uid {
         let mut id = INVALID_UID;
         if let Some(index) = self.entries.iter().position(|el| el.uid == menu_item_id) {
-            let mut button = Button::new(self.get_shared_data());
+            let mut button = Button::new(self.get_shared_data(), self.get_events());
             button
                 .with_text(label)
                 .text_alignment(VerticalAlignment::Center, HorizontalAlignment::Left)
@@ -125,7 +108,7 @@ impl Menu {
     }
     fn is_hovering_entry(&mut self, entry_uid: Uid) -> bool {
         let mut is_hover = false;
-        if let Some(widget) = self.get_data_mut().node.get_child::<Button>(entry_uid) {
+        if let Some(widget) = self.node_mut().get_child::<Button>(entry_uid) {
             if widget.is_hover() {
                 is_hover = true;
             }
@@ -155,9 +138,7 @@ impl Menu {
     }
 
     fn manage_click(&self) -> Uid {
-        let read_data = self.get_shared_data().read().unwrap();
-        let events_rw = &mut *read_data.get_unique_resource_mut::<EventsRw>();
-        let events = events_rw.read().unwrap();
+        let events = self.get_events().read().unwrap();
         if let Some(widget_events) = events.read_all_events::<WidgetEvent>() {
             for &event in widget_events.iter() {
                 if let WidgetEvent::Released(widget_id, _mouse_in_px) = event {
@@ -173,9 +154,9 @@ impl Menu {
         let widget_id = self.manage_click();
         if widget_id != INVALID_UID {
             let mut pos = Vector2::default_zero();
-            if let Some(button) = self.get_data_mut().node.get_child::<Button>(widget_id) {
-                pos.x = button.get_data().state.get_position().x;
-                pos.y = self.get_data().state.get_size().y;
+            if let Some(button) = self.node_mut().get_child::<Button>(widget_id) {
+                pos.x = button.state().get_position().x;
+                pos.y = self.state().get_size().y;
             }
             if let Some(index) = self.entries.iter().position(|el| el.uid == widget_id) {
                 let item = &mut self.entries[index];
@@ -204,11 +185,11 @@ impl InternalWidget for Menu {
 
     fn widget_update(&mut self) {
         self.manage_menu_interactions();
-        let drawing_area_in_px = self.get_data().state.get_drawing_area();
+        let drawing_area_in_px = self.state().get_drawing_area();
         let mut buttons: Vec<(Vector2, Vector2)> = Vec::new();
-        self.get_data().node.propagate_on_children(|w| {
-            let pos = w.get_data().state.get_position();
-            let size = w.get_data().state.get_size();
+        self.node().propagate_on_children(|w| {
+            let pos = w.state().get_position();
+            let size = w.state().get_size();
             buttons.push((pos, size));
         });
         self.entries.iter_mut().enumerate().for_each(|(i, e)| {

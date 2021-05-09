@@ -18,15 +18,22 @@ pub struct UpdateSystem {
     id: SystemId,
     renderer: RendererRw,
     shared_data: SharedDataRw,
+    events_rw: EventsRw,
     config: Config,
 }
 
 impl UpdateSystem {
-    pub fn new(renderer: RendererRw, shared_data: &SharedDataRw, config: &Config) -> Self {
+    pub fn new(
+        renderer: RendererRw,
+        shared_data: &SharedDataRw,
+        events_rw: &EventsRw,
+        config: &Config,
+    ) -> Self {
         Self {
             id: SystemId::new(),
             renderer,
             shared_data: shared_data.clone(),
+            events_rw: events_rw.clone(),
             config: config.clone(),
         }
     }
@@ -46,15 +53,13 @@ impl System for UpdateSystem {
     }
 
     fn run(&mut self) -> (bool, Vec<Job>) {
-        let state = self.renderer.read().unwrap().get_state();
+        let state = self.renderer.read().unwrap().state();
         if state != RendererState::Init && state != RendererState::Submitted {
             return (true, Vec::new());
         }
 
         let should_recreate_swap_chain = {
-            let read_data = self.shared_data.read().unwrap();
-            let events_rw = &mut *read_data.get_unique_resource_mut::<EventsRw>();
-            let events = events_rw.read().unwrap();
+            let events = self.events_rw.read().unwrap();
             let mut size_changed = false;
             if let Some(window_events) = events.read_all_events::<WindowEvent>() {
                 for event in window_events {

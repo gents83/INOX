@@ -1,8 +1,9 @@
-use nrg_resources::SharedDataRw;
 use nrg_serialize::{Deserialize, Serialize};
 use std::time::{Duration, Instant};
 
-use crate::{implement_widget, InternalWidget, WidgetData, DEFAULT_WIDGET_SIZE};
+use crate::{
+    implement_widget_with_custom_members, InternalWidget, WidgetData, DEFAULT_WIDGET_SIZE,
+};
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]
@@ -15,20 +16,11 @@ pub struct Indicator {
     elapsed_time: Instant,
     data: WidgetData,
 }
-implement_widget!(Indicator);
-
-impl Indicator {
-    pub fn new(shared_data: &SharedDataRw) -> Self {
-        let mut w = Self {
-            data: WidgetData::new(shared_data),
-            is_blinking: true,
-            refresh_time: Duration::from_millis(500),
-            elapsed_time: Instant::now(),
-        };
-        w.init();
-        w
-    }
-}
+implement_widget_with_custom_members!(Indicator {
+    is_blinking: true,
+    refresh_time: Duration::from_millis(500),
+    elapsed_time: Instant::now()
+});
 
 impl Indicator {
     fn update_blinkng(&mut self) {

@@ -1,24 +1,13 @@
-use nrg_resources::SharedDataRw;
 use nrg_serialize::{Deserialize, Serialize};
 
-use crate::{implement_widget, InternalWidget, WidgetData};
+use crate::{implement_widget_with_data, InternalWidget, WidgetData};
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]
 pub struct Canvas {
     data: WidgetData,
 }
-implement_widget!(Canvas);
-
-impl Canvas {
-    pub fn new(shared_data: &SharedDataRw) -> Self {
-        let mut w = Self {
-            data: WidgetData::new(shared_data),
-        };
-        w.init();
-        w
-    }
-}
+implement_widget_with_data!(Canvas);
 
 impl InternalWidget for Canvas {
     fn widget_init(&mut self) {

@@ -19,6 +19,7 @@ pub struct App {
     frame_count: u64,
     is_profiling: bool,
     shared_data: SharedDataRw,
+    events_rw: EventsRw,
     plugin_manager: PluginManager,
     scheduler: Scheduler,
     workers: HashMap<String, Worker>,
@@ -52,11 +53,7 @@ impl Drop for App {
 impl App {
     pub fn new() -> Self {
         nrg_profiler::create_profiler!();
-        let shared_data = SharedDataRw::default();
-        {
-            let mut data = shared_data.write().unwrap();
-            data.add_resource(EventsRw::default());
-        }
+
         let (sender, receiver) = channel();
 
         let mut app = Self {
@@ -67,7 +64,8 @@ impl App {
             workers: HashMap::new(),
             sender: Arc::new(Mutex::new(sender)),
             receiver: Arc::new(Mutex::new(receiver)),
-            shared_data,
+            shared_data: SharedDataRw::default(),
+            events_rw: EventsRw::default(),
         };
 
         app.setup_worker_threads();
@@ -102,13 +100,8 @@ impl App {
         let plugins_to_remove = self.plugin_manager.update();
         self.update_plugins(plugins_to_remove, true);
 
-        {
-            let data = self.shared_data.read().unwrap();
-            let events_rw = &mut *data.get_unique_resource_mut::<EventsRw>();
-            let mut events = events_rw.write().unwrap();
-            self.frame_count += 1;
-            events.update(self.frame_count);
-        }
+        self.frame_count += 1;
+        self.events_rw.write().unwrap().update(self.frame_count);
 
         can_continue
     }
@@ -126,9 +119,7 @@ impl App {
     }
 
     fn manage_hotkeys(&mut self) {
-        let data = self.shared_data.read().unwrap();
-        let events_rw = &mut *data.get_unique_resource_mut::<EventsRw>();
-        let events = events_rw.read().unwrap();
+        let events = self.events_rw.read().unwrap();
         if let Some(key_events) = events.read_all_events::<KeyEvent>() {
             for event in key_events.iter() {
                 if event.code == Key::F9 && event.state == InputState::JustPressed {
@@ -169,6 +160,9 @@ impl App {
 
     pub fn get_shared_data(&self) -> SharedDataRw {
         self.shared_data.clone()
+    }
+    pub fn get_events(&self) -> EventsRw {
+        self.events_rw.clone()
     }
     pub fn create_phase_on_worker<P: Phase>(&mut self, phase: P, name: &'static str) {
         let w = self.add_worker(name);

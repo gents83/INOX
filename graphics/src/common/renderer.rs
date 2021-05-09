@@ -49,7 +49,7 @@ impl Renderer {
         }
     }
 
-    pub fn get_state(&self) -> RendererState {
+    pub fn state(&self) -> RendererState {
         self.state
     }
 
