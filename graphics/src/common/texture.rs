@@ -73,7 +73,7 @@ impl Texture {
 
 pub struct TextureHandler {
     device: Device,
-    layered_textures: Vec<TextureAtlas>,
+    texture_atlas: Vec<TextureAtlas>,
     textures: Vec<Texture>,
 }
 
@@ -81,7 +81,7 @@ impl TextureHandler {
     pub fn create(device: &Device) -> Self {
         let mut texture_handler = Self {
             device: device.clone(),
-            layered_textures: vec![TextureAtlas::create(device)],
+            texture_atlas: vec![TextureAtlas::create(device)],
             textures: Vec::new(),
         };
         texture_handler.add_empty();
@@ -96,7 +96,7 @@ impl TextureHandler {
         self.textures.is_empty()
     }
 
-    pub fn add(&mut self, filepath: &Path) -> usize {
+    pub fn add(&mut self, filepath: &Path) -> (u32, u32, u32) {
         let image = image::open(filepath).unwrap();
         let image_data = image.to_rgba8();
         let (texture_index, layer_index, area) = self.add_image(
@@ -115,7 +115,11 @@ impl TextureHandler {
             layer_index: layer_index as _,
             area,
         });
-        self.textures.len() - 1
+        (
+            (self.textures.len() - 1) as _,
+            texture_index as _,
+            layer_index as _,
+        )
     }
 
     pub fn add_empty(&mut self) -> usize {
@@ -141,10 +145,10 @@ impl TextureHandler {
     }
 
     fn add_image(&mut self, width: u32, height: u32, image_data: &[u8]) -> (i32, i32, Area) {
-        for (texture_index, layered_texture) in self.layered_textures.iter_mut().enumerate() {
-            for (layer_index, area_allocator) in layered_texture.allocators.iter_mut().enumerate() {
+        for (texture_index, texture_atlas) in self.texture_atlas.iter_mut().enumerate() {
+            for (layer_index, area_allocator) in texture_atlas.allocators.iter_mut().enumerate() {
                 if let Some(area) = area_allocator.allocate(width, height) {
-                    layered_texture.texture.add_in_layer(
+                    texture_atlas.texture.add_in_layer(
                         &self.device.inner,
                         layer_index,
                         area,
@@ -157,6 +161,6 @@ impl TextureHandler {
         (INVALID_INDEX, INVALID_INDEX, Area::default())
     }
     pub fn get_textures(&self) -> &[TextureAtlas] {
-        self.layered_textures.as_slice()
+        self.texture_atlas.as_slice()
     }
 }

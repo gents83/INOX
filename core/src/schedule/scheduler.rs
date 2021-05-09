@@ -11,6 +11,7 @@ use crate::{Job, Phase, PhaseWithSystems};
 
 pub struct Scheduler {
     is_running: bool,
+    is_started: bool,
     phases_order: Vec<String>,
     phases: HashMap<String, Box<dyn Phase>>,
 }
@@ -28,6 +29,7 @@ impl Scheduler {
     pub fn new() -> Self {
         Self {
             is_running: true,
+            is_started: false,
             phases_order: Vec::new(),
             phases: HashMap::default(),
         }
@@ -96,6 +98,7 @@ impl Scheduler {
         phase.init();
         self.phases
             .insert(String::from(phase.get_name()), Box::new(phase));
+        self.is_started = true;
         self
     }
 
@@ -106,6 +109,7 @@ impl Scheduler {
         }
         self.phases.insert(String::from(phase.get_name()), phase);
         self.get_phase_mut::<PhaseWithSystems>(phase_name).init();
+        self.is_started = true;
         self
     }
 
@@ -119,6 +123,9 @@ impl Scheduler {
                 true
             }
         });
+        if self.phases.is_empty() {
+            self.is_started = false;
+        }
         self
     }
 
@@ -156,6 +163,9 @@ impl Scheduler {
     }
 
     pub fn run_once(&mut self, sender: Arc<Mutex<Sender<Job>>>) -> bool {
+        if !self.is_started {
+            return self.is_running;
+        }
         nrg_profiler::scoped_profile!("scheduler::run_once");
         let mut can_continue = self.is_running;
         for name in self.phases_order.iter() {
@@ -174,7 +184,9 @@ impl Scheduler {
                         }
                     }
 
-                    while wait_count.load(Ordering::SeqCst) > 0 {}
+                    while wait_count.load(Ordering::SeqCst) > 0 {
+                        thread::yield_now();
+                    }
                 }
 
                 can_continue &= ok;

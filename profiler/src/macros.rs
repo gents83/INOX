@@ -97,7 +97,9 @@ macro_rules! register_thread_into_profiler_with_name {
                 .unwrap()
                 .get::<PfnRegisterThread>(REGISTER_THREAD_FUNCTION_NAME)
             {
-                unsafe { register_thread_fn.unwrap()($string.as_bytes().as_ptr()) };
+                let mut str = String::from($string);
+                str.push('\0');
+                unsafe { register_thread_fn.unwrap()(str.as_bytes().as_ptr()) };
             }
         }
     };
@@ -148,7 +150,11 @@ macro_rules! write_profile_file {
 #[macro_export]
 macro_rules! scoped_profile {
     ($string:expr) => {
+        use std::thread;
         #[cfg(debug_assertions)]
-        let _profile_scope = $crate::ScopedProfile::new(module_path!(), $string);
+        let _profile_scope = $crate::ScopedProfile::new(
+            "",      //$string,
+            $string, //thread::current().name().unwrap_or("no_name"),
+        );
     };
 }

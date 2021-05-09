@@ -4,6 +4,7 @@ use std::{
     ops::{Deref, DerefMut},
     path::PathBuf,
     sync::atomic::{AtomicUsize, Ordering},
+    thread,
 };
 
 const VALUE_ZERO: usize = 0;
@@ -105,17 +106,13 @@ impl<'a, T> ResourceRef<'a, T> {
         *self.id
     }
     pub fn new(Resource { id, data, atomic }: &'a Resource<T>) -> Self {
-        if atomic.request_borrow() {
-            Self {
-                id,
-                borrow: atomic,
-                resource: unsafe { &*data.get() },
-            }
-        } else {
-            panic!(
-                "Failed to acquire shared lock on resource: {}.",
-                std::any::type_name::<T>()
-            );
+        while !atomic.request_borrow() {
+            thread::yield_now();
+        }
+        Self {
+            id,
+            borrow: atomic,
+            resource: unsafe { &*data.get() },
         }
     }
 }
@@ -147,17 +144,13 @@ impl<'a, T> ResourceRefMut<'a, T> {
         *self.id
     }
     pub fn new(Resource { id, data, atomic }: &'a Resource<T>) -> Self {
-        if atomic.request_borrow_mut() {
-            Self {
-                id,
-                borrow: atomic,
-                resource: unsafe { &mut *data.get() },
-            }
-        } else {
-            panic!(
-                "Failed to acquire exclusive lock on resource: {}.",
-                std::any::type_name::<T>()
-            );
+        while !atomic.request_borrow_mut() {
+            thread::yield_now();
+        }
+        Self {
+            id,
+            borrow: atomic,
+            resource: unsafe { &mut *data.get() },
         }
     }
 }

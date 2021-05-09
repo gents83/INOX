@@ -9,14 +9,18 @@ pub type TextureId = ResourceId;
 
 pub struct TextureInstance {
     path: PathBuf,
+    texture_handler_index: i32,
     texture_index: i32,
+    layer_index: i32,
 }
 
 impl Default for TextureInstance {
     fn default() -> Self {
         Self {
             path: PathBuf::new(),
-            texture_index: 0,
+            texture_handler_index: INVALID_INDEX,
+            texture_index: INVALID_INDEX,
+            layer_index: INVALID_INDEX,
         }
     }
 }
@@ -29,12 +33,25 @@ impl TextureInstance {
     pub fn get_path(&self) -> &Path {
         self.path.as_path()
     }
-    pub fn set_texture_index(&mut self, texture_index: u32) -> &mut Self {
+    pub fn set_texture_data(
+        &mut self,
+        texture_handler_index: u32,
+        texture_index: u32,
+        layer_index: u32,
+    ) -> &mut Self {
+        self.texture_handler_index = texture_handler_index as _;
         self.texture_index = texture_index as _;
+        self.layer_index = layer_index as _;
         self
+    }
+    pub fn get_texture_handler_index(&self) -> i32 {
+        self.texture_handler_index
     }
     pub fn get_texture_index(&self) -> i32 {
         self.texture_index
+    }
+    pub fn get_layer_index(&self) -> i32 {
+        self.layer_index
     }
     pub fn create_from_path(shared_data: &SharedDataRw, texture_path: &Path) -> TextureId {
         let texture_id = {
@@ -47,7 +64,9 @@ impl TextureInstance {
         let mut data = shared_data.write().unwrap();
         data.add_resource(TextureInstance {
             path: PathBuf::from(texture_path),
+            texture_handler_index: INVALID_INDEX,
             texture_index: INVALID_INDEX,
+            layer_index: INVALID_INDEX,
         })
     }
 }

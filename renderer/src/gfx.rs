@@ -11,7 +11,7 @@ use crate::{config::*, update_system::UpdateSystem};
 
 use super::rendering_system::*;
 
-const RENDERING_THREAD: &str = "RENDERING_THREAD";
+const RENDERING_THREAD: &str = "Worker1";
 const RENDERING_UPDATE: &str = "RENDERING_UPDATE";
 const RENDERING_PHASE: &str = "RENDERING_PHASE";
 

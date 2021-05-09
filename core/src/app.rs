@@ -13,6 +13,8 @@ use nrg_resources::SharedDataRw;
 
 use crate::{Job, Phase, PluginId, PluginManager, Scheduler, Worker};
 
+const NUM_WORKER_THREADS: usize = 5;
+
 pub struct App {
     frame_count: u64,
     is_profiling: bool,
@@ -68,13 +70,15 @@ impl App {
             shared_data,
         };
 
-        app.add_worker("Worker1");
-        app.add_worker("Worker2");
-        app.add_worker("Worker3");
-        app.add_worker("Worker4");
-        app.add_worker("Worker5");
+        app.setup_worker_threads();
 
         app
+    }
+
+    fn setup_worker_threads(&mut self) {
+        for i in 1..NUM_WORKER_THREADS + 1 {
+            self.add_worker(format!("Worker{}", i).as_str());
+        }
     }
 
     fn update_plugins(&mut self, plugins_to_remove: Vec<PluginId>, reload: bool) {
@@ -150,7 +154,7 @@ impl App {
             PluginManager::clear_plugin_data(plugin_data, self);
         }
     }
-    fn add_worker(&mut self, name: &'static str) -> &mut Worker {
+    fn add_worker(&mut self, name: &str) -> &mut Worker {
         let key = String::from(name);
         let w = self.workers.entry(key).or_insert_with(Worker::default);
         if !w.is_started() {

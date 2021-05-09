@@ -1,6 +1,6 @@
 use std::sync::{Arc, RwLock};
 
-use crate::{MaterialInstance, MeshInstance, Pipeline, PipelineInstance, TextureInstance};
+use crate::{MaterialInstance, Pipeline, PipelineInstance, TextureInstance};
 use nrg_math::*;
 use nrg_platform::*;
 use nrg_resources::ResourceRefMut;
@@ -29,6 +29,9 @@ pub struct Renderer {
     pipelines: Vec<Pipeline>,
 }
 pub type RendererRw = Arc<RwLock<Renderer>>;
+
+unsafe impl Send for Renderer {}
+unsafe impl Sync for Renderer {}
 
 impl Renderer {
     pub fn new(handle: &Handle, enable_debug: bool) -> Self {
@@ -66,7 +69,6 @@ impl Renderer {
         &mut self,
         pipelines: &mut [ResourceRefMut<PipelineInstance>],
         materials: &mut [ResourceRefMut<MaterialInstance>],
-        meshes: &mut [ResourceRefMut<MeshInstance>],
         textures: &mut [ResourceRefMut<TextureInstance>],
     ) -> &mut Self {
         nrg_profiler::scoped_profile!("renderer::prepare_frame");
@@ -75,10 +77,20 @@ impl Renderer {
 
         self.prepare_pipelines();
         self.prepare_materials(pipelines, materials);
-        self.prepare_meshes(materials, meshes, textures);
+        //self.prepare_meshes(materials, meshes, textures);
 
-        self.state = RendererState::Prepared;
+        //self.state = RendererState::Prepared;
         self
+    }
+
+    pub fn get_texture_handler(&self) -> &TextureHandler {
+        &self.texture_handler
+    }
+    pub fn get_pipelines(&mut self) -> &mut Vec<Pipeline> {
+        &mut self.pipelines
+    }
+    pub fn end_preparation(&mut self) {
+        self.state = RendererState::Prepared;
     }
 
     fn begin_frame(&mut self) -> bool {
@@ -224,9 +236,11 @@ impl Renderer {
         nrg_profiler::scoped_profile!("renderer::load_textures");
         let texture_handler = &mut self.texture_handler;
         textures.iter_mut().for_each(|texture_instance| {
-            if texture_instance.get_texture_index() == INVALID_INDEX {
+            if texture_instance.get_texture_handler_index() == INVALID_INDEX {
                 let path = texture_instance.get_path().to_path_buf();
-                texture_instance.set_texture_index(texture_handler.add(path.as_path()) as _);
+                let (handler_index, texture_index, layer_index) =
+                    texture_handler.add(path.as_path());
+                texture_instance.set_texture_data(handler_index, texture_index, layer_index);
             }
         });
     }
@@ -260,77 +274,6 @@ impl Renderer {
                 .data
                 .index
                 .cmp(&pipeline_b.get_data().data.index)
-        });
-    }
-
-    fn prepare_meshes(
-        &mut self,
-        materials: &mut [ResourceRefMut<MaterialInstance>],
-        meshes: &mut [ResourceRefMut<MeshInstance>],
-        textures: &[ResourceRefMut<TextureInstance>],
-    ) {
-        nrg_profiler::scoped_profile!("renderer::prepare_meshes");
-        let mut material_index = 0;
-        materials.iter().for_each(|material_instance| {
-            if !material_instance.has_meshes() {
-                return;
-            }
-            let pipeline = self
-                .pipelines
-                .iter_mut()
-                .find(|p| p.id() == material_instance.get_pipeline_id())
-                .unwrap();
-
-            nrg_profiler::scoped_profile!(format!(
-                "renderer::prepare_meshes_on_material[{}]",
-                material_index
-            )
-            .as_str());
-
-            let diffuse_texture_id = material_instance.get_diffuse_texture();
-            let diffuse_texture = if diffuse_texture_id.is_nil() {
-                None
-            } else {
-                Some(
-                    self.texture_handler.get_texture(
-                        textures
-                            .iter()
-                            .find(|&t| t.id() == diffuse_texture_id)
-                            .unwrap()
-                            .get_texture_index() as _,
-                    ),
-                )
-            };
-            let diffuse_texture_index: i32 = if let Some(texture) = diffuse_texture {
-                texture.get_texture_index() as _
-            } else {
-                INVALID_INDEX
-            };
-            let diffuse_layer_index: i32 = if let Some(texture) = diffuse_texture {
-                texture.get_layer_index() as _
-            } else {
-                INVALID_INDEX
-            };
-
-            material_instance.get_meshes().iter().for_each(|mesh_id| {
-                let mesh_instance = meshes.iter_mut().find(|m| m.id() == *mesh_id).unwrap();
-                if !mesh_instance.is_visible() {
-                    return;
-                }
-                nrg_profiler::scoped_profile!(format!(
-                    "renderer::prepare_meshes_on_material[{}]_add_mesh_to_pipeline",
-                    material_index
-                )
-                .as_str());
-                mesh_instance.process_uv_for_texture(diffuse_texture);
-                pipeline.add_mesh_instance(
-                    mesh_instance,
-                    material_instance.get_diffuse_color(),
-                    diffuse_texture_index,
-                    diffuse_layer_index,
-                );
-            });
-            material_index += 1;
         });
     }
 }

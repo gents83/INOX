@@ -228,12 +228,12 @@ impl EditorUpdater {
             let job = {
                 let widget = w.clone();
                 if widget.read().unwrap().id() == self.main_menu_id {
-                    Job::new(move || {
+                    Job::new(format!("widget[{}]", i), move || {
                         nrg_profiler::scoped_profile!(format!("widget[{}]", i).as_str());
                         widget.write().unwrap().update(Screen::get_draw_area());
                     })
                 } else {
-                    Job::new(move || {
+                    Job::new(format!("widget[{}]", i), move || {
                         nrg_profiler::scoped_profile!(format!("widget[{}]", i).as_str());
                         widget.write().unwrap().update(draw_area);
                     })

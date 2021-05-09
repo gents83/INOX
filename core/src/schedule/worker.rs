@@ -4,12 +4,9 @@ use std::{
         Arc, Mutex, RwLock,
     },
     thread::{self, JoinHandle},
-    time::{Duration, Instant},
 };
 
 use crate::{Job, Phase, Scheduler};
-
-const MAX_WORKER_DURATION: Duration = Duration::from_millis(2);
 
 pub struct Worker {
     scheduler: Arc<RwLock<Scheduler>>,
@@ -35,30 +32,34 @@ impl Worker {
     pub fn is_started(&self) -> bool {
         self.thread_handle.is_some()
     }
+    fn get_job(receiver: &Arc<Mutex<Receiver<Job>>>) -> Option<Job> {
+        if let Ok(job) = receiver.lock().unwrap().try_recv() {
+            return Some(job);
+        }
+        None
+    }
+
     pub fn start(
         &mut self,
-        name: &'static str,
+        name: &str,
         sender: Arc<Mutex<Sender<Job>>>,
         receiver: Arc<Mutex<Receiver<Job>>>,
     ) {
         if self.thread_handle.is_none() {
-            println!("Starting thread {}", name);
             let builder = thread::Builder::new().name(name.into());
             let scheduler = Arc::clone(&self.scheduler);
+            let thread_name = String::from(name);
             let t = builder
                 .spawn(move || {
-                    nrg_profiler::register_thread_into_profiler_with_name!(name);
-                    let mut last_update_time = Instant::now();
+                    println!("Starting thread {}", thread_name.as_str());
+                    nrg_profiler::register_thread_into_profiler_with_name!(thread_name.as_str());
                     loop {
-                        let mut instant = Instant::now();
+                        nrg_profiler::scoped_profile!(thread_name.as_str());
                         let can_continue = scheduler.write().unwrap().run_once(sender.clone());
-                        while instant - last_update_time < MAX_WORKER_DURATION {
-                            if let Ok(job) = receiver.lock().unwrap().try_recv() {
-                                job.execute();
-                            }
-                            instant = Instant::now();
+                        if let Some(job) = Worker::get_job(&receiver) {
+                            nrg_profiler::scoped_profile!(job.get_name());
+                            job.execute();
                         }
-                        last_update_time = instant;
                         if !can_continue {
                             return false;
                         }

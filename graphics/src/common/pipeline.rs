@@ -21,6 +21,8 @@ pub struct Pipeline {
     instance_data: Vec<InstanceData>,
     instance_commands: Vec<InstanceCommand>,
 }
+unsafe impl Send for Pipeline {}
+unsafe impl Sync for Pipeline {}
 
 impl Pipeline {
     pub fn id(&self) -> PipelineId {

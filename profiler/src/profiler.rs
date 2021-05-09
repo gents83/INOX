@@ -52,7 +52,6 @@ pub extern "C" fn start_profiler() {
         match *GLOBAL_PROFILER.0.as_ptr() {
             Some(ref x) => {
                 x.lock().unwrap().start();
-                println!("Starting profiler");
             }
             None => panic!("Trying to start_profiler on an uninitialized static global variable"),
         }
@@ -64,7 +63,6 @@ pub extern "C" fn stop_profiler() {
     unsafe {
         match *GLOBAL_PROFILER.0.as_ptr() {
             Some(ref x) => {
-                println!("Stopping profiler");
                 x.lock().unwrap().stop();
             }
             None => panic!("Trying to stop_profiler on an uninitialized static global variable"),
@@ -135,6 +133,7 @@ pub extern "C" fn write_profile_file() {
 #[repr(C)]
 struct ThreadInfo {
     name: String,
+    index: usize,
     profiler: ThreadProfiler,
 }
 
@@ -192,10 +191,14 @@ impl Profiler {
         let _ = self.rx.try_recv();
         self.started = true;
         self.time_start = Instant::now();
+        println!("Starting profiler");
     }
     pub fn stop(&mut self) {
         self.started = false;
-        self.write_profile_file();
+        println!(
+            "Stopping profiler for a total duration of {:.3}",
+            self.time_start.elapsed().as_secs_f32()
+        );
     }
     pub fn get_elapsed_time(&self) -> u64 {
         let elapsed = self.time_start.elapsed();
@@ -214,8 +217,10 @@ impl Profiler {
             }
         };
 
+        let index = self.threads.len();
         self.threads.entry(id).or_insert(ThreadInfo {
             name,
+            index,
             profiler: ThreadProfiler {
                 id,
                 tx: self.tx.clone(),
@@ -240,34 +245,37 @@ impl Profiler {
         let start_time = self.get_elapsed_time();
         let mut data = Vec::new();
 
-        let index = 0;
         while let Ok(sample) = self.rx.try_recv() {
-            if sample.time_start > start_time {
-                break;
-            }
-
-            if let Some(thread) = self.threads.get(&sample.tid) {
-                let thread_id = thread.name.as_str();
-                data.push(serde_json::json!({
-                    "pid": 0,
-                    "id": index,
-                    "cat": sample.category,
-                    "tid": thread_id,
-                    "name": sample.name,
-                    "ph": "b",
-                    "ts": sample.time_start,
-                }));
-                data.push(serde_json::json!({
-                    "pid": 0,
-                    "id": index,
-                    "cat": sample.category,
-                    "tid": thread_id,
-                    "name": sample.name,
-                    "ph": "e",
-                    "ts": sample.time_end,
-                }));
-            } else {
-                panic!("Invalid thread id {:?}", sample.tid);
+            if sample.time_start < start_time {
+                if let Some(thread) = self.threads.get(&sample.tid) {
+                    let thread_id = thread.name.as_str();
+                    data.push(serde_json::json!({
+                        "pid": 0,
+                        "tid": thread_id,
+                        "id": thread.index,
+                        "name": sample.name,
+                        "cat": thread_id,
+                        "ph": "b",
+                        "ts": sample.time_start,
+                        "args": serde_json::json!({
+                            "name" : sample.category,
+                        }),
+                    }));
+                    data.push(serde_json::json!({
+                        "pid": 0,
+                        "tid": thread_id,
+                        "id": thread.index,
+                        "name": sample.name,
+                        "cat": thread_id,
+                        "ph": "e",
+                        "ts": sample.time_end,
+                        "args": serde_json::json!({
+                            "name" : sample.category,
+                        }),
+                    }));
+                } else {
+                    panic!("Invalid thread id {:?}", sample.tid);
+                }
             }
         }
 
