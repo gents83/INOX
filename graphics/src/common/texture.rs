@@ -2,7 +2,7 @@ use std::path::Path;
 
 use image::{DynamicImage, EncodableLayout, Pixel};
 
-use crate::{api::backend, Area, AreaAllocator, DEFAULT_AREA_SIZE, INVALID_INDEX};
+use crate::{api::backend, Area, AreaAllocator, MeshData, DEFAULT_AREA_SIZE, INVALID_INDEX};
 
 use super::device::*;
 
@@ -162,5 +162,22 @@ impl TextureHandler {
     }
     pub fn get_textures(&self) -> &[TextureAtlas] {
         self.texture_atlas.as_slice()
+    }
+
+    pub fn apply_texture_uv(&self, mesh_data: &mut MeshData, texture_handler_index: i32) -> bool {
+        if texture_handler_index >= 0 {
+            let texture = self.get_texture(texture_handler_index as _);
+            for v in mesh_data.vertices.iter_mut() {
+                let tex_coord = &mut v.tex_coord;
+                let (u, v) = texture.convert_uv(tex_coord.x, tex_coord.y);
+                *tex_coord = [u, v].into();
+            }
+            return true;
+        }
+        for v in mesh_data.vertices.iter_mut() {
+            let tex_coord = &mut v.tex_coord;
+            *tex_coord = [0., 0.].into();
+        }
+        true
     }
 }

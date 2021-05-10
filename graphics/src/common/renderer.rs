@@ -77,9 +77,6 @@ impl Renderer {
 
         self.prepare_pipelines();
         self.prepare_materials(pipelines, materials);
-        //self.prepare_meshes(materials, meshes, textures);
-
-        //self.state = RendererState::Prepared;
         self
     }
 

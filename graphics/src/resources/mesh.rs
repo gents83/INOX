@@ -1,6 +1,6 @@
 use crate::{MeshData, Texture};
 use nrg_math::{MatBase, Matrix4};
-use nrg_resources::{ResourceId, SharedDataRw};
+use nrg_resources::{ResourceId, SharedData, SharedDataRw};
 
 pub type MeshId = ResourceId;
 
@@ -31,15 +31,13 @@ impl MeshInstance {
         self.is_visible
     }
     pub fn set_visible(shared_data: &SharedDataRw, mesh_id: MeshId, is_visible: bool) {
-        let data = shared_data.read().unwrap();
-        let mesh = data.get_resource::<Self>(mesh_id);
+        let mesh = SharedData::get_resource::<Self>(shared_data, mesh_id);
         let mesh = &mut mesh.get_mut();
         mesh.is_visible = is_visible;
         mesh.is_dirty = true;
     }
     pub fn set_transform(shared_data: &SharedDataRw, mesh_id: MeshId, transform: Matrix4) {
-        let data = shared_data.read().unwrap();
-        let mesh = data.get_resource::<Self>(mesh_id);
+        let mesh = SharedData::get_resource::<Self>(shared_data, mesh_id);
         let mesh = &mut mesh.get_mut();
         mesh.transform = transform;
         mesh.is_dirty = true;

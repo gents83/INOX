@@ -1,6 +1,6 @@
 use nrg_core::*;
 use nrg_platform::*;
-use nrg_resources::SharedDataRw;
+use nrg_resources::{SharedData, SharedDataRw};
 
 pub struct WindowSystem {
     id: SystemId,
@@ -22,8 +22,7 @@ impl System for WindowSystem {
     }
     fn init(&mut self) {}
     fn run(&mut self) -> (bool, Vec<Job>) {
-        let data = self.shared_data.read().unwrap();
-        let window_res = data.get_unique_resource::<Window>();
+        let window_res = SharedData::get_unique_resource::<Window>(&self.shared_data);
         let can_continue = window_res.get_mut().update();
         (can_continue, Vec::new())
     }

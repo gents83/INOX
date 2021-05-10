@@ -1,6 +1,6 @@
 use crate::{FontId, FontInstance, MeshId, PipelineId, TextureId};
 use nrg_math::Vector4;
-use nrg_resources::{ResourceId, SharedDataRw};
+use nrg_resources::{ResourceId, SharedData, SharedDataRw};
 use nrg_serialize::INVALID_UID;
 
 pub type MaterialId = ResourceId;
@@ -14,8 +14,7 @@ pub struct MaterialInstance {
 
 impl MaterialInstance {
     pub fn create_from(shared_data: &SharedDataRw, material_id: MaterialId) -> Self {
-        let data = shared_data.read().unwrap();
-        let material = data.get_resource::<MaterialInstance>(material_id);
+        let material = SharedData::get_resource::<MaterialInstance>(shared_data, material_id);
         let pipeline_id = material.get().pipeline_id;
         let textures = material.get().textures.clone();
         let diffuse_color = material.get().diffuse_color;
@@ -49,20 +48,17 @@ impl MaterialInstance {
     }
 
     pub fn add_texture(shared_data: &SharedDataRw, material_id: MaterialId, texture_id: TextureId) {
-        let data = shared_data.read().unwrap();
-        let material = data.get_resource::<Self>(material_id);
+        let material = SharedData::get_resource::<Self>(shared_data, material_id);
         material.get_mut().textures.push(texture_id);
     }
 
     pub fn add_mesh(shared_data: &SharedDataRw, material_id: MaterialId, mesh_id: MeshId) {
-        let data = shared_data.read().unwrap();
-        let material = data.get_resource::<Self>(material_id);
+        let material = SharedData::get_resource::<Self>(shared_data, material_id);
         material.get_mut().meshes.push(mesh_id);
     }
 
     pub fn remove_mesh(shared_data: &SharedDataRw, material_id: MaterialId, mesh_id: MeshId) {
-        let data = shared_data.read().unwrap();
-        let material = data.get_resource::<Self>(material_id);
+        let material = SharedData::get_resource::<Self>(shared_data, material_id);
         let meshes = &mut material.get_mut().meshes;
         if let Some(index) = meshes.iter().position(|&id| id == mesh_id) {
             meshes.remove(index);
@@ -74,8 +70,7 @@ impl MaterialInstance {
         material_id: MaterialId,
         diffuse_color: Vector4,
     ) {
-        let data = shared_data.read().unwrap();
-        let material = data.get_resource::<Self>(material_id);
+        let material = SharedData::get_resource::<Self>(shared_data, material_id);
         material.get_mut().diffuse_color = diffuse_color;
     }
 

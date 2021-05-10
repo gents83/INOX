@@ -12,7 +12,7 @@ use nrg_events::*;
 use nrg_graphics::*;
 use nrg_gui::*;
 use nrg_platform::*;
-use nrg_resources::SharedDataRw;
+use nrg_resources::{SharedData, SharedDataRw};
 use nrg_serialize::*;
 
 pub struct EditorUpdater {
@@ -172,8 +172,7 @@ impl EditorUpdater {
         result
     }
     fn create_screen(&mut self) {
-        let read_data = self.shared_data.read().unwrap();
-        let window = read_data.get_unique_resource::<Window>();
+        let window = SharedData::get_unique_resource::<Window>(&self.shared_data);
 
         Screen::create(
             window.get().get_width(),

@@ -4,7 +4,7 @@ use nrg_core::*;
 use nrg_graphics::Renderer;
 use nrg_math::Vector2;
 use nrg_platform::Window;
-use nrg_resources::ConfigBase;
+use nrg_resources::{ConfigBase, SharedData};
 use nrg_serialize::*;
 
 use crate::{config::*, update_system::UpdateSystem};
@@ -43,8 +43,7 @@ impl Plugin for GfxPlugin {
 
         let renderer = {
             let shared_data = app.get_shared_data();
-            let data = shared_data.read().unwrap();
-            let window = data.get_unique_resource::<Window>();
+            let window = SharedData::get_unique_resource::<Window>(&shared_data);
             let mut renderer = Renderer::new(
                 window.get().get_handle(),
                 self.config.vk_data.debug_validation_layers,

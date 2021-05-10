@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use nrg_resources::{ResourceId, SharedDataRw};
+use nrg_resources::{ResourceId, SharedData, SharedDataRw};
 use nrg_serialize::INVALID_UID;
 
 use crate::INVALID_INDEX;
@@ -27,8 +27,7 @@ impl Default for TextureInstance {
 
 impl TextureInstance {
     pub fn find_id(shared_data: &SharedDataRw, texture_path: &Path) -> TextureId {
-        let data = shared_data.read().unwrap();
-        data.match_resource(|t: &TextureInstance| t.path == texture_path)
+        SharedData::match_resource(shared_data, |t: &TextureInstance| t.path == texture_path)
     }
     pub fn get_path(&self) -> &Path {
         self.path.as_path()
@@ -55,8 +54,7 @@ impl TextureInstance {
     }
     pub fn create_from_path(shared_data: &SharedDataRw, texture_path: &Path) -> TextureId {
         let texture_id = {
-            let data = shared_data.read().unwrap();
-            data.match_resource(|t: &TextureInstance| t.path == texture_path)
+            SharedData::match_resource(shared_data, |t: &TextureInstance| t.path == texture_path)
         };
         if texture_id != INVALID_UID {
             return texture_id;

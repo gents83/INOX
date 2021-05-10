@@ -118,27 +118,11 @@ impl SharedData {
         self.resources.clear();
     }
     pub fn add_resource<T: 'static>(&mut self, data: T) -> ResourceId {
-        let vec = self
+        let rs = self
             .resources
             .entry(TypeId::of::<T>())
             .or_insert_with(ResourceStorage::default);
-        vec.add_resource(data)
-    }
-    pub fn has_resource<T: 'static>(&self, resource_id: ResourceId) -> bool {
-        if let Some(vec) = self.resources.get(&TypeId::of::<T>()) {
-            return vec.has_resource(resource_id);
-        }
-        false
-    }
-    pub fn match_resource<T: 'static, F>(&self, f: F) -> ResourceId
-    where
-        T: 'static + Sized,
-        F: Fn(&T) -> bool,
-    {
-        if let Some(vec) = self.resources.get(&TypeId::of::<T>()) {
-            return vec.match_resource(f);
-        }
-        INVALID_UID
+        rs.add_resource(data)
     }
     pub fn remove_resource<T: 'static>(&mut self, resource_id: ResourceId) {
         if let Some(vec) = self.resources.get_mut(&TypeId::of::<T>()) {
@@ -154,17 +138,41 @@ impl SharedData {
     pub fn remove_resources_of_type<T: 'static>(&mut self) {
         self.remove_resources(TypeId::of::<T>());
     }
-    pub fn get_resource<T: 'static>(&self, resource_id: ResourceId) -> ResourceRc<T> {
-        let vec = self.resources.get(&TypeId::of::<T>()).unwrap();
-        vec.get_resource(resource_id)
+    pub fn has_resource<T: 'static>(shared_data: &SharedDataRw, resource_id: ResourceId) -> bool {
+        let data = shared_data.read().unwrap();
+        if let Some(rs) = data.resources.get(&TypeId::of::<T>()) {
+            return rs.has_resource(resource_id);
+        }
+        false
     }
-    pub fn get_resources_of_type<T: 'static>(&self) -> Vec<ResourceRc<T>> {
-        let vec = self.resources.get(&TypeId::of::<T>()).unwrap();
-        vec.get_resources_of_type()
+    pub fn match_resource<T: 'static, F>(shared_data: &SharedDataRw, f: F) -> ResourceId
+    where
+        T: 'static + Sized,
+        F: Fn(&T) -> bool,
+    {
+        let data = shared_data.read().unwrap();
+        if let Some(rs) = data.resources.get(&TypeId::of::<T>()) {
+            return rs.match_resource(f);
+        }
+        INVALID_UID
     }
-    pub fn get_unique_resource<T: 'static>(&self) -> ResourceRc<T> {
-        let vec = self.resources.get(&TypeId::of::<T>()).unwrap();
-        vec.get_unique_resource()
+    pub fn get_resource<T: 'static>(
+        shared_data: &SharedDataRw,
+        resource_id: ResourceId,
+    ) -> ResourceRc<T> {
+        let data = shared_data.read().unwrap();
+        let rs = data.resources.get(&TypeId::of::<T>()).unwrap();
+        rs.get_resource(resource_id)
+    }
+    pub fn get_resources_of_type<T: 'static>(shared_data: &SharedDataRw) -> Vec<ResourceRc<T>> {
+        let data = shared_data.read().unwrap();
+        let rs = data.resources.get(&TypeId::of::<T>()).unwrap();
+        rs.get_resources_of_type()
+    }
+    pub fn get_unique_resource<T: 'static>(shared_data: &SharedDataRw) -> ResourceRc<T> {
+        let data = shared_data.read().unwrap();
+        let rs = data.resources.get(&TypeId::of::<T>()).unwrap();
+        rs.get_unique_resource()
     }
 }
 

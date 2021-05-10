@@ -1,4 +1,4 @@
-use nrg_resources::SharedDataRw;
+use nrg_resources::{SharedData, SharedDataRw};
 use nrg_serialize::{Uid, INVALID_UID};
 
 use crate::PipelineData;
@@ -12,16 +12,16 @@ pub struct PipelineInstance {
 
 impl PipelineInstance {
     pub fn find_id_from_name(shared_data: &SharedDataRw, pipeline_name: &str) -> PipelineId {
-        let data = shared_data.read().unwrap();
-        data.match_resource(|p: &PipelineInstance| p.data.name == pipeline_name)
+        SharedData::match_resource(shared_data, |p: &PipelineInstance| {
+            p.data.name == pipeline_name
+        })
     }
 
     pub fn find_id_from_data(
         shared_data: &SharedDataRw,
         pipeline_data: &PipelineData,
     ) -> PipelineId {
-        let data = shared_data.read().unwrap();
-        data.match_resource(|p: &PipelineInstance| {
+        SharedData::match_resource(shared_data, |p: &PipelineInstance| {
             p.data.fragment_shader == pipeline_data.fragment_shader
                 && p.data.vertex_shader == pipeline_data.vertex_shader
         })

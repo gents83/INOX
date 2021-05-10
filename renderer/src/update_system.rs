@@ -12,7 +12,7 @@ use nrg_core::*;
 use nrg_events::EventsRw;
 use nrg_graphics::*;
 use nrg_platform::WindowEvent;
-use nrg_resources::SharedDataRw;
+use nrg_resources::{SharedData, SharedDataRw};
 
 pub struct UpdateSystem {
     id: SystemId,
@@ -73,10 +73,12 @@ impl System for UpdateSystem {
 
         {
             let mut renderer = self.renderer.write().unwrap();
-            let data = self.shared_data.read().unwrap();
-            let mut pipelines = data.get_resources_of_type::<PipelineInstance>();
-            let mut materials = data.get_resources_of_type::<MaterialInstance>();
-            let mut textures = data.get_resources_of_type::<TextureInstance>();
+            let mut pipelines =
+                SharedData::get_resources_of_type::<PipelineInstance>(&self.shared_data);
+            let mut materials =
+                SharedData::get_resources_of_type::<MaterialInstance>(&self.shared_data);
+            let mut textures =
+                SharedData::get_resources_of_type::<TextureInstance>(&self.shared_data);
 
             if should_recreate_swap_chain {
                 renderer.recreate();
@@ -88,8 +90,7 @@ impl System for UpdateSystem {
         let mut jobs = Vec::new();
         let wait_count = Arc::new(AtomicUsize::new(0));
 
-        let data = self.shared_data.read().unwrap();
-        let materials = data.get_resources_of_type::<MaterialInstance>();
+        let materials = SharedData::get_resources_of_type::<MaterialInstance>(&self.shared_data);
 
         materials
             .iter()
@@ -104,7 +105,7 @@ impl System for UpdateSystem {
                         (INVALID_INDEX, INVALID_INDEX, INVALID_INDEX)
                     } else {
                         let texture_instance =
-                        data.get_resource::<TextureInstance>(diffuse_texture_id);
+                        SharedData::get_resource::<TextureInstance>(&self.shared_data, diffuse_texture_id);
                         let (thi, ti, li) =
                         (texture_instance.get().get_texture_handler_index() as _,
                         texture_instance.get().get_texture_index() as _,
@@ -114,7 +115,7 @@ impl System for UpdateSystem {
 
                     material_instance.get().get_meshes().iter().enumerate().for_each(
                         |(mesh_index, mesh_id)| {
-                            let mesh_instance = data.get_resource::<MeshInstance>(*mesh_id);
+                            let mesh_instance = SharedData::get_resource::<MeshInstance>(&self.shared_data, *mesh_id);
                             if mesh_instance.get().is_visible() {
                                 let mesh_id = *mesh_id;
                                 let shared_data = self.shared_data.clone();
@@ -129,21 +130,20 @@ impl System for UpdateSystem {
                                         material_index, mesh_index
                                     ),
                                     move || {
-                                        let data = shared_data.read().unwrap();
                                         let mesh_instance =
-                                            data.get_resource::<MeshInstance>(mesh_id);
+                                        SharedData::get_resource::<MeshInstance>(&shared_data, mesh_id);
 
-                                        let mut renderer = r.write().unwrap();
-                                        let diffuse_texture = if diffuse_texture_handler_index >= 0 {
-                                            Some(
+                                        if diffuse_texture_handler_index >= 0 {
+                                            let renderer = r.read().unwrap();
+                                            let diffuse_texture =
                                                 renderer
                                                     .get_texture_handler()
-                                                    .get_texture(diffuse_texture_handler_index as _),
-                                            )
+                                                    .get_texture(diffuse_texture_handler_index as _);
+                                            mesh_instance.get_mut().process_uv_for_texture(Some(diffuse_texture));
                                         } else {
-                                            None
-                                        };
-                                        mesh_instance.get_mut().process_uv_for_texture(diffuse_texture);
+                                            mesh_instance.get_mut().process_uv_for_texture(None);
+                                        }
+                                        let mut renderer = r.write().unwrap();
                                         let pipeline = renderer
                                             .get_pipelines()
                                             .iter_mut()

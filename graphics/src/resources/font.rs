@@ -1,6 +1,6 @@
 use crate::{Font, MaterialId, MaterialInstance, PipelineId, TextureInstance};
 use nrg_math::Vector4;
-use nrg_resources::{ResourceId, ResourceTrait, SharedDataRw};
+use nrg_resources::{ResourceId, ResourceTrait, SharedData, SharedDataRw};
 use nrg_serialize::INVALID_UID;
 use std::path::{Path, PathBuf};
 
@@ -14,12 +14,10 @@ pub struct FontInstance {
 
 impl FontInstance {
     pub fn find_id(shared_data: &SharedDataRw, font_path: &Path) -> FontId {
-        let data = shared_data.read().unwrap();
-        data.match_resource(|f: &FontInstance| f.path == font_path)
+        SharedData::match_resource(shared_data, |f: &FontInstance| f.path == font_path)
     }
     pub fn get_default(shared_data: &SharedDataRw) -> FontId {
-        let data = shared_data.read().unwrap();
-        let fonts = data.get_resources_of_type::<FontInstance>();
+        let fonts = SharedData::get_resources_of_type::<FontInstance>(shared_data);
         if !fonts.is_empty() {
             return fonts.first().unwrap().id();
         }
@@ -27,8 +25,7 @@ impl FontInstance {
     }
 
     pub fn get_material(shared_data: &SharedDataRw, font_id: FontId) -> MaterialId {
-        let data = shared_data.read().unwrap();
-        let font = data.get_resource::<FontInstance>(font_id);
+        let font = SharedData::get_resource::<FontInstance>(shared_data, font_id);
         let material_id = font.get().material_id;
         material_id
     }
@@ -37,8 +34,7 @@ impl FontInstance {
         font_id: FontId,
         c: char,
     ) -> Vector4 {
-        let data = shared_data.read().unwrap();
-        let font = data.get_resource::<FontInstance>(font_id);
+        let font = SharedData::get_resource::<FontInstance>(shared_data, font_id);
         let index = font.get().font.get_glyph_index(c);
         let texture_coord = font.get().font.get_glyph(index).texture_coord;
         texture_coord
