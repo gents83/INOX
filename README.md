@@ -22,9 +22,10 @@ Not ready yet for production.
 
 - [x] Multi-platform support (Windows-only implemented right now)
 - [x] Multi-GFX api support (Vulkan-only implemented right now)
+- [x] Multi-thread support with different Phases and Job system
 - [x] CPU Profiler using Chrome Trace Event format and usable through chrome://tracing/
 - [x] GUI library
-- [x] Indirect drawing support
+- [x] Indirect draw support
 - [x] Texture array and atlas support
 - [x] Hot reload of code
 - [ ] Hot reload of data
