@@ -23,8 +23,8 @@ impl System for WindowSystem {
     fn init(&mut self) {}
     fn run(&mut self) -> (bool, Vec<Job>) {
         let data = self.shared_data.read().unwrap();
-        let mut window_res = data.get_unique_resource_mut::<Window>();
-        let can_continue = (*window_res).update();
+        let window_res = data.get_unique_resource::<Window>();
+        let can_continue = window_res.get_mut().update();
         (can_continue, Vec::new())
     }
     fn uninit(&mut self) {}

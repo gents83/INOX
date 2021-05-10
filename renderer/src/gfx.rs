@@ -46,10 +46,13 @@ impl Plugin for GfxPlugin {
             let data = shared_data.read().unwrap();
             let window = data.get_unique_resource::<Window>();
             let mut renderer = Renderer::new(
-                window.get_handle(),
+                window.get().get_handle(),
                 self.config.vk_data.debug_validation_layers,
             );
-            let size = Vector2::new(window.get_width() as _, window.get_heigth() as _);
+            let size = Vector2::new(
+                window.get().get_width() as _,
+                window.get().get_heigth() as _,
+            );
             renderer.set_viewport_size(size);
             renderer
         };

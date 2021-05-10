@@ -3,7 +3,7 @@ use std::sync::{Arc, RwLock};
 use crate::{MaterialInstance, Pipeline, PipelineInstance, TextureInstance};
 use nrg_math::*;
 use nrg_platform::*;
-use nrg_resources::ResourceRefMut;
+use nrg_resources::{ResourceRc, ResourceTrait};
 
 use super::device::*;
 use super::instance::*;
@@ -67,9 +67,9 @@ impl Renderer {
 
     pub fn prepare_frame(
         &mut self,
-        pipelines: &mut [ResourceRefMut<PipelineInstance>],
-        materials: &mut [ResourceRefMut<MaterialInstance>],
-        textures: &mut [ResourceRefMut<TextureInstance>],
+        pipelines: &mut [ResourceRc<PipelineInstance>],
+        materials: &mut [ResourceRc<MaterialInstance>],
+        textures: &mut [ResourceRc<TextureInstance>],
     ) -> &mut Self {
         nrg_profiler::scoped_profile!("renderer::prepare_frame");
         self.load_pipelines(pipelines);
@@ -212,7 +212,7 @@ impl Renderer {
 }
 
 impl Renderer {
-    fn load_pipelines(&mut self, pipelines: &mut [ResourceRefMut<PipelineInstance>]) {
+    fn load_pipelines(&mut self, pipelines: &mut [ResourceRc<PipelineInstance>]) {
         nrg_profiler::scoped_profile!("renderer::load_pipelines");
         pipelines.iter_mut().for_each(|pipeline_instance| {
             if self
@@ -225,22 +225,26 @@ impl Renderer {
                 self.pipelines.push(Pipeline::create(
                     device,
                     pipeline_instance.id(),
-                    pipeline_instance.get_data(),
+                    pipeline_instance.get().get_data(),
                 ));
-                pipeline_instance.init();
+                pipeline_instance.get_mut().init();
             }
         });
     }
 
-    fn load_textures(&mut self, textures: &mut [ResourceRefMut<TextureInstance>]) {
+    fn load_textures(&mut self, textures: &mut [ResourceRc<TextureInstance>]) {
         nrg_profiler::scoped_profile!("renderer::load_textures");
         let texture_handler = &mut self.texture_handler;
         textures.iter_mut().for_each(|texture_instance| {
-            if texture_instance.get_texture_handler_index() == INVALID_INDEX {
-                let path = texture_instance.get_path().to_path_buf();
+            if texture_instance.get().get_texture_handler_index() == INVALID_INDEX {
+                let path = texture_instance.get().get_path().to_path_buf();
                 let (handler_index, texture_index, layer_index) =
                     texture_handler.add(path.as_path());
-                texture_instance.set_texture_data(handler_index, texture_index, layer_index);
+                texture_instance.get_mut().set_texture_data(
+                    handler_index,
+                    texture_index,
+                    layer_index,
+                );
             }
         });
     }
@@ -256,24 +260,25 @@ impl Renderer {
 
     fn prepare_materials(
         &mut self,
-        pipelines: &[ResourceRefMut<PipelineInstance>],
-        materials: &mut [ResourceRefMut<MaterialInstance>],
+        pipelines: &[ResourceRc<PipelineInstance>],
+        materials: &mut [ResourceRc<MaterialInstance>],
     ) {
         nrg_profiler::scoped_profile!("renderer::prepare_materials");
         materials.sort_by(|a, b| {
             let pipeline_a = pipelines
                 .iter()
-                .find(|&p| p.id() == a.get_pipeline_id())
+                .find(|&p| p.id() == a.get().get_pipeline_id())
                 .unwrap();
             let pipeline_b = pipelines
                 .iter()
-                .find(|&p| p.id() == b.get_pipeline_id())
+                .find(|&p| p.id() == b.get().get_pipeline_id())
                 .unwrap();
             pipeline_a
+                .get()
                 .get_data()
                 .data
                 .index
-                .cmp(&pipeline_b.get_data().data.index)
+                .cmp(&pipeline_b.get().get_data().data.index)
         });
     }
 }

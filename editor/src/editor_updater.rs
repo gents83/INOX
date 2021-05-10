@@ -173,12 +173,12 @@ impl EditorUpdater {
     }
     fn create_screen(&mut self) {
         let read_data = self.shared_data.read().unwrap();
-        let window = &*read_data.get_unique_resource::<Window>();
+        let window = read_data.get_unique_resource::<Window>();
 
         Screen::create(
-            window.get_width(),
-            window.get_heigth(),
-            window.get_scale_factor(),
+            window.get().get_width(),
+            window.get().get_heigth(),
+            window.get().get_scale_factor(),
             self.events_rw.clone(),
         );
     }

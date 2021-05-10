@@ -16,11 +16,14 @@ impl MaterialInstance {
     pub fn create_from(shared_data: &SharedDataRw, material_id: MaterialId) -> Self {
         let data = shared_data.read().unwrap();
         let material = data.get_resource::<MaterialInstance>(material_id);
+        let pipeline_id = material.get().pipeline_id;
+        let textures = material.get().textures.clone();
+        let diffuse_color = material.get().diffuse_color;
         Self {
-            pipeline_id: material.pipeline_id,
+            pipeline_id,
             meshes: Vec::new(),
-            textures: material.textures.clone(),
-            diffuse_color: material.diffuse_color,
+            textures,
+            diffuse_color,
         }
     }
     pub fn get_pipeline_id(&self) -> PipelineId {
@@ -47,21 +50,22 @@ impl MaterialInstance {
 
     pub fn add_texture(shared_data: &SharedDataRw, material_id: MaterialId, texture_id: TextureId) {
         let data = shared_data.read().unwrap();
-        let mut material = data.get_resource_mut::<Self>(material_id);
-        material.textures.push(texture_id);
+        let material = data.get_resource::<Self>(material_id);
+        material.get_mut().textures.push(texture_id);
     }
 
     pub fn add_mesh(shared_data: &SharedDataRw, material_id: MaterialId, mesh_id: MeshId) {
         let data = shared_data.read().unwrap();
-        let mut material = data.get_resource_mut::<Self>(material_id);
-        material.meshes.push(mesh_id);
+        let material = data.get_resource::<Self>(material_id);
+        material.get_mut().meshes.push(mesh_id);
     }
 
     pub fn remove_mesh(shared_data: &SharedDataRw, material_id: MaterialId, mesh_id: MeshId) {
         let data = shared_data.read().unwrap();
-        let mut material = data.get_resource_mut::<Self>(material_id);
-        if let Some(index) = material.meshes.iter().position(|&id| id == mesh_id) {
-            material.meshes.remove(index);
+        let material = data.get_resource::<Self>(material_id);
+        let meshes = &mut material.get_mut().meshes;
+        if let Some(index) = meshes.iter().position(|&id| id == mesh_id) {
+            meshes.remove(index);
         }
     }
 
@@ -71,8 +75,8 @@ impl MaterialInstance {
         diffuse_color: Vector4,
     ) {
         let data = shared_data.read().unwrap();
-        let mut material = data.get_resource_mut::<Self>(material_id);
-        material.diffuse_color = diffuse_color;
+        let material = data.get_resource::<Self>(material_id);
+        material.get_mut().diffuse_color = diffuse_color;
     }
 
     pub fn create_from_pipeline(shared_data: &SharedDataRw, pipeline_id: PipelineId) -> MaterialId {

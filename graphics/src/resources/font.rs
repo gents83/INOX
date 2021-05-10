@@ -1,6 +1,6 @@
 use crate::{Font, MaterialId, MaterialInstance, PipelineId, TextureInstance};
 use nrg_math::Vector4;
-use nrg_resources::{ResourceId, SharedDataRw};
+use nrg_resources::{ResourceId, ResourceTrait, SharedDataRw};
 use nrg_serialize::INVALID_UID;
 use std::path::{Path, PathBuf};
 
@@ -29,7 +29,8 @@ impl FontInstance {
     pub fn get_material(shared_data: &SharedDataRw, font_id: FontId) -> MaterialId {
         let data = shared_data.read().unwrap();
         let font = data.get_resource::<FontInstance>(font_id);
-        font.material_id
+        let material_id = font.get().material_id;
+        material_id
     }
     pub fn get_glyph_texture_coord(
         shared_data: &SharedDataRw,
@@ -38,8 +39,9 @@ impl FontInstance {
     ) -> Vector4 {
         let data = shared_data.read().unwrap();
         let font = data.get_resource::<FontInstance>(font_id);
-        let index = font.font.get_glyph_index(c);
-        font.font.get_glyph(index).texture_coord
+        let index = font.get().font.get_glyph_index(c);
+        let texture_coord = font.get().font.get_glyph(index).texture_coord;
+        texture_coord
     }
     pub fn create_from_path(
         shared_data: &SharedDataRw,

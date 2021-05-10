@@ -6,38 +6,42 @@ use std::{
 
 use nrg_serialize::INVALID_UID;
 
-use crate::{Data, Resource, ResourceId, ResourceRef, ResourceRefMut, ResourceTrait};
+use crate::{Data, Resource, ResourceId, ResourceRc, ResourceTrait, ResourceTraitRc};
 
 pub struct ResourceStorage {
-    stored: Vec<Arc<dyn ResourceTrait>>,
+    resources: Vec<ResourceTraitRc>,
 }
 unsafe impl Send for ResourceStorage {}
 unsafe impl Sync for ResourceStorage {}
 
 impl Default for ResourceStorage {
     fn default() -> Self {
-        Self { stored: Vec::new() }
+        Self {
+            resources: Vec::new(),
+        }
     }
 }
 
 impl ResourceStorage {
     pub fn is_empty(&self) -> bool {
-        self.stored.is_empty()
+        self.resources.is_empty()
     }
-    pub fn add_resource<T: 'static>(&mut self, resource: Resource<T>) -> ResourceId {
+    pub fn add_resource<T: 'static>(&mut self, data: T) -> ResourceId {
+        let resource = Resource::new(data);
         let id = resource.id();
-        self.stored.push(Arc::new(resource));
+        self.resources.push(Arc::new(Box::new(resource)));
         id
     }
     pub fn remove_resource(&mut self, resource_id: ResourceId) {
-        self.stored.retain(|resource| resource.id() != resource_id);
+        self.resources
+            .retain(|resource| resource.id() != resource_id);
     }
     pub fn remove_resources(&mut self) {
-        self.stored.clear();
+        self.resources.clear();
     }
     pub fn has_resource(&self, resource_id: ResourceId) -> bool {
         if let Some(_index) = self
-            .stored
+            .resources
             .iter()
             .position(|x| x.as_ref().id() == resource_id)
         {
@@ -50,70 +54,43 @@ impl ResourceStorage {
         T: 'static + Sized,
         F: Fn(&T) -> bool,
     {
-        if let Some(item) = self.stored.iter().find(|&e| {
-            let resource: &Arc<Resource<T>> =
-                unsafe { &*(e as *const Arc<dyn ResourceTrait> as *const Arc<Resource<T>>) };
-            f(&resource.borrow())
+        if let Some(item) = self.resources.iter().find(|&e| {
+            let resource: &ResourceRc<T> =
+                unsafe { &*(e as *const ResourceTraitRc as *const ResourceRc<T>) };
+            f(&resource.get())
         }) {
             return item.id();
         }
         INVALID_UID
     }
-    pub fn get_resource<T: 'static>(&self, resource_id: ResourceId) -> ResourceRef<T> {
+    pub fn get_resource<T: 'static>(&self, resource_id: ResourceId) -> ResourceRc<T> {
         let item = self
-            .stored
+            .resources
             .iter()
-            .find(|&x| x.as_ref().id() == resource_id)
+            .find(|&x| x.id() == resource_id)
             .unwrap();
-        let item: Arc<Resource<T>> = unsafe { std::mem::transmute_copy(item) };
-        let res = Arc::into_raw(item);
-        ResourceRef::new(unsafe { &*res })
+        let resource: &ResourceRc<T> =
+            unsafe { &*(item as *const ResourceTraitRc as *const ResourceRc<T>) };
+        resource.clone()
     }
-    pub fn get_resource_mut<T: 'static>(&self, resource_id: ResourceId) -> ResourceRefMut<T> {
-        let item = self
-            .stored
-            .iter()
-            .find(|&x| x.as_ref().id() == resource_id)
-            .unwrap();
-        let item: Arc<Resource<T>> = unsafe { std::mem::transmute_copy(item) };
-        let res = Arc::into_raw(item);
-        ResourceRefMut::new(unsafe { &*res })
-    }
-    pub fn get_resources_of_type<T: 'static>(&self) -> Vec<ResourceRef<T>> {
+    pub fn get_resources_of_type<T: 'static>(&self) -> Vec<ResourceRc<T>> {
         let mut vec = Vec::new();
-        self.stored.iter().for_each(|e| {
-            let id = e.id();
-            vec.push(self.get_resource(id));
+        self.resources.iter().for_each(|e| {
+            let resource: &ResourceRc<T> =
+                unsafe { &*(e as *const ResourceTraitRc as *const ResourceRc<T>) };
+            vec.push(resource.clone());
         });
         vec
     }
-    pub fn get_resources_of_type_mut<T: 'static>(&self) -> Vec<ResourceRefMut<T>> {
-        let mut vec = Vec::new();
-        self.stored.iter().for_each(|e| {
-            let id = e.id();
-            vec.push(self.get_resource_mut(id));
-        });
-        vec
-    }
-    pub fn get_unique_resource<T: 'static>(&self) -> ResourceRef<T> {
+    pub fn get_unique_resource<T: 'static>(&self) -> ResourceRc<T> {
         debug_assert!(
-            self.stored.len() == 1,
+            self.resources.len() == 1,
             "Trying to get unique resource but multiple resource of same type exists"
         );
-        let item = self.stored.first().unwrap();
-        let item: Arc<Resource<T>> = unsafe { std::mem::transmute_copy(item) };
-        let res = Arc::into_raw(item);
-        ResourceRef::new(unsafe { &*res })
-    }
-    pub fn get_unique_resource_mut<T: 'static>(&self) -> ResourceRefMut<T> {
-        debug_assert!(
-            self.stored.len() == 1,
-            "Trying to get unique resource but multiple resource of same type exists"
-        );
-        let item = self.stored.first().unwrap();
-        let item: Arc<Resource<T>> = unsafe { std::mem::transmute_copy(item) };
-        let res = Arc::into_raw(item);
-        ResourceRefMut::new(unsafe { &*res })
+        let item = self.resources.first().unwrap();
+        let resource: &ResourceRc<T> =
+            unsafe { &*(item as *const ResourceTraitRc as *const ResourceRc<T>) };
+        resource.clone()
     }
 }
 
@@ -136,24 +113,16 @@ impl Default for SharedData {
 impl SharedData {
     pub fn clear(&mut self) {
         for (&_t, rs) in self.resources.iter_mut() {
-            //println!("Removing ResourceStorage with id {:?}", _t);
             rs.remove_resources();
         }
         self.resources.clear();
     }
     pub fn add_resource<T: 'static>(&mut self, data: T) -> ResourceId {
-        /*if !self.resources.contains_key(&TypeId::of::<T>()) {
-            println!(
-                "Adding ResourceStorage {} with id {:?}",
-                type_name::<T>(),
-                TypeId::of::<T>()
-            );
-        }*/
         let vec = self
             .resources
             .entry(TypeId::of::<T>())
             .or_insert_with(ResourceStorage::default);
-        vec.add_resource(Resource::new(data))
+        vec.add_resource(data)
     }
     pub fn has_resource<T: 'static>(&self, resource_id: ResourceId) -> bool {
         if let Some(vec) = self.resources.get(&TypeId::of::<T>()) {
@@ -185,29 +154,17 @@ impl SharedData {
     pub fn remove_resources_of_type<T: 'static>(&mut self) {
         self.remove_resources(TypeId::of::<T>());
     }
-    pub fn get_resource<T: 'static>(&self, resource_id: ResourceId) -> ResourceRef<T> {
+    pub fn get_resource<T: 'static>(&self, resource_id: ResourceId) -> ResourceRc<T> {
         let vec = self.resources.get(&TypeId::of::<T>()).unwrap();
         vec.get_resource(resource_id)
     }
-    pub fn get_resource_mut<T: 'static>(&self, resource_id: ResourceId) -> ResourceRefMut<T> {
-        let vec = self.resources.get(&TypeId::of::<T>()).unwrap();
-        vec.get_resource_mut(resource_id)
-    }
-    pub fn get_resources_of_type<T: 'static>(&self) -> Vec<ResourceRef<T>> {
+    pub fn get_resources_of_type<T: 'static>(&self) -> Vec<ResourceRc<T>> {
         let vec = self.resources.get(&TypeId::of::<T>()).unwrap();
         vec.get_resources_of_type()
     }
-    pub fn get_resources_of_type_mut<T: 'static>(&self) -> Vec<ResourceRefMut<T>> {
-        let vec = self.resources.get(&TypeId::of::<T>()).unwrap();
-        vec.get_resources_of_type_mut()
-    }
-    pub fn get_unique_resource<T: 'static>(&self) -> ResourceRef<T> {
+    pub fn get_unique_resource<T: 'static>(&self) -> ResourceRc<T> {
         let vec = self.resources.get(&TypeId::of::<T>()).unwrap();
         vec.get_unique_resource()
-    }
-    pub fn get_unique_resource_mut<T: 'static>(&self) -> ResourceRefMut<T> {
-        let vec = self.resources.get(&TypeId::of::<T>()).unwrap();
-        vec.get_unique_resource_mut()
     }
 }
 
