@@ -76,7 +76,6 @@ impl Scheduler {
         self
     }
 
-    #[allow(dead_code)]
     pub fn add_phase_before(&mut self, previous_phase_name: &str, phase_name: &str) -> &mut Self {
         let phase_index: i32 = self.get_phase_index(previous_phase_name);
         if phase_index >= 0 && phase_index < self.phases_order.len() as _ {
@@ -88,6 +87,21 @@ impl Scheduler {
                 previous_phase_name
             );
         }
+        self
+    }
+
+    pub fn create_phase_before<S: Phase>(
+        &mut self,
+        mut phase: S,
+        previous_phase_name: &str,
+    ) -> &mut Self {
+        if self.get_phase_index(phase.get_name()) < 0 {
+            self.add_phase_before(previous_phase_name, phase.get_name());
+        }
+        phase.init();
+        self.phases
+            .insert(String::from(phase.get_name()), Box::new(phase));
+        self.is_started = true;
         self
     }
 

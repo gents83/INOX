@@ -37,7 +37,7 @@ impl Plugin for Editor {
         let system = EditorUpdater::new(&app.get_shared_data(), &app.get_events(), &self.config);
         self.updater_id = system.id();
         update_phase.add_system(system);
-        app.create_phase(update_phase);
+        app.create_phase_before(update_phase, "RENDERING_UPDATE");
     }
 
     fn unprepare(&mut self, app: &mut App) {

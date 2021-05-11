@@ -53,16 +53,14 @@ pub fn remove_files_containing_with_ext(folder: PathBuf, name: &str, extension: 
     if !folder.exists() {
         return;
     }
-    for dir_entry in ::std::fs::read_dir(folder).unwrap() {
-        if let Ok(entry) = dir_entry {
-            let path = entry.path();
-            if !path.is_dir() && path.extension().is_some() {
-                let str_path = String::from(path.to_str().unwrap());
-                if extension.contains(path.extension().unwrap().to_str().unwrap())
-                    && str_path.contains(name)
-                {
-                    let _res = ::std::fs::remove_file(path);
-                }
+    for entry in ::std::fs::read_dir(folder).unwrap().flatten() {
+        let path = entry.path();
+        if !path.is_dir() && path.extension().is_some() {
+            let str_path = String::from(path.to_str().unwrap());
+            if extension.contains(path.extension().unwrap().to_str().unwrap())
+                && str_path.contains(name)
+            {
+                let _res = ::std::fs::remove_file(path);
             }
         }
     }

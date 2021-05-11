@@ -172,6 +172,10 @@ impl App {
         let w = self.get_worker(name);
         w.destroy_phase(phase_name);
     }
+    pub fn create_phase_before<P: Phase>(&mut self, phase: P, previous_phase_name: &str) {
+        self.scheduler
+            .create_phase_before(phase, previous_phase_name);
+    }
     pub fn create_phase<P: Phase>(&mut self, phase: P) {
         self.scheduler.create_phase(phase);
     }
