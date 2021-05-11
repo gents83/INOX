@@ -65,7 +65,10 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         self.manage_events();
         self.manage_style();
 
-        self.widget_update();
+        {
+            nrg_profiler::scoped_profile!("widget::wdget_update");
+            self.widget_update();
+        }
 
         self.graphics_mut().update();
     }
@@ -108,6 +111,8 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
     }
 
     fn compute_offset_and_scale_from_alignment(&mut self) {
+        nrg_profiler::scoped_profile!("widget::compute_offset_and_scale_from_alignment");
+
         let state = &self.state();
 
         let clip_rect = state.get_drawing_area();
@@ -161,6 +166,8 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
     }
 
     fn apply_fit_to_content(&mut self) {
+        nrg_profiler::scoped_profile!("widget::apply_fit_to_content");
+
         let fill_type = self.state().get_fill_type();
         let keep_fixed_height = self.state().should_keep_fixed_height();
         let keep_fixed_width = self.state().should_keep_fixed_width();
@@ -212,6 +219,8 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         self.set_size(children_size);
     }
     fn manage_style(&mut self) {
+        nrg_profiler::scoped_profile!("widget::manage_style");
+
         if self.state().is_hover() {
             let (color, border_color) = self.state().get_colors(WidgetInteractiveState::Hover);
             self.graphics_mut()
@@ -236,6 +245,8 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
     }
 
     fn read_events(&self) -> Vec<WidgetEvent> {
+        nrg_profiler::scoped_profile!("widget::read_events");
+
         let mut my_events = Vec::new();
         let id = self.id();
         let events = self.get_events().read().unwrap();
@@ -273,6 +284,8 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         my_events
     }
     fn manage_events(&mut self) {
+        nrg_profiler::scoped_profile!("widget::manage_events");
+
         let id = self.id();
         let events = self.read_events();
         for e in events.iter() {
@@ -322,6 +335,8 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
     }
 
     fn manage_mouse_event(&mut self) -> Vec<WidgetEvent> {
+        nrg_profiler::scoped_profile!("widget::manage_mouse_event");
+
         let mut widget_events = Vec::new();
         let id = self.id();
         if let Some(mut mouse_events) = self
@@ -354,6 +369,8 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
     }
 
     fn manage_input(&mut self) {
+        nrg_profiler::scoped_profile!("widget::manage_input");
+
         if !self.graphics().is_visible()
             || !self.state().is_active()
             || !self.state().is_selectable()
@@ -368,8 +385,8 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
             return;
         }
         let widget_events = self.manage_mouse_event();
+        let mut events = self.get_events().write().unwrap();
         for e in widget_events {
-            let mut events = self.get_events().write().unwrap();
             events.send_event(e);
         }
     }
@@ -380,6 +397,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
     }
 
     fn update_layout(&mut self) {
+        nrg_profiler::scoped_profile!("widget::update_layout");
         self.apply_fit_to_content();
         self.compute_offset_and_scale_from_alignment();
     }

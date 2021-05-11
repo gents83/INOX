@@ -92,6 +92,13 @@ impl App {
         }
     }
 
+    fn update_events(&mut self) {
+        nrg_profiler::scoped_profile!("app::update_events");
+
+        self.frame_count += 1;
+        self.events_rw.write().unwrap().update(self.frame_count);
+    }
+
     pub fn run_once(&mut self) -> bool {
         nrg_profiler::scoped_profile!("app::run_frame");
 
@@ -100,8 +107,7 @@ impl App {
         let plugins_to_remove = self.plugin_manager.update();
         self.update_plugins(plugins_to_remove, true);
 
-        self.frame_count += 1;
-        self.events_rw.write().unwrap().update(self.frame_count);
+        self.update_events();
 
         can_continue
     }

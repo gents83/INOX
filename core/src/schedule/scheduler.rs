@@ -189,6 +189,11 @@ impl Scheduler {
                 );
                 let (ok, jobs) = phase.run();
                 if !jobs.is_empty() {
+                    nrg_profiler::scoped_profile!(format!(
+                        "{}[{}]",
+                        "scheduler::process_jobs", name
+                    )
+                    .as_str());
                     let wait_count = Arc::new(AtomicUsize::new(jobs.len()));
                     for mut j in jobs {
                         j.set_wait_count(wait_count.clone());
@@ -197,9 +202,15 @@ impl Scheduler {
                             panic!("Failed to add job to execution queue");
                         }
                     }
-
-                    while wait_count.load(Ordering::SeqCst) > 0 {
-                        thread::yield_now();
+                    {
+                        nrg_profiler::scoped_profile!(format!(
+                            "{}[{}]",
+                            "scheduler::wait_jobs", name
+                        )
+                        .as_str());
+                        while wait_count.load(Ordering::SeqCst) > 0 {
+                            thread::yield_now();
+                        }
                     }
                 }
 

@@ -241,9 +241,41 @@ impl Profiler {
         }
     }
 
+    fn add_threads_sample(&self, end_time: u64, data: &mut Vec<serde_json::Value>) {
+        let mut threads: Vec<(&ThreadId, &ThreadInfo)> = self.threads.iter().collect();
+        threads.sort_by(|&a, &b| a.1.name.to_lowercase().cmp(&b.1.name.to_lowercase()));
+        for (_, t) in threads.iter() {
+            data.push(serde_json::json!({
+                "pid": 0,
+                "tid": t.name,
+                "id": t.index,
+                "name": t.name,
+                "cat": t.name,
+                "ph": "b",
+                "ts": 0,
+                "args": serde_json::json!({
+                    "name" : "thread_execution",
+                }),
+            }));
+            data.push(serde_json::json!({
+                "pid": 0,
+                "tid": t.name,
+                "id": t.index,
+                "name": t.name,
+                "cat": t.name,
+                "ph": "e",
+                "ts": end_time,
+                "args": serde_json::json!({
+                    "name" : "thread_execution",
+                }),
+            }));
+        }
+    }
+
     pub fn write_profile_file(&self) {
         let start_time = self.get_elapsed_time();
         let mut data = Vec::new();
+        self.add_threads_sample(start_time, &mut data);
 
         while let Ok(sample) = self.rx.try_recv() {
             if sample.time_start < start_time {
@@ -327,7 +359,7 @@ impl Drop for ScopedProfile {
                 .get::<PfnAddSampleForThread>(ADD_SAMPLE_FOR_THREAD_FUNCTION_NAME)
             {
                 add_sample_fn.unwrap()(
-                    self.name.as_str(),
+                    self.category.as_str(),
                     self.name.as_str(),
                     self.time_start,
                     time_end,

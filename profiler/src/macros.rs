@@ -152,9 +152,7 @@ macro_rules! scoped_profile {
     ($string:expr) => {
         use std::thread;
         #[cfg(debug_assertions)]
-        let _profile_scope = $crate::ScopedProfile::new(
-            "",      //$string,
-            $string, //thread::current().name().unwrap_or("no_name"),
-        );
+        let _profile_scope =
+            $crate::ScopedProfile::new(thread::current().name().unwrap_or("no_name"), $string);
     };
 }
