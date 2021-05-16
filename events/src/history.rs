@@ -15,6 +15,7 @@ pub struct EventsHistory {
     registered_event_types: Vec<TypeId>,
     events_dispatcher: Option<MessageBox>,
     message_channel: MessageChannel,
+    pending_history_event: bool,
 }
 
 impl Default for EventsHistory {
@@ -26,6 +27,7 @@ impl Default for EventsHistory {
             redoable_events: Vec::new(),
             operations: Vec::new(),
             registered_event_types: Vec::new(),
+            pending_history_event: false,
         }
     }
 }
@@ -40,6 +42,7 @@ impl EventsHistory {
                         if let Some(events_rw) = &mut self.events_dispatcher {
                             last_event.as_mut().redo(events_rw);
                         }
+                        self.pending_history_event = true;
                         self.undoable_events.push(last_event);
                     }
                 }
@@ -49,6 +52,7 @@ impl EventsHistory {
                         if let Some(events_rw) = &mut self.events_dispatcher {
                             last_event.as_mut().undo(events_rw);
                         }
+                        self.pending_history_event = true;
                         self.redoable_events.push(last_event);
                     }
                 }
@@ -94,7 +98,12 @@ impl EventsHistory {
             .unwrap()
             .try_recv()
         {
-            self.undoable_events.push(msg);
+            if self.pending_history_event {
+                self.pending_history_event = false;
+            } else {
+                self.undoable_events.push(msg);
+                self.redoable_events.clear();
+            }
         }
         self.process_operations();
     }
