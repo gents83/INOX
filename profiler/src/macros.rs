@@ -25,6 +25,7 @@ macro_rules! get_profiler {
         #[cfg(debug_assertions)]
         unsafe {
             use $crate::*;
+            $crate::load_profiler_lib!();
             if GLOBAL_PROFILER.is_none() {
                 if let Some(get_profiler_fn) = NRG_PROFILER_LIB
                     .as_ref()
@@ -68,7 +69,6 @@ macro_rules! start_profiler {
         unsafe {
             use $crate::*;
 
-            $crate::load_profiler_lib!();
             $crate::get_profiler!();
 
             if let Some(profiler) = &GLOBAL_PROFILER {
@@ -85,7 +85,6 @@ macro_rules! stop_profiler {
         unsafe {
             use $crate::*;
 
-            $crate::load_profiler_lib!();
             $crate::get_profiler!();
 
             if let Some(profiler) = &GLOBAL_PROFILER {
@@ -103,7 +102,6 @@ macro_rules! register_thread_into_profiler_with_name {
             use std::thread;
             use $crate::*;
 
-            $crate::load_profiler_lib!();
             $crate::get_profiler!();
 
             if let Some(profiler) = &GLOBAL_PROFILER {
@@ -132,7 +130,6 @@ macro_rules! write_profile_file {
         unsafe {
             use $crate::*;
 
-            $crate::load_profiler_lib!();
             $crate::get_profiler!();
 
             if let Some(profiler) = &GLOBAL_PROFILER {
@@ -149,10 +146,7 @@ macro_rules! scoped_profile {
         use $crate::*;
 
         #[cfg(debug_assertions)]
-        {
-            $crate::load_profiler_lib!();
-            $crate::get_profiler!();
-        }
+        $crate::get_profiler!();
 
         #[cfg(debug_assertions)]
         let _profile_scope = if let Some(profiler) = unsafe { &GLOBAL_PROFILER } {
