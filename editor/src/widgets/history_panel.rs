@@ -116,6 +116,11 @@ impl HistoryPanel {
 
 impl InternalWidget for HistoryPanel {
     fn widget_init(&mut self) {
+        self.get_global_messenger()
+            .write()
+            .unwrap()
+            .register_messagebox::<KeyEvent>(self.get_messagebox());
+
         self.size([450., 1000.].into())
             .vertical_alignment(VerticalAlignment::Bottom)
             .fill_type(ContainerFillType::Vertical)

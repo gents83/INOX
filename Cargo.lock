@@ -490,7 +490,6 @@ version = "0.1.0"
 dependencies = [
  "nrg_core",
  "nrg_platform",
- "nrg_profiler",
 ]
 
 [[package]]

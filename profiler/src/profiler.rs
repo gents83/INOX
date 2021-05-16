@@ -1,6 +1,6 @@
 #![allow(improper_ctypes_definitions)]
 
-use nrg_platform::ThreadId;
+use nrg_platform::{get_raw_thread_id, RawThreadId};
 use std::{
     cell::RefCell,
     collections::HashMap,
@@ -52,7 +52,7 @@ struct ThreadInfo {
 }
 
 pub struct ThreadProfiler {
-    id: ThreadId,
+    id: RawThreadId,
     tx: Sender<Sample>,
 }
 unsafe impl Sync for ThreadProfiler {}
@@ -73,7 +73,7 @@ impl ThreadProfiler {
 
 #[repr(C)]
 struct Sample {
-    tid: ThreadId,
+    tid: RawThreadId,
     category: String,
     name: String,
     time_start: f64,
@@ -81,7 +81,7 @@ struct Sample {
 }
 
 struct LockedData {
-    threads: HashMap<ThreadId, ThreadInfo>,
+    threads: HashMap<RawThreadId, ThreadInfo>,
 }
 impl Default for LockedData {
     fn default() -> Self {
@@ -149,7 +149,7 @@ impl Profiler {
         (current_time - start_time) as _
     }
     pub fn current_thread_profiler(&self) -> Arc<ThreadProfiler> {
-        let id = ThreadId::current();
+        let id = get_raw_thread_id();
         let name = String::from(thread::current().name().unwrap_or("main"));
         let mut locked_data = self.locked_data.lock().unwrap();
         let index = locked_data.threads.len();
@@ -168,7 +168,7 @@ impl Profiler {
         let end_time = self.get_elapsed_time();
         let mut thread_data = HashMap::new();
         let locked_data = self.locked_data.lock().unwrap();
-        let mut threads: Vec<(&ThreadId, &ThreadInfo)> = locked_data.threads.iter().collect();
+        let mut threads: Vec<(&RawThreadId, &ThreadInfo)> = locked_data.threads.iter().collect();
         threads.sort_by(|&a, &b| a.1.name.to_lowercase().cmp(&b.1.name.to_lowercase()));
         for (&id, t) in threads.iter() {
             thread_data.insert(
