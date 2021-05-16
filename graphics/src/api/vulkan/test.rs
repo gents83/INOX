@@ -1,8 +1,8 @@
 #![allow(dead_code)]
 
 use super::utils::*;
+use nrg_messenger::MessengerRw;
 use nrg_platform::*;
-use nrg_events::EventsRw;
 use vulkan_bindings::*;
 
 #[test]
@@ -17,7 +17,7 @@ fn test_chunks() {
         100,
         1024,
         768,
-        EventsRw::default(),
+        MessengerRw::default(),
     );
 
     let cam_pos: Vector3 = [0.0, 16.0, -64.0].into();
@@ -51,7 +51,7 @@ fn test_vulkan_create_win32_display_surface(instance: &mut VkInstance) -> VkSurf
         100,
         1024,
         768,
-        EventsRw::default(),
+        MessengerRw::default(),
     );
 
     let surface_create_info = VkWin32SurfaceCreateInfoKHR {

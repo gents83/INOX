@@ -12,6 +12,7 @@ fn main() {
         "nrg_graphics",
         "nrg_gui",
         "nrg_math",
+        "nrg_messenger",
         "nrg_platform",
         "nrg_profiler",
         "nrg_resources",

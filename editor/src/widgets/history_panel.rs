@@ -1,5 +1,8 @@
+use std::any::TypeId;
+
 use nrg_events::{EventsHistory, EventsHistoryOperation};
 use nrg_gui::*;
+use nrg_messenger::Message;
 use nrg_platform::{InputState, Key, KeyEvent};
 use nrg_serialize::*;
 
@@ -37,11 +40,11 @@ impl HistoryPanel {
         &mut self.history
     }
     fn create_history_widget(&mut self) -> (Uid, Uid, Uid, Uid, Uid) {
-        let mut label = Text::new(self.get_shared_data(), self.get_events());
+        let mut label = Text::new(self.get_shared_data(), self.get_global_messenger());
         label.set_text("Event History:");
         self.add_child(Box::new(label));
 
-        let mut button_box = Panel::new(self.get_shared_data(), self.get_events());
+        let mut button_box = Panel::new(self.get_shared_data(), self.get_global_messenger());
         button_box
             .fill_type(ContainerFillType::Horizontal)
             .horizontal_alignment(HorizontalAlignment::Stretch)
@@ -50,13 +53,13 @@ impl HistoryPanel {
             .space_between_elements((DEFAULT_WIDGET_WIDTH * Screen::get_scale_factor()) as _)
             .use_space_before_and_after(true);
 
-        let mut history_undo = Button::new(self.get_shared_data(), self.get_events());
+        let mut history_undo = Button::new(self.get_shared_data(), self.get_global_messenger());
         history_undo.with_text("Undo");
 
-        let mut history_redo = Button::new(self.get_shared_data(), self.get_events());
+        let mut history_redo = Button::new(self.get_shared_data(), self.get_global_messenger());
         history_redo.with_text("Redo");
 
-        let mut history_clear = Button::new(self.get_shared_data(), self.get_events());
+        let mut history_clear = Button::new(self.get_shared_data(), self.get_global_messenger());
         history_clear.with_text("Clear");
 
         let history_undo_button_id = button_box.add_child(Box::new(history_undo));
@@ -65,17 +68,18 @@ impl HistoryPanel {
 
         self.add_child(Box::new(button_box));
 
-        let separator = Separator::new(self.get_shared_data(), self.get_events());
+        let separator = Separator::new(self.get_shared_data(), self.get_global_messenger());
         self.add_child(Box::new(separator));
 
-        let mut history_events_box = Panel::new(self.get_shared_data(), self.get_events());
+        let mut history_events_box =
+            Panel::new(self.get_shared_data(), self.get_global_messenger());
         history_events_box
             .horizontal_alignment(HorizontalAlignment::Stretch)
             .fill_type(ContainerFillType::Vertical)
             .space_between_elements((2. * Screen::get_scale_factor()) as u32)
             .style(WidgetStyle::Invisible);
 
-        let mut text = Text::new(self.get_shared_data(), self.get_events());
+        let mut text = Text::new(self.get_shared_data(), self.get_global_messenger());
         text.set_text("Prova1\nProva2 \nProva3");
 
         let history_text_id = history_events_box.add_child(Box::new(text));
@@ -108,71 +112,6 @@ impl HistoryPanel {
         }
         text
     }
-    fn read_keyboard_events(&mut self) -> Vec<EventsHistoryOperation> {
-        let mut operations = Vec::new();
-
-        self.is_ctrl_pressed = {
-            let mut is_ctrl_pressed = self.is_ctrl_pressed;
-            let events = self.get_events().read().unwrap();
-            if let Some(key_events) = events.read_all_events::<KeyEvent>() {
-                for event in key_events.iter() {
-                    if event.code == Key::Control {
-                        if event.state == InputState::Pressed
-                            || event.state == InputState::JustPressed
-                        {
-                            is_ctrl_pressed = true;
-                        } else if event.state == InputState::Released
-                            || event.state == InputState::JustReleased
-                        {
-                            is_ctrl_pressed = false;
-                        }
-                    } else if is_ctrl_pressed
-                        && event.code == Key::Z
-                        && event.state == InputState::JustPressed
-                    {
-                        operations.push(EventsHistoryOperation::Undo);
-                    } else if is_ctrl_pressed
-                        && event.code == Key::Y
-                        && event.state == InputState::JustPressed
-                    {
-                        operations.push(EventsHistoryOperation::Redo);
-                    }
-                }
-            }
-            is_ctrl_pressed
-        };
-        operations
-    }
-    fn manage_keyboard_events(&mut self) {
-        let operations = self.read_keyboard_events();
-        for op in operations.iter() {
-            self.history.push(*op);
-        }
-    }
-
-    fn manage_history_interactions(&mut self) {
-        let operation = {
-            let mut op = None;
-            let events = self.get_events().read().unwrap();
-            if let Some(button_events) = events.read_all_events::<WidgetEvent>() {
-                for event in button_events.iter() {
-                    if let WidgetEvent::Pressed(widget_id, _mouse_in_px) = event {
-                        if *widget_id == self.history_redo_button {
-                            op = Some(EventsHistoryOperation::Redo);
-                        } else if *widget_id == self.history_undo_button {
-                            op = Some(EventsHistoryOperation::Undo);
-                        } else if *widget_id == self.history_clear_button {
-                            op = Some(EventsHistoryOperation::Clear);
-                        }
-                    }
-                }
-            }
-            op
-        };
-        if let Some(op) = operation {
-            self.history.push(op);
-        }
-    }
 }
 
 impl InternalWidget for HistoryPanel {
@@ -200,9 +139,7 @@ impl InternalWidget for HistoryPanel {
     }
 
     fn widget_update(&mut self) {
-        self.manage_keyboard_events();
-        let mut events_rw = self.get_events().clone();
-        self.history.update(&mut events_rw);
+        self.history.update();
 
         if self.graphics().is_visible() {
             let widget_id = self.history_text_widget_id;
@@ -210,9 +147,44 @@ impl InternalWidget for HistoryPanel {
             if let Some(history_text) = self.node_mut().get_child::<Text>(widget_id) {
                 history_text.set_text(text.as_str());
             }
-            self.manage_history_interactions();
         }
     }
 
     fn widget_uninit(&mut self) {}
+
+    fn widget_process_message(&mut self, msg: &dyn Message) {
+        if msg.type_id() == TypeId::of::<WidgetEvent>() {
+            let event = msg.as_any().downcast_ref::<WidgetEvent>().unwrap();
+            if let WidgetEvent::Pressed(widget_id, _mouse_in_px) = *event {
+                if widget_id == self.history_redo_button {
+                    self.history.push(EventsHistoryOperation::Redo);
+                } else if widget_id == self.history_undo_button {
+                    self.history.push(EventsHistoryOperation::Undo);
+                } else if widget_id == self.history_clear_button {
+                    self.history.push(EventsHistoryOperation::Clear);
+                }
+            }
+        } else if msg.type_id() == TypeId::of::<KeyEvent>() {
+            let event = msg.as_any().downcast_ref::<KeyEvent>().unwrap();
+            if event.code == Key::Control {
+                if event.state == InputState::Pressed || event.state == InputState::JustPressed {
+                    self.is_ctrl_pressed = true;
+                } else if event.state == InputState::Released
+                    || event.state == InputState::JustReleased
+                {
+                    self.is_ctrl_pressed = false;
+                }
+            } else if self.is_ctrl_pressed
+                && event.code == Key::Z
+                && event.state == InputState::JustPressed
+            {
+                self.history.push(EventsHistoryOperation::Undo);
+            } else if self.is_ctrl_pressed
+                && event.code == Key::Y
+                && event.state == InputState::JustPressed
+            {
+                self.history.push(EventsHistoryOperation::Redo);
+            }
+        }
+    }
 }

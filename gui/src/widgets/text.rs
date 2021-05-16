@@ -1,6 +1,8 @@
-use nrg_events::{implement_undoable_event, Event};
+use std::any::TypeId;
+
 use nrg_graphics::{FontId, FontInstance, MaterialId, MaterialInstance, MeshData};
 use nrg_math::{Vector2, Vector4};
+use nrg_messenger::{implement_undoable_message, Message};
 use nrg_platform::{MouseEvent, MouseState};
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
@@ -17,7 +19,7 @@ pub enum TextEvent {
     AddChar(Uid, i32, char),
     RemoveChar(Uid, i32, char),
 }
-implement_undoable_event!(TextEvent, undo_event, debug_info_event);
+implement_undoable_message!(TextEvent, undo_event, debug_info_event);
 fn undo_event(event: &TextEvent) -> TextEvent {
     match event {
         TextEvent::AddChar(widget_id, character_index, character) => {
@@ -101,77 +103,6 @@ impl Text {
         None
     }
 
-    fn read_text_events(&self) -> Vec<TextEvent> {
-        let mut output_events = Vec::new();
-        let id = self.id();
-        let events = self.get_events().read().unwrap();
-        if let Some(text_events) = events.read_all_events::<TextEvent>() {
-            for &event in text_events.iter() {
-                match event {
-                    TextEvent::AddChar(widget_id, _char_index, _character) => {
-                        if *widget_id == id {
-                            output_events.push(*event);
-                        }
-                    }
-                    TextEvent::RemoveChar(widget_id, _char_index, _character) => {
-                        if *widget_id == id {
-                            output_events.push(*event);
-                        }
-                    }
-                }
-            }
-        }
-        output_events
-    }
-
-    fn read_mouse_events(&self) -> Option<MouseEvent> {
-        let events = self.get_events().read().unwrap();
-
-        if let Some(mouse_events) = events.read_all_events::<MouseEvent>() {
-            for &event in mouse_events.iter() {
-                if event.state == MouseState::Move {
-                    return Some(*event);
-                }
-            }
-        }
-        None
-    }
-
-    fn update_text(&mut self) {
-        let text_events = self.read_text_events();
-        for &e in text_events.iter() {
-            match e {
-                TextEvent::AddChar(_widget_id, char_index, character) => {
-                    self.add_char(char_index, character);
-                }
-                TextEvent::RemoveChar(_widget_id, char_index, _character) => {
-                    self.remove_char(char_index);
-                }
-            }
-        }
-
-        if let Some(mouse_events) = self.read_mouse_events() {
-            if mouse_events.state == MouseState::Move {
-                let mouse_pos = Vector2::new(mouse_events.x as _, mouse_events.y as _);
-                let pos = self.state().get_position();
-                let size = self.state().get_size();
-                let count = self.text.lines().count();
-                let line_height = size.y / count as f32;
-                for (line_index, t) in self.text.lines().enumerate() {
-                    for (i, _c) in t.as_bytes().iter().enumerate() {
-                        if mouse_pos.x >= pos.x + self.char_width as f32 * i as f32
-                            && mouse_pos.x <= pos.x + self.char_width as f32 * (i as f32 + 1.)
-                            && mouse_pos.y >= pos.y + line_height * line_index as f32
-                            && mouse_pos.y <= pos.y + size.y + line_height * line_index as f32
-                        {
-                            self.hover_char_index = 1 + i as i32;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
     fn add_char(&mut self, index: i32, character: char) {
         let mut new_index = index + 1;
         if new_index > self.text.len() as i32 {
@@ -239,7 +170,7 @@ impl Text {
                     Vector4::new(pos_x, pos_y, pos_x + char_width, pos_y + char_height),
                     0.,
                     FontInstance::get_glyph_texture_coord(
-                        self.get_shared_data(),
+                        &self.get_shared_data(),
                         self.font_id,
                         *c as _,
                     ),
@@ -257,6 +188,11 @@ impl Text {
 
 impl InternalWidget for Text {
     fn widget_init(&mut self) {
+        self.get_global_messenger()
+            .write()
+            .unwrap()
+            .register_messagebox::<TextEvent>(self.get_messagebox());
+
         let font_id = FontInstance::get_default(self.get_shared_data());
         let material_id = MaterialInstance::create_from_font(self.get_shared_data(), font_id);
 
@@ -277,7 +213,6 @@ impl InternalWidget for Text {
     }
 
     fn widget_update(&mut self) {
-        self.update_text();
         if self.is_dirty {
             self.update_mesh_from_text();
             self.is_dirty = false;
@@ -286,5 +221,43 @@ impl InternalWidget for Text {
 
     fn widget_uninit(&mut self) {
         self.graphics_mut().remove_meshes();
+    }
+
+    fn widget_process_message(&mut self, msg: &dyn Message) {
+        if msg.type_id() == TypeId::of::<TextEvent>() {
+            let event = msg.as_any().downcast_ref::<TextEvent>().unwrap();
+            match *event {
+                TextEvent::AddChar(widget_id, char_index, character) => {
+                    if self.id() == widget_id {
+                        self.add_char(char_index, character);
+                    }
+                }
+                TextEvent::RemoveChar(widget_id, char_index, _character) => {
+                    if self.id() == widget_id {
+                        self.remove_char(char_index);
+                    }
+                }
+            }
+        } else if msg.type_id() == TypeId::of::<MouseEvent>() {
+            let event = msg.as_any().downcast_ref::<MouseEvent>().unwrap();
+            if event.state == MouseState::Move {
+                let mouse_pos = Vector2::new(event.x as _, event.y as _);
+                let pos = self.state().get_position();
+                let size = self.state().get_size();
+                let count = self.text.lines().count();
+                let line_height = size.y / count as f32;
+                for (line_index, t) in self.text.lines().enumerate() {
+                    for (i, _c) in t.as_bytes().iter().enumerate() {
+                        if mouse_pos.x >= pos.x + self.char_width as f32 * i as f32
+                            && mouse_pos.x <= pos.x + self.char_width as f32 * (i as f32 + 1.)
+                            && mouse_pos.y >= pos.y + line_height * line_index as f32
+                            && mouse_pos.y <= pos.y + size.y + line_height * line_index as f32
+                        {
+                            self.hover_char_index = 1 + i as i32;
+                        }
+                    }
+                }
+            }
+        }
     }
 }

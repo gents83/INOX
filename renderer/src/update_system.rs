@@ -1,16 +1,16 @@
 use std::{
+    any::TypeId,
     sync::{
         atomic::{AtomicUsize, Ordering},
         Arc,
     },
-    thread,
 };
 
 use crate::config::*;
 
 use nrg_core::*;
-use nrg_events::EventsRw;
 use nrg_graphics::*;
+use nrg_messenger::{read_messages, MessageChannel, MessengerRw};
 use nrg_platform::WindowEvent;
 use nrg_resources::{SharedData, SharedDataRw};
 
@@ -18,23 +18,29 @@ pub struct UpdateSystem {
     id: SystemId,
     renderer: RendererRw,
     shared_data: SharedDataRw,
-    events_rw: EventsRw,
     config: Config,
+    message_channel: MessageChannel,
 }
 
 impl UpdateSystem {
     pub fn new(
         renderer: RendererRw,
         shared_data: &SharedDataRw,
-        events_rw: &EventsRw,
+        global_messenger: &MessengerRw,
         config: &Config,
     ) -> Self {
+        let message_channel = MessageChannel::default();
+        global_messenger
+            .write()
+            .unwrap()
+            .register_messagebox::<WindowEvent>(message_channel.get_messagebox());
+
         Self {
             id: SystemId::new(),
             renderer,
             shared_data: shared_data.clone(),
-            events_rw: events_rw.clone(),
             config: config.clone(),
+            message_channel,
         }
     }
 }
@@ -58,18 +64,15 @@ impl System for UpdateSystem {
             return (true, Vec::new());
         }
 
-        let should_recreate_swap_chain = {
-            let events = self.events_rw.read().unwrap();
-            let mut size_changed = false;
-            if let Some(window_events) = events.read_all_events::<WindowEvent>() {
-                for event in window_events {
-                    if let WindowEvent::SizeChanged(_width, _height) = event {
-                        size_changed = true;
-                    }
+        let mut should_recreate_swap_chain = false;
+        read_messages(self.message_channel.get_listener(), |msg| {
+            if msg.type_id() == TypeId::of::<WindowEvent>() {
+                let e = msg.as_any().downcast_ref::<WindowEvent>().unwrap();
+                if let WindowEvent::SizeChanged(_width, _height) = e {
+                    should_recreate_swap_chain = true;
                 }
             }
-            size_changed
-        };
+        });
 
         {
             let mut renderer = self.renderer.write().unwrap();
@@ -125,11 +128,11 @@ impl System for UpdateSystem {
                                 wait_count.fetch_add(1, Ordering::SeqCst);
 
                                 jobs.push(Job::new(
-                                    format!(
-                                        "PrepareMaterial [{}] with mesh [{}]",
-                                        material_index, mesh_index
-                                    ),
                                     move || {
+                                        nrg_profiler::scoped_profile!(format!(
+                                            "PrepareMaterial [{}] with mesh [{}]",
+                                            material_index, mesh_index
+                                        ).as_str());
                                         let mesh_instance =
                                         SharedData::get_resource::<MeshInstance>(&shared_data, mesh_id);
 
@@ -166,7 +169,8 @@ impl System for UpdateSystem {
             });
 
         let renderer = self.renderer.clone();
-        jobs.push(Job::new("EndPreparation".to_string(), move || {
+        jobs.push(Job::new(move || {
+            nrg_profiler::scoped_profile!("EndPreparation");
             while wait_count.load(Ordering::SeqCst) > 0 {
                 thread::yield_now();
             }

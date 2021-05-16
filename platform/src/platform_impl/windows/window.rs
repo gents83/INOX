@@ -5,9 +5,9 @@ use crate::ctypes::*;
 use crate::handle::*;
 use crate::input::*;
 use crate::window::*;
-use nrg_events::events::*;
+use nrg_messenger::MessageBox;
 
-static mut EVENTS: *mut EventsRw = std::ptr::null_mut();
+static mut EVENTS_DISPATCHER: Option<MessageBox> = None;
 
 impl Window {
     pub fn create_handle(
@@ -17,10 +17,10 @@ impl Window {
         width: &mut u32,
         height: &mut u32,
         scale_factor: &mut f32,
-        events: &mut EventsRw,
+        events_dispatcher: MessageBox,
     ) -> Handle {
         unsafe {
-            EVENTS = events as *mut EventsRw;
+            EVENTS_DISPATCHER = Some(events_dispatcher);
         };
 
         let mut title: Vec<u16> = title.encode_utf16().collect();
@@ -87,10 +87,8 @@ impl Window {
         }
     }
 
-    pub fn internal_update(handle: &Handle, events: &mut EventsRw) -> bool {
+    pub fn internal_update(handle: &Handle) -> bool {
         unsafe {
-            EVENTS = events as *mut EventsRw;
-
             let mut can_continue = true;
             let mut message: MSG = ::std::mem::MaybeUninit::zeroed().assume_init();
             while PeekMessageW(
@@ -118,31 +116,43 @@ impl Window {
                     let mut mouse_pos = POINT { x: 0, y: 0 };
                     GetCursorPos(&mut mouse_pos);
                     ScreenToClient(handle.handle_impl.hwnd, &mut mouse_pos);
-                    let mut events = events.write().unwrap();
-                    events.send_event(MouseEvent {
-                        x: mouse_pos.x as f64,
-                        y: mouse_pos.y as f64,
-                        button: match message.message {
-                            WM_LBUTTONDOWN | WM_LBUTTONUP | WM_LBUTTONDBLCLK => MouseButton::Left,
-                            WM_RBUTTONDOWN | WM_RBUTTONUP | WM_RBUTTONDBLCLK => MouseButton::Right,
-                            WM_MBUTTONDOWN | WM_MBUTTONUP | WM_MBUTTONDBLCLK => MouseButton::Middle,
-                            _ => MouseButton::None,
-                        },
-                        state: match message.message {
-                            WM_LBUTTONDOWN | WM_RBUTTONDOWN | WM_MBUTTONDOWN => MouseState::Down,
-                            WM_LBUTTONUP | WM_RBUTTONUP | WM_MBUTTONUP => MouseState::Up,
-                            WM_LBUTTONDBLCLK | WM_RBUTTONDBLCLK | WM_MBUTTONDBLCLK => {
-                                MouseState::DoubleClick
-                            }
-                            _ => MouseState::Move,
-                        },
-                    });
+                    if let Some(events_dispatcher) = &mut EVENTS_DISPATCHER {
+                        let events = events_dispatcher.write().unwrap();
+                        let _ = events.send(Box::new(MouseEvent {
+                            x: mouse_pos.x as f64,
+                            y: mouse_pos.y as f64,
+                            button: match message.message {
+                                WM_LBUTTONDOWN | WM_LBUTTONUP | WM_LBUTTONDBLCLK => {
+                                    MouseButton::Left
+                                }
+                                WM_RBUTTONDOWN | WM_RBUTTONUP | WM_RBUTTONDBLCLK => {
+                                    MouseButton::Right
+                                }
+                                WM_MBUTTONDOWN | WM_MBUTTONUP | WM_MBUTTONDBLCLK => {
+                                    MouseButton::Middle
+                                }
+                                _ => MouseButton::None,
+                            },
+                            state: match message.message {
+                                WM_LBUTTONDOWN | WM_RBUTTONDOWN | WM_MBUTTONDOWN => {
+                                    MouseState::Down
+                                }
+                                WM_LBUTTONUP | WM_RBUTTONUP | WM_MBUTTONUP => MouseState::Up,
+                                WM_LBUTTONDBLCLK | WM_RBUTTONDBLCLK | WM_MBUTTONDBLCLK => {
+                                    MouseState::DoubleClick
+                                }
+                                _ => MouseState::Move,
+                            },
+                        }));
+                    }
                 } else if message.message == WM_CHAR {
                     let char = message.wParam as INT;
-                    let mut events = events.write().unwrap();
-                    events.send_event(KeyTextEvent {
-                        char: char as u8 as _,
-                    });
+                    if let Some(events_dispatcher) = &mut EVENTS_DISPATCHER {
+                        let events = events_dispatcher.write().unwrap();
+                        let _ = events.send(Box::new(KeyTextEvent {
+                            char: char as u8 as _,
+                        }));
+                    }
                     can_continue = true;
                 } else if message.message == WM_KEYDOWN
                     || message.message == WM_KEYUP
@@ -157,27 +167,29 @@ impl Window {
                         key = convert_command(char);
                     }
                     let is_repeat = (message.lParam >> 30) & 1 == 1;
-                    let mut events = events.write().unwrap();
-                    events.send_event(KeyEvent {
-                        code: key,
-                        state: match message.message {
-                            WM_KEYDOWN | WM_SYSCHAR | WM_SYSKEYDOWN => {
-                                if is_repeat {
-                                    InputState::Pressed
-                                } else {
-                                    InputState::JustPressed
+                    if let Some(events_dispatcher) = &mut EVENTS_DISPATCHER {
+                        let events = events_dispatcher.write().unwrap();
+                        let _ = events.send(Box::new(KeyEvent {
+                            code: key,
+                            state: match message.message {
+                                WM_KEYDOWN | WM_SYSCHAR | WM_SYSKEYDOWN => {
+                                    if is_repeat {
+                                        InputState::Pressed
+                                    } else {
+                                        InputState::JustPressed
+                                    }
                                 }
-                            }
-                            WM_KEYUP | WM_SYSDEADCHAR | WM_SYSKEYUP => {
-                                if is_repeat {
-                                    InputState::Released
-                                } else {
-                                    InputState::JustReleased
+                                WM_KEYUP | WM_SYSDEADCHAR | WM_SYSKEYUP => {
+                                    if is_repeat {
+                                        InputState::Released
+                                    } else {
+                                        InputState::JustReleased
+                                    }
                                 }
-                            }
-                            _ => InputState::Invalid,
-                        },
-                    });
+                                _ => InputState::Invalid,
+                            },
+                        }));
+                    }
                     can_continue = true;
                 }
             }
@@ -218,34 +230,35 @@ impl Window {
                     rect.bottom - rect.top,
                     SWP_NOACTIVATE | SWP_NOZORDER,
                 );
-                if EVENTS != ::std::ptr::null_mut() {
-                    let mut events = (*EVENTS).write().unwrap();
-                    events.send_event(WindowEvent::DpiChanged(dpi_x as _, dpi_y as _));
+                if let Some(events_dispatcher) = &mut EVENTS_DISPATCHER {
+                    let events = events_dispatcher.write().unwrap();
+                    let _ = events.send(Box::new(WindowEvent::DpiChanged(dpi_x as _, dpi_y as _)));
                 }
                 DefWindowProcW(hwnd, msg, wparam, lparam)
             }
             WM_SIZE => {
                 let width = LOWORD(lparam as _);
                 let height = HIWORD(lparam as _);
-                if EVENTS != ::std::ptr::null_mut() {
-                    let mut events = (*EVENTS).write().unwrap();
-                    events.send_event(WindowEvent::SizeChanged(width as _, height as _));
+                if let Some(events_dispatcher) = &mut EVENTS_DISPATCHER {
+                    let events = events_dispatcher.write().unwrap();
+                    let _ =
+                        events.send(Box::new(WindowEvent::SizeChanged(width as _, height as _)));
                 }
                 DefWindowProcW(hwnd, msg, wparam, lparam)
             }
             WM_MOVE => {
                 let x = LOWORD(lparam as _);
                 let y = HIWORD(lparam as _);
-                if EVENTS != ::std::ptr::null_mut() {
-                    let mut events = (*EVENTS).write().unwrap();
-                    events.send_event(WindowEvent::PosChanged(x as _, y as _));
+                if let Some(events_dispatcher) = &mut EVENTS_DISPATCHER {
+                    let events = events_dispatcher.write().unwrap();
+                    let _ = events.send(Box::new(WindowEvent::PosChanged(x as _, y as _)));
                 }
                 DefWindowProcW(hwnd, msg, wparam, lparam)
             }
             WM_DESTROY | WM_CLOSE | WM_QUIT | WM_NCDESTROY => {
-                if EVENTS != ::std::ptr::null_mut() {
-                    let mut events = (*EVENTS).write().unwrap();
-                    events.send_event(WindowEvent::Close);
+                if let Some(events_dispatcher) = &mut EVENTS_DISPATCHER {
+                    let events = events_dispatcher.write().unwrap();
+                    let _ = events.send(Box::new(WindowEvent::Close));
                 }
                 PostQuitMessage(0);
                 0

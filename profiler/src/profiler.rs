@@ -1,131 +1,54 @@
 #![allow(improper_ctypes_definitions)]
 
 use std::{
-    cell::Cell,
     collections::HashMap,
     convert::TryInto,
     fs::File,
     io::BufWriter,
+    process,
     sync::{
         mpsc::{channel, Receiver, Sender},
-        Mutex,
+        Arc, RwLock,
     },
     thread::{self, ThreadId},
     time::Instant,
     u64,
 };
 
+pub type GlobalProfiler = Arc<RwLock<Profiler>>;
 pub static mut NRG_PROFILER_LIB: Option<nrg_platform::Library> = None;
+
+pub const GET_PROFILER_FUNCTION_NAME: &str = "get_profiler";
+pub type PfnGetProfiler = ::std::option::Option<unsafe extern "C" fn() -> GlobalProfiler>;
 
 pub const CREATE_PROFILER_FUNCTION_NAME: &str = "create_profiler";
 pub type PfnCreateProfiler = ::std::option::Option<unsafe extern "C" fn()>;
-pub const START_PROFILER_FUNCTION_NAME: &str = "start_profiler";
-pub type PfnStartProfiler = ::std::option::Option<unsafe extern "C" fn()>;
-pub const STOP_PROFILER_FUNCTION_NAME: &str = "stop_profiler";
-pub type PfnStopProfiler = ::std::option::Option<unsafe extern "C" fn()>;
-pub const REGISTER_THREAD_FUNCTION_NAME: &str = "register_thread";
-pub type PfnRegisterThread = ::std::option::Option<unsafe extern "C" fn(*const u8)>;
-pub const GET_ELAPSED_TIME_FUNCTION_NAME: &str = "get_elapsed_time";
-pub type PfnGetElapsedTime = ::std::option::Option<unsafe extern "C" fn() -> u64>;
-pub const ADD_SAMPLE_FOR_THREAD_FUNCTION_NAME: &str = "add_sample_for_thread";
-pub type PfnAddSampleForThread = ::std::option::Option<unsafe extern "C" fn(&str, &str, u64, u64)>;
-pub const WRITE_PROFILE_FILE_FUNCTION_NAME: &str = "write_profile_file";
-pub type PfnWriteProfileFile = ::std::option::Option<unsafe extern "C" fn()>;
 
-pub static GLOBAL_PROFILER: GlobalProfiler = GlobalProfiler(Cell::new(None));
+pub static mut GLOBAL_PROFILER: Option<GlobalProfiler> = None;
 
-#[repr(C)]
-pub struct GlobalProfiler(Cell<Option<Mutex<Profiler>>>);
-unsafe impl Sync for GlobalProfiler {}
-unsafe impl Send for GlobalProfiler {}
+#[no_mangle]
+pub extern "C" fn get_profiler() -> GlobalProfiler {
+    unsafe { GLOBAL_PROFILER.as_ref().unwrap().clone() }
+}
 
 #[no_mangle]
 pub extern "C" fn create_profiler() {
-    GLOBAL_PROFILER.0.set(Some(Mutex::new(Profiler::new())));
+    unsafe {
+        GLOBAL_PROFILER.replace(Arc::new(RwLock::new(Profiler::new())));
+    }
     let main = "main\0";
     register_thread(main.as_ptr());
 }
 
-#[no_mangle]
-pub extern "C" fn start_profiler() {
+fn register_thread(name: *const u8) {
     unsafe {
-        match *GLOBAL_PROFILER.0.as_ptr() {
-            Some(ref x) => {
-                x.lock().unwrap().start();
-            }
-            None => panic!("Trying to start_profiler on an uninitialized static global variable"),
-        }
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn stop_profiler() {
-    unsafe {
-        match *GLOBAL_PROFILER.0.as_ptr() {
-            Some(ref x) => {
-                x.lock().unwrap().stop();
-            }
-            None => panic!("Trying to stop_profiler on an uninitialized static global variable"),
-        }
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn register_thread(name: *const u8) {
-    unsafe {
-        match *GLOBAL_PROFILER.0.as_ptr() {
-            Some(ref x) => {
-                if name == std::ptr::null() {
-                    x.lock().unwrap().register_thread(None);
-                } else if let Ok(str) = std::ffi::CStr::from_ptr(name as *const i8).to_str() {
-                    x.lock().unwrap().register_thread(Some(str));
-                } else {
-                    x.lock().unwrap().register_thread(None);
-                }
-            }
-            None => panic!("Trying to register_thread on an uninitialized static global variable"),
-        }
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn add_sample_for_thread(category: &str, name: &str, start: u64, end: u64) {
-    unsafe {
-        match *GLOBAL_PROFILER.0.as_ptr() {
-            Some(ref x) => {
-                x.lock()
-                    .unwrap()
-                    .add_sample_for_thread(category, name, start, end);
-            }
-            None => {
-                panic!("Trying to add_sample_for_thread on an uninitialized static global variable")
-            }
-        }
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn get_elapsed_time() -> u64 {
-    unsafe {
-        match *GLOBAL_PROFILER.0.as_ptr() {
-            Some(ref x) => x.lock().unwrap().get_elapsed_time(),
-            None => {
-                panic!("Trying to write_profile_file on an uninitialized static global variable")
-            }
-        }
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn write_profile_file() {
-    unsafe {
-        match *GLOBAL_PROFILER.0.as_ptr() {
-            Some(ref x) => {
-                x.lock().unwrap().write_profile_file();
-            }
-            None => {
-                panic!("Trying to write_profile_file on an uninitialized static global variable")
-            }
+        let profiler = GLOBAL_PROFILER.as_ref().unwrap();
+        if name == std::ptr::null() {
+            profiler.write().unwrap().register_thread(None);
+        } else if let Ok(str) = std::ffi::CStr::from_ptr(name as *const i8).to_str() {
+            profiler.write().unwrap().register_thread(Some(str));
+        } else {
+            profiler.write().unwrap().register_thread(None);
         }
     }
 }
@@ -143,7 +66,7 @@ struct ThreadProfiler {
 }
 
 impl ThreadProfiler {
-    fn push_sample(&self, category: String, name: String, time_start: u64, time_end: u64) {
+    fn push_sample(&self, category: String, name: String, time_start: f64, time_end: f64) {
         let sample = Sample {
             tid: self.id,
             category,
@@ -160,8 +83,8 @@ struct Sample {
     tid: ThreadId,
     category: String,
     name: String,
-    time_start: u64,
-    time_end: u64,
+    time_start: f64,
+    time_end: f64,
 }
 
 #[repr(C)]
@@ -187,6 +110,9 @@ impl Profiler {
             threads: HashMap::new(),
         }
     }
+    pub fn is_started(&self) -> bool {
+        self.started
+    }
     pub fn start(&mut self) {
         let _ = self.rx.try_recv();
         self.started = true;
@@ -197,12 +123,13 @@ impl Profiler {
         self.started = false;
         println!(
             "Stopping profiler for a total duration of {:.3}",
-            self.time_start.elapsed().as_secs_f32()
+            self.time_start.elapsed().as_secs_f64()
         );
     }
-    pub fn get_elapsed_time(&self) -> u64 {
+    pub fn get_elapsed_time(&self) -> f64 {
         let elapsed = self.time_start.elapsed();
-        elapsed.as_micros().try_into().unwrap()
+        let micros: u64 = elapsed.as_micros().try_into().unwrap();
+        micros as f64
     }
     pub fn register_thread(&mut self, optional_name: Option<&str>) {
         let id = thread::current().id();
@@ -227,7 +154,7 @@ impl Profiler {
             },
         });
     }
-    pub fn add_sample_for_thread(&mut self, category: &str, name: &str, start: u64, end: u64) {
+    pub fn add_sample_for_thread(&mut self, category: &str, name: &str, start: f64, end: f64) {
         if !self.started {
             return;
         }
@@ -241,69 +168,56 @@ impl Profiler {
         }
     }
 
-    fn add_threads_sample(&self, end_time: u64, data: &mut Vec<serde_json::Value>) {
+    pub fn write_profile_file(&self) {
+        let end_time = self.get_elapsed_time();
+        let mut thread_data = HashMap::new();
         let mut threads: Vec<(&ThreadId, &ThreadInfo)> = self.threads.iter().collect();
         threads.sort_by(|&a, &b| a.1.name.to_lowercase().cmp(&b.1.name.to_lowercase()));
-        for (_, t) in threads.iter() {
-            data.push(serde_json::json!({
-                "pid": 0,
-                "tid": t.name,
-                "id": t.index,
-                "name": t.name,
-                "cat": t.name,
-                "ph": "b",
-                "ts": 0,
-                "args": serde_json::json!({
-                    "name" : "thread_execution",
-                }),
-            }));
-            data.push(serde_json::json!({
-                "pid": 0,
-                "tid": t.name,
-                "id": t.index,
-                "name": t.name,
-                "cat": t.name,
-                "ph": "e",
-                "ts": end_time,
-                "args": serde_json::json!({
-                    "name" : "thread_execution",
-                }),
-            }));
+        for (&id, t) in threads.iter() {
+            thread_data.insert(
+                id,
+                vec![Sample {
+                    tid: id,
+                    category: t.name.clone(),
+                    name: t.name.clone(),
+                    time_start: 0.,
+                    time_end: end_time,
+                }],
+            );
         }
-    }
-
-    pub fn write_profile_file(&self) {
-        let start_time = self.get_elapsed_time();
-        let mut data = Vec::new();
-        self.add_threads_sample(start_time, &mut data);
 
         while let Ok(sample) = self.rx.try_recv() {
-            if sample.time_start < start_time {
-                if let Some(thread) = self.threads.get(&sample.tid) {
+            if let Some(vec) = thread_data.get_mut(&sample.tid) {
+                vec.push(sample);
+            } else {
+                panic!("Invalid thread id {:?}", sample.tid);
+            }
+        }
+
+        let mut data = Vec::new();
+        for (id, vec) in thread_data.iter_mut() {
+            vec.sort_by(|a, b| a.time_start.partial_cmp(&b.time_start).unwrap());
+
+            for sample in vec.iter() {
+                if let Some(thread) = self.threads.get(&id) {
                     let thread_id = thread.name.as_str();
                     data.push(serde_json::json!({
-                        "pid": 0,
-                        "tid": thread_id,
+                        "pid": process::id(),
                         "id": thread.index,
-                        "name": sample.name,
+                        "tid": thread_id,
                         "cat": thread_id,
-                        "ph": "b",
+                        "name": sample.name,
+                        "ph": "B",
                         "ts": sample.time_start,
-                        "args": serde_json::json!({
-                            "name" : sample.category,
-                        }),
                     }));
                     data.push(serde_json::json!({
-                        "pid": 0,
-                        "tid": thread_id,
+                        "pid": process::id(),
                         "id": thread.index,
-                        "name": sample.name,
+                        "tid": thread_id,
                         "cat": thread_id,
-                        "ph": "e",
+                        "name": sample.name,
+                        "ph": "E",
                         "ts": sample.time_end,
-                        "args": serde_json::json!({
-                            "name" : sample.category,
-                        }),
                     }));
                 } else {
                     panic!("Invalid thread id {:?}", sample.tid);
@@ -311,60 +225,42 @@ impl Profiler {
             }
         }
 
-        let f = BufWriter::new(File::create("app.nrg_profile").unwrap());
+        let profile_file_name = "app.nrg_profile";
+
+        let f = BufWriter::new(File::create(profile_file_name).unwrap());
         serde_json::to_writer(f, &data).unwrap();
+
+        println!("Profile file {} written", profile_file_name);
     }
 }
 
 pub struct ScopedProfile {
+    profiler: GlobalProfiler,
     category: String,
     name: String,
-    time_start: u64,
+    time_start: f64,
 }
 
 impl ScopedProfile {
-    pub fn new(category: &str, name: &str) -> ScopedProfile {
-        let mut time: u64 = 0;
-        unsafe {
-            if let Some(get_elapsed_fn) = NRG_PROFILER_LIB
-                .as_ref()
-                .unwrap()
-                .get::<PfnGetElapsedTime>(GET_ELAPSED_TIME_FUNCTION_NAME)
-            {
-                time = get_elapsed_fn.unwrap()();
-            }
-        }
-        ScopedProfile {
+    pub fn new(profiler: GlobalProfiler, category: &str, name: &str) -> Self {
+        let time_start = profiler.read().unwrap().get_elapsed_time();
+        Self {
+            profiler,
             category: category.to_string(),
             name: name.to_string(),
-            time_start: time,
+            time_start,
         }
     }
 }
 
 impl Drop for ScopedProfile {
     fn drop(&mut self) {
-        unsafe {
-            let mut time_end = self.time_start;
-            if let Some(get_elapsed_fn) = NRG_PROFILER_LIB
-                .as_ref()
-                .unwrap()
-                .get::<PfnGetElapsedTime>(GET_ELAPSED_TIME_FUNCTION_NAME)
-            {
-                time_end = get_elapsed_fn.unwrap()();
-            }
-            if let Some(add_sample_fn) = NRG_PROFILER_LIB
-                .as_ref()
-                .unwrap()
-                .get::<PfnAddSampleForThread>(ADD_SAMPLE_FOR_THREAD_FUNCTION_NAME)
-            {
-                add_sample_fn.unwrap()(
-                    self.category.as_str(),
-                    self.name.as_str(),
-                    self.time_start,
-                    time_end,
-                );
-            }
-        }
+        let time_end = self.profiler.read().unwrap().get_elapsed_time();
+        self.profiler.write().unwrap().add_sample_for_thread(
+            self.category.as_str(),
+            self.name.as_str(),
+            self.time_start,
+            time_end,
+        );
     }
 }

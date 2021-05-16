@@ -9,6 +9,7 @@ members = [
     "gui",
     "graphics",
     "math",
+    "messenger",
     "platform",
     "profiler",
     "resources",

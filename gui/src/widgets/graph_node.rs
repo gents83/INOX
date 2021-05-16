@@ -1,4 +1,7 @@
+use std::any::TypeId;
+
 use nrg_math::{VecBase, Vector2};
+use nrg_messenger::Message;
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{
@@ -37,32 +40,15 @@ impl GraphNode {
             }
         }
     }
-    fn manage_events(&mut self) -> &mut Self {
-        let is_collapsed = {
-            let mut collapse = self.is_collapsed;
-            let events = self.get_events().read().unwrap();
-            if let Some(widget_events) = events.read_all_events::<TitleBarEvent>() {
-                for event in widget_events.iter() {
-                    if let TitleBarEvent::Collapsed(widget_id) = event {
-                        if *widget_id == self.title_bar {
-                            collapse = true;
-                        }
-                    } else if let TitleBarEvent::Expanded(widget_id) = event {
-                        if *widget_id == self.title_bar {
-                            collapse = false;
-                        }
-                    }
-                }
-            }
-            collapse
-        };
-        self.collapse(is_collapsed);
-        self
-    }
 }
 
 impl InternalWidget for GraphNode {
     fn widget_init(&mut self) {
+        self.get_global_messenger()
+            .write()
+            .unwrap()
+            .register_messagebox::<TitleBarEvent>(self.get_messagebox());
+
         if self.is_initialized() {
             return;
         }
@@ -76,13 +62,25 @@ impl InternalWidget for GraphNode {
             .vertical_alignment(VerticalAlignment::None)
             .style(WidgetStyle::DefaultBackground);
 
-        let title_bar = TitleBar::new(self.get_shared_data(), self.get_events());
+        let title_bar = TitleBar::new(self.get_shared_data(), self.get_global_messenger());
         self.title_bar = self.add_child(Box::new(title_bar));
     }
 
-    fn widget_update(&mut self) {
-        self.manage_events();
-    }
+    fn widget_update(&mut self) {}
 
     fn widget_uninit(&mut self) {}
+    fn widget_process_message(&mut self, msg: &dyn Message) {
+        if msg.type_id() == TypeId::of::<TitleBarEvent>() {
+            let event = msg.as_any().downcast_ref::<TitleBarEvent>().unwrap();
+            if let TitleBarEvent::Collapsed(widget_id) = *event {
+                if widget_id == self.title_bar {
+                    self.collapse(true);
+                }
+            } else if let TitleBarEvent::Expanded(widget_id) = *event {
+                if widget_id == self.title_bar {
+                    self.collapse(false);
+                }
+            }
+        }
+    }
 }

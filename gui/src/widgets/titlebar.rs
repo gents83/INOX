@@ -1,9 +1,11 @@
-use nrg_events::{implement_event, Event};
+use std::any::TypeId;
+
 use nrg_graphics::{
     utils::{create_triangle_down, create_triangle_up},
     MeshData,
 };
 use nrg_math::Vector2;
+use nrg_messenger::{implement_message, Message};
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{
@@ -20,7 +22,7 @@ pub enum TitleBarEvent {
     Collapsed(Uid),
     Expanded(Uid),
 }
-implement_event!(TitleBarEvent);
+implement_message!(TitleBarEvent);
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]
@@ -87,7 +89,8 @@ impl TitleBar {
     fn create_collapse_icon(&mut self) -> &mut Self {
         if self.is_collapsible {
             let icon_size: Vector2 = DEFAULT_ICON_SIZE.into();
-            let mut collapse_icon = Canvas::new(self.get_shared_data(), self.get_events());
+            let mut collapse_icon =
+                Canvas::new(self.get_shared_data(), self.get_global_messenger());
             collapse_icon
                 .size(icon_size * Screen::get_scale_factor())
                 .vertical_alignment(VerticalAlignment::Center)
@@ -99,39 +102,6 @@ impl TitleBar {
             self.change_collapse_icon();
         }
 
-        self
-    }
-
-    fn manage_interactions(&mut self) -> &mut Self {
-        let should_change = {
-            let mut should_change = false;
-            let events = self.get_events().read().unwrap();
-            if let Some(widget_events) = events.read_all_events::<WidgetEvent>() {
-                for event in widget_events.iter() {
-                    if let WidgetEvent::Pressed(widget_id, _mouse_in_px) = event {
-                        if self.id() == *widget_id || self.collapse_icon_widget == *widget_id {
-                            should_change = true;
-                        }
-                    }
-                }
-            }
-            should_change
-        };
-        if should_change {
-            if self.is_collapsed {
-                self.expand();
-            } else {
-                self.collapse();
-            }
-        }
-        if self.is_dirty {
-            let mut events = self.get_events().write().unwrap();
-            if self.is_collapsed {
-                events.send_event(TitleBarEvent::Collapsed(self.id()));
-            } else {
-                events.send_event(TitleBarEvent::Expanded(self.id()));
-            }
-        }
         self
     }
 }
@@ -156,7 +126,7 @@ impl InternalWidget for TitleBar {
 
         self.create_collapse_icon();
 
-        let mut title = Text::new(self.get_shared_data(), self.get_events());
+        let mut title = Text::new(self.get_shared_data(), self.get_global_messenger());
         title
             .draggable(false)
             .selectable(false)
@@ -167,9 +137,31 @@ impl InternalWidget for TitleBar {
         self.title_widget = self.add_child(Box::new(title));
     }
 
-    fn widget_update(&mut self) {
-        self.manage_interactions().change_collapse_icon();
-    }
+    fn widget_update(&mut self) {}
 
     fn widget_uninit(&mut self) {}
+    fn widget_process_message(&mut self, msg: &dyn Message) {
+        if msg.type_id() == TypeId::of::<WidgetEvent>() {
+            let event = msg.as_any().downcast_ref::<WidgetEvent>().unwrap();
+            if let WidgetEvent::Pressed(widget_id, _mouse_in_px) = *event {
+                if self.id() == widget_id || self.collapse_icon_widget == widget_id {
+                    let events_dispatcher = self.get_global_dispatcher();
+
+                    let titlebar_event = if self.is_collapsed {
+                        self.expand();
+                        TitleBarEvent::Expanded(self.id())
+                    } else {
+                        self.collapse();
+                        TitleBarEvent::Collapsed(self.id())
+                    };
+                    self.change_collapse_icon();
+
+                    let _ = events_dispatcher
+                        .write()
+                        .unwrap()
+                        .send(Message::as_boxed(&titlebar_event));
+                }
+            }
+        }
+    }
 }

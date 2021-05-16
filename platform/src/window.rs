@@ -1,5 +1,7 @@
-use crate::handle::*;
-use nrg_events::{events::*, implement_event};
+use std::any::TypeId;
+
+use crate::{handle::*, KeyEvent, KeyTextEvent, MouseEvent};
+use nrg_messenger::{implement_message, read_messages, MessageChannel, MessengerRw};
 
 pub const DEFAULT_DPI: f32 = 96.0;
 
@@ -11,7 +13,7 @@ pub enum WindowEvent {
     PosChanged(u32, u32),
     Close,
 }
-implement_event!(WindowEvent);
+implement_message!(WindowEvent);
 
 pub struct Window {
     handle: Handle,
@@ -20,7 +22,7 @@ pub struct Window {
     width: u32,
     height: u32,
     scale_factor: f32,
-    events: EventsRw,
+    message_channel: MessageChannel,
     can_continue: bool,
 }
 
@@ -34,8 +36,18 @@ impl Window {
         y: u32,
         mut width: u32,
         mut height: u32,
-        mut events: EventsRw,
+        global_messenger: MessengerRw,
     ) -> Self {
+        let mut global_dispatcher = global_messenger.write().unwrap();
+
+        global_dispatcher.register_type::<WindowEvent>();
+        global_dispatcher.register_type::<KeyEvent>();
+        global_dispatcher.register_type::<KeyTextEvent>();
+        global_dispatcher.register_type::<MouseEvent>();
+
+        let message_channel = MessageChannel::default();
+        global_dispatcher.register_messagebox::<WindowEvent>(message_channel.get_messagebox());
+
         let mut scale_factor = 1.0;
         let handle = Window::create_handle(
             title,
@@ -44,7 +56,7 @@ impl Window {
             &mut width,
             &mut height,
             &mut scale_factor,
-            &mut events,
+            global_dispatcher.get_dispatcher(),
         );
         Self {
             handle,
@@ -53,7 +65,7 @@ impl Window {
             width,
             height,
             scale_factor,
-            events,
+            message_channel,
             can_continue: true,
         }
     }
@@ -81,38 +93,48 @@ impl Window {
         &self.handle
     }
 
-    pub fn get_events(&self) -> EventsRw {
-        self.events.clone()
-    }
-
     pub fn update(&mut self) -> bool {
-        Window::internal_update(&self.handle, &mut self.events);
+        Window::internal_update(&self.handle);
         self.manage_window_events();
         self.can_continue
     }
 
     fn manage_window_events(&mut self) {
-        let events = self.events.read().unwrap();
-        if let Some(window_events) = events.read_all_events::<WindowEvent>() {
-            for event in window_events.iter() {
-                match event {
-                    WindowEvent::DpiChanged(x, _y) => {
-                        self.scale_factor = x / DEFAULT_DPI;
+        let mut scale_factor = self.scale_factor;
+        let mut can_continue = self.can_continue;
+        let mut width = self.width;
+        let mut height = self.height;
+        let mut x = self.x;
+        let mut y = self.y;
+
+        read_messages(self.message_channel.get_listener(), |msg| {
+            if msg.type_id() == TypeId::of::<WindowEvent>() {
+                let e = msg.as_any().downcast_ref::<WindowEvent>().unwrap();
+                match *e {
+                    WindowEvent::DpiChanged(new_x, _y) => {
+                        scale_factor = new_x / DEFAULT_DPI;
                     }
-                    WindowEvent::SizeChanged(width, height) => {
-                        self.width = *width;
-                        self.height = *height;
+                    WindowEvent::SizeChanged(new_width, new_height) => {
+                        width = new_width;
+                        height = new_height;
                     }
-                    WindowEvent::PosChanged(x, y) => {
-                        self.x = *x;
-                        self.y = *y;
+                    WindowEvent::PosChanged(new_x, new_y) => {
+                        x = new_x;
+                        y = new_y;
                     }
                     WindowEvent::Close => {
-                        self.can_continue = false;
+                        can_continue = false;
                     }
                     WindowEvent::None => {}
                 }
             }
-        }
+        });
+
+        self.scale_factor = scale_factor;
+        self.can_continue = can_continue;
+        self.width = width;
+        self.height = height;
+        self.x = x;
+        self.y = y;
     }
 }

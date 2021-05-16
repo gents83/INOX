@@ -14,8 +14,20 @@ macro_rules! implement_widget {
                 self.data.get_shared_data()
             }
             #[inline]
-            fn get_events(&self) -> &nrg_events::EventsRw {
-                self.data.get_events()
+            fn get_global_messenger(&self) -> &nrg_messenger::MessengerRw {
+                self.data.get_global_messenger()
+            }
+            #[inline]
+            fn get_global_dispatcher(&self) -> nrg_messenger::MessageBox {
+                self.data.get_global_dispatcher()
+            }
+            #[inline]
+            fn get_listener(&self) -> nrg_messenger::Listener {
+                self.data.get_listener()
+            }
+            #[inline]
+            fn get_messagebox(&self) -> nrg_messenger::MessageBox {
+                self.data.get_messagebox()
             }
             #[inline]
             fn node(&self) -> &WidgetNode {
@@ -146,15 +158,15 @@ macro_rules! implement_widget {
 #[macro_export]
 macro_rules! implement_widget_with_data {
     ($Type:ident) => {
-        use nrg_events::EventsRw;
-        use nrg_resources::SharedDataRw;
-
         $crate::implement_widget!($Type);
 
         impl $Type {
-            pub fn new(shared_data: &SharedDataRw, events_rw: &EventsRw) -> $Type {
+            pub fn new(
+                shared_data: &nrg_resources::SharedDataRw,
+                global_messenger: &nrg_messenger::MessengerRw,
+            ) -> $Type {
                 let mut w = $Type {
-                    data: WidgetData::new(shared_data, events_rw),
+                    data: WidgetData::new(shared_data.clone(), global_messenger.clone()),
                 };
                 w.init();
                 w
@@ -166,15 +178,12 @@ macro_rules! implement_widget_with_data {
 #[macro_export]
 macro_rules! implement_widget_with_custom_members {
     ($Type:ident { $($field:ident : $value:expr),+ }) => {
-        use nrg_events::EventsRw;
-        use nrg_resources::SharedDataRw;
-
         $crate::implement_widget!($Type);
 
         impl $Type {
-            pub fn new(shared_data: &SharedDataRw, events_rw: &EventsRw) -> $Type {
+            pub fn new(shared_data: &nrg_resources::SharedDataRw, global_messenger: &nrg_messenger::MessengerRw) -> $Type {
                 let mut w = $Type {
-                    data: WidgetData::new(shared_data, events_rw),
+                    data: WidgetData::new(shared_data.clone(), global_messenger.clone()),
                     $($field: $value),+
                 };
                 w.init();

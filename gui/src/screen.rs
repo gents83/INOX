@@ -1,12 +1,5 @@
-use std::{
-    borrow::Borrow,
-    cell::{RefCell, RefMut},
-    sync::Arc,
-    sync::Once,
-};
+use std::{borrow::Borrow, cell::RefCell, sync::Arc, sync::Once};
 
-use nrg_events::EventsRw;
-use nrg_platform::{WindowEvent, DEFAULT_DPI};
 use nrg_math::{Vector2, Vector4};
 
 const DEFAULT_WIDTH: u32 = 1920;
@@ -15,7 +8,6 @@ const DEFAULT_HEIGTH: u32 = 1080;
 struct ScreenData {
     size: Vector2,
     scale_factor: f32,
-    window_events: EventsRw,
 }
 
 impl Default for ScreenData {
@@ -23,7 +15,6 @@ impl Default for ScreenData {
         Self {
             scale_factor: 1.0,
             size: Vector2::new(DEFAULT_WIDTH as _, DEFAULT_HEIGTH as _),
-            window_events: EventsRw::default(),
         }
     }
 }
@@ -48,41 +39,19 @@ impl Screen {
         screen_data.as_ref().unwrap().borrow()
     }
 
-    fn get_mut<'a>() -> RefMut<'a, ScreenData> {
-        let screen_data = Screen::get_and_init_once();
-        screen_data.as_ref().unwrap().borrow_mut()
-    }
-
-    pub fn create(width: u32, height: u32, scale_factor: f32, events_rw: EventsRw) {
-        let mut screen_data = Screen::get_mut();
-        screen_data.window_events = events_rw;
+    pub fn create(width: u32, height: u32, scale_factor: f32) {
+        let mut screen_data = Screen::get().borrow_mut();
         screen_data.size = Vector2::new(width as _, height as _);
         screen_data.scale_factor = scale_factor;
     }
 
-    pub fn update() {
+    pub fn change_scale_factor(scale_factor: f32) {
         let mut inner = Screen::get().borrow_mut();
-        let mut size = inner.size;
-        let mut scale_factor = inner.scale_factor;
-        {
-            let events = inner.window_events.read().unwrap();
-            if let Some(window_events) = events.read_all_events::<WindowEvent>() {
-                for event in window_events.iter() {
-                    match event {
-                        WindowEvent::SizeChanged(width, height) => {
-                            size.x = *width as _;
-                            size.y = *height as _;
-                        }
-                        WindowEvent::DpiChanged(x, _y) => {
-                            scale_factor = x / DEFAULT_DPI;
-                        }
-                        _ => {}
-                    }
-                }
-            }
-        }
-        inner.size = size;
         inner.scale_factor = scale_factor;
+    }
+    pub fn change_size(width: u32, height: u32) {
+        let mut inner = Screen::get().borrow_mut();
+        inner.size = Vector2::new(width as _, height as _);
     }
 
     pub fn get_draw_area() -> Vector4 {

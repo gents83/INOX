@@ -1,6 +1,6 @@
 use std::any::TypeId;
 
-use crate::{Event, EventsRw};
+use nrg_messenger::{Message, MessageBox, MessageChannel, MessengerRw};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EventsHistoryOperation {
@@ -9,15 +9,19 @@ pub enum EventsHistoryOperation {
     Clear,
 }
 pub struct EventsHistory {
-    undoable_events: Vec<Box<dyn Event>>,
-    redoable_events: Vec<Box<dyn Event>>,
+    undoable_events: Vec<Box<dyn Message>>,
+    redoable_events: Vec<Box<dyn Message>>,
     operations: Vec<EventsHistoryOperation>,
     registered_event_types: Vec<TypeId>,
+    events_dispatcher: Option<MessageBox>,
+    message_channel: MessageChannel,
 }
 
 impl Default for EventsHistory {
     fn default() -> Self {
         Self {
+            events_dispatcher: None,
+            message_channel: MessageChannel::default(),
             undoable_events: Vec::new(),
             redoable_events: Vec::new(),
             operations: Vec::new(),
@@ -27,20 +31,24 @@ impl Default for EventsHistory {
 }
 
 impl EventsHistory {
-    fn process_operations(&mut self, events_rw: &mut EventsRw) {
+    fn process_operations(&mut self) {
         for op in self.operations.iter() {
             match *op {
                 EventsHistoryOperation::Redo => {
                     if !self.redoable_events.is_empty() {
                         let mut last_event = self.redoable_events.pop().unwrap();
-                        last_event.as_mut().redo(events_rw);
+                        if let Some(events_rw) = &mut self.events_dispatcher {
+                            last_event.as_mut().redo(events_rw);
+                        }
                         self.undoable_events.push(last_event);
                     }
                 }
                 EventsHistoryOperation::Undo => {
                     if !self.undoable_events.is_empty() {
                         let mut last_event = self.undoable_events.pop().unwrap();
-                        last_event.as_mut().undo(events_rw);
+                        if let Some(events_rw) = &mut self.events_dispatcher {
+                            last_event.as_mut().undo(events_rw);
+                        }
                         self.redoable_events.push(last_event);
                     }
                 }
@@ -53,27 +61,23 @@ impl EventsHistory {
         self.operations.clear();
     }
 
-    fn process_events(&mut self, events_rw: &mut EventsRw) -> Vec<Box<dyn Event>> {
-        let mut new_events = Vec::new();
-        if self.registered_event_types.is_empty() {
-            return new_events;
-        }
-        let events = events_rw.read().unwrap();
-        let filtered_events = events.get_events_of_type(&self.registered_event_types);
-        for event in filtered_events.iter() {
-            let boxed_event = event.as_boxed();
-            new_events.push(boxed_event);
-        }
-        new_events
-    }
-
-    pub fn register_event_as_undoable<T>(&mut self) -> &mut Self
+    pub fn register_event_as_undoable<T>(&mut self, global_messenger: &MessengerRw) -> &mut Self
     where
-        T: Event,
+        T: Message + Clone,
     {
         let typeid = TypeId::of::<T>();
         if !self.registered_event_types.contains(&typeid) {
             self.registered_event_types.push(typeid);
+
+            if self.events_dispatcher.is_none() {
+                self.events_dispatcher = Some(global_messenger.read().unwrap().get_dispatcher());
+            }
+
+            global_messenger.write().unwrap().register_type::<T>();
+            global_messenger
+                .write()
+                .unwrap()
+                .register_messagebox::<T>(self.message_channel.get_messagebox());
         }
         self
     }
@@ -82,12 +86,17 @@ impl EventsHistory {
         self.operations.push(operation);
     }
 
-    pub fn update(&mut self, events_rw: &mut EventsRw) {
-        let mut new_events = self.process_events(events_rw);
-        if !new_events.is_empty() {
-            self.undoable_events.append(&mut new_events);
+    pub fn update(&mut self) {
+        while let Ok(msg) = self
+            .message_channel
+            .get_listener()
+            .read()
+            .unwrap()
+            .try_recv()
+        {
+            self.undoable_events.push(msg);
         }
-        self.process_operations(events_rw);
+        self.process_operations();
     }
 
     pub fn get_undoable_events_history_as_string(&self) -> Option<Vec<String>> {

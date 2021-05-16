@@ -1,4 +1,7 @@
+use std::any::TypeId;
+
 use nrg_math::{Vector2, Vector4};
+use nrg_messenger::{read_messages, Message};
 use nrg_platform::{MouseEvent, MouseState};
 use nrg_serialize::{typetag, Uid};
 
@@ -19,6 +22,7 @@ pub trait InternalWidget {
     fn widget_init(&mut self);
     fn widget_update(&mut self);
     fn widget_uninit(&mut self);
+    fn widget_process_message(&mut self, _msg: &dyn Message);
 }
 
 pub trait BaseWidget: InternalWidget + WidgetDataGetter {
@@ -60,9 +64,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
             widget_clip = add_widget_size(widget_clip, filltype, w);
             widget_clip = add_space_before_after(widget_clip, filltype, space);
         });
-
-        self.manage_input();
-        self.manage_events();
+        self.process_messages();
         self.manage_style();
 
         {
@@ -72,11 +74,24 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
 
         self.graphics_mut().update();
     }
-
     fn uninit(&mut self) {
         self.node_mut().propagate_on_children_mut(|w| w.uninit());
         self.widget_uninit();
         self.graphics_mut().uninit();
+    }
+    fn process_messages(&mut self) {
+        nrg_profiler::scoped_profile!("widget::process_messages");
+        read_messages(self.get_listener(), |msg| {
+            if msg.type_id() == TypeId::of::<MouseEvent>() {
+                let e = msg.as_any().downcast_ref::<MouseEvent>().unwrap();
+                self.manage_input(e);
+            }
+            if msg.type_id() == TypeId::of::<WidgetEvent>() {
+                let e = msg.as_any().downcast_ref::<WidgetEvent>().unwrap();
+                self.manage_events(e);
+            }
+            self.widget_process_message(msg);
+        });
     }
 
     fn id(&self) -> Uid {
@@ -243,132 +258,54 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
                 .set_border_color(border_color);
         }
     }
-
-    fn read_events(&self) -> Vec<WidgetEvent> {
-        nrg_profiler::scoped_profile!("widget::read_events");
-
-        let mut my_events = Vec::new();
-        let id = self.id();
-        let events = self.get_events().read().unwrap();
-        if let Some(widget_events) = events.read_all_events::<WidgetEvent>() {
-            for &event in widget_events.iter() {
-                match &event {
-                    WidgetEvent::Entering(widget_id) => {
-                        if *widget_id == id {
-                            my_events.push(*event);
-                        }
-                    }
-                    WidgetEvent::Exiting(widget_id) => {
-                        if *widget_id == id {
-                            my_events.push(*event);
-                        }
-                    }
-                    WidgetEvent::Released(widget_id, _mouse_in_px) => {
-                        if *widget_id == id {
-                            my_events.push(*event);
-                        }
-                    }
-                    WidgetEvent::Pressed(widget_id, _mouse_in_px) => {
-                        if *widget_id == id {
-                            my_events.push(*event);
-                        }
-                    }
-                    WidgetEvent::Dragging(widget_id, _mouse_in_px) => {
-                        if *widget_id == id {
-                            my_events.push(*event);
-                        }
-                    }
-                }
-            }
-        }
-        my_events
-    }
-    fn manage_events(&mut self) {
+    fn manage_events(&mut self, event: &WidgetEvent) {
         nrg_profiler::scoped_profile!("widget::manage_events");
 
         let id = self.id();
-        let events = self.read_events();
-        for e in events.iter() {
-            match e {
-                WidgetEvent::Entering(widget_id) => {
-                    if *widget_id == id && self.state().is_selectable() {
-                        self.state_mut().set_hover(true);
-                    }
+        match event {
+            WidgetEvent::Entering(widget_id) => {
+                if *widget_id == id && self.state().is_selectable() {
+                    self.state_mut().set_hover(true);
                 }
-                WidgetEvent::Exiting(widget_id) => {
-                    if *widget_id == id && self.state().is_selectable() {
-                        self.state_mut().set_hover(false);
-                        self.state_mut().set_pressed(false);
-                    }
+            }
+            WidgetEvent::Exiting(widget_id) => {
+                if *widget_id == id && self.state().is_selectable() {
+                    self.state_mut().set_hover(false);
+                    self.state_mut().set_pressed(false);
                 }
-                WidgetEvent::Released(widget_id, mouse_in_px) => {
-                    if *widget_id == id && self.state().is_selectable() {
-                        self.state_mut().set_pressed(false);
-                        if self.state().is_draggable() {
-                            self.state_mut().set_dragging_position(*mouse_in_px);
-                        }
-                    }
-                }
-                WidgetEvent::Pressed(widget_id, mouse_in_px) => {
-                    if *widget_id == id && self.state().is_selectable() {
-                        self.state_mut().set_pressed(true);
-                        if self.state().is_draggable() {
-                            self.state_mut().set_dragging_position(*mouse_in_px);
-                        }
-                    }
-                }
-                WidgetEvent::Dragging(widget_id, mouse_in_px) => {
-                    if *widget_id == id && self.state().is_draggable() {
-                        self.state_mut()
-                            .set_horizontal_alignment(HorizontalAlignment::None);
-                        self.state_mut()
-                            .set_vertical_alignment(VerticalAlignment::None);
-                        let old_mouse_pos = self.state().get_dragging_position();
-                        let offset = mouse_in_px - old_mouse_pos;
+            }
+            WidgetEvent::Released(widget_id, mouse_in_px) => {
+                if *widget_id == id && self.state().is_selectable() {
+                    self.state_mut().set_pressed(false);
+                    if self.state().is_draggable() {
                         self.state_mut().set_dragging_position(*mouse_in_px);
-                        let current_pos = self.state().get_position();
-                        self.set_position(current_pos + offset);
                     }
+                }
+            }
+            WidgetEvent::Pressed(widget_id, mouse_in_px) => {
+                if *widget_id == id && self.state().is_selectable() {
+                    self.state_mut().set_pressed(true);
+                    if self.state().is_draggable() {
+                        self.state_mut().set_dragging_position(*mouse_in_px);
+                    }
+                }
+            }
+            WidgetEvent::Dragging(widget_id, mouse_in_px) => {
+                if *widget_id == id && self.state().is_draggable() {
+                    self.state_mut()
+                        .set_horizontal_alignment(HorizontalAlignment::None);
+                    self.state_mut()
+                        .set_vertical_alignment(VerticalAlignment::None);
+                    let old_mouse_pos = self.state().get_dragging_position();
+                    let offset = mouse_in_px - old_mouse_pos;
+                    self.state_mut().set_dragging_position(*mouse_in_px);
+                    let current_pos = self.state().get_position();
+                    self.set_position(current_pos + offset);
                 }
             }
         }
     }
-
-    fn manage_mouse_event(&mut self) -> Vec<WidgetEvent> {
-        nrg_profiler::scoped_profile!("widget::manage_mouse_event");
-
-        let mut widget_events = Vec::new();
-        let id = self.id();
-        if let Some(mut mouse_events) = self
-            .get_events()
-            .read()
-            .unwrap()
-            .read_all_events::<MouseEvent>()
-        {
-            for event in mouse_events.iter_mut() {
-                let mouse_in_px: Vector2 = [event.x as _, event.y as _].into();
-                let is_inside = self.state().is_inside(mouse_in_px);
-
-                if event.state == MouseState::Move {
-                    if is_inside && !self.state().is_hover() {
-                        widget_events.push(WidgetEvent::Entering(id));
-                    } else if !is_inside && self.state().is_hover() {
-                        widget_events.push(WidgetEvent::Exiting(id));
-                    } else if self.state().is_pressed() && self.state().is_draggable() {
-                        widget_events.push(WidgetEvent::Dragging(id, mouse_in_px));
-                    }
-                } else if event.state == MouseState::Down && is_inside && !self.state().is_pressed()
-                {
-                    widget_events.push(WidgetEvent::Pressed(id, mouse_in_px));
-                } else if event.state == MouseState::Up && self.state().is_pressed() {
-                    widget_events.push(WidgetEvent::Released(id, mouse_in_px));
-                }
-            }
-        }
-        widget_events
-    }
-
-    fn manage_input(&mut self) {
+    fn manage_input(&mut self, event: &MouseEvent) {
         nrg_profiler::scoped_profile!("widget::manage_input");
 
         if !self.graphics().is_visible()
@@ -384,10 +321,35 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         if is_on_child {
             return;
         }
-        let widget_events = self.manage_mouse_event();
-        let mut events = self.get_events().write().unwrap();
-        for e in widget_events {
-            events.send_event(e);
+
+        let id = self.id();
+        let mouse_in_px: Vector2 = [event.x as _, event.y as _].into();
+        let is_inside = self.state().is_inside(mouse_in_px);
+
+        let widget_event = if event.state == MouseState::Move {
+            if is_inside && !self.state().is_hover() {
+                Some(WidgetEvent::Entering(id))
+            } else if !is_inside && self.state().is_hover() {
+                Some(WidgetEvent::Exiting(id))
+            } else if self.state().is_pressed() && self.state().is_draggable() {
+                Some(WidgetEvent::Dragging(id, mouse_in_px))
+            } else {
+                None
+            }
+        } else if event.state == MouseState::Down && is_inside && !self.state().is_pressed() {
+            Some(WidgetEvent::Pressed(id, mouse_in_px))
+        } else if event.state == MouseState::Up && self.state().is_pressed() {
+            Some(WidgetEvent::Released(id, mouse_in_px))
+        } else {
+            None
+        };
+
+        if let Some(event) = widget_event {
+            let _ = self
+                .get_global_dispatcher()
+                .write()
+                .unwrap()
+                .send(Message::as_boxed(&event));
         }
     }
     fn move_to_layer(&mut self, layer: f32) {

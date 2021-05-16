@@ -1,4 +1,5 @@
 use std::{
+    any::TypeId,
     collections::VecDeque,
     sync::{Arc, RwLock},
     time::{Duration, Instant},
@@ -11,6 +12,7 @@ use nrg_core::*;
 use nrg_events::*;
 use nrg_graphics::*;
 use nrg_gui::*;
+use nrg_messenger::{read_messages, MessageChannel, MessengerRw};
 use nrg_platform::*;
 use nrg_resources::{SharedData, SharedDataRw};
 use nrg_serialize::*;
@@ -19,34 +21,46 @@ pub struct EditorUpdater {
     id: SystemId,
     frame_seconds: VecDeque<Instant>,
     shared_data: SharedDataRw,
-    events_rw: EventsRw,
+    global_messenger: MessengerRw,
     config: Config,
     fps_text: Uid,
     fps_widget_id: Uid,
     main_menu_id: Uid,
     history_panel_id: Uid,
     widgets: Vec<Arc<RwLock<Box<dyn Widget>>>>,
+    message_channel: MessageChannel,
 }
 
 impl EditorUpdater {
-    pub fn new(shared_data: &SharedDataRw, events_rw: &EventsRw, config: &Config) -> Self {
+    pub fn new(shared_data: SharedDataRw, global_messenger: MessengerRw, config: &Config) -> Self {
+        let message_channel = MessageChannel::default();
+
+        global_messenger
+            .write()
+            .unwrap()
+            .register_messagebox::<KeyEvent>(message_channel.get_messagebox());
+        global_messenger
+            .write()
+            .unwrap()
+            .register_messagebox::<WidgetEvent>(message_channel.get_messagebox());
         Self {
             id: SystemId::new(),
             frame_seconds: VecDeque::default(),
-            shared_data: shared_data.clone(),
-            events_rw: events_rw.clone(),
+            shared_data,
+            global_messenger,
             config: config.clone(),
             widgets: Vec::new(),
             fps_text: INVALID_UID,
             fps_widget_id: INVALID_UID,
             main_menu_id: INVALID_UID,
             history_panel_id: INVALID_UID,
+            message_channel,
         }
     }
 
-    pub fn registered_event_types(history: &mut EventsHistory) {
-        history.register_event_as_undoable::<TextEvent>();
-        history.register_event_as_undoable::<CheckboxEvent>();
+    pub fn registered_event_types(&self, history: &mut EventsHistory) {
+        history.register_event_as_undoable::<TextEvent>(&self.global_messenger);
+        history.register_event_as_undoable::<CheckboxEvent>(&self.global_messenger);
     }
 }
 
@@ -59,20 +73,20 @@ impl System for EditorUpdater {
         self.load_pipelines();
         self.create_screen();
 
-        let mut history_panel = HistoryPanel::new(&self.shared_data, &self.events_rw);
+        let mut history_panel = HistoryPanel::new(&self.shared_data, &self.global_messenger);
         let history = history_panel.get_history();
-        EditorUpdater::registered_event_types(history);
+        self.registered_event_types(history);
         self.history_panel_id = history_panel.id();
 
-        let main_menu = MainMenu::new(&self.shared_data, &self.events_rw);
+        let main_menu = MainMenu::new(&self.shared_data, &self.global_messenger);
         self.main_menu_id = main_menu.id();
 
-        let mut canvas = Canvas::new(&self.shared_data, &self.events_rw);
+        let mut canvas = Canvas::new(&self.shared_data, &self.global_messenger);
         canvas.move_to_layer(-1.);
 
-        let node = GraphNode::new(&self.shared_data, &self.events_rw);
+        let node = GraphNode::new(&self.shared_data, &self.global_messenger);
 
-        let mut widget = Panel::new(&self.shared_data, &self.events_rw);
+        let mut widget = Panel::new(&self.shared_data, &self.global_messenger);
         widget
             .position([300., 300.].into())
             .size([300., 800.].into())
@@ -84,15 +98,15 @@ impl System for EditorUpdater {
             .move_to_layer(0.5);
         self.fps_widget_id = widget.id();
 
-        let mut fps_text = Text::new(&self.shared_data, &self.events_rw);
+        let mut fps_text = Text::new(&self.shared_data, &self.global_messenger);
         fps_text.set_text("FPS: ");
         self.fps_text = widget.add_child(Box::new(fps_text));
 
-        let mut checkbox = Checkbox::new(&self.shared_data, &self.events_rw);
+        let mut checkbox = Checkbox::new(&self.shared_data, &self.global_messenger);
         checkbox.with_label("Checkbox");
         widget.add_child(Box::new(checkbox));
 
-        let mut textbox = TextBox::new(&self.shared_data, &self.events_rw);
+        let mut textbox = TextBox::new(&self.shared_data, &self.global_messenger);
         textbox
             .horizontal_alignment(HorizontalAlignment::Stretch)
             .with_label("Sample:")
@@ -126,9 +140,7 @@ impl System for EditorUpdater {
     }
 
     fn run(&mut self) -> (bool, Vec<Job>) {
-        Screen::update();
-
-        self.update_keyboard_input();
+        self.update_events();
 
         self.update_fps_counter();
 
@@ -178,7 +190,6 @@ impl EditorUpdater {
             window.get().get_width(),
             window.get().get_heigth(),
             window.get().get_scale_factor(),
-            self.events_rw.clone(),
         );
     }
     fn update_fps_counter(&mut self) -> &mut Self {
@@ -228,12 +239,12 @@ impl EditorUpdater {
             let job = {
                 let widget = w.clone();
                 if widget.read().unwrap().id() == self.main_menu_id {
-                    Job::new(format!("widget[{}]", i), move || {
+                    Job::new(move || {
                         nrg_profiler::scoped_profile!(format!("widget[{}]", i).as_str());
                         widget.write().unwrap().update(Screen::get_draw_area());
                     })
                 } else {
-                    Job::new(format!("widget[{}]", i), move || {
+                    Job::new(move || {
                         nrg_profiler::scoped_profile!(format!("widget[{}]", i).as_str());
                         widget.write().unwrap().update(draw_area);
                     })
@@ -258,13 +269,12 @@ impl EditorUpdater {
         );
     }
 
-    fn update_keyboard_input(&mut self) {
-        nrg_profiler::scoped_profile!("update_keyboard_input");
+    fn update_events(&mut self) {
+        nrg_profiler::scoped_profile!("update_events");
 
-        let events = self.events_rw.read().unwrap();
-
-        if let Some(key_events) = events.read_all_events::<KeyEvent>() {
-            for event in key_events.iter() {
+        read_messages(self.message_channel.get_listener(), |msg| {
+            if msg.type_id() == TypeId::of::<KeyEvent>() {
+                let event = msg.as_any().downcast_ref::<KeyEvent>().unwrap();
                 if event.state == InputState::JustPressed && event.code == Key::F5 {
                     println!("Launch game");
                     let result = std::process::Command::new("nrg_game_app").spawn().is_ok();
@@ -272,7 +282,18 @@ impl EditorUpdater {
                         println!("Failed to execute process");
                     }
                 }
+            } else if msg.type_id() == TypeId::of::<WindowEvent>() {
+                let event = msg.as_any().downcast_ref::<WindowEvent>().unwrap();
+                match *event {
+                    WindowEvent::SizeChanged(width, height) => {
+                        Screen::change_size(width, height);
+                    }
+                    WindowEvent::DpiChanged(x, _y) => {
+                        Screen::change_scale_factor(x / DEFAULT_DPI);
+                    }
+                    _ => {}
+                }
             }
-        }
+        });
     }
 }

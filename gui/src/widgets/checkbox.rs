@@ -1,5 +1,7 @@
-use nrg_events::{implement_undoable_event, Event};
+use std::any::TypeId;
+
 use nrg_math::Vector2;
+use nrg_messenger::{implement_undoable_message, Message};
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{
@@ -17,7 +19,7 @@ pub enum CheckboxEvent {
     Checked(Uid),
     Unchecked(Uid),
 }
-implement_undoable_event!(CheckboxEvent, undo_event, debug_info_event);
+implement_undoable_message!(CheckboxEvent, undo_event, debug_info_event);
 fn undo_event(event: &CheckboxEvent) -> CheckboxEvent {
     match event {
         CheckboxEvent::Checked(widget_id) => CheckboxEvent::Unchecked(*widget_id),
@@ -57,7 +59,7 @@ impl Checkbox {
             self.node_mut().remove_child(uid);
             self.label_widget = INVALID_UID;
         }
-        let mut label = Text::new(self.get_shared_data(), self.get_events());
+        let mut label = Text::new(self.get_shared_data(), self.get_global_messenger());
         label
             .vertical_alignment(VerticalAlignment::Center)
             .set_text(text);
@@ -82,68 +84,15 @@ impl Checkbox {
     pub fn is_checked(&self) -> bool {
         self.is_checked
     }
-
-    fn check_state_change(&self, id: Uid, events_rw: &mut EventsRw) {
-        let mut changed = false;
-        let mut new_state = false;
-        {
-            let events = events_rw.read().unwrap();
-            if let Some(widget_events) = events.read_all_events::<WidgetEvent>() {
-                for event in widget_events.iter() {
-                    if let WidgetEvent::Released(widget_id, _mouse_in_px) = event {
-                        if id == *widget_id {
-                            if !self.is_checked {
-                                changed = true;
-                                new_state = true;
-                            } else if self.is_checked {
-                                changed = true;
-                                new_state = false;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        {
-            let mut events = events_rw.write().unwrap();
-            if changed {
-                if new_state {
-                    events.send_event(CheckboxEvent::Checked(id));
-                } else {
-                    events.send_event(CheckboxEvent::Unchecked(id));
-                }
-            }
-        }
-    }
-
-    pub fn update_checked(&mut self) {
-        let id = self.outer_widget;
-        let is_checked = {
-            let mut is_checked = self.is_checked;
-            self.check_state_change(id, &mut self.get_events().clone());
-
-            let events = self.get_events().read().unwrap();
-            if let Some(checkbox_events) = events.read_all_events::<CheckboxEvent>() {
-                for event in checkbox_events.iter() {
-                    if let CheckboxEvent::Checked(widget_id) = event {
-                        if *widget_id == id {
-                            is_checked = true;
-                        }
-                    } else if let CheckboxEvent::Unchecked(widget_id) = event {
-                        if *widget_id == id {
-                            is_checked = false;
-                        }
-                    }
-                }
-            }
-            is_checked
-        };
-        self.checked(is_checked);
-    }
 }
 
 impl InternalWidget for Checkbox {
     fn widget_init(&mut self) {
+        self.get_global_messenger()
+            .write()
+            .unwrap()
+            .register_messagebox::<CheckboxEvent>(self.get_messagebox());
+
         if self.is_initialized() {
             return;
         }
@@ -156,7 +105,7 @@ impl InternalWidget for Checkbox {
             .keep_fixed_height(false)
             .style(WidgetStyle::Invisible);
 
-        let mut outer_widget = Panel::new(self.get_shared_data(), self.get_events());
+        let mut outer_widget = Panel::new(self.get_shared_data(), self.get_global_messenger());
         outer_widget
             .size(default_size)
             .selectable(true)
@@ -164,7 +113,7 @@ impl InternalWidget for Checkbox {
             .style(WidgetStyle::Default);
 
         let inner_size = default_size / 4. * 3.;
-        let mut inner_check = Panel::new(self.get_shared_data(), self.get_events());
+        let mut inner_check = Panel::new(self.get_shared_data(), self.get_global_messenger());
         inner_check
             .size(inner_size)
             .selectable(false)
@@ -176,9 +125,40 @@ impl InternalWidget for Checkbox {
         self.outer_widget = self.add_child(Box::new(outer_widget));
     }
 
-    fn widget_update(&mut self) {
-        self.update_checked();
-    }
+    fn widget_update(&mut self) {}
 
     fn widget_uninit(&mut self) {}
+
+    fn widget_process_message(&mut self, msg: &dyn Message) {
+        if msg.type_id() == TypeId::of::<WidgetEvent>() {
+            let event = msg.as_any().downcast_ref::<WidgetEvent>().unwrap();
+            if let WidgetEvent::Released(widget_id, _mouse_in_px) = *event {
+                if self.outer_widget == widget_id {
+                    let message_box = self.get_global_dispatcher();
+
+                    let checkbox_event = if !self.is_checked {
+                        CheckboxEvent::Checked(self.outer_widget)
+                    } else {
+                        CheckboxEvent::Unchecked(self.outer_widget)
+                    };
+
+                    let _ = message_box
+                        .write()
+                        .unwrap()
+                        .send(Message::as_boxed(&checkbox_event));
+                }
+            }
+        } else if msg.type_id() == TypeId::of::<CheckboxEvent>() {
+            let event = msg.as_any().downcast_ref::<CheckboxEvent>().unwrap();
+            if let CheckboxEvent::Checked(widget_id) = *event {
+                if widget_id == self.outer_widget {
+                    self.checked(true);
+                }
+            } else if let CheckboxEvent::Unchecked(widget_id) = *event {
+                if widget_id == self.outer_widget {
+                    self.checked(false);
+                }
+            }
+        }
+    }
 }

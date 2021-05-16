@@ -1,4 +1,7 @@
+use std::any::TypeId;
+
 use nrg_math::Vector2;
+use nrg_messenger::Message;
 use nrg_platform::{InputState, Key, KeyEvent, KeyTextEvent, MouseButton, MouseEvent, MouseState};
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
@@ -74,136 +77,6 @@ impl TextBox {
         }
         str
     }
-    fn manage_char_input(&mut self) {
-        let mut new_events: Vec<TextEvent> = Vec::new();
-        self.current_char = {
-            let mut current_index = self.current_char;
-            let events = self.get_events().read().unwrap();
-            if let Some(key_text_events) = events.read_all_events::<KeyTextEvent>() {
-                for event in key_text_events.iter() {
-                    if !event.char.is_control() {
-                        new_events.push(TextEvent::AddChar(
-                            self.editable_text,
-                            current_index,
-                            event.char,
-                        ));
-                        current_index += 1;
-                    }
-                }
-            }
-            current_index
-        };
-
-        let mut events = self.get_events().write().unwrap();
-        for e in new_events.into_iter() {
-            events.send_event::<TextEvent>(e);
-        }
-    }
-
-    fn manage_key_pressed(events_rw: &EventsRw, text: &Text, current_char: i32) -> i32 {
-        let mut new_events: Vec<TextEvent> = Vec::new();
-        let new_char = {
-            let mut current_index = current_char;
-            let events = events_rw.read().unwrap();
-            if let Some(key_events) = events.read_all_events::<KeyEvent>() {
-                for event in key_events.iter() {
-                    if event.state == InputState::JustPressed || event.state == InputState::Pressed
-                    {
-                        match event.code {
-                            Key::Backspace => {
-                                if let Some(c) = text.get_char_at(current_index) {
-                                    new_events.push(TextEvent::RemoveChar(
-                                        text.id(),
-                                        current_index,
-                                        c,
-                                    ));
-                                    current_index -= 1;
-                                }
-                            }
-                            Key::Delete => {
-                                if let Some(c) = text.get_char_at(current_index + 1) {
-                                    new_events.push(TextEvent::RemoveChar(
-                                        text.id(),
-                                        current_index + 1,
-                                        c,
-                                    ));
-                                }
-                            }
-                            Key::ArrowLeft => {
-                                let mut new_index = current_index - 1;
-                                if new_index < 0 {
-                                    new_index = -1;
-                                }
-                                current_index = new_index;
-                            }
-                            Key::ArrowRight => {
-                                let mut new_index = current_index + 1;
-                                let length = text.get_text().len() as i32;
-                                if new_index >= length {
-                                    new_index = length - 1;
-                                }
-                                current_index = new_index;
-                            }
-                            _ => {}
-                        }
-                    }
-                }
-            }
-            current_index
-        };
-        let mut events = events_rw.write().unwrap();
-        for e in new_events.into_iter() {
-            events.send_event::<TextEvent>(e);
-        }
-        new_char
-    }
-
-    fn update_text(&mut self) {
-        if self.is_focused {
-            self.update_indicator_position();
-            self.manage_char_input();
-            let text_widget_id = self.editable_text;
-            let current_char = self.current_char;
-            let events_rw = self.get_events().clone();
-            if let Some(text) = self.node_mut().get_child::<Text>(text_widget_id) {
-                self.current_char = TextBox::manage_key_pressed(&events_rw, text, current_char);
-            }
-        }
-    }
-
-    fn check_focus(&mut self) {
-        let focused = {
-            let mut focused = self.is_focused;
-            let events = self.get_events().read().unwrap();
-            if let Some(mouse_events) = events.read_all_events::<MouseEvent>() {
-                for event in mouse_events.iter() {
-                    if event.button == MouseButton::Left && event.state == MouseState::Down {
-                        focused = false;
-                    }
-                }
-            }
-            if let Some(widget_events) = events.read_all_events::<WidgetEvent>() {
-                for event in widget_events.iter() {
-                    if let WidgetEvent::Pressed(widget_id, _mouse_in_px) = event {
-                        if self.text_panel == *widget_id {
-                            focused = true;
-                        } else {
-                            focused = false;
-                        }
-                    }
-                }
-            }
-            focused
-        };
-        if self.is_focused != focused {
-            self.is_focused = focused;
-            self.update_character_from_indicator();
-            let indicator_id = self.indicator_widget;
-            if let Some(indicator) = self.node_mut().get_child::<Indicator>(indicator_id) {
-                indicator.visible(focused);
-            }
-        }
-    }
 
     fn update_character_from_indicator(&mut self) {
         let mut current_char = self.current_char;
@@ -245,6 +118,15 @@ impl TextBox {
 
 impl InternalWidget for TextBox {
     fn widget_init(&mut self) {
+        self.get_global_messenger()
+            .write()
+            .unwrap()
+            .register_messagebox::<KeyEvent>(self.get_messagebox());
+        self.get_global_messenger()
+            .write()
+            .unwrap()
+            .register_messagebox::<KeyTextEvent>(self.get_messagebox());
+
         if self.is_initialized() {
             return;
         }
@@ -261,7 +143,7 @@ impl InternalWidget for TextBox {
             .selectable(false)
             .style(WidgetStyle::Invisible);
 
-        let mut label = Text::new(self.get_shared_data(), self.get_events());
+        let mut label = Text::new(self.get_shared_data(), self.get_global_messenger());
         label
             .selectable(false)
             .vertical_alignment(VerticalAlignment::Center);
@@ -269,7 +151,7 @@ impl InternalWidget for TextBox {
 
         self.label = self.add_child(Box::new(label));
 
-        let mut panel = Panel::new(self.get_shared_data(), self.get_events());
+        let mut panel = Panel::new(self.get_shared_data(), self.get_global_messenger());
         panel
             .size(size * Screen::get_scale_factor())
             .draggable(false)
@@ -277,14 +159,14 @@ impl InternalWidget for TextBox {
             .horizontal_alignment(HorizontalAlignment::Stretch)
             .style(WidgetStyle::Default);
 
-        let mut editable_text = Text::new(self.get_shared_data(), self.get_events());
+        let mut editable_text = Text::new(self.get_shared_data(), self.get_global_messenger());
         editable_text
             .size(size * Screen::get_scale_factor())
             .vertical_alignment(VerticalAlignment::Center)
             .horizontal_alignment(HorizontalAlignment::Stretch)
             .set_text("Edit me");
 
-        let mut indicator = Indicator::new(self.get_shared_data(), self.get_events());
+        let mut indicator = Indicator::new(self.get_shared_data(), self.get_global_messenger());
         indicator.visible(false);
         self.indicator_widget = editable_text.add_child(Box::new(indicator));
 
@@ -293,11 +175,96 @@ impl InternalWidget for TextBox {
     }
 
     fn widget_update(&mut self) {
-        if self.is_editable() {
-            self.check_focus();
-            self.update_text();
+        if self.is_editable() && self.is_focused {
+            self.update_indicator_position();
         }
     }
 
     fn widget_uninit(&mut self) {}
+    fn widget_process_message(&mut self, msg: &dyn Message) {
+        if msg.type_id() == TypeId::of::<MouseEvent>() {
+            let event = msg.as_any().downcast_ref::<MouseEvent>().unwrap();
+            if event.button == MouseButton::Left && event.state == MouseState::Down {
+                self.is_focused = false;
+            }
+        } else if msg.type_id() == TypeId::of::<WidgetEvent>() {
+            let event = msg.as_any().downcast_ref::<WidgetEvent>().unwrap();
+            if let WidgetEvent::Pressed(widget_id, _mouse_in_px) = *event {
+                if self.text_panel == widget_id {
+                    self.is_focused = true;
+                } else {
+                    self.is_focused = false;
+                }
+                self.update_character_from_indicator();
+                let indicator_id = self.indicator_widget;
+                let focused = self.is_focused;
+                if let Some(indicator) = self.node_mut().get_child::<Indicator>(indicator_id) {
+                    indicator.visible(focused);
+                }
+            }
+        } else if msg.type_id() == TypeId::of::<KeyTextEvent>() {
+            let event = msg.as_any().downcast_ref::<KeyTextEvent>().unwrap();
+            let events_dispatcher = self.get_global_dispatcher();
+
+            if !event.char.is_control() {
+                let text_event =
+                    TextEvent::AddChar(self.editable_text, self.current_char, event.char);
+                self.current_char += 1;
+
+                let _ = events_dispatcher
+                    .write()
+                    .unwrap()
+                    .send(Message::as_boxed(&text_event));
+            }
+        } else if msg.type_id() == TypeId::of::<KeyEvent>() {
+            let event = msg.as_any().downcast_ref::<KeyEvent>().unwrap();
+            let events_dispatcher = self.get_global_dispatcher();
+
+            let text_id = self.editable_text;
+            let mut current_char = self.current_char;
+            if let Some(text) = self.node_mut().get_child::<Text>(text_id) {
+                if event.state == InputState::JustPressed || event.state == InputState::Pressed {
+                    match event.code {
+                        Key::Backspace => {
+                            if let Some(c) = text.get_char_at(current_char) {
+                                let text_event = TextEvent::RemoveChar(text.id(), current_char, c);
+                                current_char -= 1;
+                                let _ = events_dispatcher
+                                    .write()
+                                    .unwrap()
+                                    .send(Message::as_boxed(&text_event));
+                            }
+                        }
+                        Key::Delete => {
+                            if let Some(c) = text.get_char_at(current_char + 1) {
+                                let text_event =
+                                    TextEvent::RemoveChar(text.id(), current_char + 1, c);
+                                let _ = events_dispatcher
+                                    .write()
+                                    .unwrap()
+                                    .send(Message::as_boxed(&text_event));
+                            }
+                        }
+                        Key::ArrowLeft => {
+                            let mut new_index = current_char - 1;
+                            if new_index < 0 {
+                                new_index = -1;
+                            }
+                            current_char = new_index;
+                        }
+                        Key::ArrowRight => {
+                            let mut new_index = current_char + 1;
+                            let length = text.get_text().len() as i32;
+                            if new_index >= length {
+                                new_index = length - 1;
+                            }
+                            current_char = new_index;
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            self.current_char = current_char;
+        }
+    }
 }

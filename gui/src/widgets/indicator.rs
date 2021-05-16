@@ -1,4 +1,5 @@
 use nrg_serialize::{Deserialize, Serialize};
+use nrg_messenger::Message;
 use std::time::{Duration, Instant};
 
 use crate::{
@@ -59,4 +60,5 @@ impl InternalWidget for Indicator {
     }
 
     fn widget_uninit(&mut self) {}
+    fn widget_process_message(&mut self, _msg: &dyn Message) {}
 }

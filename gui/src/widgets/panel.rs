@@ -1,4 +1,5 @@
 use nrg_math::Vector2;
+use nrg_messenger::Message;
 use nrg_serialize::{Deserialize, Serialize};
 
 use crate::{implement_widget_with_data, InternalWidget, WidgetData, DEFAULT_WIDGET_HEIGHT};
@@ -27,4 +28,5 @@ impl InternalWidget for Panel {
     fn widget_update(&mut self) {}
 
     fn widget_uninit(&mut self) {}
+    fn widget_process_message(&mut self, _msg: &dyn Message) {}
 }

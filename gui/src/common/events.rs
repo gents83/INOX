@@ -1,5 +1,5 @@
+use nrg_messenger::{implement_message};
 use nrg_math::Vector2;
-use nrg_events::{implement_event, Event, EventsRw};
 use nrg_serialize::Uid;
 
 #[derive(Clone, Copy)]
@@ -11,4 +11,4 @@ pub enum WidgetEvent {
     Dragging(Uid, Vector2),
 }
 
-implement_event!(WidgetEvent);
+implement_message!(WidgetEvent);

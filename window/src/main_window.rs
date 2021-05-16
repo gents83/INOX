@@ -44,7 +44,7 @@ impl Plugin for MainWindow {
                 pos.y as _,
                 size.x as _,
                 size.y as _,
-                app.get_events(),
+                app.get_global_messenger(),
             )
         };
         self.window_id = app.get_shared_data().write().unwrap().add_resource(window);

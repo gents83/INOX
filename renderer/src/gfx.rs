@@ -61,7 +61,7 @@ impl Plugin for GfxPlugin {
         let system = UpdateSystem::new(
             renderer.clone(),
             &app.get_shared_data(),
-            &app.get_events(),
+            &app.get_global_messenger(),
             &self.config,
         );
         self.update_system_id = system.id();

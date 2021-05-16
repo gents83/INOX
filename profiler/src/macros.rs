@@ -20,15 +20,36 @@ macro_rules! load_profiler_lib {
 }
 
 #[macro_export]
+macro_rules! get_profiler {
+    () => {
+        #[cfg(debug_assertions)]
+        unsafe {
+            use $crate::*;
+            if GLOBAL_PROFILER.is_none() {
+                if let Some(get_profiler_fn) = NRG_PROFILER_LIB
+                    .as_ref()
+                    .unwrap()
+                    .get::<PfnGetProfiler>(GET_PROFILER_FUNCTION_NAME)
+                {
+                    unsafe {
+                        let profiler = get_profiler_fn.unwrap()();
+                        GLOBAL_PROFILER.replace(profiler);
+                    }
+                }
+            }
+        }
+    };
+}
+
+#[macro_export]
 macro_rules! create_profiler {
     () => {
         #[cfg(debug_assertions)]
         unsafe {
-            use nrg_platform::*;
-            use std::path::PathBuf;
             use $crate::*;
 
             $crate::load_profiler_lib!();
+
             if let Some(create_fn) = NRG_PROFILER_LIB
                 .as_ref()
                 .unwrap()
@@ -45,17 +66,13 @@ macro_rules! start_profiler {
     () => {
         #[cfg(debug_assertions)]
         unsafe {
-            use nrg_platform::*;
-            use std::path::PathBuf;
             use $crate::*;
 
             $crate::load_profiler_lib!();
-            if let Some(start_fn) = NRG_PROFILER_LIB
-                .as_ref()
-                .unwrap()
-                .get::<PfnStartProfiler>(START_PROFILER_FUNCTION_NAME)
-            {
-                unsafe { start_fn.unwrap()() };
+            $crate::get_profiler!();
+
+            if let Some(profiler) = &GLOBAL_PROFILER {
+                profiler.write().unwrap().start();
             }
         }
     };
@@ -66,17 +83,13 @@ macro_rules! stop_profiler {
     () => {
         #[cfg(debug_assertions)]
         unsafe {
-            use nrg_platform::*;
-            use std::path::PathBuf;
             use $crate::*;
 
             $crate::load_profiler_lib!();
-            if let Some(stop_fn) = NRG_PROFILER_LIB
-                .as_ref()
-                .unwrap()
-                .get::<PfnStopProfiler>(STOP_PROFILER_FUNCTION_NAME)
-            {
-                unsafe { stop_fn.unwrap()() };
+            $crate::get_profiler!();
+
+            if let Some(profiler) = &GLOBAL_PROFILER {
+                profiler.write().unwrap().stop();
             }
         }
     };
@@ -87,40 +100,26 @@ macro_rules! register_thread_into_profiler_with_name {
     ($string:expr) => {
         #[cfg(debug_assertions)]
         unsafe {
-            use nrg_platform::*;
-            use std::path::PathBuf;
+            use std::thread;
             use $crate::*;
 
             $crate::load_profiler_lib!();
-            if let Some(register_thread_fn) = NRG_PROFILER_LIB
-                .as_ref()
-                .unwrap()
-                .get::<PfnRegisterThread>(REGISTER_THREAD_FUNCTION_NAME)
-            {
+            $crate::get_profiler!();
+
+            if let Some(profiler) = &GLOBAL_PROFILER {
                 let mut str = String::from($string);
                 str.push('\0');
-                unsafe { register_thread_fn.unwrap()(str.as_bytes().as_ptr()) };
-            }
-        }
-    };
-}
-
-#[macro_export]
-macro_rules! register_thread_into_profiler {
-    () => {
-        #[cfg(debug_assertions)]
-        unsafe {
-            use nrg_platform::*;
-            use std::path::PathBuf;
-            use $crate::*;
-
-            $crate::load_profiler_lib!();
-            if let Some(register_thread_fn) = NRG_PROFILER_LIB
-                .as_ref()
-                .unwrap()
-                .get::<PfnRegisterThread>(REGISTER_THREAD_FUNCTION_NAME)
-            {
-                unsafe { register_thread_fn.unwrap()(::std::ptr::null()) };
+                let name = str.as_bytes().as_ptr();
+                if name == std::ptr::null() {
+                    profiler
+                        .write()
+                        .unwrap()
+                        .register_thread(Some(thread::current().name().unwrap_or("no_name")));
+                } else if let Ok(str) = std::ffi::CStr::from_ptr(name as *const i8).to_str() {
+                    profiler.write().unwrap().register_thread(Some(str));
+                } else {
+                    profiler.write().unwrap().register_thread(None);
+                }
             }
         }
     };
@@ -131,17 +130,13 @@ macro_rules! write_profile_file {
     () => {
         #[cfg(debug_assertions)]
         unsafe {
-            use nrg_platform::*;
-            use std::path::PathBuf;
             use $crate::*;
 
             $crate::load_profiler_lib!();
-            if let Some(write_profile_fn) = NRG_PROFILER_LIB
-                .as_ref()
-                .unwrap()
-                .get::<PfnWriteProfileFile>(WRITE_PROFILE_FILE_FUNCTION_NAME)
-            {
-                unsafe { write_profile_fn.unwrap()() };
+            $crate::get_profiler!();
+
+            if let Some(profiler) = &GLOBAL_PROFILER {
+                profiler.write().unwrap().write_profile_file()
             }
         }
     };
@@ -151,8 +146,23 @@ macro_rules! write_profile_file {
 macro_rules! scoped_profile {
     ($string:expr) => {
         use std::thread;
+        use $crate::*;
+
         #[cfg(debug_assertions)]
-        let _profile_scope =
-            $crate::ScopedProfile::new(thread::current().name().unwrap_or("no_name"), $string);
+        {
+            $crate::load_profiler_lib!();
+            $crate::get_profiler!();
+        }
+
+        #[cfg(debug_assertions)]
+        let _profile_scope = if let Some(profiler) = unsafe { &GLOBAL_PROFILER } {
+            if profiler.read().unwrap().is_started() {
+                Some($crate::ScopedProfile::new(profiler.clone(), "", $string))
+            } else {
+                None
+            }
+        } else {
+            None
+        };
     };
 }

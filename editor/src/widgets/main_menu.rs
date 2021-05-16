@@ -1,7 +1,10 @@
+use std::any::TypeId;
+
 use nrg_gui::{
     implement_widget_with_custom_members, Checkbox, InternalWidget, Menu, WidgetData, WidgetEvent,
 };
 use nrg_math::Vector2;
+use nrg_messenger::Message;
 use nrg_platform::WindowEvent;
 use nrg_serialize::*;
 
@@ -59,35 +62,14 @@ impl MainMenu {
         }
         show
     }
-    fn manage_events(&mut self) -> bool {
-        let mut need_init = false;
-        {
-            let events = self.get_events().read().unwrap();
-            if let Some(widget_events) = events.read_all_events::<WidgetEvent>() {
-                for event in widget_events.iter() {
-                    if let WidgetEvent::Pressed(widget_id, _mouse_in_px) = event {
-                        if self.new_id == *widget_id && self.filename_dialog.is_none() {
-                            need_init = true;
-                        } else if self.exit_id == *widget_id {
-                            return true;
-                        }
-                    }
-                }
-            }
-        }
-        if need_init {
-            self.filename_dialog = Some(FilenameDialog::new(
-                self.get_shared_data(),
-                self.get_events(),
-            ));
-        }
-        false
-    }
 }
 
 impl InternalWidget for MainMenu {
     fn widget_init(&mut self) {
-        self.menu = Some(Menu::new(self.get_shared_data(), self.get_events()));
+        self.menu = Some(Menu::new(
+            self.get_shared_data(),
+            self.get_global_messenger(),
+        ));
         self.menu_mut().move_to_layer(0.5);
 
         let file_id = self.menu_mut().add_menu_item("File");
@@ -98,7 +80,7 @@ impl InternalWidget for MainMenu {
 
         let settings_id = self.menu_mut().add_menu_item("Settings");
         self.settings_id = settings_id;
-        let mut checkbox = Checkbox::new(self.get_shared_data(), self.get_events());
+        let mut checkbox = Checkbox::new(self.get_shared_data(), self.get_global_messenger());
         checkbox.with_label("Show History").checked(false);
         self.show_history_id = self
             .menu_mut()
@@ -107,12 +89,6 @@ impl InternalWidget for MainMenu {
 
     fn widget_update(&mut self) {
         self.menu_mut().update(Screen::get_draw_area());
-
-        let should_exit = self.manage_events();
-        if should_exit {
-            let mut events = self.get_events().write().unwrap();
-            events.send_event(WindowEvent::Close);
-        }
 
         if let Some(dialog) = &mut self.filename_dialog {
             if dialog.get_result() == DialogResult::Ok {
@@ -135,5 +111,26 @@ impl InternalWidget for MainMenu {
             self.filename_dialog = None;
         }
         self.menu_mut().uninit();
+    }
+
+    fn widget_process_message(&mut self, msg: &dyn Message) {
+        if msg.type_id() == TypeId::of::<WidgetEvent>() {
+            let event = msg.as_any().downcast_ref::<WidgetEvent>().unwrap();
+            if let WidgetEvent::Pressed(widget_id, _mouse_in_px) = *event {
+                if self.new_id == widget_id && self.filename_dialog.is_none() {
+                    self.filename_dialog = Some(FilenameDialog::new(
+                        self.get_shared_data(),
+                        self.get_global_messenger(),
+                    ));
+                } else if self.exit_id == widget_id {
+                    let event_dispatcher = self.get_global_dispatcher();
+
+                    let _ = event_dispatcher
+                        .write()
+                        .unwrap()
+                        .send(Message::as_boxed(&WindowEvent::Close));
+                }
+            }
+        }
     }
 }

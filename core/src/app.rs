@@ -1,4 +1,5 @@
 use std::{
+    any::TypeId,
     collections::HashMap,
     path::PathBuf,
     sync::{
@@ -7,7 +8,7 @@ use std::{
     },
 };
 
-use nrg_events::EventsRw;
+use nrg_messenger::MessengerRw;
 use nrg_platform::{InputState, Key, KeyEvent};
 use nrg_resources::SharedDataRw;
 
@@ -16,10 +17,9 @@ use crate::{Job, Phase, PluginId, PluginManager, Scheduler, Worker};
 const NUM_WORKER_THREADS: usize = 5;
 
 pub struct App {
-    frame_count: u64,
     is_profiling: bool,
     shared_data: SharedDataRw,
-    events_rw: EventsRw,
+    global_messenger: MessengerRw,
     plugin_manager: PluginManager,
     scheduler: Scheduler,
     workers: HashMap<String, Worker>,
@@ -57,7 +57,6 @@ impl App {
         let (sender, receiver) = channel();
 
         let mut app = Self {
-            frame_count: 0,
             is_profiling: false,
             scheduler: Scheduler::new(),
             plugin_manager: PluginManager::new(),
@@ -65,7 +64,7 @@ impl App {
             sender: Arc::new(Mutex::new(sender)),
             receiver: Arc::new(Mutex::new(receiver)),
             shared_data: SharedDataRw::default(),
-            events_rw: EventsRw::default(),
+            global_messenger: MessengerRw::default(),
         };
 
         app.setup_worker_threads();
@@ -95,8 +94,26 @@ impl App {
     fn update_events(&mut self) {
         nrg_profiler::scoped_profile!("app::update_events");
 
-        self.frame_count += 1;
-        self.events_rw.write().unwrap().update(self.frame_count);
+        let mut is_profiling = self.is_profiling;
+        self.global_messenger
+            .read()
+            .unwrap()
+            .process_messages(|msg| {
+                if msg.type_id() == TypeId::of::<KeyEvent>() {
+                    let e = msg.as_any().downcast_ref::<KeyEvent>().unwrap();
+                    if e.code == Key::F9 && e.state == InputState::JustPressed {
+                        if !is_profiling {
+                            nrg_profiler::start_profiler!();
+                            is_profiling = true;
+                        } else {
+                            is_profiling = false;
+                            nrg_profiler::stop_profiler!();
+                            nrg_profiler::write_profile_file!();
+                        }
+                    }
+                }
+            });
+        self.is_profiling = is_profiling;
     }
 
     pub fn run_once(&mut self) -> bool {
@@ -116,31 +133,12 @@ impl App {
         loop {
             let can_continue = self.run_once();
 
-            self.manage_hotkeys();
-
             if !can_continue {
                 break;
             }
         }
     }
 
-    fn manage_hotkeys(&mut self) {
-        let events = self.events_rw.read().unwrap();
-        if let Some(key_events) = events.read_all_events::<KeyEvent>() {
-            for event in key_events.iter() {
-                if event.code == Key::F9 && event.state == InputState::JustPressed {
-                    if !self.is_profiling {
-                        nrg_profiler::start_profiler!();
-                        self.is_profiling = true;
-                    } else {
-                        self.is_profiling = false;
-                        nrg_profiler::stop_profiler!();
-                        nrg_profiler::write_profile_file!();
-                    }
-                }
-            }
-        }
-    }
     pub fn add_plugin(&mut self, lib_path: PathBuf) {
         let plugin_data = PluginManager::create_plugin_data(lib_path, self);
         self.plugin_manager.add_plugin(plugin_data);
@@ -167,8 +165,8 @@ impl App {
     pub fn get_shared_data(&self) -> SharedDataRw {
         self.shared_data.clone()
     }
-    pub fn get_events(&self) -> EventsRw {
-        self.events_rw.clone()
+    pub fn get_global_messenger(&self) -> MessengerRw {
+        self.global_messenger.clone()
     }
     pub fn create_phase_on_worker<P: Phase>(&mut self, phase: P, name: &'static str) {
         let w = self.add_worker(name);

@@ -1,4 +1,5 @@
 use nrg_math::Vector2;
+use nrg_messenger::Message;
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{
@@ -55,7 +56,7 @@ impl InternalWidget for Button {
             .use_space_before_and_after(true)
             .keep_fixed_width(false);
 
-        let mut text = Text::new(self.get_shared_data(), self.get_events());
+        let mut text = Text::new(self.get_shared_data(), self.get_global_messenger());
         text.vertical_alignment(VerticalAlignment::Center)
             .horizontal_alignment(HorizontalAlignment::Center)
             .set_text("Button Text");
@@ -64,4 +65,5 @@ impl InternalWidget for Button {
     fn widget_update(&mut self) {}
 
     fn widget_uninit(&mut self) {}
+    fn widget_process_message(&mut self, _msg: &dyn Message) {}
 }

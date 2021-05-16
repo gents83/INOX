@@ -1,4 +1,7 @@
+use std::any::TypeId;
+
 use nrg_math::{VecBase, Vector2};
+use nrg_messenger::Message;
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{
@@ -31,7 +34,7 @@ implement_widget_with_custom_members!(Menu {
 
 impl Menu {
     pub fn add_menu_item(&mut self, label: &str) -> Uid {
-        let mut button = Button::new(self.get_shared_data(), self.get_events());
+        let mut button = Button::new(self.get_shared_data(), self.get_global_messenger());
         button
             .vertical_alignment(VerticalAlignment::Stretch)
             .fill_type(ContainerFillType::Horizontal)
@@ -41,7 +44,7 @@ impl Menu {
             .style(WidgetStyle::DefaultBackground);
 
         let size: Vector2 = DEFAULT_SUBMENU_ITEM_SIZE.into();
-        let mut submenu = Menu::new(self.get_shared_data(), self.get_events());
+        let mut submenu = Menu::new(self.get_shared_data(), self.get_global_messenger());
         submenu
             .position([button.state().get_position().x, self.state().get_size().y].into())
             .size(size * Screen::get_scale_factor())
@@ -88,7 +91,7 @@ impl Menu {
     pub fn add_submenu_entry_default(&mut self, menu_item_id: Uid, label: &str) -> Uid {
         let mut id = INVALID_UID;
         if let Some(index) = self.entries.iter().position(|el| el.uid == menu_item_id) {
-            let mut button = Button::new(self.get_shared_data(), self.get_events());
+            let mut button = Button::new(self.get_shared_data(), self.get_global_messenger());
             button
                 .with_text(label)
                 .text_alignment(VerticalAlignment::Center, HorizontalAlignment::Left)
@@ -136,35 +139,6 @@ impl Menu {
             }
         }
     }
-
-    fn manage_click(&self) -> Uid {
-        let events = self.get_events().read().unwrap();
-        if let Some(widget_events) = events.read_all_events::<WidgetEvent>() {
-            for &event in widget_events.iter() {
-                if let WidgetEvent::Released(widget_id, _mouse_in_px) = event {
-                    return *widget_id;
-                }
-            }
-        }
-        INVALID_UID
-    }
-
-    fn manage_menu_interactions(&mut self) {
-        self.manage_hovering();
-        let widget_id = self.manage_click();
-        if widget_id != INVALID_UID {
-            let mut pos = Vector2::default_zero();
-            if let Some(button) = self.node_mut().get_child::<Button>(widget_id) {
-                pos.x = button.state().get_position().x;
-                pos.y = self.state().get_size().y;
-            }
-            if let Some(index) = self.entries.iter().position(|el| el.uid == widget_id) {
-                let item = &mut self.entries[index];
-                item.opened = !item.opened;
-                item.submenu.position(pos).visible(item.opened);
-            }
-        }
-    }
 }
 
 impl InternalWidget for Menu {
@@ -184,7 +158,8 @@ impl InternalWidget for Menu {
     }
 
     fn widget_update(&mut self) {
-        self.manage_menu_interactions();
+        self.manage_hovering();
+
         let drawing_area_in_px = self.state().get_drawing_area();
         let mut buttons: Vec<(Vector2, Vector2)> = Vec::new();
         self.node().propagate_on_children(|w| {
@@ -203,4 +178,21 @@ impl InternalWidget for Menu {
     }
 
     fn widget_uninit(&mut self) {}
+    fn widget_process_message(&mut self, msg: &dyn Message) {
+        if msg.type_id() == TypeId::of::<WidgetEvent>() {
+            let event = msg.as_any().downcast_ref::<WidgetEvent>().unwrap();
+            if let WidgetEvent::Released(widget_id, _mouse_in_px) = *event {
+                let mut pos = Vector2::default_zero();
+                if let Some(button) = self.node_mut().get_child::<Button>(widget_id) {
+                    pos.x = button.state().get_position().x;
+                    pos.y = self.state().get_size().y;
+                }
+                if let Some(index) = self.entries.iter().position(|el| el.uid == widget_id) {
+                    let item = &mut self.entries[index];
+                    item.opened = !item.opened;
+                    item.submenu.position(pos).visible(item.opened);
+                }
+            }
+        }
+    }
 }

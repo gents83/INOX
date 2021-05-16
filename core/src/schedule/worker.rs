@@ -33,7 +33,9 @@ impl Worker {
         self.thread_handle.is_some()
     }
     fn get_job(receiver: &Arc<Mutex<Receiver<Job>>>) -> Option<Job> {
-        if let Ok(job) = receiver.lock().unwrap().try_recv() {
+        let recv = receiver.lock().unwrap();
+        if let Ok(job) = recv.try_recv() {
+            drop(recv);
             return Some(job);
         }
         None
@@ -56,7 +58,6 @@ impl Worker {
                     loop {
                         let can_continue = scheduler.write().unwrap().run_once(sender.clone());
                         if let Some(job) = Worker::get_job(&receiver) {
-                            nrg_profiler::scoped_profile!(job.get_name());
                             job.execute();
                         }
                         if !can_continue {
