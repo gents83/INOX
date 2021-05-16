@@ -1,21 +1,23 @@
 #![allow(improper_ctypes_definitions)]
 
 use std::{
+    cell::RefCell,
     collections::HashMap,
     convert::TryInto,
     fs::File,
     io::BufWriter,
     process,
     sync::{
+        atomic::{AtomicBool, AtomicU64},
         mpsc::{channel, Receiver, Sender},
-        Arc, RwLock,
+        Arc, Mutex,
     },
     thread::{self, ThreadId},
-    time::Instant,
+    time::{SystemTime, UNIX_EPOCH},
     u64,
 };
 
-pub type GlobalProfiler = Arc<RwLock<Profiler>>;
+pub type GlobalProfiler = Arc<Profiler>;
 pub static mut NRG_PROFILER_LIB: Option<nrg_platform::Library> = None;
 
 pub const GET_PROFILER_FUNCTION_NAME: &str = "get_profiler";
@@ -25,6 +27,7 @@ pub const CREATE_PROFILER_FUNCTION_NAME: &str = "create_profiler";
 pub type PfnCreateProfiler = ::std::option::Option<unsafe extern "C" fn()>;
 
 pub static mut GLOBAL_PROFILER: Option<GlobalProfiler> = None;
+thread_local!(pub static THREAD_PROFILER: RefCell<Option<Arc<ThreadProfiler>>> = RefCell::new(None));
 
 #[no_mangle]
 pub extern "C" fn get_profiler() -> GlobalProfiler {
@@ -34,36 +37,25 @@ pub extern "C" fn get_profiler() -> GlobalProfiler {
 #[no_mangle]
 pub extern "C" fn create_profiler() {
     unsafe {
-        GLOBAL_PROFILER.replace(Arc::new(RwLock::new(Profiler::new())));
-    }
-    let main = "main\0";
-    register_thread(main.as_ptr());
-}
-
-fn register_thread(name: *const u8) {
-    unsafe {
-        let profiler = GLOBAL_PROFILER.as_ref().unwrap();
-        if name == std::ptr::null() {
-            profiler.write().unwrap().register_thread(None);
-        } else if let Ok(str) = std::ffi::CStr::from_ptr(name as *const i8).to_str() {
-            profiler.write().unwrap().register_thread(Some(str));
-        } else {
-            profiler.write().unwrap().register_thread(None);
+        GLOBAL_PROFILER.replace(Arc::new(Profiler::new()));
+        if let Some(profiler) = &GLOBAL_PROFILER {
+            profiler.current_thread_profiler();
         }
     }
 }
 
-#[repr(C)]
 struct ThreadInfo {
-    name: String,
     index: usize,
-    profiler: ThreadProfiler,
+    name: String,
+    profiler: Arc<ThreadProfiler>,
 }
 
-struct ThreadProfiler {
+pub struct ThreadProfiler {
     id: ThreadId,
     tx: Sender<Sample>,
 }
+unsafe impl Sync for ThreadProfiler {}
+unsafe impl Send for ThreadProfiler {}
 
 impl ThreadProfiler {
     fn push_sample(&self, category: String, name: String, time_start: f64, time_end: f64) {
@@ -87,13 +79,24 @@ struct Sample {
     time_end: f64,
 }
 
+struct LockedData {
+    threads: HashMap<ThreadId, ThreadInfo>,
+}
+impl Default for LockedData {
+    fn default() -> Self {
+        Self {
+            threads: HashMap::new(),
+        }
+    }
+}
+
 #[repr(C)]
 pub struct Profiler {
-    started: bool,
-    time_start: Instant,
+    is_started: AtomicBool,
+    time_start: AtomicU64,
     rx: Receiver<Sample>,
     tx: Sender<Sample>,
-    threads: HashMap<ThreadId, ThreadInfo>,
+    locked_data: Mutex<LockedData>,
 }
 unsafe impl Sync for Profiler {}
 unsafe impl Send for Profiler {}
@@ -103,75 +106,71 @@ impl Profiler {
         let (tx, rx) = channel();
 
         Profiler {
-            started: false,
-            time_start: Instant::now(),
+            is_started: AtomicBool::new(false),
+            time_start: AtomicU64::new(0),
             rx,
             tx,
-            threads: HashMap::new(),
+            locked_data: Mutex::new(LockedData::default()),
         }
     }
     pub fn is_started(&self) -> bool {
-        self.started
+        self.is_started.load(std::sync::atomic::Ordering::SeqCst)
     }
-    pub fn start(&mut self) {
+    pub fn get_time() -> u64 {
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_micros()
+            .try_into()
+            .unwrap()
+    }
+    pub fn start(&self) {
         let _ = self.rx.try_recv();
-        self.started = true;
-        self.time_start = Instant::now();
+        self.is_started
+            .swap(true, std::sync::atomic::Ordering::SeqCst);
+        self.time_start
+            .swap(Profiler::get_time(), std::sync::atomic::Ordering::SeqCst);
         println!("Starting profiler");
     }
-    pub fn stop(&mut self) {
-        self.started = false;
+    pub fn stop(&self) {
+        self.is_started
+            .swap(false, std::sync::atomic::Ordering::SeqCst);
+        let current_time = Profiler::get_time();
+        let start_time = self.time_start.load(std::sync::atomic::Ordering::SeqCst);
         println!(
             "Stopping profiler for a total duration of {:.3}",
-            self.time_start.elapsed().as_secs_f64()
+            (current_time - start_time) as f64 / 1000. / 1000.
         );
     }
     pub fn get_elapsed_time(&self) -> f64 {
-        let elapsed = self.time_start.elapsed();
-        let micros: u64 = elapsed.as_micros().try_into().unwrap();
-        micros as f64
+        let current_time = Profiler::get_time();
+        let start_time = self.time_start.load(std::sync::atomic::Ordering::SeqCst);
+        (current_time - start_time) as _
     }
-    pub fn register_thread(&mut self, optional_name: Option<&str>) {
+    pub fn current_thread_profiler(&self) -> Arc<ThreadProfiler> {
         let id = thread::current().id();
-
-        let name = {
-            if let Some(name) = optional_name {
-                name.to_string()
-            } else if let Some(s) = thread::current().name() {
-                s.to_string()
-            } else {
-                format!("<unknown-{:?}>", id)
+        let name = String::from(thread::current().name().unwrap_or("main"));
+        let mut locked_data = self.locked_data.lock().unwrap();
+        let index = locked_data.threads.len();
+        let thread_entry = locked_data.threads.entry(id).or_insert_with(|| {
+            println!("Creating thread profiler {:?} for {}", id, name);
+            ThreadInfo {
+                index,
+                name,
+                profiler: Arc::new(ThreadProfiler {
+                    id,
+                    tx: self.tx.clone(),
+                }),
             }
-        };
-
-        let index = self.threads.len();
-        self.threads.entry(id).or_insert(ThreadInfo {
-            name,
-            index,
-            profiler: ThreadProfiler {
-                id,
-                tx: self.tx.clone(),
-            },
         });
-    }
-    pub fn add_sample_for_thread(&mut self, category: &str, name: &str, start: f64, end: f64) {
-        if !self.started {
-            return;
-        }
-        let id = thread::current().id();
-        if let Some(thread) = self.threads.get(&id) {
-            thread
-                .profiler
-                .push_sample(String::from(category), String::from(name), start, end);
-        } else {
-            panic!("Invalid thread id {:?}", id);
-        }
+        thread_entry.profiler.clone()
     }
 
     pub fn write_profile_file(&self) {
         let end_time = self.get_elapsed_time();
         let mut thread_data = HashMap::new();
-        let mut threads: Vec<(&ThreadId, &ThreadInfo)> = self.threads.iter().collect();
+        let locked_data = self.locked_data.lock().unwrap();
+        let mut threads: Vec<(&ThreadId, &ThreadInfo)> = locked_data.threads.iter().collect();
         threads.sort_by(|&a, &b| a.1.name.to_lowercase().cmp(&b.1.name.to_lowercase()));
         for (&id, t) in threads.iter() {
             thread_data.insert(
@@ -199,7 +198,7 @@ impl Profiler {
             vec.sort_by(|a, b| a.time_start.partial_cmp(&b.time_start).unwrap());
 
             for sample in vec.iter() {
-                if let Some(thread) = self.threads.get(&id) {
+                if let Some(thread) = locked_data.threads.get(&id) {
                     let thread_id = thread.name.as_str();
                     data.push(serde_json::json!({
                         "pid": process::id(),
@@ -243,7 +242,7 @@ pub struct ScopedProfile {
 
 impl ScopedProfile {
     pub fn new(profiler: GlobalProfiler, category: &str, name: &str) -> Self {
-        let time_start = profiler.read().unwrap().get_elapsed_time();
+        let time_start = profiler.get_elapsed_time();
         Self {
             profiler,
             category: category.to_string(),
@@ -255,12 +254,19 @@ impl ScopedProfile {
 
 impl Drop for ScopedProfile {
     fn drop(&mut self) {
-        let time_end = self.profiler.read().unwrap().get_elapsed_time();
-        self.profiler.write().unwrap().add_sample_for_thread(
-            self.category.as_str(),
-            self.name.as_str(),
-            self.time_start,
-            time_end,
-        );
+        let time_end = self.profiler.get_elapsed_time();
+
+        THREAD_PROFILER.with(|profiler| {
+            if profiler.borrow().is_none() {
+                let thread_profiler = get_profiler().current_thread_profiler();
+                *profiler.borrow_mut() = Some(thread_profiler);
+            }
+            profiler.borrow().as_ref().unwrap().push_sample(
+                self.category.clone(),
+                self.name.clone(),
+                self.time_start,
+                time_end,
+            );
+        });
     }
 }

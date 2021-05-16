@@ -54,7 +54,7 @@ impl Worker {
             let t = builder
                 .spawn(move || {
                     println!("Starting thread {}", thread_name.as_str());
-                    nrg_profiler::register_thread_into_profiler_with_name!(thread_name.as_str());
+                    nrg_profiler::register_thread!();
                     loop {
                         let can_continue = scheduler.write().unwrap().run_once(sender.clone());
                         if let Some(job) = Worker::get_job(&receiver) {

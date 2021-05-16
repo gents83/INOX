@@ -17,7 +17,6 @@ pub struct MainWindow {
 
 impl Default for MainWindow {
     fn default() -> Self {
-        nrg_profiler::register_thread_into_profiler_with_name!("WindowPlugin");
         Self {
             config: Config::default(),
             system_id: SystemId::default(),

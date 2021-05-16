@@ -72,7 +72,7 @@ macro_rules! start_profiler {
             $crate::get_profiler!();
 
             if let Some(profiler) = &GLOBAL_PROFILER {
-                profiler.write().unwrap().start();
+                profiler.start();
             }
         }
     };
@@ -88,36 +88,23 @@ macro_rules! stop_profiler {
             $crate::get_profiler!();
 
             if let Some(profiler) = &GLOBAL_PROFILER {
-                profiler.write().unwrap().stop();
+                profiler.stop();
             }
         }
     };
 }
 
 #[macro_export]
-macro_rules! register_thread_into_profiler_with_name {
-    ($string:expr) => {
+macro_rules! register_thread {
+    () => {
         #[cfg(debug_assertions)]
         unsafe {
-            use std::thread;
             use $crate::*;
 
             $crate::get_profiler!();
 
             if let Some(profiler) = &GLOBAL_PROFILER {
-                let mut str = String::from($string);
-                str.push('\0');
-                let name = str.as_bytes().as_ptr();
-                if name == std::ptr::null() {
-                    profiler
-                        .write()
-                        .unwrap()
-                        .register_thread(Some(thread::current().name().unwrap_or("no_name")));
-                } else if let Ok(str) = std::ffi::CStr::from_ptr(name as *const i8).to_str() {
-                    profiler.write().unwrap().register_thread(Some(str));
-                } else {
-                    profiler.write().unwrap().register_thread(None);
-                }
+                profiler.current_thread_profiler();
             }
         }
     };
@@ -133,7 +120,7 @@ macro_rules! write_profile_file {
             $crate::get_profiler!();
 
             if let Some(profiler) = &GLOBAL_PROFILER {
-                profiler.write().unwrap().write_profile_file()
+                profiler.write_profile_file()
             }
         }
     };
@@ -150,7 +137,7 @@ macro_rules! scoped_profile {
 
         #[cfg(debug_assertions)]
         let _profile_scope = if let Some(profiler) = unsafe { &GLOBAL_PROFILER } {
-            if profiler.read().unwrap().is_started() {
+            if profiler.is_started() {
                 Some($crate::ScopedProfile::new(profiler.clone(), "", $string))
             } else {
                 None

@@ -24,7 +24,6 @@ pub struct GfxPlugin {
 
 impl Default for GfxPlugin {
     fn default() -> Self {
-        nrg_profiler::register_thread_into_profiler_with_name!("GfxPlugin");
         Self {
             config: Config::default(),
             update_system_id: SystemId::default(),
