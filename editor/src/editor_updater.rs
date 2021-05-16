@@ -237,15 +237,14 @@ impl EditorUpdater {
 
         for (i, w) in self.widgets.iter_mut().enumerate() {
             let job = {
+                let job_name = format!("widget[{}]", i);
                 let widget = w.clone();
                 if widget.read().unwrap().id() == self.main_menu_id {
-                    Job::new(move || {
-                        nrg_profiler::scoped_profile!(format!("widget[{}]", i).as_str());
+                    Job::new(job_name.as_str(), move || {
                         widget.write().unwrap().update(Screen::get_draw_area());
                     })
                 } else {
-                    Job::new(move || {
-                        nrg_profiler::scoped_profile!(format!("widget[{}]", i).as_str());
+                    Job::new(job_name.as_str(), move || {
                         widget.write().unwrap().update(draw_area);
                     })
                 }

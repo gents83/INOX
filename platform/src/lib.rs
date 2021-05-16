@@ -4,6 +4,7 @@
 pub use self::handle::*;
 pub use self::input::*;
 pub use self::library::*;
+pub use self::thread::*;
 pub use self::utils::*;
 pub use self::watcher::*;
 pub use self::window::*;
@@ -12,6 +13,7 @@ pub use self::window::*;
 mod ctypes;
 pub mod handle;
 pub mod library;
+pub mod thread;
 pub mod utils;
 pub mod watcher;
 pub mod window;

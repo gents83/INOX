@@ -6,19 +6,21 @@ use std::sync::{
 pub struct Job {
     func: Box<dyn FnOnce() + Send + Sync>,
     wait_count: Option<Arc<AtomicUsize>>,
+    name: String,
 }
 
 unsafe impl Sync for Job {}
 unsafe impl Send for Job {}
 
 impl Job {
-    pub fn new<F>(func: F) -> Self
+    pub fn new<F>(name: &str, func: F) -> Self
     where
         F: FnOnce() + Send + Sync + 'static,
     {
         Self {
             func: Box::new(func),
             wait_count: None,
+            name: String::from(name),
         }
     }
 
@@ -27,6 +29,8 @@ impl Job {
     }
 
     pub fn execute(mut self) {
+        nrg_profiler::scoped_profile!(self.name.as_str());
+
         (self.func)();
 
         if let Some(wait_count) = self.wait_count {

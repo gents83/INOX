@@ -187,7 +187,9 @@ impl Scheduler {
                 nrg_profiler::scoped_profile!(
                     format!("{}[{}]", "scheduler::run_phase", name).as_str()
                 );
+
                 let (ok, jobs) = phase.run();
+
                 if !jobs.is_empty() {
                     nrg_profiler::scoped_profile!(format!(
                         "{}[{}]",

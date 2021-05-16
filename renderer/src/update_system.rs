@@ -1,10 +1,7 @@
-use std::{
-    any::TypeId,
-    sync::{
+use std::{any::TypeId, sync::{
         atomic::{AtomicUsize, Ordering},
         Arc,
-    },
-};
+    }, thread};
 
 use crate::config::*;
 
@@ -127,12 +124,13 @@ impl System for UpdateSystem {
 
                                 wait_count.fetch_add(1, Ordering::SeqCst);
 
-                                jobs.push(Job::new(
-                                    move || {
-                                        nrg_profiler::scoped_profile!(format!(
-                                            "PrepareMaterial [{}] with mesh [{}]",
-                                            material_index, mesh_index
-                                        ).as_str());
+                                let job_name = format!(
+                                    "PrepareMaterial [{}] with mesh [{}]",
+                                    material_index, mesh_index
+                                );
+                                jobs.push(Job::new(job_name.as_str(), 
+                                    move || {                    
+                                        
                                         let mesh_instance =
                                         SharedData::get_resource::<MeshInstance>(&shared_data, mesh_id);
 
@@ -169,8 +167,8 @@ impl System for UpdateSystem {
             });
 
         let renderer = self.renderer.clone();
-        jobs.push(Job::new(move || {
-            nrg_profiler::scoped_profile!("EndPreparation");
+        let job_name = "EndPreparation";
+        jobs.push(Job::new(job_name, move || {
             while wait_count.load(Ordering::SeqCst) > 0 {
                 thread::yield_now();
             }

@@ -107,25 +107,22 @@ impl Phase for PhaseWithSystems {
     }
 
     fn init(&mut self) {
-        //println!("Phase {} initialization...", self.get_name());
-
         self.add_pending_systems_into_execution();
     }
 
     fn run(&mut self) -> (bool, Vec<Job>) {
-        //println!("Phase {} systems executing...", self.get_name());
-
         self.remove_pending_systems_from_execution()
             .add_pending_systems_into_execution()
             .execute_systems()
     }
 
     fn uninit(&mut self) {
-        //println!("Phase {} uninitialization...", self.get_name());
-
         self.remove_all_systems()
             .remove_pending_systems_from_execution();
 
         self.systems_running.clear();
     }
 }
+
+unsafe impl Send for PhaseWithSystems {}
+unsafe impl Sync for PhaseWithSystems {}

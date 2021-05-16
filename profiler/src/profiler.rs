@@ -1,5 +1,6 @@
 #![allow(improper_ctypes_definitions)]
 
+use nrg_platform::ThreadId;
 use std::{
     cell::RefCell,
     collections::HashMap,
@@ -12,7 +13,7 @@ use std::{
         mpsc::{channel, Receiver, Sender},
         Arc, Mutex,
     },
-    thread::{self, ThreadId},
+    thread::{self},
     time::{SystemTime, UNIX_EPOCH},
     u64,
 };
@@ -148,20 +149,17 @@ impl Profiler {
         (current_time - start_time) as _
     }
     pub fn current_thread_profiler(&self) -> Arc<ThreadProfiler> {
-        let id = thread::current().id();
+        let id = ThreadId::current();
         let name = String::from(thread::current().name().unwrap_or("main"));
         let mut locked_data = self.locked_data.lock().unwrap();
         let index = locked_data.threads.len();
-        let thread_entry = locked_data.threads.entry(id).or_insert_with(|| {
-            println!("Creating thread profiler {:?} for {}", id, name);
-            ThreadInfo {
-                index,
-                name,
-                profiler: Arc::new(ThreadProfiler {
-                    id,
-                    tx: self.tx.clone(),
-                }),
-            }
+        let thread_entry = locked_data.threads.entry(id).or_insert_with(|| ThreadInfo {
+            index,
+            name,
+            profiler: Arc::new(ThreadProfiler {
+                id,
+                tx: self.tx.clone(),
+            }),
         });
         thread_entry.profiler.clone()
     }
