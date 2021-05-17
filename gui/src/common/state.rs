@@ -31,6 +31,8 @@ pub struct WidgetState {
     keep_fixed_width: bool,
     keep_fixed_height: bool,
     space_between_elements: u32,
+    #[serde(skip)]
+    is_dirty: bool,
 }
 
 impl Default for WidgetState {
@@ -54,11 +56,18 @@ impl Default for WidgetState {
             keep_fixed_width: true,
             keep_fixed_height: true,
             space_between_elements: 0,
+            is_dirty: true,
         }
     }
 }
 
 impl WidgetState {
+    pub fn set_dirty(&mut self, value: bool) {
+        self.is_dirty = value;
+    }
+    pub fn is_dirty(&self) -> bool {
+        self.is_dirty
+    }
     pub fn set_style(&mut self, style: WidgetStyle) -> &mut Self {
         self.style = style;
         self

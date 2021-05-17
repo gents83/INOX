@@ -40,13 +40,18 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
             self.node_mut().propagate_on_children_mut(|w| w.init());
         }
 
-        self.update_layout();
         self.move_to_layer(self.graphics().get_layer());
+        self.send_invalidate_layout_event();
         self.mark_as_initialized();
     }
     fn update(&mut self, drawing_area_in_px: Vector4) {
         self.state_mut().set_drawing_area(drawing_area_in_px);
-        self.update_layout();
+        self.process_messages();
+
+        if self.state().is_dirty() {
+            self.update_layout();
+        }
+        self.manage_style();
 
         let is_visible = self.graphics().is_visible();
         let filltype = self.state().get_fill_type();
@@ -64,8 +69,6 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
             widget_clip = add_widget_size(widget_clip, filltype, w);
             widget_clip = add_space_before_after(widget_clip, filltype, space);
         });
-        self.process_messages();
-        self.manage_style();
 
         {
             nrg_profiler::scoped_profile!("widget::wdget_update");
@@ -94,6 +97,15 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         });
     }
 
+    fn send_invalidate_layout_event(&self) {
+        let event = WidgetEvent::InvalidateLayout(self.id());
+        let _ = self
+            .get_global_dispatcher()
+            .write()
+            .unwrap()
+            .send(Message::as_boxed(&event));
+    }
+
     fn id(&self) -> Uid {
         self.node().get_id()
     }
@@ -101,12 +113,14 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         if pos_in_px != self.state().get_position() {
             self.state_mut().set_position(pos_in_px);
             self.graphics_mut().set_position(pos_in_px);
+            self.send_invalidate_layout_event();
         }
     }
     fn set_size(&mut self, size_in_px: Vector2) {
         if size_in_px != self.state().get_size() {
             self.state_mut().set_size(size_in_px);
             self.graphics_mut().set_size(size_in_px);
+            self.send_invalidate_layout_event();
         }
     }
 
@@ -260,45 +274,56 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
     }
     fn manage_events(&mut self, event: &WidgetEvent) {
         nrg_profiler::scoped_profile!("widget::manage_events");
-
+        if !self.graphics().is_visible() {
+            return;
+        }
         let id = self.id();
-        match event {
+        match *event {
+            WidgetEvent::InvalidateLayout(widget_id) => {
+                if widget_id == id || self.node_mut().has_child(widget_id) {
+                    self.state_mut().set_dirty(true);
+                }
+            }
             WidgetEvent::Entering(widget_id) => {
-                if *widget_id == id && self.state().is_selectable() {
+                if widget_id == id && self.state().is_selectable() && self.state().is_active() {
                     self.state_mut().set_hover(true);
                 }
             }
             WidgetEvent::Exiting(widget_id) => {
-                if *widget_id == id && self.state().is_selectable() {
+                if widget_id == id && self.state().is_selectable() && self.state().is_active() {
                     self.state_mut().set_hover(false);
                     self.state_mut().set_pressed(false);
                 }
             }
             WidgetEvent::Released(widget_id, mouse_in_px) => {
-                if *widget_id == id && self.state().is_selectable() {
+                if widget_id == id && self.state().is_selectable() && self.state().is_active() {
                     self.state_mut().set_pressed(false);
                     if self.state().is_draggable() {
-                        self.state_mut().set_dragging_position(*mouse_in_px);
+                        self.state_mut().set_dragging_position(mouse_in_px);
                     }
                 }
             }
             WidgetEvent::Pressed(widget_id, mouse_in_px) => {
-                if *widget_id == id && self.state().is_selectable() {
+                if widget_id == id && self.state().is_selectable() && self.state().is_active() {
                     self.state_mut().set_pressed(true);
                     if self.state().is_draggable() {
-                        self.state_mut().set_dragging_position(*mouse_in_px);
+                        self.state_mut().set_dragging_position(mouse_in_px);
                     }
                 }
             }
             WidgetEvent::Dragging(widget_id, mouse_in_px) => {
-                if *widget_id == id && self.state().is_draggable() {
+                if widget_id == id
+                    && self.state().is_draggable()
+                    && self.state().is_selectable()
+                    && self.state().is_active()
+                {
                     self.state_mut()
                         .set_horizontal_alignment(HorizontalAlignment::None);
                     self.state_mut()
                         .set_vertical_alignment(VerticalAlignment::None);
                     let old_mouse_pos = self.state().get_dragging_position();
                     let offset = mouse_in_px - old_mouse_pos;
-                    self.state_mut().set_dragging_position(*mouse_in_px);
+                    self.state_mut().set_dragging_position(mouse_in_px);
                     let current_pos = self.state().get_position();
                     self.set_position(current_pos + offset);
                 }
@@ -362,6 +387,8 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         nrg_profiler::scoped_profile!("widget::update_layout");
         self.apply_fit_to_content();
         self.compute_offset_and_scale_from_alignment();
+        self.update_layers();
+        self.state_mut().set_dirty(false);
     }
 
     fn update_layers(&mut self) {
@@ -392,8 +419,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         let id = widget.id();
         self.node_mut().add_child(widget);
 
-        self.update_layout();
-        self.update_layers();
+        self.send_invalidate_layout_event();
         id
     }
     fn remove_children(&mut self) {
@@ -402,8 +428,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         });
         self.node_mut().remove_children();
 
-        self.update_layout();
-        self.update_layers();
+        self.send_invalidate_layout_event();
     }
     fn has_child(&self, uid: Uid) -> bool {
         let mut found = false;
@@ -428,5 +453,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
             w.set_visible(visible);
         });
         self.graphics_mut().set_visible(visible);
+
+        self.send_invalidate_layout_event();
     }
 }

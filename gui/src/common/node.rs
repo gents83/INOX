@@ -82,6 +82,15 @@ impl WidgetNode {
     pub fn has_children(&self) -> bool {
         !self.children.is_empty()
     }
+    pub fn has_child(&self, uid: Uid) -> bool {
+        let mut found = false;
+        self.children.iter().for_each(|w| {
+            if w.id() == uid {
+                found = true;
+            }
+        });
+        found
+    }
     pub fn propagate_on_children<F>(&self, mut f: F)
     where
         F: FnMut(&dyn Widget),
