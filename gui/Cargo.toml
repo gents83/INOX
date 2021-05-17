@@ -9,7 +9,6 @@ build = "build.rs"
 crate-type = ["cdylib",'rlib']
 
 [dependencies]
-nrg_core = { path = "../core" }
 nrg_messenger = { path = "../messenger" }
 nrg_math = { path = "../math" }
 nrg_graphics = { path = "../graphics" }

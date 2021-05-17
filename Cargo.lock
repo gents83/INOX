@@ -543,7 +543,6 @@ dependencies = [
 name = "nrg_gui"
 version = "0.1.0"
 dependencies = [
- "nrg_core",
  "nrg_graphics",
  "nrg_math",
  "nrg_messenger",
@@ -566,7 +565,6 @@ name = "nrg_math"
 version = "0.1.0"
 dependencies = [
  "cgmath",
- "nrg_serialize",
 ]
 
 [[package]]
@@ -586,7 +584,6 @@ version = "0.1.0"
 dependencies = [
  "nrg_dynamic_library",
  "nrg_platform",
- "proc-macro2",
  "serde_json",
 ]
 
@@ -615,7 +612,6 @@ dependencies = [
 name = "nrg_serialize"
 version = "0.1.0"
 dependencies = [
- "proc-macro2",
  "serde",
  "serde_derive",
  "serde_json",
