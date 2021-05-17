@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
-use nrg_platform::{delete_file, library, FileEvent, FileWatcher, Library};
+use nrg_dynamic_library::{library, Library};
+use nrg_platform::{FileEvent, FileWatcher};
 
 use crate::{
     App, PfnCreatePlugin, PfnDestroyPlugin, PluginHolder, PluginId, CREATE_PLUGIN_FUNCTION_NAME,

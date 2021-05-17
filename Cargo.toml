@@ -8,6 +8,7 @@ members = [
     "events",
     "gui",
     "graphics",
+    "dynamic_library",
     "math",
     "messenger",
     "platform",

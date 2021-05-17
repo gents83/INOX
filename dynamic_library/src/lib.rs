@@ -1,20 +1,12 @@
 #![warn(clippy::all)]
 
 // Common
-pub use self::handle::*;
-pub use self::input::*;
-pub use self::thread::*;
-pub use self::watcher::*;
-pub use self::window::*;
+pub use crate::library::*;
+pub use crate::utils::*;
 
 //Modules
-mod ctypes;
-pub mod handle;
-pub mod thread;
-pub mod watcher;
-pub mod window;
-
-pub mod input;
+pub mod library;
+pub mod utils;
 
 pub mod platform_impl {
     #[cfg(target_os = "android")]

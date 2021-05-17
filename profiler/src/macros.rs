@@ -3,7 +3,6 @@ macro_rules! load_profiler_lib {
     () => {
         #[cfg(debug_assertions)]
         unsafe {
-            use nrg_platform::*;
             use std::path::PathBuf;
             use $crate::*;
 

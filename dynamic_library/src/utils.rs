@@ -5,11 +5,7 @@ use std::{
 };
 
 pub fn delete_file(filepath: PathBuf) {
-    let res = std::fs::remove_file(filepath.clone());
-    if res.is_err() {
-        super::platform_impl::platform::utils::delete_file(filepath.clone());
-        let _res = std::fs::remove_file(filepath);
-    }
+    let _res = std::fs::remove_file(filepath);
 }
 
 pub fn copy_with_random_name(src_path: PathBuf, target_path: PathBuf, name: &str, extension: &str) {
@@ -46,7 +42,11 @@ pub fn copy_all_files_with_extension(src_path: PathBuf, target_path: PathBuf, ex
             );
             let new_path = target_path.join(new_name);
             let _res = fs::rename(f.path(), new_path);
+            let _res = std::fs::remove_file(f.path());
         });
+}
+pub fn link_library(name: &str) {
+    println!("cargo:rustc-link-lib=dylib={}", name);
 }
 
 pub fn remove_files_containing_with_ext(folder: PathBuf, name: &str, extension: &str) {

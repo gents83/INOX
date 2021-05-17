@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use nrg_core::*;
-use nrg_platform::*;
+use nrg_dynamic_library::library_filename;
 
 fn main() {
     let mut app = App::new();
