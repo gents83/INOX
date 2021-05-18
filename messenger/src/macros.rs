@@ -10,7 +10,7 @@ macro_rules! implement_message {
             }
             fn redo(&self, events_rw: &$crate::MessageBox) {
                 let mut events = events_rw.write().unwrap();
-                let _ = events.send($crate::Message::as_boxed(self));
+                events.send(self.as_boxed()).ok();
             }
             fn undo(&self, _events_rw: &$crate::MessageBox) {
                 eprintln!("Undo not implemented for {}", self.get_type_name().as_str());
@@ -34,12 +34,12 @@ macro_rules! implement_undoable_message {
             }
             fn redo(&self, events_rw: &$crate::MessageBox) {
                 let mut events = events_rw.write().unwrap();
-                let _ = events.send($crate::Message::as_boxed(self));
+                events.send(self.as_boxed()).ok();
             }
             fn undo(&self, events_rw: &$crate::MessageBox) {
                 let mut events = events_rw.write().unwrap();
                 let event_to_send = $func(self);
-                let _ = events.send($crate::Message::as_boxed(&event_to_send));
+                events.send(event_to_send.as_boxed()).ok();
             }
             fn get_debug_info(&self) -> String {
                 $debug_func(self)

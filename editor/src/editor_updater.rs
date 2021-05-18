@@ -1,6 +1,7 @@
 use std::{
     any::TypeId,
     collections::VecDeque,
+    path::PathBuf,
     sync::{Arc, RwLock},
     time::{Duration, Instant},
 };
@@ -25,6 +26,8 @@ pub struct EditorUpdater {
     config: Config,
     fps_text: Uid,
     fps_widget_id: Uid,
+    canvas_id: Uid,
+    node_id: Uid,
     main_menu_id: Uid,
     history_panel_id: Uid,
     widgets: Vec<Arc<RwLock<Box<dyn Widget>>>>,
@@ -52,6 +55,8 @@ impl EditorUpdater {
             widgets: Vec::new(),
             fps_text: INVALID_UID,
             fps_widget_id: INVALID_UID,
+            canvas_id: INVALID_UID,
+            node_id: INVALID_UID,
             main_menu_id: INVALID_UID,
             history_panel_id: INVALID_UID,
             message_channel,
@@ -73,6 +78,11 @@ impl System for EditorUpdater {
         self.load_pipelines();
         self.create_screen();
 
+        self.global_messenger
+            .write()
+            .unwrap()
+            .register_messagebox::<DialogEvent>(self.message_channel.get_messagebox());
+
         let mut history_panel = HistoryPanel::new(&self.shared_data, &self.global_messenger);
         let history = history_panel.get_history();
         self.registered_event_types(history);
@@ -83,8 +93,10 @@ impl System for EditorUpdater {
 
         let mut canvas = Canvas::new(&self.shared_data, &self.global_messenger);
         canvas.move_to_layer(-1.);
+        self.canvas_id = canvas.id();
 
         let node = GraphNode::new(&self.shared_data, &self.global_messenger);
+        self.node_id = node.id();
 
         let mut widget = Panel::new(&self.shared_data, &self.global_messenger);
         widget
@@ -149,16 +161,6 @@ impl System for EditorUpdater {
         (true, jobs)
     }
     fn uninit(&mut self) {
-        /*
-                let childrens = self.canvas.node_mut().get_children();
-                for child in childrens {
-                    let filepath = PathBuf::from(format!(
-                        "./data/widgets/{}.widget",
-                        child.id().to_simple().to_string()
-                    ));
-                    serialize_to_file(child, filepath);
-                }
-        */
         for w in self.widgets.iter() {
             w.write().unwrap().uninit();
         }
@@ -272,7 +274,33 @@ impl EditorUpdater {
         nrg_profiler::scoped_profile!("update_events");
 
         read_messages(self.message_channel.get_listener(), |msg| {
-            if msg.type_id() == TypeId::of::<KeyEvent>() {
+            if msg.type_id() == TypeId::of::<DialogEvent>() {
+                let event = msg.as_any().downcast_ref::<DialogEvent>().unwrap();
+                if let DialogEvent::Confirmed(_widget_id, requester_uid, text) = event {
+                    let mut should_save = false;
+                    let change_name =
+                        if let Some(menu) = self.get_widget::<MainMenu>(self.main_menu_id) {
+                            if menu.is_save_uid(*requester_uid) {
+                                should_save = true;
+                            }
+                            menu.menu().has_entry(*requester_uid)
+                        } else {
+                            false
+                        };
+                    if let Some(node) = self.get_widget::<GraphNode>(self.node_id) {
+                        if change_name {
+                            node.node_mut().set_name(text);
+                        }
+                        if should_save {
+                            let filepath = PathBuf::from(format!(
+                                "./data/widgets/{}.widget",
+                                node.node().get_name()
+                            ));
+                            serialize_to_file(node, filepath);
+                        }
+                    }
+                }
+            } else if msg.type_id() == TypeId::of::<KeyEvent>() {
                 let event = msg.as_any().downcast_ref::<KeyEvent>().unwrap();
                 if event.state == InputState::JustPressed && event.code == Key::F5 {
                     println!("Launch game");

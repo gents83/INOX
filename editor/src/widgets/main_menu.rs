@@ -8,7 +8,7 @@ use nrg_messenger::Message;
 use nrg_platform::WindowEvent;
 use nrg_serialize::*;
 
-use super::{DialogResult, FilenameDialog};
+use super::{DialogEvent, FilenameDialog};
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]
@@ -22,6 +22,8 @@ pub struct MainMenu {
     #[serde(skip)]
     open_id: Uid,
     #[serde(skip)]
+    save_id: Uid,
+    #[serde(skip)]
     exit_id: Uid,
     #[serde(skip)]
     settings_id: Uid,
@@ -34,6 +36,7 @@ implement_widget_with_custom_members!(MainMenu {
     menu: None,
     file_id: INVALID_UID,
     new_id: INVALID_UID,
+    save_id: INVALID_UID,
     open_id: INVALID_UID,
     exit_id: INVALID_UID,
     settings_id: INVALID_UID,
@@ -42,7 +45,7 @@ implement_widget_with_custom_members!(MainMenu {
 });
 
 impl MainMenu {
-    fn menu(&self) -> &Menu {
+    pub fn menu(&self) -> &Menu {
         self.menu.as_ref().unwrap()
     }
     fn menu_mut(&mut self) -> &mut Menu {
@@ -62,10 +65,24 @@ impl MainMenu {
         }
         show
     }
+    pub fn is_new_uid(&self, entry_uid: Uid) -> bool {
+        self.new_id == entry_uid
+    }
+    pub fn is_open_uid(&self, entry_uid: Uid) -> bool {
+        self.open_id == entry_uid
+    }
+    pub fn is_save_uid(&self, entry_uid: Uid) -> bool {
+        self.save_id == entry_uid
+    }
 }
 
 impl InternalWidget for MainMenu {
     fn widget_init(&mut self) {
+        self.get_global_messenger()
+            .write()
+            .unwrap()
+            .register_messagebox::<DialogEvent>(self.get_messagebox());
+
         self.menu = Some(Menu::new(
             self.get_shared_data(),
             self.get_global_messenger(),
@@ -76,6 +93,7 @@ impl InternalWidget for MainMenu {
         self.file_id = file_id;
         self.new_id = self.menu_mut().add_submenu_entry_default(file_id, "New");
         self.open_id = self.menu_mut().add_submenu_entry_default(file_id, "Open");
+        self.save_id = self.menu_mut().add_submenu_entry_default(file_id, "Save");
         self.exit_id = self.menu_mut().add_submenu_entry_default(file_id, "Exit");
 
         let settings_id = self.menu_mut().add_menu_item("Settings");
@@ -91,17 +109,7 @@ impl InternalWidget for MainMenu {
         self.menu_mut().update(Screen::get_draw_area());
 
         if let Some(dialog) = &mut self.filename_dialog {
-            if dialog.get_result() == DialogResult::Ok {
-                let filename = dialog.get_filename();
-                println!("Filename = {}", filename);
-                dialog.uninit();
-                self.filename_dialog = None;
-            } else if dialog.get_result() == DialogResult::Cancel {
-                dialog.uninit();
-                self.filename_dialog = None;
-            } else {
-                dialog.update(Screen::get_draw_area());
-            }
+            dialog.update(Screen::get_draw_area());
         }
     }
 
@@ -114,7 +122,25 @@ impl InternalWidget for MainMenu {
     }
 
     fn widget_process_message(&mut self, msg: &dyn Message) {
-        if msg.type_id() == TypeId::of::<WidgetEvent>() {
+        if msg.type_id() == TypeId::of::<DialogEvent>() {
+            if let Some(dialog) = &mut self.filename_dialog {
+                let event = msg.as_any().downcast_ref::<DialogEvent>().unwrap();
+                match event {
+                    DialogEvent::Confirmed(widget_id, _requester_uid, _text) => {
+                        if *widget_id == dialog.id() {
+                            dialog.uninit();
+                            self.filename_dialog = None;
+                        }
+                    }
+                    DialogEvent::Canceled(widget_id) => {
+                        if *widget_id == dialog.id() {
+                            dialog.uninit();
+                            self.filename_dialog = None;
+                        }
+                    }
+                }
+            }
+        } else if msg.type_id() == TypeId::of::<WidgetEvent>() {
             let event = msg.as_any().downcast_ref::<WidgetEvent>().unwrap();
             if let WidgetEvent::Pressed(widget_id, _mouse_in_px) = *event {
                 if self.new_id == widget_id && self.filename_dialog.is_none() {
@@ -122,13 +148,34 @@ impl InternalWidget for MainMenu {
                         self.get_shared_data(),
                         self.get_global_messenger(),
                     ));
+                    self.filename_dialog
+                        .as_mut()
+                        .unwrap()
+                        .set_requester_uid(self.new_id);
+                } else if self.open_id == widget_id && self.filename_dialog.is_none() {
+                    self.filename_dialog = Some(FilenameDialog::new(
+                        self.get_shared_data(),
+                        self.get_global_messenger(),
+                    ));
+                    self.filename_dialog
+                        .as_mut()
+                        .unwrap()
+                        .set_requester_uid(self.open_id);
+                } else if self.save_id == widget_id && self.filename_dialog.is_none() {
+                    self.filename_dialog = Some(FilenameDialog::new(
+                        self.get_shared_data(),
+                        self.get_global_messenger(),
+                    ));
+                    self.filename_dialog
+                        .as_mut()
+                        .unwrap()
+                        .set_requester_uid(self.save_id);
                 } else if self.exit_id == widget_id {
-                    let event_dispatcher = self.get_global_dispatcher();
-
-                    let _ = event_dispatcher
+                    self.get_global_dispatcher()
                         .write()
                         .unwrap()
-                        .send(Message::as_boxed(&WindowEvent::Close));
+                        .send(WindowEvent::Close.as_boxed())
+                        .ok();
                 }
             }
         }

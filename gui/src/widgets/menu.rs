@@ -102,7 +102,15 @@ impl Menu {
         }
         id
     }
-    fn is_submenu_opened(&self) -> bool {
+    pub fn has_entry(&self, entry: Uid) -> bool {
+        let mut has_entry = false;
+        self.entries.iter().for_each(|e| {
+            has_entry |= e.submenu.node().has_child(entry);
+            has_entry |= e.submenu.has_entry(entry);
+        });
+        has_entry
+    }
+    pub fn is_submenu_opened(&self) -> bool {
         let mut is_opened = false;
         self.entries.iter().for_each(|e| {
             is_opened |= e.opened;

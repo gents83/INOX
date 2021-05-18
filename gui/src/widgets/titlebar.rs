@@ -156,10 +156,11 @@ impl InternalWidget for TitleBar {
                     };
                     self.change_collapse_icon();
 
-                    let _ = events_dispatcher
+                    events_dispatcher
                         .write()
                         .unwrap()
-                        .send(Message::as_boxed(&titlebar_event));
+                        .send(titlebar_event.as_boxed())
+                        .ok();
                 }
             }
         }

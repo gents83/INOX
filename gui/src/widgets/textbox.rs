@@ -204,22 +204,27 @@ impl InternalWidget for TextBox {
             }
         } else if msg.type_id() == TypeId::of::<KeyTextEvent>() {
             let event = msg.as_any().downcast_ref::<KeyTextEvent>().unwrap();
+            if !self.is_focused {
+                return;
+            }
             let events_dispatcher = self.get_global_dispatcher();
-
             if !event.char.is_control() {
                 let text_event =
                     TextEvent::AddChar(self.editable_text, self.current_char, event.char);
                 self.current_char += 1;
 
-                let _ = events_dispatcher
+                events_dispatcher
                     .write()
                     .unwrap()
-                    .send(Message::as_boxed(&text_event));
+                    .send(text_event.as_boxed())
+                    .ok();
             }
         } else if msg.type_id() == TypeId::of::<KeyEvent>() {
             let event = msg.as_any().downcast_ref::<KeyEvent>().unwrap();
+            if !self.is_focused {
+                return;
+            }
             let events_dispatcher = self.get_global_dispatcher();
-
             let text_id = self.editable_text;
             let mut current_char = self.current_char;
             if let Some(text) = self.node_mut().get_child::<Text>(text_id) {
@@ -229,20 +234,22 @@ impl InternalWidget for TextBox {
                             if let Some(c) = text.get_char_at(current_char) {
                                 let text_event = TextEvent::RemoveChar(text.id(), current_char, c);
                                 current_char -= 1;
-                                let _ = events_dispatcher
+                                events_dispatcher
                                     .write()
                                     .unwrap()
-                                    .send(Message::as_boxed(&text_event));
+                                    .send(text_event.as_boxed())
+                                    .ok();
                             }
                         }
                         Key::Delete => {
                             if let Some(c) = text.get_char_at(current_char + 1) {
                                 let text_event =
                                     TextEvent::RemoveChar(text.id(), current_char + 1, c);
-                                let _ = events_dispatcher
+                                events_dispatcher
                                     .write()
                                     .unwrap()
-                                    .send(Message::as_boxed(&text_event));
+                                    .send(text_event.as_boxed())
+                                    .ok();
                             }
                         }
                         Key::ArrowLeft => {

@@ -21,7 +21,7 @@ where
 
 pub fn serialize_to_file<T>(data: &T, filepath: PathBuf)
 where
-    T: Serialize,
+    T: Serialize + ?Sized,
 {
     let file = File::create(filepath).unwrap();
     let writer = BufWriter::new(file);

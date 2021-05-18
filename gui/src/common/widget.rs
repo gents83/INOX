@@ -100,11 +100,11 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
     fn invalidate_layout(&mut self) {
         if self.node().has_parent() {
             let event = WidgetEvent::InvalidateLayout(self.node().get_parent());
-            let _ = self
-                .get_global_dispatcher()
+            self.get_global_dispatcher()
                 .write()
                 .unwrap()
-                .send(Message::as_boxed(&event));
+                .send(event.as_boxed())
+                .ok();
         } else {
             self.mark_as_dirty();
         };
@@ -381,11 +381,11 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         };
 
         if let Some(event) = widget_event {
-            let _ = self
-                .get_global_dispatcher()
+            self.get_global_dispatcher()
                 .write()
                 .unwrap()
-                .send(Message::as_boxed(&event));
+                .send(event.as_boxed())
+                .ok();
         }
     }
     fn move_to_layer(&mut self, layer: f32) {

@@ -6,6 +6,7 @@ use crate::Widget;
 #[serde(crate = "nrg_serialize")]
 pub struct WidgetNode {
     id: Uid,
+    name: String,
     parent_id: Uid,
     children: Vec<Box<dyn Widget>>,
 }
@@ -14,6 +15,7 @@ impl Default for WidgetNode {
     fn default() -> Self {
         Self {
             id: generate_random_uid(),
+            name: String::from("no-name"),
             parent_id: INVALID_UID,
             children: Vec::new(),
         }
@@ -23,6 +25,13 @@ impl Default for WidgetNode {
 impl WidgetNode {
     pub fn get_id(&self) -> Uid {
         self.id
+    }
+    pub fn get_name(&self) -> &str {
+        self.name.as_str()
+    }
+    pub fn set_name(&mut self, name: &str) -> &mut Self {
+        self.name = String::from(name);
+        self
     }
     pub fn add_child(&mut self, mut widget: Box<dyn Widget>) -> &mut Self {
         widget.node_mut().parent_id = self.id;

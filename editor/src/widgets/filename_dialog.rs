@@ -5,22 +5,15 @@ use nrg_gui::{
     WidgetData, WidgetEvent, DEFAULT_BUTTON_SIZE,
 };
 use nrg_math::Vector2;
-use nrg_messenger::Message;
+use nrg_messenger::{implement_message, Message};
 use nrg_serialize::*;
 
-#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(crate = "nrg_serialize")]
-pub enum DialogResult {
-    Waiting,
-    Ok,
-    Cancel,
+#[derive(Clone)]
+pub enum DialogEvent {
+    Confirmed(Uid, Uid, String), //my uid, requester uid, text
+    Canceled(Uid),
 }
-
-impl Default for DialogResult {
-    fn default() -> Self {
-        Self::Waiting
-    }
-}
+implement_message!(DialogEvent);
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]
@@ -37,19 +30,19 @@ pub struct FilenameDialog {
     #[serde(skip)]
     cancel_uid: Uid,
     #[serde(skip)]
-    result: DialogResult,
+    requester_uid: Uid,
 }
 implement_widget_with_custom_members!(FilenameDialog {
     title_bar_uid: INVALID_UID,
     text_box_uid: INVALID_UID,
     button_box_uid: INVALID_UID,
+    requester_uid: INVALID_UID,
     ok_uid: INVALID_UID,
-    cancel_uid: INVALID_UID,
-    result: DialogResult::Waiting
+    cancel_uid: INVALID_UID
 });
 
 impl FilenameDialog {
-    pub fn get_filename(&mut self) -> String {
+    pub fn get_text(&mut self) -> String {
         let mut filename = String::new();
         let uid = self.text_box_uid;
         if let Some(text_box) = self.node_mut().get_child::<TextBox>(uid) {
@@ -57,8 +50,9 @@ impl FilenameDialog {
         }
         filename
     }
-    pub fn get_result(&self) -> DialogResult {
-        self.result
+    pub fn set_requester_uid(&mut self, requester_uid: Uid) -> &mut Self {
+        self.requester_uid = requester_uid;
+        self
     }
     fn add_title(&mut self) {
         let mut title_bar = TitleBar::new(self.get_shared_data(), self.get_global_messenger());
@@ -102,6 +96,11 @@ impl FilenameDialog {
 
 impl InternalWidget for FilenameDialog {
     fn widget_init(&mut self) {
+        self.get_global_messenger()
+            .write()
+            .unwrap()
+            .register_type::<DialogEvent>();
+
         let size: Vector2 = [500., 200.].into();
         self.size(size * Screen::get_scale_factor())
             .vertical_alignment(VerticalAlignment::Center)
@@ -127,9 +126,20 @@ impl InternalWidget for FilenameDialog {
             let event = msg.as_any().downcast_ref::<WidgetEvent>().unwrap();
             if let WidgetEvent::Pressed(widget_id, _mouse_in_px) = *event {
                 if self.ok_uid == widget_id {
-                    self.result = DialogResult::Ok;
+                    self.get_global_dispatcher()
+                        .write()
+                        .unwrap()
+                        .send(
+                            DialogEvent::Confirmed(self.id(), self.requester_uid, self.get_text())
+                                .as_boxed(),
+                        )
+                        .ok();
                 } else if self.cancel_uid == widget_id {
-                    self.result = DialogResult::Cancel;
+                    self.get_global_dispatcher()
+                        .write()
+                        .unwrap()
+                        .send(DialogEvent::Canceled(self.id()).as_boxed())
+                        .ok();
                 }
             }
         }

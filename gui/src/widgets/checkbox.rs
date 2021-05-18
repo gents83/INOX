@@ -142,10 +142,11 @@ impl InternalWidget for Checkbox {
                         CheckboxEvent::Unchecked(self.outer_widget)
                     };
 
-                    let _ = message_box
+                    message_box
                         .write()
                         .unwrap()
-                        .send(Message::as_boxed(&checkbox_event));
+                        .send(checkbox_event.as_boxed())
+                        .ok();
                 }
             }
         } else if msg.type_id() == TypeId::of::<CheckboxEvent>() {
