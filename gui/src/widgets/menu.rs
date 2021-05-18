@@ -153,6 +153,7 @@ impl InternalWidget for Menu {
             .horizontal_alignment(HorizontalAlignment::Stretch)
             .space_between_elements((DEFAULT_WIDGET_SIZE[0] / 2. * Screen::get_scale_factor()) as _)
             .fill_type(ContainerFillType::Horizontal)
+            .keep_fixed_width(true)
             .use_space_before_and_after(false)
             .style(WidgetStyle::DefaultBackground);
     }

@@ -41,7 +41,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         }
 
         self.move_to_layer(self.graphics().get_layer());
-        self.send_invalidate_layout_event();
+        self.invalidate_layout();
         self.mark_as_initialized();
     }
     fn update(&mut self, drawing_area_in_px: Vector4) {
@@ -97,13 +97,24 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         });
     }
 
-    fn send_invalidate_layout_event(&self) {
-        let event = WidgetEvent::InvalidateLayout(self.id());
-        let _ = self
-            .get_global_dispatcher()
-            .write()
-            .unwrap()
-            .send(Message::as_boxed(&event));
+    fn invalidate_layout(&mut self) {
+        if self.node().has_parent() {
+            let event = WidgetEvent::InvalidateLayout(self.node().get_parent());
+            let _ = self
+                .get_global_dispatcher()
+                .write()
+                .unwrap()
+                .send(Message::as_boxed(&event));
+        } else {
+            self.mark_as_dirty();
+        };
+    }
+
+    fn mark_as_dirty(&mut self) {
+        self.state_mut().set_dirty(true);
+        self.node_mut().propagate_on_children_mut(|w| {
+            w.mark_as_dirty();
+        });
     }
 
     fn id(&self) -> Uid {
@@ -113,14 +124,14 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         if pos_in_px != self.state().get_position() {
             self.state_mut().set_position(pos_in_px);
             self.graphics_mut().set_position(pos_in_px);
-            self.send_invalidate_layout_event();
+            self.invalidate_layout();
         }
     }
     fn set_size(&mut self, size_in_px: Vector2) {
         if size_in_px != self.state().get_size() {
             self.state_mut().set_size(size_in_px);
             self.graphics_mut().set_size(size_in_px);
-            self.send_invalidate_layout_event();
+            self.invalidate_layout();
         }
     }
 
@@ -281,7 +292,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         match *event {
             WidgetEvent::InvalidateLayout(widget_id) => {
                 if widget_id == id || self.node_mut().has_child(widget_id) {
-                    self.state_mut().set_dirty(true);
+                    self.invalidate_layout();
                 }
             }
             WidgetEvent::Entering(widget_id) => {
@@ -385,10 +396,13 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
 
     fn update_layout(&mut self) {
         nrg_profiler::scoped_profile!("widget::update_layout");
+        self.state_mut().set_dirty(false);
         self.apply_fit_to_content();
         self.compute_offset_and_scale_from_alignment();
         self.update_layers();
-        self.state_mut().set_dirty(false);
+        if self.state().is_dirty() {
+            self.invalidate_layout();
+        }
     }
 
     fn update_layers(&mut self) {
@@ -419,41 +433,17 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         let id = widget.id();
         self.node_mut().add_child(widget);
 
-        self.send_invalidate_layout_event();
+        self.invalidate_layout();
         id
     }
-    fn remove_children(&mut self) {
-        self.node_mut().propagate_on_children_mut(|w| {
-            w.graphics_mut().remove_meshes();
-        });
-        self.node_mut().remove_children();
-
-        self.send_invalidate_layout_event();
-    }
-    fn has_child(&self, uid: Uid) -> bool {
-        let mut found = false;
-        self.node().propagate_on_children(|w| {
-            if w.id() == uid {
-                found = true;
-            }
-        });
-        found
-    }
-    fn has_child_recursive(&self, uid: Uid) -> bool {
-        let mut found = false;
-        self.node().propagate_on_children(|w| {
-            if w.id() == uid || w.has_child_recursive(uid) {
-                found = true;
-            }
-        });
-        found
-    }
     fn set_visible(&mut self, visible: bool) {
-        self.node_mut().propagate_on_children_mut(|w| {
-            w.set_visible(visible);
-        });
-        self.graphics_mut().set_visible(visible);
+        if self.graphics().is_visible() != visible {
+            self.node_mut().propagate_on_children_mut(|w| {
+                w.set_visible(visible);
+            });
+            self.graphics_mut().set_visible(visible);
 
-        self.send_invalidate_layout_event();
+            self.invalidate_layout();
+        }
     }
 }
