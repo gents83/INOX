@@ -33,10 +33,15 @@ where
     T: for<'de> Deserialize<'de>,
 {
     if filepath.exists() {
-        let file = File::open(filepath).unwrap();
+        let file = File::open(filepath.clone()).unwrap();
         let reader = BufReader::new(file);
         if let Ok(result) = serde_json::from_reader(reader) {
             *data = result;
+        } else {
+            eprintln!(
+                "Unable to deserialize file {}",
+                filepath.to_str().unwrap_or("InvalidPath")
+            );
         }
     }
 }

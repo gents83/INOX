@@ -13,7 +13,6 @@ use crate::{
 pub struct GraphNode {
     data: WidgetData,
     title_bar: Uid,
-    #[serde(skip, default = "nrg_math::VecBase::default_zero")]
     expanded_size: Vector2,
     is_collapsed: bool,
 }

@@ -34,11 +34,16 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         self.state_mut().set_drawing_area(clip_area_in_px);
         self.graphics_mut().init("UI");
 
-        self.widget_init();
-
         if self.is_initialized() {
-            self.node_mut().propagate_on_children_mut(|w| w.init());
+            let shared_data = self.get_shared_data().clone();
+            let global_messenger = self.get_global_messenger().clone();
+            self.node_mut().propagate_on_children_mut(|w| {
+                w.load_override(shared_data.clone(), global_messenger.clone());
+                w.init();
+            });
         }
+
+        self.widget_init();
 
         self.move_to_layer(self.graphics().get_layer());
         self.invalidate_layout();

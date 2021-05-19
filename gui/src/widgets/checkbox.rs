@@ -38,11 +38,8 @@ fn debug_info_event(event: &CheckboxEvent) -> String {
 pub struct Checkbox {
     data: WidgetData,
     is_checked: bool,
-    #[serde(skip)]
     outer_widget: Uid,
-    #[serde(skip)]
     checked_widget: Uid,
-    #[serde(skip)]
     label_widget: Uid,
 }
 implement_widget_with_custom_members!(Checkbox {

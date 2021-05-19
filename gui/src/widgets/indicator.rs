@@ -1,5 +1,5 @@
-use nrg_serialize::{Deserialize, Serialize};
 use nrg_messenger::Message;
+use nrg_serialize::{Deserialize, Serialize};
 use std::time::{Duration, Instant};
 
 use crate::{
@@ -11,7 +11,6 @@ use crate::{
 pub struct Indicator {
     #[serde(skip)]
     is_blinking: bool,
-    #[serde(skip)]
     refresh_time: Duration,
     #[serde(skip, default = "Instant::now")]
     elapsed_time: Instant,

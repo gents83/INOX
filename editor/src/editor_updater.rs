@@ -95,9 +95,6 @@ impl System for EditorUpdater {
         canvas.move_to_layer(-1.);
         self.canvas_id = canvas.id();
 
-        let node = GraphNode::new(&self.shared_data, &self.global_messenger);
-        self.node_id = node.id();
-
         let mut widget = Panel::new(&self.shared_data, &self.global_messenger);
         widget
             .position([300., 300.].into())
@@ -127,27 +124,16 @@ impl System for EditorUpdater {
         widget.add_child(Box::new(textbox));
 
         self.widgets.push(Arc::new(RwLock::new(Box::new(canvas))));
-        self.widgets.push(Arc::new(RwLock::new(Box::new(node))));
         self.widgets.push(Arc::new(RwLock::new(Box::new(widget))));
         self.widgets
             .push(Arc::new(RwLock::new(Box::new(main_menu))));
         self.widgets
             .push(Arc::new(RwLock::new(Box::new(history_panel))));
+
         /*
-                let dir = "./data/widgets/";
-                if let Ok(dir) = std::fs::read_dir(dir) {
-                    for entry in dir {
-                        if let Ok(entry) = entry {
-                            let path = entry.path();
-                            if !path.is_dir() {
-                                let mut boxed_node = Box::new(GraphNode::default());
-                                deserialize_from_file(&mut boxed_node, path);
-                                boxed_node.as_mut().init(&self.shared_data);
-                                self.canvas.add_child(boxed_node);
-                            }
-                        }
-                    }
-                }
+        let node = GraphNode::new(&self.shared_data, &self.global_messenger);
+        self.node_id = node.id();
+        self.widgets.push(Arc::new(RwLock::new(Box::new(node))));
         */
     }
 
@@ -270,6 +256,44 @@ impl EditorUpdater {
         );
     }
 
+    fn load_node(&mut self, name: &str) {
+        let dir = "./data/widgets/";
+        if let Ok(dir) = std::fs::read_dir(dir) {
+            dir.for_each(|entry| {
+                if let Ok(entry) = entry {
+                    let path = entry.path();
+                    if !path.is_dir() && path.to_str().unwrap().contains(name) {
+                        if let Some(node_widget_index) = self
+                            .widgets
+                            .iter()
+                            .position(|w| w.read().unwrap().id() == self.node_id)
+                        {
+                            let old_node = self.widgets.swap_remove(node_widget_index);
+                            old_node.write().unwrap().uninit();
+                        }
+                        let new_node =
+                            GraphNode::load(&self.shared_data, &self.global_messenger, path);
+                        self.node_id = new_node.id();
+
+                        self.widgets.push(Arc::new(RwLock::new(Box::new(new_node))));
+                    }
+                }
+            });
+        }
+    }
+
+    fn save_node(&mut self, name: &str) {
+        if let Some(node) = self.get_widget::<GraphNode>(self.node_id) {
+            node.node_mut().set_name(name);
+            let mut path = PathBuf::from(name);
+            if path.extension().is_none() {
+                path.set_extension("widget");
+            }
+            let filepath = PathBuf::from(format!("./data/widgets/{}", path.to_str().unwrap()));
+            serialize_to_file(node, filepath);
+        }
+    }
+
     fn update_events(&mut self) {
         nrg_profiler::scoped_profile!("update_events");
 
@@ -277,27 +301,16 @@ impl EditorUpdater {
             if msg.type_id() == TypeId::of::<DialogEvent>() {
                 let event = msg.as_any().downcast_ref::<DialogEvent>().unwrap();
                 if let DialogEvent::Confirmed(_widget_id, requester_uid, text) = event {
+                    let mut should_load = false;
                     let mut should_save = false;
-                    let change_name =
-                        if let Some(menu) = self.get_widget::<MainMenu>(self.main_menu_id) {
-                            if menu.is_save_uid(*requester_uid) {
-                                should_save = true;
-                            }
-                            menu.menu().has_entry(*requester_uid)
-                        } else {
-                            false
-                        };
-                    if let Some(node) = self.get_widget::<GraphNode>(self.node_id) {
-                        if change_name {
-                            node.node_mut().set_name(text);
-                        }
-                        if should_save {
-                            let filepath = PathBuf::from(format!(
-                                "./data/widgets/{}.widget",
-                                node.node().get_name()
-                            ));
-                            serialize_to_file(node, filepath);
-                        }
+                    if let Some(menu) = self.get_widget::<MainMenu>(self.main_menu_id) {
+                        should_load = menu.is_open_uid(*requester_uid);
+                        should_save = menu.is_save_uid(*requester_uid);
+                    }
+                    if should_load {
+                        self.load_node(text);
+                    } else if should_save {
+                        self.save_node(text);
                     }
                 }
             } else if msg.type_id() == TypeId::of::<KeyEvent>() {

@@ -57,7 +57,6 @@ pub struct Text {
     text: String,
     #[serde(skip)]
     hover_char_index: i32,
-    #[serde(skip)]
     char_width: u32,
     #[serde(skip)]
     is_dirty: bool,
@@ -201,6 +200,7 @@ impl InternalWidget for Text {
 
         self.graphics_mut().link_to_material(material_id);
         if self.is_initialized() {
+            self.is_dirty = true;
             return;
         }
 

@@ -19,13 +19,9 @@ pub const DEFAULT_ICON_SIZE: [f32; 2] = [
 pub struct TextBox {
     data: WidgetData,
     is_editable: bool,
-    #[serde(skip)]
     label: Uid,
-    #[serde(skip)]
     editable_text: Uid,
-    #[serde(skip)]
     text_panel: Uid,
-    #[serde(skip)]
     indicator_widget: Uid,
     #[serde(skip)]
     is_focused: bool,

@@ -32,6 +32,17 @@ impl WidgetData {
             global_messenger,
         }
     }
+    pub fn load_override(
+        &mut self,
+        shared_data: SharedDataRw,
+        global_messenger: MessengerRw,
+    ) -> &mut Self {
+        self.graphics_mut().load_override(&shared_data);
+        self.message_channel = Self::create_widget_channel(&global_messenger);
+        self.shared_data = shared_data;
+        self.global_messenger = global_messenger;
+        self
+    }
     fn create_widget_channel(global_messenger: &MessengerRw) -> MessageChannel {
         let message_channel = MessageChannel::default();
         global_messenger
@@ -101,6 +112,7 @@ impl WidgetData {
 
 #[typetag::serde(tag = "data")]
 pub trait WidgetDataGetter {
+    fn load_override(&mut self, shared_data: SharedDataRw, global_messenger: MessengerRw);
     fn get_shared_data(&self) -> &SharedDataRw;
     fn get_global_messenger(&self) -> &MessengerRw;
     fn get_global_dispatcher(&self) -> nrg_messenger::MessageBox;

@@ -27,11 +27,12 @@ implement_message!(TitleBarEvent);
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]
 pub struct TitleBar {
+    data: WidgetData,
     title_widget: Uid,
     collapse_icon_widget: Uid,
-    data: WidgetData,
     is_collapsible: bool,
     is_collapsed: bool,
+    #[serde(skip)]
     is_dirty: bool,
 }
 implement_widget_with_custom_members!(TitleBar {
@@ -43,6 +44,13 @@ implement_widget_with_custom_members!(TitleBar {
 });
 
 impl TitleBar {
+    pub fn set_text(&mut self, text: &str) -> &mut Self {
+        let uid = self.title_widget;
+        if let Some(text_box) = self.node_mut().get_child::<Text>(uid) {
+            text_box.set_text(text);
+        }
+        self
+    }
     pub fn collapsible(&mut self, can_collapse: bool) -> &mut Self {
         self.is_collapsible = can_collapse;
         self
@@ -109,6 +117,9 @@ impl TitleBar {
 impl InternalWidget for TitleBar {
     fn widget_init(&mut self) {
         if self.is_initialized() {
+            self.is_dirty = true;
+            self.change_collapse_icon();
+
             return;
         }
 

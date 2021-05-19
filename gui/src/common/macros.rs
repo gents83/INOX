@@ -10,6 +10,14 @@ macro_rules! implement_widget {
         #[typetag::serde]
         impl WidgetDataGetter for $Type {
             #[inline]
+            fn load_override(
+                &mut self,
+                shared_data: nrg_resources::SharedDataRw,
+                global_messenger: nrg_messenger::MessengerRw,
+            ) {
+                self.data.load_override(shared_data, global_messenger);
+            }
+            #[inline]
             fn get_shared_data(&self) -> &nrg_resources::SharedDataRw {
                 self.data.get_shared_data()
             }
@@ -171,6 +179,21 @@ macro_rules! implement_widget_with_data {
                 w.init();
                 w
             }
+
+            pub fn load(
+                shared_data: &nrg_resources::SharedDataRw,
+                global_messenger: &nrg_messenger::MessengerRw,
+                filepath: std::path::PathBuf,
+            ) -> $Type {
+                let mut w = $Type {
+                    data: WidgetData::new(shared_data.clone(), global_messenger.clone()),
+                };
+                nrg_serialize::deserialize_from_file(&mut w, filepath);
+                w.data
+                    .load_override(shared_data.clone(), global_messenger.clone());
+                w.init();
+                w
+            }
         }
     };
 }
@@ -186,6 +209,21 @@ macro_rules! implement_widget_with_custom_members {
                     data: WidgetData::new(shared_data.clone(), global_messenger.clone()),
                     $($field: $value),+
                 };
+                w.init();
+                w
+            }
+
+            pub fn load(
+                shared_data: &nrg_resources::SharedDataRw,
+                global_messenger: &nrg_messenger::MessengerRw,
+                filepath: std::path::PathBuf,
+            ) -> $Type {
+                let mut w = $Type {
+                    data: WidgetData::new(shared_data.clone(), global_messenger.clone()),
+                    $($field: $value),+
+                };
+                nrg_serialize::deserialize_from_file(&mut w, filepath);
+                w.data.load_override(shared_data.clone(), global_messenger.clone());
                 w.init();
                 w
             }

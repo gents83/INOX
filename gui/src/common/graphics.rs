@@ -21,9 +21,7 @@ pub struct WidgetGraphics {
     stroke: f32,
     #[serde(skip)]
     is_dirty: bool,
-    #[serde(skip)]
     is_visible: bool,
-    #[serde(skip, default = "nrg_math::MatBase::default_identity")]
     transform: Matrix4,
 }
 
@@ -40,6 +38,11 @@ impl WidgetGraphics {
             stroke: 0.,
             transform: Matrix4::default_identity(),
         }
+    }
+
+    pub fn load_override(&mut self, shared_data: &SharedDataRw) -> &mut Self {
+        self.shared_data = shared_data.clone();
+        self
     }
 }
 
@@ -159,7 +162,7 @@ impl WidgetGraphics {
         self.is_visible
     }
     pub fn update(&mut self) -> &mut Self {
-        if self.is_dirty {
+        if self.is_dirty && !self.material_id.is_nil() && !self.mesh_id.is_nil() {
             let mut visible = self.is_visible;
             if visible && self.color.w.is_zero() {
                 visible = false;

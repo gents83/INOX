@@ -148,28 +148,28 @@ impl InternalWidget for MainMenu {
                         self.get_shared_data(),
                         self.get_global_messenger(),
                     ));
-                    self.filename_dialog
-                        .as_mut()
-                        .unwrap()
-                        .set_requester_uid(self.new_id);
+                    let dialog = self.filename_dialog.as_mut().unwrap();
+                    dialog.set_requester_uid(self.new_id);
+                    dialog.set_title("New Widget");
+                    dialog.set_text("NewTestWidget");
                 } else if self.open_id == widget_id && self.filename_dialog.is_none() {
                     self.filename_dialog = Some(FilenameDialog::new(
                         self.get_shared_data(),
                         self.get_global_messenger(),
                     ));
-                    self.filename_dialog
-                        .as_mut()
-                        .unwrap()
-                        .set_requester_uid(self.open_id);
+                    let dialog = self.filename_dialog.as_mut().unwrap();
+                    dialog.set_requester_uid(self.open_id);
+                    dialog.set_title("Open Widget");
+                    dialog.set_text("TestWidget");
                 } else if self.save_id == widget_id && self.filename_dialog.is_none() {
                     self.filename_dialog = Some(FilenameDialog::new(
                         self.get_shared_data(),
                         self.get_global_messenger(),
                     ));
-                    self.filename_dialog
-                        .as_mut()
-                        .unwrap()
-                        .set_requester_uid(self.save_id);
+                    let dialog = self.filename_dialog.as_mut().unwrap();
+                    dialog.set_requester_uid(self.save_id);
+                    dialog.set_title("Save Widget");
+                    dialog.set_text("TestWidget.widget");
                 } else if self.exit_id == widget_id {
                     self.get_global_dispatcher()
                         .write()
