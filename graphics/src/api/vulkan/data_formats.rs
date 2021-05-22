@@ -59,34 +59,32 @@ impl InstanceData {
         let attr: Vec<VkVertexInputAttributeDescription> = vec![
             VkVertexInputAttributeDescription {
                 binding: INSTANCE_BUFFER_BIND_ID as _,
-                format: VkFormat_VK_FORMAT_R32G32B32A32_SFLOAT,
+                format: VkFormat_VK_FORMAT_R32G32B32_SFLOAT,
                 location: 4,
                 offset: unsafe {
-                    &(*(::std::ptr::null::<InstanceData>())).transform.x as *const _ as _
+                    &(*(::std::ptr::null::<InstanceData>())).position as *const _ as _
                 },
             },
             VkVertexInputAttributeDescription {
                 binding: INSTANCE_BUFFER_BIND_ID as _,
-                format: VkFormat_VK_FORMAT_R32G32B32A32_SFLOAT,
+                format: VkFormat_VK_FORMAT_R32G32B32_SFLOAT,
                 location: 5,
                 offset: unsafe {
-                    &(*(::std::ptr::null::<InstanceData>())).transform.y as *const _ as _
+                    &(*(::std::ptr::null::<InstanceData>())).rotation as *const _ as _
                 },
             },
             VkVertexInputAttributeDescription {
                 binding: INSTANCE_BUFFER_BIND_ID as _,
-                format: VkFormat_VK_FORMAT_R32G32B32A32_SFLOAT,
+                format: VkFormat_VK_FORMAT_R32G32B32_SFLOAT,
                 location: 6,
-                offset: unsafe {
-                    &(*(::std::ptr::null::<InstanceData>())).transform.z as *const _ as _
-                },
+                offset: unsafe { &(*(::std::ptr::null::<InstanceData>())).scale as *const _ as _ },
             },
             VkVertexInputAttributeDescription {
                 binding: INSTANCE_BUFFER_BIND_ID as _,
                 format: VkFormat_VK_FORMAT_R32G32B32A32_SFLOAT,
                 location: 7,
                 offset: unsafe {
-                    &(*(::std::ptr::null::<InstanceData>())).transform.w as *const _ as _
+                    &(*(::std::ptr::null::<InstanceData>())).draw_area as *const _ as _
                 },
             },
             VkVertexInputAttributeDescription {

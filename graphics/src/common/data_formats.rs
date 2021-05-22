@@ -13,7 +13,10 @@ pub struct InstanceCommand {
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct InstanceData {
-    pub transform: Matrix4,
+    pub position: Vector3,
+    pub rotation: Vector3,
+    pub scale: Vector3,
+    pub draw_area: Vector4,
     pub diffuse_color: Vector4,
     pub diffuse_texture_index: i32,
     pub diffuse_layer_index: i32,
@@ -22,7 +25,10 @@ pub struct InstanceData {
 impl Default for InstanceData {
     fn default() -> Self {
         Self {
-            transform: Matrix4::default_identity(),
+            position: Vector3::default_zero(),
+            rotation: Vector3::default_zero(),
+            scale: [1., 1., 1.].into(),
+            draw_area: [0., 0., f32::MAX, f32::MAX].into(),
             diffuse_color: [1., 1., 1., 1.].into(),
             diffuse_texture_index: -1,
             diffuse_layer_index: -1,

@@ -29,12 +29,12 @@ pub fn add_space_before_after(
     match filltype {
         ContainerFillType::Horizontal => {
             widget_clip.x += space;
-            widget_clip.z -= space;
+            widget_clip.z = (widget_clip.z - space).max(0.);
             widget_clip.x = widget_clip.x.min(widget_clip.x + widget_clip.z);
         }
         ContainerFillType::Vertical => {
             widget_clip.y += space;
-            widget_clip.w -= space;
+            widget_clip.w = (widget_clip.w - space).max(0.);
             widget_clip.y = widget_clip.y.min(widget_clip.y + widget_clip.w);
         }
         _ => {}
@@ -50,12 +50,12 @@ pub fn add_widget_size(
     match filltype {
         ContainerFillType::Horizontal => {
             widget_clip.x += widget.state().get_size().x;
-            widget_clip.z -= widget.state().get_size().x;
+            widget_clip.z = (widget_clip.z - widget.state().get_size().x).max(0.);
             widget_clip.x = widget_clip.x.min(widget_clip.x + widget_clip.z);
         }
         ContainerFillType::Vertical => {
             widget_clip.y += widget.state().get_size().y;
-            widget_clip.w -= widget.state().get_size().y;
+            widget_clip.w = (widget_clip.w - widget.state().get_size().y).max(0.);
             widget_clip.y = widget_clip.y.min(widget_clip.y + widget_clip.w);
         }
         _ => {}

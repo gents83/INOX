@@ -38,7 +38,7 @@ pub struct TitleBar {
 implement_widget_with_custom_members!(TitleBar {
     title_widget: INVALID_UID,
     collapse_icon_widget: INVALID_UID,
-    is_collapsible: true,
+    is_collapsible: false,
     is_collapsed: false,
     is_dirty: true
 });
@@ -52,7 +52,16 @@ impl TitleBar {
         self
     }
     pub fn collapsible(&mut self, can_collapse: bool) -> &mut Self {
-        self.is_collapsible = can_collapse;
+        if self.is_collapsible != can_collapse {
+            self.is_collapsible = can_collapse;
+            if !self.is_collapsible {
+                let icon_id = self.collapse_icon_widget;
+                self.node_mut().remove_child(icon_id);
+                self.collapse_icon_widget = INVALID_UID;
+            } else {
+                self.create_collapse_icon();
+            }
+        }
         self
     }
     pub fn is_collapsed(&self) -> bool {
@@ -133,9 +142,8 @@ impl InternalWidget for TitleBar {
             .use_space_before_and_after(true)
             .draggable(false)
             .selectable(false)
-            .style(WidgetStyle::DefaultTitleBar);
-
-        self.create_collapse_icon();
+            .style(WidgetStyle::DefaultTitleBar)
+            .collapsible(true);
 
         let mut title = Text::new(self.get_shared_data(), self.get_global_messenger());
         title

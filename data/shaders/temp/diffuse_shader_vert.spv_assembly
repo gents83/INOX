@@ -1,16 +1,27 @@
 ; SPIR-V
 ; Version: 1.0
 ; Generator: Google Shaderc over Glslang; 10
-; Bound: 65
+; Bound: 150
 ; Schema: 0
                OpCapability Shader
           %1 = OpExtInstImport "GLSL.std.450"
                OpMemoryModel Logical GLSL450
-               OpEntryPoint Vertex %main "main" %_ %instanceMatrix %inPosition %fragColor %inColor %instanceDiffuseColor %fragTexCoord %inTexCoord %instanceDiffuseLayerIndex %inNormal %instanceDiffuseTextureIndex
+               OpEntryPoint Vertex %main "main" %instanceRot %inPosition %instanceScale %instancePos %_ %fragColor %inColor %instanceDiffuseColor %fragTexCoord %inTexCoord %instanceDiffuseLayerIndex %fragDrawArea %instanceDrawArea %inNormal %instanceDiffuseTextureIndex
                OpSource GLSL 450
                OpSourceExtension "GL_GOOGLE_cpp_style_line_directive"
                OpSourceExtension "GL_GOOGLE_include_directive"
                OpName %main "main"
+               OpName %s "s"
+               OpName %instanceRot "instanceRot"
+               OpName %c "c"
+               OpName %mx "mx"
+               OpName %my "my"
+               OpName %mz "mz"
+               OpName %rotMat "rotMat"
+               OpName %pos "pos"
+               OpName %inPosition "inPosition"
+               OpName %instanceScale "instanceScale"
+               OpName %instancePos "instancePos"
                OpName %gl_PerVertex "gl_PerVertex"
                OpMemberName %gl_PerVertex 0 "gl_Position"
                OpMemberName %gl_PerVertex 1 "gl_PointSize"
@@ -21,16 +32,20 @@
                OpMemberName %UniformBufferObject 0 "view"
                OpMemberName %UniformBufferObject 1 "proj"
                OpName %ubo "ubo"
-               OpName %instanceMatrix "instanceMatrix"
-               OpName %inPosition "inPosition"
                OpName %fragColor "fragColor"
                OpName %inColor "inColor"
                OpName %instanceDiffuseColor "instanceDiffuseColor"
                OpName %fragTexCoord "fragTexCoord"
                OpName %inTexCoord "inTexCoord"
                OpName %instanceDiffuseLayerIndex "instanceDiffuseLayerIndex"
+               OpName %fragDrawArea "fragDrawArea"
+               OpName %instanceDrawArea "instanceDrawArea"
                OpName %inNormal "inNormal"
                OpName %instanceDiffuseTextureIndex "instanceDiffuseTextureIndex"
+               OpDecorate %instanceRot Location 5
+               OpDecorate %inPosition Location 0
+               OpDecorate %instanceScale Location 6
+               OpDecorate %instancePos Location 4
                OpMemberDecorate %gl_PerVertex 0 BuiltIn Position
                OpMemberDecorate %gl_PerVertex 1 BuiltIn PointSize
                OpMemberDecorate %gl_PerVertex 2 BuiltIn ClipDistance
@@ -45,40 +60,54 @@
                OpDecorate %UniformBufferObject Block
                OpDecorate %ubo DescriptorSet 0
                OpDecorate %ubo Binding 0
-               OpDecorate %instanceMatrix Location 4
-               OpDecorate %inPosition Location 0
                OpDecorate %fragColor Location 0
                OpDecorate %inColor Location 1
                OpDecorate %instanceDiffuseColor Location 8
                OpDecorate %fragTexCoord Location 1
                OpDecorate %inTexCoord Location 2
                OpDecorate %instanceDiffuseLayerIndex Location 10
+               OpDecorate %fragDrawArea Location 2
+               OpDecorate %instanceDrawArea Location 7
                OpDecorate %inNormal Location 3
                OpDecorate %instanceDiffuseTextureIndex Location 9
        %void = OpTypeVoid
           %3 = OpTypeFunction %void
       %float = OpTypeFloat 32
-    %v4float = OpTypeVector %float 4
+%_ptr_Function_float = OpTypePointer Function %float
+    %v3float = OpTypeVector %float 3
+%_ptr_Input_v3float = OpTypePointer Input %v3float
+%instanceRot = OpVariable %_ptr_Input_v3float Input
        %uint = OpTypeInt 32 0
+     %uint_0 = OpConstant %uint 0
+%_ptr_Input_float = OpTypePointer Input %float
+    %v4float = OpTypeVector %float 4
+%mat4v4float = OpTypeMatrix %v4float 4
+%_ptr_Function_mat4v4float = OpTypePointer Function %mat4v4float
+        %int = OpTypeInt 32 1
+      %int_0 = OpConstant %int 0
+    %float_0 = OpConstant %float 0
+%_ptr_Function_v4float = OpTypePointer Function %v4float
+      %int_1 = OpConstant %int 1
+      %int_2 = OpConstant %int 2
+    %float_1 = OpConstant %float 1
+         %42 = OpConstantComposite %v4float %float_0 %float_0 %float_1 %float_0
+      %int_3 = OpConstant %int 3
+         %45 = OpConstantComposite %v4float %float_0 %float_0 %float_0 %float_1
      %uint_1 = OpConstant %uint 1
+         %59 = OpConstantComposite %v4float %float_0 %float_1 %float_0 %float_0
+     %uint_2 = OpConstant %uint 2
+         %75 = OpConstantComposite %v4float %float_1 %float_0 %float_0 %float_0
+ %inPosition = OpVariable %_ptr_Input_v3float Input
+%instanceScale = OpVariable %_ptr_Input_v3float Input
+%instancePos = OpVariable %_ptr_Input_v3float Input
 %_arr_float_uint_1 = OpTypeArray %float %uint_1
 %gl_PerVertex = OpTypeStruct %v4float %float %_arr_float_uint_1 %_arr_float_uint_1
 %_ptr_Output_gl_PerVertex = OpTypePointer Output %gl_PerVertex
           %_ = OpVariable %_ptr_Output_gl_PerVertex Output
-        %int = OpTypeInt 32 1
-      %int_0 = OpConstant %int 0
-%mat4v4float = OpTypeMatrix %v4float 4
 %UniformBufferObject = OpTypeStruct %mat4v4float %mat4v4float
 %_ptr_Uniform_UniformBufferObject = OpTypePointer Uniform %UniformBufferObject
         %ubo = OpVariable %_ptr_Uniform_UniformBufferObject Uniform
-      %int_1 = OpConstant %int 1
 %_ptr_Uniform_mat4v4float = OpTypePointer Uniform %mat4v4float
-%_ptr_Input_mat4v4float = OpTypePointer Input %mat4v4float
-%instanceMatrix = OpVariable %_ptr_Input_mat4v4float Input
-    %v3float = OpTypeVector %float 3
-%_ptr_Input_v3float = OpTypePointer Input %v3float
- %inPosition = OpVariable %_ptr_Input_v3float Input
-    %float_1 = OpConstant %float 1
 %_ptr_Output_v4float = OpTypePointer Output %v4float
   %fragColor = OpVariable %_ptr_Output_v4float Output
 %_ptr_Input_v4float = OpTypePointer Input %v4float
@@ -91,35 +120,127 @@
  %inTexCoord = OpVariable %_ptr_Input_v2float Input
 %_ptr_Input_int = OpTypePointer Input %int
 %instanceDiffuseLayerIndex = OpVariable %_ptr_Input_int Input
+%fragDrawArea = OpVariable %_ptr_Output_v4float Output
+%instanceDrawArea = OpVariable %_ptr_Input_v4float Input
    %inNormal = OpVariable %_ptr_Input_v3float Input
 %instanceDiffuseTextureIndex = OpVariable %_ptr_Input_int Input
        %main = OpFunction %void None %3
           %5 = OpLabel
-         %22 = OpAccessChain %_ptr_Uniform_mat4v4float %ubo %int_1
-         %23 = OpLoad %mat4v4float %22
-         %24 = OpAccessChain %_ptr_Uniform_mat4v4float %ubo %int_0
-         %25 = OpLoad %mat4v4float %24
-         %26 = OpMatrixTimesMatrix %mat4v4float %23 %25
-         %29 = OpLoad %mat4v4float %instanceMatrix
-         %30 = OpMatrixTimesMatrix %mat4v4float %26 %29
-         %34 = OpLoad %v3float %inPosition
-         %36 = OpCompositeExtract %float %34 0
-         %37 = OpCompositeExtract %float %34 1
-         %38 = OpCompositeExtract %float %34 2
-         %39 = OpCompositeConstruct %v4float %36 %37 %38 %float_1
-         %40 = OpMatrixTimesVector %v4float %30 %39
-         %42 = OpAccessChain %_ptr_Output_v4float %_ %int_0
-               OpStore %42 %40
-         %46 = OpLoad %v4float %inColor
-         %48 = OpLoad %v4float %instanceDiffuseColor
-         %49 = OpFMul %v4float %46 %48
-               OpStore %fragColor %49
-         %55 = OpLoad %v2float %inTexCoord
-         %58 = OpLoad %int %instanceDiffuseLayerIndex
-         %59 = OpConvertSToF %float %58
-         %60 = OpCompositeExtract %float %55 0
-         %61 = OpCompositeExtract %float %55 1
-         %62 = OpCompositeConstruct %v3float %60 %61 %59
-               OpStore %fragTexCoord %62
+          %s = OpVariable %_ptr_Function_float Function
+          %c = OpVariable %_ptr_Function_float Function
+         %mx = OpVariable %_ptr_Function_mat4v4float Function
+         %my = OpVariable %_ptr_Function_mat4v4float Function
+         %mz = OpVariable %_ptr_Function_mat4v4float Function
+     %rotMat = OpVariable %_ptr_Function_mat4v4float Function
+        %pos = OpVariable %_ptr_Function_v4float Function
+         %15 = OpAccessChain %_ptr_Input_float %instanceRot %uint_0
+         %16 = OpLoad %float %15
+         %17 = OpExtInst %float %1 Sin %16
+               OpStore %s %17
+         %19 = OpAccessChain %_ptr_Input_float %instanceRot %uint_0
+         %20 = OpLoad %float %19
+         %21 = OpExtInst %float %1 Cos %20
+               OpStore %c %21
+         %28 = OpLoad %float %c
+         %29 = OpLoad %float %s
+         %31 = OpCompositeConstruct %v4float %28 %29 %float_0 %float_0
+         %33 = OpAccessChain %_ptr_Function_v4float %mx %int_0
+               OpStore %33 %31
+         %35 = OpLoad %float %s
+         %36 = OpFNegate %float %35
+         %37 = OpLoad %float %c
+         %38 = OpCompositeConstruct %v4float %36 %37 %float_0 %float_0
+         %39 = OpAccessChain %_ptr_Function_v4float %mx %int_1
+               OpStore %39 %38
+         %43 = OpAccessChain %_ptr_Function_v4float %mx %int_2
+               OpStore %43 %42
+         %46 = OpAccessChain %_ptr_Function_v4float %mx %int_3
+               OpStore %46 %45
+         %48 = OpAccessChain %_ptr_Input_float %instanceRot %uint_1
+         %49 = OpLoad %float %48
+         %50 = OpExtInst %float %1 Sin %49
+               OpStore %s %50
+         %51 = OpAccessChain %_ptr_Input_float %instanceRot %uint_1
+         %52 = OpLoad %float %51
+         %53 = OpExtInst %float %1 Cos %52
+               OpStore %c %53
+         %55 = OpLoad %float %c
+         %56 = OpLoad %float %s
+         %57 = OpCompositeConstruct %v4float %55 %float_0 %56 %float_0
+         %58 = OpAccessChain %_ptr_Function_v4float %my %int_0
+               OpStore %58 %57
+         %60 = OpAccessChain %_ptr_Function_v4float %my %int_1
+               OpStore %60 %59
+         %61 = OpLoad %float %s
+         %62 = OpFNegate %float %61
+         %63 = OpLoad %float %c
+         %64 = OpCompositeConstruct %v4float %62 %float_0 %63 %float_0
+         %65 = OpAccessChain %_ptr_Function_v4float %my %int_2
+               OpStore %65 %64
+         %66 = OpAccessChain %_ptr_Function_v4float %my %int_3
+               OpStore %66 %45
+         %68 = OpAccessChain %_ptr_Input_float %instanceRot %uint_2
+         %69 = OpLoad %float %68
+         %70 = OpExtInst %float %1 Sin %69
+               OpStore %s %70
+         %71 = OpAccessChain %_ptr_Input_float %instanceRot %uint_2
+         %72 = OpLoad %float %71
+         %73 = OpExtInst %float %1 Cos %72
+               OpStore %c %73
+         %76 = OpAccessChain %_ptr_Function_v4float %mz %int_0
+               OpStore %76 %75
+         %77 = OpLoad %float %c
+         %78 = OpLoad %float %s
+         %79 = OpCompositeConstruct %v4float %float_0 %77 %78 %float_0
+         %80 = OpAccessChain %_ptr_Function_v4float %mz %int_1
+               OpStore %80 %79
+         %81 = OpLoad %float %s
+         %82 = OpFNegate %float %81
+         %83 = OpLoad %float %c
+         %84 = OpCompositeConstruct %v4float %float_0 %82 %83 %float_0
+         %85 = OpAccessChain %_ptr_Function_v4float %mz %int_2
+               OpStore %85 %84
+         %86 = OpAccessChain %_ptr_Function_v4float %mz %int_3
+               OpStore %86 %45
+         %88 = OpLoad %mat4v4float %mz
+         %89 = OpLoad %mat4v4float %my
+         %90 = OpMatrixTimesMatrix %mat4v4float %88 %89
+         %91 = OpLoad %mat4v4float %mx
+         %92 = OpMatrixTimesMatrix %mat4v4float %90 %91
+               OpStore %rotMat %92
+         %95 = OpLoad %v3float %inPosition
+         %97 = OpLoad %v3float %instanceScale
+         %98 = OpFMul %v3float %95 %97
+        %100 = OpLoad %v3float %instancePos
+        %101 = OpFAdd %v3float %98 %100
+        %102 = OpCompositeExtract %float %101 0
+        %103 = OpCompositeExtract %float %101 1
+        %104 = OpCompositeExtract %float %101 2
+        %105 = OpCompositeConstruct %v4float %102 %103 %104 %float_1
+        %106 = OpLoad %mat4v4float %rotMat
+        %107 = OpVectorTimesMatrix %v4float %105 %106
+               OpStore %pos %107
+        %116 = OpAccessChain %_ptr_Uniform_mat4v4float %ubo %int_1
+        %117 = OpLoad %mat4v4float %116
+        %118 = OpAccessChain %_ptr_Uniform_mat4v4float %ubo %int_0
+        %119 = OpLoad %mat4v4float %118
+        %120 = OpMatrixTimesMatrix %mat4v4float %117 %119
+        %121 = OpLoad %v4float %pos
+        %122 = OpMatrixTimesVector %v4float %120 %121
+        %124 = OpAccessChain %_ptr_Output_v4float %_ %int_0
+               OpStore %124 %122
+        %128 = OpLoad %v4float %inColor
+        %130 = OpLoad %v4float %instanceDiffuseColor
+        %131 = OpFMul %v4float %128 %130
+               OpStore %fragColor %131
+        %137 = OpLoad %v2float %inTexCoord
+        %140 = OpLoad %int %instanceDiffuseLayerIndex
+        %141 = OpConvertSToF %float %140
+        %142 = OpCompositeExtract %float %137 0
+        %143 = OpCompositeExtract %float %137 1
+        %144 = OpCompositeConstruct %v3float %142 %143 %141
+               OpStore %fragTexCoord %144
+        %147 = OpLoad %v4float %instanceDrawArea
+               OpStore %fragDrawArea %147
                OpReturn
                OpFunctionEnd

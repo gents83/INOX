@@ -130,6 +130,21 @@ impl System for EditorUpdater {
         self.widgets
             .push(Arc::new(RwLock::new(Box::new(history_panel))));
 
+        let mut test = CollapsibleItem::new(&self.shared_data, &self.global_messenger);
+        test.with_text("Prova")
+            .collapse(false)
+            .horizontal_alignment(HorizontalAlignment::None)
+            .vertical_alignment(VerticalAlignment::None);
+
+        /*
+        let mut inner_tree = TreeView::new(test.get_shared_data(), test.get_global_messenger());
+        TreeView::populate_with_folders(&mut inner_tree, "./data/shaders/");
+        inner_tree.vertical_alignment(VerticalAlignment::Top);
+        test.add_child(Box::new(inner_tree));
+        self.node_id = test.id();
+        self.widgets.push(Arc::new(RwLock::new(Box::new(test))));
+        */
+
         /*
         let node = GraphNode::new(&self.shared_data, &self.global_messenger);
         self.node_id = node.id();
@@ -248,7 +263,10 @@ impl EditorUpdater {
             PipelineInstance::create(&self.shared_data, pipeline_data);
         }
 
-        let pipeline_id = PipelineInstance::find_id_from_name(&self.shared_data, "UI");
+        let pipeline_id = PipelineInstance::find_id_from_name(
+            &self.shared_data,
+            self.config.pipelines.first().unwrap().name.as_str(),
+        );
         FontInstance::create_from_path(
             &self.shared_data,
             pipeline_id,

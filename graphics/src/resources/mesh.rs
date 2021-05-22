@@ -1,5 +1,5 @@
 use crate::{MeshData, Texture};
-use nrg_math::{MatBase, Matrix4};
+use nrg_math::{MatBase, Matrix4, Vector4};
 use nrg_resources::{ResourceId, SharedData, SharedDataRw};
 
 pub type MeshId = ResourceId;
@@ -7,6 +7,7 @@ pub type MeshId = ResourceId;
 #[derive(Clone)]
 pub struct MeshInstance {
     mesh_data: MeshData,
+    draw_area: Vector4, //pos (x,y) - size(z,w)
     transform: Matrix4,
     is_visible: bool,
     is_dirty: bool,
@@ -18,6 +19,7 @@ impl MeshInstance {
         let mut data = shared_data.write().unwrap();
         data.add_resource(MeshInstance {
             mesh_data,
+            draw_area: [0., 0., f32::MAX, f32::MAX].into(),
             transform: Matrix4::default_identity(),
             is_visible: true,
             is_dirty: true,
@@ -36,14 +38,23 @@ impl MeshInstance {
         mesh.is_visible = is_visible;
         mesh.is_dirty = true;
     }
+    pub fn set_draw_area(shared_data: &SharedDataRw, mesh_id: MeshId, draw_area: Vector4) {
+        let mesh = SharedData::get_resource::<Self>(shared_data, mesh_id);
+        let mesh = &mut mesh.get_mut();
+        mesh.draw_area = draw_area;
+        mesh.is_dirty = true;
+    }
     pub fn set_transform(shared_data: &SharedDataRw, mesh_id: MeshId, transform: Matrix4) {
         let mesh = SharedData::get_resource::<Self>(shared_data, mesh_id);
         let mesh = &mut mesh.get_mut();
         mesh.transform = transform;
         mesh.is_dirty = true;
     }
-    pub fn get_transform(&self) -> Matrix4 {
-        self.transform
+    pub fn get_transform(&self) -> &Matrix4 {
+        &self.transform
+    }
+    pub fn get_draw_area(&self) -> Vector4 {
+        self.draw_area
     }
 
     pub fn process_uv_for_texture(&mut self, texture: Option<&Texture>) -> &mut Self {

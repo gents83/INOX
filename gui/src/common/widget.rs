@@ -32,7 +32,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
     fn init(&mut self) {
         let clip_area_in_px = Screen::get_draw_area();
         self.state_mut().set_drawing_area(clip_area_in_px);
-        self.graphics_mut().init("UI");
+        self.graphics_mut().init("Default");
 
         if self.is_initialized() {
             let shared_data = self.get_shared_data().clone();
@@ -80,7 +80,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
             self.widget_update();
         }
 
-        self.graphics_mut().update();
+        self.graphics_mut().update(drawing_area_in_px);
     }
     fn uninit(&mut self) {
         self.node_mut().propagate_on_children_mut(|w| w.uninit());
@@ -149,8 +149,8 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         [
             x,
             y,
-            (size.x).min(drawing_area.z),
-            (size.y).min(drawing_area.w),
+            (size.x).min((drawing_area.x + drawing_area.z).min(pos.x + size.x) - x),
+            (size.y).min((drawing_area.y + drawing_area.w).min(pos.y + size.y) - y),
         ]
         .into()
     }
@@ -201,10 +201,13 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
             _ => {}
         }
 
-        size.x = size.x.min(clip_size.x);
-        size.y = size.y.min(clip_size.y);
-        pos.x = pos.x.max(clip_pos.x).min(clip_pos.x + clip_size.x - size.x);
-        pos.y = pos.y.max(clip_pos.y).min(clip_pos.y + clip_size.y - size.y);
+        let max_size: Vector2 = [
+            (clip_size.x - size.x).max(0.),
+            (clip_size.y - size.y).max(0.),
+        ]
+        .into();
+        pos.x = pos.x.max(clip_pos.x).min(clip_pos.x + max_size.x);
+        pos.y = pos.y.max(clip_pos.y).min(clip_pos.y + max_size.y);
 
         self.set_position(pos);
         self.set_size(size);
@@ -405,6 +408,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         self.apply_fit_to_content();
         self.compute_offset_and_scale_from_alignment();
         self.update_layers();
+        self.graphics_mut().mark_as_dirty();
         if self.state().is_dirty() {
             self.invalidate_layout();
         }

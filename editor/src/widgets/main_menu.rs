@@ -8,7 +8,7 @@ use nrg_messenger::Message;
 use nrg_platform::WindowEvent;
 use nrg_serialize::*;
 
-use super::{DialogEvent, FilenameDialog};
+use super::{DialogEvent, FolderDialog};
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]
@@ -30,7 +30,7 @@ pub struct MainMenu {
     #[serde(skip)]
     show_history_id: Uid,
     #[serde(skip)]
-    filename_dialog: Option<FilenameDialog>,
+    filename_dialog: Option<FolderDialog>,
 }
 implement_widget_with_custom_members!(MainMenu {
     menu: None,
@@ -144,32 +144,29 @@ impl InternalWidget for MainMenu {
             let event = msg.as_any().downcast_ref::<WidgetEvent>().unwrap();
             if let WidgetEvent::Pressed(widget_id, _mouse_in_px) = *event {
                 if self.new_id == widget_id && self.filename_dialog.is_none() {
-                    self.filename_dialog = Some(FilenameDialog::new(
+                    self.filename_dialog = Some(FolderDialog::new(
                         self.get_shared_data(),
                         self.get_global_messenger(),
                     ));
                     let dialog = self.filename_dialog.as_mut().unwrap();
                     dialog.set_requester_uid(self.new_id);
                     dialog.set_title("New Widget");
-                    dialog.set_text("NewTestWidget");
                 } else if self.open_id == widget_id && self.filename_dialog.is_none() {
-                    self.filename_dialog = Some(FilenameDialog::new(
+                    self.filename_dialog = Some(FolderDialog::new(
                         self.get_shared_data(),
                         self.get_global_messenger(),
                     ));
                     let dialog = self.filename_dialog.as_mut().unwrap();
                     dialog.set_requester_uid(self.open_id);
                     dialog.set_title("Open Widget");
-                    dialog.set_text("TestWidget");
                 } else if self.save_id == widget_id && self.filename_dialog.is_none() {
-                    self.filename_dialog = Some(FilenameDialog::new(
+                    self.filename_dialog = Some(FolderDialog::new(
                         self.get_shared_data(),
                         self.get_global_messenger(),
                     ));
                     let dialog = self.filename_dialog.as_mut().unwrap();
                     dialog.set_requester_uid(self.save_id);
                     dialog.set_title("Save Widget");
-                    dialog.set_text("TestWidget.widget");
                 } else if self.exit_id == widget_id {
                     self.get_global_dispatcher()
                         .write()

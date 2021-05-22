@@ -1,3 +1,4 @@
+use nrg_math::get_translation_rotation_scale;
 use nrg_math::{Vector3, Vector4, Zero};
 
 use crate::{Mesh, MeshInstance, PipelineId};
@@ -150,8 +151,13 @@ impl Pipeline {
             mesh_index: self.instance_count,
             mesh_data_ref,
         };
+        let (position, rotation, scale) =
+            get_translation_rotation_scale(mesh_instance.get_transform());
         let data = InstanceData {
-            transform: mesh_instance.get_transform(),
+            position,
+            rotation,
+            scale,
+            draw_area: mesh_instance.get_draw_area(),
             diffuse_color,
             diffuse_texture_index,
             diffuse_layer_index,

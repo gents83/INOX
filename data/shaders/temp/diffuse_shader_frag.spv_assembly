@@ -1,22 +1,26 @@
 ; SPIR-V
 ; Version: 1.0
 ; Generator: Google Shaderc over Glslang; 10
-; Bound: 57
+; Bound: 102
 ; Schema: 0
                OpCapability Shader
           %1 = OpExtInstImport "GLSL.std.450"
                OpMemoryModel Logical GLSL450
-               OpEntryPoint Fragment %main "main" %fragTexCoord %outColor %fragColor
+               OpEntryPoint Fragment %main "main" %gl_FragCoord %fragDrawArea %fragTexCoord %outColor %fragColor
                OpExecutionMode %main OriginUpperLeft
                OpSource GLSL 450
                OpSourceExtension "GL_GOOGLE_cpp_style_line_directive"
                OpSourceExtension "GL_GOOGLE_include_directive"
                OpName %main "main"
+               OpName %gl_FragCoord "gl_FragCoord"
+               OpName %fragDrawArea "fragDrawArea"
                OpName %fragTexCoord "fragTexCoord"
                OpName %texColor "texColor"
                OpName %texSamplerArray "texSamplerArray"
                OpName %outColor "outColor"
                OpName %fragColor "fragColor"
+               OpDecorate %gl_FragCoord BuiltIn FragCoord
+               OpDecorate %fragDrawArea Location 2
                OpDecorate %fragTexCoord Location 1
                OpDecorate %texSamplerArray DescriptorSet 0
                OpDecorate %texSamplerArray Binding 1
@@ -24,69 +28,125 @@
                OpDecorate %fragColor Location 0
        %void = OpTypeVoid
           %3 = OpTypeFunction %void
+       %bool = OpTypeBool
       %float = OpTypeFloat 32
+    %v4float = OpTypeVector %float 4
+%_ptr_Input_v4float = OpTypePointer Input %v4float
+%gl_FragCoord = OpVariable %_ptr_Input_v4float Input
+       %uint = OpTypeInt 32 0
+     %uint_0 = OpConstant %uint 0
+%_ptr_Input_float = OpTypePointer Input %float
+%fragDrawArea = OpVariable %_ptr_Input_v4float Input
+     %uint_2 = OpConstant %uint 2
+     %uint_1 = OpConstant %uint 1
+     %uint_3 = OpConstant %uint 3
     %v3float = OpTypeVector %float 3
 %_ptr_Input_v3float = OpTypePointer Input %v3float
 %fragTexCoord = OpVariable %_ptr_Input_v3float Input
-       %uint = OpTypeInt 32 0
-     %uint_2 = OpConstant %uint 2
-%_ptr_Input_float = OpTypePointer Input %float
     %float_0 = OpConstant %float 0
-       %bool = OpTypeBool
-    %v4float = OpTypeVector %float 4
 %_ptr_Function_v4float = OpTypePointer Function %v4float
-         %23 = OpTypeImage %float 2D 0 1 0 1 Unknown
-         %24 = OpTypeSampledImage %23
-%_ptr_UniformConstant_24 = OpTypePointer UniformConstant %24
-%texSamplerArray = OpVariable %_ptr_UniformConstant_24 UniformConstant
-     %uint_3 = OpConstant %uint 3
+         %70 = OpTypeImage %float 2D 0 1 0 1 Unknown
+         %71 = OpTypeSampledImage %70
+%_ptr_UniformConstant_71 = OpTypePointer UniformConstant %71
+%texSamplerArray = OpVariable %_ptr_UniformConstant_71 UniformConstant
 %_ptr_Function_float = OpTypePointer Function %float
   %float_0_5 = OpConstant %float 0.5
 %_ptr_Output_v4float = OpTypePointer Output %v4float
    %outColor = OpVariable %_ptr_Output_v4float Output
-%_ptr_Input_v4float = OpTypePointer Input %v4float
   %fragColor = OpVariable %_ptr_Input_v4float Input
 %_ptr_Output_float = OpTypePointer Output %float
        %main = OpFunction %void None %3
           %5 = OpLabel
    %texColor = OpVariable %_ptr_Function_v4float Function
-         %13 = OpAccessChain %_ptr_Input_float %fragTexCoord %uint_2
-         %14 = OpLoad %float %13
-         %17 = OpFOrdGreaterThanEqual %bool %14 %float_0
-               OpSelectionMerge %19 None
-               OpBranchConditional %17 %18 %55
-         %18 = OpLabel
-         %27 = OpLoad %24 %texSamplerArray
-         %28 = OpLoad %v3float %fragTexCoord
-         %29 = OpImageSampleImplicitLod %v4float %27 %28
-               OpStore %texColor %29
-         %32 = OpAccessChain %_ptr_Function_float %texColor %uint_3
-         %33 = OpLoad %float %32
-         %35 = OpFOrdGreaterThan %bool %33 %float_0_5
-               OpSelectionMerge %37 None
-               OpBranchConditional %35 %36 %53
-         %36 = OpLabel
-         %40 = OpLoad %v4float %texColor
-         %41 = OpVectorShuffle %v3float %40 %40 0 1 2
-         %44 = OpLoad %v4float %fragColor
-         %45 = OpVectorShuffle %v3float %44 %44 0 1 2
-         %46 = OpFMul %v3float %41 %45
-         %47 = OpLoad %v4float %outColor
-         %48 = OpVectorShuffle %v4float %47 %46 4 5 6 3
-               OpStore %outColor %48
-         %49 = OpAccessChain %_ptr_Input_float %fragColor %uint_3
-         %50 = OpLoad %float %49
-         %52 = OpAccessChain %_ptr_Output_float %outColor %uint_3
-               OpStore %52 %50
-               OpBranch %37
-         %53 = OpLabel
+         %14 = OpAccessChain %_ptr_Input_float %gl_FragCoord %uint_0
+         %15 = OpLoad %float %14
+         %17 = OpAccessChain %_ptr_Input_float %fragDrawArea %uint_0
+         %18 = OpLoad %float %17
+         %19 = OpFOrdLessThan %bool %15 %18
+         %20 = OpLogicalNot %bool %19
+               OpSelectionMerge %22 None
+               OpBranchConditional %20 %21 %22
+         %21 = OpLabel
+         %23 = OpAccessChain %_ptr_Input_float %gl_FragCoord %uint_0
+         %24 = OpLoad %float %23
+         %25 = OpAccessChain %_ptr_Input_float %fragDrawArea %uint_0
+         %26 = OpLoad %float %25
+         %28 = OpAccessChain %_ptr_Input_float %fragDrawArea %uint_2
+         %29 = OpLoad %float %28
+         %30 = OpFAdd %float %26 %29
+         %31 = OpFOrdGreaterThan %bool %24 %30
+               OpBranch %22
+         %22 = OpLabel
+         %32 = OpPhi %bool %19 %5 %31 %21
+         %33 = OpLogicalNot %bool %32
+               OpSelectionMerge %35 None
+               OpBranchConditional %33 %34 %35
+         %34 = OpLabel
+         %37 = OpAccessChain %_ptr_Input_float %gl_FragCoord %uint_1
+         %38 = OpLoad %float %37
+         %39 = OpAccessChain %_ptr_Input_float %fragDrawArea %uint_1
+         %40 = OpLoad %float %39
+         %41 = OpFOrdLessThan %bool %38 %40
+               OpBranch %35
+         %35 = OpLabel
+         %42 = OpPhi %bool %32 %22 %41 %34
+         %43 = OpLogicalNot %bool %42
+               OpSelectionMerge %45 None
+               OpBranchConditional %43 %44 %45
+         %44 = OpLabel
+         %46 = OpAccessChain %_ptr_Input_float %gl_FragCoord %uint_1
+         %47 = OpLoad %float %46
+         %48 = OpAccessChain %_ptr_Input_float %fragDrawArea %uint_1
+         %49 = OpLoad %float %48
+         %51 = OpAccessChain %_ptr_Input_float %fragDrawArea %uint_3
+         %52 = OpLoad %float %51
+         %53 = OpFAdd %float %49 %52
+         %54 = OpFOrdGreaterThan %bool %47 %53
+               OpBranch %45
+         %45 = OpLabel
+         %55 = OpPhi %bool %42 %35 %54 %44
+               OpSelectionMerge %57 None
+               OpBranchConditional %55 %56 %57
+         %56 = OpLabel
                OpKill
-         %37 = OpLabel
-               OpBranch %19
-         %55 = OpLabel
-         %56 = OpLoad %v4float %fragColor
-               OpStore %outColor %56
-               OpBranch %19
-         %19 = OpLabel
+         %57 = OpLabel
+         %62 = OpAccessChain %_ptr_Input_float %fragTexCoord %uint_2
+         %63 = OpLoad %float %62
+         %65 = OpFOrdGreaterThanEqual %bool %63 %float_0
+               OpSelectionMerge %67 None
+               OpBranchConditional %65 %66 %100
+         %66 = OpLabel
+         %74 = OpLoad %71 %texSamplerArray
+         %75 = OpLoad %v3float %fragTexCoord
+         %76 = OpImageSampleImplicitLod %v4float %74 %75
+               OpStore %texColor %76
+         %78 = OpAccessChain %_ptr_Function_float %texColor %uint_3
+         %79 = OpLoad %float %78
+         %81 = OpFOrdGreaterThan %bool %79 %float_0_5
+               OpSelectionMerge %83 None
+               OpBranchConditional %81 %82 %98
+         %82 = OpLabel
+         %86 = OpLoad %v4float %texColor
+         %87 = OpVectorShuffle %v3float %86 %86 0 1 2
+         %89 = OpLoad %v4float %fragColor
+         %90 = OpVectorShuffle %v3float %89 %89 0 1 2
+         %91 = OpFMul %v3float %87 %90
+         %92 = OpLoad %v4float %outColor
+         %93 = OpVectorShuffle %v4float %92 %91 4 5 6 3
+               OpStore %outColor %93
+         %94 = OpAccessChain %_ptr_Input_float %fragColor %uint_3
+         %95 = OpLoad %float %94
+         %97 = OpAccessChain %_ptr_Output_float %outColor %uint_3
+               OpStore %97 %95
+               OpBranch %83
+         %98 = OpLabel
+               OpKill
+         %83 = OpLabel
+               OpBranch %67
+        %100 = OpLabel
+        %101 = OpLoad %v4float %fragColor
+               OpStore %outColor %101
+               OpBranch %67
+         %67 = OpLabel
                OpReturn
                OpFunctionEnd

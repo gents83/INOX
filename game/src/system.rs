@@ -43,7 +43,7 @@ impl System for MySystem {
         self.id
     }
     fn init(&mut self) {
-        let pipeline_id = PipelineInstance::find_id_from_name(&self.shared_data, "UI");
+        let pipeline_id = PipelineInstance::find_id_from_name(&self.shared_data, "Default");
         self.font_id = FontInstance::create_from_path(
             &self.shared_data,
             pipeline_id,

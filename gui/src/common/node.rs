@@ -42,6 +42,7 @@ impl WidgetNode {
     pub fn remove_children(&mut self) -> &mut Self {
         self.children.iter_mut().for_each(|w| {
             w.node_mut().parent_id = INVALID_UID;
+            w.uninit();
         });
         self.children.clear();
         self
@@ -51,6 +52,7 @@ impl WidgetNode {
         self.children.iter_mut().for_each(|w| {
             if w.as_ref().id() == uid {
                 w.node_mut().parent_id = INVALID_UID;
+                w.uninit();
             }
         });
         self.children.retain(|w| w.as_ref().id() != uid);

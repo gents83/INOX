@@ -55,7 +55,7 @@ impl WidgetGraphics {
         mesh_data.add_quad_default([0., 0., 1., 1.].into(), 0.);
         self.mesh_id = MeshInstance::create(&self.shared_data, mesh_data);
         MaterialInstance::add_mesh(&self.shared_data, self.material_id, self.mesh_id);
-        self.is_dirty = true;
+        self.mark_as_dirty();
 
         self
     }
@@ -64,12 +64,12 @@ impl WidgetGraphics {
             MaterialInstance::destroy(&self.shared_data, self.material_id);
         }
         self.material_id = material_id;
-        self.is_dirty = true;
+        self.mark_as_dirty();
         self
     }
     pub fn unlink_from_material(&mut self) -> &mut Self {
         self.material_id = INVALID_UID;
-        self.is_dirty = true;
+        self.mark_as_dirty();
         self
     }
     pub fn remove_meshes(&mut self) -> &mut Self {
@@ -78,8 +78,11 @@ impl WidgetGraphics {
             MeshInstance::destroy(&self.shared_data, self.mesh_id);
         }
         self.mesh_id = INVALID_UID;
-        self.is_dirty = true;
+        self.mark_as_dirty();
         self
+    }
+    pub fn mark_as_dirty(&mut self) {
+        self.is_dirty = true;
     }
     pub fn get_stroke(&self) -> f32 {
         self.stroke
@@ -91,7 +94,7 @@ impl WidgetGraphics {
         self.remove_meshes();
         self.mesh_id = MeshInstance::create(&self.shared_data, mesh_data);
         MaterialInstance::add_mesh(&self.shared_data, self.material_id, self.mesh_id);
-        self.is_dirty = true;
+        self.mark_as_dirty();
         self
     }
     pub fn get_layer(&self) -> f32 {
@@ -100,7 +103,7 @@ impl WidgetGraphics {
     pub fn set_layer(&mut self, layer: f32) -> &mut Self {
         if (self.transform.w[2] - layer).abs() >= f32::EPSILON {
             self.transform.w[2] = layer;
-            self.is_dirty = true;
+            self.mark_as_dirty();
         }
         self
     }
@@ -110,7 +113,7 @@ impl WidgetGraphics {
         {
             self.transform.w[0] = pos_in_px.x;
             self.transform.w[1] = pos_in_px.y;
-            self.is_dirty = true;
+            self.mark_as_dirty();
         }
         self
     }
@@ -128,7 +131,7 @@ impl WidgetGraphics {
             self.transform.w[0] = pos_in_px.x;
             self.transform.w[1] = pos_in_px.y;
             self.transform.w[2] = pos_in_px.z;
-            self.is_dirty = true;
+            self.mark_as_dirty();
         }
         self
     }
@@ -138,7 +141,7 @@ impl WidgetGraphics {
     pub fn set_color(&mut self, rgb: Vector4) -> &mut Self {
         if self.color != rgb {
             self.color = rgb;
-            self.is_dirty = true;
+            self.mark_as_dirty();
         }
         self
     }
@@ -155,20 +158,21 @@ impl WidgetGraphics {
 
     pub fn set_visible(&mut self, visible: bool) -> &mut Self {
         self.is_visible = visible;
-        self.is_dirty = true;
+        self.mark_as_dirty();
         self
     }
     pub fn is_visible(&self) -> bool {
         self.is_visible
     }
-    pub fn update(&mut self) -> &mut Self {
+    pub fn update(&mut self, drawing_area: Vector4) -> &mut Self {
         if self.is_dirty && !self.material_id.is_nil() && !self.mesh_id.is_nil() {
             let mut visible = self.is_visible;
-            if visible && self.color.w.is_zero() {
+            if visible && (self.color.w.is_zero() || drawing_area.z <= 0. || drawing_area.w <= 0.) {
                 visible = false;
             }
             MaterialInstance::set_diffuse_color(&self.shared_data, self.material_id, self.color);
             MeshInstance::set_transform(&self.shared_data, self.mesh_id, self.transform);
+            MeshInstance::set_draw_area(&self.shared_data, self.mesh_id, drawing_area);
             MeshInstance::set_visible(&self.shared_data, self.mesh_id, visible);
             self.is_dirty = false;
         }
