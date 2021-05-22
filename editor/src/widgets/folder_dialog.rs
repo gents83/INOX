@@ -53,7 +53,10 @@ impl FolderDialog {
         let mut treeview = TreeView::new(self.get_shared_data(), self.get_global_messenger());
 
         TreeView::populate_with_folders(&mut treeview, "./data/");
-        treeview.vertical_alignment(VerticalAlignment::Stretch);
+        treeview
+            .horizontal_alignment(HorizontalAlignment::Left)
+            .keep_fixed_width(true)
+            .vertical_alignment(VerticalAlignment::Stretch);
 
         self.folder_treeview_uid = self.add_child(Box::new(treeview));
     }

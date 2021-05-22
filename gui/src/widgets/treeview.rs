@@ -56,7 +56,7 @@ impl TreeView {
                             .size(parent_widget.state().get_size())
                             .selectable(has_children)
                             .collapsible(has_children)
-                            .horizontal_alignment(HorizontalAlignment::Right)
+                            .horizontal_alignment(HorizontalAlignment::Stretch)
                             .style(WidgetStyle::DefaultBackground)
                             .with_text(path.file_name().unwrap().to_str().unwrap());
 
@@ -69,7 +69,14 @@ impl TreeView {
                                 &mut inner_tree,
                                 path.as_path().to_str().unwrap(),
                             );
-                            inner_tree.vertical_alignment(VerticalAlignment::Top);
+                            let mut inner_size = entry.state().get_size();
+                            inner_size.x = (inner_size.x
+                                - DEFAULT_WIDGET_WIDTH * Screen::get_scale_factor())
+                            .max(0.);
+                            inner_tree
+                                .size(inner_size)
+                                .horizontal_alignment(HorizontalAlignment::Right)
+                                .vertical_alignment(VerticalAlignment::Top);
                             entry.add_child(Box::new(inner_tree));
                         }
                         parent_widget.add_child(Box::new(entry));

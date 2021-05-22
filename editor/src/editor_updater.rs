@@ -130,6 +130,7 @@ impl System for EditorUpdater {
         self.widgets
             .push(Arc::new(RwLock::new(Box::new(history_panel))));
 
+        /*
         let mut test = CollapsibleItem::new(&self.shared_data, &self.global_messenger);
         test.with_text("Prova")
             .collapse(false)
@@ -143,6 +144,7 @@ impl System for EditorUpdater {
         test.add_child(Box::new(inner_tree));
         self.node_id = test.id();
         self.widgets.push(Arc::new(RwLock::new(Box::new(test))));
+        */
 
         /*
         let node = GraphNode::new(&self.shared_data, &self.global_messenger);
@@ -236,7 +238,7 @@ impl EditorUpdater {
         if let Some(history_panel) = self.get_widget::<HistoryPanel>(self.history_panel_id) {
             history_panel.set_visible(is_visible);
         }
-        /*
+
         for (i, w) in self.widgets.iter_mut().enumerate() {
             let job = {
                 let job_name = format!("widget[{}]", i);
@@ -252,7 +254,8 @@ impl EditorUpdater {
                 }
             };
             jobs.push(job);
-        }*/
+        }
+        /*
         for (_, w) in self.widgets.iter_mut().enumerate() {
             if w.read().unwrap().id() == self.node_id {
                 let widget = w.clone();
@@ -262,6 +265,7 @@ impl EditorUpdater {
                 jobs.push(job);
             }
         }
+        */
 
         jobs
     }

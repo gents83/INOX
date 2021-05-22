@@ -158,7 +158,11 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         .into()
     }
 
-    fn compute_offset_and_scale_from_alignment(&mut self) {
+    fn compute_offset_and_scale_from_alignment(
+        &mut self,
+        actual_position: Vector2,
+        actual_size: Vector2,
+    ) -> (Vector2, Vector2) {
         nrg_profiler::scoped_profile!("widget::compute_offset_and_scale_from_alignment");
 
         let state = &self.state();
@@ -167,8 +171,8 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         let clip_pos: Vector2 = [clip_rect.x, clip_rect.y].into();
         let clip_size: Vector2 = [clip_rect.z, clip_rect.w].into();
 
-        let mut pos = state.get_position();
-        let mut size = state.get_size();
+        let mut pos = actual_position;
+        let mut size = actual_size;
 
         match state.get_horizontal_alignment() {
             HorizontalAlignment::Left => {
@@ -212,11 +216,10 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         pos.x = pos.x.max(clip_pos.x).min(clip_pos.x + max_size.x);
         pos.y = pos.y.max(clip_pos.y).min(clip_pos.y + max_size.y);
 
-        self.set_position(pos);
-        self.set_size(size);
+        (pos, size)
     }
 
-    fn apply_fit_to_content(&mut self) {
+    fn apply_fit_to_content(&mut self, actual_size: Vector2) -> Vector2 {
         nrg_profiler::scoped_profile!("widget::apply_fit_to_content");
 
         let fill_type = self.state().get_fill_type();
@@ -225,7 +228,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         let space = self.state().get_space_between_elements() as f32;
         let use_space_before_after = self.state().should_use_space_before_and_after();
 
-        let parent_size = self.state().get_size();
+        let parent_size = actual_size;
         let node = &mut self.node_mut();
 
         let mut children_size: Vector2 = [0., 0.].into();
@@ -267,7 +270,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         if keep_fixed_height {
             children_size.y = parent_size.y;
         }
-        self.set_size(children_size);
+        children_size
     }
     fn manage_style(&mut self) {
         nrg_profiler::scoped_profile!("widget::manage_style");
@@ -412,8 +415,11 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
     fn update_layout(&mut self) {
         nrg_profiler::scoped_profile!("widget::update_layout");
         self.state_mut().set_dirty(false);
-        self.apply_fit_to_content();
-        self.compute_offset_and_scale_from_alignment();
+        let fit_size = self.apply_fit_to_content(self.state().get_size());
+        let (pos, size) =
+            self.compute_offset_and_scale_from_alignment(self.state().get_position(), fit_size);
+        self.set_position(pos);
+        self.set_size(size);
         self.update_layers();
         self.graphics_mut().mark_as_dirty();
     }
