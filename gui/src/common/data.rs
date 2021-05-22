@@ -1,9 +1,8 @@
-use nrg_messenger::{Listener, MessageBox, MessageChannel, MessengerRw};
-use nrg_platform::MouseEvent;
+use nrg_messenger::{Listener, Message, MessageBox, MessageChannel, MessengerRw};
 use nrg_resources::SharedDataRw;
 use nrg_serialize::{typetag, Deserialize, Serialize};
 
-use crate::{WidgetEvent, WidgetGraphics, WidgetNode, WidgetState};
+use crate::{WidgetGraphics, WidgetNode, WidgetState};
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]
@@ -27,7 +26,7 @@ impl WidgetData {
             graphics: WidgetGraphics::new(&shared_data),
             state: WidgetState::default(),
             initialized: false,
-            message_channel: Self::create_widget_channel(&global_messenger),
+            message_channel: MessageChannel::default(),
             shared_data,
             global_messenger,
         }
@@ -38,22 +37,30 @@ impl WidgetData {
         global_messenger: MessengerRw,
     ) -> &mut Self {
         self.graphics_mut().load_override(&shared_data);
-        self.message_channel = Self::create_widget_channel(&global_messenger);
+        self.message_channel = MessageChannel::default();
         self.shared_data = shared_data;
         self.global_messenger = global_messenger;
         self
     }
-    fn create_widget_channel(global_messenger: &MessengerRw) -> MessageChannel {
-        let message_channel = MessageChannel::default();
-        global_messenger
+    #[inline]
+    pub fn register_to_listen_event<Msg>(&mut self)
+    where
+        Msg: Message,
+    {
+        self.global_messenger
             .write()
             .unwrap()
-            .register_messagebox::<MouseEvent>(message_channel.get_messagebox());
-        global_messenger
+            .register_messagebox::<Msg>(self.message_channel.get_messagebox());
+    }
+    #[inline]
+    pub fn unregister_to_listen_event<Msg>(&mut self)
+    where
+        Msg: Message,
+    {
+        self.global_messenger
             .write()
             .unwrap()
-            .register_messagebox::<WidgetEvent>(message_channel.get_messagebox());
-        message_channel
+            .unregister_messagebox::<Msg>(self.message_channel.get_messagebox());
     }
 
     #[inline]

@@ -1,10 +1,11 @@
 use nrg_math::Vector2;
 use nrg_messenger::Message;
+use nrg_platform::MouseEvent;
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{
-    implement_widget_with_custom_members, InternalWidget, Text, WidgetData, DEFAULT_WIDGET_HEIGHT,
-    DEFAULT_WIDGET_SIZE, DEFAULT_WIDGET_WIDTH,
+    implement_widget_with_custom_members, InternalWidget, Text, WidgetData, WidgetEvent,
+    DEFAULT_WIDGET_HEIGHT, DEFAULT_WIDGET_SIZE, DEFAULT_WIDGET_WIDTH,
 };
 
 pub const DEFAULT_BUTTON_WIDTH: f32 = DEFAULT_WIDGET_WIDTH * 20.;
@@ -46,6 +47,9 @@ impl Button {
 
 impl InternalWidget for Button {
     fn widget_init(&mut self) {
+        self.register_to_listen_event::<WidgetEvent>()
+            .register_to_listen_event::<MouseEvent>();
+
         if self.is_initialized() {
             return;
         }
@@ -64,6 +68,9 @@ impl InternalWidget for Button {
     }
     fn widget_update(&mut self) {}
 
-    fn widget_uninit(&mut self) {}
+    fn widget_uninit(&mut self) {
+        self.unregister_to_listen_event::<WidgetEvent>()
+            .unregister_to_listen_event::<MouseEvent>();
+    }
     fn widget_process_message(&mut self, _msg: &dyn Message) {}
 }

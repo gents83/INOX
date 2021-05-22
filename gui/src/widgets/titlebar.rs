@@ -1,11 +1,12 @@
 use std::any::TypeId;
 
 use nrg_graphics::{
-    utils::{create_triangle_down, create_triangle_up},
+    utils::{create_triangle_down, create_triangle_right},
     MeshData,
 };
 use nrg_math::Vector2;
 use nrg_messenger::{implement_message, Message};
+use nrg_platform::MouseEvent;
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{
@@ -51,6 +52,19 @@ impl TitleBar {
         }
         self
     }
+    pub fn set_text_alignment(
+        &mut self,
+        horizontal_alignment: HorizontalAlignment,
+        vertical_alignment: VerticalAlignment,
+    ) -> &mut Self {
+        let uid = self.title_widget;
+        if let Some(text_box) = self.node_mut().get_child::<Text>(uid) {
+            text_box
+                .horizontal_alignment(horizontal_alignment)
+                .vertical_alignment(vertical_alignment);
+        }
+        self
+    }
     pub fn collapsible(&mut self, can_collapse: bool) -> &mut Self {
         if self.is_collapsible != can_collapse {
             self.is_collapsible = can_collapse;
@@ -89,9 +103,9 @@ impl TitleBar {
         self.is_dirty = false;
 
         let (vertices, indices) = if self.is_collapsed {
-            create_triangle_down()
+            create_triangle_right()
         } else {
-            create_triangle_up()
+            create_triangle_down()
         };
         let mut mesh_data = MeshData::default();
         mesh_data.append_mesh(&vertices, &indices);
@@ -125,6 +139,9 @@ impl TitleBar {
 
 impl InternalWidget for TitleBar {
     fn widget_init(&mut self) {
+        self.register_to_listen_event::<WidgetEvent>()
+            .register_to_listen_event::<MouseEvent>();
+
         if self.is_initialized() {
             self.is_dirty = true;
             self.change_collapse_icon();
@@ -138,12 +155,14 @@ impl InternalWidget for TitleBar {
             .size(size * Screen::get_scale_factor())
             .keep_fixed_height(true)
             .horizontal_alignment(HorizontalAlignment::Stretch)
+            .fill_type(ContainerFillType::Horizontal)
             .space_between_elements(10)
             .use_space_before_and_after(true)
             .draggable(false)
             .selectable(false)
             .style(WidgetStyle::DefaultTitleBar)
-            .collapsible(true);
+            .collapsible(true)
+            .collapse();
 
         let mut title = Text::new(self.get_shared_data(), self.get_global_messenger());
         title
@@ -158,7 +177,10 @@ impl InternalWidget for TitleBar {
 
     fn widget_update(&mut self) {}
 
-    fn widget_uninit(&mut self) {}
+    fn widget_uninit(&mut self) {
+        self.unregister_to_listen_event::<WidgetEvent>()
+            .unregister_to_listen_event::<MouseEvent>();
+    }
     fn widget_process_message(&mut self, msg: &dyn Message) {
         if msg.type_id() == TypeId::of::<WidgetEvent>() {
             let event = msg.as_any().downcast_ref::<WidgetEvent>().unwrap();

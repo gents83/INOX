@@ -78,10 +78,8 @@ impl MainMenu {
 
 impl InternalWidget for MainMenu {
     fn widget_init(&mut self) {
-        self.get_global_messenger()
-            .write()
-            .unwrap()
-            .register_messagebox::<DialogEvent>(self.get_messagebox());
+        self.register_to_listen_event::<DialogEvent>()
+            .register_to_listen_event::<WidgetEvent>();
 
         self.menu = Some(Menu::new(
             self.get_shared_data(),
@@ -119,6 +117,9 @@ impl InternalWidget for MainMenu {
             self.filename_dialog = None;
         }
         self.menu_mut().uninit();
+
+        self.unregister_to_listen_event::<DialogEvent>()
+            .unregister_to_listen_event::<WidgetEvent>();
     }
 
     fn widget_process_message(&mut self, msg: &dyn Message) {

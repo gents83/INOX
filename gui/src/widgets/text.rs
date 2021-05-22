@@ -7,8 +7,8 @@ use nrg_platform::{MouseEvent, MouseState};
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{
-    implement_widget_with_custom_members, InternalWidget, WidgetData, DEFAULT_WIDGET_HEIGHT,
-    DEFAULT_WIDGET_WIDTH,
+    implement_widget_with_custom_members, InternalWidget, WidgetData, WidgetEvent,
+    DEFAULT_WIDGET_HEIGHT, DEFAULT_WIDGET_WIDTH,
 };
 
 pub const DEFAULT_TEXT_SIZE: [f32; 2] =
@@ -187,10 +187,9 @@ impl Text {
 
 impl InternalWidget for Text {
     fn widget_init(&mut self) {
-        self.get_global_messenger()
-            .write()
-            .unwrap()
-            .register_messagebox::<TextEvent>(self.get_messagebox());
+        self.register_to_listen_event::<TextEvent>()
+            .register_to_listen_event::<WidgetEvent>()
+            .register_to_listen_event::<MouseEvent>();
 
         let font_id = FontInstance::get_default(self.get_shared_data());
         let material_id = MaterialInstance::create_from_font(self.get_shared_data(), font_id);
@@ -221,6 +220,10 @@ impl InternalWidget for Text {
 
     fn widget_uninit(&mut self) {
         self.graphics_mut().remove_meshes();
+
+        self.unregister_to_listen_event::<TextEvent>()
+            .unregister_to_listen_event::<WidgetEvent>()
+            .unregister_to_listen_event::<MouseEvent>();
     }
 
     fn widget_process_message(&mut self, msg: &dyn Message) {

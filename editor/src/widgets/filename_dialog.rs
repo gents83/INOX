@@ -110,10 +110,8 @@ impl FilenameDialog {
 
 impl InternalWidget for FilenameDialog {
     fn widget_init(&mut self) {
-        self.get_global_messenger()
-            .write()
-            .unwrap()
-            .register_type::<DialogEvent>();
+        self.register_to_listen_event::<DialogEvent>()
+            .register_to_listen_event::<WidgetEvent>();
 
         let size: Vector2 = [500., 200.].into();
         self.size(size * Screen::get_scale_factor())
@@ -133,7 +131,10 @@ impl InternalWidget for FilenameDialog {
 
     fn widget_update(&mut self) {}
 
-    fn widget_uninit(&mut self) {}
+    fn widget_uninit(&mut self) {
+        self.unregister_to_listen_event::<DialogEvent>()
+            .unregister_to_listen_event::<WidgetEvent>();
+    }
 
     fn widget_process_message(&mut self, msg: &dyn Message) {
         if msg.type_id() == TypeId::of::<WidgetEvent>() {

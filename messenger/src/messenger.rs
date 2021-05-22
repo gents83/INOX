@@ -55,7 +55,25 @@ impl Messenger {
     fn register_messagebox_for_typeid(&mut self, typeid: TypeId, messagebox: MessageBox) {
         self.register_type_with_id(typeid);
         let messageboxes = self.messageboxes.entry(typeid).or_insert_with(Vec::new);
-        messageboxes.push(messagebox);
+        let index = messageboxes
+            .iter()
+            .position(|e| std::ptr::eq(e.as_ref(), messagebox.as_ref()));
+        if index.is_none() {
+            messageboxes.push(messagebox);
+        }
+    }
+
+    pub fn unregister_messagebox<T>(&mut self, messagebox: MessageBox)
+    where
+        T: Message + 'static,
+    {
+        let typeid = TypeId::of::<T>();
+        self.unregister_messagebox_for_typeid(typeid, messagebox);
+    }
+
+    fn unregister_messagebox_for_typeid(&mut self, typeid: TypeId, messagebox: MessageBox) {
+        let messageboxes = self.messageboxes.entry(typeid).or_insert_with(Vec::new);
+        messageboxes.retain(|e| !std::ptr::eq(e.as_ref(), messagebox.as_ref()));
     }
 
     pub fn process_messages<F>(&self, mut f: F)

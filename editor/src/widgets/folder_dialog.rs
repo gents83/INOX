@@ -53,6 +53,7 @@ impl FolderDialog {
         let mut treeview = TreeView::new(self.get_shared_data(), self.get_global_messenger());
 
         TreeView::populate_with_folders(&mut treeview, "./data/");
+        treeview.vertical_alignment(VerticalAlignment::Stretch);
 
         self.folder_treeview_uid = self.add_child(Box::new(treeview));
     }
@@ -65,6 +66,7 @@ impl FolderDialog {
             .size(default_size * Screen::get_scale_factor())
             .fill_type(ContainerFillType::Horizontal)
             .horizontal_alignment(HorizontalAlignment::Right)
+            .vertical_alignment(VerticalAlignment::Bottom)
             .keep_fixed_height(true)
             .space_between_elements(40);
 
@@ -84,18 +86,16 @@ impl FolderDialog {
 
 impl InternalWidget for FolderDialog {
     fn widget_init(&mut self) {
-        self.get_global_messenger()
-            .write()
-            .unwrap()
-            .register_type::<DialogEvent>();
+        self.register_to_listen_event::<DialogEvent>()
+            .register_to_listen_event::<WidgetEvent>();
 
-        let size: Vector2 = [1000., 1000.].into();
+        let size: Vector2 = [500., 400.].into();
         self.size(size * Screen::get_scale_factor())
             .vertical_alignment(VerticalAlignment::Center)
             .horizontal_alignment(HorizontalAlignment::Center)
             .fill_type(ContainerFillType::Vertical)
             .keep_fixed_width(false)
-            .keep_fixed_height(false)
+            .keep_fixed_height(true)
             .selectable(false)
             .style(WidgetStyle::DefaultBackground)
             .move_to_layer(1.);
@@ -107,7 +107,10 @@ impl InternalWidget for FolderDialog {
 
     fn widget_update(&mut self) {}
 
-    fn widget_uninit(&mut self) {}
+    fn widget_uninit(&mut self) {
+        self.unregister_to_listen_event::<DialogEvent>()
+            .unregister_to_listen_event::<WidgetEvent>();
+    }
 
     fn widget_process_message(&mut self, msg: &dyn Message) {
         if msg.type_id() == TypeId::of::<WidgetEvent>() {

@@ -80,6 +80,22 @@ macro_rules! implement_widget {
 
         impl $Type {
             #[inline]
+            pub fn register_to_listen_event<Msg>(&mut self) -> &mut Self
+            where
+                Msg: Message,
+            {
+                self.data.register_to_listen_event::<Msg>();
+                self
+            }
+            #[inline]
+            pub fn unregister_to_listen_event<Msg>(&mut self) -> &mut Self
+            where
+                Msg: Message,
+            {
+                self.data.unregister_to_listen_event::<Msg>();
+                self
+            }
+            #[inline]
             pub fn stroke(&mut self, stroke: u32) -> &mut Self {
                 let stroke = Screen::convert_size_from_pixels([stroke as _, stroke as _].into()).x;
                 self.graphics_mut().set_stroke(stroke);
@@ -87,6 +103,11 @@ macro_rules! implement_widget {
             }
             #[inline]
             pub fn selectable(&mut self, selectable: bool) -> &mut Self {
+                if selectable {
+                    self.register_to_listen_event::<nrg_platform::MouseEvent>();
+                } else {
+                    self.unregister_to_listen_event::<nrg_platform::MouseEvent>();
+                }
                 self.state_mut().set_selectable(selectable);
                 self
             }

@@ -114,14 +114,10 @@ impl TextBox {
 
 impl InternalWidget for TextBox {
     fn widget_init(&mut self) {
-        self.get_global_messenger()
-            .write()
-            .unwrap()
-            .register_messagebox::<KeyEvent>(self.get_messagebox());
-        self.get_global_messenger()
-            .write()
-            .unwrap()
-            .register_messagebox::<KeyTextEvent>(self.get_messagebox());
+        self.register_to_listen_event::<KeyEvent>()
+            .register_to_listen_event::<KeyTextEvent>()
+            .register_to_listen_event::<WidgetEvent>()
+            .register_to_listen_event::<MouseEvent>();
 
         if self.is_initialized() {
             return;
@@ -176,7 +172,12 @@ impl InternalWidget for TextBox {
         }
     }
 
-    fn widget_uninit(&mut self) {}
+    fn widget_uninit(&mut self) {
+        self.unregister_to_listen_event::<KeyEvent>()
+            .unregister_to_listen_event::<KeyTextEvent>()
+            .unregister_to_listen_event::<WidgetEvent>()
+            .unregister_to_listen_event::<MouseEvent>();
+    }
     fn widget_process_message(&mut self, msg: &dyn Message) {
         if msg.type_id() == TypeId::of::<MouseEvent>() {
             let event = msg.as_any().downcast_ref::<MouseEvent>().unwrap();

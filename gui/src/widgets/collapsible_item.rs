@@ -2,11 +2,12 @@ use std::any::TypeId;
 
 use nrg_math::{VecBase, Vector2};
 use nrg_messenger::Message;
+use nrg_platform::MouseEvent;
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{
     implement_widget_with_custom_members, InternalWidget, Panel, TitleBar, TitleBarEvent,
-    WidgetData,
+    WidgetData, WidgetEvent,
 };
 
 #[derive(Serialize, Deserialize)]
@@ -91,19 +92,18 @@ impl CollapsibleItem {
 
 impl InternalWidget for CollapsibleItem {
     fn widget_init(&mut self) {
-        self.get_global_messenger()
-            .write()
-            .unwrap()
-            .register_messagebox::<TitleBarEvent>(self.get_messagebox());
+        self.register_to_listen_event::<TitleBarEvent>()
+            .register_to_listen_event::<WidgetEvent>()
+            .register_to_listen_event::<MouseEvent>();
 
         if self.is_initialized() {
             return;
         }
 
-        let size: Vector2 = [300., 200.].into();
-        self.expanded_size = size;
-        self.position(Screen::get_center() - size / 2.)
-            .size(size)
+        let size: Vector2 = [150., 100.].into();
+        self.expanded_size = size * Screen::get_scale_factor();
+        self.position(Screen::get_center() - size * Screen::get_scale_factor() / 2.)
+            .size(size * Screen::get_scale_factor())
             .selectable(true)
             .draggable(true)
             .fill_type(ContainerFillType::Vertical)
@@ -112,12 +112,13 @@ impl InternalWidget for CollapsibleItem {
         let mut title_bar = TitleBar::new(self.get_shared_data(), self.get_global_messenger());
         title_bar
             .style(WidgetStyle::DefaultBackground)
-            .collapsible(true);
+            .collapsible(true)
+            .set_text_alignment(HorizontalAlignment::Left, VerticalAlignment::Center);
         self.title_bar = self.add_child(Box::new(title_bar));
 
         let mut panel = Panel::new(self.get_shared_data(), self.get_global_messenger());
         panel
-            .size(size)
+            .size(size * Screen::get_scale_factor())
             .fill_type(ContainerFillType::Vertical)
             .style(WidgetStyle::Invisible);
         self.panel = self.add_child(Box::new(panel));
@@ -125,7 +126,12 @@ impl InternalWidget for CollapsibleItem {
 
     fn widget_update(&mut self) {}
 
-    fn widget_uninit(&mut self) {}
+    fn widget_uninit(&mut self) {
+        self.unregister_to_listen_event::<TitleBarEvent>()
+            .unregister_to_listen_event::<WidgetEvent>()
+            .unregister_to_listen_event::<MouseEvent>();
+    }
+
     fn widget_process_message(&mut self, msg: &dyn Message) {
         if msg.type_id() == TypeId::of::<TitleBarEvent>() {
             let event = msg.as_any().downcast_ref::<TitleBarEvent>().unwrap();

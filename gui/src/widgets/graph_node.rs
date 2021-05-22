@@ -2,10 +2,12 @@ use std::any::TypeId;
 
 use nrg_math::{VecBase, Vector2};
 use nrg_messenger::Message;
+use nrg_platform::MouseEvent;
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{
     implement_widget_with_custom_members, InternalWidget, TitleBar, TitleBarEvent, WidgetData,
+    WidgetEvent,
 };
 
 #[derive(Serialize, Deserialize)]
@@ -43,10 +45,9 @@ impl GraphNode {
 
 impl InternalWidget for GraphNode {
     fn widget_init(&mut self) {
-        self.get_global_messenger()
-            .write()
-            .unwrap()
-            .register_messagebox::<TitleBarEvent>(self.get_messagebox());
+        self.register_to_listen_event::<TitleBarEvent>()
+            .register_to_listen_event::<WidgetEvent>()
+            .register_to_listen_event::<MouseEvent>();
 
         if self.is_initialized() {
             return;
@@ -67,7 +68,11 @@ impl InternalWidget for GraphNode {
 
     fn widget_update(&mut self) {}
 
-    fn widget_uninit(&mut self) {}
+    fn widget_uninit(&mut self) {
+        self.unregister_to_listen_event::<TitleBarEvent>()
+            .unregister_to_listen_event::<WidgetEvent>()
+            .unregister_to_listen_event::<MouseEvent>();
+    }
     fn widget_process_message(&mut self, msg: &dyn Message) {
         if msg.type_id() == TypeId::of::<TitleBarEvent>() {
             let event = msg.as_any().downcast_ref::<TitleBarEvent>().unwrap();

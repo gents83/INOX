@@ -151,6 +151,8 @@ impl Menu {
 
 impl InternalWidget for Menu {
     fn widget_init(&mut self) {
+        self.register_to_listen_event::<WidgetEvent>();
+
         if self.is_initialized() {
             return;
         }
@@ -186,7 +188,10 @@ impl InternalWidget for Menu {
         });
     }
 
-    fn widget_uninit(&mut self) {}
+    fn widget_uninit(&mut self) {
+        self.register_to_listen_event::<WidgetEvent>();
+    }
+
     fn widget_process_message(&mut self, msg: &dyn Message) {
         if msg.type_id() == TypeId::of::<WidgetEvent>() {
             let event = msg.as_any().downcast_ref::<WidgetEvent>().unwrap();

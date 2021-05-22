@@ -3,7 +3,7 @@ use nrg_messenger::{implement_message, Message};
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{
-    implement_widget_with_custom_members, CollapsibleItem, InternalWidget, WidgetData,
+    implement_widget_with_custom_members, CollapsibleItem, InternalWidget, WidgetData, WidgetEvent,
     DEFAULT_WIDGET_HEIGHT, DEFAULT_WIDGET_WIDTH,
 };
 pub const DEFAULT_TREE_VIEW_SIZE: [f32; 2] =
@@ -82,6 +82,8 @@ impl TreeView {
 
 impl InternalWidget for TreeView {
     fn widget_init(&mut self) {
+        self.register_to_listen_event::<WidgetEvent>();
+
         if self.is_initialized() {
             return;
         }
@@ -100,6 +102,8 @@ impl InternalWidget for TreeView {
 
     fn widget_update(&mut self) {}
 
-    fn widget_uninit(&mut self) {}
+    fn widget_uninit(&mut self) {
+        self.unregister_to_listen_event::<WidgetEvent>();
+    }
     fn widget_process_message(&mut self, _msg: &dyn Message) {}
 }
