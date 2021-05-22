@@ -133,8 +133,9 @@ impl System for EditorUpdater {
         let mut test = CollapsibleItem::new(&self.shared_data, &self.global_messenger);
         test.with_text("Prova")
             .collapse(false)
-            .horizontal_alignment(HorizontalAlignment::None)
-            .vertical_alignment(VerticalAlignment::None);
+            .horizontal_alignment(HorizontalAlignment::Center)
+            .vertical_alignment(VerticalAlignment::Center)
+            .keep_fixed_width(true);
 
         let mut inner_tree = TreeView::new(test.get_shared_data(), test.get_global_messenger());
         TreeView::populate_with_folders(&mut inner_tree, "./data/shaders/");

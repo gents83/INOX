@@ -120,6 +120,8 @@ impl InternalWidget for CollapsibleItem {
         panel
             .size(size * Screen::get_scale_factor())
             .fill_type(ContainerFillType::Vertical)
+            .horizontal_alignment(HorizontalAlignment::Right)
+            .keep_fixed_width(true)
             .style(WidgetStyle::Invisible);
         self.panel = self.add_child(Box::new(panel));
     }

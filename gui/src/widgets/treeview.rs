@@ -53,10 +53,10 @@ impl TreeView {
                         );
                         entry
                             .draggable(false)
+                            .size(parent_widget.state().get_size())
                             .selectable(has_children)
                             .collapsible(has_children)
-                            .vertical_alignment(VerticalAlignment::Top)
-                            .horizontal_alignment(HorizontalAlignment::Left)
+                            .horizontal_alignment(HorizontalAlignment::Right)
                             .style(WidgetStyle::DefaultBackground)
                             .with_text(path.file_name().unwrap().to_str().unwrap());
 
@@ -93,7 +93,7 @@ impl InternalWidget for TreeView {
         self.size(size * Screen::get_scale_factor())
             .fill_type(ContainerFillType::Vertical)
             .vertical_alignment(VerticalAlignment::Top)
-            .keep_fixed_width(false)
+            .horizontal_alignment(HorizontalAlignment::Stretch)
             .space_between_elements(1)
             .use_space_before_and_after(true)
             .selectable(false)
