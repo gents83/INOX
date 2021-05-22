@@ -136,14 +136,12 @@ impl System for EditorUpdater {
             .horizontal_alignment(HorizontalAlignment::None)
             .vertical_alignment(VerticalAlignment::None);
 
-        /*
         let mut inner_tree = TreeView::new(test.get_shared_data(), test.get_global_messenger());
         TreeView::populate_with_folders(&mut inner_tree, "./data/shaders/");
         inner_tree.vertical_alignment(VerticalAlignment::Top);
         test.add_child(Box::new(inner_tree));
         self.node_id = test.id();
         self.widgets.push(Arc::new(RwLock::new(Box::new(test))));
-        */
 
         /*
         let node = GraphNode::new(&self.shared_data, &self.global_messenger);
@@ -237,7 +235,7 @@ impl EditorUpdater {
         if let Some(history_panel) = self.get_widget::<HistoryPanel>(self.history_panel_id) {
             history_panel.set_visible(is_visible);
         }
-
+        /*
         for (i, w) in self.widgets.iter_mut().enumerate() {
             let job = {
                 let job_name = format!("widget[{}]", i);
@@ -253,6 +251,15 @@ impl EditorUpdater {
                 }
             };
             jobs.push(job);
+        }*/
+        for (_, w) in self.widgets.iter_mut().enumerate() {
+            if w.read().unwrap().id() == self.node_id {
+                let widget = w.clone();
+                let job = Job::new("Treeview", move || {
+                    widget.write().unwrap().update(draw_area);
+                });
+                jobs.push(job);
+            }
         }
 
         jobs

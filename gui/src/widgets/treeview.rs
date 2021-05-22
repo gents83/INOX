@@ -53,7 +53,7 @@ impl TreeView {
                         );
                         entry
                             .draggable(false)
-                            .selectable(true)
+                            .selectable(has_children)
                             .collapsible(has_children)
                             .vertical_alignment(VerticalAlignment::Top)
                             .horizontal_alignment(HorizontalAlignment::Left)

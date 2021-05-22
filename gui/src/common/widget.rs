@@ -55,8 +55,8 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
 
         if self.state().is_dirty() {
             self.update_layout();
+            self.manage_style();
         }
-        self.manage_style();
 
         let is_visible = self.graphics().is_visible();
         let filltype = self.state().get_fill_type();
@@ -89,6 +89,9 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
     }
     fn process_messages(&mut self) {
         nrg_profiler::scoped_profile!("widget::process_messages");
+        if !self.graphics().is_visible() {
+            return;
+        }
         read_messages(self.get_listener(), |msg| {
             if msg.type_id() == TypeId::of::<MouseEvent>() {
                 let e = msg.as_any().downcast_ref::<MouseEvent>().unwrap();
@@ -306,12 +309,14 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
             WidgetEvent::Entering(widget_id) => {
                 if widget_id == id && self.state().is_selectable() && self.state().is_active() {
                     self.state_mut().set_hover(true);
+                    self.manage_style();
                 }
             }
             WidgetEvent::Exiting(widget_id) => {
                 if widget_id == id && self.state().is_selectable() && self.state().is_active() {
                     self.state_mut().set_hover(false);
                     self.state_mut().set_pressed(false);
+                    self.manage_style();
                 }
             }
             WidgetEvent::Released(widget_id, mouse_in_px) => {
@@ -320,6 +325,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
                     if self.state().is_draggable() {
                         self.state_mut().set_dragging_position(mouse_in_px);
                     }
+                    self.manage_style();
                 }
             }
             WidgetEvent::Pressed(widget_id, mouse_in_px) => {
@@ -328,6 +334,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
                     if self.state().is_draggable() {
                         self.state_mut().set_dragging_position(mouse_in_px);
                     }
+                    self.manage_style();
                 }
             }
             WidgetEvent::Dragging(widget_id, mouse_in_px) => {
@@ -409,9 +416,6 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         self.compute_offset_and_scale_from_alignment();
         self.update_layers();
         self.graphics_mut().mark_as_dirty();
-        if self.state().is_dirty() {
-            self.invalidate_layout();
-        }
     }
 
     fn update_layers(&mut self) {

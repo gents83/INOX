@@ -66,7 +66,6 @@ impl FolderDialog {
             .size(default_size * Screen::get_scale_factor())
             .fill_type(ContainerFillType::Horizontal)
             .horizontal_alignment(HorizontalAlignment::Right)
-            .vertical_alignment(VerticalAlignment::Bottom)
             .keep_fixed_height(true)
             .space_between_elements(40);
 

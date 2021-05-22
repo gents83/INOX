@@ -40,10 +40,16 @@ implement_widget_with_custom_members!(TextBox {
 
 impl TextBox {
     pub fn editable(&mut self, is_editable: bool) -> &mut Self {
-        self.is_editable = is_editable;
-        let uid = self.text_panel;
-        if let Some(text_panel) = self.node_mut().get_child::<Panel>(uid) {
-            text_panel.selectable(is_editable);
+        if self.is_editable != is_editable {
+            self.is_editable = is_editable;
+            let uid = self.editable_text;
+            if let Some(text) = self.node_mut().get_child::<Text>(uid) {
+                text.editable(is_editable);
+            }
+            let uid = self.text_panel;
+            if let Some(text_panel) = self.node_mut().get_child::<Panel>(uid) {
+                text_panel.selectable(is_editable);
+            }
         }
         self
     }
@@ -156,7 +162,8 @@ impl InternalWidget for TextBox {
             .size(size * Screen::get_scale_factor())
             .vertical_alignment(VerticalAlignment::Center)
             .horizontal_alignment(HorizontalAlignment::Stretch)
-            .set_text("Edit me");
+            .set_text("Edit me")
+            .editable(true);
 
         let mut indicator = Indicator::new(self.get_shared_data(), self.get_global_messenger());
         indicator.visible(false);

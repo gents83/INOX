@@ -7,8 +7,8 @@ use nrg_platform::{MouseEvent, MouseState};
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{
-    implement_widget_with_custom_members, InternalWidget, WidgetData, WidgetEvent,
-    DEFAULT_WIDGET_HEIGHT, DEFAULT_WIDGET_WIDTH,
+    implement_widget_with_custom_members, InternalWidget, WidgetData, DEFAULT_WIDGET_HEIGHT,
+    DEFAULT_WIDGET_WIDTH,
 };
 
 pub const DEFAULT_TEXT_SIZE: [f32; 2] =
@@ -54,6 +54,7 @@ pub struct Text {
     font_id: FontId,
     #[serde(skip)]
     material_id: MaterialId,
+    editable: bool,
     text: String,
     #[serde(skip)]
     hover_char_index: i32,
@@ -65,6 +66,7 @@ pub struct Text {
 implement_widget_with_custom_members!(Text {
     font_id: INVALID_UID,
     material_id: INVALID_UID,
+    editable: true,
     text: String::new(),
     hover_char_index: -1,
     char_width: DEFAULT_TEXT_SIZE[1] as _,
@@ -72,6 +74,19 @@ implement_widget_with_custom_members!(Text {
 });
 
 impl Text {
+    pub fn editable(&mut self, is_editable: bool) -> &mut Self {
+        if self.editable != is_editable {
+            if is_editable {
+                self.register_to_listen_event::<TextEvent>()
+                    .register_to_listen_event::<MouseEvent>();
+            } else {
+                self.unregister_to_listen_event::<TextEvent>()
+                    .unregister_to_listen_event::<MouseEvent>();
+            }
+            self.editable = is_editable;
+        }
+        self
+    }
     pub fn set_text(&mut self, text: &str) -> &mut Self {
         self.is_dirty = true;
         self.text = String::from(text);
@@ -187,10 +202,6 @@ impl Text {
 
 impl InternalWidget for Text {
     fn widget_init(&mut self) {
-        self.register_to_listen_event::<TextEvent>()
-            .register_to_listen_event::<WidgetEvent>()
-            .register_to_listen_event::<MouseEvent>();
-
         let font_id = FontInstance::get_default(self.get_shared_data());
         let material_id = MaterialInstance::create_from_font(self.get_shared_data(), font_id);
 
@@ -206,7 +217,8 @@ impl InternalWidget for Text {
         let size: Vector2 = DEFAULT_TEXT_SIZE.into();
         self.size(size * Screen::get_scale_factor())
             .selectable(false)
-            .style(WidgetStyle::DefaultText);
+            .style(WidgetStyle::DefaultText)
+            .editable(false);
 
         self.char_width = (DEFAULT_TEXT_SIZE[1] * Screen::get_scale_factor()) as _;
     }
@@ -221,9 +233,7 @@ impl InternalWidget for Text {
     fn widget_uninit(&mut self) {
         self.graphics_mut().remove_meshes();
 
-        self.unregister_to_listen_event::<TextEvent>()
-            .unregister_to_listen_event::<WidgetEvent>()
-            .unregister_to_listen_event::<MouseEvent>();
+        self.editable(false);
     }
 
     fn widget_process_message(&mut self, msg: &dyn Message) {
