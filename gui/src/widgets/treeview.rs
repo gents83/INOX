@@ -57,7 +57,8 @@ impl TreeView {
                             .selectable(has_children)
                             .collapsible(has_children)
                             .horizontal_alignment(HorizontalAlignment::Stretch)
-                            .with_text(path.file_name().unwrap().to_str().unwrap());
+                            .with_text(path.file_name().unwrap().to_str().unwrap())
+                            .set_name(path.to_str().unwrap());
 
                         if has_children {
                             let mut inner_tree = TreeView::new(

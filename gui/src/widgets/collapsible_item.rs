@@ -80,6 +80,14 @@ impl CollapsibleItem {
         }
         self
     }
+    pub fn set_name(&mut self, name: &str) -> &mut Self {
+        let uid = self.title_bar;
+        if let Some(title_bar) = self.node_mut().get_child::<TitleBar>(uid) {
+            title_bar.node_mut().set_name(name);
+        }
+        self.node_mut().set_name(name);
+        self
+    }
     pub fn add_child(&mut self, widget: Box<dyn Widget>) -> Uid {
         let uid = self.panel;
         if let Some(panel) = self.node_mut().get_child::<Panel>(uid) {

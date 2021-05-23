@@ -1,7 +1,7 @@
 use std::any::TypeId;
 
 use nrg_gui::{
-    implement_widget_with_custom_members, Button, InternalWidget, Panel, Separator, TitleBar,
+    implement_widget_with_custom_members, Button, Icon, InternalWidget, Panel, Separator, TitleBar,
     TreeView, WidgetData, WidgetEvent, DEFAULT_BUTTON_SIZE, DEFAULT_WIDGET_HEIGHT,
 };
 use nrg_math::Vector2;
@@ -15,6 +15,7 @@ use super::DialogEvent;
 pub struct FolderDialog {
     data: WidgetData,
     folder_treeview_uid: Uid,
+    file_panel: Uid,
     title_bar_uid: Uid,
     button_box_uid: Uid,
     ok_uid: Uid,
@@ -24,6 +25,7 @@ pub struct FolderDialog {
 }
 implement_widget_with_custom_members!(FolderDialog {
     folder_treeview_uid: INVALID_UID,
+    file_panel: INVALID_UID,
     title_bar_uid: INVALID_UID,
     button_box_uid: INVALID_UID,
     requester_uid: INVALID_UID,
@@ -78,6 +80,21 @@ impl FolderDialog {
             .vertical_alignment(VerticalAlignment::Stretch)
             .horizontal_alignment(HorizontalAlignment::Left);
         horizontal_panel.add_child(Box::new(separator));
+
+        let mut file_panel = Panel::new(self.get_shared_data(), self.get_global_messenger());
+        file_panel
+            .fill_type(ContainerFillType::Horizontal)
+            .selectable(false)
+            .space_between_elements(2)
+            .horizontal_alignment(HorizontalAlignment::Stretch)
+            .keep_fixed_width(false)
+            .keep_fixed_height(true)
+            .size(content_size)
+            .style(WidgetStyle::Default);
+
+        Icon::create_icons("./data/", &mut file_panel);
+
+        self.file_panel = horizontal_panel.add_child(Box::new(file_panel));
 
         self.add_child(Box::new(horizontal_panel));
     }
@@ -158,6 +175,19 @@ impl InternalWidget for FolderDialog {
                         .unwrap()
                         .send(DialogEvent::Canceled(self.id()).as_boxed())
                         .ok();
+                } else {
+                    let mut folder = String::from("./data/");
+                    if let Some(child) = self.node_mut().get_child::<TitleBar>(widget_id) {
+                        let name = child.node().get_name();
+                        if !name.is_empty() {
+                            folder = String::from(name);
+                        }
+                    }
+                    let filepanel_uid = self.file_panel;
+                    if let Some(filepanel) = self.node_mut().get_child::<Panel>(filepanel_uid) {
+                        filepanel.node_mut().remove_children();
+                        Icon::create_icons(folder.as_str(), filepanel);
+                    }
                 }
             }
         }

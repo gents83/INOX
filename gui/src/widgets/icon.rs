@@ -7,7 +7,7 @@ use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{
     implement_widget_with_custom_members, InternalWidget, Panel, Text, WidgetData, WidgetEvent,
-    DEFAULT_WIDGET_HEIGHT,
+    DEFAULT_TEXT_SIZE, DEFAULT_WIDGET_HEIGHT,
 };
 
 pub const DEFAULT_ICON_SIZE: [f32; 2] = [DEFAULT_WIDGET_HEIGHT * 4., DEFAULT_WIDGET_HEIGHT * 4.];
@@ -23,6 +23,35 @@ implement_widget_with_custom_members!(Icon {
     image: INVALID_UID,
     text: INVALID_UID
 });
+
+impl Icon {
+    pub fn set_text(&mut self, string: &str) -> &mut Self {
+        let uid = self.text;
+        if let Some(text) = self.node_mut().get_child::<Text>(uid) {
+            text.set_text(string);
+        }
+        self
+    }
+    pub fn create_icons(path: &str, parent_widget: &mut dyn Widget) {
+        if let Ok(dir) = std::fs::read_dir(path) {
+            dir.for_each(|entry| {
+                if let Ok(dir_entry) = entry {
+                    let path = dir_entry.path();
+                    if !path.is_dir() {
+                        let mut icon = Icon::new(
+                            parent_widget.get_shared_data(),
+                            parent_widget.get_global_messenger(),
+                        );
+                        icon.horizontal_alignment(HorizontalAlignment::Left)
+                            .vertical_alignment(VerticalAlignment::Top);
+                        icon.set_text(path.file_name().unwrap().to_str().unwrap());
+                        parent_widget.add_child(Box::new(icon));
+                    }
+                }
+            });
+        }
+    }
+}
 
 impl InternalWidget for Icon {
     fn widget_init(&mut self) {
@@ -62,7 +91,9 @@ impl InternalWidget for Icon {
         self.image = self.add_child(Box::new(image));
 
         let mut text = Text::new(self.get_shared_data(), self.get_global_messenger());
+        let text_size: Vector2 = DEFAULT_TEXT_SIZE.into();
         text.editable(false)
+            .size(text_size * Screen::get_scale_factor() * 0.5)
             .selectable(false)
             .horizontal_alignment(HorizontalAlignment::Center)
             .vertical_alignment(VerticalAlignment::Bottom)
