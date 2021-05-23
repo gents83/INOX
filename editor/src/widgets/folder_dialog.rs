@@ -2,7 +2,7 @@ use std::any::TypeId;
 
 use nrg_gui::{
     implement_widget_with_custom_members, Button, InternalWidget, Panel, Separator, TitleBar,
-    TreeView, WidgetData, WidgetEvent, DEFAULT_BUTTON_SIZE,
+    TreeView, WidgetData, WidgetEvent, DEFAULT_BUTTON_SIZE, DEFAULT_WIDGET_HEIGHT,
 };
 use nrg_math::Vector2;
 use nrg_messenger::Message;
@@ -50,13 +50,18 @@ impl FolderDialog {
         self.title_bar_uid = self.add_child(Box::new(title_bar));
     }
     fn add_content(&mut self) {
+        let mut content_size = self.state().get_size();
+        content_size.y -= DEFAULT_WIDGET_HEIGHT * 2. * Screen::get_scale_factor();
+
         let mut horizontal_panel = Panel::new(self.get_shared_data(), self.get_global_messenger());
         horizontal_panel
             .fill_type(ContainerFillType::Horizontal)
             .selectable(false)
             .space_between_elements(2)
             .horizontal_alignment(HorizontalAlignment::Stretch)
-            .vertical_alignment(VerticalAlignment::Stretch)
+            .keep_fixed_width(false)
+            .keep_fixed_height(true)
+            .size(content_size)
             .style(WidgetStyle::DefaultBackground);
 
         let mut treeview = TreeView::new(self.get_shared_data(), self.get_global_messenger());
@@ -70,7 +75,6 @@ impl FolderDialog {
 
         let mut separator = Separator::new(self.get_shared_data(), self.get_global_messenger());
         separator
-            .size([1., 1.].into())
             .vertical_alignment(VerticalAlignment::Stretch)
             .horizontal_alignment(HorizontalAlignment::Left);
         horizontal_panel.add_child(Box::new(separator));

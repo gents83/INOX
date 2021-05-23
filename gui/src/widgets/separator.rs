@@ -1,7 +1,7 @@
-use nrg_serialize::{Deserialize, Serialize};
 use nrg_messenger::Message;
+use nrg_serialize::{Deserialize, Serialize};
 
-use crate::{implement_widget_with_data, InternalWidget, WidgetData, DEFAULT_WIDGET_SIZE};
+use crate::{implement_widget_with_data, InternalWidget, WidgetData};
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]
@@ -16,7 +16,13 @@ impl InternalWidget for Separator {
             return;
         }
         self.draggable(false)
-            .size([DEFAULT_WIDGET_SIZE[0], 1. * Screen::get_scale_factor()].into())
+            .size(
+                [
+                    1. * Screen::get_scale_factor(),
+                    1. * Screen::get_scale_factor(),
+                ]
+                .into(),
+            )
             .horizontal_alignment(HorizontalAlignment::Stretch)
             .vertical_alignment(VerticalAlignment::Top)
             .selectable(false)
