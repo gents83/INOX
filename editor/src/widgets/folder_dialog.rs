@@ -2,10 +2,10 @@ use std::any::TypeId;
 
 use nrg_gui::{
     implement_widget_with_custom_members, Button, Icon, InternalWidget, Panel, Scrollbar,
-    Separator, TitleBar, TreeView, WidgetData, WidgetEvent, DEFAULT_BUTTON_SIZE,
+    ScrollbarEvent, Separator, TitleBar, TreeView, WidgetData, WidgetEvent, DEFAULT_BUTTON_SIZE,
     DEFAULT_WIDGET_HEIGHT,
 };
-use nrg_math::Vector2;
+use nrg_math::{VecBase, Vector2};
 use nrg_messenger::Message;
 use nrg_serialize::*;
 
@@ -17,6 +17,7 @@ pub struct FolderDialog {
     data: WidgetData,
     folder_treeview_uid: Uid,
     file_panel: Uid,
+    icon_panel: Uid,
     scrollbar: Uid,
     title_bar_uid: Uid,
     button_box_uid: Uid,
@@ -28,6 +29,7 @@ pub struct FolderDialog {
 implement_widget_with_custom_members!(FolderDialog {
     folder_treeview_uid: INVALID_UID,
     file_panel: INVALID_UID,
+    icon_panel: INVALID_UID,
     title_bar_uid: INVALID_UID,
     scrollbar: INVALID_UID,
     button_box_uid: INVALID_UID,
@@ -85,17 +87,24 @@ impl FolderDialog {
 
         let mut file_panel = Panel::new(self.get_shared_data(), self.get_global_messenger());
         file_panel
+            .fill_type(ContainerFillType::None)
+            .selectable(false)
+            .horizontal_alignment(HorizontalAlignment::Stretch)
+            .vertical_alignment(VerticalAlignment::Stretch)
+            .style(WidgetStyle::Default);
+
+        let mut icon_panel = Panel::new(self.get_shared_data(), self.get_global_messenger());
+        icon_panel
             .fill_type(ContainerFillType::Vertical)
             .selectable(false)
             .space_between_elements(2)
             .horizontal_alignment(HorizontalAlignment::Stretch)
-            .keep_fixed_width(false)
-            .keep_fixed_height(true)
-            .size(content_size)
+            .vertical_alignment(VerticalAlignment::Stretch)
             .style(WidgetStyle::Default);
 
-        Icon::create_icons("./data/", &mut file_panel);
+        Icon::create_icons("./data/", &mut icon_panel);
 
+        self.icon_panel = file_panel.add_child(Box::new(icon_panel));
         self.file_panel = horizontal_panel.add_child(Box::new(file_panel));
 
         let mut scrollbar = Scrollbar::new(self.get_shared_data(), self.get_global_messenger());
@@ -133,7 +142,8 @@ impl FolderDialog {
 impl InternalWidget for FolderDialog {
     fn widget_init(&mut self) {
         self.register_to_listen_event::<DialogEvent>()
-            .register_to_listen_event::<WidgetEvent>();
+            .register_to_listen_event::<WidgetEvent>()
+            .register_to_listen_event::<ScrollbarEvent>();
 
         let size: Vector2 = [500., 400.].into();
         self.size(size * Screen::get_scale_factor())
@@ -157,10 +167,33 @@ impl InternalWidget for FolderDialog {
 
     fn widget_uninit(&mut self) {
         self.unregister_to_listen_event::<DialogEvent>()
-            .unregister_to_listen_event::<WidgetEvent>();
+            .unregister_to_listen_event::<WidgetEvent>()
+            .unregister_to_listen_event::<ScrollbarEvent>();
     }
 
     fn widget_process_message(&mut self, msg: &dyn Message) {
+        if msg.type_id() == TypeId::of::<ScrollbarEvent>() {
+            let event = msg.as_any().downcast_ref::<ScrollbarEvent>().unwrap();
+            let ScrollbarEvent::Changed(widget_id, percentage) = *event;
+            if widget_id == self.scrollbar {
+                let mut pos = Vector2::default_zero();
+                let filepanel_uid = self.file_panel;
+                if let Some(filepanel) = self.node_mut().get_child::<Panel>(filepanel_uid) {
+                    pos = filepanel.state().get_position();
+                }
+                let iconpanel_uid = self.icon_panel;
+                if let Some(iconpanel) = self.node_mut().get_child::<Panel>(iconpanel_uid) {
+                    let view_size = iconpanel.compute_children_drawing_area().w;
+                    let children_size = iconpanel
+                        .compute_children_size(iconpanel.state().get_size())
+                        .y;
+                    let space = (children_size - view_size) * percentage;
+                    pos.y -= space;
+                    iconpanel.vertical_alignment(VerticalAlignment::None);
+                    iconpanel.set_position(pos);
+                }
+            }
+        }
         if msg.type_id() == TypeId::of::<WidgetEvent>() {
             let event = msg.as_any().downcast_ref::<WidgetEvent>().unwrap();
             if let WidgetEvent::Pressed(widget_id, _mouse_in_px) = *event {
@@ -194,10 +227,27 @@ impl InternalWidget for FolderDialog {
                         }
                     }
                     if should_change {
-                        let filepanel_uid = self.file_panel;
-                        if let Some(filepanel) = self.node_mut().get_child::<Panel>(filepanel_uid) {
-                            filepanel.node_mut().remove_children();
-                            Icon::create_icons(folder.as_str(), filepanel);
+                        let iconpanel_uid = self.icon_panel;
+                        let mut view_size = 0.;
+                        let mut children_size = 0.;
+                        if let Some(iconpanel) = self.node_mut().get_child::<Panel>(iconpanel_uid) {
+                            iconpanel.node_mut().remove_children();
+                            iconpanel.vertical_alignment(VerticalAlignment::Stretch);
+                            Icon::create_icons(folder.as_str(), iconpanel);
+                            view_size = iconpanel.compute_children_drawing_area().w;
+                            children_size = iconpanel
+                                .compute_children_size(iconpanel.state().get_size())
+                                .y;
+                        }
+                        let scrollbar_uid = self.scrollbar;
+                        if let Some(scollbar) =
+                            self.node_mut().get_child::<Scrollbar>(scrollbar_uid)
+                        {
+                            if children_size <= view_size {
+                                scollbar.vertical().visible(false).selectable(false);
+                            } else {
+                                scollbar.vertical().visible(true).selectable(true);
+                            }
                         }
                     }
                 }

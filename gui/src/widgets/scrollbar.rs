@@ -1,7 +1,7 @@
 use std::any::TypeId;
 
 use nrg_math::Vector2;
-use nrg_messenger::Message;
+use nrg_messenger::{implement_message, Message};
 use nrg_platform::{MouseEvent, MouseState};
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
@@ -11,6 +11,12 @@ use crate::{
 };
 
 pub const DEFAULT_SCROLLBAR_SIZE: [f32; 2] = [DEFAULT_WIDGET_WIDTH, DEFAULT_WIDGET_HEIGHT];
+
+#[derive(Clone, Copy)]
+pub enum ScrollbarEvent {
+    Changed(Uid, f32), //id + percentage
+}
+implement_message!(ScrollbarEvent);
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]
@@ -34,7 +40,8 @@ impl Scrollbar {
                 .horizontal_alignment(HorizontalAlignment::None)
                 .vertical_alignment(VerticalAlignment::Center);
         }
-        self.percentage = 0.;
+        self.percentage(0.);
+        self.compute_cursor_from_percentage();
         self
     }
     pub fn vertical(&mut self) -> &mut Self {
@@ -46,7 +53,17 @@ impl Scrollbar {
                 .horizontal_alignment(HorizontalAlignment::Center)
                 .vertical_alignment(VerticalAlignment::None);
         }
-        self.percentage = 0.;
+        self.percentage(0.);
+        self.compute_cursor_from_percentage();
+        self
+    }
+    pub fn percentage(&mut self, percentage: f32) -> &mut Self {
+        self.percentage = percentage;
+        self.get_global_dispatcher()
+            .write()
+            .unwrap()
+            .send(ScrollbarEvent::Changed(self.id(), self.percentage).as_boxed())
+            .ok();
         self
     }
 
@@ -89,7 +106,7 @@ impl Scrollbar {
             cursor_pos = cursor.state().get_position();
             cursor_size = cursor.state().get_size();
         }
-        self.percentage = if self.state().get_horizontal_alignment() == HorizontalAlignment::Stretch
+        let percentage = if self.state().get_horizontal_alignment() == HorizontalAlignment::Stretch
         {
             cursor_pos.x / (pos.x + (size.x - cursor_size.x))
         } else if self.state().get_vertical_alignment() == VerticalAlignment::Stretch {
@@ -97,6 +114,7 @@ impl Scrollbar {
         } else {
             self.percentage
         };
+        self.percentage(percentage);
         self
     }
 
@@ -112,8 +130,16 @@ impl Scrollbar {
             let cursor_size = cursor.state().get_size();
             if horizontal_alignment == HorizontalAlignment::Stretch {
                 cursor_pos.x = percentage * (pos.x + (size.x - cursor_size.x)) - cursor_size.x / 2.;
+                cursor_pos.x = cursor_pos
+                    .x
+                    .max(pos.x)
+                    .min(pos.x + (size.x - cursor_size.x));
             } else if vertical_alignment == VerticalAlignment::Stretch {
                 cursor_pos.y = percentage * (pos.y + (size.y - cursor_size.y)) - cursor_size.y / 2.;
+                cursor_pos.y = cursor_pos
+                    .y
+                    .max(pos.y)
+                    .min(pos.y + (size.y - cursor_size.y));
             }
             cursor.set_position(cursor_pos);
         }
@@ -186,7 +212,7 @@ impl InternalWidget for Scrollbar {
                     if let Some(cursor) = self.node_mut().get_child::<Panel>(cursor_uid) {
                         cursor_size = cursor.state().get_size();
                     }
-                    self.percentage = if self.state().get_horizontal_alignment()
+                    let percentage = if self.state().get_horizontal_alignment()
                         == HorizontalAlignment::Stretch
                     {
                         mouse_pos.x / (pos.x + (size.x - cursor_size.x))
@@ -195,6 +221,7 @@ impl InternalWidget for Scrollbar {
                     } else {
                         self.percentage
                     };
+                    self.percentage(percentage);
                     self.compute_cursor_from_percentage();
                 }
             }

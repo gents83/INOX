@@ -234,23 +234,13 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
             _ => {}
         }
 
-        let max_size: Vector2 = [
-            (clip_size.x - size.x).max(0.),
-            (clip_size.y - size.y).max(0.),
-        ]
-        .into();
-        pos.x = pos.x.max(clip_pos.x).min(clip_pos.x + max_size.x);
-        pos.y = pos.y.max(clip_pos.y).min(clip_pos.y + max_size.y);
-
         (pos, size)
     }
 
-    fn apply_fit_to_content(&mut self, actual_size: Vector2) -> Vector2 {
-        nrg_profiler::scoped_profile!("widget::apply_fit_to_content");
+    fn compute_children_size(&mut self, actual_size: Vector2) -> Vector2 {
+        nrg_profiler::scoped_profile!("widget::compute_children_size");
 
         let fill_type = self.state().get_fill_type();
-        let keep_fixed_height = self.state().should_keep_fixed_height();
-        let keep_fixed_width = self.state().should_keep_fixed_width();
         let space = self.state().get_space_between_elements() as f32;
         let use_space_before_after = self.state().should_use_space_before_and_after();
 
@@ -289,12 +279,6 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         }
         if use_space_before_after && fill_type == ContainerFillType::Horizontal {
             children_size.x += space;
-        }
-        if keep_fixed_width {
-            children_size.x = parent_size.x;
-        }
-        if keep_fixed_height {
-            children_size.y = parent_size.y;
         }
         children_size
     }
@@ -450,7 +434,13 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
     fn update_layout(&mut self) {
         nrg_profiler::scoped_profile!("widget::update_layout");
         self.state_mut().set_dirty(false);
-        let fit_size = self.apply_fit_to_content(self.state().get_size());
+        let mut fit_size = self.compute_children_size(self.state().get_size());
+        if self.state().should_keep_fixed_width() {
+            fit_size.x = self.state().get_size().x;
+        }
+        if self.state().should_keep_fixed_height() {
+            fit_size.y = self.state().get_size().y;
+        }
         let (pos, size) =
             self.compute_offset_and_scale_from_alignment(self.state().get_position(), fit_size);
         self.set_position(pos);
