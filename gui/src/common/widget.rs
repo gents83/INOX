@@ -1,4 +1,4 @@
-use std::any::TypeId;
+use std::any::{Any, TypeId};
 
 use nrg_math::{Vector2, Vector4};
 use nrg_messenger::{read_messages, Message};
@@ -19,7 +19,7 @@ pub const DEFAULT_WIDGET_SIZE: [f32; 2] = [DEFAULT_WIDGET_WIDTH, DEFAULT_WIDGET_
 #[typetag::serde(tag = "widget")]
 pub trait Widget: BaseWidget + InternalWidget + Send + Sync {}
 
-pub trait InternalWidget {
+pub trait InternalWidget: Any {
     fn widget_init(&mut self);
     fn widget_update(&mut self);
     fn widget_uninit(&mut self);

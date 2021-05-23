@@ -1,3 +1,5 @@
+use std::any::{type_name, Any};
+
 use nrg_serialize::{generate_random_uid, Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::Widget;
@@ -77,16 +79,22 @@ impl WidgetNode {
     #[inline]
     pub fn get_child<W>(&mut self, uid: Uid) -> Option<&mut W>
     where
-        W: Widget,
+        W: Widget + 'static,
     {
         let mut result: Option<&mut W> = None;
         self.children.iter_mut().for_each(|w| {
             if w.id() == uid {
-                unsafe {
-                    let boxed = Box::from_raw(w.as_mut());
-                    let ptr = Box::into_raw(boxed);
-                    let widget = ptr as *mut W;
-                    result = Some(&mut *widget);
+                let mut is_same_widget_type = <dyn Any>::is::<W>(w);
+                if !is_same_widget_type {
+                    is_same_widget_type |= type_name::<W>().contains(w.get_type());
+                }
+                if is_same_widget_type {
+                    unsafe {
+                        let boxed = Box::from_raw(w.as_mut());
+                        let ptr = Box::into_raw(boxed);
+                        let widget = ptr as *mut W;
+                        result = Some(&mut *widget);
+                    }
                 }
             } else if result.is_none() {
                 result = w.node_mut().get_child(uid);

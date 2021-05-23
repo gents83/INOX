@@ -142,6 +142,8 @@ impl InternalWidget for FolderDialog {
             .fill_type(ContainerFillType::Vertical)
             .keep_fixed_width(false)
             .keep_fixed_height(true)
+            .use_space_before_and_after(true)
+            .space_between_elements((2. * Screen::get_scale_factor()) as _)
             .selectable(false)
             .style(WidgetStyle::DefaultBackground)
             .move_to_layer(1.);
@@ -183,16 +185,20 @@ impl InternalWidget for FolderDialog {
                         .ok();
                 } else {
                     let mut folder = String::from("./data/");
+                    let mut should_change = false;
                     if let Some(child) = self.node_mut().get_child::<TitleBar>(widget_id) {
                         let name = child.node().get_name();
                         if !name.is_empty() {
                             folder = String::from(name);
+                            should_change = true;
                         }
                     }
-                    let filepanel_uid = self.file_panel;
-                    if let Some(filepanel) = self.node_mut().get_child::<Panel>(filepanel_uid) {
-                        filepanel.node_mut().remove_children();
-                        Icon::create_icons(folder.as_str(), filepanel);
+                    if should_change {
+                        let filepanel_uid = self.file_panel;
+                        if let Some(filepanel) = self.node_mut().get_child::<Panel>(filepanel_uid) {
+                            filepanel.node_mut().remove_children();
+                            Icon::create_icons(folder.as_str(), filepanel);
+                        }
                     }
                 }
             }
