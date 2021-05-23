@@ -59,6 +59,7 @@ pub struct Text {
     #[serde(skip)]
     hover_char_index: i32,
     char_width: u32,
+    char_scale: f32,
     #[serde(skip)]
     is_dirty: bool,
     data: WidgetData,
@@ -70,6 +71,7 @@ implement_widget_with_custom_members!(Text {
     text: String::new(),
     hover_char_index: -1,
     char_width: DEFAULT_TEXT_SIZE[1] as _,
+    char_scale: 1.,
     is_dirty: true
 });
 
@@ -103,10 +105,18 @@ impl Text {
     pub fn get_hover_char(&self) -> i32 {
         self.hover_char_index
     }
+    pub fn set_char_scale(&mut self, scale: f32) -> &mut Self {
+        self.char_scale = scale as _;
+        self
+    }
     pub fn get_char_pos(&self, index: i32) -> Vector2 {
         let pos = self.state().get_position();
         if index >= 0 && index < self.text.len() as _ {
-            return [pos.x + self.char_width as f32 * (index as f32 + 1.), pos.y].into();
+            return [
+                pos.x + (self.char_width as f32 * self.char_scale) * (index as f32 + 1.),
+                pos.y,
+            ]
+            .into();
         }
         pos
     }
@@ -149,7 +159,7 @@ impl Text {
             max_chars = max_chars.max(text.len());
         }
 
-        let char_size = self.char_width as f32;
+        let char_size = self.char_width as f32 * self.char_scale;
         let mut char_width = char_size;
         let mut char_height = char_size;
         if *self.state().get_horizontal_alignment() == HorizontalAlignment::Stretch {
@@ -175,7 +185,7 @@ impl Text {
         let mut mesh_index = 0;
         let lines_count = self.text.lines().count().max(1);
         let size = self.state_mut().get_size();
-        let char_width = self.char_width as f32 / size.x;
+        let char_width = (self.char_width as f32 * self.char_scale) / size.x;
         let char_height = 1. / lines_count as f32;
         for text in self.text.lines() {
             let mut pos_x = 0.;
@@ -221,6 +231,7 @@ impl InternalWidget for Text {
             .editable(false);
 
         self.char_width = (DEFAULT_TEXT_SIZE[1] * Screen::get_scale_factor()) as _;
+        self.char_scale = 1.;
     }
 
     fn widget_update(&mut self) {
@@ -261,8 +272,11 @@ impl InternalWidget for Text {
                 let line_height = size.y / count as f32;
                 for (line_index, t) in self.text.lines().enumerate() {
                     for (i, _c) in t.as_bytes().iter().enumerate() {
-                        if mouse_pos.x >= pos.x + self.char_width as f32 * i as f32
-                            && mouse_pos.x <= pos.x + self.char_width as f32 * (i as f32 + 1.)
+                        if mouse_pos.x
+                            >= pos.x + (self.char_width as f32 * self.char_scale) * i as f32
+                            && mouse_pos.x
+                                <= pos.x
+                                    + (self.char_width as f32 * self.char_scale) * (i as f32 + 1.)
                             && mouse_pos.y >= pos.y + line_height * line_index as f32
                             && mouse_pos.y <= pos.y + size.y + line_height * line_index as f32
                         {

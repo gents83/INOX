@@ -10,7 +10,7 @@ use crate::{
     DEFAULT_TEXT_SIZE, DEFAULT_WIDGET_HEIGHT,
 };
 
-pub const DEFAULT_ICON_SIZE: [f32; 2] = [DEFAULT_WIDGET_HEIGHT * 4., DEFAULT_WIDGET_HEIGHT * 4.];
+pub const DEFAULT_ICON_SIZE: [f32; 2] = [DEFAULT_WIDGET_HEIGHT * 2., DEFAULT_WIDGET_HEIGHT * 2.];
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]
@@ -32,6 +32,44 @@ impl Icon {
         }
         self
     }
+    pub fn collapsed(&mut self) -> &mut Self {
+        self.fill_type(ContainerFillType::Vertical)
+            .horizontal_alignment(HorizontalAlignment::Left)
+            .vertical_alignment(VerticalAlignment::Top)
+            .keep_fixed_width(true);
+        let image = self.image;
+        if let Some(image) = self.node_mut().get_child::<Panel>(image) {
+            image
+                .horizontal_alignment(HorizontalAlignment::Center)
+                .vertical_alignment(VerticalAlignment::Top);
+        }
+        let text = self.text;
+        if let Some(text) = self.node_mut().get_child::<Text>(text) {
+            text.horizontal_alignment(HorizontalAlignment::Center)
+                .vertical_alignment(VerticalAlignment::Bottom)
+                .set_char_scale(0.75);
+        }
+        self
+    }
+    pub fn expanded(&mut self) -> &mut Self {
+        self.horizontal_alignment(HorizontalAlignment::Stretch)
+            .vertical_alignment(VerticalAlignment::Top)
+            .fill_type(ContainerFillType::Horizontal)
+            .keep_fixed_width(false);
+        let image = self.image;
+        if let Some(image) = self.node_mut().get_child::<Panel>(image) {
+            image
+                .horizontal_alignment(HorizontalAlignment::Left)
+                .vertical_alignment(VerticalAlignment::Center);
+        }
+        let text = self.text;
+        if let Some(text) = self.node_mut().get_child::<Text>(text) {
+            text.horizontal_alignment(HorizontalAlignment::Left)
+                .vertical_alignment(VerticalAlignment::Center)
+                .set_char_scale(1.);
+        }
+        self
+    }
     pub fn create_icons(path: &str, parent_widget: &mut dyn Widget) {
         if let Ok(dir) = std::fs::read_dir(path) {
             dir.for_each(|entry| {
@@ -42,8 +80,7 @@ impl Icon {
                             parent_widget.get_shared_data(),
                             parent_widget.get_global_messenger(),
                         );
-                        icon.horizontal_alignment(HorizontalAlignment::Left)
-                            .vertical_alignment(VerticalAlignment::Top);
+                        icon.expanded();
                         icon.set_text(path.file_name().unwrap().to_str().unwrap());
                         parent_widget.add_child(Box::new(icon));
                     }
@@ -94,6 +131,7 @@ impl InternalWidget for Icon {
         let text_size: Vector2 = DEFAULT_TEXT_SIZE.into();
         text.editable(false)
             .size(text_size * Screen::get_scale_factor() * 0.5)
+            .set_char_scale(0.8)
             .selectable(false)
             .horizontal_alignment(HorizontalAlignment::Center)
             .vertical_alignment(VerticalAlignment::Bottom)

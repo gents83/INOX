@@ -83,7 +83,7 @@ impl FolderDialog {
 
         let mut file_panel = Panel::new(self.get_shared_data(), self.get_global_messenger());
         file_panel
-            .fill_type(ContainerFillType::Horizontal)
+            .fill_type(ContainerFillType::Vertical)
             .selectable(false)
             .space_between_elements(2)
             .horizontal_alignment(HorizontalAlignment::Stretch)
