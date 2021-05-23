@@ -1,8 +1,9 @@
 use std::any::TypeId;
 
 use nrg_gui::{
-    implement_widget_with_custom_members, Button, Icon, InternalWidget, Panel, Separator, TitleBar,
-    TreeView, WidgetData, WidgetEvent, DEFAULT_BUTTON_SIZE, DEFAULT_WIDGET_HEIGHT,
+    implement_widget_with_custom_members, Button, Icon, InternalWidget, Panel, Scrollbar,
+    Separator, TitleBar, TreeView, WidgetData, WidgetEvent, DEFAULT_BUTTON_SIZE,
+    DEFAULT_WIDGET_HEIGHT,
 };
 use nrg_math::Vector2;
 use nrg_messenger::Message;
@@ -16,6 +17,7 @@ pub struct FolderDialog {
     data: WidgetData,
     folder_treeview_uid: Uid,
     file_panel: Uid,
+    scrollbar: Uid,
     title_bar_uid: Uid,
     button_box_uid: Uid,
     ok_uid: Uid,
@@ -27,6 +29,7 @@ implement_widget_with_custom_members!(FolderDialog {
     folder_treeview_uid: INVALID_UID,
     file_panel: INVALID_UID,
     title_bar_uid: INVALID_UID,
+    scrollbar: INVALID_UID,
     button_box_uid: INVALID_UID,
     requester_uid: INVALID_UID,
     ok_uid: INVALID_UID,
@@ -95,6 +98,10 @@ impl FolderDialog {
         Icon::create_icons("./data/", &mut file_panel);
 
         self.file_panel = horizontal_panel.add_child(Box::new(file_panel));
+
+        let mut scrollbar = Scrollbar::new(self.get_shared_data(), self.get_global_messenger());
+        scrollbar.vertical();
+        self.scrollbar = horizontal_panel.add_child(Box::new(scrollbar));
 
         self.add_child(Box::new(horizontal_panel));
     }

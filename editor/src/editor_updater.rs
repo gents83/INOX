@@ -100,7 +100,7 @@ impl System for EditorUpdater {
             .position([300., 300.].into())
             .size([300., 800.].into())
             .selectable(false)
-            .horizontal_alignment(HorizontalAlignment::Center)
+            .horizontal_alignment(HorizontalAlignment::Right)
             .space_between_elements(20)
             .fill_type(ContainerFillType::Vertical)
             .style(WidgetStyle::DefaultBackground)
@@ -131,28 +131,10 @@ impl System for EditorUpdater {
             .push(Arc::new(RwLock::new(Box::new(history_panel))));
 
         /*
-        let mut test = CollapsibleItem::new(&self.shared_data, &self.global_messenger);
-        test.with_text("Prova")
-            .collapse(false)
-            .horizontal_alignment(HorizontalAlignment::Center)
-            .vertical_alignment(VerticalAlignment::Center)
-            .keep_fixed_width(true);
-
-        let mut inner_tree = TreeView::new(test.get_shared_data(), test.get_global_messenger());
-        TreeView::populate_with_folders(&mut inner_tree, "./data/shaders/");
-        inner_tree.vertical_alignment(VerticalAlignment::Top);
-        test.add_child(Box::new(inner_tree));
-        self.node_id = test.id();
-        self.widgets.push(Arc::new(RwLock::new(Box::new(test))));
-        */
-
-        /*
         let node = GraphNode::new(&self.shared_data, &self.global_messenger);
         self.node_id = node.id();
         self.widgets.push(Arc::new(RwLock::new(Box::new(node))));
         */
-        let node = Scrollbar::new(&self.shared_data, &self.global_messenger);
-        self.widgets.push(Arc::new(RwLock::new(Box::new(node))));
     }
 
     fn run(&mut self) -> (bool, Vec<Job>) {
