@@ -100,7 +100,7 @@ impl System for EditorUpdater {
             .position([300., 300.].into())
             .size([300., 800.].into())
             .selectable(false)
-            .horizontal_alignment(HorizontalAlignment::Right)
+            .horizontal_alignment(HorizontalAlignment::Center)
             .space_between_elements(20)
             .fill_type(ContainerFillType::Vertical)
             .style(WidgetStyle::DefaultBackground)
@@ -151,6 +151,8 @@ impl System for EditorUpdater {
         self.node_id = node.id();
         self.widgets.push(Arc::new(RwLock::new(Box::new(node))));
         */
+        let node = Scrollbar::new(&self.shared_data, &self.global_messenger);
+        self.widgets.push(Arc::new(RwLock::new(Box::new(node))));
     }
 
     fn run(&mut self) -> (bool, Vec<Job>) {

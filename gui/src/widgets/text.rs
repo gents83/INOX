@@ -162,10 +162,10 @@ impl Text {
         let char_size = self.char_width as f32 * self.char_scale;
         let mut char_width = char_size;
         let mut char_height = char_size;
-        if *self.state().get_horizontal_alignment() == HorizontalAlignment::Stretch {
+        if self.state().get_horizontal_alignment() == HorizontalAlignment::Stretch {
             char_width = size.x / max_chars as f32;
         }
-        if *self.state().get_vertical_alignment() == VerticalAlignment::Stretch {
+        if self.state().get_vertical_alignment() == VerticalAlignment::Stretch {
             char_height = size.y / lines_count as f32;
         }
 

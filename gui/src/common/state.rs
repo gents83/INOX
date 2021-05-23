@@ -259,13 +259,13 @@ impl WidgetState {
     }
 
     #[inline]
-    pub fn get_horizontal_alignment(&self) -> &HorizontalAlignment {
-        &self.horizontal_alignment
+    pub fn get_horizontal_alignment(&self) -> HorizontalAlignment {
+        self.horizontal_alignment
     }
 
     #[inline]
-    pub fn get_vertical_alignment(&self) -> &VerticalAlignment {
-        &self.vertical_alignment
+    pub fn get_vertical_alignment(&self) -> VerticalAlignment {
+        self.vertical_alignment
     }
 
     #[inline]
