@@ -27,6 +27,7 @@ pub enum WidgetStyle {
 }
 
 impl WidgetStyle {
+    #[inline]
     pub fn color(style: &WidgetStyle, state: WidgetInteractiveState) -> Vector4 {
         match style {
             Self::Default => match state {

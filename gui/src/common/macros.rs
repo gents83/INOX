@@ -197,6 +197,7 @@ macro_rules! implement_widget_with_data {
         $crate::implement_widget!($Type);
 
         impl $Type {
+            #[inline]
             pub fn new(
                 shared_data: &nrg_resources::SharedDataRw,
                 global_messenger: &nrg_messenger::MessengerRw,
@@ -208,6 +209,7 @@ macro_rules! implement_widget_with_data {
                 w
             }
 
+            #[inline]
             pub fn load(
                 shared_data: &nrg_resources::SharedDataRw,
                 global_messenger: &nrg_messenger::MessengerRw,
@@ -232,6 +234,8 @@ macro_rules! implement_widget_with_custom_members {
         $crate::implement_widget!($Type);
 
         impl $Type {
+
+            #[inline]
             pub fn new(shared_data: &nrg_resources::SharedDataRw, global_messenger: &nrg_messenger::MessengerRw) -> $Type {
                 let mut w = $Type {
                     data: WidgetData::new(shared_data.clone(), global_messenger.clone()),
@@ -241,6 +245,8 @@ macro_rules! implement_widget_with_custom_members {
                 w
             }
 
+
+            #[inline]
             pub fn load(
                 shared_data: &nrg_resources::SharedDataRw,
                 global_messenger: &nrg_messenger::MessengerRw,

@@ -12,6 +12,7 @@ pub struct WidgetNode {
 }
 
 impl Default for WidgetNode {
+    #[inline]
     fn default() -> Self {
         Self {
             id: generate_random_uid(),
@@ -23,22 +24,30 @@ impl Default for WidgetNode {
 }
 
 impl WidgetNode {
+    #[inline]
     pub fn get_id(&self) -> Uid {
         self.id
     }
+
+    #[inline]
     pub fn get_name(&self) -> &str {
         self.name.as_str()
     }
+
+    #[inline]
     pub fn set_name(&mut self, name: &str) -> &mut Self {
         self.name = String::from(name);
         self
     }
+
+    #[inline]
     pub fn add_child(&mut self, mut widget: Box<dyn Widget>) -> &mut Self {
         widget.node_mut().parent_id = self.id;
         self.children.push(widget);
         self
     }
 
+    #[inline]
     pub fn remove_children(&mut self) -> &mut Self {
         self.children.iter_mut().for_each(|w| {
             w.node_mut().parent_id = INVALID_UID;
@@ -48,6 +57,7 @@ impl WidgetNode {
         self
     }
 
+    #[inline]
     pub fn remove_child(&mut self, uid: Uid) -> &mut Self {
         self.children.iter_mut().for_each(|w| {
             if w.as_ref().id() == uid {
@@ -59,9 +69,12 @@ impl WidgetNode {
         self
     }
 
+    #[inline]
     pub fn get_children(&self) -> &Vec<Box<dyn Widget>> {
         &self.children
     }
+
+    #[inline]
     pub fn get_child<W>(&mut self, uid: Uid) -> Option<&mut W>
     where
         W: Widget,
@@ -81,18 +94,28 @@ impl WidgetNode {
         });
         result
     }
+
+    #[inline]
     pub fn get_parent(&self) -> Uid {
         self.parent_id
     }
+
+    #[inline]
     pub fn has_parent(&self) -> bool {
         !self.parent_id.is_nil()
     }
+
+    #[inline]
     pub fn get_num_children(&self) -> usize {
         self.children.len()
     }
+
+    #[inline]
     pub fn has_children(&self) -> bool {
         !self.children.is_empty()
     }
+
+    #[inline]
     pub fn has_child(&self, uid: Uid) -> bool {
         let mut found = false;
         self.children.iter().for_each(|w| {
@@ -102,18 +125,24 @@ impl WidgetNode {
         });
         found
     }
+
+    #[inline]
     pub fn propagate_on_children<F>(&self, mut f: F)
     where
         F: FnMut(&dyn Widget),
     {
         self.children.iter().for_each(|w| f(w.as_ref()));
     }
+
+    #[inline]
     pub fn propagate_on_children_mut<F>(&mut self, mut f: F)
     where
         F: FnMut(&mut dyn Widget),
     {
         self.children.iter_mut().for_each(|w| f(w.as_mut()));
     }
+
+    #[inline]
     pub fn propagate_on_child<F>(&self, uid: Uid, mut f: F)
     where
         F: FnMut(&dyn Widget),
@@ -123,6 +152,8 @@ impl WidgetNode {
             return f(w.as_ref());
         }
     }
+
+    #[inline]
     pub fn propagate_on_child_mut<F>(&mut self, uid: Uid, mut f: F)
     where
         F: FnMut(&mut dyn Widget),

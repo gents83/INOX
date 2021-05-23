@@ -70,25 +70,31 @@ impl Window {
         }
     }
 
+    #[inline]
     pub fn get_scale_factor(&self) -> f32 {
         self.scale_factor
     }
 
+    #[inline]
     pub fn get_x(&self) -> u32 {
         self.x
     }
+    #[inline]
     pub fn get_y(&self) -> u32 {
         self.y
     }
 
+    #[inline]
     pub fn get_width(&self) -> u32 {
         self.width
     }
 
+    #[inline]
     pub fn get_heigth(&self) -> u32 {
         self.height
     }
 
+    #[inline]
     pub fn get_handle(&self) -> &Handle {
         &self.handle
     }

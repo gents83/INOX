@@ -2,6 +2,7 @@ use std::{env::{self, consts::*}, ffi::{OsStr, OsString}, path::PathBuf};
 
 use super::platform_impl::platform::library as platform;
 
+#[inline]
 pub fn library_filename<S: AsRef<OsStr>>(name: S) -> OsString {
     let name = name.as_ref();
     let mut string = OsString::with_capacity(name.len() + DLL_PREFIX.len() + DLL_SUFFIX.len());
@@ -12,6 +13,7 @@ pub fn library_filename<S: AsRef<OsStr>>(name: S) -> OsString {
 }
 
 
+#[inline]
 pub fn compute_folder_and_filename(lib_path: PathBuf) -> (PathBuf, PathBuf) {
     let mut path = lib_path;
     let mut filename = path.clone();
@@ -28,15 +30,18 @@ pub fn compute_folder_and_filename(lib_path: PathBuf) -> (PathBuf, PathBuf) {
 pub struct Library(platform::Library);
 
 impl Library {
+    #[inline]
     pub fn new<S: AsRef<::std::ffi::OsStr>>(filename: S) -> Library{
         let _lib = platform::Library::load(filename);
         Library(_lib)
     }
 
+    #[inline]
     pub fn get<T>(&self, symbol: &str) -> Option<T> {
         self.0.get(symbol)
     }
 
+    #[inline]
     pub fn close(&mut self) {
         self.0.close();
     }

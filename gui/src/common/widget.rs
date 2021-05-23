@@ -26,6 +26,7 @@ pub trait InternalWidget {
 }
 
 pub trait BaseWidget: InternalWidget + WidgetDataGetter {
+    #[inline]
     fn get_type(&self) -> &'static str {
         std::any::type_name::<Self>()
     }
@@ -82,11 +83,13 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
 
         self.graphics_mut().update(drawing_area_in_px);
     }
+    #[inline]
     fn uninit(&mut self) {
         self.node_mut().propagate_on_children_mut(|w| w.uninit());
         self.widget_uninit();
         self.graphics_mut().uninit();
     }
+    #[inline]
     fn process_messages(&mut self) {
         nrg_profiler::scoped_profile!("widget::process_messages");
         if !self.graphics().is_visible() {
@@ -105,6 +108,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         });
     }
 
+    #[inline]
     fn invalidate_layout(&mut self) {
         if self.node().has_parent() {
             let event = WidgetEvent::InvalidateLayout(self.node().get_parent());
@@ -118,6 +122,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         };
     }
 
+    #[inline]
     fn mark_as_dirty(&mut self) {
         self.state_mut().set_dirty(true);
         self.node_mut().propagate_on_children_mut(|w| {
@@ -125,9 +130,11 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         });
     }
 
+    #[inline]
     fn id(&self) -> Uid {
         self.node().get_id()
     }
+    #[inline]
     fn set_position(&mut self, pos_in_px: Vector2) {
         if pos_in_px != self.state().get_position() {
             self.state_mut().set_position(pos_in_px);
@@ -135,6 +142,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
             self.invalidate_layout();
         }
     }
+    #[inline]
     fn set_size(&mut self, size_in_px: Vector2) {
         if size_in_px != self.state().get_size() {
             self.state_mut().set_size(size_in_px);
@@ -143,6 +151,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         }
     }
 
+    #[inline]
     fn compute_children_drawing_area(&self) -> Vector4 {
         let drawing_area = self.state().get_drawing_area();
         let pos = self.state().get_position();
@@ -272,6 +281,8 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         }
         children_size
     }
+
+    #[inline]
     fn manage_style(&mut self) {
         nrg_profiler::scoped_profile!("widget::manage_style");
 
@@ -297,6 +308,8 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
                 .set_border_color(border_color);
         }
     }
+
+    #[inline]
     fn manage_events(&mut self, event: &WidgetEvent) {
         nrg_profiler::scoped_profile!("widget::manage_events");
         if !self.graphics().is_visible() {
@@ -359,6 +372,8 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
             }
         }
     }
+
+    #[inline]
     fn manage_input(&mut self, event: &MouseEvent) {
         nrg_profiler::scoped_profile!("widget::manage_input");
 
@@ -406,12 +421,15 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
                 .ok();
         }
     }
+
+    #[inline]
     fn move_to_layer(&mut self, layer: f32) {
         if (layer - self.graphics().get_layer()).abs() > f32::EPSILON {
             self.graphics_mut().set_layer(layer);
         }
     }
 
+    #[inline]
     fn update_layout(&mut self) {
         nrg_profiler::scoped_profile!("widget::update_layout");
         self.state_mut().set_dirty(false);
@@ -424,6 +442,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         self.graphics_mut().mark_as_dirty();
     }
 
+    #[inline]
     fn update_layers(&mut self) {
         let layer = self.graphics().get_layer();
         self.node_mut().propagate_on_children_mut(|w| {
@@ -431,6 +450,8 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
             w.update_layers();
         });
     }
+
+    #[inline]
     fn is_hover(&self) -> bool {
         let mut is_hover = self.state().is_hover();
         if !is_hover {
@@ -442,12 +463,18 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         }
         is_hover
     }
+
+    #[inline]
     fn is_draggable(&self) -> bool {
         self.state().is_draggable()
     }
+
+    #[inline]
     fn is_selectable(&self) -> bool {
         self.state().is_selectable()
     }
+
+    #[inline]
     fn add_child(&mut self, widget: Box<dyn Widget>) -> Uid {
         let id = widget.id();
         self.node_mut().add_child(widget);
@@ -455,6 +482,8 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         self.invalidate_layout();
         id
     }
+
+    #[inline]
     fn set_visible(&mut self, visible: bool) {
         if self.graphics().is_visible() != visible {
             self.node_mut().propagate_on_children_mut(|w| {

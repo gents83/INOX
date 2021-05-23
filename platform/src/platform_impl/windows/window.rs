@@ -87,6 +87,7 @@ impl Window {
         }
     }
 
+    #[inline]
     pub fn internal_update(handle: &Handle) -> bool {
         unsafe {
             let mut can_continue = true;
@@ -197,6 +198,7 @@ impl Window {
         }
     }
 
+    #[inline]
     fn compute_dpi() -> (UINT, UINT) {
         unsafe {
             let window = GetForegroundWindow();
@@ -268,6 +270,7 @@ impl Window {
     }
 }
 
+#[inline]
 pub fn convert_key(key: INT) -> Key {
     // VK_* codes are documented here https://msdn.microsoft.com/en-us/library/windows/desktop/dd375731(v=vs.85).aspx
     match key {

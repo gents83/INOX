@@ -29,6 +29,7 @@ pub struct MouseEvent {
 implement_message!(MouseEvent);
 
 impl Default for MouseEvent {
+    #[inline]
     fn default() -> Self {
         Self {
             x: 0.0,

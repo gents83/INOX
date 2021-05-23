@@ -181,17 +181,20 @@ impl FileWatcherImpl {
         })
     }
 
+    #[inline]
     pub fn watch(&mut self, path: &Path) {
         let pb = self.get_absolute_path(path);
         self.send_action_require_ack(WatcherRequest::Watch(pb));
     }
 
+    #[inline]
     pub fn unwatch(&mut self, path: &Path) {
         let pb = self.get_absolute_path(path);
         let _res = self.tx.send(WatcherRequest::Unwatch(pb));
         self.wakeup_server();
     }
 
+    #[inline]
     fn get_absolute_path(&self, path: &Path) -> PathBuf {
         let pb = if path.is_absolute() {
             path.to_owned()
@@ -289,6 +292,7 @@ fn process_folder(folder: &FolderData, event_fn: Arc<Mutex<dyn EventFn>>, handle
     }
 }
 
+#[inline]
 fn send_event(event_fn: &Mutex<dyn EventFn>, event_type: FileEvent) {
     if let Ok(guard) = event_fn.lock() {
         let f: &dyn EventFn = &*guard;

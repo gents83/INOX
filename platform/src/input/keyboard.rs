@@ -731,6 +731,7 @@ pub struct KeyEvent {
 implement_message!(KeyEvent);
 
 impl Default for KeyEvent {
+    #[inline]
     fn default() -> Self {
         Self {
             code: Key::Unidentified,

@@ -20,6 +20,7 @@ pub struct WidgetData {
 }
 
 impl WidgetData {
+    #[inline]
     pub fn new(shared_data: SharedDataRw, global_messenger: MessengerRw) -> Self {
         Self {
             node: WidgetNode::default(),
@@ -31,6 +32,8 @@ impl WidgetData {
             global_messenger,
         }
     }
+
+    #[inline]
     pub fn load_override(
         &mut self,
         shared_data: SharedDataRw,

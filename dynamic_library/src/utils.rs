@@ -4,10 +4,12 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
+#[inline]
 pub fn delete_file(filepath: PathBuf) {
     let _res = std::fs::remove_file(filepath);
 }
 
+#[inline]
 pub fn copy_with_random_name(src_path: PathBuf, target_path: PathBuf, name: &str, extension: &str) {
     let default_pdb_name = format!("{}{}", name, extension);
     let locked_path = src_path.join(default_pdb_name);
@@ -22,6 +24,7 @@ pub fn copy_with_random_name(src_path: PathBuf, target_path: PathBuf, name: &str
     let _res = ::std::fs::rename(locked_path, new_pdb_path);
 }
 
+#[inline]
 pub fn copy_all_files_with_extension(src_path: PathBuf, target_path: PathBuf, extension: &str) {
     let files = fs::read_dir(src_path).unwrap();
     files
@@ -45,10 +48,12 @@ pub fn copy_all_files_with_extension(src_path: PathBuf, target_path: PathBuf, ex
             let _res = std::fs::remove_file(f.path());
         });
 }
+#[inline]
 pub fn link_library(name: &str) {
     println!("cargo:rustc-link-lib=dylib={}", name);
 }
 
+#[inline]
 pub fn remove_files_containing_with_ext(folder: PathBuf, name: &str, extension: &str) {
     if !folder.exists() {
         return;

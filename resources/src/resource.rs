@@ -19,15 +19,18 @@ unsafe impl<T> Send for Resource<T> {}
 unsafe impl<T> Sync for Resource<T> {}
 
 impl<T> Resource<T> {
+    #[inline]
     pub fn new(data: T) -> Self {
         Self {
             id: generate_random_uid(),
             data: RwLock::new(data),
         }
     }
+    #[inline]
     pub fn get(&self) -> RwLockReadGuard<'_, T> {
         self.data.read().unwrap()
     }
+    #[inline]
     pub fn get_mut(&self) -> RwLockWriteGuard<'_, T> {
         self.data.write().unwrap()
     }
@@ -37,9 +40,11 @@ impl<T> ResourceTrait for Resource<T>
 where
     T: Sized + 'static,
 {
+    #[inline]
     fn id(&self) -> ResourceId {
         self.id
     }
+    #[inline]
     fn path(&self) -> PathBuf {
         PathBuf::default()
     }

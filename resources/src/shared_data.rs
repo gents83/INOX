@@ -15,6 +15,7 @@ unsafe impl Send for ResourceStorage {}
 unsafe impl Sync for ResourceStorage {}
 
 impl Default for ResourceStorage {
+    #[inline]
     fn default() -> Self {
         Self {
             resources: Vec::new(),
@@ -23,22 +24,27 @@ impl Default for ResourceStorage {
 }
 
 impl ResourceStorage {
+    #[inline]
     pub fn is_empty(&self) -> bool {
         self.resources.is_empty()
     }
+    #[inline]
     pub fn add_resource<T: 'static>(&mut self, data: T) -> ResourceId {
         let resource = Resource::new(data);
         let id = resource.id();
         self.resources.push(Arc::new(Box::new(resource)));
         id
     }
+    #[inline]
     pub fn remove_resource(&mut self, resource_id: ResourceId) {
         self.resources
             .retain(|resource| resource.id() != resource_id);
     }
+    #[inline]
     pub fn remove_resources(&mut self) {
         self.resources.clear();
     }
+    #[inline]
     pub fn has_resource(&self, resource_id: ResourceId) -> bool {
         if let Some(_index) = self
             .resources
@@ -49,6 +55,7 @@ impl ResourceStorage {
         }
         false
     }
+    #[inline]
     pub fn match_resource<T, F>(&self, f: F) -> ResourceId
     where
         T: 'static + Sized,
@@ -63,6 +70,7 @@ impl ResourceStorage {
         }
         INVALID_UID
     }
+    #[inline]
     pub fn get_resource<T: 'static>(&self, resource_id: ResourceId) -> ResourceRc<T> {
         let item = self
             .resources
@@ -73,6 +81,7 @@ impl ResourceStorage {
             unsafe { &*(item as *const ResourceTraitRc as *const ResourceRc<T>) };
         resource.clone()
     }
+    #[inline]
     pub fn get_resources_of_type<T: 'static>(&self) -> Vec<ResourceRc<T>> {
         let mut vec = Vec::new();
         self.resources.iter().for_each(|e| {
@@ -82,6 +91,7 @@ impl ResourceStorage {
         });
         vec
     }
+    #[inline]
     pub fn get_unique_resource<T: 'static>(&self) -> ResourceRc<T> {
         debug_assert!(
             self.resources.len() == 1,
@@ -103,6 +113,7 @@ unsafe impl Sync for SharedData {}
 impl Data for SharedData {}
 
 impl Default for SharedData {
+    #[inline]
     fn default() -> Self {
         Self {
             resources: HashMap::new(),
@@ -111,12 +122,14 @@ impl Default for SharedData {
 }
 
 impl SharedData {
+    #[inline]
     pub fn clear(&mut self) {
         for (&_t, rs) in self.resources.iter_mut() {
             rs.remove_resources();
         }
         self.resources.clear();
     }
+    #[inline]
     pub fn add_resource<T: 'static>(&mut self, data: T) -> ResourceId {
         let rs = self
             .resources
@@ -124,20 +137,24 @@ impl SharedData {
             .or_insert_with(ResourceStorage::default);
         rs.add_resource(data)
     }
+    #[inline]
     pub fn remove_resource<T: 'static>(&mut self, resource_id: ResourceId) {
         if let Some(vec) = self.resources.get_mut(&TypeId::of::<T>()) {
             vec.remove_resource(resource_id)
         }
     }
+    #[inline]
     pub fn remove_resources(&mut self, type_id: TypeId) {
         if let Some(vec) = self.resources.get_mut(&type_id) {
             vec.remove_resources();
             self.resources.remove_entry(&type_id);
         }
     }
+    #[inline]
     pub fn remove_resources_of_type<T: 'static>(&mut self) {
         self.remove_resources(TypeId::of::<T>());
     }
+    #[inline]
     pub fn has_resource<T: 'static>(shared_data: &SharedDataRw, resource_id: ResourceId) -> bool {
         let data = shared_data.read().unwrap();
         if let Some(rs) = data.resources.get(&TypeId::of::<T>()) {
@@ -145,6 +162,7 @@ impl SharedData {
         }
         false
     }
+    #[inline]
     pub fn match_resource<T: 'static, F>(shared_data: &SharedDataRw, f: F) -> ResourceId
     where
         T: 'static + Sized,
@@ -156,6 +174,7 @@ impl SharedData {
         }
         INVALID_UID
     }
+    #[inline]
     pub fn get_resource<T: 'static>(
         shared_data: &SharedDataRw,
         resource_id: ResourceId,
@@ -164,11 +183,13 @@ impl SharedData {
         let rs = data.resources.get(&TypeId::of::<T>()).unwrap();
         rs.get_resource(resource_id)
     }
+    #[inline]
     pub fn get_resources_of_type<T: 'static>(shared_data: &SharedDataRw) -> Vec<ResourceRc<T>> {
         let data = shared_data.read().unwrap();
         let rs = data.resources.get(&TypeId::of::<T>()).unwrap();
         rs.get_resources_of_type()
     }
+    #[inline]
     pub fn get_unique_resource<T: 'static>(shared_data: &SharedDataRw) -> ResourceRc<T> {
         let data = shared_data.read().unwrap();
         let rs = data.resources.get(&TypeId::of::<T>()).unwrap();
@@ -177,6 +198,7 @@ impl SharedData {
 }
 
 impl Drop for SharedData {
+    #[inline]
     fn drop(&mut self) {
         self.clear();
     }

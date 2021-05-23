@@ -45,6 +45,7 @@ extern "system" {
 pub struct Library(HMODULE);
 
 impl Library {
+    #[inline]
     pub fn load<S: AsRef<OsStr>>(filename: S) -> Library {
         let wide_filename: Vec<u16> = filename.as_ref().encode_wide().chain(Some(0)).collect();
         let handle = unsafe { LoadLibraryExW(wide_filename.as_ptr(), std::ptr::null_mut(), 0) };
@@ -59,6 +60,7 @@ impl Library {
         drop(wide_filename);
         Library(handle)
     }
+    #[inline]
     pub fn get<T>(&self, symbol: &str) -> Option<T> {
         unsafe {
             let fn_name = CString::new(symbol).unwrap();
@@ -70,6 +72,7 @@ impl Library {
         }
     }
 
+    #[inline]
     pub fn close(&mut self) {
         let mut res = unsafe { FreeLibrary(self.0) };
         while res > 0 {
@@ -78,6 +81,7 @@ impl Library {
     }
 }
 impl Drop for Library {
+    #[inline]
     fn drop(&mut self) {
         unsafe { FreeLibrary(self.0) };
     }

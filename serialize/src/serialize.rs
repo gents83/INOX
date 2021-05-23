@@ -5,6 +5,7 @@ use std::{
     path::PathBuf,
 };
 
+#[inline]
 pub fn serialize<T>(data: &T) -> String
 where
     T: Serialize,
@@ -12,6 +13,7 @@ where
     serde_json::to_string(&data).unwrap()
 }
 
+#[inline]
 pub fn deserialize<'a, T>(serialized_data: String) -> T
 where
     T: for<'de> Deserialize<'de>,
@@ -19,6 +21,7 @@ where
     serde_json::from_str(&serialized_data).unwrap()
 }
 
+#[inline]
 pub fn serialize_to_file<T>(data: &T, filepath: PathBuf)
 where
     T: Serialize + ?Sized,
@@ -28,6 +31,7 @@ where
     serde_json::to_writer(writer, &data).unwrap();
 }
 
+#[inline]
 pub fn deserialize_from_file<'a, T>(data: &'a mut T, filepath: PathBuf)
 where
     T: for<'de> Deserialize<'de>,

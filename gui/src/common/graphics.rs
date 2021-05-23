@@ -26,6 +26,7 @@ pub struct WidgetGraphics {
 }
 
 impl WidgetGraphics {
+    #[inline]
     pub fn new(shared_data: &SharedDataRw) -> Self {
         Self {
             shared_data: shared_data.clone(),
@@ -40,6 +41,7 @@ impl WidgetGraphics {
         }
     }
 
+    #[inline]
     pub fn load_override(&mut self, shared_data: &SharedDataRw) -> &mut Self {
         self.shared_data = shared_data.clone();
         self
@@ -59,6 +61,8 @@ impl WidgetGraphics {
 
         self
     }
+
+    #[inline]
     pub fn link_to_material(&mut self, material_id: MaterialId) -> &mut Self {
         if self.material_id != INVALID_UID {
             MaterialInstance::destroy(&self.shared_data, self.material_id);
@@ -67,11 +71,15 @@ impl WidgetGraphics {
         self.mark_as_dirty();
         self
     }
+
+    #[inline]
     pub fn unlink_from_material(&mut self) -> &mut Self {
         self.material_id = INVALID_UID;
         self.mark_as_dirty();
         self
     }
+
+    #[inline]
     pub fn remove_meshes(&mut self) -> &mut Self {
         if self.mesh_id != INVALID_UID {
             MaterialInstance::remove_mesh(&self.shared_data, self.material_id, self.mesh_id);
@@ -81,15 +89,23 @@ impl WidgetGraphics {
         self.mark_as_dirty();
         self
     }
+
+    #[inline]
     pub fn mark_as_dirty(&mut self) {
         self.is_dirty = true;
     }
+
+    #[inline]
     pub fn get_stroke(&self) -> f32 {
         self.stroke
     }
+
+    #[inline]
     pub fn get_mesh_id(&mut self) -> MeshId {
         self.mesh_id
     }
+
+    #[inline]
     pub fn set_mesh_data(&mut self, mesh_data: MeshData) -> &mut Self {
         self.remove_meshes();
         self.mesh_id = MeshInstance::create(&self.shared_data, mesh_data);
@@ -97,9 +113,13 @@ impl WidgetGraphics {
         self.mark_as_dirty();
         self
     }
+
+    #[inline]
     pub fn get_layer(&self) -> f32 {
         self.transform.w[2]
     }
+
+    #[inline]
     pub fn set_layer(&mut self, layer: f32) -> &mut Self {
         if (self.transform.w[2] - layer).abs() >= f32::EPSILON {
             self.transform.w[2] = layer;
@@ -107,6 +127,8 @@ impl WidgetGraphics {
         }
         self
     }
+
+    #[inline]
     pub fn set_position(&mut self, pos_in_px: Vector2) -> &mut Self {
         if (self.transform.w[0] - pos_in_px.x).abs() >= f32::EPSILON
             || (self.transform.w[1] - pos_in_px.y).abs() >= f32::EPSILON
@@ -117,6 +139,8 @@ impl WidgetGraphics {
         }
         self
     }
+
+    #[inline]
     pub fn set_size(&mut self, scale: Vector2) -> &mut Self {
         if (self.transform.x[0] - scale.x).abs() >= f32::EPSILON
             || (self.transform.y[1] - scale.y).abs() >= f32::EPSILON
@@ -135,9 +159,13 @@ impl WidgetGraphics {
         }
         self
     }
+
+    #[inline]
     pub fn get_color(&self) -> Vector4 {
         self.color
     }
+
+    #[inline]
     pub fn set_color(&mut self, rgb: Vector4) -> &mut Self {
         if self.color != rgb {
             self.color = rgb;
@@ -145,25 +173,34 @@ impl WidgetGraphics {
         }
         self
     }
+
+    #[inline]
     pub fn set_border_color(&mut self, rgb: Vector4) -> &mut Self {
         if self.border_color != rgb {
             self.border_color = rgb;
         }
         self
     }
+
+    #[inline]
     pub fn set_stroke(&mut self, stroke: f32) -> &mut Self {
         self.stroke = stroke;
         self
     }
 
+    #[inline]
     pub fn set_visible(&mut self, visible: bool) -> &mut Self {
         self.is_visible = visible;
         self.mark_as_dirty();
         self
     }
+
+    #[inline]
     pub fn is_visible(&self) -> bool {
         self.is_visible
     }
+
+    #[inline]
     pub fn update(&mut self, drawing_area: Vector4) -> &mut Self {
         if self.is_dirty && !self.material_id.is_nil() && !self.mesh_id.is_nil() {
             let mut visible = self.is_visible;
@@ -179,6 +216,7 @@ impl WidgetGraphics {
         self
     }
 
+    #[inline]
     pub fn uninit(&mut self) -> &mut Self {
         self.remove_meshes();
         MaterialInstance::destroy(&self.shared_data, self.material_id);

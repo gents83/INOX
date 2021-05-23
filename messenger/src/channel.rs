@@ -16,6 +16,7 @@ unsafe impl Send for MessageChannel {}
 unsafe impl Sync for MessageChannel {}
 
 impl Default for MessageChannel {
+    #[inline]
     fn default() -> Self {
         let (dispatcher, listener) = MessageChannel::create_channel();
         Self {
@@ -26,6 +27,7 @@ impl Default for MessageChannel {
 }
 
 impl MessageChannel {
+    #[inline]
     fn create_channel() -> (MessageBox, Listener) {
         let (sender, receiver) = channel();
         (
@@ -33,9 +35,12 @@ impl MessageChannel {
             Arc::new(RwLock::new(receiver)),
         )
     }
+
+    #[inline]
     pub fn get_listener(&self) -> Listener {
         self.listener.clone()
     }
+    #[inline]
     pub fn get_messagebox(&self) -> MessageBox {
         self.dispatcher.clone()
     }

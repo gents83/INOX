@@ -53,18 +53,21 @@ impl FileWatcher {
         }
     }
 
+    #[inline]
     pub fn stop(&mut self) {
         self.file_watcher.unwatch(self.filepath.as_path());
     }
 
+    #[inline]
     pub fn get_path(&self) -> PathBuf {
         self.filepath.clone()
     }
-
+    #[inline]
     pub fn get_filename(&self) -> PathBuf {
         self.filename.clone()
     }
 
+    #[inline]
     pub fn read_events(&self) -> &Receiver<FileEvent> {
         &self.rx
     }

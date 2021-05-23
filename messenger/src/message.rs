@@ -6,6 +6,8 @@ pub trait Message: Send + Sync + Any {
     fn as_any(&self) -> &dyn Any;
     fn redo(&self, events_rw: &MessageBox);
     fn undo(&self, events_rw: &MessageBox);
+
+    #[inline]
     fn get_type_name(&self) -> String {
         let mut str = type_name::<Self>()
             .split(':')
