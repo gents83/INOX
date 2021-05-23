@@ -151,6 +151,8 @@ impl System for EditorUpdater {
         self.node_id = node.id();
         self.widgets.push(Arc::new(RwLock::new(Box::new(node))));
         */
+        let node = Icon::new(&self.shared_data, &self.global_messenger);
+        self.widgets.push(Arc::new(RwLock::new(Box::new(node))));
     }
 
     fn run(&mut self) -> (bool, Vec<Job>) {

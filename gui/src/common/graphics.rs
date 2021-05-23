@@ -101,8 +101,13 @@ impl WidgetGraphics {
     }
 
     #[inline]
-    pub fn get_mesh_id(&mut self) -> MeshId {
+    pub fn get_mesh_id(&self) -> MeshId {
         self.mesh_id
+    }
+
+    #[inline]
+    pub fn get_material_id(&self) -> MaterialId {
+        self.material_id
     }
 
     #[inline]

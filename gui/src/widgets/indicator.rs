@@ -9,12 +9,12 @@ use crate::{
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]
 pub struct Indicator {
+    data: WidgetData,
     #[serde(skip)]
     is_blinking: bool,
     refresh_time: Duration,
     #[serde(skip, default = "Instant::now")]
     elapsed_time: Instant,
-    data: WidgetData,
 }
 implement_widget_with_custom_members!(Indicator {
     is_blinking: true,
