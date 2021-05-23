@@ -57,7 +57,6 @@ impl TreeView {
                             .selectable(has_children)
                             .collapsible(has_children)
                             .horizontal_alignment(HorizontalAlignment::Stretch)
-                            .style(WidgetStyle::DefaultBackground)
                             .with_text(path.file_name().unwrap().to_str().unwrap());
 
                         if has_children {
@@ -75,6 +74,7 @@ impl TreeView {
                             .max(0.);
                             inner_tree
                                 .size(inner_size)
+                                .selectable(false)
                                 .horizontal_alignment(HorizontalAlignment::Right)
                                 .vertical_alignment(VerticalAlignment::Top);
                             entry.add_child(Box::new(inner_tree));

@@ -13,6 +13,8 @@ use crate::{
     implement_widget_with_custom_members, Canvas, InternalWidget, Text, WidgetData, WidgetEvent,
     DEFAULT_WIDGET_HEIGHT, DEFAULT_WIDGET_WIDTH,
 };
+
+pub const ICON_SCALE: f32 = 0.75;
 pub const DEFAULT_ICON_SIZE: [f32; 2] = [
     DEFAULT_WIDGET_WIDTH * 2. / 3.,
     DEFAULT_WIDGET_HEIGHT * 2. / 3.,
@@ -103,9 +105,9 @@ impl TitleBar {
         self.is_dirty = false;
 
         let (vertices, indices) = if self.is_collapsed {
-            create_triangle_right()
+            create_triangle_right(ICON_SCALE)
         } else {
-            create_triangle_down()
+            create_triangle_down(ICON_SCALE)
         };
         let mut mesh_data = MeshData::default();
         mesh_data.append_mesh(&vertices, &indices);
