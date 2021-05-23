@@ -1,8 +1,8 @@
 use std::any::TypeId;
 
 use nrg_gui::{
-    implement_widget_with_custom_members, Button, InternalWidget, Panel, TitleBar, TreeView,
-    WidgetData, WidgetEvent, DEFAULT_BUTTON_SIZE,
+    implement_widget_with_custom_members, Button, InternalWidget, Panel, Separator, TitleBar,
+    TreeView, WidgetData, WidgetEvent, DEFAULT_BUTTON_SIZE,
 };
 use nrg_math::Vector2;
 use nrg_messenger::Message;
@@ -50,15 +50,32 @@ impl FolderDialog {
         self.title_bar_uid = self.add_child(Box::new(title_bar));
     }
     fn add_content(&mut self) {
+        let mut horizontal_panel = Panel::new(self.get_shared_data(), self.get_global_messenger());
+        horizontal_panel
+            .fill_type(ContainerFillType::Horizontal)
+            .selectable(false)
+            .space_between_elements(2)
+            .horizontal_alignment(HorizontalAlignment::Stretch)
+            .vertical_alignment(VerticalAlignment::Stretch)
+            .style(WidgetStyle::DefaultBackground);
+
         let mut treeview = TreeView::new(self.get_shared_data(), self.get_global_messenger());
 
         TreeView::populate_with_folders(&mut treeview, "./data/");
         treeview
             .horizontal_alignment(HorizontalAlignment::Left)
-            .keep_fixed_width(true)
             .vertical_alignment(VerticalAlignment::Stretch);
 
-        self.folder_treeview_uid = self.add_child(Box::new(treeview));
+        self.folder_treeview_uid = horizontal_panel.add_child(Box::new(treeview));
+
+        let mut separator = Separator::new(self.get_shared_data(), self.get_global_messenger());
+        separator
+            .size([1., 1.].into())
+            .vertical_alignment(VerticalAlignment::Stretch)
+            .horizontal_alignment(HorizontalAlignment::Left);
+        horizontal_panel.add_child(Box::new(separator));
+
+        self.add_child(Box::new(horizontal_panel));
     }
 
     fn add_buttons(&mut self) {

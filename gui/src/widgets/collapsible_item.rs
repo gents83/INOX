@@ -104,7 +104,7 @@ impl InternalWidget for CollapsibleItem {
         self.expanded_size = size * Screen::get_scale_factor();
         self.position(Screen::get_center() - size * Screen::get_scale_factor() / 2.)
             .size(size * Screen::get_scale_factor())
-            .selectable(true)
+            .selectable(false)
             .draggable(true)
             .fill_type(ContainerFillType::Vertical)
             .style(WidgetStyle::Invisible);
@@ -112,6 +112,7 @@ impl InternalWidget for CollapsibleItem {
         let mut title_bar = TitleBar::new(self.get_shared_data(), self.get_global_messenger());
         title_bar
             .style(WidgetStyle::DefaultBackground)
+            .selectable(true)
             .collapsible(true)
             .set_text_alignment(HorizontalAlignment::Left, VerticalAlignment::Center);
         self.title_bar = self.add_child(Box::new(title_bar));

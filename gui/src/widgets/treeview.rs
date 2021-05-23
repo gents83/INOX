@@ -104,7 +104,7 @@ impl InternalWidget for TreeView {
             .space_between_elements(1)
             .use_space_before_and_after(true)
             .selectable(false)
-            .style(WidgetStyle::Default);
+            .style(WidgetStyle::DefaultBackground);
     }
 
     fn widget_update(&mut self) {}
