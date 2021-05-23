@@ -64,8 +64,7 @@ impl FolderDialog {
             .selectable(false)
             .space_between_elements(2)
             .horizontal_alignment(HorizontalAlignment::Stretch)
-            .keep_fixed_width(false)
-            .keep_fixed_height(true)
+            .vertical_alignment(VerticalAlignment::Stretch)
             .size(content_size)
             .style(WidgetStyle::DefaultBackground);
 

@@ -6,8 +6,9 @@ use nrg_platform::{MouseEvent, MouseState};
 use nrg_serialize::{typetag, Uid};
 
 use crate::{
-    add_space_before_after, add_widget_size, ContainerFillType, HorizontalAlignment, Screen,
-    VerticalAlignment, WidgetDataGetter, WidgetEvent, WidgetInteractiveState,
+    add_space_before_after, add_widget_size, compute_child_clip_area, ContainerFillType,
+    HorizontalAlignment, Screen, VerticalAlignment, WidgetDataGetter, WidgetEvent,
+    WidgetInteractiveState,
 };
 
 pub const DEFAULT_LAYER_OFFSET: f32 = 0.1;
@@ -67,14 +68,30 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         if use_space_before_after {
             widget_clip = add_space_before_after(widget_clip, filltype, space);
         }
-        self.node_mut().propagate_on_children_mut(|w| {
-            if !is_visible && w.graphics().is_visible() {
-                w.set_visible(is_visible);
+        let children = self.node_mut().get_children_mut();
+        for i in 0..children.len() {
+            if !is_visible && children[i].as_ref().graphics().is_visible() {
+                children[i].as_mut().set_visible(is_visible);
             }
-            w.update(widget_clip);
-            widget_clip = add_widget_size(widget_clip, filltype, w);
+            widget_clip = compute_child_clip_area(
+                widget_clip,
+                filltype,
+                i,
+                children,
+                space,
+                use_space_before_after,
+            );
+            children[i].as_mut().update(widget_clip);
+            widget_clip = add_widget_size(
+                widget_clip,
+                filltype,
+                i,
+                children,
+                space,
+                use_space_before_after,
+            );
             widget_clip = add_space_before_after(widget_clip, filltype, space);
-        });
+        }
 
         {
             nrg_profiler::scoped_profile!("widget::wdget_update");

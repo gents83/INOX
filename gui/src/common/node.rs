@@ -133,6 +133,10 @@ impl WidgetNode {
     {
         self.children.iter().for_each(|w| f(w.as_ref()));
     }
+    #[inline]
+    pub fn get_children_mut(&mut self) -> &mut Vec<Box<dyn Widget>> {
+        &mut self.children
+    }
 
     #[inline]
     pub fn propagate_on_children_mut<F>(&mut self, mut f: F)

@@ -136,13 +136,13 @@ impl InternalWidget for Scrollbar {
             .selectable(true)
             .horizontal_alignment(HorizontalAlignment::Right)
             .vertical_alignment(VerticalAlignment::Stretch)
-            .style(WidgetStyle::Default);
+            .style(WidgetStyle::DefaultCanvas);
 
         let mut cursor = Panel::new(self.get_shared_data(), self.get_global_messenger());
         cursor
             .horizontal_alignment(HorizontalAlignment::Center)
             .vertical_alignment(VerticalAlignment::Top)
-            .style(WidgetStyle::FullHighlight)
+            .style(WidgetStyle::DefaultBorder)
             .selectable(true)
             .draggable(true)
             .size(size);
