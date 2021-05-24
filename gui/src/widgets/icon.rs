@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use nrg_graphics::{MaterialInstance, TextureInstance};
-use nrg_math::Vector2;
+use nrg_math::{Vector2, Vector4};
 use nrg_messenger::Message;
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
@@ -139,7 +139,7 @@ impl InternalWidget for Icon {
         self.text = self.add_child(Box::new(text));
     }
 
-    fn widget_update(&mut self) {}
+    fn widget_update(&mut self, _drawing_area_in_px: Vector4) {}
 
     fn widget_uninit(&mut self) {
         self.unregister_to_listen_event::<WidgetEvent>();

@@ -150,8 +150,7 @@ impl Text {
     }
 
     fn compute_size(&mut self) -> &mut Self {
-        let drawing_area_in_px = self.state().get_drawing_area();
-        let size: Vector2 = [drawing_area_in_px.z, drawing_area_in_px.w].into();
+        let size = self.state().get_size();
 
         let lines_count = self.text.lines().count().max(1);
         let mut max_chars = 1;
@@ -234,7 +233,7 @@ impl InternalWidget for Text {
         self.char_scale = 1.;
     }
 
-    fn widget_update(&mut self) {
+    fn widget_update(&mut self, _drawing_area_in_px: Vector4) {
         if self.is_dirty {
             self.update_mesh_from_text();
             self.is_dirty = false;

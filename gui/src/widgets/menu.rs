@@ -1,6 +1,6 @@
 use std::any::TypeId;
 
-use nrg_math::{VecBase, Vector2};
+use nrg_math::{VecBase, Vector2, Vector4};
 use nrg_messenger::Message;
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
@@ -168,10 +168,9 @@ impl InternalWidget for Menu {
             .style(WidgetStyle::DefaultBackground);
     }
 
-    fn widget_update(&mut self) {
+    fn widget_update(&mut self, drawing_area_in_px: Vector4) {
         self.manage_hovering();
 
-        let drawing_area_in_px = self.state().get_drawing_area();
         let mut buttons: Vec<(Vector2, Vector2)> = Vec::new();
         self.node().propagate_on_children(|w| {
             let pos = w.state().get_position();
@@ -184,7 +183,7 @@ impl InternalWidget for Menu {
             clip_area.y = buttons[i].0.y + buttons[i].1.y;
             clip_area.z -= clip_area.x;
             clip_area.w -= clip_area.y;
-            e.submenu.update(clip_area);
+            e.submenu.update(clip_area, clip_area);
         });
     }
 

@@ -1,4 +1,4 @@
-use nrg_math::Vector2;
+use nrg_math::{Vector2, Vector4};
 use nrg_messenger::Message;
 use nrg_serialize::{Deserialize, Serialize};
 
@@ -29,7 +29,7 @@ impl InternalWidget for Panel {
             .style(WidgetStyle::Invisible);
     }
 
-    fn widget_update(&mut self) {}
+    fn widget_update(&mut self, _drawing_area_in_px: Vector4) {}
 
     fn widget_uninit(&mut self) {
         self.unregister_to_listen_event::<WidgetEvent>();

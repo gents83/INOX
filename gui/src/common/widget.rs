@@ -7,8 +7,7 @@ use nrg_serialize::{typetag, Uid};
 
 use crate::{
     add_space_before_after, add_widget_size, compute_child_clip_area, ContainerFillType,
-    HorizontalAlignment, Screen, VerticalAlignment, WidgetDataGetter, WidgetEvent,
-    WidgetInteractiveState,
+    HorizontalAlignment, VerticalAlignment, WidgetDataGetter, WidgetEvent, WidgetInteractiveState,
 };
 
 pub const DEFAULT_LAYER_OFFSET: f32 = 0.1;
@@ -21,7 +20,7 @@ pub trait Widget: BaseWidget + InternalWidget + Send + Sync {}
 
 pub trait InternalWidget: Any {
     fn widget_init(&mut self);
-    fn widget_update(&mut self);
+    fn widget_update(&mut self, drawing_area_in_px: Vector4);
     fn widget_uninit(&mut self);
     fn widget_process_message(&mut self, _msg: &dyn Message);
 }
@@ -32,8 +31,6 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         std::any::type_name::<Self>()
     }
     fn init(&mut self) {
-        let clip_area_in_px = Screen::get_draw_area();
-        self.state_mut().set_drawing_area(clip_area_in_px);
         self.graphics_mut().init("Default");
 
         if self.is_initialized() {
@@ -51,12 +48,11 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         self.invalidate_layout();
         self.mark_as_initialized();
     }
-    fn update(&mut self, drawing_area_in_px: Vector4) {
-        self.state_mut().set_drawing_area(drawing_area_in_px);
+    fn update(&mut self, parent_data: Vector4, drawing_area_in_px: Vector4) {
         self.process_messages();
 
         if self.state().is_dirty() {
-            self.update_layout();
+            self.update_layout(parent_data);
             self.manage_style();
         }
 
@@ -64,38 +60,41 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         let filltype = self.state().get_fill_type();
         let space = self.state().get_space_between_elements() as f32;
         let use_space_before_after = self.state().should_use_space_before_and_after();
-        let mut widget_clip = self.compute_children_drawing_area();
+        let child_drawing_area = self.compute_children_drawing_area(drawing_area_in_px);
+        let mut widget_space = self.compute_area_data();
         if use_space_before_after {
-            widget_clip = add_space_before_after(widget_clip, filltype, space);
+            widget_space = add_space_before_after(widget_space, filltype, space);
         }
         let children = self.node_mut().get_children_mut();
         for i in 0..children.len() {
             if !is_visible && children[i].as_ref().graphics().is_visible() {
                 children[i].as_mut().set_visible(is_visible);
             }
-            widget_clip = compute_child_clip_area(
-                widget_clip,
+            widget_space = compute_child_clip_area(
+                widget_space,
                 filltype,
                 i,
                 children,
                 space,
                 use_space_before_after,
             );
-            children[i].as_mut().update(widget_clip);
-            widget_clip = add_widget_size(
-                widget_clip,
+            children[i]
+                .as_mut()
+                .update(widget_space, child_drawing_area);
+            widget_space = add_widget_size(
+                widget_space,
                 filltype,
                 i,
                 children,
                 space,
                 use_space_before_after,
             );
-            widget_clip = add_space_before_after(widget_clip, filltype, space);
+            widget_space = add_space_before_after(widget_space, filltype, space);
         }
 
         {
             nrg_profiler::scoped_profile!("widget::wdget_update");
-            self.widget_update();
+            self.widget_update(drawing_area_in_px);
         }
 
         self.graphics_mut().update(drawing_area_in_px);
@@ -169,38 +168,42 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
     }
 
     #[inline]
-    fn compute_children_drawing_area(&self) -> Vector4 {
-        let drawing_area = self.state().get_drawing_area();
+    fn compute_area_data(&self) -> Vector4 {
         let pos = self.state().get_position();
         let size = self.state().get_size();
-        let x = pos.x.max(drawing_area.x);
-        let y = pos.y.max(drawing_area.y);
+        [pos.x, pos.y, size.x, size.y].into()
+    }
+
+    #[inline]
+    fn compute_children_drawing_area(&self, parent_drawing_area: Vector4) -> Vector4 {
+        let pos = self.state().get_position();
+        let size = self.state().get_size();
+        let x = pos.x.max(parent_drawing_area.x);
+        let y = pos.y.max(parent_drawing_area.y);
         [
             x,
             y,
-            (size.x).min((drawing_area.x + drawing_area.z).min(pos.x + size.x) - x),
-            (size.y).min((drawing_area.y + drawing_area.w).min(pos.y + size.y) - y),
+            (size.x).min((parent_drawing_area.x + parent_drawing_area.z).min(pos.x + size.x) - x),
+            (size.y).min((parent_drawing_area.y + parent_drawing_area.w).min(pos.y + size.y) - y),
         ]
         .into()
     }
 
     fn compute_offset_and_scale_from_alignment(
         &mut self,
+        clip_rect: Vector4,
         actual_position: Vector2,
         actual_size: Vector2,
     ) -> (Vector2, Vector2) {
         nrg_profiler::scoped_profile!("widget::compute_offset_and_scale_from_alignment");
 
-        let state = &self.state();
-
-        let clip_rect = state.get_drawing_area();
         let clip_pos: Vector2 = [clip_rect.x, clip_rect.y].into();
         let clip_size: Vector2 = [clip_rect.z, clip_rect.w].into();
 
         let mut pos = actual_position;
         let mut size = actual_size;
 
-        match state.get_horizontal_alignment() {
+        match self.state().get_horizontal_alignment() {
             HorizontalAlignment::Left => {
                 pos.x = clip_pos.x;
             }
@@ -217,7 +220,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
             _ => {}
         }
 
-        match state.get_vertical_alignment() {
+        match self.state().get_vertical_alignment() {
             VerticalAlignment::Top => {
                 pos.y = clip_pos.y;
             }
@@ -431,7 +434,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
     }
 
     #[inline]
-    fn update_layout(&mut self) {
+    fn update_layout(&mut self, clip_rect: Vector4) {
         nrg_profiler::scoped_profile!("widget::update_layout");
         self.state_mut().set_dirty(false);
         let mut fit_size = self.compute_children_size(self.state().get_size());
@@ -441,8 +444,11 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         if self.state().should_keep_fixed_height() {
             fit_size.y = self.state().get_size().y;
         }
-        let (pos, size) =
-            self.compute_offset_and_scale_from_alignment(self.state().get_position(), fit_size);
+        let (pos, size) = self.compute_offset_and_scale_from_alignment(
+            clip_rect,
+            self.state().get_position(),
+            fit_size,
+        );
         self.set_position(pos);
         self.set_size(size);
         self.update_layers();

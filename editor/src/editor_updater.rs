@@ -205,6 +205,7 @@ impl EditorUpdater {
 
         let size = Screen::get_size();
         let mut is_visible = false;
+        let entire_screen = Screen::get_draw_area();
         let draw_area = {
             if let Some(main_menu) = self.get_widget::<MainMenu>(self.main_menu_id) {
                 is_visible = main_menu.show_history();
@@ -216,7 +217,7 @@ impl EditorUpdater {
                 ]
                 .into()
             } else {
-                Screen::get_draw_area()
+                entire_screen
             }
         };
         if let Some(history_panel) = self.get_widget::<HistoryPanel>(self.history_panel_id) {
@@ -229,11 +230,11 @@ impl EditorUpdater {
                 let widget = w.clone();
                 if widget.read().unwrap().id() == self.main_menu_id {
                     Job::new(job_name.as_str(), move || {
-                        widget.write().unwrap().update(Screen::get_draw_area());
+                        widget.write().unwrap().update(entire_screen, entire_screen);
                     })
                 } else {
                     Job::new(job_name.as_str(), move || {
-                        widget.write().unwrap().update(draw_area);
+                        widget.write().unwrap().update(draw_area, entire_screen);
                     })
                 }
             };

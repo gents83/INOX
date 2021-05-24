@@ -4,7 +4,7 @@ use nrg_graphics::{
     utils::{create_triangle_down, create_triangle_right},
     MeshData,
 };
-use nrg_math::Vector2;
+use nrg_math::{Vector2, Vector4};
 use nrg_messenger::{implement_message, Message};
 use nrg_platform::MouseEvent;
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
@@ -177,7 +177,7 @@ impl InternalWidget for TitleBar {
         self.title_widget = self.add_child(Box::new(title));
     }
 
-    fn widget_update(&mut self) {}
+    fn widget_update(&mut self, _drawing_area_in_px: Vector4) {}
 
     fn widget_uninit(&mut self) {
         self.unregister_to_listen_event::<WidgetEvent>()

@@ -1,3 +1,4 @@
+use nrg_math::Vector4;
 use nrg_messenger::Message;
 use nrg_serialize::{Deserialize, Serialize};
 use std::time::{Duration, Instant};
@@ -54,7 +55,7 @@ impl InternalWidget for Indicator {
             .border_style(WidgetStyle::FullActive);
     }
 
-    fn widget_update(&mut self) {
+    fn widget_update(&mut self, _drawing_area_in_px: Vector4) {
         self.update_blinkng();
     }
 

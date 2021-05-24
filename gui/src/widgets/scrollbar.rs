@@ -1,6 +1,6 @@
 use std::any::TypeId;
 
-use nrg_math::Vector2;
+use nrg_math::{Vector2, Vector4};
 use nrg_messenger::{implement_message, Message};
 use nrg_platform::{MouseEvent, MouseState};
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
@@ -74,9 +74,13 @@ impl Scrollbar {
             let size = self.state().get_size();
             if let Some(cursor) = self.node_mut().get_child::<Panel>(cursor_uid) {
                 let mut cursor_pos = cursor.state().get_position();
-                cursor_pos.y = pos.y;
                 let mut cursor_size = size;
                 cursor_size.x /= 10.;
+                cursor_pos.y = pos.y;
+                cursor_pos.x = cursor_pos
+                    .x
+                    .max(pos.x)
+                    .min(pos.x + (size.x - cursor_size.x));
                 cursor.set_position(cursor_pos);
                 cursor.set_size(cursor_size);
             }
@@ -86,9 +90,13 @@ impl Scrollbar {
             let size = self.state().get_size();
             if let Some(cursor) = self.node_mut().get_child::<Panel>(cursor_uid) {
                 let mut cursor_pos = cursor.state().get_position();
-                cursor_pos.x = pos.x;
                 let mut cursor_size = size;
                 cursor_size.y /= 10.;
+                cursor_pos.x = pos.x;
+                cursor_pos.y = cursor_pos
+                    .y
+                    .max(pos.y)
+                    .min(pos.y + (size.y - cursor_size.y));
                 cursor.set_position(cursor_pos);
                 cursor.set_size(cursor_size);
             }
@@ -108,9 +116,9 @@ impl Scrollbar {
         }
         let percentage = if self.state().get_horizontal_alignment() == HorizontalAlignment::Stretch
         {
-            cursor_pos.x / (pos.x + (size.x - cursor_size.x))
+            (cursor_pos.x + cursor_size.x / 2. - pos.x) / size.x
         } else if self.state().get_vertical_alignment() == VerticalAlignment::Stretch {
-            cursor_pos.y / (pos.y + (size.y - cursor_size.y))
+            (cursor_pos.y + cursor_size.y / 2. - pos.y) / size.y
         } else {
             self.percentage
         };
@@ -129,13 +137,13 @@ impl Scrollbar {
             let mut cursor_pos = cursor.state().get_position();
             let cursor_size = cursor.state().get_size();
             if horizontal_alignment == HorizontalAlignment::Stretch {
-                cursor_pos.x = percentage * (pos.x + (size.x - cursor_size.x)) - cursor_size.x / 2.;
+                cursor_pos.x = pos.x + percentage * size.x - cursor_size.x / 2.;
                 cursor_pos.x = cursor_pos
                     .x
                     .max(pos.x)
                     .min(pos.x + (size.x - cursor_size.x));
             } else if vertical_alignment == VerticalAlignment::Stretch {
-                cursor_pos.y = percentage * (pos.y + (size.y - cursor_size.y)) - cursor_size.y / 2.;
+                cursor_pos.y = pos.y + percentage * size.y - cursor_size.y / 2.;
                 cursor_pos.y = cursor_pos
                     .y
                     .max(pos.y)
@@ -178,7 +186,7 @@ impl InternalWidget for Scrollbar {
         self.vertical();
     }
 
-    fn widget_update(&mut self) {}
+    fn widget_update(&mut self, _drawing_area_in_px: Vector4) {}
 
     fn widget_uninit(&mut self) {
         self.unregister_to_listen_event::<WidgetEvent>()
@@ -205,19 +213,14 @@ impl InternalWidget for Scrollbar {
             if event.state == MouseState::Down {
                 let mouse_pos: Vector2 = [event.x as _, event.y as _].into();
                 if self.state().is_inside(mouse_pos) {
-                    let cursor_uid = self.cursor;
                     let pos = self.state().get_position();
                     let size = self.state().get_size();
-                    let mut cursor_size = size;
-                    if let Some(cursor) = self.node_mut().get_child::<Panel>(cursor_uid) {
-                        cursor_size = cursor.state().get_size();
-                    }
                     let percentage = if self.state().get_horizontal_alignment()
                         == HorizontalAlignment::Stretch
                     {
-                        mouse_pos.x / (pos.x + (size.x - cursor_size.x))
+                        (mouse_pos.x - pos.x) / size.x
                     } else if self.state().get_vertical_alignment() == VerticalAlignment::Stretch {
-                        mouse_pos.y / (pos.y + (size.y - cursor_size.y))
+                        (mouse_pos.y - pos.y) / size.y
                     } else {
                         self.percentage
                     };

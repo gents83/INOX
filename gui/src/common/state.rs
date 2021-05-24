@@ -11,8 +11,6 @@ use crate::{
 pub struct WidgetState {
     pos_in_px: Vector2,
     size_in_px: Vector2,
-    #[serde(skip, default = "nrg_math::VecBase::default_zero")]
-    drawing_area: Vector4,
     is_active: bool,
     is_selectable: bool,
     is_draggable: bool,
@@ -41,7 +39,6 @@ impl Default for WidgetState {
         Self {
             pos_in_px: Vector2::default_zero(),
             size_in_px: DEFAULT_WIDGET_SIZE.into(),
-            drawing_area: Vector4::default_zero(),
             is_active: true,
             is_selectable: true,
             is_draggable: false,
@@ -172,17 +169,6 @@ impl WidgetState {
     #[inline]
     pub fn set_size(&mut self, size_in_px: Vector2) -> &mut Self {
         self.size_in_px = size_in_px;
-        self
-    }
-
-    #[inline]
-    pub fn get_drawing_area(&self) -> Vector4 {
-        self.drawing_area
-    }
-
-    #[inline]
-    pub fn set_drawing_area(&mut self, clip_area: Vector4) -> &mut Self {
-        self.drawing_area = clip_area;
         self
     }
 

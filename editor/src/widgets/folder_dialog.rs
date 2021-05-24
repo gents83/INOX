@@ -5,7 +5,7 @@ use nrg_gui::{
     ScrollbarEvent, Separator, TitleBar, TreeView, WidgetData, WidgetEvent, DEFAULT_BUTTON_SIZE,
     DEFAULT_WIDGET_HEIGHT,
 };
-use nrg_math::{VecBase, Vector2};
+use nrg_math::{VecBase, Vector2, Vector4};
 use nrg_messenger::Message;
 use nrg_serialize::*;
 
@@ -163,7 +163,7 @@ impl InternalWidget for FolderDialog {
         self.add_buttons();
     }
 
-    fn widget_update(&mut self) {}
+    fn widget_update(&mut self, _drawing_area_in_px: Vector4) {}
 
     fn widget_uninit(&mut self) {
         self.unregister_to_listen_event::<DialogEvent>()
@@ -177,13 +177,15 @@ impl InternalWidget for FolderDialog {
             let ScrollbarEvent::Changed(widget_id, percentage) = *event;
             if widget_id == self.scrollbar {
                 let mut pos = Vector2::default_zero();
+                let mut view_size = 0.;
                 let filepanel_uid = self.file_panel;
+                let draw_area = self.compute_area_data();
                 if let Some(filepanel) = self.node_mut().get_child::<Panel>(filepanel_uid) {
                     pos = filepanel.state().get_position();
+                    view_size = filepanel.compute_children_drawing_area(draw_area).w;
                 }
                 let iconpanel_uid = self.icon_panel;
                 if let Some(iconpanel) = self.node_mut().get_child::<Panel>(iconpanel_uid) {
-                    let view_size = iconpanel.compute_children_drawing_area().w;
                     let children_size = iconpanel
                         .compute_children_size(iconpanel.state().get_size())
                         .y;
@@ -230,11 +232,12 @@ impl InternalWidget for FolderDialog {
                         let iconpanel_uid = self.icon_panel;
                         let mut view_size = 0.;
                         let mut children_size = 0.;
+                        let draw_area = self.compute_area_data();
                         if let Some(iconpanel) = self.node_mut().get_child::<Panel>(iconpanel_uid) {
                             iconpanel.node_mut().remove_children();
                             iconpanel.vertical_alignment(VerticalAlignment::Stretch);
                             Icon::create_icons(folder.as_str(), iconpanel);
-                            view_size = iconpanel.compute_children_drawing_area().w;
+                            view_size = iconpanel.compute_children_drawing_area(draw_area).w;
                             children_size = iconpanel
                                 .compute_children_size(iconpanel.state().get_size())
                                 .y;

@@ -4,7 +4,7 @@ use nrg_gui::{
     implement_widget_with_custom_members, Button, InternalWidget, Panel, TextBox, TitleBar,
     WidgetData, WidgetEvent, DEFAULT_BUTTON_SIZE,
 };
-use nrg_math::Vector2;
+use nrg_math::{Vector2, Vector4};
 use nrg_messenger::{implement_message, Message};
 use nrg_serialize::*;
 
@@ -129,7 +129,7 @@ impl InternalWidget for FilenameDialog {
         self.add_buttons();
     }
 
-    fn widget_update(&mut self) {}
+    fn widget_update(&mut self, _drawing_area_in_px: Vector4) {}
 
     fn widget_uninit(&mut self) {
         self.unregister_to_listen_event::<DialogEvent>()

@@ -1,6 +1,6 @@
 use std::any::TypeId;
 
-use nrg_math::{VecBase, Vector2};
+use nrg_math::{VecBase, Vector2, Vector4};
 use nrg_messenger::Message;
 use nrg_platform::MouseEvent;
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
@@ -136,7 +136,7 @@ impl InternalWidget for CollapsibleItem {
         self.panel = self.add_child(Box::new(panel));
     }
 
-    fn widget_update(&mut self) {}
+    fn widget_update(&mut self, _drawing_area_in_px: Vector4) {}
 
     fn widget_uninit(&mut self) {
         self.unregister_to_listen_event::<TitleBarEvent>()

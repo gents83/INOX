@@ -1,3 +1,4 @@
+use nrg_math::Vector4;
 use nrg_messenger::Message;
 use nrg_serialize::{Deserialize, Serialize};
 
@@ -29,7 +30,7 @@ impl InternalWidget for Separator {
             .style(WidgetStyle::FullActive);
     }
 
-    fn widget_update(&mut self) {}
+    fn widget_update(&mut self, _drawing_area_in_px: Vector4) {}
 
     fn widget_uninit(&mut self) {}
     fn widget_process_message(&mut self, _msg: &dyn Message) {}

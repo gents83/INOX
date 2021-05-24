@@ -3,7 +3,7 @@ use std::any::TypeId;
 use nrg_gui::{
     implement_widget_with_custom_members, Checkbox, InternalWidget, Menu, WidgetData, WidgetEvent,
 };
-use nrg_math::Vector2;
+use nrg_math::{Vector2, Vector4};
 use nrg_messenger::Message;
 use nrg_platform::WindowEvent;
 use nrg_serialize::*;
@@ -103,11 +103,12 @@ impl InternalWidget for MainMenu {
             .add_submenu_entry(settings_id, Box::new(checkbox));
     }
 
-    fn widget_update(&mut self) {
-        self.menu_mut().update(Screen::get_draw_area());
+    fn widget_update(&mut self, drawing_area_in_px: Vector4) {
+        self.menu_mut()
+            .update(drawing_area_in_px, drawing_area_in_px);
 
         if let Some(dialog) = &mut self.filename_dialog {
-            dialog.update(Screen::get_draw_area());
+            dialog.update(drawing_area_in_px, drawing_area_in_px);
         }
     }
 

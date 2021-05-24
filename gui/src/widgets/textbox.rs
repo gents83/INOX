@@ -1,6 +1,6 @@
 use std::any::TypeId;
 
-use nrg_math::Vector2;
+use nrg_math::{Vector2, Vector4};
 use nrg_messenger::Message;
 use nrg_platform::{InputState, Key, KeyEvent, KeyTextEvent, MouseButton, MouseEvent, MouseState};
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
@@ -173,7 +173,7 @@ impl InternalWidget for TextBox {
         self.text_panel = self.add_child(Box::new(panel));
     }
 
-    fn widget_update(&mut self) {
+    fn widget_update(&mut self, _drawing_area_in_px: Vector4) {
         if self.is_editable() && self.is_focused {
             self.update_indicator_position();
         }

@@ -2,6 +2,7 @@ use std::any::TypeId;
 
 use nrg_events::{EventsHistory, EventsHistoryOperation};
 use nrg_gui::*;
+use nrg_math::Vector4;
 use nrg_messenger::Message;
 use nrg_platform::{InputState, Key, KeyEvent};
 use nrg_serialize::*;
@@ -143,7 +144,7 @@ impl InternalWidget for HistoryPanel {
         self.history_clear_button = history_clear_button_id;
     }
 
-    fn widget_update(&mut self) {
+    fn widget_update(&mut self, _drawing_area_in_px: Vector4) {
         self.history.update();
 
         if self.graphics().is_visible() {
