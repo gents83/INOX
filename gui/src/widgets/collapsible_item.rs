@@ -31,14 +31,14 @@ implement_widget_with_custom_members!(CollapsibleItem {
 impl CollapsibleItem {
     pub fn with_text(&mut self, text: &str) -> &mut Self {
         let uid = self.title_bar;
-        if let Some(title_bar) = self.node_mut().get_child::<TitleBar>(uid) {
+        if let Some(title_bar) = self.node_mut().get_child_mut::<TitleBar>(uid) {
             title_bar.set_text(text);
         }
         self
     }
     pub fn collapsible(&mut self, can_collapse: bool) -> &mut Self {
         let uid = self.title_bar;
-        if let Some(title_bar) = self.node_mut().get_child::<TitleBar>(uid) {
+        if let Some(title_bar) = self.node_mut().get_child_mut::<TitleBar>(uid) {
             title_bar.collapsible(can_collapse);
         }
         self
@@ -49,7 +49,7 @@ impl CollapsibleItem {
             let uid = self.panel;
             let mut expanded_size = self.expanded_size;
             let mut expanded_fill_type = self.expanded_fill_type;
-            if let Some(panel) = self.node_mut().get_child::<Panel>(uid) {
+            if let Some(panel) = self.node_mut().get_child_mut::<Panel>(uid) {
                 if is_collapsed {
                     expanded_size = panel.state().get_size();
                     expanded_fill_type = panel.state().get_fill_type();
@@ -63,13 +63,13 @@ impl CollapsibleItem {
             }
             let size = if is_collapsed {
                 let uid = self.title_bar;
-                if let Some(title_bar) = self.node_mut().get_child::<TitleBar>(uid) {
+                if let Some(title_bar) = self.node_mut().get_child_mut::<TitleBar>(uid) {
                     title_bar.state().get_size()
                 } else {
                     Vector2::default_zero()
                 }
             } else {
-                if let Some(title_bar) = self.node_mut().get_child::<TitleBar>(uid) {
+                if let Some(title_bar) = self.node_mut().get_child_mut::<TitleBar>(uid) {
                     expanded_size.y += title_bar.state().get_size().y;
                 }
                 expanded_size
@@ -82,7 +82,7 @@ impl CollapsibleItem {
     }
     pub fn set_name(&mut self, name: &str) -> &mut Self {
         let uid = self.title_bar;
-        if let Some(title_bar) = self.node_mut().get_child::<TitleBar>(uid) {
+        if let Some(title_bar) = self.node_mut().get_child_mut::<TitleBar>(uid) {
             title_bar.node_mut().set_name(name);
         }
         self.node_mut().set_name(name);
@@ -90,7 +90,7 @@ impl CollapsibleItem {
     }
     pub fn add_child(&mut self, widget: Box<dyn Widget>) -> Uid {
         let uid = self.panel;
-        if let Some(panel) = self.node_mut().get_child::<Panel>(uid) {
+        if let Some(panel) = self.node_mut().get_child_mut::<Panel>(uid) {
             panel.add_child(widget)
         } else {
             <dyn Widget>::add_child(self, widget)

@@ -35,7 +35,7 @@ impl Scrollbar {
         self.horizontal_alignment(HorizontalAlignment::Stretch)
             .vertical_alignment(VerticalAlignment::Bottom);
         let cursor_uid = self.cursor;
-        if let Some(cursor) = self.node_mut().get_child::<Panel>(cursor_uid) {
+        if let Some(cursor) = self.node_mut().get_child_mut::<Panel>(cursor_uid) {
             cursor
                 .horizontal_alignment(HorizontalAlignment::None)
                 .vertical_alignment(VerticalAlignment::Center);
@@ -48,7 +48,7 @@ impl Scrollbar {
         self.horizontal_alignment(HorizontalAlignment::Right)
             .vertical_alignment(VerticalAlignment::Stretch);
         let cursor_uid = self.cursor;
-        if let Some(cursor) = self.node_mut().get_child::<Panel>(cursor_uid) {
+        if let Some(cursor) = self.node_mut().get_child_mut::<Panel>(cursor_uid) {
             cursor
                 .horizontal_alignment(HorizontalAlignment::Center)
                 .vertical_alignment(VerticalAlignment::None);
@@ -72,7 +72,7 @@ impl Scrollbar {
             let cursor_uid = self.cursor;
             let pos = self.state().get_position();
             let size = self.state().get_size();
-            if let Some(cursor) = self.node_mut().get_child::<Panel>(cursor_uid) {
+            if let Some(cursor) = self.node_mut().get_child_mut::<Panel>(cursor_uid) {
                 let mut cursor_pos = cursor.state().get_position();
                 let mut cursor_size = size;
                 cursor_size.x /= 10.;
@@ -88,7 +88,7 @@ impl Scrollbar {
             let cursor_uid = self.cursor;
             let pos = self.state().get_position();
             let size = self.state().get_size();
-            if let Some(cursor) = self.node_mut().get_child::<Panel>(cursor_uid) {
+            if let Some(cursor) = self.node_mut().get_child_mut::<Panel>(cursor_uid) {
                 let mut cursor_pos = cursor.state().get_position();
                 let mut cursor_size = size;
                 cursor_size.y /= 10.;
@@ -110,7 +110,7 @@ impl Scrollbar {
         let size = self.state().get_size();
         let mut cursor_pos = pos;
         let mut cursor_size = size;
-        if let Some(cursor) = self.node_mut().get_child::<Panel>(cursor_uid) {
+        if let Some(cursor) = self.node_mut().get_child_mut::<Panel>(cursor_uid) {
             cursor_pos = cursor.state().get_position();
             cursor_size = cursor.state().get_size();
         }
@@ -133,7 +133,7 @@ impl Scrollbar {
         let percentage = self.percentage;
         let horizontal_alignment = self.state().get_horizontal_alignment();
         let vertical_alignment = self.state().get_vertical_alignment();
-        if let Some(cursor) = self.node_mut().get_child::<Panel>(cursor_uid) {
+        if let Some(cursor) = self.node_mut().get_child_mut::<Panel>(cursor_uid) {
             let mut cursor_pos = cursor.state().get_position();
             let cursor_size = cursor.state().get_size();
             if horizontal_alignment == HorizontalAlignment::Stretch {

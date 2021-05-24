@@ -1,7 +1,7 @@
 use nrg_math::{VecBase, Vector2, Vector4};
 use nrg_serialize::{Deserialize, Serialize};
 
-use crate::{ContainerFillType, Widget};
+use crate::{ContainerFillType, RefcountedWidget};
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 #[serde(crate = "nrg_serialize")]
 pub enum HorizontalAlignment {
@@ -46,7 +46,7 @@ pub fn add_widget_size(
     mut widget_clip: Vector4,
     filltype: ContainerFillType,
     widget_index: usize,
-    children: &[Box<dyn Widget>],
+    children: &[RefcountedWidget],
     space: f32,
     use_space_before_after: bool,
 ) -> Vector4 {
@@ -56,7 +56,9 @@ pub fn add_widget_size(
     let widget = children[widget_index].as_ref();
     match filltype {
         ContainerFillType::Horizontal => {
-            if widget.state().get_horizontal_alignment() == HorizontalAlignment::Stretch {
+            if widget.read().unwrap().state().get_horizontal_alignment()
+                == HorizontalAlignment::Stretch
+            {
                 let size = compute_next_children_space(
                     widget_index,
                     children,
@@ -65,12 +67,13 @@ pub fn add_widget_size(
                 );
                 widget_clip.z += size.x;
             }
-            widget_clip.x += widget.state().get_size().x;
-            widget_clip.z = (widget_clip.z - widget.state().get_size().x).max(0.);
+            widget_clip.x += widget.read().unwrap().state().get_size().x;
+            widget_clip.z = (widget_clip.z - widget.read().unwrap().state().get_size().x).max(0.);
             widget_clip.x = widget_clip.x.min(widget_clip.x + widget_clip.z);
         }
         ContainerFillType::Vertical => {
-            if widget.state().get_vertical_alignment() == VerticalAlignment::Stretch {
+            if widget.read().unwrap().state().get_vertical_alignment() == VerticalAlignment::Stretch
+            {
                 let size = compute_next_children_space(
                     widget_index,
                     children,
@@ -79,8 +82,8 @@ pub fn add_widget_size(
                 );
                 widget_clip.w += size.y;
             }
-            widget_clip.y += widget.state().get_size().y;
-            widget_clip.w = (widget_clip.w - widget.state().get_size().y).max(0.);
+            widget_clip.y += widget.read().unwrap().state().get_size().y;
+            widget_clip.w = (widget_clip.w - widget.read().unwrap().state().get_size().y).max(0.);
             widget_clip.y = widget_clip.y.min(widget_clip.y + widget_clip.w);
         }
         _ => {}
@@ -92,7 +95,7 @@ pub fn compute_child_clip_area(
     mut widget_clip: Vector4,
     filltype: ContainerFillType,
     widget_index: usize,
-    children: &[Box<dyn Widget>],
+    children: &[RefcountedWidget],
     space: f32,
     use_space_before_after: bool,
 ) -> Vector4 {
@@ -102,7 +105,9 @@ pub fn compute_child_clip_area(
     let widget = children[widget_index].as_ref();
     match filltype {
         ContainerFillType::Horizontal => {
-            if widget.state().get_horizontal_alignment() == HorizontalAlignment::Stretch {
+            if widget.read().unwrap().state().get_horizontal_alignment()
+                == HorizontalAlignment::Stretch
+            {
                 let size = compute_next_children_space(
                     widget_index,
                     children,
@@ -113,7 +118,8 @@ pub fn compute_child_clip_area(
             }
         }
         ContainerFillType::Vertical => {
-            if widget.state().get_vertical_alignment() == VerticalAlignment::Stretch {
+            if widget.read().unwrap().state().get_vertical_alignment() == VerticalAlignment::Stretch
+            {
                 let size = compute_next_children_space(
                     widget_index,
                     children,
@@ -130,7 +136,7 @@ pub fn compute_child_clip_area(
 
 fn compute_next_children_space(
     widget_index: usize,
-    children: &[Box<dyn Widget>],
+    children: &[RefcountedWidget],
     space: f32,
     use_space_before_after: bool,
 ) -> Vector2 {
@@ -138,9 +144,9 @@ fn compute_next_children_space(
     if widget_index + 1 < children.len() {
         (widget_index + 1..children.len()).for_each(|i| {
             size.x += space;
-            size.x += children[i].as_ref().state().get_size().x;
+            size.x += children[i].read().unwrap().state().get_size().x;
             size.y += space;
-            size.y += children[i].as_ref().state().get_size().y;
+            size.y += children[i].read().unwrap().state().get_size().y;
         });
         if use_space_before_after {
             size.y += space;

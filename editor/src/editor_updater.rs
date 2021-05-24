@@ -2,7 +2,6 @@ use std::{
     any::TypeId,
     collections::VecDeque,
     path::PathBuf,
-    sync::{Arc, RwLock},
     time::{Duration, Instant},
 };
 
@@ -30,7 +29,6 @@ pub struct EditorUpdater {
     node_id: Uid,
     main_menu_id: Uid,
     history_panel_id: Uid,
-    widgets: Vec<Arc<RwLock<Box<dyn Widget>>>>,
     message_channel: MessageChannel,
 }
 
@@ -52,7 +50,6 @@ impl EditorUpdater {
             shared_data,
             global_messenger,
             config: config.clone(),
-            widgets: Vec::new(),
             fps_text: INVALID_UID,
             fps_widget_id: INVALID_UID,
             canvas_id: INVALID_UID,
@@ -123,17 +120,19 @@ impl System for EditorUpdater {
             .set_text("Ciao");
         widget.add_child(Box::new(textbox));
 
-        self.widgets.push(Arc::new(RwLock::new(Box::new(canvas))));
-        self.widgets.push(Arc::new(RwLock::new(Box::new(widget))));
-        self.widgets
-            .push(Arc::new(RwLock::new(Box::new(main_menu))));
-        self.widgets
-            .push(Arc::new(RwLock::new(Box::new(history_panel))));
+        Gui::create(self.shared_data.clone(), self.global_messenger.clone());
+
+        Gui::get_mut().get_root_mut().add_child(Box::new(canvas));
+        Gui::get_mut().get_root_mut().add_child(Box::new(widget));
+        Gui::get_mut().get_root_mut().add_child(Box::new(main_menu));
+        Gui::get_mut()
+            .get_root_mut()
+            .add_child(Box::new(history_panel));
 
         /*
         let node = GraphNode::new(&self.shared_data, &self.global_messenger);
         self.node_id = node.id();
-        self.widgets.push(Arc::new(RwLock::new(Box::new(node))));
+        Gui::get_mut().get_root_mut().add_child(node);
         */
     }
 
@@ -147,30 +146,15 @@ impl System for EditorUpdater {
         (true, jobs)
     }
     fn uninit(&mut self) {
-        for w in self.widgets.iter() {
-            w.write().unwrap().uninit();
-        }
+        Gui::get_mut()
+            .get_root_mut()
+            .propagate_on_children_mut(|w| {
+                w.uninit();
+            });
     }
 }
 
 impl EditorUpdater {
-    pub fn get_widget<W>(&mut self, uid: Uid) -> Option<&mut W>
-    where
-        W: Widget,
-    {
-        let mut result: Option<&mut W> = None;
-        self.widgets.iter_mut().for_each(|w| {
-            if w.read().unwrap().id() == uid {
-                unsafe {
-                    let mut data = w.write().unwrap();
-                    let ptr = data.as_mut();
-                    let widget = ptr as *mut dyn Widget as *mut W;
-                    result = Some(&mut *widget);
-                }
-            }
-        });
-        result
-    }
     fn create_screen(&mut self) {
         let window = SharedData::get_unique_resource::<Window>(&self.shared_data);
 
@@ -190,8 +174,11 @@ impl EditorUpdater {
 
         let num_fps = self.frame_seconds.len();
         let text_id = self.fps_text;
-        if let Some(widget) = self.get_widget::<Panel>(self.fps_widget_id) {
-            if let Some(text) = widget.node_mut().get_child::<Text>(text_id) {
+        if let Some(widget) = Gui::get_mut()
+            .get_root_mut()
+            .get_child_mut::<Panel>(self.fps_widget_id)
+        {
+            if let Some(text) = widget.node_mut().get_child_mut::<Text>(text_id) {
                 let str = format!("FPS: {}", num_fps);
                 text.set_text(str.as_str());
             }
@@ -207,7 +194,10 @@ impl EditorUpdater {
         let mut is_visible = false;
         let entire_screen = Screen::get_draw_area();
         let draw_area = {
-            if let Some(main_menu) = self.get_widget::<MainMenu>(self.main_menu_id) {
+            if let Some(main_menu) = Gui::get_mut()
+                .get_root_mut()
+                .get_child_mut::<MainMenu>(self.main_menu_id)
+            {
                 is_visible = main_menu.show_history();
                 [
                     0.,
@@ -220,26 +210,33 @@ impl EditorUpdater {
                 entire_screen
             }
         };
-        if let Some(history_panel) = self.get_widget::<HistoryPanel>(self.history_panel_id) {
+        if let Some(history_panel) = Gui::get_mut()
+            .get_root_mut()
+            .get_child_mut::<HistoryPanel>(self.history_panel_id)
+        {
             history_panel.set_visible(is_visible);
         }
 
-        for (i, w) in self.widgets.iter_mut().enumerate() {
-            let job = {
-                let job_name = format!("widget[{}]", i);
-                let widget = w.clone();
-                if widget.read().unwrap().id() == self.main_menu_id {
-                    Job::new(job_name.as_str(), move || {
-                        widget.write().unwrap().update(entire_screen, entire_screen);
-                    })
-                } else {
-                    Job::new(job_name.as_str(), move || {
-                        widget.write().unwrap().update(draw_area, entire_screen);
-                    })
-                }
-            };
-            jobs.push(job);
-        }
+        Gui::get_mut()
+            .get_root_mut()
+            .get_children()
+            .iter()
+            .for_each(|w| {
+                let job = {
+                    let widget = w.clone();
+                    let job_name = format!("widget[{}]", widget.read().unwrap().node().get_name());
+                    if widget.read().unwrap().id() == self.main_menu_id {
+                        Job::new(job_name.as_str(), move || {
+                            widget.write().unwrap().update(entire_screen, entire_screen);
+                        })
+                    } else {
+                        Job::new(job_name.as_str(), move || {
+                            widget.write().unwrap().update(draw_area, entire_screen);
+                        })
+                    }
+                };
+                jobs.push(job);
+            });
         /*
         for (_, w) in self.widgets.iter_mut().enumerate() {
             if w.read().unwrap().id() == self.node_id {
@@ -278,19 +275,11 @@ impl EditorUpdater {
                 if let Ok(entry) = entry {
                     let path = entry.path();
                     if !path.is_dir() && path.to_str().unwrap().contains(name) {
-                        if let Some(node_widget_index) = self
-                            .widgets
-                            .iter()
-                            .position(|w| w.read().unwrap().id() == self.node_id)
-                        {
-                            let old_node = self.widgets.swap_remove(node_widget_index);
-                            old_node.write().unwrap().uninit();
-                        }
+                        Gui::get_mut().get_root_mut().remove_child(self.node_id);
                         let new_node =
                             GraphNode::load(&self.shared_data, &self.global_messenger, path);
                         self.node_id = new_node.id();
-
-                        self.widgets.push(Arc::new(RwLock::new(Box::new(new_node))));
+                        Gui::get_mut().get_root_mut().add_child(Box::new(new_node));
                     }
                 }
             });
@@ -298,7 +287,10 @@ impl EditorUpdater {
     }
 
     fn save_node(&mut self, name: &str) {
-        if let Some(node) = self.get_widget::<GraphNode>(self.node_id) {
+        if let Some(node) = Gui::get_mut()
+            .get_root_mut()
+            .get_child_mut::<GraphNode>(self.node_id)
+        {
             node.node_mut().set_name(name);
             let mut path = PathBuf::from(name);
             if path.extension().is_none() {
@@ -318,7 +310,10 @@ impl EditorUpdater {
                 if let DialogEvent::Confirmed(_widget_id, requester_uid, text) = event {
                     let mut should_load = false;
                     let mut should_save = false;
-                    if let Some(menu) = self.get_widget::<MainMenu>(self.main_menu_id) {
+                    if let Some(menu) = Gui::get_mut()
+                        .get_root_mut()
+                        .get_child_mut::<MainMenu>(self.main_menu_id)
+                    {
                         should_load = menu.is_open_uid(*requester_uid);
                         should_save = menu.is_save_uid(*requester_uid);
                     }

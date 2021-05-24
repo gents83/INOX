@@ -32,7 +32,7 @@ impl GraphNode {
             if is_collapsed {
                 self.expanded_size = self.state().get_size();
                 let mut size = self.expanded_size;
-                if let Some(title_bar) = self.node_mut().get_child::<TitleBar>(uid) {
+                if let Some(title_bar) = self.node_mut().get_child_mut::<TitleBar>(uid) {
                     size = title_bar.state().get_size();
                 }
                 self.size(size);

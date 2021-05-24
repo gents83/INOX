@@ -44,14 +44,14 @@ implement_widget_with_custom_members!(FilenameDialog {
 impl FilenameDialog {
     pub fn set_title(&mut self, text: &str) -> &mut Self {
         let uid = self.title_bar_uid;
-        if let Some(title_bar) = self.node_mut().get_child::<TitleBar>(uid) {
+        if let Some(title_bar) = self.node_mut().get_child_mut::<TitleBar>(uid) {
             title_bar.set_text(text);
         }
         self
     }
     pub fn set_text(&mut self, text: &str) -> &mut Self {
         let uid = self.text_box_uid;
-        if let Some(text_box) = self.node_mut().get_child::<TextBox>(uid) {
+        if let Some(text_box) = self.node_mut().get_child_mut::<TextBox>(uid) {
             text_box.set_text(text);
         }
         self
@@ -59,7 +59,7 @@ impl FilenameDialog {
     pub fn get_text(&mut self) -> String {
         let mut filename = String::new();
         let uid = self.text_box_uid;
-        if let Some(text_box) = self.node_mut().get_child::<TextBox>(uid) {
+        if let Some(text_box) = self.node_mut().get_child_mut::<TextBox>(uid) {
             filename = text_box.get_text();
         }
         filename

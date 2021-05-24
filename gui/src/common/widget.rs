@@ -1,4 +1,7 @@
-use std::any::{Any, TypeId};
+use std::{
+    any::{Any, TypeId},
+    sync::{Arc, RwLock},
+};
 
 use nrg_math::{Vector2, Vector4};
 use nrg_messenger::{read_messages, Message};
@@ -9,6 +12,8 @@ use crate::{
     add_space_before_after, add_widget_size, compute_child_clip_area, ContainerFillType,
     HorizontalAlignment, VerticalAlignment, WidgetDataGetter, WidgetEvent, WidgetInteractiveState,
 };
+
+pub type RefcountedWidget = Arc<RwLock<Box<dyn Widget>>>;
 
 pub const DEFAULT_LAYER_OFFSET: f32 = 0.1;
 pub const DEFAULT_WIDGET_WIDTH: f32 = 12.;
@@ -67,8 +72,8 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         }
         let children = self.node_mut().get_children_mut();
         for i in 0..children.len() {
-            if !is_visible && children[i].as_ref().graphics().is_visible() {
-                children[i].as_mut().set_visible(is_visible);
+            if !is_visible && children[i].read().unwrap().graphics().is_visible() {
+                children[i].write().unwrap().set_visible(is_visible);
             }
             widget_space = compute_child_clip_area(
                 widget_space,
@@ -79,7 +84,8 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
                 use_space_before_after,
             );
             children[i]
-                .as_mut()
+                .write()
+                .unwrap()
                 .update(widget_space, child_drawing_area);
             widget_space = add_widget_size(
                 widget_space,

@@ -10,7 +10,7 @@ crate-type = ["cdylib",'rlib']
 
 [dependencies]
 serde_derive = {version = "1.0"}
-serde = {version = "1.0", features = ["derive"]}
+serde = {version = "1.0", features = ["derive", "rc"]}
 serde_json = {git = "https://github.com/serde-rs/json"}
 uuid = { git = "https://github.com/uuid-rs/uuid", features = ["serde", "v4", "v5"] }
 typetag = {git = "https://github.com/dtolnay/typetag" }

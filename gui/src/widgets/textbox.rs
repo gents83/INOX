@@ -43,11 +43,11 @@ impl TextBox {
         if self.is_editable != is_editable {
             self.is_editable = is_editable;
             let uid = self.editable_text;
-            if let Some(text) = self.node_mut().get_child::<Text>(uid) {
+            if let Some(text) = self.node_mut().get_child_mut::<Text>(uid) {
                 text.editable(is_editable);
             }
             let uid = self.text_panel;
-            if let Some(text_panel) = self.node_mut().get_child::<Panel>(uid) {
+            if let Some(text_panel) = self.node_mut().get_child_mut::<Panel>(uid) {
                 text_panel.selectable(is_editable);
             }
         }
@@ -58,14 +58,14 @@ impl TextBox {
     }
     pub fn with_label(&mut self, text: &str) -> &mut Self {
         let uid = self.label;
-        if let Some(label) = self.node_mut().get_child::<Text>(uid) {
+        if let Some(label) = self.node_mut().get_child_mut::<Text>(uid) {
             label.set_text(text);
         }
         self
     }
     pub fn set_text(&mut self, text: &str) -> &mut Self {
         let uid = self.editable_text;
-        if let Some(editable_text) = self.node_mut().get_child::<Text>(uid) {
+        if let Some(editable_text) = self.node_mut().get_child_mut::<Text>(uid) {
             editable_text.set_text(text);
         }
         self
@@ -74,7 +74,7 @@ impl TextBox {
     pub fn get_text(&mut self) -> String {
         let mut str = String::new();
         let uid = self.editable_text;
-        if let Some(editable_text) = self.node_mut().get_child::<Text>(uid) {
+        if let Some(editable_text) = self.node_mut().get_child_mut::<Text>(uid) {
             str = String::from(editable_text.get_text());
         }
         str
@@ -83,7 +83,7 @@ impl TextBox {
     fn update_character_from_indicator(&mut self) {
         let mut current_char = self.current_char;
         let text_widget_id = self.editable_text;
-        if let Some(text) = self.node_mut().get_child::<Text>(text_widget_id) {
+        if let Some(text) = self.node_mut().get_child_mut::<Text>(text_widget_id) {
             current_char = text.get_hover_char() - 1;
             if current_char < 0 {
                 current_char = text.get_text().len() as i32 - 1;
@@ -95,7 +95,7 @@ impl TextBox {
     fn update_indicator_position(&mut self) {
         let mut current_char = self.current_char;
         let text_widget_id = self.editable_text;
-        if let Some(text) = self.node_mut().get_child::<Text>(text_widget_id) {
+        if let Some(text) = self.node_mut().get_child_mut::<Text>(text_widget_id) {
             let length = text.get_text().len() as i32;
             if current_char < 0 {
                 current_char = -1;
@@ -111,7 +111,7 @@ impl TextBox {
                 }
             };
             let indicator_id = self.indicator_widget;
-            if let Some(indicator) = self.node_mut().get_child::<Indicator>(indicator_id) {
+            if let Some(indicator) = self.node_mut().get_child_mut::<Indicator>(indicator_id) {
                 indicator.position(pos);
             }
         }
@@ -202,7 +202,7 @@ impl InternalWidget for TextBox {
                 self.update_character_from_indicator();
                 let indicator_id = self.indicator_widget;
                 let focused = self.is_focused;
-                if let Some(indicator) = self.node_mut().get_child::<Indicator>(indicator_id) {
+                if let Some(indicator) = self.node_mut().get_child_mut::<Indicator>(indicator_id) {
                     indicator.visible(focused);
                 }
             }
@@ -231,7 +231,7 @@ impl InternalWidget for TextBox {
             let events_dispatcher = self.get_global_dispatcher();
             let text_id = self.editable_text;
             let mut current_char = self.current_char;
-            if let Some(text) = self.node_mut().get_child::<Text>(text_id) {
+            if let Some(text) = self.node_mut().get_child_mut::<Text>(text_id) {
                 if event.state == InputState::JustPressed || event.state == InputState::Pressed {
                     match event.code {
                         Key::Backspace => {

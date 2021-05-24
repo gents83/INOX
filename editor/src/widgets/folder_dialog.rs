@@ -41,7 +41,7 @@ implement_widget_with_custom_members!(FolderDialog {
 impl FolderDialog {
     pub fn set_title(&mut self, text: &str) -> &mut Self {
         let uid = self.title_bar_uid;
-        if let Some(title_bar) = self.node_mut().get_child::<TitleBar>(uid) {
+        if let Some(title_bar) = self.node_mut().get_child_mut::<TitleBar>(uid) {
             title_bar.set_text(text);
         }
         self
@@ -180,12 +180,12 @@ impl InternalWidget for FolderDialog {
                 let mut view_size = 0.;
                 let filepanel_uid = self.file_panel;
                 let draw_area = self.compute_area_data();
-                if let Some(filepanel) = self.node_mut().get_child::<Panel>(filepanel_uid) {
+                if let Some(filepanel) = self.node_mut().get_child_mut::<Panel>(filepanel_uid) {
                     pos = filepanel.state().get_position();
                     view_size = filepanel.compute_children_drawing_area(draw_area).w;
                 }
                 let iconpanel_uid = self.icon_panel;
-                if let Some(iconpanel) = self.node_mut().get_child::<Panel>(iconpanel_uid) {
+                if let Some(iconpanel) = self.node_mut().get_child_mut::<Panel>(iconpanel_uid) {
                     let children_size = iconpanel
                         .compute_children_size(iconpanel.state().get_size())
                         .y;
@@ -221,7 +221,7 @@ impl InternalWidget for FolderDialog {
                 } else {
                     let mut folder = String::from("./data/");
                     let mut should_change = false;
-                    if let Some(child) = self.node_mut().get_child::<TitleBar>(widget_id) {
+                    if let Some(child) = self.node_mut().get_child_mut::<TitleBar>(widget_id) {
                         let name = child.node().get_name();
                         if !name.is_empty() {
                             folder = String::from(name);
@@ -233,7 +233,9 @@ impl InternalWidget for FolderDialog {
                         let mut view_size = 0.;
                         let mut children_size = 0.;
                         let draw_area = self.compute_area_data();
-                        if let Some(iconpanel) = self.node_mut().get_child::<Panel>(iconpanel_uid) {
+                        if let Some(iconpanel) =
+                            self.node_mut().get_child_mut::<Panel>(iconpanel_uid)
+                        {
                             iconpanel.node_mut().remove_children();
                             iconpanel.vertical_alignment(VerticalAlignment::Stretch);
                             Icon::create_icons(folder.as_str(), iconpanel);
@@ -244,7 +246,7 @@ impl InternalWidget for FolderDialog {
                         }
                         let scrollbar_uid = self.scrollbar;
                         if let Some(scollbar) =
-                            self.node_mut().get_child::<Scrollbar>(scrollbar_uid)
+                            self.node_mut().get_child_mut::<Scrollbar>(scrollbar_uid)
                         {
                             if children_size <= view_size {
                                 scollbar.vertical().visible(false).selectable(false);

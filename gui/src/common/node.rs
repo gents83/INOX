@@ -1,8 +1,11 @@
-use std::any::{type_name, Any};
+use std::{
+    any::{type_name, Any},
+    sync::{Arc, RwLock},
+};
 
 use nrg_serialize::{generate_random_uid, Deserialize, Serialize, Uid, INVALID_UID};
 
-use crate::Widget;
+use crate::{RefcountedWidget, Widget};
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]
@@ -10,7 +13,7 @@ pub struct WidgetNode {
     id: Uid,
     name: String,
     parent_id: Uid,
-    children: Vec<Box<dyn Widget>>,
+    children: Vec<RefcountedWidget>,
 }
 
 impl Default for WidgetNode {
@@ -45,15 +48,15 @@ impl WidgetNode {
     #[inline]
     pub fn add_child(&mut self, mut widget: Box<dyn Widget>) -> &mut Self {
         widget.node_mut().parent_id = self.id;
-        self.children.push(widget);
+        self.children.push(Arc::new(RwLock::new(widget)));
         self
     }
 
     #[inline]
     pub fn remove_children(&mut self) -> &mut Self {
         self.children.iter_mut().for_each(|w| {
-            w.node_mut().parent_id = INVALID_UID;
-            w.uninit();
+            w.write().unwrap().node_mut().parent_id = INVALID_UID;
+            w.write().unwrap().uninit();
         });
         self.children.clear();
         self
@@ -62,45 +65,57 @@ impl WidgetNode {
     #[inline]
     pub fn remove_child(&mut self, uid: Uid) -> &mut Self {
         self.children.iter_mut().for_each(|w| {
-            if w.as_ref().id() == uid {
-                w.node_mut().parent_id = INVALID_UID;
-                w.uninit();
+            if w.read().unwrap().id() == uid {
+                w.write().unwrap().node_mut().parent_id = INVALID_UID;
+                w.write().unwrap().uninit();
             }
         });
-        self.children.retain(|w| w.as_ref().id() != uid);
+        self.children.retain(|w| w.read().unwrap().id() != uid);
         self
     }
 
     #[inline]
-    pub fn get_children(&self) -> &Vec<Box<dyn Widget>> {
+    pub fn get_children(&self) -> &Vec<RefcountedWidget> {
         &self.children
     }
 
     #[inline]
-    pub fn get_child<W>(&mut self, uid: Uid) -> Option<&mut W>
+    pub fn get_child<W>(&mut self, uid: Uid) -> Option<RefcountedWidget>
     where
         W: Widget + 'static,
     {
-        let mut result: Option<&mut W> = None;
+        let mut result: Option<RefcountedWidget> = None;
         self.children.iter_mut().for_each(|w| {
-            if w.id() == uid {
+            if w.read().unwrap().id() == uid {
                 let mut is_same_widget_type = <dyn Any>::is::<W>(w);
                 if !is_same_widget_type {
-                    is_same_widget_type |= type_name::<W>().contains(w.get_type());
+                    is_same_widget_type |= type_name::<W>().contains(w.read().unwrap().get_type());
                 }
                 if is_same_widget_type {
-                    unsafe {
-                        let boxed = Box::from_raw(w.as_mut());
-                        let ptr = Box::into_raw(boxed);
-                        let widget = ptr as *mut W;
-                        result = Some(&mut *widget);
-                    }
+                    result = Some(w.clone());
                 }
             } else if result.is_none() {
-                result = w.node_mut().get_child(uid);
+                result = w.write().unwrap().node_mut().get_child::<W>(uid);
             }
         });
         result
+    }
+
+    #[inline]
+    pub fn get_child_mut<W>(&mut self, uid: Uid) -> Option<&mut W>
+    where
+        W: Widget + 'static,
+    {
+        let result = self.get_child::<W>(uid);
+        if let Some(w) = result {
+            unsafe {
+                let boxed = Box::from_raw(w.write().unwrap().as_mut());
+                let ptr = Box::into_raw(boxed);
+                let widget = ptr as *mut W;
+                return Some(&mut *widget);
+            }
+        }
+        None
     }
 
     #[inline]
@@ -127,7 +142,7 @@ impl WidgetNode {
     pub fn has_child(&self, uid: Uid) -> bool {
         let mut found = false;
         self.children.iter().for_each(|w| {
-            if w.id() == uid {
+            if w.read().unwrap().id() == uid {
                 found = true;
             }
         });
@@ -139,10 +154,12 @@ impl WidgetNode {
     where
         F: FnMut(&dyn Widget),
     {
-        self.children.iter().for_each(|w| f(w.as_ref()));
+        self.children
+            .iter()
+            .for_each(|w| f(w.read().unwrap().as_ref()));
     }
     #[inline]
-    pub fn get_children_mut(&mut self) -> &mut Vec<Box<dyn Widget>> {
+    pub fn get_children_mut(&mut self) -> &mut Vec<RefcountedWidget> {
         &mut self.children
     }
 
@@ -151,7 +168,9 @@ impl WidgetNode {
     where
         F: FnMut(&mut dyn Widget),
     {
-        self.children.iter_mut().for_each(|w| f(w.as_mut()));
+        self.children
+            .iter_mut()
+            .for_each(|w| f(w.write().unwrap().as_mut()));
     }
 
     #[inline]
@@ -159,9 +178,13 @@ impl WidgetNode {
     where
         F: FnMut(&dyn Widget),
     {
-        if let Some(index) = self.children.iter().position(|child| child.id() == uid) {
+        if let Some(index) = self
+            .children
+            .iter()
+            .position(|child| child.read().unwrap().id() == uid)
+        {
             let w = &self.children[index as usize];
-            return f(w.as_ref());
+            return f(w.read().unwrap().as_ref());
         }
     }
 
@@ -170,9 +193,13 @@ impl WidgetNode {
     where
         F: FnMut(&mut dyn Widget),
     {
-        if let Some(index) = self.children.iter().position(|child| child.id() == uid) {
+        if let Some(index) = self
+            .children
+            .iter()
+            .position(|child| child.read().unwrap().id() == uid)
+        {
             let w = &mut self.children[index as usize];
-            return f(w.as_mut());
+            return f(w.write().unwrap().as_mut());
         }
     }
 }
