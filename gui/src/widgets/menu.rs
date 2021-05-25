@@ -119,7 +119,7 @@ impl Menu {
     }
     fn is_hovering_entry(&mut self, entry_uid: Uid) -> bool {
         let mut is_hover = false;
-        if let Some(widget) = self.node_mut().get_child_mut::<Button>(entry_uid) {
+        if let Some(widget) = self.node().get_child_mut::<Button>(entry_uid) {
             if widget.is_hover() {
                 is_hover = true;
             }
@@ -196,7 +196,7 @@ impl InternalWidget for Menu {
             let event = msg.as_any().downcast_ref::<WidgetEvent>().unwrap();
             if let WidgetEvent::Released(widget_id, _mouse_in_px) = *event {
                 let mut pos = Vector2::default_zero();
-                if let Some(button) = self.node_mut().get_child_mut::<Button>(widget_id) {
+                if let Some(button) = self.node().get_child_mut::<Button>(widget_id) {
                     pos.x = button.state().get_position().x;
                     pos.y = self.state().get_size().y;
                 }

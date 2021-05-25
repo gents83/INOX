@@ -80,39 +80,36 @@ impl WidgetNode {
     }
 
     #[inline]
-    pub fn get_child<W>(&mut self, uid: Uid) -> Option<RefcountedWidget>
-    where
-        W: Widget + 'static,
-    {
+    pub fn get_child(&self, uid: Uid) -> Option<RefcountedWidget> {
         let mut result: Option<RefcountedWidget> = None;
-        self.children.iter_mut().for_each(|w| {
+        self.children.iter().for_each(|w| {
             if w.read().unwrap().id() == uid {
-                let mut is_same_widget_type = <dyn Any>::is::<W>(w);
-                if !is_same_widget_type {
-                    is_same_widget_type |= type_name::<W>().contains(w.read().unwrap().get_type());
-                }
-                if is_same_widget_type {
-                    result = Some(w.clone());
-                }
+                result = Some(w.clone());
             } else if result.is_none() {
-                result = w.write().unwrap().node_mut().get_child::<W>(uid);
+                result = w.read().unwrap().node().get_child(uid);
             }
         });
         result
     }
 
     #[inline]
-    pub fn get_child_mut<W>(&mut self, uid: Uid) -> Option<&mut W>
+    pub fn get_child_mut<W>(&self, uid: Uid) -> Option<&mut W>
     where
         W: Widget + 'static,
     {
-        let result = self.get_child::<W>(uid);
+        let result = self.get_child(uid);
         if let Some(w) = result {
-            unsafe {
-                let boxed = Box::from_raw(w.write().unwrap().as_mut());
-                let ptr = Box::into_raw(boxed);
-                let widget = ptr as *mut W;
-                return Some(&mut *widget);
+            let mut is_same_widget_type = <dyn Any>::is::<W>(&w);
+            if !is_same_widget_type {
+                is_same_widget_type |= type_name::<W>().contains(w.read().unwrap().get_type());
+            }
+            if is_same_widget_type {
+                unsafe {
+                    let boxed = Box::from_raw(w.write().unwrap().as_mut());
+                    let ptr = Box::into_raw(boxed);
+                    let widget = ptr as *mut W;
+                    return Some(&mut *widget);
+                }
             }
         }
         None
@@ -144,6 +141,8 @@ impl WidgetNode {
         self.children.iter().for_each(|w| {
             if w.read().unwrap().id() == uid {
                 found = true;
+            } else {
+                found = w.read().unwrap().node().has_child(uid);
             }
         });
         found

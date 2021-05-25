@@ -24,7 +24,7 @@ implement_widget_with_custom_members!(Button {
 impl Button {
     pub fn with_text(&mut self, text: &str) -> &mut Self {
         let label_id = self.label_id;
-        if let Some(label) = self.node_mut().get_child_mut::<Text>(label_id) {
+        if let Some(label) = self.node().get_child_mut::<Text>(label_id) {
             label.set_text(text);
         }
         self
@@ -36,7 +36,7 @@ impl Button {
         horizontal_alignment: HorizontalAlignment,
     ) -> &mut Self {
         let label_id = self.label_id;
-        if let Some(label) = self.node_mut().get_child_mut::<Text>(label_id) {
+        if let Some(label) = self.node().get_child_mut::<Text>(label_id) {
             label
                 .vertical_alignment(vertical_alignment)
                 .horizontal_alignment(horizontal_alignment);

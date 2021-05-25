@@ -34,6 +34,8 @@ pub struct EditorUpdater {
 
 impl EditorUpdater {
     pub fn new(shared_data: SharedDataRw, global_messenger: MessengerRw, config: &Config) -> Self {
+        Gui::create(shared_data.clone(), global_messenger.clone());
+
         let message_channel = MessageChannel::default();
 
         global_messenger
@@ -120,8 +122,6 @@ impl System for EditorUpdater {
             .set_text("Ciao");
         widget.add_child(Box::new(textbox));
 
-        Gui::create(self.shared_data.clone(), self.global_messenger.clone());
-
         Gui::get_mut().get_root_mut().add_child(Box::new(canvas));
         Gui::get_mut().get_root_mut().add_child(Box::new(widget));
         Gui::get_mut().get_root_mut().add_child(Box::new(main_menu));
@@ -174,11 +174,11 @@ impl EditorUpdater {
 
         let num_fps = self.frame_seconds.len();
         let text_id = self.fps_text;
-        if let Some(widget) = Gui::get_mut()
-            .get_root_mut()
+        if let Some(widget) = Gui::get()
+            .get_root()
             .get_child_mut::<Panel>(self.fps_widget_id)
         {
-            if let Some(text) = widget.node_mut().get_child_mut::<Text>(text_id) {
+            if let Some(text) = widget.node().get_child_mut::<Text>(text_id) {
                 let str = format!("FPS: {}", num_fps);
                 text.set_text(str.as_str());
             }
@@ -194,8 +194,8 @@ impl EditorUpdater {
         let mut is_visible = false;
         let entire_screen = Screen::get_draw_area();
         let draw_area = {
-            if let Some(main_menu) = Gui::get_mut()
-                .get_root_mut()
+            if let Some(main_menu) = Gui::get()
+                .get_root()
                 .get_child_mut::<MainMenu>(self.main_menu_id)
             {
                 is_visible = main_menu.show_history();
@@ -210,8 +210,8 @@ impl EditorUpdater {
                 entire_screen
             }
         };
-        if let Some(history_panel) = Gui::get_mut()
-            .get_root_mut()
+        if let Some(history_panel) = Gui::get()
+            .get_root()
             .get_child_mut::<HistoryPanel>(self.history_panel_id)
         {
             history_panel.set_visible(is_visible);
@@ -287,8 +287,8 @@ impl EditorUpdater {
     }
 
     fn save_node(&mut self, name: &str) {
-        if let Some(node) = Gui::get_mut()
-            .get_root_mut()
+        if let Some(node) = Gui::get()
+            .get_root()
             .get_child_mut::<GraphNode>(self.node_id)
         {
             node.node_mut().set_name(name);
@@ -310,8 +310,8 @@ impl EditorUpdater {
                 if let DialogEvent::Confirmed(_widget_id, requester_uid, text) = event {
                     let mut should_load = false;
                     let mut should_save = false;
-                    if let Some(menu) = Gui::get_mut()
-                        .get_root_mut()
+                    if let Some(menu) = Gui::get()
+                        .get_root()
                         .get_child_mut::<MainMenu>(self.main_menu_id)
                     {
                         should_load = menu.is_open_uid(*requester_uid);

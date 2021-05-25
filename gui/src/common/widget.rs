@@ -328,7 +328,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         let id = self.id();
         match *event {
             WidgetEvent::InvalidateLayout(widget_id) => {
-                if widget_id == id || self.node_mut().has_child(widget_id) {
+                if widget_id == id {
                     self.invalidate_layout();
                 }
             }

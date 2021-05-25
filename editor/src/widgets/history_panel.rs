@@ -150,7 +150,7 @@ impl InternalWidget for HistoryPanel {
         if self.graphics().is_visible() {
             let widget_id = self.history_text_widget_id;
             let text = self.update_history_widget();
-            if let Some(history_text) = self.node_mut().get_child_mut::<Text>(widget_id) {
+            if let Some(history_text) = self.node().get_child_mut::<Text>(widget_id) {
                 history_text.set_text(text.as_str());
             }
         }

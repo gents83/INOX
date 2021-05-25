@@ -49,7 +49,7 @@ implement_widget_with_custom_members!(TitleBar {
 impl TitleBar {
     pub fn set_text(&mut self, text: &str) -> &mut Self {
         let uid = self.title_widget;
-        if let Some(text_box) = self.node_mut().get_child_mut::<Text>(uid) {
+        if let Some(text_box) = self.node().get_child_mut::<Text>(uid) {
             text_box.set_text(text);
         }
         self
@@ -60,7 +60,7 @@ impl TitleBar {
         vertical_alignment: VerticalAlignment,
     ) -> &mut Self {
         let uid = self.title_widget;
-        if let Some(text_box) = self.node_mut().get_child_mut::<Text>(uid) {
+        if let Some(text_box) = self.node().get_child_mut::<Text>(uid) {
             text_box
                 .horizontal_alignment(horizontal_alignment)
                 .vertical_alignment(vertical_alignment);
@@ -113,7 +113,7 @@ impl TitleBar {
         mesh_data.append_mesh(&vertices, &indices);
 
         let icon_id = self.collapse_icon_widget;
-        if let Some(collapse_icon) = self.node_mut().get_child_mut::<Canvas>(icon_id) {
+        if let Some(collapse_icon) = self.node().get_child_mut::<Canvas>(icon_id) {
             collapse_icon.graphics_mut().set_mesh_data(mesh_data);
         }
         self

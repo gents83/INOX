@@ -59,7 +59,7 @@ impl MainMenu {
         let settings_uid = self.settings_id;
         let uid = self.show_history_id;
         if let Some(submenu) = self.menu_mut().get_submenu(settings_uid) {
-            if let Some(checkbox) = submenu.node_mut().get_child_mut::<Checkbox>(uid) {
+            if let Some(checkbox) = submenu.node().get_child_mut::<Checkbox>(uid) {
                 show = checkbox.is_checked();
             }
         }

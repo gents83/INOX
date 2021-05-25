@@ -27,7 +27,7 @@ implement_widget_with_custom_members!(Icon {
 impl Icon {
     pub fn set_text(&mut self, string: &str) -> &mut Self {
         let uid = self.text;
-        if let Some(text) = self.node_mut().get_child_mut::<Text>(uid) {
+        if let Some(text) = self.node().get_child_mut::<Text>(uid) {
             text.set_text(string);
         }
         self
@@ -38,13 +38,13 @@ impl Icon {
             .vertical_alignment(VerticalAlignment::Top)
             .keep_fixed_width(true);
         let image = self.image;
-        if let Some(image) = self.node_mut().get_child_mut::<Panel>(image) {
+        if let Some(image) = self.node().get_child_mut::<Panel>(image) {
             image
                 .horizontal_alignment(HorizontalAlignment::Center)
                 .vertical_alignment(VerticalAlignment::Top);
         }
         let text = self.text;
-        if let Some(text) = self.node_mut().get_child_mut::<Text>(text) {
+        if let Some(text) = self.node().get_child_mut::<Text>(text) {
             text.horizontal_alignment(HorizontalAlignment::Center)
                 .vertical_alignment(VerticalAlignment::Bottom)
                 .set_char_scale(0.75);
@@ -57,13 +57,13 @@ impl Icon {
             .fill_type(ContainerFillType::Horizontal)
             .keep_fixed_width(false);
         let image = self.image;
-        if let Some(image) = self.node_mut().get_child_mut::<Panel>(image) {
+        if let Some(image) = self.node().get_child_mut::<Panel>(image) {
             image
                 .horizontal_alignment(HorizontalAlignment::Left)
                 .vertical_alignment(VerticalAlignment::Center);
         }
         let text = self.text;
-        if let Some(text) = self.node_mut().get_child_mut::<Text>(text) {
+        if let Some(text) = self.node().get_child_mut::<Text>(text) {
             text.horizontal_alignment(HorizontalAlignment::Left)
                 .vertical_alignment(VerticalAlignment::Center)
                 .set_char_scale(1.);
