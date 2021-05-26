@@ -135,15 +135,13 @@ impl InternalWidget for Checkbox {
             let event = msg.as_any().downcast_ref::<WidgetEvent>().unwrap();
             if let WidgetEvent::Released(widget_id, _mouse_in_px) = *event {
                 if self.outer_widget == widget_id {
-                    let message_box = self.get_global_dispatcher();
-
                     let checkbox_event = if !self.is_checked {
                         CheckboxEvent::Checked(self.outer_widget)
                     } else {
                         CheckboxEvent::Unchecked(self.outer_widget)
                     };
 
-                    message_box
+                    self.get_global_dispatcher()
                         .write()
                         .unwrap()
                         .send(checkbox_event.as_boxed())

@@ -58,8 +58,8 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
 
         if self.is_dirty() {
             self.update_layout(parent_data);
-            self.manage_style();
         }
+        self.manage_style();
 
         self.update_childrens(drawing_area_in_px);
 

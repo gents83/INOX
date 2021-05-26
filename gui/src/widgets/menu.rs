@@ -77,13 +77,14 @@ impl Menu {
         }
         None
     }
-    pub fn add_submenu_entry(&mut self, menu_item_id: Uid, widget: Box<dyn Widget>) -> Uid {
+    pub fn add_submenu_entry(&mut self, menu_item_id: Uid, mut widget: Box<dyn Widget>) -> Uid {
         let mut id = INVALID_UID;
         if let Some(index) = self
             .entries
             .iter_mut()
             .position(|el| el.uid == menu_item_id)
         {
+            widget.set_visible(false);
             id = self.entries[index].submenu.add_child(widget);
         }
         id
@@ -97,6 +98,7 @@ impl Menu {
                 .text_alignment(VerticalAlignment::Center, HorizontalAlignment::Left)
                 .style(WidgetStyle::DefaultBackground);
 
+            button.set_visible(false);
             let entry = &mut self.entries[index];
             id = entry.submenu.add_child(Box::new(button));
         }
