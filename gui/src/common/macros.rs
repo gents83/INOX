@@ -129,13 +129,13 @@ macro_rules! implement_widget {
             #[inline]
             pub fn horizontal_alignment(&mut self, alignment: HorizontalAlignment) -> &mut Self {
                 self.state_mut().set_horizontal_alignment(alignment);
-                self.invalidate_layout();
+                self.mark_as_dirty();
                 self
             }
             #[inline]
             pub fn vertical_alignment(&mut self, alignment: VerticalAlignment) -> &mut Self {
                 self.state_mut().set_vertical_alignment(alignment);
-                self.invalidate_layout();
+                self.mark_as_dirty();
                 self
             }
             #[inline]
@@ -156,25 +156,25 @@ macro_rules! implement_widget {
             #[inline]
             pub fn fill_type(&mut self, fill_type: ContainerFillType) -> &mut Self {
                 self.state_mut().fill_type(fill_type);
-                self.invalidate_layout();
+                self.mark_as_dirty();
                 self
             }
             #[inline]
             pub fn keep_fixed_height(&mut self, keep_fixed_height: bool) -> &mut Self {
                 self.state_mut().keep_fixed_height(keep_fixed_height);
-                self.invalidate_layout();
+                self.mark_as_dirty();
                 self
             }
             #[inline]
             pub fn keep_fixed_width(&mut self, keep_fixed_width: bool) -> &mut Self {
                 self.state_mut().keep_fixed_width(keep_fixed_width);
-                self.invalidate_layout();
+                self.mark_as_dirty();
                 self
             }
             #[inline]
             pub fn space_between_elements(&mut self, space_in_px: u32) -> &mut Self {
                 self.state_mut().space_between_elements(space_in_px);
-                self.invalidate_layout();
+                self.mark_as_dirty();
                 self
             }
             #[inline]
@@ -184,7 +184,7 @@ macro_rules! implement_widget {
             ) -> &mut Self {
                 self.state_mut()
                     .use_space_before_and_after(use_space_before_after);
-                self.invalidate_layout();
+                self.mark_as_dirty();
                 self
             }
         }

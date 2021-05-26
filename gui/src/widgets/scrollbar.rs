@@ -24,10 +24,13 @@ pub struct Scrollbar {
     data: WidgetData,
     percentage: f32,
     cursor: Uid,
+    #[serde(skip)]
+    moving_cursor: bool,
 }
 implement_widget_with_custom_members!(Scrollbar {
     cursor: INVALID_UID,
-    percentage: 0.
+    percentage: 0.,
+    moving_cursor: false
 });
 
 impl Scrollbar {
@@ -59,6 +62,7 @@ impl Scrollbar {
     }
     pub fn percentage(&mut self, percentage: f32) -> &mut Self {
         self.percentage = percentage;
+        self.compute_cursor_size();
         self.get_global_dispatcher()
             .write()
             .unwrap()
@@ -67,7 +71,7 @@ impl Scrollbar {
         self
     }
 
-    fn manage_cursor_interaction(&mut self) -> &mut Self {
+    fn compute_cursor_size(&mut self) -> &mut Self {
         if self.state().get_horizontal_alignment() == HorizontalAlignment::Stretch {
             let cursor_uid = self.cursor;
             let pos = self.state().get_position();
@@ -153,6 +157,22 @@ impl Scrollbar {
         }
         self
     }
+
+    fn move_cursor_in_mouse_pos(&mut self, mouse_pos: Vector2) -> &mut Self {
+        let pos = self.state().get_position();
+        let size = self.state().get_size();
+        let percentage = if self.state().get_horizontal_alignment() == HorizontalAlignment::Stretch
+        {
+            (mouse_pos.x - pos.x) / size.x
+        } else if self.state().get_vertical_alignment() == VerticalAlignment::Stretch {
+            (mouse_pos.y - pos.y) / size.y
+        } else {
+            self.percentage
+        };
+        self.percentage(percentage);
+        self.compute_cursor_from_percentage();
+        self
+    }
 }
 
 impl InternalWidget for Scrollbar {
@@ -195,37 +215,31 @@ impl InternalWidget for Scrollbar {
     fn widget_process_message(&mut self, msg: &dyn Message) {
         if msg.type_id() == TypeId::of::<WidgetEvent>() {
             let event = msg.as_any().downcast_ref::<WidgetEvent>().unwrap();
-            match *event {
-                WidgetEvent::InvalidateLayout(widget_id) => {
-                    if widget_id == self.id() {
-                        self.manage_cursor_interaction();
-                    }
+            if let WidgetEvent::Dragging(widget_id, _mouse_pos_in_px) = *event {
+                if widget_id == self.cursor {
+                    self.compute_percentage_from_cursor();
                 }
-                WidgetEvent::Dragging(widget_id, _mouse_pos_in_px) => {
-                    if widget_id == self.cursor {
-                        self.compute_percentage_from_cursor();
-                    }
-                }
-                _ => {}
             }
         } else if msg.type_id() == TypeId::of::<MouseEvent>() {
             let event = msg.as_any().downcast_ref::<MouseEvent>().unwrap();
-            if event.state == MouseState::Down {
-                let mouse_pos: Vector2 = [event.x as _, event.y as _].into();
-                if self.state().is_inside(mouse_pos) {
-                    let pos = self.state().get_position();
-                    let size = self.state().get_size();
-                    let percentage = if self.state().get_horizontal_alignment()
-                        == HorizontalAlignment::Stretch
-                    {
-                        (mouse_pos.x - pos.x) / size.x
-                    } else if self.state().get_vertical_alignment() == VerticalAlignment::Stretch {
-                        (mouse_pos.y - pos.y) / size.y
-                    } else {
-                        self.percentage
-                    };
-                    self.percentage(percentage);
-                    self.compute_cursor_from_percentage();
+            let mouse_pos: Vector2 = [event.x as _, event.y as _].into();
+            match event.state {
+                MouseState::Down => {
+                    if self.state().is_inside(mouse_pos) {
+                        self.moving_cursor = true;
+                        self.move_cursor_in_mouse_pos(mouse_pos);
+                    }
+                }
+                MouseState::Up => {
+                    self.moving_cursor = false;
+                }
+                MouseState::Move => {
+                    if self.moving_cursor {
+                        self.move_cursor_in_mouse_pos(mouse_pos);
+                    }
+                }
+                _ => {
+                    self.moving_cursor = false;
                 }
             }
         }

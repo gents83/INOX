@@ -50,13 +50,13 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         self.widget_init();
 
         self.move_to_layer(self.graphics().get_layer());
-        self.invalidate_layout();
+        self.mark_as_dirty();
         self.mark_as_initialized();
     }
     fn update(&mut self, parent_data: Vector4, drawing_area_in_px: Vector4) {
         self.process_messages();
 
-        if self.state().is_dirty() {
+        if self.is_dirty() {
             self.update_layout(parent_data);
             self.manage_style();
         }
@@ -131,25 +131,18 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
     }
 
     #[inline]
-    fn invalidate_layout(&mut self) {
-        if self.node().has_parent() {
-            let event = WidgetEvent::InvalidateLayout(self.node().get_parent());
-            self.get_global_dispatcher()
-                .write()
-                .unwrap()
-                .send(event.as_boxed())
-                .ok();
-        } else {
-            self.mark_as_dirty();
-        };
-    }
-
-    #[inline]
     fn mark_as_dirty(&mut self) {
         self.state_mut().set_dirty(true);
         self.node_mut().propagate_on_children_mut(|w| {
             w.mark_as_dirty();
         });
+    }
+    #[inline]
+    fn is_dirty(&self) -> bool {
+        let mut is_dirty = self.state().is_dirty();
+        self.node()
+            .propagate_on_children(|w| is_dirty |= w.is_dirty());
+        is_dirty
     }
 
     #[inline]
@@ -161,7 +154,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         if pos_in_px != self.state().get_position() {
             self.state_mut().set_position(pos_in_px);
             self.graphics_mut().set_position(pos_in_px);
-            self.invalidate_layout();
+            self.mark_as_dirty();
         }
     }
     #[inline]
@@ -169,7 +162,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         if size_in_px != self.state().get_size() {
             self.state_mut().set_size(size_in_px);
             self.graphics_mut().set_size(size_in_px);
-            self.invalidate_layout();
+            self.mark_as_dirty();
         }
     }
 
@@ -329,7 +322,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         match *event {
             WidgetEvent::InvalidateLayout(widget_id) => {
                 if widget_id == id {
-                    self.invalidate_layout();
+                    self.mark_as_dirty();
                 }
             }
             WidgetEvent::Entering(widget_id) => {
@@ -498,7 +491,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         let id = widget.id();
         self.node_mut().add_child(widget);
 
-        self.invalidate_layout();
+        self.mark_as_dirty();
         id
     }
 
@@ -509,8 +502,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
                 w.set_visible(visible);
             });
             self.graphics_mut().set_visible(visible);
-
-            self.invalidate_layout();
+            self.mark_as_dirty();
         }
     }
 }
