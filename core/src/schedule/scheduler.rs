@@ -1,13 +1,9 @@
 use std::{
     collections::HashMap,
-    sync::{
-        atomic::{AtomicUsize, Ordering},
-        mpsc::Sender,
-        Arc, Mutex,
-    },
+    sync::{Arc, RwLock},
 };
 
-use crate::{Job, Phase, PhaseWithSystems};
+use crate::{JobHandler, Phase, PhaseWithSystems};
 
 pub struct Scheduler {
     is_running: bool,
@@ -176,7 +172,7 @@ impl Scheduler {
             })
     }
 
-    pub fn run_once(&mut self, sender: Arc<Mutex<Sender<Job>>>) -> bool {
+    pub fn run_once(&mut self, job_handler: Arc<RwLock<JobHandler>>) -> bool {
         if !self.is_started {
             return self.is_running;
         }
@@ -188,31 +184,14 @@ impl Scheduler {
                     format!("{}[{}]", "scheduler::run_phase", name).as_str()
                 );
 
-                let (ok, jobs) = phase.run();
+                let ok = phase.run();
 
-                if !jobs.is_empty() {
-                    nrg_profiler::scoped_profile!(format!(
-                        "{}[{}]",
-                        "scheduler::process_jobs", name
-                    )
-                    .as_str());
-                    let wait_count = Arc::new(AtomicUsize::new(jobs.len()));
-                    for mut j in jobs {
-                        j.set_wait_count(wait_count.clone());
-                        let res = sender.lock().unwrap().send(j);
-                        if res.is_err() {
-                            panic!("Failed to add job to execution queue");
-                        }
-                    }
-                    {
-                        nrg_profiler::scoped_profile!(format!(
-                            "{}[{}]",
-                            "scheduler::wait_jobs", name
-                        )
-                        .as_str());
-                        while wait_count.load(Ordering::SeqCst) > 0 {
-                            thread::yield_now();
-                        }
+                {
+                    nrg_profiler::scoped_profile!(
+                        format!("{}[{}]", "scheduler::wait_jobs", name).as_str()
+                    );
+                    while job_handler.read().unwrap().has_pending_jobs() {
+                        thread::yield_now();
                     }
                 }
 

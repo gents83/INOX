@@ -3,8 +3,8 @@ use std::{
     collections::HashMap,
     path::PathBuf,
     sync::{
-        mpsc::{channel, Receiver, Sender},
-        Arc, Mutex,
+        mpsc::{channel, Receiver},
+        Arc, Mutex, RwLock,
     },
 };
 
@@ -12,7 +12,7 @@ use nrg_messenger::MessengerRw;
 use nrg_platform::{InputState, Key, KeyEvent};
 use nrg_resources::SharedDataRw;
 
-use crate::{Job, Phase, PluginId, PluginManager, Scheduler, Worker};
+use crate::{Job, JobHandler, JobHandlerRw, Phase, PluginId, PluginManager, Scheduler, Worker};
 
 const NUM_WORKER_THREADS: usize = 5;
 
@@ -23,7 +23,7 @@ pub struct App {
     plugin_manager: PluginManager,
     scheduler: Scheduler,
     workers: HashMap<String, Worker>,
-    sender: Arc<Mutex<Sender<Job>>>,
+    job_handler: Arc<RwLock<JobHandler>>,
     receiver: Arc<Mutex<Receiver<Job>>>,
 }
 
@@ -61,7 +61,7 @@ impl App {
             scheduler: Scheduler::new(),
             plugin_manager: PluginManager::new(),
             workers: HashMap::new(),
-            sender: Arc::new(Mutex::new(sender)),
+            job_handler: JobHandler::new(sender),
             receiver: Arc::new(Mutex::new(receiver)),
             shared_data: SharedDataRw::default(),
             global_messenger: MessengerRw::default(),
@@ -119,7 +119,7 @@ impl App {
     pub fn run_once(&mut self) -> bool {
         nrg_profiler::scoped_profile!("app::run_frame");
 
-        let can_continue = self.scheduler.run_once(self.sender.clone());
+        let can_continue = self.scheduler.run_once(self.get_job_handler());
 
         let plugins_to_remove = self.plugin_manager.update();
         self.update_plugins(plugins_to_remove, true);
@@ -151,9 +151,10 @@ impl App {
     }
     fn add_worker(&mut self, name: &str) -> &mut Worker {
         let key = String::from(name);
+        let job_handler = self.get_job_handler();
         let w = self.workers.entry(key).or_insert_with(Worker::default);
         if !w.is_started() {
-            w.start(name, self.sender.clone(), self.receiver.clone());
+            w.start(name, job_handler, self.receiver.clone());
         }
         w
     }
@@ -162,6 +163,9 @@ impl App {
         self.workers.get_mut(&key).unwrap()
     }
 
+    pub fn get_job_handler(&self) -> JobHandlerRw {
+        self.job_handler.clone()
+    }
     pub fn get_shared_data(&self) -> SharedDataRw {
         self.shared_data.clone()
     }

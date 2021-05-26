@@ -15,6 +15,7 @@ pub struct UpdateSystem {
     id: SystemId,
     renderer: RendererRw,
     shared_data: SharedDataRw,
+    job_handler: JobHandlerRw,
     config: Config,
     message_channel: MessageChannel,
 }
@@ -24,6 +25,7 @@ impl UpdateSystem {
         renderer: RendererRw,
         shared_data: &SharedDataRw,
         global_messenger: &MessengerRw,
+        job_handler: JobHandlerRw,
         config: &Config,
     ) -> Self {
         let message_channel = MessageChannel::default();
@@ -36,6 +38,7 @@ impl UpdateSystem {
             id: SystemId::new(),
             renderer,
             shared_data: shared_data.clone(),
+            job_handler,
             config: config.clone(),
             message_channel,
         }
@@ -55,10 +58,10 @@ impl System for UpdateSystem {
         }
     }
 
-    fn run(&mut self) -> (bool, Vec<Job>) {
+    fn run(&mut self) -> bool {
         let state = self.renderer.read().unwrap().state();
         if state != RendererState::Init && state != RendererState::Submitted {
-            return (true, Vec::new());
+            return true;
         }
 
         let mut should_recreate_swap_chain = false;
@@ -86,8 +89,7 @@ impl System for UpdateSystem {
 
             renderer.prepare_frame(&mut pipelines, &mut materials, &mut textures);
         }
-
-        let mut jobs = Vec::new();
+        
         let wait_count = Arc::new(AtomicUsize::new(0));
 
         let materials = SharedData::get_resources_of_type::<MaterialInstance>(&self.shared_data);
@@ -128,7 +130,7 @@ impl System for UpdateSystem {
                                     "PrepareMaterial [{}] with mesh [{}]",
                                     material_index, mesh_index
                                 );
-                                jobs.push(Job::new(job_name.as_str(), 
+                                self.job_handler.write().unwrap().add_job(job_name.as_str(), 
                                     move || {                    
                                         
                                         let mesh_instance =
@@ -159,7 +161,7 @@ impl System for UpdateSystem {
 
                                         wait_count.fetch_sub(1, Ordering::SeqCst);
                                     },
-                                ));
+                                );
                             }
                         },
                     );
@@ -168,15 +170,15 @@ impl System for UpdateSystem {
 
         let renderer = self.renderer.clone();
         let job_name = "EndPreparation";
-        jobs.push(Job::new(job_name, move || {
+        self.job_handler.write().unwrap().add_job(job_name, move || {
             while wait_count.load(Ordering::SeqCst) > 0 {
                 thread::yield_now();
             }
             let mut r = renderer.write().unwrap();
             r.end_preparation();
-        }));
+        });
 
-        (true, jobs)
+        true
     }
     fn uninit(&mut self) {}
 }

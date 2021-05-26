@@ -1,12 +1,9 @@
 use std::{
-    sync::{
-        mpsc::{Receiver, Sender},
-        Arc, Mutex, RwLock,
-    },
+    sync::{mpsc::Receiver, Arc, Mutex, RwLock},
     thread::{self, JoinHandle},
 };
 
-use crate::{Job, Phase, Scheduler};
+use crate::{Job, JobHandler, Phase, Scheduler};
 
 pub struct Worker {
     scheduler: Arc<RwLock<Scheduler>>,
@@ -44,7 +41,7 @@ impl Worker {
     pub fn start(
         &mut self,
         name: &str,
-        sender: Arc<Mutex<Sender<Job>>>,
+        job_handler: Arc<RwLock<JobHandler>>,
         receiver: Arc<Mutex<Receiver<Job>>>,
     ) {
         if self.thread_handle.is_none() {
@@ -56,7 +53,7 @@ impl Worker {
                     println!("Starting thread {}", thread_name.as_str());
                     nrg_profiler::register_thread!();
                     loop {
-                        let can_continue = scheduler.write().unwrap().run_once(sender.clone());
+                        let can_continue = scheduler.write().unwrap().run_once(job_handler.clone());
                         if let Some(job) = Worker::get_job(&receiver) {
                             job.execute();
                         }

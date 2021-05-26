@@ -22,6 +22,7 @@ pub struct EditorUpdater {
     frame_seconds: VecDeque<Instant>,
     shared_data: SharedDataRw,
     global_messenger: MessengerRw,
+    job_handler: JobHandlerRw,
     config: Config,
     fps_text: Uid,
     fps_widget_id: Uid,
@@ -33,8 +34,17 @@ pub struct EditorUpdater {
 }
 
 impl EditorUpdater {
-    pub fn new(shared_data: SharedDataRw, global_messenger: MessengerRw, config: &Config) -> Self {
-        Gui::create(shared_data.clone(), global_messenger.clone());
+    pub fn new(
+        shared_data: SharedDataRw,
+        global_messenger: MessengerRw,
+        job_handler: JobHandlerRw,
+        config: &Config,
+    ) -> Self {
+        Gui::create(
+            shared_data.clone(),
+            global_messenger.clone(),
+            job_handler.clone(),
+        );
 
         let message_channel = MessageChannel::default();
 
@@ -51,6 +61,7 @@ impl EditorUpdater {
             frame_seconds: VecDeque::default(),
             shared_data,
             global_messenger,
+            job_handler,
             config: config.clone(),
             fps_text: INVALID_UID,
             fps_widget_id: INVALID_UID,
@@ -122,31 +133,47 @@ impl System for EditorUpdater {
             .set_text("Ciao");
         widget.add_child(Box::new(textbox));
 
-        Gui::get_mut().get_root_mut().add_child(Box::new(canvas));
-        Gui::get_mut().get_root_mut().add_child(Box::new(widget));
-        Gui::get_mut().get_root_mut().add_child(Box::new(main_menu));
-        Gui::get_mut()
+        Gui::get()
+            .write()
+            .unwrap()
+            .get_root_mut()
+            .add_child(Box::new(canvas));
+        Gui::get()
+            .write()
+            .unwrap()
+            .get_root_mut()
+            .add_child(Box::new(widget));
+        Gui::get()
+            .write()
+            .unwrap()
+            .get_root_mut()
+            .add_child(Box::new(main_menu));
+        Gui::get()
+            .write()
+            .unwrap()
             .get_root_mut()
             .add_child(Box::new(history_panel));
 
         /*
         let node = GraphNode::new(&self.shared_data, &self.global_messenger);
         self.node_id = node.id();
-        Gui::get_mut().get_root_mut().add_child(node);
+        Gui::get().read().unwrap().get_root_mut().add_child(node);
         */
     }
 
-    fn run(&mut self) -> (bool, Vec<Job>) {
+    fn run(&mut self) -> bool {
         self.update_events();
 
         self.update_fps_counter();
 
-        let jobs = self.update_widgets();
+        self.update_widgets();
 
-        (true, jobs)
+        true
     }
     fn uninit(&mut self) {
-        Gui::get_mut()
+        Gui::get()
+            .write()
+            .unwrap()
             .get_root_mut()
             .propagate_on_children_mut(|w| {
                 w.uninit();
@@ -175,6 +202,8 @@ impl EditorUpdater {
         let num_fps = self.frame_seconds.len();
         let text_id = self.fps_text;
         if let Some(widget) = Gui::get()
+            .read()
+            .unwrap()
             .get_root()
             .get_child_mut::<Panel>(self.fps_widget_id)
         {
@@ -186,15 +215,16 @@ impl EditorUpdater {
 
         self
     }
-    fn update_widgets(&mut self) -> Vec<Job> {
+    fn update_widgets(&mut self) {
         nrg_profiler::scoped_profile!("update_widgets");
-        let mut jobs = Vec::new();
 
         let size = Screen::get_size();
         let mut is_visible = false;
         let entire_screen = Screen::get_draw_area();
         let draw_area = {
             if let Some(main_menu) = Gui::get()
+                .read()
+                .unwrap()
                 .get_root()
                 .get_child_mut::<MainMenu>(self.main_menu_id)
             {
@@ -211,31 +241,38 @@ impl EditorUpdater {
             }
         };
         if let Some(history_panel) = Gui::get()
+            .read()
+            .unwrap()
             .get_root()
             .get_child_mut::<HistoryPanel>(self.history_panel_id)
         {
             history_panel.set_visible(is_visible);
         }
 
-        Gui::get_mut()
+        Gui::get()
+            .write()
+            .unwrap()
             .get_root_mut()
             .get_children()
             .iter()
             .for_each(|w| {
-                let job = {
-                    let widget = w.clone();
-                    let job_name = format!("widget[{}]", widget.read().unwrap().node().get_name());
-                    if widget.read().unwrap().id() == self.main_menu_id {
-                        Job::new(job_name.as_str(), move || {
+                let widget = w.clone();
+                let job_name = format!("widget[{}]", widget.read().unwrap().node().get_name());
+                if widget.read().unwrap().id() == self.main_menu_id {
+                    self.job_handler
+                        .write()
+                        .unwrap()
+                        .add_job(job_name.as_str(), move || {
                             widget.write().unwrap().update(entire_screen, entire_screen);
                         })
-                    } else {
-                        Job::new(job_name.as_str(), move || {
+                } else {
+                    self.job_handler
+                        .write()
+                        .unwrap()
+                        .add_job(job_name.as_str(), move || {
                             widget.write().unwrap().update(draw_area, entire_screen);
                         })
-                    }
-                };
-                jobs.push(job);
+                }
             });
         /*
         for (_, w) in self.widgets.iter_mut().enumerate() {
@@ -248,8 +285,6 @@ impl EditorUpdater {
             }
         }
         */
-
-        jobs
     }
 
     fn load_pipelines(&mut self) {
@@ -275,11 +310,19 @@ impl EditorUpdater {
                 if let Ok(entry) = entry {
                     let path = entry.path();
                     if !path.is_dir() && path.to_str().unwrap().contains(name) {
-                        Gui::get_mut().get_root_mut().remove_child(self.node_id);
+                        Gui::get()
+                            .write()
+                            .unwrap()
+                            .get_root_mut()
+                            .remove_child(self.node_id);
                         let new_node =
                             GraphNode::load(&self.shared_data, &self.global_messenger, path);
                         self.node_id = new_node.id();
-                        Gui::get_mut().get_root_mut().add_child(Box::new(new_node));
+                        Gui::get()
+                            .write()
+                            .unwrap()
+                            .get_root_mut()
+                            .add_child(Box::new(new_node));
                     }
                 }
             });
@@ -288,6 +331,8 @@ impl EditorUpdater {
 
     fn save_node(&mut self, name: &str) {
         if let Some(node) = Gui::get()
+            .read()
+            .unwrap()
             .get_root()
             .get_child_mut::<GraphNode>(self.node_id)
         {
@@ -311,6 +356,8 @@ impl EditorUpdater {
                     let mut should_load = false;
                     let mut should_save = false;
                     if let Some(menu) = Gui::get()
+                        .read()
+                        .unwrap()
                         .get_root()
                         .get_child_mut::<MainMenu>(self.main_menu_id)
                     {

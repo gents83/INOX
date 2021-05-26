@@ -1,12 +1,12 @@
 use downcast_rs::{impl_downcast, Downcast};
 use std::collections::HashSet;
 
-use crate::{Job, System, SystemBoxed, SystemId};
+use crate::{System, SystemBoxed, SystemId};
 
 pub trait Phase: Downcast + Send + Sync {
     fn get_name(&self) -> &str;
     fn init(&mut self);
-    fn run(&mut self) -> (bool, Vec<Job>);
+    fn run(&mut self) -> bool;
     fn uninit(&mut self);
 }
 impl_downcast!(Phase);
@@ -63,10 +63,9 @@ impl PhaseWithSystems {
         self
     }
 
-    fn execute_systems(&mut self) -> (bool, Vec<Job>) {
+    fn execute_systems(&mut self) -> bool {
         nrg_profiler::scoped_profile!("phase::execute_systems");
         let mut can_continue = true;
-        let mut jobs: Vec<Job> = Vec::new();
         for s in self.systems_running.iter_mut() {
             nrg_profiler::scoped_profile!(format!(
                 "{}[{:?}]",
@@ -74,11 +73,10 @@ impl PhaseWithSystems {
                 s.as_mut().id()
             )
             .as_str());
-            let (ok, new_jobs) = s.run();
-            jobs.extend(new_jobs.into_iter());
+            let ok = s.run();
             can_continue &= ok;
         }
-        (can_continue, jobs)
+        can_continue
     }
 
     fn remove_pending_systems_from_execution(&mut self) -> &mut Self {
@@ -110,7 +108,7 @@ impl Phase for PhaseWithSystems {
         self.add_pending_systems_into_execution();
     }
 
-    fn run(&mut self) -> (bool, Vec<Job>) {
+    fn run(&mut self) -> bool {
         self.remove_pending_systems_from_execution()
             .add_pending_systems_into_execution()
             .execute_systems()

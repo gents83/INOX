@@ -21,10 +21,10 @@ impl System for WindowSystem {
         self.id
     }
     fn init(&mut self) {}
-    fn run(&mut self) -> (bool, Vec<Job>) {
+    fn run(&mut self) -> bool {
         let window_res = SharedData::get_unique_resource::<Window>(&self.shared_data);
         let can_continue = window_res.get_mut().update();
-        (can_continue, Vec::new())
+        can_continue
     }
     fn uninit(&mut self) {}
 }

@@ -208,6 +208,7 @@ impl WidgetGraphics {
     #[inline]
     pub fn update(&mut self, drawing_area: Vector4) -> &mut Self {
         if self.is_dirty && !self.material_id.is_nil() && !self.mesh_id.is_nil() {
+            nrg_profiler::scoped_profile!("widget::graphics_update");
             let mut visible = self.is_visible;
             if visible && (self.color.w.is_zero() || drawing_area.z <= 0. || drawing_area.w <= 0.) {
                 visible = false;

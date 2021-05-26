@@ -61,6 +61,7 @@ impl Plugin for GfxPlugin {
             renderer.clone(),
             &app.get_shared_data(),
             &app.get_global_messenger(),
+            app.get_job_handler(),
             &self.config,
         );
         self.update_system_id = system.id();

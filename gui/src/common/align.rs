@@ -26,6 +26,7 @@ pub fn add_space_before_after(
     filltype: ContainerFillType,
     space: f32,
 ) -> Vector4 {
+    nrg_profiler::scoped_profile!("widget::add_space_before_after");
     match filltype {
         ContainerFillType::Horizontal => {
             widget_clip.x += space;
@@ -53,6 +54,7 @@ pub fn add_widget_size(
     if widget_index >= children.len() as _ {
         return widget_clip;
     }
+    nrg_profiler::scoped_profile!("widget::add_widget_size");
     let widget = children[widget_index].as_ref();
     match filltype {
         ContainerFillType::Horizontal => {
@@ -102,6 +104,7 @@ pub fn compute_child_clip_area(
     if widget_index >= children.len() as _ {
         return widget_clip;
     }
+    nrg_profiler::scoped_profile!("widget::compute_child_clip_area");
     let widget = children[widget_index].as_ref();
     match filltype {
         ContainerFillType::Horizontal => {

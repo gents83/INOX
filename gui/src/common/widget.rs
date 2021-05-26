@@ -9,7 +9,7 @@ use nrg_platform::{MouseEvent, MouseState};
 use nrg_serialize::{typetag, Uid};
 
 use crate::{
-    add_space_before_after, add_widget_size, compute_child_clip_area, ContainerFillType,
+    add_space_before_after, add_widget_size, compute_child_clip_area, ContainerFillType, Gui,
     HorizontalAlignment, VerticalAlignment, WidgetDataGetter, WidgetEvent, WidgetInteractiveState,
 };
 
@@ -61,45 +61,10 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
             self.manage_style();
         }
 
-        let is_visible = self.graphics().is_visible();
-        let filltype = self.state().get_fill_type();
-        let space = self.state().get_space_between_elements() as f32;
-        let use_space_before_after = self.state().should_use_space_before_and_after();
-        let child_drawing_area = self.compute_children_drawing_area(drawing_area_in_px);
-        let mut widget_space = self.compute_area_data();
-        if use_space_before_after {
-            widget_space = add_space_before_after(widget_space, filltype, space);
-        }
-        let children = self.node_mut().get_children_mut();
-        for i in 0..children.len() {
-            if !is_visible && children[i].read().unwrap().graphics().is_visible() {
-                children[i].write().unwrap().set_visible(is_visible);
-            }
-            widget_space = compute_child_clip_area(
-                widget_space,
-                filltype,
-                i,
-                children,
-                space,
-                use_space_before_after,
-            );
-            children[i]
-                .write()
-                .unwrap()
-                .update(widget_space, child_drawing_area);
-            widget_space = add_widget_size(
-                widget_space,
-                filltype,
-                i,
-                children,
-                space,
-                use_space_before_after,
-            );
-            widget_space = add_space_before_after(widget_space, filltype, space);
-        }
+        self.update_childrens(drawing_area_in_px);
 
         {
-            nrg_profiler::scoped_profile!("widget::wdget_update");
+            nrg_profiler::scoped_profile!("widget::widget_update");
             self.widget_update(drawing_area_in_px);
         }
 
@@ -111,12 +76,51 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         self.widget_uninit();
         self.graphics_mut().uninit();
     }
+    fn update_childrens(&mut self, drawing_area_in_px: Vector4) {
+        nrg_profiler::scoped_profile!("widget::update_childrens");
+
+        let filltype = self.state().get_fill_type();
+        let space = self.state().get_space_between_elements() as f32;
+        let use_space_before_after = self.state().should_use_space_before_and_after();
+        let child_drawing_area = self.compute_children_drawing_area(drawing_area_in_px);
+        let mut widget_space = self.compute_area_data();
+        if use_space_before_after {
+            widget_space = add_space_before_after(widget_space, filltype, space);
+        }
+        let children = self.node_mut().get_children_mut();
+        for i in 0..children.len() {
+            widget_space = compute_child_clip_area(
+                widget_space,
+                filltype,
+                i,
+                children,
+                space,
+                use_space_before_after,
+            );
+            let child = children[i].clone();
+            Gui::add_additional_job("Update children", move || {
+                child
+                    .write()
+                    .unwrap()
+                    .update(widget_space, child_drawing_area);
+            });
+            widget_space = add_widget_size(
+                widget_space,
+                filltype,
+                i,
+                children,
+                space,
+                use_space_before_after,
+            );
+            widget_space = add_space_before_after(widget_space, filltype, space);
+        }
+    }
     #[inline]
     fn process_messages(&mut self) {
-        nrg_profiler::scoped_profile!("widget::process_messages");
         if !self.graphics().is_visible() {
             return;
         }
+        nrg_profiler::scoped_profile!("widget::process_messages");
         read_messages(self.get_listener(), |msg| {
             if msg.type_id() == TypeId::of::<MouseEvent>() {
                 let e = msg.as_any().downcast_ref::<MouseEvent>().unwrap();
