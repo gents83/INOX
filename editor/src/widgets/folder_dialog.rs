@@ -108,7 +108,7 @@ impl FolderDialog {
         self.file_panel = horizontal_panel.add_child(Box::new(file_panel));
 
         let mut scrollbar = Scrollbar::new(self.get_shared_data(), self.get_global_messenger());
-        scrollbar.vertical();
+        scrollbar.vertical().visible(false).selectable(false);
         self.scrollbar = horizontal_panel.add_child(Box::new(scrollbar));
 
         self.add_child(Box::new(horizontal_panel));
@@ -230,26 +230,29 @@ impl InternalWidget for FolderDialog {
                     }
                     if should_change {
                         let iconpanel_uid = self.icon_panel;
+                        let filepanel_uid = self.file_panel;
                         let mut view_size = 0.;
                         let mut children_size = 0.;
                         let draw_area = self.compute_area_data();
+                        if let Some(filepanel) = self.node().get_child_mut::<Panel>(filepanel_uid) {
+                            view_size = filepanel.compute_children_drawing_area(draw_area).w;
+                        }
                         if let Some(iconpanel) = self.node().get_child_mut::<Panel>(iconpanel_uid) {
                             iconpanel.node_mut().remove_children();
                             iconpanel.vertical_alignment(VerticalAlignment::Stretch);
                             Icon::create_icons(folder.as_str(), iconpanel);
-                            view_size = iconpanel.compute_children_drawing_area(draw_area).w;
                             children_size = iconpanel
                                 .compute_children_size(iconpanel.state().get_size())
                                 .y;
                         }
                         let scrollbar_uid = self.scrollbar;
-                        if let Some(scollbar) =
+                        if let Some(scrollbar) =
                             self.node().get_child_mut::<Scrollbar>(scrollbar_uid)
                         {
-                            if children_size <= view_size {
-                                scollbar.vertical().visible(false).selectable(false);
+                            if view_size <= 0. || children_size <= view_size {
+                                scrollbar.vertical().visible(false).selectable(false);
                             } else {
-                                scollbar.vertical().visible(true).selectable(true);
+                                scrollbar.vertical().visible(true).selectable(true);
                             }
                         }
                     }

@@ -1,10 +1,12 @@
+use std::any::TypeId;
+
 use nrg_math::{Vector2, Vector4};
 use nrg_messenger::{implement_message, Message};
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{
-    implement_widget_with_custom_members, CollapsibleItem, InternalWidget, WidgetData, WidgetEvent,
-    DEFAULT_WIDGET_HEIGHT, DEFAULT_WIDGET_WIDTH,
+    implement_widget_with_custom_members, CollapsibleItem, InternalWidget, TitleBarEvent,
+    WidgetData, WidgetEvent, DEFAULT_WIDGET_HEIGHT, DEFAULT_WIDGET_WIDTH,
 };
 pub const DEFAULT_TREE_VIEW_SIZE: [f32; 2] =
     [DEFAULT_WIDGET_WIDTH * 10., DEFAULT_WIDGET_HEIGHT * 20.];
@@ -90,7 +92,8 @@ impl TreeView {
 
 impl InternalWidget for TreeView {
     fn widget_init(&mut self) {
-        self.register_to_listen_event::<WidgetEvent>();
+        self.register_to_listen_event::<WidgetEvent>()
+            .register_to_listen_event::<TitleBarEvent>();
 
         if self.is_initialized() {
             return;
@@ -111,7 +114,32 @@ impl InternalWidget for TreeView {
     fn widget_update(&mut self, _drawing_area_in_px: Vector4) {}
 
     fn widget_uninit(&mut self) {
-        self.unregister_to_listen_event::<WidgetEvent>();
+        self.unregister_to_listen_event::<WidgetEvent>()
+            .unregister_to_listen_event::<TitleBarEvent>();
     }
-    fn widget_process_message(&mut self, _msg: &dyn Message) {}
+    fn widget_process_message(&mut self, msg: &dyn Message) {
+        if msg.type_id() == TypeId::of::<TitleBarEvent>() {
+            let event = msg.as_any().downcast_ref::<TitleBarEvent>().unwrap();
+            match *event {
+                TitleBarEvent::Expanded(widget_id) => {
+                    if self.node().has_child(widget_id) {
+                        self.get_global_dispatcher()
+                            .write()
+                            .unwrap()
+                            .send(WidgetEvent::InvalidateLayout(self.id()).as_boxed())
+                            .ok();
+                    }
+                }
+                TitleBarEvent::Collapsed(widget_id) => {
+                    if self.node().has_child(widget_id) {
+                        self.get_global_dispatcher()
+                            .write()
+                            .unwrap()
+                            .send(WidgetEvent::InvalidateLayout(self.id()).as_boxed())
+                            .ok();
+                    }
+                }
+            }
+        }
+    }
 }

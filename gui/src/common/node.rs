@@ -142,7 +142,7 @@ impl WidgetNode {
             if w.read().unwrap().id() == uid {
                 found = true;
             } else {
-                found = w.read().unwrap().node().has_child(uid);
+                found |= w.read().unwrap().node().has_child(uid);
             }
         });
         found
