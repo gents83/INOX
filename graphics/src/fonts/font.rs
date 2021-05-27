@@ -80,8 +80,13 @@ impl Font {
         Font::get_glyph_index_from_map(&self.char_to_glyph, character)
     }
 
+    #[inline]
     pub fn get_glyph(&self, index: usize) -> &Glyph {
-        &self.glyphs[index]
+        if index >= self.glyphs.len() {
+            &self.glyphs[0]
+        } else {
+            &self.glyphs[index]
+        }
     }
 
     pub fn create_mesh_from_text(&self, text_data: &TextData) -> MeshData {

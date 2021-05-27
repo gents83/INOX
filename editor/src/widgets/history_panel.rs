@@ -117,10 +117,8 @@ impl HistoryPanel {
 
 impl InternalWidget for HistoryPanel {
     fn widget_init(&mut self) {
-        self.get_global_messenger()
-            .write()
-            .unwrap()
-            .register_messagebox::<KeyEvent>(self.get_messagebox());
+        self.register_to_listen_event::<KeyEvent>()
+            .register_to_listen_event::<WidgetEvent>();
 
         self.size([450., 1000.].into())
             .vertical_alignment(VerticalAlignment::Bottom)
@@ -156,7 +154,10 @@ impl InternalWidget for HistoryPanel {
         }
     }
 
-    fn widget_uninit(&mut self) {}
+    fn widget_uninit(&mut self) {
+        self.unregister_to_listen_event::<KeyEvent>()
+            .unregister_to_listen_event::<WidgetEvent>();
+    }
 
     fn widget_process_message(&mut self, msg: &dyn Message) {
         if msg.type_id() == TypeId::of::<WidgetEvent>() {
