@@ -1,14 +1,13 @@
 use std::any::TypeId;
 
 use nrg_gui::{
-    implement_widget_with_custom_members, Checkbox, InternalWidget, Menu, WidgetData, WidgetEvent,
+    implement_widget_with_custom_members, Checkbox, DialogEvent, FolderDialog, InternalWidget,
+    Menu, WidgetData, WidgetEvent,
 };
 use nrg_math::{Vector2, Vector4};
 use nrg_messenger::Message;
 use nrg_platform::WindowEvent;
 use nrg_serialize::*;
-
-use super::{DialogEvent, FolderDialog};
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]

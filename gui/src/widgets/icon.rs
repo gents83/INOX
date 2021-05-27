@@ -54,6 +54,7 @@ impl Icon {
     pub fn expanded(&mut self) -> &mut Self {
         self.horizontal_alignment(HorizontalAlignment::Stretch)
             .vertical_alignment(VerticalAlignment::Top)
+            .selectable(true)
             .fill_type(ContainerFillType::Horizontal)
             .keep_fixed_width(false);
         let image = self.image;
@@ -108,11 +109,11 @@ impl InternalWidget for Icon {
             .keep_fixed_height(true)
             .keep_fixed_width(true)
             .space_between_elements((4. * Screen::get_scale_factor()) as _)
-            .style(WidgetStyle::Invisible);
+            .style(WidgetStyle::Default);
 
         let mut image = Panel::new(self.get_shared_data(), self.get_global_messenger());
         image
-            .selectable(true)
+            .selectable(false)
             .horizontal_alignment(HorizontalAlignment::Center)
             .vertical_alignment(VerticalAlignment::Top)
             .size(size * 0.75 * Screen::get_scale_factor())

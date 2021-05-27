@@ -1,15 +1,20 @@
 use std::any::TypeId;
 
-use nrg_gui::{
+use crate::{
     implement_widget_with_custom_members, Button, Icon, InternalWidget, Panel, Scrollbar,
     ScrollbarEvent, Separator, TitleBar, TreeView, WidgetData, WidgetEvent, DEFAULT_BUTTON_SIZE,
     DEFAULT_WIDGET_HEIGHT,
 };
 use nrg_math::{VecBase, Vector2, Vector4};
-use nrg_messenger::Message;
+use nrg_messenger::{implement_message, Message};
 use nrg_serialize::*;
 
-use super::DialogEvent;
+#[derive(Clone)]
+pub enum DialogEvent {
+    Confirmed(Uid, Uid, String), //my uid, requester uid, text
+    Canceled(Uid),
+}
+implement_message!(DialogEvent);
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]
