@@ -1,31 +1,38 @@
 ; SPIR-V
 ; Version: 1.0
 ; Generator: Google Shaderc over Glslang; 10
-; Bound: 102
+; Bound: 132
 ; Schema: 0
                OpCapability Shader
           %1 = OpExtInstImport "GLSL.std.450"
                OpMemoryModel Logical GLSL450
-               OpEntryPoint Fragment %main "main" %gl_FragCoord %fragDrawArea %fragTexCoord %outColor %fragColor
+               OpEntryPoint Fragment %main "main" %gl_FragCoord %inDrawArea %inTexCoord %outColor %inColor %inOutlineColor %inBarycentricCoord
                OpExecutionMode %main OriginUpperLeft
                OpSource GLSL 450
                OpSourceExtension "GL_GOOGLE_cpp_style_line_directive"
                OpSourceExtension "GL_GOOGLE_include_directive"
                OpName %main "main"
                OpName %gl_FragCoord "gl_FragCoord"
-               OpName %fragDrawArea "fragDrawArea"
-               OpName %fragTexCoord "fragTexCoord"
+               OpName %inDrawArea "inDrawArea"
+               OpName %inTexCoord "inTexCoord"
                OpName %texColor "texColor"
                OpName %texSamplerArray "texSamplerArray"
                OpName %outColor "outColor"
-               OpName %fragColor "fragColor"
+               OpName %inColor "inColor"
+               OpName %inOutlineColor "inOutlineColor"
+               OpName %t "t"
+               OpName %s "s"
+               OpName %inBarycentricCoord "inBarycentricCoord"
+               OpName %v "v"
                OpDecorate %gl_FragCoord BuiltIn FragCoord
-               OpDecorate %fragDrawArea Location 2
-               OpDecorate %fragTexCoord Location 1
+               OpDecorate %inDrawArea Location 2
+               OpDecorate %inTexCoord Location 1
                OpDecorate %texSamplerArray DescriptorSet 0
                OpDecorate %texSamplerArray Binding 1
                OpDecorate %outColor Location 0
-               OpDecorate %fragColor Location 0
+               OpDecorate %inColor Location 0
+               OpDecorate %inOutlineColor Location 3
+               OpDecorate %inBarycentricCoord Location 4
        %void = OpTypeVoid
           %3 = OpTypeFunction %void
        %bool = OpTypeBool
@@ -36,13 +43,13 @@
        %uint = OpTypeInt 32 0
      %uint_0 = OpConstant %uint 0
 %_ptr_Input_float = OpTypePointer Input %float
-%fragDrawArea = OpVariable %_ptr_Input_v4float Input
+ %inDrawArea = OpVariable %_ptr_Input_v4float Input
      %uint_2 = OpConstant %uint 2
      %uint_1 = OpConstant %uint 1
      %uint_3 = OpConstant %uint 3
     %v3float = OpTypeVector %float 3
 %_ptr_Input_v3float = OpTypePointer Input %v3float
-%fragTexCoord = OpVariable %_ptr_Input_v3float Input
+ %inTexCoord = OpVariable %_ptr_Input_v3float Input
     %float_0 = OpConstant %float 0
 %_ptr_Function_v4float = OpTypePointer Function %v4float
          %70 = OpTypeImage %float 2D 0 1 0 1 Unknown
@@ -50,17 +57,24 @@
 %_ptr_UniformConstant_71 = OpTypePointer UniformConstant %71
 %texSamplerArray = OpVariable %_ptr_UniformConstant_71 UniformConstant
 %_ptr_Function_float = OpTypePointer Function %float
-  %float_0_5 = OpConstant %float 0.5
+%float_0_00999999978 = OpConstant %float 0.00999999978
 %_ptr_Output_v4float = OpTypePointer Output %v4float
    %outColor = OpVariable %_ptr_Output_v4float Output
-  %fragColor = OpVariable %_ptr_Input_v4float Input
+    %inColor = OpVariable %_ptr_Input_v4float Input
 %_ptr_Output_float = OpTypePointer Output %float
+%inOutlineColor = OpVariable %_ptr_Input_v4float Input
+%_ptr_Function_v3float = OpTypePointer Function %v3float
+%inBarycentricCoord = OpVariable %_ptr_Input_v3float Input
+    %float_1 = OpConstant %float 1
        %main = OpFunction %void None %3
           %5 = OpLabel
    %texColor = OpVariable %_ptr_Function_v4float Function
+          %t = OpVariable %_ptr_Function_float Function
+          %s = OpVariable %_ptr_Function_v3float Function
+          %v = OpVariable %_ptr_Function_float Function
          %14 = OpAccessChain %_ptr_Input_float %gl_FragCoord %uint_0
          %15 = OpLoad %float %14
-         %17 = OpAccessChain %_ptr_Input_float %fragDrawArea %uint_0
+         %17 = OpAccessChain %_ptr_Input_float %inDrawArea %uint_0
          %18 = OpLoad %float %17
          %19 = OpFOrdLessThan %bool %15 %18
          %20 = OpLogicalNot %bool %19
@@ -69,9 +83,9 @@
          %21 = OpLabel
          %23 = OpAccessChain %_ptr_Input_float %gl_FragCoord %uint_0
          %24 = OpLoad %float %23
-         %25 = OpAccessChain %_ptr_Input_float %fragDrawArea %uint_0
+         %25 = OpAccessChain %_ptr_Input_float %inDrawArea %uint_0
          %26 = OpLoad %float %25
-         %28 = OpAccessChain %_ptr_Input_float %fragDrawArea %uint_2
+         %28 = OpAccessChain %_ptr_Input_float %inDrawArea %uint_2
          %29 = OpLoad %float %28
          %30 = OpFAdd %float %26 %29
          %31 = OpFOrdGreaterThan %bool %24 %30
@@ -84,7 +98,7 @@
          %34 = OpLabel
          %37 = OpAccessChain %_ptr_Input_float %gl_FragCoord %uint_1
          %38 = OpLoad %float %37
-         %39 = OpAccessChain %_ptr_Input_float %fragDrawArea %uint_1
+         %39 = OpAccessChain %_ptr_Input_float %inDrawArea %uint_1
          %40 = OpLoad %float %39
          %41 = OpFOrdLessThan %bool %38 %40
                OpBranch %35
@@ -96,9 +110,9 @@
          %44 = OpLabel
          %46 = OpAccessChain %_ptr_Input_float %gl_FragCoord %uint_1
          %47 = OpLoad %float %46
-         %48 = OpAccessChain %_ptr_Input_float %fragDrawArea %uint_1
+         %48 = OpAccessChain %_ptr_Input_float %inDrawArea %uint_1
          %49 = OpLoad %float %48
-         %51 = OpAccessChain %_ptr_Input_float %fragDrawArea %uint_3
+         %51 = OpAccessChain %_ptr_Input_float %inDrawArea %uint_3
          %52 = OpLoad %float %51
          %53 = OpFAdd %float %49 %52
          %54 = OpFOrdGreaterThan %bool %47 %53
@@ -110,31 +124,31 @@
          %56 = OpLabel
                OpKill
          %57 = OpLabel
-         %62 = OpAccessChain %_ptr_Input_float %fragTexCoord %uint_2
+         %62 = OpAccessChain %_ptr_Input_float %inTexCoord %uint_2
          %63 = OpLoad %float %62
          %65 = OpFOrdGreaterThanEqual %bool %63 %float_0
                OpSelectionMerge %67 None
                OpBranchConditional %65 %66 %100
          %66 = OpLabel
          %74 = OpLoad %71 %texSamplerArray
-         %75 = OpLoad %v3float %fragTexCoord
+         %75 = OpLoad %v3float %inTexCoord
          %76 = OpImageSampleImplicitLod %v4float %74 %75
                OpStore %texColor %76
          %78 = OpAccessChain %_ptr_Function_float %texColor %uint_3
          %79 = OpLoad %float %78
-         %81 = OpFOrdGreaterThan %bool %79 %float_0_5
+         %81 = OpFOrdGreaterThan %bool %79 %float_0_00999999978
                OpSelectionMerge %83 None
                OpBranchConditional %81 %82 %98
          %82 = OpLabel
          %86 = OpLoad %v4float %texColor
          %87 = OpVectorShuffle %v3float %86 %86 0 1 2
-         %89 = OpLoad %v4float %fragColor
+         %89 = OpLoad %v4float %inColor
          %90 = OpVectorShuffle %v3float %89 %89 0 1 2
          %91 = OpFMul %v3float %87 %90
          %92 = OpLoad %v4float %outColor
          %93 = OpVectorShuffle %v4float %92 %91 4 5 6 3
                OpStore %outColor %93
-         %94 = OpAccessChain %_ptr_Input_float %fragColor %uint_3
+         %94 = OpAccessChain %_ptr_Input_float %inColor %uint_3
          %95 = OpLoad %float %94
          %97 = OpAccessChain %_ptr_Output_float %outColor %uint_3
                OpStore %97 %95
@@ -144,9 +158,39 @@
          %83 = OpLabel
                OpBranch %67
         %100 = OpLabel
-        %101 = OpLoad %v4float %fragColor
+        %101 = OpLoad %v4float %inColor
                OpStore %outColor %101
                OpBranch %67
          %67 = OpLabel
+        %103 = OpAccessChain %_ptr_Input_float %inOutlineColor %uint_3
+        %104 = OpLoad %float %103
+        %105 = OpFOrdGreaterThanEqual %bool %104 %float_0_00999999978
+               OpSelectionMerge %107 None
+               OpBranchConditional %105 %106 %107
+        %106 = OpLabel
+               OpStore %t %float_0_00999999978
+        %111 = OpLoad %float %t
+        %113 = OpLoad %v3float %inBarycentricCoord
+        %114 = OpCompositeConstruct %v3float %111 %111 %111
+        %115 = OpExtInst %v3float %1 Step %114 %113
+               OpStore %s %115
+        %118 = OpAccessChain %_ptr_Function_float %s %uint_0
+        %119 = OpLoad %float %118
+        %120 = OpAccessChain %_ptr_Function_float %s %uint_1
+        %121 = OpLoad %float %120
+        %122 = OpAccessChain %_ptr_Function_float %s %uint_2
+        %123 = OpLoad %float %122
+        %124 = OpExtInst %float %1 FMin %121 %123
+        %125 = OpExtInst %float %1 FMin %119 %124
+        %126 = OpFSub %float %float_1 %125
+               OpStore %v %126
+        %127 = OpLoad %v4float %outColor
+        %128 = OpLoad %v4float %inOutlineColor
+        %129 = OpLoad %float %v
+        %130 = OpCompositeConstruct %v4float %129 %129 %129 %129
+        %131 = OpExtInst %v4float %1 FMix %127 %128 %130
+               OpStore %outColor %131
+               OpBranch %107
+        %107 = OpLabel
                OpReturn
                OpFunctionEnd

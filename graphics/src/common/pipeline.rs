@@ -38,8 +38,20 @@ impl Pipeline {
 
         pipeline
             .set_shader(ShaderType::Vertex, data.vertex_shader.as_path())
-            .set_shader(ShaderType::Fragment, data.fragment_shader.as_path())
-            .build(&device.inner, &render_pass.get_pass());
+            .set_shader(ShaderType::Fragment, data.fragment_shader.as_path());
+        if data.tcs_shader.to_str().is_some() {
+            pipeline.set_shader(ShaderType::TessellationControl, data.tcs_shader.as_path());
+        }
+        if data.tes_shader.to_str().is_some() {
+            pipeline.set_shader(
+                ShaderType::TessellationEvaluation,
+                data.tes_shader.as_path(),
+            );
+        }
+        if data.geometry_shader.to_str().is_some() {
+            pipeline.set_shader(ShaderType::Geometry, data.geometry_shader.as_path());
+        }
+        pipeline.build(&device.inner, &render_pass.get_pass());
 
         let mut mesh = Mesh::create(device);
         mesh.fill_mesh_with_max_buffers();
@@ -137,6 +149,7 @@ impl Pipeline {
         diffuse_color: Vector4,
         diffuse_texture_index: i32,
         diffuse_layer_index: i32,
+        outline_color: Vector4,
     ) -> &mut Self {
         let mesh_data_ref = self.mesh.bind_at_index(
             &mesh_instance.get_data().vertices,
@@ -161,6 +174,7 @@ impl Pipeline {
             diffuse_color,
             diffuse_texture_index,
             diffuse_layer_index,
+            outline_color,
         };
         if self.instance_count >= self.instance_commands.len() {
             self.instance_commands.push(command);

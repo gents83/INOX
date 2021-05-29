@@ -350,15 +350,15 @@ impl DeviceImmutable {
                 pSignalSemaphores: &self.semaphore_render_complete[self.semaphore_id],
             };
 
-            assert_eq!(
-                VkResult_VK_SUCCESS,
-                vkQueueSubmit.unwrap()(
-                    self.graphics_queue,
-                    1,
-                    &submit_info,
-                    self.command_buffer_fences[self.current_buffer_index as usize],
-                )
+            let submit_result = vkQueueSubmit.unwrap()(
+                self.graphics_queue,
+                1,
+                &submit_info,
+                self.command_buffer_fences[self.current_buffer_index as usize],
             );
+            if submit_result != VkResult_VK_SUCCESS {
+                eprintln!("Unable to submit queue correctly on GPU");
+            }
             vkQueueWaitIdle.unwrap()(self.graphics_queue);
 
             let present_info = VkPresentInfoKHR {

@@ -20,6 +20,7 @@ pub struct InstanceData {
     pub diffuse_color: Vector4,
     pub diffuse_texture_index: i32,
     pub diffuse_layer_index: i32,
+    pub outline_color: Vector4,
 }
 
 impl Default for InstanceData {
@@ -32,6 +33,7 @@ impl Default for InstanceData {
             diffuse_color: [1., 1., 1., 1.].into(),
             diffuse_texture_index: -1,
             diffuse_layer_index: -1,
+            outline_color: [1., 1., 1., 0.].into(),
         }
     }
 }
@@ -86,6 +88,9 @@ pub struct PipelineData {
     pub data: RenderPassData,
     pub fragment_shader: PathBuf,
     pub vertex_shader: PathBuf,
+    pub tcs_shader: PathBuf,
+    pub tes_shader: PathBuf,
+    pub geometry_shader: PathBuf,
 }
 unsafe impl Send for PipelineData {}
 unsafe impl Sync for PipelineData {}
@@ -97,6 +102,9 @@ impl Default for PipelineData {
             data: RenderPassData::default(),
             fragment_shader: PathBuf::new(),
             vertex_shader: PathBuf::new(),
+            tcs_shader: PathBuf::new(),
+            tes_shader: PathBuf::new(),
+            geometry_shader: PathBuf::new(),
         }
     }
 }

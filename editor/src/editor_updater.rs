@@ -154,6 +154,18 @@ impl System for EditorUpdater {
             .get_root_mut()
             .add_child(Box::new(history_panel));
 
+        let mut test = Panel::new(&self.shared_data, &self.global_messenger);
+        test.vertical_alignment(VerticalAlignment::Center)
+            .horizontal_alignment(HorizontalAlignment::Center)
+            .style(WidgetStyle::Default)
+            .selectable(true);
+        test.graphics_mut().set_border_color(COLOR_YELLOW.into());
+        Gui::get()
+            .write()
+            .unwrap()
+            .get_root_mut()
+            .add_child(Box::new(test));
+
         /*
         let node = GraphNode::new(&self.shared_data, &self.global_messenger);
         self.node_id = node.id();

@@ -101,6 +101,7 @@ impl System for UpdateSystem {
                 if material_instance.get().has_meshes() {
                     let diffuse_texture_id = material_instance.get().get_diffuse_texture();
                     let diffuse_color = material_instance.get().get_diffuse_color();
+                    let outline_color = material_instance.get().get_outline_color();
                     let pipeline_id = material_instance.get().get_pipeline_id();
 
                     let (diffuse_texture_handler_index, diffuse_texture_index,  diffuse_layer_index )= if diffuse_texture_id.is_nil() {
@@ -157,6 +158,7 @@ impl System for UpdateSystem {
                                             diffuse_color,
                                             diffuse_texture_index,
                                             diffuse_layer_index,
+                                            outline_color,
                                         );
 
                                         wait_count.fetch_sub(1, Ordering::SeqCst);

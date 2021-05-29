@@ -1,5 +1,6 @@
 #version 450
 
+//Input
 layout(location = 0) in vec3 inPosition;
 layout(location = 1) in vec4 inColor;
 layout(location = 2) in vec2 inTexCoord;
@@ -9,13 +10,18 @@ layout(location = 4) in vec3 instancePos;
 layout(location = 5) in vec3 instanceRot;
 layout(location = 6) in vec3 instanceScale;
 layout(location = 7) in vec4 instanceDrawArea;
+
 layout(location = 8) in vec4 instanceDiffuseColor;
 layout(location = 9) in int instanceDiffuseTextureIndex;
 layout(location = 10) in int instanceDiffuseLayerIndex;
 
-layout(location = 0) out vec4 fragColor;
-layout(location = 1) out vec3 fragTexCoord;
-layout(location = 2) out vec4 fragDrawArea;
+layout(location = 11) in vec4 instanceOutlineColor;
+
+//Output
+layout(location = 0) out vec4 outColor;
+layout(location = 1) out vec3 outTexCoord;
+layout(location = 2) out vec4 outDrawArea;
+layout(location = 3) out vec4 outOutlineColor;
 
 layout(binding = 0) uniform UniformBufferObject {
     mat4 view;
@@ -53,11 +59,13 @@ void main() {
 	mz[3] = vec4(0.0, 0.0, 0.0, 1.0);
 
 	mat4 rotMat = mz * my * mx;	
-	vec4 pos = vec4((inPosition.xyz * instanceScale) + instancePos, 1.0) * rotMat;
+	vec3 posEnlarged = inPosition.xyz + normalize(inNormal) * instanceOutlineColor.a;
+	vec4 pos = vec4((posEnlarged * instanceScale) + instancePos, 1.0) * rotMat;
 
     gl_Position = ubo.proj * ubo.view * pos;
 
-    fragColor = inColor * instanceDiffuseColor;
-    fragTexCoord = vec3(inTexCoord, instanceDiffuseLayerIndex);
-    fragDrawArea = instanceDrawArea;
+    outColor = inColor * instanceDiffuseColor;
+    outTexCoord = vec3(inTexCoord, instanceDiffuseLayerIndex);
+    outDrawArea = instanceDrawArea;
+    outOutlineColor = instanceOutlineColor;
 }

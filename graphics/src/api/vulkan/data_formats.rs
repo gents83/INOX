@@ -111,6 +111,14 @@ impl InstanceData {
                     &(*(::std::ptr::null::<InstanceData>())).diffuse_layer_index as *const _ as _
                 },
             },
+            VkVertexInputAttributeDescription {
+                binding: INSTANCE_BUFFER_BIND_ID as _,
+                format: VkFormat_VK_FORMAT_R32G32B32A32_SFLOAT,
+                location: 11,
+                offset: unsafe {
+                    &(*(::std::ptr::null::<InstanceData>())).outline_color as *const _ as _
+                },
+            },
         ];
         attr
     }

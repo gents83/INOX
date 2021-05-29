@@ -10,6 +10,7 @@ pub struct MaterialInstance {
     meshes: Vec<MeshId>,
     textures: Vec<TextureId>,
     diffuse_color: Vector4,
+    outline_color: Vector4,
 }
 
 impl MaterialInstance {
@@ -18,11 +19,13 @@ impl MaterialInstance {
         let pipeline_id = material.get().pipeline_id;
         let textures = material.get().textures.clone();
         let diffuse_color = material.get().diffuse_color;
+        let outline_color = material.get().outline_color;
         Self {
             pipeline_id,
             meshes: Vec::new(),
             textures,
             diffuse_color,
+            outline_color,
         }
     }
     pub fn get_pipeline_id(&self) -> PipelineId {
@@ -45,6 +48,9 @@ impl MaterialInstance {
     }
     pub fn get_diffuse_color(&self) -> Vector4 {
         self.diffuse_color
+    }
+    pub fn get_outline_color(&self) -> Vector4 {
+        self.outline_color
     }
 
     pub fn add_texture(shared_data: &SharedDataRw, material_id: MaterialId, texture_id: TextureId) {
@@ -74,6 +80,15 @@ impl MaterialInstance {
         material.get_mut().diffuse_color = diffuse_color;
     }
 
+    pub fn set_outline_color(
+        shared_data: &SharedDataRw,
+        material_id: MaterialId,
+        outline_color: Vector4,
+    ) {
+        let material = SharedData::get_resource::<Self>(shared_data, material_id);
+        material.get_mut().outline_color = outline_color;
+    }
+
     pub fn create_from_pipeline(shared_data: &SharedDataRw, pipeline_id: PipelineId) -> MaterialId {
         let mut data = shared_data.write().unwrap();
         data.add_resource(MaterialInstance {
@@ -81,6 +96,7 @@ impl MaterialInstance {
             meshes: Vec::new(),
             textures: Vec::new(),
             diffuse_color: [1., 1., 1., 1.].into(),
+            outline_color: [1., 1., 1., 0.].into(),
         })
     }
 

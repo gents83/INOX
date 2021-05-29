@@ -213,6 +213,11 @@ impl WidgetGraphics {
             if visible && (self.color.w.is_zero() || drawing_area.z <= 0. || drawing_area.w <= 0.) {
                 visible = false;
             }
+            MaterialInstance::set_outline_color(
+                &self.shared_data,
+                self.material_id,
+                self.border_color,
+            );
             MaterialInstance::set_diffuse_color(&self.shared_data, self.material_id, self.color);
             MeshInstance::set_transform(&self.shared_data, self.mesh_id, self.transform);
             MeshInstance::set_draw_area(&self.shared_data, self.mesh_id, drawing_area);

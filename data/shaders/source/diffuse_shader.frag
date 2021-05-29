@@ -1,26 +1,32 @@
 #version 450
 
+//Input
 layout(binding = 1) uniform sampler2DArray texSamplerArray;
 
-layout(location = 0) in vec4 fragColor;
-layout(location = 1) in vec3 fragTexCoord;
-layout(location = 2) in vec4 fragDrawArea;
+layout(location = 0) in vec4 inColor;
+layout(location = 1) in vec3 inTexCoord;
+layout(location = 2) in vec4 inDrawArea;
+layout(location = 3) in vec4 inOutlineColor;
 
+layout(location = 4) in vec3 inBarycentricCoord;
+
+//Output
 layout(location = 0) out vec4 outColor;
 
 void main() {
-	if (gl_FragCoord.x < fragDrawArea.x || gl_FragCoord.x > fragDrawArea.x + fragDrawArea.z 
-		|| gl_FragCoord.y < fragDrawArea.y || gl_FragCoord.y > fragDrawArea.y + fragDrawArea.w) 
+	if (gl_FragCoord.x < inDrawArea.x || gl_FragCoord.x > inDrawArea.x + inDrawArea.z 
+		|| gl_FragCoord.y < inDrawArea.y || gl_FragCoord.y > inDrawArea.y + inDrawArea.w) 
 	{
 	    discard;
 	}
-	if (fragTexCoord.z >= 0) 
+
+	if (inTexCoord.z >= 0) 
 	{
-		vec4 texColor = texture(texSamplerArray, fragTexCoord);
-		if(texColor.a > 0.5) 
+		vec4 texColor = texture(texSamplerArray, inTexCoord);
+		if(texColor.a > 0.01) 
 		{
-	    	outColor.rgb = texColor.rgb * fragColor.rgb;
-	    	outColor.a = fragColor.a;
+	    	outColor.rgb = texColor.rgb * inColor.rgb;
+	    	outColor.a = inColor.a;
 	    }
 	    else 
 	    {
@@ -30,6 +36,18 @@ void main() {
 	}
 	else 
 	{
-		outColor = fragColor;
+		outColor = inColor;
 	}
+
+	if (inOutlineColor.a >= 0.01) {
+		
+		float t = 0.01;//1. / (1. + (1.* inOutlineColor.a));
+
+		vec3 s = step(t, inBarycentricCoord);
+		float v = 1. - min(s.r, min(s.g, s.b));
+		
+		outColor = mix(outColor, inOutlineColor, v);
+		//outColor = vec4(s, 1.0);
+	}
+		
 }

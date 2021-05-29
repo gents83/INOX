@@ -294,25 +294,17 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         nrg_profiler::scoped_profile!("widget::manage_style");
 
         if self.state().is_hover() {
-            let (color, border_color) = self.state().get_colors(WidgetInteractiveState::Hover);
-            self.graphics_mut()
-                .set_color(color)
-                .set_border_color(border_color);
+            let color = self.state().get_color(WidgetInteractiveState::Hover);
+            self.graphics_mut().set_color(color);
         } else if self.state().is_pressed() {
-            let (color, border_color) = self.state().get_colors(WidgetInteractiveState::Pressed);
-            self.graphics_mut()
-                .set_color(color)
-                .set_border_color(border_color);
+            let color = self.state().get_color(WidgetInteractiveState::Pressed);
+            self.graphics_mut().set_color(color);
         } else if self.state().is_active() {
-            let (color, border_color) = self.state().get_colors(WidgetInteractiveState::Active);
-            self.graphics_mut()
-                .set_color(color)
-                .set_border_color(border_color);
+            let color = self.state().get_color(WidgetInteractiveState::Active);
+            self.graphics_mut().set_color(color);
         } else {
-            let (color, border_color) = self.state().get_colors(WidgetInteractiveState::Inactive);
-            self.graphics_mut()
-                .set_color(color)
-                .set_border_color(border_color);
+            let color = self.state().get_color(WidgetInteractiveState::Inactive);
+            self.graphics_mut().set_color(color);
         }
     }
 

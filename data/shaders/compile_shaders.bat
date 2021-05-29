@@ -12,6 +12,17 @@ for %%I in (.\source\*.vert) do (
 )
 
 ECHO "---------------------------------------------------------"
+ECHO "Processing GEOMETRY SHADERS"
+ECHO "---------------------------------------------------------"
+
+for %%I in (.\source\*.geom) do (
+	ECHO Processing '%%~nI'
+	%VULKAN_SDK%\Bin\glslc.exe -S %%I -o .\temp\%%~nI_geom.spv_assembly
+	%VULKAN_SDK%\Bin\glslangValidator.exe -o .\compiled\%%~nI_geom.spv -V %%I
+	%VULKAN_SDK%\Bin\spirv-val.exe .\compiled\%%~nI_geom.spv
+)
+
+ECHO "---------------------------------------------------------"
 ECHO "Processing FRAGMENT SHADERS"
 ECHO "---------------------------------------------------------"
 
@@ -25,5 +36,3 @@ for %%I in (.\source\*.frag) do (
 ECHO "---------------------------------------------------------"
 ECHO "Process ended"
 ECHO "---------------------------------------------------------"
-
-PAUSE

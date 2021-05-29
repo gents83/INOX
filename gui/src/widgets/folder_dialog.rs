@@ -2,8 +2,8 @@ use std::any::TypeId;
 
 use crate::{
     implement_widget_with_custom_members, Button, Icon, InternalWidget, Panel, Scrollbar,
-    ScrollbarEvent, Separator, TitleBar, TreeView, WidgetData, WidgetEvent, DEFAULT_BUTTON_SIZE,
-    DEFAULT_WIDGET_HEIGHT,
+    ScrollbarEvent, Separator, TitleBar, TreeView, WidgetData, WidgetEvent, COLOR_YELLOW,
+    DEFAULT_BUTTON_SIZE, DEFAULT_WIDGET_HEIGHT,
 };
 use nrg_math::{VecBase, Vector2, Vector4};
 use nrg_messenger::{implement_message, Message};
@@ -162,6 +162,8 @@ impl InternalWidget for FolderDialog {
             .selectable(false)
             .style(WidgetStyle::DefaultBackground)
             .move_to_layer(1.);
+
+        self.graphics_mut().set_border_color(COLOR_YELLOW.into());
 
         self.add_title();
         self.add_content();

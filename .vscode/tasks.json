@@ -9,6 +9,16 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
+			"label": "BUILD SHADERS",
+			"type": "shell",
+			"isBackground": true,
+			"command": "${workspaceFolder}\\data\\shaders\\compile_shaders.bat",
+			"presentation": {
+				"clear": true,
+				"reveal": "never", //process does not switch terminal (focus on program output)
+			}
+		},
+		{
 			"label": "CLEANUP",
 			"type": "shell",
 			"isBackground": true,

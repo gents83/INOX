@@ -20,7 +20,7 @@ impl InternalWidget for Canvas {
         self.size(Screen::get_size())
             .selectable(false)
             .draggable(false)
-            .style(WidgetStyle::DefaultCanvas);
+            .style(WidgetStyle::Invisible);
     }
 
     fn widget_update(&mut self, _drawing_area_in_px: Vector4) {}

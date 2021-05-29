@@ -83,11 +83,13 @@ impl WidgetState {
     }
 
     #[inline]
-    pub fn get_colors(&self, state: WidgetInteractiveState) -> (Vector4, Vector4) {
-        (
-            WidgetStyle::color(&self.style, state),
-            WidgetStyle::color(&self.border_style, state),
-        )
+    pub fn get_color(&self, state: WidgetInteractiveState) -> Vector4 {
+        WidgetStyle::color(&self.style, state)
+    }
+
+    #[inline]
+    pub fn get_border_color(&self, state: WidgetInteractiveState) -> Vector4 {
+        WidgetStyle::color(&self.border_style, state)
     }
 
     #[inline]
