@@ -11,11 +11,12 @@
 		{
 			"label": "BUILD SHADERS",
 			"type": "shell",
-			"isBackground": true,
+			"isBackground": false,
 			"command": "${workspaceFolder}\\data\\shaders\\compile_shaders.bat",
 			"presentation": {
 				"clear": true,
-				"reveal": "never", //process does not switch terminal (focus on program output)
+				"showReuseMessage": false,
+				"reveal": "silent", //process does not switch terminal (focus on program output)
 			}
 		},
 		{
@@ -119,6 +120,7 @@
 				"CREATE IN_USE FOLDER",
 				"CREATE DEPS IN_USE FOLDER",
 				"COMPILE DEBUG",
+				"BUILD SHADERS",
 			],
 			"problemMatcher": [],
 			"presentation": {
@@ -134,6 +136,7 @@
 				"CREATE IN_USE FOLDER",
 				"CREATE DEPS IN_USE FOLDER",
 				"COMPILE RELEASE",
+				"BUILD SHADERS",
 			],
 			"problemMatcher": [],
 			"presentation": {

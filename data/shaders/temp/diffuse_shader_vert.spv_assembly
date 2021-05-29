@@ -1,12 +1,12 @@
 ; SPIR-V
 ; Version: 1.0
 ; Generator: Google Shaderc over Glslang; 10
-; Bound: 163
+; Bound: 176
 ; Schema: 0
                OpCapability Shader
           %1 = OpExtInstImport "GLSL.std.450"
                OpMemoryModel Logical GLSL450
-               OpEntryPoint Vertex %main "main" %instanceRot %inPosition %inNormal %instanceOutlineColor %instanceScale %instancePos %_ %outColor %inColor %instanceDiffuseColor %outTexCoord %inTexCoord %instanceDiffuseLayerIndex %outDrawArea %instanceDrawArea %outOutlineColor %instanceDiffuseTextureIndex
+               OpEntryPoint Vertex %main "main" %instanceRot %inPosition %instanceScale %instancePos %inNormal %instanceOutlineColor %_ %outColor %inColor %instanceDiffuseColor %outTexCoord %inTexCoord %instanceDiffuseLayerIndex %outDrawArea %instanceDrawArea %outOutlineColor %instanceDiffuseTextureIndex
                OpSource GLSL 450
                OpSourceExtension "GL_GOOGLE_cpp_style_line_directive"
                OpSourceExtension "GL_GOOGLE_include_directive"
@@ -18,13 +18,14 @@
                OpName %my "my"
                OpName %mz "mz"
                OpName %rotMat "rotMat"
-               OpName %posEnlarged "posEnlarged"
-               OpName %inPosition "inPosition"
-               OpName %inNormal "inNormal"
-               OpName %instanceOutlineColor "instanceOutlineColor"
                OpName %pos "pos"
+               OpName %inPosition "inPosition"
                OpName %instanceScale "instanceScale"
                OpName %instancePos "instancePos"
+               OpName %screenParams "screenParams"
+               OpName %offset "offset"
+               OpName %inNormal "inNormal"
+               OpName %instanceOutlineColor "instanceOutlineColor"
                OpName %gl_PerVertex "gl_PerVertex"
                OpMemberName %gl_PerVertex 0 "gl_Position"
                OpMemberName %gl_PerVertex 1 "gl_PointSize"
@@ -47,10 +48,10 @@
                OpName %instanceDiffuseTextureIndex "instanceDiffuseTextureIndex"
                OpDecorate %instanceRot Location 5
                OpDecorate %inPosition Location 0
-               OpDecorate %inNormal Location 3
-               OpDecorate %instanceOutlineColor Location 11
                OpDecorate %instanceScale Location 6
                OpDecorate %instancePos Location 4
+               OpDecorate %inNormal Location 3
+               OpDecorate %instanceOutlineColor Location 11
                OpMemberDecorate %gl_PerVertex 0 BuiltIn Position
                OpMemberDecorate %gl_PerVertex 1 BuiltIn PointSize
                OpMemberDecorate %gl_PerVertex 2 BuiltIn ClipDistance
@@ -102,14 +103,19 @@
          %59 = OpConstantComposite %v4float %float_0 %float_1 %float_0 %float_0
      %uint_2 = OpConstant %uint 2
          %75 = OpConstantComposite %v4float %float_1 %float_0 %float_0 %float_0
-%_ptr_Function_v3float = OpTypePointer Function %v3float
  %inPosition = OpVariable %_ptr_Input_v3float Input
+%instanceScale = OpVariable %_ptr_Input_v3float Input
+%instancePos = OpVariable %_ptr_Input_v3float Input
+    %v2float = OpTypeVector %float 2
+%_ptr_Function_v2float = OpTypePointer Function %v2float
+ %float_2700 = OpConstant %float 2700
+ %float_1574 = OpConstant %float 1574
+        %113 = OpConstantComposite %v2float %float_2700 %float_1574
+    %float_2 = OpConstant %float 2
    %inNormal = OpVariable %_ptr_Input_v3float Input
 %_ptr_Input_v4float = OpTypePointer Input %v4float
 %instanceOutlineColor = OpVariable %_ptr_Input_v4float Input
      %uint_3 = OpConstant %uint 3
-%instanceScale = OpVariable %_ptr_Input_v3float Input
-%instancePos = OpVariable %_ptr_Input_v3float Input
 %_arr_float_uint_1 = OpTypeArray %float %uint_1
 %gl_PerVertex = OpTypeStruct %v4float %float %_arr_float_uint_1 %_arr_float_uint_1
 %_ptr_Output_gl_PerVertex = OpTypePointer Output %gl_PerVertex
@@ -124,7 +130,6 @@
 %instanceDiffuseColor = OpVariable %_ptr_Input_v4float Input
 %_ptr_Output_v3float = OpTypePointer Output %v3float
 %outTexCoord = OpVariable %_ptr_Output_v3float Output
-    %v2float = OpTypeVector %float 2
 %_ptr_Input_v2float = OpTypePointer Input %v2float
  %inTexCoord = OpVariable %_ptr_Input_v2float Input
 %_ptr_Input_int = OpTypePointer Input %int
@@ -141,8 +146,9 @@
          %my = OpVariable %_ptr_Function_mat4v4float Function
          %mz = OpVariable %_ptr_Function_mat4v4float Function
      %rotMat = OpVariable %_ptr_Function_mat4v4float Function
-%posEnlarged = OpVariable %_ptr_Function_v3float Function
         %pos = OpVariable %_ptr_Function_v4float Function
+%screenParams = OpVariable %_ptr_Function_v2float Function
+     %offset = OpVariable %_ptr_Function_v2float Function
          %15 = OpAccessChain %_ptr_Input_float %instanceRot %uint_0
          %16 = OpLoad %float %15
          %17 = OpExtInst %float %1 Sin %16
@@ -218,49 +224,58 @@
          %91 = OpLoad %mat4v4float %mx
          %92 = OpMatrixTimesMatrix %mat4v4float %90 %91
                OpStore %rotMat %92
-         %96 = OpLoad %v3float %inPosition
-         %98 = OpLoad %v3float %inNormal
-         %99 = OpExtInst %v3float %1 Normalize %98
-        %103 = OpAccessChain %_ptr_Input_float %instanceOutlineColor %uint_3
-        %104 = OpLoad %float %103
-        %105 = OpVectorTimesScalar %v3float %99 %104
-        %106 = OpFAdd %v3float %96 %105
-               OpStore %posEnlarged %106
-        %108 = OpLoad %v3float %posEnlarged
-        %110 = OpLoad %v3float %instanceScale
-        %111 = OpFMul %v3float %108 %110
-        %113 = OpLoad %v3float %instancePos
-        %114 = OpFAdd %v3float %111 %113
-        %115 = OpCompositeExtract %float %114 0
-        %116 = OpCompositeExtract %float %114 1
-        %117 = OpCompositeExtract %float %114 2
-        %118 = OpCompositeConstruct %v4float %115 %116 %117 %float_1
-        %119 = OpLoad %mat4v4float %rotMat
-        %120 = OpVectorTimesMatrix %v4float %118 %119
-               OpStore %pos %120
-        %129 = OpAccessChain %_ptr_Uniform_mat4v4float %ubo %int_1
-        %130 = OpLoad %mat4v4float %129
-        %131 = OpAccessChain %_ptr_Uniform_mat4v4float %ubo %int_0
-        %132 = OpLoad %mat4v4float %131
-        %133 = OpMatrixTimesMatrix %mat4v4float %130 %132
-        %134 = OpLoad %v4float %pos
-        %135 = OpMatrixTimesVector %v4float %133 %134
-        %137 = OpAccessChain %_ptr_Output_v4float %_ %int_0
-               OpStore %137 %135
-        %140 = OpLoad %v4float %inColor
-        %142 = OpLoad %v4float %instanceDiffuseColor
-        %143 = OpFMul %v4float %140 %142
-               OpStore %outColor %143
-        %149 = OpLoad %v2float %inTexCoord
-        %152 = OpLoad %int %instanceDiffuseLayerIndex
-        %153 = OpConvertSToF %float %152
-        %154 = OpCompositeExtract %float %149 0
-        %155 = OpCompositeExtract %float %149 1
-        %156 = OpCompositeConstruct %v3float %154 %155 %153
-               OpStore %outTexCoord %156
-        %159 = OpLoad %v4float %instanceDrawArea
-               OpStore %outDrawArea %159
-        %161 = OpLoad %v4float %instanceOutlineColor
-               OpStore %outOutlineColor %161
+         %95 = OpLoad %v3float %inPosition
+         %97 = OpLoad %v3float %instanceScale
+         %98 = OpFMul %v3float %95 %97
+        %100 = OpLoad %v3float %instancePos
+        %101 = OpFAdd %v3float %98 %100
+        %102 = OpCompositeExtract %float %101 0
+        %103 = OpCompositeExtract %float %101 1
+        %104 = OpCompositeExtract %float %101 2
+        %105 = OpCompositeConstruct %v4float %102 %103 %104 %float_1
+        %106 = OpLoad %mat4v4float %rotMat
+        %107 = OpVectorTimesMatrix %v4float %105 %106
+               OpStore %pos %107
+               OpStore %screenParams %113
+        %117 = OpLoad %v3float %inNormal
+        %118 = OpVectorShuffle %v2float %117 %117 0 1
+        %119 = OpVectorTimesScalar %v2float %118 %float_2
+        %123 = OpAccessChain %_ptr_Input_float %instanceOutlineColor %uint_3
+        %124 = OpLoad %float %123
+        %125 = OpVectorTimesScalar %v2float %119 %124
+        %126 = OpCompositeConstruct %v2float %float_1 %float_1
+        %127 = OpFSub %v2float %125 %126
+        %128 = OpLoad %v2float %screenParams
+        %129 = OpFDiv %v2float %127 %128
+               OpStore %offset %129
+        %138 = OpAccessChain %_ptr_Uniform_mat4v4float %ubo %int_1
+        %139 = OpLoad %mat4v4float %138
+        %140 = OpAccessChain %_ptr_Uniform_mat4v4float %ubo %int_0
+        %141 = OpLoad %mat4v4float %140
+        %142 = OpMatrixTimesMatrix %mat4v4float %139 %141
+        %143 = OpLoad %v4float %pos
+        %144 = OpMatrixTimesVector %v4float %142 %143
+        %145 = OpLoad %v2float %offset
+        %146 = OpCompositeExtract %float %145 0
+        %147 = OpCompositeExtract %float %145 1
+        %148 = OpCompositeConstruct %v4float %146 %147 %float_0 %float_0
+        %149 = OpFAdd %v4float %144 %148
+        %151 = OpAccessChain %_ptr_Output_v4float %_ %int_0
+               OpStore %151 %149
+        %154 = OpLoad %v4float %inColor
+        %156 = OpLoad %v4float %instanceDiffuseColor
+        %157 = OpFMul %v4float %154 %156
+               OpStore %outColor %157
+        %162 = OpLoad %v2float %inTexCoord
+        %165 = OpLoad %int %instanceDiffuseLayerIndex
+        %166 = OpConvertSToF %float %165
+        %167 = OpCompositeExtract %float %162 0
+        %168 = OpCompositeExtract %float %162 1
+        %169 = OpCompositeConstruct %v3float %167 %168 %166
+               OpStore %outTexCoord %169
+        %172 = OpLoad %v4float %instanceDrawArea
+               OpStore %outDrawArea %172
+        %174 = OpLoad %v4float %instanceOutlineColor
+               OpStore %outOutlineColor %174
                OpReturn
                OpFunctionEnd

@@ -39,15 +39,16 @@ void main() {
 		outColor = inColor;
 	}
 
-	if (inOutlineColor.a >= 0.01) {
-		
-		float t = 0.01;//1. / (1. + (1.* inOutlineColor.a));
+	if (inOutlineColor.a >= 0.01) 
+	{		
+		vec2 screenParams = vec2(2700, 1574);
+		vec2 a = vec2(1 / screenParams.x, 1 / screenParams.y);
+		vec3 t = vec3(a.x, a.y, min(a.x, a.y)) * inOutlineColor.a;
 
-		vec3 s = step(t, inBarycentricCoord);
+		vec3 s = step(t * 2, inBarycentricCoord);
 		float v = 1. - min(s.r, min(s.g, s.b));
 		
 		outColor = mix(outColor, inOutlineColor, v);
-		//outColor = vec4(s, 1.0);
 	}
 		
 }

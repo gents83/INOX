@@ -59,10 +59,11 @@ void main() {
 	mz[3] = vec4(0.0, 0.0, 0.0, 1.0);
 
 	mat4 rotMat = mz * my * mx;	
-	vec3 posEnlarged = inPosition.xyz + normalize(inNormal) * instanceOutlineColor.a;
-	vec4 pos = vec4((posEnlarged * instanceScale) + instancePos, 1.0) * rotMat;
-
-    gl_Position = ubo.proj * ubo.view * pos;
+	vec4 pos = vec4((inPosition.xyz * instanceScale) + instancePos, 1.0) * rotMat;
+	
+	vec2 screenParams = vec2(2700, 1574);
+	vec2 offset = ((2 * inNormal.xy * instanceOutlineColor.a) - 1) / screenParams.xy;
+    gl_Position = (ubo.proj * ubo.view * pos) + vec4(offset, 0, 0);
 
     outColor = inColor * instanceDiffuseColor;
     outTexCoord = vec3(inTexCoord, instanceDiffuseLayerIndex);

@@ -34,7 +34,7 @@ void main(void)
         param.y = 1.;
 
     int i;
-    for(i = 0;i < gl_in.length(); i++)
+    for(i = 0; i < gl_in.length(); i++)
     {
 		outColor = inColor[i];
 		outTexCoord = inTexCoord[i];

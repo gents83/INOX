@@ -1,7 +1,7 @@
 ; SPIR-V
 ; Version: 1.0
 ; Generator: Google Shaderc over Glslang; 10
-; Bound: 132
+; Bound: 160
 ; Schema: 0
                OpCapability Shader
           %1 = OpExtInstImport "GLSL.std.450"
@@ -20,6 +20,8 @@
                OpName %outColor "outColor"
                OpName %inColor "inColor"
                OpName %inOutlineColor "inOutlineColor"
+               OpName %screenParams "screenParams"
+               OpName %a "a"
                OpName %t "t"
                OpName %s "s"
                OpName %inBarycentricCoord "inBarycentricCoord"
@@ -63,13 +65,21 @@
     %inColor = OpVariable %_ptr_Input_v4float Input
 %_ptr_Output_float = OpTypePointer Output %float
 %inOutlineColor = OpVariable %_ptr_Input_v4float Input
-%_ptr_Function_v3float = OpTypePointer Function %v3float
-%inBarycentricCoord = OpVariable %_ptr_Input_v3float Input
+    %v2float = OpTypeVector %float 2
+%_ptr_Function_v2float = OpTypePointer Function %v2float
+ %float_2700 = OpConstant %float 2700
+ %float_1574 = OpConstant %float 1574
+        %113 = OpConstantComposite %v2float %float_2700 %float_1574
     %float_1 = OpConstant %float 1
+%_ptr_Function_v3float = OpTypePointer Function %v3float
+    %float_2 = OpConstant %float 2
+%inBarycentricCoord = OpVariable %_ptr_Input_v3float Input
        %main = OpFunction %void None %3
           %5 = OpLabel
    %texColor = OpVariable %_ptr_Function_v4float Function
-          %t = OpVariable %_ptr_Function_float Function
+%screenParams = OpVariable %_ptr_Function_v2float Function
+          %a = OpVariable %_ptr_Function_v2float Function
+          %t = OpVariable %_ptr_Function_v3float Function
           %s = OpVariable %_ptr_Function_v3float Function
           %v = OpVariable %_ptr_Function_float Function
          %14 = OpAccessChain %_ptr_Input_float %gl_FragCoord %uint_0
@@ -168,28 +178,50 @@
                OpSelectionMerge %107 None
                OpBranchConditional %105 %106 %107
         %106 = OpLabel
-               OpStore %t %float_0_00999999978
-        %111 = OpLoad %float %t
-        %113 = OpLoad %v3float %inBarycentricCoord
-        %114 = OpCompositeConstruct %v3float %111 %111 %111
-        %115 = OpExtInst %v3float %1 Step %114 %113
-               OpStore %s %115
-        %118 = OpAccessChain %_ptr_Function_float %s %uint_0
-        %119 = OpLoad %float %118
-        %120 = OpAccessChain %_ptr_Function_float %s %uint_1
-        %121 = OpLoad %float %120
-        %122 = OpAccessChain %_ptr_Function_float %s %uint_2
-        %123 = OpLoad %float %122
-        %124 = OpExtInst %float %1 FMin %121 %123
-        %125 = OpExtInst %float %1 FMin %119 %124
-        %126 = OpFSub %float %float_1 %125
-               OpStore %v %126
-        %127 = OpLoad %v4float %outColor
-        %128 = OpLoad %v4float %inOutlineColor
-        %129 = OpLoad %float %v
-        %130 = OpCompositeConstruct %v4float %129 %129 %129 %129
-        %131 = OpExtInst %v4float %1 FMix %127 %128 %130
-               OpStore %outColor %131
+               OpStore %screenParams %113
+        %116 = OpAccessChain %_ptr_Function_float %screenParams %uint_0
+        %117 = OpLoad %float %116
+        %118 = OpFDiv %float %float_1 %117
+        %119 = OpAccessChain %_ptr_Function_float %screenParams %uint_1
+        %120 = OpLoad %float %119
+        %121 = OpFDiv %float %float_1 %120
+        %122 = OpCompositeConstruct %v2float %118 %121
+               OpStore %a %122
+        %125 = OpAccessChain %_ptr_Function_float %a %uint_0
+        %126 = OpLoad %float %125
+        %127 = OpAccessChain %_ptr_Function_float %a %uint_1
+        %128 = OpLoad %float %127
+        %129 = OpAccessChain %_ptr_Function_float %a %uint_0
+        %130 = OpLoad %float %129
+        %131 = OpAccessChain %_ptr_Function_float %a %uint_1
+        %132 = OpLoad %float %131
+        %133 = OpExtInst %float %1 FMin %130 %132
+        %134 = OpCompositeConstruct %v3float %126 %128 %133
+        %135 = OpAccessChain %_ptr_Input_float %inOutlineColor %uint_3
+        %136 = OpLoad %float %135
+        %137 = OpVectorTimesScalar %v3float %134 %136
+               OpStore %t %137
+        %139 = OpLoad %v3float %t
+        %141 = OpVectorTimesScalar %v3float %139 %float_2
+        %143 = OpLoad %v3float %inBarycentricCoord
+        %144 = OpExtInst %v3float %1 Step %141 %143
+               OpStore %s %144
+        %146 = OpAccessChain %_ptr_Function_float %s %uint_0
+        %147 = OpLoad %float %146
+        %148 = OpAccessChain %_ptr_Function_float %s %uint_1
+        %149 = OpLoad %float %148
+        %150 = OpAccessChain %_ptr_Function_float %s %uint_2
+        %151 = OpLoad %float %150
+        %152 = OpExtInst %float %1 FMin %149 %151
+        %153 = OpExtInst %float %1 FMin %147 %152
+        %154 = OpFSub %float %float_1 %153
+               OpStore %v %154
+        %155 = OpLoad %v4float %outColor
+        %156 = OpLoad %v4float %inOutlineColor
+        %157 = OpLoad %float %v
+        %158 = OpCompositeConstruct %v4float %157 %157 %157 %157
+        %159 = OpExtInst %v4float %1 FMix %155 %156 %158
+               OpStore %outColor %159
                OpBranch %107
         %107 = OpLabel
                OpReturn
