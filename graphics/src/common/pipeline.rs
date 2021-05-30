@@ -110,6 +110,11 @@ impl Pipeline {
         self
     }
 
+    pub fn update_constant_data(&self) -> &Self {
+        self.inner.update_constant_data();
+        self
+    }
+
     pub fn update_uniform_buffer(&self, cam_pos: Vector3) -> &Self {
         self.inner.update_uniform_buffer(cam_pos);
         self

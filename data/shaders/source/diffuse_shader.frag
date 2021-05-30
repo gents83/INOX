@@ -1,5 +1,9 @@
 #version 450
 
+layout(push_constant) uniform PushConsts {
+	vec2 screen_size;
+} pushConsts;
+
 //Input
 layout(binding = 1) uniform sampler2DArray texSamplerArray;
 
@@ -12,6 +16,7 @@ layout(location = 4) in vec3 inBarycentricCoord;
 
 //Output
 layout(location = 0) out vec4 outColor;
+
 
 void main() {
 	if (gl_FragCoord.x < inDrawArea.x || gl_FragCoord.x > inDrawArea.x + inDrawArea.z 
@@ -41,8 +46,7 @@ void main() {
 
 	if (inOutlineColor.a >= 0.01) 
 	{		
-		vec2 screenParams = vec2(2700, 1574);
-		vec2 a = vec2(1 / screenParams.x, 1 / screenParams.y);
+		vec2 a = vec2(1 / pushConsts.screen_size.x, 1 / pushConsts.screen_size.y);
 		vec3 t = vec3(a.x, a.y, min(a.x, a.y)) * inOutlineColor.a;
 
 		vec3 excludeInternalEdge = vec3(0.0, 1.0, 0.0);

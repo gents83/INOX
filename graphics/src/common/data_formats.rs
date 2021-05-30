@@ -42,6 +42,10 @@ pub struct UniformData {
     pub view: Matrix4,
     pub proj: Matrix4,
 }
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub struct ConstantData {
+    pub screen_size: Vector2,
+}
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Copy)]
 #[serde(crate = "nrg_serialize")]

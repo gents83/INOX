@@ -1,5 +1,14 @@
 #version 450
 
+layout(binding = 0) uniform UniformBufferObject {
+    mat4 view;
+    mat4 proj;
+} ubo;
+
+layout(push_constant) uniform PushConsts {
+	vec2 screen_size;
+} pushConsts;
+
 //Input
 layout(location = 0) in vec3 inPosition;
 layout(location = 1) in vec4 inColor;
@@ -22,11 +31,6 @@ layout(location = 0) out vec4 outColor;
 layout(location = 1) out vec3 outTexCoord;
 layout(location = 2) out vec4 outDrawArea;
 layout(location = 3) out vec4 outOutlineColor;
-
-layout(binding = 0) uniform UniformBufferObject {
-    mat4 view;
-    mat4 proj;
-} ubo;
 
 void main() {	
 	mat4 mx, my, mz;
@@ -72,8 +76,7 @@ void main() {
 
 	mat4 instanceMatrix = transMat * rotMat * scaleMat;
 	
-	vec2 screenParams = vec2(2700, 1574);
-	vec2 outlineOffset = ((2 * inNormal.xy * instanceOutlineColor.a) - 1) / screenParams.xy;
+	vec2 outlineOffset = ((2 * inNormal.xy * instanceOutlineColor.a) - 1) / pushConsts.screen_size.xy;
 
     gl_Position = (ubo.proj * ubo.view * instanceMatrix * vec4((inPosition.xy + outlineOffset), inPosition.z, 1.));
 

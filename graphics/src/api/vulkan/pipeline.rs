@@ -6,6 +6,8 @@ use crate::common::shader::*;
 use crate::common::texture::MAX_TEXTURE_COUNT;
 use crate::common::texture::*;
 use crate::common::utils::*;
+
+use nrg_math::Vector2;
 use nrg_math::{Matrix4, Vector3};
 use std::{cell::RefCell, path::Path, rc::Rc};
 use vulkan_bindings::*;
@@ -13,6 +15,7 @@ use vulkan_bindings::*;
 pub const MAX_INSTANCES_COUNT: usize = 4096;
 
 pub struct PipelineImmutable {
+    constant_data: ConstantData,
     descriptor_set_layout: VkDescriptorSetLayout,
     descriptor_pool: VkDescriptorPool,
     descriptor_sets: Vec<VkDescriptorSet>,
@@ -38,6 +41,22 @@ pub struct Pipeline {
 impl Pipeline {
     pub fn create(device: &Device) -> Pipeline {
         let immutable = PipelineImmutable {
+            constant_data: ConstantData {
+                screen_size: Vector2 {
+                    x: device
+                        .get_instance()
+                        .get_swap_chain_info()
+                        .capabilities
+                        .currentExtent
+                        .width as _,
+                    y: device
+                        .get_instance()
+                        .get_swap_chain_info()
+                        .capabilities
+                        .currentExtent
+                        .width as _,
+                },
+            },
             descriptor_set_layout: ::std::ptr::null_mut(),
             descriptor_sets: Vec::new(),
             descriptor_pool: ::std::ptr::null_mut(),
@@ -94,6 +113,11 @@ impl Pipeline {
         self.inner
             .borrow_mut()
             .bind(&self.device, commands, instances);
+        self
+    }
+
+    pub fn update_constant_data(&self) -> &Self {
+        self.inner.borrow_mut().update_constant_data(&self.device);
         self
     }
 
@@ -395,14 +419,21 @@ impl PipelineImmutable {
             blendConstants: [0., 0., 0., 0.],
         };
 
+        let push_constant_range = VkPushConstantRange {
+            stageFlags: (VkShaderStageFlagBits_VK_SHADER_STAGE_VERTEX_BIT
+                | VkShaderStageFlagBits_VK_SHADER_STAGE_FRAGMENT_BIT) as _,
+            offset: 0,
+            size: ::std::mem::size_of::<ConstantData>() as _,
+        };
+
         let pipeline_layout_info = VkPipelineLayoutCreateInfo {
             sType: VkStructureType_VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
             pNext: ::std::ptr::null_mut(),
             flags: 0,
             setLayoutCount: 1,
             pSetLayouts: &self.descriptor_set_layout,
-            pushConstantRangeCount: 0,
-            pPushConstantRanges: ::std::ptr::null_mut(),
+            pushConstantRangeCount: 1,
+            pPushConstantRanges: &push_constant_range,
         };
 
         self.pipeline_layout = unsafe {
@@ -624,6 +655,25 @@ impl PipelineImmutable {
                     std::mem::size_of::<VkDrawIndexedIndirectCommand>() as _,
                 );
             }
+        }
+    }
+
+    fn update_constant_data(&mut self, device: &Device) {
+        let details = device.get_instance().get_swap_chain_info();
+        self.constant_data.screen_size.x = details.capabilities.currentExtent.width as _;
+        self.constant_data.screen_size.y = details.capabilities.currentExtent.height as _;
+
+        let data = [self.constant_data];
+        unsafe {
+            vkCmdPushConstants.unwrap()(
+                device.get_current_command_buffer(),
+                self.pipeline_layout,
+                (VkShaderStageFlagBits_VK_SHADER_STAGE_VERTEX_BIT
+                    | VkShaderStageFlagBits_VK_SHADER_STAGE_FRAGMENT_BIT) as _,
+                0,
+                ::std::mem::size_of::<ConstantData>() as _,
+                data.as_ptr() as _,
+            );
         }
     }
 

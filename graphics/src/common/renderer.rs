@@ -124,6 +124,7 @@ impl Renderer {
                             pipeline_index
                         )
                         .as_str());
+                        pipeline.update_constant_data();
                         pipeline.update_uniform_buffer([0., 0., 800.].into());
                         pipeline.update_descriptor_sets(self.texture_handler.get_textures());
                     }
