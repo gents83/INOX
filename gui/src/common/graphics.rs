@@ -1,7 +1,7 @@
 use nrg_graphics::{
     MaterialId, MaterialInstance, MeshData, MeshId, MeshInstance, PipelineInstance,
 };
-use nrg_math::{MatBase, Matrix4, VecBase, Vector2, Vector3, Vector4, Zero};
+use nrg_math::{Deg, Matrix4, Rad, VecBase, Vector2, Vector3, Vector4, Zero};
 use nrg_resources::SharedDataRw;
 use nrg_serialize::{Deserialize, Serialize, INVALID_UID};
 
@@ -22,7 +22,9 @@ pub struct WidgetGraphics {
     #[serde(skip)]
     is_dirty: bool,
     is_visible: bool,
-    transform: Matrix4,
+    position: Vector3,
+    rotation: Vector3,
+    scale: Vector3,
 }
 
 impl WidgetGraphics {
@@ -37,7 +39,9 @@ impl WidgetGraphics {
             is_visible: true,
             is_dirty: true,
             stroke: 0.,
-            transform: Matrix4::default_identity(),
+            position: Vector3::default_zero(),
+            rotation: Vector3::default_zero(),
+            scale: [1., 1., 1.].into(),
         }
     }
 
@@ -121,13 +125,13 @@ impl WidgetGraphics {
 
     #[inline]
     pub fn get_layer(&self) -> f32 {
-        self.transform.w[2]
+        self.position.z
     }
 
     #[inline]
     pub fn set_layer(&mut self, layer: f32) -> &mut Self {
-        if (self.transform.w[2] - layer).abs() >= f32::EPSILON {
-            self.transform.w[2] = layer;
+        if (self.position.z - layer).abs() >= f32::EPSILON {
+            self.position.z = layer;
             self.mark_as_dirty();
         }
         self
@@ -135,11 +139,11 @@ impl WidgetGraphics {
 
     #[inline]
     pub fn set_position(&mut self, pos_in_px: Vector2) -> &mut Self {
-        if (self.transform.w[0] - pos_in_px.x).abs() >= f32::EPSILON
-            || (self.transform.w[1] - pos_in_px.y).abs() >= f32::EPSILON
+        if (self.position.x - pos_in_px.x).abs() >= f32::EPSILON
+            || (self.position.y - pos_in_px.y).abs() >= f32::EPSILON
         {
-            self.transform.w[0] = pos_in_px.x;
-            self.transform.w[1] = pos_in_px.y;
+            self.position.x = pos_in_px.x;
+            self.position.y = pos_in_px.y;
             self.mark_as_dirty();
         }
         self
@@ -147,19 +151,11 @@ impl WidgetGraphics {
 
     #[inline]
     pub fn set_size(&mut self, scale: Vector2) -> &mut Self {
-        if (self.transform.x[0] - scale.x).abs() >= f32::EPSILON
-            || (self.transform.y[1] - scale.y).abs() >= f32::EPSILON
+        if (self.scale.x - scale.x).abs() >= f32::EPSILON
+            || (self.scale.y - scale.y).abs() >= f32::EPSILON
         {
-            let pos_in_px: Vector3 = [
-                self.transform.w[0],
-                self.transform.w[1],
-                self.transform.w[2],
-            ]
-            .into();
-            self.transform = Matrix4::from_nonuniform_scale(scale.x, scale.y, 1.);
-            self.transform.w[0] = pos_in_px.x;
-            self.transform.w[1] = pos_in_px.y;
-            self.transform.w[2] = pos_in_px.z;
+            self.scale.x = scale.x;
+            self.scale.y = scale.y;
             self.mark_as_dirty();
         }
         self
@@ -219,7 +215,14 @@ impl WidgetGraphics {
                 self.border_color,
             );
             MaterialInstance::set_diffuse_color(&self.shared_data, self.material_id, self.color);
-            MeshInstance::set_transform(&self.shared_data, self.mesh_id, self.transform);
+
+            let transform = Matrix4::from_translation(self.position)
+                * Matrix4::from_angle_z(Rad::from(Deg(self.rotation.x)))
+                * Matrix4::from_angle_y(Rad::from(Deg(self.rotation.y)))
+                * Matrix4::from_angle_z(Rad::from(Deg(self.rotation.z)))
+                * Matrix4::from_nonuniform_scale(self.scale.x, self.scale.y, self.scale.z);
+
+            MeshInstance::set_transform(&self.shared_data, self.mesh_id, transform);
             MeshInstance::set_draw_area(&self.shared_data, self.mesh_id, drawing_area);
             MeshInstance::set_visible(&self.shared_data, self.mesh_id, visible);
             self.is_dirty = false;
