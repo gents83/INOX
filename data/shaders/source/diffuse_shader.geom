@@ -20,34 +20,20 @@ layout(location = 4) out vec3 outBarycentricCoord;
 
 void main(void)
 {	
-	vec3 param = vec3(0.0, 0.0, 0.0);
-
-	float edgeA = length(gl_in[0].gl_Position - gl_in[1].gl_Position);
-	float edgeB = length(gl_in[1].gl_Position - gl_in[2].gl_Position);
-	float edgeC = length(gl_in[2].gl_Position - gl_in[0].gl_Position);
-	
-    if(edgeA > edgeB && edgeA > edgeC)
-        param.z = 1.;
-    else if (edgeB > edgeC && edgeB > edgeA)
-        param.x = 1.;
-    else
-        param.y = 1.;
-
-    int i;
-    for(i = 0; i < gl_in.length(); i++)
+    for(int i = 0; i < gl_in.length(); i++)
     {
 		outColor = inColor[i];
 		outTexCoord = inTexCoord[i];
 		outDrawArea = inDrawArea[i];
 		outOutlineColor = inOutlineColor[i];
 		if (i==0) {
-			outBarycentricCoord = vec3(1,0,0) + param;
+			outBarycentricCoord = vec3(1,0,0);
         }
 		else if (i==1) {
-			outBarycentricCoord = vec3(0,1,0) + param;
+			outBarycentricCoord = vec3(0,1,0);
         }
 		else {
-			outBarycentricCoord = vec3(0,0,1) + param;
+			outBarycentricCoord = vec3(0,0,1);
 		}
 		gl_Position = gl_in[i].gl_Position;
         EmitVertex();

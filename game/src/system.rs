@@ -104,7 +104,7 @@ impl System for MySystem {
 
         MeshInstance::set_transform(&self.shared_data, self.left_mesh_id, left_matrix);
 
-        self.angle += 0.33;
+        self.angle += 0.1;
         let right_matrix = Matrix4::from_translation(Vector3::new(1000., 800., 0.))
             * Matrix4::from_angle_z(nrg_math::Rad::from(nrg_math::Deg(self.angle)))
             * Matrix4::from_nonuniform_scale(400., 600., 1.);
@@ -113,7 +113,7 @@ impl System for MySystem {
         MaterialInstance::set_outline_color(
             &self.shared_data,
             self.right_material_id,
-            [1., 1., 0., 10.].into(),
+            [1., 1., 0., 2.].into(),
         );
 
         true

@@ -1,7 +1,7 @@
 ; SPIR-V
 ; Version: 1.0
 ; Generator: Google Shaderc over Glslang; 10
-; Bound: 234
+; Bound: 233
 ; Schema: 0
                OpCapability Shader
           %1 = OpExtInstImport "GLSL.std.450"
@@ -24,7 +24,7 @@
                OpName %instanceScale "instanceScale"
                OpName %instanceMatrix "instanceMatrix"
                OpName %screenParams "screenParams"
-               OpName %offset "offset"
+               OpName %outlineOffset "outlineOffset"
                OpName %inNormal "inNormal"
                OpName %instanceOutlineColor "instanceOutlineColor"
                OpName %gl_PerVertex "gl_PerVertex"
@@ -152,7 +152,7 @@
    %scaleMat = OpVariable %_ptr_Function_mat4v4float Function
 %instanceMatrix = OpVariable %_ptr_Function_mat4v4float Function
 %screenParams = OpVariable %_ptr_Function_v2float Function
-     %offset = OpVariable %_ptr_Function_v2float Function
+%outlineOffset = OpVariable %_ptr_Function_v2float Function
          %15 = OpAccessChain %_ptr_Input_float %instanceRot %uint_2
          %16 = OpLoad %float %15
          %17 = OpExtInst %float %1 Sin %16
@@ -303,7 +303,7 @@
         %178 = OpFSub %v2float %176 %177
         %179 = OpLoad %v2float %screenParams
         %180 = OpFDiv %v2float %178 %179
-               OpStore %offset %180
+               OpStore %outlineOffset %180
         %189 = OpAccessChain %_ptr_Uniform_mat4v4float %ubo %int_1
         %190 = OpLoad %mat4v4float %189
         %191 = OpAccessChain %_ptr_Uniform_mat4v4float %ubo %int_0
@@ -312,32 +312,31 @@
         %194 = OpLoad %mat4v4float %instanceMatrix
         %195 = OpMatrixTimesMatrix %mat4v4float %193 %194
         %197 = OpLoad %v3float %inPosition
-        %198 = OpCompositeExtract %float %197 0
-        %199 = OpCompositeExtract %float %197 1
-        %200 = OpCompositeExtract %float %197 2
-        %201 = OpCompositeConstruct %v4float %198 %199 %200 %float_1
-        %202 = OpMatrixTimesVector %v4float %195 %201
-        %203 = OpLoad %v2float %offset
-        %204 = OpCompositeExtract %float %203 0
-        %205 = OpCompositeExtract %float %203 1
-        %206 = OpCompositeConstruct %v4float %204 %205 %float_0 %float_0
-        %207 = OpFAdd %v4float %202 %206
-        %209 = OpAccessChain %_ptr_Output_v4float %_ %int_0
-               OpStore %209 %207
-        %212 = OpLoad %v4float %inColor
-        %214 = OpLoad %v4float %instanceDiffuseColor
-        %215 = OpFMul %v4float %212 %214
-               OpStore %outColor %215
-        %220 = OpLoad %v2float %inTexCoord
-        %223 = OpLoad %int %instanceDiffuseLayerIndex
-        %224 = OpConvertSToF %float %223
-        %225 = OpCompositeExtract %float %220 0
-        %226 = OpCompositeExtract %float %220 1
-        %227 = OpCompositeConstruct %v3float %225 %226 %224
-               OpStore %outTexCoord %227
-        %230 = OpLoad %v4float %instanceDrawArea
-               OpStore %outDrawArea %230
-        %232 = OpLoad %v4float %instanceOutlineColor
-               OpStore %outOutlineColor %232
+        %198 = OpVectorShuffle %v2float %197 %197 0 1
+        %199 = OpLoad %v2float %outlineOffset
+        %200 = OpFAdd %v2float %198 %199
+        %201 = OpAccessChain %_ptr_Input_float %inPosition %uint_2
+        %202 = OpLoad %float %201
+        %203 = OpCompositeExtract %float %200 0
+        %204 = OpCompositeExtract %float %200 1
+        %205 = OpCompositeConstruct %v4float %203 %204 %202 %float_1
+        %206 = OpMatrixTimesVector %v4float %195 %205
+        %208 = OpAccessChain %_ptr_Output_v4float %_ %int_0
+               OpStore %208 %206
+        %211 = OpLoad %v4float %inColor
+        %213 = OpLoad %v4float %instanceDiffuseColor
+        %214 = OpFMul %v4float %211 %213
+               OpStore %outColor %214
+        %219 = OpLoad %v2float %inTexCoord
+        %222 = OpLoad %int %instanceDiffuseLayerIndex
+        %223 = OpConvertSToF %float %222
+        %224 = OpCompositeExtract %float %219 0
+        %225 = OpCompositeExtract %float %219 1
+        %226 = OpCompositeConstruct %v3float %224 %225 %223
+               OpStore %outTexCoord %226
+        %229 = OpLoad %v4float %instanceDrawArea
+               OpStore %outDrawArea %229
+        %231 = OpLoad %v4float %instanceOutlineColor
+               OpStore %outOutlineColor %231
                OpReturn
                OpFunctionEnd

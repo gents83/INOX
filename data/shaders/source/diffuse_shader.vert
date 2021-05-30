@@ -73,8 +73,9 @@ void main() {
 	mat4 instanceMatrix = transMat * rotMat * scaleMat;
 	
 	vec2 screenParams = vec2(2700, 1574);
-	vec2 offset = ((2 * inNormal.xy * instanceOutlineColor.a) - 1) / screenParams.xy;
-    gl_Position = (ubo.proj * ubo.view * instanceMatrix * vec4(inPosition.xyz, 1.)) + vec4(offset, 0, 0);
+	vec2 outlineOffset = ((2 * inNormal.xy * instanceOutlineColor.a) - 1) / screenParams.xy;
+
+    gl_Position = (ubo.proj * ubo.view * instanceMatrix * vec4((inPosition.xy + outlineOffset), inPosition.z, 1.));
 
     outColor = inColor * instanceDiffuseColor;
     outTexCoord = vec3(inTexCoord, instanceDiffuseLayerIndex);

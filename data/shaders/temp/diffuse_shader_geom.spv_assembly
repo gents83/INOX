@@ -1,12 +1,12 @@
 ; SPIR-V
 ; Version: 1.0
 ; Generator: Google Shaderc over Glslang; 10
-; Bound: 141
+; Bound: 84
 ; Schema: 0
                OpCapability Geometry
           %1 = OpExtInstImport "GLSL.std.450"
                OpMemoryModel Logical GLSL450
-               OpEntryPoint Geometry %main "main" %gl_in %outColor %inColor %outTexCoord %inTexCoord %outDrawArea %inDrawArea %outOutlineColor %inOutlineColor %outBarycentricCoord %_
+               OpEntryPoint Geometry %main "main" %outColor %inColor %outTexCoord %inTexCoord %outDrawArea %inDrawArea %outOutlineColor %inOutlineColor %outBarycentricCoord %_ %gl_in
                OpExecutionMode %main Triangles
                OpExecutionMode %main Invocations 1
                OpExecutionMode %main OutputTriangleStrip
@@ -15,16 +15,6 @@
                OpSourceExtension "GL_GOOGLE_cpp_style_line_directive"
                OpSourceExtension "GL_GOOGLE_include_directive"
                OpName %main "main"
-               OpName %param "param"
-               OpName %edgeA "edgeA"
-               OpName %gl_PerVertex "gl_PerVertex"
-               OpMemberName %gl_PerVertex 0 "gl_Position"
-               OpMemberName %gl_PerVertex 1 "gl_PointSize"
-               OpMemberName %gl_PerVertex 2 "gl_ClipDistance"
-               OpMemberName %gl_PerVertex 3 "gl_CullDistance"
-               OpName %gl_in "gl_in"
-               OpName %edgeB "edgeB"
-               OpName %edgeC "edgeC"
                OpName %i "i"
                OpName %outColor "outColor"
                OpName %inColor "inColor"
@@ -35,17 +25,18 @@
                OpName %outOutlineColor "outOutlineColor"
                OpName %inOutlineColor "inOutlineColor"
                OpName %outBarycentricCoord "outBarycentricCoord"
+               OpName %gl_PerVertex "gl_PerVertex"
+               OpMemberName %gl_PerVertex 0 "gl_Position"
+               OpMemberName %gl_PerVertex 1 "gl_PointSize"
+               OpMemberName %gl_PerVertex 2 "gl_ClipDistance"
+               OpMemberName %gl_PerVertex 3 "gl_CullDistance"
+               OpName %_ ""
                OpName %gl_PerVertex_0 "gl_PerVertex"
                OpMemberName %gl_PerVertex_0 0 "gl_Position"
                OpMemberName %gl_PerVertex_0 1 "gl_PointSize"
                OpMemberName %gl_PerVertex_0 2 "gl_ClipDistance"
                OpMemberName %gl_PerVertex_0 3 "gl_CullDistance"
-               OpName %_ ""
-               OpMemberDecorate %gl_PerVertex 0 BuiltIn Position
-               OpMemberDecorate %gl_PerVertex 1 BuiltIn PointSize
-               OpMemberDecorate %gl_PerVertex 2 BuiltIn ClipDistance
-               OpMemberDecorate %gl_PerVertex 3 BuiltIn CullDistance
-               OpDecorate %gl_PerVertex Block
+               OpName %gl_in "gl_in"
                OpDecorate %outColor Location 0
                OpDecorate %inColor Location 0
                OpDecorate %outTexCoord Location 1
@@ -55,6 +46,11 @@
                OpDecorate %outOutlineColor Location 3
                OpDecorate %inOutlineColor Location 3
                OpDecorate %outBarycentricCoord Location 4
+               OpMemberDecorate %gl_PerVertex 0 BuiltIn Position
+               OpMemberDecorate %gl_PerVertex 1 BuiltIn PointSize
+               OpMemberDecorate %gl_PerVertex 2 BuiltIn ClipDistance
+               OpMemberDecorate %gl_PerVertex 3 BuiltIn CullDistance
+               OpDecorate %gl_PerVertex Block
                OpMemberDecorate %gl_PerVertex_0 0 BuiltIn Position
                OpMemberDecorate %gl_PerVertex_0 1 BuiltIn PointSize
                OpMemberDecorate %gl_PerVertex_0 2 BuiltIn ClipDistance
@@ -62,37 +58,22 @@
                OpDecorate %gl_PerVertex_0 Block
        %void = OpTypeVoid
           %3 = OpTypeFunction %void
-      %float = OpTypeFloat 32
-    %v3float = OpTypeVector %float 3
-%_ptr_Function_v3float = OpTypePointer Function %v3float
-    %float_0 = OpConstant %float 0
-         %11 = OpConstantComposite %v3float %float_0 %float_0 %float_0
-%_ptr_Function_float = OpTypePointer Function %float
-    %v4float = OpTypeVector %float 4
-       %uint = OpTypeInt 32 0
-     %uint_1 = OpConstant %uint 1
-%_arr_float_uint_1 = OpTypeArray %float %uint_1
-%gl_PerVertex = OpTypeStruct %v4float %float %_arr_float_uint_1 %_arr_float_uint_1
-     %uint_3 = OpConstant %uint 3
-%_arr_gl_PerVertex_uint_3 = OpTypeArray %gl_PerVertex %uint_3
-%_ptr_Input__arr_gl_PerVertex_uint_3 = OpTypePointer Input %_arr_gl_PerVertex_uint_3
-      %gl_in = OpVariable %_ptr_Input__arr_gl_PerVertex_uint_3 Input
         %int = OpTypeInt 32 1
-      %int_0 = OpConstant %int 0
-%_ptr_Input_v4float = OpTypePointer Input %v4float
-      %int_1 = OpConstant %int 1
-      %int_2 = OpConstant %int 2
-       %bool = OpTypeBool
-    %float_1 = OpConstant %float 1
-     %uint_2 = OpConstant %uint 2
-     %uint_0 = OpConstant %uint 0
 %_ptr_Function_int = OpTypePointer Function %int
+      %int_0 = OpConstant %int 0
       %int_3 = OpConstant %int 3
+       %bool = OpTypeBool
+      %float = OpTypeFloat 32
+    %v4float = OpTypeVector %float 4
 %_ptr_Output_v4float = OpTypePointer Output %v4float
    %outColor = OpVariable %_ptr_Output_v4float Output
+       %uint = OpTypeInt 32 0
+     %uint_3 = OpConstant %uint 3
 %_arr_v4float_uint_3 = OpTypeArray %v4float %uint_3
 %_ptr_Input__arr_v4float_uint_3 = OpTypePointer Input %_arr_v4float_uint_3
     %inColor = OpVariable %_ptr_Input__arr_v4float_uint_3 Input
+%_ptr_Input_v4float = OpTypePointer Input %v4float
+    %v3float = OpTypeVector %float 3
 %_ptr_Output_v3float = OpTypePointer Output %v3float
 %outTexCoord = OpVariable %_ptr_Output_v3float Output
 %_arr_v3float_uint_3 = OpTypeArray %v3float %uint_3
@@ -104,141 +85,84 @@
 %outOutlineColor = OpVariable %_ptr_Output_v4float Output
 %inOutlineColor = OpVariable %_ptr_Input__arr_v4float_uint_3 Input
 %outBarycentricCoord = OpVariable %_ptr_Output_v3float Output
-        %117 = OpConstantComposite %v3float %float_1 %float_0 %float_0
-        %125 = OpConstantComposite %v3float %float_0 %float_1 %float_0
-        %129 = OpConstantComposite %v3float %float_0 %float_0 %float_1
+    %float_1 = OpConstant %float 1
+    %float_0 = OpConstant %float 0
+         %59 = OpConstantComposite %v3float %float_1 %float_0 %float_0
+      %int_1 = OpConstant %int 1
+         %66 = OpConstantComposite %v3float %float_0 %float_1 %float_0
+         %68 = OpConstantComposite %v3float %float_0 %float_0 %float_1
+     %uint_1 = OpConstant %uint 1
+%_arr_float_uint_1 = OpTypeArray %float %uint_1
+%gl_PerVertex = OpTypeStruct %v4float %float %_arr_float_uint_1 %_arr_float_uint_1
+%_ptr_Output_gl_PerVertex = OpTypePointer Output %gl_PerVertex
+          %_ = OpVariable %_ptr_Output_gl_PerVertex Output
 %gl_PerVertex_0 = OpTypeStruct %v4float %float %_arr_float_uint_1 %_arr_float_uint_1
-%_ptr_Output_gl_PerVertex_0 = OpTypePointer Output %gl_PerVertex_0
-          %_ = OpVariable %_ptr_Output_gl_PerVertex_0 Output
+%_arr_gl_PerVertex_0_uint_3 = OpTypeArray %gl_PerVertex_0 %uint_3
+%_ptr_Input__arr_gl_PerVertex_0_uint_3 = OpTypePointer Input %_arr_gl_PerVertex_0_uint_3
+      %gl_in = OpVariable %_ptr_Input__arr_gl_PerVertex_0_uint_3 Input
        %main = OpFunction %void None %3
           %5 = OpLabel
-      %param = OpVariable %_ptr_Function_v3float Function
-      %edgeA = OpVariable %_ptr_Function_float Function
-      %edgeB = OpVariable %_ptr_Function_float Function
-      %edgeC = OpVariable %_ptr_Function_float Function
           %i = OpVariable %_ptr_Function_int Function
-               OpStore %param %11
-         %26 = OpAccessChain %_ptr_Input_v4float %gl_in %int_0 %int_0
-         %27 = OpLoad %v4float %26
-         %29 = OpAccessChain %_ptr_Input_v4float %gl_in %int_1 %int_0
-         %30 = OpLoad %v4float %29
-         %31 = OpFSub %v4float %27 %30
-         %32 = OpExtInst %float %1 Length %31
-               OpStore %edgeA %32
-         %34 = OpAccessChain %_ptr_Input_v4float %gl_in %int_1 %int_0
-         %35 = OpLoad %v4float %34
-         %37 = OpAccessChain %_ptr_Input_v4float %gl_in %int_2 %int_0
-         %38 = OpLoad %v4float %37
-         %39 = OpFSub %v4float %35 %38
-         %40 = OpExtInst %float %1 Length %39
-               OpStore %edgeB %40
-         %42 = OpAccessChain %_ptr_Input_v4float %gl_in %int_2 %int_0
-         %43 = OpLoad %v4float %42
-         %44 = OpAccessChain %_ptr_Input_v4float %gl_in %int_0 %int_0
-         %45 = OpLoad %v4float %44
-         %46 = OpFSub %v4float %43 %45
-         %47 = OpExtInst %float %1 Length %46
-               OpStore %edgeC %47
-         %48 = OpLoad %float %edgeA
-         %49 = OpLoad %float %edgeB
-         %51 = OpFOrdGreaterThan %bool %48 %49
-         %52 = OpLoad %float %edgeA
-         %53 = OpLoad %float %edgeC
-         %54 = OpFOrdGreaterThan %bool %52 %53
-         %55 = OpLogicalAnd %bool %51 %54
-               OpSelectionMerge %57 None
-               OpBranchConditional %55 %56 %61
-         %56 = OpLabel
-         %60 = OpAccessChain %_ptr_Function_float %param %uint_2
-               OpStore %60 %float_1
-               OpBranch %57
-         %61 = OpLabel
-         %62 = OpLoad %float %edgeB
-         %63 = OpLoad %float %edgeC
-         %64 = OpFOrdGreaterThan %bool %62 %63
-         %65 = OpLoad %float %edgeB
-         %66 = OpLoad %float %edgeA
-         %67 = OpFOrdGreaterThan %bool %65 %66
-         %68 = OpLogicalAnd %bool %64 %67
-               OpSelectionMerge %70 None
-               OpBranchConditional %68 %69 %73
-         %69 = OpLabel
-         %72 = OpAccessChain %_ptr_Function_float %param %uint_0
-               OpStore %72 %float_1
-               OpBranch %70
-         %73 = OpLabel
-         %74 = OpAccessChain %_ptr_Function_float %param %uint_1
-               OpStore %74 %float_1
-               OpBranch %70
-         %70 = OpLabel
-               OpBranch %57
-         %57 = OpLabel
                OpStore %i %int_0
-               OpBranch %77
-         %77 = OpLabel
-               OpLoopMerge %79 %80 None
-               OpBranch %81
-         %81 = OpLabel
-         %82 = OpLoad %int %i
-         %84 = OpSLessThan %bool %82 %int_3
-               OpBranchConditional %84 %78 %79
-         %78 = OpLabel
-         %90 = OpLoad %int %i
-         %91 = OpAccessChain %_ptr_Input_v4float %inColor %90
-         %92 = OpLoad %v4float %91
-               OpStore %outColor %92
-         %98 = OpLoad %int %i
-        %100 = OpAccessChain %_ptr_Input_v3float %inTexCoord %98
-        %101 = OpLoad %v3float %100
-               OpStore %outTexCoord %101
-        %104 = OpLoad %int %i
-        %105 = OpAccessChain %_ptr_Input_v4float %inDrawArea %104
-        %106 = OpLoad %v4float %105
-               OpStore %outDrawArea %106
-        %109 = OpLoad %int %i
-        %110 = OpAccessChain %_ptr_Input_v4float %inOutlineColor %109
-        %111 = OpLoad %v4float %110
-               OpStore %outOutlineColor %111
-        %112 = OpLoad %int %i
-        %113 = OpIEqual %bool %112 %int_0
-               OpSelectionMerge %115 None
-               OpBranchConditional %113 %114 %120
-        %114 = OpLabel
-        %118 = OpLoad %v3float %param
-        %119 = OpFAdd %v3float %117 %118
-               OpStore %outBarycentricCoord %119
-               OpBranch %115
-        %120 = OpLabel
-        %121 = OpLoad %int %i
-        %122 = OpIEqual %bool %121 %int_1
-               OpSelectionMerge %124 None
-               OpBranchConditional %122 %123 %128
-        %123 = OpLabel
-        %126 = OpLoad %v3float %param
-        %127 = OpFAdd %v3float %125 %126
-               OpStore %outBarycentricCoord %127
-               OpBranch %124
-        %128 = OpLabel
-        %130 = OpLoad %v3float %param
-        %131 = OpFAdd %v3float %129 %130
-               OpStore %outBarycentricCoord %131
-               OpBranch %124
-        %124 = OpLabel
-               OpBranch %115
-        %115 = OpLabel
-        %135 = OpLoad %int %i
-        %136 = OpAccessChain %_ptr_Input_v4float %gl_in %135 %int_0
-        %137 = OpLoad %v4float %136
-        %138 = OpAccessChain %_ptr_Output_v4float %_ %int_0
-               OpStore %138 %137
+               OpBranch %10
+         %10 = OpLabel
+               OpLoopMerge %12 %13 None
+               OpBranch %14
+         %14 = OpLabel
+         %15 = OpLoad %int %i
+         %18 = OpSLessThan %bool %15 %int_3
+               OpBranchConditional %18 %11 %12
+         %11 = OpLabel
+         %28 = OpLoad %int %i
+         %30 = OpAccessChain %_ptr_Input_v4float %inColor %28
+         %31 = OpLoad %v4float %30
+               OpStore %outColor %31
+         %38 = OpLoad %int %i
+         %40 = OpAccessChain %_ptr_Input_v3float %inTexCoord %38
+         %41 = OpLoad %v3float %40
+               OpStore %outTexCoord %41
+         %44 = OpLoad %int %i
+         %45 = OpAccessChain %_ptr_Input_v4float %inDrawArea %44
+         %46 = OpLoad %v4float %45
+               OpStore %outDrawArea %46
+         %49 = OpLoad %int %i
+         %50 = OpAccessChain %_ptr_Input_v4float %inOutlineColor %49
+         %51 = OpLoad %v4float %50
+               OpStore %outOutlineColor %51
+         %52 = OpLoad %int %i
+         %53 = OpIEqual %bool %52 %int_0
+               OpSelectionMerge %55 None
+               OpBranchConditional %53 %54 %60
+         %54 = OpLabel
+               OpStore %outBarycentricCoord %59
+               OpBranch %55
+         %60 = OpLabel
+         %61 = OpLoad %int %i
+         %63 = OpIEqual %bool %61 %int_1
+               OpSelectionMerge %65 None
+               OpBranchConditional %63 %64 %67
+         %64 = OpLabel
+               OpStore %outBarycentricCoord %66
+               OpBranch %65
+         %67 = OpLabel
+               OpStore %outBarycentricCoord %68
+               OpBranch %65
+         %65 = OpLabel
+               OpBranch %55
+         %55 = OpLabel
+         %78 = OpLoad %int %i
+         %79 = OpAccessChain %_ptr_Input_v4float %gl_in %78 %int_0
+         %80 = OpLoad %v4float %79
+         %81 = OpAccessChain %_ptr_Output_v4float %_ %int_0
+               OpStore %81 %80
                OpEmitVertex
-               OpBranch %80
-         %80 = OpLabel
-        %139 = OpLoad %int %i
-        %140 = OpIAdd %int %139 %int_1
-               OpStore %i %140
-               OpBranch %77
-         %79 = OpLabel
+               OpBranch %13
+         %13 = OpLabel
+         %82 = OpLoad %int %i
+         %83 = OpIAdd %int %82 %int_1
+               OpStore %i %83
+               OpBranch %10
+         %12 = OpLabel
                OpEndPrimitive
                OpReturn
                OpFunctionEnd

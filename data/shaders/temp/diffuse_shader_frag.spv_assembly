@@ -1,7 +1,7 @@
 ; SPIR-V
 ; Version: 1.0
 ; Generator: Google Shaderc over Glslang; 10
-; Bound: 160
+; Bound: 169
 ; Schema: 0
                OpCapability Shader
           %1 = OpExtInstImport "GLSL.std.450"
@@ -23,6 +23,7 @@
                OpName %screenParams "screenParams"
                OpName %a "a"
                OpName %t "t"
+               OpName %excludeInternalEdge "excludeInternalEdge"
                OpName %s "s"
                OpName %inBarycentricCoord "inBarycentricCoord"
                OpName %v "v"
@@ -72,6 +73,7 @@
         %113 = OpConstantComposite %v2float %float_2700 %float_1574
     %float_1 = OpConstant %float 1
 %_ptr_Function_v3float = OpTypePointer Function %v3float
+        %139 = OpConstantComposite %v3float %float_0 %float_1 %float_0
     %float_2 = OpConstant %float 2
 %inBarycentricCoord = OpVariable %_ptr_Input_v3float Input
        %main = OpFunction %void None %3
@@ -80,6 +82,7 @@
 %screenParams = OpVariable %_ptr_Function_v2float Function
           %a = OpVariable %_ptr_Function_v2float Function
           %t = OpVariable %_ptr_Function_v3float Function
+%excludeInternalEdge = OpVariable %_ptr_Function_v3float Function
           %s = OpVariable %_ptr_Function_v3float Function
           %v = OpVariable %_ptr_Function_float Function
          %14 = OpAccessChain %_ptr_Input_float %gl_FragCoord %uint_0
@@ -201,27 +204,35 @@
         %136 = OpLoad %float %135
         %137 = OpVectorTimesScalar %v3float %134 %136
                OpStore %t %137
-        %139 = OpLoad %v3float %t
-        %141 = OpVectorTimesScalar %v3float %139 %float_2
-        %143 = OpLoad %v3float %inBarycentricCoord
-        %144 = OpExtInst %v3float %1 Step %141 %143
-               OpStore %s %144
-        %146 = OpAccessChain %_ptr_Function_float %s %uint_0
-        %147 = OpLoad %float %146
-        %148 = OpAccessChain %_ptr_Function_float %s %uint_1
-        %149 = OpLoad %float %148
-        %150 = OpAccessChain %_ptr_Function_float %s %uint_2
+               OpStore %excludeInternalEdge %139
+        %141 = OpLoad %v3float %t
+        %143 = OpVectorTimesScalar %v3float %141 %float_2
+        %145 = OpLoad %v3float %inBarycentricCoord
+        %146 = OpLoad %v3float %excludeInternalEdge
+        %147 = OpFAdd %v3float %145 %146
+        %148 = OpExtInst %v3float %1 Step %143 %147
+               OpStore %s %148
+        %150 = OpAccessChain %_ptr_Function_float %s %uint_0
         %151 = OpLoad %float %150
-        %152 = OpExtInst %float %1 FMin %149 %151
-        %153 = OpExtInst %float %1 FMin %147 %152
-        %154 = OpFSub %float %float_1 %153
-               OpStore %v %154
-        %155 = OpLoad %v4float %outColor
-        %156 = OpLoad %v4float %inOutlineColor
-        %157 = OpLoad %float %v
-        %158 = OpCompositeConstruct %v4float %157 %157 %157 %157
-        %159 = OpExtInst %v4float %1 FMix %155 %156 %158
-               OpStore %outColor %159
+        %152 = OpAccessChain %_ptr_Function_float %s %uint_1
+        %153 = OpLoad %float %152
+        %154 = OpAccessChain %_ptr_Function_float %s %uint_2
+        %155 = OpLoad %float %154
+        %156 = OpExtInst %float %1 FMin %153 %155
+        %157 = OpExtInst %float %1 FMin %151 %156
+        %158 = OpFSub %float %float_1 %157
+               OpStore %v %158
+        %159 = OpLoad %v4float %outColor
+        %160 = OpLoad %v4float %inOutlineColor
+        %161 = OpVectorShuffle %v3float %160 %160 0 1 2
+        %162 = OpCompositeExtract %float %161 0
+        %163 = OpCompositeExtract %float %161 1
+        %164 = OpCompositeExtract %float %161 2
+        %165 = OpCompositeConstruct %v4float %162 %163 %164 %float_1
+        %166 = OpLoad %float %v
+        %167 = OpCompositeConstruct %v4float %166 %166 %166 %166
+        %168 = OpExtInst %v4float %1 FMix %159 %165 %167
+               OpStore %outColor %168
                OpBranch %107
         %107 = OpLabel
                OpReturn

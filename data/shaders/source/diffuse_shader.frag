@@ -45,10 +45,11 @@ void main() {
 		vec2 a = vec2(1 / screenParams.x, 1 / screenParams.y);
 		vec3 t = vec3(a.x, a.y, min(a.x, a.y)) * inOutlineColor.a;
 
-		vec3 s = step(t * 2, inBarycentricCoord);
+		vec3 excludeInternalEdge = vec3(0.0, 1.0, 0.0);
+		vec3 s = step(t * 2, inBarycentricCoord + excludeInternalEdge);
 		float v = 1. - min(s.r, min(s.g, s.b));
 		
-		outColor = mix(outColor, inOutlineColor, v);
+		outColor = mix(outColor, vec4(inOutlineColor.rgb, 1.0), v);
 	}
 		
 }
