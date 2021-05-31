@@ -18,7 +18,6 @@ fn main() {
         "nrg_resources",
         "nrg_serialize",
         "nrg_window",
-        "nrg_renderer",
     ];
 
     for name in plugins.iter() {

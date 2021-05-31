@@ -157,7 +157,8 @@ impl PluginManager {
 
         let mut plugins_to_remove: Vec<PluginId> = Vec::new();
         for plugin_data in self.plugins.iter_mut() {
-            if let Ok(FileEvent::Modified(path)) = plugin_data.filewatcher.read_events().try_recv()
+            while let Ok(FileEvent::Modified(path)) =
+                plugin_data.filewatcher.read_events().try_recv()
             {
                 if plugin_data.filewatcher.get_path().eq(&path) {
                     plugins_to_remove.push(plugin_data.id);

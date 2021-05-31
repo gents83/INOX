@@ -1,4 +1,4 @@
-use nrg_serialize::{generate_random_uid, Uid};
+use nrg_serialize::Uid;
 use std::{
     path::PathBuf,
     sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard},
@@ -11,18 +11,22 @@ pub trait ResourceTrait {
     fn path(&self) -> PathBuf;
 }
 
-pub struct Resource<T> {
-    id: ResourceId,
+pub struct Resource<T>
+where
+    T: ResourceTrait,
+{
     data: RwLock<T>,
 }
-unsafe impl<T> Send for Resource<T> {}
-unsafe impl<T> Sync for Resource<T> {}
+unsafe impl<T> Send for Resource<T> where T: ResourceTrait {}
+unsafe impl<T> Sync for Resource<T> where T: ResourceTrait {}
 
-impl<T> Resource<T> {
+impl<T> Resource<T>
+where
+    T: ResourceTrait,
+{
     #[inline]
     pub fn new(data: T) -> Self {
         Self {
-            id: generate_random_uid(),
             data: RwLock::new(data),
         }
     }
@@ -38,15 +42,15 @@ impl<T> Resource<T> {
 
 impl<T> ResourceTrait for Resource<T>
 where
-    T: Sized + 'static,
+    T: ResourceTrait + Sized + 'static,
 {
     #[inline]
     fn id(&self) -> ResourceId {
-        self.id
+        self.get().id()
     }
     #[inline]
     fn path(&self) -> PathBuf {
-        PathBuf::default()
+        self.get().path()
     }
 }
 

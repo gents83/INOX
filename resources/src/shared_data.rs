@@ -29,7 +29,7 @@ impl ResourceStorage {
         self.resources.is_empty()
     }
     #[inline]
-    pub fn add_resource<T: 'static>(&mut self, data: T) -> ResourceId {
+    pub fn add_resource<T: 'static + ResourceTrait>(&mut self, data: T) -> ResourceId {
         let resource = Resource::new(data);
         let id = resource.id();
         self.resources.push(Arc::new(Box::new(resource)));
@@ -58,7 +58,7 @@ impl ResourceStorage {
     #[inline]
     pub fn match_resource<T, F>(&self, f: F) -> ResourceId
     where
-        T: 'static + Sized,
+        T: 'static + ResourceTrait + Sized,
         F: Fn(&T) -> bool,
     {
         if let Some(item) = self.resources.iter().find(|&e| {
@@ -71,7 +71,10 @@ impl ResourceStorage {
         INVALID_UID
     }
     #[inline]
-    pub fn get_resource<T: 'static>(&self, resource_id: ResourceId) -> ResourceRc<T> {
+    pub fn get_resource<T: 'static + ResourceTrait>(
+        &self,
+        resource_id: ResourceId,
+    ) -> ResourceRc<T> {
         let item = self
             .resources
             .iter()
@@ -82,7 +85,7 @@ impl ResourceStorage {
         resource.clone()
     }
     #[inline]
-    pub fn get_resources_of_type<T: 'static>(&self) -> Vec<ResourceRc<T>> {
+    pub fn get_resources_of_type<T: 'static + ResourceTrait>(&self) -> Vec<ResourceRc<T>> {
         let mut vec = Vec::new();
         self.resources.iter().for_each(|e| {
             let resource: &ResourceRc<T> =
@@ -92,7 +95,7 @@ impl ResourceStorage {
         vec
     }
     #[inline]
-    pub fn get_unique_resource<T: 'static>(&self) -> ResourceRc<T> {
+    pub fn get_unique_resource<T: 'static + ResourceTrait>(&self) -> ResourceRc<T> {
         debug_assert!(
             self.resources.len() == 1,
             "Trying to get unique resource but multiple resource of same type exists"
@@ -130,7 +133,7 @@ impl SharedData {
         self.resources.clear();
     }
     #[inline]
-    pub fn add_resource<T: 'static>(&mut self, data: T) -> ResourceId {
+    pub fn add_resource<T: 'static + ResourceTrait>(&mut self, data: T) -> ResourceId {
         let rs = self
             .resources
             .entry(TypeId::of::<T>())
@@ -138,7 +141,7 @@ impl SharedData {
         rs.add_resource(data)
     }
     #[inline]
-    pub fn remove_resource<T: 'static>(&mut self, resource_id: ResourceId) {
+    pub fn remove_resource<T: 'static + ResourceTrait>(&mut self, resource_id: ResourceId) {
         if let Some(vec) = self.resources.get_mut(&TypeId::of::<T>()) {
             vec.remove_resource(resource_id)
         }
@@ -163,9 +166,9 @@ impl SharedData {
         false
     }
     #[inline]
-    pub fn match_resource<T: 'static, F>(shared_data: &SharedDataRw, f: F) -> ResourceId
+    pub fn match_resource<T, F>(shared_data: &SharedDataRw, f: F) -> ResourceId
     where
-        T: 'static + Sized,
+        T: 'static + ResourceTrait + Sized,
         F: Fn(&T) -> bool,
     {
         let data = shared_data.read().unwrap();
@@ -175,7 +178,7 @@ impl SharedData {
         INVALID_UID
     }
     #[inline]
-    pub fn get_resource<T: 'static>(
+    pub fn get_resource<T: 'static + ResourceTrait>(
         shared_data: &SharedDataRw,
         resource_id: ResourceId,
     ) -> ResourceRc<T> {
@@ -184,13 +187,17 @@ impl SharedData {
         rs.get_resource(resource_id)
     }
     #[inline]
-    pub fn get_resources_of_type<T: 'static>(shared_data: &SharedDataRw) -> Vec<ResourceRc<T>> {
+    pub fn get_resources_of_type<T: 'static + ResourceTrait>(
+        shared_data: &SharedDataRw,
+    ) -> Vec<ResourceRc<T>> {
         let data = shared_data.read().unwrap();
         let rs = data.resources.get(&TypeId::of::<T>()).unwrap();
         rs.get_resources_of_type()
     }
     #[inline]
-    pub fn get_unique_resource<T: 'static>(shared_data: &SharedDataRw) -> ResourceRc<T> {
+    pub fn get_unique_resource<T: 'static + ResourceTrait>(
+        shared_data: &SharedDataRw,
+    ) -> ResourceRc<T> {
         let data = shared_data.read().unwrap();
         let rs = data.resources.get(&TypeId::of::<T>()).unwrap();
         rs.get_unique_resource()

@@ -1,11 +1,15 @@
+use std::path::PathBuf;
+
 use crate::{MeshData, Texture};
 use nrg_math::{MatBase, Matrix4, Vector4};
-use nrg_resources::{ResourceId, SharedData, SharedDataRw};
+use nrg_resources::{ResourceId, ResourceTrait, SharedData, SharedDataRw};
+use nrg_serialize::generate_random_uid;
 
 pub type MeshId = ResourceId;
 
 #[derive(Clone)]
 pub struct MeshInstance {
+    id: ResourceId,
     mesh_data: MeshData,
     draw_area: Vector4, //pos (x,y) - size(z,w)
     transform: Matrix4,
@@ -14,10 +18,20 @@ pub struct MeshInstance {
     uv_converted: bool,
 }
 
+impl ResourceTrait for MeshInstance {
+    fn id(&self) -> ResourceId {
+        self.id
+    }
+    fn path(&self) -> PathBuf {
+        PathBuf::default()
+    }
+}
+
 impl MeshInstance {
     pub fn create(shared_data: &SharedDataRw, mesh_data: MeshData) -> MeshId {
         let mut data = shared_data.write().unwrap();
         data.add_resource(MeshInstance {
+            id: generate_random_uid(),
             mesh_data,
             draw_area: [0., 0., f32::MAX, f32::MAX].into(),
             transform: Matrix4::default_identity(),

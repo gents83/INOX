@@ -1,0 +1,13 @@
+[package]
+name = "nrg_binarizer"
+version = "0.1.0"
+authors = ["gents83 <gents83@gmail.com>"]
+edition = "2018"
+build = "build.rs"
+
+[lib]
+crate-type = ["cdylib",'rlib']
+
+[dependencies]
+nrg_messenger = { path = "../messenger" }
+nrg_platform = { path = "../platform" }

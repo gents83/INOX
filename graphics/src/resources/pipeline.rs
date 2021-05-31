@@ -1,13 +1,25 @@
-use nrg_resources::{SharedData, SharedDataRw};
-use nrg_serialize::{Uid, INVALID_UID};
+use std::path::PathBuf;
+
+use nrg_resources::{ResourceId, ResourceTrait, SharedData, SharedDataRw};
+use nrg_serialize::{generate_uid_from_string, Uid, INVALID_UID};
 
 use crate::PipelineData;
 
 pub type PipelineId = Uid;
 
 pub struct PipelineInstance {
+    id: ResourceId,
     data: PipelineData,
     is_initialized: bool,
+}
+
+impl ResourceTrait for PipelineInstance {
+    fn id(&self) -> ResourceId {
+        self.id
+    }
+    fn path(&self) -> PathBuf {
+        PathBuf::from(self.data.name.as_str())
+    }
 }
 
 impl PipelineInstance {
@@ -45,6 +57,7 @@ impl PipelineInstance {
         }
         let mut data = shared_data.write().unwrap();
         data.add_resource(PipelineInstance {
+            id: generate_uid_from_string(pipeline_data.name.as_str()),
             data: pipeline_data.clone(),
             is_initialized: false,
         })

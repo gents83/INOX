@@ -5,6 +5,8 @@ authors = ["gents83 <gents83@gmail.com>"]
 edition = "2018"
 
 [dependencies]
+nrg_binarizer = { path = "../../binarizer" }
+nrg_resources = { path = "../../resources" }
 nrg_core = { path = "../../core" }
 nrg_dynamic_library = { path = "../../dynamic_library" }
 

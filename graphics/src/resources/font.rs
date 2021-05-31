@@ -1,15 +1,25 @@
 use crate::{Font, MaterialId, MaterialInstance, PipelineId, TextureInstance};
 use nrg_math::Vector4;
 use nrg_resources::{ResourceId, ResourceTrait, SharedData, SharedDataRw};
-use nrg_serialize::INVALID_UID;
+use nrg_serialize::{generate_uid_from_string, INVALID_UID};
 use std::path::{Path, PathBuf};
 
 pub type FontId = ResourceId;
 
 pub struct FontInstance {
+    id: ResourceId,
     path: PathBuf,
     material_id: MaterialId,
     font: Font,
+}
+
+impl ResourceTrait for FontInstance {
+    fn id(&self) -> ResourceId {
+        self.id
+    }
+    fn path(&self) -> PathBuf {
+        self.path.clone()
+    }
 }
 
 impl FontInstance {
@@ -66,6 +76,7 @@ impl FontInstance {
         }
         let mut data = shared_data.write().unwrap();
         data.add_resource(FontInstance {
+            id: generate_uid_from_string(font_path.to_str().unwrap()),
             path: PathBuf::from(font_path),
             material_id,
             font,

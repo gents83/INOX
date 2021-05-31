@@ -1,18 +1,29 @@
+use std::sync::Arc;
+use std::sync::RwLock;
+
 use nrg_core::*;
+use nrg_graphics::Renderer;
+use nrg_math::Vector2;
 use nrg_platform::Window;
-use nrg_resources::{ConfigBase, ResourceId};
+use nrg_resources::ConfigBase;
 use nrg_serialize::*;
 
 use crate::config::*;
+use crate::rendering_system::*;
+use crate::update_system::*;
 use crate::window_system::*;
 
+const RENDERING_THREAD: &str = "Worker1";
+const RENDERING_UPDATE: &str = "RENDERING_UPDATE";
+const RENDERING_PHASE: &str = "RENDERING_PHASE";
 const MAIN_WINDOW_PHASE: &str = "MAIN_WINDOW_PHASE";
 
 #[repr(C)]
 pub struct MainWindow {
     config: Config,
     system_id: SystemId,
-    window_id: ResourceId,
+    update_system_id: SystemId,
+    rendering_system_id: SystemId,
 }
 
 impl Default for MainWindow {
@@ -20,7 +31,8 @@ impl Default for MainWindow {
         Self {
             config: Config::default(),
             system_id: SystemId::default(),
-            window_id: INVALID_UID,
+            update_system_id: SystemId::default(),
+            rendering_system_id: SystemId::default(),
         }
     }
 }
@@ -46,29 +58,53 @@ impl Plugin for MainWindow {
                 app.get_global_messenger(),
             )
         };
-        self.window_id = app.get_shared_data().write().unwrap().add_resource(window);
+
+        let renderer = {
+            let mut renderer = Renderer::new(
+                window.get_handle(),
+                self.config.is_debug_validation_layers_enabled(),
+            );
+            let size = Vector2::new(window.get_width() as _, window.get_heigth() as _);
+            renderer.set_viewport_size(size);
+            renderer
+        };
+        let renderer = Arc::new(RwLock::new(renderer));
 
         let mut update_phase = PhaseWithSystems::new(MAIN_WINDOW_PHASE);
-        let system = WindowSystem::new(&mut app.get_shared_data());
+        let system = WindowSystem::new(window);
 
         self.system_id = system.id();
 
         update_phase.add_system(system);
         app.create_phase(update_phase);
+
+        let mut update_phase = PhaseWithSystems::new(RENDERING_UPDATE);
+        let system = UpdateSystem::new(
+            renderer.clone(),
+            &app.get_shared_data(),
+            &app.get_global_messenger(),
+            app.get_job_handler(),
+            &self.config,
+        );
+        self.update_system_id = system.id();
+
+        let mut rendering_phase = PhaseWithSystems::new(RENDERING_PHASE);
+        let rendering_system = RenderingSystem::new(renderer);
+        self.rendering_system_id = rendering_system.id();
+
+        update_phase.add_system(system);
+        rendering_phase.add_system(rendering_system);
+
+        app.create_phase(update_phase);
+        app.create_phase_on_worker(rendering_phase, RENDERING_THREAD);
     }
 
     fn unprepare(&mut self, app: &mut App) {
         let path = self.config.get_filepath();
         serialize_to_file(&self.config, path);
 
-        let update_phase: &mut PhaseWithSystems = app.get_phase_mut(MAIN_WINDOW_PHASE);
-        update_phase.remove_system(&self.system_id);
+        app.destroy_phase_on_worker(RENDERING_PHASE, RENDERING_THREAD);
+        app.destroy_phase(RENDERING_UPDATE);
         app.destroy_phase(MAIN_WINDOW_PHASE);
-
-        let shared_data = app.get_shared_data();
-        shared_data
-            .write()
-            .unwrap()
-            .remove_resource::<Window>(self.window_id);
     }
 }

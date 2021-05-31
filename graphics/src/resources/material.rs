@@ -1,16 +1,28 @@
+use std::path::PathBuf;
+
 use crate::{FontId, FontInstance, MeshId, PipelineId, TextureId};
 use nrg_math::Vector4;
-use nrg_resources::{ResourceId, SharedData, SharedDataRw};
-use nrg_serialize::INVALID_UID;
+use nrg_resources::{ResourceId, ResourceTrait, SharedData, SharedDataRw};
+use nrg_serialize::{generate_random_uid, INVALID_UID};
 
 pub type MaterialId = ResourceId;
 
 pub struct MaterialInstance {
+    id: ResourceId,
     pipeline_id: PipelineId,
     meshes: Vec<MeshId>,
     textures: Vec<TextureId>,
     diffuse_color: Vector4,
     outline_color: Vector4,
+}
+
+impl ResourceTrait for MaterialInstance {
+    fn id(&self) -> ResourceId {
+        self.id
+    }
+    fn path(&self) -> PathBuf {
+        PathBuf::default()
+    }
 }
 
 impl MaterialInstance {
@@ -21,6 +33,7 @@ impl MaterialInstance {
         let diffuse_color = material.get().diffuse_color;
         let outline_color = material.get().outline_color;
         Self {
+            id: generate_random_uid(),
             pipeline_id,
             meshes: Vec::new(),
             textures,
@@ -92,6 +105,7 @@ impl MaterialInstance {
     pub fn create_from_pipeline(shared_data: &SharedDataRw, pipeline_id: PipelineId) -> MaterialId {
         let mut data = shared_data.write().unwrap();
         data.add_resource(MaterialInstance {
+            id: generate_random_uid(),
             pipeline_id,
             meshes: Vec::new(),
             textures: Vec::new(),

@@ -127,7 +127,6 @@ impl Profiler {
             .unwrap()
     }
     pub fn start(&self) {
-        let _ = self.rx.try_recv();
         self.is_started
             .swap(true, std::sync::atomic::Ordering::SeqCst);
         self.time_start

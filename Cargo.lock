@@ -457,6 +457,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "nrg_binarizer"
+version = "0.1.0"
+dependencies = [
+ "nrg_messenger",
+ "nrg_platform",
+]
+
+[[package]]
 name = "nrg_core"
 version = "0.1.0"
 dependencies = [
@@ -493,8 +501,10 @@ dependencies = [
 name = "nrg_editor_app"
 version = "0.1.0"
 dependencies = [
+ "nrg_binarizer",
  "nrg_core",
  "nrg_dynamic_library",
+ "nrg_resources",
 ]
 
 [[package]]
@@ -589,20 +599,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nrg_renderer"
-version = "0.1.0"
-dependencies = [
- "nrg_core",
- "nrg_graphics",
- "nrg_math",
- "nrg_messenger",
- "nrg_platform",
- "nrg_profiler",
- "nrg_resources",
- "nrg_serialize",
-]
-
-[[package]]
 name = "nrg_resources"
 version = "0.1.0"
 dependencies = [
@@ -625,7 +621,9 @@ name = "nrg_window"
 version = "0.1.0"
 dependencies = [
  "nrg_core",
+ "nrg_graphics",
  "nrg_math",
+ "nrg_messenger",
  "nrg_platform",
  "nrg_profiler",
  "nrg_resources",

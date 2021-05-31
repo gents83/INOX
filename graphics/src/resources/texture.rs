@@ -1,22 +1,33 @@
 use std::path::{Path, PathBuf};
 
-use nrg_resources::{ResourceId, SharedData, SharedDataRw};
-use nrg_serialize::INVALID_UID;
+use nrg_resources::{ResourceId, ResourceTrait, SharedData, SharedDataRw};
+use nrg_serialize::{generate_random_uid, generate_uid_from_string, INVALID_UID};
 
 use crate::INVALID_INDEX;
 
 pub type TextureId = ResourceId;
 
 pub struct TextureInstance {
+    id: ResourceId,
     path: PathBuf,
     texture_handler_index: i32,
     texture_index: i32,
     layer_index: i32,
 }
 
+impl ResourceTrait for TextureInstance {
+    fn id(&self) -> ResourceId {
+        self.id
+    }
+    fn path(&self) -> PathBuf {
+        self.path.clone()
+    }
+}
+
 impl Default for TextureInstance {
     fn default() -> Self {
         Self {
+            id: generate_random_uid(),
             path: PathBuf::new(),
             texture_handler_index: INVALID_INDEX,
             texture_index: INVALID_INDEX,
@@ -61,6 +72,7 @@ impl TextureInstance {
         }
         let mut data = shared_data.write().unwrap();
         data.add_resource(TextureInstance {
+            id: generate_uid_from_string(texture_path.to_str().unwrap()),
             path: PathBuf::from(texture_path),
             texture_handler_index: INVALID_INDEX,
             texture_index: INVALID_INDEX,

@@ -53,7 +53,7 @@ impl System for UpdateSystem {
         self.id
     }
     fn init(&mut self) {
-        for pipeline_data in self.config.pipelines.iter() {
+        for pipeline_data in self.config.get_pipelines().iter() {
             PipelineInstance::create(&self.shared_data, pipeline_data);
         }
     }

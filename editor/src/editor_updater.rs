@@ -14,7 +14,7 @@ use nrg_graphics::*;
 use nrg_gui::*;
 use nrg_messenger::{read_messages, MessageChannel, MessengerRw};
 use nrg_platform::*;
-use nrg_resources::{SharedData, SharedDataRw};
+use nrg_resources::SharedDataRw;
 use nrg_serialize::*;
 
 pub struct EditorUpdater {
@@ -197,12 +197,10 @@ impl System for EditorUpdater {
 
 impl EditorUpdater {
     fn create_screen(&mut self) {
-        let window = SharedData::get_unique_resource::<Window>(&self.shared_data);
-
         Screen::create(
-            window.get().get_width(),
-            window.get().get_heigth(),
-            window.get().get_scale_factor(),
+            self.config.width,
+            self.config.height,
+            self.config.scale_factor,
         );
     }
     fn update_fps_counter(&mut self) -> &mut Self {
