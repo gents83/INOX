@@ -7,6 +7,7 @@ use crate::{
 };
 use nrg_math::{VecBase, Vector2, Vector4};
 use nrg_messenger::{implement_message, Message};
+use nrg_resources::DATA_FOLDER;
 use nrg_serialize::*;
 
 #[derive(Clone)]
@@ -77,7 +78,7 @@ impl FolderDialog {
 
         let mut treeview = TreeView::new(self.get_shared_data(), self.get_global_messenger());
 
-        TreeView::populate_with_folders(&mut treeview, "./data/");
+        TreeView::populate_with_folders(&mut treeview, DATA_FOLDER);
         treeview
             .horizontal_alignment(HorizontalAlignment::Left)
             .vertical_alignment(VerticalAlignment::Stretch);
@@ -107,7 +108,7 @@ impl FolderDialog {
             .vertical_alignment(VerticalAlignment::Stretch)
             .style(WidgetStyle::Default);
 
-        Icon::create_icons("./data/", &mut icon_panel);
+        Icon::create_icons(DATA_FOLDER, &mut icon_panel);
 
         self.icon_panel = file_panel.add_child(Box::new(icon_panel));
         self.file_panel = horizontal_panel.add_child(Box::new(file_panel));
@@ -227,7 +228,7 @@ impl InternalWidget for FolderDialog {
                         .send(DialogEvent::Canceled(self.id()).as_boxed())
                         .ok();
                 } else {
-                    let mut folder = String::from("./data/");
+                    let mut folder = String::from(DATA_FOLDER);
                     let mut should_change = false;
                     if let Some(child) = self.node().get_child_mut::<TitleBar>(widget_id) {
                         let name = child.node().get_name();

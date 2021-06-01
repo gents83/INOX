@@ -5,7 +5,8 @@ use std::{
 };
 
 use crate::ExtensionHandler;
-use nrg_messenger::MessengerRw;
+use nrg_messenger::{Message, MessengerRw};
+use nrg_resources::ResourceEvent;
 
 const SOURCE_FOLDER_NAME: &str = "source";
 const COMPILED_FOLDER_NAME: &str = "compiled";
@@ -63,10 +64,18 @@ impl ShaderCompiler {
             .is_ok();
 
         if converted {
-            return Command::new(self.spirv_validator.to_str().unwrap())
+            let result = Command::new(self.spirv_validator.to_str().unwrap())
                 .arg(from_source_to_compiled.as_str())
                 .spawn()
                 .is_ok();
+            if result {
+                let dispatcher = self.global_messenger.read().unwrap().get_dispatcher();
+                dispatcher
+                    .write()
+                    .unwrap()
+                    .send(ResourceEvent::Reload(PathBuf::from(from_source_to_compiled)).as_boxed())
+                    .ok();
+            }
         }
         converted
     }
@@ -80,8 +89,6 @@ impl ExtensionHandler for ShaderCompiler {
                     let result = self.compile_assembly(path) && self.convert_in_spirv(path);
                     if !result {
                         eprintln!("Failed to process VERTEX shader {}", path.to_str().unwrap());
-                    } else {
-                        println!("Compiled VERTEX shader {}", path.to_str().unwrap());
                     }
                 }
                 GEOMETRY_SHADER_EXTENSION => {
@@ -91,8 +98,6 @@ impl ExtensionHandler for ShaderCompiler {
                             "Failed to process GEOMETRY shader {}",
                             path.to_str().unwrap()
                         );
-                    } else {
-                        println!("Compiled GEOMETRY shader {}", path.to_str().unwrap());
                     }
                 }
                 FRAGMENT_SHADER_EXTENSION => {
@@ -102,8 +107,6 @@ impl ExtensionHandler for ShaderCompiler {
                             "Failed to process FRAGMENT shader {}",
                             path.to_str().unwrap()
                         );
-                    } else {
-                        println!("Compiled FRAGMENT shader {}", path.to_str().unwrap());
                     }
                 }
                 _ => {}

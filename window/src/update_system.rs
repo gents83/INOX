@@ -9,7 +9,7 @@ use nrg_core::*;
 use nrg_graphics::*;
 use nrg_messenger::{read_messages, MessageChannel, MessengerRw};
 use nrg_platform::WindowEvent;
-use nrg_resources::{SharedData, SharedDataRw};
+use nrg_resources::{ResourceEvent, SharedData, SharedDataRw};
 
 pub struct UpdateSystem {
     id: SystemId,
@@ -70,6 +70,17 @@ impl System for UpdateSystem {
                 let e = msg.as_any().downcast_ref::<WindowEvent>().unwrap();
                 if let WindowEvent::SizeChanged(_width, _height) = e {
                     should_recreate_swap_chain = true;
+                }
+            } else if msg.type_id() == TypeId::of::<ResourceEvent>() {
+                let e = msg.as_any().downcast_ref::<ResourceEvent>().unwrap();
+                let ResourceEvent::Reload(path) = e;
+                if path.extension().unwrap() == "spv" {
+                    let pipelines =
+                    SharedData::get_resources_of_type::<PipelineInstance>(&self.shared_data);
+                    for p in pipelines.iter() {
+                            p.get_mut().check_shaders_to_reload(path.to_str().unwrap().to_string());                        
+                    }
+                    println!("Reloading request of {}", path.to_str().unwrap());
                 }
             }
         });

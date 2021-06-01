@@ -1,3 +1,4 @@
+use nrg_messenger::implement_message;
 use nrg_serialize::Uid;
 use std::{
     path::PathBuf,
@@ -10,6 +11,12 @@ pub trait ResourceTrait {
     fn id(&self) -> ResourceId;
     fn path(&self) -> PathBuf;
 }
+
+#[derive(Clone)]
+pub enum ResourceEvent {
+    Reload(PathBuf),
+}
+implement_message!(ResourceEvent);
 
 pub struct Resource<T>
 where

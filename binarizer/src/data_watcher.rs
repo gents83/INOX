@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use nrg_platform::{FileEvent, FileWatcher};
+use nrg_resources::get_absolute_data_path;
 
 pub trait ExtensionHandler {
     fn on_changed(&mut self, path: &Path);
@@ -29,7 +30,7 @@ impl DataWatcher {
     pub fn update(&mut self) {
         while let Ok(FileEvent::Modified(path)) = self.filewatcher.read_events().try_recv() {
             for handler in self.handlers.iter_mut() {
-                handler.on_changed(path.canonicalize().unwrap().as_path());
+                handler.on_changed(get_absolute_data_path(path.as_path()).as_path());
             }
         }
     }

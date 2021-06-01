@@ -59,9 +59,7 @@ impl Shader {
                 ShaderType::TessellationEvaluation => {
                     VkShaderStageFlagBits_VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT
                 }
-                ShaderType::Geometry => {
-                    VkShaderStageFlagBits_VK_SHADER_STAGE_GEOMETRY_BIT
-                }
+                ShaderType::Geometry => VkShaderStageFlagBits_VK_SHADER_STAGE_GEOMETRY_BIT,
                 _ => VkShaderStageFlagBits_VK_SHADER_STAGE_VERTEX_BIT,
             },
             module: shader.module,
@@ -79,5 +77,9 @@ impl Shader {
 
     pub fn stage_info(&self) -> VkPipelineShaderStageCreateInfo {
         self.stage_info.unwrap()
+    }
+
+    pub fn get_type(&self) -> ShaderType {
+        self.shader_type
     }
 }

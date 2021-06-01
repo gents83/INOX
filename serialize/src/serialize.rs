@@ -36,7 +36,7 @@ pub fn deserialize_from_file<'a, T>(data: &'a mut T, filepath: PathBuf)
 where
     T: for<'de> Deserialize<'de>,
 {
-    if filepath.exists() {
+    if filepath.exists() && filepath.is_file() {
         let file = File::open(filepath.clone()).unwrap();
         let reader = BufReader::new(file);
         if let Ok(result) = serde_json::from_reader(reader) {

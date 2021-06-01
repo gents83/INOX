@@ -50,6 +50,24 @@ impl PipelineInstance {
         self.is_initialized
     }
 
+    pub fn check_shaders_to_reload(&mut self, path_as_string: String) {
+        if path_as_string.contains(self.data.vertex_shader.to_str().unwrap()) {
+            self.is_initialized = false;
+        }
+        if path_as_string.contains(self.data.fragment_shader.to_str().unwrap()) {
+            self.is_initialized = false;
+        }
+        if path_as_string.contains(self.data.tcs_shader.to_str().unwrap()) {
+            self.is_initialized = false;
+        }
+        if path_as_string.contains(self.data.tes_shader.to_str().unwrap()) {
+            self.is_initialized = false;
+        }
+        if path_as_string.contains(self.data.geometry_shader.to_str().unwrap()) {
+            self.is_initialized = false;
+        }
+    }
+
     pub fn create(shared_data: &SharedDataRw, pipeline_data: &PipelineData) -> PipelineId {
         let pipeline_id = PipelineInstance::find_id_from_data(shared_data, pipeline_data);
         if pipeline_id != INVALID_UID {

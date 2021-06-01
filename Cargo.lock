@@ -462,6 +462,7 @@ version = "0.1.0"
 dependencies = [
  "nrg_messenger",
  "nrg_platform",
+ "nrg_resources",
 ]
 
 [[package]]
@@ -602,6 +603,7 @@ dependencies = [
 name = "nrg_resources"
 version = "0.1.0"
 dependencies = [
+ "nrg_messenger",
  "nrg_serialize",
 ]
 

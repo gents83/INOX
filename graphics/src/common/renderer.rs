@@ -213,12 +213,22 @@ impl Renderer {
     fn load_pipelines(&mut self, pipelines: &mut [ResourceRc<PipelineInstance>]) {
         nrg_profiler::scoped_profile!("renderer::load_pipelines");
         pipelines.iter_mut().for_each(|pipeline_instance| {
-            if self
+            let mut create_pipeline = false;
+            if let Some(index) = self
                 .pipelines
                 .iter()
-                .find(|p| p.id() == pipeline_instance.id())
-                .is_none()
+                .position(|p| p.id() == pipeline_instance.id())
             {
+                if !pipeline_instance.get().is_initialized() {
+                    //pipeline needs to be recreated
+                    let mut pipeline = self.pipelines.remove(index);
+                    pipeline.destroy();
+                    create_pipeline = true;
+                }
+            } else {
+                create_pipeline = true;
+            }
+            if create_pipeline {
                 let device = &mut self.device;
                 self.pipelines.push(Pipeline::create(
                     device,

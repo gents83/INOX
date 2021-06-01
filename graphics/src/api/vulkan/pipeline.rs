@@ -9,6 +9,7 @@ use crate::common::utils::*;
 
 use nrg_math::Vector2;
 use nrg_math::{Matrix4, Vector3};
+use nrg_resources::get_absolute_data_path;
 use std::{cell::RefCell, path::Path, rc::Rc};
 use vulkan_bindings::*;
 
@@ -93,10 +94,15 @@ impl Pipeline {
     }
 
     pub fn set_shader(&mut self, shader_type: ShaderType, shader_filepath: &Path) -> &mut Self {
-        if shader_filepath.exists() {
-            println!("Loading shader {:?}", shader_filepath);
+        let path = get_absolute_data_path(shader_filepath);
+        if path.exists() && path.is_file() {
+            self.inner
+                .borrow_mut()
+                .remove_shader(&self.device, shader_type);
 
-            let mut shader_file = std::fs::File::open(shader_filepath).unwrap();
+            println!("Loading shader {:?}", path);
+
+            let mut shader_file = std::fs::File::open(path).unwrap();
             let shader_code = read_spirv_from_bytes(&mut shader_file);
 
             self.inner.borrow_mut().create_shader_module(
@@ -518,6 +524,17 @@ impl PipelineImmutable {
         );
         self.shaders.push(shader);
         self
+    }
+
+    fn remove_shader(&mut self, device: &Device, shader_type: ShaderType) {
+        self.shaders.retain(|s| {
+            if s.get_type() == shader_type {
+                s.destroy(device.get_device());
+                false
+            } else {
+                true
+            }
+        })
     }
 
     fn destroy_shader_modules(&self, device: &Device) {

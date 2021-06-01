@@ -94,7 +94,7 @@ impl PluginManager {
     pub fn create_plugin_data(lib_path: PathBuf, app: &mut App) -> PluginData {
         let (path, filename) = library::compute_folder_and_filename(lib_path);
         let fullpath = path.join(filename);
-        if !fullpath.exists() {
+        if !fullpath.exists() && fullpath.is_file() {
             panic!(
                 "Unable to find requested plugin path {}",
                 fullpath.to_str().unwrap()

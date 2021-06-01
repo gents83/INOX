@@ -2,6 +2,7 @@ use crate::common::data_formats::*;
 use image::*;
 use nrg_math::*;
 use nrg_platform::*;
+use nrg_resources::DATA_FOLDER;
 use std::{
     collections::HashMap,
     num::NonZeroU16,
@@ -64,10 +65,11 @@ impl Font {
     #[inline]
     pub fn get_texture_path(&self) -> PathBuf {
         let name = format!(
-            "./data/textures/{}.png",
+            "{}textures/{}.png",
+            DATA_FOLDER,
             self.filepath.file_stem().unwrap().to_str().unwrap()
         );
-        PathBuf::from(name)
+        PathBuf::from(name).canonicalize().unwrap()
     }
 
     #[inline]

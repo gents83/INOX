@@ -1,6 +1,6 @@
 use crate::{Font, MaterialId, MaterialInstance, PipelineId, TextureInstance};
 use nrg_math::Vector4;
-use nrg_resources::{ResourceId, ResourceTrait, SharedData, SharedDataRw};
+use nrg_resources::{get_absolute_data_path, ResourceId, ResourceTrait, SharedData, SharedDataRw};
 use nrg_serialize::{generate_uid_from_string, INVALID_UID};
 use std::path::{Path, PathBuf};
 
@@ -24,7 +24,8 @@ impl ResourceTrait for FontInstance {
 
 impl FontInstance {
     pub fn find_id(shared_data: &SharedDataRw, font_path: &Path) -> FontId {
-        SharedData::match_resource(shared_data, |f: &FontInstance| f.path == font_path)
+        let path = get_absolute_data_path(font_path);
+        SharedData::match_resource(shared_data, |f: &FontInstance| f.path == path)
     }
     pub fn get_default(shared_data: &SharedDataRw) -> FontId {
         let fonts = SharedData::get_resources_of_type::<FontInstance>(shared_data);
@@ -54,20 +55,21 @@ impl FontInstance {
         pipeline_id: PipelineId,
         font_path: &Path,
     ) -> FontId {
-        if !font_path.exists() || pipeline_id == INVALID_UID {
+        let path = get_absolute_data_path(font_path);
+        if !path.exists() || !path.is_file() || pipeline_id == INVALID_UID {
             eprintln!(
                 "Invalid path {} or pipeline {}",
-                font_path.to_str().unwrap(),
+                path.to_str().unwrap(),
                 pipeline_id.to_simple().to_string().as_str()
             );
             return INVALID_UID;
         }
-        let font_id = FontInstance::find_id(shared_data, font_path);
+        let font_id = FontInstance::find_id(shared_data, path.as_path());
         if font_id != INVALID_UID {
             return font_id;
         }
         let material_id = MaterialInstance::create_from_pipeline(shared_data, pipeline_id);
-        let font = Font::new(font_path);
+        let font = Font::new(path.as_path());
         let texture_id = TextureInstance::find_id(shared_data, font.get_texture_path().as_path());
         if texture_id == INVALID_UID {
             let texture_id =
@@ -76,8 +78,8 @@ impl FontInstance {
         }
         let mut data = shared_data.write().unwrap();
         data.add_resource(FontInstance {
-            id: generate_uid_from_string(font_path.to_str().unwrap()),
-            path: PathBuf::from(font_path),
+            id: generate_uid_from_string(path.to_str().unwrap()),
+            path,
             material_id,
             font,
         })

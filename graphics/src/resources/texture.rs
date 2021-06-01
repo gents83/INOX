@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use nrg_resources::{ResourceId, ResourceTrait, SharedData, SharedDataRw};
+use nrg_resources::{get_absolute_data_path, ResourceId, ResourceTrait, SharedData, SharedDataRw};
 use nrg_serialize::{generate_random_uid, generate_uid_from_string, INVALID_UID};
 
 use crate::INVALID_INDEX;
@@ -38,7 +38,8 @@ impl Default for TextureInstance {
 
 impl TextureInstance {
     pub fn find_id(shared_data: &SharedDataRw, texture_path: &Path) -> TextureId {
-        SharedData::match_resource(shared_data, |t: &TextureInstance| t.path == texture_path)
+        let path = get_absolute_data_path(texture_path);
+        SharedData::match_resource(shared_data, |t: &TextureInstance| t.path == path)
     }
     pub fn get_path(&self) -> &Path {
         self.path.as_path()
@@ -64,16 +65,16 @@ impl TextureInstance {
         self.layer_index
     }
     pub fn create_from_path(shared_data: &SharedDataRw, texture_path: &Path) -> TextureId {
-        let texture_id = {
-            SharedData::match_resource(shared_data, |t: &TextureInstance| t.path == texture_path)
-        };
+        let path = get_absolute_data_path(texture_path);
+        let texture_id =
+            { SharedData::match_resource(shared_data, |t: &TextureInstance| t.path == path) };
         if texture_id != INVALID_UID {
             return texture_id;
         }
         let mut data = shared_data.write().unwrap();
         data.add_resource(TextureInstance {
-            id: generate_uid_from_string(texture_path.to_str().unwrap()),
-            path: PathBuf::from(texture_path),
+            id: generate_uid_from_string(path.to_str().unwrap()),
+            path,
             texture_handler_index: INVALID_INDEX,
             texture_index: INVALID_INDEX,
             layer_index: INVALID_INDEX,
