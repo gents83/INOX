@@ -12,6 +12,7 @@ const SOURCE_FOLDER_NAME: &str = "source";
 const COMPILED_FOLDER_NAME: &str = "compiled";
 const TEMP_FOLDER_NAME: &str = "temp";
 
+const SHADER_EXTENSION: &str = "spv";
 const VERTEX_SHADER_EXTENSION: &str = "vert";
 const FRAGMENT_SHADER_EXTENSION: &str = "frag";
 const GEOMETRY_SHADER_EXTENSION: &str = "geom";
@@ -38,9 +39,13 @@ impl ShaderCompiler {
     }
 
     fn compile_assembly(&self, path: &Path) -> bool {
+        let extension = path.extension().unwrap().to_str().unwrap();
+        let source_ext = format!(".{}", extension);
+        let destination_ext = format!("_{}.{}_assembly", extension, SHADER_EXTENSION);
         let mut from_source_to_temp = path.to_str().unwrap().to_string();
         from_source_to_temp = from_source_to_temp.replace(SOURCE_FOLDER_NAME, TEMP_FOLDER_NAME);
-        from_source_to_temp = from_source_to_temp.replace(".vert", "_vert.spv_assembly");
+        from_source_to_temp =
+            from_source_to_temp.replace(source_ext.as_str(), destination_ext.as_str());
 
         Command::new(self.glsl_compiler.to_str().unwrap())
             .args(&[path.to_str().unwrap(), "-o", from_source_to_temp.as_str()])
@@ -48,10 +53,14 @@ impl ShaderCompiler {
             .is_ok()
     }
     fn convert_in_spirv(&self, path: &Path) -> bool {
+        let extension = path.extension().unwrap().to_str().unwrap();
+        let source_ext = format!(".{}", extension);
+        let destination_ext = format!("_{}.{}", extension, SHADER_EXTENSION);
         let mut from_source_to_compiled = path.to_str().unwrap().to_string();
         from_source_to_compiled =
             from_source_to_compiled.replace(SOURCE_FOLDER_NAME, COMPILED_FOLDER_NAME);
-        from_source_to_compiled = from_source_to_compiled.replace(".vert", "_vert.spv");
+        from_source_to_compiled =
+            from_source_to_compiled.replace(source_ext.as_str(), destination_ext.as_str());
 
         let converted = Command::new(self.glsl_validator.to_str().unwrap())
             .args(&[

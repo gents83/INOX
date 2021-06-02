@@ -39,16 +39,16 @@ impl Pipeline {
         pipeline
             .set_shader(ShaderType::Vertex, data.vertex_shader.as_path())
             .set_shader(ShaderType::Fragment, data.fragment_shader.as_path());
-        if data.tcs_shader.to_str().is_some() {
+        if !data.tcs_shader.to_str().unwrap().is_empty() {
             pipeline.set_shader(ShaderType::TessellationControl, data.tcs_shader.as_path());
         }
-        if data.tes_shader.to_str().is_some() {
+        if !data.tes_shader.to_str().unwrap().is_empty() {
             pipeline.set_shader(
                 ShaderType::TessellationEvaluation,
                 data.tes_shader.as_path(),
             );
         }
-        if data.geometry_shader.to_str().is_some() {
+        if !data.geometry_shader.to_str().unwrap().is_empty() {
             pipeline.set_shader(ShaderType::Geometry, data.geometry_shader.as_path());
         }
         pipeline.build(&device.inner, &render_pass.get_pass());

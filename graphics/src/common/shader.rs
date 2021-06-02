@@ -7,3 +7,5 @@ pub enum ShaderType {
     TessellationEvaluation,
     Geometry,
 }
+
+pub const SHADER_EXTENSION: &str = "spv";

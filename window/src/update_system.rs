@@ -33,6 +33,10 @@ impl UpdateSystem {
             .write()
             .unwrap()
             .register_messagebox::<WindowEvent>(message_channel.get_messagebox());
+            global_messenger
+                .write()
+                .unwrap()
+                .register_messagebox::<ResourceEvent>(message_channel.get_messagebox());
 
         Self {
             id: SystemId::new(),
@@ -74,13 +78,12 @@ impl System for UpdateSystem {
             } else if msg.type_id() == TypeId::of::<ResourceEvent>() {
                 let e = msg.as_any().downcast_ref::<ResourceEvent>().unwrap();
                 let ResourceEvent::Reload(path) = e;
-                if path.extension().unwrap() == "spv" {
+                if path.extension().unwrap() == SHADER_EXTENSION {
                     let pipelines =
                     SharedData::get_resources_of_type::<PipelineInstance>(&self.shared_data);
                     for p in pipelines.iter() {
                             p.get_mut().check_shaders_to_reload(path.to_str().unwrap().to_string());                        
                     }
-                    println!("Reloading request of {}", path.to_str().unwrap());
                 }
             }
         });
