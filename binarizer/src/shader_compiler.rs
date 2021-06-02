@@ -6,11 +6,9 @@ use std::{
 
 use crate::ExtensionHandler;
 use nrg_messenger::{Message, MessengerRw};
-use nrg_resources::ResourceEvent;
+use nrg_resources::{ResourceEvent, DATA_FOLDER, DATA_RAW_FOLDER};
 
-const SOURCE_FOLDER_NAME: &str = "source";
-const COMPILED_FOLDER_NAME: &str = "compiled";
-const TEMP_FOLDER_NAME: &str = "temp";
+const SHADERS_FOLDER_NAME: &str = "shaders";
 
 const SHADER_EXTENSION: &str = "spv";
 const VERTEX_SHADER_EXTENSION: &str = "vert";
@@ -30,6 +28,19 @@ impl ShaderCompiler {
         if let Ok(vulkan_path) = env::var("VULKAN_SDK") {
             vulkan_sdk_path = PathBuf::from(vulkan_path.as_str());
         }
+        let shader_raw_folder: PathBuf = PathBuf::from(DATA_RAW_FOLDER)
+            .canonicalize()
+            .unwrap()
+            .join(SHADERS_FOLDER_NAME);
+        let shader_data_folder: PathBuf = PathBuf::from(DATA_FOLDER)
+            .canonicalize()
+            .unwrap()
+            .join(SHADERS_FOLDER_NAME);
+        debug_assert!(shader_raw_folder.exists());
+        if !shader_data_folder.exists() {
+            let result = std::fs::create_dir_all(shader_data_folder);
+            debug_assert!(result.is_ok());
+        }
         Self {
             global_messenger,
             glsl_compiler: vulkan_sdk_path.join("Bin\\glslc.exe"),
@@ -43,7 +54,18 @@ impl ShaderCompiler {
         let source_ext = format!(".{}", extension);
         let destination_ext = format!("_{}.{}_assembly", extension, SHADER_EXTENSION);
         let mut from_source_to_temp = path.to_str().unwrap().to_string();
-        from_source_to_temp = from_source_to_temp.replace(SOURCE_FOLDER_NAME, TEMP_FOLDER_NAME);
+        from_source_to_temp = from_source_to_temp.replace(
+            PathBuf::from(DATA_RAW_FOLDER)
+                .canonicalize()
+                .unwrap()
+                .to_str()
+                .unwrap(),
+            PathBuf::from(DATA_FOLDER)
+                .canonicalize()
+                .unwrap()
+                .to_str()
+                .unwrap(),
+        );
         from_source_to_temp =
             from_source_to_temp.replace(source_ext.as_str(), destination_ext.as_str());
 
@@ -57,8 +79,18 @@ impl ShaderCompiler {
         let source_ext = format!(".{}", extension);
         let destination_ext = format!("_{}.{}", extension, SHADER_EXTENSION);
         let mut from_source_to_compiled = path.to_str().unwrap().to_string();
-        from_source_to_compiled =
-            from_source_to_compiled.replace(SOURCE_FOLDER_NAME, COMPILED_FOLDER_NAME);
+        from_source_to_compiled = from_source_to_compiled.replace(
+            PathBuf::from(DATA_RAW_FOLDER)
+                .canonicalize()
+                .unwrap()
+                .to_str()
+                .unwrap(),
+            PathBuf::from(DATA_FOLDER)
+                .canonicalize()
+                .unwrap()
+                .to_str()
+                .unwrap(),
+        );
         from_source_to_compiled =
             from_source_to_compiled.replace(source_ext.as_str(), destination_ext.as_str());
 
@@ -95,13 +127,13 @@ impl ExtensionHandler for ShaderCompiler {
         if let Some(ext) = path.extension() {
             match ext.to_str().unwrap().to_string().as_str() {
                 VERTEX_SHADER_EXTENSION => {
-                    let result = self.compile_assembly(path) && self.convert_in_spirv(path);
+                    let result = self.convert_in_spirv(path);
                     if !result {
                         eprintln!("Failed to process VERTEX shader {}", path.to_str().unwrap());
                     }
                 }
                 GEOMETRY_SHADER_EXTENSION => {
-                    let result = self.compile_assembly(path) && self.convert_in_spirv(path);
+                    let result = self.convert_in_spirv(path);
                     if !result {
                         eprintln!(
                             "Failed to process GEOMETRY shader {}",
@@ -110,7 +142,7 @@ impl ExtensionHandler for ShaderCompiler {
                     }
                 }
                 FRAGMENT_SHADER_EXTENSION => {
-                    let result = self.compile_assembly(path) && self.convert_in_spirv(path);
+                    let result = self.convert_in_spirv(path);
                     if !result {
                         eprintln!(
                             "Failed to process FRAGMENT shader {}",

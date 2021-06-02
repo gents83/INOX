@@ -1,6 +1,8 @@
 use crate::{Font, MaterialId, MaterialInstance, PipelineId, TextureInstance};
 use nrg_math::Vector4;
-use nrg_resources::{get_absolute_data_path, ResourceId, ResourceTrait, SharedData, SharedDataRw};
+use nrg_resources::{
+    get_absolute_path_from, ResourceId, ResourceTrait, SharedData, SharedDataRw, DATA_FOLDER,
+};
 use nrg_serialize::{generate_uid_from_string, INVALID_UID};
 use std::path::{Path, PathBuf};
 
@@ -24,13 +26,15 @@ impl ResourceTrait for FontInstance {
 
 impl FontInstance {
     pub fn find_id(shared_data: &SharedDataRw, font_path: &Path) -> FontId {
-        let path = get_absolute_data_path(font_path);
+        let path = get_absolute_path_from(PathBuf::from(DATA_FOLDER).as_path(), font_path);
         SharedData::match_resource(shared_data, |f: &FontInstance| f.path == path)
     }
     pub fn get_default(shared_data: &SharedDataRw) -> FontId {
-        let fonts = SharedData::get_resources_of_type::<FontInstance>(shared_data);
-        if !fonts.is_empty() {
-            return fonts.first().unwrap().id();
+        if SharedData::has_resources_of_type::<FontInstance>(shared_data) {
+            let fonts = SharedData::get_resources_of_type::<FontInstance>(shared_data);
+            if !fonts.is_empty() {
+                return fonts.first().unwrap().id();
+            }
         }
         INVALID_UID
     }
@@ -55,7 +59,7 @@ impl FontInstance {
         pipeline_id: PipelineId,
         font_path: &Path,
     ) -> FontId {
-        let path = get_absolute_data_path(font_path);
+        let path = get_absolute_path_from(PathBuf::from(DATA_FOLDER).as_path(), font_path);
         if !path.exists() || !path.is_file() || pipeline_id == INVALID_UID {
             eprintln!(
                 "Invalid path {} or pipeline {}",

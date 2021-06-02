@@ -9,7 +9,9 @@ use crate::common::utils::*;
 
 use nrg_math::Vector2;
 use nrg_math::{Matrix4, Vector3};
-use nrg_resources::get_absolute_data_path;
+use nrg_resources::get_absolute_path_from;
+use nrg_resources::DATA_FOLDER;
+use std::path::PathBuf;
 use std::{cell::RefCell, path::Path, rc::Rc};
 use vulkan_bindings::*;
 
@@ -94,7 +96,7 @@ impl Pipeline {
     }
 
     pub fn set_shader(&mut self, shader_type: ShaderType, shader_filepath: &Path) -> &mut Self {
-        let path = get_absolute_data_path(shader_filepath);
+        let path = get_absolute_path_from(PathBuf::from(DATA_FOLDER).as_path(), shader_filepath);
         if path.exists() && path.is_file() {
             self.inner
                 .borrow_mut()

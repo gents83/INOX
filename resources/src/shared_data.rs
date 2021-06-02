@@ -94,17 +94,6 @@ impl ResourceStorage {
         });
         vec
     }
-    #[inline]
-    pub fn get_unique_resource<T: 'static + ResourceTrait>(&self) -> ResourceRc<T> {
-        debug_assert!(
-            self.resources.len() == 1,
-            "Trying to get unique resource but multiple resource of same type exists"
-        );
-        let item = self.resources.first().unwrap();
-        let resource: &ResourceRc<T> =
-            unsafe { &*(item as *const ResourceTraitRc as *const ResourceRc<T>) };
-        resource.clone()
-    }
 }
 
 pub struct SharedData {
@@ -166,6 +155,11 @@ impl SharedData {
         false
     }
     #[inline]
+    pub fn has_resources_of_type<T: 'static>(shared_data: &SharedDataRw) -> bool {
+        let data = shared_data.read().unwrap();
+        data.resources.contains_key(&TypeId::of::<T>())
+    }
+    #[inline]
     pub fn match_resource<T, F>(shared_data: &SharedDataRw, f: F) -> ResourceId
     where
         T: 'static + ResourceTrait + Sized,
@@ -193,14 +187,6 @@ impl SharedData {
         let data = shared_data.read().unwrap();
         let rs = data.resources.get(&TypeId::of::<T>()).unwrap();
         rs.get_resources_of_type()
-    }
-    #[inline]
-    pub fn get_unique_resource<T: 'static + ResourceTrait>(
-        shared_data: &SharedDataRw,
-    ) -> ResourceRc<T> {
-        let data = shared_data.read().unwrap();
-        let rs = data.resources.get(&TypeId::of::<T>()).unwrap();
-        rs.get_unique_resource()
     }
 }
 

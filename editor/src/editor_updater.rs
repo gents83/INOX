@@ -304,15 +304,13 @@ impl EditorUpdater {
             PipelineInstance::create(&self.shared_data, pipeline_data);
         }
 
-        let pipeline_id = PipelineInstance::find_id_from_name(
-            &self.shared_data,
-            self.config.pipelines.first().unwrap().name.as_str(),
-        );
-        FontInstance::create_from_path(
-            &self.shared_data,
-            pipeline_id,
-            self.config.fonts.first().unwrap(),
-        );
+        if let Some(pipeline_data) = self.config.pipelines.first() {
+            let pipeline_id =
+                PipelineInstance::find_id_from_name(&self.shared_data, pipeline_data.name.as_str());
+            if let Some(default_font_path) = self.config.fonts.first() {
+                FontInstance::create_from_path(&self.shared_data, pipeline_id, default_font_path);
+            }
+        }
     }
 
     fn load_node(&mut self, name: &str) {

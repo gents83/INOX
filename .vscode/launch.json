@@ -15,7 +15,6 @@
             "sourceLanguages": [
                 "rust"
             ],
-            "preLaunchTask": "BUILD SHADERS",
             "postDebugTask": "CLEANUP",
             "windows": {
                 "program": "${workspaceFolder}/target/debug/nrg_game_app.exe"
@@ -32,7 +31,6 @@
             "sourceLanguages": [
                 "rust"
             ],
-            "preLaunchTask": "BUILD SHADERS",
             "postDebugTask": "CLEANUP",
             "windows": {
                 "program": "${workspaceFolder}/target/release/nrg_game_app.exe"
@@ -49,7 +47,6 @@
             "sourceLanguages": [
                 "rust"
             ],
-            "preLaunchTask": "BUILD SHADERS",
             "postDebugTask": "CLEANUP",
             "windows": {
                 "program": "${workspaceFolder}/target/debug/nrg_editor_app.exe"
@@ -66,7 +63,6 @@
             "sourceLanguages": [
                 "rust"
             ],
-            "preLaunchTask": "BUILD SHADERS",
             "postDebugTask": "CLEANUP",
             "windows": {
                 "program": "${workspaceFolder}/target/release/nrg_editor_app.exe"
