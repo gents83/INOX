@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use nrg_binarizer::{ConfigCompiler, DataWatcher, FontCompiler, ImageCompiler, ShaderCompiler};
+use nrg_binarizer::Binarizer;
 use nrg_core::*;
 use nrg_dynamic_library::library_filename;
 use nrg_resources::{DATA_FOLDER, DATA_RAW_FOLDER};
@@ -8,17 +8,8 @@ use nrg_resources::{DATA_FOLDER, DATA_RAW_FOLDER};
 fn main() {
     let mut app = App::new();
 
-    let mut binarizer = DataWatcher::new(DATA_RAW_FOLDER, DATA_FOLDER);
-
-    let shader_compiler = ShaderCompiler::new(app.get_global_messenger());
-    let config_compiler = ConfigCompiler::new(app.get_global_messenger());
-    let font_compiler = FontCompiler::new(app.get_global_messenger());
-    let image_compiler = ImageCompiler::new(app.get_global_messenger());
-    binarizer.add_handler(config_compiler);
-    binarizer.add_handler(shader_compiler);
-    binarizer.add_handler(font_compiler);
-    binarizer.add_handler(image_compiler);
-    binarizer.binarize_all();
+    let mut binarizer = Binarizer::new(app.get_global_messenger(), DATA_RAW_FOLDER, DATA_FOLDER);
+    binarizer.start();
 
     let plugins = [
         "nrg_binarizer",
@@ -43,10 +34,11 @@ fn main() {
 
     loop {
         let can_continue = app.run_once();
-        binarizer.update();
 
         if !can_continue {
             break;
         }
     }
+
+    binarizer.stop();
 }
