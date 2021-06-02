@@ -29,13 +29,9 @@ impl PipelineInstance {
         })
     }
 
-    pub fn find_id_from_data(
-        shared_data: &SharedDataRw,
-        pipeline_data: &PipelineData,
-    ) -> PipelineId {
+    fn find_id_from_data(shared_data: &SharedDataRw, pipeline_data: &PipelineData) -> PipelineId {
         SharedData::match_resource(shared_data, |p: &PipelineInstance| {
-            p.data.fragment_shader == pipeline_data.fragment_shader
-                && p.data.vertex_shader == pipeline_data.vertex_shader
+            pipeline_data.has_same_shaders(&p.data)
         })
     }
     pub fn get_data(&self) -> &PipelineData {
@@ -51,32 +47,55 @@ impl PipelineInstance {
     }
 
     pub fn check_shaders_to_reload(&mut self, path_as_string: String) {
-        if path_as_string.contains(self.data.vertex_shader.to_str().unwrap()) {
+        if path_as_string.contains(self.data.vertex_shader.to_str().unwrap())
+            && !self.data.vertex_shader.to_str().unwrap().is_empty()
+        {
             self.is_initialized = false;
+            println!("VertexShader {:?} will be reloaded", path_as_string);
         }
-        if path_as_string.contains(self.data.fragment_shader.to_str().unwrap()) {
+        if path_as_string.contains(self.data.fragment_shader.to_str().unwrap())
+            && !self.data.fragment_shader.to_str().unwrap().is_empty()
+        {
             self.is_initialized = false;
+            println!("FragmentShader {:?} will be reloaded", path_as_string);
         }
-        if path_as_string.contains(self.data.tcs_shader.to_str().unwrap()) {
+        if path_as_string.contains(self.data.tcs_shader.to_str().unwrap())
+            && !self.data.tcs_shader.to_str().unwrap().is_empty()
+        {
             self.is_initialized = false;
+            println!(
+                "TessellationControlShader {:?} will be reloaded",
+                path_as_string
+            );
         }
-        if path_as_string.contains(self.data.tes_shader.to_str().unwrap()) {
+        if path_as_string.contains(self.data.tes_shader.to_str().unwrap())
+            && !self.data.tes_shader.to_str().unwrap().is_empty()
+        {
             self.is_initialized = false;
+            println!(
+                "TessellationEvaluationShader {:?} will be reloaded",
+                path_as_string
+            );
         }
-        if path_as_string.contains(self.data.geometry_shader.to_str().unwrap()) {
+        if path_as_string.contains(self.data.geometry_shader.to_str().unwrap())
+            && !self.data.geometry_shader.to_str().unwrap().is_empty()
+        {
             self.is_initialized = false;
+            println!("GeometryShader {:?} will be reloaded", path_as_string);
         }
     }
 
     pub fn create(shared_data: &SharedDataRw, pipeline_data: &PipelineData) -> PipelineId {
-        let pipeline_id = PipelineInstance::find_id_from_data(shared_data, pipeline_data);
+        let canonicalized_pipeline_data = pipeline_data.clone().canonicalize_paths();
+        let pipeline_id =
+            PipelineInstance::find_id_from_data(shared_data, &canonicalized_pipeline_data);
         if pipeline_id != INVALID_UID {
             return pipeline_id;
         }
         let mut data = shared_data.write().unwrap();
         data.add_resource(PipelineInstance {
-            id: generate_uid_from_string(pipeline_data.name.as_str()),
-            data: pipeline_data.clone(),
+            id: generate_uid_from_string(canonicalized_pipeline_data.name.as_str()),
+            data: canonicalized_pipeline_data,
             is_initialized: false,
         })
     }

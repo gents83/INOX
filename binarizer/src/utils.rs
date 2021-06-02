@@ -1,7 +1,10 @@
-use std::path::Path;
+use std::{
+    fs::{copy, create_dir_all},
+    path::{Path, PathBuf},
+};
 
 use nrg_messenger::{Message, MessengerRw};
-use nrg_resources::ResourceEvent;
+use nrg_resources::{ResourceEvent, DATA_FOLDER, DATA_RAW_FOLDER};
 
 pub fn need_to_binarize(original_path: &Path, new_path: &Path) -> bool {
     let mut need_copy = false;
@@ -15,6 +18,35 @@ pub fn need_to_binarize(original_path: &Path, new_path: &Path) -> bool {
         }
     }
     need_copy
+}
+
+pub fn copy_into_data_folder(global_messenger: &MessengerRw, path: &Path) -> bool {
+    let mut from_source_to_compiled = path.to_str().unwrap().to_string();
+    from_source_to_compiled = from_source_to_compiled.replace(
+        PathBuf::from(DATA_RAW_FOLDER)
+            .canonicalize()
+            .unwrap()
+            .to_str()
+            .unwrap(),
+        PathBuf::from(DATA_FOLDER)
+            .canonicalize()
+            .unwrap()
+            .to_str()
+            .unwrap(),
+    );
+    let new_path = PathBuf::from(from_source_to_compiled);
+    if !new_path.exists() {
+        let result = create_dir_all(new_path.parent().unwrap());
+        debug_assert!(result.is_ok());
+    }
+    if need_to_binarize(path, new_path.as_path()) {
+        let result = copy(path, new_path.as_path());
+        if result.is_ok() {
+            send_reloaded_event(global_messenger, new_path.as_path());
+            return true;
+        }
+    }
+    false
 }
 
 pub fn send_reloaded_event(messenger: &MessengerRw, new_path: &Path) {

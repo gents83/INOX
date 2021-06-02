@@ -1,7 +1,7 @@
 use super::data_formats::*;
 use super::device::*;
 
-const MAX_BUFFER_SIZE: usize = 4096 * 4096;
+const MAX_BUFFER_SIZE: usize = 1024 * 1024;
 
 #[derive(Clone)]
 pub struct Mesh {

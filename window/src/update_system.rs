@@ -82,7 +82,7 @@ impl System for UpdateSystem {
             } else if msg.type_id() == TypeId::of::<ResourceEvent>() {
                 let e = msg.as_any().downcast_ref::<ResourceEvent>().unwrap();
                 let ResourceEvent::Reload(path) = e;
-                if path.extension().unwrap() == SHADER_EXTENSION
+                if is_shader(path)
                     && SharedData::has_resources_of_type::<PipelineInstance>(&self.shared_data)
                 {
                     let pipelines =
@@ -90,6 +90,16 @@ impl System for UpdateSystem {
                     for p in pipelines.iter() {
                         p.get_mut()
                             .check_shaders_to_reload(path.to_str().unwrap().to_string());
+                    }
+                } else if is_texture(path)
+                    && SharedData::has_resources_of_type::<TextureInstance>(&self.shared_data)
+                {
+                    let textures =
+                        SharedData::get_resources_of_type::<TextureInstance>(&self.shared_data);
+                    for t in textures.iter() {
+                        if t.get().get_path() == path.as_path() {
+                            t.get_mut().invalidate();
+                        }
                     }
                 }
             }
@@ -130,24 +140,20 @@ impl System for UpdateSystem {
                         let outline_color = material_instance.get().get_outline_color();
                         let pipeline_id = material_instance.get().get_pipeline_id();
 
-                        let (
-                            diffuse_texture_handler_index,
-                            diffuse_texture_index,
-                            diffuse_layer_index,
-                        ) = if diffuse_texture_id.is_nil() {
-                            (INVALID_INDEX, INVALID_INDEX, INVALID_INDEX)
-                        } else {
-                            let texture_instance = SharedData::get_resource::<TextureInstance>(
-                                &self.shared_data,
-                                diffuse_texture_id,
-                            );
-                            let (thi, ti, li) = (
-                                texture_instance.get().get_texture_handler_index() as _,
-                                texture_instance.get().get_texture_index() as _,
-                                texture_instance.get().get_layer_index() as _,
-                            );
-                            (thi, ti, li)
-                        };
+                        let (diffuse_texture_index, diffuse_layer_index) =
+                            if diffuse_texture_id.is_nil() {
+                                (INVALID_INDEX, INVALID_INDEX)
+                            } else {
+                                let texture_instance = SharedData::get_resource::<TextureInstance>(
+                                    &self.shared_data,
+                                    diffuse_texture_id,
+                                );
+                                let (ti, li) = (
+                                    texture_instance.get().get_texture_index() as _,
+                                    texture_instance.get().get_layer_index() as _,
+                                );
+                                (ti, li)
+                            };
 
                         material_instance
                             .get()
@@ -180,12 +186,11 @@ impl System for UpdateSystem {
                                                 &shared_data, mesh_id
                                             );
 
-                                            if diffuse_texture_handler_index >= 0 {
+                                            if !diffuse_texture_id.is_nil() {
                                                 let renderer = r.read().unwrap();
-                                                let diffuse_texture =
-                                                    renderer.get_texture_handler().get_texture(
-                                                        diffuse_texture_handler_index as _,
-                                                    );
+                                                let diffuse_texture = renderer
+                                                    .get_texture_handler()
+                                                    .get_texture(diffuse_texture_id);
                                                 mesh_instance
                                                     .get_mut()
                                                     .process_uv_for_texture(Some(diffuse_texture));

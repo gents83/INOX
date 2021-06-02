@@ -102,8 +102,6 @@ impl Pipeline {
                 .borrow_mut()
                 .remove_shader(&self.device, shader_type);
 
-            println!("Loading shader {:?}", path);
-
             let mut shader_file = std::fs::File::open(path).unwrap();
             let shader_code = read_spirv_from_bytes(&mut shader_file);
 

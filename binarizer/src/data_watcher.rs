@@ -5,7 +5,6 @@ use std::{
         Arc,
     },
     thread::{self, JoinHandle},
-    time::Duration,
 };
 
 use crate::{ConfigCompiler, FontCompiler, ImageCompiler, ShaderCompiler};
@@ -80,7 +79,8 @@ impl Binarizer {
 
                 loop {
                     binarizer.update();
-                    thread::sleep(Duration::from_millis(1000));
+                    thread::yield_now();
+
                     if !can_continue.load(Ordering::SeqCst) {
                         return false;
                     }
@@ -112,7 +112,9 @@ impl DataWatcher {
 
     pub fn update(&mut self) {
         while let Ok(FileEvent::Modified(path)) = self.filewatcher.read_events().try_recv() {
-            self.binarize_file(path.as_path());
+            if path.is_file() {
+                self.binarize_file(path.as_path());
+            }
         }
     }
 

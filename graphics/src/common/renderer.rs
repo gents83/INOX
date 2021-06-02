@@ -244,15 +244,17 @@ impl Renderer {
         nrg_profiler::scoped_profile!("renderer::load_textures");
         let texture_handler = &mut self.texture_handler;
         textures.iter_mut().for_each(|texture_instance| {
-            if texture_instance.get().get_texture_handler_index() == INVALID_INDEX {
+            if !texture_instance.get().is_initialized() {
+                if texture_instance.get().get_texture_index() != INVALID_INDEX {
+                    //texture needs to be recreated
+                    texture_handler.remove(texture_instance.id());
+                }
                 let path = texture_instance.get().get_path().to_path_buf();
-                let (handler_index, texture_index, layer_index) =
-                    texture_handler.add(path.as_path());
-                texture_instance.get_mut().set_texture_data(
-                    handler_index,
-                    texture_index,
-                    layer_index,
-                );
+                let (texture_index, layer_index) =
+                    texture_handler.add(texture_instance.id(), path.as_path());
+                texture_instance
+                    .get_mut()
+                    .set_texture_data(texture_index, layer_index);
             }
         });
     }

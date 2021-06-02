@@ -99,6 +99,13 @@ impl AreaList {
             .iter()
             .position(|a| a.width >= width && a.height >= height)
     }
+    pub fn remove(&mut self, area: Area) {
+        if let Some(index) = self.list.iter().position(|a| {
+            a.x == area.x && a.width == area.width && a.y == area.y && a.height == area.height
+        }) {
+            self.list.remove(index);
+        }
+    }
     pub fn pop(&mut self, index: usize) -> Area {
         self.list.remove(index)
     }
@@ -194,5 +201,10 @@ impl AreaAllocator {
             return self.occupied.last();
         }
         None
+    }
+
+    pub fn remove(&mut self, area: Area) {
+        self.occupied.remove(area.clone());
+        self.free.insert(area);
     }
 }

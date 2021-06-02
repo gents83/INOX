@@ -1,13 +1,14 @@
 use std::path::Path;
 
 use image::{DynamicImage, EncodableLayout, Pixel};
+use nrg_serialize::{generate_random_uid, Uid};
 
-use crate::{api::backend, Area, AreaAllocator, MeshData, DEFAULT_AREA_SIZE, INVALID_INDEX};
+use crate::{api::backend, Area, AreaAllocator, DEFAULT_AREA_SIZE, INVALID_INDEX};
 
 use super::device::*;
 
-pub const MAX_TEXTURE_COUNT: usize = 32;
-pub const DEFAULT_LAYER_COUNT: usize = 32;
+pub const MAX_TEXTURE_COUNT: usize = 8;
+pub const DEFAULT_LAYER_COUNT: usize = 8;
 
 pub struct TextureAtlas {
     texture: backend::Texture,
@@ -37,6 +38,7 @@ impl TextureAtlas {
 }
 
 pub struct Texture {
+    id: Uid,
     texture_index: u32,
     layer_index: u32,
     area: Area,
@@ -54,14 +56,6 @@ impl Texture {
     }
     pub fn get_width(&self) -> u32 {
         self.area.width
-    }
-    pub fn get_uv(&self) -> (f32, f32, f32, f32) {
-        (
-            self.area.x as f32 / DEFAULT_AREA_SIZE as f32,
-            self.area.y as f32 / DEFAULT_AREA_SIZE as f32,
-            (self.area.x as f32 + self.area.width as f32) / DEFAULT_AREA_SIZE as f32,
-            (self.area.y as f32 + self.area.height as f32) / DEFAULT_AREA_SIZE as f32,
-        )
     }
     pub fn convert_uv(&self, u: f32, v: f32) -> (f32, f32) {
         (
@@ -88,7 +82,8 @@ impl TextureHandler {
         texture_handler
     }
 
-    pub fn get_texture(&self, index: usize) -> &Texture {
+    pub fn get_texture(&self, id: Uid) -> &Texture {
+        let index = self.textures.iter().position(|t| t.id == id).unwrap();
         &self.textures[index]
     }
 
@@ -96,7 +91,7 @@ impl TextureHandler {
         self.textures.is_empty()
     }
 
-    pub fn add(&mut self, filepath: &Path) -> (u32, u32, u32) {
+    pub fn add(&mut self, id: Uid, filepath: &Path) -> (u32, u32) {
         let image = image::open(filepath).unwrap();
         let image_data = image.to_rgba8();
         let (texture_index, layer_index, area) = self.add_image(
@@ -111,19 +106,32 @@ impl TextureHandler {
             panic!("Unable to add texture {}", filepath.to_str().unwrap());
         }
         self.textures.push(Texture {
+            id,
             texture_index: texture_index as _,
             layer_index: layer_index as _,
             area,
         });
-        (
-            (self.textures.len() - 1) as _,
-            texture_index as _,
-            layer_index as _,
-        )
+        (texture_index as _, layer_index as _)
+    }
+
+    pub fn remove(&mut self, id: Uid) {
+        if let Some(index) = self.textures.iter().position(|t| t.id == id) {
+            self.remove_image(
+                self.textures[index].texture_index,
+                self.textures[index].layer_index,
+                self.textures[index].area.clone(),
+            );
+            self.textures.remove(index);
+        } else {
+            eprintln!(
+                "Trying to remove a texture that doesn't exist with id {}",
+                id.to_simple().to_string()
+            );
+        }
     }
 
     pub fn add_empty(&mut self) -> usize {
-        let image = DynamicImage::new_rgba8(16, 16);
+        let image = DynamicImage::new_rgba8(8, 8);
         let mut image_data = image.to_rgba8();
         let (width, height) = image_data.dimensions();
         for x in 0..width {
@@ -137,6 +145,7 @@ impl TextureHandler {
             image_data.as_raw().as_bytes(),
         );
         self.textures.push(Texture {
+            id: generate_random_uid(),
             texture_index: texture_index as _,
             layer_index: layer_index as _,
             area,
@@ -160,24 +169,39 @@ impl TextureHandler {
         }
         (INVALID_INDEX, INVALID_INDEX, Area::default())
     }
+
+    fn remove_image(&mut self, texture_index: u32, layer_index: u32, area: Area) {
+        let texture_atlas = &mut self.texture_atlas[texture_index as usize];
+        let allocator = &mut texture_atlas.allocators[layer_index as usize];
+        allocator.remove(area);
+    }
+
     pub fn get_textures(&self) -> &[TextureAtlas] {
         self.texture_atlas.as_slice()
     }
+}
 
-    pub fn apply_texture_uv(&self, mesh_data: &mut MeshData, texture_handler_index: i32) -> bool {
-        if texture_handler_index >= 0 {
-            let texture = self.get_texture(texture_handler_index as _);
-            for v in mesh_data.vertices.iter_mut() {
-                let tex_coord = &mut v.tex_coord;
-                let (u, v) = texture.convert_uv(tex_coord.x, tex_coord.y);
-                *tex_coord = [u, v].into();
-            }
-            return true;
-        }
-        for v in mesh_data.vertices.iter_mut() {
-            let tex_coord = &mut v.tex_coord;
-            *tex_coord = [0., 0.].into();
-        }
-        true
+pub fn is_texture(path: &Path) -> bool {
+    const IMAGE_PNG_EXTENSION: &str = "png";
+    const IMAGE_JPG_EXTENSION: &str = "jpg";
+    const IMAGE_JPEG_EXTENSION: &str = "jpeg";
+    const IMAGE_BMP_EXTENSION: &str = "bmp";
+    const IMAGE_TGA_EXTENSION: &str = "tga";
+    const IMAGE_DDS_EXTENSION: &str = "dds";
+    const IMAGE_TIFF_EXTENSION: &str = "tiff";
+    const IMAGE_GIF_EXTENSION: &str = "bmp";
+    const IMAGE_ICO_EXTENSION: &str = "ico";
+
+    if let Some(ext) = path.extension().unwrap().to_str() {
+        return ext == IMAGE_PNG_EXTENSION
+            || ext == IMAGE_JPG_EXTENSION
+            || ext == IMAGE_JPEG_EXTENSION
+            || ext == IMAGE_BMP_EXTENSION
+            || ext == IMAGE_TGA_EXTENSION
+            || ext == IMAGE_DDS_EXTENSION
+            || ext == IMAGE_TIFF_EXTENSION
+            || ext == IMAGE_GIF_EXTENSION
+            || ext == IMAGE_ICO_EXTENSION;
     }
+    false
 }

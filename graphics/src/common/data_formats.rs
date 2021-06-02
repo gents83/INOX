@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use crate::common::utils::*;
 
 use nrg_math::*;
+use nrg_resources::{get_absolute_path_from, DATA_FOLDER};
 use nrg_serialize::*;
 
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -110,6 +111,40 @@ impl Default for PipelineData {
             tes_shader: PathBuf::new(),
             geometry_shader: PathBuf::new(),
         }
+    }
+}
+
+impl PipelineData {
+    pub fn canonicalize_paths(mut self) -> Self {
+        let data_path = PathBuf::from(DATA_FOLDER);
+        if !self.vertex_shader.to_str().unwrap().is_empty() {
+            self.vertex_shader =
+                get_absolute_path_from(data_path.as_path(), self.vertex_shader.as_path());
+        }
+        if !self.fragment_shader.to_str().unwrap().is_empty() {
+            self.fragment_shader =
+                get_absolute_path_from(data_path.as_path(), self.fragment_shader.as_path());
+        }
+        if !self.tcs_shader.to_str().unwrap().is_empty() {
+            self.tcs_shader =
+                get_absolute_path_from(data_path.as_path(), self.tcs_shader.as_path());
+        }
+        if !self.tes_shader.to_str().unwrap().is_empty() {
+            self.tes_shader =
+                get_absolute_path_from(data_path.as_path(), self.tes_shader.as_path());
+        }
+        if !self.geometry_shader.to_str().unwrap().is_empty() {
+            self.geometry_shader =
+                get_absolute_path_from(data_path.as_path(), self.geometry_shader.as_path());
+        }
+        self
+    }
+    pub fn has_same_shaders(&self, other: &PipelineData) -> bool {
+        self.vertex_shader == other.vertex_shader
+            && self.fragment_shader == other.fragment_shader
+            && self.tcs_shader == other.tcs_shader
+            && self.tes_shader == other.tes_shader
+            && self.geometry_shader == other.geometry_shader
     }
 }
 

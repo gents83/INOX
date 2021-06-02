@@ -5,7 +5,7 @@ layout(push_constant) uniform PushConsts {
 } pushConsts;
 
 //Input
-layout(binding = 1) uniform sampler2DArray texSamplerArray;
+layout(binding = 1) uniform sampler2DArray texSamplerArray; //texture index 0
 
 layout(location = 0) in vec4 inColor;
 layout(location = 1) in vec3 inTexCoord;
