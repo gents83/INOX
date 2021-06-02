@@ -1,12 +1,13 @@
 use std::{
     env,
+    fs::create_dir_all,
     path::{Path, PathBuf},
     process::Command,
 };
 
-use crate::ExtensionHandler;
-use nrg_messenger::{Message, MessengerRw};
-use nrg_resources::{ResourceEvent, DATA_FOLDER, DATA_RAW_FOLDER};
+use crate::{need_to_binarize, send_reloaded_event, ExtensionHandler};
+use nrg_messenger::MessengerRw;
+use nrg_resources::{DATA_FOLDER, DATA_RAW_FOLDER};
 
 const SHADERS_FOLDER_NAME: &str = "shaders";
 
@@ -38,7 +39,7 @@ impl ShaderCompiler {
             .join(SHADERS_FOLDER_NAME);
         debug_assert!(shader_raw_folder.exists());
         if !shader_data_folder.exists() {
-            let result = std::fs::create_dir_all(shader_data_folder);
+            let result = create_dir_all(shader_data_folder);
             debug_assert!(result.is_ok());
         }
         Self {
@@ -93,32 +94,30 @@ impl ShaderCompiler {
         );
         from_source_to_compiled =
             from_source_to_compiled.replace(source_ext.as_str(), destination_ext.as_str());
-
-        let converted = Command::new(self.glsl_validator.to_str().unwrap())
-            .args(&[
-                "-o",
-                from_source_to_compiled.as_str(),
-                "-V",
-                path.to_str().unwrap(),
-            ])
-            .spawn()
-            .is_ok();
-
-        if converted {
-            let result = Command::new(self.spirv_validator.to_str().unwrap())
-                .arg(from_source_to_compiled.as_str())
+        let new_path = PathBuf::from(from_source_to_compiled);
+        if need_to_binarize(path, new_path.as_path()) {
+            let converted = Command::new(self.glsl_validator.to_str().unwrap())
+                .args(&[
+                    "-o",
+                    new_path.to_str().unwrap(),
+                    "-V",
+                    path.to_str().unwrap(),
+                ])
                 .spawn()
                 .is_ok();
-            if result {
-                let dispatcher = self.global_messenger.read().unwrap().get_dispatcher();
-                dispatcher
-                    .write()
-                    .unwrap()
-                    .send(ResourceEvent::Reload(PathBuf::from(from_source_to_compiled)).as_boxed())
-                    .ok();
+
+            if converted {
+                let result = Command::new(self.spirv_validator.to_str().unwrap())
+                    .arg(new_path.to_str().unwrap())
+                    .spawn()
+                    .is_ok();
+                if result {
+                    send_reloaded_event(&self.global_messenger, new_path.as_path());
+                }
             }
+            return converted;
         }
-        converted
+        true
     }
 }
 

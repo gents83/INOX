@@ -1,8 +1,11 @@
-use std::path::{Path, PathBuf};
+use std::{
+    fs::{copy, create_dir_all},
+    path::{Path, PathBuf},
+};
 
-use crate::ExtensionHandler;
-use nrg_messenger::{Message, MessengerRw};
-use nrg_resources::{ResourceEvent, DATA_FOLDER, DATA_RAW_FOLDER};
+use crate::{need_to_binarize, send_reloaded_event, ExtensionHandler};
+use nrg_messenger::MessengerRw;
+use nrg_resources::{DATA_FOLDER, DATA_RAW_FOLDER};
 
 const CONFIG_EXTENSION: &str = "cfg";
 
@@ -31,18 +34,15 @@ impl ConfigCompiler {
         );
         let new_path = PathBuf::from(from_source_to_compiled);
         if !new_path.exists() {
-            let result = std::fs::create_dir_all(new_path.parent().unwrap());
+            let result = create_dir_all(new_path.parent().unwrap());
             debug_assert!(result.is_ok());
         }
-        let result = std::fs::copy(path, new_path.as_path());
-        if result.is_ok() {
-            let dispatcher = self.global_messenger.read().unwrap().get_dispatcher();
-            dispatcher
-                .write()
-                .unwrap()
-                .send(ResourceEvent::Reload(new_path).as_boxed())
-                .ok();
-            return true;
+        if need_to_binarize(path, new_path.as_path()) {
+            let result = copy(path, new_path.as_path());
+            if result.is_ok() {
+                send_reloaded_event(&self.global_messenger, new_path.as_path());
+                return true;
+            }
         }
         false
     }
