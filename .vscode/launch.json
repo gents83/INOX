@@ -5,7 +5,39 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "LAUNCH GAME DEBUG",
+            "name": "RUN LAUNCHER DEBUG",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/target/debug/nrg_launcher",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "stopOnEntry": false,
+            "sourceLanguages": [
+                "rust"
+            ],
+            "postDebugTask": "CLEANUP",
+            "windows": {
+                "program": "${workspaceFolder}/target/debug/nrg_launcher.exe"
+            },
+        },
+        {
+            "name": "RUN LAUNCHER RELEASE",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/target/release/nrg_launcher",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "stopOnEntry": false,
+            "sourceLanguages": [
+                "rust"
+            ],
+            "postDebugTask": "CLEANUP",
+            "windows": {
+                "program": "${workspaceFolder}/target/release/nrg_launcher.exe"
+            },
+        },
+        {
+            "name": "RUN GAME DEBUG",
             "type": "lldb",
             "request": "launch",
             "program": "${workspaceFolder}/target/debug/nrg_game_app",
@@ -21,7 +53,7 @@
             },
         },
         {
-            "name": "LAUNCH GAME RELEASE",
+            "name": "RUN GAME RELEASE",
             "type": "lldb",
             "request": "launch",
             "program": "${workspaceFolder}/target/release/nrg_game_app",
@@ -37,7 +69,7 @@
             },
         },
         {
-            "name": "LAUNCH EDITOR DEBUG",
+            "name": "RUN EDITOR DEBUG",
             "type": "lldb",
             "request": "launch",
             "program": "${workspaceFolder}/target/debug/nrg_editor_app",
@@ -53,7 +85,7 @@
             },
         },
         {
-            "name": "LAUNCH EDITOR RELEASE",
+            "name": "RUN EDITOR RELEASE",
             "type": "lldb",
             "request": "launch",
             "program": "${workspaceFolder}/target/release/nrg_editor_app",

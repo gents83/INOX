@@ -21,6 +21,7 @@ declare_handle! {HDC, HDC__}
 declare_handle! {HMENU, HMENU__}
 declare_handle! {HMONITOR, HMONITOR__}
 declare_handle! {HKL, HKL__}
+declare_handle! {HRGN, HRGN__}
 
 pub type HANDLE = *mut c_void;
 pub type PHANDLE = *mut HANDLE;
@@ -64,6 +65,34 @@ pub type LPMSG = *mut MSG;
 pub type PVOID = *mut c_void;
 
 pub const UINT_MAX: c_uint = 0xffffffff;
+pub const SW_HIDE: c_int = 0;
+pub const SW_SHOWNORMAL: c_int = 1;
+pub const SW_NORMAL: c_int = 1;
+pub const SW_SHOWMINIMIZED: c_int = 2;
+pub const SW_SHOWMAXIMIZED: c_int = 3;
+pub const SW_MAXIMIZE: c_int = 3;
+pub const SW_SHOWNOACTIVATE: c_int = 4;
+pub const SW_SHOW: c_int = 5;
+pub const SW_MINIMIZE: c_int = 6;
+pub const SW_SHOWMINNOACTIVE: c_int = 7;
+pub const SW_SHOWNA: c_int = 8;
+pub const SW_RESTORE: c_int = 9;
+pub const SW_SHOWDEFAULT: c_int = 10;
+pub const SW_FORCEMINIMIZE: c_int = 11;
+pub const SW_MAX: c_int = 11;
+
+pub const RDW_INVALIDATE: UINT = 0x0001;
+pub const RDW_INTERNALPAINT: UINT = 0x0002;
+pub const RDW_ERASE: UINT = 0x0004;
+pub const RDW_VALIDATE: UINT = 0x0008;
+pub const RDW_NOINTERNALPAINT: UINT = 0x0010;
+pub const RDW_NOERASE: UINT = 0x0020;
+pub const RDW_NOCHILDREN: UINT = 0x0040;
+pub const RDW_ALLCHILDREN: UINT = 0x0080;
+pub const RDW_UPDATENOW: UINT = 0x0100;
+pub const RDW_ERASENOW: UINT = 0x0200;
+pub const RDW_FRAME: UINT = 0x0400;
+pub const RDW_NOFRAME: UINT = 0x0800;
 
 pub const KF_EXTENDED: WORD = 0x0100;
 pub const KF_DLGMODE: WORD = 0x0800;

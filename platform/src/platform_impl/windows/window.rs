@@ -87,6 +87,55 @@ impl Window {
         }
     }
 
+    pub fn change_position(handle: &Handle, x: u32, y: u32) {
+        unsafe {
+            let mut rect: RECT = RECT {
+                left: x as _,
+                top: y as _,
+                right: x as _,
+                bottom: y as _,
+            };
+            GetClientRect(handle.handle_impl.hwnd, &mut rect);
+            let offset = (x as i32 - rect.left, y as i32 - rect.top);
+            rect.left = x as _;
+            rect.top = y as _;
+            rect.right += offset.0;
+            rect.bottom += offset.1;
+            SetWindowPos(
+                handle.handle_impl.hwnd,
+                0 as _, // No relative window
+                rect.left,
+                rect.top,
+                rect.right - rect.left,
+                rect.bottom - rect.top,
+                SWP_NOACTIVATE | SWP_NOZORDER,
+            );
+        }
+    }
+
+    pub fn change_size(handle: &Handle, width: u32, height: u32) {
+        unsafe {
+            let mut rect: RECT = RECT {
+                left: 0,
+                top: 0,
+                right: width as _,
+                bottom: height as _,
+            };
+            GetClientRect(handle.handle_impl.hwnd, &mut rect);
+            rect.right = width as _;
+            rect.bottom = height as _;
+            SetWindowPos(
+                handle.handle_impl.hwnd,
+                0 as _, // No relative window
+                rect.left,
+                rect.top,
+                rect.right - rect.left,
+                rect.bottom - rect.top,
+                SWP_NOACTIVATE | SWP_NOZORDER,
+            );
+        }
+    }
+
     #[inline]
     pub fn internal_update(handle: &Handle) -> bool {
         unsafe {

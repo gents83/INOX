@@ -1,12 +1,19 @@
 use std::path::PathBuf;
 
+use nrg_binarizer::Binarizer;
 use nrg_core::*;
 use nrg_dynamic_library::library_filename;
+use nrg_launcher::launcher::Launcher;
+use nrg_resources::{DATA_FOLDER, DATA_RAW_FOLDER};
 
 fn main() {
     let mut app = App::new();
 
+    let mut binarizer = Binarizer::new(app.get_global_messenger(), DATA_RAW_FOLDER, DATA_FOLDER);
+    binarizer.start();
+
     let plugins = [
+        "nrg_binarizer",
         "nrg_core",
         "nrg_events",
         "nrg_graphics",
@@ -25,5 +32,18 @@ fn main() {
         app.add_plugin(path);
     }
 
-    app.run();
+    let mut launcher = Launcher::default();
+    launcher.prepare(&mut app);
+
+    loop {
+        let can_continue = app.run_once();
+
+        if !can_continue {
+            break;
+        }
+    }
+
+    launcher.unprepare(&mut app);
+
+    binarizer.stop();
 }

@@ -9,7 +9,9 @@ use nrg_resources::{ResourceEvent, DATA_FOLDER, DATA_RAW_FOLDER};
 pub fn need_to_binarize(original_path: &Path, new_path: &Path) -> bool {
     let mut need_copy = false;
     if let Ok(raw_time) = std::fs::metadata(original_path).unwrap().modified() {
-        if let Ok(data_time) = std::fs::metadata(new_path).unwrap().modified() {
+        if !new_path.exists() {
+            need_copy = true;
+        } else if let Ok(data_time) = std::fs::metadata(new_path).unwrap().modified() {
             if data_time < raw_time {
                 need_copy = true;
             }

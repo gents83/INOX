@@ -1,5 +1,5 @@
 [package]
-name = "nrg_editor_app"
+name = "nrg_launcher"
 version = "0.1.0"
 authors = ["gents83 <gents83@gmail.com>"]
 edition = "2018"
@@ -9,3 +9,10 @@ nrg_binarizer = { path = "../../binarizer" }
 nrg_resources = { path = "../../resources" }
 nrg_core = { path = "../../core" }
 nrg_dynamic_library = { path = "../../dynamic_library" }
+nrg_events = { path = "../../events" }
+nrg_messenger = { path = "../../messenger" }
+nrg_graphics = { path = "../../graphics" }
+nrg_gui = { path = "../../gui" }
+nrg_platform = { path = "../../platform" }
+nrg_serialize = { path = "../../serialize" }
+

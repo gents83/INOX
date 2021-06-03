@@ -128,14 +128,18 @@ macro_rules! implement_widget {
             }
             #[inline]
             pub fn horizontal_alignment(&mut self, alignment: HorizontalAlignment) -> &mut Self {
-                self.state_mut().set_horizontal_alignment(alignment);
-                self.mark_as_dirty();
+                if alignment != self.state().get_horizontal_alignment() {
+                    self.state_mut().set_horizontal_alignment(alignment);
+                    self.mark_as_dirty();
+                }
                 self
             }
             #[inline]
             pub fn vertical_alignment(&mut self, alignment: VerticalAlignment) -> &mut Self {
-                self.state_mut().set_vertical_alignment(alignment);
-                self.mark_as_dirty();
+                if alignment != self.state().get_vertical_alignment() {
+                    self.state_mut().set_vertical_alignment(alignment);
+                    self.mark_as_dirty();
+                }
                 self
             }
             #[inline]

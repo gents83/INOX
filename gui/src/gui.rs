@@ -7,7 +7,7 @@ use nrg_core::JobHandlerRw;
 use nrg_messenger::MessengerRw;
 use nrg_resources::SharedDataRw;
 
-use crate::WidgetNode;
+use crate::{Screen, WidgetNode};
 
 pub struct GuiInternal {
     widgets_root: WidgetNode,
@@ -87,5 +87,27 @@ impl Gui {
             .write()
             .unwrap()
             .add_job(name, func);
+    }
+
+    pub fn update_widgets(job_handler: &JobHandlerRw) {
+        Gui::get()
+            .write()
+            .unwrap()
+            .get_root_mut()
+            .get_children()
+            .iter()
+            .for_each(|w| {
+                let widget = w.clone();
+                let job_name = format!("widget[{}]", widget.read().unwrap().node().get_name());
+                job_handler
+                    .write()
+                    .unwrap()
+                    .add_job(job_name.as_str(), move || {
+                        widget
+                            .write()
+                            .unwrap()
+                            .update(Screen::get_draw_area(), Screen::get_draw_area());
+                    })
+            });
     }
 }

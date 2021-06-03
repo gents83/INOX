@@ -11,6 +11,8 @@ pub enum WindowEvent {
     DpiChanged(f32, f32),
     SizeChanged(u32, u32),
     PosChanged(u32, u32),
+    RequestChangePos(u32, u32),
+    RequestChangeSize(u32, u32),
     Close,
 }
 implement_message!(WindowEvent);
@@ -130,6 +132,12 @@ impl Window {
                     }
                     WindowEvent::Close => {
                         can_continue = false;
+                    }
+                    WindowEvent::RequestChangePos(new_x, new_y) => {
+                        Window::change_position(&self.handle, new_x, new_y);
+                    }
+                    WindowEvent::RequestChangeSize(new_width, new_height) => {
+                        Window::change_size(&self.handle, new_width, new_height);
                     }
                     WindowEvent::None => {}
                 }

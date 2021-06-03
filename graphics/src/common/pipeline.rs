@@ -162,6 +162,7 @@ impl Pipeline {
             &mesh_instance.get_data().indices,
             self.index_count,
         );
+
         self.vertex_count += mesh_instance.get_data().vertices.len() as u32;
         self.index_count += mesh_instance.get_data().indices.len() as u32;
 
@@ -171,6 +172,7 @@ impl Pipeline {
         };
         let (position, rotation, scale) =
             get_translation_rotation_scale(mesh_instance.get_transform());
+
         let data = InstanceData {
             position,
             rotation,

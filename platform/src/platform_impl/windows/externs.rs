@@ -47,6 +47,11 @@ extern "system" {
     pub fn ShowOwnedPopups(hWnd: HWND, fShow: BOOL) -> BOOL;
     pub fn OpenIcon(hWnd: HWND) -> BOOL;
     pub fn CloseWindow(hWnd: HWND) -> BOOL;
+    pub fn ShowWindow(hWnd: HWND, nCmdShow: c_int) -> BOOL;
+    pub fn UpdateWindow(hWnd: HWND) -> BOOL;
+    pub fn SetActiveWindow(hWnd: HWND) -> HWND;
+    pub fn RedrawWindow(hwnd: HWND, lprcUpdate: *const RECT, hrgnUpdate: HRGN, flags: UINT)
+        -> BOOL;
     pub fn MoveWindow(
         hWnd: HWND,
         X: c_int,
@@ -63,6 +68,20 @@ extern "system" {
         cx: c_int,
         cy: c_int,
         uFlags: UINT,
+    ) -> BOOL;
+    pub fn AdjustWindowRect(lpRect: LPRECT, dwStyle: DWORD, bMenu: BOOL) -> BOOL;
+    pub fn AdjustWindowRectEx(
+        lpRect: LPRECT,
+        dwStyle: DWORD,
+        bMenu: BOOL,
+        dwExStyle: DWORD,
+    ) -> BOOL;
+    pub fn AdjustWindowRectExForDpi(
+        lpRect: LPRECT,
+        dwStyle: DWORD,
+        bMenu: BOOL,
+        dwExStyle: DWORD,
+        dpi: UINT,
     ) -> BOOL;
     pub fn PeekMessageW(
         lpMsg: LPMSG,

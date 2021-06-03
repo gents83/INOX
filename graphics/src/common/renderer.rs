@@ -201,11 +201,6 @@ impl Renderer {
     pub fn recreate(&mut self) {
         nrg_profiler::scoped_profile!("renderer::recreate");
         self.device.recreate_swap_chain();
-
-        let device = &self.device;
-        self.pipelines.iter_mut().for_each(|p| {
-            p.recreate(device);
-        });
     }
 }
 

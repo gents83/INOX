@@ -1,7 +1,7 @@
 [workspace]
 
 members = [
-    "apps/main_app",
+    "apps/launcher_app",
     "apps/game_app",
     "apps/editor_app",
     "bindings/vulkan_bindings",

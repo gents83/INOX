@@ -42,6 +42,10 @@ impl PipelineInstance {
         self
     }
 
+    pub fn invalidate(&mut self) {
+        self.is_initialized = false;
+    }
+
     pub fn is_initialized(&self) -> bool {
         self.is_initialized
     }
@@ -50,19 +54,19 @@ impl PipelineInstance {
         if path_as_string.contains(self.data.vertex_shader.to_str().unwrap())
             && !self.data.vertex_shader.to_str().unwrap().is_empty()
         {
-            self.is_initialized = false;
+            self.invalidate();
             println!("VertexShader {:?} will be reloaded", path_as_string);
         }
         if path_as_string.contains(self.data.fragment_shader.to_str().unwrap())
             && !self.data.fragment_shader.to_str().unwrap().is_empty()
         {
-            self.is_initialized = false;
+            self.invalidate();
             println!("FragmentShader {:?} will be reloaded", path_as_string);
         }
         if path_as_string.contains(self.data.tcs_shader.to_str().unwrap())
             && !self.data.tcs_shader.to_str().unwrap().is_empty()
         {
-            self.is_initialized = false;
+            self.invalidate();
             println!(
                 "TessellationControlShader {:?} will be reloaded",
                 path_as_string
@@ -71,7 +75,7 @@ impl PipelineInstance {
         if path_as_string.contains(self.data.tes_shader.to_str().unwrap())
             && !self.data.tes_shader.to_str().unwrap().is_empty()
         {
-            self.is_initialized = false;
+            self.invalidate();
             println!(
                 "TessellationEvaluationShader {:?} will be reloaded",
                 path_as_string
@@ -80,7 +84,7 @@ impl PipelineInstance {
         if path_as_string.contains(self.data.geometry_shader.to_str().unwrap())
             && !self.data.geometry_shader.to_str().unwrap().is_empty()
         {
-            self.is_initialized = false;
+            self.invalidate();
             println!("GeometryShader {:?} will be reloaded", path_as_string);
         }
     }

@@ -119,6 +119,9 @@ impl System for UpdateSystem {
 
             if should_recreate_swap_chain {
                 renderer.recreate();
+                for p in pipelines.iter() {
+                    p.get_mut().invalidate();
+                }
             }
 
             renderer.prepare_frame(&mut pipelines, &mut materials, &mut textures);
@@ -200,18 +203,21 @@ impl System for UpdateSystem {
                                                     .process_uv_for_texture(None);
                                             }
                                             let mut renderer = r.write().unwrap();
-                                            let pipeline = renderer
+                                            if let Some(pipeline) = renderer
                                                 .get_pipelines()
                                                 .iter_mut()
                                                 .find(|p| p.id() == pipeline_id)
-                                                .unwrap();
-                                            pipeline.add_mesh_instance(
-                                                &mesh_instance.get(),
-                                                diffuse_color,
-                                                diffuse_texture_index,
-                                                diffuse_layer_index,
-                                                outline_color,
-                                            );
+                                            {
+                                                pipeline.add_mesh_instance(
+                                                    &mesh_instance.get(),
+                                                    diffuse_color,
+                                                    diffuse_texture_index,
+                                                    diffuse_layer_index,
+                                                    outline_color,
+                                                );
+                                            } else {
+                                                eprintln!("Tyring to render with an unregistered pipeline {}", pipeline_id.to_simple().to_string());
+                                            }
 
                                             wait_count.fetch_sub(1, Ordering::SeqCst);
                                         },

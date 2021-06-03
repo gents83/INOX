@@ -218,46 +218,12 @@ impl MeshData {
         self
     }
 
-    pub fn translate(&mut self, movement: Vector3) -> &mut Self {
-        self.vertices.iter_mut().for_each(|v| {
-            v.pos.x += movement.x;
-            v.pos.y += movement.y;
-            v.pos.z += movement.z;
-        });
-        self.compute_center();
-        self
-    }
-
-    pub fn scale(&mut self, scale: Vector3) -> &mut Self {
-        self.vertices.iter_mut().for_each(|v| {
-            v.pos.x *= scale.x;
-            v.pos.y *= scale.y;
-            v.pos.z *= scale.z;
-        });
-        self.compute_center();
-        self
-    }
-
     pub fn set_vertex_color(&mut self, color: Vector4) -> &mut Self {
         for v in self.vertices.iter_mut() {
             v.color = color;
         }
         self
     }
-
-    pub fn set_vertices(&mut self, vertex_data: &[VertexData]) -> &mut Self {
-        self.vertices.clear();
-        self.vertices.extend_from_slice(vertex_data);
-        self.compute_center();
-        self
-    }
-
-    pub fn set_indices(&mut self, indices_data: &[u32]) -> &mut Self {
-        self.indices.clear();
-        self.indices.extend_from_slice(indices_data);
-        self
-    }
-
     pub fn set_mesh_at_index(
         &mut self,
         vertices: &[VertexData],

@@ -245,6 +245,13 @@ impl DeviceImmutable {
             let count = self.swap_chain.image_data.len();
             self.cleanup_swap_chain();
 
+            vkFreeCommandBuffers.unwrap()(
+                self.device,
+                self.command_pool,
+                self.command_buffers.len() as _,
+                self.command_buffers.as_ptr(),
+            );
+
             for i in 0..count {
                 vkDestroySemaphore.unwrap()(
                     self.device,
@@ -930,6 +937,12 @@ impl DeviceImmutable {
                 swap_chain_extent.height,
             ),
         );
+        /*
+        println!(
+            "Recreating swap chain with size [{}, {}]",
+            swap_chain_extent.width, swap_chain_extent.height
+        );
+        */
 
         let mut swap_chain_create_info = VkSwapchainCreateInfoKHR {
             sType: VkStructureType_VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
@@ -1173,13 +1186,6 @@ impl DeviceImmutable {
         unsafe {
             self.wait_device();
 
-            vkFreeCommandBuffers.unwrap()(
-                self.device,
-                self.command_pool,
-                self.command_buffers.len() as _,
-                self.command_buffers.as_ptr(),
-            );
-
             self.destroy_image_views();
 
             vkDestroySwapchainKHR.unwrap()(
@@ -1196,9 +1202,7 @@ impl DeviceImmutable {
         instance.compute_swap_chain_details();
 
         self.create_swap_chain(instance)
-            .create_image_views(instance)
-            .allocate_command_buffers()
-            .create_sync_objects();
+            .create_image_views(instance);
     }
 
     fn allocate_command_buffers(&mut self) -> &mut Self {
