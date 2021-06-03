@@ -1,5 +1,6 @@
 NRG.code-workspace
 /target
+/data
 *.lock
 *.gfxr
 *.foz
