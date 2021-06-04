@@ -170,6 +170,7 @@ impl System for LauncherSystem {
         self.send_event(
             WindowEvent::RequestChangePos(self.config.pos_x, self.config.pos_y).as_boxed(),
         );
+        self.send_event(WindowEvent::RequestChangeVisible(true).as_boxed());
 
         let mut test = Panel::new(&self.shared_data, &self.global_messenger);
         test.vertical_alignment(VerticalAlignment::Center)

@@ -7,14 +7,16 @@ pub const DEFAULT_DPI: f32 = 96.0;
 
 #[derive(Debug, PartialOrd, PartialEq, Clone)]
 pub enum WindowEvent {
-    None,
+    Show,
+    Hide,
+    Close,
     DpiChanged(f32, f32),
     SizeChanged(u32, u32),
     PosChanged(u32, u32),
+    RequestChangeVisible(bool),
     RequestChangeTitle(String),
     RequestChangePos(u32, u32),
     RequestChangeSize(u32, u32),
-    Close,
 }
 implement_message!(WindowEvent);
 
@@ -135,6 +137,9 @@ impl Window {
                     WindowEvent::Close => {
                         can_continue = false;
                     }
+                    WindowEvent::RequestChangeVisible(visible) => {
+                        Window::change_visibility(&self.handle, *visible);
+                    }
                     WindowEvent::RequestChangeTitle(title) => {
                         let mut title = title.clone();
                         title.push('\0');
@@ -146,7 +151,7 @@ impl Window {
                     WindowEvent::RequestChangeSize(new_width, new_height) => {
                         Window::change_size(&self.handle, *new_width, *new_height);
                     }
-                    WindowEvent::None => {}
+                    _ => {}
                 }
             }
         });

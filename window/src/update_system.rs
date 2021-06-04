@@ -17,6 +17,7 @@ use nrg_resources::{ResourceEvent, ResourceRc, ResourceTrait, SharedData, Shared
 
 pub struct UpdateSystem {
     id: SystemId,
+    is_enabled: bool,
     renderer: RendererRw,
     shared_data: SharedDataRw,
     job_handler: JobHandlerRw,
@@ -45,6 +46,7 @@ impl UpdateSystem {
         Self {
             id: SystemId::new(),
             renderer,
+            is_enabled: false,
             shared_data: shared_data.clone(),
             job_handler,
             config: config.clone(),
@@ -93,8 +95,17 @@ impl System for UpdateSystem {
         read_messages(self.message_channel.get_listener(), |msg| {
             if msg.type_id() == TypeId::of::<WindowEvent>() {
                 let e = msg.as_any().downcast_ref::<WindowEvent>().unwrap();
-                if let WindowEvent::SizeChanged(_width, _height) = e {
-                    should_recreate_swap_chain = true;
+                match e {
+                    WindowEvent::SizeChanged(_width, _height) => {
+                        should_recreate_swap_chain = true;
+                    }
+                    WindowEvent::Show => {
+                        self.is_enabled = true;
+                    }
+                    WindowEvent::Hide => {
+                        self.is_enabled = false;
+                    }
+                    _ => {}
                 }
             } else if msg.type_id() == TypeId::of::<ResourceEvent>() {
                 let e = msg.as_any().downcast_ref::<ResourceEvent>().unwrap();
@@ -122,12 +133,13 @@ impl System for UpdateSystem {
             }
         });
 
-        if SharedData::has_resources_of_type::<FontInstance>(&self.shared_data) {
+        if self.is_enabled && SharedData::has_resources_of_type::<FontInstance>(&self.shared_data) {
             let fonts = SharedData::get_resources_of_type::<FontInstance>(&self.shared_data);
             self.load_fonts(&fonts);
         }
 
-        if SharedData::has_resources_of_type::<PipelineInstance>(&self.shared_data)
+        if self.is_enabled
+            && SharedData::has_resources_of_type::<PipelineInstance>(&self.shared_data)
             && SharedData::has_resources_of_type::<MaterialInstance>(&self.shared_data)
             && SharedData::has_resources_of_type::<TextureInstance>(&self.shared_data)
             && SharedData::has_resources_of_type::<FontInstance>(&self.shared_data)
@@ -153,7 +165,9 @@ impl System for UpdateSystem {
 
         let wait_count = Arc::new(AtomicUsize::new(0));
 
-        if SharedData::has_resources_of_type::<MaterialInstance>(&self.shared_data) {
+        if self.is_enabled
+            && SharedData::has_resources_of_type::<MaterialInstance>(&self.shared_data)
+        {
             let materials =
                 SharedData::get_resources_of_type::<MaterialInstance>(&self.shared_data);
 

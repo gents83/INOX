@@ -54,10 +54,10 @@ impl Window {
             // More info: https://msdn.microsoft.com/en-us/library/windows/desktop/ms632680(v=vs.85).aspx
             // Create a window based on registered class
             let win_handle = CreateWindowExW(
-                0,                                // dwExStyle
+                0,                      // dwExStyle
                 title.as_ptr(), // lpClassName, name of the class that we want to use for this window, which will be the same that we have registered before.
                 title.as_ptr(), // lpWindowName
-                WS_OVERLAPPEDWINDOW | WS_VISIBLE, // dwStyle
+                WS_OVERLAPPEDWINDOW, // dwStyle
                 x as i32,       // Int x
                 y as i32,       // Int y
                 *width as i32,  // Int nWidth
@@ -90,6 +90,20 @@ impl Window {
     pub fn change_title(handle: &Handle, title: &str) {
         unsafe {
             SetWindowTextA(handle.handle_impl.hwnd, title.as_ptr() as *const i8);
+        }
+    }
+    pub fn change_visibility(handle: &Handle, is_visible: bool) {
+        unsafe {
+            let cmd = if is_visible { SW_SHOW } else { SW_HIDE };
+            if let Some(events_dispatcher) = &mut EVENTS_DISPATCHER {
+                let events = events_dispatcher.write().unwrap();
+                if is_visible {
+                    events.send(Box::new(WindowEvent::Show)).ok();
+                } else {
+                    events.send(Box::new(WindowEvent::Hide)).ok();
+                }
+            }
+            ShowWindow(handle.handle_impl.hwnd, cmd);
         }
     }
 
