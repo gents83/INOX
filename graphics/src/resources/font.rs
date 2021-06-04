@@ -1,4 +1,4 @@
-use crate::{Font, MaterialId, MaterialInstance, PipelineId};
+use crate::{Font, MaterialId, MaterialInstance, PipelineId, TextureInstance};
 use nrg_math::Vector4;
 use nrg_resources::{
     get_absolute_path_from, ResourceId, ResourceTrait, SharedData, SharedDataRw, DATA_FOLDER,
@@ -81,6 +81,12 @@ impl FontInstance {
         }
         let material_id = MaterialInstance::create_from_pipeline(shared_data, pipeline_id);
         let font = Font::new(path.as_path());
+        let mut texture_id = TextureInstance::find_id(shared_data, path.as_path());
+        if texture_id.is_nil() {
+            texture_id = TextureInstance::create_from_path(shared_data, path.as_path());
+        }
+        MaterialInstance::add_texture(shared_data, material_id, texture_id);
+
         let mut data = shared_data.write().unwrap();
         data.add_resource(FontInstance {
             id: generate_uid_from_string(path.to_str().unwrap()),

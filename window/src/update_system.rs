@@ -13,7 +13,7 @@ use nrg_core::*;
 use nrg_graphics::*;
 use nrg_messenger::{read_messages, MessageChannel, MessengerRw};
 use nrg_platform::WindowEvent;
-use nrg_resources::{ResourceEvent, ResourceRc, ResourceTrait, SharedData, SharedDataRw};
+use nrg_resources::{ResourceEvent, SharedData, SharedDataRw};
 
 pub struct UpdateSystem {
     id: SystemId,
@@ -52,23 +52,6 @@ impl UpdateSystem {
             config: config.clone(),
             message_channel,
         }
-    }
-
-    fn load_fonts(&self, fonts: &[ResourceRc<FontInstance>]) {
-        nrg_profiler::scoped_profile!("update_system::load_fonts");
-
-        fonts.iter().for_each(|font_instance| {
-            let material_id = font_instance.get().material();
-
-            if !MaterialInstance::has_textures(&self.shared_data, material_id) {
-                let font_path = font_instance.get().path();
-                let texture_id = TextureInstance::find_id(&self.shared_data, font_path.as_path());
-                if texture_id.is_nil() {
-                    TextureInstance::create_from_path(&self.shared_data, font_path.as_path());
-                }
-                MaterialInstance::add_texture(&self.shared_data, material_id, texture_id);
-            }
-        });
     }
 }
 
@@ -132,11 +115,6 @@ impl System for UpdateSystem {
                 }
             }
         });
-
-        if self.is_enabled && SharedData::has_resources_of_type::<FontInstance>(&self.shared_data) {
-            let fonts = SharedData::get_resources_of_type::<FontInstance>(&self.shared_data);
-            self.load_fonts(&fonts);
-        }
 
         if self.is_enabled
             && SharedData::has_resources_of_type::<PipelineInstance>(&self.shared_data)
