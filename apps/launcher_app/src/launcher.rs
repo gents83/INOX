@@ -116,6 +116,17 @@ impl LauncherSystem {
             .ok();
     }
 
+    fn window_init(&self) {
+        self.send_event(WindowEvent::RequestChangeTitle(self.config.title.clone()).as_boxed());
+        self.send_event(
+            WindowEvent::RequestChangeSize(self.config.width, self.config.height).as_boxed(),
+        );
+        self.send_event(
+            WindowEvent::RequestChangePos(self.config.pos_x, self.config.pos_y).as_boxed(),
+        );
+        self.send_event(WindowEvent::RequestChangeVisible(true).as_boxed());
+    }
+
     fn process_messages(&mut self) {
         read_messages(self.message_channel.get_listener(), |msg| {
             if msg.type_id() == TypeId::of::<WindowEvent>() {
@@ -155,6 +166,7 @@ impl System for LauncherSystem {
         let path = self.config.get_filepath();
         deserialize_from_file(&mut self.config, path);
 
+        self.window_init();
         self.load_pipelines();
 
         Screen::create(
@@ -162,15 +174,6 @@ impl System for LauncherSystem {
             self.config.height,
             self.config.scale_factor,
         );
-
-        self.send_event(WindowEvent::RequestChangeTitle(self.config.title.clone()).as_boxed());
-        self.send_event(
-            WindowEvent::RequestChangeSize(self.config.width, self.config.height).as_boxed(),
-        );
-        self.send_event(
-            WindowEvent::RequestChangePos(self.config.pos_x, self.config.pos_y).as_boxed(),
-        );
-        self.send_event(WindowEvent::RequestChangeVisible(true).as_boxed());
 
         let mut test = Panel::new(&self.shared_data, &self.global_messenger);
         test.vertical_alignment(VerticalAlignment::Center)

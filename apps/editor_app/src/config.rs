@@ -6,6 +6,9 @@ use std::path::PathBuf;
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(crate = "nrg_serialize")]
 pub struct Config {
+    pub title: String,
+    pub pos_x: u32,
+    pub pos_y: u32,
     pub width: u32,
     pub height: u32,
     pub scale_factor: f32,
@@ -16,6 +19,9 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
+            title: String::new(),
+            pos_x: 0,
+            pos_y: 0,
             width: 1280,
             height: 720,
             scale_factor: 1.,

@@ -486,7 +486,9 @@ version = "0.1.0"
 name = "nrg_editor"
 version = "0.1.0"
 dependencies = [
+ "nrg_binarizer",
  "nrg_core",
+ "nrg_dynamic_library",
  "nrg_events",
  "nrg_graphics",
  "nrg_gui",
@@ -496,16 +498,6 @@ dependencies = [
  "nrg_profiler",
  "nrg_resources",
  "nrg_serialize",
-]
-
-[[package]]
-name = "nrg_editor_app"
-version = "0.1.0"
-dependencies = [
- "nrg_binarizer",
- "nrg_core",
- "nrg_dynamic_library",
- "nrg_resources",
 ]
 
 [[package]]

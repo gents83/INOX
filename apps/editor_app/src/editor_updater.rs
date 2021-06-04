@@ -12,7 +12,7 @@ use nrg_core::*;
 use nrg_events::*;
 use nrg_graphics::*;
 use nrg_gui::*;
-use nrg_messenger::{read_messages, MessageChannel, MessengerRw};
+use nrg_messenger::{read_messages, Message, MessageChannel, MessengerRw};
 use nrg_platform::*;
 use nrg_resources::SharedDataRw;
 use nrg_serialize::*;
@@ -77,6 +77,28 @@ impl EditorUpdater {
         history.register_event_as_undoable::<TextEvent>(&self.global_messenger);
         history.register_event_as_undoable::<CheckboxEvent>(&self.global_messenger);
     }
+
+    fn send_event(&self, event: Box<dyn Message>) {
+        self.global_messenger
+            .read()
+            .unwrap()
+            .get_dispatcher()
+            .write()
+            .unwrap()
+            .send(event)
+            .ok();
+    }
+
+    fn window_init(&self) {
+        self.send_event(WindowEvent::RequestChangeTitle(self.config.title.clone()).as_boxed());
+        self.send_event(
+            WindowEvent::RequestChangeSize(self.config.width, self.config.height).as_boxed(),
+        );
+        self.send_event(
+            WindowEvent::RequestChangePos(self.config.pos_x, self.config.pos_y).as_boxed(),
+        );
+        self.send_event(WindowEvent::RequestChangeVisible(true).as_boxed());
+    }
 }
 
 impl System for EditorUpdater {
@@ -85,6 +107,7 @@ impl System for EditorUpdater {
     }
 
     fn init(&mut self) {
+        self.window_init();
         self.load_pipelines();
         self.create_screen();
 

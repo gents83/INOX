@@ -19,5 +19,4 @@ members = [
     "serialize",
     "window",
     "game",
-    "editor",
 ]
