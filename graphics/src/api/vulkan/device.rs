@@ -929,20 +929,16 @@ impl DeviceImmutable {
                 details.capabilities.maxImageExtent.width,
                 swap_chain_extent.width,
             ),
-        );
+        )
+        .max(1);
         swap_chain_extent.height = ::std::cmp::max(
             details.capabilities.minImageExtent.height,
             std::cmp::min(
                 details.capabilities.maxImageExtent.height,
                 swap_chain_extent.height,
             ),
-        );
-        /*
-        println!(
-            "Recreating swap chain with size [{}, {}]",
-            swap_chain_extent.width, swap_chain_extent.height
-        );
-        */
+        )
+        .max(1);
 
         let mut swap_chain_create_info = VkSwapchainCreateInfoKHR {
             sType: VkStructureType_VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
