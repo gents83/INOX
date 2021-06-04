@@ -2,7 +2,6 @@ use crate::common::data_formats::*;
 use image::*;
 use nrg_math::*;
 use nrg_platform::*;
-use nrg_resources::DATA_FOLDER;
 use std::{
     collections::HashMap,
     num::NonZeroU16,
@@ -22,6 +21,7 @@ pub struct Font {
     metrics: Metrics,
     glyphs: Vec<Glyph>,
     char_to_glyph: HashMap<u32, NonZeroU16>,
+    image: DynamicImage,
 }
 
 #[derive(Clone)]
@@ -60,16 +60,6 @@ impl Font {
     #[inline]
     pub fn get_filepath(&self) -> &PathBuf {
         &self.filepath
-    }
-
-    #[inline]
-    pub fn get_texture_path(&self) -> PathBuf {
-        let name = format!(
-            "{}textures/{}.png",
-            DATA_FOLDER,
-            self.filepath.file_stem().unwrap().to_str().unwrap()
-        );
-        PathBuf::from(name).canonicalize().unwrap()
     }
 
     #[inline]
@@ -155,30 +145,31 @@ impl Font {
             glyphs.push(Glyph::create(glyph_id, &face, &max_glyph_metrics));
         }
 
-        let mut font = Self {
+        let image = Font::create_texture(&mut glyphs, &max_glyph_metrics);
+        Self {
             filepath: PathBuf::from(filepath),
             metrics: max_glyph_metrics,
             glyphs,
             char_to_glyph,
-        };
-
-        let image = font.create_texture();
-        let _res = image.save(font.get_texture_path());
-
-        font
+            image,
+        }
     }
 
-    fn create_texture(&mut self) -> DynamicImage {
+    pub fn get_texture(&self) -> &DynamicImage {
+        &self.image
+    }
+
+    fn create_texture(glyphs: &mut [Glyph], metrics: &Metrics) -> DynamicImage {
         let size = DEFAULT_FONT_TEXTURE_SIZE;
 
         let mut image = DynamicImage::new_rgba8(size as _, size as _);
 
-        let num_glyphs: u32 = self.glyphs.len() as _;
+        let num_glyphs: u32 = glyphs.len() as _;
         let cell_size: u32 = (((size * size) as u32 / num_glyphs) as f64).sqrt().ceil() as u32;
 
         let mut row: u32 = 0;
         let mut column: u32 = 0;
-        for g in self.glyphs.iter_mut() {
+        for g in glyphs.iter_mut() {
             let mut starting_x = column * cell_size;
             if (starting_x + cell_size) > size as _ {
                 starting_x = 0;
@@ -190,7 +181,7 @@ impl Font {
                 break;
             }
 
-            let _offset = (cell_size as f32 * (g.metrics.width / self.metrics.horizontal_offset)
+            let _offset = (cell_size as f32 * (g.metrics.width / metrics.horizontal_offset)
                 - cell_size as f32)
                 * 0.5;
             let x_pos: i32 = (starting_x as i32 - _offset as i32)

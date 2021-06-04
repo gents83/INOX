@@ -29,10 +29,5 @@ pub fn get_absolute_path_from(parent_folder: &Path, relative_path: &Path) -> Pat
     } else {
         eprintln!("Unable to join {:?} with {:?}", pathbuf, relative_path);
     }
-    debug_assert!(
-        pathbuf.exists() && pathbuf.is_file(),
-        "Error in path {:?}",
-        pathbuf.join(relative_path).canonicalize()
-    );
     pathbuf
 }

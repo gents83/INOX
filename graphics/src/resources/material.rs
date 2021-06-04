@@ -65,6 +65,21 @@ impl MaterialInstance {
     pub fn get_outline_color(&self) -> Vector4 {
         self.outline_color
     }
+    pub fn has_textures(shared_data: &SharedDataRw, material_id: MaterialId) -> bool {
+        let material = SharedData::get_resource::<Self>(shared_data, material_id);
+        let textures = &material.get().textures;
+        !textures.is_empty()
+    }
+
+    pub fn has_texture(
+        shared_data: &SharedDataRw,
+        material_id: MaterialId,
+        texture_id: TextureId,
+    ) -> bool {
+        let material = SharedData::get_resource::<Self>(shared_data, material_id);
+        let textures = &material.get().textures;
+        textures.iter().any(|&id| id == texture_id)
+    }
 
     pub fn add_texture(shared_data: &SharedDataRw, material_id: MaterialId, texture_id: TextureId) {
         let material = SharedData::get_resource::<Self>(shared_data, material_id);

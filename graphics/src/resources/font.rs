@@ -1,4 +1,4 @@
-use crate::{Font, MaterialId, MaterialInstance, PipelineId, TextureInstance};
+use crate::{Font, MaterialId, MaterialInstance, PipelineId};
 use nrg_math::Vector4;
 use nrg_resources::{
     get_absolute_path_from, ResourceId, ResourceTrait, SharedData, SharedDataRw, DATA_FOLDER,
@@ -39,9 +39,16 @@ impl FontInstance {
         INVALID_UID
     }
 
+    pub fn font(&self) -> &Font {
+        &self.font
+    }
+    pub fn material(&self) -> MaterialId {
+        self.material_id
+    }
+
     pub fn get_material(shared_data: &SharedDataRw, font_id: FontId) -> MaterialId {
         let font = SharedData::get_resource::<FontInstance>(shared_data, font_id);
-        let material_id = font.get().material_id;
+        let material_id = font.get().material();
         material_id
     }
     pub fn get_glyph_texture_coord(
@@ -74,12 +81,6 @@ impl FontInstance {
         }
         let material_id = MaterialInstance::create_from_pipeline(shared_data, pipeline_id);
         let font = Font::new(path.as_path());
-        let texture_id = TextureInstance::find_id(shared_data, font.get_texture_path().as_path());
-        if texture_id == INVALID_UID {
-            let texture_id =
-                TextureInstance::create_from_path(shared_data, font.get_texture_path().as_path());
-            MaterialInstance::add_texture(shared_data, material_id, texture_id);
-        }
         let mut data = shared_data.write().unwrap();
         data.add_resource(FontInstance {
             id: generate_uid_from_string(path.to_str().unwrap()),

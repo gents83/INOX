@@ -1,4 +1,5 @@
 use std::{
+    fs::create_dir_all,
     path::{Path, PathBuf},
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -38,6 +39,14 @@ impl Binarizer {
     pub fn new(global_messenger: MessengerRw, data_raw_folder: &str, data_folder: &str) -> Self {
         let mut data_raw_folder = PathBuf::from(data_raw_folder);
         let mut data_folder = PathBuf::from(data_folder);
+        if !data_raw_folder.exists() {
+            let result = create_dir_all(data_raw_folder.as_path());
+            debug_assert!(result.is_ok());
+        }
+        if !data_folder.exists() {
+            let result = create_dir_all(data_folder.as_path());
+            debug_assert!(result.is_ok());
+        }
         data_raw_folder = data_raw_folder.canonicalize().unwrap();
         data_folder = data_folder.canonicalize().unwrap();
         debug_assert!(

@@ -1,9 +1,9 @@
-use std::sync::{Arc, RwLock};
-
+use crate::FontInstance;
 use crate::{MaterialInstance, Pipeline, PipelineInstance, TextureInstance};
 use nrg_math::*;
 use nrg_platform::*;
 use nrg_resources::{ResourceRc, ResourceTrait};
+use std::sync::{Arc, RwLock};
 
 use super::device::*;
 use super::instance::*;
@@ -70,10 +70,11 @@ impl Renderer {
         pipelines: &mut [ResourceRc<PipelineInstance>],
         materials: &mut [ResourceRc<MaterialInstance>],
         textures: &mut [ResourceRc<TextureInstance>],
+        fonts: &[ResourceRc<FontInstance>],
     ) -> &mut Self {
         nrg_profiler::scoped_profile!("renderer::prepare_frame");
         self.load_pipelines(pipelines);
-        self.load_textures(textures);
+        self.load_textures(textures, fonts);
 
         self.prepare_pipelines();
         self.prepare_materials(pipelines, materials);
@@ -82,6 +83,9 @@ impl Renderer {
 
     pub fn get_texture_handler(&self) -> &TextureHandler {
         &self.texture_handler
+    }
+    pub fn get_texture_handler_mut(&mut self) -> &mut TextureHandler {
+        &mut self.texture_handler
     }
     pub fn get_pipelines(&mut self) -> &mut Vec<Pipeline> {
         &mut self.pipelines
@@ -235,7 +239,11 @@ impl Renderer {
         });
     }
 
-    fn load_textures(&mut self, textures: &mut [ResourceRc<TextureInstance>]) {
+    fn load_textures(
+        &mut self,
+        textures: &mut [ResourceRc<TextureInstance>],
+        fonts: &[ResourceRc<FontInstance>],
+    ) {
         nrg_profiler::scoped_profile!("renderer::load_textures");
         let texture_handler = &mut self.texture_handler;
         textures.iter_mut().for_each(|texture_instance| {
@@ -245,8 +253,16 @@ impl Renderer {
                     texture_handler.remove(texture_instance.id());
                 }
                 let path = texture_instance.get().get_path().to_path_buf();
-                let (texture_index, layer_index) =
-                    texture_handler.add(texture_instance.id(), path.as_path());
+                let (texture_index, layer_index) = if is_texture(path.as_path()) {
+                    texture_handler.add_from_path(texture_instance.id(), path.as_path())
+                } else if let Some(font) = fonts.iter().find(|f| f.path() == path) {
+                    texture_handler.add(
+                        texture_instance.id(),
+                        font.get().font().get_texture().clone(),
+                    )
+                } else {
+                    panic!("Unable to load texture with path {:?}", path.as_path());
+                };
                 texture_instance
                     .get_mut()
                     .set_texture_data(texture_index, layer_index);

@@ -91,8 +91,7 @@ impl TextureHandler {
         self.textures.is_empty()
     }
 
-    pub fn add(&mut self, id: Uid, filepath: &Path) -> (u32, u32) {
-        let image = image::open(filepath).unwrap();
+    pub fn add(&mut self, id: Uid, image: DynamicImage) -> (u32, u32) {
         let image_data = image.to_rgba8();
         let (texture_index, layer_index, area) = self.add_image(
             image_data.width(),
@@ -103,7 +102,11 @@ impl TextureHandler {
             || layer_index < 0
             || layer_index >= DEFAULT_LAYER_COUNT as _
         {
-            panic!("Unable to add texture {}", filepath.to_str().unwrap());
+            panic!(
+                "Unable to add an image of size [{}x{}]",
+                image_data.width(),
+                image_data.height()
+            );
         }
         self.textures.push(Texture {
             id,
@@ -112,6 +115,11 @@ impl TextureHandler {
             area,
         });
         (texture_index as _, layer_index as _)
+    }
+
+    pub fn add_from_path(&mut self, id: Uid, filepath: &Path) -> (u32, u32) {
+        let image = image::open(filepath).unwrap();
+        self.add(id, image)
     }
 
     pub fn remove(&mut self, id: Uid) {
