@@ -5,12 +5,13 @@ use nrg_messenger::{implement_message, read_messages, MessageChannel, MessengerR
 
 pub const DEFAULT_DPI: f32 = 96.0;
 
-#[derive(Debug, PartialOrd, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialOrd, PartialEq, Clone)]
 pub enum WindowEvent {
     None,
     DpiChanged(f32, f32),
     SizeChanged(u32, u32),
     PosChanged(u32, u32),
+    RequestChangeTitle(String),
     RequestChangePos(u32, u32),
     RequestChangeSize(u32, u32),
     Close,
@@ -101,6 +102,7 @@ impl Window {
         &self.handle
     }
 
+    #[inline]
     pub fn update(&mut self) -> bool {
         Window::internal_update(&self.handle);
         self.manage_window_events();
@@ -118,26 +120,31 @@ impl Window {
         read_messages(self.message_channel.get_listener(), |msg| {
             if msg.type_id() == TypeId::of::<WindowEvent>() {
                 let e = msg.as_any().downcast_ref::<WindowEvent>().unwrap();
-                match *e {
+                match e {
                     WindowEvent::DpiChanged(new_x, _y) => {
-                        scale_factor = new_x / DEFAULT_DPI;
+                        scale_factor = *new_x / DEFAULT_DPI;
                     }
                     WindowEvent::SizeChanged(new_width, new_height) => {
-                        width = new_width;
-                        height = new_height;
+                        width = *new_width;
+                        height = *new_height;
                     }
                     WindowEvent::PosChanged(new_x, new_y) => {
-                        x = new_x;
-                        y = new_y;
+                        x = *new_x;
+                        y = *new_y;
                     }
                     WindowEvent::Close => {
                         can_continue = false;
                     }
+                    WindowEvent::RequestChangeTitle(title) => {
+                        let mut title = title.clone();
+                        title.push('\0');
+                        Window::change_title(&self.handle, title.as_str());
+                    }
                     WindowEvent::RequestChangePos(new_x, new_y) => {
-                        Window::change_position(&self.handle, new_x, new_y);
+                        Window::change_position(&self.handle, *new_x, *new_y);
                     }
                     WindowEvent::RequestChangeSize(new_width, new_height) => {
-                        Window::change_size(&self.handle, new_width, new_height);
+                        Window::change_size(&self.handle, *new_width, *new_height);
                     }
                     WindowEvent::None => {}
                 }

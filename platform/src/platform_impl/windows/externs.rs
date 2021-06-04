@@ -47,6 +47,7 @@ extern "system" {
     pub fn ShowOwnedPopups(hWnd: HWND, fShow: BOOL) -> BOOL;
     pub fn OpenIcon(hWnd: HWND) -> BOOL;
     pub fn CloseWindow(hWnd: HWND) -> BOOL;
+    pub fn SetWindowTextA(hWnd: HWND, lpString: LPCSTR) -> BOOL;
     pub fn ShowWindow(hWnd: HWND, nCmdShow: c_int) -> BOOL;
     pub fn UpdateWindow(hWnd: HWND) -> BOOL;
     pub fn SetActiveWindow(hWnd: HWND) -> HWND;

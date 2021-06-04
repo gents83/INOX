@@ -87,6 +87,12 @@ impl Window {
         }
     }
 
+    pub fn change_title(handle: &Handle, title: &str) {
+        unsafe {
+            SetWindowTextA(handle.handle_impl.hwnd, title.as_ptr() as *const i8);
+        }
+    }
+
     pub fn change_position(handle: &Handle, x: u32, y: u32) {
         unsafe {
             let mut rect: RECT = RECT {

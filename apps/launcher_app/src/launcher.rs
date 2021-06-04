@@ -163,6 +163,7 @@ impl System for LauncherSystem {
             self.config.scale_factor,
         );
 
+        self.send_event(WindowEvent::RequestChangeTitle(self.config.title.clone()).as_boxed());
         self.send_event(
             WindowEvent::RequestChangeSize(self.config.width, self.config.height).as_boxed(),
         );
