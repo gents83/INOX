@@ -194,9 +194,9 @@ impl Font {
             });
 
             g.texture_coord = [
-                (starting_x + cell_size) as f32 / size as f32,
-                (starting_y) as f32 / size as f32,
                 (starting_x) as f32 / size as f32,
+                (starting_y) as f32 / size as f32,
+                (starting_x + cell_size) as f32 / size as f32,
                 (starting_y + cell_size) as f32 / size as f32,
             ]
             .into();

@@ -165,10 +165,9 @@ impl System for LauncherSystem {
 
         let mut background = Panel::new(&self.shared_data, &self.global_messenger);
         background
-            .vertical_alignment(VerticalAlignment::Center)
-            .horizontal_alignment(HorizontalAlignment::Center)
-            .size(Screen::get_size())
-            .style(WidgetStyle::Default);
+            .vertical_alignment(VerticalAlignment::Stretch)
+            .horizontal_alignment(HorizontalAlignment::Stretch)
+            .style(WidgetStyle::FullActive);
 
         let texture_id =
             TextureInstance::create_from_path(&self.shared_data, &Path::new("textures/NRG.png"));

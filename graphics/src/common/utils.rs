@@ -49,25 +49,25 @@ pub fn create_quad(
             pos: [rect.x, rect.y, z].into(),
             normal: [-1., -1., 0.].into(),
             color: [1., 1., 1., 1.].into(),
-            tex_coord: [tex_coords.z, tex_coords.y].into(),
+            tex_coord: [tex_coords.x, tex_coords.y].into(),
         },
         VertexData {
             pos: [rect.z, rect.y, z].into(),
             normal: [1., -1., 0.].into(),
             color: [1., 1., 1., 1.].into(),
-            tex_coord: [tex_coords.x, tex_coords.y].into(),
+            tex_coord: [tex_coords.z, tex_coords.y].into(),
         },
         VertexData {
             pos: [rect.z, rect.w, z].into(),
             normal: [1., 1., 0.].into(),
             color: [1., 1., 1., 1.].into(),
-            tex_coord: [tex_coords.x, tex_coords.w].into(),
+            tex_coord: [tex_coords.z, tex_coords.w].into(),
         },
         VertexData {
             pos: [rect.x, rect.w, z].into(),
             normal: [-1., 1., 0.].into(),
             color: [1., 1., 1., 1.].into(),
-            tex_coord: [tex_coords.z, tex_coords.w].into(),
+            tex_coord: [tex_coords.x, tex_coords.w].into(),
         },
     ];
     let index_offset: u32 = index_start.unwrap_or(0) as _;
