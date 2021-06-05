@@ -15,8 +15,6 @@ use std::path::PathBuf;
 use std::{cell::RefCell, path::Path, rc::Rc};
 use vulkan_bindings::*;
 
-pub const MAX_INSTANCES_COUNT: usize = 4096;
-
 pub struct PipelineImmutable {
     constant_data: ConstantData,
     descriptor_set_layout: VkDescriptorSetLayout,
@@ -28,8 +26,10 @@ pub struct PipelineImmutable {
     shaders: Vec<Shader>,
     pipeline_layout: VkPipelineLayout,
     graphics_pipeline: VkPipeline,
+    instance_buffer_count: usize,
     instance_buffer: VkBuffer,
     instance_buffer_memory: VkDeviceMemory,
+    indirect_command_buffer_count: usize,
     indirect_command_buffer: VkBuffer,
     indirect_command_buffer_memory: VkDeviceMemory,
     indirect_commands: Vec<VkDrawIndexedIndirectCommand>,
@@ -69,8 +69,10 @@ impl Pipeline {
             shaders: Vec::new(),
             pipeline_layout: ::std::ptr::null_mut(),
             graphics_pipeline: ::std::ptr::null_mut(),
+            instance_buffer_count: 0,
             instance_buffer: ::std::ptr::null_mut(),
             instance_buffer_memory: ::std::ptr::null_mut(),
+            indirect_command_buffer_count: 0,
             indirect_command_buffer: ::std::ptr::null_mut(),
             indirect_command_buffer_memory: ::std::ptr::null_mut(),
             indirect_commands: Vec::new(),
@@ -162,8 +164,7 @@ impl Pipeline {
             .create_uniform_buffers(device)
             .create_descriptor_pool(device)
             .create_descriptor_sets(&device)
-            .create(device, render_pass)
-            .create_instance_buffers(device);
+            .create(device, render_pass);
         self
     }
 }
@@ -267,6 +268,14 @@ impl PipelineImmutable {
     }
     fn delete(&self, device: &Device) {
         self.destroy_shader_modules(&device);
+        device.destroy_buffer(
+            &self.indirect_command_buffer,
+            &self.indirect_command_buffer_memory,
+        );
+        device.destroy_buffer(&self.instance_buffer, &self.instance_buffer_memory);
+        for i in 0..self.uniform_buffers.len() {
+            device.destroy_buffer(&self.uniform_buffers[i], &self.uniform_buffers_memory[i]);
+        }
         unsafe {
             vkDestroyDescriptorSetLayout.unwrap()(
                 device.get_device(),
@@ -586,37 +595,23 @@ impl PipelineImmutable {
         self
     }
 
-    fn create_instance_buffers(&mut self, device: &Device) -> &mut Self {
-        let buffer_size = std::mem::size_of::<InstanceData>() * MAX_INSTANCES_COUNT;
-        let flags = VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
-            | VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-        let usage = VkBufferUsageFlagBits_VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
-            | VkBufferUsageFlagBits_VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-        device.create_buffer(
-            buffer_size as _,
-            usage as _,
-            flags as _,
-            &mut self.instance_buffer,
-            &mut self.instance_buffer_memory,
-        );
-
-        let indirect_buffer_size =
-            std::mem::size_of::<VkDrawIndexedIndirectCommand>() * MAX_INSTANCES_COUNT;
-        let flags = VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
-            | VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-        let usage = VkBufferUsageFlagBits_VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
-            | VkBufferUsageFlagBits_VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
-        device.create_buffer(
-            indirect_buffer_size as _,
-            usage as _,
-            flags as _,
-            &mut self.indirect_command_buffer,
-            &mut self.indirect_command_buffer_memory,
-        );
-        self
-    }
-
     fn fill_instance_buffer(&mut self, device: &Device, instances: &[InstanceData]) -> &mut Self {
+        if instances.len() >= self.instance_buffer_count {
+            device.destroy_buffer(&self.instance_buffer, &self.instance_buffer_memory);
+            self.instance_buffer_count = instances.len() * 2;
+            let buffer_size = std::mem::size_of::<InstanceData>() * self.instance_buffer_count;
+            let flags = VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+                | VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+            let usage = VkBufferUsageFlagBits_VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+                | VkBufferUsageFlagBits_VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+            device.create_buffer(
+                buffer_size as _,
+                usage as _,
+                flags as _,
+                &mut self.instance_buffer,
+                &mut self.instance_buffer_memory,
+            );
+        }
         device.map_buffer_memory(&mut self.instance_buffer_memory, 0, instances);
         self
     }
@@ -637,6 +632,27 @@ impl PipelineImmutable {
                 firstInstance: c.mesh_index as _,
             };
             self.indirect_commands.push(indirect_command);
+        }
+
+        if commands.len() >= self.indirect_command_buffer_count {
+            device.destroy_buffer(
+                &self.indirect_command_buffer,
+                &self.indirect_command_buffer_memory,
+            );
+            self.indirect_command_buffer_count = commands.len() * 2;
+            let indirect_buffer_size = std::mem::size_of::<VkDrawIndexedIndirectCommand>()
+                * self.indirect_command_buffer_count;
+            let flags = VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+                | VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+            let usage = VkBufferUsageFlagBits_VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+                | VkBufferUsageFlagBits_VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
+            device.create_buffer(
+                indirect_buffer_size as _,
+                usage as _,
+                flags as _,
+                &mut self.indirect_command_buffer,
+                &mut self.indirect_command_buffer_memory,
+            );
         }
 
         device.map_buffer_memory(
