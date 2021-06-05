@@ -116,9 +116,12 @@ impl RenderPassImmutable {
             flags: 0,
             format: find_depth_format(device.get_instance().get_physical_device()),
             samples: VkSampleCountFlagBits_VK_SAMPLE_COUNT_1_BIT,
-            loadOp: VkAttachmentStoreOp_VK_ATTACHMENT_STORE_OP_DONT_CARE,
-            storeOp: VkAttachmentStoreOp_VK_ATTACHMENT_STORE_OP_DONT_CARE,
-            stencilLoadOp: VkAttachmentLoadOp_VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+            loadOp: match data.clear {
+                true => VkAttachmentLoadOp_VK_ATTACHMENT_LOAD_OP_CLEAR,
+                _ => VkAttachmentLoadOp_VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+            },
+            storeOp: VkAttachmentStoreOp_VK_ATTACHMENT_STORE_OP_STORE,
+            stencilLoadOp: VkAttachmentLoadOp_VK_ATTACHMENT_LOAD_OP_CLEAR,
             stencilStoreOp: VkAttachmentStoreOp_VK_ATTACHMENT_STORE_OP_DONT_CARE,
             initialLayout: VkImageLayout_VK_IMAGE_LAYOUT_UNDEFINED,
             finalLayout: VkImageLayout_VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
@@ -143,36 +146,28 @@ impl RenderPassImmutable {
         };
 
         let subpass_dependency = [
-            // Transition from final to initial (VK_SUBPASS_EXTERNAL refers to all commands executed outside of the actual renderpass)
             VkSubpassDependency {
                 srcSubpass: VK_SUBPASS_EXTERNAL as _,
                 dstSubpass: 0,
-                srcStageMask: VkPipelineStageFlagBits_VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT as _,
-                dstStageMask: (VkPipelineStageFlagBits_VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
-                    | VkPipelineStageFlagBits_VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT)
-                    as _,
-                srcAccessMask: VkAccessFlagBits_VK_ACCESS_MEMORY_READ_BIT as _,
+                srcStageMask: (VkPipelineStageFlagBits_VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT) as _,
+                dstStageMask:
+                    (VkPipelineStageFlagBits_VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT) as _,
+                srcAccessMask: (VkAccessFlagBits_VK_ACCESS_MEMORY_READ_BIT) as _,
                 dstAccessMask: (VkAccessFlagBits_VK_ACCESS_COLOR_ATTACHMENT_READ_BIT
-                    | VkAccessFlagBits_VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT
-                    | VkAccessFlagBits_VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT
-                    | VkAccessFlagBits_VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT)
+                    | VkAccessFlagBits_VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
                     as _,
                 dependencyFlags: VkDependencyFlagBits_VK_DEPENDENCY_BY_REGION_BIT as _,
             },
-            // Transition from initial to final
             VkSubpassDependency {
                 srcSubpass: 0,
                 dstSubpass: VK_SUBPASS_EXTERNAL as _,
-                srcStageMask: (VkPipelineStageFlagBits_VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
-                    | VkPipelineStageFlagBits_VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT)
-                    as _,
-                dstStageMask: VkPipelineStageFlagBits_VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT as _,
+                srcStageMask:
+                    (VkPipelineStageFlagBits_VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT) as _,
+                dstStageMask: (VkPipelineStageFlagBits_VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT) as _,
                 srcAccessMask: (VkAccessFlagBits_VK_ACCESS_COLOR_ATTACHMENT_READ_BIT
-                    | VkAccessFlagBits_VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT
-                    | VkAccessFlagBits_VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT
-                    | VkAccessFlagBits_VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT)
+                    | VkAccessFlagBits_VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
                     as _,
-                dstAccessMask: VkAccessFlagBits_VK_ACCESS_MEMORY_READ_BIT as _,
+                dstAccessMask: (VkAccessFlagBits_VK_ACCESS_MEMORY_READ_BIT) as _,
                 dependencyFlags: VkDependencyFlagBits_VK_DEPENDENCY_BY_REGION_BIT as _,
             },
         ];

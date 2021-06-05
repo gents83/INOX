@@ -390,6 +390,7 @@ impl DeviceImmutable {
             }
 
             vkQueueWaitIdle.unwrap()(self.present_queue);
+
             self.semaphore_id = (self.semaphore_id + 1) % self.semaphore_image_available.len();
         }
 
@@ -497,7 +498,13 @@ impl DeviceImmutable {
             dstQueueFamilyIndex: VK_QUEUE_FAMILY_IGNORED as _,
             image,
             subresourceRange: VkImageSubresourceRange {
-                aspectMask: VkImageAspectFlagBits_VK_IMAGE_ASPECT_COLOR_BIT as _,
+                aspectMask: if new_layout
+                    == VkImageLayout_VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+                {
+                    VkImageAspectFlagBits_VK_IMAGE_ASPECT_DEPTH_BIT as _
+                } else {
+                    VkImageAspectFlagBits_VK_IMAGE_ASPECT_COLOR_BIT as _
+                },
                 baseMipLevel: 0,
                 levelCount: 1,
                 baseArrayLayer: layer_index as _,
@@ -525,6 +532,17 @@ impl DeviceImmutable {
             source_stage_flags = VkPipelineStageFlagBits_VK_PIPELINE_STAGE_TRANSFER_BIT as _;
             destination_stage_flags =
                 VkPipelineStageFlagBits_VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT as _;
+        } else if old_layout == VkImageLayout_VK_IMAGE_LAYOUT_UNDEFINED
+            && new_layout == VkImageLayout_VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+        {
+            barrier.srcAccessMask = 0;
+            barrier.dstAccessMask = (VkAccessFlagBits_VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT
+                | VkAccessFlagBits_VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT)
+                as _;
+
+            source_stage_flags = VkPipelineStageFlagBits_VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT as _;
+            destination_stage_flags =
+                VkPipelineStageFlagBits_VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT as _;
         } else {
             panic!("Unsupported couple of old_layout and new_layout");
         }
@@ -1042,8 +1060,7 @@ impl DeviceImmutable {
                 depth_format,
             ),
             VkImageTiling_VK_IMAGE_TILING_OPTIMAL,
-            (VkImageUsageFlagBits_VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
-                | VkImageUsageFlagBits_VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT) as _,
+            VkImageUsageFlagBits_VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT as _,
             VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT as _,
             1,
         );
@@ -1051,7 +1068,12 @@ impl DeviceImmutable {
             self.device,
             image,
             depth_format,
-            VkImageAspectFlagBits_VK_IMAGE_ASPECT_DEPTH_BIT as _,
+            if depth_format >= VkFormat_VK_FORMAT_D16_UNORM_S8_UINT {
+                (VkImageAspectFlagBits_VK_IMAGE_ASPECT_DEPTH_BIT
+                    | VkImageAspectFlagBits_VK_IMAGE_ASPECT_STENCIL_BIT) as _
+            } else {
+                VkImageAspectFlagBits_VK_IMAGE_ASPECT_DEPTH_BIT as _
+            },
             1,
         );
         self.swap_chain.depth_image_data.push(ImageViewData {
