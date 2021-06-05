@@ -53,16 +53,12 @@ impl Pipeline {
         }
         pipeline.build(&device.inner, &render_pass.get_pass());
 
-        let mut mesh = Mesh::create(device);
-        mesh.fill_mesh_with_max_buffers();
-        mesh.finalize();
-
         Pipeline {
             inner: pipeline,
             id,
             data: data.clone(),
             render_pass,
-            mesh,
+            mesh: Mesh::create(device),
             vertex_count: 0,
             index_count: 0,
             instance_count: 0,

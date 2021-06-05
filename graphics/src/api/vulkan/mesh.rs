@@ -26,6 +26,12 @@ impl Default for Mesh {
 }
 
 impl Mesh {
+    pub fn get_vertex_count(&self) -> u32 {
+        self.vertex_count
+    }
+    pub fn get_indices_count(&self) -> u32 {
+        self.indices_count
+    }
     pub fn delete(&self, device: &Device) {
         device.destroy_buffer(&self.vertex_buffer, &self.vertex_buffer_memory);
         device.destroy_buffer(&self.index_buffer, &self.index_buffer_memory);

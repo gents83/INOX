@@ -1,13 +1,10 @@
 use super::data_formats::*;
 use super::device::*;
 
-const MAX_BUFFER_SIZE: usize = 1024 * 1024;
-
 #[derive(Clone)]
 pub struct Mesh {
     inner: crate::api::backend::mesh::Mesh,
     device: Device,
-    is_finalized: bool,
     pub data: MeshData,
 }
 
@@ -16,37 +13,11 @@ impl Mesh {
         Self {
             inner: crate::api::backend::mesh::Mesh::default(),
             device: device.clone(),
-            is_finalized: false,
             data: MeshData::default(),
         }
     }
-    pub fn is_finalized(&self) -> bool {
-        self.is_finalized
-    }
     pub fn destroy(&mut self) {
         self.inner.delete(&self.device.inner);
-    }
-
-    pub fn fill_mesh_with_max_buffers(&mut self) {
-        self.data
-            .vertices
-            .resize_with(MAX_BUFFER_SIZE, VertexData::default);
-        self.data.indices.resize_with(MAX_BUFFER_SIZE, u32::default);
-    }
-
-    pub fn finalize(&mut self) -> &mut Self {
-        if !self.is_finalized {
-            self.is_finalized = true;
-            if !self.data.vertices.is_empty() {
-                self.inner
-                    .create_vertex_buffer(&self.device.inner, self.data.vertices.as_slice());
-            }
-            if !self.data.indices.is_empty() {
-                self.inner
-                    .create_index_buffer(&self.device.inner, self.data.indices.as_slice());
-            }
-        }
-        self
     }
 
     pub fn bind_at_index(
@@ -56,6 +27,22 @@ impl Mesh {
         indices: &[u32],
         first_index: u32,
     ) -> MeshDataRef {
+        if first_vertex as usize + vertices.len() >= self.data.vertices.len() {
+            self.data.vertices.resize_with(
+                (self.data.vertices.len() + vertices.len()) * 2,
+                VertexData::default,
+            );
+            self.inner
+                .create_vertex_buffer(&self.device.inner, self.data.vertices.as_slice());
+        }
+        if first_index as usize + indices.len() >= self.data.indices.len() {
+            self.data
+                .indices
+                .resize_with((self.data.indices.len() + indices.len()) * 2, u32::default);
+            self.inner
+                .create_index_buffer(&self.device.inner, self.data.indices.as_slice());
+        }
+
         self.inner.bind_at_index(
             &self.device.inner,
             vertices,
