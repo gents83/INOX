@@ -1,7 +1,13 @@
 #![allow(dead_code)]
 
+use std::ffi::{CStr, CString};
+
 use super::types::*;
 use vulkan_bindings::*;
+
+pub fn get_minimum_required_vulkan_extensions() -> Vec<CString> {
+    vec![unsafe { CStr::from_ptr(VK_KHR_SWAPCHAIN_EXTENSION_NAME.as_ptr() as *const _) }.to_owned()]
+}
 
 pub fn get_available_layers_count() -> u32 {
     unsafe {

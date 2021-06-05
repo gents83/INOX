@@ -2,7 +2,8 @@ use crate::FontInstance;
 use crate::{MaterialInstance, Pipeline, PipelineInstance, TextureInstance};
 use nrg_math::*;
 use nrg_platform::*;
-use nrg_resources::{ResourceRc, ResourceTrait};
+use nrg_resources::{get_absolute_path_from, ResourceRc, ResourceTrait, DATA_FOLDER};
+use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 
 use super::device::*;
@@ -252,8 +253,10 @@ impl Renderer {
                     //texture needs to be recreated
                     texture_handler.remove(texture_instance.id());
                 }
-                let path = texture_instance.get().get_path().to_path_buf();
-                println!("Texture = {:?}", path.as_path());
+                let path = get_absolute_path_from(
+                    PathBuf::from(DATA_FOLDER).as_path(),
+                    texture_instance.get().get_path(),
+                );
                 let (texture_index, layer_index) = if is_texture(path.as_path()) {
                     texture_handler.add_from_path(texture_instance.id(), path.as_path())
                 } else if let Some(font) = fonts.iter().find(|f| f.path() == path) {

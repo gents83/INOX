@@ -390,7 +390,6 @@ impl DeviceImmutable {
             }
 
             vkQueueWaitIdle.unwrap()(self.present_queue);
-
             self.semaphore_id = (self.semaphore_id + 1) % self.semaphore_image_available.len();
         }
 
@@ -815,9 +814,22 @@ impl DeviceImmutable {
 
         let device_extension_names_str =
             get_available_extensions_names(&instance.get_available_extensions());
-        let device_extension_names_ptr = device_extension_names_str
+
+        let mut required_exts = get_minimum_required_vulkan_extensions();
+        for ext in device_extension_names_str.iter() {
+            if let Some(index) = required_exts.iter().position(|r| r == ext) {
+                required_exts.remove(index);
+            }
+        }
+        let has_required_ext = required_exts.is_empty();
+        debug_assert!(
+            has_required_ext,
+            "Device has not minimum requirement Vulkan extensions"
+        );
+        required_exts = get_minimum_required_vulkan_extensions();
+        let device_extension_names_ptr = required_exts
             .iter()
-            .map(|e| e.as_ptr())
+            .map(|e| e.as_ptr() as *const c_char)
             .collect::<Vec<*const c_char>>();
 
         let mut device_features = instance.get_available_features();
@@ -831,7 +843,7 @@ impl DeviceImmutable {
             pQueueCreateInfos: queue_infos.as_ptr(),
             enabledLayerCount: layer_names_str.len() as _,
             ppEnabledLayerNames: layer_names_ptr.as_ptr(),
-            enabledExtensionCount: device_extension_names_ptr.len() as u32,
+            enabledExtensionCount: required_exts.len() as u32,
             ppEnabledExtensionNames: device_extension_names_ptr.as_ptr(),
             pEnabledFeatures: &device_features,
         };

@@ -76,6 +76,7 @@ impl Gui {
         gui.as_ref().unwrap().clone()
     }
 
+    #[inline]
     pub fn add_additional_job<F>(name: &str, func: F)
     where
         F: FnOnce() + Send + Sync + 'static,
@@ -89,6 +90,7 @@ impl Gui {
             .add_job(name, func);
     }
 
+    #[inline]
     pub fn update_widgets(job_handler: &JobHandlerRw) {
         Gui::get()
             .write()
@@ -108,6 +110,19 @@ impl Gui {
                             .unwrap()
                             .update(Screen::get_draw_area(), Screen::get_draw_area());
                     })
+            });
+    }
+
+    #[inline]
+    pub fn invalidate_all_widgets() {
+        Gui::get()
+            .write()
+            .unwrap()
+            .get_root_mut()
+            .get_children()
+            .iter()
+            .for_each(|w| {
+                w.write().unwrap().mark_as_dirty();
             });
     }
 }

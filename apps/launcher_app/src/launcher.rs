@@ -1,15 +1,15 @@
-use std::any::TypeId;
+use std::{any::TypeId, path::Path};
 
 use nrg_core::{App, JobHandlerRw, PhaseWithSystems, System, SystemId};
-use nrg_graphics::{FontInstance, PipelineInstance};
+use nrg_graphics::{FontInstance, MaterialInstance, PipelineInstance, TextureInstance};
 use nrg_gui::{
-    BaseWidget, Gui, HorizontalAlignment, Panel, Screen, VerticalAlignment, WidgetDataGetter,
-    WidgetEvent, WidgetStyle,
+    Gui, HorizontalAlignment, Panel, Screen, VerticalAlignment, WidgetDataGetter, WidgetEvent,
+    WidgetStyle,
 };
 use nrg_messenger::{read_messages, Message, MessageChannel, MessengerRw};
 use nrg_platform::{WindowEvent, DEFAULT_DPI};
 use nrg_resources::{ConfigBase, SharedDataRw};
-use nrg_serialize::{deserialize_from_file, Uid, INVALID_UID};
+use nrg_serialize::deserialize_from_file;
 
 use crate::config::Config;
 
@@ -55,7 +55,6 @@ struct LauncherSystem {
     global_messenger: MessengerRw,
     job_handler: JobHandlerRw,
     message_channel: MessageChannel,
-    widget_id: Uid,
 }
 
 impl LauncherSystem {
@@ -87,7 +86,6 @@ impl LauncherSystem {
             global_messenger,
             job_handler,
             message_channel,
-            widget_id: INVALID_UID,
         }
     }
 
@@ -134,23 +132,13 @@ impl LauncherSystem {
                 match *event {
                     WindowEvent::SizeChanged(width, height) => {
                         Screen::change_size(width, height);
+                        Gui::invalidate_all_widgets();
                     }
                     WindowEvent::DpiChanged(x, _y) => {
                         Screen::change_scale_factor(x / DEFAULT_DPI);
+                        Gui::invalidate_all_widgets();
                     }
                     _ => {}
-                }
-
-                if let Some(widget) = Gui::get()
-                    .read()
-                    .unwrap()
-                    .get_root()
-                    .get_child_mut::<Panel>(self.widget_id)
-                {
-                    widget
-                        .vertical_alignment(VerticalAlignment::Center)
-                        .horizontal_alignment(HorizontalAlignment::Center)
-                        .size(Screen::get_size() * 0.25);
                 }
             }
         });
@@ -175,21 +163,26 @@ impl System for LauncherSystem {
             self.config.scale_factor,
         );
 
-        let mut test = Panel::new(&self.shared_data, &self.global_messenger);
-        test.vertical_alignment(VerticalAlignment::Center)
+        let mut background = Panel::new(&self.shared_data, &self.global_messenger);
+        background
+            .vertical_alignment(VerticalAlignment::Center)
             .horizontal_alignment(HorizontalAlignment::Center)
-            .size(Screen::get_size() * 0.5)
-            .style(WidgetStyle::Default)
-            .draggable(true)
-            .selectable(true);
-        test.graphics_mut()
-            .set_border_color([1., 1., 0., 24.].into());
-        self.widget_id = test.id();
+            .size(Screen::get_size())
+            .style(WidgetStyle::Default);
+
+        let texture_id =
+            TextureInstance::create_from_path(&self.shared_data, &Path::new("textures/NRG.png"));
+        MaterialInstance::add_texture(
+            &self.shared_data,
+            background.graphics().get_material_id(),
+            texture_id,
+        );
+
         Gui::get()
             .write()
             .unwrap()
             .get_root_mut()
-            .add_child(Box::new(test));
+            .add_child(Box::new(background));
     }
 
     fn run(&mut self) -> bool {
