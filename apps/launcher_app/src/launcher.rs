@@ -152,7 +152,7 @@ impl LauncherSystem {
             }
             if msg.type_id() == TypeId::of::<WidgetEvent>() {
                 let event = msg.as_any().downcast_ref::<WidgetEvent>().unwrap();
-                if let WidgetEvent::Pressed(widget_id, _mouse_pos) = *event {
+                if let WidgetEvent::Released(widget_id, _mouse_pos) = *event {
                     if widget_id == self.node_editor_id {
                         println!("Launch editor");
                         let result = Command::new("nrg_editor").spawn().is_ok();
@@ -207,7 +207,8 @@ impl LauncherSystem {
 
         let mut icon = Icon::new(&self.shared_data, &self.global_messenger);
         icon.size(size * Screen::get_scale_factor())
-            .style(WidgetStyle::Default)
+            .style(WidgetStyle::DefaultButton)
+            .border_style(WidgetStyle::DefaultBorder)
             .selectable(true)
             .collapsed()
             .set_text(text)

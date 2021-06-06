@@ -46,7 +46,7 @@ impl Default for WidgetState {
             is_hover: false,
             dragging_pos_in_px: Vector2::default_zero(),
             style: WidgetStyle::Default,
-            border_style: WidgetStyle::DefaultBorder,
+            border_style: WidgetStyle::Invisible,
             horizontal_alignment: HorizontalAlignment::Left,
             vertical_alignment: VerticalAlignment::Top,
             fill_type: ContainerFillType::None,

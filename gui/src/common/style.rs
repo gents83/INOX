@@ -1,7 +1,7 @@
 use nrg_math::Vector4;
 use nrg_serialize::{Deserialize, Serialize};
 
-use crate::colors::*;
+use crate::{colors::*, Screen};
 
 #[derive(Clone, Copy)]
 pub enum WidgetInteractiveState {
@@ -20,6 +20,7 @@ pub enum WidgetStyle {
     DefaultBorder,
     DefaultText,
     DefaultTitleBar,
+    DefaultButton,
     FullActive,
     FullInactive,
     FullHighlight,
@@ -49,10 +50,18 @@ impl WidgetStyle {
                 WidgetInteractiveState::Pressed => COLOR_DARKEST_GRAY.into(),
             },
             Self::DefaultBorder => match state {
-                WidgetInteractiveState::Inactive => COLOR_BLACK.into(),
-                WidgetInteractiveState::Active => COLOR_DARK_GRAY.into(),
-                WidgetInteractiveState::Hover => COLOR_GRAY.into(),
-                WidgetInteractiveState::Pressed => COLOR_LIGHT_GRAY.into(),
+                WidgetInteractiveState::Inactive => COLOR_TRANSPARENT.into(),
+                WidgetInteractiveState::Active => COLOR_TRANSPARENT.into(),
+                WidgetInteractiveState::Hover => {
+                    let mut border: Vector4 = COLOR_LIGHT_CYAN.into();
+                    border.w = 10. * Screen::get_scale_factor();
+                    border
+                }
+                WidgetInteractiveState::Pressed => {
+                    let mut border: Vector4 = COLOR_WHITE.into();
+                    border.w = 10. * Screen::get_scale_factor();
+                    border
+                }
             },
             Self::DefaultText => match state {
                 WidgetInteractiveState::Inactive => COLOR_LIGHT_GRAY.into(),
@@ -65,6 +74,12 @@ impl WidgetStyle {
                 WidgetInteractiveState::Active => COLOR_LIGHT_BLUE.into(),
                 WidgetInteractiveState::Hover => COLOR_LIGHT_BLUE.into(),
                 WidgetInteractiveState::Pressed => COLOR_LIGHT_BLUE.into(),
+            },
+            Self::DefaultButton => match state {
+                WidgetInteractiveState::Inactive => COLOR_GRAY.into(),
+                WidgetInteractiveState::Active => COLOR_LIGHT_BLUE.into(),
+                WidgetInteractiveState::Hover => COLOR_BLUE.into(),
+                WidgetInteractiveState::Pressed => COLOR_LIGHT_CYAN.into(),
             },
             Self::FullActive => match state {
                 WidgetInteractiveState::Inactive => COLOR_WHITE.into(),

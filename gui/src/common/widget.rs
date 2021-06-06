@@ -293,18 +293,36 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
     fn manage_style(&mut self) {
         nrg_profiler::scoped_profile!("widget::manage_style");
 
-        if self.state().is_hover() {
-            let color = self.state().get_color(WidgetInteractiveState::Hover);
-            self.graphics_mut().set_color(color);
-        } else if self.state().is_pressed() {
+        if self.state().is_pressed() {
             let color = self.state().get_color(WidgetInteractiveState::Pressed);
-            self.graphics_mut().set_color(color);
+            let border_color = self
+                .state()
+                .get_border_color(WidgetInteractiveState::Pressed);
+            self.graphics_mut()
+                .set_color(color)
+                .set_border_color(border_color);
+        } else if self.state().is_hover() {
+            let color = self.state().get_color(WidgetInteractiveState::Hover);
+            let border_color = self.state().get_border_color(WidgetInteractiveState::Hover);
+            self.graphics_mut()
+                .set_color(color)
+                .set_border_color(border_color);
         } else if self.state().is_active() {
             let color = self.state().get_color(WidgetInteractiveState::Active);
-            self.graphics_mut().set_color(color);
+            let border_color = self
+                .state()
+                .get_border_color(WidgetInteractiveState::Active);
+            self.graphics_mut()
+                .set_color(color)
+                .set_border_color(border_color);
         } else {
             let color = self.state().get_color(WidgetInteractiveState::Inactive);
-            self.graphics_mut().set_color(color);
+            let border_color = self
+                .state()
+                .get_border_color(WidgetInteractiveState::Inactive);
+            self.graphics_mut()
+                .set_color(color)
+                .set_border_color(border_color);
         }
     }
 
