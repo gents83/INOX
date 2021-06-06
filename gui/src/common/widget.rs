@@ -9,8 +9,9 @@ use nrg_platform::{MouseEvent, MouseState};
 use nrg_serialize::{typetag, Uid};
 
 use crate::{
-    add_space_before_after, add_widget_size, compute_child_clip_area, ContainerFillType, Gui,
-    HorizontalAlignment, VerticalAlignment, WidgetDataGetter, WidgetEvent, WidgetInteractiveState,
+    add_space_before_after, add_widget_size, compute_child_clip_area, hex_to_rgba, Color,
+    ContainerFillType, Gui, HorizontalAlignment, VerticalAlignment, WidgetDataGetter, WidgetEvent,
+    COLOR_ENGRAY,
 };
 
 pub type RefcountedWidget = Arc<RwLock<Box<dyn Widget>>>;
@@ -293,37 +294,25 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
     fn manage_style(&mut self) {
         nrg_profiler::scoped_profile!("widget::manage_style");
 
+        let mut color = self.state().get_color();
+        let mut border_color = self.state().get_border_color();
         if self.state().is_pressed() {
-            let color = self.state().get_color(WidgetInteractiveState::Pressed);
-            let border_color = self
-                .state()
-                .get_border_color(WidgetInteractiveState::Pressed);
-            self.graphics_mut()
-                .set_color(color)
-                .set_border_color(border_color);
+            color = color.remove_color(hex_to_rgba(COLOR_ENGRAY));
+            border_color = border_color.remove_color(hex_to_rgba(COLOR_ENGRAY));
         } else if self.state().is_hover() {
-            let color = self.state().get_color(WidgetInteractiveState::Hover);
-            let border_color = self.state().get_border_color(WidgetInteractiveState::Hover);
-            self.graphics_mut()
-                .set_color(color)
-                .set_border_color(border_color);
-        } else if self.state().is_active() {
-            let color = self.state().get_color(WidgetInteractiveState::Active);
-            let border_color = self
-                .state()
-                .get_border_color(WidgetInteractiveState::Active);
-            self.graphics_mut()
-                .set_color(color)
-                .set_border_color(border_color);
-        } else {
-            let color = self.state().get_color(WidgetInteractiveState::Inactive);
-            let border_color = self
-                .state()
-                .get_border_color(WidgetInteractiveState::Inactive);
-            self.graphics_mut()
-                .set_color(color)
-                .set_border_color(border_color);
+            color = color.add_color(hex_to_rgba(COLOR_ENGRAY));
+            border_color = border_color.add_color(hex_to_rgba(COLOR_ENGRAY));
+        } else if !self.state().is_active() {
+            color = color
+                .remove_color(hex_to_rgba(COLOR_ENGRAY))
+                .remove_color(hex_to_rgba(COLOR_ENGRAY));
+            border_color = border_color
+                .remove_color(hex_to_rgba(COLOR_ENGRAY))
+                .remove_color(hex_to_rgba(COLOR_ENGRAY));
         }
+        self.graphics_mut()
+            .set_color(color)
+            .set_border_color(border_color);
     }
 
     #[inline]

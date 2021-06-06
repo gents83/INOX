@@ -31,10 +31,12 @@ impl Indicator {
 
             if !blinking {
                 self.style(WidgetStyle::FullActive)
-                    .border_style(WidgetStyle::FullActive);
+                    .border_style(WidgetStyle::FullActive)
+                    .border_width(1.);
             } else {
                 self.style(WidgetStyle::Invisible)
-                    .border_style(WidgetStyle::Invisible);
+                    .border_style(WidgetStyle::Invisible)
+                    .border_width(0.);
             }
             self.is_blinking = !blinking;
         }
@@ -52,7 +54,8 @@ impl InternalWidget for Indicator {
             .horizontal_alignment(HorizontalAlignment::None)
             .selectable(false)
             .style(WidgetStyle::FullActive)
-            .border_style(WidgetStyle::FullActive);
+            .border_style(WidgetStyle::FullActive)
+            .border_width(1.);
     }
 
     fn widget_update(&mut self, _drawing_area_in_px: Vector4) {

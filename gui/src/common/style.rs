@@ -1,7 +1,7 @@
 use nrg_math::Vector4;
 use nrg_serialize::{Deserialize, Serialize};
 
-use crate::{colors::*, Screen};
+use crate::{colors::*, hex_to_rgba};
 
 #[derive(Clone, Copy)]
 pub enum WidgetInteractiveState {
@@ -29,82 +29,19 @@ pub enum WidgetStyle {
 
 impl WidgetStyle {
     #[inline]
-    pub fn color(style: &WidgetStyle, state: WidgetInteractiveState) -> Vector4 {
+    pub fn color(style: WidgetStyle) -> Vector4 {
         match style {
-            Self::Default => match state {
-                WidgetInteractiveState::Inactive => COLOR_BLACK.into(),
-                WidgetInteractiveState::Active => COLOR_GRAY.into(),
-                WidgetInteractiveState::Hover => COLOR_LIGHT_GRAY.into(),
-                WidgetInteractiveState::Pressed => COLOR_GRAY.into(),
-            },
-            Self::DefaultCanvas => match state {
-                WidgetInteractiveState::Inactive => COLOR_BLACK.into(),
-                WidgetInteractiveState::Active => COLOR_BLACK.into(),
-                WidgetInteractiveState::Hover => COLOR_BLACK.into(),
-                WidgetInteractiveState::Pressed => COLOR_BLACK.into(),
-            },
-            Self::DefaultBackground => match state {
-                WidgetInteractiveState::Inactive => COLOR_DARKEST_GRAY.into(),
-                WidgetInteractiveState::Active => COLOR_DARKEST_GRAY.into(),
-                WidgetInteractiveState::Hover => COLOR_LIGHT_GRAY.into(),
-                WidgetInteractiveState::Pressed => COLOR_DARKEST_GRAY.into(),
-            },
-            Self::DefaultBorder => match state {
-                WidgetInteractiveState::Inactive => COLOR_TRANSPARENT.into(),
-                WidgetInteractiveState::Active => COLOR_TRANSPARENT.into(),
-                WidgetInteractiveState::Hover => {
-                    let mut border: Vector4 = COLOR_LIGHT_CYAN.into();
-                    border.w = 10. * Screen::get_scale_factor();
-                    border
-                }
-                WidgetInteractiveState::Pressed => {
-                    let mut border: Vector4 = COLOR_WHITE.into();
-                    border.w = 10. * Screen::get_scale_factor();
-                    border
-                }
-            },
-            Self::DefaultText => match state {
-                WidgetInteractiveState::Inactive => COLOR_LIGHT_GRAY.into(),
-                WidgetInteractiveState::Active => COLOR_WHITE.into(),
-                WidgetInteractiveState::Hover => COLOR_LIGHT_GRAY.into(),
-                WidgetInteractiveState::Pressed => COLOR_WHITE.into(),
-            },
-            Self::DefaultTitleBar => match state {
-                WidgetInteractiveState::Inactive => COLOR_BLUE.into(),
-                WidgetInteractiveState::Active => COLOR_LIGHT_BLUE.into(),
-                WidgetInteractiveState::Hover => COLOR_LIGHT_BLUE.into(),
-                WidgetInteractiveState::Pressed => COLOR_LIGHT_BLUE.into(),
-            },
-            Self::DefaultButton => match state {
-                WidgetInteractiveState::Inactive => COLOR_GRAY.into(),
-                WidgetInteractiveState::Active => COLOR_LIGHT_BLUE.into(),
-                WidgetInteractiveState::Hover => COLOR_BLUE.into(),
-                WidgetInteractiveState::Pressed => COLOR_LIGHT_CYAN.into(),
-            },
-            Self::FullActive => match state {
-                WidgetInteractiveState::Inactive => COLOR_WHITE.into(),
-                WidgetInteractiveState::Active => COLOR_WHITE.into(),
-                WidgetInteractiveState::Hover => COLOR_WHITE.into(),
-                WidgetInteractiveState::Pressed => COLOR_WHITE.into(),
-            },
-            Self::FullInactive => match state {
-                WidgetInteractiveState::Inactive => COLOR_DARKEST_GRAY.into(),
-                WidgetInteractiveState::Active => COLOR_DARKEST_GRAY.into(),
-                WidgetInteractiveState::Hover => COLOR_DARKEST_GRAY.into(),
-                WidgetInteractiveState::Pressed => COLOR_DARKEST_GRAY.into(),
-            },
-            Self::FullHighlight => match state {
-                WidgetInteractiveState::Inactive => COLOR_YELLOW.into(),
-                WidgetInteractiveState::Active => COLOR_YELLOW.into(),
-                WidgetInteractiveState::Hover => COLOR_YELLOW.into(),
-                WidgetInteractiveState::Pressed => COLOR_YELLOW.into(),
-            },
-            Self::Invisible => match state {
-                WidgetInteractiveState::Inactive => COLOR_TRANSPARENT.into(),
-                WidgetInteractiveState::Active => COLOR_TRANSPARENT.into(),
-                WidgetInteractiveState::Hover => COLOR_TRANSPARENT.into(),
-                WidgetInteractiveState::Pressed => COLOR_TRANSPARENT.into(),
-            },
+            Self::Default => hex_to_rgba(COLOR_BLUE_GRAY),
+            Self::DefaultCanvas => hex_to_rgba(COLOR_BLACK),
+            Self::DefaultBackground => hex_to_rgba(COLOR_ENGRAY),
+            Self::DefaultBorder => hex_to_rgba(COLOR_SECONDARY),
+            Self::DefaultText => hex_to_rgba(COLOR_WHITE),
+            Self::DefaultTitleBar => hex_to_rgba(COLOR_BLUE),
+            Self::DefaultButton => hex_to_rgba(COLOR_LIGHT_BLUE),
+            Self::FullActive => hex_to_rgba(COLOR_WHITE),
+            Self::FullInactive => hex_to_rgba(COLOR_GRAY),
+            Self::FullHighlight => hex_to_rgba(COLOR_YELLOW),
+            Self::Invisible => COLOR_TRANSPARENT.into(),
         }
     }
 }

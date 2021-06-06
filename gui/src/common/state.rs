@@ -2,8 +2,8 @@ use nrg_math::{VecBase, Vector2, Vector4};
 use nrg_serialize::{Deserialize, Serialize};
 
 use crate::{
-    ContainerFillType, HorizontalAlignment, VerticalAlignment, WidgetInteractiveState, WidgetStyle,
-    DEFAULT_WIDGET_SIZE,
+    hex_to_rgba, ContainerFillType, HorizontalAlignment, VerticalAlignment, COLOR_PRIMARY,
+    COLOR_TRANSPARENT, DEFAULT_WIDGET_SIZE,
 };
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -20,8 +20,8 @@ pub struct WidgetState {
     is_hover: bool,
     #[serde(skip, default = "nrg_math::VecBase::default_zero")]
     dragging_pos_in_px: Vector2,
-    style: WidgetStyle,
-    border_style: WidgetStyle,
+    inner_color: Vector4,
+    border_color: Vector4,
     horizontal_alignment: HorizontalAlignment,
     vertical_alignment: VerticalAlignment,
     fill_type: ContainerFillType,
@@ -45,8 +45,8 @@ impl Default for WidgetState {
             is_pressed: false,
             is_hover: false,
             dragging_pos_in_px: Vector2::default_zero(),
-            style: WidgetStyle::Default,
-            border_style: WidgetStyle::Invisible,
+            inner_color: hex_to_rgba(COLOR_PRIMARY),
+            border_color: COLOR_TRANSPARENT.into(),
             horizontal_alignment: HorizontalAlignment::Left,
             vertical_alignment: VerticalAlignment::Top,
             fill_type: ContainerFillType::None,
@@ -71,25 +71,31 @@ impl WidgetState {
     }
 
     #[inline]
-    pub fn set_style(&mut self, style: WidgetStyle) -> &mut Self {
-        self.style = style;
+    pub fn set_color(&mut self, color: Vector4) -> &mut Self {
+        self.inner_color = color;
         self
     }
 
     #[inline]
-    pub fn set_border_style(&mut self, style: WidgetStyle) -> &mut Self {
-        self.border_style = style;
+    pub fn set_border_color(&mut self, color: Vector4) -> &mut Self {
+        self.border_color = color;
         self
     }
 
     #[inline]
-    pub fn get_color(&self, state: WidgetInteractiveState) -> Vector4 {
-        WidgetStyle::color(&self.style, state)
+    pub fn set_border_width(&mut self, width: f32) -> &mut Self {
+        self.border_color.w = width;
+        self
     }
 
     #[inline]
-    pub fn get_border_color(&self, state: WidgetInteractiveState) -> Vector4 {
-        WidgetStyle::color(&self.border_style, state)
+    pub fn get_color(&self) -> Vector4 {
+        self.inner_color
+    }
+
+    #[inline]
+    pub fn get_border_color(&self) -> Vector4 {
+        self.border_color
     }
 
     #[inline]

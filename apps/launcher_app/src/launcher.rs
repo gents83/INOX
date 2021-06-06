@@ -209,6 +209,7 @@ impl LauncherSystem {
         icon.size(size * Screen::get_scale_factor())
             .style(WidgetStyle::DefaultButton)
             .border_style(WidgetStyle::DefaultBorder)
+            .border_width(5.)
             .selectable(true)
             .collapsed()
             .set_text(text)
