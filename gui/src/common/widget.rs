@@ -58,8 +58,8 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
 
         if self.is_dirty() {
             self.update_layout(parent_data);
+            self.manage_style();
         }
-        self.manage_style();
 
         self.update_childrens(drawing_area_in_px);
 
@@ -340,20 +340,32 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
                 }
             }
             WidgetEvent::Entering(widget_id) => {
-                if widget_id == id && self.state().is_selectable() && self.state().is_active() {
+                if widget_id == id
+                    && self.state().is_selectable()
+                    && self.state().is_active()
+                    && !self.state().is_hover()
+                {
                     self.state_mut().set_hover(true);
                     self.manage_style();
                 }
             }
             WidgetEvent::Exiting(widget_id) => {
-                if widget_id == id && self.state().is_selectable() && self.state().is_active() {
+                if widget_id == id
+                    && self.state().is_selectable()
+                    && self.state().is_active()
+                    && self.state().is_hover()
+                {
                     self.state_mut().set_hover(false);
                     self.state_mut().set_pressed(false);
                     self.manage_style();
                 }
             }
             WidgetEvent::Released(widget_id, mouse_in_px) => {
-                if widget_id == id && self.state().is_selectable() && self.state().is_active() {
+                if widget_id == id
+                    && self.state().is_selectable()
+                    && self.state().is_active()
+                    && self.state().is_pressed()
+                {
                     self.state_mut().set_pressed(false);
                     if self.state().is_draggable() {
                         self.state_mut().set_dragging_position(mouse_in_px);
@@ -362,7 +374,11 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
                 }
             }
             WidgetEvent::Pressed(widget_id, mouse_in_px) => {
-                if widget_id == id && self.state().is_selectable() && self.state().is_active() {
+                if widget_id == id
+                    && self.state().is_selectable()
+                    && self.state().is_active()
+                    && !self.state().is_pressed()
+                {
                     self.state_mut().set_pressed(true);
                     if self.state().is_draggable() {
                         self.state_mut().set_dragging_position(mouse_in_px);
