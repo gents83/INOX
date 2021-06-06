@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, process};
 
 use nrg_dynamic_library::{library, Library};
 use nrg_platform::{FileEvent, FileWatcher};
@@ -63,7 +63,8 @@ impl PluginManager {
     fn compute_dynamic_name(lib_path: PathBuf) -> PathBuf {
         unsafe {
             let (path, filename) = library::compute_folder_and_filename(lib_path);
-            let mut in_use_filename = format!("{}_{}_", IN_USE_PREFIX, UNIQUE_LIB_INDEX);
+            let mut in_use_filename =
+                format!("{}__{}_{}_", IN_USE_PREFIX, process::id(), UNIQUE_LIB_INDEX);
             in_use_filename.push_str(filename.to_str().unwrap());
             UNIQUE_LIB_INDEX += 1;
             let in_use_path = path.join(IN_USE_PREFIX);
@@ -100,19 +101,24 @@ impl PluginManager {
                 fullpath.to_str().unwrap()
             );
         }
-        let in_use_fullpath = PluginManager::compute_dynamic_name(fullpath.clone());
+        let mut in_use_fullpath = PluginManager::compute_dynamic_name(fullpath.clone());
         let res = std::fs::copy(fullpath.clone(), in_use_fullpath.clone());
         if res.is_err() {
             eprintln!(
-                "Copy failed {:?} - unable to create in_use version of the lib {}",
+                "Copy failed {:?} - unable to create in_use version of the lib {}\nUsing {}",
                 res.err(),
-                in_use_fullpath.to_str().unwrap()
+                in_use_fullpath.to_str().unwrap(),
+                fullpath.to_str().unwrap()
             );
+            in_use_fullpath = fullpath.clone();
         }
 
         let (lib, plugin_holder) = PluginManager::load_plugin(in_use_fullpath.clone());
 
-        println!("Loaded plugin {:?}", fullpath.as_os_str());
+        println!(
+            "Loaded plugin {}",
+            fullpath.file_stem().unwrap().to_str().unwrap()
+        );
 
         let mut plugin_data = PluginData {
             id: PluginId::new(),
