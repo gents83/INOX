@@ -1,8 +1,9 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
-use nrg_graphics::{MaterialInstance, TextureInstance};
+use nrg_graphics::{MaterialInstance, TextureId, TextureInstance};
 use nrg_math::{Vector2, Vector4};
 use nrg_messenger::Message;
+use nrg_resources::{get_absolute_path_from, DATA_FOLDER};
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{
@@ -18,10 +19,12 @@ pub struct Icon {
     data: WidgetData,
     image: Uid,
     text: Uid,
+    texture: TextureId,
 }
 implement_widget_with_custom_members!(Icon {
     image: INVALID_UID,
-    text: INVALID_UID
+    text: INVALID_UID,
+    texture: INVALID_UID
 });
 
 impl Icon {
@@ -36,18 +39,23 @@ impl Icon {
         self.fill_type(ContainerFillType::Vertical)
             .horizontal_alignment(HorizontalAlignment::Left)
             .vertical_alignment(VerticalAlignment::Top)
-            .keep_fixed_width(true);
+            .keep_fixed_height(false)
+            .keep_fixed_width(false);
+        let size: Vector2 = self.state().get_size();
         let image = self.image;
         if let Some(image) = self.node().get_child_mut::<Panel>(image) {
             image
+                .size(size * 0.75 * Screen::get_scale_factor())
                 .horizontal_alignment(HorizontalAlignment::Center)
                 .vertical_alignment(VerticalAlignment::Top);
         }
         let text = self.text;
         if let Some(text) = self.node().get_child_mut::<Text>(text) {
-            text.horizontal_alignment(HorizontalAlignment::Center)
-                .vertical_alignment(VerticalAlignment::Bottom)
-                .set_char_scale(0.75);
+            let mut text_size: Vector2 = size * Screen::get_scale_factor();
+            text_size.y *= 0.25;
+            text.size(text_size)
+                .horizontal_alignment(HorizontalAlignment::Center)
+                .vertical_alignment(VerticalAlignment::Bottom);
         }
         self
     }
@@ -57,17 +65,21 @@ impl Icon {
             .selectable(true)
             .fill_type(ContainerFillType::Horizontal)
             .keep_fixed_width(false);
+        let size: Vector2 = self.state().get_size();
         let image = self.image;
         if let Some(image) = self.node().get_child_mut::<Panel>(image) {
             image
+                .size(size * 0.5 * Screen::get_scale_factor())
                 .horizontal_alignment(HorizontalAlignment::Left)
                 .vertical_alignment(VerticalAlignment::Center);
         }
         let text = self.text;
         if let Some(text) = self.node().get_child_mut::<Text>(text) {
-            text.horizontal_alignment(HorizontalAlignment::Left)
-                .vertical_alignment(VerticalAlignment::Center)
-                .set_char_scale(1.);
+            let mut text_size: Vector2 = size * Screen::get_scale_factor();
+            text_size.y *= 0.25;
+            text.size(text_size)
+                .horizontal_alignment(HorizontalAlignment::Left)
+                .vertical_alignment(VerticalAlignment::Center);
         }
         self
     }
@@ -88,6 +100,23 @@ impl Icon {
                 }
             });
         }
+    }
+
+    pub fn set_texture(&mut self, path: &Path) -> &mut Self {
+        let mut texture_uid = self.texture;
+        let image = self.image;
+        if let Some(image) = self.node().get_child_mut::<Panel>(image) {
+            let material_uid = image.graphics().get_material_id();
+            if !texture_uid.is_nil() {
+                MaterialInstance::remove_texture(self.get_shared_data(), material_uid, texture_uid);
+            }
+            let texture_path = get_absolute_path_from(PathBuf::from(DATA_FOLDER).as_path(), path);
+            texture_uid =
+                TextureInstance::create_from_path(self.get_shared_data(), texture_path.as_path());
+            MaterialInstance::add_texture(self.get_shared_data(), material_uid, texture_uid);
+        }
+        self.texture = texture_uid;
+        self
     }
 }
 
@@ -119,25 +148,19 @@ impl InternalWidget for Icon {
             .size(size * 0.75 * Screen::get_scale_factor())
             .style(WidgetStyle::FullActive);
 
-        let texture_uid = TextureInstance::create_from_path(
-            self.get_shared_data(),
-            &Path::new("./data/icons/file.png"),
-        );
-        let material_uid = image.graphics().get_material_id();
-        MaterialInstance::add_texture(self.get_shared_data(), material_uid, texture_uid);
-
         self.image = self.add_child(Box::new(image));
 
         let mut text = Text::new(self.get_shared_data(), self.get_global_messenger());
         let text_size: Vector2 = DEFAULT_TEXT_SIZE.into();
         text.editable(false)
             .size(text_size * Screen::get_scale_factor() * 0.5)
-            .set_char_scale(0.8)
             .selectable(false)
             .horizontal_alignment(HorizontalAlignment::Center)
             .vertical_alignment(VerticalAlignment::Bottom)
             .set_text("File");
         self.text = self.add_child(Box::new(text));
+
+        self.set_texture(PathBuf::from("icons/file.png").as_path());
     }
 
     fn widget_update(&mut self, _drawing_area_in_px: Vector4) {}

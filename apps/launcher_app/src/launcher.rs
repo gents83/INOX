@@ -1,15 +1,20 @@
-use std::{any::TypeId, path::Path};
+use std::{
+    any::TypeId,
+    path::{Path, PathBuf},
+    process::Command,
+};
 
 use nrg_core::{App, JobHandlerRw, PhaseWithSystems, System, SystemId};
 use nrg_graphics::{FontInstance, MaterialInstance, PipelineInstance, TextureInstance};
 use nrg_gui::{
-    Gui, HorizontalAlignment, Panel, Screen, VerticalAlignment, WidgetDataGetter, WidgetEvent,
-    WidgetStyle,
+    BaseWidget, ContainerFillType, Gui, HorizontalAlignment, Icon, Panel, Screen,
+    VerticalAlignment, WidgetDataGetter, WidgetEvent, WidgetStyle,
 };
+use nrg_math::Vector2;
 use nrg_messenger::{read_messages, Message, MessageChannel, MessengerRw};
 use nrg_platform::{WindowEvent, DEFAULT_DPI};
 use nrg_resources::{ConfigBase, SharedDataRw};
-use nrg_serialize::deserialize_from_file;
+use nrg_serialize::{deserialize_from_file, Uid, INVALID_UID};
 
 use crate::config::Config;
 
@@ -55,6 +60,8 @@ struct LauncherSystem {
     global_messenger: MessengerRw,
     job_handler: JobHandlerRw,
     message_channel: MessageChannel,
+    node_editor_id: Uid,
+    game_id: Uid,
 }
 
 impl LauncherSystem {
@@ -86,6 +93,8 @@ impl LauncherSystem {
             global_messenger,
             job_handler,
             message_channel,
+            node_editor_id: INVALID_UID,
+            game_id: INVALID_UID,
         }
     }
 
@@ -141,7 +150,70 @@ impl LauncherSystem {
                     _ => {}
                 }
             }
+            if msg.type_id() == TypeId::of::<WidgetEvent>() {
+                let event = msg.as_any().downcast_ref::<WidgetEvent>().unwrap();
+                if let WidgetEvent::Pressed(widget_id, _mouse_pos) = *event {
+                    if widget_id == self.node_editor_id {
+                        println!("Launch editor");
+                        let result = Command::new("nrg_editor").spawn().is_ok();
+                        if !result {
+                            println!("Failed to execute process");
+                        }
+                    } else if widget_id == self.game_id {
+                        println!("Launch game");
+                        let result = Command::new("nrg_game").spawn().is_ok();
+                        if !result {
+                            println!("Failed to execute process");
+                        }
+                    }
+                }
+            }
         });
+    }
+
+    fn add_content(&mut self) -> &Self {
+        let mut background = Panel::new(&self.shared_data, &self.global_messenger);
+        background
+            .vertical_alignment(VerticalAlignment::Stretch)
+            .horizontal_alignment(HorizontalAlignment::Stretch)
+            .fill_type(ContainerFillType::Horizontal)
+            .space_between_elements((10. * Screen::get_scale_factor()) as u32)
+            .use_space_before_and_after(true)
+            .style(WidgetStyle::FullActive);
+
+        let texture_id =
+            TextureInstance::create_from_path(&self.shared_data, &Path::new("textures/NRG.png"));
+        MaterialInstance::add_texture(
+            &self.shared_data,
+            background.graphics().get_material_id(),
+            texture_id,
+        );
+
+        self.node_editor_id = background.add_child(Box::new(
+            self.add_button(PathBuf::from("icons/editor.png").as_path(), "Node Editor"),
+        ));
+
+        Gui::get()
+            .write()
+            .unwrap()
+            .get_root_mut()
+            .add_child(Box::new(background));
+
+        self
+    }
+
+    fn add_button(&self, icon_path: &Path, text: &str) -> Icon {
+        let size: Vector2 = [200., 200.].into();
+
+        let mut icon = Icon::new(&self.shared_data, &self.global_messenger);
+        icon.size(size * Screen::get_scale_factor())
+            .style(WidgetStyle::Default)
+            .selectable(true)
+            .collapsed()
+            .set_text(text)
+            .set_texture(icon_path);
+
+        icon
     }
 }
 
@@ -163,25 +235,7 @@ impl System for LauncherSystem {
             self.config.scale_factor,
         );
 
-        let mut background = Panel::new(&self.shared_data, &self.global_messenger);
-        background
-            .vertical_alignment(VerticalAlignment::Stretch)
-            .horizontal_alignment(HorizontalAlignment::Stretch)
-            .style(WidgetStyle::FullActive);
-
-        let texture_id =
-            TextureInstance::create_from_path(&self.shared_data, &Path::new("textures/NRG.png"));
-        MaterialInstance::add_texture(
-            &self.shared_data,
-            background.graphics().get_material_id(),
-            texture_id,
-        );
-
-        Gui::get()
-            .write()
-            .unwrap()
-            .get_root_mut()
-            .add_child(Box::new(background));
+        self.add_content();
     }
 
     fn run(&mut self) -> bool {

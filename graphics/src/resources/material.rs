@@ -81,6 +81,15 @@ impl MaterialInstance {
         textures.iter().any(|&id| id == texture_id)
     }
 
+    pub fn remove_texture(
+        shared_data: &SharedDataRw,
+        material_id: MaterialId,
+        texture_id: TextureId,
+    ) {
+        let material = SharedData::get_resource::<Self>(shared_data, material_id);
+        material.get_mut().textures.retain(|&id| id != texture_id);
+    }
+
     pub fn add_texture(shared_data: &SharedDataRw, material_id: MaterialId, texture_id: TextureId) {
         let material = SharedData::get_resource::<Self>(shared_data, material_id);
         material.get_mut().textures.push(texture_id);

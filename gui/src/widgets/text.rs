@@ -58,8 +58,8 @@ pub struct Text {
     text: String,
     #[serde(skip)]
     hover_char_index: i32,
-    char_width: u32,
-    char_scale: f32,
+    char_width: f32,
+    space_between_chars: f32,
     #[serde(skip)]
     is_dirty: bool,
     data: WidgetData,
@@ -70,8 +70,8 @@ implement_widget_with_custom_members!(Text {
     editable: true,
     text: String::new(),
     hover_char_index: -1,
-    char_width: DEFAULT_TEXT_SIZE[1] as _,
-    char_scale: 1.,
+    char_width: DEFAULT_TEXT_SIZE[1],
+    space_between_chars: 0.7,
     is_dirty: true
 });
 
@@ -90,7 +90,6 @@ impl Text {
         self
     }
     pub fn set_text(&mut self, text: &str) -> &mut Self {
-        self.is_dirty = true;
         self.text = String::from(text);
         self.compute_size();
         self
@@ -105,15 +104,11 @@ impl Text {
     pub fn get_hover_char(&self) -> i32 {
         self.hover_char_index
     }
-    pub fn set_char_scale(&mut self, scale: f32) -> &mut Self {
-        self.char_scale = scale as _;
-        self
-    }
     pub fn get_char_pos(&self, index: i32) -> Vector2 {
         let pos = self.state().get_position();
         if index >= 0 && index < self.text.len() as _ {
             return [
-                pos.x + (self.char_width as f32 * self.char_scale) * (index as f32 + 1.),
+                pos.x + self.char_width * self.space_between_chars * (index as f32 + 1.),
                 pos.y,
             ]
             .into();
@@ -135,13 +130,11 @@ impl Text {
         if new_index < 0 {
             new_index = 0;
         }
-        self.is_dirty = true;
         self.text.insert(new_index as _, character);
         self.compute_size();
     }
     fn remove_char(&mut self, index: i32) -> char {
         if index >= 0 && index < self.text.len() as _ {
-            self.is_dirty = true;
             let c = self.text.remove(index as usize);
             self.compute_size();
             return c;
@@ -158,23 +151,20 @@ impl Text {
             max_chars = max_chars.max(text.len());
         }
 
-        let char_size = self.char_width as f32 * self.char_scale;
-        let mut char_width = char_size;
-        let mut char_height = char_size;
-        if self.state().get_horizontal_alignment() == HorizontalAlignment::Stretch {
-            char_width = size.x / max_chars as f32;
-        }
-        if self.state().get_vertical_alignment() == VerticalAlignment::Stretch {
-            char_height = size.y / lines_count as f32;
-        }
+        let char_size = size.y;
 
-        let new_size: Vector2 = [
-            char_width * max_chars as f32,
-            char_height * lines_count as f32,
-        ]
-        .into();
+        let mut new_size: Vector2 = [char_size, char_size * lines_count as f32].into();
+        if max_chars > 0 {
+            new_size.x += char_size * self.space_between_chars * (max_chars - 1) as f32;
+        }
+        if self.state().get_horizontal_alignment() == HorizontalAlignment::Stretch {
+            new_size.x = size.x;
+        }
+        self.char_width = (new_size.x / (1. + ((max_chars - 1) as f32 * self.space_between_chars)))
+            .min(char_size);
 
         self.set_size(new_size);
+        self.is_dirty = true;
         self
     }
 
@@ -184,7 +174,7 @@ impl Text {
         let mut mesh_index = 0;
         let lines_count = self.text.lines().count().max(1);
         let size = self.state_mut().get_size();
-        let char_width = (self.char_width as f32 * self.char_scale) / size.x;
+        let char_width = self.char_width / size.x;
         let char_height = 1. / lines_count as f32;
         for text in self.text.lines() {
             let mut pos_x = 0.;
@@ -200,7 +190,7 @@ impl Text {
                     Some(mesh_index),
                 );
                 mesh_index += 4;
-                pos_x += char_width;
+                pos_x += char_width * self.space_between_chars;
             }
             pos_y += char_height;
         }
@@ -229,8 +219,7 @@ impl InternalWidget for Text {
             .style(WidgetStyle::DefaultText)
             .editable(false);
 
-        self.char_width = (DEFAULT_TEXT_SIZE[1] * Screen::get_scale_factor()) as _;
-        self.char_scale = 1.;
+        self.char_width = DEFAULT_TEXT_SIZE[1] * Screen::get_scale_factor();
     }
 
     fn widget_update(&mut self, _drawing_area_in_px: Vector4) {
@@ -272,10 +261,10 @@ impl InternalWidget for Text {
                 for (line_index, t) in self.text.lines().enumerate() {
                     for (i, _c) in t.as_bytes().iter().enumerate() {
                         if mouse_pos.x
-                            >= pos.x + (self.char_width as f32 * self.char_scale) * i as f32
+                            >= pos.x + (self.char_width * self.space_between_chars) * i as f32
                             && mouse_pos.x
                                 <= pos.x
-                                    + (self.char_width as f32 * self.char_scale) * (i as f32 + 1.)
+                                    + (self.char_width * self.space_between_chars) * (i as f32 + 1.)
                             && mouse_pos.y >= pos.y + line_height * line_index as f32
                             && mouse_pos.y <= pos.y + size.y + line_height * line_index as f32
                         {
