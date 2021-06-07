@@ -58,7 +58,8 @@ impl InternalWidget for Button {
             .fill_type(ContainerFillType::Horizontal)
             .space_between_elements((DEFAULT_WIDGET_SIZE[0] / 5. * Screen::get_scale_factor()) as _)
             .use_space_before_and_after(true)
-            .keep_fixed_width(false);
+            .keep_fixed_width(false)
+            .style(WidgetStyle::DefaultButton);
 
         let mut text = Text::new(self.get_shared_data(), self.get_global_messenger());
         text.vertical_alignment(VerticalAlignment::Center)

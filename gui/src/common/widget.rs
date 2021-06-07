@@ -329,24 +329,20 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
                 }
             }
             WidgetEvent::Entering(widget_id) => {
-                if widget_id == id
-                    && self.state().is_selectable()
-                    && self.state().is_active()
-                    && !self.state().is_hover()
-                {
+                if widget_id == id && self.state().is_active() && !self.state().is_hover() {
                     self.state_mut().set_hover(true);
-                    self.manage_style();
+                    if self.state().is_selectable() {
+                        self.manage_style();
+                    }
                 }
             }
             WidgetEvent::Exiting(widget_id) => {
-                if widget_id == id
-                    && self.state().is_selectable()
-                    && self.state().is_active()
-                    && self.state().is_hover()
-                {
+                if widget_id == id && self.state().is_active() && self.state().is_hover() {
                     self.state_mut().set_hover(false);
                     self.state_mut().set_pressed(false);
-                    self.manage_style();
+                    if self.state().is_selectable() {
+                        self.manage_style();
+                    }
                 }
             }
             WidgetEvent::Released(widget_id, mouse_in_px) => {
@@ -399,10 +395,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
     fn manage_input(&mut self, event: &MouseEvent) {
         nrg_profiler::scoped_profile!("widget::manage_input");
 
-        if !self.graphics().is_visible()
-            || !self.state().is_active()
-            || !self.state().is_selectable()
-        {
+        if !self.graphics().is_visible() || !self.state().is_active() {
             return;
         }
         let mut is_on_child = false;
@@ -422,14 +415,24 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
                 Some(WidgetEvent::Entering(id))
             } else if !is_inside && self.state().is_hover() {
                 Some(WidgetEvent::Exiting(id))
-            } else if self.state().is_pressed() && self.state().is_draggable() {
+            } else if self.state().is_selectable()
+                && self.state().is_pressed()
+                && self.state().is_draggable()
+            {
                 Some(WidgetEvent::Dragging(id, mouse_in_px))
             } else {
                 None
             }
-        } else if event.state == MouseState::Down && is_inside && !self.state().is_pressed() {
+        } else if event.state == MouseState::Down
+            && is_inside
+            && self.state().is_selectable()
+            && !self.state().is_pressed()
+        {
             Some(WidgetEvent::Pressed(id, mouse_in_px))
-        } else if event.state == MouseState::Up && self.state().is_pressed() {
+        } else if event.state == MouseState::Up
+            && self.state().is_selectable()
+            && self.state().is_pressed()
+        {
             Some(WidgetEvent::Released(id, mouse_in_px))
         } else {
             None

@@ -2,8 +2,8 @@ use nrg_math::{VecBase, Vector2, Vector4};
 use nrg_serialize::{Deserialize, Serialize};
 
 use crate::{
-    hex_to_rgba, ContainerFillType, HorizontalAlignment, VerticalAlignment, COLOR_PRIMARY,
-    COLOR_TRANSPARENT, DEFAULT_WIDGET_SIZE,
+    ContainerFillType, HorizontalAlignment, VerticalAlignment, WidgetStyle, COLOR_TRANSPARENT,
+    DEFAULT_WIDGET_SIZE,
 };
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -45,7 +45,7 @@ impl Default for WidgetState {
             is_pressed: false,
             is_hover: false,
             dragging_pos_in_px: Vector2::default_zero(),
-            inner_color: hex_to_rgba(COLOR_PRIMARY),
+            inner_color: WidgetStyle::color(WidgetStyle::Default),
             border_color: COLOR_TRANSPARENT.into(),
             horizontal_alignment: HorizontalAlignment::Left,
             vertical_alignment: VerticalAlignment::Top,

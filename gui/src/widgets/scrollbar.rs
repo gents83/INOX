@@ -196,7 +196,7 @@ impl InternalWidget for Scrollbar {
         cursor
             .horizontal_alignment(HorizontalAlignment::Center)
             .vertical_alignment(VerticalAlignment::Top)
-            .style(WidgetStyle::DefaultBorder)
+            .style(WidgetStyle::DefaultButton)
             .selectable(true)
             .draggable(true)
             .size(size);

@@ -20,7 +20,4 @@ pub const COLOR_BLUE_GRAY: &str = "#607D8B";
 pub const COLOR_WHITE: &str = "#FFFFFF";
 pub const COLOR_BLACK: &str = "#000000";
 pub const COLOR_TRANSPARENT: [f32; 4] = [1., 1., 1., 0.];
-
-pub const COLOR_PRIMARY: &str = "#0480FC";
-pub const COLOR_SECONDARY: &str = "#FC8004";
 pub const COLOR_ENGRAY: &str = "#212121";

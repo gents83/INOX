@@ -129,7 +129,7 @@ impl TitleBar {
                 .vertical_alignment(VerticalAlignment::Center)
                 .horizontal_alignment(HorizontalAlignment::Left)
                 .selectable(true)
-                .style(WidgetStyle::FullActive);
+                .style(WidgetStyle::DefaultText);
             self.collapse_icon_widget = self.add_child(Box::new(collapse_icon));
 
             self.change_collapse_icon();

@@ -70,7 +70,7 @@ impl Checkbox {
             let checked_id = self.checked_widget;
             if let Some(inner_widget) = self.node().get_child_mut::<Panel>(checked_id) {
                 if checked {
-                    inner_widget.style(WidgetStyle::FullActive);
+                    inner_widget.style(WidgetStyle::DefaultText);
                 } else {
                     inner_widget.style(WidgetStyle::Invisible);
                 }

@@ -27,7 +27,7 @@ impl InternalWidget for Separator {
             .horizontal_alignment(HorizontalAlignment::Stretch)
             .vertical_alignment(VerticalAlignment::Top)
             .selectable(false)
-            .style(WidgetStyle::FullActive);
+            .style(WidgetStyle::DefaultText);
     }
 
     fn widget_update(&mut self, _drawing_area_in_px: Vector4) {}

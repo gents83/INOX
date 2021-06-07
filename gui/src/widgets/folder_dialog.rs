@@ -74,7 +74,7 @@ impl FolderDialog {
             .horizontal_alignment(HorizontalAlignment::Stretch)
             .vertical_alignment(VerticalAlignment::Stretch)
             .size(content_size)
-            .style(WidgetStyle::DefaultBackground);
+            .style(WidgetStyle::DefaultCanvas);
 
         let mut treeview = TreeView::new(self.get_shared_data(), self.get_global_messenger());
 
@@ -96,8 +96,7 @@ impl FolderDialog {
             .fill_type(ContainerFillType::None)
             .selectable(false)
             .horizontal_alignment(HorizontalAlignment::Stretch)
-            .vertical_alignment(VerticalAlignment::Stretch)
-            .style(WidgetStyle::Default);
+            .vertical_alignment(VerticalAlignment::Stretch);
 
         let mut icon_panel = Panel::new(self.get_shared_data(), self.get_global_messenger());
         icon_panel
@@ -105,8 +104,7 @@ impl FolderDialog {
             .selectable(false)
             .space_between_elements(2)
             .horizontal_alignment(HorizontalAlignment::Stretch)
-            .vertical_alignment(VerticalAlignment::Stretch)
-            .style(WidgetStyle::Default);
+            .vertical_alignment(VerticalAlignment::Stretch);
 
         Icon::create_icons(DATA_FOLDER, &mut icon_panel);
 

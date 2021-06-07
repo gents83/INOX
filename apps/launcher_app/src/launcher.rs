@@ -179,7 +179,7 @@ impl LauncherSystem {
             .fill_type(ContainerFillType::Horizontal)
             .space_between_elements((10. * Screen::get_scale_factor()) as u32)
             .use_space_before_and_after(true)
-            .style(WidgetStyle::FullActive);
+            .style(WidgetStyle::DefaultText);
 
         let texture_id =
             TextureInstance::create_from_path(&self.shared_data, &Path::new("textures/NRG.png"));

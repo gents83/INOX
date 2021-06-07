@@ -146,7 +146,7 @@ impl InternalWidget for Icon {
             .horizontal_alignment(HorizontalAlignment::Center)
             .vertical_alignment(VerticalAlignment::Top)
             .size(size * 0.75 * Screen::get_scale_factor())
-            .style(WidgetStyle::FullActive);
+            .style(WidgetStyle::DefaultText);
 
         self.image = self.add_child(Box::new(image));
 

@@ -14,16 +14,13 @@ pub enum WidgetInteractiveState {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(crate = "nrg_serialize")]
 pub enum WidgetStyle {
-    Default,
-    DefaultCanvas,
     DefaultBackground,
+    DefaultCanvas,
     DefaultBorder,
-    DefaultText,
     DefaultTitleBar,
+    Default,
+    DefaultText,
     DefaultButton,
-    FullActive,
-    FullInactive,
-    FullHighlight,
     Invisible,
 }
 
@@ -31,16 +28,13 @@ impl WidgetStyle {
     #[inline]
     pub fn color(style: WidgetStyle) -> Vector4 {
         match style {
-            Self::Default => hex_to_rgba(COLOR_BLUE_GRAY),
-            Self::DefaultCanvas => hex_to_rgba(COLOR_BLACK),
-            Self::DefaultBackground => hex_to_rgba(COLOR_ENGRAY),
-            Self::DefaultBorder => hex_to_rgba(COLOR_SECONDARY),
+            Self::DefaultBackground => hex_to_rgba("#15202B"),
+            Self::DefaultCanvas => hex_to_rgba("#192734"),
+            Self::DefaultBorder => hex_to_rgba("#22303C"),
+            Self::DefaultTitleBar => hex_to_rgba(COLOR_BLUE_GRAY),
+            Self::Default => hex_to_rgba("#3A3B3C"),
             Self::DefaultText => hex_to_rgba(COLOR_WHITE),
-            Self::DefaultTitleBar => hex_to_rgba(COLOR_BLUE),
-            Self::DefaultButton => hex_to_rgba(COLOR_LIGHT_BLUE),
-            Self::FullActive => hex_to_rgba(COLOR_WHITE),
-            Self::FullInactive => hex_to_rgba(COLOR_GRAY),
-            Self::FullHighlight => hex_to_rgba(COLOR_YELLOW),
+            Self::DefaultButton => hex_to_rgba(COLOR_BLUE),
             Self::Invisible => COLOR_TRANSPARENT.into(),
         }
     }

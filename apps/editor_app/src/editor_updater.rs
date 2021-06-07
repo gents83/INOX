@@ -181,7 +181,6 @@ impl System for EditorUpdater {
         test.vertical_alignment(VerticalAlignment::Center)
             .horizontal_alignment(HorizontalAlignment::Center)
             .size([1000., 800.].into())
-            .style(WidgetStyle::Default)
             .selectable(true);
         test.graphics_mut()
             .set_border_color([1., 1., 0., 24.].into());

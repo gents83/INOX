@@ -2,6 +2,7 @@ use std::any::TypeId;
 
 use nrg_math::{VecBase, Vector2, Vector4};
 use nrg_messenger::Message;
+use nrg_platform::MouseEvent;
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{
@@ -41,7 +42,7 @@ impl Menu {
             .keep_fixed_width(false)
             .with_text(label)
             .text_alignment(VerticalAlignment::Center, HorizontalAlignment::Left)
-            .style(WidgetStyle::DefaultBackground);
+            .style(WidgetStyle::DefaultCanvas);
 
         let size: Vector2 = DEFAULT_SUBMENU_ITEM_SIZE.into();
         let mut submenu = Menu::new(self.get_shared_data(), self.get_global_messenger());
@@ -49,13 +50,14 @@ impl Menu {
             .position([button.state().get_position().x, self.state().get_size().y].into())
             .size(size * Screen::get_scale_factor())
             .visible(false)
-            .selectable(true)
+            .selectable(false)
             .fill_type(ContainerFillType::Vertical)
             .vertical_alignment(VerticalAlignment::None)
             .horizontal_alignment(HorizontalAlignment::None)
             .keep_fixed_width(false)
             .keep_fixed_height(false)
-            .style(WidgetStyle::FullInactive);
+            .style(WidgetStyle::DefaultBackground)
+            .register_to_listen_event::<MouseEvent>();
 
         submenu.move_to_layer(DEFAULT_MENU_LAYER);
 
@@ -96,7 +98,7 @@ impl Menu {
             button
                 .with_text(label)
                 .text_alignment(VerticalAlignment::Center, HorizontalAlignment::Left)
-                .style(WidgetStyle::DefaultBackground);
+                .style(WidgetStyle::DefaultCanvas);
 
             button.set_visible(false);
             let entry = &mut self.entries[index];
@@ -167,7 +169,7 @@ impl InternalWidget for Menu {
             .fill_type(ContainerFillType::Horizontal)
             .keep_fixed_width(true)
             .use_space_before_and_after(false)
-            .style(WidgetStyle::DefaultBackground);
+            .style(WidgetStyle::DefaultCanvas);
     }
 
     fn widget_update(&mut self, drawing_area_in_px: Vector4) {

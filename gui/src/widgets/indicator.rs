@@ -30,8 +30,8 @@ impl Indicator {
             self.elapsed_time = Instant::now();
 
             if !blinking {
-                self.style(WidgetStyle::FullActive)
-                    .border_style(WidgetStyle::FullActive)
+                self.style(WidgetStyle::DefaultText)
+                    .border_style(WidgetStyle::DefaultText)
                     .border_width(1.);
             } else {
                 self.style(WidgetStyle::Invisible)
@@ -53,8 +53,8 @@ impl InternalWidget for Indicator {
             .vertical_alignment(VerticalAlignment::Stretch)
             .horizontal_alignment(HorizontalAlignment::None)
             .selectable(false)
-            .style(WidgetStyle::FullActive)
-            .border_style(WidgetStyle::FullActive)
+            .style(WidgetStyle::DefaultText)
+            .border_style(WidgetStyle::DefaultText)
             .border_width(1.);
     }
 

@@ -119,7 +119,7 @@ impl InternalWidget for CollapsibleItem {
 
         let mut title_bar = TitleBar::new(self.get_shared_data(), self.get_global_messenger());
         title_bar
-            .style(WidgetStyle::DefaultBackground)
+            .style(WidgetStyle::DefaultCanvas)
             .selectable(true)
             .collapsible(true)
             .set_text_alignment(HorizontalAlignment::Left, VerticalAlignment::Center);
