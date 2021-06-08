@@ -59,8 +59,8 @@ impl Texture {
     }
     pub fn convert_uv(&self, u: f32, v: f32) -> (f32, f32) {
         (
-            (self.area.x as f32 + u * self.area.width as f32) / DEFAULT_AREA_SIZE as f32,
-            (self.area.y as f32 + v * self.area.height as f32) / DEFAULT_AREA_SIZE as f32,
+            (self.area.x as f32 + 0.5 + u * self.area.width as f32) / DEFAULT_AREA_SIZE as f32,
+            (self.area.y as f32 + 0.5 + v * self.area.height as f32) / DEFAULT_AREA_SIZE as f32,
         )
     }
 }

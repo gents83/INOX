@@ -203,13 +203,13 @@ impl LauncherSystem {
     }
 
     fn add_button(&self, icon_path: &Path, text: &str) -> Icon {
-        let size: Vector2 = [100., 100.].into();
+        let size: Vector2 = [150., 150.].into();
 
         let mut icon = Icon::new(&self.shared_data, &self.global_messenger);
         icon.size(size * Screen::get_scale_factor())
             .style(WidgetStyle::DefaultButton)
             .border_style(WidgetStyle::DefaultBorder)
-            .border_width(2.)
+            .border_width(2. * Screen::get_scale_factor())
             .selectable(true)
             .collapsed()
             .set_text(text)
