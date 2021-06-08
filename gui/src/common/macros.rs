@@ -150,6 +150,7 @@ macro_rules! implement_widget {
             #[inline]
             pub fn style(&mut self, style: WidgetStyle) -> &mut Self {
                 self.state_mut().set_color(WidgetStyle::color(style));
+                self.manage_style();
                 self
             }
             #[inline]
@@ -157,11 +158,13 @@ macro_rules! implement_widget {
                 let mut border_color = WidgetStyle::color(style);
                 border_color.w = self.state().get_border_color().w;
                 self.state_mut().set_border_color(border_color);
+                self.manage_style();
                 self
             }
             #[inline]
             pub fn border_width(&mut self, width: f32) -> &mut Self {
                 self.state_mut().set_border_width(width);
+                self.manage_style();
                 self
             }
             #[inline]

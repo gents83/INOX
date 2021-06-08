@@ -190,7 +190,7 @@ impl LauncherSystem {
         );
 
         self.node_editor_id = background.add_child(Box::new(
-            self.add_button(PathBuf::from("icons/editor.png").as_path(), "Node Editor"),
+            self.add_button(PathBuf::from("icons/gears.png").as_path(), "Node Editor"),
         ));
 
         Gui::get()
@@ -203,13 +203,13 @@ impl LauncherSystem {
     }
 
     fn add_button(&self, icon_path: &Path, text: &str) -> Icon {
-        let size: Vector2 = [200., 200.].into();
+        let size: Vector2 = [100., 100.].into();
 
         let mut icon = Icon::new(&self.shared_data, &self.global_messenger);
         icon.size(size * Screen::get_scale_factor())
             .style(WidgetStyle::DefaultButton)
             .border_style(WidgetStyle::DefaultBorder)
-            .border_width(5.)
+            .border_width(2.)
             .selectable(true)
             .collapsed()
             .set_text(text)
