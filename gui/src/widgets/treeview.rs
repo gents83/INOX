@@ -139,6 +139,7 @@ impl InternalWidget for TreeView {
                             .ok();
                     }
                 }
+                _ => {}
             }
         }
     }

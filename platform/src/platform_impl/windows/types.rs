@@ -11,22 +11,57 @@ use std::os::raw::c_ulonglong;
 
 use super::externs::*;
 use crate::ctypes::*;
+use crate::declare_extern_function;
 use crate::declare_handle;
 
 declare_handle! {HWND, HWND__}
 declare_handle! {HINSTANCE, HINSTANCE__}
 declare_handle! {HICON, HICON__}
+declare_handle! {HBITMAP, HBITMAP__}
 declare_handle! {HBRUSH, HBRUSH__}
+declare_handle! {HCOLORSPACE, HCOLORSPACE__}
 declare_handle! {HDC, HDC__}
 declare_handle! {HMENU, HMENU__}
+declare_handle! {HFONT, HFONT__}
+declare_handle! {HPALETTE, HPALETTE__}
+declare_handle! {HPEN, HPEN__}
+declare_handle! {HWINEVENTHOOK, HWINEVENTHOOK__}
+declare_handle! {HUMPD, HUMPD__}
 declare_handle! {HMONITOR, HMONITOR__}
 declare_handle! {HKL, HKL__}
 declare_handle! {HRGN, HRGN__}
+
+#[inline]
+pub fn MAKEWORD(a: BYTE, b: BYTE) -> WORD {
+    (a as WORD) | ((b as WORD) << 8)
+}
+#[inline]
+pub fn MAKELONG(a: WORD, b: WORD) -> LONG {
+    ((a as DWORD) | ((b as DWORD) << 16)) as LONG
+}
+#[inline]
+pub fn LOWORD(l: DWORD) -> WORD {
+    (l & 0xffff) as WORD
+}
+#[inline]
+pub fn HIWORD(l: DWORD) -> WORD {
+    ((l >> 16) & 0xffff) as WORD
+}
+#[inline]
+pub fn LOBYTE(l: WORD) -> BYTE {
+    (l & 0xff) as BYTE
+}
+#[inline]
+pub fn HIBYTE(l: WORD) -> BYTE {
+    ((l >> 8) & 0xff) as BYTE
+}
 
 pub type HANDLE = *mut c_void;
 pub type PHANDLE = *mut HANDLE;
 pub type HMODULE = HINSTANCE;
 pub type HCURSOR = HICON;
+pub type COLORREF = DWORD;
+pub type LPCOLORREF = *mut DWORD;
 pub type HRESULT = c_long;
 pub type wchar_t = u16;
 pub type BOOL = c_int;
@@ -59,10 +94,328 @@ pub type LPCWSTR = *const WCHAR;
 pub type WPARAM = UINT_PTR;
 pub type LPARAM = LONG_PTR;
 pub type LRESULT = LONG_PTR;
-pub type LPVOID = *mut ::std::ffi::c_void;
+pub type LPVOID = *mut c_void;
+pub type LPCVOID = *const c_void;
 pub type LPLONG = *mut c_long;
 pub type LPMSG = *mut MSG;
 pub type PVOID = *mut c_void;
+pub type HGDIOBJ = *mut c_void;
+pub type INT_PTR = isize;
+pub type PINT_PTR = *mut isize;
+pub type HTHEME = HANDLE;
+pub type PVOID64 = u64; // This is a 64-bit pointer, even when in 32-bit
+pub type VOID = c_void;
+pub type PBYTE = *mut BYTE;
+pub type LPBYTE = *mut BYTE;
+
+pub const IMAGE_BITMAP: UINT = 0;
+pub const IMAGE_ICON: UINT = 1;
+pub const IMAGE_CURSOR: UINT = 2;
+pub const IMAGE_ENHMETAFILE: UINT = 3;
+pub const LR_DEFAULTCOLOR: UINT = 0x00000000;
+pub const LR_MONOCHROME: UINT = 0x00000001;
+pub const LR_COLOR: UINT = 0x00000002;
+pub const LR_COPYRETURNORG: UINT = 0x00000004;
+pub const LR_COPYDELETEORG: UINT = 0x00000008;
+pub const LR_LOADFROMFILE: UINT = 0x00000010;
+pub const LR_LOADTRANSPARENT: UINT = 0x00000020;
+pub const LR_DEFAULTSIZE: UINT = 0x00000040;
+pub const LR_VGACOLOR: UINT = 0x00000080;
+pub const LR_LOADMAP3DCOLORS: UINT = 0x00001000;
+pub const LR_CREATEDIBSECTION: UINT = 0x00002000;
+pub const LR_COPYFROMRESOURCE: UINT = 0x00004000;
+pub const LR_SHARED: UINT = 0x00008000;
+
+pub const DTBG_CLIPRECT: DWORD = 0x00000001;
+pub const DTBG_DRAWSOLID: DWORD = 0x00000002;
+pub const DTBG_OMITBORDER: DWORD = 0x00000004;
+pub const DTBG_OMITCONTENT: DWORD = 0x00000008;
+pub const DTBG_COMPUTINGREGION: DWORD = 0x00000010;
+pub const DTBG_MIRRORDC: DWORD = 0x00000020;
+pub const DTBG_NOMIRROR: DWORD = 0x00000040;
+pub const DTBG_VALIDBITS: DWORD = DTBG_CLIPRECT
+    | DTBG_DRAWSOLID
+    | DTBG_OMITBORDER
+    | DTBG_OMITCONTENT
+    | DTBG_COMPUTINGREGION
+    | DTBG_MIRRORDC
+    | DTBG_NOMIRROR;
+
+#[repr(C)]
+pub struct DTBGOPTS {
+    pub dwSize: DWORD,
+    pub dwFlags: DWORD,
+    pub rcClip: RECT,
+}
+pub type PDTBGOPTS = *mut DTBGOPTS;
+
+#[repr(C)]
+pub enum DWMNCRENDERINGPOLICY {
+    DWMNCRP_USEWINDOWSTYLE = 0,
+    DWMNCRP_DISABLED = 1,
+    DWMNCRP_ENABLED = 2,
+    DWMNCRP_LAST = 3,
+}
+
+#[repr(C)]
+pub struct BITMAPINFOHEADER {
+    pub biSize: DWORD,
+    pub biWidth: LONG,
+    pub biHeight: LONG,
+    pub biPlanes: WORD,
+    pub biBitCount: WORD,
+    pub biCompression: DWORD,
+    pub biSizeImage: DWORD,
+    pub biXPelsPerMeter: LONG,
+    pub biYPelsPerMeter: LONG,
+    pub biClrUsed: DWORD,
+    pub biClrImportant: DWORD,
+}
+pub type LPBITMAPINFOHEADER = *mut BITMAPINFOHEADER;
+pub type PBITMAPINFOHEADER = *mut BITMAPINFOHEADER;
+
+#[repr(C)]
+pub struct BITMAPINFO {
+    pub bmiHeader: BITMAPINFOHEADER,
+    pub bmiColors: [RGBQUAD; 1],
+}
+pub type LPBITMAPINFO = *mut BITMAPINFO;
+pub type PBITMAPINFO = *mut BITMAPINFO;
+
+#[repr(C)]
+pub struct PALETTEENTRY {
+    pub peRed: BYTE,
+    pub peGreen: BYTE,
+    pub peBlue: BYTE,
+    pub peFlags: BYTE,
+}
+pub type PPALETTEENTRY = *mut PALETTEENTRY;
+pub type LPPALETTEENTRY = *mut PALETTEENTRY;
+pub const TRANSPARENT: DWORD = 1;
+pub const OPAQUE: DWORD = 2;
+
+#[repr(C)]
+pub struct LOGPALETTE {
+    pub palVersion: WORD,
+    pub palNumEntries: WORD,
+    pub palPalEntry: [PALETTEENTRY; 1],
+}
+pub type PLOGPALETTE = *mut LOGPALETTE;
+pub type NPLOGPALETTE = *mut LOGPALETTE;
+pub type LPLOGPALETTE = *mut LOGPALETTE;
+
+#[repr(C)]
+pub struct RGBQUAD {
+    pub rgbBlue: BYTE,
+    pub rgbGreen: BYTE,
+    pub rgbRed: BYTE,
+    pub rgbReserved: BYTE,
+}
+pub type LPRGBQUAD = *mut RGBQUAD;
+
+pub const BI_RGB: DWORD = 0;
+pub const BI_RLE8: DWORD = 1;
+pub const BI_RLE4: DWORD = 2;
+pub const BI_BITFIELDS: DWORD = 3;
+pub const BI_JPEG: DWORD = 4;
+pub const BI_PNG: DWORD = 5;
+
+#[inline]
+pub fn GDI_WIDTHBYTES(bits: DWORD) -> DWORD {
+    ((bits + 31) & !31) / 8
+}
+#[inline]
+pub fn GDI_DIBWIDTHBYTES(bi: &BITMAPINFOHEADER) -> DWORD {
+    GDI_WIDTHBYTES((bi.biWidth as DWORD) * (bi.biBitCount as DWORD))
+}
+#[inline]
+pub fn GDI__DIBSIZE(bi: &BITMAPINFOHEADER) -> DWORD {
+    GDI_DIBWIDTHBYTES(bi) * bi.biHeight as DWORD
+}
+#[inline]
+pub fn GDI_DIBSIZE(bi: &BITMAPINFOHEADER) -> DWORD {
+    if bi.biHeight < 0 {
+        GDI__DIBSIZE(bi) * -1i32 as u32
+    } else {
+        GDI__DIBSIZE(bi)
+    }
+}
+
+#[repr(C)]
+pub enum DWMWINDOWATTRIBUTE {
+    DWMWA_NCRENDERING_ENABLED = 1,
+    DWMWA_NCRENDERING_POLICY = 2,
+    DWMWA_TRANSITIONS_FORCEDISABLED = 3,
+    DWMWA_ALLOW_NCPAINT = 4,
+    DWMWA_CAPTION_BUTTON_BOUNDS = 5,
+    DWMWA_NONCLIENT_RTL_LAYOUT = 6,
+    DWMWA_FORCE_ICONIC_REPRESENTATION = 7,
+    DWMWA_FLIP3D_POLICY = 8,
+    DWMWA_EXTENDED_FRAME_BOUNDS = 9,
+    DWMWA_HAS_ICONIC_BITMAP = 10,
+    DWMWA_DISALLOW_PEEK = 11,
+    DWMWA_EXCLUDED_FROM_PEEK = 12,
+    DWMWA_CLOAK = 13,
+    DWMWA_CLOAKED = 14,
+    DWMWA_FREEZE_REPRESENTATION = 15,
+    DWMWA_LAST = 16,
+}
+
+#[repr(C)]
+
+pub struct WINDOWPOS {
+    pub hwnd: HWND,
+    pub hwndInsertAfter: HWND,
+    pub x: c_int,
+    pub y: c_int,
+    pub cx: c_int,
+    pub cy: c_int,
+    pub flags: UINT,
+}
+pub type LPWINDOWPOS = *mut WINDOWPOS;
+pub type PWINDOWPOS = *mut WINDOWPOS;
+
+#[repr(C)]
+pub struct NCCALCSIZE_PARAMS {
+    pub rgrc: [RECT; 3],
+    pub lppos: PWINDOWPOS,
+}
+
+pub type LPNCCALCSIZE_PARAMS = *mut NCCALCSIZE_PARAMS;
+
+#[repr(C)]
+pub struct MARGINS {
+    pub cxLeftWidth: c_int,
+    pub cxRightWidth: c_int,
+    pub cyTopHeight: c_int,
+    pub cyBottomHeight: c_int,
+}
+
+#[repr(C)]
+pub struct PAINTSTRUCT {
+    pub hdc: HDC,
+    pub fErase: BOOL,
+    pub rcPaint: RECT,
+    pub fRestore: BOOL,
+    pub fIncUpdate: BOOL,
+    pub rgbReserved: [BYTE; 32],
+}
+pub type PPAINTSTRUCT = *mut PAINTSTRUCT;
+pub type NPPAINTSTRUCT = *mut PAINTSTRUCT;
+pub type LPPAINTSTRUCT = *mut PAINTSTRUCT;
+
+#[repr(C)]
+pub struct PIXELFORMATDESCRIPTOR {
+    pub nSize: WORD,
+    pub nVersion: WORD,
+    pub dwFlags: DWORD,
+    pub iPixelType: BYTE,
+    pub cColorBits: BYTE,
+    pub cRedBits: BYTE,
+    pub cRedShift: BYTE,
+    pub cGreenBits: BYTE,
+    pub cGreenShift: BYTE,
+    pub cBlueBits: BYTE,
+    pub cBlueShift: BYTE,
+    pub cAlphaBits: BYTE,
+    pub cAlphaShift: BYTE,
+    pub cAccumBits: BYTE,
+    pub cAccumRedBits: BYTE,
+    pub cAccumGreenBits: BYTE,
+    pub cAccumBlueBits: BYTE,
+    pub cAccumAlphaBits: BYTE,
+    pub cDepthBits: BYTE,
+    pub cStencilBits: BYTE,
+    pub cAuxBuffers: BYTE,
+    pub iLayerType: BYTE,
+    pub bReserved: BYTE,
+    pub dwLayerMask: DWORD,
+    pub dwVisibleMask: DWORD,
+    pub dwDamageMask: DWORD,
+}
+pub type PPIXELFORMATDESCRIPTOR = *mut PIXELFORMATDESCRIPTOR;
+pub type LPPIXELFORMATDESCRIPTOR = *mut PIXELFORMATDESCRIPTOR;
+pub const PFD_TYPE_RGBA: BYTE = 0;
+pub const PFD_TYPE_COLORINDEX: BYTE = 1;
+pub const PFD_MAIN_PLANE: BYTE = 0;
+pub const PFD_OVERLAY_PLANE: BYTE = 1;
+pub const PFD_UNDERLAY_PLANE: BYTE = -1i8 as u8;
+pub const PFD_DOUBLEBUFFER: DWORD = 0x00000001;
+pub const PFD_STEREO: DWORD = 0x00000002;
+pub const PFD_DRAW_TO_WINDOW: DWORD = 0x00000004;
+pub const PFD_DRAW_TO_BITMAP: DWORD = 0x00000008;
+pub const PFD_SUPPORT_GDI: DWORD = 0x00000010;
+pub const PFD_SUPPORT_OPENGL: DWORD = 0x00000020;
+pub const PFD_GENERIC_FORMAT: DWORD = 0x00000040;
+pub const PFD_NEED_PALETTE: DWORD = 0x00000080;
+pub const PFD_NEED_SYSTEM_PALETTE: DWORD = 0x00000100;
+pub const PFD_SWAP_EXCHANGE: DWORD = 0x00000200;
+pub const PFD_SWAP_COPY: DWORD = 0x00000400;
+pub const PFD_SWAP_LAYER_BUFFERS: DWORD = 0x00000800;
+pub const PFD_GENERIC_ACCELERATED: DWORD = 0x00001000;
+pub const PFD_SUPPORT_DIRECTDRAW: DWORD = 0x00002000;
+pub const PFD_DIRECT3D_ACCELERATED: DWORD = 0x00004000;
+pub const PFD_SUPPORT_COMPOSITION: DWORD = 0x00008000;
+pub const PFD_DEPTH_DONTCARE: DWORD = 0x20000000;
+pub const PFD_DOUBLEBUFFER_DONTCARE: DWORD = 0x40000000;
+pub const PFD_STEREO_DONTCARE: DWORD = 0x80000000;
+
+pub const DTT_TEXTCOLOR: DWORD = 1 << 0;
+pub const DTT_BORDERCOLOR: DWORD = 1 << 1;
+pub const DTT_SHADOWCOLOR: DWORD = 1 << 2;
+pub const DTT_SHADOWTYPE: DWORD = 1 << 3;
+pub const DTT_SHADOWOFFSET: DWORD = 1 << 4;
+pub const DTT_BORDERSIZE: DWORD = 1 << 5;
+pub const DTT_FONTPROP: DWORD = 1 << 6;
+pub const DTT_COLORPROP: DWORD = 1 << 7;
+pub const DTT_STATEID: DWORD = 1 << 8;
+pub const DTT_CALCRECT: DWORD = 1 << 9;
+pub const DTT_APPLYOVERLAY: DWORD = 1 << 10;
+pub const DTT_GLOWSIZE: DWORD = 1 << 11;
+pub const DTT_CALLBACK: DWORD = 1 << 12;
+pub const DTT_COMPOSITED: DWORD = 1 << 13;
+pub const DTT_VALIDBITS: DWORD = DTT_TEXTCOLOR
+    | DTT_BORDERCOLOR
+    | DTT_SHADOWCOLOR
+    | DTT_SHADOWTYPE
+    | DTT_SHADOWOFFSET
+    | DTT_BORDERSIZE
+    | DTT_FONTPROP
+    | DTT_COLORPROP
+    | DTT_STATEID
+    | DTT_CALCRECT
+    | DTT_APPLYOVERLAY
+    | DTT_GLOWSIZE
+    | DTT_COMPOSITED;
+
+declare_extern_function!(stdcall DTT_CALLBACK_PROC(
+    hdc: HDC,
+    pszText: LPWSTR,
+    cchText: c_int,
+    prc: LPRECT,
+    dwFlags: UINT,
+    lParam: LPARAM,
+) -> c_int);
+
+#[repr(C)]
+pub struct DTTOPTS {
+    pub dwSize: DWORD,
+    pub dwFlags: DWORD,
+    pub crText: COLORREF,
+    pub crBorder: COLORREF,
+    pub crShadow: COLORREF,
+    pub iTextShadowType: c_int,
+    pub ptShadowOffset: POINT,
+    pub iBorderSize: c_int,
+    pub iFontPropId: c_int,
+    pub iColorPropId: c_int,
+    pub iStateId: c_int,
+    pub fApplyOverlay: BOOL,
+    pub iGlowSize: c_int,
+    pub pfnDrawTextCallback: DTT_CALLBACK_PROC,
+    pub lParam: LPARAM,
+}
+pub type PDTTOPTS = *mut DTTOPTS;
 
 pub const UINT_MAX: c_uint = 0xffffffff;
 pub const SW_HIDE: c_int = 0;
@@ -80,6 +433,102 @@ pub const SW_RESTORE: c_int = 9;
 pub const SW_SHOWDEFAULT: c_int = 10;
 pub const SW_FORCEMINIMIZE: c_int = 11;
 pub const SW_MAX: c_int = 11;
+
+pub const CTLCOLOR_MSGBOX: c_int = 0;
+pub const CTLCOLOR_EDIT: c_int = 1;
+pub const CTLCOLOR_LISTBOX: c_int = 2;
+pub const CTLCOLOR_BTN: c_int = 3;
+pub const CTLCOLOR_DLG: c_int = 4;
+pub const CTLCOLOR_SCROLLBAR: c_int = 5;
+pub const CTLCOLOR_STATIC: c_int = 6;
+pub const CTLCOLOR_MAX: c_int = 7;
+pub const COLOR_SCROLLBAR: c_int = 0;
+pub const COLOR_BACKGROUND: c_int = 1;
+pub const COLOR_ACTIVECAPTION: c_int = 2;
+pub const COLOR_INACTIVECAPTION: c_int = 3;
+pub const COLOR_MENU: c_int = 4;
+pub const COLOR_WINDOW: c_int = 5;
+pub const COLOR_WINDOWFRAME: c_int = 6;
+pub const COLOR_MENUTEXT: c_int = 7;
+pub const COLOR_WINDOWTEXT: c_int = 8;
+pub const COLOR_CAPTIONTEXT: c_int = 9;
+pub const COLOR_ACTIVEBORDER: c_int = 10;
+pub const COLOR_INACTIVEBORDER: c_int = 11;
+pub const COLOR_APPWORKSPACE: c_int = 12;
+pub const COLOR_HIGHLIGHT: c_int = 13;
+pub const COLOR_HIGHLIGHTTEXT: c_int = 14;
+pub const COLOR_BTNFACE: c_int = 15;
+pub const COLOR_BTNSHADOW: c_int = 16;
+pub const COLOR_GRAYTEXT: c_int = 17;
+pub const COLOR_BTNTEXT: c_int = 18;
+pub const COLOR_INACTIVECAPTIONTEXT: c_int = 19;
+pub const COLOR_BTNHIGHLIGHT: c_int = 20;
+pub const COLOR_3DDKSHADOW: c_int = 21;
+pub const COLOR_3DLIGHT: c_int = 22;
+pub const COLOR_INFOTEXT: c_int = 23;
+pub const COLOR_INFOBK: c_int = 24;
+pub const COLOR_HOTLIGHT: c_int = 26;
+pub const COLOR_GRADIENTACTIVECAPTION: c_int = 27;
+pub const COLOR_GRADIENTINACTIVECAPTION: c_int = 28;
+pub const COLOR_MENUHILIGHT: c_int = 29;
+pub const COLOR_MENUBAR: c_int = 30;
+pub const COLOR_DESKTOP: c_int = COLOR_BACKGROUND;
+pub const COLOR_3DFACE: c_int = COLOR_BTNFACE;
+pub const COLOR_3DSHADOW: c_int = COLOR_BTNSHADOW;
+pub const COLOR_3DHIGHLIGHT: c_int = COLOR_BTNHIGHLIGHT;
+pub const COLOR_3DHILIGHT: c_int = COLOR_BTNHIGHLIGHT;
+pub const COLOR_BTNHILIGHT: c_int = COLOR_BTNHIGHLIGHT;
+pub const WHITE_BRUSH: DWORD = 0;
+pub const LTGRAY_BRUSH: DWORD = 1;
+pub const GRAY_BRUSH: DWORD = 2;
+pub const DKGRAY_BRUSH: DWORD = 3;
+pub const BLACK_BRUSH: DWORD = 4;
+pub const NULL_BRUSH: DWORD = 5;
+pub const HOLLOW_BRUSH: DWORD = NULL_BRUSH;
+pub const WHITE_PEN: DWORD = 6;
+pub const BLACK_PEN: DWORD = 7;
+pub const NULL_PEN: DWORD = 8;
+
+#[inline]
+pub fn RGB(r: BYTE, g: BYTE, b: BYTE) -> COLORREF {
+    r as COLORREF | ((g as COLORREF) << 8) | ((b as COLORREF) << 16)
+}
+#[inline]
+pub fn GetRValue(rgb: COLORREF) -> BYTE {
+    LOBYTE(rgb as WORD)
+}
+#[inline]
+pub fn GetGValue(rgb: COLORREF) -> BYTE {
+    LOBYTE((rgb as WORD) >> 8)
+}
+#[inline]
+pub fn GetBValue(rgb: COLORREF) -> BYTE {
+    LOBYTE((rgb >> 16) as WORD)
+}
+
+pub const IDI_APPLICATION: LPCWSTR = 32512 as LPCWSTR;
+pub const IDI_HAND: LPCWSTR = 32513 as LPCWSTR;
+pub const IDI_QUESTION: LPCWSTR = 32514 as LPCWSTR;
+pub const IDI_EXCLAMATION: LPCWSTR = 32515 as LPCWSTR;
+pub const IDI_ASTERISK: LPCWSTR = 32516 as LPCWSTR;
+pub const IDI_WINLOGO: LPCWSTR = 32517 as LPCWSTR;
+pub const IDI_SHIELD: LPCWSTR = 32518 as LPCWSTR;
+pub const IDI_WARNING: LPCWSTR = IDI_EXCLAMATION;
+pub const IDI_ERROR: LPCWSTR = IDI_HAND;
+pub const IDI_INFORMATION: LPCWSTR = IDI_ASTERISK;
+//10853
+pub const IDOK: c_int = 1;
+pub const IDCANCEL: c_int = 2;
+pub const IDABORT: c_int = 3;
+pub const IDRETRY: c_int = 4;
+pub const IDIGNORE: c_int = 5;
+pub const IDYES: c_int = 6;
+pub const IDNO: c_int = 7;
+pub const IDCLOSE: c_int = 8;
+pub const IDHELP: c_int = 9;
+pub const IDTRYAGAIN: c_int = 10;
+pub const IDCONTINUE: c_int = 11;
+pub const IDTIMEOUT: c_int = 32000;
 
 pub const RDW_INVALIDATE: UINT = 0x0001;
 pub const RDW_INTERNALPAINT: UINT = 0x0002;
@@ -423,14 +872,60 @@ pub const CS_HREDRAW: UINT = 0x0002;
 pub const CS_OWNDC: UINT = 0x0020;
 
 pub const WS_OVERLAPPED: DWORD = 0x00000000;
+pub const WS_POPUP: DWORD = 0x80000000;
+pub const WS_CHILD: DWORD = 0x40000000;
+pub const WS_MINIMIZE: DWORD = 0x20000000;
+pub const WS_VISIBLE: DWORD = 0x10000000;
+pub const WS_DISABLED: DWORD = 0x08000000;
+pub const WS_CLIPSIBLINGS: DWORD = 0x04000000;
+pub const WS_CLIPCHILDREN: DWORD = 0x02000000;
+pub const WS_MAXIMIZE: DWORD = 0x01000000;
 pub const WS_CAPTION: DWORD = 0x00C00000;
+pub const WS_BORDER: DWORD = 0x00800000;
+pub const WS_DLGFRAME: DWORD = 0x00400000;
+pub const WS_VSCROLL: DWORD = 0x00200000;
+pub const WS_HSCROLL: DWORD = 0x00100000;
 pub const WS_SYSMENU: DWORD = 0x00080000;
 pub const WS_THICKFRAME: DWORD = 0x00040000;
+pub const WS_GROUP: DWORD = 0x00020000;
+pub const WS_TABSTOP: DWORD = 0x00010000;
 pub const WS_MINIMIZEBOX: DWORD = 0x00020000;
 pub const WS_MAXIMIZEBOX: DWORD = 0x00010000;
+pub const WS_TILED: DWORD = WS_OVERLAPPED;
+pub const WS_ICONIC: DWORD = WS_MINIMIZE;
+pub const WS_SIZEBOX: DWORD = WS_THICKFRAME;
+pub const WS_TILEDWINDOW: DWORD = WS_OVERLAPPEDWINDOW;
 pub const WS_OVERLAPPEDWINDOW: DWORD =
     WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX;
-pub const WS_VISIBLE: DWORD = 0x10000000;
+pub const WS_POPUPWINDOW: DWORD = WS_POPUP | WS_BORDER | WS_SYSMENU;
+pub const WS_CHILDWINDOW: DWORD = WS_CHILD;
+pub const WS_EX_DLGMODALFRAME: DWORD = 0x00000001;
+pub const WS_EX_NOPARENTNOTIFY: DWORD = 0x00000004;
+pub const WS_EX_TOPMOST: DWORD = 0x00000008;
+pub const WS_EX_ACCEPTFILES: DWORD = 0x00000010;
+pub const WS_EX_TRANSPARENT: DWORD = 0x00000020;
+pub const WS_EX_MDICHILD: DWORD = 0x00000040;
+pub const WS_EX_TOOLWINDOW: DWORD = 0x00000080;
+pub const WS_EX_WINDOWEDGE: DWORD = 0x00000100;
+pub const WS_EX_CLIENTEDGE: DWORD = 0x00000200;
+pub const WS_EX_CONTEXTHELP: DWORD = 0x00000400;
+pub const WS_EX_RIGHT: DWORD = 0x00001000;
+pub const WS_EX_LEFT: DWORD = 0x00000000;
+pub const WS_EX_RTLREADING: DWORD = 0x00002000;
+pub const WS_EX_LTRREADING: DWORD = 0x00000000;
+pub const WS_EX_LEFTSCROLLBAR: DWORD = 0x00004000;
+pub const WS_EX_RIGHTSCROLLBAR: DWORD = 0x00000000;
+pub const WS_EX_CONTROLPARENT: DWORD = 0x00010000;
+pub const WS_EX_STATICEDGE: DWORD = 0x00020000;
+pub const WS_EX_APPWINDOW: DWORD = 0x00040000;
+pub const WS_EX_OVERLAPPEDWINDOW: DWORD = WS_EX_WINDOWEDGE | WS_EX_CLIENTEDGE;
+pub const WS_EX_PALETTEWINDOW: DWORD = WS_EX_WINDOWEDGE | WS_EX_TOOLWINDOW | WS_EX_TOPMOST;
+pub const WS_EX_LAYERED: DWORD = 0x00080000;
+pub const WS_EX_NOINHERITLAYOUT: DWORD = 0x00100000;
+pub const WS_EX_NOREDIRECTIONBITMAP: DWORD = 0x00200000;
+pub const WS_EX_LAYOUTRTL: DWORD = 0x00400000;
+pub const WS_EX_COMPOSITED: DWORD = 0x02000000;
+pub const WS_EX_NOACTIVATE: DWORD = 0x08000000;
 pub const WM_NULL: UINT = 0x0000;
 pub const WM_CREATE: UINT = 0x0001;
 pub const WM_DESTROY: UINT = 0x0002;
@@ -771,6 +1266,17 @@ pub type LPRECT = *mut RECT;
 pub type LPCRECT = *const RECT;
 
 #[repr(C)]
+pub struct SIZE {
+    pub cx: LONG,
+    pub cy: LONG,
+}
+pub type PSIZE = *mut SIZE;
+pub type LPSIZE = *mut SIZE;
+pub type SIZEL = SIZE;
+pub type PSIZEL = *mut SIZE;
+pub type LPSIZEL = *mut SIZE;
+
+#[repr(C)]
 #[derive(Clone, Copy)]
 pub struct POINTS {
     pub x: SHORT,
@@ -780,14 +1286,6 @@ pub struct POINTS {
 pub type PPOINTS = *mut POINTS;
 pub type LPPOINTS = *mut POINTS;
 
-#[inline]
-pub fn LOWORD(l: DWORD) -> WORD {
-    (l & 0xffff) as WORD
-}
-#[inline]
-pub fn HIWORD(l: DWORD) -> WORD {
-    ((l >> 16) & 0xffff) as WORD
-}
 #[inline]
 pub fn GET_X_LPARAM(lp: LPARAM) -> c_int {
     LOWORD(lp as DWORD) as c_short as c_int

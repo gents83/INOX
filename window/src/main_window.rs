@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::RwLock;
 
@@ -49,12 +50,14 @@ impl Plugin for MainWindow {
             let pos = self.config.get_position();
             let size = self.config.get_resolution();
             let name = self.config.get_name();
+            let icon = self.config.get_icon();
             Window::create(
                 name.clone(),
                 pos.x as _,
                 pos.y as _,
                 size.x as _,
                 size.y as _,
+                PathBuf::from(icon).as_path(),
                 app.get_global_messenger(),
             )
         };

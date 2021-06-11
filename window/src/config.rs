@@ -24,6 +24,7 @@ pub struct Config {
     position: Vector2,
     width: u32,
     height: u32,
+    icon: String,
     vk_data: VkData,
     pipelines: Vec<PipelineData>,
 }
@@ -35,6 +36,7 @@ impl Default for Config {
             position: Vector2::default_zero(),
             width: 1280,
             height: 720,
+            icon: String::from("./data/icons/nrg.ico"),
             vk_data: VkData::default(),
             pipelines: Vec::new(),
         }
@@ -51,6 +53,9 @@ impl ConfigBase for Config {
 impl Config {
     pub fn get_name(&self) -> &String {
         &self.name
+    }
+    pub fn get_icon(&self) -> &String {
+        &self.icon
     }
     pub fn get_width(&self) -> u32 {
         self.width

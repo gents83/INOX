@@ -1,5 +1,6 @@
 use std::{
-    env, fs,
+    env,
+    fs::{self},
     path::{Path, PathBuf},
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -36,6 +37,7 @@ fn main() {
         .join("..\\..\\..\\")
         .canonicalize()
         .unwrap();
+
     let mut deps_path = Path::new(&out_dir).join("deps");
     if deps_path.exists() {
         deps_path = deps_path.canonicalize().unwrap();
@@ -55,6 +57,9 @@ fn main() {
         link_library("user32");
         link_library("kernel32");
         link_library("shcore");
+        link_library("gdi32");
+        link_library("dwmapi");
+        link_library("uxtheme");
     } else {
         panic!("Platform not yet supported - Check build.rs to setup this platform to build from source");
     }

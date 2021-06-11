@@ -91,25 +91,30 @@ impl Gui {
     }
 
     #[inline]
-    pub fn update_widgets(job_handler: &JobHandlerRw) {
+    pub fn update_widgets(job_handler: &JobHandlerRw, first_reduce_draw_area: bool) {
+        let mut draw_area = Screen::get_draw_area();
         Gui::get()
             .write()
             .unwrap()
             .get_root_mut()
             .get_children()
             .iter()
-            .for_each(|w| {
+            .enumerate()
+            .for_each(|(i, w)| {
                 let widget = w.clone();
+                let widget_area = draw_area;
+                if first_reduce_draw_area && i == 0 {
+                    let size = widget.read().unwrap().state().get_size();
+                    draw_area.y = size.y;
+                    draw_area.w -= size.y;
+                }
                 let job_name = format!("widget[{}]", widget.read().unwrap().node().get_name());
                 job_handler
                     .write()
                     .unwrap()
                     .add_job(job_name.as_str(), move || {
-                        widget
-                            .write()
-                            .unwrap()
-                            .update(Screen::get_draw_area(), Screen::get_draw_area());
-                    })
+                        widget.write().unwrap().update(widget_area, widget_area);
+                    });
             });
     }
 

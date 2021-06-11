@@ -1,6 +1,10 @@
+use std::path::{Path, PathBuf};
+
+use nrg_graphics::{MaterialInstance, TextureInstance};
 use nrg_math::{Vector2, Vector4};
 use nrg_messenger::Message;
 use nrg_platform::MouseEvent;
+use nrg_resources::{get_absolute_path_from, DATA_FOLDER};
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{
@@ -27,6 +31,15 @@ impl Button {
         if let Some(label) = self.node().get_child_mut::<Text>(label_id) {
             label.set_text(text);
         }
+        self
+    }
+    pub fn with_texture(&mut self, texture_path: &Path) -> &mut Self {
+        let material_uid = self.graphics().get_material_id();
+        let texture_path =
+            get_absolute_path_from(PathBuf::from(DATA_FOLDER).as_path(), texture_path);
+        let texture_uid =
+            TextureInstance::create_from_path(self.get_shared_data(), texture_path.as_path());
+        MaterialInstance::add_texture(self.get_shared_data(), material_uid, texture_uid);
         self
     }
 

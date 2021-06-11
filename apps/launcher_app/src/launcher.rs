@@ -5,10 +5,10 @@ use std::{
 };
 
 use nrg_core::{App, JobHandlerRw, PhaseWithSystems, System, SystemId};
-use nrg_graphics::{FontInstance, MaterialInstance, PipelineInstance, TextureInstance};
+use nrg_graphics::{FontInstance, PipelineInstance};
 use nrg_gui::{
-    BaseWidget, ContainerFillType, Gui, HorizontalAlignment, Icon, Panel, Screen,
-    VerticalAlignment, WidgetDataGetter, WidgetEvent, WidgetStyle,
+    BaseWidget, ContainerFillType, Gui, HorizontalAlignment, Icon, Panel, Screen, TitleBarEvent,
+    VerticalAlignment, WidgetEvent, WidgetStyle,
 };
 use nrg_math::Vector2;
 use nrg_messenger::{read_messages, Message, MessageChannel, MessengerRw};
@@ -81,10 +81,8 @@ impl LauncherSystem {
         global_messenger
             .write()
             .unwrap()
-            .register_messagebox::<WindowEvent>(message_channel.get_messagebox());
-        global_messenger
-            .write()
-            .unwrap()
+            .register_messagebox::<WindowEvent>(message_channel.get_messagebox())
+            .register_messagebox::<TitleBarEvent>(message_channel.get_messagebox())
             .register_messagebox::<WidgetEvent>(message_channel.get_messagebox());
         Self {
             id: SystemId::new(),
@@ -149,8 +147,7 @@ impl LauncherSystem {
                     }
                     _ => {}
                 }
-            }
-            if msg.type_id() == TypeId::of::<WidgetEvent>() {
+            } else if msg.type_id() == TypeId::of::<WidgetEvent>() {
                 let event = msg.as_any().downcast_ref::<WidgetEvent>().unwrap();
                 if let WidgetEvent::Released(widget_id, _mouse_pos) = *event {
                     if widget_id == self.node_editor_id {
@@ -167,11 +164,23 @@ impl LauncherSystem {
                         }
                     }
                 }
+            } else if msg.type_id() == TypeId::of::<TitleBarEvent>() {
+                let event = msg.as_any().downcast_ref::<TitleBarEvent>().unwrap();
+                if let TitleBarEvent::Close(_widget_id) = *event {
+                    self.global_messenger
+                        .write()
+                        .unwrap()
+                        .get_dispatcher()
+                        .write()
+                        .unwrap()
+                        .send(WindowEvent::Close.as_boxed())
+                        .ok();
+                }
             }
         });
     }
 
-    fn add_content(&mut self) -> &Self {
+    fn add_content(&mut self) -> &mut Self {
         let mut background = Panel::new(&self.shared_data, &self.global_messenger);
         background
             .vertical_alignment(VerticalAlignment::Stretch)
@@ -179,15 +188,7 @@ impl LauncherSystem {
             .fill_type(ContainerFillType::Horizontal)
             .space_between_elements((10. * Screen::get_scale_factor()) as u32)
             .use_space_before_and_after(true)
-            .style(WidgetStyle::DefaultText);
-
-        let texture_id =
-            TextureInstance::create_from_path(&self.shared_data, &Path::new("textures/NRG.png"));
-        MaterialInstance::add_texture(
-            &self.shared_data,
-            background.graphics().get_material_id(),
-            texture_id,
-        );
+            .style(WidgetStyle::DefaultCanvas);
 
         self.node_editor_id = background.add_child(Box::new(
             self.add_button(PathBuf::from("icons/gears.png").as_path(), "Node Editor"),
@@ -243,7 +244,7 @@ impl System for LauncherSystem {
     fn run(&mut self) -> bool {
         self.process_messages();
 
-        Gui::update_widgets(&self.job_handler);
+        Gui::update_widgets(&self.job_handler, false);
 
         true
     }

@@ -12,20 +12,7 @@ fn main() {
     let mut binarizer = Binarizer::new(app.get_global_messenger(), DATA_RAW_FOLDER, DATA_FOLDER);
     binarizer.start();
 
-    let plugins = [
-        "nrg_binarizer",
-        "nrg_core",
-        "nrg_events",
-        "nrg_graphics",
-        "nrg_gui",
-        "nrg_math",
-        "nrg_messenger",
-        "nrg_platform",
-        "nrg_profiler",
-        "nrg_resources",
-        "nrg_serialize",
-        "nrg_window",
-    ];
+    let plugins = ["nrg_window"];
 
     for name in plugins.iter() {
         let path = PathBuf::from(library_filename(*name));

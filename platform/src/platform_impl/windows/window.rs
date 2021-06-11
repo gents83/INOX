@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use super::externs::*;
 use super::handle::*;
 use super::types::*;
@@ -10,13 +12,14 @@ use nrg_messenger::MessageBox;
 static mut EVENTS_DISPATCHER: Option<MessageBox> = None;
 
 impl Window {
-    pub fn create_handle(
+    pub(crate) fn create_handle(
         title: String,
         x: u32,
         y: u32,
         width: &mut u32,
         height: &mut u32,
         scale_factor: &mut f32,
+        icon_path: &Path,
         events_dispatcher: MessageBox,
     ) -> Handle {
         unsafe {
@@ -30,16 +33,32 @@ impl Window {
             // Create handle instance that will call GetModuleHandleW, which grabs the instance handle of WNDCLASSW (check third parameter)
             let win_hinstance = GetModuleHandleW(std::ptr::null_mut());
 
+            let mut icon_path: Vec<u16> = icon_path.to_str().unwrap().encode_utf16().collect();
+            icon_path.push(0);
+
+            let icon = LoadImageW(
+                win_hinstance,
+                icon_path.as_ptr(),
+                1,
+                0,
+                0,
+                LR_LOADFROMFILE|  // we want to load a file (as opposed to a resource)
+                LR_DEFAULTSIZE|   // default metrics based on the type (IMAGE_ICON, 32x32)
+                LR_SHARED, // let the system release the handle when it's no longer used,
+            );
+
+            let cursor = LoadCursorW(win_hinstance, IDI_APPLICATION);
+
             // Create "class" for window, using WNDCLASSW struct (different from Window our struct)
             let wnd_class = WNDCLASSW {
-                style: CS_OWNDC | CS_HREDRAW | CS_VREDRAW, // Style
+                style: CS_HREDRAW | CS_VREDRAW,            // Style
                 lpfnWndProc: Some(Window::window_process), // The callbackfunction for any window event that can occur in our window!!! Here you could react to events like WM_SIZE or WM_QUIT.
                 hInstance: win_hinstance, // The instance handle for our application which we can retrieve by calling GetModuleHandleW.
                 lpszClassName: title.as_ptr(), // Our class name which needs to be a UTF-16 string (defined earlier before unsafe). as_ptr() (Rust's own function) returns a raw pointer to the slice's buffer
                 cbClsExtra: 0,
                 cbWndExtra: 0,
-                hIcon: ::std::ptr::null_mut(),
-                hCursor: ::std::ptr::null_mut(),
+                hIcon: icon as _,
+                hCursor: cursor,
                 hbrBackground: ::std::ptr::null_mut(),
                 lpszMenuName: ::std::ptr::null_mut(),
             };
@@ -54,7 +73,7 @@ impl Window {
             // More info: https://msdn.microsoft.com/en-us/library/windows/desktop/ms632680(v=vs.85).aspx
             // Create a window based on registered class
             let win_handle = CreateWindowExW(
-                0,                      // dwExStyle
+                WS_EX_ACCEPTFILES | WS_EX_OVERLAPPEDWINDOW, // dwExStyle
                 title.as_ptr(), // lpClassName, name of the class that we want to use for this window, which will be the same that we have registered before.
                 title.as_ptr(), // lpWindowName
                 WS_OVERLAPPEDWINDOW, // dwStyle
@@ -128,7 +147,7 @@ impl Window {
                 rect.top,
                 rect.right - rect.left,
                 rect.bottom - rect.top,
-                SWP_NOACTIVATE | SWP_NOZORDER,
+                SWP_FRAMECHANGED | SWP_NOACTIVATE | SWP_NOZORDER,
             );
         }
     }
@@ -151,7 +170,7 @@ impl Window {
                 rect.top,
                 rect.right - rect.left,
                 rect.bottom - rect.top,
-                SWP_NOACTIVATE | SWP_NOZORDER,
+                SWP_FRAMECHANGED | SWP_NOACTIVATE | SWP_NOZORDER,
             );
         }
     }
@@ -299,13 +318,12 @@ impl Window {
                     rect.top,
                     rect.right - rect.left,
                     rect.bottom - rect.top,
-                    SWP_NOACTIVATE | SWP_NOZORDER,
+                    SWP_FRAMECHANGED | SWP_NOACTIVATE | SWP_NOZORDER,
                 );
                 if let Some(events_dispatcher) = &mut EVENTS_DISPATCHER {
                     let events = events_dispatcher.write().unwrap();
                     let _ = events.send(Box::new(WindowEvent::DpiChanged(dpi_x as _, dpi_y as _)));
                 }
-                DefWindowProcW(hwnd, msg, wparam, lparam)
             }
             WM_SIZE => {
                 let width = LOWORD(lparam as _);
@@ -315,7 +333,6 @@ impl Window {
                     let _ =
                         events.send(Box::new(WindowEvent::SizeChanged(width as _, height as _)));
                 }
-                DefWindowProcW(hwnd, msg, wparam, lparam)
             }
             WM_MOVE => {
                 let x = LOWORD(lparam as _);
@@ -324,7 +341,6 @@ impl Window {
                     let events = events_dispatcher.write().unwrap();
                     let _ = events.send(Box::new(WindowEvent::PosChanged(x as _, y as _)));
                 }
-                DefWindowProcW(hwnd, msg, wparam, lparam)
             }
             WM_DESTROY | WM_CLOSE | WM_QUIT | WM_NCDESTROY => {
                 if let Some(events_dispatcher) = &mut EVENTS_DISPATCHER {
@@ -332,10 +348,12 @@ impl Window {
                     let _ = events.send(Box::new(WindowEvent::Close));
                 }
                 PostQuitMessage(0);
-                0
+                return 0;
             }
-            _ => DefWindowProcW(hwnd, msg, wparam, lparam),
+            _ => {}
         }
+
+        DefWindowProcW(hwnd, msg, wparam, lparam)
     }
 }
 

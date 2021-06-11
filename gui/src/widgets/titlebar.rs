@@ -1,4 +1,4 @@
-use std::any::TypeId;
+use std::{any::TypeId, path::Path};
 
 use nrg_graphics::{
     utils::{create_triangle_down, create_triangle_right},
@@ -10,8 +10,8 @@ use nrg_platform::MouseEvent;
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{
-    implement_widget_with_custom_members, Canvas, InternalWidget, Text, WidgetData, WidgetEvent,
-    DEFAULT_WIDGET_HEIGHT, DEFAULT_WIDGET_WIDTH,
+    implement_widget_with_custom_members, Button, Canvas, InternalWidget, Text, WidgetData,
+    WidgetEvent, DEFAULT_TEXT_SIZE, DEFAULT_WIDGET_HEIGHT, DEFAULT_WIDGET_WIDTH,
 };
 
 pub const ICON_SCALE: f32 = 0.75;
@@ -24,6 +24,7 @@ pub const DEFAULT_ICON_SIZE: [f32; 2] = [
 pub enum TitleBarEvent {
     Collapsed(Uid),
     Expanded(Uid),
+    Close(Uid),
 }
 implement_message!(TitleBarEvent);
 
@@ -32,6 +33,8 @@ implement_message!(TitleBarEvent);
 pub struct TitleBar {
     data: WidgetData,
     title_widget: Uid,
+    can_be_closed: bool,
+    close_icon_widget: Uid,
     collapse_icon_widget: Uid,
     is_collapsible: bool,
     is_collapsed: bool,
@@ -40,6 +43,8 @@ pub struct TitleBar {
 }
 implement_widget_with_custom_members!(TitleBar {
     title_widget: INVALID_UID,
+    can_be_closed: false,
+    close_icon_widget: INVALID_UID,
     collapse_icon_widget: INVALID_UID,
     is_collapsible: false,
     is_collapsed: false,
@@ -64,6 +69,19 @@ impl TitleBar {
             text_box
                 .horizontal_alignment(horizontal_alignment)
                 .vertical_alignment(vertical_alignment);
+        }
+        self
+    }
+    pub fn closeable(&mut self, can_be_closed: bool, texture_path: &Path) -> &mut Self {
+        if self.can_be_closed != can_be_closed {
+            self.can_be_closed = can_be_closed;
+            if self.can_be_closed {
+                self.create_close_icon(texture_path);
+            } else {
+                let icon_id = self.close_icon_widget;
+                self.node_mut().remove_child(icon_id);
+                self.close_icon_widget = INVALID_UID;
+            }
         }
         self
     }
@@ -137,6 +155,29 @@ impl TitleBar {
 
         self
     }
+
+    fn create_close_icon(&mut self, texture_path: &Path) -> &mut Self {
+        if self.can_be_closed {
+            let icon_size: Vector2 = DEFAULT_ICON_SIZE.into();
+            let mut close_icon = Button::new(self.get_shared_data(), self.get_global_messenger());
+
+            close_icon
+                .size(icon_size * Screen::get_scale_factor())
+                .vertical_alignment(VerticalAlignment::Center)
+                .horizontal_alignment(HorizontalAlignment::Right)
+                .fill_type(ContainerFillType::None)
+                .keep_fixed_width(true)
+                .keep_fixed_height(true)
+                .selectable(true)
+                .with_text(" ")
+                .with_texture(texture_path)
+                .style(WidgetStyle::DefaultText);
+
+            self.close_icon_widget = self.add_child(Box::new(close_icon));
+        }
+
+        self
+    }
 }
 
 impl InternalWidget for TitleBar {
@@ -151,14 +192,14 @@ impl InternalWidget for TitleBar {
             return;
         }
 
-        let size: Vector2 = [400., DEFAULT_WIDGET_WIDTH as _].into();
+        let size: Vector2 = [400., DEFAULT_WIDGET_HEIGHT * 2.].into();
 
         self.position(Screen::get_center() - size / 2.)
             .size(size * Screen::get_scale_factor())
             .keep_fixed_height(true)
             .horizontal_alignment(HorizontalAlignment::Stretch)
-            .fill_type(ContainerFillType::Horizontal)
-            .space_between_elements(10)
+            .fill_type(ContainerFillType::None)
+            .space_between_elements((DEFAULT_WIDGET_WIDTH * Screen::get_scale_factor()) as _)
             .use_space_before_and_after(true)
             .draggable(false)
             .selectable(false)
@@ -167,9 +208,11 @@ impl InternalWidget for TitleBar {
             .collapse();
 
         let mut title = Text::new(self.get_shared_data(), self.get_global_messenger());
+        let title_size: Vector2 = [DEFAULT_TEXT_SIZE[0], size.y].into();
         title
             .draggable(false)
             .selectable(false)
+            .size(title_size * Screen::get_scale_factor())
             .vertical_alignment(VerticalAlignment::Center)
             .horizontal_alignment(HorizontalAlignment::Center);
         title.set_text("Title");
@@ -186,10 +229,9 @@ impl InternalWidget for TitleBar {
     fn widget_process_message(&mut self, msg: &dyn Message) {
         if msg.type_id() == TypeId::of::<WidgetEvent>() {
             let event = msg.as_any().downcast_ref::<WidgetEvent>().unwrap();
-            if let WidgetEvent::Pressed(widget_id, _mouse_in_px) = *event {
+            if let WidgetEvent::Released(widget_id, _mouse_in_px) = *event {
+                let events_dispatcher = self.get_global_dispatcher();
                 if self.id() == widget_id || self.collapse_icon_widget == widget_id {
-                    let events_dispatcher = self.get_global_dispatcher();
-
                     let titlebar_event = if self.is_collapsed {
                         self.expand();
                         TitleBarEvent::Expanded(self.id())
@@ -203,6 +245,12 @@ impl InternalWidget for TitleBar {
                         .write()
                         .unwrap()
                         .send(titlebar_event.as_boxed())
+                        .ok();
+                } else if self.close_icon_widget == widget_id {
+                    events_dispatcher
+                        .write()
+                        .unwrap()
+                        .send(TitleBarEvent::Close(self.id()).as_boxed())
                         .ok();
                 }
             }

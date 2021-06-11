@@ -1,4 +1,4 @@
-use std::any::TypeId;
+use std::{any::TypeId, path::Path};
 
 use crate::{handle::*, KeyEvent, KeyTextEvent, MouseEvent};
 use nrg_messenger::{implement_message, read_messages, MessageChannel, MessengerRw};
@@ -41,6 +41,7 @@ impl Window {
         y: u32,
         mut width: u32,
         mut height: u32,
+        icon_path: &Path,
         global_messenger: MessengerRw,
     ) -> Self {
         let mut global_dispatcher = global_messenger.write().unwrap();
@@ -61,6 +62,7 @@ impl Window {
             &mut width,
             &mut height,
             &mut scale_factor,
+            icon_path,
             global_dispatcher.get_dispatcher(),
         );
         Self {

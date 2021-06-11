@@ -9,7 +9,7 @@ use std::{
 };
 
 use nrg_messenger::MessengerRw;
-use nrg_platform::{InputState, Key, KeyEvent};
+use nrg_platform::{InputState, Key, KeyEvent, WindowEvent};
 use nrg_resources::SharedDataRw;
 
 use crate::{Job, JobHandler, JobHandlerRw, Phase, PluginId, PluginManager, Scheduler, Worker};
@@ -18,6 +18,7 @@ const NUM_WORKER_THREADS: usize = 5;
 
 pub struct App {
     is_profiling: bool,
+    is_enabled: bool,
     shared_data: SharedDataRw,
     global_messenger: MessengerRw,
     plugin_manager: PluginManager,
@@ -57,6 +58,7 @@ impl App {
         let (sender, receiver) = channel();
 
         let mut app = Self {
+            is_enabled: true,
             is_profiling: false,
             scheduler: Scheduler::new(),
             plugin_manager: PluginManager::new(),
@@ -95,6 +97,7 @@ impl App {
         nrg_profiler::scoped_profile!("app::update_events");
 
         let mut is_profiling = self.is_profiling;
+        let mut is_enabled = self.is_enabled;
         self.global_messenger
             .read()
             .unwrap()
@@ -111,22 +114,38 @@ impl App {
                             nrg_profiler::write_profile_file!();
                         }
                     }
+                } else if msg.type_id() == TypeId::of::<WindowEvent>() {
+                    let e = msg.as_any().downcast_ref::<WindowEvent>().unwrap();
+                    match e {
+                        WindowEvent::Show => {
+                            is_enabled = true;
+                        }
+                        WindowEvent::Hide => {
+                            is_enabled = false;
+                        }
+                        _ => {}
+                    }
                 }
             });
         self.is_profiling = is_profiling;
+        self.is_enabled = is_enabled;
     }
 
     pub fn run_once(&mut self) -> bool {
-        nrg_profiler::scoped_profile!("app::run_frame");
+        if self.is_enabled {
+            nrg_profiler::scoped_profile!("app::run_frame");
 
-        let can_continue = self.scheduler.run_once(self.get_job_handler());
+            let can_continue = self.scheduler.run_once(self.get_job_handler());
 
-        let plugins_to_remove = self.plugin_manager.update();
-        self.update_plugins(plugins_to_remove, true);
+            let plugins_to_remove = self.plugin_manager.update();
+            self.update_plugins(plugins_to_remove, true);
 
-        self.update_events();
+            self.update_events();
 
-        can_continue
+            can_continue
+        } else {
+            true
+        }
     }
 
     pub fn run(&mut self) {

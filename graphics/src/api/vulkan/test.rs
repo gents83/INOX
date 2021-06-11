@@ -1,5 +1,7 @@
 #![allow(dead_code)]
 
+use std::path::PathBuf;
+
 use super::utils::*;
 use nrg_messenger::MessengerRw;
 use nrg_platform::*;
@@ -51,6 +53,7 @@ fn test_vulkan_create_win32_display_surface(instance: &mut VkInstance) -> VkSurf
         100,
         1024,
         768,
+        PathBuf::from("").as_path(),
         MessengerRw::default(),
     );
 

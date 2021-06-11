@@ -1,4 +1,5 @@
 #![warn(clippy::all)]
+#![allow(clippy::too_many_arguments)]
 
 // Common
 pub use self::handle::*;

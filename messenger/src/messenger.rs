@@ -50,12 +50,13 @@ impl Messenger {
     }
 
     #[inline]
-    pub fn register_messagebox<T>(&mut self, messagebox: MessageBox)
+    pub fn register_messagebox<T>(&mut self, messagebox: MessageBox) -> &mut Self
     where
         T: Message + 'static,
     {
         let typeid = TypeId::of::<T>();
         self.register_messagebox_for_typeid(typeid, messagebox);
+        self
     }
 
     #[inline]
