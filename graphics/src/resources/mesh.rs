@@ -64,6 +64,13 @@ impl MeshInstance {
         mesh.transform = transform;
         mesh.is_dirty = true;
     }
+    pub fn set_mesh_data(shared_data: &SharedDataRw, mesh_id: MeshId, mesh_data: MeshData) {
+        let mesh = SharedData::get_resource::<Self>(shared_data, mesh_id);
+        let mesh = &mut mesh.get_mut();
+        mesh.mesh_data = mesh_data;
+        mesh.uv_converted = false;
+        mesh.is_dirty = true;
+    }
     pub fn get_transform(&self) -> &Matrix4 {
         &self.transform
     }

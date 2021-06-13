@@ -82,14 +82,32 @@ pub fn create_quad(
     (vertices, indices)
 }
 
-pub fn create_triangle_up(scale_factor: f32) -> ([VertexData; 3], [u32; 3]) {
+pub fn create_triangle_up() -> ([VertexData; 3], [u32; 3]) {
     let mut vertices = [VertexData::default(); 3];
-    vertices[0].pos = [-0.5 * scale_factor, -0.5 * scale_factor, 0.].into();
-    vertices[1].pos = [0.5 * scale_factor, -0.5 * scale_factor, 0.].into();
-    vertices[2].pos = [0., 0.5 * scale_factor, 0.].into();
+    vertices[0].pos = [0., 1., 0.].into();
+    vertices[1].pos = [1., 1., 0.].into();
+    vertices[2].pos = [0.5, 0., 0.].into();
     vertices[0].normal = [-1., -1., 0.].into();
-    vertices[1].normal = [-1., -1., 0.].into();
+    vertices[1].normal = [1., -1., 0.].into();
     vertices[2].normal = [0., 1., 0.].into();
+    vertices[0].tex_coord = [0., 1.].into();
+    vertices[1].tex_coord = [1., 1.].into();
+    vertices[2].tex_coord = [0.5, 0.].into();
+    vertices[0].color = [1., 1., 1., 1.].into();
+    vertices[1].color = [1., 1., 1., 1.].into();
+    vertices[2].color = [1., 1., 1., 1.].into();
+    let indices = [0u32, 1, 2];
+    (vertices, indices)
+}
+
+pub fn create_triangle_down() -> ([VertexData; 3], [u32; 3]) {
+    let mut vertices = [VertexData::default(); 3];
+    vertices[0].pos = [0., 0., 0.].into();
+    vertices[1].pos = [1., 0., 0.].into();
+    vertices[2].pos = [0.5, 1., 0.].into();
+    vertices[0].normal = [-1., 1., 0.].into();
+    vertices[1].normal = [1., 1., 0.].into();
+    vertices[2].normal = [0., -1., 0.].into();
     vertices[0].tex_coord = [0., 0.].into();
     vertices[1].tex_coord = [1., 0.].into();
     vertices[2].tex_coord = [0.5, 1.].into();
@@ -100,35 +118,17 @@ pub fn create_triangle_up(scale_factor: f32) -> ([VertexData; 3], [u32; 3]) {
     (vertices, indices)
 }
 
-pub fn create_triangle_down(scale_factor: f32) -> ([VertexData; 3], [u32; 3]) {
+pub fn create_triangle_right() -> ([VertexData; 3], [u32; 3]) {
     let mut vertices = [VertexData::default(); 3];
-    vertices[0].pos = [-0.5 * scale_factor, 0.5 * scale_factor, 0.].into();
-    vertices[1].pos = [0.5 * scale_factor, 0.5 * scale_factor, 0.].into();
-    vertices[2].pos = [0., -0.5 * scale_factor, 0.].into();
-    vertices[0].normal = [1., 1., 0.].into();
-    vertices[1].normal = [1., 1., 0.].into();
-    vertices[2].normal = [0., -1., 0.].into();
-    vertices[0].tex_coord = [0., 1.].into();
-    vertices[1].tex_coord = [1., 1.].into();
-    vertices[2].tex_coord = [0.5, 0.].into();
-    vertices[0].color = [1., 1., 1., 1.].into();
-    vertices[1].color = [1., 1., 1., 1.].into();
-    vertices[2].color = [1., 1., 1., 1.].into();
-    let indices = [0u32, 1, 2];
-    (vertices, indices)
-}
-
-pub fn create_triangle_right(scale_factor: f32) -> ([VertexData; 3], [u32; 3]) {
-    let mut vertices = [VertexData::default(); 3];
-    vertices[0].pos = [-0.5 * scale_factor, 0.5 * scale_factor, 0.].into();
-    vertices[1].pos = [-0.5 * scale_factor, -0.5 * scale_factor, 0.].into();
-    vertices[2].pos = [0.5 * scale_factor, 0., 0.].into();
-    vertices[0].normal = [-1., -1., 0.].into();
-    vertices[1].normal = [-1., 1., 0.].into();
-    vertices[2].normal = [1., 0., 0.].into();
-    vertices[0].tex_coord = [0., 1.].into();
-    vertices[1].tex_coord = [1., 1.].into();
-    vertices[2].tex_coord = [0.5, 0.].into();
+    vertices[0].pos = [0., 0., 0.].into();
+    vertices[1].pos = [1., 0.5, 0.].into();
+    vertices[2].pos = [0., 1., 0.].into();
+    vertices[0].normal = [-1., 1., 0.].into();
+    vertices[1].normal = [1., 0., 0.].into();
+    vertices[2].normal = [-1., -1., 0.].into();
+    vertices[0].tex_coord = [0., 0.].into();
+    vertices[1].tex_coord = [1., 0.5].into();
+    vertices[2].tex_coord = [0., 1.].into();
     vertices[0].color = [1., 1., 1., 1.].into();
     vertices[1].color = [1., 1., 1., 1.].into();
     vertices[2].color = [1., 1., 1., 1.].into();

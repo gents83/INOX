@@ -101,14 +101,14 @@ impl TitleBar {
     pub fn is_collapsed(&self) -> bool {
         self.is_collapsed
     }
-    fn collapse(&mut self) -> &mut Self {
+    pub fn collapse(&mut self) -> &mut Self {
         if !self.is_collapsed {
             self.is_collapsed = true;
             self.is_dirty = true;
         }
         self
     }
-    fn expand(&mut self) -> &mut Self {
+    pub fn expand(&mut self) -> &mut Self {
         if self.is_collapsed {
             self.is_collapsed = false;
             self.is_dirty = true;
@@ -116,16 +116,16 @@ impl TitleBar {
         self
     }
 
-    fn change_collapse_icon(&mut self) -> &mut Self {
+    pub fn change_collapse_icon(&mut self) -> &mut Self {
         if !self.is_dirty || !self.is_collapsible {
             return self;
         }
         self.is_dirty = false;
 
         let (vertices, indices) = if self.is_collapsed {
-            create_triangle_right(ICON_SCALE)
+            create_triangle_right()
         } else {
-            create_triangle_down(ICON_SCALE)
+            create_triangle_down()
         };
         let mut mesh_data = MeshData::default();
         mesh_data.append_mesh(&vertices, &indices);
@@ -146,6 +146,8 @@ impl TitleBar {
                 .size(icon_size * Screen::get_scale_factor())
                 .vertical_alignment(VerticalAlignment::Center)
                 .horizontal_alignment(HorizontalAlignment::Left)
+                .keep_fixed_height(true)
+                .keep_fixed_width(true)
                 .selectable(true)
                 .style(WidgetStyle::DefaultText);
             self.collapse_icon_widget = self.add_child(Box::new(collapse_icon));
@@ -199,13 +201,10 @@ impl InternalWidget for TitleBar {
             .keep_fixed_height(true)
             .horizontal_alignment(HorizontalAlignment::Stretch)
             .fill_type(ContainerFillType::None)
-            .space_between_elements((DEFAULT_WIDGET_WIDTH * Screen::get_scale_factor()) as _)
-            .use_space_before_and_after(true)
             .draggable(false)
             .selectable(false)
             .style(WidgetStyle::DefaultTitleBar)
-            .collapsible(true)
-            .collapse();
+            .collapsible(true);
 
         let mut title = Text::new(self.get_shared_data(), self.get_global_messenger());
         let title_size: Vector2 = [DEFAULT_TEXT_SIZE[0], size.y].into();

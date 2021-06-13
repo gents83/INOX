@@ -5,7 +5,7 @@ use nrg_messenger::{implement_message, Message};
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{
-    implement_widget_with_custom_members, CollapsibleItem, InternalWidget, TitleBarEvent,
+    implement_widget_with_custom_members, CollapsibleItem, InternalWidget, TitleBar, TitleBarEvent,
     WidgetData, WidgetEvent, DEFAULT_WIDGET_HEIGHT, DEFAULT_WIDGET_WIDTH,
 };
 pub const DEFAULT_TREE_VIEW_SIZE: [f32; 2] =
@@ -62,9 +62,20 @@ impl TreeView {
                             .with_text(path.file_name().unwrap().to_str().unwrap())
                             .set_name(path.to_str().unwrap());
 
-                        if has_children {
-                            println!("Folder {:?} has subitems", path.as_path());
+                        let title_uid = entry.get_titlebar();
+                        if let Some(title) = entry.node().get_child_mut::<TitleBar>(title_uid) {
+                            let mut size = DEFAULT_WIDGET_WIDTH;
+                            if !has_children {
+                                size *= Screen::get_scale_factor();
+                            } else {
+                                size *= 0.5;
+                            }
+                            title
+                                .space_between_elements(size as _)
+                                .use_space_before_and_after(!has_children);
+                        }
 
+                        if has_children {
                             let mut inner_tree = TreeView::new(
                                 entry.get_shared_data(),
                                 entry.get_global_messenger(),
@@ -81,6 +92,8 @@ impl TreeView {
                                 .vertical_alignment(VerticalAlignment::Top);
                             entry.add_child(Box::new(inner_tree));
                         }
+
+                        entry.collapse(true);
                         parent_widget.add_child(Box::new(entry));
                     }
                 }

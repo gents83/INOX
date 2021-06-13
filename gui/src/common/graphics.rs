@@ -57,12 +57,20 @@ impl WidgetGraphics {
         let pipeline_id = PipelineInstance::find_id_from_name(&self.shared_data, pipeline);
         self.material_id = MaterialInstance::create_from_pipeline(&self.shared_data, pipeline_id);
 
+        self.create_default_mesh();
+
+        self
+    }
+
+    fn create_default_mesh(&mut self) -> &mut Self {
+        if self.mesh_id != INVALID_UID {
+            self.remove_meshes();
+        }
         let mut mesh_data = MeshData::default();
         mesh_data.add_quad_default([0., 0., 1., 1.].into(), 0.);
         self.mesh_id = MeshInstance::create(&self.shared_data, mesh_data);
         MaterialInstance::add_mesh(&self.shared_data, self.material_id, self.mesh_id);
         self.mark_as_dirty();
-
         self
     }
 
@@ -72,7 +80,8 @@ impl WidgetGraphics {
             MaterialInstance::destroy(&self.shared_data, self.material_id);
         }
         self.material_id = material_id;
-        self.mark_as_dirty();
+
+        self.create_default_mesh().mark_as_dirty();
         self
     }
 
@@ -116,9 +125,7 @@ impl WidgetGraphics {
 
     #[inline]
     pub fn set_mesh_data(&mut self, mesh_data: MeshData) -> &mut Self {
-        self.remove_meshes();
-        self.mesh_id = MeshInstance::create(&self.shared_data, mesh_data);
-        MaterialInstance::add_mesh(&self.shared_data, self.material_id, self.mesh_id);
+        MeshInstance::set_mesh_data(&self.shared_data, self.mesh_id, mesh_data);
         self.mark_as_dirty();
         self
     }

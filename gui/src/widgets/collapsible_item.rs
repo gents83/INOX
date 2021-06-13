@@ -64,12 +64,14 @@ impl CollapsibleItem {
             let size = if is_collapsed {
                 let uid = self.title_bar;
                 if let Some(title_bar) = self.node().get_child_mut::<TitleBar>(uid) {
+                    title_bar.collapse().change_collapse_icon();
                     title_bar.state().get_size()
                 } else {
                     Vector2::default_zero()
                 }
             } else {
                 if let Some(title_bar) = self.node().get_child_mut::<TitleBar>(uid) {
+                    title_bar.expand().change_collapse_icon();
                     expanded_size.y += title_bar.state().get_size().y;
                 }
                 expanded_size
@@ -95,6 +97,9 @@ impl CollapsibleItem {
         } else {
             <dyn Widget>::add_child(self, widget)
         }
+    }
+    pub fn get_titlebar(&self) -> Uid {
+        self.title_bar
     }
 }
 
@@ -122,6 +127,7 @@ impl InternalWidget for CollapsibleItem {
             .style(WidgetStyle::DefaultCanvas)
             .selectable(true)
             .collapsible(true)
+            .fill_type(ContainerFillType::Horizontal)
             .set_text_alignment(HorizontalAlignment::Left, VerticalAlignment::Center);
         self.title_bar = self.add_child(Box::new(title_bar));
 
