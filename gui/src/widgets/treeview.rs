@@ -1,4 +1,4 @@
-use std::any::TypeId;
+use std::{any::TypeId, path::Path};
 
 use nrg_math::{Vector2, Vector4};
 use nrg_messenger::{implement_message, Message};
@@ -34,7 +34,7 @@ implement_widget_with_custom_members!(TreeView {
 });
 
 impl TreeView {
-    pub fn populate_with_folders(parent_widget: &mut dyn Widget, root: &str) {
+    pub fn populate_with_folders(parent_widget: &mut dyn Widget, root: &Path) {
         if let Ok(dir) = std::fs::read_dir(root) {
             dir.for_each(|entry| {
                 if let Ok(dir_entry) = entry {
@@ -63,14 +63,13 @@ impl TreeView {
                             .set_name(path.to_str().unwrap());
 
                         if has_children {
+                            println!("Folder {:?} has subitems", path.as_path());
+
                             let mut inner_tree = TreeView::new(
                                 entry.get_shared_data(),
                                 entry.get_global_messenger(),
                             );
-                            TreeView::populate_with_folders(
-                                &mut inner_tree,
-                                path.as_path().to_str().unwrap(),
-                            );
+                            TreeView::populate_with_folders(&mut inner_tree, path.as_path());
                             let mut inner_size = entry.state().get_size();
                             inner_size.x = (inner_size.x
                                 - DEFAULT_WIDGET_WIDTH * Screen::get_scale_factor())

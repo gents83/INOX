@@ -1,4 +1,4 @@
-use std::any::TypeId;
+use std::{any::TypeId, path::PathBuf};
 
 use crate::{
     implement_widget_with_custom_members, Button, Icon, InternalWidget, Panel, Scrollbar,
@@ -7,7 +7,7 @@ use crate::{
 };
 use nrg_math::{VecBase, Vector2, Vector4};
 use nrg_messenger::{implement_message, Message};
-use nrg_resources::DATA_FOLDER;
+use nrg_resources::DATA_RAW_FOLDER;
 use nrg_serialize::*;
 
 #[derive(Clone)]
@@ -21,6 +21,7 @@ implement_message!(DialogEvent);
 #[serde(crate = "nrg_serialize")]
 pub struct FolderDialog {
     data: WidgetData,
+    folder: PathBuf,
     folder_treeview_uid: Uid,
     file_panel: Uid,
     icon_panel: Uid,
@@ -34,6 +35,7 @@ pub struct FolderDialog {
 }
 implement_widget_with_custom_members!(FolderDialog {
     folder_treeview_uid: INVALID_UID,
+    folder: PathBuf::from(DATA_RAW_FOLDER),
     file_panel: INVALID_UID,
     icon_panel: INVALID_UID,
     title_bar_uid: INVALID_UID,
@@ -78,7 +80,7 @@ impl FolderDialog {
 
         let mut treeview = TreeView::new(self.get_shared_data(), self.get_global_messenger());
 
-        TreeView::populate_with_folders(&mut treeview, DATA_FOLDER);
+        TreeView::populate_with_folders(&mut treeview, self.folder.as_path());
         treeview
             .horizontal_alignment(HorizontalAlignment::Left)
             .vertical_alignment(VerticalAlignment::Stretch);
@@ -106,7 +108,7 @@ impl FolderDialog {
             .horizontal_alignment(HorizontalAlignment::Stretch)
             .vertical_alignment(VerticalAlignment::Stretch);
 
-        Icon::create_icons(DATA_FOLDER, &mut icon_panel);
+        Icon::create_icons(self.folder.as_path(), &mut icon_panel);
 
         self.icon_panel = file_panel.add_child(Box::new(icon_panel));
         self.file_panel = horizontal_panel.add_child(Box::new(file_panel));
@@ -226,7 +228,7 @@ impl InternalWidget for FolderDialog {
                         .send(DialogEvent::Canceled(self.id()).as_boxed())
                         .ok();
                 } else {
-                    let mut folder = String::from(DATA_FOLDER);
+                    let mut folder = String::from(self.folder.to_str().unwrap());
                     let mut should_change = false;
                     if let Some(child) = self.node().get_child_mut::<TitleBar>(widget_id) {
                         let name = child.node().get_name();
@@ -247,7 +249,7 @@ impl InternalWidget for FolderDialog {
                         if let Some(iconpanel) = self.node().get_child_mut::<Panel>(iconpanel_uid) {
                             iconpanel.node_mut().remove_children();
                             iconpanel.vertical_alignment(VerticalAlignment::Stretch);
-                            Icon::create_icons(folder.as_str(), iconpanel);
+                            Icon::create_icons(PathBuf::from(folder).as_path(), iconpanel);
                             children_size = iconpanel
                                 .compute_children_size(iconpanel.state().get_size())
                                 .y;

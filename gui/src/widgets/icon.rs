@@ -83,7 +83,7 @@ impl Icon {
         }
         self
     }
-    pub fn create_icons(path: &str, parent_widget: &mut dyn Widget) {
+    pub fn create_icons(path: &Path, parent_widget: &mut dyn Widget) {
         if let Ok(dir) = std::fs::read_dir(path) {
             dir.for_each(|entry| {
                 if let Ok(dir_entry) = entry {

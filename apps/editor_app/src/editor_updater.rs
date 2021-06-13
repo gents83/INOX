@@ -377,7 +377,7 @@ impl EditorUpdater {
             if path.extension().is_none() {
                 path.set_extension("widget");
             }
-            let filepath = PathBuf::from(format!("./data/widgets/{}", path.to_str().unwrap()));
+            let filepath = PathBuf::from(format!("./data_raw/widgets/{}", path.to_str().unwrap()));
             serialize_to_file(node, filepath);
         }
     }
