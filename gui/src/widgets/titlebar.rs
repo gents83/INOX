@@ -192,7 +192,7 @@ impl InternalWidget for TitleBar {
             return;
         }
 
-        let size: Vector2 = [400., DEFAULT_WIDGET_HEIGHT * 2.].into();
+        let size: Vector2 = [400., DEFAULT_WIDGET_HEIGHT].into();
 
         self.position(Screen::get_center() - size / 2.)
             .size(size * Screen::get_scale_factor())
