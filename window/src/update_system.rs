@@ -12,12 +12,10 @@ use crate::config::*;
 use nrg_core::*;
 use nrg_graphics::*;
 use nrg_messenger::{read_messages, MessageChannel, MessengerRw};
-use nrg_platform::WindowEvent;
 use nrg_resources::{ResourceEvent, SharedData, SharedDataRw};
 
 pub struct UpdateSystem {
     id: SystemId,
-    is_enabled: bool,
     renderer: RendererRw,
     shared_data: SharedDataRw,
     job_handler: JobHandlerRw,
@@ -37,16 +35,11 @@ impl UpdateSystem {
         global_messenger
             .write()
             .unwrap()
-            .register_messagebox::<WindowEvent>(message_channel.get_messagebox());
-        global_messenger
-            .write()
-            .unwrap()
             .register_messagebox::<ResourceEvent>(message_channel.get_messagebox());
 
         Self {
             id: SystemId::new(),
             renderer,
-            is_enabled: false,
             shared_data: shared_data.clone(),
             job_handler,
             config: config.clone(),
@@ -62,6 +55,9 @@ impl System for UpdateSystem {
     fn id(&self) -> SystemId {
         self.id
     }
+    fn should_run_when_not_focused(&self) -> bool {
+        false
+    }
     fn init(&mut self) {
         for pipeline_data in self.config.get_pipelines().iter() {
             PipelineInstance::create(&self.shared_data, pipeline_data);
@@ -74,23 +70,8 @@ impl System for UpdateSystem {
             return true;
         }
 
-        let mut should_recreate_swap_chain = false;
         read_messages(self.message_channel.get_listener(), |msg| {
-            if msg.type_id() == TypeId::of::<WindowEvent>() {
-                let e = msg.as_any().downcast_ref::<WindowEvent>().unwrap();
-                match e {
-                    WindowEvent::SizeChanged(_width, _height) => {
-                        should_recreate_swap_chain = true;
-                    }
-                    WindowEvent::Show => {
-                        self.is_enabled = true;
-                    }
-                    WindowEvent::Hide => {
-                        self.is_enabled = false;
-                    }
-                    _ => {}
-                }
-            } else if msg.type_id() == TypeId::of::<ResourceEvent>() {
+            if msg.type_id() == TypeId::of::<ResourceEvent>() {
                 let e = msg.as_any().downcast_ref::<ResourceEvent>().unwrap();
                 let ResourceEvent::Reload(path) = e;
                 if is_shader(path)
@@ -116,8 +97,7 @@ impl System for UpdateSystem {
             }
         });
 
-        if self.is_enabled
-            && SharedData::has_resources_of_type::<PipelineInstance>(&self.shared_data)
+        if SharedData::has_resources_of_type::<PipelineInstance>(&self.shared_data)
             && SharedData::has_resources_of_type::<MaterialInstance>(&self.shared_data)
             && SharedData::has_resources_of_type::<TextureInstance>(&self.shared_data)
             && SharedData::has_resources_of_type::<FontInstance>(&self.shared_data)
@@ -131,21 +111,12 @@ impl System for UpdateSystem {
                 SharedData::get_resources_of_type::<TextureInstance>(&self.shared_data);
             let fonts = SharedData::get_resources_of_type::<FontInstance>(&self.shared_data);
 
-            if should_recreate_swap_chain {
-                renderer.recreate();
-                for p in pipelines.iter() {
-                    p.get_mut().invalidate();
-                }
-            }
-
             renderer.prepare_frame(&mut pipelines, &mut materials, &mut textures, &fonts);
         }
 
         let wait_count = Arc::new(AtomicUsize::new(0));
 
-        if self.is_enabled
-            && SharedData::has_resources_of_type::<MaterialInstance>(&self.shared_data)
-        {
+        if SharedData::has_resources_of_type::<MaterialInstance>(&self.shared_data) {
             let materials =
                 SharedData::get_resources_of_type::<MaterialInstance>(&self.shared_data);
 

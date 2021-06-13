@@ -350,6 +350,18 @@ impl Window {
                 PostQuitMessage(0);
                 return 0;
             }
+            WM_SETFOCUS => {
+                if let Some(events_dispatcher) = &mut EVENTS_DISPATCHER {
+                    let events = events_dispatcher.write().unwrap();
+                    events.send(Box::new(WindowEvent::Show)).ok();
+                }
+            }
+            WM_KILLFOCUS => {
+                if let Some(events_dispatcher) = &mut EVENTS_DISPATCHER {
+                    let events = events_dispatcher.write().unwrap();
+                    events.send(Box::new(WindowEvent::Hide)).ok();
+                }
+            }
             _ => {}
         }
 

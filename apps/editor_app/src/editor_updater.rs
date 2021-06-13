@@ -106,6 +106,10 @@ impl System for EditorUpdater {
         self.id
     }
 
+    fn should_run_when_not_focused(&self) -> bool {
+        false
+    }
+
     fn init(&mut self) {
         self.window_init();
         self.load_pipelines();

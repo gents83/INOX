@@ -83,6 +83,7 @@ impl Pipeline {
     }
 
     pub fn destroy(&mut self) {
+        self.render_pass.destroy();
         self.inner.delete();
     }
 

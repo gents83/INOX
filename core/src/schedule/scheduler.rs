@@ -31,6 +31,10 @@ impl Scheduler {
         }
     }
 
+    pub fn resume(&mut self) {
+        self.is_running = true;
+    }
+
     pub fn cancel(&mut self) {
         self.is_running = false;
     }
@@ -172,7 +176,7 @@ impl Scheduler {
             })
     }
 
-    pub fn run_once(&mut self, job_handler: Arc<RwLock<JobHandler>>) -> bool {
+    pub fn run_once(&mut self, is_focused: bool, job_handler: Arc<RwLock<JobHandler>>) -> bool {
         if !self.is_started {
             return self.is_running;
         }
@@ -180,21 +184,25 @@ impl Scheduler {
         let mut can_continue = self.is_running;
         for name in self.phases_order.iter() {
             if let Some(phase) = self.phases.get_mut(name) {
-                nrg_profiler::scoped_profile!(
-                    format!("{}[{}]", "scheduler::run_phase", name).as_str()
-                );
-
-                let ok = phase.run();
-
-                {
+                let ok = if is_focused || phase.should_run_when_not_focused() {
                     nrg_profiler::scoped_profile!(
-                        format!("{}[{}]", "scheduler::wait_jobs", name).as_str()
+                        format!("{}[{}]", "scheduler::run_phase", name).as_str()
                     );
-                    while job_handler.read().unwrap().has_pending_jobs() {
-                        thread::yield_now();
+                    let ok = phase.run(is_focused);
+                    {
+                        nrg_profiler::scoped_profile!(format!(
+                            "{}[{}]",
+                            "scheduler::wait_jobs", name
+                        )
+                        .as_str());
+                        while job_handler.read().unwrap().has_pending_jobs() {
+                            thread::yield_now();
+                        }
                     }
-                }
-
+                    ok
+                } else {
+                    true
+                };
                 can_continue &= ok;
             }
         }

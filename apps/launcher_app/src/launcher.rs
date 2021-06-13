@@ -225,6 +225,9 @@ impl System for LauncherSystem {
         self.id
     }
 
+    fn should_run_when_not_focused(&self) -> bool {
+        false
+    }
     fn init(&mut self) {
         let path = self.config.get_filepath();
         deserialize_from_file(&mut self.config, path);

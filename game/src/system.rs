@@ -44,6 +44,9 @@ impl System for MySystem {
     fn id(&self) -> SystemId {
         self.id
     }
+    fn should_run_when_not_focused(&self) -> bool {
+        false
+    }
     fn init(&mut self) {
         let pipeline_id = PipelineInstance::find_id_from_name(&self.shared_data, "Default");
         self.font_id = FontInstance::create_from_path(

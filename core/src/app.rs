@@ -36,9 +36,8 @@ impl Default for App {
 
 impl Drop for App {
     fn drop(&mut self) {
-        for (_name, w) in self.workers.iter_mut() {
-            w.stop();
-        }
+        self.stop_worker_threads();
+
         if self.is_profiling {
             nrg_profiler::write_profile_file!();
         }
@@ -77,6 +76,12 @@ impl App {
     fn setup_worker_threads(&mut self) {
         for i in 1..NUM_WORKER_THREADS + 1 {
             self.add_worker(format!("Worker{}", i).as_str());
+        }
+    }
+
+    fn stop_worker_threads(&mut self) {
+        for (_name, w) in self.workers.iter_mut() {
+            w.stop();
         }
     }
 
@@ -128,24 +133,31 @@ impl App {
                 }
             });
         self.is_profiling = is_profiling;
+        if self.is_enabled && !is_enabled {
+            self.stop_worker_threads();
+        } else if !self.is_enabled && is_enabled {
+            self.setup_worker_threads();
+        }
         self.is_enabled = is_enabled;
     }
 
     pub fn run_once(&mut self) -> bool {
-        if self.is_enabled {
-            nrg_profiler::scoped_profile!("app::run_frame");
+        nrg_profiler::scoped_profile!("app::run_frame");
 
-            let can_continue = self.scheduler.run_once(self.get_job_handler());
+        let can_continue = self
+            .scheduler
+            .run_once(self.is_enabled, self.get_job_handler());
 
+        if !self.is_enabled {
             let plugins_to_remove = self.plugin_manager.update();
             self.update_plugins(plugins_to_remove, true);
-
-            self.update_events();
-
-            can_continue
         } else {
-            true
+            self.job_handler.read().unwrap().clear_pending_jobs();
         }
+
+        self.update_events();
+
+        can_continue
     }
 
     pub fn run(&mut self) {

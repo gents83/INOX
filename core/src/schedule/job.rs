@@ -24,6 +24,10 @@ impl Job {
         }
     }
 
+    pub fn get_name(&self) -> &str {
+        self.name.as_str()
+    }
+
     pub fn execute(self) {
         nrg_profiler::scoped_profile!(self.name.as_str());
 
@@ -57,12 +61,25 @@ impl JobHandler {
         F: FnOnce() + Send + Sync + 'static,
     {
         self.pending_jobs.fetch_add(1, Ordering::SeqCst);
+
         let job = Job::new(job_name, func, self.pending_jobs.clone());
         self.sender.send(job).ok();
     }
 
     #[inline]
     pub fn has_pending_jobs(&self) -> bool {
-        self.pending_jobs.load(Ordering::SeqCst) > 0
+        self.get_pending_jobs_count() > 0
+    }
+
+    #[inline]
+    pub fn get_pending_jobs_count(&self) -> usize {
+        self.pending_jobs.load(Ordering::SeqCst)
+    }
+
+    #[inline]
+    pub fn clear_pending_jobs(&self) {
+        if self.has_pending_jobs() {
+            self.pending_jobs.store(0, Ordering::SeqCst);
+        }
     }
 }

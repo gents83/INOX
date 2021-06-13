@@ -8,6 +8,7 @@ use vulkan_bindings::*;
 pub struct RenderPassImmutable {
     render_pass: VkRenderPass,
     framebuffers: Vec<VkFramebuffer>,
+    extent: VkExtent2D,
 }
 
 #[derive(Clone)]
@@ -20,6 +21,11 @@ impl RenderPass {
         let immutable = RenderPassImmutable {
             render_pass: RenderPassImmutable::base_pass(device, data),
             framebuffers: Vec::new(),
+            extent: device
+                .get_instance()
+                .get_swap_chain_info()
+                .capabilities
+                .currentExtent,
         };
         let inner = Rc::new(RefCell::new(immutable));
         inner.borrow_mut().create_framebuffers(device);
@@ -58,11 +64,7 @@ impl RenderPass {
             framebuffer: self.inner.borrow().framebuffers[device.get_current_buffer_index()],
             renderArea: VkRect2D {
                 offset: VkOffset2D { x: 0, y: 0 },
-                extent: device
-                    .get_instance()
-                    .get_swap_chain_info()
-                    .capabilities
-                    .currentExtent,
+                extent: self.inner.borrow().extent,
             },
             clearValueCount: clear_value.len() as _,
             pClearValues: clear_value.as_ptr(),
@@ -206,6 +208,8 @@ impl RenderPassImmutable {
         }
 
         let details = device.get_instance().get_swap_chain_info();
+        self.extent = details.capabilities.currentExtent;
+
         for (i, framebuffer) in framebuffers
             .iter_mut()
             .enumerate()
@@ -221,8 +225,8 @@ impl RenderPassImmutable {
                 renderPass: self.render_pass,
                 attachmentCount: attachments.len() as _,
                 pAttachments: attachments.as_ptr(),
-                width: details.capabilities.currentExtent.width,
-                height: details.capabilities.currentExtent.height,
+                width: self.extent.width,
+                height: self.extent.height,
                 layers: 1,
             };
 

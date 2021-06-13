@@ -21,7 +21,7 @@ impl SystemId {
 
 pub trait System: Send + Sync {
     fn id(&self) -> SystemId;
-
+    fn should_run_when_not_focused(&self) -> bool;
     fn init(&mut self);
     fn run(&mut self) -> bool;
     fn uninit(&mut self);

@@ -52,12 +52,19 @@ impl Worker {
                 .spawn(move || {
                     println!("Starting thread {}", thread_name.as_str());
                     nrg_profiler::register_thread!();
+                    scheduler.write().unwrap().resume();
                     loop {
-                        let can_continue = scheduler.write().unwrap().run_once(job_handler.clone());
+                        let can_continue = scheduler
+                            .write()
+                            .unwrap()
+                            .run_once(true, job_handler.clone());
                         if let Some(job) = Worker::get_job(&receiver) {
                             job.execute();
                         }
                         if !can_continue {
+                            while let Some(job) = Worker::get_job(&receiver) {
+                                job.execute();
+                            }
                             return false;
                         }
                     }

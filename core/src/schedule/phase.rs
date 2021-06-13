@@ -5,8 +5,9 @@ use crate::{System, SystemBoxed, SystemId};
 
 pub trait Phase: Downcast + Send + Sync {
     fn get_name(&self) -> &str;
+    fn should_run_when_not_focused(&self) -> bool;
     fn init(&mut self);
-    fn run(&mut self) -> bool;
+    fn run(&mut self, is_focused: bool) -> bool;
     fn uninit(&mut self);
 }
 impl_downcast!(Phase);
@@ -63,7 +64,7 @@ impl PhaseWithSystems {
         self
     }
 
-    fn execute_systems(&mut self) -> bool {
+    fn execute_systems(&mut self, is_focused: bool) -> bool {
         nrg_profiler::scoped_profile!("phase::execute_systems");
         let mut can_continue = true;
         for s in self.systems_running.iter_mut() {
@@ -73,7 +74,11 @@ impl PhaseWithSystems {
                 s.as_mut().id()
             )
             .as_str());
-            let ok = s.run();
+            let ok = if is_focused || s.should_run_when_not_focused() {
+                s.run()
+            } else {
+                true
+            };
             can_continue &= ok;
         }
         can_continue
@@ -103,15 +108,23 @@ impl Phase for PhaseWithSystems {
     fn get_name(&self) -> &str {
         &self.name
     }
+    fn should_run_when_not_focused(&self) -> bool {
+        for s in self.systems_running.iter() {
+            if s.should_run_when_not_focused() {
+                return true;
+            }
+        }
+        false
+    }
 
     fn init(&mut self) {
         self.add_pending_systems_into_execution();
     }
 
-    fn run(&mut self) -> bool {
+    fn run(&mut self, is_focused: bool) -> bool {
         self.remove_pending_systems_from_execution()
             .add_pending_systems_into_execution()
-            .execute_systems()
+            .execute_systems(is_focused)
     }
 
     fn uninit(&mut self) {

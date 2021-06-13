@@ -253,7 +253,6 @@ impl ScopedProfile {
 impl Drop for ScopedProfile {
     fn drop(&mut self) {
         let time_end = self.profiler.get_elapsed_time();
-
         THREAD_PROFILER.with(|profiler| {
             if profiler.borrow().is_none() {
                 let thread_profiler = get_profiler().current_thread_profiler();

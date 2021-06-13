@@ -109,10 +109,12 @@ impl Renderer {
     }
 
     pub fn draw(&mut self) {
+        if self.state == RendererState::Submitted {
+            return;
+        }
+
         let mut success = self.begin_frame();
-        if !success {
-            self.recreate();
-        } else {
+        if success {
             nrg_profiler::scoped_profile!("renderer::draw");
 
             for (pipeline_index, pipeline) in self.pipelines.iter_mut().enumerate() {
@@ -199,13 +201,14 @@ impl Renderer {
         if !success {
             self.recreate();
         }
-
         self.state = RendererState::Submitted;
     }
 
     pub fn recreate(&mut self) {
         nrg_profiler::scoped_profile!("renderer::recreate");
         self.device.recreate_swap_chain();
+        self.pipelines.iter_mut().for_each(|p| p.destroy());
+        self.pipelines.clear();
     }
 }
 

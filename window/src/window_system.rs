@@ -19,6 +19,9 @@ impl System for WindowSystem {
     fn id(&self) -> SystemId {
         self.id
     }
+    fn should_run_when_not_focused(&self) -> bool {
+        true
+    }
     fn init(&mut self) {}
     fn run(&mut self) -> bool {
         self.window.update()
