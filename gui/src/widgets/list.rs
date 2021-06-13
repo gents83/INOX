@@ -15,6 +15,7 @@ pub const DEFAULT_LIST_SIZE: [f32; 2] = [DEFAULT_WIDGET_HEIGHT * 10., DEFAULT_WI
 #[serde(crate = "nrg_serialize")]
 pub struct List {
     data: WidgetData,
+    selected: Uid,
     base_panel: Uid,
     scrollable_panel: Uid,
     scrollbar: Uid,
@@ -22,7 +23,8 @@ pub struct List {
 implement_widget_with_custom_members!(List {
     base_panel: INVALID_UID,
     scrollable_panel: INVALID_UID,
-    scrollbar: INVALID_UID
+    scrollbar: INVALID_UID,
+    selected: INVALID_UID
 });
 
 impl List {
@@ -35,6 +37,25 @@ impl List {
                 .horizontal_alignment(HorizontalAlignment::Stretch);
         }
         self
+    }
+    pub fn select_first(&mut self) -> &mut Self {
+        let mut selected_uid = self.selected;
+        if let Some(scrollable_panel) = self.node().get_child_mut::<Panel>(self.scrollable_panel) {
+            let mut is_selected = true;
+            scrollable_panel.node_mut().propagate_on_children_mut(|w| {
+                w.set_selected(is_selected);
+                if is_selected {
+                    selected_uid = w.id();
+                    is_selected = false;
+                }
+            });
+        }
+        self.selected = selected_uid;
+        self
+    }
+
+    pub fn get_selected(&self) -> Uid {
+        self.selected
     }
 
     pub fn get_scrollable_panel(&mut self) -> Option<&mut Panel> {
@@ -175,6 +196,26 @@ impl InternalWidget for List {
                         .vertical_alignment(VerticalAlignment::None)
                         .set_position(pos);
                 }
+            }
+        } else if msg.type_id() == TypeId::of::<WidgetEvent>() {
+            let event = msg.as_any().downcast_ref::<WidgetEvent>().unwrap();
+            if let WidgetEvent::Released(widget_id, _mouse_in_px) = *event {
+                let mut selected_uid = self.selected;
+                let scrollable_panel_uid = self.scrollable_panel;
+                if let Some(scrollable_panel) =
+                    self.node().get_child_mut::<Panel>(scrollable_panel_uid)
+                {
+                    if let Some(child) = scrollable_panel.node().get_child(widget_id) {
+                        selected_uid = widget_id;
+                        child.write().unwrap().set_selected(true);
+                    }
+                    if selected_uid != self.selected {
+                        if let Some(child) = scrollable_panel.node().get_child(self.selected) {
+                            child.write().unwrap().set_selected(false);
+                        }
+                    }
+                }
+                self.selected = selected_uid;
             }
         }
     }

@@ -163,7 +163,7 @@ impl InternalWidget for FolderDialog {
     fn widget_process_message(&mut self, msg: &dyn Message) {
         if msg.type_id() == TypeId::of::<WidgetEvent>() {
             let event = msg.as_any().downcast_ref::<WidgetEvent>().unwrap();
-            if let WidgetEvent::Pressed(widget_id, _mouse_in_px) = *event {
+            if let WidgetEvent::Released(widget_id, _mouse_in_px) = *event {
                 if self.ok_uid == widget_id {
                     self.get_global_dispatcher()
                         .write()

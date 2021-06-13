@@ -18,6 +18,8 @@ pub struct WidgetState {
     is_pressed: bool,
     #[serde(skip)]
     is_hover: bool,
+    #[serde(skip)]
+    is_selected: bool,
     #[serde(skip, default = "nrg_math::VecBase::default_zero")]
     dragging_pos_in_px: Vector2,
     inner_color: Vector4,
@@ -44,6 +46,7 @@ impl Default for WidgetState {
             is_draggable: false,
             is_pressed: false,
             is_hover: false,
+            is_selected: false,
             dragging_pos_in_px: Vector2::default_zero(),
             inner_color: WidgetStyle::color(WidgetStyle::Default),
             border_color: COLOR_TRANSPARENT.into(),
@@ -216,6 +219,10 @@ impl WidgetState {
     pub fn is_pressed(&self) -> bool {
         self.is_pressed
     }
+    #[inline]
+    pub fn is_selected(&self) -> bool {
+        self.is_selected
+    }
 
     #[inline]
     pub fn set_pressed(&mut self, is_pressed: bool) -> &mut Self {
@@ -226,6 +233,12 @@ impl WidgetState {
     #[inline]
     pub fn set_hover(&mut self, is_hover: bool) -> &mut Self {
         self.is_hover = is_hover;
+        self
+    }
+
+    #[inline]
+    pub fn set_selected(&mut self, is_selected: bool) -> &mut Self {
+        self.is_selected = is_selected;
         self
     }
 

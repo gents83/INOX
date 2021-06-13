@@ -154,6 +154,13 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
     fn id(&self) -> Uid {
         self.node().get_id()
     }
+
+    #[inline]
+    fn set_selected(&mut self, is_selected: bool) {
+        self.state_mut().set_selected(is_selected);
+        self.mark_as_dirty();
+    }
+
     #[inline]
     fn set_position(&mut self, pos_in_px: Vector2) {
         if pos_in_px != self.state().get_position() {
@@ -296,7 +303,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
 
         let mut color = self.state().get_color();
         let mut border_color = self.state().get_border_color();
-        if self.state().is_pressed() {
+        if self.state().is_selected() || self.state().is_pressed() {
             color = color.remove_color(hex_to_rgba(COLOR_ENGRAY));
             border_color = border_color.remove_color(hex_to_rgba(COLOR_ENGRAY));
         } else if self.state().is_hover() {
