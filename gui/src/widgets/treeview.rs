@@ -36,6 +36,10 @@ implement_widget_with_custom_members!(TreeView {
 });
 
 impl TreeView {
+    pub fn get_selected(&self) -> Uid {
+        self.selected_uid
+    }
+
     pub fn populate_with_folders(parent_widget: &mut dyn Widget, root: &Path) {
         if let Ok(dir) = std::fs::read_dir(root) {
             dir.for_each(|entry| {

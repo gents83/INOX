@@ -93,8 +93,10 @@ impl Icon {
                             parent_widget.get_shared_data(),
                             parent_widget.get_global_messenger(),
                         );
-                        icon.expanded();
-                        icon.set_text(path.file_name().unwrap().to_str().unwrap());
+                        icon.node_mut()
+                            .set_name(path.file_name().unwrap().to_str().unwrap());
+                        icon.expanded()
+                            .set_text(path.file_name().unwrap().to_str().unwrap());
                         parent_widget.add_child(Box::new(icon));
                     }
                 }

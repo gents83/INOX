@@ -86,6 +86,36 @@ impl FolderDialog {
         });
         selected_uid
     }
+    fn find_folder_from_id<W>(widget: &W, uid: Uid) -> String
+    where
+        W: Widget + ?Sized,
+    {
+        let mut folder = String::new();
+        widget.node().propagate_on_children(|w| {
+            if folder.is_empty() {
+                if w.id() == uid {
+                    folder = String::from(w.node().get_name());
+                } else if folder.is_empty() {
+                    folder = FolderDialog::find_folder_from_id(w, uid);
+                }
+            }
+        });
+        folder
+    }
+
+    fn find_file_from_id(&self, uid: Uid) -> String {
+        let mut file = String::new();
+        if let Some(list) = self.node().get_child_mut::<List>(self.list) {
+            if let Some(icon_panel) = list.get_scrollable_panel() {
+                icon_panel.node().propagate_on_children(|w| {
+                    if file.is_empty() && w.id() == uid {
+                        file = String::from(w.node().get_name());
+                    }
+                });
+            }
+        }
+        file
+    }
 
     fn select_folder(treeview: &mut TreeView, folder: &Path) {
         let selected_uid = FolderDialog::find_id_from_folder(treeview, folder);
@@ -234,16 +264,30 @@ impl InternalWidget for FolderDialog {
             let event = msg.as_any().downcast_ref::<WidgetEvent>().unwrap();
             if let WidgetEvent::Released(widget_id, _mouse_in_px) = *event {
                 if self.ok_uid == widget_id {
+                    let mut folder = String::new();
+                    let mut file = String::new();
+                    if let Some(treeview) = self
+                        .node()
+                        .get_child_mut::<TreeView>(self.folder_treeview_uid)
+                    {
+                        let selected = treeview.get_selected();
+                        folder = FolderDialog::find_folder_from_id(treeview, selected);
+                    }
+                    if let Some(list) = self.node().get_child_mut::<List>(self.list) {
+                        let selected = list.get_selected();
+                        file = self.find_file_from_id(selected);
+                    }
+                    let filename = PathBuf::from(folder.clone())
+                        .canonicalize()
+                        .unwrap()
+                        .join(file);
+                    println!("You've selected {:?}", filename);
                     self.get_global_dispatcher()
                         .write()
                         .unwrap()
                         .send(
-                            DialogEvent::Confirmed(
-                                self.id(),
-                                self.requester_uid,
-                                String::from("WhichEntry?"),
-                            )
-                            .as_boxed(),
+                            DialogEvent::Confirmed(self.id(), self.requester_uid, folder)
+                                .as_boxed(),
                         )
                         .ok();
                 } else if self.cancel_uid == widget_id {
