@@ -103,13 +103,12 @@ impl TreeView {
         }
     }
 
-    pub fn select(&mut self, widget_uid: Uid) {
+    pub fn select(&mut self, widget_uid: Uid) -> &mut Self {
         if self.selected_uid != widget_uid {
             let mut new_selection = false;
             if let Some(titlebar) = self.node().get_child_mut::<TitleBar>(widget_uid) {
                 new_selection = true;
                 titlebar.set_selected(true);
-                self.expand_parent(titlebar.node().get_parent());
             }
             if new_selection {
                 if let Some(child) = self.node().get_child(self.selected_uid) {
@@ -118,9 +117,20 @@ impl TreeView {
                 self.selected_uid = widget_uid;
             }
         }
+        self
     }
 
-    pub fn expand_parent(&self, widget_id: Uid) {
+    pub fn expand_to_selected(&mut self) -> &mut Self {
+        if let Some(titlebar) = self
+            .node()
+            .get_child_mut::<CollapsibleItem>(self.selected_uid)
+        {
+            self.expand_parent(titlebar.node().get_parent());
+        }
+        self
+    }
+
+    fn expand_parent(&self, widget_id: Uid) {
         let mut item_id = widget_id;
         if let Some(panel) = self.node().get_child_mut::<Panel>(item_id) {
             item_id = panel.node().get_parent();

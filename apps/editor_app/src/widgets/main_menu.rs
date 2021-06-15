@@ -165,13 +165,7 @@ impl InternalWidget for MainMenu {
                     dialog
                         .set_requester_uid(self.open_id)
                         .set_title("Open Widget")
-                        .set_folder(
-                            PathBuf::from(DATA_RAW_FOLDER)
-                                .join("textures")
-                                .join("psd")
-                                .join("prova")
-                                .as_path(),
-                        )
+                        .set_folder(PathBuf::from(DATA_RAW_FOLDER).as_path())
                         .editable(false);
                 } else if self.save_id == widget_id && self.filename_dialog.is_none() {
                     self.filename_dialog = Some(FolderDialog::new(

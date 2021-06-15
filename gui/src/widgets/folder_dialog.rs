@@ -89,7 +89,7 @@ impl FolderDialog {
 
     fn select_folder(treeview: &mut TreeView, folder: &Path) {
         let selected_uid = FolderDialog::find_id_from_folder(treeview, folder);
-        treeview.select(selected_uid);
+        treeview.select(selected_uid).expand_to_selected();
     }
 
     pub fn set_folder(&mut self, folder: &Path) -> &mut Self {
