@@ -16,9 +16,9 @@
                 "rust"
             ],
             "postDebugTask": "CLEANUP",
-            "windows": {
-                "program": "${workspaceFolder}/target/debug/nrg_launcher.exe"
-            },
+            "sourceMap": {
+                "/rustc/*": "${env:HOME}/.rustup/toolchains/stable-x86_64-pc-windows-msvc/lib/rustlib/src/rust"
+            }
         },
         {
             "name": "RUN LAUNCHER RELEASE",
@@ -32,9 +32,9 @@
                 "rust"
             ],
             "postDebugTask": "CLEANUP",
-            "windows": {
-                "program": "${workspaceFolder}/target/release/nrg_launcher.exe"
-            },
+            "sourceMap": {
+                "/rustc/*": "${env:HOME}/.rustup/toolchains/stable-x86_64-pc-windows-msvc/lib/rustlib/src/rust"
+            }
         },
         {
             "name": "RUN GAME DEBUG",
@@ -48,9 +48,9 @@
                 "rust"
             ],
             "postDebugTask": "CLEANUP",
-            "windows": {
-                "program": "${workspaceFolder}/target/debug/nrg_game_app.exe"
-            },
+            "sourceMap": {
+                "/rustc/*": "${env:HOME}/.rustup/toolchains/stable-x86_64-pc-windows-msvc/lib/rustlib/src/rust"
+            }
         },
         {
             "name": "RUN GAME RELEASE",
@@ -64,9 +64,9 @@
                 "rust"
             ],
             "postDebugTask": "CLEANUP",
-            "windows": {
-                "program": "${workspaceFolder}/target/release/nrg_game_app.exe"
-            },
+            "sourceMap": {
+                "/rustc/*": "${env:HOME}/.rustup/toolchains/stable-x86_64-pc-windows-msvc/lib/rustlib/src/rust"
+            }
         },
         {
             "name": "RUN EDITOR DEBUG",
@@ -80,9 +80,9 @@
                 "rust"
             ],
             "postDebugTask": "CLEANUP",
-            "windows": {
-                "program": "${workspaceFolder}/target/debug/nrg_editor.exe"
-            },
+            "sourceMap": {
+                "/rustc/*": "${env:HOME}/.rustup/toolchains/stable-x86_64-pc-windows-msvc/lib/rustlib/src/rust"
+            }
         },
         {
             "name": "RUN EDITOR RELEASE",
@@ -96,9 +96,9 @@
                 "rust"
             ],
             "postDebugTask": "CLEANUP",
-            "windows": {
-                "program": "${workspaceFolder}/target/release/nrg_editor.exe"
-            },
+            "sourceMap": {
+                "/rustc/*": "${env:HOME}/.rustup/toolchains/stable-x86_64-pc-windows-msvc/lib/rustlib/src/rust"
+            }
         },
     ]
 }

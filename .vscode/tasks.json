@@ -43,7 +43,7 @@
 			"args": [
 				"build",
 				"-v",
-				"--all"
+				"--workspace"
 			],
 			"command": "cargo",
 			"problemMatcher": [
@@ -74,7 +74,7 @@
 			"args": [
 				"build",
 				"-v",
-				"--all",
+				"--workspace",
 				"--release"
 			],
 			"command": "cargo",

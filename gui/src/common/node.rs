@@ -1,5 +1,5 @@
 use std::{
-    any::{type_name, Any},
+    any::{type_name, Any, TypeId},
     sync::{Arc, RwLock},
 };
 
@@ -110,6 +110,43 @@ impl WidgetNode {
                     let widget = ptr as *mut W;
                     return Some(&mut *widget);
                 }
+            }
+        }
+        None
+    }
+
+    #[inline]
+    pub fn get_child_of_type<W>(&self) -> Option<RefcountedWidget>
+    where
+        W: Widget,
+    {
+        let mut result: Option<RefcountedWidget> = None;
+        self.children.iter().for_each(|w| {
+            let mut is_same_widget_type = w.read().unwrap().get_type_id() == TypeId::of::<W>();
+            if !is_same_widget_type {
+                is_same_widget_type |= type_name::<W>().contains(w.read().unwrap().get_type());
+            }
+            if is_same_widget_type {
+                result = Some(w.clone());
+            } else if result.is_none() {
+                result = w.read().unwrap().node().get_child_of_type::<W>();
+            }
+        });
+        result
+    }
+
+    #[inline]
+    pub fn get_child_of_type_mut<W>(&self) -> Option<&mut W>
+    where
+        W: Widget + 'static,
+    {
+        let result = self.get_child_of_type::<W>();
+        if let Some(w) = result {
+            unsafe {
+                let boxed = Box::from_raw(w.write().unwrap().as_mut());
+                let ptr = Box::into_raw(boxed);
+                let widget = ptr as *mut W;
+                return Some(&mut *widget);
             }
         }
         None

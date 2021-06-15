@@ -36,6 +36,10 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
     fn get_type(&self) -> &'static str {
         std::any::type_name::<Self>()
     }
+    #[inline]
+    fn get_type_id(&self) -> TypeId {
+        std::any::TypeId::of::<Self>()
+    }
     fn init(&mut self) {
         self.graphics_mut().init("Default");
 
@@ -58,6 +62,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         self.process_messages();
 
         if self.is_dirty() {
+            self.mark_as_dirty();
             self.update_layout(parent_data);
             self.manage_style();
         }
@@ -138,15 +143,16 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
     #[inline]
     fn mark_as_dirty(&mut self) {
         self.state_mut().set_dirty(true);
-        self.node_mut().propagate_on_children_mut(|w| {
-            w.mark_as_dirty();
-        });
+        self.node_mut()
+            .propagate_on_children_mut(|w| w.mark_as_dirty());
     }
     #[inline]
     fn is_dirty(&self) -> bool {
         let mut is_dirty = self.state().is_dirty();
-        self.node()
-            .propagate_on_children(|w| is_dirty |= w.is_dirty());
+        if !is_dirty {
+            self.node()
+                .propagate_on_children(|w| is_dirty |= w.is_dirty());
+        }
         is_dirty
     }
 

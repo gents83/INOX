@@ -5,8 +5,8 @@ use nrg_messenger::{implement_message, Message};
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{
-    implement_widget_with_custom_members, CollapsibleItem, InternalWidget, TitleBar, TitleBarEvent,
-    WidgetData, WidgetEvent, DEFAULT_WIDGET_HEIGHT, DEFAULT_WIDGET_WIDTH,
+    implement_widget_with_custom_members, CollapsibleItem, InternalWidget, Panel, TitleBar,
+    TitleBarEvent, WidgetData, WidgetEvent, DEFAULT_WIDGET_HEIGHT, DEFAULT_WIDGET_WIDTH,
 };
 pub const DEFAULT_TREE_VIEW_SIZE: [f32; 2] =
     [DEFAULT_WIDGET_WIDTH * 10., DEFAULT_WIDGET_HEIGHT * 20.];
@@ -22,6 +22,7 @@ implement_message!(TreeItemEvent);
 #[serde(crate = "nrg_serialize")]
 pub struct TreeView {
     data: WidgetData,
+    selected_uid: Uid,
     title_widget: Uid,
     is_collapsed: bool,
     #[serde(skip)]
@@ -29,6 +30,7 @@ pub struct TreeView {
 }
 implement_widget_with_custom_members!(TreeView {
     title_widget: INVALID_UID,
+    selected_uid: INVALID_UID,
     is_collapsed: false,
     is_dirty: true
 });
@@ -56,7 +58,7 @@ impl TreeView {
                         entry
                             .draggable(false)
                             .size(parent_widget.state().get_size())
-                            .selectable(has_children)
+                            .selectable(false)
                             .collapsible(has_children)
                             .horizontal_alignment(HorizontalAlignment::Stretch)
                             .with_text(path.file_name().unwrap().to_str().unwrap())
@@ -80,7 +82,6 @@ impl TreeView {
                                 entry.get_shared_data(),
                                 entry.get_global_messenger(),
                             );
-                            TreeView::populate_with_folders(&mut inner_tree, path.as_path());
                             let mut inner_size = entry.state().get_size();
                             inner_size.x = (inner_size.x
                                 - DEFAULT_WIDGET_WIDTH * Screen::get_scale_factor())
@@ -90,6 +91,7 @@ impl TreeView {
                                 .selectable(false)
                                 .horizontal_alignment(HorizontalAlignment::Right)
                                 .vertical_alignment(VerticalAlignment::Top);
+                            TreeView::populate_with_folders(&mut inner_tree, path.as_path());
                             entry.add_child(Box::new(inner_tree));
                         }
 
@@ -98,6 +100,39 @@ impl TreeView {
                     }
                 }
             });
+        }
+    }
+
+    pub fn select(&mut self, widget_uid: Uid) {
+        if self.selected_uid != widget_uid {
+            let mut new_selection = false;
+            if let Some(titlebar) = self.node().get_child_mut::<TitleBar>(widget_uid) {
+                new_selection = true;
+                titlebar.set_selected(true);
+                self.expand_parent(titlebar.node().get_parent());
+            }
+            if new_selection {
+                if let Some(child) = self.node().get_child(self.selected_uid) {
+                    child.write().unwrap().set_selected(false);
+                }
+                self.selected_uid = widget_uid;
+            }
+        }
+    }
+
+    pub fn expand_parent(&self, widget_id: Uid) {
+        let mut item_id = widget_id;
+        if let Some(panel) = self.node().get_child_mut::<Panel>(item_id) {
+            item_id = panel.node().get_parent();
+        }
+        if let Some(item) = self.node().get_child_mut::<CollapsibleItem>(item_id) {
+            item.collapse(false);
+            if item.node().get_parent() != self.id() {
+                let treeview_id = item.node().get_parent();
+                if let Some(treeview) = self.node().get_child_mut::<TreeView>(treeview_id) {
+                    self.expand_parent(treeview.node().get_parent());
+                }
+            }
         }
     }
 }
@@ -130,28 +165,10 @@ impl InternalWidget for TreeView {
             .unregister_to_listen_event::<TitleBarEvent>();
     }
     fn widget_process_message(&mut self, msg: &dyn Message) {
-        if msg.type_id() == TypeId::of::<TitleBarEvent>() {
-            let event = msg.as_any().downcast_ref::<TitleBarEvent>().unwrap();
-            match *event {
-                TitleBarEvent::Expanded(widget_id) => {
-                    if self.node().has_child(widget_id) {
-                        self.get_global_dispatcher()
-                            .write()
-                            .unwrap()
-                            .send(WidgetEvent::InvalidateLayout(self.id()).as_boxed())
-                            .ok();
-                    }
-                }
-                TitleBarEvent::Collapsed(widget_id) => {
-                    if self.node().has_child(widget_id) {
-                        self.get_global_dispatcher()
-                            .write()
-                            .unwrap()
-                            .send(WidgetEvent::InvalidateLayout(self.id()).as_boxed())
-                            .ok();
-                    }
-                }
-                _ => {}
+        if msg.type_id() == TypeId::of::<WidgetEvent>() {
+            let event = msg.as_any().downcast_ref::<WidgetEvent>().unwrap();
+            if let WidgetEvent::Released(widget_id, _mouse_in_px) = *event {
+                self.select(widget_id);
             }
         }
     }

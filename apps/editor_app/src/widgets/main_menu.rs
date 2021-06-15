@@ -1,4 +1,4 @@
-use std::any::TypeId;
+use std::{any::TypeId, path::PathBuf};
 
 use nrg_gui::{
     implement_widget_with_custom_members, Checkbox, DialogEvent, FolderDialog, InternalWidget,
@@ -7,6 +7,7 @@ use nrg_gui::{
 use nrg_math::{Vector2, Vector4};
 use nrg_messenger::Message;
 use nrg_platform::WindowEvent;
+use nrg_resources::DATA_RAW_FOLDER;
 use nrg_serialize::*;
 
 #[derive(Serialize, Deserialize)]
@@ -150,24 +151,39 @@ impl InternalWidget for MainMenu {
                         self.get_global_messenger(),
                     ));
                     let dialog = self.filename_dialog.as_mut().unwrap();
-                    dialog.set_requester_uid(self.new_id);
-                    dialog.set_title("New Widget");
+                    dialog
+                        .set_requester_uid(self.new_id)
+                        .set_title("New Widget")
+                        .set_filename("new_widget.widget")
+                        .editable(true);
                 } else if self.open_id == widget_id && self.filename_dialog.is_none() {
                     self.filename_dialog = Some(FolderDialog::new(
                         self.get_shared_data(),
                         self.get_global_messenger(),
                     ));
                     let dialog = self.filename_dialog.as_mut().unwrap();
-                    dialog.set_requester_uid(self.open_id);
-                    dialog.set_title("Open Widget");
+                    dialog
+                        .set_requester_uid(self.open_id)
+                        .set_title("Open Widget")
+                        .set_folder(
+                            PathBuf::from(DATA_RAW_FOLDER)
+                                .join("textures")
+                                .join("psd")
+                                .join("prova")
+                                .as_path(),
+                        )
+                        .editable(false);
                 } else if self.save_id == widget_id && self.filename_dialog.is_none() {
                     self.filename_dialog = Some(FolderDialog::new(
                         self.get_shared_data(),
                         self.get_global_messenger(),
                     ));
                     let dialog = self.filename_dialog.as_mut().unwrap();
-                    dialog.set_requester_uid(self.save_id);
-                    dialog.set_title("Save Widget");
+                    dialog
+                        .set_requester_uid(self.save_id)
+                        .set_title("Save Widget")
+                        .set_filename("old_widget.widget")
+                        .editable(true);
                 } else if self.exit_id == widget_id {
                     self.get_global_dispatcher()
                         .write()

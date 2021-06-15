@@ -1,9 +1,12 @@
-use std::{any::TypeId, path::PathBuf};
+use std::{
+    any::TypeId,
+    path::{Path, PathBuf},
+};
 
 use crate::{
     implement_widget_with_custom_members, Button, Icon, InternalWidget, List, Panel,
-    ScrollbarEvent, Separator, TitleBar, TreeView, WidgetData, WidgetEvent, DEFAULT_BUTTON_SIZE,
-    DEFAULT_WIDGET_HEIGHT,
+    ScrollbarEvent, Separator, TextBox, TitleBar, TreeView, WidgetData, WidgetEvent,
+    DEFAULT_BUTTON_SIZE, DEFAULT_WIDGET_HEIGHT,
 };
 use nrg_math::{Vector2, Vector4};
 use nrg_messenger::{implement_message, Message};
@@ -25,6 +28,7 @@ pub struct FolderDialog {
     folder_treeview_uid: Uid,
     list: Uid,
     title_bar_uid: Uid,
+    textbox_uid: Uid,
     button_box_uid: Uid,
     ok_uid: Uid,
     cancel_uid: Uid,
@@ -36,6 +40,7 @@ implement_widget_with_custom_members!(FolderDialog {
     folder: PathBuf::from(DATA_RAW_FOLDER),
     list: INVALID_UID,
     title_bar_uid: INVALID_UID,
+    textbox_uid: INVALID_UID,
     button_box_uid: INVALID_UID,
     requester_uid: INVALID_UID,
     ok_uid: INVALID_UID,
@@ -50,17 +55,73 @@ impl FolderDialog {
         }
         self
     }
+    pub fn editable(&mut self, is_editable: bool) -> &mut Self {
+        let uid = self.textbox_uid;
+        if let Some(textbox) = self.node().get_child_mut::<TextBox>(uid) {
+            textbox.editable(is_editable);
+        }
+        self
+    }
+    pub fn set_filename(&mut self, text: &str) -> &mut Self {
+        let uid = self.textbox_uid;
+        if let Some(textbox) = self.node().get_child_mut::<TextBox>(uid) {
+            textbox.set_text(text);
+        }
+        self
+    }
+
+    fn find_id_from_folder<W>(widget: &W, folder: &Path) -> Uid
+    where
+        W: Widget + ?Sized,
+    {
+        let mut selected_uid = INVALID_UID;
+        widget.node().propagate_on_children(|w| {
+            if selected_uid.is_nil() {
+                if w.node().get_name() == folder.to_str().unwrap() {
+                    selected_uid = w.id();
+                } else if selected_uid.is_nil() {
+                    selected_uid = FolderDialog::find_id_from_folder(w, folder);
+                }
+            }
+        });
+        selected_uid
+    }
+
+    fn select_folder(treeview: &mut TreeView, folder: &Path) {
+        let selected_uid = FolderDialog::find_id_from_folder(treeview, folder);
+        treeview.select(selected_uid);
+    }
+
+    pub fn set_folder(&mut self, folder: &Path) -> &mut Self {
+        self.folder = folder.to_path_buf();
+        if let Some(treeview) = self
+            .node()
+            .get_child_mut::<TreeView>(self.folder_treeview_uid)
+        {
+            FolderDialog::select_folder(treeview, folder);
+        }
+        let list_uid = self.list;
+        if let Some(list) = self.node().get_child_mut::<List>(list_uid) {
+            list.clear();
+            if let Some(iconpanel) = list.get_scrollable_panel() {
+                Icon::create_icons(folder, iconpanel);
+            }
+            list.vertical();
+        }
+        self
+    }
     pub fn set_requester_uid(&mut self, requester_uid: Uid) -> &mut Self {
         self.requester_uid = requester_uid;
         self
     }
-    fn add_title(&mut self) {
+    fn add_title(&mut self) -> &mut Self {
         let mut title_bar = TitleBar::new(self.get_shared_data(), self.get_global_messenger());
         title_bar.collapsible(false).set_text("Folder Dialog");
 
         self.title_bar_uid = self.add_child(Box::new(title_bar));
+        self
     }
-    fn add_content(&mut self) {
+    fn add_content(&mut self) -> &mut Self {
         let mut content_size = self.state().get_size();
         content_size.y -= DEFAULT_WIDGET_HEIGHT * 2. * Screen::get_scale_factor();
 
@@ -98,9 +159,17 @@ impl FolderDialog {
         self.list = horizontal_panel.add_child(Box::new(list));
 
         self.add_child(Box::new(horizontal_panel));
+        self
     }
 
-    fn add_buttons(&mut self) {
+    fn add_textbox(&mut self) -> &mut Self {
+        let mut text_box = TextBox::new(self.get_shared_data(), self.get_global_messenger());
+        text_box.with_label("Filename").set_text("");
+        self.textbox_uid = self.add_child(Box::new(text_box));
+        self
+    }
+
+    fn add_buttons(&mut self) -> &mut Self {
         let mut button_box = Panel::new(self.get_shared_data(), self.get_global_messenger());
 
         let default_size: Vector2 = DEFAULT_BUTTON_SIZE.into();
@@ -122,6 +191,8 @@ impl FolderDialog {
         self.ok_uid = button_box.add_child(Box::new(button_ok));
         self.cancel_uid = button_box.add_child(Box::new(button_cancel));
         self.button_box_uid = self.add_child(Box::new(button_box));
+
+        self
     }
 }
 
@@ -147,9 +218,7 @@ impl InternalWidget for FolderDialog {
         self.graphics_mut()
             .set_border_color([1., 1., 1., 2. * Screen::get_scale_factor()].into());
 
-        self.add_title();
-        self.add_content();
-        self.add_buttons();
+        self.add_title().add_content().add_textbox().add_buttons();
     }
 
     fn widget_update(&mut self, _drawing_area_in_px: Vector4) {}

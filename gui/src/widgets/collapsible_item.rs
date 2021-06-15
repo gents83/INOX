@@ -51,18 +51,19 @@ impl CollapsibleItem {
             let mut expanded_fill_type = self.expanded_fill_type;
             if let Some(panel) = self.node().get_child_mut::<Panel>(uid) {
                 if is_collapsed {
-                    expanded_size = panel.state().get_size();
+                    expanded_size = panel.compute_children_size(panel.state().get_size());
                     expanded_fill_type = panel.state().get_fill_type();
                     panel
                         .size(Vector2::default_zero())
                         .fill_type(ContainerFillType::None);
                 } else {
-                    panel.size(expanded_size);
                     panel.fill_type(expanded_fill_type);
+                    expanded_size = panel.compute_children_size(panel.state().get_size());
+                    panel.size(expanded_size);
                 }
             }
+            let uid = self.title_bar;
             let size = if is_collapsed {
-                let uid = self.title_bar;
                 if let Some(title_bar) = self.node().get_child_mut::<TitleBar>(uid) {
                     title_bar.collapse().change_collapse_icon();
                     title_bar.state().get_size()
@@ -71,8 +72,8 @@ impl CollapsibleItem {
                 }
             } else {
                 if let Some(title_bar) = self.node().get_child_mut::<TitleBar>(uid) {
-                    title_bar.expand().change_collapse_icon();
                     expanded_size.y += title_bar.state().get_size().y;
+                    title_bar.expand().change_collapse_icon();
                 }
                 expanded_size
             };
@@ -86,8 +87,9 @@ impl CollapsibleItem {
         let uid = self.title_bar;
         if let Some(title_bar) = self.node().get_child_mut::<TitleBar>(uid) {
             title_bar.node_mut().set_name(name);
+        } else {
+            self.node_mut().set_name(name);
         }
-        self.node_mut().set_name(name);
         self
     }
     pub fn add_child(&mut self, widget: Box<dyn Widget>) -> Uid {
@@ -97,6 +99,12 @@ impl CollapsibleItem {
         } else {
             <dyn Widget>::add_child(self, widget)
         }
+    }
+    pub fn has_content(&self) -> bool {
+        if let Some(panel) = self.node().get_child_mut::<Panel>(self.panel) {
+            return panel.node().has_children();
+        }
+        false
     }
     pub fn get_titlebar(&self) -> Uid {
         self.title_bar
@@ -128,7 +136,8 @@ impl InternalWidget for CollapsibleItem {
             .selectable(true)
             .collapsible(true)
             .fill_type(ContainerFillType::Horizontal)
-            .set_text_alignment(HorizontalAlignment::Left, VerticalAlignment::Center);
+            .set_text_alignment(HorizontalAlignment::Left, VerticalAlignment::Center)
+            .expand();
         self.title_bar = self.add_child(Box::new(title_bar));
 
         let mut panel = Panel::new(self.get_shared_data(), self.get_global_messenger());

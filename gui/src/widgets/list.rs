@@ -50,7 +50,27 @@ impl List {
                 }
             });
         }
-        self.selected = selected_uid;
+        self.select(selected_uid);
+        self
+    }
+    pub fn select(&mut self, widget_uid: Uid) -> &mut Self {
+        if self.selected != widget_uid {
+            let mut selected_uid = self.selected;
+            let scrollable_panel_uid = self.scrollable_panel;
+            if let Some(scrollable_panel) = self.node().get_child_mut::<Panel>(scrollable_panel_uid)
+            {
+                if let Some(child) = scrollable_panel.node().get_child(widget_uid) {
+                    selected_uid = widget_uid;
+                    child.write().unwrap().set_selected(true);
+                }
+                if selected_uid != self.selected {
+                    if let Some(child) = scrollable_panel.node().get_child(self.selected) {
+                        child.write().unwrap().set_selected(false);
+                    }
+                }
+            }
+            self.selected = selected_uid;
+        }
         self
     }
 
@@ -200,22 +220,7 @@ impl InternalWidget for List {
         } else if msg.type_id() == TypeId::of::<WidgetEvent>() {
             let event = msg.as_any().downcast_ref::<WidgetEvent>().unwrap();
             if let WidgetEvent::Released(widget_id, _mouse_in_px) = *event {
-                let mut selected_uid = self.selected;
-                let scrollable_panel_uid = self.scrollable_panel;
-                if let Some(scrollable_panel) =
-                    self.node().get_child_mut::<Panel>(scrollable_panel_uid)
-                {
-                    if let Some(child) = scrollable_panel.node().get_child(widget_id) {
-                        selected_uid = widget_id;
-                        child.write().unwrap().set_selected(true);
-                    }
-                    if selected_uid != self.selected {
-                        if let Some(child) = scrollable_panel.node().get_child(self.selected) {
-                            child.write().unwrap().set_selected(false);
-                        }
-                    }
-                }
-                self.selected = selected_uid;
+                self.select(widget_id);
             }
         }
     }
