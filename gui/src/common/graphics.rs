@@ -205,17 +205,20 @@ impl WidgetGraphics {
 
     #[inline]
     pub fn is_visible(&self) -> bool {
-        self.is_visible
+        self.is_visible && !self.color.w.is_zero()
+    }
+
+    #[inline]
+    pub fn is_valid_drawing_area(drawing_area: Vector4) -> bool {
+        drawing_area.z > 0. && drawing_area.w > 0.
     }
 
     #[inline]
     pub fn update(&mut self, drawing_area: Vector4) -> &mut Self {
         if self.is_dirty && !self.material_id.is_nil() && !self.mesh_id.is_nil() {
             nrg_profiler::scoped_profile!("widget::graphics_update");
-            let mut visible = self.is_visible;
-            if visible && (self.color.w.is_zero() || drawing_area.z <= 0. || drawing_area.w <= 0.) {
-                visible = false;
-            }
+            let visible = self.is_visible() && WidgetGraphics::is_valid_drawing_area(drawing_area);
+
             MaterialInstance::set_outline_color(
                 &self.shared_data,
                 self.material_id,

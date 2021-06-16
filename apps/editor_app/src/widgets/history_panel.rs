@@ -142,10 +142,11 @@ impl InternalWidget for HistoryPanel {
         self.history_clear_button = history_clear_button_id;
     }
 
-    fn widget_update(&mut self, _drawing_area_in_px: Vector4) {
+    fn widget_update(&mut self, drawing_area_in_px: Vector4) {
         self.history.update();
 
-        if self.graphics().is_visible() {
+        if self.graphics().is_visible() && WidgetGraphics::is_valid_drawing_area(drawing_area_in_px)
+        {
             let widget_id = self.history_text_widget_id;
             let text = self.update_history_widget();
             if let Some(history_text) = self.node().get_child_mut::<Text>(widget_id) {

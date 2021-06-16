@@ -11,7 +11,7 @@ use nrg_serialize::{typetag, Uid};
 use crate::{
     add_space_before_after, add_widget_size, compute_child_clip_area, hex_to_rgba, Color,
     ContainerFillType, Gui, HorizontalAlignment, VerticalAlignment, WidgetDataGetter, WidgetEvent,
-    COLOR_ENGRAY,
+    WidgetGraphics, COLOR_ENGRAY,
 };
 
 pub type RefcountedWidget = Arc<RwLock<Box<dyn Widget>>>;
@@ -59,7 +59,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         self.mark_as_initialized();
     }
     fn update(&mut self, parent_data: Vector4, drawing_area_in_px: Vector4) {
-        self.process_messages();
+        self.process_messages(drawing_area_in_px);
 
         if self.is_dirty() {
             self.mark_as_dirty();
@@ -122,19 +122,16 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         }
     }
     #[inline]
-    fn process_messages(&mut self) {
-        if !self.graphics().is_visible() {
-            return;
-        }
+    fn process_messages(&mut self, drawing_area_in_px: Vector4) {
         nrg_profiler::scoped_profile!("widget::process_messages");
         read_messages(self.get_listener(), |msg| {
             if msg.type_id() == TypeId::of::<MouseEvent>() {
                 let e = msg.as_any().downcast_ref::<MouseEvent>().unwrap();
-                self.manage_input(e);
+                self.manage_input(e, drawing_area_in_px);
             }
             if msg.type_id() == TypeId::of::<WidgetEvent>() {
                 let e = msg.as_any().downcast_ref::<WidgetEvent>().unwrap();
-                self.manage_events(e);
+                self.manage_events(e, drawing_area_in_px);
             }
             self.widget_process_message(msg);
         });
@@ -329,9 +326,11 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
     }
 
     #[inline]
-    fn manage_events(&mut self, event: &WidgetEvent) {
+    fn manage_events(&mut self, event: &WidgetEvent, drawing_area_in_px: Vector4) {
         nrg_profiler::scoped_profile!("widget::manage_events");
-        if !self.graphics().is_visible() {
+        if !self.graphics().is_visible()
+            || !WidgetGraphics::is_valid_drawing_area(drawing_area_in_px)
+        {
             return;
         }
         let id = self.id();
@@ -405,10 +404,13 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
     }
 
     #[inline]
-    fn manage_input(&mut self, event: &MouseEvent) {
+    fn manage_input(&mut self, event: &MouseEvent, drawing_area_in_px: Vector4) {
         nrg_profiler::scoped_profile!("widget::manage_input");
 
-        if !self.graphics().is_visible() || !self.state().is_active() {
+        if !self.graphics().is_visible()
+            || !WidgetGraphics::is_valid_drawing_area(drawing_area_in_px)
+            || !self.state().is_active()
+        {
             return;
         }
         let mut is_on_child = false;
