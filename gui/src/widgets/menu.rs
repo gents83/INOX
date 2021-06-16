@@ -183,10 +183,15 @@ impl InternalWidget for Menu {
         });
         self.entries.iter_mut().enumerate().for_each(|(i, e)| {
             let mut clip_area = drawing_area_in_px;
-            clip_area.x = buttons[i].0.x;
-            clip_area.y = buttons[i].0.y + buttons[i].1.y;
-            clip_area.z -= clip_area.x;
-            clip_area.w -= clip_area.y;
+            if e.opened {
+                clip_area.x = buttons[i].0.x;
+                clip_area.y = buttons[i].0.y + buttons[i].1.y;
+                clip_area.z -= clip_area.x;
+                clip_area.w -= clip_area.y;
+            } else {
+                clip_area.z = 0.;
+                clip_area.w = 0.;
+            }
             e.submenu.update(clip_area, clip_area);
         });
     }
