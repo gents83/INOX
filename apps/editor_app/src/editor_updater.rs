@@ -9,7 +9,6 @@ use super::config::*;
 use super::widgets::*;
 
 use nrg_core::*;
-use nrg_events::*;
 use nrg_graphics::*;
 use nrg_gui::*;
 use nrg_messenger::{read_messages, Message, MessageChannel, MessengerRw};
@@ -29,7 +28,6 @@ pub struct EditorUpdater {
     canvas_id: Uid,
     node_id: Uid,
     main_menu_id: Uid,
-    history_panel_id: Uid,
     message_channel: MessageChannel,
 }
 
@@ -68,14 +66,8 @@ impl EditorUpdater {
             canvas_id: INVALID_UID,
             node_id: INVALID_UID,
             main_menu_id: INVALID_UID,
-            history_panel_id: INVALID_UID,
             message_channel,
         }
-    }
-
-    pub fn registered_event_types(&self, history: &mut EventsHistory) {
-        history.register_event_as_undoable::<TextEvent>(&self.global_messenger);
-        history.register_event_as_undoable::<CheckboxEvent>(&self.global_messenger);
     }
 
     fn send_event(&self, event: Box<dyn Message>) {
@@ -119,11 +111,6 @@ impl System for EditorUpdater {
             .write()
             .unwrap()
             .register_messagebox::<DialogEvent>(self.message_channel.get_messagebox());
-
-        let mut history_panel = HistoryPanel::new(&self.shared_data, &self.global_messenger);
-        let history = history_panel.get_history();
-        self.registered_event_types(history);
-        self.history_panel_id = history_panel.id();
 
         let main_menu = MainMenu::new(&self.shared_data, &self.global_messenger);
         self.main_menu_id = main_menu.id();
@@ -175,29 +162,14 @@ impl System for EditorUpdater {
             .unwrap()
             .get_root_mut()
             .add_child(Box::new(main_menu));
-        Gui::get()
-            .write()
-            .unwrap()
-            .get_root_mut()
-            .add_child(Box::new(history_panel));
-        /*
-        let mut test = Panel::new(&self.shared_data, &self.global_messenger);
-        test.vertical_alignment(VerticalAlignment::Center)
-            .horizontal_alignment(HorizontalAlignment::Center)
-            .size([1000., 800.].into())
-            .selectable(true);
-        test.graphics_mut()
-            .set_border_color([1., 1., 0., 24.].into());
-        Gui::get()
-            .write()
-            .unwrap()
-            .get_root_mut()
-            .add_child(Box::new(test));
-        */
         /*
         let node = GraphNode::new(&self.shared_data, &self.global_messenger);
         self.node_id = node.id();
-        Gui::get().read().unwrap().get_root_mut().add_child(node);
+        Gui::get()
+            .write()
+            .unwrap()
+            .get_root_mut()
+            .add_child(Box::new(node));
         */
     }
 
@@ -257,7 +229,6 @@ impl EditorUpdater {
         nrg_profiler::scoped_profile!("update_widgets");
 
         let size = Screen::get_size();
-        let mut is_visible = false;
         let entire_screen = Screen::get_draw_area();
         let draw_area = {
             if let Some(main_menu) = Gui::get()
@@ -266,7 +237,6 @@ impl EditorUpdater {
                 .get_root()
                 .get_child_mut::<MainMenu>(self.main_menu_id)
             {
-                is_visible = main_menu.show_history();
                 [
                     0.,
                     main_menu.state().get_size().y + DEFAULT_WIDGET_SIZE[1],
@@ -278,14 +248,6 @@ impl EditorUpdater {
                 entire_screen
             }
         };
-        if let Some(history_panel) = Gui::get()
-            .read()
-            .unwrap()
-            .get_root()
-            .get_child_mut::<HistoryPanel>(self.history_panel_id)
-        {
-            history_panel.set_visible(is_visible);
-        }
 
         Gui::get()
             .write()
@@ -312,17 +274,6 @@ impl EditorUpdater {
                         })
                 }
             });
-        /*
-        for (_, w) in self.widgets.iter_mut().enumerate() {
-            if w.read().unwrap().id() == self.node_id {
-                let widget = w.clone();
-                let job = Job::new("Treeview", move || {
-                    widget.write().unwrap().update(draw_area);
-                });
-                jobs.push(job);
-            }
-        }
-        */
     }
 
     fn load_pipelines(&mut self) {
@@ -339,46 +290,35 @@ impl EditorUpdater {
         }
     }
 
-    fn load_node(&mut self, name: &str) {
-        let dir = "./data/widgets/";
-        if let Ok(dir) = std::fs::read_dir(dir) {
-            dir.for_each(|entry| {
-                if let Ok(entry) = entry {
-                    let path = entry.path();
-                    if !path.is_dir() && path.to_str().unwrap().contains(name) {
-                        Gui::get()
-                            .write()
-                            .unwrap()
-                            .get_root_mut()
-                            .remove_child(self.node_id);
-                        let new_node =
-                            GraphNode::load(&self.shared_data, &self.global_messenger, path);
-                        self.node_id = new_node.id();
-                        Gui::get()
-                            .write()
-                            .unwrap()
-                            .get_root_mut()
-                            .add_child(Box::new(new_node));
-                    }
-                }
-            });
+    fn load_node(&mut self, filename: PathBuf) {
+        if !filename.is_dir() && filename.exists() {
+            Gui::get()
+                .write()
+                .unwrap()
+                .get_root_mut()
+                .remove_child(self.node_id);
+            let new_node = GraphNode::load(&self.shared_data, &self.global_messenger, filename);
+            self.node_id = new_node.id();
+            Gui::get()
+                .write()
+                .unwrap()
+                .get_root_mut()
+                .add_child(Box::new(new_node));
         }
     }
 
-    fn save_node(&mut self, name: &str) {
+    fn save_node(&mut self, mut filename: PathBuf) {
         if let Some(node) = Gui::get()
             .read()
             .unwrap()
             .get_root()
             .get_child_mut::<GraphNode>(self.node_id)
         {
-            node.node_mut().set_name(name);
-            let mut path = PathBuf::from(name);
-            if path.extension().is_none() {
-                path.set_extension("widget");
+            node.node_mut().set_name(filename.to_str().unwrap());
+            if filename.extension().is_none() {
+                filename.set_extension("widget");
             }
-            let filepath = PathBuf::from(format!("./data_raw/widgets/{}", path.to_str().unwrap()));
-            serialize_to_file(node, filepath);
+            serialize_to_file(node, filename);
         }
     }
 
@@ -388,7 +328,7 @@ impl EditorUpdater {
         read_messages(self.message_channel.get_listener(), |msg| {
             if msg.type_id() == TypeId::of::<DialogEvent>() {
                 let event = msg.as_any().downcast_ref::<DialogEvent>().unwrap();
-                if let DialogEvent::Confirmed(_widget_id, requester_uid, text) = event {
+                if let DialogEvent::Confirmed(_widget_id, requester_uid, filename) = event {
                     let mut should_load = false;
                     let mut should_save = false;
                     if let Some(menu) = Gui::get()
@@ -401,9 +341,11 @@ impl EditorUpdater {
                         should_save = menu.is_save_uid(*requester_uid);
                     }
                     if should_load {
-                        self.load_node(text);
+                        println!("Trying to load {:?}", filename);
+                        self.load_node(filename.clone());
                     } else if should_save {
-                        self.save_node(text);
+                        println!("Trying to save {:?}", filename);
+                        self.save_node(filename.clone());
                     }
                 }
             } else if msg.type_id() == TypeId::of::<KeyEvent>() {

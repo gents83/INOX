@@ -4,8 +4,8 @@ use std::{
 };
 
 use crate::{
-    implement_widget_with_custom_members, Button, Icon, InternalWidget, List, Panel,
-    ScrollbarEvent, Separator, TextBox, TitleBar, TreeView, WidgetData, WidgetEvent,
+    implement_widget_with_custom_members, Button, Icon, InternalWidget, List, ListEvent, Panel,
+    ScrollbarEvent, Separator, TextBox, TitleBar, TreeView, TreeViewEvent, WidgetData, WidgetEvent,
     DEFAULT_BUTTON_SIZE, DEFAULT_WIDGET_HEIGHT,
 };
 use nrg_math::{Vector2, Vector4};
@@ -15,7 +15,7 @@ use nrg_serialize::*;
 
 #[derive(Clone)]
 pub enum DialogEvent {
-    Confirmed(Uid, Uid, String), //my uid, requester uid, text
+    Confirmed(Uid, Uid, PathBuf), //my uid, requester uid, text
     Canceled(Uid),
 }
 implement_message!(DialogEvent);
@@ -224,12 +224,47 @@ impl FolderDialog {
 
         self
     }
+
+    fn is_folder(&self, widget_id: Uid) -> bool {
+        if let Some(treeview) = self
+            .node()
+            .get_child_mut::<TreeView>(self.folder_treeview_uid)
+        {
+            if treeview.node().has_child(widget_id) {
+                return true;
+            }
+        }
+        false
+    }
+
+    fn is_file(&self, widget_id: Uid) -> bool {
+        if let Some(list) = self.node().get_child_mut::<List>(self.list) {
+            if list.node().has_child(widget_id) {
+                return true;
+            }
+        }
+        false
+    }
+
+    fn on_folder_changed(&mut self, path: &Path) -> &mut Self {
+        let list_uid = self.list;
+        if let Some(list) = self.node().get_child_mut::<List>(list_uid) {
+            list.clear();
+            if let Some(iconpanel) = list.get_scrollable_panel() {
+                Icon::create_icons(path, iconpanel);
+            }
+            list.vertical();
+        }
+        self
+    }
 }
 
 impl InternalWidget for FolderDialog {
     fn widget_init(&mut self) {
         self.register_to_listen_event::<DialogEvent>()
             .register_to_listen_event::<WidgetEvent>()
+            .register_to_listen_event::<ListEvent>()
+            .register_to_listen_event::<TreeViewEvent>()
             .register_to_listen_event::<ScrollbarEvent>();
 
         let size: Vector2 = [500., 400.].into();
@@ -256,11 +291,39 @@ impl InternalWidget for FolderDialog {
     fn widget_uninit(&mut self) {
         self.unregister_to_listen_event::<DialogEvent>()
             .unregister_to_listen_event::<WidgetEvent>()
+            .unregister_to_listen_event::<ListEvent>()
+            .unregister_to_listen_event::<TreeViewEvent>()
             .unregister_to_listen_event::<ScrollbarEvent>();
     }
 
     fn widget_process_message(&mut self, msg: &dyn Message) {
-        if msg.type_id() == TypeId::of::<WidgetEvent>() {
+        if msg.type_id() == TypeId::of::<ListEvent>() {
+            let event = msg.as_any().downcast_ref::<ListEvent>().unwrap();
+            let ListEvent::Selected(widget_id) = *event;
+            if self.is_file(widget_id) {
+                let file = self.find_file_from_id(widget_id);
+                if let Some(textbox) = self.node().get_child_mut::<TextBox>(self.textbox_uid) {
+                    textbox.set_text(file.as_str());
+                }
+            }
+        } else if msg.type_id() == TypeId::of::<TreeViewEvent>() {
+            let event = msg.as_any().downcast_ref::<TreeViewEvent>().unwrap();
+            let TreeViewEvent::Selected(widget_id) = *event;
+            if self.is_folder(widget_id) {
+                let mut folder = String::from(self.folder.to_str().unwrap());
+                let mut is_folder_changed = false;
+                if let Some(child) = self.node().get_child_mut::<TitleBar>(widget_id) {
+                    let name = child.node().get_name();
+                    if !name.is_empty() {
+                        folder = String::from(name);
+                        is_folder_changed = true;
+                    }
+                }
+                if is_folder_changed {
+                    self.on_folder_changed(PathBuf::from(folder).as_path());
+                }
+            }
+        } else if msg.type_id() == TypeId::of::<WidgetEvent>() {
             let event = msg.as_any().downcast_ref::<WidgetEvent>().unwrap();
             if let WidgetEvent::Released(widget_id, _mouse_in_px) = *event {
                 if self.ok_uid == widget_id {
@@ -273,20 +336,15 @@ impl InternalWidget for FolderDialog {
                         let selected = treeview.get_selected();
                         folder = FolderDialog::find_folder_from_id(treeview, selected);
                     }
-                    if let Some(list) = self.node().get_child_mut::<List>(self.list) {
-                        let selected = list.get_selected();
-                        file = self.find_file_from_id(selected);
+                    if let Some(textbox) = self.node().get_child_mut::<TextBox>(self.textbox_uid) {
+                        file = textbox.get_text();
                     }
-                    let filename = PathBuf::from(folder.clone())
-                        .canonicalize()
-                        .unwrap()
-                        .join(file);
-                    println!("You've selected {:?}", filename);
+                    let filename = PathBuf::from(folder).canonicalize().unwrap().join(file);
                     self.get_global_dispatcher()
                         .write()
                         .unwrap()
                         .send(
-                            DialogEvent::Confirmed(self.id(), self.requester_uid, folder)
+                            DialogEvent::Confirmed(self.id(), self.requester_uid, filename)
                                 .as_boxed(),
                         )
                         .ok();
@@ -296,26 +354,6 @@ impl InternalWidget for FolderDialog {
                         .unwrap()
                         .send(DialogEvent::Canceled(self.id()).as_boxed())
                         .ok();
-                } else {
-                    let mut folder = String::from(self.folder.to_str().unwrap());
-                    let mut should_change = false;
-                    if let Some(child) = self.node().get_child_mut::<TitleBar>(widget_id) {
-                        let name = child.node().get_name();
-                        if !name.is_empty() {
-                            folder = String::from(name);
-                            should_change = true;
-                        }
-                    }
-                    if should_change {
-                        let list_uid = self.list;
-                        if let Some(list) = self.node().get_child_mut::<List>(list_uid) {
-                            list.clear();
-                            if let Some(iconpanel) = list.get_scrollable_panel() {
-                                Icon::create_icons(PathBuf::from(folder).as_path(), iconpanel);
-                            }
-                            list.vertical();
-                        }
-                    }
                 }
             }
         }

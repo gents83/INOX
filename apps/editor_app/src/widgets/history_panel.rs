@@ -121,7 +121,8 @@ impl InternalWidget for HistoryPanel {
             .register_to_listen_event::<WidgetEvent>();
 
         self.size([450., 1000.].into())
-            .vertical_alignment(VerticalAlignment::Bottom)
+            .horizontal_alignment(HorizontalAlignment::Center)
+            .vertical_alignment(VerticalAlignment::Center)
             .fill_type(ContainerFillType::Vertical)
             .space_between_elements((DEFAULT_WIDGET_WIDTH / 2. * Screen::get_scale_factor()) as _)
             .use_space_before_and_after(true)

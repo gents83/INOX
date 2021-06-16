@@ -1,7 +1,7 @@
 use std::any::TypeId;
 
 use nrg_math::{VecBase, Vector2, Vector4};
-use nrg_messenger::Message;
+use nrg_messenger::{implement_message, Message};
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{
@@ -11,11 +11,17 @@ use crate::{
 
 pub const DEFAULT_LIST_SIZE: [f32; 2] = [DEFAULT_WIDGET_HEIGHT * 10., DEFAULT_WIDGET_HEIGHT * 10.];
 
+#[derive(Clone, Copy)]
+pub enum ListEvent {
+    Selected(Uid),
+}
+implement_message!(ListEvent);
+
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]
 pub struct List {
     data: WidgetData,
-    selected: Uid,
+    selected_uid: Uid,
     base_panel: Uid,
     scrollable_panel: Uid,
     scrollbar: Uid,
@@ -24,7 +30,7 @@ implement_widget_with_custom_members!(List {
     base_panel: INVALID_UID,
     scrollable_panel: INVALID_UID,
     scrollbar: INVALID_UID,
-    selected: INVALID_UID
+    selected_uid: INVALID_UID
 });
 
 impl List {
@@ -39,7 +45,7 @@ impl List {
         self
     }
     pub fn select_first(&mut self) -> &mut Self {
-        let mut selected_uid = self.selected;
+        let mut selected_uid = self.selected_uid;
         if let Some(scrollable_panel) = self.node().get_child_mut::<Panel>(self.scrollable_panel) {
             let mut is_selected = true;
             scrollable_panel.node_mut().propagate_on_children_mut(|w| {
@@ -54,8 +60,8 @@ impl List {
         self
     }
     pub fn select(&mut self, widget_uid: Uid) -> &mut Self {
-        if self.selected != widget_uid {
-            let mut selected_uid = self.selected;
+        if self.selected_uid != widget_uid {
+            let mut selected_uid = self.selected_uid;
             let scrollable_panel_uid = self.scrollable_panel;
             if let Some(scrollable_panel) = self.node().get_child_mut::<Panel>(scrollable_panel_uid)
             {
@@ -63,19 +69,24 @@ impl List {
                     selected_uid = widget_uid;
                     child.write().unwrap().set_selected(true);
                 }
-                if selected_uid != self.selected {
-                    if let Some(child) = scrollable_panel.node().get_child(self.selected) {
+                if selected_uid != self.selected_uid {
+                    if let Some(child) = scrollable_panel.node().get_child(self.selected_uid) {
                         child.write().unwrap().set_selected(false);
                     }
                 }
             }
-            self.selected = selected_uid;
+            self.selected_uid = selected_uid;
+            self.get_global_dispatcher()
+                .write()
+                .unwrap()
+                .send(ListEvent::Selected(self.selected_uid).as_boxed())
+                .ok();
         }
         self
     }
 
     pub fn get_selected(&self) -> Uid {
-        self.selected
+        self.selected_uid
     }
 
     pub fn get_scrollable_panel(&mut self) -> Option<&mut Panel> {

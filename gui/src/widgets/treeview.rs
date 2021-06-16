@@ -12,11 +12,10 @@ pub const DEFAULT_TREE_VIEW_SIZE: [f32; 2] =
     [DEFAULT_WIDGET_WIDTH * 10., DEFAULT_WIDGET_HEIGHT * 20.];
 
 #[derive(Clone, Copy)]
-pub enum TreeItemEvent {
-    Collapsed(Uid),
-    Expanded(Uid),
+pub enum TreeViewEvent {
+    Selected(Uid),
 }
-implement_message!(TreeItemEvent);
+implement_message!(TreeViewEvent);
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]
@@ -119,6 +118,11 @@ impl TreeView {
                     child.write().unwrap().set_selected(false);
                 }
                 self.selected_uid = widget_uid;
+                self.get_global_dispatcher()
+                    .write()
+                    .unwrap()
+                    .send(TreeViewEvent::Selected(self.selected_uid).as_boxed())
+                    .ok();
             }
         }
         self
