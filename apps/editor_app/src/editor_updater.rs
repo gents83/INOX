@@ -341,10 +341,10 @@ impl EditorUpdater {
                         should_save = menu.is_save_uid(*requester_uid);
                     }
                     if should_load {
-                        println!("Trying to load {:?}", filename);
+                        println!("Loading {:?}", filename);
                         self.load_node(filename.clone());
                     } else if should_save {
-                        println!("Trying to save {:?}", filename);
+                        println!("Saving {:?}", filename);
                         self.save_node(filename.clone());
                     }
                 }
