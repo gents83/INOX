@@ -358,4 +358,5 @@ impl InternalWidget for FolderDialog {
             }
         }
     }
+    fn widget_on_layout_changed(&mut self) {}
 }

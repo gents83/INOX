@@ -114,7 +114,9 @@ impl InternalWidget for MainMenu {
         let nodes_id = self.menu_mut().add_menu_item("Nodes");
         self.nodes_id = nodes_id;
         let mut list = List::new(self.get_shared_data(), self.get_global_messenger());
-        list.clear().vertical();
+        list.clear()
+            .vertical()
+            .style(WidgetStyle::DefaultBackground);
         self.list_id = self.menu_mut().add_submenu_entry(nodes_id, Box::new(list));
     }
 
@@ -203,4 +205,5 @@ impl InternalWidget for MainMenu {
             }
         }
     }
+    fn widget_on_layout_changed(&mut self) {}
 }

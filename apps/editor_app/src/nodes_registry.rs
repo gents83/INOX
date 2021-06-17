@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use std::any::{type_name, TypeId};
 
 use nrg_gui::{Widget, WidgetCreator};
@@ -56,8 +57,8 @@ impl NodesRegistry {
         self.registry.iter().position(|n| n.typeid == *typeid)
     }
 
-    fn get_index_from_name(&self, name: &String) -> Option<usize> {
-        self.registry.iter().position(|n| n.name == *name)
+    fn get_index_from_name(&self, name: &str) -> Option<usize> {
+        self.registry.iter().position(|n| n.name == name)
     }
 
     pub fn get_name_from_index(&self, index: usize) -> &str {

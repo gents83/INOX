@@ -34,4 +34,5 @@ impl InternalWidget for Separator {
 
     fn widget_uninit(&mut self) {}
     fn widget_process_message(&mut self, _msg: &dyn Message) {}
+    fn widget_on_layout_changed(&mut self) {}
 }

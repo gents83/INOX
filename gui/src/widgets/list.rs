@@ -24,16 +24,36 @@ pub struct List {
     selected_uid: Uid,
     base_panel: Uid,
     scrollable_panel: Uid,
-    scrollbar: Uid,
+    scrollbar_uid: Uid,
 }
 implement_widget_with_custom_members!(List {
     base_panel: INVALID_UID,
     scrollable_panel: INVALID_UID,
-    scrollbar: INVALID_UID,
+    scrollbar_uid: INVALID_UID,
     selected_uid: INVALID_UID
 });
 
 impl List {
+    pub fn add_scrollbar(&mut self) -> &mut Self {
+        if self.scrollbar_uid.is_nil() {
+            let mut scrollbar = Scrollbar::new(self.get_shared_data(), self.get_global_messenger());
+            scrollbar.vertical().visible(true).selectable(true);
+            if self.state().get_fill_type() == ContainerFillType::Vertical {
+                scrollbar.horizontal();
+            }
+            self.scrollbar_uid = self.add_child(Box::new(scrollbar));
+        }
+        self
+    }
+    pub fn remove_scrollbar(&mut self) -> &mut Self {
+        if !self.scrollbar_uid.is_nil() {
+            let uid = self.scrollbar_uid;
+            self.node_mut().remove_child(uid);
+            self.scrollbar_uid = INVALID_UID;
+        }
+        self
+    }
+
     pub fn clear(&mut self) -> &mut Self {
         let scrollable_panel_uid = self.scrollable_panel;
         if let Some(scrollable_panel) = self.node().get_child_mut::<Panel>(scrollable_panel_uid) {
@@ -116,14 +136,13 @@ impl List {
                 .compute_children_size(scrollable_panel.state().get_size())
                 .y;
         }
-        let scrollbar_uid = self.scrollbar;
-        if let Some(scrollbar) = self.node().get_child_mut::<Scrollbar>(scrollbar_uid) {
-            if view_size <= 0. || children_size <= view_size {
-                scrollbar.vertical().visible(false).selectable(false);
-            } else {
-                scrollbar.vertical().visible(true).selectable(true);
-            }
+
+        if view_size <= 0. || children_size < view_size {
+            self.remove_scrollbar();
+        } else {
+            self.add_scrollbar();
         }
+
         let mut size = self.state().get_size();
         size.y = children_size;
         self.size(size);
@@ -148,14 +167,13 @@ impl List {
                 .compute_children_size(scrollable_panel.state().get_size())
                 .x;
         }
-        let scrollbar_uid = self.scrollbar;
-        if let Some(scrollbar) = self.node().get_child_mut::<Scrollbar>(scrollbar_uid) {
-            if view_size <= 0. || children_size <= view_size {
-                scrollbar.horizontal().visible(false).selectable(false);
-            } else {
-                scrollbar.horizontal().visible(true).selectable(true);
-            }
+
+        if view_size <= 0. || children_size < view_size {
+            self.remove_scrollbar();
+        } else {
+            self.add_scrollbar();
         }
+
         let mut size = self.state().get_size();
         size.x = children_size;
         self.size(size);
@@ -200,10 +218,6 @@ impl InternalWidget for List {
 
         self.scrollable_panel = base_panel.add_child(Box::new(scrollable_panel));
         self.base_panel = self.add_child(Box::new(base_panel));
-
-        let mut scrollbar = Scrollbar::new(self.get_shared_data(), self.get_global_messenger());
-        scrollbar.vertical().visible(false).selectable(false);
-        self.scrollbar = self.add_child(Box::new(scrollbar));
     }
 
     fn widget_update(&mut self, _drawing_area_in_px: Vector4) {}
@@ -216,7 +230,7 @@ impl InternalWidget for List {
         if msg.type_id() == TypeId::of::<ScrollbarEvent>() {
             let event = msg.as_any().downcast_ref::<ScrollbarEvent>().unwrap();
             let ScrollbarEvent::Changed(widget_id, percentage) = *event;
-            if widget_id == self.scrollbar {
+            if widget_id == self.scrollbar_uid {
                 let mut pos = Vector2::default_zero();
                 let mut view_size = 0.;
                 let base_panel_uid = self.base_panel;
@@ -246,4 +260,5 @@ impl InternalWidget for List {
             }
         }
     }
+    fn widget_on_layout_changed(&mut self) {}
 }

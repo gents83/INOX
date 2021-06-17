@@ -161,4 +161,5 @@ impl InternalWidget for Checkbox {
             }
         }
     }
+    fn widget_on_layout_changed(&mut self) {}
 }

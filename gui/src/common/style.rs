@@ -20,7 +20,7 @@ pub enum WidgetStyle {
     DefaultTitleBar,
     Default,
     DefaultText,
-    DefaultButton,
+    DefaultLight,
     Invisible,
 }
 
@@ -34,7 +34,7 @@ impl WidgetStyle {
             Self::DefaultTitleBar => hex_to_rgba("#0086B3"),
             Self::Default => hex_to_rgba("#00394D"),
             Self::DefaultText => hex_to_rgba("#FFFFFF"),
-            Self::DefaultButton => hex_to_rgba("#006080"),
+            Self::DefaultLight => hex_to_rgba("#006080"),
             Self::Invisible => COLOR_TRANSPARENT.into(),
         }
     }

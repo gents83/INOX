@@ -173,4 +173,5 @@ impl InternalWidget for CollapsibleItem {
             }
         }
     }
+    fn widget_on_layout_changed(&mut self) {}
 }

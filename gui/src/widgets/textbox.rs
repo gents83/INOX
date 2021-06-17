@@ -278,4 +278,5 @@ impl InternalWidget for TextBox {
             self.current_char = current_char;
         }
     }
+    fn widget_on_layout_changed(&mut self) {}
 }

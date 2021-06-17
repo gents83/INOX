@@ -190,4 +190,5 @@ impl InternalWidget for TreeView {
             }
         }
     }
+    fn widget_on_layout_changed(&mut self) {}
 }

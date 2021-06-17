@@ -35,4 +35,5 @@ impl InternalWidget for Panel {
         self.unregister_to_listen_event::<WidgetEvent>();
     }
     fn widget_process_message(&mut self, _msg: &dyn Message) {}
+    fn widget_on_layout_changed(&mut self) {}
 }

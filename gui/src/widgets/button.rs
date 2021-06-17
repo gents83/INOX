@@ -72,7 +72,7 @@ impl InternalWidget for Button {
             .space_between_elements((DEFAULT_WIDGET_SIZE[0] / 5. * Screen::get_scale_factor()) as _)
             .use_space_before_and_after(true)
             .keep_fixed_width(false)
-            .style(WidgetStyle::DefaultButton);
+            .style(WidgetStyle::Default);
 
         let mut text = Text::new(self.get_shared_data(), self.get_global_messenger());
         text.vertical_alignment(VerticalAlignment::Center)
@@ -87,4 +87,5 @@ impl InternalWidget for Button {
             .unregister_to_listen_event::<MouseEvent>();
     }
     fn widget_process_message(&mut self, _msg: &dyn Message) {}
+    fn widget_on_layout_changed(&mut self) {}
 }

@@ -217,4 +217,5 @@ impl InternalWidget for Menu {
             }
         }
     }
+    fn widget_on_layout_changed(&mut self) {}
 }

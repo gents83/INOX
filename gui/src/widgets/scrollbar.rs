@@ -61,7 +61,7 @@ impl Scrollbar {
         self
     }
     pub fn percentage(&mut self, percentage: f32) -> &mut Self {
-        self.percentage = percentage;
+        self.percentage = percentage.max(0.).min(1.);
         self.compute_cursor_size();
         self.get_global_dispatcher()
             .write()
@@ -196,7 +196,7 @@ impl InternalWidget for Scrollbar {
         cursor
             .horizontal_alignment(HorizontalAlignment::Center)
             .vertical_alignment(VerticalAlignment::Top)
-            .style(WidgetStyle::DefaultButton)
+            .style(WidgetStyle::DefaultLight)
             .selectable(true)
             .draggable(true)
             .size(size);
@@ -243,5 +243,9 @@ impl InternalWidget for Scrollbar {
                 }
             }
         }
+    }
+    fn widget_on_layout_changed(&mut self) {
+        self.percentage(self.percentage);
+        self.compute_cursor_from_percentage();
     }
 }

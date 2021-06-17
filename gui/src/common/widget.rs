@@ -45,6 +45,7 @@ pub trait InternalWidget: Any {
     fn widget_update(&mut self, drawing_area_in_px: Vector4);
     fn widget_uninit(&mut self);
     fn widget_process_message(&mut self, _msg: &dyn Message);
+    fn widget_on_layout_changed(&mut self);
 }
 
 pub trait BaseWidget: InternalWidget + WidgetDataGetter {
@@ -504,6 +505,9 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         self.set_position(pos);
         self.set_size(size);
         self.update_layers();
+
+        self.widget_on_layout_changed();
+
         self.graphics_mut().mark_as_dirty();
     }
 
