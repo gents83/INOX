@@ -89,6 +89,11 @@ impl List {
         self.selected_uid
     }
 
+    pub fn get_base_panel(&mut self) -> Option<&mut Panel> {
+        let base_panel_uid = self.base_panel;
+        self.node().get_child_mut::<Panel>(base_panel_uid)
+    }
+
     pub fn get_scrollable_panel(&mut self) -> Option<&mut Panel> {
         let scrollable_panel_uid = self.scrollable_panel;
         self.node().get_child_mut::<Panel>(scrollable_panel_uid)
@@ -119,6 +124,9 @@ impl List {
                 scrollbar.vertical().visible(true).selectable(true);
             }
         }
+        let mut size = self.state().get_size();
+        size.y = children_size;
+        self.size(size);
 
         self
     }
@@ -148,6 +156,9 @@ impl List {
                 scrollbar.horizontal().visible(true).selectable(true);
             }
         }
+        let mut size = self.state().get_size();
+        size.x = children_size;
+        self.size(size);
 
         self
     }

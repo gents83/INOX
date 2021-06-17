@@ -62,7 +62,8 @@ impl InternalWidget for GraphNode {
             .vertical_alignment(VerticalAlignment::None)
             .style(WidgetStyle::DefaultBackground);
 
-        let title_bar = TitleBar::new(self.get_shared_data(), self.get_global_messenger());
+        let mut title_bar = TitleBar::new(self.get_shared_data(), self.get_global_messenger());
+        title_bar.selectable(true);
         self.title_bar = self.add_child(Box::new(title_bar));
     }
 

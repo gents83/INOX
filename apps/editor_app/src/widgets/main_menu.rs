@@ -1,7 +1,7 @@
 use std::{any::TypeId, path::PathBuf};
 
 use nrg_gui::{
-    implement_widget_with_custom_members, Checkbox, DialogEvent, FolderDialog, InternalWidget,
+    implement_widget_with_custom_members, Button, DialogEvent, FolderDialog, InternalWidget, List,
     Menu, WidgetData, WidgetEvent,
 };
 use nrg_math::{Vector2, Vector4};
@@ -9,6 +9,8 @@ use nrg_messenger::Message;
 use nrg_platform::WindowEvent;
 use nrg_resources::DATA_RAW_FOLDER;
 use nrg_serialize::*;
+
+use crate::nodes_registry::NodesRegistry;
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]
@@ -26,9 +28,9 @@ pub struct MainMenu {
     #[serde(skip)]
     exit_id: Uid,
     #[serde(skip)]
-    settings_id: Uid,
+    nodes_id: Uid,
     #[serde(skip)]
-    show_history_id: Uid,
+    list_id: Uid,
     #[serde(skip)]
     filename_dialog: Option<FolderDialog>,
 }
@@ -39,8 +41,8 @@ implement_widget_with_custom_members!(MainMenu {
     save_id: INVALID_UID,
     open_id: INVALID_UID,
     exit_id: INVALID_UID,
-    settings_id: INVALID_UID,
-    show_history_id: INVALID_UID,
+    nodes_id: INVALID_UID,
+    list_id: INVALID_UID,
     filename_dialog: None
 });
 
@@ -54,17 +56,6 @@ impl MainMenu {
     pub fn get_size(&self) -> Vector2 {
         self.menu().state().get_size()
     }
-    pub fn show_history(&mut self) -> bool {
-        let mut show = false;
-        let settings_uid = self.settings_id;
-        let uid = self.show_history_id;
-        if let Some(submenu) = self.menu_mut().get_submenu(settings_uid) {
-            if let Some(checkbox) = submenu.node().get_child_mut::<Checkbox>(uid) {
-                show = checkbox.is_checked();
-            }
-        }
-        show
-    }
     pub fn is_new_uid(&self, entry_uid: Uid) -> bool {
         self.new_id == entry_uid
     }
@@ -73,6 +64,32 @@ impl MainMenu {
     }
     pub fn is_save_uid(&self, entry_uid: Uid) -> bool {
         self.save_id == entry_uid
+    }
+    pub fn fill_nodes_from_registry(&mut self, registry: &NodesRegistry) -> &mut Self {
+        let nodes_id = self.nodes_id;
+        let list_id = self.list_id;
+        let menu = self.menu_mut();
+        if let Some(menu) = menu.get_submenu(nodes_id) {
+            if let Some(list) = menu.node().get_child_mut::<List>(list_id) {
+                list.clear();
+                if let Some(scrollable_panel) = list.get_scrollable_panel() {
+                    for i in 0..registry.count() {
+                        let mut button =
+                            Button::new(&menu.get_shared_data(), &menu.get_global_messenger());
+                        let name = registry.get_name_from_index(i);
+                        button
+                            .with_text(name)
+                            .text_alignment(VerticalAlignment::Center, HorizontalAlignment::Left)
+                            .horizontal_alignment(HorizontalAlignment::Stretch)
+                            .vertical_alignment(VerticalAlignment::Top)
+                            .fill_type(ContainerFillType::Horizontal);
+                        scrollable_panel.add_child(Box::new(button));
+                    }
+                }
+                list.vertical();
+            }
+        }
+        self
     }
 }
 
@@ -94,13 +111,11 @@ impl InternalWidget for MainMenu {
         self.save_id = self.menu_mut().add_submenu_entry_default(file_id, "Save");
         self.exit_id = self.menu_mut().add_submenu_entry_default(file_id, "Exit");
 
-        let settings_id = self.menu_mut().add_menu_item("Settings");
-        self.settings_id = settings_id;
-        let mut checkbox = Checkbox::new(self.get_shared_data(), self.get_global_messenger());
-        checkbox.with_label("Show History").checked(false);
-        self.show_history_id = self
-            .menu_mut()
-            .add_submenu_entry(settings_id, Box::new(checkbox));
+        let nodes_id = self.menu_mut().add_menu_item("Nodes");
+        self.nodes_id = nodes_id;
+        let mut list = List::new(self.get_shared_data(), self.get_global_messenger());
+        list.clear().vertical();
+        self.list_id = self.menu_mut().add_submenu_entry(nodes_id, Box::new(list));
     }
 
     fn widget_update(&mut self, drawing_area_in_px: Vector4) {
@@ -145,7 +160,7 @@ impl InternalWidget for MainMenu {
         } else if msg.type_id() == TypeId::of::<WidgetEvent>() {
             let event = msg.as_any().downcast_ref::<WidgetEvent>().unwrap();
             if let WidgetEvent::Pressed(widget_id, _mouse_in_px) = *event {
-                if self.new_id == widget_id && self.filename_dialog.is_none() {
+                if self.new_id == widget_id {
                     self.filename_dialog = Some(FolderDialog::new(
                         self.get_shared_data(),
                         self.get_global_messenger(),

@@ -6,6 +6,7 @@ use std::{
 };
 
 use super::config::*;
+use super::nodes_registry::*;
 use super::widgets::*;
 
 use nrg_core::*;
@@ -25,10 +26,10 @@ pub struct EditorUpdater {
     config: Config,
     fps_text: Uid,
     fps_widget_id: Uid,
-    canvas_id: Uid,
-    node_id: Uid,
+    graph_id: Uid,
     main_menu_id: Uid,
     message_channel: MessageChannel,
+    nodes_registry: NodesRegistry,
 }
 
 impl EditorUpdater {
@@ -57,14 +58,14 @@ impl EditorUpdater {
         Self {
             id: SystemId::new(),
             frame_seconds: VecDeque::default(),
+            nodes_registry: NodesRegistry::new(&shared_data, &global_messenger),
             shared_data,
             global_messenger,
             job_handler,
             config: config.clone(),
             fps_text: INVALID_UID,
             fps_widget_id: INVALID_UID,
-            canvas_id: INVALID_UID,
-            node_id: INVALID_UID,
+            graph_id: INVALID_UID,
             main_menu_id: INVALID_UID,
             message_channel,
         }
@@ -81,7 +82,7 @@ impl EditorUpdater {
             .ok();
     }
 
-    fn window_init(&self) {
+    fn window_init(&self) -> &Self {
         self.send_event(WindowEvent::RequestChangeTitle(self.config.title.clone()).as_boxed());
         self.send_event(
             WindowEvent::RequestChangeSize(self.config.width, self.config.height).as_boxed(),
@@ -90,6 +91,17 @@ impl EditorUpdater {
             WindowEvent::RequestChangePos(self.config.pos_x, self.config.pos_y).as_boxed(),
         );
         self.send_event(WindowEvent::RequestChangeVisible(true).as_boxed());
+        self
+    }
+
+    fn register_nodes(&mut self) -> &mut Self {
+        self.nodes_registry.register::<GraphNode>();
+        self.nodes_registry.register::<Icon>();
+        self.nodes_registry.register::<Panel>();
+        self.nodes_registry.register::<TextBox>();
+        self.nodes_registry.register::<List>();
+        self.nodes_registry.register::<TreeView>();
+        self
     }
 }
 
@@ -106,18 +118,16 @@ impl System for EditorUpdater {
         self.window_init();
         self.load_pipelines();
         self.create_screen();
+        self.register_nodes();
 
         self.global_messenger
             .write()
             .unwrap()
             .register_messagebox::<DialogEvent>(self.message_channel.get_messagebox());
 
-        let main_menu = MainMenu::new(&self.shared_data, &self.global_messenger);
+        let mut main_menu = MainMenu::new(&self.shared_data, &self.global_messenger);
         self.main_menu_id = main_menu.id();
-
-        let mut canvas = Canvas::new(&self.shared_data, &self.global_messenger);
-        canvas.move_to_layer(-1.);
-        self.canvas_id = canvas.id();
+        main_menu.fill_nodes_from_registry(&self.nodes_registry);
 
         let mut widget = Panel::new(&self.shared_data, &self.global_messenger);
         widget
@@ -151,25 +161,24 @@ impl System for EditorUpdater {
             .write()
             .unwrap()
             .get_root_mut()
-            .add_child(Box::new(canvas));
-        Gui::get()
-            .write()
-            .unwrap()
-            .get_root_mut()
             .add_child(Box::new(widget));
         Gui::get()
             .write()
             .unwrap()
             .get_root_mut()
             .add_child(Box::new(main_menu));
-        /*
-        let node = GraphNode::new(&self.shared_data, &self.global_messenger);
-        self.node_id = node.id();
+
+        let graph = Graph::new(&self.shared_data, &self.global_messenger);
+        self.graph_id = graph.id();
+
         Gui::get()
             .write()
             .unwrap()
             .get_root_mut()
-            .add_child(Box::new(node));
+            .add_child(Box::new(graph));
+        /*
+        let dyn_created = self.nodes_registry.call(TypeId::of::<GraphNode>());
+        graph.add_child(dyn_created);
         */
     }
 
@@ -290,35 +299,35 @@ impl EditorUpdater {
         }
     }
 
-    fn load_node(&mut self, filename: PathBuf) {
+    fn load_graph(&mut self, filename: PathBuf) {
         if !filename.is_dir() && filename.exists() {
             Gui::get()
                 .write()
                 .unwrap()
                 .get_root_mut()
-                .remove_child(self.node_id);
-            let new_node = GraphNode::load(&self.shared_data, &self.global_messenger, filename);
-            self.node_id = new_node.id();
+                .remove_child(self.graph_id);
+            let new_graph = Graph::load(&self.shared_data, &self.global_messenger, filename);
+            self.graph_id = new_graph.id();
             Gui::get()
                 .write()
                 .unwrap()
                 .get_root_mut()
-                .add_child(Box::new(new_node));
+                .add_child(Box::new(new_graph));
         }
     }
 
-    fn save_node(&mut self, mut filename: PathBuf) {
-        if let Some(node) = Gui::get()
+    fn save_graph(&mut self, mut filename: PathBuf) {
+        if let Some(graph) = Gui::get()
             .read()
             .unwrap()
             .get_root()
-            .get_child_mut::<GraphNode>(self.node_id)
+            .get_child_mut::<Graph>(self.graph_id)
         {
-            node.node_mut().set_name(filename.to_str().unwrap());
+            graph.node_mut().set_name(filename.to_str().unwrap());
             if filename.extension().is_none() {
-                filename.set_extension("widget");
+                filename.set_extension("graph");
             }
-            serialize_to_file(node, filename);
+            serialize_to_file(graph, filename);
         }
     }
 
@@ -342,10 +351,10 @@ impl EditorUpdater {
                     }
                     if should_load {
                         println!("Loading {:?}", filename);
-                        self.load_node(filename.clone());
+                        self.load_graph(filename.clone());
                     } else if should_save {
                         println!("Saving {:?}", filename);
-                        self.save_node(filename.clone());
+                        self.save_graph(filename.clone());
                     }
                 }
             } else if msg.type_id() == TypeId::of::<KeyEvent>() {

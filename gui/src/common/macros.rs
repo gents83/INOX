@@ -4,7 +4,7 @@ macro_rules! implement_widget {
         use nrg_serialize::typetag;
         use $crate::{
             BaseWidget, ContainerFillType, HorizontalAlignment, Screen, VerticalAlignment, Widget,
-            WidgetDataGetter, WidgetGraphics, WidgetNode, WidgetState, WidgetStyle,
+            WidgetCreator, WidgetDataGetter, WidgetGraphics, WidgetNode, WidgetState, WidgetStyle,
         };
 
         #[typetag::serde]
@@ -210,9 +210,17 @@ macro_rules! implement_widget_with_data {
     ($Type:ident) => {
         $crate::implement_widget!($Type);
 
-        impl $Type {
+        impl WidgetCreator for $Type {
             #[inline]
-            pub fn new(
+            fn create_widget(
+                shared_data: &nrg_resources::SharedDataRw,
+                global_messenger: &nrg_messenger::MessengerRw,
+            ) -> Box<dyn Widget> {
+                Box::new($Type::new(shared_data, global_messenger))
+            }
+
+            #[inline]
+            fn new(
                 shared_data: &nrg_resources::SharedDataRw,
                 global_messenger: &nrg_messenger::MessengerRw,
             ) -> $Type {
@@ -226,7 +234,7 @@ macro_rules! implement_widget_with_data {
             }
 
             #[inline]
-            pub fn load(
+            fn load(
                 shared_data: &nrg_resources::SharedDataRw,
                 global_messenger: &nrg_messenger::MessengerRw,
                 filepath: std::path::PathBuf,
@@ -249,10 +257,17 @@ macro_rules! implement_widget_with_custom_members {
     ($Type:ident { $($field:ident : $value:expr),+ }) => {
         $crate::implement_widget!($Type);
 
-        impl $Type {
+        impl WidgetCreator for $Type {
+            #[inline]
+            fn create_widget(
+                shared_data: &nrg_resources::SharedDataRw,
+                global_messenger: &nrg_messenger::MessengerRw,
+            ) -> Box<dyn Widget> {
+                Box::new($Type::new(shared_data, global_messenger))
+            }
 
             #[inline]
-            pub fn new(shared_data: &nrg_resources::SharedDataRw, global_messenger: &nrg_messenger::MessengerRw) -> $Type {
+            fn new(shared_data: &nrg_resources::SharedDataRw, global_messenger: &nrg_messenger::MessengerRw) -> $Type {
                 let mut w = $Type {
                     data: WidgetData::new(shared_data.clone(), global_messenger.clone()),
                     $($field: $value),+
@@ -261,9 +276,8 @@ macro_rules! implement_widget_with_custom_members {
                 w
             }
 
-
             #[inline]
-            pub fn load(
+            fn load(
                 shared_data: &nrg_resources::SharedDataRw,
                 global_messenger: &nrg_messenger::MessengerRw,
                 filepath: std::path::PathBuf,

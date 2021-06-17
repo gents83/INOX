@@ -8,7 +8,7 @@ use nrg_core::{App, JobHandlerRw, PhaseWithSystems, System, SystemId};
 use nrg_graphics::{FontInstance, PipelineInstance};
 use nrg_gui::{
     BaseWidget, ContainerFillType, Gui, HorizontalAlignment, Icon, Panel, Screen, TitleBarEvent,
-    VerticalAlignment, WidgetEvent, WidgetStyle,
+    VerticalAlignment, WidgetCreator, WidgetEvent, WidgetStyle,
 };
 use nrg_math::Vector2;
 use nrg_messenger::{read_messages, Message, MessageChannel, MessengerRw};

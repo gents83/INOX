@@ -24,6 +24,22 @@ pub const DEFAULT_WIDGET_SIZE: [f32; 2] = [DEFAULT_WIDGET_WIDTH, DEFAULT_WIDGET_
 #[typetag::serde(tag = "widget")]
 pub trait Widget: BaseWidget + InternalWidget + Send + Sync {}
 
+pub trait WidgetCreator: Widget {
+    fn create_widget(
+        shared_data: &nrg_resources::SharedDataRw,
+        global_messenger: &nrg_messenger::MessengerRw,
+    ) -> Box<dyn Widget>;
+    fn new(
+        shared_data: &nrg_resources::SharedDataRw,
+        global_messenger: &nrg_messenger::MessengerRw,
+    ) -> Self;
+    fn load(
+        shared_data: &nrg_resources::SharedDataRw,
+        global_messenger: &nrg_messenger::MessengerRw,
+        filepath: std::path::PathBuf,
+    ) -> Self;
+}
+
 pub trait InternalWidget: Any {
     fn widget_init(&mut self);
     fn widget_update(&mut self, drawing_area_in_px: Vector4);
