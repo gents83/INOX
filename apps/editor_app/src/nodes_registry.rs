@@ -2,11 +2,17 @@
 use std::any::{type_name, TypeId};
 
 use nrg_gui::{Widget, WidgetCreator};
-use nrg_messenger::MessengerRw;
+use nrg_messenger::{implement_message, MessengerRw};
 use nrg_resources::SharedDataRw;
 
 pub type CreationCallback =
     dyn Fn(&nrg_resources::SharedDataRw, &nrg_messenger::MessengerRw) -> Box<dyn Widget>;
+
+#[derive(Clone)]
+pub enum NodesEvent {
+    Create(String),
+}
+implement_message!(NodesEvent);
 
 struct NodesData {
     pub typeid: TypeId,

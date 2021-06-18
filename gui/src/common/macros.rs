@@ -103,6 +103,11 @@ macro_rules! implement_widget {
             }
             #[inline]
             pub fn selectable(&mut self, selectable: bool) -> &mut Self {
+                if selectable {
+                    self.register_to_listen_event::<nrg_platform::MouseEvent>();
+                } else {
+                    self.unregister_to_listen_event::<nrg_platform::MouseEvent>();
+                }
                 self.state_mut().set_selectable(selectable);
                 self
             }

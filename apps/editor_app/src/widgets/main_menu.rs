@@ -2,7 +2,7 @@ use std::{any::TypeId, path::PathBuf};
 
 use nrg_gui::{
     implement_widget_with_custom_members, Button, DialogEvent, FolderDialog, InternalWidget, List,
-    Menu, WidgetData, WidgetEvent,
+    Menu, RefcountedWidget, WidgetData, WidgetEvent,
 };
 use nrg_math::{Vector2, Vector4};
 use nrg_messenger::Message;
@@ -10,7 +10,7 @@ use nrg_platform::WindowEvent;
 use nrg_resources::DATA_RAW_FOLDER;
 use nrg_serialize::*;
 
-use crate::nodes_registry::NodesRegistry;
+use crate::nodes_registry::{NodesEvent, NodesRegistry};
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]
@@ -97,7 +97,9 @@ impl MainMenu {
                                     )
                                     .horizontal_alignment(HorizontalAlignment::Stretch)
                                     .vertical_alignment(VerticalAlignment::Top)
-                                    .fill_type(ContainerFillType::Horizontal);
+                                    .fill_type(ContainerFillType::Horizontal)
+                                    .node_mut()
+                                    .set_name(name);
                                 scrollable_panel.add_child(Box::new(button));
                             }
                         }
@@ -109,7 +111,7 @@ impl MainMenu {
         self
     }
 
-    fn is_node_in_list(&mut self, uid: Uid) -> bool {
+    fn get_node_in_list(&mut self, uid: Uid) -> Option<RefcountedWidget> {
         let edit_id = self.edit_id;
         let nodes_id = self.nodes_id;
         let add_id = self.add_id;
@@ -119,14 +121,14 @@ impl MainMenu {
             if let Some(menu) = edit.node().get_child_mut::<Menu>(nodes_id) {
                 if let Some(add) = menu.get_submenu(add_id) {
                     if let Some(list) = add.node().get_child_mut::<List>(list_id) {
-                        if list.node().has_child(uid) {
-                            return true;
+                        if let Some(node) = list.node().get_child(uid) {
+                            return Some(node);
                         }
                     }
                 }
             }
         }
-        false
+        None
     }
 }
 
@@ -247,7 +249,17 @@ impl InternalWidget for MainMenu {
                         .unwrap()
                         .send(WindowEvent::Close.as_boxed())
                         .ok();
-                } else if self.is_node_in_list(widget_id) {
+                } else if let Some(child) = self.get_node_in_list(widget_id) {
+                    self.get_global_dispatcher()
+                        .write()
+                        .unwrap()
+                        .send(
+                            NodesEvent::Create(String::from(
+                                child.read().unwrap().node().get_name(),
+                            ))
+                            .as_boxed(),
+                        )
+                        .ok();
                 }
             }
         }

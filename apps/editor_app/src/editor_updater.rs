@@ -97,10 +97,7 @@ impl EditorUpdater {
     fn register_nodes(&mut self) -> &mut Self {
         self.nodes_registry.register::<GraphNode>();
         self.nodes_registry.register::<Icon>();
-        self.nodes_registry.register::<Panel>();
         self.nodes_registry.register::<TextBox>();
-        self.nodes_registry.register::<List>();
-        self.nodes_registry.register::<TreeView>();
         self
     }
 }
@@ -123,7 +120,8 @@ impl System for EditorUpdater {
         self.global_messenger
             .write()
             .unwrap()
-            .register_messagebox::<DialogEvent>(self.message_channel.get_messagebox());
+            .register_messagebox::<DialogEvent>(self.message_channel.get_messagebox())
+            .register_messagebox::<NodesEvent>(self.message_channel.get_messagebox());
 
         let mut main_menu = MainMenu::new(&self.shared_data, &self.global_messenger);
         self.main_menu_id = main_menu.id();
@@ -176,10 +174,6 @@ impl System for EditorUpdater {
             .unwrap()
             .get_root_mut()
             .add_child(Box::new(graph));
-        /*
-        let dyn_created = self.nodes_registry.call(TypeId::of::<GraphNode>());
-        graph.add_child(dyn_created);
-        */
     }
 
     fn run(&mut self) -> bool {
@@ -335,7 +329,32 @@ impl EditorUpdater {
         nrg_profiler::scoped_profile!("update_events");
 
         read_messages(self.message_channel.get_listener(), |msg| {
-            if msg.type_id() == TypeId::of::<DialogEvent>() {
+            if msg.type_id() == TypeId::of::<NodesEvent>() {
+                let event = msg.as_any().downcast_ref::<NodesEvent>().unwrap();
+                let NodesEvent::Create(widget_name) = event;
+                if let Some(graph) = Gui::get()
+                    .read()
+                    .unwrap()
+                    .get_root()
+                    .get_child_mut::<Graph>(self.graph_id)
+                {
+                    let mut widget = self.nodes_registry.create_from_name(widget_name.clone());
+                    widget
+                        .get_global_messenger()
+                        .write()
+                        .unwrap()
+                        .register_messagebox::<WidgetEvent>(widget.get_messagebox())
+                        .register_messagebox::<MouseEvent>(widget.get_messagebox());
+
+                    widget
+                        .state_mut()
+                        .set_draggable(true)
+                        .set_selectable(true)
+                        .set_horizontal_alignment(HorizontalAlignment::Center)
+                        .set_vertical_alignment(VerticalAlignment::Center);
+                    graph.add_child(widget);
+                }
+            } else if msg.type_id() == TypeId::of::<DialogEvent>() {
                 let event = msg.as_any().downcast_ref::<DialogEvent>().unwrap();
                 if let DialogEvent::Confirmed(_widget_id, requester_uid, filename) = event {
                     let mut should_load = false;
