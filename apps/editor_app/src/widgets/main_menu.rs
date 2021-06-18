@@ -108,6 +108,26 @@ impl MainMenu {
         }
         self
     }
+
+    fn is_node_in_list(&mut self, uid: Uid) -> bool {
+        let edit_id = self.edit_id;
+        let nodes_id = self.nodes_id;
+        let add_id = self.add_id;
+        let list_id = self.list_id;
+        let menu = self.menu_mut();
+        if let Some(edit) = menu.get_submenu(edit_id) {
+            if let Some(menu) = edit.node().get_child_mut::<Menu>(nodes_id) {
+                if let Some(add) = menu.get_submenu(add_id) {
+                    if let Some(list) = add.node().get_child_mut::<List>(list_id) {
+                        if list.node().has_child(uid) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        false
+    }
 }
 
 impl InternalWidget for MainMenu {
@@ -227,6 +247,7 @@ impl InternalWidget for MainMenu {
                         .unwrap()
                         .send(WindowEvent::Close.as_boxed())
                         .ok();
+                } else if self.is_node_in_list(widget_id) {
                 }
             }
         }

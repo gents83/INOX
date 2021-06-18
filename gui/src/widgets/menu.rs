@@ -1,7 +1,7 @@
 use std::any::TypeId;
 
 use nrg_math::{VecBase, Vector2, Vector4};
-use nrg_messenger::Message;
+use nrg_messenger::{implement_message, Message};
 use nrg_platform::{MouseButton, MouseEvent, MouseState};
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
@@ -14,6 +14,12 @@ const DEFAULT_MENU_LAYER: f32 = 0.5;
 const DEFAULT_MENU_SIZE: [f32; 2] = [DEFAULT_WIDGET_WIDTH * 10., DEFAULT_WIDGET_HEIGHT * 5. / 4.];
 const DEFAULT_MENU_ITEM_SIZE: [f32; 2] = [DEFAULT_BUTTON_WIDTH * 10., DEFAULT_WIDGET_HEIGHT * 10.];
 const DEFAULT_SUBMENU_ITEM_SIZE: [f32; 2] = [DEFAULT_BUTTON_WIDTH * 5., DEFAULT_WIDGET_HEIGHT * 5.];
+
+#[derive(Clone, Copy)]
+pub enum MenuEvent {
+    Open(Uid),
+}
+implement_message!(MenuEvent);
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]
@@ -179,7 +185,8 @@ impl Menu {
 impl InternalWidget for Menu {
     fn widget_init(&mut self) {
         self.register_to_listen_event::<WidgetEvent>()
-            .register_to_listen_event::<MouseEvent>();
+            .register_to_listen_event::<MouseEvent>()
+            .register_to_listen_event::<MenuEvent>();
 
         if self.is_initialized() {
             return;
@@ -193,7 +200,8 @@ impl InternalWidget for Menu {
             .style(WidgetStyle::DefaultCanvas)
             .horizontal()
             .register_to_listen_event::<WidgetEvent>()
-            .register_to_listen_event::<MouseEvent>();
+            .register_to_listen_event::<MouseEvent>()
+            .register_to_listen_event::<MenuEvent>();
     }
 
     fn widget_update(&mut self, _drawing_area_in_px: Vector4) {
@@ -204,6 +212,7 @@ impl InternalWidget for Menu {
             let size = w.state().get_size();
             buttons.push((pos, size));
         });
+        let mut is_hover = self.state().is_hover();
         self.entries.iter_mut().enumerate().for_each(|(i, e)| {
             let mut clip_area = Screen::get_draw_area();
             if e.opened {
@@ -221,16 +230,28 @@ impl InternalWidget for Menu {
                 clip_area.w = 0.;
             }
             e.submenu.update(clip_area, clip_area);
+            is_hover |= e.submenu.is_hover();
         });
+        self.state_mut().set_hover(is_hover);
     }
 
     fn widget_uninit(&mut self) {
         self.unregister_to_listen_event::<WidgetEvent>()
-            .unregister_to_listen_event::<MouseEvent>();
+            .unregister_to_listen_event::<MouseEvent>()
+            .unregister_to_listen_event::<MenuEvent>();
     }
 
     fn widget_process_message(&mut self, msg: &dyn Message) {
-        if msg.type_id() == TypeId::of::<WidgetEvent>() {
+        if msg.type_id() == TypeId::of::<MenuEvent>() {
+            let event = msg.as_any().downcast_ref::<MenuEvent>().unwrap();
+            let MenuEvent::Open(widget_uid) = *event;
+            self.entries.iter_mut().for_each(|e| {
+                if e.submenu.has_entry(widget_uid) || e.submenu.node().has_child(widget_uid) {
+                    e.opened = true;
+                    e.submenu.visible(true);
+                }
+            });
+        } else if msg.type_id() == TypeId::of::<WidgetEvent>() {
             let event = msg.as_any().downcast_ref::<WidgetEvent>().unwrap();
             let is_horizontal =
                 self.state().get_horizontal_alignment() == HorizontalAlignment::Stretch;
@@ -245,14 +266,23 @@ impl InternalWidget for Menu {
                         pos.y = self.state().get_position().y;
                     }
                 }
+                let mut submenu_uid = INVALID_UID;
                 self.entries.iter_mut().for_each(|e| {
-                    e.opened = e.submenu.is_hover();
-                    e.submenu.visible(e.submenu.is_hover());
+                    if e.uid == widget_id {
+                        submenu_uid = e.uid;
+                        e.opened = true;
+                        e.submenu.position(pos).visible(e.opened);
+                    } else {
+                        e.opened = false;
+                        e.submenu.visible(false);
+                    }
                 });
-                if let Some(index) = self.entries.iter().position(|el| el.uid == widget_id) {
-                    let item = &mut self.entries[index];
-                    item.opened = !item.opened;
-                    item.submenu.position(pos).visible(item.opened);
+                if !submenu_uid.is_nil() {
+                    self.get_global_dispatcher()
+                        .write()
+                        .unwrap()
+                        .send(MenuEvent::Open(submenu_uid).as_boxed())
+                        .ok();
                 }
             }
         } else if msg.type_id() == TypeId::of::<MouseEvent>() {
