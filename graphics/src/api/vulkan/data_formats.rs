@@ -13,6 +13,7 @@ impl VertexData {
         }
     }
 
+    #[allow(deref_nullptr)]
     pub fn get_attributes_desc() -> Vec<VkVertexInputAttributeDescription> {
         let attr: Vec<VkVertexInputAttributeDescription> = vec![
             VkVertexInputAttributeDescription {
@@ -55,6 +56,7 @@ impl InstanceData {
         }
     }
 
+    #[allow(deref_nullptr)]
     pub fn get_attributes_desc() -> Vec<VkVertexInputAttributeDescription> {
         let attr: Vec<VkVertexInputAttributeDescription> = vec![
             VkVertexInputAttributeDescription {

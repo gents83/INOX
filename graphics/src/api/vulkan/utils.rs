@@ -130,7 +130,7 @@ pub fn find_plane_for_display(
     plane_properties: &[VkDisplayPlanePropertiesKHR],
 ) -> i32 {
     for (index, plane) in plane_properties.iter().enumerate() {
-        if (plane.currentDisplay != ::std::ptr::null_mut()) && (plane.currentDisplay != *display) {
+        if (!plane.currentDisplay.is_null()) && (plane.currentDisplay != *display) {
             continue;
         }
 

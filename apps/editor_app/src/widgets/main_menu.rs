@@ -28,7 +28,11 @@ pub struct MainMenu {
     #[serde(skip)]
     exit_id: Uid,
     #[serde(skip)]
+    edit_id: Uid,
+    #[serde(skip)]
     nodes_id: Uid,
+    #[serde(skip)]
+    add_id: Uid,
     #[serde(skip)]
     list_id: Uid,
     #[serde(skip)]
@@ -41,7 +45,9 @@ implement_widget_with_custom_members!(MainMenu {
     save_id: INVALID_UID,
     open_id: INVALID_UID,
     exit_id: INVALID_UID,
+    edit_id: INVALID_UID,
     nodes_id: INVALID_UID,
+    add_id: INVALID_UID,
     list_id: INVALID_UID,
     filename_dialog: None
 });
@@ -66,27 +72,38 @@ impl MainMenu {
         self.save_id == entry_uid
     }
     pub fn fill_nodes_from_registry(&mut self, registry: &NodesRegistry) -> &mut Self {
+        let edit_id = self.edit_id;
         let nodes_id = self.nodes_id;
+        let add_id = self.add_id;
         let list_id = self.list_id;
         let menu = self.menu_mut();
-        if let Some(menu) = menu.get_submenu(nodes_id) {
-            if let Some(list) = menu.node().get_child_mut::<List>(list_id) {
-                list.clear();
-                if let Some(scrollable_panel) = list.get_scrollable_panel() {
-                    for i in 0..registry.count() {
-                        let mut button =
-                            Button::new(&menu.get_shared_data(), &menu.get_global_messenger());
-                        let name = registry.get_name_from_index(i);
-                        button
-                            .with_text(name)
-                            .text_alignment(VerticalAlignment::Center, HorizontalAlignment::Left)
-                            .horizontal_alignment(HorizontalAlignment::Stretch)
-                            .vertical_alignment(VerticalAlignment::Top)
-                            .fill_type(ContainerFillType::Horizontal);
-                        scrollable_panel.add_child(Box::new(button));
+        if let Some(edit) = menu.get_submenu(edit_id) {
+            if let Some(menu) = edit.node().get_child_mut::<Menu>(nodes_id) {
+                if let Some(add) = menu.get_submenu(add_id) {
+                    if let Some(list) = add.node().get_child_mut::<List>(list_id) {
+                        list.clear();
+                        if let Some(scrollable_panel) = list.get_scrollable_panel() {
+                            for i in 0..registry.count() {
+                                let mut button = Button::new(
+                                    &add.get_shared_data(),
+                                    &add.get_global_messenger(),
+                                );
+                                let name = registry.get_name_from_index(i);
+                                button
+                                    .with_text(name)
+                                    .text_alignment(
+                                        VerticalAlignment::Center,
+                                        HorizontalAlignment::Left,
+                                    )
+                                    .horizontal_alignment(HorizontalAlignment::Stretch)
+                                    .vertical_alignment(VerticalAlignment::Top)
+                                    .fill_type(ContainerFillType::Horizontal);
+                                scrollable_panel.add_child(Box::new(button));
+                            }
+                        }
+                        list.vertical();
                     }
                 }
-                list.vertical();
             }
         }
         self
@@ -106,18 +123,27 @@ impl InternalWidget for MainMenu {
 
         let file_id = self.menu_mut().add_menu_item("File");
         self.file_id = file_id;
+
         self.new_id = self.menu_mut().add_submenu_entry_default(file_id, "New");
         self.open_id = self.menu_mut().add_submenu_entry_default(file_id, "Open");
         self.save_id = self.menu_mut().add_submenu_entry_default(file_id, "Save");
         self.exit_id = self.menu_mut().add_submenu_entry_default(file_id, "Exit");
 
-        let nodes_id = self.menu_mut().add_menu_item("Nodes");
-        self.nodes_id = nodes_id;
+        let edit_id = self.menu_mut().add_menu_item("Edit");
+        self.edit_id = edit_id;
+
+        let mut new_menu = Menu::new(self.get_shared_data(), self.get_global_messenger());
+        new_menu.vertical();
+        self.add_id = new_menu.add_menu_item("Add ->");
         let mut list = List::new(self.get_shared_data(), self.get_global_messenger());
         list.clear()
             .vertical()
             .style(WidgetStyle::DefaultBackground);
-        self.list_id = self.menu_mut().add_submenu_entry(nodes_id, Box::new(list));
+        self.list_id = new_menu.add_submenu_entry(self.add_id, Box::new(list));
+
+        self.nodes_id = self
+            .menu_mut()
+            .add_submenu_entry(edit_id, Box::new(new_menu));
     }
 
     fn widget_update(&mut self, drawing_area_in_px: Vector4) {

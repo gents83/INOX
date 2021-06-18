@@ -432,7 +432,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         }
         let mut is_on_child = false;
         self.node().propagate_on_children(|w| {
-            is_on_child |= w.state().is_hover();
+            is_on_child |= w.is_hover();
         });
         if is_on_child {
             return;
@@ -523,13 +523,9 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
     #[inline]
     fn is_hover(&self) -> bool {
         let mut is_hover = self.state().is_hover();
-        if !is_hover {
-            self.node().propagate_on_children(|w| {
-                if w.is_hover() {
-                    is_hover = true;
-                }
-            });
-        }
+        self.node().propagate_on_children(|w| {
+            is_hover |= w.is_hover();
+        });
         is_hover
     }
 

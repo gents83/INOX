@@ -2,7 +2,7 @@ use std::any::TypeId;
 
 use nrg_math::{VecBase, Vector2, Vector4};
 use nrg_messenger::Message;
-use nrg_platform::MouseEvent;
+use nrg_platform::{MouseButton, MouseEvent, MouseState};
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{
@@ -35,6 +35,8 @@ implement_widget_with_custom_members!(Menu {
 
 impl Menu {
     pub fn add_menu_item(&mut self, label: &str) -> Uid {
+        let is_horizontal = self.state().get_horizontal_alignment() == HorizontalAlignment::Stretch;
+
         let mut button = Button::new(self.get_shared_data(), self.get_global_messenger());
         button
             .vertical_alignment(VerticalAlignment::Stretch)
@@ -46,8 +48,18 @@ impl Menu {
 
         let size: Vector2 = DEFAULT_SUBMENU_ITEM_SIZE.into();
         let mut submenu = Menu::new(self.get_shared_data(), self.get_global_messenger());
+        if is_horizontal {
+            submenu.position([button.state().get_position().x, self.state().get_size().y].into());
+        } else {
+            submenu.position(
+                [
+                    button.state().get_position().x + self.state().get_size().x,
+                    button.state().get_position().y,
+                ]
+                .into(),
+            );
+        }
         submenu
-            .position([button.state().get_position().x, self.state().get_size().y].into())
             .size(size * Screen::get_scale_factor())
             .visible(false)
             .selectable(false)
@@ -121,8 +133,17 @@ impl Menu {
         });
         is_opened
     }
+
+    pub fn is_hover(&self) -> bool {
+        let mut is_hover = <dyn Widget>::is_hover(self);
+        self.entries.iter().for_each(|e| {
+            is_hover |= e.submenu.is_hover();
+        });
+        is_hover
+    }
+
     fn is_hovering_entry(&mut self, entry_uid: Uid) -> bool {
-        let mut is_hover = false;
+        let mut is_hover = self.is_hover();
         if let Some(widget) = self.node().get_child_mut::<Button>(entry_uid) {
             if widget.is_hover() {
                 is_hover = true;
@@ -138,24 +159,27 @@ impl Menu {
         }
         is_hover
     }
-    fn manage_hovering(&mut self) {
-        let count = self.entries.len();
-        for i in 0..count {
-            if self.entries[i].opened {
-                let entry_uid = self.entries[i].uid;
-                if !self.is_hovering_entry(entry_uid) {
-                    let item = &mut self.entries[i];
-                    item.opened = false;
-                    item.submenu.visible(item.opened);
-                }
-            }
-        }
+
+    pub fn horizontal(&mut self) -> &mut Self {
+        self.horizontal_alignment(HorizontalAlignment::Stretch)
+            .vertical_alignment(VerticalAlignment::Top)
+            .fill_type(ContainerFillType::Horizontal)
+            .keep_fixed_width(true);
+        self
+    }
+    pub fn vertical(&mut self) -> &mut Self {
+        self.horizontal_alignment(HorizontalAlignment::Left)
+            .vertical_alignment(VerticalAlignment::Top)
+            .fill_type(ContainerFillType::Vertical)
+            .keep_fixed_width(false);
+        self
     }
 }
 
 impl InternalWidget for Menu {
     fn widget_init(&mut self) {
-        self.register_to_listen_event::<WidgetEvent>();
+        self.register_to_listen_event::<WidgetEvent>()
+            .register_to_listen_event::<MouseEvent>();
 
         if self.is_initialized() {
             return;
@@ -164,17 +188,16 @@ impl InternalWidget for Menu {
         let size: Vector2 = DEFAULT_MENU_SIZE.into();
         self.size(size * Screen::get_scale_factor())
             .selectable(false)
-            .horizontal_alignment(HorizontalAlignment::Stretch)
             .space_between_elements((DEFAULT_WIDGET_SIZE[0] / 2. * Screen::get_scale_factor()) as _)
-            .fill_type(ContainerFillType::Horizontal)
-            .keep_fixed_width(true)
             .use_space_before_and_after(false)
-            .style(WidgetStyle::DefaultCanvas);
+            .style(WidgetStyle::DefaultCanvas)
+            .horizontal()
+            .register_to_listen_event::<WidgetEvent>()
+            .register_to_listen_event::<MouseEvent>();
     }
 
-    fn widget_update(&mut self, drawing_area_in_px: Vector4) {
-        self.manage_hovering();
-
+    fn widget_update(&mut self, _drawing_area_in_px: Vector4) {
+        let is_horizontal = self.state().get_horizontal_alignment() == HorizontalAlignment::Stretch;
         let mut buttons: Vec<(Vector2, Vector2)> = Vec::new();
         self.node().propagate_on_children(|w| {
             let pos = w.state().get_position();
@@ -182,10 +205,15 @@ impl InternalWidget for Menu {
             buttons.push((pos, size));
         });
         self.entries.iter_mut().enumerate().for_each(|(i, e)| {
-            let mut clip_area = drawing_area_in_px;
+            let mut clip_area = Screen::get_draw_area();
             if e.opened {
-                clip_area.x = buttons[i].0.x;
-                clip_area.y = buttons[i].0.y + buttons[i].1.y;
+                if is_horizontal {
+                    clip_area.x = buttons[i].0.x;
+                    clip_area.y = buttons[i].0.y + buttons[i].1.y;
+                } else {
+                    clip_area.x = buttons[i].0.x + buttons[i].1.x;
+                    clip_area.y = buttons[i].0.y;
+                }
                 clip_area.z -= clip_area.x;
                 clip_area.w -= clip_area.y;
             } else {
@@ -197,22 +225,50 @@ impl InternalWidget for Menu {
     }
 
     fn widget_uninit(&mut self) {
-        self.register_to_listen_event::<WidgetEvent>();
+        self.unregister_to_listen_event::<WidgetEvent>()
+            .unregister_to_listen_event::<MouseEvent>();
     }
 
     fn widget_process_message(&mut self, msg: &dyn Message) {
         if msg.type_id() == TypeId::of::<WidgetEvent>() {
             let event = msg.as_any().downcast_ref::<WidgetEvent>().unwrap();
-            if let WidgetEvent::Released(widget_id, _mouse_in_px) = *event {
+            let is_horizontal =
+                self.state().get_horizontal_alignment() == HorizontalAlignment::Stretch;
+            if let WidgetEvent::Pressed(widget_id, _mouse_in_px) = *event {
                 let mut pos = Vector2::default_zero();
                 if let Some(button) = self.node().get_child_mut::<Button>(widget_id) {
-                    pos.x = button.state().get_position().x;
-                    pos.y = self.state().get_size().y;
+                    if is_horizontal {
+                        pos.x = button.state().get_position().x;
+                        pos.y = self.state().get_size().y;
+                    } else {
+                        pos.x = button.state().get_position().x + button.state().get_size().x;
+                        pos.y = self.state().get_position().y;
+                    }
                 }
+                self.entries.iter_mut().for_each(|e| {
+                    e.opened = e.submenu.is_hover();
+                    e.submenu.visible(e.submenu.is_hover());
+                });
                 if let Some(index) = self.entries.iter().position(|el| el.uid == widget_id) {
                     let item = &mut self.entries[index];
                     item.opened = !item.opened;
                     item.submenu.position(pos).visible(item.opened);
+                }
+            }
+        } else if msg.type_id() == TypeId::of::<MouseEvent>() {
+            let event = msg.as_any().downcast_ref::<MouseEvent>().unwrap();
+            if event.state == MouseState::Down && event.button == MouseButton::Left {
+                let count = self.entries.len();
+                for i in 0..count {
+                    if self.entries[i].opened {
+                        let is_hover = self.is_hover();
+                        let is_hovering = self.is_hovering_entry(self.entries[i].uid);
+                        let item = &mut self.entries[i];
+                        if !is_hover && !is_hovering {
+                            item.opened = false;
+                            item.submenu.visible(item.opened);
+                        }
+                    }
                 }
             }
         }

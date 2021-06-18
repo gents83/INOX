@@ -145,7 +145,7 @@ impl InstanceImmutable {
 
     pub fn delete(&self) {
         unsafe {
-            if self.debug_messenger != ::std::ptr::null_mut() {
+            if !self.debug_messenger.is_null() {
                 let func_name = CString::new("vkDestroyDebugUtilsMessengerEXT").unwrap();
                 let debug_destroy_opt_fn: PFN_vkDestroyDebugUtilsMessengerEXT =
                     ::std::mem::transmute(vkGetInstanceProcAddr.unwrap()(
@@ -234,7 +234,7 @@ fn create_instance(
         );
     }
 
-    if instance == ::std::ptr::null_mut() {
+    if instance.is_null() {
         eprintln!("Unable to create instance that support Vulkan needed API");
     }
     instance
@@ -269,7 +269,7 @@ pub fn create_surface(instance: VkInstance, handle: &Handle) -> VkSurfaceKHR {
         surface = create_surface_win32(instance, handle);
     }
 
-    if surface == ::std::ptr::null_mut() {
+    if surface.is_null() {
         eprintln!("Unable to create a surface to support Vulkan needed API");
     }
     surface

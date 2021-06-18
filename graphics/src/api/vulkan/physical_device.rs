@@ -40,7 +40,7 @@ impl PhysicalDevice {
     }
 
     pub fn is_initialized(&self) -> bool {
-        self.inner.borrow().physical_device != ::std::ptr::null_mut()
+        !self.inner.borrow().physical_device.is_null()
     }
 
     pub fn get_swap_chain_info(&self) -> SwapChainSupportDetails {

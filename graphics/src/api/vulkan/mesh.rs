@@ -38,7 +38,7 @@ impl Mesh {
     }
 
     pub fn create_vertex_buffer(&mut self, device: &Device, vertices: &[VertexData]) {
-        if self.vertex_buffer != ::std::ptr::null_mut() {
+        if !self.vertex_buffer.is_null() {
             device.destroy_buffer(&self.vertex_buffer, &self.vertex_buffer_memory);
             self.vertex_count = 0;
         }
@@ -62,7 +62,7 @@ impl Mesh {
     }
 
     pub fn create_index_buffer(&mut self, device: &Device, indices: &[u32]) {
-        if self.index_buffer != ::std::ptr::null_mut() {
+        if !self.index_buffer.is_null() {
             device.destroy_buffer(&self.index_buffer, &self.index_buffer_memory);
             self.indices_count = 0;
         }
@@ -99,7 +99,7 @@ impl Mesh {
 
         unsafe {
             let command_buffer = device.get_current_command_buffer();
-            if self.index_buffer != ::std::ptr::null_mut() && num_indices > 0 {
+            if !self.index_buffer.is_null() && num_indices > 0 {
                 vkCmdDrawIndexed.unwrap()(command_buffer, num_indices as _, 1, 0, 0, 0);
             } else {
                 vkCmdDraw.unwrap()(command_buffer, num_vertices as _, 1, 0, 0);
@@ -120,7 +120,7 @@ impl Mesh {
     }
 
     pub fn bind_vertices(&self, device: &Device) {
-        if self.vertex_buffer != ::std::ptr::null_mut() {
+        if !self.vertex_buffer.is_null() {
             unsafe {
                 let vertex_buffers = [self.vertex_buffer];
                 let offsets = [0_u64];
@@ -136,7 +136,7 @@ impl Mesh {
     }
 
     pub fn bind_indices(&self, device: &Device) {
-        if self.index_buffer != ::std::ptr::null_mut() {
+        if !self.index_buffer.is_null() {
             unsafe {
                 vkCmdBindIndexBuffer.unwrap()(
                     device.get_current_command_buffer(),
