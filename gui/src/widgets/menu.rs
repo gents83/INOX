@@ -170,7 +170,7 @@ impl Menu {
         self.horizontal_alignment(HorizontalAlignment::Stretch)
             .vertical_alignment(VerticalAlignment::Top)
             .fill_type(ContainerFillType::Horizontal)
-            .keep_fixed_width(true);
+            .keep_fixed_width(false);
         self
     }
     pub fn vertical(&mut self) -> &mut Self {

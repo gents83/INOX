@@ -140,6 +140,7 @@ impl Window {
             rect.top = y as _;
             rect.right += offset.0;
             rect.bottom += offset.1;
+            AdjustWindowRectEx(&mut rect, WS_OVERLAPPEDWINDOW, FALSE, 0);
             SetWindowPos(
                 handle.handle_impl.hwnd,
                 0 as _, // No relative window
@@ -163,6 +164,7 @@ impl Window {
             GetClientRect(handle.handle_impl.hwnd, &mut rect);
             rect.right = width as _;
             rect.bottom = height as _;
+            AdjustWindowRectEx(&mut rect, WS_OVERLAPPEDWINDOW, FALSE, 0);
             SetWindowPos(
                 handle.handle_impl.hwnd,
                 0 as _, // No relative window
@@ -207,40 +209,44 @@ impl Window {
                     ScreenToClient(handle.handle_impl.hwnd, &mut mouse_pos);
                     if let Some(events_dispatcher) = &mut EVENTS_DISPATCHER {
                         let events = events_dispatcher.write().unwrap();
-                        let _ = events.send(Box::new(MouseEvent {
-                            x: mouse_pos.x as f64,
-                            y: mouse_pos.y as f64,
-                            button: match message.message {
-                                WM_LBUTTONDOWN | WM_LBUTTONUP | WM_LBUTTONDBLCLK => {
-                                    MouseButton::Left
-                                }
-                                WM_RBUTTONDOWN | WM_RBUTTONUP | WM_RBUTTONDBLCLK => {
-                                    MouseButton::Right
-                                }
-                                WM_MBUTTONDOWN | WM_MBUTTONUP | WM_MBUTTONDBLCLK => {
-                                    MouseButton::Middle
-                                }
-                                _ => MouseButton::None,
-                            },
-                            state: match message.message {
-                                WM_LBUTTONDOWN | WM_RBUTTONDOWN | WM_MBUTTONDOWN => {
-                                    MouseState::Down
-                                }
-                                WM_LBUTTONUP | WM_RBUTTONUP | WM_MBUTTONUP => MouseState::Up,
-                                WM_LBUTTONDBLCLK | WM_RBUTTONDBLCLK | WM_MBUTTONDBLCLK => {
-                                    MouseState::DoubleClick
-                                }
-                                _ => MouseState::Move,
-                            },
-                        }));
+                        events
+                            .send(Box::new(MouseEvent {
+                                x: mouse_pos.x as f64,
+                                y: mouse_pos.y as f64,
+                                button: match message.message {
+                                    WM_LBUTTONDOWN | WM_LBUTTONUP | WM_LBUTTONDBLCLK => {
+                                        MouseButton::Left
+                                    }
+                                    WM_RBUTTONDOWN | WM_RBUTTONUP | WM_RBUTTONDBLCLK => {
+                                        MouseButton::Right
+                                    }
+                                    WM_MBUTTONDOWN | WM_MBUTTONUP | WM_MBUTTONDBLCLK => {
+                                        MouseButton::Middle
+                                    }
+                                    _ => MouseButton::None,
+                                },
+                                state: match message.message {
+                                    WM_LBUTTONDOWN | WM_RBUTTONDOWN | WM_MBUTTONDOWN => {
+                                        MouseState::Down
+                                    }
+                                    WM_LBUTTONUP | WM_RBUTTONUP | WM_MBUTTONUP => MouseState::Up,
+                                    WM_LBUTTONDBLCLK | WM_RBUTTONDBLCLK | WM_MBUTTONDBLCLK => {
+                                        MouseState::DoubleClick
+                                    }
+                                    _ => MouseState::Move,
+                                },
+                            }))
+                            .ok();
                     }
                 } else if message.message == WM_CHAR {
                     let char = message.wParam as INT;
                     if let Some(events_dispatcher) = &mut EVENTS_DISPATCHER {
                         let events = events_dispatcher.write().unwrap();
-                        let _ = events.send(Box::new(KeyTextEvent {
-                            char: char as u8 as _,
-                        }));
+                        events
+                            .send(Box::new(KeyTextEvent {
+                                char: char as u8 as _,
+                            }))
+                            .ok();
                     }
                     can_continue = true;
                 } else if message.message == WM_KEYDOWN
@@ -258,26 +264,28 @@ impl Window {
                     let is_repeat = (message.lParam >> 30) & 1 == 1;
                     if let Some(events_dispatcher) = &mut EVENTS_DISPATCHER {
                         let events = events_dispatcher.write().unwrap();
-                        let _ = events.send(Box::new(KeyEvent {
-                            code: key,
-                            state: match message.message {
-                                WM_KEYDOWN | WM_SYSCHAR | WM_SYSKEYDOWN => {
-                                    if is_repeat {
-                                        InputState::Pressed
-                                    } else {
-                                        InputState::JustPressed
+                        events
+                            .send(Box::new(KeyEvent {
+                                code: key,
+                                state: match message.message {
+                                    WM_KEYDOWN | WM_SYSCHAR | WM_SYSKEYDOWN => {
+                                        if is_repeat {
+                                            InputState::Pressed
+                                        } else {
+                                            InputState::JustPressed
+                                        }
                                     }
-                                }
-                                WM_KEYUP | WM_SYSDEADCHAR | WM_SYSKEYUP => {
-                                    if is_repeat {
-                                        InputState::Released
-                                    } else {
-                                        InputState::JustReleased
+                                    WM_KEYUP | WM_SYSDEADCHAR | WM_SYSKEYUP => {
+                                        if is_repeat {
+                                            InputState::Released
+                                        } else {
+                                            InputState::JustReleased
+                                        }
                                     }
-                                }
-                                _ => InputState::Invalid,
-                            },
-                        }));
+                                    _ => InputState::Invalid,
+                                },
+                            }))
+                            .ok();
                     }
                     can_continue = true;
                 }
@@ -308,9 +316,10 @@ impl Window {
     ) -> LRESULT {
         match msg {
             WM_DPICHANGED => {
-                let rect: RECT = *(lparam as *const c_void as *const RECT);
+                let mut rect: RECT = *(lparam as *const c_void as *const RECT);
                 let dpi_x = LOWORD(wparam as _);
                 let dpi_y = HIWORD(wparam as _);
+                AdjustWindowRectEx(&mut rect, WS_OVERLAPPEDWINDOW, FALSE, 0);
                 SetWindowPos(
                     hwnd,
                     0 as _, // No relative window
@@ -322,7 +331,9 @@ impl Window {
                 );
                 if let Some(events_dispatcher) = &mut EVENTS_DISPATCHER {
                     let events = events_dispatcher.write().unwrap();
-                    let _ = events.send(Box::new(WindowEvent::DpiChanged(dpi_x as _, dpi_y as _)));
+                    events
+                        .send(Box::new(WindowEvent::DpiChanged(dpi_x as _, dpi_y as _)))
+                        .ok();
                 }
             }
             WM_SIZE => {
@@ -330,8 +341,9 @@ impl Window {
                 let height = HIWORD(lparam as _);
                 if let Some(events_dispatcher) = &mut EVENTS_DISPATCHER {
                     let events = events_dispatcher.write().unwrap();
-                    let _ =
-                        events.send(Box::new(WindowEvent::SizeChanged(width as _, height as _)));
+                    events
+                        .send(Box::new(WindowEvent::SizeChanged(width as _, height as _)))
+                        .ok();
                 }
             }
             WM_MOVE => {
@@ -339,13 +351,15 @@ impl Window {
                 let y = HIWORD(lparam as _);
                 if let Some(events_dispatcher) = &mut EVENTS_DISPATCHER {
                     let events = events_dispatcher.write().unwrap();
-                    let _ = events.send(Box::new(WindowEvent::PosChanged(x as _, y as _)));
+                    events
+                        .send(Box::new(WindowEvent::PosChanged(x as _, y as _)))
+                        .ok();
                 }
             }
             WM_DESTROY | WM_CLOSE | WM_QUIT | WM_NCDESTROY => {
                 if let Some(events_dispatcher) = &mut EVENTS_DISPATCHER {
                     let events = events_dispatcher.write().unwrap();
-                    let _ = events.send(Box::new(WindowEvent::Close));
+                    events.send(Box::new(WindowEvent::Close)).ok();
                 }
                 PostQuitMessage(0);
                 return 0;

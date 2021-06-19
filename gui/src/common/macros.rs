@@ -272,6 +272,8 @@ macro_rules! implement_widget_with_custom_members {
                     data: WidgetData::new(shared_data.clone(), global_messenger.clone()),
                     $($field: $value),+
                 };
+                let typename = w.get_type();
+                w.node_mut().set_name(typename);
                 w.init();
                 w
             }

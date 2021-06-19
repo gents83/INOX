@@ -25,7 +25,7 @@ pub struct EditorUpdater {
     job_handler: JobHandlerRw,
     config: Config,
     fps_text: Uid,
-    fps_widget_id: Uid,
+    properties_id: Uid,
     graph_id: Uid,
     main_menu_id: Uid,
     message_channel: MessageChannel,
@@ -64,7 +64,7 @@ impl EditorUpdater {
             job_handler,
             config: config.clone(),
             fps_text: INVALID_UID,
-            fps_widget_id: INVALID_UID,
+            properties_id: INVALID_UID,
             graph_id: INVALID_UID,
             main_menu_id: INVALID_UID,
             message_channel,
@@ -120,55 +120,41 @@ impl System for EditorUpdater {
         self.global_messenger
             .write()
             .unwrap()
+            .register_messagebox::<WindowEvent>(self.message_channel.get_messagebox())
             .register_messagebox::<DialogEvent>(self.message_channel.get_messagebox())
             .register_messagebox::<NodesEvent>(self.message_channel.get_messagebox());
 
         let mut main_menu = MainMenu::new(&self.shared_data, &self.global_messenger);
         self.main_menu_id = main_menu.id();
         main_menu.fill_nodes_from_registry(&self.nodes_registry);
-
-        let mut widget = Panel::new(&self.shared_data, &self.global_messenger);
-        widget
-            .position([300., 300.].into())
-            .size([300., 800.].into())
-            .selectable(false)
-            .horizontal_alignment(HorizontalAlignment::Right)
-            .space_between_elements(20)
-            .fill_type(ContainerFillType::Vertical)
-            .style(WidgetStyle::DefaultBackground)
-            .move_to_layer(0.5);
-        self.fps_widget_id = widget.id();
-
-        let mut fps_text = Text::new(&self.shared_data, &self.global_messenger);
-        fps_text.set_text("FPS: ");
-        self.fps_text = widget.add_child(Box::new(fps_text));
-
-        let mut checkbox = Checkbox::new(&self.shared_data, &self.global_messenger);
-        checkbox.with_label("Checkbox");
-        widget.add_child(Box::new(checkbox));
-
-        let mut textbox = TextBox::new(&self.shared_data, &self.global_messenger);
-        textbox
-            .horizontal_alignment(HorizontalAlignment::Stretch)
-            .with_label("Sample:")
-            .editable(true)
-            .set_text("Ciao");
-        widget.add_child(Box::new(textbox));
-
-        Gui::get()
-            .write()
-            .unwrap()
-            .get_root_mut()
-            .add_child(Box::new(widget));
         Gui::get()
             .write()
             .unwrap()
             .get_root_mut()
             .add_child(Box::new(main_menu));
 
+        let widget = Properties::new(&self.shared_data, &self.global_messenger);
+        self.properties_id = widget.id();
+        Gui::get()
+            .write()
+            .unwrap()
+            .get_root_mut()
+            .add_child(Box::new(widget));
+
+        let mut fps_text = Text::new(&self.shared_data, &self.global_messenger);
+        fps_text
+            .set_text("FPS: ")
+            .horizontal_alignment(HorizontalAlignment::Right)
+            .vertical_alignment(VerticalAlignment::Top);
+        self.fps_text = fps_text.id();
+        Gui::get()
+            .write()
+            .unwrap()
+            .get_root_mut()
+            .add_child(Box::new(fps_text));
+
         let graph = Graph::new(&self.shared_data, &self.global_messenger);
         self.graph_id = graph.id();
-
         Gui::get()
             .write()
             .unwrap()
@@ -193,6 +179,13 @@ impl System for EditorUpdater {
             .propagate_on_children_mut(|w| {
                 w.uninit();
             });
+
+        self.global_messenger
+            .write()
+            .unwrap()
+            .unregister_messagebox::<WindowEvent>(self.message_channel.get_messagebox())
+            .unregister_messagebox::<DialogEvent>(self.message_channel.get_messagebox())
+            .unregister_messagebox::<NodesEvent>(self.message_channel.get_messagebox());
     }
 }
 
@@ -214,16 +207,14 @@ impl EditorUpdater {
 
         let num_fps = self.frame_seconds.len();
         let text_id = self.fps_text;
-        if let Some(widget) = Gui::get()
+        if let Some(text) = Gui::get()
             .read()
             .unwrap()
             .get_root()
-            .get_child_mut::<Panel>(self.fps_widget_id)
+            .get_child_mut::<Text>(text_id)
         {
-            if let Some(text) = widget.node().get_child_mut::<Text>(text_id) {
-                let str = format!("FPS: {}", num_fps);
-                text.set_text(str.as_str());
-            }
+            let str = format!("FPS: {}", num_fps);
+            text.set_text(str.as_str());
         }
 
         self
@@ -231,52 +222,7 @@ impl EditorUpdater {
     fn update_widgets(&mut self) {
         nrg_profiler::scoped_profile!("update_widgets");
 
-        let size = Screen::get_size();
-        let entire_screen = Screen::get_draw_area();
-        let draw_area = {
-            if let Some(main_menu) = Gui::get()
-                .read()
-                .unwrap()
-                .get_root()
-                .get_child_mut::<MainMenu>(self.main_menu_id)
-            {
-                [
-                    0.,
-                    main_menu.state().get_size().y + DEFAULT_WIDGET_SIZE[1],
-                    size.x,
-                    size.y - (main_menu.state().get_size().y + DEFAULT_WIDGET_SIZE[1]),
-                ]
-                .into()
-            } else {
-                entire_screen
-            }
-        };
-
-        Gui::get()
-            .write()
-            .unwrap()
-            .get_root_mut()
-            .get_children()
-            .iter()
-            .for_each(|w| {
-                let widget = w.clone();
-                let job_name = format!("widget[{}]", widget.read().unwrap().node().get_name());
-                if widget.read().unwrap().id() == self.main_menu_id {
-                    self.job_handler
-                        .write()
-                        .unwrap()
-                        .add_job(job_name.as_str(), move || {
-                            widget.write().unwrap().update(entire_screen, entire_screen);
-                        })
-                } else {
-                    self.job_handler
-                        .write()
-                        .unwrap()
-                        .add_job(job_name.as_str(), move || {
-                            widget.write().unwrap().update(draw_area, entire_screen);
-                        })
-                }
-            });
+        Gui::update_widgets(&self.job_handler, true);
     }
 
     fn load_pipelines(&mut self) {
@@ -390,9 +336,11 @@ impl EditorUpdater {
                 match *event {
                     WindowEvent::SizeChanged(width, height) => {
                         Screen::change_size(width, height);
+                        Gui::invalidate_all_widgets();
                     }
                     WindowEvent::DpiChanged(x, _y) => {
                         Screen::change_scale_factor(x / DEFAULT_DPI);
+                        Gui::invalidate_all_widgets();
                     }
                     _ => {}
                 }

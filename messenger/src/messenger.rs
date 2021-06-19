@@ -72,12 +72,13 @@ impl Messenger {
     }
 
     #[inline]
-    pub fn unregister_messagebox<T>(&mut self, messagebox: MessageBox)
+    pub fn unregister_messagebox<T>(&mut self, messagebox: MessageBox) -> &mut Self
     where
         T: Message + 'static,
     {
         let typeid = TypeId::of::<T>();
         self.unregister_messagebox_for_typeid(typeid, messagebox);
+        self
     }
 
     #[inline]

@@ -7,7 +7,7 @@ use nrg_core::JobHandlerRw;
 use nrg_messenger::MessengerRw;
 use nrg_resources::SharedDataRw;
 
-use crate::{Screen, WidgetNode};
+use crate::{Screen, WidgetNode, DEFAULT_WIDGET_HEIGHT};
 
 pub struct GuiInternal {
     widgets_root: WidgetNode,
@@ -92,7 +92,8 @@ impl Gui {
 
     #[inline]
     pub fn update_widgets(job_handler: &JobHandlerRw, first_reduce_draw_area: bool) {
-        let mut draw_area = Screen::get_draw_area();
+        let mut widget_area = Screen::get_draw_area();
+        let mut next_area = widget_area;
         Gui::get()
             .write()
             .unwrap()
@@ -102,19 +103,23 @@ impl Gui {
             .enumerate()
             .for_each(|(i, w)| {
                 let widget = w.clone();
-                let widget_area = draw_area;
                 if first_reduce_draw_area && i == 0 {
                     let size = widget.read().unwrap().state().get_size();
-                    draw_area.y = size.y;
-                    draw_area.w -= size.y;
+                    next_area.x = 0.;
+                    next_area.y = size.y * Screen::get_scale_factor() + DEFAULT_WIDGET_HEIGHT;
+                    next_area.z = Screen::get_size().x;
+                    next_area.w = Screen::get_size().y
+                        - size.y * Screen::get_scale_factor()
+                        - DEFAULT_WIDGET_HEIGHT;
                 }
-                let job_name = format!("widget[{}]", widget.read().unwrap().node().get_name());
+                let job_name = String::from(widget.read().unwrap().node().get_name());
                 job_handler
                     .write()
                     .unwrap()
                     .add_job(job_name.as_str(), move || {
                         widget.write().unwrap().update(widget_area, widget_area);
                     });
+                widget_area = next_area;
             });
     }
 
