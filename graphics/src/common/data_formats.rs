@@ -103,7 +103,7 @@ unsafe impl Sync for PipelineData {}
 impl Default for PipelineData {
     fn default() -> Self {
         Self {
-            name: String::from("Default"),
+            name: String::from("3D"),
             data: RenderPassData::default(),
             fragment_shader: PathBuf::new(),
             vertex_shader: PathBuf::new(),
@@ -160,7 +160,7 @@ unsafe impl Sync for MaterialData {}
 impl Default for MaterialData {
     fn default() -> Self {
         Self {
-            pipeline_id: String::from("Default"),
+            pipeline_id: String::from("3D"),
             textures: Vec::new(),
         }
     }

@@ -31,7 +31,7 @@ impl PipelineInstance {
 
     fn find_id_from_data(shared_data: &SharedDataRw, pipeline_data: &PipelineData) -> PipelineId {
         SharedData::match_resource(shared_data, |p: &PipelineInstance| {
-            pipeline_data.has_same_shaders(&p.data)
+            pipeline_data.has_same_shaders(&p.data) && p.data.name == pipeline_data.name
         })
     }
     pub fn get_data(&self) -> &PipelineData {

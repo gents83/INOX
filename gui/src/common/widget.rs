@@ -64,7 +64,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         std::any::TypeId::of::<Self>()
     }
     fn init(&mut self) {
-        self.graphics_mut().init("Default");
+        self.graphics_mut().init("UI");
 
         if self.is_initialized() {
             let shared_data = self.get_shared_data().clone();

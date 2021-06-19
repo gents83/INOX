@@ -101,7 +101,7 @@ impl LauncherSystem {
             PipelineInstance::create(&self.shared_data, pipeline_data);
         }
 
-        if let Some(pipeline_data) = self.config.pipelines.first() {
+        if let Some(pipeline_data) = self.config.pipelines.iter().find(|p| p.name.eq("UI")) {
             let pipeline_id =
                 PipelineInstance::find_id_from_name(&self.shared_data, pipeline_data.name.as_str());
             if let Some(default_font_path) = self.config.fonts.first() {
