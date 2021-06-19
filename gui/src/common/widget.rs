@@ -1,5 +1,5 @@
 use std::{
-    any::{Any, TypeId},
+    any::{type_name, Any, TypeId},
     sync::{Arc, RwLock},
 };
 
@@ -10,8 +10,8 @@ use nrg_serialize::{typetag, Uid};
 
 use crate::{
     add_space_before_after, add_widget_size, compute_child_clip_area, hex_to_rgba, Color,
-    ContainerFillType, Gui, HorizontalAlignment, VerticalAlignment, WidgetDataGetter, WidgetEvent,
-    WidgetGraphics, COLOR_ENGRAY,
+    ContainerFillType, Gui, HorizontalAlignment, PropertiesEvent, VerticalAlignment,
+    WidgetDataGetter, WidgetEvent, WidgetGraphics, COLOR_ENGRAY,
 };
 
 pub type RefcountedWidget = Arc<RwLock<Box<dyn Widget>>>;
@@ -50,8 +50,14 @@ pub trait InternalWidget: Any {
 
 pub trait BaseWidget: InternalWidget + WidgetDataGetter {
     #[inline]
-    fn get_type(&self) -> &'static str {
-        std::any::type_name::<Self>()
+    fn get_type(&self) -> String {
+        let widget_name = type_name::<Self>()
+            .split(':')
+            .collect::<Vec<&str>>()
+            .last()
+            .unwrap()
+            .to_string();
+        widget_name
     }
     #[inline]
     fn get_type_id(&self) -> TypeId {
@@ -68,6 +74,10 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
                 w.init();
             });
         }
+        self.get_global_messenger()
+            .write()
+            .unwrap()
+            .register_messagebox::<PropertiesEvent>(self.get_messagebox());
 
         self.widget_init();
 
@@ -97,6 +107,10 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
     fn uninit(&mut self) {
         self.node_mut().propagate_on_children_mut(|w| w.uninit());
         self.widget_uninit();
+        self.get_global_messenger()
+            .write()
+            .unwrap()
+            .unregister_messagebox::<PropertiesEvent>(self.get_messagebox());
         self.graphics_mut().uninit();
     }
     fn update_childrens(&mut self, drawing_area_in_px: Vector4) {
@@ -145,10 +159,16 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
             if msg.type_id() == TypeId::of::<MouseEvent>() {
                 let e = msg.as_any().downcast_ref::<MouseEvent>().unwrap();
                 self.manage_input(e, drawing_area_in_px);
-            }
-            if msg.type_id() == TypeId::of::<WidgetEvent>() {
+            } else if msg.type_id() == TypeId::of::<WidgetEvent>() {
                 let e = msg.as_any().downcast_ref::<WidgetEvent>().unwrap();
                 self.manage_events(e, drawing_area_in_px);
+            } else if msg.type_id() == TypeId::of::<PropertiesEvent>() {
+                let e = msg.as_any().downcast_ref::<PropertiesEvent>().unwrap();
+                if let PropertiesEvent::GetProperties(uid) = *e {
+                    if self.id() == uid {
+                        self.send_properties();
+                    }
+                }
             }
             self.widget_process_message(msg);
         });
@@ -540,6 +560,15 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
     }
 
     #[inline]
+    fn insert_child(&mut self, index: usize, widget: Box<dyn Widget>) -> Uid {
+        let id = widget.id();
+        self.node_mut().insert_child(index, widget);
+
+        self.mark_as_dirty();
+        id
+    }
+
+    #[inline]
     fn add_child(&mut self, widget: Box<dyn Widget>) -> Uid {
         let id = widget.id();
         self.node_mut().add_child(widget);
@@ -557,5 +586,49 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
             self.graphics_mut().set_visible(visible);
             self.mark_as_dirty();
         }
+    }
+
+    fn send_properties(&self) {
+        self.get_global_dispatcher()
+            .write()
+            .unwrap()
+            .send(
+                PropertiesEvent::AddString(
+                    self.id(),
+                    String::from("Type:"),
+                    self.get_type(),
+                    false,
+                )
+                .as_boxed(),
+            )
+            .ok();
+
+        self.get_global_dispatcher()
+            .write()
+            .unwrap()
+            .send(
+                PropertiesEvent::AddVector2(
+                    self.id(),
+                    String::from("Position:"),
+                    self.state().get_position(),
+                    true,
+                )
+                .as_boxed(),
+            )
+            .ok();
+
+        self.get_global_dispatcher()
+            .write()
+            .unwrap()
+            .send(
+                PropertiesEvent::AddVector2(
+                    self.id(),
+                    String::from("Size:"),
+                    self.state().get_size(),
+                    true,
+                )
+                .as_boxed(),
+            )
+            .ok();
     }
 }

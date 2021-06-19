@@ -227,8 +227,8 @@ macro_rules! implement_widget_with_data {
                 let mut w = $Type {
                     data: WidgetData::new(shared_data.clone(), global_messenger.clone()),
                 };
-                let typename = w.get_type();
-                w.node_mut().set_name(typename);
+                let type_name = w.get_type();
+                w.node_mut().set_name(type_name.as_str());
                 w.init();
                 w
             }
@@ -272,8 +272,8 @@ macro_rules! implement_widget_with_custom_members {
                     data: WidgetData::new(shared_data.clone(), global_messenger.clone()),
                     $($field: $value),+
                 };
-                let typename = w.get_type();
-                w.node_mut().set_name(typename);
+                let type_name = w.get_type();
+                w.node_mut().set_name(type_name.as_str());
                 w.init();
                 w
             }

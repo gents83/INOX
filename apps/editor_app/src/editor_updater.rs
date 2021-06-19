@@ -121,6 +121,7 @@ impl System for EditorUpdater {
             .write()
             .unwrap()
             .register_messagebox::<WindowEvent>(self.message_channel.get_messagebox())
+            .register_messagebox::<WidgetEvent>(self.message_channel.get_messagebox())
             .register_messagebox::<DialogEvent>(self.message_channel.get_messagebox())
             .register_messagebox::<NodesEvent>(self.message_channel.get_messagebox());
 
@@ -133,7 +134,7 @@ impl System for EditorUpdater {
             .get_root_mut()
             .add_child(Box::new(main_menu));
 
-        let widget = Properties::new(&self.shared_data, &self.global_messenger);
+        let widget = PropertiesPanel::new(&self.shared_data, &self.global_messenger);
         self.properties_id = widget.id();
         Gui::get()
             .write()
@@ -184,6 +185,7 @@ impl System for EditorUpdater {
             .write()
             .unwrap()
             .unregister_messagebox::<WindowEvent>(self.message_channel.get_messagebox())
+            .unregister_messagebox::<WidgetEvent>(self.message_channel.get_messagebox())
             .unregister_messagebox::<DialogEvent>(self.message_channel.get_messagebox())
             .unregister_messagebox::<NodesEvent>(self.message_channel.get_messagebox());
     }
@@ -341,6 +343,37 @@ impl EditorUpdater {
                     WindowEvent::DpiChanged(x, _y) => {
                         Screen::change_scale_factor(x / DEFAULT_DPI);
                         Gui::invalidate_all_widgets();
+                    }
+                    _ => {}
+                }
+            } else if msg.type_id() == TypeId::of::<WidgetEvent>() {
+                let event = msg.as_any().downcast_ref::<WidgetEvent>().unwrap();
+                match *event {
+                    WidgetEvent::Pressed(widget_uid, _mouse)
+                    | WidgetEvent::Released(widget_uid, _mouse) => {
+                        self.global_messenger
+                            .write()
+                            .unwrap()
+                            .get_dispatcher()
+                            .write()
+                            .unwrap()
+                            .send(PropertiesEvent::GetProperties(widget_uid).as_boxed())
+                            .ok();
+
+                        if let Some(properties) =
+                            Gui::get()
+                                .write()
+                                .unwrap()
+                                .get_root_mut()
+                                .get_child_mut::<PropertiesPanel>(self.properties_id)
+                        {
+                            properties.reset();
+                            properties.add_string(
+                                "UID:",
+                                widget_uid.to_simple().to_string().as_str(),
+                                false,
+                            );
+                        }
                     }
                     _ => {}
                 }

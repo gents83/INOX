@@ -6,8 +6,8 @@ use nrg_platform::MouseEvent;
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{
-    implement_widget_with_custom_members, InternalWidget, TitleBar, TitleBarEvent, WidgetData,
-    WidgetEvent,
+    implement_widget_with_custom_members, InternalWidget, PropertiesEvent, TitleBar, TitleBarEvent,
+    WidgetData, WidgetEvent,
 };
 
 #[derive(Serialize, Deserialize)]
@@ -47,6 +47,7 @@ impl InternalWidget for GraphNode {
     fn widget_init(&mut self) {
         self.register_to_listen_event::<TitleBarEvent>()
             .register_to_listen_event::<WidgetEvent>()
+            .register_to_listen_event::<PropertiesEvent>()
             .register_to_listen_event::<MouseEvent>();
 
         if self.is_initialized() {
@@ -72,6 +73,7 @@ impl InternalWidget for GraphNode {
     fn widget_uninit(&mut self) {
         self.unregister_to_listen_event::<TitleBarEvent>()
             .unregister_to_listen_event::<WidgetEvent>()
+            .unregister_to_listen_event::<PropertiesEvent>()
             .unregister_to_listen_event::<MouseEvent>();
     }
     fn widget_process_message(&mut self, msg: &dyn Message) {

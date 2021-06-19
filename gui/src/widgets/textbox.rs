@@ -60,6 +60,14 @@ impl TextBox {
         let uid = self.label;
         if let Some(label) = self.node().get_child_mut::<Text>(uid) {
             label.set_text(text);
+        } else {
+            let mut label = Text::new(self.get_shared_data(), self.get_global_messenger());
+            label
+                .selectable(false)
+                .vertical_alignment(VerticalAlignment::Center);
+            label.set_text(text);
+
+            self.label = self.insert_child(0, Box::new(label));
         }
         self
     }
@@ -139,15 +147,7 @@ impl InternalWidget for TextBox {
             .space_between_elements(10)
             .use_space_before_and_after(false)
             .selectable(false)
-            .style(WidgetStyle::Invisible);
-
-        let mut label = Text::new(self.get_shared_data(), self.get_global_messenger());
-        label
-            .selectable(false)
-            .vertical_alignment(VerticalAlignment::Center);
-        label.set_text("Label: ");
-
-        self.label = self.add_child(Box::new(label));
+            .style(WidgetStyle::DefaultCanvas);
 
         let mut panel = Panel::new(self.get_shared_data(), self.get_global_messenger());
         panel
@@ -155,7 +155,7 @@ impl InternalWidget for TextBox {
             .draggable(false)
             .selectable(true)
             .horizontal_alignment(HorizontalAlignment::Stretch)
-            .style(WidgetStyle::Default);
+            .style(WidgetStyle::DefaultLight);
 
         let mut editable_text = Text::new(self.get_shared_data(), self.get_global_messenger());
         editable_text

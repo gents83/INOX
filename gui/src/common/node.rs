@@ -53,6 +53,13 @@ impl WidgetNode {
     }
 
     #[inline]
+    pub fn insert_child(&mut self, index: usize, mut widget: Box<dyn Widget>) -> &mut Self {
+        widget.node_mut().parent_id = self.id;
+        self.children.insert(index, Arc::new(RwLock::new(widget)));
+        self
+    }
+
+    #[inline]
     pub fn remove_children(&mut self) -> &mut Self {
         self.children.iter_mut().for_each(|w| {
             w.write().unwrap().node_mut().parent_id = INVALID_UID;
@@ -101,7 +108,8 @@ impl WidgetNode {
         if let Some(w) = result {
             let mut is_same_widget_type = <dyn Any>::is::<W>(&w);
             if !is_same_widget_type {
-                is_same_widget_type |= type_name::<W>().contains(w.read().unwrap().get_type());
+                is_same_widget_type |=
+                    type_name::<W>().contains(w.read().unwrap().get_type().as_str());
             }
             if is_same_widget_type {
                 unsafe {
@@ -124,7 +132,8 @@ impl WidgetNode {
         self.children.iter().for_each(|w| {
             let mut is_same_widget_type = w.read().unwrap().get_type_id() == TypeId::of::<W>();
             if !is_same_widget_type {
-                is_same_widget_type |= type_name::<W>().contains(w.read().unwrap().get_type());
+                is_same_widget_type |=
+                    type_name::<W>().contains(w.read().unwrap().get_type().as_str());
             }
             if is_same_widget_type {
                 result = Some(w.clone());
