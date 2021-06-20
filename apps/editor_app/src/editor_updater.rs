@@ -10,7 +10,9 @@ use super::nodes_registry::*;
 use super::widgets::*;
 
 use nrg_core::*;
-use nrg_graphics::*;
+use nrg_graphics::{
+    FontInstance, MaterialInstance, MeshData, MeshInstance, PipelineInstance, RenderPassInstance,
+};
 use nrg_gui::*;
 use nrg_messenger::{read_messages, Message, MessageChannel, MessengerRw};
 use nrg_platform::*;
@@ -228,6 +230,10 @@ impl EditorUpdater {
     }
 
     fn load_pipelines(&mut self) {
+        for render_pass_data in self.config.render_passes.iter() {
+            RenderPassInstance::create(&self.shared_data, render_pass_data);
+        }
+
         for pipeline_data in self.config.pipelines.iter() {
             PipelineInstance::create(&self.shared_data, pipeline_data);
         }
@@ -238,6 +244,17 @@ impl EditorUpdater {
             if let Some(default_font_path) = self.config.fonts.first() {
                 FontInstance::create_from_path(&self.shared_data, pipeline_id, default_font_path);
             }
+        }
+
+        if let Some(pipeline_data) = self.config.pipelines.iter().find(|p| p.name.eq("Grid")) {
+            let pipeline_id =
+                PipelineInstance::find_id_from_name(&self.shared_data, pipeline_data.name.as_str());
+            let material_id =
+                MaterialInstance::create_from_pipeline(&self.shared_data, pipeline_id);
+            let mut mesh_data = MeshData::default();
+            mesh_data.add_quad_default([-1., -1., 1., 1.].into(), 0.);
+            let mesh_id = MeshInstance::create(&self.shared_data, mesh_data);
+            MaterialInstance::add_mesh(&self.shared_data, material_id, mesh_id);
         }
     }
 

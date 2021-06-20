@@ -5,7 +5,7 @@ use std::{
 };
 
 use nrg_core::{App, JobHandlerRw, PhaseWithSystems, System, SystemId};
-use nrg_graphics::{FontInstance, PipelineInstance};
+use nrg_graphics::{FontInstance, PipelineInstance, RenderPassInstance};
 use nrg_gui::{
     BaseWidget, ContainerFillType, Gui, HorizontalAlignment, Icon, Panel, Screen, TitleBarEvent,
     VerticalAlignment, WidgetCreator, WidgetEvent, WidgetStyle,
@@ -97,6 +97,9 @@ impl LauncherSystem {
     }
 
     fn load_pipelines(&mut self) {
+        for render_pass_data in self.config.render_passes.iter() {
+            RenderPassInstance::create(&self.shared_data, render_pass_data);
+        }
         for pipeline_data in self.config.pipelines.iter() {
             PipelineInstance::create(&self.shared_data, pipeline_data);
         }

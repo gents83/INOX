@@ -1,21 +1,27 @@
 use super::device::*;
-use crate::common::data_formats::*;
+use crate::{common::data_formats::*, RenderPassId};
 
 #[derive(Clone)]
 pub struct RenderPass {
     inner: crate::api::backend::render_pass::RenderPass,
     device: Device,
+    id: RenderPassId,
 }
 
 impl RenderPass {
-    pub fn create_default(device: &Device, data: &RenderPassData) -> RenderPass {
+    pub fn create_default(device: &Device, id: RenderPassId, data: &RenderPassData) -> RenderPass {
         RenderPass {
             inner: crate::api::backend::render_pass::RenderPass::create_default(
                 &device.inner,
                 data,
             ),
             device: device.clone(),
+            id,
         }
+    }
+
+    pub fn id(&self) -> RenderPassId {
+        self.id
     }
 
     pub fn destroy(&mut self) {

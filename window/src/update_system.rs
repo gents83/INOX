@@ -97,21 +97,31 @@ impl System for UpdateSystem {
             }
         });
 
-        if SharedData::has_resources_of_type::<PipelineInstance>(&self.shared_data)
+        if SharedData::has_resources_of_type::<RenderPassInstance>(&self.shared_data)
+            && SharedData::has_resources_of_type::<PipelineInstance>(&self.shared_data)
             && SharedData::has_resources_of_type::<MaterialInstance>(&self.shared_data)
             && SharedData::has_resources_of_type::<TextureInstance>(&self.shared_data)
             && SharedData::has_resources_of_type::<FontInstance>(&self.shared_data)
         {
             let mut renderer = self.renderer.write().unwrap();
+            let mut render_passes =
+                SharedData::get_resources_of_type::<RenderPassInstance>(&self.shared_data);
             let mut pipelines =
                 SharedData::get_resources_of_type::<PipelineInstance>(&self.shared_data);
             let mut materials =
                 SharedData::get_resources_of_type::<MaterialInstance>(&self.shared_data);
+
             let mut textures =
                 SharedData::get_resources_of_type::<TextureInstance>(&self.shared_data);
             let fonts = SharedData::get_resources_of_type::<FontInstance>(&self.shared_data);
 
-            renderer.prepare_frame(&mut pipelines, &mut materials, &mut textures, &fonts);
+            renderer.prepare_frame(
+                &mut render_passes,
+                &mut pipelines,
+                &mut materials,
+                &mut textures,
+                &fonts,
+            );
         }
 
         let wait_count = Arc::new(AtomicUsize::new(0));

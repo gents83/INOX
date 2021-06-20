@@ -34,7 +34,7 @@ impl PipelineInstance {
             pipeline_data.has_same_shaders(&p.data) && p.data.name == pipeline_data.name
         })
     }
-    pub fn get_data(&self) -> &PipelineData {
+    pub fn data(&self) -> &PipelineData {
         &self.data
     }
     pub fn init(&mut self) -> &mut Self {

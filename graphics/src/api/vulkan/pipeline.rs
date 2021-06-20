@@ -57,8 +57,30 @@ impl Pipeline {
                         .get_swap_chain_info()
                         .capabilities
                         .currentExtent
-                        .width as _,
+                        .height as _,
                 },
+                view: Matrix4::look_at_rh(
+                    [0., 0., 0.].into(),
+                    [0., 0., 0.].into(),
+                    [0., 1., 0.].into(),
+                ),
+                proj: nrg_math::perspective(
+                    nrg_math::Deg(45.0),
+                    device
+                        .get_instance()
+                        .get_swap_chain_info()
+                        .capabilities
+                        .currentExtent
+                        .width as f32
+                        / device
+                            .get_instance()
+                            .get_swap_chain_info()
+                            .capabilities
+                            .currentExtent
+                            .height as f32,
+                    0.001,
+                    1000.0,
+                ),
             },
             descriptor_set_layout: ::std::ptr::null_mut(),
             descriptor_sets: Vec::new(),
@@ -124,8 +146,10 @@ impl Pipeline {
         self
     }
 
-    pub fn update_constant_data(&self) -> &Self {
-        self.inner.borrow_mut().update_constant_data(&self.device);
+    pub fn update_constant_data(&self, cam_pos: Vector3) -> &Self {
+        self.inner
+            .borrow_mut()
+            .update_constant_data(&self.device, cam_pos);
         self
     }
 
@@ -399,7 +423,7 @@ impl PipelineImmutable {
             flags: 0,
             depthTestEnable: VK_TRUE,
             depthWriteEnable: VK_TRUE,
-            depthCompareOp: VkCompareOp_VK_COMPARE_OP_LESS,
+            depthCompareOp: VkCompareOp_VK_COMPARE_OP_LESS_OR_EQUAL,
             depthBoundsTestEnable: VK_FALSE,
             stencilTestEnable: VK_FALSE,
             front: stencil_state,
@@ -413,8 +437,8 @@ impl PipelineImmutable {
             srcColorBlendFactor: VkBlendFactor_VK_BLEND_FACTOR_SRC_ALPHA,
             dstColorBlendFactor: VkBlendFactor_VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
             colorBlendOp: VkBlendOp_VK_BLEND_OP_ADD,
-            srcAlphaBlendFactor: VkBlendFactor_VK_BLEND_FACTOR_SRC_ALPHA,
-            dstAlphaBlendFactor: VkBlendFactor_VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
+            srcAlphaBlendFactor: VkBlendFactor_VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
+            dstAlphaBlendFactor: VkBlendFactor_VK_BLEND_FACTOR_ZERO,
             alphaBlendOp: VkBlendOp_VK_BLEND_OP_ADD,
             colorWriteMask: (VkColorComponentFlagBits_VK_COLOR_COMPONENT_R_BIT
                 | VkColorComponentFlagBits_VK_COLOR_COMPONENT_G_BIT
@@ -427,7 +451,7 @@ impl PipelineImmutable {
             sType: VkStructureType_VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
             pNext: ::std::ptr::null_mut(),
             flags: 0,
-            logicOpEnable: VK_TRUE,
+            logicOpEnable: VK_FALSE,
             logicOp: VkLogicOp_VK_LOGIC_OP_COPY,
             attachmentCount: 1,
             pAttachments: &color_blend_attachment,
@@ -596,7 +620,7 @@ impl PipelineImmutable {
     }
 
     fn fill_instance_buffer(&mut self, device: &Device, instances: &[InstanceData]) -> &mut Self {
-        if instances.len() >= self.instance_buffer_count {
+        if instances.len() > self.instance_buffer_count {
             device.destroy_buffer(&self.instance_buffer, &self.instance_buffer_memory);
             self.instance_buffer_count = instances.len() * 2;
             let buffer_size = std::mem::size_of::<InstanceData>() * self.instance_buffer_count;
@@ -612,7 +636,9 @@ impl PipelineImmutable {
                 &mut self.instance_buffer_memory,
             );
         }
-        device.map_buffer_memory(&mut self.instance_buffer_memory, 0, instances);
+        if !instances.is_empty() {
+            device.map_buffer_memory(&mut self.instance_buffer_memory, 0, instances);
+        }
         self
     }
 
@@ -622,6 +648,9 @@ impl PipelineImmutable {
         commands: &[InstanceCommand],
     ) -> &mut Self {
         self.indirect_commands.clear();
+        if commands.is_empty() {
+            return self;
+        }
 
         for c in commands.iter() {
             let indirect_command = VkDrawIndexedIndirectCommand {
@@ -634,7 +663,7 @@ impl PipelineImmutable {
             self.indirect_commands.push(indirect_command);
         }
 
-        if commands.len() >= self.indirect_command_buffer_count {
+        if commands.len() > self.indirect_command_buffer_count {
             device.destroy_buffer(
                 &self.indirect_command_buffer,
                 &self.indirect_command_buffer_memory,
@@ -655,11 +684,13 @@ impl PipelineImmutable {
             );
         }
 
-        device.map_buffer_memory(
-            &mut self.indirect_command_buffer_memory,
-            0,
-            self.indirect_commands.as_slice(),
-        );
+        if !self.indirect_commands.is_empty() {
+            device.map_buffer_memory(
+                &mut self.indirect_command_buffer_memory,
+                0,
+                self.indirect_commands.as_slice(),
+            );
+        }
 
         self
     }
@@ -691,10 +722,22 @@ impl PipelineImmutable {
         }
     }
 
-    fn update_constant_data(&mut self, device: &Device) {
+    fn update_constant_data(&mut self, device: &Device, cam_pos: Vector3) {
         let details = device.get_instance().get_swap_chain_info();
         self.constant_data.screen_size.x = details.capabilities.currentExtent.width as _;
         self.constant_data.screen_size.y = details.capabilities.currentExtent.height as _;
+        self.constant_data.view = Matrix4::look_at_rh(
+            [cam_pos.x, cam_pos.y, cam_pos.z].into(),
+            [0., 0., 0.].into(),
+            [0., 1., 0.].into(),
+        );
+        self.constant_data.proj = nrg_math::perspective(
+            nrg_math::Deg(45.0),
+            details.capabilities.currentExtent.width as f32
+                / details.capabilities.currentExtent.height as f32,
+            0.001,
+            1000.0,
+        );
 
         let data = [self.constant_data];
         unsafe {
@@ -719,21 +762,11 @@ impl PipelineImmutable {
                 [0., 0., 0.].into(),
                 [0., 1., 0.].into(),
             ),
-            /*
             proj: nrg_math::perspective(
                 nrg_math::Deg(45.0),
                 details.capabilities.currentExtent.width as f32
                     / details.capabilities.currentExtent.height as f32,
                 0.001,
-                1000.0,
-            ),
-            */
-            proj: nrg_math::ortho(
-                0.,
-                details.capabilities.currentExtent.width as f32,
-                0.,
-                details.capabilities.currentExtent.height as f32,
-                0.0,
                 1000.0,
             ),
         }];

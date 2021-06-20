@@ -1,5 +1,5 @@
-use crate::FontInstance;
-use crate::{MaterialInstance, Pipeline, PipelineInstance, TextureInstance};
+use crate::{FontInstance, MaterialInstance, RenderPass, RenderPassInstance};
+use crate::{Pipeline, PipelineInstance, TextureInstance};
 use nrg_math::*;
 use nrg_platform::*;
 use nrg_resources::{get_absolute_path_from, ResourceRc, ResourceTrait, DATA_FOLDER};
@@ -28,6 +28,7 @@ pub struct Renderer {
     texture_handler: TextureHandler,
     state: RendererState,
     pipelines: Vec<Pipeline>,
+    render_passes: Vec<RenderPass>,
 }
 pub type RendererRw = Arc<RwLock<Renderer>>;
 
@@ -40,12 +41,13 @@ impl Renderer {
         let device = Device::create(&instance);
         let texture_handler = TextureHandler::create(&device);
         Renderer {
+            render_passes: Vec::new(),
+            pipelines: Vec::new(),
             instance,
             device,
             viewport: Viewport::default(),
             scissors: Scissors::default(),
             texture_handler,
-            pipelines: Vec::new(),
             state: RendererState::Init,
         }
     }
@@ -68,12 +70,14 @@ impl Renderer {
 
     pub fn prepare_frame(
         &mut self,
+        render_passes: &mut [ResourceRc<RenderPassInstance>],
         pipelines: &mut [ResourceRc<PipelineInstance>],
         materials: &mut [ResourceRc<MaterialInstance>],
         textures: &mut [ResourceRc<TextureInstance>],
         fonts: &[ResourceRc<FontInstance>],
     ) -> &mut Self {
         nrg_profiler::scoped_profile!("renderer::prepare_frame");
+        self.load_render_passes(render_passes);
         self.load_pipelines(pipelines);
         self.load_textures(textures, fonts);
 
@@ -117,83 +121,94 @@ impl Renderer {
         if success {
             nrg_profiler::scoped_profile!("renderer::draw");
 
-            for (pipeline_index, pipeline) in self.pipelines.iter_mut().enumerate() {
-                if !pipeline.is_empty() {
-                    nrg_profiler::scoped_profile!(format!(
-                        "renderer::draw_pipeline[{}]",
-                        pipeline_index
-                    )
-                    .as_str());
+            for (render_pass_index, render_pass) in self.render_passes.iter_mut().enumerate() {
+                nrg_profiler::scoped_profile!(format!(
+                    "renderer::render_pass[{}]",
+                    render_pass_index
+                )
+                .as_str());
 
-                    {
+                render_pass.begin();
+
+                for (pipeline_index, pipeline) in self.pipelines.iter_mut().enumerate() {
+                    if !pipeline.is_empty() {
                         nrg_profiler::scoped_profile!(format!(
-                            "renderer::update_uniforms_and_descriptors[{}]",
+                            "renderer::draw_pipeline[{}]",
                             pipeline_index
                         )
                         .as_str());
-                        pipeline.update_constant_data();
-                        pipeline.update_uniform_buffer([0., 0., 800.].into());
-                        pipeline.update_descriptor_sets(self.texture_handler.get_textures());
-                    }
 
-                    {
-                        nrg_profiler::scoped_profile!(format!(
-                            "renderer::draw_pipeline_begin[{}]",
-                            pipeline_index
-                        )
-                        .as_str());
-                        pipeline.begin();
-                    }
+                        {
+                            nrg_profiler::scoped_profile!(format!(
+                                "renderer::update_uniforms_and_descriptors[{}]",
+                                pipeline_index
+                            )
+                            .as_str());
+                            pipeline.update_runtime_data([0., 0., -10.].into());
+                            pipeline.update_descriptor_sets(self.texture_handler.get_textures());
+                        }
 
-                    {
-                        nrg_profiler::scoped_profile!(format!(
-                            "renderer::draw_pipeline_call[{}]",
-                            pipeline_index
-                        )
-                        .as_str());
                         {
                             nrg_profiler::scoped_profile!(format!(
-                                "renderer::draw_pipeline_call[{}]_bind_vertices",
+                                "renderer::draw_pipeline_begin[{}]",
                                 pipeline_index
                             )
                             .as_str());
-                            pipeline.bind_vertices();
+                            pipeline.begin();
                         }
-                        {
-                            nrg_profiler::scoped_profile!(format!(
-                                "renderer::draw_pipeline_call[{}]_bind_indirect",
-                                pipeline_index
-                            )
-                            .as_str());
-                            pipeline.bind_indirect();
-                        }
-                        {
-                            nrg_profiler::scoped_profile!(format!(
-                                "renderer::draw_pipeline_call[{}]_bind_indices",
-                                pipeline_index
-                            )
-                            .as_str());
-                            pipeline.bind_indices();
-                        }
-                        {
-                            nrg_profiler::scoped_profile!(format!(
-                                "renderer::draw_pipeline_call[{}]_draw_indirect",
-                                pipeline_index
-                            )
-                            .as_str());
-                            pipeline.draw_indirect();
-                        }
-                    }
 
-                    {
-                        nrg_profiler::scoped_profile!(format!(
-                            "renderer::draw_pipeline_end[{}]",
-                            pipeline_index
-                        )
-                        .as_str());
-                        pipeline.end();
+                        {
+                            nrg_profiler::scoped_profile!(format!(
+                                "renderer::draw_pipeline_call[{}]",
+                                pipeline_index
+                            )
+                            .as_str());
+                            {
+                                nrg_profiler::scoped_profile!(format!(
+                                    "renderer::draw_pipeline_call[{}]_bind_vertices",
+                                    pipeline_index
+                                )
+                                .as_str());
+                                pipeline.bind_vertices();
+                            }
+                            {
+                                nrg_profiler::scoped_profile!(format!(
+                                    "renderer::draw_pipeline_call[{}]_bind_indirect",
+                                    pipeline_index
+                                )
+                                .as_str());
+                                pipeline.bind_indirect();
+                            }
+                            {
+                                nrg_profiler::scoped_profile!(format!(
+                                    "renderer::draw_pipeline_call[{}]_bind_indices",
+                                    pipeline_index
+                                )
+                                .as_str());
+                                pipeline.bind_indices();
+                            }
+                            {
+                                nrg_profiler::scoped_profile!(format!(
+                                    "renderer::draw_pipeline_call[{}]_draw_indirect",
+                                    pipeline_index
+                                )
+                                .as_str());
+                                pipeline.draw_indirect();
+                            }
+                        }
+
+                        {
+                            nrg_profiler::scoped_profile!(format!(
+                                "renderer::draw_pipeline_end[{}]",
+                                pipeline_index
+                            )
+                            .as_str());
+                            pipeline.end();
+                        }
                     }
                 }
+
+                render_pass.end();
             }
 
             success = self.end_frame();
@@ -209,10 +224,41 @@ impl Renderer {
         self.device.recreate_swap_chain();
         self.pipelines.iter_mut().for_each(|p| p.destroy());
         self.pipelines.clear();
+        self.render_passes.iter_mut().for_each(|r| r.destroy());
+        self.render_passes.clear();
     }
 }
 
 impl Renderer {
+    fn load_render_passes(&mut self, render_passes: &mut [ResourceRc<RenderPassInstance>]) {
+        nrg_profiler::scoped_profile!("renderer::load_render_passes");
+        render_passes.iter_mut().for_each(|render_pass_instance| {
+            let mut should_create = false;
+            if let Some(index) = self
+                .render_passes
+                .iter()
+                .position(|r| r.id() == render_pass_instance.id())
+            {
+                if !render_pass_instance.get().is_initialized() {
+                    //render pass needs to be recreated
+                    let mut render_pass = self.render_passes.remove(index);
+                    render_pass.destroy();
+                    should_create = true;
+                }
+            } else {
+                should_create = true;
+            }
+            if should_create {
+                let device = &mut self.device;
+                self.render_passes.push(RenderPass::create_default(
+                    device,
+                    render_pass_instance.id(),
+                    render_pass_instance.get().data(),
+                ));
+                render_pass_instance.get_mut().init();
+            }
+        });
+    }
     fn load_pipelines(&mut self, pipelines: &mut [ResourceRc<PipelineInstance>]) {
         nrg_profiler::scoped_profile!("renderer::load_pipelines");
         pipelines.iter_mut().for_each(|pipeline_instance| {
@@ -236,7 +282,8 @@ impl Renderer {
                 self.pipelines.push(Pipeline::create(
                     device,
                     pipeline_instance.id(),
-                    pipeline_instance.get().get_data(),
+                    pipeline_instance.get().data(),
+                    self.render_passes.first().unwrap(),
                 ));
                 pipeline_instance.get_mut().init();
             }
@@ -279,8 +326,6 @@ impl Renderer {
 
     fn prepare_pipelines(&mut self) {
         nrg_profiler::scoped_profile!("renderer::prepare_pipelines");
-        self.pipelines
-            .sort_by(|a, b| a.get_data().data.index.cmp(&b.get_data().data.index));
         self.pipelines.iter_mut().for_each(|pipeline| {
             pipeline.prepare();
         });
@@ -295,18 +340,13 @@ impl Renderer {
         materials.sort_by(|a, b| {
             let pipeline_a = pipelines
                 .iter()
-                .find(|&p| p.id() == a.get().get_pipeline_id())
+                .position(|p| p.id() == a.get().get_pipeline_id())
                 .unwrap();
             let pipeline_b = pipelines
                 .iter()
-                .find(|&p| p.id() == b.get().get_pipeline_id())
+                .position(|p| p.id() == b.get().get_pipeline_id())
                 .unwrap();
-            pipeline_a
-                .get()
-                .get_data()
-                .data
-                .index
-                .cmp(&pipeline_b.get().get_data().data.index)
+            pipeline_a.cmp(&pipeline_b)
         });
     }
 }

@@ -46,6 +46,8 @@ pub struct UniformData {
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct ConstantData {
     pub screen_size: Vector2,
+    pub view: Matrix4,
+    pub proj: Matrix4,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Copy)]
@@ -72,7 +74,8 @@ impl Default for VertexData {
 #[serde(crate = "nrg_serialize")]
 pub struct RenderPassData {
     pub clear: bool,
-    pub index: i32,
+    pub clear_depth: bool,
+    pub name: String,
 }
 unsafe impl Send for RenderPassData {}
 unsafe impl Sync for RenderPassData {}
@@ -81,7 +84,8 @@ impl Default for RenderPassData {
     fn default() -> Self {
         Self {
             clear: true,
-            index: -1,
+            clear_depth: true,
+            name: String::new(),
         }
     }
 }
@@ -90,7 +94,6 @@ impl Default for RenderPassData {
 #[serde(crate = "nrg_serialize")]
 pub struct PipelineData {
     pub name: String,
-    pub data: RenderPassData,
     pub fragment_shader: PathBuf,
     pub vertex_shader: PathBuf,
     pub tcs_shader: PathBuf,
@@ -104,7 +107,6 @@ impl Default for PipelineData {
     fn default() -> Self {
         Self {
             name: String::from("3D"),
-            data: RenderPassData::default(),
             fragment_shader: PathBuf::new(),
             vertex_shader: PathBuf::new(),
             tcs_shader: PathBuf::new(),

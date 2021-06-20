@@ -100,10 +100,10 @@ impl RenderPassImmutable {
             samples: VkSampleCountFlagBits_VK_SAMPLE_COUNT_1_BIT,
             loadOp: match data.clear {
                 true => VkAttachmentLoadOp_VK_ATTACHMENT_LOAD_OP_CLEAR,
-                _ => VkAttachmentLoadOp_VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+                _ => VkAttachmentLoadOp_VK_ATTACHMENT_LOAD_OP_LOAD,
             },
             storeOp: VkAttachmentStoreOp_VK_ATTACHMENT_STORE_OP_STORE,
-            stencilLoadOp: VkAttachmentLoadOp_VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+            stencilLoadOp: VkAttachmentLoadOp_VK_ATTACHMENT_LOAD_OP_CLEAR,
             stencilStoreOp: VkAttachmentStoreOp_VK_ATTACHMENT_STORE_OP_DONT_CARE,
             initialLayout: VkImageLayout_VK_IMAGE_LAYOUT_UNDEFINED,
             finalLayout: VkImageLayout_VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
@@ -118,9 +118,9 @@ impl RenderPassImmutable {
             flags: 0,
             format: find_depth_format(device.get_instance().get_physical_device()),
             samples: VkSampleCountFlagBits_VK_SAMPLE_COUNT_1_BIT,
-            loadOp: match data.clear {
+            loadOp: match data.clear_depth {
                 true => VkAttachmentLoadOp_VK_ATTACHMENT_LOAD_OP_CLEAR,
-                _ => VkAttachmentLoadOp_VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+                _ => VkAttachmentLoadOp_VK_ATTACHMENT_LOAD_OP_LOAD,
             },
             storeOp: VkAttachmentStoreOp_VK_ATTACHMENT_STORE_OP_STORE,
             stencilLoadOp: VkAttachmentLoadOp_VK_ATTACHMENT_LOAD_OP_CLEAR,

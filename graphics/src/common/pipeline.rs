@@ -14,7 +14,6 @@ pub struct Pipeline {
     pub inner: crate::api::backend::pipeline::Pipeline,
     id: PipelineId,
     data: PipelineData,
-    render_pass: RenderPass,
     mesh: Mesh,
     vertex_count: u32,
     index_count: u32,
@@ -30,11 +29,14 @@ impl Pipeline {
         self.id
     }
 
-    pub fn create(device: &Device, id: PipelineId, data: &PipelineData) -> Pipeline {
+    pub fn create(
+        device: &Device,
+        id: PipelineId,
+        data: &PipelineData,
+        render_pass: &RenderPass,
+    ) -> Pipeline {
         //TODO pipeline could be reused - while instance should be unique
         let mut pipeline = crate::api::backend::pipeline::Pipeline::create(&device.inner);
-
-        let render_pass = RenderPass::create_default(&device, &data.data);
 
         pipeline
             .set_shader(ShaderType::Vertex, data.vertex_shader.as_path())
@@ -57,7 +59,6 @@ impl Pipeline {
             inner: pipeline,
             id,
             data: data.clone(),
-            render_pass,
             mesh: Mesh::create(device),
             vertex_count: 0,
             index_count: 0,
@@ -83,15 +84,9 @@ impl Pipeline {
     }
 
     pub fn destroy(&mut self) {
-        self.render_pass.destroy();
         self.inner.delete();
     }
 
-    pub fn recreate(&mut self, device: &Device) {
-        self.render_pass.destroy();
-        let render_pass = RenderPass::create_default(device, &self.data.data);
-        self.render_pass = render_pass;
-    }
     pub fn prepare(&mut self) -> &mut Self {
         self.vertex_count = 0;
         self.index_count = 0;
@@ -100,23 +95,17 @@ impl Pipeline {
     }
 
     pub fn begin(&mut self) -> &mut Self {
-        self.render_pass.begin();
         self.inner
             .bind(&self.instance_commands, &self.instance_data)
             .bind_descriptors();
         self
     }
 
-    pub fn update_constant_data(&self) -> &Self {
-        self.inner.update_constant_data();
-        self
-    }
-
-    pub fn update_uniform_buffer(&self, cam_pos: Vector3) -> &Self {
+    pub fn update_runtime_data(&self, cam_pos: Vector3) -> &Self {
+        self.inner.update_constant_data(cam_pos);
         self.inner.update_uniform_buffer(cam_pos);
         self
     }
-
     pub fn update_descriptor_sets(&self, textures: &[TextureAtlas]) -> &Self {
         self.inner.update_descriptor_sets(textures);
         self
@@ -141,7 +130,6 @@ impl Pipeline {
     }
 
     pub fn end(&mut self) -> &mut Self {
-        self.render_pass.end();
         self
     }
 

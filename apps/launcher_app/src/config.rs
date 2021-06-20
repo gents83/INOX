@@ -1,4 +1,4 @@
-use nrg_graphics::PipelineData;
+use nrg_graphics::{PipelineData, RenderPassData};
 use nrg_resources::{ConfigBase, Data};
 use nrg_serialize::*;
 use std::path::PathBuf;
@@ -13,6 +13,7 @@ pub struct Config {
     pub height: u32,
     pub scale_factor: f32,
     pub fonts: Vec<PathBuf>,
+    pub render_passes: Vec<RenderPassData>,
     pub pipelines: Vec<PipelineData>,
 }
 
@@ -26,6 +27,7 @@ impl Default for Config {
             height: 720,
             scale_factor: 1.,
             fonts: Vec::new(),
+            render_passes: Vec::new(),
             pipelines: Vec::new(),
         }
     }
