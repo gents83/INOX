@@ -71,7 +71,12 @@ impl ShaderCompiler {
             from_source_to_temp.replace(source_ext.as_str(), destination_ext.as_str());
 
         Command::new(self.glsl_compiler.to_str().unwrap())
-            .args(&[path.to_str().unwrap(), "-o", from_source_to_temp.as_str()])
+            .args(&[
+                "--target-env=vulkan",
+                path.to_str().unwrap(),
+                "-o",
+                from_source_to_temp.as_str(),
+            ])
             .spawn()
             .is_ok()
     }

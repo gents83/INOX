@@ -1,10 +1,14 @@
 #version 450
 
+layout(std140, push_constant) uniform PushConsts {
+    mat4 view;
+    mat4 proj;
+	vec2 screen_size;
+} pushConsts;
+
 layout(location = 0) in vec4 inColor;
 layout(location = 1) in vec3 nearPoint; 
 layout(location = 2) in vec3 farPoint; 
-layout(location = 3) in mat4 matView; 
-layout(location = 7) in mat4 matProj; 
 
 //Output
 layout(location = 0) out vec4 outColor;
@@ -30,11 +34,11 @@ vec4 grid(vec3 fragPos3D, float scale, bool drawAxis) {
     return color;
 }
 float computeDepth(vec3 pos) {
-    vec4 clip_space_pos = matProj * matView * vec4(pos.xyz, 1.0);
+    vec4 clip_space_pos = pushConsts.proj * pushConsts.view * vec4(pos.xyz, 1.0);
     return (clip_space_pos.z / clip_space_pos.w);
 }
 float computeLinearDepth(vec3 pos) {
-    vec4 clip_space_pos = matProj * matView * vec4(pos.xyz, 1.0);
+    vec4 clip_space_pos = pushConsts.proj * pushConsts.view * vec4(pos.xyz, 1.0);
     float clip_space_depth = (clip_space_pos.z / clip_space_pos.w) * 2.0 - 1.0; // put back between -1 and 1
     float linearDepth = (2.0 * MIN_GRID_DISTANCE * MAX_GRID_DISTANCE) / (MAX_GRID_DISTANCE + MIN_GRID_DISTANCE - clip_space_depth * (MAX_GRID_DISTANCE - MIN_GRID_DISTANCE)); // get linear value between 0.01 and 100
     return linearDepth / MAX_GRID_DISTANCE; // normalize

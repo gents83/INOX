@@ -1,6 +1,9 @@
 #version 450
+precision highp float;
 
-layout(push_constant) uniform PushConsts {
+layout(std140, push_constant) uniform PushConsts {
+    mat4 view;
+    mat4 proj;
 	vec2 screen_size;
 } pushConsts;
 

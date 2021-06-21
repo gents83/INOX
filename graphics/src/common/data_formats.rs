@@ -6,12 +6,14 @@ use nrg_math::*;
 use nrg_resources::{get_absolute_path_from, DATA_FOLDER};
 use nrg_serialize::*;
 
+#[repr(C)]
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct InstanceCommand {
     pub mesh_index: usize,
     pub mesh_data_ref: MeshDataRef,
 }
 
+#[repr(C)]
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct InstanceData {
     pub position: Vector3,
@@ -38,18 +40,33 @@ impl Default for InstanceData {
         }
     }
 }
+#[repr(C, align(16))]
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct UniformData {
     pub view: Matrix4,
     pub proj: Matrix4,
 }
+#[repr(C, align(16))]
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct ConstantData {
-    pub screen_size: Vector2,
-    pub view: Matrix4,
-    pub proj: Matrix4,
+    pub view: [[f32; 4]; 4],
+    pub proj: [[f32; 4]; 4],
+    pub screen_width: f32,
+    pub screen_height: f32,
 }
 
+impl Default for ConstantData {
+    fn default() -> Self {
+        Self {
+            view: [[0.; 4]; 4],
+            proj: [[0.; 4]; 4],
+            screen_width: 0.,
+            screen_height: 0.,
+        }
+    }
+}
+
+#[repr(C)]
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Copy)]
 #[serde(crate = "nrg_serialize")]
 pub struct VertexData {
@@ -70,6 +87,7 @@ impl Default for VertexData {
     }
 }
 
+#[repr(C)]
 #[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Clone)]
 #[serde(crate = "nrg_serialize")]
 pub struct RenderPassData {
@@ -90,6 +108,7 @@ impl Default for RenderPassData {
     }
 }
 
+#[repr(C)]
 #[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Clone)]
 #[serde(crate = "nrg_serialize")]
 pub struct PipelineData {
@@ -150,6 +169,7 @@ impl PipelineData {
     }
 }
 
+#[repr(C)]
 #[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Clone)]
 #[serde(crate = "nrg_serialize")]
 pub struct MaterialData {
@@ -168,6 +188,7 @@ impl Default for MaterialData {
     }
 }
 
+#[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct MeshDataRef {
     pub first_vertex: u32,
@@ -176,6 +197,7 @@ pub struct MeshDataRef {
     pub last_index: u32,
 }
 
+#[repr(C)]
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 #[serde(crate = "nrg_serialize")]
 pub struct MeshData {

@@ -144,7 +144,7 @@ impl Renderer {
                                 pipeline_index
                             )
                             .as_str());
-                            pipeline.update_runtime_data([0., 0., -10.].into());
+                            pipeline.update_runtime_data([0., 2., -2.].into());
                             pipeline.update_descriptor_sets(self.texture_handler.get_textures());
                         }
 

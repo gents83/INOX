@@ -7,3 +7,5 @@ NRG.code-workspace
 Cargo.lock
 Cargo.lock
 app.nrg_profile
+vert.spv
+frag.spv

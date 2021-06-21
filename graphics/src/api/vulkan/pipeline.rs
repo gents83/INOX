@@ -7,13 +7,21 @@ use crate::common::texture::MAX_TEXTURE_COUNT;
 use crate::common::texture::*;
 use crate::common::utils::*;
 
-use nrg_math::Vector2;
+use nrg_math::matrix4_to_array;
 use nrg_math::{Matrix4, Vector3};
 use nrg_resources::get_absolute_path_from;
 use nrg_resources::DATA_FOLDER;
 use std::path::PathBuf;
 use std::{cell::RefCell, path::Path, rc::Rc};
 use vulkan_bindings::*;
+
+#[rustfmt::skip]
+const OPENGL_TO_VULKAN_MATRIX: Matrix4 = Matrix4::new(
+    1.0, 0.0, 0.0, 0.0,
+    0.0, -1.0, 0.0, 0.0,
+    0.0, 0.0, 0.5, 0.0,
+    0.0, 0.0, 0.5, 1.0,
+);
 
 pub struct PipelineImmutable {
     constant_data: ConstantData,
@@ -44,44 +52,7 @@ pub struct Pipeline {
 impl Pipeline {
     pub fn create(device: &Device) -> Pipeline {
         let immutable = PipelineImmutable {
-            constant_data: ConstantData {
-                screen_size: Vector2 {
-                    x: device
-                        .get_instance()
-                        .get_swap_chain_info()
-                        .capabilities
-                        .currentExtent
-                        .width as _,
-                    y: device
-                        .get_instance()
-                        .get_swap_chain_info()
-                        .capabilities
-                        .currentExtent
-                        .height as _,
-                },
-                view: Matrix4::look_at_rh(
-                    [0., 0., 0.].into(),
-                    [0., 0., 0.].into(),
-                    [0., 1., 0.].into(),
-                ),
-                proj: nrg_math::perspective(
-                    nrg_math::Deg(45.0),
-                    device
-                        .get_instance()
-                        .get_swap_chain_info()
-                        .capabilities
-                        .currentExtent
-                        .width as f32
-                        / device
-                            .get_instance()
-                            .get_swap_chain_info()
-                            .capabilities
-                            .currentExtent
-                            .height as f32,
-                    0.001,
-                    1000.0,
-                ),
-            },
+            constant_data: ConstantData::default(),
             descriptor_set_layout: ::std::ptr::null_mut(),
             descriptor_sets: Vec::new(),
             descriptor_pool: ::std::ptr::null_mut(),
@@ -724,22 +695,23 @@ impl PipelineImmutable {
 
     fn update_constant_data(&mut self, device: &Device, cam_pos: Vector3) {
         let details = device.get_instance().get_swap_chain_info();
-        self.constant_data.screen_size.x = details.capabilities.currentExtent.width as _;
-        self.constant_data.screen_size.y = details.capabilities.currentExtent.height as _;
-        self.constant_data.view = Matrix4::look_at_rh(
+        self.constant_data.screen_width = details.capabilities.currentExtent.width as _;
+        self.constant_data.screen_height = details.capabilities.currentExtent.height as _;
+        self.constant_data.view = matrix4_to_array(Matrix4::look_at_rh(
             [cam_pos.x, cam_pos.y, cam_pos.z].into(),
             [0., 0., 0.].into(),
             [0., 1., 0.].into(),
-        );
-        self.constant_data.proj = nrg_math::perspective(
-            nrg_math::Deg(45.0),
-            details.capabilities.currentExtent.width as f32
-                / details.capabilities.currentExtent.height as f32,
-            0.001,
-            1000.0,
-        );
+        ));
+        let perspective = OPENGL_TO_VULKAN_MATRIX
+            * nrg_math::perspective(
+                nrg_math::Deg(45.),
+                details.capabilities.currentExtent.width as f32
+                    / details.capabilities.currentExtent.height as f32,
+                0.001,
+                1000.0,
+            );
+        self.constant_data.proj = matrix4_to_array(perspective);
 
-        let data = [self.constant_data];
         unsafe {
             vkCmdPushConstants.unwrap()(
                 device.get_current_command_buffer(),
@@ -747,8 +719,8 @@ impl PipelineImmutable {
                 (VkShaderStageFlagBits_VK_SHADER_STAGE_VERTEX_BIT
                     | VkShaderStageFlagBits_VK_SHADER_STAGE_FRAGMENT_BIT) as _,
                 0,
-                ::std::mem::size_of::<ConstantData>() as _,
-                data.as_ptr() as _,
+                (2 + 16 + 16) * ::std::mem::size_of::<f32>() as u32,
+                &self.constant_data as *const ConstantData as _,
             );
         }
     }
@@ -756,14 +728,15 @@ impl PipelineImmutable {
     fn update_uniform_buffer(&mut self, device: &Device, cam_pos: Vector3) {
         let image_index = device.get_current_buffer_index();
         let details = device.get_instance().get_swap_chain_info();
+        let angle_in_radians: nrg_math::Rad<f64> = nrg_math::Deg(45.).into();
         let uniform_data: [UniformData; 1] = [UniformData {
             view: Matrix4::look_at_rh(
                 [cam_pos.x, cam_pos.y, cam_pos.z].into(),
                 [0., 0., 0.].into(),
                 [0., 1., 0.].into(),
             ),
-            proj: nrg_math::perspective(
-                nrg_math::Deg(45.0),
+            proj: nrg_math::create_perspective(
+                angle_in_radians.0 as _,
                 details.capabilities.currentExtent.width as f32
                     / details.capabilities.currentExtent.height as f32,
                 0.001,

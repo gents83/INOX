@@ -113,3 +113,36 @@ pub fn get_translation_rotation_scale(mat: &Matrix4) -> (Vector3, Vector3, Vecto
     let rotation: Vector3 = [-theta1, -theta2, -theta3].into();
     (translation, rotation, scale)
 }
+
+pub fn create_perspective<S: BaseFloat>(
+    field_of_view: S,
+    aspect_ratio: S,
+    near_plane: S,
+    far_plane: S,
+) -> cgmath::Matrix4<S> {
+    let half: S = num_traits::cast(0.5).unwrap();
+    let f: S = S::one() / S::tan(half * field_of_view);
+
+    cgmath::Matrix4::new(
+        f / aspect_ratio,
+        S::zero(),
+        S::zero(),
+        S::zero(),
+        S::zero(),
+        -f,
+        S::zero(),
+        S::zero(),
+        S::zero(),
+        S::zero(),
+        far_plane / (near_plane - far_plane),
+        -S::one(),
+        S::zero(),
+        S::zero(),
+        (near_plane * far_plane) / (near_plane - far_plane),
+        S::zero(),
+    )
+}
+
+pub fn matrix4_to_array(mat: Matrix4) -> [[f32; 4]; 4] {
+    mat.into()
+}
