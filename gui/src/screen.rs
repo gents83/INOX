@@ -1,4 +1,7 @@
-use std::{borrow::Borrow, cell::RefCell, sync::Arc, sync::Once};
+use std::{
+    sync::Once,
+    sync::{Arc, RwLock},
+};
 
 use nrg_math::{Vector2, Vector4};
 
@@ -20,58 +23,47 @@ impl Default for ScreenData {
     }
 }
 
-static mut SCREEN_DATA: Option<Arc<RefCell<ScreenData>>> = None;
+static mut SCREEN_DATA: Option<Arc<RwLock<ScreenData>>> = None;
 static mut INIT: Once = Once::new();
 
 pub struct Screen {}
 
 impl Screen {
     #[inline]
-    fn get_and_init_once() -> &'static Option<Arc<RefCell<ScreenData>>> {
+    fn get() -> Arc<RwLock<ScreenData>> {
         unsafe {
             INIT.call_once(|| {
-                SCREEN_DATA = Some(Arc::new(RefCell::new(ScreenData::default())));
+                SCREEN_DATA = Some(Arc::new(RwLock::new(ScreenData::default())));
             });
-            &SCREEN_DATA
+            SCREEN_DATA.as_ref().unwrap().clone()
         }
     }
 
     #[inline]
-    fn get() -> &'static RefCell<ScreenData> {
-        let screen_data = Screen::get_and_init_once();
-        screen_data.as_ref().unwrap().borrow()
-    }
-
-    #[inline]
     pub fn create(width: u32, height: u32, scale_factor: f32) {
-        let mut screen_data = Screen::get().borrow_mut();
-        screen_data.size = Vector2::new(width as _, height as _);
-        screen_data.scale_factor = scale_factor;
+        Screen::get().write().unwrap().size = Vector2::new(width as _, height as _);
+        Screen::get().write().unwrap().scale_factor = scale_factor;
     }
 
     #[inline]
     pub fn change_scale_factor(scale_factor: f32) {
-        let mut inner = Screen::get().borrow_mut();
-        inner.scale_factor = scale_factor;
+        Screen::get().write().unwrap().scale_factor = scale_factor;
     }
 
     #[inline]
     pub fn change_size(width: u32, height: u32) {
-        let mut inner = Screen::get().borrow_mut();
-        inner.size = Vector2::new(width as _, height as _);
+        Screen::get().write().unwrap().size = Vector2::new(width as _, height as _);
     }
 
     #[inline]
     pub fn get_draw_area() -> Vector4 {
-        let inner = Screen::get().borrow();
-        let size = inner.size;
+        let size = Screen::get().read().unwrap().size;
         [0., 0., size.x as _, size.y as _].into()
     }
 
     #[inline]
     pub fn get_size() -> Vector2 {
-        let inner = Screen::get().borrow();
-        inner.size
+        Screen::get().read().unwrap().size
     }
 
     #[inline]
@@ -81,43 +73,42 @@ impl Screen {
 
     #[inline]
     pub fn get_scale_factor() -> f32 {
-        let inner = Screen::get().borrow();
-        inner.scale_factor
+        Screen::get().read().unwrap().scale_factor
     }
 
     #[inline]
     pub fn from_normalized_into_pixels(normalized_value: Vector2) -> Vector2 {
-        let inner = Screen::get().borrow();
+        let size = Screen::get().read().unwrap().size;
         Vector2::new(
-            (normalized_value.x * inner.size.x as f32) as _,
-            (normalized_value.y * inner.size.y as f32) as _,
+            (normalized_value.x * size.x as f32) as _,
+            (normalized_value.y * size.y as f32) as _,
         )
     }
 
     #[inline]
     pub fn from_pixels_into_normalized(value_in_px: Vector2) -> Vector2 {
-        let inner = Screen::get().borrow();
+        let size = Screen::get().read().unwrap().size;
         Vector2::new(
-            value_in_px.x as f32 / inner.size.x as f32,
-            value_in_px.y as f32 / inner.size.y as f32,
+            value_in_px.x as f32 / size.x as f32,
+            value_in_px.y as f32 / size.y as f32,
         )
     }
 
     #[inline]
     pub fn convert_size_into_pixels(value: Vector2) -> Vector2 {
-        let inner = Screen::get().borrow();
+        let size = Screen::get().read().unwrap().size;
         Vector2::new(
-            (value.x * inner.size.x as f32 * 0.5) as _,
-            (value.y * inner.size.y as f32 * 0.5) as _,
+            (value.x * size.x as f32 * 0.5) as _,
+            (value.y * size.y as f32 * 0.5) as _,
         )
     }
 
     #[inline]
     pub fn convert_size_from_pixels(value_in_px: Vector2) -> Vector2 {
-        let inner = Screen::get().borrow();
+        let size = Screen::get().read().unwrap().size;
         Vector2::new(
-            value_in_px.x as f32 * 2. / inner.size.x as f32,
-            value_in_px.y as f32 * 2. / inner.size.y as f32,
+            value_in_px.x as f32 * 2. / size.x as f32,
+            value_in_px.y as f32 * 2. / size.y as f32,
         )
     }
 

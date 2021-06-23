@@ -188,6 +188,26 @@ impl SharedData {
         let rs = data.resources.get(&TypeId::of::<T>()).unwrap();
         rs.get_resources_of_type()
     }
+    #[inline]
+    pub fn get_num_resources_of_type<T: 'static + ResourceTrait>(
+        shared_data: &SharedDataRw,
+    ) -> usize {
+        let data = shared_data.read().unwrap();
+        let rs = data.resources.get(&TypeId::of::<T>()).unwrap();
+        rs.get_resources_of_type::<T>().len()
+    }
+    #[inline]
+    pub fn get_resourceid_at_index<T: 'static + ResourceTrait>(
+        shared_data: &SharedDataRw,
+        index: usize,
+    ) -> ResourceId {
+        let data = shared_data.read().unwrap();
+        let rs = data.resources.get(&TypeId::of::<T>()).unwrap();
+        let vec = rs.get_resources_of_type::<T>();
+        debug_assert!(index < vec.len());
+        let resource_id = vec[index].get().id();
+        resource_id
+    }
 }
 
 impl Drop for SharedData {

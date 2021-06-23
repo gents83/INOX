@@ -6,6 +6,7 @@ edition = "2018"
 
 [dependencies]
 nrg_binarizer = { path = "../../binarizer" }
+nrg_camera = { path = "../../camera" }
 nrg_core = { path = "../../core" }
 nrg_dynamic_library = { path = "../../dynamic_library" }
 nrg_events = { path = "../../events" }

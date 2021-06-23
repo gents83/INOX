@@ -226,6 +226,7 @@ impl Window {
                                     _ => MouseButton::None,
                                 },
                                 state: match message.message {
+                                    WM_MOUSEMOVE => MouseState::Move,
                                     WM_LBUTTONDOWN | WM_RBUTTONDOWN | WM_MBUTTONDOWN => {
                                         MouseState::Down
                                     }

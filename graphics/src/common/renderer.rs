@@ -112,7 +112,7 @@ impl Renderer {
         self.device.submit()
     }
 
-    pub fn draw(&mut self) {
+    pub fn draw(&mut self, view: &Matrix4, proj: &Matrix4) {
         if self.state == RendererState::Submitted {
             return;
         }
@@ -144,7 +144,7 @@ impl Renderer {
                                 pipeline_index
                             )
                             .as_str());
-                            pipeline.update_runtime_data([0., 2., -2.].into());
+                            pipeline.update_runtime_data(view, proj);
                             pipeline.update_descriptor_sets(self.texture_handler.get_textures());
                         }
 

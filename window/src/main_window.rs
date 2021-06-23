@@ -92,7 +92,7 @@ impl Plugin for MainWindow {
         self.update_system_id = system.id();
 
         let mut rendering_phase = PhaseWithSystems::new(RENDERING_PHASE);
-        let rendering_system = RenderingSystem::new(renderer);
+        let rendering_system = RenderingSystem::new(renderer, &app.get_shared_data());
         self.rendering_system_id = rendering_system.id();
 
         update_phase.add_system(system);

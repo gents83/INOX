@@ -6,6 +6,7 @@ members = [
     "apps/editor_app",
     "bindings/vulkan_bindings",
     "binarizer",
+    "camera",
     "core",
     "events",
     "gui",

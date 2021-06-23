@@ -9,14 +9,17 @@ use super::config::*;
 use super::nodes_registry::*;
 use super::widgets::*;
 
+use nrg_camera::Camera;
 use nrg_core::*;
 use nrg_graphics::{
     FontInstance, MaterialInstance, MeshData, MeshInstance, PipelineInstance, RenderPassInstance,
+    ViewInstance,
 };
 use nrg_gui::*;
+use nrg_math::{Vector2, Vector3, Zero};
 use nrg_messenger::{read_messages, Message, MessageChannel, MessengerRw};
 use nrg_platform::*;
-use nrg_resources::SharedDataRw;
+use nrg_resources::{SharedData, SharedDataRw};
 use nrg_serialize::*;
 
 pub struct EditorUpdater {
@@ -32,6 +35,9 @@ pub struct EditorUpdater {
     main_menu_id: Uid,
     message_channel: MessageChannel,
     nodes_registry: NodesRegistry,
+    camera: Camera,
+    move_camera_with_mouse: bool,
+    last_mouse_pos: Vector2,
 }
 
 impl EditorUpdater {
@@ -70,6 +76,9 @@ impl EditorUpdater {
             graph_id: INVALID_UID,
             main_menu_id: INVALID_UID,
             message_channel,
+            camera: Camera::new([0., 2., -2.].into(), [0., 0., 0.].into()),
+            move_camera_with_mouse: false,
+            last_mouse_pos: Vector2::zero(),
         }
     }
 
@@ -122,6 +131,8 @@ impl System for EditorUpdater {
         self.global_messenger
             .write()
             .unwrap()
+            .register_messagebox::<KeyEvent>(self.message_channel.get_messagebox())
+            .register_messagebox::<MouseEvent>(self.message_channel.get_messagebox())
             .register_messagebox::<WindowEvent>(self.message_channel.get_messagebox())
             .register_messagebox::<WidgetEvent>(self.message_channel.get_messagebox())
             .register_messagebox::<DialogEvent>(self.message_channel.get_messagebox())
@@ -166,11 +177,10 @@ impl System for EditorUpdater {
     }
 
     fn run(&mut self) -> bool {
-        self.update_events();
-
-        self.update_fps_counter();
-
-        self.update_widgets();
+        self.update_events()
+            .update_camera()
+            .update_fps_counter()
+            .update_widgets();
 
         true
     }
@@ -186,6 +196,8 @@ impl System for EditorUpdater {
         self.global_messenger
             .write()
             .unwrap()
+            .unregister_messagebox::<KeyEvent>(self.message_channel.get_messagebox())
+            .unregister_messagebox::<MouseEvent>(self.message_channel.get_messagebox())
             .unregister_messagebox::<WindowEvent>(self.message_channel.get_messagebox())
             .unregister_messagebox::<WidgetEvent>(self.message_channel.get_messagebox())
             .unregister_messagebox::<DialogEvent>(self.message_channel.get_messagebox())
@@ -200,6 +212,21 @@ impl EditorUpdater {
             self.config.height,
             self.config.scale_factor,
         );
+    }
+    fn update_camera(&mut self) -> &mut Self {
+        if SharedData::has_resources_of_type::<ViewInstance>(&self.shared_data) {
+            let view_id = SharedData::get_resourceid_at_index::<ViewInstance>(&self.shared_data, 0);
+            let view = self.camera.get_view_matrix();
+            let proj = nrg_math::perspective(
+                nrg_math::Deg(45.),
+                Screen::get_size().x / Screen::get_size().y,
+                0.001,
+                1000.0,
+            );
+            ViewInstance::update_view(&self.shared_data, view_id, view);
+            ViewInstance::update_proj(&self.shared_data, view_id, proj);
+        }
+        self
     }
     fn update_fps_counter(&mut self) -> &mut Self {
         nrg_profiler::scoped_profile!("update_fps_counter");
@@ -290,7 +317,7 @@ impl EditorUpdater {
         }
     }
 
-    fn update_events(&mut self) {
+    fn update_events(&mut self) -> &mut Self {
         nrg_profiler::scoped_profile!("update_events");
 
         read_messages(self.message_channel.get_listener(), |msg| {
@@ -341,6 +368,25 @@ impl EditorUpdater {
                         self.save_graph(filename.clone());
                     }
                 }
+            } else if msg.type_id() == TypeId::of::<MouseEvent>() {
+                let event = msg.as_any().downcast_ref::<MouseEvent>().unwrap();
+                if event.state == MouseState::Down && event.button == MouseButton::Left {
+                    self.move_camera_with_mouse = true;
+                    self.last_mouse_pos = [event.x as f32, event.y as f32].into();
+                } else if event.state == MouseState::Up && event.button == MouseButton::Left {
+                    self.move_camera_with_mouse = false;
+                    self.last_mouse_pos = [event.x as f32, event.y as f32].into();
+                }
+                if event.state == MouseState::Move && self.move_camera_with_mouse {
+                    let mut rotation_angle = Vector3::zero();
+
+                    rotation_angle.y = event.x as f32 - self.last_mouse_pos.x;
+                    rotation_angle.x = event.y as f32 - self.last_mouse_pos.y;
+
+                    self.camera.rotate(rotation_angle * 0.01);
+
+                    self.last_mouse_pos = [event.x as f32, event.y as f32].into();
+                }
             } else if msg.type_id() == TypeId::of::<KeyEvent>() {
                 let event = msg.as_any().downcast_ref::<KeyEvent>().unwrap();
                 if event.state == InputState::JustPressed && event.code == Key::F5 {
@@ -350,6 +396,30 @@ impl EditorUpdater {
                         println!("Failed to execute process");
                     }
                 }
+
+                let mut movement = Vector3::zero();
+                if event.code == Key::W {
+                    movement.z += 0.1;
+                } else if event.code == Key::S {
+                    movement.z -= 0.1;
+                } else if event.code == Key::A {
+                    movement.x += 0.1;
+                } else if event.code == Key::D {
+                    movement.x -= 0.1;
+                }
+                self.camera.translate(movement);
+
+                let mut rotation_angle = Vector3::zero();
+                if event.code == Key::ArrowUp {
+                    rotation_angle.x -= 0.1;
+                } else if event.code == Key::ArrowDown {
+                    rotation_angle.x += 0.1;
+                } else if event.code == Key::ArrowRight {
+                    rotation_angle.y += 0.1;
+                } else if event.code == Key::ArrowLeft {
+                    rotation_angle.y -= 0.1;
+                }
+                self.camera.rotate(rotation_angle);
             } else if msg.type_id() == TypeId::of::<WindowEvent>() {
                 let event = msg.as_any().downcast_ref::<WindowEvent>().unwrap();
                 match *event {
@@ -364,6 +434,7 @@ impl EditorUpdater {
                     _ => {}
                 }
             } else if msg.type_id() == TypeId::of::<WidgetEvent>() {
+                self.move_camera_with_mouse = false;
                 let event = msg.as_any().downcast_ref::<WidgetEvent>().unwrap();
                 match *event {
                     WidgetEvent::Pressed(widget_uid, _mouse)
@@ -396,5 +467,6 @@ impl EditorUpdater {
                 }
             }
         });
+        self
     }
 }

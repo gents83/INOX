@@ -1,5 +1,5 @@
-use nrg_math::get_translation_rotation_scale;
-use nrg_math::{Vector3, Vector4, Zero};
+use nrg_math::{get_translation_rotation_scale, Matrix4};
+use nrg_math::{Vector4, Zero};
 
 use crate::{Mesh, MeshInstance, PipelineId};
 
@@ -101,9 +101,9 @@ impl Pipeline {
         self
     }
 
-    pub fn update_runtime_data(&self, cam_pos: Vector3) -> &Self {
-        self.inner.update_constant_data(cam_pos);
-        self.inner.update_uniform_buffer(cam_pos);
+    pub fn update_runtime_data(&self, view: &Matrix4, proj: &Matrix4) -> &Self {
+        self.inner.update_constant_data(view, proj);
+        self.inner.update_uniform_buffer(view, proj);
         self
     }
     pub fn update_descriptor_sets(&self, textures: &[TextureAtlas]) -> &Self {

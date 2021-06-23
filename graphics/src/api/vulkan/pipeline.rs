@@ -8,7 +8,7 @@ use crate::common::texture::*;
 use crate::common::utils::*;
 
 use nrg_math::matrix4_to_array;
-use nrg_math::{Matrix4, Vector3};
+use nrg_math::Matrix4;
 use nrg_resources::get_absolute_path_from;
 use nrg_resources::DATA_FOLDER;
 use std::path::PathBuf;
@@ -117,17 +117,17 @@ impl Pipeline {
         self
     }
 
-    pub fn update_constant_data(&self, cam_pos: Vector3) -> &Self {
+    pub fn update_constant_data(&self, view: &Matrix4, proj: &Matrix4) -> &Self {
         self.inner
             .borrow_mut()
-            .update_constant_data(&self.device, cam_pos);
+            .update_constant_data(&self.device, view, proj);
         self
     }
 
-    pub fn update_uniform_buffer(&self, cam_pos: Vector3) -> &Self {
+    pub fn update_uniform_buffer(&self, view: &Matrix4, proj: &Matrix4) -> &Self {
         self.inner
             .borrow_mut()
-            .update_uniform_buffer(&self.device, cam_pos);
+            .update_uniform_buffer(&self.device, view, proj);
         self
     }
     pub fn update_descriptor_sets(&self, textures: &[TextureAtlas]) -> &Self {
@@ -693,23 +693,12 @@ impl PipelineImmutable {
         }
     }
 
-    fn update_constant_data(&mut self, device: &Device, cam_pos: Vector3) {
+    fn update_constant_data(&mut self, device: &Device, view: &Matrix4, proj: &Matrix4) {
         let details = device.get_instance().get_swap_chain_info();
         self.constant_data.screen_width = details.capabilities.currentExtent.width as _;
         self.constant_data.screen_height = details.capabilities.currentExtent.height as _;
-        self.constant_data.view = matrix4_to_array(Matrix4::look_at_rh(
-            [cam_pos.x, cam_pos.y, cam_pos.z].into(),
-            [0., 0., 0.].into(),
-            [0., 1., 0.].into(),
-        ));
-        let perspective = OPENGL_TO_VULKAN_MATRIX
-            * nrg_math::perspective(
-                nrg_math::Deg(45.),
-                details.capabilities.currentExtent.width as f32
-                    / details.capabilities.currentExtent.height as f32,
-                0.001,
-                1000.0,
-            );
+        self.constant_data.view = matrix4_to_array(*view);
+        let perspective = OPENGL_TO_VULKAN_MATRIX * proj;
         self.constant_data.proj = matrix4_to_array(perspective);
 
         unsafe {
@@ -725,23 +714,11 @@ impl PipelineImmutable {
         }
     }
 
-    fn update_uniform_buffer(&mut self, device: &Device, cam_pos: Vector3) {
+    fn update_uniform_buffer(&mut self, device: &Device, view: &Matrix4, proj: &Matrix4) {
         let image_index = device.get_current_buffer_index();
-        let details = device.get_instance().get_swap_chain_info();
-        let angle_in_radians: nrg_math::Rad<f64> = nrg_math::Deg(45.).into();
         let uniform_data: [UniformData; 1] = [UniformData {
-            view: Matrix4::look_at_rh(
-                [cam_pos.x, cam_pos.y, cam_pos.z].into(),
-                [0., 0., 0.].into(),
-                [0., 1., 0.].into(),
-            ),
-            proj: nrg_math::create_perspective(
-                angle_in_radians.0 as _,
-                details.capabilities.currentExtent.width as f32
-                    / details.capabilities.currentExtent.height as f32,
-                0.001,
-                1000.0,
-            ),
+            view: *view,
+            proj: *proj,
         }];
 
         let mut buffer_memory = self.uniform_buffers_memory[image_index];
