@@ -2,7 +2,7 @@ use nrg_math::Vector4;
 use nrg_messenger::Message;
 use nrg_serialize::{Deserialize, Serialize};
 
-use nrg_gui::{implement_widget_with_data, InternalWidget, WidgetData};
+use nrg_gui::{implement_widget_with_data, InternalWidget, Screen, WidgetData};
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]

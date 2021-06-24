@@ -8,7 +8,7 @@ use nrg_resources::{get_absolute_path_from, DATA_FOLDER};
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{
-    implement_widget_with_custom_members, InternalWidget, Text, WidgetData, WidgetEvent,
+    implement_widget_with_custom_members, InternalWidget, Screen, Text, WidgetData, WidgetEvent,
     DEFAULT_WIDGET_HEIGHT, DEFAULT_WIDGET_SIZE, DEFAULT_WIDGET_WIDTH,
 };
 

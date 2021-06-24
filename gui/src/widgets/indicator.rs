@@ -1,10 +1,10 @@
-use nrg_math::Vector4;
+use nrg_math::{Vector2, Vector4};
 use nrg_messenger::Message;
 use nrg_serialize::{Deserialize, Serialize};
 use std::time::{Duration, Instant};
 
 use crate::{
-    implement_widget_with_custom_members, InternalWidget, WidgetData, DEFAULT_WIDGET_SIZE,
+    implement_widget_with_custom_members, InternalWidget, Screen, WidgetData, DEFAULT_WIDGET_SIZE,
 };
 
 #[derive(Serialize, Deserialize)]
@@ -48,8 +48,9 @@ impl InternalWidget for Indicator {
         if self.is_initialized() {
             return;
         }
+        let size: Vector2 = [2., DEFAULT_WIDGET_SIZE[1] - 2.].into();
         self.draggable(false)
-            .size([2., DEFAULT_WIDGET_SIZE[1] - 2.].into())
+            .size(size * Screen::get_scale_factor())
             .vertical_alignment(VerticalAlignment::Stretch)
             .horizontal_alignment(HorizontalAlignment::None)
             .selectable(false)

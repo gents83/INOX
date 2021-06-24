@@ -5,7 +5,7 @@ use nrg_messenger::{implement_message, Message};
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{
-    implement_widget_with_custom_members, CollapsibleItem, InternalWidget, Panel, TitleBar,
+    implement_widget_with_custom_members, CollapsibleItem, InternalWidget, Panel, Screen, TitleBar,
     TitleBarEvent, WidgetData, WidgetEvent, DEFAULT_WIDGET_HEIGHT, DEFAULT_WIDGET_WIDTH,
 };
 pub const DEFAULT_TREE_VIEW_SIZE: [f32; 2] =

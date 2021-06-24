@@ -6,8 +6,8 @@ use nrg_platform::MouseEvent;
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{
-    implement_widget_with_custom_members, InternalWidget, Panel, Text, WidgetData, WidgetEvent,
-    DEFAULT_WIDGET_HEIGHT, DEFAULT_WIDGET_SIZE, DEFAULT_WIDGET_WIDTH,
+    implement_widget_with_custom_members, InternalWidget, Panel, Screen, Text, WidgetData,
+    WidgetEvent, DEFAULT_WIDGET_HEIGHT, DEFAULT_WIDGET_SIZE, DEFAULT_WIDGET_WIDTH,
 };
 
 pub const DEFAULT_CHECKBOX_SIZE: [f32; 2] = [

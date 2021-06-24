@@ -7,8 +7,8 @@ use nrg_resources::{get_absolute_path_from, DATA_FOLDER};
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{
-    implement_widget_with_custom_members, InternalWidget, Panel, Text, WidgetData, WidgetEvent,
-    DEFAULT_TEXT_SIZE, DEFAULT_WIDGET_HEIGHT,
+    implement_widget_with_custom_members, InternalWidget, Panel, Screen, Text, WidgetData,
+    WidgetEvent, DEFAULT_TEXT_SIZE, DEFAULT_WIDGET_HEIGHT,
 };
 
 pub const DEFAULT_ICON_SIZE: [f32; 2] = [DEFAULT_WIDGET_HEIGHT * 2., DEFAULT_WIDGET_HEIGHT * 2.];

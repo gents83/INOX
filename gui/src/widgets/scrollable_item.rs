@@ -5,35 +5,35 @@ use nrg_messenger::{implement_message, Message};
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{
-    implement_widget_with_custom_members, InternalWidget, Panel, Scrollbar, ScrollbarEvent,
+    implement_widget_with_custom_members, InternalWidget, Panel, Screen, Scrollbar, ScrollbarEvent,
     WidgetData, WidgetEvent, DEFAULT_WIDGET_HEIGHT,
 };
 
 pub const DEFAULT_LIST_SIZE: [f32; 2] = [DEFAULT_WIDGET_HEIGHT * 10., DEFAULT_WIDGET_HEIGHT * 10.];
 
 #[derive(Clone, Copy)]
-pub enum ListEvent {
+pub enum ScrollableEvent {
     Selected(Uid),
 }
-implement_message!(ListEvent);
+implement_message!(ScrollableEvent);
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]
-pub struct List {
+pub struct ScrollableItem {
     data: WidgetData,
     selected_uid: Uid,
     base_panel: Uid,
     scrollable_panel: Uid,
     scrollbar_uid: Uid,
 }
-implement_widget_with_custom_members!(List {
+implement_widget_with_custom_members!(ScrollableItem {
     base_panel: INVALID_UID,
     scrollable_panel: INVALID_UID,
     scrollbar_uid: INVALID_UID,
     selected_uid: INVALID_UID
 });
 
-impl List {
+impl ScrollableItem {
     pub fn add_scrollbar(&mut self) -> &mut Self {
         if self.scrollbar_uid.is_nil() {
             let mut scrollbar = Scrollbar::new(self.get_shared_data(), self.get_global_messenger());
@@ -99,7 +99,7 @@ impl List {
             self.get_global_dispatcher()
                 .write()
                 .unwrap()
-                .send(ListEvent::Selected(self.selected_uid).as_boxed())
+                .send(ScrollableEvent::Selected(self.selected_uid).as_boxed())
                 .ok();
         }
         self
@@ -182,7 +182,7 @@ impl List {
     }
 }
 
-impl InternalWidget for List {
+impl InternalWidget for ScrollableItem {
     fn widget_init(&mut self) {
         self.register_to_listen_event::<WidgetEvent>()
             .register_to_listen_event::<ScrollbarEvent>();

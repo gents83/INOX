@@ -1,8 +1,8 @@
 use std::{any::TypeId, path::PathBuf};
 
 use nrg_gui::{
-    implement_widget_with_custom_members, Button, DialogEvent, FolderDialog, InternalWidget, List,
-    Menu, RefcountedWidget, WidgetData, WidgetEvent,
+    implement_widget_with_custom_members, Button, DialogEvent, FolderDialog, InternalWidget, Menu,
+    RefcountedWidget, ScrollableItem, WidgetData, WidgetEvent,
 };
 use nrg_math::{Vector2, Vector4};
 use nrg_messenger::Message;
@@ -80,7 +80,7 @@ impl MainMenu {
         if let Some(edit) = menu.get_submenu(edit_id) {
             if let Some(menu) = edit.node().get_child_mut::<Menu>(nodes_id) {
                 if let Some(add) = menu.get_submenu(add_id) {
-                    if let Some(list) = add.node().get_child_mut::<List>(list_id) {
+                    if let Some(list) = add.node().get_child_mut::<ScrollableItem>(list_id) {
                         list.clear();
                         if let Some(scrollable_panel) = list.get_scrollable_panel() {
                             for i in 0..registry.count() {
@@ -120,7 +120,7 @@ impl MainMenu {
         if let Some(edit) = menu.get_submenu(edit_id) {
             if let Some(menu) = edit.node().get_child_mut::<Menu>(nodes_id) {
                 if let Some(add) = menu.get_submenu(add_id) {
-                    if let Some(list) = add.node().get_child_mut::<List>(list_id) {
+                    if let Some(list) = add.node().get_child_mut::<ScrollableItem>(list_id) {
                         if let Some(node) = list.node().get_child(uid) {
                             return Some(node);
                         }
@@ -157,7 +157,7 @@ impl InternalWidget for MainMenu {
         let mut new_menu = Menu::new(self.get_shared_data(), self.get_global_messenger());
         new_menu.vertical();
         self.add_id = new_menu.add_menu_item("Add ->");
-        let mut list = List::new(self.get_shared_data(), self.get_global_messenger());
+        let mut list = ScrollableItem::new(self.get_shared_data(), self.get_global_messenger());
         list.clear()
             .vertical()
             .style(WidgetStyle::DefaultBackground);

@@ -3,7 +3,8 @@ use nrg_messenger::Message;
 use nrg_serialize::{Deserialize, Serialize};
 
 use crate::{
-    implement_widget_with_data, InternalWidget, WidgetData, WidgetEvent, DEFAULT_WIDGET_HEIGHT,
+    implement_widget_with_data, InternalWidget, Screen, WidgetData, WidgetEvent,
+    DEFAULT_WIDGET_HEIGHT,
 };
 
 pub const DEFAULT_PANEL_SIZE: [f32; 2] = [DEFAULT_WIDGET_HEIGHT * 10., DEFAULT_WIDGET_HEIGHT * 10.];

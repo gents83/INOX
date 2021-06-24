@@ -3,7 +3,7 @@ macro_rules! implement_widget {
     ($Type:ident) => {
         use nrg_serialize::typetag;
         use $crate::{
-            BaseWidget, ContainerFillType, HorizontalAlignment, Screen, VerticalAlignment, Widget,
+            BaseWidget, ContainerFillType, HorizontalAlignment, VerticalAlignment, Widget,
             WidgetCreator, WidgetDataGetter, WidgetGraphics, WidgetNode, WidgetState, WidgetStyle,
         };
 
@@ -96,8 +96,7 @@ macro_rules! implement_widget {
                 self
             }
             #[inline]
-            pub fn stroke(&mut self, stroke: u32) -> &mut Self {
-                let stroke = Screen::convert_size_from_pixels([stroke as _, stroke as _].into()).x;
+            pub fn stroke(&mut self, stroke: f32) -> &mut Self {
                 self.graphics_mut().set_stroke(stroke);
                 self
             }

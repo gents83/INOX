@@ -18,7 +18,6 @@ pub struct WidgetGraphics {
     color: Vector4,
     #[serde(skip, default = "nrg_math::VecBase::default_zero")]
     border_color: Vector4,
-    stroke: f32,
     #[serde(skip)]
     is_dirty: bool,
     is_visible: bool,
@@ -38,7 +37,6 @@ impl WidgetGraphics {
             border_color: Vector4::default_zero(),
             is_visible: true,
             is_dirty: true,
-            stroke: 0.,
             position: Vector3::default_zero(),
             rotation: Vector3::default_zero(),
             scale: [1., 1., 1.].into(),
@@ -110,7 +108,7 @@ impl WidgetGraphics {
 
     #[inline]
     pub fn get_stroke(&self) -> f32 {
-        self.stroke
+        self.border_color.w
     }
 
     #[inline]
@@ -137,7 +135,7 @@ impl WidgetGraphics {
 
     #[inline]
     pub fn set_layer(&mut self, layer: f32) -> &mut Self {
-        if (self.position.z - layer).abs() >= f32::EPSILON {
+        if (self.position.z - layer).abs() > f32::EPSILON {
             self.position.z = layer;
             self.mark_as_dirty();
         }
@@ -146,8 +144,8 @@ impl WidgetGraphics {
 
     #[inline]
     pub fn set_position(&mut self, pos_in_px: Vector2) -> &mut Self {
-        if (self.position.x - pos_in_px.x).abs() >= f32::EPSILON
-            || (self.position.y - pos_in_px.y).abs() >= f32::EPSILON
+        if (self.position.x - pos_in_px.x).abs() > f32::EPSILON
+            || (self.position.y - pos_in_px.y).abs() > f32::EPSILON
         {
             self.position.x = pos_in_px.x;
             self.position.y = pos_in_px.y;
@@ -158,8 +156,8 @@ impl WidgetGraphics {
 
     #[inline]
     pub fn set_size(&mut self, scale: Vector2) -> &mut Self {
-        if (self.scale.x - scale.x).abs() >= f32::EPSILON
-            || (self.scale.y - scale.y).abs() >= f32::EPSILON
+        if (self.scale.x - scale.x).abs() > f32::EPSILON
+            || (self.scale.y - scale.y).abs() > f32::EPSILON
         {
             self.scale.x = scale.x;
             self.scale.y = scale.y;
@@ -184,22 +182,30 @@ impl WidgetGraphics {
 
     #[inline]
     pub fn set_border_color(&mut self, rgb: Vector4) -> &mut Self {
-        if self.border_color != rgb {
-            self.border_color = rgb;
+        if self.border_color.xyz() != rgb.xyz() {
+            self.border_color.x = rgb.x;
+            self.border_color.y = rgb.y;
+            self.border_color.z = rgb.z;
+            self.mark_as_dirty();
         }
         self
     }
 
     #[inline]
     pub fn set_stroke(&mut self, stroke: f32) -> &mut Self {
-        self.stroke = stroke;
+        if (self.border_color.w as f32 - stroke).abs() > f32::EPSILON {
+            self.border_color.w = stroke;
+            self.mark_as_dirty();
+        }
         self
     }
 
     #[inline]
     pub fn set_visible(&mut self, visible: bool) -> &mut Self {
-        self.is_visible = visible;
-        self.mark_as_dirty();
+        if self.is_visible != visible {
+            self.is_visible = visible;
+            self.mark_as_dirty();
+        }
         self
     }
 

@@ -4,9 +4,9 @@ use std::{
 };
 
 use crate::{
-    implement_widget_with_custom_members, Button, Icon, InternalWidget, List, ListEvent, Panel,
-    ScrollbarEvent, Separator, TextBox, TitleBar, TreeView, TreeViewEvent, WidgetData, WidgetEvent,
-    DEFAULT_BUTTON_SIZE, DEFAULT_WIDGET_HEIGHT,
+    implement_widget_with_custom_members, Button, Icon, InternalWidget, Panel, Screen,
+    ScrollableEvent, ScrollableItem, ScrollbarEvent, Separator, TextBox, TitleBar, TreeView,
+    TreeViewEvent, WidgetData, WidgetEvent, DEFAULT_BUTTON_SIZE, DEFAULT_WIDGET_HEIGHT,
 };
 use nrg_math::{Vector2, Vector4};
 use nrg_messenger::{implement_message, Message};
@@ -105,7 +105,7 @@ impl FolderDialog {
 
     fn find_file_from_id(&self, uid: Uid) -> String {
         let mut file = String::new();
-        if let Some(list) = self.node().get_child_mut::<List>(self.list) {
+        if let Some(list) = self.node().get_child_mut::<ScrollableItem>(self.list) {
             if let Some(icon_panel) = list.get_scrollable_panel() {
                 icon_panel.node().propagate_on_children(|w| {
                     if file.is_empty() && w.id() == uid {
@@ -131,7 +131,7 @@ impl FolderDialog {
             FolderDialog::select_folder(treeview, folder);
         }
         let list_uid = self.list;
-        if let Some(list) = self.node().get_child_mut::<List>(list_uid) {
+        if let Some(list) = self.node().get_child_mut::<ScrollableItem>(list_uid) {
             list.clear();
             if let Some(iconpanel) = list.get_scrollable_panel() {
                 Icon::create_icons(folder, iconpanel);
@@ -180,7 +180,7 @@ impl FolderDialog {
             .horizontal_alignment(HorizontalAlignment::Left);
         horizontal_panel.add_child(Box::new(separator));
 
-        let mut list = List::new(self.get_shared_data(), self.get_global_messenger());
+        let mut list = ScrollableItem::new(self.get_shared_data(), self.get_global_messenger());
         list.vertical();
         if let Some(icon_panel) = list.get_scrollable_panel() {
             Icon::create_icons(self.folder.as_path(), icon_panel);
@@ -238,7 +238,7 @@ impl FolderDialog {
     }
 
     fn is_file(&self, widget_id: Uid) -> bool {
-        if let Some(list) = self.node().get_child_mut::<List>(self.list) {
+        if let Some(list) = self.node().get_child_mut::<ScrollableItem>(self.list) {
             if list.node().has_child(widget_id) {
                 return true;
             }
@@ -248,7 +248,7 @@ impl FolderDialog {
 
     fn on_folder_changed(&mut self, path: &Path) -> &mut Self {
         let list_uid = self.list;
-        if let Some(list) = self.node().get_child_mut::<List>(list_uid) {
+        if let Some(list) = self.node().get_child_mut::<ScrollableItem>(list_uid) {
             list.clear();
             if let Some(iconpanel) = list.get_scrollable_panel() {
                 Icon::create_icons(path, iconpanel);
@@ -263,7 +263,7 @@ impl InternalWidget for FolderDialog {
     fn widget_init(&mut self) {
         self.register_to_listen_event::<DialogEvent>()
             .register_to_listen_event::<WidgetEvent>()
-            .register_to_listen_event::<ListEvent>()
+            .register_to_listen_event::<ScrollableEvent>()
             .register_to_listen_event::<TreeViewEvent>()
             .register_to_listen_event::<ScrollbarEvent>();
 
@@ -291,15 +291,15 @@ impl InternalWidget for FolderDialog {
     fn widget_uninit(&mut self) {
         self.unregister_to_listen_event::<DialogEvent>()
             .unregister_to_listen_event::<WidgetEvent>()
-            .unregister_to_listen_event::<ListEvent>()
+            .unregister_to_listen_event::<ScrollableEvent>()
             .unregister_to_listen_event::<TreeViewEvent>()
             .unregister_to_listen_event::<ScrollbarEvent>();
     }
 
     fn widget_process_message(&mut self, msg: &dyn Message) {
-        if msg.type_id() == TypeId::of::<ListEvent>() {
-            let event = msg.as_any().downcast_ref::<ListEvent>().unwrap();
-            let ListEvent::Selected(widget_id) = *event;
+        if msg.type_id() == TypeId::of::<ScrollableEvent>() {
+            let event = msg.as_any().downcast_ref::<ScrollableEvent>().unwrap();
+            let ScrollableEvent::Selected(widget_id) = *event;
             if self.is_file(widget_id) {
                 let file = self.find_file_from_id(widget_id);
                 if let Some(textbox) = self.node().get_child_mut::<TextBox>(self.textbox_uid) {

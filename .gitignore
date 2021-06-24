@@ -9,3 +9,4 @@ Cargo.lock
 app.nrg_profile
 vert.spv
 frag.spv
+geom.spv

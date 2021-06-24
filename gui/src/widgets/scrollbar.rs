@@ -6,7 +6,7 @@ use nrg_platform::{MouseEvent, MouseState};
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{
-    implement_widget_with_custom_members, InternalWidget, Panel, WidgetData, WidgetEvent,
+    implement_widget_with_custom_members, InternalWidget, Panel, Screen, WidgetData, WidgetEvent,
     DEFAULT_WIDGET_HEIGHT, DEFAULT_WIDGET_WIDTH,
 };
 

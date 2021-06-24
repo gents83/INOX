@@ -6,8 +6,9 @@ use nrg_platform::{InputState, Key, KeyEvent, KeyTextEvent, MouseButton, MouseEv
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{
-    implement_widget_with_custom_members, Indicator, InternalWidget, Panel, Text, TextEvent,
-    WidgetData, WidgetEvent, DEFAULT_TEXT_SIZE, DEFAULT_WIDGET_HEIGHT, DEFAULT_WIDGET_WIDTH,
+    implement_widget_with_custom_members, Indicator, InternalWidget, Panel, Screen, Text,
+    TextEvent, WidgetData, WidgetEvent, DEFAULT_TEXT_SIZE, DEFAULT_WIDGET_HEIGHT,
+    DEFAULT_WIDGET_WIDTH,
 };
 pub const DEFAULT_ICON_SIZE: [f32; 2] = [
     DEFAULT_WIDGET_WIDTH * 2. / 3.,

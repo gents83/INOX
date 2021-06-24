@@ -2,14 +2,15 @@ use std::any::TypeId;
 
 use nrg_math::{Vector2, Vector4};
 use nrg_messenger::{implement_message, Message};
-use nrg_serialize::{Deserialize, Serialize, Uid};
+use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{
-    implement_widget_with_data, InternalWidget, Panel, Text, TextBox, WidgetData,
-    DEFAULT_WIDGET_HEIGHT, DEFAULT_WIDGET_WIDTH,
+    implement_widget_with_custom_members, InternalWidget, Panel, Screen, ScrollableItem, Text,
+    TextBox, TitleBar, WidgetData, DEFAULT_WIDGET_HEIGHT, DEFAULT_WIDGET_WIDTH,
 };
 
-pub const DEFAULT_PROPERTIES_SIZE: [f32; 2] = [DEFAULT_WIDGET_WIDTH, DEFAULT_WIDGET_HEIGHT];
+pub const DEFAULT_PROPERTIES_SIZE: [f32; 2] =
+    [DEFAULT_WIDGET_WIDTH * 10., DEFAULT_WIDGET_HEIGHT * 10.];
 
 #[derive(Clone)]
 pub enum PropertiesEvent {
@@ -23,20 +24,37 @@ implement_message!(PropertiesEvent);
 #[serde(crate = "nrg_serialize")]
 pub struct PropertiesPanel {
     data: WidgetData,
+    scrollable_uid: Uid,
 }
-implement_widget_with_data!(PropertiesPanel);
+implement_widget_with_custom_members!(PropertiesPanel {
+    scrollable_uid: INVALID_UID
+});
 
 impl PropertiesPanel {
     fn add_label(&mut self) -> &mut Self {
-        let mut label = Text::new(&self.get_shared_data(), &self.get_global_messenger());
-        label.editable(false).set_text("Properties:");
-        self.add_child(Box::new(label));
-
+        let mut title = TitleBar::new(&self.get_shared_data(), &self.get_global_messenger());
+        title
+            .set_text("Properties:")
+            .set_text_alignment(HorizontalAlignment::Left, VerticalAlignment::Center)
+            .collapsible(false);
+        self.add_child(Box::new(title));
         self
     }
 
     pub fn reset(&mut self) -> &mut Self {
-        self.node_mut().remove_children();
+        let scrollable_uid = self.scrollable_uid;
+        if let Some(scrollable) = self
+            .node_mut()
+            .get_child_mut::<ScrollableItem>(scrollable_uid)
+        {
+            if let Some(scrollable_panel) = scrollable.get_scrollable_panel() {
+                scrollable_panel.node_mut().remove_children();
+            } else {
+                scrollable.node_mut().remove_children();
+            }
+        } else {
+            self.node_mut().remove_children();
+        }
         self.add_label();
         self
     }
@@ -84,6 +102,23 @@ impl PropertiesPanel {
         self
     }
 
+    #[inline]
+    pub fn add_child(&mut self, widget: Box<dyn Widget>) -> Uid {
+        let scrollable_uid = self.scrollable_uid;
+        if let Some(scrollable) = self
+            .node_mut()
+            .get_child_mut::<ScrollableItem>(scrollable_uid)
+        {
+            if let Some(scrollable_panel) = scrollable.get_scrollable_panel() {
+                scrollable_panel.add_child(widget)
+            } else {
+                scrollable.add_child(widget)
+            }
+        } else {
+            <dyn Widget>::add_child(self, widget)
+        }
+    }
+
     pub fn add_vec2(&mut self, text: &str, vec2: Vector2, editable: bool) -> &mut Self {
         let (mut horizontal_panel, mut vertical_panel) = self.create_panel(text);
 
@@ -120,12 +155,19 @@ impl InternalWidget for PropertiesPanel {
         self.size(size * Screen::get_scale_factor())
             .selectable(false)
             .draggable(false)
-            .fill_type(ContainerFillType::Vertical)
-            .keep_fixed_height(false)
-            .keep_fixed_width(false)
             .horizontal_alignment(HorizontalAlignment::Right)
             .vertical_alignment(VerticalAlignment::Bottom)
-            .style(WidgetStyle::Default);
+            .style(WidgetStyle::Default)
+            .border_style(WidgetStyle::DefaultLight)
+            .stroke(5. * Screen::get_scale_factor());
+
+        let mut scrollable =
+            ScrollableItem::new(&self.get_shared_data(), &self.get_global_messenger());
+        scrollable
+            .vertical_alignment(VerticalAlignment::Stretch)
+            .horizontal_alignment(HorizontalAlignment::Stretch)
+            .vertical();
+        self.scrollable_uid = self.add_child(Box::new(scrollable));
 
         self.reset();
     }

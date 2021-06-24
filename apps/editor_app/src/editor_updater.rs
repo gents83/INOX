@@ -436,34 +436,29 @@ impl EditorUpdater {
             } else if msg.type_id() == TypeId::of::<WidgetEvent>() {
                 self.move_camera_with_mouse = false;
                 let event = msg.as_any().downcast_ref::<WidgetEvent>().unwrap();
-                match *event {
-                    WidgetEvent::Pressed(widget_uid, _mouse)
-                    | WidgetEvent::Released(widget_uid, _mouse) => {
-                        self.global_messenger
-                            .write()
-                            .unwrap()
-                            .get_dispatcher()
-                            .write()
-                            .unwrap()
-                            .send(PropertiesEvent::GetProperties(widget_uid).as_boxed())
-                            .ok();
+                if let WidgetEvent::Released(widget_uid, _mouse) = *event {
+                    self.global_messenger
+                        .write()
+                        .unwrap()
+                        .get_dispatcher()
+                        .write()
+                        .unwrap()
+                        .send(PropertiesEvent::GetProperties(widget_uid).as_boxed())
+                        .ok();
 
-                        if let Some(properties) =
-                            Gui::get()
-                                .write()
-                                .unwrap()
-                                .get_root_mut()
-                                .get_child_mut::<PropertiesPanel>(self.properties_id)
-                        {
-                            properties.reset();
-                            properties.add_string(
-                                "UID:",
-                                widget_uid.to_simple().to_string().as_str(),
-                                false,
-                            );
-                        }
+                    if let Some(properties) = Gui::get()
+                        .write()
+                        .unwrap()
+                        .get_root_mut()
+                        .get_child_mut::<PropertiesPanel>(self.properties_id)
+                    {
+                        properties.reset();
+                        properties.add_string(
+                            "UID:",
+                            widget_uid.to_simple().to_string().as_str(),
+                            false,
+                        );
                     }
-                    _ => {}
                 }
             }
         });
