@@ -10,8 +10,8 @@ use nrg_serialize::{typetag, Uid};
 
 use crate::{
     add_space_before_after, add_widget_size, compute_child_clip_area, hex_to_rgba, Color,
-    ContainerFillType, Gui, HorizontalAlignment, PropertiesEvent, VerticalAlignment,
-    WidgetDataGetter, WidgetEvent, WidgetGraphics, COLOR_ENGRAY,
+    ContainerFillType, HorizontalAlignment, PropertiesEvent, VerticalAlignment, WidgetDataGetter,
+    WidgetEvent, WidgetGraphics, COLOR_ENGRAY,
 };
 
 pub type RefcountedWidget = Arc<RwLock<Box<dyn Widget>>>;
@@ -88,13 +88,8 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
     fn update(&mut self, parent_data: Vector4, drawing_area_in_px: Vector4) {
         self.process_messages(drawing_area_in_px);
 
-        if self.is_dirty() {
-            self.mark_as_dirty();
-            self.update_layout(parent_data);
-            self.manage_style();
-        }
-
-        self.update_childrens(drawing_area_in_px);
+        let count = 0;
+        self.adjust_layout(parent_data, drawing_area_in_px, count);
 
         {
             nrg_profiler::scoped_profile!("widget::widget_update");
@@ -113,6 +108,25 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
             .unregister_messagebox::<PropertiesEvent>(self.get_messagebox());
         self.graphics_mut().uninit();
     }
+
+    fn adjust_layout(&mut self, parent_data: Vector4, drawing_area_in_px: Vector4, mut count: u32) {
+        count += 1;
+
+        if self.is_dirty() {
+            self.update_layout(parent_data);
+            self.manage_style();
+        }
+
+        self.update_childrens(drawing_area_in_px);
+
+        if self.is_dirty() {
+            if count > 2 {
+                eprintln!("Updating layout more than twice - there most be an error!!!");
+            }
+            self.adjust_layout(parent_data, drawing_area_in_px, count);
+        }
+    }
+
     fn update_childrens(&mut self, drawing_area_in_px: Vector4) {
         nrg_profiler::scoped_profile!("widget::update_childrens");
 
@@ -134,13 +148,10 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
                 space,
                 use_space_before_after,
             );
-            let child = children[i].clone();
-            Gui::add_additional_job("Update children", move || {
-                child
-                    .write()
-                    .unwrap()
-                    .update(widget_space, child_drawing_area);
-            });
+            children[i]
+                .write()
+                .unwrap()
+                .update(widget_space, child_drawing_area);
             widget_space = add_widget_size(
                 widget_space,
                 filltype,
