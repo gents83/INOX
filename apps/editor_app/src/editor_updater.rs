@@ -6,7 +6,7 @@ use std::{
 };
 
 use super::config::*;
-use super::nodes_registry::*;
+use super::widget_registry::*;
 use super::widgets::*;
 
 use nrg_camera::Camera;
@@ -34,7 +34,7 @@ pub struct EditorUpdater {
     graph_id: Uid,
     main_menu_id: Uid,
     message_channel: MessageChannel,
-    nodes_registry: NodesRegistry,
+    nodes_registry: WidgetRegistry,
     camera: Camera,
     move_camera_with_mouse: bool,
     last_mouse_pos: Vector2,
@@ -66,7 +66,7 @@ impl EditorUpdater {
         Self {
             id: SystemId::new(),
             frame_seconds: VecDeque::default(),
-            nodes_registry: NodesRegistry::new(&shared_data, &global_messenger),
+            nodes_registry: WidgetRegistry::new(&shared_data, &global_messenger),
             shared_data,
             global_messenger,
             job_handler,

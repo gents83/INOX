@@ -20,16 +20,16 @@ struct NodesData {
     pub name: String,
 }
 
-pub struct NodesRegistry {
+pub struct WidgetRegistry {
     registry: Vec<NodesData>,
     shared_data: SharedDataRw,
     global_messenger: MessengerRw,
 }
 
-unsafe impl Send for NodesRegistry {}
-unsafe impl Sync for NodesRegistry {}
+unsafe impl Send for WidgetRegistry {}
+unsafe impl Sync for WidgetRegistry {}
 
-impl NodesRegistry {
+impl WidgetRegistry {
     pub fn new(shared_data: &SharedDataRw, global_messenger: &MessengerRw) -> Self {
         Self {
             registry: Vec::new(),

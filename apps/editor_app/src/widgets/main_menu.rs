@@ -10,7 +10,7 @@ use nrg_platform::WindowEvent;
 use nrg_resources::DATA_RAW_FOLDER;
 use nrg_serialize::*;
 
-use crate::nodes_registry::{NodesEvent, NodesRegistry};
+use crate::widget_registry::{NodesEvent, WidgetRegistry};
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]
@@ -71,7 +71,7 @@ impl MainMenu {
     pub fn is_save_uid(&self, entry_uid: Uid) -> bool {
         self.save_id == entry_uid
     }
-    pub fn fill_nodes_from_registry(&mut self, registry: &NodesRegistry) -> &mut Self {
+    pub fn fill_nodes_from_registry(&mut self, registry: &WidgetRegistry) -> &mut Self {
         let edit_id = self.edit_id;
         let nodes_id = self.nodes_id;
         let add_id = self.add_id;
