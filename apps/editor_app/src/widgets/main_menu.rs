@@ -32,9 +32,9 @@ pub struct MainMenu {
     #[serde(skip)]
     nodes_id: Uid,
     #[serde(skip)]
-    add_id: Uid,
+    nodes_add_id: Uid,
     #[serde(skip)]
-    list_id: Uid,
+    nodes_list_id: Uid,
     #[serde(skip)]
     filename_dialog: Option<FolderDialog>,
 }
@@ -47,8 +47,8 @@ implement_widget_with_custom_members!(MainMenu {
     exit_id: INVALID_UID,
     edit_id: INVALID_UID,
     nodes_id: INVALID_UID,
-    add_id: INVALID_UID,
-    list_id: INVALID_UID,
+    nodes_add_id: INVALID_UID,
+    nodes_list_id: INVALID_UID,
     filename_dialog: None
 });
 
@@ -74,8 +74,8 @@ impl MainMenu {
     pub fn fill_nodes_from_registry(&mut self, registry: &WidgetRegistry) -> &mut Self {
         let edit_id = self.edit_id;
         let nodes_id = self.nodes_id;
-        let add_id = self.add_id;
-        let list_id = self.list_id;
+        let add_id = self.nodes_add_id;
+        let list_id = self.nodes_list_id;
         let menu = self.menu_mut();
         if let Some(edit) = menu.get_submenu(edit_id) {
             if let Some(menu) = edit.node().get_child_mut::<Menu>(nodes_id) {
@@ -114,8 +114,8 @@ impl MainMenu {
     fn get_node_in_list(&mut self, uid: Uid) -> Option<RefcountedWidget> {
         let edit_id = self.edit_id;
         let nodes_id = self.nodes_id;
-        let add_id = self.add_id;
-        let list_id = self.list_id;
+        let add_id = self.nodes_add_id;
+        let list_id = self.nodes_list_id;
         let menu = self.menu_mut();
         if let Some(edit) = menu.get_submenu(edit_id) {
             if let Some(menu) = edit.node().get_child_mut::<Menu>(nodes_id) {
@@ -156,12 +156,12 @@ impl InternalWidget for MainMenu {
 
         let mut new_menu = Menu::new(self.get_shared_data(), self.get_global_messenger());
         new_menu.vertical();
-        self.add_id = new_menu.add_menu_item("Add ->");
+        self.nodes_add_id = new_menu.add_menu_item("Add ->");
         let mut list = ScrollableItem::new(self.get_shared_data(), self.get_global_messenger());
         list.clear()
             .vertical()
             .style(WidgetStyle::DefaultBackground);
-        self.list_id = new_menu.add_submenu_entry(self.add_id, Box::new(list));
+        self.nodes_list_id = new_menu.add_submenu_entry(self.nodes_add_id, Box::new(list));
 
         self.nodes_id = self
             .menu_mut()

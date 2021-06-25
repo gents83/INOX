@@ -20,6 +20,7 @@ use nrg_math::{Vector2, Vector3, Zero};
 use nrg_messenger::{read_messages, Message, MessageChannel, MessengerRw};
 use nrg_platform::*;
 use nrg_resources::{SharedData, SharedDataRw};
+use nrg_scene::{Object, ObjectId, Scene, SceneId, Transform};
 use nrg_serialize::*;
 
 pub struct EditorUpdater {
@@ -38,6 +39,8 @@ pub struct EditorUpdater {
     camera: Camera,
     move_camera_with_mouse: bool,
     last_mouse_pos: Vector2,
+    scene: SceneId,
+    selected_object: ObjectId,
 }
 
 impl EditorUpdater {
@@ -79,6 +82,8 @@ impl EditorUpdater {
             camera: Camera::new([0., 2., -2.].into(), [0., 0., 0.].into()),
             move_camera_with_mouse: false,
             last_mouse_pos: Vector2::zero(),
+            scene: INVALID_UID,
+            selected_object: INVALID_UID,
         }
     }
 
@@ -138,42 +143,12 @@ impl System for EditorUpdater {
             .register_messagebox::<DialogEvent>(self.message_channel.get_messagebox())
             .register_messagebox::<NodesEvent>(self.message_channel.get_messagebox());
 
-        let mut main_menu = MainMenu::new(&self.shared_data, &self.global_messenger);
-        self.main_menu_id = main_menu.id();
-        main_menu.fill_nodes_from_registry(&self.nodes_registry);
-        Gui::get()
-            .write()
-            .unwrap()
-            .get_root_mut()
-            .add_child(Box::new(main_menu));
+        self.create_main_menu()
+            .create_fps_counter()
+            .create_properties_panel()
+            .create_graph();
 
-        let widget = PropertiesPanel::new(&self.shared_data, &self.global_messenger);
-        self.properties_id = widget.id();
-        Gui::get()
-            .write()
-            .unwrap()
-            .get_root_mut()
-            .add_child(Box::new(widget));
-
-        let mut fps_text = Text::new(&self.shared_data, &self.global_messenger);
-        fps_text
-            .set_text("FPS: ")
-            .horizontal_alignment(HorizontalAlignment::Right)
-            .vertical_alignment(VerticalAlignment::Top);
-        self.fps_text = fps_text.id();
-        Gui::get()
-            .write()
-            .unwrap()
-            .get_root_mut()
-            .add_child(Box::new(fps_text));
-
-        let graph = Graph::new(&self.shared_data, &self.global_messenger);
-        self.graph_id = graph.id();
-        Gui::get()
-            .write()
-            .unwrap()
-            .get_root_mut()
-            .add_child(Box::new(graph));
+        self.create_scene().add_object_to_scene();
     }
 
     fn run(&mut self) -> bool {
@@ -206,12 +181,71 @@ impl System for EditorUpdater {
 }
 
 impl EditorUpdater {
-    fn create_screen(&mut self) {
+    fn create_main_menu(&mut self) -> &mut Self {
+        let mut main_menu = MainMenu::new(&self.shared_data, &self.global_messenger);
+        self.main_menu_id = main_menu.id();
+        main_menu.fill_nodes_from_registry(&self.nodes_registry);
+        Gui::get()
+            .write()
+            .unwrap()
+            .get_root_mut()
+            .add_child(Box::new(main_menu));
+
+        self
+    }
+    fn create_graph(&mut self) -> &mut Self {
+        let graph = Graph::new(&self.shared_data, &self.global_messenger);
+        self.graph_id = graph.id();
+        Gui::get()
+            .write()
+            .unwrap()
+            .get_root_mut()
+            .add_child(Box::new(graph));
+        self
+    }
+    fn create_properties_panel(&mut self) -> &mut Self {
+        let properties_panel = PropertiesPanel::new(&self.shared_data, &self.global_messenger);
+        self.properties_id = properties_panel.id();
+        Gui::get()
+            .write()
+            .unwrap()
+            .get_root_mut()
+            .add_child(Box::new(properties_panel));
+
+        self
+    }
+    fn create_fps_counter(&mut self) -> &mut Self {
+        let mut fps_text = Text::new(&self.shared_data, &self.global_messenger);
+        fps_text
+            .set_text("FPS: ")
+            .horizontal_alignment(HorizontalAlignment::Right)
+            .vertical_alignment(VerticalAlignment::Top);
+        self.fps_text = fps_text.id();
+        Gui::get()
+            .write()
+            .unwrap()
+            .get_root_mut()
+            .add_child(Box::new(fps_text));
+
+        self
+    }
+    fn create_scene(&mut self) -> &mut Self {
+        let scene_id = Scene::create(&self.shared_data);
+        self.scene = scene_id;
+        self
+    }
+    fn add_object_to_scene(&mut self) -> &mut Self {
+        let object_id = Object::create(&self.shared_data);
+        Object::add_component::<Transform>(&self.shared_data, object_id);
+        self
+    }
+    fn create_screen(&mut self) -> &mut Self {
         Screen::create(
             self.config.width,
             self.config.height,
             self.config.scale_factor,
         );
+        self
     }
     fn update_camera(&mut self) -> &mut Self {
         if SharedData::has_resources_of_type::<ViewInstance>(&self.shared_data) {

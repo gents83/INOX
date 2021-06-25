@@ -508,6 +508,7 @@ dependencies = [
  "nrg_platform",
  "nrg_profiler",
  "nrg_resources",
+ "nrg_scene",
  "nrg_serialize",
 ]
 
@@ -616,6 +617,15 @@ name = "nrg_resources"
 version = "0.1.0"
 dependencies = [
  "nrg_messenger",
+ "nrg_serialize",
+]
+
+[[package]]
+name = "nrg_scene"
+version = "0.1.0"
+dependencies = [
+ "nrg_math",
+ "nrg_resources",
  "nrg_serialize",
 ]
 
