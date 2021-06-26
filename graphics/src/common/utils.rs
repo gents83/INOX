@@ -73,10 +73,10 @@ pub fn create_quad(
     let index_offset: u32 = index_start.unwrap_or(0) as _;
     let indices: [u32; 6] = [
         index_offset,
+        2 + index_offset,
         1 + index_offset,
-        2 + index_offset,
-        2 + index_offset,
         3 + index_offset,
+        2 + index_offset,
         index_offset,
     ];
     (vertices, indices)
@@ -96,7 +96,7 @@ pub fn create_triangle_up() -> ([VertexData; 3], [u32; 3]) {
     vertices[0].color = [1., 1., 1., 1.].into();
     vertices[1].color = [1., 1., 1., 1.].into();
     vertices[2].color = [1., 1., 1., 1.].into();
-    let indices = [0u32, 1, 2];
+    let indices = [0u32, 2, 1];
     (vertices, indices)
 }
 
@@ -114,7 +114,7 @@ pub fn create_triangle_down() -> ([VertexData; 3], [u32; 3]) {
     vertices[0].color = [1., 1., 1., 1.].into();
     vertices[1].color = [1., 1., 1., 1.].into();
     vertices[2].color = [1., 1., 1., 1.].into();
-    let indices = [0u32, 1, 2];
+    let indices = [0u32, 2, 1];
     (vertices, indices)
 }
 
@@ -132,7 +132,7 @@ pub fn create_triangle_right() -> ([VertexData; 3], [u32; 3]) {
     vertices[0].color = [1., 1., 1., 1.].into();
     vertices[1].color = [1., 1., 1., 1.].into();
     vertices[2].color = [1., 1., 1., 1.].into();
-    let indices = [0u32, 1, 2];
+    let indices = [0u32, 2, 1];
     (vertices, indices)
 }
 
