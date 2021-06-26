@@ -5,12 +5,14 @@ pub use cgmath::*;
 pub use crate::angle::*;
 pub use crate::matrix::*;
 pub use crate::quaternion::*;
+pub use crate::ray::*;
 pub use crate::triangle::*;
 pub use crate::vector::*;
 
 pub mod angle;
 pub mod matrix;
 pub mod quaternion;
+pub mod ray;
 pub mod triangle;
 pub mod vector;
 

@@ -16,7 +16,10 @@ use nrg_graphics::{
     RenderPassInstance, ViewInstance,
 };
 use nrg_gui::*;
-use nrg_math::{get_translation, unproject, Vector2, Vector3, Zero};
+use nrg_math::{
+    compute_distance_between_ray_and_oob, InnerSpace, MatBase, Matrix4, SquareMatrix, Vector2,
+    Vector3, Vector4, Zero,
+};
 use nrg_messenger::{read_messages, Message, MessageChannel, MessengerRw};
 use nrg_platform::*;
 use nrg_resources::{SharedData, SharedDataRw};
@@ -68,7 +71,14 @@ impl EditorUpdater {
             .register_messagebox::<WidgetEvent>(message_channel.get_messagebox());
 
         let mut camera = Camera::new([20., 20., -20.].into(), [0., 0., 0.].into());
-        camera.set_projection(45., Screen::get_size().x, Screen::get_size().y, 0.1, 1000.);
+        camera.set_projection(
+            45.,
+            Screen::get_size().x,
+            Screen::get_size().y,
+            0.1,
+            1000.,
+            true,
+        );
 
         Self {
             id: SystemId::new(),
@@ -375,28 +385,41 @@ impl EditorUpdater {
 
         let screen_size = Screen::get_size();
         // The ray Start and End positions, in Normalized Device Coordinates (Have you read Tutorial 4 ?)
-        let ray_start = Vector3::new(
-            ((mouse_pos.x / screen_size.x) * 2.) - 1.,
-            ((mouse_pos.y / screen_size.y) * 2.) - 1.,
-            0.,
-        );
-        let ray_end = Vector3::new(
+        let ray_start = Vector4::new(0., 0., 0., 1.);
+        let ray_end = Vector4::new(
             ((mouse_pos.x / screen_size.x) * 2.) - 1.,
             ((mouse_pos.y / screen_size.y) * 2.) - 1.,
             1.,
+            1.,
         );
 
-        let ray_start = unproject(ray_start, view, proj).xyz(); // unprojecting on the near plane
-        let ray_end = unproject(ray_end, view, proj).xyz(); // unprojecting on the far plane
+        let inv_proj = proj.invert().unwrap();
+        let inv_view = view.invert().unwrap();
 
-        let eye_pos = get_translation(&view);
-        let ray_dir = eye_pos + (ray_end - ray_start);
+        let mut ray_start_camera = inv_proj * ray_start;
+        ray_start_camera /= ray_start_camera.w;
+        let mut ray_start_world = inv_view * ray_start_camera;
+        ray_start_world /= ray_start_world.w;
 
-        println!("Mouse {:?}", mouse_pos);
-        println!("CamPos {:?}", eye_pos);
-        println!("Near {:?}", ray_start);
-        println!("Far {:?}", ray_end);
-        println!("Dir {:?}", ray_dir);
+        let mut ray_end_camera = inv_proj * ray_end;
+        ray_end_camera /= ray_end_camera.w;
+        let mut ray_end_world = inv_view * ray_end_camera;
+        ray_end_world /= ray_end_world.w;
+
+        let ray_dir_world = ray_end_world - ray_start_world;
+        let ray_dir_world = ray_dir_world.normalize();
+
+        if compute_distance_between_ray_and_oob(
+            ray_start_world.xyz(),
+            ray_dir_world.xyz(),
+            [-5., -5., -5.].into(),
+            [5., 5., 5.].into(),
+            Matrix4::default_identity(),
+        ) {
+            println!("Inside");
+        } else {
+            println!("Outside");
+        }
 
         self
     }
@@ -518,6 +541,7 @@ impl EditorUpdater {
                             Screen::get_size().y,
                             0.1,
                             1000.,
+                            true,
                         );
                         Gui::invalidate_all_widgets();
                     }

@@ -15,14 +15,6 @@ use std::path::PathBuf;
 use std::{cell::RefCell, path::Path, rc::Rc};
 use vulkan_bindings::*;
 
-#[rustfmt::skip]
-const OPENGL_TO_VULKAN_MATRIX: Matrix4 = Matrix4::new(
-    -1.0, 0.0, 0.0, 0.0,
-    0.0, -1.0, 0.0, 0.0,
-    0.0, 0.0, 0.5, 0.0,
-    0.0, 0.0, 0.5, 1.0,
-);
-
 pub struct PipelineImmutable {
     constant_data: ConstantData,
     descriptor_set_layout: VkDescriptorSetLayout,
@@ -698,8 +690,7 @@ impl PipelineImmutable {
         self.constant_data.screen_width = details.capabilities.currentExtent.width as _;
         self.constant_data.screen_height = details.capabilities.currentExtent.height as _;
         self.constant_data.view = matrix4_to_array(*view);
-        let perspective = OPENGL_TO_VULKAN_MATRIX * proj;
-        self.constant_data.proj = matrix4_to_array(perspective);
+        self.constant_data.proj = matrix4_to_array(*proj);
 
         unsafe {
             vkCmdPushConstants.unwrap()(

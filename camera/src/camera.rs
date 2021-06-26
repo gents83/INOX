@@ -33,9 +33,25 @@ impl Camera {
         screen_height: f32,
         near: f32,
         far: f32,
+        flip: bool,
     ) -> &mut Self {
-        self.proj_matrix =
+        let proj =
             nrg_math::perspective(nrg_math::Deg(fov), screen_width / screen_height, near, far);
+
+        #[rustfmt::skip]
+        const OPENGL_TO_VULKAN_MATRIX: Matrix4 = Matrix4::new(
+            -1.0, 0.0, 0.0, 0.0,
+            0.0, -1.0, 0.0, 0.0,
+            0.0, 0.0, 0.5, 0.0,
+            0.0, 0.0, 0.5, 1.0,
+        );
+
+        if flip {
+            self.proj_matrix = OPENGL_TO_VULKAN_MATRIX * proj;
+        } else {
+            self.proj_matrix = proj;
+        }
+
         self
     }
 
