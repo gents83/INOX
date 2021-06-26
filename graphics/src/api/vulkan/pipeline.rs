@@ -17,7 +17,7 @@ use vulkan_bindings::*;
 
 #[rustfmt::skip]
 const OPENGL_TO_VULKAN_MATRIX: Matrix4 = Matrix4::new(
-    1.0, 0.0, 0.0, 0.0,
+    -1.0, 0.0, 0.0, 0.0,
     0.0, -1.0, 0.0, 0.0,
     0.0, 0.0, 0.5, 0.0,
     0.0, 0.0, 0.5, 1.0,
@@ -357,7 +357,7 @@ impl PipelineImmutable {
             depthClampEnable: VK_TRUE,
             rasterizerDiscardEnable: VK_FALSE,
             polygonMode: VkPolygonMode_VK_POLYGON_MODE_FILL,
-            cullMode: VkCullModeFlagBits_VK_CULL_MODE_BACK_BIT as VkCullModeFlags,
+            cullMode: VkCullModeFlagBits_VK_CULL_MODE_NONE as VkCullModeFlags,
             frontFace: VkFrontFace_VK_FRONT_FACE_CLOCKWISE,
             depthBiasEnable: VK_FALSE,
             depthBiasConstantFactor: 0.0,
@@ -708,7 +708,7 @@ impl PipelineImmutable {
                 (VkShaderStageFlagBits_VK_SHADER_STAGE_VERTEX_BIT
                     | VkShaderStageFlagBits_VK_SHADER_STAGE_FRAGMENT_BIT) as _,
                 0,
-                (2 + 16 + 16) * ::std::mem::size_of::<f32>() as u32,
+                ::std::mem::size_of::<ConstantData>() as _,
                 &self.constant_data as *const ConstantData as _,
             );
         }

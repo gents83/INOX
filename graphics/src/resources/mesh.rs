@@ -27,18 +27,26 @@ impl ResourceTrait for MeshInstance {
     }
 }
 
-impl MeshInstance {
-    pub fn create(shared_data: &SharedDataRw, mesh_data: MeshData) -> MeshId {
-        let mut data = shared_data.write().unwrap();
-        data.add_resource(MeshInstance {
+impl Default for MeshInstance {
+    fn default() -> Self {
+        Self {
             id: generate_random_uid(),
-            mesh_data,
+            mesh_data: MeshData::default(),
             draw_area: [0., 0., f32::MAX, f32::MAX].into(),
             transform: Matrix4::default_identity(),
             is_visible: true,
             is_dirty: true,
             uv_converted: false,
-        })
+        }
+    }
+}
+
+impl MeshInstance {
+    pub fn create(shared_data: &SharedDataRw, mesh_data: MeshData) -> MeshId {
+        let mut mesh_instance = MeshInstance::default();
+        let mut data = shared_data.write().unwrap();
+        mesh_instance.mesh_data = mesh_data;
+        data.add_resource(mesh_instance)
     }
     pub fn get_data(&self) -> &MeshData {
         &self.mesh_data

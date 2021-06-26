@@ -1,4 +1,4 @@
-use super::*;
+use crate::vector::Vector2;
 
 const EPSILON: f32 = 0.001;
 const EPSILON_SQUARE: f32 = EPSILON * EPSILON;

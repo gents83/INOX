@@ -1,36 +1,28 @@
 #version 450
 
-layout(binding = 0) uniform UniformBufferObject {
+layout(std140, push_constant) uniform PushConsts {
     mat4 view;
     mat4 proj;
-} ubo;
-
-layout(push_constant) uniform PushConsts {
 	vec2 screen_size;
 } pushConsts;
+
 
 //Input
 layout(location = 0) in vec3 inPosition;
 layout(location = 1) in vec4 inColor;
 layout(location = 2) in vec2 inTexCoord;
-layout(location = 3) in vec3 inNormal;
 
 layout(location = 4) in vec3 instancePos;
 layout(location = 5) in vec3 instanceRot;
 layout(location = 6) in vec3 instanceScale;
-layout(location = 7) in vec4 instanceDrawArea;
 
 layout(location = 8) in vec4 instanceDiffuseColor;
 layout(location = 9) in int instanceDiffuseTextureIndex;
 layout(location = 10) in int instanceDiffuseLayerIndex;
 
-layout(location = 11) in vec4 instanceOutlineColor;
-
 //Output
 layout(location = 0) out vec4 outColor;
 layout(location = 1) out vec3 outTexCoord;
-layout(location = 2) out vec4 outDrawArea;
-layout(location = 3) out vec4 outOutlineColor;
 
 void main() {	
 	mat4 mx, my, mz;
@@ -76,12 +68,8 @@ void main() {
 
 	mat4 instanceMatrix = transMat * rotMat * scaleMat;
 	
-	vec2 outlineOffset = ((2 * inNormal.xy * instanceOutlineColor.a) - 1) / pushConsts.screen_size.xy;
-
-    gl_Position = (ubo.proj * ubo.view * instanceMatrix * vec4((inPosition.xy + outlineOffset), inPosition.z, 1.));
+    gl_Position = (pushConsts.proj * pushConsts.view * instanceMatrix * vec4(inPosition.xy, inPosition.z, 1.));
 
     outColor = inColor * instanceDiffuseColor;
     outTexCoord = vec3(inTexCoord, instanceDiffuseLayerIndex);
-    outDrawArea = instanceDrawArea;
-    outOutlineColor = instanceOutlineColor;
 }

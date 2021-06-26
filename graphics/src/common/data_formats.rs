@@ -80,7 +80,7 @@ impl Default for VertexData {
     fn default() -> VertexData {
         VertexData {
             pos: [0.0, 0.0, 0.0].into(),
-            color: [0.0, 0.0, 0.0, 0.0].into(),
+            color: [1.0, 1.0, 1.0, 1.0].into(),
             tex_coord: [0.0, 0.0].into(),
             normal: [0.0, 0.0, 1.0].into(),
         }

@@ -12,11 +12,11 @@ use super::widgets::*;
 use nrg_camera::Camera;
 use nrg_core::*;
 use nrg_graphics::{
-    FontInstance, MaterialInstance, MeshData, MeshInstance, PipelineInstance, RenderPassInstance,
-    ViewInstance,
+    utils::create_cube, FontInstance, MaterialInstance, MeshData, MeshInstance, PipelineInstance,
+    RenderPassInstance, ViewInstance,
 };
 use nrg_gui::*;
-use nrg_math::{Vector2, Vector3, Zero};
+use nrg_math::{get_translation, unproject, Vector2, Vector3, Zero};
 use nrg_messenger::{read_messages, Message, MessageChannel, MessengerRw};
 use nrg_platform::*;
 use nrg_resources::{SharedData, SharedDataRw};
@@ -66,6 +66,10 @@ impl EditorUpdater {
             .write()
             .unwrap()
             .register_messagebox::<WidgetEvent>(message_channel.get_messagebox());
+
+        let mut camera = Camera::new([20., 20., -20.].into(), [0., 0., 0.].into());
+        camera.set_projection(45., Screen::get_size().x, Screen::get_size().y, 0.1, 1000.);
+
         Self {
             id: SystemId::new(),
             frame_seconds: VecDeque::default(),
@@ -79,7 +83,7 @@ impl EditorUpdater {
             graph_id: INVALID_UID,
             main_menu_id: INVALID_UID,
             message_channel,
-            camera: Camera::new([0., 2., -2.].into(), [0., 0., 0.].into()),
+            camera,
             move_camera_with_mouse: false,
             last_mouse_pos: Vector2::zero(),
             scene: INVALID_UID,
@@ -236,7 +240,25 @@ impl EditorUpdater {
     }
     fn add_object_to_scene(&mut self) -> &mut Self {
         let object_id = Object::create(&self.shared_data);
+
+        let pipeline_id = PipelineInstance::find_id_from_name(&self.shared_data, "3D");
+        let material_id = MaterialInstance::create_from_pipeline(&self.shared_data, pipeline_id);
+
+        let mut mesh = MeshData::default();
+        let (cube_vertices, cube_indices) = create_cube([5., 5., 5.].into());
+        mesh.append_mesh(&cube_vertices, &cube_indices);
+        mesh.set_vertex_color([1., 1., 0., 1.].into());
+        let mesh_id = MeshInstance::create(&self.shared_data, mesh);
+
+        MaterialInstance::add_mesh(&self.shared_data, material_id, mesh_id);
+        Object::add_component_with_id::<MaterialInstance>(
+            &self.shared_data,
+            object_id,
+            material_id,
+        );
+
         Object::add_component::<Transform>(&self.shared_data, object_id);
+
         self
     }
     fn create_screen(&mut self) -> &mut Self {
@@ -251,12 +273,7 @@ impl EditorUpdater {
         if SharedData::has_resources_of_type::<ViewInstance>(&self.shared_data) {
             let view_id = SharedData::get_resourceid_at_index::<ViewInstance>(&self.shared_data, 0);
             let view = self.camera.get_view_matrix();
-            let proj = nrg_math::perspective(
-                nrg_math::Deg(45.),
-                Screen::get_size().x / Screen::get_size().y,
-                0.001,
-                1000.0,
-            );
+            let proj = self.camera.get_proj_matrix();
             ViewInstance::update_view(&self.shared_data, view_id, view);
             ViewInstance::update_proj(&self.shared_data, view_id, proj);
         }
@@ -351,6 +368,39 @@ impl EditorUpdater {
         }
     }
 
+    fn update_selected_object(&mut self, mouse_pos: &Vector2) -> &mut Self {
+        self.selected_object = INVALID_UID;
+        let view = self.camera.get_view_matrix();
+        let proj = self.camera.get_proj_matrix();
+
+        let screen_size = Screen::get_size();
+        // The ray Start and End positions, in Normalized Device Coordinates (Have you read Tutorial 4 ?)
+        let ray_start = Vector3::new(
+            ((mouse_pos.x / screen_size.x) * 2.) - 1.,
+            ((mouse_pos.y / screen_size.y) * 2.) - 1.,
+            0.,
+        );
+        let ray_end = Vector3::new(
+            ((mouse_pos.x / screen_size.x) * 2.) - 1.,
+            ((mouse_pos.y / screen_size.y) * 2.) - 1.,
+            1.,
+        );
+
+        let ray_start = unproject(ray_start, view, proj).xyz(); // unprojecting on the near plane
+        let ray_end = unproject(ray_end, view, proj).xyz(); // unprojecting on the far plane
+
+        let eye_pos = get_translation(&view);
+        let ray_dir = eye_pos + (ray_end - ray_start);
+
+        println!("Mouse {:?}", mouse_pos);
+        println!("CamPos {:?}", eye_pos);
+        println!("Near {:?}", ray_start);
+        println!("Far {:?}", ray_end);
+        println!("Dir {:?}", ray_dir);
+
+        self
+    }
+
     fn update_events(&mut self) -> &mut Self {
         nrg_profiler::scoped_profile!("update_events");
 
@@ -408,8 +458,11 @@ impl EditorUpdater {
                     self.move_camera_with_mouse = true;
                     self.last_mouse_pos = [event.x as f32, event.y as f32].into();
                 } else if event.state == MouseState::Up && event.button == MouseButton::Left {
+                    let mouse_pos = [event.x as f32, event.y as f32].into();
+                    self.update_selected_object(&mouse_pos);
+
                     self.move_camera_with_mouse = false;
-                    self.last_mouse_pos = [event.x as f32, event.y as f32].into();
+                    self.last_mouse_pos = mouse_pos;
                 }
                 if event.state == MouseState::Move && self.move_camera_with_mouse {
                     let mut rotation_angle = Vector3::zero();
@@ -459,6 +512,13 @@ impl EditorUpdater {
                 match *event {
                     WindowEvent::SizeChanged(width, height) => {
                         Screen::change_size(width, height);
+                        self.camera.set_projection(
+                            45.,
+                            Screen::get_size().x,
+                            Screen::get_size().y,
+                            0.1,
+                            1000.,
+                        );
                         Gui::invalidate_all_widgets();
                     }
                     WindowEvent::DpiChanged(x, _y) => {
