@@ -19,15 +19,14 @@ pub struct CameraInput {
 
 impl Camera {
     pub fn new(position: Vector3, target: Vector3, is_flipped: bool) -> Self {
-        let direction = (target - position).normalize();
-        let rotation = direction_to_euler_angles(direction);
         let mut camera = Self {
             position,
-            rotation,
-            direction,
+            rotation: [0., 0., 0.].into(),
+            direction: [0., 0., 1.].into(),
             proj_matrix: Matrix4::default_identity(),
             is_flipped,
         };
+        camera.look_at(target);
         camera.update();
         camera
     }
@@ -76,6 +75,14 @@ impl Camera {
     #[inline]
     pub fn rotate(&mut self, rotation_angle: Vector3) -> &mut Self {
         self.rotation += rotation_angle;
+        self.update();
+        self
+    }
+
+    #[inline]
+    pub fn look_at(&mut self, position: Vector3) -> &mut Self {
+        self.direction = (position - self.position).normalize();
+        self.rotation = direction_to_euler_angles(self.direction);
         self.update();
         self
     }
