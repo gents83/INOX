@@ -101,7 +101,6 @@ impl Binarizer {
     pub fn stop(&mut self) {
         if self.thread_handle.is_some() {
             let t = self.thread_handle.take().unwrap();
-            println!("Stopping thread {}", t.thread().name().unwrap_or("no_name"));
 
             self.is_running.store(false, Ordering::SeqCst);
             t.join().unwrap();

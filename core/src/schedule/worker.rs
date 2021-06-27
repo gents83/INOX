@@ -47,10 +47,8 @@ impl Worker {
         if self.thread_handle.is_none() {
             let builder = thread::Builder::new().name(name.into());
             let scheduler = Arc::clone(&self.scheduler);
-            let thread_name = String::from(name);
             let t = builder
                 .spawn(move || {
-                    println!("Starting thread {}", thread_name.as_str());
                     nrg_profiler::register_thread!();
                     scheduler.write().unwrap().resume();
                     loop {
@@ -77,7 +75,6 @@ impl Worker {
     pub fn stop(&mut self) {
         if self.thread_handle.is_some() {
             let t = self.thread_handle.take().unwrap();
-            println!("Stopping thread {}", t.thread().name().unwrap_or("no_name"));
 
             self.scheduler.write().unwrap().cancel();
             t.join().unwrap();

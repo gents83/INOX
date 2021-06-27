@@ -70,15 +70,8 @@ impl EditorUpdater {
             .unwrap()
             .register_messagebox::<WidgetEvent>(message_channel.get_messagebox());
 
-        let mut camera = Camera::new([20., 20., -20.].into(), [0., 0., 0.].into());
-        camera.set_projection(
-            45.,
-            Screen::get_size().x,
-            Screen::get_size().y,
-            0.1,
-            1000.,
-            true,
-        );
+        let mut camera = Camera::new([20., 20., -20.].into(), [0., 0., 0.].into(), true);
+        camera.set_projection(45., Screen::get_size().x, Screen::get_size().y, 0.1, 1000.);
 
         Self {
             id: SystemId::new(),
@@ -490,8 +483,8 @@ impl EditorUpdater {
                 if event.state == MouseState::Move && self.move_camera_with_mouse {
                     let mut rotation_angle = Vector3::zero();
 
-                    rotation_angle.y = event.x as f32 - self.last_mouse_pos.x;
                     rotation_angle.x = event.y as f32 - self.last_mouse_pos.y;
+                    rotation_angle.y = self.last_mouse_pos.x - event.x as f32;
 
                     self.camera.rotate(rotation_angle * 0.01);
 
@@ -499,37 +492,18 @@ impl EditorUpdater {
                 }
             } else if msg.type_id() == TypeId::of::<KeyEvent>() {
                 let event = msg.as_any().downcast_ref::<KeyEvent>().unwrap();
-                if event.state == InputState::JustPressed && event.code == Key::F5 {
-                    println!("Launch game");
-                    let result = std::process::Command::new("nrg_game_app").spawn().is_ok();
-                    if !result {
-                        println!("Failed to execute process");
-                    }
-                }
 
                 let mut movement = Vector3::zero();
                 if event.code == Key::W {
-                    movement.z += 0.1;
+                    movement.z += 5.;
                 } else if event.code == Key::S {
-                    movement.z -= 0.1;
+                    movement.z -= 5.;
                 } else if event.code == Key::A {
-                    movement.x += 0.1;
+                    movement.x += 5.;
                 } else if event.code == Key::D {
-                    movement.x -= 0.1;
+                    movement.x -= 5.;
                 }
                 self.camera.translate(movement);
-
-                let mut rotation_angle = Vector3::zero();
-                if event.code == Key::ArrowUp {
-                    rotation_angle.x -= 0.1;
-                } else if event.code == Key::ArrowDown {
-                    rotation_angle.x += 0.1;
-                } else if event.code == Key::ArrowRight {
-                    rotation_angle.y += 0.1;
-                } else if event.code == Key::ArrowLeft {
-                    rotation_angle.y -= 0.1;
-                }
-                self.camera.rotate(rotation_angle);
             } else if msg.type_id() == TypeId::of::<WindowEvent>() {
                 let event = msg.as_any().downcast_ref::<WindowEvent>().unwrap();
                 match *event {
@@ -541,7 +515,6 @@ impl EditorUpdater {
                             Screen::get_size().y,
                             0.1,
                             1000.,
-                            true,
                         );
                         Gui::invalidate_all_widgets();
                     }
