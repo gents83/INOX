@@ -85,11 +85,10 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         self.mark_as_dirty();
         self.mark_as_initialized();
     }
-    fn update(&mut self, parent_data: Vector4, drawing_area_in_px: Vector4) {
+    fn update(&mut self, parent_data: Vector4, drawing_area_in_px: Vector4) -> bool {
+        let is_dirty = self.is_dirty();
         self.process_messages(drawing_area_in_px);
-
-        let count = 0;
-        self.adjust_layout(parent_data, drawing_area_in_px, count);
+        self.manage_layout(parent_data, drawing_area_in_px);
 
         {
             nrg_profiler::scoped_profile!("widget::widget_update");
@@ -97,6 +96,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         }
 
         self.graphics_mut().update(drawing_area_in_px);
+        is_dirty
     }
     #[inline]
     fn uninit(&mut self) {
@@ -109,27 +109,22 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         self.graphics_mut().uninit();
     }
 
-    fn adjust_layout(&mut self, parent_data: Vector4, drawing_area_in_px: Vector4, mut count: u32) {
-        count += 1;
-
+    fn manage_layout(&mut self, parent_data: Vector4, drawing_area_in_px: Vector4) {
         if self.is_dirty() {
+            self.mark_as_dirty(); //propagate to children again
             self.update_layout(parent_data);
             self.manage_style();
         }
 
-        self.update_childrens(drawing_area_in_px);
-
-        if self.is_dirty() {
-            if count > 2 {
-                eprintln!("Updating layout more than twice - there most be an error!!!");
-            }
-            self.adjust_layout(parent_data, drawing_area_in_px, count);
+        if self.update_childrens(drawing_area_in_px) {
+            self.mark_as_dirty();
         }
     }
 
-    fn update_childrens(&mut self, drawing_area_in_px: Vector4) {
+    fn update_childrens(&mut self, drawing_area_in_px: Vector4) -> bool {
         nrg_profiler::scoped_profile!("widget::update_childrens");
 
+        let mut is_dirty = false;
         let filltype = self.state().get_fill_type();
         let space = self.state().get_space_between_elements() as f32;
         let use_space_before_after = self.state().should_use_space_before_and_after();
@@ -148,7 +143,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
                 space,
                 use_space_before_after,
             );
-            children[i]
+            is_dirty |= children[i]
                 .write()
                 .unwrap()
                 .update(widget_space, child_drawing_area);
@@ -162,7 +157,9 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
             );
             widget_space = add_space_before_after(widget_space, filltype, space);
         }
+        is_dirty
     }
+
     #[inline]
     fn process_messages(&mut self, drawing_area_in_px: Vector4) {
         nrg_profiler::scoped_profile!("widget::process_messages");
@@ -521,6 +518,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
     fn update_layout(&mut self, clip_rect: Vector4) {
         nrg_profiler::scoped_profile!("widget::update_layout");
         self.state_mut().set_dirty(false);
+
         let mut fit_size = self.compute_children_size(self.state().get_size());
         if self.state().should_keep_fixed_width() {
             fit_size.x = self.state().get_size().x;
