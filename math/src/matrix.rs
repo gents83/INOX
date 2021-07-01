@@ -18,8 +18,28 @@ macro_rules! implement_matrix_base {
     };
 }
 
+pub trait Mat4Ops {
+    fn inverse(&self) -> Self;
+    fn transform(&self, vec: Vector3) -> Vector3;
+}
+
+macro_rules! implement_matrix4_operations {
+    ($MatrixN:ident) => {
+        impl Mat4Ops for $MatrixN {
+            fn inverse(&self) -> Self {
+                self.inverse_transform().unwrap()
+            }
+            fn transform(&self, vec: Vector3) -> Vector3 {
+                let p: cgmath::Point3<f32> = self.transform_point([vec.x, vec.y, vec.x].into());
+                [p.x, p.y, p.z].into()
+            }
+        }
+    };
+}
+
 implement_matrix_base!(Matrix3);
 implement_matrix_base!(Matrix4);
+implement_matrix4_operations!(Matrix4);
 
 #[inline]
 pub fn get_translation(mat: &Matrix4) -> Vector3 {
@@ -141,8 +161,8 @@ pub fn create_look_at(eye: Vector3, target: Vector3, up: Vector3) -> Matrix4 {
 }
 
 pub fn unproject(position: Vector3, view: Matrix4, projection: Matrix4) -> Vector3 {
-    let view_inverse = view.inverse_transform().unwrap();
-    let proj_inverse = projection.inverse_transform().unwrap();
+    let view_inverse = view.inverse();
+    let proj_inverse = projection.inverse();
     let unprojected_point =
         view_inverse * proj_inverse * Vector4::new(position.x, position.y, position.z, 1.0);
     unprojected_point.xyz() / unprojected_point.w
