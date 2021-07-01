@@ -1,3 +1,5 @@
+use std::f32::consts::PI;
+
 use nrg_math::*;
 
 use crate::common::data_formats::*;
@@ -166,5 +168,117 @@ pub fn create_cube(size: Vector3) -> ([VertexData; 8], [u32; 36]) {
         0, 1, 3, 3, 1, 2, 1, 5, 2, 2, 5, 6, 5, 4, 6, 6, 4, 7, 4, 0, 7, 7, 0, 3, 3, 2, 7, 7, 2, 6,
         4, 5, 0, 0, 5, 1,
     ];
+    (vertices, indices)
+}
+
+fn append_rounded_corner(
+    vertices: &mut Vec<Vector2>,
+    x: f32,
+    y: f32,
+    sa: f32,
+    arc: f32,
+    r: f32,
+    slices: u32,
+) {
+    // centre of the arc, for clockwise sense
+    let cent_x = x + r * (sa + PI / 2.).cos();
+    let cent_y = y + r * (sa + PI / 2.).sin();
+
+    // build up piecemeal including end of the arc
+    let n: u32 = (slices as f32 * arc / PI * 2.).ceil() as u32;
+    for i in 0..n {
+        let ang = sa + arc * (i as f32) / (n as f32);
+
+        // compute the next point
+        let next_x = cent_x + r * ang.sin();
+        let next_y = cent_y - r * ang.cos();
+        vertices.push(Vector2::new(next_x, next_y));
+    }
+}
+
+pub fn create_rounded_rect(
+    rect: Vector4,
+    corner_radius: f32,
+    num_slices: u32,
+) -> (Vec<VertexData>, Vec<u32>) {
+    let center = VertexData {
+        pos: [
+            rect.x + (rect.z - rect.x) * 0.5,
+            rect.y + (rect.w - rect.y) * 0.5,
+            0.,
+        ]
+        .into(),
+        color: [1., 1., 1., 1.].into(),
+        tex_coord: [0.5, 0.5].into(),
+        normal: [0., 0., 1.].into(),
+    };
+
+    let mut positions = Vec::new();
+
+    // top-left corner
+    append_rounded_corner(
+        &mut positions,
+        rect.x,
+        rect.y + corner_radius,
+        3. * PI / 2.,
+        PI / 2.,
+        corner_radius,
+        num_slices,
+    );
+
+    // top-right
+    append_rounded_corner(
+        &mut positions,
+        rect.z - corner_radius,
+        rect.y,
+        0.,
+        PI / 2.,
+        corner_radius,
+        num_slices,
+    );
+
+    // bottom-right
+    append_rounded_corner(
+        &mut positions,
+        rect.z,
+        rect.w - corner_radius,
+        PI / 2.,
+        PI / 2.,
+        corner_radius,
+        num_slices,
+    );
+
+    // bottom-left
+    append_rounded_corner(
+        &mut positions,
+        rect.x + corner_radius,
+        rect.w,
+        PI,
+        PI / 2.,
+        corner_radius,
+        num_slices,
+    );
+
+    let mut vertices = vec![center];
+    for v in positions.iter() {
+        let pos: Vector3 = [v.x, v.y, 0.].into();
+        vertices.push(VertexData {
+            pos,
+            color: [1., 1., 1., 1.].into(),
+            tex_coord: [rect.z / v.x, rect.w / v.y].into(),
+            normal: (pos - center.pos).normalize(),
+        });
+    }
+
+    let mut indices = Vec::new();
+    for i in 1..vertices.len() - 1 {
+        indices.push(i as u32 + 1u32);
+        indices.push(i as u32);
+        indices.push(0u32);
+    }
+    indices.push(1u32);
+    indices.push((vertices.len() - 1) as u32);
+    indices.push(0u32);
+
     (vertices, indices)
 }

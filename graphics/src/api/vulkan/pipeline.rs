@@ -422,8 +422,7 @@ impl PipelineImmutable {
         };
 
         let push_constant_range = VkPushConstantRange {
-            stageFlags: (VkShaderStageFlagBits_VK_SHADER_STAGE_VERTEX_BIT
-                | VkShaderStageFlagBits_VK_SHADER_STAGE_FRAGMENT_BIT) as _,
+            stageFlags: VkShaderStageFlagBits_VK_SHADER_STAGE_ALL_GRAPHICS as _,
             offset: 0,
             size: ::std::mem::size_of::<ConstantData>() as _,
         };
@@ -696,8 +695,7 @@ impl PipelineImmutable {
             vkCmdPushConstants.unwrap()(
                 device.get_current_command_buffer(),
                 self.pipeline_layout,
-                (VkShaderStageFlagBits_VK_SHADER_STAGE_VERTEX_BIT
-                    | VkShaderStageFlagBits_VK_SHADER_STAGE_FRAGMENT_BIT) as _,
+                VkShaderStageFlagBits_VK_SHADER_STAGE_ALL_GRAPHICS as _,
                 0,
                 ::std::mem::size_of::<ConstantData>() as _,
                 &self.constant_data as *const ConstantData as _,
