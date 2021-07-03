@@ -8,7 +8,7 @@ use std::{
     thread::{self, JoinHandle},
 };
 
-use crate::{ConfigCompiler, FontCompiler, ImageCompiler, ShaderCompiler};
+use crate::{ConfigCompiler, FontCompiler, GltfCompiler, ImageCompiler, ShaderCompiler};
 use nrg_messenger::MessengerRw;
 use nrg_platform::{FileEvent, FileWatcher};
 use nrg_resources::get_absolute_path_from;
@@ -74,10 +74,12 @@ impl Binarizer {
         let config_compiler = ConfigCompiler::new(self.global_messenger.clone());
         let font_compiler = FontCompiler::new(self.global_messenger.clone());
         let image_compiler = ImageCompiler::new(self.global_messenger.clone());
+        let gltf_compiler = GltfCompiler::new(self.global_messenger.clone());
         binarizer.add_handler(config_compiler);
         binarizer.add_handler(shader_compiler);
         binarizer.add_handler(font_compiler);
         binarizer.add_handler(image_compiler);
+        binarizer.add_handler(gltf_compiler);
 
         self.is_running.store(true, Ordering::SeqCst);
         let can_continue = self.is_running.clone();

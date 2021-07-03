@@ -59,6 +59,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cdb031dd78e28731d87d56cc8ffef4a8f36ca26c38fe2de700543e627f8a464a"
 
 [[package]]
+name = "base64"
+version = "0.12.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3441f0f7b02788e948e47f457ca01f1d7e6d92c693bc132c22b087d3141c03ff"
+
+[[package]]
 name = "bindgen"
 version = "0.57.0"
 source = "git+https://github.com/rust-lang/rust-bindgen#43a05656ae1949a59d95fb62300df1d0ee76de39"
@@ -308,6 +314,40 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9b919933a397b79c37e33b77bb2aa3dc8eb6e165ad809e58ff75bc7db2e34574"
 
 [[package]]
+name = "gltf"
+version = "0.16.0"
+source = "git+https://github.com/gltf-rs/gltf#47acbef482b525a31312dff332015affacaa5648"
+dependencies = [
+ "base64",
+ "byteorder",
+ "gltf-json",
+ "image 0.23.14",
+ "lazy_static",
+]
+
+[[package]]
+name = "gltf-derive"
+version = "0.16.0"
+source = "git+https://github.com/gltf-rs/gltf#47acbef482b525a31312dff332015affacaa5648"
+dependencies = [
+ "inflections",
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "gltf-json"
+version = "0.16.0"
+source = "git+https://github.com/gltf-rs/gltf#47acbef482b525a31312dff332015affacaa5648"
+dependencies = [
+ "gltf-derive",
+ "serde",
+ "serde_derive",
+ "serde_json 1.0.64",
+]
+
+[[package]]
 name = "hermit-abi"
 version = "0.1.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -339,6 +379,28 @@ dependencies = [
  "scoped_threadpool",
  "tiff",
 ]
+
+[[package]]
+name = "image"
+version = "0.23.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "24ffcb7e7244a9bf19d35bf2883b9c080c4ced3c07a9895572178cdb8f13f6a1"
+dependencies = [
+ "bytemuck",
+ "byteorder",
+ "color_quant",
+ "jpeg-decoder",
+ "num-iter",
+ "num-rational",
+ "num-traits",
+ "png",
+]
+
+[[package]]
+name = "inflections"
+version = "1.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a257582fdcde896fd96463bf2d40eefea0580021c0712a0e2b028b60b47a837a"
 
 [[package]]
 name = "inventory"
@@ -462,9 +524,13 @@ dependencies = [
 name = "nrg_binarizer"
 version = "0.1.0"
 dependencies = [
+ "gltf",
+ "nrg_graphics",
+ "nrg_math",
  "nrg_messenger",
  "nrg_platform",
  "nrg_resources",
+ "nrg_serialize",
 ]
 
 [[package]]
@@ -543,7 +609,7 @@ dependencies = [
 name = "nrg_graphics"
 version = "0.1.0"
 dependencies = [
- "image",
+ "image 0.23.13",
  "nrg_math",
  "nrg_messenger",
  "nrg_platform",
@@ -609,7 +675,7 @@ version = "0.1.0"
 dependencies = [
  "nrg_dynamic_library",
  "nrg_platform",
- "serde_json",
+ "serde_json 1.0.62",
 ]
 
 [[package]]
@@ -635,7 +701,7 @@ version = "0.1.0"
 dependencies = [
  "serde",
  "serde_derive",
- "serde_json",
+ "serde_json 1.0.62",
  "typetag",
  "uuid",
 ]
@@ -838,6 +904,17 @@ dependencies = [
 name = "serde_json"
 version = "1.0.62"
 source = "git+https://github.com/serde-rs/json#64dd1e03e0c93808dca5e9a957416b424aaab5fe"
+dependencies = [
+ "itoa",
+ "ryu",
+ "serde",
+]
+
+[[package]]
+name = "serde_json"
+version = "1.0.64"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "799e97dc9fdae36a5c8b8f2cae9ce2ee9fdce2058c57a93e6099d919fd982f79"
 dependencies = [
  "itoa",
  "ryu",

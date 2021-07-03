@@ -108,7 +108,6 @@ impl Font {
             }
         }
 
-        mesh_data.is_transient = true;
         mesh_data.set_vertex_color(text_data.color);
         mesh_data
     }

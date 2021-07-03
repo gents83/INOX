@@ -201,19 +201,15 @@ pub struct MeshDataRef {
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 #[serde(crate = "nrg_serialize")]
 pub struct MeshData {
-    pub center: Vector3,
     pub vertices: Vec<VertexData>,
     pub indices: Vec<u32>,
-    pub is_transient: bool,
 }
 
 impl Default for MeshData {
     fn default() -> Self {
         Self {
-            center: Vector3::default_zero(),
             vertices: Vec::new(),
             indices: Vec::new(),
-            is_transient: false,
         }
     }
 }
@@ -225,7 +221,7 @@ impl MeshData {
         self
     }
 
-    pub fn compute_center(&mut self) -> &mut Self {
+    pub fn compute_center(&mut self) -> Vector3 {
         let mut min = Vector3::new(f32::MAX, f32::MAX, f32::MAX);
         let mut max = Vector3::new(f32::MIN, f32::MIN, f32::MIN);
         for v in self.vertices.iter() {
@@ -236,10 +232,12 @@ impl MeshData {
             max.y = max.y.max(v.pos.y);
             max.z = max.z.max(v.pos.z);
         }
-        self.center.x = min.x + (max.x - min.x) * 0.5;
-        self.center.y = min.y + (max.y - min.y) * 0.5;
-        self.center.z = min.z + (max.z - min.z) * 0.5;
-        self
+        [
+            min.x + (max.x - min.x) * 0.5,
+            min.y + (max.y - min.y) * 0.5,
+            min.z + (max.z - min.z) * 0.5,
+        ]
+        .into()
     }
 
     pub fn set_vertex_color(&mut self, color: Vector4) -> &mut Self {
