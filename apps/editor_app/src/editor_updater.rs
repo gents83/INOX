@@ -42,7 +42,7 @@ pub struct EditorUpdater {
     camera: Camera,
     move_camera_with_mouse: bool,
     last_mouse_pos: Vector2,
-    scene: SceneId,
+    scene_id: SceneId,
     selected_object: ObjectId,
 }
 
@@ -89,7 +89,7 @@ impl EditorUpdater {
             camera,
             move_camera_with_mouse: false,
             last_mouse_pos: Vector2::zero(),
-            scene: INVALID_UID,
+            scene_id: INVALID_UID,
             selected_object: INVALID_UID,
         }
     }
@@ -238,7 +238,7 @@ impl EditorUpdater {
     }
     fn create_scene(&mut self) -> &mut Self {
         let scene_id = Scene::create(&self.shared_data);
-        self.scene = scene_id;
+        self.scene_id = scene_id;
         self
     }
     fn add_object_to_scene(&mut self) -> &mut Self {
@@ -246,13 +246,16 @@ impl EditorUpdater {
             &self.shared_data,
             PathBuf::from("models/lion_statue/lion_statue.object_data").as_path(),
         );
-        Scene::add_object(&self.shared_data, self.scene, object_id);
+        Scene::add_object(&self.shared_data, self.scene_id, object_id);
 
         let object_id = Object::create_from_file(
             &self.shared_data,
             PathBuf::from("models/box/box.object_data").as_path(),
         );
-        Scene::add_object(&self.shared_data, self.scene, object_id);
+        Scene::add_object(&self.shared_data, self.scene_id, object_id);
+
+        Scene::update_hierarchy(&self.shared_data, self.scene_id);
+
         self
     }
     fn create_screen(&mut self) -> &mut Self {

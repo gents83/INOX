@@ -16,6 +16,7 @@ pub type ObjectId = ResourceId;
 pub struct Object {
     id: ResourceId,
     filepath: PathBuf,
+    chilrden: Vec<ObjectId>,
     components: HashMap<TypeId, ComponentId>,
 }
 
@@ -34,6 +35,7 @@ impl Default for Object {
             id: generate_random_uid(),
             filepath: PathBuf::default(),
             components: HashMap::new(),
+            chilrden: Vec::new(),
         }
     }
 }
@@ -41,7 +43,6 @@ impl Default for Object {
 impl Object {
     pub fn create_from_file(shared_data: &SharedDataRw, filepath: &Path) -> ObjectId {
         let object_data = from_file::<ObjectData>(filepath);
-        println!("{:?}", filepath);
 
         let object_id = {
             let mut data = shared_data.write().unwrap();
@@ -62,7 +63,8 @@ impl Object {
         }
 
         for child in object_data.children.iter() {
-            Object::create_from_file(shared_data, child.as_path());
+            let child_id = Object::create_from_file(shared_data, child.as_path());
+            Object::add_child(shared_data, object_id, child_id);
         }
 
         object_id
@@ -71,6 +73,19 @@ impl Object {
         let mut data = shared_data.write().unwrap();
         data.add_resource(Object::default())
     }
+
+    pub fn add_child(shared_data: &SharedDataRw, parent_id: ObjectId, child_id: ObjectId) {
+        let object = SharedData::get_resource::<Self>(shared_data, parent_id);
+        let object = &mut object.get_mut();
+        object.chilrden.push(child_id);
+    }
+
+    pub fn get_children(shared_data: &SharedDataRw, object_id: ObjectId) -> Vec<ObjectId> {
+        let object = SharedData::get_resource::<Self>(shared_data, object_id);
+        let object = &mut object.get_mut();
+        object.chilrden.clone()
+    }
+
     pub fn add_component<C>(shared_data: &SharedDataRw, object_id: ObjectId) -> ComponentId
     where
         C: ResourceTrait + Default + 'static,
@@ -107,5 +122,20 @@ impl Object {
             type_name::<C>()
         );
         object.components.insert(TypeId::of::<C>(), component_id);
+    }
+
+    pub fn get_component_with_id<C>(
+        shared_data: &SharedDataRw,
+        object_id: ObjectId,
+    ) -> Option<ComponentId>
+    where
+        C: ResourceTrait + 'static,
+    {
+        let object = SharedData::get_resource::<Self>(shared_data, object_id);
+        let object = object.get();
+        if let Some(uid) = object.components.get(&TypeId::of::<C>()) {
+            return Some(*uid);
+        }
+        None
     }
 }

@@ -75,6 +75,11 @@ impl MeshInstance {
         mesh.mesh_data.transform = transform;
         mesh.is_dirty = true;
     }
+    pub fn get_transform(shared_data: &SharedDataRw, mesh_id: MeshId) -> Matrix4 {
+        let mesh = SharedData::get_resource::<Self>(shared_data, mesh_id);
+        let mesh = mesh.get();
+        mesh.mesh_data.transform
+    }
     pub fn set_mesh_data(shared_data: &SharedDataRw, mesh_id: MeshId, mesh_data: MeshData) {
         let mesh = SharedData::get_resource::<Self>(shared_data, mesh_id);
         let mesh = &mut mesh.get_mut();
@@ -82,10 +87,10 @@ impl MeshInstance {
         mesh.uv_converted = false;
         mesh.is_dirty = true;
     }
-    pub fn get_transform(&self) -> &Matrix4 {
+    pub fn transform(&self) -> &Matrix4 {
         &self.mesh_data.transform
     }
-    pub fn get_draw_area(&self) -> Vector4 {
+    pub fn draw_area(&self) -> Vector4 {
         self.draw_area
     }
 

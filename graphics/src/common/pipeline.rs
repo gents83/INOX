@@ -155,14 +155,13 @@ impl Pipeline {
             mesh_index: self.instance_count,
             mesh_data_ref,
         };
-        let (position, rotation, scale) =
-            get_translation_rotation_scale(mesh_instance.get_transform());
+        let (position, rotation, scale) = get_translation_rotation_scale(mesh_instance.transform());
 
         let data = InstanceData {
             position,
             rotation,
             scale,
-            draw_area: mesh_instance.get_draw_area(),
+            draw_area: mesh_instance.draw_area(),
             diffuse_color,
             diffuse_texture_index,
             diffuse_layer_index,

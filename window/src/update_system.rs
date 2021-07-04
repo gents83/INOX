@@ -135,9 +135,9 @@ impl System for UpdateSystem {
                 .enumerate()
                 .for_each(|(material_index, material_instance)| {
                     if material_instance.get().has_meshes() {
-                        let diffuse_texture_id = material_instance.get().get_diffuse_texture();
-                        let diffuse_color = material_instance.get().get_diffuse_color();
-                        let outline_color = material_instance.get().get_outline_color();
+                        let diffuse_texture_id = material_instance.get().diffuse_texture();
+                        let diffuse_color = material_instance.get().diffuse_color();
+                        let outline_color = material_instance.get().outline_color();
                         let pipeline_id = material_instance.get().get_pipeline_id();
 
                         let (diffuse_texture_index, diffuse_layer_index) =
@@ -157,7 +157,7 @@ impl System for UpdateSystem {
 
                         material_instance
                             .get()
-                            .get_meshes()
+                            .meshes()
                             .iter()
                             .enumerate()
                             .for_each(|(mesh_index, mesh_id)| {

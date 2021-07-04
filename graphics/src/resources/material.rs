@@ -31,7 +31,6 @@ impl ResourceTrait for MaterialInstance {
 impl MaterialInstance {
     pub fn create_from_file(shared_data: &SharedDataRw, filepath: &Path) -> MaterialId {
         let material_data = from_file::<MaterialData>(filepath);
-        println!("{:?}", filepath);
 
         let pipeline_id =
             PipelineInstance::find_id_from_name(shared_data, material_data.pipeline_name.as_str());
@@ -80,23 +79,28 @@ impl MaterialInstance {
     pub fn has_meshes(&self) -> bool {
         !self.meshes.is_empty()
     }
-    pub fn get_meshes(&self) -> &Vec<MeshId> {
+    pub fn meshes(&self) -> &Vec<MeshId> {
         &self.meshes
     }
-    pub fn get_textures(&self) -> &Vec<TextureId> {
+    pub fn textures(&self) -> &Vec<TextureId> {
         &self.textures
     }
-    pub fn get_diffuse_texture(&self) -> TextureId {
+    pub fn diffuse_texture(&self) -> TextureId {
         if !self.textures.is_empty() {
             return self.textures[0];
         }
         INVALID_UID
     }
-    pub fn get_diffuse_color(&self) -> Vector4 {
+    pub fn diffuse_color(&self) -> Vector4 {
         self.diffuse_color
     }
-    pub fn get_outline_color(&self) -> Vector4 {
+    pub fn outline_color(&self) -> Vector4 {
         self.outline_color
+    }
+    pub fn get_meshes(shared_data: &SharedDataRw, material_id: MaterialId) -> Vec<MeshId> {
+        let material = SharedData::get_resource::<Self>(shared_data, material_id);
+        let material = material.get();
+        material.meshes.clone()
     }
     pub fn has_textures(shared_data: &SharedDataRw, material_id: MaterialId) -> bool {
         let material = SharedData::get_resource::<Self>(shared_data, material_id);
