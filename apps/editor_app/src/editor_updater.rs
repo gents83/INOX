@@ -12,8 +12,8 @@ use super::widgets::*;
 use nrg_camera::Camera;
 use nrg_core::*;
 use nrg_graphics::{
-    utils::create_cube, FontInstance, MaterialInstance, MeshData, MeshInstance, PipelineInstance,
-    RenderPassInstance, ViewInstance,
+    FontInstance, MaterialInstance, MeshData, MeshInstance, PipelineInstance, RenderPassInstance,
+    ViewInstance,
 };
 use nrg_gui::*;
 use nrg_math::{
@@ -248,9 +248,10 @@ impl EditorUpdater {
         let material_id = MaterialInstance::create_from_pipeline(&self.shared_data, pipeline_id);
 
         let mut mesh = MeshData::default();
-        let (cube_vertices, cube_indices) = create_cube([5., 5., 5.].into());
-        mesh.append_mesh(&cube_vertices, &cube_indices);
-        mesh.set_vertex_color([1., 1., 0., 1.].into());
+        deserialize_from_file(
+            &mut mesh,
+            PathBuf::from("./data/models/lion_statue/scene.mesh_data"),
+        );
         let mesh_id = MeshInstance::create(&self.shared_data, mesh);
 
         MaterialInstance::add_mesh(&self.shared_data, material_id, mesh_id);
@@ -495,13 +496,13 @@ impl EditorUpdater {
 
                 let mut movement = Vector3::zero();
                 if event.code == Key::W {
-                    movement.z += 5.;
+                    movement.z += 1.;
                 } else if event.code == Key::S {
-                    movement.z -= 5.;
+                    movement.z -= 1.;
                 } else if event.code == Key::A {
-                    movement.x += 5.;
+                    movement.x += 1.;
                 } else if event.code == Key::D {
-                    movement.x -= 5.;
+                    movement.x -= 1.;
                 }
                 self.camera.translate(movement);
             } else if msg.type_id() == TypeId::of::<WindowEvent>() {

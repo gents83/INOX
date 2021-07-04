@@ -8,6 +8,7 @@ use crate::{need_to_binarize, ExtensionHandler, Parser};
 use gltf::{
     accessor::{DataType, Dimensions},
     buffer::{Source, View},
+    mesh::Mode,
     Accessor, Gltf, Primitive, Semantic,
 };
 use nrg_graphics::{MeshData, VertexData};
@@ -47,12 +48,6 @@ impl GltfCompiler {
         }
     }
 
-    fn get_count(accessor: &Accessor) -> usize {
-        let count = accessor.count();
-        let num = Self::num_from_type(accessor);
-        count / num
-    }
-
     fn read_accessor_from_path<T>(path: &Path, accessor: &Accessor) -> Option<Vec<T>>
     where
         T: Parser,
@@ -68,7 +63,7 @@ impl GltfCompiler {
                     Source::Uri(local_path) => {
                         let filepath = parent_folder.to_path_buf().join(local_path);
                         if let Ok(mut file) = fs::File::open(filepath) {
-                            return Self::read_from_file::<T>(&mut file, &view, &accessor);
+                            return Some(Self::read_from_file::<T>(&mut file, &view, &accessor));
                         } else {
                             eprintln!("Unable to open file: {:?}", local_path);
                         }
@@ -80,29 +75,34 @@ impl GltfCompiler {
         None
     }
 
-    fn read_from_file<T>(file: &mut File, view: &View, accessor: &Accessor) -> Option<Vec<T>>
+    fn read_from_file<T>(file: &mut File, view: &View, accessor: &Accessor) -> Vec<T>
     where
         T: Parser,
     {
-        let count = Self::get_count(&accessor);
+        let count = accessor.count();
         let view_offset = view.offset();
         let accessor_offset = accessor.offset();
         let starting_offset = view_offset + accessor_offset;
         let view_stride = view.stride().unwrap_or(0);
-        if file.seek(SeekFrom::Start((starting_offset) as _)).is_ok() {
-            let mut result = Vec::new();
-            for _i in 0..count {
-                let v = T::parse(file);
-                result.push(v);
-                file.seek(SeekFrom::Current(view_stride as _)).ok();
-            }
-            return Some(result);
+        let type_stride = T::size();
+        let stride = if view_stride > type_stride {
+            view_stride - type_stride
+        } else {
+            0
+        };
+        let mut result = Vec::new();
+        file.seek(SeekFrom::Start(starting_offset as _)).ok();
+        for _i in 0..count {
+            let v = T::parse(file);
+            result.push(v);
+            file.seek(SeekFrom::Current(stride as _)).ok();
         }
-        None
+        result
     }
 
     fn extract_indices(path: &Path, primitive: &Primitive) -> Vec<u32> {
         let mut indices = Vec::new();
+        debug_assert!(primitive.mode() == Mode::Triangles);
         if let Some(accessor) = primitive.indices() {
             let num = Self::num_from_type(&accessor);
             let num_bytes = Self::bytes_from_dimension(&accessor);
