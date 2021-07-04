@@ -691,6 +691,7 @@ dependencies = [
 name = "nrg_scene"
 version = "0.1.0"
 dependencies = [
+ "nrg_graphics",
  "nrg_math",
  "nrg_resources",
  "nrg_serialize",

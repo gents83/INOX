@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use nrg_resources::{
-    get_absolute_path_from, ResourceId, ResourceTrait, SharedData, SharedDataRw, DATA_FOLDER,
+    convert_from_local_path, ResourceId, ResourceTrait, SharedData, SharedDataRw, DATA_FOLDER,
 };
 use nrg_serialize::{generate_uid_from_string, INVALID_UID};
 
@@ -28,7 +28,7 @@ impl ResourceTrait for TextureInstance {
 
 impl TextureInstance {
     pub fn find_id(shared_data: &SharedDataRw, texture_path: &Path) -> TextureId {
-        let path = get_absolute_path_from(PathBuf::from(DATA_FOLDER).as_path(), texture_path);
+        let path = convert_from_local_path(PathBuf::from(DATA_FOLDER).as_path(), texture_path);
         SharedData::match_resource(shared_data, |t: &TextureInstance| t.path == path)
     }
     pub fn get_path(&self) -> &Path {
@@ -63,8 +63,8 @@ impl TextureInstance {
         }
     }
 
-    pub fn create_from_path(shared_data: &SharedDataRw, texture_path: &Path) -> TextureId {
-        let path = get_absolute_path_from(PathBuf::from(DATA_FOLDER).as_path(), texture_path);
+    pub fn create_from_file(shared_data: &SharedDataRw, texture_path: &Path) -> TextureId {
+        let path = convert_from_local_path(PathBuf::from(DATA_FOLDER).as_path(), texture_path);
         let texture_id =
             { SharedData::match_resource(shared_data, |t: &TextureInstance| t.path == path) };
         if texture_id != INVALID_UID {

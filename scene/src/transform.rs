@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use nrg_math::{MatBase, Matrix4};
-use nrg_resources::{ResourceId, ResourceTrait, SharedDataRw};
+use nrg_resources::{ResourceId, ResourceTrait, SharedData, SharedDataRw};
 use nrg_serialize::generate_random_uid;
 
 pub type TransformId = ResourceId;
@@ -33,5 +33,17 @@ impl Transform {
     pub fn create(shared_data: &SharedDataRw) -> TransformId {
         let mut data = shared_data.write().unwrap();
         data.add_resource(Transform::default())
+    }
+
+    pub fn get(shared_data: &SharedDataRw, transform_id: TransformId) -> Matrix4 {
+        let transform = SharedData::get_resource::<Self>(shared_data, transform_id);
+        let transform = &mut transform.get_mut();
+        transform.matrix
+    }
+
+    pub fn set(shared_data: &SharedDataRw, transform_id: TransformId, matrix: Matrix4) {
+        let transform = SharedData::get_resource::<Self>(shared_data, transform_id);
+        let transform = &mut transform.get_mut();
+        transform.matrix = matrix;
     }
 }

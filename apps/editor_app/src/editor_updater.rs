@@ -23,7 +23,7 @@ use nrg_math::{
 use nrg_messenger::{read_messages, Message, MessageChannel, MessengerRw};
 use nrg_platform::*;
 use nrg_resources::{SharedData, SharedDataRw};
-use nrg_scene::{Object, ObjectId, Scene, SceneId, Transform};
+use nrg_scene::{Object, ObjectId, Scene, SceneId};
 use nrg_serialize::*;
 
 pub struct EditorUpdater {
@@ -242,24 +242,17 @@ impl EditorUpdater {
         self
     }
     fn add_object_to_scene(&mut self) -> &mut Self {
-        let object_id = Object::create(&self.shared_data);
-
-        let pipeline_id = PipelineInstance::find_id_from_name(&self.shared_data, "3D");
-        let material_id = MaterialInstance::create_from_pipeline(&self.shared_data, pipeline_id);
-
-        let mut mesh = MeshData::default();
-        deserialize_from_file(&mut mesh, PathBuf::from("./data/models/box/mesh.mesh_data"));
-        let mesh_id = MeshInstance::create(&self.shared_data, mesh);
-
-        MaterialInstance::add_mesh(&self.shared_data, material_id, mesh_id);
-        Object::add_component_with_id::<MaterialInstance>(
+        let object_id = Object::create_from_file(
             &self.shared_data,
-            object_id,
-            material_id,
+            PathBuf::from("models/lion_statue/lion_statue.object_data").as_path(),
         );
+        Scene::add_object(&self.shared_data, self.scene, object_id);
 
-        Object::add_component::<Transform>(&self.shared_data, object_id);
-
+        let object_id = Object::create_from_file(
+            &self.shared_data,
+            PathBuf::from("models/box/box.object_data").as_path(),
+        );
+        Scene::add_object(&self.shared_data, self.scene, object_id);
         self
     }
     fn create_screen(&mut self) -> &mut Self {

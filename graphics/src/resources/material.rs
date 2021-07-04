@@ -1,9 +1,12 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
-use crate::{FontId, FontInstance, MeshId, PipelineId, TextureId};
+use crate::{
+    FontId, FontInstance, MaterialData, MeshId, MeshInstance, PipelineId, PipelineInstance,
+    TextureId, TextureInstance,
+};
 use nrg_math::Vector4;
-use nrg_resources::{ResourceId, ResourceTrait, SharedData, SharedDataRw};
-use nrg_serialize::{generate_random_uid, INVALID_UID};
+use nrg_resources::{from_file, ResourceId, ResourceTrait, SharedData, SharedDataRw};
+use nrg_serialize::{generate_random_uid, generate_uid_from_string, INVALID_UID};
 
 pub type MaterialId = ResourceId;
 
@@ -26,6 +29,36 @@ impl ResourceTrait for MaterialInstance {
 }
 
 impl MaterialInstance {
+    pub fn create_from_file(shared_data: &SharedDataRw, filepath: &Path) -> MaterialId {
+        let material_data = from_file::<MaterialData>(filepath);
+        println!("{:?}", filepath);
+
+        let pipeline_id =
+            PipelineInstance::find_id_from_name(shared_data, material_data.pipeline_name.as_str());
+
+        let mut meshes = Vec::new();
+        for m in material_data.meshes.iter() {
+            let mesh_id = MeshInstance::create_from_file(&shared_data, m.as_path());
+            meshes.push(mesh_id);
+        }
+        let mut textures = Vec::new();
+        for t in material_data.textures.iter() {
+            let texture_id = TextureInstance::create_from_file(&shared_data, t.as_path());
+            textures.push(texture_id);
+        }
+
+        let material = Self {
+            id: generate_uid_from_string(filepath.to_str().unwrap()),
+            pipeline_id,
+            meshes,
+            textures,
+            diffuse_color: [1., 1., 1., 1.].into(),
+            outline_color: [1., 1., 1., 0.].into(),
+        };
+
+        let mut data = shared_data.write().unwrap();
+        data.add_resource(material)
+    }
     pub fn create_from(shared_data: &SharedDataRw, material_id: MaterialId) -> Self {
         let material = SharedData::get_resource::<MaterialInstance>(shared_data, material_id);
         let pipeline_id = material.get().pipeline_id;

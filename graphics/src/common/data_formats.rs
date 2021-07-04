@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use crate::common::utils::*;
 
 use nrg_math::*;
-use nrg_resources::{get_absolute_path_from, DATA_FOLDER};
+use nrg_resources::{convert_from_local_path, DATA_FOLDER};
 use nrg_serialize::*;
 
 #[repr(C)]
@@ -140,23 +140,23 @@ impl PipelineData {
         let data_path = PathBuf::from(DATA_FOLDER);
         if !self.vertex_shader.to_str().unwrap().is_empty() {
             self.vertex_shader =
-                get_absolute_path_from(data_path.as_path(), self.vertex_shader.as_path());
+                convert_from_local_path(data_path.as_path(), self.vertex_shader.as_path());
         }
         if !self.fragment_shader.to_str().unwrap().is_empty() {
             self.fragment_shader =
-                get_absolute_path_from(data_path.as_path(), self.fragment_shader.as_path());
+                convert_from_local_path(data_path.as_path(), self.fragment_shader.as_path());
         }
         if !self.tcs_shader.to_str().unwrap().is_empty() {
             self.tcs_shader =
-                get_absolute_path_from(data_path.as_path(), self.tcs_shader.as_path());
+                convert_from_local_path(data_path.as_path(), self.tcs_shader.as_path());
         }
         if !self.tes_shader.to_str().unwrap().is_empty() {
             self.tes_shader =
-                get_absolute_path_from(data_path.as_path(), self.tes_shader.as_path());
+                convert_from_local_path(data_path.as_path(), self.tes_shader.as_path());
         }
         if !self.geometry_shader.to_str().unwrap().is_empty() {
             self.geometry_shader =
-                get_absolute_path_from(data_path.as_path(), self.geometry_shader.as_path());
+                convert_from_local_path(data_path.as_path(), self.geometry_shader.as_path());
         }
         self
     }
@@ -173,7 +173,7 @@ impl PipelineData {
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 #[serde(crate = "nrg_serialize")]
 pub struct MaterialData {
-    pub pipeline_id: String,
+    pub pipeline_name: String,
     pub meshes: Vec<PathBuf>,
     pub textures: Vec<PathBuf>,
     pub diffuse_color: Vector4,
@@ -185,7 +185,7 @@ unsafe impl Sync for MaterialData {}
 impl Default for MaterialData {
     fn default() -> Self {
         Self {
-            pipeline_id: String::from("3D"),
+            pipeline_name: String::from("3D"),
             meshes: Vec::new(),
             textures: Vec::new(),
             diffuse_color: [1., 1., 1., 1.].into(),

@@ -11,7 +11,7 @@ use std::{
 use crate::{ConfigCompiler, FontCompiler, GltfCompiler, ImageCompiler, ShaderCompiler};
 use nrg_messenger::MessengerRw;
 use nrg_platform::{FileEvent, FileWatcher};
-use nrg_resources::get_absolute_path_from;
+use nrg_resources::convert_from_local_path;
 
 pub trait ExtensionHandler {
     fn on_changed(&mut self, path: &Path);
@@ -134,7 +134,7 @@ impl DataWatcher {
     }
 
     fn binarize_file(&mut self, path: &Path) {
-        let absolute_path = get_absolute_path_from(self.data_raw_folder.as_path(), path);
+        let absolute_path = convert_from_local_path(self.data_raw_folder.as_path(), path);
         for handler in self.handlers.iter_mut() {
             handler.on_changed(absolute_path.as_path());
         }

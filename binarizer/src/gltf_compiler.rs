@@ -4,7 +4,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::{convert_in_local_path, need_to_binarize, ExtensionHandler, Parser};
+use crate::{need_to_binarize, ExtensionHandler, Parser};
 use gltf::{
     accessor::{DataType, Dimensions},
     buffer::{Source, View},
@@ -15,7 +15,7 @@ use gltf::{
 use nrg_graphics::{MaterialData, MeshData, VertexData};
 use nrg_math::{Vector2, Vector3, Vector4};
 use nrg_messenger::MessengerRw;
-use nrg_resources::{DATA_FOLDER, DATA_RAW_FOLDER};
+use nrg_resources::{convert_in_local_path, DATA_FOLDER, DATA_RAW_FOLDER};
 use nrg_scene::ObjectData;
 use nrg_serialize::serialize_to_file;
 
@@ -272,7 +272,7 @@ impl GltfCompiler {
         )
     }
 
-    fn process_node(path: &Path, node: &Node) -> PathBuf {
+    fn process_node(path: &Path, node: &Node, node_name: &str) -> PathBuf {
         let mut object_data = ObjectData {
             transform: node.transform().matrix().into(),
             ..Default::default()
@@ -297,26 +297,40 @@ impl GltfCompiler {
         }
 
         for (_child_index, child) in node.children().enumerate() {
-            let object_path = Self::process_node(path, &child);
+            let name = format!("Node_{}", child.index());
+            let object_path =
+                Self::process_node(path, &child, child.name().unwrap_or_else(|| name.as_str()));
             let object_path =
                 convert_in_local_path(object_path.as_path(), PathBuf::from(DATA_FOLDER).as_path());
             object_data.children.push(object_path);
         }
 
-        let name = format!("Child_{}", node.index());
-        Self::create_file(
-            path,
-            &object_data,
-            node.name().unwrap_or_else(|| name.as_str()),
-            OBJECT_DATA_EXTENSION,
-        )
+        Self::create_file(path, &object_data, node_name, OBJECT_DATA_EXTENSION)
     }
 
     fn process_path(path: &Path) {
         if let Ok(gltf) = Gltf::open(path) {
-            for (_scene_index, scene) in gltf.scenes().enumerate() {
-                for (_node_index, node) in scene.nodes().enumerate() {
-                    Self::process_node(path, &node);
+            for scene in gltf.scenes() {
+                for node in scene.nodes() {
+                    if node.index() == 0 {
+                        Self::process_node(
+                            path,
+                            &node,
+                            path.parent()
+                                .unwrap()
+                                .file_stem()
+                                .unwrap()
+                                .to_str()
+                                .unwrap(),
+                        );
+                    } else {
+                        let name = format!("Node_{}", node.index());
+                        Self::process_node(
+                            path,
+                            &node,
+                            node.name().unwrap_or_else(|| name.as_str()),
+                        );
+                    }
                 }
             }
         }

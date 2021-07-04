@@ -6,23 +6,6 @@ use std::{
 use nrg_messenger::{Message, MessengerRw};
 use nrg_resources::{ResourceEvent, DATA_FOLDER, DATA_RAW_FOLDER};
 
-pub fn convert_in_local_path(original_path: &Path, base_path: &Path) -> PathBuf {
-    let path = original_path.to_str().unwrap().to_string();
-    let path = path.replace(
-        PathBuf::from(base_path)
-            .canonicalize()
-            .unwrap()
-            .to_str()
-            .unwrap(),
-        "",
-    );
-    let mut path = path.replace("\\", "/");
-    if path.starts_with('/') {
-        path.remove(0);
-    }
-    PathBuf::from(path)
-}
-
 pub fn need_to_binarize(original_path: &Path, new_path: &Path) -> bool {
     let mut need_copy = false;
     if let Ok(raw_time) = std::fs::metadata(original_path).unwrap().modified() {

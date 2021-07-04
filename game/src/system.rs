@@ -59,11 +59,11 @@ impl System for MySystem {
             MaterialInstance::create_from_pipeline(&self.shared_data, pipeline_id);
         self.right_material_id =
             MaterialInstance::create_from_pipeline(&self.shared_data, pipeline_id);
-        self.left_texture_id = TextureInstance::create_from_path(
+        self.left_texture_id = TextureInstance::create_from_file(
             &self.shared_data,
             &Path::new("./data/textures/Test.png"),
         );
-        self.right_texture_id = TextureInstance::create_from_path(
+        self.right_texture_id = TextureInstance::create_from_file(
             &self.shared_data,
             &Path::new("./data/textures/Test.jpg"),
         );

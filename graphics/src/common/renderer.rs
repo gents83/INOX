@@ -2,7 +2,7 @@ use crate::{FontInstance, MaterialInstance, RenderPass, RenderPassInstance};
 use crate::{Pipeline, PipelineInstance, TextureInstance};
 use nrg_math::*;
 use nrg_platform::*;
-use nrg_resources::{get_absolute_path_from, ResourceRc, ResourceTrait, DATA_FOLDER};
+use nrg_resources::{convert_from_local_path, ResourceRc, ResourceTrait, DATA_FOLDER};
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 
@@ -303,7 +303,7 @@ impl Renderer {
                     //texture needs to be recreated
                     texture_handler.remove(texture_instance.id());
                 }
-                let path = get_absolute_path_from(
+                let path = convert_from_local_path(
                     PathBuf::from(DATA_FOLDER).as_path(),
                     texture_instance.get().get_path(),
                 );

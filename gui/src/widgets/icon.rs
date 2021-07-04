@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use nrg_graphics::{MaterialInstance, TextureId, TextureInstance};
 use nrg_math::{Vector2, Vector4};
 use nrg_messenger::Message;
-use nrg_resources::{get_absolute_path_from, DATA_FOLDER};
+use nrg_resources::{convert_from_local_path, DATA_FOLDER};
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{
@@ -112,9 +112,9 @@ impl Icon {
             if !texture_uid.is_nil() {
                 MaterialInstance::remove_texture(self.get_shared_data(), material_uid, texture_uid);
             }
-            let texture_path = get_absolute_path_from(PathBuf::from(DATA_FOLDER).as_path(), path);
+            let texture_path = convert_from_local_path(PathBuf::from(DATA_FOLDER).as_path(), path);
             texture_uid =
-                TextureInstance::create_from_path(self.get_shared_data(), texture_path.as_path());
+                TextureInstance::create_from_file(self.get_shared_data(), texture_path.as_path());
             MaterialInstance::add_texture(self.get_shared_data(), material_uid, texture_uid);
         }
         self.texture = texture_uid;

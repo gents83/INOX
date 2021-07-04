@@ -1,11 +1,14 @@
 use std::{
     any::{type_name, TypeId},
     collections::HashMap,
-    path::PathBuf,
+    path::{Path, PathBuf},
 };
 
-use nrg_resources::{ResourceId, ResourceTrait, SharedData, SharedDataRw};
+use nrg_graphics::MaterialInstance;
+use nrg_resources::{from_file, ResourceId, ResourceTrait, SharedData, SharedDataRw};
 use nrg_serialize::generate_random_uid;
+
+use crate::{ObjectData, Transform};
 
 pub type ComponentId = ResourceId;
 pub type ObjectId = ResourceId;
@@ -36,6 +39,34 @@ impl Default for Object {
 }
 
 impl Object {
+    pub fn create_from_file(shared_data: &SharedDataRw, filepath: &Path) -> ObjectId {
+        let object_data = from_file::<ObjectData>(filepath);
+        println!("{:?}", filepath);
+
+        let object_id = {
+            let mut data = shared_data.write().unwrap();
+            let object = Object {
+                filepath: filepath.to_path_buf(),
+                ..Default::default()
+            };
+            data.add_resource(object)
+        };
+
+        let transform_id = Object::add_component::<Transform>(&shared_data, object_id);
+        Transform::set(shared_data, transform_id, object_data.transform);
+
+        if !object_data.material.clone().into_os_string().is_empty() {
+            let material_id =
+                MaterialInstance::create_from_file(shared_data, object_data.material.as_path());
+            Object::add_component_with_id::<MaterialInstance>(&shared_data, object_id, material_id);
+        }
+
+        for child in object_data.children.iter() {
+            Object::create_from_file(shared_data, child.as_path());
+        }
+
+        object_id
+    }
     pub fn create(shared_data: &SharedDataRw) -> ObjectId {
         let mut data = shared_data.write().unwrap();
         data.add_resource(Object::default())

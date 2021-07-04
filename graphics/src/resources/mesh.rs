@@ -1,8 +1,8 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::{MeshData, Texture};
 use nrg_math::{Matrix4, Vector4};
-use nrg_resources::{ResourceId, ResourceTrait, SharedData, SharedDataRw};
+use nrg_resources::{from_file, ResourceId, ResourceTrait, SharedData, SharedDataRw};
 use nrg_serialize::generate_random_uid;
 
 pub type MeshId = ResourceId;
@@ -40,6 +40,11 @@ impl Default for MeshInstance {
 }
 
 impl MeshInstance {
+    pub fn create_from_file(shared_data: &SharedDataRw, filepath: &Path) -> MeshId {
+        let mesh_data = from_file::<MeshData>(filepath);
+        MeshInstance::create(&shared_data, mesh_data)
+    }
+
     pub fn create(shared_data: &SharedDataRw, mesh_data: MeshData) -> MeshId {
         let mut mesh_instance = MeshInstance::default();
         let mut data = shared_data.write().unwrap();
