@@ -170,11 +170,14 @@ impl PipelineData {
 }
 
 #[repr(C)]
-#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 #[serde(crate = "nrg_serialize")]
 pub struct MaterialData {
     pub pipeline_id: String,
+    pub meshes: Vec<PathBuf>,
     pub textures: Vec<PathBuf>,
+    pub diffuse_color: Vector4,
+    pub outline_color: Vector4,
 }
 unsafe impl Send for MaterialData {}
 unsafe impl Sync for MaterialData {}
@@ -183,7 +186,10 @@ impl Default for MaterialData {
     fn default() -> Self {
         Self {
             pipeline_id: String::from("3D"),
+            meshes: Vec::new(),
             textures: Vec::new(),
+            diffuse_color: [1., 1., 1., 1.].into(),
+            outline_color: [1., 1., 1., 0.].into(),
         }
     }
 }
@@ -203,6 +209,7 @@ pub struct MeshDataRef {
 pub struct MeshData {
     pub vertices: Vec<VertexData>,
     pub indices: Vec<u32>,
+    pub transform: Matrix4,
 }
 
 impl Default for MeshData {
@@ -210,6 +217,7 @@ impl Default for MeshData {
         Self {
             vertices: Vec::new(),
             indices: Vec::new(),
+            transform: Matrix4::default_identity(),
         }
     }
 }

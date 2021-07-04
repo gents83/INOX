@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use crate::{MeshData, Texture};
-use nrg_math::{MatBase, Matrix4, Vector4};
+use nrg_math::{Matrix4, Vector4};
 use nrg_resources::{ResourceId, ResourceTrait, SharedData, SharedDataRw};
 use nrg_serialize::generate_random_uid;
 
@@ -12,7 +12,6 @@ pub struct MeshInstance {
     id: ResourceId,
     mesh_data: MeshData,
     draw_area: Vector4, //pos (x,y) - size(z,w)
-    transform: Matrix4,
     is_visible: bool,
     is_dirty: bool,
     uv_converted: bool,
@@ -33,7 +32,6 @@ impl Default for MeshInstance {
             id: generate_random_uid(),
             mesh_data: MeshData::default(),
             draw_area: [0., 0., f32::MAX, f32::MAX].into(),
-            transform: Matrix4::default_identity(),
             is_visible: true,
             is_dirty: true,
             uv_converted: false,
@@ -69,7 +67,7 @@ impl MeshInstance {
     pub fn set_transform(shared_data: &SharedDataRw, mesh_id: MeshId, transform: Matrix4) {
         let mesh = SharedData::get_resource::<Self>(shared_data, mesh_id);
         let mesh = &mut mesh.get_mut();
-        mesh.transform = transform;
+        mesh.mesh_data.transform = transform;
         mesh.is_dirty = true;
     }
     pub fn set_mesh_data(shared_data: &SharedDataRw, mesh_id: MeshId, mesh_data: MeshData) {
@@ -80,7 +78,7 @@ impl MeshInstance {
         mesh.is_dirty = true;
     }
     pub fn get_transform(&self) -> &Matrix4 {
-        &self.transform
+        &self.mesh_data.transform
     }
     pub fn get_draw_area(&self) -> Vector4 {
         self.draw_area
