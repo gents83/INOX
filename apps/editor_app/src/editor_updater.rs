@@ -248,10 +248,7 @@ impl EditorUpdater {
         let material_id = MaterialInstance::create_from_pipeline(&self.shared_data, pipeline_id);
 
         let mut mesh = MeshData::default();
-        deserialize_from_file(
-            &mut mesh,
-            PathBuf::from("./data/models/lion_statue/scene.mesh_data"),
-        );
+        deserialize_from_file(&mut mesh, PathBuf::from("./data/models/box/mesh.mesh_data"));
         let mesh_id = MeshInstance::create(&self.shared_data, mesh);
 
         MaterialInstance::add_mesh(&self.shared_data, material_id, mesh_id);

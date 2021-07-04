@@ -15,5 +15,6 @@ nrg_graphics = { path = "../graphics" }
 nrg_messenger = { path = "../messenger" }
 nrg_platform = { path = "../platform" }
 nrg_resources = { path = "../resources" }
+nrg_scene = { path = "../scene" }
 nrg_serialize = { path = "../serialize" }
 

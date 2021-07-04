@@ -13,14 +13,16 @@ use gltf::{
     Accessor, Gltf, Node, Primitive, Semantic,
 };
 use nrg_graphics::{MaterialData, MeshData, VertexData};
-use nrg_math::{Matrix4, Vector2, Vector3, Vector4};
+use nrg_math::{Vector2, Vector3, Vector4};
 use nrg_messenger::MessengerRw;
 use nrg_resources::{DATA_FOLDER, DATA_RAW_FOLDER};
+use nrg_scene::ObjectData;
 use nrg_serialize::serialize_to_file;
 
 const GLTF_EXTENSION: &str = "gltf";
 const MESH_DATA_EXTENSION: &str = "mesh_data";
 const MATERIAL_DATA_EXTENSION: &str = "material_data";
+const OBJECT_DATA_EXTENSION: &str = "object_data";
 
 pub struct GltfCompiler {
     global_messenger: MessengerRw,
@@ -222,13 +224,13 @@ impl GltfCompiler {
         vertices
     }
 
-    fn process_mesh_data(path: &Path, primitive: &Primitive) -> PathBuf {
+    fn process_mesh_data(path: &Path, mesh_name: &str, primitive: &Primitive) -> PathBuf {
         let vertices = Self::extract_mesh_data(path, &primitive);
         let indices = Self::extract_indices(path, &primitive);
         let mut mesh_data = MeshData::default();
         mesh_data.append_mesh(vertices.as_slice(), indices.as_slice());
 
-        Self::create_file(path, &mesh_data, MESH_DATA_EXTENSION)
+        Self::create_file(path, &mesh_data, mesh_name, MESH_DATA_EXTENSION)
     }
     fn process_material_data(path: &Path, primitive: &Primitive, mesh_path: PathBuf) -> PathBuf {
         let mut material_data = MaterialData::default();
@@ -261,24 +263,53 @@ impl GltfCompiler {
                 } => {}
             }
         }
-        Self::create_file(path, &material_data, MATERIAL_DATA_EXTENSION)
+        let name = format!("Material_{}", primitive.material().index().unwrap());
+        Self::create_file(
+            path,
+            &material_data,
+            primitive.material().name().unwrap_or_else(|| name.as_str()),
+            MATERIAL_DATA_EXTENSION,
+        )
     }
 
-    fn process_node(path: &Path, node: &Node) {
-        let matrix: Matrix4 = node.transform().matrix().into();
+    fn process_node(path: &Path, node: &Node) -> PathBuf {
+        let mut object_data = ObjectData {
+            transform: node.transform().matrix().into(),
+            ..Default::default()
+        };
+
+        if let Some(mesh) = node.mesh() {
+            for (_primitive_index, primitive) in mesh.primitives().enumerate() {
+                //println!("Primitive[{}]: ", _primitive_index);
+                let name = format!("Mesh_{}", mesh.index());
+                let mesh_path = Self::process_mesh_data(
+                    path,
+                    mesh.name().unwrap_or_else(|| name.as_str()),
+                    &primitive,
+                );
+                let material_path = Self::process_material_data(path, &primitive, mesh_path);
+                let material_path = convert_in_local_path(
+                    material_path.as_path(),
+                    PathBuf::from(DATA_FOLDER).as_path(),
+                );
+                object_data.material = material_path;
+            }
+        }
 
         for (_child_index, child) in node.children().enumerate() {
-            //println!("MeshCount: {:?}", gltf.meshes().len());
-            if let Some(mesh) = child.mesh() {
-                //println!("Mesh[{}]: {:?}", _mesh_index, mesh.name());
-                for (_primitive_index, primitive) in mesh.primitives().enumerate() {
-                    //println!("Primitive[{}]: ", _primitive_index);
-                    let mesh_path = Self::process_mesh_data(path, &primitive);
-                    let material_path = Self::process_material_data(path, &primitive, mesh_path);
-                }
-            }
-            Self::process_node(path, &child);
+            let object_path = Self::process_node(path, &child);
+            let object_path =
+                convert_in_local_path(object_path.as_path(), PathBuf::from(DATA_FOLDER).as_path());
+            object_data.children.push(object_path);
         }
+
+        let name = format!("Child_{}", node.index());
+        Self::create_file(
+            path,
+            &object_data,
+            node.name().unwrap_or_else(|| name.as_str()),
+            OBJECT_DATA_EXTENSION,
+        )
     }
 
     fn process_path(path: &Path) {
@@ -291,13 +322,12 @@ impl GltfCompiler {
         }
     }
 
-    fn create_file<T>(path: &Path, mesh_data: &T, new_extension: &str) -> PathBuf
+    fn create_file<T>(path: &Path, mesh_data: &T, new_name: &str, new_extension: &str) -> PathBuf
     where
         T: nrg_serialize::Serialize,
     {
-        let extension = path.extension().unwrap().to_str().unwrap();
-        let source_ext = format!(".{}", extension);
-        let destination_ext = format!(".{}", new_extension);
+        let filename = path.file_name().unwrap().to_str().unwrap();
+        let destination_ext = format!("{}.{}", new_name, new_extension);
         let mut from_source_to_compiled = path.to_str().unwrap().to_string();
         from_source_to_compiled = from_source_to_compiled.replace(
             PathBuf::from(DATA_RAW_FOLDER)
@@ -312,7 +342,7 @@ impl GltfCompiler {
                 .unwrap(),
         );
         from_source_to_compiled =
-            from_source_to_compiled.replace(source_ext.as_str(), destination_ext.as_str());
+            from_source_to_compiled.replace(filename, destination_ext.as_str());
 
         let new_path = PathBuf::from(from_source_to_compiled);
         if !new_path.exists() {

@@ -530,6 +530,7 @@ dependencies = [
  "nrg_messenger",
  "nrg_platform",
  "nrg_resources",
+ "nrg_scene",
  "nrg_serialize",
 ]
 
