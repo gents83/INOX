@@ -151,7 +151,7 @@ impl System for EditorUpdater {
             .register_messagebox::<NodesEvent>(self.message_channel.get_messagebox());
 
         self.create_main_menu()
-            .create_fps_counter()
+            //.create_fps_counter()
             .create_properties_panel()
             .create_graph();
 
@@ -161,7 +161,7 @@ impl System for EditorUpdater {
     fn run(&mut self) -> bool {
         self.update_events()
             .update_camera()
-            .update_fps_counter()
+            //.update_fps_counter()
             .update_widgets();
 
         true
@@ -244,13 +244,7 @@ impl EditorUpdater {
     fn add_object_to_scene(&mut self) -> &mut Self {
         let object_id = Object::create_from_file(
             &self.shared_data,
-            PathBuf::from("models/lion_statue/lion_statue.object_data").as_path(),
-        );
-        Scene::add_object(&self.shared_data, self.scene_id, object_id);
-
-        let object_id = Object::create_from_file(
-            &self.shared_data,
-            PathBuf::from("models/box/box.object_data").as_path(),
+            PathBuf::from("models/Duck/duck.object_data").as_path(),
         );
         Scene::add_object(&self.shared_data, self.scene_id, object_id);
 

@@ -75,10 +75,10 @@ pub fn create_quad(
     let index_offset: u32 = index_start.unwrap_or(0) as _;
     let indices: [u32; 6] = [
         index_offset,
+        2 + index_offset,
         1 + index_offset,
-        2 + index_offset,
-        2 + index_offset,
         3 + index_offset,
+        2 + index_offset,
         index_offset,
     ];
     (vertices, indices)

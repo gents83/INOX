@@ -350,7 +350,7 @@ impl PipelineImmutable {
             rasterizerDiscardEnable: VK_FALSE,
             polygonMode: VkPolygonMode_VK_POLYGON_MODE_FILL,
             cullMode: VkCullModeFlagBits_VK_CULL_MODE_BACK_BIT as VkCullModeFlags,
-            frontFace: VkFrontFace_VK_FRONT_FACE_COUNTER_CLOCKWISE,
+            frontFace: VkFrontFace_VK_FRONT_FACE_CLOCKWISE,
             depthBiasEnable: VK_FALSE,
             depthBiasConstantFactor: 0.0,
             depthBiasClamp: 0.0,
