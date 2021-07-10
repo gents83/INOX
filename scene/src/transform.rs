@@ -1,10 +1,11 @@
 use std::path::PathBuf;
 
 use nrg_math::{MatBase, Matrix4};
-use nrg_resources::{ResourceId, ResourceTrait, SharedData, SharedDataRw};
+use nrg_resources::{DynamicResource, Resource, ResourceId, ResourceTrait};
 use nrg_serialize::generate_random_uid;
 
 pub type TransformId = ResourceId;
+pub type TransformRc = Resource;
 
 pub struct Transform {
     id: ResourceId,
@@ -29,21 +30,14 @@ impl Default for Transform {
     }
 }
 
+impl DynamicResource for Transform {}
+
 impl Transform {
-    pub fn create(shared_data: &SharedDataRw) -> TransformId {
-        let mut data = shared_data.write().unwrap();
-        data.add_resource(Transform::default())
+    pub fn matrix(&self) -> Matrix4 {
+        self.matrix
     }
 
-    pub fn get(shared_data: &SharedDataRw, transform_id: TransformId) -> Matrix4 {
-        let transform = SharedData::get_resource::<Self>(shared_data, transform_id);
-        let transform = &mut transform.get_mut();
-        transform.matrix
-    }
-
-    pub fn set(shared_data: &SharedDataRw, transform_id: TransformId, matrix: Matrix4) {
-        let transform = SharedData::get_resource::<Self>(shared_data, transform_id);
-        let transform = &mut transform.get_mut();
-        transform.matrix = matrix;
+    pub fn set_matrix(&mut self, matrix: Matrix4) {
+        self.matrix = matrix;
     }
 }

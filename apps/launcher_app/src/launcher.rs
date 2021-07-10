@@ -13,7 +13,7 @@ use nrg_gui::{
 use nrg_math::Vector2;
 use nrg_messenger::{read_messages, Message, MessageChannel, MessengerRw};
 use nrg_platform::{WindowEvent, DEFAULT_DPI};
-use nrg_resources::{ConfigBase, SharedDataRw};
+use nrg_resources::{ConfigBase, DataResource, FileResource, SharedDataRw};
 use nrg_serialize::{deserialize_from_file, Uid, INVALID_UID};
 
 use crate::config::Config;
@@ -98,18 +98,14 @@ impl LauncherSystem {
 
     fn load_pipelines(&mut self) {
         for render_pass_data in self.config.render_passes.iter() {
-            RenderPassInstance::create(&self.shared_data, render_pass_data);
+            RenderPassInstance::create_from_data(&self.shared_data, render_pass_data.clone());
         }
         for pipeline_data in self.config.pipelines.iter() {
-            PipelineInstance::create(&self.shared_data, pipeline_data);
+            PipelineInstance::create_from_data(&self.shared_data, pipeline_data.clone());
         }
 
-        if let Some(pipeline_data) = self.config.pipelines.iter().find(|p| p.name.eq("UI")) {
-            let pipeline_id =
-                PipelineInstance::find_id_from_name(&self.shared_data, pipeline_data.name.as_str());
-            if let Some(default_font_path) = self.config.fonts.first() {
-                FontInstance::create_from_path(&self.shared_data, pipeline_id, default_font_path);
-            }
+        if let Some(default_font_path) = self.config.fonts.first() {
+            FontInstance::create_from_file(&self.shared_data, default_font_path);
         }
     }
 

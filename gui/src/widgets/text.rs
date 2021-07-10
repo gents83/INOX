@@ -1,10 +1,11 @@
 use std::any::TypeId;
 
-use nrg_graphics::{FontId, FontInstance, MaterialId, MaterialInstance, MeshData};
+use nrg_graphics::{FontInstance, FontRc, MaterialInstance, MaterialRc, MeshData};
 use nrg_math::{Vector2, Vector4};
 use nrg_messenger::{implement_undoable_message, Message};
 use nrg_platform::{MouseEvent, MouseState};
-use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
+use nrg_resources::{Resource, ResourceBase, SharedData};
+use nrg_serialize::{Deserialize, Serialize, Uid};
 
 use crate::{
     implement_widget_with_custom_members, InternalWidget, Screen, WidgetData,
@@ -50,10 +51,10 @@ fn debug_info_event(event: &TextEvent) -> String {
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]
 pub struct Text {
-    #[serde(skip)]
-    font_id: FontId,
-    #[serde(skip)]
-    material_id: MaterialId,
+    #[serde(skip, default = "nrg_resources::Resource::default::<FontInstance>")]
+    font: FontRc,
+    #[serde(skip, default = "nrg_resources::Resource::default::<MaterialInstance>")]
+    material: MaterialRc,
     editable: bool,
     text: String,
     #[serde(skip)]
@@ -65,8 +66,8 @@ pub struct Text {
     data: WidgetData,
 }
 implement_widget_with_custom_members!(Text {
-    font_id: INVALID_UID,
-    material_id: INVALID_UID,
+    font: Resource::default::<FontInstance>(),
+    material: Resource::default::<MaterialInstance>(),
     editable: true,
     text: String::new(),
     hover_char_index: -1,
@@ -182,11 +183,9 @@ impl Text {
                 mesh_data.add_quad(
                     Vector4::new(pos_x, pos_y, pos_x + char_width, pos_y + char_height),
                     0.,
-                    FontInstance::get_glyph_texture_coord(
-                        &self.get_shared_data(),
-                        self.font_id,
-                        *c as _,
-                    ),
+                    self.font
+                        .get::<FontInstance>()
+                        .get_glyph_texture_coord(*c as _),
                     Some(mesh_index),
                 );
                 mesh_index += 4;
@@ -202,12 +201,10 @@ impl Text {
 impl InternalWidget for Text {
     fn widget_init(&mut self) {
         let font_id = FontInstance::get_default(self.get_shared_data());
-        let material_id = MaterialInstance::create_from_font(self.get_shared_data(), font_id);
-
-        self.font_id = font_id;
-        self.material_id = material_id;
-
-        self.graphics_mut().link_to_material(material_id);
+        self.font = SharedData::get_resource::<FontInstance>(self.get_shared_data(), font_id);
+        self.material = self.font.get::<FontInstance>().material();
+        let material = self.material.clone();
+        self.graphics_mut().link_to_material(material);
         if self.is_initialized() {
             self.is_dirty = true;
             return;

@@ -1,11 +1,14 @@
 use std::path::PathBuf;
 
-use nrg_resources::{ResourceId, ResourceTrait, SharedData, SharedDataRw};
+use nrg_resources::{
+    DataResource, DynamicResource, Resource, ResourceId, ResourceTrait, SharedData, SharedDataRw,
+};
 use nrg_serialize::{generate_uid_from_string, Uid, INVALID_UID};
 
 use crate::PipelineData;
 
 pub type PipelineId = Uid;
+pub type PipelineRc = Resource;
 
 pub struct PipelineInstance {
     id: ResourceId,
@@ -13,12 +16,42 @@ pub struct PipelineInstance {
     is_initialized: bool,
 }
 
+impl Default for PipelineInstance {
+    fn default() -> Self {
+        Self {
+            id: INVALID_UID,
+            data: PipelineData::default(),
+            is_initialized: false,
+        }
+    }
+}
+
 impl ResourceTrait for PipelineInstance {
     fn id(&self) -> ResourceId {
         self.id
     }
     fn path(&self) -> PathBuf {
-        PathBuf::from(self.data.name.as_str())
+        PathBuf::from(self.data.name.clone())
+    }
+}
+
+impl DynamicResource for PipelineInstance {}
+
+impl DataResource for PipelineInstance {
+    type DataType = PipelineData;
+    fn create_from_data(shared_data: &SharedDataRw, pipeline_data: Self::DataType) -> PipelineRc {
+        let canonicalized_pipeline_data = pipeline_data.canonicalize_paths();
+        let pipeline_id =
+            PipelineInstance::find_id_from_data(shared_data, &canonicalized_pipeline_data);
+        if pipeline_id != INVALID_UID {
+            return SharedData::get_resource::<Self>(shared_data, pipeline_id);
+        }
+        let mut data = shared_data.write().unwrap();
+        data.add_resource(PipelineInstance {
+            id: generate_uid_from_string(canonicalized_pipeline_data.name.as_str()),
+            data: canonicalized_pipeline_data,
+            is_initialized: false,
+        })
     }
 }
 
@@ -27,6 +60,11 @@ impl PipelineInstance {
         SharedData::match_resource(shared_data, |p: &PipelineInstance| {
             p.data.name == pipeline_name
         })
+    }
+
+    pub fn find_from_name(shared_data: &SharedDataRw, pipeline_name: &str) -> PipelineRc {
+        let pipeline_id = Self::find_id_from_name(shared_data, pipeline_name);
+        SharedData::get_resource::<Self>(shared_data, pipeline_id)
     }
 
     fn find_id_from_data(shared_data: &SharedDataRw, pipeline_data: &PipelineData) -> PipelineId {
@@ -87,20 +125,5 @@ impl PipelineInstance {
             self.invalidate();
             println!("GeometryShader {:?} will be reloaded", path_as_string);
         }
-    }
-
-    pub fn create(shared_data: &SharedDataRw, pipeline_data: &PipelineData) -> PipelineId {
-        let canonicalized_pipeline_data = pipeline_data.clone().canonicalize_paths();
-        let pipeline_id =
-            PipelineInstance::find_id_from_data(shared_data, &canonicalized_pipeline_data);
-        if pipeline_id != INVALID_UID {
-            return pipeline_id;
-        }
-        let mut data = shared_data.write().unwrap();
-        data.add_resource(PipelineInstance {
-            id: generate_uid_from_string(canonicalized_pipeline_data.name.as_str()),
-            data: canonicalized_pipeline_data,
-            is_initialized: false,
-        })
     }
 }

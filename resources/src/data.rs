@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use nrg_serialize::deserialize_from_file;
+use nrg_serialize::{deserialize_from_file, Deserialize};
 
 pub const DATA_RAW_FOLDER: &str = "./data_raw/";
 pub const DATA_FOLDER: &str = "./data/";
@@ -10,6 +10,57 @@ pub trait Data {
     fn get_data_folder(&self) -> PathBuf {
         PathBuf::from(DATA_FOLDER)
     }
+}
+pub trait Deserializable: Default + for<'de> Deserialize<'de> {
+    fn set_path(&mut self, filepath: &Path);
+    fn path(&self) -> &Path;
+}
+
+#[macro_export]
+macro_rules! implement_file_data {
+    // input is empty: time to output
+    (@munch () -> {pub struct $name:ident $(($id:ident: $ty:ty))*}) => {
+        #[repr(C)]
+        #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+        #[serde(crate = "nrg_serialize")]
+        pub struct $name {
+            path: PathBuf,
+            $(pub $id: $ty),*
+        }
+        unsafe impl Send for $name {}
+        unsafe impl Sync for $name {}
+        impl $crate::Deserializable for $name {
+            #[inline]
+            fn set_path(&mut self, filepath: &Path) {
+                self.path = filepath.to_path_buf();
+            }
+            #[inline]
+            fn path(&self) -> &Path {
+                self.path.as_path()
+            }
+        }
+    };
+
+    // branch off to generate an inner struct
+    (@munch ($id:ident: struct $name:ident {$($inner:tt)*} $($next:tt)*) -> {pub struct $($output:tt)*}) => {
+        implement_file_data!(@munch ($($inner)*) -> {pub struct $name});
+        implement_file_data!(@munch ($($next)*) -> {pub struct $($output)* ($id: $name)});
+    };
+
+    // throw on the last field
+    (@munch ($id:ident: $ty:ty) -> {$($output:tt)*}) => {
+        implement_file_data!(@munch () -> {$($output)* ($id: $ty)});
+    };
+
+    // throw on another field (not the last one)
+    (@munch ($id:ident: $ty:ty, $($next:tt)*) -> {$($output:tt)*}) => {
+        implement_file_data!(@munch ($($next)*) -> {$($output)* ($id: $ty)});
+    };
+
+    // entry point (this is where a macro call starts)
+    (struct $name:ident { $($input:tt)*} ) => {
+        implement_file_data!(@munch ($($input)*) -> {pub struct $name});
+    };
 }
 
 #[inline]
@@ -53,7 +104,7 @@ pub fn convert_in_local_path(original_path: &Path, base_path: &Path) -> PathBuf 
 
 pub fn from_file<T>(filepath: &Path) -> T
 where
-    T: Default + for<'de> nrg_serialize::Deserialize<'de>,
+    T: Deserializable,
 {
     let path = convert_from_local_path(PathBuf::from(DATA_FOLDER).as_path(), filepath);
     let mut data = T::default();

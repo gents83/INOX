@@ -1,11 +1,15 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use crate::{MeshData, Texture};
 use nrg_math::{Matrix4, Vector4};
-use nrg_resources::{from_file, ResourceId, ResourceTrait, SharedData, SharedDataRw};
+use nrg_resources::{
+    DataResource, Deserializable, DynamicResource, Resource, ResourceId, ResourceTrait,
+    SerializableResource, SharedDataRw,
+};
 use nrg_serialize::generate_random_uid;
 
 pub type MeshId = ResourceId;
+pub type MeshRc = Resource;
 
 #[derive(Clone)]
 pub struct MeshInstance {
@@ -22,7 +26,7 @@ impl ResourceTrait for MeshInstance {
         self.id
     }
     fn path(&self) -> PathBuf {
-        PathBuf::default()
+        self.mesh_data.path().to_path_buf()
     }
 }
 
@@ -39,53 +43,43 @@ impl Default for MeshInstance {
     }
 }
 
-impl MeshInstance {
-    pub fn create_from_file(shared_data: &SharedDataRw, filepath: &Path) -> MeshId {
-        let mesh_data = from_file::<MeshData>(filepath);
-        MeshInstance::create(&shared_data, mesh_data)
-    }
+impl DynamicResource for MeshInstance {}
 
-    pub fn create(shared_data: &SharedDataRw, mesh_data: MeshData) -> MeshId {
+impl SerializableResource for MeshInstance {}
+
+impl DataResource for MeshInstance {
+    type DataType = MeshData;
+    fn create_from_data(shared_data: &SharedDataRw, mesh_data: Self::DataType) -> MeshRc {
         let mut mesh_instance = MeshInstance::default();
         let mut data = shared_data.write().unwrap();
         mesh_instance.mesh_data = mesh_data;
         data.add_resource(mesh_instance)
     }
+}
+
+impl MeshInstance {
     pub fn get_data(&self) -> &MeshData {
         &self.mesh_data
     }
     pub fn is_visible(&self) -> bool {
         self.is_visible
     }
-    pub fn set_visible(shared_data: &SharedDataRw, mesh_id: MeshId, is_visible: bool) {
-        let mesh = SharedData::get_resource::<Self>(shared_data, mesh_id);
-        let mesh = &mut mesh.get_mut();
-        mesh.is_visible = is_visible;
-        mesh.is_dirty = true;
+    pub fn set_visible(&mut self, is_visible: bool) {
+        self.is_visible = is_visible;
+        self.is_dirty = true;
     }
-    pub fn set_draw_area(shared_data: &SharedDataRw, mesh_id: MeshId, draw_area: Vector4) {
-        let mesh = SharedData::get_resource::<Self>(shared_data, mesh_id);
-        let mesh = &mut mesh.get_mut();
-        mesh.draw_area = draw_area;
-        mesh.is_dirty = true;
+    pub fn set_draw_area(&mut self, draw_area: Vector4) {
+        self.draw_area = draw_area;
+        self.is_dirty = true;
     }
-    pub fn set_transform(shared_data: &SharedDataRw, mesh_id: MeshId, transform: Matrix4) {
-        let mesh = SharedData::get_resource::<Self>(shared_data, mesh_id);
-        let mesh = &mut mesh.get_mut();
-        mesh.mesh_data.transform = transform;
-        mesh.is_dirty = true;
+    pub fn set_transform(&mut self, transform: Matrix4) {
+        self.mesh_data.transform = transform;
+        self.is_dirty = true;
     }
-    pub fn get_transform(shared_data: &SharedDataRw, mesh_id: MeshId) -> Matrix4 {
-        let mesh = SharedData::get_resource::<Self>(shared_data, mesh_id);
-        let mesh = mesh.get();
-        mesh.mesh_data.transform
-    }
-    pub fn set_mesh_data(shared_data: &SharedDataRw, mesh_id: MeshId, mesh_data: MeshData) {
-        let mesh = SharedData::get_resource::<Self>(shared_data, mesh_id);
-        let mesh = &mut mesh.get_mut();
-        mesh.mesh_data = mesh_data;
-        mesh.uv_converted = false;
-        mesh.is_dirty = true;
+    pub fn set_mesh_data(&mut self, mesh_data: MeshData) {
+        self.mesh_data = mesh_data;
+        self.uv_converted = false;
+        self.is_dirty = true;
     }
     pub fn transform(&self) -> &Matrix4 {
         &self.mesh_data.transform
@@ -108,10 +102,5 @@ impl MeshInstance {
             }
         }
         self
-    }
-
-    pub fn destroy(shared_data: &SharedDataRw, mesh_id: MeshId) {
-        let mut data = shared_data.write().unwrap();
-        data.remove_resource::<Self>(mesh_id)
     }
 }

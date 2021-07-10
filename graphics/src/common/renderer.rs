@@ -1,8 +1,11 @@
-use crate::{FontInstance, MaterialInstance, RenderPass, RenderPassInstance};
-use crate::{Pipeline, PipelineInstance, TextureInstance};
+use crate::{
+    FontInstance, FontRc, MaterialInstance, MaterialRc, PipelineInstance, PipelineRc, RenderPass,
+    RenderPassRc, TextureInstance, TextureRc,
+};
+use crate::{Pipeline, RenderPassInstance};
 use nrg_math::*;
 use nrg_platform::*;
-use nrg_resources::{convert_from_local_path, ResourceRc, ResourceTrait, DATA_FOLDER};
+use nrg_resources::{convert_from_local_path, ResourceBase, ResourceTrait, DATA_FOLDER};
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 
@@ -70,11 +73,11 @@ impl Renderer {
 
     pub fn prepare_frame(
         &mut self,
-        render_passes: &mut [ResourceRc<RenderPassInstance>],
-        pipelines: &mut [ResourceRc<PipelineInstance>],
-        materials: &mut [ResourceRc<MaterialInstance>],
-        textures: &mut [ResourceRc<TextureInstance>],
-        fonts: &[ResourceRc<FontInstance>],
+        render_passes: &mut [RenderPassRc],
+        pipelines: &mut [PipelineRc],
+        materials: &mut [MaterialRc],
+        textures: &mut [TextureRc],
+        fonts: &[FontRc],
     ) -> &mut Self {
         nrg_profiler::scoped_profile!("renderer::prepare_frame");
         self.load_render_passes(render_passes);
@@ -230,16 +233,19 @@ impl Renderer {
 }
 
 impl Renderer {
-    fn load_render_passes(&mut self, render_passes: &mut [ResourceRc<RenderPassInstance>]) {
+    fn load_render_passes(&mut self, render_passes: &mut [RenderPassRc]) {
         nrg_profiler::scoped_profile!("renderer::load_render_passes");
         render_passes.iter_mut().for_each(|render_pass_instance| {
             let mut should_create = false;
             if let Some(index) = self
                 .render_passes
                 .iter()
-                .position(|r| r.id() == render_pass_instance.id())
+                .position(|r| r.id() == render_pass_instance.get::<RenderPassInstance>().id())
             {
-                if !render_pass_instance.get().is_initialized() {
+                if !render_pass_instance
+                    .get::<RenderPassInstance>()
+                    .is_initialized()
+                {
                     //render pass needs to be recreated
                     let mut render_pass = self.render_passes.remove(index);
                     render_pass.destroy();
@@ -252,23 +258,23 @@ impl Renderer {
                 let device = &mut self.device;
                 self.render_passes.push(RenderPass::create_default(
                     device,
-                    render_pass_instance.id(),
-                    render_pass_instance.get().data(),
+                    render_pass_instance.get::<RenderPassInstance>().id(),
+                    render_pass_instance.get::<RenderPassInstance>().data(),
                 ));
-                render_pass_instance.get_mut().init();
+                render_pass_instance.get_mut::<RenderPassInstance>().init();
             }
         });
     }
-    fn load_pipelines(&mut self, pipelines: &mut [ResourceRc<PipelineInstance>]) {
+    fn load_pipelines(&mut self, pipelines: &mut [PipelineRc]) {
         nrg_profiler::scoped_profile!("renderer::load_pipelines");
         pipelines.iter_mut().for_each(|pipeline_instance| {
             let mut create_pipeline = false;
             if let Some(index) = self
                 .pipelines
                 .iter()
-                .position(|p| p.id() == pipeline_instance.id())
+                .position(|p| p.id() == pipeline_instance.get::<PipelineInstance>().id())
             {
-                if !pipeline_instance.get().is_initialized() {
+                if !pipeline_instance.get::<PipelineInstance>().is_initialized() {
                     //pipeline needs to be recreated
                     let mut pipeline = self.pipelines.remove(index);
                     pipeline.destroy();
@@ -281,44 +287,43 @@ impl Renderer {
                 let device = &mut self.device;
                 self.pipelines.push(Pipeline::create(
                     device,
-                    pipeline_instance.id(),
-                    pipeline_instance.get().data(),
+                    pipeline_instance.get::<PipelineInstance>().id(),
+                    pipeline_instance.get::<PipelineInstance>().data(),
                     self.render_passes.first().unwrap(),
                 ));
-                pipeline_instance.get_mut().init();
+                pipeline_instance.get_mut::<PipelineInstance>().init();
             }
         });
     }
 
-    fn load_textures(
-        &mut self,
-        textures: &mut [ResourceRc<TextureInstance>],
-        fonts: &[ResourceRc<FontInstance>],
-    ) {
+    fn load_textures(&mut self, textures: &mut [TextureRc], fonts: &[FontRc]) {
         nrg_profiler::scoped_profile!("renderer::load_textures");
         let texture_handler = &mut self.texture_handler;
         textures.iter_mut().for_each(|texture_instance| {
-            if !texture_instance.get().is_initialized() {
-                if texture_instance.get().get_texture_index() != INVALID_INDEX {
+            if !texture_instance.get::<TextureInstance>().is_initialized() {
+                if texture_instance.get::<TextureInstance>().texture_index() != INVALID_INDEX {
                     //texture needs to be recreated
-                    texture_handler.remove(texture_instance.id());
+                    texture_handler.remove(texture_instance.get::<TextureInstance>().id());
                 }
                 let path = convert_from_local_path(
                     PathBuf::from(DATA_FOLDER).as_path(),
-                    texture_instance.get().get_path(),
+                    texture_instance.get::<TextureInstance>().get_path(),
                 );
                 let (texture_index, layer_index) = if is_texture(path.as_path()) {
-                    texture_handler.add_from_path(texture_instance.id(), path.as_path())
-                } else if let Some(font) = fonts.iter().find(|f| f.path() == path) {
+                    texture_handler.add_from_path(
+                        texture_instance.get::<TextureInstance>().id(),
+                        path.as_path(),
+                    )
+                } else if let Some(font) = fonts.iter().find(|f| f.read().unwrap().path() == path) {
                     texture_handler.add(
-                        texture_instance.id(),
-                        font.get().font().get_texture().clone(),
+                        texture_instance.get::<TextureInstance>().id(),
+                        font.get::<FontInstance>().font().get_texture().clone(),
                     )
                 } else {
                     panic!("Unable to load texture with path {:?}", path.as_path());
                 };
                 texture_instance
-                    .get_mut()
+                    .get_mut::<TextureInstance>()
                     .set_texture_data(texture_index, layer_index);
             }
         });
@@ -331,20 +336,28 @@ impl Renderer {
         });
     }
 
-    fn prepare_materials(
-        &mut self,
-        pipelines: &[ResourceRc<PipelineInstance>],
-        materials: &mut [ResourceRc<MaterialInstance>],
-    ) {
+    fn prepare_materials(&mut self, pipelines: &[PipelineRc], materials: &mut [MaterialRc]) {
         nrg_profiler::scoped_profile!("renderer::prepare_materials");
         materials.sort_by(|a, b| {
             let pipeline_a = pipelines
                 .iter()
-                .position(|p| p.id() == a.get().get_pipeline_id())
+                .position(|p| {
+                    p.read().unwrap().id()
+                        == a.get::<MaterialInstance>()
+                            .get_pipeline()
+                            .get::<PipelineInstance>()
+                            .id()
+                })
                 .unwrap();
             let pipeline_b = pipelines
                 .iter()
-                .position(|p| p.id() == b.get().get_pipeline_id())
+                .position(|p| {
+                    p.read().unwrap().id()
+                        == b.get::<MaterialInstance>()
+                            .get_pipeline()
+                            .get::<PipelineInstance>()
+                            .id()
+                })
                 .unwrap();
             pipeline_a.cmp(&pipeline_b)
         });

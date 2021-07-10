@@ -7,7 +7,7 @@ use nrg_gui::{
 use nrg_math::{Vector2, Vector4};
 use nrg_messenger::Message;
 use nrg_platform::WindowEvent;
-use nrg_resources::DATA_RAW_FOLDER;
+use nrg_resources::{DATA_FOLDER, DATA_RAW_FOLDER};
 use nrg_serialize::*;
 
 use crate::widget_registry::{NodesEvent, WidgetRegistry};
@@ -218,8 +218,9 @@ impl InternalWidget for MainMenu {
                     let dialog = self.filename_dialog.as_mut().unwrap();
                     dialog
                         .set_requester_uid(self.new_id)
-                        .set_title("New Widget")
+                        .set_title("New")
                         .set_filename("new_widget.widget")
+                        .set_folder(PathBuf::from(DATA_RAW_FOLDER).as_path())
                         .editable(true);
                 } else if self.open_id == widget_id && self.filename_dialog.is_none() {
                     self.filename_dialog = Some(FolderDialog::new(
@@ -229,8 +230,8 @@ impl InternalWidget for MainMenu {
                     let dialog = self.filename_dialog.as_mut().unwrap();
                     dialog
                         .set_requester_uid(self.open_id)
-                        .set_title("Open Widget")
-                        .set_folder(PathBuf::from(DATA_RAW_FOLDER).as_path())
+                        .set_title("Open")
+                        .set_folder(PathBuf::from(DATA_FOLDER).as_path())
                         .editable(false);
                 } else if self.save_id == widget_id && self.filename_dialog.is_none() {
                     self.filename_dialog = Some(FolderDialog::new(
@@ -240,8 +241,9 @@ impl InternalWidget for MainMenu {
                     let dialog = self.filename_dialog.as_mut().unwrap();
                     dialog
                         .set_requester_uid(self.save_id)
-                        .set_title("Save Widget")
+                        .set_title("Save")
                         .set_filename("old_widget.widget")
+                        .set_folder(PathBuf::from(DATA_RAW_FOLDER).as_path())
                         .editable(true);
                 } else if self.exit_id == widget_id {
                     self.get_global_dispatcher()

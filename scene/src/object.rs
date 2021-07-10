@@ -1,23 +1,28 @@
 use std::{
     any::{type_name, TypeId},
     collections::HashMap,
-    path::{Path, PathBuf},
+    path::PathBuf,
 };
 
-use nrg_graphics::MaterialInstance;
-use nrg_resources::{from_file, ResourceId, ResourceTrait, SharedData, SharedDataRw};
+use nrg_graphics::{MaterialInstance, MeshInstance};
+use nrg_math::Matrix4;
+use nrg_resources::{
+    DataResource, Deserializable, DynamicResource, Resource, ResourceBase, ResourceId,
+    ResourceTrait, SerializableResource, SharedDataRw,
+};
 use nrg_serialize::generate_random_uid;
 
 use crate::{ObjectData, Transform};
 
 pub type ComponentId = ResourceId;
 pub type ObjectId = ResourceId;
+pub type ObjectRc = Resource;
 
 pub struct Object {
     id: ResourceId,
     filepath: PathBuf,
-    chilrden: Vec<ObjectId>,
-    components: HashMap<TypeId, ComponentId>,
+    children: Vec<ObjectRc>,
+    components: HashMap<TypeId, Resource>,
 }
 
 impl ResourceTrait for Object {
@@ -35,107 +40,117 @@ impl Default for Object {
             id: generate_random_uid(),
             filepath: PathBuf::default(),
             components: HashMap::new(),
-            chilrden: Vec::new(),
+            children: Vec::new(),
         }
     }
 }
 
-impl Object {
-    pub fn create_from_file(shared_data: &SharedDataRw, filepath: &Path) -> ObjectId {
-        let object_data = from_file::<ObjectData>(filepath);
+impl DynamicResource for Object {}
+impl SerializableResource for Object {}
+impl DataResource for Object {
+    type DataType = ObjectData;
 
-        let object_id = {
+    fn create_from_data(shared_data: &SharedDataRw, object_data: Self::DataType) -> ObjectRc {
+        let object = {
             let mut data = shared_data.write().unwrap();
             let object = Object {
-                filepath: filepath.to_path_buf(),
+                filepath: object_data.path().to_path_buf(),
                 ..Default::default()
             };
             data.add_resource(object)
         };
 
-        let transform_id = Object::add_component::<Transform>(&shared_data, object_id);
-        Transform::set(shared_data, transform_id, object_data.transform);
+        let transform = object
+            .get_mut::<Object>()
+            .add_default_component::<Transform>(shared_data);
+        transform
+            .get_mut::<Transform>()
+            .set_matrix(object_data.transform);
 
         if !object_data.material.clone().into_os_string().is_empty() {
-            let material_id =
+            let material =
                 MaterialInstance::create_from_file(shared_data, object_data.material.as_path());
-            Object::add_component_with_id::<MaterialInstance>(&shared_data, object_id, material_id);
+            object
+                .get_mut::<Object>()
+                .add_component::<MaterialInstance>(material);
         }
 
         for child in object_data.children.iter() {
-            let child_id = Object::create_from_file(shared_data, child.as_path());
-            Object::add_child(shared_data, object_id, child_id);
+            let child = Object::create_from_file(shared_data, child.as_path());
+            object.get_mut::<Object>().add_child(child);
         }
 
-        object_id
+        object
     }
-    pub fn create(shared_data: &SharedDataRw) -> ObjectId {
-        let mut data = shared_data.write().unwrap();
-        data.add_resource(Object::default())
+}
+
+impl Object {
+    pub fn add_child(&mut self, child: ObjectRc) {
+        self.children.push(child);
     }
 
-    pub fn add_child(shared_data: &SharedDataRw, parent_id: ObjectId, child_id: ObjectId) {
-        let object = SharedData::get_resource::<Self>(shared_data, parent_id);
-        let object = &mut object.get_mut();
-        object.chilrden.push(child_id);
+    pub fn children(&self) -> &Vec<ObjectRc> {
+        &self.children
     }
 
-    pub fn get_children(shared_data: &SharedDataRw, object_id: ObjectId) -> Vec<ObjectId> {
-        let object = SharedData::get_resource::<Self>(shared_data, object_id);
-        let object = &mut object.get_mut();
-        object.chilrden.clone()
-    }
-
-    pub fn add_component<C>(shared_data: &SharedDataRw, object_id: ObjectId) -> ComponentId
+    pub fn add_default_component<C>(&mut self, shared_data: &SharedDataRw) -> Resource
     where
-        C: ResourceTrait + Default + 'static,
+        C: DynamicResource + Default,
     {
-        let object = SharedData::get_resource::<Self>(shared_data, object_id);
-        let object = &mut object.get_mut();
         debug_assert!(
-            !object.components.contains_key(&TypeId::of::<C>()),
+            !self.components.contains_key(&TypeId::of::<C>()),
             "Object already contains a component of type {:?}",
             type_name::<C>()
         );
-        let resource_id = {
+        let resource = {
             let mut data = shared_data.write().unwrap();
             let component = C::default();
-            let resource_id = component.id();
-            data.add_resource(component);
-            resource_id
+            data.add_resource(component)
         };
-        object.components.insert(TypeId::of::<C>(), resource_id);
-        resource_id
+        self.components.insert(TypeId::of::<C>(), resource.clone());
+        resource
     }
-    pub fn add_component_with_id<C>(
-        shared_data: &SharedDataRw,
-        object_id: ObjectId,
-        component_id: ComponentId,
-    ) where
-        C: ResourceTrait + 'static,
+    pub fn add_component<C>(&mut self, component: Resource)
+    where
+        C: DynamicResource,
     {
-        let object = SharedData::get_resource::<Self>(shared_data, object_id);
-        let object = &mut object.get_mut();
         debug_assert!(
-            !object.components.contains_key(&TypeId::of::<C>()),
+            !self.components.contains_key(&TypeId::of::<C>()),
             "Object already contains a component of type {:?}",
             type_name::<C>()
         );
-        object.components.insert(TypeId::of::<C>(), component_id);
+        self.components.insert(TypeId::of::<C>(), component);
     }
 
-    pub fn get_component_with_id<C>(
-        shared_data: &SharedDataRw,
-        object_id: ObjectId,
-    ) -> Option<ComponentId>
+    pub fn get_component<C>(&self) -> Option<Resource>
     where
         C: ResourceTrait + 'static,
     {
-        let object = SharedData::get_resource::<Self>(shared_data, object_id);
-        let object = object.get();
-        if let Some(uid) = object.components.get(&TypeId::of::<C>()) {
-            return Some(*uid);
+        if let Some(component) = self.components.get(&TypeId::of::<C>()) {
+            return Some(component.clone());
         }
         None
+    }
+
+    pub fn update_from_parent(&mut self, shared_data: &SharedDataRw, parent_transform: Matrix4) {
+        if let Some(transform) = self.get_component::<Transform>() {
+            let object_matrix = transform.get::<Transform>().matrix();
+            let object_matrix = parent_transform * object_matrix;
+            transform.get_mut::<Transform>().set_matrix(object_matrix);
+
+            if let Some(material) = self.get_component::<MaterialInstance>() {
+                for mesh in material.get::<MaterialInstance>().meshes() {
+                    let matrix = object_matrix * *mesh.get::<MeshInstance>().transform();
+                    mesh.get_mut::<MeshInstance>().set_transform(matrix);
+                }
+            }
+
+            let children = self.children();
+            for child in children {
+                child
+                    .get_mut::<Object>()
+                    .update_from_parent(shared_data, object_matrix);
+            }
+        }
     }
 }

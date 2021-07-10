@@ -33,6 +33,18 @@ pub struct TextData {
     pub spacing: Vector2,
 }
 
+impl Default for Font {
+    fn default() -> Self {
+        Self {
+            filepath: PathBuf::new(),
+            metrics: Metrics::default(),
+            glyphs: Vec::new(),
+            char_to_glyph: HashMap::new(),
+            image: DynamicImage::new_rgb8(2, 2),
+        }
+    }
+}
+
 impl Font {
     #[inline]
     pub fn new(filepath: &Path) -> Self {

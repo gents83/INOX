@@ -13,7 +13,6 @@ use super::texture::*;
 pub struct Pipeline {
     pub inner: crate::api::backend::pipeline::Pipeline,
     id: PipelineId,
-    data: PipelineData,
     mesh: Mesh,
     vertex_count: u32,
     index_count: u32,
@@ -58,7 +57,6 @@ impl Pipeline {
         Pipeline {
             inner: pipeline,
             id,
-            data: data.clone(),
             mesh: Mesh::create(device),
             vertex_count: 0,
             index_count: 0,
@@ -69,9 +67,6 @@ impl Pipeline {
     }
     pub fn is_empty(&self) -> bool {
         self.instance_commands.is_empty() || self.vertex_count.is_zero()
-    }
-    pub fn get_data(&self) -> &PipelineData {
-        &self.data
     }
     pub fn get_instance_data(&self) -> &Vec<InstanceData> {
         &self.instance_data

@@ -1,8 +1,8 @@
 use nrg_graphics::{
-    MaterialId, MaterialInstance, MeshData, MeshId, MeshInstance, PipelineInstance,
+    MaterialInstance, MaterialRc, MeshData, MeshInstance, MeshRc, PipelineInstance,
 };
 use nrg_math::{Deg, Matrix4, Rad, VecBase, Vector2, Vector3, Vector4, Zero};
-use nrg_resources::SharedDataRw;
+use nrg_resources::{DataResource, Resource, ResourceBase, SharedDataRw};
 use nrg_serialize::{Deserialize, Serialize, INVALID_UID};
 
 #[derive(Serialize, Deserialize)]
@@ -10,10 +10,10 @@ use nrg_serialize::{Deserialize, Serialize, INVALID_UID};
 pub struct WidgetGraphics {
     #[serde(skip)]
     shared_data: SharedDataRw,
-    #[serde(skip)]
-    material_id: MaterialId,
-    #[serde(skip)]
-    mesh_id: MeshId,
+    #[serde(skip, default = "nrg_resources::Resource::default::<MaterialInstance>")]
+    material: MaterialRc,
+    #[serde(skip, default = "nrg_resources::Resource::default::<MeshInstance>")]
+    mesh: MeshRc,
     #[serde(skip, default = "nrg_math::VecBase::default_zero")]
     color: Vector4,
     #[serde(skip, default = "nrg_math::VecBase::default_zero")]
@@ -31,8 +31,8 @@ impl WidgetGraphics {
     pub fn new(shared_data: &SharedDataRw) -> Self {
         Self {
             shared_data: shared_data.clone(),
-            material_id: INVALID_UID,
-            mesh_id: INVALID_UID,
+            material: Resource::default::<MaterialInstance>(),
+            mesh: Resource::default::<MeshInstance>(),
             color: Vector4::default_zero(),
             border_color: Vector4::default_zero(),
             is_visible: true,
@@ -52,8 +52,8 @@ impl WidgetGraphics {
 
 impl WidgetGraphics {
     pub fn init(&mut self, pipeline: &str) -> &mut Self {
-        let pipeline_id = PipelineInstance::find_id_from_name(&self.shared_data, pipeline);
-        self.material_id = MaterialInstance::create_from_pipeline(&self.shared_data, pipeline_id);
+        let pipeline = PipelineInstance::find_from_name(&self.shared_data, pipeline);
+        self.material = MaterialInstance::create_from_pipeline(&self.shared_data, pipeline);
 
         self.create_default_mesh();
 
@@ -61,42 +61,41 @@ impl WidgetGraphics {
     }
 
     fn create_default_mesh(&mut self) -> &mut Self {
-        if self.mesh_id != INVALID_UID {
+        if self.mesh.read().unwrap().id() != INVALID_UID {
             self.remove_meshes();
         }
         let mut mesh_data = MeshData::default();
         mesh_data.add_quad_default([0., 0., 1., 1.].into(), 0.);
-        self.mesh_id = MeshInstance::create(&self.shared_data, mesh_data);
-        MaterialInstance::add_mesh(&self.shared_data, self.material_id, self.mesh_id);
+        self.mesh = MeshInstance::create_from_data(&self.shared_data, mesh_data);
+        self.material
+            .get_mut::<MaterialInstance>()
+            .add_mesh(self.mesh.clone());
         self.mark_as_dirty();
         self
     }
 
     #[inline]
-    pub fn link_to_material(&mut self, material_id: MaterialId) -> &mut Self {
-        if self.material_id != INVALID_UID {
-            MaterialInstance::destroy(&self.shared_data, self.material_id);
-        }
-        self.material_id = material_id;
-
+    pub fn link_to_material(&mut self, material: MaterialRc) -> &mut Self {
+        self.material = material;
         self.create_default_mesh().mark_as_dirty();
         self
     }
 
     #[inline]
     pub fn unlink_from_material(&mut self) -> &mut Self {
-        self.material_id = INVALID_UID;
+        self.material = Resource::default::<MaterialInstance>();
         self.mark_as_dirty();
         self
     }
 
     #[inline]
     pub fn remove_meshes(&mut self) -> &mut Self {
-        if self.mesh_id != INVALID_UID {
-            MaterialInstance::remove_mesh(&self.shared_data, self.material_id, self.mesh_id);
-            MeshInstance::destroy(&self.shared_data, self.mesh_id);
+        if self.mesh.read().unwrap().id() != INVALID_UID {
+            self.material
+                .get_mut::<MaterialInstance>()
+                .remove_mesh(self.mesh.read().unwrap().id());
         }
-        self.mesh_id = INVALID_UID;
+        self.mesh = Resource::default::<MeshInstance>();
         self.mark_as_dirty();
         self
     }
@@ -112,18 +111,18 @@ impl WidgetGraphics {
     }
 
     #[inline]
-    pub fn get_mesh_id(&self) -> MeshId {
-        self.mesh_id
+    pub fn get_mesh(&self) -> MeshRc {
+        self.mesh.clone()
     }
 
     #[inline]
-    pub fn get_material_id(&self) -> MaterialId {
-        self.material_id
+    pub fn get_material(&self) -> MaterialRc {
+        self.material.clone()
     }
 
     #[inline]
     pub fn set_mesh_data(&mut self, mesh_data: MeshData) -> &mut Self {
-        MeshInstance::set_mesh_data(&self.shared_data, self.mesh_id, mesh_data);
+        self.mesh.get_mut::<MeshInstance>().set_mesh_data(mesh_data);
         self.mark_as_dirty();
         self
     }
@@ -221,16 +220,19 @@ impl WidgetGraphics {
 
     #[inline]
     pub fn update(&mut self, drawing_area: Vector4) -> &mut Self {
-        if self.is_dirty && !self.material_id.is_nil() && !self.mesh_id.is_nil() {
+        if self.is_dirty
+            && !self.material.read().unwrap().id().is_nil()
+            && !self.mesh.read().unwrap().id().is_nil()
+        {
             nrg_profiler::scoped_profile!("widget::graphics_update");
             let visible = self.is_visible() && WidgetGraphics::is_valid_drawing_area(drawing_area);
 
-            MaterialInstance::set_outline_color(
-                &self.shared_data,
-                self.material_id,
-                self.border_color,
-            );
-            MaterialInstance::set_diffuse_color(&self.shared_data, self.material_id, self.color);
+            self.material
+                .get_mut::<MaterialInstance>()
+                .set_outline_color(self.border_color);
+            self.material
+                .get_mut::<MaterialInstance>()
+                .set_diffuse_color(self.color);
 
             let transform = Matrix4::from_translation(self.position)
                 * Matrix4::from_angle_z(Rad::from(Deg(self.rotation.x)))
@@ -238,9 +240,11 @@ impl WidgetGraphics {
                 * Matrix4::from_angle_z(Rad::from(Deg(self.rotation.z)))
                 * Matrix4::from_nonuniform_scale(self.scale.x, self.scale.y, self.scale.z);
 
-            MeshInstance::set_transform(&self.shared_data, self.mesh_id, transform);
-            MeshInstance::set_draw_area(&self.shared_data, self.mesh_id, drawing_area);
-            MeshInstance::set_visible(&self.shared_data, self.mesh_id, visible);
+            self.mesh.get_mut::<MeshInstance>().set_transform(transform);
+            self.mesh
+                .get_mut::<MeshInstance>()
+                .set_draw_area(drawing_area);
+            self.mesh.get_mut::<MeshInstance>().set_visible(visible);
             self.is_dirty = false;
         }
         self
@@ -249,8 +253,7 @@ impl WidgetGraphics {
     #[inline]
     pub fn uninit(&mut self) -> &mut Self {
         self.remove_meshes();
-        MaterialInstance::destroy(&self.shared_data, self.material_id);
-        self.material_id = INVALID_UID;
+        self.material = Resource::default::<MaterialInstance>();
         self
     }
 }

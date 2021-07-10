@@ -1,10 +1,11 @@
 use nrg_core::*;
 use nrg_graphics::*;
-use nrg_resources::{SharedData, SharedDataRw};
+use nrg_resources::{DataResource, Resource, ResourceBase, SharedData, SharedDataRw};
 
 pub struct RenderingSystem {
     id: SystemId,
     view_index: usize,
+    view: ViewRc,
     renderer: RendererRw,
     shared_data: SharedDataRw,
 }
@@ -14,6 +15,7 @@ impl RenderingSystem {
         Self {
             id: SystemId::new(),
             view_index: 0,
+            view: Resource::default::<ViewInstance>(),
             renderer,
             shared_data: shared_data.clone(),
         }
@@ -32,7 +34,7 @@ impl System for RenderingSystem {
     }
     fn init(&mut self) {
         if !SharedData::has_resources_of_type::<ViewInstance>(&self.shared_data) {
-            let _view_id = ViewInstance::create(&self.shared_data, self.view_index as _);
+            self.view = ViewInstance::create_from_data(&self.shared_data, self.view_index as _);
         }
     }
 
@@ -43,14 +45,8 @@ impl System for RenderingSystem {
         }
 
         let (view, proj) = {
-            let view_id = SharedData::get_resourceid_at_index::<ViewInstance>(
-                &self.shared_data,
-                self.view_index,
-            );
-            let view_instance =
-                SharedData::get_resource::<ViewInstance>(&self.shared_data, view_id);
-            let view = *view_instance.get().view();
-            let proj = *view_instance.get().proj();
+            let view = *self.view.get::<ViewInstance>().view();
+            let proj = *self.view.get::<ViewInstance>().proj();
             (view, proj)
         };
 

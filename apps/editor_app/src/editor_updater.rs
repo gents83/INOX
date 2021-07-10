@@ -12,8 +12,8 @@ use super::widgets::*;
 use nrg_camera::Camera;
 use nrg_core::*;
 use nrg_graphics::{
-    FontInstance, MaterialInstance, MeshData, MeshInstance, PipelineInstance, RenderPassInstance,
-    ViewInstance,
+    FontInstance, FontRc, MaterialInstance, MaterialRc, MeshData, MeshInstance, PipelineInstance,
+    PipelineRc, RenderPassInstance, RenderPassRc, ViewInstance,
 };
 use nrg_gui::*;
 use nrg_math::{
@@ -22,12 +22,16 @@ use nrg_math::{
 };
 use nrg_messenger::{read_messages, Message, MessageChannel, MessengerRw};
 use nrg_platform::*;
-use nrg_resources::{SharedData, SharedDataRw};
-use nrg_scene::{Object, ObjectId, Scene, SceneId};
+use nrg_resources::{
+    DataResource, FileResource, Resource, ResourceBase, SerializableResource, SharedData,
+    SharedDataRw,
+};
+use nrg_scene::{Object, ObjectId, Scene, SceneRc};
 use nrg_serialize::*;
 
 pub struct EditorUpdater {
     id: SystemId,
+    show_fps: bool,
     frame_seconds: VecDeque<Instant>,
     shared_data: SharedDataRw,
     global_messenger: MessengerRw,
@@ -42,7 +46,11 @@ pub struct EditorUpdater {
     camera: Camera,
     move_camera_with_mouse: bool,
     last_mouse_pos: Vector2,
-    scene_id: SceneId,
+    pipelines: Vec<PipelineRc>,
+    render_passes: Vec<RenderPassRc>,
+    fonts: Vec<FontRc>,
+    grid_material: MaterialRc,
+    scene: SceneRc,
     selected_object: ObjectId,
 }
 
@@ -75,6 +83,10 @@ impl EditorUpdater {
 
         Self {
             id: SystemId::new(),
+            pipelines: Vec::new(),
+            render_passes: Vec::new(),
+            fonts: Vec::new(),
+            show_fps: false,
             frame_seconds: VecDeque::default(),
             nodes_registry: WidgetRegistry::new(&shared_data, &global_messenger),
             shared_data,
@@ -89,7 +101,8 @@ impl EditorUpdater {
             camera,
             move_camera_with_mouse: false,
             last_mouse_pos: Vector2::zero(),
-            scene_id: INVALID_UID,
+            grid_material: Resource::default::<MaterialInstance>(),
+            scene: Resource::default::<Scene>(),
             selected_object: INVALID_UID,
         }
     }
@@ -151,17 +164,19 @@ impl System for EditorUpdater {
             .register_messagebox::<NodesEvent>(self.message_channel.get_messagebox());
 
         self.create_main_menu()
-            //.create_fps_counter()
+            .create_fps_counter()
             .create_properties_panel()
             .create_graph();
 
-        self.create_scene().add_object_to_scene();
+        self.show_fps(self.show_fps);
+
+        self.create_scene();
     }
 
     fn run(&mut self) -> bool {
         self.update_events()
             .update_camera()
-            //.update_fps_counter()
+            .update_fps_counter()
             .update_widgets();
 
         true
@@ -237,19 +252,11 @@ impl EditorUpdater {
         self
     }
     fn create_scene(&mut self) -> &mut Self {
-        let scene_id = Scene::create(&self.shared_data);
-        self.scene_id = scene_id;
-        self
-    }
-    fn add_object_to_scene(&mut self) -> &mut Self {
-        let object_id = Object::create_from_file(
-            &self.shared_data,
-            PathBuf::from("models/Duck/duck.object_data").as_path(),
-        );
-        Scene::add_object(&self.shared_data, self.scene_id, object_id);
-
-        Scene::update_hierarchy(&self.shared_data, self.scene_id);
-
+        self.scene = self
+            .shared_data
+            .write()
+            .unwrap()
+            .add_resource::<Scene>(Scene::default());
         self
     }
     fn create_screen(&mut self) -> &mut Self {
@@ -263,14 +270,33 @@ impl EditorUpdater {
     fn update_camera(&mut self) -> &mut Self {
         if SharedData::has_resources_of_type::<ViewInstance>(&self.shared_data) {
             let view_id = SharedData::get_resourceid_at_index::<ViewInstance>(&self.shared_data, 0);
-            let view = self.camera.get_view_matrix();
-            let proj = self.camera.get_proj_matrix();
-            ViewInstance::update_view(&self.shared_data, view_id, view);
-            ViewInstance::update_proj(&self.shared_data, view_id, proj);
+            let view = SharedData::get_resource::<ViewInstance>(&self.shared_data, view_id);
+            let view_matrix = self.camera.get_view_matrix();
+            let proj_matrix = self.camera.get_proj_matrix();
+            view.get_mut::<ViewInstance>().update_view(view_matrix);
+            view.get_mut::<ViewInstance>().update_proj(proj_matrix);
+        }
+        self
+    }
+    fn show_fps(&mut self, show_fps: bool) -> &mut Self {
+        self.show_fps = show_fps;
+
+        let text_id = self.fps_text;
+        if let Some(text) = Gui::get()
+            .read()
+            .unwrap()
+            .get_root()
+            .get_child_mut::<Text>(text_id)
+        {
+            text.visible(show_fps);
         }
         self
     }
     fn update_fps_counter(&mut self) -> &mut Self {
+        if !self.show_fps {
+            return self;
+        }
+
         nrg_profiler::scoped_profile!("update_fps_counter");
 
         let now = Instant::now();
@@ -300,30 +326,49 @@ impl EditorUpdater {
 
     fn load_pipelines(&mut self) {
         for render_pass_data in self.config.render_passes.iter() {
-            RenderPassInstance::create(&self.shared_data, render_pass_data);
+            self.render_passes
+                .push(RenderPassInstance::create_from_data(
+                    &self.shared_data,
+                    render_pass_data.clone(),
+                ));
         }
 
         for pipeline_data in self.config.pipelines.iter() {
-            PipelineInstance::create(&self.shared_data, pipeline_data);
+            self.pipelines.push(PipelineInstance::create_from_data(
+                &self.shared_data,
+                pipeline_data.clone(),
+            ));
         }
 
-        if let Some(pipeline_data) = self.config.pipelines.iter().find(|p| p.name.eq("UI")) {
-            let pipeline_id =
-                PipelineInstance::find_id_from_name(&self.shared_data, pipeline_data.name.as_str());
-            if let Some(default_font_path) = self.config.fonts.first() {
-                FontInstance::create_from_path(&self.shared_data, pipeline_id, default_font_path);
-            }
+        if let Some(default_font_path) = self.config.fonts.first() {
+            self.fonts.push(FontInstance::create_from_file(
+                &self.shared_data,
+                default_font_path,
+            ));
         }
 
         if let Some(pipeline_data) = self.config.pipelines.iter().find(|p| p.name.eq("Grid")) {
-            let pipeline_id =
-                PipelineInstance::find_id_from_name(&self.shared_data, pipeline_data.name.as_str());
-            let material_id =
-                MaterialInstance::create_from_pipeline(&self.shared_data, pipeline_id);
+            let pipeline =
+                PipelineInstance::find_from_name(&self.shared_data, pipeline_data.name.as_str());
+            self.grid_material =
+                MaterialInstance::create_from_pipeline(&self.shared_data, pipeline);
             let mut mesh_data = MeshData::default();
             mesh_data.add_quad_default([-1., -1., 1., 1.].into(), 0.);
-            let mesh_id = MeshInstance::create(&self.shared_data, mesh_data);
-            MaterialInstance::add_mesh(&self.shared_data, material_id, mesh_id);
+            let mesh = MeshInstance::create_from_data(&self.shared_data, mesh_data);
+            self.grid_material
+                .get_mut::<MaterialInstance>()
+                .add_mesh(mesh);
+        }
+    }
+
+    fn load_object(&mut self, filename: PathBuf) {
+        if !filename.is_dir() && filename.exists() {
+            self.scene.get_mut::<Scene>().clear();
+            let object = Object::create_from_file(&self.shared_data, filename.as_path());
+            self.scene.get_mut::<Scene>().add_object(object);
+            self.scene
+                .get_mut::<Scene>()
+                .update_hierarchy(&self.shared_data);
         }
     }
 
@@ -448,12 +493,20 @@ impl EditorUpdater {
                         should_load = menu.is_open_uid(*requester_uid);
                         should_save = menu.is_save_uid(*requester_uid);
                     }
+                    let extension = filename.extension().unwrap().to_str().unwrap();
                     if should_load {
                         println!("Loading {:?}", filename);
-                        self.load_graph(filename.clone());
+                        if extension.contains("widget") {
+                            self.load_graph(filename.clone());
+                        } else if extension.contains("object_data") {
+                            self.load_object(filename.clone());
+                        }
                     } else if should_save {
                         println!("Saving {:?}", filename);
-                        self.save_graph(filename.clone());
+                        if extension.contains("widget") {
+                            self.save_graph(filename.clone());
+                        } else if extension.contains("object_data") {
+                        }
                     }
                 }
             } else if msg.type_id() == TypeId::of::<MouseEvent>() {
@@ -480,6 +533,10 @@ impl EditorUpdater {
                 }
             } else if msg.type_id() == TypeId::of::<KeyEvent>() {
                 let event = msg.as_any().downcast_ref::<KeyEvent>().unwrap();
+
+                if event.code == Key::F1 && event.state == InputState::JustPressed {
+                    self.show_fps(!self.show_fps);
+                }
 
                 let mut movement = Vector3::zero();
                 if event.code == Key::W {

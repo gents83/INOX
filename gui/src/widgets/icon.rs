@@ -1,9 +1,9 @@
 use std::path::{Path, PathBuf};
 
-use nrg_graphics::{MaterialInstance, TextureId, TextureInstance};
+use nrg_graphics::{MaterialInstance, TextureInstance, TextureRc};
 use nrg_math::{Vector2, Vector4};
 use nrg_messenger::Message;
-use nrg_resources::{convert_from_local_path, DATA_FOLDER};
+use nrg_resources::{convert_from_local_path, FileResource, Resource, ResourceBase, DATA_FOLDER};
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{
@@ -19,12 +19,13 @@ pub struct Icon {
     data: WidgetData,
     image: Uid,
     text: Uid,
-    texture: TextureId,
+    #[serde(skip, default = "nrg_resources::Resource::default::<TextureInstance>")]
+    texture: TextureRc,
 }
 implement_widget_with_custom_members!(Icon {
     image: INVALID_UID,
     text: INVALID_UID,
-    texture: INVALID_UID
+    texture: Resource::default::<TextureInstance>()
 });
 
 impl Icon {
@@ -105,19 +106,21 @@ impl Icon {
     }
 
     pub fn set_texture(&mut self, path: &Path) -> &mut Self {
-        let mut texture_uid = self.texture;
         let image = self.image;
         if let Some(image) = self.node().get_child_mut::<Panel>(image) {
-            let material_uid = image.graphics().get_material_id();
-            if !texture_uid.is_nil() {
-                MaterialInstance::remove_texture(self.get_shared_data(), material_uid, texture_uid);
+            let material = image.graphics().get_material();
+            if !self.texture.read().unwrap().id().is_nil() {
+                material
+                    .get_mut::<MaterialInstance>()
+                    .remove_texture(self.texture.read().unwrap().id());
             }
             let texture_path = convert_from_local_path(PathBuf::from(DATA_FOLDER).as_path(), path);
-            texture_uid =
+            self.texture =
                 TextureInstance::create_from_file(self.get_shared_data(), texture_path.as_path());
-            MaterialInstance::add_texture(self.get_shared_data(), material_uid, texture_uid);
+            material
+                .get_mut::<MaterialInstance>()
+                .add_texture(self.texture.clone());
         }
-        self.texture = texture_uid;
         self
     }
 }

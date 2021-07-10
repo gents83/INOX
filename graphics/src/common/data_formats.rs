@@ -1,9 +1,9 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::common::utils::*;
 
 use nrg_math::*;
-use nrg_resources::{convert_from_local_path, DATA_FOLDER};
+use nrg_resources::{convert_from_local_path, implement_file_data, DATA_FOLDER};
 use nrg_serialize::*;
 
 #[repr(C)]
@@ -112,6 +112,7 @@ impl Default for RenderPassData {
 #[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Clone)]
 #[serde(crate = "nrg_serialize")]
 pub struct PipelineData {
+    path: PathBuf,
     pub name: String,
     pub fragment_shader: PathBuf,
     pub vertex_shader: PathBuf,
@@ -125,6 +126,7 @@ unsafe impl Sync for PipelineData {}
 impl Default for PipelineData {
     fn default() -> Self {
         Self {
+            path: PathBuf::new(),
             name: String::from("3D"),
             fragment_shader: PathBuf::new(),
             vertex_shader: PathBuf::new(),
@@ -169,22 +171,20 @@ impl PipelineData {
     }
 }
 
-#[repr(C)]
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
-#[serde(crate = "nrg_serialize")]
-pub struct MaterialData {
-    pub pipeline_name: String,
-    pub meshes: Vec<PathBuf>,
-    pub textures: Vec<PathBuf>,
-    pub diffuse_color: Vector4,
-    pub outline_color: Vector4,
-}
-unsafe impl Send for MaterialData {}
-unsafe impl Sync for MaterialData {}
+implement_file_data!(
+    struct MaterialData {
+        pipeline_name: String,
+        meshes: Vec<PathBuf>,
+        textures: Vec<PathBuf>,
+        diffuse_color: Vector4,
+        outline_color: Vector4,
+    }
+);
 
 impl Default for MaterialData {
     fn default() -> Self {
         Self {
+            path: PathBuf::new(),
             pipeline_name: String::from("3D"),
             meshes: Vec::new(),
             textures: Vec::new(),
@@ -203,18 +203,18 @@ pub struct MeshDataRef {
     pub last_index: u32,
 }
 
-#[repr(C)]
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
-#[serde(crate = "nrg_serialize")]
-pub struct MeshData {
-    pub vertices: Vec<VertexData>,
-    pub indices: Vec<u32>,
-    pub transform: Matrix4,
-}
+implement_file_data!(
+    struct MeshData {
+        vertices: Vec<VertexData>,
+        indices: Vec<u32>,
+        transform: Matrix4,
+    }
+);
 
 impl Default for MeshData {
     fn default() -> Self {
         Self {
+            path: PathBuf::new(),
             vertices: Vec::new(),
             indices: Vec::new(),
             transform: Matrix4::default_identity(),

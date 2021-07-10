@@ -10,7 +10,7 @@ use std::{
 
 use nrg_messenger::MessengerRw;
 use nrg_platform::{InputState, Key, KeyEvent, WindowEvent};
-use nrg_resources::SharedDataRw;
+use nrg_resources::{ResourceEvent, SharedData, SharedDataRw};
 
 use crate::{Job, JobHandler, JobHandlerRw, Phase, PluginId, PluginManager, Scheduler, Worker};
 
@@ -43,7 +43,6 @@ impl Drop for App {
         }
 
         self.scheduler.uninit();
-        self.shared_data.write().unwrap().clear();
 
         let plugins_to_remove = self.plugin_manager.release();
         self.update_plugins(plugins_to_remove, false);
@@ -130,6 +129,15 @@ impl App {
                         }
                         _ => {}
                     }
+                } else if msg.type_id() == TypeId::of::<ResourceEvent>() {
+                    let e = msg.as_any().downcast_ref::<ResourceEvent>().unwrap();
+                    if let ResourceEvent::Remove(type_id, resource_uid) = *e {
+                        SharedData::remove_resource_of_type(
+                            &self.shared_data,
+                            type_id,
+                            resource_uid,
+                        );
+                    }
                 }
             });
         self.is_profiling = is_profiling;
@@ -156,6 +164,8 @@ impl App {
         }
 
         self.update_events();
+
+        self.shared_data.write().unwrap().flush_resources();
 
         can_continue
     }

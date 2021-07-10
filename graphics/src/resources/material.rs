@@ -1,22 +1,41 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use crate::{
-    FontId, FontInstance, MaterialData, MeshId, MeshInstance, PipelineId, PipelineInstance,
-    TextureId, TextureInstance,
+    MaterialData, MeshId, MeshInstance, MeshRc, PipelineInstance, PipelineRc, TextureId,
+    TextureInstance, TextureRc,
 };
-use nrg_math::Vector4;
-use nrg_resources::{from_file, ResourceId, ResourceTrait, SharedData, SharedDataRw};
+use nrg_math::{VecBase, Vector4};
+use nrg_resources::{
+    DataResource, Deserializable, DynamicResource, FileResource, Resource, ResourceBase,
+    ResourceId, ResourceTrait, SerializableResource, SharedDataRw,
+};
 use nrg_serialize::{generate_random_uid, generate_uid_from_string, INVALID_UID};
 
 pub type MaterialId = ResourceId;
+pub type MaterialRc = Resource;
 
 pub struct MaterialInstance {
     id: ResourceId,
-    pipeline_id: PipelineId,
-    meshes: Vec<MeshId>,
-    textures: Vec<TextureId>,
+    path: PathBuf,
+    pipeline: PipelineRc,
+    meshes: Vec<MeshRc>,
+    textures: Vec<TextureRc>,
     diffuse_color: Vector4,
     outline_color: Vector4,
+}
+
+impl Default for MaterialInstance {
+    fn default() -> Self {
+        Self {
+            id: INVALID_UID,
+            path: PathBuf::new(),
+            pipeline: Resource::default::<PipelineInstance>(),
+            meshes: Vec::new(),
+            textures: Vec::new(),
+            diffuse_color: [1., 1., 1., 1.].into(),
+            outline_color: Vector4::default_zero(),
+        }
+    }
 }
 
 impl ResourceTrait for MaterialInstance {
@@ -24,31 +43,35 @@ impl ResourceTrait for MaterialInstance {
         self.id
     }
     fn path(&self) -> PathBuf {
-        PathBuf::default()
+        self.path.clone()
     }
 }
 
-impl MaterialInstance {
-    pub fn create_from_file(shared_data: &SharedDataRw, filepath: &Path) -> MaterialId {
-        let material_data = from_file::<MaterialData>(filepath);
+impl DynamicResource for MaterialInstance {}
 
-        let pipeline_id =
-            PipelineInstance::find_id_from_name(shared_data, material_data.pipeline_name.as_str());
+impl SerializableResource for MaterialInstance {}
+
+impl DataResource for MaterialInstance {
+    type DataType = MaterialData;
+    fn create_from_data(shared_data: &SharedDataRw, material_data: Self::DataType) -> MaterialRc {
+        let pipeline =
+            PipelineInstance::find_from_name(shared_data, material_data.pipeline_name.as_str());
 
         let mut meshes = Vec::new();
         for m in material_data.meshes.iter() {
-            let mesh_id = MeshInstance::create_from_file(&shared_data, m.as_path());
-            meshes.push(mesh_id);
+            let mesh = MeshInstance::create_from_file(&shared_data, m.as_path());
+            meshes.push(mesh);
         }
         let mut textures = Vec::new();
         for t in material_data.textures.iter() {
-            let texture_id = TextureInstance::create_from_file(&shared_data, t.as_path());
-            textures.push(texture_id);
+            let texture = TextureInstance::create_from_file(&shared_data, t.as_path());
+            textures.push(texture);
         }
 
         let material = Self {
-            id: generate_uid_from_string(filepath.to_str().unwrap()),
-            pipeline_id,
+            id: generate_uid_from_string(material_data.path().to_str().unwrap()),
+            path: material_data.path().to_path_buf(),
+            pipeline,
             meshes,
             textures,
             diffuse_color: [1., 1., 1., 1.].into(),
@@ -58,38 +81,26 @@ impl MaterialInstance {
         let mut data = shared_data.write().unwrap();
         data.add_resource(material)
     }
-    pub fn create_from(shared_data: &SharedDataRw, material_id: MaterialId) -> Self {
-        let material = SharedData::get_resource::<MaterialInstance>(shared_data, material_id);
-        let pipeline_id = material.get().pipeline_id;
-        let textures = material.get().textures.clone();
-        let diffuse_color = material.get().diffuse_color;
-        let outline_color = material.get().outline_color;
-        Self {
-            id: generate_random_uid(),
-            pipeline_id,
-            meshes: Vec::new(),
-            textures,
-            diffuse_color,
-            outline_color,
-        }
-    }
-    pub fn get_pipeline_id(&self) -> PipelineId {
-        self.pipeline_id
+}
+
+impl MaterialInstance {
+    pub fn get_pipeline(&self) -> PipelineRc {
+        self.pipeline.clone()
     }
     pub fn has_meshes(&self) -> bool {
         !self.meshes.is_empty()
     }
-    pub fn meshes(&self) -> &Vec<MeshId> {
+    pub fn meshes(&self) -> &Vec<MeshRc> {
         &self.meshes
     }
-    pub fn textures(&self) -> &Vec<TextureId> {
+    pub fn textures(&self) -> &Vec<TextureRc> {
         &self.textures
     }
-    pub fn diffuse_texture(&self) -> TextureId {
-        if !self.textures.is_empty() {
-            return self.textures[0];
-        }
-        INVALID_UID
+    pub fn has_diffuse_texture(&self) -> bool {
+        !self.textures.is_empty()
+    }
+    pub fn diffuse_texture(&self) -> TextureRc {
+        self.textures[0].clone()
     }
     pub fn diffuse_color(&self) -> Vector4 {
         self.diffuse_color
@@ -97,93 +108,51 @@ impl MaterialInstance {
     pub fn outline_color(&self) -> Vector4 {
         self.outline_color
     }
-    pub fn get_meshes(shared_data: &SharedDataRw, material_id: MaterialId) -> Vec<MeshId> {
-        let material = SharedData::get_resource::<Self>(shared_data, material_id);
-        let material = material.get();
-        material.meshes.clone()
-    }
-    pub fn has_textures(shared_data: &SharedDataRw, material_id: MaterialId) -> bool {
-        let material = SharedData::get_resource::<Self>(shared_data, material_id);
-        let textures = &material.get().textures;
-        !textures.is_empty()
+    pub fn has_textures(&self) -> bool {
+        !self.textures.is_empty()
     }
 
-    pub fn has_texture(
-        shared_data: &SharedDataRw,
-        material_id: MaterialId,
-        texture_id: TextureId,
-    ) -> bool {
-        let material = SharedData::get_resource::<Self>(shared_data, material_id);
-        let textures = &material.get().textures;
-        textures.iter().any(|&id| id == texture_id)
+    pub fn has_texture(&self, texture_id: TextureId) -> bool {
+        self.textures
+            .iter()
+            .any(|t| t.read().unwrap().id() == texture_id)
     }
 
-    pub fn remove_texture(
-        shared_data: &SharedDataRw,
-        material_id: MaterialId,
-        texture_id: TextureId,
-    ) {
-        let material = SharedData::get_resource::<Self>(shared_data, material_id);
-        material.get_mut().textures.retain(|&id| id != texture_id);
+    pub fn remove_texture(&mut self, texture_id: TextureId) {
+        self.textures
+            .retain(|t| t.read().unwrap().id() != texture_id);
     }
 
-    pub fn add_texture(shared_data: &SharedDataRw, material_id: MaterialId, texture_id: TextureId) {
-        let material = SharedData::get_resource::<Self>(shared_data, material_id);
-        material.get_mut().textures.push(texture_id);
+    pub fn add_texture(&mut self, texture: TextureRc) {
+        self.textures.push(texture);
     }
 
-    pub fn add_mesh(shared_data: &SharedDataRw, material_id: MaterialId, mesh_id: MeshId) {
-        let material = SharedData::get_resource::<Self>(shared_data, material_id);
-        material.get_mut().meshes.push(mesh_id);
+    pub fn add_mesh(&mut self, mesh: MeshRc) {
+        self.meshes.push(mesh);
     }
 
-    pub fn remove_mesh(shared_data: &SharedDataRw, material_id: MaterialId, mesh_id: MeshId) {
-        let material = SharedData::get_resource::<Self>(shared_data, material_id);
-        let meshes = &mut material.get_mut().meshes;
-        if let Some(index) = meshes.iter().position(|&id| id == mesh_id) {
-            meshes.remove(index);
-        }
+    pub fn remove_mesh(&mut self, mesh_id: MeshId) {
+        self.meshes.retain(|m| m.read().unwrap().id() != mesh_id);
     }
 
-    pub fn set_diffuse_color(
-        shared_data: &SharedDataRw,
-        material_id: MaterialId,
-        diffuse_color: Vector4,
-    ) {
-        let material = SharedData::get_resource::<Self>(shared_data, material_id);
-        material.get_mut().diffuse_color = diffuse_color;
+    pub fn set_diffuse_color(&mut self, diffuse_color: Vector4) {
+        self.diffuse_color = diffuse_color;
     }
 
-    pub fn set_outline_color(
-        shared_data: &SharedDataRw,
-        material_id: MaterialId,
-        outline_color: Vector4,
-    ) {
-        let material = SharedData::get_resource::<Self>(shared_data, material_id);
-        material.get_mut().outline_color = outline_color;
+    pub fn set_outline_color(&mut self, outline_color: Vector4) {
+        self.outline_color = outline_color;
     }
 
-    pub fn create_from_pipeline(shared_data: &SharedDataRw, pipeline_id: PipelineId) -> MaterialId {
+    pub fn create_from_pipeline(shared_data: &SharedDataRw, pipeline: PipelineRc) -> MaterialRc {
         let mut data = shared_data.write().unwrap();
         data.add_resource(MaterialInstance {
             id: generate_random_uid(),
-            pipeline_id,
+            path: PathBuf::new(),
+            pipeline,
             meshes: Vec::new(),
             textures: Vec::new(),
             diffuse_color: [1., 1., 1., 1.].into(),
             outline_color: [1., 1., 1., 0.].into(),
         })
-    }
-
-    pub fn create_from_font(shared_data: &SharedDataRw, font_id: FontId) -> MaterialId {
-        let material_id = FontInstance::get_material(shared_data, font_id);
-        let material = MaterialInstance::create_from(shared_data, material_id);
-        let mut data = shared_data.write().unwrap();
-        data.add_resource(material)
-    }
-
-    pub fn destroy(shared_data: &SharedDataRw, material_id: MaterialId) {
-        let mut data = shared_data.write().unwrap();
-        data.remove_resource::<Self>(material_id)
     }
 }

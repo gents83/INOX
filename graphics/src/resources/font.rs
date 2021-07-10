@@ -1,18 +1,32 @@
-use crate::{Font, MaterialId, MaterialInstance, PipelineId, TextureInstance};
+use crate::{Font, MaterialInstance, MaterialRc, PipelineInstance, TextureInstance};
 use nrg_math::Vector4;
 use nrg_resources::{
-    convert_from_local_path, ResourceId, ResourceTrait, SharedData, SharedDataRw, DATA_FOLDER,
+    convert_from_local_path, DynamicResource, FileResource, Resource, ResourceBase, ResourceId,
+    ResourceTrait, SharedData, SharedDataRw, DATA_FOLDER,
 };
 use nrg_serialize::{generate_uid_from_string, INVALID_UID};
 use std::path::{Path, PathBuf};
 
 pub type FontId = ResourceId;
+pub type FontRc = Resource;
+const UI_PIPELINE_NAME: &str = "UI";
 
 pub struct FontInstance {
     id: ResourceId,
     path: PathBuf,
-    material_id: MaterialId,
+    material: MaterialRc,
     font: Font,
+}
+
+impl Default for FontInstance {
+    fn default() -> Self {
+        Self {
+            id: INVALID_UID,
+            path: PathBuf::new(),
+            material: Resource::default::<MaterialInstance>(),
+            font: Font::default(),
+        }
+    }
 }
 
 impl ResourceTrait for FontInstance {
@@ -21,6 +35,39 @@ impl ResourceTrait for FontInstance {
     }
     fn path(&self) -> PathBuf {
         self.path.clone()
+    }
+}
+
+impl DynamicResource for FontInstance {}
+
+impl FileResource for FontInstance {
+    fn create_from_file(shared_data: &SharedDataRw, font_path: &Path) -> FontRc {
+        let pipeline = PipelineInstance::find_from_name(shared_data, UI_PIPELINE_NAME);
+        let path = convert_from_local_path(PathBuf::from(DATA_FOLDER).as_path(), font_path);
+        if !path.exists() || !path.is_file() {
+            panic!("Invalid font path {}", path.to_str().unwrap());
+        }
+        let font_id = FontInstance::find_id(shared_data, path.as_path());
+        if font_id != INVALID_UID {
+            return SharedData::get_resource::<Self>(shared_data, font_id);
+        }
+        let material = MaterialInstance::create_from_pipeline(shared_data, pipeline);
+        let font = Font::new(path.as_path());
+        let texture_id = TextureInstance::find_id(shared_data, path.as_path());
+        let texture = if texture_id.is_nil() {
+            TextureInstance::create_from_file(shared_data, path.as_path())
+        } else {
+            SharedData::get_resource::<TextureInstance>(shared_data, texture_id)
+        };
+        material.get_mut::<MaterialInstance>().add_texture(texture);
+
+        let mut data = shared_data.write().unwrap();
+        data.add_resource(FontInstance {
+            id: generate_uid_from_string(path.to_str().unwrap()),
+            path,
+            material,
+            font,
+        })
     }
 }
 
@@ -33,7 +80,7 @@ impl FontInstance {
         if SharedData::has_resources_of_type::<FontInstance>(shared_data) {
             let fonts = SharedData::get_resources_of_type::<FontInstance>(shared_data);
             if !fonts.is_empty() {
-                return fonts.first().unwrap().id();
+                return fonts.first().unwrap().read().unwrap().id();
             }
         }
         INVALID_UID
@@ -42,57 +89,12 @@ impl FontInstance {
     pub fn font(&self) -> &Font {
         &self.font
     }
-    pub fn material(&self) -> MaterialId {
-        self.material_id
+    pub fn material(&self) -> MaterialRc {
+        self.material.clone()
     }
-
-    pub fn get_material(shared_data: &SharedDataRw, font_id: FontId) -> MaterialId {
-        let font = SharedData::get_resource::<FontInstance>(shared_data, font_id);
-        let material_id = font.get().material();
-        material_id
-    }
-    pub fn get_glyph_texture_coord(
-        shared_data: &SharedDataRw,
-        font_id: FontId,
-        c: char,
-    ) -> Vector4 {
-        let font = SharedData::get_resource::<FontInstance>(shared_data, font_id);
-        let index = font.get().font.get_glyph_index(c);
-        let texture_coord = font.get().font.get_glyph(index).texture_coord;
+    pub fn get_glyph_texture_coord(&self, c: char) -> Vector4 {
+        let index = self.font.get_glyph_index(c);
+        let texture_coord = self.font.get_glyph(index).texture_coord;
         texture_coord
-    }
-    pub fn create_from_path(
-        shared_data: &SharedDataRw,
-        pipeline_id: PipelineId,
-        font_path: &Path,
-    ) -> FontId {
-        let path = convert_from_local_path(PathBuf::from(DATA_FOLDER).as_path(), font_path);
-        if !path.exists() || !path.is_file() || pipeline_id == INVALID_UID {
-            eprintln!(
-                "Invalid path {} or pipeline {}",
-                path.to_str().unwrap(),
-                pipeline_id.to_simple().to_string().as_str()
-            );
-            return INVALID_UID;
-        }
-        let font_id = FontInstance::find_id(shared_data, path.as_path());
-        if font_id != INVALID_UID {
-            return font_id;
-        }
-        let material_id = MaterialInstance::create_from_pipeline(shared_data, pipeline_id);
-        let font = Font::new(path.as_path());
-        let mut texture_id = TextureInstance::find_id(shared_data, path.as_path());
-        if texture_id.is_nil() {
-            texture_id = TextureInstance::create_from_file(shared_data, path.as_path());
-        }
-        MaterialInstance::add_texture(shared_data, material_id, texture_id);
-
-        let mut data = shared_data.write().unwrap();
-        data.add_resource(FontInstance {
-            id: generate_uid_from_string(path.to_str().unwrap()),
-            path,
-            material_id,
-            font,
-        })
     }
 }

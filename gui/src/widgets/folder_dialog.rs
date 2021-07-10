@@ -128,6 +128,7 @@ impl FolderDialog {
             .node()
             .get_child_mut::<TreeView>(self.folder_treeview_uid)
         {
+            TreeView::populate_with_folders(treeview, self.folder.as_path());
             FolderDialog::select_folder(treeview, folder);
         }
         let list_uid = self.list;

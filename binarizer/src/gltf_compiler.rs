@@ -273,10 +273,8 @@ impl GltfCompiler {
     }
 
     fn process_node(path: &Path, node: &Node, node_name: &str) -> PathBuf {
-        let mut object_data = ObjectData {
-            transform: node.transform().matrix().into(),
-            ..Default::default()
-        };
+        let mut object_data = ObjectData::default();
+        object_data.transform = node.transform().matrix().into();
 
         if let Some(mesh) = node.mesh() {
             for (_primitive_index, primitive) in mesh.primitives().enumerate() {

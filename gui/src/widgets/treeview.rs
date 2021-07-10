@@ -40,6 +40,7 @@ impl TreeView {
     }
 
     pub fn populate_with_folders(parent_widget: &mut dyn Widget, root: &Path) {
+        parent_widget.node_mut().remove_children();
         if let Ok(dir) = std::fs::read_dir(root) {
             dir.for_each(|entry| {
                 if let Ok(dir_entry) = entry {

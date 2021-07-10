@@ -1,11 +1,14 @@
 use std::path::PathBuf;
 
-use nrg_resources::{ResourceId, ResourceTrait, SharedData, SharedDataRw};
+use nrg_resources::{
+    DataResource, DynamicResource, Resource, ResourceId, ResourceTrait, SharedData, SharedDataRw,
+};
 use nrg_serialize::{generate_uid_from_string, Uid, INVALID_UID};
 
 use crate::RenderPassData;
 
 pub type RenderPassId = Uid;
+pub type RenderPassRc = Resource;
 
 pub struct RenderPassInstance {
     id: ResourceId,
@@ -18,11 +21,38 @@ impl ResourceTrait for RenderPassInstance {
         self.id
     }
     fn path(&self) -> PathBuf {
-        PathBuf::from(self.data.name.as_str())
+        PathBuf::from(self.data.name.clone())
+    }
+}
+
+impl DynamicResource for RenderPassInstance {}
+
+impl DataResource for RenderPassInstance {
+    type DataType = RenderPassData;
+    fn create_from_data(
+        shared_data: &SharedDataRw,
+        render_pass_data: Self::DataType,
+    ) -> RenderPassRc {
+        let render_pass_id =
+            RenderPassInstance::find_id_from_name(shared_data, render_pass_data.name.as_str());
+        if render_pass_id != INVALID_UID {
+            return SharedData::get_resource::<Self>(shared_data, render_pass_id);
+        }
+        let mut data = shared_data.write().unwrap();
+        data.add_resource(RenderPassInstance {
+            id: generate_uid_from_string(render_pass_data.name.as_str()),
+            data: render_pass_data.clone(),
+            is_initialized: false,
+        })
     }
 }
 
 impl RenderPassInstance {
+    pub fn find_id_from_name(shared_data: &SharedDataRw, render_pass_name: &str) -> RenderPassId {
+        SharedData::match_resource(shared_data, |r: &RenderPassInstance| {
+            r.data.name == render_pass_name
+        })
+    }
     pub fn data(&self) -> &RenderPassData {
         &self.data
     }
@@ -37,23 +67,5 @@ impl RenderPassInstance {
 
     pub fn is_initialized(&self) -> bool {
         self.is_initialized
-    }
-    pub fn find_id_from_name(shared_data: &SharedDataRw, render_pass_name: &str) -> RenderPassId {
-        SharedData::match_resource(shared_data, |r: &RenderPassInstance| {
-            r.data.name == render_pass_name
-        })
-    }
-    pub fn create(shared_data: &SharedDataRw, render_pass_data: &RenderPassData) -> RenderPassId {
-        let render_pass_id =
-            RenderPassInstance::find_id_from_name(shared_data, render_pass_data.name.as_str());
-        if render_pass_id != INVALID_UID {
-            return render_pass_id;
-        }
-        let mut data = shared_data.write().unwrap();
-        data.add_resource(RenderPassInstance {
-            id: generate_uid_from_string(render_pass_data.name.as_str()),
-            data: render_pass_data.clone(),
-            is_initialized: false,
-        })
     }
 }
