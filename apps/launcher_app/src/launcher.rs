@@ -13,7 +13,7 @@ use nrg_gui::{
 use nrg_math::Vector2;
 use nrg_messenger::{read_messages, Message, MessageChannel, MessengerRw};
 use nrg_platform::{WindowEvent, DEFAULT_DPI};
-use nrg_resources::{ConfigBase, DataResource, FileResource, SharedDataRw};
+use nrg_resources::{ConfigBase, DataTypeResource, FileResource, SharedDataRw};
 use nrg_serialize::{deserialize_from_file, Uid, INVALID_UID};
 
 use crate::config::Config;

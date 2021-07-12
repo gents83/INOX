@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::{
     MaterialData, MeshId, MeshInstance, MeshRc, PipelineInstance, PipelineRc, TextureId,
@@ -6,13 +6,13 @@ use crate::{
 };
 use nrg_math::{VecBase, Vector4};
 use nrg_resources::{
-    DataResource, Deserializable, DynamicResource, FileResource, Resource, ResourceBase,
-    ResourceId, ResourceTrait, SerializableResource, SharedDataRw,
+    DataTypeResource, Deserializable, FileResource, ResourceData, ResourceId, ResourceRef,
+    SerializableResource, SharedData, SharedDataRw,
 };
 use nrg_serialize::{generate_random_uid, generate_uid_from_string, INVALID_UID};
 
 pub type MaterialId = ResourceId;
-pub type MaterialRc = Resource;
+pub type MaterialRc = ResourceRef<MaterialInstance>;
 
 pub struct MaterialInstance {
     id: ResourceId,
@@ -29,7 +29,7 @@ impl Default for MaterialInstance {
         Self {
             id: INVALID_UID,
             path: PathBuf::new(),
-            pipeline: Resource::default::<PipelineInstance>(),
+            pipeline: ResourceRef::default(),
             meshes: Vec::new(),
             textures: Vec::new(),
             diffuse_color: [1., 1., 1., 1.].into(),
@@ -38,21 +38,21 @@ impl Default for MaterialInstance {
     }
 }
 
-impl ResourceTrait for MaterialInstance {
+impl ResourceData for MaterialInstance {
     fn id(&self) -> ResourceId {
         self.id
     }
-    fn path(&self) -> PathBuf {
-        self.path.clone()
+}
+
+impl SerializableResource for MaterialInstance {
+    fn path(&self) -> &Path {
+        self.path.as_path()
     }
 }
 
-impl DynamicResource for MaterialInstance {}
-
-impl SerializableResource for MaterialInstance {}
-
-impl DataResource for MaterialInstance {
+impl DataTypeResource for MaterialInstance {
     type DataType = MaterialData;
+
     fn create_from_data(shared_data: &SharedDataRw, material_data: Self::DataType) -> MaterialRc {
         let pipeline =
             PipelineInstance::find_from_name(shared_data, material_data.pipeline_name.as_str());
@@ -78,8 +78,7 @@ impl DataResource for MaterialInstance {
             outline_color: [1., 1., 1., 0.].into(),
         };
 
-        let mut data = shared_data.write().unwrap();
-        data.add_resource(material)
+        SharedData::add_resource(shared_data, material)
     }
 }
 
@@ -113,14 +112,11 @@ impl MaterialInstance {
     }
 
     pub fn has_texture(&self, texture_id: TextureId) -> bool {
-        self.textures
-            .iter()
-            .any(|t| t.read().unwrap().id() == texture_id)
+        self.textures.iter().any(|t| t.id() == texture_id)
     }
 
     pub fn remove_texture(&mut self, texture_id: TextureId) {
-        self.textures
-            .retain(|t| t.read().unwrap().id() != texture_id);
+        self.textures.retain(|t| t.id() != texture_id);
     }
 
     pub fn add_texture(&mut self, texture: TextureRc) {
@@ -132,7 +128,7 @@ impl MaterialInstance {
     }
 
     pub fn remove_mesh(&mut self, mesh_id: MeshId) {
-        self.meshes.retain(|m| m.read().unwrap().id() != mesh_id);
+        self.meshes.retain(|m| m.id() != mesh_id);
     }
 
     pub fn set_diffuse_color(&mut self, diffuse_color: Vector4) {
@@ -144,15 +140,17 @@ impl MaterialInstance {
     }
 
     pub fn create_from_pipeline(shared_data: &SharedDataRw, pipeline: PipelineRc) -> MaterialRc {
-        let mut data = shared_data.write().unwrap();
-        data.add_resource(MaterialInstance {
-            id: generate_random_uid(),
-            path: PathBuf::new(),
-            pipeline,
-            meshes: Vec::new(),
-            textures: Vec::new(),
-            diffuse_color: [1., 1., 1., 1.].into(),
-            outline_color: [1., 1., 1., 0.].into(),
-        })
+        SharedData::add_resource(
+            shared_data,
+            MaterialInstance {
+                id: generate_random_uid(),
+                path: PathBuf::new(),
+                pipeline,
+                meshes: Vec::new(),
+                textures: Vec::new(),
+                diffuse_color: [1., 1., 1., 1.].into(),
+                outline_color: [1., 1., 1., 0.].into(),
+            },
+        )
     }
 }

@@ -1,14 +1,12 @@
-use std::path::PathBuf;
-
 use nrg_resources::{
-    DataResource, DynamicResource, Resource, ResourceId, ResourceTrait, SharedData, SharedDataRw,
+    DataTypeResource, ResourceData, ResourceId, ResourceRef, SharedData, SharedDataRw,
 };
 use nrg_serialize::{generate_uid_from_string, Uid, INVALID_UID};
 
 use crate::PipelineData;
 
 pub type PipelineId = Uid;
-pub type PipelineRc = Resource;
+pub type PipelineRc = ResourceRef<PipelineInstance>;
 
 pub struct PipelineInstance {
     id: ResourceId,
@@ -26,18 +24,13 @@ impl Default for PipelineInstance {
     }
 }
 
-impl ResourceTrait for PipelineInstance {
+impl ResourceData for PipelineInstance {
     fn id(&self) -> ResourceId {
         self.id
     }
-    fn path(&self) -> PathBuf {
-        PathBuf::from(self.data.name.clone())
-    }
 }
 
-impl DynamicResource for PipelineInstance {}
-
-impl DataResource for PipelineInstance {
+impl DataTypeResource for PipelineInstance {
     type DataType = PipelineData;
     fn create_from_data(shared_data: &SharedDataRw, pipeline_data: Self::DataType) -> PipelineRc {
         let canonicalized_pipeline_data = pipeline_data.canonicalize_paths();
@@ -46,12 +39,14 @@ impl DataResource for PipelineInstance {
         if pipeline_id != INVALID_UID {
             return SharedData::get_resource::<Self>(shared_data, pipeline_id);
         }
-        let mut data = shared_data.write().unwrap();
-        data.add_resource(PipelineInstance {
-            id: generate_uid_from_string(canonicalized_pipeline_data.name.as_str()),
-            data: canonicalized_pipeline_data,
-            is_initialized: false,
-        })
+        SharedData::add_resource(
+            shared_data,
+            PipelineInstance {
+                id: generate_uid_from_string(canonicalized_pipeline_data.name.as_str()),
+                data: canonicalized_pipeline_data,
+                is_initialized: false,
+            },
+        )
     }
 }
 

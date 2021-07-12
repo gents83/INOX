@@ -1,14 +1,14 @@
 use crate::{Font, MaterialInstance, MaterialRc, PipelineInstance, TextureInstance};
 use nrg_math::Vector4;
 use nrg_resources::{
-    convert_from_local_path, DynamicResource, FileResource, Resource, ResourceBase, ResourceId,
-    ResourceTrait, SharedData, SharedDataRw, DATA_FOLDER,
+    convert_from_local_path, FileResource, ResourceData, ResourceId, ResourceRef, SharedData,
+    SharedDataRw, DATA_FOLDER,
 };
 use nrg_serialize::{generate_uid_from_string, INVALID_UID};
 use std::path::{Path, PathBuf};
 
 pub type FontId = ResourceId;
-pub type FontRc = Resource;
+pub type FontRc = ResourceRef<FontInstance>;
 const UI_PIPELINE_NAME: &str = "UI";
 
 pub struct FontInstance {
@@ -23,24 +23,22 @@ impl Default for FontInstance {
         Self {
             id: INVALID_UID,
             path: PathBuf::new(),
-            material: Resource::default::<MaterialInstance>(),
+            material: ResourceRef::default(),
             font: Font::default(),
         }
     }
 }
 
-impl ResourceTrait for FontInstance {
+impl ResourceData for FontInstance {
     fn id(&self) -> ResourceId {
         self.id
     }
-    fn path(&self) -> PathBuf {
-        self.path.clone()
-    }
 }
 
-impl DynamicResource for FontInstance {}
-
 impl FileResource for FontInstance {
+    fn path(&self) -> &Path {
+        self.path.as_path()
+    }
     fn create_from_file(shared_data: &SharedDataRw, font_path: &Path) -> FontRc {
         let pipeline = PipelineInstance::find_from_name(shared_data, UI_PIPELINE_NAME);
         let path = convert_from_local_path(PathBuf::from(DATA_FOLDER).as_path(), font_path);
@@ -59,15 +57,17 @@ impl FileResource for FontInstance {
         } else {
             SharedData::get_resource::<TextureInstance>(shared_data, texture_id)
         };
-        material.get_mut::<MaterialInstance>().add_texture(texture);
+        material.get_mut().add_texture(texture);
 
-        let mut data = shared_data.write().unwrap();
-        data.add_resource(FontInstance {
-            id: generate_uid_from_string(path.to_str().unwrap()),
-            path,
-            material,
-            font,
-        })
+        SharedData::add_resource(
+            shared_data,
+            FontInstance {
+                id: generate_uid_from_string(path.to_str().unwrap()),
+                path,
+                material,
+                font,
+            },
+        )
     }
 }
 
@@ -80,7 +80,7 @@ impl FontInstance {
         if SharedData::has_resources_of_type::<FontInstance>(shared_data) {
             let fonts = SharedData::get_resources_of_type::<FontInstance>(shared_data);
             if !fonts.is_empty() {
-                return fonts.first().unwrap().read().unwrap().id();
+                return fonts.first().unwrap().id();
             }
         }
         INVALID_UID

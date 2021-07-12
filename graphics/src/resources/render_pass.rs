@@ -1,14 +1,12 @@
-use std::path::PathBuf;
-
 use nrg_resources::{
-    DataResource, DynamicResource, Resource, ResourceId, ResourceTrait, SharedData, SharedDataRw,
+    DataTypeResource, ResourceData, ResourceId, ResourceRef, SharedData, SharedDataRw,
 };
 use nrg_serialize::{generate_uid_from_string, Uid, INVALID_UID};
 
 use crate::RenderPassData;
 
 pub type RenderPassId = Uid;
-pub type RenderPassRc = Resource;
+pub type RenderPassRc = ResourceRef<RenderPassInstance>;
 
 pub struct RenderPassInstance {
     id: ResourceId,
@@ -16,18 +14,13 @@ pub struct RenderPassInstance {
     is_initialized: bool,
 }
 
-impl ResourceTrait for RenderPassInstance {
+impl ResourceData for RenderPassInstance {
     fn id(&self) -> ResourceId {
         self.id
     }
-    fn path(&self) -> PathBuf {
-        PathBuf::from(self.data.name.clone())
-    }
 }
 
-impl DynamicResource for RenderPassInstance {}
-
-impl DataResource for RenderPassInstance {
+impl DataTypeResource for RenderPassInstance {
     type DataType = RenderPassData;
     fn create_from_data(
         shared_data: &SharedDataRw,
@@ -38,12 +31,14 @@ impl DataResource for RenderPassInstance {
         if render_pass_id != INVALID_UID {
             return SharedData::get_resource::<Self>(shared_data, render_pass_id);
         }
-        let mut data = shared_data.write().unwrap();
-        data.add_resource(RenderPassInstance {
-            id: generate_uid_from_string(render_pass_data.name.as_str()),
-            data: render_pass_data.clone(),
-            is_initialized: false,
-        })
+        SharedData::add_resource(
+            shared_data,
+            RenderPassInstance {
+                id: generate_uid_from_string(render_pass_data.name.as_str()),
+                data: render_pass_data.clone(),
+                is_initialized: false,
+            },
+        )
     }
 }
 

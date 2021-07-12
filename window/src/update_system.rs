@@ -12,7 +12,7 @@ use crate::config::*;
 use nrg_core::*;
 use nrg_graphics::*;
 use nrg_messenger::{read_messages, MessageChannel, MessengerRw};
-use nrg_resources::{DataResource, ResourceEvent, ResourceBase, ResourceTrait, SharedData, SharedDataRw};
+use nrg_resources::{DataTypeResource, ResourceEvent, ResourceData, SharedData, SharedDataRw};
 use nrg_serialize::INVALID_UID;
 
 pub struct UpdateSystem {
@@ -74,29 +74,29 @@ impl System for UpdateSystem {
         read_messages(self.message_channel.get_listener(), |msg| {
             if msg.type_id() == TypeId::of::<ResourceEvent>() {
                 let e = msg.as_any().downcast_ref::<ResourceEvent>().unwrap();
-                if let ResourceEvent::Reload(path) = e {
-                    if is_shader(path)
-                        && SharedData::has_resources_of_type::<PipelineInstance>(&self.shared_data)
-                    {
-                        let pipelines = SharedData::get_resources_of_type::<PipelineInstance>(
-                            &self.shared_data,
-                        );
-                        for p in pipelines.iter() {
-                            p.get_mut::<PipelineInstance>()
-                                .check_shaders_to_reload(path.to_str().unwrap().to_string());
-                        }
-                    } else if is_texture(path)
-                        && SharedData::has_resources_of_type::<TextureInstance>(&self.shared_data)
-                    {
-                        let textures =
-                            SharedData::get_resources_of_type::<TextureInstance>(&self.shared_data);
-                        for t in textures.iter() {
-                            if t.get::<TextureInstance>().get_path() == path.as_path() {
-                                t.get_mut::<TextureInstance>().invalidate();
-                            }
+                let ResourceEvent::Reload(path) = e;
+                if is_shader(path)
+                    && SharedData::has_resources_of_type::<PipelineInstance>(&self.shared_data)
+                {
+                    let pipelines = SharedData::get_resources_of_type::<PipelineInstance>(
+                        &self.shared_data,
+                    );
+                    for p in pipelines.iter() {
+                        p.get_mut()
+                            .check_shaders_to_reload(path.to_str().unwrap().to_string());
+                    }
+                } else if is_texture(path)
+                    && SharedData::has_resources_of_type::<TextureInstance>(&self.shared_data)
+                {
+                    let textures =
+                        SharedData::get_resources_of_type::<TextureInstance>(&self.shared_data);
+                    for t in textures.iter() {
+                        if t.get().get_path() == path.as_path() {
+                            t.get_mut().invalidate();
                         }
                     }
                 }
+                
             }
         });
 
@@ -137,33 +137,33 @@ impl System for UpdateSystem {
                 .iter()
                 .enumerate()
                 .for_each(|(material_index, material_instance)| {
-                    if material_instance.get::<MaterialInstance>().has_meshes() {
+                    if material_instance.get().has_meshes() {
                         let mut diffuse_texture_id = INVALID_UID;
-                        let diffuse_color = material_instance.get::<MaterialInstance>().diffuse_color();
-                        let outline_color = material_instance.get::<MaterialInstance>().outline_color();
-                        let pipeline_id = material_instance.get::<MaterialInstance>().get_pipeline().get::<PipelineInstance>().id();
+                        let diffuse_color = material_instance.get().diffuse_color();
+                        let outline_color = material_instance.get().outline_color();
+                        let pipeline_id = material_instance.get().get_pipeline().get().id();
                         
                         let (diffuse_texture_index, diffuse_layer_index) =
-                        if !material_instance.get::<MaterialInstance>().has_diffuse_texture() {
+                        if !material_instance.get().has_diffuse_texture() {
                             (INVALID_INDEX, INVALID_INDEX)
                         } else {
-                                let diffuse_texture = material_instance.get::<MaterialInstance>().diffuse_texture();
-                                diffuse_texture_id = diffuse_texture.get::<TextureInstance>().id();
+                                let diffuse_texture = material_instance.get().diffuse_texture();
+                                diffuse_texture_id = diffuse_texture.id();
                                 let (ti, li) = (
-                                    diffuse_texture.get::<TextureInstance>().texture_index() as _,
-                                    diffuse_texture.get::<TextureInstance>().layer_index() as _,
+                                    diffuse_texture.get().texture_index() as _,
+                                    diffuse_texture.get().layer_index() as _,
                                 );
                                 (ti, li)
                             };
 
                         material_instance
-                            .get::<MaterialInstance>()
+                            .get()
                             .meshes()
                             .iter()
                             .enumerate()
                             .for_each(|(mesh_index, mesh_instance)| {
-                                if mesh_instance.get::<MeshInstance>().is_visible() {
-                                    let mesh_id = mesh_instance.get::<MeshInstance>().id();
+                                if mesh_instance.get().is_visible() {
+                                    let mesh_id = mesh_instance.id();
                                     let shared_data = self.shared_data.clone();
                                     let r = self.renderer.clone();
                                     let wait_count = wait_count.clone();
@@ -190,11 +190,11 @@ impl System for UpdateSystem {
                                                     .get_texture_handler()
                                                     .get_texture(diffuse_texture_id);
                                                 mesh_instance
-                                                    .get_mut::<MeshInstance>()
+                                                    .get_mut()
                                                     .process_uv_for_texture(Some(diffuse_texture));
                                             } else {
                                                 mesh_instance
-                                                    .get_mut::<MeshInstance>()
+                                                    .get_mut()
                                                     .process_uv_for_texture(None);
                                             }
                                             let mut renderer = r.write().unwrap();
@@ -204,7 +204,7 @@ impl System for UpdateSystem {
                                                 .find(|p| p.id() == pipeline_id)
                                             {
                                                 pipeline.add_mesh_instance(
-                                                    &mesh_instance.get::<MeshInstance>(),
+                                                    &mesh_instance.get(),
                                                     diffuse_color,
                                                     diffuse_texture_index,
                                                     diffuse_layer_index,

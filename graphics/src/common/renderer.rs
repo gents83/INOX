@@ -1,11 +1,8 @@
-use crate::{
-    FontInstance, FontRc, MaterialInstance, MaterialRc, PipelineInstance, PipelineRc, RenderPass,
-    RenderPassRc, TextureInstance, TextureRc,
-};
-use crate::{Pipeline, RenderPassInstance};
+use crate::Pipeline;
+use crate::{FontRc, MaterialRc, PipelineRc, RenderPass, RenderPassRc, TextureRc};
 use nrg_math::*;
 use nrg_platform::*;
-use nrg_resources::{convert_from_local_path, ResourceBase, ResourceTrait, DATA_FOLDER};
+use nrg_resources::{convert_from_local_path, FileResource, DATA_FOLDER};
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 
@@ -240,12 +237,9 @@ impl Renderer {
             if let Some(index) = self
                 .render_passes
                 .iter()
-                .position(|r| r.id() == render_pass_instance.get::<RenderPassInstance>().id())
+                .position(|r| r.id() == render_pass_instance.id())
             {
-                if !render_pass_instance
-                    .get::<RenderPassInstance>()
-                    .is_initialized()
-                {
+                if !render_pass_instance.get().is_initialized() {
                     //render pass needs to be recreated
                     let mut render_pass = self.render_passes.remove(index);
                     render_pass.destroy();
@@ -258,10 +252,10 @@ impl Renderer {
                 let device = &mut self.device;
                 self.render_passes.push(RenderPass::create_default(
                     device,
-                    render_pass_instance.get::<RenderPassInstance>().id(),
-                    render_pass_instance.get::<RenderPassInstance>().data(),
+                    render_pass_instance.id(),
+                    render_pass_instance.get().data(),
                 ));
-                render_pass_instance.get_mut::<RenderPassInstance>().init();
+                render_pass_instance.get_mut().init();
             }
         });
     }
@@ -272,9 +266,9 @@ impl Renderer {
             if let Some(index) = self
                 .pipelines
                 .iter()
-                .position(|p| p.id() == pipeline_instance.get::<PipelineInstance>().id())
+                .position(|p| p.id() == pipeline_instance.id())
             {
-                if !pipeline_instance.get::<PipelineInstance>().is_initialized() {
+                if !pipeline_instance.get().is_initialized() {
                     //pipeline needs to be recreated
                     let mut pipeline = self.pipelines.remove(index);
                     pipeline.destroy();
@@ -287,11 +281,11 @@ impl Renderer {
                 let device = &mut self.device;
                 self.pipelines.push(Pipeline::create(
                     device,
-                    pipeline_instance.get::<PipelineInstance>().id(),
-                    pipeline_instance.get::<PipelineInstance>().data(),
+                    pipeline_instance.id(),
+                    pipeline_instance.get().data(),
                     self.render_passes.first().unwrap(),
                 ));
-                pipeline_instance.get_mut::<PipelineInstance>().init();
+                pipeline_instance.get_mut().init();
             }
         });
     }
@@ -300,30 +294,27 @@ impl Renderer {
         nrg_profiler::scoped_profile!("renderer::load_textures");
         let texture_handler = &mut self.texture_handler;
         textures.iter_mut().for_each(|texture_instance| {
-            if !texture_instance.get::<TextureInstance>().is_initialized() {
-                if texture_instance.get::<TextureInstance>().texture_index() != INVALID_INDEX {
+            if !texture_instance.get().is_initialized() {
+                if texture_instance.get().texture_index() != INVALID_INDEX {
                     //texture needs to be recreated
-                    texture_handler.remove(texture_instance.get::<TextureInstance>().id());
+                    texture_handler.remove(texture_instance.id());
                 }
                 let path = convert_from_local_path(
                     PathBuf::from(DATA_FOLDER).as_path(),
-                    texture_instance.get::<TextureInstance>().get_path(),
+                    texture_instance.get().get_path(),
                 );
                 let (texture_index, layer_index) = if is_texture(path.as_path()) {
-                    texture_handler.add_from_path(
-                        texture_instance.get::<TextureInstance>().id(),
-                        path.as_path(),
-                    )
-                } else if let Some(font) = fonts.iter().find(|f| f.read().unwrap().path() == path) {
+                    texture_handler.add_from_path(texture_instance.id(), path.as_path())
+                } else if let Some(font) = fonts.iter().find(|f| f.get().path() == path) {
                     texture_handler.add(
-                        texture_instance.get::<TextureInstance>().id(),
-                        font.get::<FontInstance>().font().get_texture().clone(),
+                        texture_instance.id(),
+                        font.get().font().get_texture().clone(),
                     )
                 } else {
                     panic!("Unable to load texture with path {:?}", path.as_path());
                 };
                 texture_instance
-                    .get_mut::<TextureInstance>()
+                    .get_mut()
                     .set_texture_data(texture_index, layer_index);
             }
         });
@@ -341,23 +332,11 @@ impl Renderer {
         materials.sort_by(|a, b| {
             let pipeline_a = pipelines
                 .iter()
-                .position(|p| {
-                    p.read().unwrap().id()
-                        == a.get::<MaterialInstance>()
-                            .get_pipeline()
-                            .get::<PipelineInstance>()
-                            .id()
-                })
+                .position(|p| p.id() == a.get().get_pipeline().id())
                 .unwrap();
             let pipeline_b = pipelines
                 .iter()
-                .position(|p| {
-                    p.read().unwrap().id()
-                        == b.get::<MaterialInstance>()
-                            .get_pipeline()
-                            .get::<PipelineInstance>()
-                            .id()
-                })
+                .position(|p| p.id() == b.get().get_pipeline().id())
                 .unwrap();
             pipeline_a.cmp(&pipeline_b)
         });

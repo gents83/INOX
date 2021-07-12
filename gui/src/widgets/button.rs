@@ -1,10 +1,10 @@
 use std::path::{Path, PathBuf};
 
-use nrg_graphics::{MaterialInstance, TextureInstance};
+use nrg_graphics::TextureInstance;
 use nrg_math::{Vector2, Vector4};
 use nrg_messenger::Message;
 use nrg_platform::MouseEvent;
-use nrg_resources::{convert_from_local_path, FileResource, ResourceBase, DATA_FOLDER};
+use nrg_resources::{convert_from_local_path, FileResource, DATA_FOLDER};
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{
@@ -39,7 +39,7 @@ impl Button {
             convert_from_local_path(PathBuf::from(DATA_FOLDER).as_path(), texture_path);
         let texture =
             TextureInstance::create_from_file(self.get_shared_data(), texture_path.as_path());
-        material.get_mut::<MaterialInstance>().add_texture(texture);
+        material.get_mut().add_texture(texture);
         self
     }
 

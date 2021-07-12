@@ -1,15 +1,15 @@
-use std::path::PathBuf;
+use std::path::Path;
 
 use crate::{MeshData, Texture};
 use nrg_math::{Matrix4, Vector4};
 use nrg_resources::{
-    DataResource, Deserializable, DynamicResource, Resource, ResourceId, ResourceTrait,
-    SerializableResource, SharedDataRw,
+    DataTypeResource, Deserializable, ResourceData, ResourceId, ResourceRef, SerializableResource,
+    SharedData, SharedDataRw,
 };
 use nrg_serialize::generate_random_uid;
 
 pub type MeshId = ResourceId;
-pub type MeshRc = Resource;
+pub type MeshRc = ResourceRef<MeshInstance>;
 
 #[derive(Clone)]
 pub struct MeshInstance {
@@ -21,12 +21,9 @@ pub struct MeshInstance {
     uv_converted: bool,
 }
 
-impl ResourceTrait for MeshInstance {
+impl ResourceData for MeshInstance {
     fn id(&self) -> ResourceId {
         self.id
-    }
-    fn path(&self) -> PathBuf {
-        self.mesh_data.path().to_path_buf()
     }
 }
 
@@ -43,17 +40,20 @@ impl Default for MeshInstance {
     }
 }
 
-impl DynamicResource for MeshInstance {}
+impl SerializableResource for MeshInstance {
+    fn path(&self) -> &Path {
+        self.mesh_data.path()
+    }
+}
 
-impl SerializableResource for MeshInstance {}
-
-impl DataResource for MeshInstance {
+impl DataTypeResource for MeshInstance {
     type DataType = MeshData;
     fn create_from_data(shared_data: &SharedDataRw, mesh_data: Self::DataType) -> MeshRc {
-        let mut mesh_instance = MeshInstance::default();
-        let mut data = shared_data.write().unwrap();
-        mesh_instance.mesh_data = mesh_data;
-        data.add_resource(mesh_instance)
+        let mesh_instance = MeshInstance {
+            mesh_data,
+            ..Default::default()
+        };
+        SharedData::add_resource(shared_data, mesh_instance)
     }
 }
 

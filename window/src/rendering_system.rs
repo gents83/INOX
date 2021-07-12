@@ -1,6 +1,6 @@
 use nrg_core::*;
 use nrg_graphics::*;
-use nrg_resources::{DataResource, Resource, ResourceBase, SharedData, SharedDataRw};
+use nrg_resources::{DataTypeResource, ResourceRef, SharedData, SharedDataRw};
 
 pub struct RenderingSystem {
     id: SystemId,
@@ -15,7 +15,7 @@ impl RenderingSystem {
         Self {
             id: SystemId::new(),
             view_index: 0,
-            view: Resource::default::<ViewInstance>(),
+            view: ResourceRef::default(),
             renderer,
             shared_data: shared_data.clone(),
         }
@@ -45,8 +45,8 @@ impl System for RenderingSystem {
         }
 
         let (view, proj) = {
-            let view = *self.view.get::<ViewInstance>().view();
-            let proj = *self.view.get::<ViewInstance>().proj();
+            let view = *self.view.get().view();
+            let proj = *self.view.get().proj();
             (view, proj)
         };
 

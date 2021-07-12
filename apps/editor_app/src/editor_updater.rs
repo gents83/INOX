@@ -23,8 +23,7 @@ use nrg_math::{
 use nrg_messenger::{read_messages, Message, MessageChannel, MessengerRw};
 use nrg_platform::*;
 use nrg_resources::{
-    DataResource, FileResource, Resource, ResourceBase, SerializableResource, SharedData,
-    SharedDataRw,
+    DataTypeResource, FileResource, ResourceRef, SerializableResource, SharedData, SharedDataRw,
 };
 use nrg_scene::{Object, ObjectId, Scene, SceneRc};
 use nrg_serialize::*;
@@ -101,8 +100,8 @@ impl EditorUpdater {
             camera,
             move_camera_with_mouse: false,
             last_mouse_pos: Vector2::zero(),
-            grid_material: Resource::default::<MaterialInstance>(),
-            scene: Resource::default::<Scene>(),
+            grid_material: ResourceRef::default(),
+            scene: ResourceRef::default(),
             selected_object: INVALID_UID,
         }
     }
@@ -252,11 +251,7 @@ impl EditorUpdater {
         self
     }
     fn create_scene(&mut self) -> &mut Self {
-        self.scene = self
-            .shared_data
-            .write()
-            .unwrap()
-            .add_resource::<Scene>(Scene::default());
+        self.scene = SharedData::add_resource::<Scene>(&self.shared_data, Scene::default());
         self
     }
     fn create_screen(&mut self) -> &mut Self {
@@ -269,12 +264,12 @@ impl EditorUpdater {
     }
     fn update_camera(&mut self) -> &mut Self {
         if SharedData::has_resources_of_type::<ViewInstance>(&self.shared_data) {
-            let view_id = SharedData::get_resourceid_at_index::<ViewInstance>(&self.shared_data, 0);
-            let view = SharedData::get_resource::<ViewInstance>(&self.shared_data, view_id);
+            let views = SharedData::get_resources_of_type::<ViewInstance>(&self.shared_data);
+            let view = views.first().unwrap();
             let view_matrix = self.camera.get_view_matrix();
             let proj_matrix = self.camera.get_proj_matrix();
-            view.get_mut::<ViewInstance>().update_view(view_matrix);
-            view.get_mut::<ViewInstance>().update_proj(proj_matrix);
+            view.get_mut().update_view(view_matrix);
+            view.get_mut().update_proj(proj_matrix);
         }
         self
     }
@@ -355,20 +350,16 @@ impl EditorUpdater {
             let mut mesh_data = MeshData::default();
             mesh_data.add_quad_default([-1., -1., 1., 1.].into(), 0.);
             let mesh = MeshInstance::create_from_data(&self.shared_data, mesh_data);
-            self.grid_material
-                .get_mut::<MaterialInstance>()
-                .add_mesh(mesh);
+            self.grid_material.get_mut().add_mesh(mesh);
         }
     }
 
     fn load_object(&mut self, filename: PathBuf) {
         if !filename.is_dir() && filename.exists() {
-            self.scene.get_mut::<Scene>().clear();
+            self.scene.get_mut().clear();
             let object = Object::create_from_file(&self.shared_data, filename.as_path());
-            self.scene.get_mut::<Scene>().add_object(object);
-            self.scene
-                .get_mut::<Scene>()
-                .update_hierarchy(&self.shared_data);
+            self.scene.get_mut().add_object(object);
+            self.scene.get_mut().update_hierarchy(&self.shared_data);
         }
     }
 

@@ -1,23 +1,18 @@
-use std::path::PathBuf;
-
 use nrg_math::{MatBase, Matrix4};
-use nrg_resources::{DynamicResource, Resource, ResourceId, ResourceTrait};
+use nrg_resources::{ResourceData, ResourceId, ResourceRef};
 use nrg_serialize::generate_random_uid;
 
 pub type TransformId = ResourceId;
-pub type TransformRc = Resource;
+pub type TransformRc = ResourceRef<Transform>;
 
 pub struct Transform {
     id: ResourceId,
     matrix: Matrix4,
 }
 
-impl ResourceTrait for Transform {
+impl ResourceData for Transform {
     fn id(&self) -> ResourceId {
         self.id
-    }
-    fn path(&self) -> PathBuf {
-        PathBuf::default()
     }
 }
 
@@ -29,8 +24,6 @@ impl Default for Transform {
         }
     }
 }
-
-impl DynamicResource for Transform {}
 
 impl Transform {
     pub fn matrix(&self) -> Matrix4 {

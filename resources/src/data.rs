@@ -2,6 +2,8 @@ use std::path::{Path, PathBuf};
 
 use nrg_serialize::{deserialize_from_file, Deserialize};
 
+use crate::{ResourceData, ResourceRef, SharedDataRw};
+
 pub const DATA_RAW_FOLDER: &str = "./data_raw/";
 pub const DATA_FOLDER: &str = "./data/";
 
@@ -14,6 +16,32 @@ pub trait Data {
 pub trait Deserializable: Default + for<'de> Deserialize<'de> {
     fn set_path(&mut self, filepath: &Path);
     fn path(&self) -> &Path;
+}
+
+pub trait DataTypeResource: ResourceData {
+    type DataType;
+    fn create_from_data(shared_data: &SharedDataRw, data: Self::DataType) -> ResourceRef<Self>
+    where
+        Self: Sized;
+}
+
+pub trait SerializableResource: DataTypeResource {
+    fn path(&self) -> &Path;
+    fn create_from_file(shared_data: &SharedDataRw, filepath: &Path) -> ResourceRef<Self>
+    where
+        Self: Sized,
+        Self::DataType: Deserializable,
+    {
+        let data = from_file::<Self::DataType>(filepath);
+        Self::create_from_data(shared_data, data)
+    }
+}
+
+pub trait FileResource: ResourceData {
+    fn path(&self) -> &Path;
+    fn create_from_file(shared_data: &SharedDataRw, filepath: &Path) -> ResourceRef<Self>
+    where
+        Self: Sized;
 }
 
 #[macro_export]

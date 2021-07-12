@@ -1,15 +1,15 @@
 use std::path::{Path, PathBuf};
 
 use nrg_resources::{
-    convert_from_local_path, DynamicResource, FileResource, Resource, ResourceId, ResourceTrait,
-    SharedData, SharedDataRw, DATA_FOLDER,
+    convert_from_local_path, FileResource, ResourceData, ResourceId, ResourceRef, SharedData,
+    SharedDataRw, DATA_FOLDER,
 };
 use nrg_serialize::{generate_uid_from_string, INVALID_UID};
 
 use crate::INVALID_INDEX;
 
 pub type TextureId = ResourceId;
-pub type TextureRc = Resource;
+pub type TextureRc = ResourceRef<TextureInstance>;
 
 pub struct TextureInstance {
     id: ResourceId,
@@ -31,18 +31,16 @@ impl Default for TextureInstance {
     }
 }
 
-impl ResourceTrait for TextureInstance {
+impl ResourceData for TextureInstance {
     fn id(&self) -> ResourceId {
         self.id
     }
-    fn path(&self) -> PathBuf {
-        self.path.clone()
-    }
 }
 
-impl DynamicResource for TextureInstance {}
-
 impl FileResource for TextureInstance {
+    fn path(&self) -> &Path {
+        self.path.as_path()
+    }
     fn create_from_file(shared_data: &SharedDataRw, filepath: &Path) -> TextureRc {
         let path = convert_from_local_path(PathBuf::from(DATA_FOLDER).as_path(), filepath);
         let texture_id =
@@ -50,8 +48,7 @@ impl FileResource for TextureInstance {
         if texture_id != INVALID_UID {
             return SharedData::get_resource::<Self>(shared_data, texture_id);
         }
-        let mut data = shared_data.write().unwrap();
-        data.add_resource(TextureInstance::create(filepath))
+        SharedData::add_resource(shared_data, TextureInstance::create(filepath))
     }
 }
 

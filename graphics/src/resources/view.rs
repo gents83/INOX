@@ -1,13 +1,11 @@
-use std::path::PathBuf;
-
 use nrg_math::{MatBase, Matrix4};
 use nrg_resources::{
-    DataResource, DynamicResource, Resource, ResourceId, ResourceTrait, SharedData, SharedDataRw,
+    DataTypeResource, ResourceData, ResourceId, ResourceRef, SharedData, SharedDataRw,
 };
 use nrg_serialize::{generate_random_uid, Uid, INVALID_UID};
 
 pub type ViewId = Uid;
-pub type ViewRc = Resource;
+pub type ViewRc = ResourceRef<ViewInstance>;
 
 pub struct ViewInstance {
     id: ResourceId,
@@ -27,30 +25,28 @@ impl Default for ViewInstance {
     }
 }
 
-impl ResourceTrait for ViewInstance {
+impl ResourceData for ViewInstance {
     fn id(&self) -> ResourceId {
         self.id
     }
-    fn path(&self) -> PathBuf {
-        PathBuf::new()
-    }
 }
 
-impl DynamicResource for ViewInstance {}
-impl DataResource for ViewInstance {
+impl DataTypeResource for ViewInstance {
     type DataType = u32;
     fn create_from_data(shared_data: &SharedDataRw, view_index: Self::DataType) -> ViewRc {
         let view_id = ViewInstance::find_id_from_view_index(shared_data, view_index);
         if view_id != INVALID_UID {
             return SharedData::get_resource::<Self>(shared_data, view_id);
         }
-        let mut data = shared_data.write().unwrap();
-        data.add_resource(ViewInstance {
-            id: generate_random_uid(),
-            view_index,
-            view: Matrix4::default_identity(),
-            proj: nrg_math::perspective(nrg_math::Deg(45.), 800. / 600., 0.001, 1000.0),
-        })
+        SharedData::add_resource(
+            shared_data,
+            ViewInstance {
+                id: generate_random_uid(),
+                view_index,
+                view: Matrix4::default_identity(),
+                proj: nrg_math::perspective(nrg_math::Deg(45.), 800. / 600., 0.001, 1000.0),
+            },
+        )
     }
 }
 

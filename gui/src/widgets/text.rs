@@ -1,10 +1,10 @@
 use std::any::TypeId;
 
-use nrg_graphics::{FontInstance, FontRc, MaterialInstance, MaterialRc, MeshData};
+use nrg_graphics::{FontInstance, FontRc, MaterialRc, MeshData};
 use nrg_math::{Vector2, Vector4};
 use nrg_messenger::{implement_undoable_message, Message};
 use nrg_platform::{MouseEvent, MouseState};
-use nrg_resources::{Resource, ResourceBase, SharedData};
+use nrg_resources::{ResourceRef, SharedData};
 use nrg_serialize::{Deserialize, Serialize, Uid};
 
 use crate::{
@@ -51,9 +51,9 @@ fn debug_info_event(event: &TextEvent) -> String {
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]
 pub struct Text {
-    #[serde(skip, default = "nrg_resources::Resource::default::<FontInstance>")]
+    #[serde(skip, default = "nrg_resources::ResourceRef::default")]
     font: FontRc,
-    #[serde(skip, default = "nrg_resources::Resource::default::<MaterialInstance>")]
+    #[serde(skip, default = "nrg_resources::ResourceRef::default")]
     material: MaterialRc,
     editable: bool,
     text: String,
@@ -66,8 +66,8 @@ pub struct Text {
     data: WidgetData,
 }
 implement_widget_with_custom_members!(Text {
-    font: Resource::default::<FontInstance>(),
-    material: Resource::default::<MaterialInstance>(),
+    font: ResourceRef::default(),
+    material: ResourceRef::default(),
     editable: true,
     text: String::new(),
     hover_char_index: -1,
@@ -183,9 +183,7 @@ impl Text {
                 mesh_data.add_quad(
                     Vector4::new(pos_x, pos_y, pos_x + char_width, pos_y + char_height),
                     0.,
-                    self.font
-                        .get::<FontInstance>()
-                        .get_glyph_texture_coord(*c as _),
+                    self.font.get().get_glyph_texture_coord(*c as _),
                     Some(mesh_index),
                 );
                 mesh_index += 4;
@@ -202,7 +200,7 @@ impl InternalWidget for Text {
     fn widget_init(&mut self) {
         let font_id = FontInstance::get_default(self.get_shared_data());
         self.font = SharedData::get_resource::<FontInstance>(self.get_shared_data(), font_id);
-        self.material = self.font.get::<FontInstance>().material();
+        self.material = self.font.get().material();
         let material = self.material.clone();
         self.graphics_mut().link_to_material(material);
         if self.is_initialized() {

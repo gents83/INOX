@@ -10,7 +10,7 @@ use std::{
 
 use nrg_messenger::MessengerRw;
 use nrg_platform::{InputState, Key, KeyEvent, WindowEvent};
-use nrg_resources::{ResourceEvent, SharedData, SharedDataRw};
+use nrg_resources::SharedDataRw;
 
 use crate::{Job, JobHandler, JobHandlerRw, Phase, PluginId, PluginManager, Scheduler, Worker};
 
@@ -128,15 +128,6 @@ impl App {
                             is_enabled = false;
                         }
                         _ => {}
-                    }
-                } else if msg.type_id() == TypeId::of::<ResourceEvent>() {
-                    let e = msg.as_any().downcast_ref::<ResourceEvent>().unwrap();
-                    if let ResourceEvent::Remove(type_id, resource_uid) = *e {
-                        SharedData::remove_resource_of_type(
-                            &self.shared_data,
-                            type_id,
-                            resource_uid,
-                        );
                     }
                 }
             });
