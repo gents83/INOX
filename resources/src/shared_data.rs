@@ -1,5 +1,5 @@
 use std::{
-    any::TypeId,
+    any::{type_name, TypeId},
     collections::HashMap,
     sync::{Arc, RwLock},
 };
@@ -38,15 +38,28 @@ impl SharedData {
             .insert(TypeId::of::<T>(), Box::new(Storage::<T>::default()));
     }
     #[inline]
-    pub fn get_storage<T>(&mut self) -> &mut Storage<T>
+    pub fn get_storage<T>(&self) -> &Storage<T>
+    where
+        T: ResourceData,
+    {
+        if let Some(rs) = self.storage.get(&TypeId::of::<T>()) {
+            let storage = rs.as_ref() as *const dyn TypedStorage as *const Storage<T>;
+            unsafe { &*storage }
+        } else {
+            panic!("Type {} has not been registered", type_name::<T>());
+        }
+    }
+    #[inline]
+    pub fn get_storage_mut<T>(&mut self) -> &mut Storage<T>
     where
         T: ResourceData,
     {
         if let Some(rs) = self.storage.get_mut(&TypeId::of::<T>()) {
-            unsafe { std::mem::transmute::<&mut Box<dyn TypedStorage>, &mut Storage<T>>(rs) }
+            let storage = rs.as_mut() as *mut dyn TypedStorage as *mut Storage<T>;
+            unsafe { &mut *storage }
         } else {
             self.register_type::<T>();
-            self.get_storage::<T>()
+            self.get_storage_mut::<T>()
         }
     }
     #[inline]
@@ -54,7 +67,7 @@ impl SharedData {
         let handle = Arc::new(ResourceHandle::new(data.id(), shared_data.clone()));
         let mut shared_data = shared_data.write().unwrap();
         shared_data
-            .get_storage::<T>()
+            .get_storage_mut::<T>()
             .add(handle.clone(), Arc::new(ResourceMutex::new(data)));
         handle
     }
@@ -63,7 +76,7 @@ impl SharedData {
         shared_data: &SharedDataRw,
         resource_id: ResourceId,
     ) -> ResourceRef<T> {
-        let mut shared_data = shared_data.write().unwrap();
+        let shared_data = shared_data.read().unwrap();
         shared_data
             .get_storage::<T>()
             .get(resource_id)
@@ -73,7 +86,7 @@ impl SharedData {
     pub fn get_resources_of_type<T: ResourceData>(
         shared_data: &SharedDataRw,
     ) -> Vec<ResourceRef<T>> {
-        let mut shared_data = shared_data.write().unwrap();
+        let shared_data = shared_data.read().unwrap();
         let handles = shared_data.get_storage::<T>().handles();
         handles.into_iter().map(|h| h.of_type::<T>()).collect()
     }
@@ -109,8 +122,8 @@ impl SharedData {
         T: ResourceData,
         F: Fn(&T) -> bool,
     {
-        let mut shared_data = shared_data.write().unwrap();
-        if let Some(rs) = shared_data.storage.get_mut(&TypeId::of::<T>()) {
+        let shared_data = shared_data.read().unwrap();
+        if let Some(rs) = shared_data.storage.get(&TypeId::of::<T>()) {
             let handles = rs.handles();
             for h in handles.iter() {
                 let handle = h.clone().of_type::<T>();

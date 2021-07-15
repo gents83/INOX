@@ -56,7 +56,7 @@ where
     }
 
     pub fn resource(&self) -> Resource<T> {
-        let mut shared_data = self.shared_data.write().unwrap();
+        let shared_data = self.shared_data.read().unwrap();
         shared_data
             .get_storage::<T>()
             .resource(self.id)

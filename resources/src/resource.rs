@@ -83,15 +83,16 @@ impl ResourceCastTo for GenericResource {
 }
 
 pub trait TypedStorage {
+    fn as_any(self: Box<Self>) -> Box<dyn Any>;
     fn add(&mut self, handle: GenericRef, data: GenericResource);
-    fn resource(&mut self, resource_id: ResourceId) -> GenericResource;
-    fn get(&mut self, resource_id: ResourceId) -> GenericRef;
+    fn resource(&self, resource_id: ResourceId) -> GenericResource;
+    fn get(&self, resource_id: ResourceId) -> GenericRef;
     fn remove_all(&mut self);
     fn flush(&mut self);
     fn remove(&mut self, resource_id: ResourceId);
     fn has(&self, resource_id: ResourceId) -> bool;
-    fn handles(&mut self) -> Vec<GenericRef>;
-    fn resources(&mut self) -> Vec<GenericResource>;
+    fn handles(&self) -> Vec<GenericRef>;
+    fn resources(&self) -> Vec<GenericResource>;
     fn count(&self) -> usize;
 }
 
@@ -119,25 +120,28 @@ impl<T> TypedStorage for Storage<T>
 where
     T: ResourceData + Sized + 'static,
 {
+    fn as_any(self: Box<Self>) -> Box<dyn Any> {
+        self
+    }
     fn add(&mut self, handle: GenericRef, resource: GenericResource) {
         self.handles.push(handle.of_type::<T>());
         self.resources.push(resource.of_type::<T>());
     }
-    fn resource(&mut self, resource_id: ResourceId) -> GenericResource
+    fn resource(&self, resource_id: ResourceId) -> GenericResource
     where
         T: ResourceData,
     {
-        if let Some(resource) = self.resources.iter_mut().find(|r| r.id() == resource_id) {
+        if let Some(resource) = self.resources.iter().find(|r| r.id() == resource_id) {
             resource.clone()
         } else {
             panic!("Resource {} not found", resource_id.to_simple());
         }
     }
-    fn get(&mut self, resource_id: ResourceId) -> GenericRef
+    fn get(&self, resource_id: ResourceId) -> GenericRef
     where
         T: ResourceData,
     {
-        if let Some(handle) = self.handles.iter_mut().find(|h| h.id() == resource_id) {
+        if let Some(handle) = self.handles.iter().find(|h| h.id() == resource_id) {
             handle.clone()
         } else {
             panic!("Resource {} not found", resource_id);
@@ -167,17 +171,17 @@ where
         self.handles.iter().any(|h| h.id() == resource_id)
     }
 
-    fn handles(&mut self) -> Vec<GenericRef> {
+    fn handles(&self) -> Vec<GenericRef> {
         let mut handles = Vec::new();
-        for handle in self.handles.iter_mut() {
+        for handle in self.handles.iter() {
             handles.push(handle.clone() as _);
         }
         handles
     }
 
-    fn resources(&mut self) -> Vec<GenericResource> {
+    fn resources(&self) -> Vec<GenericResource> {
         let mut resources = Vec::new();
-        for resource in self.resources.iter_mut() {
+        for resource in self.resources.iter() {
             resources.push(resource.clone() as _);
         }
         resources
