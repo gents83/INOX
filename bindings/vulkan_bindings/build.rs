@@ -9,6 +9,7 @@ use std::{
     path::Path,
 };
 
+use bindgen::RustTarget;
 use xml::reader::{EventReader, XmlEvent};
 
 fn main() {
@@ -26,6 +27,8 @@ fn main() {
     let mut builder = bindgen::Builder::default()
         .header(vulkan_header)
         .rustfmt_bindings(true)
+        .rust_target(RustTarget::Nightly)
+        .derive_debug(false)
         .ignore_functions()
         .ignore_methods();
 
@@ -35,7 +38,15 @@ fn main() {
         builder = builder
             .clang_arg("-DVK_USE_PLATFORM_WIN32_KHR")
             //.clang_arg("--target=i686-pc-windows-msvc")
-            .opaque_type("_IMAGE_TLS_DIRECTORY64");
+            .opaque_type("_STORAGE_QUERY_DEPENDENT_VOLUME_RESPONSE__bindgen_ty_1")
+            .opaque_type("_PERSISTENT_RESERVE_COMMAND__bindgen_ty_1__bindgen_ty_2")
+            .opaque_type("_IMAGE_TLS_DIRECTORY64")
+            .opaque_type("_IMAGE_POLICY_METADATA")
+            .opaque_type("_ACTIVATION_CONTEXT_COMPATIBILITY_INFORMATION")
+            .opaque_type("_EVENTSFORLOGFILE")
+            .opaque_type("_PACKEDEVENTINFO")
+            .opaque_type("_MIDL_FORMAT_STRING")
+            .opaque_type("_STORAGE_MEDIA_SERIAL_NUMBER_DATA");
     }
     #[cfg(all(unix, not(target_os = "android"), not(target_os = "macos")))]
     {
