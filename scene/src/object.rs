@@ -10,7 +10,7 @@ use nrg_resources::{
     DataTypeResource, Deserializable, GenericRef, HandleCastTo, ResourceData, ResourceId,
     ResourceRef, SerializableResource, SharedData, SharedDataRw,
 };
-use nrg_serialize::generate_random_uid;
+use nrg_serialize::{generate_uid_from_string, INVALID_UID};
 
 use crate::{ObjectData, Transform};
 
@@ -34,7 +34,7 @@ impl ResourceData for Object {
 impl Default for Object {
     fn default() -> Self {
         Self {
-            id: generate_random_uid(),
+            id: INVALID_UID,
             filepath: PathBuf::default(),
             components: HashMap::new(),
             children: Vec::new(),
@@ -54,6 +54,7 @@ impl DataTypeResource for Object {
         let object = SharedData::add_resource(
             shared_data,
             Object {
+                id: generate_uid_from_string(object_data.path().to_str().unwrap()),
                 filepath: object_data.path().to_path_buf(),
                 ..Default::default()
             },
@@ -68,8 +69,13 @@ impl DataTypeResource for Object {
             .set_matrix(object_data.transform);
 
         if !object_data.material.clone().into_os_string().is_empty() {
-            let material =
-                MaterialInstance::create_from_file(shared_data, object_data.material.as_path());
+            let material_id =
+                MaterialInstance::find_id_from_path(shared_data, object_data.material.as_path());
+            let material = if material_id.is_nil() {
+                MaterialInstance::create_from_file(shared_data, object_data.material.as_path())
+            } else {
+                SharedData::get_resource(shared_data, material_id)
+            };
             object
                 .resource()
                 .get_mut()

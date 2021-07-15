@@ -14,6 +14,16 @@ pub struct RenderPassInstance {
     is_initialized: bool,
 }
 
+impl Default for RenderPassInstance {
+    fn default() -> Self {
+        Self {
+            id: INVALID_UID,
+            data: RenderPassData::default(),
+            is_initialized: false,
+        }
+    }
+}
+
 impl ResourceData for RenderPassInstance {
     fn id(&self) -> ResourceId {
         self.id
@@ -36,7 +46,7 @@ impl DataTypeResource for RenderPassInstance {
             RenderPassInstance {
                 id: generate_uid_from_string(render_pass_data.name.as_str()),
                 data: render_pass_data.clone(),
-                is_initialized: false,
+                ..Default::default()
             },
         )
     }

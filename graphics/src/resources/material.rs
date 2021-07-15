@@ -74,8 +74,7 @@ impl DataTypeResource for MaterialInstance {
             pipeline,
             meshes,
             textures,
-            diffuse_color: [1., 1., 1., 1.].into(),
-            outline_color: [1., 1., 1., 0.].into(),
+            ..Default::default()
         };
 
         SharedData::add_resource(shared_data, material)
@@ -83,6 +82,9 @@ impl DataTypeResource for MaterialInstance {
 }
 
 impl MaterialInstance {
+    pub fn find_id_from_path(shared_data: &SharedDataRw, path: &Path) -> MaterialId {
+        SharedData::match_resource(shared_data, |m: &MaterialInstance| m.path() == path)
+    }
     pub fn pipeline(&self) -> PipelineRc {
         self.pipeline.clone()
     }
@@ -144,12 +146,8 @@ impl MaterialInstance {
             shared_data,
             MaterialInstance {
                 id: generate_random_uid(),
-                path: PathBuf::new(),
                 pipeline,
-                meshes: Vec::new(),
-                textures: Vec::new(),
-                diffuse_color: [1., 1., 1., 1.].into(),
-                outline_color: [1., 1., 1., 0.].into(),
+                ..Default::default()
             },
         )
     }

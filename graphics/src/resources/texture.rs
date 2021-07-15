@@ -83,9 +83,7 @@ impl TextureInstance {
         TextureInstance {
             id: generate_uid_from_string(texture_path.to_str().unwrap()),
             path: texture_path.to_path_buf(),
-            texture_index: INVALID_INDEX,
-            layer_index: INVALID_INDEX,
-            is_initialized: false,
+            ..Default::default()
         }
     }
 }

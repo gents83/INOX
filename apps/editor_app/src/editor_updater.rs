@@ -1,7 +1,7 @@
 use std::{
     any::TypeId,
     collections::VecDeque,
-    path::PathBuf,
+    path::{Path, PathBuf},
     time::{Duration, Instant},
 };
 
@@ -354,10 +354,10 @@ impl EditorUpdater {
         }
     }
 
-    fn load_object(&mut self, filename: PathBuf) {
+    fn load_object(&mut self, filename: &Path) {
         if !filename.is_dir() && filename.exists() {
             self.scene.resource().get_mut().clear();
-            let object = Object::create_from_file(&self.shared_data, filename.as_path());
+            let object = Object::create_from_file(&self.shared_data, filename);
             self.scene.resource().get_mut().add_object(object);
             self.scene
                 .resource()
@@ -493,7 +493,7 @@ impl EditorUpdater {
                         if extension.contains("widget") {
                             self.load_graph(filename.clone());
                         } else if extension.contains("object_data") {
-                            self.load_object(filename.clone());
+                            self.load_object(filename.as_path());
                         }
                     } else if should_save {
                         println!("Saving {:?}", filename);

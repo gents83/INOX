@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use nrg_math::{MatBase, Matrix4};
 use nrg_resources::{ResourceData, ResourceId, ResourceRef, SharedDataRw};
-use nrg_serialize::generate_random_uid;
+use nrg_serialize::{generate_random_uid, generate_uid_from_string};
 
 use crate::ObjectRc;
 
@@ -33,6 +33,7 @@ impl ResourceData for Scene {
 
 impl Scene {
     pub fn set_filepath(&mut self, path: &Path) {
+        self.id = generate_uid_from_string(path.to_str().unwrap());
         self.filepath = path.to_path_buf();
     }
 

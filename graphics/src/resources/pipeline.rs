@@ -44,7 +44,7 @@ impl DataTypeResource for PipelineInstance {
             PipelineInstance {
                 id: generate_uid_from_string(canonicalized_pipeline_data.name.as_str()),
                 data: canonicalized_pipeline_data,
-                is_initialized: false,
+                ..Default::default()
             },
         )
     }

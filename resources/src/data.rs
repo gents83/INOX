@@ -137,5 +137,6 @@ where
     let path = convert_from_local_path(PathBuf::from(DATA_FOLDER).as_path(), filepath);
     let mut data = T::default();
     deserialize_from_file(&mut data, path);
+    data.set_path(filepath);
     data
 }

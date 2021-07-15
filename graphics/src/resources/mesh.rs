@@ -6,7 +6,7 @@ use nrg_resources::{
     DataTypeResource, Deserializable, ResourceData, ResourceId, ResourceRef, SerializableResource,
     SharedData, SharedDataRw,
 };
-use nrg_serialize::generate_random_uid;
+use nrg_serialize::{generate_random_uid, INVALID_UID};
 
 pub type MeshId = ResourceId;
 pub type MeshRc = ResourceRef<MeshInstance>;
@@ -30,7 +30,7 @@ impl ResourceData for MeshInstance {
 impl Default for MeshInstance {
     fn default() -> Self {
         Self {
-            id: generate_random_uid(),
+            id: INVALID_UID,
             mesh_data: MeshData::default(),
             draw_area: [0., 0., f32::MAX, f32::MAX].into(),
             is_visible: true,
@@ -50,6 +50,7 @@ impl DataTypeResource for MeshInstance {
     type DataType = MeshData;
     fn create_from_data(shared_data: &SharedDataRw, mesh_data: Self::DataType) -> MeshRc {
         let mesh_instance = MeshInstance {
+            id: generate_random_uid(),
             mesh_data,
             ..Default::default()
         };
