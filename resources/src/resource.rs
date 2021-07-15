@@ -157,7 +157,7 @@ where
     fn flush(&mut self) {
         let mut to_remove = Vec::new();
         for handle in self.handles.iter_mut() {
-            if Arc::strong_count(&handle) <= 1 {
+            if Arc::strong_count(&handle) == 1 && Arc::weak_count(&handle) == 0 {
                 to_remove.push(handle.id());
             }
         }
