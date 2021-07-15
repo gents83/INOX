@@ -268,8 +268,8 @@ impl EditorUpdater {
             let view = views.first().unwrap();
             let view_matrix = self.camera.get_view_matrix();
             let proj_matrix = self.camera.get_proj_matrix();
-            view.get_mut().update_view(view_matrix);
-            view.get_mut().update_proj(proj_matrix);
+            view.resource().get_mut().update_view(view_matrix);
+            view.resource().get_mut().update_proj(proj_matrix);
         }
         self
     }
@@ -350,16 +350,19 @@ impl EditorUpdater {
             let mut mesh_data = MeshData::default();
             mesh_data.add_quad_default([-1., -1., 1., 1.].into(), 0.);
             let mesh = MeshInstance::create_from_data(&self.shared_data, mesh_data);
-            self.grid_material.get_mut().add_mesh(mesh);
+            self.grid_material.resource().get_mut().add_mesh(mesh);
         }
     }
 
     fn load_object(&mut self, filename: PathBuf) {
         if !filename.is_dir() && filename.exists() {
-            self.scene.get_mut().clear();
+            self.scene.resource().get_mut().clear();
             let object = Object::create_from_file(&self.shared_data, filename.as_path());
-            self.scene.get_mut().add_object(object);
-            self.scene.get_mut().update_hierarchy(&self.shared_data);
+            self.scene.resource().get_mut().add_object(object);
+            self.scene
+                .resource()
+                .get_mut()
+                .update_hierarchy(&self.shared_data);
         }
     }
 

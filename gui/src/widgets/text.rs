@@ -183,7 +183,7 @@ impl Text {
                 mesh_data.add_quad(
                     Vector4::new(pos_x, pos_y, pos_x + char_width, pos_y + char_height),
                     0.,
-                    self.font.get().get_glyph_texture_coord(*c as _),
+                    self.font.resource().get().glyph_texture_coord(*c as _),
                     Some(mesh_index),
                 );
                 mesh_index += 4;
@@ -200,7 +200,7 @@ impl InternalWidget for Text {
     fn widget_init(&mut self) {
         let font_id = FontInstance::get_default(self.get_shared_data());
         self.font = SharedData::get_resource::<FontInstance>(self.get_shared_data(), font_id);
-        self.material = self.font.get().material();
+        self.material = self.font.resource().get().material();
         let material = self.material.clone();
         self.graphics_mut().link_to_material(material);
         if self.is_initialized() {

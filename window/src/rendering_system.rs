@@ -45,8 +45,8 @@ impl System for RenderingSystem {
         }
 
         let (view, proj) = {
-            let view = *self.view.get().view();
-            let proj = *self.view.get().proj();
+            let view = *self.view.resource().get().view();
+            let proj = *self.view.resource().get().proj();
             (view, proj)
         };
 

@@ -7,8 +7,8 @@ use std::{
 use nrg_graphics::MaterialInstance;
 use nrg_math::Matrix4;
 use nrg_resources::{
-    DataTypeResource, Deserializable, GenericRef, HandleCastFrom, HandleCastTo, ResourceData,
-    ResourceId, ResourceRef, SerializableResource, SharedData, SharedDataRw,
+    DataTypeResource, Deserializable, GenericRef, HandleCastTo, ResourceData, ResourceId,
+    ResourceRef, SerializableResource, SharedData, SharedDataRw,
 };
 use nrg_serialize::generate_random_uid;
 
@@ -59,19 +59,26 @@ impl DataTypeResource for Object {
             },
         );
         let transform = object
+            .resource()
             .get_mut()
             .add_default_component::<Transform>(shared_data);
-        transform.get_mut().set_matrix(object_data.transform);
+        transform
+            .resource()
+            .get_mut()
+            .set_matrix(object_data.transform);
 
         if !object_data.material.clone().into_os_string().is_empty() {
             let material =
                 MaterialInstance::create_from_file(shared_data, object_data.material.as_path());
-            object.get_mut().add_component::<MaterialInstance>(material);
+            object
+                .resource()
+                .get_mut()
+                .add_component::<MaterialInstance>(material);
         }
 
         for child in object_data.children.iter() {
             let child = Object::create_from_file(shared_data, child.as_path());
-            object.get_mut().add_child(child);
+            object.resource().get_mut().add_child(child);
         }
 
         object
@@ -97,12 +104,11 @@ impl Object {
             type_name::<C>()
         );
         let component = C::default();
-        let mut resource = SharedData::add_resource(shared_data, component);
-        self.components
-            .insert(TypeId::of::<C>(), resource.as_generic().clone());
+        let resource = SharedData::add_resource(shared_data, component);
+        self.components.insert(TypeId::of::<C>(), resource.clone());
         resource
     }
-    pub fn add_component<C>(&mut self, mut component: ResourceRef<C>)
+    pub fn add_component<C>(&mut self, component: ResourceRef<C>)
     where
         C: ResourceData,
     {
@@ -112,7 +118,7 @@ impl Object {
             type_name::<C>()
         );
         self.components
-            .insert(TypeId::of::<C>(), component.as_generic());
+            .insert(TypeId::of::<C>(), component as GenericRef);
     }
 
     pub fn get_component<C>(&mut self) -> Option<ResourceRef<C>>
@@ -120,27 +126,28 @@ impl Object {
         C: ResourceData,
     {
         if let Some(component) = self.components.get_mut(&TypeId::of::<C>()) {
-            return Some(component.from_generic());
+            return Some(component.clone().of_type::<C>());
         }
         None
     }
 
     pub fn update_from_parent(&mut self, shared_data: &SharedDataRw, parent_transform: Matrix4) {
         if let Some(transform) = self.get_component::<Transform>() {
-            let object_matrix = transform.get().matrix();
+            let object_matrix = transform.resource().get().matrix();
             let object_matrix = parent_transform * object_matrix;
-            transform.get_mut().set_matrix(object_matrix);
+            transform.resource().get_mut().set_matrix(object_matrix);
 
             if let Some(material) = self.get_component::<MaterialInstance>() {
-                for mesh in material.get().meshes() {
-                    let matrix = object_matrix * *mesh.get().transform();
-                    mesh.get_mut().set_transform(matrix);
+                for mesh in material.resource().get().meshes() {
+                    let matrix = object_matrix * *mesh.resource().get().transform();
+                    mesh.resource().get_mut().set_transform(matrix);
                 }
             }
 
             let children = self.children();
             for child in children {
                 child
+                    .resource()
                     .get_mut()
                     .update_from_parent(shared_data, object_matrix);
             }

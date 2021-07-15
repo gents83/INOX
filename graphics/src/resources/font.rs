@@ -57,7 +57,7 @@ impl FileResource for FontInstance {
         } else {
             SharedData::get_resource::<TextureInstance>(shared_data, texture_id)
         };
-        material.get_mut().add_texture(texture);
+        material.resource().get_mut().add_texture(texture);
 
         SharedData::add_resource(
             shared_data,
@@ -92,7 +92,7 @@ impl FontInstance {
     pub fn material(&self) -> MaterialRc {
         self.material.clone()
     }
-    pub fn get_glyph_texture_coord(&self, c: char) -> Vector4 {
+    pub fn glyph_texture_coord(&self, c: char) -> Vector4 {
         let index = self.font.get_glyph_index(c);
         let texture_coord = self.font.get_glyph(index).texture_coord;
         texture_coord

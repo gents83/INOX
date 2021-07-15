@@ -70,16 +70,20 @@ impl System for MySystem {
     }
     fn init(&mut self) {
         self.left_material
+            .resource()
             .get_mut()
             .add_texture(self.left_texture.clone());
         self.left_material
+            .resource()
             .get_mut()
             .add_mesh(self.left_mesh.clone());
 
         self.right_material
+            .resource()
             .get_mut()
             .add_texture(self.right_texture.clone());
         self.right_material
+            .resource()
             .get_mut()
             .add_mesh(self.right_mesh.clone());
     }
@@ -89,15 +93,22 @@ impl System for MySystem {
         left_matrix[3][0] = 100.;
         left_matrix[3][1] = 100.;
 
-        self.left_mesh.get_mut().set_transform(left_matrix);
+        self.left_mesh
+            .resource()
+            .get_mut()
+            .set_transform(left_matrix);
 
         self.angle += 0.1;
         let right_matrix = Matrix4::from_translation(Vector3::new(1000., 800., 0.))
             * Matrix4::from_angle_z(nrg_math::Rad::from(nrg_math::Deg(self.angle)))
             * Matrix4::from_nonuniform_scale(400., 600., 1.);
 
-        self.right_mesh.get_mut().set_transform(right_matrix);
+        self.right_mesh
+            .resource()
+            .get_mut()
+            .set_transform(right_matrix);
         self.right_material
+            .resource()
             .get_mut()
             .set_outline_color([1., 1., 0., 2.].into());
 

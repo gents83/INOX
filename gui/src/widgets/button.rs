@@ -39,7 +39,7 @@ impl Button {
             convert_from_local_path(PathBuf::from(DATA_FOLDER).as_path(), texture_path);
         let texture =
             TextureInstance::create_from_file(self.get_shared_data(), texture_path.as_path());
-        material.get_mut().add_texture(texture);
+        material.resource().get_mut().add_texture(texture);
         self
     }
 

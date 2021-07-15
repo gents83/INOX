@@ -110,12 +110,18 @@ impl Icon {
         if let Some(image) = self.node().get_child_mut::<Panel>(image) {
             let material = image.graphics().get_material();
             if !self.texture.id().is_nil() {
-                material.get_mut().remove_texture(self.texture.id());
+                material
+                    .resource()
+                    .get_mut()
+                    .remove_texture(self.texture.id());
             }
             let texture_path = convert_from_local_path(PathBuf::from(DATA_FOLDER).as_path(), path);
             self.texture =
                 TextureInstance::create_from_file(self.get_shared_data(), texture_path.as_path());
-            material.get_mut().add_texture(self.texture.clone());
+            material
+                .resource()
+                .get_mut()
+                .add_texture(self.texture.clone());
         }
         self
     }

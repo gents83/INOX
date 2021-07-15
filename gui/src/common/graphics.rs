@@ -67,7 +67,10 @@ impl WidgetGraphics {
         let mut mesh_data = MeshData::default();
         mesh_data.add_quad_default([0., 0., 1., 1.].into(), 0.);
         self.mesh = MeshInstance::create_from_data(&self.shared_data, mesh_data);
-        self.material.get_mut().add_mesh(self.mesh.clone());
+        self.material
+            .resource()
+            .get_mut()
+            .add_mesh(self.mesh.clone());
         self.mark_as_dirty();
         self
     }
@@ -89,7 +92,10 @@ impl WidgetGraphics {
     #[inline]
     pub fn remove_meshes(&mut self) -> &mut Self {
         if self.mesh.id() != INVALID_UID {
-            self.material.get_mut().remove_mesh(self.mesh.id());
+            self.material
+                .resource()
+                .get_mut()
+                .remove_mesh(self.mesh.id());
         }
         self.mesh = ResourceRef::default();
         self.mark_as_dirty();
@@ -118,7 +124,7 @@ impl WidgetGraphics {
 
     #[inline]
     pub fn set_mesh_data(&mut self, mesh_data: MeshData) -> &mut Self {
-        self.mesh.get_mut().set_mesh_data(mesh_data);
+        self.mesh.resource().get_mut().set_mesh_data(mesh_data);
         self.mark_as_dirty();
         self
     }
@@ -220,8 +226,14 @@ impl WidgetGraphics {
             nrg_profiler::scoped_profile!("widget::graphics_update");
             let visible = self.is_visible() && WidgetGraphics::is_valid_drawing_area(drawing_area);
 
-            self.material.get_mut().set_outline_color(self.border_color);
-            self.material.get_mut().set_diffuse_color(self.color);
+            self.material
+                .resource()
+                .get_mut()
+                .set_outline_color(self.border_color);
+            self.material
+                .resource()
+                .get_mut()
+                .set_diffuse_color(self.color);
 
             let transform = Matrix4::from_translation(self.position)
                 * Matrix4::from_angle_z(Rad::from(Deg(self.rotation.x)))
@@ -229,9 +241,9 @@ impl WidgetGraphics {
                 * Matrix4::from_angle_z(Rad::from(Deg(self.rotation.z)))
                 * Matrix4::from_nonuniform_scale(self.scale.x, self.scale.y, self.scale.z);
 
-            self.mesh.get_mut().set_transform(transform);
-            self.mesh.get_mut().set_draw_area(drawing_area);
-            self.mesh.get_mut().set_visible(visible);
+            self.mesh.resource().get_mut().set_transform(transform);
+            self.mesh.resource().get_mut().set_draw_area(drawing_area);
+            self.mesh.resource().get_mut().set_visible(visible);
             self.is_dirty = false;
         }
         self

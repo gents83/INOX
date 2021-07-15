@@ -7,8 +7,8 @@ use std::{
 use nrg_serialize::INVALID_UID;
 
 use crate::{
-    Data, HandleCastFrom, HandleCastTo, ResourceCastTo, ResourceData, ResourceHandle, ResourceId,
-    ResourceRef, Storage, TypedStorage,
+    Data, HandleCastTo, ResourceData, ResourceHandle, ResourceId, ResourceMutex, ResourceRef,
+    Storage, TypedStorage,
 };
 
 pub struct SharedData {
@@ -43,9 +43,7 @@ impl SharedData {
         T: ResourceData,
     {
         if let Some(rs) = self.storage.get_mut(&TypeId::of::<T>()) {
-            let r = rs.as_mut();
-            let c = r as *mut dyn TypedStorage as *mut Storage<T>;
-            unsafe { &mut *c }
+            unsafe { std::mem::transmute::<&mut Box<dyn TypedStorage>, &mut Storage<T>>(rs) }
         } else {
             self.register_type::<T>();
             self.get_storage::<T>()
@@ -53,14 +51,11 @@ impl SharedData {
     }
     #[inline]
     pub fn add_resource<T: ResourceData>(shared_data: &SharedDataRw, data: T) -> ResourceRef<T> {
-        let mut handle = Box::new(Arc::new(ResourceHandle::new(
-            data.id(),
-            shared_data.clone(),
-        )));
+        let handle = Arc::new(ResourceHandle::new(data.id(), shared_data.clone()));
         let mut shared_data = shared_data.write().unwrap();
         shared_data
             .get_storage::<T>()
-            .add(handle.as_generic().clone(), Box::new(data));
+            .add(handle.clone(), Arc::new(ResourceMutex::new(data)));
         handle
     }
     #[inline]
@@ -72,19 +67,15 @@ impl SharedData {
         shared_data
             .get_storage::<T>()
             .get(resource_id)
-            .from_generic()
+            .of_type::<T>()
     }
     #[inline]
     pub fn get_resources_of_type<T: ResourceData>(
         shared_data: &SharedDataRw,
     ) -> Vec<ResourceRef<T>> {
         let mut shared_data = shared_data.write().unwrap();
-        shared_data
-            .get_storage::<T>()
-            .handles()
-            .iter_mut()
-            .map(|h| h.from_generic())
-            .collect()
+        let handles = shared_data.get_storage::<T>().handles();
+        handles.into_iter().map(|h| h.of_type::<T>()).collect()
     }
     #[inline]
     fn clear(&mut self) {
@@ -120,11 +111,11 @@ impl SharedData {
     {
         let mut shared_data = shared_data.write().unwrap();
         if let Some(rs) = shared_data.storage.get_mut(&TypeId::of::<T>()) {
-            let mut resources = rs.resources();
-            for r in resources.iter_mut() {
-                let resource = r.to::<T>();
-                if f(resource.as_ref()) {
-                    return resource.id();
+            let handles = rs.handles();
+            for h in handles.iter() {
+                let handle = h.clone().of_type::<T>();
+                if f(&handle.resource().as_ref().get()) {
+                    return handle.id();
                 }
             }
         }

@@ -57,7 +57,7 @@ impl TextureInstance {
         let path = convert_from_local_path(PathBuf::from(DATA_FOLDER).as_path(), texture_path);
         SharedData::match_resource(shared_data, |t: &TextureInstance| t.path == path)
     }
-    pub fn get_path(&self) -> &Path {
+    pub fn path(&self) -> &Path {
         self.path.as_path()
     }
     pub fn set_texture_data(&mut self, texture_index: u32, layer_index: u32) -> &mut Self {

@@ -47,6 +47,7 @@ impl Scene {
     pub fn update_hierarchy(&mut self, shared_data: &SharedDataRw) {
         for object in self.objects.iter() {
             object
+                .resource()
                 .get_mut()
                 .update_from_parent(shared_data, Matrix4::default_identity());
         }

@@ -83,7 +83,7 @@ impl DataTypeResource for MaterialInstance {
 }
 
 impl MaterialInstance {
-    pub fn get_pipeline(&self) -> PipelineRc {
+    pub fn pipeline(&self) -> PipelineRc {
         self.pipeline.clone()
     }
     pub fn has_meshes(&self) -> bool {

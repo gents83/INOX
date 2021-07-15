@@ -1,12 +1,12 @@
 use nrg_messenger::implement_message;
 use nrg_serialize::Uid;
 use std::{
-    collections::HashMap,
+    any::Any,
     path::PathBuf,
-    sync::{Arc, RwLock},
+    sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard},
 };
 
-use crate::{GenericRef, HandleCastFrom, HandleCastTo, ResourceRef};
+use crate::{GenericRef, HandleCastTo, ResourceRef};
 
 #[derive(Clone)]
 pub enum ResourceEvent {
@@ -20,43 +20,42 @@ pub trait ResourceData: Send + Sync + 'static {
     fn id(&self) -> ResourceId;
 }
 
-pub struct Resource<T>
-where
-    T: ResourceData + ?Sized,
-{
-    data: RwLock<Box<T>>,
-}
-pub type GenericResource = Resource<dyn ResourceData>;
-
-pub trait ResourceCastTo {
-    fn to<T: ResourceData>(&mut self) -> &mut Resource<T>;
-}
-pub trait ResourceCastFrom {
-    fn cast(&mut self) -> &mut GenericResource;
+pub trait BaseResource: Send + Sync + Any {
+    fn as_any(self: Arc<Self>) -> Arc<dyn Any + Send + Sync>;
 }
 
-impl ResourceCastTo for GenericResource {
-    fn to<T: ResourceData>(&mut self) -> &mut Resource<T> {
-        let resource_data = self as *mut Resource<dyn ResourceData> as *mut Resource<T>;
-        unsafe { &mut *resource_data }
-    }
-}
-
-impl<T> ResourceCastFrom for Resource<T>
+pub struct ResourceMutex<T>
 where
     T: ResourceData,
 {
-    fn cast(&mut self) -> &mut GenericResource {
-        let resource_data = self as *mut Resource<T> as *mut Resource<dyn ResourceData>;
-        unsafe { &mut *resource_data }
-    }
+    data: RwLock<T>,
 }
 
-impl<T: ResourceData> Resource<T> {
-    pub fn new(data: Box<T>) -> Resource<T> {
+impl<T> ResourceMutex<T>
+where
+    T: ResourceData,
+{
+    pub fn new(data: T) -> Self {
         Self {
             data: RwLock::new(data),
         }
+    }
+
+    pub fn get(&self) -> RwLockReadGuard<'_, T> {
+        self.data.read().unwrap()
+    }
+
+    pub fn get_mut(&self) -> RwLockWriteGuard<'_, T> {
+        self.data.write().unwrap()
+    }
+}
+
+impl<T> BaseResource for ResourceMutex<T>
+where
+    T: ResourceData,
+{
+    fn as_any(self: Arc<Self>) -> Arc<dyn Any + Send + Sync> {
+        self
     }
 }
 
@@ -69,51 +68,39 @@ where
     }
 }
 
-impl<T> AsRef<T> for Resource<T>
-where
-    T: ResourceData,
-{
-    fn as_ref(&self) -> &T {
-        let resource = self.data.read().unwrap().as_ref() as *const T;
-        unsafe { &*resource }
-    }
+pub type Resource<T> = Arc<ResourceMutex<T>>;
+pub type GenericResource = Arc<dyn BaseResource>;
+
+pub trait ResourceCastTo {
+    fn of_type<T: ResourceData>(self) -> Resource<T>;
 }
 
-impl<T> AsMut<T> for Resource<T>
-where
-    T: ResourceData,
-{
-    fn as_mut(&mut self) -> &mut T {
-        let resource = self.data.write().unwrap().as_mut() as *mut T;
-        unsafe { &mut *resource }
+impl ResourceCastTo for GenericResource {
+    fn of_type<T: ResourceData>(self) -> Resource<T> {
+        let any = Arc::into_raw(self.as_any());
+        Arc::downcast(unsafe { Arc::from_raw(any) }).unwrap()
     }
 }
 
 pub trait TypedStorage {
-    fn add(&mut self, handle: GenericRef, data: Box<dyn ResourceData>);
-    fn resource(&mut self, resource_id: ResourceId) -> &mut GenericResource;
+    fn add(&mut self, handle: GenericRef, data: GenericResource);
+    fn resource(&mut self, resource_id: ResourceId) -> GenericResource;
     fn get(&mut self, resource_id: ResourceId) -> GenericRef;
     fn remove_all(&mut self);
     fn flush(&mut self);
     fn remove(&mut self, resource_id: ResourceId);
     fn has(&self, resource_id: ResourceId) -> bool;
     fn handles(&mut self) -> Vec<GenericRef>;
-    fn resources(&mut self) -> Vec<&mut GenericResource>;
+    fn resources(&mut self) -> Vec<GenericResource>;
     fn count(&self) -> usize;
 }
 
-pub struct ResourcePack<T>
-where
-    T: ResourceData,
-{
-    pub handle: ResourceRef<T>,
-    pub resource: Resource<T>,
-}
 pub struct Storage<T>
 where
     T: ResourceData,
 {
-    resources: HashMap<ResourceId, ResourcePack<T>>,
+    handles: Vec<ResourceRef<T>>,
+    resources: Vec<Resource<T>>,
 }
 
 impl<T> Default for Storage<T>
@@ -122,7 +109,8 @@ where
 {
     fn default() -> Self {
         Self {
-            resources: HashMap::new(),
+            handles: Vec::new(),
+            resources: Vec::new(),
         }
     }
 }
@@ -131,27 +119,16 @@ impl<T> TypedStorage for Storage<T>
 where
     T: ResourceData + Sized + 'static,
 {
-    fn add(&mut self, mut handle: GenericRef, mut data: Box<dyn ResourceData>) {
-        let id = data.id();
-        let resource_data = data.as_mut() as *mut dyn ResourceData as *mut T;
-        let boxed = unsafe { Box::from_raw(resource_data) };
-        let resource = Resource::new(boxed);
-        let resource_pack = ResourcePack {
-            handle: handle.from_generic(),
-            resource,
-        };
-        self.resources.insert(id, resource_pack);
+    fn add(&mut self, handle: GenericRef, resource: GenericResource) {
+        self.handles.push(handle.of_type::<T>());
+        self.resources.push(resource.of_type::<T>());
     }
-    fn resource(&mut self, resource_id: ResourceId) -> &mut GenericResource
+    fn resource(&mut self, resource_id: ResourceId) -> GenericResource
     where
         T: ResourceData,
     {
-        if let Some(tuple) = self
-            .resources
-            .iter_mut()
-            .find(|r| r.1.resource.id() == resource_id)
-        {
-            tuple.1.resource.cast()
+        if let Some(resource) = self.resources.iter_mut().find(|r| r.id() == resource_id) {
+            resource.clone()
         } else {
             panic!("Resource {} not found", resource_id.to_simple());
         }
@@ -160,12 +137,8 @@ where
     where
         T: ResourceData,
     {
-        if let Some(tuple) = self
-            .resources
-            .iter_mut()
-            .find(|r| r.1.resource.id() == resource_id)
-        {
-            tuple.1.handle.as_generic()
+        if let Some(handle) = self.handles.iter_mut().find(|h| h.id() == resource_id) {
+            handle.clone()
         } else {
             panic!("Resource {} not found", resource_id);
         }
@@ -177,9 +150,9 @@ where
 
     fn flush(&mut self) {
         let mut to_remove = Vec::new();
-        for tuple in self.resources.iter_mut() {
-            if Arc::strong_count(tuple.1.handle.as_mut()) <= 1 {
-                to_remove.push(*tuple.0);
+        for handle in self.handles.iter_mut() {
+            if Arc::strong_count(&handle) <= 1 {
+                to_remove.push(handle.id());
             }
         }
         for id in to_remove {
@@ -187,24 +160,25 @@ where
         }
     }
     fn remove(&mut self, resource_id: ResourceId) {
-        self.resources.remove(&resource_id);
+        self.handles.retain(|h| h.id() != resource_id);
+        self.resources.retain(|r| r.id() != resource_id);
     }
     fn has(&self, resource_id: ResourceId) -> bool {
-        self.resources.get(&resource_id).is_some()
+        self.handles.iter().any(|h| h.id() == resource_id)
     }
 
     fn handles(&mut self) -> Vec<GenericRef> {
         let mut handles = Vec::new();
-        for tuple in self.resources.iter_mut() {
-            handles.push(tuple.1.handle.clone());
+        for handle in self.handles.iter_mut() {
+            handles.push(handle.clone() as _);
         }
-        handles.iter_mut().map(|h| h.as_generic()).collect()
+        handles
     }
 
-    fn resources(&mut self) -> Vec<&mut GenericResource> {
+    fn resources(&mut self) -> Vec<GenericResource> {
         let mut resources = Vec::new();
-        for tuple in self.resources.iter_mut() {
-            resources.push(tuple.1.resource.cast());
+        for resource in self.resources.iter_mut() {
+            resources.push(resource.clone() as _);
         }
         resources
     }

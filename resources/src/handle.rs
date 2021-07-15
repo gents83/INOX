@@ -1,11 +1,12 @@
-use std::{marker::PhantomData, sync::Arc};
+use std::{any::Any, marker::PhantomData, sync::Arc};
 
 use nrg_serialize::INVALID_UID;
 
-use crate::{ResourceCastTo, ResourceData, ResourceId, SharedDataRw, TypedStorage};
+use crate::{Resource, ResourceCastTo, ResourceData, ResourceId, SharedDataRw, TypedStorage};
 
-pub trait Handle: Send + Sync {}
-impl<T> Handle for ResourceHandle<T> where T: ResourceData {}
+pub trait Handle: Send + Sync + Any {
+    fn as_any(self: Arc<Self>) -> Arc<dyn Any + Send + Sync>;
+}
 
 pub struct ResourceHandle<T>
 where
@@ -14,6 +15,15 @@ where
     id: ResourceId,
     shared_data: SharedDataRw,
     _marker: PhantomData<T>,
+}
+
+impl<T> Handle for ResourceHandle<T>
+where
+    T: ResourceData,
+{
+    fn as_any(self: Arc<Self>) -> Arc<dyn Any + Send + Sync> {
+        self
+    }
 }
 
 impl<T> Default for ResourceHandle<T>
@@ -45,45 +55,25 @@ where
         self.id
     }
 
-    pub fn get(&self) -> &T {
+    pub fn resource(&self) -> Resource<T> {
         let mut shared_data = self.shared_data.write().unwrap();
-        let resource = shared_data.get_storage::<T>().resource(self.id).to::<T>();
-        let value = resource.as_ref() as *const T;
-        unsafe { &*value }
-    }
-
-    #[allow(clippy::mut_from_ref)]
-    pub fn get_mut(&self) -> &mut T {
-        let mut shared_data = self.shared_data.write().unwrap();
-        let resource = shared_data.get_storage::<T>().resource(self.id).to::<T>();
-        let value = resource.as_mut() as *mut T;
-        unsafe { &mut *value }
+        shared_data
+            .get_storage::<T>()
+            .resource(self.id)
+            .of_type::<T>()
     }
 }
 
-pub type ResourceRef<T> = Box<Arc<ResourceHandle<T>>>;
-pub type GenericRef = Box<Arc<dyn Handle>>;
+pub type ResourceRef<T> = Arc<ResourceHandle<T>>;
+pub type GenericRef = Arc<dyn Handle>;
 
 pub trait HandleCastTo {
-    fn from_generic<T: ResourceData>(&mut self) -> ResourceRef<T>;
-}
-pub trait HandleCastFrom {
-    fn as_generic(&mut self) -> GenericRef;
+    fn of_type<T: ResourceData>(self) -> ResourceRef<T>;
 }
 
 impl HandleCastTo for GenericRef {
-    fn from_generic<T: ResourceData>(&mut self) -> ResourceRef<T> {
-        let resource_data = self.as_mut() as *mut Arc<dyn Handle> as *mut Arc<ResourceHandle<T>>;
-        unsafe { Box::from_raw(resource_data) }
-    }
-}
-
-impl<T> HandleCastFrom for ResourceRef<T>
-where
-    T: ResourceData,
-{
-    fn as_generic(&mut self) -> GenericRef {
-        let resource_data = self.as_mut() as *mut Arc<ResourceHandle<T>> as *mut Arc<dyn Handle>;
-        unsafe { Box::from_raw(resource_data) }
+    fn of_type<T: ResourceData>(self) -> ResourceRef<T> {
+        let any = Arc::into_raw(self.as_any());
+        Arc::downcast(unsafe { Arc::from_raw(any) }).unwrap()
     }
 }
