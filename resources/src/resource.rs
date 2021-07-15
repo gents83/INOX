@@ -28,6 +28,7 @@ pub struct ResourceMutex<T>
 where
     T: ResourceData,
 {
+    id: ResourceId,
     data: RwLock<T>,
 }
 
@@ -37,6 +38,7 @@ where
 {
     pub fn new(data: T) -> Self {
         Self {
+            id: data.id(),
             data: RwLock::new(data),
         }
     }
@@ -64,7 +66,7 @@ where
     T: ResourceData,
 {
     fn id(&self) -> ResourceId {
-        self.data.read().unwrap().id()
+        self.id
     }
 }
 
