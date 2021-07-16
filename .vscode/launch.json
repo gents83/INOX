@@ -5,6 +5,38 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "RUN CONTENT BROWSER DEBUG",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/target/debug/nrg_content_browser",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "stopOnEntry": false,
+            "sourceLanguages": [
+                "rust"
+            ],
+            "postDebugTask": "CLEANUP",
+            "sourceMap": {
+                "/rustc/*": "${env:HOME}/.rustup/toolchains/stable-x86_64-pc-windows-msvc/lib/rustlib/src/rust"
+            }
+        },
+        {
+            "name": "RUN CONTENT BROWSER RELEASE",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/target/release/nrg_content_browser",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "stopOnEntry": false,
+            "sourceLanguages": [
+                "rust"
+            ],
+            "postDebugTask": "CLEANUP",
+            "sourceMap": {
+                "/rustc/*": "${env:HOME}/.rustup/toolchains/stable-x86_64-pc-windows-msvc/lib/rustlib/src/rust"
+            }
+        },
+        {
             "name": "RUN LAUNCHER DEBUG",
             "type": "lldb",
             "request": "launch",
