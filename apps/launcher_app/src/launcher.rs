@@ -5,7 +5,9 @@ use std::{
 };
 
 use nrg_core::{App, JobHandlerRw, PhaseWithSystems, System, SystemId};
-use nrg_graphics::{FontInstance, PipelineInstance, RenderPassInstance};
+use nrg_graphics::{
+    FontInstance, FontRc, PipelineInstance, PipelineRc, RenderPassInstance, RenderPassRc,
+};
 use nrg_gui::{
     BaseWidget, ContainerFillType, Gui, HorizontalAlignment, Icon, Panel, Screen, TitleBarEvent,
     VerticalAlignment, WidgetCreator, WidgetEvent, WidgetStyle,
@@ -60,6 +62,9 @@ struct LauncherSystem {
     global_messenger: MessengerRw,
     job_handler: JobHandlerRw,
     message_channel: MessageChannel,
+    pipelines: Vec<PipelineRc>,
+    render_passes: Vec<RenderPassRc>,
+    fonts: Vec<FontRc>,
     node_editor_id: Uid,
     game_id: Uid,
 }
@@ -91,6 +96,9 @@ impl LauncherSystem {
             global_messenger,
             job_handler,
             message_channel,
+            pipelines: Vec::new(),
+            render_passes: Vec::new(),
+            fonts: Vec::new(),
             node_editor_id: INVALID_UID,
             game_id: INVALID_UID,
         }
@@ -98,14 +106,25 @@ impl LauncherSystem {
 
     fn load_pipelines(&mut self) {
         for render_pass_data in self.config.render_passes.iter() {
-            RenderPassInstance::create_from_data(&self.shared_data, render_pass_data.clone());
+            self.render_passes
+                .push(RenderPassInstance::create_from_data(
+                    &self.shared_data,
+                    render_pass_data.clone(),
+                ));
         }
+
         for pipeline_data in self.config.pipelines.iter() {
-            PipelineInstance::create_from_data(&self.shared_data, pipeline_data.clone());
+            self.pipelines.push(PipelineInstance::create_from_data(
+                &self.shared_data,
+                pipeline_data.clone(),
+            ));
         }
 
         if let Some(default_font_path) = self.config.fonts.first() {
-            FontInstance::create_from_file(&self.shared_data, default_font_path);
+            self.fonts.push(FontInstance::create_from_file(
+                &self.shared_data,
+                default_font_path,
+            ));
         }
     }
 
