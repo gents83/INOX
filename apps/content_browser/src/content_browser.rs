@@ -1,4 +1,4 @@
-use std::{any::TypeId, path::PathBuf};
+use std::{any::TypeId, env, path::PathBuf};
 
 use nrg_core::{App, JobHandlerRw, PhaseWithSystems, System, SystemId};
 use nrg_graphics::{
@@ -10,7 +10,7 @@ use nrg_gui::{
 };
 use nrg_messenger::{read_messages, Message, MessageChannel, MessengerRw};
 use nrg_platform::{WindowEvent, DEFAULT_DPI};
-use nrg_resources::{ConfigBase, DataTypeResource, FileResource, SharedDataRw, DATA_FOLDER};
+use nrg_resources::{ConfigBase, DataTypeResource, FileResource, SharedDataRw};
 use nrg_serialize::{deserialize_from_file, Uid, INVALID_UID};
 
 use crate::config::Config;
@@ -160,14 +160,16 @@ impl ContentBrowserSystem {
             } else if msg.type_id() == TypeId::of::<DialogEvent>() {
                 let event = msg.as_any().downcast_ref::<DialogEvent>().unwrap();
                 match &event {
-                    DialogEvent::Confirmed(widget_id, _requester_uid, _text) => {
+                    DialogEvent::Confirmed(widget_id, _requester_uid, text) => {
                         if *widget_id == self.folder_dialog_id {
                             self.send_event(WindowEvent::Close.as_boxed());
+                            println!("[[[{}]]]", text.to_str().unwrap());
                         }
                     }
                     DialogEvent::Canceled(widget_id) => {
                         if *widget_id == self.folder_dialog_id {
                             self.send_event(WindowEvent::Close.as_boxed());
+                            println!("[[[CANCEL]]]");
                         }
                     }
                 }
@@ -176,12 +178,14 @@ impl ContentBrowserSystem {
     }
 
     fn add_content(&mut self) -> &mut Self {
+        let args: Vec<String> = env::args().collect();
+
         let mut folder_dialog = FolderDialog::new(&self.shared_data, &self.global_messenger);
         folder_dialog
             .vertical_alignment(VerticalAlignment::Stretch)
             .horizontal_alignment(HorizontalAlignment::Stretch)
-            .set_title("Open")
-            .set_folder(PathBuf::from(DATA_FOLDER).as_path())
+            .set_title(args[1].as_str())
+            .set_folder(PathBuf::from(args[2].as_str()).as_path())
             .editable(false);
         self.folder_dialog_id = folder_dialog.id();
 

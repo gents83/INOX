@@ -1,4 +1,4 @@
-use std::{any::TypeId, path::PathBuf};
+use std::{any::TypeId, path::PathBuf, process::Command};
 
 use nrg_gui::{
     implement_widget_with_custom_members, Button, DialogEvent, FolderDialog, InternalWidget, Menu,
@@ -211,17 +211,26 @@ impl InternalWidget for MainMenu {
             let event = msg.as_any().downcast_ref::<WidgetEvent>().unwrap();
             if let WidgetEvent::Pressed(widget_id, _mouse_in_px) = *event {
                 if self.new_id == widget_id {
-                    self.filename_dialog = Some(FolderDialog::new(
-                        self.get_shared_data(),
-                        self.get_global_messenger(),
-                    ));
-                    let dialog = self.filename_dialog.as_mut().unwrap();
-                    dialog
-                        .set_requester_uid(self.new_id)
-                        .set_title("New")
-                        .set_filename("new_widget.widget")
-                        .set_folder(PathBuf::from(DATA_RAW_FOLDER).as_path())
-                        .editable(true);
+                    println!("New content browser");
+                    let result = Command::new("nrg_content_browser")
+                        .arg("New File")
+                        .arg(PathBuf::from(DATA_RAW_FOLDER).to_str().unwrap())
+                        .output();
+                    match result {
+                        Ok(output) => {
+                            let string = String::from_utf8(output.stdout).unwrap();
+                            if let Some(pos) = string.find("[[[") {
+                                let (_, string) = string.split_at(pos + 3);
+                                if let Some(pos) = string.find("]]]") {
+                                    let (string, _) = string.split_at(pos);
+                                    println!("Output = {}", string);
+                                }
+                            }
+                        }
+                        Err(_) => {
+                            println!("Failed to execute process");
+                        }
+                    }
                 } else if self.open_id == widget_id && self.filename_dialog.is_none() {
                     self.filename_dialog = Some(FolderDialog::new(
                         self.get_shared_data(),
