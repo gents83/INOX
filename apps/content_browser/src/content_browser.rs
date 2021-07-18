@@ -10,8 +10,8 @@ use nrg_gui::{
 };
 use nrg_messenger::{read_messages, Message, MessageChannel, MessengerRw};
 use nrg_platform::{WindowEvent, DEFAULT_DPI};
-use nrg_resources::{ConfigBase, DataTypeResource, FileResource, SharedDataRw};
-use nrg_serialize::{deserialize_from_file, Uid, INVALID_UID};
+use nrg_resources::{ConfigBase, DataTypeResource, FileResource, SharedDataRw, DATA_FOLDER};
+use nrg_serialize::{deserialize_from_file, serialize, Uid, INVALID_UID};
 
 use crate::config::Config;
 
@@ -159,34 +159,35 @@ impl ContentBrowserSystem {
                 }
             } else if msg.type_id() == TypeId::of::<DialogEvent>() {
                 let event = msg.as_any().downcast_ref::<DialogEvent>().unwrap();
-                match &event {
-                    DialogEvent::Confirmed(widget_id, _requester_uid, text) => {
-                        if *widget_id == self.folder_dialog_id {
-                            self.send_event(WindowEvent::Close.as_boxed());
-                            println!("[[[{}]]]", text.to_str().unwrap());
-                        }
-                    }
-                    DialogEvent::Canceled(widget_id) => {
-                        if *widget_id == self.folder_dialog_id {
-                            self.send_event(WindowEvent::Close.as_boxed());
-                            println!("[[[CANCEL]]]");
-                        }
-                    }
-                }
+                self.send_event(WindowEvent::Close.as_boxed());
+                let serialized_event = serialize(event);
+                println!("[[[{}]]]", serialized_event);
             }
         });
     }
 
     fn add_content(&mut self) -> &mut Self {
-        let args: Vec<String> = env::args().collect();
-
         let mut folder_dialog = FolderDialog::new(&self.shared_data, &self.global_messenger);
         folder_dialog
             .vertical_alignment(VerticalAlignment::Stretch)
             .horizontal_alignment(HorizontalAlignment::Stretch)
-            .set_title(args[1].as_str())
-            .set_folder(PathBuf::from(args[2].as_str()).as_path())
             .editable(false);
+
+        let args: Vec<String> = env::args().collect();
+        if args.len() >= 4 {
+            if let Ok(requester_uid) = Uid::parse_str(args[3].as_str()) {
+                folder_dialog.set_requester_uid(requester_uid);
+            }
+            folder_dialog
+                .set_title(args[1].as_str())
+                .set_folder(PathBuf::from(args[2].as_str()).as_path())
+                .editable(args[4] == "true");
+        } else {
+            folder_dialog
+                .set_title("Title from args")
+                .set_folder(PathBuf::from(DATA_FOLDER).as_path());
+        }
+
         self.folder_dialog_id = folder_dialog.id();
 
         Gui::get()

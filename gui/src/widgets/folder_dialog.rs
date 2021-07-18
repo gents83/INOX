@@ -13,7 +13,8 @@ use nrg_messenger::{implement_message, Message};
 use nrg_resources::DATA_RAW_FOLDER;
 use nrg_serialize::*;
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(crate = "nrg_serialize")]
 pub enum DialogEvent {
     Confirmed(Uid, Uid, PathBuf), //my uid, requester uid, text
     Canceled(Uid),

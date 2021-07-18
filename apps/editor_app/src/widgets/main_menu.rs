@@ -5,7 +5,7 @@ use nrg_gui::{
     RefcountedWidget, ScrollableItem, WidgetData, WidgetEvent,
 };
 use nrg_math::{Vector2, Vector4};
-use nrg_messenger::Message;
+use nrg_messenger::{get_events_from_string, Message};
 use nrg_platform::WindowEvent;
 use nrg_resources::{DATA_FOLDER, DATA_RAW_FOLDER};
 use nrg_serialize::*;
@@ -210,50 +210,48 @@ impl InternalWidget for MainMenu {
         } else if msg.type_id() == TypeId::of::<WidgetEvent>() {
             let event = msg.as_any().downcast_ref::<WidgetEvent>().unwrap();
             if let WidgetEvent::Pressed(widget_id, _mouse_in_px) = *event {
-                if self.new_id == widget_id {
-                    println!("New content browser");
-                    let result = Command::new("nrg_content_browser")
-                        .arg("New File")
-                        .arg(PathBuf::from(DATA_RAW_FOLDER).to_str().unwrap())
-                        .output();
+                if self.new_id == widget_id
+                    || self.open_id == widget_id
+                    || self.save_id == widget_id
+                {
+                    let mut command = Command::new("nrg_content_browser");
+                    if self.new_id == widget_id {
+                        command
+                            .arg("New File")
+                            .arg(PathBuf::from(DATA_RAW_FOLDER).to_str().unwrap())
+                            .arg(self.new_id.to_string().as_str())
+                            .arg("false");
+                    } else if self.open_id == widget_id {
+                        command
+                            .arg("Open File")
+                            .arg(PathBuf::from(DATA_FOLDER).to_str().unwrap())
+                            .arg(self.open_id.to_string().as_str())
+                            .arg("false");
+                    } else if self.save_id == widget_id {
+                        command
+                            .arg("Save File")
+                            .arg(PathBuf::from(DATA_RAW_FOLDER).to_str().unwrap())
+                            .arg(self.save_id.to_string().as_str())
+                            .arg("true");
+                    }
+                    let result = command.output();
                     match result {
                         Ok(output) => {
                             let string = String::from_utf8(output.stdout).unwrap();
-                            if let Some(pos) = string.find("[[[") {
-                                let (_, string) = string.split_at(pos + 3);
-                                if let Some(pos) = string.find("]]]") {
-                                    let (string, _) = string.split_at(pos);
-                                    println!("Output = {}", string);
-                                }
+                            println!("{}", string);
+                            for e in get_events_from_string(string) {
+                                let event: DialogEvent = deserialize(e);
+                                self.get_global_dispatcher()
+                                    .write()
+                                    .unwrap()
+                                    .send(event.as_boxed())
+                                    .ok();
                             }
                         }
                         Err(_) => {
                             println!("Failed to execute process");
                         }
                     }
-                } else if self.open_id == widget_id && self.filename_dialog.is_none() {
-                    self.filename_dialog = Some(FolderDialog::new(
-                        self.get_shared_data(),
-                        self.get_global_messenger(),
-                    ));
-                    let dialog = self.filename_dialog.as_mut().unwrap();
-                    dialog
-                        .set_requester_uid(self.open_id)
-                        .set_title("Open")
-                        .set_folder(PathBuf::from(DATA_FOLDER).as_path())
-                        .editable(false);
-                } else if self.save_id == widget_id && self.filename_dialog.is_none() {
-                    self.filename_dialog = Some(FolderDialog::new(
-                        self.get_shared_data(),
-                        self.get_global_messenger(),
-                    ));
-                    let dialog = self.filename_dialog.as_mut().unwrap();
-                    dialog
-                        .set_requester_uid(self.save_id)
-                        .set_title("Save")
-                        .set_filename("old_widget.widget")
-                        .set_folder(PathBuf::from(DATA_RAW_FOLDER).as_path())
-                        .editable(true);
                 } else if self.exit_id == widget_id {
                     self.get_global_dispatcher()
                         .write()

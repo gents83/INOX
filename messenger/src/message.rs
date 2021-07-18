@@ -22,3 +22,27 @@ pub trait Message: Send + Sync + Any {
     fn get_debug_info(&self) -> String;
     fn as_boxed(&self) -> Box<dyn Message>;
 }
+
+fn read_event(string: String) -> (bool, String, String) {
+    if let Some(pos) = string.find("[[[") {
+        let (_, string) = string.split_at(pos + 3);
+        if let Some(pos) = string.find("]]]") {
+            let (serialized_event, string) = string.split_at(pos);
+            let (_, string) = string.split_at(3);
+            return (true, serialized_event.to_string(), string.to_string());
+        }
+    }
+    (false, String::default(), String::default())
+}
+
+pub fn get_events_from_string(string: String) -> Vec<String> {
+    let mut result = Vec::new();
+    let (is_event, serialized_event, string) = read_event(string);
+    if is_event {
+        result.push(serialized_event);
+        for e in get_events_from_string(string) {
+            result.push(e);
+        }
+    }
+    result
+}
