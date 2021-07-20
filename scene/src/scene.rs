@@ -45,6 +45,10 @@ impl Scene {
         self.objects.push(object);
     }
 
+    pub fn get_objects(&self) -> Vec<ObjectRc> {
+        self.objects.clone()
+    }
+
     pub fn update_hierarchy(&mut self, shared_data: &SharedDataRw) {
         for object in self.objects.iter() {
             object

@@ -26,11 +26,7 @@ impl EntryPoint {
         self.main_id = main_system.id();
         update_phase.add_system(main_system);
 
-        let ui_system = UISystem::new(
-            app.get_shared_data(),
-            app.get_global_messenger(),
-            app.get_job_handler(),
-        );
+        let ui_system = UISystem::new(app.get_shared_data(), app.get_job_handler());
         self.ui_id = ui_system.id();
         update_phase.add_system(ui_system);
 

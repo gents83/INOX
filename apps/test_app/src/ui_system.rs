@@ -1,32 +1,23 @@
 use nrg_core::{JobHandlerRw, System, SystemId};
 use nrg_graphics::{MaterialInstance, MeshData, MeshInstance, PipelineInstance};
-use nrg_math::Matrix4;
-use nrg_messenger::{MessageChannel, MessengerRw};
+use nrg_math::{MatBase, Matrix4};
+
 use nrg_resources::{DataTypeResource, SharedData, SharedDataRw};
 use nrg_scene::{Object, Scene, SceneRc, Transform};
 
 pub struct UISystem {
     id: SystemId,
     shared_data: SharedDataRw,
-    global_messenger: MessengerRw,
-    message_channel: MessageChannel,
     job_handler: JobHandlerRw,
     ui_scene: SceneRc,
 }
 
 impl UISystem {
-    pub fn new(
-        shared_data: SharedDataRw,
-        global_messenger: MessengerRw,
-        job_handler: JobHandlerRw,
-    ) -> Self {
-        let message_channel = MessageChannel::default();
+    pub fn new(shared_data: SharedDataRw, job_handler: JobHandlerRw) -> Self {
         Self {
             id: SystemId::new(),
             shared_data,
-            global_messenger,
             job_handler,
-            message_channel,
             ui_scene: SceneRc::default(),
         }
     }
@@ -44,7 +35,7 @@ impl UISystem {
             .get_mut()
             .add_default_component::<Transform>(&self.shared_data);
         let mat = Matrix4::from_translation([100., 100., 0.].into())
-            * Matrix4::from_nonuniform_scale(1000., 1000., 1.);
+            * Matrix4::from_nonuniform_scale(10., 10., 1.);
         transform.resource().get_mut().set_matrix(mat);
 
         if let Some(pipeline) =
@@ -62,10 +53,26 @@ impl UISystem {
         }
 
         self.ui_scene.resource().get_mut().add_object(object);
-        self.ui_scene
-            .resource()
-            .get_mut()
-            .update_hierarchy(&self.shared_data);
+
+        self
+    }
+
+    fn update_scene(&mut self) -> &mut Self {
+        let objects = self.ui_scene.resource().get().get_objects();
+        for (i, obj) in objects.iter().enumerate() {
+            let job_name = format!("Object[{}]", i);
+            let obj = obj.clone();
+            let shared_data = self.shared_data.clone();
+            self.job_handler
+                .write()
+                .unwrap()
+                .add_job(job_name.as_str(), move || {
+                    obj.resource()
+                        .get_mut()
+                        .update_from_parent(&shared_data, Matrix4::default_identity());
+                });
+        }
+
         self
     }
 }
@@ -83,6 +90,7 @@ impl System for UISystem {
     }
 
     fn run(&mut self) -> bool {
+        self.update_scene();
         true
     }
 
