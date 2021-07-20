@@ -85,10 +85,12 @@ impl PhaseWithSystems {
     }
 
     fn remove_pending_systems_from_execution(&mut self) -> &mut Self {
-        for (i, s) in self.systems_to_remove.iter_mut().enumerate() {
-            let mut system = self.systems_running.remove(i);
-            system.uninit();
-            self.systems.remove(&s);
+        for id in self.systems_to_remove.iter_mut() {
+            if let Some(index) = self.systems_running.iter().position(|s| s.id() == *id) {
+                let mut system = self.systems_running.remove(index);
+                system.uninit();
+            }
+            self.systems.remove(&id);
         }
         self.systems_to_remove.clear();
         self

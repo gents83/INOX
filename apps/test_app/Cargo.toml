@@ -9,10 +9,10 @@ nrg_resources = { path = "../../resources" }
 nrg_core = { path = "../../core" }
 nrg_dynamic_library = { path = "../../dynamic_library" }
 nrg_events = { path = "../../events" }
-nrg_math = { path = "../../math" }
 nrg_messenger = { path = "../../messenger" }
 nrg_graphics = { path = "../../graphics" }
 nrg_gui = { path = "../../gui" }
 nrg_platform = { path = "../../platform" }
 nrg_serialize = { path = "../../serialize" }
+nrg_scene = { path = "../../scene" }
 

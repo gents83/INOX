@@ -1,10 +1,10 @@
 use std::any::TypeId;
 
-use nrg_core::{JobHandlerRw, System, SystemId};
+use nrg_core::{System, SystemId};
 use nrg_graphics::{
     FontInstance, FontRc, PipelineInstance, PipelineRc, RenderPassInstance, RenderPassRc,
 };
-use nrg_gui::{Gui, Screen};
+use nrg_gui::Screen;
 use nrg_messenger::{read_messages, Message, MessageChannel, MessengerRw};
 use nrg_platform::{WindowEvent, DEFAULT_DPI};
 use nrg_resources::{ConfigBase, DataTypeResource, FileResource, SharedDataRw};
@@ -17,7 +17,6 @@ pub struct MainSystem {
     config: Config,
     shared_data: SharedDataRw,
     global_messenger: MessengerRw,
-    job_handler: JobHandlerRw,
     message_channel: MessageChannel,
     pipelines: Vec<PipelineRc>,
     render_passes: Vec<RenderPassRc>,
@@ -25,17 +24,7 @@ pub struct MainSystem {
 }
 
 impl MainSystem {
-    pub fn new(
-        shared_data: SharedDataRw,
-        global_messenger: MessengerRw,
-        job_handler: JobHandlerRw,
-    ) -> Self {
-        Gui::create(
-            shared_data.clone(),
-            global_messenger.clone(),
-            job_handler.clone(),
-        );
-
+    pub fn new(shared_data: SharedDataRw, global_messenger: MessengerRw) -> Self {
         let message_channel = MessageChannel::default();
 
         global_messenger
@@ -47,7 +36,6 @@ impl MainSystem {
             config: Config::default(),
             shared_data,
             global_messenger,
-            job_handler,
             message_channel,
             pipelines: Vec::new(),
             render_passes: Vec::new(),
@@ -108,11 +96,9 @@ impl MainSystem {
                 match *event {
                     WindowEvent::SizeChanged(width, height) => {
                         Screen::change_size(width, height);
-                        Gui::invalidate_all_widgets();
                     }
                     WindowEvent::DpiChanged(x, _y) => {
                         Screen::change_scale_factor(x / DEFAULT_DPI);
-                        Gui::invalidate_all_widgets();
                     }
                     _ => {}
                 }
@@ -145,9 +131,6 @@ impl System for MainSystem {
 
     fn run(&mut self) -> bool {
         self.process_messages();
-
-        Gui::update_widgets(&self.job_handler, false);
-
         true
     }
 
