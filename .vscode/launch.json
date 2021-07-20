@@ -69,10 +69,10 @@
             }
         },
         {
-            "name": "RUN GAME DEBUG",
+            "name": "RUN TEST APP DEBUG",
             "type": "lldb",
             "request": "launch",
-            "program": "${workspaceFolder}/target/debug/nrg_game_app",
+            "program": "${workspaceFolder}/target/debug/nrg_test",
             "args": [],
             "cwd": "${workspaceFolder}",
             "stopOnEntry": false,
@@ -85,10 +85,10 @@
             }
         },
         {
-            "name": "RUN GAME RELEASE",
+            "name": "RUN TEST APP RELEASE",
             "type": "lldb",
             "request": "launch",
-            "program": "${workspaceFolder}/target/release/nrg_game_app",
+            "program": "${workspaceFolder}/target/release/nrg_test",
             "args": [],
             "cwd": "${workspaceFolder}",
             "stopOnEntry": false,
