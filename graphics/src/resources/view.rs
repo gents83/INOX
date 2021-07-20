@@ -34,9 +34,8 @@ impl ResourceData for ViewInstance {
 impl DataTypeResource for ViewInstance {
     type DataType = u32;
     fn create_from_data(shared_data: &SharedDataRw, view_index: Self::DataType) -> ViewRc {
-        let view_id = ViewInstance::find_id_from_view_index(shared_data, view_index);
-        if view_id != INVALID_UID {
-            return SharedData::get_resource::<Self>(shared_data, view_id);
+        if let Some(view) = ViewInstance::find_from_view_index(shared_data, view_index) {
+            return view;
         }
         SharedData::add_resource(
             shared_data,
@@ -57,7 +56,7 @@ impl ViewInstance {
     pub fn proj(&self) -> &Matrix4 {
         &self.proj
     }
-    pub fn find_id_from_view_index(shared_data: &SharedDataRw, view_index: u32) -> ViewId {
+    pub fn find_from_view_index(shared_data: &SharedDataRw, view_index: u32) -> Option<ViewRc> {
         SharedData::match_resource(shared_data, |v: &ViewInstance| v.view_index == view_index)
     }
 

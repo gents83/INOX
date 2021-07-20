@@ -43,17 +43,17 @@ impl FileResource for TextureInstance {
     }
     fn create_from_file(shared_data: &SharedDataRw, filepath: &Path) -> TextureRc {
         let path = convert_from_local_path(PathBuf::from(DATA_FOLDER).as_path(), filepath);
-        let texture_id =
-            { SharedData::match_resource(shared_data, |t: &TextureInstance| t.path == path) };
-        if texture_id != INVALID_UID {
-            return SharedData::get_resource::<Self>(shared_data, texture_id);
+        if let Some(texture) =
+            SharedData::match_resource(shared_data, |t: &TextureInstance| t.path == path)
+        {
+            return texture;
         }
         SharedData::add_resource(shared_data, TextureInstance::create(filepath))
     }
 }
 
 impl TextureInstance {
-    pub fn find_id(shared_data: &SharedDataRw, texture_path: &Path) -> TextureId {
+    pub fn find_from_path(shared_data: &SharedDataRw, texture_path: &Path) -> Option<TextureRc> {
         let path = convert_from_local_path(PathBuf::from(DATA_FOLDER).as_path(), texture_path);
         SharedData::match_resource(shared_data, |t: &TextureInstance| t.path == path)
     }

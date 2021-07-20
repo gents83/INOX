@@ -4,8 +4,6 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use nrg_serialize::INVALID_UID;
-
 use crate::{
     Data, HandleCastTo, ResourceData, ResourceHandle, ResourceId, ResourceMutex, ResourceRef,
     Storage, TypedStorage,
@@ -117,7 +115,7 @@ impl SharedData {
         shared_data.storage.contains_key(&TypeId::of::<T>())
     }
     #[inline]
-    pub fn match_resource<T, F>(shared_data: &SharedDataRw, f: F) -> ResourceId
+    pub fn match_resource<T, F>(shared_data: &SharedDataRw, f: F) -> Option<ResourceRef<T>>
     where
         T: ResourceData,
         F: Fn(&T) -> bool,
@@ -128,11 +126,11 @@ impl SharedData {
             for h in handles.iter() {
                 let handle = h.clone().of_type::<T>();
                 if f(&handle.resource().as_ref().get()) {
-                    return handle.id();
+                    return Some(handle);
                 }
             }
         }
-        INVALID_UID
+        None
     }
     #[inline]
     pub fn get_num_resources_of_type<T: ResourceData>(shared_data: &SharedDataRw) -> usize {

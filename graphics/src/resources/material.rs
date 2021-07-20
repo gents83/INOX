@@ -54,35 +54,41 @@ impl DataTypeResource for MaterialInstance {
     type DataType = MaterialData;
 
     fn create_from_data(shared_data: &SharedDataRw, material_data: Self::DataType) -> MaterialRc {
-        let pipeline =
-            PipelineInstance::find_from_name(shared_data, material_data.pipeline_name.as_str());
+        if let Some(pipeline) =
+            PipelineInstance::find_from_name(shared_data, material_data.pipeline_name.as_str())
+        {
+            let mut meshes = Vec::new();
+            for m in material_data.meshes.iter() {
+                let mesh = MeshInstance::create_from_file(&shared_data, m.as_path());
+                meshes.push(mesh);
+            }
+            let mut textures = Vec::new();
+            for t in material_data.textures.iter() {
+                let texture = TextureInstance::create_from_file(&shared_data, t.as_path());
+                textures.push(texture);
+            }
 
-        let mut meshes = Vec::new();
-        for m in material_data.meshes.iter() {
-            let mesh = MeshInstance::create_from_file(&shared_data, m.as_path());
-            meshes.push(mesh);
+            let material = Self {
+                id: generate_uid_from_string(material_data.path().to_str().unwrap()),
+                path: material_data.path().to_path_buf(),
+                pipeline,
+                meshes,
+                textures,
+                ..Default::default()
+            };
+
+            SharedData::add_resource(shared_data, material)
+        } else {
+            panic!(
+                "No pipeline loaded with name {}",
+                material_data.pipeline_name.as_str()
+            );
         }
-        let mut textures = Vec::new();
-        for t in material_data.textures.iter() {
-            let texture = TextureInstance::create_from_file(&shared_data, t.as_path());
-            textures.push(texture);
-        }
-
-        let material = Self {
-            id: generate_uid_from_string(material_data.path().to_str().unwrap()),
-            path: material_data.path().to_path_buf(),
-            pipeline,
-            meshes,
-            textures,
-            ..Default::default()
-        };
-
-        SharedData::add_resource(shared_data, material)
     }
 }
 
 impl MaterialInstance {
-    pub fn find_id_from_path(shared_data: &SharedDataRw, path: &Path) -> MaterialId {
+    pub fn find_from_path(shared_data: &SharedDataRw, path: &Path) -> Option<MaterialRc> {
         SharedData::match_resource(shared_data, |m: &MaterialInstance| m.path() == path)
     }
     pub fn pipeline(&self) -> PipelineRc {

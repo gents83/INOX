@@ -69,12 +69,12 @@ impl DataTypeResource for Object {
             .set_matrix(object_data.transform);
 
         if !object_data.material.clone().into_os_string().is_empty() {
-            let material_id =
-                MaterialInstance::find_id_from_path(shared_data, object_data.material.as_path());
-            let material = if material_id.is_nil() {
-                MaterialInstance::create_from_file(shared_data, object_data.material.as_path())
+            let material = if let Some(material) =
+                MaterialInstance::find_from_path(shared_data, object_data.material.as_path())
+            {
+                material
             } else {
-                SharedData::get_resource(shared_data, material_id)
+                MaterialInstance::create_from_file(shared_data, object_data.material.as_path())
             };
             object
                 .resource()

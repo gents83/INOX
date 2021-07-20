@@ -34,10 +34,10 @@ impl DataTypeResource for PipelineInstance {
     type DataType = PipelineData;
     fn create_from_data(shared_data: &SharedDataRw, pipeline_data: Self::DataType) -> PipelineRc {
         let canonicalized_pipeline_data = pipeline_data.canonicalize_paths();
-        let pipeline_id =
-            PipelineInstance::find_id_from_data(shared_data, &canonicalized_pipeline_data);
-        if pipeline_id != INVALID_UID {
-            return SharedData::get_resource::<Self>(shared_data, pipeline_id);
+        if let Some(pipeline) =
+            PipelineInstance::find_from_data(shared_data, &canonicalized_pipeline_data)
+        {
+            return pipeline;
         }
         SharedData::add_resource(
             shared_data,
@@ -51,18 +51,16 @@ impl DataTypeResource for PipelineInstance {
 }
 
 impl PipelineInstance {
-    pub fn find_id_from_name(shared_data: &SharedDataRw, pipeline_name: &str) -> PipelineId {
+    pub fn find_from_name(shared_data: &SharedDataRw, pipeline_name: &str) -> Option<PipelineRc> {
         SharedData::match_resource(shared_data, |p: &PipelineInstance| {
             p.data.name == pipeline_name
         })
     }
 
-    pub fn find_from_name(shared_data: &SharedDataRw, pipeline_name: &str) -> PipelineRc {
-        let pipeline_id = Self::find_id_from_name(shared_data, pipeline_name);
-        SharedData::get_resource::<Self>(shared_data, pipeline_id)
-    }
-
-    fn find_id_from_data(shared_data: &SharedDataRw, pipeline_data: &PipelineData) -> PipelineId {
+    fn find_from_data(
+        shared_data: &SharedDataRw,
+        pipeline_data: &PipelineData,
+    ) -> Option<PipelineRc> {
         SharedData::match_resource(shared_data, |p: &PipelineInstance| {
             pipeline_data.has_same_shaders(&p.data) && p.data.name == pipeline_data.name
         })

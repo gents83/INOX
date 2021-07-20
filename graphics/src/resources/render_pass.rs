@@ -36,11 +36,12 @@ impl DataTypeResource for RenderPassInstance {
         shared_data: &SharedDataRw,
         render_pass_data: Self::DataType,
     ) -> RenderPassRc {
-        let render_pass_id =
-            RenderPassInstance::find_id_from_name(shared_data, render_pass_data.name.as_str());
-        if render_pass_id != INVALID_UID {
-            return SharedData::get_resource::<Self>(shared_data, render_pass_id);
+        if let Some(render_pass) =
+            RenderPassInstance::find_from_name(shared_data, render_pass_data.name.as_str())
+        {
+            return render_pass;
         }
+
         SharedData::add_resource(
             shared_data,
             RenderPassInstance {
@@ -53,7 +54,10 @@ impl DataTypeResource for RenderPassInstance {
 }
 
 impl RenderPassInstance {
-    pub fn find_id_from_name(shared_data: &SharedDataRw, render_pass_name: &str) -> RenderPassId {
+    pub fn find_from_name(
+        shared_data: &SharedDataRw,
+        render_pass_name: &str,
+    ) -> Option<RenderPassRc> {
         SharedData::match_resource(shared_data, |r: &RenderPassInstance| {
             r.data.name == render_pass_name
         })

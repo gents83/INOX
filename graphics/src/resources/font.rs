@@ -40,39 +40,42 @@ impl FileResource for FontInstance {
         self.path.as_path()
     }
     fn create_from_file(shared_data: &SharedDataRw, font_path: &Path) -> FontRc {
-        let pipeline = PipelineInstance::find_from_name(shared_data, UI_PIPELINE_NAME);
-        let path = convert_from_local_path(PathBuf::from(DATA_FOLDER).as_path(), font_path);
-        if !path.exists() || !path.is_file() {
-            panic!("Invalid font path {}", path.to_str().unwrap());
-        }
-        let font_id = FontInstance::find_id(shared_data, path.as_path());
-        if font_id != INVALID_UID {
-            return SharedData::get_resource::<Self>(shared_data, font_id);
-        }
-        let material = MaterialInstance::create_from_pipeline(shared_data, pipeline);
-        let font = Font::new(path.as_path());
-        let texture_id = TextureInstance::find_id(shared_data, path.as_path());
-        let texture = if texture_id.is_nil() {
-            TextureInstance::create_from_file(shared_data, path.as_path())
-        } else {
-            SharedData::get_resource::<TextureInstance>(shared_data, texture_id)
-        };
-        material.resource().get_mut().add_texture(texture);
+        if let Some(pipeline) = PipelineInstance::find_from_name(shared_data, UI_PIPELINE_NAME) {
+            let path = convert_from_local_path(PathBuf::from(DATA_FOLDER).as_path(), font_path);
+            if !path.exists() || !path.is_file() {
+                panic!("Invalid font path {}", path.to_str().unwrap());
+            }
+            if let Some(font) = FontInstance::find_from_path(shared_data, path.as_path()) {
+                return font;
+            }
+            let material = MaterialInstance::create_from_pipeline(shared_data, pipeline);
+            let font = Font::new(path.as_path());
+            let texture = if let Some(texture) =
+                TextureInstance::find_from_path(shared_data, path.as_path())
+            {
+                texture
+            } else {
+                TextureInstance::create_from_file(shared_data, path.as_path())
+            };
+            material.resource().get_mut().add_texture(texture);
 
-        SharedData::add_resource(
-            shared_data,
-            FontInstance {
-                id: generate_uid_from_string(path.to_str().unwrap()),
-                path,
-                material,
-                font,
-            },
-        )
+            SharedData::add_resource(
+                shared_data,
+                FontInstance {
+                    id: generate_uid_from_string(path.to_str().unwrap()),
+                    path,
+                    material,
+                    font,
+                },
+            )
+        } else {
+            panic!("No pipeline loaded with name {}", UI_PIPELINE_NAME);
+        }
     }
 }
 
 impl FontInstance {
-    pub fn find_id(shared_data: &SharedDataRw, font_path: &Path) -> FontId {
+    pub fn find_from_path(shared_data: &SharedDataRw, font_path: &Path) -> Option<FontRc> {
         let path = convert_from_local_path(PathBuf::from(DATA_FOLDER).as_path(), font_path);
         SharedData::match_resource(shared_data, |f: &FontInstance| f.path == path)
     }

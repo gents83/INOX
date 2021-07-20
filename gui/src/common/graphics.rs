@@ -52,8 +52,9 @@ impl WidgetGraphics {
 
 impl WidgetGraphics {
     pub fn init(&mut self, pipeline: &str) -> &mut Self {
-        let pipeline = PipelineInstance::find_from_name(&self.shared_data, pipeline);
-        self.material = MaterialInstance::create_from_pipeline(&self.shared_data, pipeline);
+        if let Some(pipeline) = PipelineInstance::find_from_name(&self.shared_data, pipeline) {
+            self.material = MaterialInstance::create_from_pipeline(&self.shared_data, pipeline);
+        }
 
         self.create_default_mesh();
 

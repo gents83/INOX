@@ -1,6 +1,8 @@
 use nrg_core::{JobHandlerRw, System, SystemId};
+use nrg_graphics::{MaterialInstance, MeshData, MeshInstance, PipelineInstance};
+use nrg_math::Matrix4;
 use nrg_messenger::{MessageChannel, MessengerRw};
-use nrg_resources::{SharedData, SharedDataRw};
+use nrg_resources::{DataTypeResource, SharedData, SharedDataRw};
 use nrg_scene::{Object, Scene, SceneRc, Transform};
 
 pub struct UISystem {
@@ -36,11 +38,34 @@ impl UISystem {
 
     fn add_2d_quad(&mut self) -> &mut Self {
         let object = SharedData::add_resource::<Object>(&self.shared_data, Object::default());
-        object
+
+        let transform = object
             .resource()
             .get_mut()
             .add_default_component::<Transform>(&self.shared_data);
+        let mat = Matrix4::from_translation([100., 100., 0.].into())
+            * Matrix4::from_nonuniform_scale(1000., 1000., 1.);
+        transform.resource().get_mut().set_matrix(mat);
+
+        if let Some(pipeline) =
+            SharedData::match_resource(&self.shared_data, |p: &PipelineInstance| {
+                p.data().name == "UI"
+            })
+        {
+            let material = MaterialInstance::create_from_pipeline(&self.shared_data, pipeline);
+            let mut mesh_data = MeshData::default();
+            mesh_data.add_quad_default([0., 0., 1., 1.].into(), 0.);
+            mesh_data.set_vertex_color([1., 0., 0., 1.].into());
+            let mesh = MeshInstance::create_from_data(&self.shared_data, mesh_data);
+            material.resource().get_mut().add_mesh(mesh);
+            object.resource().get_mut().add_component(material);
+        }
+
         self.ui_scene.resource().get_mut().add_object(object);
+        self.ui_scene
+            .resource()
+            .get_mut()
+            .update_hierarchy(&self.shared_data);
         self
     }
 }

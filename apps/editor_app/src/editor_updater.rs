@@ -343,10 +343,12 @@ impl EditorUpdater {
         }
 
         if let Some(pipeline_data) = self.config.pipelines.iter().find(|p| p.name.eq("Grid")) {
-            let pipeline =
-                PipelineInstance::find_from_name(&self.shared_data, pipeline_data.name.as_str());
-            self.grid_material =
-                MaterialInstance::create_from_pipeline(&self.shared_data, pipeline);
+            if let Some(pipeline) =
+                PipelineInstance::find_from_name(&self.shared_data, pipeline_data.name.as_str())
+            {
+                self.grid_material =
+                    MaterialInstance::create_from_pipeline(&self.shared_data, pipeline);
+            }
             let mut mesh_data = MeshData::default();
             mesh_data.add_quad_default([-1., -1., 1., 1.].into(), 0.);
             let mesh = MeshInstance::create_from_data(&self.shared_data, mesh_data);
