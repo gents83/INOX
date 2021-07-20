@@ -141,12 +141,10 @@ impl Object {
         if let Some(transform) = self.get_component::<Transform>() {
             let object_matrix = transform.resource().get().matrix();
             let object_matrix = parent_transform * object_matrix;
-            transform.resource().get_mut().set_matrix(object_matrix);
 
             if let Some(material) = self.get_component::<MaterialInstance>() {
                 for mesh in material.resource().get().meshes() {
-                    let matrix = object_matrix * *mesh.resource().get().transform();
-                    mesh.resource().get_mut().set_transform(matrix);
+                    mesh.resource().get_mut().set_transform(object_matrix);
                 }
             }
 

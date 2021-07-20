@@ -35,7 +35,7 @@ impl UISystem {
             .get_mut()
             .add_default_component::<Transform>(&self.shared_data);
         let mat = Matrix4::from_translation([100., 100., 0.].into())
-            * Matrix4::from_nonuniform_scale(10., 10., 1.);
+            * Matrix4::from_nonuniform_scale(1000., 1000., 1.);
         transform.resource().get_mut().set_matrix(mat);
 
         if let Some(pipeline) =
