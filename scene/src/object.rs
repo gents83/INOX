@@ -4,13 +4,13 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use nrg_graphics::MaterialInstance;
+use nrg_graphics::{MaterialInstance, MeshInstance};
 use nrg_math::Matrix4;
 use nrg_resources::{
     DataTypeResource, Deserializable, GenericRef, HandleCastTo, ResourceData, ResourceId,
     ResourceRef, SerializableResource, SharedData, SharedDataRw,
 };
-use nrg_serialize::{generate_uid_from_string, INVALID_UID};
+use nrg_serialize::{generate_random_uid, generate_uid_from_string, INVALID_UID};
 
 use crate::{ObjectData, Transform};
 
@@ -92,6 +92,16 @@ impl DataTypeResource for Object {
 }
 
 impl Object {
+    pub fn generate_empty(shared_data: &SharedDataRw) -> ObjectRc {
+        SharedData::add_resource::<Object>(
+            shared_data,
+            Object {
+                id: generate_random_uid(),
+                ..Default::default()
+            },
+        )
+    }
+
     pub fn add_child(&mut self, child: ObjectRc) {
         self.children.push(child);
     }
@@ -114,7 +124,7 @@ impl Object {
         self.components.insert(TypeId::of::<C>(), resource.clone());
         resource
     }
-    pub fn add_component<C>(&mut self, component: ResourceRef<C>)
+    pub fn add_component<C>(&mut self, component: ResourceRef<C>) -> &mut Self
     where
         C: ResourceData,
     {
@@ -125,6 +135,7 @@ impl Object {
         );
         self.components
             .insert(TypeId::of::<C>(), component as GenericRef);
+        self
     }
 
     pub fn get_component<C>(&mut self) -> Option<ResourceRef<C>>
@@ -142,10 +153,8 @@ impl Object {
             let object_matrix = transform.resource().get().matrix();
             let object_matrix = parent_transform * object_matrix;
 
-            if let Some(material) = self.get_component::<MaterialInstance>() {
-                for mesh in material.resource().get().meshes() {
-                    mesh.resource().get_mut().set_transform(object_matrix);
-                }
+            if let Some(mesh) = self.get_component::<MeshInstance>() {
+                mesh.resource().get_mut().set_transform(object_matrix);
             }
 
             let children = self.children();

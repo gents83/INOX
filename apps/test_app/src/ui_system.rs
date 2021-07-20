@@ -1,6 +1,6 @@
 use nrg_core::{JobHandlerRw, System, SystemId};
-use nrg_graphics::{MaterialInstance, MeshData, MeshInstance, PipelineInstance};
-use nrg_math::{MatBase, Matrix4};
+use nrg_graphics::{MaterialInstance, MaterialRc, MeshData, MeshInstance, PipelineInstance};
+use nrg_math::{get_random_f32, MatBase, Matrix4};
 
 use nrg_resources::{DataTypeResource, SharedData, SharedDataRw};
 use nrg_scene::{Object, Scene, SceneRc, Transform};
@@ -10,6 +10,7 @@ pub struct UISystem {
     shared_data: SharedDataRw,
     job_handler: JobHandlerRw,
     ui_scene: SceneRc,
+    ui_default_material: MaterialRc,
 }
 
 impl UISystem {
@@ -19,6 +20,7 @@ impl UISystem {
             shared_data,
             job_handler,
             ui_scene: SceneRc::default(),
+            ui_default_material: MaterialRc::default(),
         }
     }
 
@@ -27,29 +29,53 @@ impl UISystem {
         self
     }
 
-    fn add_2d_quad(&mut self) -> &mut Self {
-        let object = SharedData::add_resource::<Object>(&self.shared_data, Object::default());
-
-        let transform = object
-            .resource()
-            .get_mut()
-            .add_default_component::<Transform>(&self.shared_data);
-        let mat = Matrix4::from_translation([100., 100., 0.].into())
-            * Matrix4::from_nonuniform_scale(1000., 1000., 1.);
-        transform.resource().get_mut().set_matrix(mat);
-
+    fn create_default_material(&mut self) -> &mut Self {
         if let Some(pipeline) =
             SharedData::match_resource(&self.shared_data, |p: &PipelineInstance| {
                 p.data().name == "UI"
             })
         {
-            let material = MaterialInstance::create_from_pipeline(&self.shared_data, pipeline);
+            self.ui_default_material =
+                MaterialInstance::create_from_pipeline(&self.shared_data, pipeline);
+        } else {
+            panic!("No pipeline with name UI has been loaded");
+        }
+        self
+    }
+
+    fn add_2d_quad(&mut self, x: f32, y: f32) -> &mut Self {
+        let object = Object::generate_empty(&self.shared_data);
+
+        let transform = object
+            .resource()
+            .get_mut()
+            .add_default_component::<Transform>(&self.shared_data);
+        let mat = Matrix4::from_translation([x, y, 0.].into())
+            * Matrix4::from_nonuniform_scale(100., 100., 1.);
+        transform.resource().get_mut().set_matrix(mat);
+
+        {
             let mut mesh_data = MeshData::default();
             mesh_data.add_quad_default([0., 0., 1., 1.].into(), 0.);
-            mesh_data.set_vertex_color([1., 0., 0., 1.].into());
+            mesh_data.set_vertex_color(
+                [
+                    get_random_f32(0., 1.),
+                    get_random_f32(0., 1.),
+                    get_random_f32(0., 1.),
+                    1.,
+                ]
+                .into(),
+            );
             let mesh = MeshInstance::create_from_data(&self.shared_data, mesh_data);
-            material.resource().get_mut().add_mesh(mesh);
-            object.resource().get_mut().add_component(material);
+            self.ui_default_material
+                .resource()
+                .get_mut()
+                .add_mesh(mesh.clone());
+            object
+                .resource()
+                .get_mut()
+                .add_component(mesh)
+                .add_component(self.ui_default_material.clone());
         }
 
         self.ui_scene.resource().get_mut().add_object(object);
@@ -86,7 +112,12 @@ impl System for UISystem {
         false
     }
     fn init(&mut self) {
-        self.create_scene().add_2d_quad();
+        self.create_scene().create_default_material();
+        for i in 0..15 {
+            for j in 0..10 {
+                self.add_2d_quad(i as f32 * 150., j as f32 * 150.);
+            }
+        }
     }
 
     fn run(&mut self) -> bool {
