@@ -43,7 +43,7 @@ impl UISystem {
         self
     }
 
-    fn add_2d_quad(&mut self, x: f32, y: f32) -> &mut Self {
+    fn add_2d_quad(&mut self, x: f32, y: f32, size_x: f32, size_y: f32) -> &mut Self {
         let object = Object::generate_empty(&self.shared_data);
 
         let transform = object
@@ -51,7 +51,7 @@ impl UISystem {
             .get_mut()
             .add_default_component::<Transform>(&self.shared_data);
         let mat = Matrix4::from_translation([x, y, 0.].into())
-            * Matrix4::from_nonuniform_scale(100., 100., 1.);
+            * Matrix4::from_nonuniform_scale(size_x, size_y, 1.);
         transform.resource().get_mut().set_matrix(mat);
 
         {
@@ -62,7 +62,7 @@ impl UISystem {
                     get_random_f32(0., 1.),
                     get_random_f32(0., 1.),
                     get_random_f32(0., 1.),
-                    1.,
+                    get_random_f32(0.5, 1.),
                 ]
                 .into(),
             );
@@ -71,6 +71,7 @@ impl UISystem {
                 .resource()
                 .get_mut()
                 .add_mesh(mesh.clone());
+
             object
                 .resource()
                 .get_mut()
@@ -113,9 +114,10 @@ impl System for UISystem {
     }
     fn init(&mut self) {
         self.create_scene().create_default_material();
+
         for i in 0..15 {
             for j in 0..10 {
-                self.add_2d_quad(i as f32 * 150., j as f32 * 150.);
+                self.add_2d_quad(i as f32 * 150., j as f32 * 150., 100., 100.);
             }
         }
     }

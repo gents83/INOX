@@ -1,11 +1,16 @@
 use std::path::PathBuf;
 
+use nrg_binarizer::Binarizer;
 use nrg_core::*;
 use nrg_dynamic_library::library_filename;
+use nrg_resources::{DATA_FOLDER, DATA_RAW_FOLDER};
 use nrg_test::entry_point::EntryPoint;
 
 fn main() {
     let mut app = App::new();
+
+    let mut binarizer = Binarizer::new(app.get_global_messenger(), DATA_RAW_FOLDER, DATA_FOLDER);
+    binarizer.start();
 
     let plugins = ["nrg_window"];
 
@@ -26,4 +31,6 @@ fn main() {
     }
 
     entry_point.unprepare(&mut app);
+
+    binarizer.stop();
 }

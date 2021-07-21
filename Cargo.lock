@@ -871,6 +871,7 @@ dependencies = [
 name = "nrg_test"
 version = "0.1.0"
 dependencies = [
+ "nrg_binarizer",
  "nrg_core",
  "nrg_dynamic_library",
  "nrg_events",
