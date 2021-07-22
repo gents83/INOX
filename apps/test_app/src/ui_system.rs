@@ -7,7 +7,7 @@ use nrg_math::{get_random_f32, Mat4Ops, MatBase, Matrix4, Vector2};
 use nrg_messenger::{read_messages, MessageChannel, MessengerRw};
 use nrg_platform::{MouseButton, MouseEvent, MouseState};
 use nrg_resources::{DataTypeResource, SharedData, SharedDataRw};
-use nrg_scene::{Hitbox, Object, Scene, SceneRc, Transform};
+use nrg_scene::{Hitbox, Object, ObjectRc, Scene, SceneRc, Transform};
 
 pub struct UISystem {
     id: SystemId,
@@ -17,6 +17,7 @@ pub struct UISystem {
     message_channel: MessageChannel,
     ui_scene: SceneRc,
     ui_default_material: MaterialRc,
+    selected_object: Option<ObjectRc>,
 }
 
 impl UISystem {
@@ -34,6 +35,7 @@ impl UISystem {
             message_channel,
             ui_scene: SceneRc::default(),
             ui_default_material: MaterialRc::default(),
+            selected_object: None,
         }
     }
 
@@ -139,8 +141,9 @@ impl UISystem {
     }
 
     fn check_interactions(&mut self, mouse_pos: Vector2) -> &mut Self {
+        let mut selected_hitbox = None;
         let hitboxes = SharedData::get_resources_of_type::<Hitbox>(&self.shared_data);
-        for (i, hitbox) in hitboxes.iter().enumerate() {
+        for hitbox in hitboxes.iter() {
             let min = hitbox.resource().get().min();
             let max = hitbox.resource().get().max();
             if mouse_pos.x >= min.x
@@ -148,13 +151,47 @@ impl UISystem {
                 && mouse_pos.y >= min.y
                 && mouse_pos.y <= max.y
             {
-                println!(
-                    "{:?} is in Hitbox[{}] = |{:?} - {:?}|",
-                    mouse_pos, i, min, max
-                );
+                selected_hitbox = Some(hitbox.clone());
             }
         }
+
+        let mut selected_object = None;
+        if let Some(selected_hitbox) = selected_hitbox {
+            self.unselect();
+            let objects = SharedData::get_resources_of_type::<Object>(&self.shared_data);
+            for object in objects.iter() {
+                if let Some(hitbox) = object.resource().get().get_component::<Hitbox>() {
+                    if hitbox.id() == selected_hitbox.id() {
+                        selected_object = Some(object.clone());
+                    }
+                }
+            }
+        }
+        if let Some(selected_object) = selected_object {
+            self.select(&selected_object);
+        }
         self
+    }
+
+    fn select(&mut self, object: &ObjectRc) {
+        self.selected_object = Some(object.clone());
+
+        if let Some(transform) = object.resource().get().get_component::<Transform>() {
+            let mat = transform.resource().get().matrix();
+            let scale = Matrix4::from_scale(1.2);
+            transform.resource().get_mut().set_matrix(mat * scale);
+        }
+    }
+
+    fn unselect(&mut self) {
+        if let Some(object) = &self.selected_object {
+            if let Some(transform) = object.resource().get().get_component::<Transform>() {
+                let mat = transform.resource().get().matrix();
+                let scale = Matrix4::from_scale(0.8);
+                transform.resource().get_mut().set_matrix(mat * scale);
+            }
+        }
+        self.selected_object = None;
     }
 
     fn update_events(&mut self) -> &mut Self {

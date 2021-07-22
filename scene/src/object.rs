@@ -138,11 +138,11 @@ impl Object {
         self
     }
 
-    pub fn get_component<C>(&mut self) -> Option<ResourceRef<C>>
+    pub fn get_component<C>(&self) -> Option<ResourceRef<C>>
     where
         C: ResourceData,
     {
-        if let Some(component) = self.components.get_mut(&TypeId::of::<C>()) {
+        if let Some(component) = self.components.get(&TypeId::of::<C>()) {
             return Some(component.clone().of_type::<C>());
         }
         None
