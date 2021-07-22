@@ -4,7 +4,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use nrg_graphics::{MaterialInstance, MeshInstance};
+use nrg_graphics::MaterialInstance;
 use nrg_math::Matrix4;
 use nrg_resources::{
     DataTypeResource, Deserializable, GenericRef, HandleCastTo, ResourceData, ResourceId,
@@ -148,21 +148,26 @@ impl Object {
         None
     }
 
-    pub fn update_from_parent(&mut self, shared_data: &SharedDataRw, parent_transform: Matrix4) {
+    pub fn update_from_parent<F>(
+        &mut self,
+        shared_data: &SharedDataRw,
+        parent_transform: Matrix4,
+        f: F,
+    ) where
+        F: Fn(&mut Self, Matrix4) + Copy,
+    {
         if let Some(transform) = self.get_component::<Transform>() {
             let object_matrix = transform.resource().get().matrix();
             let object_matrix = parent_transform * object_matrix;
 
-            if let Some(mesh) = self.get_component::<MeshInstance>() {
-                mesh.resource().get_mut().set_transform(object_matrix);
-            }
+            f(self, object_matrix);
 
             let children = self.children();
             for child in children {
                 child
                     .resource()
                     .get_mut()
-                    .update_from_parent(shared_data, object_matrix);
+                    .update_from_parent(shared_data, object_matrix, f);
             }
         }
     }

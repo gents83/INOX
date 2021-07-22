@@ -1,24 +1,37 @@
+use std::any::TypeId;
+
 use nrg_core::{JobHandlerRw, System, SystemId};
 use nrg_graphics::{MaterialInstance, MaterialRc, MeshData, MeshInstance, PipelineInstance};
-use nrg_math::{get_random_f32, MatBase, Matrix4};
+use nrg_math::{get_random_f32, Mat4Ops, MatBase, Matrix4, Vector2};
 
+use nrg_messenger::{read_messages, MessageChannel, MessengerRw};
+use nrg_platform::{MouseButton, MouseEvent, MouseState};
 use nrg_resources::{DataTypeResource, SharedData, SharedDataRw};
-use nrg_scene::{Object, Scene, SceneRc, Transform};
+use nrg_scene::{Hitbox, Object, Scene, SceneRc, Transform};
 
 pub struct UISystem {
     id: SystemId,
     shared_data: SharedDataRw,
     job_handler: JobHandlerRw,
+    global_messenger: MessengerRw,
+    message_channel: MessageChannel,
     ui_scene: SceneRc,
     ui_default_material: MaterialRc,
 }
 
 impl UISystem {
-    pub fn new(shared_data: SharedDataRw, job_handler: JobHandlerRw) -> Self {
+    pub fn new(
+        shared_data: SharedDataRw,
+        global_messenger: MessengerRw,
+        job_handler: JobHandlerRw,
+    ) -> Self {
+        let message_channel = MessageChannel::default();
         Self {
             id: SystemId::new(),
             shared_data,
             job_handler,
+            global_messenger,
+            message_channel,
             ui_scene: SceneRc::default(),
             ui_default_material: MaterialRc::default(),
         }
@@ -53,6 +66,15 @@ impl UISystem {
         let mat = Matrix4::from_translation([x, y, 0.].into())
             * Matrix4::from_nonuniform_scale(size_x, size_y, 1.);
         transform.resource().get_mut().set_matrix(mat);
+
+        let hitbox = object
+            .resource()
+            .get_mut()
+            .add_default_component::<Hitbox>(&self.shared_data);
+        hitbox
+            .resource()
+            .get_mut()
+            .set_dimensions([0., 0., 0.].into(), [size_x, size_y, 0.].into());
 
         {
             let mut mesh_data = MeshData::default();
@@ -94,12 +116,57 @@ impl UISystem {
                 .write()
                 .unwrap()
                 .add_job(job_name.as_str(), move || {
-                    obj.resource()
-                        .get_mut()
-                        .update_from_parent(&shared_data, Matrix4::default_identity());
+                    obj.resource().get_mut().update_from_parent(
+                        &shared_data,
+                        Matrix4::default_identity(),
+                        |object, object_matrix| {
+                            if let Some(mesh) = object.get_component::<MeshInstance>() {
+                                mesh.resource().get_mut().set_transform(object_matrix);
+                            }
+                            if let Some(hitbox) = object.get_component::<Hitbox>() {
+                                let offset = object_matrix.get_translation();
+                                hitbox
+                                    .resource()
+                                    .get_mut()
+                                    .set_transform(Matrix4::from_translation(offset));
+                            }
+                        },
+                    );
                 });
         }
 
+        self
+    }
+
+    fn check_interactions(&mut self, mouse_pos: Vector2) -> &mut Self {
+        let hitboxes = SharedData::get_resources_of_type::<Hitbox>(&self.shared_data);
+        for (i, hitbox) in hitboxes.iter().enumerate() {
+            let min = hitbox.resource().get().min();
+            let max = hitbox.resource().get().max();
+            if mouse_pos.x >= min.x
+                && mouse_pos.x <= max.x
+                && mouse_pos.y >= min.y
+                && mouse_pos.y <= max.y
+            {
+                println!(
+                    "{:?} is in Hitbox[{}] = |{:?} - {:?}|",
+                    mouse_pos, i, min, max
+                );
+            }
+        }
+        self
+    }
+
+    fn update_events(&mut self) -> &mut Self {
+        read_messages(self.message_channel.get_listener(), |msg| {
+            if msg.type_id() == TypeId::of::<MouseEvent>() {
+                let event = msg.as_any().downcast_ref::<MouseEvent>().unwrap();
+                if event.state == MouseState::Up && event.button == MouseButton::Left {
+                    let mouse_pos = [event.x as f32, event.y as f32].into();
+                    self.check_interactions(mouse_pos);
+                }
+            }
+        });
         self
     }
 }
@@ -113,6 +180,11 @@ impl System for UISystem {
         false
     }
     fn init(&mut self) {
+        self.global_messenger
+            .write()
+            .unwrap()
+            .register_messagebox::<MouseEvent>(self.message_channel.get_messagebox());
+
         self.create_scene().create_default_material();
 
         for i in 0..15 {
@@ -123,9 +195,14 @@ impl System for UISystem {
     }
 
     fn run(&mut self) -> bool {
-        self.update_scene();
+        self.update_scene().update_events();
         true
     }
 
-    fn uninit(&mut self) {}
+    fn uninit(&mut self) {
+        self.global_messenger
+            .write()
+            .unwrap()
+            .unregister_messagebox::<MouseEvent>(self.message_channel.get_messagebox());
+    }
 }

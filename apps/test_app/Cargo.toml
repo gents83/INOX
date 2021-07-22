@@ -17,4 +17,3 @@ nrg_gui = { path = "../../gui" }
 nrg_platform = { path = "../../platform" }
 nrg_serialize = { path = "../../serialize" }
 nrg_scene = { path = "../../scene" }
-

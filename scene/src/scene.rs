@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 
+use nrg_graphics::MeshInstance;
 use nrg_math::{MatBase, Matrix4};
 use nrg_resources::{ResourceData, ResourceId, ResourceRef, SharedDataRw};
 use nrg_serialize::{generate_random_uid, generate_uid_from_string};
@@ -51,10 +52,15 @@ impl Scene {
 
     pub fn update_hierarchy(&mut self, shared_data: &SharedDataRw) {
         for object in self.objects.iter() {
-            object
-                .resource()
-                .get_mut()
-                .update_from_parent(shared_data, Matrix4::default_identity());
+            object.resource().get_mut().update_from_parent(
+                shared_data,
+                Matrix4::default_identity(),
+                |object, object_matrix| {
+                    if let Some(mesh) = object.get_component::<MeshInstance>() {
+                        mesh.resource().get_mut().set_transform(object_matrix);
+                    }
+                },
+            );
         }
     }
 }

@@ -2,7 +2,7 @@ use std::mem::swap;
 
 use cgmath::InnerSpace;
 
-use crate::{get_translation, Matrix4, Vector3};
+use crate::{Mat4Ops, Matrix4, Vector3};
 
 pub fn compute_distance_between_ray_and_oob(
     ray_origin: Vector3,    // Ray origin, in world space
@@ -15,7 +15,7 @@ pub fn compute_distance_between_ray_and_oob(
     let mut t_min = 0.;
     let mut t_max = 10000.0;
 
-    let model_position = get_translation(&model_matrix);
+    let model_position = model_matrix.get_translation();
     let delta = model_position - ray_origin;
 
     // Test intersection with the 2 planes perpendicular to the OBB's X axis
