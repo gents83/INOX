@@ -4,11 +4,11 @@ use nrg_core::{System, SystemId};
 use nrg_graphics::{
     FontInstance, FontRc, PipelineInstance, PipelineRc, RenderPassInstance, RenderPassRc,
 };
-use nrg_gui::Screen;
 use nrg_messenger::{read_messages, Message, MessageChannel, MessengerRw};
 use nrg_platform::{WindowEvent, DEFAULT_DPI};
 use nrg_resources::{ConfigBase, DataTypeResource, FileResource, SharedDataRw};
 use nrg_serialize::deserialize_from_file;
+use nrg_ui::Screen;
 
 use crate::config::Config;
 

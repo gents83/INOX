@@ -876,10 +876,25 @@ dependencies = [
  "nrg_dynamic_library",
  "nrg_events",
  "nrg_graphics",
- "nrg_gui",
  "nrg_math",
  "nrg_messenger",
  "nrg_platform",
+ "nrg_resources",
+ "nrg_scene",
+ "nrg_serialize",
+ "nrg_ui",
+]
+
+[[package]]
+name = "nrg_ui"
+version = "0.1.0"
+dependencies = [
+ "nrg_core",
+ "nrg_graphics",
+ "nrg_math",
+ "nrg_messenger",
+ "nrg_platform",
+ "nrg_profiler",
  "nrg_resources",
  "nrg_scene",
  "nrg_serialize",

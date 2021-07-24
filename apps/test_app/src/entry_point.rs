@@ -1,6 +1,6 @@
-use crate::{main_system::MainSystem, ui_system::UISystem};
+use crate::main_system::MainSystem;
 use nrg_core::{App, PhaseWithSystems, System, SystemId};
-
+use nrg_ui::UISystem;
 const UPDATE_PHASE: &str = "UPDATE_PHASE";
 
 #[repr(C)]
