@@ -9,6 +9,9 @@ build = "build.rs"
 crate-type = ["cdylib",'rlib']
 
 [dependencies]
+egui = { git = "https://github.com/emilk/egui" }
+image = { git = "https://github.com/image-rs/image" }
+
 nrg_core = { path = "../core" }
 nrg_messenger = { path = "../messenger" }
 nrg_math = { path = "../math" }

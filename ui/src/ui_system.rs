@@ -1,13 +1,16 @@
 use std::any::TypeId;
 
+use egui::*;
+use image::{DynamicImage, Pixel};
 use nrg_core::{JobHandlerRw, System, SystemId};
-use nrg_graphics::{MaterialInstance, MaterialRc, MeshData, MeshInstance, PipelineInstance};
-use nrg_math::{get_random_f32, Mat4Ops, MatBase, Matrix4, Vector2};
+use nrg_graphics::{
+    MaterialInstance, MaterialRc, MeshData, MeshInstance, PipelineInstance, TextureInstance,
+    VertexData,
+};
 
 use nrg_messenger::{read_messages, MessageChannel, MessengerRw};
-use nrg_platform::{MouseButton, MouseEvent, MouseState};
+use nrg_platform::{MouseButton, MouseEvent, MouseState, WindowEvent, DEFAULT_DPI};
 use nrg_resources::{DataTypeResource, SharedData, SharedDataRw};
-use nrg_scene::{Hitbox, Object, ObjectRc, Scene, SceneRc, Transform};
 
 pub struct UISystem {
     id: SystemId,
@@ -15,9 +18,12 @@ pub struct UISystem {
     job_handler: JobHandlerRw,
     global_messenger: MessengerRw,
     message_channel: MessageChannel,
-    ui_scene: SceneRc,
+    ui_context: egui::CtxRef,
+    ui_texture_version: u64,
+    ui_input: egui::RawInput,
     ui_default_material: MaterialRc,
-    selected_object: Option<ObjectRc>,
+    ui_theme: u32,
+    ui_scale: f32,
 }
 
 impl UISystem {
@@ -33,15 +39,13 @@ impl UISystem {
             job_handler,
             global_messenger,
             message_channel,
-            ui_scene: SceneRc::default(),
+            ui_context: egui::CtxRef::default(),
+            ui_texture_version: 0,
+            ui_input: egui::RawInput::default(),
             ui_default_material: MaterialRc::default(),
-            selected_object: None,
+            ui_theme: 0,
+            ui_scale: 2.,
         }
-    }
-
-    fn create_scene(&mut self) -> &mut Self {
-        self.ui_scene = SharedData::add_resource::<Scene>(&self.shared_data, Scene::default());
-        self
     }
 
     fn create_default_material(&mut self) -> &mut Self {
@@ -58,153 +62,161 @@ impl UISystem {
         self
     }
 
-    fn add_2d_quad(&mut self, x: f32, y: f32, size_x: f32, size_y: f32) -> &mut Self {
-        let object = Object::generate_empty(&self.shared_data);
-
-        let transform = object
-            .resource()
-            .get_mut()
-            .add_default_component::<Transform>(&self.shared_data);
-        let mat = Matrix4::from_translation([x, y, 0.].into())
-            * Matrix4::from_nonuniform_scale(size_x, size_y, 1.);
-        transform.resource().get_mut().set_matrix(mat);
-
-        let hitbox = object
-            .resource()
-            .get_mut()
-            .add_default_component::<Hitbox>(&self.shared_data);
-        hitbox
-            .resource()
-            .get_mut()
-            .set_dimensions([0., 0., 0.].into(), [size_x, size_y, 0.].into());
-
-        {
-            let mut mesh_data = MeshData::default();
-            mesh_data.add_quad_default([0., 0., 1., 1.].into(), 0.);
-            mesh_data.set_vertex_color(
-                [
-                    get_random_f32(0., 1.),
-                    get_random_f32(0., 1.),
-                    get_random_f32(0., 1.),
-                    get_random_f32(0.5, 1.),
-                ]
-                .into(),
+    fn update_egui_texture(&mut self) -> &mut Self {
+        if self.ui_texture_version != self.ui_context.texture().version {
+            let image = DynamicImage::new_rgba8(
+                self.ui_context.texture().width as _,
+                self.ui_context.texture().height as _,
             );
-            let mesh = MeshInstance::create_from_data(&self.shared_data, mesh_data);
+            let mut image_data = image.to_rgba8();
+            let (width, height) = image_data.dimensions();
+            for x in 0..width {
+                for y in 0..height {
+                    let r = self.ui_context.texture().pixels[(x + y * width) as usize];
+                    image_data.put_pixel(x, y, Pixel::from_channels(r, r, r, r));
+                }
+            }
+            let ui_texture = TextureInstance::create_from_data(&self.shared_data, image_data);
             self.ui_default_material
                 .resource()
                 .get_mut()
-                .add_mesh(mesh.clone());
+                .add_texture(ui_texture);
+            self.ui_texture_version = self.ui_context.texture().version;
+        }
+        self
+    }
 
-            object
+    fn compute_mesh_data(&mut self, clipped_meshes: Vec<ClippedMesh>) -> MeshData {
+        let mut mesh_data = MeshData::default();
+        let mut max_indices = 0;
+        for clipped_mesh in clipped_meshes {
+            let ClippedMesh(_, mesh) = clipped_mesh;
+            if mesh.vertices.is_empty() || mesh.indices.is_empty() {
+                continue;
+            }
+            let vertices: Vec<VertexData> = mesh
+                .vertices
+                .iter()
+                .map(|v| VertexData {
+                    pos: [v.pos.x * self.ui_scale, v.pos.y * self.ui_scale, 0.].into(),
+                    tex_coord: [v.uv.x, v.uv.y].into(),
+                    color: [
+                        v.color.r() as f32 / 255.,
+                        v.color.g() as f32 / 255.,
+                        v.color.b() as f32 / 255.,
+                        v.color.a() as f32 / 255.,
+                    ]
+                    .into(),
+                    ..Default::default()
+                })
+                .collect();
+            let indices: Vec<u32> = mesh.indices.iter().map(|i| i + max_indices).collect();
+            max_indices += vertices.len() as u32;
+            mesh_data.append_mesh(vertices.as_slice(), indices.as_slice());
+        }
+        mesh_data
+    }
+
+    fn update_mesh_in_ui_material(&mut self, mesh_data: MeshData) -> &mut Self {
+        if !self.ui_default_material.resource().get().has_meshes() {
+            let mesh = MeshInstance::create_from_data(&self.shared_data, mesh_data);
+            self.ui_default_material.resource().get_mut().add_mesh(mesh);
+        } else {
+            self.ui_default_material
+                .resource()
+                .get()
+                .meshes()
+                .first()
+                .unwrap()
                 .resource()
                 .get_mut()
-                .add_component(mesh)
-                .add_component(self.ui_default_material.clone());
-        }
-
-        self.ui_scene.resource().get_mut().add_object(object);
-
-        self
-    }
-
-    fn update_scene(&mut self) -> &mut Self {
-        let objects = self.ui_scene.resource().get().get_objects();
-        for (i, obj) in objects.iter().enumerate() {
-            let job_name = format!("Object[{}]", i);
-            let obj = obj.clone();
-            let shared_data = self.shared_data.clone();
-            self.job_handler
-                .write()
-                .unwrap()
-                .add_job(job_name.as_str(), move || {
-                    obj.resource().get_mut().update_from_parent(
-                        &shared_data,
-                        Matrix4::default_identity(),
-                        |object, object_matrix| {
-                            if let Some(mesh) = object.get_component::<MeshInstance>() {
-                                mesh.resource().get_mut().set_transform(object_matrix);
-                            }
-                            if let Some(hitbox) = object.get_component::<Hitbox>() {
-                                let offset = object_matrix.get_translation();
-                                hitbox
-                                    .resource()
-                                    .get_mut()
-                                    .set_transform(Matrix4::from_translation(offset));
-                            }
-                        },
-                    );
-                });
-        }
-
-        self
-    }
-
-    fn check_interactions(&mut self, mouse_pos: Vector2) -> &mut Self {
-        let mut selected_hitbox = None;
-        let hitboxes = SharedData::get_resources_of_type::<Hitbox>(&self.shared_data);
-        for hitbox in hitboxes.iter() {
-            let min = hitbox.resource().get().min();
-            let max = hitbox.resource().get().max();
-            if mouse_pos.x >= min.x
-                && mouse_pos.x <= max.x
-                && mouse_pos.y >= min.y
-                && mouse_pos.y <= max.y
-            {
-                selected_hitbox = Some(hitbox.clone());
-            }
-        }
-
-        let mut selected_object = None;
-        if let Some(selected_hitbox) = selected_hitbox {
-            self.unselect();
-            let objects = SharedData::get_resources_of_type::<Object>(&self.shared_data);
-            for object in objects.iter() {
-                if let Some(hitbox) = object.resource().get().get_component::<Hitbox>() {
-                    if hitbox.id() == selected_hitbox.id() {
-                        selected_object = Some(object.clone());
-                    }
-                }
-            }
-        }
-        if let Some(selected_object) = selected_object {
-            self.select(&selected_object);
+                .set_mesh_data(mesh_data);
         }
         self
-    }
-
-    fn select(&mut self, object: &ObjectRc) {
-        self.selected_object = Some(object.clone());
-
-        if let Some(transform) = object.resource().get().get_component::<Transform>() {
-            let mat = transform.resource().get().matrix();
-            let scale = Matrix4::from_scale(1.2);
-            transform.resource().get_mut().set_matrix(mat * scale);
-        }
-    }
-
-    fn unselect(&mut self) {
-        if let Some(object) = &self.selected_object {
-            if let Some(transform) = object.resource().get().get_component::<Transform>() {
-                let mat = transform.resource().get().matrix();
-                let scale = Matrix4::from_scale(0.8);
-                transform.resource().get_mut().set_matrix(mat * scale);
-            }
-        }
-        self.selected_object = None;
     }
 
     fn update_events(&mut self) -> &mut Self {
+        self.ui_input.events.clear();
         read_messages(self.message_channel.get_listener(), |msg| {
             if msg.type_id() == TypeId::of::<MouseEvent>() {
                 let event = msg.as_any().downcast_ref::<MouseEvent>().unwrap();
-                if event.state == MouseState::Up && event.button == MouseButton::Left {
-                    let mouse_pos = [event.x as f32, event.y as f32].into();
-                    self.check_interactions(mouse_pos);
+                if event.state == MouseState::Move {
+                    self.ui_input.events.push(Event::PointerMoved(pos2(
+                        event.x as f32 / self.ui_scale,
+                        event.y as f32 / self.ui_scale,
+                    )));
+                } else if event.state == MouseState::Down || event.state == MouseState::Up {
+                    self.ui_input.events.push(Event::PointerButton {
+                        pos: pos2(
+                            event.x as f32 / self.ui_scale,
+                            event.y as f32 / self.ui_scale,
+                        ),
+                        button: match event.button {
+                            MouseButton::Right => PointerButton::Secondary,
+                            MouseButton::Middle => PointerButton::Middle,
+                            _ => PointerButton::Primary,
+                        },
+                        pressed: event.state == MouseState::Down,
+                        modifiers: Default::default(),
+                    });
+                }
+            } else if msg.type_id() == TypeId::of::<WindowEvent>() {
+                let event = msg.as_any().downcast_ref::<WindowEvent>().unwrap();
+                match *event {
+                    WindowEvent::SizeChanged(width, height) => {
+                        self.ui_input.screen_rect = Some(Rect::from_min_size(
+                            Default::default(),
+                            vec2(width as f32, height as f32),
+                        ));
+                    }
+                    WindowEvent::DpiChanged(x, _y) => {
+                        self.ui_input.pixels_per_point = Some(x / DEFAULT_DPI);
+                    }
+                    _ => {}
                 }
             }
         });
         self
+    }
+
+    fn draw_ui(&mut self) {
+        let mut theme = self.ui_theme;
+        SidePanel::left("SidePanel").show(&self.ui_context, |ui| {
+            ui.heading("Hello");
+            ui.label("Ciao GENTS!");
+            ui.separator();
+            ui.horizontal(|ui| {
+                ui.label("Theme");
+                let id = ui.make_persistent_id("theme_combo_box_side");
+                ComboBox::from_id_source(id)
+                    .selected_text((if theme == 0 { "Dark" } else { "Light" }).to_string())
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(&mut theme, 0, "Dark");
+                        ui.selectable_value(&mut theme, 1, "Light");
+                    });
+            });
+            ui.separator();
+            ui.hyperlink("https://github.com/emilk/egui");
+            ui.separator();
+        });
+
+        egui::Window::new("Test")
+            .scroll(true)
+            .title_bar(true)
+            .resizable(true)
+            .show(&self.ui_context, |ui| {
+                ui.heading("My egui Application");
+                self.ui_input.ui(ui);
+            });
+
+        if self.ui_theme != theme {
+            self.ui_theme = theme;
+            if self.ui_theme == 0 {
+                self.ui_context.set_visuals(Visuals::dark());
+            } else {
+                self.ui_context.set_visuals(Visuals::light());
+            }
+        }
     }
 }
 
@@ -220,19 +232,26 @@ impl System for UISystem {
         self.global_messenger
             .write()
             .unwrap()
+            .register_messagebox::<WindowEvent>(self.message_channel.get_messagebox())
             .register_messagebox::<MouseEvent>(self.message_channel.get_messagebox());
 
-        self.create_scene().create_default_material();
-
-        for i in 0..15 {
-            for j in 0..10 {
-                self.add_2d_quad(i as f32 * 150., j as f32 * 150., 100., 100.);
-            }
-        }
+        self.create_default_material();
     }
 
     fn run(&mut self) -> bool {
-        self.update_scene().update_events();
+        self.update_events();
+
+        self.ui_context.begin_frame(self.ui_input.take());
+
+        self.draw_ui();
+
+        let (_, shapes) = self.ui_context.end_frame();
+        let clipped_meshes = self.ui_context.tessellate(shapes);
+
+        let mesh_data = self.compute_mesh_data(clipped_meshes);
+        self.update_mesh_in_ui_material(mesh_data)
+            .update_egui_texture();
+
         true
     }
 
@@ -240,6 +259,7 @@ impl System for UISystem {
         self.global_messenger
             .write()
             .unwrap()
-            .unregister_messagebox::<MouseEvent>(self.message_channel.get_messagebox());
+            .unregister_messagebox::<MouseEvent>(self.message_channel.get_messagebox())
+            .unregister_messagebox::<WindowEvent>(self.message_channel.get_messagebox());
     }
 }

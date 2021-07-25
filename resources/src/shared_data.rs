@@ -84,6 +84,9 @@ impl SharedData {
     pub fn get_resources_of_type<T: ResourceData>(
         shared_data: &SharedDataRw,
     ) -> Vec<ResourceRef<T>> {
+        if !Self::has_resources_of_type::<T>(shared_data) {
+            return Vec::new();
+        }
         let shared_data = shared_data.read().unwrap();
         let handles = shared_data.get_storage::<T>().handles();
         handles.into_iter().map(|h| h.of_type::<T>()).collect()

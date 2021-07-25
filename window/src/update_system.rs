@@ -7,12 +7,10 @@ use std::{
     thread,
 };
 
-use crate::config::*;
-
 use nrg_core::*;
 use nrg_graphics::*;
 use nrg_messenger::{read_messages, MessageChannel, MessengerRw};
-use nrg_resources::{DataTypeResource, ResourceEvent, SharedData, SharedDataRw};
+use nrg_resources::{ResourceEvent, SharedData, SharedDataRw};
 use nrg_serialize::INVALID_UID;
 
 pub struct UpdateSystem {
@@ -20,7 +18,6 @@ pub struct UpdateSystem {
     renderer: RendererRw,
     shared_data: SharedDataRw,
     job_handler: JobHandlerRw,
-    config: Config,
     message_channel: MessageChannel,
 }
 
@@ -30,7 +27,6 @@ impl UpdateSystem {
         shared_data: &SharedDataRw,
         global_messenger: &MessengerRw,
         job_handler: JobHandlerRw,
-        config: &Config,
     ) -> Self {
         let message_channel = MessageChannel::default();
         global_messenger
@@ -43,7 +39,6 @@ impl UpdateSystem {
             renderer,
             shared_data: shared_data.clone(),
             job_handler,
-            config: config.clone(),
             message_channel,
         }
     }
@@ -60,9 +55,6 @@ impl System for UpdateSystem {
         false
     }
     fn init(&mut self) {
-        for pipeline_data in self.config.get_pipelines().iter() {
-            PipelineInstance::create_from_data(&self.shared_data, pipeline_data.clone());
-        }
     }
 
     fn run(&mut self) -> bool {
@@ -100,11 +92,6 @@ impl System for UpdateSystem {
             }
         });
 
-        if SharedData::has_resources_of_type::<RenderPassInstance>(&self.shared_data)
-            && SharedData::has_resources_of_type::<PipelineInstance>(&self.shared_data)
-            && SharedData::has_resources_of_type::<MaterialInstance>(&self.shared_data)
-            && SharedData::has_resources_of_type::<TextureInstance>(&self.shared_data)
-            && SharedData::has_resources_of_type::<FontInstance>(&self.shared_data)
         {
             let mut renderer = self.renderer.write().unwrap();
             let mut render_passes =
@@ -141,7 +128,7 @@ impl System for UpdateSystem {
                         let mut diffuse_texture_id = INVALID_UID;
                         let diffuse_color = material_instance.resource().get().diffuse_color();
                         let outline_color = material_instance.resource().get().outline_color();
-                        let pipeline_id = material_instance.resource().get().pipeline().id();
+                        let pipeline = material_instance.resource().get().pipeline();
                         
                         let (diffuse_texture_index, diffuse_layer_index) =
                         if !material_instance.resource().get().has_diffuse_texture() {
@@ -166,6 +153,7 @@ impl System for UpdateSystem {
                                     let mesh_id = mesh_instance.id();
                                     let shared_data = self.shared_data.clone();
                                     let r = self.renderer.clone();
+                                    let pipeline = pipeline.clone();
                                     let wait_count = wait_count.clone();
 
                                     wait_count.fetch_add(1, Ordering::SeqCst);
@@ -184,7 +172,7 @@ impl System for UpdateSystem {
                                                 &shared_data, mesh_id
                                             );
 
-                                            if !diffuse_texture_id.is_nil() {
+                                            if !diffuse_texture_id.is_nil() && diffuse_texture_index >= 0 && diffuse_layer_index >= 0 {
                                                 let renderer = r.read().unwrap();
                                                 let diffuse_texture = renderer
                                                     .get_texture_handler()
@@ -201,7 +189,7 @@ impl System for UpdateSystem {
                                             if let Some(pipeline) = renderer
                                                 .get_pipelines()
                                                 .iter_mut()
-                                                .find(|p| p.id() == pipeline_id)
+                                                .find(|p| p.id() == pipeline.id())
                                             {
                                                 pipeline.add_mesh_instance(
                                                     &mesh_instance.resource().get(),
@@ -211,7 +199,7 @@ impl System for UpdateSystem {
                                                     outline_color,
                                                 );
                                             } else {
-                                                eprintln!("Tyring to render with an unregistered pipeline {}", pipeline_id.to_simple().to_string());
+                                                eprintln!("Tyring to render with an unregistered pipeline {}", pipeline.resource().get().data().name);
                                             }
 
                                             wait_count.fetch_sub(1, Ordering::SeqCst);

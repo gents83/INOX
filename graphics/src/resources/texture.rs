@@ -1,10 +1,11 @@
 use std::path::{Path, PathBuf};
 
+use image::RgbaImage;
 use nrg_resources::{
-    convert_from_local_path, FileResource, ResourceData, ResourceId, ResourceRef, SharedData,
-    SharedDataRw, DATA_FOLDER,
+    convert_from_local_path, DataTypeResource, FileResource, ResourceData, ResourceId, ResourceRef,
+    SharedData, SharedDataRw, DATA_FOLDER,
 };
-use nrg_serialize::{generate_uid_from_string, INVALID_UID};
+use nrg_serialize::{generate_random_uid, generate_uid_from_string, INVALID_UID};
 
 use crate::INVALID_INDEX;
 
@@ -14,6 +15,7 @@ pub type TextureRc = ResourceRef<TextureInstance>;
 pub struct TextureInstance {
     id: ResourceId,
     path: PathBuf,
+    image_data: Option<RgbaImage>,
     texture_index: i32,
     layer_index: i32,
     is_initialized: bool,
@@ -24,6 +26,7 @@ impl Default for TextureInstance {
         Self {
             id: INVALID_UID,
             path: PathBuf::new(),
+            image_data: None,
             texture_index: INVALID_INDEX,
             layer_index: INVALID_INDEX,
             is_initialized: false,
@@ -34,6 +37,20 @@ impl Default for TextureInstance {
 impl ResourceData for TextureInstance {
     fn id(&self) -> ResourceId {
         self.id
+    }
+}
+
+impl DataTypeResource for TextureInstance {
+    type DataType = RgbaImage;
+    fn create_from_data(shared_data: &SharedDataRw, image_data: Self::DataType) -> TextureRc {
+        SharedData::add_resource(
+            shared_data,
+            TextureInstance {
+                id: generate_random_uid(),
+                image_data: Some(image_data),
+                ..Default::default()
+            },
+        )
     }
 }
 
@@ -59,6 +76,9 @@ impl TextureInstance {
     }
     pub fn path(&self) -> &Path {
         self.path.as_path()
+    }
+    pub fn image_data(&mut self) -> Option<RgbaImage> {
+        self.image_data.take()
     }
     pub fn set_texture_data(&mut self, texture_index: u32, layer_index: u32) -> &mut Self {
         self.texture_index = texture_index as _;

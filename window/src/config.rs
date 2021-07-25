@@ -1,6 +1,5 @@
-use nrg_graphics::PipelineData;
-use nrg_math::*;
-use nrg_resources::*;
+use nrg_math::{VecBase, Vector2};
+use nrg_resources::{ConfigBase, Data};
 use nrg_serialize::*;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -26,7 +25,6 @@ pub struct Config {
     height: u32,
     icon: String,
     vk_data: VkData,
-    pipelines: Vec<PipelineData>,
 }
 
 impl Default for Config {
@@ -38,7 +36,6 @@ impl Default for Config {
             height: 720,
             icon: String::from("./data/icons/nrg.ico"),
             vk_data: VkData::default(),
-            pipelines: Vec::new(),
         }
     }
 }
@@ -68,9 +65,6 @@ impl Config {
     }
     pub fn get_position(&self) -> &Vector2 {
         &self.position
-    }
-    pub fn get_pipelines(&self) -> &Vec<PipelineData> {
-        &self.pipelines
     }
     pub fn is_debug_validation_layers_enabled(&self) -> bool {
         self.vk_data.debug_validation_layers

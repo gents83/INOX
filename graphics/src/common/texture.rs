@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use image::{DynamicImage, EncodableLayout, Pixel};
+use image::{DynamicImage, EncodableLayout, Pixel, RgbaImage};
 use nrg_serialize::{generate_random_uid, Uid};
 
 use crate::{api::backend, Area, AreaAllocator, DEFAULT_AREA_SIZE, INVALID_INDEX};
@@ -73,13 +73,11 @@ pub struct TextureHandler {
 
 impl TextureHandler {
     pub fn create(device: &Device) -> Self {
-        let mut texture_handler = Self {
+        Self {
             device: device.clone(),
             texture_atlas: vec![TextureAtlas::create(device)],
             textures: Vec::new(),
-        };
-        texture_handler.add_empty();
-        texture_handler
+        }
     }
 
     pub fn get_texture(&self, id: Uid) -> &Texture {
@@ -91,8 +89,7 @@ impl TextureHandler {
         self.textures.is_empty()
     }
 
-    pub fn add(&mut self, id: Uid, image: DynamicImage) -> (u32, u32) {
-        let image_data = image.to_rgba8();
+    pub fn add(&mut self, id: Uid, image_data: RgbaImage) -> (u32, u32) {
         let (texture_index, layer_index, area) = self.add_image(
             image_data.width(),
             image_data.height(),
@@ -119,7 +116,7 @@ impl TextureHandler {
 
     pub fn add_from_path(&mut self, id: Uid, filepath: &Path) -> (u32, u32) {
         let image = image::open(filepath).unwrap();
-        self.add(id, image)
+        self.add(id, image.to_rgba8())
     }
 
     pub fn remove(&mut self, id: Uid) {

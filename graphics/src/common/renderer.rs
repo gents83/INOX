@@ -295,6 +295,10 @@ impl Renderer {
         let texture_handler = &mut self.texture_handler;
         textures.iter_mut().for_each(|texture_instance| {
             if !texture_instance.resource().get().is_initialized() {
+                println!(
+                    "Loading texture {:?}",
+                    texture_instance.resource().get().path()
+                );
                 if texture_instance.resource().get().texture_index() != INVALID_INDEX {
                     //texture needs to be recreated
                     texture_handler.remove(texture_instance.id());
@@ -303,13 +307,17 @@ impl Renderer {
                     PathBuf::from(DATA_FOLDER).as_path(),
                     texture_instance.resource().get().path(),
                 );
-                let (texture_index, layer_index) = if is_texture(path.as_path()) {
+                let (texture_index, layer_index) = if let Some(image_data) =
+                    texture_instance.resource().get_mut().image_data()
+                {
+                    texture_handler.add(texture_instance.id(), image_data)
+                } else if is_texture(path.as_path()) {
                     texture_handler.add_from_path(texture_instance.id(), path.as_path())
                 } else if let Some(font) = fonts.iter().find(|f| f.resource().get().path() == path)
                 {
                     texture_handler.add(
                         texture_instance.id(),
-                        font.resource().get().font().get_texture().clone(),
+                        font.resource().get().font().get_texture(),
                     )
                 } else {
                     panic!("Unable to load texture with path {:?}", path.as_path());

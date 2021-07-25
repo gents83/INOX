@@ -138,6 +138,9 @@ impl MaterialInstance {
     pub fn remove_mesh(&mut self, mesh_id: MeshId) {
         self.meshes.retain(|m| m.id() != mesh_id);
     }
+    pub fn remove_all_meshes(&mut self) {
+        self.meshes.clear();
+    }
 
     pub fn set_diffuse_color(&mut self, diffuse_color: Vector4) {
         self.diffuse_color = diffuse_color;

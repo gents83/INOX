@@ -166,8 +166,8 @@ impl Font {
         }
     }
 
-    pub fn get_texture(&self) -> &DynamicImage {
-        &self.image
+    pub fn get_texture(&self) -> RgbaImage {
+        self.image.to_rgba8()
     }
 
     fn create_texture(glyphs: &mut [Glyph], metrics: &Metrics) -> DynamicImage {

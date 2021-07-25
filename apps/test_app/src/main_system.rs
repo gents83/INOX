@@ -1,14 +1,11 @@
-use std::any::TypeId;
-
 use nrg_core::{System, SystemId};
 use nrg_graphics::{
     FontInstance, FontRc, PipelineInstance, PipelineRc, RenderPassInstance, RenderPassRc,
 };
-use nrg_messenger::{read_messages, Message, MessageChannel, MessengerRw};
-use nrg_platform::{WindowEvent, DEFAULT_DPI};
+use nrg_messenger::{Message, MessengerRw};
+use nrg_platform::WindowEvent;
 use nrg_resources::{ConfigBase, DataTypeResource, FileResource, SharedDataRw};
 use nrg_serialize::deserialize_from_file;
-use nrg_ui::Screen;
 
 use crate::config::Config;
 
@@ -17,7 +14,6 @@ pub struct MainSystem {
     config: Config,
     shared_data: SharedDataRw,
     global_messenger: MessengerRw,
-    message_channel: MessageChannel,
     pipelines: Vec<PipelineRc>,
     render_passes: Vec<RenderPassRc>,
     fonts: Vec<FontRc>,
@@ -25,18 +21,11 @@ pub struct MainSystem {
 
 impl MainSystem {
     pub fn new(shared_data: SharedDataRw, global_messenger: MessengerRw) -> Self {
-        let message_channel = MessageChannel::default();
-
-        global_messenger
-            .write()
-            .unwrap()
-            .register_messagebox::<WindowEvent>(message_channel.get_messagebox());
         Self {
             id: SystemId::new(),
             config: Config::default(),
             shared_data,
             global_messenger,
-            message_channel,
             pipelines: Vec::new(),
             render_passes: Vec::new(),
             fonts: Vec::new(),
@@ -88,23 +77,6 @@ impl MainSystem {
         );
         self.send_event(WindowEvent::RequestChangeVisible(true).as_boxed());
     }
-
-    fn process_messages(&mut self) {
-        read_messages(self.message_channel.get_listener(), |msg| {
-            if msg.type_id() == TypeId::of::<WindowEvent>() {
-                let event = msg.as_any().downcast_ref::<WindowEvent>().unwrap();
-                match *event {
-                    WindowEvent::SizeChanged(width, height) => {
-                        Screen::change_size(width, height);
-                    }
-                    WindowEvent::DpiChanged(x, _y) => {
-                        Screen::change_scale_factor(x / DEFAULT_DPI);
-                    }
-                    _ => {}
-                }
-            }
-        });
-    }
 }
 
 impl System for MainSystem {
@@ -121,16 +93,9 @@ impl System for MainSystem {
 
         self.window_init();
         self.load_pipelines();
-
-        Screen::create(
-            self.config.width,
-            self.config.height,
-            self.config.scale_factor,
-        );
     }
 
     fn run(&mut self) -> bool {
-        self.process_messages();
         true
     }
 

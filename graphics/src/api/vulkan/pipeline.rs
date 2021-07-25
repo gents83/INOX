@@ -349,7 +349,7 @@ impl PipelineImmutable {
             depthClampEnable: VK_TRUE,
             rasterizerDiscardEnable: VK_FALSE,
             polygonMode: VkPolygonMode_VK_POLYGON_MODE_FILL,
-            cullMode: VkCullModeFlagBits_VK_CULL_MODE_BACK_BIT as VkCullModeFlags,
+            cullMode: VkCullModeFlagBits_VK_CULL_MODE_NONE as VkCullModeFlags,
             frontFace: VkFrontFace_VK_FRONT_FACE_CLOCKWISE,
             depthBiasEnable: VK_FALSE,
             depthBiasConstantFactor: 0.0,
@@ -374,7 +374,7 @@ impl PipelineImmutable {
             failOp: VkStencilOp_VK_STENCIL_OP_KEEP,
             passOp: VkStencilOp_VK_STENCIL_OP_KEEP,
             depthFailOp: VkStencilOp_VK_STENCIL_OP_KEEP,
-            compareOp: VkCompareOp_VK_COMPARE_OP_NEVER,
+            compareOp: VkCompareOp_VK_COMPARE_OP_ALWAYS,
             compareMask: 0,
             writeMask: 0,
             reference: 0,
@@ -397,7 +397,7 @@ impl PipelineImmutable {
 
         let color_blend_attachment = VkPipelineColorBlendAttachmentState {
             blendEnable: VK_TRUE,
-            srcColorBlendFactor: VkBlendFactor_VK_BLEND_FACTOR_SRC_ALPHA,
+            srcColorBlendFactor: VkBlendFactor_VK_BLEND_FACTOR_ONE,
             dstColorBlendFactor: VkBlendFactor_VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
             colorBlendOp: VkBlendOp_VK_BLEND_OP_ADD,
             srcAlphaBlendFactor: VkBlendFactor_VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
