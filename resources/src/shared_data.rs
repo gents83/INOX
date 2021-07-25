@@ -137,6 +137,9 @@ impl SharedData {
     }
     #[inline]
     pub fn get_num_resources_of_type<T: ResourceData>(shared_data: &SharedDataRw) -> usize {
+        if !Self::has_resources_of_type::<T>(shared_data) {
+            return 0;
+        }
         let shared_data = shared_data.read().unwrap();
         let rs = shared_data.storage.get(&TypeId::of::<T>()).unwrap();
         rs.count()

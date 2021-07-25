@@ -1,11 +1,21 @@
+use std::{
+    collections::VecDeque,
+    time::{Duration, Instant},
+};
+
 use nrg_core::{System, SystemId};
 use nrg_graphics::{
-    FontInstance, FontRc, PipelineInstance, PipelineRc, RenderPassInstance, RenderPassRc,
+    FontInstance, FontRc, MaterialInstance, MeshInstance, PipelineInstance, PipelineRc,
+    RenderPassInstance, RenderPassRc, TextureInstance,
 };
 use nrg_messenger::{Message, MessengerRw};
 use nrg_platform::WindowEvent;
-use nrg_resources::{ConfigBase, DataTypeResource, FileResource, SharedDataRw};
+use nrg_resources::{
+    ConfigBase, DataTypeResource, FileResource, ResourceData, SharedData, SharedDataRw,
+};
+use nrg_scene::{Object, Scene, Transform};
 use nrg_serialize::deserialize_from_file;
+use nrg_ui::{implement_widget_data, UIWidget, UIWidgetRc, Ui, Window};
 
 use crate::config::Config;
 
@@ -17,6 +27,7 @@ pub struct MainSystem {
     pipelines: Vec<PipelineRc>,
     render_passes: Vec<RenderPassRc>,
     fonts: Vec<FontRc>,
+    ui_page: UIWidgetRc,
 }
 
 impl MainSystem {
@@ -29,6 +40,7 @@ impl MainSystem {
             pipelines: Vec::new(),
             render_passes: Vec::new(),
             fonts: Vec::new(),
+            ui_page: UIWidgetRc::default(),
         }
     }
 
@@ -77,6 +89,72 @@ impl MainSystem {
         );
         self.send_event(WindowEvent::RequestChangeVisible(true).as_boxed());
     }
+
+    fn resource_ui<R>(shared_data: &SharedDataRw, ui: &mut Ui, title: &str)
+    where
+        R: ResourceData,
+    {
+        ui.collapsing(
+            format!(
+                "{}: {}",
+                title,
+                SharedData::get_num_resources_of_type::<R>(shared_data)
+            ),
+            |ui| {
+                let resources = SharedData::get_resources_of_type::<R>(&shared_data);
+                for r in resources.iter() {
+                    ui.label(r.id().to_string());
+                }
+            },
+        );
+    }
+
+    fn create_ui(&mut self) -> &mut Self {
+        struct FPSData {
+            frame_seconds: VecDeque<Instant>,
+            shared_data: SharedDataRw,
+        }
+        implement_widget_data!(FPSData);
+        let data = FPSData {
+            frame_seconds: VecDeque::default(),
+            shared_data: self.shared_data.clone(),
+        };
+        self.ui_page = UIWidget::register(&self.shared_data, data, |ui_data, ui_context| {
+            if let Some(fps_data) = ui_data.as_any().downcast_mut::<FPSData>() {
+                let now = Instant::now();
+                let one_sec_before = now - Duration::from_secs(1);
+                fps_data.frame_seconds.push_back(now);
+                fps_data.frame_seconds.retain(|t| *t >= one_sec_before);
+
+                Window::new("Stats")
+                    .scroll(true)
+                    .title_bar(true)
+                    .resizable(true)
+                    .show(&ui_context, |ui| {
+                        ui.label(format!("FPS: {}", fps_data.frame_seconds.len()));
+                        ui.separator();
+                        Self::resource_ui::<PipelineInstance>(
+                            &fps_data.shared_data,
+                            ui,
+                            "Pipeline",
+                        );
+                        Self::resource_ui::<FontInstance>(&fps_data.shared_data, ui, "Font");
+                        Self::resource_ui::<MaterialInstance>(
+                            &fps_data.shared_data,
+                            ui,
+                            "Material",
+                        );
+                        Self::resource_ui::<TextureInstance>(&fps_data.shared_data, ui, "Texture");
+                        Self::resource_ui::<MeshInstance>(&fps_data.shared_data, ui, "Mesh");
+                        ui.separator();
+                        Self::resource_ui::<Scene>(&fps_data.shared_data, ui, "Scene");
+                        Self::resource_ui::<Object>(&fps_data.shared_data, ui, "Object");
+                        Self::resource_ui::<Transform>(&fps_data.shared_data, ui, "Transform");
+                    });
+            }
+        });
+        self
+    }
 }
 
 impl System for MainSystem {
@@ -93,6 +171,8 @@ impl System for MainSystem {
 
         self.window_init();
         self.load_pipelines();
+
+        self.create_ui();
     }
 
     fn run(&mut self) -> bool {

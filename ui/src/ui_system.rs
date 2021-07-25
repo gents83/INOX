@@ -1,6 +1,6 @@
 use std::any::TypeId;
 
-use egui::*;
+use crate::*;
 use image::{DynamicImage, Pixel};
 use nrg_core::{JobHandlerRw, System, SystemId};
 use nrg_graphics::{
@@ -18,11 +18,10 @@ pub struct UISystem {
     job_handler: JobHandlerRw,
     global_messenger: MessengerRw,
     message_channel: MessageChannel,
-    ui_context: egui::CtxRef,
+    ui_context: CtxRef,
     ui_texture_version: u64,
-    ui_input: egui::RawInput,
+    ui_input: RawInput,
     ui_default_material: MaterialRc,
-    ui_theme: u32,
     ui_scale: f32,
 }
 
@@ -39,11 +38,10 @@ impl UISystem {
             job_handler,
             global_messenger,
             message_channel,
-            ui_context: egui::CtxRef::default(),
+            ui_context: CtxRef::default(),
             ui_texture_version: 0,
-            ui_input: egui::RawInput::default(),
+            ui_input: RawInput::default(),
             ui_default_material: MaterialRc::default(),
-            ui_theme: 0,
             ui_scale: 2.,
         }
     }
@@ -166,7 +164,7 @@ impl UISystem {
                     WindowEvent::SizeChanged(width, height) => {
                         self.ui_input.screen_rect = Some(Rect::from_min_size(
                             Default::default(),
-                            vec2(width as f32, height as f32),
+                            vec2(width as f32 / self.ui_scale, height as f32 / self.ui_scale),
                         ));
                     }
                     WindowEvent::DpiChanged(x, _y) => {
@@ -180,42 +178,9 @@ impl UISystem {
     }
 
     fn draw_ui(&mut self) {
-        let mut theme = self.ui_theme;
-        SidePanel::left("SidePanel").show(&self.ui_context, |ui| {
-            ui.heading("Hello");
-            ui.label("Ciao GENTS!");
-            ui.separator();
-            ui.horizontal(|ui| {
-                ui.label("Theme");
-                let id = ui.make_persistent_id("theme_combo_box_side");
-                ComboBox::from_id_source(id)
-                    .selected_text((if theme == 0 { "Dark" } else { "Light" }).to_string())
-                    .show_ui(ui, |ui| {
-                        ui.selectable_value(&mut theme, 0, "Dark");
-                        ui.selectable_value(&mut theme, 1, "Light");
-                    });
-            });
-            ui.separator();
-            ui.hyperlink("https://github.com/emilk/egui");
-            ui.separator();
-        });
-
-        egui::Window::new("Test")
-            .scroll(true)
-            .title_bar(true)
-            .resizable(true)
-            .show(&self.ui_context, |ui| {
-                ui.heading("My egui Application");
-                self.ui_input.ui(ui);
-            });
-
-        if self.ui_theme != theme {
-            self.ui_theme = theme;
-            if self.ui_theme == 0 {
-                self.ui_context.set_visuals(Visuals::dark());
-            } else {
-                self.ui_context.set_visuals(Visuals::light());
-            }
+        let widgets = SharedData::get_resources_of_type::<UIWidget>(&self.shared_data);
+        for widget in widgets {
+            widget.resource().get_mut().execute(&self.ui_context);
         }
     }
 }
