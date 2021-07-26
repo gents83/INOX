@@ -332,7 +332,6 @@ source = "git+https://github.com/marcianx/downcast-rs#0aaf951bee097184e9c83c5171
 [[package]]
 name = "egui"
 version = "0.13.1"
-source = "git+https://github.com/gents83/egui#52d187ab5f036e1a0fa47892bce2eba2d4ada0f0"
 dependencies = [
  "epaint",
 ]
@@ -346,7 +345,6 @@ checksum = "e78d4f1cc4ae33bbfc157ed5d5a5ef3bc29227303d595861deb238fcec4e9457"
 [[package]]
 name = "emath"
 version = "0.13.0"
-source = "git+https://github.com/gents83/egui#52d187ab5f036e1a0fa47892bce2eba2d4ada0f0"
 
 [[package]]
 name = "env_logger"
@@ -364,7 +362,6 @@ dependencies = [
 [[package]]
 name = "epaint"
 version = "0.13.0"
-source = "git+https://github.com/gents83/egui#52d187ab5f036e1a0fa47892bce2eba2d4ada0f0"
 dependencies = [
  "ab_glyph",
  "ahash",

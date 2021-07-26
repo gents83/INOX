@@ -10,7 +10,7 @@ use nrg_graphics::{
 };
 use nrg_messenger::{Message, MessengerRw};
 use nrg_platform::WindowEvent;
-use nrg_resources::{ConfigBase, DataTypeResource, FileResource, SharedDataRw};
+use nrg_resources::{ConfigBase, DataTypeResource, FileResource, SharedDataRw, DATA_FOLDER};
 use nrg_serialize::{deserialize_from_file, Uid};
 use nrg_ui::{
     implement_widget_data, CollapsingHeader, ScrollArea, SidePanel, UIWidget, UIWidgetRc, Ui,
@@ -18,10 +18,12 @@ use nrg_ui::{
 
 use crate::config::Config;
 
+#[allow(dead_code)]
 struct FolderDialogData {
     shared_data: SharedDataRw,
     title: String,
     folder: PathBuf,
+    selected_folder: PathBuf,
     is_editable: bool,
     requester_uid: Option<Uid>,
 }
@@ -109,7 +111,7 @@ impl ContentBrowserSystem {
             folder: if args.len() > 2 {
                 PathBuf::from(args[2].as_str())
             } else {
-                PathBuf::new()
+                PathBuf::from(DATA_FOLDER)
             },
             requester_uid: if args.len() > 3 {
                 Uid::parse_str(args[3].as_str()).ok()
@@ -121,19 +123,36 @@ impl ContentBrowserSystem {
             } else {
                 false
             },
+            selected_folder: if args.len() > 2 {
+                PathBuf::from(args[2].as_str())
+            } else {
+                PathBuf::new()
+            },
         }
     }
 
-    fn populate_with_folders_tree(ui: &mut Ui, root: &Path) {
+    fn populate_with_folders_tree(ui: &mut Ui, root: &Path, data: &mut FolderDialogData) {
         for_each_folder_in(root, |path| {
+            let selected = data.selected_folder == path.to_path_buf();
             if is_folder_empty(path) {
-                ui.selectable_label(false, path.file_stem().unwrap().to_str().unwrap());
+                if ui
+                    .selectable_label(selected, path.file_stem().unwrap().to_str().unwrap())
+                    .clicked()
+                {
+                    data.selected_folder = path.to_path_buf();
+                }
             } else {
-                CollapsingHeader::new(path.file_stem().unwrap().to_str().unwrap())
-                    //.selectable(true)
+                let collapsing = CollapsingHeader::new(path.file_stem().unwrap().to_str().unwrap())
+                    .selectable(true)
+                    .selected(selected);
+                let header_response = collapsing
                     .show(ui, |ui| {
-                        Self::populate_with_folders_tree(ui, path);
-                    });
+                        Self::populate_with_folders_tree(ui, path, data);
+                    })
+                    .header_response;
+                if header_response.clicked() {
+                    data.selected_folder = path.to_path_buf();
+                }
             }
         });
     }
@@ -147,7 +166,8 @@ impl ContentBrowserSystem {
                     .min_width(200.)
                     .show(ui_context, |ui| {
                         ScrollArea::auto_sized().show(ui, |ui| {
-                            Self::populate_with_folders_tree(ui, data.folder.as_path());
+                            let path = data.folder.as_path().to_path_buf();
+                            Self::populate_with_folders_tree(ui, path.as_path(), data);
                         })
                     });
             }
