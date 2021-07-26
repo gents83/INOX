@@ -1,6 +1,6 @@
 #![allow(improper_ctypes_definitions)]
 
-use nrg_dynamic_library::Library;
+use nrg_filesystem::Library;
 use nrg_platform::{get_raw_thread_id, RawThreadId};
 use std::{
     cell::RefCell,

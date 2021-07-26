@@ -4,6 +4,7 @@ pub use cgmath::*;
 
 pub use crate::angle::*;
 pub use crate::matrix::*;
+pub use crate::parser::*;
 pub use crate::quaternion::*;
 pub use crate::random::*;
 pub use crate::ray::*;
@@ -12,6 +13,7 @@ pub use crate::vector::*;
 
 pub mod angle;
 pub mod matrix;
+pub mod parser;
 pub mod quaternion;
 pub mod random;
 pub mod ray;

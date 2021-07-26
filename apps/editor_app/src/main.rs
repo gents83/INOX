@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use nrg_binarizer::Binarizer;
 use nrg_core::*;
-use nrg_dynamic_library::library_filename;
+use nrg_filesystem::library_filename;
 use nrg_editor::editor::Editor;
 use nrg_resources::{DATA_FOLDER, DATA_RAW_FOLDER};
 

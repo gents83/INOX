@@ -7,9 +7,9 @@ use crate::common::texture::MAX_TEXTURE_COUNT;
 use crate::common::texture::*;
 use crate::common::utils::*;
 
+use nrg_filesystem::convert_from_local_path;
 use nrg_math::matrix4_to_array;
 use nrg_math::Matrix4;
-use nrg_resources::convert_from_local_path;
 use nrg_resources::DATA_FOLDER;
 use std::path::PathBuf;
 use std::{cell::RefCell, path::Path, rc::Rc};

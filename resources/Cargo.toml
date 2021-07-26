@@ -9,5 +9,6 @@ build = "build.rs"
 crate-type = ["cdylib",'rlib']
 
 [dependencies]
+nrg_filesystem = { path = "../filesystem" }
 nrg_messenger = { path = "../messenger" }
 nrg_serialize = { path = "../serialize" }

@@ -166,10 +166,8 @@ impl System for UpdateSystem {
                                     self.job_handler.write().unwrap().add_job(
                                         job_name.as_str(),
                                         move || {
-                                            let mesh_instance = SharedData::get_resource::<
-                                                MeshInstance,
-                                            >(
-                                                &shared_data, mesh_id
+                                            let mesh_instance = SharedData::get_resource::<MeshInstance>(
+                                                &shared_data, mesh_id,
                                             );
 
                                             if !diffuse_texture_id.is_nil() && diffuse_texture_index >= 0 && diffuse_layer_index >= 0 {

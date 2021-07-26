@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
-use nrg_content_browser::content_browser::ContentBrowser;
+use nrg_content_browser::entry_point::EntryPoint;
 use nrg_core::*;
-use nrg_dynamic_library::library_filename;
+use nrg_filesystem::library_filename;
 
 fn main() {
     let mut app = App::new();
@@ -14,7 +14,7 @@ fn main() {
         app.add_plugin(path);
     }
 
-    let mut content_browser = ContentBrowser::default();
+    let mut content_browser = EntryPoint::default();
     content_browser.prepare(&mut app);
 
     loop {

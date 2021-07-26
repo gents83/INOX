@@ -3,7 +3,8 @@ use std::path::{Path, PathBuf};
 use crate::common::utils::*;
 
 use nrg_math::*;
-use nrg_resources::{convert_from_local_path, implement_file_data, DATA_FOLDER};
+use nrg_resources::{implement_file_data, DATA_FOLDER};
+use nrg_filesystem::{convert_from_local_path};
 use nrg_serialize::*;
 
 #[repr(C)]

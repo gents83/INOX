@@ -1,7 +1,7 @@
 #![warn(clippy::all)]
 #![allow(dead_code)]
 
-pub use nrg_dynamic_library::*;
+pub use nrg_filesystem::*;
 
 pub use self::macros::*;
 pub mod macros;

@@ -10,8 +10,9 @@ crate-type = ["cdylib",'rlib']
 
 [dependencies]
 gltf = { git = "https://github.com/gltf-rs/gltf" }
-nrg_math = { path = "../math" }
+nrg_filesystem = { path = "../filesystem" }
 nrg_graphics = { path = "../graphics" }
+nrg_math = { path = "../math" }
 nrg_messenger = { path = "../messenger" }
 nrg_platform = { path = "../platform" }
 nrg_resources = { path = "../resources" }

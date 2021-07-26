@@ -4,7 +4,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::{need_to_binarize, ExtensionHandler, Parser};
+use crate::{need_to_binarize, ExtensionHandler};
 use gltf::{
     accessor::{DataType, Dimensions},
     buffer::{Source, View},
@@ -12,10 +12,11 @@ use gltf::{
     mesh::Mode,
     Accessor, Gltf, Node, Primitive, Semantic,
 };
+use nrg_filesystem::convert_in_local_path;
 use nrg_graphics::{MaterialData, MeshData, VertexData};
-use nrg_math::{Vector2, Vector3, Vector4};
+use nrg_math::{Parser, Vector2, Vector3, Vector4};
 use nrg_messenger::MessengerRw;
-use nrg_resources::{convert_in_local_path, DATA_FOLDER, DATA_RAW_FOLDER};
+use nrg_resources::{DATA_FOLDER, DATA_RAW_FOLDER};
 use nrg_scene::ObjectData;
 use nrg_serialize::serialize_to_file;
 

@@ -63,7 +63,7 @@ impl MeshInstance {
         &self.mesh_data
     }
     pub fn is_visible(&self) -> bool {
-        self.is_visible
+        self.is_visible && !self.mesh_data.vertices.is_empty() && !self.mesh_data.indices.is_empty()
     }
     pub fn set_visible(&mut self, is_visible: bool) {
         self.is_visible = is_visible;

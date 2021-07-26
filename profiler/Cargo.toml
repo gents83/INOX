@@ -10,5 +10,5 @@ crate-type = ["cdylib",'rlib']
 
 [dependencies]
 serde_json = {git = "https://github.com/serde-rs/json"}
-nrg_dynamic_library = { path = "../dynamic_library" }
+nrg_filesystem = { path = "../filesystem" }
 nrg_platform = { path = "../platform" }

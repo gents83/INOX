@@ -1,6 +1,5 @@
+use crate::{VecBase, Vector2, Vector3, Vector4};
 use std::{fs::File, io::Read, mem::size_of};
-
-use nrg_math::{VecBase, Vector2, Vector3, Vector4};
 
 pub trait Parser {
     fn size() -> usize;

@@ -136,6 +136,11 @@ impl Pipeline {
         diffuse_layer_index: i32,
         outline_color: Vector4,
     ) -> &mut Self {
+        if mesh_instance.get_data().vertices.is_empty()
+            || mesh_instance.get_data().indices.is_empty()
+        {
+            return self;
+        }
         let mesh_data_ref = self.mesh.bind_at_index(
             &mesh_instance.get_data().vertices,
             self.vertex_count,

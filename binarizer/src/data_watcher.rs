@@ -9,9 +9,9 @@ use std::{
 };
 
 use crate::{ConfigCompiler, FontCompiler, GltfCompiler, ImageCompiler, ShaderCompiler};
+use nrg_filesystem::convert_from_local_path;
 use nrg_messenger::MessengerRw;
 use nrg_platform::{FileEvent, FileWatcher};
-use nrg_resources::convert_from_local_path;
 
 pub trait ExtensionHandler {
     fn on_changed(&mut self, path: &Path);

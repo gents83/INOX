@@ -1,6 +1,6 @@
 use std::{path::PathBuf, process};
 
-use nrg_dynamic_library::{library, Library};
+use nrg_filesystem::{library, Library};
 use nrg_platform::{FileEvent, FileWatcher};
 
 use crate::{

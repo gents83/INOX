@@ -1,8 +1,8 @@
 use crate::{Font, MaterialInstance, MaterialRc, PipelineInstance, TextureInstance};
+use nrg_filesystem::convert_from_local_path;
 use nrg_math::Vector4;
 use nrg_resources::{
-    convert_from_local_path, FileResource, ResourceData, ResourceId, ResourceRef, SharedData,
-    SharedDataRw, DATA_FOLDER,
+    FileResource, ResourceData, ResourceId, ResourceRef, SharedData, SharedDataRw, DATA_FOLDER,
 };
 use nrg_serialize::{generate_uid_from_string, INVALID_UID};
 use std::path::{Path, PathBuf};

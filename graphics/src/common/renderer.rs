@@ -2,7 +2,7 @@ use crate::Pipeline;
 use crate::{FontRc, MaterialRc, PipelineRc, RenderPass, RenderPassRc, TextureRc};
 use nrg_math::*;
 use nrg_platform::*;
-use nrg_resources::{convert_from_local_path, FileResource, DATA_FOLDER};
+use nrg_resources::{FileResource, DATA_FOLDER};
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 
@@ -295,10 +295,6 @@ impl Renderer {
         let texture_handler = &mut self.texture_handler;
         textures.iter_mut().for_each(|texture_instance| {
             if !texture_instance.resource().get().is_initialized() {
-                println!(
-                    "Loading texture {:?}",
-                    texture_instance.resource().get().path()
-                );
                 if texture_instance.resource().get().texture_index() != INVALID_INDEX {
                     //texture needs to be recreated
                     texture_handler.remove(texture_instance.id());

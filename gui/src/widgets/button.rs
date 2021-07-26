@@ -1,10 +1,11 @@
 use std::path::{Path, PathBuf};
 
+use nrg_filesystem::convert_from_local_path;
 use nrg_graphics::TextureInstance;
 use nrg_math::{Vector2, Vector4};
 use nrg_messenger::Message;
 use nrg_platform::MouseEvent;
-use nrg_resources::{convert_from_local_path, FileResource, DATA_FOLDER};
+use nrg_resources::{FileResource, DATA_FOLDER};
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{
