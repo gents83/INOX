@@ -42,7 +42,7 @@ Focus is to have all of them with MIT license.
 - Trait casting: https://github.com/marcianx/downcast-rs
 - Serialization - serde, serde_derive & serde_json: https://github.com/serde-rs/serde
 - CG Math library: https://github.com/rustgd/cgmath
-
+- GUI library: https://github.com/emilk/egui
 
 [Hotkeys](#hotkeys)
 
