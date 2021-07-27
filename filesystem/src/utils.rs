@@ -17,6 +17,22 @@ pub fn is_folder_empty(path: &Path) -> bool {
     is_empty
 }
 
+pub fn for_each_file_in<F>(root: &Path, mut func: F)
+where
+    F: FnMut(&Path),
+{
+    if let Ok(dir) = std::fs::read_dir(root) {
+        dir.for_each(|entry| {
+            if let Ok(dir_entry) = entry {
+                let path = dir_entry.path();
+                if path.is_file() {
+                    func(path.as_path());
+                }
+            }
+        });
+    }
+}
+
 pub fn for_each_folder_in<F>(root: &Path, mut func: F)
 where
     F: FnMut(&Path),

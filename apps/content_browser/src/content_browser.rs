@@ -4,7 +4,7 @@ use std::{
 };
 
 use nrg_core::{System, SystemId};
-use nrg_filesystem::{for_each_folder_in, is_folder_empty};
+use nrg_filesystem::{for_each_file_in, for_each_folder_in, is_folder_empty};
 use nrg_graphics::{
     FontInstance, FontRc, PipelineInstance, PipelineRc, RenderPassInstance, RenderPassRc,
 };
@@ -24,6 +24,7 @@ struct FolderDialogData {
     title: String,
     folder: PathBuf,
     selected_folder: PathBuf,
+    selected_file: PathBuf,
     is_editable: bool,
     requester_uid: Option<Uid>,
 }
@@ -123,8 +124,13 @@ impl ContentBrowserSystem {
             } else {
                 false
             },
-            selected_folder: if args.len() > 2 {
-                PathBuf::from(args[2].as_str())
+            selected_folder: if args.len() > 5 {
+                PathBuf::from(args[5].as_str())
+            } else {
+                PathBuf::new()
+            },
+            selected_file: if args.len() > 6 {
+                PathBuf::from(args[6].as_str())
             } else {
                 PathBuf::new()
             },
@@ -140,6 +146,7 @@ impl ContentBrowserSystem {
                     .clicked()
                 {
                     data.selected_folder = path.to_path_buf();
+                    data.selected_file = PathBuf::new();
                 }
             } else {
                 let collapsing = CollapsingHeader::new(path.file_stem().unwrap().to_str().unwrap())
@@ -152,22 +159,48 @@ impl ContentBrowserSystem {
                     .header_response;
                 if header_response.clicked() {
                     data.selected_folder = path.to_path_buf();
+                    data.selected_file = PathBuf::new();
                 }
+            }
+        });
+    }
+
+    fn populate_with_files(ui: &mut Ui, root: &Path, data: &mut FolderDialogData) {
+        for_each_file_in(root, |path| {
+            let selected = data.selected_file == path.to_path_buf();
+            if ui
+                .selectable_label(selected, path.file_name().unwrap().to_str().unwrap())
+                .clicked()
+            {
+                data.selected_file = path.to_path_buf();
             }
         });
     }
 
     fn add_content(&mut self) -> &mut Self {
         let data = self.create_data_from_args(env::args().collect());
-        self.ui_page = UIWidget::register(&self.shared_data, data, |ui_data, ui_context| {
+        let left_panel_width = 200.;
+        let right_panel_width = self.config.width as f32 - left_panel_width;
+        self.ui_page = UIWidget::register(&self.shared_data, data, move |ui_data, ui_context| {
             if let Some(data) = ui_data.as_any().downcast_mut::<FolderDialogData>() {
                 SidePanel::left("Folders")
                     .resizable(true)
-                    .min_width(200.)
+                    .min_width(left_panel_width)
                     .show(ui_context, |ui| {
                         ScrollArea::auto_sized().show(ui, |ui| {
                             let path = data.folder.as_path().to_path_buf();
                             Self::populate_with_folders_tree(ui, path.as_path(), data);
+                        })
+                    });
+                SidePanel::right("Files")
+                    .resizable(false)
+                    .min_width(right_panel_width)
+                    .show(ui_context, |ui| {
+                        ScrollArea::auto_sized().show(ui, |ui| {
+                            if data.selected_folder.is_dir() {
+                                let path = data.selected_folder.as_path().to_path_buf();
+                                Self::populate_with_files(ui, path.as_path(), data);
+                            }
                         })
                     });
             }
