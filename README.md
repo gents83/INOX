@@ -57,6 +57,8 @@ Useful hotkeys to know:
 
 ![Hot code reload test](https://pbs.twimg.com/media/ErY_fFnW4AAIN5Q?format=jpg)
 
-![GUI test](https://user-images.githubusercontent.com/62186646/116011134-c428b380-a623-11eb-8979-34d23f0532fd.jpg)
+![Editor_test](https://user-images.githubusercontent.com/62186646/127272173-f40de74f-6766-4f67-b0d1-35dd39e8b384.gif)
+
+![Custom_ui_tests](https://user-images.githubusercontent.com/62186646/127272503-6ff30eba-ea2a-46a0-bdc7-9be6cc32aee1.gif)
 
 ![Profiler example](https://user-images.githubusercontent.com/62186646/120451742-f9968e80-c391-11eb-962e-13d132e09847.jpg)
