@@ -1,6 +1,8 @@
 use std::any::TypeId;
 
-use crate::*;
+use egui::{
+    pos2, vec2, ClippedMesh, CtxRef, Event, Modifiers, Output, PointerButton, RawInput, Rect,
+};
 use image::{DynamicImage, Pixel};
 use nrg_core::{JobHandlerRw, System, SystemId};
 use nrg_graphics::{
@@ -9,8 +11,13 @@ use nrg_graphics::{
 };
 
 use nrg_messenger::{read_messages, MessageChannel, MessengerRw};
-use nrg_platform::{MouseButton, MouseEvent, MouseState, WindowEvent, DEFAULT_DPI};
+use nrg_platform::{
+    InputState, KeyEvent, KeyTextEvent, MouseButton, MouseEvent, MouseState, WindowEvent,
+    DEFAULT_DPI,
+};
 use nrg_resources::{DataTypeResource, SharedData, SharedDataRw};
+
+use crate::UIWidget;
 
 pub struct UISystem {
     id: SystemId,
@@ -21,6 +28,8 @@ pub struct UISystem {
     ui_context: CtxRef,
     ui_texture_version: u64,
     ui_input: RawInput,
+    ui_input_modifiers: Modifiers,
+    ui_clipboard: Option<String>,
     ui_default_material: MaterialRc,
     ui_scale: f32,
 }
@@ -41,6 +50,8 @@ impl UISystem {
             ui_context: CtxRef::default(),
             ui_texture_version: 0,
             ui_input: RawInput::default(),
+            ui_input_modifiers: Modifiers::default(),
+            ui_clipboard: None,
             ui_default_material: MaterialRc::default(),
             ui_scale: 2.,
         }
@@ -155,7 +166,7 @@ impl UISystem {
                             _ => PointerButton::Primary,
                         },
                         pressed: event.state == MouseState::Down,
-                        modifiers: Default::default(),
+                        modifiers: self.ui_input_modifiers,
                     });
                 }
             } else if msg.type_id() == TypeId::of::<WindowEvent>() {
@@ -172,6 +183,57 @@ impl UISystem {
                     }
                     _ => {}
                 }
+            } else if msg.type_id() == TypeId::of::<KeyEvent>() {
+                let event = msg.as_any().downcast_ref::<KeyEvent>().unwrap();
+                let just_pressed = event.state == InputState::JustPressed;
+                let pressed = just_pressed || event.state == InputState::Pressed;
+
+                if let Some(key) = convert_key(event.code) {
+                    self.ui_input.events.push(Event::Key {
+                        key,
+                        pressed,
+                        modifiers: self.ui_input_modifiers,
+                    });
+                }
+
+                if event.code == nrg_platform::Key::Shift {
+                    self.ui_input_modifiers.shift = pressed;
+                } else if event.code == nrg_platform::Key::Control {
+                    self.ui_input_modifiers.ctrl = pressed;
+                    self.ui_input_modifiers.command = pressed;
+                } else if event.code == nrg_platform::Key::Alt {
+                    self.ui_input_modifiers.alt = pressed;
+                } else if event.code == nrg_platform::Key::Meta {
+                    self.ui_input_modifiers.command = pressed;
+                    self.ui_input_modifiers.mac_cmd = pressed;
+                }
+
+                if just_pressed
+                    && self.ui_input_modifiers.ctrl
+                    && event.code == nrg_platform::input::Key::C
+                {
+                    self.ui_input.events.push(Event::Copy);
+                } else if just_pressed
+                    && self.ui_input_modifiers.ctrl
+                    && event.code == nrg_platform::input::Key::X
+                {
+                    self.ui_input.events.push(Event::Cut);
+                } else if just_pressed
+                    && self.ui_input_modifiers.ctrl
+                    && event.code == nrg_platform::input::Key::V
+                {
+                    if let Some(content) = &self.ui_clipboard {
+                        self.ui_input.events.push(Event::Text(content.clone()));
+                    }
+                }
+            } else if msg.type_id() == TypeId::of::<KeyTextEvent>() {
+                let event = msg.as_any().downcast_ref::<KeyTextEvent>().unwrap();
+                if event.char.is_ascii_control() {
+                    return;
+                }
+                self.ui_input
+                    .events
+                    .push(Event::Text(event.char.to_string()));
             }
         });
         self
@@ -182,6 +244,19 @@ impl UISystem {
         for widget in widgets {
             widget.resource().get_mut().execute(&self.ui_context);
         }
+    }
+
+    fn handle_output(&mut self, output: Output) -> &mut Self {
+        if let Some(open) = output.open_url {
+            println!("Trying to open url: {:?}", open.url);
+        }
+
+        if !output.copied_text.is_empty() {
+            self.ui_clipboard = Some(output.copied_text);
+            println!("Clipboard content: {:?}", self.ui_clipboard);
+        }
+
+        self
     }
 }
 
@@ -198,6 +273,8 @@ impl System for UISystem {
             .write()
             .unwrap()
             .register_messagebox::<WindowEvent>(self.message_channel.get_messagebox())
+            .register_messagebox::<KeyEvent>(self.message_channel.get_messagebox())
+            .register_messagebox::<KeyTextEvent>(self.message_channel.get_messagebox())
             .register_messagebox::<MouseEvent>(self.message_channel.get_messagebox());
 
         self.create_default_material();
@@ -210,11 +287,12 @@ impl System for UISystem {
 
         self.draw_ui();
 
-        let (_, shapes) = self.ui_context.end_frame();
+        let (output, shapes) = self.ui_context.end_frame();
         let clipped_meshes = self.ui_context.tessellate(shapes);
 
         let mesh_data = self.compute_mesh_data(clipped_meshes);
-        self.update_mesh_in_ui_material(mesh_data)
+        self.handle_output(output)
+            .update_mesh_in_ui_material(mesh_data)
             .update_egui_texture();
 
         true
@@ -225,6 +303,65 @@ impl System for UISystem {
             .write()
             .unwrap()
             .unregister_messagebox::<MouseEvent>(self.message_channel.get_messagebox())
+            .unregister_messagebox::<KeyTextEvent>(self.message_channel.get_messagebox())
+            .unregister_messagebox::<KeyEvent>(self.message_channel.get_messagebox())
             .unregister_messagebox::<WindowEvent>(self.message_channel.get_messagebox());
+    }
+}
+
+fn convert_key(key: nrg_platform::input::Key) -> Option<egui::Key> {
+    match key {
+        nrg_platform::Key::ArrowDown => Some(egui::Key::ArrowDown),
+        nrg_platform::Key::ArrowLeft => Some(egui::Key::ArrowLeft),
+        nrg_platform::Key::ArrowRight => Some(egui::Key::ArrowRight),
+        nrg_platform::Key::ArrowUp => Some(egui::Key::ArrowUp),
+        nrg_platform::Key::Escape => Some(egui::Key::Escape),
+        nrg_platform::Key::Tab => Some(egui::Key::Tab),
+        nrg_platform::Key::Backspace => Some(egui::Key::Backspace),
+        nrg_platform::Key::Enter => Some(egui::Key::Enter),
+        nrg_platform::Key::Space => Some(egui::Key::Space),
+        nrg_platform::Key::Insert => Some(egui::Key::Insert),
+        nrg_platform::Key::Delete => Some(egui::Key::Delete),
+        nrg_platform::Key::Home => Some(egui::Key::Home),
+        nrg_platform::Key::End => Some(egui::Key::End),
+        nrg_platform::Key::PageUp => Some(egui::Key::PageUp),
+        nrg_platform::Key::PageDown => Some(egui::Key::PageDown),
+        nrg_platform::Key::Numpad0 | nrg_platform::Key::Key0 => Some(egui::Key::Num0),
+        nrg_platform::Key::Numpad1 | nrg_platform::Key::Key1 => Some(egui::Key::Num1),
+        nrg_platform::Key::Numpad2 | nrg_platform::Key::Key2 => Some(egui::Key::Num2),
+        nrg_platform::Key::Numpad3 | nrg_platform::Key::Key3 => Some(egui::Key::Num3),
+        nrg_platform::Key::Numpad4 | nrg_platform::Key::Key4 => Some(egui::Key::Num4),
+        nrg_platform::Key::Numpad5 | nrg_platform::Key::Key5 => Some(egui::Key::Num5),
+        nrg_platform::Key::Numpad6 | nrg_platform::Key::Key6 => Some(egui::Key::Num6),
+        nrg_platform::Key::Numpad7 | nrg_platform::Key::Key7 => Some(egui::Key::Num7),
+        nrg_platform::Key::Numpad8 | nrg_platform::Key::Key8 => Some(egui::Key::Num8),
+        nrg_platform::Key::Numpad9 | nrg_platform::Key::Key9 => Some(egui::Key::Num9),
+        nrg_platform::Key::A => Some(egui::Key::A),
+        nrg_platform::Key::B => Some(egui::Key::B),
+        nrg_platform::Key::C => Some(egui::Key::C),
+        nrg_platform::Key::D => Some(egui::Key::D),
+        nrg_platform::Key::E => Some(egui::Key::E),
+        nrg_platform::Key::F => Some(egui::Key::F),
+        nrg_platform::Key::G => Some(egui::Key::G),
+        nrg_platform::Key::H => Some(egui::Key::H),
+        nrg_platform::Key::I => Some(egui::Key::I),
+        nrg_platform::Key::J => Some(egui::Key::J),
+        nrg_platform::Key::K => Some(egui::Key::K),
+        nrg_platform::Key::L => Some(egui::Key::L),
+        nrg_platform::Key::M => Some(egui::Key::M),
+        nrg_platform::Key::N => Some(egui::Key::N),
+        nrg_platform::Key::O => Some(egui::Key::O),
+        nrg_platform::Key::P => Some(egui::Key::P),
+        nrg_platform::Key::Q => Some(egui::Key::Q),
+        nrg_platform::Key::R => Some(egui::Key::R),
+        nrg_platform::Key::S => Some(egui::Key::S),
+        nrg_platform::Key::T => Some(egui::Key::T),
+        nrg_platform::Key::U => Some(egui::Key::U),
+        nrg_platform::Key::V => Some(egui::Key::V),
+        nrg_platform::Key::W => Some(egui::Key::W),
+        nrg_platform::Key::X => Some(egui::Key::X),
+        nrg_platform::Key::Y => Some(egui::Key::Y),
+        nrg_platform::Key::Z => Some(egui::Key::Z),
+        _ => None,
     }
 }

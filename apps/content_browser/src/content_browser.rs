@@ -11,10 +11,10 @@ use nrg_graphics::{
 use nrg_messenger::{Message, MessengerRw};
 use nrg_platform::WindowEvent;
 use nrg_resources::{ConfigBase, DataTypeResource, FileResource, SharedDataRw, DATA_FOLDER};
-use nrg_serialize::{deserialize_from_file, Uid};
+use nrg_serialize::{deserialize_from_file, serialize, Uid, INVALID_UID};
 use nrg_ui::{
-    implement_widget_data, vec2, Align, Button, CentralPanel, CollapsingHeader, Layout, ScrollArea,
-    SidePanel, TextEdit, UIWidget, UIWidgetRc, Ui, Vec2, Widget,
+    implement_widget_data, Align, CentralPanel, CollapsingHeader, DialogEvent, Layout, ScrollArea,
+    SidePanel, TextEdit, UIWidget, UIWidgetRc, Ui, Widget,
 };
 
 use crate::config::Config;
@@ -80,8 +80,8 @@ impl ContentBrowserSystem {
         }
     }
 
-    fn send_event(&self, event: Box<dyn Message>) {
-        self.global_messenger
+    fn send_event(global_messenger: &MessengerRw, event: Box<dyn Message>) {
+        global_messenger
             .read()
             .unwrap()
             .get_dispatcher()
@@ -92,14 +92,22 @@ impl ContentBrowserSystem {
     }
 
     fn window_init(&self) {
-        self.send_event(WindowEvent::RequestChangeTitle(self.config.title.clone()).as_boxed());
-        self.send_event(
+        Self::send_event(
+            &self.global_messenger,
+            WindowEvent::RequestChangeTitle(self.config.title.clone()).as_boxed(),
+        );
+        Self::send_event(
+            &self.global_messenger,
             WindowEvent::RequestChangeSize(self.config.width, self.config.height).as_boxed(),
         );
-        self.send_event(
+        Self::send_event(
+            &self.global_messenger,
             WindowEvent::RequestChangePos(self.config.pos_x, self.config.pos_y).as_boxed(),
         );
-        self.send_event(WindowEvent::RequestChangeVisible(true).as_boxed());
+        Self::send_event(
+            &self.global_messenger,
+            WindowEvent::RequestChangeVisible(true).as_boxed(),
+        );
     }
 
     fn create_data_from_args(&self, args: Vec<String>) -> FolderDialogData {
@@ -182,6 +190,7 @@ impl ContentBrowserSystem {
         let left_panel_max_width = left_panel_min_width * 4.;
         let bottom_panel_height = 25.;
         let button_size = 50.;
+        let global_messenger = self.global_messenger.clone();
         self.ui_page = UIWidget::register(&self.shared_data, data, move |ui_data, ui_context| {
             if let Some(data) = ui_data.as_any().downcast_mut::<FolderDialogData>() {
                 SidePanel::left("Folders")
@@ -212,10 +221,28 @@ impl ContentBrowserSystem {
                         ui.horizontal(|ui| {
                             ui.label("Filename: ");
                             TextEdit::singleline(&mut data.selected_file)
+                                .hint_text("File name here")
+                                .enabled(data.is_editable)
+                                .frame(data.is_editable)
                                 .desired_width(ui.available_width() - 2. * button_size)
                                 .ui(ui);
-                            if ui.button("Ok").clicked() {}
-                            if ui.button("Cancel").clicked() {}
+                            if ui.button("Ok").clicked() {
+                                Self::send_event(&global_messenger, WindowEvent::Close.as_boxed());
+                                if let Some(requester_uid) = data.requester_uid {
+                                    let path = data.selected_folder.clone();
+                                    let path = path.join(data.selected_file.clone());
+                                    let event =
+                                        DialogEvent::Confirmed(INVALID_UID, requester_uid, path);
+                                    let serialized_event = serialize(&event);
+                                    println!("[[[{}]]]", serialized_event);
+                                }
+                            }
+                            if ui.button("Cancel").clicked() {
+                                Self::send_event(&global_messenger, WindowEvent::Close.as_boxed());
+                                let event = DialogEvent::Canceled(INVALID_UID);
+                                let serialized_event = serialize(&event);
+                                println!("[[[{}]]]", serialized_event);
+                            }
                         });
                     });
                 });
