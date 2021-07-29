@@ -13,7 +13,8 @@ use nrg_platform::WindowEvent;
 use nrg_resources::{ConfigBase, DataTypeResource, FileResource, SharedDataRw, DATA_FOLDER};
 use nrg_serialize::{deserialize_from_file, Uid};
 use nrg_ui::{
-    implement_widget_data, CollapsingHeader, ScrollArea, SidePanel, UIWidget, UIWidgetRc, Ui,
+    implement_widget_data, vec2, Align, Button, CentralPanel, CollapsingHeader, Layout, ScrollArea,
+    SidePanel, TextEdit, UIWidget, UIWidgetRc, Ui, Vec2, Widget,
 };
 
 use crate::config::Config;
@@ -24,7 +25,7 @@ struct FolderDialogData {
     title: String,
     folder: PathBuf,
     selected_folder: PathBuf,
-    selected_file: PathBuf,
+    selected_file: String,
     is_editable: bool,
     requester_uid: Option<Uid>,
 }
@@ -130,9 +131,9 @@ impl ContentBrowserSystem {
                 PathBuf::new()
             },
             selected_file: if args.len() > 6 {
-                PathBuf::from(args[6].as_str())
+                String::from(args[6].as_str())
             } else {
-                PathBuf::new()
+                String::new()
             },
         }
     }
@@ -146,7 +147,7 @@ impl ContentBrowserSystem {
                     .clicked()
                 {
                     data.selected_folder = path.to_path_buf();
-                    data.selected_file = PathBuf::new();
+                    data.selected_file = String::new();
                 }
             } else {
                 let collapsing = CollapsingHeader::new(path.file_stem().unwrap().to_str().unwrap())
@@ -159,7 +160,7 @@ impl ContentBrowserSystem {
                     .header_response;
                 if header_response.clicked() {
                     data.selected_folder = path.to_path_buf();
-                    data.selected_file = PathBuf::new();
+                    data.selected_file = String::new();
                 }
             }
         });
@@ -167,42 +168,57 @@ impl ContentBrowserSystem {
 
     fn populate_with_files(ui: &mut Ui, root: &Path, data: &mut FolderDialogData) {
         for_each_file_in(root, |path| {
-            let selected = data.selected_file == path.to_path_buf();
-            if ui
-                .selectable_label(selected, path.file_name().unwrap().to_str().unwrap())
-                .clicked()
-            {
-                data.selected_file = path.to_path_buf();
+            let filename = path.file_name().unwrap().to_str().unwrap().to_string();
+            let selected = data.selected_file == filename;
+            if ui.selectable_label(selected, filename.clone()).clicked() {
+                data.selected_file = filename;
             }
         });
     }
 
     fn add_content(&mut self) -> &mut Self {
         let data = self.create_data_from_args(env::args().collect());
-        let left_panel_width = 200.;
-        let right_panel_width = self.config.width as f32 - left_panel_width;
+        let left_panel_min_width = 100.;
+        let left_panel_max_width = left_panel_min_width * 4.;
+        let bottom_panel_height = 25.;
+        let button_size = 50.;
         self.ui_page = UIWidget::register(&self.shared_data, data, move |ui_data, ui_context| {
             if let Some(data) = ui_data.as_any().downcast_mut::<FolderDialogData>() {
                 SidePanel::left("Folders")
                     .resizable(true)
-                    .min_width(left_panel_width)
+                    .min_width(left_panel_min_width)
+                    .max_width(left_panel_max_width)
                     .show(ui_context, |ui| {
                         ScrollArea::auto_sized().show(ui, |ui| {
                             let path = data.folder.as_path().to_path_buf();
                             Self::populate_with_folders_tree(ui, path.as_path(), data);
                         })
                     });
-                SidePanel::right("Files")
-                    .resizable(false)
-                    .min_width(right_panel_width)
-                    .show(ui_context, |ui| {
-                        ScrollArea::auto_sized().show(ui, |ui| {
-                            if data.selected_folder.is_dir() {
-                                let path = data.selected_folder.as_path().to_path_buf();
-                                Self::populate_with_files(ui, path.as_path(), data);
-                            }
-                        })
+                CentralPanel::default().show(ui_context, |ui| {
+                    let mut rect = ui.min_rect();
+                    let mut bottom_rect = rect;
+                    bottom_rect.min.y = ui.max_rect_finite().max.y - bottom_panel_height;
+                    rect.max.y = bottom_rect.min.y - ui.spacing().indent;
+                    let mut child_ui = ui.child_ui(rect, Layout::top_down(Align::Min));
+                    let mut bottom_ui = ui.child_ui(bottom_rect, Layout::bottom_up(Align::Max));
+                    ScrollArea::auto_sized().show(&mut child_ui, |ui| {
+                        if data.selected_folder.is_dir() {
+                            let path = data.selected_folder.as_path().to_path_buf();
+                            Self::populate_with_files(ui, path.as_path(), data);
+                        }
                     });
+                    bottom_ui.vertical(|ui| {
+                        ui.separator();
+                        ui.horizontal(|ui| {
+                            ui.label("Filename: ");
+                            TextEdit::singleline(&mut data.selected_file)
+                                .desired_width(ui.available_width() - 2. * button_size)
+                                .ui(ui);
+                            if ui.button("Ok").clicked() {}
+                            if ui.button("Cancel").clicked() {}
+                        });
+                    });
+                });
             }
         });
         self
