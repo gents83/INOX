@@ -52,7 +52,7 @@ impl Pipeline {
         if !data.geometry_shader.to_str().unwrap().is_empty() {
             pipeline.set_shader(ShaderType::Geometry, data.geometry_shader.as_path());
         }
-        pipeline.build(&device.inner, &render_pass.get_pass());
+        pipeline.build(&device.inner, render_pass.get_pass());
 
         Pipeline {
             inner: pipeline,

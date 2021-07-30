@@ -101,7 +101,7 @@ impl MainSystem {
                 SharedData::get_num_resources_of_type::<R>(shared_data)
             ),
             |ui| {
-                let resources = SharedData::get_resources_of_type::<R>(&shared_data);
+                let resources = SharedData::get_resources_of_type::<R>(shared_data);
                 for r in resources.iter() {
                     ui.label(r.id().to_string());
                 }
@@ -130,7 +130,7 @@ impl MainSystem {
                     .scroll(true)
                     .title_bar(true)
                     .resizable(true)
-                    .show(&ui_context, |ui| {
+                    .show(ui_context, |ui| {
                         ui.label(format!("FPS: {}", fps_data.frame_seconds.len()));
                         ui.separator();
                         Self::resource_ui::<PipelineInstance>(

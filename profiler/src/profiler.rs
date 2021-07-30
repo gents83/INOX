@@ -196,7 +196,7 @@ impl Profiler {
             vec.sort_by(|a, b| a.time_start.partial_cmp(&b.time_start).unwrap());
 
             for sample in vec.iter() {
-                if let Some(thread) = locked_data.threads.get(&id) {
+                if let Some(thread) = locked_data.threads.get(id) {
                     let thread_id = thread.name.as_str();
                     data.push(serde_json::json!({
                         "pid": process::id(),

@@ -150,7 +150,7 @@ impl Pipeline {
             .create_descriptor_set_layout(&self.device)
             .create_uniform_buffers(device)
             .create_descriptor_pool(device)
-            .create_descriptor_sets(&device)
+            .create_descriptor_sets(device)
             .create(device, render_pass);
         self
     }
@@ -254,7 +254,7 @@ impl PipelineImmutable {
         self
     }
     fn delete(&self, device: &Device) {
-        self.destroy_shader_modules(&device);
+        self.destroy_shader_modules(device);
         device.destroy_buffer(
             &self.indirect_command_buffer,
             &self.indirect_command_buffer_memory,

@@ -120,7 +120,7 @@ impl AreaList {
                 let mut first_area: Area = Area::default();
                 let mut rest_areas: Vec<Area> = Vec::new();
                 if let Some((first, rest)) = self.list.split_first_mut() {
-                    first_area = first.clone();
+                    first_area = *first;
                     rest_areas = rest.to_vec();
                 }
                 while !rest_areas.is_empty() {
@@ -204,7 +204,7 @@ impl AreaAllocator {
     }
 
     pub fn remove(&mut self, area: Area) {
-        self.occupied.remove(area.clone());
+        self.occupied.remove(area);
         self.free.insert(area);
     }
 }

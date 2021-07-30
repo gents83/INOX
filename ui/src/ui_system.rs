@@ -1,4 +1,7 @@
-use std::{any::TypeId, collections::HashMap};
+use std::{
+    any::TypeId,
+    collections::{hash_map::Entry, HashMap},
+};
 
 use egui::{
     ClippedMesh, CtxRef, Event, Modifiers, Output, PointerButton, RawInput, Rect,
@@ -61,21 +64,25 @@ impl UISystem {
     }
 
     fn get_ui_material(&mut self, texture_id: TextureId) -> MaterialRc {
-        if self.ui_materials.contains_key(&texture_id) {
-            return self.ui_materials.get(&texture_id).unwrap().clone();
-        } else if let Some(pipeline) =
-            SharedData::match_resource(&self.shared_data, |p: &PipelineInstance| {
-                p.data().name == "UI"
-            })
-        {
-            let material = MaterialInstance::create_from_pipeline(&self.shared_data, pipeline);
-            let mesh_instance =
-                MeshInstance::create_from_data(&self.shared_data, MeshData::default());
-            material.resource().get_mut().add_mesh(mesh_instance);
-            self.ui_materials.insert(texture_id, material.clone());
-            return material;
+        match self.ui_materials.entry(texture_id) {
+            Entry::Occupied(e) => e.get().clone(),
+            Entry::Vacant(e) => {
+                if let Some(pipeline) =
+                    SharedData::match_resource(&self.shared_data, |p: &PipelineInstance| {
+                        p.data().name == "UI"
+                    })
+                {
+                    let material =
+                        MaterialInstance::create_from_pipeline(&self.shared_data, pipeline);
+                    let mesh_instance =
+                        MeshInstance::create_from_data(&self.shared_data, MeshData::default());
+                    material.resource().get_mut().add_mesh(mesh_instance);
+                    e.insert(material.clone());
+                    return material;
+                }
+                panic!("No pipeline with name UI has been loaded");
+            }
         }
-        panic!("No pipeline with name UI has been loaded");
     }
 
     fn clear_ui_materials(&mut self) -> &mut Self {

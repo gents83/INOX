@@ -68,7 +68,7 @@ impl GltfCompiler {
                     Source::Uri(local_path) => {
                         let filepath = parent_folder.to_path_buf().join(local_path);
                         if let Ok(mut file) = fs::File::open(filepath) {
-                            return Some(Self::read_from_file::<T>(&mut file, &view, &accessor));
+                            return Some(Self::read_from_file::<T>(&mut file, &view, accessor));
                         } else {
                             eprintln!("Unable to open file: {:?}", local_path);
                         }
@@ -226,8 +226,8 @@ impl GltfCompiler {
     }
 
     fn process_mesh_data(path: &Path, mesh_name: &str, primitive: &Primitive) -> PathBuf {
-        let vertices = Self::extract_mesh_data(path, &primitive);
-        let indices = Self::extract_indices(path, &primitive);
+        let vertices = Self::extract_mesh_data(path, primitive);
+        let indices = Self::extract_indices(path, primitive);
         let mut mesh_data = MeshData::default();
         mesh_data.append_mesh(vertices.as_slice(), indices.as_slice());
 

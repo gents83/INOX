@@ -126,7 +126,7 @@ impl TextureHandler {
             self.remove_image(
                 self.textures[index].texture_index,
                 self.textures[index].layer_index,
-                self.textures[index].area.clone(),
+                self.textures[index].area,
             );
             self.textures.remove(index);
         } else {
@@ -170,7 +170,7 @@ impl TextureHandler {
                         area,
                         image_data,
                     );
-                    return (texture_index as _, layer_index as _, area.clone());
+                    return (texture_index as _, layer_index as _, *area);
                 }
             }
         }

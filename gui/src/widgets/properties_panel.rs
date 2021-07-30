@@ -32,7 +32,7 @@ implement_widget_with_custom_members!(PropertiesPanel {
 
 impl PropertiesPanel {
     fn add_label(&mut self) -> &mut Self {
-        let mut title = TitleBar::new(&self.get_shared_data(), &self.get_global_messenger());
+        let mut title = TitleBar::new(self.get_shared_data(), self.get_global_messenger());
         title
             .set_text("Properties:")
             .set_text_alignment(HorizontalAlignment::Left, VerticalAlignment::Center)
@@ -60,8 +60,7 @@ impl PropertiesPanel {
     }
 
     fn create_panel(&mut self, text: &str) -> (Panel, Panel) {
-        let mut horizontal_panel =
-            Panel::new(&self.get_shared_data(), &self.get_global_messenger());
+        let mut horizontal_panel = Panel::new(self.get_shared_data(), self.get_global_messenger());
         horizontal_panel
             .style(WidgetStyle::Default)
             .fill_type(ContainerFillType::Horizontal)
@@ -70,11 +69,11 @@ impl PropertiesPanel {
             .horizontal_alignment(HorizontalAlignment::Stretch)
             .vertical_alignment(VerticalAlignment::Top);
 
-        let mut label = Text::new(&self.get_shared_data(), &self.get_global_messenger());
+        let mut label = Text::new(self.get_shared_data(), self.get_global_messenger());
         label.editable(false).set_text(text);
         horizontal_panel.add_child(Box::new(label));
 
-        let mut vertical_panel = Panel::new(&self.get_shared_data(), &self.get_global_messenger());
+        let mut vertical_panel = Panel::new(self.get_shared_data(), self.get_global_messenger());
         vertical_panel
             .style(WidgetStyle::Default)
             .fill_type(ContainerFillType::Vertical)
@@ -89,8 +88,7 @@ impl PropertiesPanel {
     pub fn add_string(&mut self, text: &str, string: &str, editable: bool) -> &mut Self {
         let (mut horizontal_panel, mut vertical_panel) = self.create_panel(text);
 
-        let mut textbox_string =
-            TextBox::new(&self.get_shared_data(), &self.get_global_messenger());
+        let mut textbox_string = TextBox::new(self.get_shared_data(), self.get_global_messenger());
         textbox_string
             .editable(editable)
             .set_text(string)
@@ -122,7 +120,7 @@ impl PropertiesPanel {
     pub fn add_vec2(&mut self, text: &str, vec2: Vector2, editable: bool) -> &mut Self {
         let (mut horizontal_panel, mut vertical_panel) = self.create_panel(text);
 
-        let mut textbox_x = TextBox::new(&self.get_shared_data(), &self.get_global_messenger());
+        let mut textbox_x = TextBox::new(self.get_shared_data(), self.get_global_messenger());
         textbox_x
             .editable(editable)
             .with_label("X:")
@@ -130,7 +128,7 @@ impl PropertiesPanel {
             .horizontal_alignment(HorizontalAlignment::Left);
         vertical_panel.add_child(Box::new(textbox_x));
 
-        let mut textbox_y = TextBox::new(&self.get_shared_data(), &self.get_global_messenger());
+        let mut textbox_y = TextBox::new(self.get_shared_data(), self.get_global_messenger());
         textbox_y
             .editable(editable)
             .with_label("Y:")
@@ -162,7 +160,7 @@ impl InternalWidget for PropertiesPanel {
             .stroke(5. * Screen::get_scale_factor());
 
         let mut scrollable =
-            ScrollableItem::new(&self.get_shared_data(), &self.get_global_messenger());
+            ScrollableItem::new(self.get_shared_data(), self.get_global_messenger());
         scrollable
             .vertical_alignment(VerticalAlignment::Stretch)
             .horizontal_alignment(HorizontalAlignment::Stretch)

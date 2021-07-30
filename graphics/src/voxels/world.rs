@@ -97,11 +97,11 @@ impl World {
     }
 
     pub fn get_chunk(&mut self, index: &ChunkCoordinate) -> &mut Chunk {
-        if !self.chunks.contains_key(&index) {
+        if !self.chunks.contains_key(index) {
             let chunk = Chunk::default();
             self.chunks.insert(index.clone(), chunk);
         }
-        self.chunks.get_mut(&index).unwrap()
+        self.chunks.get_mut(index).unwrap()
     }
 
     pub fn set_block(&mut self, coords: &WorldBlockCoordinate, block_type: Block) {

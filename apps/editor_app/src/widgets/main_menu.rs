@@ -84,10 +84,8 @@ impl MainMenu {
                         list.clear();
                         if let Some(scrollable_panel) = list.get_scrollable_panel() {
                             for i in 0..registry.count() {
-                                let mut button = Button::new(
-                                    &add.get_shared_data(),
-                                    &add.get_global_messenger(),
-                                );
+                                let mut button =
+                                    Button::new(add.get_shared_data(), add.get_global_messenger());
                                 let name = registry.get_name_from_index(i);
                                 button
                                     .with_text(name)

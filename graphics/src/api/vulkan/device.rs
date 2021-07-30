@@ -936,9 +936,9 @@ impl DeviceImmutable {
             command_buffer_fences: Vec::new(),
         };
         inner_device
-            .create_swap_chain(&instance)
-            .create_command_pool(&instance)
-            .create_image_views(&instance)
+            .create_swap_chain(instance)
+            .create_command_pool(instance)
+            .create_image_views(instance)
             .allocate_command_buffers()
             .create_sync_objects();
         inner_device

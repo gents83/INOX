@@ -59,12 +59,12 @@ impl DataTypeResource for MaterialInstance {
         {
             let mut meshes = Vec::new();
             for m in material_data.meshes.iter() {
-                let mesh = MeshInstance::create_from_file(&shared_data, m.as_path());
+                let mesh = MeshInstance::create_from_file(shared_data, m.as_path());
                 meshes.push(mesh);
             }
             let mut textures = Vec::new();
             for t in material_data.textures.iter() {
-                let texture = TextureInstance::create_from_file(&shared_data, t.as_path());
+                let texture = TextureInstance::create_from_file(shared_data, t.as_path());
                 textures.push(texture);
             }
 

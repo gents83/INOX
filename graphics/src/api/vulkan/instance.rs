@@ -89,7 +89,7 @@ impl InstanceImmutable {
         };
         let available_extensions = enumerate_available_extensions();
         let inst = create_instance(&available_layers, &available_extensions);
-        let surf = create_surface(inst, &handle);
+        let surf = create_surface(inst, handle);
         let physical_dev = pick_suitable_physical_device(inst, surf);
         if physical_dev.is_none() {
             eprintln!("Unable to find a physical device that support Vulkan needed API");

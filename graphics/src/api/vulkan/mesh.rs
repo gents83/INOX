@@ -115,8 +115,8 @@ impl Mesh {
         indices: &[u32],
         first_index: u32,
     ) {
-        device.map_buffer_memory(&mut self.vertex_buffer_memory, first_vertex as _, &vertices);
-        device.map_buffer_memory(&mut self.index_buffer_memory, first_index as _, &indices);
+        device.map_buffer_memory(&mut self.vertex_buffer_memory, first_vertex as _, vertices);
+        device.map_buffer_memory(&mut self.index_buffer_memory, first_index as _, indices);
     }
 
     pub fn bind_vertices(&self, device: &Device) {

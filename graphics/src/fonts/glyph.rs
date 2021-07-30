@@ -76,7 +76,7 @@ impl Glyph {
     }
 
     pub fn create(id: GlyphId, face: &Face, max_metrics: &Metrics) -> Self {
-        let metrics = Glyph::compute_metrics(id, &face);
+        let metrics = Glyph::compute_metrics(id, face);
         let scale_x = DEFAULT_FONT_GLYPH_SIZE as f32 / max_metrics.width as f32;
         let scale_y = DEFAULT_FONT_GLYPH_SIZE as f32 / max_metrics.height as f32;
 
