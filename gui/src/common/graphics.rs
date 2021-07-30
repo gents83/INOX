@@ -68,10 +68,10 @@ impl WidgetGraphics {
         let mut mesh_data = MeshData::default();
         mesh_data.add_quad_default([0., 0., 1., 1.].into(), 0.);
         self.mesh = MeshInstance::create_from_data(&self.shared_data, mesh_data);
-        self.material
+        self.mesh
             .resource()
             .get_mut()
-            .add_mesh(self.mesh.clone());
+            .set_material(self.material.clone());
         self.mark_as_dirty();
         self
     }
@@ -85,20 +85,14 @@ impl WidgetGraphics {
 
     #[inline]
     pub fn unlink_from_material(&mut self) -> &mut Self {
-        self.material = ResourceRef::default();
+        self.material = MaterialRc::default();
         self.mark_as_dirty();
         self
     }
 
     #[inline]
     pub fn remove_meshes(&mut self) -> &mut Self {
-        if self.mesh.id() != INVALID_UID {
-            self.material
-                .resource()
-                .get_mut()
-                .remove_mesh(self.mesh.id());
-        }
-        self.mesh = ResourceRef::default();
+        self.mesh = MeshRc::default();
         self.mark_as_dirty();
         self
     }

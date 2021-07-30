@@ -15,7 +15,7 @@ use egui::{
 use image::{DynamicImage, Pixel};
 use nrg_core::{JobHandlerRw, System, SystemId};
 use nrg_graphics::{
-    MaterialInstance, MaterialRc, MeshData, MeshInstance, PipelineInstance, TextureId,
+    MaterialInstance, MaterialRc, MeshData, MeshInstance, MeshRc, PipelineInstance, TextureId,
     TextureInstance, TextureRc, VertexData,
 };
 
@@ -41,6 +41,7 @@ pub struct UISystem {
     ui_input_modifiers: Modifiers,
     ui_clipboard: Option<String>,
     ui_materials: HashMap<TextureId, MaterialRc>,
+    ui_meshes: HashMap<TextureId, MeshRc>,
     ui_scale: f32,
 }
 
@@ -64,6 +65,7 @@ impl UISystem {
             ui_input_modifiers: Modifiers::default(),
             ui_clipboard: None,
             ui_materials: HashMap::new(),
+            ui_meshes: HashMap::new(),
             ui_scale: 2.,
         }
     }
@@ -79,9 +81,6 @@ impl UISystem {
                 {
                     let material =
                         MaterialInstance::create_from_pipeline(&self.shared_data, pipeline);
-                    let mesh_instance =
-                        MeshInstance::create_from_data(&self.shared_data, MeshData::default());
-                    material.resource().get_mut().add_mesh(mesh_instance);
                     e.insert(material.clone());
                     return material;
                 }
@@ -90,16 +89,23 @@ impl UISystem {
         }
     }
 
-    fn clear_ui_materials(&mut self) -> &mut Self {
+    fn get_ui_mesh(&mut self, texture_id: TextureId) -> MeshRc {
+        match self.ui_meshes.entry(texture_id) {
+            Entry::Occupied(e) => e.get().clone(),
+            Entry::Vacant(e) => {
+                let mesh = MeshInstance::create_from_data(&self.shared_data, MeshData::default());
+                e.insert(mesh.clone());
+                mesh
+            }
+        }
+    }
+
+    fn clear_ui_data(&mut self) -> &mut Self {
         for (_, material) in self.ui_materials.iter() {
-            let mesh_instance =
-                MeshInstance::create_from_data(&self.shared_data, MeshData::default());
-            material
-                .resource()
-                .get_mut()
-                .remove_all_textures()
-                .remove_all_meshes()
-                .add_mesh(mesh_instance);
+            material.resource().get_mut().remove_all_textures();
+        }
+        for (_, mesh) in self.ui_meshes.iter() {
+            mesh.resource().get_mut().set_mesh_data(MeshData::default());
         }
         self
     }
@@ -139,32 +145,36 @@ impl UISystem {
                 }
             };
             let material = self.get_ui_material(texture.id());
+
+            let mesh_instance = self.get_ui_mesh(texture.id());
+            let mut mesh_data = mesh_instance.resource().get().mesh_data().clone();
+            let max_indices = mesh_data.vertices.len() as u32;
+
+            let vertices: Vec<VertexData> = mesh
+                .vertices
+                .iter()
+                .map(|v| VertexData {
+                    pos: [v.pos.x * self.ui_scale, v.pos.y * self.ui_scale, 0.].into(),
+                    tex_coord: [v.uv.x, v.uv.y].into(),
+                    color: [
+                        v.color.r() as f32 / 255.,
+                        v.color.g() as f32 / 255.,
+                        v.color.b() as f32 / 255.,
+                        v.color.a() as f32 / 255.,
+                    ]
+                    .into(),
+                    ..Default::default()
+                })
+                .collect();
+            let indices: Vec<u32> = mesh.indices.iter().map(|i| i + max_indices).collect();
+            mesh_data.append_mesh(vertices.as_slice(), indices.as_slice());
+
             material.resource().get_mut().add_texture(texture);
-            if let Some(mesh_instance) = material.resource().get().meshes().first() {
-                let mut mesh_data = mesh_instance.resource().get().mesh_data().clone();
-                let vertices: Vec<VertexData> = mesh
-                    .vertices
-                    .iter()
-                    .map(|v| VertexData {
-                        pos: [v.pos.x * self.ui_scale, v.pos.y * self.ui_scale, 0.].into(),
-                        tex_coord: [v.uv.x, v.uv.y].into(),
-                        color: [
-                            v.color.r() as f32 / 255.,
-                            v.color.g() as f32 / 255.,
-                            v.color.b() as f32 / 255.,
-                            v.color.a() as f32 / 255.,
-                        ]
-                        .into(),
-                        ..Default::default()
-                    })
-                    .collect();
-                let max_indices = mesh_data.vertices.len() as u32;
-                let indices: Vec<u32> = mesh.indices.iter().map(|i| i + max_indices).collect();
-                mesh_data.append_mesh(vertices.as_slice(), indices.as_slice());
-                mesh_instance.resource().get_mut().set_mesh_data(mesh_data);
-            } else {
-                panic!("We should already have created new mesh in clear_ui_materials()");
-            };
+            mesh_instance
+                .resource()
+                .get_mut()
+                .set_material(material)
+                .set_mesh_data(mesh_data);
         }
     }
 
@@ -333,7 +343,7 @@ impl System for UISystem {
         let (output, shapes) = self.ui_context.end_frame();
         let clipped_meshes = self.ui_context.tessellate(shapes);
         self.handle_output(output)
-            .clear_ui_materials()
+            .clear_ui_data()
             .update_egui_texture()
             .compute_mesh_data(clipped_meshes);
 

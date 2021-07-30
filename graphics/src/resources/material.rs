@@ -1,9 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use crate::{
-    MaterialData, MeshId, MeshInstance, MeshRc, PipelineInstance, PipelineRc, TextureId,
-    TextureInstance, TextureRc,
-};
+use crate::{MaterialData, PipelineInstance, PipelineRc, TextureId, TextureInstance, TextureRc};
 use nrg_math::{VecBase, Vector4};
 use nrg_resources::{
     DataTypeResource, Deserializable, FileResource, ResourceData, ResourceId, ResourceRef,
@@ -18,7 +15,6 @@ pub struct MaterialInstance {
     id: ResourceId,
     path: PathBuf,
     pipeline: PipelineRc,
-    meshes: Vec<MeshRc>,
     textures: Vec<TextureRc>,
     diffuse_color: Vector4,
     outline_color: Vector4,
@@ -30,7 +26,6 @@ impl Default for MaterialInstance {
             id: INVALID_UID,
             path: PathBuf::new(),
             pipeline: ResourceRef::default(),
-            meshes: Vec::new(),
             textures: Vec::new(),
             diffuse_color: [1., 1., 1., 1.].into(),
             outline_color: Vector4::default_zero(),
@@ -57,11 +52,6 @@ impl DataTypeResource for MaterialInstance {
         if let Some(pipeline) =
             PipelineInstance::find_from_name(shared_data, material_data.pipeline_name.as_str())
         {
-            let mut meshes = Vec::new();
-            for m in material_data.meshes.iter() {
-                let mesh = MeshInstance::create_from_file(shared_data, m.as_path());
-                meshes.push(mesh);
-            }
             let mut textures = Vec::new();
             for t in material_data.textures.iter() {
                 let texture = TextureInstance::create_from_file(shared_data, t.as_path());
@@ -72,7 +62,6 @@ impl DataTypeResource for MaterialInstance {
                 id: generate_uid_from_string(material_data.path().to_str().unwrap()),
                 path: material_data.path().to_path_buf(),
                 pipeline,
-                meshes,
                 textures,
                 ..Default::default()
             };
@@ -93,12 +82,6 @@ impl MaterialInstance {
     }
     pub fn pipeline(&self) -> PipelineRc {
         self.pipeline.clone()
-    }
-    pub fn has_meshes(&self) -> bool {
-        !self.meshes.is_empty()
-    }
-    pub fn meshes(&self) -> &Vec<MeshRc> {
-        &self.meshes
     }
     pub fn textures(&self) -> &Vec<TextureRc> {
         &self.textures
@@ -135,20 +118,6 @@ impl MaterialInstance {
         self.textures.push(texture);
         self
     }
-
-    pub fn add_mesh(&mut self, mesh: MeshRc) -> &mut Self {
-        self.meshes.push(mesh);
-        self
-    }
-
-    pub fn remove_mesh(&mut self, mesh_id: MeshId) {
-        self.meshes.retain(|m| m.id() != mesh_id);
-    }
-    pub fn remove_all_meshes(&mut self) -> &mut Self {
-        self.meshes.clear();
-        self
-    }
-
     pub fn set_diffuse_color(&mut self, diffuse_color: Vector4) {
         self.diffuse_color = diffuse_color;
     }

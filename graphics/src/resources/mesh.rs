@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use crate::{MeshData, TextureInfo};
+use crate::{MaterialRc, MeshData, TextureInfo};
 use nrg_math::{Matrix4, Vector4};
 use nrg_resources::{
     DataTypeResource, Deserializable, ResourceData, ResourceId, ResourceRef, SerializableResource,
@@ -15,6 +15,7 @@ pub type MeshRc = ResourceRef<MeshInstance>;
 pub struct MeshInstance {
     id: ResourceId,
     mesh_data: MeshData,
+    material: MaterialRc,
     draw_area: Vector4, //pos (x,y) - size(z,w)
     is_visible: bool,
     is_dirty: bool,
@@ -32,6 +33,7 @@ impl Default for MeshInstance {
         Self {
             id: INVALID_UID,
             mesh_data: MeshData::default(),
+            material: MaterialRc::default(),
             draw_area: [0., 0., f32::MAX, f32::MAX].into(),
             is_visible: true,
             is_dirty: true,
@@ -65,22 +67,34 @@ impl MeshInstance {
     pub fn is_visible(&self) -> bool {
         self.is_visible && !self.mesh_data.vertices.is_empty() && !self.mesh_data.indices.is_empty()
     }
-    pub fn set_visible(&mut self, is_visible: bool) {
+    pub fn set_visible(&mut self, is_visible: bool) -> &mut Self {
         self.is_visible = is_visible;
         self.is_dirty = true;
+        self
     }
-    pub fn set_draw_area(&mut self, draw_area: Vector4) {
+    pub fn set_draw_area(&mut self, draw_area: Vector4) -> &mut Self {
         self.draw_area = draw_area;
         self.is_dirty = true;
+        self
     }
-    pub fn set_transform(&mut self, transform: Matrix4) {
+    pub fn set_transform(&mut self, transform: Matrix4) -> &mut Self {
         self.mesh_data.transform = transform;
         self.is_dirty = true;
+        self
     }
-    pub fn set_mesh_data(&mut self, mesh_data: MeshData) {
+    pub fn set_mesh_data(&mut self, mesh_data: MeshData) -> &mut Self {
         self.mesh_data = mesh_data;
         self.uv_converted = false;
         self.is_dirty = true;
+        self
+    }
+    pub fn set_material(&mut self, material: MaterialRc) -> &mut Self {
+        self.material = material;
+        self.is_dirty = true;
+        self
+    }
+    pub fn material(&self) -> MaterialRc {
+        self.material.clone()
     }
     pub fn mesh_data(&self) -> &MeshData {
         &self.mesh_data

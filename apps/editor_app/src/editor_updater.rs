@@ -12,8 +12,8 @@ use super::widgets::*;
 use nrg_camera::Camera;
 use nrg_core::*;
 use nrg_graphics::{
-    FontInstance, FontRc, MaterialInstance, MaterialRc, MeshData, MeshInstance, PipelineInstance,
-    PipelineRc, RenderPassInstance, RenderPassRc, ViewInstance,
+    FontInstance, FontRc, MaterialInstance, MaterialRc, MeshData, MeshInstance, MeshRc,
+    PipelineInstance, PipelineRc, RenderPassInstance, RenderPassRc, ViewInstance,
 };
 use nrg_gui::*;
 use nrg_math::{
@@ -23,7 +23,7 @@ use nrg_math::{
 use nrg_messenger::{read_messages, Message, MessageChannel, MessengerRw};
 use nrg_platform::*;
 use nrg_resources::{
-    DataTypeResource, FileResource, ResourceRef, SerializableResource, SharedData, SharedDataRw,
+    DataTypeResource, FileResource, SerializableResource, SharedData, SharedDataRw,
 };
 use nrg_scene::{Object, ObjectId, Scene, SceneRc};
 use nrg_serialize::*;
@@ -49,6 +49,7 @@ pub struct EditorUpdater {
     render_passes: Vec<RenderPassRc>,
     fonts: Vec<FontRc>,
     grid_material: MaterialRc,
+    grid_mesh: MeshRc,
     scene: SceneRc,
     selected_object: ObjectId,
 }
@@ -100,8 +101,9 @@ impl EditorUpdater {
             camera,
             move_camera_with_mouse: false,
             last_mouse_pos: Vector2::zero(),
-            grid_material: ResourceRef::default(),
-            scene: ResourceRef::default(),
+            grid_material: MaterialRc::default(),
+            grid_mesh: MeshRc::default(),
+            scene: SceneRc::default(),
             selected_object: INVALID_UID,
         }
     }
@@ -352,7 +354,10 @@ impl EditorUpdater {
             let mut mesh_data = MeshData::default();
             mesh_data.add_quad_default([-1., -1., 1., 1.].into(), 0.);
             let mesh = MeshInstance::create_from_data(&self.shared_data, mesh_data);
-            self.grid_material.resource().get_mut().add_mesh(mesh);
+            mesh.resource()
+                .get_mut()
+                .set_material(self.grid_material.clone());
+            self.grid_mesh = mesh;
         }
     }
 
