@@ -1,6 +1,11 @@
 use std::{
     any::TypeId,
     collections::{hash_map::Entry, HashMap},
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    },
+    thread,
 };
 
 use egui::{
@@ -263,9 +268,26 @@ impl UISystem {
     }
 
     fn draw_ui(&mut self) {
+        let wait_count = Arc::new(AtomicUsize::new(0));
+
         let widgets = SharedData::get_resources_of_type::<UIWidget>(&self.shared_data);
-        for widget in widgets {
-            widget.resource().get_mut().execute(&self.ui_context);
+        for (index, widget) in widgets.into_iter().enumerate() {
+            let wait_count = wait_count.clone();
+            wait_count.fetch_add(1, Ordering::SeqCst);
+            let job_name = format!("UIWidget [{}]", index);
+            let ui_context = self.ui_context.clone();
+
+            self.job_handler
+                .write()
+                .unwrap()
+                .add_job(job_name.as_str(), move || {
+                    widget.resource().get_mut().execute(&ui_context);
+                    wait_count.fetch_sub(1, Ordering::SeqCst);
+                });
+        }
+
+        while wait_count.load(Ordering::SeqCst) > 0 {
+            thread::yield_now();
         }
     }
 
