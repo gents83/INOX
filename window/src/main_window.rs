@@ -26,6 +26,7 @@ pub struct MainWindow {
     update_system_id: SystemId,
     rendering_system_id: SystemId,
 }
+define_plugin!(MainWindow);
 
 impl Default for MainWindow {
     fn default() -> Self {

@@ -24,11 +24,8 @@ impl Default for Editor {
     }
 }
 
-unsafe impl Send for Editor {}
-unsafe impl Sync for Editor {}
-
-impl Plugin for Editor {
-    fn prepare(&mut self, app: &mut App) {
+impl Editor {
+    pub fn prepare(&mut self, app: &mut App) {
         let path = self.config.get_filepath();
         deserialize_from_file(&mut self.config, path);
 
@@ -44,7 +41,7 @@ impl Plugin for Editor {
         app.create_phase_before(update_phase, "RENDERING_UPDATE");
     }
 
-    fn unprepare(&mut self, app: &mut App) {
+    pub fn unprepare(&mut self, app: &mut App) {
         let path = self.config.get_filepath();
         serialize_to_file(&self.config, path);
 

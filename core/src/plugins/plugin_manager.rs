@@ -4,15 +4,15 @@ use nrg_filesystem::{library, Library};
 use nrg_platform::{FileEvent, FileWatcher};
 
 use crate::{
-    App, PfnCreatePlugin, PfnDestroyPlugin, PluginHolder, PluginId, CREATE_PLUGIN_FUNCTION_NAME,
-    DESTROY_PLUGIN_FUNCTION_NAME,
+    App, PfnCreatePlugin, PfnDestroyPlugin, PfnPreparePlugin, PfnUnpreparePlugin, PluginHolder,
+    PluginId, CREATE_PLUGIN_FUNCTION_NAME, DESTROY_PLUGIN_FUNCTION_NAME,
+    PREPARE_PLUGIN_FUNCTION_NAME, UNPREPARE_PLUGIN_FUNCTION_NAME,
 };
 
 pub static IN_USE_PREFIX: &str = "in_use";
 static mut UNIQUE_LIB_INDEX: u32 = 0;
 
 pub struct PluginData {
-    id: PluginId,
     lib: Box<Library>,
     pub plugin_holder: Option<PluginHolder>,
     filewatcher: FileWatcher,
@@ -40,7 +40,7 @@ impl PluginManager {
     pub fn release(&mut self) -> Vec<PluginId> {
         let mut plugins_to_remove: Vec<PluginId> = Vec::new();
         for plugin in self.plugins.iter() {
-            plugins_to_remove.push(plugin.id);
+            plugins_to_remove.push(plugin.plugin_holder.as_ref().unwrap().id());
         }
         plugins_to_remove
     }
@@ -52,7 +52,11 @@ impl PluginManager {
 
     pub fn remove_plugin(&mut self, plugin_id: &PluginId) -> Option<PluginData> {
         nrg_profiler::scoped_profile!("plugin_manager::remove_plugin");
-        if let Some(index) = self.plugins.iter().position(|el| el.id == *plugin_id) {
+        if let Some(index) = self
+            .plugins
+            .iter()
+            .position(|plugin| plugin.plugin_holder.as_ref().unwrap().id() == *plugin_id)
+        {
             return Some(self.plugins.remove(index));
         } else {
             eprintln!("Unable to find requested plugin with id {:?}", plugin_id);
@@ -120,20 +124,17 @@ impl PluginManager {
             fullpath.file_stem().unwrap().to_str().unwrap()
         );
 
-        let mut plugin_data = PluginData {
-            id: PluginId::new(),
+        if let Some(prepare_fn) = lib.get::<PfnPreparePlugin>(PREPARE_PLUGIN_FUNCTION_NAME) {
+            unsafe { prepare_fn.unwrap()(app) };
+        }
+
+        PluginData {
             lib: Box::new(lib),
             plugin_holder,
             filewatcher: FileWatcher::new(fullpath.clone()),
             original_path: fullpath,
             in_use_path: in_use_fullpath,
-        };
-
-        if let Some(holder) = &mut plugin_data.plugin_holder {
-            holder.get_plugin().prepare(app);
         }
-
-        plugin_data
     }
 
     pub fn clear_plugin_data(mut plugin_data: PluginData, app: &mut App) {
@@ -142,10 +143,14 @@ impl PluginManager {
 
         let in_use_path = plugin_data.in_use_path;
         let lib = unsafe { Box::into_raw(plugin_data.lib).as_mut().unwrap() };
-        if let Some(mut plugin_holder) = plugin_data.plugin_holder {
-            plugin_holder.get_plugin().unprepare(app);
+        if let Some(plugin_holder) = plugin_data.plugin_holder {
+            if let Some(unprepare_fn) =
+                lib.get::<PfnUnpreparePlugin>(UNPREPARE_PLUGIN_FUNCTION_NAME)
+            {
+                unsafe { unprepare_fn.unwrap()(app) };
+            }
             if let Some(destroy_fn) = lib.get::<PfnDestroyPlugin>(DESTROY_PLUGIN_FUNCTION_NAME) {
-                unsafe { destroy_fn.unwrap()(plugin_holder) };
+                unsafe { destroy_fn.unwrap()(plugin_holder.id()) };
             }
         }
         lib.close();
@@ -167,7 +172,7 @@ impl PluginManager {
                 plugin_data.filewatcher.read_events().try_recv()
             {
                 if plugin_data.filewatcher.get_path().eq(&path) {
-                    plugins_to_remove.push(plugin_data.id);
+                    plugins_to_remove.push(plugin_data.plugin_holder.as_ref().unwrap().id());
                 }
             }
         }
@@ -176,7 +181,11 @@ impl PluginManager {
     }
 
     pub fn get_plugin_data(&mut self, id: PluginId) -> Option<&mut PluginData> {
-        if let Some(index) = self.plugins.iter().position(|el| el.id == id) {
+        if let Some(index) = self
+            .plugins
+            .iter()
+            .position(|plugin| plugin.plugin_holder.as_ref().unwrap().id() == id)
+        {
             return Some(&mut self.plugins[index]);
         }
         None
