@@ -233,12 +233,8 @@ impl GltfCompiler {
 
         Self::create_file(path, &mesh_data, mesh_name, MESH_DATA_EXTENSION)
     }
-    fn process_material_data(path: &Path, primitive: &Primitive, mesh_path: PathBuf) -> PathBuf {
+    fn process_material_data(path: &Path, primitive: &Primitive) -> PathBuf {
         let mut material_data = MaterialData::default();
-
-        let mesh_path =
-            convert_in_local_path(mesh_path.as_path(), PathBuf::from(DATA_FOLDER).as_path());
-        material_data.meshes.push(mesh_path);
 
         let material = primitive.material().pbr_metallic_roughness();
         material_data.diffuse_color = material.base_color_factor().into();
@@ -281,17 +277,22 @@ impl GltfCompiler {
             for (_primitive_index, primitive) in mesh.primitives().enumerate() {
                 //println!("Primitive[{}]: ", _primitive_index);
                 let name = format!("Mesh_{}", mesh.index());
-                let mesh_path = Self::process_mesh_data(
-                    path,
-                    mesh.name().unwrap_or_else(|| name.as_str()),
-                    &primitive,
-                );
-                let material_path = Self::process_material_data(path, &primitive, mesh_path);
+                let material_path = Self::process_material_data(path, &primitive);
                 let material_path = convert_in_local_path(
                     material_path.as_path(),
                     PathBuf::from(DATA_FOLDER).as_path(),
                 );
                 object_data.material = material_path;
+                let mesh_path = Self::process_mesh_data(
+                    path,
+                    mesh.name().unwrap_or_else(|| name.as_str()),
+                    &primitive,
+                );
+                let mesh_path = convert_in_local_path(
+                    mesh_path.as_path(),
+                    PathBuf::from(DATA_FOLDER).as_path(),
+                );
+                object_data.mesh = mesh_path;
             }
         }
 

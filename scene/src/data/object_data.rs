@@ -7,6 +7,7 @@ use nrg_serialize::*;
 implement_file_data!(
     struct ObjectData {
         transform: Matrix4,
+        mesh: PathBuf,
         material: PathBuf,
         children: Vec<PathBuf>,
     }
@@ -17,6 +18,7 @@ impl Default for ObjectData {
         Self {
             path: PathBuf::new(),
             transform: Matrix4::default_identity(),
+            mesh: PathBuf::new(),
             material: PathBuf::new(),
             children: Vec::new(),
         }

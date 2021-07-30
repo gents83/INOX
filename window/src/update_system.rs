@@ -118,7 +118,17 @@ impl System for UpdateSystem {
             meshes.iter_mut().enumerate().for_each(|(index, mesh)| {
                 if mesh.resource().get().is_visible() {
                     let material = mesh.resource().get().material();
+                    if material.id().is_nil() {
+                        eprintln!("Tyring to render a mesh with an unregistered material");
+                        return;
+                    }
                     let pipeline = material.resource().get().pipeline();
+                    if pipeline.id().is_nil() {
+                        eprintln!(
+                            "Tyring to render a mesh with a material with an unregistered pipeline"
+                        );
+                        return;
+                    }
 
                     let wait_count = wait_count.clone();
                     wait_count.fetch_add(1, Ordering::SeqCst);

@@ -61,6 +61,9 @@ impl DataTypeResource for MeshInstance {
 }
 
 impl MeshInstance {
+    pub fn find_from_path(shared_data: &SharedDataRw, path: &Path) -> Option<MeshRc> {
+        SharedData::match_resource(shared_data, |m: &MeshInstance| m.path() == path)
+    }
     pub fn get_data(&self) -> &MeshData {
         &self.mesh_data
     }
