@@ -37,14 +37,15 @@ impl TextureAtlas {
     }
 }
 
-pub struct Texture {
-    id: Uid,
-    texture_index: u32,
-    layer_index: u32,
-    area: Area,
+#[derive(Clone, Copy)]
+pub struct TextureInfo {
+    pub id: Uid,
+    pub texture_index: u32,
+    pub layer_index: u32,
+    pub area: Area,
 }
 
-impl Texture {
+impl TextureInfo {
     pub fn get_texture_index(&self) -> u32 {
         self.texture_index
     }
@@ -68,7 +69,7 @@ impl Texture {
 pub struct TextureHandler {
     device: Device,
     texture_atlas: Vec<TextureAtlas>,
-    textures: Vec<Texture>,
+    textures: Vec<TextureInfo>,
 }
 
 impl TextureHandler {
@@ -80,7 +81,7 @@ impl TextureHandler {
         }
     }
 
-    pub fn get_texture(&self, id: Uid) -> &Texture {
+    pub fn get_texture(&self, id: Uid) -> &TextureInfo {
         let index = self.textures.iter().position(|t| t.id == id).unwrap();
         &self.textures[index]
     }
@@ -89,7 +90,7 @@ impl TextureHandler {
         self.textures.is_empty()
     }
 
-    pub fn add(&mut self, id: Uid, image_data: RgbaImage) -> (u32, u32) {
+    pub fn add(&mut self, id: Uid, image_data: RgbaImage) -> TextureInfo {
         let (texture_index, layer_index, area) = self.add_image(
             image_data.width(),
             image_data.height(),
@@ -105,16 +106,17 @@ impl TextureHandler {
                 image_data.height()
             );
         }
-        self.textures.push(Texture {
+        let texture = TextureInfo {
             id,
             texture_index: texture_index as _,
             layer_index: layer_index as _,
             area,
-        });
-        (texture_index as _, layer_index as _)
+        };
+        self.textures.push(texture);
+        texture
     }
 
-    pub fn add_from_path(&mut self, id: Uid, filepath: &Path) -> (u32, u32) {
+    pub fn add_from_path(&mut self, id: Uid, filepath: &Path) -> TextureInfo {
         let image = image::open(filepath).unwrap();
         self.add(id, image.to_rgba8())
     }
@@ -149,7 +151,7 @@ impl TextureHandler {
             image_data.height(),
             image_data.as_raw().as_bytes(),
         );
-        self.textures.push(Texture {
+        self.textures.push(TextureInfo {
             id: generate_random_uid(),
             texture_index: texture_index as _,
             layer_index: layer_index as _,

@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use crate::{MeshData, Texture};
+use crate::{MeshData, TextureInfo};
 use nrg_math::{Matrix4, Vector4};
 use nrg_resources::{
     DataTypeResource, Deserializable, ResourceData, ResourceId, ResourceRef, SerializableResource,
@@ -82,6 +82,9 @@ impl MeshInstance {
         self.uv_converted = false;
         self.is_dirty = true;
     }
+    pub fn mesh_data(&self) -> &MeshData {
+        &self.mesh_data
+    }
     pub fn transform(&self) -> &Matrix4 {
         &self.mesh_data.transform
     }
@@ -89,7 +92,7 @@ impl MeshInstance {
         self.draw_area
     }
 
-    pub fn process_uv_for_texture(&mut self, texture: Option<&Texture>) -> &mut Self {
+    pub fn process_uv_for_texture(&mut self, texture: Option<&TextureInfo>) -> &mut Self {
         if !self.uv_converted {
             self.uv_converted = true;
             for v in self.mesh_data.vertices.iter_mut() {

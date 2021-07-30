@@ -303,7 +303,7 @@ impl Renderer {
                     PathBuf::from(DATA_FOLDER).as_path(),
                     texture_instance.resource().get().path(),
                 );
-                let (texture_index, layer_index) = if let Some(image_data) =
+                let texture_info = if let Some(image_data) =
                     texture_instance.resource().get_mut().image_data()
                 {
                     texture_handler.add(texture_instance.id(), image_data)
@@ -321,7 +321,7 @@ impl Renderer {
                 texture_instance
                     .resource()
                     .get_mut()
-                    .set_texture_data(texture_index, layer_index);
+                    .set_texture_info(texture_info);
             }
         });
     }

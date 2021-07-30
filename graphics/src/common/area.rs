@@ -1,6 +1,6 @@
 pub const DEFAULT_AREA_SIZE: u32 = 4096;
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct Area {
     pub x: u32,
     pub y: u32,

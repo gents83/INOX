@@ -4,17 +4,22 @@ use std::{
 };
 
 use nrg_core::{System, SystemId};
-use nrg_filesystem::{for_each_file_in, for_each_folder_in, is_folder_empty};
+use nrg_filesystem::{
+    convert_from_local_path, for_each_file_in, for_each_folder_in, is_folder_empty,
+};
 use nrg_graphics::{
     FontInstance, FontRc, PipelineInstance, PipelineRc, RenderPassInstance, RenderPassRc,
+    TextureInstance, TextureRc,
 };
 use nrg_messenger::{Message, MessengerRw};
 use nrg_platform::WindowEvent;
-use nrg_resources::{ConfigBase, DataTypeResource, FileResource, SharedDataRw, DATA_FOLDER};
+use nrg_resources::{
+    ConfigBase, DataTypeResource, FileResource, SharedData, SharedDataRw, DATA_FOLDER,
+};
 use nrg_serialize::{deserialize_from_file, serialize, Uid, INVALID_UID};
 use nrg_ui::{
     implement_widget_data, Align, CentralPanel, CollapsingHeader, DialogEvent, Layout, ScrollArea,
-    SidePanel, TextEdit, UIWidget, UIWidgetRc, Ui, Widget,
+    SidePanel, TextEdit, TextureId as eguiTextureId, UIWidget, UIWidgetRc, Ui, Widget,
 };
 
 use crate::config::Config;
@@ -40,6 +45,7 @@ pub struct ContentBrowserSystem {
     render_passes: Vec<RenderPassRc>,
     fonts: Vec<FontRc>,
     ui_page: UIWidgetRc,
+    file_icon: TextureRc,
 }
 
 impl ContentBrowserSystem {
@@ -53,6 +59,7 @@ impl ContentBrowserSystem {
             render_passes: Vec::new(),
             fonts: Vec::new(),
             ui_page: UIWidgetRc::default(),
+            file_icon: TextureRc::default(),
         }
     }
 
@@ -78,6 +85,15 @@ impl ContentBrowserSystem {
                 default_font_path,
             ));
         }
+
+        self.file_icon = TextureInstance::create_from_file(
+            &self.shared_data,
+            convert_from_local_path(
+                PathBuf::from(DATA_FOLDER).as_path(),
+                PathBuf::from("./icons/file.png").as_path(),
+            )
+            .as_path(),
+        );
     }
 
     fn send_event(global_messenger: &MessengerRw, event: Box<dyn Message>) {
@@ -174,13 +190,25 @@ impl ContentBrowserSystem {
         });
     }
 
-    fn populate_with_files(ui: &mut Ui, root: &Path, data: &mut FolderDialogData) {
+    fn populate_with_files(
+        ui: &mut Ui,
+        root: &Path,
+        data: &mut FolderDialogData,
+        icon_file_texture_id: nrg_graphics::TextureId,
+    ) {
         for_each_file_in(root, |path| {
             let filename = path.file_name().unwrap().to_str().unwrap().to_string();
             let selected = data.selected_file == filename;
-            if ui.selectable_label(selected, filename.clone()).clicked() {
-                data.selected_file = filename;
-            }
+            ui.horizontal(|ui| {
+                let textures =
+                    SharedData::get_resources_of_type::<TextureInstance>(&data.shared_data);
+                if let Some(index) = textures.iter().position(|t| t.id() == icon_file_texture_id) {
+                    ui.image(eguiTextureId::User(index as _), [16., 16.]);
+                }
+                if ui.selectable_label(selected, filename.clone()).clicked() {
+                    data.selected_file = filename;
+                }
+            });
         });
     }
 
@@ -191,6 +219,7 @@ impl ContentBrowserSystem {
         let bottom_panel_height = 25.;
         let button_size = 50.;
         let global_messenger = self.global_messenger.clone();
+        let icon_file_texture_id = self.file_icon.id();
         self.ui_page = UIWidget::register(&self.shared_data, data, move |ui_data, ui_context| {
             if let Some(data) = ui_data.as_any().downcast_mut::<FolderDialogData>() {
                 SidePanel::left("Folders")
@@ -213,7 +242,12 @@ impl ContentBrowserSystem {
                     ScrollArea::auto_sized().show(&mut child_ui, |ui| {
                         if data.selected_folder.is_dir() {
                             let path = data.selected_folder.as_path().to_path_buf();
-                            Self::populate_with_files(ui, path.as_path(), data);
+                            Self::populate_with_files(
+                                ui,
+                                path.as_path(),
+                                data,
+                                icon_file_texture_id,
+                            );
                         }
                     });
                     bottom_ui.vertical(|ui| {

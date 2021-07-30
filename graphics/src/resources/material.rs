@@ -126,20 +126,27 @@ impl MaterialInstance {
     pub fn remove_texture(&mut self, texture_id: TextureId) {
         self.textures.retain(|t| t.id() != texture_id);
     }
-
-    pub fn add_texture(&mut self, texture: TextureRc) {
-        self.textures.push(texture);
+    pub fn remove_all_textures(&mut self) -> &mut Self {
+        self.textures.clear();
+        self
     }
 
-    pub fn add_mesh(&mut self, mesh: MeshRc) {
+    pub fn add_texture(&mut self, texture: TextureRc) -> &mut Self {
+        self.textures.push(texture);
+        self
+    }
+
+    pub fn add_mesh(&mut self, mesh: MeshRc) -> &mut Self {
         self.meshes.push(mesh);
+        self
     }
 
     pub fn remove_mesh(&mut self, mesh_id: MeshId) {
         self.meshes.retain(|m| m.id() != mesh_id);
     }
-    pub fn remove_all_meshes(&mut self) {
+    pub fn remove_all_meshes(&mut self) -> &mut Self {
         self.meshes.clear();
+        self
     }
 
     pub fn set_diffuse_color(&mut self, diffuse_color: Vector4) {

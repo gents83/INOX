@@ -8,7 +8,7 @@ use nrg_resources::{
 };
 use nrg_serialize::{generate_random_uid, generate_uid_from_string, INVALID_UID};
 
-use crate::INVALID_INDEX;
+use crate::{TextureInfo, INVALID_INDEX};
 
 pub type TextureId = ResourceId;
 pub type TextureRc = ResourceRef<TextureInstance>;
@@ -19,6 +19,8 @@ pub struct TextureInstance {
     image_data: Option<RgbaImage>,
     texture_index: i32,
     layer_index: i32,
+    width: u32,
+    height: u32,
     is_initialized: bool,
 }
 
@@ -30,6 +32,8 @@ impl Default for TextureInstance {
             image_data: None,
             texture_index: INVALID_INDEX,
             layer_index: INVALID_INDEX,
+            width: 0,
+            height: 0,
             is_initialized: false,
         }
     }
@@ -44,11 +48,14 @@ impl ResourceData for TextureInstance {
 impl DataTypeResource for TextureInstance {
     type DataType = RgbaImage;
     fn create_from_data(shared_data: &SharedDataRw, image_data: Self::DataType) -> TextureRc {
+        let dimensions = image_data.dimensions();
         SharedData::add_resource(
             shared_data,
             TextureInstance {
                 id: generate_random_uid(),
                 image_data: Some(image_data),
+                width: dimensions.0,
+                height: dimensions.1,
                 ..Default::default()
             },
         )
@@ -78,12 +85,17 @@ impl TextureInstance {
     pub fn path(&self) -> &Path {
         self.path.as_path()
     }
+    pub fn dimensions(&self) -> (u32, u32) {
+        (self.width, self.height)
+    }
     pub fn image_data(&mut self) -> Option<RgbaImage> {
         self.image_data.take()
     }
-    pub fn set_texture_data(&mut self, texture_index: u32, layer_index: u32) -> &mut Self {
-        self.texture_index = texture_index as _;
-        self.layer_index = layer_index as _;
+    pub fn set_texture_info(&mut self, texture_info: TextureInfo) -> &mut Self {
+        self.texture_index = texture_info.texture_index as _;
+        self.layer_index = texture_info.layer_index as _;
+        self.width = texture_info.area.width as u32;
+        self.height = texture_info.area.height as u32;
         self.is_initialized = true;
         self
     }

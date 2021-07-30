@@ -1,13 +1,14 @@
-use std::any::TypeId;
+use std::{any::TypeId, collections::HashMap};
 
 use egui::{
-    pos2, vec2, ClippedMesh, CtxRef, Event, Modifiers, Output, PointerButton, RawInput, Rect,
+    ClippedMesh, CtxRef, Event, Modifiers, Output, PointerButton, RawInput, Rect,
+    TextureId as eguiTextureId,
 };
 use image::{DynamicImage, Pixel};
 use nrg_core::{JobHandlerRw, System, SystemId};
 use nrg_graphics::{
-    MaterialInstance, MaterialRc, MeshData, MeshInstance, PipelineInstance, TextureInstance,
-    VertexData,
+    MaterialInstance, MaterialRc, MeshData, MeshInstance, PipelineInstance, TextureId,
+    TextureInstance, TextureRc, VertexData,
 };
 
 use nrg_messenger::{read_messages, MessageChannel, MessengerRw};
@@ -27,10 +28,11 @@ pub struct UISystem {
     message_channel: MessageChannel,
     ui_context: CtxRef,
     ui_texture_version: u64,
+    ui_texture: TextureRc,
     ui_input: RawInput,
     ui_input_modifiers: Modifiers,
     ui_clipboard: Option<String>,
-    ui_default_material: MaterialRc,
+    ui_materials: HashMap<TextureId, MaterialRc>,
     ui_scale: f32,
 }
 
@@ -49,24 +51,43 @@ impl UISystem {
             message_channel,
             ui_context: CtxRef::default(),
             ui_texture_version: 0,
+            ui_texture: TextureRc::default(),
             ui_input: RawInput::default(),
             ui_input_modifiers: Modifiers::default(),
             ui_clipboard: None,
-            ui_default_material: MaterialRc::default(),
+            ui_materials: HashMap::new(),
             ui_scale: 2.,
         }
     }
 
-    fn create_default_material(&mut self) -> &mut Self {
-        if let Some(pipeline) =
+    fn get_ui_material(&mut self, texture_id: TextureId) -> MaterialRc {
+        if self.ui_materials.contains_key(&texture_id) {
+            return self.ui_materials.get(&texture_id).unwrap().clone();
+        } else if let Some(pipeline) =
             SharedData::match_resource(&self.shared_data, |p: &PipelineInstance| {
                 p.data().name == "UI"
             })
         {
-            self.ui_default_material =
-                MaterialInstance::create_from_pipeline(&self.shared_data, pipeline);
-        } else {
-            panic!("No pipeline with name UI has been loaded");
+            let material = MaterialInstance::create_from_pipeline(&self.shared_data, pipeline);
+            let mesh_instance =
+                MeshInstance::create_from_data(&self.shared_data, MeshData::default());
+            material.resource().get_mut().add_mesh(mesh_instance);
+            self.ui_materials.insert(texture_id, material.clone());
+            return material;
+        }
+        panic!("No pipeline with name UI has been loaded");
+    }
+
+    fn clear_ui_materials(&mut self) -> &mut Self {
+        for (_, material) in self.ui_materials.iter() {
+            let mesh_instance =
+                MeshInstance::create_from_data(&self.shared_data, MeshData::default());
+            material
+                .resource()
+                .get_mut()
+                .remove_all_textures()
+                .remove_all_meshes()
+                .add_mesh(mesh_instance);
         }
         self
     }
@@ -85,63 +106,54 @@ impl UISystem {
                     image_data.put_pixel(x, y, Pixel::from_channels(r, r, r, r));
                 }
             }
-            let ui_texture = TextureInstance::create_from_data(&self.shared_data, image_data);
-            self.ui_default_material
-                .resource()
-                .get_mut()
-                .add_texture(ui_texture);
+            self.ui_texture = TextureInstance::create_from_data(&self.shared_data, image_data);
             self.ui_texture_version = self.ui_context.texture().version;
         }
         self
     }
 
-    fn compute_mesh_data(&mut self, clipped_meshes: Vec<ClippedMesh>) -> MeshData {
-        let mut mesh_data = MeshData::default();
-        let mut max_indices = 0;
+    fn compute_mesh_data(&mut self, clipped_meshes: Vec<ClippedMesh>) {
         for clipped_mesh in clipped_meshes {
             let ClippedMesh(_, mesh) = clipped_mesh;
             if mesh.vertices.is_empty() || mesh.indices.is_empty() {
                 continue;
             }
-            let vertices: Vec<VertexData> = mesh
-                .vertices
-                .iter()
-                .map(|v| VertexData {
-                    pos: [v.pos.x * self.ui_scale, v.pos.y * self.ui_scale, 0.].into(),
-                    tex_coord: [v.uv.x, v.uv.y].into(),
-                    color: [
-                        v.color.r() as f32 / 255.,
-                        v.color.g() as f32 / 255.,
-                        v.color.b() as f32 / 255.,
-                        v.color.a() as f32 / 255.,
-                    ]
-                    .into(),
-                    ..Default::default()
-                })
-                .collect();
-            let indices: Vec<u32> = mesh.indices.iter().map(|i| i + max_indices).collect();
-            max_indices += vertices.len() as u32;
-            mesh_data.append_mesh(vertices.as_slice(), indices.as_slice());
+            let texture = match mesh.texture_id {
+                eguiTextureId::Egui => self.ui_texture.clone(),
+                eguiTextureId::User(texture_index) => {
+                    let textures =
+                        SharedData::get_resources_of_type::<TextureInstance>(&self.shared_data);
+                    textures[texture_index as usize].clone()
+                }
+            };
+            let material = self.get_ui_material(texture.id());
+            material.resource().get_mut().add_texture(texture);
+            if let Some(mesh_instance) = material.resource().get().meshes().first() {
+                let mut mesh_data = mesh_instance.resource().get().mesh_data().clone();
+                let vertices: Vec<VertexData> = mesh
+                    .vertices
+                    .iter()
+                    .map(|v| VertexData {
+                        pos: [v.pos.x * self.ui_scale, v.pos.y * self.ui_scale, 0.].into(),
+                        tex_coord: [v.uv.x, v.uv.y].into(),
+                        color: [
+                            v.color.r() as f32 / 255.,
+                            v.color.g() as f32 / 255.,
+                            v.color.b() as f32 / 255.,
+                            v.color.a() as f32 / 255.,
+                        ]
+                        .into(),
+                        ..Default::default()
+                    })
+                    .collect();
+                let max_indices = mesh_data.vertices.len() as u32;
+                let indices: Vec<u32> = mesh.indices.iter().map(|i| i + max_indices).collect();
+                mesh_data.append_mesh(vertices.as_slice(), indices.as_slice());
+                mesh_instance.resource().get_mut().set_mesh_data(mesh_data);
+            } else {
+                panic!("We should already have created new mesh in clear_ui_materials()");
+            };
         }
-        mesh_data
-    }
-
-    fn update_mesh_in_ui_material(&mut self, mesh_data: MeshData) -> &mut Self {
-        if !self.ui_default_material.resource().get().has_meshes() {
-            let mesh = MeshInstance::create_from_data(&self.shared_data, mesh_data);
-            self.ui_default_material.resource().get_mut().add_mesh(mesh);
-        } else {
-            self.ui_default_material
-                .resource()
-                .get()
-                .meshes()
-                .first()
-                .unwrap()
-                .resource()
-                .get_mut()
-                .set_mesh_data(mesh_data);
-        }
-        self
     }
 
     fn update_events(&mut self) -> &mut Self {
@@ -150,16 +162,20 @@ impl UISystem {
             if msg.type_id() == TypeId::of::<MouseEvent>() {
                 let event = msg.as_any().downcast_ref::<MouseEvent>().unwrap();
                 if event.state == MouseState::Move {
-                    self.ui_input.events.push(Event::PointerMoved(pos2(
-                        event.x as f32 / self.ui_scale,
-                        event.y as f32 / self.ui_scale,
-                    )));
-                } else if event.state == MouseState::Down || event.state == MouseState::Up {
-                    self.ui_input.events.push(Event::PointerButton {
-                        pos: pos2(
+                    self.ui_input.events.push(Event::PointerMoved(
+                        [
                             event.x as f32 / self.ui_scale,
                             event.y as f32 / self.ui_scale,
-                        ),
+                        ]
+                        .into(),
+                    ));
+                } else if event.state == MouseState::Down || event.state == MouseState::Up {
+                    self.ui_input.events.push(Event::PointerButton {
+                        pos: [
+                            event.x as f32 / self.ui_scale,
+                            event.y as f32 / self.ui_scale,
+                        ]
+                        .into(),
                         button: match event.button {
                             MouseButton::Right => PointerButton::Secondary,
                             MouseButton::Middle => PointerButton::Middle,
@@ -175,7 +191,7 @@ impl UISystem {
                     WindowEvent::SizeChanged(width, height) => {
                         self.ui_input.screen_rect = Some(Rect::from_min_size(
                             Default::default(),
-                            vec2(width as f32 / self.ui_scale, height as f32 / self.ui_scale),
+                            [width as f32 / self.ui_scale, height as f32 / self.ui_scale].into(),
                         ));
                     }
                     WindowEvent::DpiChanged(x, _y) => {
@@ -276,8 +292,6 @@ impl System for UISystem {
             .register_messagebox::<KeyEvent>(self.message_channel.get_messagebox())
             .register_messagebox::<KeyTextEvent>(self.message_channel.get_messagebox())
             .register_messagebox::<MouseEvent>(self.message_channel.get_messagebox());
-
-        self.create_default_material();
     }
 
     fn run(&mut self) -> bool {
@@ -289,11 +303,10 @@ impl System for UISystem {
 
         let (output, shapes) = self.ui_context.end_frame();
         let clipped_meshes = self.ui_context.tessellate(shapes);
-
-        let mesh_data = self.compute_mesh_data(clipped_meshes);
         self.handle_output(output)
-            .update_mesh_in_ui_material(mesh_data)
-            .update_egui_texture();
+            .clear_ui_materials()
+            .update_egui_texture()
+            .compute_mesh_data(clipped_meshes);
 
         true
     }
