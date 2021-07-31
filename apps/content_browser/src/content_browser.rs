@@ -16,10 +16,10 @@ use nrg_platform::WindowEvent;
 use nrg_resources::{
     ConfigBase, DataTypeResource, FileResource, SharedData, SharedDataRw, DATA_FOLDER,
 };
-use nrg_serialize::{deserialize_from_file, serialize, Uid, INVALID_UID};
+use nrg_serialize::{deserialize_from_file, serialize};
 use nrg_ui::{
-    implement_widget_data, Align, CentralPanel, CollapsingHeader, DialogEvent, Layout, ScrollArea,
-    SidePanel, TextEdit, TextureId as eguiTextureId, UIWidget, UIWidgetRc, Ui, Widget,
+    implement_widget_data, Align, CentralPanel, CollapsingHeader, DialogEvent, DialogOp, Layout,
+    ScrollArea, SidePanel, TextEdit, TextureId as eguiTextureId, UIWidget, UIWidgetRc, Ui, Widget,
 };
 
 use crate::config::Config;
@@ -32,7 +32,7 @@ struct FolderDialogData {
     selected_folder: PathBuf,
     selected_file: String,
     is_editable: bool,
-    requester_uid: Option<Uid>,
+    operation: DialogOp,
 }
 implement_widget_data!(FolderDialogData);
 
@@ -139,10 +139,10 @@ impl ContentBrowserSystem {
             } else {
                 PathBuf::from(DATA_FOLDER)
             },
-            requester_uid: if args.len() > 3 {
-                Uid::parse_str(args[3].as_str()).ok()
+            operation: if args.len() > 3 {
+                DialogOp::from(args[3].as_str())
             } else {
-                None
+                DialogOp::Open
             },
             is_editable: if args.len() > 4 {
                 args[4] == "true"
@@ -262,18 +262,16 @@ impl ContentBrowserSystem {
                                 .ui(ui);
                             if ui.button("Ok").clicked() {
                                 Self::send_event(&global_messenger, WindowEvent::Close.as_boxed());
-                                if let Some(requester_uid) = data.requester_uid {
-                                    let path = data.selected_folder.clone();
-                                    let path = path.join(data.selected_file.clone());
-                                    let event =
-                                        DialogEvent::Confirmed(INVALID_UID, requester_uid, path);
-                                    let serialized_event = serialize(&event);
-                                    println!("[[[{}]]]", serialized_event);
-                                }
+
+                                let path = data.selected_folder.clone();
+                                let path = path.join(data.selected_file.clone());
+                                let event = DialogEvent::Confirmed(data.operation, path);
+                                let serialized_event = serialize(&event);
+                                println!("[[[{}]]]", serialized_event);
                             }
                             if ui.button("Cancel").clicked() {
                                 Self::send_event(&global_messenger, WindowEvent::Close.as_boxed());
-                                let event = DialogEvent::Canceled(INVALID_UID);
+                                let event = DialogEvent::Canceled(data.operation);
                                 let serialized_event = serialize(&event);
                                 println!("[[[{}]]]", serialized_event);
                             }

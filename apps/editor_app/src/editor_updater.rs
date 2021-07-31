@@ -15,7 +15,10 @@ use nrg_graphics::{
     FontInstance, FontRc, MaterialInstance, MaterialRc, MeshData, MeshInstance, MeshRc,
     PipelineInstance, PipelineRc, RenderPassInstance, RenderPassRc, ViewInstance,
 };
-use nrg_gui::*;
+use nrg_gui::{
+    BaseWidget, GraphNode, Gui, HorizontalAlignment, Icon, PropertiesEvent, PropertiesPanel,
+    Screen, Text, TextBox, VerticalAlignment, WidgetCreator, WidgetDataGetter, WidgetEvent,
+};
 use nrg_math::{
     compute_distance_between_ray_and_oob, InnerSpace, MatBase, Matrix4, SquareMatrix, Vector2,
     Vector3, Vector4, Zero,
@@ -27,6 +30,7 @@ use nrg_resources::{
 };
 use nrg_scene::{Object, ObjectId, Scene, SceneRc};
 use nrg_serialize::*;
+use nrg_ui::{DialogEvent, DialogOp};
 
 pub struct EditorUpdater {
     id: SystemId,
@@ -39,7 +43,7 @@ pub struct EditorUpdater {
     fps_text: Uid,
     properties_id: Uid,
     graph_id: Uid,
-    main_menu_id: Uid,
+    main_menu: Option<MainMenu>,
     message_channel: MessageChannel,
     nodes_registry: WidgetRegistry,
     camera: Camera,
@@ -96,7 +100,7 @@ impl EditorUpdater {
             fps_text: INVALID_UID,
             properties_id: INVALID_UID,
             graph_id: INVALID_UID,
-            main_menu_id: INVALID_UID,
+            main_menu: None,
             message_channel,
             camera,
             move_camera_with_mouse: false,
@@ -205,15 +209,8 @@ impl System for EditorUpdater {
 
 impl EditorUpdater {
     fn create_main_menu(&mut self) -> &mut Self {
-        let mut main_menu = MainMenu::new(&self.shared_data, &self.global_messenger);
-        self.main_menu_id = main_menu.id();
-        main_menu.fill_nodes_from_registry(&self.nodes_registry);
-        Gui::get()
-            .write()
-            .unwrap()
-            .get_root_mut()
-            .add_child(Box::new(main_menu));
-
+        let main_menu = MainMenu::new(&self.shared_data, &self.global_messenger);
+        self.main_menu = Some(main_menu);
         self
     }
     fn create_graph(&mut self) -> &mut Self {
@@ -482,32 +479,25 @@ impl EditorUpdater {
                 }
             } else if msg.type_id() == TypeId::of::<DialogEvent>() {
                 let event = msg.as_any().downcast_ref::<DialogEvent>().unwrap();
-                if let DialogEvent::Confirmed(_widget_id, requester_uid, filename) = event {
-                    let mut should_load = false;
-                    let mut should_save = false;
-                    if let Some(menu) = Gui::get()
-                        .read()
-                        .unwrap()
-                        .get_root()
-                        .get_child_mut::<MainMenu>(self.main_menu_id)
-                    {
-                        should_load = menu.is_open_uid(*requester_uid);
-                        should_save = menu.is_save_uid(*requester_uid);
-                    }
+                if let DialogEvent::Confirmed(operation, filename) = event {
                     let extension = filename.extension().unwrap().to_str().unwrap();
-                    if should_load {
-                        println!("Loading {:?}", filename);
-                        if extension.contains("widget") {
-                            self.load_graph(filename.clone());
-                        } else if extension.contains("object_data") {
-                            self.load_object(filename.as_path());
+                    match operation {
+                        DialogOp::Open => {
+                            println!("Loading {:?}", filename);
+                            if extension.contains("widget") {
+                                self.load_graph(filename.clone());
+                            } else if extension.contains("object_data") {
+                                self.load_object(filename.as_path());
+                            }
                         }
-                    } else if should_save {
-                        println!("Saving {:?}", filename);
-                        if extension.contains("widget") {
-                            self.save_graph(filename.clone());
-                        } else if extension.contains("object_data") {
+                        DialogOp::Save => {
+                            println!("Saving {:?}", filename);
+                            if extension.contains("widget") {
+                                self.save_graph(filename.clone());
+                            } else if extension.contains("object_data") {
+                            }
                         }
+                        DialogOp::New => {}
                     }
                 }
             } else if msg.type_id() == TypeId::of::<MouseEvent>() {

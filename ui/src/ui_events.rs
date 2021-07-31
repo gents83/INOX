@@ -3,10 +3,38 @@ use std::path::PathBuf;
 use nrg_messenger::implement_message;
 use nrg_serialize::*;
 
+#[derive(Copy, Clone, Serialize, Deserialize)]
+#[serde(crate = "nrg_serialize")]
+pub enum DialogOp {
+    New,
+    Open,
+    Save,
+}
+impl From<&str> for DialogOp {
+    fn from(string: &str) -> Self {
+        match string {
+            "New" => DialogOp::New,
+            "Open" => DialogOp::Open,
+            "Save" => DialogOp::Save,
+            _ => panic!("Unknown DialogOp: {}", string),
+        }
+    }
+}
+
+impl From<DialogOp> for &str {
+    fn from(op: DialogOp) -> Self {
+        match op {
+            DialogOp::New => "New",
+            DialogOp::Open => "Open",
+            DialogOp::Save => "Save",
+        }
+    }
+}
+
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]
 pub enum DialogEvent {
-    Confirmed(Uid, Uid, PathBuf), //my uid, requester uid, text
-    Canceled(Uid),
+    Confirmed(DialogOp, PathBuf),
+    Canceled(DialogOp),
 }
 implement_message!(DialogEvent);

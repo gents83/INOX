@@ -13,6 +13,9 @@ pub trait UIWidgetData: Send + Sync + Any {
 #[macro_export]
 macro_rules! implement_widget_data {
     ($Type:ident) => {
+        unsafe impl Sync for $Type {}
+        unsafe impl Send for $Type {}
+
         impl $crate::UIWidgetData for $Type {
             #[inline]
             fn as_any(&mut self) -> &mut dyn std::any::Any {

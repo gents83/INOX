@@ -2,6 +2,7 @@ use super::config::*;
 use nrg_core::*;
 use nrg_resources::ConfigBase;
 use nrg_serialize::*;
+use nrg_ui::UISystem;
 
 use super::editor_updater::*;
 
@@ -11,6 +12,7 @@ const EDITOR_UPDATE_PHASE: &str = "EDITOR_UPDATE_PHASE";
 pub struct Editor {
     config: Config,
     updater_id: SystemId,
+    ui_id: SystemId,
     renderer_id: SystemId,
 }
 
@@ -19,6 +21,7 @@ impl Default for Editor {
         Self {
             config: Config::default(),
             updater_id: SystemId::default(),
+            ui_id: SystemId::default(),
             renderer_id: SystemId::default(),
         }
     }
@@ -38,6 +41,15 @@ impl Editor {
         );
         self.updater_id = system.id();
         update_phase.add_system(system);
+
+        let ui_system = UISystem::new(
+            app.get_shared_data(),
+            app.get_global_messenger(),
+            app.get_job_handler(),
+        );
+        self.ui_id = ui_system.id();
+        update_phase.add_system(ui_system);
+
         app.create_phase_before(update_phase, "RENDERING_UPDATE");
     }
 

@@ -1,275 +1,104 @@
-use std::{any::TypeId, path::PathBuf, process::Command};
+use std::{path::PathBuf, process::Command};
 
-use nrg_gui::{
-    implement_widget_with_custom_members, Button, DialogEvent, FolderDialog, InternalWidget, Menu,
-    RefcountedWidget, ScrollableItem, WidgetData, WidgetEvent,
+use nrg_messenger::{get_events_from_string, Message, MessageBox, MessengerRw};
+use nrg_resources::{SharedDataRw, DATA_FOLDER, DATA_RAW_FOLDER};
+use nrg_serialize::deserialize;
+use nrg_ui::{
+    implement_widget_data, menu, DialogEvent, DialogOp, TopBottomPanel, UIWidget, UIWidgetRc,
 };
-use nrg_math::{Vector2, Vector4};
-use nrg_messenger::{get_events_from_string, Message};
-use nrg_platform::WindowEvent;
-use nrg_resources::{DATA_FOLDER, DATA_RAW_FOLDER};
-use nrg_serialize::*;
 
-use crate::widget_registry::{NodesEvent, WidgetRegistry};
-
-#[derive(Serialize, Deserialize)]
-#[serde(crate = "nrg_serialize")]
 pub struct MainMenu {
-    data: WidgetData,
-    menu: Option<Menu>,
-    #[serde(skip)]
-    file_id: Uid,
-    #[serde(skip)]
-    new_id: Uid,
-    #[serde(skip)]
-    open_id: Uid,
-    #[serde(skip)]
-    save_id: Uid,
-    #[serde(skip)]
-    exit_id: Uid,
-    #[serde(skip)]
-    edit_id: Uid,
-    #[serde(skip)]
-    nodes_id: Uid,
-    #[serde(skip)]
-    nodes_add_id: Uid,
-    #[serde(skip)]
-    nodes_list_id: Uid,
-    #[serde(skip)]
-    filename_dialog: Option<FolderDialog>,
+    ui_page: UIWidgetRc,
 }
-implement_widget_with_custom_members!(MainMenu {
-    menu: None,
-    file_id: INVALID_UID,
-    new_id: INVALID_UID,
-    save_id: INVALID_UID,
-    open_id: INVALID_UID,
-    exit_id: INVALID_UID,
-    edit_id: INVALID_UID,
-    nodes_id: INVALID_UID,
-    nodes_add_id: INVALID_UID,
-    nodes_list_id: INVALID_UID,
-    filename_dialog: None
-});
 
 impl MainMenu {
-    pub fn menu(&self) -> &Menu {
-        self.menu.as_ref().unwrap()
+    pub fn new(shared_data: &SharedDataRw, global_messenger: &MessengerRw) -> Self {
+        let ui_page = Self::create(shared_data, global_messenger);
+        Self { ui_page }
     }
-    fn menu_mut(&mut self) -> &mut Menu {
-        self.menu.as_mut().unwrap()
+
+    fn create(shared_data: &SharedDataRw, global_messenger: &MessengerRw) -> UIWidgetRc {
+        struct MenuData {
+            show_debug_info: bool,
+            global_dispatcher: MessageBox,
+        }
+        implement_widget_data!(MenuData);
+        let data = MenuData {
+            show_debug_info: false,
+            global_dispatcher: global_messenger.read().unwrap().get_dispatcher().clone(),
+        };
+
+        UIWidget::register(shared_data, data, |ui_data, ui_context| {
+            if let Some(data) = ui_data.as_any().downcast_mut::<MenuData>() {
+                TopBottomPanel::top("main_menu")
+                    .resizable(false)
+                    .show(ui_context, |ui| {
+                        menu::bar(ui, |ui| {
+                            menu::menu(ui, "File", |ui| {
+                                if ui.button("New").clicked() {
+                                    let mut command = Command::new("nrg_content_browser");
+                                    let op: &str = DialogOp::New.into();
+                                    command
+                                        .arg("New File")
+                                        .arg(PathBuf::from(DATA_RAW_FOLDER).to_str().unwrap())
+                                        .arg(op)
+                                        .arg("false");
+                                    Self::process_command_result(
+                                        &mut command,
+                                        data.global_dispatcher.clone(),
+                                    );
+                                }
+                                if ui.button("Open").clicked() {
+                                    let mut command = Command::new("nrg_content_browser");
+                                    let op: &str = DialogOp::Open.into();
+                                    command
+                                        .arg("Open File")
+                                        .arg(PathBuf::from(DATA_FOLDER).to_str().unwrap())
+                                        .arg(op)
+                                        .arg("false");
+                                    Self::process_command_result(
+                                        &mut command,
+                                        data.global_dispatcher.clone(),
+                                    );
+                                }
+                                if ui.button("Save").clicked() {
+                                    let mut command = Command::new("nrg_content_browser");
+                                    let op: &str = DialogOp::Save.into();
+                                    command
+                                        .arg("Save File")
+                                        .arg(PathBuf::from(DATA_RAW_FOLDER).to_str().unwrap())
+                                        .arg(op)
+                                        .arg("true");
+                                    Self::process_command_result(
+                                        &mut command,
+                                        data.global_dispatcher.clone(),
+                                    );
+                                }
+                                if ui.button("Exit").clicked() {}
+                            });
+                            menu::menu(ui, "Settings", |ui| {
+                                ui.checkbox(&mut data.show_debug_info, "Debug Info");
+                            });
+                        });
+                    });
+            }
+        })
     }
-    pub fn get_size(&self) -> Vector2 {
-        self.menu().state().get_size()
-    }
-    pub fn is_new_uid(&self, entry_uid: Uid) -> bool {
-        self.new_id == entry_uid
-    }
-    pub fn is_open_uid(&self, entry_uid: Uid) -> bool {
-        self.open_id == entry_uid
-    }
-    pub fn is_save_uid(&self, entry_uid: Uid) -> bool {
-        self.save_id == entry_uid
-    }
-    pub fn fill_nodes_from_registry(&mut self, registry: &WidgetRegistry) -> &mut Self {
-        let edit_id = self.edit_id;
-        let nodes_id = self.nodes_id;
-        let add_id = self.nodes_add_id;
-        let list_id = self.nodes_list_id;
-        let menu = self.menu_mut();
-        if let Some(edit) = menu.get_submenu(edit_id) {
-            if let Some(menu) = edit.node().get_child_mut::<Menu>(nodes_id) {
-                if let Some(add) = menu.get_submenu(add_id) {
-                    if let Some(list) = add.node().get_child_mut::<ScrollableItem>(list_id) {
-                        list.clear();
-                        if let Some(scrollable_panel) = list.get_scrollable_panel() {
-                            for i in 0..registry.count() {
-                                let mut button =
-                                    Button::new(add.get_shared_data(), add.get_global_messenger());
-                                let name = registry.get_name_from_index(i);
-                                button
-                                    .with_text(name)
-                                    .text_alignment(
-                                        VerticalAlignment::Center,
-                                        HorizontalAlignment::Left,
-                                    )
-                                    .horizontal_alignment(HorizontalAlignment::Stretch)
-                                    .vertical_alignment(VerticalAlignment::Top)
-                                    .fill_type(ContainerFillType::Horizontal)
-                                    .node_mut()
-                                    .set_name(name);
-                                scrollable_panel.add_child(Box::new(button));
-                            }
-                        }
-                        list.vertical();
-                    }
+
+    fn process_command_result(command: &mut Command, dispatcher: MessageBox) {
+        let result = command.output();
+        match result {
+            Ok(output) => {
+                let string = String::from_utf8(output.stdout).unwrap();
+                println!("{}", string);
+                for e in get_events_from_string(string) {
+                    let event: DialogEvent = deserialize(e);
+                    dispatcher.write().unwrap().send(event.as_boxed()).ok();
                 }
             }
-        }
-        self
-    }
-
-    fn get_node_in_list(&mut self, uid: Uid) -> Option<RefcountedWidget> {
-        let edit_id = self.edit_id;
-        let nodes_id = self.nodes_id;
-        let add_id = self.nodes_add_id;
-        let list_id = self.nodes_list_id;
-        let menu = self.menu_mut();
-        if let Some(edit) = menu.get_submenu(edit_id) {
-            if let Some(menu) = edit.node().get_child_mut::<Menu>(nodes_id) {
-                if let Some(add) = menu.get_submenu(add_id) {
-                    if let Some(list) = add.node().get_child_mut::<ScrollableItem>(list_id) {
-                        if let Some(node) = list.node().get_child(uid) {
-                            return Some(node);
-                        }
-                    }
-                }
-            }
-        }
-        None
-    }
-}
-
-impl InternalWidget for MainMenu {
-    fn widget_init(&mut self) {
-        self.register_to_listen_event::<DialogEvent>()
-            .register_to_listen_event::<WidgetEvent>();
-
-        self.menu = Some(Menu::new(
-            self.get_shared_data(),
-            self.get_global_messenger(),
-        ));
-        self.menu_mut().move_to_layer(0.5);
-
-        let file_id = self.menu_mut().add_menu_item("File");
-        self.file_id = file_id;
-
-        self.new_id = self.menu_mut().add_submenu_entry_default(file_id, "New");
-        self.open_id = self.menu_mut().add_submenu_entry_default(file_id, "Open");
-        self.save_id = self.menu_mut().add_submenu_entry_default(file_id, "Save");
-        self.exit_id = self.menu_mut().add_submenu_entry_default(file_id, "Exit");
-
-        let edit_id = self.menu_mut().add_menu_item("Edit");
-        self.edit_id = edit_id;
-
-        let mut new_menu = Menu::new(self.get_shared_data(), self.get_global_messenger());
-        new_menu.vertical();
-        self.nodes_add_id = new_menu.add_menu_item("Add ->");
-        let mut list = ScrollableItem::new(self.get_shared_data(), self.get_global_messenger());
-        list.clear()
-            .vertical()
-            .style(WidgetStyle::DefaultBackground);
-        self.nodes_list_id = new_menu.add_submenu_entry(self.nodes_add_id, Box::new(list));
-
-        self.nodes_id = self
-            .menu_mut()
-            .add_submenu_entry(edit_id, Box::new(new_menu));
-    }
-
-    fn widget_update(&mut self, drawing_area_in_px: Vector4) {
-        self.menu_mut()
-            .update(drawing_area_in_px, drawing_area_in_px);
-
-        if let Some(dialog) = &mut self.filename_dialog {
-            dialog.update(drawing_area_in_px, drawing_area_in_px);
-        }
-    }
-
-    fn widget_uninit(&mut self) {
-        if let Some(dialog) = &mut self.filename_dialog {
-            dialog.uninit();
-            self.filename_dialog = None;
-        }
-        self.menu_mut().uninit();
-
-        self.unregister_to_listen_event::<DialogEvent>()
-            .unregister_to_listen_event::<WidgetEvent>();
-    }
-
-    fn widget_process_message(&mut self, msg: &dyn Message) {
-        if msg.type_id() == TypeId::of::<DialogEvent>() {
-            if let Some(dialog) = &mut self.filename_dialog {
-                let event = msg.as_any().downcast_ref::<DialogEvent>().unwrap();
-                match event {
-                    DialogEvent::Confirmed(widget_id, _requester_uid, _text) => {
-                        if *widget_id == dialog.id() {
-                            dialog.uninit();
-                            self.filename_dialog = None;
-                        }
-                    }
-                    DialogEvent::Canceled(widget_id) => {
-                        if *widget_id == dialog.id() {
-                            dialog.uninit();
-                            self.filename_dialog = None;
-                        }
-                    }
-                }
-            }
-        } else if msg.type_id() == TypeId::of::<WidgetEvent>() {
-            let event = msg.as_any().downcast_ref::<WidgetEvent>().unwrap();
-            if let WidgetEvent::Pressed(widget_id, _mouse_in_px) = *event {
-                if self.new_id == widget_id
-                    || self.open_id == widget_id
-                    || self.save_id == widget_id
-                {
-                    let mut command = Command::new("nrg_content_browser");
-                    if self.new_id == widget_id {
-                        command
-                            .arg("New File")
-                            .arg(PathBuf::from(DATA_RAW_FOLDER).to_str().unwrap())
-                            .arg(self.new_id.to_string().as_str())
-                            .arg("false");
-                    } else if self.open_id == widget_id {
-                        command
-                            .arg("Open File")
-                            .arg(PathBuf::from(DATA_FOLDER).to_str().unwrap())
-                            .arg(self.open_id.to_string().as_str())
-                            .arg("false");
-                    } else if self.save_id == widget_id {
-                        command
-                            .arg("Save File")
-                            .arg(PathBuf::from(DATA_RAW_FOLDER).to_str().unwrap())
-                            .arg(self.save_id.to_string().as_str())
-                            .arg("true");
-                    }
-                    let result = command.output();
-                    match result {
-                        Ok(output) => {
-                            let string = String::from_utf8(output.stdout).unwrap();
-                            println!("{}", string);
-                            for e in get_events_from_string(string) {
-                                let event: DialogEvent = deserialize(e);
-                                self.get_global_dispatcher()
-                                    .write()
-                                    .unwrap()
-                                    .send(event.as_boxed())
-                                    .ok();
-                            }
-                        }
-                        Err(_) => {
-                            println!("Failed to execute process");
-                        }
-                    }
-                } else if self.exit_id == widget_id {
-                    self.get_global_dispatcher()
-                        .write()
-                        .unwrap()
-                        .send(WindowEvent::Close.as_boxed())
-                        .ok();
-                } else if let Some(child) = self.get_node_in_list(widget_id) {
-                    self.get_global_dispatcher()
-                        .write()
-                        .unwrap()
-                        .send(
-                            NodesEvent::Create(String::from(
-                                child.read().unwrap().node().get_name(),
-                            ))
-                            .as_boxed(),
-                        )
-                        .ok();
-                }
+            Err(_) => {
+                println!("Failed to execute process");
             }
         }
     }
-    fn widget_on_layout_changed(&mut self) {}
 }
