@@ -7,10 +7,14 @@ use std::{
     thread,
 };
 
-use nrg_core::*;
-use nrg_graphics::*;
+use nrg_core::{JobHandlerRw, System, SystemId};
 use nrg_messenger::{read_messages, MessageChannel, MessengerRw};
 use nrg_resources::{ResourceEvent, SharedData, SharedDataRw};
+
+use crate::{
+    is_shader, is_texture, FontInstance, MaterialInstance, MeshInstance, PipelineInstance,
+    RenderPassInstance, RendererRw, RendererState, TextureInstance, INVALID_INDEX,
+};
 
 pub struct UpdateSystem {
     id: SystemId,

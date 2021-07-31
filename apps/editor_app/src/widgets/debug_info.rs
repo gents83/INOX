@@ -8,7 +8,7 @@ use nrg_graphics::{
 };
 use nrg_resources::{ResourceData, SharedData, SharedDataRw};
 use nrg_scene::{Object, Scene, Transform};
-use nrg_ui::{implement_widget_data, UIWidget, UIWidgetRc, Ui, Window};
+use nrg_ui::{implement_widget_data, UIProperties, UIWidget, UIWidgetRc, Ui, Window};
 
 struct DebugData {
     frame_seconds: VecDeque<Instant>,
@@ -53,7 +53,8 @@ impl DebugInfo {
                         ui.separator();
                         Self::resource_ui::<Scene>(&data.shared_data, ui, "Scene");
                         Self::resource_ui::<Object>(&data.shared_data, ui, "Object");
-                        Self::resource_ui::<Transform>(&data.shared_data, ui, "Transform");
+                        //Self::resource_ui::<Transform>(&data.shared_data, ui, "Transform");
+                        Self::resource_ui_properties(&data.shared_data, ui, "Transform");
                     });
             }
         })
@@ -79,6 +80,22 @@ impl DebugInfo {
                             ui.label(l);
                         }
                     });
+                }
+            },
+        );
+    }
+
+    fn resource_ui_properties(shared_data: &SharedDataRw, ui: &mut Ui, title: &str) {
+        ui.collapsing(
+            format!(
+                "{}: {}",
+                title,
+                SharedData::get_num_resources_of_type::<Transform>(shared_data)
+            ),
+            |ui| {
+                let resources = SharedData::get_resources_of_type::<Transform>(shared_data);
+                for r in resources.iter() {
+                    r.resource().get_mut().show(ui);
                 }
             },
         );

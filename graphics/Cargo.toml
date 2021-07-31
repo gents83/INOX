@@ -11,6 +11,7 @@ crate-type = ["cdylib",'rlib']
 image = { git = "https://github.com/image-rs/image" }
 ttf-parser = { git = "https://github.com/RazrFalcon/ttf-parser" }
 vulkan_bindings = { path = "../bindings/vulkan_bindings" }
+nrg_core = { path = "../core" }
 nrg_filesystem = { path = "../filesystem" }
 nrg_math = { path = "../math" }
 nrg_messenger = { path = "../messenger" }

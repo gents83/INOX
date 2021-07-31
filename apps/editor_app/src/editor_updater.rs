@@ -186,6 +186,11 @@ impl System for EditorUpdater {
             .update_fps_counter()
             .update_widgets();
 
+        self.scene
+            .resource()
+            .get_mut()
+            .update_hierarchy(&self.shared_data);
+
         true
     }
     fn uninit(&mut self) {
@@ -384,10 +389,6 @@ impl EditorUpdater {
             self.scene.resource().get_mut().clear();
             let object = Object::create_from_file(&self.shared_data, filename);
             self.scene.resource().get_mut().add_object(object);
-            self.scene
-                .resource()
-                .get_mut()
-                .update_hierarchy(&self.shared_data);
         }
     }
 

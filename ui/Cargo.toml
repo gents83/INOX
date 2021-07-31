@@ -18,7 +18,5 @@ nrg_messenger = { path = "../messenger" }
 nrg_math = { path = "../math" }
 nrg_graphics = { path = "../graphics" }
 nrg_platform = { path = "../platform" }
-nrg_profiler = { path = "../profiler" }
 nrg_resources = { path = "../resources" }
-nrg_scene = { path = "../scene" }
 nrg_serialize = { path = "../serialize" }

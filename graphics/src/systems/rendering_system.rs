@@ -1,6 +1,7 @@
-use nrg_core::*;
-use nrg_graphics::*;
+use nrg_core::{System, SystemId};
 use nrg_resources::{DataTypeResource, ResourceRef, SharedData, SharedDataRw};
+
+use crate::{RendererRw, RendererState, ViewInstance, ViewRc};
 
 pub struct RenderingSystem {
     id: SystemId,

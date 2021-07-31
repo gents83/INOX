@@ -826,6 +826,7 @@ name = "nrg_graphics"
 version = "0.1.0"
 dependencies = [
  "image 0.23.14 (git+https://github.com/image-rs/image)",
+ "nrg_core",
  "nrg_filesystem",
  "nrg_math",
  "nrg_messenger",
@@ -915,6 +916,7 @@ dependencies = [
  "nrg_math",
  "nrg_resources",
  "nrg_serialize",
+ "nrg_ui",
 ]
 
 [[package]]
@@ -957,9 +959,7 @@ dependencies = [
  "nrg_math",
  "nrg_messenger",
  "nrg_platform",
- "nrg_profiler",
  "nrg_resources",
- "nrg_scene",
  "nrg_serialize",
 ]
 

@@ -13,3 +13,4 @@ nrg_math = { path = "../math" }
 nrg_graphics = { path = "../graphics" }
 nrg_resources = { path = "../resources" }
 nrg_serialize = { path = "../serialize" }
+nrg_ui = { path = "../ui" }

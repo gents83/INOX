@@ -1,19 +1,18 @@
-use std::path::PathBuf;
-use std::sync::Arc;
-use std::sync::RwLock;
-
-use nrg_core::*;
+use nrg_core::{define_plugin, App, PluginHolder, PluginId, System, SystemId};
+use nrg_core::{PhaseWithSystems, Plugin};
+use nrg_graphics::rendering_system::RenderingSystem;
+use nrg_graphics::update_system::UpdateSystem;
 use nrg_graphics::Renderer;
 use nrg_math::Vector2;
 use nrg_platform::Window;
 use nrg_resources::ConfigBase;
-use nrg_serialize::*;
+use nrg_serialize::{deserialize_from_file, serialize_to_file};
+use std::path::PathBuf;
+use std::sync::Arc;
+use std::sync::RwLock;
 
-use crate::config::*;
-use crate::rendering_system::*;
-use crate::update_system::*;
-use crate::window_system::*;
-
+use crate::config::Config;
+use crate::window_system::WindowSystem;
 const RENDERING_THREAD: &str = "Worker1";
 const RENDERING_UPDATE: &str = "RENDERING_UPDATE";
 const RENDERING_PHASE: &str = "RENDERING_PHASE";
