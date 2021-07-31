@@ -43,6 +43,21 @@ impl ResourceData for TextureInstance {
     fn id(&self) -> ResourceId {
         self.id
     }
+    fn info(&self) -> String {
+        format!(
+            "Texture {:?}
+            {:?}
+            Dimensions {:?}x{:?}
+            TextureIndex {:?}
+            LayerIndex {:?}",
+            self.id().to_simple().to_string(),
+            self.path(),
+            self.width,
+            self.height,
+            self.texture_index,
+            self.layer_index
+        )
+    }
 }
 
 impl DataTypeResource for TextureInstance {

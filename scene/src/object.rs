@@ -29,6 +29,30 @@ impl ResourceData for Object {
     fn id(&self) -> ResourceId {
         self.id
     }
+    fn info(&self) -> String {
+        let mut string = format!(
+            "Object {:?}
+            {:?}",
+            self.id().to_simple().to_string(),
+            self.path()
+        );
+        string.push('\n');
+        string.push_str(format!("NumComponents {:?}", self.components.len(),).as_str());
+        /*
+        for (t, c) in self.components.iter() {
+            string
+                .push_str(format!("\t\t {:?}", c.as_any().id().to_simple().to_string()).as_str());
+        }
+        */
+        string.push('\n');
+        string.push_str(format!("NumChildren {:?}", self.children.len(),).as_str());
+        /*
+        for (t, c) in self.children.iter() {
+            string.push_str(format!("\t\t {:?}", c.id().to_simple().to_string(),).as_str());
+        }
+        */
+        string
+    }
 }
 
 impl Default for Object {

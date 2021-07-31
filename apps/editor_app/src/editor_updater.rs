@@ -44,6 +44,7 @@ pub struct EditorUpdater {
     properties_id: Uid,
     graph_id: Uid,
     main_menu: Option<MainMenu>,
+    debug_info: Option<DebugInfo>,
     message_channel: MessageChannel,
     nodes_registry: WidgetRegistry,
     camera: Camera,
@@ -101,6 +102,7 @@ impl EditorUpdater {
             properties_id: INVALID_UID,
             graph_id: INVALID_UID,
             main_menu: None,
+            debug_info: None,
             message_channel,
             camera,
             move_camera_with_mouse: false,
@@ -213,6 +215,15 @@ impl EditorUpdater {
         self.main_menu = Some(main_menu);
         self
     }
+    fn create_debug_info(&mut self) -> &mut Self {
+        let debug_info = DebugInfo::new(&self.shared_data);
+        self.debug_info = Some(debug_info);
+        self
+    }
+    fn destroy_debug_info(&mut self) -> &mut Self {
+        self.debug_info = None;
+        self
+    }
     fn create_graph(&mut self) -> &mut Self {
         let graph = Graph::new(&self.shared_data, &self.global_messenger);
         self.graph_id = graph.id();
@@ -316,12 +327,15 @@ impl EditorUpdater {
         nrg_profiler::scoped_profile!("update_widgets");
 
         if let Some(main_menu) = &mut self.main_menu {
-            if main_menu.show_debug_info() {
-                println!("Show");
-            } else {
-                println!("Hide");
+            let show_debug_info = main_menu.show_debug_info();
+            let is_debug_info_created = self.debug_info.is_some();
+            if show_debug_info && !is_debug_info_created {
+                self.create_debug_info();
+            } else if !show_debug_info && is_debug_info_created {
+                self.destroy_debug_info();
             }
         }
+
         Gui::update_widgets(&self.job_handler, true);
     }
 

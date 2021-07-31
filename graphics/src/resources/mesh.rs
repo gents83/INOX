@@ -26,6 +26,18 @@ impl ResourceData for MeshInstance {
     fn id(&self) -> ResourceId {
         self.id
     }
+    fn info(&self) -> String {
+        format!(
+            "Mesh {:?}
+            {:?}
+            Visible {:?}
+            Num vertices {:?}",
+            self.id().to_simple().to_string(),
+            self.mesh_data.path(),
+            if self.is_visible { "true" } else { "false" },
+            self.mesh_data.vertices.len()
+        )
+    }
 }
 
 impl Default for MeshInstance {

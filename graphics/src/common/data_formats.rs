@@ -2,9 +2,9 @@ use std::path::{Path, PathBuf};
 
 use crate::common::utils::*;
 
+use nrg_filesystem::convert_from_local_path;
 use nrg_math::*;
 use nrg_resources::{implement_file_data, DATA_FOLDER};
-use nrg_filesystem::{convert_from_local_path};
 use nrg_serialize::*;
 
 #[repr(C)]
@@ -139,6 +139,9 @@ impl Default for PipelineData {
 }
 
 impl PipelineData {
+    pub fn path(&self) -> &Path {
+        self.path.as_path()
+    }
     pub fn canonicalize_paths(mut self) -> Self {
         let data_path = PathBuf::from(DATA_FOLDER);
         if !self.vertex_shader.to_str().unwrap().is_empty() {

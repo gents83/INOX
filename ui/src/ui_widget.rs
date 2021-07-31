@@ -38,6 +38,9 @@ impl ResourceData for UIWidget {
     fn id(&self) -> ResourceId {
         self.id
     }
+    fn info(&self) -> String {
+        format!("UIWidget {:?}", self.id().to_simple().to_string(),)
+    }
 }
 
 impl UIWidget {

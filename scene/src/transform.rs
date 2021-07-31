@@ -1,4 +1,4 @@
-use nrg_math::{MatBase, Matrix4};
+use nrg_math::{Mat4Ops, MatBase, Matrix4};
 use nrg_resources::{ResourceData, ResourceId, ResourceRef};
 use nrg_serialize::generate_random_uid;
 
@@ -13,6 +13,19 @@ pub struct Transform {
 impl ResourceData for Transform {
     fn id(&self) -> ResourceId {
         self.id
+    }
+    fn info(&self) -> String {
+        let (translation, rotation, scale) = self.matrix.get_translation_rotation_scale();
+        format!(
+            "Matrix {:?}
+            Position {:?}
+            Rotation {:?}
+            Scale {:?}",
+            self.id().to_simple().to_string(),
+            translation,
+            rotation,
+            scale
+        )
     }
 }
 

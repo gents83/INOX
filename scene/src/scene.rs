@@ -30,6 +30,16 @@ impl ResourceData for Scene {
     fn id(&self) -> ResourceId {
         self.id
     }
+    fn info(&self) -> String {
+        format!(
+            "Scene {:?}
+            {:?}
+            NumObjects {:?}",
+            self.id().to_simple().to_string(),
+            self.filepath,
+            self.objects.len()
+        )
+    }
 }
 
 impl Scene {

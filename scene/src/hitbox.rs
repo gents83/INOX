@@ -16,6 +16,16 @@ impl ResourceData for Hitbox {
     fn id(&self) -> ResourceId {
         self.id
     }
+    fn info(&self) -> String {
+        format!(
+            "Hitbox {:?}
+            Min {:?}
+            Max {:?}",
+            self.id().to_simple().to_string(),
+            self.min,
+            self.max
+        )
+    }
 }
 
 impl Default for Hitbox {

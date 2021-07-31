@@ -69,7 +69,7 @@ impl PhaseWithSystems {
         let mut can_continue = true;
         for s in self.systems_running.iter_mut() {
             nrg_profiler::scoped_profile!(format!(
-                "{}[{:?}]",
+                "{} {:?}",
                 "phase::execute_system",
                 s.as_mut().id()
             )

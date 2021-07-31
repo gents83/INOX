@@ -37,6 +37,14 @@ impl ResourceData for MaterialInstance {
     fn id(&self) -> ResourceId {
         self.id
     }
+    fn info(&self) -> String {
+        format!(
+            "Material {:?}
+            {:?}",
+            self.id().to_simple().to_string(),
+            self.path
+        )
+    }
 }
 
 impl SerializableResource for MaterialInstance {
