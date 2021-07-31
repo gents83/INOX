@@ -24,6 +24,12 @@ pub trait Mat4Ops {
     fn get_scale(&self) -> Vector3;
     fn get_rotation(&self) -> Vector3;
     fn get_translation_rotation_scale(&self) -> (Vector3, Vector3, Vector3);
+    fn from_translation_rotation_scale(
+        &mut self,
+        translation: Vector3,
+        rotation_in_rad: Vector3,
+        scale: Vector3,
+    );
     fn transform(&self, vec: Vector3) -> Vector3;
 }
 
@@ -146,6 +152,20 @@ macro_rules! implement_matrix4_operations {
                 let theta3 = (s1 * z_axis.x - c1 * y_axis.x).atan2(c1 * y_axis.y - s1 * z_axis.y);
                 let rotation: Vector3 = [-theta1, -theta2, -theta3].into();
                 (translation, rotation, scale)
+            }
+
+            #[inline]
+            fn from_translation_rotation_scale(
+                &mut self,
+                translation: Vector3,
+                rotation: Vector3, //in radians
+                scale: Vector3,
+            ) {
+                *self = Matrix4::from_translation(translation)
+                    * Matrix4::from_angle_x(Rad(rotation.x))
+                    * Matrix4::from_angle_y(Rad(rotation.y))
+                    * Matrix4::from_angle_z(Rad(rotation.z))
+                    * Matrix4::from_nonuniform_scale(scale.x, scale.y, scale.z);
             }
 
             #[inline]

@@ -8,12 +8,16 @@ pub type Vector4 = cgmath::Vector4<f32>;
 
 pub trait VecBase {
     fn default_zero() -> Self;
+    fn default_one() -> Self;
     fn squared_distance(self, other: Self) -> f32;
     fn length(self) -> f32;
     fn add(self, rhs: Self) -> Self;
     fn sub(self, rhs: Self) -> Self;
     fn mul(self, rhs: Self) -> Self;
     fn div(self, rhs: Self) -> Self;
+
+    fn to_degrees(self) -> Self;
+    fn to_radians(self) -> Self;
 }
 
 macro_rules! implement_vector_base {
@@ -21,6 +25,11 @@ macro_rules! implement_vector_base {
         impl VecBase for $VectorN {
             fn default_zero() -> Self {
                 Self::zero()
+            }
+            fn default_one() -> Self {
+                let v = Self::zero();
+                v.map(|f| f + 1.);
+                v
             }
             fn length(self) -> f32 {
                 self.magnitude()
@@ -39,6 +48,12 @@ macro_rules! implement_vector_base {
             }
             fn div(self, rhs: Self) -> Self {
                 self.div_element_wise(rhs)
+            }
+            fn to_degrees(self) -> Self {
+                self.map(|f| Deg::from(Rad(f)).0)
+            }
+            fn to_radians(self) -> Self {
+                self.map(|f| Rad::from(Deg(f)).0)
             }
         }
     };
