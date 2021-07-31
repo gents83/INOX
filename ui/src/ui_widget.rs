@@ -54,6 +54,20 @@ impl UIWidget {
         SharedData::add_resource::<UIWidget>(shared_data, ui_page)
     }
 
+    pub fn data<D>(&mut self) -> Option<&D>
+    where
+        D: UIWidgetData + Sized + 'static,
+    {
+        self.data.as_any().downcast_ref::<D>()
+    }
+
+    pub fn data_mut<D>(&mut self) -> Option<&mut D>
+    where
+        D: UIWidgetData + Sized + 'static,
+    {
+        self.data.as_any().downcast_mut::<D>()
+    }
+
     pub fn execute(&mut self, ui_context: &CtxRef) {
         (self.func)(self.data.as_mut(), ui_context);
     }

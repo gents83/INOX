@@ -315,6 +315,13 @@ impl EditorUpdater {
     fn update_widgets(&mut self) {
         nrg_profiler::scoped_profile!("update_widgets");
 
+        if let Some(main_menu) = &mut self.main_menu {
+            if main_menu.show_debug_info() {
+                println!("Show");
+            } else {
+                println!("Hide");
+            }
+        }
         Gui::update_widgets(&self.job_handler, true);
     }
 

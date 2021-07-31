@@ -1,11 +1,18 @@
 use std::{path::PathBuf, process::Command};
 
 use nrg_messenger::{get_events_from_string, Message, MessageBox, MessengerRw};
+use nrg_platform::WindowEvent;
 use nrg_resources::{SharedDataRw, DATA_FOLDER, DATA_RAW_FOLDER};
 use nrg_serialize::deserialize;
 use nrg_ui::{
     implement_widget_data, menu, DialogEvent, DialogOp, TopBottomPanel, UIWidget, UIWidgetRc,
 };
+
+struct MenuData {
+    show_debug_info: bool,
+    global_dispatcher: MessageBox,
+}
+implement_widget_data!(MenuData);
 
 pub struct MainMenu {
     ui_page: UIWidgetRc,
@@ -13,21 +20,22 @@ pub struct MainMenu {
 
 impl MainMenu {
     pub fn new(shared_data: &SharedDataRw, global_messenger: &MessengerRw) -> Self {
-        let ui_page = Self::create(shared_data, global_messenger);
-        Self { ui_page }
-    }
-
-    fn create(shared_data: &SharedDataRw, global_messenger: &MessengerRw) -> UIWidgetRc {
-        struct MenuData {
-            show_debug_info: bool,
-            global_dispatcher: MessageBox,
-        }
-        implement_widget_data!(MenuData);
         let data = MenuData {
             show_debug_info: false,
             global_dispatcher: global_messenger.read().unwrap().get_dispatcher().clone(),
         };
+        let ui_page = Self::create(shared_data, data);
+        Self { ui_page }
+    }
 
+    pub fn show_debug_info(&self) -> bool {
+        if let Some(data) = self.ui_page.resource().get_mut().data::<MenuData>() {
+            return data.show_debug_info;
+        }
+        false
+    }
+
+    fn create(shared_data: &SharedDataRw, data: MenuData) -> UIWidgetRc {
         UIWidget::register(shared_data, data, |ui_data, ui_context| {
             if let Some(data) = ui_data.as_any().downcast_mut::<MenuData>() {
                 TopBottomPanel::top("main_menu")
@@ -74,7 +82,13 @@ impl MainMenu {
                                         data.global_dispatcher.clone(),
                                     );
                                 }
-                                if ui.button("Exit").clicked() {}
+                                if ui.button("Exit").clicked() {
+                                    data.global_dispatcher
+                                        .write()
+                                        .unwrap()
+                                        .send(WindowEvent::Close.as_boxed())
+                                        .ok();
+                                }
                             });
                             menu::menu(ui, "Settings", |ui| {
                                 ui.checkbox(&mut data.show_debug_info, "Debug Info");
