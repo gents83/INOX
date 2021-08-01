@@ -8,11 +8,14 @@ use nrg_graphics::{
 };
 use nrg_resources::{ResourceData, SharedData, SharedDataRw};
 use nrg_scene::{Object, Scene, Transform};
-use nrg_ui::{implement_widget_data, UIProperties, UIWidget, UIWidgetRc, Ui, Window};
+use nrg_ui::{
+    implement_widget_data, UIProperties, UIPropertiesRegistry, UIWidget, UIWidgetRc, Ui, Window,
+};
 
 struct DebugData {
     frame_seconds: VecDeque<Instant>,
     shared_data: SharedDataRw,
+    ui_registry: UIPropertiesRegistry,
 }
 implement_widget_data!(DebugData);
 
@@ -22,12 +25,17 @@ pub struct DebugInfo {
 
 impl DebugInfo {
     pub fn new(shared_data: &SharedDataRw) -> Self {
+        let mut ui_registry = UIPropertiesRegistry::default();
+        ui_registry.register::<Object>();
+        ui_registry.register::<Transform>();
         let data = DebugData {
             frame_seconds: VecDeque::default(),
             shared_data: shared_data.clone(),
+            ui_registry,
         };
-        let ui_page = Self::create(shared_data, data);
-        Self { ui_page }
+        Self {
+            ui_page: Self::create(shared_data, data),
+        }
     }
 
     fn create(shared_data: &SharedDataRw, data: DebugData) -> UIWidgetRc {
@@ -52,9 +60,18 @@ impl DebugInfo {
                         Self::resource_ui::<MeshInstance>(&data.shared_data, ui, "Mesh");
                         ui.separator();
                         Self::resource_ui::<Scene>(&data.shared_data, ui, "Scene");
-                        Self::resource_ui::<Object>(&data.shared_data, ui, "Object");
-                        //Self::resource_ui::<Transform>(&data.shared_data, ui, "Transform");
-                        Self::resource_ui_properties(&data.shared_data, ui, "Transform");
+                        Self::resource_ui_properties::<Object>(
+                            &data.shared_data,
+                            &data.ui_registry,
+                            ui,
+                            "Object",
+                        );
+                        Self::resource_ui_properties::<Transform>(
+                            &data.shared_data,
+                            &data.ui_registry,
+                            ui,
+                            "Transform",
+                        );
                     });
             }
         })
@@ -85,17 +102,24 @@ impl DebugInfo {
         );
     }
 
-    fn resource_ui_properties(shared_data: &SharedDataRw, ui: &mut Ui, title: &str) {
+    fn resource_ui_properties<R>(
+        shared_data: &SharedDataRw,
+        ui_registry: &UIPropertiesRegistry,
+        ui: &mut Ui,
+        title: &str,
+    ) where
+        R: ResourceData + UIProperties,
+    {
         ui.collapsing(
             format!(
                 "{}: {}",
                 title,
-                SharedData::get_num_resources_of_type::<Transform>(shared_data)
+                SharedData::get_num_resources_of_type::<R>(shared_data)
             ),
             |ui| {
-                let resources = SharedData::get_resources_of_type::<Transform>(shared_data);
+                let resources = SharedData::get_resources_of_type::<R>(shared_data);
                 for r in resources.iter() {
-                    r.resource().get_mut().show(ui);
+                    r.resource().get_mut().show(ui_registry, ui);
                 }
             },
         );

@@ -1,7 +1,7 @@
 use nrg_math::{Mat4Ops, MatBase, Matrix4, VecBase, Vector3};
 use nrg_resources::{ResourceData, ResourceId, ResourceRef};
 use nrg_serialize::generate_random_uid;
-use nrg_ui::{UIProperties, Ui};
+use nrg_ui::{UIProperties, UIPropertiesRegistry, Ui};
 
 pub type TransformId = ResourceId;
 pub type TransformRc = ResourceRef<Transform>;
@@ -43,21 +43,21 @@ impl Default for Transform {
 }
 
 impl UIProperties for Transform {
-    fn show(&mut self, ui: &mut Ui) {
+    fn show(&mut self, ui_registry: &UIPropertiesRegistry, ui: &mut Ui) {
         ui.collapsing(self.id().to_simple().to_string(), |ui| {
             ui.horizontal(|ui| {
                 ui.label("Position: ");
-                self.position.show(ui);
+                self.position.show(ui_registry, ui);
             });
             ui.horizontal(|ui| {
                 ui.label("Rotation: ");
                 let mut rotation = self.rotation.to_degrees();
-                rotation.show(ui);
+                rotation.show(ui_registry, ui);
                 self.rotation = rotation.to_radians();
             });
             ui.horizontal(|ui| {
                 ui.label("Scale: ");
-                self.scale.show(ui);
+                self.scale.show(ui_registry, ui);
             });
         });
     }

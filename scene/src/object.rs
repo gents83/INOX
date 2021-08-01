@@ -11,6 +11,7 @@ use nrg_resources::{
     ResourceRef, SerializableResource, SharedData, SharedDataRw,
 };
 use nrg_serialize::{generate_random_uid, generate_uid_from_string, INVALID_UID};
+use nrg_ui::{UIProperties, UIPropertiesRegistry, Ui};
 
 use crate::{ObjectData, Transform};
 
@@ -38,20 +39,26 @@ impl ResourceData for Object {
         );
         string.push('\n');
         string.push_str(format!("NumComponents {:?}", self.components.len(),).as_str());
-        /*
-        for (t, c) in self.components.iter() {
-            string
-                .push_str(format!("\t\t {:?}", c.as_any().id().to_simple().to_string()).as_str());
-        }
-        */
         string.push('\n');
         string.push_str(format!("NumChildren {:?}", self.children.len(),).as_str());
-        /*
-        for (t, c) in self.children.iter() {
-            string.push_str(format!("\t\t {:?}", c.id().to_simple().to_string(),).as_str());
-        }
-        */
         string
+    }
+}
+
+impl UIProperties for Object {
+    fn show(&mut self, ui_registry: &UIPropertiesRegistry, ui: &mut Ui) {
+        ui.collapsing(self.id().to_simple().to_string(), |ui| {
+            ui.collapsing(format!("Components [{}]", self.components.len()), |ui| {
+                for (typeid, c) in self.components.iter() {
+                    ui_registry.show(*typeid, c, ui);
+                }
+            });
+            ui.collapsing(format!("Children [{}]", self.children.len()), |ui| {
+                for c in self.children.iter() {
+                    c.resource().get_mut().show(ui_registry, ui);
+                }
+            });
+        });
     }
 }
 
