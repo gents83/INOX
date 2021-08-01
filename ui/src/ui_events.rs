@@ -34,6 +34,7 @@ impl From<DialogOp> for &str {
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]
 pub enum DialogEvent {
+    Request(DialogOp, PathBuf),
     Confirmed(DialogOp, PathBuf),
     Canceled(DialogOp),
 }

@@ -29,8 +29,6 @@ pub struct EditorUpdater {
     shared_data: SharedDataRw,
     global_messenger: MessengerRw,
     config: Config,
-    main_menu: Option<MainMenu>,
-    debug_info: Option<DebugInfo>,
     message_channel: MessageChannel,
     camera: Camera,
     move_camera_with_mouse: bool,
@@ -42,6 +40,9 @@ pub struct EditorUpdater {
     grid_mesh: MeshRc,
     scene: SceneRc,
     selected_object: ObjectId,
+    main_menu: Option<MainMenu>,
+    debug_info: Option<DebugInfo>,
+    content_browser: Option<ContentBrowser>,
     show_debug_info: Arc<AtomicBool>,
 }
 
@@ -65,8 +66,6 @@ impl EditorUpdater {
             shared_data,
             global_messenger,
             config: config.clone(),
-            main_menu: None,
-            debug_info: None,
             message_channel,
             camera,
             move_camera_with_mouse: false,
@@ -75,6 +74,9 @@ impl EditorUpdater {
             grid_mesh: MeshRc::default(),
             scene: SceneRc::default(),
             selected_object: INVALID_UID,
+            main_menu: None,
+            debug_info: None,
+            content_browser: None,
             show_debug_info: Arc::new(AtomicBool::new(false)),
         }
     }
@@ -167,6 +169,18 @@ impl EditorUpdater {
     fn destroy_debug_info(&mut self) -> &mut Self {
         self.debug_info = None;
         self.show_debug_info.store(false, Ordering::SeqCst);
+        self
+    }
+    fn create_content_browser(&mut self, operation: DialogOp, path: &Path) -> &mut Self {
+        if self.content_browser.is_none() {
+            let content_browser =
+                ContentBrowser::new(&self.shared_data, &self.global_messenger, operation, path);
+            self.content_browser = Some(content_browser);
+        }
+        self
+    }
+    fn destroy_content_browser(&mut self) -> &mut Self {
+        self.content_browser = None;
         self
     }
     fn create_scene(&mut self) -> &mut Self {
@@ -296,20 +310,29 @@ impl EditorUpdater {
         read_messages(self.message_channel.get_listener(), |msg| {
             if msg.type_id() == TypeId::of::<DialogEvent>() {
                 let event = msg.as_any().downcast_ref::<DialogEvent>().unwrap();
-                if let DialogEvent::Confirmed(operation, filename) = event {
-                    let extension = filename.extension().unwrap().to_str().unwrap();
-                    match operation {
-                        DialogOp::Open => {
-                            println!("Loading {:?}", filename);
-                            if extension.contains("object_data") {
-                                self.load_object(filename.as_path());
+                match event {
+                    DialogEvent::Request(operation, path) => {
+                        self.create_content_browser(*operation, path.as_path());
+                    }
+                    DialogEvent::Confirmed(operation, filename) => {
+                        let extension = filename.extension().unwrap().to_str().unwrap();
+                        match operation {
+                            DialogOp::Open => {
+                                println!("Loading {:?}", filename);
+                                if extension.contains("object_data") {
+                                    self.load_object(filename.as_path());
+                                }
                             }
+                            DialogOp::Save => {
+                                println!("Saving {:?}", filename);
+                                if extension.contains("object_data") {}
+                            }
+                            DialogOp::New => {}
                         }
-                        DialogOp::Save => {
-                            println!("Saving {:?}", filename);
-                            if extension.contains("object_data") {}
-                        }
-                        DialogOp::New => {}
+                        self.destroy_content_browser();
+                    }
+                    _ => {
+                        self.destroy_content_browser();
                     }
                 }
             } else if msg.type_id() == TypeId::of::<MouseEvent>() {

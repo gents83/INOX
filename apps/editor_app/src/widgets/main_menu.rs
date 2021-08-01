@@ -48,43 +48,43 @@ impl MainMenu {
                         menu::bar(ui, |ui| {
                             menu::menu(ui, "File", |ui| {
                                 if ui.button("New").clicked() {
-                                    let mut command = Command::new("nrg_content_browser");
-                                    let op: &str = DialogOp::New.into();
-                                    command
-                                        .arg("New File")
-                                        .arg(PathBuf::from(DATA_RAW_FOLDER).to_str().unwrap())
-                                        .arg(op)
-                                        .arg("false");
-                                    Self::process_command_result(
-                                        &mut command,
-                                        data.global_dispatcher.clone(),
-                                    );
+                                    data.global_dispatcher
+                                        .write()
+                                        .unwrap()
+                                        .send(
+                                            DialogEvent::Request(
+                                                DialogOp::New,
+                                                PathBuf::from(DATA_RAW_FOLDER),
+                                            )
+                                            .as_boxed(),
+                                        )
+                                        .ok();
                                 }
                                 if ui.button("Open").clicked() {
-                                    let mut command = Command::new("nrg_content_browser");
-                                    let op: &str = DialogOp::Open.into();
-                                    command
-                                        .arg("Open File")
-                                        .arg(PathBuf::from(DATA_FOLDER).to_str().unwrap())
-                                        .arg(op)
-                                        .arg("false");
-                                    Self::process_command_result(
-                                        &mut command,
-                                        data.global_dispatcher.clone(),
-                                    );
+                                    data.global_dispatcher
+                                        .write()
+                                        .unwrap()
+                                        .send(
+                                            DialogEvent::Request(
+                                                DialogOp::Open,
+                                                PathBuf::from(DATA_FOLDER),
+                                            )
+                                            .as_boxed(),
+                                        )
+                                        .ok();
                                 }
                                 if ui.button("Save").clicked() {
-                                    let mut command = Command::new("nrg_content_browser");
-                                    let op: &str = DialogOp::Save.into();
-                                    command
-                                        .arg("Save File")
-                                        .arg(PathBuf::from(DATA_RAW_FOLDER).to_str().unwrap())
-                                        .arg(op)
-                                        .arg("true");
-                                    Self::process_command_result(
-                                        &mut command,
-                                        data.global_dispatcher.clone(),
-                                    );
+                                    data.global_dispatcher
+                                        .write()
+                                        .unwrap()
+                                        .send(
+                                            DialogEvent::Request(
+                                                DialogOp::Save,
+                                                PathBuf::from(DATA_RAW_FOLDER),
+                                            )
+                                            .as_boxed(),
+                                        )
+                                        .ok();
                                 }
                                 if ui.button("Exit").clicked() {
                                     data.global_dispatcher
