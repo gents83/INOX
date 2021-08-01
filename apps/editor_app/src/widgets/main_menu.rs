@@ -1,4 +1,11 @@
-use std::{path::PathBuf, process::Command};
+use std::{
+    path::PathBuf,
+    process::Command,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+};
 
 use nrg_messenger::{get_events_from_string, Message, MessageBox, MessengerRw};
 use nrg_platform::WindowEvent;
@@ -9,7 +16,7 @@ use nrg_ui::{
 };
 
 struct MenuData {
-    show_debug_info: bool,
+    show_debug_info: Arc<AtomicBool>,
     global_dispatcher: MessageBox,
 }
 implement_widget_data!(MenuData);
@@ -19,20 +26,17 @@ pub struct MainMenu {
 }
 
 impl MainMenu {
-    pub fn new(shared_data: &SharedDataRw, global_messenger: &MessengerRw) -> Self {
+    pub fn new(
+        shared_data: &SharedDataRw,
+        global_messenger: &MessengerRw,
+        show_debug_info: Arc<AtomicBool>,
+    ) -> Self {
         let data = MenuData {
-            show_debug_info: false,
+            show_debug_info,
             global_dispatcher: global_messenger.read().unwrap().get_dispatcher().clone(),
         };
         let ui_page = Self::create(shared_data, data);
         Self { ui_page }
-    }
-
-    pub fn show_debug_info(&self) -> bool {
-        if let Some(data) = self.ui_page.resource().get_mut().data::<MenuData>() {
-            return data.show_debug_info;
-        }
-        false
     }
 
     fn create(shared_data: &SharedDataRw, data: MenuData) -> UIWidgetRc {
@@ -91,7 +95,11 @@ impl MainMenu {
                                 }
                             });
                             menu::menu(ui, "Settings", |ui| {
-                                ui.checkbox(&mut data.show_debug_info, "Debug Info");
+                                let mut show_debug_info =
+                                    data.show_debug_info.load(Ordering::SeqCst);
+                                ui.checkbox(&mut show_debug_info, "Debug Info");
+                                data.show_debug_info
+                                    .store(show_debug_info, Ordering::SeqCst);
                             });
                         });
                     });

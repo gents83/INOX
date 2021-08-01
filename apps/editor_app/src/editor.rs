@@ -36,7 +36,6 @@ impl Editor {
         let system = EditorUpdater::new(
             app.get_shared_data(),
             app.get_global_messenger(),
-            app.get_job_handler(),
             &self.config,
         );
         self.updater_id = system.id();
