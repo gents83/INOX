@@ -18,7 +18,6 @@ pub type ResourceId = Uid;
 
 pub trait ResourceData: Send + Sync + 'static {
     fn id(&self) -> ResourceId;
-    fn info(&self) -> String;
 }
 
 pub trait BaseResource: Send + Sync + Any {
@@ -68,9 +67,6 @@ where
 {
     fn id(&self) -> ResourceId {
         self.id
-    }
-    fn info(&self) -> String {
-        T::info(&self.get())
     }
 }
 

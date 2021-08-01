@@ -17,18 +17,6 @@ impl ResourceData for Transform {
     fn id(&self) -> ResourceId {
         self.id
     }
-    fn info(&self) -> String {
-        format!(
-            "Matrix {:?}
-            Position {:?}
-            Rotation {:?}
-            Scale {:?}",
-            self.id().to_simple().to_string(),
-            self.position,
-            self.rotation,
-            self.scale
-        )
-    }
 }
 
 impl Default for Transform {

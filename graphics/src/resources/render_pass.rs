@@ -28,14 +28,6 @@ impl ResourceData for RenderPassInstance {
     fn id(&self) -> ResourceId {
         self.id
     }
-    fn info(&self) -> String {
-        format!(
-            "RenderPass {:?}
-            {:?}",
-            self.id().to_simple().to_string(),
-            self.data.name,
-        )
-    }
 }
 
 impl DataTypeResource for RenderPassInstance {

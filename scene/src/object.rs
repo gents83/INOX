@@ -30,19 +30,6 @@ impl ResourceData for Object {
     fn id(&self) -> ResourceId {
         self.id
     }
-    fn info(&self) -> String {
-        let mut string = format!(
-            "Object {:?}
-            {:?}",
-            self.id().to_simple().to_string(),
-            self.path()
-        );
-        string.push('\n');
-        string.push_str(format!("NumComponents {:?}", self.components.len(),).as_str());
-        string.push('\n');
-        string.push_str(format!("NumChildren {:?}", self.children.len(),).as_str());
-        string
-    }
 }
 
 impl UIProperties for Object {

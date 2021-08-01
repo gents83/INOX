@@ -33,14 +33,6 @@ impl ResourceData for FontInstance {
     fn id(&self) -> ResourceId {
         self.id
     }
-    fn info(&self) -> String {
-        format!(
-            "Font {:?}
-            {:?}",
-            self.id().to_simple().to_string(),
-            self.path
-        )
-    }
 }
 
 impl FileResource for FontInstance {

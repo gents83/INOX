@@ -1,6 +1,7 @@
 use nrg_math::{Mat4Ops, MatBase, Matrix4, VecBase, Vector3};
 use nrg_resources::{ResourceData, ResourceId, ResourceRef};
 use nrg_serialize::generate_random_uid;
+use nrg_ui::{UIProperties, UIPropertiesRegistry, Ui};
 
 pub type HitboxId = ResourceId;
 pub type HitboxRc = ResourceRef<Hitbox>;
@@ -16,15 +17,20 @@ impl ResourceData for Hitbox {
     fn id(&self) -> ResourceId {
         self.id
     }
-    fn info(&self) -> String {
-        format!(
-            "Hitbox {:?}
-            Min {:?}
-            Max {:?}",
-            self.id().to_simple().to_string(),
-            self.min,
-            self.max
-        )
+}
+
+impl UIProperties for Hitbox {
+    fn show(&mut self, ui_registry: &UIPropertiesRegistry, ui: &mut Ui) {
+        ui.collapsing(self.id().to_simple().to_string(), |ui| {
+            ui.horizontal(|ui| {
+                ui.label("Min: ");
+                self.min.show(ui_registry, ui);
+            });
+            ui.horizontal(|ui| {
+                ui.label("Diffuse Color: ");
+                self.max.show(ui_registry, ui);
+            });
+        });
     }
 }
 

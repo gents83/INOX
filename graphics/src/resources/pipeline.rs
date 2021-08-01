@@ -28,14 +28,6 @@ impl ResourceData for PipelineInstance {
     fn id(&self) -> ResourceId {
         self.id
     }
-    fn info(&self) -> String {
-        format!(
-            "Pipeline {:?}
-            {:?}",
-            self.id().to_simple().to_string(),
-            self.data.name
-        )
-    }
 }
 
 impl DataTypeResource for PipelineInstance {

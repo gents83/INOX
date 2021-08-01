@@ -4,10 +4,10 @@ use std::{
 };
 
 use nrg_graphics::{
-    FontInstance, MaterialInstance, MeshInstance, PipelineInstance, TextureInstance,
+    FontInstance, MaterialInstance, MeshInstance, PipelineInstance, TextureInstance, ViewInstance,
 };
 use nrg_resources::{ResourceData, SharedData, SharedDataRw};
-use nrg_scene::{Object, Scene, Transform};
+use nrg_scene::{Hitbox, Object, Scene, Transform};
 use nrg_ui::{
     implement_widget_data, UIProperties, UIPropertiesRegistry, UIWidget, UIWidgetRc, Ui, Window,
 };
@@ -25,17 +25,33 @@ pub struct DebugInfo {
 
 impl DebugInfo {
     pub fn new(shared_data: &SharedDataRw) -> Self {
-        let mut ui_registry = UIPropertiesRegistry::default();
-        ui_registry.register::<Object>();
-        ui_registry.register::<Transform>();
         let data = DebugData {
             frame_seconds: VecDeque::default(),
             shared_data: shared_data.clone(),
-            ui_registry,
+            ui_registry: Self::create_registry(),
         };
         Self {
             ui_page: Self::create(shared_data, data),
         }
+    }
+
+    fn create_registry() -> UIPropertiesRegistry {
+        let mut ui_registry = UIPropertiesRegistry::default();
+
+        ui_registry.register::<PipelineInstance>();
+        ui_registry.register::<FontInstance>();
+        ui_registry.register::<MaterialInstance>();
+        ui_registry.register::<MeshInstance>();
+        ui_registry.register::<TextureInstance>();
+        ui_registry.register::<ViewInstance>();
+
+        ui_registry.register::<UIWidget>();
+
+        ui_registry.register::<Scene>();
+        ui_registry.register::<Object>();
+        ui_registry.register::<Transform>();
+        ui_registry.register::<Hitbox>();
+        ui_registry
     }
 
     fn create(shared_data: &SharedDataRw, data: DebugData) -> UIWidgetRc {
@@ -53,13 +69,50 @@ impl DebugInfo {
                     .show(ui_context, |ui| {
                         ui.label(format!("FPS: {}", data.frame_seconds.len()));
                         ui.separator();
-                        Self::resource_ui::<PipelineInstance>(&data.shared_data, ui, "Pipeline");
-                        Self::resource_ui::<FontInstance>(&data.shared_data, ui, "Font");
-                        Self::resource_ui::<MaterialInstance>(&data.shared_data, ui, "Material");
-                        Self::resource_ui::<TextureInstance>(&data.shared_data, ui, "Texture");
-                        Self::resource_ui::<MeshInstance>(&data.shared_data, ui, "Mesh");
+                        Self::resource_ui_properties::<PipelineInstance>(
+                            &data.shared_data,
+                            &data.ui_registry,
+                            ui,
+                            "Pipeline",
+                        );
+                        Self::resource_ui_properties::<FontInstance>(
+                            &data.shared_data,
+                            &data.ui_registry,
+                            ui,
+                            "Font",
+                        );
+                        Self::resource_ui_properties::<MaterialInstance>(
+                            &data.shared_data,
+                            &data.ui_registry,
+                            ui,
+                            "Material",
+                        );
+                        Self::resource_ui_properties::<TextureInstance>(
+                            &data.shared_data,
+                            &data.ui_registry,
+                            ui,
+                            "Texture",
+                        );
+                        Self::resource_ui_properties::<MeshInstance>(
+                            &data.shared_data,
+                            &data.ui_registry,
+                            ui,
+                            "Mesh",
+                        );
                         ui.separator();
-                        Self::resource_ui::<Scene>(&data.shared_data, ui, "Scene");
+                        Self::resource_ui_properties::<ViewInstance>(
+                            &data.shared_data,
+                            &data.ui_registry,
+                            ui,
+                            "View",
+                        );
+                        ui.separator();
+                        Self::resource_ui_properties::<Scene>(
+                            &data.shared_data,
+                            &data.ui_registry,
+                            ui,
+                            "Scene",
+                        );
                         Self::resource_ui_properties::<Object>(
                             &data.shared_data,
                             &data.ui_registry,
@@ -72,34 +125,15 @@ impl DebugInfo {
                             ui,
                             "Transform",
                         );
+                        Self::resource_ui_properties::<Hitbox>(
+                            &data.shared_data,
+                            &data.ui_registry,
+                            ui,
+                            "Hitbox",
+                        );
                     });
             }
         })
-    }
-
-    fn resource_ui<R>(shared_data: &SharedDataRw, ui: &mut Ui, title: &str)
-    where
-        R: ResourceData,
-    {
-        ui.collapsing(
-            format!(
-                "{}: {}",
-                title,
-                SharedData::get_num_resources_of_type::<R>(shared_data)
-            ),
-            |ui| {
-                let resources = SharedData::get_resources_of_type::<R>(shared_data);
-                for r in resources.iter() {
-                    let string = r.resource().info();
-                    let mut lines = string.lines();
-                    ui.collapsing(lines.next().unwrap(), |ui| {
-                        for l in lines {
-                            ui.label(l);
-                        }
-                    });
-                }
-            },
-        );
     }
 
     fn resource_ui_properties<R>(

@@ -1,8 +1,10 @@
-use std::any::Any;
+use std::any::{type_name, Any};
 
-use egui::CtxRef;
+use egui::{CtxRef, Ui};
 use nrg_resources::{ResourceData, ResourceId, ResourceRef, SharedData, SharedDataRw};
 use nrg_serialize::generate_random_uid;
+
+use crate::{UIProperties, UIPropertiesRegistry};
 
 pub type UIWidgetId = ResourceId;
 pub type UIWidgetRc = ResourceRef<UIWidget>;
@@ -38,8 +40,19 @@ impl ResourceData for UIWidget {
     fn id(&self) -> ResourceId {
         self.id
     }
-    fn info(&self) -> String {
-        format!("UIWidget {:?}", self.id().to_simple().to_string(),)
+}
+
+impl UIProperties for UIWidget {
+    fn show(&mut self, _ui_registry: &UIPropertiesRegistry, ui: &mut Ui) {
+        ui.collapsing(self.id().to_simple().to_string(), |ui| {
+            let widget_name = type_name::<Self>()
+                .split(':')
+                .collect::<Vec<&str>>()
+                .last()
+                .unwrap()
+                .to_string();
+            ui.label(widget_name);
+        });
     }
 }
 

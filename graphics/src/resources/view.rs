@@ -29,14 +29,6 @@ impl ResourceData for ViewInstance {
     fn id(&self) -> ResourceId {
         self.id
     }
-    fn info(&self) -> String {
-        format!(
-            "View {:?}
-            {:?}",
-            self.id().to_simple().to_string(),
-            self.view_index
-        )
-    }
 }
 
 impl DataTypeResource for ViewInstance {
@@ -58,6 +50,9 @@ impl DataTypeResource for ViewInstance {
 }
 
 impl ViewInstance {
+    pub fn view_index(&self) -> u32 {
+        self.view_index
+    }
     pub fn view(&self) -> &Matrix4 {
         &self.view
     }
