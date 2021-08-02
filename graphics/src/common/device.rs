@@ -22,8 +22,12 @@ impl Device {
         self.inner.end_frame();
     }
 
-    pub fn submit(&mut self) -> bool {
-        self.inner.submit()
+    pub fn submit(&mut self) {
+        self.inner.submit();
+    }
+
+    pub fn present(&mut self) -> bool {
+        self.inner.present()
     }
 
     pub fn recreate_swap_chain(&mut self) {

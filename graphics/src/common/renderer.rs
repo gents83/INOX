@@ -105,11 +105,15 @@ impl Renderer {
         self.device.begin_frame()
     }
 
-    fn end_frame(&mut self) -> bool {
+    fn end_frame(&mut self) {
         nrg_profiler::scoped_profile!("renderer::end_frame");
 
         self.device.end_frame();
-        self.device.submit()
+        self.device.submit();
+    }
+    fn present(&mut self) -> bool {
+        nrg_profiler::scoped_profile!("renderer::present");
+        self.device.present()
     }
 
     pub fn draw(&mut self, view: &Matrix4, proj: &Matrix4) {
@@ -211,7 +215,8 @@ impl Renderer {
                 render_pass.end();
             }
 
-            success = self.end_frame();
+            self.end_frame();
+            success = self.present();
         }
         if !success {
             self.recreate();

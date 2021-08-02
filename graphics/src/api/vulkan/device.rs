@@ -225,9 +225,13 @@ impl Device {
         self.inner.borrow_mut().end_frame(command_buffer);
     }
 
-    pub fn submit(&mut self) -> bool {
+    pub fn submit(&mut self) {
         let command_buffer = self.get_current_command_buffer();
-        self.inner.borrow_mut().submit(command_buffer)
+        self.inner.borrow_mut().submit(command_buffer);
+    }
+
+    pub fn present(&mut self) -> bool {
+        self.inner.borrow_mut().present()
     }
 
     pub fn recreate_swap_chain(&mut self) {
@@ -341,7 +345,7 @@ impl DeviceImmutable {
         }
     }
 
-    fn submit(&mut self, command_buffer: VkCommandBuffer) -> bool {
+    fn submit(&mut self, command_buffer: VkCommandBuffer) {
         unsafe {
             let wait_stages =
                 [VkPipelineStageFlagBits_VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT as _];
@@ -367,7 +371,11 @@ impl DeviceImmutable {
                 eprintln!("Unable to submit queue correctly on GPU");
             }
             vkQueueWaitIdle.unwrap()(self.graphics_queue);
+        }
+    }
 
+    fn present(&mut self) -> bool {
+        unsafe {
             let present_info = VkPresentInfoKHR {
                 sType: VkStructureType_VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
                 pNext: ::std::ptr::null_mut(),
