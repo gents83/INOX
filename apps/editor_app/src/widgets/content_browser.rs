@@ -12,9 +12,9 @@ use nrg_messenger::{get_events_from_string, Message, MessageBox, MessengerRw};
 use nrg_resources::{FileResource, SharedData, SharedDataRw, DATA_FOLDER};
 use nrg_serialize::deserialize;
 use nrg_ui::{
-    implement_widget_data, Align, CentralPanel, CollapsingHeader, DialogEvent, DialogOp, Layout,
-    ScrollArea, SidePanel, TextEdit, TextureId as eguiTextureId, UIWidget, UIWidgetRc, Ui, Widget,
-    Window,
+    implement_widget_data, menu, Align, CentralPanel, CollapsingHeader, DialogEvent, DialogOp,
+    Layout, ScrollArea, SidePanel, TextEdit, TextureId as eguiTextureId, TopBottomPanel, UIWidget,
+    UIWidgetRc, Ui, Widget, Window,
 };
 
 #[allow(dead_code)]
@@ -138,71 +138,126 @@ impl ContentBrowser {
         UIWidget::register(shared_data, data, move |ui_data, ui_context| {
             if let Some(data) = ui_data.as_any().downcast_mut::<ContentBrowserData>() {
                 let mut open = true;
-                /*Window::new(data.title.clone())
-                .scroll(true)
-                .title_bar(true)
-                .resizable(true)
-                .collapsible(false)
-                .open(&mut open)
-                .show(ui_context, |_ui| {*/
-                SidePanel::left("Folders")
+                let mut rect = ui_context.available_rect();
+                rect.min.x += rect.size().x * 0.05;
+                rect.min.y += rect.size().y * 0.05;
+                rect.max.x -= rect.size().x * 0.05;
+                rect.max.y -= rect.size().y * 0.1;
+                Window::new(data.title.clone())
+                    .scroll(false)
+                    .title_bar(true)
+                    .collapsible(false)
                     .resizable(true)
-                    .min_width(left_panel_min_width)
-                    .max_width(left_panel_max_width)
+                    .open(&mut open)
+                    .default_rect(rect)
                     .show(ui_context, |ui| {
-                        ScrollArea::auto_sized().show(ui, |ui| {
-                            let path = data.folder.as_path().to_path_buf();
-                            Self::populate_with_folders_tree(ui, path.as_path(), data);
-                        })
-                    });
-                CentralPanel::default().show(ui_context, |ui| {
-                    let mut rect = ui.min_rect();
-                    let mut bottom_rect = rect;
-                    bottom_rect.min.y = ui.max_rect_finite().max.y - bottom_panel_height;
-                    rect.max.y = bottom_rect.min.y - ui.spacing().indent;
-                    let mut child_ui = ui.child_ui(rect, Layout::top_down(Align::Min));
-                    let mut bottom_ui = ui.child_ui(bottom_rect, Layout::bottom_up(Align::Max));
-                    ScrollArea::auto_sized().show(&mut child_ui, |ui| {
-                        if data.selected_folder.is_dir() {
-                            let path = data.selected_folder.as_path().to_path_buf();
-                            Self::populate_with_files(
-                                ui,
-                                path.as_path(),
-                                data,
-                                data.icon_file_texture_id,
-                            );
-                        }
-                    });
-                    bottom_ui.vertical(|ui| {
-                        ui.separator();
-                        ui.horizontal(|ui| {
-                            ui.label("Filename: ");
-                            TextEdit::singleline(&mut data.selected_file)
-                                .hint_text("File name here")
-                                .enabled(data.is_editable)
-                                .frame(data.is_editable)
-                                .desired_width(ui.available_width() - 2. * button_size)
-                                .ui(ui);
-                            if ui.button("Ok").clicked() {
-                                let path = data.selected_folder.clone();
-                                let path = path.join(data.selected_file.clone());
-                                data.global_dispatcher
-                                    .write()
-                                    .unwrap()
-                                    .send(DialogEvent::Confirmed(data.operation, path).as_boxed())
-                                    .ok();
-                            }
-                            if ui.button("Cancel").clicked() {
-                                data.global_dispatcher
-                                    .write()
-                                    .unwrap()
-                                    .send(DialogEvent::Canceled(data.operation).as_boxed())
-                                    .ok();
-                            }
+                        ui.expand_to_include_rect(ui.max_rect()); // Expand frame to include it all
+
+                        let mut top_rect = ui.available_rect_before_wrap_finite();
+                        top_rect.min.y += ui.spacing().item_spacing.y;
+                        let mut top_ui = ui.child_ui(top_rect, Layout::top_down(Align::Max));
+
+                        let top_response = TopBottomPanel::top("window_menu")
+                            .resizable(false)
+                            .show_inside(&mut top_ui, |ui| {
+                                menu::bar(ui, |ui| {
+                                    menu::menu(ui, "File", |ui| {
+                                        if ui.button("Exit").clicked() {
+                                            data.global_dispatcher
+                                                .write()
+                                                .unwrap()
+                                                .send(
+                                                    DialogEvent::Canceled(data.operation)
+                                                        .as_boxed(),
+                                                )
+                                                .ok();
+                                        }
+                                    });
+                                });
+                            });
+
+                        let mut left_rect = ui.available_rect_before_wrap_finite();
+                        left_rect.min.y =
+                            top_response.response.rect.max.y + ui.spacing().item_spacing.y;
+                        let mut left_ui = ui.child_ui(left_rect, Layout::top_down(Align::Max));
+
+                        let left_response = SidePanel::left("Folders")
+                            .resizable(true)
+                            .min_width(left_panel_min_width)
+                            .max_width(left_panel_max_width)
+                            .show_inside(&mut left_ui, |ui| {
+                                ScrollArea::auto_sized().show(ui, |ui| {
+                                    let path = data.folder.as_path().to_path_buf();
+                                    Self::populate_with_folders_tree(ui, path.as_path(), data);
+                                })
+                            });
+
+                        let mut right_rect = ui.available_rect_before_wrap_finite();
+                        right_rect.min.x = left_response.response.rect.max.x;
+                        right_rect.min.y =
+                            top_response.response.rect.max.y + ui.spacing().item_spacing.y;
+                        let mut right_ui = ui.child_ui(right_rect, Layout::top_down(Align::Max));
+
+                        CentralPanel::default().show_inside(&mut right_ui, |ui| {
+                            let mut rect = ui.min_rect();
+                            let mut bottom_rect = rect;
+                            bottom_rect.min.y = ui.max_rect_finite().max.y - bottom_panel_height;
+                            rect.max.y = bottom_rect.min.y - ui.spacing().indent;
+                            let mut child_ui = ui.child_ui(rect, Layout::top_down(Align::Min));
+                            let mut bottom_ui =
+                                ui.child_ui(bottom_rect, Layout::bottom_up(Align::Max));
+                            ScrollArea::auto_sized().show(&mut child_ui, |ui| {
+                                if data.selected_folder.is_dir() {
+                                    let path = data.selected_folder.as_path().to_path_buf();
+                                    Self::populate_with_files(
+                                        ui,
+                                        path.as_path(),
+                                        data,
+                                        data.icon_file_texture_id,
+                                    );
+                                }
+                            });
+                            bottom_ui.vertical(|ui| {
+                                ui.separator();
+                                ui.horizontal(|ui| {
+                                    ui.label("Filename: ");
+                                    TextEdit::singleline(&mut data.selected_file)
+                                        .hint_text("File name here")
+                                        .enabled(data.is_editable)
+                                        .frame(data.is_editable)
+                                        .desired_width(ui.available_width() - 2. * button_size)
+                                        .ui(ui);
+                                    if ui.button("Ok").clicked() {
+                                        let path = data.selected_folder.clone();
+                                        let path = path.join(data.selected_file.clone());
+                                        data.global_dispatcher
+                                            .write()
+                                            .unwrap()
+                                            .send(
+                                                DialogEvent::Confirmed(data.operation, path)
+                                                    .as_boxed(),
+                                            )
+                                            .ok();
+                                    }
+                                    if ui.button("Cancel").clicked() {
+                                        data.global_dispatcher
+                                            .write()
+                                            .unwrap()
+                                            .send(DialogEvent::Canceled(data.operation).as_boxed())
+                                            .ok();
+                                    }
+                                });
+                            });
                         });
                     });
-                });
-                //});
+
+                if !open {
+                    data.global_dispatcher
+                        .write()
+                        .unwrap()
+                        .send(DialogEvent::Canceled(data.operation).as_boxed())
+                        .ok();
+                }
             }
         })
     }
