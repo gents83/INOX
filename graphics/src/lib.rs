@@ -1,5 +1,7 @@
 #![warn(clippy::all)]
 
+pub use image::DynamicImage;
+
 pub use crate::common::*;
 pub use crate::fonts::*;
 pub use crate::resources::*;

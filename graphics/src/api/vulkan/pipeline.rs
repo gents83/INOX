@@ -185,16 +185,16 @@ impl PipelineImmutable {
         self
     }
     fn create_descriptor_pool(&mut self, device: &Device) -> &mut Self {
-        let mut pool_sizes: Vec<VkDescriptorPoolSize> = vec![VkDescriptorPoolSize {
-            type_: VkDescriptorType_VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-            descriptorCount: device.get_images_count() as _,
-        }];
-        for _i in 0..MAX_TEXTURE_COUNT {
-            pool_sizes.push(VkDescriptorPoolSize {
-                type_: VkDescriptorType_VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+        let pool_sizes: Vec<VkDescriptorPoolSize> = vec![
+            VkDescriptorPoolSize {
+                type_: VkDescriptorType_VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
                 descriptorCount: device.get_images_count() as u32,
-            });
-        }
+            },
+            VkDescriptorPoolSize {
+                type_: VkDescriptorType_VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                descriptorCount: MAX_TEXTURE_COUNT as u32 * device.get_images_count() as u32,
+            },
+        ];
 
         let pool_info = VkDescriptorPoolCreateInfo {
             sType: VkStructureType_VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
@@ -539,23 +539,25 @@ impl PipelineImmutable {
     }
 
     fn create_descriptor_set_layout(&mut self, device: &Device) -> &mut Self {
-        let mut bindings: Vec<VkDescriptorSetLayoutBinding> = vec![VkDescriptorSetLayoutBinding {
-            binding: 0,
-            descriptorCount: 1,
-            descriptorType: VkDescriptorType_VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-            pImmutableSamplers: ::std::ptr::null_mut(),
-            stageFlags: VkShaderStageFlagBits_VK_SHADER_STAGE_VERTEX_BIT as _,
-        }];
-        let binding_index = 1;
-        for i in 0..MAX_TEXTURE_COUNT {
-            bindings.push(VkDescriptorSetLayoutBinding {
-                binding: (binding_index + i) as _,
+        let bindings = vec![
+            VkDescriptorSetLayoutBinding {
+                binding: 0,
                 descriptorCount: 1,
+                descriptorType: VkDescriptorType_VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                pImmutableSamplers: ::std::ptr::null_mut(),
+                stageFlags: (VkShaderStageFlagBits_VK_SHADER_STAGE_VERTEX_BIT
+                    | VkShaderStageFlagBits_VK_SHADER_STAGE_FRAGMENT_BIT)
+                    as _,
+            },
+            VkDescriptorSetLayoutBinding {
+                binding: 1,
+                descriptorCount: MAX_TEXTURE_COUNT as _,
                 descriptorType: VkDescriptorType_VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
                 pImmutableSamplers: ::std::ptr::null_mut(),
                 stageFlags: VkShaderStageFlagBits_VK_SHADER_STAGE_FRAGMENT_BIT as _,
-            });
-        }
+            },
+        ];
+
         let layout_create_info = VkDescriptorSetLayoutCreateInfo {
             sType: VkStructureType_VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
             flags: 0,
@@ -744,7 +746,7 @@ impl PipelineImmutable {
         }
     }
 
-    pub fn update_descriptor_sets(&self, device: &Device, textures: &[TextureAtlas]) {
+    pub fn update_descriptor_sets(&mut self, device: &Device, textures: &[TextureAtlas]) {
         debug_assert!(
             !textures.is_empty(),
             "At least one texture should be received"
@@ -753,22 +755,22 @@ impl PipelineImmutable {
         let image_index = device.get_current_buffer_index();
 
         let mut descriptor_write: Vec<VkWriteDescriptorSet> = Vec::new();
-        let binding_index = 1;
-        for i in 0..MAX_TEXTURE_COUNT {
-            let index = if i < textures.len() { i } else { 0 };
-            descriptor_write.push(VkWriteDescriptorSet {
-                sType: VkStructureType_VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-                pNext: ::std::ptr::null_mut(),
-                dstSet: self.descriptor_sets[image_index],
-                dstBinding: (binding_index + i) as _,
-                dstArrayElement: 0,
-                descriptorCount: 1,
-                descriptorType: VkDescriptorType_VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                pImageInfo: &textures[index].get_texture().get_descriptor(),
-                pBufferInfo: ::std::ptr::null_mut(),
-                pTexelBufferView: ::std::ptr::null_mut(),
-            });
+        let mut descriptors = Vec::new();
+        for t in textures.iter() {
+            descriptors.push(t.get_texture().get_descriptor());
         }
+        descriptor_write.push(VkWriteDescriptorSet {
+            sType: VkStructureType_VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            pNext: ::std::ptr::null_mut(),
+            dstSet: self.descriptor_sets[image_index],
+            dstBinding: 1,
+            dstArrayElement: 0,
+            descriptorCount: descriptors.len() as _,
+            descriptorType: VkDescriptorType_VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+            pImageInfo: descriptors.as_ptr(),
+            pBufferInfo: ::std::ptr::null_mut(),
+            pTexelBufferView: ::std::ptr::null_mut(),
+        });
 
         unsafe {
             vkUpdateDescriptorSets.unwrap()(

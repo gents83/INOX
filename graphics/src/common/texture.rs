@@ -1,9 +1,9 @@
 use std::path::Path;
 
-use image::{DynamicImage, EncodableLayout, Pixel, RgbaImage};
+use image::{EncodableLayout, RgbaImage};
 use nrg_serialize::{generate_random_uid, Uid};
 
-use crate::{api::backend, Area, AreaAllocator, DEFAULT_AREA_SIZE, INVALID_INDEX};
+use crate::{api::backend, Area, AreaAllocator, DEFAULT_AREA_SIZE};
 
 use super::device::*;
 
@@ -11,17 +11,20 @@ pub const MAX_TEXTURE_COUNT: usize = 8;
 pub const DEFAULT_LAYER_COUNT: usize = 8;
 
 pub struct TextureAtlas {
+    id: Uid,
     texture: backend::Texture,
     allocators: Vec<AreaAllocator>,
+    info: Vec<TextureInfo>,
 }
 
 impl TextureAtlas {
     fn create(device: &Device) -> Self {
         let mut allocators: Vec<AreaAllocator> = Vec::new();
         for _i in 0..DEFAULT_LAYER_COUNT {
-            allocators.push(AreaAllocator::default());
+            allocators.push(AreaAllocator::new(DEFAULT_AREA_SIZE, DEFAULT_AREA_SIZE));
         }
         Self {
+            id: generate_random_uid(),
             texture: backend::Texture::create(
                 &device.inner,
                 DEFAULT_AREA_SIZE,
@@ -29,11 +32,66 @@ impl TextureAtlas {
                 DEFAULT_LAYER_COUNT,
             ),
             allocators,
+            info: Vec::new(),
+        }
+    }
+
+    fn create_as_render_target(
+        device: &Device,
+        id: Uid,
+        index: u32,
+        width: u32,
+        height: u32,
+        is_depth: bool,
+    ) -> Self {
+        let mut area_allocator = AreaAllocator::new(width, height);
+        if area_allocator.allocate(width, height).is_none() {
+            panic!("Unable to create render target");
+        }
+        Self {
+            id,
+            texture: backend::Texture::create_as_render_target(
+                &device.inner,
+                width,
+                height,
+                1,
+                is_depth,
+            ),
+            allocators: vec![area_allocator],
+            info: vec![TextureInfo {
+                id,
+                texture_index: index,
+                layer_index: 0,
+                area: Area {
+                    x: 0,
+                    y: 0,
+                    width,
+                    height,
+                },
+            }],
         }
     }
 
     pub fn get_texture(&self) -> &backend::Texture {
         &self.texture
+    }
+
+    pub fn get_texture_info(&self, id: Uid) -> Option<&TextureInfo> {
+        if let Some(index) = self.info.iter().position(|info| info.id == id) {
+            return Some(&self.info[index]);
+        }
+        None
+    }
+
+    pub fn remove(&mut self, id: Uid) -> Option<TextureInfo> {
+        if let Some(index) = self.info.iter().position(|t| t.id == id) {
+            return Some(self.info.remove(index));
+        }
+        eprintln!(
+            "Trying to remove a texture that doesn't exist with id {}",
+            id.to_simple().to_string()
+        );
+        None
     }
 }
 
@@ -69,7 +127,6 @@ impl TextureInfo {
 pub struct TextureHandler {
     device: Device,
     texture_atlas: Vec<TextureAtlas>,
-    textures: Vec<TextureInfo>,
 }
 
 impl TextureHandler {
@@ -77,43 +134,68 @@ impl TextureHandler {
         Self {
             device: device.clone(),
             texture_atlas: vec![TextureAtlas::create(device)],
-            textures: Vec::new(),
         }
     }
 
-    pub fn get_texture(&self, id: Uid) -> &TextureInfo {
-        let index = self.textures.iter().position(|t| t.id == id).unwrap();
-        &self.textures[index]
+    pub fn add_render_target(
+        &mut self,
+        device: &Device,
+        id: Uid,
+        width: u32,
+        height: u32,
+        is_depth: bool,
+    ) {
+        let index = self.texture_atlas.len() as _;
+        self.texture_atlas
+            .push(TextureAtlas::create_as_render_target(
+                device, id, index, width, height, is_depth,
+            ));
+    }
+
+    pub fn get_textures_atlas(&self) -> &[TextureAtlas] {
+        self.texture_atlas.as_slice()
+    }
+
+    pub fn get_texture_atlas(&self, id: Uid) -> Option<&TextureAtlas> {
+        if let Some(index) = self.texture_atlas.iter().position(|t| t.id == id) {
+            return Some(&self.texture_atlas[index]);
+        }
+        None
+    }
+
+    pub fn get_texture_info(&self, id: Uid) -> Option<&TextureInfo> {
+        if let Some(texture_atlas) = self.texture_atlas.iter().find(|t| {
+            let texture_info = t.get_texture_info(id);
+            texture_info.is_some()
+        }) {
+            return texture_atlas.get_texture_info(id);
+        }
+        None
     }
 
     pub fn is_empty(&self) -> bool {
-        self.textures.is_empty()
+        self.texture_atlas.is_empty()
     }
 
     pub fn add(&mut self, id: Uid, image_data: RgbaImage) -> TextureInfo {
-        let (texture_index, layer_index, area) = self.add_image(
+        self.add_image(
+            id,
             image_data.width(),
             image_data.height(),
             image_data.as_raw().as_bytes(),
-        );
-        if texture_index == INVALID_INDEX
-            || layer_index < 0
-            || layer_index >= DEFAULT_LAYER_COUNT as _
-        {
-            panic!(
-                "Unable to add an image of size [{}x{}]",
-                image_data.width(),
-                image_data.height()
-            );
+        )
+    }
+
+    pub fn remove(&mut self, id: Uid) {
+        let mut texture_infos = Vec::new();
+        self.texture_atlas.iter_mut().for_each(|t| {
+            if let Some(texture_info) = t.remove(id) {
+                texture_infos.push(texture_info);
+            }
+        });
+        for info in texture_infos {
+            self.remove_image(info.texture_index, info.layer_index, info.area);
         }
-        let texture = TextureInfo {
-            id,
-            texture_index: texture_index as _,
-            layer_index: layer_index as _,
-            area,
-        };
-        self.textures.push(texture);
-        texture
     }
 
     pub fn add_from_path(&mut self, id: Uid, filepath: &Path) -> TextureInfo {
@@ -121,46 +203,7 @@ impl TextureHandler {
         self.add(id, image.to_rgba8())
     }
 
-    pub fn remove(&mut self, id: Uid) {
-        if let Some(index) = self.textures.iter().position(|t| t.id == id) {
-            self.remove_image(
-                self.textures[index].texture_index,
-                self.textures[index].layer_index,
-                self.textures[index].area,
-            );
-            self.textures.remove(index);
-        } else {
-            eprintln!(
-                "Trying to remove a texture that doesn't exist with id {}",
-                id.to_simple().to_string()
-            );
-        }
-    }
-
-    pub fn add_empty(&mut self) -> usize {
-        let image = DynamicImage::new_rgba8(8, 8);
-        let mut image_data = image.to_rgba8();
-        let (width, height) = image_data.dimensions();
-        for x in 0..width {
-            for y in 0..height {
-                image_data.put_pixel(x, y, Pixel::from_channels(255, 255, 255, 255))
-            }
-        }
-        let (texture_index, layer_index, area) = self.add_image(
-            image_data.width(),
-            image_data.height(),
-            image_data.as_raw().as_bytes(),
-        );
-        self.textures.push(TextureInfo {
-            id: generate_random_uid(),
-            texture_index: texture_index as _,
-            layer_index: layer_index as _,
-            area,
-        });
-        self.textures.len() - 1
-    }
-
-    fn add_image(&mut self, width: u32, height: u32, image_data: &[u8]) -> (i32, i32, Area) {
+    fn add_image(&mut self, id: Uid, width: u32, height: u32, image_data: &[u8]) -> TextureInfo {
         for (texture_index, texture_atlas) in self.texture_atlas.iter_mut().enumerate() {
             for (layer_index, area_allocator) in texture_atlas.allocators.iter_mut().enumerate() {
                 if let Some(area) = area_allocator.allocate(width, height) {
@@ -170,21 +213,24 @@ impl TextureHandler {
                         area,
                         image_data,
                     );
-                    return (texture_index as _, layer_index as _, *area);
+                    let info = TextureInfo {
+                        id,
+                        texture_index: texture_index as _,
+                        layer_index: layer_index as _,
+                        area: *area,
+                    };
+                    texture_atlas.info.push(info);
+                    return info;
                 }
             }
         }
-        (INVALID_INDEX, INVALID_INDEX, Area::default())
+        panic!("Unable to allocate texture")
     }
 
     fn remove_image(&mut self, texture_index: u32, layer_index: u32, area: Area) {
         let texture_atlas = &mut self.texture_atlas[texture_index as usize];
         let allocator = &mut texture_atlas.allocators[layer_index as usize];
         allocator.remove(area);
-    }
-
-    pub fn get_textures(&self) -> &[TextureAtlas] {
-        self.texture_atlas.as_slice()
     }
 }
 

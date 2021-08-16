@@ -26,6 +26,7 @@ layout(location = 11) in vec4 instanceOutlineColor;
 //Output
 layout(location = 0) out vec4 outColor;
 layout(location = 1) out vec3 outTexCoord;
+layout(location = 2) out uint outTextureIndex;
 
 float ui_scale = 2.;
 
@@ -38,4 +39,5 @@ void main() {
   // egui encodes vertex colors in gamma spaces, so we must decode the colors here:
   outColor = inColor;  
   outTexCoord = vec3(inTexCoord, instanceDiffuseLayerIndex);
+  outTextureIndex = instanceDiffuseTextureIndex;
 }

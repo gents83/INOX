@@ -3,7 +3,7 @@ use nrg_resources::{
 };
 use nrg_serialize::{generate_uid_from_string, Uid, INVALID_UID};
 
-use crate::RenderPassData;
+use crate::{RenderPassData, TextureRc};
 
 pub type RenderPassId = Uid;
 pub type RenderPassRc = ResourceRef<RenderPassInstance>;
@@ -11,6 +11,8 @@ pub type RenderPassRc = ResourceRef<RenderPassInstance>;
 pub struct RenderPassInstance {
     id: ResourceId,
     data: RenderPassData,
+    color_texture: Option<TextureRc>,
+    depth_texture: Option<TextureRc>,
     is_initialized: bool,
 }
 
@@ -19,6 +21,8 @@ impl Default for RenderPassInstance {
         Self {
             id: INVALID_UID,
             data: RenderPassData::default(),
+            color_texture: None,
+            depth_texture: None,
             is_initialized: false,
         }
     }
@@ -68,6 +72,24 @@ impl RenderPassInstance {
     pub fn init(&mut self) -> &mut Self {
         self.is_initialized = true;
         self
+    }
+    pub fn color_texture(&self) -> Option<TextureRc> {
+        self.color_texture.clone()
+    }
+    pub fn depth_texture(&self) -> Option<TextureRc> {
+        self.depth_texture.clone()
+    }
+    pub fn reset_color_texture(&mut self) {
+        self.color_texture = None;
+    }
+    pub fn reset_depth_texture(&mut self) {
+        self.depth_texture = None;
+    }
+    pub fn set_color_texture(&mut self, color_texture: TextureRc) {
+        self.color_texture = Some(color_texture);
+    }
+    pub fn set_depth_texture(&mut self, depth_texture: TextureRc) {
+        self.depth_texture = Some(depth_texture);
     }
 
     pub fn invalidate(&mut self) {

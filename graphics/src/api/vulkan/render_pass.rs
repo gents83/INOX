@@ -1,6 +1,8 @@
 use super::device::*;
 use super::utils::*;
+use super::Texture;
 use crate::common::data_formats::*;
+
 use std::{cell::RefCell, rc::Rc};
 use vulkan_bindings::*;
 
@@ -17,18 +19,52 @@ pub struct RenderPass {
 }
 
 impl RenderPass {
-    pub fn create_default(device: &Device, data: &RenderPassData) -> Self {
-        let immutable = RenderPassImmutable {
-            render_pass: RenderPassImmutable::base_pass(device, data),
-            framebuffers: Vec::new(),
-            extent: device
+    pub fn create_with_render_target(
+        device: &Device,
+        data: &RenderPassData,
+        color: Option<&Texture>,
+        depth: Option<&Texture>,
+    ) -> Self {
+        let extent = if let Some(color) = color {
+            VkExtent2D {
+                width: color.width(),
+                height: color.height(),
+            }
+        } else if let Some(depth) = depth {
+            VkExtent2D {
+                width: depth.width(),
+                height: depth.height(),
+            }
+        } else {
+            device
                 .get_instance()
                 .get_swap_chain_info()
                 .capabilities
-                .currentExtent,
+                .currentExtent
+        };
+        let immutable = RenderPassImmutable {
+            render_pass: RenderPassImmutable::base_pass(device, data),
+            framebuffers: Vec::new(),
+            extent,
         };
         let inner = Rc::new(RefCell::new(immutable));
-        inner.borrow_mut().create_framebuffers(device);
+        inner.borrow_mut().create_framebuffers(device, color, depth);
+        Self { inner }
+    }
+
+    pub fn create_default(device: &Device, data: &RenderPassData) -> Self {
+        let extent = device
+            .get_instance()
+            .get_swap_chain_info()
+            .capabilities
+            .currentExtent;
+        let immutable = RenderPassImmutable {
+            render_pass: RenderPassImmutable::base_pass(device, data),
+            framebuffers: Vec::new(),
+            extent,
+        };
+        let inner = Rc::new(RefCell::new(immutable));
+        inner.borrow_mut().create_framebuffers(device, None, None);
         Self { inner }
     }
 
@@ -96,7 +132,11 @@ impl RenderPassImmutable {
         let details = device.get_instance().get_swap_chain_info();
         let color_attachment = VkAttachmentDescription {
             flags: 0,
-            format: details.formats[0].format,
+            format: if data.render_to_texture {
+                VkFormat_VK_FORMAT_R8G8B8A8_UNORM
+            } else {
+                details.formats[0].format
+            },
             samples: VkSampleCountFlagBits_VK_SAMPLE_COUNT_1_BIT,
             loadOp: match data.clear {
                 true => VkAttachmentLoadOp_VK_ATTACHMENT_LOAD_OP_CLEAR,
@@ -201,22 +241,44 @@ impl RenderPassImmutable {
         }
     }
 
-    fn create_framebuffers(&mut self, device: &Device) -> &mut Self {
+    fn create_framebuffers(
+        &mut self,
+        device: &Device,
+        color: Option<&Texture>,
+        depth: Option<&Texture>,
+    ) -> &mut Self {
         let mut framebuffers = Vec::<VkFramebuffer>::with_capacity(device.get_images_count());
         unsafe {
             framebuffers.set_len(device.get_images_count());
         }
 
         let details = device.get_instance().get_swap_chain_info();
-        self.extent = details.capabilities.currentExtent;
+        if let Some(texture) = color {
+            self.extent = VkExtent2D {
+                width: texture.width(),
+                height: texture.height(),
+            }
+        } else {
+            self.extent = details.capabilities.currentExtent;
+        }
 
         for (i, framebuffer) in framebuffers
             .iter_mut()
             .enumerate()
             .take(device.get_images_count())
         {
-            let attachments: Vec<VkImageView> =
-                vec![device.get_image_view(i), device.get_depth_image_view(0)];
+            let attachments: Vec<VkImageView> = vec![
+                if let Some(texture) = color {
+                    texture.get_image_view()
+                } else {
+                    device.get_image_view(i)
+                },
+                if let Some(texture) = depth {
+                    texture.get_image_view()
+                } else {
+                    device.get_depth_image_view(0)
+                },
+            ];
 
             let framebuffer_create_info = VkFramebufferCreateInfo {
                 sType: VkStructureType_VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,

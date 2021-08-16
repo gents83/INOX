@@ -1,11 +1,11 @@
 use crate::Area;
 
-use super::device::*;
+use super::{device::*, find_depth_format};
 use vulkan_bindings::*;
 
 const TEXTURE_CHANNEL_COUNT: u32 = 4;
 
-#[derive(PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct Texture {
     width: u32,
     height: u32,
@@ -33,11 +33,52 @@ impl Texture {
             texture_image_view: ::std::ptr::null_mut(),
             texture_sampler: ::std::ptr::null_mut(),
         };
-        texture.create_texture_image(device, layers_count);
+        texture.create_texture_image(
+            device,
+            VkFormat_VK_FORMAT_R8G8B8A8_UNORM,
+            layers_count,
+            VkImageUsageFlagBits_VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+            VkImageAspectFlagBits_VK_IMAGE_ASPECT_COLOR_BIT,
+        );
         texture.create_texture_sampler(device);
         texture
     }
-
+    pub fn create_as_render_target(
+        device: &Device,
+        width: u32,
+        height: u32,
+        layers_count: usize,
+        is_depth: bool,
+    ) -> Self {
+        let mut texture = Self {
+            width,
+            height,
+            texture_image: ::std::ptr::null_mut(),
+            texture_image_memory: ::std::ptr::null_mut(),
+            texture_image_view: ::std::ptr::null_mut(),
+            texture_sampler: ::std::ptr::null_mut(),
+        };
+        let format = if is_depth {
+            find_depth_format(device.get_instance().get_physical_device())
+        } else {
+            VkFormat_VK_FORMAT_R8G8B8A8_UNORM
+        };
+        let specific_flags = if is_depth {
+            VkImageUsageFlagBits_VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT as _
+        } else {
+            (VkImageUsageFlagBits_VK_IMAGE_USAGE_TRANSFER_DST_BIT
+                | VkImageUsageFlagBits_VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT) as _
+        };
+        let aspect_flags = if is_depth {
+            (VkImageAspectFlagBits_VK_IMAGE_ASPECT_DEPTH_BIT
+                | VkImageAspectFlagBits_VK_IMAGE_ASPECT_STENCIL_BIT) as _
+        } else {
+            VkImageAspectFlagBits_VK_IMAGE_ASPECT_COLOR_BIT as _
+        };
+        texture.create_texture_image(device, format, layers_count, specific_flags, aspect_flags);
+        texture.create_texture_sampler(device);
+        texture
+    }
     pub fn destroy(&self, device: &Device) {
         unsafe {
             vkDestroySampler.unwrap()(
@@ -70,6 +111,10 @@ impl Texture {
             imageView: self.texture_image_view,
             sampler: self.texture_sampler,
         }
+    }
+
+    pub fn get_image_view(&self) -> VkImageView {
+        self.texture_image_view
     }
 
     pub fn add_in_layer(&mut self, device: &Device, index: usize, area: &Area, image_data: &[u8]) {
@@ -114,10 +159,15 @@ impl Texture {
 }
 
 impl Texture {
-    fn create_texture_image(&mut self, device: &Device, layers_count: usize) {
-        let format = VkFormat_VK_FORMAT_R8G8B8A8_UNORM;
-        let flags = VkImageUsageFlagBits_VK_IMAGE_USAGE_TRANSFER_DST_BIT
-            | VkImageUsageFlagBits_VK_IMAGE_USAGE_SAMPLED_BIT;
+    fn create_texture_image(
+        &mut self,
+        device: &Device,
+        format: VkFormat,
+        layers_count: usize,
+        specific_flags: i32,
+        aspect_flags: i32,
+    ) {
+        let flags = specific_flags | VkImageUsageFlagBits_VK_IMAGE_USAGE_SAMPLED_BIT;
         let device_image = device.create_image(
             (self.width, self.height, format),
             VkImageTiling_VK_IMAGE_TILING_OPTIMAL,
@@ -128,27 +178,8 @@ impl Texture {
 
         self.texture_image = device_image.0;
         self.texture_image_memory = device_image.1;
-        self.texture_image_view = device.create_image_view(
-            self.texture_image,
-            format,
-            VkImageAspectFlagBits_VK_IMAGE_ASPECT_COLOR_BIT as _,
-            layers_count,
-        );
-
-        device.transition_image_layout(
-            self.texture_image,
-            VkImageLayout_VK_IMAGE_LAYOUT_UNDEFINED,
-            VkImageLayout_VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-            0,
-            layers_count,
-        );
-        device.transition_image_layout(
-            self.texture_image,
-            VkImageLayout_VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-            VkImageLayout_VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-            0,
-            layers_count,
-        );
+        self.texture_image_view =
+            device.create_image_view(self.texture_image, format, aspect_flags as _, layers_count);
     }
 
     fn create_texture_sampler(&mut self, device: &Device) {

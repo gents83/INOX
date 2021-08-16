@@ -151,21 +151,13 @@ pub struct AreaAllocator {
     occupied: AreaList,
 }
 
-impl Default for AreaAllocator {
-    fn default() -> Self {
+impl AreaAllocator {
+    pub fn new(width: u32, height: u32) -> Self {
         Self {
-            free: AreaList::new(&[Area::new(
-                0,
-                0,
-                DEFAULT_AREA_SIZE as _,
-                DEFAULT_AREA_SIZE as _,
-            )]),
+            free: AreaList::new(&[Area::new(0, 0, width as _, height as _)]),
             occupied: AreaList::default(),
         }
     }
-}
-
-impl AreaAllocator {
     pub fn allocate(&mut self, width: u32, height: u32) -> Option<&Area> {
         self.free.collapse();
         if let Some(index) = self.free.find(width, height) {

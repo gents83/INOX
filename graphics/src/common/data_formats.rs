@@ -94,6 +94,7 @@ impl Default for VertexData {
 pub struct RenderPassData {
     pub clear: bool,
     pub clear_depth: bool,
+    pub render_to_texture: bool,
     pub name: String,
 }
 unsafe impl Send for RenderPassData {}
@@ -104,6 +105,7 @@ impl Default for RenderPassData {
         Self {
             clear: true,
             clear_depth: true,
+            render_to_texture: false,
             name: String::new(),
         }
     }
@@ -120,6 +122,7 @@ pub struct PipelineData {
     pub tcs_shader: PathBuf,
     pub tes_shader: PathBuf,
     pub geometry_shader: PathBuf,
+    pub render_in_passes: Vec<String>,
 }
 unsafe impl Send for PipelineData {}
 unsafe impl Sync for PipelineData {}
@@ -134,6 +137,7 @@ impl Default for PipelineData {
             tcs_shader: PathBuf::new(),
             tes_shader: PathBuf::new(),
             geometry_shader: PathBuf::new(),
+            render_in_passes: Vec::new(),
         }
     }
 }

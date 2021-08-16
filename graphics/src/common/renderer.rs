@@ -1,8 +1,9 @@
-use crate::Pipeline;
-use crate::{FontRc, MaterialRc, PipelineRc, RenderPass, RenderPassRc, TextureRc};
+use crate::{FontRc, MaterialRc, PipelineId, PipelineRc, RenderPass, RenderPassRc, TextureRc};
+use crate::{Pipeline, RenderPassId};
 use nrg_math::*;
 use nrg_platform::*;
 use nrg_resources::{FileResource, DATA_FOLDER};
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 
@@ -27,8 +28,8 @@ pub struct Renderer {
     scissors: Scissors,
     texture_handler: TextureHandler,
     state: RendererState,
-    pipelines: Vec<Pipeline>,
     render_passes: Vec<RenderPass>,
+    pipelines: HashMap<RenderPassId, Vec<Pipeline>>,
 }
 pub type RendererRw = Arc<RwLock<Renderer>>;
 
@@ -42,7 +43,7 @@ impl Renderer {
         let texture_handler = TextureHandler::create(&device);
         Renderer {
             render_passes: Vec::new(),
-            pipelines: Vec::new(),
+            pipelines: HashMap::new(),
             instance,
             device,
             viewport: Viewport::default(),
@@ -78,7 +79,7 @@ impl Renderer {
     ) -> &mut Self {
         nrg_profiler::scoped_profile!("renderer::prepare_frame");
         self.load_render_passes(render_passes);
-        self.load_pipelines(pipelines);
+        self.load_pipelines(pipelines, render_passes);
         self.load_textures(textures, fonts);
 
         self.prepare_pipelines();
@@ -92,8 +93,16 @@ impl Renderer {
     pub fn get_texture_handler_mut(&mut self) -> &mut TextureHandler {
         &mut self.texture_handler
     }
-    pub fn get_pipelines(&mut self) -> &mut Vec<Pipeline> {
-        &mut self.pipelines
+    pub fn get_pipelines_with_id(&mut self, pipeline_id: PipelineId) -> Vec<&mut Pipeline> {
+        let mut pipelines = Vec::new();
+        for (_id, pipelines_in_pass) in self.pipelines.iter_mut() {
+            for p in pipelines_in_pass.iter_mut() {
+                if p.id() == pipeline_id {
+                    pipelines.push(p);
+                }
+            }
+        }
+        pipelines
     }
     pub fn end_preparation(&mut self) {
         self.state = RendererState::Prepared;
@@ -134,80 +143,87 @@ impl Renderer {
 
                 render_pass.begin();
 
-                for (pipeline_index, pipeline) in self.pipelines.iter_mut().enumerate() {
-                    if !pipeline.is_empty() {
-                        nrg_profiler::scoped_profile!(format!(
-                            "renderer::draw_pipeline[{}]",
-                            pipeline_index
-                        )
-                        .as_str());
-
-                        {
+                for (render_pass_id, pipelines) in self.pipelines.iter_mut() {
+                    if *render_pass_id != render_pass.id() {
+                        continue;
+                    }
+                    for (pipeline_index, pipeline) in pipelines.iter_mut().enumerate() {
+                        if !pipeline.is_empty() {
                             nrg_profiler::scoped_profile!(format!(
-                                "renderer::update_uniforms_and_descriptors[{}]",
+                                "renderer::draw_pipeline[{}]",
                                 pipeline_index
                             )
                             .as_str());
-                            pipeline.update_runtime_data(view, proj);
-                            pipeline.update_descriptor_sets(self.texture_handler.get_textures());
-                        }
 
-                        {
-                            nrg_profiler::scoped_profile!(format!(
-                                "renderer::draw_pipeline_begin[{}]",
-                                pipeline_index
-                            )
-                            .as_str());
-                            pipeline.begin();
-                        }
+                            {
+                                nrg_profiler::scoped_profile!(format!(
+                                    "renderer::update_uniforms_and_descriptors[{}]",
+                                    pipeline_index
+                                )
+                                .as_str());
+                                pipeline.update_runtime_data(view, proj);
+                                pipeline.update_descriptor_sets(
+                                    self.texture_handler.get_textures_atlas(),
+                                );
+                            }
 
-                        {
-                            nrg_profiler::scoped_profile!(format!(
-                                "renderer::draw_pipeline_call[{}]",
-                                pipeline_index
-                            )
-                            .as_str());
                             {
                                 nrg_profiler::scoped_profile!(format!(
-                                    "renderer::draw_pipeline_call[{}]_bind_vertices",
+                                    "renderer::draw_pipeline_begin[{}]",
                                     pipeline_index
                                 )
                                 .as_str());
-                                pipeline.bind_vertices();
+                                pipeline.begin();
                             }
-                            {
-                                nrg_profiler::scoped_profile!(format!(
-                                    "renderer::draw_pipeline_call[{}]_bind_indirect",
-                                    pipeline_index
-                                )
-                                .as_str());
-                                pipeline.bind_indirect();
-                            }
-                            {
-                                nrg_profiler::scoped_profile!(format!(
-                                    "renderer::draw_pipeline_call[{}]_bind_indices",
-                                    pipeline_index
-                                )
-                                .as_str());
-                                pipeline.bind_indices();
-                            }
-                            {
-                                nrg_profiler::scoped_profile!(format!(
-                                    "renderer::draw_pipeline_call[{}]_draw_indirect",
-                                    pipeline_index
-                                )
-                                .as_str());
-                                pipeline.draw_indirect();
-                            }
-                        }
 
-                        {
-                            nrg_profiler::scoped_profile!(format!(
-                                "renderer::draw_pipeline_end[{}]",
-                                pipeline_index
-                            )
-                            .as_str());
-                            pipeline.end();
+                            {
+                                nrg_profiler::scoped_profile!(format!(
+                                    "renderer::draw_pipeline_call[{}]",
+                                    pipeline_index
+                                )
+                                .as_str());
+                                {
+                                    nrg_profiler::scoped_profile!(format!(
+                                        "renderer::draw_pipeline_call[{}]_bind_vertices",
+                                        pipeline_index
+                                    )
+                                    .as_str());
+                                    pipeline.bind_vertices();
+                                }
+                                {
+                                    nrg_profiler::scoped_profile!(format!(
+                                        "renderer::draw_pipeline_call[{}]_bind_indirect",
+                                        pipeline_index
+                                    )
+                                    .as_str());
+                                    pipeline.bind_indirect();
+                                }
+                                {
+                                    nrg_profiler::scoped_profile!(format!(
+                                        "renderer::draw_pipeline_call[{}]_bind_indices",
+                                        pipeline_index
+                                    )
+                                    .as_str());
+                                    pipeline.bind_indices();
+                                }
+                                {
+                                    nrg_profiler::scoped_profile!(format!(
+                                        "renderer::draw_pipeline_call[{}]_draw_indirect",
+                                        pipeline_index
+                                    )
+                                    .as_str());
+                                    pipeline.draw_indirect();
+                                }
+                            }
+
+                            {
+                                nrg_profiler::scoped_profile!(format!(
+                                    "renderer::draw_pipeline_end[{}]",
+                                    pipeline_index
+                                )
+                                .as_str());
+                                pipeline.end();
+                            }
                         }
                     }
                 }
@@ -227,7 +243,9 @@ impl Renderer {
     pub fn recreate(&mut self) {
         nrg_profiler::scoped_profile!("renderer::recreate");
         self.device.recreate_swap_chain();
-        self.pipelines.iter_mut().for_each(|p| p.destroy());
+        self.pipelines.iter_mut().for_each(|(_id, pipelines)| {
+            pipelines.iter_mut().for_each(|p| p.destroy());
+        });
         self.pipelines.clear();
         self.render_passes.iter_mut().for_each(|r| r.destroy());
         self.render_passes.clear();
@@ -255,42 +273,121 @@ impl Renderer {
             }
             if should_create {
                 let device = &mut self.device;
-                self.render_passes.push(RenderPass::create_default(
-                    device,
-                    render_pass_instance.id(),
-                    render_pass_instance.resource().get().data(),
-                ));
+                if render_pass_instance
+                    .resource()
+                    .get()
+                    .data()
+                    .render_to_texture
+                {
+                    if let Some(texture) = render_pass_instance.resource().get().color_texture() {
+                        if self
+                            .texture_handler
+                            .get_texture_atlas(texture.id())
+                            .is_none()
+                        {
+                            self.texture_handler.add_render_target(
+                                device,
+                                texture.id(),
+                                texture.resource().get().width(),
+                                texture.resource().get().height(),
+                                false,
+                            );
+                        }
+                    }
+                    if let Some(texture) = render_pass_instance.resource().get().depth_texture() {
+                        if self
+                            .texture_handler
+                            .get_texture_atlas(texture.id())
+                            .is_none()
+                        {
+                            self.texture_handler.add_render_target(
+                                device,
+                                texture.id(),
+                                texture.resource().get().width(),
+                                texture.resource().get().height(),
+                                true,
+                            );
+                        }
+                    }
+                    let color_texture = if let Some(texture) =
+                        render_pass_instance.resource().get().color_texture()
+                    {
+                        self.texture_handler
+                            .get_texture_atlas(texture.id())
+                            .map(|texture_atlas| texture_atlas.get_texture())
+                    } else {
+                        None
+                    };
+                    let depth_texture = if let Some(texture) =
+                        render_pass_instance.resource().get().depth_texture()
+                    {
+                        self.texture_handler
+                            .get_texture_atlas(texture.id())
+                            .map(|texture_atlas| texture_atlas.get_texture())
+                    } else {
+                        None
+                    };
+                    self.render_passes
+                        .push(RenderPass::create_with_render_target(
+                            device,
+                            render_pass_instance.id(),
+                            render_pass_instance.resource().get().data(),
+                            color_texture,
+                            depth_texture,
+                        ));
+                } else {
+                    self.render_passes.push(RenderPass::create_default(
+                        device,
+                        render_pass_instance.id(),
+                        render_pass_instance.resource().get().data(),
+                    ));
+                }
                 render_pass_instance.resource().get_mut().init();
             }
         });
     }
-    fn load_pipelines(&mut self, pipelines: &mut [PipelineRc]) {
+    fn load_pipelines(&mut self, pipelines: &mut [PipelineRc], render_passes: &mut [RenderPassRc]) {
         nrg_profiler::scoped_profile!("renderer::load_pipelines");
         pipelines.iter_mut().for_each(|pipeline_instance| {
-            let mut create_pipeline = false;
-            if let Some(index) = self
-                .pipelines
-                .iter()
-                .position(|p| p.id() == pipeline_instance.id())
-            {
-                if !pipeline_instance.resource().get().is_initialized() {
-                    //pipeline needs to be recreated
-                    let mut pipeline = self.pipelines.remove(index);
-                    pipeline.destroy();
-                    create_pipeline = true;
+            let mut create_pipeline = true;
+
+            self.pipelines.iter_mut().for_each(|(_id, pipelines)| {
+                if let Some(index) = pipelines
+                    .iter_mut()
+                    .position(|p| p.id() == pipeline_instance.id())
+                {
+                    if pipeline_instance.resource().get().is_initialized() {
+                        create_pipeline = false;
+                    } else {
+                        //pipeline needs to be recreated
+                        let mut pipeline = pipelines.remove(index);
+                        pipeline.destroy();
+                        create_pipeline = true;
+                    }
                 }
-            } else {
-                create_pipeline = true;
-            }
+            });
+
             if create_pipeline {
-                let device = &mut self.device;
-                self.pipelines.push(Pipeline::create(
-                    device,
-                    pipeline_instance.id(),
-                    pipeline_instance.resource().get().data(),
-                    self.render_passes.first().unwrap(),
-                ));
-                pipeline_instance.resource().get_mut().init();
+                render_passes.iter().for_each(|render_pass| {
+                    if pipeline_instance
+                        .resource()
+                        .get()
+                        .should_draw_in_render_pass(&render_pass.resource().get().data().name)
+                    {
+                        let device = &mut self.device;
+                        let pipelines = self
+                            .pipelines
+                            .entry(render_pass.id())
+                            .or_insert_with(Vec::new);
+                        pipelines.push(Pipeline::create(
+                            device,
+                            pipeline_instance.id(),
+                            pipeline_instance.resource().get().data(),
+                            self.render_passes.first().unwrap(),
+                        ));
+                        pipeline_instance.resource().get_mut().init();
+                    }
+                });
             }
         });
     }
@@ -308,33 +405,44 @@ impl Renderer {
                     PathBuf::from(DATA_FOLDER).as_path(),
                     texture_instance.resource().get().path(),
                 );
-                let texture_info = if let Some(image_data) =
-                    texture_instance.resource().get_mut().image_data()
+                if let Some(texture_info) = texture_handler.get_texture_info(texture_instance.id())
                 {
-                    texture_handler.add(texture_instance.id(), image_data)
-                } else if is_texture(path.as_path()) {
-                    texture_handler.add_from_path(texture_instance.id(), path.as_path())
-                } else if let Some(font) = fonts.iter().find(|f| f.resource().get().path() == path)
-                {
-                    texture_handler.add(
-                        texture_instance.id(),
-                        font.resource().get().font().get_texture(),
-                    )
+                    texture_instance
+                        .resource()
+                        .get_mut()
+                        .set_texture_info(texture_info);
                 } else {
-                    panic!("Unable to load texture with path {:?}", path.as_path());
-                };
-                texture_instance
-                    .resource()
-                    .get_mut()
-                    .set_texture_info(texture_info);
+                    let texture_info = if let Some(image_data) =
+                        texture_instance.resource().get_mut().image_data()
+                    {
+                        texture_handler.add(texture_instance.id(), image_data)
+                    } else if is_texture(path.as_path()) {
+                        texture_handler.add_from_path(texture_instance.id(), path.as_path())
+                    } else if let Some(font) =
+                        fonts.iter().find(|f| f.resource().get().path() == path)
+                    {
+                        texture_handler.add(
+                            texture_instance.id(),
+                            font.resource().get().font().get_texture(),
+                        )
+                    } else {
+                        panic!("Unable to load texture with path {:?}", path.as_path());
+                    };
+                    texture_instance
+                        .resource()
+                        .get_mut()
+                        .set_texture_info(&texture_info);
+                }
             }
         });
     }
 
     fn prepare_pipelines(&mut self) {
         nrg_profiler::scoped_profile!("renderer::prepare_pipelines");
-        self.pipelines.iter_mut().for_each(|pipeline| {
-            pipeline.prepare();
+        self.pipelines.iter_mut().for_each(|(_id, pipelines)| {
+            pipelines.iter_mut().for_each(|pipeline| {
+                pipeline.prepare();
+            });
         });
     }
 

@@ -42,6 +42,7 @@ pub struct EditorUpdater {
     selected_object: ObjectId,
     main_menu: Option<MainMenu>,
     debug_info: Option<DebugInfo>,
+    view3d: Option<View3D>,
     content_browser: Option<ContentBrowser>,
     show_debug_info: Arc<AtomicBool>,
 }
@@ -76,6 +77,7 @@ impl EditorUpdater {
             selected_object: INVALID_UID,
             main_menu: None,
             debug_info: None,
+            view3d: None,
             content_browser: None,
             show_debug_info: Arc::new(AtomicBool::new(false)),
         }
@@ -126,7 +128,7 @@ impl System for EditorUpdater {
             .register_messagebox::<WindowEvent>(self.message_channel.get_messagebox())
             .register_messagebox::<DialogEvent>(self.message_channel.get_messagebox());
 
-        self.create_main_menu().create_scene();
+        self.create_main_menu().create_view3d().create_scene();
     }
 
     fn run(&mut self) -> bool {
@@ -169,6 +171,11 @@ impl EditorUpdater {
     fn destroy_debug_info(&mut self) -> &mut Self {
         self.debug_info = None;
         self.show_debug_info.store(false, Ordering::SeqCst);
+        self
+    }
+    fn create_view3d(&mut self) -> &mut Self {
+        let view3d = View3D::new(&self.shared_data, &self.global_messenger);
+        self.view3d = Some(view3d);
         self
     }
     fn create_content_browser(&mut self, operation: DialogOp, path: &Path) -> &mut Self {

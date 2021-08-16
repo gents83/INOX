@@ -141,6 +141,9 @@ impl Pipeline {
         {
             return self;
         }
+
+        nrg_profiler::scoped_profile!(format!("add_mesh_instance[{}]", self.id()).as_str());
+
         let mesh_data_ref = self.mesh.bind_at_index(
             &mesh_instance.get_data().vertices,
             self.vertex_count,

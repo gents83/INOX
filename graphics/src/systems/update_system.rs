@@ -158,22 +158,22 @@ impl System for UpdateSystem {
                                         diffuse_texture.resource().get().layer_index() as _,
                                     );
                                     let r = renderer.read().unwrap();
-                                    let diffuse_texture =
-                                        r.get_texture_handler().get_texture(diffuse_texture.id());
+                                    let texture_info = r
+                                        .get_texture_handler()
+                                        .get_texture_info(diffuse_texture.id());
                                     mesh.resource()
                                         .get_mut()
-                                        .process_uv_for_texture(Some(diffuse_texture));
+                                        .process_uv_for_texture(texture_info);
                                     (diffuse_texture_index, diffuse_layer_index)
                                 } else {
                                     (INVALID_INDEX, INVALID_INDEX)
                                 };
 
-                            if let Some(pipeline) = renderer
+                            for pipeline in renderer
                                 .write()
                                 .unwrap()
-                                .get_pipelines()
+                                .get_pipelines_with_id(pipeline.id())
                                 .iter_mut()
-                                .find(|p| p.id() == pipeline.id())
                             {
                                 pipeline.add_mesh_instance(
                                     &mesh.resource().get(),
@@ -181,11 +181,6 @@ impl System for UpdateSystem {
                                     diffuse_texture_index,
                                     diffuse_layer_index,
                                     outline_color,
-                                );
-                            } else {
-                                eprintln!(
-                                    "Tyring to render with an unregistered pipeline {}",
-                                    pipeline.resource().get().data().name
                                 );
                             }
                             wait_count.fetch_sub(1, Ordering::SeqCst);

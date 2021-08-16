@@ -88,10 +88,16 @@ impl TextureInstance {
     pub fn dimensions(&self) -> (u32, u32) {
         (self.width, self.height)
     }
+    pub fn width(&self) -> u32 {
+        self.width
+    }
+    pub fn height(&self) -> u32 {
+        self.height
+    }
     pub fn image_data(&mut self) -> Option<RgbaImage> {
         self.image_data.take()
     }
-    pub fn set_texture_info(&mut self, texture_info: TextureInfo) -> &mut Self {
+    pub fn set_texture_info(&mut self, texture_info: &TextureInfo) -> &mut Self {
         self.texture_index = texture_info.texture_index as _;
         self.layer_index = texture_info.layer_index as _;
         self.width = texture_info.area.width as u32;

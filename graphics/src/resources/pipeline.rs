@@ -81,6 +81,15 @@ impl PipelineInstance {
         self.is_initialized
     }
 
+    pub fn should_draw_in_render_pass(&self, render_pass: &str) -> bool {
+        for name in self.data.render_in_passes.iter() {
+            if name == render_pass {
+                return true;
+            }
+        }
+        false
+    }
+
     pub fn check_shaders_to_reload(&mut self, path_as_string: String) {
         if path_as_string.contains(self.data.vertex_shader.to_str().unwrap())
             && !self.data.vertex_shader.to_str().unwrap().is_empty()

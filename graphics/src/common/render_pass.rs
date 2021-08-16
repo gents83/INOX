@@ -1,5 +1,5 @@
 use super::device::*;
-use crate::{common::data_formats::*, RenderPassId};
+use crate::{api::backend::Texture, common::data_formats::*, RenderPassId};
 
 #[derive(Clone)]
 pub struct RenderPass {
@@ -14,6 +14,24 @@ impl RenderPass {
             inner: crate::api::backend::render_pass::RenderPass::create_default(
                 &device.inner,
                 data,
+            ),
+            device: device.clone(),
+            id,
+        }
+    }
+    pub fn create_with_render_target(
+        device: &Device,
+        id: RenderPassId,
+        data: &RenderPassData,
+        color: Option<&Texture>,
+        depth: Option<&Texture>,
+    ) -> RenderPass {
+        RenderPass {
+            inner: crate::api::backend::render_pass::RenderPass::create_with_render_target(
+                &device.inner,
+                data,
+                color,
+                depth,
             ),
             device: device.clone(),
             id,
