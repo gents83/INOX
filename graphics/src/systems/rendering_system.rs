@@ -51,7 +51,7 @@ impl System for RenderingSystem {
         let proj = self.view.resource().get().proj();
 
         let mut renderer = self.renderer.write().unwrap();
-        renderer.draw(width, height, &view, &proj);
+        renderer.draw(width as _, height as _, &view, &proj);
 
         true
     }

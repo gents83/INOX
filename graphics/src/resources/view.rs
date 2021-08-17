@@ -10,8 +10,8 @@ pub type ViewRc = ResourceRef<ViewInstance>;
 pub struct ViewInstance {
     id: ResourceId,
     view_index: u32,
-    width: f32,
-    height: f32,
+    width: u32,
+    height: u32,
     view: Matrix4,
     proj: Matrix4,
 }
@@ -21,8 +21,8 @@ impl Default for ViewInstance {
         Self {
             id: INVALID_UID,
             view_index: 0,
-            width: 800.,
-            height: 600.,
+            width: 800,
+            height: 600,
             view: Matrix4::default_identity(),
             proj: Matrix4::default_identity(),
         }
@@ -46,8 +46,8 @@ impl DataTypeResource for ViewInstance {
             ViewInstance {
                 id: generate_random_uid(),
                 view_index,
-                width: 800.,
-                height: 600.,
+                width: 800,
+                height: 600,
                 view: Matrix4::default_identity(),
                 proj: nrg_math::perspective(nrg_math::Deg(45.), 800. / 600., 0.001, 1000.0),
             },
@@ -65,10 +65,10 @@ impl ViewInstance {
     pub fn proj(&self) -> Matrix4 {
         self.proj
     }
-    pub fn width(&self) -> f32 {
+    pub fn width(&self) -> u32 {
         self.width
     }
-    pub fn height(&self) -> f32 {
+    pub fn height(&self) -> u32 {
         self.height
     }
     pub fn find_from_view_index(shared_data: &SharedDataRw, view_index: u32) -> Option<ViewRc> {
@@ -83,7 +83,7 @@ impl ViewInstance {
         self.proj = mat;
         self
     }
-    pub fn update_size(&mut self, width: f32, height: f32) -> &mut Self {
+    pub fn update_size(&mut self, width: u32, height: u32) -> &mut Self {
         self.width = width;
         self.height = height;
         self

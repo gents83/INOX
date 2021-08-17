@@ -87,9 +87,11 @@ impl RenderPassInstance {
     }
     pub fn set_color_texture(&mut self, color_texture: TextureRc) {
         self.color_texture = Some(color_texture);
+        self.invalidate();
     }
     pub fn set_depth_texture(&mut self, depth_texture: TextureRc) {
         self.depth_texture = Some(depth_texture);
+        self.invalidate();
     }
 
     pub fn invalidate(&mut self) {
