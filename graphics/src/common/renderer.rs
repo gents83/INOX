@@ -125,7 +125,7 @@ impl Renderer {
         self.device.present()
     }
 
-    pub fn draw(&mut self, view: &Matrix4, proj: &Matrix4) {
+    pub fn draw(&mut self, width: f32, height: f32, view: &Matrix4, proj: &Matrix4) {
         if self.state == RendererState::Submitted {
             return;
         }
@@ -161,7 +161,7 @@ impl Renderer {
                                     pipeline_index
                                 )
                                 .as_str());
-                                pipeline.update_runtime_data(view, proj);
+                                pipeline.update_runtime_data(width, height, view, proj);
                                 pipeline.update_descriptor_sets(
                                     self.texture_handler.get_textures_atlas(),
                                 );

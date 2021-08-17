@@ -52,6 +52,8 @@ pub struct UniformData {
 pub struct ConstantData {
     pub view: [[f32; 4]; 4],
     pub proj: [[f32; 4]; 4],
+    pub view_width: f32,
+    pub view_height: f32,
     pub screen_width: f32,
     pub screen_height: f32,
 }
@@ -61,6 +63,8 @@ impl Default for ConstantData {
         Self {
             view: [[0.; 4]; 4],
             proj: [[0.; 4]; 4],
+            view_width: 0.,
+            view_height: 0.,
             screen_width: 0.,
             screen_height: 0.,
         }

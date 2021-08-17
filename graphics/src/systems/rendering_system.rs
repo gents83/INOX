@@ -45,14 +45,13 @@ impl System for RenderingSystem {
             return true;
         }
 
-        let (view, proj) = {
-            let view = *self.view.resource().get().view();
-            let proj = *self.view.resource().get().proj();
-            (view, proj)
-        };
+        let width = self.view.resource().get().width();
+        let height = self.view.resource().get().height();
+        let view = self.view.resource().get().view();
+        let proj = self.view.resource().get().proj();
 
         let mut renderer = self.renderer.write().unwrap();
-        renderer.draw(&view, &proj);
+        renderer.draw(width, height, &view, &proj);
 
         true
     }

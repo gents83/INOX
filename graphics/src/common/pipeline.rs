@@ -96,8 +96,14 @@ impl Pipeline {
         self
     }
 
-    pub fn update_runtime_data(&self, view: &Matrix4, proj: &Matrix4) -> &Self {
-        self.inner.update_constant_data(view, proj);
+    pub fn update_runtime_data(
+        &self,
+        width: f32,
+        height: f32,
+        view: &Matrix4,
+        proj: &Matrix4,
+    ) -> &Self {
+        self.inner.update_constant_data(width, height, view, proj);
         self.inner.update_uniform_buffer(view, proj);
         self
     }

@@ -109,10 +109,16 @@ impl Pipeline {
         self
     }
 
-    pub fn update_constant_data(&self, view: &Matrix4, proj: &Matrix4) -> &Self {
+    pub fn update_constant_data(
+        &self,
+        width: f32,
+        height: f32,
+        view: &Matrix4,
+        proj: &Matrix4,
+    ) -> &Self {
         self.inner
             .borrow_mut()
-            .update_constant_data(&self.device, view, proj);
+            .update_constant_data(&self.device, width, height, view, proj);
         self
     }
 
@@ -686,8 +692,17 @@ impl PipelineImmutable {
         }
     }
 
-    fn update_constant_data(&mut self, device: &Device, view: &Matrix4, proj: &Matrix4) {
+    fn update_constant_data(
+        &mut self,
+        device: &Device,
+        width: f32,
+        height: f32,
+        view: &Matrix4,
+        proj: &Matrix4,
+    ) {
         let details = device.get_instance().get_swap_chain_info();
+        self.constant_data.view_width = width as _;
+        self.constant_data.view_height = height as _;
         self.constant_data.screen_width = details.capabilities.currentExtent.width as _;
         self.constant_data.screen_height = details.capabilities.currentExtent.height as _;
         self.constant_data.view = matrix4_to_array(*view);

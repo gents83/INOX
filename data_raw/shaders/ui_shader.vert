@@ -4,6 +4,7 @@ precision highp float;
 layout(std140, push_constant) uniform PushConsts {
     mat4 view;
     mat4 proj;
+	vec2 view_size;
 	vec2 screen_size;
 } pushConsts;
 
@@ -102,7 +103,7 @@ mat4 CreateInstanceMatrix(vec3 position, vec3 rotation, vec3 scale) {
 
 
 void main() {	
-	mat4 ortho_proj = CreateOrthoMatrix(0., pushConsts.screen_size.x, 0., pushConsts.screen_size.y, 0., 1000.);
+	mat4 ortho_proj = CreateOrthoMatrix(0., pushConsts.view_size.x, 0., pushConsts.view_size.y, 0., 1000.);
 
     mat4 instanceMatrix = mat4(	vec4(instanceScale.x,0.,0.,0.),
 							vec4(0.,instanceScale.y,0.,0.),
@@ -110,7 +111,7 @@ void main() {
                        		vec4(instancePos,1.) 
 						);
 	
-	vec2 outlineOffset = ((2 * inNormal.xy * instanceOutlineColor.a) - 1) / pushConsts.screen_size.xy;
+	vec2 outlineOffset = ((2 * inNormal.xy * instanceOutlineColor.a) - 1) / pushConsts.view_size.xy;
 
 
     gl_Position = (ortho_proj * instanceMatrix * vec4((inPosition.xy + outlineOffset), inPosition.z-500., 1.));

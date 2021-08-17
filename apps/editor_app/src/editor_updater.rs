@@ -5,23 +5,17 @@ use std::{any::TypeId, path::Path};
 use super::config::*;
 use super::widgets::*;
 
-use nrg_camera::Camera;
 use nrg_core::*;
 use nrg_graphics::{
     FontInstance, FontRc, MaterialInstance, MaterialRc, MeshData, MeshInstance, MeshRc,
-    PipelineInstance, PipelineRc, RenderPassInstance, RenderPassRc, ViewInstance,
-};
-use nrg_math::{
-    compute_distance_between_ray_and_oob, InnerSpace, MatBase, Matrix4, SquareMatrix, Vector2,
-    Vector3, Vector4, Zero,
+    PipelineInstance, PipelineRc, RenderPassInstance, RenderPassRc,
 };
 use nrg_messenger::{read_messages, Message, MessageChannel, MessengerRw};
-use nrg_platform::*;
+use nrg_platform::{InputState, Key, KeyEvent, MouseEvent, WindowEvent};
 use nrg_resources::{
     DataTypeResource, FileResource, SerializableResource, SharedData, SharedDataRw,
 };
-use nrg_scene::{Object, ObjectId, Scene, SceneRc};
-use nrg_serialize::*;
+use nrg_scene::{Object, Scene, SceneRc};
 use nrg_ui::{DialogEvent, DialogOp};
 
 pub struct EditorUpdater {
@@ -30,16 +24,12 @@ pub struct EditorUpdater {
     global_messenger: MessengerRw,
     config: Config,
     message_channel: MessageChannel,
-    camera: Camera,
-    move_camera_with_mouse: bool,
-    last_mouse_pos: Vector2,
     pipelines: Vec<PipelineRc>,
     render_passes: Vec<RenderPassRc>,
     fonts: Vec<FontRc>,
     grid_material: MaterialRc,
     grid_mesh: MeshRc,
     scene: SceneRc,
-    selected_object: ObjectId,
     main_menu: Option<MainMenu>,
     debug_info: Option<DebugInfo>,
     view3d: Option<View3D>,
@@ -56,9 +46,6 @@ impl EditorUpdater {
             .unwrap()
             .register_messagebox::<KeyEvent>(message_channel.get_messagebox());
 
-        let mut camera = Camera::new([20., 20., -20.].into(), [0., 0., 0.].into(), true);
-        camera.set_projection(45., config.width as _, config.height as _, 0.1, 1000.);
-
         Self {
             id: SystemId::new(),
             pipelines: Vec::new(),
@@ -68,13 +55,9 @@ impl EditorUpdater {
             global_messenger,
             config: config.clone(),
             message_channel,
-            camera,
-            move_camera_with_mouse: false,
-            last_mouse_pos: Vector2::zero(),
             grid_material: MaterialRc::default(),
             grid_mesh: MeshRc::default(),
             scene: SceneRc::default(),
-            selected_object: INVALID_UID,
             main_menu: None,
             debug_info: None,
             view3d: None,
@@ -132,7 +115,7 @@ impl System for EditorUpdater {
     }
 
     fn run(&mut self) -> bool {
-        self.update_events().update_camera().update_widgets();
+        self.update_events().update_view3d().update_widgets();
 
         self.scene
             .resource()
@@ -178,6 +161,12 @@ impl EditorUpdater {
         self.view3d = Some(view3d);
         self
     }
+    fn update_view3d(&mut self) -> &mut Self {
+        if let Some(view) = &mut self.view3d {
+            view.update();
+        }
+        self
+    }
     fn create_content_browser(&mut self, operation: DialogOp, path: &Path) -> &mut Self {
         if self.content_browser.is_none() {
             let content_browser =
@@ -192,17 +181,6 @@ impl EditorUpdater {
     }
     fn create_scene(&mut self) -> &mut Self {
         self.scene = SharedData::add_resource::<Scene>(&self.shared_data, Scene::default());
-        self
-    }
-    fn update_camera(&mut self) -> &mut Self {
-        if SharedData::has_resources_of_type::<ViewInstance>(&self.shared_data) {
-            let views = SharedData::get_resources_of_type::<ViewInstance>(&self.shared_data);
-            let view = views.first().unwrap();
-            let view_matrix = self.camera.get_view_matrix();
-            let proj_matrix = self.camera.get_proj_matrix();
-            view.resource().get_mut().update_view(view_matrix);
-            view.resource().get_mut().update_proj(proj_matrix);
-        }
         self
     }
     fn update_widgets(&mut self) {
@@ -265,52 +243,6 @@ impl EditorUpdater {
         }
     }
 
-    fn update_selected_object(&mut self, mouse_pos: &Vector2) -> &mut Self {
-        self.selected_object = INVALID_UID;
-        let view = self.camera.get_view_matrix();
-        let proj = self.camera.get_proj_matrix();
-
-        let screen_size: Vector2 = [self.config.width as f32, self.config.height as f32].into();
-        // The ray Start and End positions, in Normalized Device Coordinates (Have you read Tutorial 4 ?)
-        let ray_start = Vector4::new(0., 0., 0., 1.);
-        let ray_end = Vector4::new(
-            ((mouse_pos.x / screen_size.x) * 2.) - 1.,
-            ((mouse_pos.y / screen_size.y) * 2.) - 1.,
-            1.,
-            1.,
-        );
-
-        let inv_proj = proj.invert().unwrap();
-        let inv_view = view.invert().unwrap();
-
-        let mut ray_start_camera = inv_proj * ray_start;
-        ray_start_camera /= ray_start_camera.w;
-        let mut ray_start_world = inv_view * ray_start_camera;
-        ray_start_world /= ray_start_world.w;
-
-        let mut ray_end_camera = inv_proj * ray_end;
-        ray_end_camera /= ray_end_camera.w;
-        let mut ray_end_world = inv_view * ray_end_camera;
-        ray_end_world /= ray_end_world.w;
-
-        let ray_dir_world = ray_end_world - ray_start_world;
-        let ray_dir_world = ray_dir_world.normalize();
-
-        if compute_distance_between_ray_and_oob(
-            ray_start_world.xyz(),
-            ray_dir_world.xyz(),
-            [-5., -5., -5.].into(),
-            [5., 5., 5.].into(),
-            Matrix4::default_identity(),
-        ) {
-            println!("Inside");
-        } else {
-            println!("Outside");
-        }
-
-        self
-    }
-
     fn update_events(&mut self) -> &mut Self {
         nrg_profiler::scoped_profile!("update_events");
 
@@ -344,25 +276,8 @@ impl EditorUpdater {
                 }
             } else if msg.type_id() == TypeId::of::<MouseEvent>() {
                 let event = msg.as_any().downcast_ref::<MouseEvent>().unwrap();
-                if event.state == MouseState::Down && event.button == MouseButton::Left {
-                    self.move_camera_with_mouse = true;
-                    self.last_mouse_pos = [event.x as f32, event.y as f32].into();
-                } else if event.state == MouseState::Up && event.button == MouseButton::Left {
-                    let mouse_pos = [event.x as f32, event.y as f32].into();
-                    self.update_selected_object(&mouse_pos);
-
-                    self.move_camera_with_mouse = false;
-                    self.last_mouse_pos = mouse_pos;
-                }
-                if event.state == MouseState::Move && self.move_camera_with_mouse {
-                    let mut rotation_angle = Vector3::zero();
-
-                    rotation_angle.x = event.y as f32 - self.last_mouse_pos.y;
-                    rotation_angle.y = self.last_mouse_pos.x - event.x as f32;
-
-                    self.camera.rotate(rotation_angle * 0.01);
-
-                    self.last_mouse_pos = [event.x as f32, event.y as f32].into();
+                if let Some(view) = &mut self.view3d {
+                    view.handle_mouse_event(event);
                 }
             } else if msg.type_id() == TypeId::of::<KeyEvent>() {
                 let event = msg.as_any().downcast_ref::<KeyEvent>().unwrap();
@@ -376,22 +291,8 @@ impl EditorUpdater {
                     }
                 }
 
-                let mut movement = Vector3::zero();
-                if event.code == Key::W {
-                    movement.z += 1.;
-                } else if event.code == Key::S {
-                    movement.z -= 1.;
-                } else if event.code == Key::A {
-                    movement.x += 1.;
-                } else if event.code == Key::D {
-                    movement.x -= 1.;
-                }
-                self.camera.translate(movement);
-            } else if msg.type_id() == TypeId::of::<WindowEvent>() {
-                let event = msg.as_any().downcast_ref::<WindowEvent>().unwrap();
-                if let WindowEvent::SizeChanged(width, height) = *event {
-                    self.camera
-                        .set_projection(45., width as _, height as _, 0.1, 1000.);
+                if let Some(view) = &mut self.view3d {
+                    view.handle_keyboard_event(event);
                 }
             }
         });

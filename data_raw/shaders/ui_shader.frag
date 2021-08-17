@@ -4,6 +4,7 @@ precision highp float;
 layout(std140, push_constant) uniform PushConsts {
     mat4 view;
     mat4 proj;
+	vec2 view_size;
 	vec2 screen_size;
 } pushConsts;
 
@@ -49,7 +50,7 @@ void main() {
 
 	if (inOutlineColor.a >= 0.01) 
 	{		
-		vec2 a = vec2(1 / pushConsts.screen_size.x, 1 / pushConsts.screen_size.y);
+		vec2 a = vec2(1 / pushConsts.view_size.x, 1 / pushConsts.view_size.y);
 		vec3 t = vec3(a.x, a.y, min(a.x, a.y)) * inOutlineColor.a;
 
 		vec3 excludeInternalEdge = vec3(0.0, 1.0, 0.0);

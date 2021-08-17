@@ -68,6 +68,8 @@ impl TextureAtlas {
                     width,
                     height,
                 },
+                texture_width: width as _,
+                texture_height: height as _,
             }],
         }
     }
@@ -101,6 +103,8 @@ pub struct TextureInfo {
     pub texture_index: u32,
     pub layer_index: u32,
     pub area: Area,
+    texture_width: f32,
+    texture_height: f32,
 }
 
 impl TextureInfo {
@@ -118,8 +122,8 @@ impl TextureInfo {
     }
     pub fn convert_uv(&self, u: f32, v: f32) -> (f32, f32) {
         (
-            (self.area.x as f32 + 0.5 + u * self.area.width as f32) / DEFAULT_AREA_SIZE as f32,
-            (self.area.y as f32 + 0.5 + v * self.area.height as f32) / DEFAULT_AREA_SIZE as f32,
+            (self.area.x as f32 + 0.5 + u * self.area.width as f32) / self.texture_width,
+            (self.area.y as f32 + 0.5 + v * self.area.height as f32) / self.texture_height,
         )
     }
 }
@@ -218,6 +222,8 @@ impl TextureHandler {
                         texture_index: texture_index as _,
                         layer_index: layer_index as _,
                         area: *area,
+                        texture_width: texture_atlas.get_texture().width() as _,
+                        texture_height: texture_atlas.get_texture().height() as _,
                     };
                     texture_atlas.info.push(info);
                     return info;
