@@ -274,11 +274,6 @@ impl EditorUpdater {
                         self.destroy_content_browser();
                     }
                 }
-            } else if msg.type_id() == TypeId::of::<MouseEvent>() {
-                let event = msg.as_any().downcast_ref::<MouseEvent>().unwrap();
-                if let Some(view) = &mut self.view3d {
-                    view.handle_mouse_event(event);
-                }
             } else if msg.type_id() == TypeId::of::<KeyEvent>() {
                 let event = msg.as_any().downcast_ref::<KeyEvent>().unwrap();
 

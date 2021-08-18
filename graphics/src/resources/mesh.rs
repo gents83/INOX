@@ -102,8 +102,8 @@ impl MeshInstance {
     pub fn mesh_data(&self) -> &MeshData {
         &self.mesh_data
     }
-    pub fn transform(&self) -> &Matrix4 {
-        &self.mesh_data.transform
+    pub fn transform(&self) -> Matrix4 {
+        self.mesh_data.transform
     }
     pub fn draw_area(&self) -> Vector4 {
         self.draw_area

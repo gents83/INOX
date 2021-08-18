@@ -23,6 +23,8 @@ pub enum MouseState {
 pub struct MouseEvent {
     pub x: f64,
     pub y: f64,
+    pub normalized_x: f32,
+    pub normalized_y: f32,
     pub button: MouseButton,
     pub state: MouseState,
 }
@@ -32,8 +34,10 @@ impl Default for MouseEvent {
     #[inline]
     fn default() -> Self {
         Self {
-            x: 0.0,
-            y: 0.0,
+            x: 0.,
+            y: 0.,
+            normalized_x: 0.,
+            normalized_y: 0.,
             button: MouseButton::None,
             state: MouseState::Move,
         }

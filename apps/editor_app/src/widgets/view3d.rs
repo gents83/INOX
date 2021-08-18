@@ -1,20 +1,20 @@
 use nrg_camera::Camera;
 use nrg_graphics::{
-    DynamicImage, RenderPassId, RenderPassInstance, TextureInstance, TextureRc, ViewInstance,
-    DEFAULT_AREA_SIZE,
+    DynamicImage, MeshInstance, RenderPassId, RenderPassInstance, TextureInstance, TextureRc,
+    ViewInstance, DEFAULT_AREA_SIZE,
 };
 use nrg_math::{
-    compute_distance_between_ray_and_oob, InnerSpace, MatBase, Matrix4, SquareMatrix, Vector2,
-    Vector3, Vector4, Zero,
+    compute_distance_between_ray_and_oob, InnerSpace, Mat4Ops, MatBase, Matrix4, SquareMatrix,
+    Vector2, Vector3, Vector4, Zero,
 };
 use nrg_messenger::{MessageBox, MessengerRw};
-use nrg_platform::{Key, KeyEvent, MouseButton, MouseEvent, MouseState};
-use nrg_resources::{DataTypeResource, SharedData, SharedDataRw};
-use nrg_scene::ObjectId;
+use nrg_platform::{Key, KeyEvent};
+use nrg_resources::{DataTypeResource, SerializableResource, SharedData, SharedDataRw};
+use nrg_scene::{Hitbox, Object, ObjectId};
 use nrg_serialize::{generate_uid_from_string, INVALID_UID};
 use nrg_ui::{
-    implement_widget_data, CentralPanel, Frame, LayerId, TextureId as eguiTextureId, UIWidget,
-    UIWidgetRc,
+    implement_widget_data, CentralPanel, Frame, Image, LayerId, Sense, TextureId as eguiTextureId,
+    UIWidget, UIWidgetRc, Widget,
 };
 
 const VIEW3D_IMAGE_WIDTH: u32 = 1280;
@@ -26,14 +26,13 @@ struct View3DData {
     render_pass_id: RenderPassId,
     texture: TextureRc,
     camera: Camera,
-    move_camera_with_mouse: bool,
+    last_mouse_pos: Vector2,
 }
 implement_widget_data!(View3DData);
 
 pub struct View3D {
     ui_page: UIWidgetRc,
     shared_data: SharedDataRw,
-    last_mouse_pos: Vector2,
     selected_object: ObjectId,
 }
 
@@ -85,13 +84,12 @@ impl View3D {
             render_pass_id,
             texture,
             camera,
-            move_camera_with_mouse: false,
+            last_mouse_pos: Vector2::zero(),
         };
         let ui_page = Self::create(shared_data, data);
         Self {
             ui_page,
             shared_data: shared_data.clone(),
-            last_mouse_pos: Vector2::zero(),
             selected_object: INVALID_UID,
         }
     }
@@ -113,33 +111,6 @@ impl View3D {
                 movement.x -= 1.;
             }
             data.camera.translate(movement);
-        }
-    }
-
-    pub fn handle_mouse_event(&mut self, event: &MouseEvent) {
-        if event.state == MouseState::Down && event.button == MouseButton::Left {
-            if let Some(data) = self.ui_page.resource().get_mut().data_mut::<View3DData>() {
-                data.move_camera_with_mouse = true;
-            }
-            self.last_mouse_pos = [event.x as f32, event.y as f32].into();
-        } else if event.state == MouseState::Up && event.button == MouseButton::Left {
-            let mouse_pos = [event.x as f32, event.y as f32].into();
-            self.update_selected_object(&mouse_pos);
-            if let Some(data) = self.ui_page.resource().get_mut().data_mut::<View3DData>() {
-                data.move_camera_with_mouse = false;
-            }
-            self.last_mouse_pos = mouse_pos;
-        }
-        if let Some(data) = self.ui_page.resource().get_mut().data_mut::<View3DData>() {
-            if event.state == MouseState::Move && data.move_camera_with_mouse {
-                let mut rotation_angle = Vector3::zero();
-
-                rotation_angle.x = event.y as f32 - self.last_mouse_pos.y;
-                rotation_angle.y = self.last_mouse_pos.x - event.x as f32;
-                data.camera.rotate(rotation_angle * 0.01);
-
-                self.last_mouse_pos = [event.x as f32, event.y as f32].into();
-            }
         }
     }
 
@@ -177,15 +148,38 @@ impl View3D {
                             }
 
                             ui.with_layer_id(LayerId::background(), |ui| {
-                                ui.image(
+                                let response = Image::new(
                                     eguiTextureId::User(index as _),
                                     [width as _, height as _],
-                                );
-                            });
+                                )
+                                .sense(Sense::click_and_drag())
+                                .ui(ui);
+                                if let Some(pos) = response.interact_pointer_pos() {
+                                    let rect = response.rect;
+                                    let normalized_x = (pos.x - rect.min.x) / rect.width();
+                                    let normalized_y = (pos.y - rect.min.y) / rect.height();
 
-                            if ui_context.is_using_pointer() {
-                                data.move_camera_with_mouse = false;
-                            }
+                                    if data.last_mouse_pos.x < 0. || data.last_mouse_pos.y < 0. {
+                                        data.last_mouse_pos = [normalized_x, normalized_y].into();
+                                    }
+
+                                    let mut rotation_angle = Vector3::zero();
+
+                                    rotation_angle.x = normalized_y - data.last_mouse_pos.y;
+                                    rotation_angle.y = data.last_mouse_pos.x - normalized_x;
+                                    data.camera.rotate(rotation_angle * 5.);
+
+                                    data.last_mouse_pos = [normalized_x, normalized_y].into();
+
+                                    let _selected_obj = Self::update_selected_object(
+                                        data,
+                                        normalized_x,
+                                        normalized_y,
+                                    );
+                                } else {
+                                    data.last_mouse_pos = [-1., -1.].into();
+                                }
+                            });
                         }
                     });
             }
@@ -211,52 +205,63 @@ impl View3D {
         self
     }
 
-    fn update_selected_object(&mut self, mouse_pos: &Vector2) -> &mut Self {
-        if let Some(data) = self.ui_page.resource().get_mut().data::<View3DData>() {
-            self.selected_object = INVALID_UID;
-            let view = data.camera.get_view_matrix();
-            let proj = data.camera.get_proj_matrix();
-            let width = data.texture.resource().get().width();
-            let height = data.texture.resource().get().height();
+    fn update_selected_object(
+        data: &mut View3DData,
+        normalized_x: f32,
+        normalized_y: f32,
+    ) -> ObjectId {
+        let mut selected_object = INVALID_UID;
 
-            let screen_size: Vector2 = [width as _, height as _].into();
-            // The ray Start and End positions, in Normalized Device Coordinates (Have you read Tutorial 4 ?)
-            let ray_start = Vector4::new(0., 0., 0., 1.);
-            let ray_end = Vector4::new(
-                ((mouse_pos.x / screen_size.x) * 2.) - 1.,
-                ((mouse_pos.y / screen_size.y) * 2.) - 1.,
-                1.,
-                1.,
-            );
+        let view = data.camera.get_view_matrix();
+        let proj = data.camera.get_proj_matrix();
 
-            let inv_proj = proj.invert().unwrap();
-            let inv_view = view.invert().unwrap();
+        // The ray Start and End positions, in Normalized Device Coordinates (Have you read Tutorial 4 ?)
+        let ray_start = Vector4::new(0., 0., 0., 1.);
+        let ray_end = Vector4::new(normalized_x * 2. - 1., normalized_y * 2. - 1., 1., 1.);
 
-            let mut ray_start_camera = inv_proj * ray_start;
-            ray_start_camera /= ray_start_camera.w;
-            let mut ray_start_world = inv_view * ray_start_camera;
-            ray_start_world /= ray_start_world.w;
+        let inv_proj = proj.invert().unwrap();
+        let inv_view = view.invert().unwrap();
 
-            let mut ray_end_camera = inv_proj * ray_end;
-            ray_end_camera /= ray_end_camera.w;
-            let mut ray_end_world = inv_view * ray_end_camera;
-            ray_end_world /= ray_end_world.w;
+        let mut ray_start_camera = inv_proj * ray_start;
+        ray_start_camera /= ray_start_camera.w;
+        let mut ray_start_world = inv_view * ray_start_camera;
+        ray_start_world /= ray_start_world.w;
 
-            let ray_dir_world = ray_end_world - ray_start_world;
-            let ray_dir_world = ray_dir_world.normalize();
+        let mut ray_end_camera = inv_proj * ray_end;
+        ray_end_camera /= ray_end_camera.w;
+        let mut ray_end_world = inv_view * ray_end_camera;
+        ray_end_world /= ray_end_world.w;
 
-            if compute_distance_between_ray_and_oob(
-                ray_start_world.xyz(),
-                ray_dir_world.xyz(),
-                [-5., -5., -5.].into(),
-                [5., 5., 5.].into(),
-                Matrix4::default_identity(),
-            ) {
-                println!("Inside");
-            } else {
-                println!("Outside");
+        let ray_dir_world = ray_end_world - ray_start_world;
+        let ray_dir_world = ray_dir_world.normalize();
+
+        if SharedData::has_resources_of_type::<Object>(&data.shared_data) {
+            let objects = SharedData::get_resources_of_type::<Object>(&data.shared_data);
+            for obj in objects {
+                let mut min = [-5., -5., -5.].into();
+                let mut max = [5., 5., 5.].into();
+                if let Some(hitbox) = obj.resource().get().get_component::<Hitbox>() {
+                    min = hitbox.resource().get().min();
+                    max = hitbox.resource().get().max();
+                } else if let Some(mesh) = obj.resource().get().get_component::<MeshInstance>() {
+                    let transform = mesh.resource().get().transform();
+                    let (mesh_min, mesh_max) = mesh.resource().get().mesh_data().compute_min_max();
+                    min = transform.transform(mesh_min);
+                    max = transform.transform(mesh_max);
+                }
+                if compute_distance_between_ray_and_oob(
+                    ray_start_world.xyz(),
+                    ray_dir_world.xyz(),
+                    min,
+                    max,
+                    Matrix4::default_identity(),
+                ) {
+                    println!("Inside {:?}", obj.resource().get().path());
+                    selected_object = obj.id();
+                    return selected_object;
+                }
             }
         }
-        self
+        selected_object
     }
 }

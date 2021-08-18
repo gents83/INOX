@@ -207,12 +207,24 @@ impl Window {
                     let mut mouse_pos = POINT { x: 0, y: 0 };
                     GetCursorPos(&mut mouse_pos);
                     ScreenToClient(handle.handle_impl.hwnd, &mut mouse_pos);
+
+                    let mut rc: RECT = RECT {
+                        left: 0,
+                        top: 0,
+                        right: 0,
+                        bottom: 0,
+                    };
+                    GetClientRect(handle.handle_impl.hwnd, &mut rc);
+                    let width = (rc.right - rc.left) as f32;
+                    let height = (rc.bottom - rc.top) as f32;
                     if let Some(events_dispatcher) = &mut EVENTS_DISPATCHER {
                         let events = events_dispatcher.write().unwrap();
                         events
                             .send(Box::new(MouseEvent {
                                 x: mouse_pos.x as f64,
                                 y: mouse_pos.y as f64,
+                                normalized_x: mouse_pos.x as f32 / width,
+                                normalized_y: mouse_pos.y as f32 / height,
                                 button: match message.message {
                                     WM_LBUTTONDOWN | WM_LBUTTONUP | WM_LBUTTONDBLCLK => {
                                         MouseButton::Left

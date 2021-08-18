@@ -241,7 +241,7 @@ impl MeshData {
         self
     }
 
-    pub fn compute_center(&mut self) -> Vector3 {
+    pub fn compute_min_max(&self) -> (Vector3, Vector3) {
         let mut min = Vector3::new(f32::MAX, f32::MAX, f32::MAX);
         let mut max = Vector3::new(f32::MIN, f32::MIN, f32::MIN);
         for v in self.vertices.iter() {
@@ -252,6 +252,11 @@ impl MeshData {
             max.y = max.y.max(v.pos.y);
             max.z = max.z.max(v.pos.z);
         }
+        (min, max)
+    }
+
+    pub fn compute_center(&self) -> Vector3 {
+        let (min, max) = self.compute_min_max();
         [
             min.x + (max.x - min.x) * 0.5,
             min.y + (max.y - min.y) * 0.5,
