@@ -257,6 +257,7 @@ impl Renderer {
         nrg_profiler::scoped_profile!("renderer::load_render_passes");
         render_passes.iter_mut().for_each(|render_pass_instance| {
             let mut should_create = false;
+            let mut previous_index = INVALID_INDEX;
             if let Some(index) = self
                 .render_passes
                 .iter()
@@ -266,12 +267,16 @@ impl Renderer {
                     //render pass needs to be recreated
                     let mut render_pass = self.render_passes.remove(index);
                     render_pass.destroy();
+                    previous_index = index as _;
                     should_create = true;
                 }
             } else {
                 should_create = true;
             }
             if should_create {
+                if previous_index == INVALID_INDEX {
+                    previous_index = self.render_passes.len() as _;
+                }
                 let device = &mut self.device;
                 if render_pass_instance
                     .resource()
@@ -327,20 +332,25 @@ impl Renderer {
                     } else {
                         None
                     };
-                    self.render_passes
-                        .push(RenderPass::create_with_render_target(
+                    self.render_passes.insert(
+                        previous_index as _,
+                        RenderPass::create_with_render_target(
                             device,
                             render_pass_instance.id(),
                             render_pass_instance.resource().get().data(),
                             color_texture,
                             depth_texture,
-                        ));
+                        ),
+                    );
                 } else {
-                    self.render_passes.push(RenderPass::create_default(
-                        device,
-                        render_pass_instance.id(),
-                        render_pass_instance.resource().get().data(),
-                    ));
+                    self.render_passes.insert(
+                        previous_index as _,
+                        RenderPass::create_default(
+                            device,
+                            render_pass_instance.id(),
+                            render_pass_instance.resource().get().data(),
+                        ),
+                    );
                 }
                 render_pass_instance.resource().get_mut().init();
             }

@@ -355,7 +355,7 @@ impl PipelineImmutable {
             depthClampEnable: VK_TRUE,
             rasterizerDiscardEnable: VK_FALSE,
             polygonMode: VkPolygonMode_VK_POLYGON_MODE_FILL,
-            cullMode: VkCullModeFlagBits_VK_CULL_MODE_BACK_BIT as VkCullModeFlags,
+            cullMode: VkCullModeFlagBits_VK_CULL_MODE_NONE as VkCullModeFlags,
             frontFace: VkFrontFace_VK_FRONT_FACE_CLOCKWISE,
             depthBiasEnable: VK_FALSE,
             depthBiasConstantFactor: 0.0,
@@ -406,8 +406,8 @@ impl PipelineImmutable {
             srcColorBlendFactor: VkBlendFactor_VK_BLEND_FACTOR_ONE,
             dstColorBlendFactor: VkBlendFactor_VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
             colorBlendOp: VkBlendOp_VK_BLEND_OP_ADD,
-            srcAlphaBlendFactor: VkBlendFactor_VK_BLEND_FACTOR_ONE,
-            dstAlphaBlendFactor: VkBlendFactor_VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
+            srcAlphaBlendFactor: VkBlendFactor_VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA,
+            dstAlphaBlendFactor: VkBlendFactor_VK_BLEND_FACTOR_ONE,
             alphaBlendOp: VkBlendOp_VK_BLEND_OP_ADD,
             colorWriteMask: (VkColorComponentFlagBits_VK_COLOR_COMPONENT_R_BIT
                 | VkColorComponentFlagBits_VK_COLOR_COMPONENT_G_BIT

@@ -13,7 +13,8 @@ use nrg_resources::{DataTypeResource, SharedData, SharedDataRw};
 use nrg_scene::ObjectId;
 use nrg_serialize::{generate_uid_from_string, INVALID_UID};
 use nrg_ui::{
-    implement_widget_data, CentralPanel, TextureId as eguiTextureId, UIWidget, UIWidgetRc,
+    implement_widget_data, CentralPanel, Frame, LayerId, TextureId as eguiTextureId, UIWidget,
+    UIWidgetRc,
 };
 
 const VIEW3D_IMAGE_WIDTH: u32 = 1280;
@@ -143,31 +144,44 @@ impl View3D {
     fn create(shared_data: &SharedDataRw, data: View3DData) -> UIWidgetRc {
         UIWidget::register(shared_data, data, |ui_data, ui_context| {
             if let Some(data) = ui_data.as_any().downcast_mut::<View3DData>() {
-                CentralPanel::default().show(ui_context, |ui| {
-                    let texture_id = data.texture.id();
-                    let textures =
-                        SharedData::get_resources_of_type::<TextureInstance>(&data.shared_data);
-                    if let Some(index) = textures.iter().position(|t| t.id() == texture_id) {
-                        let width = ui.max_rect_finite().width() as u32;
-                        let height = ui.max_rect_finite().height() as u32;
-                        let texture_width = data.texture.resource().get().width();
-                        let texture_height = data.texture.resource().get().height();
-                        if width <= DEFAULT_AREA_SIZE
-                            && height <= DEFAULT_AREA_SIZE
-                            && (texture_width != width || texture_height != height)
-                        {
-                            data.texture = Self::update_texture(
-                                &data.shared_data,
-                                data.render_pass_id,
-                                width,
-                                height,
-                            );
-                            data.camera
-                                .set_projection(45., width as _, height as _, 0.1, 1000.);
+                CentralPanel::default()
+                    .frame(Frame::dark_canvas(ui_context.style().as_ref()))
+                    .show(ui_context, |ui| {
+                        let texture_id = data.texture.id();
+                        let textures =
+                            SharedData::get_resources_of_type::<TextureInstance>(&data.shared_data);
+                        if let Some(index) = textures.iter().position(|t| t.id() == texture_id) {
+                            let width = ui.max_rect_finite().width() as u32;
+                            let height = ui.max_rect_finite().height() as u32;
+                            let texture_width = data.texture.resource().get().width();
+                            let texture_height = data.texture.resource().get().height();
+                            if width <= DEFAULT_AREA_SIZE
+                                && height <= DEFAULT_AREA_SIZE
+                                && (texture_width != width || texture_height != height)
+                            {
+                                data.texture = Self::update_texture(
+                                    &data.shared_data,
+                                    data.render_pass_id,
+                                    width,
+                                    height,
+                                );
+                                data.camera.set_projection(
+                                    45.,
+                                    width as _,
+                                    height as _,
+                                    0.1,
+                                    1000.,
+                                );
+                            }
+
+                            ui.with_layer_id(LayerId::background(), |ui| {
+                                ui.image(
+                                    eguiTextureId::User(index as _),
+                                    [width as _, height as _],
+                                );
+                            });
                         }
-                        ui.image(eguiTextureId::User(index as _), [width as _, height as _]);
-                    }
-                });
+                    });
             }
         })
     }
