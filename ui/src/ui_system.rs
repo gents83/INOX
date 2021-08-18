@@ -112,8 +112,11 @@ impl UISystem {
     }
 
     fn compute_mesh_data(&mut self, clipped_meshes: Vec<ClippedMesh>) {
-        self.ui_meshes.clear();
-        for clipped_mesh in clipped_meshes {
+        let shared_data = self.shared_data.clone();
+        self.ui_meshes.resize_with(clipped_meshes.len(), || {
+            MeshInstance::create_from_data(&shared_data, MeshData::default())
+        });
+        for (i, clipped_mesh) in clipped_meshes.into_iter().enumerate() {
             let ClippedMesh(_, mesh) = clipped_mesh;
             if mesh.vertices.is_empty() || mesh.indices.is_empty() {
                 continue;
@@ -148,10 +151,11 @@ impl UISystem {
                 .collect();
             let indices: Vec<u32> = mesh.indices.clone();
             mesh_data.append_mesh(vertices.as_slice(), indices.as_slice());
-            let mesh_instance = MeshInstance::create_from_data(&self.shared_data, mesh_data);
-            mesh_instance.resource().get_mut().set_material(material);
-
-            self.ui_meshes.push(mesh_instance);
+            self.ui_meshes[i]
+                .resource()
+                .get_mut()
+                .set_material(material)
+                .set_mesh_data(mesh_data);
         }
     }
 

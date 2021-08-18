@@ -26,13 +26,13 @@ struct View3DData {
     render_pass_id: RenderPassId,
     texture: TextureRc,
     camera: Camera,
+    move_camera_with_mouse: bool,
 }
 implement_widget_data!(View3DData);
 
 pub struct View3D {
     ui_page: UIWidgetRc,
     shared_data: SharedDataRw,
-    move_camera_with_mouse: bool,
     last_mouse_pos: Vector2,
     selected_object: ObjectId,
 }
@@ -85,12 +85,12 @@ impl View3D {
             render_pass_id,
             texture,
             camera,
+            move_camera_with_mouse: false,
         };
         let ui_page = Self::create(shared_data, data);
         Self {
             ui_page,
             shared_data: shared_data.clone(),
-            move_camera_with_mouse: false,
             last_mouse_pos: Vector2::zero(),
             selected_object: INVALID_UID,
         }
@@ -118,26 +118,28 @@ impl View3D {
 
     pub fn handle_mouse_event(&mut self, event: &MouseEvent) {
         if event.state == MouseState::Down && event.button == MouseButton::Left {
-            self.move_camera_with_mouse = true;
+            if let Some(data) = self.ui_page.resource().get_mut().data_mut::<View3DData>() {
+                data.move_camera_with_mouse = true;
+            }
             self.last_mouse_pos = [event.x as f32, event.y as f32].into();
         } else if event.state == MouseState::Up && event.button == MouseButton::Left {
             let mouse_pos = [event.x as f32, event.y as f32].into();
             self.update_selected_object(&mouse_pos);
-
-            self.move_camera_with_mouse = false;
+            if let Some(data) = self.ui_page.resource().get_mut().data_mut::<View3DData>() {
+                data.move_camera_with_mouse = false;
+            }
             self.last_mouse_pos = mouse_pos;
         }
-        if event.state == MouseState::Move && self.move_camera_with_mouse {
-            if let Some(data) = self.ui_page.resource().get_mut().data_mut::<View3DData>() {
+        if let Some(data) = self.ui_page.resource().get_mut().data_mut::<View3DData>() {
+            if event.state == MouseState::Move && data.move_camera_with_mouse {
                 let mut rotation_angle = Vector3::zero();
 
                 rotation_angle.x = event.y as f32 - self.last_mouse_pos.y;
                 rotation_angle.y = self.last_mouse_pos.x - event.x as f32;
-
                 data.camera.rotate(rotation_angle * 0.01);
-            }
 
-            self.last_mouse_pos = [event.x as f32, event.y as f32].into();
+                self.last_mouse_pos = [event.x as f32, event.y as f32].into();
+            }
         }
     }
 
@@ -180,6 +182,10 @@ impl View3D {
                                     [width as _, height as _],
                                 );
                             });
+
+                            if ui_context.is_using_pointer() {
+                                data.move_camera_with_mouse = false;
+                            }
                         }
                     });
             }
