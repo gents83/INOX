@@ -139,15 +139,19 @@ pub fn create_triangle_right() -> ([VertexData; 3], [u32; 3]) {
 }
 
 pub fn create_cube(size: Vector3) -> ([VertexData; 8], [u32; 36]) {
+    create_cube_from_min_max(-size, size)
+}
+
+pub fn create_cube_from_min_max(min: Vector3, max: Vector3) -> ([VertexData; 8], [u32; 36]) {
     let mut vertices = [VertexData::default(); 8];
-    vertices[0].pos = [-size.x, -size.y, -size.z].into();
-    vertices[1].pos = [size.x, -size.y, -size.z].into();
-    vertices[2].pos = [size.x, size.y, -size.z].into();
-    vertices[3].pos = [-size.x, size.y, -size.z].into();
-    vertices[4].pos = [-size.x, -size.y, size.z].into();
-    vertices[5].pos = [size.x, -size.y, size.z].into();
-    vertices[6].pos = [size.x, size.y, size.z].into();
-    vertices[7].pos = [-size.x, size.y, size.z].into();
+    vertices[0].pos = [min.x, min.y, min.z].into();
+    vertices[1].pos = [max.x, min.y, min.z].into();
+    vertices[2].pos = [max.x, max.y, min.z].into();
+    vertices[3].pos = [min.x, max.y, min.z].into();
+    vertices[4].pos = [min.x, min.y, max.z].into();
+    vertices[5].pos = [max.x, min.y, max.z].into();
+    vertices[6].pos = [max.x, max.y, max.z].into();
+    vertices[7].pos = [min.x, max.y, max.z].into();
     vertices[0].normal = [-1., -1., -1.].into();
     vertices[1].normal = [1., -1., -1.].into();
     vertices[2].normal = [1., 1., -1.].into();

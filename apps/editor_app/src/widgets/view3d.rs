@@ -1,6 +1,7 @@
 use nrg_camera::Camera;
 use nrg_graphics::{
-    DynamicImage, MeshInstance, RenderPassId, RenderPassInstance, TextureInstance, TextureRc,
+    utils::create_cube_from_min_max, DynamicImage, MaterialInstance, MeshData, MeshInstance,
+    MeshRc, PipelineInstance, RenderPassId, RenderPassInstance, TextureInstance, TextureRc,
     ViewInstance, DEFAULT_AREA_SIZE,
 };
 use nrg_math::{
@@ -27,39 +28,20 @@ struct View3DData {
     texture: TextureRc,
     camera: Camera,
     last_mouse_pos: Vector2,
+    selected_object: ObjectId,
+    mesh_instance: MeshRc,
 }
 implement_widget_data!(View3DData);
 
 pub struct View3D {
     ui_page: UIWidgetRc,
     shared_data: SharedDataRw,
-    selected_object: ObjectId,
 }
 
 unsafe impl Send for View3D {}
 unsafe impl Sync for View3D {}
 
 impl View3D {
-    fn update_texture(
-        shared_data: &SharedDataRw,
-        render_pass_id: RenderPassId,
-        width: u32,
-        height: u32,
-    ) -> TextureRc {
-        let image = DynamicImage::new_rgba8(width, height);
-        let image_data = image.to_rgba8();
-        let texture = TextureInstance::create_from_data(shared_data, image_data);
-
-        let render_pass =
-            SharedData::get_resource::<RenderPassInstance>(shared_data, render_pass_id);
-        render_pass
-            .resource()
-            .get_mut()
-            .set_color_texture(texture.clone());
-
-        texture
-    }
-
     pub fn new(shared_data: &SharedDataRw, global_messenger: &MessengerRw) -> Self {
         let render_pass_id = generate_uid_from_string("MainPass");
         let texture = Self::update_texture(
@@ -78,6 +60,12 @@ impl View3D {
             1000.,
         );
 
+        let mesh_instance = MeshInstance::create_from_data(shared_data, MeshData::default());
+        if let Some(pipeline) = PipelineInstance::find_from_name(shared_data, "3D") {
+            let material = MaterialInstance::create_from_pipeline(shared_data, pipeline);
+            mesh_instance.resource().get_mut().set_material(material);
+        }
+
         let data = View3DData {
             shared_data: shared_data.clone(),
             global_dispatcher: global_messenger.read().unwrap().get_dispatcher().clone(),
@@ -85,12 +73,13 @@ impl View3D {
             texture,
             camera,
             last_mouse_pos: Vector2::zero(),
+            selected_object: INVALID_UID,
+            mesh_instance,
         };
         let ui_page = Self::create(shared_data, data);
         Self {
             ui_page,
             shared_data: shared_data.clone(),
-            selected_object: INVALID_UID,
         }
     }
 
@@ -171,7 +160,7 @@ impl View3D {
 
                                     data.last_mouse_pos = [normalized_x, normalized_y].into();
 
-                                    let _selected_obj = Self::update_selected_object(
+                                    data.selected_object = Self::update_selected_object(
                                         data,
                                         normalized_x,
                                         normalized_y,
@@ -205,6 +194,25 @@ impl View3D {
         self
     }
 
+    fn update_texture(
+        shared_data: &SharedDataRw,
+        render_pass_id: RenderPassId,
+        width: u32,
+        height: u32,
+    ) -> TextureRc {
+        let image = DynamicImage::new_rgba8(width, height);
+        let image_data = image.to_rgba8();
+        let texture = TextureInstance::create_from_data(shared_data, image_data);
+
+        let render_pass =
+            SharedData::get_resource::<RenderPassInstance>(shared_data, render_pass_id);
+        render_pass
+            .resource()
+            .get_mut()
+            .set_color_texture(texture.clone());
+
+        texture
+    }
     fn update_selected_object(
         data: &mut View3DData,
         normalized_x: f32,
@@ -248,6 +256,15 @@ impl View3D {
                     let (mesh_min, mesh_max) = mesh.resource().get().mesh_data().compute_min_max();
                     min = transform.transform(mesh_min);
                     max = transform.transform(mesh_max);
+                    /*
+                    let mut mesh_data = MeshData::default();
+                    let (vertices, indices) = create_cube_from_min_max(min, max);
+                    mesh_data.append_mesh(&vertices, &indices);
+                    data.mesh_instance
+                        .resource()
+                        .get_mut()
+                        .set_mesh_data(mesh_data);
+                    */
                 }
                 if compute_distance_between_ray_and_oob(
                     ray_start_world.xyz(),
