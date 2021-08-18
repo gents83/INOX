@@ -74,7 +74,7 @@ impl View3D {
             45.,
             VIEW3D_IMAGE_WIDTH as _,
             VIEW3D_IMAGE_HEIGHT as _,
-            0.1,
+            0.001,
             1000.,
         );
 
@@ -142,7 +142,7 @@ impl View3D {
                                     45.,
                                     width as _,
                                     height as _,
-                                    0.1,
+                                    0.001,
                                     1000.,
                                 );
                             }

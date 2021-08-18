@@ -28,6 +28,7 @@ layout(location = 11) in vec4 instanceOutlineColor;
 layout(location = 0) out vec4 outColor;
 layout(location = 1) out vec3 outTexCoord;
 layout(location = 2) out uint outTextureIndex;
+layout(location = 3) out vec4 outDrawArea;
 
 float ui_scale = 2.;
 
@@ -41,4 +42,5 @@ void main() {
   outColor = inColor;  
   outTexCoord = vec3(inTexCoord, instanceDiffuseLayerIndex);
   outTextureIndex = instanceDiffuseTextureIndex;
+  outDrawArea = instanceDrawArea;
 }
