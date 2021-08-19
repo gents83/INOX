@@ -11,7 +11,7 @@ use nrg_resources::{
     ResourceRef, SerializableResource, SharedData, SharedDataRw,
 };
 use nrg_serialize::{generate_random_uid, generate_uid_from_string, INVALID_UID};
-use nrg_ui::{UIProperties, UIPropertiesRegistry, Ui};
+use nrg_ui::{CollapsingHeader, UIProperties, UIPropertiesRegistry, Ui};
 
 use crate::{ObjectData, Transform};
 
@@ -33,19 +33,33 @@ impl ResourceData for Object {
 }
 
 impl UIProperties for Object {
-    fn show(&mut self, ui_registry: &UIPropertiesRegistry, ui: &mut Ui) {
-        ui.collapsing(self.id().to_simple().to_string(), |ui| {
-            ui.collapsing(format!("Components [{}]", self.components.len()), |ui| {
-                for (typeid, c) in self.components.iter() {
-                    ui_registry.show(*typeid, c, ui);
-                }
+    fn show(&mut self, ui_registry: &UIPropertiesRegistry, ui: &mut Ui, collapsed: bool) {
+        let mut object_name = format!("Object [{:?}]", self.id().to_simple().to_string());
+        if let Some(name) = self.path().file_stem() {
+            if let Some(name) = name.to_str() {
+                object_name = name.to_string();
+            }
+        }
+        CollapsingHeader::new(object_name.as_str())
+            .selected(true)
+            .show_header(true)
+            .default_open(!collapsed)
+            .show(ui, |ui| {
+                CollapsingHeader::new(format!("Components [{}]", self.components.len()))
+                    .default_open(!collapsed)
+                    .show(ui, |ui| {
+                        for (typeid, c) in self.components.iter() {
+                            ui_registry.show(*typeid, c, ui);
+                        }
+                    });
+                CollapsingHeader::new(format!("Children [{}]", self.children.len()))
+                    .default_open(false)
+                    .show(ui, |ui| {
+                        for c in self.children.iter() {
+                            c.resource().get_mut().show(ui_registry, ui, collapsed);
+                        }
+                    });
             });
-            ui.collapsing(format!("Children [{}]", self.children.len()), |ui| {
-                for c in self.children.iter() {
-                    c.resource().get_mut().show(ui_registry, ui);
-                }
-            });
-        });
     }
 }
 
@@ -143,6 +157,10 @@ impl Object {
 
     pub fn children(&self) -> &Vec<ObjectRc> {
         &self.children
+    }
+
+    pub fn components(&self) -> &HashMap<TypeId, GenericRef> {
+        &self.components
     }
 
     pub fn add_default_component<C>(&mut self, shared_data: &SharedDataRw) -> ResourceRef<C>

@@ -132,6 +132,7 @@ impl System for EditorUpdater {
             .register_messagebox::<KeyEvent>(self.message_channel.get_messagebox())
             .register_messagebox::<MouseEvent>(self.message_channel.get_messagebox())
             .register_messagebox::<WindowEvent>(self.message_channel.get_messagebox())
+            .register_messagebox::<ViewEvent>(self.message_channel.get_messagebox())
             .register_messagebox::<DialogEvent>(self.message_channel.get_messagebox());
 
         self.create_main_menu()
@@ -157,6 +158,7 @@ impl System for EditorUpdater {
             .unregister_messagebox::<KeyEvent>(self.message_channel.get_messagebox())
             .unregister_messagebox::<MouseEvent>(self.message_channel.get_messagebox())
             .unregister_messagebox::<WindowEvent>(self.message_channel.get_messagebox())
+            .unregister_messagebox::<ViewEvent>(self.message_channel.get_messagebox())
             .unregister_messagebox::<DialogEvent>(self.message_channel.get_messagebox());
     }
 }
@@ -319,6 +321,12 @@ impl EditorUpdater {
 
                 if let Some(view) = &mut self.view3d {
                     view.handle_keyboard_event(event);
+                }
+            } else if msg.type_id() == TypeId::of::<ViewEvent>() {
+                let event = msg.as_any().downcast_ref::<ViewEvent>().unwrap();
+                let ViewEvent::Selected(object_id) = event;
+                if let Some(properties) = &mut self.properties {
+                    properties.select_object(*object_id);
                 }
             }
         });

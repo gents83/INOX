@@ -4,7 +4,7 @@ use nrg_graphics::MeshInstance;
 use nrg_math::{MatBase, Matrix4};
 use nrg_resources::{ResourceData, ResourceId, ResourceRef, SharedDataRw};
 use nrg_serialize::{generate_random_uid, generate_uid_from_string};
-use nrg_ui::{UIProperties, UIPropertiesRegistry, Ui};
+use nrg_ui::{CollapsingHeader, UIProperties, UIPropertiesRegistry, Ui};
 
 use crate::ObjectRc;
 
@@ -28,14 +28,17 @@ impl Default for Scene {
 }
 
 impl UIProperties for Scene {
-    fn show(&mut self, ui_registry: &UIPropertiesRegistry, ui: &mut Ui) {
-        ui.collapsing(self.id().to_simple().to_string(), |ui| {
-            ui.collapsing(format!("Objects [{}]", self.objects.len()), |ui| {
-                for c in self.objects.iter() {
-                    c.resource().get_mut().show(ui_registry, ui);
-                }
+    fn show(&mut self, ui_registry: &UIPropertiesRegistry, ui: &mut Ui, collapsed: bool) {
+        CollapsingHeader::new(format!("Scene [{:?}]", self.id().to_simple().to_string()))
+            .show_header(true)
+            .default_open(!collapsed)
+            .show(ui, |ui| {
+                ui.collapsing(format!("Objects [{}]", self.objects.len()), |ui| {
+                    for c in self.objects.iter() {
+                        c.resource().get_mut().show(ui_registry, ui, collapsed);
+                    }
+                });
             });
-        });
     }
 }
 

@@ -18,6 +18,10 @@ pub type ResourceId = Uid;
 
 pub trait ResourceData: Send + Sync + 'static {
     fn id(&self) -> ResourceId;
+
+    fn get_name(&self) -> String {
+        self.id().to_simple().to_string()
+    }
 }
 
 pub trait BaseResource: Send + Sync + Any {

@@ -1,6 +1,6 @@
 use std::any::{type_name, Any};
 
-use egui::{CtxRef, Ui};
+use egui::{CollapsingHeader, CtxRef, Ui};
 use nrg_resources::{ResourceData, ResourceId, ResourceRef, SharedData, SharedDataRw};
 use nrg_serialize::generate_random_uid;
 
@@ -43,8 +43,14 @@ impl ResourceData for UIWidget {
 }
 
 impl UIProperties for UIWidget {
-    fn show(&mut self, _ui_registry: &UIPropertiesRegistry, ui: &mut Ui) {
-        ui.collapsing(self.id().to_simple().to_string(), |ui| {
+    fn show(&mut self, _ui_registry: &UIPropertiesRegistry, ui: &mut Ui, collapsed: bool) {
+        CollapsingHeader::new(format!(
+            "UIWidget [{:?}]",
+            self.id().to_simple().to_string()
+        ))
+        .show_header(true)
+        .default_open(!collapsed)
+        .show(ui, |ui| {
             let widget_name = type_name::<Self>()
                 .split(':')
                 .collect::<Vec<&str>>()

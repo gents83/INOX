@@ -135,7 +135,7 @@ impl DebugInfo {
             |ui| {
                 let resources = SharedData::get_resources_of_type::<R>(shared_data);
                 for r in resources.iter() {
-                    r.resource().get_mut().show(ui_registry, ui);
+                    r.resource().get_mut().show(ui_registry, ui, true);
                 }
             },
         );

@@ -28,6 +28,21 @@ pub trait DataTypeResource: ResourceData {
 
 pub trait SerializableResource: DataTypeResource {
     fn path(&self) -> &Path;
+
+    fn get_name(&self) -> String {
+        format!(
+            "{:?}",
+            if let Some(name) = self.path().file_name() {
+                if let Some(name) = name.to_str() {
+                    name.to_string()
+                } else {
+                    self.id().to_simple().to_string()
+                }
+            } else {
+                self.id().to_simple().to_string()
+            }
+        )
+    }
     fn create_from_file(shared_data: &SharedDataRw, filepath: &Path) -> ResourceRef<Self>
     where
         Self: Sized,
@@ -40,6 +55,21 @@ pub trait SerializableResource: DataTypeResource {
 
 pub trait FileResource: ResourceData {
     fn path(&self) -> &Path;
+
+    fn get_name(&self) -> String {
+        format!(
+            "{:?}",
+            if let Some(name) = self.path().file_name() {
+                if let Some(name) = name.to_str() {
+                    name.to_string()
+                } else {
+                    self.id().to_simple().to_string()
+                }
+            } else {
+                self.id().to_simple().to_string()
+            }
+        )
+    }
     fn create_from_file(shared_data: &SharedDataRw, filepath: &Path) -> ResourceRef<Self>
     where
         Self: Sized;

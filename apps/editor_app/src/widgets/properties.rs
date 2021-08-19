@@ -1,10 +1,11 @@
 use std::sync::Arc;
 
-use nrg_resources::{ResourceData, SharedData, SharedDataRw};
+use nrg_resources::{SharedData, SharedDataRw};
 use nrg_scene::{Object, ObjectId};
 use nrg_serialize::INVALID_UID;
 use nrg_ui::{
-    implement_widget_data, UIProperties, UIPropertiesRegistry, UIWidget, UIWidgetRc, Ui, Window,
+    implement_widget_data, Align2, UIProperties, UIPropertiesRegistry, UIWidget, UIWidgetRc, Ui,
+    Window,
 };
 
 struct PropertiesData {
@@ -30,16 +31,30 @@ impl Properties {
         }
     }
 
+    pub fn select_object(&mut self, object_id: ObjectId) -> &mut Self {
+        if let Some(data) = self
+            .ui_page
+            .resource()
+            .get_mut()
+            .data_mut::<PropertiesData>()
+        {
+            data.selected_object = object_id;
+        }
+        self
+    }
+
     fn create(shared_data: &SharedDataRw, data: PropertiesData) -> UIWidgetRc {
         UIWidget::register(shared_data, data, |ui_data, ui_context| {
             if let Some(data) = ui_data.as_any().downcast_mut::<PropertiesData>() {
                 Window::new("Properties")
                     .scroll(true)
+                    .anchor(Align2::RIGHT_TOP, [-10., 0.])
                     .title_bar(true)
                     .resizable(true)
+                    .min_height(ui_context.available_rect().max.y)
                     .show(ui_context, |ui| {
                         if !data.selected_object.is_nil() {
-                            Self::resource_ui_properties::<Object>(
+                            Self::object_properties(
                                 &data.shared_data,
                                 &data.ui_registry,
                                 ui,
@@ -51,20 +66,16 @@ impl Properties {
         })
     }
 
-    fn resource_ui_properties<R>(
+    fn object_properties(
         shared_data: &SharedDataRw,
         ui_registry: &UIPropertiesRegistry,
         ui: &mut Ui,
         object_id: ObjectId,
-    ) where
-        R: ResourceData + UIProperties,
-    {
-        ui.collapsing(
-            format!("Object: {}", object_id.to_string().as_str(),),
-            |ui| {
-                let object = SharedData::get_resource::<R>(shared_data, object_id);
-                object.resource().get_mut().show(ui_registry, ui);
-            },
-        );
+    ) {
+        if SharedData::has_resource::<Object>(shared_data, object_id) {
+            let object = SharedData::get_resource::<Object>(shared_data, object_id);
+
+            object.resource().get_mut().show(ui_registry, ui, false);
+        }
     }
 }

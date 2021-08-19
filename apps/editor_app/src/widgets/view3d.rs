@@ -8,7 +8,7 @@ use nrg_math::{
     compute_distance_between_ray_and_oob, InnerSpace, Mat4Ops, MatBase, Matrix4, SquareMatrix,
     Vector2, Vector3, Vector4, Zero,
 };
-use nrg_messenger::{MessageBox, MessengerRw};
+use nrg_messenger::{implement_message, Message, MessageBox, MessengerRw};
 use nrg_platform::{Key, KeyEvent};
 use nrg_resources::{DataTypeResource, SerializableResource, SharedData, SharedDataRw};
 use nrg_scene::{Hitbox, Object, ObjectId};
@@ -20,6 +20,12 @@ use nrg_ui::{
 
 const VIEW3D_IMAGE_WIDTH: u32 = 1280;
 const VIEW3D_IMAGE_HEIGHT: u32 = 768;
+
+#[derive(Clone)]
+pub enum ViewEvent {
+    Selected(ObjectId),
+}
+implement_message!(ViewEvent);
 
 struct View3DData {
     shared_data: SharedDataRw,
@@ -165,6 +171,12 @@ impl View3D {
                                         normalized_x,
                                         normalized_y,
                                     );
+
+                                    data.global_dispatcher
+                                        .write()
+                                        .unwrap()
+                                        .send(ViewEvent::Selected(data.selected_object).as_boxed())
+                                        .ok();
                                 } else {
                                     data.last_mouse_pos = [-1., -1.].into();
                                 }
@@ -273,7 +285,6 @@ impl View3D {
                     max,
                     Matrix4::default_identity(),
                 ) {
-                    println!("Inside {:?}", obj.resource().get().path());
                     selected_object = obj.id();
                     return selected_object;
                 }
