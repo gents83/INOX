@@ -19,6 +19,16 @@ pub struct RenderPass {
 }
 
 impl RenderPass {
+    pub fn get_extent(&self) -> VkExtent2D {
+        self.inner.borrow().extent
+    }
+    pub fn get_framebuffer_width(&self) -> u32 {
+        self.inner.borrow().extent.width
+    }
+    pub fn get_framebuffer_height(&self) -> u32 {
+        self.inner.borrow().extent.height
+    }
+
     pub fn create_with_render_target(
         device: &Device,
         data: &RenderPassData,

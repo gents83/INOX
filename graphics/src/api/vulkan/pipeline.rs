@@ -290,8 +290,6 @@ impl PipelineImmutable {
     }
 
     fn create(&mut self, device: &Device, render_pass: &RenderPass) -> &mut Self {
-        let details = device.get_instance().get_swap_chain_info();
-
         let mut shader_stages: Vec<VkPipelineShaderStageCreateInfo> = Vec::new();
         for shader in self.shaders.iter() {
             shader_stages.push(shader.stage_info());
@@ -327,15 +325,15 @@ impl PipelineImmutable {
         let viewport = VkViewport {
             x: 0.0,
             y: 0.0,
-            width: details.capabilities.currentExtent.width as _,
-            height: details.capabilities.currentExtent.height as _,
+            width: render_pass.get_framebuffer_width() as _,
+            height: render_pass.get_framebuffer_height() as _,
             minDepth: 0.0,
             maxDepth: 1.0,
         };
 
         let scissors = VkRect2D {
             offset: VkOffset2D { x: 0, y: 0 },
-            extent: details.capabilities.currentExtent,
+            extent: render_pass.get_extent(),
         };
 
         let viewport_state = VkPipelineViewportStateCreateInfo {

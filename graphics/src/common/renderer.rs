@@ -78,7 +78,7 @@ impl Renderer {
         fonts: &[FontRc],
     ) -> &mut Self {
         nrg_profiler::scoped_profile!("renderer::prepare_frame");
-        self.load_render_passes(render_passes);
+        self.load_render_passes(pipelines, render_passes);
         self.load_pipelines(pipelines, render_passes);
         self.load_textures(textures, fonts);
 
@@ -253,7 +253,11 @@ impl Renderer {
 }
 
 impl Renderer {
-    fn load_render_passes(&mut self, render_passes: &mut [RenderPassRc]) {
+    fn load_render_passes(
+        &mut self,
+        pipelines: &mut [PipelineRc],
+        render_passes: &mut [RenderPassRc],
+    ) {
         nrg_profiler::scoped_profile!("renderer::load_render_passes");
         render_passes.iter_mut().for_each(|render_pass_instance| {
             let mut should_create = false;
@@ -276,6 +280,13 @@ impl Renderer {
             if should_create {
                 if previous_index == INVALID_INDEX {
                     previous_index = self.render_passes.len() as _;
+                }
+                for p in pipelines.iter_mut() {
+                    if p.resource().get().should_draw_in_render_pass(
+                        render_pass_instance.resource().get().data().name.as_str(),
+                    ) {
+                        p.resource().get_mut().invalidate();
+                    }
                 }
                 let device = &mut self.device;
                 if render_pass_instance
@@ -378,24 +389,32 @@ impl Renderer {
             });
 
             if create_pipeline {
-                render_passes.iter().for_each(|render_pass| {
+                render_passes.iter().for_each(|render_pass_instance| {
                     if pipeline_instance
                         .resource()
                         .get()
-                        .should_draw_in_render_pass(&render_pass.resource().get().data().name)
+                        .should_draw_in_render_pass(
+                            &render_pass_instance.resource().get().data().name,
+                        )
                     {
                         let device = &mut self.device;
                         let pipelines = self
                             .pipelines
-                            .entry(render_pass.id())
+                            .entry(render_pass_instance.id())
                             .or_insert_with(Vec::new);
-                        pipelines.push(Pipeline::create(
-                            device,
-                            pipeline_instance.id(),
-                            pipeline_instance.resource().get().data(),
-                            self.render_passes.first().unwrap(),
-                        ));
-                        pipeline_instance.resource().get_mut().init();
+                        if let Some(render_pass) = self
+                            .render_passes
+                            .iter()
+                            .find(|r| r.id() == render_pass_instance.id())
+                        {
+                            pipelines.push(Pipeline::create(
+                                device,
+                                pipeline_instance.id(),
+                                pipeline_instance.resource().get().data(),
+                                render_pass,
+                            ));
+                            pipeline_instance.resource().get_mut().init();
+                        }
                     }
                 });
             }

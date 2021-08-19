@@ -50,6 +50,14 @@ impl RenderPass {
         &self.inner
     }
 
+    pub fn get_framebuffer_width(&self) -> u32 {
+        self.inner.get_framebuffer_width()
+    }
+
+    pub fn get_framebuffer_height(&self) -> u32 {
+        self.inner.get_framebuffer_height()
+    }
+
     pub fn begin(&self) {
         self.inner.begin(&self.device.inner);
     }
