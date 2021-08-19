@@ -1,5 +1,6 @@
 use std::{
     collections::VecDeque,
+    sync::Arc,
     time::{Duration, Instant},
 };
 
@@ -15,7 +16,7 @@ use nrg_ui::{
 struct DebugData {
     frame_seconds: VecDeque<Instant>,
     shared_data: SharedDataRw,
-    ui_registry: UIPropertiesRegistry,
+    ui_registry: Arc<UIPropertiesRegistry>,
 }
 implement_widget_data!(DebugData);
 
@@ -24,34 +25,15 @@ pub struct DebugInfo {
 }
 
 impl DebugInfo {
-    pub fn new(shared_data: &SharedDataRw) -> Self {
+    pub fn new(shared_data: &SharedDataRw, ui_registry: Arc<UIPropertiesRegistry>) -> Self {
         let data = DebugData {
             frame_seconds: VecDeque::default(),
             shared_data: shared_data.clone(),
-            ui_registry: Self::create_registry(),
+            ui_registry,
         };
         Self {
             ui_page: Self::create(shared_data, data),
         }
-    }
-
-    fn create_registry() -> UIPropertiesRegistry {
-        let mut ui_registry = UIPropertiesRegistry::default();
-
-        ui_registry.register::<PipelineInstance>();
-        ui_registry.register::<FontInstance>();
-        ui_registry.register::<MaterialInstance>();
-        ui_registry.register::<MeshInstance>();
-        ui_registry.register::<TextureInstance>();
-        ui_registry.register::<ViewInstance>();
-
-        ui_registry.register::<UIWidget>();
-
-        ui_registry.register::<Scene>();
-        ui_registry.register::<Object>();
-        ui_registry.register::<Transform>();
-        ui_registry.register::<Hitbox>();
-        ui_registry
     }
 
     fn create(shared_data: &SharedDataRw, data: DebugData) -> UIWidgetRc {

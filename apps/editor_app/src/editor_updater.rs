@@ -8,15 +8,15 @@ use super::widgets::*;
 use nrg_core::*;
 use nrg_graphics::{
     FontInstance, FontRc, MaterialInstance, MaterialRc, MeshData, MeshInstance, MeshRc,
-    PipelineInstance, PipelineRc, RenderPassInstance, RenderPassRc,
+    PipelineInstance, PipelineRc, RenderPassInstance, RenderPassRc, TextureInstance, ViewInstance,
 };
 use nrg_messenger::{read_messages, Message, MessageChannel, MessengerRw};
 use nrg_platform::{InputState, Key, KeyEvent, MouseEvent, WindowEvent};
 use nrg_resources::{
     DataTypeResource, FileResource, SerializableResource, SharedData, SharedDataRw,
 };
-use nrg_scene::{Object, Scene, SceneRc};
-use nrg_ui::{DialogEvent, DialogOp};
+use nrg_scene::{Hitbox, Object, Scene, SceneRc, Transform};
+use nrg_ui::{DialogEvent, DialogOp, UIPropertiesRegistry, UIWidget};
 
 pub struct EditorUpdater {
     id: SystemId,
@@ -33,8 +33,10 @@ pub struct EditorUpdater {
     main_menu: Option<MainMenu>,
     debug_info: Option<DebugInfo>,
     view3d: Option<View3D>,
+    properties: Option<Properties>,
     content_browser: Option<ContentBrowser>,
     show_debug_info: Arc<AtomicBool>,
+    ui_registry: Arc<UIPropertiesRegistry>,
 }
 
 impl EditorUpdater {
@@ -61,8 +63,10 @@ impl EditorUpdater {
             main_menu: None,
             debug_info: None,
             view3d: None,
+            properties: None,
             content_browser: None,
             show_debug_info: Arc::new(AtomicBool::new(false)),
+            ui_registry: Arc::new(Self::create_registry()),
         }
     }
 
@@ -88,6 +92,25 @@ impl EditorUpdater {
         self.send_event(WindowEvent::RequestChangeVisible(true).as_boxed());
         self
     }
+
+    fn create_registry() -> UIPropertiesRegistry {
+        let mut ui_registry = UIPropertiesRegistry::default();
+
+        ui_registry.register::<PipelineInstance>();
+        ui_registry.register::<FontInstance>();
+        ui_registry.register::<MaterialInstance>();
+        ui_registry.register::<MeshInstance>();
+        ui_registry.register::<TextureInstance>();
+        ui_registry.register::<ViewInstance>();
+
+        ui_registry.register::<UIWidget>();
+
+        ui_registry.register::<Scene>();
+        ui_registry.register::<Object>();
+        ui_registry.register::<Transform>();
+        ui_registry.register::<Hitbox>();
+        ui_registry
+    }
 }
 
 impl System for EditorUpdater {
@@ -111,7 +134,10 @@ impl System for EditorUpdater {
             .register_messagebox::<WindowEvent>(self.message_channel.get_messagebox())
             .register_messagebox::<DialogEvent>(self.message_channel.get_messagebox());
 
-        self.create_main_menu().create_view3d().create_scene();
+        self.create_main_menu()
+            .create_view3d()
+            .create_properties()
+            .create_scene();
     }
 
     fn run(&mut self) -> bool {
@@ -146,7 +172,7 @@ impl EditorUpdater {
         self
     }
     fn create_debug_info(&mut self) -> &mut Self {
-        let debug_info = DebugInfo::new(&self.shared_data);
+        let debug_info = DebugInfo::new(&self.shared_data, self.ui_registry.clone());
         self.debug_info = Some(debug_info);
         self.show_debug_info.store(true, Ordering::SeqCst);
         self
@@ -159,6 +185,11 @@ impl EditorUpdater {
     fn create_view3d(&mut self) -> &mut Self {
         let view3d = View3D::new(&self.shared_data, &self.global_messenger);
         self.view3d = Some(view3d);
+        self
+    }
+    fn create_properties(&mut self) -> &mut Self {
+        let properties = Properties::new(&self.shared_data, self.ui_registry.clone());
+        self.properties = Some(properties);
         self
     }
     fn update_view3d(&mut self) -> &mut Self {
