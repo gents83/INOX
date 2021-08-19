@@ -22,7 +22,7 @@ impl ResourceData for Hitbox {
 impl UIProperties for Hitbox {
     fn show(&mut self, ui_registry: &UIPropertiesRegistry, ui: &mut Ui, collapsed: bool) {
         CollapsingHeader::new(format!("Hitbox [{:?}]", self.id().to_simple().to_string()))
-            .show_header(true)
+            .show_background(true)
             .default_open(!collapsed)
             .show(ui, |ui| {
                 ui.horizontal(|ui| {

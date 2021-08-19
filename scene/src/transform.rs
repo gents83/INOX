@@ -36,7 +36,7 @@ impl UIProperties for Transform {
             "Transform [{:?}]",
             self.id().to_simple().to_string()
         ))
-        .show_header(true)
+        .show_background(true)
         .default_open(!collapsed)
         .show(ui, |ui| {
             ui.horizontal(|ui| {

@@ -48,7 +48,7 @@ impl UIProperties for UIWidget {
             "UIWidget [{:?}]",
             self.id().to_simple().to_string()
         ))
-        .show_header(true)
+        .show_background(true)
         .default_open(!collapsed)
         .show(ui, |ui| {
             let widget_name = type_name::<Self>()

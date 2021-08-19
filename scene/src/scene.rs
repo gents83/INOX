@@ -30,7 +30,7 @@ impl Default for Scene {
 impl UIProperties for Scene {
     fn show(&mut self, ui_registry: &UIPropertiesRegistry, ui: &mut Ui, collapsed: bool) {
         CollapsingHeader::new(format!("Scene [{:?}]", self.id().to_simple().to_string()))
-            .show_header(true)
+            .show_background(true)
             .default_open(!collapsed)
             .show(ui, |ui| {
                 ui.collapsing(format!("Objects [{}]", self.objects.len()), |ui| {

@@ -119,7 +119,7 @@ impl UIProperties for PipelineInstance {
             "Pipeline [{:?}]",
             self.id().to_simple().to_string()
         ))
-        .show_header(true)
+        .show_background(true)
         .default_open(!collapsed)
         .show(ui, |ui| {
             ui.horizontal(|ui| {
@@ -134,7 +134,7 @@ impl UIProperties for PipelineInstance {
 impl UIProperties for FontInstance {
     fn show(&mut self, _ui_registry: &UIPropertiesRegistry, ui: &mut Ui, collapsed: bool) {
         CollapsingHeader::new(format!("Font [{:?}]", FileResource::get_name(self)))
-            .show_header(true)
+            .show_background(true)
             .default_open(!collapsed)
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
@@ -152,7 +152,7 @@ impl UIProperties for MaterialInstance {
             "Material [{:?}]",
             SerializableResource::get_name(self)
         ))
-        .show_header(true)
+        .show_background(true)
         .default_open(!collapsed)
         .show(ui, |ui| {
             ui.horizontal(|ui| {
@@ -184,7 +184,7 @@ impl UIProperties for MaterialInstance {
 impl UIProperties for MeshInstance {
     fn show(&mut self, ui_registry: &UIPropertiesRegistry, ui: &mut Ui, collapsed: bool) {
         CollapsingHeader::new(format!("Mesh [{:?}]", SerializableResource::get_name(self)))
-            .show_header(true)
+            .show_background(true)
             .default_open(!collapsed)
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
@@ -215,7 +215,7 @@ impl UIProperties for MeshInstance {
 impl UIProperties for TextureInstance {
     fn show(&mut self, _ui_registry: &UIPropertiesRegistry, ui: &mut Ui, collapsed: bool) {
         CollapsingHeader::new(format!("Texture [{:?}]", FileResource::get_name(self)))
-            .show_header(true)
+            .show_background(true)
             .default_open(!collapsed)
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
@@ -250,7 +250,7 @@ impl UIProperties for TextureInstance {
 impl UIProperties for ViewInstance {
     fn show(&mut self, _ui_registry: &UIPropertiesRegistry, ui: &mut Ui, collapsed: bool) {
         CollapsingHeader::new(format!("View [{:?}]", self.get_name()))
-            .show_header(true)
+            .show_background(true)
             .default_open(!collapsed)
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
