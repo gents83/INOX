@@ -136,8 +136,8 @@ impl System for EditorUpdater {
             .register_messagebox::<DialogEvent>(self.message_channel.get_messagebox());
 
         self.create_main_menu()
-            .create_view3d()
             .create_properties()
+            .create_view3d()
             .create_scene();
     }
 

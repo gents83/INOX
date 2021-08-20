@@ -200,10 +200,6 @@ impl UIProperties for MeshInstance {
                     let mut vertices = format!("{}", self.mesh_data().vertices.len());
                     TextEdit::singleline(&mut vertices).enabled(false).ui(ui);
                 });
-                ui.horizontal(|ui| {
-                    ui.label("Draw Area: ");
-                    self.draw_area().show(ui_registry, ui, collapsed);
-                });
                 self.material()
                     .resource()
                     .get_mut()
