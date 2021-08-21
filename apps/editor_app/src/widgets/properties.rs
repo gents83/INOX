@@ -48,7 +48,6 @@ impl Properties {
             if let Some(data) = ui_data.as_any().downcast_mut::<PropertiesData>() {
                 SidePanel::right("Properties")
                     .resizable(true)
-                    .min_width(300.0)
                     .show(ui_context, |ui| {
                         ui.label("Properties:");
 

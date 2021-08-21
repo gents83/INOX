@@ -2,7 +2,7 @@ use nrg_camera::Camera;
 use nrg_graphics::{
     utils::create_cube_from_min_max, DynamicImage, MaterialInstance, MeshData, MeshInstance,
     MeshRc, PipelineInstance, RenderPassId, RenderPassInstance, TextureInstance, TextureRc,
-    ViewInstance, DEFAULT_AREA_SIZE,
+    ViewInstance,
 };
 use nrg_math::{
     compute_distance_between_ray_and_oob, InnerSpace, Mat4Ops, MatBase, Matrix4, SquareMatrix,
@@ -36,6 +36,8 @@ struct View3DData {
     last_mouse_pos: Vector2,
     selected_object: ObjectId,
     mesh_instance: MeshRc,
+    view_width: u32,
+    view_height: u32,
 }
 implement_widget_data!(View3DData);
 
@@ -81,6 +83,8 @@ impl View3D {
             last_mouse_pos: Vector2::zero(),
             selected_object: INVALID_UID,
             mesh_instance,
+            view_width: VIEW3D_IMAGE_WIDTH,
+            view_height: VIEW3D_IMAGE_HEIGHT,
         };
         let ui_page = Self::create(shared_data, data);
         Self {
@@ -115,57 +119,65 @@ impl View3D {
                 CentralPanel::default()
                     .frame(Frame::dark_canvas(ui_context.style().as_ref()))
                     .show(ui_context, |ui| {
+                        let mut texture_index = 0;
+                        let view_width = ui.max_rect_finite().width() as u32;
+                        let view_height = ui.max_rect_finite().height() as u32;
+
                         let texture_id = data.texture.id();
                         let textures =
                             SharedData::get_resources_of_type::<TextureInstance>(&data.shared_data);
                         if let Some(index) = textures.iter().position(|t| t.id() == texture_id) {
-                            let width = ui.max_rect_finite().width() as u32;
-                            let height = ui.max_rect_finite().height() as u32;
-                            let texture_width = data.texture.resource().get().width();
-                            let texture_height = data.texture.resource().get().height();
-                            if width <= DEFAULT_AREA_SIZE
-                                && height <= DEFAULT_AREA_SIZE
-                                && (texture_width != width || texture_height != height)
-                            {
-                                data.texture = Self::update_texture(
-                                    &data.shared_data,
-                                    data.render_pass_id,
-                                    width,
-                                    height,
-                                );
-                                data.camera.set_projection(
-                                    45.,
-                                    width as _,
-                                    height as _,
-                                    0.001,
-                                    1000.,
-                                );
-                            }
+                            texture_index = index;
+                        }
+                        let texture_width = data.texture.resource().get().width();
+                        let texture_height = data.texture.resource().get().height();
+                        if !ui.ctx().is_using_pointer()
+                            && data.view_width == view_width
+                            && data.view_height == view_height
+                            && (texture_width != data.view_width
+                                || texture_height != data.view_height)
+                        {
+                            data.texture = Self::update_texture(
+                                &data.shared_data,
+                                data.render_pass_id,
+                                data.view_width,
+                                data.view_height,
+                            );
+                            data.camera.set_projection(
+                                45.,
+                                data.view_width as _,
+                                data.view_height as _,
+                                0.001,
+                                1000.,
+                            );
+                        }
+                        data.view_width = view_width;
+                        data.view_height = view_height;
+                        ui.with_layer_id(LayerId::background(), |ui| {
+                            let response = Image::new(
+                                eguiTextureId::User(texture_index as _),
+                                [data.view_width as _, data.view_height as _],
+                            )
+                            .sense(Sense::click_and_drag())
+                            .ui(ui);
+                            if let Some(pos) = response.interact_pointer_pos() {
+                                let rect = response.rect;
+                                let normalized_x = (pos.x - rect.min.x) / rect.width();
+                                let normalized_y = (pos.y - rect.min.y) / rect.height();
 
-                            ui.with_layer_id(LayerId::background(), |ui| {
-                                let response = Image::new(
-                                    eguiTextureId::User(index as _),
-                                    [width as _, height as _],
-                                )
-                                .sense(Sense::click_and_drag())
-                                .ui(ui);
-                                if let Some(pos) = response.interact_pointer_pos() {
-                                    let rect = response.rect;
-                                    let normalized_x = (pos.x - rect.min.x) / rect.width();
-                                    let normalized_y = (pos.y - rect.min.y) / rect.height();
-
-                                    if data.last_mouse_pos.x < 0. || data.last_mouse_pos.y < 0. {
-                                        data.last_mouse_pos = [normalized_x, normalized_y].into();
-                                    }
-
-                                    let mut rotation_angle = Vector3::zero();
-
-                                    rotation_angle.x = normalized_y - data.last_mouse_pos.y;
-                                    rotation_angle.y = data.last_mouse_pos.x - normalized_x;
-                                    data.camera.rotate(rotation_angle * 5.);
-
+                                if data.last_mouse_pos.x < 0. || data.last_mouse_pos.y < 0. {
                                     data.last_mouse_pos = [normalized_x, normalized_y].into();
+                                }
 
+                                let mut rotation_angle = Vector3::zero();
+
+                                rotation_angle.x = normalized_y - data.last_mouse_pos.y;
+                                rotation_angle.y = data.last_mouse_pos.x - normalized_x;
+                                data.camera.rotate(rotation_angle * 5.);
+
+                                data.last_mouse_pos = [normalized_x, normalized_y].into();
+
+                                if response.clicked() {
                                     data.selected_object = Self::update_selected_object(
                                         data,
                                         normalized_x,
@@ -177,30 +189,33 @@ impl View3D {
                                         .unwrap()
                                         .send(ViewEvent::Selected(data.selected_object).as_boxed())
                                         .ok();
-                                } else {
-                                    data.last_mouse_pos = [-1., -1.].into();
                                 }
-                            });
-                        }
+                            } else {
+                                data.last_mouse_pos = [-1., -1.].into();
+                            }
+                            response
+                        })
                     });
             }
         })
     }
 
     fn update_camera(&mut self) -> &mut Self {
-        if let Some(data) = self.ui_page.resource().get_mut().data::<View3DData>() {
+        if let Some(data) = self.ui_page.resource().get_mut().data_mut::<View3DData>() {
             if SharedData::has_resources_of_type::<ViewInstance>(&self.shared_data) {
                 let views = SharedData::get_resources_of_type::<ViewInstance>(&self.shared_data);
                 let view = views.first().unwrap();
                 let view_matrix = data.camera.get_view_matrix();
                 let proj_matrix = data.camera.get_proj_matrix();
-                let width = data.texture.resource().get().width();
-                let height = data.texture.resource().get().height();
+
+                let texture_width = data.texture.resource().get().width();
+                let texture_height = data.texture.resource().get().height();
+
                 view.resource()
                     .get_mut()
                     .update_view(view_matrix)
                     .update_proj(proj_matrix)
-                    .update_size(width, height);
+                    .update_size(texture_width, texture_height);
             }
         }
         self
