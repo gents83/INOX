@@ -33,6 +33,7 @@ struct View3DData {
     render_pass_id: RenderPassId,
     texture: TextureRc,
     camera: Camera,
+    should_manage_input: bool,
     last_mouse_pos: Vector2,
     selected_object: ObjectId,
     mesh_instance: MeshRc,
@@ -85,6 +86,7 @@ impl View3D {
             mesh_instance,
             view_width: VIEW3D_IMAGE_WIDTH,
             view_height: VIEW3D_IMAGE_HEIGHT,
+            should_manage_input: false,
         };
         let ui_page = Self::create(shared_data, data);
         Self {
@@ -109,7 +111,9 @@ impl View3D {
             } else if event.code == Key::D {
                 movement.x -= 1.;
             }
-            data.camera.translate(movement);
+            if data.should_manage_input {
+                data.camera.translate(movement);
+            }
         }
     }
 
@@ -122,6 +126,9 @@ impl View3D {
                         let mut texture_index = 0;
                         let view_width = ui.max_rect_finite().width() as u32;
                         let view_height = ui.max_rect_finite().height() as u32;
+                        data.should_manage_input = !(ui.ctx().is_using_pointer()
+                            || ui.ctx().wants_keyboard_input()
+                            || ui.ctx().wants_pointer_input());
 
                         let texture_id = data.texture.id();
                         let textures =
@@ -131,7 +138,7 @@ impl View3D {
                         }
                         let texture_width = data.texture.resource().get().width();
                         let texture_height = data.texture.resource().get().height();
-                        if !ui.ctx().is_using_pointer()
+                        if data.should_manage_input
                             && data.view_width == view_width
                             && data.view_height == view_height
                             && (texture_width != data.view_width

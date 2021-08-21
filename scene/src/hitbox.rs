@@ -30,7 +30,7 @@ impl UIProperties for Hitbox {
                     self.min.show(ui_registry, ui, collapsed);
                 });
                 ui.horizontal(|ui| {
-                    ui.label("Diffuse Color: ");
+                    ui.label("Max: ");
                     self.max.show(ui_registry, ui, collapsed);
                 });
             });

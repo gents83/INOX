@@ -108,7 +108,7 @@ impl UIProperties for Vector4 {
             ui.add(DragValue::new(&mut self.x).prefix("x: ").fixed_decimals(3));
             ui.add(DragValue::new(&mut self.y).prefix("y: ").fixed_decimals(3));
             ui.add(DragValue::new(&mut self.z).prefix("z: ").fixed_decimals(3));
-            ui.add(DragValue::new(&mut self.z).prefix("w: ").fixed_decimals(3));
+            ui.add(DragValue::new(&mut self.w).prefix("w: ").fixed_decimals(3));
         });
     }
 }
@@ -171,11 +171,15 @@ impl UIProperties for MaterialInstance {
             });
             ui.horizontal(|ui| {
                 ui.label("Diffuse Color: ");
-                self.diffuse_color().show(ui_registry, ui, collapsed);
+                let mut diffuse_color = self.diffuse_color();
+                diffuse_color.show(ui_registry, ui, collapsed);
+                self.set_diffuse_color(diffuse_color);
             });
             ui.horizontal(|ui| {
                 ui.label("Outline Color: ");
-                self.outline_color().show(ui_registry, ui, collapsed);
+                let mut outline_color = self.outline_color();
+                outline_color.show(ui_registry, ui, collapsed);
+                self.set_outline_color(outline_color);
             });
         });
     }
