@@ -8,6 +8,11 @@ use nrg_ui::{
     UIWidgetRc, Ui,
 };
 
+#[derive(Clone)]
+struct PropertiesRuntimeData {
+    width: f32,
+}
+
 struct PropertiesData {
     shared_data: SharedDataRw,
     ui_registry: Arc<UIPropertiesRegistry>,
@@ -46,10 +51,18 @@ impl Properties {
     fn create(shared_data: &SharedDataRw, data: PropertiesData) -> UIWidgetRc {
         UIWidget::register(shared_data, data, |ui_data, ui_context| {
             if let Some(data) = ui_data.as_any().downcast_mut::<PropertiesData>() {
+                let min_width = 300.;
+                let mut width = min_width;
+                if let Some(panel_runtime_data) =
+                    ui_context.memory().data_temp.get::<PropertiesRuntimeData>()
+                {
+                    width = panel_runtime_data.width;
+                }
                 SidePanel::right("Properties")
                     .resizable(true)
-                    .min_width(300.)
+                    .min_width(width)
                     .show(ui_context, |ui| {
+                        width = ui.available_width();
                         ui.heading("Properties:");
 
                         if !data.selected_object.is_nil() {
@@ -63,6 +76,10 @@ impl Properties {
                             });
                         }
                     });
+
+                ui_context.memory().data_temp.insert(PropertiesRuntimeData {
+                    width: width.max(min_width),
+                });
             }
         })
     }
