@@ -48,8 +48,9 @@ impl Properties {
             if let Some(data) = ui_data.as_any().downcast_mut::<PropertiesData>() {
                 SidePanel::right("Properties")
                     .resizable(true)
+                    .min_width(300.)
                     .show(ui_context, |ui| {
-                        ui.label("Properties:");
+                        ui.heading("Properties:");
 
                         if !data.selected_object.is_nil() {
                             ScrollArea::auto_sized().show(ui, |ui| {

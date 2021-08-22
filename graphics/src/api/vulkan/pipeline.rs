@@ -150,14 +150,20 @@ impl Pipeline {
         self
     }
 
-    pub fn build(&mut self, device: &Device, render_pass: &RenderPass) -> &mut Self {
+    pub fn build(
+        &mut self,
+        device: &Device,
+        render_pass: &RenderPass,
+        culling: &CullingModeType,
+        mode: &PolygonModeType,
+    ) -> &mut Self {
         self.inner
             .borrow_mut()
             .create_descriptor_set_layout(&self.device)
             .create_uniform_buffers(device)
             .create_descriptor_pool(device)
             .create_descriptor_sets(device)
-            .create(device, render_pass);
+            .create(device, render_pass, culling, mode);
         self
     }
 }
@@ -289,7 +295,13 @@ impl PipelineImmutable {
         }
     }
 
-    fn create(&mut self, device: &Device, render_pass: &RenderPass) -> &mut Self {
+    fn create(
+        &mut self,
+        device: &Device,
+        render_pass: &RenderPass,
+        culling: &CullingModeType,
+        mode: &PolygonModeType,
+    ) -> &mut Self {
         let mut shader_stages: Vec<VkPipelineShaderStageCreateInfo> = Vec::new();
         for shader in self.shaders.iter() {
             shader_stages.push(shader.stage_info());
@@ -352,8 +364,23 @@ impl PipelineImmutable {
             flags: 0,
             depthClampEnable: VK_TRUE,
             rasterizerDiscardEnable: VK_FALSE,
-            polygonMode: VkPolygonMode_VK_POLYGON_MODE_FILL,
-            cullMode: VkCullModeFlagBits_VK_CULL_MODE_NONE as VkCullModeFlags,
+            polygonMode: match *mode {
+                PolygonModeType::Line => VkPolygonMode_VK_POLYGON_MODE_LINE,
+                PolygonModeType::Point => VkPolygonMode_VK_POLYGON_MODE_POINT,
+                _ => VkPolygonMode_VK_POLYGON_MODE_FILL,
+            },
+            cullMode: match *culling {
+                CullingModeType::Back => {
+                    VkCullModeFlagBits_VK_CULL_MODE_BACK_BIT as VkCullModeFlags
+                }
+                CullingModeType::Front => {
+                    VkCullModeFlagBits_VK_CULL_MODE_FRONT_BIT as VkCullModeFlags
+                }
+                CullingModeType::Both => {
+                    VkCullModeFlagBits_VK_CULL_MODE_FRONT_AND_BACK as VkCullModeFlags
+                }
+                _ => VkCullModeFlagBits_VK_CULL_MODE_NONE as VkCullModeFlags,
+            },
             frontFace: VkFrontFace_VK_FRONT_FACE_CLOCKWISE,
             depthBiasEnable: VK_FALSE,
             depthBiasConstantFactor: 0.0,

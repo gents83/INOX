@@ -1,4 +1,3 @@
-
 pub struct Viewport {
     pub x: f32,
     pub y: f32,
@@ -27,7 +26,6 @@ impl Default for Viewport {
         }
     }
 }
-
 
 impl Default for Scissors {
     fn default() -> Scissors {

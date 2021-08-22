@@ -115,6 +115,23 @@ impl Default for RenderPassData {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Clone)]
+#[serde(crate = "nrg_serialize")]
+pub enum PolygonModeType {
+    Fill,
+    Line,
+    Point,
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Clone)]
+#[serde(crate = "nrg_serialize")]
+pub enum CullingModeType {
+    None,
+    Back,
+    Front,
+    Both,
+}
+
 #[repr(C)]
 #[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Clone)]
 #[serde(crate = "nrg_serialize")]
@@ -126,6 +143,8 @@ pub struct PipelineData {
     pub tcs_shader: PathBuf,
     pub tes_shader: PathBuf,
     pub geometry_shader: PathBuf,
+    pub culling: CullingModeType,
+    pub mode: PolygonModeType,
     pub render_in_passes: Vec<String>,
 }
 unsafe impl Send for PipelineData {}
@@ -141,6 +160,8 @@ impl Default for PipelineData {
             tcs_shader: PathBuf::new(),
             tes_shader: PathBuf::new(),
             geometry_shader: PathBuf::new(),
+            culling: CullingModeType::Back,
+            mode: PolygonModeType::Fill,
             render_in_passes: Vec::new(),
         }
     }

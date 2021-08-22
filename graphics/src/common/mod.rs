@@ -1,6 +1,6 @@
 pub use crate::common::{
-    area::*, data_formats::*, device::*, instance::*, mesh::*, pipeline::*, rasterizer::*,
-    render_pass::*, renderer::*, shader::*, texture::*, viewport::*,
+    area::*, data_formats::*, device::*, instance::*, mesh::*, pipeline::*, render_pass::*,
+    renderer::*, shader::*, texture::*, viewport::*,
 };
 
 pub mod area;
@@ -14,6 +14,5 @@ pub mod shader;
 pub mod texture;
 pub mod utils;
 
-pub mod rasterizer;
 pub mod renderer;
 pub mod viewport;

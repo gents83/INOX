@@ -122,10 +122,22 @@ impl UIProperties for PipelineInstance {
         .show_background(true)
         .default_open(!collapsed)
         .show(ui, |ui| {
-            ui.horizontal(|ui| {
-                ui.label("Name: ");
-                let mut name = self.data().name.clone();
-                TextEdit::singleline(&mut name).enabled(false).ui(ui);
+            ui.vertical(|ui| {
+                ui.horizontal(|ui| {
+                    ui.label("Name: ");
+                    let mut name = self.data().name.clone();
+                    TextEdit::singleline(&mut name).enabled(false).ui(ui);
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Culling Type: ");
+                    let mut culling = format!("{:?}", self.data().culling);
+                    TextEdit::singleline(&mut culling).enabled(false).ui(ui);
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Poligon Mode: ");
+                    let mut mode = format!("{:?}", self.data().mode);
+                    TextEdit::singleline(&mut mode).enabled(false).ui(ui);
+                });
             });
         });
     }
@@ -163,7 +175,7 @@ impl UIProperties for MaterialInstance {
             self.pipeline()
                 .resource()
                 .get_mut()
-                .show(ui_registry, ui, collapsed);
+                .show(ui_registry, ui, true);
             ui.collapsing(format!("Textures [{}]", self.textures().len()), |ui| {
                 for t in self.textures() {
                     t.resource().get_mut().show(ui_registry, ui, collapsed);
@@ -207,7 +219,7 @@ impl UIProperties for MeshInstance {
                 self.material()
                     .resource()
                     .get_mut()
-                    .show(ui_registry, ui, collapsed);
+                    .show(ui_registry, ui, true);
             });
     }
 }
