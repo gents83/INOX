@@ -100,20 +100,6 @@ impl DataTypeResource for Object {
             .get_mut()
             .set_matrix(object_data.transform);
 
-        if !object_data.material.to_str().unwrap_or_default().is_empty() {
-            let material = if let Some(material) =
-                MaterialInstance::find_from_path(shared_data, object_data.material.as_path())
-            {
-                material
-            } else {
-                MaterialInstance::create_from_file(shared_data, object_data.material.as_path())
-            };
-            object
-                .resource()
-                .get_mut()
-                .add_component::<MaterialInstance>(material);
-        }
-
         if !object_data.mesh.to_str().unwrap_or_default().is_empty() {
             let mesh = if let Some(mesh) =
                 MeshInstance::find_from_path(shared_data, object_data.mesh.as_path())
@@ -122,7 +108,15 @@ impl DataTypeResource for Object {
             } else {
                 MeshInstance::create_from_file(shared_data, object_data.mesh.as_path())
             };
-            if let Some(material) = object.resource().get().get_component::<MaterialInstance>() {
+
+            if !object_data.material.to_str().unwrap_or_default().is_empty() {
+                let material = if let Some(material) =
+                    MaterialInstance::find_from_path(shared_data, object_data.material.as_path())
+                {
+                    material
+                } else {
+                    MaterialInstance::create_from_file(shared_data, object_data.material.as_path())
+                };
                 mesh.resource().get_mut().set_material(material);
             }
             object
