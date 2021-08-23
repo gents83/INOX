@@ -1,7 +1,7 @@
 use std::{any::TypeId, path::Path};
 
 use nrg_graphics::{
-    utils::{create_triangle_down, create_triangle_right},
+    shapes2d::{create_triangle_down, create_triangle_right},
     MeshData,
 };
 use nrg_math::{Vector2, Vector4};

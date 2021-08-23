@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use crate::common::utils::*;
+use crate::create_quad;
 
 use nrg_filesystem::convert_from_local_path;
 use nrg_math::*;

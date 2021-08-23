@@ -1,6 +1,6 @@
 use nrg_camera::Camera;
 use nrg_graphics::{
-    utils::create_cube_from_min_max, DynamicImage, MaterialInstance, MeshData, MeshInstance,
+    shapes3d::create_cube_from_min_max, DynamicImage, MaterialInstance, MeshData, MeshInstance,
     MeshRc, PipelineInstance, RenderPassInstance, TextureInstance, TextureRc, ViewInstance,
 };
 use nrg_math::{
@@ -101,6 +101,10 @@ impl View3D {
                 movement.x += 1.;
             } else if event.code == Key::D {
                 movement.x -= 1.;
+            } else if event.code == Key::Q {
+                movement.y += 1.;
+            } else if event.code == Key::E {
+                movement.y -= 1.;
             }
             if data.should_manage_input {
                 data.camera.translate(movement);
@@ -266,10 +270,10 @@ impl View3D {
 
         if SharedData::has_resources_of_type::<Object>(&data.shared_data) {
             let mut mesh_data = MeshData::default();
+            let mut min = [-5., -5., -5.].into();
+            let mut max = [5., 5., 5.].into();
             let objects = SharedData::get_resources_of_type::<Object>(&data.shared_data);
             for obj in objects {
-                let mut min = [-5., -5., -5.].into();
-                let mut max = [5., 5., 5.].into();
                 if let Some(hitbox) = obj.resource().get().get_component::<Hitbox>() {
                     min = hitbox.resource().get().min();
                     max = hitbox.resource().get().max();
