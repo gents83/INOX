@@ -177,3 +177,50 @@ pub fn create_cylinder(
 
     (vertices, indices)
 }
+
+pub fn create_sphere(radius: f32, num_slices: u32, num_stack: u32) -> (Vec<VertexData>, Vec<u32>) {
+    let mut vertices = Vec::new();
+    let mut indices = Vec::new();
+
+    let slice_step = 2. * PI / num_slices as f32;
+    let stack_step = PI / num_stack as f32;
+    let inv = 1. / radius;
+
+    for i in 0..num_stack + 1 {
+        let stack_angle = PI / 2. - i as f32 * stack_step; // from pi/2 to -pi/2
+        let xy = radius * stack_angle.cos();
+        let z = radius * stack_angle.sin();
+
+        for j in 0..num_slices + 1 {
+            let mut vertex = VertexData::default();
+            let slice_angle = j as f32 * slice_step; // from 0 to 2pi
+            vertex.pos = [xy * slice_angle.cos(), xy * slice_angle.sin(), z].into();
+            vertex.normal = vertex.pos * inv;
+            vertex.tex_coord = [j as f32 / num_slices as f32, i as f32 / num_stack as f32].into();
+            vertices.push(vertex);
+        }
+    }
+
+    for i in 0..num_stack {
+        let mut k1 = i * (num_slices + 1); // beginning of current stack
+        let mut k2 = k1 + num_slices + 1; // beginning of next stack
+
+        for _ in 0..num_slices {
+            // 2 triangles per sector excluding 1st and last stacks
+            if i != 0 {
+                indices.push(k1);
+                indices.push(k2);
+                indices.push(k1 + 1);
+            }
+            if i != (num_stack - 1) {
+                indices.push(k1 + 1);
+                indices.push(k2);
+                indices.push(k2 + 1);
+            }
+            k1 += 1;
+            k2 += 1;
+        }
+    }
+
+    (vertices, indices)
+}
