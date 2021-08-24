@@ -431,8 +431,8 @@ impl PipelineImmutable {
             srcColorBlendFactor: VkBlendFactor_VK_BLEND_FACTOR_ONE,
             dstColorBlendFactor: VkBlendFactor_VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
             colorBlendOp: VkBlendOp_VK_BLEND_OP_ADD,
-            srcAlphaBlendFactor: VkBlendFactor_VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA,
-            dstAlphaBlendFactor: VkBlendFactor_VK_BLEND_FACTOR_ONE,
+            srcAlphaBlendFactor: VkBlendFactor_VK_BLEND_FACTOR_ONE,
+            dstAlphaBlendFactor: VkBlendFactor_VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
             alphaBlendOp: VkBlendOp_VK_BLEND_OP_ADD,
             colorWriteMask: (VkColorComponentFlagBits_VK_COLOR_COMPONENT_R_BIT
                 | VkColorComponentFlagBits_VK_COLOR_COMPONENT_G_BIT
@@ -449,7 +449,7 @@ impl PipelineImmutable {
             logicOp: VkLogicOp_VK_LOGIC_OP_COPY,
             attachmentCount: 1,
             pAttachments: &color_blend_attachment,
-            blendConstants: [0., 0., 0., 0.],
+            blendConstants: [1., 1., 1., 1.],
         };
 
         let push_constant_range = VkPushConstantRange {

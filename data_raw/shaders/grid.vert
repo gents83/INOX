@@ -24,9 +24,9 @@ vec3 UnprojectPoint(vec3 position, mat4 view, mat4 projection) {
 }
 
 void main() {	
-    gl_Position = vec4(inPosition.xyz, 1.0);
-
-    outColor = inColor;
     outNearPoint = UnprojectPoint(vec3(inPosition.xy, 0.0), pushConsts.view, pushConsts.proj).xyz; // unprojecting on the near plane
     outFarPoint = UnprojectPoint(vec3(inPosition.xy, 1.0), pushConsts.view, pushConsts.proj).xyz; // unprojecting on the far plane
+
+    outColor = inColor;
+    gl_Position = vec4(inPosition.xyz, 1.0);
 }

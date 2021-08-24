@@ -14,25 +14,25 @@ layout(location = 2) in vec3 farPoint;
 //Output
 layout(location = 0) out vec4 outColor;
 
-#define MIN_GRID_DISTANCE 0.01
-#define MAX_GRID_DISTANCE 20.
+#define MIN_GRID_DISTANCE 0.001
+#define MAX_GRID_DISTANCE 1000.
 #define GRID_COLOR vec4(0.3, 0.3, 0.3, 1.0)
 
 
-vec4 ComputeGridColor(vec3 pos, float scale, bool drawAxis) {
-    vec2 coord = pos.xz * scale;
+vec4 ComputeGridColor(vec3 fragPos3D, float scale, bool drawAxis, float fading) {
+    vec2 coord = fragPos3D.xz * scale;
     vec2 derivative = fwidth(coord);
     vec2 grid = abs(fract(coord - 0.5) - 0.5) / derivative;
     float line = min(grid.x, grid.y);
-    float minimumz = min(derivative.y, 1);
-    float minimumx = min(derivative.x, 1);
-    vec4 color = GRID_COLOR;
-    color.a = 1. - min(line, 1.);
+    float minimumz = min(derivative.y, 1.);
+    float minimumx = min(derivative.x, 1.);
+    vec4 color = vec4(GRID_COLOR) - vec4(min(line, 1.));
+    color *= fading;
     // z axis
-    if(pos.x > -0.1 * minimumx && pos.x < 0.1 * minimumx)
+    if(fragPos3D.x > -0.1 * minimumx && fragPos3D.x < 0.1 * minimumx)
         color.z = 1.0;
     // x axis
-    if(pos.z > -0.1 * minimumz && pos.z < 0.1 * minimumz)
+    if(fragPos3D.z > -0.1 * minimumz && fragPos3D.z < 0.1 * minimumz)
         color.x = 1.0;
     return color;
 }
@@ -58,7 +58,5 @@ void main() {
     float linearDepth = ComputeLinearDepth(pos);
     float fading = max(0, (0.5 - linearDepth));
 
-    outColor = ComputeGridColor(pos, 1, true) * float(t > 0); // 1 mt resolution
-    outColor += ComputeGridColor(pos, 10, true) * float(t > 0); // inner grid resolution
-    outColor.a *= fading;
+    outColor = (ComputeGridColor(pos, 10, true, fading) + ComputeGridColor(pos, 1, true, fading)) * float(t > 0); 
 }
