@@ -2,7 +2,9 @@ use std::{any::Any, marker::PhantomData, sync::Arc};
 
 use nrg_serialize::INVALID_UID;
 
-use crate::{Resource, ResourceCastTo, ResourceData, ResourceId, SharedDataRw, TypedStorage};
+use crate::{
+    Resource, ResourceCastTo, ResourceData, ResourceId, SharedData, SharedDataRw, TypedStorage,
+};
 
 pub trait Handle: Send + Sync + Any {
     fn as_any(self: Arc<Self>) -> Arc<dyn Any + Send + Sync>;
@@ -53,6 +55,10 @@ where
 
     pub fn id(&self) -> ResourceId {
         self.id
+    }
+
+    pub fn is_valid(&self) -> bool {
+        !self.id.is_nil() && SharedData::has_resource::<T>(&self.shared_data, self.id)
     }
 
     pub fn resource(&self) -> Resource<T> {

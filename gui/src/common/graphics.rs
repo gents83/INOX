@@ -236,7 +236,7 @@ impl WidgetGraphics {
                 * Matrix4::from_angle_z(Rad::from(Deg(self.rotation.z)))
                 * Matrix4::from_nonuniform_scale(self.scale.x, self.scale.y, self.scale.z);
 
-            self.mesh.resource().get_mut().set_transform(transform);
+            self.mesh.resource().get_mut().set_matrix(transform);
             self.mesh.resource().get_mut().set_draw_area(drawing_area);
             self.mesh.resource().get_mut().set_visible(visible);
             self.is_dirty = false;

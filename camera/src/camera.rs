@@ -1,6 +1,6 @@
 use nrg_math::{
-    direction_to_euler_angles, Angle, InnerSpace, MatBase, Matrix4, NewAngle, Radians, Vector3,
-    Zero,
+    direction_to_euler_angles, Angle, InnerSpace, MatBase, Matrix4, NewAngle, Radians,
+    SquareMatrix, Vector2, Vector3, Vector4, Zero,
 };
 
 pub struct Camera {
@@ -114,5 +114,34 @@ impl Camera {
     #[inline]
     pub fn get_proj_matrix(&self) -> Matrix4 {
         self.proj_matrix
+    }
+
+    pub fn convert_in_3d(&self, normalized_pos: Vector2) -> (Vector3, Vector3) {
+        let view = self.get_view_matrix();
+        let proj = self.get_proj_matrix();
+
+        // The ray Start and End positions, in Normalized Device Coordinates (Have you read Tutorial 4 ?)
+        let ray_start = Vector4::new(0., 0., 0., 1.);
+        let ray_end = Vector4::new(
+            normalized_pos.x * 2. - 1.,
+            normalized_pos.y * 2. - 1.,
+            1.,
+            1.,
+        );
+
+        let inv_proj = proj.invert().unwrap();
+        let inv_view = view.invert().unwrap();
+
+        let mut ray_start_camera = inv_proj * ray_start;
+        ray_start_camera /= ray_start_camera.w;
+        let mut ray_start_world = inv_view * ray_start_camera;
+        ray_start_world /= ray_start_world.w;
+
+        let mut ray_end_camera = inv_proj * ray_end;
+        ray_end_camera /= ray_end_camera.w;
+        let mut ray_end_world = inv_view * ray_end_camera;
+        ray_end_world /= ray_end_world.w;
+
+        (ray_start_world.xyz(), ray_end_world.xyz())
     }
 }

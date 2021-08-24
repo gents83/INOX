@@ -27,9 +27,7 @@ macro_rules! implement_vector_base {
                 Self::zero()
             }
             fn default_one() -> Self {
-                let v = Self::zero();
-                v.map(|f| f + 1.);
-                v
+                Self::from_value(1.)
             }
             fn length(self) -> f32 {
                 self.magnitude()

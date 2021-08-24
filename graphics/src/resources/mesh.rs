@@ -80,8 +80,8 @@ impl MeshInstance {
         self.is_dirty = true;
         self
     }
-    pub fn set_transform(&mut self, transform: Matrix4) -> &mut Self {
-        self.mesh_data.transform = transform;
+    pub fn set_matrix(&mut self, transform: Matrix4) -> &mut Self {
+        self.mesh_data.matrix = transform;
         self.is_dirty = true;
         self
     }
@@ -102,8 +102,8 @@ impl MeshInstance {
     pub fn mesh_data(&self) -> &MeshData {
         &self.mesh_data
     }
-    pub fn transform(&self) -> Matrix4 {
-        self.mesh_data.transform
+    pub fn matrix(&self) -> Matrix4 {
+        self.mesh_data.matrix
     }
     pub fn draw_area(&self) -> Vector4 {
         self.draw_area

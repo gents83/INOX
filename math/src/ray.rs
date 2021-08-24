@@ -15,7 +15,7 @@ pub fn compute_distance_between_ray_and_oob(
     let mut t_min = 0.;
     let mut t_max = 10000.0;
 
-    let model_position = model_matrix.get_translation();
+    let model_position = model_matrix.translation();
     let delta = model_position - ray_origin;
 
     // Test intersection with the 2 planes perpendicular to the OBB's X axis

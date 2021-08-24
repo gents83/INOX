@@ -4,20 +4,20 @@ use nrg_graphics::{
     MeshRc, PipelineInstance, RenderPassInstance, TextureInstance, TextureRc, ViewInstance,
 };
 use nrg_math::{
-    compute_distance_between_ray_and_oob, InnerSpace, Mat4Ops, MatBase, Matrix4, SquareMatrix,
-    Vector2, Vector3, Vector4, Zero,
+    compute_distance_between_ray_and_oob, InnerSpace, Mat4Ops, MatBase, Matrix4, VecBase, Vector2,
+    Vector3, Zero,
 };
 use nrg_messenger::{implement_message, Message, MessageBox, MessengerRw};
 use nrg_platform::{Key, KeyEvent};
 use nrg_resources::{DataTypeResource, SharedData, SharedDataRw};
-use nrg_scene::{Hitbox, Object, ObjectId};
+use nrg_scene::{Hitbox, Object, ObjectId, Transform};
 use nrg_serialize::{generate_uid_from_string, INVALID_UID};
 use nrg_ui::{
     implement_widget_data, CentralPanel, Frame, Image, LayerId, Sense, TextureId as eguiTextureId,
     UIWidget, UIWidgetRc, Widget,
 };
 
-use crate::tools::{Gizmo, GizmoRc, GizmoType};
+use crate::tools::{Gizmo, GizmoRc};
 
 const VIEW3D_IMAGE_WIDTH: u32 = 1280;
 const VIEW3D_IMAGE_HEIGHT: u32 = 768;
@@ -40,6 +40,7 @@ struct View3DData {
     view_width: u32,
     view_height: u32,
     gizmo: GizmoRc,
+    is_manipulating_gizmo: bool,
 }
 implement_widget_data!(View3DData);
 
@@ -81,8 +82,10 @@ impl View3D {
             view_width: VIEW3D_IMAGE_WIDTH,
             view_height: VIEW3D_IMAGE_HEIGHT,
             should_manage_input: false,
-            gizmo: Gizmo::new(shared_data, [0., 0., 0.].into(), GizmoType::Translation),
+            gizmo: Gizmo::new_translation(shared_data, [0., 0., 0.].into()),
+            is_manipulating_gizmo: false,
         };
+        data.gizmo.resource().get_mut().set_visible(false);
         let ui_page = Self::create(shared_data, data);
         Self {
             ui_page,
@@ -110,7 +113,7 @@ impl View3D {
             } else if event.code == Key::E {
                 movement.y -= 1.;
             }
-            if data.should_manage_input {
+            if data.should_manage_input && !data.is_manipulating_gizmo {
                 data.camera.translate(movement);
             }
         }
@@ -173,13 +176,45 @@ impl View3D {
                                     data.last_mouse_pos = [normalized_x, normalized_y].into();
                                 }
 
-                                let mut rotation_angle = Vector3::zero();
+                                let new_pos = [normalized_x, normalized_y].into();
+                                Self::update_gizmo(
+                                    data,
+                                    new_pos,
+                                    response.drag_started(),
+                                    response.drag_released(),
+                                );
 
-                                rotation_angle.x = normalized_y - data.last_mouse_pos.y;
-                                rotation_angle.y = data.last_mouse_pos.x - normalized_x;
-                                data.camera.rotate(rotation_angle * 5.);
+                                if !data.is_manipulating_gizmo {
+                                    let mut rotation_angle = Vector3::zero();
 
-                                data.last_mouse_pos = [normalized_x, normalized_y].into();
+                                    rotation_angle.x = normalized_y - data.last_mouse_pos.y;
+                                    rotation_angle.y = data.last_mouse_pos.x - normalized_x;
+                                    data.camera.rotate(rotation_angle * 5.);
+                                } else if !data.selected_object.is_nil() {
+                                    let object = SharedData::get_resource::<Object>(
+                                        &data.shared_data,
+                                        data.selected_object,
+                                    );
+                                    if let Some(transform) =
+                                        object.resource().get().get_component::<Transform>()
+                                    {
+                                        let mut matrix = transform.resource().get().matrix();
+                                        matrix.from_translation_rotation_scale(
+                                            data.gizmo.resource().get().position(),
+                                            matrix.rotation(),
+                                            matrix.scale(),
+                                        );
+                                        transform.resource().get_mut().set_matrix(matrix);
+                                        if data.mesh_instance.is_valid() {
+                                            data.mesh_instance
+                                                .resource()
+                                                .get_mut()
+                                                .set_matrix(matrix);
+                                        }
+                                    }
+                                }
+
+                                data.last_mouse_pos = new_pos;
 
                                 if response.clicked() {
                                     data.selected_object = Self::update_selected_object(
@@ -187,6 +222,23 @@ impl View3D {
                                         normalized_x,
                                         normalized_y,
                                     );
+
+                                    if data.selected_object.is_nil() {
+                                        data.gizmo.resource().get_mut().set_visible(false);
+                                    } else {
+                                        let object = SharedData::get_resource::<Object>(
+                                            &data.shared_data,
+                                            data.selected_object,
+                                        );
+                                        if let Some(transform) =
+                                            object.resource().get().get_component::<Transform>()
+                                        {
+                                            data.gizmo.resource().get_mut().set_position(
+                                                transform.resource().get().matrix().translation(),
+                                            );
+                                        }
+                                        data.gizmo.resource().get_mut().set_visible(true);
+                                    }
 
                                     data.global_dispatcher
                                         .write()
@@ -202,6 +254,36 @@ impl View3D {
                     });
             }
         })
+    }
+
+    fn update_gizmo(data: &mut View3DData, new_pos: Vector2, started: bool, ended: bool) {
+        if !data.gizmo.resource().get().is_visible() {
+            return;
+        }
+        let pos = data.gizmo.resource().get().position();
+        let (old_cam_start, old_cam_end) = data.camera.convert_in_3d(data.last_mouse_pos);
+        let (new_cam_start, new_cam_end) = data.camera.convert_in_3d(new_pos);
+        let old_dir = pos - old_cam_start;
+        let new_dir = pos - new_cam_start;
+        let old_position =
+            old_cam_start + (old_cam_end - old_cam_start).normalize() * old_dir.length();
+        let new_position =
+            new_cam_start + (new_cam_end - new_cam_start).normalize() * new_dir.length();
+        if started {
+            data.is_manipulating_gizmo = data
+                .gizmo
+                .resource()
+                .get_mut()
+                .start_drag(new_cam_start, (new_cam_end - new_cam_start).normalize());
+        } else if ended {
+            data.gizmo.resource().get_mut().end_drag();
+            data.is_manipulating_gizmo = false;
+        } else {
+            data.gizmo
+                .resource()
+                .get_mut()
+                .drag(old_position, new_position);
+        }
     }
 
     fn update_camera(&mut self) -> &mut Self {
@@ -242,6 +324,7 @@ impl View3D {
 
         texture
     }
+
     fn update_selected_object(
         data: &mut View3DData,
         normalized_x: f32,
@@ -249,25 +332,9 @@ impl View3D {
     ) -> ObjectId {
         let mut selected_object = INVALID_UID;
 
-        let view = data.camera.get_view_matrix();
-        let proj = data.camera.get_proj_matrix();
-
-        // The ray Start and End positions, in Normalized Device Coordinates (Have you read Tutorial 4 ?)
-        let ray_start = Vector4::new(0., 0., 0., 1.);
-        let ray_end = Vector4::new(normalized_x * 2. - 1., normalized_y * 2. - 1., 1., 1.);
-
-        let inv_proj = proj.invert().unwrap();
-        let inv_view = view.invert().unwrap();
-
-        let mut ray_start_camera = inv_proj * ray_start;
-        ray_start_camera /= ray_start_camera.w;
-        let mut ray_start_world = inv_view * ray_start_camera;
-        ray_start_world /= ray_start_world.w;
-
-        let mut ray_end_camera = inv_proj * ray_end;
-        ray_end_camera /= ray_end_camera.w;
-        let mut ray_end_world = inv_view * ray_end_camera;
-        ray_end_world /= ray_end_world.w;
+        let (ray_start_world, ray_end_world) = data
+            .camera
+            .convert_in_3d([normalized_x, normalized_y].into());
 
         let ray_dir_world = ray_end_world - ray_start_world;
         let ray_dir_world = ray_dir_world.normalize();
@@ -276,13 +343,17 @@ impl View3D {
             let mut mesh_data = MeshData::default();
             let mut min = [-5., -5., -5.].into();
             let mut max = [5., 5., 5.].into();
+            let mut matrix = Matrix4::default_identity();
             let objects = SharedData::get_resources_of_type::<Object>(&data.shared_data);
             for obj in objects {
+                if let Some(transform) = obj.resource().get().get_component::<Transform>() {
+                    matrix = transform.resource().get().matrix();
+                }
                 if let Some(hitbox) = obj.resource().get().get_component::<Hitbox>() {
                     min = hitbox.resource().get().min();
                     max = hitbox.resource().get().max();
                 } else if let Some(mesh) = obj.resource().get().get_component::<MeshInstance>() {
-                    let transform = mesh.resource().get().transform();
+                    let transform = mesh.resource().get().matrix();
                     let (mesh_min, mesh_max) = mesh.resource().get().mesh_data().compute_min_max();
                     min = transform.transform(mesh_min);
                     max = transform.transform(mesh_max);
@@ -292,7 +363,7 @@ impl View3D {
                     ray_dir_world.xyz(),
                     min,
                     max,
-                    Matrix4::default_identity(),
+                    matrix,
                 ) {
                     selected_object = obj.id();
 

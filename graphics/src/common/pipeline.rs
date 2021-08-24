@@ -170,7 +170,7 @@ impl Pipeline {
             mesh_data_ref,
         };
         let (position, rotation, scale) =
-            mesh_instance.transform().get_translation_rotation_scale();
+            mesh_instance.matrix().get_translation_rotation_scale();
 
         let data = InstanceData {
             position,

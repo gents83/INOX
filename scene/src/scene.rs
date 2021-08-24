@@ -73,7 +73,7 @@ impl Scene {
                 Matrix4::default_identity(),
                 |object, object_matrix| {
                     if let Some(mesh) = object.get_component::<MeshInstance>() {
-                        mesh.resource().get_mut().set_transform(object_matrix);
+                        mesh.resource().get_mut().set_matrix(object_matrix);
                     }
                 },
             );

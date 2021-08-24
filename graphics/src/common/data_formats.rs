@@ -240,7 +240,7 @@ implement_file_data!(
     struct MeshData {
         vertices: Vec<VertexData>,
         indices: Vec<u32>,
-        transform: Matrix4,
+        matrix: Matrix4,
     }
 );
 
@@ -250,7 +250,7 @@ impl Default for MeshData {
             path: PathBuf::new(),
             vertices: Vec::new(),
             indices: Vec::new(),
-            transform: Matrix4::default_identity(),
+            matrix: Matrix4::default_identity(),
         }
     }
 }

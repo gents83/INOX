@@ -22,9 +22,9 @@ macro_rules! implement_matrix_base {
 
 pub trait Mat4Ops {
     fn inverse(&self) -> Self;
-    fn get_translation(&self) -> Vector3;
-    fn get_scale(&self) -> Vector3;
-    fn get_rotation(&self) -> Vector3;
+    fn translation(&self) -> Vector3;
+    fn scale(&self) -> Vector3;
+    fn rotation(&self) -> Vector3;
     fn get_translation_rotation_scale(&self) -> (Vector3, Vector3, Vector3);
     fn from_translation_rotation_scale(
         &mut self,
@@ -44,11 +44,11 @@ macro_rules! implement_matrix4_operations {
                 self.inverse_transform().unwrap()
             }
             #[inline]
-            fn get_translation(&self) -> Vector3 {
+            fn translation(&self) -> Vector3 {
                 [self.w[0], self.w[1], self.w[2]].into()
             }
             #[inline]
-            fn get_scale(&self) -> Vector3 {
+            fn scale(&self) -> Vector3 {
                 //Extract scale
                 let mut scale: Vector3 = [1., 1., 1.].into();
                 let mut x_axis: Vector3 = [self.x[0], self.x[1], self.x[2]].into();
@@ -78,7 +78,7 @@ macro_rules! implement_matrix4_operations {
             }
 
             #[inline]
-            fn get_rotation(&self) -> Vector3 {
+            fn rotation(&self) -> Vector3 {
                 //Extract scale
                 let mut scale: Vector3 = [1., 1., 1.].into();
                 let mut x_axis: Vector3 = [self.x[0], self.x[1], self.x[2]].into();
