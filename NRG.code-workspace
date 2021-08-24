@@ -2,9 +2,11 @@
 	"folders": [
 		{
 			"path": "."
-		},
-		{
-			"path": "../egui"
 		}
-	]
+	],
+	"extensions": {
+		"recommendations": [
+			"matklad.rust-analyzer"
+		]
+	}
 }

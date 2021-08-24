@@ -17,6 +17,8 @@ use nrg_ui::{
     UIWidget, UIWidgetRc, Widget,
 };
 
+use crate::tools::{Gizmo, GizmoRc, GizmoType};
+
 const VIEW3D_IMAGE_WIDTH: u32 = 1280;
 const VIEW3D_IMAGE_HEIGHT: u32 = 768;
 
@@ -37,6 +39,7 @@ struct View3DData {
     mesh_instance: MeshRc,
     view_width: u32,
     view_height: u32,
+    gizmo: GizmoRc,
 }
 implement_widget_data!(View3DData);
 
@@ -78,6 +81,7 @@ impl View3D {
             view_width: VIEW3D_IMAGE_WIDTH,
             view_height: VIEW3D_IMAGE_HEIGHT,
             should_manage_input: false,
+            gizmo: Gizmo::new(shared_data, [0., 0., 0.].into(), GizmoType::Translation),
         };
         let ui_page = Self::create(shared_data, data);
         Self {

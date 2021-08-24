@@ -1,6 +1,6 @@
 use std::f32::consts::PI;
 
-use nrg_math::Vector3;
+use nrg_math::{Mat4Ops, MatBase, Matrix4, VecBase, Vector3, Vector4};
 
 use crate::VertexData;
 
@@ -223,4 +223,45 @@ pub fn create_sphere(radius: f32, num_slices: u32, num_stack: u32) -> (Vec<Verte
     }
 
     (vertices, indices)
+}
+
+pub fn create_arrow(
+    position: Vector3,
+    direction: Vector3,
+    color: Vector4,
+) -> (Vec<VertexData>, Vec<u32>) {
+    let mut shape_vertices = Vec::new();
+    let mut shape_indices = Vec::new();
+
+    let height = direction.length();
+
+    let (mut vertices, mut indices) = create_cylinder(0.25, 0.25, 16, height, 1);
+    vertices.iter_mut().for_each(|v| {
+        v.pos.z += height * 0.5;
+        v.color = color;
+    });
+    indices
+        .iter_mut()
+        .for_each(|i| *i += shape_vertices.len() as u32);
+    shape_vertices.append(&mut vertices);
+    shape_indices.append(&mut indices);
+
+    let (mut vertices, mut indices) = create_cylinder(0.5, 0., 16, 2.5, 1);
+    vertices.iter_mut().for_each(|v| {
+        v.pos.z += height;
+        v.color = color;
+    });
+    indices
+        .iter_mut()
+        .for_each(|i| *i += shape_vertices.len() as u32);
+    shape_vertices.append(&mut vertices);
+    shape_indices.append(&mut indices);
+
+    let mut matrix = Matrix4::default_identity();
+    matrix.from_direction(direction);
+    shape_vertices.iter_mut().for_each(|v| {
+        v.pos = position + matrix.transform(v.pos);
+    });
+
+    (shape_vertices, shape_indices)
 }

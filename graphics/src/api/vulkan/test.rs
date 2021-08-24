@@ -19,6 +19,7 @@ fn test_chunks() {
         100,
         1024,
         768,
+        PathBuf::from("").as_path(),
         MessengerRw::default(),
     );
 

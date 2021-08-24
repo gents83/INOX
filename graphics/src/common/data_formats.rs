@@ -321,10 +321,14 @@ impl MeshData {
 
         self.vertices.append(&mut vertices.to_vec());
         self.indices.append(&mut indices.to_vec());
-        self.compute_center();
 
         let last_vertex = self.vertices.len() as u32 - 1;
         let last_index = self.indices.len() as u32 - 1;
+
+        self.indices[first_index as usize..(last_index + 1) as usize]
+            .iter_mut()
+            .for_each(|i| *i += first_vertex);
+        self.compute_center();
 
         MeshDataRef {
             first_vertex,

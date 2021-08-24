@@ -1,4 +1,6 @@
+use crate::angle::NewAngle;
 use crate::vector::Vector3;
+use crate::Degrees;
 use cgmath::*;
 
 pub type Matrix3 = cgmath::Matrix3<f32>;
@@ -30,6 +32,7 @@ pub trait Mat4Ops {
         rotation_in_rad: Vector3,
         scale: Vector3,
     );
+    fn from_direction(&mut self, direction: Vector3);
     fn transform(&self, vec: Vector3) -> Vector3;
 }
 
@@ -170,8 +173,23 @@ macro_rules! implement_matrix4_operations {
 
             #[inline]
             fn transform(&self, vec: Vector3) -> Vector3 {
-                let p: cgmath::Point3<f32> = self.transform_point([vec.x, vec.y, vec.x].into());
-                [p.x, p.y, p.z].into()
+                self.transform_vector(vec)
+            }
+
+            #[inline]
+            fn from_direction(&mut self, direction: Vector3) {
+                let forward = direction.normalize();
+                let mut up = Vector3::new(0., 1., 0.);
+                if forward.dot(up) >= 1. - f32::EPSILON && forward.dot(up) <= 1. + f32::EPSILON {
+                    up = Matrix4::from_angle_x(Degrees::new(90.)).transform(forward);
+                };
+                let right: Vector3 = forward.cross(up).normalize();
+                up = right.cross(forward).normalize();
+
+                *self = Matrix4::new(
+                    right.x, up.x, forward.x, 0., right.y, up.y, forward.y, 0., right.z, up.z,
+                    forward.z, 0., 0., 0., 0., 1.,
+                );
             }
         }
     };
