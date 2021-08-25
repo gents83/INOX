@@ -28,9 +28,9 @@ pub struct Gizmo {
     mesh_y: MeshRc,
     mesh_z: MeshRc,
     axis: Vector3,
+    is_active: bool,
     shared_data: SharedDataRw,
     message_channel: MessageChannel,
-    global_messenger: MessengerRw,
 }
 
 impl ResourceData for Gizmo {
@@ -61,7 +61,7 @@ impl Gizmo {
             axis: Vector3::zero(),
             shared_data: shared_data.clone(),
             message_channel,
-            global_messenger,
+            is_active: false,
             mesh_center: Self::create_center_mesh(shared_data, position),
             mesh_x: Self::create_arrow(
                 shared_data,
@@ -231,15 +231,16 @@ impl Gizmo {
         let new_position =
             new_cam_start + (new_cam_end - new_cam_start).normalize() * new_dir.length();
         if is_drag_started {
-            return self.start_drag(new_cam_start, (new_cam_end - new_cam_start).normalize());
+            self.is_active =
+                self.start_drag(new_cam_start, (new_cam_end - new_cam_start).normalize());
         } else if is_drag_ended {
             self.end_drag();
-            return false;
-        } else {
+            self.is_active = false;
+        } else if self.is_active {
             self.drag(old_position, new_position);
+            self.move_object(&self.shared_data, selected_object);
         }
-        self.move_object(&self.shared_data, selected_object);
-        true
+        self.is_active
     }
 
     pub fn update_events(&mut self) {

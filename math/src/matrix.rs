@@ -173,7 +173,8 @@ macro_rules! implement_matrix4_operations {
 
             #[inline]
             fn transform(&self, vec: Vector3) -> Vector3 {
-                self.transform_vector(vec)
+                let point = self.transform_point([vec.x, vec.y, vec.z].into());
+                [point.x, point.y, point.z].into()
             }
 
             #[inline]

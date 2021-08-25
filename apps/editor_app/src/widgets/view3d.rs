@@ -1,7 +1,6 @@
 use nrg_camera::Camera;
 use nrg_graphics::{
-    shapes3d::create_cube_from_min_max, DynamicImage, MaterialInstance, MeshData, MeshInstance,
-    MeshRc, PipelineInstance, RenderPassInstance, TextureInstance, TextureRc, ViewInstance,
+    DynamicImage, MeshInstance, RenderPassInstance, TextureInstance, TextureRc, ViewInstance,
 };
 use nrg_math::{
     compute_distance_between_ray_and_oob, InnerSpace, Mat4Ops, MatBase, Matrix4, Vector2, Vector3,
@@ -17,7 +16,10 @@ use nrg_ui::{
     UIWidget, UIWidgetRc, Widget,
 };
 
-use crate::tools::{Gizmo, GizmoRc};
+use crate::{
+    systems::BoundingBoxDrawer,
+    tools::{Gizmo, GizmoRc},
+};
 
 const VIEW3D_IMAGE_WIDTH: u32 = 1280;
 const VIEW3D_IMAGE_HEIGHT: u32 = 768;
@@ -36,7 +38,6 @@ struct View3DData {
     should_manage_input: bool,
     last_mouse_pos: Vector2,
     selected_object: ObjectId,
-    mesh_instance: MeshRc,
     view_width: u32,
     view_height: u32,
     gizmo: GizmoRc,
@@ -46,6 +47,7 @@ implement_widget_data!(View3DData);
 pub struct View3D {
     ui_page: UIWidgetRc,
     shared_data: SharedDataRw,
+    bounding_box_drawer: BoundingBoxDrawer,
 }
 
 unsafe impl Send for View3D {}
@@ -64,12 +66,6 @@ impl View3D {
             1000.,
         );
 
-        let mesh_instance = MeshInstance::create_from_data(shared_data, MeshData::default());
-        if let Some(pipeline) = PipelineInstance::find_from_name(shared_data, "Wireframe") {
-            let material = MaterialInstance::create_from_pipeline(shared_data, pipeline);
-            mesh_instance.resource().get_mut().set_material(material);
-        }
-
         let move_gizmo =
             Gizmo::new_translation(shared_data, global_messenger.clone(), [0., 0., 0.].into());
 
@@ -80,7 +76,6 @@ impl View3D {
             camera,
             last_mouse_pos: Vector2::zero(),
             selected_object: INVALID_UID,
-            mesh_instance,
             view_width: VIEW3D_IMAGE_WIDTH,
             view_height: VIEW3D_IMAGE_HEIGHT,
             should_manage_input: false,
@@ -90,12 +85,18 @@ impl View3D {
         let ui_page = Self::create(shared_data, data);
         Self {
             ui_page,
+            bounding_box_drawer: BoundingBoxDrawer::new(
+                shared_data,
+                global_messenger.clone(),
+                "Wireframe",
+            ),
             shared_data: shared_data.clone(),
         }
     }
 
     pub fn update(&mut self) -> &mut Self {
         self.update_camera().update_gizmo();
+        self.bounding_box_drawer.update();
         self
     }
 
@@ -299,7 +300,6 @@ impl View3D {
         let ray_dir_world = ray_dir_world.normalize();
 
         if SharedData::has_resources_of_type::<Object>(&data.shared_data) {
-            let mut mesh_data = MeshData::default();
             let mut min = [-5., -5., -5.].into();
             let mut max = [5., 5., 5.].into();
             let mut matrix = Matrix4::default_identity();
@@ -325,15 +325,8 @@ impl View3D {
                     matrix,
                 ) {
                     selected_object = obj.id();
-
-                    let (vertices, indices) = create_cube_from_min_max(min, max);
-                    mesh_data.append_mesh(&vertices, &indices);
                 }
             }
-            data.mesh_instance
-                .resource()
-                .get_mut()
-                .set_mesh_data(mesh_data);
         }
         selected_object
     }
