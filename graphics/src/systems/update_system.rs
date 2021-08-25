@@ -28,12 +28,20 @@ impl UpdateSystem {
             .unwrap()
             .register_messagebox::<ResourceEvent>(message_channel.get_messagebox());
 
+        crate::register_resource_types(shared_data);
+
         Self {
             id: SystemId::new(),
             renderer,
             shared_data: shared_data.clone(),
             message_channel,
         }
+    }
+}
+
+impl Drop for UpdateSystem {
+    fn drop(&mut self) {
+        crate::unregister_resource_types(&self.shared_data);
     }
 }
 

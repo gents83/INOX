@@ -47,6 +47,9 @@ impl UISystem {
         job_handler: JobHandlerRw,
     ) -> Self {
         let message_channel = MessageChannel::default();
+
+        crate::register_resource_types(&shared_data);
+
         Self {
             id: SystemId::new(),
             shared_data,
@@ -276,6 +279,12 @@ impl UISystem {
         }
 
         self
+    }
+}
+
+impl Drop for UISystem {
+    fn drop(&mut self) {
+        crate::unregister_resource_types(&self.shared_data);
     }
 }
 

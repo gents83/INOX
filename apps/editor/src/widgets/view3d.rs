@@ -16,8 +16,8 @@ use nrg_ui::{
 };
 
 use crate::{
+    resources::{Gizmo, GizmoRc},
     systems::{BoundingBoxDrawer, DebugDrawer},
-    tools::{Gizmo, GizmoRc},
 };
 
 const VIEW3D_IMAGE_WIDTH: u32 = 1280;

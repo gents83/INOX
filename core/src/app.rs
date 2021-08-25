@@ -45,7 +45,7 @@ impl Drop for App {
         self.scheduler.uninit();
 
         let plugins_to_remove = self.plugin_manager.release();
-        self.update_plugins(plugins_to_remove, false);
+        self.update_plugins(plugins_to_remove);
     }
 }
 
@@ -84,16 +84,22 @@ impl App {
         }
     }
 
-    fn update_plugins(&mut self, plugins_to_remove: Vec<PluginId>, reload: bool) {
+    fn update_plugins(&mut self, plugins_to_remove: Vec<PluginId>) -> Vec<PathBuf> {
+        let mut plugins_to_reload = Vec::new();
         for id in plugins_to_remove.iter() {
             if let Some(plugin_data) = self.plugin_manager.remove_plugin(id) {
                 let lib_path = plugin_data.original_path.clone();
                 PluginManager::clear_plugin_data(plugin_data, self);
-                if reload {
-                    let reloaded_plugin_data = PluginManager::create_plugin_data(lib_path, self);
-                    self.plugin_manager.add_plugin(reloaded_plugin_data);
-                }
+                plugins_to_reload.push(lib_path);
             }
+        }
+        plugins_to_reload
+    }
+
+    fn reload_plugins(&mut self, plugins_to_reload: Vec<PathBuf>) {
+        for lib_path in plugins_to_reload.into_iter() {
+            let reloaded_plugin_data = PluginManager::create_plugin_data(lib_path, self);
+            self.plugin_manager.add_plugin(reloaded_plugin_data);
         }
     }
 
@@ -147,16 +153,19 @@ impl App {
             .scheduler
             .run_once(self.is_enabled, self.get_job_handler());
 
-        if !self.is_enabled {
-            let plugins_to_remove = self.plugin_manager.update();
-            self.update_plugins(plugins_to_remove, true);
-        } else {
-            self.job_handler.read().unwrap().clear_pending_jobs();
-        }
-
         self.update_events();
 
-        self.shared_data.write().unwrap().flush_resources();
+        if self.is_enabled {
+            self.job_handler.read().unwrap().clear_pending_jobs();
+        } else {
+            let plugins_to_remove = self.plugin_manager.update();
+            let plugins_to_reload = self.update_plugins(plugins_to_remove);
+            if !plugins_to_reload.is_empty() {
+                self.shared_data.write().unwrap().flush_resources(true);
+            }
+            self.reload_plugins(plugins_to_reload);
+        }
+        self.shared_data.write().unwrap().flush_resources(false);
 
         can_continue
     }

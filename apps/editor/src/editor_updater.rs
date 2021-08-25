@@ -43,6 +43,9 @@ impl EditorUpdater {
     pub fn new(shared_data: SharedDataRw, global_messenger: MessengerRw, config: &Config) -> Self {
         let message_channel = MessageChannel::default();
 
+        nrg_scene::register_resource_types(&shared_data);
+        crate::resources::register_resource_types(&shared_data);
+
         Self {
             id: SystemId::new(),
             pipelines: Vec::new(),
@@ -105,6 +108,13 @@ impl EditorUpdater {
         ui_registry.register::<Transform>();
         ui_registry.register::<Hitbox>();
         ui_registry
+    }
+}
+
+impl Drop for EditorUpdater {
+    fn drop(&mut self) {
+        crate::resources::unregister_resource_types(&self.shared_data);
+        nrg_scene::unregister_resource_types(&self.shared_data);
     }
 }
 
