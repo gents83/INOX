@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{env, path::PathBuf};
 
 use nrg_binarizer::Binarizer;
 use nrg_core::App;
@@ -17,7 +17,12 @@ fn main() {
     launcher.prepare(&mut app);
 
     //additional plugins
-    plugins.push("nrg_editor");
+    let args: Vec<String> = env::args().collect();
+    if args.len() > 1 {
+        (1..args.len()).for_each(|i| {
+            plugins.push(args[i].as_str());
+        });
+    }
 
     for name in plugins.iter() {
         let path = PathBuf::from(library_filename(*name));

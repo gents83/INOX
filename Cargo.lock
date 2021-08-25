@@ -764,22 +764,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nrg_content_browser"
-version = "0.1.0"
-dependencies = [
- "nrg_core",
- "nrg_events",
- "nrg_filesystem",
- "nrg_graphics",
- "nrg_math",
- "nrg_messenger",
- "nrg_platform",
- "nrg_resources",
- "nrg_serialize",
- "nrg_ui",
-]
-
-[[package]]
 name = "nrg_core"
 version = "0.1.0"
 dependencies = [
@@ -927,24 +911,6 @@ dependencies = [
  "serde_json 1.0.64 (git+https://github.com/serde-rs/json)",
  "typetag",
  "uuid",
-]
-
-[[package]]
-name = "nrg_test"
-version = "0.1.0"
-dependencies = [
- "nrg_binarizer",
- "nrg_core",
- "nrg_events",
- "nrg_filesystem",
- "nrg_graphics",
- "nrg_math",
- "nrg_messenger",
- "nrg_platform",
- "nrg_resources",
- "nrg_scene",
- "nrg_serialize",
- "nrg_ui",
 ]
 
 [[package]]

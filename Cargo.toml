@@ -2,9 +2,7 @@
 
 members = [
     "apps/launcher_app",
-    "apps/content_browser",
-    "apps/editor_app",
-    "apps/test_app",
+    "apps/editor",
     "bindings/vulkan_bindings",
     "binarizer",
     "camera",
