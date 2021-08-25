@@ -121,7 +121,6 @@ impl Camera {
         let proj = self.get_proj_matrix();
 
         // The ray Start and End positions, in Normalized Device Coordinates (Have you read Tutorial 4 ?)
-        let ray_start = Vector4::new(0., 0., 0., 1.);
         let ray_end = Vector4::new(
             normalized_pos.x * 2. - 1.,
             normalized_pos.y * 2. - 1.,
@@ -132,10 +131,7 @@ impl Camera {
         let inv_proj = proj.invert().unwrap();
         let inv_view = view.invert().unwrap();
 
-        let mut ray_start_camera = inv_proj * ray_start;
-        ray_start_camera /= ray_start_camera.w;
-        let mut ray_start_world = inv_view * ray_start_camera;
-        ray_start_world /= ray_start_world.w;
+        let ray_start_world = self.position;
 
         let mut ray_end_camera = inv_proj * ray_end;
         ray_end_camera /= ray_end_camera.w;

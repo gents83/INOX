@@ -1,6 +1,6 @@
 use std::f32::consts::PI;
 
-use nrg_math::{Mat4Ops, MatBase, Matrix4, VecBase, Vector3, Vector4};
+use nrg_math::{InnerSpace, Mat4Ops, MatBase, Matrix4, VecBase, Vector3, Vector4};
 
 use crate::VertexData;
 
@@ -264,4 +264,26 @@ pub fn create_arrow(
     });
 
     (shape_vertices, shape_indices)
+}
+
+pub fn create_line(start: Vector3, end: Vector3, color: Vector4) -> ([VertexData; 3], [u32; 3]) {
+    let direction = (end - start).normalize();
+    let mut vertices = [VertexData::default(); 3];
+    vertices[0].pos = [start.x, start.y, start.z].into();
+    vertices[1].pos = [start.x, start.y, start.z].into();
+    vertices[2].pos = [end.x, end.y, end.z].into();
+
+    vertices[0].normal = -direction;
+    vertices[1].normal = -direction;
+    vertices[2].normal = direction;
+
+    vertices[2].tex_coord = [1., 1.].into();
+
+    vertices[0].color = color;
+    vertices[1].color = color;
+    vertices[2].color = color;
+
+    let indices = [0, 1, 2];
+
+    (vertices, indices)
 }

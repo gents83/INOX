@@ -3,8 +3,7 @@ use nrg_graphics::{
     DynamicImage, MeshInstance, RenderPassInstance, TextureInstance, TextureRc, ViewInstance,
 };
 use nrg_math::{
-    compute_distance_between_ray_and_oob, InnerSpace, Mat4Ops, MatBase, Matrix4, Vector2, Vector3,
-    Zero,
+    compute_distance_between_ray_and_oob, InnerSpace, MatBase, Matrix4, Vector2, Vector3, Zero,
 };
 use nrg_messenger::{implement_message, Message, MessageBox, MessengerRw};
 use nrg_platform::{Key, KeyEvent};
@@ -17,7 +16,7 @@ use nrg_ui::{
 };
 
 use crate::{
-    systems::BoundingBoxDrawer,
+    systems::{BoundingBoxDrawer, DebugDrawer},
     tools::{Gizmo, GizmoRc},
 };
 
@@ -47,6 +46,7 @@ implement_widget_data!(View3DData);
 pub struct View3D {
     ui_page: UIWidgetRc,
     shared_data: SharedDataRw,
+    debug_drawer: DebugDrawer,
     bounding_box_drawer: BoundingBoxDrawer,
 }
 
@@ -57,7 +57,7 @@ impl View3D {
     pub fn new(shared_data: &SharedDataRw, global_messenger: &MessengerRw) -> Self {
         let texture = Self::update_texture(shared_data, VIEW3D_IMAGE_WIDTH, VIEW3D_IMAGE_HEIGHT);
 
-        let mut camera = Camera::new([20., 20., -20.].into(), [0., 0., 0.].into(), true);
+        let mut camera = Camera::new([10., 10., -10.].into(), [0., 0., 0.].into(), true);
         camera.set_projection(
             45.,
             VIEW3D_IMAGE_WIDTH as _,
@@ -85,11 +85,8 @@ impl View3D {
         let ui_page = Self::create(shared_data, data);
         Self {
             ui_page,
-            bounding_box_drawer: BoundingBoxDrawer::new(
-                shared_data,
-                global_messenger.clone(),
-                "Wireframe",
-            ),
+            debug_drawer: DebugDrawer::new(shared_data, global_messenger, "3D", "Wireframe"),
+            bounding_box_drawer: BoundingBoxDrawer::new(shared_data, global_messenger, "Wireframe"),
             shared_data: shared_data.clone(),
         }
     }
@@ -97,6 +94,8 @@ impl View3D {
     pub fn update(&mut self) -> &mut Self {
         self.update_camera().update_gizmo();
         self.bounding_box_drawer.update();
+        self.debug_drawer.update();
+
         self
     }
 
@@ -312,10 +311,9 @@ impl View3D {
                     min = hitbox.resource().get().min();
                     max = hitbox.resource().get().max();
                 } else if let Some(mesh) = obj.resource().get().get_component::<MeshInstance>() {
-                    let transform = mesh.resource().get().matrix();
                     let (mesh_min, mesh_max) = mesh.resource().get().mesh_data().compute_min_max();
-                    min = transform.transform(mesh_min);
-                    max = transform.transform(mesh_max);
+                    min = mesh_min;
+                    max = mesh_max;
                 }
                 if compute_distance_between_ray_and_oob(
                     ray_start_world.xyz(),

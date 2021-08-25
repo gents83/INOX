@@ -20,7 +20,7 @@ pub struct BoundingBoxDrawer {
 impl BoundingBoxDrawer {
     pub fn new(
         shared_data: &SharedDataRw,
-        global_messenger: MessengerRw,
+        global_messenger: &MessengerRw,
         wireframe_pipeline_name: &str,
     ) -> Self {
         let mesh_instance = MeshInstance::create_from_data(shared_data, MeshData::default());

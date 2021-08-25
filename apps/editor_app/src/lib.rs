@@ -4,6 +4,6 @@ mod config;
 pub mod editor;
 
 mod editor_updater;
-mod systems;
+pub mod systems;
 mod tools;
 mod widgets;
