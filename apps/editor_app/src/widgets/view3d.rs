@@ -4,8 +4,8 @@ use nrg_graphics::{
     MeshRc, PipelineInstance, RenderPassInstance, TextureInstance, TextureRc, ViewInstance,
 };
 use nrg_math::{
-    compute_distance_between_ray_and_oob, InnerSpace, Mat4Ops, MatBase, Matrix4, VecBase, Vector2,
-    Vector3, Zero,
+    compute_distance_between_ray_and_oob, InnerSpace, Mat4Ops, MatBase, Matrix4, Vector2, Vector3,
+    Zero,
 };
 use nrg_messenger::{implement_message, Message, MessageBox, MessengerRw};
 use nrg_platform::{Key, KeyEvent};
@@ -40,7 +40,6 @@ struct View3DData {
     view_width: u32,
     view_height: u32,
     gizmo: GizmoRc,
-    is_manipulating_gizmo: bool,
 }
 implement_widget_data!(View3DData);
 
@@ -71,6 +70,9 @@ impl View3D {
             mesh_instance.resource().get_mut().set_material(material);
         }
 
+        let move_gizmo =
+            Gizmo::new_translation(shared_data, global_messenger.clone(), [0., 0., 0.].into());
+
         let data = View3DData {
             shared_data: shared_data.clone(),
             global_dispatcher: global_messenger.read().unwrap().get_dispatcher().clone(),
@@ -82,8 +84,7 @@ impl View3D {
             view_width: VIEW3D_IMAGE_WIDTH,
             view_height: VIEW3D_IMAGE_HEIGHT,
             should_manage_input: false,
-            gizmo: Gizmo::new_translation(shared_data, [0., 0., 0.].into()),
-            is_manipulating_gizmo: false,
+            gizmo: move_gizmo,
         };
         data.gizmo.resource().get_mut().set_visible(false);
         let ui_page = Self::create(shared_data, data);
@@ -94,7 +95,14 @@ impl View3D {
     }
 
     pub fn update(&mut self) -> &mut Self {
-        self.update_camera();
+        self.update_camera().update_gizmo();
+        self
+    }
+
+    fn update_gizmo(&mut self) -> &mut Self {
+        if let Some(data) = self.ui_page.resource().get_mut().data_mut::<View3DData>() {
+            data.gizmo.resource().get_mut().update_events();
+        }
         self
     }
     pub fn handle_keyboard_event(&mut self, event: &KeyEvent) {
@@ -113,10 +121,84 @@ impl View3D {
             } else if event.code == Key::E {
                 movement.y -= 1.;
             }
-            if data.should_manage_input && !data.is_manipulating_gizmo {
+            if data.should_manage_input {
                 data.camera.translate(movement);
             }
         }
+    }
+
+    fn resize_view(
+        data: &mut View3DData,
+        view_width: u32,
+        view_height: u32,
+        is_using_pointer: bool,
+    ) -> usize {
+        let mut texture_index = 0;
+        let texture_id = data.texture.id();
+        let textures = SharedData::get_resources_of_type::<TextureInstance>(&data.shared_data);
+        if let Some(index) = textures.iter().position(|t| t.id() == texture_id) {
+            texture_index = index;
+        }
+        let texture_width = data.texture.resource().get().width();
+        let texture_height = data.texture.resource().get().height();
+        if !is_using_pointer
+            && data.view_width == view_width
+            && data.view_height == view_height
+            && (texture_width != data.view_width || texture_height != data.view_height)
+        {
+            data.texture =
+                Self::update_texture(&data.shared_data, data.view_width, data.view_height);
+            data.camera.set_projection(
+                45.,
+                data.view_width as _,
+                data.view_height as _,
+                0.001,
+                1000.,
+            );
+        }
+        data.view_width = view_width;
+        data.view_height = view_height;
+        texture_index
+    }
+
+    fn manage_input(
+        data: &mut View3DData,
+        normalized_pos: Vector2,
+        is_clicked: bool,
+        is_drag_started: bool,
+        is_drag_ended: bool,
+    ) {
+        if data.last_mouse_pos.x < 0. || data.last_mouse_pos.y < 0. {
+            data.last_mouse_pos = normalized_pos;
+        }
+
+        if is_clicked {
+            data.selected_object =
+                Self::update_selected_object(data, normalized_pos.x, normalized_pos.y);
+
+            data.global_dispatcher
+                .write()
+                .unwrap()
+                .send(ViewEvent::Selected(data.selected_object).as_boxed())
+                .ok();
+        } else {
+            let is_manipulating_gizmo = data.gizmo.resource().get_mut().update(
+                &data.camera,
+                data.last_mouse_pos,
+                normalized_pos,
+                is_drag_started,
+                is_drag_ended,
+                data.selected_object,
+            );
+            if !is_manipulating_gizmo {
+                let mut rotation_angle = Vector3::zero();
+
+                rotation_angle.x = normalized_pos.y - data.last_mouse_pos.y;
+                rotation_angle.y = data.last_mouse_pos.x - normalized_pos.x;
+                data.camera.rotate(rotation_angle * 5.);
+            }
+        }
+        data.last_mouse_pos = normalized_pos;
     }
 
     fn create(shared_data: &SharedDataRw, data: View3DData) -> UIWidgetRc {
@@ -125,41 +207,15 @@ impl View3D {
                 CentralPanel::default()
                     .frame(Frame::dark_canvas(ui_context.style().as_ref()))
                     .show(ui_context, |ui| {
-                        let mut texture_index = 0;
+                        data.should_manage_input = !ui.ctx().wants_keyboard_input();
+                        let is_using_pointer =
+                            ui.ctx().is_using_pointer() || ui.ctx().wants_pointer_input();
+
                         let view_width = ui.max_rect_finite().width() as u32;
                         let view_height = ui.max_rect_finite().height() as u32;
-                        data.should_manage_input = !ui.ctx().wants_keyboard_input();
+                        let texture_index =
+                            Self::resize_view(data, view_width, view_height, is_using_pointer);
 
-                        let texture_id = data.texture.id();
-                        let textures =
-                            SharedData::get_resources_of_type::<TextureInstance>(&data.shared_data);
-                        if let Some(index) = textures.iter().position(|t| t.id() == texture_id) {
-                            texture_index = index;
-                        }
-                        let texture_width = data.texture.resource().get().width();
-                        let texture_height = data.texture.resource().get().height();
-                        if !ui.ctx().is_using_pointer()
-                            && !ui.ctx().wants_pointer_input()
-                            && data.view_width == view_width
-                            && data.view_height == view_height
-                            && (texture_width != data.view_width
-                                || texture_height != data.view_height)
-                        {
-                            data.texture = Self::update_texture(
-                                &data.shared_data,
-                                data.view_width,
-                                data.view_height,
-                            );
-                            data.camera.set_projection(
-                                45.,
-                                data.view_width as _,
-                                data.view_height as _,
-                                0.001,
-                                1000.,
-                            );
-                        }
-                        data.view_width = view_width;
-                        data.view_height = view_height;
                         ui.with_layer_id(LayerId::background(), |ui| {
                             let response = Image::new(
                                 eguiTextureId::User(texture_index as _),
@@ -171,81 +227,14 @@ impl View3D {
                                 let rect = response.rect;
                                 let normalized_x = (pos.x - rect.min.x) / rect.width();
                                 let normalized_y = (pos.y - rect.min.y) / rect.height();
-
-                                if data.last_mouse_pos.x < 0. || data.last_mouse_pos.y < 0. {
-                                    data.last_mouse_pos = [normalized_x, normalized_y].into();
-                                }
-
                                 let new_pos = [normalized_x, normalized_y].into();
-                                Self::update_gizmo(
+                                Self::manage_input(
                                     data,
                                     new_pos,
+                                    response.clicked(),
                                     response.drag_started(),
                                     response.drag_released(),
                                 );
-
-                                if !data.is_manipulating_gizmo {
-                                    let mut rotation_angle = Vector3::zero();
-
-                                    rotation_angle.x = normalized_y - data.last_mouse_pos.y;
-                                    rotation_angle.y = data.last_mouse_pos.x - normalized_x;
-                                    data.camera.rotate(rotation_angle * 5.);
-                                } else if !data.selected_object.is_nil() {
-                                    let object = SharedData::get_resource::<Object>(
-                                        &data.shared_data,
-                                        data.selected_object,
-                                    );
-                                    if let Some(transform) =
-                                        object.resource().get().get_component::<Transform>()
-                                    {
-                                        let mut matrix = transform.resource().get().matrix();
-                                        matrix.from_translation_rotation_scale(
-                                            data.gizmo.resource().get().position(),
-                                            matrix.rotation(),
-                                            matrix.scale(),
-                                        );
-                                        transform.resource().get_mut().set_matrix(matrix);
-                                        if data.mesh_instance.is_valid() {
-                                            data.mesh_instance
-                                                .resource()
-                                                .get_mut()
-                                                .set_matrix(matrix);
-                                        }
-                                    }
-                                }
-
-                                data.last_mouse_pos = new_pos;
-
-                                if response.clicked() {
-                                    data.selected_object = Self::update_selected_object(
-                                        data,
-                                        normalized_x,
-                                        normalized_y,
-                                    );
-
-                                    if data.selected_object.is_nil() {
-                                        data.gizmo.resource().get_mut().set_visible(false);
-                                    } else {
-                                        let object = SharedData::get_resource::<Object>(
-                                            &data.shared_data,
-                                            data.selected_object,
-                                        );
-                                        if let Some(transform) =
-                                            object.resource().get().get_component::<Transform>()
-                                        {
-                                            data.gizmo.resource().get_mut().set_position(
-                                                transform.resource().get().matrix().translation(),
-                                            );
-                                        }
-                                        data.gizmo.resource().get_mut().set_visible(true);
-                                    }
-
-                                    data.global_dispatcher
-                                        .write()
-                                        .unwrap()
-                                        .send(ViewEvent::Selected(data.selected_object).as_boxed())
-                                        .ok();
-                                }
                             } else {
                                 data.last_mouse_pos = [-1., -1.].into();
                             }
@@ -254,36 +243,6 @@ impl View3D {
                     });
             }
         })
-    }
-
-    fn update_gizmo(data: &mut View3DData, new_pos: Vector2, started: bool, ended: bool) {
-        if !data.gizmo.resource().get().is_visible() {
-            return;
-        }
-        let pos = data.gizmo.resource().get().position();
-        let (old_cam_start, old_cam_end) = data.camera.convert_in_3d(data.last_mouse_pos);
-        let (new_cam_start, new_cam_end) = data.camera.convert_in_3d(new_pos);
-        let old_dir = pos - old_cam_start;
-        let new_dir = pos - new_cam_start;
-        let old_position =
-            old_cam_start + (old_cam_end - old_cam_start).normalize() * old_dir.length();
-        let new_position =
-            new_cam_start + (new_cam_end - new_cam_start).normalize() * new_dir.length();
-        if started {
-            data.is_manipulating_gizmo = data
-                .gizmo
-                .resource()
-                .get_mut()
-                .start_drag(new_cam_start, (new_cam_end - new_cam_start).normalize());
-        } else if ended {
-            data.gizmo.resource().get_mut().end_drag();
-            data.is_manipulating_gizmo = false;
-        } else {
-            data.gizmo
-                .resource()
-                .get_mut()
-                .drag(old_position, new_position);
-        }
     }
 
     fn update_camera(&mut self) -> &mut Self {

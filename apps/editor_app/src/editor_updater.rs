@@ -43,11 +43,6 @@ impl EditorUpdater {
     pub fn new(shared_data: SharedDataRw, global_messenger: MessengerRw, config: &Config) -> Self {
         let message_channel = MessageChannel::default();
 
-        global_messenger
-            .write()
-            .unwrap()
-            .register_messagebox::<KeyEvent>(message_channel.get_messagebox());
-
         Self {
             id: SystemId::new(),
             pipelines: Vec::new(),

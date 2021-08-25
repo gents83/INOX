@@ -65,7 +65,7 @@ impl UIProperties for UIWidget {
 impl UIWidget {
     pub fn register<D, F>(shared_data: &SharedDataRw, data: D, f: F) -> UIWidgetRc
     where
-        D: UIWidgetData + Sized + 'static,
+        D: UIWidgetData + Sized,
         F: FnMut(&mut dyn UIWidgetData, &CtxRef) + 'static,
     {
         let ui_page = Self {
@@ -78,7 +78,7 @@ impl UIWidget {
 
     pub fn data<D>(&mut self) -> Option<&D>
     where
-        D: UIWidgetData + Sized + 'static,
+        D: UIWidgetData + Sized,
     {
         self.data.as_any().downcast_ref::<D>()
     }

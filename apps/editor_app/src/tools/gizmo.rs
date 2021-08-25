@@ -1,14 +1,21 @@
+use std::any::TypeId;
+
+use nrg_camera::Camera;
 use nrg_graphics::{
     create_arrow, create_sphere, MaterialInstance, MeshData, MeshInstance, MeshRc, PipelineInstance,
 };
 use nrg_math::{
-    compute_distance_between_ray_and_oob, Mat4Ops, Matrix4, VecBase, Vector3, Vector4, Zero,
+    compute_distance_between_ray_and_oob, InnerSpace, Mat4Ops, Matrix4, VecBase, Vector2, Vector3,
+    Vector4, Zero,
 };
+use nrg_messenger::{read_messages, MessageChannel, MessengerRw};
 use nrg_resources::{
     DataTypeResource, ResourceData, ResourceId, ResourceRef, SharedData, SharedDataRw,
 };
-use nrg_scene::{Transform, TransformRc};
+use nrg_scene::{Object, ObjectId, Transform, TransformRc};
 use nrg_serialize::generate_random_uid;
+
+use crate::widgets::ViewEvent;
 
 pub type GizmoId = ResourceId;
 pub type GizmoRc = ResourceRef<Gizmo>;
@@ -21,6 +28,9 @@ pub struct Gizmo {
     mesh_y: MeshRc,
     mesh_z: MeshRc,
     axis: Vector3,
+    shared_data: SharedDataRw,
+    message_channel: MessageChannel,
+    global_messenger: MessengerRw,
 }
 
 impl ResourceData for Gizmo {
@@ -30,14 +40,28 @@ impl ResourceData for Gizmo {
 }
 
 impl Gizmo {
-    pub fn new_translation(shared_data: &SharedDataRw, position: Vector3) -> GizmoRc {
+    pub fn new_translation(
+        shared_data: &SharedDataRw,
+        global_messenger: MessengerRw,
+        position: Vector3,
+    ) -> GizmoRc {
         let transform = Transform::default();
         let transform = SharedData::add_resource(shared_data, transform);
+
+        let message_channel = MessageChannel::default();
+
+        global_messenger
+            .write()
+            .unwrap()
+            .register_messagebox::<ViewEvent>(message_channel.get_messagebox());
 
         let gizmo = Self {
             id: generate_random_uid(),
             transform,
             axis: Vector3::zero(),
+            shared_data: shared_data.clone(),
+            message_channel,
+            global_messenger,
             mesh_center: Self::create_center_mesh(shared_data, position),
             mesh_x: Self::create_arrow(
                 shared_data,
@@ -167,5 +191,78 @@ impl Gizmo {
         movement.z *= self.axis.z;
         let position = self.position();
         self.set_position(position + movement);
+    }
+
+    pub fn move_object(&self, shared_data: &SharedDataRw, object_id: ObjectId) {
+        if object_id.is_nil() {
+            return;
+        }
+        let object = SharedData::get_resource::<Object>(shared_data, object_id);
+        if let Some(transform) = object.resource().get().get_component::<Transform>() {
+            let mut matrix = transform.resource().get().matrix();
+            matrix.from_translation_rotation_scale(
+                self.position(),
+                matrix.rotation(),
+                matrix.scale(),
+            );
+            transform.resource().get_mut().set_matrix(matrix);
+        }
+    }
+
+    pub fn update(
+        &mut self,
+        camera: &Camera,
+        old_pos: Vector2,
+        new_pos: Vector2,
+        is_drag_started: bool,
+        is_drag_ended: bool,
+        selected_object: ObjectId,
+    ) -> bool {
+        if !self.is_visible() {
+            return false;
+        }
+        let pos = self.position();
+        let (old_cam_start, old_cam_end) = camera.convert_in_3d(old_pos);
+        let (new_cam_start, new_cam_end) = camera.convert_in_3d(new_pos);
+        let old_dir = pos - old_cam_start;
+        let new_dir = pos - new_cam_start;
+        let old_position =
+            old_cam_start + (old_cam_end - old_cam_start).normalize() * old_dir.length();
+        let new_position =
+            new_cam_start + (new_cam_end - new_cam_start).normalize() * new_dir.length();
+        if is_drag_started {
+            return self.start_drag(new_cam_start, (new_cam_end - new_cam_start).normalize());
+        } else if is_drag_ended {
+            self.end_drag();
+            return false;
+        } else {
+            self.drag(old_position, new_position);
+        }
+        self.move_object(&self.shared_data, selected_object);
+        true
+    }
+
+    pub fn update_events(&mut self) {
+        nrg_profiler::scoped_profile!("update_events");
+
+        read_messages(self.message_channel.get_listener(), |msg| {
+            if msg.type_id() == TypeId::of::<ViewEvent>() {
+                let event = msg.as_any().downcast_ref::<ViewEvent>().unwrap();
+                let ViewEvent::Selected(object_id) = event;
+                self.selected_object(*object_id);
+            }
+        });
+    }
+
+    fn selected_object(&mut self, object_id: ObjectId) {
+        if object_id.is_nil() {
+            self.set_visible(false);
+        } else {
+            let object = SharedData::get_resource::<Object>(&self.shared_data, object_id);
+            if let Some(transform) = object.resource().get().get_component::<Transform>() {
+                self.set_position(transform.resource().get().matrix().translation());
+            }
+            self.set_visible(true);
+        }
     }
 }
