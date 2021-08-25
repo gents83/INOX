@@ -83,7 +83,7 @@ impl Scheduler {
                 .insert(phase_index as _, phase_name.to_string());
         } else {
             eprintln!(
-                "Next Phase witn name {} does not exist",
+                "Next Phase with name {} does not exist",
                 previous_phase_name
             );
         }

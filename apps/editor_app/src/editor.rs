@@ -15,6 +15,7 @@ pub struct Editor {
     ui_id: SystemId,
     renderer_id: SystemId,
 }
+define_plugin!(Editor);
 
 impl Default for Editor {
     fn default() -> Self {
@@ -27,8 +28,8 @@ impl Default for Editor {
     }
 }
 
-impl Editor {
-    pub fn prepare(&mut self, app: &mut App) {
+impl Plugin for Editor {
+    fn prepare(&mut self, app: &mut App) {
         let path = self.config.get_filepath();
         deserialize_from_file(&mut self.config, path);
 
@@ -52,7 +53,7 @@ impl Editor {
         app.create_phase_before(update_phase, "RENDERING_UPDATE");
     }
 
-    pub fn unprepare(&mut self, app: &mut App) {
+    fn unprepare(&mut self, app: &mut App) {
         let path = self.config.get_filepath();
         serialize_to_file(&self.config, path);
 
