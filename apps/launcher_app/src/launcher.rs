@@ -1,274 +1,82 @@
 use std::{
-    any::TypeId,
-    path::{Path, PathBuf},
-    process::Command,
+    path::PathBuf,
+    sync::{Arc, RwLock},
 };
 
-use nrg_core::{App, JobHandlerRw, PhaseWithSystems, System, SystemId};
-use nrg_graphics::{
-    FontInstance, FontRc, PipelineInstance, PipelineRc, RenderPassInstance, RenderPassRc,
-};
-use nrg_gui::{
-    BaseWidget, ContainerFillType, Gui, HorizontalAlignment, Icon, Panel, Screen, TitleBarEvent,
-    VerticalAlignment, WidgetCreator, WidgetEvent, WidgetStyle,
-};
+use nrg_core::{App, PhaseWithSystems};
+use nrg_graphics::{rendering_system::RenderingSystem, update_system::UpdateSystem, Renderer};
 use nrg_math::Vector2;
-use nrg_messenger::{read_messages, Message, MessageChannel, MessengerRw};
-use nrg_platform::{WindowEvent, DEFAULT_DPI};
-use nrg_resources::{ConfigBase, DataTypeResource, FileResource, SharedDataRw};
-use nrg_serialize::{deserialize_from_file, Uid, INVALID_UID};
+use nrg_messenger::Message;
+use nrg_platform::{Window, WindowEvent};
 
-use crate::config::Config;
+use crate::window_system::WindowSystem;
 
-const LAUNCHER_UPDATE_PHASE: &str = "LAUNCHER_UPDATE_PHASE";
+const RENDERING_THREAD: &str = "Worker1";
+const RENDERING_UPDATE: &str = "RENDERING_UPDATE";
+const RENDERING_PHASE: &str = "RENDERING_PHASE";
+const MAIN_WINDOW_PHASE: &str = "MAIN_WINDOW_PHASE";
 
 #[repr(C)]
-pub struct Launcher {
-    id: SystemId,
-}
-
-impl Default for Launcher {
-    fn default() -> Self {
-        Self {
-            id: SystemId::new(),
-        }
-    }
-}
+#[derive(Default)]
+pub struct Launcher {}
 
 impl Launcher {
     pub fn prepare(&mut self, app: &mut App) {
-        let mut update_phase = PhaseWithSystems::new(LAUNCHER_UPDATE_PHASE);
-        let system = LauncherSystem::new(
-            app.get_shared_data(),
-            app.get_global_messenger(),
-            app.get_job_handler(),
-        );
-        self.id = system.id();
-        update_phase.add_system(system);
-        app.create_phase_before(update_phase, "RENDERING_UPDATE");
-    }
+        let window = {
+            Window::create(
+                "NRG".to_string(),
+                0,
+                0,
+                0,
+                0,
+                PathBuf::from("").as_path(),
+                app.get_global_messenger(),
+            )
+        };
 
-    pub fn unprepare(&mut self, app: &mut App) {
-        let update_phase: &mut PhaseWithSystems = app.get_phase_mut(LAUNCHER_UPDATE_PHASE);
-        update_phase.remove_system(&self.id);
-        app.destroy_phase(LAUNCHER_UPDATE_PHASE);
-    }
-}
+        let renderer = {
+            let mut renderer = Renderer::new(window.get_handle(), false);
+            let size = Vector2::new(window.get_width() as _, window.get_heigth() as _);
+            renderer.set_viewport_size(size);
+            renderer
+        };
+        let renderer = Arc::new(RwLock::new(renderer));
 
-struct LauncherSystem {
-    id: SystemId,
-    config: Config,
-    shared_data: SharedDataRw,
-    global_messenger: MessengerRw,
-    job_handler: JobHandlerRw,
-    message_channel: MessageChannel,
-    pipelines: Vec<PipelineRc>,
-    render_passes: Vec<RenderPassRc>,
-    fonts: Vec<FontRc>,
-    node_editor_id: Uid,
-    game_id: Uid,
-}
+        let mut window_update_phase = PhaseWithSystems::new(MAIN_WINDOW_PHASE);
+        let window_system = WindowSystem::new(window);
 
-impl LauncherSystem {
-    pub fn new(
-        shared_data: SharedDataRw,
-        global_messenger: MessengerRw,
-        job_handler: JobHandlerRw,
-    ) -> Self {
-        Gui::create(
-            shared_data.clone(),
-            global_messenger.clone(),
-            job_handler.clone(),
+        window_update_phase.add_system(window_system);
+        app.create_phase(window_update_phase);
+
+        let mut rendering_update_phase = PhaseWithSystems::new(RENDERING_UPDATE);
+        let render_update_system = UpdateSystem::new(
+            renderer.clone(),
+            &app.get_shared_data(),
+            &app.get_global_messenger(),
         );
 
-        let message_channel = MessageChannel::default();
+        let mut rendering_draw_phase = PhaseWithSystems::new(RENDERING_PHASE);
+        let rendering_draw_system = RenderingSystem::new(renderer, &app.get_shared_data());
 
-        global_messenger
-            .write()
-            .unwrap()
-            .register_messagebox::<WindowEvent>(message_channel.get_messagebox())
-            .register_messagebox::<TitleBarEvent>(message_channel.get_messagebox())
-            .register_messagebox::<WidgetEvent>(message_channel.get_messagebox());
-        Self {
-            id: SystemId::new(),
-            config: Config::default(),
-            shared_data,
-            global_messenger,
-            job_handler,
-            message_channel,
-            pipelines: Vec::new(),
-            render_passes: Vec::new(),
-            fonts: Vec::new(),
-            node_editor_id: INVALID_UID,
-            game_id: INVALID_UID,
-        }
-    }
+        rendering_update_phase.add_system(render_update_system);
+        rendering_draw_phase.add_system(rendering_draw_system);
 
-    fn load_pipelines(&mut self) {
-        for render_pass_data in self.config.render_passes.iter() {
-            self.render_passes
-                .push(RenderPassInstance::create_from_data(
-                    &self.shared_data,
-                    render_pass_data.clone(),
-                ));
-        }
+        app.create_phase(rendering_update_phase);
+        app.create_phase_on_worker(rendering_draw_phase, RENDERING_THREAD);
 
-        for pipeline_data in self.config.pipelines.iter() {
-            self.pipelines.push(PipelineInstance::create_from_data(
-                &self.shared_data,
-                pipeline_data.clone(),
-            ));
-        }
-
-        if let Some(default_font_path) = self.config.fonts.first() {
-            self.fonts.push(FontInstance::create_from_file(
-                &self.shared_data,
-                default_font_path,
-            ));
-        }
-    }
-
-    fn send_event(&self, event: Box<dyn Message>) {
-        self.global_messenger
+        app.get_global_messenger()
             .read()
             .unwrap()
             .get_dispatcher()
             .write()
             .unwrap()
-            .send(event)
+            .send(WindowEvent::RequestChangeVisible(true).as_boxed())
             .ok();
     }
 
-    fn window_init(&self) {
-        self.send_event(WindowEvent::RequestChangeTitle(self.config.title.clone()).as_boxed());
-        self.send_event(
-            WindowEvent::RequestChangeSize(self.config.width, self.config.height).as_boxed(),
-        );
-        self.send_event(
-            WindowEvent::RequestChangePos(self.config.pos_x, self.config.pos_y).as_boxed(),
-        );
-        self.send_event(WindowEvent::RequestChangeVisible(true).as_boxed());
+    pub fn unprepare(&mut self, app: &mut App) {
+        app.destroy_phase_on_worker(RENDERING_PHASE, RENDERING_THREAD);
+        app.destroy_phase(RENDERING_UPDATE);
+        app.destroy_phase(MAIN_WINDOW_PHASE);
     }
-
-    fn process_messages(&mut self) {
-        read_messages(self.message_channel.get_listener(), |msg| {
-            if msg.type_id() == TypeId::of::<WindowEvent>() {
-                let event = msg.as_any().downcast_ref::<WindowEvent>().unwrap();
-                match *event {
-                    WindowEvent::SizeChanged(width, height) => {
-                        Screen::change_size(width, height);
-                        Gui::invalidate_all_widgets();
-                    }
-                    WindowEvent::DpiChanged(x, _y) => {
-                        Screen::change_scale_factor(x / DEFAULT_DPI);
-                        Gui::invalidate_all_widgets();
-                    }
-                    _ => {}
-                }
-            } else if msg.type_id() == TypeId::of::<WidgetEvent>() {
-                let event = msg.as_any().downcast_ref::<WidgetEvent>().unwrap();
-                if let WidgetEvent::Released(widget_id, _mouse_pos) = *event {
-                    if widget_id == self.node_editor_id {
-                        println!("Launch editor");
-                        let result = Command::new("nrg_editor").spawn().is_ok();
-                        if !result {
-                            println!("Failed to execute process");
-                        }
-                    } else if widget_id == self.game_id {
-                        println!("Launch game");
-                        let result = Command::new("nrg_game").spawn().is_ok();
-                        if !result {
-                            println!("Failed to execute process");
-                        }
-                    }
-                }
-            } else if msg.type_id() == TypeId::of::<TitleBarEvent>() {
-                let event = msg.as_any().downcast_ref::<TitleBarEvent>().unwrap();
-                if let TitleBarEvent::Close(_widget_id) = *event {
-                    self.global_messenger
-                        .write()
-                        .unwrap()
-                        .get_dispatcher()
-                        .write()
-                        .unwrap()
-                        .send(WindowEvent::Close.as_boxed())
-                        .ok();
-                }
-            }
-        });
-    }
-
-    fn add_content(&mut self) -> &mut Self {
-        let mut background = Panel::new(&self.shared_data, &self.global_messenger);
-        background
-            .vertical_alignment(VerticalAlignment::Stretch)
-            .horizontal_alignment(HorizontalAlignment::Stretch)
-            .fill_type(ContainerFillType::Horizontal)
-            .space_between_elements((10. * Screen::get_scale_factor()) as u32)
-            .use_space_before_and_after(true)
-            .style(WidgetStyle::DefaultCanvas);
-
-        self.node_editor_id = background.add_child(Box::new(
-            self.add_button(PathBuf::from("icons/gears.png").as_path(), "Node Editor"),
-        ));
-
-        Gui::get()
-            .write()
-            .unwrap()
-            .get_root_mut()
-            .add_child(Box::new(background));
-
-        self
-    }
-
-    fn add_button(&self, icon_path: &Path, text: &str) -> Icon {
-        let size: Vector2 = [150., 150.].into();
-
-        let mut icon = Icon::new(&self.shared_data, &self.global_messenger);
-        icon.size(size * Screen::get_scale_factor())
-            .style(WidgetStyle::DefaultLight)
-            .border_style(WidgetStyle::DefaultBorder)
-            .border_width(2. * Screen::get_scale_factor())
-            .selectable(true)
-            .collapsed()
-            .set_text(text)
-            .set_texture(icon_path);
-
-        icon
-    }
-}
-
-impl System for LauncherSystem {
-    fn id(&self) -> nrg_core::SystemId {
-        self.id
-    }
-
-    fn should_run_when_not_focused(&self) -> bool {
-        false
-    }
-    fn init(&mut self) {
-        let path = self.config.get_filepath();
-        deserialize_from_file(&mut self.config, path);
-
-        self.window_init();
-        self.load_pipelines();
-
-        Screen::create(
-            self.config.width,
-            self.config.height,
-            self.config.scale_factor,
-        );
-
-        self.add_content();
-    }
-
-    fn run(&mut self) -> bool {
-        self.process_messages();
-
-        Gui::update_widgets(&self.job_handler, false);
-
-        true
-    }
-
-    fn uninit(&mut self) {}
 }

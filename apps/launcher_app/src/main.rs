@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use nrg_binarizer::Binarizer;
-use nrg_core::*;
+use nrg_core::App;
 use nrg_filesystem::library_filename;
 use nrg_launcher::launcher::Launcher;
 use nrg_resources::{DATA_FOLDER, DATA_RAW_FOLDER};
@@ -12,7 +12,7 @@ fn main() {
     let mut binarizer = Binarizer::new(app.get_global_messenger(), DATA_RAW_FOLDER, DATA_FOLDER);
     binarizer.start();
 
-    let plugins = ["nrg_window"];
+    let plugins: Vec<&str> = Vec::new();
 
     for name in plugins.iter() {
         let path = PathBuf::from(library_filename(*name));
