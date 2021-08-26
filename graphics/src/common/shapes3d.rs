@@ -130,8 +130,8 @@ pub fn create_cylinder(
 
     //fill indices for sides
     for i in 0..num_stack + 1 {
-        let mut k1 = i * (num_slices + 1); // bebinning of current stack
-        let mut k2 = k1 + num_slices + 1; // beginning of next stack
+        let mut k1 = i * (num_slices); // bebinning of current stack
+        let mut k2 = k1 + num_slices; // beginning of next stack
 
         for _ in 0..num_slices + 1 {
             indices.push(k1);
@@ -329,4 +329,72 @@ pub fn create_hammer(
     });
 
     (shape_vertices, shape_indices)
+}
+
+pub fn create_torus(
+    position: Vector3,
+    main_radius: f32,
+    tube_radius: f32,
+    num_main_slices: u32,
+    num_tube_slices: u32,
+    direction: Vector3,
+    color: Vector4,
+) -> (Vec<VertexData>, Vec<u32>) {
+    let mut vertices = Vec::new();
+    let mut indices = Vec::new();
+
+    let main_step = 2. * PI / num_main_slices as f32;
+    let tube_step = 2. * PI / num_tube_slices as f32;
+
+    for i in 0..num_main_slices + 1 {
+        let main_angle = i as f32 * main_step;
+        for j in 0..num_tube_slices + 1 {
+            let mut vertex = VertexData::default();
+            let tube_angle = j as f32 * tube_step;
+            vertex.pos = [
+                (main_radius + tube_radius * tube_angle.cos()) * main_angle.cos(),
+                (main_radius + tube_radius * tube_angle.cos()) * main_angle.sin(),
+                tube_radius * tube_angle.sin(),
+            ]
+            .into();
+            vertex.normal = [
+                main_angle.cos() * tube_angle.cos(),
+                main_angle.sin() * tube_angle.cos(),
+                tube_angle.sin(),
+            ]
+            .into();
+            vertex.tex_coord = [
+                j as f32 / num_tube_slices as f32,
+                i as f32 * (2. / num_main_slices as f32),
+            ]
+            .into();
+            vertices.push(vertex);
+        }
+    }
+    for i in 0..num_main_slices + 1 {
+        let mut k1 = i * (num_main_slices); // bebinning of current stack
+        let mut k2 = k1 + num_main_slices; // beginning of next stack
+
+        for _ in 0..num_tube_slices + 1 {
+            indices.push(k1);
+            indices.push(k1 + 1);
+            indices.push(k2);
+
+            indices.push(k2);
+            indices.push(k1 + 1);
+            indices.push(k2 + 1);
+
+            k1 += 1;
+            k2 += 1;
+        }
+    }
+
+    let mut matrix = Matrix4::default_identity();
+    matrix.from_direction(direction);
+    vertices.iter_mut().for_each(|v| {
+        v.pos = position + matrix.transform(v.pos);
+        v.color = color;
+    });
+
+    (vertices, indices)
 }

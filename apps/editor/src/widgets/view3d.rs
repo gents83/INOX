@@ -39,7 +39,7 @@ struct View3DData {
     selected_object: ObjectId,
     view_width: u32,
     view_height: u32,
-    gizmo: GizmoRc,
+    gizmo: Option<GizmoRc>,
 }
 implement_widget_data!(View3DData);
 
@@ -76,9 +76,8 @@ impl View3D {
             view_width: VIEW3D_IMAGE_WIDTH,
             view_height: VIEW3D_IMAGE_HEIGHT,
             should_manage_input: false,
-            gizmo: Gizmo::new_translation(shared_data, global_messenger.clone()),
+            gizmo: None,
         };
-        data.gizmo.resource().get_mut().set_visible(false);
         let ui_page = Self::create(shared_data, data);
         Self {
             ui_page,
@@ -98,7 +97,9 @@ impl View3D {
 
     fn update_gizmo(&mut self) -> &mut Self {
         if let Some(data) = self.ui_page.resource().get_mut().data_mut::<View3DData>() {
-            data.gizmo.resource().get_mut().update(&data.camera);
+            if let Some(gizmo) = &data.gizmo {
+                gizmo.resource().get_mut().update(&data.camera);
+            }
         }
         self
     }
@@ -107,28 +108,36 @@ impl View3D {
         if let Some(data) = self.ui_page.resource().get_mut().data_mut::<View3DData>() {
             match mode {
                 EditMode::View => {
-                    data.gizmo.resource().get_mut().set_visible(false);
+                    data.gizmo = None;
                 }
                 EditMode::Select => {
-                    data.gizmo.resource().get_mut().set_visible(false);
+                    data.gizmo = None;
                 }
                 EditMode::Move => {
-                    data.gizmo =
+                    let gizmo =
                         Gizmo::new_translation(&data.shared_data, data.global_messenger.clone());
-                    data.gizmo
+                    gizmo
                         .resource()
                         .get_mut()
                         .select_object(data.selected_object);
+                    data.gizmo = Some(gizmo);
                 }
                 EditMode::Rotate => {
-                    data.gizmo.resource().get_mut().set_visible(false);
-                }
-                EditMode::Scale => {
-                    data.gizmo = Gizmo::new_scale(&data.shared_data, data.global_messenger.clone());
-                    data.gizmo
+                    let gizmo =
+                        Gizmo::new_rotation(&data.shared_data, data.global_messenger.clone());
+                    gizmo
                         .resource()
                         .get_mut()
                         .select_object(data.selected_object);
+                    data.gizmo = Some(gizmo);
+                }
+                EditMode::Scale => {
+                    let gizmo = Gizmo::new_scale(&data.shared_data, data.global_messenger.clone());
+                    gizmo
+                        .resource()
+                        .get_mut()
+                        .select_object(data.selected_object);
+                    data.gizmo = Some(gizmo);
                 }
             }
         }
@@ -214,14 +223,18 @@ impl View3D {
                 .send(ViewEvent::Selected(data.selected_object).as_boxed())
                 .ok();
         } else {
-            let is_manipulating_gizmo = data.gizmo.resource().get_mut().manipulate(
-                &data.camera,
-                data.last_mouse_pos,
-                normalized_pos,
-                is_drag_started,
-                is_drag_ended,
-                data.selected_object,
-            );
+            let is_manipulating_gizmo = if let Some(gizmo) = &data.gizmo {
+                gizmo.resource().get_mut().manipulate(
+                    &data.camera,
+                    data.last_mouse_pos,
+                    normalized_pos,
+                    is_drag_started,
+                    is_drag_ended,
+                    data.selected_object,
+                )
+            } else {
+                false
+            };
             if !is_manipulating_gizmo {
                 let mut rotation_angle = Vector3::zero();
 
