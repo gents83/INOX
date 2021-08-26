@@ -63,7 +63,24 @@ impl Transform {
         matrix.from_translation_rotation_scale(self.position, self.rotation, self.scale);
         matrix
     }
-
+    pub fn position(&self) -> Vector3 {
+        self.position
+    }
+    pub fn rotation(&self) -> Vector3 {
+        self.rotation
+    }
+    pub fn scale(&self) -> Vector3 {
+        self.scale
+    }
+    pub fn set_position(&mut self, position: Vector3) {
+        self.position = position;
+    }
+    pub fn set_rotation(&mut self, rotation: Vector3) {
+        self.rotation = rotation;
+    }
+    pub fn set_scale(&mut self, scale: Vector3) {
+        self.scale = scale;
+    }
     pub fn set_matrix(&mut self, matrix: Matrix4) {
         let (translation, rotation, scale) = matrix.get_translation_rotation_scale();
         self.position = translation;

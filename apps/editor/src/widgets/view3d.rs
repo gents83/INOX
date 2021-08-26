@@ -101,7 +101,7 @@ impl View3D {
 
     fn update_gizmo(&mut self) -> &mut Self {
         if let Some(data) = self.ui_page.resource().get_mut().data_mut::<View3DData>() {
-            data.gizmo.resource().get_mut().update_events();
+            data.gizmo.resource().get_mut().update(&data.camera);
         }
         self
     }
@@ -182,7 +182,7 @@ impl View3D {
                 .send(ViewEvent::Selected(data.selected_object).as_boxed())
                 .ok();
         } else {
-            let is_manipulating_gizmo = data.gizmo.resource().get_mut().update(
+            let is_manipulating_gizmo = data.gizmo.resource().get_mut().update_move(
                 &data.camera,
                 data.last_mouse_pos,
                 normalized_pos,
@@ -250,8 +250,8 @@ impl View3D {
             if SharedData::has_resources_of_type::<ViewInstance>(&self.shared_data) {
                 let views = SharedData::get_resources_of_type::<ViewInstance>(&self.shared_data);
                 let view = views.first().unwrap();
-                let view_matrix = data.camera.get_view_matrix();
-                let proj_matrix = data.camera.get_proj_matrix();
+                let view_matrix = data.camera.view_matrix();
+                let proj_matrix = data.camera.proj_matrix();
 
                 let texture_width = data.texture.resource().get().width();
                 let texture_height = data.texture.resource().get().height();

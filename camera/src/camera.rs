@@ -103,7 +103,7 @@ impl Camera {
     }
 
     #[inline]
-    pub fn get_view_matrix(&self) -> Matrix4 {
+    pub fn view_matrix(&self) -> Matrix4 {
         let up: Vector3 = [0., 1., 0.].into();
         let right = self.direction.cross(up).normalize();
         let up = right.cross(self.direction).normalize();
@@ -112,13 +112,23 @@ impl Camera {
     }
 
     #[inline]
-    pub fn get_proj_matrix(&self) -> Matrix4 {
+    pub fn proj_matrix(&self) -> Matrix4 {
         self.proj_matrix
     }
 
+    #[inline]
+    pub fn position(&self) -> Vector3 {
+        self.position
+    }
+
+    #[inline]
+    pub fn direction(&self) -> Vector3 {
+        self.direction
+    }
+
     pub fn convert_in_3d(&self, normalized_pos: Vector2) -> (Vector3, Vector3) {
-        let view = self.get_view_matrix();
-        let proj = self.get_proj_matrix();
+        let view = self.view_matrix();
+        let proj = self.proj_matrix();
 
         // The ray Start and End positions, in Normalized Device Coordinates (Have you read Tutorial 4 ?)
         let ray_end = Vector4::new(

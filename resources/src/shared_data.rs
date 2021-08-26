@@ -35,12 +35,12 @@ impl SharedData {
         T: ResourceData,
     {
         let typeid = generate_uid_from_string(type_name::<T>());
-        debug_assert!(self.storage.get(&typeid).is_none());
-        println!(
-            "Registering resource type: {:?} with id {}",
-            type_name::<T>(),
-            typeid
+        debug_assert!(
+            self.storage.get(&typeid).is_none(),
+            "Type {} has been already registered",
+            type_name::<T>()
         );
+        //println!("Registering resource type: {:?}", type_name::<T>(),);
         self.storage
             .insert(typeid, Box::new(Storage::<T>::default()));
     }
@@ -55,11 +55,7 @@ impl SharedData {
             "Type {} has never been registered",
             type_name::<T>()
         );
-        println!(
-            "Unegistering resource type: {:?} with id {}",
-            type_name::<T>(),
-            typeid
-        );
+        //println!("Unegistering resource type: {:?}", type_name::<T>());
         if let Some(mut rs) = self.storage.remove(&typeid) {
             rs.as_mut().remove_all();
         }

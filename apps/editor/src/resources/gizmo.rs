@@ -4,9 +4,9 @@ use nrg_camera::Camera;
 use nrg_graphics::{
     create_arrow, create_sphere, MaterialInstance, MeshData, MeshInstance, MeshRc, PipelineInstance,
 };
+
 use nrg_math::{
-    compute_distance_between_ray_and_oob, InnerSpace, Mat4Ops, Matrix4, VecBase, Vector2, Vector3,
-    Vector4, Zero,
+    compute_distance_between_ray_and_oob, InnerSpace, VecBase, Vector2, Vector3, Vector4, Zero,
 };
 use nrg_messenger::{read_messages, MessageChannel, MessengerRw};
 use nrg_resources::{
@@ -19,6 +19,8 @@ use crate::widgets::ViewEvent;
 
 pub type GizmoId = ResourceId;
 pub type GizmoRc = ResourceRef<Gizmo>;
+
+const DEFAULT_DISTANCE_SCALE: f32 = 35.;
 
 pub struct Gizmo {
     id: ResourceId,
@@ -135,9 +137,8 @@ impl Gizmo {
         self.mesh_center.resource().get().is_visible()
     }
 
-    pub fn set_position(&mut self, position: Vector3) -> &mut Self {
-        let matrix = Matrix4::from_translation(position);
-        self.transform.resource().get_mut().set_matrix(matrix);
+    pub fn update_meshes(&mut self) -> &mut Self {
+        let matrix = self.transform.resource().get().matrix();
 
         self.mesh_center.resource().get_mut().set_matrix(matrix);
 
@@ -149,7 +150,7 @@ impl Gizmo {
     }
 
     pub fn position(&self) -> Vector3 {
-        self.transform.resource().get().matrix().translation()
+        self.transform.resource().get().position()
     }
 
     fn is_ray_inside(&self, start: Vector3, end: Vector3, mesh: &MeshRc) -> bool {
@@ -190,7 +191,11 @@ impl Gizmo {
         movement.y *= self.axis.y;
         movement.z *= self.axis.z;
         let position = self.position();
-        self.set_position(position + movement);
+        self.transform
+            .resource()
+            .get_mut()
+            .set_position(position + movement);
+        self.update_meshes();
     }
 
     pub fn move_object(&self, shared_data: &SharedDataRw, object_id: ObjectId) {
@@ -199,17 +204,11 @@ impl Gizmo {
         }
         let object = SharedData::get_resource::<Object>(shared_data, object_id);
         if let Some(transform) = object.resource().get().get_component::<Transform>() {
-            let mut matrix = transform.resource().get().matrix();
-            matrix.from_translation_rotation_scale(
-                self.position(),
-                matrix.rotation(),
-                matrix.scale(),
-            );
-            transform.resource().get_mut().set_matrix(matrix);
+            transform.resource().get_mut().set_position(self.position());
         }
     }
 
-    pub fn update(
+    pub fn update_move(
         &mut self,
         camera: &Camera,
         old_pos: Vector2,
@@ -240,10 +239,27 @@ impl Gizmo {
             self.drag(old_position, new_position);
             self.move_object(&self.shared_data, selected_object);
         }
+
         self.is_active
     }
 
-    pub fn update_events(&mut self) {
+    pub fn update(&mut self, camera: &Camera) {
+        self.update_events();
+
+        if self.is_visible() {
+            let cam_pos = camera.position();
+            let pos = self.transform.resource().get().position();
+            let direction = pos - cam_pos;
+            let scale = direction.length() / DEFAULT_DISTANCE_SCALE;
+            self.transform
+                .resource()
+                .get_mut()
+                .set_scale([scale, scale, scale].into());
+            self.update_meshes();
+        }
+    }
+
+    fn update_events(&mut self) {
         nrg_profiler::scoped_profile!("update_events");
 
         read_messages(self.message_channel.get_listener(), |msg| {
@@ -261,7 +277,11 @@ impl Gizmo {
         } else {
             let object = SharedData::get_resource::<Object>(&self.shared_data, object_id);
             if let Some(transform) = object.resource().get().get_component::<Transform>() {
-                self.set_position(transform.resource().get().matrix().translation());
+                self.transform
+                    .resource()
+                    .get_mut()
+                    .set_position(transform.resource().get().position());
+                self.update_meshes();
             }
             self.set_visible(true);
         }
