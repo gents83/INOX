@@ -47,6 +47,36 @@ pub fn create_quad(
     ];
     (vertices, indices)
 }
+pub fn create_colored_quad(rect: Vector4, z: f32, color: Vector4) -> ([VertexData; 4], [u32; 6]) {
+    let vertices = [
+        VertexData {
+            pos: [rect.x, rect.y, z].into(),
+            normal: [-1., -1., 0.].into(),
+            color,
+            tex_coord: [0., 0.].into(),
+        },
+        VertexData {
+            pos: [rect.x, rect.w, z].into(),
+            normal: [-1., 1., 0.].into(),
+            color,
+            tex_coord: [0., 1.].into(),
+        },
+        VertexData {
+            pos: [rect.z, rect.w, z].into(),
+            normal: [1., 1., 0.].into(),
+            color,
+            tex_coord: [1., 1.].into(),
+        },
+        VertexData {
+            pos: [rect.z, rect.y, z].into(),
+            normal: [1., -1., 0.].into(),
+            color,
+            tex_coord: [1., 0.].into(),
+        },
+    ];
+    let indices: [u32; 6] = [0, 1, 2, 2, 3, 0];
+    (vertices, indices)
+}
 
 pub fn create_triangle_up() -> ([VertexData; 3], [u32; 3]) {
     let mut vertices = [VertexData::default(); 3];

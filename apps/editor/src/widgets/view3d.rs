@@ -86,7 +86,7 @@ impl View3D {
         Self {
             ui_page,
             debug_drawer: DebugDrawer::new(shared_data, global_messenger, "3D", "Wireframe"),
-            bounding_box_drawer: BoundingBoxDrawer::new(shared_data, global_messenger, "Wireframe"),
+            bounding_box_drawer: BoundingBoxDrawer::new(shared_data, global_messenger),
             shared_data: shared_data.clone(),
         }
     }

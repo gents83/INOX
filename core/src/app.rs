@@ -161,7 +161,7 @@ impl App {
             let plugins_to_remove = self.plugin_manager.update();
             let plugins_to_reload = self.update_plugins(plugins_to_remove);
             if !plugins_to_reload.is_empty() {
-                self.shared_data.write().unwrap().flush_resources(true);
+                self.shared_data.write().unwrap().flush_resources(false);
             }
             self.reload_plugins(plugins_to_reload);
         }
