@@ -2,13 +2,28 @@ use std::path::PathBuf;
 
 use nrg_filesystem::convert_from_local_path;
 use nrg_graphics::{TextureId, TextureInstance, TextureRc};
-use nrg_messenger::{MessageBox, MessengerRw};
+use nrg_messenger::{implement_message, Message, MessageBox, MessengerRw};
 
 use nrg_resources::{FileResource, SharedData, SharedDataRw, DATA_FOLDER};
 use nrg_ui::{
     implement_widget_data, ImageButton, TextureId as eguiTextureId, TopBottomPanel, UIWidget,
     UIWidgetRc, Ui, Widget,
 };
+
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub enum EditMode {
+    View,
+    Select,
+    Move,
+    Rotate,
+    Scale,
+}
+
+#[derive(Clone)]
+pub enum ToolbarEvent {
+    ChangeMode(EditMode),
+}
+implement_message!(ToolbarEvent);
 
 struct ToolbarData {
     shared_data: SharedDataRw,
@@ -17,6 +32,7 @@ struct ToolbarData {
     move_icon: TextureRc,
     rotate_icon: TextureRc,
     scale_icon: TextureRc,
+    mode: EditMode,
 }
 implement_widget_data!(ToolbarData);
 
@@ -64,6 +80,7 @@ impl Toolbar {
             move_icon,
             rotate_icon,
             scale_icon,
+            mode: EditMode::View,
             global_dispatcher: global_messenger.read().unwrap().get_dispatcher().clone(),
         };
         let ui_page = Self::create(shared_data, data);
@@ -77,20 +94,38 @@ impl Toolbar {
                     .resizable(false)
                     .show(ui_context, |ui| {
                         ui.horizontal(|ui| {
-                            Self::show_icon(ui, &data.shared_data, data.select_icon.id());
-                            Self::show_icon(ui, &data.shared_data, data.move_icon.id());
-                            Self::show_icon(ui, &data.shared_data, data.rotate_icon.id());
-                            Self::show_icon(ui, &data.shared_data, data.scale_icon.id());
+                            let mode = data.mode;
+                            if Self::show_icon(ui, &data.shared_data, data.select_icon.id()) {
+                                data.mode = EditMode::Select;
+                            }
+                            if Self::show_icon(ui, &data.shared_data, data.move_icon.id()) {
+                                data.mode = EditMode::Move;
+                            }
+                            if Self::show_icon(ui, &data.shared_data, data.rotate_icon.id()) {
+                                data.mode = EditMode::Rotate;
+                            }
+                            if Self::show_icon(ui, &data.shared_data, data.scale_icon.id()) {
+                                data.mode = EditMode::Scale;
+                            }
+                            if data.mode != mode {
+                                data.global_dispatcher
+                                    .write()
+                                    .unwrap()
+                                    .send(ToolbarEvent::ChangeMode(data.mode).as_boxed())
+                                    .ok();
+                            }
                         });
                     });
             }
         })
     }
 
-    fn show_icon(ui: &mut Ui, shared_data: &SharedDataRw, texture_id: TextureId) {
+    fn show_icon(ui: &mut Ui, shared_data: &SharedDataRw, texture_id: TextureId) -> bool {
         let textures = SharedData::get_resources_of_type::<TextureInstance>(shared_data);
         if let Some(index) = textures.iter().position(|t| t.id() == texture_id) {
-            ImageButton::new(eguiTextureId::User(index as _), [32., 32.]).ui(ui);
+            let response = ImageButton::new(eguiTextureId::User(index as _), [32., 32.]).ui(ui);
+            return response.clicked();
         }
+        false
     }
 }

@@ -81,6 +81,15 @@ impl Transform {
     pub fn set_scale(&mut self, scale: Vector3) {
         self.scale = scale;
     }
+    pub fn translate(&mut self, offset: Vector3) {
+        self.position += offset;
+    }
+    pub fn rotate(&mut self, offset: Vector3) {
+        self.rotation += offset;
+    }
+    pub fn add_scale(&mut self, scale: Vector3) {
+        self.scale += scale;
+    }
     pub fn set_matrix(&mut self, matrix: Matrix4) {
         let (translation, rotation, scale) = matrix.get_translation_rotation_scale();
         self.position = translation;

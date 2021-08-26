@@ -3,7 +3,7 @@ use nrg_graphics::{
     DynamicImage, MeshInstance, RenderPassInstance, TextureInstance, TextureRc, ViewInstance,
 };
 use nrg_math::{raycast_oob, InnerSpace, MatBase, Matrix4, Vector2, Vector3, Zero};
-use nrg_messenger::{implement_message, Message, MessageBox, MessengerRw};
+use nrg_messenger::{implement_message, Message, MessengerRw};
 use nrg_platform::{Key, KeyEvent};
 use nrg_resources::{DataTypeResource, SharedData, SharedDataRw};
 use nrg_scene::{Hitbox, Object, ObjectId, Transform};
@@ -18,6 +18,8 @@ use crate::{
     systems::{BoundingBoxDrawer, DebugDrawer},
 };
 
+use super::EditMode;
+
 const VIEW3D_IMAGE_WIDTH: u32 = 1280;
 const VIEW3D_IMAGE_HEIGHT: u32 = 768;
 
@@ -29,7 +31,7 @@ implement_message!(ViewEvent);
 
 struct View3DData {
     shared_data: SharedDataRw,
-    global_dispatcher: MessageBox,
+    global_messenger: MessengerRw,
     texture: TextureRc,
     camera: Camera,
     should_manage_input: bool,
@@ -64,12 +66,9 @@ impl View3D {
             1000.,
         );
 
-        let move_gizmo =
-            Gizmo::new_translation(shared_data, global_messenger.clone(), [0., 0., 0.].into());
-
         let data = View3DData {
             shared_data: shared_data.clone(),
-            global_dispatcher: global_messenger.read().unwrap().get_dispatcher().clone(),
+            global_messenger: global_messenger.clone(),
             texture,
             camera,
             last_mouse_pos: Vector2::zero(),
@@ -77,7 +76,7 @@ impl View3D {
             view_width: VIEW3D_IMAGE_WIDTH,
             view_height: VIEW3D_IMAGE_HEIGHT,
             should_manage_input: false,
-            gizmo: move_gizmo,
+            gizmo: Gizmo::new_translation(shared_data, global_messenger.clone()),
         };
         data.gizmo.resource().get_mut().set_visible(false);
         let ui_page = Self::create(shared_data, data);
@@ -103,6 +102,38 @@ impl View3D {
         }
         self
     }
+
+    pub fn change_edit_mode(&mut self, mode: EditMode) -> &mut Self {
+        if let Some(data) = self.ui_page.resource().get_mut().data_mut::<View3DData>() {
+            match mode {
+                EditMode::View => {
+                    data.gizmo.resource().get_mut().set_visible(false);
+                }
+                EditMode::Select => {
+                    data.gizmo.resource().get_mut().set_visible(false);
+                }
+                EditMode::Move => {
+                    data.gizmo =
+                        Gizmo::new_translation(&data.shared_data, data.global_messenger.clone());
+                    data.gizmo
+                        .resource()
+                        .get_mut()
+                        .select_object(data.selected_object);
+                }
+                EditMode::Rotate => {
+                    data.gizmo.resource().get_mut().set_visible(false);
+                }
+                EditMode::Scale => {
+                    data.gizmo = Gizmo::new_scale(&data.shared_data, data.global_messenger.clone());
+                    data.gizmo
+                        .resource()
+                        .get_mut()
+                        .select_object(data.selected_object);
+                }
+            }
+        }
+        self
+    }
     pub fn handle_keyboard_event(&mut self, event: &KeyEvent) {
         if let Some(data) = self.ui_page.resource().get_mut().data_mut::<View3DData>() {
             let mut movement = Vector3::zero();
@@ -115,9 +146,9 @@ impl View3D {
             } else if event.code == Key::D {
                 movement.x -= 1.;
             } else if event.code == Key::Q {
-                movement.y += 1.;
-            } else if event.code == Key::E {
                 movement.y -= 1.;
+            } else if event.code == Key::E {
+                movement.y += 1.;
             }
             if data.should_manage_input {
                 data.camera.translate(movement);
@@ -174,13 +205,16 @@ impl View3D {
             data.selected_object =
                 Self::update_selected_object(data, normalized_pos.x, normalized_pos.y);
 
-            data.global_dispatcher
+            data.global_messenger
+                .read()
+                .unwrap()
+                .get_dispatcher()
                 .write()
                 .unwrap()
                 .send(ViewEvent::Selected(data.selected_object).as_boxed())
                 .ok();
         } else {
-            let is_manipulating_gizmo = data.gizmo.resource().get_mut().update_move(
+            let is_manipulating_gizmo = data.gizmo.resource().get_mut().manipulate(
                 &data.camera,
                 data.last_mouse_pos,
                 normalized_pos,

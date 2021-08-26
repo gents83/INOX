@@ -2,11 +2,13 @@ use std::any::TypeId;
 
 use nrg_camera::Camera;
 use nrg_graphics::{
-    create_arrow, create_sphere, MaterialInstance, MeshData, MeshInstance, MeshRc, PipelineInstance,
+    create_arrow, create_hammer, create_sphere, MaterialInstance, MeshData, MeshInstance, MeshRc,
+    PipelineInstance,
 };
 
 use nrg_math::{
-    raycast_oob, InnerSpace, Mat4Ops, MatBase, Matrix4, VecBase, Vector2, Vector3, Vector4, Zero,
+    raycast_oob, Array, InnerSpace, Mat4Ops, MatBase, Matrix4, VecBase, Vector2, Vector3, Vector4,
+    Zero,
 };
 
 use nrg_messenger::{read_messages, MessageBox, MessageChannel, MessengerRw};
@@ -23,9 +25,18 @@ pub type GizmoRc = ResourceRef<Gizmo>;
 
 const DEFAULT_DISTANCE_SCALE: f32 = 35.;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum GizmoType {
+    Move,
+    Scale,
+    Rotate,
+}
+
 pub struct Gizmo {
     id: ResourceId,
     transform: TransformRc,
+    camera_scale: f32,
+    mode_type: GizmoType,
     mesh_center: MeshRc,
     mesh_x: MeshRc,
     mesh_y: MeshRc,
@@ -47,10 +58,14 @@ unsafe impl Sync for Gizmo {}
 unsafe impl Send for Gizmo {}
 
 impl Gizmo {
-    pub fn new_translation(
+    fn new(
         shared_data: &SharedDataRw,
         global_messenger: MessengerRw,
-        position: Vector3,
+        mode_type: GizmoType,
+        mesh_center: MeshRc,
+        mesh_x: MeshRc,
+        mesh_y: MeshRc,
+        mesh_z: MeshRc,
     ) -> GizmoRc {
         let transform = Transform::default();
         let transform = SharedData::add_resource(shared_data, transform);
@@ -64,33 +79,74 @@ impl Gizmo {
 
         let gizmo = Self {
             id: generate_random_uid(),
+            mode_type,
             transform,
+            camera_scale: 1.,
             axis: Vector3::zero(),
             shared_data: shared_data.clone(),
             message_channel,
             global_dispatcher: global_messenger.read().unwrap().get_dispatcher(),
             is_active: false,
-            mesh_center: Self::create_center_mesh(shared_data, position),
-            mesh_x: Self::create_arrow(
+            mesh_center,
+            mesh_x,
+            mesh_y,
+            mesh_z,
+        };
+        SharedData::add_resource(shared_data, gizmo)
+    }
+
+    pub fn new_translation(shared_data: &SharedDataRw, global_messenger: MessengerRw) -> GizmoRc {
+        Self::new(
+            shared_data,
+            global_messenger,
+            GizmoType::Move,
+            Self::create_center_mesh(shared_data, Vector3::zero()),
+            Self::create_arrow(
                 shared_data,
-                position,
+                Vector3::zero(),
                 [10., 0., 0.].into(),
                 [1., 0., 0., 1.].into(),
             ),
-            mesh_y: Self::create_arrow(
+            Self::create_arrow(
                 shared_data,
-                position,
+                Vector3::zero(),
                 [0., 10., 0.].into(),
                 [0., 1., 0., 1.].into(),
             ),
-            mesh_z: Self::create_arrow(
+            Self::create_arrow(
                 shared_data,
-                position,
+                Vector3::zero(),
                 [0., 0., 10.].into(),
                 [0., 0., 1., 1.].into(),
             ),
-        };
-        SharedData::add_resource(shared_data, gizmo)
+        )
+    }
+
+    pub fn new_scale(shared_data: &SharedDataRw, global_messenger: MessengerRw) -> GizmoRc {
+        Self::new(
+            shared_data,
+            global_messenger,
+            GizmoType::Scale,
+            Self::create_center_mesh(shared_data, Vector3::zero()),
+            Self::create_hammer(
+                shared_data,
+                Vector3::zero(),
+                [10., 0., 0.].into(),
+                [1., 0., 0., 1.].into(),
+            ),
+            Self::create_hammer(
+                shared_data,
+                Vector3::zero(),
+                [0., 10., 0.].into(),
+                [0., 1., 0., 1.].into(),
+            ),
+            Self::create_hammer(
+                shared_data,
+                Vector3::zero(),
+                [0., 0., 10.].into(),
+                [0., 0., 1., 1.].into(),
+            ),
+        )
     }
 
     fn add_material(shared_data: &SharedDataRw, mesh: &MeshRc) {
@@ -126,6 +182,21 @@ impl Gizmo {
         Self::add_material(shared_data, &mesh);
         mesh
     }
+    fn create_hammer(
+        shared_data: &SharedDataRw,
+        position: Vector3,
+        direction: Vector3,
+        color: Vector4,
+    ) -> MeshRc {
+        let mut mesh_data = MeshData::default();
+
+        let (vertices, indices) = create_hammer(position, direction, color);
+        mesh_data.append_mesh(vertices.as_slice(), indices.as_slice());
+
+        let mesh = MeshInstance::create_from_data(shared_data, mesh_data);
+        Self::add_material(shared_data, &mesh);
+        mesh
+    }
 
     pub fn set_visible(&mut self, is_visible: bool) -> &mut Self {
         self.mesh_center
@@ -143,19 +214,20 @@ impl Gizmo {
         self.mesh_center.resource().get().is_visible()
     }
 
-    pub fn update_meshes(&mut self) -> &mut Self {
-        let matrix = self.transform.resource().get().matrix();
-
+    pub fn update_meshes(&mut self, camera_scale: f32) -> &mut Self {
+        let mut matrix = self.transform.resource().get().matrix();
+        let (translation, rotation, _) = matrix.get_translation_rotation_scale();
+        matrix.from_translation_rotation_scale(
+            translation,
+            rotation,
+            Vector3::from_value(camera_scale),
+        );
         self.mesh_center.resource().get_mut().set_matrix(matrix);
 
         self.mesh_x.resource().get_mut().set_matrix(matrix);
         self.mesh_y.resource().get_mut().set_matrix(matrix);
         self.mesh_z.resource().get_mut().set_matrix(matrix);
         self
-    }
-
-    pub fn position(&self) -> Vector3 {
-        self.transform.resource().get().position()
     }
 
     fn is_ray_inside(&self, start: Vector3, end: Vector3, mesh: &MeshRc) -> bool {
@@ -192,30 +264,45 @@ impl Gizmo {
     pub fn end_drag(&mut self) {
         self.axis = Vector3::zero();
     }
-    pub fn drag(&mut self, old_position: Vector3, new_position: Vector3) {
-        let mut movement = new_position - old_position;
-        movement.x *= self.axis.x;
-        movement.y *= self.axis.y;
-        movement.z *= self.axis.z;
-        let position = self.position();
-        self.transform
-            .resource()
-            .get_mut()
-            .set_position(position + movement);
-        self.update_meshes();
-    }
-
-    pub fn move_object(&self, shared_data: &SharedDataRw, object_id: ObjectId) {
+    pub fn drag(&mut self, old_position: Vector3, new_position: Vector3, object_id: ObjectId) {
         if object_id.is_nil() {
             return;
         }
-        let object = SharedData::get_resource::<Object>(shared_data, object_id);
-        if let Some(transform) = object.resource().get().get_component::<Transform>() {
-            transform.resource().get_mut().set_position(self.position());
+        let mut delta = new_position - old_position;
+        delta.x *= self.axis.x;
+        delta.y *= self.axis.y;
+        delta.z *= self.axis.z;
+        if self.mode_type == GizmoType::Move {
+            self.transform.resource().get_mut().translate(delta);
+            let object = SharedData::get_resource::<Object>(&self.shared_data, object_id);
+            if let Some(transform) = object.resource().get().get_component::<Transform>() {
+                transform.resource().get_mut().translate(delta);
+            }
+        } else if self.mode_type == GizmoType::Scale {
+            let object = SharedData::get_resource::<Object>(&self.shared_data, object_id);
+            if let Some(transform) = object.resource().get().get_component::<Transform>() {
+                if self.axis == Vector3::default_one() {
+                    let min = delta.x.min(delta.y).min(delta.z);
+                    let max = delta.x.max(delta.y).max(delta.z);
+                    if min.abs() >= max.abs() {
+                        delta = Vector3::from_value(min);
+                    } else {
+                        delta = Vector3::from_value(max);
+                    }
+                }
+                transform.resource().get_mut().add_scale(delta);
+            }
+        } else if self.mode_type == GizmoType::Rotate {
+            self.transform.resource().get_mut().rotate(delta);
+            let object = SharedData::get_resource::<Object>(&self.shared_data, object_id);
+            if let Some(transform) = object.resource().get().get_component::<Transform>() {
+                transform.resource().get_mut().rotate(delta);
+            }
         }
+        self.update_meshes(self.camera_scale);
     }
 
-    pub fn update_move(
+    pub fn manipulate(
         &mut self,
         camera: &Camera,
         old_pos: Vector2,
@@ -227,7 +314,7 @@ impl Gizmo {
         if !self.is_visible() {
             return false;
         }
-        let pos = self.position();
+        let pos = self.transform.resource().get().position();
         let (old_cam_start, old_cam_end) = camera.convert_in_3d(old_pos);
         let (new_cam_start, new_cam_end) = camera.convert_in_3d(new_pos);
         let old_dir = pos - old_cam_start;
@@ -242,8 +329,7 @@ impl Gizmo {
             self.end_drag();
             self.is_active = false;
         } else if self.is_active {
-            self.drag(old_position, new_position);
-            self.move_object(&self.shared_data, selected_object);
+            self.drag(old_position, new_position, selected_object);
         }
 
         self.is_active
@@ -256,12 +342,8 @@ impl Gizmo {
             let cam_pos = camera.position();
             let pos = self.transform.resource().get().position();
             let direction = pos - cam_pos;
-            let scale = direction.length() / DEFAULT_DISTANCE_SCALE;
-            self.transform
-                .resource()
-                .get_mut()
-                .set_scale([scale, scale, scale].into());
-            self.update_meshes();
+            self.camera_scale = direction.length() / DEFAULT_DISTANCE_SCALE;
+            self.update_meshes(self.camera_scale);
         }
     }
 
@@ -271,15 +353,19 @@ impl Gizmo {
         read_messages(self.message_channel.get_listener(), |msg| {
             if msg.type_id() == TypeId::of::<ViewEvent>() {
                 let event = msg.as_any().downcast_ref::<ViewEvent>().unwrap();
-                let ViewEvent::Selected(object_id) = event;
-                self.selected_object(*object_id);
+                let ViewEvent::Selected(object_id) = *event;
+                self.select_object(object_id);
             }
         });
     }
 
-    fn selected_object(&mut self, object_id: ObjectId) {
+    pub fn select_object(&mut self, object_id: ObjectId) {
         if object_id.is_nil() {
             self.set_visible(false);
+            self.transform
+                .resource()
+                .get_mut()
+                .set_position(Vector3::zero());
         } else {
             let object = SharedData::get_resource::<Object>(&self.shared_data, object_id);
             if let Some(transform) = object.resource().get().get_component::<Transform>() {
@@ -287,7 +373,7 @@ impl Gizmo {
                     .resource()
                     .get_mut()
                     .set_position(transform.resource().get().position());
-                self.update_meshes();
+                self.update_meshes(self.camera_scale);
             }
             self.set_visible(true);
         }

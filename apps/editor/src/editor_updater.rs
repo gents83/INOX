@@ -140,6 +140,7 @@ impl System for EditorUpdater {
             .register_messagebox::<MouseEvent>(self.message_channel.get_messagebox())
             .register_messagebox::<WindowEvent>(self.message_channel.get_messagebox())
             .register_messagebox::<ViewEvent>(self.message_channel.get_messagebox())
+            .register_messagebox::<ToolbarEvent>(self.message_channel.get_messagebox())
             .register_messagebox::<DialogEvent>(self.message_channel.get_messagebox());
 
         self.create_main_menu()
@@ -167,6 +168,7 @@ impl System for EditorUpdater {
             .unregister_messagebox::<MouseEvent>(self.message_channel.get_messagebox())
             .unregister_messagebox::<WindowEvent>(self.message_channel.get_messagebox())
             .unregister_messagebox::<ViewEvent>(self.message_channel.get_messagebox())
+            .unregister_messagebox::<ToolbarEvent>(self.message_channel.get_messagebox())
             .unregister_messagebox::<DialogEvent>(self.message_channel.get_messagebox());
     }
 }
@@ -337,9 +339,15 @@ impl EditorUpdater {
                 }
             } else if msg.type_id() == TypeId::of::<ViewEvent>() {
                 let event = msg.as_any().downcast_ref::<ViewEvent>().unwrap();
-                let ViewEvent::Selected(object_id) = event;
+                let ViewEvent::Selected(object_id) = *event;
                 if let Some(properties) = &mut self.properties {
-                    properties.select_object(*object_id);
+                    properties.select_object(object_id);
+                }
+            } else if msg.type_id() == TypeId::of::<ToolbarEvent>() {
+                let event = msg.as_any().downcast_ref::<ToolbarEvent>().unwrap();
+                let ToolbarEvent::ChangeMode(mode) = *event;
+                if let Some(view3d) = &mut self.view3d {
+                    view3d.change_edit_mode(mode);
                 }
             }
         });

@@ -287,3 +287,46 @@ pub fn create_line(start: Vector3, end: Vector3, color: Vector4) -> ([VertexData
 
     (vertices, indices)
 }
+
+pub fn create_hammer(
+    position: Vector3,
+    direction: Vector3,
+    color: Vector4,
+) -> (Vec<VertexData>, Vec<u32>) {
+    let mut shape_vertices = Vec::new();
+    let mut shape_indices = Vec::new();
+
+    let height = direction.length();
+
+    let (mut vertices, mut indices) = create_cylinder(0.25, 0.25, 16, height, 1);
+    vertices.iter_mut().for_each(|v| {
+        v.pos.z += height * 0.5;
+        v.color = color;
+    });
+    indices
+        .iter_mut()
+        .for_each(|i| *i += shape_vertices.len() as u32);
+    shape_vertices.append(&mut vertices);
+    shape_indices.append(&mut indices);
+
+    let (mut vertices, mut indices) =
+        create_cube_from_min_max(Vector3::new(-0.5, -0.5, -0.5), Vector3::new(0.5, 0.5, 0.5));
+
+    vertices.iter_mut().for_each(|v| {
+        v.pos.z += height;
+        v.color = color;
+    });
+    indices
+        .iter_mut()
+        .for_each(|i| *i += shape_vertices.len() as u32);
+    shape_vertices.append(&mut vertices.to_vec());
+    shape_indices.append(&mut indices.to_vec());
+
+    let mut matrix = Matrix4::default_identity();
+    matrix.from_direction(direction);
+    shape_vertices.iter_mut().for_each(|v| {
+        v.pos = position + matrix.transform(v.pos);
+    });
+
+    (shape_vertices, shape_indices)
+}
