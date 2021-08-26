@@ -25,7 +25,23 @@ void main() {
 	{
 	    discard;
 	}
-  // The texture sampler is sRGB aware, and glium already expects linear rgba output
-  // so no need for any sRGB conversions here:
-  outColor = inColor * texture(texture0Sampler[inTextureIndex], inTexCoord);
+	
+	if (inTexCoord.z >= 0) 
+	{
+		vec4 texColor = texture(texture0Sampler[inTextureIndex], inTexCoord);
+		if(texColor.a > 0.2) 
+		{
+	    	outColor.rgb = texColor.rgb * inColor.rgb;
+	    	outColor.a = inColor.a;
+	    }
+	    else 
+	    {
+	    	discard;
+	    }
+	    
+	}
+	else 
+	{
+		outColor = inColor;
+	}
 }
