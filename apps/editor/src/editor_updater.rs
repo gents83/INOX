@@ -31,6 +31,7 @@ pub struct EditorUpdater {
     grid_mesh: MeshRc,
     scene: SceneRc,
     main_menu: Option<MainMenu>,
+    toolbar: Option<Toolbar>,
     debug_info: Option<DebugInfo>,
     view3d: Option<View3D>,
     properties: Option<Properties>,
@@ -59,6 +60,7 @@ impl EditorUpdater {
             grid_mesh: MeshRc::default(),
             scene: SceneRc::default(),
             main_menu: None,
+            toolbar: None,
             debug_info: None,
             view3d: None,
             properties: None,
@@ -141,6 +143,7 @@ impl System for EditorUpdater {
             .register_messagebox::<DialogEvent>(self.message_channel.get_messagebox());
 
         self.create_main_menu()
+            .create_toolbar()
             .create_properties()
             .create_view3d()
             .create_scene();
@@ -176,6 +179,11 @@ impl EditorUpdater {
             self.show_debug_info.clone(),
         );
         self.main_menu = Some(main_menu);
+        self
+    }
+    fn create_toolbar(&mut self) -> &mut Self {
+        let toolbar = Toolbar::new(&self.shared_data, &self.global_messenger);
+        self.toolbar = Some(toolbar);
         self
     }
     fn create_debug_info(&mut self) -> &mut Self {
