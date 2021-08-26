@@ -274,7 +274,6 @@ impl Gizmo {
                 transform.resource().get_mut().add_scale(delta);
             }
         } else if self.mode_type == GizmoType::Rotate {
-            self.transform.resource().get_mut().rotate(delta);
             let object = SharedData::get_resource::<Object>(&self.shared_data, object_id);
             if let Some(transform) = object.resource().get().get_component::<Transform>() {
                 transform.resource().get_mut().rotate(delta);
