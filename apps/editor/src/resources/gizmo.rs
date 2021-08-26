@@ -6,9 +6,10 @@ use nrg_graphics::{
 };
 
 use nrg_math::{
-    compute_distance_between_ray_and_oob, InnerSpace, VecBase, Vector2, Vector3, Vector4, Zero,
+    raycast_oob, InnerSpace, Mat4Ops, MatBase, Matrix4, VecBase, Vector2, Vector3, Vector4, Zero,
 };
-use nrg_messenger::{read_messages, MessageChannel, MessengerRw};
+
+use nrg_messenger::{read_messages, MessageBox, MessageChannel, MessengerRw};
 use nrg_resources::{
     DataTypeResource, ResourceData, ResourceId, ResourceRef, SharedData, SharedDataRw,
 };
@@ -33,6 +34,7 @@ pub struct Gizmo {
     is_active: bool,
     shared_data: SharedDataRw,
     message_channel: MessageChannel,
+    global_dispatcher: MessageBox,
 }
 
 impl ResourceData for Gizmo {
@@ -40,6 +42,9 @@ impl ResourceData for Gizmo {
         self.id
     }
 }
+
+unsafe impl Sync for Gizmo {}
+unsafe impl Send for Gizmo {}
 
 impl Gizmo {
     pub fn new_translation(
@@ -63,6 +68,7 @@ impl Gizmo {
             axis: Vector3::zero(),
             shared_data: shared_data.clone(),
             message_channel,
+            global_dispatcher: global_messenger.read().unwrap().get_dispatcher(),
             is_active: false,
             mesh_center: Self::create_center_mesh(shared_data, position),
             mesh_x: Self::create_arrow(
@@ -145,7 +151,6 @@ impl Gizmo {
         self.mesh_x.resource().get_mut().set_matrix(matrix);
         self.mesh_y.resource().get_mut().set_matrix(matrix);
         self.mesh_z.resource().get_mut().set_matrix(matrix);
-
         self
     }
 
@@ -154,14 +159,16 @@ impl Gizmo {
     }
 
     fn is_ray_inside(&self, start: Vector3, end: Vector3, mesh: &MeshRc) -> bool {
-        let (mesh_min, mesh_max) = mesh.resource().get().mesh_data().compute_min_max();
-
-        compute_distance_between_ray_and_oob(
+        let (min, max) = mesh.resource().get().mesh_data().compute_min_max();
+        let matrix = mesh.resource().get().matrix();
+        let min = matrix.transform(min);
+        let max = matrix.transform(max);
+        raycast_oob(
             start,
-            end,
-            mesh_min,
-            mesh_max,
-            self.transform.resource().get().matrix(),
+            (end - start).normalize(),
+            min,
+            max,
+            Matrix4::default_identity(),
         )
     }
 
@@ -230,8 +237,7 @@ impl Gizmo {
         let new_position =
             new_cam_start + (new_cam_end - new_cam_start).normalize() * new_dir.length();
         if is_drag_started {
-            self.is_active =
-                self.start_drag(new_cam_start, (new_cam_end - new_cam_start).normalize());
+            self.is_active = self.start_drag(new_cam_start, new_cam_end);
         } else if is_drag_ended {
             self.end_drag();
             self.is_active = false;

@@ -2,9 +2,7 @@ use nrg_camera::Camera;
 use nrg_graphics::{
     DynamicImage, MeshInstance, RenderPassInstance, TextureInstance, TextureRc, ViewInstance,
 };
-use nrg_math::{
-    compute_distance_between_ray_and_oob, InnerSpace, MatBase, Matrix4, Vector2, Vector3, Zero,
-};
+use nrg_math::{raycast_oob, InnerSpace, MatBase, Matrix4, Vector2, Vector3, Zero};
 use nrg_messenger::{implement_message, Message, MessageBox, MessengerRw};
 use nrg_platform::{Key, KeyEvent};
 use nrg_resources::{DataTypeResource, SharedData, SharedDataRw};
@@ -315,13 +313,7 @@ impl View3D {
                     min = mesh_min;
                     max = mesh_max;
                 }
-                if compute_distance_between_ray_and_oob(
-                    ray_start_world.xyz(),
-                    ray_dir_world.xyz(),
-                    min,
-                    max,
-                    matrix,
-                ) {
+                if raycast_oob(ray_start_world.xyz(), ray_dir_world.xyz(), min, max, matrix) {
                     selected_object = obj.id();
                 }
             }

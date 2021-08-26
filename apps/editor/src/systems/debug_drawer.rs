@@ -5,7 +5,7 @@ use nrg_graphics::{
     MeshInstance, MeshRc, PipelineInstance,
 };
 use nrg_math::{Vector2, Vector3, Vector4};
-use nrg_messenger::{implement_message, read_messages, MessageChannel, MessengerRw};
+use nrg_messenger::{implement_message, read_messages, Message, MessageChannel, MessengerRw};
 use nrg_resources::{DataTypeResource, SharedDataRw};
 
 /// A debug drawer
@@ -45,6 +45,7 @@ use nrg_resources::{DataTypeResource, SharedDataRw};
 #[allow(dead_code)]
 pub enum DrawEvent {
     Line(Vector3, Vector3, Vector4),            // (start, end, color)
+    BoundingBox(Vector3, Vector3, Vector4),     // (min, max, color)
     Quad(Vector2, Vector2, f32, Vector4, bool), // (min, max, z, color, is_wireframe)
     Arrow(Vector3, Vector3, Vector4, bool),     // (start, direction, color, is_wireframe)
     Sphere(Vector3, f32, Vector4, bool),        // (position, radius, color, is_wireframe)
@@ -98,6 +99,15 @@ impl DebugDrawer {
         self.update_events();
     }
 
+    fn auto_send_event(&self, event: DrawEvent) {
+        self.message_channel
+            .get_messagebox()
+            .write()
+            .unwrap()
+            .send(event.as_boxed())
+            .ok();
+    }
+
     fn update_events(&mut self) {
         nrg_profiler::scoped_profile!("update_events");
 
@@ -110,6 +120,42 @@ impl DebugDrawer {
                     DrawEvent::Line(start, end, color) => {
                         let (vertices, indices) = create_line(start, end, color);
                         wireframe_mesh_data.append_mesh(&vertices, &indices);
+                    }
+                    DrawEvent::BoundingBox(min, max, color) => {
+                        self.auto_send_event(DrawEvent::Quad(
+                            [min.x, min.y].into(),
+                            [max.x, max.y].into(),
+                            min.z,
+                            color,
+                            true,
+                        ));
+                        self.auto_send_event(DrawEvent::Quad(
+                            [min.x, min.y].into(),
+                            [max.x, max.y].into(),
+                            max.z,
+                            color,
+                            true,
+                        ));
+                        self.auto_send_event(DrawEvent::Line(
+                            [min.x, min.y, min.z].into(),
+                            [min.x, min.y, max.z].into(),
+                            color,
+                        ));
+                        self.auto_send_event(DrawEvent::Line(
+                            [min.x, max.y, min.z].into(),
+                            [min.x, max.y, max.z].into(),
+                            color,
+                        ));
+                        self.auto_send_event(DrawEvent::Line(
+                            [max.x, min.y, min.z].into(),
+                            [max.x, min.y, max.z].into(),
+                            color,
+                        ));
+                        self.auto_send_event(DrawEvent::Line(
+                            [max.x, max.y, min.z].into(),
+                            [max.x, max.y, max.z].into(),
+                            color,
+                        ));
                     }
                     DrawEvent::Quad(min, max, z, color, is_wireframe) => {
                         if is_wireframe {

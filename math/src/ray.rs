@@ -1,10 +1,10 @@
 use std::mem::swap;
 
-use cgmath::InnerSpace;
+use cgmath::{ElementWise, InnerSpace, Matrix};
 
 use crate::{Mat4Ops, Matrix4, Vector3};
 
-pub fn compute_distance_between_ray_and_oob(
+pub fn raycast_oob(
     ray_origin: Vector3,    // Ray origin, in world space
     ray_direction: Vector3, // Ray direction (NOT target position!), in world space. Must be normalize()'d.
     aabb_min: Vector3,      // Minimum X,Y,Z coords of the mesh when not transformed at all.
@@ -12,15 +12,18 @@ pub fn compute_distance_between_ray_and_oob(
     model_matrix: Matrix4, // Transformation applied to the mesh (which will thus be also applied to its bounding box)
 ) -> bool {
     // Intersection method from Real-Time Rendering and Essential Mathematics for Games
-    let mut t_min = 0.;
-    let mut t_max = 10000.0;
+    let mut t_min = -f32::MAX;
+    let mut t_max = f32::MAX;
 
     let model_position = model_matrix.translation();
+    let model_scale = model_matrix.scale();
     let delta = model_position - ray_origin;
+    let aabb_min = aabb_min.mul_element_wise(model_scale);
+    let aabb_max = aabb_max.mul_element_wise(model_scale);
 
     // Test intersection with the 2 planes perpendicular to the OBB's X axis
     {
-        let x_axis = model_matrix.x.xyz();
+        let x_axis = model_matrix.row(0).xyz();
         let e = x_axis.dot(delta);
         let f = ray_direction.dot(x_axis);
 
@@ -59,7 +62,7 @@ pub fn compute_distance_between_ray_and_oob(
     // Test intersection with the 2 planes perpendicular to the OBB's Y axis
     // Exactly the same thing than above.
     {
-        let y_axis = model_matrix.y.xyz();
+        let y_axis = model_matrix.row(1).xyz();
         let e = y_axis.dot(delta);
         let f = ray_direction.dot(y_axis);
 
@@ -88,7 +91,7 @@ pub fn compute_distance_between_ray_and_oob(
     // Test intersection with the 2 planes perpendicular to the OBB's Z axis
     // Exactly the same thing than above.
     {
-        let z_axis = model_matrix.z.xyz();
+        let z_axis = model_matrix.row(2).xyz();
         let e = z_axis.dot(delta);
         let f = ray_direction.dot(z_axis);
 

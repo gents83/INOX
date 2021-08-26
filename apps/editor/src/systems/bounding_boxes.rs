@@ -1,7 +1,7 @@
 use std::any::TypeId;
 
 use nrg_graphics::MeshInstance;
-use nrg_math::{Mat4Ops, Vector3, Vector4, Zero};
+use nrg_math::{Mat4Ops, Vector3, Zero};
 use nrg_messenger::{read_messages, Message, MessageBox, MessageChannel, MessengerRw};
 use nrg_resources::{SharedData, SharedDataRw};
 use nrg_scene::{Hitbox, Object, ObjectId};
@@ -49,91 +49,14 @@ impl BoundingBoxDrawer {
                     min = transform.transform(mesh_min);
                     max = transform.transform(mesh_max);
                 }
-                self.draw_bounding_box(min, max);
+                self.global_dispatcher
+                    .write()
+                    .unwrap()
+                    .send(DrawEvent::BoundingBox(min, max, [1., 1., 0., 1.].into()).as_boxed())
+                    .ok();
             }
         }
     }
-
-    fn draw_bounding_box(&self, min: Vector3, max: Vector3) {
-        let color: Vector4 = [1., 1., 0., 1.].into();
-        self.global_dispatcher
-            .write()
-            .unwrap()
-            .send(
-                DrawEvent::Quad(
-                    [min.x, min.y].into(),
-                    [max.x, max.y].into(),
-                    min.z,
-                    color,
-                    true,
-                )
-                .as_boxed(),
-            )
-            .ok();
-        self.global_dispatcher
-            .write()
-            .unwrap()
-            .send(
-                DrawEvent::Quad(
-                    [min.x, min.y].into(),
-                    [max.x, max.y].into(),
-                    max.z,
-                    color,
-                    true,
-                )
-                .as_boxed(),
-            )
-            .ok();
-        self.global_dispatcher
-            .write()
-            .unwrap()
-            .send(
-                DrawEvent::Line(
-                    [min.x, min.y, min.z].into(),
-                    [min.x, min.y, max.z].into(),
-                    color,
-                )
-                .as_boxed(),
-            )
-            .ok();
-        self.global_dispatcher
-            .write()
-            .unwrap()
-            .send(
-                DrawEvent::Line(
-                    [min.x, max.y, min.z].into(),
-                    [min.x, max.y, max.z].into(),
-                    color,
-                )
-                .as_boxed(),
-            )
-            .ok();
-        self.global_dispatcher
-            .write()
-            .unwrap()
-            .send(
-                DrawEvent::Line(
-                    [max.x, min.y, min.z].into(),
-                    [max.x, min.y, max.z].into(),
-                    color,
-                )
-                .as_boxed(),
-            )
-            .ok();
-        self.global_dispatcher
-            .write()
-            .unwrap()
-            .send(
-                DrawEvent::Line(
-                    [max.x, max.y, min.z].into(),
-                    [max.x, max.y, max.z].into(),
-                    color,
-                )
-                .as_boxed(),
-            )
-            .ok();
-    }
-
     fn update_events(&mut self) {
         nrg_profiler::scoped_profile!("update_events");
 
