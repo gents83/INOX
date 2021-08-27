@@ -79,9 +79,6 @@ impl Pipeline {
     pub fn get_instance_commands(&self) -> &Vec<InstanceCommand> {
         &self.instance_commands
     }
-    pub fn get_instance_count(&self) -> usize {
-        self.instance_count
-    }
 
     pub fn destroy(&mut self) {
         self.inner.delete();
@@ -147,8 +144,8 @@ impl Pipeline {
         diffuse_layer_index: i32,
         outline_color: Vector4,
     ) -> &mut Self {
-        if mesh_instance.get_data().vertices.is_empty()
-            || mesh_instance.get_data().indices.is_empty()
+        if mesh_instance.mesh_data().vertices.is_empty()
+            || mesh_instance.mesh_data().indices.is_empty()
         {
             return self;
         }
@@ -156,21 +153,25 @@ impl Pipeline {
         nrg_profiler::scoped_profile!(format!("add_mesh_instance[{}]", self.id()).as_str());
 
         let mesh_data_ref = self.mesh.bind_at_index(
-            &mesh_instance.get_data().vertices,
+            &mesh_instance.mesh_data().vertices,
             self.vertex_count,
-            &mesh_instance.get_data().indices,
+            &mesh_instance.mesh_data().indices,
             self.index_count,
         );
 
-        self.vertex_count += mesh_instance.get_data().vertices.len() as u32;
-        self.index_count += mesh_instance.get_data().indices.len() as u32;
+        self.vertex_count += mesh_instance.mesh_data().vertices.len() as u32;
+        self.index_count += mesh_instance.mesh_data().indices.len() as u32;
+        let mesh_index = if mesh_instance.draw_index() >= 0 {
+            mesh_instance.draw_index() as usize
+        } else {
+            self.instance_count
+        };
 
         let command = InstanceCommand {
-            mesh_index: self.instance_count,
+            mesh_index,
             mesh_data_ref,
         };
-        let (position, rotation, scale) =
-            mesh_instance.matrix().get_translation_rotation_scale();
+        let (position, rotation, scale) = mesh_instance.matrix().get_translation_rotation_scale();
 
         let data = InstanceData {
             position,
@@ -182,13 +183,16 @@ impl Pipeline {
             diffuse_layer_index,
             outline_color,
         };
-        if self.instance_count >= self.instance_commands.len() {
-            self.instance_commands.push(command);
-            self.instance_data.push(data);
-        } else {
-            self.instance_commands[self.instance_count] = command;
-            self.instance_data[self.instance_count] = data;
+        if mesh_index >= self.instance_commands.len() {
+            self.instance_commands
+                .resize(mesh_index + 1, InstanceCommand::default());
         }
+        if mesh_index >= self.instance_data.len() {
+            self.instance_data
+                .resize(mesh_index + 1, InstanceData::default());
+        }
+        self.instance_commands[mesh_index] = command;
+        self.instance_data[mesh_index] = data;
         self.instance_count += 1;
         self
     }

@@ -1,11 +1,11 @@
 use nrg_resources::{
     DataTypeResource, ResourceData, ResourceId, ResourceRef, SharedData, SharedDataRw,
 };
-use nrg_serialize::{generate_uid_from_string, Uid, INVALID_UID};
+use nrg_serialize::{generate_uid_from_string, INVALID_UID};
 
 use crate::PipelineData;
 
-pub type PipelineId = Uid;
+pub type PipelineId = ResourceId;
 pub type PipelineRc = ResourceRef<PipelineInstance>;
 
 pub struct PipelineInstance {

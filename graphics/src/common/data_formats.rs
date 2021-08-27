@@ -8,7 +8,7 @@ use nrg_resources::{implement_file_data, DATA_FOLDER};
 use nrg_serialize::*;
 
 #[repr(C)]
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, Default, PartialEq, Clone, Copy)]
 pub struct InstanceCommand {
     pub mesh_index: usize,
     pub mesh_data_ref: MeshDataRef,
@@ -228,7 +228,7 @@ impl Default for MaterialData {
 }
 
 #[repr(C)]
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Default, Clone, Copy, Debug, Eq, PartialEq)]
 pub struct MeshDataRef {
     pub first_vertex: u32,
     pub last_vertex: u32,

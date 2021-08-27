@@ -927,20 +927,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nrg_window"
-version = "0.1.0"
-dependencies = [
- "nrg_core",
- "nrg_graphics",
- "nrg_math",
- "nrg_messenger",
- "nrg_platform",
- "nrg_profiler",
- "nrg_resources",
- "nrg_serialize",
-]
-
-[[package]]
 name = "num-integer"
 version = "0.1.44"
 source = "registry+https://github.com/rust-lang/crates.io-index"

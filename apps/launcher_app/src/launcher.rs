@@ -53,6 +53,7 @@ impl Launcher {
             renderer.clone(),
             &app.get_shared_data(),
             &app.get_global_messenger(),
+            app.get_job_handler(),
         );
 
         let mut rendering_draw_phase = PhaseWithSystems::new(RENDERING_PHASE);

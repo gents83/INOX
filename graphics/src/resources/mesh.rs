@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use crate::{MaterialRc, MeshData, TextureInfo};
+use crate::{INVALID_INDEX, MaterialRc, MeshData, TextureInfo};
 use nrg_math::{Matrix4, Vector4};
 use nrg_resources::{
     DataTypeResource, Deserializable, ResourceData, ResourceId, ResourceRef, SerializableResource,
@@ -20,6 +20,7 @@ pub struct MeshInstance {
     is_visible: bool,
     is_dirty: bool,
     uv_converted: bool,
+    draw_index: i32,
 }
 
 impl ResourceData for MeshInstance {
@@ -38,6 +39,7 @@ impl Default for MeshInstance {
             is_visible: true,
             is_dirty: true,
             uv_converted: false,
+            draw_index: INVALID_INDEX,
         }
     }
 }
@@ -64,7 +66,7 @@ impl MeshInstance {
     pub fn find_from_path(shared_data: &SharedDataRw, path: &Path) -> Option<MeshRc> {
         SharedData::match_resource(shared_data, |m: &MeshInstance| m.path() == path)
     }
-    pub fn get_data(&self) -> &MeshData {
+    pub fn mesh_data(&self) -> &MeshData {
         &self.mesh_data
     }
     pub fn is_visible(&self) -> bool {
@@ -99,8 +101,11 @@ impl MeshInstance {
     pub fn material(&self) -> MaterialRc {
         self.material.clone()
     }
-    pub fn mesh_data(&self) -> &MeshData {
-        &self.mesh_data
+    pub fn draw_index(&self) -> i32 {
+        self.draw_index
+    }
+    pub fn set_draw_index(&mut self, draw_index: u32) {
+        self.draw_index = draw_index as _;
     }
     pub fn matrix(&self) -> Matrix4 {
         self.mesh_data.matrix

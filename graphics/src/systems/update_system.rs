@@ -1,6 +1,13 @@
-use std::any::TypeId;
+use std::{
+    any::TypeId,
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    },
+    thread,
+};
 
-use nrg_core::{System, SystemId};
+use nrg_core::{JobHandlerRw, System, SystemId};
 use nrg_messenger::{read_messages, MessageChannel, MessengerRw};
 use nrg_resources::{ResourceEvent, SharedData, SharedDataRw};
 
@@ -13,6 +20,7 @@ pub struct UpdateSystem {
     id: SystemId,
     renderer: RendererRw,
     shared_data: SharedDataRw,
+    job_handler: JobHandlerRw,
     message_channel: MessageChannel,
 }
 
@@ -21,6 +29,7 @@ impl UpdateSystem {
         renderer: RendererRw,
         shared_data: &SharedDataRw,
         global_messenger: &MessengerRw,
+        job_handler: JobHandlerRw,
     ) -> Self {
         let message_channel = MessageChannel::default();
         global_messenger
@@ -29,11 +38,11 @@ impl UpdateSystem {
             .register_messagebox::<ResourceEvent>(message_channel.get_messagebox());
 
         crate::register_resource_types(shared_data);
-
         Self {
             id: SystemId::new(),
             renderer,
             shared_data: shared_data.clone(),
+            job_handler,
             message_channel,
         }
     }
@@ -113,9 +122,11 @@ impl System for UpdateSystem {
             );
         }
 
+        let wait_count = Arc::new(AtomicUsize::new(0));
+
         if SharedData::has_resources_of_type::<MeshInstance>(&self.shared_data) {
             let mut meshes = SharedData::get_resources_of_type::<MeshInstance>(&self.shared_data);
-            meshes.iter_mut().for_each(|mesh| {
+            meshes.iter_mut().enumerate().for_each(|(index, mesh)| {
                 if mesh.resource().get().is_visible() {
                     let material = mesh.resource().get().material();
                     if material.id().is_nil() {
@@ -130,49 +141,73 @@ impl System for UpdateSystem {
                         return;
                     }
 
-                    let diffuse_color = material.resource().get().diffuse_color();
-                    let outline_color = material.resource().get().outline_color();
+                    let wait_count = wait_count.clone();
+                    wait_count.fetch_add(1, Ordering::SeqCst);
 
-                    let (diffuse_texture_index, diffuse_layer_index) =
-                        if material.resource().get().has_diffuse_texture() {
-                            let diffuse_texture = material.resource().get().diffuse_texture();
-                            let (diffuse_texture_index, diffuse_layer_index) = (
-                                diffuse_texture.resource().get().texture_index() as _,
-                                diffuse_texture.resource().get().layer_index() as _,
-                            );
-                            let r = self.renderer.read().unwrap();
-                            let texture_info = r
-                                .get_texture_handler()
-                                .get_texture_info(diffuse_texture.id());
-                            mesh.resource()
-                                .get_mut()
-                                .process_uv_for_texture(texture_info);
-                            (diffuse_texture_index, diffuse_layer_index)
-                        } else {
-                            (INVALID_INDEX, INVALID_INDEX)
-                        };
+                    let renderer = self.renderer.clone();
+                    let mesh = mesh.clone();
 
-                    {
-                        for pipeline in self
-                            .renderer
-                            .write()
-                            .unwrap()
-                            .get_pipelines_with_id(pipeline.id())
-                            .iter_mut()
-                        {
-                            pipeline.add_mesh_instance(
-                                &mesh.resource().get(),
-                                diffuse_color,
-                                diffuse_texture_index,
-                                diffuse_layer_index,
-                                outline_color,
-                            );
-                        }
-                    }
+                    let job_name = format!("Adding mesh [{}] to pipeline", index);
+
+                    self.job_handler
+                        .write()
+                        .unwrap()
+                        .add_job(job_name.as_str(), move || {
+                            let diffuse_color = material.resource().get().diffuse_color();
+                            let outline_color = material.resource().get().outline_color();
+
+                            let (diffuse_texture_index, diffuse_layer_index) =
+                                if material.resource().get().has_diffuse_texture() {
+                                    let diffuse_texture =
+                                        material.resource().get().diffuse_texture();
+                                    let (diffuse_texture_index, diffuse_layer_index) = (
+                                        diffuse_texture.resource().get().texture_index() as _,
+                                        diffuse_texture.resource().get().layer_index() as _,
+                                    );
+                                    let r = renderer.read().unwrap();
+                                    let texture_info = r
+                                        .get_texture_handler()
+                                        .get_texture_info(diffuse_texture.id());
+                                    mesh.resource()
+                                        .get_mut()
+                                        .process_uv_for_texture(texture_info);
+                                    (diffuse_texture_index, diffuse_layer_index)
+                                } else {
+                                    (INVALID_INDEX, INVALID_INDEX)
+                                };
+
+                            for pipeline in renderer
+                                .write()
+                                .unwrap()
+                                .get_pipelines_with_id(pipeline.id())
+                                .iter_mut()
+                            {
+                                pipeline.add_mesh_instance(
+                                    &mesh.resource().get(),
+                                    diffuse_color,
+                                    diffuse_texture_index,
+                                    diffuse_layer_index,
+                                    outline_color,
+                                );
+                            }
+                            wait_count.fetch_sub(1, Ordering::SeqCst);
+                        });
                 }
             });
         }
-        self.renderer.write().unwrap().end_preparation();
+
+        let renderer = self.renderer.clone();
+        let job_name = "EndPreparation";
+        self.job_handler
+            .write()
+            .unwrap()
+            .add_job(job_name, move || {
+                while wait_count.load(Ordering::SeqCst) > 0 {
+                    thread::yield_now();
+                }
+                let mut r = renderer.write().unwrap();
+                r.end_preparation();
+            });
 
         true
     }

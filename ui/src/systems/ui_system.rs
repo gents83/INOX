@@ -23,8 +23,6 @@ use nrg_resources::{DataTypeResource, SharedData, SharedDataRw};
 
 use crate::UIWidget;
 
-const UI_RENDER_MESH_Z_OFFSET: f32 = 0.001;
-
 pub struct UISystem {
     id: SystemId,
     shared_data: SharedDataRw,
@@ -125,20 +123,24 @@ impl UISystem {
             MeshInstance::create_from_data(&shared_data, MeshData::default())
         });
         let textures = SharedData::get_resources_of_type::<TextureInstance>(&self.shared_data);
+
         for (i, clipped_mesh) in clipped_meshes.into_iter().enumerate() {
             let ClippedMesh(_, mesh) = clipped_mesh;
+            let draw_index = i as u32;
+            self.ui_meshes[i]
+                .resource()
+                .get_mut()
+                .set_draw_index(draw_index);
             if mesh.vertices.is_empty() || mesh.indices.is_empty() {
                 continue;
             }
-
-            let mesh_instance = self.ui_meshes[i].clone();
             let texture = match mesh.texture_id {
                 eguiTextureId::Egui => self.ui_texture.clone(),
                 eguiTextureId::User(texture_index) => textures[texture_index as usize].clone(),
             };
             let material = self.get_ui_material(texture);
+            let mesh_instance = self.ui_meshes[i].clone();
             let ui_scale = self.ui_scale;
-            let z = 1. + i as f32 * UI_RENDER_MESH_Z_OFFSET;
             let job_name = format!("ui_system::compute_mesh_data[{}]", i);
             self.job_handler
                 .write()
@@ -148,7 +150,7 @@ impl UISystem {
                     let mut vertices: Vec<VertexData> = Vec::new();
                     vertices.resize(mesh.vertices.len(), VertexData::default());
                     for (i, v) in mesh.vertices.iter().enumerate() {
-                        vertices[i].pos = [v.pos.x * ui_scale, v.pos.y * ui_scale, -z].into();
+                        vertices[i].pos = [v.pos.x * ui_scale, v.pos.y * ui_scale, 0.].into();
                         vertices[i].tex_coord = [v.uv.x, v.uv.y].into();
                         vertices[i].color = [
                             v.color.r() as f32 / 255.,
@@ -282,7 +284,6 @@ impl UISystem {
 
         if !output.copied_text.is_empty() {
             self.ui_clipboard = Some(output.copied_text);
-            println!("Clipboard content: {:?}", self.ui_clipboard);
         }
 
         self

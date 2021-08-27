@@ -18,6 +18,5 @@ members = [
     "resources",
     "scene",
     "serialize",
-    "window",
     "ui",
 ]
