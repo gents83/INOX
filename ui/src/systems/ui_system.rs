@@ -89,6 +89,7 @@ impl UISystem {
     }
 
     fn update_egui_texture(&mut self) -> &mut Self {
+        nrg_profiler::scoped_profile!("ui_system::update_egui_texture");
         if self.ui_texture_version != self.ui_context.texture().version {
             let image = DynamicImage::new_rgba8(
                 self.ui_context.texture().width as _,
@@ -115,6 +116,7 @@ impl UISystem {
     }
 
     fn compute_mesh_data(&mut self, clipped_meshes: Vec<ClippedMesh>) {
+        nrg_profiler::scoped_profile!("ui_system::compute_mesh_data");
         let shared_data = self.shared_data.clone();
         self.ui_meshes.resize_with(clipped_meshes.len(), || {
             MeshInstance::create_from_data(&shared_data, MeshData::default())
@@ -261,7 +263,8 @@ impl UISystem {
         self
     }
 
-    fn draw_ui(&mut self) {
+    fn show_ui(&mut self) {
+        nrg_profiler::scoped_profile!("ui_system::show_ui");
         let widgets = SharedData::get_resources_of_type::<UIWidget>(&self.shared_data);
         for widget in widgets {
             widget.resource().get_mut().execute(&self.ui_context);
@@ -309,12 +312,21 @@ impl System for UISystem {
     fn run(&mut self) -> bool {
         self.update_events();
 
-        self.ui_context.begin_frame(self.ui_input.take());
+        {
+            nrg_profiler::scoped_profile!("ui_context::begin_frame");
+            self.ui_context.begin_frame(self.ui_input.take());
+        }
 
-        self.draw_ui();
+        self.show_ui();
 
-        let (output, shapes) = self.ui_context.end_frame();
-        let clipped_meshes = self.ui_context.tessellate(shapes);
+        let (output, shapes) = {
+            nrg_profiler::scoped_profile!("ui_context::end_frame");
+            self.ui_context.end_frame()
+        };
+        let clipped_meshes = {
+            nrg_profiler::scoped_profile!("ui_context::tessellate");
+            self.ui_context.tessellate(shapes)
+        };
         self.handle_output(output)
             .update_egui_texture()
             .compute_mesh_data(clipped_meshes);

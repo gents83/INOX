@@ -3,9 +3,7 @@ use std::{
     process::Command,
 };
 
-use nrg_filesystem::{
-    convert_from_local_path, for_each_file_in, for_each_folder_in, is_folder_empty,
-};
+use nrg_filesystem::convert_from_local_path;
 use nrg_graphics::{TextureId, TextureInstance, TextureRc};
 use nrg_messenger::{get_events_from_string, Message, MessageBox, MessengerRw};
 
@@ -16,6 +14,15 @@ use nrg_ui::{
     SidePanel, TextEdit, TextureId as eguiTextureId, TopBottomPanel, UIWidget, UIWidgetRc, Ui,
     Widget, Window,
 };
+
+struct File {
+    path: PathBuf,
+}
+struct Dir {
+    path: PathBuf,
+    subdirs: Vec<Dir>,
+    files: Vec<File>,
+}
 
 #[allow(dead_code)]
 struct ContentBrowserData {
@@ -28,6 +35,7 @@ struct ContentBrowserData {
     is_editable: bool,
     operation: DialogOp,
     icon_file_texture_id: TextureId,
+    dir: Dir,
 }
 implement_widget_data!(ContentBrowserData);
 
@@ -61,6 +69,13 @@ impl ContentBrowser {
                 selected_file = filename.to_str().unwrap().to_string();
             }
         }
+        let mut dir = Dir {
+            path: selected_folder.clone(),
+            subdirs: Vec::new(),
+            files: Vec::new(),
+        };
+        Self::fill_dir(&mut dir, selected_folder.as_path());
+
         let data = ContentBrowserData {
             shared_data: shared_data.clone(),
             title: match operation {
@@ -75,59 +90,107 @@ impl ContentBrowser {
             operation,
             global_dispatcher: global_messenger.read().unwrap().get_dispatcher().clone(),
             icon_file_texture_id: file_icon.id(),
+            dir,
         };
         let ui_page = Self::create(shared_data, data);
         Self { ui_page, file_icon }
     }
 
-    fn populate_with_folders_tree(ui: &mut Ui, root: &Path, data: &mut ContentBrowserData) {
-        for_each_folder_in(root, |path| {
-            let selected = data.selected_folder == path.to_path_buf();
-            if is_folder_empty(path) {
-                if ui
-                    .selectable_label(selected, path.file_stem().unwrap().to_str().unwrap())
-                    .clicked()
-                {
-                    data.selected_folder = path.to_path_buf();
-                    data.selected_file = String::new();
+    fn fill_dir(dir: &mut Dir, root: &Path) {
+        if let Ok(directory) = std::fs::read_dir(root) {
+            directory.for_each(|entry| {
+                if let Ok(dir_entry) = entry {
+                    let path = dir_entry.path();
+                    if path.is_file() {
+                        dir.files.push(File { path });
+                    } else if path.is_dir() {
+                        let mut subdir = Dir {
+                            path: dir_entry.path(),
+                            subdirs: Vec::new(),
+                            files: Vec::new(),
+                        };
+                        Self::fill_dir(&mut subdir, path.as_path());
+                        dir.subdirs.push(subdir);
+                    }
                 }
-            } else {
-                let collapsing = CollapsingHeader::new(path.file_stem().unwrap().to_str().unwrap())
-                    .selectable(true)
-                    .selected(selected);
-                let header_response = collapsing
-                    .show(ui, |ui| {
-                        Self::populate_with_folders_tree(ui, path, data);
-                    })
-                    .header_response;
-                if header_response.clicked() {
-                    data.selected_folder = path.to_path_buf();
-                    data.selected_file = String::new();
+            });
+        }
+    }
+    fn get_files<'a>(dir: &'a Dir, path: &Path) -> &'a Vec<File> {
+        if dir.path.as_path() != path {
+            for d in dir.subdirs.iter() {
+                if dir.path.as_path() == path {
+                    return &d.files;
+                } else if path.starts_with(&d.path) {
+                    return Self::get_files(d, path);
                 }
             }
-        });
+        }
+        &dir.files
+    }
+
+    fn populate_with_folders_tree(
+        ui: &mut Ui,
+        directory: &Dir,
+        selected_folder: &mut PathBuf,
+        selected_file: &mut String,
+    ) {
+        nrg_profiler::scoped_profile!("populate_with_folders_tree");
+        let selected = selected_folder == &directory.path;
+        if directory.subdirs.is_empty() {
+            if ui
+                .selectable_label(
+                    selected,
+                    directory.path.file_stem().unwrap().to_str().unwrap(),
+                )
+                .clicked()
+            {
+                *selected_folder = directory.path.to_path_buf();
+                *selected_file = String::new();
+            }
+        } else {
+            let collapsing =
+                CollapsingHeader::new(directory.path.file_stem().unwrap().to_str().unwrap())
+                    .selectable(true)
+                    .selected(selected);
+            let header_response = collapsing
+                .show(ui, |ui| {
+                    for subdir in directory.subdirs.iter() {
+                        Self::populate_with_folders_tree(
+                            ui,
+                            subdir,
+                            selected_folder,
+                            selected_file,
+                        );
+                    }
+                })
+                .header_response;
+            if header_response.clicked() {
+                *selected_folder = directory.path.to_path_buf();
+                *selected_file = String::new();
+            }
+        }
     }
 
     fn populate_with_files(
         ui: &mut Ui,
-        root: &Path,
-        data: &mut ContentBrowserData,
-        icon_file_texture_id: nrg_graphics::TextureId,
+        files: &[File],
+        selected_file: &mut String,
+        texture_index: Option<usize>,
     ) {
-        for_each_file_in(root, |path| {
-            let filename = path.file_name().unwrap().to_str().unwrap().to_string();
-            let selected = data.selected_file == filename;
+        nrg_profiler::scoped_profile!("populate_with_files");
+        for file in files.iter() {
+            let filename = file.path.file_name().unwrap().to_str().unwrap().to_string();
+            let selected = selected_file == &filename;
             ui.horizontal(|ui| {
-                let textures =
-                    SharedData::get_resources_of_type::<TextureInstance>(&data.shared_data);
-                if let Some(index) = textures.iter().position(|t| t.id() == icon_file_texture_id) {
+                if let Some(index) = texture_index {
                     ui.image(eguiTextureId::User(index as _), [16., 16.]);
                 }
                 if ui.selectable_label(selected, filename.clone()).clicked() {
-                    data.selected_file = filename;
+                    *selected_file = filename;
                 }
             });
-        });
+        }
     }
 
     fn create(shared_data: &SharedDataRw, data: ContentBrowserData) -> UIWidgetRc {
@@ -150,20 +213,27 @@ impl ContentBrowser {
                     .open(&mut open)
                     .default_rect(rect)
                     .show(ui_context, |ui| {
+                        nrg_profiler::scoped_profile!("Window");
                         SidePanel::left("Folders")
                             .resizable(true)
                             .width_range(left_panel_min_width..=left_panel_max_width)
                             .show_inside(ui, |ui| {
+                                nrg_profiler::scoped_profile!("SidePanel");
                                 ScrollArea::auto_sized().show(ui, |ui| {
-                                    let path = data.folder.as_path().to_path_buf();
-                                    Self::populate_with_folders_tree(ui, path.as_path(), data);
+                                    Self::populate_with_folders_tree(
+                                        ui,
+                                        &data.dir,
+                                        &mut data.selected_folder,
+                                        &mut data.selected_file,
+                                    );
                                 })
                             });
 
-                        TopBottomPanel::bottom("bottom_panel_B")
+                        TopBottomPanel::bottom("bottom_panel")
                             .resizable(false)
                             .min_height(0.0)
                             .show_inside(ui, |ui| {
+                                nrg_profiler::scoped_profile!("BottomPanel");
                                 ui.horizontal(|ui| {
                                     ui.label("Filename: ");
                                     TextEdit::singleline(&mut data.selected_file)
@@ -195,14 +265,23 @@ impl ContentBrowser {
                             });
 
                         CentralPanel::default().show_inside(ui, |ui| {
+                            nrg_profiler::scoped_profile!("CentralPanel");
                             ScrollArea::auto_sized().show(ui, |ui| {
                                 if data.selected_folder.is_dir() {
                                     let path = data.selected_folder.as_path().to_path_buf();
+                                    let files = Self::get_files(&data.dir, path.as_path());
+                                    let textures =
+                                        SharedData::get_resources_of_type::<TextureInstance>(
+                                            &data.shared_data,
+                                        );
+                                    let texture_index = textures
+                                        .iter()
+                                        .position(|t| t.id() == data.icon_file_texture_id);
                                     Self::populate_with_files(
                                         ui,
-                                        path.as_path(),
-                                        data,
-                                        data.icon_file_texture_id,
+                                        files,
+                                        &mut data.selected_file,
+                                        texture_index,
                                     );
                                 }
                             });

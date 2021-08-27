@@ -1,4 +1,7 @@
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::{
+    any::type_name,
+    time::{SystemTime, UNIX_EPOCH},
+};
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub struct SystemId(pub u64);
@@ -21,6 +24,9 @@ impl SystemId {
 
 pub trait System: Send + Sync {
     fn id(&self) -> SystemId;
+    fn name(&self) -> &'static str {
+        type_name::<Self>()
+    }
     fn should_run_when_not_focused(&self) -> bool;
     fn init(&mut self);
     fn run(&mut self) -> bool;

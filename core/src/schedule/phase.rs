@@ -71,7 +71,7 @@ impl PhaseWithSystems {
             nrg_profiler::scoped_profile!(format!(
                 "{} {:?}",
                 "phase::execute_system",
-                s.as_mut().id()
+                s.as_mut().name()
             )
             .as_str());
             let ok = if is_focused || s.should_run_when_not_focused() {

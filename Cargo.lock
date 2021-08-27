@@ -331,8 +331,7 @@ source = "git+https://github.com/marcianx/downcast-rs#0aaf951bee097184e9c83c5171
 
 [[package]]
 name = "egui"
-version = "0.13.1"
-source = "git+https://github.com/emilk/egui#ce19e10258d5ba6ac4ecfa3b015246b09cd6b569"
+version = "0.14.0"
 dependencies = [
  "epaint",
 ]
@@ -345,8 +344,7 @@ checksum = "e78d4f1cc4ae33bbfc157ed5d5a5ef3bc29227303d595861deb238fcec4e9457"
 
 [[package]]
 name = "emath"
-version = "0.13.0"
-source = "git+https://github.com/emilk/egui#ce19e10258d5ba6ac4ecfa3b015246b09cd6b569"
+version = "0.14.0"
 
 [[package]]
 name = "env_logger"
@@ -363,8 +361,7 @@ dependencies = [
 
 [[package]]
 name = "epaint"
-version = "0.13.0"
-source = "git+https://github.com/emilk/egui#ce19e10258d5ba6ac4ecfa3b015246b09cd6b569"
+version = "0.14.0"
 dependencies = [
  "ab_glyph",
  "ahash",
@@ -924,6 +921,7 @@ dependencies = [
  "nrg_math",
  "nrg_messenger",
  "nrg_platform",
+ "nrg_profiler",
  "nrg_resources",
  "nrg_serialize",
 ]

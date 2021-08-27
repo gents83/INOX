@@ -29,6 +29,7 @@ macro_rules! implement_widget_data {
 
 pub struct UIWidget {
     id: ResourceId,
+    type_name: String,
     data: Box<dyn UIWidgetData>,
     func: Box<dyn FnMut(&mut dyn UIWidgetData, &CtxRef)>,
 }
@@ -70,6 +71,7 @@ impl UIWidget {
     {
         let ui_page = Self {
             id: generate_random_uid(),
+            type_name: type_name::<D>().to_string(),
             data: Box::new(data),
             func: Box::new(f),
         };
@@ -91,6 +93,9 @@ impl UIWidget {
     }
 
     pub fn execute(&mut self, ui_context: &CtxRef) {
+        nrg_profiler::scoped_profile!(
+            format!("{} {:?}", "ui_widget::execute", self.type_name).as_str()
+        );
         (self.func)(self.data.as_mut(), ui_context);
     }
 }
