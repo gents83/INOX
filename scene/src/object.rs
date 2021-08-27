@@ -149,12 +149,34 @@ impl Object {
         self.children.push(child);
     }
 
-    pub fn children(&self) -> &Vec<ObjectRc> {
-        &self.children
+    pub fn is_child(&self, object_id: ObjectId) -> bool {
+        for c in self.children.iter() {
+            if c.id() == object_id {
+                return true;
+            }
+        }
+        false
     }
 
-    pub fn components(&self) -> &HashMap<TypeId, GenericRef> {
-        &self.components
+    pub fn is_child_recursive(&self, object_id: ObjectId) -> bool {
+        for c in self.children.iter() {
+            if c.id() == object_id || c.resource().get().is_child_recursive(object_id) {
+                return true;
+            }
+        }
+        false
+    }
+
+    pub fn has_children(&self) -> bool {
+        !self.children.is_empty()
+    }
+
+    pub fn children(&self) -> Vec<ObjectRc> {
+        self.children.clone()
+    }
+
+    pub fn components(&self) -> HashMap<TypeId, GenericRef> {
+        self.components.clone()
     }
 
     pub fn add_default_component<C>(&mut self, shared_data: &SharedDataRw) -> ResourceRef<C>

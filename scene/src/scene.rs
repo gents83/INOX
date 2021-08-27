@@ -62,7 +62,7 @@ impl Scene {
         self.objects.push(object);
     }
 
-    pub fn get_objects(&self) -> Vec<ObjectRc> {
+    pub fn objects(&self) -> Vec<ObjectRc> {
         self.objects.clone()
     }
 

@@ -18,7 +18,7 @@ use nrg_resources::{
 use nrg_scene::{Object, ObjectId, Transform, TransformRc};
 use nrg_serialize::generate_random_uid;
 
-use crate::widgets::ViewEvent;
+use crate::EditorEvent;
 
 pub type GizmoId = ResourceId;
 pub type GizmoRc = ResourceRef<Gizmo>;
@@ -75,7 +75,7 @@ impl Gizmo {
         global_messenger
             .write()
             .unwrap()
-            .register_messagebox::<ViewEvent>(message_channel.get_messagebox());
+            .register_messagebox::<EditorEvent>(message_channel.get_messagebox());
 
         let gizmo = Self {
             id: generate_random_uid(),
@@ -333,10 +333,11 @@ impl Gizmo {
         nrg_profiler::scoped_profile!("update_events");
 
         read_messages(self.message_channel.get_listener(), |msg| {
-            if msg.type_id() == TypeId::of::<ViewEvent>() {
-                let event = msg.as_any().downcast_ref::<ViewEvent>().unwrap();
-                let ViewEvent::Selected(object_id) = *event;
-                self.select_object(object_id);
+            if msg.type_id() == TypeId::of::<EditorEvent>() {
+                let event = msg.as_any().downcast_ref::<EditorEvent>().unwrap();
+                if let EditorEvent::Selected(object_id) = *event {
+                    self.select_object(object_id);
+                }
             }
         });
     }

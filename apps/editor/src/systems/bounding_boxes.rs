@@ -6,7 +6,7 @@ use nrg_messenger::{read_messages, Message, MessageBox, MessageChannel, Messenge
 use nrg_resources::{SharedData, SharedDataRw};
 use nrg_scene::{Hitbox, Object, ObjectId};
 
-use crate::widgets::{EditMode, ToolbarEvent, ViewEvent};
+use crate::{EditMode, EditorEvent};
 
 use super::DrawEvent;
 
@@ -24,7 +24,7 @@ impl BoundingBoxDrawer {
         global_messenger
             .write()
             .unwrap()
-            .register_messagebox::<ViewEvent>(message_channel.get_messagebox());
+            .register_messagebox::<EditorEvent>(message_channel.get_messagebox());
         Self {
             shared_data: shared_data.clone(),
             message_channel,
@@ -61,21 +61,17 @@ impl BoundingBoxDrawer {
         nrg_profiler::scoped_profile!("update_events");
 
         read_messages(self.message_channel.get_listener(), |msg| {
-            if msg.type_id() == TypeId::of::<ViewEvent>() {
-                let event = msg.as_any().downcast_ref::<ViewEvent>().unwrap();
+            if msg.type_id() == TypeId::of::<EditorEvent>() {
+                let event = msg.as_any().downcast_ref::<EditorEvent>().unwrap();
                 match event {
-                    ViewEvent::Selected(object_id) => {
+                    EditorEvent::Selected(object_id) => {
                         if object_id.is_nil() {
                             self.objects_to_draw.clear();
                         } else {
                             self.objects_to_draw.push(*object_id);
                         }
                     }
-                }
-            } else if msg.type_id() == TypeId::of::<ToolbarEvent>() {
-                let event = msg.as_any().downcast_ref::<ToolbarEvent>().unwrap();
-                match event {
-                    ToolbarEvent::ChangeMode(mode) => {
+                    EditorEvent::ChangeMode(mode) => {
                         if *mode == EditMode::View {
                             self.objects_to_draw.clear();
                         }

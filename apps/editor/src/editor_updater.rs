@@ -2,6 +2,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::{any::TypeId, path::Path};
 
+use crate::EditorEvent;
+
 use super::config::*;
 use super::widgets::*;
 
@@ -35,6 +37,7 @@ pub struct EditorUpdater {
     debug_info: Option<DebugInfo>,
     view3d: Option<View3D>,
     properties: Option<Properties>,
+    hierarchy: Option<Hierarchy>,
     content_browser: Option<ContentBrowser>,
     show_debug_info: Arc<AtomicBool>,
     ui_registry: Arc<UIPropertiesRegistry>,
@@ -64,6 +67,7 @@ impl EditorUpdater {
             debug_info: None,
             view3d: None,
             properties: None,
+            hierarchy: None,
             content_browser: None,
             show_debug_info: Arc::new(AtomicBool::new(false)),
             ui_registry: Arc::new(Self::create_registry()),
@@ -139,15 +143,15 @@ impl System for EditorUpdater {
             .register_messagebox::<KeyEvent>(self.message_channel.get_messagebox())
             .register_messagebox::<MouseEvent>(self.message_channel.get_messagebox())
             .register_messagebox::<WindowEvent>(self.message_channel.get_messagebox())
-            .register_messagebox::<ViewEvent>(self.message_channel.get_messagebox())
-            .register_messagebox::<ToolbarEvent>(self.message_channel.get_messagebox())
+            .register_messagebox::<EditorEvent>(self.message_channel.get_messagebox())
             .register_messagebox::<DialogEvent>(self.message_channel.get_messagebox());
 
-        self.create_main_menu()
+        self.create_scene()
+            .create_main_menu()
             .create_toolbar()
+            .create_hierarchy()
             .create_properties()
-            .create_view3d()
-            .create_scene();
+            .create_view3d();
     }
 
     fn run(&mut self) -> bool {
@@ -167,8 +171,7 @@ impl System for EditorUpdater {
             .unregister_messagebox::<KeyEvent>(self.message_channel.get_messagebox())
             .unregister_messagebox::<MouseEvent>(self.message_channel.get_messagebox())
             .unregister_messagebox::<WindowEvent>(self.message_channel.get_messagebox())
-            .unregister_messagebox::<ViewEvent>(self.message_channel.get_messagebox())
-            .unregister_messagebox::<ToolbarEvent>(self.message_channel.get_messagebox())
+            .unregister_messagebox::<EditorEvent>(self.message_channel.get_messagebox())
             .unregister_messagebox::<DialogEvent>(self.message_channel.get_messagebox());
     }
 }
@@ -202,6 +205,11 @@ impl EditorUpdater {
     fn create_view3d(&mut self) -> &mut Self {
         let view3d = View3D::new(&self.shared_data, &self.global_messenger);
         self.view3d = Some(view3d);
+        self
+    }
+    fn create_hierarchy(&mut self) -> &mut Self {
+        let hierarchy = Hierarchy::new(&self.shared_data, &self.global_messenger, self.scene.id());
+        self.hierarchy = Some(hierarchy);
         self
     }
     fn create_properties(&mut self) -> &mut Self {
@@ -337,17 +345,25 @@ impl EditorUpdater {
                 if let Some(view) = &mut self.view3d {
                     view.handle_keyboard_event(event);
                 }
-            } else if msg.type_id() == TypeId::of::<ViewEvent>() {
-                let event = msg.as_any().downcast_ref::<ViewEvent>().unwrap();
-                let ViewEvent::Selected(object_id) = *event;
-                if let Some(properties) = &mut self.properties {
-                    properties.select_object(object_id);
-                }
-            } else if msg.type_id() == TypeId::of::<ToolbarEvent>() {
-                let event = msg.as_any().downcast_ref::<ToolbarEvent>().unwrap();
-                let ToolbarEvent::ChangeMode(mode) = *event;
-                if let Some(view3d) = &mut self.view3d {
-                    view3d.change_edit_mode(mode);
+            } else if msg.type_id() == TypeId::of::<EditorEvent>() {
+                let event = msg.as_any().downcast_ref::<EditorEvent>().unwrap();
+                match *event {
+                    EditorEvent::Selected(object_id) => {
+                        if let Some(properties) = &mut self.properties {
+                            properties.select_object(object_id);
+                        }
+                        if let Some(hierarchy) = &mut self.hierarchy {
+                            hierarchy.select_object(object_id);
+                        }
+                        if let Some(view3d) = &mut self.view3d {
+                            view3d.select_object(object_id);
+                        }
+                    }
+                    EditorEvent::ChangeMode(mode) => {
+                        if let Some(view3d) = &mut self.view3d {
+                            view3d.change_edit_mode(mode);
+                        }
+                    }
                 }
             }
         });

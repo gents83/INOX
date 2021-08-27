@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use nrg_filesystem::convert_from_local_path;
 use nrg_graphics::{TextureId, TextureInstance, TextureRc};
-use nrg_messenger::{implement_message, Message, MessageBox, MessengerRw};
+use nrg_messenger::{Message, MessageBox, MessengerRw};
 
 use nrg_resources::{FileResource, SharedData, SharedDataRw, DATA_FOLDER};
 use nrg_ui::{
@@ -10,20 +10,7 @@ use nrg_ui::{
     UIWidgetRc, Ui, Widget,
 };
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub enum EditMode {
-    View,
-    Select,
-    Move,
-    Rotate,
-    Scale,
-}
-
-#[derive(Clone)]
-pub enum ToolbarEvent {
-    ChangeMode(EditMode),
-}
-implement_message!(ToolbarEvent);
+use crate::{EditMode, EditorEvent};
 
 struct ToolbarData {
     shared_data: SharedDataRw,
@@ -111,7 +98,7 @@ impl Toolbar {
                                 data.global_dispatcher
                                     .write()
                                     .unwrap()
-                                    .send(ToolbarEvent::ChangeMode(data.mode).as_boxed())
+                                    .send(EditorEvent::ChangeMode(data.mode).as_boxed())
                                     .ok();
                             }
                         });

@@ -3,7 +3,7 @@ use nrg_graphics::{
     DynamicImage, MeshInstance, RenderPassInstance, TextureInstance, TextureRc, ViewInstance,
 };
 use nrg_math::{raycast_oob, InnerSpace, MatBase, Matrix4, Vector2, Vector3, Zero};
-use nrg_messenger::{implement_message, Message, MessengerRw};
+use nrg_messenger::{Message, MessengerRw};
 use nrg_platform::{Key, KeyEvent};
 use nrg_resources::{DataTypeResource, SharedData, SharedDataRw};
 use nrg_scene::{Hitbox, Object, ObjectId, Transform};
@@ -16,18 +16,11 @@ use nrg_ui::{
 use crate::{
     resources::{Gizmo, GizmoRc},
     systems::{BoundingBoxDrawer, DebugDrawer},
+    EditMode, EditorEvent,
 };
-
-use super::EditMode;
 
 const VIEW3D_IMAGE_WIDTH: u32 = 1280;
 const VIEW3D_IMAGE_HEIGHT: u32 = 768;
-
-#[derive(Clone)]
-pub enum ViewEvent {
-    Selected(ObjectId),
-}
-implement_message!(ViewEvent);
 
 struct View3DData {
     shared_data: SharedDataRw,
@@ -220,7 +213,7 @@ impl View3D {
                 .get_dispatcher()
                 .write()
                 .unwrap()
-                .send(ViewEvent::Selected(data.selected_object).as_boxed())
+                .send(EditorEvent::Selected(data.selected_object).as_boxed())
                 .ok();
         } else {
             let is_manipulating_gizmo = if let Some(gizmo) = &data.gizmo {
@@ -366,5 +359,11 @@ impl View3D {
             }
         }
         selected_object
+    }
+
+    pub fn select_object(&mut self, object_id: ObjectId) {
+        if let Some(data) = self.ui_page.resource().get_mut().data_mut::<View3DData>() {
+            data.selected_object = object_id;
+        }
     }
 }

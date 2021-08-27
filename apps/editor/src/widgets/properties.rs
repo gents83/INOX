@@ -51,7 +51,7 @@ impl Properties {
     fn create(shared_data: &SharedDataRw, data: PropertiesData) -> UIWidgetRc {
         UIWidget::register(shared_data, data, |ui_data, ui_context| {
             if let Some(data) = ui_data.as_any().downcast_mut::<PropertiesData>() {
-                let min_width = 300.;
+                let min_width = 200.;
                 let mut width = min_width;
                 if let Some(panel_runtime_data) =
                     ui_context.memory().data_temp.get::<PropertiesRuntimeData>()
