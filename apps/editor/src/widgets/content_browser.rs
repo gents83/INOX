@@ -36,6 +36,7 @@ struct ContentBrowserData {
     operation: DialogOp,
     icon_file_texture_id: TextureId,
     dir: Dir,
+    extension: String,
 }
 implement_widget_data!(ContentBrowserData);
 
@@ -50,6 +51,7 @@ impl ContentBrowser {
         global_messenger: &MessengerRw,
         operation: DialogOp,
         path: &Path,
+        extension: String,
     ) -> Self {
         let file_icon = TextureInstance::create_from_file(
             shared_data,
@@ -91,6 +93,7 @@ impl ContentBrowser {
             global_dispatcher: global_messenger.read().unwrap().get_dispatcher().clone(),
             icon_file_texture_id: file_icon.id(),
             dir,
+            extension,
         };
         let ui_page = Self::create(shared_data, data);
         Self { ui_page, file_icon }
@@ -176,21 +179,27 @@ impl ContentBrowser {
         ui: &mut Ui,
         files: &[File],
         selected_file: &mut String,
+        selected_extension: &str,
         texture_index: Option<usize>,
     ) {
         nrg_profiler::scoped_profile!("populate_with_files");
-        for file in files.iter() {
-            let filename = file.path.file_name().unwrap().to_str().unwrap().to_string();
-            let selected = selected_file == &filename;
-            ui.horizontal(|ui| {
-                if let Some(index) = texture_index {
-                    ui.image(eguiTextureId::User(index as _), [16., 16.]);
+        ui.vertical(|ui| {
+            for file in files.iter() {
+                let filename = file.path.file_name().unwrap().to_str().unwrap().to_string();
+                let extension = file.path.extension().unwrap().to_str().unwrap().to_string();
+                if extension == selected_extension {
+                    let selected = selected_file == &filename;
+                    ui.horizontal(|ui| {
+                        if let Some(index) = texture_index {
+                            ui.image(eguiTextureId::User(index as _), [16., 16.]);
+                        }
+                        if ui.selectable_label(selected, filename.clone()).clicked() {
+                            *selected_file = filename;
+                        }
+                    });
                 }
-                if ui.selectable_label(selected, filename.clone()).clicked() {
-                    *selected_file = filename;
-                }
-            });
-        }
+            }
+        });
     }
 
     fn create(shared_data: &SharedDataRw, data: ContentBrowserData) -> UIWidgetRc {
@@ -266,7 +275,8 @@ impl ContentBrowser {
 
                         CentralPanel::default().show_inside(ui, |ui| {
                             nrg_profiler::scoped_profile!("CentralPanel");
-                            ScrollArea::auto_sized().show(ui, |ui| {
+                            let rect = ui.max_rect_finite();
+                            ScrollArea::from_max_height(rect.height()).show(ui, |ui| {
                                 if data.selected_folder.is_dir() {
                                     let path = data.selected_folder.as_path().to_path_buf();
                                     let files = Self::get_files(&data.dir, path.as_path());
@@ -281,6 +291,7 @@ impl ContentBrowser {
                                         ui,
                                         files,
                                         &mut data.selected_file,
+                                        data.extension.as_str(),
                                         texture_index,
                                     );
                                 }

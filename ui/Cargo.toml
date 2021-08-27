@@ -10,7 +10,7 @@ crate-type = ["cdylib",'rlib']
 
 [dependencies]
 #egui = { git = "https://github.com/emilk/egui" }
-egui = {path = "../../egui/egui"}
+egui = {path = "../../egui/egui", features = ["multi_threaded"]}
 image = { git = "https://github.com/image-rs/image" }
 
 nrg_core = { path = "../core" }

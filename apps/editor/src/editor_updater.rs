@@ -223,10 +223,20 @@ impl EditorUpdater {
         }
         self
     }
-    fn create_content_browser(&mut self, operation: DialogOp, path: &Path) -> &mut Self {
+    fn create_content_browser(
+        &mut self,
+        operation: DialogOp,
+        path: &Path,
+        extension: String,
+    ) -> &mut Self {
         if self.content_browser.is_none() {
-            let content_browser =
-                ContentBrowser::new(&self.shared_data, &self.global_messenger, operation, path);
+            let content_browser = ContentBrowser::new(
+                &self.shared_data,
+                &self.global_messenger,
+                operation,
+                path,
+                extension,
+            );
             self.content_browser = Some(content_browser);
         }
         self
@@ -307,7 +317,11 @@ impl EditorUpdater {
                 let event = msg.as_any().downcast_ref::<DialogEvent>().unwrap();
                 match event {
                     DialogEvent::Request(operation, path) => {
-                        self.create_content_browser(*operation, path.as_path());
+                        self.create_content_browser(
+                            *operation,
+                            path.as_path(),
+                            "object_data".to_string(),
+                        );
                     }
                     DialogEvent::Confirmed(operation, filename) => {
                         let extension = filename.extension().unwrap().to_str().unwrap();

@@ -269,11 +269,22 @@ impl UISystem {
         self
     }
 
-    fn show_ui(&mut self) {
+    fn show_ui(&mut self, use_multithreading: bool) {
         nrg_profiler::scoped_profile!("ui_system::show_ui");
         let widgets = SharedData::get_resources_of_type::<UIWidget>(&self.shared_data);
-        for widget in widgets {
-            widget.resource().get_mut().execute(&self.ui_context);
+        for (i, widget) in widgets.into_iter().enumerate() {
+            if use_multithreading {
+                let context = self.ui_context.clone();
+                let job_name = format!("ui_system::show_ui[{}]", i);
+                self.job_handler
+                    .write()
+                    .unwrap()
+                    .add_job(job_name.as_str(), move || {
+                        widget.resource().get_mut().execute(&context);
+                    });
+            } else {
+                widget.resource().get_mut().execute(&self.ui_context);
+            }
         }
     }
 
@@ -322,7 +333,7 @@ impl System for UISystem {
             self.ui_context.begin_frame(self.ui_input.take());
         }
 
-        self.show_ui();
+        self.show_ui(false);
 
         let (output, shapes) = {
             nrg_profiler::scoped_profile!("ui_context::end_frame");
