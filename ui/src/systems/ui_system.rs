@@ -23,6 +23,8 @@ use nrg_resources::{DataTypeResource, SharedData, SharedDataRw};
 
 use crate::UIWidget;
 
+const UI_RENDER_MESH_Z_OFFSET: f32 = 0.001;
+
 pub struct UISystem {
     id: SystemId,
     shared_data: SharedDataRw,
@@ -69,6 +71,7 @@ impl UISystem {
     }
 
     fn get_ui_material(&mut self, texture: TextureRc) -> MaterialRc {
+        nrg_profiler::scoped_profile!("ui_system::get_ui_material");
         match self.ui_materials.entry(texture.id()) {
             Entry::Occupied(e) => e.get().clone(),
             Entry::Vacant(e) => {
@@ -121,46 +124,47 @@ impl UISystem {
         self.ui_meshes.resize_with(clipped_meshes.len(), || {
             MeshInstance::create_from_data(&shared_data, MeshData::default())
         });
+        let textures = SharedData::get_resources_of_type::<TextureInstance>(&self.shared_data);
         for (i, clipped_mesh) in clipped_meshes.into_iter().enumerate() {
             let ClippedMesh(_, mesh) = clipped_mesh;
             if mesh.vertices.is_empty() || mesh.indices.is_empty() {
                 continue;
             }
+
+            let mesh_instance = self.ui_meshes[i].clone();
             let texture = match mesh.texture_id {
                 eguiTextureId::Egui => self.ui_texture.clone(),
-                eguiTextureId::User(texture_index) => {
-                    let textures =
-                        SharedData::get_resources_of_type::<TextureInstance>(&self.shared_data);
-                    textures[texture_index as usize].clone()
-                }
+                eguiTextureId::User(texture_index) => textures[texture_index as usize].clone(),
             };
             let material = self.get_ui_material(texture);
-
-            let mut mesh_data = MeshData::default();
-
-            let vertices: Vec<VertexData> = mesh
-                .vertices
-                .iter()
-                .map(|v| VertexData {
-                    pos: [v.pos.x * self.ui_scale, v.pos.y * self.ui_scale, 0.].into(),
-                    tex_coord: [v.uv.x, v.uv.y].into(),
-                    color: [
-                        v.color.r() as f32 / 255.,
-                        v.color.g() as f32 / 255.,
-                        v.color.b() as f32 / 255.,
-                        v.color.a() as f32 / 255.,
-                    ]
-                    .into(),
-                    ..Default::default()
-                })
-                .collect();
-            let indices: Vec<u32> = mesh.indices.clone();
-            mesh_data.append_mesh(vertices.as_slice(), indices.as_slice());
-            self.ui_meshes[i]
-                .resource()
-                .get_mut()
-                .set_material(material)
-                .set_mesh_data(mesh_data);
+            let ui_scale = self.ui_scale;
+            let z = 1. + i as f32 * UI_RENDER_MESH_Z_OFFSET;
+            let job_name = format!("ui_system::compute_mesh_data[{}]", i);
+            self.job_handler
+                .write()
+                .unwrap()
+                .add_job(job_name.as_str(), move || {
+                    let mut mesh_data = MeshData::default();
+                    let mut vertices: Vec<VertexData> = Vec::new();
+                    vertices.resize(mesh.vertices.len(), VertexData::default());
+                    for (i, v) in mesh.vertices.iter().enumerate() {
+                        vertices[i].pos = [v.pos.x * ui_scale, v.pos.y * ui_scale, -z].into();
+                        vertices[i].tex_coord = [v.uv.x, v.uv.y].into();
+                        vertices[i].color = [
+                            v.color.r() as f32 / 255.,
+                            v.color.g() as f32 / 255.,
+                            v.color.b() as f32 / 255.,
+                            v.color.a() as f32 / 255.,
+                        ]
+                        .into();
+                    }
+                    mesh_data.append_mesh(vertices.as_slice(), mesh.indices.as_slice());
+                    mesh_instance
+                        .resource()
+                        .get_mut()
+                        .set_material(material)
+                        .set_mesh_data(mesh_data);
+                });
         }
     }
 
