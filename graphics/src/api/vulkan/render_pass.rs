@@ -148,11 +148,15 @@ impl RenderPassImmutable {
                 details.formats[0].format
             },
             samples: VkSampleCountFlagBits_VK_SAMPLE_COUNT_1_BIT,
-            loadOp: match data.clear {
-                true => VkAttachmentLoadOp_VK_ATTACHMENT_LOAD_OP_CLEAR,
-                _ => VkAttachmentLoadOp_VK_ATTACHMENT_LOAD_OP_LOAD,
+            loadOp: match data.load_color {
+                LoadOperation::Clear => VkAttachmentLoadOp_VK_ATTACHMENT_LOAD_OP_CLEAR,
+                LoadOperation::Load => VkAttachmentLoadOp_VK_ATTACHMENT_LOAD_OP_LOAD,
+                _ => VkAttachmentLoadOp_VK_ATTACHMENT_LOAD_OP_DONT_CARE,
             },
-            storeOp: VkAttachmentStoreOp_VK_ATTACHMENT_STORE_OP_STORE,
+            storeOp: match data.store_color {
+                StoreOperation::Store => VkAttachmentStoreOp_VK_ATTACHMENT_STORE_OP_STORE,
+                _ => VkAttachmentStoreOp_VK_ATTACHMENT_STORE_OP_DONT_CARE,
+            },
             stencilLoadOp: VkAttachmentLoadOp_VK_ATTACHMENT_LOAD_OP_CLEAR,
             stencilStoreOp: VkAttachmentStoreOp_VK_ATTACHMENT_STORE_OP_DONT_CARE,
             initialLayout: VkImageLayout_VK_IMAGE_LAYOUT_UNDEFINED,
@@ -168,11 +172,15 @@ impl RenderPassImmutable {
             flags: 0,
             format: find_depth_format(device.get_instance().get_physical_device()),
             samples: VkSampleCountFlagBits_VK_SAMPLE_COUNT_1_BIT,
-            loadOp: match data.clear_depth {
-                true => VkAttachmentLoadOp_VK_ATTACHMENT_LOAD_OP_CLEAR,
-                _ => VkAttachmentLoadOp_VK_ATTACHMENT_LOAD_OP_LOAD,
+            loadOp: match data.load_depth {
+                LoadOperation::Clear => VkAttachmentLoadOp_VK_ATTACHMENT_LOAD_OP_CLEAR,
+                LoadOperation::Load => VkAttachmentLoadOp_VK_ATTACHMENT_LOAD_OP_LOAD,
+                _ => VkAttachmentLoadOp_VK_ATTACHMENT_LOAD_OP_DONT_CARE,
             },
-            storeOp: VkAttachmentStoreOp_VK_ATTACHMENT_STORE_OP_STORE,
+            storeOp: match data.store_depth {
+                StoreOperation::Store => VkAttachmentStoreOp_VK_ATTACHMENT_STORE_OP_STORE,
+                _ => VkAttachmentStoreOp_VK_ATTACHMENT_STORE_OP_DONT_CARE,
+            },
             stencilLoadOp: VkAttachmentLoadOp_VK_ATTACHMENT_LOAD_OP_CLEAR,
             stencilStoreOp: VkAttachmentStoreOp_VK_ATTACHMENT_STORE_OP_DONT_CARE,
             initialLayout: VkImageLayout_VK_IMAGE_LAYOUT_UNDEFINED,

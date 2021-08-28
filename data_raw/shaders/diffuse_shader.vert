@@ -13,13 +13,13 @@ layout(location = 0) in vec3 inPosition;
 layout(location = 1) in vec4 inColor;
 layout(location = 2) in vec2 inTexCoord;
 
-layout(location = 4) in vec3 instancePos;
-layout(location = 5) in vec3 instanceRot;
-layout(location = 6) in vec3 instanceScale;
+layout(location = 5) in vec3 instancePos;
+layout(location = 6) in vec3 instanceRot;
+layout(location = 7) in vec3 instanceScale;
 
-layout(location = 8) in vec4 instanceDiffuseColor;
-layout(location = 9) in int instanceDiffuseTextureIndex;
-layout(location = 10) in int instanceDiffuseLayerIndex;
+layout(location = 9) in vec4 instanceDiffuseColor;
+layout(location = 10) in int instanceDiffuseTextureIndex;
+layout(location = 11) in int instanceDiffuseLayerIndex;
 
 //Output
 layout(location = 0) out vec4 outColor;

@@ -17,6 +17,7 @@ pub struct InstanceCommand {
 #[repr(C)]
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct InstanceData {
+    pub id: Vector4,
     pub position: Vector3,
     pub rotation: Vector3,
     pub scale: Vector3,
@@ -24,12 +25,12 @@ pub struct InstanceData {
     pub diffuse_color: Vector4,
     pub diffuse_texture_index: i32,
     pub diffuse_layer_index: i32,
-    pub outline_color: Vector4,
 }
 
 impl Default for InstanceData {
     fn default() -> Self {
         Self {
+            id: Vector4::default_zero(),
             position: Vector3::default_zero(),
             rotation: Vector3::default_zero(),
             scale: [1., 1., 1.].into(),
@@ -37,7 +38,6 @@ impl Default for InstanceData {
             diffuse_color: [1., 1., 1., 1.].into(),
             diffuse_texture_index: -1,
             diffuse_layer_index: -1,
-            outline_color: [1., 1., 1., 0.].into(),
         }
     }
 }
@@ -92,12 +92,28 @@ impl Default for VertexData {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Clone)]
+#[serde(crate = "nrg_serialize")]
+pub enum LoadOperation {
+    Load,
+    Clear,
+    DontCare,
+}
+#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Clone)]
+#[serde(crate = "nrg_serialize")]
+pub enum StoreOperation {
+    Store,
+    DontCare,
+}
+
 #[repr(C)]
 #[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Clone)]
 #[serde(crate = "nrg_serialize")]
 pub struct RenderPassData {
-    pub clear: bool,
-    pub clear_depth: bool,
+    pub load_color: LoadOperation,
+    pub store_color: StoreOperation,
+    pub load_depth: LoadOperation,
+    pub store_depth: StoreOperation,
     pub render_to_texture: bool,
     pub name: String,
 }
@@ -107,8 +123,10 @@ unsafe impl Sync for RenderPassData {}
 impl Default for RenderPassData {
     fn default() -> Self {
         Self {
-            clear: true,
-            clear_depth: true,
+            load_color: LoadOperation::Clear,
+            store_color: StoreOperation::DontCare,
+            load_depth: LoadOperation::Clear,
+            store_depth: StoreOperation::DontCare,
             render_to_texture: false,
             name: String::new(),
         }

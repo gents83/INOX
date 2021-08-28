@@ -11,15 +11,11 @@ layout(std140, push_constant) uniform PushConsts {
 //Input
 layout(location = 0) in vec3 inPosition;
 layout(location = 1) in vec4 inColor;
-layout(location = 2) in vec2 inTexCoord;
 
+layout(location = 4) in vec4 instanceId;
 layout(location = 5) in vec3 instancePos;
 layout(location = 6) in vec3 instanceRot;
 layout(location = 7) in vec3 instanceScale;
-
-layout(location = 9) in vec4 instanceDiffuseColor;
-layout(location = 10) in int instanceDiffuseTextureIndex;
-layout(location = 11) in int instanceDiffuseLayerIndex;
 
 //Output
 layout(location = 0) out vec4 outColor;
@@ -69,6 +65,5 @@ void main() {
 	mat4 instanceMatrix = transMat * rotMat * scaleMat;
 	
     gl_Position = (pushConsts.proj * pushConsts.view * instanceMatrix * vec4(inPosition.xy, inPosition.z, 1.));
-
-    outColor = inColor * instanceDiffuseColor;
+    outColor = instanceId;
 }

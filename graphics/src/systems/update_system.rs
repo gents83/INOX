@@ -154,7 +154,6 @@ impl System for UpdateSystem {
                         .unwrap()
                         .add_job(job_name.as_str(), move || {
                             let diffuse_color = material.resource().get().diffuse_color();
-                            let outline_color = material.resource().get().outline_color();
 
                             let (diffuse_texture_index, diffuse_layer_index) =
                                 if material.resource().get().has_diffuse_texture() {
@@ -187,7 +186,6 @@ impl System for UpdateSystem {
                                     diffuse_color,
                                     diffuse_texture_index,
                                     diffuse_layer_index,
-                                    outline_color,
                                 );
                             }
                             wait_count.fetch_sub(1, Ordering::SeqCst);

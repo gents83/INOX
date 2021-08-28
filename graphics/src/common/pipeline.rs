@@ -1,6 +1,8 @@
 use nrg_math::{Mat4Ops, Matrix4};
 use nrg_math::{Vector4, Zero};
+use nrg_resources::ResourceData;
 
+use crate::utils::compute_color_from_id;
 use crate::{Mesh, MeshInstance, PipelineId};
 
 use super::data_formats::*;
@@ -142,7 +144,6 @@ impl Pipeline {
         diffuse_color: Vector4,
         diffuse_texture_index: i32,
         diffuse_layer_index: i32,
-        outline_color: Vector4,
     ) -> &mut Self {
         if mesh_instance.mesh_data().vertices.is_empty()
             || mesh_instance.mesh_data().indices.is_empty()
@@ -174,6 +175,7 @@ impl Pipeline {
         let (position, rotation, scale) = mesh_instance.matrix().get_translation_rotation_scale();
 
         let data = InstanceData {
+            id: compute_color_from_id(mesh_instance.id()),
             position,
             rotation,
             scale,
@@ -181,7 +183,6 @@ impl Pipeline {
             diffuse_color,
             diffuse_texture_index,
             diffuse_layer_index,
-            outline_color,
         };
         if mesh_index >= self.instance_commands.len() {
             self.instance_commands
