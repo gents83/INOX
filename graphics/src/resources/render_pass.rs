@@ -117,7 +117,7 @@ impl RenderPass {
     ) {
         if let Some(t) = texture {
             if texture_handler.get_texture_atlas(t.id()).is_none() {
-                println!("Adding texture {:?}", t.id());
+                //println!("Adding texture {:?}", t.id());
                 texture_handler.add_render_target(
                     device,
                     t.id(),
@@ -169,7 +169,7 @@ impl RenderPass {
             backend_render_pass.destroy(&*device);
         }
         self.texture_to_recycle.iter().for_each(|t| {
-            println!("Removing texture {:?}", t.id());
+            //println!("Removing texture {:?}", t.id());
             texture_handler.remove(device, t.id());
         });
         self.texture_to_recycle.clear();
