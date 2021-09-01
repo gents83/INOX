@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use nrg_filesystem::convert_from_local_path;
-use nrg_graphics::TextureInstance;
+use nrg_graphics::Texture;
 use nrg_math::{Vector2, Vector4};
 use nrg_messenger::Message;
 use nrg_platform::MouseEvent;
@@ -38,8 +38,7 @@ impl Button {
         let material = self.graphics().get_material();
         let texture_path =
             convert_from_local_path(PathBuf::from(DATA_FOLDER).as_path(), texture_path);
-        let texture =
-            TextureInstance::create_from_file(self.get_shared_data(), texture_path.as_path());
+        let texture = Texture::create_from_file(self.get_shared_data(), texture_path.as_path());
         material.resource().get_mut().add_texture(texture);
         self
     }

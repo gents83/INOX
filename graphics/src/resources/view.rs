@@ -5,49 +5,43 @@ use nrg_resources::{
 use nrg_serialize::{generate_random_uid, Uid, INVALID_UID};
 
 pub type ViewId = Uid;
-pub type ViewRc = ResourceRef<ViewInstance>;
+pub type ViewRc = ResourceRef<View>;
 
-pub struct ViewInstance {
+pub struct View {
     id: ResourceId,
     view_index: u32,
-    width: u32,
-    height: u32,
     view: Matrix4,
     proj: Matrix4,
 }
 
-impl Default for ViewInstance {
+impl Default for View {
     fn default() -> Self {
         Self {
             id: INVALID_UID,
             view_index: 0,
-            width: 800,
-            height: 600,
             view: Matrix4::default_identity(),
             proj: Matrix4::default_identity(),
         }
     }
 }
 
-impl ResourceData for ViewInstance {
+impl ResourceData for View {
     fn id(&self) -> ResourceId {
         self.id
     }
 }
 
-impl DataTypeResource for ViewInstance {
+impl DataTypeResource for View {
     type DataType = u32;
     fn create_from_data(shared_data: &SharedDataRw, view_index: Self::DataType) -> ViewRc {
-        if let Some(view) = ViewInstance::find_from_view_index(shared_data, view_index) {
+        if let Some(view) = View::find_from_view_index(shared_data, view_index) {
             return view;
         }
         SharedData::add_resource(
             shared_data,
-            ViewInstance {
+            View {
                 id: generate_random_uid(),
                 view_index,
-                width: 800,
-                height: 600,
                 view: Matrix4::default_identity(),
                 proj: nrg_math::perspective(nrg_math::Deg(45.), 800. / 600., 0.001, 1000.0),
             },
@@ -55,7 +49,7 @@ impl DataTypeResource for ViewInstance {
     }
 }
 
-impl ViewInstance {
+impl View {
     pub fn view_index(&self) -> u32 {
         self.view_index
     }
@@ -65,14 +59,8 @@ impl ViewInstance {
     pub fn proj(&self) -> Matrix4 {
         self.proj
     }
-    pub fn width(&self) -> u32 {
-        self.width
-    }
-    pub fn height(&self) -> u32 {
-        self.height
-    }
     pub fn find_from_view_index(shared_data: &SharedDataRw, view_index: u32) -> Option<ViewRc> {
-        SharedData::match_resource(shared_data, |v: &ViewInstance| v.view_index == view_index)
+        SharedData::match_resource(shared_data, |v: &View| v.view_index == view_index)
     }
 
     pub fn update_view(&mut self, mat: Matrix4) -> &mut Self {
@@ -81,11 +69,6 @@ impl ViewInstance {
     }
     pub fn update_proj(&mut self, mat: Matrix4) -> &mut Self {
         self.proj = mat;
-        self
-    }
-    pub fn update_size(&mut self, width: u32, height: u32) -> &mut Self {
-        self.width = width;
-        self.height = height;
         self
     }
 }

@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use nrg_filesystem::convert_from_local_path;
-use nrg_graphics::{TextureInstance, TextureRc};
+use nrg_graphics::{Texture, TextureRc};
 use nrg_math::{Vector2, Vector4};
 use nrg_messenger::Message;
 use nrg_resources::{FileResource, ResourceRef, DATA_FOLDER};
@@ -118,7 +118,7 @@ impl Icon {
             }
             let texture_path = convert_from_local_path(PathBuf::from(DATA_FOLDER).as_path(), path);
             self.texture =
-                TextureInstance::create_from_file(self.get_shared_data(), texture_path.as_path());
+                Texture::create_from_file(self.get_shared_data(), texture_path.as_path());
             material
                 .resource()
                 .get_mut()

@@ -16,7 +16,7 @@ pub const DEFAULT_FONT_TEXTURE_SIZE: usize = 1024;
 //12pt = 16px = 1em = 100%
 pub const FONT_PT_TO_PIXEL: f32 = DEFAULT_DPI / (72. * 2048.);
 
-pub struct Font {
+pub struct FontData {
     filepath: PathBuf,
     metrics: Metrics,
     glyphs: Vec<Glyph>,
@@ -33,7 +33,7 @@ pub struct TextData {
     pub spacing: Vector2,
 }
 
-impl Default for Font {
+impl Default for FontData {
     fn default() -> Self {
         Self {
             filepath: PathBuf::new(),
@@ -45,10 +45,10 @@ impl Default for Font {
     }
 }
 
-impl Font {
+impl FontData {
     #[inline]
     pub fn new(filepath: &Path) -> Self {
-        Font::new_ttf_font(filepath)
+        FontData::new_ttf_font(filepath)
     }
 
     pub fn add_text(
@@ -81,7 +81,7 @@ impl Font {
 
     #[inline]
     pub fn get_glyph_index(&self, character: char) -> usize {
-        Font::get_glyph_index_from_map(&self.char_to_glyph, character)
+        FontData::get_glyph_index_from_map(&self.char_to_glyph, character)
     }
 
     #[inline]
@@ -125,7 +125,7 @@ impl Font {
     }
 }
 
-impl Font {
+impl FontData {
     fn new_ttf_font(filepath: &Path) -> Self {
         let font_data = ::std::fs::read(filepath).unwrap();
 
@@ -156,7 +156,7 @@ impl Font {
             glyphs.push(Glyph::create(glyph_id, &face, &max_glyph_metrics));
         }
 
-        let image = Font::create_texture(&mut glyphs, &max_glyph_metrics);
+        let image = FontData::create_texture(&mut glyphs, &max_glyph_metrics);
         Self {
             filepath: PathBuf::from(filepath),
             metrics: max_glyph_metrics,

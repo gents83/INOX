@@ -6,7 +6,7 @@ use vulkan_bindings::*;
 const TEXTURE_CHANNEL_COUNT: u32 = 4;
 
 #[derive(Clone, PartialEq)]
-pub struct Texture {
+pub struct BackendTexture {
     width: u32,
     height: u32,
     texture_image: VkImage,
@@ -14,17 +14,17 @@ pub struct Texture {
     texture_image_view: VkImageView,
     texture_sampler: VkSampler,
 }
-unsafe impl Send for Texture {}
-unsafe impl Sync for Texture {}
+unsafe impl Send for BackendTexture {}
+unsafe impl Sync for BackendTexture {}
 
-impl Texture {
+impl BackendTexture {
     pub fn width(&self) -> u32 {
         self.width
     }
     pub fn height(&self) -> u32 {
         self.height
     }
-    pub fn create(device: &Device, width: u32, height: u32, layers_count: usize) -> Self {
+    pub fn create(device: &BackendDevice, width: u32, height: u32, layers_count: usize) -> Self {
         let mut texture = Self {
             width,
             height,
@@ -44,7 +44,7 @@ impl Texture {
         texture
     }
     pub fn create_as_render_target(
-        device: &Device,
+        device: &BackendDevice,
         width: u32,
         height: u32,
         layers_count: usize,
@@ -79,7 +79,7 @@ impl Texture {
         texture.create_texture_sampler(device);
         texture
     }
-    pub fn destroy(&self, device: &Device) {
+    pub fn destroy(&self, device: &BackendDevice) {
         unsafe {
             vkDestroySampler.unwrap()(
                 device.get_device(),
@@ -117,7 +117,13 @@ impl Texture {
         self.texture_image_view
     }
 
-    pub fn add_in_layer(&mut self, device: &Device, index: usize, area: &Area, image_data: &[u8]) {
+    pub fn add_in_layer(
+        &mut self,
+        device: &BackendDevice,
+        index: usize,
+        area: &Area,
+        image_data: &[u8],
+    ) {
         if self.width < area.width || self.height < area.height {
             panic!("Image resolution is different from texture one");
         }
@@ -158,10 +164,10 @@ impl Texture {
     }
 }
 
-impl Texture {
+impl BackendTexture {
     fn create_texture_image(
         &mut self,
-        device: &Device,
+        device: &BackendDevice,
         format: VkFormat,
         layers_count: usize,
         specific_flags: i32,
@@ -182,7 +188,7 @@ impl Texture {
             device.create_image_view(self.texture_image, format, aspect_flags as _, layers_count);
     }
 
-    fn create_texture_sampler(&mut self, device: &Device) {
+    fn create_texture_sampler(&mut self, device: &BackendDevice) {
         let properties = device.get_instance().get_physical_device_properties();
 
         let sampler_info = VkSamplerCreateInfo {

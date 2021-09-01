@@ -109,6 +109,11 @@ impl AreaList {
     pub fn pop(&mut self, index: usize) -> Area {
         self.list.remove(index)
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.list.is_empty()
+    }
+
     pub fn collapse(&mut self) {
         if self.list.len() <= 1 {
             return;
@@ -198,5 +203,10 @@ impl AreaAllocator {
     pub fn remove(&mut self, area: Area) {
         self.occupied.remove(area);
         self.free.insert(area);
+        self.free.collapse();
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.occupied.is_empty()
     }
 }

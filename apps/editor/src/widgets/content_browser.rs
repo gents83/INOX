@@ -4,7 +4,7 @@ use std::{
 };
 
 use nrg_filesystem::convert_from_local_path;
-use nrg_graphics::{TextureId, TextureInstance, TextureRc};
+use nrg_graphics::{Texture, TextureId, TextureRc};
 use nrg_messenger::{get_events_from_string, Message, MessageBox, MessengerRw};
 
 use nrg_resources::{FileResource, SharedData, SharedDataRw, DATA_FOLDER};
@@ -53,7 +53,7 @@ impl ContentBrowser {
         path: &Path,
         extension: String,
     ) -> Self {
-        let file_icon = TextureInstance::create_from_file(
+        let file_icon = Texture::create_from_file(
             shared_data,
             convert_from_local_path(
                 PathBuf::from(DATA_FOLDER).as_path(),
@@ -280,10 +280,9 @@ impl ContentBrowser {
                                 if data.selected_folder.is_dir() {
                                     let path = data.selected_folder.as_path().to_path_buf();
                                     let files = Self::get_files(&data.dir, path.as_path());
-                                    let textures =
-                                        SharedData::get_resources_of_type::<TextureInstance>(
-                                            &data.shared_data,
-                                        );
+                                    let textures = SharedData::get_resources_of_type::<Texture>(
+                                        &data.shared_data,
+                                    );
                                     let texture_index = textures
                                         .iter()
                                         .position(|t| t.id() == data.icon_file_texture_id);

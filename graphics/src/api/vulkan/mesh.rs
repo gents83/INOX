@@ -3,7 +3,7 @@ use crate::common::data_formats::*;
 use vulkan_bindings::*;
 
 #[derive(Clone)]
-pub struct Mesh {
+pub struct BackendMesh {
     vertex_count: u32,
     vertex_buffer: VkBuffer,
     vertex_buffer_memory: VkDeviceMemory,
@@ -12,7 +12,7 @@ pub struct Mesh {
     index_buffer_memory: VkDeviceMemory,
 }
 
-impl Default for Mesh {
+impl Default for BackendMesh {
     fn default() -> Self {
         Self {
             vertex_count: 0,
@@ -25,19 +25,19 @@ impl Default for Mesh {
     }
 }
 
-impl Mesh {
+impl BackendMesh {
     pub fn get_vertex_count(&self) -> u32 {
         self.vertex_count
     }
     pub fn get_indices_count(&self) -> u32 {
         self.indices_count
     }
-    pub fn delete(&self, device: &Device) {
+    pub fn delete(&self, device: &BackendDevice) {
         device.destroy_buffer(&self.vertex_buffer, &self.vertex_buffer_memory);
         device.destroy_buffer(&self.index_buffer, &self.index_buffer_memory);
     }
 
-    pub fn create_vertex_buffer(&mut self, device: &Device, vertices: &[VertexData]) {
+    pub fn create_vertex_buffer(&mut self, device: &BackendDevice, vertices: &[VertexData]) {
         if !self.vertex_buffer.is_null() {
             device.destroy_buffer(&self.vertex_buffer, &self.vertex_buffer_memory);
             self.vertex_count = 0;
@@ -61,7 +61,7 @@ impl Mesh {
         self.vertex_buffer_memory = vertex_buffer_memory;
     }
 
-    pub fn create_index_buffer(&mut self, device: &Device, indices: &[u32]) {
+    pub fn create_index_buffer(&mut self, device: &BackendDevice, indices: &[u32]) {
         if !self.index_buffer.is_null() {
             device.destroy_buffer(&self.index_buffer, &self.index_buffer_memory);
             self.indices_count = 0;
@@ -87,7 +87,7 @@ impl Mesh {
 
     pub fn draw(
         &mut self,
-        device: &Device,
+        device: &BackendDevice,
         vertices: &[VertexData],
         num_vertices: u32,
         indices: &[u32],
@@ -109,7 +109,7 @@ impl Mesh {
 
     pub fn bind_at_index(
         &mut self,
-        device: &Device,
+        device: &BackendDevice,
         vertices: &[VertexData],
         first_vertex: u32,
         indices: &[u32],
@@ -119,7 +119,7 @@ impl Mesh {
         device.map_buffer_memory(&mut self.index_buffer_memory, first_index as _, indices);
     }
 
-    pub fn bind_vertices(&self, device: &Device) {
+    pub fn bind_vertices(&self, device: &BackendDevice) {
         if !self.vertex_buffer.is_null() {
             unsafe {
                 let vertex_buffers = [self.vertex_buffer];
@@ -135,7 +135,7 @@ impl Mesh {
         }
     }
 
-    pub fn bind_indices(&self, device: &Device) {
+    pub fn bind_indices(&self, device: &BackendDevice) {
         if !self.index_buffer.is_null() {
             unsafe {
                 vkCmdBindIndexBuffer.unwrap()(

@@ -1,9 +1,14 @@
-use super::physical_device::*;
-use super::types::*;
-use super::utils::*;
 use nrg_platform::Handle;
-use std::{cell::RefCell, ffi::CString, os::raw::c_char, rc::Rc};
+use std::sync::{Arc, RwLock};
+use std::{ffi::CString, os::raw::c_char};
 use vulkan_bindings::*;
+
+use super::physical_device::PhysicalDevice;
+use super::{
+    enumerate_available_extensions, enumerate_available_layers, enumerate_physical_devices,
+    get_available_extensions_names, get_available_layers_names, QueueFamilyIndices,
+    SwapChainSupportDetails, VK_API_VERSION_1_1,
+};
 
 struct InstanceImmutable {
     _lib: vulkan_bindings::Lib,
@@ -16,65 +21,82 @@ struct InstanceImmutable {
 }
 
 #[derive(Clone)]
-pub struct Instance {
-    inner: Rc<RefCell<InstanceImmutable>>,
+pub struct BackendInstance {
+    inner: Arc<RwLock<InstanceImmutable>>,
 }
 
-impl Instance {
-    pub fn new(handle: &Handle, enable_validation: bool) -> Instance {
-        let immutable = Rc::new(RefCell::new(InstanceImmutable::new(
+impl BackendInstance {
+    pub fn new(handle: &Handle, enable_validation: bool) -> BackendInstance {
+        let immutable = Arc::new(RwLock::new(InstanceImmutable::new(
             handle,
             enable_validation,
         )));
-        Instance { inner: immutable }
+        BackendInstance { inner: immutable }
     }
     pub fn delete(&self) {
-        self.inner.borrow_mut().delete();
+        self.inner.write().unwrap().delete();
     }
 
     pub fn compute_swap_chain_details(&self) {
-        let inner = self.inner.borrow_mut();
+        let inner = self.inner.write().unwrap();
         inner
             .physical_device
             .compute_swap_chain_details(inner.surface);
     }
 
     pub fn get_surface(&self) -> VkSurfaceKHR {
-        self.inner.borrow().surface
+        self.inner.read().unwrap().surface
     }
 
     pub fn get_queue_family_info(&self) -> QueueFamilyIndices {
-        self.inner.borrow().physical_device.get_queue_family_info()
+        self.inner
+            .read()
+            .unwrap()
+            .physical_device
+            .get_queue_family_info()
     }
 
     pub fn get_physical_device(&self) -> VkPhysicalDevice {
-        self.inner.borrow().physical_device.get_internal_device()
+        self.inner
+            .read()
+            .unwrap()
+            .physical_device
+            .get_internal_device()
     }
     pub fn get_swap_chain_info(&self) -> SwapChainSupportDetails {
-        self.inner.borrow().physical_device.get_swap_chain_info()
+        self.inner
+            .read()
+            .unwrap()
+            .physical_device
+            .get_swap_chain_info()
     }
 
     pub fn get_physical_device_properties(&self) -> VkPhysicalDeviceProperties {
-        self.inner.borrow().physical_device.get_properties()
+        self.inner.read().unwrap().physical_device.get_properties()
     }
 
     pub fn get_available_extensions(&self) -> Vec<VkExtensionProperties> {
         self.inner
-            .borrow()
+            .read()
+            .unwrap()
             .physical_device
             .get_available_extensions()
     }
 
     pub fn get_available_features(&self) -> VkPhysicalDeviceFeatures {
-        self.inner.borrow().physical_device.get_available_features()
+        self.inner
+            .read()
+            .unwrap()
+            .physical_device
+            .get_available_features()
     }
 
     pub fn get_supported_layers(&self) -> Vec<VkLayerProperties> {
-        self.inner.borrow().supported_layers.clone()
+        self.inner.read().unwrap().supported_layers.clone()
     }
 
     pub fn get_supported_extensions(&self) -> Vec<VkExtensionProperties> {
-        self.inner.borrow().supported_extensions.clone()
+        self.inner.read().unwrap().supported_extensions.clone()
     }
 }
 

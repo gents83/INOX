@@ -8,7 +8,7 @@ use std::{
     thread::{self, JoinHandle},
 };
 
-use crate::{ConfigCompiler, FontCompiler, GltfCompiler, ImageCompiler, ShaderCompiler};
+use crate::{CopyCompiler, FontCompiler, GltfCompiler, ImageCompiler, ShaderCompiler};
 use nrg_filesystem::convert_from_local_path;
 use nrg_messenger::MessengerRw;
 use nrg_platform::{FileEvent, FileWatcher};
@@ -71,7 +71,7 @@ impl Binarizer {
         };
 
         let shader_compiler = ShaderCompiler::new(self.global_messenger.clone());
-        let config_compiler = ConfigCompiler::new(self.global_messenger.clone());
+        let config_compiler = CopyCompiler::new(self.global_messenger.clone());
         let font_compiler = FontCompiler::new(self.global_messenger.clone());
         let image_compiler = ImageCompiler::new(self.global_messenger.clone());
         let gltf_compiler = GltfCompiler::new(self.global_messenger.clone());

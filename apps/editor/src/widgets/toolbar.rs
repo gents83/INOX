@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use nrg_filesystem::convert_from_local_path;
-use nrg_graphics::{TextureId, TextureInstance, TextureRc};
+use nrg_graphics::{Texture, TextureId, TextureRc};
 use nrg_messenger::{Message, MessageBox, MessengerRw};
 
 use nrg_resources::{FileResource, SharedData, SharedDataRw, DATA_FOLDER};
@@ -29,7 +29,7 @@ pub struct Toolbar {
 
 impl Toolbar {
     pub fn new(shared_data: &SharedDataRw, global_messenger: &MessengerRw) -> Self {
-        let select_icon = TextureInstance::create_from_file(
+        let select_icon = Texture::create_from_file(
             shared_data,
             convert_from_local_path(
                 PathBuf::from(DATA_FOLDER).as_path(),
@@ -37,7 +37,7 @@ impl Toolbar {
             )
             .as_path(),
         );
-        let move_icon = TextureInstance::create_from_file(
+        let move_icon = Texture::create_from_file(
             shared_data,
             convert_from_local_path(
                 PathBuf::from(DATA_FOLDER).as_path(),
@@ -45,7 +45,7 @@ impl Toolbar {
             )
             .as_path(),
         );
-        let rotate_icon = TextureInstance::create_from_file(
+        let rotate_icon = Texture::create_from_file(
             shared_data,
             convert_from_local_path(
                 PathBuf::from(DATA_FOLDER).as_path(),
@@ -53,7 +53,7 @@ impl Toolbar {
             )
             .as_path(),
         );
-        let scale_icon = TextureInstance::create_from_file(
+        let scale_icon = Texture::create_from_file(
             shared_data,
             convert_from_local_path(
                 PathBuf::from(DATA_FOLDER).as_path(),
@@ -108,7 +108,7 @@ impl Toolbar {
     }
 
     fn show_icon(ui: &mut Ui, shared_data: &SharedDataRw, texture_id: TextureId) -> bool {
-        let textures = SharedData::get_resources_of_type::<TextureInstance>(shared_data);
+        let textures = SharedData::get_resources_of_type::<Texture>(shared_data);
         if let Some(index) = textures.iter().position(|t| t.id() == texture_id) {
             let response = ImageButton::new(eguiTextureId::User(index as _), [32., 32.]).ui(ui);
             return response.clicked();

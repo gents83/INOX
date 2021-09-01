@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use nrg_filesystem::convert_from_local_path;
-use nrg_serialize::{deserialize_from_file, Deserialize};
+use nrg_serialize::{create_from_file, Deserialize};
 
 use crate::{ResourceData, ResourceRef, SharedDataRw};
 
@@ -127,8 +127,7 @@ where
     T: Deserializable,
 {
     let path = convert_from_local_path(PathBuf::from(DATA_FOLDER).as_path(), filepath);
-    let mut data = T::default();
-    deserialize_from_file(&mut data, path);
+    let mut data: T = create_from_file(path.as_path());
     data.set_path(filepath);
     data
 }

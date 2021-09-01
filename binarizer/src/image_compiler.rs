@@ -27,7 +27,7 @@ impl ExtensionHandler for ImageCompiler {
     fn on_changed(&mut self, path: &Path) {
         if let Some(ext) = path.extension() {
             let extension = ext.to_str().unwrap().to_string();
-            if extension.as_str() == IMAGE_PNG_EXTENSION
+            if (extension.as_str() == IMAGE_PNG_EXTENSION
                 || extension.as_str() == IMAGE_JPG_EXTENSION
                 || extension.as_str() == IMAGE_JPEG_EXTENSION
                 || extension.as_str() == IMAGE_BMP_EXTENSION
@@ -35,9 +35,10 @@ impl ExtensionHandler for ImageCompiler {
                 || extension.as_str() == IMAGE_TIFF_EXTENSION
                 || extension.as_str() == IMAGE_GIF_EXTENSION
                 || extension.as_str() == IMAGE_ICO_EXTENSION
-                || extension.as_str() == IMAGE_DDS_EXTENSION
+                || extension.as_str() == IMAGE_DDS_EXTENSION)
+                && copy_into_data_folder(&self.global_messenger, path)
             {
-                copy_into_data_folder(&self.global_messenger, path);
+                println!("Serializing {:?}", path);
             }
         }
     }

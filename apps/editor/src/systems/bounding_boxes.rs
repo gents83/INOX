@@ -1,6 +1,6 @@
 use std::any::TypeId;
 
-use nrg_graphics::MeshInstance;
+use nrg_graphics::Mesh;
 use nrg_math::{Mat4Ops, Vector3, Zero};
 use nrg_messenger::{read_messages, Message, MessageBox, MessageChannel, MessengerRw};
 use nrg_resources::{SharedData, SharedDataRw};
@@ -43,7 +43,7 @@ impl BoundingBoxDrawer {
                 if let Some(hitbox) = object.resource().get().get_component::<Hitbox>() {
                     min = hitbox.resource().get().min();
                     max = hitbox.resource().get().max();
-                } else if let Some(mesh) = object.resource().get().get_component::<MeshInstance>() {
+                } else if let Some(mesh) = object.resource().get().get_component::<Mesh>() {
                     let transform = mesh.resource().get().matrix();
                     let (mesh_min, mesh_max) = mesh.resource().get().mesh_data().compute_min_max();
                     min = transform.transform(mesh_min);

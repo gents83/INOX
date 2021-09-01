@@ -1,9 +1,7 @@
 use std::{any::TypeId, marker::PhantomData};
 
 use egui::{Checkbox, CollapsingHeader, DragValue, TextEdit, Ui, Widget};
-use nrg_graphics::{
-    FontInstance, MaterialInstance, MeshInstance, PipelineInstance, TextureInstance, ViewInstance,
-};
+use nrg_graphics::{Font, Material, Mesh, Pipeline, Texture, View};
 use nrg_math::{Vector2, Vector3, Vector4};
 use nrg_resources::{FileResource, GenericRef, HandleCastTo, ResourceData, SerializableResource};
 pub trait UIProperties {
@@ -113,7 +111,7 @@ impl UIProperties for Vector4 {
     }
 }
 
-impl UIProperties for PipelineInstance {
+impl UIProperties for Pipeline {
     fn show(&mut self, _ui_registry: &UIPropertiesRegistry, ui: &mut Ui, collapsed: bool) {
         CollapsingHeader::new(format!(
             "Pipeline [{:?}]",
@@ -124,9 +122,29 @@ impl UIProperties for PipelineInstance {
         .show(ui, |ui| {
             ui.vertical(|ui| {
                 ui.horizontal(|ui| {
-                    ui.label("Name: ");
-                    let mut name = self.data().name.clone();
-                    TextEdit::singleline(&mut name).enabled(false).ui(ui);
+                    ui.label("Path: ");
+                    let mut path = self.data().path().to_str().unwrap_or_default().to_string();
+                    TextEdit::singleline(&mut path).enabled(false).ui(ui);
+                });
+                ui.horizontal(|ui| {
+                    ui.label("VertexShader: ");
+                    let mut shader = self
+                        .data()
+                        .vertex_shader
+                        .to_str()
+                        .unwrap_or_default()
+                        .to_string();
+                    TextEdit::singleline(&mut shader).enabled(false).ui(ui);
+                });
+                ui.horizontal(|ui| {
+                    ui.label("FragmentShader: ");
+                    let mut shader = self
+                        .data()
+                        .fragment_shader
+                        .to_str()
+                        .unwrap_or_default()
+                        .to_string();
+                    TextEdit::singleline(&mut shader).enabled(false).ui(ui);
                 });
                 ui.horizontal(|ui| {
                     ui.label("Culling Type: ");
@@ -143,7 +161,7 @@ impl UIProperties for PipelineInstance {
     }
 }
 
-impl UIProperties for FontInstance {
+impl UIProperties for Font {
     fn show(&mut self, _ui_registry: &UIPropertiesRegistry, ui: &mut Ui, collapsed: bool) {
         CollapsingHeader::new(format!("Font [{:?}]", FileResource::get_name(self)))
             .show_background(true)
@@ -158,7 +176,7 @@ impl UIProperties for FontInstance {
     }
 }
 
-impl UIProperties for MaterialInstance {
+impl UIProperties for Material {
     fn show(&mut self, ui_registry: &UIPropertiesRegistry, ui: &mut Ui, collapsed: bool) {
         CollapsingHeader::new(format!(
             "Material [{:?}]",
@@ -197,7 +215,7 @@ impl UIProperties for MaterialInstance {
     }
 }
 
-impl UIProperties for MeshInstance {
+impl UIProperties for Mesh {
     fn show(&mut self, ui_registry: &UIPropertiesRegistry, ui: &mut Ui, collapsed: bool) {
         CollapsingHeader::new(format!("Mesh [{:?}]", SerializableResource::get_name(self)))
             .show_background(true)
@@ -224,7 +242,7 @@ impl UIProperties for MeshInstance {
     }
 }
 
-impl UIProperties for TextureInstance {
+impl UIProperties for Texture {
     fn show(&mut self, _ui_registry: &UIPropertiesRegistry, ui: &mut Ui, collapsed: bool) {
         CollapsingHeader::new(format!("Texture [{:?}]", FileResource::get_name(self)))
             .show_background(true)
@@ -259,7 +277,7 @@ impl UIProperties for TextureInstance {
     }
 }
 
-impl UIProperties for ViewInstance {
+impl UIProperties for View {
     fn show(&mut self, _ui_registry: &UIPropertiesRegistry, ui: &mut Ui, collapsed: bool) {
         CollapsingHeader::new(format!("View [{:?}]", self.get_name()))
             .show_background(true)

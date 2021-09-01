@@ -36,7 +36,7 @@ pub trait WidgetCreator: Widget {
     fn load(
         shared_data: &nrg_resources::SharedDataRw,
         global_messenger: &nrg_messenger::MessengerRw,
-        filepath: std::path::PathBuf,
+        filepath: &std::path::Path,
     ) -> Self;
 }
 
@@ -64,7 +64,7 @@ pub trait BaseWidget: InternalWidget + WidgetDataGetter {
         std::any::TypeId::of::<Self>()
     }
     fn init(&mut self) {
-        self.graphics_mut().init("UI");
+        self.graphics_mut().init();
 
         if self.is_initialized() {
             let shared_data = self.get_shared_data().clone();

@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::{
     fs::File,
     io::{BufReader, BufWriter},
-    path::PathBuf,
+    path::Path,
 };
 
 #[inline]
@@ -22,7 +22,7 @@ where
 }
 
 #[inline]
-pub fn serialize_to_file<T>(data: &T, filepath: PathBuf)
+pub fn serialize_to_file<T>(data: &T, filepath: &Path)
 where
     T: Serialize + ?Sized,
 {
@@ -32,12 +32,32 @@ where
 }
 
 #[inline]
-pub fn deserialize_from_file<'a, T>(data: &'a mut T, filepath: PathBuf)
+pub fn create_from_file<'a, T>(filepath: &Path) -> T
+where
+    T: for<'de> Deserialize<'de> + Default,
+{
+    if filepath.exists() && filepath.is_file() {
+        let file = File::open(filepath).unwrap();
+        let reader = BufReader::new(file);
+        if let Ok(result) = serde_json::from_reader(reader) {
+            return result;
+        } else {
+            eprintln!(
+                "Unable to deserialize file {}",
+                filepath.to_str().unwrap_or("InvalidPath")
+            );
+        }
+    }
+    T::default()
+}
+
+#[inline]
+pub fn deserialize_from_file<'a, T>(data: &mut T, filepath: &Path)
 where
     T: for<'de> Deserialize<'de>,
 {
     if filepath.exists() && filepath.is_file() {
-        let file = File::open(filepath.clone()).unwrap();
+        let file = File::open(filepath).unwrap();
         let reader = BufReader::new(file);
         if let Ok(result) = serde_json::from_reader(reader) {
             *data = result;

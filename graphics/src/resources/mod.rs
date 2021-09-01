@@ -18,22 +18,22 @@ pub mod view;
 
 pub fn register_resource_types(shared_data: &SharedDataRw) {
     let mut shared_data = shared_data.write().unwrap();
-    shared_data.register_type::<FontInstance>();
-    shared_data.register_type::<MaterialInstance>();
-    shared_data.register_type::<MeshInstance>();
-    shared_data.register_type::<PipelineInstance>();
-    shared_data.register_type::<RenderPassInstance>();
-    shared_data.register_type::<TextureInstance>();
-    shared_data.register_type::<ViewInstance>();
+    shared_data.register_type::<Font>();
+    shared_data.register_type::<Material>();
+    shared_data.register_type::<Mesh>();
+    shared_data.register_type::<Pipeline>();
+    shared_data.register_type::<RenderPass>();
+    shared_data.register_type::<Texture>();
+    shared_data.register_type::<View>();
 }
 
 pub fn unregister_resource_types(shared_data: &SharedDataRw) {
     let mut shared_data = shared_data.write().unwrap();
-    shared_data.unregister_type::<FontInstance>();
-    shared_data.unregister_type::<MaterialInstance>();
-    shared_data.unregister_type::<MeshInstance>();
-    shared_data.unregister_type::<PipelineInstance>();
-    shared_data.unregister_type::<RenderPassInstance>();
-    shared_data.unregister_type::<TextureInstance>();
-    shared_data.unregister_type::<ViewInstance>();
+    shared_data.unregister_type::<Font>();
+    shared_data.unregister_type::<Material>();
+    shared_data.unregister_type::<Mesh>();
+    shared_data.unregister_type::<Pipeline>();
+    shared_data.unregister_type::<RenderPass>();
+    shared_data.unregister_type::<Texture>();
+    shared_data.unregister_type::<View>();
 }

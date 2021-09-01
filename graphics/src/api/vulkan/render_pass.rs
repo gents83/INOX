@@ -1,9 +1,9 @@
 use super::device::*;
 use super::utils::*;
-use super::Texture;
+use super::BackendTexture;
 use crate::common::data_formats::*;
 
-use std::{cell::RefCell, rc::Rc};
+use std::sync::{Arc, RwLock};
 use vulkan_bindings::*;
 
 #[derive(Clone)]
@@ -14,26 +14,29 @@ pub struct RenderPassImmutable {
 }
 
 #[derive(Clone)]
-pub struct RenderPass {
-    inner: Rc<RefCell<RenderPassImmutable>>,
+pub struct BackendRenderPass {
+    inner: Arc<RwLock<RenderPassImmutable>>,
 }
 
-impl RenderPass {
+unsafe impl Send for BackendRenderPass {}
+unsafe impl Sync for BackendRenderPass {}
+
+impl BackendRenderPass {
     pub fn get_extent(&self) -> VkExtent2D {
-        self.inner.borrow().extent
+        self.inner.read().unwrap().extent
     }
     pub fn get_framebuffer_width(&self) -> u32 {
-        self.inner.borrow().extent.width
+        self.inner.read().unwrap().extent.width
     }
     pub fn get_framebuffer_height(&self) -> u32 {
-        self.inner.borrow().extent.height
+        self.inner.read().unwrap().extent.height
     }
 
-    pub fn create_with_render_target(
-        device: &Device,
+    pub fn create_default(
+        device: &BackendDevice,
         data: &RenderPassData,
-        color: Option<&Texture>,
-        depth: Option<&Texture>,
+        color: Option<&BackendTexture>,
+        depth: Option<&BackendTexture>,
     ) -> Self {
         let extent = if let Some(color) = color {
             VkExtent2D {
@@ -57,39 +60,26 @@ impl RenderPass {
             framebuffers: Vec::new(),
             extent,
         };
-        let inner = Rc::new(RefCell::new(immutable));
-        inner.borrow_mut().create_framebuffers(device, color, depth);
+        let inner = Arc::new(RwLock::new(immutable));
+        inner
+            .write()
+            .unwrap()
+            .create_framebuffers(device, color, depth);
         Self { inner }
     }
 
-    pub fn create_default(device: &Device, data: &RenderPassData) -> Self {
-        let extent = device
-            .get_instance()
-            .get_swap_chain_info()
-            .capabilities
-            .currentExtent;
-        let immutable = RenderPassImmutable {
-            render_pass: RenderPassImmutable::base_pass(device, data),
-            framebuffers: Vec::new(),
-            extent,
-        };
-        let inner = Rc::new(RefCell::new(immutable));
-        inner.borrow_mut().create_framebuffers(device, None, None);
-        Self { inner }
-    }
-
-    pub fn destroy(&mut self, device: &Device) {
-        self.inner.borrow_mut().destroy_framebuffers(device);
+    pub fn destroy(&mut self, device: &BackendDevice) {
+        self.inner.write().unwrap().destroy_framebuffers(device);
         unsafe {
             vkDestroyRenderPass.unwrap()(
                 device.get_device(),
-                self.inner.borrow().render_pass,
+                self.inner.read().unwrap().render_pass,
                 ::std::ptr::null_mut(),
             );
         }
     }
 
-    pub fn begin(&self, device: &Device) {
+    pub fn begin(&self, device: &BackendDevice) {
         let clear_value = [
             VkClearValue {
                 color: VkClearColorValue {
@@ -103,15 +93,16 @@ impl RenderPass {
                 },
             },
         ];
+        let area = VkRect2D {
+            offset: VkOffset2D { x: 0, y: 0 },
+            extent: self.inner.read().unwrap().extent,
+        };
         let render_pass_begin_info = VkRenderPassBeginInfo {
             sType: VkStructureType_VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
             pNext: ::std::ptr::null_mut(),
-            renderPass: self.inner.borrow().render_pass,
-            framebuffer: self.inner.borrow().framebuffers[device.get_current_buffer_index()],
-            renderArea: VkRect2D {
-                offset: VkOffset2D { x: 0, y: 0 },
-                extent: self.inner.borrow().extent,
-            },
+            renderPass: self.inner.read().unwrap().render_pass,
+            framebuffer: self.inner.read().unwrap().framebuffers[device.get_current_buffer_index()],
+            renderArea: area,
             clearValueCount: clear_value.len() as _,
             pClearValues: clear_value.as_ptr(),
         };
@@ -124,21 +115,21 @@ impl RenderPass {
         }
     }
 
-    pub fn end(&self, device: &Device) {
+    pub fn end(&self, device: &BackendDevice) {
         unsafe {
             vkCmdEndRenderPass.unwrap()(device.get_current_command_buffer());
         }
     }
 }
 
-impl From<&RenderPass> for VkRenderPass {
-    fn from(render_pass: &RenderPass) -> VkRenderPass {
-        render_pass.inner.borrow().render_pass
+impl From<&BackendRenderPass> for VkRenderPass {
+    fn from(render_pass: &BackendRenderPass) -> VkRenderPass {
+        render_pass.inner.read().unwrap().render_pass
     }
 }
 
 impl RenderPassImmutable {
-    fn base_pass(device: &Device, data: &RenderPassData) -> VkRenderPass {
+    fn base_pass(device: &BackendDevice, data: &RenderPassData) -> VkRenderPass {
         let details = device.get_instance().get_swap_chain_info();
         let color_attachment = VkAttachmentDescription {
             flags: 0,
@@ -261,10 +252,14 @@ impl RenderPassImmutable {
 
     fn create_framebuffers(
         &mut self,
-        device: &Device,
-        color: Option<&Texture>,
-        depth: Option<&Texture>,
+        device: &BackendDevice,
+        color: Option<&BackendTexture>,
+        depth: Option<&BackendTexture>,
     ) -> &mut Self {
+        if !self.framebuffers.is_empty() {
+            self.destroy_framebuffers(device);
+        }
+
         let mut framebuffers = Vec::<VkFramebuffer>::with_capacity(device.get_images_count());
         unsafe {
             framebuffers.set_len(device.get_images_count());
@@ -326,7 +321,7 @@ impl RenderPassImmutable {
         self
     }
 
-    fn destroy_framebuffers(&mut self, device: &Device) {
+    fn destroy_framebuffers(&mut self, device: &BackendDevice) {
         unsafe {
             for framebuffer in self.framebuffers.iter() {
                 vkDestroyFramebuffer.unwrap()(

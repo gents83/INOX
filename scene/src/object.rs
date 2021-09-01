@@ -4,7 +4,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use nrg_graphics::{MaterialInstance, MeshInstance};
+use nrg_graphics::{Material, Mesh};
 use nrg_math::Matrix4;
 use nrg_resources::{
     DataTypeResource, Deserializable, GenericRef, HandleCastTo, ResourceData, ResourceId,
@@ -101,28 +101,24 @@ impl DataTypeResource for Object {
             .set_matrix(object_data.transform);
 
         if !object_data.mesh.to_str().unwrap_or_default().is_empty() {
-            let mesh = if let Some(mesh) =
-                MeshInstance::find_from_path(shared_data, object_data.mesh.as_path())
-            {
-                mesh
-            } else {
-                MeshInstance::create_from_file(shared_data, object_data.mesh.as_path())
-            };
+            let mesh =
+                if let Some(mesh) = Mesh::find_from_path(shared_data, object_data.mesh.as_path()) {
+                    mesh
+                } else {
+                    Mesh::create_from_file(shared_data, object_data.mesh.as_path())
+                };
 
             if !object_data.material.to_str().unwrap_or_default().is_empty() {
                 let material = if let Some(material) =
-                    MaterialInstance::find_from_path(shared_data, object_data.material.as_path())
+                    Material::find_from_path(shared_data, object_data.material.as_path())
                 {
                     material
                 } else {
-                    MaterialInstance::create_from_file(shared_data, object_data.material.as_path())
+                    Material::create_from_file(shared_data, object_data.material.as_path())
                 };
                 mesh.resource().get_mut().set_material(material);
             }
-            object
-                .resource()
-                .get_mut()
-                .add_component::<MeshInstance>(mesh);
+            object.resource().get_mut().add_component::<Mesh>(mesh);
         }
 
         for child in object_data.children.iter() {

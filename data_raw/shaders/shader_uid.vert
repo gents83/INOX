@@ -3,7 +3,6 @@
 layout(std140, push_constant) uniform PushConsts {
     mat4 view;
     mat4 proj;
-	vec2 view_size;
 	vec2 screen_size;
 } pushConsts;
 

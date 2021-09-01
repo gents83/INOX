@@ -1,21 +1,21 @@
 use crate::common::shader::*;
 use vulkan_bindings::*;
 
-pub struct Shader {
+pub struct BackendShader {
     shader_type: ShaderType,
     content: Vec<u32>,
     module: VkShaderModule,
     stage_info: ::std::option::Option<VkPipelineShaderStageCreateInfo>,
 }
 
-impl Shader {
+impl BackendShader {
     pub fn create(
         device: VkDevice,
         shader_type: ShaderType,
         shader_content: Vec<u32>,
         entry_point: &str,
     ) -> Self {
-        let mut shader = Shader {
+        let mut shader = BackendShader {
             shader_type: ShaderType::Invalid,
             content: Vec::new(),
             module: ::std::ptr::null_mut(),

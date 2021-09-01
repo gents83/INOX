@@ -52,8 +52,6 @@ pub struct UniformData {
 pub struct ConstantData {
     pub view: [[f32; 4]; 4],
     pub proj: [[f32; 4]; 4],
-    pub view_width: f32,
-    pub view_height: f32,
     pub screen_width: f32,
     pub screen_height: f32,
 }
@@ -63,8 +61,6 @@ impl Default for ConstantData {
         Self {
             view: [[0.; 4]; 4],
             proj: [[0.; 4]; 4],
-            view_width: 0.,
-            view_height: 0.,
             screen_width: 0.,
             screen_height: 0.,
         }
@@ -116,6 +112,7 @@ pub struct RenderPassData {
     pub store_depth: StoreOperation,
     pub render_to_texture: bool,
     pub name: String,
+    pub pipeline: Option<PipelineData>,
 }
 unsafe impl Send for RenderPassData {}
 unsafe impl Sync for RenderPassData {}
@@ -129,6 +126,7 @@ impl Default for RenderPassData {
             store_depth: StoreOperation::DontCare,
             render_to_texture: false,
             name: String::new(),
+            pipeline: None,
         }
     }
 }
@@ -155,7 +153,6 @@ pub enum CullingModeType {
 #[serde(crate = "nrg_serialize")]
 pub struct PipelineData {
     path: PathBuf,
-    pub name: String,
     pub fragment_shader: PathBuf,
     pub vertex_shader: PathBuf,
     pub tcs_shader: PathBuf,
@@ -163,7 +160,6 @@ pub struct PipelineData {
     pub geometry_shader: PathBuf,
     pub culling: CullingModeType,
     pub mode: PolygonModeType,
-    pub render_in_passes: Vec<String>,
 }
 unsafe impl Send for PipelineData {}
 unsafe impl Sync for PipelineData {}
@@ -172,7 +168,6 @@ impl Default for PipelineData {
     fn default() -> Self {
         Self {
             path: PathBuf::new(),
-            name: String::from("3D"),
             fragment_shader: PathBuf::new(),
             vertex_shader: PathBuf::new(),
             tcs_shader: PathBuf::new(),
@@ -180,7 +175,6 @@ impl Default for PipelineData {
             geometry_shader: PathBuf::new(),
             culling: CullingModeType::Back,
             mode: PolygonModeType::Fill,
-            render_in_passes: Vec::new(),
         }
     }
 }
@@ -224,8 +218,7 @@ impl PipelineData {
 
 implement_file_data!(
     struct MaterialData {
-        pipeline_name: String,
-        meshes: Vec<PathBuf>,
+        pipeline: PipelineData,
         textures: Vec<PathBuf>,
         diffuse_color: Vector4,
         outline_color: Vector4,
@@ -236,8 +229,7 @@ impl Default for MaterialData {
     fn default() -> Self {
         Self {
             path: PathBuf::new(),
-            pipeline_name: String::from("3D"),
-            meshes: Vec::new(),
+            pipeline: PipelineData::default(),
             textures: Vec::new(),
             diffuse_color: [1., 1., 1., 1.].into(),
             outline_color: [1., 1., 1., 0.].into(),
@@ -253,12 +245,24 @@ pub struct MeshDataRef {
     pub first_index: u32,
     pub last_index: u32,
 }
+pub const DEFAULT_MESH_CATEGORY_IDENTIFIER: &str = "NRG_Default_MainPass?Mesh";
+
+#[repr(C)]
+#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Clone)]
+#[serde(crate = "nrg_serialize")]
+pub struct MeshCategoryId(Uid);
+
+impl MeshCategoryId {
+    pub fn new(string: &str) -> Self {
+        Self(generate_uid_from_string(string))
+    }
+}
 
 implement_file_data!(
     struct MeshData {
         vertices: Vec<VertexData>,
         indices: Vec<u32>,
-        matrix: Matrix4,
+        mesh_category_identifier: MeshCategoryId,
     }
 );
 
@@ -268,12 +272,20 @@ impl Default for MeshData {
             path: PathBuf::new(),
             vertices: Vec::new(),
             indices: Vec::new(),
-            matrix: Matrix4::default_identity(),
+            mesh_category_identifier: MeshCategoryId::new(DEFAULT_MESH_CATEGORY_IDENTIFIER),
         }
     }
 }
 
 impl MeshData {
+    pub fn new(mesh_category_identifier: &str) -> Self {
+        Self {
+            path: PathBuf::new(),
+            vertices: Vec::new(),
+            indices: Vec::new(),
+            mesh_category_identifier: MeshCategoryId::new(mesh_category_identifier),
+        }
+    }
     pub fn clear(&mut self) -> &mut Self {
         self.vertices.clear();
         self.indices.clear();

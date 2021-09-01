@@ -11,9 +11,9 @@ use nrg_serialize::{generate_random_uid, generate_uid_from_string, INVALID_UID};
 use crate::{TextureInfo, INVALID_INDEX};
 
 pub type TextureId = ResourceId;
-pub type TextureRc = ResourceRef<TextureInstance>;
+pub type TextureRc = ResourceRef<Texture>;
 
-pub struct TextureInstance {
+pub struct Texture {
     id: ResourceId,
     path: PathBuf,
     image_data: Option<RgbaImage>,
@@ -24,7 +24,7 @@ pub struct TextureInstance {
     is_initialized: bool,
 }
 
-impl Default for TextureInstance {
+impl Default for Texture {
     fn default() -> Self {
         Self {
             id: INVALID_UID,
@@ -39,19 +39,19 @@ impl Default for TextureInstance {
     }
 }
 
-impl ResourceData for TextureInstance {
+impl ResourceData for Texture {
     fn id(&self) -> ResourceId {
         self.id
     }
 }
 
-impl DataTypeResource for TextureInstance {
+impl DataTypeResource for Texture {
     type DataType = RgbaImage;
     fn create_from_data(shared_data: &SharedDataRw, image_data: Self::DataType) -> TextureRc {
         let dimensions = image_data.dimensions();
         SharedData::add_resource(
             shared_data,
-            TextureInstance {
+            Texture {
                 id: generate_random_uid(),
                 image_data: Some(image_data),
                 width: dimensions.0,
@@ -62,25 +62,24 @@ impl DataTypeResource for TextureInstance {
     }
 }
 
-impl FileResource for TextureInstance {
+impl FileResource for Texture {
     fn path(&self) -> &Path {
         self.path.as_path()
     }
     fn create_from_file(shared_data: &SharedDataRw, filepath: &Path) -> TextureRc {
         let path = convert_from_local_path(PathBuf::from(DATA_FOLDER).as_path(), filepath);
-        if let Some(texture) =
-            SharedData::match_resource(shared_data, |t: &TextureInstance| t.path == path)
+        if let Some(texture) = SharedData::match_resource(shared_data, |t: &Texture| t.path == path)
         {
             return texture;
         }
-        SharedData::add_resource(shared_data, TextureInstance::create(filepath))
+        SharedData::add_resource(shared_data, Texture::create(filepath))
     }
 }
 
-impl TextureInstance {
+impl Texture {
     pub fn find_from_path(shared_data: &SharedDataRw, texture_path: &Path) -> Option<TextureRc> {
         let path = convert_from_local_path(PathBuf::from(DATA_FOLDER).as_path(), texture_path);
-        SharedData::match_resource(shared_data, |t: &TextureInstance| t.path == path)
+        SharedData::match_resource(shared_data, |t: &Texture| t.path == path)
     }
     pub fn path(&self) -> &Path {
         self.path.as_path()
@@ -118,8 +117,8 @@ impl TextureInstance {
     pub fn layer_index(&self) -> i32 {
         self.layer_index
     }
-    fn create(texture_path: &Path) -> TextureInstance {
-        TextureInstance {
+    fn create(texture_path: &Path) -> Texture {
+        Texture {
             id: generate_uid_from_string(texture_path.to_str().unwrap()),
             path: texture_path.to_path_buf(),
             ..Default::default()

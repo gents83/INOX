@@ -15,6 +15,9 @@ pub struct Config {
     pub fonts: Vec<PathBuf>,
     pub render_passes: Vec<RenderPassData>,
     pub pipelines: Vec<PipelineData>,
+    pub default_material: PathBuf,
+    pub wireframe_material: PathBuf,
+    pub grid_material: PathBuf,
 }
 
 impl Default for Config {
@@ -29,6 +32,9 @@ impl Default for Config {
             fonts: Vec::new(),
             render_passes: Vec::new(),
             pipelines: Vec::new(),
+            default_material: PathBuf::new(),
+            wireframe_material: PathBuf::new(),
+            grid_material: PathBuf::new(),
         }
     }
 }

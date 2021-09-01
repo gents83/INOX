@@ -1,5 +1,6 @@
 use super::config::*;
 use nrg_core::*;
+
 use nrg_resources::ConfigBase;
 use nrg_serialize::*;
 use nrg_ui::UISystem;
@@ -30,8 +31,7 @@ impl Default for Editor {
 
 impl Plugin for Editor {
     fn prepare(&mut self, app: &mut App) {
-        let path = self.config.get_filepath();
-        deserialize_from_file(&mut self.config, path);
+        self.config = create_from_file(self.config.get_filepath().as_path());
 
         let mut update_phase = PhaseWithSystems::new(EDITOR_UPDATE_PHASE);
         let system = EditorUpdater::new(
@@ -54,8 +54,7 @@ impl Plugin for Editor {
     }
 
     fn unprepare(&mut self, app: &mut App) {
-        let path = self.config.get_filepath();
-        serialize_to_file(&self.config, path);
+        serialize_to_file(&self.config, self.config.get_filepath().as_path());
 
         let update_phase: &mut PhaseWithSystems = app.get_phase_mut(EDITOR_UPDATE_PHASE);
         update_phase.remove_system(&self.updater_id);

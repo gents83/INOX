@@ -5,7 +5,7 @@ use std::{
 
 use nrg_core::{App, PhaseWithSystems};
 use nrg_graphics::{rendering_system::RenderingSystem, update_system::UpdateSystem, Renderer};
-use nrg_math::Vector2;
+
 use nrg_messenger::Message;
 use nrg_platform::{Window, WindowEvent};
 
@@ -34,12 +34,7 @@ impl Launcher {
             )
         };
 
-        let renderer = {
-            let mut renderer = Renderer::new(window.get_handle(), false);
-            let size = Vector2::new(window.get_width() as _, window.get_heigth() as _);
-            renderer.set_viewport_size(size);
-            renderer
-        };
+        let renderer = Renderer::new(window.get_handle(), &app.get_shared_data(), false);
         let renderer = Arc::new(RwLock::new(renderer));
 
         let mut window_update_phase = PhaseWithSystems::new(MAIN_WINDOW_PHASE);

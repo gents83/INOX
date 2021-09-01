@@ -18,8 +18,10 @@ impl FontCompiler {
 impl ExtensionHandler for FontCompiler {
     fn on_changed(&mut self, path: &Path) {
         if let Some(ext) = path.extension() {
-            if ext.to_str().unwrap().to_string().as_str() == FONT_EXTENSION {
-                copy_into_data_folder(&self.global_messenger, path);
+            if ext.to_str().unwrap().to_string().as_str() == FONT_EXTENSION
+                && copy_into_data_folder(&self.global_messenger, path)
+            {
+                println!("Serializing {:?}", path);
             }
         }
     }

@@ -1,0 +1,30 @@
+{
+    "path": "",
+    "pipeline": 
+    {
+        "path": "",
+        "fragment_shader": "shaders/grid_frag.spv",
+        "vertex_shader": "shaders/grid_vert.spv",
+        "tcs_shader": "",
+        "tes_shader": "",
+        "geometry_shader": "",
+        "culling": "Back",
+        "mode": "Fill"
+    },
+    "textures":
+    [],
+    "diffuse_color":
+    {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0,
+        "w": 1.0
+    },
+    "outline_color":
+    {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0,
+        "w": 0.0
+    }
+}

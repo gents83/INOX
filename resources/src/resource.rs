@@ -19,6 +19,7 @@ pub type ResourceId = Uid;
 pub trait ResourceData: Send + Sync + 'static {
     fn id(&self) -> ResourceId;
 
+    #[inline]
     fn get_name(&self) -> String {
         self.id().to_simple().to_string()
     }
@@ -40,6 +41,7 @@ impl<T> ResourceMutex<T>
 where
     T: ResourceData,
 {
+    #[inline]
     pub fn new(data: T) -> Self {
         Self {
             id: data.id(),
@@ -47,10 +49,12 @@ where
         }
     }
 
+    #[inline]
     pub fn get(&self) -> RwLockReadGuard<'_, T> {
         self.data.read().unwrap()
     }
 
+    #[inline]
     pub fn get_mut(&self) -> RwLockWriteGuard<'_, T> {
         self.data.write().unwrap()
     }
@@ -60,6 +64,7 @@ impl<T> BaseResource for ResourceMutex<T>
 where
     T: ResourceData,
 {
+    #[inline]
     fn as_any(self: Arc<Self>) -> Arc<dyn Any + Send + Sync> {
         self
     }
@@ -82,6 +87,7 @@ pub trait ResourceCastTo {
 }
 
 impl ResourceCastTo for GenericResource {
+    #[inline]
     fn of_type<T: ResourceData>(self) -> Resource<T> {
         let any = Arc::into_raw(self.as_any());
         Arc::downcast(unsafe { Arc::from_raw(any) }).unwrap()
@@ -126,13 +132,17 @@ impl<T> TypedStorage for Storage<T>
 where
     T: ResourceData + Sized + 'static,
 {
+    #[inline]
     fn as_any(self: Box<Self>) -> Box<dyn Any> {
         self
     }
+    #[inline]
     fn add(&mut self, handle: GenericRef, resource: GenericResource) {
         self.handles.push(handle.of_type::<T>());
         self.resources.push(resource.of_type::<T>());
     }
+
+    #[inline]
     fn resource(&self, resource_id: ResourceId) -> GenericResource
     where
         T: ResourceData,
@@ -143,6 +153,7 @@ where
             panic!("Resource {} not found", resource_id.to_simple());
         }
     }
+    #[inline]
     fn get(&self, resource_id: ResourceId) -> GenericRef
     where
         T: ResourceData,
@@ -154,10 +165,12 @@ where
         }
     }
 
+    #[inline]
     fn remove_all(&mut self) {
         self.resources.clear();
     }
 
+    #[inline]
     fn flush(&mut self) {
         let mut to_remove = Vec::new();
         for handle in self.handles.iter_mut() {
@@ -169,14 +182,17 @@ where
             self.remove(id);
         }
     }
+    #[inline]
     fn remove(&mut self, resource_id: ResourceId) {
         self.handles.retain(|h| h.id() != resource_id);
         self.resources.retain(|r| r.id() != resource_id);
     }
+    #[inline]
     fn has(&self, resource_id: ResourceId) -> bool {
         self.handles.iter().any(|h| h.id() == resource_id)
     }
 
+    #[inline]
     fn handles(&self) -> Vec<GenericRef> {
         let mut handles = Vec::new();
         for handle in self.handles.iter() {
@@ -185,6 +201,7 @@ where
         handles
     }
 
+    #[inline]
     fn resources(&self) -> Vec<GenericResource> {
         let mut resources = Vec::new();
         for resource in self.resources.iter() {
@@ -192,6 +209,7 @@ where
         }
         resources
     }
+    #[inline]
     fn count(&self) -> usize {
         self.resources.len()
     }

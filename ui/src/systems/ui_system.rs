@@ -10,8 +10,8 @@ use egui::{
 use image::{DynamicImage, Pixel};
 use nrg_core::{JobHandlerRw, System, SystemId};
 use nrg_graphics::{
-    MaterialInstance, MaterialRc, MeshData, MeshInstance, MeshRc, PipelineInstance, TextureId,
-    TextureInstance, TextureRc, VertexData,
+    Material, MaterialRc, Mesh, MeshCategoryId, MeshData, MeshRc, RenderPass, Texture, TextureId,
+    TextureRc, VertexData,
 };
 
 use nrg_messenger::{read_messages, MessageChannel, MessengerRw};
@@ -22,6 +22,8 @@ use nrg_platform::{
 use nrg_resources::{DataTypeResource, SharedData, SharedDataRw};
 
 use crate::UIWidget;
+
+const UI_MESH_CATEGORY_IDENTIFIER: &str = "ui_mesh";
 
 pub struct UISystem {
     id: SystemId,
@@ -73,18 +75,24 @@ impl UISystem {
         match self.ui_materials.entry(texture.id()) {
             Entry::Occupied(e) => e.get().clone(),
             Entry::Vacant(e) => {
-                if let Some(pipeline) =
-                    SharedData::match_resource(&self.shared_data, |p: &PipelineInstance| {
-                        p.data().name == "UI"
+                if let Some(render_pass) =
+                    SharedData::match_resource(&self.shared_data, |r: &RenderPass| {
+                        r.data().name == "UIPass"
                     })
                 {
-                    let material =
-                        MaterialInstance::create_from_pipeline(&self.shared_data, pipeline);
-                    material.resource().get_mut().add_texture(texture);
-                    e.insert(material.clone());
-                    return material;
+                    render_pass
+                        .resource()
+                        .get_mut()
+                        .add_category_to_draw(MeshCategoryId::new(UI_MESH_CATEGORY_IDENTIFIER));
+                    if let Some(pipeline) = render_pass.resource().get().pipeline() {
+                        let material = Material::create_from_pipeline(&self.shared_data, pipeline);
+                        material.resource().get_mut().add_texture(texture);
+                        e.insert(material.clone());
+                        return material;
+                    }
+                    panic!("No pipeline inside UIPass has been loaded");
                 }
-                panic!("No pipeline with name UI has been loaded");
+                panic!("No UIPass has been loaded");
             }
         }
     }
@@ -110,7 +118,7 @@ impl UISystem {
                     .get_mut()
                     .remove_texture(self.ui_texture.id());
             }
-            self.ui_texture = TextureInstance::create_from_data(&self.shared_data, image_data);
+            self.ui_texture = Texture::create_from_data(&self.shared_data, image_data);
             self.ui_texture_version = self.ui_context.texture().version;
         }
         self
@@ -120,9 +128,9 @@ impl UISystem {
         nrg_profiler::scoped_profile!("ui_system::compute_mesh_data");
         let shared_data = self.shared_data.clone();
         self.ui_meshes.resize_with(clipped_meshes.len(), || {
-            MeshInstance::create_from_data(&shared_data, MeshData::default())
+            Mesh::create_from_data(&shared_data, MeshData::new(UI_MESH_CATEGORY_IDENTIFIER))
         });
-        let textures = SharedData::get_resources_of_type::<TextureInstance>(&self.shared_data);
+        let textures = SharedData::get_resources_of_type::<Texture>(&self.shared_data);
 
         for (i, clipped_mesh) in clipped_meshes.into_iter().enumerate() {
             let ClippedMesh(_, mesh) = clipped_mesh;
@@ -146,7 +154,7 @@ impl UISystem {
                 .write()
                 .unwrap()
                 .add_job(job_name.as_str(), move || {
-                    let mut mesh_data = MeshData::default();
+                    let mut mesh_data = MeshData::new(UI_MESH_CATEGORY_IDENTIFIER);
                     let mut vertices: Vec<VertexData> = Vec::new();
                     vertices.resize(mesh.vertices.len(), VertexData::default());
                     for (i, v) in mesh.vertices.iter().enumerate() {

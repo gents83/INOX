@@ -1,7 +1,7 @@
 use nrg_core::{System, SystemId};
 use nrg_resources::{DataTypeResource, ResourceRef, SharedData, SharedDataRw};
 
-use crate::{RendererRw, RendererState, ViewInstance, ViewRc};
+use crate::{RendererRw, RendererState, View, ViewRc};
 
 pub struct RenderingSystem {
     id: SystemId,
@@ -34,8 +34,8 @@ impl System for RenderingSystem {
         false
     }
     fn init(&mut self) {
-        if !SharedData::has_resources_of_type::<ViewInstance>(&self.shared_data) {
-            self.view = ViewInstance::create_from_data(&self.shared_data, self.view_index as _);
+        if !SharedData::has_resources_of_type::<View>(&self.shared_data) {
+            self.view = View::create_from_data(&self.shared_data, self.view_index as _);
         }
     }
 
@@ -45,13 +45,11 @@ impl System for RenderingSystem {
             return true;
         }
 
-        let width = self.view.resource().get().width();
-        let height = self.view.resource().get().height();
         let view = self.view.resource().get().view();
         let proj = self.view.resource().get().proj();
 
         let mut renderer = self.renderer.write().unwrap();
-        renderer.draw(width as _, height as _, &view, &proj);
+        renderer.draw(&view, &proj);
 
         true
     }

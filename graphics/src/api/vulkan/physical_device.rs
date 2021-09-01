@@ -1,5 +1,6 @@
 use super::{get_minimum_required_vulkan_extensions, types::*};
-use std::{cell::RefCell, rc::Rc};
+
+use std::sync::{Arc, RwLock};
 use vulkan_bindings::*;
 
 struct PhysicalDeviceImmutable {
@@ -13,12 +14,12 @@ struct PhysicalDeviceImmutable {
 
 #[derive(Clone)]
 pub struct PhysicalDevice {
-    inner: Rc<RefCell<PhysicalDeviceImmutable>>,
+    inner: Arc<RwLock<PhysicalDeviceImmutable>>,
 }
 
 impl PhysicalDevice {
     pub fn create(physical_device: VkPhysicalDevice, surface: VkSurfaceKHR) -> PhysicalDevice {
-        let immutable = Rc::new(RefCell::new(PhysicalDeviceImmutable::new(
+        let immutable = Arc::new(RwLock::new(PhysicalDeviceImmutable::new(
             physical_device,
             surface,
         )));
@@ -26,41 +27,45 @@ impl PhysicalDevice {
     }
 
     pub fn compute_swap_chain_details(&self, surface: VkSurfaceKHR) {
-        let mut inner = self.inner.borrow_mut();
+        let mut inner = self.inner.write().unwrap();
         inner.find_queue_family_indices(surface);
         inner.find_swap_chain_support(surface);
     }
 
     pub fn get_internal_device(&self) -> VkPhysicalDevice {
-        self.inner.borrow().physical_device
+        self.inner.read().unwrap().physical_device
     }
 
     pub fn get_queue_family_info(&self) -> QueueFamilyIndices {
-        self.inner.borrow().queue_family_indices
+        self.inner.read().unwrap().queue_family_indices
     }
 
     pub fn is_initialized(&self) -> bool {
-        !self.inner.borrow().physical_device.is_null()
+        !self.inner.read().unwrap().physical_device.is_null()
     }
 
     pub fn get_swap_chain_info(&self) -> SwapChainSupportDetails {
-        self.inner.borrow().swap_chain_details.clone()
+        self.inner.read().unwrap().swap_chain_details.clone()
     }
 
     pub fn get_available_extensions(&self) -> Vec<VkExtensionProperties> {
-        self.inner.borrow().physical_device_extensions.clone()
+        self.inner
+            .read()
+            .unwrap()
+            .physical_device_extensions
+            .clone()
     }
 
     pub fn get_available_features(&self) -> VkPhysicalDeviceFeatures {
-        self.inner.borrow().physical_device_features
+        self.inner.read().unwrap().physical_device_features
     }
 
     pub fn get_properties(&self) -> VkPhysicalDeviceProperties {
-        self.inner.borrow().physical_device_properties
+        self.inner.read().unwrap().physical_device_properties
     }
 
     pub fn is_device_suitable(&self) -> bool {
-        self.inner.borrow().is_device_suitable()
+        self.inner.read().unwrap().is_device_suitable()
     }
 }
 

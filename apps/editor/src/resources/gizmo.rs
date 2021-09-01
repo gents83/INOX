@@ -2,8 +2,8 @@ use std::any::TypeId;
 
 use nrg_camera::Camera;
 use nrg_graphics::{
-    create_arrow, create_hammer, create_sphere, create_torus, MaterialInstance, MeshData,
-    MeshInstance, MeshRc, PipelineInstance,
+    create_arrow, create_hammer, create_sphere, create_torus, Material, Mesh, MeshData, MeshRc,
+    PipelineRc,
 };
 
 use nrg_math::{
@@ -95,87 +95,177 @@ impl Gizmo {
         SharedData::add_resource(shared_data, gizmo)
     }
 
-    pub fn new_translation(shared_data: &SharedDataRw, global_messenger: MessengerRw) -> GizmoRc {
+    pub fn new_translation(
+        shared_data: &SharedDataRw,
+        global_messenger: MessengerRw,
+        default_material_pipeline: &PipelineRc,
+    ) -> GizmoRc {
         Self::new(
             shared_data,
             global_messenger,
             GizmoType::Move,
-            Self::create_center_mesh(shared_data, Vector3::zero()),
-            Self::create_arrow(shared_data, [10., 0., 0.].into(), [1., 0., 0., 1.].into()),
-            Self::create_arrow(shared_data, [0., 10., 0.].into(), [0., 1., 0., 1.].into()),
-            Self::create_arrow(shared_data, [0., 0., 10.].into(), [0., 0., 1., 1.].into()),
+            Self::create_center_mesh(shared_data, Vector3::zero(), default_material_pipeline),
+            Self::create_arrow(
+                shared_data,
+                [10., 0., 0.].into(),
+                [1., 0., 0., 1.].into(),
+                default_material_pipeline,
+            ),
+            Self::create_arrow(
+                shared_data,
+                [0., 10., 0.].into(),
+                [0., 1., 0., 1.].into(),
+                default_material_pipeline,
+            ),
+            Self::create_arrow(
+                shared_data,
+                [0., 0., 10.].into(),
+                [0., 0., 1., 1.].into(),
+                default_material_pipeline,
+            ),
         )
     }
 
-    pub fn new_scale(shared_data: &SharedDataRw, global_messenger: MessengerRw) -> GizmoRc {
+    pub fn new_scale(
+        shared_data: &SharedDataRw,
+        global_messenger: MessengerRw,
+        default_material_pipeline: &PipelineRc,
+    ) -> GizmoRc {
         Self::new(
             shared_data,
             global_messenger,
             GizmoType::Scale,
-            Self::create_center_mesh(shared_data, Vector3::zero()),
-            Self::create_hammer(shared_data, [10., 0., 0.].into(), [1., 0., 0., 1.].into()),
-            Self::create_hammer(shared_data, [0., 10., 0.].into(), [0., 1., 0., 1.].into()),
-            Self::create_hammer(shared_data, [0., 0., 10.].into(), [0., 0., 1., 1.].into()),
+            Self::create_center_mesh(shared_data, Vector3::zero(), default_material_pipeline),
+            Self::create_hammer(
+                shared_data,
+                [10., 0., 0.].into(),
+                [1., 0., 0., 1.].into(),
+                default_material_pipeline,
+            ),
+            Self::create_hammer(
+                shared_data,
+                [0., 10., 0.].into(),
+                [0., 1., 0., 1.].into(),
+                default_material_pipeline,
+            ),
+            Self::create_hammer(
+                shared_data,
+                [0., 0., 10.].into(),
+                [0., 0., 1., 1.].into(),
+                default_material_pipeline,
+            ),
         )
     }
 
-    pub fn new_rotation(shared_data: &SharedDataRw, global_messenger: MessengerRw) -> GizmoRc {
+    pub fn new_rotation(
+        shared_data: &SharedDataRw,
+        global_messenger: MessengerRw,
+        default_material_pipeline: &PipelineRc,
+    ) -> GizmoRc {
         Self::new(
             shared_data,
             global_messenger,
             GizmoType::Rotate,
-            Self::create_center_mesh(shared_data, Vector3::zero()),
-            Self::create_torus(shared_data, [1., 0., 0.].into(), [1., 0., 0., 1.].into()),
-            Self::create_torus(shared_data, [0., 1., 0.].into(), [0., 1., 0., 1.].into()),
-            Self::create_torus(shared_data, [0., 0., 1.].into(), [0., 0., 1., 1.].into()),
+            Self::create_center_mesh(shared_data, Vector3::zero(), default_material_pipeline),
+            Self::create_torus(
+                shared_data,
+                [1., 0., 0.].into(),
+                [1., 0., 0., 1.].into(),
+                default_material_pipeline,
+            ),
+            Self::create_torus(
+                shared_data,
+                [0., 1., 0.].into(),
+                [0., 1., 0., 1.].into(),
+                default_material_pipeline,
+            ),
+            Self::create_torus(
+                shared_data,
+                [0., 0., 1.].into(),
+                [0., 0., 1., 1.].into(),
+                default_material_pipeline,
+            ),
         )
     }
-    fn add_material(shared_data: &SharedDataRw, mesh: &MeshRc) {
-        if let Some(pipeline) = PipelineInstance::find_from_name(shared_data, "3D") {
-            let material = MaterialInstance::create_from_pipeline(shared_data, pipeline);
-            mesh.resource().get_mut().set_material(material);
-        }
-    }
 
-    fn create_center_mesh(shared_data: &SharedDataRw, position: Vector3) -> MeshRc {
+    fn create_center_mesh(
+        shared_data: &SharedDataRw,
+        position: Vector3,
+        default_material_pipeline: &PipelineRc,
+    ) -> MeshRc {
         let mut mesh_data = MeshData::default();
         let (mut vertices, indices) = create_sphere(0.5, 32, 16);
         vertices.iter_mut().for_each(|v| {
             v.pos += position;
         });
         mesh_data.append_mesh(vertices.as_slice(), indices.as_slice());
-        let mesh = MeshInstance::create_from_data(shared_data, mesh_data);
-        Self::add_material(shared_data, &mesh);
+        let mesh = Mesh::create_from_data(shared_data, mesh_data);
+        mesh.resource()
+            .get_mut()
+            .set_material(Material::create_from_pipeline(
+                shared_data,
+                default_material_pipeline,
+            ));
         mesh
     }
-    fn create_arrow(shared_data: &SharedDataRw, direction: Vector3, color: Vector4) -> MeshRc {
+    fn create_arrow(
+        shared_data: &SharedDataRw,
+        direction: Vector3,
+        color: Vector4,
+        default_material_pipeline: &PipelineRc,
+    ) -> MeshRc {
         let mut mesh_data = MeshData::default();
 
         let (vertices, indices) = create_arrow(Vector3::zero(), direction, color);
         mesh_data.append_mesh(vertices.as_slice(), indices.as_slice());
 
-        let mesh = MeshInstance::create_from_data(shared_data, mesh_data);
-        Self::add_material(shared_data, &mesh);
+        let mesh = Mesh::create_from_data(shared_data, mesh_data);
+        mesh.resource()
+            .get_mut()
+            .set_material(Material::create_from_pipeline(
+                shared_data,
+                default_material_pipeline,
+            ));
         mesh
     }
-    fn create_hammer(shared_data: &SharedDataRw, direction: Vector3, color: Vector4) -> MeshRc {
+    fn create_hammer(
+        shared_data: &SharedDataRw,
+        direction: Vector3,
+        color: Vector4,
+        default_material_pipeline: &PipelineRc,
+    ) -> MeshRc {
         let mut mesh_data = MeshData::default();
 
         let (vertices, indices) = create_hammer(Vector3::zero(), direction, color);
         mesh_data.append_mesh(vertices.as_slice(), indices.as_slice());
 
-        let mesh = MeshInstance::create_from_data(shared_data, mesh_data);
-        Self::add_material(shared_data, &mesh);
+        let mesh = Mesh::create_from_data(shared_data, mesh_data);
+        mesh.resource()
+            .get_mut()
+            .set_material(Material::create_from_pipeline(
+                shared_data,
+                default_material_pipeline,
+            ));
         mesh
     }
-    fn create_torus(shared_data: &SharedDataRw, direction: Vector3, color: Vector4) -> MeshRc {
+    fn create_torus(
+        shared_data: &SharedDataRw,
+        direction: Vector3,
+        color: Vector4,
+        default_material_pipeline: &PipelineRc,
+    ) -> MeshRc {
         let mut mesh_data = MeshData::default();
 
         let (vertices, indices) = create_torus(Vector3::zero(), 10., 0.1, 32, 32, direction, color);
         mesh_data.append_mesh(vertices.as_slice(), indices.as_slice());
 
-        let mesh = MeshInstance::create_from_data(shared_data, mesh_data);
-        Self::add_material(shared_data, &mesh);
+        let mesh = Mesh::create_from_data(shared_data, mesh_data);
+        mesh.resource()
+            .get_mut()
+            .set_material(Material::create_from_pipeline(
+                shared_data,
+                default_material_pipeline,
+            ));
         mesh
     }
 

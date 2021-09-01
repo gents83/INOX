@@ -236,7 +236,7 @@ macro_rules! implement_widget_with_data {
             fn load(
                 shared_data: &nrg_resources::SharedDataRw,
                 global_messenger: &nrg_messenger::MessengerRw,
-                filepath: std::path::PathBuf,
+                filepath: &std::path::Path,
             ) -> $Type {
                 let mut w = $Type {
                     data: WidgetData::new(shared_data.clone(), global_messenger.clone()),
@@ -281,7 +281,7 @@ macro_rules! implement_widget_with_custom_members {
             fn load(
                 shared_data: &nrg_resources::SharedDataRw,
                 global_messenger: &nrg_messenger::MessengerRw,
-                filepath: std::path::PathBuf,
+                filepath: &std::path::Path,
             ) -> $Type {
                 let mut w = $Type {
                     data: WidgetData::new(shared_data.clone(), global_messenger.clone()),

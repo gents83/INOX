@@ -1,18 +1,26 @@
-use super::render_pass::*;
-use super::shader::*;
-use super::{data_formats::INSTANCE_BUFFER_BIND_ID, device::*};
-use crate::common::data_formats::*;
-use crate::common::shader::*;
+use super::data_formats::INSTANCE_BUFFER_BIND_ID;
+use super::shader::BackendShader;
+use super::BackendDevice;
+use super::BackendRenderPass;
 use crate::common::texture::MAX_TEXTURE_COUNT;
-use crate::common::texture::*;
-use crate::common::utils::*;
+use crate::utils::read_spirv_from_bytes;
+use crate::ConstantData;
+use crate::CullingModeType;
+use crate::InstanceCommand;
+use crate::InstanceData;
+use crate::PolygonModeType;
+use crate::ShaderType;
+use crate::TextureAtlas;
+use crate::UniformData;
+use crate::VertexData;
 
 use nrg_filesystem::convert_from_local_path;
 use nrg_math::matrix4_to_array;
 use nrg_math::Matrix4;
 use nrg_resources::DATA_FOLDER;
+use std::path::Path;
 use std::path::PathBuf;
-use std::{cell::RefCell, path::Path, rc::Rc};
+use std::sync::{Arc, RwLock};
 use vulkan_bindings::*;
 
 pub struct PipelineImmutable {
@@ -23,7 +31,7 @@ pub struct PipelineImmutable {
     uniform_buffers_size: usize,
     uniform_buffers: Vec<VkBuffer>,
     uniform_buffers_memory: Vec<VkDeviceMemory>,
-    shaders: Vec<Shader>,
+    shaders: Vec<BackendShader>,
     pipeline_layout: VkPipelineLayout,
     graphics_pipeline: VkPipeline,
     instance_buffer_count: usize,
@@ -36,13 +44,16 @@ pub struct PipelineImmutable {
 }
 
 #[derive(Clone)]
-pub struct Pipeline {
-    inner: Rc<RefCell<PipelineImmutable>>,
-    device: Device,
+pub struct BackendPipeline {
+    inner: Arc<RwLock<PipelineImmutable>>,
+    device: BackendDevice,
 }
 
-impl Pipeline {
-    pub fn create(device: &Device) -> Pipeline {
+unsafe impl Send for BackendPipeline {}
+unsafe impl Sync for BackendPipeline {}
+
+impl BackendPipeline {
+    pub fn create(device: &BackendDevice) -> BackendPipeline {
         let immutable = PipelineImmutable {
             constant_data: ConstantData::default(),
             descriptor_set_layout: ::std::ptr::null_mut(),
@@ -62,37 +73,38 @@ impl Pipeline {
             indirect_command_buffer_memory: ::std::ptr::null_mut(),
             indirect_commands: Vec::new(),
         };
-        let inner = Rc::new(RefCell::new(immutable));
-        Pipeline {
+        let inner = Arc::new(RwLock::new(immutable));
+        BackendPipeline {
             inner,
             device: device.clone(),
         }
     }
 
     pub fn get_pipeline_layout(&self) -> VkPipelineLayout {
-        self.inner.borrow().pipeline_layout
+        self.inner.read().unwrap().pipeline_layout
     }
 
     pub fn get_descriptor_set_layout(&self) -> VkDescriptorSetLayout {
-        self.inner.borrow().descriptor_set_layout
+        self.inner.read().unwrap().descriptor_set_layout
     }
 
-    pub fn delete(&self) {
-        let inner = self.inner.borrow();
-        inner.delete(&self.device);
+    pub fn destroy(&self) {
+        let inner = self.inner.read().unwrap();
+        inner.destroy(&self.device);
     }
 
     pub fn set_shader(&mut self, shader_type: ShaderType, shader_filepath: &Path) -> &mut Self {
         let path = convert_from_local_path(PathBuf::from(DATA_FOLDER).as_path(), shader_filepath);
         if path.exists() && path.is_file() {
             self.inner
-                .borrow_mut()
+                .write()
+                .unwrap()
                 .remove_shader(&self.device, shader_type);
 
             let mut shader_file = std::fs::File::open(path).unwrap();
             let shader_code = read_spirv_from_bytes(&mut shader_file);
 
-            self.inner.borrow_mut().create_shader_module(
+            self.inner.write().unwrap().create_shader_module(
                 &self.device,
                 shader_type,
                 shader_code,
@@ -104,61 +116,69 @@ impl Pipeline {
 
     pub fn bind(&mut self, commands: &[InstanceCommand], instances: &[InstanceData]) -> &mut Self {
         self.inner
-            .borrow_mut()
+            .write()
+            .unwrap()
             .bind(&self.device, commands, instances);
         self
     }
 
     pub fn update_constant_data(
         &self,
-        width: f32,
-        height: f32,
+        width: u32,
+        height: u32,
         view: &Matrix4,
         proj: &Matrix4,
     ) -> &Self {
         self.inner
-            .borrow_mut()
+            .write()
+            .unwrap()
             .update_constant_data(&self.device, width, height, view, proj);
         self
     }
 
     pub fn update_uniform_buffer(&self, view: &Matrix4, proj: &Matrix4) -> &Self {
         self.inner
-            .borrow_mut()
+            .write()
+            .unwrap()
             .update_uniform_buffer(&self.device, view, proj);
         self
     }
     pub fn update_descriptor_sets(&self, textures: &[TextureAtlas]) -> &Self {
         self.inner
-            .borrow_mut()
+            .write()
+            .unwrap()
             .update_descriptor_sets(&self.device, textures);
         self
     }
 
     pub fn bind_descriptors(&self) -> &Self {
-        self.inner.borrow_mut().bind_descriptors(&self.device);
+        self.inner.write().unwrap().bind_descriptors(&self.device);
         self
     }
 
     pub fn bind_indirect(&self) -> &Self {
-        self.inner.borrow_mut().bind_indirect(&self.device);
+        self.inner.write().unwrap().bind_indirect(&self.device);
         self
     }
 
     pub fn draw_indirect(&mut self, count: usize) -> &mut Self {
-        self.inner.borrow_mut().draw_indirect(&self.device, count);
+        self.inner
+            .write()
+            .unwrap()
+            .draw_indirect(&self.device, count);
         self
     }
 
     pub fn build(
         &mut self,
-        device: &Device,
-        render_pass: &RenderPass,
+        device: &BackendDevice,
+        render_pass: &BackendRenderPass,
         culling: &CullingModeType,
         mode: &PolygonModeType,
     ) -> &mut Self {
         self.inner
-            .borrow_mut()
+            .write()
+            .unwrap()
             .create_descriptor_set_layout(&self.device)
             .create_uniform_buffers(device)
             .create_descriptor_pool(device)
@@ -169,7 +189,7 @@ impl Pipeline {
 }
 
 impl PipelineImmutable {
-    fn create_uniform_buffers(&mut self, device: &Device) -> &mut Self {
+    fn create_uniform_buffers(&mut self, device: &BackendDevice) -> &mut Self {
         let mut uniform_buffers = Vec::<VkBuffer>::with_capacity(device.get_images_count());
         let mut uniform_buffers_memory =
             Vec::<VkDeviceMemory>::with_capacity(device.get_images_count());
@@ -196,7 +216,7 @@ impl PipelineImmutable {
         self.uniform_buffers_memory = uniform_buffers_memory;
         self
     }
-    fn create_descriptor_pool(&mut self, device: &Device) -> &mut Self {
+    fn create_descriptor_pool(&mut self, device: &BackendDevice) -> &mut Self {
         let pool_sizes: Vec<VkDescriptorPoolSize> = vec![
             VkDescriptorPoolSize {
                 type_: VkDescriptorType_VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
@@ -232,7 +252,7 @@ impl PipelineImmutable {
         };
         self
     }
-    pub fn create_descriptor_sets(&mut self, device: &Device) -> &mut Self {
+    pub fn create_descriptor_sets(&mut self, device: &BackendDevice) -> &mut Self {
         let mut layouts = Vec::<VkDescriptorSetLayout>::with_capacity(device.get_images_count());
         unsafe {
             layouts.set_len(device.get_images_count());
@@ -265,7 +285,7 @@ impl PipelineImmutable {
         self.descriptor_sets = descriptor_sets;
         self
     }
-    fn delete(&self, device: &Device) {
+    fn destroy(&self, device: &BackendDevice) {
         self.destroy_shader_modules(device);
         device.destroy_buffer(
             &self.indirect_command_buffer,
@@ -297,8 +317,8 @@ impl PipelineImmutable {
 
     fn create(
         &mut self,
-        device: &Device,
-        render_pass: &RenderPass,
+        device: &BackendDevice,
+        render_pass: &BackendRenderPass,
         culling: &CullingModeType,
         mode: &PolygonModeType,
     ) -> &mut Self {
@@ -523,7 +543,12 @@ impl PipelineImmutable {
         self
     }
 
-    fn bind(&mut self, device: &Device, commands: &[InstanceCommand], instances: &[InstanceData]) {
+    fn bind(
+        &mut self,
+        device: &BackendDevice,
+        commands: &[InstanceCommand],
+        instances: &[InstanceData],
+    ) {
         self.prepare_indirect_commands(device, commands)
             .fill_instance_buffer(device, instances);
 
@@ -537,12 +562,12 @@ impl PipelineImmutable {
     }
     fn create_shader_module(
         &mut self,
-        device: &Device,
+        device: &BackendDevice,
         shader_type: ShaderType,
         shader_content: Vec<u32>,
         entry_point: &'static str,
     ) -> &mut Self {
-        let shader = Shader::create(
+        let shader = BackendShader::create(
             device.get_device(),
             shader_type,
             shader_content,
@@ -552,7 +577,7 @@ impl PipelineImmutable {
         self
     }
 
-    fn remove_shader(&mut self, device: &Device, shader_type: ShaderType) {
+    fn remove_shader(&mut self, device: &BackendDevice, shader_type: ShaderType) {
         self.shaders.retain(|s| {
             if s.get_type() == shader_type {
                 s.destroy(device.get_device());
@@ -563,13 +588,13 @@ impl PipelineImmutable {
         })
     }
 
-    fn destroy_shader_modules(&self, device: &Device) {
+    fn destroy_shader_modules(&self, device: &BackendDevice) {
         for shader in self.shaders.iter() {
             shader.destroy(device.get_device());
         }
     }
 
-    fn create_descriptor_set_layout(&mut self, device: &Device) -> &mut Self {
+    fn create_descriptor_set_layout(&mut self, device: &BackendDevice) -> &mut Self {
         let bindings = vec![
             VkDescriptorSetLayoutBinding {
                 binding: 0,
@@ -614,7 +639,11 @@ impl PipelineImmutable {
         self
     }
 
-    fn fill_instance_buffer(&mut self, device: &Device, instances: &[InstanceData]) -> &mut Self {
+    fn fill_instance_buffer(
+        &mut self,
+        device: &BackendDevice,
+        instances: &[InstanceData],
+    ) -> &mut Self {
         if instances.len() > self.instance_buffer_count {
             device.destroy_buffer(&self.instance_buffer, &self.instance_buffer_memory);
             self.instance_buffer_count = instances.len() * 2;
@@ -639,7 +668,7 @@ impl PipelineImmutable {
 
     fn prepare_indirect_commands(
         &mut self,
-        device: &Device,
+        device: &BackendDevice,
         commands: &[InstanceCommand],
     ) -> &mut Self {
         self.indirect_commands.clear();
@@ -690,7 +719,7 @@ impl PipelineImmutable {
         self
     }
 
-    fn bind_indirect(&mut self, device: &Device) -> &mut Self {
+    fn bind_indirect(&mut self, device: &BackendDevice) -> &mut Self {
         unsafe {
             let offsets = [0_u64];
             vkCmdBindVertexBuffers.unwrap()(
@@ -703,7 +732,7 @@ impl PipelineImmutable {
         }
         self
     }
-    fn draw_indirect(&mut self, device: &Device, count: usize) {
+    fn draw_indirect(&mut self, device: &BackendDevice, count: usize) {
         if count > 0 {
             unsafe {
                 vkCmdDrawIndexedIndirect.unwrap()(
@@ -719,19 +748,16 @@ impl PipelineImmutable {
 
     fn update_constant_data(
         &mut self,
-        device: &Device,
-        width: f32,
-        height: f32,
+        device: &BackendDevice,
+        width: u32,
+        height: u32,
         view: &Matrix4,
         proj: &Matrix4,
     ) {
-        let details = device.get_instance().get_swap_chain_info();
-        self.constant_data.view_width = width as _;
-        self.constant_data.view_height = height as _;
-        self.constant_data.screen_width = details.capabilities.currentExtent.width as _;
-        self.constant_data.screen_height = details.capabilities.currentExtent.height as _;
         self.constant_data.view = matrix4_to_array(*view);
         self.constant_data.proj = matrix4_to_array(*proj);
+        self.constant_data.screen_width = width as _;
+        self.constant_data.screen_height = height as _;
 
         unsafe {
             vkCmdPushConstants.unwrap()(
@@ -745,7 +771,7 @@ impl PipelineImmutable {
         }
     }
 
-    fn update_uniform_buffer(&mut self, device: &Device, view: &Matrix4, proj: &Matrix4) {
+    fn update_uniform_buffer(&mut self, device: &BackendDevice, view: &Matrix4, proj: &Matrix4) {
         let image_index = device.get_current_buffer_index();
         let uniform_data: [UniformData; 1] = [UniformData {
             view: *view,
@@ -786,7 +812,7 @@ impl PipelineImmutable {
         }
     }
 
-    pub fn update_descriptor_sets(&mut self, device: &Device, textures: &[TextureAtlas]) {
+    pub fn update_descriptor_sets(&mut self, device: &BackendDevice, textures: &[TextureAtlas]) {
         debug_assert!(
             !textures.is_empty(),
             "At least one texture should be received"
@@ -823,7 +849,7 @@ impl PipelineImmutable {
         }
     }
 
-    pub fn bind_descriptors(&self, device: &Device) {
+    pub fn bind_descriptors(&self, device: &BackendDevice) {
         let image_index = device.get_current_buffer_index();
 
         unsafe {

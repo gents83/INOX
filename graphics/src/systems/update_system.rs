@@ -12,8 +12,8 @@ use nrg_messenger::{read_messages, MessageChannel, MessengerRw};
 use nrg_resources::{ResourceEvent, SharedData, SharedDataRw};
 
 use crate::{
-    is_shader, is_texture, FontInstance, MaterialInstance, MeshInstance, PipelineInstance,
-    RenderPassInstance, RendererRw, RendererState, TextureInstance, INVALID_INDEX,
+    is_shader, is_texture, Mesh, MeshRc, Pipeline, RenderPass, RenderPassRc, RendererRw,
+    RendererState, Texture, INVALID_INDEX,
 };
 
 pub struct UpdateSystem {
@@ -46,6 +46,89 @@ impl UpdateSystem {
             message_channel,
         }
     }
+
+    fn handle_events(&self) {
+        read_messages(self.message_channel.get_listener(), |msg| {
+            if msg.type_id() == TypeId::of::<ResourceEvent>() {
+                let e = msg.as_any().downcast_ref::<ResourceEvent>().unwrap();
+                let ResourceEvent::Reload(path) = e;
+                if is_shader(path)
+                    && SharedData::has_resources_of_type::<Pipeline>(&self.shared_data)
+                {
+                    let pipelines =
+                        SharedData::get_resources_of_type::<Pipeline>(&self.shared_data);
+                    for p in pipelines.iter() {
+                        p.resource()
+                            .get_mut()
+                            .check_shaders_to_reload(path.to_str().unwrap().to_string());
+                    }
+                } else if is_texture(path)
+                    && SharedData::has_resources_of_type::<Texture>(&self.shared_data)
+                {
+                    let textures = SharedData::get_resources_of_type::<Texture>(&self.shared_data);
+                    for t in textures.iter() {
+                        if t.resource().get().path() == path.as_path() {
+                            t.resource().get_mut().invalidate();
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    fn create_render_mesh_job(renderer: &RendererRw, mesh: &MeshRc, render_pass: &RenderPassRc) {
+        let should_render = render_pass
+            .resource()
+            .get()
+            .mesh_category_to_draw()
+            .iter()
+            .any(|id| mesh.resource().get().category_identifier() == *id);
+        if !should_render {
+            return;
+        }
+        let material = mesh.resource().get().material();
+        let material_pipeline = material.resource().get().pipeline().clone();
+        if material.id().is_nil() {
+            eprintln!("Tyring to render a mesh with no material");
+            return;
+        }
+        if material_pipeline.id().is_nil() {
+            eprintln!("Tyring to render a mesh with a material with no pipeline");
+            return;
+        }
+        if !mesh.resource().get().is_visible() {
+            return;
+        }
+
+        let diffuse_color = material.resource().get().diffuse_color();
+
+        let (diffuse_texture_index, diffuse_layer_index) =
+            if material.resource().get().has_diffuse_texture() {
+                let diffuse_texture = material.resource().get().diffuse_texture();
+                let (diffuse_texture_index, diffuse_layer_index) = (
+                    diffuse_texture.resource().get().texture_index() as _,
+                    diffuse_texture.resource().get().layer_index() as _,
+                );
+                let r = renderer.read().unwrap();
+                let texture_info = r
+                    .get_texture_handler()
+                    .get_texture_info(diffuse_texture.id());
+                mesh.resource()
+                    .get_mut()
+                    .process_uv_for_texture(texture_info);
+                (diffuse_texture_index, diffuse_layer_index)
+            } else {
+                (INVALID_INDEX, INVALID_INDEX)
+            };
+
+        material_pipeline.resource().get_mut().add_mesh_instance(
+            renderer.read().unwrap().device(),
+            &mesh.resource().get(),
+            diffuse_color,
+            diffuse_texture_index,
+            diffuse_layer_index,
+        );
+    }
 }
 
 impl Drop for UpdateSystem {
@@ -72,127 +155,36 @@ impl System for UpdateSystem {
             return true;
         }
 
-        read_messages(self.message_channel.get_listener(), |msg| {
-            if msg.type_id() == TypeId::of::<ResourceEvent>() {
-                let e = msg.as_any().downcast_ref::<ResourceEvent>().unwrap();
-                let ResourceEvent::Reload(path) = e;
-                if is_shader(path)
-                    && SharedData::has_resources_of_type::<PipelineInstance>(&self.shared_data)
-                {
-                    let pipelines =
-                        SharedData::get_resources_of_type::<PipelineInstance>(&self.shared_data);
-                    for p in pipelines.iter() {
-                        p.resource()
-                            .get_mut()
-                            .check_shaders_to_reload(path.to_str().unwrap().to_string());
-                    }
-                } else if is_texture(path)
-                    && SharedData::has_resources_of_type::<TextureInstance>(&self.shared_data)
-                {
-                    let textures =
-                        SharedData::get_resources_of_type::<TextureInstance>(&self.shared_data);
-                    for t in textures.iter() {
-                        if t.resource().get().path() == path.as_path() {
-                            t.resource().get_mut().invalidate();
-                        }
-                    }
-                }
-            }
-        });
+        self.handle_events();
 
         {
             let mut renderer = self.renderer.write().unwrap();
-            let mut render_passes =
-                SharedData::get_resources_of_type::<RenderPassInstance>(&self.shared_data);
-            let mut pipelines =
-                SharedData::get_resources_of_type::<PipelineInstance>(&self.shared_data);
-            let mut materials =
-                SharedData::get_resources_of_type::<MaterialInstance>(&self.shared_data);
-
-            let mut textures =
-                SharedData::get_resources_of_type::<TextureInstance>(&self.shared_data);
-            let fonts = SharedData::get_resources_of_type::<FontInstance>(&self.shared_data);
-
-            renderer.prepare_frame(
-                &mut render_passes,
-                &mut pipelines,
-                &mut materials,
-                &mut textures,
-                &fonts,
-            );
+            renderer.prepare_frame();
         }
 
         let wait_count = Arc::new(AtomicUsize::new(0));
 
-        if SharedData::has_resources_of_type::<MeshInstance>(&self.shared_data) {
-            let mut meshes = SharedData::get_resources_of_type::<MeshInstance>(&self.shared_data);
-            meshes.iter_mut().enumerate().for_each(|(index, mesh)| {
-                if mesh.resource().get().is_visible() {
-                    let material = mesh.resource().get().material();
-                    if material.id().is_nil() {
-                        eprintln!("Tyring to render a mesh with an unregistered material");
-                        return;
-                    }
-                    let pipeline = material.resource().get().pipeline();
-                    if pipeline.id().is_nil() {
-                        eprintln!(
-                            "Tyring to render a mesh with a material with an unregistered pipeline"
-                        );
-                        return;
-                    }
-
-                    let wait_count = wait_count.clone();
+        let render_passes = SharedData::get_resources_of_type::<RenderPass>(&self.shared_data);
+        render_passes.iter().for_each(|render_pass| {
+            let job_name = format!(
+                "Processing meshes for RenderPass [{:?}",
+                render_pass.resource().get().data().name
+            );
+            let renderer = self.renderer.clone();
+            let render_pass = render_pass.clone();
+            let wait_count = wait_count.clone();
+            let meshes = SharedData::get_resources_of_type::<Mesh>(&self.shared_data);
+            self.job_handler
+                .write()
+                .unwrap()
+                .add_job(job_name.as_str(), move || {
                     wait_count.fetch_add(1, Ordering::SeqCst);
-
-                    let renderer = self.renderer.clone();
-                    let mesh = mesh.clone();
-
-                    let job_name = format!("Adding mesh [{}] to pipeline", index);
-
-                    self.job_handler
-                        .write()
-                        .unwrap()
-                        .add_job(job_name.as_str(), move || {
-                            let diffuse_color = material.resource().get().diffuse_color();
-
-                            let (diffuse_texture_index, diffuse_layer_index) =
-                                if material.resource().get().has_diffuse_texture() {
-                                    let diffuse_texture =
-                                        material.resource().get().diffuse_texture();
-                                    let (diffuse_texture_index, diffuse_layer_index) = (
-                                        diffuse_texture.resource().get().texture_index() as _,
-                                        diffuse_texture.resource().get().layer_index() as _,
-                                    );
-                                    let r = renderer.read().unwrap();
-                                    let texture_info = r
-                                        .get_texture_handler()
-                                        .get_texture_info(diffuse_texture.id());
-                                    mesh.resource()
-                                        .get_mut()
-                                        .process_uv_for_texture(texture_info);
-                                    (diffuse_texture_index, diffuse_layer_index)
-                                } else {
-                                    (INVALID_INDEX, INVALID_INDEX)
-                                };
-
-                            for pipeline in renderer
-                                .write()
-                                .unwrap()
-                                .get_pipelines_with_id(pipeline.id())
-                                .iter_mut()
-                            {
-                                pipeline.add_mesh_instance(
-                                    &mesh.resource().get(),
-                                    diffuse_color,
-                                    diffuse_texture_index,
-                                    diffuse_layer_index,
-                                );
-                            }
-                            wait_count.fetch_sub(1, Ordering::SeqCst);
-                        });
-                }
-            });
-        }
+                    meshes.iter().for_each(|mesh| {
+                        Self::create_render_mesh_job(&renderer, mesh, &render_pass);
+                    });
+                    wait_count.fetch_sub(1, Ordering::SeqCst);
+                });
+        });
 
         let renderer = self.renderer.clone();
         let job_name = "EndPreparation";
@@ -203,6 +195,7 @@ impl System for UpdateSystem {
                 while wait_count.load(Ordering::SeqCst) > 0 {
                     thread::yield_now();
                 }
+
                 let mut r = renderer.write().unwrap();
                 r.end_preparation();
             });

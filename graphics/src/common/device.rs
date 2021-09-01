@@ -1,12 +1,27 @@
+use crate::api::backend::BackendDevice;
+
 #[derive(Clone)]
 pub struct Device {
-    pub inner: crate::api::backend::device::Device,
+    inner: BackendDevice,
+}
+
+impl std::ops::Deref for Device {
+    type Target = BackendDevice;
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+impl std::ops::DerefMut for Device {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.inner
+    }
 }
 
 impl Device {
     pub fn create(instance: &super::instance::Instance) -> Self {
         Device {
-            inner: crate::api::backend::device::Device::new(&instance.inner),
+            inner: BackendDevice::new(&*instance),
         }
     }
 

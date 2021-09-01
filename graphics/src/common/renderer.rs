@@ -1,16 +1,11 @@
-use crate::{FontRc, MaterialRc, PipelineId, PipelineRc, RenderPass, RenderPassRc, TextureRc};
-use crate::{Pipeline, RenderPassId};
-use nrg_math::*;
-use nrg_platform::*;
-use nrg_resources::{FileResource, DATA_FOLDER};
-use std::collections::HashMap;
+use crate::{
+    is_texture, Device, Font, Instance, Pipeline, PipelineId, RenderPass, Texture, TextureHandler,
+};
+use nrg_math::Matrix4;
+use nrg_platform::Handle;
+use nrg_resources::{FileResource, SharedData, SharedDataRw, DATA_FOLDER};
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
-
-use super::device::*;
-use super::instance::*;
-use super::texture::*;
-use super::viewport::*;
 
 pub const INVALID_INDEX: i32 = -1;
 
@@ -22,14 +17,11 @@ pub enum RendererState {
 }
 
 pub struct Renderer {
-    pub instance: Instance,
-    pub device: Device,
-    viewport: Viewport,
-    scissors: Scissors,
+    instance: Instance,
+    device: Device,
+    shared_data: SharedDataRw,
     texture_handler: TextureHandler,
     state: RendererState,
-    render_passes: Vec<RenderPass>,
-    pipelines: HashMap<RenderPassId, Vec<Pipeline>>,
 }
 pub type RendererRw = Arc<RwLock<Renderer>>;
 
@@ -37,53 +29,33 @@ unsafe impl Send for Renderer {}
 unsafe impl Sync for Renderer {}
 
 impl Renderer {
-    pub fn new(handle: &Handle, enable_debug: bool) -> Self {
+    pub fn new(handle: &Handle, shared_data: &SharedDataRw, enable_debug: bool) -> Self {
         let instance = Instance::create(handle, enable_debug);
         let device = Device::create(&instance);
         let texture_handler = TextureHandler::create(&device);
         Renderer {
-            render_passes: Vec::new(),
-            pipelines: HashMap::new(),
+            shared_data: shared_data.clone(),
             instance,
             device,
-            viewport: Viewport::default(),
-            scissors: Scissors::default(),
             texture_handler,
             state: RendererState::Init,
         }
+    }
+
+    pub fn device(&self) -> &Device {
+        &self.device
     }
 
     pub fn state(&self) -> RendererState {
         self.state
     }
 
-    pub fn set_viewport_size(&mut self, size: Vector2) -> &mut Self {
-        self.viewport.width = size.x as _;
-        self.viewport.height = size.y as _;
-        self.scissors.width = self.viewport.width;
-        self.scissors.height = self.viewport.height;
-        self
-    }
-
-    pub fn get_viewport_size(&self) -> Vector2 {
-        Vector2::new(self.viewport.width, self.viewport.height)
-    }
-
-    pub fn prepare_frame(
-        &mut self,
-        render_passes: &mut [RenderPassRc],
-        pipelines: &mut [PipelineRc],
-        materials: &mut [MaterialRc],
-        textures: &mut [TextureRc],
-        fonts: &[FontRc],
-    ) -> &mut Self {
+    pub fn prepare_frame(&mut self) -> &mut Self {
         nrg_profiler::scoped_profile!("renderer::prepare_frame");
-        self.load_render_passes(pipelines, render_passes);
-        self.load_pipelines(pipelines, render_passes);
-        self.load_textures(textures, fonts);
+        self.init_render_passes();
+        self.init_pipelines_for_pass("MainPass");
+        self.init_textures();
 
-        self.prepare_pipelines();
-        self.prepare_materials(pipelines, materials);
         self
     }
 
@@ -92,17 +64,6 @@ impl Renderer {
     }
     pub fn get_texture_handler_mut(&mut self) -> &mut TextureHandler {
         &mut self.texture_handler
-    }
-    pub fn get_pipelines_with_id(&mut self, pipeline_id: PipelineId) -> Vec<&mut Pipeline> {
-        let mut pipelines = Vec::new();
-        for (_id, pipelines_in_pass) in self.pipelines.iter_mut() {
-            for p in pipelines_in_pass.iter_mut() {
-                if p.id() == pipeline_id {
-                    pipelines.push(p);
-                }
-            }
-        }
-        pipelines
     }
     pub fn end_preparation(&mut self) {
         self.state = RendererState::Prepared;
@@ -125,7 +86,7 @@ impl Renderer {
         self.device.present()
     }
 
-    pub fn draw(&mut self, width: f32, height: f32, view: &Matrix4, proj: &Matrix4) {
+    pub fn draw(&mut self, view: &Matrix4, proj: &Matrix4) {
         if self.state == RendererState::Submitted {
             return;
         }
@@ -134,102 +95,45 @@ impl Renderer {
         if success {
             nrg_profiler::scoped_profile!("renderer::draw");
 
-            for (render_pass_index, render_pass) in self.render_passes.iter_mut().enumerate() {
+            let render_passes = SharedData::get_resources_of_type::<RenderPass>(&self.shared_data);
+            let mut render_pass_specific_pipeline: Vec<PipelineId> = Vec::new();
+            render_passes.iter().for_each(|render_pass| {
+                if let Some(pipeline) = render_pass.resource().get().pipeline() {
+                    render_pass_specific_pipeline.push(pipeline.id());
+                }
+            });
+            render_passes.iter().for_each(|render_pass| {
                 nrg_profiler::scoped_profile!(format!(
                     "renderer::render_pass[{}]",
-                    render_pass_index
+                    render_pass.resource().get().data().name
                 )
                 .as_str());
 
-                render_pass.begin();
+                render_pass.resource().get().begin(&self.device);
 
-                for (render_pass_id, pipelines) in self.pipelines.iter_mut() {
-                    if *render_pass_id != render_pass.id() {
-                        continue;
+                let width = render_pass.resource().get().get_framebuffer_width();
+                let height = render_pass.resource().get().get_framebuffer_height();
+
+                let pipelines = SharedData::get_resources_of_type::<Pipeline>(&self.shared_data);
+                pipelines.iter().for_each(|pipeline| {
+                    if pipeline
+                        .resource()
+                        .get()
+                        .should_draw(render_pass.resource().get().mesh_category_to_draw())
+                    {
+                        pipeline.resource().get_mut().draw(
+                            &self.device,
+                            width,
+                            height,
+                            view,
+                            proj,
+                            self.texture_handler.get_textures_atlas(),
+                        );
                     }
-                    for (pipeline_index, pipeline) in pipelines.iter_mut().enumerate() {
-                        if !pipeline.is_empty() {
-                            nrg_profiler::scoped_profile!(format!(
-                                "renderer::draw_pipeline[{}]",
-                                pipeline_index
-                            )
-                            .as_str());
+                });
 
-                            {
-                                nrg_profiler::scoped_profile!(format!(
-                                    "renderer::update_uniforms_and_descriptors[{}]",
-                                    pipeline_index
-                                )
-                                .as_str());
-                                pipeline.update_runtime_data(width, height, view, proj);
-                                pipeline.update_descriptor_sets(
-                                    self.texture_handler.get_textures_atlas(),
-                                );
-                            }
-
-                            {
-                                nrg_profiler::scoped_profile!(format!(
-                                    "renderer::draw_pipeline_begin[{}]",
-                                    pipeline_index
-                                )
-                                .as_str());
-                                pipeline.begin();
-                            }
-
-                            {
-                                nrg_profiler::scoped_profile!(format!(
-                                    "renderer::draw_pipeline_call[{}]",
-                                    pipeline_index
-                                )
-                                .as_str());
-                                {
-                                    nrg_profiler::scoped_profile!(format!(
-                                        "renderer::draw_pipeline_call[{}]_bind_vertices",
-                                        pipeline_index
-                                    )
-                                    .as_str());
-                                    pipeline.bind_vertices();
-                                }
-                                {
-                                    nrg_profiler::scoped_profile!(format!(
-                                        "renderer::draw_pipeline_call[{}]_bind_indirect",
-                                        pipeline_index
-                                    )
-                                    .as_str());
-                                    pipeline.bind_indirect();
-                                }
-                                {
-                                    nrg_profiler::scoped_profile!(format!(
-                                        "renderer::draw_pipeline_call[{}]_bind_indices",
-                                        pipeline_index
-                                    )
-                                    .as_str());
-                                    pipeline.bind_indices();
-                                }
-                                {
-                                    nrg_profiler::scoped_profile!(format!(
-                                        "renderer::draw_pipeline_call[{}]_draw_indirect",
-                                        pipeline_index
-                                    )
-                                    .as_str());
-                                    pipeline.draw_indirect();
-                                }
-                            }
-
-                            {
-                                nrg_profiler::scoped_profile!(format!(
-                                    "renderer::draw_pipeline_end[{}]",
-                                    pipeline_index
-                                )
-                                .as_str());
-                                pipeline.end();
-                            }
-                        }
-                    }
-                }
-
-                render_pass.end();
-            }
+                render_pass.resource().get().end(&self.device);
+            });
 
             self.end_frame();
             success = self.present();
@@ -243,250 +147,93 @@ impl Renderer {
     pub fn recreate(&mut self) {
         nrg_profiler::scoped_profile!("renderer::recreate");
         self.device.recreate_swap_chain();
-        self.pipelines.iter_mut().for_each(|(_id, pipelines)| {
-            pipelines.iter_mut().for_each(|p| p.destroy());
+        let pipelines = SharedData::get_resources_of_type::<Pipeline>(&self.shared_data);
+        pipelines.iter().for_each(|pipeline| {
+            pipeline.resource().get_mut().invalidate();
         });
-        self.pipelines.clear();
-        self.render_passes.iter_mut().for_each(|r| r.destroy());
-        self.render_passes.clear();
+        let render_passes = SharedData::get_resources_of_type::<RenderPass>(&self.shared_data);
+        render_passes
+            .iter()
+            .for_each(|render_pass| render_pass.resource().get_mut().invalidate());
     }
 }
 
 impl Renderer {
-    fn load_render_passes(
-        &mut self,
-        pipelines: &mut [PipelineRc],
-        render_passes: &mut [RenderPassRc],
-    ) {
-        nrg_profiler::scoped_profile!("renderer::load_render_passes");
-        render_passes.iter_mut().for_each(|render_pass_instance| {
-            let mut should_create = false;
-            let mut previous_index = INVALID_INDEX;
-            if let Some(index) = self
-                .render_passes
-                .iter()
-                .position(|r| r.id() == render_pass_instance.id())
-            {
-                if !render_pass_instance.resource().get().is_initialized() {
-                    //render pass needs to be recreated
-                    let mut render_pass = self.render_passes.remove(index);
-                    render_pass.destroy();
-                    previous_index = index as _;
-                    should_create = true;
-                }
-            } else {
-                should_create = true;
-            }
-            if should_create {
-                if previous_index == INVALID_INDEX {
-                    previous_index = self.render_passes.len() as _;
-                }
-                for p in pipelines.iter_mut() {
-                    if p.resource().get().should_draw_in_render_pass(
-                        render_pass_instance.resource().get().data().name.as_str(),
-                    ) {
-                        p.resource().get_mut().invalidate();
-                    }
-                }
-                let device = &mut self.device;
-                if render_pass_instance
+    fn init_render_passes(&mut self) {
+        nrg_profiler::scoped_profile!("renderer::init_render_passes");
+        let render_passes = SharedData::get_resources_of_type::<RenderPass>(&self.shared_data);
+        render_passes.iter().for_each(|render_pass| {
+            if !render_pass.resource().get().is_initialized() {
+                render_pass
                     .resource()
-                    .get()
-                    .data()
-                    .render_to_texture
-                {
-                    if let Some(texture) = render_pass_instance.resource().get().color_texture() {
-                        if self
-                            .texture_handler
-                            .get_texture_atlas(texture.id())
-                            .is_none()
-                        {
-                            self.texture_handler.add_render_target(
-                                device,
-                                texture.id(),
-                                texture.resource().get().width(),
-                                texture.resource().get().height(),
-                                false,
-                            );
-                        }
-                    }
-                    if let Some(texture) = render_pass_instance.resource().get().depth_texture() {
-                        if self
-                            .texture_handler
-                            .get_texture_atlas(texture.id())
-                            .is_none()
-                        {
-                            self.texture_handler.add_render_target(
-                                device,
-                                texture.id(),
-                                texture.resource().get().width(),
-                                texture.resource().get().height(),
-                                true,
-                            );
-                        }
-                    }
-                    let color_texture = if let Some(texture) =
-                        render_pass_instance.resource().get().color_texture()
-                    {
-                        self.texture_handler
-                            .get_texture_atlas(texture.id())
-                            .map(|texture_atlas| texture_atlas.get_texture())
-                    } else {
-                        None
-                    };
-                    let depth_texture = if let Some(texture) =
-                        render_pass_instance.resource().get().depth_texture()
-                    {
-                        self.texture_handler
-                            .get_texture_atlas(texture.id())
-                            .map(|texture_atlas| texture_atlas.get_texture())
-                    } else {
-                        None
-                    };
-                    self.render_passes.insert(
-                        previous_index as _,
-                        RenderPass::create_with_render_target(
-                            device,
-                            render_pass_instance.id(),
-                            render_pass_instance.resource().get().data(),
-                            color_texture,
-                            depth_texture,
-                        ),
-                    );
-                } else {
-                    self.render_passes.insert(
-                        previous_index as _,
-                        RenderPass::create_default(
-                            device,
-                            render_pass_instance.id(),
-                            render_pass_instance.resource().get().data(),
-                        ),
-                    );
-                }
-                render_pass_instance.resource().get_mut().init();
+                    .get_mut()
+                    .init(&self.device, &mut self.texture_handler);
             }
         });
     }
-    fn load_pipelines(&mut self, pipelines: &mut [PipelineRc], render_passes: &mut [RenderPassRc]) {
-        nrg_profiler::scoped_profile!("renderer::load_pipelines");
-        pipelines.iter_mut().for_each(|pipeline_instance| {
-            let mut create_pipeline = true;
-
-            self.pipelines.iter_mut().for_each(|(_id, pipelines)| {
-                if let Some(index) = pipelines
-                    .iter_mut()
-                    .position(|p| p.id() == pipeline_instance.id())
-                {
-                    if pipeline_instance.resource().get().is_initialized() {
-                        create_pipeline = false;
-                    } else {
-                        //pipeline needs to be recreated
-                        let mut pipeline = pipelines.remove(index);
-                        pipeline.destroy();
-                        create_pipeline = true;
-                    }
-                }
+    fn init_pipelines_for_pass(&mut self, render_pass_name: &str) {
+        nrg_profiler::scoped_profile!("renderer::init_pipelines");
+        let geometry_render_pass =
+            SharedData::match_resource(&self.shared_data, |render_pass: &RenderPass| {
+                render_pass.data().name == render_pass_name
             });
-
-            if create_pipeline {
-                render_passes.iter().for_each(|render_pass_instance| {
-                    if pipeline_instance
+        if let Some(geometry_render_pass) = geometry_render_pass {
+            let pipelines = SharedData::get_resources_of_type::<Pipeline>(&self.shared_data);
+            pipelines.iter().for_each(|pipeline| {
+                if !pipeline.resource().get().is_initialized() {
+                    pipeline
                         .resource()
-                        .get()
-                        .should_draw_in_render_pass(
-                            &render_pass_instance.resource().get().data().name,
-                        )
-                    {
-                        let device = &mut self.device;
-                        let pipelines = self
-                            .pipelines
-                            .entry(render_pass_instance.id())
-                            .or_insert_with(Vec::new);
-                        if let Some(render_pass) = self
-                            .render_passes
-                            .iter()
-                            .find(|r| r.id() == render_pass_instance.id())
-                        {
-                            pipelines.push(Pipeline::create(
-                                device,
-                                pipeline_instance.id(),
-                                pipeline_instance.resource().get().data(),
-                                render_pass,
-                            ));
-                            pipeline_instance.resource().get_mut().init();
-                        }
-                    }
-                });
-            }
-        });
+                        .get_mut()
+                        .init(&self.device, &*geometry_render_pass.resource().get());
+                }
+                pipeline.resource().get_mut().prepare();
+            });
+        }
     }
 
-    fn load_textures(&mut self, textures: &mut [TextureRc], fonts: &[FontRc]) {
-        nrg_profiler::scoped_profile!("renderer::load_textures");
-        let texture_handler = &mut self.texture_handler;
-        textures.iter_mut().for_each(|texture_instance| {
-            if !texture_instance.resource().get().is_initialized() {
-                if texture_instance.resource().get().texture_index() != INVALID_INDEX {
+    fn init_textures(&mut self) {
+        nrg_profiler::scoped_profile!("renderer::init_textures");
+        let textures = SharedData::get_resources_of_type::<Texture>(&self.shared_data);
+        textures.iter().for_each(|texture| {
+            if !texture.resource().get().is_initialized() {
+                if texture.resource().get().texture_index() != INVALID_INDEX {
                     //texture needs to be recreated
-                    texture_handler.remove(texture_instance.id());
+                    self.texture_handler.remove(&self.device, texture.id());
                 }
                 let path = convert_from_local_path(
                     PathBuf::from(DATA_FOLDER).as_path(),
-                    texture_instance.resource().get().path(),
+                    texture.resource().get().path(),
                 );
-                if let Some(texture_info) = texture_handler.get_texture_info(texture_instance.id())
-                {
-                    texture_instance
-                        .resource()
-                        .get_mut()
-                        .set_texture_info(texture_info);
+                if let Some(texture_info) = self.texture_handler.get_texture_info(texture.id()) {
+                    texture.resource().get_mut().set_texture_info(texture_info);
                 } else {
-                    let texture_info = if let Some(image_data) =
-                        texture_instance.resource().get_mut().image_data()
-                    {
-                        texture_handler.add(texture_instance.id(), image_data)
-                    } else if is_texture(path.as_path()) {
-                        texture_handler.add_from_path(texture_instance.id(), path.as_path())
-                    } else if let Some(font) =
-                        fonts.iter().find(|f| f.resource().get().path() == path)
-                    {
-                        texture_handler.add(
-                            texture_instance.id(),
-                            font.resource().get().font().get_texture(),
-                        )
-                    } else {
-                        panic!("Unable to load texture with path {:?}", path.as_path());
-                    };
-                    texture_instance
-                        .resource()
-                        .get_mut()
-                        .set_texture_info(&texture_info);
+                    let texture_info =
+                        if let Some(image_data) = texture.resource().get_mut().image_data() {
+                            self.texture_handler
+                                .add(&self.device, texture.id(), image_data)
+                        } else if is_texture(path.as_path()) {
+                            self.texture_handler.add_from_path(
+                                &self.device,
+                                texture.id(),
+                                path.as_path(),
+                            )
+                        } else {
+                            let font = SharedData::match_resource(&self.shared_data, |f: &Font| {
+                                f.path() == path
+                            });
+                            if let Some(font) = font {
+                                self.texture_handler.add(
+                                    &self.device,
+                                    texture.id(),
+                                    font.resource().get().font_data().get_texture(),
+                                )
+                            } else {
+                                panic!("Unable to load texture with path {:?}", path.as_path());
+                            }
+                        };
+                    texture.resource().get_mut().set_texture_info(&texture_info);
                 }
             }
-        });
-    }
-
-    fn prepare_pipelines(&mut self) {
-        nrg_profiler::scoped_profile!("renderer::prepare_pipelines");
-        self.pipelines.iter_mut().for_each(|(_id, pipelines)| {
-            pipelines.iter_mut().for_each(|pipeline| {
-                pipeline.prepare();
-            });
-        });
-    }
-
-    fn prepare_materials(&mut self, pipelines: &[PipelineRc], materials: &mut [MaterialRc]) {
-        nrg_profiler::scoped_profile!("renderer::prepare_materials");
-        materials.sort_by(|a, b| {
-            let pipeline_a = pipelines
-                .iter()
-                .position(|p| p.id() == a.resource().get().pipeline().id())
-                .unwrap();
-            let pipeline_b = pipelines
-                .iter()
-                .position(|p| p.id() == b.resource().get().pipeline().id())
-                .unwrap();
-            pipeline_a.cmp(&pipeline_b)
         });
     }
 }

@@ -23,6 +23,7 @@ impl<T> Handle for ResourceHandle<T>
 where
     T: ResourceData,
 {
+    #[inline]
     fn as_any(self: Arc<Self>) -> Arc<dyn Any + Send + Sync> {
         self
     }
@@ -32,6 +33,7 @@ impl<T> Default for ResourceHandle<T>
 where
     T: ResourceData,
 {
+    #[inline]
     fn default() -> Self {
         Self {
             id: INVALID_UID,
@@ -45,6 +47,7 @@ impl<T> ResourceHandle<T>
 where
     T: ResourceData,
 {
+    #[inline]
     pub fn new(id: ResourceId, shared_data: SharedDataRw) -> Self {
         Self {
             id,
@@ -53,14 +56,17 @@ where
         }
     }
 
+    #[inline]
     pub fn id(&self) -> ResourceId {
         self.id
     }
 
+    #[inline]
     pub fn is_valid(&self) -> bool {
         !self.id.is_nil() && SharedData::has_resource::<T>(&self.shared_data, self.id)
     }
 
+    #[inline]
     pub fn resource(&self) -> Resource<T> {
         let shared_data = self.shared_data.read().unwrap();
         shared_data
@@ -78,6 +84,7 @@ pub trait HandleCastTo {
 }
 
 impl HandleCastTo for GenericRef {
+    #[inline]
     fn of_type<T: ResourceData>(self) -> ResourceRef<T> {
         let any = Arc::into_raw(self.as_any());
         Arc::downcast(unsafe { Arc::from_raw(any) }).unwrap()

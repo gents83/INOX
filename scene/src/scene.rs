@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use nrg_graphics::MeshInstance;
+use nrg_graphics::Mesh;
 use nrg_math::{MatBase, Matrix4};
 use nrg_resources::{ResourceData, ResourceId, ResourceRef, SharedDataRw};
 use nrg_serialize::{generate_random_uid, generate_uid_from_string};
@@ -72,7 +72,7 @@ impl Scene {
                 shared_data,
                 Matrix4::default_identity(),
                 |object, object_matrix| {
-                    if let Some(mesh) = object.get_component::<MeshInstance>() {
+                    if let Some(mesh) = object.get_component::<Mesh>() {
                         mesh.resource().get_mut().set_matrix(object_matrix);
                     }
                 },

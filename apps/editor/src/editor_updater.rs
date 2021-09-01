@@ -9,8 +9,8 @@ use super::widgets::*;
 
 use nrg_core::*;
 use nrg_graphics::{
-    FontInstance, FontRc, MaterialInstance, MaterialRc, MeshData, MeshInstance, MeshRc,
-    PipelineInstance, PipelineRc, RenderPassInstance, RenderPassRc, TextureInstance, ViewInstance,
+    Font, FontRc, Material, MaterialRc, Mesh, MeshData, MeshRc, Pipeline, PipelineRc, RenderPass,
+    RenderPassRc, Texture, View,
 };
 use nrg_messenger::{read_messages, Message, MessageChannel, MessengerRw};
 use nrg_platform::{InputState, Key, KeyEvent, MouseEvent, WindowEvent};
@@ -29,6 +29,8 @@ pub struct EditorUpdater {
     pipelines: Vec<PipelineRc>,
     render_passes: Vec<RenderPassRc>,
     fonts: Vec<FontRc>,
+    default_material: MaterialRc,
+    wireframe_material: MaterialRc,
     grid_material: MaterialRc,
     grid_mesh: MeshRc,
     scene: SceneRc,
@@ -59,6 +61,8 @@ impl EditorUpdater {
             global_messenger,
             config: config.clone(),
             message_channel,
+            default_material: MaterialRc::default(),
+            wireframe_material: MaterialRc::default(),
             grid_material: MaterialRc::default(),
             grid_mesh: MeshRc::default(),
             scene: SceneRc::default(),
@@ -100,12 +104,12 @@ impl EditorUpdater {
     fn create_registry() -> UIPropertiesRegistry {
         let mut ui_registry = UIPropertiesRegistry::default();
 
-        ui_registry.register::<PipelineInstance>();
-        ui_registry.register::<FontInstance>();
-        ui_registry.register::<MaterialInstance>();
-        ui_registry.register::<MeshInstance>();
-        ui_registry.register::<TextureInstance>();
-        ui_registry.register::<ViewInstance>();
+        ui_registry.register::<Pipeline>();
+        ui_registry.register::<Font>();
+        ui_registry.register::<Material>();
+        ui_registry.register::<Mesh>();
+        ui_registry.register::<Texture>();
+        ui_registry.register::<View>();
 
         ui_registry.register::<UIWidget>();
 
@@ -203,7 +207,12 @@ impl EditorUpdater {
         self
     }
     fn create_view3d(&mut self) -> &mut Self {
-        let view3d = View3D::new(&self.shared_data, &self.global_messenger);
+        let view3d = View3D::new(
+            &self.shared_data,
+            &self.global_messenger,
+            &self.default_material,
+            &self.wireframe_material,
+        );
         self.view3d = Some(view3d);
         self
     }
@@ -263,42 +272,38 @@ impl EditorUpdater {
 
     fn load_pipelines(&mut self) {
         for render_pass_data in self.config.render_passes.iter() {
-            self.render_passes
-                .push(RenderPassInstance::create_from_data(
-                    &self.shared_data,
-                    render_pass_data.clone(),
-                ));
+            self.render_passes.push(RenderPass::create_from_data(
+                &self.shared_data,
+                render_pass_data.clone(),
+            ));
         }
 
         for pipeline_data in self.config.pipelines.iter() {
-            self.pipelines.push(PipelineInstance::create_from_data(
+            self.pipelines.push(Pipeline::create_from_data(
                 &self.shared_data,
                 pipeline_data.clone(),
             ));
         }
 
         if let Some(default_font_path) = self.config.fonts.first() {
-            self.fonts.push(FontInstance::create_from_file(
-                &self.shared_data,
-                default_font_path,
-            ));
+            self.fonts
+                .push(Font::create_from_file(&self.shared_data, default_font_path));
         }
 
-        if let Some(pipeline_data) = self.config.pipelines.iter().find(|p| p.name.eq("Grid")) {
-            if let Some(pipeline) =
-                PipelineInstance::find_from_name(&self.shared_data, pipeline_data.name.as_str())
-            {
-                self.grid_material =
-                    MaterialInstance::create_from_pipeline(&self.shared_data, pipeline);
-            }
-            let mut mesh_data = MeshData::default();
-            mesh_data.add_quad_default([-1., -1., 1., 1.].into(), 0.);
-            let mesh = MeshInstance::create_from_data(&self.shared_data, mesh_data);
-            mesh.resource()
-                .get_mut()
-                .set_material(self.grid_material.clone());
-            self.grid_mesh = mesh;
-        }
+        self.default_material =
+            Material::create_from_file(&self.shared_data, self.config.default_material.as_path());
+        self.wireframe_material =
+            Material::create_from_file(&self.shared_data, self.config.wireframe_material.as_path());
+        self.grid_material =
+            Material::create_from_file(&self.shared_data, self.config.grid_material.as_path());
+
+        let mut mesh_data = MeshData::default();
+        mesh_data.add_quad_default([-1., -1., 1., 1.].into(), 0.);
+        let mesh = Mesh::create_from_data(&self.shared_data, mesh_data);
+        mesh.resource()
+            .get_mut()
+            .set_material(self.grid_material.clone());
+        self.grid_mesh = mesh;
     }
 
     fn load_object(&mut self, filename: &Path) {
@@ -375,7 +380,10 @@ impl EditorUpdater {
                     }
                     EditorEvent::ChangeMode(mode) => {
                         if let Some(view3d) = &mut self.view3d {
-                            view3d.change_edit_mode(mode);
+                            view3d.change_edit_mode(
+                                mode,
+                                self.default_material.resource().get().pipeline(),
+                            );
                         }
                     }
                 }

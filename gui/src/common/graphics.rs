@@ -1,6 +1,4 @@
-use nrg_graphics::{
-    MaterialInstance, MaterialRc, MeshData, MeshInstance, MeshRc, PipelineInstance,
-};
+use nrg_graphics::{Material, MaterialData, MaterialRc, Mesh, MeshData, MeshRc};
 use nrg_math::{Deg, Matrix4, Rad, VecBase, Vector2, Vector3, Vector4, Zero};
 use nrg_resources::{DataTypeResource, ResourceRef, SharedDataRw};
 use nrg_serialize::{Deserialize, Serialize, INVALID_UID};
@@ -51,10 +49,8 @@ impl WidgetGraphics {
 }
 
 impl WidgetGraphics {
-    pub fn init(&mut self, pipeline: &str) -> &mut Self {
-        if let Some(pipeline) = PipelineInstance::find_from_name(&self.shared_data, pipeline) {
-            self.material = MaterialInstance::create_from_pipeline(&self.shared_data, pipeline);
-        }
+    pub fn init(&mut self) -> &mut Self {
+        self.material = Material::create_from_data(&self.shared_data, MaterialData::default());
 
         self.create_default_mesh();
 
@@ -67,7 +63,7 @@ impl WidgetGraphics {
         }
         let mut mesh_data = MeshData::default();
         mesh_data.add_quad_default([0., 0., 1., 1.].into(), 0.);
-        self.mesh = MeshInstance::create_from_data(&self.shared_data, mesh_data);
+        self.mesh = Mesh::create_from_data(&self.shared_data, mesh_data);
         self.mesh
             .resource()
             .get_mut()

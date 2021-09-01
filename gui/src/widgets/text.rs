@@ -1,6 +1,6 @@
 use std::any::TypeId;
 
-use nrg_graphics::{FontInstance, FontRc, MaterialRc, MeshData};
+use nrg_graphics::{Font, FontRc, MaterialRc, MeshData};
 use nrg_math::{Vector2, Vector4};
 use nrg_messenger::{implement_undoable_message, Message};
 use nrg_platform::{MouseEvent, MouseState};
@@ -198,11 +198,9 @@ impl Text {
 
 impl InternalWidget for Text {
     fn widget_init(&mut self) {
-        let font_id = FontInstance::get_default(self.get_shared_data());
-        self.font = SharedData::get_resource::<FontInstance>(self.get_shared_data(), font_id);
-        self.material = self.font.resource().get().material();
-        let material = self.material.clone();
-        self.graphics_mut().link_to_material(material);
+        let font_id = Font::get_default(self.get_shared_data());
+        self.font = SharedData::get_resource::<Font>(self.get_shared_data(), font_id);
+
         if self.is_initialized() {
             self.is_dirty = true;
             return;

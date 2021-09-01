@@ -1,17 +1,21 @@
+use crate::api::backend::{
+    get_available_extensions_names, get_available_layers_names,
+    get_minimum_required_vulkan_extensions,
+};
 use crate::Area;
-
-use super::instance::*;
-use super::utils::*;
-use std::{cell::RefCell, os::raw::c_char, rc::Rc};
+use std::os::raw::c_char;
+use std::sync::{Arc, RwLock};
 use vulkan_bindings::*;
 
-pub struct SwapChain {
+use super::{create_image_view, find_available_memory_type, find_depth_format, BackendInstance};
+
+pub struct BackendSwapChain {
     ptr: VkSwapchainKHR,
     pub image_data: Vec<ImageViewData>,
     pub depth_image_data: Vec<ImageViewData>,
 }
 
-impl Default for SwapChain {
+impl Default for BackendSwapChain {
     fn default() -> Self {
         Self {
             ptr: ::std::ptr::null_mut(),
@@ -41,7 +45,7 @@ pub struct DeviceImmutable {
     device: VkDevice,
     graphics_queue: VkQueue,
     present_queue: VkQueue,
-    swap_chain: SwapChain,
+    swap_chain: BackendSwapChain,
     command_pool: VkCommandPool,
     command_buffers: Vec<VkCommandBuffer>,
     pipeline_cache: VkPipelineCache,
@@ -53,54 +57,54 @@ pub struct DeviceImmutable {
 }
 
 #[derive(Clone)]
-pub struct Device {
-    instance: Instance,
-    inner: Rc<RefCell<DeviceImmutable>>,
+pub struct BackendDevice {
+    instance: BackendInstance,
+    inner: Arc<RwLock<DeviceImmutable>>,
 }
 
-impl Device {
-    pub fn new(instance: &Instance) -> Self {
-        let immutable = Rc::new(RefCell::new(DeviceImmutable::new(instance)));
-        Device {
+impl BackendDevice {
+    pub fn new(instance: &BackendInstance) -> Self {
+        let immutable = Arc::new(RwLock::new(DeviceImmutable::new(instance)));
+        BackendDevice {
             instance: instance.clone(),
             inner: immutable,
         }
     }
 
     pub fn delete(&self) {
-        self.inner.borrow_mut().delete()
+        self.inner.write().unwrap().delete()
     }
 
     pub fn get_device(&self) -> VkDevice {
-        self.inner.borrow().device
+        self.inner.read().unwrap().device
     }
 
-    pub fn get_instance(&self) -> &Instance {
+    pub fn get_instance(&self) -> &BackendInstance {
         &self.instance
     }
 
     pub fn get_pipeline_cache(&self) -> VkPipelineCache {
-        self.inner.borrow_mut().pipeline_cache
+        self.inner.write().unwrap().pipeline_cache
     }
 
     pub fn get_images_count(&self) -> usize {
-        self.inner.borrow().swap_chain.image_data.len()
+        self.inner.read().unwrap().swap_chain.image_data.len()
     }
 
     pub fn get_image_view(&self, index: usize) -> VkImageView {
-        self.inner.borrow().swap_chain.image_data[index].image_view
+        self.inner.read().unwrap().swap_chain.image_data[index].image_view
     }
 
     pub fn get_depth_image_view(&self, index: usize) -> VkImageView {
-        self.inner.borrow().swap_chain.depth_image_data[index].image_view
+        self.inner.read().unwrap().swap_chain.depth_image_data[index].image_view
     }
 
     pub fn get_current_buffer_index(&self) -> usize {
-        self.inner.borrow().current_buffer_index as _
+        self.inner.read().unwrap().current_buffer_index as _
     }
 
     pub fn get_current_command_buffer(&self) -> VkCommandBuffer {
-        let inner = self.inner.borrow();
+        let inner = self.inner.read().unwrap();
         inner.command_buffers[inner.current_buffer_index as usize]
     }
 
@@ -112,7 +116,7 @@ impl Device {
         buffer: &mut VkBuffer,
         buffer_memory: &mut VkDeviceMemory,
     ) {
-        self.inner.borrow().create_buffer(
+        self.inner.read().unwrap().create_buffer(
             self.instance.get_physical_device(),
             buffer_size,
             usage,
@@ -123,7 +127,10 @@ impl Device {
     }
 
     pub fn destroy_buffer(&self, buffer: &VkBuffer, buffer_memory: &VkDeviceMemory) {
-        self.inner.borrow().destroy_buffer(buffer, buffer_memory);
+        self.inner
+            .read()
+            .unwrap()
+            .destroy_buffer(buffer, buffer_memory);
     }
 
     pub fn copy_buffer(
@@ -133,7 +140,8 @@ impl Device {
         buffer_size: VkDeviceSize,
     ) {
         self.inner
-            .borrow()
+            .read()
+            .unwrap()
             .copy_buffer(buffer_src, buffer_dst, buffer_size);
     }
 
@@ -144,7 +152,8 @@ impl Device {
         data_src: &[T],
     ) {
         self.inner
-            .borrow()
+            .read()
+            .unwrap()
             .map_buffer_memory(buffer_memory, starting_index, data_src);
     }
 
@@ -156,7 +165,7 @@ impl Device {
         layers_count: usize,
     ) -> VkImageView {
         create_image_view(
-            self.inner.borrow().device,
+            self.inner.read().unwrap().device,
             image,
             format,
             aspect_flags,
@@ -172,7 +181,7 @@ impl Device {
         properties: VkMemoryPropertyFlags,
         layers_count: usize,
     ) -> (VkImage, VkDeviceMemory) {
-        self.inner.borrow().create_image(
+        self.inner.read().unwrap().create_image(
             self.instance.get_physical_device(),
             image_properties,
             tiling,
@@ -190,7 +199,7 @@ impl Device {
         layer_index: usize,
         layers_count: usize,
     ) {
-        self.inner.borrow().transition_image_layout(
+        self.inner.read().unwrap().transition_image_layout(
             image,
             old_layout,
             new_layout,
@@ -207,40 +216,44 @@ impl Device {
         area: &Area,
     ) {
         self.inner
-            .borrow()
+            .read()
+            .unwrap()
             .copy_buffer_to_image(buffer, image, layer_index, area);
     }
 
     pub fn begin_frame(&mut self) -> bool {
-        let result = self.inner.borrow_mut().acquire_image();
+        let result = self.inner.write().unwrap().acquire_image();
         if result {
             let command_buffer = self.get_current_command_buffer();
-            self.inner.borrow_mut().begin_frame(command_buffer);
+            self.inner.write().unwrap().begin_frame(command_buffer);
         }
         result
     }
 
     pub fn end_frame(&self) {
         let command_buffer = self.get_current_command_buffer();
-        self.inner.borrow_mut().end_frame(command_buffer);
+        self.inner.write().unwrap().end_frame(command_buffer);
     }
 
     pub fn submit(&mut self) {
         let command_buffer = self.get_current_command_buffer();
-        self.inner.borrow_mut().submit(command_buffer);
+        self.inner.write().unwrap().submit(command_buffer);
     }
 
     pub fn present(&mut self) -> bool {
-        self.inner.borrow_mut().present()
+        self.inner.write().unwrap().present()
     }
 
     pub fn recreate_swap_chain(&mut self) {
-        self.inner.borrow_mut().recreate_swap_chain(&self.instance);
+        self.inner
+            .write()
+            .unwrap()
+            .recreate_swap_chain(&self.instance);
     }
 }
 
 impl DeviceImmutable {
-    pub fn new(instance: &Instance) -> Self {
+    pub fn new(instance: &BackendInstance) -> Self {
         DeviceImmutable::create(instance)
     }
 
@@ -812,7 +825,7 @@ impl DeviceImmutable {
 }
 
 impl DeviceImmutable {
-    fn create(instance: &Instance) -> Self {
+    fn create(instance: &BackendInstance) -> Self {
         let queue_priority: f32 = 1.0;
         let mut hash_family_indices: ::std::collections::HashSet<u32> =
             ::std::collections::HashSet::new();
@@ -933,7 +946,7 @@ impl DeviceImmutable {
             device,
             graphics_queue,
             present_queue,
-            swap_chain: SwapChain::default(),
+            swap_chain: BackendSwapChain::default(),
             command_pool: ::std::ptr::null_mut(),
             command_buffers: Vec::new(),
             pipeline_cache,
@@ -952,7 +965,7 @@ impl DeviceImmutable {
         inner_device
     }
 
-    fn create_swap_chain(&mut self, instance: &Instance) -> &mut Self {
+    fn create_swap_chain(&mut self, instance: &BackendInstance) -> &mut Self {
         let details = instance.get_swap_chain_info();
         let queue_family_info = instance.get_queue_family_info();
         let mut family_indices: Vec<u32> = Vec::new();
@@ -1093,7 +1106,7 @@ impl DeviceImmutable {
         self
     }
 
-    fn create_image_views(&mut self, instance: &Instance) -> &mut Self {
+    fn create_image_views(&mut self, instance: &BackendInstance) -> &mut Self {
         let selected_format = instance.get_swap_chain_info().formats[0].format;
 
         for image_data in self.swap_chain.image_data.iter_mut() {
@@ -1108,7 +1121,7 @@ impl DeviceImmutable {
         self
     }
 
-    fn create_command_pool(&mut self, instance: &Instance) -> &mut Self {
+    fn create_command_pool(&mut self, instance: &BackendInstance) -> &mut Self {
         let command_pool_info = VkCommandPoolCreateInfo {
             sType: VkStructureType_VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
             pNext: ::std::ptr::null_mut(),
@@ -1234,7 +1247,7 @@ impl DeviceImmutable {
         }
     }
 
-    fn recreate_swap_chain(&mut self, instance: &Instance) {
+    fn recreate_swap_chain(&mut self, instance: &BackendInstance) {
         self.cleanup_swap_chain();
 
         instance.compute_swap_chain_details();

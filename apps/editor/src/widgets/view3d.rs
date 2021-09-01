@@ -1,6 +1,7 @@
 use nrg_camera::Camera;
 use nrg_graphics::{
-    DynamicImage, MeshInstance, RenderPassInstance, TextureInstance, TextureRc, ViewInstance,
+    DynamicImage, MaterialRc, Mesh, MeshCategoryId, PipelineRc, RenderPass, Texture, TextureId,
+    TextureRc, View, DEFAULT_MESH_CATEGORY_IDENTIFIER,
 };
 use nrg_math::{raycast_oob, InnerSpace, MatBase, Matrix4, Vector2, Vector3, Zero};
 use nrg_messenger::{Message, MessengerRw};
@@ -26,6 +27,7 @@ struct View3DData {
     shared_data: SharedDataRw,
     global_messenger: MessengerRw,
     texture: TextureRc,
+    //picking_texture: TextureRc,
     camera: Camera,
     should_manage_input: bool,
     last_mouse_pos: Vector2,
@@ -47,9 +49,26 @@ unsafe impl Send for View3D {}
 unsafe impl Sync for View3D {}
 
 impl View3D {
-    pub fn new(shared_data: &SharedDataRw, global_messenger: &MessengerRw) -> Self {
-        let texture = Self::update_texture(shared_data, VIEW3D_IMAGE_WIDTH, VIEW3D_IMAGE_HEIGHT);
-
+    pub fn new(
+        shared_data: &SharedDataRw,
+        global_messenger: &MessengerRw,
+        default_material: &MaterialRc,
+        wireframe_material: &MaterialRc,
+    ) -> Self {
+        let texture = Self::update_render_pass(
+            shared_data,
+            "MainPass",
+            VIEW3D_IMAGE_WIDTH,
+            VIEW3D_IMAGE_HEIGHT,
+        );
+        /*
+        let picking_texture = Self::update_texture(
+            shared_data,
+            "PrePass",
+            (VIEW3D_IMAGE_WIDTH as f32 * 0.5) as _,
+            (VIEW3D_IMAGE_HEIGHT as f32 * 0.5) as _,
+        );
+        */
         let mut camera = Camera::new([10., 10., -10.].into(), [0., 0., 0.].into(), true);
         camera.set_projection(
             45.,
@@ -63,6 +82,7 @@ impl View3D {
             shared_data: shared_data.clone(),
             global_messenger: global_messenger.clone(),
             texture,
+            //picking_texture,
             camera,
             last_mouse_pos: Vector2::zero(),
             selected_object: INVALID_UID,
@@ -74,7 +94,12 @@ impl View3D {
         let ui_page = Self::create(shared_data, data);
         Self {
             ui_page,
-            debug_drawer: DebugDrawer::new(shared_data, global_messenger, "3D", "Wireframe"),
+            debug_drawer: DebugDrawer::new(
+                shared_data,
+                global_messenger,
+                default_material.resource().get().pipeline(),
+                wireframe_material.resource().get().pipeline(),
+            ),
             bounding_box_drawer: BoundingBoxDrawer::new(shared_data, global_messenger),
             shared_data: shared_data.clone(),
         }
@@ -97,7 +122,11 @@ impl View3D {
         self
     }
 
-    pub fn change_edit_mode(&mut self, mode: EditMode) -> &mut Self {
+    pub fn change_edit_mode(
+        &mut self,
+        mode: EditMode,
+        default_material_pipeline: &PipelineRc,
+    ) -> &mut Self {
         if let Some(data) = self.ui_page.resource().get_mut().data_mut::<View3DData>() {
             match mode {
                 EditMode::View => {
@@ -107,8 +136,11 @@ impl View3D {
                     data.gizmo = None;
                 }
                 EditMode::Move => {
-                    let gizmo =
-                        Gizmo::new_translation(&data.shared_data, data.global_messenger.clone());
+                    let gizmo = Gizmo::new_translation(
+                        &data.shared_data,
+                        data.global_messenger.clone(),
+                        default_material_pipeline,
+                    );
                     gizmo
                         .resource()
                         .get_mut()
@@ -116,8 +148,11 @@ impl View3D {
                     data.gizmo = Some(gizmo);
                 }
                 EditMode::Rotate => {
-                    let gizmo =
-                        Gizmo::new_rotation(&data.shared_data, data.global_messenger.clone());
+                    let gizmo = Gizmo::new_rotation(
+                        &data.shared_data,
+                        data.global_messenger.clone(),
+                        default_material_pipeline,
+                    );
                     gizmo
                         .resource()
                         .get_mut()
@@ -125,7 +160,11 @@ impl View3D {
                     data.gizmo = Some(gizmo);
                 }
                 EditMode::Scale => {
-                    let gizmo = Gizmo::new_scale(&data.shared_data, data.global_messenger.clone());
+                    let gizmo = Gizmo::new_scale(
+                        &data.shared_data,
+                        data.global_messenger.clone(),
+                        default_material_pipeline,
+                    );
                     gizmo
                         .resource()
                         .get_mut()
@@ -158,38 +197,13 @@ impl View3D {
         }
     }
 
-    fn resize_view(
-        data: &mut View3DData,
-        view_width: u32,
-        view_height: u32,
-        is_using_pointer: bool,
-    ) -> usize {
-        let mut texture_index = 0;
-        let texture_id = data.texture.id();
-        let textures = SharedData::get_resources_of_type::<TextureInstance>(&data.shared_data);
-        if let Some(index) = textures.iter().position(|t| t.id() == texture_id) {
-            texture_index = index;
-        }
-        let texture_width = data.texture.resource().get().width();
-        let texture_height = data.texture.resource().get().height();
-        if !is_using_pointer
-            && data.view_width == view_width
-            && data.view_height == view_height
-            && (texture_width != data.view_width || texture_height != data.view_height)
-        {
-            data.texture =
-                Self::update_texture(&data.shared_data, data.view_width, data.view_height);
-            data.camera.set_projection(
-                45.,
-                data.view_width as _,
-                data.view_height as _,
-                0.001,
-                1000.,
-            );
+    fn resize_view(data: &mut View3DData, view_width: u32, view_height: u32) {
+        if data.view_width != view_width && data.view_height != view_height {
+            data.camera
+                .set_projection(45., view_width as _, view_height as _, 0.001, 1000.);
         }
         data.view_width = view_width;
         data.view_height = view_height;
-        texture_index
     }
 
     fn manage_input(
@@ -239,6 +253,15 @@ impl View3D {
         data.last_mouse_pos = normalized_pos;
     }
 
+    fn get_texture_index(shared_data: &SharedDataRw, texture_id: TextureId) -> usize {
+        let mut texture_index = 0;
+        let textures = SharedData::get_resources_of_type::<Texture>(shared_data);
+        if let Some(index) = textures.iter().position(|t| t.id() == texture_id) {
+            texture_index = index;
+        }
+        texture_index
+    }
+
     fn create(shared_data: &SharedDataRw, data: View3DData) -> UIWidgetRc {
         UIWidget::register(shared_data, data, |ui_data, ui_context| {
             if let Some(data) = ui_data.as_any().downcast_mut::<View3DData>() {
@@ -246,13 +269,12 @@ impl View3D {
                     .frame(Frame::dark_canvas(ui_context.style().as_ref()))
                     .show(ui_context, |ui| {
                         data.should_manage_input = !ui.ctx().wants_keyboard_input();
-                        let is_using_pointer =
-                            ui.ctx().is_using_pointer() || ui.ctx().wants_pointer_input();
 
                         let view_width = ui.max_rect_finite().width() as u32;
                         let view_height = ui.max_rect_finite().height() as u32;
                         let texture_index =
-                            Self::resize_view(data, view_width, view_height, is_using_pointer);
+                            Self::get_texture_index(&data.shared_data, data.texture.id());
+                        Self::resize_view(data, view_width, view_height);
 
                         ui.with_layer_id(LayerId::background(), |ui| {
                             let response = Image::new(
@@ -285,38 +307,39 @@ impl View3D {
 
     fn update_camera(&mut self) -> &mut Self {
         if let Some(data) = self.ui_page.resource().get_mut().data_mut::<View3DData>() {
-            if SharedData::has_resources_of_type::<ViewInstance>(&self.shared_data) {
-                let views = SharedData::get_resources_of_type::<ViewInstance>(&self.shared_data);
+            if SharedData::has_resources_of_type::<View>(&self.shared_data) {
+                let views = SharedData::get_resources_of_type::<View>(&self.shared_data);
                 let view = views.first().unwrap();
                 let view_matrix = data.camera.view_matrix();
                 let proj_matrix = data.camera.proj_matrix();
 
-                let texture_width = data.texture.resource().get().width();
-                let texture_height = data.texture.resource().get().height();
-
                 view.resource()
                     .get_mut()
                     .update_view(view_matrix)
-                    .update_proj(proj_matrix)
-                    .update_size(texture_width, texture_height);
+                    .update_proj(proj_matrix);
             }
         }
         self
     }
 
-    fn update_texture(shared_data: &SharedDataRw, width: u32, height: u32) -> TextureRc {
+    fn update_render_pass(
+        shared_data: &SharedDataRw,
+        render_pass_name: &str,
+        width: u32,
+        height: u32,
+    ) -> TextureRc {
         let image = DynamicImage::new_rgba8(width, height);
         let image_data = image.to_rgba8();
-        let texture = TextureInstance::create_from_data(shared_data, image_data);
+        let texture = Texture::create_from_data(shared_data, image_data);
 
-        {
-            let render_pass_id = generate_uid_from_string("MainPass");
-            let render_pass =
-                SharedData::get_resource::<RenderPassInstance>(shared_data, render_pass_id);
+        let render_pass_id = generate_uid_from_string(render_pass_name);
+        if SharedData::has_resource::<RenderPass>(shared_data, render_pass_id) {
+            let render_pass = SharedData::get_resource::<RenderPass>(shared_data, render_pass_id);
             render_pass
                 .resource()
                 .get_mut()
-                .set_color_texture(texture.clone());
+                .set_color_texture(texture.clone())
+                .add_category_to_draw(MeshCategoryId::new(DEFAULT_MESH_CATEGORY_IDENTIFIER));
         }
 
         texture
@@ -348,7 +371,7 @@ impl View3D {
                 if let Some(hitbox) = obj.resource().get().get_component::<Hitbox>() {
                     min = hitbox.resource().get().min();
                     max = hitbox.resource().get().max();
-                } else if let Some(mesh) = obj.resource().get().get_component::<MeshInstance>() {
+                } else if let Some(mesh) = obj.resource().get().get_component::<Mesh>() {
                     let (mesh_min, mesh_max) = mesh.resource().get().mesh_data().compute_min_max();
                     min = mesh_min;
                     max = mesh_max;

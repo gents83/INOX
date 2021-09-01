@@ -4,7 +4,6 @@ precision highp float;
 layout(std140, push_constant) uniform PushConsts {
     mat4 view;
     mat4 proj;
-	vec2 view_size;
 	vec2 screen_size;
 } pushConsts;
 
@@ -26,8 +25,6 @@ layout(location = 0) out vec4 outColor;
 layout(location = 1) out vec3 outTexCoord;
 layout(location = 2) out uint outTextureIndex;
 layout(location = 3) out vec4 outDrawArea;
-
-float ui_scale = 2.;
 
 void main() {
   gl_Position =

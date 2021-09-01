@@ -4,9 +4,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use nrg_graphics::{
-    FontInstance, MaterialInstance, MeshInstance, PipelineInstance, TextureInstance, ViewInstance,
-};
+use nrg_graphics::{Font, Material, Mesh, Pipeline, Texture, View};
 use nrg_resources::{ResourceData, SharedData, SharedDataRw};
 use nrg_scene::{Hitbox, Object, Scene, Transform};
 use nrg_ui::{
@@ -51,38 +49,38 @@ impl DebugInfo {
                     .show(ui_context, |ui| {
                         ui.label(format!("FPS: {}", data.frame_seconds.len()));
                         ui.separator();
-                        Self::resource_ui_properties::<PipelineInstance>(
+                        Self::resource_ui_properties::<Pipeline>(
                             &data.shared_data,
                             &data.ui_registry,
                             ui,
                             "Pipeline",
                         );
-                        Self::resource_ui_properties::<FontInstance>(
+                        Self::resource_ui_properties::<Font>(
                             &data.shared_data,
                             &data.ui_registry,
                             ui,
                             "Font",
                         );
-                        Self::resource_ui_properties::<MaterialInstance>(
+                        Self::resource_ui_properties::<Material>(
                             &data.shared_data,
                             &data.ui_registry,
                             ui,
                             "Material",
                         );
-                        Self::resource_ui_properties::<TextureInstance>(
+                        Self::resource_ui_properties::<Texture>(
                             &data.shared_data,
                             &data.ui_registry,
                             ui,
                             "Texture",
                         );
-                        Self::resource_ui_properties::<MeshInstance>(
+                        Self::resource_ui_properties::<Mesh>(
                             &data.shared_data,
                             &data.ui_registry,
                             ui,
                             "Mesh",
                         );
                         ui.separator();
-                        Self::resource_ui_properties::<ViewInstance>(
+                        Self::resource_ui_properties::<View>(
                             &data.shared_data,
                             &data.ui_registry,
                             ui,

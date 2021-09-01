@@ -1,8 +1,8 @@
 use std::any::TypeId;
 
 use nrg_graphics::{
-    create_arrow, create_colored_quad, create_line, create_sphere, MaterialInstance, MeshData,
-    MeshInstance, MeshRc, PipelineInstance,
+    create_arrow, create_colored_quad, create_line, create_sphere, Material, Mesh, MeshData,
+    MeshRc, PipelineRc,
 };
 use nrg_math::{Vector2, Vector3, Vector4};
 use nrg_messenger::{implement_message, read_messages, Message, MessageChannel, MessengerRw};
@@ -62,26 +62,19 @@ impl DebugDrawer {
     pub fn new(
         shared_data: &SharedDataRw,
         global_messenger: &MessengerRw,
-        pipeline_name_default: &str,
-        pipeline_name_wirefrane: &str,
+        pipeline_default: &PipelineRc,
+        pipeline_wirefrane: &PipelineRc,
     ) -> Self {
-        let mesh_instance = MeshInstance::create_from_data(shared_data, MeshData::default());
-        if let Some(pipeline) = PipelineInstance::find_from_name(shared_data, pipeline_name_default)
-        {
-            let material = MaterialInstance::create_from_pipeline(shared_data, pipeline);
-            mesh_instance.resource().get_mut().set_material(material);
-        }
-        let wireframe_mesh_instance =
-            MeshInstance::create_from_data(shared_data, MeshData::default());
-        if let Some(pipeline) =
-            PipelineInstance::find_from_name(shared_data, pipeline_name_wirefrane)
-        {
-            let material = MaterialInstance::create_from_pipeline(shared_data, pipeline);
-            wireframe_mesh_instance
-                .resource()
-                .get_mut()
-                .set_material(material);
-        }
+        let mesh_instance = Mesh::create_from_data(shared_data, MeshData::default());
+        let material = Material::create_from_pipeline(shared_data, pipeline_default);
+        mesh_instance.resource().get_mut().set_material(material);
+
+        let wireframe_mesh_instance = Mesh::create_from_data(shared_data, MeshData::default());
+        let material = Material::create_from_pipeline(shared_data, pipeline_wirefrane);
+        wireframe_mesh_instance
+            .resource()
+            .get_mut()
+            .set_material(material);
 
         let message_channel = MessageChannel::default();
 

@@ -66,7 +66,7 @@ pub fn convert_from_local_path(parent_folder: &Path, relative_path: &Path) -> Pa
     } else if let Ok(result_path) = pathbuf.join(relative_path).canonicalize() {
         pathbuf = result_path;
     } else {
-        eprintln!("Unable to join {:?} with {:?}", pathbuf, relative_path);
+        eprintln!("Unable to find file: {:?}{:?}", pathbuf, relative_path);
     }
     pathbuf
 }

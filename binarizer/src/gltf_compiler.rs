@@ -25,6 +25,9 @@ const MESH_DATA_EXTENSION: &str = "mesh_data";
 const MATERIAL_DATA_EXTENSION: &str = "material_data";
 const OBJECT_DATA_EXTENSION: &str = "object_data";
 
+const DEFAULT_VERTEX_SHADER: &str = "shaders/diffuse_shader_vert.spv";
+const DEFAULT_FRAGMENT_SHADER: &str = "shaders/diffuse_shader_frag.spv";
+
 pub struct GltfCompiler {
     global_messenger: MessengerRw,
 }
@@ -238,6 +241,8 @@ impl GltfCompiler {
 
         let material = primitive.material().pbr_metallic_roughness();
         material_data.diffuse_color = material.base_color_factor().into();
+        material_data.pipeline.vertex_shader = PathBuf::from(DEFAULT_VERTEX_SHADER);
+        material_data.pipeline.fragment_shader = PathBuf::from(DEFAULT_FRAGMENT_SHADER);
         if let Some(texture) = material.base_color_texture() {
             match texture.texture().source().source() {
                 ImageSource::Uri {
@@ -365,7 +370,7 @@ impl GltfCompiler {
         }
         if need_to_binarize(path, new_path.as_path()) {
             println!("Serializing {:?}", new_path);
-            serialize_to_file(mesh_data, new_path.clone());
+            serialize_to_file(mesh_data, new_path.as_path());
         }
         new_path
     }
