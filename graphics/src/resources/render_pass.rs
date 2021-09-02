@@ -140,15 +140,18 @@ impl RenderPass {
         }
         real_texture
     }
-    fn create_default(&mut self, device: &Device) -> &mut Self {
+    fn create_default(&mut self, device: &mut Device) -> &mut Self {
         self.backend_render_pass = Some(backend::BackendRenderPass::create_default(
-            &*device, &self.data, None, None,
+            &mut *device,
+            &self.data,
+            None,
+            None,
         ));
         self
     }
     fn create_with_render_target(
         &mut self,
-        device: &Device,
+        device: &mut Device,
         texture_handler: &mut TextureHandler,
     ) -> &mut Self {
         Self::add_texture_as_render_target(device, &self.color_texture, texture_handler);
@@ -157,14 +160,14 @@ impl RenderPass {
         let depth_texture = Self::get_real_texture(&self.depth_texture, texture_handler);
 
         self.backend_render_pass = Some(backend::BackendRenderPass::create_default(
-            &*device,
+            &mut *device,
             &self.data,
             color_texture,
             depth_texture,
         ));
         self
     }
-    pub fn init(&mut self, device: &Device, texture_handler: &mut TextureHandler) -> &mut Self {
+    pub fn init(&mut self, device: &mut Device, texture_handler: &mut TextureHandler) -> &mut Self {
         if let Some(backend_render_pass) = &mut self.backend_render_pass {
             backend_render_pass.destroy(&*device);
         }
@@ -231,15 +234,19 @@ impl RenderPass {
         }
     }
 
-    pub fn begin(&self, device: &Device) {
+    pub fn begin(&self, device: &mut Device) {
         if let Some(backend_render_pass) = &self.backend_render_pass {
-            backend_render_pass.begin(&*device);
+            let render_pass = backend_render_pass.get_render_pass();
+            let framebuffer = backend_render_pass.get_framebuffer(device);
+            device.begin_command_buffer(render_pass, framebuffer);
+            backend_render_pass.begin(&mut *device);
         }
     }
 
-    pub fn end(&self, device: &Device) {
+    pub fn end(&self, device: &mut Device) {
         if let Some(backend_render_pass) = &self.backend_render_pass {
-            backend_render_pass.end(&*device);
+            device.end_command_buffer();
+            backend_render_pass.end(&mut *device);
         }
     }
 }

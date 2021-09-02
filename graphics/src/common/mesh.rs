@@ -57,18 +57,18 @@ impl GraphicsMesh {
             .set_mesh_at_index(vertices, first_vertex, indices, first_index)
     }
 
-    pub fn bind_vertices(&self, device: &Device) {
-        self.inner.bind_vertices(&*device);
+    pub fn bind_vertices(&self, device: &mut Device) {
+        self.inner.bind_vertices(&mut *device);
     }
 
-    pub fn bind_indices(&self, device: &Device) {
-        self.inner.bind_indices(&*device);
+    pub fn bind_indices(&self, device: &mut Device) {
+        self.inner.bind_indices(&mut *device);
     }
 
-    pub fn draw(&mut self, device: &Device, num_vertices: u32, num_indices: u32) {
+    pub fn draw(&mut self, device: &mut Device, num_vertices: u32, num_indices: u32) {
         if !self.data.vertices.is_empty() {
             self.inner.draw(
-                &*device,
+                &mut *device,
                 &self.data.vertices,
                 num_vertices,
                 &self.data.indices,

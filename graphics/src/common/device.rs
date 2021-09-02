@@ -33,7 +33,7 @@ impl Device {
         self.inner.begin_frame()
     }
 
-    pub fn end_frame(&self) {
+    pub fn end_frame(&mut self) {
         self.inner.end_frame();
     }
 

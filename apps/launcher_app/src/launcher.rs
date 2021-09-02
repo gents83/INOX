@@ -52,7 +52,8 @@ impl Launcher {
         );
 
         let mut rendering_draw_phase = PhaseWithSystems::new(RENDERING_PHASE);
-        let rendering_draw_system = RenderingSystem::new(renderer, &app.get_shared_data());
+        let rendering_draw_system =
+            RenderingSystem::new(renderer, &app.get_shared_data(), app.get_job_handler());
 
         rendering_update_phase.add_system(render_update_system);
         rendering_draw_phase.add_system(rendering_draw_system);

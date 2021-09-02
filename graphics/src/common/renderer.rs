@@ -1,7 +1,5 @@
-use crate::{
-    is_texture, Device, Font, Instance, Pipeline, PipelineId, RenderPass, Texture, TextureHandler,
-};
-use nrg_math::Matrix4;
+use crate::{is_texture, Device, Font, Instance, Pipeline, RenderPass, Texture, TextureHandler};
+
 use nrg_platform::Handle;
 use nrg_resources::{FileResource, SharedData, SharedDataRw, DATA_FOLDER};
 use std::path::PathBuf;
@@ -46,6 +44,10 @@ impl Renderer {
         &self.device
     }
 
+    pub fn device_mut(&mut self) -> &mut Device {
+        &mut self.device
+    }
+
     pub fn state(&self) -> RendererState {
         self.state
     }
@@ -68,80 +70,28 @@ impl Renderer {
     pub fn end_preparation(&mut self) {
         self.state = RendererState::Prepared;
     }
+    pub fn end_draw(&mut self) {
+        self.state = RendererState::Submitted;
+    }
+    pub fn need_redraw(&self) -> bool {
+        self.state != RendererState::Submitted
+    }
 
-    fn begin_frame(&mut self) -> bool {
+    pub fn begin_frame(&mut self) -> bool {
         nrg_profiler::scoped_profile!("renderer::begin_frame");
 
         self.device.begin_frame()
     }
 
-    fn end_frame(&mut self) {
+    pub fn end_frame(&mut self) {
         nrg_profiler::scoped_profile!("renderer::end_frame");
 
         self.device.end_frame();
         self.device.submit();
     }
-    fn present(&mut self) -> bool {
+    pub fn present(&mut self) -> bool {
         nrg_profiler::scoped_profile!("renderer::present");
         self.device.present()
-    }
-
-    pub fn draw(&mut self, view: &Matrix4, proj: &Matrix4) {
-        if self.state == RendererState::Submitted {
-            return;
-        }
-
-        let mut success = self.begin_frame();
-        if success {
-            nrg_profiler::scoped_profile!("renderer::draw");
-
-            let render_passes = SharedData::get_resources_of_type::<RenderPass>(&self.shared_data);
-            let mut render_pass_specific_pipeline: Vec<PipelineId> = Vec::new();
-            render_passes.iter().for_each(|render_pass| {
-                if let Some(pipeline) = render_pass.resource().get().pipeline() {
-                    render_pass_specific_pipeline.push(pipeline.id());
-                }
-            });
-            render_passes.iter().for_each(|render_pass| {
-                nrg_profiler::scoped_profile!(format!(
-                    "renderer::render_pass[{}]",
-                    render_pass.resource().get().data().name
-                )
-                .as_str());
-
-                render_pass.resource().get().begin(&self.device);
-
-                let width = render_pass.resource().get().get_framebuffer_width();
-                let height = render_pass.resource().get().get_framebuffer_height();
-
-                let pipelines = SharedData::get_resources_of_type::<Pipeline>(&self.shared_data);
-                pipelines.iter().for_each(|pipeline| {
-                    if pipeline
-                        .resource()
-                        .get()
-                        .should_draw(render_pass.resource().get().mesh_category_to_draw())
-                    {
-                        pipeline.resource().get_mut().draw(
-                            &self.device,
-                            width,
-                            height,
-                            view,
-                            proj,
-                            self.texture_handler.get_textures_atlas(),
-                        );
-                    }
-                });
-
-                render_pass.resource().get().end(&self.device);
-            });
-
-            self.end_frame();
-            success = self.present();
-        }
-        if !success {
-            self.recreate();
-        }
-        self.state = RendererState::Submitted;
     }
 
     pub fn recreate(&mut self) {
@@ -167,7 +117,7 @@ impl Renderer {
                 render_pass
                     .resource()
                     .get_mut()
-                    .init(&self.device, &mut self.texture_handler);
+                    .init(&mut self.device, &mut self.texture_handler);
             }
         });
     }

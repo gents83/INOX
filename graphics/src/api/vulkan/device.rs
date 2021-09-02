@@ -3,6 +3,8 @@ use crate::api::backend::{
     get_minimum_required_vulkan_extensions,
 };
 use crate::Area;
+use nrg_platform::{get_raw_thread_id, RawThreadId};
+use std::collections::HashMap;
 use std::os::raw::c_char;
 use std::sync::{Arc, RwLock};
 use vulkan_bindings::*;
@@ -41,19 +43,26 @@ impl Default for ImageViewData {
     }
 }
 
+struct ThreadData {
+    command_pool: VkCommandPool,
+    command_buffers: Vec<VkCommandBuffer>,
+}
+
 pub struct DeviceImmutable {
     device: VkDevice,
     graphics_queue: VkQueue,
     present_queue: VkQueue,
     swap_chain: BackendSwapChain,
-    command_pool: VkCommandPool,
-    command_buffers: Vec<VkCommandBuffer>,
     pipeline_cache: VkPipelineCache,
     semaphore_id: usize,
     current_buffer_index: u32,
     semaphore_image_available: Vec<VkSemaphore>,
     semaphore_render_complete: Vec<VkSemaphore>,
     command_buffer_fences: Vec<VkFence>,
+    thread_data: HashMap<RawThreadId, ThreadData>,
+    graphics_family_index: u32,
+    primary_command_pool: VkCommandPool,
+    primary_command_buffers: Vec<VkCommandBuffer>,
 }
 
 #[derive(Clone)]
@@ -103,9 +112,14 @@ impl BackendDevice {
         self.inner.read().unwrap().current_buffer_index as _
     }
 
-    pub fn get_current_command_buffer(&self) -> VkCommandBuffer {
-        let inner = self.inner.read().unwrap();
-        inner.command_buffers[inner.current_buffer_index as usize]
+    pub fn get_primary_command_buffer(&mut self) -> VkCommandBuffer {
+        let mut inner = self.inner.write().unwrap();
+        inner.get_primary_command_buffer()
+    }
+
+    pub fn get_current_command_buffer(&mut self) -> VkCommandBuffer {
+        let mut inner = self.inner.write().unwrap();
+        inner.get_current_command_buffer()
     }
 
     pub fn create_buffer(
@@ -140,7 +154,7 @@ impl BackendDevice {
         buffer_size: VkDeviceSize,
     ) {
         self.inner
-            .read()
+            .write()
             .unwrap()
             .copy_buffer(buffer_src, buffer_dst, buffer_size);
     }
@@ -199,7 +213,7 @@ impl BackendDevice {
         layer_index: usize,
         layers_count: usize,
     ) {
-        self.inner.read().unwrap().transition_image_layout(
+        self.inner.write().unwrap().transition_image_layout(
             image,
             old_layout,
             new_layout,
@@ -216,27 +230,41 @@ impl BackendDevice {
         area: &Area,
     ) {
         self.inner
-            .read()
+            .write()
             .unwrap()
             .copy_buffer_to_image(buffer, image, layer_index, area);
     }
 
-    pub fn begin_frame(&mut self) -> bool {
+    pub fn begin_command_buffer(&mut self, render_pass: VkRenderPass, framebuffer: VkFramebuffer) {
+        let command_buffer = self.get_current_command_buffer();
+        self.inner
+            .write()
+            .unwrap()
+            .begin_command_buffer(command_buffer, render_pass, framebuffer);
+    }
+
+    pub fn end_command_buffer(&mut self) {
+        let command_buffer = self.get_current_command_buffer();
+        self.inner
+            .write()
+            .unwrap()
+            .end_command_buffer(command_buffer);
+    }
+
+    pub fn begin_frame(&self) -> bool {
         let result = self.inner.write().unwrap().acquire_image();
         if result {
-            let command_buffer = self.get_current_command_buffer();
-            self.inner.write().unwrap().begin_frame(command_buffer);
+            self.inner.write().unwrap().begin_frame();
         }
         result
     }
 
     pub fn end_frame(&self) {
-        let command_buffer = self.get_current_command_buffer();
-        self.inner.write().unwrap().end_frame(command_buffer);
+        self.inner.write().unwrap().end_frame();
     }
 
     pub fn submit(&mut self) {
-        let command_buffer = self.get_current_command_buffer();
+        let command_buffer = self.get_primary_command_buffer();
         self.inner.write().unwrap().submit(command_buffer);
     }
 
@@ -262,12 +290,15 @@ impl DeviceImmutable {
             let count = self.swap_chain.image_data.len();
             self.cleanup_swap_chain();
 
-            vkFreeCommandBuffers.unwrap()(
-                self.device,
-                self.command_pool,
-                self.command_buffers.len() as _,
-                self.command_buffers.as_ptr(),
-            );
+            self.thread_data.iter().for_each(|(_, t)| {
+                vkFreeCommandBuffers.unwrap()(
+                    self.device,
+                    t.command_pool,
+                    t.command_buffers.len() as _,
+                    t.command_buffers.as_ptr(),
+                );
+                vkDestroyCommandPool.unwrap()(self.device, t.command_pool, ::std::ptr::null_mut());
+            });
 
             for i in 0..count {
                 vkDestroySemaphore.unwrap()(
@@ -287,7 +318,6 @@ impl DeviceImmutable {
                 );
             }
 
-            vkDestroyCommandPool.unwrap()(self.device, self.command_pool, ::std::ptr::null_mut());
             vkDestroyDevice.unwrap()(self.device, ::std::ptr::null_mut());
         }
     }
@@ -319,15 +349,77 @@ impl DeviceImmutable {
         }
         true
     }
-
-    fn begin_frame(&mut self, command_buffer: VkCommandBuffer) {
+    fn begin_primary_command_buffer(&mut self) {
+        let primary_command_buffer = self.get_primary_command_buffer();
+        let flags = VkCommandBufferUsageFlagBits_VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
         let begin_info = VkCommandBufferBeginInfo {
             sType: VkStructureType_VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-            flags: VkCommandBufferUsageFlagBits_VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT as _,
+            flags: flags as _,
             pNext: ::std::ptr::null_mut(),
             pInheritanceInfo: ::std::ptr::null_mut(),
         };
+        unsafe {
+            assert_eq!(
+                VkResult_VK_SUCCESS,
+                vkBeginCommandBuffer.unwrap()(primary_command_buffer, &begin_info)
+            );
+        }
+    }
 
+    fn begin_command_buffer(
+        &mut self,
+        command_buffer: VkCommandBuffer,
+        render_pass: VkRenderPass,
+        framebuffer: VkFramebuffer,
+    ) {
+        let flags = VkCommandBufferUsageFlagBits_VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
+            | VkCommandBufferUsageFlagBits_VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT;
+        let inheritance_info = VkCommandBufferInheritanceInfo {
+            sType: VkStructureType_VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO,
+            pNext: ::std::ptr::null_mut(),
+            renderPass: render_pass,
+            subpass: 0,
+            framebuffer,
+            occlusionQueryEnable: VK_FALSE,
+            queryFlags: 0,
+            pipelineStatistics: 0,
+        };
+        let begin_info = VkCommandBufferBeginInfo {
+            sType: VkStructureType_VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+            flags: flags as _,
+            pNext: ::std::ptr::null_mut(),
+            pInheritanceInfo: &inheritance_info,
+        };
+        unsafe {
+            assert_eq!(
+                VkResult_VK_SUCCESS,
+                vkBeginCommandBuffer.unwrap()(command_buffer, &begin_info)
+            );
+        }
+    }
+
+    fn end_primary_command_buffer(&mut self) {
+        let primary_command_buffer = self.get_primary_command_buffer();
+        unsafe {
+            assert_eq!(
+                VkResult_VK_SUCCESS,
+                vkEndCommandBuffer.unwrap()(primary_command_buffer)
+            );
+        }
+    }
+
+    fn end_command_buffer(&mut self, command_buffer: VkCommandBuffer) {
+        unsafe {
+            assert_eq!(
+                VkResult_VK_SUCCESS,
+                vkEndCommandBuffer.unwrap()(command_buffer)
+            );
+            // Execute render commands from the secondary command buffer
+            vkCmdExecuteCommands.unwrap()(self.get_primary_command_buffer(), 1, &command_buffer);
+        }
+    }
+
+    fn begin_frame(&mut self) {
         unsafe {
             vkWaitForFences.unwrap()(
                 self.device,
@@ -336,20 +428,15 @@ impl DeviceImmutable {
                 VK_TRUE,
                 std::u64::MAX,
             );
-
-            assert_eq!(
-                VkResult_VK_SUCCESS,
-                vkBeginCommandBuffer.unwrap()(command_buffer, &begin_info)
-            );
         }
+
+        self.begin_primary_command_buffer();
     }
 
-    fn end_frame(&self, command_buffer: VkCommandBuffer) {
+    fn end_frame(&mut self) {
+        self.end_primary_command_buffer();
+
         unsafe {
-            assert_eq!(
-                VkResult_VK_SUCCESS,
-                vkEndCommandBuffer.unwrap()(command_buffer)
-            );
             vkResetFences.unwrap()(
                 self.device,
                 1,
@@ -499,7 +586,7 @@ impl DeviceImmutable {
     }
 
     fn transition_image_layout(
-        &self,
+        &mut self,
         image: VkImage,
         old_layout: VkImageLayout,
         new_layout: VkImageLayout,
@@ -587,7 +674,7 @@ impl DeviceImmutable {
     }
 
     pub fn copy_buffer_to_image(
-        &self,
+        &mut self,
         buffer: VkBuffer,
         image: VkImage,
         layer_index: usize,
@@ -631,11 +718,11 @@ impl DeviceImmutable {
         self.end_single_time_commands(command_buffer);
     }
 
-    pub fn begin_single_time_commands(&self) -> VkCommandBuffer {
+    pub fn begin_single_time_commands(&mut self) -> VkCommandBuffer {
         let command_alloc_info = VkCommandBufferAllocateInfo {
             sType: VkStructureType_VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
             pNext: ::std::ptr::null_mut(),
-            commandPool: self.command_pool,
+            commandPool: self.get_primary_command_pool(),
             level: VkCommandBufferLevel_VK_COMMAND_BUFFER_LEVEL_PRIMARY,
             commandBufferCount: 1,
         };
@@ -670,7 +757,7 @@ impl DeviceImmutable {
         command_buffer
     }
 
-    pub fn end_single_time_commands(&self, command_buffer: VkCommandBuffer) {
+    pub fn end_single_time_commands(&mut self, command_buffer: VkCommandBuffer) {
         unsafe {
             assert_eq!(
                 VkResult_VK_SUCCESS,
@@ -703,7 +790,12 @@ impl DeviceImmutable {
 
             vkQueueWaitIdle.unwrap()(self.graphics_queue);
 
-            vkFreeCommandBuffers.unwrap()(self.device, self.command_pool, 1, &command_buffer);
+            vkFreeCommandBuffers.unwrap()(
+                self.device,
+                self.get_primary_command_pool(),
+                1,
+                &command_buffer,
+            );
         }
     }
 
@@ -773,7 +865,7 @@ impl DeviceImmutable {
     }
 
     fn copy_buffer(
-        &self,
+        &mut self,
         buffer_src: &VkBuffer,
         buffer_dst: &mut VkBuffer,
         buffer_size: VkDeviceSize,
@@ -821,6 +913,39 @@ impl DeviceImmutable {
             ::std::ptr::copy_nonoverlapping(data_src.as_ptr() as _, data_ptr, length as _);
             vkUnmapMemory.unwrap()(self.device, *buffer_memory);
         }
+    }
+
+    pub fn get_primary_command_buffer(&mut self) -> VkCommandBuffer {
+        self.primary_command_buffers[self.current_buffer_index as usize]
+    }
+    pub fn get_current_command_buffer(&mut self) -> VkCommandBuffer {
+        let buffer_index = self.current_buffer_index as usize;
+        let thread_data = self.get_thread_data();
+        thread_data.command_buffers[buffer_index]
+    }
+
+    fn get_thread_data(&mut self) -> &mut ThreadData {
+        let thread_id = get_raw_thread_id();
+        let device = self.device;
+        let graphics_family_index = self.graphics_family_index;
+        let num_frames = self.swap_chain.image_data.len() as _;
+        self.thread_data.entry(thread_id).or_insert_with(|| {
+            let command_pool = Self::create_command_pool(device, graphics_family_index);
+            let command_buffers = Self::allocate_command_buffers(
+                device,
+                command_pool,
+                VkCommandBufferLevel_VK_COMMAND_BUFFER_LEVEL_SECONDARY,
+                num_frames,
+            );
+            ThreadData {
+                command_pool,
+                command_buffers,
+            }
+        })
+    }
+
+    fn get_primary_command_pool(&mut self) -> VkCommandPool {
+        self.primary_command_pool
     }
 }
 
@@ -947,21 +1072,33 @@ impl DeviceImmutable {
             graphics_queue,
             present_queue,
             swap_chain: BackendSwapChain::default(),
-            command_pool: ::std::ptr::null_mut(),
-            command_buffers: Vec::new(),
             pipeline_cache,
             semaphore_id: 0,
             current_buffer_index: 0,
             semaphore_image_available: Vec::new(),
             semaphore_render_complete: Vec::new(),
             command_buffer_fences: Vec::new(),
+            graphics_family_index: instance.get_queue_family_info().graphics_family_index as _,
+            thread_data: HashMap::new(),
+            primary_command_pool: ::std::ptr::null_mut(),
+            primary_command_buffers: Vec::new(),
         };
         inner_device
             .create_swap_chain(instance)
-            .create_command_pool(instance)
             .create_image_views(instance)
-            .allocate_command_buffers()
             .create_sync_objects();
+
+        inner_device.primary_command_pool = Self::create_command_pool(
+            device,
+            instance.get_queue_family_info().graphics_family_index as _,
+        );
+        inner_device.primary_command_buffers = Self::allocate_command_buffers(
+            inner_device.device,
+            inner_device.primary_command_pool,
+            VkCommandBufferLevel_VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+            inner_device.swap_chain.image_data.len() as _,
+        );
+
         inner_device
     }
 
@@ -1121,29 +1258,27 @@ impl DeviceImmutable {
         self
     }
 
-    fn create_command_pool(&mut self, instance: &BackendInstance) -> &mut Self {
+    fn create_command_pool(device: VkDevice, queue_family_index: u32) -> VkCommandPool {
         let command_pool_info = VkCommandPoolCreateInfo {
             sType: VkStructureType_VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
             pNext: ::std::ptr::null_mut(),
             flags: VkCommandPoolCreateFlagBits_VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT as _,
-            queueFamilyIndex: instance.get_queue_family_info().graphics_family_index as _,
+            queueFamilyIndex: queue_family_index,
         };
 
-        let command_pool = unsafe {
+        unsafe {
             let mut option = ::std::mem::MaybeUninit::uninit();
             assert_eq!(
                 VkResult_VK_SUCCESS,
                 vkCreateCommandPool.unwrap()(
-                    self.device,
+                    device,
                     &command_pool_info,
                     ::std::ptr::null_mut(),
                     option.as_mut_ptr()
                 )
             );
             option.assume_init()
-        };
-        self.command_pool = command_pool;
-        self
+        }
     }
 
     fn create_sync_objects(&mut self) -> &mut Self {
@@ -1256,18 +1391,22 @@ impl DeviceImmutable {
             .create_image_views(instance);
     }
 
-    fn allocate_command_buffers(&mut self) -> &mut Self {
-        let mut command_buffers =
-            Vec::<VkCommandBuffer>::with_capacity(self.swap_chain.image_data.len());
+    fn allocate_command_buffers(
+        device: VkDevice,
+        command_pool: VkCommandPool,
+        level: VkCommandBufferLevel,
+        num_frames: usize,
+    ) -> Vec<VkCommandBuffer> {
+        let mut command_buffers = Vec::<VkCommandBuffer>::with_capacity(num_frames);
         unsafe {
-            command_buffers.set_len(self.swap_chain.image_data.len());
+            command_buffers.set_len(num_frames);
         }
 
         let command_alloc_info = VkCommandBufferAllocateInfo {
             sType: VkStructureType_VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
             pNext: ::std::ptr::null_mut(),
-            commandPool: self.command_pool,
-            level: VkCommandBufferLevel_VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+            commandPool: command_pool,
+            level,
             commandBufferCount: command_buffers.len() as _,
         };
 
@@ -1275,13 +1414,12 @@ impl DeviceImmutable {
             assert_eq!(
                 VkResult_VK_SUCCESS,
                 vkAllocateCommandBuffers.unwrap()(
-                    self.device,
+                    device,
                     &command_alloc_info,
                     command_buffers.as_mut_ptr()
                 )
             );
         }
-        self.command_buffers = command_buffers;
-        self
+        command_buffers
     }
 }

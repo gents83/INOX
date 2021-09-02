@@ -192,7 +192,7 @@ impl Pipeline {
     }
 
     fn update_runtime_data(
-        &self,
+        &mut self,
         width: u32,
         height: u32,
         view: &Matrix4,
@@ -201,7 +201,7 @@ impl Pipeline {
         nrg_profiler::scoped_profile!(
             format!("pipeline::update_runtime_data[{:?}]", self.id()).as_str()
         );
-        if let Some(backend_pipeline) = &self.backend_pipeline {
+        if let Some(backend_pipeline) = &mut self.backend_pipeline {
             backend_pipeline
                 .update_constant_data(width, height, view, proj)
                 .update_uniform_buffer(view, proj);
@@ -222,17 +222,17 @@ impl Pipeline {
 
     fn bind_indirect(&mut self) -> &mut Self {
         nrg_profiler::scoped_profile!(format!("pipeline::bind_indirect[{:?}]", self.id()).as_str());
-        if let Some(backend_pipeline) = &self.backend_pipeline {
+        if let Some(backend_pipeline) = &mut self.backend_pipeline {
             backend_pipeline.bind_indirect();
         }
         self
     }
-    fn bind_vertices(&mut self, device: &Device) -> &mut Self {
+    fn bind_vertices(&mut self, device: &mut Device) -> &mut Self {
         nrg_profiler::scoped_profile!(format!("pipeline::bind_vertices[{:?}]", self.id()).as_str());
         self.mesh.bind_vertices(device);
         self
     }
-    fn bind_indices(&mut self, device: &Device) -> &mut Self {
+    fn bind_indices(&mut self, device: &mut Device) -> &mut Self {
         nrg_profiler::scoped_profile!(format!("pipeline::bind_indices[{:?}]", self.id()).as_str());
         self.mesh.bind_indices(device);
         self
@@ -324,19 +324,26 @@ impl Pipeline {
         should_draw
     }
 
-    pub fn draw(
+    pub fn update_bindings(
         &mut self,
-        device: &Device,
         width: u32,
         height: u32,
         view: &Matrix4,
         proj: &Matrix4,
         textures: &[TextureAtlas],
-    ) {
-        nrg_profiler::scoped_profile!(format!("renderer::draw_pipeline[{:?}]", self.id()).as_str());
+    ) -> &mut Self {
+        nrg_profiler::scoped_profile!(
+            format!("renderer::update_bindings[{:?}]", self.id()).as_str()
+        );
 
         self.update_runtime_data(width, height, view, proj)
             .update_descriptor_sets(textures);
+
+        self
+    }
+
+    pub fn draw(&mut self, device: &mut Device) {
+        nrg_profiler::scoped_profile!(format!("renderer::draw_pipeline[{:?}]", self.id()).as_str());
 
         self.begin()
             .bind_vertices(device)

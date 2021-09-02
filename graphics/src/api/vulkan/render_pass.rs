@@ -32,8 +32,16 @@ impl BackendRenderPass {
         self.inner.read().unwrap().extent.height
     }
 
+    pub fn get_render_pass(&self) -> VkRenderPass {
+        self.inner.read().unwrap().render_pass
+    }
+
+    pub fn get_framebuffer(&self, device: &BackendDevice) -> VkFramebuffer {
+        self.inner.read().unwrap().framebuffers[device.get_current_buffer_index()]
+    }
+
     pub fn create_default(
-        device: &BackendDevice,
+        device: &mut BackendDevice,
         data: &RenderPassData,
         color: Option<&BackendTexture>,
         depth: Option<&BackendTexture>,
@@ -73,13 +81,13 @@ impl BackendRenderPass {
         unsafe {
             vkDestroyRenderPass.unwrap()(
                 device.get_device(),
-                self.inner.read().unwrap().render_pass,
+                self.get_render_pass(),
                 ::std::ptr::null_mut(),
             );
         }
     }
 
-    pub fn begin(&self, device: &BackendDevice) {
+    pub fn begin(&self, device: &mut BackendDevice) {
         let clear_value = [
             VkClearValue {
                 color: VkClearColorValue {
@@ -100,8 +108,8 @@ impl BackendRenderPass {
         let render_pass_begin_info = VkRenderPassBeginInfo {
             sType: VkStructureType_VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
             pNext: ::std::ptr::null_mut(),
-            renderPass: self.inner.read().unwrap().render_pass,
-            framebuffer: self.inner.read().unwrap().framebuffers[device.get_current_buffer_index()],
+            renderPass: self.get_render_pass(),
+            framebuffer: self.get_framebuffer(device),
             renderArea: area,
             clearValueCount: clear_value.len() as _,
             pClearValues: clear_value.as_ptr(),
@@ -115,7 +123,7 @@ impl BackendRenderPass {
         }
     }
 
-    pub fn end(&self, device: &BackendDevice) {
+    pub fn end(&self, device: &mut BackendDevice) {
         unsafe {
             vkCmdEndRenderPass.unwrap()(device.get_current_command_buffer());
         }
@@ -124,7 +132,7 @@ impl BackendRenderPass {
 
 impl From<&BackendRenderPass> for VkRenderPass {
     fn from(render_pass: &BackendRenderPass) -> VkRenderPass {
-        render_pass.inner.read().unwrap().render_pass
+        render_pass.get_render_pass()
     }
 }
 
