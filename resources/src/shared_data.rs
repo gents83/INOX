@@ -111,7 +111,8 @@ impl SharedData {
             return Vec::new();
         }
         let shared_data = shared_data.read().unwrap();
-        shared_data.get_storage::<T>().handles().clone()
+        let resources = shared_data.get_storage::<T>().handles();
+        resources.clone()
     }
     #[inline]
     fn clear(&mut self) {
