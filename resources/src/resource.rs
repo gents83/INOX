@@ -6,7 +6,7 @@ use std::{
     sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard},
 };
 
-use crate::{GenericRef, HandleCastTo, ResourceRef};
+use crate::ResourceRef;
 
 #[derive(Clone)]
 pub enum ResourceEvent {
@@ -96,15 +96,10 @@ impl ResourceCastTo for GenericResource {
 
 pub trait TypedStorage {
     fn as_any(self: Box<Self>) -> Box<dyn Any>;
-    fn add(&mut self, handle: GenericRef, data: GenericResource);
-    fn resource(&self, resource_id: ResourceId) -> GenericResource;
-    fn get(&self, resource_id: ResourceId) -> GenericRef;
     fn remove_all(&mut self);
     fn flush(&mut self);
-    fn remove(&mut self, resource_id: ResourceId);
     fn has(&self, resource_id: ResourceId) -> bool;
-    fn handles(&self) -> Vec<GenericRef>;
-    fn resources(&self) -> Vec<GenericResource>;
+    fn remove(&mut self, resource_id: ResourceId);
     fn count(&self) -> usize;
 }
 
@@ -136,34 +131,6 @@ where
     fn as_any(self: Box<Self>) -> Box<dyn Any> {
         self
     }
-    #[inline]
-    fn add(&mut self, handle: GenericRef, resource: GenericResource) {
-        self.handles.push(handle.of_type::<T>());
-        self.resources.push(resource.of_type::<T>());
-    }
-
-    #[inline]
-    fn resource(&self, resource_id: ResourceId) -> GenericResource
-    where
-        T: ResourceData,
-    {
-        if let Some(resource) = self.resources.iter().find(|r| r.id() == resource_id) {
-            resource.clone()
-        } else {
-            panic!("Resource {} not found", resource_id.to_simple());
-        }
-    }
-    #[inline]
-    fn get(&self, resource_id: ResourceId) -> GenericRef
-    where
-        T: ResourceData,
-    {
-        if let Some(handle) = self.handles.iter().find(|h| h.id() == resource_id) {
-            handle.clone()
-        } else {
-            panic!("Resource {} not found", resource_id);
-        }
-    }
 
     #[inline]
     fn remove_all(&mut self) {
@@ -191,26 +158,57 @@ where
     fn has(&self, resource_id: ResourceId) -> bool {
         self.handles.iter().any(|h| h.id() == resource_id)
     }
-
-    #[inline]
-    fn handles(&self) -> Vec<GenericRef> {
-        let mut handles = Vec::new();
-        for handle in self.handles.iter() {
-            handles.push(handle.clone() as _);
-        }
-        handles
-    }
-
-    #[inline]
-    fn resources(&self) -> Vec<GenericResource> {
-        let mut resources = Vec::new();
-        for resource in self.resources.iter() {
-            resources.push(resource.clone() as _);
-        }
-        resources
-    }
     #[inline]
     fn count(&self) -> usize {
         self.resources.len()
+    }
+}
+
+impl<T> Storage<T>
+where
+    T: ResourceData + Sized + 'static,
+{
+    #[inline]
+    pub fn add(&mut self, handle: ResourceRef<T>, resource: Resource<T>) {
+        self.handles.push(handle);
+        self.resources.push(resource);
+    }
+
+    #[inline]
+    pub fn resource(&self, resource_id: ResourceId) -> Resource<T> {
+        if let Some(resource) = self.resources.iter().find(|r| r.id() == resource_id) {
+            resource.clone()
+        } else {
+            panic!("Resource {} not found", resource_id.to_simple());
+        }
+    }
+    #[inline]
+    pub fn get(&self, resource_id: ResourceId) -> ResourceRef<T> {
+        if let Some(handle) = self.handles.iter().find(|h| h.id() == resource_id) {
+            handle.clone()
+        } else {
+            panic!("Resource {} not found", resource_id);
+        }
+    }
+    #[inline]
+    pub fn handles(&self) -> &Vec<ResourceRef<T>> {
+        &self.handles
+    }
+
+    #[inline]
+    pub fn resources(&self) -> &Vec<Resource<T>> {
+        &self.resources
+    }
+    #[inline]
+    pub fn match_resource<F>(&self, f: F) -> Option<ResourceRef<T>>
+    where
+        F: Fn(&T) -> bool,
+    {
+        for h in self.handles.iter() {
+            if f(&h.resource().as_ref().get()) {
+                return Some(h.clone());
+            }
+        }
+        None
     }
 }

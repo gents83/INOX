@@ -12,7 +12,7 @@ use nrg_messenger::{read_messages, MessageChannel, MessengerRw};
 use nrg_resources::{ResourceEvent, SharedData, SharedDataRw};
 
 use crate::{
-    is_shader, is_texture, Mesh, MeshRc, Pipeline, RenderPass, RenderPassRc, RendererRw,
+    is_shader, is_texture, Mesh, MeshCategoryId, MeshRc, Pipeline, RenderPass, RendererRw,
     RendererState, Texture, INVALID_INDEX,
 };
 
@@ -76,11 +76,14 @@ impl UpdateSystem {
         });
     }
 
-    fn create_render_mesh_job(renderer: &RendererRw, mesh: &MeshRc, render_pass: &RenderPassRc) {
-        let should_render = render_pass
-            .resource()
-            .get()
-            .mesh_category_to_draw()
+    fn create_render_mesh_job(
+        renderer: RendererRw,
+        mesh: MeshRc,
+        mesh_category_to_draw: &[MeshCategoryId],
+    ) {
+        nrg_profiler::scoped_profile!(format!("create_render_mesh_job[{}]", mesh.id()).as_str());
+
+        let should_render = mesh_category_to_draw
             .iter()
             .any(|id| mesh.resource().get().category_identifier() == *id);
         if !should_render {
@@ -104,6 +107,7 @@ impl UpdateSystem {
 
         let (diffuse_texture_index, diffuse_layer_index) =
             if material.resource().get().has_diffuse_texture() {
+                nrg_profiler::scoped_profile!("Obtaining texture info");
                 let diffuse_texture = material.resource().get().diffuse_texture();
                 let (diffuse_texture_index, diffuse_layer_index) = (
                     diffuse_texture.resource().get().texture_index() as _,
@@ -166,24 +170,31 @@ impl System for UpdateSystem {
 
         let render_passes = SharedData::get_resources_of_type::<RenderPass>(&self.shared_data);
         render_passes.iter().for_each(|render_pass| {
-            let job_name = format!(
-                "Processing meshes for RenderPass [{:?}",
-                render_pass.resource().get().data().name
-            );
-            let renderer = self.renderer.clone();
-            let render_pass = render_pass.clone();
-            let wait_count = wait_count.clone();
+            let mesh_category_to_draw = render_pass
+                .resource()
+                .get()
+                .mesh_category_to_draw()
+                .to_vec();
             let meshes = SharedData::get_resources_of_type::<Mesh>(&self.shared_data);
-            self.job_handler
-                .write()
-                .unwrap()
-                .add_job(job_name.as_str(), move || {
-                    wait_count.fetch_add(1, Ordering::SeqCst);
-                    meshes.iter().for_each(|mesh| {
-                        Self::create_render_mesh_job(&renderer, mesh, &render_pass);
+            meshes.iter().for_each(|mesh| {
+                let renderer = self.renderer.clone();
+                let wait_count = wait_count.clone();
+                let mesh = mesh.clone();
+                let mesh_category_to_draw = mesh_category_to_draw.clone();
+                let job_name = format!(
+                    "Processing mesh {:?} for RenderPass [{:?}",
+                    mesh.id(),
+                    render_pass.resource().get().data().name
+                );
+                self.job_handler
+                    .write()
+                    .unwrap()
+                    .add_job(job_name.as_str(), move || {
+                        wait_count.fetch_add(1, Ordering::SeqCst);
+                        Self::create_render_mesh_job(renderer, mesh, &mesh_category_to_draw);
+                        wait_count.fetch_sub(1, Ordering::SeqCst);
                     });
-                    wait_count.fetch_sub(1, Ordering::SeqCst);
-                });
+            });
         });
 
         let renderer = self.renderer.clone();

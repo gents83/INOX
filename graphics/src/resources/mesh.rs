@@ -122,6 +122,7 @@ impl Mesh {
 
     pub fn process_uv_for_texture(&mut self, texture: Option<&TextureInfo>) -> &mut Self {
         if !self.uv_converted {
+            nrg_profiler::scoped_profile!("Texture::process_uv_for_texture");
             self.uv_converted = true;
             for v in self.mesh_data.vertices.iter_mut() {
                 let tex_coord = &mut v.tex_coord;

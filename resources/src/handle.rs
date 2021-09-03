@@ -2,9 +2,7 @@ use std::{any::Any, marker::PhantomData, sync::Arc};
 
 use nrg_serialize::INVALID_UID;
 
-use crate::{
-    Resource, ResourceCastTo, ResourceData, ResourceId, SharedData, SharedDataRw, TypedStorage,
-};
+use crate::{Resource, ResourceData, ResourceId, SharedData, SharedDataRw};
 
 pub trait Handle: Send + Sync + Any {
     fn as_any(self: Arc<Self>) -> Arc<dyn Any + Send + Sync>;
@@ -69,10 +67,7 @@ where
     #[inline]
     pub fn resource(&self) -> Resource<T> {
         let shared_data = self.shared_data.read().unwrap();
-        shared_data
-            .get_storage::<T>()
-            .resource(self.id)
-            .of_type::<T>()
+        shared_data.get_storage::<T>().resource(self.id)
     }
 }
 

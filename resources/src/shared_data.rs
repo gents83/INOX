@@ -7,8 +7,8 @@ use std::{
 use nrg_serialize::{generate_uid_from_string, Uid};
 
 use crate::{
-    Data, HandleCastTo, ResourceData, ResourceHandle, ResourceId, ResourceMutex, ResourceRef,
-    Storage, TypedStorage,
+    Data, ResourceData, ResourceHandle, ResourceId, ResourceMutex, ResourceRef, Storage,
+    TypedStorage,
 };
 
 pub struct SharedData {
@@ -101,10 +101,7 @@ impl SharedData {
         resource_id: ResourceId,
     ) -> ResourceRef<T> {
         let shared_data = shared_data.read().unwrap();
-        shared_data
-            .get_storage::<T>()
-            .get(resource_id)
-            .of_type::<T>()
+        shared_data.get_storage::<T>().get(resource_id)
     }
     #[inline]
     pub fn get_resources_of_type<T: ResourceData>(
@@ -114,8 +111,7 @@ impl SharedData {
             return Vec::new();
         }
         let shared_data = shared_data.read().unwrap();
-        let handles = shared_data.get_storage::<T>().handles();
-        handles.into_iter().map(|h| h.of_type::<T>()).collect()
+        shared_data.get_storage::<T>().handles().clone()
     }
     #[inline]
     fn clear(&mut self) {
@@ -158,17 +154,7 @@ impl SharedData {
         F: Fn(&T) -> bool,
     {
         let shared_data = shared_data.read().unwrap();
-        let typeid = generate_uid_from_string(type_name::<T>());
-        if let Some(rs) = shared_data.storage.get(&typeid) {
-            let handles = rs.handles();
-            for h in handles.iter() {
-                let handle = h.clone().of_type::<T>();
-                if f(&handle.resource().as_ref().get()) {
-                    return Some(handle);
-                }
-            }
-        }
-        None
+        shared_data.get_storage::<T>().match_resource(f)
     }
     #[inline]
     pub fn get_num_resources_of_type<T: ResourceData>(shared_data: &SharedDataRw) -> usize {
