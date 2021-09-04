@@ -36,10 +36,10 @@ impl BoundingBoxDrawer {
         self.update_events();
 
         for object_id in self.objects_to_draw.iter() {
-            if SharedData::has_resource::<Object>(&self.shared_data, *object_id) {
+            if SharedData::has::<Object>(&self.shared_data, *object_id) {
                 let mut min = Vector3::zero();
                 let mut max = Vector3::zero();
-                let object = SharedData::get_resource::<Object>(&self.shared_data, *object_id);
+                let object = SharedData::get_handle::<Object>(&self.shared_data, *object_id);
                 if let Some(hitbox) = object.resource().get().get_component::<Hitbox>() {
                     min = hitbox.resource().get().min();
                     max = hitbox.resource().get().max();

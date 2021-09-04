@@ -90,8 +90,8 @@ impl Properties {
         ui: &mut Ui,
         object_id: ObjectId,
     ) {
-        if SharedData::has_resource::<Object>(shared_data, object_id) {
-            let object = SharedData::get_resource::<Object>(shared_data, object_id);
+        if SharedData::has::<Object>(shared_data, object_id) {
+            let object = SharedData::get_handle::<Object>(shared_data, object_id);
 
             object.resource().get_mut().show(ui_registry, ui, false);
         }

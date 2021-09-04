@@ -345,12 +345,12 @@ impl Gizmo {
         delta.z *= self.axis.z;
         if self.mode_type == GizmoType::Move {
             self.transform.resource().get_mut().translate(delta);
-            let object = SharedData::get_resource::<Object>(&self.shared_data, object_id);
+            let object = SharedData::get_handle::<Object>(&self.shared_data, object_id);
             if let Some(transform) = object.resource().get().get_component::<Transform>() {
                 transform.resource().get_mut().translate(delta);
             }
         } else if self.mode_type == GizmoType::Scale {
-            let object = SharedData::get_resource::<Object>(&self.shared_data, object_id);
+            let object = SharedData::get_handle::<Object>(&self.shared_data, object_id);
             if let Some(transform) = object.resource().get().get_component::<Transform>() {
                 if self.axis == Vector3::default_one() {
                     let min = delta.x.min(delta.y).min(delta.z);
@@ -366,7 +366,7 @@ impl Gizmo {
         } else if self.mode_type == GizmoType::Rotate {
             delta.x *= -1.;
             delta.y *= -1.;
-            let object = SharedData::get_resource::<Object>(&self.shared_data, object_id);
+            let object = SharedData::get_handle::<Object>(&self.shared_data, object_id);
             if let Some(transform) = object.resource().get().get_component::<Transform>() {
                 transform.resource().get_mut().rotate(delta);
             }
@@ -440,7 +440,7 @@ impl Gizmo {
                 .get_mut()
                 .set_position(Vector3::zero());
         } else {
-            let object = SharedData::get_resource::<Object>(&self.shared_data, object_id);
+            let object = SharedData::get_handle::<Object>(&self.shared_data, object_id);
             if let Some(transform) = object.resource().get().get_component::<Transform>() {
                 self.transform
                     .resource()

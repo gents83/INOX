@@ -6,7 +6,7 @@ use nrg_graphics::{
 use nrg_math::{raycast_oob, InnerSpace, MatBase, Matrix4, Vector2, Vector3, Zero};
 use nrg_messenger::{Message, MessengerRw};
 use nrg_platform::{Key, KeyEvent};
-use nrg_resources::{DataTypeResource, SharedData, SharedDataRw};
+use nrg_resources::{DataTypeResource, Resource, ResourceData, SharedData, SharedDataRw};
 use nrg_scene::{Hitbox, Object, ObjectId, Transform};
 use nrg_serialize::{generate_uid_from_string, INVALID_UID};
 use nrg_ui::{
@@ -255,8 +255,7 @@ impl View3D {
 
     fn get_texture_index(shared_data: &SharedDataRw, texture_id: TextureId) -> usize {
         let mut texture_index = 0;
-        let textures = SharedData::get_resources_of_type::<Texture>(shared_data);
-        if let Some(index) = textures.iter().position(|t| t.id() == texture_id) {
+        if let Some(index) = SharedData::get_index_of_handle::<Texture>(shared_data, texture_id) {
             texture_index = index;
         }
         texture_index
@@ -307,9 +306,9 @@ impl View3D {
 
     fn update_camera(&mut self) -> &mut Self {
         if let Some(data) = self.ui_page.resource().get_mut().data_mut::<View3DData>() {
-            if SharedData::has_resources_of_type::<View>(&self.shared_data) {
-                let views = SharedData::get_resources_of_type::<View>(&self.shared_data);
-                let view = views.first().unwrap();
+            if let Some(view) =
+                SharedData::match_resource(&self.shared_data, |view: &View| !view.id().is_nil())
+            {
                 let view_matrix = data.camera.view_matrix();
                 let proj_matrix = data.camera.proj_matrix();
 
@@ -333,8 +332,8 @@ impl View3D {
         let texture = Texture::create_from_data(shared_data, image_data);
 
         let render_pass_id = generate_uid_from_string(render_pass_name);
-        if SharedData::has_resource::<RenderPass>(shared_data, render_pass_id) {
-            let render_pass = SharedData::get_resource::<RenderPass>(shared_data, render_pass_id);
+        if SharedData::has::<RenderPass>(shared_data, render_pass_id) {
+            let render_pass = SharedData::get_handle::<RenderPass>(shared_data, render_pass_id);
             render_pass
                 .resource()
                 .get_mut()
@@ -359,28 +358,26 @@ impl View3D {
         let ray_dir_world = ray_end_world - ray_start_world;
         let ray_dir_world = ray_dir_world.normalize();
 
-        if SharedData::has_resources_of_type::<Object>(&data.shared_data) {
-            let mut min = [-5., -5., -5.].into();
-            let mut max = [5., 5., 5.].into();
-            let mut matrix = Matrix4::default_identity();
-            let objects = SharedData::get_resources_of_type::<Object>(&data.shared_data);
-            for obj in objects {
-                if let Some(transform) = obj.resource().get().get_component::<Transform>() {
-                    matrix = transform.resource().get().matrix();
-                }
-                if let Some(hitbox) = obj.resource().get().get_component::<Hitbox>() {
-                    min = hitbox.resource().get().min();
-                    max = hitbox.resource().get().max();
-                } else if let Some(mesh) = obj.resource().get().get_component::<Mesh>() {
-                    let (mesh_min, mesh_max) = mesh.resource().get().mesh_data().compute_min_max();
-                    min = mesh_min;
-                    max = mesh_max;
-                }
-                if raycast_oob(ray_start_world.xyz(), ray_dir_world.xyz(), min, max, matrix) {
-                    selected_object = obj.id();
-                }
+        let mut min = [-5., -5., -5.].into();
+        let mut max = [5., 5., 5.].into();
+        let mut matrix = Matrix4::default_identity();
+        SharedData::for_each_resource(&data.shared_data, |obj: &Resource<Object>| {
+            if let Some(transform) = obj.get().get_component::<Transform>() {
+                matrix = transform.resource().get().matrix();
             }
-        }
+            if let Some(hitbox) = obj.get().get_component::<Hitbox>() {
+                min = hitbox.resource().get().min();
+                max = hitbox.resource().get().max();
+            } else if let Some(mesh) = obj.get().get_component::<Mesh>() {
+                let (mesh_min, mesh_max) = mesh.resource().get().mesh_data().compute_min_max();
+                min = mesh_min;
+                max = mesh_max;
+            }
+            if raycast_oob(ray_start_world.xyz(), ray_dir_world.xyz(), min, max, matrix) {
+                selected_object = obj.id();
+            }
+        });
+
         selected_object
     }
 

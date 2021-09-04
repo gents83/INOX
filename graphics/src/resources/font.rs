@@ -71,11 +71,8 @@ impl Font {
         SharedData::match_resource(shared_data, |f: &Font| f.path == path)
     }
     pub fn get_default(shared_data: &SharedDataRw) -> FontId {
-        if SharedData::has_resources_of_type::<Font>(shared_data) {
-            let fonts = SharedData::get_resources_of_type::<Font>(shared_data);
-            if !fonts.is_empty() {
-                return fonts.first().unwrap().id();
-            }
+        if let Some(font) = SharedData::match_resource(shared_data, |f: &Font| !f.id().is_nil()) {
+            return font.id();
         }
         INVALID_UID
     }

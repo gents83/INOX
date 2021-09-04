@@ -5,7 +5,7 @@ use std::{
 };
 
 use nrg_graphics::{Font, Material, Mesh, Pipeline, Texture, View};
-use nrg_resources::{ResourceData, SharedData, SharedDataRw};
+use nrg_resources::{Resource, ResourceData, SharedData, SharedDataRw};
 use nrg_scene::{Hitbox, Object, Scene, Transform};
 use nrg_ui::{
     implement_widget_data, UIProperties, UIPropertiesRegistry, UIWidget, UIWidgetRc, Ui, Window,
@@ -131,10 +131,9 @@ impl DebugInfo {
                 SharedData::get_num_resources_of_type::<R>(shared_data)
             ),
             |ui| {
-                let resources = SharedData::get_resources_of_type::<R>(shared_data);
-                for r in resources.iter() {
-                    r.resource().get_mut().show(ui_registry, ui, true);
-                }
+                SharedData::for_each_resource(shared_data, |r: &Resource<R>| {
+                    r.get_mut().show(ui_registry, ui, true);
+                });
             },
         );
     }

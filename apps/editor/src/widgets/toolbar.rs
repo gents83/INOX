@@ -108,8 +108,7 @@ impl Toolbar {
     }
 
     fn show_icon(ui: &mut Ui, shared_data: &SharedDataRw, texture_id: TextureId) -> bool {
-        let textures = SharedData::get_resources_of_type::<Texture>(shared_data);
-        if let Some(index) = textures.iter().position(|t| t.id() == texture_id) {
+        if let Some(index) = SharedData::get_index_of_handle::<Texture>(shared_data, texture_id) {
             let response = ImageButton::new(eguiTextureId::User(index as _), [32., 32.]).ui(ui);
             return response.clicked();
         }

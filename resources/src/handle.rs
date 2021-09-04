@@ -1,4 +1,8 @@
-use std::{any::Any, marker::PhantomData, sync::Arc};
+use std::{
+    any::{type_name, Any},
+    marker::PhantomData,
+    sync::Arc,
+};
 
 use nrg_serialize::INVALID_UID;
 
@@ -61,13 +65,20 @@ where
 
     #[inline]
     pub fn is_valid(&self) -> bool {
-        !self.id.is_nil() && SharedData::has_resource::<T>(&self.shared_data, self.id)
+        !self.id.is_nil() && SharedData::has::<T>(&self.shared_data, self.id)
     }
 
     #[inline]
     pub fn resource(&self) -> Resource<T> {
         let shared_data = self.shared_data.read().unwrap();
-        shared_data.get_storage::<T>().resource(self.id)
+        if let Some(storage) = shared_data.get_storage::<T>() {
+            return storage.resource(self.id);
+        }
+        panic!(
+            "Resource of Type {:?} with {:?} doesn't exist in storage",
+            type_name::<T>(),
+            self.id
+        );
     }
 }
 

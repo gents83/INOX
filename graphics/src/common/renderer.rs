@@ -1,7 +1,7 @@
 use crate::{is_texture, Device, Font, Instance, Pipeline, RenderPass, Texture, TextureHandler};
 
 use nrg_platform::Handle;
-use nrg_resources::{FileResource, SharedData, SharedDataRw, DATA_FOLDER};
+use nrg_resources::{FileResource, Resource, ResourceData, SharedData, SharedDataRw, DATA_FOLDER};
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 
@@ -97,27 +97,24 @@ impl Renderer {
     pub fn recreate(&mut self) {
         nrg_profiler::scoped_profile!("renderer::recreate");
         self.device.recreate_swap_chain();
-        let pipelines = SharedData::get_resources_of_type::<Pipeline>(&self.shared_data);
-        pipelines.iter().for_each(|pipeline| {
-            pipeline.resource().get_mut().invalidate();
+
+        SharedData::for_each_resource(&self.shared_data, |pipeline: &Resource<Pipeline>| {
+            pipeline.get_mut().invalidate();
         });
-        let render_passes = SharedData::get_resources_of_type::<RenderPass>(&self.shared_data);
-        render_passes
-            .iter()
-            .for_each(|render_pass| render_pass.resource().get_mut().invalidate());
+        SharedData::for_each_resource(&self.shared_data, |render_pass: &Resource<RenderPass>| {
+            render_pass.get_mut().invalidate()
+        });
     }
 }
 
 impl Renderer {
     fn init_render_passes(&mut self) {
         nrg_profiler::scoped_profile!("renderer::init_render_passes");
-        let render_passes = SharedData::get_resources_of_type::<RenderPass>(&self.shared_data);
-        render_passes.iter().for_each(|render_pass| {
-            if !render_pass.resource().get().is_initialized() {
-                render_pass
-                    .resource()
-                    .get_mut()
-                    .init(&mut self.device, &mut self.texture_handler);
+        let device = &mut self.device;
+        let texture_handler = &mut self.texture_handler;
+        SharedData::for_each_resource(&self.shared_data, |render_pass: &Resource<RenderPass>| {
+            if !render_pass.get().is_initialized() {
+                render_pass.get_mut().init(device, texture_handler);
             }
         });
     }
@@ -128,60 +125,53 @@ impl Renderer {
                 render_pass.data().name == render_pass_name
             });
         if let Some(geometry_render_pass) = geometry_render_pass {
-            let pipelines = SharedData::get_resources_of_type::<Pipeline>(&self.shared_data);
-            pipelines.iter().for_each(|pipeline| {
-                if !pipeline.resource().get().is_initialized() {
+            SharedData::for_each_resource(&self.shared_data, |pipeline: &Resource<Pipeline>| {
+                if !pipeline.get().is_initialized() {
                     pipeline
-                        .resource()
                         .get_mut()
                         .init(&self.device, &*geometry_render_pass.resource().get());
                 }
-                pipeline.resource().get_mut().prepare();
+                pipeline.get_mut().prepare();
             });
         }
     }
 
     fn init_textures(&mut self) {
         nrg_profiler::scoped_profile!("renderer::init_textures");
-        let textures = SharedData::get_resources_of_type::<Texture>(&self.shared_data);
-        textures.iter().for_each(|texture| {
-            if !texture.resource().get().is_initialized() {
-                if texture.resource().get().texture_index() != INVALID_INDEX {
+        let device = &mut self.device;
+        let texture_handler = &mut self.texture_handler;
+        let shared_data = &self.shared_data;
+        SharedData::for_each_resource(shared_data, |texture: &Resource<Texture>| {
+            if !texture.get().is_initialized() {
+                if texture.get().texture_index() != INVALID_INDEX {
                     //texture needs to be recreated
-                    self.texture_handler.remove(&self.device, texture.id());
+                    texture_handler.remove(device, texture.id());
                 }
                 let path = convert_from_local_path(
                     PathBuf::from(DATA_FOLDER).as_path(),
-                    texture.resource().get().path(),
+                    texture.get().path(),
                 );
-                if let Some(texture_info) = self.texture_handler.get_texture_info(texture.id()) {
-                    texture.resource().get_mut().set_texture_info(texture_info);
+                if let Some(texture_info) = texture_handler.get_texture_info(texture.id()) {
+                    texture.get_mut().set_texture_info(texture_info);
                 } else {
-                    let texture_info =
-                        if let Some(image_data) = texture.resource().get_mut().image_data() {
-                            self.texture_handler
-                                .add(&self.device, texture.id(), image_data)
-                        } else if is_texture(path.as_path()) {
-                            self.texture_handler.add_from_path(
-                                &self.device,
+                    let texture_info = if let Some(image_data) = texture.get_mut().image_data() {
+                        texture_handler.add(device, texture.id(), image_data)
+                    } else if is_texture(path.as_path()) {
+                        texture_handler.add_from_path(device, texture.id(), path.as_path())
+                    } else {
+                        let font =
+                            SharedData::match_resource(shared_data, |f: &Font| f.path() == path);
+                        if let Some(font) = font {
+                            texture_handler.add(
+                                device,
                                 texture.id(),
-                                path.as_path(),
+                                font.resource().get().font_data().get_texture(),
                             )
                         } else {
-                            let font = SharedData::match_resource(&self.shared_data, |f: &Font| {
-                                f.path() == path
-                            });
-                            if let Some(font) = font {
-                                self.texture_handler.add(
-                                    &self.device,
-                                    texture.id(),
-                                    font.resource().get().font_data().get_texture(),
-                                )
-                            } else {
-                                panic!("Unable to load texture with path {:?}", path.as_path());
-                            }
-                        };
-                    texture.resource().get_mut().set_texture_info(&texture_info);
+                            panic!("Unable to load texture with path {:?}", path.as_path());
+                        }
+                    };
+                    texture.get_mut().set_texture_info(&texture_info);
                 }
             }
         });

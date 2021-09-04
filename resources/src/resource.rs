@@ -1,7 +1,7 @@
 use nrg_messenger::implement_message;
 use nrg_serialize::Uid;
 use std::{
-    any::Any,
+    any::{type_name, Any},
     collections::HashMap,
     path::PathBuf,
     sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard},
@@ -174,8 +174,20 @@ where
         {
             handle.clone()
         } else {
-            panic!("Resource {} not found", resource_id.to_simple());
+            panic!(
+                "Resource of Type {:?} with {:?} doesn't exist in storage",
+                type_name::<T>(),
+                resource_id
+            );
         }
+    }
+    #[inline]
+    pub fn get_handle_at_index(&self, handle_index: usize) -> ResourceRef<T> {
+        self.handles[handle_index].clone()
+    }
+    #[inline]
+    pub fn get_index(&self, resource_id: ResourceId) -> Option<usize> {
+        self.handles.iter().position(|h| h.id() == resource_id)
     }
     #[inline]
     pub fn handles(&self) -> &Vec<ResourceRef<T>> {
@@ -196,5 +208,12 @@ where
             }
         }
         None
+    }
+    #[inline]
+    pub fn for_each_resource<F>(&self, mut f: F)
+    where
+        F: FnMut(&Resource<T>),
+    {
+        self.resources.iter().for_each(|(_, r)| f(r));
     }
 }

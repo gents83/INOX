@@ -7,7 +7,7 @@ use std::{
 use nrg_serialize::{generate_uid_from_string, Uid};
 
 use crate::{
-    Data, ResourceData, ResourceHandle, ResourceId, ResourceMutex, ResourceRef, Storage,
+    Data, Resource, ResourceData, ResourceHandle, ResourceId, ResourceMutex, ResourceRef, Storage,
     TypedStorage,
 };
 
@@ -61,58 +61,82 @@ impl SharedData {
         }
     }
     #[inline]
-    pub fn get_storage<T>(&self) -> &Storage<T>
+    pub fn get_storage<T>(&self) -> Option<&Storage<T>>
     where
         T: ResourceData,
     {
         let typeid = generate_uid_from_string(type_name::<T>());
         if let Some(rs) = self.storage.get(&typeid) {
             let storage = rs.as_ref() as *const dyn TypedStorage as *const Storage<T>;
-            unsafe { &*storage }
+            return Some(unsafe { &*storage });
         } else {
-            panic!("Type {} has not been registered", type_name::<T>());
+            eprintln!("Type {} has not been registered", type_name::<T>());
         }
+        None
     }
     #[inline]
-    pub fn get_storage_mut<T>(&mut self) -> &mut Storage<T>
+    pub fn get_storage_mut<T>(&mut self) -> Option<&mut Storage<T>>
     where
         T: ResourceData,
     {
         let typeid = generate_uid_from_string(type_name::<T>());
         if let Some(rs) = self.storage.get_mut(&typeid) {
             let storage = rs.as_mut() as *mut dyn TypedStorage as *mut Storage<T>;
-            unsafe { &mut *storage }
+            return Some(unsafe { &mut *storage });
         } else {
-            panic!("Type {} has not been registered", type_name::<T>());
+            eprintln!("Type {} has not been registered", type_name::<T>());
         }
+        None
     }
     #[inline]
     pub fn add_resource<T: ResourceData>(shared_data: &SharedDataRw, data: T) -> ResourceRef<T> {
         let handle = Arc::new(ResourceHandle::new(data.id(), shared_data.clone()));
         let mut shared_data = shared_data.write().unwrap();
-        shared_data
-            .get_storage_mut::<T>()
-            .add(handle.clone(), Arc::new(ResourceMutex::new(data)));
+        if let Some(storage) = shared_data.get_storage_mut::<T>() {
+            storage.add(handle.clone(), Arc::new(ResourceMutex::new(data)));
+        }
         handle
     }
     #[inline]
-    pub fn get_resource<T: ResourceData>(
+    pub fn get_handle<T: ResourceData>(
         shared_data: &SharedDataRw,
         resource_id: ResourceId,
     ) -> ResourceRef<T> {
         let shared_data = shared_data.read().unwrap();
-        shared_data.get_storage::<T>().get(resource_id)
+        if let Some(storage) = shared_data.get_storage::<T>() {
+            return storage.get(resource_id);
+        }
+        panic!(
+            "Resource of Type {:?} with {:?} doesn't exist in storage",
+            type_name::<T>(),
+            resource_id
+        );
     }
     #[inline]
-    pub fn get_resources_of_type<T: ResourceData>(
+    pub fn get_handle_from_index<T: ResourceData>(
         shared_data: &SharedDataRw,
-    ) -> Vec<ResourceRef<T>> {
-        if !Self::has_resources_of_type::<T>(shared_data) {
-            return Vec::new();
-        }
+        handle_index: usize,
+    ) -> ResourceRef<T> {
         let shared_data = shared_data.read().unwrap();
-        let resources = shared_data.get_storage::<T>().handles();
-        resources.clone()
+        if let Some(storage) = shared_data.get_storage::<T>() {
+            return storage.get_handle_at_index(handle_index);
+        }
+        panic!(
+            "Resource of Type {:?} has nothing at index {:?}",
+            type_name::<T>(),
+            handle_index
+        );
+    }
+    #[inline]
+    pub fn get_index_of_handle<T: ResourceData>(
+        shared_data: &SharedDataRw,
+        resource_id: ResourceId,
+    ) -> Option<usize> {
+        let shared_data = shared_data.read().unwrap();
+        if let Some(storage) = shared_data.get_storage::<T>() {
+            return storage.get_index(resource_id);
+        }
+        None
     }
     #[inline]
     fn clear(&mut self) {
@@ -131,7 +155,7 @@ impl SharedData {
         }
     }
     #[inline]
-    pub fn has_resource<T: 'static>(shared_data: &SharedDataRw, resource_id: ResourceId) -> bool {
+    pub fn has<T: 'static>(shared_data: &SharedDataRw, resource_id: ResourceId) -> bool {
         let shared_data = shared_data.read().unwrap();
         let typeid = generate_uid_from_string(type_name::<T>());
         if let Some(rs) = shared_data.storage.get(&typeid) {
@@ -149,13 +173,27 @@ impl SharedData {
         false
     }
     #[inline]
+    pub fn for_each_resource<T, F>(shared_data: &SharedDataRw, f: F)
+    where
+        T: ResourceData,
+        F: FnMut(&Resource<T>),
+    {
+        let shared_data = shared_data.read().unwrap();
+        if let Some(storage) = shared_data.get_storage::<T>() {
+            return storage.for_each_resource(f);
+        }
+    }
+    #[inline]
     pub fn match_resource<T, F>(shared_data: &SharedDataRw, f: F) -> Option<ResourceRef<T>>
     where
         T: ResourceData,
         F: Fn(&T) -> bool,
     {
         let shared_data = shared_data.read().unwrap();
-        shared_data.get_storage::<T>().match_resource(f)
+        if let Some(storage) = shared_data.get_storage::<T>() {
+            return storage.match_resource(f);
+        }
+        None
     }
     #[inline]
     pub fn get_num_resources_of_type<T: ResourceData>(shared_data: &SharedDataRw) -> usize {

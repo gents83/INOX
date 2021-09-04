@@ -199,7 +199,7 @@ impl Text {
 impl InternalWidget for Text {
     fn widget_init(&mut self) {
         let font_id = Font::get_default(self.get_shared_data());
-        self.font = SharedData::get_resource::<Font>(self.get_shared_data(), font_id);
+        self.font = SharedData::get_handle::<Font>(self.get_shared_data(), font_id);
 
         if self.is_initialized() {
             self.is_dirty = true;

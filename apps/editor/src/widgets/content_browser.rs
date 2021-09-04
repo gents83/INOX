@@ -280,12 +280,11 @@ impl ContentBrowser {
                                 if data.selected_folder.is_dir() {
                                     let path = data.selected_folder.as_path().to_path_buf();
                                     let files = Self::get_files(&data.dir, path.as_path());
-                                    let textures = SharedData::get_resources_of_type::<Texture>(
+
+                                    let texture_index = SharedData::get_index_of_handle::<Texture>(
                                         &data.shared_data,
+                                        data.icon_file_texture_id,
                                     );
-                                    let texture_index = textures
-                                        .iter()
-                                        .position(|t| t.id() == data.icon_file_texture_id);
                                     Self::populate_with_files(
                                         ui,
                                         files,

@@ -19,7 +19,7 @@ use nrg_platform::{
     InputState, KeyEvent, KeyTextEvent, MouseButton, MouseEvent, MouseState, WindowEvent,
     DEFAULT_DPI,
 };
-use nrg_resources::{DataTypeResource, SharedData, SharedDataRw};
+use nrg_resources::{DataTypeResource, Resource, ResourceData, SharedData, SharedDataRw};
 
 use crate::UIWidget;
 
@@ -130,7 +130,6 @@ impl UISystem {
         self.ui_meshes.resize_with(clipped_meshes.len(), || {
             Mesh::create_from_data(&shared_data, MeshData::new(UI_MESH_CATEGORY_IDENTIFIER))
         });
-        let textures = SharedData::get_resources_of_type::<Texture>(&self.shared_data);
 
         for (i, clipped_mesh) in clipped_meshes.into_iter().enumerate() {
             let ClippedMesh(_, mesh) = clipped_mesh;
@@ -144,7 +143,10 @@ impl UISystem {
             }
             let texture = match mesh.texture_id {
                 eguiTextureId::Egui => self.ui_texture.clone(),
-                eguiTextureId::User(texture_index) => textures[texture_index as usize].clone(),
+                eguiTextureId::User(texture_index) => SharedData::get_handle_from_index::<Texture>(
+                    &self.shared_data,
+                    texture_index as usize,
+                ),
             };
             let material = self.get_ui_material(texture);
             let mesh_instance = self.ui_meshes[i].clone();
@@ -279,21 +281,21 @@ impl UISystem {
 
     fn show_ui(&mut self, use_multithreading: bool) {
         nrg_profiler::scoped_profile!("ui_system::show_ui");
-        let widgets = SharedData::get_resources_of_type::<UIWidget>(&self.shared_data);
-        for (i, widget) in widgets.into_iter().enumerate() {
+        SharedData::for_each_resource(&self.shared_data, |widget: &Resource<UIWidget>| {
             if use_multithreading {
                 let context = self.ui_context.clone();
-                let job_name = format!("ui_system::show_ui[{}]", i);
+                let widget = widget.clone();
+                let job_name = format!("ui_system::show_ui[{:?}]", widget.id());
                 self.job_handler
                     .write()
                     .unwrap()
                     .add_job(job_name.as_str(), move || {
-                        widget.resource().get_mut().execute(&context);
+                        widget.get_mut().execute(&context);
                     });
             } else {
-                widget.resource().get_mut().execute(&self.ui_context);
+                widget.get_mut().execute(&self.ui_context);
             }
-        }
+        });
     }
 
     fn handle_output(&mut self, output: Output) -> &mut Self {
