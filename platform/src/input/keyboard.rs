@@ -570,7 +570,7 @@ pub enum Key {
     /** Toggles random media (also known as "shuffle mode") on and off. */
     RandomToggle,
     /** A code sent when the remote control's battery is low. This doesn't actually correspond to a physical key at all. */
-    RcLowBattery,
+    HandleLowBattery,
     /** Cycles among the available media recording speeds. */
     RecordSpeedNext,
     /** Toggles radio frequency (RF) input bypass mode on and off. RF bypass mode passes RF input directly to the RF output without any processing or filtering. */

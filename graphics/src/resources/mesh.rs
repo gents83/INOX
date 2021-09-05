@@ -1,33 +1,26 @@
 use std::path::Path;
 
-use crate::{MaterialRc, MeshCategoryId, MeshData, TextureInfo, INVALID_INDEX};
+use crate::{Material, MeshCategoryId, MeshData, TextureInfo, INVALID_INDEX};
 use nrg_math::{MatBase, Matrix4, Vector4};
 use nrg_resources::{
-    DataTypeResource, Deserializable, ResourceData, ResourceId, ResourceRef, SerializableResource,
-    SharedData, SharedDataRw,
+    DataTypeResource, Deserializable, Handle, Resource, ResourceData, ResourceId,
+    SerializableResource, SharedData, SharedDataRw,
 };
 use nrg_serialize::{generate_random_uid, INVALID_UID};
 
 pub type MeshId = ResourceId;
-pub type MeshRc = ResourceRef<Mesh>;
 
 #[derive(Clone)]
 pub struct Mesh {
     id: ResourceId,
     mesh_data: MeshData,
     matrix: Matrix4,
-    material: MaterialRc,
+    material: Handle<Material>,
     draw_area: Vector4, //pos (x,y) - size(z,w)
     is_visible: bool,
     is_dirty: bool,
     uv_converted: bool,
     draw_index: i32,
-}
-
-impl ResourceData for Mesh {
-    fn id(&self) -> ResourceId {
-        self.id
-    }
 }
 
 impl Default for Mesh {
@@ -36,13 +29,19 @@ impl Default for Mesh {
             id: INVALID_UID,
             mesh_data: MeshData::default(),
             matrix: Matrix4::default_identity(),
-            material: MaterialRc::default(),
+            material: None,
             draw_area: [0., 0., f32::MAX, f32::MAX].into(),
             is_visible: true,
             is_dirty: true,
             uv_converted: false,
             draw_index: INVALID_INDEX,
         }
+    }
+}
+
+impl ResourceData for Mesh {
+    fn id(&self) -> ResourceId {
+        self.id
     }
 }
 
@@ -54,7 +53,7 @@ impl SerializableResource for Mesh {
 
 impl DataTypeResource for Mesh {
     type DataType = MeshData;
-    fn create_from_data(shared_data: &SharedDataRw, mesh_data: Self::DataType) -> MeshRc {
+    fn create_from_data(shared_data: &SharedDataRw, mesh_data: Self::DataType) -> Resource<Self> {
         let mesh_instance = Mesh {
             id: generate_random_uid(),
             mesh_data,
@@ -65,7 +64,7 @@ impl DataTypeResource for Mesh {
 }
 
 impl Mesh {
-    pub fn find_from_path(shared_data: &SharedDataRw, path: &Path) -> Option<MeshRc> {
+    pub fn find_from_path(shared_data: &SharedDataRw, path: &Path) -> Handle<Self> {
         SharedData::match_resource(shared_data, |m: &Mesh| m.path() == path)
     }
     pub fn mesh_data(&self) -> &MeshData {
@@ -95,13 +94,13 @@ impl Mesh {
         self.is_dirty = true;
         self
     }
-    pub fn set_material(&mut self, material: MaterialRc) -> &mut Self {
-        self.material = material;
+    pub fn set_material(&mut self, material: Resource<Material>) -> &mut Self {
+        self.material = Some(material);
         self.is_dirty = true;
         self
     }
-    pub fn material(&self) -> MaterialRc {
-        self.material.clone()
+    pub fn material(&self) -> &Handle<Material> {
+        &self.material
     }
     pub fn draw_index(&self) -> i32 {
         self.draw_index

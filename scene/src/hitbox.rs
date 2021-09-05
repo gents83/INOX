@@ -1,10 +1,9 @@
 use nrg_math::{Mat4Ops, MatBase, Matrix4, VecBase, Vector3};
-use nrg_resources::{ResourceData, ResourceId, ResourceRef};
+use nrg_resources::{ResourceData, ResourceId};
 use nrg_serialize::generate_random_uid;
 use nrg_ui::{CollapsingHeader, UIProperties, UIPropertiesRegistry, Ui};
 
 pub type HitboxId = ResourceId;
-pub type HitboxRc = ResourceRef<Hitbox>;
 
 pub struct Hitbox {
     id: ResourceId,

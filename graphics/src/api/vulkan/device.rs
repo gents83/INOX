@@ -112,13 +112,13 @@ impl BackendDevice {
         self.inner.read().unwrap().current_buffer_index as _
     }
 
-    pub fn get_primary_command_buffer(&mut self) -> VkCommandBuffer {
-        let mut inner = self.inner.write().unwrap();
+    pub fn get_primary_command_buffer(&self) -> VkCommandBuffer {
+        let inner = self.inner.read().unwrap();
         inner.get_primary_command_buffer()
     }
 
-    pub fn get_current_command_buffer(&mut self) -> VkCommandBuffer {
-        let mut inner = self.inner.write().unwrap();
+    pub fn get_current_command_buffer(&self) -> VkCommandBuffer {
+        let inner = self.inner.read().unwrap();
         inner.get_current_command_buffer()
     }
 
@@ -235,7 +235,11 @@ impl BackendDevice {
             .copy_buffer_to_image(buffer, image, layer_index, area);
     }
 
-    pub fn begin_command_buffer(&mut self, render_pass: VkRenderPass, framebuffer: VkFramebuffer) {
+    pub fn acquire_command_buffer(&mut self) {
+        self.inner.write().unwrap().create_thread_data();
+    }
+
+    pub fn begin_command_buffer(&self, render_pass: VkRenderPass, framebuffer: VkFramebuffer) {
         let command_buffer = self.get_current_command_buffer();
         self.inner
             .write()
@@ -243,7 +247,7 @@ impl BackendDevice {
             .begin_command_buffer(command_buffer, render_pass, framebuffer);
     }
 
-    pub fn end_command_buffer(&mut self) {
+    pub fn end_command_buffer(&self) {
         let command_buffer = self.get_current_command_buffer();
         self.inner
             .write()
@@ -915,16 +919,16 @@ impl DeviceImmutable {
         }
     }
 
-    pub fn get_primary_command_buffer(&mut self) -> VkCommandBuffer {
+    pub fn get_primary_command_buffer(&self) -> VkCommandBuffer {
         self.primary_command_buffers[self.current_buffer_index as usize]
     }
-    pub fn get_current_command_buffer(&mut self) -> VkCommandBuffer {
+    pub fn get_current_command_buffer(&self) -> VkCommandBuffer {
         let buffer_index = self.current_buffer_index as usize;
         let thread_data = self.get_thread_data();
         thread_data.command_buffers[buffer_index]
     }
 
-    fn get_thread_data(&mut self) -> &mut ThreadData {
+    fn create_thread_data(&mut self) {
         let thread_id = get_raw_thread_id();
         let device = self.device;
         let graphics_family_index = self.graphics_family_index;
@@ -941,7 +945,11 @@ impl DeviceImmutable {
                 command_pool,
                 command_buffers,
             }
-        })
+        });
+    }
+    fn get_thread_data(&self) -> &ThreadData {
+        let thread_id = get_raw_thread_id();
+        &self.thread_data[&thread_id]
     }
 
     fn get_primary_command_pool(&mut self) -> VkCommandPool {

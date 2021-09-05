@@ -1,22 +1,21 @@
 use std::path::{Path, PathBuf};
 
-use crate::{MaterialData, Pipeline, PipelineRc, Texture, TextureId, TextureRc};
+use crate::{MaterialData, Pipeline, Texture, TextureId};
 
 use nrg_math::{VecBase, Vector4};
 use nrg_resources::{
-    DataTypeResource, Deserializable, FileResource, ResourceData, ResourceId, ResourceRef,
+    DataTypeResource, Deserializable, FileResource, Handle, Resource, ResourceData, ResourceId,
     SerializableResource, SharedData, SharedDataRw,
 };
 use nrg_serialize::{generate_random_uid, generate_uid_from_string, INVALID_UID};
 
 pub type MaterialId = ResourceId;
-pub type MaterialRc = ResourceRef<Material>;
 
 pub struct Material {
     id: ResourceId,
-    pipeline: PipelineRc,
+    pipeline: Handle<Pipeline>,
     path: PathBuf,
-    textures: Vec<TextureRc>,
+    textures: Vec<Resource<Texture>>,
     diffuse_color: Vector4,
     outline_color: Vector4,
 }
@@ -25,7 +24,7 @@ impl Default for Material {
     fn default() -> Self {
         Self {
             id: INVALID_UID,
-            pipeline: PipelineRc::default(),
+            pipeline: None,
             path: PathBuf::new(),
             textures: Vec::new(),
             diffuse_color: [1., 1., 1., 1.].into(),
@@ -49,7 +48,10 @@ impl SerializableResource for Material {
 impl DataTypeResource for Material {
     type DataType = MaterialData;
 
-    fn create_from_data(shared_data: &SharedDataRw, material_data: Self::DataType) -> MaterialRc {
+    fn create_from_data(
+        shared_data: &SharedDataRw,
+        material_data: Self::DataType,
+    ) -> Resource<Self> {
         let id = generate_uid_from_string(material_data.path().to_str().unwrap());
         let path = material_data.path().to_path_buf();
 
@@ -65,8 +67,9 @@ impl DataTypeResource for Material {
             id,
             path,
             textures,
-            pipeline,
-            ..Default::default()
+            pipeline: Some(pipeline),
+            diffuse_color: [1., 1., 1., 1.].into(),
+            outline_color: Vector4::default_zero(),
         };
 
         SharedData::add_resource(shared_data, material)
@@ -74,30 +77,36 @@ impl DataTypeResource for Material {
 }
 
 impl Material {
-    pub fn create_from_pipeline(shared_data: &SharedDataRw, pipeline: &PipelineRc) -> MaterialRc {
+    pub fn create_from_pipeline(
+        shared_data: &SharedDataRw,
+        pipeline: &Resource<Pipeline>,
+    ) -> Resource<Self> {
         SharedData::add_resource(
             shared_data,
             Self {
                 id: generate_random_uid(),
-                pipeline: pipeline.clone(),
-                ..Default::default()
+                pipeline: Some(pipeline.clone()),
+                path: PathBuf::new(),
+                textures: Vec::new(),
+                diffuse_color: [1., 1., 1., 1.].into(),
+                outline_color: Vector4::default_zero(),
             },
         )
     }
-    pub fn find_from_path(shared_data: &SharedDataRw, path: &Path) -> Option<MaterialRc> {
+    pub fn find_from_path(shared_data: &SharedDataRw, path: &Path) -> Handle<Material> {
         SharedData::match_resource(shared_data, |m: &Material| m.path() == path)
     }
-    pub fn pipeline(&self) -> &PipelineRc {
+    pub fn pipeline(&self) -> &Handle<Pipeline> {
         &self.pipeline
     }
-    pub fn textures(&self) -> &Vec<TextureRc> {
+    pub fn textures(&self) -> &Vec<Resource<Texture>> {
         &self.textures
     }
     pub fn has_diffuse_texture(&self) -> bool {
         !self.textures.is_empty()
     }
-    pub fn diffuse_texture(&self) -> TextureRc {
-        self.textures[0].clone()
+    pub fn diffuse_texture(&self) -> &Resource<Texture> {
+        &self.textures[0]
     }
     pub fn diffuse_color(&self) -> Vector4 {
         self.diffuse_color
@@ -121,7 +130,7 @@ impl Material {
         self
     }
 
-    pub fn add_texture(&mut self, texture: TextureRc) -> &mut Self {
+    pub fn add_texture(&mut self, texture: Resource<Texture>) -> &mut Self {
         self.textures.push(texture);
         self
     }

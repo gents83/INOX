@@ -11,6 +11,9 @@
             "program": "${workspaceFolder}/target/debug/nrg_launcher",
             "args": [],
             "cwd": "${workspaceFolder}",
+            "env": {
+                "RUST_BACKTRACE": "full"
+            },
             "stopOnEntry": false,
             "sourceLanguages": [
                 "rust"
@@ -28,6 +31,9 @@
             "args": [
                 "nrg_editor"
             ],
+            "env": {
+                "RUST_BACKTRACE": "full"
+            },
             "cwd": "${workspaceFolder}",
             "stopOnEntry": false,
             "sourceLanguages": [
@@ -44,6 +50,9 @@
             "request": "launch",
             "program": "${workspaceFolder}/target/release/nrg_launcher",
             "args": [],
+            "env": {
+                "RUST_BACKTRACE": "full"
+            },
             "cwd": "${workspaceFolder}",
             "stopOnEntry": false,
             "sourceLanguages": [

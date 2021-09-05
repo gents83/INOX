@@ -1,31 +1,20 @@
-use crate::{FontData, Texture, TextureRc};
+use crate::{FontData, Texture};
 use nrg_filesystem::convert_from_local_path;
 use nrg_math::Vector4;
 use nrg_resources::{
-    FileResource, ResourceData, ResourceId, ResourceRef, SharedData, SharedDataRw, DATA_FOLDER,
+    FileResource, Handle, Resource, ResourceData, ResourceId, SharedData, SharedDataRw, DATA_FOLDER,
 };
 use nrg_serialize::{generate_uid_from_string, INVALID_UID};
 use std::path::{Path, PathBuf};
 
 pub type FontId = ResourceId;
-pub type FontRc = ResourceRef<Font>;
 
+#[derive(Default)]
 pub struct Font {
     id: ResourceId,
     path: PathBuf,
-    texture: TextureRc,
+    texture: Handle<Texture>,
     font_data: FontData,
-}
-
-impl Default for Font {
-    fn default() -> Self {
-        Self {
-            id: INVALID_UID,
-            path: PathBuf::new(),
-            texture: TextureRc::default(),
-            font_data: FontData::default(),
-        }
-    }
 }
 
 impl ResourceData for Font {
@@ -38,7 +27,7 @@ impl FileResource for Font {
     fn path(&self) -> &Path {
         self.path.as_path()
     }
-    fn create_from_file(shared_data: &SharedDataRw, font_path: &Path) -> FontRc {
+    fn create_from_file(shared_data: &SharedDataRw, font_path: &Path) -> Resource<Font> {
         let path = convert_from_local_path(PathBuf::from(DATA_FOLDER).as_path(), font_path);
         if !path.exists() || !path.is_file() {
             panic!("Invalid font path {}", path.to_str().unwrap());
@@ -58,7 +47,7 @@ impl FileResource for Font {
             Font {
                 id: generate_uid_from_string(path.to_str().unwrap()),
                 path,
-                texture,
+                texture: Some(texture),
                 font_data: font,
             },
         )
@@ -66,7 +55,7 @@ impl FileResource for Font {
 }
 
 impl Font {
-    pub fn find_from_path(shared_data: &SharedDataRw, font_path: &Path) -> Option<FontRc> {
+    pub fn find_from_path(shared_data: &SharedDataRw, font_path: &Path) -> Handle<Font> {
         let path = convert_from_local_path(PathBuf::from(DATA_FOLDER).as_path(), font_path);
         SharedData::match_resource(shared_data, |f: &Font| f.path == path)
     }
@@ -80,8 +69,8 @@ impl Font {
     pub fn font_data(&self) -> &FontData {
         &self.font_data
     }
-    pub fn texture(&self) -> TextureRc {
-        self.texture.clone()
+    pub fn texture(&self) -> &Handle<Texture> {
+        &self.texture
     }
     pub fn glyph_texture_coord(&self, c: char) -> Vector4 {
         let index = self.font_data.get_glyph_index(c);

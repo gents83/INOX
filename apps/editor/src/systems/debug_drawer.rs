@@ -2,11 +2,11 @@ use std::any::TypeId;
 
 use nrg_graphics::{
     create_arrow, create_colored_quad, create_line, create_sphere, Material, Mesh, MeshData,
-    MeshRc, PipelineRc,
+    Pipeline,
 };
 use nrg_math::{Vector2, Vector3, Vector4};
 use nrg_messenger::{implement_message, read_messages, Message, MessageChannel, MessengerRw};
-use nrg_resources::{DataTypeResource, SharedDataRw};
+use nrg_resources::{DataTypeResource, Resource, SharedDataRw};
 
 /// A debug drawer
 /// You can use this to draw things in the editor just sending events:
@@ -53,8 +53,8 @@ pub enum DrawEvent {
 implement_message!(DrawEvent);
 
 pub struct DebugDrawer {
-    mesh_instance: MeshRc,
-    wireframe_mesh_instance: MeshRc,
+    mesh_instance: Resource<Mesh>,
+    wireframe_mesh_instance: Resource<Mesh>,
     message_channel: MessageChannel,
 }
 
@@ -62,19 +62,16 @@ impl DebugDrawer {
     pub fn new(
         shared_data: &SharedDataRw,
         global_messenger: &MessengerRw,
-        pipeline_default: &PipelineRc,
-        pipeline_wirefrane: &PipelineRc,
+        pipeline_default: &Resource<Pipeline>,
+        pipeline_wirefrane: &Resource<Pipeline>,
     ) -> Self {
         let mesh_instance = Mesh::create_from_data(shared_data, MeshData::default());
         let material = Material::create_from_pipeline(shared_data, pipeline_default);
-        mesh_instance.resource().get_mut().set_material(material);
+        mesh_instance.get_mut().set_material(material);
 
         let wireframe_mesh_instance = Mesh::create_from_data(shared_data, MeshData::default());
         let material = Material::create_from_pipeline(shared_data, pipeline_wirefrane);
-        wireframe_mesh_instance
-            .resource()
-            .get_mut()
-            .set_material(material);
+        wireframe_mesh_instance.get_mut().set_material(material);
 
         let message_channel = MessageChannel::default();
 
@@ -205,12 +202,8 @@ impl DebugDrawer {
                 }
             }
         });
-        self.mesh_instance
-            .resource()
-            .get_mut()
-            .set_mesh_data(mesh_data);
+        self.mesh_instance.get_mut().set_mesh_data(mesh_data);
         self.wireframe_mesh_instance
-            .resource()
             .get_mut()
             .set_mesh_data(wireframe_mesh_data);
     }

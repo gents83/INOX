@@ -1,10 +1,10 @@
 use std::path::{Path, PathBuf};
 
 use nrg_filesystem::convert_from_local_path;
-use nrg_graphics::{Texture, TextureRc};
+use nrg_graphics::Texture;
 use nrg_math::{Vector2, Vector4};
 use nrg_messenger::Message;
-use nrg_resources::{FileResource, ResourceRef, DATA_FOLDER};
+use nrg_resources::{FileResource, Handle, ResourceData, DATA_FOLDER};
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{
@@ -20,13 +20,13 @@ pub struct Icon {
     data: WidgetData,
     image: Uid,
     text: Uid,
-    #[serde(skip, default = "nrg_resources::ResourceRef::default")]
-    texture: TextureRc,
+    #[serde(skip)]
+    texture: Handle<Texture>,
 }
 implement_widget_with_custom_members!(Icon {
     image: INVALID_UID,
     text: INVALID_UID,
-    texture: ResourceRef::default()
+    texture: None
 });
 
 impl Icon {
@@ -110,19 +110,13 @@ impl Icon {
         let image = self.image;
         if let Some(image) = self.node().get_child_mut::<Panel>(image) {
             let material = image.graphics().get_material();
-            if !self.texture.id().is_nil() {
-                material
-                    .resource()
-                    .get_mut()
-                    .remove_texture(self.texture.id());
+            if let Some(texture) = &self.texture {
+                material.get_mut().remove_texture(texture.id());
             }
             let texture_path = convert_from_local_path(PathBuf::from(DATA_FOLDER).as_path(), path);
-            self.texture =
-                Texture::create_from_file(self.get_shared_data(), texture_path.as_path());
-            material
-                .resource()
-                .get_mut()
-                .add_texture(self.texture.clone());
+            let texture = Texture::create_from_file(self.get_shared_data(), texture_path.as_path());
+            material.get_mut().add_texture(texture.clone());
+            self.texture = Some(texture);
         }
         self
     }

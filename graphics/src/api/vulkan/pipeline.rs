@@ -114,11 +114,11 @@ impl BackendPipeline {
         self
     }
 
-    pub fn bind(&mut self, commands: &[InstanceCommand], instances: &[InstanceData]) -> &mut Self {
+    pub fn bind(&self, commands: &[InstanceCommand], instances: &[InstanceData]) -> &Self {
         self.inner
             .write()
             .unwrap()
-            .bind(&mut self.device, commands, instances);
+            .bind(&self.device, commands, instances);
         self
     }
 
@@ -128,14 +128,11 @@ impl BackendPipeline {
         height: u32,
         view: &Matrix4,
         proj: &Matrix4,
-    ) -> &Self {
-        self.inner.write().unwrap().update_constant_data(
-            &mut self.device,
-            width,
-            height,
-            view,
-            proj,
-        );
+    ) -> &mut Self {
+        self.inner
+            .write()
+            .unwrap()
+            .update_constant_data(&self.device, width, height, view, proj);
         self
     }
 
@@ -154,24 +151,21 @@ impl BackendPipeline {
         self
     }
 
-    pub fn bind_descriptors(&mut self) -> &Self {
-        self.inner
-            .write()
-            .unwrap()
-            .bind_descriptors(&mut self.device);
+    pub fn bind_descriptors(&self) -> &Self {
+        self.inner.read().unwrap().bind_descriptors(&self.device);
         self
     }
 
     pub fn bind_indirect(&mut self) -> &Self {
-        self.inner.write().unwrap().bind_indirect(&mut self.device);
+        self.inner.write().unwrap().bind_indirect(&self.device);
         self
     }
 
-    pub fn draw_indirect(&mut self, count: usize) -> &mut Self {
+    pub fn draw_indirect(&self, count: usize) -> &Self {
         self.inner
-            .write()
+            .read()
             .unwrap()
-            .draw_indirect(&mut self.device, count);
+            .draw_indirect(&self.device, count);
         self
     }
 
@@ -551,7 +545,7 @@ impl PipelineImmutable {
 
     fn bind(
         &mut self,
-        device: &mut BackendDevice,
+        device: &BackendDevice,
         commands: &[InstanceCommand],
         instances: &[InstanceData],
     ) {
@@ -725,7 +719,7 @@ impl PipelineImmutable {
         self
     }
 
-    fn bind_indirect(&mut self, device: &mut BackendDevice) -> &mut Self {
+    fn bind_indirect(&mut self, device: &BackendDevice) -> &mut Self {
         unsafe {
             let offsets = [0_u64];
             vkCmdBindVertexBuffers.unwrap()(
@@ -738,7 +732,7 @@ impl PipelineImmutable {
         }
         self
     }
-    fn draw_indirect(&mut self, device: &mut BackendDevice, count: usize) {
+    fn draw_indirect(&self, device: &BackendDevice, count: usize) {
         if count > 0 {
             unsafe {
                 vkCmdDrawIndexedIndirect.unwrap()(
@@ -754,7 +748,7 @@ impl PipelineImmutable {
 
     fn update_constant_data(
         &mut self,
-        device: &mut BackendDevice,
+        device: &BackendDevice,
         width: u32,
         height: u32,
         view: &Matrix4,
@@ -855,7 +849,7 @@ impl PipelineImmutable {
         }
     }
 
-    pub fn bind_descriptors(&self, device: &mut BackendDevice) {
+    pub fn bind_descriptors(&self, device: &BackendDevice) {
         let image_index = device.get_current_buffer_index();
 
         unsafe {

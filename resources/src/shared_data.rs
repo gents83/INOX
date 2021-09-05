@@ -7,10 +7,10 @@ use std::{
 use nrg_serialize::{generate_uid_from_string, Uid};
 
 use crate::{
-    Data, Resource, ResourceData, ResourceHandle, ResourceId, ResourceMutex, ResourceRef, Storage,
-    TypedStorage,
+    Data, Handle, Resource, ResourceData, ResourceId, ResourceMutex, Storage, TypedStorage,
 };
 
+#[derive(Default)]
 pub struct SharedData {
     storage: HashMap<Uid, Box<dyn TypedStorage>>,
 }
@@ -18,15 +18,6 @@ unsafe impl Send for SharedData {}
 unsafe impl Sync for SharedData {}
 
 impl Data for SharedData {}
-
-impl Default for SharedData {
-    #[inline]
-    fn default() -> Self {
-        Self {
-            storage: HashMap::new(),
-        }
-    }
-}
 
 impl SharedData {
     #[inline]
@@ -89,22 +80,22 @@ impl SharedData {
         None
     }
     #[inline]
-    pub fn add_resource<T: ResourceData>(shared_data: &SharedDataRw, data: T) -> ResourceRef<T> {
-        let handle = Arc::new(ResourceHandle::new(data.id(), shared_data.clone()));
+    pub fn add_resource<T: ResourceData>(shared_data: &SharedDataRw, data: T) -> Resource<T> {
+        let resource = Arc::new(ResourceMutex::new(data));
         let mut shared_data = shared_data.write().unwrap();
         if let Some(storage) = shared_data.get_storage_mut::<T>() {
-            storage.add(handle.clone(), Arc::new(ResourceMutex::new(data)));
+            storage.add(resource.clone());
         }
-        handle
+        resource
     }
     #[inline]
-    pub fn get_handle<T: ResourceData>(
+    pub fn get_resource<T: ResourceData>(
         shared_data: &SharedDataRw,
         resource_id: ResourceId,
-    ) -> ResourceRef<T> {
+    ) -> Resource<T> {
         let shared_data = shared_data.read().unwrap();
         if let Some(storage) = shared_data.get_storage::<T>() {
-            return storage.get(resource_id);
+            return storage.resource(resource_id).clone();
         }
         panic!(
             "Resource of Type {:?} with {:?} doesn't exist in storage",
@@ -113,28 +104,28 @@ impl SharedData {
         );
     }
     #[inline]
-    pub fn get_handle_from_index<T: ResourceData>(
+    pub fn get_resource_from_index<T: ResourceData>(
         shared_data: &SharedDataRw,
-        handle_index: usize,
-    ) -> ResourceRef<T> {
+        index: usize,
+    ) -> Resource<T> {
         let shared_data = shared_data.read().unwrap();
         if let Some(storage) = shared_data.get_storage::<T>() {
-            return storage.get_handle_at_index(handle_index);
+            return storage.get_at_index(index).clone();
         }
         panic!(
             "Resource of Type {:?} has nothing at index {:?}",
             type_name::<T>(),
-            handle_index
+            index
         );
     }
     #[inline]
-    pub fn get_index_of_handle<T: ResourceData>(
+    pub fn get_index_of_resource<T: ResourceData>(
         shared_data: &SharedDataRw,
         resource_id: ResourceId,
     ) -> Option<usize> {
         let shared_data = shared_data.read().unwrap();
         if let Some(storage) = shared_data.get_storage::<T>() {
-            return storage.get_index(resource_id);
+            return storage.get_index_of(resource_id);
         }
         None
     }
@@ -184,14 +175,16 @@ impl SharedData {
         }
     }
     #[inline]
-    pub fn match_resource<T, F>(shared_data: &SharedDataRw, f: F) -> Option<ResourceRef<T>>
+    pub fn match_resource<T, F>(shared_data: &SharedDataRw, f: F) -> Handle<T>
     where
         T: ResourceData,
         F: Fn(&T) -> bool,
     {
         let shared_data = shared_data.read().unwrap();
         if let Some(storage) = shared_data.get_storage::<T>() {
-            return storage.match_resource(f);
+            if let Some(resource) = storage.match_resource(f) {
+                return Some(resource.clone());
+            }
         }
         None
     }

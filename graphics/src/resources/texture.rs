@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use image::RgbaImage;
 use nrg_filesystem::convert_from_local_path;
 use nrg_resources::{
-    DataTypeResource, FileResource, ResourceData, ResourceId, ResourceRef, SharedData,
+    DataTypeResource, FileResource, Handle, Resource, ResourceData, ResourceId, SharedData,
     SharedDataRw, DATA_FOLDER,
 };
 use nrg_serialize::{generate_random_uid, generate_uid_from_string, INVALID_UID};
@@ -11,7 +11,6 @@ use nrg_serialize::{generate_random_uid, generate_uid_from_string, INVALID_UID};
 use crate::{TextureInfo, INVALID_INDEX};
 
 pub type TextureId = ResourceId;
-pub type TextureRc = ResourceRef<Texture>;
 
 pub struct Texture {
     id: ResourceId,
@@ -47,7 +46,7 @@ impl ResourceData for Texture {
 
 impl DataTypeResource for Texture {
     type DataType = RgbaImage;
-    fn create_from_data(shared_data: &SharedDataRw, image_data: Self::DataType) -> TextureRc {
+    fn create_from_data(shared_data: &SharedDataRw, image_data: Self::DataType) -> Resource<Self> {
         let dimensions = image_data.dimensions();
         SharedData::add_resource(
             shared_data,
@@ -66,7 +65,7 @@ impl FileResource for Texture {
     fn path(&self) -> &Path {
         self.path.as_path()
     }
-    fn create_from_file(shared_data: &SharedDataRw, filepath: &Path) -> TextureRc {
+    fn create_from_file(shared_data: &SharedDataRw, filepath: &Path) -> Resource<Self> {
         let path = convert_from_local_path(PathBuf::from(DATA_FOLDER).as_path(), filepath);
         if let Some(texture) = SharedData::match_resource(shared_data, |t: &Texture| t.path == path)
         {
@@ -77,7 +76,7 @@ impl FileResource for Texture {
 }
 
 impl Texture {
-    pub fn find_from_path(shared_data: &SharedDataRw, texture_path: &Path) -> Option<TextureRc> {
+    pub fn find_from_path(shared_data: &SharedDataRw, texture_path: &Path) -> Handle<Self> {
         let path = convert_from_local_path(PathBuf::from(DATA_FOLDER).as_path(), texture_path);
         SharedData::match_resource(shared_data, |t: &Texture| t.path == path)
     }

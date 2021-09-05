@@ -129,7 +129,7 @@ impl Renderer {
                 if !pipeline.get().is_initialized() {
                     pipeline
                         .get_mut()
-                        .init(&self.device, &*geometry_render_pass.resource().get());
+                        .init(&self.device, &*geometry_render_pass.get());
                 }
                 pipeline.get_mut().prepare();
             });
@@ -165,7 +165,7 @@ impl Renderer {
                             texture_handler.add(
                                 device,
                                 texture.id(),
-                                font.resource().get().font_data().get_texture(),
+                                font.get().font_data().get_texture(),
                             )
                         } else {
                             panic!("Unable to load texture with path {:?}", path.as_path());

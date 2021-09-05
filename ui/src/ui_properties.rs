@@ -3,7 +3,9 @@ use std::{any::TypeId, marker::PhantomData};
 use egui::{Checkbox, CollapsingHeader, DragValue, TextEdit, Ui, Widget};
 use nrg_graphics::{Font, Material, Mesh, Pipeline, Texture, View};
 use nrg_math::{Vector2, Vector3, Vector4};
-use nrg_resources::{FileResource, GenericRef, HandleCastTo, ResourceData, SerializableResource};
+use nrg_resources::{
+    FileResource, GenericResource, ResourceCastTo, ResourceData, SerializableResource,
+};
 pub trait UIProperties {
     fn show(&mut self, ui_registry: &UIPropertiesRegistry, ui: &mut Ui, collapsed: bool);
 }
@@ -12,7 +14,7 @@ trait UIData {
     fn id(&self) -> TypeId;
     fn show(
         &self,
-        handle: &GenericRef,
+        resource: &GenericResource,
         ui_registry: &UIPropertiesRegistry,
         ui: &mut Ui,
         collapsed: bool,
@@ -31,13 +33,13 @@ where
     }
     fn show(
         &self,
-        handle: &GenericRef,
+        resource: &GenericResource,
         ui_registry: &UIPropertiesRegistry,
         ui: &mut Ui,
         collapsed: bool,
     ) {
-        let handle = handle.clone().of_type::<T>();
-        handle.resource().get_mut().show(ui_registry, ui, collapsed);
+        let resource = resource.clone().of_type::<T>();
+        resource.get_mut().show(ui_registry, ui, collapsed);
     }
 }
 pub struct UIPropertiesRegistry {
@@ -64,9 +66,11 @@ impl UIPropertiesRegistry {
         }));
         self
     }
-    pub fn show(&self, typeid: TypeId, handle: &GenericRef, ui: &mut Ui) {
+    pub fn show(&self, typeid: TypeId, resource: &GenericResource, ui: &mut Ui) {
         if let Some(index) = self.registry.iter().position(|e| e.id() == typeid) {
-            self.registry[index].as_ref().show(handle, self, ui, false);
+            self.registry[index]
+                .as_ref()
+                .show(resource, self, ui, false);
         } else {
             panic!("Trying to create an type not registered {:?}", typeid);
         }
@@ -190,13 +194,12 @@ impl UIProperties for Material {
                 let mut path = self.path().to_str().unwrap().to_string();
                 TextEdit::singleline(&mut path).enabled(false).ui(ui);
             });
-            self.pipeline()
-                .resource()
-                .get_mut()
-                .show(ui_registry, ui, true);
+            if let Some(pipeline) = self.pipeline() {
+                pipeline.get_mut().show(ui_registry, ui, true);
+            }
             ui.collapsing(format!("Textures [{}]", self.textures().len()), |ui| {
                 for t in self.textures() {
-                    t.resource().get_mut().show(ui_registry, ui, collapsed);
+                    t.get_mut().show(ui_registry, ui, collapsed);
                 }
             });
             ui.horizontal(|ui| {
@@ -234,10 +237,9 @@ impl UIProperties for Mesh {
                     let mut vertices = format!("{}", self.mesh_data().vertices.len());
                     TextEdit::singleline(&mut vertices).enabled(false).ui(ui);
                 });
-                self.material()
-                    .resource()
-                    .get_mut()
-                    .show(ui_registry, ui, true);
+                if let Some(material) = self.material() {
+                    material.get_mut().show(ui_registry, ui, true);
+                }
             });
     }
 }

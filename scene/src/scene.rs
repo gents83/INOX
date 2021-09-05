@@ -2,29 +2,19 @@ use std::path::{Path, PathBuf};
 
 use nrg_graphics::Mesh;
 use nrg_math::{MatBase, Matrix4};
-use nrg_resources::{ResourceData, ResourceId, ResourceRef, SharedDataRw};
-use nrg_serialize::{generate_random_uid, generate_uid_from_string};
+use nrg_resources::{Resource, ResourceData, ResourceId, SharedDataRw};
+use nrg_serialize::generate_uid_from_string;
 use nrg_ui::{CollapsingHeader, UIProperties, UIPropertiesRegistry, Ui};
 
-use crate::ObjectRc;
+use crate::Object;
 
 pub type SceneId = ResourceId;
-pub type SceneRc = ResourceRef<Scene>;
 
+#[derive(Default)]
 pub struct Scene {
     id: ResourceId,
     filepath: PathBuf,
-    objects: Vec<ObjectRc>,
-}
-
-impl Default for Scene {
-    fn default() -> Self {
-        Self {
-            id: generate_random_uid(),
-            filepath: PathBuf::new(),
-            objects: Vec::new(),
-        }
-    }
+    objects: Vec<Resource<Object>>,
 }
 
 impl UIProperties for Scene {
@@ -35,7 +25,7 @@ impl UIProperties for Scene {
             .show(ui, |ui| {
                 ui.collapsing(format!("Objects [{}]", self.objects.len()), |ui| {
                     for c in self.objects.iter() {
-                        c.resource().get_mut().show(ui_registry, ui, collapsed);
+                        c.get_mut().show(ui_registry, ui, collapsed);
                     }
                 });
             });
@@ -58,22 +48,22 @@ impl Scene {
         self.objects.clear();
     }
 
-    pub fn add_object(&mut self, object: ObjectRc) {
+    pub fn add_object(&mut self, object: Resource<Object>) {
         self.objects.push(object);
     }
 
-    pub fn objects(&self) -> Vec<ObjectRc> {
-        self.objects.clone()
+    pub fn objects(&self) -> &Vec<Resource<Object>> {
+        &self.objects
     }
 
     pub fn update_hierarchy(&mut self, shared_data: &SharedDataRw) {
         for object in self.objects.iter() {
-            object.resource().get_mut().update_from_parent(
+            object.get_mut().update_from_parent(
                 shared_data,
                 Matrix4::default_identity(),
                 |object, object_matrix| {
                     if let Some(mesh) = object.get_component::<Mesh>() {
-                        mesh.resource().get_mut().set_matrix(object_matrix);
+                        mesh.get_mut().set_matrix(object_matrix);
                     }
                 },
             );

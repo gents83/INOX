@@ -1,11 +1,10 @@
 use nrg_math::{MatBase, Matrix4};
 use nrg_resources::{
-    DataTypeResource, ResourceData, ResourceId, ResourceRef, SharedData, SharedDataRw,
+    DataTypeResource, Handle, Resource, ResourceData, ResourceId, SharedData, SharedDataRw,
 };
 use nrg_serialize::{generate_random_uid, Uid, INVALID_UID};
 
 pub type ViewId = Uid;
-pub type ViewRc = ResourceRef<View>;
 
 pub struct View {
     id: ResourceId,
@@ -33,7 +32,7 @@ impl ResourceData for View {
 
 impl DataTypeResource for View {
     type DataType = u32;
-    fn create_from_data(shared_data: &SharedDataRw, view_index: Self::DataType) -> ViewRc {
+    fn create_from_data(shared_data: &SharedDataRw, view_index: Self::DataType) -> Resource<Self> {
         if let Some(view) = View::find_from_view_index(shared_data, view_index) {
             return view;
         }
@@ -59,7 +58,7 @@ impl View {
     pub fn proj(&self) -> Matrix4 {
         self.proj
     }
-    pub fn find_from_view_index(shared_data: &SharedDataRw, view_index: u32) -> Option<ViewRc> {
+    pub fn find_from_view_index(shared_data: &SharedDataRw, view_index: u32) -> Handle<View> {
         SharedData::match_resource(shared_data, |v: &View| v.view_index == view_index)
     }
 

@@ -7,23 +7,23 @@ use std::{
 use nrg_graphics::{Material, Mesh};
 use nrg_math::Matrix4;
 use nrg_resources::{
-    DataTypeResource, Deserializable, GenericRef, HandleCastTo, ResourceData, ResourceId,
-    ResourceRef, SerializableResource, SharedData, SharedDataRw,
+    DataTypeResource, Deserializable, GenericResource, Handle, Resource, ResourceCastTo,
+    ResourceData, ResourceId, SerializableResource, SharedData, SharedDataRw,
 };
-use nrg_serialize::{generate_random_uid, generate_uid_from_string, INVALID_UID};
+use nrg_serialize::{generate_random_uid, generate_uid_from_string};
 use nrg_ui::{CollapsingHeader, UIProperties, UIPropertiesRegistry, Ui};
 
 use crate::{ObjectData, Transform};
 
 pub type ComponentId = ResourceId;
 pub type ObjectId = ResourceId;
-pub type ObjectRc = ResourceRef<Object>;
 
+#[derive(Default)]
 pub struct Object {
     id: ResourceId,
     filepath: PathBuf,
-    children: Vec<ObjectRc>,
-    components: HashMap<TypeId, GenericRef>,
+    children: Vec<Resource<Object>>,
+    components: HashMap<TypeId, GenericResource>,
 }
 
 impl ResourceData for Object {
@@ -56,21 +56,10 @@ impl UIProperties for Object {
                     .default_open(false)
                     .show(ui, |ui| {
                         for c in self.children.iter() {
-                            c.resource().get_mut().show(ui_registry, ui, collapsed);
+                            c.get_mut().show(ui_registry, ui, collapsed);
                         }
                     });
             });
-    }
-}
-
-impl Default for Object {
-    fn default() -> Self {
-        Self {
-            id: INVALID_UID,
-            filepath: PathBuf::default(),
-            components: HashMap::new(),
-            children: Vec::new(),
-        }
     }
 }
 
@@ -82,7 +71,7 @@ impl SerializableResource for Object {
 impl DataTypeResource for Object {
     type DataType = ObjectData;
 
-    fn create_from_data(shared_data: &SharedDataRw, object_data: Self::DataType) -> ObjectRc {
+    fn create_from_data(shared_data: &SharedDataRw, object_data: Self::DataType) -> Resource<Self> {
         let object = SharedData::add_resource(
             shared_data,
             Object {
@@ -92,13 +81,9 @@ impl DataTypeResource for Object {
             },
         );
         let transform = object
-            .resource()
             .get_mut()
             .add_default_component::<Transform>(shared_data);
-        transform
-            .resource()
-            .get_mut()
-            .set_matrix(object_data.transform);
+        transform.get_mut().set_matrix(object_data.transform);
 
         if !object_data.mesh.to_str().unwrap_or_default().is_empty() {
             let mesh =
@@ -116,14 +101,14 @@ impl DataTypeResource for Object {
                 } else {
                     Material::create_from_file(shared_data, object_data.material.as_path())
                 };
-                mesh.resource().get_mut().set_material(material);
+                mesh.get_mut().set_material(material);
             }
-            object.resource().get_mut().add_component::<Mesh>(mesh);
+            object.get_mut().add_component::<Mesh>(mesh);
         }
 
         for child in object_data.children.iter() {
             let child = Object::create_from_file(shared_data, child.as_path());
-            object.resource().get_mut().add_child(child);
+            object.get_mut().add_child(child);
         }
 
         object
@@ -131,7 +116,7 @@ impl DataTypeResource for Object {
 }
 
 impl Object {
-    pub fn generate_empty(shared_data: &SharedDataRw) -> ObjectRc {
+    pub fn generate_empty(shared_data: &SharedDataRw) -> Resource<Self> {
         SharedData::add_resource::<Object>(
             shared_data,
             Object {
@@ -141,7 +126,7 @@ impl Object {
         )
     }
 
-    pub fn add_child(&mut self, child: ObjectRc) {
+    pub fn add_child(&mut self, child: Resource<Object>) {
         self.children.push(child);
     }
 
@@ -156,7 +141,7 @@ impl Object {
 
     pub fn is_child_recursive(&self, object_id: ObjectId) -> bool {
         for c in self.children.iter() {
-            if c.id() == object_id || c.resource().get().is_child_recursive(object_id) {
+            if c.id() == object_id || c.get().is_child_recursive(object_id) {
                 return true;
             }
         }
@@ -167,15 +152,15 @@ impl Object {
         !self.children.is_empty()
     }
 
-    pub fn children(&self) -> Vec<ObjectRc> {
-        self.children.clone()
+    pub fn children(&self) -> &Vec<Resource<Object>> {
+        &self.children
     }
 
-    pub fn components(&self) -> HashMap<TypeId, GenericRef> {
-        self.components.clone()
+    pub fn components(&self) -> &HashMap<TypeId, GenericResource> {
+        &self.components
     }
 
-    pub fn add_default_component<C>(&mut self, shared_data: &SharedDataRw) -> ResourceRef<C>
+    pub fn add_default_component<C>(&mut self, shared_data: &SharedDataRw) -> Resource<C>
     where
         C: ResourceData + Default,
     {
@@ -189,7 +174,7 @@ impl Object {
         self.components.insert(TypeId::of::<C>(), resource.clone());
         resource
     }
-    pub fn add_component<C>(&mut self, component: ResourceRef<C>) -> &mut Self
+    pub fn add_component<C>(&mut self, component: Resource<C>) -> &mut Self
     where
         C: ResourceData,
     {
@@ -199,11 +184,11 @@ impl Object {
             type_name::<C>()
         );
         self.components
-            .insert(TypeId::of::<C>(), component as GenericRef);
+            .insert(TypeId::of::<C>(), component as GenericResource);
         self
     }
 
-    pub fn get_component<C>(&self) -> Option<ResourceRef<C>>
+    pub fn get_component<C>(&self) -> Handle<C>
     where
         C: ResourceData,
     {
@@ -222,7 +207,7 @@ impl Object {
         F: Fn(&mut Self, Matrix4) + Copy,
     {
         if let Some(transform) = self.get_component::<Transform>() {
-            let object_matrix = transform.resource().get().matrix();
+            let object_matrix = transform.get().matrix();
             let object_matrix = parent_transform * object_matrix;
 
             f(self, object_matrix);
@@ -230,7 +215,6 @@ impl Object {
             let children = self.children();
             for child in children {
                 child
-                    .resource()
                     .get_mut()
                     .update_from_parent(shared_data, object_matrix, f);
             }

@@ -1,11 +1,10 @@
 use std::sync::Arc;
 
-use nrg_resources::{SharedData, SharedDataRw};
+use nrg_resources::{Resource, SharedData, SharedDataRw};
 use nrg_scene::{Object, ObjectId};
 use nrg_serialize::INVALID_UID;
 use nrg_ui::{
-    implement_widget_data, ScrollArea, SidePanel, UIProperties, UIPropertiesRegistry, UIWidget,
-    UIWidgetRc, Ui,
+    implement_widget_data, ScrollArea, SidePanel, UIProperties, UIPropertiesRegistry, UIWidget, Ui,
 };
 
 #[derive(Clone)]
@@ -21,7 +20,7 @@ struct PropertiesData {
 implement_widget_data!(PropertiesData);
 
 pub struct Properties {
-    ui_page: UIWidgetRc,
+    ui_page: Resource<UIWidget>,
 }
 
 impl Properties {
@@ -37,18 +36,13 @@ impl Properties {
     }
 
     pub fn select_object(&mut self, object_id: ObjectId) -> &mut Self {
-        if let Some(data) = self
-            .ui_page
-            .resource()
-            .get_mut()
-            .data_mut::<PropertiesData>()
-        {
+        if let Some(data) = self.ui_page.get_mut().data_mut::<PropertiesData>() {
             data.selected_object = object_id;
         }
         self
     }
 
-    fn create(shared_data: &SharedDataRw, data: PropertiesData) -> UIWidgetRc {
+    fn create(shared_data: &SharedDataRw, data: PropertiesData) -> Resource<UIWidget> {
         UIWidget::register(shared_data, data, |ui_data, ui_context| {
             if let Some(data) = ui_data.as_any().downcast_mut::<PropertiesData>() {
                 let min_width = 200.;
@@ -91,9 +85,9 @@ impl Properties {
         object_id: ObjectId,
     ) {
         if SharedData::has::<Object>(shared_data, object_id) {
-            let object = SharedData::get_handle::<Object>(shared_data, object_id);
+            let object = SharedData::get_resource::<Object>(shared_data, object_id);
 
-            object.resource().get_mut().show(ui_registry, ui, false);
+            object.get_mut().show(ui_registry, ui, false);
         }
     }
 }

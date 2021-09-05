@@ -87,7 +87,7 @@ impl BackendMesh {
 
     pub fn draw(
         &mut self,
-        device: &mut BackendDevice,
+        device: &BackendDevice,
         vertices: &[VertexData],
         num_vertices: u32,
         indices: &[u32],
@@ -119,7 +119,7 @@ impl BackendMesh {
         device.map_buffer_memory(&mut self.index_buffer_memory, first_index as _, indices);
     }
 
-    pub fn bind_vertices(&self, device: &mut BackendDevice) {
+    pub fn bind_vertices(&self, device: &BackendDevice) {
         if !self.vertex_buffer.is_null() {
             unsafe {
                 let vertex_buffers = [self.vertex_buffer];
@@ -135,7 +135,7 @@ impl BackendMesh {
         }
     }
 
-    pub fn bind_indices(&self, device: &mut BackendDevice) {
+    pub fn bind_indices(&self, device: &BackendDevice) {
         if !self.index_buffer.is_null() {
             unsafe {
                 vkCmdBindIndexBuffer.unwrap()(

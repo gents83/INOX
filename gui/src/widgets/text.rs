@@ -1,10 +1,10 @@
 use std::any::TypeId;
 
-use nrg_graphics::{Font, FontRc, MaterialRc, MeshData};
+use nrg_graphics::{Font, Material, MeshData};
 use nrg_math::{Vector2, Vector4};
 use nrg_messenger::{implement_undoable_message, Message};
 use nrg_platform::{MouseEvent, MouseState};
-use nrg_resources::{ResourceRef, SharedData};
+use nrg_resources::{Handle, SharedData};
 use nrg_serialize::{Deserialize, Serialize, Uid};
 
 use crate::{
@@ -51,10 +51,10 @@ fn debug_info_event(event: &TextEvent) -> String {
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]
 pub struct Text {
-    #[serde(skip, default = "nrg_resources::ResourceRef::default")]
-    font: FontRc,
-    #[serde(skip, default = "nrg_resources::ResourceRef::default")]
-    material: MaterialRc,
+    #[serde(skip)]
+    font: Handle<Font>,
+    #[serde(skip)]
+    material: Handle<Material>,
     editable: bool,
     text: String,
     #[serde(skip)]
@@ -66,8 +66,8 @@ pub struct Text {
     data: WidgetData,
 }
 implement_widget_with_custom_members!(Text {
-    font: ResourceRef::default(),
-    material: ResourceRef::default(),
+    font: None,
+    material: None,
     editable: true,
     text: String::new(),
     hover_char_index: -1,
@@ -183,7 +183,11 @@ impl Text {
                 mesh_data.add_quad(
                     Vector4::new(pos_x, pos_y, pos_x + char_width, pos_y + char_height),
                     0.,
-                    self.font.resource().get().glyph_texture_coord(*c as _),
+                    self.font
+                        .as_ref()
+                        .unwrap()
+                        .get()
+                        .glyph_texture_coord(*c as _),
                     Some(mesh_index),
                 );
                 mesh_index += 4;
@@ -199,8 +203,8 @@ impl Text {
 impl InternalWidget for Text {
     fn widget_init(&mut self) {
         let font_id = Font::get_default(self.get_shared_data());
-        self.font = SharedData::get_handle::<Font>(self.get_shared_data(), font_id);
-
+        let font = SharedData::get_resource::<Font>(self.get_shared_data(), font_id);
+        self.font = Some(font);
         if self.is_initialized() {
             self.is_dirty = true;
             return;

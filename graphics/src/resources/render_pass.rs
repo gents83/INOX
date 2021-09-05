@@ -1,26 +1,25 @@
 use nrg_resources::{
-    DataTypeResource, ResourceData, ResourceId, ResourceRef, SharedData, SharedDataRw,
+    DataTypeResource, Handle, Resource, ResourceData, ResourceId, SharedData, SharedDataRw,
 };
-use nrg_serialize::{generate_uid_from_string, Uid, INVALID_UID};
+use nrg_serialize::{generate_uid_from_string, Uid};
 
 use crate::{
-    api::backend, Device, MeshCategoryId, Pipeline, PipelineRc, RenderPassData, TextureHandler,
-    TextureRc,
+    api::backend, Device, MeshCategoryId, Pipeline, RenderPassData, Texture, TextureHandler,
 };
 
 pub type RenderPassId = Uid;
-pub type RenderPassRc = ResourceRef<RenderPass>;
 
+#[derive(Default)]
 pub struct RenderPass {
     id: ResourceId,
     backend_render_pass: Option<backend::BackendRenderPass>,
     data: RenderPassData,
-    color_texture: Option<TextureRc>,
-    depth_texture: Option<TextureRc>,
-    pipeline: Option<PipelineRc>,
+    color_texture: Handle<Texture>,
+    depth_texture: Handle<Texture>,
+    pipeline: Handle<Pipeline>,
     is_initialized: bool,
     mesh_category_to_draw: Vec<MeshCategoryId>,
-    texture_to_recycle: Vec<TextureRc>,
+    texture_to_recycle: Vec<Resource<Texture>>,
 }
 
 impl std::ops::Deref for RenderPass {
@@ -36,22 +35,6 @@ impl std::ops::DerefMut for RenderPass {
     }
 }
 
-impl Default for RenderPass {
-    fn default() -> Self {
-        Self {
-            id: INVALID_UID,
-            data: RenderPassData::default(),
-            color_texture: None,
-            depth_texture: None,
-            is_initialized: false,
-            backend_render_pass: None,
-            pipeline: None,
-            mesh_category_to_draw: Vec::new(),
-            texture_to_recycle: Vec::new(),
-        }
-    }
-}
-
 impl ResourceData for RenderPass {
     fn id(&self) -> ResourceId {
         self.id
@@ -63,7 +46,7 @@ impl DataTypeResource for RenderPass {
     fn create_from_data(
         shared_data: &SharedDataRw,
         render_pass_data: Self::DataType,
-    ) -> RenderPassRc {
+    ) -> Resource<Self> {
         if let Some(render_pass) =
             RenderPass::find_from_name(shared_data, render_pass_data.name.as_str())
         {
@@ -87,10 +70,7 @@ impl DataTypeResource for RenderPass {
 }
 
 impl RenderPass {
-    pub fn find_from_name(
-        shared_data: &SharedDataRw,
-        render_pass_name: &str,
-    ) -> Option<RenderPassRc> {
+    pub fn find_from_name(shared_data: &SharedDataRw, render_pass_name: &str) -> Handle<Self> {
         SharedData::match_resource(shared_data, |r: &RenderPass| {
             r.data.name == render_pass_name
         })
@@ -98,7 +78,7 @@ impl RenderPass {
     pub fn data(&self) -> &RenderPassData {
         &self.data
     }
-    pub fn pipeline(&self) -> &Option<PipelineRc> {
+    pub fn pipeline(&self) -> &Handle<Pipeline> {
         &self.pipeline
     }
     pub fn mesh_category_to_draw(&self) -> &[MeshCategoryId] {
@@ -112,7 +92,7 @@ impl RenderPass {
 
     fn add_texture_as_render_target<'a>(
         device: &Device,
-        texture: &Option<TextureRc>,
+        texture: &Handle<Texture>,
         texture_handler: &'a mut TextureHandler,
     ) {
         if let Some(t) = texture {
@@ -121,15 +101,15 @@ impl RenderPass {
                 texture_handler.add_render_target(
                     device,
                     t.id(),
-                    t.resource().get().width(),
-                    t.resource().get().height(),
+                    t.get().width(),
+                    t.get().height(),
                     false,
                 );
             }
         }
     }
     fn get_real_texture<'a>(
-        texture: &Option<TextureRc>,
+        texture: &Handle<Texture>,
         texture_handler: &'a TextureHandler,
     ) -> Option<&'a backend::BackendTexture> {
         let mut real_texture = None;
@@ -140,18 +120,15 @@ impl RenderPass {
         }
         real_texture
     }
-    fn create_default(&mut self, device: &mut Device) -> &mut Self {
+    fn create_default(&mut self, device: &Device) -> &mut Self {
         self.backend_render_pass = Some(backend::BackendRenderPass::create_default(
-            &mut *device,
-            &self.data,
-            None,
-            None,
+            &*device, &self.data, None, None,
         ));
         self
     }
     fn create_with_render_target(
         &mut self,
-        device: &mut Device,
+        device: &Device,
         texture_handler: &mut TextureHandler,
     ) -> &mut Self {
         Self::add_texture_as_render_target(device, &self.color_texture, texture_handler);
@@ -160,7 +137,7 @@ impl RenderPass {
         let depth_texture = Self::get_real_texture(&self.depth_texture, texture_handler);
 
         self.backend_render_pass = Some(backend::BackendRenderPass::create_default(
-            &mut *device,
+            &*device,
             &self.data,
             color_texture,
             depth_texture,
@@ -182,18 +159,18 @@ impl RenderPass {
             self.create_default(device);
         }
         if let Some(pipeline) = &self.pipeline {
-            pipeline.resource().get_mut().init(device, self);
+            pipeline.get_mut().init(device, self);
         }
         self.is_initialized = true;
         self
     }
-    pub fn color_texture(&self) -> Option<TextureRc> {
-        self.color_texture.clone()
+    pub fn color_texture(&self) -> &Handle<Texture> {
+        &self.color_texture
     }
-    pub fn depth_texture(&self) -> Option<TextureRc> {
-        self.depth_texture.clone()
+    pub fn depth_texture(&self) -> &Handle<Texture> {
+        &self.depth_texture
     }
-    pub fn set_color_texture(&mut self, color_texture: TextureRc) -> &mut Self {
+    pub fn set_color_texture(&mut self, color_texture: Resource<Texture>) -> &mut Self {
         if let Some(texture) = &self.color_texture {
             self.texture_to_recycle.push(texture.clone());
         }
@@ -201,7 +178,7 @@ impl RenderPass {
         self.invalidate();
         self
     }
-    pub fn set_depth_texture(&mut self, depth_texture: TextureRc) -> &mut Self {
+    pub fn set_depth_texture(&mut self, depth_texture: Resource<Texture>) -> &mut Self {
         if let Some(texture) = &self.depth_texture {
             self.texture_to_recycle.push(texture.clone());
         }
@@ -234,19 +211,23 @@ impl RenderPass {
         }
     }
 
-    pub fn begin(&self, device: &mut Device) {
+    pub fn acquire_command_buffer(&self, device: &mut Device) {
+        device.acquire_command_buffer();
+    }
+
+    pub fn begin(&self, device: &Device) {
         if let Some(backend_render_pass) = &self.backend_render_pass {
             let render_pass = backend_render_pass.get_render_pass();
             let framebuffer = backend_render_pass.get_framebuffer(device);
             device.begin_command_buffer(render_pass, framebuffer);
-            backend_render_pass.begin(&mut *device);
+            backend_render_pass.begin(&*device);
         }
     }
 
-    pub fn end(&self, device: &mut Device) {
+    pub fn end(&self, device: &Device) {
         if let Some(backend_render_pass) = &self.backend_render_pass {
             device.end_command_buffer();
-            backend_render_pass.end(&mut *device);
+            backend_render_pass.end(&*device);
         }
     }
 }

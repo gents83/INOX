@@ -1,13 +1,12 @@
 use std::any::{type_name, Any};
 
 use egui::{CollapsingHeader, CtxRef, Ui};
-use nrg_resources::{ResourceData, ResourceId, ResourceRef, SharedData, SharedDataRw};
+use nrg_resources::{Resource, ResourceData, ResourceId, SharedData, SharedDataRw};
 use nrg_serialize::generate_random_uid;
 
 use crate::{UIProperties, UIPropertiesRegistry};
 
 pub type UIWidgetId = ResourceId;
-pub type UIWidgetRc = ResourceRef<UIWidget>;
 
 pub trait UIWidgetData: Send + Sync + Any {
     fn as_any(&mut self) -> &mut dyn Any;
@@ -64,7 +63,7 @@ impl UIProperties for UIWidget {
 }
 
 impl UIWidget {
-    pub fn register<D, F>(shared_data: &SharedDataRw, data: D, f: F) -> UIWidgetRc
+    pub fn register<D, F>(shared_data: &SharedDataRw, data: D, f: F) -> Resource<Self>
     where
         D: UIWidgetData + Sized,
         F: FnMut(&mut dyn UIWidgetData, &CtxRef) + 'static,

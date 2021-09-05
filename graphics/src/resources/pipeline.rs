@@ -1,8 +1,8 @@
 use nrg_math::{Mat4Ops, Matrix4, Vector4};
 use nrg_resources::{
-    DataTypeResource, ResourceData, ResourceId, ResourceRef, SharedData, SharedDataRw,
+    DataTypeResource, Handle, Resource, ResourceData, ResourceId, SharedData, SharedDataRw,
 };
-use nrg_serialize::{generate_random_uid, INVALID_UID};
+use nrg_serialize::generate_random_uid;
 
 use crate::{
     api::backend, utils::compute_color_from_id, Device, GraphicsMesh, InstanceCommand,
@@ -10,8 +10,8 @@ use crate::{
 };
 
 pub type PipelineId = ResourceId;
-pub type PipelineRc = ResourceRef<Pipeline>;
 
+#[derive(Default)]
 pub struct Pipeline {
     id: ResourceId,
     backend_pipeline: Option<backend::BackendPipeline>,
@@ -25,23 +25,6 @@ pub struct Pipeline {
     instance_commands: Vec<InstanceCommand>,
 }
 
-impl Default for Pipeline {
-    fn default() -> Self {
-        Self {
-            id: INVALID_UID,
-            data: PipelineData::default(),
-            is_initialized: false,
-            backend_pipeline: None,
-            mesh: GraphicsMesh::default(),
-            vertex_count: 0,
-            index_count: 0,
-            instance_count: 0,
-            instance_data: Vec::new(),
-            instance_commands: Vec::new(),
-        }
-    }
-}
-
 impl ResourceData for Pipeline {
     fn id(&self) -> ResourceId {
         self.id
@@ -50,7 +33,10 @@ impl ResourceData for Pipeline {
 
 impl DataTypeResource for Pipeline {
     type DataType = PipelineData;
-    fn create_from_data(shared_data: &SharedDataRw, pipeline_data: Self::DataType) -> PipelineRc {
+    fn create_from_data(
+        shared_data: &SharedDataRw,
+        pipeline_data: Self::DataType,
+    ) -> Resource<Self> {
         let canonicalized_pipeline_data = pipeline_data.canonicalize_paths();
         if let Some(pipeline) = Pipeline::find_from_data(shared_data, &canonicalized_pipeline_data)
         {
@@ -68,10 +54,7 @@ impl DataTypeResource for Pipeline {
 }
 
 impl Pipeline {
-    fn find_from_data(
-        shared_data: &SharedDataRw,
-        pipeline_data: &PipelineData,
-    ) -> Option<PipelineRc> {
+    fn find_from_data(shared_data: &SharedDataRw, pipeline_data: &PipelineData) -> Handle<Self> {
         SharedData::match_resource(shared_data, |p: &Pipeline| {
             pipeline_data.has_same_shaders(&p.data)
         })
@@ -227,12 +210,12 @@ impl Pipeline {
         }
         self
     }
-    fn bind_vertices(&mut self, device: &mut Device) -> &mut Self {
+    fn bind_vertices(&mut self, device: &Device) -> &mut Self {
         nrg_profiler::scoped_profile!(format!("pipeline::bind_vertices[{:?}]", self.id()).as_str());
         self.mesh.bind_vertices(device);
         self
     }
-    fn bind_indices(&mut self, device: &mut Device) -> &mut Self {
+    fn bind_indices(&mut self, device: &Device) -> &mut Self {
         nrg_profiler::scoped_profile!(format!("pipeline::bind_indices[{:?}]", self.id()).as_str());
         self.mesh.bind_indices(device);
         self
@@ -342,7 +325,7 @@ impl Pipeline {
         self
     }
 
-    pub fn draw(&mut self, device: &mut Device) {
+    pub fn draw(&mut self, device: &Device) {
         nrg_profiler::scoped_profile!(format!("renderer::draw_pipeline[{:?}]", self.id()).as_str());
 
         self.begin()

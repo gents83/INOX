@@ -10,10 +10,11 @@ use std::{
 use nrg_core::{JobHandlerRw, System, SystemId};
 use nrg_messenger::{read_messages, MessageChannel, MessengerRw};
 use nrg_resources::{Resource, ResourceData, ResourceEvent, SharedData, SharedDataRw};
+use nrg_serialize::INVALID_UID;
 
 use crate::{
-    is_shader, is_texture, Mesh, MeshCategoryId, Pipeline, RenderPass, RendererRw, RendererState,
-    Texture, INVALID_INDEX,
+    is_shader, is_texture, Mesh, Pipeline, RenderPass, RendererRw, RendererState, Texture,
+    INVALID_INDEX,
 };
 
 pub struct UpdateSystem {
@@ -72,59 +73,43 @@ impl UpdateSystem {
         });
     }
 
-    fn create_render_mesh_job(
-        renderer: RendererRw,
-        mesh: &Resource<Mesh>,
-        mesh_category_to_draw: &[MeshCategoryId],
-    ) {
-        nrg_profiler::scoped_profile!(format!("create_render_mesh_job[{}]", mesh.id()).as_str());
-
-        let should_render = mesh_category_to_draw
-            .iter()
-            .any(|id| mesh.get().category_identifier() == *id);
-        if !should_render {
-            return;
+    fn create_render_mesh_job(renderer: RendererRw, mesh: Resource<Mesh>) {
+        let mut texture_id = INVALID_UID;
+        if let Some(material) = mesh.get().material() {
+            let material = material.get();
+            if material.has_diffuse_texture() {
+                texture_id = material.diffuse_texture().id();
+            }
         }
-        let material = mesh.get().material().resource();
-        let material_pipeline = material.get().pipeline().resource();
-        if material.id().is_nil() {
-            eprintln!("Tyring to render a mesh with no material");
-            return;
-        }
-        if material_pipeline.id().is_nil() {
-            eprintln!("Tyring to render a mesh with a material with no pipeline");
-            return;
-        }
-        if !mesh.get().is_visible() {
-            return;
-        }
-
-        let diffuse_color = material.get().diffuse_color();
-
-        let (diffuse_texture_index, diffuse_layer_index) = if material.get().has_diffuse_texture() {
-            nrg_profiler::scoped_profile!("Obtaining texture info");
-            let diffuse_texture = material.get().diffuse_texture().resource();
-            let (diffuse_texture_index, diffuse_layer_index) = (
-                diffuse_texture.get().texture_index() as _,
-                diffuse_texture.get().layer_index() as _,
-            );
-            let r = renderer.read().unwrap();
-            let texture_info = r
-                .get_texture_handler()
-                .get_texture_info(diffuse_texture.id());
+        if !texture_id.is_nil() {
+            let renderer = renderer.read().unwrap();
+            let texture_info = renderer.get_texture_handler().get_texture_info(texture_id);
             mesh.get_mut().process_uv_for_texture(texture_info);
-            (diffuse_texture_index, diffuse_layer_index)
-        } else {
-            (INVALID_INDEX, INVALID_INDEX)
-        };
+        }
+        if let Some(material) = mesh.get().material() {
+            let material = material.get();
+            let diffuse_color = material.diffuse_color();
 
-        material_pipeline.get_mut().add_mesh_instance(
-            renderer.read().unwrap().device(),
-            &mesh.get(),
-            diffuse_color,
-            diffuse_texture_index,
-            diffuse_layer_index,
-        );
+            let (diffuse_texture_index, diffuse_layer_index) = if material.has_diffuse_texture() {
+                nrg_profiler::scoped_profile!("Obtaining texture info");
+                let (diffuse_texture_index, diffuse_layer_index) = (
+                    material.diffuse_texture().get().texture_index() as _,
+                    material.diffuse_texture().get().layer_index() as _,
+                );
+                (diffuse_texture_index, diffuse_layer_index)
+            } else {
+                (INVALID_INDEX, INVALID_INDEX)
+            };
+            if let Some(pipeline) = material.pipeline() {
+                pipeline.get_mut().add_mesh_instance(
+                    renderer.read().unwrap().device(),
+                    &mesh.get(),
+                    diffuse_color,
+                    diffuse_texture_index,
+                    diffuse_layer_index,
+                );
+            }
+        }
     }
 }
 
@@ -165,10 +150,17 @@ impl System for UpdateSystem {
             if render_pass.get().is_initialized() {
                 let mesh_category_to_draw = render_pass.get().mesh_category_to_draw().to_vec();
                 SharedData::for_each_resource(&self.shared_data, |mesh: &Resource<Mesh>| {
+                    let should_render = mesh_category_to_draw
+                        .iter()
+                        .any(|id| mesh.get().category_identifier() == *id);
+
+                    if !should_render || !mesh.get().is_visible() {
+                        return;
+                    }
                     let renderer = self.renderer.clone();
                     let wait_count = wait_count.clone();
                     let mesh = mesh.clone();
-                    let mesh_category_to_draw = mesh_category_to_draw.clone();
+
                     let job_name = format!(
                         "Processing mesh {:?} for RenderPass [{:?}",
                         mesh.id(),
@@ -178,8 +170,13 @@ impl System for UpdateSystem {
                         .write()
                         .unwrap()
                         .add_job(job_name.as_str(), move || {
+                            nrg_profiler::scoped_profile!(format!(
+                                "create_render_mesh_job[{}]",
+                                mesh.id()
+                            )
+                            .as_str());
                             wait_count.fetch_add(1, Ordering::SeqCst);
-                            Self::create_render_mesh_job(renderer, &mesh, &mesh_category_to_draw);
+                            Self::create_render_mesh_job(renderer, mesh);
                             wait_count.fetch_sub(1, Ordering::SeqCst);
                         });
                 });

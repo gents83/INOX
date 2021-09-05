@@ -41,7 +41,7 @@ impl BackendRenderPass {
     }
 
     pub fn create_default(
-        device: &mut BackendDevice,
+        device: &BackendDevice,
         data: &RenderPassData,
         color: Option<&BackendTexture>,
         depth: Option<&BackendTexture>,
@@ -87,7 +87,7 @@ impl BackendRenderPass {
         }
     }
 
-    pub fn begin(&self, device: &mut BackendDevice) {
+    pub fn begin(&self, device: &BackendDevice) {
         let clear_value = [
             VkClearValue {
                 color: VkClearColorValue {
@@ -123,7 +123,7 @@ impl BackendRenderPass {
         }
     }
 
-    pub fn end(&self, device: &mut BackendDevice) {
+    pub fn end(&self, device: &BackendDevice) {
         unsafe {
             vkCmdEndRenderPass.unwrap()(device.get_current_command_buffer());
         }

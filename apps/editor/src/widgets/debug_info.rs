@@ -7,9 +7,7 @@ use std::{
 use nrg_graphics::{Font, Material, Mesh, Pipeline, Texture, View};
 use nrg_resources::{Resource, ResourceData, SharedData, SharedDataRw};
 use nrg_scene::{Hitbox, Object, Scene, Transform};
-use nrg_ui::{
-    implement_widget_data, UIProperties, UIPropertiesRegistry, UIWidget, UIWidgetRc, Ui, Window,
-};
+use nrg_ui::{implement_widget_data, UIProperties, UIPropertiesRegistry, UIWidget, Ui, Window};
 
 struct DebugData {
     frame_seconds: VecDeque<Instant>,
@@ -19,7 +17,7 @@ struct DebugData {
 implement_widget_data!(DebugData);
 
 pub struct DebugInfo {
-    ui_page: UIWidgetRc,
+    ui_page: Resource<UIWidget>,
 }
 
 impl DebugInfo {
@@ -34,7 +32,7 @@ impl DebugInfo {
         }
     }
 
-    fn create(shared_data: &SharedDataRw, data: DebugData) -> UIWidgetRc {
+    fn create(shared_data: &SharedDataRw, data: DebugData) -> Resource<UIWidget> {
         UIWidget::register(shared_data, data, |ui_data, ui_context| {
             if let Some(data) = ui_data.as_any().downcast_mut::<DebugData>() {
                 let now = Instant::now();

@@ -8,32 +8,31 @@ use super::config::*;
 use super::widgets::*;
 
 use nrg_core::*;
-use nrg_graphics::{
-    Font, FontRc, Material, MaterialRc, Mesh, MeshData, MeshRc, Pipeline, PipelineRc, RenderPass,
-    RenderPassRc, Texture, View,
-};
+use nrg_graphics::{Font, Material, Mesh, MeshData, Pipeline, RenderPass, Texture, View};
 use nrg_messenger::{read_messages, Message, MessageChannel, MessengerRw};
 use nrg_platform::{InputState, Key, KeyEvent, MouseEvent, WindowEvent};
 use nrg_resources::{
-    DataTypeResource, FileResource, SerializableResource, SharedData, SharedDataRw,
+    DataTypeResource, FileResource, Resource, ResourceData, SerializableResource, SharedData,
+    SharedDataRw,
 };
-use nrg_scene::{Hitbox, Object, Scene, SceneRc, Transform};
+use nrg_scene::{Hitbox, Object, Scene, Transform};
 use nrg_ui::{DialogEvent, DialogOp, UIPropertiesRegistry, UIWidget};
 
+#[allow(dead_code)]
 pub struct EditorUpdater {
     id: SystemId,
     shared_data: SharedDataRw,
     global_messenger: MessengerRw,
     config: Config,
     message_channel: MessageChannel,
-    pipelines: Vec<PipelineRc>,
-    render_passes: Vec<RenderPassRc>,
-    fonts: Vec<FontRc>,
-    default_material: MaterialRc,
-    wireframe_material: MaterialRc,
-    grid_material: MaterialRc,
-    grid_mesh: MeshRc,
-    scene: SceneRc,
+    pipelines: Vec<Resource<Pipeline>>,
+    render_passes: Vec<Resource<RenderPass>>,
+    fonts: Vec<Resource<Font>>,
+    default_material: Resource<Material>,
+    wireframe_material: Resource<Material>,
+    grid_material: Resource<Material>,
+    grid_mesh: Resource<Mesh>,
+    scene: Resource<Scene>,
     main_menu: Option<MainMenu>,
     toolbar: Option<Toolbar>,
     debug_info: Option<DebugInfo>,
@@ -52,6 +51,20 @@ impl EditorUpdater {
         nrg_scene::register_resource_types(&shared_data);
         crate::resources::register_resource_types(&shared_data);
 
+        let default_material =
+            Material::create_from_file(&shared_data, config.default_material.as_path());
+        let wireframe_material =
+            Material::create_from_file(&shared_data, config.wireframe_material.as_path());
+        let grid_material =
+            Material::create_from_file(&shared_data, config.grid_material.as_path());
+
+        let mut mesh_data = MeshData::default();
+        mesh_data.add_quad_default([-1., -1., 1., 1.].into(), 0.);
+        let grid_mesh = Mesh::create_from_data(&shared_data, mesh_data);
+        grid_mesh.get_mut().set_material(grid_material.clone());
+
+        let scene = SharedData::add_resource::<Scene>(&shared_data, Scene::default());
+
         Self {
             id: SystemId::new(),
             pipelines: Vec::new(),
@@ -61,11 +74,11 @@ impl EditorUpdater {
             global_messenger,
             config: config.clone(),
             message_channel,
-            default_material: MaterialRc::default(),
-            wireframe_material: MaterialRc::default(),
-            grid_material: MaterialRc::default(),
-            grid_mesh: MeshRc::default(),
-            scene: SceneRc::default(),
+            default_material,
+            wireframe_material,
+            grid_material,
+            grid_mesh,
+            scene,
             main_menu: None,
             toolbar: None,
             debug_info: None,
@@ -150,8 +163,7 @@ impl System for EditorUpdater {
             .register_messagebox::<EditorEvent>(self.message_channel.get_messagebox())
             .register_messagebox::<DialogEvent>(self.message_channel.get_messagebox());
 
-        self.create_scene()
-            .create_main_menu()
+        self.create_main_menu()
             .create_toolbar()
             .create_hierarchy()
             .create_properties()
@@ -161,10 +173,7 @@ impl System for EditorUpdater {
     fn run(&mut self) -> bool {
         self.update_events().update_view3d().update_widgets();
 
-        self.scene
-            .resource()
-            .get_mut()
-            .update_hierarchy(&self.shared_data);
+        self.scene.get_mut().update_hierarchy(&self.shared_data);
 
         true
     }
@@ -254,10 +263,6 @@ impl EditorUpdater {
         self.content_browser = None;
         self
     }
-    fn create_scene(&mut self) -> &mut Self {
-        self.scene = SharedData::add_resource::<Scene>(&self.shared_data, Scene::default());
-        self
-    }
     fn update_widgets(&mut self) {
         nrg_profiler::scoped_profile!("update_widgets");
 
@@ -289,28 +294,13 @@ impl EditorUpdater {
             self.fonts
                 .push(Font::create_from_file(&self.shared_data, default_font_path));
         }
-
-        self.default_material =
-            Material::create_from_file(&self.shared_data, self.config.default_material.as_path());
-        self.wireframe_material =
-            Material::create_from_file(&self.shared_data, self.config.wireframe_material.as_path());
-        self.grid_material =
-            Material::create_from_file(&self.shared_data, self.config.grid_material.as_path());
-
-        let mut mesh_data = MeshData::default();
-        mesh_data.add_quad_default([-1., -1., 1., 1.].into(), 0.);
-        let mesh = Mesh::create_from_data(&self.shared_data, mesh_data);
-        mesh.resource()
-            .get_mut()
-            .set_material(self.grid_material.clone());
-        self.grid_mesh = mesh;
     }
 
     fn load_object(&mut self, filename: &Path) {
         if !filename.is_dir() && filename.exists() {
-            self.scene.resource().get_mut().clear();
+            self.scene.get_mut().clear();
             let object = Object::create_from_file(&self.shared_data, filename);
-            self.scene.resource().get_mut().add_object(object);
+            self.scene.get_mut().add_object(object);
         }
     }
 
@@ -382,7 +372,7 @@ impl EditorUpdater {
                         if let Some(view3d) = &mut self.view3d {
                             view3d.change_edit_mode(
                                 mode,
-                                self.default_material.resource().get().pipeline(),
+                                self.default_material.get().pipeline().as_ref().unwrap(),
                             );
                         }
                     }

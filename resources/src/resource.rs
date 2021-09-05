@@ -1,13 +1,10 @@
 use nrg_messenger::implement_message;
 use nrg_serialize::Uid;
 use std::{
-    any::{type_name, Any},
-    collections::HashMap,
+    any::Any,
     path::PathBuf,
     sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard},
 };
-
-use crate::ResourceRef;
 
 #[derive(Clone)]
 pub enum ResourceEvent {
@@ -82,6 +79,19 @@ where
 
 pub type Resource<T> = Arc<ResourceMutex<T>>;
 pub type GenericResource = Arc<dyn BaseResource>;
+pub type Handle<T> = Option<Resource<T>>;
+
+pub trait ResourceCastTo {
+    fn of_type<T: ResourceData>(self) -> Resource<T>;
+}
+
+impl ResourceCastTo for GenericResource {
+    #[inline]
+    fn of_type<T: ResourceData>(self) -> Resource<T> {
+        let any = Arc::into_raw(self.as_any());
+        Arc::downcast(unsafe { Arc::from_raw(any) }).unwrap()
+    }
+}
 
 pub trait TypedStorage {
     fn remove_all(&mut self);
@@ -95,8 +105,7 @@ pub struct Storage<T>
 where
     T: ResourceData,
 {
-    handles: Vec<ResourceRef<T>>,
-    resources: HashMap<ResourceId, Resource<T>>,
+    resources: Vec<Resource<T>>,
 }
 
 impl<T> Default for Storage<T>
@@ -105,8 +114,7 @@ where
 {
     fn default() -> Self {
         Self {
-            handles: Vec::new(),
-            resources: HashMap::new(),
+            resources: Vec::new(),
         }
     }
 }
@@ -123,9 +131,9 @@ where
     #[inline]
     fn flush(&mut self) {
         let mut to_remove = Vec::new();
-        self.handles.iter_mut().for_each(|handle| {
-            if Arc::strong_count(handle) == 1 && Arc::weak_count(handle) == 0 {
-                to_remove.push(handle.id());
+        self.resources.iter_mut().for_each(|resource| {
+            if Arc::strong_count(resource) == 1 && Arc::weak_count(resource) == 0 {
+                to_remove.push(resource.id());
             }
         });
         for id in to_remove {
@@ -134,16 +142,15 @@ where
     }
     #[inline]
     fn remove(&mut self, resource_id: ResourceId) {
-        self.handles.retain(|handle| handle.id() != resource_id);
-        self.resources.remove(&resource_id);
+        self.resources.retain(|r| r.id() != resource_id);
     }
     #[inline]
     fn has(&self, resource_id: ResourceId) -> bool {
-        self.resources.contains_key(&resource_id)
+        self.resources.iter().any(|r| r.id() == resource_id)
     }
     #[inline]
     fn count(&self) -> usize {
-        self.handles.len()
+        self.resources.len()
     }
 }
 
@@ -152,59 +159,38 @@ where
     T: ResourceData + Sized + 'static,
 {
     #[inline]
-    pub fn add(&mut self, handle: ResourceRef<T>, resource: Resource<T>) {
-        self.handles.push(handle);
-        self.resources.insert(resource.id(), resource);
+    pub fn add(&mut self, resource: Resource<T>) {
+        self.resources.push(resource);
     }
 
     #[inline]
-    pub fn resource(&self, resource_id: ResourceId) -> Resource<T> {
-        if let Some(resource) = self.resources.get(&resource_id) {
-            resource.clone()
+    pub fn resource(&self, resource_id: ResourceId) -> &Resource<T> {
+        if let Some(index) = self.resources.iter().position(|r| r.id() == resource_id) {
+            &self.resources[index]
         } else {
             panic!("Resource {} not found", resource_id.to_simple());
         }
     }
     #[inline]
-    pub fn get(&self, resource_id: ResourceId) -> ResourceRef<T> {
-        if let Some(handle) = self
-            .handles
-            .iter()
-            .find(|handle| handle.id() == resource_id)
-        {
-            handle.clone()
-        } else {
-            panic!(
-                "Resource of Type {:?} with {:?} doesn't exist in storage",
-                type_name::<T>(),
-                resource_id
-            );
-        }
+    pub fn get_at_index(&self, index: usize) -> &Resource<T> {
+        &self.resources[index]
     }
     #[inline]
-    pub fn get_handle_at_index(&self, handle_index: usize) -> ResourceRef<T> {
-        self.handles[handle_index].clone()
+    pub fn get_index_of(&self, resource_id: ResourceId) -> Option<usize> {
+        self.resources.iter().position(|h| h.id() == resource_id)
     }
     #[inline]
-    pub fn get_index(&self, resource_id: ResourceId) -> Option<usize> {
-        self.handles.iter().position(|h| h.id() == resource_id)
-    }
-    #[inline]
-    pub fn handles(&self) -> &Vec<ResourceRef<T>> {
-        &self.handles
-    }
-    #[inline]
-    pub fn resources(&self) -> &HashMap<ResourceId, Resource<T>> {
+    pub fn resources(&self) -> &Vec<Resource<T>> {
         &self.resources
     }
     #[inline]
-    pub fn match_resource<F>(&self, f: F) -> Option<ResourceRef<T>>
+    pub fn match_resource<F>(&self, f: F) -> Option<&Resource<T>>
     where
         F: Fn(&T) -> bool,
     {
-        for (id, r) in self.resources.iter() {
+        for r in self.resources.iter() {
             if f(&r.as_ref().get()) {
-                return Some(self.get(*id));
+                return Some(r);
             }
         }
         None
@@ -214,6 +200,6 @@ where
     where
         F: FnMut(&Resource<T>),
     {
-        self.resources.iter().for_each(|(_, r)| f(r));
+        self.resources.iter().for_each(|r| f(r));
     }
 }

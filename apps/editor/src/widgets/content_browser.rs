@@ -4,15 +4,14 @@ use std::{
 };
 
 use nrg_filesystem::convert_from_local_path;
-use nrg_graphics::{Texture, TextureId, TextureRc};
+use nrg_graphics::{Texture, TextureId};
 use nrg_messenger::{get_events_from_string, Message, MessageBox, MessengerRw};
 
-use nrg_resources::{FileResource, SharedData, SharedDataRw, DATA_FOLDER};
+use nrg_resources::{FileResource, Resource, ResourceData, SharedData, SharedDataRw, DATA_FOLDER};
 use nrg_serialize::deserialize;
 use nrg_ui::{
     implement_widget_data, CentralPanel, CollapsingHeader, DialogEvent, DialogOp, ScrollArea,
-    SidePanel, TextEdit, TextureId as eguiTextureId, TopBottomPanel, UIWidget, UIWidgetRc, Ui,
-    Widget, Window,
+    SidePanel, TextEdit, TextureId as eguiTextureId, TopBottomPanel, UIWidget, Ui, Widget, Window,
 };
 
 struct File {
@@ -41,8 +40,8 @@ struct ContentBrowserData {
 implement_widget_data!(ContentBrowserData);
 
 pub struct ContentBrowser {
-    ui_page: UIWidgetRc,
-    file_icon: TextureRc,
+    ui_page: Resource<UIWidget>,
+    file_icon: Resource<Texture>,
 }
 
 impl ContentBrowser {
@@ -202,7 +201,7 @@ impl ContentBrowser {
         });
     }
 
-    fn create(shared_data: &SharedDataRw, data: ContentBrowserData) -> UIWidgetRc {
+    fn create(shared_data: &SharedDataRw, data: ContentBrowserData) -> Resource<UIWidget> {
         let left_panel_min_width = 100.;
         let left_panel_max_width = left_panel_min_width * 4.;
         let button_size = 50.;
@@ -281,7 +280,7 @@ impl ContentBrowser {
                                     let path = data.selected_folder.as_path().to_path_buf();
                                     let files = Self::get_files(&data.dir, path.as_path());
 
-                                    let texture_index = SharedData::get_index_of_handle::<Texture>(
+                                    let texture_index = SharedData::get_index_of_resource::<Texture>(
                                         &data.shared_data,
                                         data.icon_file_texture_id,
                                     );

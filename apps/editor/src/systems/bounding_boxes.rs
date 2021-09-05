@@ -39,13 +39,13 @@ impl BoundingBoxDrawer {
             if SharedData::has::<Object>(&self.shared_data, *object_id) {
                 let mut min = Vector3::zero();
                 let mut max = Vector3::zero();
-                let object = SharedData::get_handle::<Object>(&self.shared_data, *object_id);
-                if let Some(hitbox) = object.resource().get().get_component::<Hitbox>() {
-                    min = hitbox.resource().get().min();
-                    max = hitbox.resource().get().max();
-                } else if let Some(mesh) = object.resource().get().get_component::<Mesh>() {
-                    let transform = mesh.resource().get().matrix();
-                    let (mesh_min, mesh_max) = mesh.resource().get().mesh_data().compute_min_max();
+                let object = SharedData::get_resource::<Object>(&self.shared_data, *object_id);
+                if let Some(hitbox) = object.get().get_component::<Hitbox>() {
+                    min = hitbox.get().min();
+                    max = hitbox.get().max();
+                } else if let Some(mesh) = object.get().get_component::<Mesh>() {
+                    let transform = mesh.get().matrix();
+                    let (mesh_min, mesh_max) = mesh.get().mesh_data().compute_min_max();
                     min = transform.transform(mesh_min);
                     max = transform.transform(mesh_max);
                 }

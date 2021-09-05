@@ -137,7 +137,9 @@ macro_rules! scoped_profile {
         #[cfg(debug_assertions)]
         let _profile_scope = if let Some(profiler) = unsafe { &GLOBAL_PROFILER } {
             if profiler.is_started() {
-                Some($crate::ScopedProfile::new(profiler.clone(), "", $string))
+                let scoped_profiler =
+                    Box::new($crate::ScopedProfile::new(profiler.clone(), "", $string));
+                Some(scoped_profiler)
             } else {
                 None
             }

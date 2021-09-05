@@ -10,8 +10,7 @@ use egui::{
 use image::{DynamicImage, Pixel};
 use nrg_core::{JobHandlerRw, System, SystemId};
 use nrg_graphics::{
-    Material, MaterialRc, Mesh, MeshCategoryId, MeshData, MeshRc, RenderPass, Texture, TextureId,
-    TextureRc, VertexData,
+    Material, Mesh, MeshCategoryId, MeshData, RenderPass, Texture, TextureId, VertexData,
 };
 
 use nrg_messenger::{read_messages, MessageChannel, MessengerRw};
@@ -19,7 +18,7 @@ use nrg_platform::{
     InputState, KeyEvent, KeyTextEvent, MouseButton, MouseEvent, MouseState, WindowEvent,
     DEFAULT_DPI,
 };
-use nrg_resources::{DataTypeResource, Resource, ResourceData, SharedData, SharedDataRw};
+use nrg_resources::{DataTypeResource, Handle, Resource, ResourceData, SharedData, SharedDataRw};
 
 use crate::UIWidget;
 
@@ -33,12 +32,12 @@ pub struct UISystem {
     message_channel: MessageChannel,
     ui_context: CtxRef,
     ui_texture_version: u64,
-    ui_texture: TextureRc,
+    ui_texture: Handle<Texture>,
     ui_input: RawInput,
     ui_input_modifiers: Modifiers,
     ui_clipboard: Option<String>,
-    ui_materials: HashMap<TextureId, MaterialRc>,
-    ui_meshes: Vec<MeshRc>,
+    ui_materials: HashMap<TextureId, Resource<Material>>,
+    ui_meshes: Vec<Resource<Mesh>>,
     ui_scale: f32,
 }
 
@@ -60,7 +59,7 @@ impl UISystem {
             message_channel,
             ui_context: CtxRef::default(),
             ui_texture_version: 0,
-            ui_texture: TextureRc::default(),
+            ui_texture: None,
             ui_input: RawInput::default(),
             ui_input_modifiers: Modifiers::default(),
             ui_clipboard: None,
@@ -70,7 +69,7 @@ impl UISystem {
         }
     }
 
-    fn get_ui_material(&mut self, texture: TextureRc) -> MaterialRc {
+    fn get_ui_material(&mut self, texture: Resource<Texture>) -> Resource<Material> {
         nrg_profiler::scoped_profile!("ui_system::get_ui_material");
         match self.ui_materials.entry(texture.id()) {
             Entry::Occupied(e) => e.get().clone(),
@@ -81,12 +80,11 @@ impl UISystem {
                     })
                 {
                     render_pass
-                        .resource()
                         .get_mut()
                         .add_category_to_draw(MeshCategoryId::new(UI_MESH_CATEGORY_IDENTIFIER));
-                    if let Some(pipeline) = render_pass.resource().get().pipeline() {
+                    if let Some(pipeline) = render_pass.get().pipeline() {
                         let material = Material::create_from_pipeline(&self.shared_data, pipeline);
-                        material.resource().get_mut().add_texture(texture);
+                        material.get_mut().add_texture(texture);
                         e.insert(material.clone());
                         return material;
                     }
@@ -112,13 +110,13 @@ impl UISystem {
                     image_data.put_pixel(x, y, Pixel::from_channels(r, r, r, r));
                 }
             }
-            if let Some(material) = self.ui_materials.remove(&self.ui_texture.id()) {
-                material
-                    .resource()
-                    .get_mut()
-                    .remove_texture(self.ui_texture.id());
+            if let Some(texture) = &self.ui_texture {
+                if let Some(material) = self.ui_materials.remove(&texture.id()) {
+                    material.get_mut().remove_texture(texture.id());
+                }
             }
-            self.ui_texture = Texture::create_from_data(&self.shared_data, image_data);
+            let texture = Texture::create_from_data(&self.shared_data, image_data);
+            self.ui_texture = Some(texture);
             self.ui_texture_version = self.ui_context.texture().version;
         }
         self
@@ -134,19 +132,18 @@ impl UISystem {
         for (i, clipped_mesh) in clipped_meshes.into_iter().enumerate() {
             let ClippedMesh(_, mesh) = clipped_mesh;
             let draw_index = i as u32;
-            self.ui_meshes[i]
-                .resource()
-                .get_mut()
-                .set_draw_index(draw_index);
+            self.ui_meshes[i].get_mut().set_draw_index(draw_index);
             if mesh.vertices.is_empty() || mesh.indices.is_empty() {
                 continue;
             }
             let texture = match mesh.texture_id {
-                eguiTextureId::Egui => self.ui_texture.clone(),
-                eguiTextureId::User(texture_index) => SharedData::get_handle_from_index::<Texture>(
-                    &self.shared_data,
-                    texture_index as usize,
-                ),
+                eguiTextureId::Egui => self.ui_texture.as_ref().unwrap().clone(),
+                eguiTextureId::User(texture_index) => {
+                    SharedData::get_resource_from_index::<Texture>(
+                        &self.shared_data,
+                        texture_index as usize,
+                    )
+                }
             };
             let material = self.get_ui_material(texture);
             let mesh_instance = self.ui_meshes[i].clone();
@@ -172,7 +169,6 @@ impl UISystem {
                     }
                     mesh_data.append_mesh(vertices.as_slice(), mesh.indices.as_slice());
                     mesh_instance
-                        .resource()
                         .get_mut()
                         .set_material(material)
                         .set_mesh_data(mesh_data);
