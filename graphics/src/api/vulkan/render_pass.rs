@@ -116,16 +116,16 @@ impl BackendRenderPass {
         };
         unsafe {
             vkCmdBeginRenderPass.unwrap()(
-                device.get_current_command_buffer(),
+                device.get_primary_command_buffer(),
                 &render_pass_begin_info,
-                VkSubpassContents_VK_SUBPASS_CONTENTS_INLINE,
+                VkSubpassContents_VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS,
             );
         }
     }
 
     pub fn end(&self, device: &BackendDevice) {
         unsafe {
-            vkCmdEndRenderPass.unwrap()(device.get_current_command_buffer());
+            vkCmdEndRenderPass.unwrap()(device.get_primary_command_buffer());
         }
     }
 }

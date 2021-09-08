@@ -6,8 +6,8 @@ use vulkan_bindings::*;
 use super::physical_device::PhysicalDevice;
 use super::{
     enumerate_available_extensions, enumerate_available_layers, enumerate_physical_devices,
-    get_available_extensions_names, get_available_layers_names, QueueFamilyIndices,
-    SwapChainSupportDetails, VK_API_VERSION_1_1,
+    get_available_extensions_names, get_available_layers_names, get_minimum_required_vulkan_layers,
+    QueueFamilyIndices, SwapChainSupportDetails, VK_API_VERSION_1_2,
 };
 
 struct InstanceImmutable {
@@ -104,17 +104,13 @@ impl InstanceImmutable {
     pub fn new(handle: &Handle, enable_validation: bool) -> InstanceImmutable {
         let lib = vulkan_bindings::Lib::default();
         VK::initialize(&lib);
-        let available_layers = if enable_validation {
-            enumerate_available_layers()
-        } else {
-            Vec::new()
-        };
+        let available_layers = enumerate_available_layers();
         let available_extensions = enumerate_available_extensions();
-        let inst = create_instance(&available_layers, &available_extensions);
+        let inst = create_instance(&available_layers, &available_extensions, enable_validation);
         let surf = create_surface(inst, handle);
         let physical_dev = pick_suitable_physical_device(inst, surf);
         if physical_dev.is_none() {
-            eprintln!("Unable to find a physical device that support Vulkan needed API");
+            panic!("Unable to find a physical device that support Vulkan needed API");
         }
 
         let mut debug_messenger: VkDebugUtilsMessengerEXT = ::std::ptr::null_mut();
@@ -211,30 +207,42 @@ extern "C" fn debug_callback(
 fn create_instance(
     supported_layers: &[VkLayerProperties],
     supported_extensions: &[VkExtensionProperties],
+    enable_validation: bool,
 ) -> VkInstance {
     let app_info = VkApplicationInfo {
         sType: VkStructureType_VK_STRUCTURE_TYPE_APPLICATION_INFO,
         pNext: ::std::ptr::null_mut(),
         pApplicationName: ::std::ptr::null_mut(),
-        applicationVersion: VK_API_VERSION_1_1,
+        applicationVersion: VK_API_VERSION_1_2,
         pEngineName: ::std::ptr::null_mut(),
-        engineVersion: VK_API_VERSION_1_1,
-        apiVersion: VK_API_VERSION_1_1,
+        engineVersion: VK_API_VERSION_1_2,
+        apiVersion: VK_API_VERSION_1_2,
     };
 
-    //Layers
     let layer_names_str = get_available_layers_names(supported_layers);
-    let layer_names_ptr = layer_names_str
+    let mut required_layers = get_minimum_required_vulkan_layers(enable_validation);
+    for layer in layer_names_str.iter() {
+        if let Some(index) = required_layers.iter().position(|l| l == layer) {
+            required_layers.remove(index);
+        }
+    }
+
+    let has_required_layers = required_layers.is_empty();
+    debug_assert!(
+        has_required_layers,
+        "Device has not minimum requirement Vulkan layers"
+    );
+    required_layers = get_minimum_required_vulkan_layers(enable_validation);
+    let layer_names_ptr = required_layers
         .iter()
         .map(|e| e.as_ptr())
         .collect::<Vec<*const c_char>>();
 
-    //Extensions
     let extension_names_str = get_available_extensions_names(supported_extensions);
     let extension_names_ptr = extension_names_str
         .iter()
-        .map(|e| e.as_ptr())
-        .collect::<Vec<*const i8>>();
+        .map(|e| e.as_ptr() as *const c_char)
+        .collect::<Vec<*const c_char>>();
 
     //Create Instance
     let create_info = VkInstanceCreateInfo {

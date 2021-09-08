@@ -1,5 +1,6 @@
 #![cfg(target_os = "windows")]
 
+pub use command_buffer::*;
 pub use device::*;
 pub use instance::*;
 pub use mesh::*;
@@ -9,6 +10,7 @@ pub use texture::*;
 pub use types::*;
 pub use utils::*;
 
+pub mod command_buffer;
 mod data_formats;
 pub mod device;
 pub mod instance;

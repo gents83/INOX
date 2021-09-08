@@ -82,6 +82,7 @@ impl App {
         for (_name, w) in self.workers.iter_mut() {
             w.stop();
         }
+        self.job_handler.read().unwrap().clear_pending_jobs();
     }
 
     fn update_plugins(&mut self, plugins_to_remove: Vec<PluginId>) -> Vec<PathBuf> {
@@ -155,9 +156,7 @@ impl App {
 
         self.update_events();
 
-        if self.is_enabled {
-            self.job_handler.read().unwrap().clear_pending_jobs();
-        } else {
+        if !self.is_enabled {
             let plugins_to_remove = self.plugin_manager.update();
             let plugins_to_reload = self.update_plugins(plugins_to_remove);
             if !plugins_to_reload.is_empty() {

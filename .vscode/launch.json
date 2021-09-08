@@ -6,9 +6,9 @@
     "configurations": [
         {
             "name": "RUN LAUNCHER DEBUG",
-            "type": "lldb",
+            "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/target/debug/nrg_launcher",
+            "program": "${workspaceFolder}/target/debug/nrg_launcher.exe",
             "args": [],
             "cwd": "${workspaceFolder}",
             "env": {
@@ -18,16 +18,19 @@
             "sourceLanguages": [
                 "rust"
             ],
+            "requireExactSource": false,
             "postDebugTask": "CLEANUP",
-            "sourceMap": {
-                "/rustc/*": "${env:HOME}/.rustup/toolchains/stable-x86_64-pc-windows-msvc/lib/rustlib/src/rust"
-            }
+            "sourceFileMap": {
+                "/rustc/a178d0322ce20e33eac124758e837cbd80a6f633": "${env:USERPROFILE}/.rustup/toolchains/nightly-x86_64-pc-windows-msvc/lib/rustlib/src/rust"
+            },
+            "console": "integratedTerminal",
+            "symbolSearchPath": "https://msdl.microsoft.com/download/symbols",
         },
         {
             "name": "RUN EDITOR DEBUG",
-            "type": "lldb",
+            "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/target/debug/nrg_launcher",
+            "program": "${workspaceFolder}/target/debug/nrg_launcher.exe",
             "args": [
                 "nrg_editor"
             ],
@@ -39,16 +42,19 @@
             "sourceLanguages": [
                 "rust"
             ],
+            "requireExactSource": false,
             "postDebugTask": "CLEANUP",
-            "sourceMap": {
-                "/rustc/*": "${env:HOME}/.rustup/toolchains/stable-x86_64-pc-windows-msvc/lib/rustlib/src/rust"
-            }
+            "sourceFileMap": {
+                "/rustc/a178d0322ce20e33eac124758e837cbd80a6f633": "${env:USERPROFILE}/.rustup/toolchains/stable-x86_64-pc-windows-msvc/lib/rustlib/src/rust"
+            },
+            "console": "integratedTerminal",
+            "symbolSearchPath": "https://msdl.microsoft.com/download/symbols",
         },
         {
             "name": "RUN LAUNCHER RELEASE",
-            "type": "lldb",
+            "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/target/release/nrg_launcher",
+            "program": "${workspaceFolder}/target/release/nrg_launcher.exe",
             "args": [],
             "env": {
                 "RUST_BACKTRACE": "full"
@@ -58,10 +64,13 @@
             "sourceLanguages": [
                 "rust"
             ],
+            "requireExactSource": false,
             "postDebugTask": "CLEANUP",
-            "sourceMap": {
-                "/rustc/*": "${env:HOME}/.rustup/toolchains/stable-x86_64-pc-windows-msvc/lib/rustlib/src/rust"
-            }
+            "sourceFileMap": {
+                "/rustc/a178d0322ce20e33eac124758e837cbd80a6f633": "${env:USERPROFILE}/.rustup/toolchains/stable-x86_64-pc-windows-msvc/lib/rustlib/src/rust"
+            },
+            "console": "integratedTerminal",
+            "symbolSearchPath": "https://msdl.microsoft.com/download/symbols",
         },
     ]
 }

@@ -4,7 +4,8 @@ use nrg_resources::{
 use nrg_serialize::{generate_uid_from_string, Uid};
 
 use crate::{
-    api::backend, Device, MeshCategoryId, Pipeline, RenderPassData, Texture, TextureHandler,
+    api::backend, CommandBuffer, Device, MeshCategoryId, Pipeline, RenderPassData, Texture,
+    TextureHandler,
 };
 
 pub type RenderPassId = Uid;
@@ -20,6 +21,7 @@ pub struct RenderPass {
     is_initialized: bool,
     mesh_category_to_draw: Vec<MeshCategoryId>,
     texture_to_recycle: Vec<Resource<Texture>>,
+    command_buffer: Option<CommandBuffer>,
 }
 
 impl std::ops::Deref for RenderPass {
@@ -211,22 +213,41 @@ impl RenderPass {
         }
     }
 
-    pub fn acquire_command_buffer(&self, device: &mut Device) {
-        device.acquire_command_buffer();
+    pub fn acquire_command_buffer(&mut self, device: &mut Device) {
+        self.command_buffer = Some(CommandBuffer::new(device));
+    }
+    pub fn get_command_buffer(&self) -> &CommandBuffer {
+        self.command_buffer.as_ref().unwrap()
     }
 
-    pub fn begin(&self, device: &Device) {
+    pub fn draw(&mut self, device: &Device) {
+        self.begin(device);
+        if let Some(command_buffer) = self.command_buffer.take() {
+            command_buffer.execute(device);
+        }
+        self.end(device);
+    }
+
+    pub fn begin_command_buffer(&self, device: &Device) {
         if let Some(backend_render_pass) = &self.backend_render_pass {
             let render_pass = backend_render_pass.get_render_pass();
             let framebuffer = backend_render_pass.get_framebuffer(device);
-            device.begin_command_buffer(render_pass, framebuffer);
+            device.begin_command_buffer(&*self.get_command_buffer(), render_pass, framebuffer);
+        }
+    }
+
+    pub fn end_command_buffer(&self, device: &Device) {
+        device.end_command_buffer(&*self.get_command_buffer());
+    }
+
+    fn begin(&self, device: &Device) {
+        if let Some(backend_render_pass) = &self.backend_render_pass {
             backend_render_pass.begin(&*device);
         }
     }
 
-    pub fn end(&self, device: &Device) {
+    fn end(&self, device: &Device) {
         if let Some(backend_render_pass) = &self.backend_render_pass {
-            device.end_command_buffer();
             backend_render_pass.end(&*device);
         }
     }

@@ -29,7 +29,7 @@ unsafe impl Sync for Renderer {}
 impl Renderer {
     pub fn new(handle: &Handle, shared_data: &SharedDataRw, enable_debug: bool) -> Self {
         let instance = Instance::create(handle, enable_debug);
-        let device = Device::create(&instance);
+        let device = Device::create(&instance, enable_debug);
         let texture_handler = TextureHandler::create(&device);
         Renderer {
             shared_data: shared_data.clone(),
@@ -83,7 +83,7 @@ impl Renderer {
         self.device.begin_frame()
     }
 
-    pub fn end_frame(&mut self) {
+    pub fn end_frame(&self) {
         nrg_profiler::scoped_profile!("renderer::end_frame");
 
         self.device.end_frame();

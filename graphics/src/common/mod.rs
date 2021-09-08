@@ -1,9 +1,10 @@
 pub use crate::common::{
     area::*, data_formats::*, device::*, instance::*, mesh::*, renderer::*, shader::*, shapes2d::*,
-    shapes3d::*, texture::*,
+    shapes3d::*, texture::*, command_buffer::*,
 };
 
 pub mod area;
+pub mod command_buffer;
 pub mod data_formats;
 pub mod device;
 pub mod instance;

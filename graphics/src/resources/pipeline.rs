@@ -5,8 +5,9 @@ use nrg_resources::{
 use nrg_serialize::generate_random_uid;
 
 use crate::{
-    api::backend, utils::compute_color_from_id, Device, GraphicsMesh, InstanceCommand,
-    InstanceData, Mesh, MeshCategoryId, PipelineData, RenderPass, ShaderType, TextureAtlas,
+    api::backend, utils::compute_color_from_id, CommandBuffer, Device, GraphicsMesh,
+    InstanceCommand, InstanceData, Mesh, MeshCategoryId, PipelineData, RenderPass, ShaderType,
+    TextureAtlas,
 };
 
 pub type PipelineId = ResourceId;
@@ -162,20 +163,25 @@ impl Pipeline {
         self
     }
 
-    fn begin(&mut self) -> &mut Self {
+    fn begin(&mut self, command_buffer: &CommandBuffer) -> &mut Self {
         nrg_profiler::scoped_profile!(
             format!("renderer::draw_pipeline_begin[{:?}]", self.id()).as_str()
         );
         if let Some(backend_pipeline) = &mut self.backend_pipeline {
             backend_pipeline
-                .bind(&self.instance_commands, &self.instance_data)
-                .bind_descriptors();
+                .bind(
+                    &*command_buffer,
+                    &self.instance_commands,
+                    &self.instance_data,
+                )
+                .bind_descriptors(&*command_buffer);
         }
         self
     }
 
     fn update_runtime_data(
         &mut self,
+        command_buffer: &CommandBuffer,
         width: u32,
         height: u32,
         view: &Matrix4,
@@ -186,7 +192,7 @@ impl Pipeline {
         );
         if let Some(backend_pipeline) = &mut self.backend_pipeline {
             backend_pipeline
-                .update_constant_data(width, height, view, proj)
+                .update_constant_data(&*command_buffer, width, height, view, proj)
                 .update_uniform_buffer(view, proj);
         }
         self
@@ -203,28 +209,28 @@ impl Pipeline {
         self
     }
 
-    fn bind_indirect(&mut self) -> &mut Self {
+    fn bind_indirect(&mut self, command_buffer: &CommandBuffer) -> &mut Self {
         nrg_profiler::scoped_profile!(format!("pipeline::bind_indirect[{:?}]", self.id()).as_str());
         if let Some(backend_pipeline) = &mut self.backend_pipeline {
-            backend_pipeline.bind_indirect();
+            backend_pipeline.bind_indirect(&*command_buffer);
         }
         self
     }
-    fn bind_vertices(&mut self, device: &Device) -> &mut Self {
+    fn bind_vertices(&mut self, command_buffer: &CommandBuffer) -> &mut Self {
         nrg_profiler::scoped_profile!(format!("pipeline::bind_vertices[{:?}]", self.id()).as_str());
-        self.mesh.bind_vertices(device);
+        self.mesh.bind_vertices(&*command_buffer);
         self
     }
-    fn bind_indices(&mut self, device: &Device) -> &mut Self {
+    fn bind_indices(&mut self, command_buffer: &CommandBuffer) -> &mut Self {
         nrg_profiler::scoped_profile!(format!("pipeline::bind_indices[{:?}]", self.id()).as_str());
-        self.mesh.bind_indices(device);
+        self.mesh.bind_indices(&*command_buffer);
         self
     }
 
-    fn draw_indirect(&mut self) -> &mut Self {
+    fn draw_indirect(&mut self, command_buffer: &CommandBuffer) -> &mut Self {
         nrg_profiler::scoped_profile!(format!("pipeline::draw_indirect[{:?}]", self.id()).as_str());
         if let Some(backend_pipeline) = &mut self.backend_pipeline {
-            backend_pipeline.draw_indirect(self.instance_count);
+            backend_pipeline.draw_indirect(&*command_buffer, self.instance_count);
         }
         self
     }
@@ -309,6 +315,7 @@ impl Pipeline {
 
     pub fn update_bindings(
         &mut self,
+        command_buffer: &CommandBuffer,
         width: u32,
         height: u32,
         view: &Matrix4,
@@ -319,20 +326,20 @@ impl Pipeline {
             format!("renderer::update_bindings[{:?}]", self.id()).as_str()
         );
 
-        self.update_runtime_data(width, height, view, proj)
+        self.update_runtime_data(command_buffer, width, height, view, proj)
             .update_descriptor_sets(textures);
 
         self
     }
 
-    pub fn draw(&mut self, device: &Device) {
+    pub fn fill_command_buffer(&mut self, command_buffer: &CommandBuffer) {
         nrg_profiler::scoped_profile!(format!("renderer::draw_pipeline[{:?}]", self.id()).as_str());
 
-        self.begin()
-            .bind_vertices(device)
-            .bind_indirect()
-            .bind_indices(device)
-            .draw_indirect()
+        self.begin(command_buffer)
+            .bind_vertices(command_buffer)
+            .bind_indirect(command_buffer)
+            .bind_indices(command_buffer)
+            .draw_indirect(command_buffer)
             .end();
     }
 }

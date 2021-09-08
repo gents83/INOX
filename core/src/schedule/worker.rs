@@ -5,8 +5,6 @@ use std::{
 
 use crate::{Job, JobHandler, Phase, Scheduler};
 
-const DEFAULT_THREAD_STACK_SIZE: usize = 100 * 1024 * 1024;
-
 pub struct Worker {
     scheduler: Arc<RwLock<Scheduler>>,
     thread_handle: Option<JoinHandle<bool>>,
@@ -50,7 +48,6 @@ impl Worker {
             let builder = thread::Builder::new().name(name.into());
             let scheduler = Arc::clone(&self.scheduler);
             let t = builder
-                .stack_size(DEFAULT_THREAD_STACK_SIZE)
                 .spawn(move || {
                     nrg_profiler::register_thread!();
                     scheduler.write().unwrap().resume();

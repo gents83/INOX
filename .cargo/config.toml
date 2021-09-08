@@ -1,5 +1,7 @@
 [build]
-rustflags = ["-C", "link-arg=-fuse-ld=lld"]
+jobs = 4  # number of parallel jobs, defaults to # of CPUs
+rustflags = ["-C", "link-arg=-fuse-ld=lld", "-C", "panic=abort"]
+incremental = true            # whether or not to enable incremental compilation
 
 [profile.dev]
 split-debuginfo = "unpacked" # faster debug builds on mac

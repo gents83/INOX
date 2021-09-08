@@ -1,4 +1,5 @@
 use crate::api::backend::BackendMesh;
+use crate::CommandBuffer;
 
 use super::data_formats::*;
 use super::device::*;
@@ -57,18 +58,25 @@ impl GraphicsMesh {
             .set_mesh_at_index(vertices, first_vertex, indices, first_index)
     }
 
-    pub fn bind_vertices(&self, device: &Device) {
-        self.inner.bind_vertices(&*device);
+    pub fn bind_vertices(&self, command_buffer: &CommandBuffer) {
+        self.inner.bind_vertices(&*command_buffer);
     }
 
-    pub fn bind_indices(&self, device: &Device) {
-        self.inner.bind_indices(&*device);
+    pub fn bind_indices(&self, command_buffer: &CommandBuffer) {
+        self.inner.bind_indices(&*command_buffer);
     }
 
-    pub fn draw(&mut self, device: &Device, num_vertices: u32, num_indices: u32) {
+    pub fn draw(
+        &mut self,
+        device: &Device,
+        command_buffer: &CommandBuffer,
+        num_vertices: u32,
+        num_indices: u32,
+    ) {
         if !self.data.vertices.is_empty() {
             self.inner.draw(
                 &*device,
+                &*command_buffer,
                 &self.data.vertices,
                 num_vertices,
                 &self.data.indices,

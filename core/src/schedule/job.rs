@@ -5,7 +5,7 @@ use std::sync::{
 };
 pub struct Job {
     func: Box<dyn FnOnce() + Send + Sync>,
-    wait_count: Arc<AtomicUsize>,
+    pending_jobs: Arc<AtomicUsize>,
     name: String,
 }
 
@@ -13,13 +13,20 @@ unsafe impl Sync for Job {}
 unsafe impl Send for Job {}
 
 impl Job {
-    pub fn new<F>(name: &str, func: F, wait_count: Arc<AtomicUsize>) -> Self
+    pub fn new<F>(name: &str, func: F, mut pending_jobs: Arc<AtomicUsize>) -> Self
     where
         F: FnOnce() + Send + Sync + 'static,
     {
+        pending_jobs.fetch_add(1, Ordering::SeqCst);
+        /*
+        println!(
+            "Adding job {:?} - remaining {:?}",
+            name,
+            pending_jobs.load(Ordering::SeqCst)
+        );*/
         Self {
             func: Box::new(func),
-            wait_count,
+            pending_jobs,
             name: String::from(name),
         }
     }
@@ -30,10 +37,24 @@ impl Job {
 
     pub fn execute(self) {
         nrg_profiler::scoped_profile!(self.name.as_str());
+        /*
+        println!(
+            "Starting {:?} - remaining {:?}",
+            self.name.as_str(),
+            self.pending_jobs.load(Ordering::SeqCst)
+        );
+        */
 
         (self.func)();
 
-        self.wait_count.fetch_sub(1, Ordering::SeqCst);
+        self.pending_jobs.fetch_sub(1, Ordering::SeqCst);
+        /*
+        println!(
+            "Ending {:?} - remaining {:?}",
+            self.name.as_str(),
+            self.pending_jobs.load(Ordering::SeqCst)
+        );
+        */
     }
 }
 
@@ -60,8 +81,6 @@ impl JobHandler {
     where
         F: FnOnce() + Send + Sync + 'static,
     {
-        self.pending_jobs.fetch_add(1, Ordering::SeqCst);
-
         let job = Job::new(job_name, func, self.pending_jobs.clone());
         self.sender.send(job).ok();
     }

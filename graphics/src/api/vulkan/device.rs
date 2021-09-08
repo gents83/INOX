@@ -1,6 +1,6 @@
 use crate::api::backend::{
     get_available_extensions_names, get_available_layers_names,
-    get_minimum_required_vulkan_extensions,
+    get_minimum_required_vulkan_extensions, get_minimum_required_vulkan_layers,
 };
 use crate::Area;
 use nrg_platform::{get_raw_thread_id, RawThreadId};
@@ -9,7 +9,10 @@ use std::os::raw::c_char;
 use std::sync::{Arc, RwLock};
 use vulkan_bindings::*;
 
-use super::{create_image_view, find_available_memory_type, find_depth_format, BackendInstance};
+use super::{
+    create_image_view, find_available_memory_type, find_depth_format, BackendCommandBuffer,
+    BackendInstance,
+};
 
 pub struct BackendSwapChain {
     ptr: VkSwapchainKHR,
@@ -72,8 +75,11 @@ pub struct BackendDevice {
 }
 
 impl BackendDevice {
-    pub fn new(instance: &BackendInstance) -> Self {
-        let immutable = Arc::new(RwLock::new(DeviceImmutable::new(instance)));
+    pub fn new(instance: &BackendInstance, enable_validation: bool) -> Self {
+        let immutable = Arc::new(RwLock::new(DeviceImmutable::new(
+            instance,
+            enable_validation,
+        )));
         BackendDevice {
             instance: instance.clone(),
             inner: immutable,
@@ -115,11 +121,6 @@ impl BackendDevice {
     pub fn get_primary_command_buffer(&self) -> VkCommandBuffer {
         let inner = self.inner.read().unwrap();
         inner.get_primary_command_buffer()
-    }
-
-    pub fn get_current_command_buffer(&self) -> VkCommandBuffer {
-        let inner = self.inner.read().unwrap();
-        inner.get_current_command_buffer()
     }
 
     pub fn create_buffer(
@@ -235,24 +236,32 @@ impl BackendDevice {
             .copy_buffer_to_image(buffer, image, layer_index, area);
     }
 
-    pub fn acquire_command_buffer(&mut self) {
-        self.inner.write().unwrap().create_thread_data();
-    }
-
-    pub fn begin_command_buffer(&self, render_pass: VkRenderPass, framebuffer: VkFramebuffer) {
-        let command_buffer = self.get_current_command_buffer();
+    pub fn acquire_command_buffer(&mut self) -> VkCommandBuffer {
         self.inner
             .write()
             .unwrap()
-            .begin_command_buffer(command_buffer, render_pass, framebuffer);
+            .create_thread_data()
+            .get_current_command_buffer()
     }
 
-    pub fn end_command_buffer(&self) {
-        let command_buffer = self.get_current_command_buffer();
+    pub fn begin_command_buffer(
+        &self,
+        command_buffer: &BackendCommandBuffer,
+        render_pass: VkRenderPass,
+        framebuffer: VkFramebuffer,
+    ) {
+        self.inner.write().unwrap().begin_command_buffer(
+            command_buffer.get(),
+            render_pass,
+            framebuffer,
+        );
+    }
+
+    pub fn end_command_buffer(&self, command_buffer: &BackendCommandBuffer) {
         self.inner
             .write()
             .unwrap()
-            .end_command_buffer(command_buffer);
+            .end_command_buffer(command_buffer.get());
     }
 
     pub fn begin_frame(&self) -> bool {
@@ -264,12 +273,12 @@ impl BackendDevice {
     }
 
     pub fn end_frame(&self) {
-        self.inner.write().unwrap().end_frame();
+        self.inner.read().unwrap().end_frame();
     }
 
-    pub fn submit(&mut self) {
+    pub fn submit(&self) {
         let command_buffer = self.get_primary_command_buffer();
-        self.inner.write().unwrap().submit(command_buffer);
+        self.inner.read().unwrap().submit(command_buffer);
     }
 
     pub fn present(&mut self) -> bool {
@@ -285,8 +294,8 @@ impl BackendDevice {
 }
 
 impl DeviceImmutable {
-    pub fn new(instance: &BackendInstance) -> Self {
-        DeviceImmutable::create(instance)
+    pub fn new(instance: &BackendInstance, enable_validation: bool) -> Self {
+        DeviceImmutable::create(instance, enable_validation)
     }
 
     pub fn delete(&mut self) {
@@ -402,7 +411,7 @@ impl DeviceImmutable {
         }
     }
 
-    fn end_primary_command_buffer(&mut self) {
+    fn end_primary_command_buffer(&self) {
         let primary_command_buffer = self.get_primary_command_buffer();
         unsafe {
             assert_eq!(
@@ -418,8 +427,6 @@ impl DeviceImmutable {
                 VkResult_VK_SUCCESS,
                 vkEndCommandBuffer.unwrap()(command_buffer)
             );
-            // Execute render commands from the secondary command buffer
-            vkCmdExecuteCommands.unwrap()(self.get_primary_command_buffer(), 1, &command_buffer);
         }
     }
 
@@ -437,7 +444,7 @@ impl DeviceImmutable {
         self.begin_primary_command_buffer();
     }
 
-    fn end_frame(&mut self) {
+    fn end_frame(&self) {
         self.end_primary_command_buffer();
 
         unsafe {
@@ -449,7 +456,7 @@ impl DeviceImmutable {
         }
     }
 
-    fn submit(&mut self, command_buffer: VkCommandBuffer) {
+    fn submit(&self, command_buffer: VkCommandBuffer) {
         unsafe {
             let wait_stages =
                 [VkPipelineStageFlagBits_VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT as _];
@@ -928,7 +935,7 @@ impl DeviceImmutable {
         thread_data.command_buffers[buffer_index]
     }
 
-    fn create_thread_data(&mut self) {
+    fn create_thread_data(&mut self) -> &Self {
         let thread_id = get_raw_thread_id();
         let device = self.device;
         let graphics_family_index = self.graphics_family_index;
@@ -946,6 +953,7 @@ impl DeviceImmutable {
                 command_buffers,
             }
         });
+        self
     }
     fn get_thread_data(&self) -> &ThreadData {
         let thread_id = get_raw_thread_id();
@@ -958,7 +966,7 @@ impl DeviceImmutable {
 }
 
 impl DeviceImmutable {
-    fn create(instance: &BackendInstance) -> Self {
+    fn create(instance: &BackendInstance, enable_validation: bool) -> Self {
         let queue_priority: f32 = 1.0;
         let mut hash_family_indices: ::std::collections::HashSet<u32> =
             ::std::collections::HashSet::new();
@@ -979,16 +987,28 @@ impl DeviceImmutable {
         }
 
         let layer_names_str = get_available_layers_names(&instance.get_supported_layers());
-        let layer_names_ptr = layer_names_str
+        let mut required_layers = get_minimum_required_vulkan_layers(enable_validation);
+        for layer in layer_names_str.iter() {
+            if let Some(index) = required_layers.iter().position(|l| l == layer) {
+                required_layers.remove(index);
+            }
+        }
+        let has_required_layers = required_layers.is_empty();
+        debug_assert!(
+            has_required_layers,
+            "Device has not minimum requirement Vulkan layers"
+        );
+        required_layers = get_minimum_required_vulkan_layers(enable_validation);
+        let layer_names_ptr = required_layers
             .iter()
             .map(|e| e.as_ptr())
             .collect::<Vec<*const c_char>>();
 
-        let device_extension_names_str =
+        let extension_names_str =
             get_available_extensions_names(&instance.get_available_extensions());
 
         let mut required_exts = get_minimum_required_vulkan_extensions();
-        for ext in device_extension_names_str.iter() {
+        for ext in extension_names_str.iter() {
             if let Some(index) = required_exts.iter().position(|r| r == ext) {
                 required_exts.remove(index);
             }
@@ -998,8 +1018,7 @@ impl DeviceImmutable {
             has_required_ext,
             "Device has not minimum requirement Vulkan extensions"
         );
-        required_exts = get_minimum_required_vulkan_extensions();
-        let device_extension_names_ptr = required_exts
+        let extension_names_ptr = extension_names_str
             .iter()
             .map(|e| e.as_ptr() as *const c_char)
             .collect::<Vec<*const c_char>>();
@@ -1013,10 +1032,10 @@ impl DeviceImmutable {
             flags: 0,
             queueCreateInfoCount: queue_infos.len() as _,
             pQueueCreateInfos: queue_infos.as_ptr(),
-            enabledLayerCount: layer_names_str.len() as _,
+            enabledLayerCount: layer_names_ptr.len() as _,
             ppEnabledLayerNames: layer_names_ptr.as_ptr(),
-            enabledExtensionCount: required_exts.len() as u32,
-            ppEnabledExtensionNames: device_extension_names_ptr.as_ptr(),
+            enabledExtensionCount: extension_names_ptr.len() as u32,
+            ppEnabledExtensionNames: extension_names_ptr.as_ptr(),
             pEnabledFeatures: &device_features,
         };
 

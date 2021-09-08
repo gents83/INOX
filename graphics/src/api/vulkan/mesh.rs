@@ -1,4 +1,4 @@
-use super::{data_formats::VERTEX_BUFFER_BIND_ID, device::*};
+use super::{data_formats::VERTEX_BUFFER_BIND_ID, device::*, BackendCommandBuffer};
 use crate::common::data_formats::*;
 use vulkan_bindings::*;
 
@@ -88,21 +88,21 @@ impl BackendMesh {
     pub fn draw(
         &mut self,
         device: &BackendDevice,
+        command_buffer: &BackendCommandBuffer,
         vertices: &[VertexData],
         num_vertices: u32,
         indices: &[u32],
         num_indices: u32,
     ) {
         self.bind_at_index(device, vertices, 0, indices, 0);
-        self.bind_vertices(device);
-        self.bind_indices(device);
+        self.bind_vertices(command_buffer);
+        self.bind_indices(command_buffer);
 
         unsafe {
-            let command_buffer = device.get_current_command_buffer();
             if !self.index_buffer.is_null() && num_indices > 0 {
-                vkCmdDrawIndexed.unwrap()(command_buffer, num_indices as _, 1, 0, 0, 0);
+                vkCmdDrawIndexed.unwrap()(command_buffer.get(), num_indices as _, 1, 0, 0, 0);
             } else {
-                vkCmdDraw.unwrap()(command_buffer, num_vertices as _, 1, 0, 0);
+                vkCmdDraw.unwrap()(command_buffer.get(), num_vertices as _, 1, 0, 0);
             }
         }
     }
@@ -119,13 +119,13 @@ impl BackendMesh {
         device.map_buffer_memory(&mut self.index_buffer_memory, first_index as _, indices);
     }
 
-    pub fn bind_vertices(&self, device: &BackendDevice) {
+    pub fn bind_vertices(&self, command_buffer: &BackendCommandBuffer) {
         if !self.vertex_buffer.is_null() {
             unsafe {
                 let vertex_buffers = [self.vertex_buffer];
                 let offsets = [0_u64];
                 vkCmdBindVertexBuffers.unwrap()(
-                    device.get_current_command_buffer(),
+                    command_buffer.get(),
                     VERTEX_BUFFER_BIND_ID as _,
                     1,
                     vertex_buffers.as_ptr(),
@@ -135,11 +135,11 @@ impl BackendMesh {
         }
     }
 
-    pub fn bind_indices(&self, device: &BackendDevice) {
+    pub fn bind_indices(&self, command_buffer: &BackendCommandBuffer) {
         if !self.index_buffer.is_null() {
             unsafe {
                 vkCmdBindIndexBuffer.unwrap()(
-                    device.get_current_command_buffer(),
+                    command_buffer.get(),
                     self.index_buffer,
                     0,
                     VkIndexType_VK_INDEX_TYPE_UINT32,

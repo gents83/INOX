@@ -19,9 +19,9 @@ impl std::ops::DerefMut for Device {
 }
 
 impl Device {
-    pub fn create(instance: &super::instance::Instance) -> Self {
+    pub fn create(instance: &super::instance::Instance, enable_validation: bool) -> Self {
         Device {
-            inner: BackendDevice::new(&*instance),
+            inner: BackendDevice::new(&*instance, enable_validation),
         }
     }
 
@@ -33,11 +33,11 @@ impl Device {
         self.inner.begin_frame()
     }
 
-    pub fn end_frame(&mut self) {
+    pub fn end_frame(&self) {
         self.inner.end_frame();
     }
 
-    pub fn submit(&mut self) {
+    pub fn submit(&self) {
         self.inner.submit();
     }
 

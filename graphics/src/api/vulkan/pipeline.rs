@@ -1,5 +1,6 @@
 use super::data_formats::INSTANCE_BUFFER_BIND_ID;
 use super::shader::BackendShader;
+use super::BackendCommandBuffer;
 use super::BackendDevice;
 use super::BackendRenderPass;
 use crate::common::texture::MAX_TEXTURE_COUNT;
@@ -114,16 +115,22 @@ impl BackendPipeline {
         self
     }
 
-    pub fn bind(&self, commands: &[InstanceCommand], instances: &[InstanceData]) -> &Self {
+    pub fn bind(
+        &self,
+        command_buffer: &BackendCommandBuffer,
+        commands: &[InstanceCommand],
+        instances: &[InstanceData],
+    ) -> &Self {
         self.inner
             .write()
             .unwrap()
-            .bind(&self.device, commands, instances);
+            .bind(&self.device, command_buffer.get(), commands, instances);
         self
     }
 
     pub fn update_constant_data(
         &mut self,
+        command_buffer: &BackendCommandBuffer,
         width: u32,
         height: u32,
         view: &Matrix4,
@@ -132,7 +139,7 @@ impl BackendPipeline {
         self.inner
             .write()
             .unwrap()
-            .update_constant_data(&self.device, width, height, view, proj);
+            .update_constant_data(command_buffer, width, height, view, proj);
         self
     }
 
@@ -151,21 +158,27 @@ impl BackendPipeline {
         self
     }
 
-    pub fn bind_descriptors(&self) -> &Self {
-        self.inner.read().unwrap().bind_descriptors(&self.device);
-        self
-    }
-
-    pub fn bind_indirect(&mut self) -> &Self {
-        self.inner.write().unwrap().bind_indirect(&self.device);
-        self
-    }
-
-    pub fn draw_indirect(&self, count: usize) -> &Self {
+    pub fn bind_descriptors(&self, command_buffer: &BackendCommandBuffer) -> &Self {
         self.inner
             .read()
             .unwrap()
-            .draw_indirect(&self.device, count);
+            .bind_descriptors(&self.device, command_buffer.get());
+        self
+    }
+
+    pub fn bind_indirect(&mut self, command_buffer: &BackendCommandBuffer) -> &Self {
+        self.inner
+            .write()
+            .unwrap()
+            .bind_indirect(command_buffer.get());
+        self
+    }
+
+    pub fn draw_indirect(&self, command_buffer: &BackendCommandBuffer, count: usize) -> &Self {
+        self.inner
+            .read()
+            .unwrap()
+            .draw_indirect(command_buffer, count);
         self
     }
 
@@ -546,6 +559,7 @@ impl PipelineImmutable {
     fn bind(
         &mut self,
         device: &BackendDevice,
+        command_buffer: VkCommandBuffer,
         commands: &[InstanceCommand],
         instances: &[InstanceData],
     ) {
@@ -554,7 +568,7 @@ impl PipelineImmutable {
 
         unsafe {
             vkCmdBindPipeline.unwrap()(
-                device.get_current_command_buffer(),
+                command_buffer,
                 VkPipelineBindPoint_VK_PIPELINE_BIND_POINT_GRAPHICS,
                 self.graphics_pipeline,
             );
@@ -719,11 +733,11 @@ impl PipelineImmutable {
         self
     }
 
-    fn bind_indirect(&mut self, device: &BackendDevice) -> &mut Self {
+    fn bind_indirect(&mut self, command_buffer: VkCommandBuffer) -> &mut Self {
         unsafe {
             let offsets = [0_u64];
             vkCmdBindVertexBuffers.unwrap()(
-                device.get_current_command_buffer(),
+                command_buffer,
                 INSTANCE_BUFFER_BIND_ID as _,
                 1,
                 &mut self.instance_buffer,
@@ -732,11 +746,11 @@ impl PipelineImmutable {
         }
         self
     }
-    fn draw_indirect(&self, device: &BackendDevice, count: usize) {
+    fn draw_indirect(&self, command_buffer: &BackendCommandBuffer, count: usize) {
         if count > 0 {
             unsafe {
                 vkCmdDrawIndexedIndirect.unwrap()(
-                    device.get_current_command_buffer(),
+                    command_buffer.get(),
                     self.indirect_command_buffer,
                     0,
                     count as _,
@@ -748,7 +762,7 @@ impl PipelineImmutable {
 
     fn update_constant_data(
         &mut self,
-        device: &BackendDevice,
+        command_buffer: &BackendCommandBuffer,
         width: u32,
         height: u32,
         view: &Matrix4,
@@ -761,7 +775,7 @@ impl PipelineImmutable {
 
         unsafe {
             vkCmdPushConstants.unwrap()(
-                device.get_current_command_buffer(),
+                command_buffer.get(),
                 self.pipeline_layout,
                 VkShaderStageFlagBits_VK_SHADER_STAGE_ALL_GRAPHICS as _,
                 0,
@@ -849,12 +863,12 @@ impl PipelineImmutable {
         }
     }
 
-    pub fn bind_descriptors(&self, device: &BackendDevice) {
+    pub fn bind_descriptors(&self, device: &BackendDevice, command_buffer: VkCommandBuffer) {
         let image_index = device.get_current_buffer_index();
 
         unsafe {
             vkCmdBindDescriptorSets.unwrap()(
-                device.get_current_command_buffer(),
+                command_buffer,
                 VkPipelineBindPoint_VK_PIPELINE_BIND_POINT_GRAPHICS,
                 self.pipeline_layout,
                 0,

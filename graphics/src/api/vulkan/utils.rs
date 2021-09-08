@@ -5,6 +5,18 @@ use std::ffi::{CStr, CString};
 use super::types::*;
 use vulkan_bindings::*;
 
+pub fn get_minimum_required_vulkan_layers(enable_validation: bool) -> Vec<CString> {
+    let mut result = Vec::new();
+    if enable_validation {
+        result.push(
+            CStr::from_bytes_with_nul(b"VK_LAYER_KHRONOS_validation\0")
+                .unwrap()
+                .to_owned(),
+        );
+    }
+    result
+}
+
 pub fn get_minimum_required_vulkan_extensions() -> Vec<CString> {
     vec![unsafe { CStr::from_ptr(VK_KHR_SWAPCHAIN_EXTENSION_NAME.as_ptr() as *const _) }.to_owned()]
 }

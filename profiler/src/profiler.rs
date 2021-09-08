@@ -29,7 +29,7 @@ pub const CREATE_PROFILER_FUNCTION_NAME: &str = "create_profiler";
 pub type PfnCreateProfiler = ::std::option::Option<unsafe extern "C" fn()>;
 
 pub static mut GLOBAL_PROFILER: Option<GlobalProfiler> = None;
-thread_local!(pub static THREAD_PROFILER: RefCell<Option<Arc<ThreadProfiler>>> = RefCell::new(None));
+thread_local!(pub static THREAD_PROFILER: RefCell<Option<Arc<Box<ThreadProfiler>>>> = RefCell::new(None));
 
 #[no_mangle]
 pub extern "C" fn get_profiler() -> GlobalProfiler {
@@ -49,7 +49,7 @@ pub extern "C" fn create_profiler() {
 struct ThreadInfo {
     index: usize,
     name: String,
-    profiler: Arc<ThreadProfiler>,
+    profiler: Arc<Box<ThreadProfiler>>,
 }
 
 pub struct ThreadProfiler {
@@ -148,7 +148,7 @@ impl Profiler {
         let start_time = self.time_start.load(std::sync::atomic::Ordering::SeqCst);
         (current_time - start_time) as _
     }
-    pub fn current_thread_profiler(&self) -> Arc<ThreadProfiler> {
+    pub fn current_thread_profiler(&self) -> Arc<Box<ThreadProfiler>> {
         let id = get_raw_thread_id();
         let name = String::from(thread::current().name().unwrap_or("main"));
         let mut locked_data = self.locked_data.lock().unwrap();
@@ -156,10 +156,10 @@ impl Profiler {
         let thread_entry = locked_data.threads.entry(id).or_insert_with(|| ThreadInfo {
             index,
             name,
-            profiler: Arc::new(ThreadProfiler {
+            profiler: Arc::new(Box::new(ThreadProfiler {
                 id,
                 tx: self.tx.clone(),
-            }),
+            })),
         });
         thread_entry.profiler.clone()
     }
