@@ -8,6 +8,8 @@ pub enum EventsHistoryOperation {
     Redo,
     Clear,
 }
+
+#[derive(Default)]
 pub struct EventsHistory {
     undoable_events: Vec<Box<dyn Message>>,
     redoable_events: Vec<Box<dyn Message>>,
@@ -16,20 +18,6 @@ pub struct EventsHistory {
     events_dispatcher: Option<MessageBox>,
     message_channel: MessageChannel,
     pending_history_event: bool,
-}
-
-impl Default for EventsHistory {
-    fn default() -> Self {
-        Self {
-            events_dispatcher: None,
-            message_channel: MessageChannel::default(),
-            undoable_events: Vec::new(),
-            redoable_events: Vec::new(),
-            operations: Vec::new(),
-            registered_event_types: Vec::new(),
-            pending_history_event: false,
-        }
-    }
 }
 
 impl EventsHistory {

@@ -1,6 +1,8 @@
 use crate::common::shader::*;
 use vulkan_bindings::*;
 
+use super::BackendDevice;
+
 pub struct BackendShader {
     shader_type: ShaderType,
     content: Vec<u32>,
@@ -10,7 +12,7 @@ pub struct BackendShader {
 
 impl BackendShader {
     pub fn create(
-        device: VkDevice,
+        device: &BackendDevice,
         shader_type: ShaderType,
         shader_content: Vec<u32>,
         entry_point: &str,
@@ -35,7 +37,7 @@ impl BackendShader {
         shader.module = unsafe {
             let mut option = ::std::mem::MaybeUninit::uninit();
             let result = vkCreateShaderModule.unwrap()(
-                device,
+                **device,
                 &shader_create_info,
                 ::std::ptr::null_mut(),
                 option.as_mut_ptr(),
@@ -69,9 +71,9 @@ impl BackendShader {
         shader
     }
 
-    pub fn destroy(&self, device: VkDevice) {
+    pub fn destroy(&self, device: &BackendDevice) {
         unsafe {
-            vkDestroyShaderModule.unwrap()(device, self.module, ::std::ptr::null_mut());
+            vkDestroyShaderModule.unwrap()(**device, self.module, ::std::ptr::null_mut());
         }
     }
 

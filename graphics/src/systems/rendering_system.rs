@@ -53,15 +53,6 @@ impl System for RenderingSystem {
             return true;
         }
 
-        let mut renderer = self.renderer.write().unwrap();
-
-        let success = renderer.begin_frame();
-        if !success {
-            renderer.recreate();
-            renderer.end_draw();
-            return true;
-        }
-
         let wait_count = Arc::new(AtomicUsize::new(0));
 
         let view = self.view.get().view();
@@ -80,12 +71,11 @@ impl System for RenderingSystem {
                 let render_pass = render_pass.clone();
                 let shared_data = self.shared_data.clone();
                 let wait_count = wait_count.clone();
+                wait_count.fetch_add(1, Ordering::SeqCst);
                 self.job_handler
                     .write()
                     .unwrap()
                     .add_job(job_name.as_str(), move || {
-                        wait_count.fetch_add(1, Ordering::SeqCst);
-
                         nrg_profiler::scoped_profile!(format!(
                             "fill_command_buffer_for_render_pass[{}]",
                             render_pass.get().data().name
@@ -94,17 +84,19 @@ impl System for RenderingSystem {
 
                         {
                             let mut renderer = renderer.write().unwrap();
-                            let device = renderer.device_mut();
-                            render_pass.get_mut().acquire_command_buffer(device);
+
+                            render_pass
+                                .get_mut()
+                                .acquire_command_buffer(renderer.device_mut());
                         }
 
-                        let render_pass = render_pass.get();
-
                         let renderer = renderer.read().unwrap();
+                        let render_pass = render_pass.get();
+                        let instance = renderer.instance();
                         let device = renderer.device();
-
                         let width = render_pass.get_framebuffer_width();
                         let height = render_pass.get_framebuffer_height();
+                        let texture_handler = renderer.get_texture_handler();
 
                         render_pass.begin_command_buffer(device);
 
@@ -117,19 +109,19 @@ impl System for RenderingSystem {
                                         && pipeline.should_draw(render_pass.mesh_category_to_draw())
                                 };
                                 if should_render {
-                                    let texture_atlas =
-                                        renderer.get_texture_handler().get_textures_atlas();
-                                    pipeline
-                                        .get_mut()
-                                        .update_bindings(
-                                            render_pass.get_command_buffer(),
-                                            width,
-                                            height,
-                                            &view,
-                                            &proj,
-                                            texture_atlas,
-                                        )
-                                        .fill_command_buffer(render_pass.get_command_buffer());
+                                    device.update_bindings(
+                                        render_pass.get_command_buffer(),
+                                        width,
+                                        height,
+                                        &view,
+                                        &proj,
+                                        texture_handler.get_textures_atlas(),
+                                    );
+                                    pipeline.get_mut().fill_command_buffer(
+                                        device,
+                                        instance.get_physical_device(),
+                                        render_pass.get_command_buffer(),
+                                    );
                                 }
                             },
                         );
@@ -144,6 +136,7 @@ impl System for RenderingSystem {
         let renderer = self.renderer.clone();
         let shared_data = self.shared_data.clone();
         let job_name = "EndDraw";
+
         self.job_handler
             .write()
             .unwrap()
@@ -152,31 +145,41 @@ impl System for RenderingSystem {
                     thread::yield_now();
                 }
 
-                let mut r = renderer.write().unwrap();
-                let device = r.device_mut();
-
-                SharedData::for_each_resource(
-                    &shared_data,
-                    |render_pass: &Resource<RenderPass>| {
-                        if render_pass.get().is_initialized() {
-                            nrg_profiler::scoped_profile!(format!(
-                                "draw_render_pass[{}]",
-                                render_pass.get().data().name
-                            )
-                            .as_str());
-                            render_pass.get_mut().draw(device);
-                        }
-                    },
-                );
-
-                r.end_frame();
-
-                let success = r.present();
-                if !success {
-                    r.recreate();
+                {
+                    let mut renderer = renderer.write().unwrap();
+                    renderer.begin_frame();
                 }
 
-                r.end_draw();
+                {
+                    let renderer = renderer.read().unwrap();
+                    let device = renderer.device();
+
+                    SharedData::for_each_resource(
+                        &shared_data,
+                        |render_pass: &Resource<RenderPass>| {
+                            if render_pass.get().is_initialized() {
+                                nrg_profiler::scoped_profile!(format!(
+                                    "draw_render_pass[{}]",
+                                    render_pass.get().data().name
+                                )
+                                .as_str());
+                                render_pass.get_mut().draw(device);
+                            }
+                        },
+                    );
+                }
+
+                {
+                    let mut renderer = renderer.write().unwrap();
+                    renderer.end_frame();
+
+                    let success = renderer.present();
+                    if !success {
+                        renderer.recreate();
+                    }
+
+                    renderer.end_draw();
+                }
             });
 
         true

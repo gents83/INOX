@@ -709,19 +709,11 @@ pub enum Key {
     Separator,
 }
 
-#[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone, Copy)]
+#[derive(Default, Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone, Copy)]
 pub struct KeyTextEvent {
     pub char: char,
 }
 implement_message!(KeyTextEvent);
-
-impl Default for KeyTextEvent {
-    fn default() -> Self {
-        Self {
-            char: char::default(),
-        }
-    }
-}
 
 #[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone, Copy)]
 pub struct KeyEvent {

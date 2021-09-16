@@ -58,7 +58,7 @@ impl Hierarchy {
                             .show_background(false)
                             .default_open(true)
                             .show(ui, |ui| {
-                                ScrollArea::auto_sized().show(ui, |ui| {
+                                ScrollArea::vertical().show(ui, |ui| {
                                     let scene = SharedData::get_resource::<Scene>(
                                         &data.shared_data,
                                         data.scene_id,

@@ -1,6 +1,7 @@
-use crate::api::backend::BackendDevice;
+use nrg_math::Matrix4;
 
-#[derive(Clone)]
+use crate::{api::backend::BackendDevice, CommandBuffer, Instance, TextureAtlas};
+
 pub struct Device {
     inner: BackendDevice,
 }
@@ -25,12 +26,12 @@ impl Device {
         }
     }
 
-    pub fn destroy(&self) {
+    pub fn destroy(&mut self) {
         self.inner.delete();
     }
 
-    pub fn begin_frame(&mut self) -> bool {
-        self.inner.begin_frame()
+    pub fn begin_frame(&mut self) {
+        self.inner.begin_frame();
     }
 
     pub fn end_frame(&self) {
@@ -38,14 +39,33 @@ impl Device {
     }
 
     pub fn submit(&self) {
-        self.inner.submit();
+        let command_buffer = self.inner.get_primary_command_buffer();
+        self.inner.graphics_queue_submit(command_buffer);
     }
 
     pub fn present(&mut self) -> bool {
         self.inner.present()
     }
 
-    pub fn recreate_swap_chain(&mut self) {
-        self.inner.recreate_swap_chain();
+    pub fn recreate_swap_chain(&mut self, instance: &mut Instance) {
+        let surface = instance.get_surface();
+        self.inner
+            .recreate_swap_chain(instance.get_physical_device_mut(), surface);
+    }
+
+    pub fn update_bindings(
+        &self,
+        command_buffer: &CommandBuffer,
+        width: u32,
+        height: u32,
+        view: &Matrix4,
+        proj: &Matrix4,
+        textures: &[TextureAtlas],
+    ) {
+        nrg_profiler::scoped_profile!("device::update_bindings");
+        self.inner
+            .update_constant_data(command_buffer, width, height, view, proj)
+            .update_uniform_buffer(view, proj)
+            .update_descriptor_sets(textures);
     }
 }

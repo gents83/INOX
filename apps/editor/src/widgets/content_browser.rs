@@ -214,7 +214,7 @@ impl ContentBrowser {
                 rect.max.x -= rect.size().x * 0.05;
                 rect.max.y -= rect.size().y * 0.1;
                 Window::new(data.title.clone())
-                    .scroll(false)
+                    .vscroll(false)
                     .title_bar(true)
                     .collapsible(false)
                     .resizable(true)
@@ -227,7 +227,7 @@ impl ContentBrowser {
                             .width_range(left_panel_min_width..=left_panel_max_width)
                             .show_inside(ui, |ui| {
                                 nrg_profiler::scoped_profile!("SidePanel");
-                                ScrollArea::auto_sized().show(ui, |ui| {
+                                ScrollArea::vertical().show(ui, |ui| {
                                     Self::populate_with_folders_tree(
                                         ui,
                                         &data.dir,
@@ -274,25 +274,28 @@ impl ContentBrowser {
 
                         CentralPanel::default().show_inside(ui, |ui| {
                             nrg_profiler::scoped_profile!("CentralPanel");
-                            let rect = ui.max_rect_finite();
-                            ScrollArea::from_max_height(rect.height()).show(ui, |ui| {
-                                if data.selected_folder.is_dir() {
-                                    let path = data.selected_folder.as_path().to_path_buf();
-                                    let files = Self::get_files(&data.dir, path.as_path());
+                            let rect = ui.max_rect();
+                            ScrollArea::vertical()
+                                .max_height(rect.height())
+                                .show(ui, |ui| {
+                                    if data.selected_folder.is_dir() {
+                                        let path = data.selected_folder.as_path().to_path_buf();
+                                        let files = Self::get_files(&data.dir, path.as_path());
 
-                                    let texture_index = SharedData::get_index_of_resource::<Texture>(
-                                        &data.shared_data,
-                                        data.icon_file_texture_id,
-                                    );
-                                    Self::populate_with_files(
-                                        ui,
-                                        files,
-                                        &mut data.selected_file,
-                                        data.extension.as_str(),
-                                        texture_index,
-                                    );
-                                }
-                            });
+                                        let texture_index =
+                                            SharedData::get_index_of_resource::<Texture>(
+                                                &data.shared_data,
+                                                data.icon_file_texture_id,
+                                            );
+                                        Self::populate_with_files(
+                                            ui,
+                                            files,
+                                            &mut data.selected_file,
+                                            data.extension.as_str(),
+                                            texture_index,
+                                        );
+                                    }
+                                });
                         });
                     });
 

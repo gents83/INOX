@@ -11,11 +11,11 @@ unsafe impl Sync for CommandBuffer {}
 impl CommandBuffer {
     pub fn new(device: &mut Device) -> Self {
         Self {
-            inner: BackendCommandBuffer::create(&mut *device),
+            inner: BackendCommandBuffer::create(device),
         }
     }
     pub fn execute(&self, device: &Device) {
-        self.inner.execute(&*device);
+        self.inner.execute(device);
     }
 }
 

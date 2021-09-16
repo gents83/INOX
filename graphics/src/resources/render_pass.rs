@@ -4,8 +4,8 @@ use nrg_resources::{
 use nrg_serialize::{generate_uid_from_string, Uid};
 
 use crate::{
-    api::backend, CommandBuffer, Device, MeshCategoryId, Pipeline, RenderPassData, Texture,
-    TextureHandler,
+    api::backend::{self, BackendPhysicalDevice},
+    CommandBuffer, Device, MeshCategoryId, Pipeline, RenderPassData, Texture, TextureHandler,
 };
 
 pub type RenderPassId = Uid;
@@ -94,6 +94,7 @@ impl RenderPass {
 
     fn add_texture_as_render_target<'a>(
         device: &Device,
+        physical_device: &BackendPhysicalDevice,
         texture: &Handle<Texture>,
         texture_handler: &'a mut TextureHandler,
     ) {
@@ -102,6 +103,7 @@ impl RenderPass {
                 //println!("Adding texture {:?}", t.id());
                 texture_handler.add_render_target(
                     device,
+                    physical_device,
                     t.id(),
                     t.get().width(),
                     t.get().height(),
@@ -122,33 +124,58 @@ impl RenderPass {
         }
         real_texture
     }
-    fn create_default(&mut self, device: &Device) -> &mut Self {
+    fn create_default(
+        &mut self,
+        device: &Device,
+        physical_device: &BackendPhysicalDevice,
+    ) -> &mut Self {
         self.backend_render_pass = Some(backend::BackendRenderPass::create_default(
-            &*device, &self.data, None, None,
+            device,
+            physical_device,
+            &self.data,
+            None,
+            None,
         ));
         self
     }
     fn create_with_render_target(
         &mut self,
         device: &Device,
+        physical_device: &BackendPhysicalDevice,
         texture_handler: &mut TextureHandler,
     ) -> &mut Self {
-        Self::add_texture_as_render_target(device, &self.color_texture, texture_handler);
-        Self::add_texture_as_render_target(device, &self.depth_texture, texture_handler);
+        Self::add_texture_as_render_target(
+            device,
+            physical_device,
+            &self.color_texture,
+            texture_handler,
+        );
+        Self::add_texture_as_render_target(
+            device,
+            physical_device,
+            &self.depth_texture,
+            texture_handler,
+        );
         let color_texture = Self::get_real_texture(&self.color_texture, texture_handler);
         let depth_texture = Self::get_real_texture(&self.depth_texture, texture_handler);
 
         self.backend_render_pass = Some(backend::BackendRenderPass::create_default(
-            &*device,
+            device,
+            physical_device,
             &self.data,
             color_texture,
             depth_texture,
         ));
         self
     }
-    pub fn init(&mut self, device: &mut Device, texture_handler: &mut TextureHandler) -> &mut Self {
+    pub fn init(
+        &mut self,
+        device: &mut Device,
+        physical_device: &BackendPhysicalDevice,
+        texture_handler: &mut TextureHandler,
+    ) -> &mut Self {
         if let Some(backend_render_pass) = &mut self.backend_render_pass {
-            backend_render_pass.destroy(&*device);
+            backend_render_pass.destroy(device);
         }
         self.texture_to_recycle.iter().for_each(|t| {
             //println!("Removing texture {:?}", t.id());
@@ -156,9 +183,9 @@ impl RenderPass {
         });
         self.texture_to_recycle.clear();
         if self.data.render_to_texture {
-            self.create_with_render_target(device, texture_handler);
+            self.create_with_render_target(device, physical_device, texture_handler);
         } else {
-            self.create_default(device);
+            self.create_default(device, physical_device);
         }
         if let Some(pipeline) = &self.pipeline {
             pipeline.get_mut().init(device, self);
@@ -230,25 +257,25 @@ impl RenderPass {
 
     pub fn begin_command_buffer(&self, device: &Device) {
         if let Some(backend_render_pass) = &self.backend_render_pass {
-            let render_pass = backend_render_pass.get_render_pass();
-            let framebuffer = backend_render_pass.get_framebuffer(device);
-            device.begin_command_buffer(&*self.get_command_buffer(), render_pass, framebuffer);
+            let command_buffer = self.get_command_buffer();
+            device.begin_command_buffer(command_buffer, backend_render_pass);
         }
     }
 
     pub fn end_command_buffer(&self, device: &Device) {
-        device.end_command_buffer(&*self.get_command_buffer());
+        let command_buffer = self.get_command_buffer();
+        device.end_command_buffer(command_buffer);
     }
 
     fn begin(&self, device: &Device) {
         if let Some(backend_render_pass) = &self.backend_render_pass {
-            backend_render_pass.begin(&*device);
+            backend_render_pass.begin(device);
         }
     }
 
     fn end(&self, device: &Device) {
         if let Some(backend_render_pass) = &self.backend_render_pass {
-            backend_render_pass.end(&*device);
+            backend_render_pass.end(device);
         }
     }
 }

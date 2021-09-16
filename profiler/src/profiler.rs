@@ -31,12 +31,10 @@ pub type PfnCreateProfiler = ::std::option::Option<unsafe extern "C" fn()>;
 pub static mut GLOBAL_PROFILER: Option<GlobalProfiler> = None;
 thread_local!(pub static THREAD_PROFILER: RefCell<Option<Arc<Box<ThreadProfiler>>>> = RefCell::new(None));
 
-#[no_mangle]
 pub extern "C" fn get_profiler() -> GlobalProfiler {
     unsafe { GLOBAL_PROFILER.as_ref().unwrap().clone() }
 }
 
-#[no_mangle]
 pub extern "C" fn create_profiler() {
     unsafe {
         GLOBAL_PROFILER.replace(Arc::new(Profiler::new()));

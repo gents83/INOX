@@ -41,7 +41,7 @@ impl DebugInfo {
                 data.frame_seconds.retain(|t| *t >= one_sec_before);
 
                 Window::new("Stats")
-                    .scroll(true)
+                    .vscroll(true)
                     .title_bar(true)
                     .resizable(true)
                     .show(ui_context, |ui| {

@@ -101,8 +101,12 @@ impl UpdateSystem {
                 (INVALID_INDEX, INVALID_INDEX)
             };
             if let Some(pipeline) = material.pipeline() {
+                let renderer = renderer.read().unwrap();
+                let device = renderer.device();
+                let physical_device = renderer.instance().get_physical_device();
                 pipeline.get_mut().add_mesh_instance(
-                    renderer.read().unwrap().device(),
+                    device,
+                    physical_device,
                     &mesh.get(),
                     diffuse_color,
                     diffuse_texture_index,
@@ -141,6 +145,10 @@ impl System for UpdateSystem {
 
         {
             let mut renderer = self.renderer.write().unwrap();
+            if !renderer.device_mut().acquire_image() {
+                renderer.recreate();
+                return true;
+            }
             renderer.prepare_frame();
         }
 
@@ -166,6 +174,7 @@ impl System for UpdateSystem {
                         mesh.id(),
                         render_pass.get().data().name
                     );
+                    wait_count.fetch_add(1, Ordering::SeqCst);
                     self.job_handler
                         .write()
                         .unwrap()
@@ -175,7 +184,6 @@ impl System for UpdateSystem {
                                 mesh.id()
                             )
                             .as_str());
-                            wait_count.fetch_add(1, Ordering::SeqCst);
                             Self::create_render_mesh_job(renderer, mesh);
                             wait_count.fetch_sub(1, Ordering::SeqCst);
                         });

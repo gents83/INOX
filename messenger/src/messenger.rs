@@ -7,6 +7,8 @@ use std::{
 use crate::{Listener, Message, MessageBox, MessageChannel};
 
 pub type MessengerRw = Arc<RwLock<Messenger>>;
+
+#[derive(Default)]
 pub struct Messenger {
     message_channel: MessageChannel,
     messageboxes: HashMap<TypeId, Vec<MessageBox>>,
@@ -15,17 +17,6 @@ pub struct Messenger {
 
 unsafe impl Send for Messenger {}
 unsafe impl Sync for Messenger {}
-
-impl Default for Messenger {
-    #[inline]
-    fn default() -> Self {
-        Self {
-            message_channel: MessageChannel::default(),
-            messageboxes: HashMap::new(),
-            registered_types: Vec::new(),
-        }
-    }
-}
 
 impl Messenger {
     #[inline]

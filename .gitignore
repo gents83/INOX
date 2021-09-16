@@ -1,11 +1,10 @@
 /target
 /data
+Cargo.lock
 *.lock
 *.gfxr
 *.foz
-Cargo.lock
-Cargo.lock
-app.nrg_profile
+*.nrg_profile
 vert.spv
 frag.spv
 geom.spv

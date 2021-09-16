@@ -60,7 +60,7 @@ impl Properties {
                         ui.heading("Properties:");
 
                         if !data.selected_object.is_nil() {
-                            ScrollArea::auto_sized().show(ui, |ui| {
+                            ScrollArea::vertical().show(ui, |ui| {
                                 Self::object_properties(
                                     &data.shared_data,
                                     &data.ui_registry,

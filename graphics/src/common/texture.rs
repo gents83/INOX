@@ -3,7 +3,10 @@ use std::path::Path;
 use image::{EncodableLayout, RgbaImage};
 use nrg_serialize::{generate_random_uid, Uid};
 
-use crate::{api::backend, Area, AreaAllocator, DEFAULT_AREA_SIZE};
+use crate::{
+    api::backend::{self, BackendPhysicalDevice},
+    Area, AreaAllocator, DEFAULT_AREA_SIZE,
+};
 
 use super::device::*;
 
@@ -18,7 +21,7 @@ pub struct TextureAtlas {
 }
 
 impl TextureAtlas {
-    fn create(device: &Device) -> Self {
+    fn create(device: &Device, physical_device: &BackendPhysicalDevice) -> Self {
         let mut allocators: Vec<AreaAllocator> = Vec::new();
         for _i in 0..DEFAULT_LAYER_COUNT {
             allocators.push(AreaAllocator::new(DEFAULT_AREA_SIZE, DEFAULT_AREA_SIZE));
@@ -26,7 +29,8 @@ impl TextureAtlas {
         Self {
             id: generate_random_uid(),
             texture: backend::BackendTexture::create(
-                &*device,
+                device,
+                physical_device,
                 DEFAULT_AREA_SIZE,
                 DEFAULT_AREA_SIZE,
                 DEFAULT_LAYER_COUNT,
@@ -38,6 +42,7 @@ impl TextureAtlas {
 
     fn create_as_render_target(
         device: &Device,
+        physical_device: &BackendPhysicalDevice,
         id: Uid,
         index: u32,
         width: u32,
@@ -51,7 +56,12 @@ impl TextureAtlas {
         Self {
             id,
             texture: backend::BackendTexture::create_as_render_target(
-                &*device, width, height, 1, is_depth,
+                device,
+                physical_device,
+                width,
+                height,
+                1,
+                is_depth,
             ),
             allocators: vec![area_allocator],
             info: vec![TextureInfo {
@@ -129,15 +139,16 @@ pub struct TextureHandler {
 }
 
 impl TextureHandler {
-    pub fn create(device: &Device) -> Self {
+    pub fn create(device: &Device, physical_device: &BackendPhysicalDevice) -> Self {
         Self {
-            texture_atlas: vec![TextureAtlas::create(device)],
+            texture_atlas: vec![TextureAtlas::create(device, physical_device)],
         }
     }
 
     pub fn add_render_target(
         &mut self,
         device: &Device,
+        physical_device: &BackendPhysicalDevice,
         id: Uid,
         width: u32,
         height: u32,
@@ -146,7 +157,13 @@ impl TextureHandler {
         let index = self.texture_atlas.len() as _;
         self.texture_atlas
             .push(TextureAtlas::create_as_render_target(
-                device, id, index, width, height, is_depth,
+                device,
+                physical_device,
+                id,
+                index,
+                width,
+                height,
+                is_depth,
             ));
     }
 
@@ -175,9 +192,16 @@ impl TextureHandler {
         self.texture_atlas.is_empty()
     }
 
-    pub fn add(&mut self, device: &Device, id: Uid, image_data: RgbaImage) -> TextureInfo {
+    pub fn add(
+        &mut self,
+        device: &Device,
+        physical_device: &BackendPhysicalDevice,
+        id: Uid,
+        image_data: RgbaImage,
+    ) -> TextureInfo {
         self.add_image(
             device,
+            physical_device,
             id,
             image_data.width(),
             image_data.height(),
@@ -197,14 +221,21 @@ impl TextureHandler {
         }
     }
 
-    pub fn add_from_path(&mut self, device: &Device, id: Uid, filepath: &Path) -> TextureInfo {
+    pub fn add_from_path(
+        &mut self,
+        device: &Device,
+        physical_device: &BackendPhysicalDevice,
+        id: Uid,
+        filepath: &Path,
+    ) -> TextureInfo {
         let image = image::open(filepath).unwrap();
-        self.add(device, id, image.to_rgba8())
+        self.add(device, physical_device, id, image.to_rgba8())
     }
 
     fn add_image(
         &mut self,
         device: &Device,
+        physical_device: &BackendPhysicalDevice,
         id: Uid,
         width: u32,
         height: u32,
@@ -213,9 +244,13 @@ impl TextureHandler {
         for (texture_index, texture_atlas) in self.texture_atlas.iter_mut().enumerate() {
             for (layer_index, area_allocator) in texture_atlas.allocators.iter_mut().enumerate() {
                 if let Some(area) = area_allocator.allocate(width, height) {
-                    texture_atlas
-                        .texture
-                        .add_in_layer(&*device, layer_index, area, image_data);
+                    texture_atlas.texture.add_in_layer(
+                        device,
+                        physical_device,
+                        layer_index,
+                        area,
+                        image_data,
+                    );
                     let info = TextureInfo {
                         id,
                         texture_index: texture_index as _,

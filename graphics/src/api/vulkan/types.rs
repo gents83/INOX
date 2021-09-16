@@ -14,13 +14,16 @@ pub const VK_INVALID_ID: i32 = -1;
 
 #[derive(Clone, Copy)]
 pub struct QueueFamilyIndices {
+    pub transfers_family_index: i32,
     pub graphics_family_index: i32,
     pub present_family_index: i32,
 }
 
 impl QueueFamilyIndices {
     pub fn is_complete(&self) -> bool {
-        self.graphics_family_index != VK_INVALID_ID && self.present_family_index != VK_INVALID_ID
+        self.graphics_family_index != VK_INVALID_ID
+            && self.present_family_index != VK_INVALID_ID
+            && self.transfers_family_index != VK_INVALID_ID
     }
 }
 

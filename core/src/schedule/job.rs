@@ -13,7 +13,7 @@ unsafe impl Sync for Job {}
 unsafe impl Send for Job {}
 
 impl Job {
-    pub fn new<F>(name: &str, func: F, mut pending_jobs: Arc<AtomicUsize>) -> Self
+    pub fn new<F>(name: &str, func: F, pending_jobs: Arc<AtomicUsize>) -> Self
     where
         F: FnOnce() + Send + Sync + 'static,
     {

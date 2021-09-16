@@ -1,21 +1,21 @@
 use super::device::*;
 use super::utils::*;
 use super::BackendTexture;
+use crate::api::backend::physical_device::BackendPhysicalDevice;
 use crate::common::data_formats::*;
-
-use std::sync::{Arc, RwLock};
 use vulkan_bindings::*;
 
-#[derive(Clone)]
-pub struct RenderPassImmutable {
+pub struct BackendRenderPass {
     render_pass: VkRenderPass,
-    framebuffers: Vec<VkFramebuffer>,
+    framebuffer: Vec<VkFramebuffer>,
     extent: VkExtent2D,
 }
 
-#[derive(Clone)]
-pub struct BackendRenderPass {
-    inner: Arc<RwLock<RenderPassImmutable>>,
+impl std::ops::Deref for BackendRenderPass {
+    type Target = VkRenderPass;
+    fn deref(&self) -> &Self::Target {
+        &self.render_pass
+    }
 }
 
 unsafe impl Send for BackendRenderPass {}
@@ -23,25 +23,21 @@ unsafe impl Sync for BackendRenderPass {}
 
 impl BackendRenderPass {
     pub fn get_extent(&self) -> VkExtent2D {
-        self.inner.read().unwrap().extent
+        self.extent
     }
     pub fn get_framebuffer_width(&self) -> u32 {
-        self.inner.read().unwrap().extent.width
+        self.extent.width
     }
     pub fn get_framebuffer_height(&self) -> u32 {
-        self.inner.read().unwrap().extent.height
+        self.extent.height
     }
-
-    pub fn get_render_pass(&self) -> VkRenderPass {
-        self.inner.read().unwrap().render_pass
-    }
-
-    pub fn get_framebuffer(&self, device: &BackendDevice) -> VkFramebuffer {
-        self.inner.read().unwrap().framebuffers[device.get_current_buffer_index()]
+    pub fn get_framebuffer(&self, current_image_index: usize) -> VkFramebuffer {
+        self.framebuffer[current_image_index]
     }
 
     pub fn create_default(
         device: &BackendDevice,
+        physical_device: &BackendPhysicalDevice,
         data: &RenderPassData,
         color: Option<&BackendTexture>,
         depth: Option<&BackendTexture>,
@@ -57,33 +53,26 @@ impl BackendRenderPass {
                 height: depth.height(),
             }
         } else {
-            device
-                .get_instance()
+            physical_device
                 .get_swap_chain_info()
                 .capabilities
                 .currentExtent
         };
-        let immutable = RenderPassImmutable {
-            render_pass: RenderPassImmutable::base_pass(device, data),
-            framebuffers: Vec::new(),
+        let mut render_pass = Self {
+            render_pass: Self::base_pass(device, physical_device, data),
+            framebuffer: Vec::new(),
             extent,
         };
-        let inner = Arc::new(RwLock::new(immutable));
-        inner
-            .write()
-            .unwrap()
-            .create_framebuffers(device, color, depth);
-        Self { inner }
+        render_pass.create_framebuffers(device, physical_device, color, depth);
+        render_pass
     }
 
     pub fn destroy(&mut self, device: &BackendDevice) {
-        self.inner.write().unwrap().destroy_framebuffers(device);
         unsafe {
-            vkDestroyRenderPass.unwrap()(
-                device.get_device(),
-                self.get_render_pass(),
-                ::std::ptr::null_mut(),
-            );
+            for framebuffer in self.framebuffer.iter() {
+                vkDestroyFramebuffer.unwrap()(**device, *framebuffer, ::std::ptr::null_mut());
+            }
+            vkDestroyRenderPass.unwrap()(**device, self.render_pass, ::std::ptr::null_mut());
         }
     }
 
@@ -103,13 +92,13 @@ impl BackendRenderPass {
         ];
         let area = VkRect2D {
             offset: VkOffset2D { x: 0, y: 0 },
-            extent: self.inner.read().unwrap().extent,
+            extent: self.extent,
         };
         let render_pass_begin_info = VkRenderPassBeginInfo {
             sType: VkStructureType_VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
             pNext: ::std::ptr::null_mut(),
-            renderPass: self.get_render_pass(),
-            framebuffer: self.get_framebuffer(device),
+            renderPass: self.render_pass,
+            framebuffer: self.framebuffer[device.get_current_image_index()],
             renderArea: area,
             clearValueCount: clear_value.len() as _,
             pClearValues: clear_value.as_ptr(),
@@ -128,17 +117,13 @@ impl BackendRenderPass {
             vkCmdEndRenderPass.unwrap()(device.get_primary_command_buffer());
         }
     }
-}
 
-impl From<&BackendRenderPass> for VkRenderPass {
-    fn from(render_pass: &BackendRenderPass) -> VkRenderPass {
-        render_pass.get_render_pass()
-    }
-}
-
-impl RenderPassImmutable {
-    fn base_pass(device: &BackendDevice, data: &RenderPassData) -> VkRenderPass {
-        let details = device.get_instance().get_swap_chain_info();
+    fn base_pass(
+        device: &BackendDevice,
+        physical_device: &BackendPhysicalDevice,
+        data: &RenderPassData,
+    ) -> VkRenderPass {
+        let details = physical_device.get_swap_chain_info();
         let color_attachment = VkAttachmentDescription {
             flags: 0,
             format: if data.render_to_texture {
@@ -159,7 +144,11 @@ impl RenderPassImmutable {
             stencilLoadOp: VkAttachmentLoadOp_VK_ATTACHMENT_LOAD_OP_CLEAR,
             stencilStoreOp: VkAttachmentStoreOp_VK_ATTACHMENT_STORE_OP_DONT_CARE,
             initialLayout: VkImageLayout_VK_IMAGE_LAYOUT_UNDEFINED,
-            finalLayout: VkImageLayout_VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+            finalLayout: if data.render_to_texture {
+                VkImageLayout_VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+            } else {
+                VkImageLayout_VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+            },
         };
 
         let color_attachment_ref = VkAttachmentReference {
@@ -169,7 +158,7 @@ impl RenderPassImmutable {
 
         let depth_attachment = VkAttachmentDescription {
             flags: 0,
-            format: find_depth_format(device.get_instance().get_physical_device()),
+            format: find_depth_format(**physical_device),
             samples: VkSampleCountFlagBits_VK_SAMPLE_COUNT_1_BIT,
             loadOp: match data.load_depth {
                 LoadOperation::Clear => VkAttachmentLoadOp_VK_ATTACHMENT_LOAD_OP_CLEAR,
@@ -208,25 +197,21 @@ impl RenderPassImmutable {
             VkSubpassDependency {
                 srcSubpass: VK_SUBPASS_EXTERNAL as _,
                 dstSubpass: 0,
-                srcStageMask: (VkPipelineStageFlagBits_VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT) as _,
-                dstStageMask:
-                    (VkPipelineStageFlagBits_VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT) as _,
-                srcAccessMask: (VkAccessFlagBits_VK_ACCESS_MEMORY_READ_BIT) as _,
-                dstAccessMask: (VkAccessFlagBits_VK_ACCESS_COLOR_ATTACHMENT_READ_BIT
-                    | VkAccessFlagBits_VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
+                srcStageMask: VkPipelineStageFlagBits_VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT as _,
+                dstStageMask: VkPipelineStageFlagBits_VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
                     as _,
+                srcAccessMask: VkAccessFlagBits_VK_ACCESS_SHADER_READ_BIT as _,
+                dstAccessMask: VkAccessFlagBits_VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT as _,
                 dependencyFlags: VkDependencyFlagBits_VK_DEPENDENCY_BY_REGION_BIT as _,
             },
             VkSubpassDependency {
                 srcSubpass: 0,
                 dstSubpass: VK_SUBPASS_EXTERNAL as _,
-                srcStageMask:
-                    (VkPipelineStageFlagBits_VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT) as _,
-                dstStageMask: (VkPipelineStageFlagBits_VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT) as _,
-                srcAccessMask: (VkAccessFlagBits_VK_ACCESS_COLOR_ATTACHMENT_READ_BIT
-                    | VkAccessFlagBits_VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
+                srcStageMask: VkPipelineStageFlagBits_VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
                     as _,
-                dstAccessMask: (VkAccessFlagBits_VK_ACCESS_MEMORY_READ_BIT) as _,
+                dstStageMask: VkPipelineStageFlagBits_VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT as _,
+                srcAccessMask: VkAccessFlagBits_VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT as _,
+                dstAccessMask: VkAccessFlagBits_VK_ACCESS_SHADER_READ_BIT as _,
                 dependencyFlags: VkDependencyFlagBits_VK_DEPENDENCY_BY_REGION_BIT as _,
             },
         ];
@@ -248,7 +233,7 @@ impl RenderPassImmutable {
             assert_eq!(
                 VkResult_VK_SUCCESS,
                 vkCreateRenderPass.unwrap()(
-                    device.get_device(),
+                    **device,
                     &render_pass_create_info,
                     ::std::ptr::null_mut(),
                     option.as_mut_ptr()
@@ -261,19 +246,11 @@ impl RenderPassImmutable {
     fn create_framebuffers(
         &mut self,
         device: &BackendDevice,
+        physical_device: &BackendPhysicalDevice,
         color: Option<&BackendTexture>,
         depth: Option<&BackendTexture>,
     ) -> &mut Self {
-        if !self.framebuffers.is_empty() {
-            self.destroy_framebuffers(device);
-        }
-
-        let mut framebuffers = Vec::<VkFramebuffer>::with_capacity(device.get_images_count());
-        unsafe {
-            framebuffers.set_len(device.get_images_count());
-        }
-
-        let details = device.get_instance().get_swap_chain_info();
+        let details = physical_device.get_swap_chain_info();
         if let Some(texture) = color {
             self.extent = VkExtent2D {
                 width: texture.width(),
@@ -283,11 +260,12 @@ impl RenderPassImmutable {
             self.extent = details.capabilities.currentExtent;
         }
 
-        for (i, framebuffer) in framebuffers
-            .iter_mut()
-            .enumerate()
-            .take(device.get_images_count())
-        {
+        let swapchain_images_count = device.get_images_count();
+        self.framebuffer = Vec::with_capacity(swapchain_images_count);
+        unsafe {
+            self.framebuffer.set_len(swapchain_images_count);
+        }
+        for i in 0..device.get_images_count() {
             let attachments: Vec<VkImageView> = vec![
                 if let Some(texture) = color {
                     texture.get_image_view()
@@ -317,27 +295,15 @@ impl RenderPassImmutable {
                 assert_eq!(
                     VkResult_VK_SUCCESS,
                     vkCreateFramebuffer.unwrap()(
-                        device.get_device(),
+                        **device,
                         &framebuffer_create_info,
                         ::std::ptr::null_mut(),
-                        framebuffer
+                        &mut self.framebuffer[i]
                     )
                 );
             }
         }
-        self.framebuffers = framebuffers;
-        self
-    }
 
-    fn destroy_framebuffers(&mut self, device: &BackendDevice) {
-        unsafe {
-            for framebuffer in self.framebuffers.iter() {
-                vkDestroyFramebuffer.unwrap()(
-                    device.get_device(),
-                    *framebuffer,
-                    ::std::ptr::null_mut(),
-                );
-            }
-        }
+        self
     }
 }

@@ -260,8 +260,8 @@ impl View3D {
                     .show(ui_context, |ui| {
                         data.should_manage_input = !ui.ctx().wants_keyboard_input();
 
-                        let view_width = ui.max_rect_finite().width() as u32;
-                        let view_height = ui.max_rect_finite().height() as u32;
+                        let view_width = ui.max_rect().width() as u32;
+                        let view_height = ui.max_rect().height() as u32;
                         let texture_index =
                             Self::get_texture_index(&data.shared_data, data.texture.id());
                         Self::resize_view(data, view_width, view_height);

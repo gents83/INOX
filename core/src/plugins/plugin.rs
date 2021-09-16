@@ -16,14 +16,11 @@ pub type PfnUnpreparePlugin = ::std::option::Option<unsafe extern "C" fn(app: &m
 pub type PluginId = Uid;
 
 pub trait Plugin: Any + Send + Sync {
-    #[no_mangle]
     fn prepare(&mut self, app: &mut App);
-    #[no_mangle]
     fn unprepare(&mut self, app: &mut App);
     fn id(&self) -> PluginId {
         generate_uid_from_string(self.name())
     }
-    #[no_mangle]
     fn name(&self) -> &str {
         std::any::type_name::<Self>()
     }

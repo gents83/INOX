@@ -30,7 +30,7 @@ impl Renderer {
     pub fn new(handle: &Handle, shared_data: &SharedDataRw, enable_debug: bool) -> Self {
         let instance = Instance::create(handle, enable_debug);
         let device = Device::create(&instance, enable_debug);
-        let texture_handler = TextureHandler::create(&device);
+        let texture_handler = TextureHandler::create(&device, instance.get_physical_device());
         Renderer {
             shared_data: shared_data.clone(),
             instance,
@@ -38,6 +38,10 @@ impl Renderer {
             texture_handler,
             state: RendererState::Init,
         }
+    }
+
+    pub fn instance(&self) -> &Instance {
+        &self.instance
     }
 
     pub fn device(&self) -> &Device {
@@ -77,10 +81,10 @@ impl Renderer {
         self.state != RendererState::Submitted
     }
 
-    pub fn begin_frame(&mut self) -> bool {
+    pub fn begin_frame(&mut self) {
         nrg_profiler::scoped_profile!("renderer::begin_frame");
 
-        self.device.begin_frame()
+        self.device.begin_frame();
     }
 
     pub fn end_frame(&self) {
@@ -96,7 +100,8 @@ impl Renderer {
 
     pub fn recreate(&mut self) {
         nrg_profiler::scoped_profile!("renderer::recreate");
-        self.device.recreate_swap_chain();
+
+        self.device.recreate_swap_chain(&mut self.instance);
 
         SharedData::for_each_resource(&self.shared_data, |pipeline: &Resource<Pipeline>| {
             pipeline.get_mut().invalidate();
@@ -111,10 +116,13 @@ impl Renderer {
     fn init_render_passes(&mut self) {
         nrg_profiler::scoped_profile!("renderer::init_render_passes");
         let device = &mut self.device;
+        let physical_device = self.instance.get_physical_device();
         let texture_handler = &mut self.texture_handler;
         SharedData::for_each_resource(&self.shared_data, |render_pass: &Resource<RenderPass>| {
             if !render_pass.get().is_initialized() {
-                render_pass.get_mut().init(device, texture_handler);
+                render_pass
+                    .get_mut()
+                    .init(device, physical_device, texture_handler);
             }
         });
     }
@@ -139,6 +147,7 @@ impl Renderer {
     fn init_textures(&mut self) {
         nrg_profiler::scoped_profile!("renderer::init_textures");
         let device = &mut self.device;
+        let physical_device = &self.instance.get_physical_device();
         let texture_handler = &mut self.texture_handler;
         let shared_data = &self.shared_data;
         SharedData::for_each_resource(shared_data, |texture: &Resource<Texture>| {
@@ -155,15 +164,21 @@ impl Renderer {
                     texture.get_mut().set_texture_info(texture_info);
                 } else {
                     let texture_info = if let Some(image_data) = texture.get_mut().image_data() {
-                        texture_handler.add(device, texture.id(), image_data)
+                        texture_handler.add(device, physical_device, texture.id(), image_data)
                     } else if is_texture(path.as_path()) {
-                        texture_handler.add_from_path(device, texture.id(), path.as_path())
+                        texture_handler.add_from_path(
+                            device,
+                            physical_device,
+                            texture.id(),
+                            path.as_path(),
+                        )
                     } else {
                         let font =
                             SharedData::match_resource(shared_data, |f: &Font| f.path() == path);
                         if let Some(font) = font {
                             texture_handler.add(
                                 device,
+                                physical_device,
                                 texture.id(),
                                 font.get().font_data().get_texture(),
                             )

@@ -1,4 +1,7 @@
-use super::{data_formats::VERTEX_BUFFER_BIND_ID, device::*, BackendCommandBuffer};
+use super::{
+    create_buffer, data_formats::VERTEX_BUFFER_BIND_ID, destroy_buffer, device::*,
+    map_buffer_memory, physical_device::BackendPhysicalDevice, BackendCommandBuffer,
+};
 use crate::common::data_formats::*;
 use vulkan_bindings::*;
 
@@ -33,13 +36,18 @@ impl BackendMesh {
         self.indices_count
     }
     pub fn delete(&self, device: &BackendDevice) {
-        device.destroy_buffer(&self.vertex_buffer, &self.vertex_buffer_memory);
-        device.destroy_buffer(&self.index_buffer, &self.index_buffer_memory);
+        destroy_buffer(device, &self.vertex_buffer, &self.vertex_buffer_memory);
+        destroy_buffer(device, &self.index_buffer, &self.index_buffer_memory);
     }
 
-    pub fn create_vertex_buffer(&mut self, device: &BackendDevice, vertices: &[VertexData]) {
+    pub fn create_vertex_buffer(
+        &mut self,
+        device: &BackendDevice,
+        physical_device: &BackendPhysicalDevice,
+        vertices: &[VertexData],
+    ) {
         if !self.vertex_buffer.is_null() {
-            device.destroy_buffer(&self.vertex_buffer, &self.vertex_buffer_memory);
+            destroy_buffer(device, &self.vertex_buffer, &self.vertex_buffer_memory);
             self.vertex_count = 0;
         }
 
@@ -48,7 +56,9 @@ impl BackendMesh {
             | VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
         let mut vertex_buffer: VkBuffer = ::std::ptr::null_mut();
         let mut vertex_buffer_memory: VkDeviceMemory = ::std::ptr::null_mut();
-        device.create_buffer(
+        create_buffer(
+            device,
+            physical_device,
             length as _,
             VkBufferUsageFlagBits_VK_BUFFER_USAGE_VERTEX_BUFFER_BIT as _,
             flags as _,
@@ -61,9 +71,14 @@ impl BackendMesh {
         self.vertex_buffer_memory = vertex_buffer_memory;
     }
 
-    pub fn create_index_buffer(&mut self, device: &BackendDevice, indices: &[u32]) {
+    pub fn create_index_buffer(
+        &mut self,
+        device: &BackendDevice,
+        physical_device: &BackendPhysicalDevice,
+        indices: &[u32],
+    ) {
         if !self.index_buffer.is_null() {
-            device.destroy_buffer(&self.index_buffer, &self.index_buffer_memory);
+            destroy_buffer(device, &self.index_buffer, &self.index_buffer_memory);
             self.indices_count = 0;
         }
 
@@ -72,7 +87,9 @@ impl BackendMesh {
             | VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
         let mut index_buffer: VkBuffer = ::std::ptr::null_mut();
         let mut index_buffer_memory: VkDeviceMemory = ::std::ptr::null_mut();
-        device.create_buffer(
+        create_buffer(
+            device,
+            physical_device,
             length as _,
             VkBufferUsageFlagBits_VK_BUFFER_USAGE_INDEX_BUFFER_BIT as _,
             flags as _,
@@ -115,8 +132,18 @@ impl BackendMesh {
         indices: &[u32],
         first_index: u32,
     ) {
-        device.map_buffer_memory(&mut self.vertex_buffer_memory, first_vertex as _, vertices);
-        device.map_buffer_memory(&mut self.index_buffer_memory, first_index as _, indices);
+        map_buffer_memory(
+            device,
+            &mut self.vertex_buffer_memory,
+            first_vertex as _,
+            vertices,
+        );
+        map_buffer_memory(
+            device,
+            &mut self.index_buffer_memory,
+            first_index as _,
+            indices,
+        );
     }
 
     pub fn bind_vertices(&self, command_buffer: &BackendCommandBuffer) {

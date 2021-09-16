@@ -1,6 +1,6 @@
 [build]
-jobs = 4  # number of parallel jobs, defaults to # of CPUs
-rustflags = ["-C", "link-arg=-fuse-ld=lld", "-C", "panic=abort"]
+jobs = 5  # number of parallel jobs, defaults to # of CPUs
+rustflags = ["-C", "link-arg=-fuse-ld=lld"]
 incremental = true            # whether or not to enable incremental compilation
 
 [profile.dev]

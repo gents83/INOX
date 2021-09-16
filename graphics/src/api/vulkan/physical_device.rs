@@ -1,9 +1,7 @@
 use super::{get_minimum_required_vulkan_extensions, types::*};
-
-use std::sync::{Arc, RwLock};
 use vulkan_bindings::*;
 
-struct PhysicalDeviceImmutable {
+pub struct BackendPhysicalDevice {
     physical_device: VkPhysicalDevice,
     physical_device_properties: VkPhysicalDeviceProperties,
     physical_device_features: VkPhysicalDeviceFeatures,
@@ -12,68 +10,18 @@ struct PhysicalDeviceImmutable {
     swap_chain_details: SwapChainSupportDetails,
 }
 
-#[derive(Clone)]
-pub struct PhysicalDevice {
-    inner: Arc<RwLock<PhysicalDeviceImmutable>>,
-}
-
-impl PhysicalDevice {
-    pub fn create(physical_device: VkPhysicalDevice, surface: VkSurfaceKHR) -> PhysicalDevice {
-        let immutable = Arc::new(RwLock::new(PhysicalDeviceImmutable::new(
-            physical_device,
-            surface,
-        )));
-        PhysicalDevice { inner: immutable }
-    }
-
-    pub fn compute_swap_chain_details(&self, surface: VkSurfaceKHR) {
-        let mut inner = self.inner.write().unwrap();
-        inner.find_queue_family_indices(surface);
-        inner.find_swap_chain_support(surface);
-    }
-
-    pub fn get_internal_device(&self) -> VkPhysicalDevice {
-        self.inner.read().unwrap().physical_device
-    }
-
-    pub fn get_queue_family_info(&self) -> QueueFamilyIndices {
-        self.inner.read().unwrap().queue_family_indices
-    }
-
-    pub fn is_initialized(&self) -> bool {
-        !self.inner.read().unwrap().physical_device.is_null()
-    }
-
-    pub fn get_swap_chain_info(&self) -> SwapChainSupportDetails {
-        self.inner.read().unwrap().swap_chain_details.clone()
-    }
-
-    pub fn get_available_extensions(&self) -> Vec<VkExtensionProperties> {
-        self.inner
-            .read()
-            .unwrap()
-            .physical_device_extensions
-            .clone()
-    }
-
-    pub fn get_available_features(&self) -> VkPhysicalDeviceFeatures {
-        self.inner.read().unwrap().physical_device_features
-    }
-
-    pub fn get_properties(&self) -> VkPhysicalDeviceProperties {
-        self.inner.read().unwrap().physical_device_properties
-    }
-
-    pub fn is_device_suitable(&self) -> bool {
-        self.inner.read().unwrap().is_device_suitable()
+impl std::ops::Deref for BackendPhysicalDevice {
+    type Target = VkPhysicalDevice;
+    fn deref(&self) -> &Self::Target {
+        &self.physical_device
     }
 }
 
-impl PhysicalDeviceImmutable {
-    pub fn new(
+impl BackendPhysicalDevice {
+    pub fn create(
         physical_device: VkPhysicalDevice,
         surface: VkSurfaceKHR,
-    ) -> PhysicalDeviceImmutable {
+    ) -> BackendPhysicalDevice {
         let physical_device_properties: VkPhysicalDeviceProperties = unsafe {
             let mut output = ::std::mem::MaybeUninit::uninit();
             vkGetPhysicalDeviceProperties.unwrap()(physical_device, output.as_mut_ptr());
@@ -109,12 +57,13 @@ impl PhysicalDeviceImmutable {
             );
         }
 
-        let mut result = PhysicalDeviceImmutable {
+        let mut physical_device = BackendPhysicalDevice {
             physical_device,
             physical_device_properties,
             physical_device_features,
             physical_device_extensions,
             queue_family_indices: QueueFamilyIndices {
+                transfers_family_index: VK_INVALID_ID,
                 graphics_family_index: VK_INVALID_ID,
                 present_family_index: VK_INVALID_ID,
             },
@@ -125,13 +74,42 @@ impl PhysicalDeviceImmutable {
             },
         };
 
-        result.find_queue_family_indices(surface);
-        result.find_swap_chain_support(surface);
+        physical_device.compute_swap_chain_details(surface);
 
-        result
+        physical_device
     }
 
-    fn find_queue_family_indices(&mut self, surface: VkSurfaceKHR) {
+    pub fn compute_swap_chain_details(&mut self, surface: VkSurfaceKHR) -> &mut Self {
+        self.find_queue_family_indices(surface)
+            .find_swap_chain_support(surface);
+        self
+    }
+
+    pub fn get_queue_family_info(&self) -> &QueueFamilyIndices {
+        &self.queue_family_indices
+    }
+
+    pub fn is_initialized(&self) -> bool {
+        !self.physical_device.is_null()
+    }
+
+    pub fn get_swap_chain_info(&self) -> &SwapChainSupportDetails {
+        &self.swap_chain_details
+    }
+
+    pub fn get_available_extensions(&self) -> &Vec<VkExtensionProperties> {
+        &self.physical_device_extensions
+    }
+
+    pub fn get_available_features(&self) -> VkPhysicalDeviceFeatures {
+        self.physical_device_features
+    }
+
+    pub fn get_properties(&self) -> VkPhysicalDeviceProperties {
+        self.physical_device_properties
+    }
+
+    fn find_queue_family_indices(&mut self, surface: VkSurfaceKHR) -> &mut Self {
         let mut queue_family_count: u32 = unsafe {
             let mut output = ::std::mem::MaybeUninit::uninit();
             vkGetPhysicalDeviceQueueFamilyProperties.unwrap()(
@@ -153,10 +131,14 @@ impl PhysicalDeviceImmutable {
             );
         }
 
+        let mut transfers_index = VK_INVALID_ID;
         let mut graphic_index = VK_INVALID_ID;
         let mut present_index = VK_INVALID_ID;
 
         for (index, q) in queue_family_properties.iter().enumerate() {
+            if (q.queueFlags & VkQueueFlagBits_VK_QUEUE_TRANSFER_BIT as u32) != 0 {
+                transfers_index = index as _;
+            }
             if (q.queueFlags & VkQueueFlagBits_VK_QUEUE_GRAPHICS_BIT as u32) != 0 {
                 graphic_index = index as _;
             }
@@ -172,18 +154,23 @@ impl PhysicalDeviceImmutable {
             if present_support != VK_FALSE {
                 present_index = index as _;
             }
-            if graphic_index != VK_INVALID_ID && present_index != VK_INVALID_ID {
+            if graphic_index != VK_INVALID_ID
+                && present_index != VK_INVALID_ID
+                && transfers_index != VK_INVALID_ID
+            {
                 break;
             }
         }
 
         self.queue_family_indices = QueueFamilyIndices {
+            transfers_family_index: transfers_index,
             graphics_family_index: graphic_index,
             present_family_index: present_index,
         };
+        self
     }
 
-    fn find_swap_chain_support(&mut self, surface: VkSurfaceKHR) {
+    fn find_swap_chain_support(&mut self, surface: VkSurfaceKHR) -> &mut Self {
         let surface_capabilities = unsafe {
             let mut option = ::std::mem::MaybeUninit::uninit();
             vkGetPhysicalDeviceSurfaceCapabilitiesKHR.unwrap()(
@@ -251,6 +238,7 @@ impl PhysicalDeviceImmutable {
             formats: supported_formats,
             present_modes: supported_present_modes,
         };
+        self
     }
 
     pub fn is_device_suitable(&self) -> bool {

@@ -1,4 +1,4 @@
-use crate::api::backend::BackendMesh;
+use crate::api::backend::{BackendMesh, BackendPhysicalDevice};
 use crate::CommandBuffer;
 
 use super::data_formats::*;
@@ -23,12 +23,13 @@ impl GraphicsMesh {
     }
 
     pub fn destroy(&mut self, device: &Device) {
-        self.inner.delete(&*device);
+        self.inner.delete(device);
     }
 
     pub fn bind_at_index(
         &mut self,
         device: &Device,
+        physical_device: &BackendPhysicalDevice,
         mesh_category_identifier: MeshCategoryId,
         vertices: &[VertexData],
         first_vertex: u32,
@@ -41,29 +42,29 @@ impl GraphicsMesh {
                 VertexData::default,
             );
             self.inner
-                .create_vertex_buffer(&*device, self.data.vertices.as_slice());
+                .create_vertex_buffer(device, physical_device, self.data.vertices.as_slice());
         }
         if first_index as usize + indices.len() >= self.data.indices.len() {
             self.data
                 .indices
                 .resize_with((self.data.indices.len() + indices.len()) * 2, u32::default);
             self.inner
-                .create_index_buffer(&*device, self.data.indices.as_slice());
+                .create_index_buffer(device, physical_device, self.data.indices.as_slice());
         }
 
         self.mesh_categories.push(mesh_category_identifier);
         self.inner
-            .bind_at_index(&*device, vertices, first_vertex, indices, first_index);
+            .bind_at_index(device, vertices, first_vertex, indices, first_index);
         self.data
             .set_mesh_at_index(vertices, first_vertex, indices, first_index)
     }
 
     pub fn bind_vertices(&self, command_buffer: &CommandBuffer) {
-        self.inner.bind_vertices(&*command_buffer);
+        self.inner.bind_vertices(command_buffer);
     }
 
     pub fn bind_indices(&self, command_buffer: &CommandBuffer) {
-        self.inner.bind_indices(&*command_buffer);
+        self.inner.bind_indices(command_buffer);
     }
 
     pub fn draw(
@@ -75,8 +76,8 @@ impl GraphicsMesh {
     ) {
         if !self.data.vertices.is_empty() {
             self.inner.draw(
-                &*device,
-                &*command_buffer,
+                device,
+                command_buffer,
                 &self.data.vertices,
                 num_vertices,
                 &self.data.indices,

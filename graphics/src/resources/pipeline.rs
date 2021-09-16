@@ -1,13 +1,14 @@
-use nrg_math::{Mat4Ops, Matrix4, Vector4};
+use nrg_math::{Mat4Ops, Vector4};
 use nrg_resources::{
     DataTypeResource, Handle, Resource, ResourceData, ResourceId, SharedData, SharedDataRw,
 };
 use nrg_serialize::generate_random_uid;
 
 use crate::{
-    api::backend, utils::compute_color_from_id, CommandBuffer, Device, GraphicsMesh,
-    InstanceCommand, InstanceData, Mesh, MeshCategoryId, PipelineData, RenderPass, ShaderType,
-    TextureAtlas,
+    api::backend::{self, BackendPhysicalDevice, BackendPipeline},
+    utils::compute_color_from_id,
+    CommandBuffer, Device, GraphicsMesh, InstanceCommand, InstanceData, Mesh, MeshCategoryId,
+    PipelineData, RenderPass, ShaderType,
 };
 
 pub type PipelineId = ResourceId;
@@ -65,10 +66,10 @@ impl Pipeline {
     }
     pub fn init(&mut self, device: &Device, render_pass: &RenderPass) -> &mut Self {
         if let Some(backend_pipeline) = &mut self.backend_pipeline {
-            backend_pipeline.destroy();
+            backend_pipeline.destroy(device);
         }
 
-        let mut backend_pipeline = backend::BackendPipeline::create(&*device);
+        let mut backend_pipeline = BackendPipeline::default();
 
         if self.data.vertex_shader.to_str().unwrap().is_empty() {
             eprintln!(
@@ -83,24 +84,38 @@ impl Pipeline {
             );
         }
         backend_pipeline
-            .set_shader(ShaderType::Vertex, self.data.vertex_shader.as_path())
-            .set_shader(ShaderType::Fragment, self.data.fragment_shader.as_path());
+            .set_shader(
+                device,
+                ShaderType::Vertex,
+                self.data.vertex_shader.as_path(),
+            )
+            .set_shader(
+                device,
+                ShaderType::Fragment,
+                self.data.fragment_shader.as_path(),
+            );
         if !self.data.tcs_shader.to_str().unwrap().is_empty() {
             backend_pipeline.set_shader(
+                device,
                 ShaderType::TessellationControl,
                 self.data.tcs_shader.as_path(),
             );
         }
         if !self.data.tes_shader.to_str().unwrap().is_empty() {
             backend_pipeline.set_shader(
+                device,
                 ShaderType::TessellationEvaluation,
                 self.data.tes_shader.as_path(),
             );
         }
         if !self.data.geometry_shader.to_str().unwrap().is_empty() {
-            backend_pipeline.set_shader(ShaderType::Geometry, self.data.geometry_shader.as_path());
+            backend_pipeline.set_shader(
+                device,
+                ShaderType::Geometry,
+                self.data.geometry_shader.as_path(),
+            );
         }
-        backend_pipeline.build(&*device, &*render_pass, &self.data.culling, &self.data.mode);
+        backend_pipeline.build(device, &*render_pass, &self.data.culling, &self.data.mode);
         self.backend_pipeline = Some(backend_pipeline);
 
         self.is_initialized = true;
@@ -163,74 +178,50 @@ impl Pipeline {
         self
     }
 
-    fn begin(&mut self, command_buffer: &CommandBuffer) -> &mut Self {
+    fn begin(
+        &mut self,
+        device: &Device,
+        physical_device: &BackendPhysicalDevice,
+        command_buffer: &CommandBuffer,
+    ) -> &mut Self {
         nrg_profiler::scoped_profile!(
             format!("renderer::draw_pipeline_begin[{:?}]", self.id()).as_str()
         );
         if let Some(backend_pipeline) = &mut self.backend_pipeline {
-            backend_pipeline
-                .bind(
-                    &*command_buffer,
-                    &self.instance_commands,
-                    &self.instance_data,
-                )
-                .bind_descriptors(&*command_buffer);
+            backend_pipeline.bind(
+                device,
+                physical_device,
+                command_buffer,
+                &self.instance_commands,
+                &self.instance_data,
+            );
         }
-        self
-    }
-
-    fn update_runtime_data(
-        &mut self,
-        command_buffer: &CommandBuffer,
-        width: u32,
-        height: u32,
-        view: &Matrix4,
-        proj: &Matrix4,
-    ) -> &Self {
-        nrg_profiler::scoped_profile!(
-            format!("pipeline::update_runtime_data[{:?}]", self.id()).as_str()
-        );
-        if let Some(backend_pipeline) = &mut self.backend_pipeline {
-            backend_pipeline
-                .update_constant_data(&*command_buffer, width, height, view, proj)
-                .update_uniform_buffer(view, proj);
-        }
-        self
-    }
-    fn update_descriptor_sets(&self, textures: &[TextureAtlas]) -> &Self {
-        nrg_profiler::scoped_profile!(format!(
-            "pipeline::update_descriptors_sets[{:?}]",
-            self.id()
-        )
-        .as_str());
-        if let Some(backend_pipeline) = &self.backend_pipeline {
-            backend_pipeline.update_descriptor_sets(textures);
-        }
+        device.bind_descriptors(command_buffer);
         self
     }
 
     fn bind_indirect(&mut self, command_buffer: &CommandBuffer) -> &mut Self {
         nrg_profiler::scoped_profile!(format!("pipeline::bind_indirect[{:?}]", self.id()).as_str());
         if let Some(backend_pipeline) = &mut self.backend_pipeline {
-            backend_pipeline.bind_indirect(&*command_buffer);
+            backend_pipeline.bind_indirect(command_buffer);
         }
         self
     }
     fn bind_vertices(&mut self, command_buffer: &CommandBuffer) -> &mut Self {
         nrg_profiler::scoped_profile!(format!("pipeline::bind_vertices[{:?}]", self.id()).as_str());
-        self.mesh.bind_vertices(&*command_buffer);
+        self.mesh.bind_vertices(command_buffer);
         self
     }
     fn bind_indices(&mut self, command_buffer: &CommandBuffer) -> &mut Self {
         nrg_profiler::scoped_profile!(format!("pipeline::bind_indices[{:?}]", self.id()).as_str());
-        self.mesh.bind_indices(&*command_buffer);
+        self.mesh.bind_indices(command_buffer);
         self
     }
 
     fn draw_indirect(&mut self, command_buffer: &CommandBuffer) -> &mut Self {
         nrg_profiler::scoped_profile!(format!("pipeline::draw_indirect[{:?}]", self.id()).as_str());
         if let Some(backend_pipeline) = &mut self.backend_pipeline {
-            backend_pipeline.draw_indirect(&*command_buffer, self.instance_count);
+            backend_pipeline.draw_indirect(command_buffer, self.instance_count);
         }
         self
     }
@@ -243,6 +234,7 @@ impl Pipeline {
     pub fn add_mesh_instance(
         &mut self,
         device: &Device,
+        physical_device: &BackendPhysicalDevice,
         mesh_instance: &Mesh,
         diffuse_color: Vector4,
         diffuse_texture_index: i32,
@@ -260,6 +252,7 @@ impl Pipeline {
 
         let mesh_data_ref = self.mesh.bind_at_index(
             device,
+            physical_device,
             mesh_instance.category_identifier(),
             &mesh_instance.mesh_data().vertices,
             self.vertex_count,
@@ -313,29 +306,15 @@ impl Pipeline {
         should_draw
     }
 
-    pub fn update_bindings(
+    pub fn fill_command_buffer(
         &mut self,
+        device: &Device,
+        physical_device: &BackendPhysicalDevice,
         command_buffer: &CommandBuffer,
-        width: u32,
-        height: u32,
-        view: &Matrix4,
-        proj: &Matrix4,
-        textures: &[TextureAtlas],
-    ) -> &mut Self {
-        nrg_profiler::scoped_profile!(
-            format!("renderer::update_bindings[{:?}]", self.id()).as_str()
-        );
-
-        self.update_runtime_data(command_buffer, width, height, view, proj)
-            .update_descriptor_sets(textures);
-
-        self
-    }
-
-    pub fn fill_command_buffer(&mut self, command_buffer: &CommandBuffer) {
+    ) {
         nrg_profiler::scoped_profile!(format!("renderer::draw_pipeline[{:?}]", self.id()).as_str());
 
-        self.begin(command_buffer)
+        self.begin(device, physical_device, command_buffer)
             .bind_vertices(command_buffer)
             .bind_indirect(command_buffer)
             .bind_indices(command_buffer)

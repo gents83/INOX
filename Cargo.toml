@@ -1,16 +1,16 @@
 [workspace]
 
 members = [
-    "apps/launcher_app",
     "apps/editor",
-    "bindings/vulkan_bindings",
+    "apps/launcher_app",
     "binarizer",
+    "bindings/vulkan_bindings",
     "camera",
     "core",
     "events",
     "filesystem",
-    "gui",
     "graphics",
+    "gui",
     "math",
     "messenger",
     "platform",
@@ -20,3 +20,5 @@ members = [
     "serialize",
     "ui",
 ]
+
+resolver = "2"

@@ -1,39 +1,22 @@
 use super::data_formats::INSTANCE_BUFFER_BIND_ID;
 use super::shader::BackendShader;
-use super::BackendCommandBuffer;
-use super::BackendDevice;
-use super::BackendRenderPass;
-use crate::common::texture::MAX_TEXTURE_COUNT;
-use crate::utils::read_spirv_from_bytes;
-use crate::ConstantData;
-use crate::CullingModeType;
-use crate::InstanceCommand;
-use crate::InstanceData;
-use crate::PolygonModeType;
-use crate::ShaderType;
-use crate::TextureAtlas;
-use crate::UniformData;
-use crate::VertexData;
+use super::{BackendCommandBuffer, BackendDevice, BackendRenderPass};
+use crate::api::backend::{
+    create_buffer, destroy_buffer, map_buffer_memory, physical_device::BackendPhysicalDevice,
+};
 
+use crate::utils::read_spirv_from_bytes;
+use crate::{
+    CullingModeType, InstanceCommand, InstanceData, PolygonModeType, ShaderType, VertexData,
+};
 use nrg_filesystem::convert_from_local_path;
-use nrg_math::matrix4_to_array;
-use nrg_math::Matrix4;
+
 use nrg_resources::DATA_FOLDER;
-use std::path::Path;
-use std::path::PathBuf;
-use std::sync::{Arc, RwLock};
+use std::path::{Path, PathBuf};
 use vulkan_bindings::*;
 
-pub struct PipelineImmutable {
-    constant_data: ConstantData,
-    descriptor_set_layout: VkDescriptorSetLayout,
-    descriptor_pool: VkDescriptorPool,
-    descriptor_sets: Vec<VkDescriptorSet>,
-    uniform_buffers_size: usize,
-    uniform_buffers: Vec<VkBuffer>,
-    uniform_buffers_memory: Vec<VkDeviceMemory>,
+pub struct BackendPipeline {
     shaders: Vec<BackendShader>,
-    pipeline_layout: VkPipelineLayout,
     graphics_pipeline: VkPipeline,
     instance_buffer_count: usize,
     instance_buffer: VkBuffer,
@@ -43,28 +26,10 @@ pub struct PipelineImmutable {
     indirect_command_buffer_memory: VkDeviceMemory,
     indirect_commands: Vec<VkDrawIndexedIndirectCommand>,
 }
-
-#[derive(Clone)]
-pub struct BackendPipeline {
-    inner: Arc<RwLock<PipelineImmutable>>,
-    device: BackendDevice,
-}
-
-unsafe impl Send for BackendPipeline {}
-unsafe impl Sync for BackendPipeline {}
-
-impl BackendPipeline {
-    pub fn create(device: &BackendDevice) -> BackendPipeline {
-        let immutable = PipelineImmutable {
-            constant_data: ConstantData::default(),
-            descriptor_set_layout: ::std::ptr::null_mut(),
-            descriptor_sets: Vec::new(),
-            descriptor_pool: ::std::ptr::null_mut(),
-            uniform_buffers_size: 0,
-            uniform_buffers: Vec::new(),
-            uniform_buffers_memory: Vec::new(),
+impl Default for BackendPipeline {
+    fn default() -> Self {
+        Self {
             shaders: Vec::new(),
-            pipeline_layout: ::std::ptr::null_mut(),
             graphics_pipeline: ::std::ptr::null_mut(),
             instance_buffer_count: 0,
             instance_buffer: ::std::ptr::null_mut(),
@@ -73,262 +38,47 @@ impl BackendPipeline {
             indirect_command_buffer: ::std::ptr::null_mut(),
             indirect_command_buffer_memory: ::std::ptr::null_mut(),
             indirect_commands: Vec::new(),
-        };
-        let inner = Arc::new(RwLock::new(immutable));
-        BackendPipeline {
-            inner,
-            device: device.clone(),
         }
     }
+}
 
-    pub fn get_pipeline_layout(&self) -> VkPipelineLayout {
-        self.inner.read().unwrap().pipeline_layout
-    }
+unsafe impl Send for BackendPipeline {}
+unsafe impl Sync for BackendPipeline {}
 
-    pub fn get_descriptor_set_layout(&self) -> VkDescriptorSetLayout {
-        self.inner.read().unwrap().descriptor_set_layout
-    }
-
-    pub fn destroy(&self) {
-        let inner = self.inner.read().unwrap();
-        inner.destroy(&self.device);
-    }
-
-    pub fn set_shader(&mut self, shader_type: ShaderType, shader_filepath: &Path) -> &mut Self {
+impl BackendPipeline {
+    pub fn set_shader(
+        &mut self,
+        device: &BackendDevice,
+        shader_type: ShaderType,
+        shader_filepath: &Path,
+    ) -> &mut Self {
         let path = convert_from_local_path(PathBuf::from(DATA_FOLDER).as_path(), shader_filepath);
         if path.exists() && path.is_file() {
-            self.inner
-                .write()
-                .unwrap()
-                .remove_shader(&self.device, shader_type);
+            self.remove_shader(device, shader_type);
 
             let mut shader_file = std::fs::File::open(path).unwrap();
             let shader_code = read_spirv_from_bytes(&mut shader_file);
 
-            self.inner.write().unwrap().create_shader_module(
-                &self.device,
-                shader_type,
-                shader_code,
-                "main",
-            );
+            self.create_shader_module(device, shader_type, shader_code, "main");
         }
         self
     }
 
-    pub fn bind(
-        &self,
-        command_buffer: &BackendCommandBuffer,
-        commands: &[InstanceCommand],
-        instances: &[InstanceData],
-    ) -> &Self {
-        self.inner
-            .write()
-            .unwrap()
-            .bind(&self.device, command_buffer.get(), commands, instances);
-        self
-    }
-
-    pub fn update_constant_data(
-        &mut self,
-        command_buffer: &BackendCommandBuffer,
-        width: u32,
-        height: u32,
-        view: &Matrix4,
-        proj: &Matrix4,
-    ) -> &mut Self {
-        self.inner
-            .write()
-            .unwrap()
-            .update_constant_data(command_buffer, width, height, view, proj);
-        self
-    }
-
-    pub fn update_uniform_buffer(&self, view: &Matrix4, proj: &Matrix4) -> &Self {
-        self.inner
-            .write()
-            .unwrap()
-            .update_uniform_buffer(&self.device, view, proj);
-        self
-    }
-    pub fn update_descriptor_sets(&self, textures: &[TextureAtlas]) -> &Self {
-        self.inner
-            .write()
-            .unwrap()
-            .update_descriptor_sets(&self.device, textures);
-        self
-    }
-
-    pub fn bind_descriptors(&self, command_buffer: &BackendCommandBuffer) -> &Self {
-        self.inner
-            .read()
-            .unwrap()
-            .bind_descriptors(&self.device, command_buffer.get());
-        self
-    }
-
-    pub fn bind_indirect(&mut self, command_buffer: &BackendCommandBuffer) -> &Self {
-        self.inner
-            .write()
-            .unwrap()
-            .bind_indirect(command_buffer.get());
-        self
-    }
-
-    pub fn draw_indirect(&self, command_buffer: &BackendCommandBuffer, count: usize) -> &Self {
-        self.inner
-            .read()
-            .unwrap()
-            .draw_indirect(command_buffer, count);
-        self
-    }
-
-    pub fn build(
-        &mut self,
-        device: &BackendDevice,
-        render_pass: &BackendRenderPass,
-        culling: &CullingModeType,
-        mode: &PolygonModeType,
-    ) -> &mut Self {
-        self.inner
-            .write()
-            .unwrap()
-            .create_descriptor_set_layout(&self.device)
-            .create_uniform_buffers(device)
-            .create_descriptor_pool(device)
-            .create_descriptor_sets(device)
-            .create(device, render_pass, culling, mode);
-        self
-    }
-}
-
-impl PipelineImmutable {
-    fn create_uniform_buffers(&mut self, device: &BackendDevice) -> &mut Self {
-        let mut uniform_buffers = Vec::<VkBuffer>::with_capacity(device.get_images_count());
-        let mut uniform_buffers_memory =
-            Vec::<VkDeviceMemory>::with_capacity(device.get_images_count());
-        unsafe {
-            uniform_buffers.set_len(device.get_images_count());
-            uniform_buffers_memory.set_len(device.get_images_count());
-        }
-
-        let uniform_buffers_size = std::mem::size_of::<UniformData>();
-        let flags = VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
-            | VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-        for i in 0..uniform_buffers.len() {
-            device.create_buffer(
-                uniform_buffers_size as _,
-                VkBufferUsageFlagBits_VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT as _,
-                flags as _,
-                &mut uniform_buffers[i],
-                &mut uniform_buffers_memory[i],
-            );
-        }
-
-        self.uniform_buffers_size = uniform_buffers_size;
-        self.uniform_buffers = uniform_buffers;
-        self.uniform_buffers_memory = uniform_buffers_memory;
-        self
-    }
-    fn create_descriptor_pool(&mut self, device: &BackendDevice) -> &mut Self {
-        let pool_sizes: Vec<VkDescriptorPoolSize> = vec![
-            VkDescriptorPoolSize {
-                type_: VkDescriptorType_VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-                descriptorCount: device.get_images_count() as u32,
-            },
-            VkDescriptorPoolSize {
-                type_: VkDescriptorType_VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                descriptorCount: MAX_TEXTURE_COUNT as u32 * device.get_images_count() as u32,
-            },
-        ];
-
-        let pool_info = VkDescriptorPoolCreateInfo {
-            sType: VkStructureType_VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-            flags: 0,
-            pNext: ::std::ptr::null_mut(),
-            poolSizeCount: pool_sizes.len() as _,
-            pPoolSizes: pool_sizes.as_ptr(),
-            maxSets: device.get_images_count() as _,
-        };
-
-        self.descriptor_pool = unsafe {
-            let mut option = ::std::mem::MaybeUninit::uninit();
-            assert_eq!(
-                VkResult_VK_SUCCESS,
-                vkCreateDescriptorPool.unwrap()(
-                    device.get_device(),
-                    &pool_info,
-                    ::std::ptr::null_mut(),
-                    option.as_mut_ptr()
-                )
-            );
-            option.assume_init()
-        };
-        self
-    }
-    pub fn create_descriptor_sets(&mut self, device: &BackendDevice) -> &mut Self {
-        let mut layouts = Vec::<VkDescriptorSetLayout>::with_capacity(device.get_images_count());
-        unsafe {
-            layouts.set_len(device.get_images_count());
-        }
-        for layout in layouts.iter_mut() {
-            *layout = self.descriptor_set_layout;
-        }
-
-        let alloc_info = VkDescriptorSetAllocateInfo {
-            sType: VkStructureType_VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
-            pNext: ::std::ptr::null_mut(),
-            descriptorPool: self.descriptor_pool,
-            descriptorSetCount: device.get_images_count() as _,
-            pSetLayouts: layouts.as_mut_ptr(),
-        };
-
-        let mut descriptor_sets = Vec::<VkDescriptorSet>::with_capacity(device.get_images_count());
-        unsafe {
-            descriptor_sets.set_len(device.get_images_count());
-            assert_eq!(
-                VkResult_VK_SUCCESS,
-                vkAllocateDescriptorSets.unwrap()(
-                    device.get_device(),
-                    &alloc_info,
-                    descriptor_sets.as_mut_ptr()
-                )
-            );
-        }
-
-        self.descriptor_sets = descriptor_sets;
-        self
-    }
-    fn destroy(&self, device: &BackendDevice) {
+    pub fn destroy(&self, device: &BackendDevice) {
         self.destroy_shader_modules(device);
-        device.destroy_buffer(
+        destroy_buffer(
+            device,
             &self.indirect_command_buffer,
             &self.indirect_command_buffer_memory,
         );
-        device.destroy_buffer(&self.instance_buffer, &self.instance_buffer_memory);
-        for i in 0..self.uniform_buffers.len() {
-            device.destroy_buffer(&self.uniform_buffers[i], &self.uniform_buffers_memory[i]);
-        }
-        unsafe {
-            vkDestroyDescriptorSetLayout.unwrap()(
-                device.get_device(),
-                self.descriptor_set_layout,
-                ::std::ptr::null_mut(),
-            );
+        destroy_buffer(device, &self.instance_buffer, &self.instance_buffer_memory);
 
-            vkDestroyPipeline.unwrap()(
-                device.get_device(),
-                self.graphics_pipeline,
-                ::std::ptr::null_mut(),
-            );
-            vkDestroyPipelineLayout.unwrap()(
-                device.get_device(),
-                self.pipeline_layout,
-                ::std::ptr::null_mut(),
-            );
+        unsafe {
+            vkDestroyPipeline.unwrap()(**device, self.graphics_pipeline, ::std::ptr::null_mut());
         }
     }
 
-    fn create(
+    pub fn build(
         &mut self,
         device: &BackendDevice,
         render_pass: &BackendRenderPass,
@@ -485,36 +235,6 @@ impl PipelineImmutable {
             blendConstants: [1., 1., 1., 1.],
         };
 
-        let push_constant_range = VkPushConstantRange {
-            stageFlags: VkShaderStageFlagBits_VK_SHADER_STAGE_ALL_GRAPHICS as _,
-            offset: 0,
-            size: ::std::mem::size_of::<ConstantData>() as _,
-        };
-
-        let pipeline_layout_info = VkPipelineLayoutCreateInfo {
-            sType: VkStructureType_VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-            pNext: ::std::ptr::null_mut(),
-            flags: 0,
-            setLayoutCount: 1,
-            pSetLayouts: &self.descriptor_set_layout,
-            pushConstantRangeCount: 1,
-            pPushConstantRanges: &push_constant_range,
-        };
-
-        self.pipeline_layout = unsafe {
-            let mut option = ::std::mem::MaybeUninit::uninit();
-            assert_eq!(
-                VkResult_VK_SUCCESS,
-                vkCreatePipelineLayout.unwrap()(
-                    device.get_device(),
-                    &pipeline_layout_info,
-                    ::std::ptr::null_mut(),
-                    option.as_mut_ptr()
-                )
-            );
-            option.assume_init()
-        };
-
         let pipeline_info = VkGraphicsPipelineCreateInfo {
             sType: VkStructureType_VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
             pNext: ::std::ptr::null_mut(),
@@ -530,8 +250,8 @@ impl PipelineImmutable {
             pDepthStencilState: &depth_stencil,
             pColorBlendState: &color_blending,
             pDynamicState: ::std::ptr::null_mut(),
-            layout: self.pipeline_layout,
-            renderPass: render_pass.into(),
+            layout: device.get_pipeline_layout(),
+            renderPass: **render_pass,
             subpass: 0,
             basePipelineHandle: ::std::ptr::null_mut(),
             basePipelineIndex: -1,
@@ -542,7 +262,7 @@ impl PipelineImmutable {
             assert_eq!(
                 VkResult_VK_SUCCESS,
                 vkCreateGraphicsPipelines.unwrap()(
-                    device.get_device(),
+                    **device,
                     device.get_pipeline_cache(),
                     1,
                     &pipeline_info,
@@ -556,24 +276,27 @@ impl PipelineImmutable {
         self
     }
 
-    fn bind(
+    pub fn bind(
         &mut self,
         device: &BackendDevice,
-        command_buffer: VkCommandBuffer,
+        physical_device: &BackendPhysicalDevice,
+        command_buffer: &BackendCommandBuffer,
         commands: &[InstanceCommand],
         instances: &[InstanceData],
-    ) {
-        self.prepare_indirect_commands(device, commands)
-            .fill_instance_buffer(device, instances);
+    ) -> &mut Self {
+        self.prepare_indirect_commands(device, physical_device, commands)
+            .fill_instance_buffer(device, physical_device, instances);
 
         unsafe {
             vkCmdBindPipeline.unwrap()(
-                command_buffer,
+                command_buffer.get(),
                 VkPipelineBindPoint_VK_PIPELINE_BIND_POINT_GRAPHICS,
                 self.graphics_pipeline,
             );
         }
+        self
     }
+
     fn create_shader_module(
         &mut self,
         device: &BackendDevice,
@@ -581,12 +304,7 @@ impl PipelineImmutable {
         shader_content: Vec<u32>,
         entry_point: &'static str,
     ) -> &mut Self {
-        let shader = BackendShader::create(
-            device.get_device(),
-            shader_type,
-            shader_content,
-            entry_point,
-        );
+        let shader = BackendShader::create(device, shader_type, shader_content, entry_point);
         self.shaders.push(shader);
         self
     }
@@ -594,7 +312,7 @@ impl PipelineImmutable {
     fn remove_shader(&mut self, device: &BackendDevice, shader_type: ShaderType) {
         self.shaders.retain(|s| {
             if s.get_type() == shader_type {
-                s.destroy(device.get_device());
+                s.destroy(device);
                 false
             } else {
                 true
@@ -604,69 +322,27 @@ impl PipelineImmutable {
 
     fn destroy_shader_modules(&self, device: &BackendDevice) {
         for shader in self.shaders.iter() {
-            shader.destroy(device.get_device());
+            shader.destroy(device);
         }
     }
 
-    fn create_descriptor_set_layout(&mut self, device: &BackendDevice) -> &mut Self {
-        let bindings = vec![
-            VkDescriptorSetLayoutBinding {
-                binding: 0,
-                descriptorCount: 1,
-                descriptorType: VkDescriptorType_VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-                pImmutableSamplers: ::std::ptr::null_mut(),
-                stageFlags: (VkShaderStageFlagBits_VK_SHADER_STAGE_VERTEX_BIT
-                    | VkShaderStageFlagBits_VK_SHADER_STAGE_FRAGMENT_BIT)
-                    as _,
-            },
-            VkDescriptorSetLayoutBinding {
-                binding: 1,
-                descriptorCount: MAX_TEXTURE_COUNT as _,
-                descriptorType: VkDescriptorType_VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                pImmutableSamplers: ::std::ptr::null_mut(),
-                stageFlags: VkShaderStageFlagBits_VK_SHADER_STAGE_FRAGMENT_BIT as _,
-            },
-        ];
-
-        let layout_create_info = VkDescriptorSetLayoutCreateInfo {
-            sType: VkStructureType_VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-            flags: 0,
-            pNext: ::std::ptr::null_mut(),
-            bindingCount: bindings.len() as _,
-            pBindings: bindings.as_ptr(),
-        };
-
-        self.descriptor_set_layout = unsafe {
-            let mut option = ::std::mem::MaybeUninit::uninit();
-            assert_eq!(
-                VkResult_VK_SUCCESS,
-                vkCreateDescriptorSetLayout.unwrap()(
-                    device.get_device(),
-                    &layout_create_info,
-                    ::std::ptr::null_mut(),
-                    option.as_mut_ptr()
-                )
-            );
-            option.assume_init()
-        };
-
-        self
-    }
-
-    fn fill_instance_buffer(
+    pub fn fill_instance_buffer(
         &mut self,
         device: &BackendDevice,
+        physical_device: &BackendPhysicalDevice,
         instances: &[InstanceData],
     ) -> &mut Self {
         if instances.len() > self.instance_buffer_count {
-            device.destroy_buffer(&self.instance_buffer, &self.instance_buffer_memory);
+            destroy_buffer(device, &self.instance_buffer, &self.instance_buffer_memory);
             self.instance_buffer_count = instances.len() * 2;
             let buffer_size = std::mem::size_of::<InstanceData>() * self.instance_buffer_count;
             let flags = VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
                 | VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
             let usage = VkBufferUsageFlagBits_VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
                 | VkBufferUsageFlagBits_VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-            device.create_buffer(
+            create_buffer(
+                device,
+                physical_device,
                 buffer_size as _,
                 usage as _,
                 flags as _,
@@ -675,14 +351,15 @@ impl PipelineImmutable {
             );
         }
         if !instances.is_empty() {
-            device.map_buffer_memory(&mut self.instance_buffer_memory, 0, instances);
+            map_buffer_memory(device, &mut self.instance_buffer_memory, 0, instances);
         }
         self
     }
 
-    fn prepare_indirect_commands(
+    pub fn prepare_indirect_commands(
         &mut self,
         device: &BackendDevice,
+        physical_device: &BackendPhysicalDevice,
         commands: &[InstanceCommand],
     ) -> &mut Self {
         self.indirect_commands.clear();
@@ -702,7 +379,8 @@ impl PipelineImmutable {
         }
 
         if commands.len() > self.indirect_command_buffer_count {
-            device.destroy_buffer(
+            destroy_buffer(
+                device,
                 &self.indirect_command_buffer,
                 &self.indirect_command_buffer_memory,
             );
@@ -713,7 +391,9 @@ impl PipelineImmutable {
                 | VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
             let usage = VkBufferUsageFlagBits_VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
                 | VkBufferUsageFlagBits_VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
-            device.create_buffer(
+            create_buffer(
+                device,
+                physical_device,
                 indirect_buffer_size as _,
                 usage as _,
                 flags as _,
@@ -723,7 +403,8 @@ impl PipelineImmutable {
         }
 
         if !self.indirect_commands.is_empty() {
-            device.map_buffer_memory(
+            map_buffer_memory(
+                device,
                 &mut self.indirect_command_buffer_memory,
                 0,
                 self.indirect_commands.as_slice(),
@@ -733,11 +414,11 @@ impl PipelineImmutable {
         self
     }
 
-    fn bind_indirect(&mut self, command_buffer: VkCommandBuffer) -> &mut Self {
+    pub fn bind_indirect(&mut self, command_buffer: &BackendCommandBuffer) -> &mut Self {
         unsafe {
             let offsets = [0_u64];
             vkCmdBindVertexBuffers.unwrap()(
-                command_buffer,
+                command_buffer.get(),
                 INSTANCE_BUFFER_BIND_ID as _,
                 1,
                 &mut self.instance_buffer,
@@ -746,7 +427,7 @@ impl PipelineImmutable {
         }
         self
     }
-    fn draw_indirect(&self, command_buffer: &BackendCommandBuffer, count: usize) {
+    pub fn draw_indirect(&self, command_buffer: &BackendCommandBuffer, count: usize) {
         if count > 0 {
             unsafe {
                 vkCmdDrawIndexedIndirect.unwrap()(
@@ -757,126 +438,6 @@ impl PipelineImmutable {
                     std::mem::size_of::<VkDrawIndexedIndirectCommand>() as _,
                 );
             }
-        }
-    }
-
-    fn update_constant_data(
-        &mut self,
-        command_buffer: &BackendCommandBuffer,
-        width: u32,
-        height: u32,
-        view: &Matrix4,
-        proj: &Matrix4,
-    ) {
-        self.constant_data.view = matrix4_to_array(*view);
-        self.constant_data.proj = matrix4_to_array(*proj);
-        self.constant_data.screen_width = width as _;
-        self.constant_data.screen_height = height as _;
-
-        unsafe {
-            vkCmdPushConstants.unwrap()(
-                command_buffer.get(),
-                self.pipeline_layout,
-                VkShaderStageFlagBits_VK_SHADER_STAGE_ALL_GRAPHICS as _,
-                0,
-                ::std::mem::size_of::<ConstantData>() as _,
-                &self.constant_data as *const ConstantData as _,
-            );
-        }
-    }
-
-    fn update_uniform_buffer(&mut self, device: &BackendDevice, view: &Matrix4, proj: &Matrix4) {
-        let image_index = device.get_current_buffer_index();
-        let uniform_data: [UniformData; 1] = [UniformData {
-            view: *view,
-            proj: *proj,
-        }];
-
-        let mut buffer_memory = self.uniform_buffers_memory[image_index];
-        device.map_buffer_memory(&mut buffer_memory, 0, &uniform_data);
-        self.uniform_buffers_memory[image_index] = buffer_memory;
-
-        let buffer_info = VkDescriptorBufferInfo {
-            buffer: self.uniform_buffers[image_index],
-            offset: 0,
-            range: self.uniform_buffers_size as _,
-        };
-
-        let descriptor_write: Vec<VkWriteDescriptorSet> = vec![VkWriteDescriptorSet {
-            sType: VkStructureType_VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-            pNext: ::std::ptr::null_mut(),
-            dstSet: self.descriptor_sets[image_index],
-            dstBinding: 0,
-            dstArrayElement: 0,
-            descriptorCount: 1,
-            descriptorType: VkDescriptorType_VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-            pImageInfo: ::std::ptr::null_mut(),
-            pBufferInfo: &buffer_info,
-            pTexelBufferView: ::std::ptr::null_mut(),
-        }];
-
-        unsafe {
-            vkUpdateDescriptorSets.unwrap()(
-                device.get_device(),
-                descriptor_write.len() as _,
-                descriptor_write.as_ptr(),
-                0,
-                ::std::ptr::null_mut(),
-            );
-        }
-    }
-
-    pub fn update_descriptor_sets(&mut self, device: &BackendDevice, textures: &[TextureAtlas]) {
-        debug_assert!(
-            !textures.is_empty(),
-            "At least one texture should be received"
-        );
-
-        let image_index = device.get_current_buffer_index();
-
-        let mut descriptor_write: Vec<VkWriteDescriptorSet> = Vec::new();
-        let mut descriptors = Vec::new();
-        for t in textures.iter() {
-            descriptors.push(t.get_texture().get_descriptor());
-        }
-        descriptor_write.push(VkWriteDescriptorSet {
-            sType: VkStructureType_VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-            pNext: ::std::ptr::null_mut(),
-            dstSet: self.descriptor_sets[image_index],
-            dstBinding: 1,
-            dstArrayElement: 0,
-            descriptorCount: descriptors.len() as _,
-            descriptorType: VkDescriptorType_VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-            pImageInfo: descriptors.as_ptr(),
-            pBufferInfo: ::std::ptr::null_mut(),
-            pTexelBufferView: ::std::ptr::null_mut(),
-        });
-
-        unsafe {
-            vkUpdateDescriptorSets.unwrap()(
-                device.get_device(),
-                descriptor_write.len() as _,
-                descriptor_write.as_ptr(),
-                0,
-                ::std::ptr::null_mut(),
-            );
-        }
-    }
-
-    pub fn bind_descriptors(&self, device: &BackendDevice, command_buffer: VkCommandBuffer) {
-        let image_index = device.get_current_buffer_index();
-
-        unsafe {
-            vkCmdBindDescriptorSets.unwrap()(
-                command_buffer,
-                VkPipelineBindPoint_VK_PIPELINE_BIND_POINT_GRAPHICS,
-                self.pipeline_layout,
-                0,
-                1,
-                &self.descriptor_sets[image_index],
-                0,
-                ::std::ptr::null_mut(),
-            );
         }
     }
 }

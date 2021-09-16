@@ -1,114 +1,38 @@
+use super::physical_device::BackendPhysicalDevice;
+use super::{
+    create_instance, create_surface, enumerate_available_extensions, enumerate_available_layers,
+    pick_suitable_physical_device,
+};
 use nrg_platform::Handle;
-use std::sync::{Arc, RwLock};
-use std::{ffi::CString, os::raw::c_char};
+use std::ffi::CString;
 use vulkan_bindings::*;
 
-use super::physical_device::PhysicalDevice;
-use super::{
-    enumerate_available_extensions, enumerate_available_layers, enumerate_physical_devices,
-    get_available_extensions_names, get_available_layers_names, get_minimum_required_vulkan_layers,
-    QueueFamilyIndices, SwapChainSupportDetails, VK_API_VERSION_1_2,
-};
-
-struct InstanceImmutable {
+pub struct BackendInstance {
     _lib: vulkan_bindings::Lib,
     supported_layers: Vec<VkLayerProperties>,
     supported_extensions: Vec<VkExtensionProperties>,
     instance: VkInstance,
     surface: VkSurfaceKHR,
-    physical_device: PhysicalDevice,
+    physical_device: BackendPhysicalDevice,
     debug_messenger: VkDebugUtilsMessengerEXT,
 }
 
-#[derive(Clone)]
-pub struct BackendInstance {
-    inner: Arc<RwLock<InstanceImmutable>>,
+impl std::ops::Deref for BackendInstance {
+    type Target = VkInstance;
+    fn deref(&self) -> &Self::Target {
+        &self.instance
+    }
 }
 
 impl BackendInstance {
     pub fn new(handle: &Handle, enable_validation: bool) -> BackendInstance {
-        let immutable = Arc::new(RwLock::new(InstanceImmutable::new(
-            handle,
-            enable_validation,
-        )));
-        BackendInstance { inner: immutable }
-    }
-    pub fn delete(&self) {
-        self.inner.write().unwrap().delete();
-    }
-
-    pub fn compute_swap_chain_details(&self) {
-        let inner = self.inner.write().unwrap();
-        inner
-            .physical_device
-            .compute_swap_chain_details(inner.surface);
-    }
-
-    pub fn get_surface(&self) -> VkSurfaceKHR {
-        self.inner.read().unwrap().surface
-    }
-
-    pub fn get_queue_family_info(&self) -> QueueFamilyIndices {
-        self.inner
-            .read()
-            .unwrap()
-            .physical_device
-            .get_queue_family_info()
-    }
-
-    pub fn get_physical_device(&self) -> VkPhysicalDevice {
-        self.inner
-            .read()
-            .unwrap()
-            .physical_device
-            .get_internal_device()
-    }
-    pub fn get_swap_chain_info(&self) -> SwapChainSupportDetails {
-        self.inner
-            .read()
-            .unwrap()
-            .physical_device
-            .get_swap_chain_info()
-    }
-
-    pub fn get_physical_device_properties(&self) -> VkPhysicalDeviceProperties {
-        self.inner.read().unwrap().physical_device.get_properties()
-    }
-
-    pub fn get_available_extensions(&self) -> Vec<VkExtensionProperties> {
-        self.inner
-            .read()
-            .unwrap()
-            .physical_device
-            .get_available_extensions()
-    }
-
-    pub fn get_available_features(&self) -> VkPhysicalDeviceFeatures {
-        self.inner
-            .read()
-            .unwrap()
-            .physical_device
-            .get_available_features()
-    }
-
-    pub fn get_supported_layers(&self) -> Vec<VkLayerProperties> {
-        self.inner.read().unwrap().supported_layers.clone()
-    }
-
-    pub fn get_supported_extensions(&self) -> Vec<VkExtensionProperties> {
-        self.inner.read().unwrap().supported_extensions.clone()
-    }
-}
-
-impl InstanceImmutable {
-    pub fn new(handle: &Handle, enable_validation: bool) -> InstanceImmutable {
         let lib = vulkan_bindings::Lib::default();
         VK::initialize(&lib);
         let available_layers = enumerate_available_layers();
         let available_extensions = enumerate_available_extensions();
-        let inst = create_instance(&available_layers, &available_extensions, enable_validation);
-        let surf = create_surface(inst, handle);
-        let physical_dev = pick_suitable_physical_device(inst, surf);
+        let instance = create_instance(&available_layers, &available_extensions, enable_validation);
+        let surface = create_surface(instance, handle);
+        let physical_dev = pick_suitable_physical_device(instance, surface);
         if physical_dev.is_none() {
             panic!("Unable to find a physical device that support Vulkan needed API");
         }
@@ -117,7 +41,7 @@ impl InstanceImmutable {
         unsafe {
             let func_name = CString::new("vkCreateDebugUtilsMessengerEXT").unwrap();
             let debug_create_opt_fn: PFN_vkCreateDebugUtilsMessengerEXT = ::std::mem::transmute(
-                vkGetInstanceProcAddr.unwrap()(inst, func_name.as_ptr() as _),
+                vkGetInstanceProcAddr.unwrap()(instance, func_name.as_ptr() as _),
             );
             if let Some(debug_create_fn) = debug_create_opt_fn {
                 let severity_flags =
@@ -140,7 +64,7 @@ impl InstanceImmutable {
                 };
 
                 debug_create_fn(
-                    inst,
+                    instance,
                     &debug_create_info,
                     ::std::ptr::null_mut(),
                     &mut debug_messenger,
@@ -150,15 +74,35 @@ impl InstanceImmutable {
             }
         }
 
-        InstanceImmutable {
+        Self {
             _lib: lib,
             supported_layers: available_layers,
             supported_extensions: available_extensions,
-            instance: inst,
-            surface: surf,
+            instance,
+            surface,
             physical_device: physical_dev.unwrap(),
             debug_messenger,
         }
+    }
+
+    pub fn get_surface(&self) -> VkSurfaceKHR {
+        self.surface
+    }
+
+    pub fn get_physical_device(&self) -> &BackendPhysicalDevice {
+        &self.physical_device
+    }
+
+    pub fn get_physical_device_mut(&mut self) -> &mut BackendPhysicalDevice {
+        &mut self.physical_device
+    }
+
+    pub fn get_supported_layers(&self) -> &Vec<VkLayerProperties> {
+        &self.supported_layers
+    }
+
+    pub fn get_supported_extensions(&self) -> &Vec<VkExtensionProperties> {
+        &self.supported_extensions
     }
 
     pub fn delete(&self) {
@@ -179,6 +123,7 @@ impl InstanceImmutable {
         }
     }
 }
+
 extern "C" fn debug_callback(
     message_severity: VkDebugUtilsMessageSeverityFlagBitsEXT,
     _message_types: VkDebugUtilsMessageTypeFlagsEXT,
@@ -202,144 +147,4 @@ extern "C" fn debug_callback(
         }
     }
     VK_FALSE
-}
-
-fn create_instance(
-    supported_layers: &[VkLayerProperties],
-    supported_extensions: &[VkExtensionProperties],
-    enable_validation: bool,
-) -> VkInstance {
-    let app_info = VkApplicationInfo {
-        sType: VkStructureType_VK_STRUCTURE_TYPE_APPLICATION_INFO,
-        pNext: ::std::ptr::null_mut(),
-        pApplicationName: ::std::ptr::null_mut(),
-        applicationVersion: VK_API_VERSION_1_2,
-        pEngineName: ::std::ptr::null_mut(),
-        engineVersion: VK_API_VERSION_1_2,
-        apiVersion: VK_API_VERSION_1_2,
-    };
-
-    let layer_names_str = get_available_layers_names(supported_layers);
-    let mut required_layers = get_minimum_required_vulkan_layers(enable_validation);
-    for layer in layer_names_str.iter() {
-        if let Some(index) = required_layers.iter().position(|l| l == layer) {
-            required_layers.remove(index);
-        }
-    }
-
-    let has_required_layers = required_layers.is_empty();
-    debug_assert!(
-        has_required_layers,
-        "Device has not minimum requirement Vulkan layers"
-    );
-    required_layers = get_minimum_required_vulkan_layers(enable_validation);
-    let layer_names_ptr = required_layers
-        .iter()
-        .map(|e| e.as_ptr())
-        .collect::<Vec<*const c_char>>();
-
-    let extension_names_str = get_available_extensions_names(supported_extensions);
-    let extension_names_ptr = extension_names_str
-        .iter()
-        .map(|e| e.as_ptr() as *const c_char)
-        .collect::<Vec<*const c_char>>();
-
-    //Create Instance
-    let create_info = VkInstanceCreateInfo {
-        sType: VkStructureType_VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
-        pNext: ::std::ptr::null_mut(),
-        flags: 0,
-        pApplicationInfo: &app_info,
-        enabledLayerCount: layer_names_ptr.len() as u32,
-        ppEnabledLayerNames: layer_names_ptr.as_ptr(),
-        enabledExtensionCount: extension_names_ptr.len() as u32,
-        ppEnabledExtensionNames: extension_names_ptr.as_ptr(),
-    };
-
-    let mut instance: VkInstance = ::std::ptr::null_mut();
-    unsafe {
-        assert_eq!(
-            VkResult_VK_SUCCESS,
-            vkCreateInstance.unwrap()(&create_info, ::std::ptr::null_mut(), &mut instance)
-        );
-    }
-
-    if instance.is_null() {
-        eprintln!("Unable to create instance that support Vulkan needed API");
-    }
-    instance
-}
-
-#[allow(unused_assignments)]
-pub fn create_surface(instance: VkInstance, handle: &Handle) -> VkSurfaceKHR {
-    let mut surface: VkSurfaceKHR = ::std::ptr::null_mut();
-
-    #[cfg(target_os = "android")]
-    {
-        surface = create_surface_android(instance, handle);
-    }
-    #[cfg(target_os = "ios")]
-    {
-        surface = create_surface_ios(instance, handle);
-    }
-    #[cfg(target_os = "macos")]
-    {
-        surface = create_surface_macos(instance, handle);
-    }
-    #[cfg(target_os = "unix")]
-    {
-        surface = create_surface_unix(instance, handle);
-    }
-    #[cfg(target_os = "wasm32")]
-    {
-        surface = create_surface_wasm32(instance, handle);
-    }
-    #[cfg(target_os = "windows")]
-    {
-        surface = create_surface_win32(instance, handle);
-    }
-
-    if surface.is_null() {
-        eprintln!("Unable to create a surface to support Vulkan needed API");
-    }
-    surface
-}
-
-pub fn pick_suitable_physical_device(
-    instance: VkInstance,
-    surface: VkSurfaceKHR,
-) -> ::std::option::Option<PhysicalDevice> {
-    for vk_physical_device in enumerate_physical_devices(instance) {
-        let physical_device = PhysicalDevice::create(vk_physical_device, surface);
-
-        if physical_device.is_device_suitable() {
-            return Some(physical_device);
-        }
-    }
-    None
-}
-
-fn create_surface_win32(instance: VkInstance, handle: &Handle) -> VkSurfaceKHR {
-    let surface_create_info = VkWin32SurfaceCreateInfoKHR {
-        sType: VkStructureType_VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR,
-        pNext: ::std::ptr::null_mut(),
-        flags: 0,
-        hinstance: handle.handle_impl.hinstance as *mut vulkan_bindings::HINSTANCE__,
-        hwnd: handle.handle_impl.hwnd as *mut vulkan_bindings::HWND__,
-    };
-
-    let surface: VkSurfaceKHR = unsafe {
-        let mut output = ::std::mem::MaybeUninit::uninit();
-        assert_eq!(
-            VkResult_VK_SUCCESS,
-            vkCreateWin32SurfaceKHR.unwrap()(
-                instance,
-                &surface_create_info,
-                ::std::ptr::null_mut(),
-                output.as_mut_ptr()
-            )
-        );
-        output.assume_init()
-    };
-    surface
 }

@@ -2,7 +2,6 @@ use nrg_platform::Handle;
 
 use crate::api::backend::BackendInstance;
 
-#[derive(Clone)]
 pub struct Instance {
     inner: BackendInstance,
 }
