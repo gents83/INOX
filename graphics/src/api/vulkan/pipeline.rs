@@ -214,8 +214,8 @@ impl BackendPipeline {
             srcColorBlendFactor: VkBlendFactor_VK_BLEND_FACTOR_ONE,
             dstColorBlendFactor: VkBlendFactor_VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
             colorBlendOp: VkBlendOp_VK_BLEND_OP_ADD,
-            srcAlphaBlendFactor: VkBlendFactor_VK_BLEND_FACTOR_ONE,
-            dstAlphaBlendFactor: VkBlendFactor_VK_BLEND_FACTOR_ZERO,
+            srcAlphaBlendFactor: VkBlendFactor_VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA,
+            dstAlphaBlendFactor: VkBlendFactor_VK_BLEND_FACTOR_ONE,
             alphaBlendOp: VkBlendOp_VK_BLEND_OP_ADD,
             colorWriteMask: (VkColorComponentFlagBits_VK_COLOR_COMPONENT_R_BIT
                 | VkColorComponentFlagBits_VK_COLOR_COMPONENT_G_BIT
