@@ -137,7 +137,7 @@ impl System for UpdateSystem {
 
     fn run(&mut self) -> bool {
         let state = self.renderer.read().unwrap().state();
-        if state != RendererState::Init && state != RendererState::Submitted {
+        if state != RendererState::Submitted {
             return true;
         }
 
@@ -149,6 +149,7 @@ impl System for UpdateSystem {
                 renderer.recreate();
                 return true;
             }
+            renderer.change_state(RendererState::Preparing);
             renderer.prepare_frame();
         }
 
@@ -202,7 +203,7 @@ impl System for UpdateSystem {
                 }
 
                 let mut r = renderer.write().unwrap();
-                r.end_preparation();
+                r.change_state(RendererState::Prepared);
             });
 
         true

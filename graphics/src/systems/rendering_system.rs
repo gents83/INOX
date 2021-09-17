@@ -53,6 +53,11 @@ impl System for RenderingSystem {
             return true;
         }
 
+        self.renderer
+            .write()
+            .unwrap()
+            .change_state(RendererState::Drawing);
+
         let wait_count = Arc::new(AtomicUsize::new(0));
 
         let view = self.view.get().view();
@@ -178,7 +183,7 @@ impl System for RenderingSystem {
                         renderer.recreate();
                     }
 
-                    renderer.end_draw();
+                    renderer.change_state(RendererState::Submitted);
                 }
             });
 

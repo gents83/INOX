@@ -9,8 +9,9 @@ pub const INVALID_INDEX: i32 = -1;
 
 #[derive(PartialEq, Eq, Copy, Clone)]
 pub enum RendererState {
-    Init,
+    Preparing,
     Prepared,
+    Drawing,
     Submitted,
 }
 
@@ -36,7 +37,7 @@ impl Renderer {
             instance,
             device,
             texture_handler,
-            state: RendererState::Init,
+            state: RendererState::Submitted,
         }
     }
 
@@ -55,6 +56,10 @@ impl Renderer {
     pub fn state(&self) -> RendererState {
         self.state
     }
+    pub fn change_state(&mut self, render_state: RendererState) -> &mut Self {
+        self.state = render_state;
+        self
+    }
 
     pub fn prepare_frame(&mut self) -> &mut Self {
         nrg_profiler::scoped_profile!("renderer::prepare_frame");
@@ -71,12 +76,7 @@ impl Renderer {
     pub fn get_texture_handler_mut(&mut self) -> &mut TextureHandler {
         &mut self.texture_handler
     }
-    pub fn end_preparation(&mut self) {
-        self.state = RendererState::Prepared;
-    }
-    pub fn end_draw(&mut self) {
-        self.state = RendererState::Submitted;
-    }
+
     pub fn need_redraw(&self) -> bool {
         self.state != RendererState::Submitted
     }
