@@ -312,14 +312,6 @@ impl BackendDevice {
         self.create_thread_data().get_current_command_buffer()
     }
 
-    pub fn begin_frame(&mut self) {
-        self.begin_primary_command_buffer();
-    }
-
-    pub fn end_frame(&self) {
-        self.end_primary_command_buffer();
-    }
-
     pub fn delete(&mut self) {
         unsafe {
             let count = self.swap_chain.image_data.len();
@@ -640,6 +632,15 @@ impl BackendDevice {
         )
         .max(1);
 
+        let format_index = if let Some(index) = details
+            .formats
+            .iter()
+            .position(|f| f.format == VkFormat_VK_FORMAT_R8G8B8A8_UNORM)
+        {
+            index
+        } else {
+            0
+        };
         let mut swap_chain_create_info = VkSwapchainCreateInfoKHR {
             sType: VkStructureType_VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
             pNext: ::std::ptr::null_mut(),
@@ -649,8 +650,8 @@ impl BackendDevice {
                 details.capabilities.minImageCount + 1,
                 details.capabilities.maxImageCount,
             ),
-            imageFormat: details.formats[0].format,
-            imageColorSpace: details.formats[0].colorSpace,
+            imageFormat: details.formats[format_index].format,
+            imageColorSpace: details.formats[format_index].colorSpace,
             imageExtent: swap_chain_extent,
             imageArrayLayers: 1,
             imageUsage: VkImageUsageFlagBits_VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT as u32,
@@ -757,7 +758,7 @@ impl BackendDevice {
     }
 
     fn create_image_views(&mut self, physical_device: &BackendPhysicalDevice) -> &mut Self {
-        let selected_format = physical_device.get_swap_chain_info().formats[0].format;
+        let selected_format = physical_device.get_swap_chain_info().get_preferred_format();
         let images = &mut self.swap_chain.image_data;
         for image_data in images.iter_mut() {
             image_data.image_view = create_image_view(

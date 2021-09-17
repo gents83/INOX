@@ -31,11 +31,11 @@ impl Device {
     }
 
     pub fn begin_frame(&mut self) {
-        self.inner.begin_frame();
+        self.inner.begin_primary_command_buffer();
     }
 
     pub fn end_frame(&self) {
-        self.inner.end_frame();
+        self.inner.end_primary_command_buffer();
     }
 
     pub fn submit(&self) {

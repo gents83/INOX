@@ -33,3 +33,18 @@ pub struct SwapChainSupportDetails {
     pub formats: Vec<VkSurfaceFormatKHR>,
     pub present_modes: Vec<VkPresentModeKHR>,
 }
+
+impl SwapChainSupportDetails {
+    pub fn get_preferred_format(&self) -> VkFormat {
+        let format_index = if let Some(index) = self
+            .formats
+            .iter()
+            .position(|f| f.format == VkFormat_VK_FORMAT_R8G8B8A8_UNORM)
+        {
+            index
+        } else {
+            0
+        };
+        self.formats[format_index].format
+    }
+}

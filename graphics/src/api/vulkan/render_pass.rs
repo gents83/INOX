@@ -129,7 +129,7 @@ impl BackendRenderPass {
             format: if data.render_to_texture {
                 VkFormat_VK_FORMAT_R8G8B8A8_UNORM
             } else {
-                details.formats[0].format
+                details.get_preferred_format()
             },
             samples: VkSampleCountFlagBits_VK_SAMPLE_COUNT_1_BIT,
             loadOp: match data.load_color {
