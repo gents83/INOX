@@ -719,12 +719,13 @@ pub fn create_instance(
     supported_extensions: &[VkExtensionProperties],
     enable_validation: bool,
 ) -> VkInstance {
+    let engine_name = "NRG";
     let app_info = VkApplicationInfo {
         sType: VkStructureType_VK_STRUCTURE_TYPE_APPLICATION_INFO,
         pNext: ::std::ptr::null_mut(),
         pApplicationName: ::std::ptr::null_mut(),
         applicationVersion: VK_API_VERSION_1_2,
-        pEngineName: ::std::ptr::null_mut(),
+        pEngineName: engine_name.as_ptr() as _,
         engineVersion: VK_API_VERSION_1_2,
         apiVersion: VK_API_VERSION_1_2,
     };

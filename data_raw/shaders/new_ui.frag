@@ -28,16 +28,8 @@ void main() {
 	if (inTexCoord.z >= 0) 
 	{
 		vec4 texColor = texture(texture0Sampler[inTextureIndex], inTexCoord);
-		if(texColor.a > 0.2) 
-		{
-	    	outColor.rgb = texColor.rgb * inColor.rgb;
-	    	outColor.a = inColor.a;
-	    }
-	    else 
-	    {
-	    	discard;
-	    }
-	    
+		outColor.rgb = texColor.rgb * inColor.rgb * inColor.a * texColor.a;
+		outColor.a = inColor.a * texColor.a;	    
 	}
 	else 
 	{

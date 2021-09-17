@@ -215,7 +215,7 @@ impl BackendPipeline {
             dstColorBlendFactor: VkBlendFactor_VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
             colorBlendOp: VkBlendOp_VK_BLEND_OP_ADD,
             srcAlphaBlendFactor: VkBlendFactor_VK_BLEND_FACTOR_ONE,
-            dstAlphaBlendFactor: VkBlendFactor_VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
+            dstAlphaBlendFactor: VkBlendFactor_VK_BLEND_FACTOR_ZERO,
             alphaBlendOp: VkBlendOp_VK_BLEND_OP_ADD,
             colorWriteMask: (VkColorComponentFlagBits_VK_COLOR_COMPONENT_R_BIT
                 | VkColorComponentFlagBits_VK_COLOR_COMPONENT_G_BIT
@@ -235,6 +235,18 @@ impl BackendPipeline {
             blendConstants: [1., 1., 1., 1.],
         };
 
+        let dynamic_states = vec![
+            VkDynamicState_VK_DYNAMIC_STATE_VIEWPORT,
+            VkDynamicState_VK_DYNAMIC_STATE_SCISSOR,
+        ];
+        let dynamic_state = VkPipelineDynamicStateCreateInfo {
+            sType: VkStructureType_VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
+            pNext: ::std::ptr::null_mut(),
+            flags: 0,
+            dynamicStateCount: dynamic_states.len() as _,
+            pDynamicStates: dynamic_states.as_ptr(),
+        };
+
         let pipeline_info = VkGraphicsPipelineCreateInfo {
             sType: VkStructureType_VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
             pNext: ::std::ptr::null_mut(),
@@ -249,7 +261,7 @@ impl BackendPipeline {
             pMultisampleState: &multisampling,
             pDepthStencilState: &depth_stencil,
             pColorBlendState: &color_blending,
-            pDynamicState: ::std::ptr::null_mut(),
+            pDynamicState: &dynamic_state,
             layout: device.get_pipeline_layout(),
             renderPass: **render_pass,
             subpass: 0,

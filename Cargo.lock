@@ -359,7 +359,7 @@ source = "git+https://github.com/marcianx/downcast-rs#0aaf951bee097184e9c83c5171
 [[package]]
 name = "egui"
 version = "0.14.2"
-source = "git+https://github.com/emilk/egui#f37180f7dc49e155ddebd89c8f707b91eb2ea999"
+source = "git+https://github.com/emilk/egui#67bf716b0efc0f50e2bf5553ac54a892f29f98e4"
 dependencies = [
  "epaint",
 ]
@@ -373,7 +373,7 @@ checksum = "e78d4f1cc4ae33bbfc157ed5d5a5ef3bc29227303d595861deb238fcec4e9457"
 [[package]]
 name = "emath"
 version = "0.14.0"
-source = "git+https://github.com/emilk/egui#f37180f7dc49e155ddebd89c8f707b91eb2ea999"
+source = "git+https://github.com/emilk/egui#67bf716b0efc0f50e2bf5553ac54a892f29f98e4"
 
 [[package]]
 name = "env_logger"
@@ -391,7 +391,7 @@ dependencies = [
 [[package]]
 name = "epaint"
 version = "0.14.0"
-source = "git+https://github.com/emilk/egui#f37180f7dc49e155ddebd89c8f707b91eb2ea999"
+source = "git+https://github.com/emilk/egui#67bf716b0efc0f50e2bf5553ac54a892f29f98e4"
 dependencies = [
  "ab_glyph",
  "ahash",
@@ -556,7 +556,7 @@ dependencies = [
  "gltf-derive",
  "serde",
  "serde_derive",
- "serde_json 1.0.67 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_json 1.0.68 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -681,9 +681,9 @@ dependencies = [
 
 [[package]]
 name = "js-sys"
-version = "0.3.54"
+version = "0.3.55"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1866b355d9c878e5e607473cbe3f63282c0b7aad2db1dbebf55076c686918254"
+checksum = "7cc9ffccd38c451a86bf13657df244e9c3f37493cce8e5e21e940963777acc84"
 dependencies = [
  "wasm-bindgen",
 ]
@@ -702,9 +702,9 @@ checksum = "7efd1d698db0759e6ef11a7cd44407407399a910c774dd804c64c032da7826ff"
 
 [[package]]
 name = "libc"
-version = "0.2.101"
+version = "0.2.102"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3cb00336871be5ed2c8ed44b60ae9959dc5b9f08539422ed43f09e34ecaeba21"
+checksum = "a2a5ac8f984bfcf3a823267e5fde638acc3325f6496633a5da6bb6eb2171e103"
 
 [[package]]
 name = "libloading"
@@ -932,7 +932,7 @@ version = "0.1.0"
 dependencies = [
  "nrg_filesystem",
  "nrg_platform",
- "serde_json 1.0.67 (git+https://github.com/serde-rs/json)",
+ "serde_json 1.0.68 (git+https://github.com/serde-rs/json)",
 ]
 
 [[package]]
@@ -961,7 +961,7 @@ version = "0.1.0"
 dependencies = [
  "serde",
  "serde_derive",
- "serde_json 1.0.67 (git+https://github.com/serde-rs/json)",
+ "serde_json 1.0.68 (git+https://github.com/serde-rs/json)",
  "typetag",
  "uuid",
 ]
@@ -1187,8 +1187,8 @@ dependencies = [
 
 [[package]]
 name = "rand"
-version = "0.8.4"
-source = "git+https://github.com/rust-random/rand#10764d81fea13825407cdddff6ba29ab838f1020"
+version = "0.8.5"
+source = "git+https://github.com/rust-random/rand#3c8f92bfbb32f9b024216e84bef11da436979395"
 dependencies = [
  "libc",
  "rand_chacha",
@@ -1198,7 +1198,7 @@ dependencies = [
 [[package]]
 name = "rand_chacha"
 version = "0.3.1"
-source = "git+https://github.com/rust-random/rand#10764d81fea13825407cdddff6ba29ab838f1020"
+source = "git+https://github.com/rust-random/rand#3c8f92bfbb32f9b024216e84bef11da436979395"
 dependencies = [
  "ppv-lite86",
  "rand_core",
@@ -1206,8 +1206,8 @@ dependencies = [
 
 [[package]]
 name = "rand_core"
-version = "0.6.3"
-source = "git+https://github.com/rust-random/rand#10764d81fea13825407cdddff6ba29ab838f1020"
+version = "0.6.4"
+source = "git+https://github.com/rust-random/rand#3c8f92bfbb32f9b024216e84bef11da436979395"
 dependencies = [
  "getrandom",
 ]
@@ -1309,9 +1309,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.67"
+version = "1.0.68"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a7f9e390c27c3c0ce8bc5d725f6e4d30a29d26659494aa4b17535f7522c5c950"
+checksum = "0f690853975602e1bfe1ccbf50504d67174e3bcf340f23b5ea9992e0587a52d8"
 dependencies = [
  "itoa",
  "ryu",
@@ -1320,8 +1320,8 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.67"
-source = "git+https://github.com/serde-rs/json#133bb61574c5d1aa2f60dbf967ebc05e0363b0b1"
+version = "1.0.68"
+source = "git+https://github.com/serde-rs/json#9420d3a0a4ebf17ef1deeecee07851f58ff6148f"
 dependencies = [
  "itoa",
  "ryu",
@@ -1519,9 +1519,9 @@ checksum = "fd6fbd9a79829dd1ad0cc20627bf1ed606756a7f77edff7b66b7064f9cb327c6"
 
 [[package]]
 name = "wasm-bindgen"
-version = "0.2.77"
+version = "0.2.78"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5e68338db6becec24d3c7977b5bf8a48be992c934b5d07177e3931f5dc9b076c"
+checksum = "632f73e236b219150ea279196e54e610f5dbafa5d61786303d4da54f84e47fce"
 dependencies = [
  "cfg-if 1.0.0",
  "wasm-bindgen-macro",
@@ -1529,9 +1529,9 @@ dependencies = [
 
 [[package]]
 name = "wasm-bindgen-backend"
-version = "0.2.77"
+version = "0.2.78"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f34c405b4f0658583dba0c1c7c9b694f3cac32655db463b56c254a1c75269523"
+checksum = "a317bf8f9fba2476b4b2c85ef4c4af8ff39c3c7f0cdfeed4f82c34a880aa837b"
 dependencies = [
  "bumpalo",
  "lazy_static",
@@ -1544,9 +1544,9 @@ dependencies = [
 
 [[package]]
 name = "wasm-bindgen-macro"
-version = "0.2.77"
+version = "0.2.78"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b9d5a6580be83b19dc570a8f9c324251687ab2184e57086f71625feb57ec77c8"
+checksum = "d56146e7c495528bf6587663bea13a8eb588d39b36b679d83972e1a2dbbdacf9"
 dependencies = [
  "quote 1.0.9",
  "wasm-bindgen-macro-support",
@@ -1554,9 +1554,9 @@ dependencies = [
 
 [[package]]
 name = "wasm-bindgen-macro-support"
-version = "0.2.77"
+version = "0.2.78"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e3775a030dc6f5a0afd8a84981a21cc92a781eb429acef9ecce476d0c9113e92"
+checksum = "7803e0eea25835f8abdc585cd3021b3deb11543c6fe226dcd30b228857c5c5ab"
 dependencies = [
  "proc-macro2 1.0.29",
  "quote 1.0.9",
@@ -1567,9 +1567,9 @@ dependencies = [
 
 [[package]]
 name = "wasm-bindgen-shared"
-version = "0.2.77"
+version = "0.2.78"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c279e376c7a8e8752a8f1eaa35b7b0bee6bb9fb0cdacfa97cc3f1f289c87e2b4"
+checksum = "0237232789cf037d5480773fe568aac745bfe2afbc11a863e97901780a6b47cc"
 
 [[package]]
 name = "weezl"

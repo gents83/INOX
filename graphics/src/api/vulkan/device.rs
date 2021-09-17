@@ -431,8 +431,7 @@ impl BackendDevice {
         command_buffer: &BackendCommandBuffer,
         render_pass: &BackendRenderPass,
     ) {
-        let flags = VkCommandBufferUsageFlagBits_VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
-            | VkCommandBufferUsageFlagBits_VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT;
+        let flags = VkCommandBufferUsageFlagBits_VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT;
         let inheritance_info = VkCommandBufferInheritanceInfo {
             sType: VkStructureType_VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO,
             pNext: ::std::ptr::null_mut(),
@@ -454,6 +453,23 @@ impl BackendDevice {
                 VkResult_VK_SUCCESS,
                 vkBeginCommandBuffer.unwrap()(command_buffer.get(), &begin_info)
             );
+
+            let viewport = VkViewport {
+                x: 0.0,
+                y: 0.0,
+                width: render_pass.get_framebuffer_width() as _,
+                height: render_pass.get_framebuffer_height() as _,
+                minDepth: 0.0,
+                maxDepth: 1.0,
+            };
+
+            let scissors = VkRect2D {
+                offset: VkOffset2D { x: 0, y: 0 },
+                extent: render_pass.get_extent(),
+            };
+
+            vkCmdSetViewport.unwrap()(command_buffer.get(), 0, 1, &viewport);
+            vkCmdSetScissor.unwrap()(command_buffer.get(), 0, 1, &scissors);
         }
     }
 
@@ -479,7 +495,6 @@ impl BackendDevice {
     pub fn graphics_queue_submit(&self, command_buffer: VkCommandBuffer) {
         unsafe {
             vkQueueWaitIdle.unwrap()(self.transfers_queue);
-            vkQueueWaitIdle.unwrap()(self.present_queue);
 
             let command_buffers = vec![command_buffer];
             let wait_stages =
@@ -496,6 +511,13 @@ impl BackendDevice {
                 pSignalSemaphores: &self.semaphore_render_complete[self.semaphore_id],
             };
 
+            vkWaitForFences.unwrap()(
+                self.device,
+                1,
+                &self.command_buffer_fences[self.semaphore_id],
+                VK_TRUE,
+                std::u64::MAX,
+            );
             vkResetFences.unwrap()(
                 self.device,
                 1,
@@ -511,14 +533,6 @@ impl BackendDevice {
             if submit_result != VkResult_VK_SUCCESS {
                 eprintln!("Unable to submit queue correctly on GPU");
             }
-
-            vkWaitForFences.unwrap()(
-                self.device,
-                1,
-                &self.command_buffer_fences[self.semaphore_id],
-                VK_TRUE,
-                std::u64::MAX,
-            );
         }
     }
 
