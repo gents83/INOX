@@ -124,6 +124,9 @@ impl Renderer {
                     .get_mut()
                     .init(device, physical_device, texture_handler);
             }
+            if let Some(pipeline) = render_pass.get().pipeline() {
+                pipeline.get_mut().prepare();
+            }
         });
     }
     fn init_pipelines_for_pass(&mut self, render_pass_name: &str) {
