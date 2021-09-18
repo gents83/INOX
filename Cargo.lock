@@ -814,6 +814,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "nrg_content_browser"
+version = "0.1.0"
+dependencies = [
+ "nrg_binarizer",
+ "nrg_core",
+ "nrg_events",
+ "nrg_filesystem",
+ "nrg_graphics",
+ "nrg_messenger",
+ "nrg_platform",
+ "nrg_profiler",
+ "nrg_resources",
+ "nrg_serialize",
+ "nrg_ui",
+]
+
+[[package]]
 name = "nrg_core"
 version = "0.1.0"
 dependencies = [

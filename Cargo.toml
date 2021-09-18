@@ -1,6 +1,7 @@
 [workspace]
 
 members = [
+    "apps/content_browser",
     "apps/editor",
     "apps/launcher_app",
     "binarizer",
