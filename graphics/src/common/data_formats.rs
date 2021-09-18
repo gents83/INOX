@@ -245,7 +245,7 @@ pub struct MeshDataRef {
     pub first_index: u32,
     pub last_index: u32,
 }
-pub const DEFAULT_MESH_CATEGORY_IDENTIFIER: &str = "NRG_Default_MainPass?Mesh";
+pub const DEFAULT_MESH_CATEGORY_IDENTIFIER: &str = "NRG_Default_MainPass_Mesh";
 
 #[repr(C)]
 #[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Clone)]
