@@ -40,7 +40,7 @@ void main() {
   gl_Position =
       vec4(2.0 * inPosition.x / pushConsts.screen_size.x - 1.0,
            2.0 * inPosition.y / pushConsts.screen_size.y - 1.0, 
-           0.0, 
+           1000. - inPosition.z, 
            1.0);
   // egui encodes vertex colors in gamma spaces, so we must decode the colors here:
   outColor = inColor;  

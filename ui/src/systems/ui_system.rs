@@ -158,7 +158,8 @@ impl UISystem {
                     let mut vertices: Vec<VertexData> = Vec::new();
                     vertices.resize(mesh.vertices.len(), VertexData::default());
                     for (i, v) in mesh.vertices.iter().enumerate() {
-                        vertices[i].pos = [v.pos.x * ui_scale, v.pos.y * ui_scale, 0.].into();
+                        vertices[i].pos =
+                            [v.pos.x * ui_scale, v.pos.y * ui_scale, draw_index as _].into();
                         vertices[i].tex_coord = [v.uv.x, v.uv.y].into();
                         vertices[i].color = [
                             v.color.r() as f32 / 255.,
