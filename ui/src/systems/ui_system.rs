@@ -1,6 +1,10 @@
 use std::{
     any::TypeId,
     collections::{hash_map::Entry, HashMap},
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    },
 };
 
 use egui::{
@@ -285,21 +289,28 @@ impl UISystem {
 
     fn show_ui(&mut self, use_multithreading: bool) {
         nrg_profiler::scoped_profile!("ui_system::show_ui");
+        let wait_count = Arc::new(AtomicUsize::new(0));
         SharedData::for_each_resource(&self.shared_data, |widget: &Resource<UIWidget>| {
             if use_multithreading {
                 let context = self.ui_context.clone();
                 let widget = widget.clone();
                 let job_name = format!("ui_system::show_ui[{:?}]", widget.id());
+                let wait_count = wait_count.clone();
+                wait_count.fetch_add(1, Ordering::SeqCst);
                 self.job_handler
                     .write()
                     .unwrap()
                     .add_job(job_name.as_str(), move || {
                         widget.get_mut().execute(&context);
+                        wait_count.fetch_sub(1, Ordering::SeqCst);
                     });
             } else {
                 widget.get_mut().execute(&self.ui_context);
             }
         });
+        while wait_count.load(Ordering::SeqCst) > 0 {
+            thread::yield_now();
+        }
     }
 
     fn handle_output(&mut self, output: Output) -> &mut Self {

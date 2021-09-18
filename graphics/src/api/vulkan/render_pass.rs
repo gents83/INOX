@@ -5,6 +5,8 @@ use crate::api::backend::physical_device::BackendPhysicalDevice;
 use crate::common::data_formats::*;
 use vulkan_bindings::*;
 
+pub const DEFAULT_CLEAR_COLOR: [f32; 4] = [0.12, 0.12, 0.12, 1.0];
+
 pub struct BackendRenderPass {
     render_pass: VkRenderPass,
     framebuffer: Vec<VkFramebuffer>,
@@ -80,7 +82,7 @@ impl BackendRenderPass {
         let clear_value = [
             VkClearValue {
                 color: VkClearColorValue {
-                    float32: [0.0, 0.0, 0.0, 1.0],
+                    float32: DEFAULT_CLEAR_COLOR,
                 },
             },
             VkClearValue {
