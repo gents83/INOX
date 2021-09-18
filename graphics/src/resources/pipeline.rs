@@ -188,7 +188,7 @@ impl Pipeline {
             format!("renderer::draw_pipeline_begin[{:?}]", self.id()).as_str()
         );
         if let Some(backend_pipeline) = &mut self.backend_pipeline {
-            backend_pipeline.bind(
+            backend_pipeline.bind_indirect(
                 device,
                 physical_device,
                 command_buffer,
@@ -200,10 +200,10 @@ impl Pipeline {
         self
     }
 
-    fn bind_indirect(&mut self, command_buffer: &CommandBuffer) -> &mut Self {
+    fn bind_instance_buffer(&mut self, command_buffer: &CommandBuffer) -> &mut Self {
         nrg_profiler::scoped_profile!(format!("pipeline::bind_indirect[{:?}]", self.id()).as_str());
         if let Some(backend_pipeline) = &mut self.backend_pipeline {
-            backend_pipeline.bind_indirect(command_buffer);
+            backend_pipeline.bind_instance_buffer(command_buffer);
         }
         self
     }
@@ -215,6 +215,18 @@ impl Pipeline {
     fn bind_indices(&mut self, command_buffer: &CommandBuffer) -> &mut Self {
         nrg_profiler::scoped_profile!(format!("pipeline::bind_indices[{:?}]", self.id()).as_str());
         self.mesh.bind_indices(command_buffer);
+        self
+    }
+
+    fn draw_indexed(&mut self, command_buffer: &CommandBuffer) -> &mut Self {
+        nrg_profiler::scoped_profile!(format!("pipeline::draw_indexed[{:?}]", self.id()).as_str());
+        if let Some(backend_pipeline) = &mut self.backend_pipeline {
+            backend_pipeline.draw_indexed(
+                command_buffer,
+                self.instance_commands.as_slice(),
+                self.instance_count,
+            );
+        }
         self
     }
 
@@ -316,9 +328,15 @@ impl Pipeline {
 
         self.begin(device, physical_device, command_buffer)
             .bind_vertices(command_buffer)
-            .bind_indirect(command_buffer)
-            .bind_indices(command_buffer)
-            .draw_indirect(command_buffer)
-            .end();
+            .bind_instance_buffer(command_buffer)
+            .bind_indices(command_buffer);
+
+        if self.data.use_indirect_draw {
+            self.draw_indirect(command_buffer);
+        } else {
+            self.draw_indexed(command_buffer);
+        }
+
+        self.end();
     }
 }

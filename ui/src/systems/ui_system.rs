@@ -13,6 +13,7 @@ use nrg_graphics::{
     Material, Mesh, MeshCategoryId, MeshData, RenderPass, Texture, TextureId, VertexData,
 };
 
+use nrg_math::Vector4;
 use nrg_messenger::{read_messages, MessageChannel, MessengerRw};
 use nrg_platform::{
     InputState, KeyEvent, KeyTextEvent, MouseButton, MouseEvent, MouseState, WindowEvent,
@@ -130,7 +131,7 @@ impl UISystem {
         });
 
         for (i, clipped_mesh) in clipped_meshes.into_iter().enumerate() {
-            let ClippedMesh(_, mesh) = clipped_mesh;
+            let ClippedMesh(clip_rect, mesh) = clipped_mesh;
             let draw_index = i as u32;
             self.ui_meshes[i].get_mut().set_draw_index(draw_index);
             if mesh.vertices.is_empty() || mesh.indices.is_empty() {
@@ -171,7 +172,13 @@ impl UISystem {
                     mesh_instance
                         .get_mut()
                         .set_material(material)
-                        .set_mesh_data(mesh_data);
+                        .set_mesh_data(mesh_data)
+                        .set_draw_area(Vector4::new(
+                            clip_rect.min.x * ui_scale,
+                            clip_rect.min.y * ui_scale,
+                            clip_rect.max.x * ui_scale,
+                            clip_rect.max.y * ui_scale,
+                        ));
                 });
         }
     }

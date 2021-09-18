@@ -9,7 +9,8 @@
         "tes_shader": "",
         "geometry_shader": "",
         "culling": "None",
-        "mode": "Line"
+        "mode": "Line",
+        "use_indirect_draw": true
     },
     "textures":
     [],

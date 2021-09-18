@@ -90,23 +90,22 @@ impl BackendPipeline {
             shader_stages.push(shader.stage_info());
         }
 
-        let vertex_data_binding_info = VertexData::get_binding_desc();
-        let vertex_data_attr_info = VertexData::get_attributes_desc();
+        let mut vertex_data_binding_info = vec![VertexData::get_binding_desc()];
+        let mut vertex_data_attr_info = VertexData::get_attributes_desc();
 
         let instance_data_binding_info = InstanceData::get_binding_desc();
-        let instance_data_attr_info = InstanceData::get_attributes_desc();
-
-        let binding_info = [vertex_data_binding_info, instance_data_binding_info];
-        let attr_info = [vertex_data_attr_info, instance_data_attr_info].concat();
+        let mut instance_data_attr_info = InstanceData::get_attributes_desc();
+        vertex_data_binding_info.push(instance_data_binding_info);
+        vertex_data_attr_info.append(&mut instance_data_attr_info);
 
         let vertex_input_info = VkPipelineVertexInputStateCreateInfo {
             sType: VkStructureType_VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
             pNext: ::std::ptr::null_mut(),
             flags: 0,
-            vertexBindingDescriptionCount: binding_info.len() as _,
-            pVertexBindingDescriptions: binding_info.as_ptr(),
-            vertexAttributeDescriptionCount: attr_info.len() as _,
-            pVertexAttributeDescriptions: attr_info.as_ptr(),
+            vertexBindingDescriptionCount: vertex_data_binding_info.len() as _,
+            pVertexBindingDescriptions: vertex_data_binding_info.as_slice().as_ptr(),
+            vertexAttributeDescriptionCount: vertex_data_attr_info.len() as _,
+            pVertexAttributeDescriptions: vertex_data_attr_info.as_slice().as_ptr(),
         };
 
         let input_assembly = VkPipelineInputAssemblyStateCreateInfo {
@@ -288,7 +287,18 @@ impl BackendPipeline {
         self
     }
 
-    pub fn bind(
+    pub fn bind_pipeline(&mut self, command_buffer: &BackendCommandBuffer) -> &mut Self {
+        unsafe {
+            vkCmdBindPipeline.unwrap()(
+                command_buffer.get(),
+                VkPipelineBindPoint_VK_PIPELINE_BIND_POINT_GRAPHICS,
+                self.graphics_pipeline,
+            );
+        }
+        self
+    }
+
+    pub fn bind_indirect(
         &mut self,
         device: &BackendDevice,
         physical_device: &BackendPhysicalDevice,
@@ -297,15 +307,8 @@ impl BackendPipeline {
         instances: &[InstanceData],
     ) -> &mut Self {
         self.prepare_indirect_commands(device, physical_device, commands)
-            .fill_instance_buffer(device, physical_device, instances);
-
-        unsafe {
-            vkCmdBindPipeline.unwrap()(
-                command_buffer.get(),
-                VkPipelineBindPoint_VK_PIPELINE_BIND_POINT_GRAPHICS,
-                self.graphics_pipeline,
-            );
-        }
+            .fill_instance_buffer(device, physical_device, instances)
+            .bind_pipeline(command_buffer);
         self
     }
 
@@ -426,7 +429,7 @@ impl BackendPipeline {
         self
     }
 
-    pub fn bind_indirect(&mut self, command_buffer: &BackendCommandBuffer) -> &mut Self {
+    pub fn bind_instance_buffer(&mut self, command_buffer: &BackendCommandBuffer) -> &mut Self {
         unsafe {
             let offsets = [0_u64];
             vkCmdBindVertexBuffers.unwrap()(
@@ -449,6 +452,29 @@ impl BackendPipeline {
                     count as _,
                     std::mem::size_of::<VkDrawIndexedIndirectCommand>() as _,
                 );
+            }
+        }
+    }
+    pub fn draw_indexed(
+        &self,
+        command_buffer: &BackendCommandBuffer,
+        instance_commands: &[InstanceCommand],
+        instance_count: usize,
+    ) {
+        unsafe {
+            for i in 0..instance_count {
+                if let Some(c) = instance_commands.iter().find(|c| c.mesh_index == i) {
+                    if c.mesh_index == i {
+                        vkCmdDrawIndexed.unwrap()(
+                            command_buffer.get(),
+                            c.mesh_data_ref.last_index - c.mesh_data_ref.first_index,
+                            1,
+                            c.mesh_data_ref.first_index,
+                            c.mesh_data_ref.first_vertex as _,
+                            0,
+                        );
+                    }
+                }
             }
         }
     }

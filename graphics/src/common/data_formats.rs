@@ -160,6 +160,7 @@ pub struct PipelineData {
     pub geometry_shader: PathBuf,
     pub culling: CullingModeType,
     pub mode: PolygonModeType,
+    pub use_indirect_draw: bool,
 }
 unsafe impl Send for PipelineData {}
 unsafe impl Sync for PipelineData {}
@@ -175,6 +176,7 @@ impl Default for PipelineData {
             geometry_shader: PathBuf::new(),
             culling: CullingModeType::Back,
             mode: PolygonModeType::Fill,
+            use_indirect_draw: false,
         }
     }
 }

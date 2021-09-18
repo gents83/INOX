@@ -9,7 +9,8 @@
         "tes_shader": "",
         "geometry_shader": "",
         "culling": "Back",
-        "mode": "Fill"
+        "mode": "Fill",
+        "use_indirect_draw": true
     },
     "textures":
     [],
