@@ -46,6 +46,22 @@ impl MainMenu {
                         menu::bar(ui, |ui| {
                             menu::menu(ui, "File", |ui| {
                                 if ui.button("New").clicked() {
+                                    /*
+                                    let op: &str = DialogOp::New.into();
+                                    let mut command = Command::new("nrg_launcher.exe");
+                                    command
+                                        .arg("-plugin nrg_content_browser")
+                                        .arg("-folder")
+                                        .arg(PathBuf::from(DATA_RAW_FOLDER).to_str().unwrap())
+                                        .arg("-operation")
+                                        .arg(op)
+                                        .arg("-extension")
+                                        .arg("object_data");
+                                    Self::process_command_result(
+                                        &mut command,
+                                        data.global_dispatcher.clone(),
+                                    );
+                                    */
                                     data.global_dispatcher
                                         .write()
                                         .unwrap()
@@ -59,6 +75,23 @@ impl MainMenu {
                                         .ok();
                                 }
                                 if ui.button("Open").clicked() {
+                                    /*
+                                    let op: &str = DialogOp::Open.into();
+                                    let mut command = Command::new("nrg_launcher.exe");
+                                    command
+                                        .arg("-plugin nrg_content_browser")
+                                        .arg("-operation")
+                                        .arg(op)
+                                        .arg("-folder")
+                                        .arg(PathBuf::from(DATA_FOLDER).to_str().unwrap())
+                                        .arg("-extension")
+                                        .arg("object_data");
+
+                                    Self::process_command_result(
+                                        &mut command,
+                                        data.global_dispatcher.clone(),
+                                    );
+                                    */
                                     data.global_dispatcher
                                         .write()
                                         .unwrap()
@@ -72,6 +105,22 @@ impl MainMenu {
                                         .ok();
                                 }
                                 if ui.button("Save").clicked() {
+                                    /*
+                                    let op: &str = DialogOp::Save.into();
+                                    let mut command = Command::new("nrg_launcher.exe");
+                                    command
+                                        .arg("-plugin nrg_content_browser")
+                                        .arg("-folder")
+                                        .arg(PathBuf::from(DATA_RAW_FOLDER).to_str().unwrap())
+                                        .arg("-operation")
+                                        .arg(op)
+                                        .arg("-extension")
+                                        .arg("object_data");
+                                    Self::process_command_result(
+                                        &mut command,
+                                        data.global_dispatcher.clone(),
+                                    );
+                                    */
                                     data.global_dispatcher
                                         .write()
                                         .unwrap()

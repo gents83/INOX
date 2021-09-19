@@ -1,3 +1,4 @@
+use std::env;
 use std::path::PathBuf;
 use std::{any::TypeId, path::Path};
 
@@ -8,7 +9,7 @@ use nrg_core::*;
 use nrg_graphics::{Font, Pipeline, RenderPass};
 use nrg_messenger::{read_messages, Message, MessageChannel, MessengerRw};
 use nrg_platform::WindowEvent;
-use nrg_resources::DATA_FOLDER;
+
 use nrg_resources::{DataTypeResource, Resource, SharedDataRw};
 use nrg_ui::{DialogEvent, DialogOp};
 
@@ -84,11 +85,34 @@ impl System for ContentBrowserUpdater {
             .unwrap()
             .register_messagebox::<DialogEvent>(self.message_channel.get_messagebox());
 
-        self.create_content_browser(
-            DialogOp::Open,
-            PathBuf::from(DATA_FOLDER).as_path(),
-            "object_data".to_string(),
-        );
+        let args: Vec<String> = env::args().collect();
+        let mut operation = DialogOp::Open;
+        let mut folder = PathBuf::from(".");
+        let mut extension = String::from("object_data");
+
+        let mut is_operation = false;
+        let mut is_folder = false;
+        let mut is_extension = false;
+        (1..args.len()).for_each(|i| {
+            if args[i].as_str() == "-folder" {
+                is_folder = true;
+            } else if args[i].as_str() == "-extension" {
+                is_extension = true;
+            } else if args[i].as_str() == "-operation" {
+                is_operation = true;
+            } else if is_operation {
+                is_operation = false;
+                operation = DialogOp::from(args[i].as_str());
+            } else if is_folder {
+                is_folder = false;
+                folder = PathBuf::from(args[i].as_str())
+            } else if is_extension {
+                is_extension = false;
+                extension = String::from(args[i].as_str())
+            }
+        });
+
+        self.create_content_browser(operation, folder.as_path(), extension);
     }
 
     fn run(&mut self) -> bool {
@@ -114,6 +138,24 @@ impl ContentBrowserUpdater {
         extension: String,
     ) -> &mut Self {
         if self.content_browser.is_none() {
+            match operation {
+                DialogOp::Open => {
+                    self.send_event(
+                        WindowEvent::RequestChangeTitle("Open File".to_string()).as_boxed(),
+                    );
+                }
+                DialogOp::Save => {
+                    self.send_event(
+                        WindowEvent::RequestChangeTitle("Save File".to_string()).as_boxed(),
+                    );
+                }
+                DialogOp::New => {
+                    self.send_event(
+                        WindowEvent::RequestChangeTitle("New File".to_string()).as_boxed(),
+                    );
+                }
+            }
+
             let content_browser = ContentBrowser::new(
                 &self.shared_data,
                 &self.global_messenger,

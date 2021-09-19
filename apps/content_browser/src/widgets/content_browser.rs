@@ -8,7 +8,7 @@ use nrg_graphics::{Texture, TextureId};
 use nrg_messenger::{get_events_from_string, Message, MessageBox, MessengerRw};
 
 use nrg_resources::{FileResource, Resource, ResourceData, SharedData, SharedDataRw, DATA_FOLDER};
-use nrg_serialize::deserialize;
+use nrg_serialize::{deserialize, serialize};
 use nrg_ui::{
     implement_widget_data, CentralPanel, CollapsingHeader, DialogEvent, DialogOp, ScrollArea,
     SidePanel, TextEdit, TextureId as eguiTextureId, TopBottomPanel, UIWidget, Ui, Widget,
@@ -241,18 +241,28 @@ impl ContentBrowser {
                             if ui.button("Ok").clicked() {
                                 let path = data.selected_folder.clone();
                                 let path = path.join(data.selected_file.clone());
+                                let dialog_event = DialogEvent::Confirmed(data.operation, path);
+                                /*
                                 data.global_dispatcher
                                     .write()
                                     .unwrap()
-                                    .send(DialogEvent::Confirmed(data.operation, path).as_boxed())
+                                    .send(dialog_event.as_boxed())
                                     .ok();
+                                */
+                                let serialized_event = serialize(&dialog_event);
+                                println!("[[[{}]]]", serialized_event);
                             }
                             if ui.button("Cancel").clicked() {
+                                let dialog_event = DialogEvent::Canceled(data.operation);
+                                /*
                                 data.global_dispatcher
                                     .write()
                                     .unwrap()
-                                    .send(DialogEvent::Canceled(data.operation).as_boxed())
+                                    .send(dialog_event.as_boxed())
                                     .ok();
+                                    */
+                                let serialized_event = serialize(&dialog_event);
+                                println!("[[[{}]]]", serialized_event);
                             }
                         });
                     });
@@ -293,7 +303,7 @@ impl ContentBrowser {
         })
     }
 
-    fn process_command_result(command: &mut Command, dispatcher: MessageBox) {
+    pub fn process_command_result(command: &mut Command, dispatcher: MessageBox) {
         let result = command.output();
         match result {
             Ok(output) => {

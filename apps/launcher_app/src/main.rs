@@ -19,8 +19,18 @@ fn main() {
     //additional plugins
     let args: Vec<String> = env::args().collect();
     if args.len() > 1 {
+        let mut is_plugin = false;
         (1..args.len()).for_each(|i| {
-            plugins.push(args[i].as_str());
+            if args[i].starts_with("-plugin") {
+                is_plugin = true;
+                if let Some(plugin_name) = args[i].strip_prefix("-plugin ") {
+                    plugins.push(plugin_name);
+                    is_plugin = false;
+                }
+            } else if is_plugin {
+                plugins.push(args[i].as_str());
+                is_plugin = false;
+            }
         });
     }
 
