@@ -7,7 +7,8 @@ use crate::api::backend::{
 
 use crate::utils::read_spirv_from_bytes;
 use crate::{
-    CullingModeType, InstanceCommand, InstanceData, PolygonModeType, ShaderType, VertexData,
+    BlendFactor, CullingModeType, InstanceCommand, InstanceData, PolygonModeType, ShaderType,
+    VertexData,
 };
 use nrg_filesystem::convert_from_local_path;
 
@@ -84,6 +85,10 @@ impl BackendPipeline {
         render_pass: &BackendRenderPass,
         culling: &CullingModeType,
         mode: &PolygonModeType,
+        src_color_blend_factor: &BlendFactor,
+        dst_color_blend_factor: &BlendFactor,
+        src_alpha_blend_factor: &BlendFactor,
+        dst_alpha_blend_factor: &BlendFactor,
     ) -> &mut Self {
         let mut shader_stages: Vec<VkPipelineShaderStageCreateInfo> = Vec::new();
         for shader in self.shaders.iter() {
@@ -146,23 +151,8 @@ impl BackendPipeline {
             flags: 0,
             depthClampEnable: VK_TRUE,
             rasterizerDiscardEnable: VK_FALSE,
-            polygonMode: match *mode {
-                PolygonModeType::Line => VkPolygonMode_VK_POLYGON_MODE_LINE,
-                PolygonModeType::Point => VkPolygonMode_VK_POLYGON_MODE_POINT,
-                _ => VkPolygonMode_VK_POLYGON_MODE_FILL,
-            },
-            cullMode: match *culling {
-                CullingModeType::Back => {
-                    VkCullModeFlagBits_VK_CULL_MODE_BACK_BIT as VkCullModeFlags
-                }
-                CullingModeType::Front => {
-                    VkCullModeFlagBits_VK_CULL_MODE_FRONT_BIT as VkCullModeFlags
-                }
-                CullingModeType::Both => {
-                    VkCullModeFlagBits_VK_CULL_MODE_FRONT_AND_BACK as VkCullModeFlags
-                }
-                _ => VkCullModeFlagBits_VK_CULL_MODE_NONE as VkCullModeFlags,
-            },
+            polygonMode: (*mode).into(),
+            cullMode: (*culling).into(),
             frontFace: VkFrontFace_VK_FRONT_FACE_CLOCKWISE,
             depthBiasEnable: VK_FALSE,
             depthBiasConstantFactor: 0.0,
@@ -210,11 +200,11 @@ impl BackendPipeline {
 
         let color_blend_attachment = VkPipelineColorBlendAttachmentState {
             blendEnable: VK_TRUE,
-            srcColorBlendFactor: VkBlendFactor_VK_BLEND_FACTOR_ONE,
-            dstColorBlendFactor: VkBlendFactor_VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
+            srcColorBlendFactor: (*src_color_blend_factor).into(),
+            dstColorBlendFactor: (*dst_color_blend_factor).into(),
             colorBlendOp: VkBlendOp_VK_BLEND_OP_ADD,
-            srcAlphaBlendFactor: VkBlendFactor_VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA,
-            dstAlphaBlendFactor: VkBlendFactor_VK_BLEND_FACTOR_ONE,
+            srcAlphaBlendFactor: (*src_alpha_blend_factor).into(),
+            dstAlphaBlendFactor: (*dst_alpha_blend_factor).into(),
             alphaBlendOp: VkBlendOp_VK_BLEND_OP_ADD,
             colorWriteMask: (VkColorComponentFlagBits_VK_COLOR_COMPONENT_R_BIT
                 | VkColorComponentFlagBits_VK_COLOR_COMPONENT_G_BIT

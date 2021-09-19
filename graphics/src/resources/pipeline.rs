@@ -115,7 +115,16 @@ impl Pipeline {
                 self.data.geometry_shader.as_path(),
             );
         }
-        backend_pipeline.build(device, &*render_pass, &self.data.culling, &self.data.mode);
+        backend_pipeline.build(
+            device,
+            &*render_pass,
+            &self.data.culling,
+            &self.data.mode,
+            &self.data.src_color_blend_factor,
+            &self.data.dst_color_blend_factor,
+            &self.data.src_alpha_blend_factor,
+            &self.data.dst_alpha_blend_factor,
+        );
         self.backend_pipeline = Some(backend_pipeline);
 
         self.is_initialized = true;
@@ -218,6 +227,7 @@ impl Pipeline {
         self
     }
 
+    #[allow(dead_code)]
     fn draw_indexed(&mut self, command_buffer: &CommandBuffer) -> &mut Self {
         nrg_profiler::scoped_profile!(format!("pipeline::draw_indexed[{:?}]", self.id()).as_str());
         if let Some(backend_pipeline) = &mut self.backend_pipeline {
@@ -329,13 +339,8 @@ impl Pipeline {
         self.begin(device, physical_device, command_buffer)
             .bind_vertices(command_buffer)
             .bind_instance_buffer(command_buffer)
-            .bind_indices(command_buffer);
-
-        if self.data.use_indirect_draw {
-            self.draw_indirect(command_buffer);
-        } else {
-            self.draw_indexed(command_buffer);
-        }
+            .bind_indices(command_buffer)
+            .draw_indirect(command_buffer);
 
         self.end();
     }

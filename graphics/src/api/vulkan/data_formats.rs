@@ -123,3 +123,52 @@ impl InstanceData {
         attr
     }
 }
+
+impl Into<VkPolygonMode> for PolygonModeType {
+    fn into(self) -> VkPolygonMode {
+        match self {
+            PolygonModeType::Line => VkPolygonMode_VK_POLYGON_MODE_LINE,
+            PolygonModeType::Point => VkPolygonMode_VK_POLYGON_MODE_POINT,
+            _ => VkPolygonMode_VK_POLYGON_MODE_FILL,
+        }
+    }
+}
+
+impl Into<VkCullModeFlags> for CullingModeType {
+    fn into(self) -> VkCullModeFlags {
+        match self {
+            CullingModeType::Back => VkCullModeFlagBits_VK_CULL_MODE_BACK_BIT as VkCullModeFlags,
+            CullingModeType::Front => VkCullModeFlagBits_VK_CULL_MODE_FRONT_BIT as VkCullModeFlags,
+            CullingModeType::Both => {
+                VkCullModeFlagBits_VK_CULL_MODE_FRONT_AND_BACK as VkCullModeFlags
+            }
+            _ => VkCullModeFlagBits_VK_CULL_MODE_NONE as VkCullModeFlags,
+        }
+    }
+}
+
+impl Into<VkBlendFactor> for BlendFactor {
+    fn into(self) -> VkBlendFactor {
+        match self {
+            BlendFactor::Zero => VkBlendFactor_VK_BLEND_FACTOR_ZERO,
+            BlendFactor::One => VkBlendFactor_VK_BLEND_FACTOR_ONE,
+            BlendFactor::SrcColor => VkBlendFactor_VK_BLEND_FACTOR_ONE,
+            BlendFactor::OneMinusSrcColor => VkBlendFactor_VK_BLEND_FACTOR_ONE_MINUS_SRC_COLOR,
+            BlendFactor::DstColor => VkBlendFactor_VK_BLEND_FACTOR_DST_COLOR,
+            BlendFactor::OneMinusDstColor => VkBlendFactor_VK_BLEND_FACTOR_ONE_MINUS_DST_COLOR,
+            BlendFactor::SrcAlpha => VkBlendFactor_VK_BLEND_FACTOR_SRC_ALPHA,
+            BlendFactor::OneMinusSrcAlpha => VkBlendFactor_VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
+            BlendFactor::DstAlpha => VkBlendFactor_VK_BLEND_FACTOR_DST_ALPHA,
+            BlendFactor::OneMinusDstAlpha => VkBlendFactor_VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA,
+            BlendFactor::ConstantColor => VkBlendFactor_VK_BLEND_FACTOR_CONSTANT_COLOR,
+            BlendFactor::OneMinusConstantColor => {
+                VkBlendFactor_VK_BLEND_FACTOR_ONE_MINUS_CONSTANT_COLOR
+            }
+            BlendFactor::ConstantAlpha => VkBlendFactor_VK_BLEND_FACTOR_CONSTANT_ALPHA,
+            BlendFactor::OneMinusConstantAlpha => {
+                VkBlendFactor_VK_BLEND_FACTOR_ONE_MINUS_CONSTANT_ALPHA
+            }
+            BlendFactor::SrcAlphaSaturate => VkBlendFactor_VK_BLEND_FACTOR_SRC_ALPHA_SATURATE,
+        }
+    }
+}

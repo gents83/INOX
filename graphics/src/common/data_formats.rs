@@ -131,7 +131,7 @@ impl Default for RenderPassData {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
 #[serde(crate = "nrg_serialize")]
 pub enum PolygonModeType {
     Fill,
@@ -139,13 +139,33 @@ pub enum PolygonModeType {
     Point,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
 #[serde(crate = "nrg_serialize")]
 pub enum CullingModeType {
     None,
     Back,
     Front,
     Both,
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
+#[serde(crate = "nrg_serialize")]
+pub enum BlendFactor {
+    Zero,
+    One,
+    SrcColor,
+    OneMinusSrcColor,
+    DstColor,
+    OneMinusDstColor,
+    SrcAlpha,
+    OneMinusSrcAlpha,
+    DstAlpha,
+    OneMinusDstAlpha,
+    ConstantColor,
+    OneMinusConstantColor,
+    ConstantAlpha,
+    OneMinusConstantAlpha,
+    SrcAlphaSaturate,
 }
 
 #[repr(C)]
@@ -160,7 +180,10 @@ pub struct PipelineData {
     pub geometry_shader: PathBuf,
     pub culling: CullingModeType,
     pub mode: PolygonModeType,
-    pub use_indirect_draw: bool,
+    pub src_color_blend_factor: BlendFactor,
+    pub dst_color_blend_factor: BlendFactor,
+    pub src_alpha_blend_factor: BlendFactor,
+    pub dst_alpha_blend_factor: BlendFactor,
 }
 unsafe impl Send for PipelineData {}
 unsafe impl Sync for PipelineData {}
@@ -176,7 +199,10 @@ impl Default for PipelineData {
             geometry_shader: PathBuf::new(),
             culling: CullingModeType::Back,
             mode: PolygonModeType::Fill,
-            use_indirect_draw: false,
+            src_color_blend_factor: BlendFactor::One,
+            dst_color_blend_factor: BlendFactor::OneMinusSrcColor,
+            src_alpha_blend_factor: BlendFactor::One,
+            dst_alpha_blend_factor: BlendFactor::OneMinusSrcAlpha,
         }
     }
 }
