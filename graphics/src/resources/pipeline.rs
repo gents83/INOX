@@ -7,8 +7,8 @@ use nrg_serialize::generate_random_uid;
 use crate::{
     api::backend::{self, BackendPhysicalDevice, BackendPipeline},
     utils::compute_color_from_id,
-    CommandBuffer, Device, GraphicsMesh, InstanceCommand, InstanceData, Mesh, MeshCategoryId,
-    PipelineData, RenderPass, ShaderType,
+    CommandBuffer, Device, DrawMode, GraphicsMesh, InstanceCommand, InstanceData, Mesh,
+    MeshCategoryId, PipelineData, RenderPass, ShaderType,
 };
 
 pub type PipelineId = ResourceId;
@@ -227,23 +227,23 @@ impl Pipeline {
         self
     }
 
-    #[allow(dead_code)]
-    fn draw_indexed(&mut self, command_buffer: &CommandBuffer) -> &mut Self {
+    fn draw_single(&mut self, command_buffer: &CommandBuffer) -> &mut Self {
         nrg_profiler::scoped_profile!(format!("pipeline::draw_indexed[{:?}]", self.id()).as_str());
         if let Some(backend_pipeline) = &mut self.backend_pipeline {
-            backend_pipeline.draw_indexed(
+            backend_pipeline.draw_single(
                 command_buffer,
                 self.instance_commands.as_slice(),
+                self.instance_data.as_slice(),
                 self.instance_count,
             );
         }
         self
     }
 
-    fn draw_indirect(&mut self, command_buffer: &CommandBuffer) -> &mut Self {
+    fn draw_indirect_batch(&mut self, command_buffer: &CommandBuffer) -> &mut Self {
         nrg_profiler::scoped_profile!(format!("pipeline::draw_indirect[{:?}]", self.id()).as_str());
         if let Some(backend_pipeline) = &mut self.backend_pipeline {
-            backend_pipeline.draw_indirect(command_buffer, self.instance_count);
+            backend_pipeline.draw_indirect_batch(command_buffer, self.instance_count);
         }
         self
     }
@@ -339,8 +339,13 @@ impl Pipeline {
         self.begin(device, physical_device, command_buffer)
             .bind_vertices(command_buffer)
             .bind_instance_buffer(command_buffer)
-            .bind_indices(command_buffer)
-            .draw_indirect(command_buffer);
+            .bind_indices(command_buffer);
+
+        if self.data.draw_mode == DrawMode::Single {
+            self.draw_single(command_buffer);
+        } else {
+            self.draw_indirect_batch(command_buffer);
+        }
 
         self.end();
     }

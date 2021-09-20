@@ -13,7 +13,8 @@
         "src_color_blend_factor": "One",
         "dst_color_blend_factor": "OneMinusSrcAlpha",
         "src_alpha_blend_factor": "OneMinusDstAlpha",
-        "dst_alpha_blend_factor": "One"
+        "dst_alpha_blend_factor": "One",
+        "draw_mode": "Batch"
     },
     "textures":
     [],

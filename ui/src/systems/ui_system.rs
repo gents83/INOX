@@ -153,6 +153,7 @@ impl UISystem {
             let material = self.get_ui_material(texture);
             let mesh_instance = self.ui_meshes[i].clone();
             let ui_scale = self.ui_scale;
+            let screen_rect = self.ui_input.screen_rect.clone();
             let job_name = format!("ui_system::compute_mesh_data[{}]", i);
             self.job_handler
                 .write()
@@ -174,16 +175,26 @@ impl UISystem {
                         .into();
                     }
                     mesh_data.append_mesh(vertices.as_slice(), mesh.indices.as_slice());
+
+                    let mut clip_rect = Vector4::new(
+                        clip_rect.min.x * ui_scale,
+                        clip_rect.min.y * ui_scale,
+                        clip_rect.max.x * ui_scale,
+                        clip_rect.max.y * ui_scale,
+                    );
+
+                    if let Some(screen_rect) = &screen_rect {
+                        clip_rect.x = clip_rect.x.clamp(0.0, screen_rect.width());
+                        clip_rect.y = clip_rect.y.clamp(0.0, screen_rect.height());
+                        clip_rect.z = clip_rect.x.clamp(clip_rect.x, screen_rect.width());
+                        clip_rect.w = clip_rect.y.clamp(clip_rect.y, screen_rect.height());
+                    }
+
                     mesh_instance
                         .get_mut()
                         .set_material(material)
                         .set_mesh_data(mesh_data)
-                        .set_draw_area(Vector4::new(
-                            clip_rect.min.x * ui_scale,
-                            clip_rect.min.y * ui_scale,
-                            clip_rect.max.x * ui_scale,
-                            clip_rect.max.y * ui_scale,
-                        ));
+                        .set_draw_area(clip_rect);
                 });
         }
     }

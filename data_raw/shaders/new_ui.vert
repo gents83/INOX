@@ -24,7 +24,6 @@ layout(location = 11) in int instanceDiffuseLayerIndex;
 layout(location = 0) out vec4 outColor;
 layout(location = 1) out vec3 outTexCoord;
 layout(location = 2) out uint outTextureIndex;
-layout(location = 3) out vec4 outDrawArea;
 
 vec3 linear_from_srgb(vec3 srgb) {
     bvec3 cutoff = lessThan(srgb, vec3(10.31475));
@@ -46,5 +45,4 @@ void main() {
   outColor = inColor;  
   outTexCoord = vec3(inTexCoord, instanceDiffuseLayerIndex);
   outTextureIndex = instanceDiffuseTextureIndex;
-  outDrawArea = instanceDrawArea;
 }

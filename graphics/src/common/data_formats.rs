@@ -168,6 +168,13 @@ pub enum BlendFactor {
     SrcAlphaSaturate,
 }
 
+#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
+#[serde(crate = "nrg_serialize")]
+pub enum DrawMode {
+    Batch,
+    Single,
+}
+
 #[repr(C)]
 #[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Clone)]
 #[serde(crate = "nrg_serialize")]
@@ -184,6 +191,7 @@ pub struct PipelineData {
     pub dst_color_blend_factor: BlendFactor,
     pub src_alpha_blend_factor: BlendFactor,
     pub dst_alpha_blend_factor: BlendFactor,
+    pub draw_mode: DrawMode,
 }
 unsafe impl Send for PipelineData {}
 unsafe impl Sync for PipelineData {}
@@ -203,6 +211,7 @@ impl Default for PipelineData {
             dst_color_blend_factor: BlendFactor::OneMinusSrcColor,
             src_alpha_blend_factor: BlendFactor::One,
             dst_alpha_blend_factor: BlendFactor::OneMinusSrcAlpha,
+            draw_mode: DrawMode::Batch,
         }
     }
 }

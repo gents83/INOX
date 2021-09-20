@@ -432,7 +432,7 @@ impl BackendPipeline {
         }
         self
     }
-    pub fn draw_indirect(&self, command_buffer: &BackendCommandBuffer, count: usize) {
+    pub fn draw_indirect_batch(&self, command_buffer: &BackendCommandBuffer, count: usize) {
         if count > 0 {
             unsafe {
                 vkCmdDrawIndexedIndirect.unwrap()(
@@ -445,22 +445,41 @@ impl BackendPipeline {
             }
         }
     }
-    pub fn draw_indexed(
+    pub fn draw_single(
         &self,
         command_buffer: &BackendCommandBuffer,
         instance_commands: &[InstanceCommand],
+        instance_data: &[InstanceData],
         instance_count: usize,
     ) {
         unsafe {
             for i in 0..instance_count {
                 if let Some(c) = instance_commands.iter().find(|c| c.mesh_index == i) {
                     if c.mesh_index == i {
-                        vkCmdDrawIndexed.unwrap()(
+                        let instance_data_ref = &instance_data[i];
+                        let scissors = VkRect2D {
+                            offset: VkOffset2D {
+                                x: instance_data_ref.draw_area.x.round() as _,
+                                y: instance_data_ref.draw_area.y.round() as _,
+                            },
+                            extent: VkExtent2D {
+                                width: ((instance_data_ref.draw_area.z
+                                    - instance_data_ref.draw_area.x)
+                                    .max(1.))
+                                .round() as _,
+                                height: ((instance_data_ref.draw_area.w
+                                    - instance_data_ref.draw_area.y)
+                                    .max(1.))
+                                .round() as _,
+                            },
+                        };
+                        vkCmdSetScissor.unwrap()(command_buffer.get(), 0, 1, &scissors);
+                        let size = std::mem::size_of::<VkDrawIndexedIndirectCommand>();
+                        vkCmdDrawIndexedIndirect.unwrap()(
                             command_buffer.get(),
-                            c.mesh_data_ref.last_index - c.mesh_data_ref.first_index,
+                            self.indirect_command_buffer,
+                            (i * size) as _,
                             1,
-                            c.mesh_data_ref.first_index,
-                            c.mesh_data_ref.first_vertex as _,
                             0,
                         );
                     }
