@@ -519,6 +519,7 @@ pub fn image_memory_barrier(
     dst_access_mask: VkAccessFlags,
     src_stage_mask: VkPipelineStageFlags,
     dst_stage_mask: VkPipelineStageFlags,
+    layer_index: usize,
     layers_count: usize,
 ) {
     let barrier = VkImageMemoryBarrier {
@@ -541,7 +542,7 @@ pub fn image_memory_barrier(
             },
             baseMipLevel: 0,
             levelCount: 1,
-            baseArrayLayer: 0,
+            baseArrayLayer: layer_index as _,
             layerCount: layers_count as _,
         },
     };
@@ -570,8 +571,6 @@ pub fn copy_buffer_to_image(
     layers_count: usize,
     area: &Area,
 ) {
-    let command_buffer = begin_single_time_commands(device);
-
     let region = VkBufferImageCopy {
         bufferOffset: 0,
         bufferRowLength: 0,
@@ -594,15 +593,17 @@ pub fn copy_buffer_to_image(
         },
     };
 
+    let command_buffer = begin_single_time_commands(device);
     image_memory_barrier(
         command_buffer,
         image,
         VkImageLayout_VK_IMAGE_LAYOUT_UNDEFINED,
-        VkImageLayout_VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        VkImageLayout_VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
         0,
         VkAccessFlagBits_VK_ACCESS_TRANSFER_WRITE_BIT as _,
         VkPipelineStageFlagBits_VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT as _,
         VkPipelineStageFlagBits_VK_PIPELINE_STAGE_TRANSFER_BIT as _,
+        layer_index,
         layers_count,
     );
 
@@ -625,11 +626,10 @@ pub fn copy_buffer_to_image(
         VkAccessFlagBits_VK_ACCESS_TRANSFER_WRITE_BIT as _,
         VkAccessFlagBits_VK_ACCESS_SHADER_READ_BIT as _,
         VkPipelineStageFlagBits_VK_PIPELINE_STAGE_TRANSFER_BIT as _,
-        (VkPipelineStageFlagBits_VK_PIPELINE_STAGE_ALL_COMMANDS_BIT
-            | VkPipelineStageFlagBits_VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT) as _,
+        VkPipelineStageFlagBits_VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT as _,
+        layer_index,
         layers_count,
     );
-
     end_single_time_commands(device, command_buffer, device.get_transfers_queue());
 }
 

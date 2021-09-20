@@ -154,6 +154,7 @@ impl ContentBrowser {
             let collapsing =
                 CollapsingHeader::new(directory.path.file_stem().unwrap().to_str().unwrap())
                     .selectable(true)
+                    .default_open(selected)
                     .selected(selected);
             let header_response = collapsing
                 .show(ui, |ui| {

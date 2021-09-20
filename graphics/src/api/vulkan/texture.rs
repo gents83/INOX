@@ -49,7 +49,7 @@ impl BackendTexture {
             physical_device,
             VkFormat_VK_FORMAT_R8G8B8A8_UNORM,
             layers_count,
-            VkImageUsageFlagBits_VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+            0,
             VkImageAspectFlagBits_VK_IMAGE_ASPECT_COLOR_BIT,
         );
         texture.create_texture_sampler(device, physical_device);
@@ -80,8 +80,7 @@ impl BackendTexture {
         let specific_flags = if is_depth {
             VkImageUsageFlagBits_VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT as _
         } else {
-            (VkImageUsageFlagBits_VK_IMAGE_USAGE_TRANSFER_DST_BIT
-                | VkImageUsageFlagBits_VK_IMAGE_USAGE_STORAGE_BIT
+            (VkImageUsageFlagBits_VK_IMAGE_USAGE_STORAGE_BIT
                 | VkImageUsageFlagBits_VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT) as _
         };
         let aspect_flags = if is_depth {
@@ -172,7 +171,9 @@ impl BackendTexture {
         specific_flags: i32,
         aspect_flags: i32,
     ) {
-        let flags = specific_flags | VkImageUsageFlagBits_VK_IMAGE_USAGE_SAMPLED_BIT;
+        let flags = specific_flags
+            | VkImageUsageFlagBits_VK_IMAGE_USAGE_TRANSFER_DST_BIT
+            | VkImageUsageFlagBits_VK_IMAGE_USAGE_SAMPLED_BIT;
         let device_image = create_image(
             device,
             physical_device,
