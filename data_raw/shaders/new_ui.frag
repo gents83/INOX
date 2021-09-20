@@ -18,5 +18,6 @@ layout(location = 2) flat in uint inTextureIndex;
 layout(location = 0) out vec4 outColor;
 
 void main() {	
-	outColor = inColor * texture(texture0Sampler[inTextureIndex], inTexCoord);
+    vec4 textureColor = texture(texture0Sampler[inTextureIndex], inTexCoord);
+    outColor = textureColor * inColor;
 }
