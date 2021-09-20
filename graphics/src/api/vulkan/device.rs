@@ -370,8 +370,6 @@ impl BackendDevice {
 
     pub fn acquire_image(&mut self) -> bool {
         unsafe {
-            vkQueueWaitIdle.unwrap()(self.transfers_queue);
-            vkQueueWaitIdle.unwrap()(self.graphics_queue);
             vkQueueWaitIdle.unwrap()(self.present_queue);
 
             self.semaphore_id = (self.semaphore_id + 1) % self.semaphore_image_available.len();
@@ -408,9 +406,6 @@ impl BackendDevice {
             pInheritanceInfo: ::std::ptr::null_mut(),
         };
         unsafe {
-            vkQueueWaitIdle.unwrap()(self.transfers_queue);
-            vkQueueWaitIdle.unwrap()(self.graphics_queue);
-
             assert_eq!(
                 VkResult_VK_SUCCESS,
                 vkBeginCommandBuffer.unwrap()(primary_command_buffer, &begin_info)
@@ -487,8 +482,6 @@ impl BackendDevice {
 
     pub fn graphics_queue_submit(&self, command_buffer: VkCommandBuffer) {
         unsafe {
-            vkQueueWaitIdle.unwrap()(self.transfers_queue);
-
             let command_buffers = vec![command_buffer];
             let wait_stages = [
                 VkPipelineStageFlagBits_VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT as _,
@@ -533,8 +526,6 @@ impl BackendDevice {
 
     pub fn present(&mut self) -> bool {
         unsafe {
-            vkQueueWaitIdle.unwrap()(self.graphics_queue);
-
             let present_info = VkPresentInfoKHR {
                 sType: VkStructureType_VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
                 pNext: ::std::ptr::null_mut(),
