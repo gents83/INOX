@@ -125,6 +125,9 @@ impl Renderer {
                     .init(device, physical_device, texture_handler);
             }
             if let Some(pipeline) = render_pass.get().pipeline() {
+                if !pipeline.get().is_initialized() {
+                    pipeline.get_mut().init(device, &*render_pass.get());
+                }
                 pipeline.get_mut().prepare();
             }
         });

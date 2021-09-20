@@ -32,7 +32,7 @@ vec3 linear_from_srgb(vec3 srgb) {
     return mix(higher, lower, vec3(cutoff));
 }
 vec4 linear_from_srgba(vec4 srgba) {
-    return vec4(linear_from_srgb(srgba.rgb), srgba.a / 255.0);
+    return vec4(linear_from_srgb(srgba.rgb * 255.), srgba.a);
 }
 
 void main() {
@@ -42,7 +42,7 @@ void main() {
            1000. - inPosition.z, 
            1.0);
   // egui encodes vertex colors in gamma spaces, so we must decode the colors here:
-  outColor = inColor;  
+  outColor = inColor / 255.;  
   outTexCoord = vec3(inTexCoord, instanceDiffuseLayerIndex);
   outTextureIndex = instanceDiffuseTextureIndex;
 }

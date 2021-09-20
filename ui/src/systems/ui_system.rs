@@ -11,7 +11,7 @@ use egui::{
     ClippedMesh, CtxRef, Event, Modifiers, Output, PointerButton, RawInput, Rect,
     TextureId as eguiTextureId,
 };
-use image::{DynamicImage, Pixel};
+use image::RgbaImage;
 use nrg_core::{JobHandlerRw, System, SystemId};
 use nrg_graphics::{
     Material, Mesh, MeshCategoryId, MeshData, RenderPass, Texture, TextureId, VertexData,
@@ -103,24 +103,25 @@ impl UISystem {
     fn update_egui_texture(&mut self) -> &mut Self {
         nrg_profiler::scoped_profile!("ui_system::update_egui_texture");
         if self.ui_texture_version != self.ui_context.texture().version {
-            let image = DynamicImage::new_rgba8(
+            let mut pixels: Vec<u8> =
+                Vec::with_capacity(self.ui_context.texture().pixels.len() * 4);
+            for srgba in self.ui_context.texture().srgba_pixels(1.) {
+                pixels.push(srgba.r());
+                pixels.push(srgba.g());
+                pixels.push(srgba.b());
+                pixels.push(srgba.a());
+            }
+            let image_data = RgbaImage::from_vec(
                 self.ui_context.texture().width as _,
                 self.ui_context.texture().height as _,
+                pixels,
             );
-            let mut image_data = image.to_rgba8();
-            let (width, height) = image_data.dimensions();
-            for x in 0..width {
-                for y in 0..height {
-                    let r = self.ui_context.texture().pixels[(x + y * width) as usize];
-                    image_data.put_pixel(x, y, Pixel::from_channels(r, r, r, r));
-                }
-            }
             if let Some(texture) = &self.ui_texture {
                 if let Some(material) = self.ui_materials.remove(&texture.id()) {
                     material.get_mut().remove_texture(texture.id());
                 }
             }
-            let texture = Texture::create_from_data(&self.shared_data, image_data);
+            let texture = Texture::create_from_data(&self.shared_data, image_data.unwrap());
             self.ui_texture = Some(texture);
             self.ui_texture_version = self.ui_context.texture().version;
         }
@@ -167,10 +168,10 @@ impl UISystem {
                             [v.pos.x * ui_scale, v.pos.y * ui_scale, draw_index as _].into();
                         vertices[i].tex_coord = [v.uv.x, v.uv.y].into();
                         vertices[i].color = [
-                            v.color.r() as f32 / 255.,
-                            v.color.g() as f32 / 255.,
-                            v.color.b() as f32 / 255.,
-                            v.color.a() as f32 / 255.,
+                            v.color.r() as _,
+                            v.color.g() as _,
+                            v.color.b() as _,
+                            v.color.a() as _,
                         ]
                         .into();
                     }
