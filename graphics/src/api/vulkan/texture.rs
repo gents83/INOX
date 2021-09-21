@@ -80,8 +80,7 @@ impl BackendTexture {
         let specific_flags = if is_depth {
             VkImageUsageFlagBits_VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT as _
         } else {
-            (VkImageUsageFlagBits_VK_IMAGE_USAGE_STORAGE_BIT
-                | VkImageUsageFlagBits_VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT) as _
+            VkImageUsageFlagBits_VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT as _
         };
         let aspect_flags = if is_depth {
             (VkImageAspectFlagBits_VK_IMAGE_ASPECT_DEPTH_BIT
@@ -116,6 +115,10 @@ impl BackendTexture {
             imageView: self.texture_image_view,
             sampler: self.texture_sampler,
         }
+    }
+
+    pub fn get_image(&self) -> VkImage {
+        self.texture_image
     }
 
     pub fn get_image_view(&self) -> VkImageView {

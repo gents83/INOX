@@ -7,9 +7,13 @@ use std::{
 };
 
 use nrg_core::{JobHandlerRw, System, SystemId};
+use nrg_math::Matrix4;
 use nrg_resources::{DataTypeResource, Resource, ResourceData, SharedData, SharedDataRw};
 
-use crate::{Pipeline, PipelineId, RenderPass, RendererRw, RendererState, View};
+use crate::{
+    api::backend::BackendPhysicalDevice, Device, Pipeline, PipelineId, RenderPass, RendererRw,
+    RendererState, View,
+};
 
 pub struct RenderingSystem {
     id: SystemId,
@@ -32,6 +36,31 @@ impl RenderingSystem {
             job_handler,
             shared_data: shared_data.clone(),
         }
+    }
+
+    fn draw_pipeline(
+        device: &Device,
+        physical_device: &BackendPhysicalDevice,
+        render_pass: &RenderPass,
+        pipeline: &Resource<Pipeline>,
+        width: u32,
+        height: u32,
+        view: &Matrix4,
+        proj: &Matrix4,
+    ) {
+        pipeline.get_mut().bind(render_pass.get_command_buffer());
+        device.update_bindings(
+            render_pass.get_command_buffer(),
+            width,
+            height,
+            &view,
+            &proj,
+        );
+        pipeline.get_mut().fill_command_buffer(
+            device,
+            physical_device,
+            render_pass.get_command_buffer(),
+        );
     }
 }
 
@@ -58,6 +87,14 @@ impl System for RenderingSystem {
             .unwrap()
             .change_state(RendererState::Drawing);
 
+        {
+            let renderer = self.renderer.read().unwrap();
+            let texture_handler = renderer.get_texture_handler();
+            renderer
+                .device()
+                .update_descriptor_sets(texture_handler.get_textures_atlas());
+        }
+
         let wait_count = Arc::new(AtomicUsize::new(0));
 
         let view = self.view.get().view();
@@ -75,6 +112,7 @@ impl System for RenderingSystem {
                 let renderer = self.renderer.clone();
                 let render_pass = render_pass.clone();
                 let shared_data = self.shared_data.clone();
+                let render_pass_specific_pipeline = render_pass_specific_pipeline.clone();
                 let wait_count = wait_count.clone();
                 wait_count.fetch_add(1, Ordering::SeqCst);
                 self.job_handler
@@ -101,35 +139,46 @@ impl System for RenderingSystem {
                         let device = renderer.device();
                         let width = render_pass.get_framebuffer_width();
                         let height = render_pass.get_framebuffer_height();
-                        let texture_handler = renderer.get_texture_handler();
 
                         render_pass.begin_command_buffer(device);
 
-                        SharedData::for_each_resource(
-                            &shared_data,
-                            |pipeline: &Resource<Pipeline>| {
-                                let should_render = {
-                                    let pipeline = pipeline.get();
-                                    pipeline.is_initialized()
-                                        && pipeline.should_draw(render_pass.mesh_category_to_draw())
-                                };
-                                if should_render {
-                                    device.update_bindings(
-                                        render_pass.get_command_buffer(),
-                                        width,
-                                        height,
-                                        &view,
-                                        &proj,
-                                        texture_handler.get_textures_atlas(),
-                                    );
-                                    pipeline.get_mut().fill_command_buffer(
-                                        device,
-                                        instance.get_physical_device(),
-                                        render_pass.get_command_buffer(),
-                                    );
-                                }
-                            },
-                        );
+                        if let Some(pipeline) = render_pass.pipeline() {
+                            Self::draw_pipeline(
+                                device,
+                                instance.get_physical_device(),
+                                &render_pass,
+                                pipeline,
+                                width,
+                                height,
+                                &view,
+                                &proj,
+                            );
+                        } else {
+                            SharedData::for_each_resource(
+                                &shared_data,
+                                |pipeline: &Resource<Pipeline>| {
+                                    let should_render = {
+                                        let pipeline = pipeline.get();
+                                        pipeline.is_initialized()
+                                            && !render_pass_specific_pipeline
+                                                .iter()
+                                                .any(|id| *id == pipeline.id())
+                                    };
+                                    if should_render {
+                                        Self::draw_pipeline(
+                                            device,
+                                            instance.get_physical_device(),
+                                            &render_pass,
+                                            pipeline,
+                                            width,
+                                            height,
+                                            &view,
+                                            &proj,
+                                        );
+                                    }
+                                },
+                            );
+                        }
 
                         render_pass.end_command_buffer(device);
 

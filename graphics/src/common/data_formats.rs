@@ -113,6 +113,7 @@ pub struct RenderPassData {
     pub render_to_texture: bool,
     pub name: String,
     pub pipeline: Option<PipelineData>,
+    pub mesh_category_to_draw: Vec<String>,
 }
 unsafe impl Send for RenderPassData {}
 unsafe impl Sync for RenderPassData {}
@@ -127,6 +128,7 @@ impl Default for RenderPassData {
             render_to_texture: false,
             name: String::new(),
             pipeline: None,
+            mesh_category_to_draw: Vec::new(),
         }
     }
 }
@@ -282,7 +284,7 @@ pub struct MeshDataRef {
     pub first_index: u32,
     pub last_index: u32,
 }
-pub const DEFAULT_MESH_CATEGORY_IDENTIFIER: &str = "NRG_Default_MainPass_Mesh";
+pub const DEFAULT_MESH_CATEGORY_IDENTIFIER: &str = "NRG_Default";
 
 #[repr(C)]
 #[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Clone)]

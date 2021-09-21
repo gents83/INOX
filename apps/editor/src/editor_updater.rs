@@ -18,6 +18,8 @@ use nrg_resources::{
 use nrg_scene::{Hitbox, Object, Scene, Transform};
 use nrg_ui::{DialogEvent, DialogOp, UIPropertiesRegistry, UIWidget};
 
+const GRID_MESH_CATEGORY_IDENTIFIER: &str = "EditorGrid";
+
 #[allow(dead_code)]
 pub struct EditorUpdater {
     id: SystemId,
@@ -58,7 +60,7 @@ impl EditorUpdater {
         let grid_material =
             Material::create_from_file(&shared_data, config.grid_material.as_path());
 
-        let mut mesh_data = MeshData::default();
+        let mut mesh_data = MeshData::new(GRID_MESH_CATEGORY_IDENTIFIER);
         mesh_data.add_quad_default([-1., -1., 1., 1.].into(), 0.);
         let grid_mesh = Mesh::create_from_data(&shared_data, mesh_data);
         grid_mesh.get_mut().set_material(grid_material.clone());

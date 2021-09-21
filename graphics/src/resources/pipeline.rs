@@ -187,30 +187,35 @@ impl Pipeline {
         self
     }
 
-    fn begin(
+    pub fn bind(&mut self, command_buffer: &CommandBuffer) -> &mut Self {
+        nrg_profiler::scoped_profile!(format!("pipeline::bind[{:?}]", self.id()).as_str());
+        if let Some(backend_pipeline) = &mut self.backend_pipeline {
+            backend_pipeline.bind_pipeline(command_buffer);
+        }
+        self
+    }
+
+    fn bind_indirect(
         &mut self,
         device: &Device,
         physical_device: &BackendPhysicalDevice,
-        command_buffer: &CommandBuffer,
     ) -> &mut Self {
-        nrg_profiler::scoped_profile!(
-            format!("renderer::draw_pipeline_begin[{:?}]", self.id()).as_str()
-        );
+        nrg_profiler::scoped_profile!(format!("pipeline::bind_indirect[{:?}]", self.id()).as_str());
         if let Some(backend_pipeline) = &mut self.backend_pipeline {
             backend_pipeline.bind_indirect(
                 device,
                 physical_device,
-                command_buffer,
                 &self.instance_commands,
                 &self.instance_data,
             );
         }
-        device.bind_descriptors(command_buffer);
         self
     }
 
     fn bind_instance_buffer(&mut self, command_buffer: &CommandBuffer) -> &mut Self {
-        nrg_profiler::scoped_profile!(format!("pipeline::bind_indirect[{:?}]", self.id()).as_str());
+        nrg_profiler::scoped_profile!(
+            format!("pipeline::bind_instance_buffer[{:?}]", self.id()).as_str()
+        );
         if let Some(backend_pipeline) = &mut self.backend_pipeline {
             backend_pipeline.bind_instance_buffer(command_buffer);
         }
@@ -245,11 +250,6 @@ impl Pipeline {
         if let Some(backend_pipeline) = &mut self.backend_pipeline {
             backend_pipeline.draw_indirect_batch(command_buffer, self.instance_count);
         }
-        self
-    }
-
-    fn end(&mut self) -> &mut Self {
-        nrg_profiler::scoped_profile!(format!("pipeline::end[{:?}]", self.id()).as_str());
         self
     }
 
@@ -336,7 +336,7 @@ impl Pipeline {
     ) {
         nrg_profiler::scoped_profile!(format!("renderer::draw_pipeline[{:?}]", self.id()).as_str());
 
-        self.begin(device, physical_device, command_buffer)
+        self.bind_indirect(device, physical_device)
             .bind_vertices(command_buffer)
             .bind_instance_buffer(command_buffer)
             .bind_indices(command_buffer);
@@ -346,7 +346,5 @@ impl Pipeline {
         } else {
             self.draw_indirect_batch(command_buffer);
         }
-
-        self.end();
     }
 }

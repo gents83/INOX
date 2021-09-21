@@ -27,7 +27,7 @@ struct View3DData {
     shared_data: SharedDataRw,
     global_messenger: MessengerRw,
     texture: Resource<Texture>,
-    //picking_texture: TextureHandle,
+    picking_texture: Resource<Texture>,
     camera: Camera,
     should_manage_input: bool,
     last_mouse_pos: Vector2,
@@ -61,14 +61,14 @@ impl View3D {
             VIEW3D_IMAGE_WIDTH,
             VIEW3D_IMAGE_HEIGHT,
         );
-        /*
-        let picking_texture = Self::update_texture(
+
+        let picking_texture = Self::update_render_pass(
             shared_data,
-            "PrePass",
+            "PickingPass",
             (VIEW3D_IMAGE_WIDTH as f32 * 0.5) as _,
             (VIEW3D_IMAGE_HEIGHT as f32 * 0.5) as _,
         );
-        */
+
         let mut camera = Camera::new([10., 10., -10.].into(), [0., 0., 0.].into(), true);
         camera.set_projection(
             45.,
@@ -82,7 +82,7 @@ impl View3D {
             shared_data: shared_data.clone(),
             global_messenger: global_messenger.clone(),
             texture,
-            //picking_texture,
+            picking_texture,
             camera,
             last_mouse_pos: Vector2::zero(),
             selected_object: INVALID_UID,

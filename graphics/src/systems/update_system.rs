@@ -73,7 +73,11 @@ impl UpdateSystem {
         });
     }
 
-    fn create_render_mesh_job(renderer: RendererRw, mesh: Resource<Mesh>) {
+    fn create_render_mesh_job(
+        renderer: RendererRw,
+        mesh: Resource<Mesh>,
+        render_pass_pipeline: Option<Resource<Pipeline>>,
+    ) {
         let mut texture_id = INVALID_UID;
         if let Some(material) = mesh.get().material() {
             let material = material.get();
@@ -100,7 +104,19 @@ impl UpdateSystem {
             } else {
                 (INVALID_INDEX, INVALID_INDEX)
             };
-            if let Some(pipeline) = material.pipeline() {
+            if let Some(pipeline) = render_pass_pipeline {
+                let renderer = renderer.read().unwrap();
+                let device = renderer.device();
+                let physical_device = renderer.instance().get_physical_device();
+                pipeline.get_mut().add_mesh_instance(
+                    device,
+                    physical_device,
+                    &mesh.get(),
+                    diffuse_color,
+                    diffuse_texture_index,
+                    diffuse_layer_index,
+                );
+            } else if let Some(pipeline) = material.pipeline() {
                 let renderer = renderer.read().unwrap();
                 let device = renderer.device();
                 let physical_device = renderer.instance().get_physical_device();
@@ -157,6 +173,7 @@ impl System for UpdateSystem {
 
         SharedData::for_each_resource(&self.shared_data, |render_pass: &Resource<RenderPass>| {
             if render_pass.get().is_initialized() {
+                let pipeline = render_pass.get().pipeline().clone();
                 let mesh_category_to_draw = render_pass.get().mesh_category_to_draw().to_vec();
                 SharedData::for_each_resource(&self.shared_data, |mesh: &Resource<Mesh>| {
                     let should_render = mesh_category_to_draw
@@ -169,6 +186,7 @@ impl System for UpdateSystem {
                     let renderer = self.renderer.clone();
                     let wait_count = wait_count.clone();
                     let mesh = mesh.clone();
+                    let pipeline = pipeline.clone();
 
                     let job_name = format!(
                         "Processing mesh {:?} for RenderPass [{:?}",
@@ -185,7 +203,7 @@ impl System for UpdateSystem {
                                 mesh.id()
                             )
                             .as_str());
-                            Self::create_render_mesh_job(renderer, mesh);
+                            Self::create_render_mesh_job(renderer, mesh, pipeline);
                             wait_count.fetch_sub(1, Ordering::SeqCst);
                         });
                 });

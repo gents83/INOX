@@ -59,12 +59,22 @@ impl DataTypeResource for RenderPass {
             .pipeline
             .as_ref()
             .map(|pipeline_data| Pipeline::create_from_data(shared_data, pipeline_data.clone()));
+
+        let mut mesh_category_to_draw = Vec::new();
+        render_pass_data
+            .mesh_category_to_draw
+            .iter()
+            .for_each(|name| {
+                mesh_category_to_draw.push(MeshCategoryId::new(name.as_str()));
+            });
+
         SharedData::add_resource(
             shared_data,
             RenderPass {
                 id: generate_uid_from_string(render_pass_data.name.as_str()),
                 data: render_pass_data.clone(),
                 pipeline,
+                mesh_category_to_draw,
                 ..Default::default()
             },
         )

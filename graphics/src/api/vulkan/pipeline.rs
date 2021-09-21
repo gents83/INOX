@@ -292,13 +292,11 @@ impl BackendPipeline {
         &mut self,
         device: &BackendDevice,
         physical_device: &BackendPhysicalDevice,
-        command_buffer: &BackendCommandBuffer,
         commands: &[InstanceCommand],
         instances: &[InstanceData],
     ) -> &mut Self {
         self.prepare_indirect_commands(device, physical_device, commands)
-            .fill_instance_buffer(device, physical_device, instances)
-            .bind_pipeline(command_buffer);
+            .fill_instance_buffer(device, physical_device, instances);
         self
     }
 
@@ -420,15 +418,17 @@ impl BackendPipeline {
     }
 
     pub fn bind_instance_buffer(&mut self, command_buffer: &BackendCommandBuffer) -> &mut Self {
-        unsafe {
-            let offsets = [0_u64];
-            vkCmdBindVertexBuffers.unwrap()(
-                command_buffer.get(),
-                INSTANCE_BUFFER_BIND_ID as _,
-                1,
-                &mut self.instance_buffer,
-                offsets.as_ptr(),
-            );
+        if !self.instance_buffer.is_null() {
+            unsafe {
+                let offsets = [0_u64];
+                vkCmdBindVertexBuffers.unwrap()(
+                    command_buffer.get(),
+                    INSTANCE_BUFFER_BIND_ID as _,
+                    1,
+                    &mut self.instance_buffer,
+                    offsets.as_ptr(),
+                );
+            }
         }
         self
     }

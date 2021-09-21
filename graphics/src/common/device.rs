@@ -1,6 +1,6 @@
 use nrg_math::Matrix4;
 
-use crate::{api::backend::BackendDevice, CommandBuffer, Instance, TextureAtlas};
+use crate::{api::backend::BackendDevice, CommandBuffer, Instance};
 
 pub struct Device {
     inner: BackendDevice,
@@ -60,12 +60,10 @@ impl Device {
         height: u32,
         view: &Matrix4,
         proj: &Matrix4,
-        textures: &[TextureAtlas],
     ) {
         nrg_profiler::scoped_profile!("device::update_bindings");
         self.inner
             .update_constant_data(command_buffer, width, height, view, proj)
-            .update_uniform_buffer(view, proj)
-            .update_descriptor_sets(textures);
+            .bind_descriptors(command_buffer);
     }
 }

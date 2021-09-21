@@ -9,7 +9,8 @@ pub const DEFAULT_CLEAR_COLOR: [f32; 4] = [0.12, 0.12, 0.12, 1.0];
 
 pub struct BackendRenderPass {
     render_pass: VkRenderPass,
-    framebuffer: Vec<VkFramebuffer>,
+    framebuffers: Vec<VkFramebuffer>,
+    images: Vec<VkImage>,
     extent: VkExtent2D,
 }
 
@@ -34,7 +35,7 @@ impl BackendRenderPass {
         self.extent.height
     }
     pub fn get_framebuffer(&self, current_image_index: usize) -> VkFramebuffer {
-        self.framebuffer[current_image_index]
+        self.framebuffers[current_image_index]
     }
 
     pub fn create_default(
@@ -62,7 +63,8 @@ impl BackendRenderPass {
         };
         let mut render_pass = Self {
             render_pass: Self::base_pass(device, physical_device, data),
-            framebuffer: Vec::new(),
+            framebuffers: Vec::new(),
+            images: Vec::new(),
             extent,
         };
         render_pass.create_framebuffers(device, physical_device, color, depth);
@@ -71,7 +73,8 @@ impl BackendRenderPass {
 
     pub fn destroy(&mut self, device: &BackendDevice) {
         unsafe {
-            for framebuffer in self.framebuffer.iter() {
+            self.images.clear();
+            for framebuffer in self.framebuffers.iter() {
                 vkDestroyFramebuffer.unwrap()(**device, *framebuffer, ::std::ptr::null_mut());
             }
             vkDestroyRenderPass.unwrap()(**device, self.render_pass, ::std::ptr::null_mut());
@@ -100,7 +103,7 @@ impl BackendRenderPass {
             sType: VkStructureType_VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
             pNext: ::std::ptr::null_mut(),
             renderPass: self.render_pass,
-            framebuffer: self.framebuffer[device.get_current_image_index()],
+            framebuffer: self.framebuffers[device.get_current_image_index()],
             renderArea: area,
             clearValueCount: clear_value.len() as _,
             pClearValues: clear_value.as_ptr(),
@@ -263,9 +266,11 @@ impl BackendRenderPass {
         }
 
         let swapchain_images_count = device.get_images_count();
-        self.framebuffer = Vec::with_capacity(swapchain_images_count);
+        self.framebuffers = Vec::with_capacity(swapchain_images_count);
+        self.images = Vec::with_capacity(swapchain_images_count);
         unsafe {
-            self.framebuffer.set_len(swapchain_images_count);
+            self.images.set_len(swapchain_images_count);
+            self.framebuffers.set_len(swapchain_images_count);
         }
         for i in 0..device.get_images_count() {
             let attachments: Vec<VkImageView> = vec![
@@ -280,6 +285,11 @@ impl BackendRenderPass {
                     device.get_depth_image_view(0)
                 },
             ];
+            self.images[i] = if let Some(texture) = color {
+                texture.get_image()
+            } else {
+                device.get_image(i)
+            };
 
             let framebuffer_create_info = VkFramebufferCreateInfo {
                 sType: VkStructureType_VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
@@ -300,7 +310,7 @@ impl BackendRenderPass {
                         **device,
                         &framebuffer_create_info,
                         ::std::ptr::null_mut(),
-                        &mut self.framebuffer[i]
+                        &mut self.framebuffers[i]
                     )
                 );
             }

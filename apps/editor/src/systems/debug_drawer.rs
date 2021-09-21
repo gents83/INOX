@@ -52,6 +52,8 @@ pub enum DrawEvent {
 }
 implement_message!(DrawEvent);
 
+const WIREFRAME_MESH_CATEGORY_IDENTIFIER: &str = "EditorWireframe";
+
 pub struct DebugDrawer {
     mesh_instance: Resource<Mesh>,
     wireframe_mesh_instance: Resource<Mesh>,
@@ -65,11 +67,17 @@ impl DebugDrawer {
         pipeline_default: &Resource<Pipeline>,
         pipeline_wirefrane: &Resource<Pipeline>,
     ) -> Self {
-        let mesh_instance = Mesh::create_from_data(shared_data, MeshData::default());
+        let mesh_instance = Mesh::create_from_data(
+            shared_data,
+            MeshData::new(WIREFRAME_MESH_CATEGORY_IDENTIFIER),
+        );
         let material = Material::create_from_pipeline(shared_data, pipeline_default);
         mesh_instance.get_mut().set_material(material);
 
-        let wireframe_mesh_instance = Mesh::create_from_data(shared_data, MeshData::default());
+        let wireframe_mesh_instance = Mesh::create_from_data(
+            shared_data,
+            MeshData::new(WIREFRAME_MESH_CATEGORY_IDENTIFIER),
+        );
         let material = Material::create_from_pipeline(shared_data, pipeline_wirefrane);
         wireframe_mesh_instance.get_mut().set_material(material);
 
@@ -101,8 +109,8 @@ impl DebugDrawer {
     fn update_events(&mut self) {
         nrg_profiler::scoped_profile!("update_events");
 
-        let mut mesh_data = MeshData::default();
-        let mut wireframe_mesh_data = MeshData::default();
+        let mut mesh_data = MeshData::new(WIREFRAME_MESH_CATEGORY_IDENTIFIER);
+        let mut wireframe_mesh_data = MeshData::new(WIREFRAME_MESH_CATEGORY_IDENTIFIER);
         read_messages(self.message_channel.get_listener(), |msg| {
             if msg.type_id() == TypeId::of::<DrawEvent>() {
                 let event = msg.as_any().downcast_ref::<DrawEvent>().unwrap();
