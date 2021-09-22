@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::{any::TypeId, path::Path};
@@ -170,6 +171,10 @@ impl System for EditorUpdater {
             .create_hierarchy()
             .create_properties()
             .create_view3d();
+
+        self.load_object(
+            PathBuf::from("C:\\PROJECTS\\NRG\\data\\models\\Duck\\Duck.object_data").as_path(),
+        );
     }
 
     fn run(&mut self) -> bool {
