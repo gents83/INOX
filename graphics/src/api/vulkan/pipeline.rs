@@ -97,6 +97,13 @@ impl BackendPipeline {
             );
         }
         unsafe {
+            let images_count = device.get_images_count();
+            vkFreeDescriptorSets.unwrap()(
+                **device,
+                self.descriptor_pool,
+                images_count as _,
+                self.descriptor_sets.as_ptr(),
+            );
             vkDestroyDescriptorSetLayout.unwrap()(
                 **device,
                 self.descriptor_set_layout,
@@ -105,6 +112,11 @@ impl BackendPipeline {
             vkDestroyPipelineLayout.unwrap()(
                 **device,
                 self.pipeline_layout,
+                ::std::ptr::null_mut(),
+            );
+            vkDestroyDescriptorPool.unwrap()(
+                **device,
+                self.descriptor_pool,
                 ::std::ptr::null_mut(),
             );
 
@@ -562,6 +574,15 @@ impl BackendPipeline {
         self
     }
     fn create_descriptor_pool(&mut self, device: &BackendDevice) -> &mut Self {
+        if !self.descriptor_pool.is_null() {
+            unsafe {
+                vkDestroyDescriptorPool.unwrap()(
+                    **device,
+                    self.descriptor_pool,
+                    ::std::ptr::null_mut(),
+                );
+            }
+        }
         let images_count = device.get_images_count();
         let pool_sizes: Vec<VkDescriptorPoolSize> = vec![
             VkDescriptorPoolSize {
@@ -601,6 +622,17 @@ impl BackendPipeline {
     }
     pub fn create_descriptor_sets(&mut self, device: &BackendDevice) -> &mut Self {
         let images_count = device.get_images_count();
+        if !self.descriptor_sets.is_empty() {
+            unsafe {
+                vkFreeDescriptorSets.unwrap()(
+                    **device,
+                    self.descriptor_pool,
+                    images_count as _,
+                    self.descriptor_sets.as_ptr(),
+                );
+            }
+        }
+
         let mut layouts = Vec::<VkDescriptorSetLayout>::with_capacity(images_count);
         unsafe {
             layouts.set_len(images_count);
@@ -635,6 +667,16 @@ impl BackendPipeline {
     }
 
     fn create_pipeline_layout(&mut self, device: &BackendDevice) -> &mut Self {
+        if !self.pipeline_layout.is_null() {
+            unsafe {
+                vkDestroyPipelineLayout.unwrap()(
+                    **device,
+                    self.pipeline_layout,
+                    ::std::ptr::null_mut(),
+                );
+            }
+        }
+
         let push_constant_range = VkPushConstantRange {
             stageFlags: VkShaderStageFlagBits_VK_SHADER_STAGE_ALL_GRAPHICS as _,
             offset: 0,
