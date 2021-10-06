@@ -1,6 +1,6 @@
 use super::{
-    create_buffer, data_formats::VERTEX_BUFFER_BIND_ID, destroy_buffer, device::*,
-    map_buffer_memory, physical_device::BackendPhysicalDevice, BackendCommandBuffer,
+    copy_from_buffer, create_buffer, data_formats::VERTEX_BUFFER_BIND_ID, destroy_buffer,
+    device::*, physical_device::BackendPhysicalDevice, BackendCommandBuffer,
 };
 use crate::common::data_formats::*;
 use vulkan_bindings::*;
@@ -132,13 +132,13 @@ impl BackendMesh {
         indices: &[u32],
         first_index: u32,
     ) {
-        map_buffer_memory(
+        copy_from_buffer(
             device,
             &mut self.vertex_buffer_memory,
             first_vertex as _,
             vertices,
         );
-        map_buffer_memory(
+        copy_from_buffer(
             device,
             &mut self.index_buffer_memory,
             first_index as _,

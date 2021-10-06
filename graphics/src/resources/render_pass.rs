@@ -111,6 +111,7 @@ impl RenderPass {
         if let Some(t) = texture {
             if texture_handler.get_texture_atlas(t.id()).is_none() {
                 //println!("Adding texture {:?}", t.id());
+                t.get_mut().mark_as_render_taget();
                 texture_handler.add_render_target(
                     device,
                     physical_device,

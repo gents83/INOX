@@ -8,7 +8,10 @@ use nrg_resources::{
 };
 use nrg_serialize::{generate_random_uid, generate_uid_from_string, INVALID_UID};
 
-use crate::{TextureInfo, INVALID_INDEX};
+use crate::{
+    api::backend::BackendPhysicalDevice, Device, TextureHandler, TextureInfo, INVALID_INDEX,
+    TEXTURE_CHANNEL_COUNT,
+};
 
 pub type TextureId = ResourceId;
 
@@ -21,6 +24,7 @@ pub struct Texture {
     width: u32,
     height: u32,
     is_initialized: bool,
+    is_render_target: bool,
 }
 
 impl Default for Texture {
@@ -34,6 +38,7 @@ impl Default for Texture {
             width: 0,
             height: 0,
             is_initialized: false,
+            is_render_target: false,
         }
     }
 }
@@ -110,11 +115,32 @@ impl Texture {
     pub fn is_initialized(&self) -> bool {
         self.is_initialized
     }
+    pub fn is_render_target(&self) -> bool {
+        self.is_render_target
+    }
+    pub fn mark_as_render_taget(&mut self) -> &mut Self {
+        self.is_render_target = true;
+        self
+    }
     pub fn texture_index(&self) -> i32 {
         self.texture_index
     }
     pub fn layer_index(&self) -> i32 {
         self.layer_index
+    }
+    pub fn capture_image(
+        &mut self,
+        texture_handler: &TextureHandler,
+        device: &Device,
+        physical_device: &BackendPhysicalDevice,
+    ) {
+        let mut image_data = Vec::new();
+        image_data.resize_with(
+            (self.width * self.height * TEXTURE_CHANNEL_COUNT) as _,
+            || 0u8,
+        );
+        texture_handler.copy(device, physical_device, self.id, image_data.as_mut_slice());
+        self.image_data = RgbaImage::from_raw(self.width, self.height, image_data);
     }
     fn create(texture_path: &Path) -> Texture {
         Texture {

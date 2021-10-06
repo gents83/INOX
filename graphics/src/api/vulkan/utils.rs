@@ -4,7 +4,7 @@ use super::physical_device::BackendPhysicalDevice;
 use super::{types::*, BackendDevice};
 use crate::Area;
 use nrg_platform::Handle;
-use std::ffi::{CStr, CString};
+use std::ffi::{c_void, CStr, CString};
 use std::os::raw::c_char;
 use vulkan_bindings::*;
 
@@ -409,28 +409,54 @@ pub fn map_buffer_memory<T>(
     buffer_memory: &mut VkDeviceMemory,
     starting_index: usize,
     data_src: &[T],
-) {
-    unsafe {
-        let element_size = ::std::mem::size_of::<T>();
-        let offset = starting_index * element_size;
-        let length = data_src.len() * element_size;
+) -> (*mut c_void, usize) {
+    let element_size = ::std::mem::size_of::<T>();
+    let offset = starting_index * element_size;
+    let length = data_src.len() * element_size;
 
-        let data_ptr = {
-            let mut option = ::std::mem::MaybeUninit::uninit();
-            assert_eq!(
-                VkResult_VK_SUCCESS,
-                vkMapMemory.unwrap()(
-                    **device,
-                    *buffer_memory,
-                    offset as _,
-                    length as _,
-                    0,
-                    option.as_mut_ptr()
-                )
-            );
-            option.assume_init()
-        };
+    let data_ptr = unsafe {
+        let mut option = ::std::mem::MaybeUninit::uninit();
+        assert_eq!(
+            VkResult_VK_SUCCESS,
+            vkMapMemory.unwrap()(
+                **device,
+                *buffer_memory,
+                offset as _,
+                length as _,
+                0,
+                option.as_mut_ptr()
+            )
+        );
+        option.assume_init()
+    };
+    (data_ptr, length)
+}
+pub fn copy_from_buffer<T>(
+    device: &BackendDevice,
+    buffer_memory: &mut VkDeviceMemory,
+    starting_index: usize,
+    data_src: &[T],
+) {
+    let (data_ptr, length) = map_buffer_memory(device, buffer_memory, starting_index, data_src);
+    unsafe {
         ::std::ptr::copy_nonoverlapping(data_src.as_ptr() as _, data_ptr, length as _);
+    }
+    unmap_buffer_memory(device, buffer_memory);
+}
+pub fn copy_to_buffer<T>(
+    device: &BackendDevice,
+    buffer_memory: &mut VkDeviceMemory,
+    starting_index: usize,
+    data_dst: &mut [T],
+) {
+    let (data_ptr, length) = map_buffer_memory(device, buffer_memory, starting_index, data_dst);
+    unsafe {
+        ::std::ptr::copy_nonoverlapping(data_ptr, data_dst.as_mut_ptr() as _, length as _);
+    }
+    unmap_buffer_memory(device, buffer_memory);
+}
+pub fn unmap_buffer_memory(device: &BackendDevice, buffer_memory: &mut VkDeviceMemory) {
+    unsafe {
         vkUnmapMemory.unwrap()(**device, *buffer_memory);
     }
 }
@@ -561,6 +587,78 @@ pub fn image_memory_barrier(
             &barrier,
         );
     }
+}
+
+pub fn copy_image_to_buffer(
+    device: &BackendDevice,
+    image: VkImage,
+    buffer: VkBuffer,
+    layer_index: u32,
+    layers_count: u32,
+    area: &Area,
+) {
+    let region = VkBufferImageCopy {
+        bufferOffset: 0,
+        bufferRowLength: area.width as _,
+        bufferImageHeight: area.height as _,
+        imageSubresource: VkImageSubresourceLayers {
+            aspectMask: VkImageAspectFlagBits_VK_IMAGE_ASPECT_COLOR_BIT as _,
+            mipLevel: 0,
+            baseArrayLayer: layer_index as _,
+            layerCount: 1,
+        },
+        imageOffset: VkOffset3D {
+            x: area.x as _,
+            y: area.y as _,
+            z: 0,
+        },
+        imageExtent: VkExtent3D {
+            width: area.width,
+            height: area.height,
+            depth: 1,
+        },
+    };
+
+    let command_buffer = begin_single_time_commands(device);
+    image_memory_barrier(
+        command_buffer,
+        image,
+        VkImageLayout_VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        VkImageLayout_VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+        VkAccessFlagBits_VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT as _,
+        (VkAccessFlagBits_VK_ACCESS_TRANSFER_READ_BIT | VkAccessFlagBits_VK_ACCESS_MEMORY_READ_BIT)
+            as _,
+        VkPipelineStageFlagBits_VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT as _,
+        VkPipelineStageFlagBits_VK_PIPELINE_STAGE_TRANSFER_BIT as _,
+        layer_index,
+        layers_count,
+    );
+
+    unsafe {
+        vkCmdCopyImageToBuffer.unwrap()(
+            command_buffer,
+            image,
+            VkImageLayout_VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+            buffer,
+            1,
+            &region,
+        );
+    }
+
+    image_memory_barrier(
+        command_buffer,
+        image,
+        VkImageLayout_VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+        VkImageLayout_VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        (VkAccessFlagBits_VK_ACCESS_TRANSFER_READ_BIT | VkAccessFlagBits_VK_ACCESS_MEMORY_READ_BIT)
+            as _,
+        VkAccessFlagBits_VK_ACCESS_SHADER_READ_BIT as _,
+        VkPipelineStageFlagBits_VK_PIPELINE_STAGE_TRANSFER_BIT as _,
+        VkPipelineStageFlagBits_VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT as _,
+        layer_index,
+        layers_count,
+    );
+    end_single_time_commands(device, command_buffer, device.get_transfers_queue());
 }
 
 pub fn copy_buffer_to_image(

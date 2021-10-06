@@ -1,13 +1,11 @@
 use super::{
-    copy_buffer_to_image, create_buffer, create_image, create_image_view, destroy_buffer,
-    map_buffer_memory,
+    copy_buffer_to_image, copy_from_buffer, copy_image_to_buffer, copy_to_buffer, create_buffer,
+    create_image, create_image_view, destroy_buffer,
 };
 use super::{device::BackendDevice, find_depth_format};
 use crate::api::backend::physical_device::BackendPhysicalDevice;
-use crate::Area;
+use crate::{Area, TEXTURE_CHANNEL_COUNT};
 use vulkan_bindings::*;
-
-const TEXTURE_CHANNEL_COUNT: u32 = 4;
 
 pub struct BackendTexture {
     width: u32,
@@ -154,7 +152,7 @@ impl BackendTexture {
             &mut staging_buffer_memory,
         );
 
-        map_buffer_memory(device, &mut staging_buffer_memory, 0, image_data);
+        copy_from_buffer(device, &mut staging_buffer_memory, 0, image_data);
 
         copy_buffer_to_image(
             device,
@@ -164,6 +162,47 @@ impl BackendTexture {
             self.layers_count,
             area,
         );
+
+        destroy_buffer(device, &staging_buffer, &staging_buffer_memory);
+    }
+
+    pub fn get_from_layer(
+        &self,
+        device: &BackendDevice,
+        physical_device: &BackendPhysicalDevice,
+        index: u32,
+        area: &Area,
+        image_data: &mut [u8],
+    ) {
+        if self.width < area.width || self.height < area.height {
+            panic!("Image resolution is different from texture one");
+        }
+        let image_size: VkDeviceSize = (area.width * area.height * TEXTURE_CHANNEL_COUNT) as _;
+        let flags = VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+        let mut staging_buffer: VkBuffer = ::std::ptr::null_mut();
+        let mut staging_buffer_memory: VkDeviceMemory = ::std::ptr::null_mut();
+        create_buffer(
+            device,
+            physical_device,
+            image_size as _,
+            (VkBufferUsageFlagBits_VK_BUFFER_USAGE_TRANSFER_SRC_BIT
+                | VkBufferUsageFlagBits_VK_BUFFER_USAGE_TRANSFER_DST_BIT
+                | VkBufferUsageFlagBits_VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT) as _,
+            flags as _,
+            &mut staging_buffer,
+            &mut staging_buffer_memory,
+        );
+
+        copy_image_to_buffer(
+            device,
+            self.texture_image,
+            staging_buffer,
+            index,
+            self.layers_count,
+            area,
+        );
+
+        copy_to_buffer(device, &mut staging_buffer_memory, 0, image_data);
 
         destroy_buffer(device, &staging_buffer, &staging_buffer_memory);
     }
@@ -178,9 +217,10 @@ impl BackendTexture {
         aspect_flags: i32,
     ) {
         let flags = specific_flags
+            | VkImageUsageFlagBits_VK_IMAGE_USAGE_TRANSFER_SRC_BIT
             | VkImageUsageFlagBits_VK_IMAGE_USAGE_TRANSFER_DST_BIT
             | VkImageUsageFlagBits_VK_IMAGE_USAGE_SAMPLED_BIT;
-        let device_image = create_image(
+        let (device_image, device_image_memory) = create_image(
             device,
             physical_device,
             (self.width, self.height, format),
@@ -190,8 +230,8 @@ impl BackendTexture {
             layers_count,
         );
 
-        self.texture_image = device_image.0;
-        self.texture_image_memory = device_image.1;
+        self.texture_image = device_image;
+        self.texture_image_memory = device_image_memory;
         self.texture_image_view = create_image_view(
             **device,
             self.texture_image,

@@ -2,7 +2,7 @@ use super::data_formats::INSTANCE_BUFFER_BIND_ID;
 use super::shader::BackendShader;
 use super::{BackendCommandBuffer, BackendDevice, BackendRenderPass};
 use crate::api::backend::{
-    create_buffer, destroy_buffer, map_buffer_memory, physical_device::BackendPhysicalDevice,
+    create_buffer, destroy_buffer, copy_from_buffer, physical_device::BackendPhysicalDevice,
 };
 
 use crate::utils::read_spirv_from_bytes;
@@ -406,7 +406,7 @@ impl BackendPipeline {
             );
         }
         if !instances.is_empty() {
-            map_buffer_memory(device, &mut self.instance_buffer_memory, 0, instances);
+            copy_from_buffer(device, &mut self.instance_buffer_memory, 0, instances);
         }
         self
     }
@@ -458,7 +458,7 @@ impl BackendPipeline {
         }
 
         if !self.indirect_commands.is_empty() {
-            map_buffer_memory(
+            copy_from_buffer(
                 device,
                 &mut self.indirect_command_buffer_memory,
                 0,
@@ -804,7 +804,7 @@ impl BackendPipeline {
         }];
 
         let mut buffer_memory = self.uniform_buffers_memory[image_index];
-        map_buffer_memory(device, &mut buffer_memory, 0, &uniform_data);
+        copy_from_buffer(device, &mut buffer_memory, 0, &uniform_data);
 
         let buffer_info = VkDescriptorBufferInfo {
             buffer: self.uniform_buffers[image_index],

@@ -12,6 +12,7 @@ use super::device::*;
 
 pub const MAX_TEXTURE_COUNT: usize = 32;
 pub const DEFAULT_LAYER_COUNT: u32 = 8;
+pub const TEXTURE_CHANNEL_COUNT: u32 = 4;
 
 pub struct TextureAtlas {
     id: Uid,
@@ -207,6 +208,29 @@ impl TextureHandler {
             image_data.height(),
             image_data.as_raw().as_bytes(),
         )
+    }
+
+    pub fn copy(
+        &self,
+        device: &Device,
+        physical_device: &BackendPhysicalDevice,
+        id: Uid,
+        image_data: &mut [u8],
+    ) {
+        if let Some(texture_atlas) = self
+            .texture_atlas
+            .iter()
+            .find(|t| t.get_texture_info(id).is_some())
+        {
+            let texture_info = texture_atlas.get_texture_info(id).unwrap();
+            texture_atlas.texture.get_from_layer(
+                device,
+                physical_device,
+                texture_info.get_layer_index(),
+                &texture_info.area,
+                image_data,
+            );
+        }
     }
 
     pub fn remove(&mut self, device: &Device, id: Uid) {

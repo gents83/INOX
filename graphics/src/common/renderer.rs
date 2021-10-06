@@ -198,6 +198,10 @@ impl Renderer {
                     };
                     texture.get_mut().set_texture_info(&texture_info);
                 }
+            } else if texture.get().is_render_target() {
+                texture
+                    .get_mut()
+                    .capture_image(texture_handler, device, physical_device);
             }
         });
     }
