@@ -10,8 +10,8 @@ use crate::{
 
 use super::device::*;
 
-pub const MAX_TEXTURE_COUNT: usize = 8;
-pub const DEFAULT_LAYER_COUNT: usize = 8;
+pub const MAX_TEXTURE_COUNT: usize = 32;
+pub const DEFAULT_LAYER_COUNT: u32 = 8;
 
 pub struct TextureAtlas {
     id: Uid,
@@ -247,7 +247,7 @@ impl TextureHandler {
                     texture_atlas.texture.add_in_layer(
                         device,
                         physical_device,
-                        layer_index,
+                        layer_index as _,
                         area,
                         image_data,
                     );

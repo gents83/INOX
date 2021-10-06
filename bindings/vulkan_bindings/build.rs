@@ -29,6 +29,8 @@ fn main() {
         .rustfmt_bindings(true)
         .rust_target(RustTarget::Nightly)
         .derive_debug(false)
+        .rustfmt_bindings(true)
+        .conservative_inline_namespaces()
         .ignore_functions()
         .ignore_methods();
 

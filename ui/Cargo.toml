@@ -9,8 +9,8 @@ build = "build.rs"
 crate-type = ["cdylib",'rlib']
 
 [dependencies]
-#egui = { git = "https://github.com/emilk/egui", features = ["multi_threaded"] }
-egui = {path = "../../egui/egui", features = ["multi_threaded"]}
+egui = { git = "https://github.com/emilk/egui", features = ["multi_threaded"] }
+#egui = {path = "../../egui/egui", features = ["multi_threaded"]}
 image = { git = "https://github.com/image-rs/image" }
 
 nrg_core = { path = "../core" }

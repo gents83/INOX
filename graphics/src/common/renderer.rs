@@ -126,7 +126,9 @@ impl Renderer {
             }
             if let Some(pipeline) = render_pass.get().pipeline() {
                 if !pipeline.get().is_initialized() {
-                    pipeline.get_mut().init(device, &*render_pass.get());
+                    pipeline
+                        .get_mut()
+                        .init(device, physical_device, &*render_pass.get());
                 }
                 pipeline.get_mut().prepare();
             }
@@ -139,11 +141,13 @@ impl Renderer {
                 render_pass.data().name == render_pass_name
             });
         if let Some(geometry_render_pass) = geometry_render_pass {
+            let device = &self.device;
+            let physical_device = self.instance.get_physical_device();
             SharedData::for_each_resource(&self.shared_data, |pipeline: &Resource<Pipeline>| {
                 if !pipeline.get().is_initialized() {
                     pipeline
                         .get_mut()
-                        .init(&self.device, &*geometry_render_pass.get());
+                        .init(device, physical_device, &*geometry_render_pass.get());
                 }
                 pipeline.get_mut().prepare();
             });

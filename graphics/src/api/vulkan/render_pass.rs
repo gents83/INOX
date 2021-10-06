@@ -202,13 +202,11 @@ impl BackendRenderPass {
             VkSubpassDependency {
                 srcSubpass: VK_SUBPASS_EXTERNAL as _,
                 dstSubpass: 0,
-                srcStageMask: VkPipelineStageFlagBits_VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT as _,
+                srcStageMask: VkPipelineStageFlagBits_VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT as _,
                 dstStageMask: VkPipelineStageFlagBits_VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
                     as _,
-                srcAccessMask: VkAccessFlagBits_VK_ACCESS_MEMORY_READ_BIT as _,
-                dstAccessMask: (VkAccessFlagBits_VK_ACCESS_COLOR_ATTACHMENT_READ_BIT
-                    | VkAccessFlagBits_VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
-                    as _,
+                srcAccessMask: VkAccessFlagBits_VK_ACCESS_SHADER_READ_BIT as _,
+                dstAccessMask: VkAccessFlagBits_VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT as _,
                 dependencyFlags: VkDependencyFlagBits_VK_DEPENDENCY_BY_REGION_BIT as _,
             },
             VkSubpassDependency {
@@ -216,11 +214,9 @@ impl BackendRenderPass {
                 dstSubpass: VK_SUBPASS_EXTERNAL as _,
                 srcStageMask: VkPipelineStageFlagBits_VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
                     as _,
-                dstStageMask: VkPipelineStageFlagBits_VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT as _,
-                srcAccessMask: (VkAccessFlagBits_VK_ACCESS_COLOR_ATTACHMENT_READ_BIT
-                    | VkAccessFlagBits_VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
-                    as _,
-                dstAccessMask: VkAccessFlagBits_VK_ACCESS_MEMORY_READ_BIT as _,
+                dstStageMask: VkPipelineStageFlagBits_VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT as _,
+                srcAccessMask: VkAccessFlagBits_VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT as _,
+                dstAccessMask: VkAccessFlagBits_VK_ACCESS_SHADER_READ_BIT as _,
                 dependencyFlags: VkDependencyFlagBits_VK_DEPENDENCY_BY_REGION_BIT as _,
             },
         ];

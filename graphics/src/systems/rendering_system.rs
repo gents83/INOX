@@ -12,7 +12,7 @@ use nrg_resources::{DataTypeResource, Resource, ResourceData, SharedData, Shared
 
 use crate::{
     api::backend::BackendPhysicalDevice, Device, Pipeline, PipelineId, RenderPass, RendererRw,
-    RendererState, View,
+    RendererState, TextureHandler, View,
 };
 
 pub struct RenderingSystem {
@@ -41,6 +41,7 @@ impl RenderingSystem {
     fn draw_pipeline(
         device: &Device,
         physical_device: &BackendPhysicalDevice,
+        texture_handler: &TextureHandler,
         render_pass: &RenderPass,
         pipeline: &Resource<Pipeline>,
         width: u32,
@@ -49,18 +50,24 @@ impl RenderingSystem {
         proj: &Matrix4,
     ) {
         pipeline.get_mut().bind(render_pass.get_command_buffer());
-        device.update_bindings(
-            render_pass.get_command_buffer(),
-            width,
-            height,
-            &view,
-            &proj,
-        );
-        pipeline.get_mut().fill_command_buffer(
-            device,
-            physical_device,
-            render_pass.get_command_buffer(),
-        );
+
+        let textures = texture_handler.get_textures_atlas();
+        debug_assert!(textures.is_empty() == false);
+        let used_textures = pipeline.get().find_used_textures(textures);
+
+        pipeline
+            .get_mut()
+            .update_bindings(
+                device,
+                render_pass.get_command_buffer(),
+                width,
+                height,
+                &view,
+                &proj,
+                textures,
+                used_textures.as_slice(),
+            )
+            .fill_command_buffer(device, physical_device, render_pass.get_command_buffer());
     }
 }
 
@@ -86,14 +93,6 @@ impl System for RenderingSystem {
             .write()
             .unwrap()
             .change_state(RendererState::Drawing);
-
-        {
-            let renderer = self.renderer.read().unwrap();
-            let texture_handler = renderer.get_texture_handler();
-            renderer
-                .device()
-                .update_descriptor_sets(texture_handler.get_textures_atlas());
-        }
 
         let wait_count = Arc::new(AtomicUsize::new(0));
 
@@ -139,6 +138,7 @@ impl System for RenderingSystem {
                         let device = renderer.device();
                         let width = render_pass.get_framebuffer_width();
                         let height = render_pass.get_framebuffer_height();
+                        let texture_handler = renderer.get_texture_handler();
 
                         render_pass.begin_command_buffer(device);
 
@@ -146,6 +146,7 @@ impl System for RenderingSystem {
                             Self::draw_pipeline(
                                 device,
                                 instance.get_physical_device(),
+                                &texture_handler,
                                 &render_pass,
                                 pipeline,
                                 width,
@@ -168,6 +169,7 @@ impl System for RenderingSystem {
                                         Self::draw_pipeline(
                                             device,
                                             instance.get_physical_device(),
+                                            &texture_handler,
                                             &render_pass,
                                             pipeline,
                                             width,

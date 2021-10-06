@@ -1,6 +1,4 @@
-use nrg_math::Matrix4;
-
-use crate::{api::backend::BackendDevice, CommandBuffer, Instance};
+use crate::{api::backend::BackendDevice, Instance};
 
 pub struct Device {
     inner: BackendDevice,
@@ -51,19 +49,5 @@ impl Device {
         let surface = instance.get_surface();
         self.inner
             .recreate_swap_chain(instance.get_physical_device_mut(), surface);
-    }
-
-    pub fn update_bindings(
-        &self,
-        command_buffer: &CommandBuffer,
-        width: u32,
-        height: u32,
-        view: &Matrix4,
-        proj: &Matrix4,
-    ) {
-        nrg_profiler::scoped_profile!("device::update_bindings");
-        self.inner
-            .update_constant_data(command_buffer, width, height, view, proj)
-            .bind_descriptors(command_buffer);
     }
 }

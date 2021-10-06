@@ -1,4 +1,4 @@
-use nrg_math::{Mat4Ops, Vector4};
+use nrg_math::{Mat4Ops, Matrix4, Vector4};
 use nrg_resources::{
     DataTypeResource, Handle, Resource, ResourceData, ResourceId, SharedData, SharedDataRw,
 };
@@ -8,7 +8,7 @@ use crate::{
     api::backend::{self, BackendPhysicalDevice, BackendPipeline},
     utils::compute_color_from_id,
     CommandBuffer, Device, DrawMode, GraphicsMesh, InstanceCommand, InstanceData, Mesh,
-    MeshCategoryId, PipelineData, RenderPass, ShaderType,
+    MeshCategoryId, PipelineData, RenderPass, ShaderType, TextureAtlas,
 };
 
 pub type PipelineId = ResourceId;
@@ -64,7 +64,12 @@ impl Pipeline {
     pub fn data(&self) -> &PipelineData {
         &self.data
     }
-    pub fn init(&mut self, device: &Device, render_pass: &RenderPass) -> &mut Self {
+    pub fn init(
+        &mut self,
+        device: &Device,
+        physical_device: &BackendPhysicalDevice,
+        render_pass: &RenderPass,
+    ) -> &mut Self {
         if let Some(backend_pipeline) = &mut self.backend_pipeline {
             backend_pipeline.destroy(device);
         }
@@ -117,6 +122,7 @@ impl Pipeline {
         }
         backend_pipeline.build(
             device,
+            physical_device,
             &*render_pass,
             &self.data.culling,
             &self.data.mode,
@@ -184,6 +190,38 @@ impl Pipeline {
         self.index_count = 0;
         self.instance_count = 0;
         self.mesh.reset_mesh_categories();
+        self
+    }
+
+    pub fn find_used_textures(&self, textures: &[TextureAtlas]) -> Vec<bool> {
+        let mut used_textures = Vec::new();
+        used_textures.resize_with(textures.len(), || false);
+        self.instance_data.iter().for_each(|data| {
+            if data.diffuse_texture_index >= 0 && data.diffuse_texture_index < textures.len() as _ {
+                used_textures[data.diffuse_texture_index as usize] = true;
+            }
+        });
+        used_textures
+    }
+
+    pub fn update_bindings(
+        &mut self,
+        device: &Device,
+        command_buffer: &CommandBuffer,
+        width: u32,
+        height: u32,
+        view: &Matrix4,
+        proj: &Matrix4,
+        textures: &[TextureAtlas],
+        used_textures: &[bool],
+    ) -> &mut Self {
+        nrg_profiler::scoped_profile!("device::update_bindings");
+        if let Some(backend_pipeline) = &mut self.backend_pipeline {
+            backend_pipeline
+                .update_constant_data(command_buffer, width, height, view, proj)
+                .update_descriptor_sets(device, textures, used_textures)
+                .bind_descriptors(device, command_buffer);
+        }
         self
     }
 

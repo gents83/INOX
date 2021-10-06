@@ -12,7 +12,7 @@ const TEXTURE_CHANNEL_COUNT: u32 = 4;
 pub struct BackendTexture {
     width: u32,
     height: u32,
-    layers_count: usize,
+    layers_count: u32,
     texture_image: VkImage,
     texture_image_memory: VkDeviceMemory,
     texture_image_view: VkImageView,
@@ -28,12 +28,15 @@ impl BackendTexture {
     pub fn height(&self) -> u32 {
         self.height
     }
+    pub fn layers_count(&self) -> u32 {
+        self.layers_count
+    }
     pub fn create(
         device: &BackendDevice,
         physical_device: &BackendPhysicalDevice,
         width: u32,
         height: u32,
-        layers_count: usize,
+        layers_count: u32,
     ) -> Self {
         let mut texture = Self {
             width,
@@ -60,7 +63,7 @@ impl BackendTexture {
         physical_device: &BackendPhysicalDevice,
         width: u32,
         height: u32,
-        layers_count: usize,
+        layers_count: u32,
         is_depth: bool,
     ) -> Self {
         let mut texture = Self {
@@ -129,7 +132,7 @@ impl BackendTexture {
         &mut self,
         device: &BackendDevice,
         physical_device: &BackendPhysicalDevice,
-        index: usize,
+        index: u32,
         area: &Area,
         image_data: &[u8],
     ) {
@@ -170,7 +173,7 @@ impl BackendTexture {
         device: &BackendDevice,
         physical_device: &BackendPhysicalDevice,
         format: VkFormat,
-        layers_count: usize,
+        layers_count: u32,
         specific_flags: i32,
         aspect_flags: i32,
     ) {

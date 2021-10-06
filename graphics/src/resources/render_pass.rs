@@ -198,7 +198,7 @@ impl RenderPass {
             self.create_default(device, physical_device);
         }
         if let Some(pipeline) = &self.pipeline {
-            pipeline.get_mut().init(device, self);
+            pipeline.get_mut().init(device, physical_device, self);
         }
         self.is_initialized = true;
         self

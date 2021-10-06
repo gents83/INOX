@@ -1,12 +1,9 @@
 use crate::api::backend::{
-    allocate_command_buffers, create_buffer, create_command_pool, create_image, create_image_view,
-    destroy_buffer, find_depth_format, get_available_extensions_names, get_available_layers_names,
-    get_minimum_required_vulkan_extensions, get_minimum_required_vulkan_layers, map_buffer_memory,
+    allocate_command_buffers, create_command_pool, create_image, create_image_view,
+    find_depth_format, get_available_extensions_names, get_available_layers_names,
+    get_minimum_required_vulkan_extensions, get_minimum_required_vulkan_layers,
     BackendCommandBuffer, BackendInstance, BackendPhysicalDevice, BackendRenderPass,
 };
-use crate::{ConstantData, TextureAtlas, UniformData, MAX_TEXTURE_COUNT};
-use nrg_math::matrix4_to_array;
-use nrg_math::Matrix4;
 use nrg_platform::{get_raw_thread_id, RawThreadId};
 use std::collections::HashMap;
 use std::os::raw::c_char;
@@ -65,13 +62,6 @@ pub struct BackendDevice {
     graphics_family_index: u32,
     primary_command_pool: VkCommandPool,
     primary_command_buffers: Vec<VkCommandBuffer>,
-    descriptor_set_layout: VkDescriptorSetLayout,
-    descriptor_pool: VkDescriptorPool,
-    descriptor_sets: Vec<VkDescriptorSet>,
-    uniform_buffers_size: usize,
-    uniform_buffers: Vec<VkBuffer>,
-    uniform_buffers_memory: Vec<VkDeviceMemory>,
-    pipeline_layout: VkPipelineLayout,
 }
 
 impl std::ops::Deref for BackendDevice {
@@ -245,23 +235,11 @@ impl BackendDevice {
             thread_data: HashMap::new(),
             primary_command_pool: ::std::ptr::null_mut(),
             primary_command_buffers: Vec::new(),
-            descriptor_set_layout: ::std::ptr::null_mut(),
-            descriptor_sets: Vec::new(),
-            descriptor_pool: ::std::ptr::null_mut(),
-            uniform_buffers_size: 0,
-            uniform_buffers: Vec::new(),
-            uniform_buffers_memory: Vec::new(),
-            pipeline_layout: ::std::ptr::null_mut(),
         };
         inner_device
             .create_swap_chain(physical_device, instance.get_surface())
             .create_image_views(physical_device)
-            .create_sync_objects()
-            .create_descriptor_set_layout()
-            .create_uniform_buffers(physical_device)
-            .create_descriptor_pool()
-            .create_descriptor_sets()
-            .create_pipeline_layout();
+            .create_sync_objects();
 
         inner_device.primary_command_pool =
             create_command_pool(device, queue_family_info.graphics_family_index as _);
@@ -300,14 +278,6 @@ impl BackendDevice {
         self.current_image_index as _
     }
 
-    pub fn get_descriptor_set_layout(&self) -> VkDescriptorSetLayout {
-        self.descriptor_set_layout
-    }
-
-    pub fn get_pipeline_layout(&self) -> VkPipelineLayout {
-        self.pipeline_layout
-    }
-
     pub fn acquire_command_buffer(&mut self) -> VkCommandBuffer {
         self.create_thread_data().get_current_command_buffer()
     }
@@ -326,25 +296,6 @@ impl BackendDevice {
                 );
                 vkDestroyCommandPool.unwrap()(self.device, t.command_pool, ::std::ptr::null_mut());
             });
-
-            for i in 0..self.uniform_buffers.len() {
-                destroy_buffer(
-                    self,
-                    &self.uniform_buffers[i],
-                    &self.uniform_buffers_memory[i],
-                );
-            }
-
-            vkDestroyDescriptorSetLayout.unwrap()(
-                self.device,
-                self.descriptor_set_layout,
-                ::std::ptr::null_mut(),
-            );
-            vkDestroyPipelineLayout.unwrap()(
-                self.device,
-                self.pipeline_layout,
-                ::std::ptr::null_mut(),
-            );
 
             for i in 0..count {
                 vkDestroySemaphore.unwrap()(
@@ -879,319 +830,5 @@ impl BackendDevice {
 
         self.create_swap_chain(physical_device, surface)
             .create_image_views(physical_device);
-    }
-
-    fn create_uniform_buffers(&mut self, physical_device: &BackendPhysicalDevice) -> &mut Self {
-        let images_count = self.swap_chain.image_data.len();
-        let mut uniform_buffers = Vec::<VkBuffer>::with_capacity(images_count);
-        let mut uniform_buffers_memory = Vec::<VkDeviceMemory>::with_capacity(images_count);
-        unsafe {
-            uniform_buffers.set_len(images_count);
-            uniform_buffers_memory.set_len(images_count);
-        }
-
-        let uniform_buffers_size = std::mem::size_of::<UniformData>();
-        let flags = VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
-            | VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-        for i in 0..uniform_buffers.len() {
-            create_buffer(
-                self,
-                physical_device,
-                uniform_buffers_size as _,
-                VkBufferUsageFlagBits_VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT as _,
-                flags as _,
-                &mut uniform_buffers[i],
-                &mut uniform_buffers_memory[i],
-            );
-        }
-
-        self.uniform_buffers_size = uniform_buffers_size;
-        self.uniform_buffers = uniform_buffers;
-        self.uniform_buffers_memory = uniform_buffers_memory;
-        self
-    }
-    fn create_descriptor_pool(&mut self) -> &mut Self {
-        let images_count = self.swap_chain.image_data.len();
-        let pool_sizes: Vec<VkDescriptorPoolSize> = vec![
-            VkDescriptorPoolSize {
-                type_: VkDescriptorType_VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-                descriptorCount: images_count as u32,
-            },
-            VkDescriptorPoolSize {
-                type_: VkDescriptorType_VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                descriptorCount: MAX_TEXTURE_COUNT as u32 * images_count as u32,
-            },
-        ];
-
-        let pool_info = VkDescriptorPoolCreateInfo {
-            sType: VkStructureType_VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-            flags: 0,
-            pNext: ::std::ptr::null_mut(),
-            poolSizeCount: pool_sizes.len() as _,
-            pPoolSizes: pool_sizes.as_ptr(),
-            maxSets: images_count as _,
-        };
-
-        self.descriptor_pool = unsafe {
-            let mut option = ::std::mem::MaybeUninit::uninit();
-            assert_eq!(
-                VkResult_VK_SUCCESS,
-                vkCreateDescriptorPool.unwrap()(
-                    self.device,
-                    &pool_info,
-                    ::std::ptr::null_mut(),
-                    option.as_mut_ptr()
-                )
-            );
-            option.assume_init()
-        };
-        self
-    }
-    pub fn create_descriptor_sets(&mut self) -> &mut Self {
-        let images_count = self.swap_chain.image_data.len();
-        let mut layouts = Vec::<VkDescriptorSetLayout>::with_capacity(images_count);
-        unsafe {
-            layouts.set_len(images_count);
-        }
-        for layout in layouts.iter_mut() {
-            *layout = self.descriptor_set_layout;
-        }
-
-        let alloc_info = VkDescriptorSetAllocateInfo {
-            sType: VkStructureType_VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
-            pNext: ::std::ptr::null_mut(),
-            descriptorPool: self.descriptor_pool,
-            descriptorSetCount: images_count as _,
-            pSetLayouts: layouts.as_mut_ptr(),
-        };
-
-        let mut descriptor_sets = Vec::<VkDescriptorSet>::with_capacity(images_count);
-        unsafe {
-            descriptor_sets.set_len(images_count);
-            assert_eq!(
-                VkResult_VK_SUCCESS,
-                vkAllocateDescriptorSets.unwrap()(
-                    self.device,
-                    &alloc_info,
-                    descriptor_sets.as_mut_ptr()
-                )
-            );
-        }
-
-        self.descriptor_sets = descriptor_sets;
-        self
-    }
-
-    fn create_pipeline_layout(&mut self) -> &mut Self {
-        let push_constant_range = VkPushConstantRange {
-            stageFlags: VkShaderStageFlagBits_VK_SHADER_STAGE_ALL_GRAPHICS as _,
-            offset: 0,
-            size: ::std::mem::size_of::<ConstantData>() as _,
-        };
-
-        let pipeline_layout_info = VkPipelineLayoutCreateInfo {
-            sType: VkStructureType_VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-            pNext: ::std::ptr::null_mut(),
-            flags: 0,
-            setLayoutCount: 1,
-            pSetLayouts: &self.descriptor_set_layout,
-            pushConstantRangeCount: 1,
-            pPushConstantRanges: &push_constant_range,
-        };
-
-        self.pipeline_layout = unsafe {
-            let mut option = ::std::mem::MaybeUninit::uninit();
-            assert_eq!(
-                VkResult_VK_SUCCESS,
-                vkCreatePipelineLayout.unwrap()(
-                    self.device,
-                    &pipeline_layout_info,
-                    ::std::ptr::null_mut(),
-                    option.as_mut_ptr()
-                )
-            );
-            option.assume_init()
-        };
-        self
-    }
-
-    fn create_descriptor_set_layout(&mut self) -> &mut Self {
-        let bindings = vec![
-            VkDescriptorSetLayoutBinding {
-                binding: 0,
-                descriptorCount: 1,
-                descriptorType: VkDescriptorType_VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-                pImmutableSamplers: ::std::ptr::null_mut(),
-                stageFlags: (VkShaderStageFlagBits_VK_SHADER_STAGE_VERTEX_BIT
-                    | VkShaderStageFlagBits_VK_SHADER_STAGE_FRAGMENT_BIT)
-                    as _,
-            },
-            VkDescriptorSetLayoutBinding {
-                binding: 1,
-                descriptorCount: MAX_TEXTURE_COUNT as _,
-                descriptorType: VkDescriptorType_VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                pImmutableSamplers: ::std::ptr::null_mut(),
-                stageFlags: VkShaderStageFlagBits_VK_SHADER_STAGE_FRAGMENT_BIT as _,
-            },
-        ];
-
-        let layout_create_info = VkDescriptorSetLayoutCreateInfo {
-            sType: VkStructureType_VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-            flags: 0,
-            pNext: ::std::ptr::null_mut(),
-            bindingCount: bindings.len() as _,
-            pBindings: bindings.as_ptr(),
-        };
-
-        self.descriptor_set_layout = unsafe {
-            let mut option = ::std::mem::MaybeUninit::uninit();
-            assert_eq!(
-                VkResult_VK_SUCCESS,
-                vkCreateDescriptorSetLayout.unwrap()(
-                    self.device,
-                    &layout_create_info,
-                    ::std::ptr::null_mut(),
-                    option.as_mut_ptr()
-                )
-            );
-            option.assume_init()
-        };
-
-        self
-    }
-
-    pub fn update_constant_data(
-        &self,
-        command_buffer: &BackendCommandBuffer,
-        width: u32,
-        height: u32,
-        view: &Matrix4,
-        proj: &Matrix4,
-    ) -> &Self {
-        let constant_data = ConstantData {
-            view: matrix4_to_array(*view),
-            proj: matrix4_to_array(*proj),
-            screen_width: width as _,
-            screen_height: height as _,
-        };
-
-        unsafe {
-            vkCmdPushConstants.unwrap()(
-                command_buffer.get(),
-                self.pipeline_layout,
-                VkShaderStageFlagBits_VK_SHADER_STAGE_ALL_GRAPHICS as _,
-                0,
-                ::std::mem::size_of::<ConstantData>() as _,
-                &constant_data as *const ConstantData as _,
-            );
-        }
-        self
-    }
-
-    pub fn update_uniform_buffer(&self, view: &Matrix4, proj: &Matrix4) -> &Self {
-        let image_index = self.get_current_image_index();
-        let uniform_data: [UniformData; 1] = [UniformData {
-            view: *view,
-            proj: *proj,
-        }];
-
-        let mut buffer_memory = self.uniform_buffers_memory[image_index];
-        map_buffer_memory(self, &mut buffer_memory, 0, &uniform_data);
-
-        let buffer_info = VkDescriptorBufferInfo {
-            buffer: self.uniform_buffers[image_index],
-            offset: 0,
-            range: self.uniform_buffers_size as _,
-        };
-
-        let descriptor_write: Vec<VkWriteDescriptorSet> = vec![VkWriteDescriptorSet {
-            sType: VkStructureType_VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-            pNext: ::std::ptr::null_mut(),
-            dstSet: self.descriptor_sets[image_index],
-            dstBinding: 0,
-            dstArrayElement: 0,
-            descriptorCount: 1,
-            descriptorType: VkDescriptorType_VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-            pImageInfo: ::std::ptr::null_mut(),
-            pBufferInfo: &buffer_info,
-            pTexelBufferView: ::std::ptr::null_mut(),
-        }];
-
-        unsafe {
-            vkUpdateDescriptorSets.unwrap()(
-                self.device,
-                descriptor_write.len() as _,
-                descriptor_write.as_ptr(),
-                0,
-                ::std::ptr::null_mut(),
-            );
-        }
-        self
-    }
-
-    pub fn update_descriptor_sets(&self, textures: &[TextureAtlas]) -> &Self {
-        debug_assert!(
-            !textures.is_empty(),
-            "At least one texture should be received"
-        );
-        debug_assert!(
-            textures.len() <= MAX_TEXTURE_COUNT,
-            "Max num textures exceeded"
-        );
-
-        let image_index = self.get_current_image_index();
-
-        let mut descriptor_write: Vec<VkWriteDescriptorSet> = Vec::new();
-        let mut descriptors = Vec::new();
-        for t in textures.iter() {
-            descriptors.push(t.get_texture().get_descriptor());
-        }
-        if descriptors.len() < MAX_TEXTURE_COUNT {
-            let descriptors_to_add = MAX_TEXTURE_COUNT - descriptors.len();
-            for _i in 0..descriptors_to_add {
-                descriptors.push(textures[0].get_texture().get_descriptor());
-            }
-        }
-        descriptor_write.push(VkWriteDescriptorSet {
-            sType: VkStructureType_VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-            pNext: ::std::ptr::null_mut(),
-            dstSet: self.descriptor_sets[image_index],
-            dstBinding: 1,
-            dstArrayElement: 0,
-            descriptorCount: MAX_TEXTURE_COUNT as _,
-            descriptorType: VkDescriptorType_VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-            pImageInfo: descriptors.as_ptr(),
-            pBufferInfo: ::std::ptr::null_mut(),
-            pTexelBufferView: ::std::ptr::null_mut(),
-        });
-
-        unsafe {
-            vkUpdateDescriptorSets.unwrap()(
-                self.device,
-                descriptor_write.len() as _,
-                descriptor_write.as_ptr(),
-                0,
-                ::std::ptr::null_mut(),
-            );
-        }
-        self
-    }
-
-    pub fn bind_descriptors(&self, command_buffer: &BackendCommandBuffer) -> &Self {
-        let image_index = self.get_current_image_index();
-
-        unsafe {
-            vkCmdBindDescriptorSets.unwrap()(
-                command_buffer.get(),
-                VkPipelineBindPoint_VK_PIPELINE_BIND_POINT_GRAPHICS,
-                self.pipeline_layout,
-                0,
-                1,
-                &self.descriptor_sets[image_index],
-                0,
-                ::std::ptr::null_mut(),
-            );
-        }
-        self
     }
 }

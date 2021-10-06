@@ -234,7 +234,7 @@ pub fn create_image_view(
     image: VkImage,
     format: VkFormat,
     aspect_flags: VkImageAspectFlags,
-    layers_count: usize,
+    layers_count: u32,
 ) -> VkImageView {
     let view_info = VkImageViewCreateInfo {
         sType: VkStructureType_VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
@@ -442,7 +442,7 @@ pub fn create_image(
     tiling: VkImageTiling,
     usage: VkImageUsageFlags,
     properties: VkMemoryPropertyFlags,
-    layers_count: usize,
+    layers_count: u32,
 ) -> (VkImage, VkDeviceMemory) {
     let mut image: VkImage = ::std::ptr::null_mut();
     let mut image_memory: VkDeviceMemory = ::std::ptr::null_mut();
@@ -519,8 +519,8 @@ pub fn image_memory_barrier(
     dst_access_mask: VkAccessFlags,
     src_stage_mask: VkPipelineStageFlags,
     dst_stage_mask: VkPipelineStageFlags,
-    layer_index: usize,
-    layers_count: usize,
+    layer_index: u32,
+    layers_count: u32,
 ) {
     let barrier = VkImageMemoryBarrier {
         sType: VkStructureType_VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
@@ -542,8 +542,8 @@ pub fn image_memory_barrier(
             },
             baseMipLevel: 0,
             levelCount: 1,
-            baseArrayLayer: layer_index as _,
-            layerCount: layers_count as _,
+            baseArrayLayer: layer_index,
+            layerCount: layers_count,
         },
     };
 
@@ -567,8 +567,8 @@ pub fn copy_buffer_to_image(
     device: &BackendDevice,
     buffer: VkBuffer,
     image: VkImage,
-    layer_index: usize,
-    layers_count: usize,
+    layer_index: u32,
+    layers_count: u32,
     area: &Area,
 ) {
     let region = VkBufferImageCopy {
