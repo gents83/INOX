@@ -190,7 +190,7 @@ impl Renderer {
                                 device,
                                 physical_device,
                                 texture.id(),
-                                font.get().font_data().get_texture(),
+                                &font.get().font_data().get_texture(),
                             )
                         } else {
                             panic!("Unable to load texture with path {:?}", path.as_path());
@@ -198,7 +198,7 @@ impl Renderer {
                     };
                     texture.get_mut().set_texture_info(&texture_info);
                 }
-            } else if texture.get().is_render_target() {
+            } else if texture.get().update_from_gpu() {
                 texture
                     .get_mut()
                     .capture_image(texture_handler, device, physical_device);

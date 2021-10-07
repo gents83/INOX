@@ -198,7 +198,7 @@ impl TextureHandler {
         device: &Device,
         physical_device: &BackendPhysicalDevice,
         id: Uid,
-        image_data: RgbaImage,
+        image_data: &RgbaImage,
     ) -> TextureInfo {
         self.add_image(
             device,
@@ -253,7 +253,7 @@ impl TextureHandler {
         filepath: &Path,
     ) -> TextureInfo {
         let image = image::open(filepath).unwrap();
-        self.add(device, physical_device, id, image.to_rgba8())
+        self.add(device, physical_device, id, &image.to_rgba8())
     }
 
     fn add_image(

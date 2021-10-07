@@ -24,7 +24,7 @@ pub struct Texture {
     width: u32,
     height: u32,
     is_initialized: bool,
-    is_render_target: bool,
+    update_from_gpu: bool,
 }
 
 impl Default for Texture {
@@ -38,7 +38,7 @@ impl Default for Texture {
             width: 0,
             height: 0,
             is_initialized: false,
-            is_render_target: false,
+            update_from_gpu: false,
         }
     }
 }
@@ -97,8 +97,8 @@ impl Texture {
     pub fn height(&self) -> u32 {
         self.height
     }
-    pub fn image_data(&mut self) -> Option<RgbaImage> {
-        self.image_data.take()
+    pub fn image_data(&mut self) -> &Option<RgbaImage> {
+        &self.image_data
     }
     pub fn set_texture_info(&mut self, texture_info: &TextureInfo) -> &mut Self {
         self.texture_index = texture_info.texture_index as _;
@@ -115,11 +115,11 @@ impl Texture {
     pub fn is_initialized(&self) -> bool {
         self.is_initialized
     }
-    pub fn is_render_target(&self) -> bool {
-        self.is_render_target
+    pub fn update_from_gpu(&self) -> bool {
+        self.update_from_gpu
     }
-    pub fn mark_as_render_taget(&mut self) -> &mut Self {
-        self.is_render_target = true;
+    pub fn set_update_from_gpu(&mut self, should_update: bool) -> &mut Self {
+        self.update_from_gpu = should_update;
         self
     }
     pub fn texture_index(&self) -> i32 {

@@ -5,7 +5,8 @@ use nrg_serialize::{generate_uid_from_string, Uid};
 
 use crate::{
     api::backend::{self, BackendPhysicalDevice},
-    CommandBuffer, Device, MeshCategoryId, Pipeline, RenderPassData, Texture, TextureHandler,
+    CommandBuffer, Device, MeshCategoryId, Pipeline, RenderPassData, RenderTarget, Texture,
+    TextureHandler,
 };
 
 pub type RenderPassId = Uid;
@@ -107,11 +108,12 @@ impl RenderPass {
         physical_device: &BackendPhysicalDevice,
         texture: &Handle<Texture>,
         texture_handler: &'a mut TextureHandler,
+        should_update_from_gpu: bool,
     ) {
         if let Some(t) = texture {
             if texture_handler.get_texture_atlas(t.id()).is_none() {
                 //println!("Adding texture {:?}", t.id());
-                t.get_mut().mark_as_render_taget();
+                t.get_mut().set_update_from_gpu(should_update_from_gpu);
                 texture_handler.add_render_target(
                     device,
                     physical_device,
@@ -154,18 +156,21 @@ impl RenderPass {
         device: &Device,
         physical_device: &BackendPhysicalDevice,
         texture_handler: &mut TextureHandler,
+        should_update_from_gpu: bool,
     ) -> &mut Self {
         Self::add_texture_as_render_target(
             device,
             physical_device,
             &self.color_texture,
             texture_handler,
+            should_update_from_gpu,
         );
         Self::add_texture_as_render_target(
             device,
             physical_device,
             &self.depth_texture,
             texture_handler,
+            false,
         );
         let color_texture = Self::get_real_texture(&self.color_texture, texture_handler);
         let depth_texture = Self::get_real_texture(&self.depth_texture, texture_handler);
@@ -193,10 +198,15 @@ impl RenderPass {
             texture_handler.remove(device, t.id());
         });
         self.texture_to_recycle.clear();
-        if self.data.render_to_texture {
-            self.create_with_render_target(device, physical_device, texture_handler);
-        } else {
+        if self.data.render_target == RenderTarget::Screen {
             self.create_default(device, physical_device);
+        } else {
+            self.create_with_render_target(
+                device,
+                physical_device,
+                texture_handler,
+                self.data.render_target == RenderTarget::TextureAndReadback,
+            );
         }
         if let Some(pipeline) = &self.pipeline {
             pipeline.get_mut().init(device, physical_device, self);

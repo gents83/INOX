@@ -101,6 +101,13 @@ pub enum StoreOperation {
     Store,
     DontCare,
 }
+#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Clone)]
+#[serde(crate = "nrg_serialize")]
+pub enum RenderTarget {
+    Screen,
+    Texture,
+    TextureAndReadback,
+}
 
 #[repr(C)]
 #[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Clone)]
@@ -110,7 +117,7 @@ pub struct RenderPassData {
     pub store_color: StoreOperation,
     pub load_depth: LoadOperation,
     pub store_depth: StoreOperation,
-    pub render_to_texture: bool,
+    pub render_target: RenderTarget,
     pub name: String,
     pub pipeline: Option<PipelineData>,
     pub mesh_category_to_draw: Vec<String>,
@@ -125,7 +132,7 @@ impl Default for RenderPassData {
             store_color: StoreOperation::DontCare,
             load_depth: LoadOperation::Clear,
             store_depth: StoreOperation::DontCare,
-            render_to_texture: false,
+            render_target: RenderTarget::Screen,
             name: String::new(),
             pipeline: None,
             mesh_category_to_draw: Vec::new(),

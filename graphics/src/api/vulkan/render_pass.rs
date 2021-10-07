@@ -131,7 +131,9 @@ impl BackendRenderPass {
         let details = physical_device.get_swap_chain_info();
         let color_attachment = VkAttachmentDescription {
             flags: 0,
-            format: if data.render_to_texture {
+            format: if data.render_target == RenderTarget::Texture
+                || data.render_target == RenderTarget::TextureAndReadback
+            {
                 VkFormat_VK_FORMAT_R8G8B8A8_UNORM
             } else {
                 details.get_preferred_format()
@@ -149,7 +151,9 @@ impl BackendRenderPass {
             stencilLoadOp: VkAttachmentLoadOp_VK_ATTACHMENT_LOAD_OP_CLEAR,
             stencilStoreOp: VkAttachmentStoreOp_VK_ATTACHMENT_STORE_OP_DONT_CARE,
             initialLayout: VkImageLayout_VK_IMAGE_LAYOUT_UNDEFINED,
-            finalLayout: if data.render_to_texture {
+            finalLayout: if data.render_target == RenderTarget::Texture
+                || data.render_target == RenderTarget::TextureAndReadback
+            {
                 VkImageLayout_VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
             } else {
                 VkImageLayout_VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
