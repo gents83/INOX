@@ -61,7 +61,7 @@ impl InstanceData {
         let attr: Vec<VkVertexInputAttributeDescription> = vec![
             VkVertexInputAttributeDescription {
                 binding: INSTANCE_BUFFER_BIND_ID as _,
-                format: VkFormat_VK_FORMAT_R32G32B32_SFLOAT,
+                format: VkFormat_VK_FORMAT_R32G32B32A32_SFLOAT,
                 location: 4,
                 offset: unsafe { &(*(::std::ptr::null::<InstanceData>())).id as *const _ as _ },
             },

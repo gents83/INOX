@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+pub use crate::color::*;
 pub use crate::resources::*;
 pub use crate::systems::*;
 pub use crate::ui_events::*;
@@ -7,6 +8,7 @@ pub use crate::ui_properties::*;
 pub use egui::*;
 use nrg_resources::SharedDataRw;
 
+pub mod color;
 pub mod resources;
 pub mod systems;
 pub mod ui_events;

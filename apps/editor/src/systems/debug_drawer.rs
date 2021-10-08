@@ -188,7 +188,10 @@ impl DebugDrawer {
                         }
                     }
                     DrawEvent::Arrow(position, direction, color, is_wireframe) => {
-                        let (vertices, indices) = create_arrow(position, direction, color);
+                        let (mut vertices, indices) = create_arrow(position, direction);
+                        vertices.iter_mut().for_each(|v| {
+                            v.color = color;
+                        });
                         if is_wireframe {
                             wireframe_mesh_data.append_mesh(&vertices, &indices);
                         } else {

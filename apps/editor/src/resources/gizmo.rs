@@ -16,6 +16,7 @@ use nrg_resources::{
 };
 use nrg_scene::{Object, ObjectId, Transform};
 use nrg_serialize::generate_random_uid;
+use nrg_ui::hex_to_rgba;
 
 use crate::EditorEvent;
 
@@ -44,6 +45,11 @@ pub struct Gizmo {
     shared_data: SharedDataRw,
     message_channel: MessageChannel,
     global_dispatcher: MessageBox,
+    highlight_color: Vector4,
+    center_color: Vector4,
+    axis_x_color: Vector4,
+    axis_y_color: Vector4,
+    axis_z_color: Vector4,
 }
 
 impl ResourceData for Gizmo {
@@ -75,6 +81,27 @@ impl Gizmo {
             .unwrap()
             .register_messagebox::<EditorEvent>(message_channel.get_messagebox());
 
+        let center_color = if let Some(material) = mesh_center.get().material() {
+            material.get().diffuse_color()
+        } else {
+            hex_to_rgba("#FFFFFF")
+        };
+        let axis_x_color = if let Some(material) = mesh_x.get().material() {
+            material.get().diffuse_color()
+        } else {
+            hex_to_rgba("#FF0000")
+        };
+        let axis_y_color = if let Some(material) = mesh_y.get().material() {
+            material.get().diffuse_color()
+        } else {
+            hex_to_rgba("#00FF00")
+        };
+        let axis_z_color = if let Some(material) = mesh_z.get().material() {
+            material.get().diffuse_color()
+        } else {
+            hex_to_rgba("#0000FF")
+        };
+
         let gizmo = Self {
             id: generate_random_uid(),
             mode_type,
@@ -85,6 +112,11 @@ impl Gizmo {
             message_channel,
             global_dispatcher: global_messenger.read().unwrap().get_dispatcher(),
             is_active: false,
+            highlight_color: hex_to_rgba("#FFFF00"),
+            center_color,
+            axis_x_color,
+            axis_y_color,
+            axis_z_color,
             mesh_center,
             mesh_x,
             mesh_y,
@@ -106,19 +138,19 @@ impl Gizmo {
             Self::create_arrow(
                 shared_data,
                 [10., 0., 0.].into(),
-                [1., 0., 0., 1.].into(),
+                hex_to_rgba("#FF0000"),
                 default_material_pipeline,
             ),
             Self::create_arrow(
                 shared_data,
                 [0., 10., 0.].into(),
-                [0., 1., 0., 1.].into(),
+                hex_to_rgba("#00FF00"),
                 default_material_pipeline,
             ),
             Self::create_arrow(
                 shared_data,
                 [0., 0., 10.].into(),
-                [0., 0., 1., 1.].into(),
+                hex_to_rgba("#0000FF"),
                 default_material_pipeline,
             ),
         )
@@ -137,19 +169,19 @@ impl Gizmo {
             Self::create_hammer(
                 shared_data,
                 [10., 0., 0.].into(),
-                [1., 0., 0., 1.].into(),
+                hex_to_rgba("#FF0000"),
                 default_material_pipeline,
             ),
             Self::create_hammer(
                 shared_data,
                 [0., 10., 0.].into(),
-                [0., 1., 0., 1.].into(),
+                hex_to_rgba("#00FF00"),
                 default_material_pipeline,
             ),
             Self::create_hammer(
                 shared_data,
                 [0., 0., 10.].into(),
-                [0., 0., 1., 1.].into(),
+                hex_to_rgba("#0000FF"),
                 default_material_pipeline,
             ),
         )
@@ -168,19 +200,19 @@ impl Gizmo {
             Self::create_torus(
                 shared_data,
                 [1., 0., 0.].into(),
-                [1., 0., 0., 1.].into(),
+                hex_to_rgba("#FF0000"),
                 default_material_pipeline,
             ),
             Self::create_torus(
                 shared_data,
                 [0., 1., 0.].into(),
-                [0., 1., 0., 1.].into(),
+                hex_to_rgba("#00FF00"),
                 default_material_pipeline,
             ),
             Self::create_torus(
                 shared_data,
                 [0., 0., 1.].into(),
-                [0., 0., 1., 1.].into(),
+                hex_to_rgba("#0000FF"),
                 default_material_pipeline,
             ),
         )
@@ -212,14 +244,13 @@ impl Gizmo {
     ) -> Resource<Mesh> {
         let mut mesh_data = MeshData::default();
 
-        let (vertices, indices) = create_arrow(Vector3::zero(), direction, color);
+        let (vertices, indices) = create_arrow(Vector3::zero(), direction);
         mesh_data.append_mesh(vertices.as_slice(), indices.as_slice());
 
         let mesh = Mesh::create_from_data(shared_data, mesh_data);
-        mesh.get_mut().set_material(Material::create_from_pipeline(
-            shared_data,
-            default_material_pipeline,
-        ));
+        let material = Material::create_from_pipeline(shared_data, default_material_pipeline);
+        material.get_mut().set_diffuse_color(color);
+        mesh.get_mut().set_material(material);
         mesh
     }
     fn create_hammer(
@@ -230,14 +261,13 @@ impl Gizmo {
     ) -> Resource<Mesh> {
         let mut mesh_data = MeshData::default();
 
-        let (vertices, indices) = create_hammer(Vector3::zero(), direction, color);
+        let (vertices, indices) = create_hammer(Vector3::zero(), direction);
         mesh_data.append_mesh(vertices.as_slice(), indices.as_slice());
 
         let mesh = Mesh::create_from_data(shared_data, mesh_data);
-        mesh.get_mut().set_material(Material::create_from_pipeline(
-            shared_data,
-            default_material_pipeline,
-        ));
+        let material = Material::create_from_pipeline(shared_data, default_material_pipeline);
+        material.get_mut().set_diffuse_color(color);
+        mesh.get_mut().set_material(material);
         mesh
     }
     fn create_torus(
@@ -248,14 +278,13 @@ impl Gizmo {
     ) -> Resource<Mesh> {
         let mut mesh_data = MeshData::default();
 
-        let (vertices, indices) = create_torus(Vector3::zero(), 10., 0.1, 32, 32, direction, color);
+        let (vertices, indices) = create_torus(Vector3::zero(), 10., 0.2, 32, 32, direction);
         mesh_data.append_mesh(vertices.as_slice(), indices.as_slice());
 
         let mesh = Mesh::create_from_data(shared_data, mesh_data);
-        mesh.get_mut().set_material(Material::create_from_pipeline(
-            shared_data,
-            default_material_pipeline,
-        ));
+        let material = Material::create_from_pipeline(shared_data, default_material_pipeline);
+        material.get_mut().set_diffuse_color(color);
+        mesh.get_mut().set_material(material);
         mesh
     }
 
@@ -409,14 +438,58 @@ impl Gizmo {
         }
     }
 
+    fn highlight_mesh(
+        mesh: &Resource<Mesh>,
+        mesh_u32: u32,
+        highlight_color: Vector4,
+        default_color: Vector4,
+    ) {
+        if let Some(material) = mesh.get().material() {
+            if mesh.id().as_u128() as u32 == mesh_u32 {
+                material.get_mut().set_diffuse_color(highlight_color);
+            } else {
+                material.get_mut().set_diffuse_color(default_color);
+            }
+        }
+    }
+
     fn update_events(&mut self) {
         nrg_profiler::scoped_profile!("update_events");
 
         read_messages(self.message_channel.get_listener(), |msg| {
             if msg.type_id() == TypeId::of::<EditorEvent>() {
                 let event = msg.as_any().downcast_ref::<EditorEvent>().unwrap();
-                if let EditorEvent::Selected(object_id) = *event {
-                    self.select_object(object_id);
+                match *event {
+                    EditorEvent::Selected(object_id) => {
+                        self.select_object(object_id);
+                    }
+                    EditorEvent::HoverMesh(mesh) => {
+                        Self::highlight_mesh(
+                            &self.mesh_center,
+                            mesh,
+                            self.highlight_color,
+                            self.center_color,
+                        );
+                        Self::highlight_mesh(
+                            &self.mesh_x,
+                            mesh,
+                            self.highlight_color,
+                            self.axis_x_color,
+                        );
+                        Self::highlight_mesh(
+                            &self.mesh_y,
+                            mesh,
+                            self.highlight_color,
+                            self.axis_y_color,
+                        );
+                        Self::highlight_mesh(
+                            &self.mesh_z,
+                            mesh,
+                            self.highlight_color,
+                            self.axis_z_color,
+                        );
+                    }
+                    _ => {}
                 }
             }
         });

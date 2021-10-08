@@ -18,7 +18,7 @@ pub type TextureId = ResourceId;
 pub struct Texture {
     id: ResourceId,
     path: PathBuf,
-    image_data: Option<RgbaImage>,
+    image_data: Option<Vec<u8>>,
     texture_index: i32,
     layer_index: i32,
     width: u32,
@@ -57,7 +57,7 @@ impl DataTypeResource for Texture {
             shared_data,
             Texture {
                 id: generate_random_uid(),
-                image_data: Some(image_data),
+                image_data: Some(image_data.as_raw().clone()),
                 width: dimensions.0,
                 height: dimensions.1,
                 ..Default::default()
@@ -97,7 +97,7 @@ impl Texture {
     pub fn height(&self) -> u32 {
         self.height
     }
-    pub fn image_data(&mut self) -> &Option<RgbaImage> {
+    pub fn image_data(&self) -> &Option<Vec<u8>> {
         &self.image_data
     }
     pub fn set_texture_info(&mut self, texture_info: &TextureInfo) -> &mut Self {
@@ -134,13 +134,21 @@ impl Texture {
         device: &Device,
         physical_device: &BackendPhysicalDevice,
     ) {
-        let mut image_data = Vec::new();
-        image_data.resize_with(
-            (self.width * self.height * TEXTURE_CHANNEL_COUNT) as _,
-            || 0u8,
+        nrg_profiler::scoped_profile!("texture::capture_image");
+        if self.image_data.is_none() {
+            let mut image_data = Vec::new();
+            image_data.resize_with(
+                (self.width * self.height * TEXTURE_CHANNEL_COUNT) as _,
+                || 0u8,
+            );
+            self.image_data = Some(image_data)
+        }
+        texture_handler.copy(
+            device,
+            physical_device,
+            self.id,
+            self.image_data.as_mut().unwrap().as_mut_slice(),
         );
-        texture_handler.copy(device, physical_device, self.id, image_data.as_mut_slice());
-        self.image_data = RgbaImage::from_raw(self.width, self.height, image_data);
     }
     fn create(texture_path: &Path) -> Texture {
         Texture {

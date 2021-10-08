@@ -225,11 +225,7 @@ pub fn create_sphere(radius: f32, num_slices: u32, num_stack: u32) -> (Vec<Verte
     (vertices, indices)
 }
 
-pub fn create_arrow(
-    position: Vector3,
-    direction: Vector3,
-    color: Vector4,
-) -> (Vec<VertexData>, Vec<u32>) {
+pub fn create_arrow(position: Vector3, direction: Vector3) -> (Vec<VertexData>, Vec<u32>) {
     let mut shape_vertices = Vec::new();
     let mut shape_indices = Vec::new();
 
@@ -238,7 +234,6 @@ pub fn create_arrow(
     let (mut vertices, mut indices) = create_cylinder(0.25, 0.25, 16, height, 1);
     vertices.iter_mut().for_each(|v| {
         v.pos.z += height * 0.5;
-        v.color = color;
     });
     indices
         .iter_mut()
@@ -249,7 +244,6 @@ pub fn create_arrow(
     let (mut vertices, mut indices) = create_cylinder(0.5, 0., 16, 2.5, 1);
     vertices.iter_mut().for_each(|v| {
         v.pos.z += height;
-        v.color = color;
     });
     indices
         .iter_mut()
@@ -288,11 +282,7 @@ pub fn create_line(start: Vector3, end: Vector3, color: Vector4) -> ([VertexData
     (vertices, indices)
 }
 
-pub fn create_hammer(
-    position: Vector3,
-    direction: Vector3,
-    color: Vector4,
-) -> (Vec<VertexData>, Vec<u32>) {
+pub fn create_hammer(position: Vector3, direction: Vector3) -> (Vec<VertexData>, Vec<u32>) {
     let mut shape_vertices = Vec::new();
     let mut shape_indices = Vec::new();
 
@@ -301,7 +291,6 @@ pub fn create_hammer(
     let (mut vertices, mut indices) = create_cylinder(0.25, 0.25, 16, height, 1);
     vertices.iter_mut().for_each(|v| {
         v.pos.z += height * 0.5;
-        v.color = color;
     });
     indices
         .iter_mut()
@@ -314,7 +303,6 @@ pub fn create_hammer(
 
     vertices.iter_mut().for_each(|v| {
         v.pos.z += height;
-        v.color = color;
     });
     indices
         .iter_mut()
@@ -338,7 +326,6 @@ pub fn create_torus(
     num_main_slices: u32,
     num_tube_slices: u32,
     direction: Vector3,
-    color: Vector4,
 ) -> (Vec<VertexData>, Vec<u32>) {
     let mut vertices = Vec::new();
     let mut indices = Vec::new();
@@ -393,7 +380,6 @@ pub fn create_torus(
     matrix.from_direction(direction);
     vertices.iter_mut().for_each(|v| {
         v.pos = position + matrix.transform(v.pos);
-        v.color = color;
     });
 
     (vertices, indices)

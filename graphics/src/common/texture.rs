@@ -1,6 +1,5 @@
 use std::path::Path;
 
-use image::{EncodableLayout, RgbaImage};
 use nrg_serialize::{generate_random_uid, Uid};
 
 use crate::{
@@ -198,15 +197,17 @@ impl TextureHandler {
         device: &Device,
         physical_device: &BackendPhysicalDevice,
         id: Uid,
-        image_data: &RgbaImage,
+        width: u32,
+        height: u32,
+        image_data: &Vec<u8>,
     ) -> TextureInfo {
         self.add_image(
             device,
             physical_device,
             id,
-            image_data.width(),
-            image_data.height(),
-            image_data.as_raw().as_bytes(),
+            width,
+            height,
+            image_data.as_slice(),
         )
     }
 
@@ -217,6 +218,7 @@ impl TextureHandler {
         id: Uid,
         image_data: &mut [u8],
     ) {
+        nrg_profiler::scoped_profile!("texture::copy");
         if let Some(texture_atlas) = self
             .texture_atlas
             .iter()
@@ -253,7 +255,14 @@ impl TextureHandler {
         filepath: &Path,
     ) -> TextureInfo {
         let image = image::open(filepath).unwrap();
-        self.add(device, physical_device, id, &image.to_rgba8())
+        self.add(
+            device,
+            physical_device,
+            id,
+            image.width(),
+            image.height(),
+            image.to_rgba8().as_raw(),
+        )
     }
 
     fn add_image(

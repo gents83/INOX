@@ -9,6 +9,7 @@ use super::config::*;
 use super::widgets::*;
 
 use nrg_core::*;
+
 use nrg_graphics::{Font, Material, Mesh, MeshData, Pipeline, RenderPass, Texture, View};
 use nrg_messenger::{read_messages, Message, MessageChannel, MessengerRw};
 use nrg_platform::{InputState, Key, KeyEvent, MouseEvent, WindowEvent};
@@ -17,6 +18,7 @@ use nrg_resources::{
     SharedDataRw,
 };
 use nrg_scene::{Hitbox, Object, Scene, Transform};
+
 use nrg_ui::{DialogEvent, DialogOp, UIPropertiesRegistry, UIWidget};
 
 const GRID_MESH_CATEGORY_IDENTIFIER: &str = "EditorGrid";
@@ -383,6 +385,7 @@ impl EditorUpdater {
                             );
                         }
                     }
+                    _ => {}
                 }
             }
         });

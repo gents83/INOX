@@ -13,6 +13,7 @@ pub enum EditMode {
 #[derive(Clone)]
 pub enum EditorEvent {
     Selected(ObjectId),
+    HoverMesh(u32),
     ChangeMode(EditMode),
 }
 implement_message!(EditorEvent);

@@ -295,14 +295,12 @@ impl Pipeline {
         &mut self,
         device: &Device,
         physical_device: &BackendPhysicalDevice,
-        mesh_instance: &Mesh,
+        mesh: &Mesh,
         diffuse_color: Vector4,
         diffuse_texture_index: i32,
         diffuse_layer_index: i32,
     ) -> &mut Self {
-        if mesh_instance.mesh_data().vertices.is_empty()
-            || mesh_instance.mesh_data().indices.is_empty()
-        {
+        if mesh.mesh_data().vertices.is_empty() || mesh.mesh_data().indices.is_empty() {
             return self;
         }
 
@@ -313,17 +311,17 @@ impl Pipeline {
         let mesh_data_ref = self.mesh.bind_at_index(
             device,
             physical_device,
-            mesh_instance.category_identifier(),
-            &mesh_instance.mesh_data().vertices,
+            mesh.category_identifier(),
+            &mesh.mesh_data().vertices,
             self.vertex_count,
-            &mesh_instance.mesh_data().indices,
+            &mesh.mesh_data().indices,
             self.index_count,
         );
 
-        self.vertex_count += mesh_instance.mesh_data().vertices.len() as u32;
-        self.index_count += mesh_instance.mesh_data().indices.len() as u32;
-        let mesh_index = if mesh_instance.draw_index() >= 0 {
-            mesh_instance.draw_index() as usize
+        self.vertex_count += mesh.mesh_data().vertices.len() as u32;
+        self.index_count += mesh.mesh_data().indices.len() as u32;
+        let mesh_index = if mesh.draw_index() >= 0 {
+            mesh.draw_index() as usize
         } else {
             self.instance_count
         };
@@ -332,14 +330,14 @@ impl Pipeline {
             mesh_index,
             mesh_data_ref,
         };
-        let (position, rotation, scale) = mesh_instance.matrix().get_translation_rotation_scale();
+        let (position, rotation, scale) = mesh.matrix().get_translation_rotation_scale();
 
         let data = InstanceData {
-            id: compute_color_from_id(mesh_instance.id()),
+            id: compute_color_from_id(mesh.id().as_u128() as _),
             position,
             rotation,
             scale,
-            draw_area: mesh_instance.draw_area(),
+            draw_area: mesh.draw_area(),
             diffuse_color,
             diffuse_texture_index,
             diffuse_layer_index,

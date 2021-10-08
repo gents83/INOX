@@ -173,8 +173,17 @@ impl Renderer {
                 if let Some(texture_info) = texture_handler.get_texture_info(texture.id()) {
                     texture.get_mut().set_texture_info(texture_info);
                 } else {
+                    let width = texture.get().width();
+                    let height = texture.get().height();
                     let texture_info = if let Some(image_data) = texture.get_mut().image_data() {
-                        texture_handler.add(device, physical_device, texture.id(), image_data)
+                        texture_handler.add(
+                            device,
+                            physical_device,
+                            texture.id(),
+                            width,
+                            height,
+                            image_data,
+                        )
                     } else if is_texture(path.as_path()) {
                         texture_handler.add_from_path(
                             device,
@@ -186,11 +195,14 @@ impl Renderer {
                         let font =
                             SharedData::match_resource(shared_data, |f: &Font| f.path() == path);
                         if let Some(font) = font {
+                            let font_texture = font.get().font_data().get_texture();
                             texture_handler.add(
                                 device,
                                 physical_device,
                                 texture.id(),
-                                &font.get().font_data().get_texture(),
+                                font_texture.width(),
+                                font_texture.height(),
+                                font_texture.as_raw(),
                             )
                         } else {
                             panic!("Unable to load texture with path {:?}", path.as_path());

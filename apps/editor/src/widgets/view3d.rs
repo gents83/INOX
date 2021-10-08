@@ -1,9 +1,9 @@
 use nrg_camera::Camera;
 use nrg_graphics::{
-    DynamicImage, Material, Mesh, MeshCategoryId, Pipeline, RenderPass, Texture, TextureId, View,
-    DEFAULT_MESH_CATEGORY_IDENTIFIER,
+    utils::compute_id_from_color, DynamicImage, Material, Mesh, MeshCategoryId, Pipeline,
+    RenderPass, Texture, TextureId, View, DEFAULT_MESH_CATEGORY_IDENTIFIER, TEXTURE_CHANNEL_COUNT,
 };
-use nrg_math::{raycast_oob, InnerSpace, MatBase, Matrix4, Vector2, Vector3, Zero};
+use nrg_math::{raycast_oob, InnerSpace, MatBase, Matrix4, Vector2, Vector3, Vector4, Zero};
 use nrg_messenger::{Message, MessengerRw};
 use nrg_platform::{Key, KeyEvent};
 use nrg_resources::{DataTypeResource, Handle, Resource, ResourceData, SharedData, SharedDataRw};
@@ -22,6 +22,8 @@ use crate::{
 
 const VIEW3D_IMAGE_WIDTH: u32 = 1280;
 const VIEW3D_IMAGE_HEIGHT: u32 = 768;
+const PICKING_TEXTURE_WIDTH: u32 = VIEW3D_IMAGE_WIDTH / 2;
+const PICKING_TEXTURE_HEIGHT: u32 = VIEW3D_IMAGE_HEIGHT / 2;
 
 struct View3DData {
     shared_data: SharedDataRw,
@@ -32,6 +34,7 @@ struct View3DData {
     should_manage_input: bool,
     last_mouse_pos: Vector2,
     selected_object: ObjectId,
+    hover_mesh: u32,
     view_width: u32,
     view_height: u32,
     gizmo: Handle<Gizmo>,
@@ -65,8 +68,8 @@ impl View3D {
         let picking_texture = Self::update_render_pass(
             shared_data,
             "PickingPass",
-            (VIEW3D_IMAGE_WIDTH as f32 * 0.5) as _,
-            (VIEW3D_IMAGE_HEIGHT as f32 * 0.5) as _,
+            PICKING_TEXTURE_WIDTH,
+            PICKING_TEXTURE_HEIGHT,
         );
 
         let mut camera = Camera::new([10., 10., -10.].into(), [0., 0., 0.].into(), true);
@@ -86,6 +89,7 @@ impl View3D {
             camera,
             last_mouse_pos: Vector2::zero(),
             selected_object: INVALID_UID,
+            hover_mesh: 0,
             view_width: VIEW3D_IMAGE_WIDTH,
             view_height: VIEW3D_IMAGE_HEIGHT,
             should_manage_input: false,
@@ -197,6 +201,32 @@ impl View3D {
         data.view_height = view_height;
     }
 
+    fn manage_picking_texture(data: &mut View3DData, normalized_pos: Vector2) {
+        if let Some(image_buffer) = data.picking_texture.get().image_data() {
+            let x = ((normalized_pos.x * PICKING_TEXTURE_WIDTH as f32) as u32)
+                .max(0)
+                .min(PICKING_TEXTURE_WIDTH - 1);
+            let y = ((normalized_pos.y * PICKING_TEXTURE_HEIGHT as f32) as u32)
+                .max(0)
+                .min(PICKING_TEXTURE_HEIGHT - 1);
+            let index = (TEXTURE_CHANNEL_COUNT * (y * PICKING_TEXTURE_WIDTH + x)) as usize;
+            let color = Vector4::new(
+                image_buffer[index] as f32 / 255.,
+                image_buffer[index + 1] as f32 / 255.,
+                image_buffer[index + 2] as f32 / 255.,
+                image_buffer[index + 3] as f32 / 255.,
+            );
+            data.hover_mesh = compute_id_from_color(color);
+            data.global_messenger
+                .read()
+                .unwrap()
+                .get_dispatcher()
+                .write()
+                .unwrap()
+                .send(EditorEvent::HoverMesh(data.hover_mesh).as_boxed())
+                .ok();
+        }
+    }
     fn manage_input(
         data: &mut View3DData,
         normalized_pos: Vector2,
@@ -273,8 +303,10 @@ impl View3D {
                             )
                             .sense(Sense::click_and_drag())
                             .ui(ui);
+
+                            let rect = response.rect;
+
                             if let Some(pos) = response.interact_pointer_pos() {
-                                let rect = response.rect;
                                 let normalized_x = (pos.x - rect.min.x) / rect.width();
                                 let normalized_y = (pos.y - rect.min.y) / rect.height();
                                 let new_pos = [normalized_x, normalized_y].into();
@@ -286,6 +318,12 @@ impl View3D {
                                     response.drag_released(),
                                 );
                             } else {
+                                if let Some(pos) = response.hover_pos() {
+                                    let normalized_x = (pos.x - rect.min.x) / rect.width();
+                                    let normalized_y = (pos.y - rect.min.y) / rect.height();
+                                    let new_pos = [normalized_x, normalized_y].into();
+                                    Self::manage_picking_texture(data, new_pos);
+                                }
                                 data.last_mouse_pos = [-1., -1.].into();
                             }
                             response

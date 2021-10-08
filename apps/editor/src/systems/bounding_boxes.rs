@@ -76,6 +76,7 @@ impl BoundingBoxDrawer {
                             self.objects_to_draw.clear();
                         }
                     }
+                    _ => {}
                 }
             }
         });
