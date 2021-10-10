@@ -332,33 +332,38 @@ impl Gizmo {
     }
 
     pub fn start_drag(&mut self, start_ray: Vector3, end_ray: Vector3) -> bool {
-        let mut is_dragging = false;
-        if self.is_ray_inside(start_ray, end_ray, &self.mesh_center) {
+        let is_dragging = if self.is_ray_inside(start_ray, end_ray, &self.mesh_center) {
             self.axis = Vector3::default_one();
-            is_dragging = true;
-        } else if self.is_ray_inside(start_ray, end_ray, &self.mesh_x) {
-            self.axis = Vector3::unit_x();
-            is_dragging = true;
-        } else if self.is_ray_inside(start_ray, end_ray, &self.mesh_y) {
-            self.axis = Vector3::unit_y();
-            is_dragging = true;
-        } else if self.is_ray_inside(start_ray, end_ray, &self.mesh_z) {
-            self.axis = Vector3::unit_z();
-            is_dragging = true;
-        }
+            true
+        } else if self.axis != Vector3::zero() {
+            true
+        } else {
+            false
+        };
         is_dragging
     }
     pub fn end_drag(&mut self) {
         self.axis = Vector3::zero();
     }
-    pub fn drag(&mut self, old_position: Vector3, new_position: Vector3, object_id: ObjectId) {
+    pub fn drag(&mut self, intensity: f32, object_id: ObjectId) {
         if object_id.is_nil() {
             return;
         }
-        let mut delta = new_position - old_position;
-        delta.x *= self.axis.x;
-        delta.y *= self.axis.y;
-        delta.z *= self.axis.z;
+        let mut delta = Vector3::new(
+            self.axis.x * intensity,
+            self.axis.y * intensity,
+            self.axis.z * intensity,
+        );
+        if self.axis == Vector3::default_one() {
+            let min = delta.x.min(delta.y).min(delta.z);
+            let max = delta.x.max(delta.y).max(delta.z);
+            if min.abs() >= max.abs() {
+                delta = Vector3::from_value(min);
+            } else {
+                delta = Vector3::from_value(max);
+            }
+        }
+
         if self.mode_type == GizmoType::Move {
             self.transform.get_mut().translate(delta);
             let object = SharedData::get_resource::<Object>(&self.shared_data, object_id);
@@ -370,20 +375,10 @@ impl Gizmo {
             let object = SharedData::get_resource::<Object>(&self.shared_data, object_id);
             let object = object.get();
             if let Some(transform) = object.get_component::<Transform>() {
-                if self.axis == Vector3::default_one() {
-                    let min = delta.x.min(delta.y).min(delta.z);
-                    let max = delta.x.max(delta.y).max(delta.z);
-                    if min.abs() >= max.abs() {
-                        delta = Vector3::from_value(min);
-                    } else {
-                        delta = Vector3::from_value(max);
-                    }
-                }
                 transform.get_mut().add_scale(delta);
             }
         } else if self.mode_type == GizmoType::Rotate {
-            delta.x *= -1.;
-            delta.y *= -1.;
+            delta *= -1.;
             let object = SharedData::get_resource::<Object>(&self.shared_data, object_id);
             let object = object.get();
             if let Some(transform) = object.get_component::<Transform>() {
@@ -405,22 +400,23 @@ impl Gizmo {
         if !self.is_visible() {
             return false;
         }
-        let pos = self.transform.get().position();
-        let (old_cam_start, old_cam_end) = camera.convert_in_3d(old_pos);
         let (new_cam_start, new_cam_end) = camera.convert_in_3d(new_pos);
-        let old_dir = pos - old_cam_start;
-        let new_dir = pos - new_cam_start;
-        let old_position =
-            old_cam_start + (old_cam_end - old_cam_start).normalize() * old_dir.length();
-        let new_position =
-            new_cam_start + (new_cam_end - new_cam_start).normalize() * new_dir.length();
         if is_drag_started {
             self.is_active = self.start_drag(new_cam_start, new_cam_end);
         } else if is_drag_ended {
             self.end_drag();
             self.is_active = false;
         } else if self.is_active {
-            self.drag(old_position, new_position, selected_object);
+            let dir = old_pos - new_pos;
+            let x = dir.x.abs();
+            let y = dir.y.abs();
+            let mut intensity = x.max(y);
+            intensity = if x > y {
+                intensity * -dir.x.signum()
+            } else {
+                intensity * dir.y.signum()
+            };
+            self.drag(intensity * 10., selected_object);
         }
 
         self.is_active
@@ -443,14 +439,16 @@ impl Gizmo {
         mesh_u32: u32,
         highlight_color: Vector4,
         default_color: Vector4,
-    ) {
+    ) -> bool {
         if let Some(material) = mesh.get().material() {
             if mesh.id().as_u128() as u32 == mesh_u32 {
                 material.get_mut().set_diffuse_color(highlight_color);
+                return true;
             } else {
                 material.get_mut().set_diffuse_color(default_color);
             }
         }
+        false
     }
 
     fn update_events(&mut self) {
@@ -464,30 +462,35 @@ impl Gizmo {
                         self.select_object(object_id);
                     }
                     EditorEvent::HoverMesh(mesh) => {
-                        Self::highlight_mesh(
+                        if Self::highlight_mesh(
                             &self.mesh_center,
                             mesh,
                             self.highlight_color,
                             self.center_color,
-                        );
-                        Self::highlight_mesh(
+                        ) {
+                            self.axis = Vector3::default_one();
+                        } else if Self::highlight_mesh(
                             &self.mesh_x,
                             mesh,
                             self.highlight_color,
                             self.axis_x_color,
-                        );
-                        Self::highlight_mesh(
+                        ) {
+                            self.axis = Vector3::unit_x();
+                        } else if Self::highlight_mesh(
                             &self.mesh_y,
                             mesh,
                             self.highlight_color,
                             self.axis_y_color,
-                        );
-                        Self::highlight_mesh(
+                        ) {
+                            self.axis = Vector3::unit_y();
+                        } else if Self::highlight_mesh(
                             &self.mesh_z,
                             mesh,
                             self.highlight_color,
                             self.axis_z_color,
-                        );
+                        ) {
+                            self.axis = Vector3::unit_z();
+                        }
                     }
                     _ => {}
                 }
