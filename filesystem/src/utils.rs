@@ -4,6 +4,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
+#[inline]
 pub fn is_folder_empty(path: &Path) -> bool {
     let mut is_empty = true;
     if let Ok(dir) = std::fs::read_dir(path) {
@@ -17,6 +18,7 @@ pub fn is_folder_empty(path: &Path) -> bool {
     is_empty
 }
 
+#[inline]
 pub fn for_each_file_in<F>(root: &Path, mut func: F)
 where
     F: FnMut(&Path),
@@ -33,6 +35,7 @@ where
     }
 }
 
+#[inline]
 pub fn for_each_folder_in<F>(root: &Path, mut func: F)
 where
     F: FnMut(&Path),
@@ -71,6 +74,7 @@ pub fn convert_from_local_path(parent_folder: &Path, relative_path: &Path) -> Pa
     pathbuf
 }
 
+#[inline]
 pub fn convert_in_local_path(original_path: &Path, base_path: &Path) -> PathBuf {
     let path = original_path.to_str().unwrap().to_string();
     let path = path.replace(

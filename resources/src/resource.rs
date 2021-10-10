@@ -72,6 +72,7 @@ impl<T> ResourceData for Resource<T>
 where
     T: ResourceData,
 {
+    #[inline]
     fn id(&self) -> ResourceId {
         self.id
     }

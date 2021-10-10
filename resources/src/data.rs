@@ -29,6 +29,7 @@ pub trait DataTypeResource: ResourceData {
 pub trait SerializableResource: DataTypeResource {
     fn path(&self) -> &Path;
 
+    #[inline]
     fn get_name(&self) -> String {
         format!(
             "{:?}",
@@ -43,6 +44,7 @@ pub trait SerializableResource: DataTypeResource {
             }
         )
     }
+    #[inline]
     fn create_from_file(shared_data: &SharedDataRw, filepath: &Path) -> Resource<Self>
     where
         Self: Sized,
@@ -56,6 +58,7 @@ pub trait SerializableResource: DataTypeResource {
 pub trait FileResource: ResourceData {
     fn path(&self) -> &Path;
 
+    #[inline]
     fn get_name(&self) -> String {
         format!(
             "{:?}",
@@ -122,6 +125,7 @@ macro_rules! implement_file_data {
     };
 }
 
+#[inline]
 pub fn from_file<T>(filepath: &Path) -> T
 where
     T: Deserializable,
