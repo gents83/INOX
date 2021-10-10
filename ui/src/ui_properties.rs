@@ -38,7 +38,7 @@ where
         ui: &mut Ui,
         collapsed: bool,
     ) {
-        let resource = resource.clone().of_type::<T>();
+        let resource = resource.of_type::<T>();
         resource.get_mut().show(ui_registry, ui, collapsed);
     }
 }

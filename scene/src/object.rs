@@ -193,7 +193,7 @@ impl Object {
         C: ResourceData,
     {
         if let Some(component) = self.components.get(&TypeId::of::<C>()) {
-            return Some(component.clone().of_type::<C>());
+            return Some(component.of_type::<C>());
         }
         None
     }

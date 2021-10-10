@@ -82,13 +82,13 @@ pub type GenericResource = Arc<dyn BaseResource>;
 pub type Handle<T> = Option<Resource<T>>;
 
 pub trait ResourceCastTo {
-    fn of_type<T: ResourceData>(self) -> Resource<T>;
+    fn of_type<T: ResourceData>(&self) -> Resource<T>;
 }
 
 impl ResourceCastTo for GenericResource {
     #[inline]
-    fn of_type<T: ResourceData>(self) -> Resource<T> {
-        let any = Arc::into_raw(self.as_any());
+    fn of_type<T: ResourceData>(&self) -> Resource<T> {
+        let any = Arc::into_raw(self.clone().as_any());
         Arc::downcast(unsafe { Arc::from_raw(any) }).unwrap()
     }
 }

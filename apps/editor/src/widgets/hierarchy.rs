@@ -12,7 +12,7 @@ struct HierarchyData {
     shared_data: SharedDataRw,
     global_dispatcher: MessageBox,
     selected_object: ObjectId,
-    scene_id: SceneId,
+    scene: Resource<Scene>,
 }
 implement_widget_data!(HierarchyData);
 
@@ -26,11 +26,12 @@ impl Hierarchy {
         global_messenger: &MessengerRw,
         scene_id: SceneId,
     ) -> Self {
+        let scene = SharedData::get_resource::<Scene>(&shared_data, scene_id);
         let data = HierarchyData {
             shared_data: shared_data.clone(),
             global_dispatcher: global_messenger.read().unwrap().get_dispatcher().clone(),
             selected_object: INVALID_UID,
-            scene_id,
+            scene,
         };
         Self {
             ui_page: Self::create(shared_data, data),
@@ -59,11 +60,7 @@ impl Hierarchy {
                             .default_open(true)
                             .show(ui, |ui| {
                                 ScrollArea::vertical().show(ui, |ui| {
-                                    let scene = SharedData::get_resource::<Scene>(
-                                        &data.shared_data,
-                                        data.scene_id,
-                                    );
-                                    let scene = scene.get();
+                                    let scene = data.scene.get();
                                     let objects = scene.objects();
                                     objects.iter().for_each(|object| {
                                         Self::object_hierarchy(
