@@ -182,16 +182,15 @@ impl BackendTexture {
             panic!("Image resolution is different from texture one");
         }
         let image_size: VkDeviceSize = (area.width * area.height * TEXTURE_CHANNEL_COUNT) as _;
-        let flags = VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+        let flags = VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+            | VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
         let mut staging_buffer: VkBuffer = ::std::ptr::null_mut();
         let mut staging_buffer_memory: VkDeviceMemory = ::std::ptr::null_mut();
         create_buffer(
             device,
             physical_device,
             image_size as _,
-            (VkBufferUsageFlagBits_VK_BUFFER_USAGE_TRANSFER_SRC_BIT
-                | VkBufferUsageFlagBits_VK_BUFFER_USAGE_TRANSFER_DST_BIT
-                | VkBufferUsageFlagBits_VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT) as _,
+            VkBufferUsageFlagBits_VK_BUFFER_USAGE_TRANSFER_DST_BIT as _,
             flags as _,
             &mut staging_buffer,
             &mut staging_buffer_memory,

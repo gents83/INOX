@@ -328,6 +328,8 @@ pub fn create_buffer(
     buffer: &mut VkBuffer,
     buffer_memory: &mut VkDeviceMemory,
 ) {
+    nrg_profiler::scoped_profile!("Vulkan create_buffer");
+
     let buffer_info = VkBufferCreateInfo {
         sType: VkStructureType_VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
         pNext: ::std::ptr::null_mut(),
@@ -378,6 +380,8 @@ pub fn create_buffer(
 }
 
 pub fn destroy_buffer(device: &BackendDevice, buffer: &VkBuffer, buffer_memory: &VkDeviceMemory) {
+    nrg_profiler::scoped_profile!("Vulkan destroy_buffer");
+
     unsafe {
         vkDestroyBuffer.unwrap()(**device, *buffer, ::std::ptr::null_mut());
         vkFreeMemory.unwrap()(**device, *buffer_memory, ::std::ptr::null_mut());
@@ -390,6 +394,8 @@ pub fn copy_buffer(
     buffer_dst: &mut VkBuffer,
     buffer_size: VkDeviceSize,
 ) {
+    nrg_profiler::scoped_profile!("Vulkan copy_buffer");
+
     let command_buffer = begin_single_time_commands(device);
 
     unsafe {
@@ -410,6 +416,8 @@ pub fn map_buffer_memory<T>(
     starting_index: usize,
     data_src: &[T],
 ) -> (*mut c_void, usize) {
+    nrg_profiler::scoped_profile!("Vulkan map_buffer_memory");
+
     let element_size = ::std::mem::size_of::<T>();
     let offset = starting_index * element_size;
     let length = data_src.len() * element_size;
@@ -437,6 +445,8 @@ pub fn copy_from_buffer<T>(
     starting_index: usize,
     data_src: &[T],
 ) {
+    nrg_profiler::scoped_profile!("Vulkan copy_from_buffer");
+
     let (data_ptr, length) = map_buffer_memory(device, buffer_memory, starting_index, data_src);
     unsafe {
         ::std::ptr::copy_nonoverlapping(data_src.as_ptr() as _, data_ptr, length as _);
@@ -449,6 +459,8 @@ pub fn copy_to_buffer<T>(
     starting_index: usize,
     data_dst: &mut [T],
 ) {
+    nrg_profiler::scoped_profile!("Vulkan copy_to_buffer");
+
     let (data_ptr, length) = map_buffer_memory(device, buffer_memory, starting_index, data_dst);
     unsafe {
         ::std::ptr::copy_nonoverlapping(data_ptr, data_dst.as_mut_ptr() as _, length as _);
@@ -456,6 +468,7 @@ pub fn copy_to_buffer<T>(
     unmap_buffer_memory(device, buffer_memory);
 }
 pub fn unmap_buffer_memory(device: &BackendDevice, buffer_memory: &mut VkDeviceMemory) {
+    nrg_profiler::scoped_profile!("Vulkan unmap_buffer_memory");
     unsafe {
         vkUnmapMemory.unwrap()(**device, *buffer_memory);
     }
@@ -597,6 +610,8 @@ pub fn copy_image_to_buffer(
     layers_count: u32,
     area: &Area,
 ) {
+    nrg_profiler::scoped_profile!("Vulkan copy_image_to_buffer");
+
     let region = VkBufferImageCopy {
         bufferOffset: 0,
         bufferRowLength: area.width as _,
@@ -626,8 +641,7 @@ pub fn copy_image_to_buffer(
         VkImageLayout_VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
         VkImageLayout_VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
         VkAccessFlagBits_VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT as _,
-        (VkAccessFlagBits_VK_ACCESS_TRANSFER_READ_BIT | VkAccessFlagBits_VK_ACCESS_MEMORY_READ_BIT)
-            as _,
+        VkAccessFlagBits_VK_ACCESS_TRANSFER_READ_BIT as _,
         VkPipelineStageFlagBits_VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT as _,
         VkPipelineStageFlagBits_VK_PIPELINE_STAGE_TRANSFER_BIT as _,
         layer_index,
@@ -650,8 +664,7 @@ pub fn copy_image_to_buffer(
         image,
         VkImageLayout_VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
         VkImageLayout_VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-        (VkAccessFlagBits_VK_ACCESS_TRANSFER_READ_BIT | VkAccessFlagBits_VK_ACCESS_MEMORY_READ_BIT)
-            as _,
+        VkAccessFlagBits_VK_ACCESS_TRANSFER_READ_BIT as _,
         VkAccessFlagBits_VK_ACCESS_SHADER_READ_BIT as _,
         VkPipelineStageFlagBits_VK_PIPELINE_STAGE_TRANSFER_BIT as _,
         VkPipelineStageFlagBits_VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT as _,

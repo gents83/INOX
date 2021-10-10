@@ -219,6 +219,7 @@ impl TextureHandler {
         image_data: &mut [u8],
     ) {
         nrg_profiler::scoped_profile!("texture::copy");
+
         if let Some(texture_atlas) = self
             .texture_atlas
             .iter()

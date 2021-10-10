@@ -175,7 +175,8 @@ impl System for EditorUpdater {
             .create_view3d();
 
         self.load_object(
-            PathBuf::from("C:\\PROJECTS\\NRG\\data\\models\\Duck\\Duck.object_data").as_path(),
+            PathBuf::from("C:\\PROJECTS\\NRG\\data\\models\\Suzanne\\Suzanne.object_data")
+                .as_path(),
         );
     }
 
