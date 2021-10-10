@@ -159,6 +159,8 @@ impl System for UpdateSystem {
 
         self.handle_events();
 
+        let wait_count = Arc::new(AtomicUsize::new(0));
+
         {
             let mut renderer = self.renderer.write().unwrap();
             if !renderer.device_mut().acquire_image() {
@@ -169,7 +171,28 @@ impl System for UpdateSystem {
             renderer.prepare_frame();
         }
 
-        let wait_count = Arc::new(AtomicUsize::new(0));
+        SharedData::for_each_resource(&self.shared_data, |texture: &Resource<Texture>| {
+            if texture.get().update_from_gpu() {
+                let job_name = format!("Readback texture {:?}", texture.id());
+                let renderer = self.renderer.clone();
+                let texture = texture.clone();
+                let wait_count = wait_count.clone();
+                wait_count.fetch_add(1, Ordering::SeqCst);
+                self.job_handler
+                    .write()
+                    .unwrap()
+                    .add_job(job_name.as_str(), move || {
+                        let renderer = renderer.read().unwrap();
+                        let device = renderer.device();
+                        let physical_device = renderer.instance().get_physical_device();
+                        let texture_handler = renderer.get_texture_handler();
+                        texture
+                            .get_mut()
+                            .capture_image(texture_handler, device, physical_device);
+                        wait_count.fetch_sub(1, Ordering::SeqCst);
+                    });
+            }
+        });
 
         SharedData::for_each_resource(&self.shared_data, |render_pass: &Resource<RenderPass>| {
             if render_pass.get().is_initialized() {

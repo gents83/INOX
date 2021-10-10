@@ -3,6 +3,7 @@ use crate::{is_texture, Device, Font, Instance, Pipeline, RenderPass, Texture, T
 use nrg_platform::Handle;
 use nrg_resources::{FileResource, Resource, ResourceData, SharedData, SharedDataRw, DATA_FOLDER};
 use std::path::PathBuf;
+
 use std::sync::{Arc, RwLock};
 
 pub const INVALID_INDEX: i32 = -1;
@@ -210,10 +211,6 @@ impl Renderer {
                     };
                     texture.get_mut().set_texture_info(&texture_info);
                 }
-            } else if texture.get().update_from_gpu() {
-                texture
-                    .get_mut()
-                    .capture_image(texture_handler, device, physical_device);
             }
         });
     }
