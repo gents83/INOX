@@ -1,13 +1,16 @@
 use nrg_graphics::{Material, MaterialData, Mesh, MeshData};
 use nrg_math::{Deg, Matrix4, Rad, VecBase, Vector2, Vector3, Vector4, Zero};
-use nrg_resources::{DataTypeResource, Handle, Resource, ResourceData, SharedDataRw};
-use nrg_serialize::{Deserialize, Serialize, INVALID_UID};
+use nrg_messenger::MessengerRw;
+use nrg_resources::{DataTypeResource, Handle, Resource, SharedDataRc};
+use nrg_serialize::{generate_random_uid, Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]
 pub struct WidgetGraphics {
     #[serde(skip)]
-    shared_data: SharedDataRw,
+    shared_data: SharedDataRc,
+    #[serde(skip)]
+    global_messenger: MessengerRw,
     #[serde(skip)]
     material: Handle<Material>,
     #[serde(skip)]
@@ -26,9 +29,10 @@ pub struct WidgetGraphics {
 
 impl WidgetGraphics {
     #[inline]
-    pub fn new(shared_data: &SharedDataRw) -> Self {
+    pub fn new(shared_data: &SharedDataRc, global_messenger: &MessengerRw) -> Self {
         Self {
             shared_data: shared_data.clone(),
+            global_messenger: global_messenger.clone(),
             material: None,
             mesh: None,
             color: Vector4::default_zero(),
@@ -42,7 +46,7 @@ impl WidgetGraphics {
     }
 
     #[inline]
-    pub fn load_override(&mut self, shared_data: &SharedDataRw) -> &mut Self {
+    pub fn load_override(&mut self, shared_data: &SharedDataRc) -> &mut Self {
         self.shared_data = shared_data.clone();
         self
     }
@@ -50,10 +54,13 @@ impl WidgetGraphics {
 
 impl WidgetGraphics {
     pub fn init(&mut self) -> &mut Self {
-        self.material = Some(Material::create_from_data(
+        let material = Material::create_from_data(
             &self.shared_data,
+            &self.global_messenger,
+            generate_random_uid(),
             MaterialData::default(),
-        ));
+        );
+        self.material = Some(material);
 
         self.create_default_mesh();
 
@@ -61,17 +68,22 @@ impl WidgetGraphics {
     }
 
     fn create_default_mesh(&mut self) -> &mut Self {
-        if self.mesh.as_ref().unwrap().id() != INVALID_UID {
+        if !self.mesh.as_ref().unwrap().id().is_nil() {
             self.remove_meshes();
         }
         let mut mesh_data = MeshData::default();
         mesh_data.add_quad_default([0., 0., 1., 1.].into(), 0.);
-        self.mesh = Some(Mesh::create_from_data(&self.shared_data, mesh_data));
-        self.mesh
-            .as_ref()
-            .unwrap()
-            .get_mut()
-            .set_material(self.material.as_ref().unwrap().clone());
+        let mesh = Mesh::create_from_data(
+            &self.shared_data,
+            &self.global_messenger,
+            generate_random_uid(),
+            mesh_data,
+        );
+
+        mesh.get_mut(|mesh| {
+            mesh.set_material(self.material.as_ref().unwrap().clone());
+        });
+        self.mesh = Some(mesh);
         self.mark_as_dirty();
         self
     }
@@ -119,11 +131,9 @@ impl WidgetGraphics {
 
     #[inline]
     pub fn set_mesh_data(&mut self, mesh_data: MeshData) -> &mut Self {
-        self.mesh
-            .as_ref()
-            .unwrap()
-            .get_mut()
-            .set_mesh_data(mesh_data);
+        self.mesh.as_ref().unwrap().get_mut(|mesh| {
+            mesh.set_mesh_data(mesh_data.clone());
+        });
         self.mark_as_dirty();
         self
     }
@@ -230,8 +240,10 @@ impl WidgetGraphics {
                 let visible =
                     self.is_visible() && WidgetGraphics::is_valid_drawing_area(drawing_area);
 
-                material.get_mut().set_outline_color(self.border_color);
-                material.get_mut().set_diffuse_color(self.color);
+                material.get_mut(|m| {
+                    m.set_outline_color(self.border_color);
+                    m.set_diffuse_color(self.color);
+                });
 
                 let transform = Matrix4::from_translation(self.position)
                     * Matrix4::from_angle_z(Rad::from(Deg(self.rotation.x)))
@@ -239,9 +251,11 @@ impl WidgetGraphics {
                     * Matrix4::from_angle_z(Rad::from(Deg(self.rotation.z)))
                     * Matrix4::from_nonuniform_scale(self.scale.x, self.scale.y, self.scale.z);
 
-                mesh.get_mut().set_matrix(transform);
-                mesh.get_mut().set_draw_area(drawing_area);
-                mesh.get_mut().set_visible(visible);
+                mesh.get_mut(|m| {
+                    m.set_matrix(transform);
+                    m.set_draw_area(drawing_area);
+                    m.set_visible(visible);
+                });
                 self.is_dirty = false;
             }
         }

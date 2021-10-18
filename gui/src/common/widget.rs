@@ -26,15 +26,15 @@ pub trait Widget: BaseWidget + InternalWidget + Send + Sync {}
 
 pub trait WidgetCreator: Widget {
     fn create_widget(
-        shared_data: &nrg_resources::SharedDataRw,
+        shared_data: &nrg_resources::SharedDataRc,
         global_messenger: &nrg_messenger::MessengerRw,
     ) -> Box<dyn Widget>;
     fn new(
-        shared_data: &nrg_resources::SharedDataRw,
+        shared_data: &nrg_resources::SharedDataRc,
         global_messenger: &nrg_messenger::MessengerRw,
     ) -> Self;
     fn load(
-        shared_data: &nrg_resources::SharedDataRw,
+        shared_data: &nrg_resources::SharedDataRc,
         global_messenger: &nrg_messenger::MessengerRw,
         filepath: &std::path::Path,
     ) -> Self;

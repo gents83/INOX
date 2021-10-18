@@ -1,67 +1,80 @@
 use crate::{FontData, Texture};
-use nrg_filesystem::convert_from_local_path;
+
 use nrg_math::Vector4;
+use nrg_messenger::MessengerRw;
 use nrg_resources::{
-    FileResource, Handle, Resource, ResourceData, ResourceId, SharedData, SharedDataRw, DATA_FOLDER,
+    DataTypeResource, Handle, Resource, ResourceId, SerializableResource, SharedData, SharedDataRc,
 };
-use nrg_serialize::{generate_uid_from_string, INVALID_UID};
+use nrg_serialize::{generate_random_uid, INVALID_UID};
 use std::path::{Path, PathBuf};
 
 pub type FontId = ResourceId;
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Font {
-    id: ResourceId,
     path: PathBuf,
     texture: Handle<Texture>,
     font_data: FontData,
 }
 
-impl ResourceData for Font {
-    fn id(&self) -> ResourceId {
-        self.id
+impl DataTypeResource for Font {
+    type DataType = FontData;
+
+    fn create_from_data(
+        shared_data: &SharedDataRc,
+        global_messenger: &MessengerRw,
+        id: FontId,
+        font_data: Self::DataType,
+    ) -> Resource<Self> {
+        let mut font_data = font_data;
+        let texture = Texture::create_from_data(
+            shared_data,
+            global_messenger,
+            generate_random_uid(),
+            font_data.create_texture(),
+        );
+        let font = Self {
+            texture: Some(texture),
+            font_data,
+            ..Default::default()
+        };
+        SharedData::add_resource(shared_data, id, font)
+    }
+
+    fn is_initialized(&self) -> bool {
+        self.texture.is_some()
+    }
+
+    fn invalidate(&mut self) {
+        self.texture = None;
+    }
+
+    fn deserialize_data(path: &Path) -> Self::DataType {
+        FontData::new(path)
     }
 }
 
-impl FileResource for Font {
+impl SerializableResource for Font {
+    fn set_path(&mut self, path: &Path) {
+        self.path = path.to_path_buf();
+    }
     fn path(&self) -> &Path {
         self.path.as_path()
     }
-    fn create_from_file(shared_data: &SharedDataRw, font_path: &Path) -> Resource<Font> {
-        let path = convert_from_local_path(PathBuf::from(DATA_FOLDER).as_path(), font_path);
-        if !path.exists() || !path.is_file() {
-            panic!("Invalid font path {}", path.to_str().unwrap());
-        }
-        if let Some(font) = Font::find_from_path(shared_data, path.as_path()) {
-            return font;
-        }
-        let font = FontData::new(path.as_path());
-        let texture = if let Some(texture) = Texture::find_from_path(shared_data, path.as_path()) {
-            texture
-        } else {
-            Texture::create_from_file(shared_data, path.as_path())
-        };
+    fn is_matching_extension(path: &Path) -> bool {
+        const FONT_EXTENSION: &str = "ttf";
 
-        SharedData::add_resource(
-            shared_data,
-            Font {
-                id: generate_uid_from_string(path.to_str().unwrap()),
-                path,
-                texture: Some(texture),
-                font_data: font,
-            },
-        )
+        if let Some(ext) = path.extension().unwrap().to_str() {
+            return ext == FONT_EXTENSION;
+        }
+        false
     }
 }
 
 impl Font {
-    pub fn find_from_path(shared_data: &SharedDataRw, font_path: &Path) -> Handle<Font> {
-        let path = convert_from_local_path(PathBuf::from(DATA_FOLDER).as_path(), font_path);
-        SharedData::match_resource(shared_data, |f: &Font| f.path == path)
-    }
-    pub fn get_default(shared_data: &SharedDataRw) -> FontId {
-        if let Some(font) = SharedData::match_resource(shared_data, |f: &Font| !f.id().is_nil()) {
-            return font.id();
+    pub fn get_default(shared_data: &SharedDataRc) -> FontId {
+        if let Some(font) = SharedData::match_resource(shared_data, |f: &Font| f.path().exists()) {
+            return *font.id();
         }
         INVALID_UID
     }

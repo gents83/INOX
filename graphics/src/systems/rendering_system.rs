@@ -8,30 +8,30 @@ use std::{
 
 use nrg_core::{JobHandlerRw, System, SystemId};
 use nrg_math::Matrix4;
-use nrg_resources::{DataTypeResource, Resource, ResourceData, SharedData, SharedDataRw};
+use nrg_messenger::MessengerRw;
+use nrg_resources::{DataTypeResource, Resource, SharedData, SharedDataRc};
+use nrg_serialize::generate_random_uid;
 
-use crate::{
-    api::backend::BackendPhysicalDevice, Device, Pipeline, PipelineId, RenderPass, RendererRw,
-    RendererState, TextureHandler, View,
-};
+use crate::{Pipeline, PipelineId, RenderPass, RendererRw, RendererState, View};
 
 pub struct RenderingSystem {
     id: SystemId,
     view: Resource<View>,
     renderer: RendererRw,
     job_handler: JobHandlerRw,
-    shared_data: SharedDataRw,
+    shared_data: SharedDataRc,
 }
 
 impl RenderingSystem {
     pub fn new(
         renderer: RendererRw,
-        shared_data: &SharedDataRw,
+        shared_data: &SharedDataRc,
+        global_messenger: &MessengerRw,
         job_handler: JobHandlerRw,
     ) -> Self {
         Self {
             id: SystemId::new(),
-            view: View::create_from_data(shared_data, 0),
+            view: View::create_from_data(shared_data, global_messenger, generate_random_uid(), 0),
             renderer,
             job_handler,
             shared_data: shared_data.clone(),
@@ -39,24 +39,26 @@ impl RenderingSystem {
     }
 
     fn draw_pipeline(
-        device: &Device,
-        physical_device: &BackendPhysicalDevice,
-        texture_handler: &TextureHandler,
+        renderer: &RendererRw,
         render_pass: &RenderPass,
-        pipeline: &Resource<Pipeline>,
-        width: u32,
-        height: u32,
+        pipeline: &mut Pipeline,
         view: &Matrix4,
         proj: &Matrix4,
     ) {
-        pipeline.get_mut().bind(render_pass.get_command_buffer());
+        let renderer = renderer.read().unwrap();
+        let device = renderer.device();
+        let physical_device = renderer.instance().get_physical_device();
+        let texture_handler = renderer.get_texture_handler();
+        let width = render_pass.get_framebuffer_width();
+        let height = render_pass.get_framebuffer_height();
+
+        pipeline.bind(render_pass.get_command_buffer());
 
         let textures = texture_handler.get_textures_atlas();
         debug_assert!(textures.is_empty() == false);
-        let used_textures = pipeline.get().find_used_textures(textures);
+        let used_textures = pipeline.find_used_textures(textures);
 
         pipeline
-            .get_mut()
             .update_bindings(
                 device,
                 render_pass.get_command_buffer(),
@@ -89,105 +91,102 @@ impl System for RenderingSystem {
             return true;
         }
 
-        self.renderer
-            .write()
-            .unwrap()
-            .change_state(RendererState::Drawing);
+        {
+            self.renderer
+                .write()
+                .unwrap()
+                .change_state(RendererState::Drawing);
+        }
 
         let wait_count = Arc::new(AtomicUsize::new(0));
 
-        let view = self.view.get().view();
-        let proj = self.view.get().proj();
+        let view = self.view.get(|v| v.view());
+        let proj = self.view.get(|v| v.proj());
 
         let mut render_pass_specific_pipeline: Vec<PipelineId> = Vec::new();
-        SharedData::for_each_resource(&self.shared_data, |render_pass: &Resource<RenderPass>| {
-            if let Some(pipeline) = render_pass.get().pipeline() {
-                render_pass_specific_pipeline.push(pipeline.id());
+        SharedData::for_each_resource(&self.shared_data, |_, render_pass: &RenderPass| {
+            if let Some(pipeline) = render_pass.pipeline() {
+                render_pass_specific_pipeline.push(*pipeline.id());
             }
         });
-        SharedData::for_each_resource(&self.shared_data, |render_pass: &Resource<RenderPass>| {
-            if render_pass.get().is_initialized() {
-                let job_name = format!("Draw RenderPass {:?}", render_pass.get().data().name);
-                let renderer = self.renderer.clone();
-                let render_pass = render_pass.clone();
-                let shared_data = self.shared_data.clone();
-                let render_pass_specific_pipeline = render_pass_specific_pipeline.clone();
-                let wait_count = wait_count.clone();
-                wait_count.fetch_add(1, Ordering::SeqCst);
-                self.job_handler
-                    .write()
-                    .unwrap()
-                    .add_job(job_name.as_str(), move || {
-                        nrg_profiler::scoped_profile!(format!(
-                            "fill_command_buffer_for_render_pass[{}]",
-                            render_pass.get().data().name
-                        )
-                        .as_str());
+        SharedData::for_each_resource(
+            &self.shared_data,
+            |render_pass_handle, render_pass: &RenderPass| {
+                if render_pass.is_initialized() {
+                    let job_name = format!("Draw RenderPass {:?}", render_pass.data().name);
+                    let renderer = self.renderer.clone();
+                    let shared_data = self.shared_data.clone();
+                    let render_pass = render_pass_handle.clone();
+                    let render_pass_specific_pipeline = render_pass_specific_pipeline.clone();
+                    let wait_count = wait_count.clone();
+                    wait_count.fetch_add(1, Ordering::SeqCst);
 
-                        {
-                            let mut renderer = renderer.write().unwrap();
+                    self.job_handler
+                        .write()
+                        .unwrap()
+                        .add_job(job_name.as_str(), move || {
+                            render_pass.get_mut(|render_pass: &mut RenderPass| {
+                                nrg_profiler::scoped_profile!(format!(
+                                    "fill_command_buffer_for_render_pass[{}]",
+                                    render_pass.data().name
+                                )
+                                .as_str());
 
-                            render_pass
-                                .get_mut()
-                                .acquire_command_buffer(renderer.device_mut());
-                        }
+                                {
+                                    let mut renderer = renderer.write().unwrap();
 
-                        let renderer = renderer.read().unwrap();
-                        let render_pass = render_pass.get();
-                        let instance = renderer.instance();
-                        let device = renderer.device();
-                        let width = render_pass.get_framebuffer_width();
-                        let height = render_pass.get_framebuffer_height();
-                        let texture_handler = renderer.get_texture_handler();
+                                    render_pass.acquire_command_buffer(renderer.device_mut());
+                                }
 
-                        render_pass.begin_command_buffer(device);
+                                {
+                                    let renderer = renderer.read().unwrap();
+                                    render_pass.begin_command_buffer(renderer.device());
+                                }
 
-                        if let Some(pipeline) = render_pass.pipeline() {
-                            Self::draw_pipeline(
-                                device,
-                                instance.get_physical_device(),
-                                &texture_handler,
-                                &render_pass,
-                                pipeline,
-                                width,
-                                height,
-                                &view,
-                                &proj,
-                            );
-                        } else {
-                            SharedData::for_each_resource(
-                                &shared_data,
-                                |pipeline: &Resource<Pipeline>| {
-                                    let should_render = {
-                                        let pipeline = pipeline.get();
-                                        pipeline.is_initialized()
-                                            && !render_pass_specific_pipeline
-                                                .iter()
-                                                .any(|id| *id == pipeline.id())
-                                    };
-                                    if should_render {
+                                if let Some(pipeline) = render_pass.pipeline() {
+                                    pipeline.get_mut(|pipeline| {
                                         Self::draw_pipeline(
-                                            device,
-                                            instance.get_physical_device(),
-                                            &texture_handler,
+                                            &renderer,
                                             &render_pass,
                                             pipeline,
-                                            width,
-                                            height,
                                             &view,
                                             &proj,
                                         );
-                                    }
-                                },
-                            );
-                        }
+                                    });
+                                } else {
+                                    SharedData::for_each_resource_mut(
+                                        &shared_data,
+                                        |pipeline_handle, pipeline: &mut Pipeline| {
+                                            let should_render = {
+                                                pipeline.is_initialized()
+                                                    && !render_pass_specific_pipeline
+                                                        .iter()
+                                                        .any(|id| id == pipeline_handle.id())
+                                            };
+                                            if should_render {
+                                                Self::draw_pipeline(
+                                                    &renderer,
+                                                    &render_pass,
+                                                    pipeline,
+                                                    &view,
+                                                    &proj,
+                                                );
+                                            }
+                                        },
+                                    );
+                                }
 
-                        render_pass.end_command_buffer(device);
+                                {
+                                    let renderer = renderer.read().unwrap();
+                                    render_pass.end_command_buffer(renderer.device());
+                                }
+                            });
 
-                        wait_count.fetch_sub(1, Ordering::SeqCst);
-                    });
-            }
-        });
+                            wait_count.fetch_sub(1, Ordering::SeqCst);
+                        });
+                }
+            },
+        );
 
         let renderer = self.renderer.clone();
         let shared_data = self.shared_data.clone();
@@ -206,24 +205,20 @@ impl System for RenderingSystem {
                     renderer.begin_frame();
                 }
 
-                {
-                    let renderer = renderer.read().unwrap();
-                    let device = renderer.device();
-
-                    SharedData::for_each_resource(
-                        &shared_data,
-                        |render_pass: &Resource<RenderPass>| {
-                            if render_pass.get().is_initialized() {
-                                nrg_profiler::scoped_profile!(format!(
-                                    "draw_render_pass[{}]",
-                                    render_pass.get().data().name
-                                )
-                                .as_str());
-                                render_pass.get_mut().draw(device);
-                            }
-                        },
-                    );
-                }
+                SharedData::for_each_resource_mut(
+                    &shared_data,
+                    |_, render_pass: &mut RenderPass| {
+                        if render_pass.is_initialized() {
+                            nrg_profiler::scoped_profile!(format!(
+                                "draw_render_pass[{}]",
+                                render_pass.data().name
+                            )
+                            .as_str());
+                            let renderer = renderer.read().unwrap();
+                            render_pass.draw(renderer.device());
+                        }
+                    },
+                );
 
                 {
                     let mut renderer = renderer.write().unwrap();

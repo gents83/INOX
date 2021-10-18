@@ -1,16 +1,14 @@
 #![allow(dead_code)]
 
 pub use gizmo::*;
-use nrg_resources::SharedDataRw;
+use nrg_resources::SharedDataRc;
 
 pub mod gizmo;
 
-pub fn register_resource_types(shared_data: &SharedDataRw) {
-    let mut shared_data = shared_data.write().unwrap();
+pub fn register_resource_types(shared_data: &SharedDataRc) {
     shared_data.register_type::<Gizmo>();
 }
 
-pub fn unregister_resource_types(shared_data: &SharedDataRw) {
-    let mut shared_data = shared_data.write().unwrap();
+pub fn unregister_resource_types(shared_data: &SharedDataRc) {
     shared_data.unregister_type::<Gizmo>();
 }

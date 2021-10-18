@@ -3,11 +3,10 @@ use std::{
     process::Command,
 };
 
-use nrg_filesystem::convert_from_local_path;
 use nrg_graphics::{Texture, TextureId};
 use nrg_messenger::{get_events_from_string, Message, MessageBox, MessengerRw};
 
-use nrg_resources::{FileResource, Resource, ResourceData, SharedData, SharedDataRw, DATA_FOLDER};
+use nrg_resources::{Resource, SerializableResource, SharedData, SharedDataRc, DATA_FOLDER};
 use nrg_serialize::deserialize;
 use nrg_ui::{
     implement_widget_data, CentralPanel, CollapsingHeader, DialogEvent, DialogOp, ScrollArea,
@@ -25,7 +24,7 @@ struct Dir {
 
 #[allow(dead_code)]
 struct ContentBrowserData {
-    shared_data: SharedDataRw,
+    shared_data: SharedDataRc,
     global_dispatcher: MessageBox,
     title: String,
     folder: PathBuf,
@@ -46,19 +45,16 @@ pub struct ContentBrowser {
 
 impl ContentBrowser {
     pub fn new(
-        shared_data: &SharedDataRw,
+        shared_data: &SharedDataRc,
         global_messenger: &MessengerRw,
         operation: DialogOp,
         path: &Path,
         extension: String,
     ) -> Self {
-        let file_icon = Texture::create_from_file(
+        let file_icon = Texture::load_from_file(
             shared_data,
-            convert_from_local_path(
-                PathBuf::from(DATA_FOLDER).as_path(),
-                PathBuf::from("./icons/file.png").as_path(),
-            )
-            .as_path(),
+            global_messenger,
+            PathBuf::from("./icons/file.png").as_path(),
         );
         let mut selected_folder = PathBuf::from(DATA_FOLDER);
         let mut selected_file = String::new();
@@ -90,7 +86,7 @@ impl ContentBrowser {
             is_editable: !matches!(operation, DialogOp::Open),
             operation,
             global_dispatcher: global_messenger.read().unwrap().get_dispatcher().clone(),
-            icon_file_texture_id: file_icon.id(),
+            icon_file_texture_id: *file_icon.id(),
             dir,
             extension,
         };
@@ -180,7 +176,7 @@ impl ContentBrowser {
         files: &[File],
         selected_file: &mut String,
         selected_extension: &str,
-        texture_index: Option<usize>,
+        texture_index: u64,
     ) {
         nrg_profiler::scoped_profile!("populate_with_files");
         ui.vertical(|ui| {
@@ -190,9 +186,7 @@ impl ContentBrowser {
                 if extension == selected_extension {
                     let selected = selected_file == &filename;
                     ui.horizontal(|ui| {
-                        if let Some(index) = texture_index {
-                            ui.image(eguiTextureId::User(index as _), [16., 16.]);
-                        }
+                        ui.image(eguiTextureId::User(texture_index as _), [16., 16.]);
                         if ui.selectable_label(selected, filename.clone()).clicked() {
                             *selected_file = filename;
                         }
@@ -202,7 +196,7 @@ impl ContentBrowser {
         });
     }
 
-    fn create(shared_data: &SharedDataRw, data: ContentBrowserData) -> Resource<UIWidget> {
+    fn create(shared_data: &SharedDataRc, data: ContentBrowserData) -> Resource<UIWidget> {
         let left_panel_min_width = 100.;
         let left_panel_max_width = left_panel_min_width * 4.;
         let button_size = 50.;
@@ -280,21 +274,22 @@ impl ContentBrowser {
                                 .max_height(rect.height())
                                 .show(ui, |ui| {
                                     if data.selected_folder.is_dir() {
-                                        let path = data.selected_folder.as_path().to_path_buf();
-                                        let files = Self::get_files(&data.dir, path.as_path());
-
-                                        let texture_index =
+                                        if let Some(texture_index) =
                                             SharedData::get_index_of_resource::<Texture>(
                                                 &data.shared_data,
-                                                data.icon_file_texture_id,
+                                                &data.icon_file_texture_id,
+                                            )
+                                        {
+                                            let path = data.selected_folder.as_path().to_path_buf();
+                                            let files = Self::get_files(&data.dir, path.as_path());
+                                            Self::populate_with_files(
+                                                ui,
+                                                files,
+                                                &mut data.selected_file,
+                                                data.extension.as_str(),
+                                                texture_index as _,
                                             );
-                                        Self::populate_with_files(
-                                            ui,
-                                            files,
-                                            &mut data.selected_file,
-                                            data.extension.as_str(),
-                                            texture_index,
-                                        );
+                                        }
                                     }
                                 });
                         });

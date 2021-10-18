@@ -31,7 +31,7 @@ impl Default for ContentBrowser {
 
 impl Plugin for ContentBrowser {
     fn prepare(&mut self, app: &mut App) {
-        self.config = create_from_file(self.config.get_filepath().as_path());
+        self.config = read_from_file(self.config.get_filepath().as_path());
 
         let mut update_phase = PhaseWithSystems::new(CONTENT_BROWSER_UPDATE_PHASE);
         let system = ContentBrowserUpdater::new(

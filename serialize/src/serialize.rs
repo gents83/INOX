@@ -32,7 +32,7 @@ where
 }
 
 #[inline]
-pub fn create_from_file<'a, T>(filepath: &Path) -> T
+pub fn read_from_file<'a, T>(filepath: &Path) -> T
 where
     T: for<'de> Deserialize<'de> + Default,
 {

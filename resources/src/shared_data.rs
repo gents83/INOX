@@ -4,15 +4,18 @@ use std::{
     sync::{Arc, RwLock},
 };
 
+use nrg_messenger::{Message, MessengerRw};
 use nrg_serialize::{generate_uid_from_string, Uid};
 
 use crate::{
-    Data, Handle, Resource, ResourceData, ResourceId, ResourceMutex, Storage, TypedStorage,
+    Data, Handle, Resource, ResourceEventHandler, ResourceId, ResourceStorageRw, ResourceTrait,
+    SerializableResource, Storage, StorageCastTo, TypedResourceEventHandler,
 };
 
 #[derive(Default)]
 pub struct SharedData {
-    storage: HashMap<Uid, Box<dyn TypedStorage>>,
+    storage: RwLock<HashMap<Uid, ResourceStorageRw>>,
+    event_handlers: RwLock<HashMap<Uid, Box<dyn ResourceEventHandler>>>,
 }
 unsafe impl Send for SharedData {}
 unsafe impl Sync for SharedData {}
@@ -21,182 +24,209 @@ impl Data for SharedData {}
 
 impl SharedData {
     #[inline]
-    pub fn register_type<T>(&mut self)
+    pub fn register_type<T>(&self)
     where
-        T: ResourceData,
+        T: ResourceTrait,
     {
         let typeid = generate_uid_from_string(type_name::<T>());
         debug_assert!(
-            self.storage.get(&typeid).is_none(),
+            self.storage.read().unwrap().get(&typeid).is_none(),
             "Type {} has been already registered",
             type_name::<T>()
         );
         //println!("Registering resource type: {:?}", type_name::<T>(),);
-        self.storage
-            .insert(typeid, Box::new(Storage::<T>::default()));
+        self.storage.write().unwrap().insert(
+            typeid,
+            Arc::new(RwLock::new(Box::new(Storage::<T>::default()))),
+        );
     }
     #[inline]
-    pub fn unregister_type<T>(&mut self)
+    pub fn register_type_serializable<T>(&self)
     where
-        T: ResourceData,
+        T: SerializableResource,
+    {
+        self.register_type::<T>();
+        let typeid = generate_uid_from_string(type_name::<T>());
+        debug_assert!(
+            self.event_handlers.read().unwrap().get(&typeid).is_none(),
+            "Type {} has been already registered",
+            type_name::<T>()
+        );
+        //println!("Registering resource type: {:?}", type_name::<T>(),);
+        self.event_handlers
+            .write()
+            .unwrap()
+            .insert(typeid, Box::new(TypedResourceEventHandler::<T>::default()));
+    }
+    #[inline]
+    pub fn unregister_type<T>(&self)
+    where
+        T: ResourceTrait,
     {
         let typeid = generate_uid_from_string(type_name::<T>());
         debug_assert!(
-            self.storage.get(&typeid).is_some(),
+            self.storage.read().unwrap().get(&typeid).is_some(),
             "Type {} has never been registered",
             type_name::<T>()
         );
-        //println!("Unegistering resource type: {:?}", type_name::<T>());
-        if let Some(mut rs) = self.storage.remove(&typeid) {
-            rs.as_mut().remove_all();
+        //println!("Unregistering resource type: {:?}", type_name::<T>());
+        if let Some(rs) = self.storage.write().unwrap().remove(&typeid) {
+            rs.write().unwrap().remove_all();
         }
     }
     #[inline]
-    pub fn get_storage<T>(&self) -> Option<&Storage<T>>
+    pub fn unregister_type_serializable<T>(&self)
     where
-        T: ResourceData,
+        T: ResourceTrait,
     {
+        self.unregister_type::<T>();
         let typeid = generate_uid_from_string(type_name::<T>());
-        if let Some(rs) = self.storage.get(&typeid) {
-            let storage = rs.as_ref() as *const dyn TypedStorage as *const Storage<T>;
-            return Some(unsafe { &*storage });
-        } else {
-            eprintln!("Type {} has not been registered", type_name::<T>());
+        debug_assert!(
+            self.event_handlers.read().unwrap().get(&typeid).is_some(),
+            "Type {} has never been registered",
+            type_name::<T>()
+        );
+        //println!("Unregistering resource type: {:?}", type_name::<T>());
+        self.event_handlers.write().unwrap().remove(&typeid);
+    }
+    #[inline]
+    pub fn add_resource<T: ResourceTrait>(&self, resource_id: ResourceId, data: T) -> Resource<T> {
+        let typeid = generate_uid_from_string(type_name::<T>());
+        if let Some(rs) = self.storage.read().unwrap().get(&typeid) {
+            let storage = rs.of_type::<T>();
+            storage
+                .write()
+                .unwrap()
+                .add(resource_id, data, storage.clone());
+            return storage.read().unwrap().resource(&resource_id).unwrap();
+        }
+        panic!("Unable to find storage for type {:?}", type_name::<T>());
+    }
+    #[inline]
+    pub fn get_resource<T: ResourceTrait>(&self, resource_id: &ResourceId) -> Handle<T> {
+        let typeid = generate_uid_from_string(type_name::<T>());
+        if let Some(rs) = self.storage.read().unwrap().get(&typeid) {
+            let storage = rs.of_type::<T>();
+            return storage.read().unwrap().resource(resource_id);
         }
         None
     }
     #[inline]
-    pub fn get_storage_mut<T>(&mut self) -> Option<&mut Storage<T>>
-    where
-        T: ResourceData,
-    {
+    pub fn get_resource_at_index<T: ResourceTrait>(&self, index: u32) -> Handle<T> {
         let typeid = generate_uid_from_string(type_name::<T>());
-        if let Some(rs) = self.storage.get_mut(&typeid) {
-            let storage = rs.as_mut() as *mut dyn TypedStorage as *mut Storage<T>;
-            return Some(unsafe { &mut *storage });
-        } else {
-            eprintln!("Type {} has not been registered", type_name::<T>());
+        if let Some(rs) = self.storage.read().unwrap().get(&typeid) {
+            let storage = rs.of_type::<T>();
+            return storage.read().unwrap().resource_at_index(index);
         }
         None
     }
     #[inline]
-    pub fn add_resource<T: ResourceData>(shared_data: &SharedDataRw, data: T) -> Resource<T> {
-        let resource = Arc::new(ResourceMutex::new(data));
-        let mut shared_data = shared_data.write().unwrap();
-        if let Some(storage) = shared_data.get_storage_mut::<T>() {
-            storage.add(resource.clone());
-        }
-        resource
-    }
-    #[inline]
-    pub fn get_resource<T: ResourceData>(
-        shared_data: &SharedDataRw,
-        resource_id: ResourceId,
-    ) -> Resource<T> {
-        let shared_data = shared_data.read().unwrap();
-        if let Some(storage) = shared_data.get_storage::<T>() {
-            return storage.resource(resource_id).clone();
-        }
-        panic!(
-            "Resource of Type {:?} with {:?} doesn't exist in storage",
-            type_name::<T>(),
-            resource_id
-        );
-    }
-    #[inline]
-    pub fn get_resource_from_index<T: ResourceData>(
-        shared_data: &SharedDataRw,
-        index: usize,
-    ) -> Resource<T> {
-        let shared_data = shared_data.read().unwrap();
-        if let Some(storage) = shared_data.get_storage::<T>() {
-            return storage.get_at_index(index).clone();
-        }
-        panic!(
-            "Resource of Type {:?} has nothing at index {:?}",
-            type_name::<T>(),
-            index
-        );
-    }
-    #[inline]
-    pub fn get_index_of_resource<T: ResourceData>(
-        shared_data: &SharedDataRw,
-        resource_id: ResourceId,
+    pub fn get_index_of_resource<T: ResourceTrait>(
+        &self,
+        resource_id: &ResourceId,
     ) -> Option<usize> {
-        let shared_data = shared_data.read().unwrap();
-        if let Some(storage) = shared_data.get_storage::<T>() {
-            return storage.get_index_of(resource_id);
+        let typeid = generate_uid_from_string(type_name::<T>());
+        if let Some(rs) = self.storage.read().unwrap().get(&typeid) {
+            let storage = rs.of_type::<T>();
+            return storage.read().unwrap().get_index_of(resource_id);
         }
         None
     }
     #[inline]
     fn clear(&mut self) {
-        for (&_t, rs) in self.storage.iter_mut() {
-            rs.remove_all();
+        for (&_t, rs) in self.storage.read().unwrap().iter() {
+            rs.write().unwrap().remove_all();
         }
-        self.storage.clear();
+        self.storage.write().unwrap().clear();
     }
     #[inline]
-    pub fn flush_resources(&mut self, print_types: bool) {
-        for (type_id, rs) in self.storage.iter_mut() {
-            if print_types {
-                println!("Flushing {}", type_id);
-            }
-            rs.flush();
+    pub fn flush_resources(&self) {
+        for (_type_id, rs) in self.storage.read().unwrap().iter() {
+            rs.write().unwrap().flush();
         }
     }
     #[inline]
-    pub fn has<T: 'static>(shared_data: &SharedDataRw, resource_id: ResourceId) -> bool {
-        let shared_data = shared_data.read().unwrap();
-        let typeid = generate_uid_from_string(type_name::<T>());
-        if let Some(rs) = shared_data.storage.get(&typeid) {
-            return rs.has(resource_id);
-        }
-        false
-    }
-    #[inline]
-    pub fn has_resources_of_type<T: 'static>(shared_data: &SharedDataRw) -> bool {
-        let shared_data = shared_data.read().unwrap();
-        let typeid = generate_uid_from_string(type_name::<T>());
-        if shared_data.storage.contains_key(&typeid) {
-            return shared_data.storage[&typeid].count() > 0;
-        }
-        false
-    }
-    #[inline]
-    pub fn for_each_resource<T, F>(shared_data: &SharedDataRw, f: F)
-    where
-        T: ResourceData,
-        F: FnMut(&Resource<T>),
-    {
-        let shared_data = shared_data.read().unwrap();
-        if let Some(storage) = shared_data.get_storage::<T>() {
-            return storage.for_each_resource(f);
-        }
-    }
-    #[inline]
-    pub fn match_resource<T, F>(shared_data: &SharedDataRw, f: F) -> Handle<T>
-    where
-        T: ResourceData,
-        F: Fn(&T) -> bool,
-    {
-        let shared_data = shared_data.read().unwrap();
-        if let Some(storage) = shared_data.get_storage::<T>() {
-            if let Some(resource) = storage.match_resource(f) {
-                return Some(resource.clone());
+    pub fn is_message_handled(&self, msg: &dyn Message) -> Option<Uid> {
+        for (type_id, handler) in self.event_handlers.read().unwrap().iter() {
+            if handler.is_handled(msg) {
+                return Some(type_id.clone());
             }
         }
         None
     }
     #[inline]
-    pub fn get_num_resources_of_type<T: ResourceData>(shared_data: &SharedDataRw) -> usize {
-        if !Self::has_resources_of_type::<T>(shared_data) {
-            return 0;
+    pub fn handle_events(
+        shared_data: &SharedDataRc,
+        global_messenger: &MessengerRw,
+        type_id: Uid,
+        msg: &dyn Message,
+    ) -> bool {
+        if let Some(event_handler) = shared_data.event_handlers.read().unwrap().get(&type_id) {
+            return event_handler.handle_event(shared_data, global_messenger, msg);
         }
-        let shared_data = shared_data.read().unwrap();
+        false
+    }
+    #[inline]
+    pub fn has<T: 'static>(&self, resource_id: &ResourceId) -> bool {
         let typeid = generate_uid_from_string(type_name::<T>());
-        let rs = shared_data.storage.get(&typeid).unwrap();
-        rs.count()
+        if let Some(rs) = self.storage.read().unwrap().get(&typeid) {
+            return rs.read().unwrap().has(resource_id);
+        }
+        false
+    }
+    #[inline]
+    pub fn has_resources_of_type<T: 'static>(&self) -> bool {
+        let typeid = generate_uid_from_string(type_name::<T>());
+        if let Some(rs) = self.storage.read().unwrap().get(&typeid) {
+            return rs.read().unwrap().count() > 0;
+        }
+        false
+    }
+    #[inline]
+    pub fn for_each_resource<T, F>(&self, f: F)
+    where
+        T: ResourceTrait,
+        F: FnMut(&Resource<T>, &T),
+    {
+        let typeid = generate_uid_from_string(type_name::<T>());
+        if let Some(rs) = self.storage.read().unwrap().get(&typeid) {
+            let storage = rs.of_type::<T>();
+            return storage.read().unwrap().for_each_resource(f);
+        }
+    }
+    #[inline]
+    pub fn for_each_resource_mut<T, F>(&self, f: F)
+    where
+        T: ResourceTrait,
+        F: FnMut(&Resource<T>, &mut T),
+    {
+        let typeid = generate_uid_from_string(type_name::<T>());
+        if let Some(rs) = self.storage.read().unwrap().get(&typeid) {
+            let storage = rs.of_type::<T>();
+            return storage.write().unwrap().for_each_resource_mut(f);
+        }
+    }
+    #[inline]
+    pub fn match_resource<T, F>(&self, f: F) -> Handle<T>
+    where
+        T: ResourceTrait,
+        F: Fn(&T) -> bool,
+    {
+        let typeid = generate_uid_from_string(type_name::<T>());
+        if let Some(rs) = self.storage.read().unwrap().get(&typeid) {
+            let storage = rs.of_type::<T>();
+            let s = storage.write().unwrap();
+            return s.match_resource(f);
+        }
+        None
+    }
+    #[inline]
+    pub fn get_num_resources_of_type<T: ResourceTrait>(&self) -> usize {
+        let typeid = generate_uid_from_string(type_name::<T>());
+        if let Some(rs) = self.storage.read().unwrap().get(&typeid) {
+            return rs.read().unwrap().count();
+        }
+        0
     }
 }
 
@@ -207,4 +237,4 @@ impl Drop for SharedData {
     }
 }
 
-pub type SharedDataRw = Arc<RwLock<SharedData>>;
+pub type SharedDataRc = Arc<SharedData>;

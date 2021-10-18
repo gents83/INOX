@@ -4,14 +4,21 @@ use egui::{Checkbox, CollapsingHeader, DragValue, TextEdit, Ui, Widget};
 use nrg_graphics::{Font, Material, Mesh, Pipeline, Texture, View};
 use nrg_math::{Vector2, Vector3, Vector4};
 use nrg_resources::{
-    FileResource, GenericResource, ResourceCastTo, ResourceData, SerializableResource,
+    GenericResource, ResourceCastTo, ResourceId, ResourceTrait, SerializableResource,
 };
+use nrg_serialize::INVALID_UID;
 pub trait UIProperties {
-    fn show(&mut self, ui_registry: &UIPropertiesRegistry, ui: &mut Ui, collapsed: bool);
+    fn show(
+        &mut self,
+        id: &ResourceId,
+        ui_registry: &UIPropertiesRegistry,
+        ui: &mut Ui,
+        collapsed: bool,
+    );
 }
 
 trait UIData {
-    fn id(&self) -> TypeId;
+    fn type_id(&self) -> TypeId;
     fn show(
         &self,
         resource: &GenericResource,
@@ -26,9 +33,9 @@ struct UIPropertiesData<T> {
 }
 impl<T> UIData for UIPropertiesData<T>
 where
-    T: UIProperties + ResourceData,
+    T: UIProperties + ResourceTrait,
 {
-    fn id(&self) -> TypeId {
+    fn type_id(&self) -> TypeId {
         TypeId::of::<T>()
     }
     fn show(
@@ -39,7 +46,9 @@ where
         collapsed: bool,
     ) {
         let resource = resource.of_type::<T>();
-        resource.get_mut().show(ui_registry, ui, collapsed);
+        resource.get_mut(|w| {
+            w.show(resource.id(), ui_registry, ui, collapsed);
+        });
     }
 }
 pub struct UIPropertiesRegistry {
@@ -59,7 +68,7 @@ impl Default for UIPropertiesRegistry {
 impl UIPropertiesRegistry {
     pub fn register<T>(&mut self) -> &mut Self
     where
-        T: UIProperties + ResourceData,
+        T: UIProperties + ResourceTrait,
     {
         self.registry.push(Box::new(UIPropertiesData {
             _marker: PhantomData::<T>::default(),
@@ -67,7 +76,7 @@ impl UIPropertiesRegistry {
         self
     }
     pub fn show(&self, typeid: TypeId, resource: &GenericResource, ui: &mut Ui) {
-        if let Some(index) = self.registry.iter().position(|e| e.id() == typeid) {
+        if let Some(index) = self.registry.iter().position(|e| e.type_id() == typeid) {
             self.registry[index]
                 .as_ref()
                 .show(resource, self, ui, false);
@@ -78,7 +87,13 @@ impl UIPropertiesRegistry {
 }
 
 impl UIProperties for f32 {
-    fn show(&mut self, _ui_registry: &UIPropertiesRegistry, ui: &mut Ui, _collapsed: bool) {
+    fn show(
+        &mut self,
+        _id: &ResourceId,
+        _ui_registry: &UIPropertiesRegistry,
+        ui: &mut Ui,
+        _collapsed: bool,
+    ) {
         ui.horizontal(|ui| {
             ui.add(DragValue::new(self).prefix("value: ").fixed_decimals(3));
         });
@@ -86,7 +101,13 @@ impl UIProperties for f32 {
 }
 
 impl UIProperties for Vector2 {
-    fn show(&mut self, _ui_registry: &UIPropertiesRegistry, ui: &mut Ui, _collapsed: bool) {
+    fn show(
+        &mut self,
+        _id: &ResourceId,
+        _ui_registry: &UIPropertiesRegistry,
+        ui: &mut Ui,
+        _collapsed: bool,
+    ) {
         ui.horizontal(|ui| {
             ui.add(DragValue::new(&mut self.x).prefix("x: ").fixed_decimals(3));
             ui.add(DragValue::new(&mut self.y).prefix("y: ").fixed_decimals(3));
@@ -95,7 +116,13 @@ impl UIProperties for Vector2 {
 }
 
 impl UIProperties for Vector3 {
-    fn show(&mut self, _ui_registry: &UIPropertiesRegistry, ui: &mut Ui, _collapsed: bool) {
+    fn show(
+        &mut self,
+        _id: &ResourceId,
+        _ui_registry: &UIPropertiesRegistry,
+        ui: &mut Ui,
+        _collapsed: bool,
+    ) {
         ui.horizontal(|ui| {
             ui.add(DragValue::new(&mut self.x).prefix("x: ").fixed_decimals(3));
             ui.add(DragValue::new(&mut self.y).prefix("y: ").fixed_decimals(3));
@@ -105,7 +132,13 @@ impl UIProperties for Vector3 {
 }
 
 impl UIProperties for Vector4 {
-    fn show(&mut self, _ui_registry: &UIPropertiesRegistry, ui: &mut Ui, _collapsed: bool) {
+    fn show(
+        &mut self,
+        _id: &ResourceId,
+        _ui_registry: &UIPropertiesRegistry,
+        ui: &mut Ui,
+        _collapsed: bool,
+    ) {
         ui.horizontal(|ui| {
             ui.add(DragValue::new(&mut self.x).prefix("x: ").fixed_decimals(3));
             ui.add(DragValue::new(&mut self.y).prefix("y: ").fixed_decimals(3));
@@ -116,58 +149,67 @@ impl UIProperties for Vector4 {
 }
 
 impl UIProperties for Pipeline {
-    fn show(&mut self, _ui_registry: &UIPropertiesRegistry, ui: &mut Ui, collapsed: bool) {
-        CollapsingHeader::new(format!(
-            "Pipeline [{:?}]",
-            self.id().to_simple().to_string()
-        ))
-        .show_background(true)
-        .default_open(!collapsed)
-        .show(ui, |ui| {
-            ui.vertical(|ui| {
-                ui.horizontal(|ui| {
-                    ui.label("Path: ");
-                    let mut path = self.data().path().to_str().unwrap_or_default().to_string();
-                    TextEdit::singleline(&mut path).enabled(false).ui(ui);
-                });
-                ui.horizontal(|ui| {
-                    ui.label("VertexShader: ");
-                    let mut shader = self
-                        .data()
-                        .vertex_shader
-                        .to_str()
-                        .unwrap_or_default()
-                        .to_string();
-                    TextEdit::singleline(&mut shader).enabled(false).ui(ui);
-                });
-                ui.horizontal(|ui| {
-                    ui.label("FragmentShader: ");
-                    let mut shader = self
-                        .data()
-                        .fragment_shader
-                        .to_str()
-                        .unwrap_or_default()
-                        .to_string();
-                    TextEdit::singleline(&mut shader).enabled(false).ui(ui);
-                });
-                ui.horizontal(|ui| {
-                    ui.label("Culling Type: ");
-                    let mut culling = format!("{:?}", self.data().culling);
-                    TextEdit::singleline(&mut culling).enabled(false).ui(ui);
-                });
-                ui.horizontal(|ui| {
-                    ui.label("Poligon Mode: ");
-                    let mut mode = format!("{:?}", self.data().mode);
-                    TextEdit::singleline(&mut mode).enabled(false).ui(ui);
+    fn show(
+        &mut self,
+        id: &ResourceId,
+        _ui_registry: &UIPropertiesRegistry,
+        ui: &mut Ui,
+        collapsed: bool,
+    ) {
+        CollapsingHeader::new(format!("Pipeline [{:?}]", id.to_simple().to_string()))
+            .show_background(true)
+            .default_open(!collapsed)
+            .show(ui, |ui| {
+                ui.vertical(|ui| {
+                    ui.horizontal(|ui| {
+                        ui.label("Path: ");
+                        let mut path = self.path().to_str().unwrap_or_default().to_string();
+                        TextEdit::singleline(&mut path).enabled(false).ui(ui);
+                    });
+                    ui.horizontal(|ui| {
+                        ui.label("VertexShader: ");
+                        let mut shader = self
+                            .data()
+                            .vertex_shader
+                            .to_str()
+                            .unwrap_or_default()
+                            .to_string();
+                        TextEdit::singleline(&mut shader).enabled(false).ui(ui);
+                    });
+                    ui.horizontal(|ui| {
+                        ui.label("FragmentShader: ");
+                        let mut shader = self
+                            .data()
+                            .fragment_shader
+                            .to_str()
+                            .unwrap_or_default()
+                            .to_string();
+                        TextEdit::singleline(&mut shader).enabled(false).ui(ui);
+                    });
+                    ui.horizontal(|ui| {
+                        ui.label("Culling Type: ");
+                        let mut culling = format!("{:?}", self.data().culling);
+                        TextEdit::singleline(&mut culling).enabled(false).ui(ui);
+                    });
+                    ui.horizontal(|ui| {
+                        ui.label("Poligon Mode: ");
+                        let mut mode = format!("{:?}", self.data().mode);
+                        TextEdit::singleline(&mut mode).enabled(false).ui(ui);
+                    });
                 });
             });
-        });
     }
 }
 
 impl UIProperties for Font {
-    fn show(&mut self, _ui_registry: &UIPropertiesRegistry, ui: &mut Ui, collapsed: bool) {
-        CollapsingHeader::new(format!("Font [{:?}]", FileResource::get_name(self)))
+    fn show(
+        &mut self,
+        id: &ResourceId,
+        _ui_registry: &UIPropertiesRegistry,
+        ui: &mut Ui,
+        collapsed: bool,
+    ) {
+        CollapsingHeader::new(format!("Font [{:?}]", id.to_simple().to_string()))
             .show_background(true)
             .default_open(!collapsed)
             .show(ui, |ui| {
@@ -181,46 +223,60 @@ impl UIProperties for Font {
 }
 
 impl UIProperties for Material {
-    fn show(&mut self, ui_registry: &UIPropertiesRegistry, ui: &mut Ui, collapsed: bool) {
-        CollapsingHeader::new(format!(
-            "Material [{:?}]",
-            SerializableResource::get_name(self)
-        ))
-        .show_background(true)
-        .default_open(!collapsed)
-        .show(ui, |ui| {
-            ui.horizontal(|ui| {
-                ui.label("Path: ");
-                let mut path = self.path().to_str().unwrap().to_string();
-                TextEdit::singleline(&mut path).enabled(false).ui(ui);
-            });
-            if let Some(pipeline) = self.pipeline() {
-                pipeline.get_mut().show(ui_registry, ui, true);
-            }
-            ui.collapsing(format!("Textures [{}]", self.textures().len()), |ui| {
-                for t in self.textures() {
-                    t.get_mut().show(ui_registry, ui, collapsed);
+    fn show(
+        &mut self,
+        id: &ResourceId,
+        ui_registry: &UIPropertiesRegistry,
+        ui: &mut Ui,
+        collapsed: bool,
+    ) {
+        CollapsingHeader::new(format!("Material [{:?}]", id.to_simple().to_string()))
+            .show_background(true)
+            .default_open(!collapsed)
+            .show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    ui.label("Path: ");
+                    let mut path = self.path().to_str().unwrap().to_string();
+                    TextEdit::singleline(&mut path).enabled(false).ui(ui);
+                });
+                if let Some(pipeline) = self.pipeline() {
+                    pipeline.get_mut(|p| {
+                        p.show(pipeline.id(), ui_registry, ui, true);
+                    });
                 }
+                ui.collapsing(format!("Textures [{}]", self.textures().len()), |ui| {
+                    for t in self.textures() {
+                        let id = t.id();
+                        t.get_mut(|t| {
+                            t.show(id, ui_registry, ui, collapsed);
+                        });
+                    }
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Diffuse Color: ");
+                    let mut diffuse_color = self.diffuse_color();
+                    diffuse_color.show(&INVALID_UID, ui_registry, ui, collapsed);
+                    self.set_diffuse_color(diffuse_color);
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Outline Color: ");
+                    let mut outline_color = self.outline_color();
+                    outline_color.show(&INVALID_UID, ui_registry, ui, collapsed);
+                    self.set_outline_color(outline_color);
+                });
             });
-            ui.horizontal(|ui| {
-                ui.label("Diffuse Color: ");
-                let mut diffuse_color = self.diffuse_color();
-                diffuse_color.show(ui_registry, ui, collapsed);
-                self.set_diffuse_color(diffuse_color);
-            });
-            ui.horizontal(|ui| {
-                ui.label("Outline Color: ");
-                let mut outline_color = self.outline_color();
-                outline_color.show(ui_registry, ui, collapsed);
-                self.set_outline_color(outline_color);
-            });
-        });
     }
 }
 
 impl UIProperties for Mesh {
-    fn show(&mut self, ui_registry: &UIPropertiesRegistry, ui: &mut Ui, collapsed: bool) {
-        CollapsingHeader::new(format!("Mesh [{:?}]", SerializableResource::get_name(self)))
+    fn show(
+        &mut self,
+        id: &ResourceId,
+        ui_registry: &UIPropertiesRegistry,
+        ui: &mut Ui,
+        collapsed: bool,
+    ) {
+        CollapsingHeader::new(format!("Mesh [{:?}]", id.to_simple().to_string()))
             .show_background(true)
             .default_open(!collapsed)
             .show(ui, |ui| {
@@ -238,15 +294,24 @@ impl UIProperties for Mesh {
                     TextEdit::singleline(&mut vertices).enabled(false).ui(ui);
                 });
                 if let Some(material) = self.material() {
-                    material.get_mut().show(ui_registry, ui, true);
+                    let id = material.id();
+                    material.get_mut(|m| {
+                        m.show(id, ui_registry, ui, true);
+                    });
                 }
             });
     }
 }
 
 impl UIProperties for Texture {
-    fn show(&mut self, _ui_registry: &UIPropertiesRegistry, ui: &mut Ui, collapsed: bool) {
-        CollapsingHeader::new(format!("Texture [{:?}]", FileResource::get_name(self)))
+    fn show(
+        &mut self,
+        id: &ResourceId,
+        _ui_registry: &UIPropertiesRegistry,
+        ui: &mut Ui,
+        collapsed: bool,
+    ) {
+        CollapsingHeader::new(format!("Texture [{:?}]", id.to_simple().to_string()))
             .show_background(true)
             .default_open(!collapsed)
             .show(ui, |ui| {
@@ -280,8 +345,14 @@ impl UIProperties for Texture {
 }
 
 impl UIProperties for View {
-    fn show(&mut self, _ui_registry: &UIPropertiesRegistry, ui: &mut Ui, collapsed: bool) {
-        CollapsingHeader::new(format!("View [{:?}]", self.get_name()))
+    fn show(
+        &mut self,
+        _id: &ResourceId,
+        _ui_registry: &UIPropertiesRegistry,
+        ui: &mut Ui,
+        collapsed: bool,
+    ) {
+        CollapsingHeader::new(format!("View [{:?}]", self.view_index()))
             .show_background(true)
             .default_open(!collapsed)
             .show(ui, |ui| {

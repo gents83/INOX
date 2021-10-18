@@ -5,13 +5,13 @@ use std::{
 };
 
 use nrg_graphics::{Font, Material, Mesh, Pipeline, Texture, View};
-use nrg_resources::{Resource, ResourceData, SharedData, SharedDataRw};
+use nrg_resources::{Resource, ResourceTrait, SharedData, SharedDataRc};
 use nrg_scene::{Hitbox, Object, Scene, Transform};
 use nrg_ui::{implement_widget_data, UIProperties, UIPropertiesRegistry, UIWidget, Ui, Window};
 
 struct DebugData {
     frame_seconds: VecDeque<Instant>,
-    shared_data: SharedDataRw,
+    shared_data: SharedDataRc,
     ui_registry: Arc<UIPropertiesRegistry>,
 }
 implement_widget_data!(DebugData);
@@ -21,7 +21,7 @@ pub struct DebugInfo {
 }
 
 impl DebugInfo {
-    pub fn new(shared_data: &SharedDataRw, ui_registry: Arc<UIPropertiesRegistry>) -> Self {
+    pub fn new(shared_data: &SharedDataRc, ui_registry: Arc<UIPropertiesRegistry>) -> Self {
         let data = DebugData {
             frame_seconds: VecDeque::default(),
             shared_data: shared_data.clone(),
@@ -32,7 +32,7 @@ impl DebugInfo {
         }
     }
 
-    fn create(shared_data: &SharedDataRw, data: DebugData) -> Resource<UIWidget> {
+    fn create(shared_data: &SharedDataRc, data: DebugData) -> Resource<UIWidget> {
         UIWidget::register(shared_data, data, |ui_data, ui_context| {
             if let Some(data) = ui_data.as_any().downcast_mut::<DebugData>() {
                 let now = Instant::now();
@@ -115,12 +115,12 @@ impl DebugInfo {
     }
 
     fn resource_ui_properties<R>(
-        shared_data: &SharedDataRw,
+        shared_data: &SharedDataRc,
         ui_registry: &UIPropertiesRegistry,
         ui: &mut Ui,
         title: &str,
     ) where
-        R: ResourceData + UIProperties,
+        R: ResourceTrait + UIProperties,
     {
         ui.collapsing(
             format!(
@@ -129,8 +129,8 @@ impl DebugInfo {
                 SharedData::get_num_resources_of_type::<R>(shared_data)
             ),
             |ui| {
-                SharedData::for_each_resource(shared_data, |r: &Resource<R>| {
-                    r.get_mut().show(ui_registry, ui, true);
+                SharedData::for_each_resource_mut(shared_data, |rh, r: &mut R| {
+                    r.show(rh.id(), ui_registry, ui, true);
                 });
             },
         );

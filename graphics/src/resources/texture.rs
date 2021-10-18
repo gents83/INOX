@@ -2,11 +2,11 @@ use std::path::{Path, PathBuf};
 
 use image::RgbaImage;
 use nrg_filesystem::convert_from_local_path;
+use nrg_messenger::MessengerRw;
 use nrg_resources::{
-    DataTypeResource, FileResource, Handle, Resource, ResourceData, ResourceId, SharedData,
-    SharedDataRw, DATA_FOLDER,
+    DataTypeResource, Handle, Resource, ResourceId, SerializableResource, SharedData, SharedDataRc,
+    DATA_FOLDER,
 };
-use nrg_serialize::{generate_random_uid, generate_uid_from_string, INVALID_UID};
 
 use crate::{
     api::backend::BackendPhysicalDevice, Device, TextureHandler, TextureInfo, INVALID_INDEX,
@@ -15,8 +15,8 @@ use crate::{
 
 pub type TextureId = ResourceId;
 
+#[derive(Clone)]
 pub struct Texture {
-    id: ResourceId,
     path: PathBuf,
     image_data: Option<Vec<u8>>,
     texture_index: i32,
@@ -30,7 +30,6 @@ pub struct Texture {
 impl Default for Texture {
     fn default() -> Self {
         Self {
-            id: INVALID_UID,
             path: PathBuf::new(),
             image_data: None,
             texture_index: INVALID_INDEX,
@@ -43,45 +42,72 @@ impl Default for Texture {
     }
 }
 
-impl ResourceData for Texture {
-    fn id(&self) -> ResourceId {
-        self.id
-    }
-}
-
 impl DataTypeResource for Texture {
     type DataType = RgbaImage;
-    fn create_from_data(shared_data: &SharedDataRw, image_data: Self::DataType) -> Resource<Self> {
+    fn invalidate(&mut self) {
+        self.is_initialized = false;
+        println!("Texture {:?} will be reloaded", self.path);
+    }
+    fn is_initialized(&self) -> bool {
+        self.is_initialized
+    }
+    fn deserialize_data(path: &Path) -> Self::DataType {
+        let image_data = image::open(path).unwrap();
+        image_data.to_rgba8()
+    }
+    fn create_from_data(
+        shared_data: &SharedDataRc,
+        _global_messenger: &MessengerRw,
+        id: TextureId,
+        image_data: Self::DataType,
+    ) -> Resource<Self> {
         let dimensions = image_data.dimensions();
-        SharedData::add_resource(
-            shared_data,
-            Texture {
-                id: generate_random_uid(),
-                image_data: Some(image_data.as_raw().clone()),
-                width: dimensions.0,
-                height: dimensions.1,
-                ..Default::default()
-            },
-        )
+        let texture = Self {
+            image_data: Some(image_data.as_raw().clone()),
+            width: dimensions.0,
+            height: dimensions.1,
+            ..Default::default()
+        };
+        SharedData::add_resource(shared_data, id, texture)
     }
 }
 
-impl FileResource for Texture {
+impl SerializableResource for Texture {
+    fn set_path(&mut self, path: &Path) {
+        self.path = path.to_path_buf();
+    }
     fn path(&self) -> &Path {
         self.path.as_path()
     }
-    fn create_from_file(shared_data: &SharedDataRw, filepath: &Path) -> Resource<Self> {
-        let path = convert_from_local_path(PathBuf::from(DATA_FOLDER).as_path(), filepath);
-        if let Some(texture) = SharedData::match_resource(shared_data, |t: &Texture| t.path == path)
-        {
-            return texture;
+
+    fn is_matching_extension(path: &Path) -> bool {
+        const IMAGE_PNG_EXTENSION: &str = "png";
+        const IMAGE_JPG_EXTENSION: &str = "jpg";
+        const IMAGE_JPEG_EXTENSION: &str = "jpeg";
+        const IMAGE_BMP_EXTENSION: &str = "bmp";
+        const IMAGE_TGA_EXTENSION: &str = "tga";
+        const IMAGE_DDS_EXTENSION: &str = "dds";
+        const IMAGE_TIFF_EXTENSION: &str = "tiff";
+        const IMAGE_GIF_EXTENSION: &str = "bmp";
+        const IMAGE_ICO_EXTENSION: &str = "ico";
+
+        if let Some(ext) = path.extension().unwrap().to_str() {
+            return ext == IMAGE_PNG_EXTENSION
+                || ext == IMAGE_JPG_EXTENSION
+                || ext == IMAGE_JPEG_EXTENSION
+                || ext == IMAGE_BMP_EXTENSION
+                || ext == IMAGE_TGA_EXTENSION
+                || ext == IMAGE_DDS_EXTENSION
+                || ext == IMAGE_TIFF_EXTENSION
+                || ext == IMAGE_GIF_EXTENSION
+                || ext == IMAGE_ICO_EXTENSION;
         }
-        SharedData::add_resource(shared_data, Texture::create(filepath))
+        false
     }
 }
 
 impl Texture {
-    pub fn find_from_path(shared_data: &SharedDataRw, texture_path: &Path) -> Handle<Self> {
+    pub fn find_from_path(shared_data: &SharedDataRc, texture_path: &Path) -> Handle<Self> {
         let path = convert_from_local_path(PathBuf::from(DATA_FOLDER).as_path(), texture_path);
         SharedData::match_resource(shared_data, |t: &Texture| t.path == path)
     }
@@ -108,13 +134,6 @@ impl Texture {
         self.is_initialized = true;
         self
     }
-    pub fn invalidate(&mut self) {
-        self.is_initialized = false;
-        println!("Texture {:?} will be reloaded", self.path);
-    }
-    pub fn is_initialized(&self) -> bool {
-        self.is_initialized
-    }
     pub fn update_from_gpu(&self) -> bool {
         self.update_from_gpu
     }
@@ -130,6 +149,7 @@ impl Texture {
     }
     pub fn capture_image(
         &mut self,
+        texture_id: &TextureId,
         texture_handler: &TextureHandler,
         device: &Device,
         physical_device: &BackendPhysicalDevice,
@@ -146,15 +166,8 @@ impl Texture {
         texture_handler.copy(
             device,
             physical_device,
-            self.id,
+            texture_id,
             self.image_data.as_mut().unwrap().as_mut_slice(),
         );
-    }
-    fn create(texture_path: &Path) -> Texture {
-        Texture {
-            id: generate_uid_from_string(texture_path.to_str().unwrap()),
-            path: texture_path.to_path_buf(),
-            ..Default::default()
-        }
     }
 }

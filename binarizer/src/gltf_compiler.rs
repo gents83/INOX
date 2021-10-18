@@ -13,7 +13,9 @@ use gltf::{
     Accessor, Gltf, Node, Primitive, Semantic,
 };
 use nrg_filesystem::convert_in_local_path;
-use nrg_graphics::{MaterialData, MeshData, VertexData};
+use nrg_graphics::{
+    MaterialData, MeshCategoryId, MeshData, VertexData, DEFAULT_MESH_CATEGORY_IDENTIFIER,
+};
 use nrg_math::{Parser, Vector2, Vector3, Vector4};
 use nrg_messenger::MessengerRw;
 use nrg_resources::{DATA_FOLDER, DATA_RAW_FOLDER};
@@ -25,8 +27,7 @@ const MESH_DATA_EXTENSION: &str = "mesh_data";
 const MATERIAL_DATA_EXTENSION: &str = "material_data";
 const OBJECT_DATA_EXTENSION: &str = "object_data";
 
-const DEFAULT_VERTEX_SHADER: &str = "shaders/diffuse_shader_vert.spv";
-const DEFAULT_FRAGMENT_SHADER: &str = "shaders/diffuse_shader_frag.spv";
+const DEFAULT_PIPELINE: &str = "pipelines/Default.pipeline_data";
 
 pub struct GltfCompiler {
     global_messenger: MessengerRw,
@@ -228,11 +229,18 @@ impl GltfCompiler {
         vertices
     }
 
-    fn process_mesh_data(path: &Path, mesh_name: &str, primitive: &Primitive) -> PathBuf {
+    fn process_mesh_data(
+        path: &Path,
+        mesh_name: &str,
+        primitive: &Primitive,
+        material_path: &Path,
+    ) -> PathBuf {
         let vertices = Self::extract_mesh_data(path, primitive);
         let indices = Self::extract_indices(path, primitive);
         let mut mesh_data = MeshData::default();
         mesh_data.append_mesh(vertices.as_slice(), indices.as_slice());
+        mesh_data.material = material_path.to_path_buf();
+        mesh_data.mesh_category_identifier = MeshCategoryId::new(DEFAULT_MESH_CATEGORY_IDENTIFIER);
 
         Self::create_file(path, &mesh_data, mesh_name, MESH_DATA_EXTENSION)
     }
@@ -241,8 +249,7 @@ impl GltfCompiler {
 
         let material = primitive.material().pbr_metallic_roughness();
         material_data.diffuse_color = material.base_color_factor().into();
-        material_data.pipeline.vertex_shader = PathBuf::from(DEFAULT_VERTEX_SHADER);
-        material_data.pipeline.fragment_shader = PathBuf::from(DEFAULT_FRAGMENT_SHADER);
+        material_data.pipeline = PathBuf::from(DEFAULT_PIPELINE);
         if let Some(texture) = material.base_color_texture() {
             match texture.texture().source().source() {
                 ImageSource::Uri {
@@ -287,11 +294,11 @@ impl GltfCompiler {
                     material_path.as_path(),
                     PathBuf::from(DATA_FOLDER).as_path(),
                 );
-                object_data.material = material_path;
                 let mesh_path = Self::process_mesh_data(
                     path,
                     mesh.name().unwrap_or_else(|| name.as_str()),
                     &primitive,
+                    material_path.as_path(),
                 );
                 let mesh_path = convert_in_local_path(
                     mesh_path.as_path(),

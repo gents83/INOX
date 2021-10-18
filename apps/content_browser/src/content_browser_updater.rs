@@ -7,16 +7,17 @@ use super::widgets::*;
 
 use nrg_core::*;
 use nrg_graphics::{Font, Pipeline, RenderPass};
-use nrg_messenger::{read_messages, Message, MessageChannel, MessengerRw};
+use nrg_messenger::{read_messages, send_global_event, MessageChannel, MessengerRw};
 use nrg_platform::WindowEvent;
 
-use nrg_resources::{DataTypeResource, Resource, SharedDataRw};
+use nrg_resources::{DataTypeResource, Resource, SharedDataRc};
+use nrg_serialize::generate_random_uid;
 use nrg_ui::{DialogEvent, DialogOp};
 
 #[allow(dead_code)]
 pub struct ContentBrowserUpdater {
     id: SystemId,
-    shared_data: SharedDataRw,
+    shared_data: SharedDataRc,
     global_messenger: MessengerRw,
     config: Config,
     message_channel: MessageChannel,
@@ -27,7 +28,7 @@ pub struct ContentBrowserUpdater {
 }
 
 impl ContentBrowserUpdater {
-    pub fn new(shared_data: SharedDataRw, global_messenger: MessengerRw, config: &Config) -> Self {
+    pub fn new(shared_data: SharedDataRc, global_messenger: MessengerRw, config: &Config) -> Self {
         let message_channel = MessageChannel::default();
 
         Self {
@@ -43,26 +44,23 @@ impl ContentBrowserUpdater {
         }
     }
 
-    fn send_event(&self, event: Box<dyn Message>) {
-        self.global_messenger
-            .read()
-            .unwrap()
-            .get_dispatcher()
-            .write()
-            .unwrap()
-            .send(event)
-            .ok();
-    }
-
     fn window_init(&self) -> &Self {
-        self.send_event(WindowEvent::RequestChangeTitle(self.config.title.clone()).as_boxed());
-        self.send_event(
-            WindowEvent::RequestChangeSize(self.config.width, self.config.height).as_boxed(),
+        send_global_event(
+            &self.global_messenger,
+            WindowEvent::RequestChangeTitle(self.config.title.clone()),
         );
-        self.send_event(
-            WindowEvent::RequestChangePos(self.config.pos_x, self.config.pos_y).as_boxed(),
+        send_global_event(
+            &self.global_messenger,
+            WindowEvent::RequestChangeSize(self.config.width, self.config.height),
         );
-        self.send_event(WindowEvent::RequestChangeVisible(true).as_boxed());
+        send_global_event(
+            &self.global_messenger,
+            WindowEvent::RequestChangePos(self.config.pos_x, self.config.pos_y),
+        );
+        send_global_event(
+            &self.global_messenger,
+            WindowEvent::RequestChangeVisible(true),
+        );
         self
     }
 }
@@ -78,7 +76,7 @@ impl System for ContentBrowserUpdater {
 
     fn init(&mut self) {
         self.window_init();
-        self.load_pipelines();
+        self.load_render_passes();
 
         self.global_messenger
             .write()
@@ -140,18 +138,21 @@ impl ContentBrowserUpdater {
         if self.content_browser.is_none() {
             match operation {
                 DialogOp::Open => {
-                    self.send_event(
-                        WindowEvent::RequestChangeTitle("Open File".to_string()).as_boxed(),
+                    send_global_event(
+                        &self.global_messenger,
+                        WindowEvent::RequestChangeTitle("Open File".to_string()),
                     );
                 }
                 DialogOp::Save => {
-                    self.send_event(
-                        WindowEvent::RequestChangeTitle("Save File".to_string()).as_boxed(),
+                    send_global_event(
+                        &self.global_messenger,
+                        WindowEvent::RequestChangeTitle("Save File".to_string()),
                     );
                 }
                 DialogOp::New => {
-                    self.send_event(
-                        WindowEvent::RequestChangeTitle("New File".to_string()).as_boxed(),
+                    send_global_event(
+                        &self.global_messenger,
+                        WindowEvent::RequestChangeTitle("New File".to_string()),
                     );
                 }
             }
@@ -172,12 +173,15 @@ impl ContentBrowserUpdater {
         self
     }
 
-    fn load_pipelines(&mut self) {
+    fn load_render_passes(&mut self) {
         for render_pass_data in self.config.render_passes.iter() {
-            self.render_passes.push(RenderPass::create_from_data(
+            let render_pass = RenderPass::create_from_data(
                 &self.shared_data,
+                &self.global_messenger,
+                generate_random_uid(),
                 render_pass_data.clone(),
-            ));
+            );
+            self.render_passes.push(render_pass);
         }
     }
 

@@ -12,13 +12,13 @@ macro_rules! implement_widget {
             #[inline]
             fn load_override(
                 &mut self,
-                shared_data: nrg_resources::SharedDataRw,
+                shared_data: nrg_resources::SharedDataRc,
                 global_messenger: nrg_messenger::MessengerRw,
             ) {
                 self.data.load_override(shared_data, global_messenger);
             }
             #[inline]
-            fn get_shared_data(&self) -> &nrg_resources::SharedDataRw {
+            fn get_shared_data(&self) -> &nrg_resources::SharedDataRc {
                 self.data.get_shared_data()
             }
             #[inline]
@@ -212,7 +212,7 @@ macro_rules! implement_widget_with_data {
         impl WidgetCreator for $Type {
             #[inline]
             fn create_widget(
-                shared_data: &nrg_resources::SharedDataRw,
+                shared_data: &nrg_resources::SharedDataRc,
                 global_messenger: &nrg_messenger::MessengerRw,
             ) -> Box<dyn Widget> {
                 Box::new($Type::new(shared_data, global_messenger))
@@ -220,7 +220,7 @@ macro_rules! implement_widget_with_data {
 
             #[inline]
             fn new(
-                shared_data: &nrg_resources::SharedDataRw,
+                shared_data: &nrg_resources::SharedDataRc,
                 global_messenger: &nrg_messenger::MessengerRw,
             ) -> $Type {
                 let mut w = $Type {
@@ -234,7 +234,7 @@ macro_rules! implement_widget_with_data {
 
             #[inline]
             fn load(
-                shared_data: &nrg_resources::SharedDataRw,
+                shared_data: &nrg_resources::SharedDataRc,
                 global_messenger: &nrg_messenger::MessengerRw,
                 filepath: &std::path::Path,
             ) -> $Type {
@@ -259,14 +259,14 @@ macro_rules! implement_widget_with_custom_members {
         impl WidgetCreator for $Type {
             #[inline]
             fn create_widget(
-                shared_data: &nrg_resources::SharedDataRw,
+                shared_data: &nrg_resources::SharedDataRc,
                 global_messenger: &nrg_messenger::MessengerRw,
             ) -> Box<dyn Widget> {
                 Box::new($Type::new(shared_data, global_messenger))
             }
 
             #[inline]
-            fn new(shared_data: &nrg_resources::SharedDataRw, global_messenger: &nrg_messenger::MessengerRw) -> $Type {
+            fn new(shared_data: &nrg_resources::SharedDataRc, global_messenger: &nrg_messenger::MessengerRw) -> $Type {
                 let mut w = $Type {
                     data: WidgetData::new(shared_data.clone(), global_messenger.clone()),
                     $($field: $value),+
@@ -279,7 +279,7 @@ macro_rules! implement_widget_with_custom_members {
 
             #[inline]
             fn load(
-                shared_data: &nrg_resources::SharedDataRw,
+                shared_data: &nrg_resources::SharedDataRc,
                 global_messenger: &nrg_messenger::MessengerRw,
                 filepath: &std::path::Path,
             ) -> $Type {

@@ -1,5 +1,5 @@
 use nrg_messenger::{Listener, Message, MessageBox, MessageChannel, MessengerRw};
-use nrg_resources::SharedDataRw;
+use nrg_resources::SharedDataRc;
 use nrg_serialize::{typetag, Deserialize, Serialize};
 
 use crate::{WidgetGraphics, WidgetNode, WidgetState};
@@ -14,17 +14,17 @@ pub struct WidgetData {
     #[serde(skip)]
     message_channel: MessageChannel,
     #[serde(skip)]
-    shared_data: SharedDataRw,
+    shared_data: SharedDataRc,
     #[serde(skip)]
     global_messenger: MessengerRw,
 }
 
 impl WidgetData {
     #[inline]
-    pub fn new(shared_data: SharedDataRw, global_messenger: MessengerRw) -> Self {
+    pub fn new(shared_data: SharedDataRc, global_messenger: MessengerRw) -> Self {
         Self {
             node: WidgetNode::default(),
-            graphics: WidgetGraphics::new(&shared_data),
+            graphics: WidgetGraphics::new(&shared_data, &global_messenger),
             state: WidgetState::default(),
             initialized: false,
             message_channel: MessageChannel::default(),
@@ -36,7 +36,7 @@ impl WidgetData {
     #[inline]
     pub fn load_override(
         &mut self,
-        shared_data: SharedDataRw,
+        shared_data: SharedDataRc,
         global_messenger: MessengerRw,
     ) -> &mut Self {
         self.graphics_mut().load_override(&shared_data);
@@ -67,7 +67,7 @@ impl WidgetData {
     }
 
     #[inline]
-    pub fn get_shared_data(&self) -> &SharedDataRw {
+    pub fn get_shared_data(&self) -> &SharedDataRc {
         &self.shared_data
     }
     #[inline]
@@ -122,8 +122,8 @@ impl WidgetData {
 
 #[typetag::serde(tag = "data")]
 pub trait WidgetDataGetter {
-    fn load_override(&mut self, shared_data: SharedDataRw, global_messenger: MessengerRw);
-    fn get_shared_data(&self) -> &SharedDataRw;
+    fn load_override(&mut self, shared_data: SharedDataRc, global_messenger: MessengerRw);
+    fn get_shared_data(&self) -> &SharedDataRc;
     fn get_global_messenger(&self) -> &MessengerRw;
     fn get_global_dispatcher(&self) -> nrg_messenger::MessageBox;
     fn get_messagebox(&self) -> MessageBox;

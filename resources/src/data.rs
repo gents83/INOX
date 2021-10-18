@@ -1,9 +1,10 @@
 use std::path::{Path, PathBuf};
 
 use nrg_filesystem::convert_from_local_path;
-use nrg_serialize::{create_from_file, Deserialize};
+use nrg_messenger::{send_global_event, MessengerRw};
+use nrg_serialize::generate_uid_from_string;
 
-use crate::{Resource, ResourceData, SharedDataRw};
+use crate::{LoadResourceEvent, Resource, ResourceId, ResourceTrait, SharedData, SharedDataRc};
 
 pub const DATA_RAW_FOLDER: &str = "./data_raw/";
 pub const DATA_FOLDER: &str = "./data/";
@@ -14,20 +15,32 @@ pub trait Data {
         PathBuf::from(DATA_FOLDER)
     }
 }
-pub trait Deserializable: Default + for<'de> Deserialize<'de> {
-    fn set_path(&mut self, filepath: &Path);
-    fn path(&self) -> &Path;
-}
 
-pub trait DataTypeResource: ResourceData {
+pub trait DataTypeResource: ResourceTrait + Default + Clone {
     type DataType;
-    fn create_from_data(shared_data: &SharedDataRw, data: Self::DataType) -> Resource<Self>
+
+    fn is_initialized(&self) -> bool;
+    fn invalidate(&mut self);
+    fn deserialize_data(path: &Path) -> Self::DataType;
+
+    fn create_from_data(
+        shared_data: &SharedDataRc,
+        global_messenger: &MessengerRw,
+        id: ResourceId,
+        data: Self::DataType,
+    ) -> Resource<Self>
     where
         Self: Sized;
 }
 
-pub trait SerializableResource: DataTypeResource {
+impl<T> ResourceTrait for T where T: DataTypeResource {}
+
+pub trait SerializableResource: DataTypeResource + Sized {
+    fn set_path(&mut self, path: &Path);
     fn path(&self) -> &Path;
+    fn is_matching_extension(path: &Path) -> bool
+    where
+        Self: Sized;
 
     #[inline]
     fn get_name(&self) -> String {
@@ -37,101 +50,61 @@ pub trait SerializableResource: DataTypeResource {
                 if let Some(name) = name.to_str() {
                     name.to_string()
                 } else {
-                    self.id().to_simple().to_string()
+                    self.path().to_str().unwrap().to_string()
                 }
             } else {
-                self.id().to_simple().to_string()
+                self.path().to_str().unwrap().to_string()
             }
         )
     }
     #[inline]
-    fn create_from_file(shared_data: &SharedDataRw, filepath: &Path) -> Resource<Self>
+    fn create_from_file(
+        shared_data: &SharedDataRc,
+        global_messenger: &MessengerRw,
+        filepath: &Path,
+    ) -> Resource<Self>
     where
-        Self: Sized,
-        Self::DataType: Deserializable,
+        Self: Sized + DataTypeResource,
     {
-        let data = from_file::<Self::DataType>(filepath);
-        Self::create_from_data(shared_data, data)
+        let path = convert_from_local_path(PathBuf::from(DATA_FOLDER).as_path(), filepath);
+        if !path.exists() || !path.is_file() {
+            panic!(
+                "Unable to create_from_file with an invalid path {}",
+                path.to_str().unwrap()
+            );
+        }
+        let data = Self::deserialize_data(path.as_path());
+        let resource_id = generate_uid_from_string(path.as_path().to_str().unwrap());
+        let resource = Self::create_from_data(shared_data, global_messenger, resource_id, data);
+        println!("Created resource {:?}", path.as_path());
+        resource.get_mut(|r| r.set_path(path.as_path()));
+        resource
     }
-}
 
-pub trait FileResource: ResourceData {
-    fn path(&self) -> &Path;
-
-    #[inline]
-    fn get_name(&self) -> String {
-        format!(
-            "{:?}",
-            if let Some(name) = self.path().file_name() {
-                if let Some(name) = name.to_str() {
-                    name.to_string()
-                } else {
-                    self.id().to_simple().to_string()
-                }
-            } else {
-                self.id().to_simple().to_string()
-            }
-        )
-    }
-    fn create_from_file(shared_data: &SharedDataRw, filepath: &Path) -> Resource<Self>
+    fn load_from_file(
+        shared_data: &SharedDataRc,
+        global_messenger: &MessengerRw,
+        filepath: &Path,
+    ) -> Resource<Self>
     where
-        Self: Sized;
-}
-
-#[macro_export]
-macro_rules! implement_file_data {
-    // input is empty: time to output
-    (@munch () -> {pub struct $name:ident $(($id:ident: $ty:ty))*}) => {
-        #[repr(C)]
-        #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
-        #[serde(crate = "nrg_serialize")]
-        pub struct $name {
-            path: PathBuf,
-            $(pub $id: $ty),*
+        Self: Sized + DataTypeResource,
+    {
+        let path = convert_from_local_path(PathBuf::from(DATA_FOLDER).as_path(), filepath);
+        if !path.exists() || !path.is_file() {
+            panic!(
+                "Unable to load_from_file with an invalid path {}",
+                path.to_str().unwrap()
+            );
         }
-        unsafe impl Send for $name {}
-        unsafe impl Sync for $name {}
-        impl $crate::Deserializable for $name {
-            #[inline]
-            fn set_path(&mut self, filepath: &Path) {
-                self.path = filepath.to_path_buf();
-            }
-            #[inline]
-            fn path(&self) -> &Path {
-                self.path.as_path()
-            }
+        let resource_id = generate_uid_from_string(path.as_path().to_str().unwrap());
+        if SharedData::has::<Self>(shared_data, &resource_id) {
+            return SharedData::get_resource::<Self>(shared_data, &resource_id).unwrap();
         }
-    };
-
-    // branch off to generate an inner struct
-    (@munch ($id:ident: struct $name:ident {$($inner:tt)*} $($next:tt)*) -> {pub struct $($output:tt)*}) => {
-        implement_file_data!(@munch ($($inner)*) -> {pub struct $name});
-        implement_file_data!(@munch ($($next)*) -> {pub struct $($output)* ($id: $name)});
-    };
-
-    // throw on the last field
-    (@munch ($id:ident: $ty:ty) -> {$($output:tt)*}) => {
-        implement_file_data!(@munch () -> {$($output)* ($id: $ty)});
-    };
-
-    // throw on another field (not the last one)
-    (@munch ($id:ident: $ty:ty, $($next:tt)*) -> {$($output:tt)*}) => {
-        implement_file_data!(@munch ($($next)*) -> {$($output)* ($id: $ty)});
-    };
-
-    // entry point (this is where a macro call starts)
-    (struct $name:ident { $($input:tt)*} ) => {
-        implement_file_data!(@munch ($($input)*) -> {pub struct $name});
-    };
-}
-
-#[inline]
-pub fn from_file<T>(filepath: &Path) -> T
-where
-    T: Deserializable,
-{
-    let path = convert_from_local_path(PathBuf::from(DATA_FOLDER).as_path(), filepath);
-    let mut data: T = create_from_file(path.as_path());
-    data.set_path(filepath);
-    data
+        let resource = SharedData::add_resource(shared_data, resource_id, Self::default());
+        send_global_event(
+            &global_messenger,
+            LoadResourceEvent::<Self>::new(path.as_path()),
+        );
+        resource
+    }
 }

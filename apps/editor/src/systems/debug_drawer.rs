@@ -6,7 +6,8 @@ use nrg_graphics::{
 };
 use nrg_math::{Vector2, Vector3, Vector4};
 use nrg_messenger::{implement_message, read_messages, Message, MessageChannel, MessengerRw};
-use nrg_resources::{DataTypeResource, Resource, SharedDataRw};
+use nrg_resources::{DataTypeResource, Resource, SharedDataRc};
+use nrg_serialize::generate_random_uid;
 
 /// A debug drawer
 /// You can use this to draw things in the editor just sending events:
@@ -62,24 +63,32 @@ pub struct DebugDrawer {
 
 impl DebugDrawer {
     pub fn new(
-        shared_data: &SharedDataRw,
+        shared_data: &SharedDataRc,
         global_messenger: &MessengerRw,
         pipeline_default: &Resource<Pipeline>,
         pipeline_wirefrane: &Resource<Pipeline>,
     ) -> Self {
         let mesh_instance = Mesh::create_from_data(
             shared_data,
+            global_messenger,
+            generate_random_uid(),
             MeshData::new(WIREFRAME_MESH_CATEGORY_IDENTIFIER),
         );
-        let material = Material::create_from_pipeline(shared_data, pipeline_default);
-        mesh_instance.get_mut().set_material(material);
+        mesh_instance.get_mut(|m| {
+            let material = Material::duplicate_from_pipeline(shared_data, pipeline_default);
+            m.set_material(material);
+        });
 
         let wireframe_mesh_instance = Mesh::create_from_data(
             shared_data,
+            global_messenger,
+            generate_random_uid(),
             MeshData::new(WIREFRAME_MESH_CATEGORY_IDENTIFIER),
         );
-        let material = Material::create_from_pipeline(shared_data, pipeline_wirefrane);
-        wireframe_mesh_instance.get_mut().set_material(material);
+        wireframe_mesh_instance.get_mut(|m| {
+            let material = Material::duplicate_from_pipeline(shared_data, pipeline_wirefrane);
+            m.set_material(material);
+        });
 
         let message_channel = MessageChannel::default();
 
@@ -213,9 +222,11 @@ impl DebugDrawer {
                 }
             }
         });
-        self.mesh_instance.get_mut().set_mesh_data(mesh_data);
-        self.wireframe_mesh_instance
-            .get_mut()
-            .set_mesh_data(wireframe_mesh_data);
+        self.mesh_instance.get_mut(|m| {
+            m.set_mesh_data(mesh_data.clone());
+        });
+        self.wireframe_mesh_instance.get_mut(|m| {
+            m.set_mesh_data(wireframe_mesh_data.clone());
+        });
     }
 }

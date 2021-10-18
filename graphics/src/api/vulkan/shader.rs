@@ -3,6 +3,7 @@ use vulkan_bindings::*;
 
 use super::BackendDevice;
 
+#[derive(Clone)]
 pub struct BackendShader {
     shader_type: ShaderType,
     content: Vec<u32>,

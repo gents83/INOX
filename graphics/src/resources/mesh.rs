@@ -1,18 +1,18 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::{Material, MeshCategoryId, MeshData, TextureInfo, INVALID_INDEX};
 use nrg_math::{MatBase, Matrix4, Vector4};
+use nrg_messenger::MessengerRw;
 use nrg_resources::{
-    DataTypeResource, Deserializable, Handle, Resource, ResourceData, ResourceId,
-    SerializableResource, SharedData, SharedDataRw,
+    DataTypeResource, Handle, Resource, ResourceId, SerializableResource, SharedData, SharedDataRc,
 };
-use nrg_serialize::{generate_random_uid, INVALID_UID};
+use nrg_serialize::read_from_file;
 
 pub type MeshId = ResourceId;
 
 #[derive(Clone)]
 pub struct Mesh {
-    id: ResourceId,
+    path: PathBuf,
     mesh_data: MeshData,
     matrix: Matrix4,
     material: Handle<Material>,
@@ -26,7 +26,7 @@ pub struct Mesh {
 impl Default for Mesh {
     fn default() -> Self {
         Self {
-            id: INVALID_UID,
+            path: PathBuf::new(),
             mesh_data: MeshData::default(),
             matrix: Matrix4::default_identity(),
             material: None,
@@ -39,32 +39,63 @@ impl Default for Mesh {
     }
 }
 
-impl ResourceData for Mesh {
-    fn id(&self) -> ResourceId {
-        self.id
-    }
-}
-
 impl SerializableResource for Mesh {
+    fn set_path(&mut self, path: &Path) {
+        self.path = path.to_path_buf();
+    }
     fn path(&self) -> &Path {
-        self.mesh_data.path()
+        self.path.as_path()
+    }
+
+    fn is_matching_extension(path: &Path) -> bool {
+        const MESH_EXTENSION: &str = "mesh_data";
+
+        if let Some(ext) = path.extension().unwrap().to_str() {
+            return ext == MESH_EXTENSION;
+        }
+        false
     }
 }
 
 impl DataTypeResource for Mesh {
     type DataType = MeshData;
-    fn create_from_data(shared_data: &SharedDataRw, mesh_data: Self::DataType) -> Resource<Self> {
-        let mesh_instance = Mesh {
-            id: generate_random_uid(),
+    fn is_initialized(&self) -> bool {
+        !self.mesh_data.vertices.is_empty()
+    }
+
+    fn invalidate(&mut self) {
+        self.mesh_data = MeshData::default();
+    }
+    fn deserialize_data(path: &Path) -> Self::DataType {
+        read_from_file::<Self::DataType>(path)
+    }
+    fn create_from_data(
+        shared_data: &SharedDataRc,
+        global_messenger: &MessengerRw,
+        id: MeshId,
+        mesh_data: Self::DataType,
+    ) -> Resource<Self> {
+        let material = if !mesh_data.material.to_str().unwrap_or_default().is_empty() {
+            let material = Material::load_from_file(
+                shared_data,
+                global_messenger,
+                mesh_data.material.as_path(),
+            );
+            Some(material)
+        } else {
+            None
+        };
+        let mesh = Self {
             mesh_data,
+            material,
             ..Default::default()
         };
-        SharedData::add_resource(shared_data, mesh_instance)
+        SharedData::add_resource(shared_data, id, mesh)
     }
 }
 
 impl Mesh {
-    pub fn find_from_path(shared_data: &SharedDataRw, path: &Path) -> Handle<Self> {
+    pub fn find_from_path(shared_data: &SharedDataRc, path: &Path) -> Handle<Self> {
         SharedData::match_resource(shared_data, |m: &Mesh| m.path() == path)
     }
     pub fn mesh_data(&self) -> &MeshData {
@@ -115,21 +146,19 @@ impl Mesh {
         self.draw_area
     }
 
-    pub fn category_identifier(&self) -> MeshCategoryId {
-        self.mesh_data.mesh_category_identifier.clone()
+    pub fn category_identifier(&self) -> &MeshCategoryId {
+        &self.mesh_data.mesh_category_identifier
     }
 
     pub fn process_uv_for_texture(&mut self, texture: Option<&TextureInfo>) -> &mut Self {
-        if !self.uv_converted {
-            nrg_profiler::scoped_profile!("Texture::process_uv_for_texture");
-            self.uv_converted = true;
-            for v in self.mesh_data.vertices.iter_mut() {
-                let tex_coord = &mut v.tex_coord;
-                if let Some(texture) = texture {
+        if let Some(texture) = texture {
+            if !self.uv_converted {
+                nrg_profiler::scoped_profile!("Texture::process_uv_for_texture");
+                self.uv_converted = true;
+                for v in self.mesh_data.vertices.iter_mut() {
+                    let tex_coord = &mut v.tex_coord;
                     let (u, v) = texture.convert_uv(tex_coord.x, tex_coord.y);
                     *tex_coord = [u, v].into();
-                } else {
-                    *tex_coord = [0., 0.].into();
                 }
             }
         }

@@ -9,7 +9,7 @@ use std::{
 
 use nrg_messenger::{get_events_from_string, Message, MessageBox, MessengerRw};
 use nrg_platform::WindowEvent;
-use nrg_resources::{Resource, SharedDataRw, DATA_FOLDER, DATA_RAW_FOLDER};
+use nrg_resources::{Resource, SharedDataRc, DATA_FOLDER, DATA_RAW_FOLDER};
 use nrg_serialize::deserialize;
 use nrg_ui::{implement_widget_data, menu, DialogEvent, DialogOp, TopBottomPanel, UIWidget};
 
@@ -25,7 +25,7 @@ pub struct MainMenu {
 
 impl MainMenu {
     pub fn new(
-        shared_data: &SharedDataRw,
+        shared_data: &SharedDataRc,
         global_messenger: &MessengerRw,
         show_debug_info: Arc<AtomicBool>,
     ) -> Self {
@@ -37,7 +37,7 @@ impl MainMenu {
         Self { ui_page }
     }
 
-    fn create(shared_data: &SharedDataRw, data: MenuData) -> Resource<UIWidget> {
+    fn create(shared_data: &SharedDataRc, data: MenuData) -> Resource<UIWidget> {
         UIWidget::register(shared_data, data, |ui_data, ui_context| {
             if let Some(data) = ui_data.as_any().downcast_mut::<MenuData>() {
                 TopBottomPanel::top("main_menu")

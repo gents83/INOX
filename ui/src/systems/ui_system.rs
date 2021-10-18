@@ -23,7 +23,8 @@ use nrg_platform::{
     InputState, KeyEvent, KeyTextEvent, MouseButton, MouseEvent, MouseState, WindowEvent,
     DEFAULT_DPI,
 };
-use nrg_resources::{DataTypeResource, Handle, Resource, ResourceData, SharedData, SharedDataRw};
+use nrg_resources::{DataTypeResource, Handle, Resource, SharedData, SharedDataRc};
+use nrg_serialize::generate_random_uid;
 
 use crate::UIWidget;
 
@@ -31,7 +32,7 @@ const UI_MESH_CATEGORY_IDENTIFIER: &str = "ui_mesh";
 
 pub struct UISystem {
     id: SystemId,
-    shared_data: SharedDataRw,
+    shared_data: SharedDataRc,
     job_handler: JobHandlerRw,
     global_messenger: MessengerRw,
     message_channel: MessageChannel,
@@ -48,7 +49,7 @@ pub struct UISystem {
 
 impl UISystem {
     pub fn new(
-        shared_data: SharedDataRw,
+        shared_data: SharedDataRc,
         global_messenger: MessengerRw,
         job_handler: JobHandlerRw,
     ) -> Self {
@@ -76,7 +77,8 @@ impl UISystem {
 
     fn get_ui_material(&mut self, texture: Resource<Texture>) -> Resource<Material> {
         nrg_profiler::scoped_profile!("ui_system::get_ui_material");
-        match self.ui_materials.entry(texture.id()) {
+
+        match self.ui_materials.entry(*texture.id()) {
             Entry::Occupied(e) => e.get().clone(),
             Entry::Vacant(e) => {
                 if let Some(render_pass) =
@@ -84,16 +86,21 @@ impl UISystem {
                         r.data().name == "UIPass"
                     })
                 {
-                    render_pass
-                        .get_mut()
-                        .add_category_to_draw(MeshCategoryId::new(UI_MESH_CATEGORY_IDENTIFIER));
-                    if let Some(pipeline) = render_pass.get().pipeline() {
-                        let material = Material::create_from_pipeline(&self.shared_data, pipeline);
-                        material.get_mut().add_texture(texture);
-                        e.insert(material.clone());
-                        return material;
-                    }
-                    panic!("No pipeline inside UIPass has been loaded");
+                    let shared_data = self.shared_data.clone();
+                    let material = render_pass.get_mut(|r| {
+                        r.add_category_to_draw(MeshCategoryId::new(UI_MESH_CATEGORY_IDENTIFIER));
+                        if let Some(pipeline) = r.pipeline() {
+                            let material =
+                                Material::duplicate_from_pipeline(&shared_data, pipeline);
+                            material.get_mut(|m| {
+                                m.add_texture(texture.clone());
+                            });
+                            return material;
+                        }
+                        panic!("No pipeline inside UIPass has been loaded");
+                    });
+                    e.insert(material.clone());
+                    return material;
                 }
                 panic!("No UIPass has been loaded");
             }
@@ -118,10 +125,17 @@ impl UISystem {
             );
             if let Some(texture) = &self.ui_texture {
                 if let Some(material) = self.ui_materials.remove(&texture.id()) {
-                    material.get_mut().remove_texture(texture.id());
+                    material.get_mut(|m| {
+                        m.remove_texture(texture.id());
+                    })
                 }
             }
-            let texture = Texture::create_from_data(&self.shared_data, image_data.unwrap());
+            let texture = Texture::create_from_data(
+                &self.shared_data,
+                &self.global_messenger,
+                generate_random_uid(),
+                image_data.unwrap(),
+            );
             self.ui_texture = Some(texture);
             self.ui_texture_version = self.ui_context.texture().version;
         }
@@ -131,24 +145,29 @@ impl UISystem {
     fn compute_mesh_data(&mut self, clipped_meshes: Vec<ClippedMesh>) {
         nrg_profiler::scoped_profile!("ui_system::compute_mesh_data");
         let shared_data = self.shared_data.clone();
+        let global_messenger = self.global_messenger.clone();
         self.ui_meshes.resize_with(clipped_meshes.len(), || {
-            Mesh::create_from_data(&shared_data, MeshData::new(UI_MESH_CATEGORY_IDENTIFIER))
+            Mesh::create_from_data(
+                &shared_data,
+                &global_messenger,
+                generate_random_uid(),
+                MeshData::new(UI_MESH_CATEGORY_IDENTIFIER),
+            )
         });
 
         for (i, clipped_mesh) in clipped_meshes.into_iter().enumerate() {
             let ClippedMesh(clip_rect, mesh) = clipped_mesh;
             let draw_index = i as u32;
-            self.ui_meshes[i].get_mut().set_draw_index(draw_index);
+            self.ui_meshes[i].get_mut(|m| {
+                m.set_draw_index(draw_index);
+            });
             if mesh.vertices.is_empty() || mesh.indices.is_empty() {
                 continue;
             }
             let texture = match mesh.texture_id {
                 eguiTextureId::Egui => self.ui_texture.as_ref().unwrap().clone(),
-                eguiTextureId::User(texture_index) => {
-                    SharedData::get_resource_from_index::<Texture>(
-                        &self.shared_data,
-                        texture_index as usize,
-                    )
+                eguiTextureId::User(index) => {
+                    SharedData::get_resource_at_index(&self.shared_data, index as _).unwrap()
                 }
             };
             let material = self.get_ui_material(texture);
@@ -191,11 +210,11 @@ impl UISystem {
                         clip_rect.w = clip_rect.y.clamp(clip_rect.y, screen_rect.height());
                     }
 
-                    mesh_instance
-                        .get_mut()
-                        .set_material(material)
-                        .set_mesh_data(mesh_data)
-                        .set_draw_area(clip_rect);
+                    mesh_instance.get_mut(|m| {
+                        m.set_material(material.clone())
+                            .set_mesh_data(mesh_data.clone())
+                            .set_draw_area(clip_rect);
+                    });
                 });
         }
     }
@@ -302,24 +321,29 @@ impl UISystem {
     fn show_ui(&mut self, use_multithreading: bool) {
         nrg_profiler::scoped_profile!("ui_system::show_ui");
         let wait_count = Arc::new(AtomicUsize::new(0));
-        SharedData::for_each_resource(&self.shared_data, |widget: &Resource<UIWidget>| {
-            if use_multithreading {
-                let context = self.ui_context.clone();
-                let widget = widget.clone();
-                let job_name = format!("ui_system::show_ui[{:?}]", widget.id());
-                let wait_count = wait_count.clone();
-                wait_count.fetch_add(1, Ordering::SeqCst);
-                self.job_handler
-                    .write()
-                    .unwrap()
-                    .add_job(job_name.as_str(), move || {
-                        widget.get_mut().execute(&context);
-                        wait_count.fetch_sub(1, Ordering::SeqCst);
-                    });
-            } else {
-                widget.get_mut().execute(&self.ui_context);
-            }
-        });
+        SharedData::for_each_resource_mut(
+            &self.shared_data,
+            |widget_handle, widget: &mut UIWidget| {
+                if use_multithreading {
+                    let context = self.ui_context.clone();
+                    let widget_handle = widget_handle.clone();
+                    let job_name = format!("ui_system::show_ui[{:?}]", widget_handle.id());
+                    let wait_count = wait_count.clone();
+                    wait_count.fetch_add(1, Ordering::SeqCst);
+                    self.job_handler
+                        .write()
+                        .unwrap()
+                        .add_job(job_name.as_str(), move || {
+                            widget_handle.get_mut(|w| {
+                                w.execute(&context);
+                            });
+                            wait_count.fetch_sub(1, Ordering::SeqCst);
+                        });
+                } else {
+                    widget.execute(&self.ui_context);
+                }
+            },
+        );
         while wait_count.load(Ordering::SeqCst) > 0 {
             thread::yield_now();
         }

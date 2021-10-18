@@ -979,6 +979,7 @@ version = "0.1.0"
 dependencies = [
  "nrg_graphics",
  "nrg_math",
+ "nrg_messenger",
  "nrg_resources",
  "nrg_serialize",
  "nrg_ui",

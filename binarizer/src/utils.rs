@@ -4,7 +4,7 @@ use std::{
 };
 
 use nrg_messenger::{Message, MessengerRw};
-use nrg_resources::{ResourceEvent, DATA_FOLDER, DATA_RAW_FOLDER};
+use nrg_resources::{UpdateResourceEvent, DATA_FOLDER, DATA_RAW_FOLDER};
 
 pub fn need_to_binarize(original_path: &Path, new_path: &Path) -> bool {
     let mut need_copy = false;
@@ -56,6 +56,11 @@ pub fn send_reloaded_event(messenger: &MessengerRw, new_path: &Path) {
     dispatcher
         .write()
         .unwrap()
-        .send(ResourceEvent::Reload(new_path.to_path_buf()).as_boxed())
+        .send(
+            UpdateResourceEvent {
+                path: new_path.to_path_buf(),
+            }
+            .as_boxed(),
+        )
         .ok();
 }

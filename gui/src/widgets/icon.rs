@@ -4,7 +4,7 @@ use nrg_filesystem::convert_from_local_path;
 use nrg_graphics::Texture;
 use nrg_math::{Vector2, Vector4};
 use nrg_messenger::Message;
-use nrg_resources::{FileResource, Handle, ResourceData, DATA_FOLDER};
+use nrg_resources::{Handle, SerializableResource, DATA_FOLDER};
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{
@@ -111,11 +111,19 @@ impl Icon {
         if let Some(image) = self.node().get_child_mut::<Panel>(image) {
             let material = image.graphics().get_material();
             if let Some(texture) = &self.texture {
-                material.get_mut().remove_texture(texture.id());
+                material.get_mut(|m| {
+                    m.remove_texture(texture.id());
+                });
             }
             let texture_path = convert_from_local_path(PathBuf::from(DATA_FOLDER).as_path(), path);
-            let texture = Texture::create_from_file(self.get_shared_data(), texture_path.as_path());
-            material.get_mut().add_texture(texture.clone());
+            let texture = Texture::load_from_file(
+                self.get_shared_data(),
+                self.get_global_messenger(),
+                texture_path.as_path(),
+            );
+            material.get_mut(|m| {
+                m.add_texture(texture.clone());
+            });
             self.texture = Some(texture);
         }
         self

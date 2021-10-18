@@ -102,3 +102,15 @@ where
         f(msg.as_ref());
     }
 }
+
+#[inline]
+pub fn send_global_event<Event: Message>(global_messenger: &MessengerRw, event: Event) {
+    global_messenger
+        .read()
+        .unwrap()
+        .get_dispatcher()
+        .write()
+        .unwrap()
+        .send(event.as_boxed())
+        .ok();
+}

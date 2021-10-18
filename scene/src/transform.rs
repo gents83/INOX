@@ -1,27 +1,20 @@
 use nrg_math::{Mat4Ops, MatBase, Matrix4, VecBase, Vector3};
-use nrg_resources::{ResourceData, ResourceId};
-use nrg_serialize::generate_random_uid;
+use nrg_resources::{ResourceId, ResourceTrait};
 use nrg_ui::{CollapsingHeader, UIProperties, UIPropertiesRegistry, Ui};
 
 pub type TransformId = ResourceId;
 
+#[derive(Clone)]
 pub struct Transform {
-    id: ResourceId,
     position: Vector3,
     rotation: Vector3,
     scale: Vector3,
 }
-
-impl ResourceData for Transform {
-    fn id(&self) -> ResourceId {
-        self.id
-    }
-}
+impl ResourceTrait for Transform {}
 
 impl Default for Transform {
     fn default() -> Self {
         Self {
-            id: generate_random_uid(),
             position: Vector3::default_zero(),
             rotation: Vector3::default_zero(),
             scale: Vector3::default_one(),
@@ -30,29 +23,32 @@ impl Default for Transform {
 }
 
 impl UIProperties for Transform {
-    fn show(&mut self, ui_registry: &UIPropertiesRegistry, ui: &mut Ui, collapsed: bool) {
-        CollapsingHeader::new(format!(
-            "Transform [{:?}]",
-            self.id().to_simple().to_string()
-        ))
-        .show_background(true)
-        .default_open(!collapsed)
-        .show(ui, |ui| {
-            ui.horizontal(|ui| {
-                ui.label("Position: ");
-                self.position.show(ui_registry, ui, false);
+    fn show(
+        &mut self,
+        id: &ResourceId,
+        ui_registry: &UIPropertiesRegistry,
+        ui: &mut Ui,
+        collapsed: bool,
+    ) {
+        CollapsingHeader::new(format!("Transform [{:?}]", id.to_simple().to_string()))
+            .show_background(true)
+            .default_open(!collapsed)
+            .show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    ui.label("Position: ");
+                    self.position.show(id, ui_registry, ui, false);
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Rotation: ");
+                    let mut rotation = self.rotation.to_degrees();
+                    rotation.show(id, ui_registry, ui, false);
+                    self.rotation = rotation.to_radians();
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Scale: ");
+                    self.scale.show(id, ui_registry, ui, false);
+                });
             });
-            ui.horizontal(|ui| {
-                ui.label("Rotation: ");
-                let mut rotation = self.rotation.to_degrees();
-                rotation.show(ui_registry, ui, false);
-                self.rotation = rotation.to_radians();
-            });
-            ui.horizontal(|ui| {
-                ui.label("Scale: ");
-                self.scale.show(ui_registry, ui, false);
-            });
-        });
     }
 }
 

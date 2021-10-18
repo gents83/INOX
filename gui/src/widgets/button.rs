@@ -5,7 +5,7 @@ use nrg_graphics::Texture;
 use nrg_math::{Vector2, Vector4};
 use nrg_messenger::Message;
 use nrg_platform::MouseEvent;
-use nrg_resources::{FileResource, DATA_FOLDER};
+use nrg_resources::{SerializableResource, DATA_FOLDER};
 use nrg_serialize::{Deserialize, Serialize, Uid, INVALID_UID};
 
 use crate::{
@@ -38,8 +38,14 @@ impl Button {
         let material = self.graphics().get_material();
         let texture_path =
             convert_from_local_path(PathBuf::from(DATA_FOLDER).as_path(), texture_path);
-        let texture = Texture::create_from_file(self.get_shared_data(), texture_path.as_path());
-        material.get_mut().add_texture(texture);
+        let texture = Texture::load_from_file(
+            self.get_shared_data(),
+            self.get_global_messenger(),
+            texture_path.as_path(),
+        );
+        material.get_mut(|m| {
+            m.add_texture(texture.clone());
+        });
         self
     }
 

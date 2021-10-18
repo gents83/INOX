@@ -1,21 +1,24 @@
+use std::path::{Path, PathBuf};
+
 use nrg_math::{Mat4Ops, Matrix4, Vector4};
+use nrg_messenger::MessengerRw;
 use nrg_resources::{
-    DataTypeResource, Handle, Resource, ResourceData, ResourceId, SharedData, SharedDataRw,
+    DataTypeResource, Resource, ResourceId, SerializableResource, SharedData, SharedDataRc,
 };
-use nrg_serialize::generate_random_uid;
+use nrg_serialize::read_from_file;
 
 use crate::{
     api::backend::{self, BackendPhysicalDevice, BackendPipeline},
     utils::compute_color_from_id,
     CommandBuffer, Device, DrawMode, GraphicsMesh, InstanceCommand, InstanceData, Mesh,
-    MeshCategoryId, PipelineData, RenderPass, ShaderType, TextureAtlas,
+    MeshCategoryId, MeshId, PipelineData, RenderPass, ShaderType, TextureAtlas,
 };
 
 pub type PipelineId = ResourceId;
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Pipeline {
-    id: ResourceId,
+    path: PathBuf,
     backend_pipeline: Option<backend::BackendPipeline>,
     data: PipelineData,
     is_initialized: bool,
@@ -27,40 +30,53 @@ pub struct Pipeline {
     instance_commands: Vec<InstanceCommand>,
 }
 
-impl ResourceData for Pipeline {
-    fn id(&self) -> ResourceId {
-        self.id
+impl SerializableResource for Pipeline {
+    fn set_path(&mut self, path: &Path) {
+        self.path = path.to_path_buf();
+    }
+    fn path(&self) -> &Path {
+        self.path.as_path()
+    }
+
+    fn is_matching_extension(path: &Path) -> bool {
+        const PIPELINE_EXTENSION: &str = "pipeline_data";
+
+        if let Some(ext) = path.extension().unwrap().to_str() {
+            return ext == PIPELINE_EXTENSION;
+        }
+        false
     }
 }
 
 impl DataTypeResource for Pipeline {
     type DataType = PipelineData;
+
+    fn invalidate(&mut self) {
+        self.is_initialized = false;
+    }
+    fn is_initialized(&self) -> bool {
+        self.is_initialized
+    }
+    fn deserialize_data(path: &Path) -> Self::DataType {
+        read_from_file::<Self::DataType>(path)
+    }
+
     fn create_from_data(
-        shared_data: &SharedDataRw,
+        shared_data: &SharedDataRc,
+        _global_messenger: &MessengerRw,
+        id: PipelineId,
         pipeline_data: Self::DataType,
     ) -> Resource<Self> {
         let canonicalized_pipeline_data = pipeline_data.canonicalize_paths();
-        if let Some(pipeline) = Pipeline::find_from_data(shared_data, &canonicalized_pipeline_data)
-        {
-            return pipeline;
-        }
-        SharedData::add_resource(
-            shared_data,
-            Pipeline {
-                id: generate_random_uid(),
-                data: canonicalized_pipeline_data,
-                ..Default::default()
-            },
-        )
+        let pipeline = Self {
+            data: canonicalized_pipeline_data,
+            ..Default::default()
+        };
+        SharedData::add_resource(shared_data, id, pipeline)
     }
 }
 
 impl Pipeline {
-    fn find_from_data(shared_data: &SharedDataRw, pipeline_data: &PipelineData) -> Handle<Self> {
-        SharedData::match_resource(shared_data, |p: &Pipeline| {
-            pipeline_data.has_same_shaders(&p.data)
-        })
-    }
     pub fn data(&self) -> &PipelineData {
         &self.data
     }
@@ -70,24 +86,16 @@ impl Pipeline {
         physical_device: &BackendPhysicalDevice,
         render_pass: &RenderPass,
     ) -> &mut Self {
+        if self.data.vertex_shader.to_str().unwrap().is_empty()
+            || self.data.fragment_shader.to_str().unwrap().is_empty()
+        {
+            return self;
+        }
+        self.invalidate();
         if let Some(backend_pipeline) = &mut self.backend_pipeline {
             backend_pipeline.destroy(device);
         }
-
         let mut backend_pipeline = BackendPipeline::default();
-
-        if self.data.vertex_shader.to_str().unwrap().is_empty() {
-            eprintln!(
-                "Trying to init a pipeline {:?} with NO vertex shader",
-                self.id()
-            );
-        }
-        if self.data.fragment_shader.to_str().unwrap().is_empty() {
-            eprintln!(
-                "Trying to init a pipeline {:?} with NO fragment shader",
-                self.id()
-            );
-        }
         backend_pipeline
             .set_shader(
                 device,
@@ -136,14 +144,6 @@ impl Pipeline {
         self.is_initialized = true;
 
         self
-    }
-
-    pub fn invalidate(&mut self) {
-        self.is_initialized = false;
-    }
-
-    pub fn is_initialized(&self) -> bool {
-        self.is_initialized
     }
 
     pub fn check_shaders_to_reload(&mut self, path_as_string: String) {
@@ -226,7 +226,7 @@ impl Pipeline {
     }
 
     pub fn bind(&mut self, command_buffer: &CommandBuffer) -> &mut Self {
-        nrg_profiler::scoped_profile!(format!("pipeline::bind[{:?}]", self.id()).as_str());
+        nrg_profiler::scoped_profile!(format!("pipeline::bind[{:?}]", self.get_name()).as_str());
         if let Some(backend_pipeline) = &mut self.backend_pipeline {
             backend_pipeline.bind_pipeline(command_buffer);
         }
@@ -238,7 +238,9 @@ impl Pipeline {
         device: &Device,
         physical_device: &BackendPhysicalDevice,
     ) -> &mut Self {
-        nrg_profiler::scoped_profile!(format!("pipeline::bind_indirect[{:?}]", self.id()).as_str());
+        nrg_profiler::scoped_profile!(
+            format!("pipeline::bind_indirect[{:?}]", self.get_name()).as_str()
+        );
         if let Some(backend_pipeline) = &mut self.backend_pipeline {
             backend_pipeline.bind_indirect(
                 device,
@@ -251,27 +253,35 @@ impl Pipeline {
     }
 
     fn bind_instance_buffer(&mut self, command_buffer: &CommandBuffer) -> &mut Self {
-        nrg_profiler::scoped_profile!(
-            format!("pipeline::bind_instance_buffer[{:?}]", self.id()).as_str()
-        );
+        nrg_profiler::scoped_profile!(format!(
+            "pipeline::bind_instance_buffer[{:?}]",
+            self.get_name()
+        )
+        .as_str());
         if let Some(backend_pipeline) = &mut self.backend_pipeline {
             backend_pipeline.bind_instance_buffer(command_buffer);
         }
         self
     }
     fn bind_vertices(&mut self, command_buffer: &CommandBuffer) -> &mut Self {
-        nrg_profiler::scoped_profile!(format!("pipeline::bind_vertices[{:?}]", self.id()).as_str());
+        nrg_profiler::scoped_profile!(
+            format!("pipeline::bind_vertices[{:?}]", self.get_name()).as_str()
+        );
         self.mesh.bind_vertices(command_buffer);
         self
     }
     fn bind_indices(&mut self, command_buffer: &CommandBuffer) -> &mut Self {
-        nrg_profiler::scoped_profile!(format!("pipeline::bind_indices[{:?}]", self.id()).as_str());
+        nrg_profiler::scoped_profile!(
+            format!("pipeline::bind_indices[{:?}]", self.get_name()).as_str()
+        );
         self.mesh.bind_indices(command_buffer);
         self
     }
 
     fn draw_single(&mut self, command_buffer: &CommandBuffer) -> &mut Self {
-        nrg_profiler::scoped_profile!(format!("pipeline::draw_indexed[{:?}]", self.id()).as_str());
+        nrg_profiler::scoped_profile!(
+            format!("pipeline::draw_indexed[{:?}]", self.get_name()).as_str()
+        );
         if let Some(backend_pipeline) = &mut self.backend_pipeline {
             backend_pipeline.draw_single(
                 command_buffer,
@@ -284,7 +294,9 @@ impl Pipeline {
     }
 
     fn draw_indirect_batch(&mut self, command_buffer: &CommandBuffer) -> &mut Self {
-        nrg_profiler::scoped_profile!(format!("pipeline::draw_indirect[{:?}]", self.id()).as_str());
+        nrg_profiler::scoped_profile!(
+            format!("pipeline::draw_indirect[{:?}]", self.get_name()).as_str()
+        );
         if let Some(backend_pipeline) = &mut self.backend_pipeline {
             backend_pipeline.draw_indirect_batch(command_buffer, self.instance_count);
         }
@@ -295,6 +307,7 @@ impl Pipeline {
         &mut self,
         device: &Device,
         physical_device: &BackendPhysicalDevice,
+        mesh_id: &MeshId,
         mesh: &Mesh,
         diffuse_color: Vector4,
         diffuse_texture_index: i32,
@@ -305,13 +318,13 @@ impl Pipeline {
         }
 
         nrg_profiler::scoped_profile!(
-            format!("pipeline::add_mesh_instance[{}]", self.id()).as_str()
+            format!("pipeline::add_mesh_instance[{}]", self.get_name()).as_str()
         );
 
         let mesh_data_ref = self.mesh.bind_at_index(
             device,
             physical_device,
-            mesh.category_identifier(),
+            mesh.category_identifier().clone(),
             &mesh.mesh_data().vertices,
             self.vertex_count,
             &mesh.mesh_data().indices,
@@ -333,7 +346,7 @@ impl Pipeline {
         let (position, rotation, scale) = mesh.matrix().get_translation_rotation_scale();
 
         let data = InstanceData {
-            id: compute_color_from_id(mesh.id().as_u128() as _),
+            id: compute_color_from_id(mesh_id.as_u128() as _),
             position,
             rotation,
             scale,
@@ -370,7 +383,9 @@ impl Pipeline {
         physical_device: &BackendPhysicalDevice,
         command_buffer: &CommandBuffer,
     ) {
-        nrg_profiler::scoped_profile!(format!("renderer::draw_pipeline[{:?}]", self.id()).as_str());
+        nrg_profiler::scoped_profile!(
+            format!("renderer::draw_pipeline[{:?}]", self.get_name()).as_str()
+        );
 
         self.bind_indirect(device, physical_device)
             .bind_vertices(command_buffer)

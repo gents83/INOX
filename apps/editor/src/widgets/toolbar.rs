@@ -1,10 +1,9 @@
 use std::path::PathBuf;
 
-use nrg_filesystem::convert_from_local_path;
 use nrg_graphics::{Texture, TextureId};
 use nrg_messenger::{Message, MessageBox, MessengerRw};
 
-use nrg_resources::{FileResource, Resource, ResourceData, SharedData, SharedDataRw, DATA_FOLDER};
+use nrg_resources::{Resource, SerializableResource, SharedData, SharedDataRc};
 use nrg_ui::{
     implement_widget_data, ImageButton, TextureId as eguiTextureId, TopBottomPanel, UIWidget, Ui,
     Widget,
@@ -13,7 +12,7 @@ use nrg_ui::{
 use crate::{EditMode, EditorEvent};
 
 struct ToolbarData {
-    shared_data: SharedDataRw,
+    shared_data: SharedDataRc,
     global_dispatcher: MessageBox,
     select_icon: Resource<Texture>,
     move_icon: Resource<Texture>,
@@ -28,38 +27,26 @@ pub struct Toolbar {
 }
 
 impl Toolbar {
-    pub fn new(shared_data: &SharedDataRw, global_messenger: &MessengerRw) -> Self {
-        let select_icon = Texture::create_from_file(
+    pub fn new(shared_data: &SharedDataRc, global_messenger: &MessengerRw) -> Self {
+        let select_icon = Texture::load_from_file(
             shared_data,
-            convert_from_local_path(
-                PathBuf::from(DATA_FOLDER).as_path(),
-                PathBuf::from("./icons/select.png").as_path(),
-            )
-            .as_path(),
+            global_messenger,
+            PathBuf::from("./icons/select.png").as_path(),
         );
-        let move_icon = Texture::create_from_file(
+        let move_icon = Texture::load_from_file(
             shared_data,
-            convert_from_local_path(
-                PathBuf::from(DATA_FOLDER).as_path(),
-                PathBuf::from("./icons/move.png").as_path(),
-            )
-            .as_path(),
+            global_messenger,
+            PathBuf::from("./icons/move.png").as_path(),
         );
-        let rotate_icon = Texture::create_from_file(
+        let rotate_icon = Texture::load_from_file(
             shared_data,
-            convert_from_local_path(
-                PathBuf::from(DATA_FOLDER).as_path(),
-                PathBuf::from("./icons/rotate.png").as_path(),
-            )
-            .as_path(),
+            global_messenger,
+            PathBuf::from("./icons/rotate.png").as_path(),
         );
-        let scale_icon = Texture::create_from_file(
+        let scale_icon = Texture::load_from_file(
             shared_data,
-            convert_from_local_path(
-                PathBuf::from(DATA_FOLDER).as_path(),
-                PathBuf::from("./icons/scale.png").as_path(),
-            )
-            .as_path(),
+            global_messenger,
+            PathBuf::from("./icons/scale.png").as_path(),
         );
         let data = ToolbarData {
             shared_data: shared_data.clone(),
@@ -74,7 +61,7 @@ impl Toolbar {
         Self { ui_page }
     }
 
-    fn create(shared_data: &SharedDataRw, data: ToolbarData) -> Resource<UIWidget> {
+    fn create(shared_data: &SharedDataRc, data: ToolbarData) -> Resource<UIWidget> {
         UIWidget::register(shared_data, data, |ui_data, ui_context| {
             if let Some(data) = ui_data.as_any().downcast_mut::<ToolbarData>() {
                 TopBottomPanel::top("toolbar")
@@ -107,9 +94,12 @@ impl Toolbar {
         })
     }
 
-    fn show_icon(ui: &mut Ui, shared_data: &SharedDataRw, texture_id: TextureId) -> bool {
-        if let Some(index) = SharedData::get_index_of_resource::<Texture>(shared_data, texture_id) {
-            let response = ImageButton::new(eguiTextureId::User(index as _), [32., 32.]).ui(ui);
+    fn show_icon(ui: &mut Ui, shared_data: &SharedDataRc, texture_id: &TextureId) -> bool {
+        if let Some(texture_index) =
+            SharedData::get_index_of_resource::<Texture>(shared_data, texture_id)
+        {
+            let response =
+                ImageButton::new(eguiTextureId::User(texture_index as _), [32., 32.]).ui(ui);
             return response.clicked();
         }
         false

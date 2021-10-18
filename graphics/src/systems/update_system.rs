@@ -8,19 +8,22 @@ use std::{
 };
 
 use nrg_core::{JobHandlerRw, System, SystemId};
+use nrg_math::{VecBase, Vector4};
 use nrg_messenger::{read_messages, MessageChannel, MessengerRw};
-use nrg_resources::{Resource, ResourceData, ResourceEvent, SharedData, SharedDataRw};
+use nrg_resources::{
+    DataTypeResource, Resource, SerializableResource, SharedData, SharedDataRc, UpdateResourceEvent,
+};
 use nrg_serialize::INVALID_UID;
 
 use crate::{
-    is_shader, is_texture, Mesh, Pipeline, RenderPass, RendererRw, RendererState, Texture,
+    is_shader, Mesh, MeshId, Pipeline, RenderPass, RendererRw, RendererState, Texture,
     INVALID_INDEX,
 };
 
 pub struct UpdateSystem {
     id: SystemId,
     renderer: RendererRw,
-    shared_data: SharedDataRw,
+    shared_data: SharedDataRc,
     job_handler: JobHandlerRw,
     message_channel: MessageChannel,
 }
@@ -28,7 +31,7 @@ pub struct UpdateSystem {
 impl UpdateSystem {
     pub fn new(
         renderer: RendererRw,
-        shared_data: &SharedDataRw,
+        shared_data: &SharedDataRc,
         global_messenger: &MessengerRw,
         job_handler: JobHandlerRw,
     ) -> Self {
@@ -36,7 +39,7 @@ impl UpdateSystem {
         global_messenger
             .write()
             .unwrap()
-            .register_messagebox::<ResourceEvent>(message_channel.get_messagebox());
+            .register_messagebox::<UpdateResourceEvent>(message_channel.get_messagebox());
 
         crate::register_resource_types(shared_data);
         Self {
@@ -50,22 +53,17 @@ impl UpdateSystem {
 
     fn handle_events(&self) {
         read_messages(self.message_channel.get_listener(), |msg| {
-            if msg.type_id() == TypeId::of::<ResourceEvent>() {
-                let e = msg.as_any().downcast_ref::<ResourceEvent>().unwrap();
-                let ResourceEvent::Reload(path) = e;
-                if is_shader(path)
-                    && SharedData::has_resources_of_type::<Pipeline>(&self.shared_data)
-                {
-                    SharedData::for_each_resource(&self.shared_data, |p: &Resource<Pipeline>| {
-                        p.get_mut()
-                            .check_shaders_to_reload(path.to_str().unwrap().to_string());
+            if msg.type_id() == TypeId::of::<UpdateResourceEvent>() {
+                let e = msg.as_any().downcast_ref::<UpdateResourceEvent>().unwrap();
+                let path = e.path.as_path();
+                if is_shader(path) {
+                    SharedData::for_each_resource_mut(&self.shared_data, |_, p: &mut Pipeline| {
+                        p.check_shaders_to_reload(path.to_str().unwrap().to_string());
                     });
-                } else if is_texture(path)
-                    && SharedData::has_resources_of_type::<Texture>(&self.shared_data)
-                {
-                    SharedData::for_each_resource(&self.shared_data, |t: &Resource<Texture>| {
-                        if t.get().path() == path.as_path() {
-                            t.get_mut().invalidate();
+                } else if Texture::is_matching_extension(path) {
+                    SharedData::for_each_resource_mut(&self.shared_data, |_, t: &mut Texture| {
+                        if t.path() == path {
+                            t.invalidate();
                         }
                     });
                 }
@@ -74,60 +72,73 @@ impl UpdateSystem {
     }
 
     fn create_render_mesh_job(
-        renderer: RendererRw,
-        mesh: Resource<Mesh>,
-        render_pass_pipeline: Option<Resource<Pipeline>>,
+        renderer: &RendererRw,
+        mesh_id: &MeshId,
+        mesh: &mut Mesh,
+        render_pass_pipeline: Option<&Resource<Pipeline>>,
     ) {
         let mut texture_id = INVALID_UID;
-        if let Some(material) = mesh.get().material() {
-            let material = material.get();
-            if material.has_diffuse_texture() {
-                texture_id = material.diffuse_texture().id();
-            }
+        if let Some(material) = mesh.material() {
+            material.get(|material| {
+                if material.has_diffuse_texture() {
+                    texture_id = *material.diffuse_texture().id();
+                }
+            });
         }
         if !texture_id.is_nil() {
             let renderer = renderer.read().unwrap();
-            let texture_info = renderer.get_texture_handler().get_texture_info(texture_id);
-            mesh.get_mut().process_uv_for_texture(texture_info);
+            let texture_info = renderer.get_texture_handler().get_texture_info(&texture_id);
+            mesh.process_uv_for_texture(texture_info);
         }
-        if let Some(material) = mesh.get().material() {
-            let material = material.get();
-            let diffuse_color = material.diffuse_color();
-
-            let (diffuse_texture_index, diffuse_layer_index) = if material.has_diffuse_texture() {
-                nrg_profiler::scoped_profile!("Obtaining texture info");
-                let (diffuse_texture_index, diffuse_layer_index) = (
-                    material.diffuse_texture().get().texture_index() as _,
-                    material.diffuse_texture().get().layer_index() as _,
-                );
-                (diffuse_texture_index, diffuse_layer_index)
-            } else {
-                (INVALID_INDEX, INVALID_INDEX)
-            };
+        if let Some(material) = mesh.material() {
+            let mut diffuse_color = Vector4::default_zero();
+            let (mut diffuse_texture_index, mut diffuse_layer_index) =
+                (INVALID_INDEX, INVALID_INDEX);
+            material.get(|material| {
+                nrg_profiler::scoped_profile!("Obtaining material data");
+                diffuse_color = material.diffuse_color();
+                if material.has_diffuse_texture() {
+                    material.diffuse_texture().get(|t| {
+                        nrg_profiler::scoped_profile!("Obtaining texture info");
+                        diffuse_texture_index = t.texture_index();
+                        diffuse_layer_index = t.layer_index();
+                    });
+                }
+            });
             if let Some(pipeline) = render_pass_pipeline {
                 let renderer = renderer.read().unwrap();
                 let device = renderer.device();
                 let physical_device = renderer.instance().get_physical_device();
-                pipeline.get_mut().add_mesh_instance(
-                    device,
-                    physical_device,
-                    &mesh.get(),
-                    diffuse_color,
-                    diffuse_texture_index,
-                    diffuse_layer_index,
-                );
-            } else if let Some(pipeline) = material.pipeline() {
-                let renderer = renderer.read().unwrap();
-                let device = renderer.device();
-                let physical_device = renderer.instance().get_physical_device();
-                pipeline.get_mut().add_mesh_instance(
-                    device,
-                    physical_device,
-                    &mesh.get(),
-                    diffuse_color,
-                    diffuse_texture_index,
-                    diffuse_layer_index,
-                );
+                pipeline.get_mut(|p| {
+                    p.add_mesh_instance(
+                        device,
+                        physical_device,
+                        mesh_id,
+                        mesh,
+                        diffuse_color,
+                        diffuse_texture_index,
+                        diffuse_layer_index,
+                    );
+                });
+            } else {
+                material.get(|material| {
+                    if let Some(pipeline) = material.pipeline() {
+                        let renderer = renderer.read().unwrap();
+                        let device = renderer.device();
+                        let physical_device = renderer.instance().get_physical_device();
+                        pipeline.get_mut(|p| {
+                            p.add_mesh_instance(
+                                device,
+                                physical_device,
+                                mesh_id,
+                                mesh,
+                                diffuse_color,
+                                diffuse_texture_index,
+                                diffuse_layer_index,
+                            );
+                        });
+                    }
+                });
             }
         }
     }
@@ -171,11 +182,11 @@ impl System for UpdateSystem {
             renderer.prepare_frame();
         }
 
-        SharedData::for_each_resource(&self.shared_data, |texture: &Resource<Texture>| {
-            if texture.get().update_from_gpu() {
-                let job_name = format!("Readback texture {:?}", texture.id());
+        SharedData::for_each_resource(&self.shared_data, |texture_handle, texture: &Texture| {
+            if texture.update_from_gpu() {
+                let job_name = format!("Readback texture {:?}", texture_handle.id());
                 let renderer = self.renderer.clone();
-                let texture = texture.clone();
+                let texture = texture_handle.clone();
                 let wait_count = wait_count.clone();
                 wait_count.fetch_add(1, Ordering::SeqCst);
                 self.job_handler
@@ -186,47 +197,54 @@ impl System for UpdateSystem {
                         let device = renderer.device();
                         let physical_device = renderer.instance().get_physical_device();
                         let texture_handler = renderer.get_texture_handler();
-                        texture
-                            .get_mut()
-                            .capture_image(texture_handler, device, physical_device);
+                        texture.get_mut(|t| {
+                            t.capture_image(texture.id(), texture_handler, device, physical_device);
+                        });
                         wait_count.fetch_sub(1, Ordering::SeqCst);
                     });
             }
         });
 
-        SharedData::for_each_resource(&self.shared_data, |render_pass: &Resource<RenderPass>| {
-            if render_pass.get().is_initialized() {
-                let pipeline = render_pass.get().pipeline().clone();
-                let mesh_category_to_draw = render_pass.get().mesh_category_to_draw().to_vec();
-                SharedData::for_each_resource(&self.shared_data, |mesh: &Resource<Mesh>| {
+        SharedData::for_each_resource(&self.shared_data, |_, render_pass: &RenderPass| {
+            if render_pass.is_initialized() {
+                let mesh_category_to_draw = render_pass.mesh_category_to_draw().to_vec();
+                SharedData::for_each_resource(&self.shared_data, |mesh_handle, mesh: &Mesh| {
                     let should_render = mesh_category_to_draw
                         .iter()
-                        .any(|id| mesh.get().category_identifier() == *id);
+                        .any(|id| mesh.category_identifier() == id);
 
-                    if !should_render || !mesh.get().is_visible() {
+                    if !should_render || !mesh.is_visible() {
                         return;
                     }
                     let renderer = self.renderer.clone();
                     let wait_count = wait_count.clone();
-                    let mesh = mesh.clone();
-                    let pipeline = pipeline.clone();
+                    let mesh_handle = mesh_handle.clone();
+                    let pipeline = render_pass.pipeline().clone();
 
                     let job_name = format!(
                         "Processing mesh {:?} for RenderPass [{:?}",
-                        mesh.id(),
-                        render_pass.get().data().name
+                        mesh_handle.id(),
+                        render_pass.data().name
                     );
                     wait_count.fetch_add(1, Ordering::SeqCst);
                     self.job_handler
                         .write()
                         .unwrap()
                         .add_job(job_name.as_str(), move || {
+                            let mesh_id = *mesh_handle.id();
                             nrg_profiler::scoped_profile!(format!(
                                 "create_render_mesh_job[{}]",
-                                mesh.id()
+                                mesh_id
                             )
                             .as_str());
-                            Self::create_render_mesh_job(renderer, mesh, pipeline);
+                            mesh_handle.get_mut(|mesh| {
+                                Self::create_render_mesh_job(
+                                    &renderer,
+                                    &mesh_id,
+                                    mesh,
+                                    pipeline.as_ref(),
+                                );
+                            });
                             wait_count.fetch_sub(1, Ordering::SeqCst);
                         });
                 });

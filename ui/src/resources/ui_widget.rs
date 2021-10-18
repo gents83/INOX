@@ -1,14 +1,14 @@
 use std::any::{type_name, Any};
 
 use egui::{CollapsingHeader, CtxRef, Ui};
-use nrg_resources::{Resource, ResourceData, ResourceId, SharedData, SharedDataRw};
+use nrg_resources::{Resource, ResourceId, ResourceTrait, SharedData, SharedDataRc};
 use nrg_serialize::generate_random_uid;
 
 use crate::{UIProperties, UIPropertiesRegistry};
 
 pub type UIWidgetId = ResourceId;
 
-pub trait UIWidgetData: Send + Sync + Any {
+pub trait UIWidgetData: Send + Sync + Any + 'static {
     fn as_any(&mut self) -> &mut dyn Any;
 }
 #[macro_export]
@@ -27,26 +27,27 @@ macro_rules! implement_widget_data {
 }
 
 pub struct UIWidget {
-    id: ResourceId,
     type_name: String,
     data: Box<dyn UIWidgetData>,
     func: Box<dyn FnMut(&mut dyn UIWidgetData, &CtxRef)>,
 }
+impl ResourceTrait for UIWidget {}
 
 unsafe impl Send for UIWidget {}
 unsafe impl Sync for UIWidget {}
 
-impl ResourceData for UIWidget {
-    fn id(&self) -> ResourceId {
-        self.id
-    }
-}
-
 impl UIProperties for UIWidget {
-    fn show(&mut self, _ui_registry: &UIPropertiesRegistry, ui: &mut Ui, collapsed: bool) {
+    fn show(
+        &mut self,
+        id: &ResourceId,
+        _ui_registry: &UIPropertiesRegistry,
+        ui: &mut Ui,
+        collapsed: bool,
+    ) {
         CollapsingHeader::new(format!(
-            "UIWidget [{:?}]",
-            self.id().to_simple().to_string()
+            "UIWidget_{:?} [{:?}]",
+            self.type_name,
+            id.to_simple().to_string()
         ))
         .show_background(true)
         .default_open(!collapsed)
@@ -63,18 +64,17 @@ impl UIProperties for UIWidget {
 }
 
 impl UIWidget {
-    pub fn register<D, F>(shared_data: &SharedDataRw, data: D, f: F) -> Resource<Self>
+    pub fn register<D, F>(shared_data: &SharedDataRc, data: D, f: F) -> Resource<Self>
     where
         D: UIWidgetData + Sized,
         F: FnMut(&mut dyn UIWidgetData, &CtxRef) + 'static,
     {
         let ui_page = Self {
-            id: generate_random_uid(),
             type_name: type_name::<D>().to_string(),
             data: Box::new(data),
             func: Box::new(f),
         };
-        SharedData::add_resource::<UIWidget>(shared_data, ui_page)
+        SharedData::add_resource::<UIWidget>(shared_data, generate_random_uid(), ui_page)
     }
 
     pub fn data<D>(&mut self) -> Option<&D>

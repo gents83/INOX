@@ -1,4 +1,4 @@
-use nrg_resources::SharedDataRw;
+use nrg_resources::SharedDataRc;
 
 pub use self::font::*;
 pub use self::material::*;
@@ -16,24 +16,22 @@ pub mod render_pass;
 pub mod texture;
 pub mod view;
 
-pub fn register_resource_types(shared_data: &SharedDataRw) {
-    let mut shared_data = shared_data.write().unwrap();
-    shared_data.register_type::<Font>();
-    shared_data.register_type::<Material>();
-    shared_data.register_type::<Mesh>();
-    shared_data.register_type::<Pipeline>();
+pub fn register_resource_types(shared_data: &SharedDataRc) {
+    shared_data.register_type_serializable::<Font>();
+    shared_data.register_type_serializable::<Material>();
+    shared_data.register_type_serializable::<Mesh>();
+    shared_data.register_type_serializable::<Pipeline>();
     shared_data.register_type::<RenderPass>();
-    shared_data.register_type::<Texture>();
+    shared_data.register_type_serializable::<Texture>();
     shared_data.register_type::<View>();
 }
 
-pub fn unregister_resource_types(shared_data: &SharedDataRw) {
-    let mut shared_data = shared_data.write().unwrap();
-    shared_data.unregister_type::<Font>();
-    shared_data.unregister_type::<Material>();
-    shared_data.unregister_type::<Mesh>();
-    shared_data.unregister_type::<Pipeline>();
+pub fn unregister_resource_types(shared_data: &SharedDataRc) {
+    shared_data.unregister_type_serializable::<Font>();
+    shared_data.unregister_type_serializable::<Material>();
+    shared_data.unregister_type_serializable::<Mesh>();
+    shared_data.unregister_type_serializable::<Pipeline>();
     shared_data.unregister_type::<RenderPass>();
-    shared_data.unregister_type::<Texture>();
+    shared_data.unregister_type_serializable::<Texture>();
     shared_data.unregister_type::<View>();
 }

@@ -1,0 +1,14 @@
+{
+    "fragment_shader": "shaders/grid_frag.spv",
+    "vertex_shader": "shaders/grid_vert.spv",
+    "tcs_shader": "",
+    "tes_shader": "",
+    "geometry_shader": "",
+    "culling": "Back",
+    "mode": "Fill",
+    "src_color_blend_factor": "One",
+    "dst_color_blend_factor": "OneMinusSrcAlpha",
+    "src_alpha_blend_factor": "OneMinusDstAlpha",
+    "dst_alpha_blend_factor": "One",
+    "draw_mode": "Batch"
+}

@@ -3,16 +3,16 @@ use std::path::{Path, PathBuf};
 use crate::{MaterialData, Pipeline, Texture, TextureId};
 
 use nrg_math::{VecBase, Vector4};
+use nrg_messenger::MessengerRw;
 use nrg_resources::{
-    DataTypeResource, Deserializable, FileResource, Handle, Resource, ResourceData, ResourceId,
-    SerializableResource, SharedData, SharedDataRw,
+    DataTypeResource, Handle, Resource, ResourceId, SerializableResource, SharedData, SharedDataRc,
 };
-use nrg_serialize::{generate_random_uid, generate_uid_from_string, INVALID_UID};
+use nrg_serialize::{generate_random_uid, read_from_file};
 
 pub type MaterialId = ResourceId;
 
+#[derive(Clone)]
 pub struct Material {
-    id: ResourceId,
     pipeline: Handle<Pipeline>,
     path: PathBuf,
     textures: Vec<Resource<Texture>>,
@@ -23,7 +23,6 @@ pub struct Material {
 impl Default for Material {
     fn default() -> Self {
         Self {
-            id: INVALID_UID,
             pipeline: None,
             path: PathBuf::new(),
             textures: Vec::new(),
@@ -33,58 +32,72 @@ impl Default for Material {
     }
 }
 
-impl ResourceData for Material {
-    fn id(&self) -> ResourceId {
-        self.id
-    }
-}
-
 impl SerializableResource for Material {
+    fn set_path(&mut self, path: &Path) {
+        self.path = path.to_path_buf();
+    }
     fn path(&self) -> &Path {
         self.path.as_path()
+    }
+    fn is_matching_extension(path: &Path) -> bool {
+        const MATERIAL_EXTENSION: &str = "material_data";
+
+        if let Some(ext) = path.extension().unwrap().to_str() {
+            return ext == MATERIAL_EXTENSION;
+        }
+        false
     }
 }
 
 impl DataTypeResource for Material {
     type DataType = MaterialData;
 
+    fn is_initialized(&self) -> bool {
+        self.pipeline.is_some()
+    }
+    fn invalidate(&mut self) {
+        self.pipeline = None;
+    }
+    fn deserialize_data(path: &Path) -> Self::DataType {
+        read_from_file::<Self::DataType>(path)
+    }
+
     fn create_from_data(
-        shared_data: &SharedDataRw,
+        shared_data: &SharedDataRc,
+        global_messenger: &MessengerRw,
+        id: MaterialId,
         material_data: Self::DataType,
     ) -> Resource<Self> {
-        let id = generate_uid_from_string(material_data.path().to_str().unwrap());
-        let path = material_data.path().to_path_buf();
-
         let mut textures = Vec::new();
         for t in material_data.textures.iter() {
-            let texture = Texture::create_from_file(shared_data, t.as_path());
+            let texture = Texture::load_from_file(shared_data, global_messenger, t.as_path());
             textures.push(texture);
         }
 
-        let pipeline = Pipeline::create_from_data(shared_data, material_data.pipeline);
+        let pipeline = Pipeline::load_from_file(
+            shared_data,
+            global_messenger,
+            material_data.pipeline.as_path(),
+        );
 
         let material = Self {
-            id,
-            path,
             textures,
             pipeline: Some(pipeline),
-            diffuse_color: [1., 1., 1., 1.].into(),
-            outline_color: Vector4::default_zero(),
+            ..Default::default()
         };
-
-        SharedData::add_resource(shared_data, material)
+        SharedData::add_resource(shared_data, id, material)
     }
 }
 
 impl Material {
-    pub fn create_from_pipeline(
-        shared_data: &SharedDataRw,
+    pub fn duplicate_from_pipeline(
+        shared_data: &SharedDataRc,
         pipeline: &Resource<Pipeline>,
     ) -> Resource<Self> {
         SharedData::add_resource(
             shared_data,
+            generate_random_uid(),
             Self {
-                id: generate_random_uid(),
                 pipeline: Some(pipeline.clone()),
                 path: PathBuf::new(),
                 textures: Vec::new(),
@@ -93,7 +106,7 @@ impl Material {
             },
         )
     }
-    pub fn find_from_path(shared_data: &SharedDataRw, path: &Path) -> Handle<Material> {
+    pub fn find_from_path(shared_data: &SharedDataRc, path: &Path) -> Handle<Material> {
         SharedData::match_resource(shared_data, |m: &Material| m.path() == path)
     }
     pub fn pipeline(&self) -> &Handle<Pipeline> {
@@ -118,11 +131,11 @@ impl Material {
         !self.textures.is_empty()
     }
 
-    pub fn has_texture(&self, texture_id: TextureId) -> bool {
+    pub fn has_texture(&self, texture_id: &TextureId) -> bool {
         self.textures.iter().any(|t| t.id() == texture_id)
     }
 
-    pub fn remove_texture(&mut self, texture_id: TextureId) {
+    pub fn remove_texture(&mut self, texture_id: &TextureId) {
         self.textures.retain(|t| t.id() != texture_id);
     }
     pub fn remove_all_textures(&mut self) -> &mut Self {

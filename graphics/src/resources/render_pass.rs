@@ -1,7 +1,10 @@
+use std::path::Path;
+
+use nrg_messenger::MessengerRw;
 use nrg_resources::{
-    DataTypeResource, Handle, Resource, ResourceData, ResourceId, SharedData, SharedDataRw,
+    DataTypeResource, Handle, Resource, ResourceId, SerializableResource, SharedData, SharedDataRc,
 };
-use nrg_serialize::{generate_uid_from_string, Uid};
+use nrg_serialize::read_from_file;
 
 use crate::{
     api::backend::{self, BackendPhysicalDevice},
@@ -9,11 +12,10 @@ use crate::{
     TextureHandler,
 };
 
-pub type RenderPassId = Uid;
+pub type RenderPassId = ResourceId;
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct RenderPass {
-    id: ResourceId,
     backend_render_pass: Option<backend::BackendRenderPass>,
     data: RenderPassData,
     color_texture: Handle<Texture>,
@@ -38,28 +40,34 @@ impl std::ops::DerefMut for RenderPass {
     }
 }
 
-impl ResourceData for RenderPass {
-    fn id(&self) -> ResourceId {
-        self.id
-    }
-}
-
 impl DataTypeResource for RenderPass {
     type DataType = RenderPassData;
+
+    fn invalidate(&mut self) {
+        self.is_initialized = false;
+    }
+    fn is_initialized(&self) -> bool {
+        self.is_initialized
+    }
+    fn deserialize_data(path: &Path) -> Self::DataType {
+        read_from_file::<Self::DataType>(path)
+    }
+
     fn create_from_data(
-        shared_data: &SharedDataRw,
+        shared_data: &SharedDataRc,
+        global_messenger: &MessengerRw,
+        id: RenderPassId,
         render_pass_data: Self::DataType,
     ) -> Resource<Self> {
-        if let Some(render_pass) =
-            RenderPass::find_from_name(shared_data, render_pass_data.name.as_str())
-        {
-            return render_pass;
-        }
-
-        let pipeline = render_pass_data
-            .pipeline
-            .as_ref()
-            .map(|pipeline_data| Pipeline::create_from_data(shared_data, pipeline_data.clone()));
+        let pipeline = if render_pass_data.pipeline.extension().is_some() {
+            Some(Pipeline::load_from_file(
+                shared_data,
+                global_messenger,
+                render_pass_data.pipeline.as_path(),
+            ))
+        } else {
+            None
+        };
 
         let mut mesh_category_to_draw = Vec::new();
         render_pass_data
@@ -69,25 +77,17 @@ impl DataTypeResource for RenderPass {
                 mesh_category_to_draw.push(MeshCategoryId::new(name.as_str()));
             });
 
-        SharedData::add_resource(
-            shared_data,
-            RenderPass {
-                id: generate_uid_from_string(render_pass_data.name.as_str()),
-                data: render_pass_data.clone(),
-                pipeline,
-                mesh_category_to_draw,
-                ..Default::default()
-            },
-        )
+        let render_pass = Self {
+            data: render_pass_data.clone(),
+            pipeline,
+            mesh_category_to_draw,
+            ..Default::default()
+        };
+        SharedData::add_resource(shared_data, id, render_pass)
     }
 }
 
 impl RenderPass {
-    pub fn find_from_name(shared_data: &SharedDataRw, render_pass_name: &str) -> Handle<Self> {
-        SharedData::match_resource(shared_data, |r: &RenderPass| {
-            r.data.name == render_pass_name
-        })
-    }
     pub fn data(&self) -> &RenderPassData {
         &self.data
     }
@@ -113,13 +113,16 @@ impl RenderPass {
         if let Some(t) = texture {
             if texture_handler.get_texture_atlas(t.id()).is_none() {
                 //println!("Adding texture {:?}", t.id());
-                t.get_mut().set_update_from_gpu(should_update_from_gpu);
+                t.get_mut(|t| {
+                    t.set_update_from_gpu(should_update_from_gpu);
+                });
+                let dimensions = t.get(|t| t.dimensions());
                 texture_handler.add_render_target(
                     device,
                     physical_device,
                     t.id(),
-                    t.get().width(),
-                    t.get().height(),
+                    dimensions.0,
+                    dimensions.1,
                     false,
                 );
             }
@@ -209,7 +212,9 @@ impl RenderPass {
             );
         }
         if let Some(pipeline) = &self.pipeline {
-            pipeline.get_mut().init(device, physical_device, self);
+            pipeline.get_mut(|p| {
+                p.init(device, physical_device, self);
+            });
         }
         self.is_initialized = true;
         self
@@ -235,14 +240,6 @@ impl RenderPass {
         self.depth_texture = Some(depth_texture);
         self.invalidate();
         self
-    }
-
-    pub fn invalidate(&mut self) {
-        self.is_initialized = false;
-    }
-
-    pub fn is_initialized(&self) -> bool {
-        self.is_initialized
     }
 
     pub fn get_framebuffer_width(&self) -> u32 {

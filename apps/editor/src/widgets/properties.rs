@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use nrg_resources::{Resource, SharedData, SharedDataRw};
+use nrg_resources::{Resource, SharedData, SharedDataRc};
 use nrg_scene::{Object, ObjectId};
 use nrg_serialize::INVALID_UID;
 use nrg_ui::{
@@ -13,7 +13,7 @@ struct PropertiesRuntimeData {
 }
 
 struct PropertiesData {
-    shared_data: SharedDataRw,
+    shared_data: SharedDataRc,
     ui_registry: Arc<UIPropertiesRegistry>,
     selected_object: ObjectId,
 }
@@ -24,7 +24,7 @@ pub struct Properties {
 }
 
 impl Properties {
-    pub fn new(shared_data: &SharedDataRw, ui_registry: Arc<UIPropertiesRegistry>) -> Self {
+    pub fn new(shared_data: &SharedDataRc, ui_registry: Arc<UIPropertiesRegistry>) -> Self {
         let data = PropertiesData {
             shared_data: shared_data.clone(),
             ui_registry,
@@ -36,13 +36,15 @@ impl Properties {
     }
 
     pub fn select_object(&mut self, object_id: ObjectId) -> &mut Self {
-        if let Some(data) = self.ui_page.get_mut().data_mut::<PropertiesData>() {
-            data.selected_object = object_id;
-        }
+        self.ui_page.get_mut(|w| {
+            if let Some(data) = w.data_mut::<PropertiesData>() {
+                data.selected_object = object_id;
+            }
+        });
         self
     }
 
-    fn create(shared_data: &SharedDataRw, data: PropertiesData) -> Resource<UIWidget> {
+    fn create(shared_data: &SharedDataRc, data: PropertiesData) -> Resource<UIWidget> {
         UIWidget::register(shared_data, data, |ui_data, ui_context| {
             if let Some(data) = ui_data.as_any().downcast_mut::<PropertiesData>() {
                 let min_width = 200.;
@@ -65,7 +67,7 @@ impl Properties {
                                     &data.shared_data,
                                     &data.ui_registry,
                                     ui,
-                                    data.selected_object,
+                                    &data.selected_object,
                                 );
                             });
                         }
@@ -79,15 +81,15 @@ impl Properties {
     }
 
     fn object_properties(
-        shared_data: &SharedDataRw,
+        shared_data: &SharedDataRc,
         ui_registry: &UIPropertiesRegistry,
         ui: &mut Ui,
-        object_id: ObjectId,
+        object_id: &ObjectId,
     ) {
-        if SharedData::has::<Object>(shared_data, object_id) {
-            let object = SharedData::get_resource::<Object>(shared_data, object_id);
-
-            object.get_mut().show(ui_registry, ui, false);
+        if let Some(object) = SharedData::get_resource::<Object>(shared_data, object_id) {
+            object.get_mut(|o| {
+                o.show(object_id, ui_registry, ui, false);
+            });
         }
     }
 }

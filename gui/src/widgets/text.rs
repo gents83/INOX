@@ -186,8 +186,7 @@ impl Text {
                     self.font
                         .as_ref()
                         .unwrap()
-                        .get()
-                        .glyph_texture_coord(*c as _),
+                        .get(|f| f.glyph_texture_coord(*c as _)),
                     Some(mesh_index),
                 );
                 mesh_index += 4;
@@ -203,8 +202,7 @@ impl Text {
 impl InternalWidget for Text {
     fn widget_init(&mut self) {
         let font_id = Font::get_default(self.get_shared_data());
-        let font = SharedData::get_resource::<Font>(self.get_shared_data(), font_id);
-        self.font = Some(font);
+        self.font = SharedData::get_resource::<Font>(self.get_shared_data(), &font_id);
         if self.is_initialized() {
             self.is_dirty = true;
             return;

@@ -1,4 +1,3 @@
-use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::{any::TypeId, path::Path};
@@ -11,14 +10,12 @@ use super::widgets::*;
 use nrg_core::*;
 
 use nrg_graphics::{Font, Material, Mesh, MeshData, Pipeline, RenderPass, Texture, View};
-use nrg_messenger::{read_messages, Message, MessageChannel, MessengerRw};
+use nrg_messenger::{read_messages, send_global_event, MessageChannel, MessengerRw};
 use nrg_platform::{InputState, Key, KeyEvent, MouseEvent, WindowEvent};
-use nrg_resources::{
-    DataTypeResource, FileResource, Resource, ResourceData, SerializableResource, SharedData,
-    SharedDataRw,
-};
+use nrg_resources::{DataTypeResource, Resource, SerializableResource, SharedData, SharedDataRc};
 use nrg_scene::{Hitbox, Object, Scene, Transform};
 
+use nrg_serialize::generate_random_uid;
 use nrg_ui::{DialogEvent, DialogOp, UIPropertiesRegistry, UIWidget};
 
 const GRID_MESH_CATEGORY_IDENTIFIER: &str = "EditorGrid";
@@ -26,16 +23,15 @@ const GRID_MESH_CATEGORY_IDENTIFIER: &str = "EditorGrid";
 #[allow(dead_code)]
 pub struct EditorUpdater {
     id: SystemId,
-    shared_data: SharedDataRw,
+    shared_data: SharedDataRc,
     global_messenger: MessengerRw,
     config: Config,
     message_channel: MessageChannel,
     pipelines: Vec<Resource<Pipeline>>,
     render_passes: Vec<Resource<RenderPass>>,
     fonts: Vec<Resource<Font>>,
-    default_material: Resource<Material>,
-    wireframe_material: Resource<Material>,
-    grid_material: Resource<Material>,
+    default_pipeline: Resource<Pipeline>,
+    wireframe_pipeline: Resource<Pipeline>,
     grid_mesh: Resource<Mesh>,
     scene: Resource<Scene>,
     main_menu: Option<MainMenu>,
@@ -50,25 +46,45 @@ pub struct EditorUpdater {
 }
 
 impl EditorUpdater {
-    pub fn new(shared_data: SharedDataRw, global_messenger: MessengerRw, config: &Config) -> Self {
+    pub fn new(shared_data: SharedDataRc, global_messenger: MessengerRw, config: &Config) -> Self {
         let message_channel = MessageChannel::default();
 
         nrg_scene::register_resource_types(&shared_data);
         crate::resources::register_resource_types(&shared_data);
 
-        let default_material =
-            Material::create_from_file(&shared_data, config.default_material.as_path());
-        let wireframe_material =
-            Material::create_from_file(&shared_data, config.wireframe_material.as_path());
-        let grid_material =
-            Material::create_from_file(&shared_data, config.grid_material.as_path());
+        let default_pipeline = Pipeline::load_from_file(
+            &shared_data,
+            &global_messenger,
+            config.default_pipeline.as_path(),
+        );
+        let wireframe_pipeline = Pipeline::load_from_file(
+            &shared_data,
+            &global_messenger,
+            config.wireframe_pipeline.as_path(),
+        );
 
         let mut mesh_data = MeshData::new(GRID_MESH_CATEGORY_IDENTIFIER);
         mesh_data.add_quad_default([-1., -1., 1., 1.].into(), 0.);
-        let grid_mesh = Mesh::create_from_data(&shared_data, mesh_data);
-        grid_mesh.get_mut().set_material(grid_material.clone());
+        let grid_mesh = Mesh::create_from_data(
+            &shared_data,
+            &global_messenger,
+            generate_random_uid(),
+            mesh_data,
+        );
+        grid_mesh.get_mut(|m| {
+            let grid_material = Material::load_from_file(
+                &shared_data,
+                &global_messenger,
+                config.grid_material.as_path(),
+            );
+            m.set_material(grid_material);
+        });
 
-        let scene = SharedData::add_resource::<Scene>(&shared_data, Scene::default());
+        let scene = SharedData::add_resource::<Scene>(
+            &shared_data,
+            generate_random_uid(),
+            Scene::default(),
+        );
 
         Self {
             id: SystemId::new(),
@@ -79,9 +95,8 @@ impl EditorUpdater {
             global_messenger,
             config: config.clone(),
             message_channel,
-            default_material,
-            wireframe_material,
-            grid_material,
+            default_pipeline,
+            wireframe_pipeline,
             grid_mesh,
             scene,
             main_menu: None,
@@ -96,26 +111,23 @@ impl EditorUpdater {
         }
     }
 
-    fn send_event(&self, event: Box<dyn Message>) {
-        self.global_messenger
-            .read()
-            .unwrap()
-            .get_dispatcher()
-            .write()
-            .unwrap()
-            .send(event)
-            .ok();
-    }
-
     fn window_init(&self) -> &Self {
-        self.send_event(WindowEvent::RequestChangeTitle(self.config.title.clone()).as_boxed());
-        self.send_event(
-            WindowEvent::RequestChangeSize(self.config.width, self.config.height).as_boxed(),
+        send_global_event(
+            &self.global_messenger,
+            WindowEvent::RequestChangeTitle(self.config.title.clone()),
         );
-        self.send_event(
-            WindowEvent::RequestChangePos(self.config.pos_x, self.config.pos_y).as_boxed(),
+        send_global_event(
+            &self.global_messenger,
+            WindowEvent::RequestChangeSize(self.config.width, self.config.height),
         );
-        self.send_event(WindowEvent::RequestChangeVisible(true).as_boxed());
+        send_global_event(
+            &self.global_messenger,
+            WindowEvent::RequestChangePos(self.config.pos_x, self.config.pos_y),
+        );
+        send_global_event(
+            &self.global_messenger,
+            WindowEvent::RequestChangeVisible(true),
+        );
         self
     }
 
@@ -174,16 +186,15 @@ impl System for EditorUpdater {
             .create_properties()
             .create_view3d();
 
-        self.load_object(
-            PathBuf::from("C:\\PROJECTS\\NRG\\data\\models\\Suzanne\\Suzanne.object_data")
-                .as_path(),
-        );
+        self.load_object(std::path::PathBuf::from("models/Suzanne/Suzanne.object_data").as_path());
     }
 
     fn run(&mut self) -> bool {
         self.update_events().update_view3d().update_widgets();
 
-        self.scene.get_mut().update_hierarchy(&self.shared_data);
+        self.scene.get_mut(|s| {
+            s.update_hierarchy(&self.shared_data);
+        });
 
         true
     }
@@ -229,8 +240,8 @@ impl EditorUpdater {
         let view3d = View3D::new(
             &self.shared_data,
             &self.global_messenger,
-            &self.default_material,
-            &self.wireframe_material,
+            &self.default_pipeline,
+            &self.wireframe_pipeline,
         );
         self.view3d = Some(view3d);
         self
@@ -289,29 +300,28 @@ impl EditorUpdater {
         for render_pass_data in self.config.render_passes.iter() {
             self.render_passes.push(RenderPass::create_from_data(
                 &self.shared_data,
+                &self.global_messenger,
+                generate_random_uid(),
                 render_pass_data.clone(),
             ));
         }
 
-        for pipeline_data in self.config.pipelines.iter() {
-            self.pipelines.push(Pipeline::create_from_data(
-                &self.shared_data,
-                pipeline_data.clone(),
-            ));
-        }
-
         if let Some(default_font_path) = self.config.fonts.first() {
-            self.fonts
-                .push(Font::create_from_file(&self.shared_data, default_font_path));
+            self.fonts.push(Font::load_from_file(
+                &self.shared_data,
+                &self.global_messenger,
+                default_font_path,
+            ));
         }
     }
 
     fn load_object(&mut self, filename: &Path) {
-        if !filename.is_dir() && filename.exists() {
-            self.scene.get_mut().clear();
-            let object = Object::create_from_file(&self.shared_data, filename);
-            self.scene.get_mut().add_object(object);
-        }
+        self.scene.get_mut(|s| {
+            s.clear();
+            let object =
+                Object::load_from_file(&self.shared_data, &self.global_messenger, filename);
+            s.add_object(object);
+        });
     }
 
     fn update_events(&mut self) -> &mut Self {
@@ -380,10 +390,7 @@ impl EditorUpdater {
                     }
                     EditorEvent::ChangeMode(mode) => {
                         if let Some(view3d) = &mut self.view3d {
-                            view3d.change_edit_mode(
-                                mode,
-                                self.default_material.get().pipeline().as_ref().unwrap(),
-                            );
+                            view3d.change_edit_mode(mode, &self.default_pipeline);
                         }
                     }
                     _ => {}

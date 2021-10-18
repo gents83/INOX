@@ -2,7 +2,7 @@ use super::data_formats::INSTANCE_BUFFER_BIND_ID;
 use super::shader::BackendShader;
 use super::{BackendCommandBuffer, BackendDevice, BackendRenderPass};
 use crate::api::backend::{
-    create_buffer, destroy_buffer, copy_from_buffer, physical_device::BackendPhysicalDevice,
+    copy_from_buffer, create_buffer, destroy_buffer, physical_device::BackendPhysicalDevice,
 };
 
 use crate::utils::read_spirv_from_bytes;
@@ -17,6 +17,7 @@ use nrg_resources::DATA_FOLDER;
 use std::path::{Path, PathBuf};
 use vulkan_bindings::*;
 
+#[derive(Clone)]
 pub struct BackendPipeline {
     shaders: Vec<BackendShader>,
     graphics_pipeline: VkPipeline,

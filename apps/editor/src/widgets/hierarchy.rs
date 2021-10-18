@@ -1,5 +1,5 @@
 use nrg_messenger::{Message, MessageBox, MessengerRw};
-use nrg_resources::{Resource, ResourceData, SerializableResource, SharedData, SharedDataRw};
+use nrg_resources::{Resource, SerializableResource, SharedData, SharedDataRc};
 use nrg_scene::{Object, ObjectId, Scene, SceneId};
 use nrg_serialize::INVALID_UID;
 use nrg_ui::{
@@ -9,7 +9,7 @@ use nrg_ui::{
 use crate::EditorEvent;
 
 struct HierarchyData {
-    shared_data: SharedDataRw,
+    shared_data: SharedDataRc,
     global_dispatcher: MessageBox,
     selected_object: ObjectId,
     scene: Resource<Scene>,
@@ -22,30 +22,34 @@ pub struct Hierarchy {
 
 impl Hierarchy {
     pub fn new(
-        shared_data: &SharedDataRw,
+        shared_data: &SharedDataRc,
         global_messenger: &MessengerRw,
-        scene_id: SceneId,
+        scene_id: &SceneId,
     ) -> Self {
-        let scene = SharedData::get_resource::<Scene>(&shared_data, scene_id);
-        let data = HierarchyData {
-            shared_data: shared_data.clone(),
-            global_dispatcher: global_messenger.read().unwrap().get_dispatcher().clone(),
-            selected_object: INVALID_UID,
-            scene,
-        };
-        Self {
-            ui_page: Self::create(shared_data, data),
+        if let Some(scene) = SharedData::get_resource::<Scene>(&shared_data, scene_id) {
+            let data = HierarchyData {
+                shared_data: shared_data.clone(),
+                global_dispatcher: global_messenger.read().unwrap().get_dispatcher().clone(),
+                selected_object: INVALID_UID,
+                scene,
+            };
+            return Self {
+                ui_page: Self::create(shared_data, data),
+            };
         }
+        panic!("Hierarchy scene {:?} not found", scene_id);
     }
 
     pub fn select_object(&mut self, object_id: ObjectId) -> &mut Self {
-        if let Some(data) = self.ui_page.get_mut().data_mut::<HierarchyData>() {
-            data.selected_object = object_id;
-        }
+        self.ui_page.get_mut(|w| {
+            if let Some(data) = w.data_mut::<HierarchyData>() {
+                data.selected_object = object_id;
+            }
+        });
         self
     }
 
-    fn create(shared_data: &SharedDataRw, data: HierarchyData) -> Resource<UIWidget> {
+    fn create(shared_data: &SharedDataRc, data: HierarchyData) -> Resource<UIWidget> {
         UIWidget::register(shared_data, data, |ui_data, ui_context| {
             if let Some(data) = ui_data.as_any().downcast_mut::<HierarchyData>() {
                 SidePanel::left("Hierarchy")
@@ -60,15 +64,16 @@ impl Hierarchy {
                             .default_open(true)
                             .show(ui, |ui| {
                                 ScrollArea::vertical().show(ui, |ui| {
-                                    let scene = data.scene.get();
-                                    let objects = scene.objects();
-                                    objects.iter().for_each(|object| {
-                                        Self::object_hierarchy(
-                                            ui,
-                                            object,
-                                            data.selected_object,
-                                            &data.global_dispatcher,
-                                        );
+                                    data.scene.get(|s| {
+                                        let objects = s.objects();
+                                        objects.iter().for_each(|object| {
+                                            Self::object_hierarchy(
+                                                ui,
+                                                object,
+                                                &data.selected_object,
+                                                &data.global_dispatcher,
+                                            );
+                                        });
                                     });
                                 });
                             });
@@ -80,20 +85,22 @@ impl Hierarchy {
     fn object_hierarchy(
         ui: &mut Ui,
         object: &Resource<Object>,
-        selected_id: ObjectId,
+        selected_id: &ObjectId,
         global_dispatcher: &MessageBox,
     ) {
         nrg_profiler::scoped_profile!("object_hierarchy");
 
         let mut object_name = format!("Object [{:?}]", object.id().to_simple().to_string());
-        if let Some(name) = object.get().path().file_stem() {
-            if let Some(name) = name.to_str() {
-                object_name = name.to_string();
+        object.get(|o| {
+            if let Some(name) = o.path().file_stem() {
+                if let Some(name) = name.to_str() {
+                    object_name = name.to_string();
+                }
             }
-        }
+        });
         let is_selected = object.id() == selected_id;
-        let is_child_recursive = object.get().is_child_recursive(selected_id);
-        let has_children = object.get().has_children();
+        let is_child_recursive = object.get(|o| o.is_child_recursive(selected_id));
+        let has_children = object.get(|o| o.has_children());
 
         let response = if has_children {
             let response = CollapsingHeader::new(object_name.as_str())
@@ -102,10 +109,11 @@ impl Hierarchy {
                 .show_background(is_selected || is_child_recursive)
                 .default_open(true)
                 .show(ui, |ui| {
-                    let object = object.get();
-                    let children = object.children();
-                    children.iter().for_each(|child| {
-                        Self::object_hierarchy(ui, child, selected_id, global_dispatcher);
+                    object.get(|o| {
+                        let children = o.children();
+                        children.iter().for_each(|child| {
+                            Self::object_hierarchy(ui, child, selected_id, global_dispatcher);
+                        });
                     });
                 });
             response.header_response
@@ -116,7 +124,7 @@ impl Hierarchy {
             global_dispatcher
                 .write()
                 .unwrap()
-                .send(EditorEvent::Selected(object.id()).as_boxed())
+                .send(EditorEvent::Selected(*object.id()).as_boxed())
                 .ok();
         }
     }

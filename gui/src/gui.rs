@@ -5,13 +5,13 @@ use std::{
 
 use nrg_core::JobHandlerRw;
 use nrg_messenger::MessengerRw;
-use nrg_resources::SharedDataRw;
+use nrg_resources::SharedDataRc;
 
 use crate::{Screen, WidgetNode, DEFAULT_WIDGET_HEIGHT};
 
 pub struct GuiInternal {
     widgets_root: WidgetNode,
-    shared_data: SharedDataRw,
+    shared_data: SharedDataRc,
     global_messenger: MessengerRw,
     job_handler: JobHandlerRw,
 }
@@ -19,7 +19,7 @@ pub struct GuiInternal {
 impl GuiInternal {
     #[inline]
     fn new(
-        shared_data: SharedDataRw,
+        shared_data: SharedDataRc,
         global_messenger: MessengerRw,
         job_handler: JobHandlerRw,
     ) -> Self {
@@ -49,7 +49,7 @@ pub struct Gui {}
 
 impl Gui {
     pub fn create(
-        shared_data: SharedDataRw,
+        shared_data: SharedDataRc,
         global_messenger: MessengerRw,
         job_handler: JobHandlerRw,
     ) {

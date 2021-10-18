@@ -7,6 +7,7 @@ use vulkan_bindings::*;
 
 pub const DEFAULT_CLEAR_COLOR: [f32; 4] = [0.0, 0.0, 0.0, 0.0];
 
+#[derive(Clone)]
 pub struct BackendRenderPass {
     render_pass: VkRenderPass,
     framebuffers: Vec<VkFramebuffer>,

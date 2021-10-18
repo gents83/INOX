@@ -1,36 +1,36 @@
 use nrg_math::{Mat4Ops, MatBase, Matrix4, VecBase, Vector3};
-use nrg_resources::{ResourceData, ResourceId};
-use nrg_serialize::generate_random_uid;
+use nrg_resources::{ResourceId, ResourceTrait};
+
 use nrg_ui::{CollapsingHeader, UIProperties, UIPropertiesRegistry, Ui};
 
 pub type HitboxId = ResourceId;
 
 pub struct Hitbox {
-    id: ResourceId,
     min: Vector3,
     max: Vector3,
     transform: Matrix4,
 }
-
-impl ResourceData for Hitbox {
-    fn id(&self) -> ResourceId {
-        self.id
-    }
-}
+impl ResourceTrait for Hitbox {}
 
 impl UIProperties for Hitbox {
-    fn show(&mut self, ui_registry: &UIPropertiesRegistry, ui: &mut Ui, collapsed: bool) {
-        CollapsingHeader::new(format!("Hitbox [{:?}]", self.id().to_simple().to_string()))
+    fn show(
+        &mut self,
+        id: &ResourceId,
+        ui_registry: &UIPropertiesRegistry,
+        ui: &mut Ui,
+        collapsed: bool,
+    ) {
+        CollapsingHeader::new(format!("Hitbox [{:?}]", id.to_simple().to_string()))
             .show_background(true)
             .default_open(!collapsed)
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
                     ui.label("Min: ");
-                    self.min.show(ui_registry, ui, collapsed);
+                    self.min.show(id, ui_registry, ui, collapsed);
                 });
                 ui.horizontal(|ui| {
                     ui.label("Max: ");
-                    self.max.show(ui_registry, ui, collapsed);
+                    self.max.show(id, ui_registry, ui, collapsed);
                 });
             });
     }
@@ -39,7 +39,6 @@ impl UIProperties for Hitbox {
 impl Default for Hitbox {
     fn default() -> Self {
         Self {
-            id: generate_random_uid(),
             min: Vector3::default_zero(),
             max: Vector3::default_zero(),
             transform: Matrix4::default_identity(),

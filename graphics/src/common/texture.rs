@@ -1,10 +1,10 @@
 use std::path::Path;
 
-use nrg_serialize::{generate_random_uid, Uid};
+use nrg_serialize::generate_random_uid;
 
 use crate::{
     api::backend::{self, BackendPhysicalDevice},
-    Area, AreaAllocator, DEFAULT_AREA_SIZE,
+    Area, AreaAllocator, TextureId, DEFAULT_AREA_SIZE,
 };
 
 use super::device::*;
@@ -14,7 +14,7 @@ pub const DEFAULT_LAYER_COUNT: u32 = 8;
 pub const TEXTURE_CHANNEL_COUNT: u32 = 4;
 
 pub struct TextureAtlas {
-    id: Uid,
+    id: TextureId,
     texture: backend::BackendTexture,
     allocators: Vec<AreaAllocator>,
     info: Vec<TextureInfo>,
@@ -43,7 +43,7 @@ impl TextureAtlas {
     fn create_as_render_target(
         device: &Device,
         physical_device: &BackendPhysicalDevice,
-        id: Uid,
+        id: TextureId,
         index: u32,
         width: u32,
         height: u32,
@@ -88,15 +88,15 @@ impl TextureAtlas {
         &self.texture
     }
 
-    pub fn get_texture_info(&self, id: Uid) -> Option<&TextureInfo> {
-        if let Some(index) = self.info.iter().position(|info| info.id == id) {
+    pub fn get_texture_info(&self, id: &TextureId) -> Option<&TextureInfo> {
+        if let Some(index) = self.info.iter().position(|info| info.id == *id) {
             return Some(&self.info[index]);
         }
         None
     }
 
-    pub fn remove(&mut self, id: Uid) -> Option<TextureInfo> {
-        if let Some(index) = self.info.iter().position(|t| t.id == id) {
+    pub fn remove(&mut self, id: &TextureId) -> Option<TextureInfo> {
+        if let Some(index) = self.info.iter().position(|t| t.id == *id) {
             return Some(self.info.remove(index));
         }
         None
@@ -105,7 +105,7 @@ impl TextureAtlas {
 
 #[derive(Clone, Copy)]
 pub struct TextureInfo {
-    pub id: Uid,
+    pub id: TextureId,
     pub texture_index: u32,
     pub layer_index: u32,
     pub area: Area,
@@ -149,7 +149,7 @@ impl TextureHandler {
         &mut self,
         device: &Device,
         physical_device: &BackendPhysicalDevice,
-        id: Uid,
+        id: &TextureId,
         width: u32,
         height: u32,
         is_depth: bool,
@@ -159,7 +159,7 @@ impl TextureHandler {
             .push(TextureAtlas::create_as_render_target(
                 device,
                 physical_device,
-                id,
+                *id,
                 index,
                 width,
                 height,
@@ -171,14 +171,14 @@ impl TextureHandler {
         self.texture_atlas.as_slice()
     }
 
-    pub fn get_texture_atlas(&self, id: Uid) -> Option<&TextureAtlas> {
-        if let Some(index) = self.texture_atlas.iter().position(|t| t.id == id) {
+    pub fn get_texture_atlas(&self, id: &TextureId) -> Option<&TextureAtlas> {
+        if let Some(index) = self.texture_atlas.iter().position(|t| t.id == *id) {
             return Some(&self.texture_atlas[index]);
         }
         None
     }
 
-    pub fn get_texture_info(&self, id: Uid) -> Option<&TextureInfo> {
+    pub fn get_texture_info(&self, id: &TextureId) -> Option<&TextureInfo> {
         if let Some(texture_atlas) = self.texture_atlas.iter().find(|t| {
             let texture_info = t.get_texture_info(id);
             texture_info.is_some()
@@ -196,7 +196,7 @@ impl TextureHandler {
         &mut self,
         device: &Device,
         physical_device: &BackendPhysicalDevice,
-        id: Uid,
+        id: &TextureId,
         width: u32,
         height: u32,
         image_data: &Vec<u8>,
@@ -215,7 +215,7 @@ impl TextureHandler {
         &self,
         device: &Device,
         physical_device: &BackendPhysicalDevice,
-        id: Uid,
+        id: &TextureId,
         image_data: &mut [u8],
     ) {
         nrg_profiler::scoped_profile!("texture::copy");
@@ -236,7 +236,7 @@ impl TextureHandler {
         }
     }
 
-    pub fn remove(&mut self, device: &Device, id: Uid) {
+    pub fn remove(&mut self, device: &Device, id: &TextureId) {
         let mut texture_infos = Vec::new();
         self.texture_atlas.iter_mut().for_each(|t| {
             if let Some(texture_info) = t.remove(id) {
@@ -252,7 +252,7 @@ impl TextureHandler {
         &mut self,
         device: &Device,
         physical_device: &BackendPhysicalDevice,
-        id: Uid,
+        id: &TextureId,
         filepath: &Path,
     ) -> TextureInfo {
         let image = image::open(filepath).unwrap();
@@ -270,7 +270,7 @@ impl TextureHandler {
         &mut self,
         device: &Device,
         physical_device: &BackendPhysicalDevice,
-        id: Uid,
+        id: &TextureId,
         width: u32,
         height: u32,
         image_data: &[u8],
@@ -286,7 +286,7 @@ impl TextureHandler {
                         image_data,
                     );
                     let info = TextureInfo {
-                        id,
+                        id: *id,
                         texture_index: texture_index as _,
                         layer_index: layer_index as _,
                         area: *area,
@@ -321,29 +321,4 @@ impl TextureHandler {
         }
         //todo remove the real texture from device memory
     }
-}
-
-pub fn is_texture(path: &Path) -> bool {
-    const IMAGE_PNG_EXTENSION: &str = "png";
-    const IMAGE_JPG_EXTENSION: &str = "jpg";
-    const IMAGE_JPEG_EXTENSION: &str = "jpeg";
-    const IMAGE_BMP_EXTENSION: &str = "bmp";
-    const IMAGE_TGA_EXTENSION: &str = "tga";
-    const IMAGE_DDS_EXTENSION: &str = "dds";
-    const IMAGE_TIFF_EXTENSION: &str = "tiff";
-    const IMAGE_GIF_EXTENSION: &str = "bmp";
-    const IMAGE_ICO_EXTENSION: &str = "ico";
-
-    if let Some(ext) = path.extension().unwrap().to_str() {
-        return ext == IMAGE_PNG_EXTENSION
-            || ext == IMAGE_JPG_EXTENSION
-            || ext == IMAGE_JPEG_EXTENSION
-            || ext == IMAGE_BMP_EXTENSION
-            || ext == IMAGE_TGA_EXTENSION
-            || ext == IMAGE_DDS_EXTENSION
-            || ext == IMAGE_TIFF_EXTENSION
-            || ext == IMAGE_GIF_EXTENSION
-            || ext == IMAGE_ICO_EXTENSION;
-    }
-    false
 }

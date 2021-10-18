@@ -10,7 +10,7 @@ use std::{
 
 use nrg_messenger::MessengerRw;
 use nrg_platform::{InputState, Key, KeyEvent, WindowEvent};
-use nrg_resources::SharedDataRw;
+use nrg_resources::{SharedData, SharedDataRc};
 
 use crate::{Job, JobHandler, JobHandlerRw, Phase, PluginId, PluginManager, Scheduler, Worker};
 
@@ -19,7 +19,7 @@ const NUM_WORKER_THREADS: usize = 5;
 pub struct App {
     is_profiling: bool,
     is_enabled: bool,
-    shared_data: SharedDataRw,
+    shared_data: SharedDataRc,
     global_messenger: MessengerRw,
     plugin_manager: PluginManager,
     scheduler: Scheduler,
@@ -63,7 +63,7 @@ impl App {
             workers: HashMap::new(),
             job_handler: JobHandler::new(sender),
             receiver: Arc::new(Mutex::new(receiver)),
-            shared_data: SharedDataRw::default(),
+            shared_data: SharedDataRc::default(),
             global_messenger: MessengerRw::default(),
         };
 
@@ -136,6 +136,23 @@ impl App {
                         }
                         _ => {}
                     }
+                } else if let Some(type_id) = SharedData::is_message_handled(&self.shared_data, msg)
+                {
+                    let shared_data = self.shared_data.clone();
+                    let global_messenger = self.global_messenger.clone();
+                    let msg = msg.as_boxed();
+                    let job_name = format!("Load Event");
+                    self.job_handler
+                        .write()
+                        .unwrap()
+                        .add_job(job_name.as_str(), move || {
+                            SharedData::handle_events(
+                                &shared_data,
+                                &global_messenger,
+                                type_id,
+                                msg.as_ref(),
+                            );
+                        });
                 }
             });
         self.is_profiling = is_profiling;
@@ -160,11 +177,11 @@ impl App {
             let plugins_to_remove = self.plugin_manager.update();
             let plugins_to_reload = self.update_plugins(plugins_to_remove);
             if !plugins_to_reload.is_empty() {
-                self.shared_data.write().unwrap().flush_resources(false);
+                SharedData::flush_resources(&self.shared_data);
             }
             self.reload_plugins(plugins_to_reload);
         }
-        self.shared_data.write().unwrap().flush_resources(false);
+        SharedData::flush_resources(&self.shared_data);
 
         can_continue
     }
@@ -206,7 +223,7 @@ impl App {
     pub fn get_job_handler(&self) -> JobHandlerRw {
         self.job_handler.clone()
     }
-    pub fn get_shared_data(&self) -> SharedDataRw {
+    pub fn get_shared_data(&self) -> SharedDataRc {
         self.shared_data.clone()
     }
     pub fn get_global_messenger(&self) -> MessengerRw {

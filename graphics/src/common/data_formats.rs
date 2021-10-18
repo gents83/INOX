@@ -1,10 +1,10 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use crate::create_quad;
 
 use nrg_filesystem::convert_from_local_path;
 use nrg_math::*;
-use nrg_resources::{implement_file_data, DATA_FOLDER};
+use nrg_resources::DATA_FOLDER;
 use nrg_serialize::*;
 
 #[repr(C)]
@@ -88,20 +88,20 @@ impl Default for VertexData {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
 #[serde(crate = "nrg_serialize")]
 pub enum LoadOperation {
     Load,
     Clear,
     DontCare,
 }
-#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
 #[serde(crate = "nrg_serialize")]
 pub enum StoreOperation {
     Store,
     DontCare,
 }
-#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
 #[serde(crate = "nrg_serialize")]
 pub enum RenderTarget {
     Screen,
@@ -110,16 +110,16 @@ pub enum RenderTarget {
 }
 
 #[repr(C)]
-#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 #[serde(crate = "nrg_serialize")]
 pub struct RenderPassData {
+    pub name: String,
     pub load_color: LoadOperation,
     pub store_color: StoreOperation,
     pub load_depth: LoadOperation,
     pub store_depth: StoreOperation,
     pub render_target: RenderTarget,
-    pub name: String,
-    pub pipeline: Option<PipelineData>,
+    pub pipeline: PathBuf,
     pub mesh_category_to_draw: Vec<String>,
 }
 unsafe impl Send for RenderPassData {}
@@ -134,7 +134,7 @@ impl Default for RenderPassData {
             store_depth: StoreOperation::DontCare,
             render_target: RenderTarget::Screen,
             name: String::new(),
-            pipeline: None,
+            pipeline: PathBuf::new(),
             mesh_category_to_draw: Vec::new(),
         }
     }
@@ -184,11 +184,9 @@ pub enum DrawMode {
     Single,
 }
 
-#[repr(C)]
-#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 #[serde(crate = "nrg_serialize")]
 pub struct PipelineData {
-    path: PathBuf,
     pub fragment_shader: PathBuf,
     pub vertex_shader: PathBuf,
     pub tcs_shader: PathBuf,
@@ -202,13 +200,10 @@ pub struct PipelineData {
     pub dst_alpha_blend_factor: BlendFactor,
     pub draw_mode: DrawMode,
 }
-unsafe impl Send for PipelineData {}
-unsafe impl Sync for PipelineData {}
 
 impl Default for PipelineData {
     fn default() -> Self {
         Self {
-            path: PathBuf::new(),
             fragment_shader: PathBuf::new(),
             vertex_shader: PathBuf::new(),
             tcs_shader: PathBuf::new(),
@@ -226,9 +221,6 @@ impl Default for PipelineData {
 }
 
 impl PipelineData {
-    pub fn path(&self) -> &Path {
-        self.path.as_path()
-    }
     pub fn canonicalize_paths(mut self) -> Self {
         let data_path = PathBuf::from(DATA_FOLDER);
         if !self.vertex_shader.to_str().unwrap().is_empty() {
@@ -262,20 +254,19 @@ impl PipelineData {
     }
 }
 
-implement_file_data!(
-    struct MaterialData {
-        pipeline: PipelineData,
-        textures: Vec<PathBuf>,
-        diffuse_color: Vector4,
-        outline_color: Vector4,
-    }
-);
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[serde(crate = "nrg_serialize")]
+pub struct MaterialData {
+    pub pipeline: PathBuf,
+    pub textures: Vec<PathBuf>,
+    pub diffuse_color: Vector4,
+    pub outline_color: Vector4,
+}
 
 impl Default for MaterialData {
     fn default() -> Self {
         Self {
-            path: PathBuf::new(),
-            pipeline: PipelineData::default(),
+            pipeline: PathBuf::new(),
             textures: Vec::new(),
             diffuse_color: [1., 1., 1., 1.].into(),
             outline_color: [1., 1., 1., 0.].into(),
@@ -294,7 +285,7 @@ pub struct MeshDataRef {
 pub const DEFAULT_MESH_CATEGORY_IDENTIFIER: &str = "NRG_Default";
 
 #[repr(C)]
-#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
 #[serde(crate = "nrg_serialize")]
 pub struct MeshCategoryId(Uid);
 
@@ -304,20 +295,21 @@ impl MeshCategoryId {
     }
 }
 
-implement_file_data!(
-    struct MeshData {
-        vertices: Vec<VertexData>,
-        indices: Vec<u32>,
-        mesh_category_identifier: MeshCategoryId,
-    }
-);
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[serde(crate = "nrg_serialize")]
+pub struct MeshData {
+    pub vertices: Vec<VertexData>,
+    pub indices: Vec<u32>,
+    pub material: PathBuf,
+    pub mesh_category_identifier: MeshCategoryId,
+}
 
 impl Default for MeshData {
     fn default() -> Self {
         Self {
-            path: PathBuf::new(),
             vertices: Vec::new(),
             indices: Vec::new(),
+            material: PathBuf::new(),
             mesh_category_identifier: MeshCategoryId::new(DEFAULT_MESH_CATEGORY_IDENTIFIER),
         }
     }
@@ -326,9 +318,9 @@ impl Default for MeshData {
 impl MeshData {
     pub fn new(mesh_category_identifier: &str) -> Self {
         Self {
-            path: PathBuf::new(),
             vertices: Vec::new(),
             indices: Vec::new(),
+            material: PathBuf::new(),
             mesh_category_identifier: MeshCategoryId::new(mesh_category_identifier),
         }
     }

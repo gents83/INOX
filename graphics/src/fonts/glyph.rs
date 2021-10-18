@@ -1,9 +1,12 @@
 use super::geometry::*;
 use nrg_math::*;
+use nrg_serialize::*;
 use ttf_parser::*;
 
 pub const DEFAULT_FONT_GLYPH_SIZE: usize = 64;
 
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[serde(crate = "nrg_serialize")]
 pub struct Metrics {
     pub width: f32,
     pub height: f32,
@@ -22,8 +25,10 @@ impl Default for Metrics {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[serde(crate = "nrg_serialize")]
 pub struct Glyph {
-    pub id: GlyphId,
+    pub id: u16,
     pub metrics: Metrics,
     is_upside_down: bool,
     pub texture_coord: Vector4,
@@ -43,24 +48,25 @@ impl Metrics {
 }
 
 impl Glyph {
-    pub fn compute_metrics(id: GlyphId, face: &Face) -> Metrics {
+    pub fn compute_metrics(id: u16, face: &Face) -> Metrics {
         let mut bb_width: f32 = 0.0;
         let mut glyph_height: f32 = 0.0;
         let mut vertical_offset: f32 = 0.0;
-        if let Some(bb) = face.glyph_bounding_box(id) {
+        let glyph_id = GlyphId(id);
+        if let Some(bb) = face.glyph_bounding_box(glyph_id) {
             glyph_height = (bb.y_max - bb.y_min) as _;
             bb_width = (bb.x_max - bb.x_min) as _;
             vertical_offset = -bb.y_min as f32;
         }
-        let horizontal_offset = match face.glyph_hor_side_bearing(id) {
+        let horizontal_offset = match face.glyph_hor_side_bearing(glyph_id) {
             Some(a) => a as _,
             _ => 0.0,
         };
-        let glyph_v_bearing = match face.glyph_ver_side_bearing(id) {
+        let glyph_v_bearing = match face.glyph_ver_side_bearing(glyph_id) {
             Some(a) => a,
             _ => 0,
         };
-        let glyph_hor_advance = match face.glyph_hor_advance(id) {
+        let glyph_hor_advance = match face.glyph_hor_advance(glyph_id) {
             Some(a) => a,
             _ => 0,
         };
@@ -75,7 +81,7 @@ impl Glyph {
         }
     }
 
-    pub fn create(id: GlyphId, face: &Face, max_metrics: &Metrics) -> Self {
+    pub fn create(id: u16, face: &Face, max_metrics: &Metrics) -> Self {
         let metrics = Glyph::compute_metrics(id, face);
         let scale_x = DEFAULT_FONT_GLYPH_SIZE as f32 / max_metrics.width as f32;
         let scale_y = DEFAULT_FONT_GLYPH_SIZE as f32 / max_metrics.height as f32;
@@ -91,7 +97,8 @@ impl Glyph {
             DEFAULT_FONT_GLYPH_SIZE as _,
             &mut data,
         );
-        face.outline_glyph(id, &mut geometry);
+        let glyph_id = GlyphId(id);
+        face.outline_glyph(glyph_id, &mut geometry);
         let lines = geometry.get_lines().clone();
 
         let is_upside_down =

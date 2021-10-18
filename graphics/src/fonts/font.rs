@@ -2,11 +2,8 @@ use crate::common::data_formats::*;
 use image::*;
 use nrg_math::*;
 use nrg_platform::*;
-use std::{
-    collections::HashMap,
-    num::NonZeroU16,
-    path::{Path, PathBuf},
-};
+use nrg_serialize::*;
+use std::{collections::HashMap, num::NonZeroU16, path::Path};
 use ttf_parser::*;
 
 use super::glyph::*;
@@ -16,12 +13,12 @@ pub const DEFAULT_FONT_TEXTURE_SIZE: usize = 1024;
 //12pt = 16px = 1em = 100%
 pub const FONT_PT_TO_PIXEL: f32 = DEFAULT_DPI / (72. * 2048.);
 
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[serde(crate = "nrg_serialize")]
 pub struct FontData {
-    filepath: PathBuf,
     metrics: Metrics,
     glyphs: Vec<Glyph>,
     char_to_glyph: HashMap<u32, NonZeroU16>,
-    image: DynamicImage,
 }
 
 #[derive(Clone)]
@@ -36,11 +33,9 @@ pub struct TextData {
 impl Default for FontData {
     fn default() -> Self {
         Self {
-            filepath: PathBuf::new(),
             metrics: Metrics::default(),
             glyphs: Vec::new(),
             char_to_glyph: HashMap::new(),
-            image: DynamicImage::new_rgb8(2, 2),
         }
     }
 }
@@ -67,11 +62,6 @@ impl FontData {
             spacing,
         };
         self.create_mesh_from_text(&data)
-    }
-
-    #[inline]
-    pub fn get_filepath(&self) -> &PathBuf {
-        &self.filepath
     }
 
     #[inline]
@@ -145,42 +135,33 @@ impl FontData {
         }
         let mut max_glyph_metrics = Metrics::default();
         for character in 0..DEFAULT_FONT_COUNT {
-            let glyph_id = GlyphId(character as u16);
-            let metrics = Glyph::compute_metrics(glyph_id, &face);
+            let metrics = Glyph::compute_metrics(character as _, &face);
             max_glyph_metrics = max_glyph_metrics.max(&metrics);
         }
 
         let mut glyphs: Vec<Glyph> = Vec::new();
         for character in 0..DEFAULT_FONT_COUNT {
-            let glyph_id = GlyphId(character as u16);
-            glyphs.push(Glyph::create(glyph_id, &face, &max_glyph_metrics));
+            glyphs.push(Glyph::create(character as _, &face, &max_glyph_metrics));
         }
 
-        let image = FontData::create_texture(&mut glyphs, &max_glyph_metrics);
         Self {
-            filepath: PathBuf::from(filepath),
             metrics: max_glyph_metrics,
             glyphs,
             char_to_glyph,
-            image,
         }
     }
 
-    pub fn get_texture(&self) -> RgbaImage {
-        self.image.to_rgba8()
-    }
-
-    fn create_texture(glyphs: &mut [Glyph], metrics: &Metrics) -> DynamicImage {
+    pub fn create_texture(&mut self) -> RgbaImage {
         let size = DEFAULT_FONT_TEXTURE_SIZE;
 
         let mut image = DynamicImage::new_rgba8(size as _, size as _);
 
-        let num_glyphs: u32 = glyphs.len() as _;
+        let num_glyphs: u32 = self.glyphs.len() as _;
         let cell_size: u32 = (((size * size) as u32 / num_glyphs) as f64).sqrt().ceil() as u32;
 
         let mut row: u32 = 0;
         let mut column: u32 = 0;
-        for g in glyphs.iter_mut() {
+        for g in self.glyphs.iter_mut() {
             let mut starting_x = column * cell_size;
             if (starting_x + cell_size) > size as _ {
                 starting_x = 0;
@@ -192,7 +173,7 @@ impl FontData {
                 break;
             }
 
-            let _offset = (cell_size as f32 * (g.metrics.width / metrics.horizontal_offset)
+            let _offset = (cell_size as f32 * (g.metrics.width / self.metrics.horizontal_offset)
                 - cell_size as f32)
                 * 0.5;
             let x_pos: i32 = (starting_x as i32 - _offset as i32)
@@ -215,7 +196,7 @@ impl FontData {
             column += 1;
         }
 
-        image
+        image.to_rgba8()
     }
 
     #[inline]

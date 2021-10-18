@@ -12,7 +12,7 @@ use nrg_math::{
 
 use nrg_messenger::{read_messages, MessageBox, MessageChannel, MessengerRw};
 use nrg_resources::{
-    DataTypeResource, Resource, ResourceData, ResourceId, SharedData, SharedDataRw,
+    DataTypeResource, Resource, ResourceId, ResourceTrait, SharedData, SharedDataRc,
 };
 use nrg_scene::{Object, ObjectId, Transform};
 use nrg_serialize::generate_random_uid;
@@ -32,7 +32,6 @@ enum GizmoType {
 }
 
 pub struct Gizmo {
-    id: ResourceId,
     transform: Resource<Transform>,
     camera_scale: f32,
     mode_type: GizmoType,
@@ -42,7 +41,7 @@ pub struct Gizmo {
     mesh_z: Resource<Mesh>,
     axis: Vector3,
     is_active: bool,
-    shared_data: SharedDataRw,
+    shared_data: SharedDataRc,
     message_channel: MessageChannel,
     global_dispatcher: MessageBox,
     highlight_color: Vector4,
@@ -51,20 +50,15 @@ pub struct Gizmo {
     axis_y_color: Vector4,
     axis_z_color: Vector4,
 }
-
-impl ResourceData for Gizmo {
-    fn id(&self) -> ResourceId {
-        self.id
-    }
-}
+impl ResourceTrait for Gizmo {}
 
 unsafe impl Sync for Gizmo {}
 unsafe impl Send for Gizmo {}
 
 impl Gizmo {
     fn new(
-        shared_data: &SharedDataRw,
-        global_messenger: MessengerRw,
+        shared_data: &SharedDataRc,
+        global_messenger: &MessengerRw,
         mode_type: GizmoType,
         mesh_center: Resource<Mesh>,
         mesh_x: Resource<Mesh>,
@@ -72,7 +66,7 @@ impl Gizmo {
         mesh_z: Resource<Mesh>,
     ) -> Resource<Self> {
         let transform = Transform::default();
-        let transform = SharedData::add_resource(shared_data, transform);
+        let transform = SharedData::add_resource(shared_data, generate_random_uid(), transform);
 
         let message_channel = MessageChannel::default();
 
@@ -81,29 +75,36 @@ impl Gizmo {
             .unwrap()
             .register_messagebox::<EditorEvent>(message_channel.get_messagebox());
 
-        let center_color = if let Some(material) = mesh_center.get().material() {
-            material.get().diffuse_color()
-        } else {
-            hex_to_rgba("#FFFFFF")
-        };
-        let axis_x_color = if let Some(material) = mesh_x.get().material() {
-            material.get().diffuse_color()
-        } else {
-            hex_to_rgba("#FF0000")
-        };
-        let axis_y_color = if let Some(material) = mesh_y.get().material() {
-            material.get().diffuse_color()
-        } else {
-            hex_to_rgba("#00FF00")
-        };
-        let axis_z_color = if let Some(material) = mesh_z.get().material() {
-            material.get().diffuse_color()
-        } else {
-            hex_to_rgba("#0000FF")
-        };
+        let center_color = mesh_center.get(|m| {
+            if let Some(material) = m.material() {
+                material.get(|m| m.diffuse_color())
+            } else {
+                hex_to_rgba("#FFFFFF")
+            }
+        });
+        let axis_x_color = mesh_x.get(|m| {
+            if let Some(material) = m.material() {
+                material.get(|m| m.diffuse_color())
+            } else {
+                hex_to_rgba("#FF0000")
+            }
+        });
+        let axis_y_color = mesh_y.get(|m| {
+            if let Some(material) = m.material() {
+                material.get(|m| m.diffuse_color())
+            } else {
+                hex_to_rgba("#00FF00")
+            }
+        });
+        let axis_z_color = mesh_z.get(|m| {
+            if let Some(material) = m.material() {
+                material.get(|m| m.diffuse_color())
+            } else {
+                hex_to_rgba("#0000FF")
+            }
+        });
 
         let gizmo = Self {
-            id: generate_random_uid(),
             mode_type,
             transform,
             camera_scale: 1.,
@@ -122,33 +123,41 @@ impl Gizmo {
             mesh_y,
             mesh_z,
         };
-        SharedData::add_resource(shared_data, gizmo)
+        SharedData::add_resource(shared_data, generate_random_uid(), gizmo)
     }
 
     pub fn new_translation(
-        shared_data: &SharedDataRw,
-        global_messenger: MessengerRw,
+        shared_data: &SharedDataRc,
+        global_messenger: &MessengerRw,
         default_material_pipeline: &Resource<Pipeline>,
     ) -> Resource<Self> {
         Self::new(
             shared_data,
             global_messenger,
             GizmoType::Move,
-            Self::create_center_mesh(shared_data, Vector3::zero(), default_material_pipeline),
+            Self::create_center_mesh(
+                shared_data,
+                global_messenger,
+                Vector3::zero(),
+                default_material_pipeline,
+            ),
             Self::create_arrow(
                 shared_data,
+                global_messenger,
                 [10., 0., 0.].into(),
                 hex_to_rgba("#FF0000"),
                 default_material_pipeline,
             ),
             Self::create_arrow(
                 shared_data,
+                global_messenger,
                 [0., 10., 0.].into(),
                 hex_to_rgba("#00FF00"),
                 default_material_pipeline,
             ),
             Self::create_arrow(
                 shared_data,
+                global_messenger,
                 [0., 0., 10.].into(),
                 hex_to_rgba("#0000FF"),
                 default_material_pipeline,
@@ -157,29 +166,37 @@ impl Gizmo {
     }
 
     pub fn new_scale(
-        shared_data: &SharedDataRw,
-        global_messenger: MessengerRw,
+        shared_data: &SharedDataRc,
+        global_messenger: &MessengerRw,
         default_material_pipeline: &Resource<Pipeline>,
     ) -> Resource<Self> {
         Self::new(
             shared_data,
             global_messenger,
             GizmoType::Scale,
-            Self::create_center_mesh(shared_data, Vector3::zero(), default_material_pipeline),
+            Self::create_center_mesh(
+                shared_data,
+                global_messenger,
+                Vector3::zero(),
+                default_material_pipeline,
+            ),
             Self::create_hammer(
                 shared_data,
+                global_messenger,
                 [10., 0., 0.].into(),
                 hex_to_rgba("#FF0000"),
                 default_material_pipeline,
             ),
             Self::create_hammer(
                 shared_data,
+                global_messenger,
                 [0., 10., 0.].into(),
                 hex_to_rgba("#00FF00"),
                 default_material_pipeline,
             ),
             Self::create_hammer(
                 shared_data,
+                global_messenger,
                 [0., 0., 10.].into(),
                 hex_to_rgba("#0000FF"),
                 default_material_pipeline,
@@ -188,29 +205,37 @@ impl Gizmo {
     }
 
     pub fn new_rotation(
-        shared_data: &SharedDataRw,
-        global_messenger: MessengerRw,
+        shared_data: &SharedDataRc,
+        global_messenger: &MessengerRw,
         default_material_pipeline: &Resource<Pipeline>,
     ) -> Resource<Self> {
         Self::new(
             shared_data,
             global_messenger,
             GizmoType::Rotate,
-            Self::create_center_mesh(shared_data, Vector3::zero(), default_material_pipeline),
+            Self::create_center_mesh(
+                shared_data,
+                global_messenger,
+                Vector3::zero(),
+                default_material_pipeline,
+            ),
             Self::create_torus(
                 shared_data,
+                global_messenger,
                 [1., 0., 0.].into(),
                 hex_to_rgba("#FF0000"),
                 default_material_pipeline,
             ),
             Self::create_torus(
                 shared_data,
+                global_messenger,
                 [0., 1., 0.].into(),
                 hex_to_rgba("#00FF00"),
                 default_material_pipeline,
             ),
             Self::create_torus(
                 shared_data,
+                global_messenger,
                 [0., 0., 1.].into(),
                 hex_to_rgba("#0000FF"),
                 default_material_pipeline,
@@ -219,7 +244,8 @@ impl Gizmo {
     }
 
     fn create_center_mesh(
-        shared_data: &SharedDataRw,
+        shared_data: &SharedDataRc,
+        global_messenger: &MessengerRw,
         position: Vector3,
         default_material_pipeline: &Resource<Pipeline>,
     ) -> Resource<Mesh> {
@@ -229,15 +255,23 @@ impl Gizmo {
             v.pos += position;
         });
         mesh_data.append_mesh(vertices.as_slice(), indices.as_slice());
-        let mesh = Mesh::create_from_data(shared_data, mesh_data);
-        mesh.get_mut().set_material(Material::create_from_pipeline(
+        let mesh = Mesh::create_from_data(
             shared_data,
-            default_material_pipeline,
-        ));
+            global_messenger,
+            generate_random_uid(),
+            mesh_data,
+        );
+        mesh.get_mut(|m| {
+            m.set_material(Material::duplicate_from_pipeline(
+                shared_data,
+                default_material_pipeline,
+            ));
+        });
         mesh
     }
     fn create_arrow(
-        shared_data: &SharedDataRw,
+        shared_data: &SharedDataRc,
+        global_messenger: &MessengerRw,
         direction: Vector3,
         color: Vector4,
         default_material_pipeline: &Resource<Pipeline>,
@@ -247,14 +281,25 @@ impl Gizmo {
         let (vertices, indices) = create_arrow(Vector3::zero(), direction);
         mesh_data.append_mesh(vertices.as_slice(), indices.as_slice());
 
-        let mesh = Mesh::create_from_data(shared_data, mesh_data);
-        let material = Material::create_from_pipeline(shared_data, default_material_pipeline);
-        material.get_mut().set_diffuse_color(color);
-        mesh.get_mut().set_material(material);
+        let mesh = Mesh::create_from_data(
+            shared_data,
+            global_messenger,
+            generate_random_uid(),
+            mesh_data,
+        );
+        mesh.get_mut(|m| {
+            let material =
+                Material::duplicate_from_pipeline(shared_data, default_material_pipeline);
+            material.get_mut(|m| {
+                m.set_diffuse_color(color);
+            });
+            m.set_material(material);
+        });
         mesh
     }
     fn create_hammer(
-        shared_data: &SharedDataRw,
+        shared_data: &SharedDataRc,
+        global_messenger: &MessengerRw,
         direction: Vector3,
         color: Vector4,
         default_material_pipeline: &Resource<Pipeline>,
@@ -264,14 +309,25 @@ impl Gizmo {
         let (vertices, indices) = create_hammer(Vector3::zero(), direction);
         mesh_data.append_mesh(vertices.as_slice(), indices.as_slice());
 
-        let mesh = Mesh::create_from_data(shared_data, mesh_data);
-        let material = Material::create_from_pipeline(shared_data, default_material_pipeline);
-        material.get_mut().set_diffuse_color(color);
-        mesh.get_mut().set_material(material);
+        let mesh = Mesh::create_from_data(
+            shared_data,
+            global_messenger,
+            generate_random_uid(),
+            mesh_data,
+        );
+        mesh.get_mut(|m| {
+            let material =
+                Material::duplicate_from_pipeline(shared_data, default_material_pipeline);
+            material.get_mut(|m| {
+                m.set_diffuse_color(color);
+            });
+            m.set_material(material);
+        });
         mesh
     }
     fn create_torus(
-        shared_data: &SharedDataRw,
+        shared_data: &SharedDataRc,
+        global_messenger: &MessengerRw,
         direction: Vector3,
         color: Vector4,
         default_material_pipeline: &Resource<Pipeline>,
@@ -281,45 +337,71 @@ impl Gizmo {
         let (vertices, indices) = create_torus(Vector3::zero(), 10., 0.2, 32, 32, direction);
         mesh_data.append_mesh(vertices.as_slice(), indices.as_slice());
 
-        let mesh = Mesh::create_from_data(shared_data, mesh_data);
-        let material = Material::create_from_pipeline(shared_data, default_material_pipeline);
-        material.get_mut().set_diffuse_color(color);
-        mesh.get_mut().set_material(material);
+        let mesh = Mesh::create_from_data(
+            shared_data,
+            global_messenger,
+            generate_random_uid(),
+            mesh_data,
+        );
+        mesh.get_mut(|m| {
+            let material =
+                Material::duplicate_from_pipeline(shared_data, default_material_pipeline);
+            material.get_mut(|m| {
+                m.set_diffuse_color(color);
+            });
+            m.set_material(material);
+        });
         mesh
     }
 
     pub fn set_visible(&mut self, is_visible: bool) -> &mut Self {
-        self.mesh_center.get_mut().set_visible(is_visible);
+        self.mesh_center.get_mut(|m| {
+            m.set_visible(is_visible);
+        });
 
-        self.mesh_x.get_mut().set_visible(is_visible);
-        self.mesh_y.get_mut().set_visible(is_visible);
-        self.mesh_z.get_mut().set_visible(is_visible);
+        self.mesh_x.get_mut(|m| {
+            m.set_visible(is_visible);
+        });
+        self.mesh_y.get_mut(|m| {
+            m.set_visible(is_visible);
+        });
+        self.mesh_z.get_mut(|m| {
+            m.set_visible(is_visible);
+        });
         self
     }
 
     pub fn is_visible(&self) -> bool {
-        self.mesh_center.get().is_visible()
+        self.mesh_center.get(|m| m.is_visible())
     }
 
     pub fn update_meshes(&mut self, camera_scale: f32) -> &mut Self {
-        let mut matrix = self.transform.get().matrix();
+        let mut matrix = self.transform.get(|t| t.matrix());
         let (translation, rotation, _) = matrix.get_translation_rotation_scale();
         matrix.from_translation_rotation_scale(
             translation,
             rotation,
             Vector3::from_value(camera_scale),
         );
-        self.mesh_center.get_mut().set_matrix(matrix);
+        self.mesh_center.get_mut(|m| {
+            m.set_matrix(matrix);
+        });
 
-        self.mesh_x.get_mut().set_matrix(matrix);
-        self.mesh_y.get_mut().set_matrix(matrix);
-        self.mesh_z.get_mut().set_matrix(matrix);
+        self.mesh_x.get_mut(|m| {
+            m.set_matrix(matrix);
+        });
+        self.mesh_y.get_mut(|m| {
+            m.set_matrix(matrix);
+        });
+        self.mesh_z.get_mut(|m| {
+            m.set_matrix(matrix);
+        });
         self
     }
 
     fn is_ray_inside(&self, start: Vector3, end: Vector3, mesh: &Resource<Mesh>) -> bool {
-        let (min, max) = mesh.get().mesh_data().compute_min_max();
-        let matrix = mesh.get().matrix();
+        let (min, max) = mesh.get(|m| m.mesh_data().compute_min_max());
+        let matrix = mesh.get(|m| m.matrix());
         let min = matrix.transform(min);
         let max = matrix.transform(max);
         raycast_oob(
@@ -345,7 +427,7 @@ impl Gizmo {
     pub fn end_drag(&mut self) {
         self.axis = Vector3::zero();
     }
-    pub fn drag(&mut self, intensity: f32, object_id: ObjectId) {
+    pub fn drag(&mut self, intensity: f32, object_id: &ObjectId) {
         if object_id.is_nil() {
             return;
         }
@@ -365,24 +447,30 @@ impl Gizmo {
         }
 
         if self.mode_type == GizmoType::Move {
-            self.transform.get_mut().translate(delta);
-            let object = SharedData::get_resource::<Object>(&self.shared_data, object_id);
-            let object = object.get();
-            if let Some(transform) = object.get_component::<Transform>() {
-                transform.get_mut().translate(delta);
+            self.transform.get_mut(|t| t.translate(delta));
+            if let Some(object) = SharedData::get_resource::<Object>(&self.shared_data, object_id) {
+                object.get(|o| {
+                    if let Some(transform) = o.get_component::<Transform>() {
+                        transform.get_mut(|t| t.translate(delta));
+                    }
+                });
             }
         } else if self.mode_type == GizmoType::Scale {
-            let object = SharedData::get_resource::<Object>(&self.shared_data, object_id);
-            let object = object.get();
-            if let Some(transform) = object.get_component::<Transform>() {
-                transform.get_mut().add_scale(delta);
+            if let Some(object) = SharedData::get_resource::<Object>(&self.shared_data, object_id) {
+                object.get(|o| {
+                    if let Some(transform) = o.get_component::<Transform>() {
+                        transform.get_mut(|t| t.add_scale(delta));
+                    }
+                });
             }
         } else if self.mode_type == GizmoType::Rotate {
             delta *= -1.;
-            let object = SharedData::get_resource::<Object>(&self.shared_data, object_id);
-            let object = object.get();
-            if let Some(transform) = object.get_component::<Transform>() {
-                transform.get_mut().rotate(delta);
+            if let Some(object) = SharedData::get_resource::<Object>(&self.shared_data, object_id) {
+                object.get(|o| {
+                    if let Some(transform) = o.get_component::<Transform>() {
+                        transform.get_mut(|t| t.rotate(delta));
+                    }
+                });
             }
         }
         self.update_meshes(self.camera_scale);
@@ -395,7 +483,7 @@ impl Gizmo {
         new_pos: Vector2,
         is_drag_started: bool,
         is_drag_ended: bool,
-        selected_object: ObjectId,
+        selected_object: &ObjectId,
     ) -> bool {
         if !self.is_visible() {
             return false;
@@ -427,7 +515,7 @@ impl Gizmo {
 
         if self.is_visible() {
             let cam_pos = camera.position();
-            let pos = self.transform.get().position();
+            let pos = self.transform.get(|t| t.position());
             let direction = pos - cam_pos;
             self.camera_scale = direction.length() / DEFAULT_DISTANCE_SCALE;
             self.update_meshes(self.camera_scale);
@@ -440,15 +528,17 @@ impl Gizmo {
         highlight_color: Vector4,
         default_color: Vector4,
     ) -> bool {
-        if let Some(material) = mesh.get().material() {
-            if mesh.id().as_u128() as u32 == mesh_u32 {
-                material.get_mut().set_diffuse_color(highlight_color);
-                return true;
-            } else {
-                material.get_mut().set_diffuse_color(default_color);
+        mesh.get(|m| {
+            if let Some(material) = m.material() {
+                if mesh.id().as_u128() as u32 == mesh_u32 {
+                    material.get_mut(|m| m.set_diffuse_color(highlight_color));
+                    return true;
+                } else {
+                    material.get_mut(|m| m.set_diffuse_color(default_color));
+                }
             }
-        }
-        false
+            return false;
+        })
     }
 
     fn update_events(&mut self) {
@@ -459,7 +549,7 @@ impl Gizmo {
                 let event = msg.as_any().downcast_ref::<EditorEvent>().unwrap();
                 match *event {
                     EditorEvent::Selected(object_id) => {
-                        self.select_object(object_id);
+                        self.select_object(&object_id);
                     }
                     EditorEvent::HoverMesh(mesh) => {
                         if Self::highlight_mesh(
@@ -498,19 +588,19 @@ impl Gizmo {
         });
     }
 
-    pub fn select_object(&mut self, object_id: ObjectId) {
+    pub fn select_object(&mut self, object_id: &ObjectId) {
         if object_id.is_nil() {
             self.set_visible(false);
-            self.transform.get_mut().set_position(Vector3::zero());
+            self.transform.get_mut(|t| t.set_position(Vector3::zero()));
         } else {
-            let object = SharedData::get_resource::<Object>(&self.shared_data, object_id);
-            if let Some(transform) = object.get().get_component::<Transform>() {
-                self.transform
-                    .get_mut()
-                    .set_position(transform.get().position());
-                self.update_meshes(self.camera_scale);
+            if let Some(object) = SharedData::get_resource::<Object>(&self.shared_data, object_id) {
+                if let Some(transform) = object.get(|o| o.get_component::<Transform>()) {
+                    self.transform
+                        .get_mut(|t| t.set_position(transform.get(|t| t.position())));
+                    self.update_meshes(self.camera_scale);
+                }
+                self.set_visible(true);
             }
-            self.set_visible(true);
         }
     }
 }
