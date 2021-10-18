@@ -1,29 +1,13 @@
-use std::{
-    any::type_name,
-    time::{SystemTime, UNIX_EPOCH},
-};
+use std::any::type_name;
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-pub struct SystemId(pub u64);
+use nrg_serialize::{generate_uid_from_string, Uid};
 
-impl Default for SystemId {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl SystemId {
-    pub fn new() -> Self {
-        let secs = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_micros() as _;
-        SystemId(secs)
-    }
-}
+pub type SystemId = Uid;
 
 pub trait System: Send + Sync {
-    fn id(&self) -> SystemId;
+    fn id(&self) -> SystemId {
+        generate_uid_from_string(self.name())
+    }
     fn name(&self) -> &'static str {
         type_name::<Self>()
     }

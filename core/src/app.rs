@@ -11,6 +11,7 @@ use std::{
 use nrg_messenger::MessengerRw;
 use nrg_platform::{InputState, Key, KeyEvent, WindowEvent};
 use nrg_resources::{SharedData, SharedDataRc};
+use nrg_serialize::{generate_uid_from_string, Uid};
 
 use crate::{Job, JobHandler, JobHandlerRw, Phase, PluginId, PluginManager, Scheduler, Worker};
 
@@ -82,7 +83,7 @@ impl App {
         for (_name, w) in self.workers.iter_mut() {
             w.stop();
         }
-        self.job_handler.read().unwrap().clear_pending_jobs();
+        self.job_handler.write().unwrap().clear_pending_jobs();
     }
 
     fn update_plugins(&mut self, plugins_to_remove: Vec<PluginId>) -> Vec<PathBuf> {
@@ -142,17 +143,19 @@ impl App {
                     let global_messenger = self.global_messenger.clone();
                     let msg = msg.as_boxed();
                     let job_name = format!("Load Event");
-                    self.job_handler
-                        .write()
-                        .unwrap()
-                        .add_job(job_name.as_str(), move || {
+                    let load_event_category: Uid = generate_uid_from_string("LOAD_EVENT_CATEGORY");
+                    self.job_handler.write().unwrap().add_job(
+                        &load_event_category,
+                        job_name.as_str(),
+                        move || {
                             SharedData::handle_events(
                                 &shared_data,
                                 &global_messenger,
                                 type_id,
                                 msg.as_ref(),
                             );
-                        });
+                        },
+                    );
                 }
             });
         self.is_profiling = is_profiling;

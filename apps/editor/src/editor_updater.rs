@@ -22,7 +22,6 @@ const GRID_MESH_CATEGORY_IDENTIFIER: &str = "EditorGrid";
 
 #[allow(dead_code)]
 pub struct EditorUpdater {
-    id: SystemId,
     shared_data: SharedDataRc,
     global_messenger: MessengerRw,
     config: Config,
@@ -87,7 +86,6 @@ impl EditorUpdater {
         );
 
         Self {
-            id: SystemId::new(),
             pipelines: Vec::new(),
             render_passes: Vec::new(),
             fonts: Vec::new(),
@@ -159,10 +157,6 @@ impl Drop for EditorUpdater {
 }
 
 impl System for EditorUpdater {
-    fn id(&self) -> SystemId {
-        self.id
-    }
-
     fn should_run_when_not_focused(&self) -> bool {
         false
     }
@@ -185,8 +179,6 @@ impl System for EditorUpdater {
             .create_hierarchy()
             .create_properties()
             .create_view3d();
-
-        self.load_object(std::path::PathBuf::from("models/Suzanne/Suzanne.object_data").as_path());
     }
 
     fn run(&mut self) -> bool {

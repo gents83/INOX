@@ -164,7 +164,7 @@ impl UIProperties for Pipeline {
                     ui.horizontal(|ui| {
                         ui.label("Path: ");
                         let mut path = self.path().to_str().unwrap_or_default().to_string();
-                        TextEdit::singleline(&mut path).enabled(false).ui(ui);
+                        TextEdit::singleline(&mut path).interactive(false).ui(ui);
                     });
                     ui.horizontal(|ui| {
                         ui.label("VertexShader: ");
@@ -174,7 +174,7 @@ impl UIProperties for Pipeline {
                             .to_str()
                             .unwrap_or_default()
                             .to_string();
-                        TextEdit::singleline(&mut shader).enabled(false).ui(ui);
+                        TextEdit::singleline(&mut shader).interactive(false).ui(ui);
                     });
                     ui.horizontal(|ui| {
                         ui.label("FragmentShader: ");
@@ -184,17 +184,17 @@ impl UIProperties for Pipeline {
                             .to_str()
                             .unwrap_or_default()
                             .to_string();
-                        TextEdit::singleline(&mut shader).enabled(false).ui(ui);
+                        TextEdit::singleline(&mut shader).interactive(false).ui(ui);
                     });
                     ui.horizontal(|ui| {
                         ui.label("Culling Type: ");
                         let mut culling = format!("{:?}", self.data().culling);
-                        TextEdit::singleline(&mut culling).enabled(false).ui(ui);
+                        TextEdit::singleline(&mut culling).interactive(false).ui(ui);
                     });
                     ui.horizontal(|ui| {
                         ui.label("Poligon Mode: ");
                         let mut mode = format!("{:?}", self.data().mode);
-                        TextEdit::singleline(&mut mode).enabled(false).ui(ui);
+                        TextEdit::singleline(&mut mode).interactive(false).ui(ui);
                     });
                 });
             });
@@ -216,7 +216,7 @@ impl UIProperties for Font {
                 ui.horizontal(|ui| {
                     ui.label("Path: ");
                     let mut path = self.path().to_str().unwrap().to_string();
-                    TextEdit::singleline(&mut path).enabled(false).ui(ui);
+                    TextEdit::singleline(&mut path).interactive(false).ui(ui);
                 });
             });
     }
@@ -237,7 +237,7 @@ impl UIProperties for Material {
                 ui.horizontal(|ui| {
                     ui.label("Path: ");
                     let mut path = self.path().to_str().unwrap().to_string();
-                    TextEdit::singleline(&mut path).enabled(false).ui(ui);
+                    TextEdit::singleline(&mut path).interactive(false).ui(ui);
                 });
                 if let Some(pipeline) = self.pipeline() {
                     pipeline.get_mut(|p| {
@@ -283,7 +283,7 @@ impl UIProperties for Mesh {
                 ui.horizontal(|ui| {
                     ui.label("Path: ");
                     let mut path = self.path().to_str().unwrap().to_string();
-                    TextEdit::singleline(&mut path).enabled(false).ui(ui);
+                    TextEdit::singleline(&mut path).interactive(false).ui(ui);
                 });
                 let mut is_visible = self.is_visible();
                 Checkbox::new(&mut is_visible, "Visible").ui(ui);
@@ -291,7 +291,9 @@ impl UIProperties for Mesh {
                 ui.horizontal(|ui| {
                     ui.label("Num vertices: ");
                     let mut vertices = format!("{}", self.mesh_data().vertices.len());
-                    TextEdit::singleline(&mut vertices).enabled(false).ui(ui);
+                    TextEdit::singleline(&mut vertices)
+                        .interactive(false)
+                        .ui(ui);
                 });
                 if let Some(material) = self.material() {
                     let id = material.id();
@@ -318,27 +320,29 @@ impl UIProperties for Texture {
                 ui.horizontal(|ui| {
                     ui.label("Path: ");
                     let mut path = self.path().to_str().unwrap().to_string();
-                    TextEdit::singleline(&mut path).enabled(false).ui(ui);
+                    TextEdit::singleline(&mut path).interactive(false).ui(ui);
                 });
                 ui.horizontal(|ui| {
                     ui.label("Texture Index: ");
                     let mut texture_index = format!("{}", self.texture_index());
                     TextEdit::singleline(&mut texture_index)
-                        .enabled(false)
+                        .interactive(false)
                         .ui(ui);
                 });
                 ui.horizontal(|ui| {
                     ui.label("Layer Index: ");
                     let mut layer_index = format!("{}", self.layer_index());
-                    TextEdit::singleline(&mut layer_index).enabled(false).ui(ui);
+                    TextEdit::singleline(&mut layer_index)
+                        .interactive(false)
+                        .ui(ui);
                 });
                 ui.horizontal(|ui| {
                     ui.label("Dimensions: ");
                     let mut width = format!("{}", self.dimensions().0);
-                    TextEdit::singleline(&mut width).enabled(false).ui(ui);
+                    TextEdit::singleline(&mut width).interactive(false).ui(ui);
                     ui.label("x");
                     let mut heigth = format!("{}", self.dimensions().1);
-                    TextEdit::singleline(&mut heigth).enabled(false).ui(ui);
+                    TextEdit::singleline(&mut heigth).interactive(false).ui(ui);
                 });
             });
     }
@@ -359,7 +363,7 @@ impl UIProperties for View {
                 ui.horizontal(|ui| {
                     ui.label("Index: ");
                     let mut index = format!("{}", self.view_index());
-                    TextEdit::singleline(&mut index).enabled(false).ui(ui);
+                    TextEdit::singleline(&mut index).interactive(false).ui(ui);
                 });
             });
     }

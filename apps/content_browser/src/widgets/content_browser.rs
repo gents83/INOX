@@ -228,7 +228,7 @@ impl ContentBrowser {
                             ui.label("Filename: ");
                             TextEdit::singleline(&mut data.selected_file)
                                 .hint_text("File name here")
-                                .enabled(data.is_editable)
+                                .interactive(data.is_editable)
                                 .frame(data.is_editable)
                                 .desired_width(ui.available_width() - 2. * button_size)
                                 .ui(ui);

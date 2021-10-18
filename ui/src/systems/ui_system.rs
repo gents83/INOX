@@ -12,7 +12,7 @@ use egui::{
     TextureId as eguiTextureId,
 };
 use image::RgbaImage;
-use nrg_core::{JobHandlerRw, System, SystemId};
+use nrg_core::{JobHandlerRw, System};
 use nrg_graphics::{
     Material, Mesh, MeshCategoryId, MeshData, RenderPass, Texture, TextureId, VertexData,
 };
@@ -31,7 +31,6 @@ use crate::UIWidget;
 const UI_MESH_CATEGORY_IDENTIFIER: &str = "ui_mesh";
 
 pub struct UISystem {
-    id: SystemId,
     shared_data: SharedDataRc,
     job_handler: JobHandlerRw,
     global_messenger: MessengerRw,
@@ -58,7 +57,6 @@ impl UISystem {
         crate::register_resource_types(&shared_data);
 
         Self {
-            id: SystemId::new(),
             shared_data,
             job_handler,
             global_messenger,
@@ -178,7 +176,7 @@ impl UISystem {
             self.job_handler
                 .write()
                 .unwrap()
-                .add_job(job_name.as_str(), move || {
+                .add_job(&self.id(), job_name.as_str(), move || {
                     let mut mesh_data = MeshData::new(UI_MESH_CATEGORY_IDENTIFIER);
                     let mut vertices: Vec<VertexData> = Vec::new();
                     vertices.resize(mesh.vertices.len(), VertexData::default());
@@ -330,15 +328,16 @@ impl UISystem {
                     let job_name = format!("ui_system::show_ui[{:?}]", widget_handle.id());
                     let wait_count = wait_count.clone();
                     wait_count.fetch_add(1, Ordering::SeqCst);
-                    self.job_handler
-                        .write()
-                        .unwrap()
-                        .add_job(job_name.as_str(), move || {
+                    self.job_handler.write().unwrap().add_job(
+                        &self.id(),
+                        job_name.as_str(),
+                        move || {
                             widget_handle.get_mut(|w| {
                                 w.execute(&context);
                             });
                             wait_count.fetch_sub(1, Ordering::SeqCst);
-                        });
+                        },
+                    );
                 } else {
                     widget.execute(&self.ui_context);
                 }
@@ -369,10 +368,6 @@ impl Drop for UISystem {
 }
 
 impl System for UISystem {
-    fn id(&self) -> nrg_core::SystemId {
-        self.id
-    }
-
     fn should_run_when_not_focused(&self) -> bool {
         false
     }

@@ -195,8 +195,14 @@ impl Scheduler {
                             "scheduler::wait_jobs", name
                         )
                         .as_str());
-                        while job_handler.read().unwrap().has_pending_jobs() {
+                        let jobs_id_to_wait = phase.get_jobs_id_to_wait();
+                        let mut should_wait = true;
+                        while should_wait {
                             thread::yield_now();
+                            should_wait = false;
+                            jobs_id_to_wait.iter().for_each(|job_id| {
+                                should_wait |= job_handler.read().unwrap().has_pending_jobs(job_id);
+                            });
                         }
                     }
                     ok

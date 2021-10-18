@@ -7,7 +7,7 @@ use std::{
     thread,
 };
 
-use nrg_core::{JobHandlerRw, System, SystemId};
+use nrg_core::{JobHandlerRw, System};
 use nrg_math::{VecBase, Vector4};
 use nrg_messenger::{read_messages, MessageChannel, MessengerRw};
 use nrg_resources::{
@@ -21,7 +21,6 @@ use crate::{
 };
 
 pub struct UpdateSystem {
-    id: SystemId,
     renderer: RendererRw,
     shared_data: SharedDataRc,
     job_handler: JobHandlerRw,
@@ -43,7 +42,6 @@ impl UpdateSystem {
 
         crate::register_resource_types(shared_data);
         Self {
-            id: SystemId::new(),
             renderer,
             shared_data: shared_data.clone(),
             job_handler,
@@ -154,9 +152,6 @@ unsafe impl Send for UpdateSystem {}
 unsafe impl Sync for UpdateSystem {}
 
 impl System for UpdateSystem {
-    fn id(&self) -> SystemId {
-        self.id
-    }
     fn should_run_when_not_focused(&self) -> bool {
         false
     }
@@ -189,10 +184,10 @@ impl System for UpdateSystem {
                 let texture = texture_handle.clone();
                 let wait_count = wait_count.clone();
                 wait_count.fetch_add(1, Ordering::SeqCst);
-                self.job_handler
-                    .write()
-                    .unwrap()
-                    .add_job(job_name.as_str(), move || {
+                self.job_handler.write().unwrap().add_job(
+                    &self.id(),
+                    job_name.as_str(),
+                    move || {
                         let renderer = renderer.read().unwrap();
                         let device = renderer.device();
                         let physical_device = renderer.instance().get_physical_device();
@@ -201,7 +196,8 @@ impl System for UpdateSystem {
                             t.capture_image(texture.id(), texture_handler, device, physical_device);
                         });
                         wait_count.fetch_sub(1, Ordering::SeqCst);
-                    });
+                    },
+                );
             }
         });
 
@@ -227,10 +223,10 @@ impl System for UpdateSystem {
                         render_pass.data().name
                     );
                     wait_count.fetch_add(1, Ordering::SeqCst);
-                    self.job_handler
-                        .write()
-                        .unwrap()
-                        .add_job(job_name.as_str(), move || {
+                    self.job_handler.write().unwrap().add_job(
+                        &self.id(),
+                        job_name.as_str(),
+                        move || {
                             let mesh_id = *mesh_handle.id();
                             nrg_profiler::scoped_profile!(format!(
                                 "create_render_mesh_job[{}]",
@@ -246,7 +242,8 @@ impl System for UpdateSystem {
                                 );
                             });
                             wait_count.fetch_sub(1, Ordering::SeqCst);
-                        });
+                        },
+                    );
                 });
             }
         });
@@ -256,7 +253,7 @@ impl System for UpdateSystem {
         self.job_handler
             .write()
             .unwrap()
-            .add_job(job_name, move || {
+            .add_job(&self.id(), job_name, move || {
                 while wait_count.load(Ordering::SeqCst) > 0 {
                     thread::yield_now();
                 }

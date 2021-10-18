@@ -6,6 +6,7 @@ use std::{
 use nrg_core::JobHandlerRw;
 use nrg_messenger::MessengerRw;
 use nrg_resources::SharedDataRc;
+use nrg_serialize::generate_uid_from_string;
 
 use crate::{Screen, WidgetNode, DEFAULT_WIDGET_HEIGHT};
 
@@ -81,19 +82,21 @@ impl Gui {
     where
         F: FnOnce() + Send + Sync + 'static,
     {
+        let gui_category = generate_uid_from_string("GUI");
         Gui::get()
             .read()
             .unwrap()
             .job_handler
             .write()
             .unwrap()
-            .add_job(name, func);
+            .add_job(&gui_category, name, func);
     }
 
     #[inline]
     pub fn update_widgets(job_handler: &JobHandlerRw, first_reduce_draw_area: bool) {
         let mut widget_area = Screen::get_draw_area();
         let mut next_area = widget_area;
+        let gui_category = generate_uid_from_string("GUI");
         Gui::get()
             .write()
             .unwrap()
@@ -116,7 +119,7 @@ impl Gui {
                 job_handler
                     .write()
                     .unwrap()
-                    .add_job(job_name.as_str(), move || {
+                    .add_job(&gui_category, job_name.as_str(), move || {
                         widget.write().unwrap().update(widget_area, widget_area);
                     });
                 widget_area = next_area;

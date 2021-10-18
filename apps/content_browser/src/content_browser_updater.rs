@@ -16,7 +16,6 @@ use nrg_ui::{DialogEvent, DialogOp};
 
 #[allow(dead_code)]
 pub struct ContentBrowserUpdater {
-    id: SystemId,
     shared_data: SharedDataRc,
     global_messenger: MessengerRw,
     config: Config,
@@ -32,7 +31,6 @@ impl ContentBrowserUpdater {
         let message_channel = MessageChannel::default();
 
         Self {
-            id: SystemId::new(),
             pipelines: Vec::new(),
             render_passes: Vec::new(),
             fonts: Vec::new(),
@@ -66,10 +64,6 @@ impl ContentBrowserUpdater {
 }
 
 impl System for ContentBrowserUpdater {
-    fn id(&self) -> SystemId {
-        self.id
-    }
-
     fn should_run_when_not_focused(&self) -> bool {
         false
     }

@@ -1,11 +1,13 @@
 use downcast_rs::{impl_downcast, Downcast};
+
 use std::collections::HashSet;
 
-use crate::{System, SystemBoxed, SystemId};
+use crate::{JobId, System, SystemBoxed, SystemId};
 
 pub trait Phase: Downcast + Send + Sync {
     fn get_name(&self) -> &str;
     fn should_run_when_not_focused(&self) -> bool;
+    fn get_jobs_id_to_wait(&self) -> Vec<JobId>;
     fn init(&mut self);
     fn run(&mut self, is_focused: bool) -> bool;
     fn uninit(&mut self);
@@ -134,6 +136,14 @@ impl Phase for PhaseWithSystems {
             .remove_pending_systems_from_execution();
 
         self.systems_running.clear();
+    }
+
+    fn get_jobs_id_to_wait(&self) -> Vec<JobId> {
+        let mut jobs_id_to_wait = Vec::new();
+        for s in self.systems_running.iter() {
+            jobs_id_to_wait.push(s.id());
+        }
+        jobs_id_to_wait
     }
 }
 

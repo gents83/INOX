@@ -1,8 +1,16 @@
-use std::sync::{
-    atomic::{AtomicUsize, Ordering},
-    mpsc::Sender,
-    Arc, RwLock,
+use std::{
+    collections::HashMap,
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        mpsc::Sender,
+        Arc, RwLock,
+    },
 };
+
+use nrg_serialize::Uid;
+
+pub type JobId = Uid;
+
 pub struct Job {
     func: Box<dyn FnOnce() + Send + Sync>,
     pending_jobs: Arc<AtomicUsize>,
@@ -62,7 +70,7 @@ pub type JobHandlerRw = Arc<RwLock<JobHandler>>;
 
 pub struct JobHandler {
     sender: Sender<Job>,
-    pending_jobs: Arc<AtomicUsize>,
+    pending_jobs: HashMap<JobId, Arc<AtomicUsize>>,
 }
 
 unsafe impl Sync for JobHandler {}
@@ -73,32 +81,42 @@ impl JobHandler {
     pub fn new(sender: Sender<Job>) -> Arc<RwLock<JobHandler>> {
         Arc::new(RwLock::new(JobHandler {
             sender,
-            pending_jobs: Arc::new(AtomicUsize::new(0)),
+            pending_jobs: HashMap::new(),
         }))
     }
     #[inline]
-    pub fn add_job<F>(&mut self, job_name: &str, func: F)
+    pub fn add_job<F>(&mut self, job_category: &JobId, job_name: &str, func: F)
     where
         F: FnOnce() + Send + Sync + 'static,
     {
-        let job = Job::new(job_name, func, self.pending_jobs.clone());
+        let pending_jobs = self
+            .pending_jobs
+            .entry(*job_category)
+            .or_insert(Arc::new(AtomicUsize::new(0)))
+            .clone();
+        let job = Job::new(job_name, func, pending_jobs);
         self.sender.send(job).ok();
     }
 
     #[inline]
-    pub fn has_pending_jobs(&self) -> bool {
-        self.get_pending_jobs_count() > 0
+    pub fn has_pending_jobs(&self, job_category: &JobId) -> bool {
+        self.get_pending_jobs_count(job_category) > 0
     }
 
     #[inline]
-    pub fn get_pending_jobs_count(&self) -> usize {
-        self.pending_jobs.load(Ordering::SeqCst)
-    }
-
-    #[inline]
-    pub fn clear_pending_jobs(&self) {
-        if self.has_pending_jobs() {
-            self.pending_jobs.store(0, Ordering::SeqCst);
+    pub fn get_pending_jobs_count(&self, job_category: &JobId) -> usize {
+        if let Some(pending_jobs) = self.pending_jobs.get(job_category) {
+            pending_jobs.load(Ordering::SeqCst)
+        } else {
+            0
         }
+    }
+
+    #[inline]
+    pub fn clear_pending_jobs(&mut self) {
+        self.pending_jobs.iter().for_each(|(_, pending_jobs)| {
+            pending_jobs.store(0, Ordering::SeqCst);
+        });
+        self.pending_jobs.clear();
     }
 }

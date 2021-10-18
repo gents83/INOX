@@ -6,7 +6,7 @@ use std::{
     thread,
 };
 
-use nrg_core::{JobHandlerRw, System, SystemId};
+use nrg_core::{JobHandlerRw, System};
 use nrg_math::Matrix4;
 use nrg_messenger::MessengerRw;
 use nrg_resources::{DataTypeResource, Resource, SharedData, SharedDataRc};
@@ -15,7 +15,6 @@ use nrg_serialize::generate_random_uid;
 use crate::{Pipeline, PipelineId, RenderPass, RendererRw, RendererState, View};
 
 pub struct RenderingSystem {
-    id: SystemId,
     view: Resource<View>,
     renderer: RendererRw,
     job_handler: JobHandlerRw,
@@ -30,7 +29,6 @@ impl RenderingSystem {
         job_handler: JobHandlerRw,
     ) -> Self {
         Self {
-            id: SystemId::new(),
             view: View::create_from_data(shared_data, global_messenger, generate_random_uid(), 0),
             renderer,
             job_handler,
@@ -77,9 +75,6 @@ unsafe impl Send for RenderingSystem {}
 unsafe impl Sync for RenderingSystem {}
 
 impl System for RenderingSystem {
-    fn id(&self) -> SystemId {
-        self.id
-    }
     fn should_run_when_not_focused(&self) -> bool {
         false
     }
@@ -121,10 +116,10 @@ impl System for RenderingSystem {
                     let wait_count = wait_count.clone();
                     wait_count.fetch_add(1, Ordering::SeqCst);
 
-                    self.job_handler
-                        .write()
-                        .unwrap()
-                        .add_job(job_name.as_str(), move || {
+                    self.job_handler.write().unwrap().add_job(
+                        &self.id(),
+                        job_name.as_str(),
+                        move || {
                             render_pass.get_mut(|render_pass: &mut RenderPass| {
                                 nrg_profiler::scoped_profile!(format!(
                                     "fill_command_buffer_for_render_pass[{}]",
@@ -145,13 +140,15 @@ impl System for RenderingSystem {
 
                                 if let Some(pipeline) = render_pass.pipeline() {
                                     pipeline.get_mut(|pipeline| {
-                                        Self::draw_pipeline(
-                                            &renderer,
-                                            &render_pass,
-                                            pipeline,
-                                            &view,
-                                            &proj,
-                                        );
+                                        if pipeline.is_initialized() {
+                                            Self::draw_pipeline(
+                                                &renderer,
+                                                &render_pass,
+                                                pipeline,
+                                                &view,
+                                                &proj,
+                                            );
+                                        }
                                     });
                                 } else {
                                     SharedData::for_each_resource_mut(
@@ -183,7 +180,8 @@ impl System for RenderingSystem {
                             });
 
                             wait_count.fetch_sub(1, Ordering::SeqCst);
-                        });
+                        },
+                    );
                 }
             },
         );
@@ -195,7 +193,7 @@ impl System for RenderingSystem {
         self.job_handler
             .write()
             .unwrap()
-            .add_job(job_name, move || {
+            .add_job(&self.id(), job_name, move || {
                 while wait_count.load(Ordering::SeqCst) > 0 {
                     thread::yield_now();
                 }
