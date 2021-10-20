@@ -113,7 +113,7 @@ pub fn copy_with_random_name(src_path: PathBuf, target_path: PathBuf, name: &str
 }
 
 #[inline]
-pub fn copy_all_files_with_extension(src_path: PathBuf, target_path: PathBuf, extension: &str) {
+pub fn move_all_files_with_extension(src_path: PathBuf, target_path: PathBuf, extension: &str) {
     let files = fs::read_dir(src_path).unwrap();
     files
         .filter_map(Result::ok)

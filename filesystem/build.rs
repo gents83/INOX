@@ -3,7 +3,7 @@ use std::{
     path::{Path, PathBuf},
     time::{SystemTime, UNIX_EPOCH},
 };
-fn copy_all_files_with_extension(src_path: PathBuf, target_path: PathBuf, extension: &str) {
+fn move_all_files_with_extension(src_path: PathBuf, target_path: PathBuf, extension: &str) {
     let files = fs::read_dir(src_path).unwrap();
     files
         .filter_map(Result::ok)
@@ -44,8 +44,8 @@ fn main() {
     let deps_build_path = out_dir.join("in_use");
     let in_use_build_path = deps_build_path.join("deps");
 
-    copy_all_files_with_extension(deps_path, deps_build_path, "pdb");
-    copy_all_files_with_extension(out_dir, in_use_build_path, "pdb");
+    move_all_files_with_extension(deps_path, deps_build_path, "pdb");
+    move_all_files_with_extension(out_dir, in_use_build_path, "pdb");
 
     // Deterimine build platform
     let target_os = ::std::env::var("CARGO_CFG_TARGET_OS").unwrap();

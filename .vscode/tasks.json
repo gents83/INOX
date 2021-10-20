@@ -9,6 +9,36 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
+			"label": "COPY ADDON IN BLENDER",
+			"type": "shell",
+			"isBackground": true,
+			"command": "Copy-Item -Path ${workspaceFolder}\\blender\\nrg_blender\\NRG -Destination ${env:BLENDER_ADDONS_PATH} -Force -Recurse",
+			"presentation": {
+				"clear": true,
+				"reveal": "never", //process does not switch terminal (focus on program output)
+			},
+		},
+		{
+			"label": "RENAME BLENDER DLL IN PYD - DEBUG",
+			"type": "shell",
+			"isBackground": true,
+			"command": "Copy-Item -Path ${workspaceFolder}\\target\\debug\\nrg_blender.dll -Destination ${workspaceFolder}\\blender\\nrg_blender\\NRG\\nrg_blender.pyd -Force",
+			"presentation": {
+				"clear": true,
+				"reveal": "never", //process does not switch terminal (focus on program output)
+			},
+		},
+		{
+			"label": "RENAME BLENDER DLL IN PYD - RELEASE",
+			"type": "shell",
+			"isBackground": true,
+			"command": "Copy-Item -Path ${workspaceFolder}\\target\\release\\nrg_blender.dll -Destination ${workspaceFolder}\\blender\\nrg_blender\\NRG\\nrg_blender.pyd -Force",
+			"presentation": {
+				"clear": true,
+				"reveal": "never", //process does not switch terminal (focus on program output)
+			},
+		},
+		{
 			"label": "CLEANUP",
 			"type": "shell",
 			"isBackground": true,
@@ -109,6 +139,8 @@
 				"CREATE IN_USE FOLDER",
 				"CREATE DEPS IN_USE FOLDER",
 				"COMPILE DEBUG",
+				"RENAME BLENDER DLL IN PYD - DEBUG",
+				"COPY ADDON IN BLENDER",
 			],
 			"problemMatcher": [],
 			"presentation": {
@@ -124,6 +156,8 @@
 				"CREATE IN_USE FOLDER",
 				"CREATE DEPS IN_USE FOLDER",
 				"COMPILE RELEASE",
+				"RENAME BLENDER DLL IN PYD - RELEASE",
+				"COPY ADDON IN BLENDER",
 			],
 			"problemMatcher": [],
 			"presentation": {

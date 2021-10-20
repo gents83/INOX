@@ -17,12 +17,15 @@ fn main() {
     let out_dir = env::var("OUT_DIR").unwrap();
     let dest_path = Path::new(&out_dir).join("bindings.rs");
 
-    let vulkan_sdk_path = env::var("VULKAN_SDK").unwrap();
+    let vulkan_sdk_path = if let Ok(vulkan_sdk_path) = env::var("VULKAN_SDK") {
+        vulkan_sdk_path
+    } else {
+        panic!("No VULKAN_SDK enviroment variable for this user");
+    };
     let mut vulkan_header = vulkan_sdk_path.clone();
     vulkan_header.push_str("\\include\\vulkan\\vulkan.h");
 
-    let mut vulkan_plaftorm = "";
-    println!("Building bindings for platform {}", vulkan_plaftorm);
+    let vulkan_plaftorm;
 
     let mut builder = bindgen::Builder::default()
         .header(vulkan_header)
@@ -70,6 +73,7 @@ fn main() {
         vulkan_plaftorm = "android";
         builder = builder.clang_arg("-VK_USE_PLATFORM_ANDROID_KHR");
     }
+    println!("Building bindings for platform {}", vulkan_plaftorm);
 
     let bindings = builder.generate().expect("Unable to generate bindings");
 

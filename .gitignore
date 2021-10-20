@@ -5,6 +5,9 @@ Cargo.lock
 *.gfxr
 *.foz
 *.nrg_profile
+*.dll
+*.exe
+*.pyd
 vert.spv
 frag.spv
 geom.spv

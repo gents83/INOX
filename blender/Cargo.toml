@@ -1,0 +1,14 @@
+[package]
+name = "nrg_blender"
+version = "0.1.0"
+authors = ["gents83 <gents83@gmail.com>"]
+edition = "2018"
+build = "build.rs"
+
+[lib]
+name = "nrg_blender"
+crate-type = ['cdylib', 'rlib']
+
+[dependencies]
+#cpython = { git = "https://github.com/dgrunwald/rust-cpython", version = "*", features = ["extension-module"] }
+cpython = {path = "../../rust-cpython", version = "*", features = ["extension-module"] }
