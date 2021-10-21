@@ -56,7 +56,8 @@
             "request": "launch",
             "program": "${workspaceFolder}/target/debug/nrg_launcher.exe",
             "args": [
-                "-plugin nrg_viewer"
+                "-plugin nrg_viewer",
+                "-load_file ./models/Suzanne/Suzanne.object_data"
             ],
             "env": {
                 "RUST_BACKTRACE": "full"

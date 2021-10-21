@@ -27,11 +27,12 @@ fn execute(_py: Python, val: &str) -> PyResult<String> {
 
     path = path.join("nrg_launcher.exe");
 
-    output_string += format!("Path to execute = {:?}\n", path.as_path()).as_str();
+    output_string += format!("Path to command = {:?}\n", path.as_path()).as_str();
 
     let mut command = Command::new(path.as_path());
     command
         .arg("-plugin nrg_viewer")
+        .arg("-load_file ./models/Suzanne/Suzanne.object_data")
         .current_dir(current_dir.as_path());
 
     let result = if let Ok(process) = command.spawn() {

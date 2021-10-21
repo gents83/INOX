@@ -3,12 +3,19 @@ use nrg_math::{
     SquareMatrix, Vector2, Vector3, Vector4, Zero,
 };
 
+const DEFAULT_CAMERA_FOV: f32 = 45.;
+const DEFAULT_CAMERA_NEAR: f32 = 0.001;
+const DEFAULT_CAMERA_FAR: f32 = 1000.;
+
 pub struct Camera {
     position: Vector3,
     rotation: Vector3, //pitch, yaw, roll
     direction: Vector3,
     proj_matrix: Matrix4,
     is_flipped: bool,
+    fov: f32,
+    near: f32,
+    far: f32,
 }
 
 pub struct CameraInput {
@@ -25,6 +32,9 @@ impl Camera {
             direction: [0., 0., 1.].into(),
             proj_matrix: Matrix4::default_identity(),
             is_flipped,
+            fov: DEFAULT_CAMERA_FOV,
+            near: DEFAULT_CAMERA_NEAR,
+            far: DEFAULT_CAMERA_FAR,
         };
         camera.look_at(target);
         camera.update();
@@ -56,6 +66,10 @@ impl Camera {
         } else {
             self.proj_matrix = proj;
         }
+
+        self.fov = fov;
+        self.near = near;
+        self.far = far;
 
         self
     }
@@ -124,6 +138,21 @@ impl Camera {
     #[inline]
     pub fn direction(&self) -> Vector3 {
         self.direction
+    }
+
+    #[inline]
+    pub fn fov(&self) -> f32 {
+        self.fov
+    }
+
+    #[inline]
+    pub fn near(&self) -> f32 {
+        self.near
+    }
+
+    #[inline]
+    pub fn far(&self) -> f32 {
+        self.far
     }
 
     pub fn convert_in_3d(&self, normalized_pos: Vector2) -> (Vector3, Vector3) {
