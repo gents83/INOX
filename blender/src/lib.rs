@@ -10,14 +10,18 @@ use cpython::{py_fn, py_module_initializer, PyResult, Python};
 // N.B: names: "nrg_blender" must be the name of the `.so` or `.pyd` file
 py_module_initializer!(nrg_blender, initnrg_blender, PyInit_nrg_blender, |py, m| {
     m.add(py, "__doc__", "This module is implemented in Rust")?;
-    m.add(py, "execute", py_fn!(py, execute(val: &str)))?;
+    m.add(
+        py,
+        "execute",
+        py_fn!(py, execute(executable_path: &str, file_to_load: &str)),
+    )?;
     Ok(())
 });
 
-fn execute(_py: Python, val: &str) -> PyResult<String> {
+fn execute(_py: Python, executable_path: &str, file_to_load: &str) -> PyResult<String> {
     let mut output_string = String::new();
 
-    let mut path = PathBuf::from(val);
+    let mut path = PathBuf::from(executable_path);
     let mut current_dir = path.clone();
     if current_dir.ends_with("release") || current_dir.ends_with("debug") {
         current_dir.pop();
@@ -32,7 +36,8 @@ fn execute(_py: Python, val: &str) -> PyResult<String> {
     let mut command = Command::new(path.as_path());
     command
         .arg("-plugin nrg_viewer")
-        .arg("-load_file ./models/Suzanne/Suzanne.object_data")
+        .arg("-load_file")
+        .arg(file_to_load)
         .current_dir(current_dir.as_path());
 
     let result = if let Ok(process) = command.spawn() {

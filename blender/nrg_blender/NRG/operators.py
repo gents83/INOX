@@ -1,8 +1,9 @@
 import bpy
 
 from glob import glob
-from os.path import join
-from os import chmod, add_dll_directory
+from os.path import join, exists
+from os import chmod, mkdir
+from pathlib import Path
 from . import nrg_blender
 
 
@@ -30,9 +31,30 @@ class NRGRun(bpy.types.Operator):
         for file_path in glob(file_path):
             chmod(file_path, 0o755)
 
-        print("Running NRG Engine")
+        path = Path(preferences.exe_path).absolute()
+        last_part = path.parts[-1]
+        if last_part.endswith('debug') or last_part.endswith('release'):
+            path = path.parent.absolute().parent.absolute()
 
-        print(nrg_blender.execute(str(preferences.exe_path)))
+        filename = Path(bpy.data.filepath).absolute().parts[-1]
+
+        data_raw_path = join(join(join(path, "data_raw"),
+                             "blender_export"), filename.replace('.blend', ''))
+
+        if not Path(data_raw_path).exists():
+            Path(data_raw_path).mkdir(parents=True, exist_ok=True)
+
+        filename = join(data_raw_path, filename.replace('.blend', '.gltf'))
+
+        print("Exporting scene into: " + data_raw_path)
+        bpy.ops.export_scene.gltf(filepath=filename, check_existing=True, export_format='GLTF_SEPARATE',
+                                  export_apply=True, export_materials='EXPORT', export_cameras=True, export_yup=True, export_lights=True)
+
+        filename = filename.replace('data_raw', 'data')
+        filename = filename.replace('.gltf', '.object_data')
+
+        print("Running NRG Engine")
+        print(nrg_blender.execute(str(preferences.exe_path), str(filename)))
 
         return {'FINISHED'}
 
