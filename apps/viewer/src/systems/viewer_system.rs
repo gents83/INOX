@@ -5,7 +5,7 @@ use nrg_math::{Vector2, Vector3, Zero};
 use nrg_messenger::{read_messages, send_global_event, MessageChannel, MessengerRw};
 use nrg_platform::{Key, KeyEvent, MouseButton, MouseEvent, WindowEvent};
 use nrg_resources::{DataTypeResource, Resource, SerializableResource, SharedData, SharedDataRc};
-use nrg_scene::{Object, Scene};
+use nrg_scene::Scene;
 use nrg_serialize::generate_random_uid;
 use std::{any::TypeId, env, path::PathBuf};
 
@@ -24,7 +24,7 @@ pub struct ViewerSystem {
     message_channel: MessageChannel,
     render_passes: Vec<Resource<RenderPass>>,
     scene: Resource<Scene>,
-    camera: Camera,
+    camera: Resource<Camera>,
     last_mouse_pos: Vector2,
     is_changing_camera: bool,
 }
@@ -33,6 +33,7 @@ impl ViewerSystem {
     pub fn new(shared_data: SharedDataRc, global_messenger: MessengerRw, config: &Config) -> Self {
         let message_channel = MessageChannel::default();
 
+        nrg_camera::register_resource_types(&shared_data);
         nrg_scene::register_resource_types(&shared_data);
 
         let scene = SharedData::add_resource::<Scene>(
@@ -43,6 +44,8 @@ impl ViewerSystem {
 
         let mut camera = Camera::new([10., 10., -10.].into(), [0., 0., 0.].into(), true);
         camera.set_projection(45., config.width as _, config.height as _, 0.001, 1000.);
+        let camera =
+            SharedData::add_resource::<Camera>(&shared_data, generate_random_uid(), camera);
 
         Self {
             shared_data,
@@ -81,6 +84,7 @@ impl ViewerSystem {
 impl Drop for ViewerSystem {
     fn drop(&mut self) {
         nrg_scene::unregister_resource_types(&self.shared_data);
+        nrg_camera::unregister_resource_types(&self.shared_data);
     }
 }
 
@@ -103,7 +107,7 @@ impl System for ViewerSystem {
     }
 
     fn run(&mut self) -> bool {
-        self.update_events().update_camera();
+        self.update_events().update_view_from_camera();
 
         self.scene.get_mut(|s| {
             s.update_hierarchy(&self.shared_data);
@@ -144,12 +148,12 @@ impl ViewerSystem {
                 if args[i].starts_with("-load_file") {
                     next_op = Operation::LoadFile;
                     if let Some(argument) = args[i].strip_prefix("-load_file ") {
-                        self.load_object(argument);
+                        self.load_scene(argument);
                         next_op = Operation::None;
                     }
                 } else if next_op == Operation::LoadFile {
                     let argument = args[i].as_str();
-                    self.load_object(argument);
+                    self.load_scene(argument);
                     next_op = Operation::None;
                 }
             });
@@ -157,17 +161,16 @@ impl ViewerSystem {
         self
     }
 
-    fn load_object(&mut self, filename: &str) {
-        if filename.ends_with("object_data") {
+    fn load_scene(&mut self, filename: &str) {
+        if filename.ends_with("scene_data") {
             self.scene.get_mut(|s| {
                 s.clear();
-                let object = Object::load_from_file(
-                    &self.shared_data,
-                    &self.global_messenger,
-                    PathBuf::from(filename).as_path(),
-                );
-                s.add_object(object);
             });
+            self.scene = Scene::load_from_file(
+                &self.shared_data,
+                &self.global_messenger,
+                PathBuf::from(filename).as_path(),
+            );
         }
     }
 
@@ -185,13 +188,9 @@ impl ViewerSystem {
                 let event = msg.as_any().downcast_ref::<WindowEvent>().unwrap();
                 match event {
                     WindowEvent::SizeChanged(width, height) => {
-                        self.camera.set_projection(
-                            self.camera.fov(),
-                            *width as _,
-                            *height as _,
-                            self.camera.near(),
-                            self.camera.far(),
-                        );
+                        self.camera.get_mut(|c| {
+                            c.set_projection(c.fov(), *width as _, *height as _, c.near(), c.far());
+                        });
                     }
                     _ => {}
                 }
@@ -200,17 +199,21 @@ impl ViewerSystem {
         self
     }
 
-    fn update_camera(&mut self) -> &mut Self {
+    fn update_view_from_camera(&mut self) -> &mut Self {
         if let Some(view) = self
             .shared_data
             .match_resource(|view: &View| view.view_index() == 0)
         {
-            let view_matrix = self.camera.view_matrix();
-            let proj_matrix = self.camera.proj_matrix();
+            self.shared_data.for_each_resource(|_, c: &Camera| {
+                if c.is_active() {
+                    let view_matrix = c.view_matrix();
+                    let proj_matrix = c.proj_matrix();
 
-            view.get_mut(|v| {
-                v.update_view(view_matrix).update_proj(proj_matrix);
-            });
+                    view.get_mut(|v| {
+                        v.update_view(view_matrix).update_proj(proj_matrix);
+                    });
+                }
+            })
         }
         self
     }
@@ -230,7 +233,9 @@ impl ViewerSystem {
         } else if event.code == Key::E {
             movement.y += 1.;
         }
-        self.camera.translate(movement);
+        self.camera.get_mut(|c| {
+            c.translate(movement);
+        })
     }
 
     fn handle_mouse_event(&mut self, event: &MouseEvent) {
@@ -242,7 +247,9 @@ impl ViewerSystem {
 
             rotation_angle.x = event.normalized_y - self.last_mouse_pos.y;
             rotation_angle.y = self.last_mouse_pos.x - event.normalized_x;
-            self.camera.rotate(rotation_angle * 5.);
+            self.camera.get_mut(|c| {
+                c.rotate(rotation_angle * 5.);
+            })
         }
         self.last_mouse_pos = Vector2::new(event.normalized_x as _, event.normalized_y as _);
     }

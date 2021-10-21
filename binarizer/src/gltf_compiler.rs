@@ -8,10 +8,12 @@ use crate::{need_to_binarize, ExtensionHandler};
 use gltf::{
     accessor::{DataType, Dimensions},
     buffer::{Source, View},
+    camera::Projection,
     image::Source as ImageSource,
     mesh::Mode,
-    Accessor, Gltf, Node, Primitive, Semantic,
+    Accessor, Camera, Gltf, Node, Primitive, Semantic,
 };
+use nrg_camera::CameraData;
 use nrg_filesystem::convert_in_local_path;
 use nrg_graphics::{
     MaterialData, MeshCategoryId, MeshData, VertexData, DEFAULT_MESH_CATEGORY_IDENTIFIER,
@@ -19,15 +21,24 @@ use nrg_graphics::{
 use nrg_math::{Parser, Vector2, Vector3, Vector4};
 use nrg_messenger::MessengerRw;
 use nrg_resources::{DATA_FOLDER, DATA_RAW_FOLDER};
-use nrg_scene::ObjectData;
+use nrg_scene::{ObjectData, SceneData};
 use nrg_serialize::serialize_to_file;
 
 const GLTF_EXTENSION: &str = "gltf";
 const MESH_DATA_EXTENSION: &str = "mesh_data";
 const MATERIAL_DATA_EXTENSION: &str = "material_data";
 const OBJECT_DATA_EXTENSION: &str = "object_data";
+const CAMERA_DATA_EXTENSION: &str = "camera_data";
+const SCENE_DATA_EXTENSION: &str = "scene_data";
 
 const DEFAULT_PIPELINE: &str = "pipelines/Default.pipeline_data";
+
+#[derive(PartialEq, Eq)]
+enum NodeType {
+    Object,
+    Camera,
+    Light,
+}
 
 pub struct GltfCompiler {
     global_messenger: MessengerRw,
@@ -38,7 +49,7 @@ impl GltfCompiler {
         Self { global_messenger }
     }
 
-    fn num_from_type(accessor: &Accessor) -> usize {
+    fn num_from_type(&mut self, accessor: &Accessor) -> usize {
         match accessor.dimensions() {
             Dimensions::Vec2 => 2,
             Dimensions::Vec3 => 3,
@@ -49,7 +60,7 @@ impl GltfCompiler {
             _ => 1,
         }
     }
-    fn bytes_from_dimension(accessor: &Accessor) -> usize {
+    fn bytes_from_dimension(&mut self, accessor: &Accessor) -> usize {
         match accessor.data_type() {
             DataType::F32 | DataType::U32 => 4,
             DataType::U16 | DataType::I16 => 2,
@@ -57,7 +68,7 @@ impl GltfCompiler {
         }
     }
 
-    fn read_accessor_from_path<T>(path: &Path, accessor: &Accessor) -> Option<Vec<T>>
+    fn read_accessor_from_path<T>(&mut self, path: &Path, accessor: &Accessor) -> Option<Vec<T>>
     where
         T: Parser,
     {
@@ -72,7 +83,7 @@ impl GltfCompiler {
                     Source::Uri(local_path) => {
                         let filepath = parent_folder.to_path_buf().join(local_path);
                         if let Ok(mut file) = fs::File::open(filepath) {
-                            return Some(Self::read_from_file::<T>(&mut file, &view, accessor));
+                            return Some(self.read_from_file::<T>(&mut file, &view, accessor));
                         } else {
                             eprintln!("Unable to open file: {:?}", local_path);
                         }
@@ -84,7 +95,7 @@ impl GltfCompiler {
         None
     }
 
-    fn read_from_file<T>(file: &mut File, view: &View, accessor: &Accessor) -> Vec<T>
+    fn read_from_file<T>(&mut self, file: &mut File, view: &View, accessor: &Accessor) -> Vec<T>
     where
         T: Parser,
     {
@@ -109,38 +120,38 @@ impl GltfCompiler {
         result
     }
 
-    fn extract_indices(path: &Path, primitive: &Primitive) -> Vec<u32> {
+    fn extract_indices(&mut self, path: &Path, primitive: &Primitive) -> Vec<u32> {
         let mut indices = Vec::new();
         debug_assert!(primitive.mode() == Mode::Triangles);
         if let Some(accessor) = primitive.indices() {
-            let num = Self::num_from_type(&accessor);
-            let num_bytes = Self::bytes_from_dimension(&accessor);
+            let num = self.num_from_type(&accessor);
+            let num_bytes = self.bytes_from_dimension(&accessor);
             debug_assert!(num == 1);
             if num_bytes == 1 {
-                if let Some(ind) = Self::read_accessor_from_path::<u8>(path, &accessor) {
+                if let Some(ind) = self.read_accessor_from_path::<u8>(path, &accessor) {
                     indices = ind.iter().map(|e| *e as u32).collect();
                 }
             } else if num_bytes == 2 {
-                if let Some(ind) = Self::read_accessor_from_path::<u16>(path, &accessor) {
+                if let Some(ind) = self.read_accessor_from_path::<u16>(path, &accessor) {
                     indices = ind.iter().map(|e| *e as u32).collect();
                 }
-            } else if let Some(ind) = Self::read_accessor_from_path::<u32>(path, &accessor) {
+            } else if let Some(ind) = self.read_accessor_from_path::<u32>(path, &accessor) {
                 indices = ind;
             }
         }
         indices
     }
 
-    fn extract_mesh_data(path: &Path, primitive: &Primitive) -> Vec<VertexData> {
+    fn extract_mesh_data(&mut self, path: &Path, primitive: &Primitive) -> Vec<VertexData> {
         let mut vertices = Vec::new();
         for (_attribute_index, (semantic, accessor)) in primitive.attributes().enumerate() {
             //println!("Attribute[{}]: {:?}", _attribute_index, semantic);
             match semantic {
                 Semantic::Positions => {
-                    let num = Self::num_from_type(&accessor);
-                    let num_bytes = Self::bytes_from_dimension(&accessor);
+                    let num = self.num_from_type(&accessor);
+                    let num_bytes = self.bytes_from_dimension(&accessor);
                     debug_assert!(num == 3 && num_bytes == 4);
-                    if let Some(pos) = Self::read_accessor_from_path::<Vector3>(path, &accessor) {
+                    if let Some(pos) = self.read_accessor_from_path::<Vector3>(path, &accessor) {
                         if vertices.len() < pos.len() {
                             debug_assert!(vertices.is_empty());
                             for p in pos.iter() {
@@ -159,10 +170,10 @@ impl GltfCompiler {
                     }
                 }
                 Semantic::Normals => {
-                    let num = Self::num_from_type(&accessor);
-                    let num_bytes = Self::bytes_from_dimension(&accessor);
+                    let num = self.num_from_type(&accessor);
+                    let num_bytes = self.bytes_from_dimension(&accessor);
                     debug_assert!(num == 3 && num_bytes == 4);
-                    if let Some(norm) = Self::read_accessor_from_path::<Vector3>(path, &accessor) {
+                    if let Some(norm) = self.read_accessor_from_path::<Vector3>(path, &accessor) {
                         if vertices.len() < norm.len() {
                             debug_assert!(vertices.is_empty());
                             for n in norm.iter() {
@@ -181,10 +192,10 @@ impl GltfCompiler {
                     }
                 }
                 Semantic::Colors(_color_index) => {
-                    let num = Self::num_from_type(&accessor);
-                    let num_bytes = Self::bytes_from_dimension(&accessor);
+                    let num = self.num_from_type(&accessor);
+                    let num_bytes = self.bytes_from_dimension(&accessor);
                     debug_assert!(num == 4 && num_bytes == 4);
-                    if let Some(col) = Self::read_accessor_from_path::<Vector4>(path, &accessor) {
+                    if let Some(col) = self.read_accessor_from_path::<Vector4>(path, &accessor) {
                         if vertices.len() < col.len() {
                             debug_assert!(vertices.is_empty());
                             for c in col.iter() {
@@ -203,10 +214,10 @@ impl GltfCompiler {
                     }
                 }
                 Semantic::TexCoords(_texture_index) => {
-                    let num = Self::num_from_type(&accessor);
-                    let num_bytes = Self::bytes_from_dimension(&accessor);
+                    let num = self.num_from_type(&accessor);
+                    let num_bytes = self.bytes_from_dimension(&accessor);
                     debug_assert!(num == 2 && num_bytes == 4);
-                    if let Some(tex) = Self::read_accessor_from_path::<Vector2>(path, &accessor) {
+                    if let Some(tex) = self.read_accessor_from_path::<Vector2>(path, &accessor) {
                         if !vertices.is_empty() {
                             for (i, v) in vertices.iter_mut().enumerate() {
                                 v.tex_coord = tex[i];
@@ -230,13 +241,14 @@ impl GltfCompiler {
     }
 
     fn process_mesh_data(
+        &mut self,
         path: &Path,
         mesh_name: &str,
         primitive: &Primitive,
         material_path: &Path,
     ) -> PathBuf {
-        let vertices = Self::extract_mesh_data(path, primitive);
-        let indices = Self::extract_indices(path, primitive);
+        let vertices = self.extract_mesh_data(path, primitive);
+        let indices = self.extract_indices(path, primitive);
         let mut mesh_data = MeshData::default();
         mesh_data.append_mesh(vertices.as_slice(), indices.as_slice());
         mesh_data.material = material_path.to_path_buf();
@@ -244,7 +256,7 @@ impl GltfCompiler {
 
         Self::create_file(path, &mesh_data, mesh_name, MESH_DATA_EXTENSION)
     }
-    fn process_material_data(path: &Path, primitive: &Primitive) -> PathBuf {
+    fn process_material_data(&mut self, path: &Path, primitive: &Primitive) -> PathBuf {
         let mut material_data = MaterialData::default();
 
         let material = primitive.material().pbr_metallic_roughness();
@@ -281,7 +293,26 @@ impl GltfCompiler {
         )
     }
 
-    fn process_node(path: &Path, node: &Node, node_name: &str) -> PathBuf {
+    fn process_node(
+        &mut self,
+        path: &Path,
+        node: &Node,
+        node_name: &str,
+    ) -> Option<(NodeType, PathBuf)> {
+        if let Some(_) = node.camera() {
+            return None;
+        }
+
+        for child in node.children() {
+            if let Some(camera) = child.camera() {
+                return Some(self.process_camera(path, &camera, node));
+            }
+        }
+
+        return Some(self.process_object(path, node, node_name));
+    }
+
+    fn process_object(&mut self, path: &Path, node: &Node, node_name: &str) -> (NodeType, PathBuf) {
         let mut object_data = ObjectData::default();
         object_data.transform = node.transform().matrix().into();
 
@@ -289,12 +320,12 @@ impl GltfCompiler {
             for (_primitive_index, primitive) in mesh.primitives().enumerate() {
                 //println!("Primitive[{}]: ", _primitive_index);
                 let name = format!("Mesh_{}", mesh.index());
-                let material_path = Self::process_material_data(path, &primitive);
+                let material_path = self.process_material_data(path, &primitive);
                 let material_path = convert_in_local_path(
                     material_path.as_path(),
                     PathBuf::from(DATA_FOLDER).as_path(),
                 );
-                let mesh_path = Self::process_mesh_data(
+                let mesh_path = self.process_mesh_data(
                     path,
                     mesh.name().unwrap_or_else(|| name.as_str()),
                     &primitive,
@@ -310,45 +341,84 @@ impl GltfCompiler {
 
         for (_child_index, child) in node.children().enumerate() {
             let name = format!("Node_{}", child.index());
-            let object_path =
-                Self::process_node(path, &child, child.name().unwrap_or_else(|| name.as_str()));
-            let object_path =
-                convert_in_local_path(object_path.as_path(), PathBuf::from(DATA_FOLDER).as_path());
-            object_data.children.push(object_path);
+            if let Some((node_type, node_path)) =
+                self.process_node(path, &child, child.name().unwrap_or_else(|| name.as_str()))
+            {
+                if node_type == NodeType::Object {
+                    let node_path = convert_in_local_path(
+                        node_path.as_path(),
+                        PathBuf::from(DATA_FOLDER).as_path(),
+                    );
+                    object_data.children.push(node_path);
+                }
+            }
         }
 
-        Self::create_file(path, &object_data, node_name, OBJECT_DATA_EXTENSION)
+        (
+            NodeType::Object,
+            Self::create_file(path, &object_data, node_name, OBJECT_DATA_EXTENSION),
+        )
     }
 
-    fn process_path(path: &Path) {
+    fn process_camera(&mut self, path: &Path, camera: &Camera, node: &Node) -> (NodeType, PathBuf) {
+        let mut camera_data = CameraData::default();
+        match camera.projection() {
+            Projection::Perspective(p) => {
+                camera_data.near = p.znear();
+                camera_data.far = p.zfar().unwrap_or(camera_data.near + 1000.);
+                camera_data.fov = p.yfov();
+            }
+            Projection::Orthographic(o) => {
+                camera_data.near = o.znear();
+                camera_data.far = o.zfar();
+            }
+        }
+        camera_data.transform = node.transform().matrix().into();
+        let name = format!("Camera_{}", camera.index());
+
+        (
+            NodeType::Camera,
+            Self::create_file(path, &camera_data, &name, CAMERA_DATA_EXTENSION),
+        )
+    }
+
+    fn process_path(&mut self, path: &Path) {
         if let Ok(gltf) = Gltf::open(path) {
             for scene in gltf.scenes() {
+                let mut scene_data = SceneData::default();
+                let scene_name = path
+                    .parent()
+                    .unwrap()
+                    .file_stem()
+                    .unwrap()
+                    .to_str()
+                    .unwrap();
+
                 for node in scene.nodes() {
-                    if node.index() == 0 {
-                        Self::process_node(
-                            path,
-                            &node,
-                            path.parent()
-                                .unwrap()
-                                .file_stem()
-                                .unwrap()
-                                .to_str()
-                                .unwrap(),
-                        );
-                    } else {
-                        let name = format!("Node_{}", node.index());
-                        Self::process_node(
-                            path,
-                            &node,
-                            node.name().unwrap_or_else(|| name.as_str()),
-                        );
+                    let name = format!("Node_{}", node.index());
+                    if let Some((node_type, node_path)) =
+                        self.process_node(path, &node, node.name().unwrap_or_else(|| name.as_str()))
+                    {
+                        match node_type {
+                            NodeType::Camera => {
+                                scene_data.cameras.push(node_path);
+                            }
+                            NodeType::Object => {
+                                scene_data.objects.push(node_path);
+                            }
+                            NodeType::Light => {
+                                scene_data.lights.push(node_path);
+                            }
+                        }
                     }
                 }
+
+                Self::create_file(path, &scene_data, scene_name, SCENE_DATA_EXTENSION);
             }
         }
     }
 
-    fn create_file<T>(path: &Path, mesh_data: &T, new_name: &str, new_extension: &str) -> PathBuf
+    fn create_file<T>(path: &Path, data: &T, new_name: &str, new_extension: &str) -> PathBuf
     where
         T: nrg_serialize::Serialize,
     {
@@ -377,7 +447,7 @@ impl GltfCompiler {
         }
         if need_to_binarize(path, new_path.as_path()) {
             println!("Serializing {:?}", new_path);
-            serialize_to_file(mesh_data, new_path.as_path());
+            serialize_to_file(data, new_path.as_path());
         }
         new_path
     }
@@ -388,7 +458,7 @@ impl ExtensionHandler for GltfCompiler {
         if let Some(ext) = path.extension() {
             let extension = ext.to_str().unwrap().to_string();
             if extension.as_str() == GLTF_EXTENSION {
-                Self::process_path(path);
+                self.process_path(path);
             }
         }
     }

@@ -1,21 +1,48 @@
+use std::path::{Path, PathBuf};
+
 use nrg_math::{
     direction_to_euler_angles, Angle, InnerSpace, MatBase, Matrix4, NewAngle, Radians,
     SquareMatrix, Vector2, Vector3, Vector4, Zero,
 };
+use nrg_messenger::MessengerRw;
+use nrg_resources::{
+    DataTypeResource, Resource, ResourceId, SerializableResource, SharedData, SharedDataRc,
+};
+use nrg_serialize::read_from_file;
 
-const DEFAULT_CAMERA_FOV: f32 = 45.;
-const DEFAULT_CAMERA_NEAR: f32 = 0.001;
-const DEFAULT_CAMERA_FAR: f32 = 1000.;
+use crate::CameraData;
 
+pub const DEFAULT_CAMERA_FOV: f32 = 45.;
+pub const DEFAULT_CAMERA_NEAR: f32 = 0.001;
+pub const DEFAULT_CAMERA_FAR: f32 = 1000.;
+
+pub type CameraId = ResourceId;
+
+#[derive(Clone)]
 pub struct Camera {
+    filepath: PathBuf,
     position: Vector3,
     rotation: Vector3, //pitch, yaw, roll
     direction: Vector3,
     proj_matrix: Matrix4,
+    is_active: bool,
     is_flipped: bool,
-    fov: f32,
-    near: f32,
-    far: f32,
+    data: CameraData,
+}
+
+impl Default for Camera {
+    fn default() -> Self {
+        Self {
+            filepath: PathBuf::new(),
+            position: Vector3::zero(),
+            rotation: Vector3::zero(),
+            direction: Vector3::unit_z(),
+            proj_matrix: Matrix4::default_identity(),
+            is_flipped: true,
+            is_active: true,
+            data: CameraData::default(),
+        }
+    }
 }
 
 pub struct CameraInput {
@@ -24,17 +51,57 @@ pub struct CameraInput {
     pub speed: f32,
 }
 
+impl SerializableResource for Camera {
+    fn path(&self) -> &Path {
+        self.filepath.as_path()
+    }
+
+    fn set_path(&mut self, path: &Path) {
+        self.filepath = path.to_path_buf();
+    }
+
+    fn is_matching_extension(path: &Path) -> bool {
+        const CAMERA_EXTENSION: &str = "camera_data";
+
+        if let Some(ext) = path.extension().unwrap().to_str() {
+            return ext == CAMERA_EXTENSION;
+        }
+        false
+    }
+}
+impl DataTypeResource for Camera {
+    type DataType = CameraData;
+    fn is_initialized(&self) -> bool {
+        true
+    }
+
+    fn invalidate(&mut self) {
+        panic!("Camera cannot be invalidated!");
+    }
+
+    fn deserialize_data(path: &std::path::Path) -> Self::DataType {
+        read_from_file::<Self::DataType>(path)
+    }
+    fn create_from_data(
+        shared_data: &SharedDataRc,
+        _global_messenger: &MessengerRw,
+        id: CameraId,
+        data: Self::DataType,
+    ) -> Resource<Self> {
+        let camera = Self {
+            data,
+            ..Default::default()
+        };
+        SharedData::add_resource(shared_data, id, camera)
+    }
+}
+
 impl Camera {
     pub fn new(position: Vector3, target: Vector3, is_flipped: bool) -> Self {
         let mut camera = Self {
             position,
-            rotation: [0., 0., 0.].into(),
-            direction: [0., 0., 1.].into(),
-            proj_matrix: Matrix4::default_identity(),
             is_flipped,
-            fov: DEFAULT_CAMERA_FOV,
-            near: DEFAULT_CAMERA_NEAR,
-            far: DEFAULT_CAMERA_FAR,
+            ..Default::default()
         };
         camera.look_at(target);
         camera.update();
@@ -67,9 +134,9 @@ impl Camera {
             self.proj_matrix = proj;
         }
 
-        self.fov = fov;
-        self.near = near;
-        self.far = far;
+        self.data.fov = fov;
+        self.data.near = near;
+        self.data.far = far;
 
         self
     }
@@ -126,6 +193,11 @@ impl Camera {
     }
 
     #[inline]
+    pub fn is_active(&self) -> bool {
+        self.is_active
+    }
+
+    #[inline]
     pub fn proj_matrix(&self) -> Matrix4 {
         self.proj_matrix
     }
@@ -142,17 +214,17 @@ impl Camera {
 
     #[inline]
     pub fn fov(&self) -> f32 {
-        self.fov
+        self.data.fov
     }
 
     #[inline]
     pub fn near(&self) -> f32 {
-        self.near
+        self.data.near
     }
 
     #[inline]
     pub fn far(&self) -> f32 {
-        self.far
+        self.data.far
     }
 
     pub fn convert_in_3d(&self, normalized_pos: Vector2) -> (Vector3, Vector3) {

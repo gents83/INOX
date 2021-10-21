@@ -51,7 +51,7 @@ class NRGRun(bpy.types.Operator):
                                   export_apply=True, export_materials='EXPORT', export_cameras=True, export_yup=True, export_lights=True)
 
         filename = filename.replace('data_raw', 'data')
-        filename = filename.replace('.gltf', '.object_data')
+        filename = filename.replace('.gltf', '.scene_data')
 
         print("Running NRG Engine")
         print(nrg_blender.execute(str(preferences.exe_path), str(filename)))

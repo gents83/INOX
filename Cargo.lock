@@ -819,6 +819,7 @@ name = "nrg_binarizer"
 version = "0.1.0"
 dependencies = [
  "gltf",
+ "nrg_camera",
  "nrg_filesystem",
  "nrg_graphics",
  "nrg_math",
@@ -842,6 +843,9 @@ version = "0.1.0"
 dependencies = [
  "nrg_events",
  "nrg_math",
+ "nrg_messenger",
+ "nrg_resources",
+ "nrg_serialize",
 ]
 
 [[package]]
@@ -978,6 +982,7 @@ dependencies = [
 name = "nrg_scene"
 version = "0.1.0"
 dependencies = [
+ "nrg_camera",
  "nrg_graphics",
  "nrg_math",
  "nrg_messenger",

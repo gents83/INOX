@@ -327,7 +327,7 @@ impl EditorUpdater {
                         self.create_content_browser(
                             *operation,
                             path.as_path(),
-                            "object_data".to_string(),
+                            "scene_data".to_string(),
                         );
                     }
                     DialogEvent::Confirmed(operation, filename) => {
@@ -335,13 +335,13 @@ impl EditorUpdater {
                         match operation {
                             DialogOp::Open => {
                                 println!("Loading {:?}", filename);
-                                if extension.contains("object_data") {
+                                if extension.contains("scene_data") {
                                     self.load_object(filename.as_path());
                                 }
                             }
                             DialogOp::Save => {
                                 println!("Saving {:?}", filename);
-                                if extension.contains("object_data") {}
+                                if extension.contains("scene_data") {}
                             }
                             DialogOp::New => {}
                         }

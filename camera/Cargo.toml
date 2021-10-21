@@ -11,3 +11,6 @@ crate-type = ["cdylib",'rlib']
 [dependencies]
 nrg_math = { path = "../math" }
 nrg_events = { path = "../events" }
+nrg_messenger = { path = "../messenger" }
+nrg_resources = { path = "../resources" }
+nrg_serialize = { path = "../serialize" }

@@ -1,4 +1,4 @@
-use std::{env, path::PathBuf};
+use std::{env, path::PathBuf, thread};
 
 use nrg_binarizer::Binarizer;
 use nrg_core::App;
@@ -37,6 +37,10 @@ fn main() {
     for name in plugins.iter() {
         let path = PathBuf::from(library_filename(*name));
         app.add_plugin(path);
+    }
+
+    while !binarizer.is_running() {
+        thread::yield_now();
     }
 
     loop {

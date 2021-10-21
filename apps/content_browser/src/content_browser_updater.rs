@@ -80,7 +80,7 @@ impl System for ContentBrowserUpdater {
         let args: Vec<String> = env::args().collect();
         let mut operation = DialogOp::Open;
         let mut folder = PathBuf::from(".");
-        let mut extension = String::from("object_data");
+        let mut extension = String::from("scene_data");
 
         let mut is_operation = false;
         let mut is_folder = false;
@@ -190,7 +190,7 @@ impl ContentBrowserUpdater {
                         self.create_content_browser(
                             *operation,
                             path.as_path(),
-                            "object_data".to_string(),
+                            "scene_data".to_string(),
                         );
                     }
                     DialogEvent::Confirmed(operation, filename) => {
@@ -198,13 +198,13 @@ impl ContentBrowserUpdater {
                         match operation {
                             DialogOp::Open => {
                                 println!("Loading {:?}", filename);
-                                if extension.contains("object_data") {
+                                if extension.contains("scene_data") {
                                     //self.load_object(filename.as_path());
                                 }
                             }
                             DialogOp::Save => {
                                 println!("Saving {:?}", filename);
-                                if extension.contains("object_data") {}
+                                if extension.contains("scene_data") {}
                             }
                             DialogOp::New => {}
                         }

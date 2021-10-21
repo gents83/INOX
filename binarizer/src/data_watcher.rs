@@ -62,6 +62,10 @@ impl Binarizer {
         }
     }
 
+    pub fn is_running(&self) -> bool {
+        self.is_running.load(Ordering::SeqCst)
+    }
+
     pub fn start(&mut self) {
         let mut binarizer = DataWatcher {
             filewatcher: FileWatcher::new(self.data_raw_folder.clone()),
@@ -81,13 +85,13 @@ impl Binarizer {
         binarizer.add_handler(image_compiler);
         binarizer.add_handler(gltf_compiler);
 
-        self.is_running.store(true, Ordering::SeqCst);
+        self.is_running.store(false, Ordering::SeqCst);
         let can_continue = self.is_running.clone();
         let builder = thread::Builder::new().name("Data Binarizer".to_string());
         let t = builder
             .spawn(move || -> bool {
                 binarizer.binarize_all();
-
+                can_continue.store(true, Ordering::SeqCst);
                 loop {
                     binarizer.update();
                     thread::yield_now();
