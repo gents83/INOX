@@ -31,7 +31,7 @@ fn execute(_py: Python, val: &str) -> PyResult<String> {
 
     let mut command = Command::new(path.as_path());
     command
-        .arg("-plugin nrg_editor")
+        .arg("-plugin nrg_viewer")
         .current_dir(current_dir.as_path());
 
     let result = if let Ok(process) = command.spawn() {

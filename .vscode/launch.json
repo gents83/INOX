@@ -51,6 +51,30 @@
             "symbolSearchPath": "${workspaceFolder}/target/debug/in_use/, ${workspaceFolder}/target/debug/, https://msdl.microsoft.com/download/symbols",
         },
         {
+            "name": "RUN VIEWER DEBUG",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/target/debug/nrg_launcher.exe",
+            "args": [
+                "-plugin nrg_viewer"
+            ],
+            "env": {
+                "RUST_BACKTRACE": "full"
+            },
+            "cwd": "${workspaceFolder}",
+            "stopAtEntry": false,
+            "requireExactSource": false,
+            "postDebugTask": "CLEANUP",
+            "sourceLanguages": [
+                "rust"
+            ],
+            "sourceFileMap": {
+                "/rustc/003d8d3f56848b6f3833340e859b089a09aea36a": "${env:USERPROFILE}/.rustup/toolchains/nightly-x86_64-pc-windows-msvc/lib/rustlib/src/rust"
+            },
+            "console": "integratedTerminal",
+            "symbolSearchPath": "${workspaceFolder}/target/debug/in_use/, ${workspaceFolder}/target/debug/, https://msdl.microsoft.com/download/symbols",
+        },
+        {
             "name": "RUN CONTENT BROWSER DEBUG",
             "type": "cppvsdbg",
             "request": "launch",

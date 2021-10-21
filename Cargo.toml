@@ -4,6 +4,7 @@ members = [
     "apps/content_browser",
     "apps/editor",
     "apps/launcher_app",
+    "apps/viewer",
     "binarizer",
     "blender",
     "bindings/vulkan_bindings",
