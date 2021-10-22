@@ -266,7 +266,7 @@ impl ViewerSystem {
         if self.is_changing_camera {
             let mut rotation_angle = Vector3::zero();
 
-            rotation_angle.x = self.last_mouse_pos.y - event.normalized_y;
+            rotation_angle.x = event.normalized_y - self.last_mouse_pos.y;
             rotation_angle.y = event.normalized_x - self.last_mouse_pos.x;
             self.shared_data.for_each_resource_mut(|_, c: &mut Camera| {
                 if c.is_active() {

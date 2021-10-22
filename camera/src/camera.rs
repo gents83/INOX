@@ -94,10 +94,10 @@ impl DataTypeResource for Camera {
         let (position, rotation, _) = data.transform.get_translation_rotation_scale();
         let mut camera = Self {
             position,
+            rotation,
             ..Default::default()
         };
         camera.set_projection(data.fov, data.aspect_ratio, 1., data.near, data.far);
-        camera.rotate(rotation);
         SharedData::add_resource(shared_data, id, camera)
     }
 }
@@ -164,10 +164,14 @@ impl Camera {
     #[inline]
     fn update(&mut self) -> &mut Self {
         let mut forward = Vector3::zero();
-
+        /*
+        x = cos(yaw)*cos(pitch)
+        y = sin(yaw)*cos(pitch)
+        z = sin(pitch)
+        */
         forward.x = self.rotation.y.cos() * self.rotation.x.cos();
-        forward.y = self.rotation.x.sin();
-        forward.z = self.rotation.y.sin() * self.rotation.x.cos();
+        forward.y = self.rotation.y.sin() * self.rotation.x.cos();
+        forward.z = self.rotation.x.sin();
 
         self.direction = forward.normalize();
 
