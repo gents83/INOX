@@ -57,7 +57,8 @@
             "program": "${workspaceFolder}/target/debug/nrg_launcher.exe",
             "args": [
                 "-plugin nrg_viewer",
-                "-load_file ./blender_export/TestScene/TestScene.scene_data"
+                "-load_file",
+                "C:\\PROJECTS\\NRG\\data\\blender_export\\TestScene\\TestScene.scene_data"
             ],
             "env": {
                 "RUST_BACKTRACE": "full"

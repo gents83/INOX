@@ -1,4 +1,4 @@
-use nrg_math::{MatBase, Matrix4};
+use nrg_math::{Degrees, MatBase, Matrix4, NewAngle};
 use nrg_messenger::MessengerRw;
 use nrg_resources::{DataTypeResource, Handle, Resource, ResourceId, SharedData, SharedDataRc};
 
@@ -43,7 +43,7 @@ impl DataTypeResource for View {
         let view = Self {
             view_index,
             view: Matrix4::default_identity(),
-            proj: nrg_math::perspective(nrg_math::Deg(45.), 800. / 600., 0.001, 1000.0),
+            proj: nrg_math::perspective(Degrees::new(45.), 800. / 600., 0.001, 1000.0),
         };
         SharedData::add_resource(shared_data, id, view)
     }

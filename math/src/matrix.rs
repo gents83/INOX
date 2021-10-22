@@ -1,7 +1,10 @@
 use crate::angle::NewAngle;
-use crate::vector::Vector3;
+use crate::vector::{VecBase, Vector3, Vector4};
 use crate::Degrees;
-use cgmath::*;
+use crate::{Quat, Quaternion};
+use cgmath::{InnerSpace, SquareMatrix, Transform};
+
+pub use cgmath::perspective;
 
 pub type Matrix3 = cgmath::Matrix3<f32>;
 pub type Matrix4 = cgmath::Matrix4<f32>;
@@ -49,112 +52,29 @@ macro_rules! implement_matrix4_operations {
             }
             #[inline]
             fn scale(&self) -> Vector3 {
-                //Extract scale
-                let mut scale: Vector3 = [1., 1., 1.].into();
-                let mut x_axis: Vector3 = [self.x[0], self.x[1], self.x[2]].into();
-                let mut y_axis: Vector3 = [self.y[0], self.y[1], self.y[2]].into();
-                let mut z_axis: Vector3 = [self.z[0], self.z[1], self.z[2]].into();
-                scale.x =
-                    self.w[3] * (x_axis.x.powf(2.) + x_axis.y.powf(2.) + x_axis.z.powf(2.)).sqrt();
-                if !scale.x.is_zero() {
-                    x_axis /= scale.x;
-                }
-                scale.y =
-                    self.w[3] * (y_axis.x.powf(2.) + y_axis.y.powf(2.) + y_axis.z.powf(2.)).sqrt();
-                if !scale.y.is_zero() {
-                    y_axis /= scale.y;
-                }
-                scale.z =
-                    self.w[3] * (z_axis.x.powf(2.) + z_axis.y.powf(2.) + z_axis.z.powf(2.)).sqrt();
-                if !scale.z.is_zero() {
-                    z_axis /= scale.z;
-                }
-                //Verify orientation and if necessary invert
-                let z_cross = x_axis.cross(y_axis);
-                if z_cross.dot(z_axis) < 0. {
-                    scale.x *= -1.;
-                }
-                scale
+                let s = Matrix3::from_cols(self.x.xyz(), self.y.xyz(), self.z.xyz());
+                let sx = s.x.length();
+                let sy = s.y.length();
+                let sz = s.determinant().signum() * s.z.length();
+                [sx, sy, sz].into()
             }
 
             #[inline]
             fn rotation(&self) -> Vector3 {
-                //Extract scale
-                let mut scale: Vector3 = [1., 1., 1.].into();
-                let mut x_axis: Vector3 = [self.x[0], self.x[1], self.x[2]].into();
-                let mut y_axis: Vector3 = [self.y[0], self.y[1], self.y[2]].into();
-                let mut z_axis: Vector3 = [self.z[0], self.z[1], self.z[2]].into();
-                scale.x =
-                    self.w[3] * (x_axis.x.powf(2.) + x_axis.y.powf(2.) + x_axis.z.powf(2.)).sqrt();
-                if !scale.x.is_zero() {
-                    x_axis /= scale.x;
-                }
-                scale.y =
-                    self.w[3] * (y_axis.x.powf(2.) + y_axis.y.powf(2.) + y_axis.z.powf(2.)).sqrt();
-                if !scale.y.is_zero() {
-                    y_axis /= scale.y;
-                }
-                scale.z =
-                    self.w[3] * (z_axis.x.powf(2.) + z_axis.y.powf(2.) + z_axis.z.powf(2.)).sqrt();
-                if !scale.z.is_zero() {
-                    z_axis /= scale.z;
-                }
-                //Verify orientation and if necessary invert
-                let z_cross = x_axis.cross(y_axis);
-                if z_cross.dot(z_axis) < 0. {
-                    scale.x *= -1.;
-                    x_axis = -x_axis;
-                }
-                //Extract rotation
-                let theta1 = y_axis.z.atan2(z_axis.z);
-                let c2 = (x_axis.x.powf(2.) + x_axis.y.powf(2.)).sqrt();
-                let theta2 = (-x_axis.z).atan2(c2);
-                let s1 = theta1.sin();
-                let c1 = theta1.cos();
-                let theta3 = (s1 * z_axis.x - c1 * y_axis.x).atan2(c1 * y_axis.y - s1 * z_axis.y);
-                let rotation: Vector3 = [-theta1, -theta2, -theta3].into();
-                rotation
+                let mut s = Matrix3::from_cols(self.x.xyz(), self.y.xyz(), self.z.xyz());
+                let sx = s.x.length();
+                let sy = s.y.length();
+                let sz = s.determinant().signum() * s.z.length();
+                s.x /= sx;
+                s.y /= sy;
+                s.z /= sz;
+                let r = Quaternion::from(s);
+                r.to_euler_angles()
             }
 
             #[inline]
             fn get_translation_rotation_scale(&self) -> (Vector3, Vector3, Vector3) {
-                //Extract translation
-                let translation: Vector3 = [self.w[0], self.w[1], self.w[2]].into();
-                //Extract scale
-                let mut scale: Vector3 = [1., 1., 1.].into();
-                let mut x_axis: Vector3 = [self.x[0], self.x[1], self.x[2]].into();
-                let mut y_axis: Vector3 = [self.y[0], self.y[1], self.y[2]].into();
-                let mut z_axis: Vector3 = [self.z[0], self.z[1], self.z[2]].into();
-                scale.x =
-                    self.w[3] * (x_axis.x.powf(2.) + x_axis.y.powf(2.) + x_axis.z.powf(2.)).sqrt();
-                if !scale.x.is_zero() {
-                    x_axis /= scale.x;
-                }
-                scale.y =
-                    self.w[3] * (y_axis.x.powf(2.) + y_axis.y.powf(2.) + y_axis.z.powf(2.)).sqrt();
-                if !scale.y.is_zero() {
-                    y_axis /= scale.y;
-                }
-                scale.z =
-                    self.w[3] * (z_axis.x.powf(2.) + z_axis.y.powf(2.) + z_axis.z.powf(2.)).sqrt();
-                if !scale.z.is_zero() {
-                    z_axis /= scale.z;
-                }
-                //Verify orientation and if necessary invert
-                let z_cross = x_axis.cross(y_axis);
-                if z_cross.dot(z_axis) < 0. {
-                    scale.x *= -1.;
-                    x_axis = -x_axis;
-                }
-                //Extract rotation
-                let theta1 = y_axis.z.atan2(z_axis.z);
-                let c2 = (x_axis.x.powf(2.) + x_axis.y.powf(2.)).sqrt();
-                let theta2 = (-x_axis.z).atan2(c2);
-                let s1 = theta1.sin();
-                let c1 = theta1.cos();
-                let theta3 = (s1 * z_axis.x - c1 * y_axis.x).atan2(c1 * y_axis.y - s1 * z_axis.y);
-                let rotation: Vector3 = [-theta1, -theta2, -theta3].into();
-                (translation, rotation, scale)
+                (self.translation(), self.rotation(), self.scale())
             }
 
             #[inline]
@@ -164,11 +84,11 @@ macro_rules! implement_matrix4_operations {
                 rotation: Vector3, //in radians
                 scale: Vector3,
             ) {
-                *self = Matrix4::from_translation(translation)
-                    * Matrix4::from_angle_x(Rad(rotation.x))
-                    * Matrix4::from_angle_y(Rad(rotation.y))
-                    * Matrix4::from_angle_z(Rad(rotation.z))
-                    * Matrix4::from_nonuniform_scale(scale.x, scale.y, scale.z);
+                let t = Matrix4::from_translation(translation);
+                let r = Matrix4::from(Quaternion::from_euler_angles(rotation));
+                let s = Matrix4::from_nonuniform_scale(scale.x, scale.y, scale.z);
+
+                *self = t * r * s;
             }
 
             #[inline]

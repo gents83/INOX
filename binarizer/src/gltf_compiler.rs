@@ -18,7 +18,7 @@ use nrg_filesystem::convert_in_local_path;
 use nrg_graphics::{
     MaterialData, MeshCategoryId, MeshData, VertexData, DEFAULT_MESH_CATEGORY_IDENTIFIER,
 };
-use nrg_math::{Parser, Vector2, Vector3, Vector4};
+use nrg_math::{Degrees, Matrix4, NewAngle, Parser, Radians, Vector2, Vector3, Vector4};
 use nrg_messenger::MessengerRw;
 use nrg_resources::{DATA_FOLDER, DATA_RAW_FOLDER};
 use nrg_scene::{ObjectData, SceneData};
@@ -284,7 +284,10 @@ impl GltfCompiler {
                 } => {}
             }
         }
-        let name = format!("Material_{}", primitive.material().index().unwrap());
+        let name = format!(
+            "Material_{}",
+            primitive.material().index().unwrap_or_default()
+        );
         Self::create_file(
             path,
             &material_data,
@@ -305,7 +308,13 @@ impl GltfCompiler {
 
         for child in node.children() {
             if let Some(camera) = child.camera() {
-                return Some(self.process_camera(path, &camera, node));
+                let parent_transform: Matrix4 = node.transform().matrix().into();
+                let child_transform: Matrix4 = child.transform().matrix().into();
+                return Some(self.process_camera(
+                    path,
+                    &camera,
+                    parent_transform * child_transform,
+                ));
             }
         }
 
@@ -314,7 +323,8 @@ impl GltfCompiler {
 
     fn process_object(&mut self, path: &Path, node: &Node, node_name: &str) -> (NodeType, PathBuf) {
         let mut object_data = ObjectData::default();
-        object_data.transform = node.transform().matrix().into();
+        let object_transform: Matrix4 = Matrix4::from(node.transform().matrix());
+        object_data.transform = object_transform;
 
         if let Some(mesh) = node.mesh() {
             for (_primitive_index, primitive) in mesh.primitives().enumerate() {
@@ -360,20 +370,26 @@ impl GltfCompiler {
         )
     }
 
-    fn process_camera(&mut self, path: &Path, camera: &Camera, node: &Node) -> (NodeType, PathBuf) {
+    fn process_camera(
+        &mut self,
+        path: &Path,
+        camera: &Camera,
+        transform: Matrix4,
+    ) -> (NodeType, PathBuf) {
         let mut camera_data = CameraData::default();
         match camera.projection() {
             Projection::Perspective(p) => {
+                camera_data.aspect_ratio = p.aspect_ratio().unwrap_or(1920. / 1080.);
                 camera_data.near = p.znear();
                 camera_data.far = p.zfar().unwrap_or(camera_data.near + 1000.);
-                camera_data.fov = p.yfov();
+                camera_data.fov = Degrees::from(Radians::new(p.yfov())).0;
             }
             Projection::Orthographic(o) => {
                 camera_data.near = o.znear();
                 camera_data.far = o.zfar();
             }
         }
-        camera_data.transform = node.transform().matrix().into();
+        camera_data.transform = transform;
         let name = format!("Camera_{}", camera.index());
 
         (

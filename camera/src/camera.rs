@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use nrg_math::{
-    direction_to_euler_angles, Angle, InnerSpace, MatBase, Matrix4, NewAngle, Radians,
+    direction_to_euler_angles, Degrees, InnerSpace, Mat4Ops, MatBase, Matrix4, NewAngle,
     SquareMatrix, Vector2, Vector3, Vector4, Zero,
 };
 use nrg_messenger::MessengerRw;
@@ -13,6 +13,7 @@ use nrg_serialize::read_from_file;
 use crate::CameraData;
 
 pub const DEFAULT_CAMERA_FOV: f32 = 45.;
+pub const DEFAULT_CAMERA_ASPECT_RATIO: f32 = 1920. / 1080.;
 pub const DEFAULT_CAMERA_NEAR: f32 = 0.001;
 pub const DEFAULT_CAMERA_FAR: f32 = 1000.;
 
@@ -26,8 +27,9 @@ pub struct Camera {
     direction: Vector3,
     proj_matrix: Matrix4,
     is_active: bool,
-    is_flipped: bool,
-    data: CameraData,
+    fov_in_degrees: f32,
+    near_plane: f32,
+    far_plane: f32,
 }
 
 impl Default for Camera {
@@ -38,9 +40,10 @@ impl Default for Camera {
             rotation: Vector3::zero(),
             direction: Vector3::unit_z(),
             proj_matrix: Matrix4::default_identity(),
-            is_flipped: true,
             is_active: true,
-            data: CameraData::default(),
+            fov_in_degrees: DEFAULT_CAMERA_FOV,
+            near_plane: DEFAULT_CAMERA_NEAR,
+            far_plane: DEFAULT_CAMERA_FAR,
         }
     }
 }
@@ -88,19 +91,21 @@ impl DataTypeResource for Camera {
         id: CameraId,
         data: Self::DataType,
     ) -> Resource<Self> {
-        let camera = Self {
-            data,
+        let (position, rotation, _) = data.transform.get_translation_rotation_scale();
+        let mut camera = Self {
+            position,
             ..Default::default()
         };
+        camera.set_projection(data.fov, data.aspect_ratio, 1., data.near, data.far);
+        camera.rotate(rotation);
         SharedData::add_resource(shared_data, id, camera)
     }
 }
 
 impl Camera {
-    pub fn new(position: Vector3, target: Vector3, is_flipped: bool) -> Self {
+    pub fn new(position: Vector3, target: Vector3) -> Self {
         let mut camera = Self {
             position,
-            is_flipped,
             ..Default::default()
         };
         camera.look_at(target);
@@ -118,25 +123,13 @@ impl Camera {
         far: f32,
     ) -> &mut Self {
         let proj =
-            nrg_math::perspective(nrg_math::Deg(fov), screen_width / screen_height, near, far);
+            nrg_math::perspective(Degrees::new(fov), screen_width / screen_height, near, far);
 
-        #[rustfmt::skip]
-        const OPENGL_TO_VULKAN_MATRIX: Matrix4 = Matrix4::new(
-            -1.0, 0.0, 0.0, 0.0,
-            0.0, -1.0, 0.0, 0.0,
-            0.0, 0.0, 0.5, 0.0,
-            0.0, 0.0, 0.5, 1.0,
-        );
+        self.proj_matrix = proj;
 
-        if self.is_flipped {
-            self.proj_matrix = OPENGL_TO_VULKAN_MATRIX * proj;
-        } else {
-            self.proj_matrix = proj;
-        }
-
-        self.data.fov = fov;
-        self.data.near = near;
-        self.data.far = far;
+        self.fov_in_degrees = fov;
+        self.near_plane = near;
+        self.far_plane = far;
 
         self
     }
@@ -171,15 +164,13 @@ impl Camera {
     #[inline]
     fn update(&mut self) -> &mut Self {
         let mut forward = Vector3::zero();
-        forward.x = Radians::new(self.rotation.y).cos() * Radians::new(self.rotation.x).cos();
-        forward.y = Radians::new(self.rotation.x).sin();
-        forward.z = Radians::new(self.rotation.y).sin() * Radians::new(self.rotation.x).cos();
 
-        if self.is_flipped {
-            forward.y *= -1.;
-        }
+        forward.x = self.rotation.y.cos() * self.rotation.x.cos();
+        forward.y = self.rotation.x.sin();
+        forward.z = self.rotation.y.sin() * self.rotation.x.cos();
 
         self.direction = forward.normalize();
+
         self
     }
 
@@ -190,6 +181,12 @@ impl Camera {
         let up = right.cross(self.direction).normalize();
 
         nrg_math::create_look_at(self.position, self.position + self.direction, up)
+    }
+
+    #[inline]
+    pub fn set_active(&mut self, is_active: bool) -> &mut Self {
+        self.is_active = is_active;
+        self
     }
 
     #[inline]
@@ -213,18 +210,18 @@ impl Camera {
     }
 
     #[inline]
-    pub fn fov(&self) -> f32 {
-        self.data.fov
+    pub fn fov_in_degrees(&self) -> f32 {
+        self.fov_in_degrees
     }
 
     #[inline]
-    pub fn near(&self) -> f32 {
-        self.data.near
+    pub fn near_plane(&self) -> f32 {
+        self.near_plane
     }
 
     #[inline]
-    pub fn far(&self) -> f32 {
-        self.data.far
+    pub fn far_plane(&self) -> f32 {
+        self.far_plane
     }
 
     pub fn convert_in_3d(&self, normalized_pos: Vector2) -> (Vector3, Vector3) {

@@ -67,32 +67,34 @@ impl InstanceData {
             },
             VkVertexInputAttributeDescription {
                 binding: INSTANCE_BUFFER_BIND_ID as _,
-                format: VkFormat_VK_FORMAT_R32G32B32_SFLOAT,
+                format: VkFormat_VK_FORMAT_R32G32B32A32_SFLOAT,
                 location: 5,
                 offset: unsafe {
-                    &(*(::std::ptr::null::<InstanceData>())).position as *const _ as _
+                    &(*(::std::ptr::null::<InstanceData>())).matrix[0][0] as *const _ as _
                 },
             },
             VkVertexInputAttributeDescription {
                 binding: INSTANCE_BUFFER_BIND_ID as _,
-                format: VkFormat_VK_FORMAT_R32G32B32_SFLOAT,
+                format: VkFormat_VK_FORMAT_R32G32B32A32_SFLOAT,
                 location: 6,
                 offset: unsafe {
-                    &(*(::std::ptr::null::<InstanceData>())).rotation as *const _ as _
+                    &(*(::std::ptr::null::<InstanceData>())).matrix[1][0] as *const _ as _
                 },
             },
             VkVertexInputAttributeDescription {
                 binding: INSTANCE_BUFFER_BIND_ID as _,
-                format: VkFormat_VK_FORMAT_R32G32B32_SFLOAT,
+                format: VkFormat_VK_FORMAT_R32G32B32A32_SFLOAT,
                 location: 7,
-                offset: unsafe { &(*(::std::ptr::null::<InstanceData>())).scale as *const _ as _ },
+                offset: unsafe {
+                    &(*(::std::ptr::null::<InstanceData>())).matrix[2][0] as *const _ as _
+                },
             },
             VkVertexInputAttributeDescription {
                 binding: INSTANCE_BUFFER_BIND_ID as _,
                 format: VkFormat_VK_FORMAT_R32G32B32A32_SFLOAT,
                 location: 8,
                 offset: unsafe {
-                    &(*(::std::ptr::null::<InstanceData>())).draw_area as *const _ as _
+                    &(*(::std::ptr::null::<InstanceData>())).matrix[3][0] as *const _ as _
                 },
             },
             VkVertexInputAttributeDescription {
@@ -100,13 +102,21 @@ impl InstanceData {
                 format: VkFormat_VK_FORMAT_R32G32B32A32_SFLOAT,
                 location: 9,
                 offset: unsafe {
+                    &(*(::std::ptr::null::<InstanceData>())).draw_area as *const _ as _
+                },
+            },
+            VkVertexInputAttributeDescription {
+                binding: INSTANCE_BUFFER_BIND_ID as _,
+                format: VkFormat_VK_FORMAT_R32G32B32A32_SFLOAT,
+                location: 10,
+                offset: unsafe {
                     &(*(::std::ptr::null::<InstanceData>())).diffuse_color as *const _ as _
                 },
             },
             VkVertexInputAttributeDescription {
                 binding: INSTANCE_BUFFER_BIND_ID as _,
                 format: VkFormat_VK_FORMAT_R32_SINT,
-                location: 10,
+                location: 11,
                 offset: unsafe {
                     &(*(::std::ptr::null::<InstanceData>())).diffuse_texture_index as *const _ as _
                 },
@@ -114,7 +124,7 @@ impl InstanceData {
             VkVertexInputAttributeDescription {
                 binding: INSTANCE_BUFFER_BIND_ID as _,
                 format: VkFormat_VK_FORMAT_R32_SINT,
-                location: 11,
+                location: 12,
                 offset: unsafe {
                     &(*(::std::ptr::null::<InstanceData>())).diffuse_layer_index as *const _ as _
                 },

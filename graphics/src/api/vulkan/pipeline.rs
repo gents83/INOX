@@ -772,9 +772,16 @@ impl BackendPipeline {
         view: &Matrix4,
         proj: &Matrix4,
     ) -> &Self {
+        #[rustfmt::skip]
+        const OPENGL_TO_VULKAN_MATRIX: Matrix4 = Matrix4::new(
+            1.0, 0.0, 0.0, 0.0,
+            0.0,-1.0, 0.0, 0.0,
+            0.0, 0.0, 0.5, 0.0,
+            0.0, 0.0, 0.5, 1.0,
+        );
         let constant_data = ConstantData {
             view: matrix4_to_array(*view),
-            proj: matrix4_to_array(*proj),
+            proj: matrix4_to_array(OPENGL_TO_VULKAN_MATRIX * *proj),
             screen_width: width as _,
             screen_height: height as _,
         };

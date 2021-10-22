@@ -94,10 +94,10 @@ pub fn spherical_to_cartesian(spherical: Vector3) -> Vector3 {
 pub fn direction_to_euler_angles(direction: Vector3) -> Vector3 {
     let dir = direction.normalize();
     let up_world: Vector3 = [0., 1., 0.].into();
-    let right: Vector3 = dir.cross(up_world).normalize();
-    let up: Vector3 = right.cross(dir).normalize();
-    let angle_h = -dir.y.atan2(dir.x);
+    let w: Vector3 = Vector3::new(-dir.y, dir.x, 0.);
+    let up: Vector3 = w.cross(dir);
+    let angle_h = dir.y.atan2(dir.x);
     let angle_p = dir.z.asin();
-    let angle_b = (right.dot(up_world)).atan2(-up.dot(up_world));
+    let angle_b = (w.dot(up_world) / w.length()).atan2(up.dot(up_world) / up.length());
     Vector3::new(angle_p, angle_h, angle_b)
 }

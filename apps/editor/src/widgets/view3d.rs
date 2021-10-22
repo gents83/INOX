@@ -74,7 +74,7 @@ impl View3D {
             PICKING_TEXTURE_HEIGHT,
         );
 
-        let mut camera = Camera::new([10., 10., -10.].into(), [0., 0., 0.].into(), true);
+        let mut camera = Camera::new([10., 10., -10.].into(), [0., 0., 0.].into());
         camera.set_projection(
             45.,
             VIEW3D_IMAGE_WIDTH as _,

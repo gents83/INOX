@@ -42,10 +42,13 @@ impl ViewerSystem {
             Scene::default(),
         );
 
-        let mut camera = Camera::new([10., 10., -10.].into(), [0., 0., 0.].into(), true);
+        let mut camera = Camera::new([0., 10., 10.].into(), [0., 0., 0.].into());
         camera.set_projection(45., config.width as _, config.height as _, 0.001, 1000.);
         let camera =
             SharedData::add_resource::<Camera>(&shared_data, generate_random_uid(), camera);
+        camera.get_mut(|c| {
+            c.set_active(false);
+        });
 
         Self {
             shared_data,
@@ -188,8 +191,14 @@ impl ViewerSystem {
                 let event = msg.as_any().downcast_ref::<WindowEvent>().unwrap();
                 match event {
                     WindowEvent::SizeChanged(width, height) => {
-                        self.camera.get_mut(|c| {
-                            c.set_projection(c.fov(), *width as _, *height as _, c.near(), c.far());
+                        self.shared_data.for_each_resource_mut(|_, c: &mut Camera| {
+                            c.set_projection(
+                                c.fov_in_degrees(),
+                                *width as _,
+                                *height as _,
+                                c.near_plane(),
+                                c.far_plane(),
+                            );
                         });
                     }
                     _ => {}
@@ -204,6 +213,16 @@ impl ViewerSystem {
             .shared_data
             .match_resource(|view: &View| view.view_index() == 0)
         {
+            if self.shared_data.get_num_resources_of_type::<Camera>() == 1 {
+                self.camera.get_mut(|c| {
+                    c.set_active(true);
+                });
+            } else {
+                self.camera.get_mut(|c| {
+                    c.set_active(false);
+                });
+            }
+
             self.shared_data.for_each_resource(|_, c: &Camera| {
                 if c.is_active() {
                     let view_matrix = c.view_matrix();
@@ -225,17 +244,19 @@ impl ViewerSystem {
         } else if event.code == Key::S {
             movement.z -= 1.;
         } else if event.code == Key::A {
-            movement.x += 1.;
-        } else if event.code == Key::D {
             movement.x -= 1.;
+        } else if event.code == Key::D {
+            movement.x += 1.;
         } else if event.code == Key::Q {
-            movement.y -= 1.;
-        } else if event.code == Key::E {
             movement.y += 1.;
+        } else if event.code == Key::E {
+            movement.y -= 1.;
         }
-        self.camera.get_mut(|c| {
-            c.translate(movement);
-        })
+        self.shared_data.for_each_resource_mut(|_, c: &mut Camera| {
+            if c.is_active() {
+                c.translate(movement);
+            }
+        });
     }
 
     fn handle_mouse_event(&mut self, event: &MouseEvent) {
@@ -245,11 +266,13 @@ impl ViewerSystem {
         if self.is_changing_camera {
             let mut rotation_angle = Vector3::zero();
 
-            rotation_angle.x = event.normalized_y - self.last_mouse_pos.y;
-            rotation_angle.y = self.last_mouse_pos.x - event.normalized_x;
-            self.camera.get_mut(|c| {
-                c.rotate(rotation_angle * 5.);
-            })
+            rotation_angle.x = self.last_mouse_pos.y - event.normalized_y;
+            rotation_angle.y = event.normalized_x - self.last_mouse_pos.x;
+            self.shared_data.for_each_resource_mut(|_, c: &mut Camera| {
+                if c.is_active() {
+                    c.rotate(rotation_angle * 5.);
+                }
+            });
         }
         self.last_mouse_pos = Vector2::new(event.normalized_x as _, event.normalized_y as _);
     }

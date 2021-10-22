@@ -48,7 +48,8 @@ class NRGRun(bpy.types.Operator):
 
         print("Exporting scene into: " + data_raw_path)
         bpy.ops.export_scene.gltf(filepath=filename, check_existing=True, export_format='GLTF_SEPARATE',
-                                  export_apply=True, export_materials='EXPORT', export_cameras=True, export_yup=True, export_lights=True)
+                                  export_apply=True, export_materials='EXPORT', export_cameras=True,
+                                  export_yup=True, export_lights=True)
 
         filename = filename.replace('data_raw', 'data')
         filename = filename.replace('.gltf', '.scene_data')

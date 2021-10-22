@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use nrg_math::{Mat4Ops, Matrix4, Vector4};
+use nrg_math::{matrix4_to_array, Matrix4, Vector4};
 use nrg_messenger::MessengerRw;
 use nrg_resources::{
     DataTypeResource, Resource, ResourceId, SerializableResource, SharedData, SharedDataRc,
@@ -343,13 +343,10 @@ impl Pipeline {
             mesh_index,
             mesh_data_ref,
         };
-        let (position, rotation, scale) = mesh.matrix().get_translation_rotation_scale();
 
         let data = InstanceData {
             id: compute_color_from_id(mesh_id.as_u128() as _),
-            position,
-            rotation,
-            scale,
+            matrix: matrix4_to_array(mesh.matrix()),
             draw_area: mesh.draw_area(),
             diffuse_color,
             diffuse_texture_index,
