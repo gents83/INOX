@@ -1,6 +1,5 @@
 use std::any::TypeId;
 
-use nrg_camera::Camera;
 use nrg_graphics::{
     create_arrow, create_hammer, create_sphere, create_torus, Material, Mesh, MeshData, Pipeline,
 };
@@ -14,7 +13,7 @@ use nrg_messenger::{read_messages, MessageBox, MessageChannel, MessengerRw};
 use nrg_resources::{
     DataTypeResource, Resource, ResourceId, ResourceTrait, SharedData, SharedDataRc,
 };
-use nrg_scene::{Object, ObjectId, Transform};
+use nrg_scene::{Camera, Object, ObjectId};
 use nrg_serialize::generate_random_uid;
 use nrg_ui::hex_to_rgba;
 
@@ -32,7 +31,7 @@ enum GizmoType {
 }
 
 pub struct Gizmo {
-    transform: Resource<Transform>,
+    transform: Matrix4,
     camera_scale: f32,
     mode_type: GizmoType,
     mesh_center: Resource<Mesh>,
@@ -65,9 +64,6 @@ impl Gizmo {
         mesh_y: Resource<Mesh>,
         mesh_z: Resource<Mesh>,
     ) -> Resource<Self> {
-        let transform = Transform::default();
-        let transform = SharedData::add_resource(shared_data, generate_random_uid(), transform);
-
         let message_channel = MessageChannel::default();
 
         global_messenger
@@ -106,7 +102,7 @@ impl Gizmo {
 
         let gizmo = Self {
             mode_type,
-            transform,
+            transform: Matrix4::default_identity(),
             camera_scale: 1.,
             axis: Vector3::zero(),
             shared_data: shared_data.clone(),
@@ -376,25 +372,24 @@ impl Gizmo {
     }
 
     pub fn update_meshes(&mut self, camera_scale: f32) -> &mut Self {
-        let mut matrix = self.transform.get(|t| t.matrix());
-        let (translation, rotation, _) = matrix.get_translation_rotation_scale();
-        matrix.from_translation_rotation_scale(
+        let (translation, rotation, _) = self.transform.get_translation_rotation_scale();
+        self.transform.from_translation_rotation_scale(
             translation,
             rotation,
             Vector3::from_value(camera_scale),
         );
         self.mesh_center.get_mut(|m| {
-            m.set_matrix(matrix);
+            m.set_matrix(self.transform);
         });
 
         self.mesh_x.get_mut(|m| {
-            m.set_matrix(matrix);
+            m.set_matrix(self.transform);
         });
         self.mesh_y.get_mut(|m| {
-            m.set_matrix(matrix);
+            m.set_matrix(self.transform);
         });
         self.mesh_z.get_mut(|m| {
-            m.set_matrix(matrix);
+            m.set_matrix(self.transform);
         });
         self
     }
@@ -447,29 +442,23 @@ impl Gizmo {
         }
 
         if self.mode_type == GizmoType::Move {
-            self.transform.get_mut(|t| t.translate(delta));
+            self.transform.add_translation(delta);
             if let Some(object) = SharedData::get_resource::<Object>(&self.shared_data, object_id) {
-                object.get(|o| {
-                    if let Some(transform) = o.get_component::<Transform>() {
-                        transform.get_mut(|t| t.translate(delta));
-                    }
+                object.get_mut(|o| {
+                    o.translate(delta);
                 });
             }
         } else if self.mode_type == GizmoType::Scale {
             if let Some(object) = SharedData::get_resource::<Object>(&self.shared_data, object_id) {
-                object.get(|o| {
-                    if let Some(transform) = o.get_component::<Transform>() {
-                        transform.get_mut(|t| t.add_scale(delta));
-                    }
+                object.get_mut(|o| {
+                    o.scale(delta);
                 });
             }
         } else if self.mode_type == GizmoType::Rotate {
             delta *= -1.;
             if let Some(object) = SharedData::get_resource::<Object>(&self.shared_data, object_id) {
-                object.get(|o| {
-                    if let Some(transform) = o.get_component::<Transform>() {
-                        transform.get_mut(|t| t.rotate(delta));
-                    }
+                object.get_mut(|o| {
+                    o.rotate(delta);
                 });
             }
         }
@@ -515,7 +504,7 @@ impl Gizmo {
 
         if self.is_visible() {
             let cam_pos = camera.position();
-            let pos = self.transform.get(|t| t.position());
+            let pos = self.transform.translation();
             let direction = pos - cam_pos;
             self.camera_scale = direction.length() / DEFAULT_DISTANCE_SCALE;
             self.update_meshes(self.camera_scale);
@@ -591,14 +580,12 @@ impl Gizmo {
     pub fn select_object(&mut self, object_id: &ObjectId) {
         if object_id.is_nil() {
             self.set_visible(false);
-            self.transform.get_mut(|t| t.set_position(Vector3::zero()));
+            self.transform.set_translation(Vector3::zero());
         } else {
             if let Some(object) = SharedData::get_resource::<Object>(&self.shared_data, object_id) {
-                if let Some(transform) = object.get(|o| o.get_component::<Transform>()) {
-                    self.transform
-                        .get_mut(|t| t.set_position(transform.get(|t| t.position())));
-                    self.update_meshes(self.camera_scale);
-                }
+                self.transform
+                    .set_translation(object.get(|o| o.get_position()));
+                self.update_meshes(self.camera_scale);
                 self.set_visible(true);
             }
         }

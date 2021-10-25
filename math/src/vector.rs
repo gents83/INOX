@@ -99,5 +99,5 @@ pub fn direction_to_euler_angles(direction: Vector3) -> Vector3 {
     let angle_h = dir.y.atan2(dir.x);
     let angle_p = dir.z.asin();
     let angle_b = (w.dot(up_world) / w.length()).atan2(up.dot(up_world) / up.length());
-    Vector3::new(angle_p, angle_h, angle_b)
+    Vector3::new(angle_b, angle_p, angle_h)
 }

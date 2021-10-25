@@ -819,7 +819,6 @@ name = "nrg_binarizer"
 version = "0.1.0"
 dependencies = [
  "gltf",
- "nrg_camera",
  "nrg_filesystem",
  "nrg_graphics",
  "nrg_math",
@@ -835,17 +834,6 @@ name = "nrg_blender"
 version = "0.1.0"
 dependencies = [
  "cpython",
-]
-
-[[package]]
-name = "nrg_camera"
-version = "0.1.0"
-dependencies = [
- "nrg_events",
- "nrg_math",
- "nrg_messenger",
- "nrg_resources",
- "nrg_serialize",
 ]
 
 [[package]]
@@ -883,7 +871,6 @@ name = "nrg_editor"
 version = "0.1.0"
 dependencies = [
  "nrg_binarizer",
- "nrg_camera",
  "nrg_core",
  "nrg_events",
  "nrg_filesystem",
@@ -982,7 +969,6 @@ dependencies = [
 name = "nrg_scene"
 version = "0.1.0"
 dependencies = [
- "nrg_camera",
  "nrg_graphics",
  "nrg_math",
  "nrg_messenger",
@@ -1023,7 +1009,6 @@ name = "nrg_viewer"
 version = "0.1.0"
 dependencies = [
  "nrg_binarizer",
- "nrg_camera",
  "nrg_core",
  "nrg_events",
  "nrg_filesystem",

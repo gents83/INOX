@@ -1,16 +1,16 @@
 use std::path::{Path, PathBuf};
 
 use nrg_math::{
-    direction_to_euler_angles, Degrees, InnerSpace, Mat4Ops, MatBase, Matrix4, NewAngle,
-    SquareMatrix, Vector2, Vector3, Vector4, Zero,
+    Degrees, Mat4Ops, MatBase, Matrix4, NewAngle, SquareMatrix, Vector2, Vector3, Vector4,
 };
 use nrg_messenger::MessengerRw;
 use nrg_resources::{
-    DataTypeResource, Resource, ResourceId, SerializableResource, SharedData, SharedDataRc,
+    DataTypeResource, Handle, Resource, ResourceId, SerializableResource, SharedData, SharedDataRc,
 };
 use nrg_serialize::read_from_file;
+use nrg_ui::{CollapsingHeader, UIProperties, UIPropertiesRegistry, Ui};
 
-use crate::CameraData;
+use crate::{CameraData, Object};
 
 pub const DEFAULT_CAMERA_FOV: f32 = 45.;
 pub const DEFAULT_CAMERA_ASPECT_RATIO: f32 = 1920. / 1080.;
@@ -22,12 +22,10 @@ pub type CameraId = ResourceId;
 #[derive(Clone)]
 pub struct Camera {
     filepath: PathBuf,
-    position: Vector3,
-    rotation: Vector3, //pitch, yaw, roll
-    direction: Vector3,
-    proj_matrix: Matrix4,
+    parent: Handle<Object>,
+    proj: Matrix4,
     is_active: bool,
-    fov_in_degrees: f32,
+    fov_in_degrees: Degrees,
     near_plane: f32,
     far_plane: f32,
 }
@@ -36,15 +34,41 @@ impl Default for Camera {
     fn default() -> Self {
         Self {
             filepath: PathBuf::new(),
-            position: Vector3::zero(),
-            rotation: Vector3::zero(),
-            direction: Vector3::unit_z(),
-            proj_matrix: Matrix4::default_identity(),
+            parent: None,
+            proj: Matrix4::default_identity(),
             is_active: true,
-            fov_in_degrees: DEFAULT_CAMERA_FOV,
+            fov_in_degrees: Degrees::new(DEFAULT_CAMERA_FOV),
             near_plane: DEFAULT_CAMERA_NEAR,
             far_plane: DEFAULT_CAMERA_FAR,
         }
+    }
+}
+
+impl UIProperties for Camera {
+    fn show(
+        &mut self,
+        id: &ResourceId,
+        ui_registry: &UIPropertiesRegistry,
+        ui: &mut Ui,
+        collapsed: bool,
+    ) {
+        CollapsingHeader::new(format!("Camera [{:?}]", id.to_simple().to_string()))
+            .show_background(true)
+            .default_open(!collapsed)
+            .show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    ui.label("FOV: ");
+                    self.fov_in_degrees.show(id, ui_registry, ui, collapsed);
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Near plane: ");
+                    self.near_plane.show(id, ui_registry, ui, collapsed);
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Far plane: ");
+                    self.far_plane.show(id, ui_registry, ui, collapsed);
+                });
+            });
     }
 }
 
@@ -91,10 +115,7 @@ impl DataTypeResource for Camera {
         id: CameraId,
         data: Self::DataType,
     ) -> Resource<Self> {
-        let (position, rotation, _) = data.transform.get_translation_rotation_scale();
         let mut camera = Self {
-            position,
-            rotation,
             ..Default::default()
         };
         camera.set_projection(data.fov, data.aspect_ratio, 1., data.near, data.far);
@@ -103,29 +124,25 @@ impl DataTypeResource for Camera {
 }
 
 impl Camera {
-    pub fn new(position: Vector3, target: Vector3) -> Self {
-        let mut camera = Self {
-            position,
+    pub fn new(parent: &Resource<Object>) -> Self {
+        Self {
+            parent: Some(parent.clone()),
             ..Default::default()
-        };
-        camera.look_at(target);
-        camera.update();
-        camera
+        }
     }
 
     #[inline]
     pub fn set_projection(
         &mut self,
-        fov: f32,
+        fov: Degrees,
         screen_width: f32,
         screen_height: f32,
         near: f32,
         far: f32,
     ) -> &mut Self {
-        let proj =
-            nrg_math::perspective(Degrees::new(fov), screen_width / screen_height, near, far);
+        let proj = nrg_math::perspective(fov, screen_width / screen_height, near, far);
 
-        self.proj_matrix = proj;
+        self.proj = proj;
 
         self.fov_in_degrees = fov;
         self.near_plane = near;
@@ -133,58 +150,53 @@ impl Camera {
 
         self
     }
-
     #[inline]
-    pub fn translate(&mut self, movement: Vector3) -> &mut Self {
-        self.position += self.direction * movement.z;
-        let up: Vector3 = [0., 1., 0.].into();
-        let right = self.direction.cross(up).normalize();
-        let up = right.cross(self.direction).normalize();
-        self.position += right * movement.x;
-        self.position += up * movement.y;
-        self.update();
-        self
+    pub fn transform(&self) -> Matrix4 {
+        if let Some(parent) = &self.parent {
+            let transform = parent.get(|o| o.transform());
+            return transform;
+        }
+        Matrix4::default_identity()
     }
-
     #[inline]
-    pub fn rotate(&mut self, rotation_angle: Vector3) -> &mut Self {
-        self.rotation += rotation_angle;
-        self.update();
-        self
+    pub fn translate(&self, translation: Vector3) {
+        if let Some(parent) = &self.parent {
+            parent.get_mut(|o| {
+                o.translate(translation);
+            });
+        }
     }
-
     #[inline]
-    pub fn look_at(&mut self, position: Vector3) -> &mut Self {
-        self.direction = (position - self.position).normalize();
-        self.rotation = direction_to_euler_angles(self.direction);
-        self.update();
-        self
+    pub fn rotate(&self, roll_yaw_pitch: Vector3) {
+        if let Some(parent) = &self.parent {
+            parent.get_mut(|o| {
+                o.rotate(roll_yaw_pitch);
+            });
+        }
     }
-
     #[inline]
-    fn update(&mut self) -> &mut Self {
-        let mut forward = Vector3::zero();
-        /*
-        x = cos(yaw)*cos(pitch)
-        y = sin(yaw)*cos(pitch)
-        z = sin(pitch)
-        */
-        forward.x = self.rotation.y.cos() * self.rotation.x.cos();
-        forward.y = self.rotation.y.sin() * self.rotation.x.cos();
-        forward.z = self.rotation.x.sin();
-
-        self.direction = forward.normalize();
-
-        self
+    pub fn look_at(&self, target: Vector3) {
+        if let Some(parent) = &self.parent {
+            parent.get_mut(|o| {
+                o.look_at(target);
+            });
+        }
     }
 
     #[inline]
     pub fn view_matrix(&self) -> Matrix4 {
-        let up: Vector3 = [0., 1., 0.].into();
-        let right = self.direction.cross(up).normalize();
-        let up = right.cross(self.direction).normalize();
+        Matrix4::from_nonuniform_scale(1., 1., -1.) * self.transform().inverse()
+    }
 
-        nrg_math::create_look_at(self.position, self.position + self.direction, up)
+    #[inline]
+    pub fn parent(&self) -> &Handle<Object> {
+        &self.parent
+    }
+
+    #[inline]
+    pub fn set_parent(&mut self, parent: &Resource<Object>) -> &mut Self {
+        self.parent = Some(parent.clone());
+        self
     }
 
     #[inline]
@@ -200,21 +212,16 @@ impl Camera {
 
     #[inline]
     pub fn proj_matrix(&self) -> Matrix4 {
-        self.proj_matrix
+        self.proj
     }
 
     #[inline]
     pub fn position(&self) -> Vector3 {
-        self.position
+        self.view_matrix().translation()
     }
 
     #[inline]
-    pub fn direction(&self) -> Vector3 {
-        self.direction
-    }
-
-    #[inline]
-    pub fn fov_in_degrees(&self) -> f32 {
+    pub fn fov_in_degrees(&self) -> Degrees {
         self.fov_in_degrees
     }
 
@@ -243,7 +250,7 @@ impl Camera {
         let inv_proj = proj.invert().unwrap();
         let inv_view = view.invert().unwrap();
 
-        let ray_start_world = self.position;
+        let ray_start_world = self.view_matrix().translation();
 
         let mut ray_end_camera = inv_proj * ray_end;
         ray_end_camera /= ray_end_camera.w;

@@ -1,13 +1,16 @@
-use nrg_camera::Camera;
 use nrg_graphics::{
     utils::compute_id_from_color, DynamicImage, Mesh, MeshCategoryId, Pipeline, RenderPass,
     Texture, View, DEFAULT_MESH_CATEGORY_IDENTIFIER, TEXTURE_CHANNEL_COUNT,
 };
-use nrg_math::{raycast_oob, InnerSpace, MatBase, Matrix4, Vector2, Vector3, Vector4, Zero};
+use nrg_math::{
+    raycast_oob, Degrees, InnerSpace, MatBase, Matrix4, NewAngle, Vector2, Vector3, Vector4, Zero,
+};
 use nrg_messenger::{Message, MessengerRw};
 use nrg_platform::{Key, KeyEvent};
 use nrg_resources::{DataTypeResource, Handle, Resource, SharedData, SharedDataRc};
-use nrg_scene::{Hitbox, Object, ObjectId, Transform};
+use nrg_scene::{
+    Camera, Hitbox, Object, ObjectId, DEFAULT_CAMERA_FAR, DEFAULT_CAMERA_FOV, DEFAULT_CAMERA_NEAR,
+};
 use nrg_serialize::{generate_random_uid, INVALID_UID};
 use nrg_ui::{
     implement_widget_data, CentralPanel, Frame, Image, LayerId, Sense, TextureId as eguiTextureId,
@@ -30,7 +33,7 @@ struct View3DData {
     global_messenger: MessengerRw,
     texture: Resource<Texture>,
     picking_texture: Resource<Texture>,
-    camera: Camera,
+    camera_object: Resource<Object>,
     should_manage_input: bool,
     last_mouse_pos: Vector2,
     selected_object: ObjectId,
@@ -74,21 +77,34 @@ impl View3D {
             PICKING_TEXTURE_HEIGHT,
         );
 
-        let mut camera = Camera::new([10., 10., -10.].into(), [0., 0., 0.].into());
-        camera.set_projection(
-            45.,
-            VIEW3D_IMAGE_WIDTH as _,
-            VIEW3D_IMAGE_HEIGHT as _,
-            0.001,
-            1000.,
+        let camera_object = SharedData::add_resource::<Object>(
+            &shared_data,
+            generate_random_uid(),
+            Object::default(),
         );
+        camera_object.get_mut(|o| {
+            o.translate([10., 10., -10.].into());
+            o.look_at([0., 0., 0.].into());
+            let camera = o.add_default_component::<Camera>(&shared_data);
+            camera.get_mut(|c| {
+                c.set_parent(&camera_object)
+                    .set_active(true)
+                    .set_projection(
+                        Degrees::new(DEFAULT_CAMERA_FOV),
+                        VIEW3D_IMAGE_WIDTH as _,
+                        VIEW3D_IMAGE_HEIGHT as _,
+                        DEFAULT_CAMERA_NEAR,
+                        DEFAULT_CAMERA_FAR,
+                    );
+            });
+        });
 
         let data = View3DData {
             shared_data: shared_data.clone(),
             global_messenger: global_messenger.clone(),
             texture,
             picking_texture,
-            camera,
+            camera_object,
             last_mouse_pos: Vector2::zero(),
             selected_object: INVALID_UID,
             hover_mesh: 0,
@@ -124,7 +140,13 @@ impl View3D {
             if let Some(data) = w.data_mut::<View3DData>() {
                 if let Some(gizmo) = &data.gizmo {
                     gizmo.get_mut(|g| {
-                        g.update(&data.camera);
+                        if let Some(camera) =
+                            data.camera_object.get(|o| o.get_component::<Camera>())
+                        {
+                            camera.get(|c| {
+                                g.update(c);
+                            });
+                        }
                     });
                 }
             }
@@ -196,7 +218,9 @@ impl View3D {
                     movement.y += 1.;
                 }
                 if data.should_manage_input {
-                    data.camera.translate(movement);
+                    data.camera_object.get_mut(|o| {
+                        o.translate(movement);
+                    });
                 }
             }
         });
@@ -204,8 +228,15 @@ impl View3D {
 
     fn resize_view(data: &mut View3DData, view_width: u32, view_height: u32) {
         if data.view_width != view_width && data.view_height != view_height {
-            data.camera
-                .set_projection(45., view_width as _, view_height as _, 0.001, 1000.);
+            data.shared_data.for_each_resource_mut(|_, c: &mut Camera| {
+                c.set_projection(
+                    Degrees::new(45.),
+                    view_width as _,
+                    view_height as _,
+                    0.001,
+                    1000.,
+                );
+            });
         }
         data.view_width = view_width;
         data.view_height = view_height;
@@ -266,14 +297,19 @@ impl View3D {
         } else {
             let is_manipulating_gizmo = if let Some(gizmo) = &data.gizmo {
                 gizmo.get_mut(|g| {
-                    g.manipulate(
-                        &data.camera,
-                        data.last_mouse_pos,
-                        normalized_pos,
-                        is_drag_started,
-                        is_drag_ended,
-                        &data.selected_object,
-                    )
+                    if let Some(camera) = data.camera_object.get(|o| o.get_component::<Camera>()) {
+                        camera.get(|c| {
+                            return g.manipulate(
+                                c,
+                                data.last_mouse_pos,
+                                normalized_pos,
+                                is_drag_started,
+                                is_drag_ended,
+                                &data.selected_object,
+                            );
+                        });
+                    }
+                    false
                 })
             } else {
                 false
@@ -283,7 +319,9 @@ impl View3D {
 
                 rotation_angle.x = normalized_pos.y - data.last_mouse_pos.y;
                 rotation_angle.y = data.last_mouse_pos.x - normalized_pos.x;
-                data.camera.rotate(rotation_angle * 5.);
+                data.camera_object.get_mut(|o| {
+                    o.rotate(rotation_angle * 5.);
+                });
             }
         }
         data.last_mouse_pos = normalized_pos;
@@ -354,11 +392,12 @@ impl View3D {
                 if let Some(view) = SharedData::match_resource(&self.shared_data, |view: &View| {
                     view.view_index() == 0
                 }) {
-                    let view_matrix = data.camera.view_matrix();
-                    let proj_matrix = data.camera.proj_matrix();
-
-                    view.get_mut(|v| {
-                        v.update_view(view_matrix).update_proj(proj_matrix);
+                    data.shared_data.for_each_resource(|_, c: &Camera| {
+                        if c.is_active() {
+                            view.get_mut(|v| {
+                                v.update_view(c.view_matrix()).update_proj(c.proj_matrix());
+                            });
+                        }
                     });
                 }
             }
@@ -401,9 +440,15 @@ impl View3D {
     ) -> ObjectId {
         let mut selected_object = INVALID_UID;
 
-        let (ray_start_world, ray_end_world) = data
-            .camera
-            .convert_in_3d([normalized_x, normalized_y].into());
+        let mut ray_start_world = Vector3::zero();
+        let mut ray_end_world = Vector3::zero();
+        data.shared_data.for_each_resource(|_, c: &Camera| {
+            if c.is_active() {
+                let (start, end) = c.convert_in_3d([normalized_x, normalized_y].into());
+                ray_start_world = start;
+                ray_end_world = end;
+            }
+        });
 
         let ray_dir_world = ray_end_world - ray_start_world;
         let ray_dir_world = ray_dir_world.normalize();
@@ -412,9 +457,7 @@ impl View3D {
         let mut max = [5., 5., 5.].into();
         let mut matrix = Matrix4::default_identity();
         SharedData::for_each_resource(&data.shared_data, |object_handle, obj: &Object| {
-            if let Some(transform) = obj.get_component::<Transform>() {
-                matrix = transform.get(|t| t.matrix());
-            }
+            matrix = obj.transform();
             if let Some(hitbox) = obj.get_component::<Hitbox>() {
                 min = hitbox.get(|h| h.min());
                 max = hitbox.get(|h| h.max());

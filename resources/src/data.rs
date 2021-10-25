@@ -4,7 +4,9 @@ use nrg_filesystem::convert_from_local_path;
 use nrg_messenger::{send_global_event, MessengerRw};
 use nrg_serialize::generate_uid_from_string;
 
-use crate::{LoadResourceEvent, Resource, ResourceId, ResourceTrait, SharedData, SharedDataRc};
+use crate::{
+    Function, LoadResourceEvent, Resource, ResourceId, ResourceTrait, SharedData, SharedDataRc,
+};
 
 pub const DATA_RAW_FOLDER: &str = "./data_raw/";
 pub const DATA_FOLDER: &str = "./data/";
@@ -85,6 +87,7 @@ pub trait SerializableResource: DataTypeResource + Sized {
         shared_data: &SharedDataRc,
         global_messenger: &MessengerRw,
         filepath: &Path,
+        on_loaded_callback: Option<Box<dyn Function<Self>>>,
     ) -> Resource<Self>
     where
         Self: Sized + DataTypeResource,
@@ -103,7 +106,7 @@ pub trait SerializableResource: DataTypeResource + Sized {
         let resource = SharedData::add_resource(shared_data, resource_id, Self::default());
         send_global_event(
             &global_messenger,
-            LoadResourceEvent::<Self>::new(path.as_path()),
+            LoadResourceEvent::<Self>::new(path.as_path(), on_loaded_callback),
         );
         resource
     }

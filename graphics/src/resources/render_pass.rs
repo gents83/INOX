@@ -64,6 +64,7 @@ impl DataTypeResource for RenderPass {
                 shared_data,
                 global_messenger,
                 render_pass_data.pipeline.as_path(),
+                None,
             ))
         } else {
             None

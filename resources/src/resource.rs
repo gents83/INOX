@@ -1,7 +1,6 @@
 use nrg_serialize::Uid;
 use std::{
     any::Any,
-    collections::HashMap,
     sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard},
 };
 
@@ -36,6 +35,7 @@ where
         &self.id
     }
 
+    #[inline]
     pub fn get<F, R>(&self, mut f: F) -> R
     where
         F: FnMut(&T) -> R,
@@ -45,6 +45,7 @@ where
         f(&resource)
     }
 
+    #[inline]
     pub fn get_mut<F, R>(&self, mut f: F) -> R
     where
         F: FnMut(&mut T) -> R,
@@ -52,6 +53,18 @@ where
         let storage = self.storage.read().unwrap();
         let mut resource = storage.get_mut(self.id());
         f(&mut resource)
+    }
+
+    #[inline]
+    pub fn move_before(&self, other_id: &ResourceId) {
+        let mut storage = self.storage.write().unwrap();
+        storage.move_before_other(self.id(), other_id)
+    }
+
+    #[inline]
+    pub fn move_after(&self, other_id: &ResourceId) {
+        let mut storage = self.storage.write().unwrap();
+        storage.move_after_other(self.id(), other_id)
     }
 }
 
@@ -116,7 +129,7 @@ pub struct Storage<T>
 where
     T: ResourceTrait,
 {
-    resources: HashMap<ResourceId, ResourceData<T>>,
+    resources: Vec<ResourceData<T>>,
 }
 
 impl<T> Default for Storage<T>
@@ -125,7 +138,7 @@ where
 {
     fn default() -> Self {
         Self {
-            resources: HashMap::new(),
+            resources: Vec::new(),
         }
     }
 }
@@ -142,9 +155,9 @@ where
     #[inline]
     fn flush(&mut self) {
         let mut to_remove = Vec::new();
-        self.resources.iter_mut().for_each(|(id, data)| {
+        self.resources.iter_mut().for_each(|data| {
             if Arc::strong_count(&data.handle) == 1 && Arc::weak_count(&data.handle) == 0 {
-                to_remove.push(*id);
+                to_remove.push(*data.handle.id());
             }
         });
         to_remove.iter().for_each(|id| {
@@ -153,11 +166,11 @@ where
     }
     #[inline]
     fn remove(&mut self, resource_id: &ResourceId) {
-        self.resources.remove_entry(resource_id);
+        self.resources.retain(|r| r.handle.id() != resource_id);
     }
     #[inline]
     fn has(&self, resource_id: &ResourceId) -> bool {
-        self.resources.contains_key(resource_id)
+        self.resources.iter().any(|r| r.handle.id() == resource_id)
     }
     #[inline]
     fn count(&self) -> usize {
@@ -171,32 +184,41 @@ where
 {
     #[inline]
     pub fn get(&self, id: &ResourceId) -> RwLockReadGuard<'_, T> {
-        self.resources[id].data.read().unwrap()
+        self.resources
+            .iter()
+            .find(|r| r.handle.id() == id)
+            .unwrap()
+            .data
+            .read()
+            .unwrap()
     }
     #[inline]
     pub fn get_mut(&self, id: &ResourceId) -> RwLockWriteGuard<'_, T> {
-        self.resources[id].data.write().unwrap()
+        self.resources
+            .iter()
+            .find(|r| r.handle.id() == id)
+            .unwrap()
+            .data
+            .write()
+            .unwrap()
     }
     #[inline]
     pub fn resource(&self, id: &ResourceId) -> Handle<T> {
-        if self.resources.contains_key(id) {
-            return Some(self.resources[id].handle.clone());
+        if let Some(r) = self.resources.iter().find(|r| r.handle.id() == id) {
+            return Some(r.handle.clone());
         }
         None
     }
     #[inline]
     pub fn add(&mut self, id: ResourceId, data: T, storage: ResourceStorage<T>) {
-        if let Some(resource) = self.resources.get_mut(&id) {
+        if let Some(resource) = self.resources.iter().find(|r| r.handle.id() == &id) {
             let mut resource_data = resource.data.write().unwrap();
             *resource_data = data;
         } else {
-            self.resources.insert(
-                id,
-                ResourceData {
-                    data: RwLock::new(data),
-                    handle: Arc::new(ResourceHandle::new(id, storage)),
-                },
-            );
+            self.resources.push(ResourceData {
+                data: RwLock::new(data),
+                handle: Arc::new(ResourceHandle::new(id, storage)),
+            });
         }
     }
     #[inline]
@@ -204,7 +226,7 @@ where
     where
         F: Fn(&T) -> bool,
     {
-        for (_, r) in self.resources.iter() {
+        for r in self.resources.iter() {
             if f(&r.data.read().unwrap()) {
                 return Some(r.handle.clone());
             }
@@ -218,7 +240,7 @@ where
     {
         self.resources
             .iter()
-            .for_each(|(_, r)| f(&r.handle, &r.data.read().unwrap()));
+            .for_each(|r| f(&r.handle, &r.data.read().unwrap()));
     }
     #[inline]
     pub fn for_each_resource_mut<F>(&self, mut f: F)
@@ -227,17 +249,39 @@ where
     {
         self.resources
             .iter()
-            .for_each(|(_, r)| f(&r.handle, &mut r.data.write().unwrap()));
+            .for_each(|r| f(&r.handle, &mut r.data.write().unwrap()));
     }
     #[inline]
     pub fn get_index_of(&self, resource_id: &ResourceId) -> Option<usize> {
-        self.resources.iter().position(|(id, _)| id == resource_id)
+        self.resources
+            .iter()
+            .position(|r| r.handle.id() == resource_id)
     }
     #[inline]
     pub fn resource_at_index(&self, index: u32) -> Handle<T> {
-        if let Some((_, data)) = self.resources.iter().nth(index as _) {
-            return Some(data.handle.clone());
+        if let Some(r) = self.resources.iter().nth(index as _) {
+            return Some(r.handle.clone());
         }
         None
+    }
+    pub fn move_before_other(&mut self, resource_id: &ResourceId, other_id: &ResourceId) {
+        if let Some(index) = self.get_index_of(resource_id) {
+            if let Some(other_index) = self.get_index_of(other_id) {
+                if index > other_index {
+                    let r = self.resources.remove(index);
+                    self.resources.insert(other_index, r);
+                }
+            }
+        }
+    }
+    pub fn move_after_other(&mut self, resource_id: &ResourceId, other_id: &ResourceId) {
+        if let Some(index) = self.get_index_of(resource_id) {
+            if let Some(other_index) = self.get_index_of(other_id) {
+                if index < other_index {
+                    let r = self.resources.remove(index);
+                    self.resources.insert(other_index, r);
+                }
+            }
+        }
     }
 }

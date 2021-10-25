@@ -5,25 +5,41 @@ use std::{
 };
 
 use nrg_graphics::Mesh;
-use nrg_math::Matrix4;
+use nrg_math::{Mat4Ops, MatBase, Matrix4, Vector3};
 use nrg_messenger::MessengerRw;
 use nrg_resources::{
-    DataTypeResource, GenericResource, Handle, Resource, ResourceCastTo, ResourceId, ResourceTrait,
-    SerializableResource, SharedData, SharedDataRc,
+    DataTypeResource, Function, GenericResource, Handle, Resource, ResourceCastTo, ResourceId,
+    ResourceTrait, SerializableResource, SharedData, SharedDataRc,
 };
 use nrg_serialize::{generate_random_uid, read_from_file};
 use nrg_ui::{CollapsingHeader, UIProperties, UIPropertiesRegistry, Ui};
 
-use crate::{ObjectData, Transform};
+use crate::{Camera, ObjectData};
 
 pub type ComponentId = ResourceId;
 pub type ObjectId = ResourceId;
 
-#[derive(Default, Clone)]
+#[derive(Clone)]
 pub struct Object {
     filepath: PathBuf,
+    transform: Matrix4,
+    parent: Handle<Object>,
+    is_transform_dirty: bool,
     children: Vec<Resource<Object>>,
     components: HashMap<TypeId, GenericResource>,
+}
+
+impl Default for Object {
+    fn default() -> Self {
+        Self {
+            filepath: PathBuf::new(),
+            transform: Matrix4::default_identity(),
+            parent: None,
+            is_transform_dirty: true,
+            children: Vec::new(),
+            components: HashMap::new(),
+        }
+    }
 }
 
 impl UIProperties for Object {
@@ -107,19 +123,51 @@ impl DataTypeResource for Object {
         object_data: Self::DataType,
     ) -> Resource<Self> {
         let mut object = Self::default();
-        let transform = object.add_default_component::<Transform>(shared_data);
-        transform.get_mut(|t| {
-            t.set_matrix(object_data.transform);
+        object.transform = object_data.transform;
+
+        object_data.components.iter().for_each(|component_path| {
+            let path = component_path.as_path();
+            if Mesh::is_matching_extension(path) {
+                let mesh = Mesh::load_from_file(shared_data, global_messenger, path, None);
+                object.add_component::<Mesh>(mesh);
+            } else if Camera::is_matching_extension(path) {
+                let shared_data_rc = shared_data.clone();
+                let on_camera_loaded: Box<dyn Function<Camera>> =
+                    Box::new(move |camera: &Resource<Camera>| {
+                        if let Some(parent) = shared_data_rc.get_resource::<Object>(&id) {
+                            camera.get_mut(|c| {
+                                c.set_parent(&parent);
+                            })
+                        }
+                    });
+                let camera = Camera::load_from_file(
+                    shared_data,
+                    global_messenger,
+                    path,
+                    Some(on_camera_loaded),
+                );
+                object.add_component::<Camera>(camera);
+            }
         });
 
-        if !object_data.mesh.to_str().unwrap_or_default().is_empty() {
-            let mesh =
-                Mesh::load_from_file(shared_data, global_messenger, object_data.mesh.as_path());
-            object.add_component::<Mesh>(mesh);
-        }
-
         for child in object_data.children.iter() {
-            let child = Object::load_from_file(shared_data, global_messenger, child.as_path());
+            let shared_data_rc = shared_data.clone();
+            let on_loaded_object: Box<dyn Function<Object>> =
+                Box::new(move |child: &Resource<Object>| {
+                    let parent = shared_data_rc.get_resource::<Object>(&id);
+                    child.get_mut(|c| {
+                        c.set_parent(parent.clone());
+                    });
+                    if let Some(parent) = &parent {
+                        child.move_after(parent.id());
+                    }
+                });
+            let child = Object::load_from_file(
+                shared_data,
+                global_messenger,
+                child.as_path(),
+                Some(on_loaded_object),
+            );
             object.add_child(child);
         }
 
@@ -128,20 +176,85 @@ impl DataTypeResource for Object {
 }
 
 impl Object {
-    pub fn generate_empty(shared_data: &SharedDataRc) -> Resource<Self> {
-        SharedData::add_resource::<Object>(
-            shared_data,
-            generate_random_uid(),
-            Object {
-                ..Default::default()
-            },
-        )
+    #[inline]
+    pub fn transform(&self) -> Matrix4 {
+        self.transform
+    }
+    #[inline]
+    pub fn translate(&mut self, translation: Vector3) -> &mut Self {
+        self.transform.add_translation(translation);
+        self.set_dirty();
+        self
+    }
+    #[inline]
+    pub fn rotate(&mut self, roll_yaw_pitch: Vector3) -> &mut Self {
+        self.transform.add_rotation(roll_yaw_pitch);
+        self.set_dirty();
+        self
+    }
+    #[inline]
+    pub fn scale(&mut self, scale: Vector3) -> &mut Self {
+        self.transform.add_scale(scale);
+        self.set_dirty();
+        self
+    }
+    #[inline]
+    pub fn look_at(&mut self, position: Vector3) -> &mut Self {
+        self.transform.look_at(position);
+        self.set_dirty();
+        self
     }
 
+    pub fn is_dirty(&self) -> bool {
+        self.is_transform_dirty
+    }
+
+    fn set_dirty(&mut self) {
+        self.is_transform_dirty = true;
+        self.children.iter().for_each(|c| {
+            c.get_mut(|o| {
+                o.set_dirty();
+            });
+        });
+    }
+
+    #[inline]
+    pub fn get_position(&self) -> Vector3 {
+        self.transform.translation()
+    }
+    #[inline]
+    pub fn get_rotation(&self) -> Vector3 {
+        self.transform.rotation()
+    }
+    #[inline]
+    pub fn get_scale(&self) -> Vector3 {
+        self.transform.scale()
+    }
+
+    #[inline]
+    pub fn parent(&self) -> Handle<Object> {
+        self.parent.clone()
+    }
+
+    #[inline]
+    fn set_parent(&mut self, parent: Handle<Object>) {
+        self.parent = parent;
+        self.set_dirty();
+    }
+
+    #[inline]
     pub fn add_child(&mut self, child: Resource<Object>) {
         self.children.push(child);
     }
 
+    #[inline]
+    pub fn remove_child(&mut self, child: &Resource<Object>) {
+        if let Some(index) = self.children.iter().position(|c| c.id() == child.id()) {
+            self.children.remove(index);
+        }
+    }
+
+    #[inline]
     pub fn is_child(&self, object_id: &ObjectId) -> bool {
         for c in self.children.iter() {
             if c.id() == object_id {
@@ -150,7 +263,7 @@ impl Object {
         }
         false
     }
-
+    #[inline]
     pub fn is_child_recursive(&self, object_id: &ObjectId) -> bool {
         for c in self.children.iter() {
             if c.id() == object_id || c.get(|o| o.is_child_recursive(object_id)) {
@@ -209,26 +322,20 @@ impl Object {
         None
     }
 
-    pub fn update_from_parent<F>(
-        &mut self,
-        shared_data: &SharedDataRc,
-        parent_transform: Matrix4,
-        f: F,
-    ) where
-        F: Fn(&mut Self, Matrix4) + Copy,
-    {
-        if let Some(transform) = self.get_component::<Transform>() {
-            let object_matrix = transform.get(|t| t.matrix());
-            let object_matrix = parent_transform * object_matrix;
-
-            f(self, object_matrix);
-
-            let children = self.children();
-            for child in children {
-                child.get_mut(|o| {
-                    o.update_from_parent(shared_data, object_matrix, f);
-                });
+    pub fn update_transform(&mut self, parent_transform: Option<Matrix4>) {
+        if self.is_dirty() {
+            self.is_transform_dirty = false;
+            println!("Object {:?}", self.filepath.file_stem().unwrap_or_default());
+            if let Some(parent_transform) = parent_transform {
+                self.transform = parent_transform * self.transform;
             }
+            let t = self.transform.translation();
+            println!("Pos: {:?}", t);
+        }
+        if let Some(mesh) = self.get_component::<Mesh>() {
+            mesh.get_mut(|m| {
+                m.set_matrix(self.transform);
+            });
         }
     }
 }

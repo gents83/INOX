@@ -70,7 +70,7 @@ impl DataTypeResource for Material {
     ) -> Resource<Self> {
         let mut textures = Vec::new();
         for t in material_data.textures.iter() {
-            let texture = Texture::load_from_file(shared_data, global_messenger, t.as_path());
+            let texture = Texture::load_from_file(shared_data, global_messenger, t.as_path(), None);
             textures.push(texture);
         }
 
@@ -78,6 +78,7 @@ impl DataTypeResource for Material {
             shared_data,
             global_messenger,
             material_data.pipeline.as_path(),
+            None,
         );
 
         let material = Self {

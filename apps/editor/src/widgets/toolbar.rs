@@ -32,21 +32,25 @@ impl Toolbar {
             shared_data,
             global_messenger,
             PathBuf::from("./icons/select.png").as_path(),
+            None,
         );
         let move_icon = Texture::load_from_file(
             shared_data,
             global_messenger,
             PathBuf::from("./icons/move.png").as_path(),
+            None,
         );
         let rotate_icon = Texture::load_from_file(
             shared_data,
             global_messenger,
             PathBuf::from("./icons/rotate.png").as_path(),
+            None,
         );
         let scale_icon = Texture::load_from_file(
             shared_data,
             global_messenger,
             PathBuf::from("./icons/scale.png").as_path(),
+            None,
         );
         let data = ToolbarData {
             shared_data: shared_data.clone(),

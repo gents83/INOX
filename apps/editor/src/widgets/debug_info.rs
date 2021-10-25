@@ -6,7 +6,7 @@ use std::{
 
 use nrg_graphics::{Font, Material, Mesh, Pipeline, Texture, View};
 use nrg_resources::{Resource, ResourceTrait, SharedData, SharedDataRc};
-use nrg_scene::{Hitbox, Object, Scene, Transform};
+use nrg_scene::{Camera, Hitbox, Object, Scene};
 use nrg_ui::{implement_widget_data, UIProperties, UIPropertiesRegistry, UIWidget, Ui, Window};
 
 struct DebugData {
@@ -97,11 +97,11 @@ impl DebugInfo {
                             ui,
                             "Object",
                         );
-                        Self::resource_ui_properties::<Transform>(
+                        Self::resource_ui_properties::<Camera>(
                             &data.shared_data,
                             &data.ui_registry,
                             ui,
-                            "Transform",
+                            "Camera",
                         );
                         Self::resource_ui_properties::<Hitbox>(
                             &data.shared_data,

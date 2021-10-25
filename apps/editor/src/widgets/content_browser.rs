@@ -55,6 +55,7 @@ impl ContentBrowser {
             shared_data,
             global_messenger,
             PathBuf::from("./icons/file.png").as_path(),
+            None,
         );
         let mut selected_folder = PathBuf::from(DATA_FOLDER);
         let mut selected_file = String::new();

@@ -24,7 +24,12 @@ macro_rules! implement_matrix_base {
 }
 
 pub trait Mat4Ops {
+    fn from_euler_angles(roll_yaw_pitch: Vector3) -> Self;
     fn inverse(&self) -> Self;
+    fn set_translation(&mut self, translation: Vector3) -> &mut Self;
+    fn add_translation(&mut self, translation: Vector3) -> &mut Self;
+    fn add_scale(&mut self, scale: Vector3) -> &mut Self;
+    fn add_rotation(&mut self, roll_yaw_pitch: Vector3) -> &mut Self;
     fn translation(&self) -> Vector3;
     fn scale(&self) -> Vector3;
     fn rotation(&self) -> Vector3;
@@ -32,9 +37,11 @@ pub trait Mat4Ops {
     fn from_translation_rotation_scale(
         &mut self,
         translation: Vector3,
-        rotation_in_rad: Vector3,
+        roll_yaw_pitch: Vector3,
         scale: Vector3,
     );
+    fn look_at(&mut self, position: Vector3);
+    fn get_direction(&self) -> Vector3;
     fn from_direction(&mut self, direction: Vector3);
     fn transform(&self, vec: Vector3) -> Vector3;
 }
@@ -43,8 +50,34 @@ macro_rules! implement_matrix4_operations {
     ($MatrixN:ident) => {
         impl Mat4Ops for $MatrixN {
             #[inline]
+            fn from_euler_angles(rotation: Vector3) -> Self {
+                Matrix4::from(Quaternion::from_euler_angles(rotation))
+            }
+            #[inline]
             fn inverse(&self) -> Self {
                 self.inverse_transform().unwrap()
+            }
+            #[inline]
+            fn set_translation(&mut self, translation: Vector3) -> &mut Self {
+                self.w[0] = translation.x;
+                self.w[1] = translation.y;
+                self.w[2] = translation.z;
+                self
+            }
+            #[inline]
+            fn add_translation(&mut self, translation: Vector3) -> &mut Self {
+                *self = Matrix4::from_translation(translation) * *self;
+                self
+            }
+            #[inline]
+            fn add_scale(&mut self, scale: Vector3) -> &mut Self {
+                *self = Matrix4::from_nonuniform_scale(scale.x, scale.y, scale.z) * *self;
+                self
+            }
+            #[inline]
+            fn add_rotation(&mut self, rotation: Vector3) -> &mut Self {
+                *self = Matrix4::from_euler_angles(rotation) * *self;
+                self
             }
             #[inline]
             fn translation(&self) -> Vector3 {
@@ -58,7 +91,6 @@ macro_rules! implement_matrix4_operations {
                 let sz = s.determinant().signum() * s.z.length();
                 [sx, sy, sz].into()
             }
-
             #[inline]
             fn rotation(&self) -> Vector3 {
                 let mut s = Matrix3::from_cols(self.x.xyz(), self.y.xyz(), self.z.xyz());
@@ -71,12 +103,10 @@ macro_rules! implement_matrix4_operations {
                 let r = Quaternion::from(s);
                 r.to_euler_angles()
             }
-
             #[inline]
             fn get_translation_rotation_scale(&self) -> (Vector3, Vector3, Vector3) {
                 (self.translation(), self.rotation(), self.scale())
             }
-
             #[inline]
             fn from_translation_rotation_scale(
                 &mut self,
@@ -95,6 +125,24 @@ macro_rules! implement_matrix4_operations {
             fn transform(&self, vec: Vector3) -> Vector3 {
                 let point = self.transform_point([vec.x, vec.y, vec.z].into());
                 [point.x, point.y, point.z].into()
+            }
+
+            fn look_at(&mut self, target: Vector3) {
+                let p = self.translation();
+                let mut l = Matrix4::look_at_lh(
+                    [p.x, p.y, p.z].into(),
+                    [target.x, target.y, target.z].into(),
+                    Vector3::unit_y(),
+                );
+                l.set_translation(p);
+                *self = l;
+            }
+
+            #[inline]
+            fn get_direction(&self) -> Vector3 {
+                let rotation = self.rotation();
+                let q = Quaternion::from_euler_angles(rotation);
+                q.v
             }
 
             #[inline]
@@ -123,14 +171,6 @@ implement_matrix4_operations!(Matrix4);
 #[inline]
 pub fn matrix4_to_array(mat: Matrix4) -> [[f32; 4]; 4] {
     mat.into()
-}
-
-pub fn create_look_at(eye: Vector3, target: Vector3, up: Vector3) -> Matrix4 {
-    Matrix4::look_at_rh(
-        [eye.x, eye.y, eye.z].into(),
-        [target.x, target.y, target.z].into(),
-        up,
-    )
 }
 
 pub fn unproject(position: Vector3, view: Matrix4, projection: Matrix4) -> Vector3 {

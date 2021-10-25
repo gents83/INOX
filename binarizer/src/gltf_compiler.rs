@@ -13,15 +13,14 @@ use gltf::{
     mesh::Mode,
     Accessor, Camera, Gltf, Node, Primitive, Semantic,
 };
-use nrg_camera::CameraData;
 use nrg_filesystem::convert_in_local_path;
 use nrg_graphics::{
     MaterialData, MeshCategoryId, MeshData, VertexData, DEFAULT_MESH_CATEGORY_IDENTIFIER,
 };
-use nrg_math::{Degrees, Matrix4, NewAngle, Parser, Radians, Vector2, Vector3, Vector4};
+use nrg_math::{Matrix4, NewAngle, Parser, Radians, Vector2, Vector3, Vector4};
 use nrg_messenger::MessengerRw;
 use nrg_resources::{DATA_FOLDER, DATA_RAW_FOLDER};
-use nrg_scene::{ObjectData, SceneData};
+use nrg_scene::{CameraData, ObjectData, SceneData};
 use nrg_serialize::serialize_to_file;
 
 const GLTF_EXTENSION: &str = "gltf";
@@ -302,22 +301,6 @@ impl GltfCompiler {
         node: &Node,
         node_name: &str,
     ) -> Option<(NodeType, PathBuf)> {
-        if let Some(_) = node.camera() {
-            return None;
-        }
-
-        for child in node.children() {
-            if let Some(camera) = child.camera() {
-                let parent_transform: Matrix4 = node.transform().matrix().into();
-                let child_transform: Matrix4 = child.transform().matrix().into();
-                return Some(self.process_camera(
-                    path,
-                    &camera,
-                    parent_transform * child_transform,
-                ));
-            }
-        }
-
         return Some(self.process_object(path, node, node_name));
     }
 
@@ -345,13 +328,28 @@ impl GltfCompiler {
                     mesh_path.as_path(),
                     PathBuf::from(DATA_FOLDER).as_path(),
                 );
-                object_data.mesh = mesh_path;
+                object_data.components.push(mesh_path);
             }
+        }
+        if let Some(camera) = node.camera() {
+            let (_, camera_path) = self.process_camera(path, &camera);
+            object_data.components.push(convert_in_local_path(
+                camera_path.as_path(),
+                PathBuf::from(DATA_FOLDER).as_path(),
+            ));
         }
 
         for (_child_index, child) in node.children().enumerate() {
             let name = format!("Node_{}", child.index());
-            if let Some((node_type, node_path)) =
+            if let Some(camera) = child.camera() {
+                object_data.transform =
+                    object_data.transform * Matrix4::from(child.transform().matrix());
+                let (_, camera_path) = self.process_camera(path, &camera);
+                object_data.components.push(convert_in_local_path(
+                    camera_path.as_path(),
+                    PathBuf::from(DATA_FOLDER).as_path(),
+                ));
+            } else if let Some((node_type, node_path)) =
                 self.process_node(path, &child, child.name().unwrap_or_else(|| name.as_str()))
             {
                 if node_type == NodeType::Object {
@@ -364,32 +362,32 @@ impl GltfCompiler {
             }
         }
 
+        //CONVERT FROM GLTF TO NRG COORDINATE SYSTEM THAT IS LEFT HANDED
+        // +X is right
+        // +Y is up
+        // +Z is forward
+        object_data.transform = Matrix4::from_nonuniform_scale(1., 1., -1.) * object_data.transform;
+
         (
             NodeType::Object,
             Self::create_file(path, &object_data, node_name, OBJECT_DATA_EXTENSION),
         )
     }
 
-    fn process_camera(
-        &mut self,
-        path: &Path,
-        camera: &Camera,
-        transform: Matrix4,
-    ) -> (NodeType, PathBuf) {
+    fn process_camera(&mut self, path: &Path, camera: &Camera) -> (NodeType, PathBuf) {
         let mut camera_data = CameraData::default();
         match camera.projection() {
             Projection::Perspective(p) => {
                 camera_data.aspect_ratio = p.aspect_ratio().unwrap_or(1920. / 1080.);
                 camera_data.near = p.znear();
                 camera_data.far = p.zfar().unwrap_or(camera_data.near + 1000.);
-                camera_data.fov = Degrees::from(Radians::new(p.yfov())).0;
+                camera_data.fov = Radians::new(p.yfov()).into();
             }
             Projection::Orthographic(o) => {
                 camera_data.near = o.znear();
                 camera_data.far = o.zfar();
             }
         }
-        camera_data.transform = transform;
         let name = format!("Camera_{}", camera.index());
 
         (

@@ -5,7 +5,31 @@ use std::{
 
 use nrg_messenger::{implement_message, Message, MessengerRw};
 
-use crate::{ResourceTrait, SerializableResource, SharedDataRc};
+use crate::{Resource, ResourceTrait, SerializableResource, SharedDataRc};
+
+pub trait Function<T>: Fn(&Resource<T>)
+where
+    T: ResourceTrait,
+{
+    fn as_boxed(&self) -> Box<dyn Function<T>>;
+}
+impl<F, T> Function<T> for F
+where
+    F: 'static + Fn(&Resource<T>) + Clone,
+    T: ResourceTrait,
+{
+    fn as_boxed(&self) -> Box<dyn Function<T>> {
+        Box::new(self.clone())
+    }
+}
+impl<T> Clone for Box<dyn Function<T>>
+where
+    T: ResourceTrait,
+{
+    fn clone(&self) -> Self {
+        (**self).as_boxed()
+    }
+}
 
 #[derive(Clone)]
 pub struct LoadResourceEvent<T>
@@ -13,6 +37,7 @@ where
     T: ResourceTrait,
 {
     path: PathBuf,
+    on_loaded: Option<Box<dyn Function<T>>>,
     resource_type: PhantomData<T>,
 }
 unsafe impl<T> Send for LoadResourceEvent<T> where T: ResourceTrait {}
@@ -22,10 +47,21 @@ impl<T> LoadResourceEvent<T>
 where
     T: ResourceTrait,
 {
-    pub fn new(path: &Path) -> Self {
+    pub fn new(path: &Path, f: Option<Box<dyn Function<T>>>) -> Self {
         Self {
             resource_type: PhantomData::<T>::default(),
             path: path.to_path_buf(),
+            on_loaded: if let Some(f) = f {
+                Some(Box::new(f))
+            } else {
+                None
+            },
+        }
+    }
+
+    pub fn call(&self, resource: &Resource<T>) {
+        if let Some(on_loaded_callback) = &self.on_loaded {
+            on_loaded_callback.as_ref()(resource);
         }
     }
 }
@@ -77,7 +113,8 @@ where
     ) -> bool {
         if let Some(e) = msg.as_any().downcast_ref::<LoadResourceEvent<T>>() {
             if T::is_matching_extension(e.path.as_path()) {
-                T::create_from_file(shared_data, global_messenger, e.path.as_path());
+                let resource = T::create_from_file(shared_data, global_messenger, e.path.as_path());
+                e.call(&resource);
                 return true;
             }
         }

@@ -13,7 +13,7 @@ use nrg_graphics::{Font, Material, Mesh, MeshData, Pipeline, RenderPass, Texture
 use nrg_messenger::{read_messages, send_global_event, MessageChannel, MessengerRw};
 use nrg_platform::{InputState, Key, KeyEvent, MouseEvent, WindowEvent};
 use nrg_resources::{DataTypeResource, Resource, SerializableResource, SharedData, SharedDataRc};
-use nrg_scene::{Hitbox, Object, Scene, Transform};
+use nrg_scene::{Camera, Hitbox, Object, Scene};
 
 use nrg_serialize::generate_random_uid;
 use nrg_ui::{DialogEvent, DialogOp, UIPropertiesRegistry, UIWidget};
@@ -55,11 +55,13 @@ impl EditorUpdater {
             &shared_data,
             &global_messenger,
             config.default_pipeline.as_path(),
+            None,
         );
         let wireframe_pipeline = Pipeline::load_from_file(
             &shared_data,
             &global_messenger,
             config.wireframe_pipeline.as_path(),
+            None,
         );
 
         let mut mesh_data = MeshData::new(GRID_MESH_CATEGORY_IDENTIFIER);
@@ -75,6 +77,7 @@ impl EditorUpdater {
                 &shared_data,
                 &global_messenger,
                 config.grid_material.as_path(),
+                None,
             );
             m.set_material(grid_material);
         });
@@ -143,7 +146,7 @@ impl EditorUpdater {
 
         ui_registry.register::<Scene>();
         ui_registry.register::<Object>();
-        ui_registry.register::<Transform>();
+        ui_registry.register::<Camera>();
         ui_registry.register::<Hitbox>();
         ui_registry
     }
@@ -184,9 +187,17 @@ impl System for EditorUpdater {
     fn run(&mut self) -> bool {
         self.update_events().update_view3d().update_widgets();
 
-        self.scene.get_mut(|s| {
-            s.update_hierarchy(&self.shared_data);
-        });
+        self.shared_data
+            .for_each_resource(|r: &Resource<Object>, o: &Object| {
+                let parent_transform = if let Some(parent) = o.parent() {
+                    Some(parent.get(|p| p.transform()))
+                } else {
+                    None
+                };
+                r.get_mut(|o| {
+                    o.update_transform(parent_transform);
+                });
+            });
 
         true
     }
@@ -303,6 +314,7 @@ impl EditorUpdater {
                 &self.shared_data,
                 &self.global_messenger,
                 default_font_path,
+                None,
             ));
         }
     }
@@ -311,7 +323,7 @@ impl EditorUpdater {
         self.scene.get_mut(|s| {
             s.clear();
             let object =
-                Object::load_from_file(&self.shared_data, &self.global_messenger, filename);
+                Object::load_from_file(&self.shared_data, &self.global_messenger, filename, None);
             s.add_object(object);
         });
     }

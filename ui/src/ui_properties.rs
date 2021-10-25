@@ -2,7 +2,7 @@ use std::{any::TypeId, marker::PhantomData};
 
 use egui::{Checkbox, CollapsingHeader, DragValue, TextEdit, Ui, Widget};
 use nrg_graphics::{Font, Material, Mesh, Pipeline, Texture, View};
-use nrg_math::{Vector2, Vector3, Vector4};
+use nrg_math::{Degrees, Matrix4, Vector2, Vector3, Vector4};
 use nrg_resources::{
     GenericResource, ResourceCastTo, ResourceId, ResourceTrait, SerializableResource,
 };
@@ -86,6 +86,27 @@ impl UIPropertiesRegistry {
     }
 }
 
+impl UIProperties for Degrees {
+    fn show(
+        &mut self,
+        _id: &ResourceId,
+        _ui_registry: &UIPropertiesRegistry,
+        ui: &mut Ui,
+        _collapsed: bool,
+    ) {
+        ui.horizontal(|ui| {
+            let mut value = self.0;
+            let drag = DragValue::new(&mut value)
+                .suffix("°")
+                .prefix("degrees: ")
+                .clamp_range(0.0..=360.0)
+                .fixed_decimals(3);
+            drag.ui(ui);
+            self.0 = value;
+        });
+    }
+}
+
 impl UIProperties for f32 {
     fn show(
         &mut self,
@@ -144,6 +165,23 @@ impl UIProperties for Vector4 {
             ui.add(DragValue::new(&mut self.y).prefix("y: ").fixed_decimals(3));
             ui.add(DragValue::new(&mut self.z).prefix("z: ").fixed_decimals(3));
             ui.add(DragValue::new(&mut self.w).prefix("w: ").fixed_decimals(3));
+        });
+    }
+}
+
+impl UIProperties for Matrix4 {
+    fn show(
+        &mut self,
+        id: &ResourceId,
+        ui_registry: &UIPropertiesRegistry,
+        ui: &mut Ui,
+        collapsed: bool,
+    ) {
+        ui.vertical(|ui| {
+            self.x.show(id, ui_registry, ui, collapsed);
+            self.y.show(id, ui_registry, ui, collapsed);
+            self.z.show(id, ui_registry, ui, collapsed);
+            self.w.show(id, ui_registry, ui, collapsed);
         });
     }
 }

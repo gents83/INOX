@@ -1,8 +1,5 @@
 use std::path::{Path, PathBuf};
 
-use nrg_camera::Camera;
-use nrg_graphics::Mesh;
-use nrg_math::{MatBase, Matrix4};
 use nrg_messenger::MessengerRw;
 use nrg_resources::{
     DataTypeResource, Resource, ResourceId, SerializableResource, SharedData, SharedDataRc,
@@ -10,7 +7,7 @@ use nrg_resources::{
 use nrg_serialize::read_from_file;
 use nrg_ui::{CollapsingHeader, UIProperties, UIPropertiesRegistry, Ui};
 
-use crate::{Object, SceneData};
+use crate::{Camera, Object, SceneData};
 
 pub type SceneId = ResourceId;
 
@@ -87,12 +84,12 @@ impl DataTypeResource for Scene {
         let mut scene = Self::default();
 
         for object in scene_data.objects.iter() {
-            let o = Object::load_from_file(shared_data, global_messenger, object.as_path());
+            let o = Object::load_from_file(shared_data, global_messenger, object.as_path(), None);
             scene.add_object(o);
         }
 
         for camera in scene_data.cameras.iter() {
-            let c = Camera::load_from_file(shared_data, global_messenger, camera.as_path());
+            let c = Camera::load_from_file(shared_data, global_messenger, camera.as_path(), None);
             scene.add_camera(c);
         }
 
@@ -124,23 +121,5 @@ impl Scene {
 
     pub fn objects(&self) -> &Vec<Resource<Object>> {
         &self.objects
-    }
-
-    pub fn update_hierarchy(&mut self, shared_data: &SharedDataRc) {
-        for object in self.objects.iter() {
-            object.get_mut(|o| {
-                o.update_from_parent(
-                    shared_data,
-                    Matrix4::default_identity(),
-                    |object, object_matrix| {
-                        if let Some(mesh) = object.get_component::<Mesh>() {
-                            mesh.get_mut(|m| {
-                                m.set_matrix(object_matrix);
-                            });
-                        }
-                    },
-                );
-            });
-        }
     }
 }

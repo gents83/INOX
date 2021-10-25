@@ -8,7 +8,6 @@ members = [
     "binarizer",
     "blender",
     "bindings/vulkan_bindings",
-    "camera",
     "core",
     "events",
     "filesystem",

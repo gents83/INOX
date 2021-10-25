@@ -7,7 +7,7 @@ use nrg_serialize::*;
 #[serde(crate = "nrg_serialize")]
 pub struct ObjectData {
     pub transform: Matrix4,
-    pub mesh: PathBuf,
+    pub components: Vec<PathBuf>,
     pub children: Vec<PathBuf>,
 }
 
@@ -15,7 +15,7 @@ impl Default for ObjectData {
     fn default() -> Self {
         Self {
             transform: Matrix4::default_identity(),
-            mesh: PathBuf::new(),
+            components: Vec::new(),
             children: Vec::new(),
         }
     }

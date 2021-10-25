@@ -1,13 +1,12 @@
-use nrg_camera::Camera;
 use nrg_core::System;
 use nrg_graphics::{RenderPass, View};
-use nrg_math::{Vector2, Vector3, Zero};
+use nrg_math::{Degrees, InnerSpace, Mat4Ops, Matrix4, NewAngle, Radians, Vector2, Vector3, Zero};
 use nrg_messenger::{read_messages, send_global_event, MessageChannel, MessengerRw};
 use nrg_platform::{Key, KeyEvent, MouseButton, MouseEvent, WindowEvent};
 use nrg_resources::{DataTypeResource, Resource, SerializableResource, SharedData, SharedDataRc};
-use nrg_scene::Scene;
+use nrg_scene::{Camera, Object, ObjectId, Scene};
 use nrg_serialize::generate_random_uid;
-use std::{any::TypeId, env, path::PathBuf};
+use std::{any::TypeId, collections::HashMap, env, path::PathBuf};
 
 use crate::config::Config;
 
@@ -24,16 +23,17 @@ pub struct ViewerSystem {
     message_channel: MessageChannel,
     render_passes: Vec<Resource<RenderPass>>,
     scene: Resource<Scene>,
-    camera: Resource<Camera>,
+    camera_object: Resource<Object>,
     last_mouse_pos: Vector2,
     is_changing_camera: bool,
 }
+
+const FORCE_USE_DEFAULT_CAMERA: bool = true;
 
 impl ViewerSystem {
     pub fn new(shared_data: SharedDataRc, global_messenger: MessengerRw, config: &Config) -> Self {
         let message_channel = MessageChannel::default();
 
-        nrg_camera::register_resource_types(&shared_data);
         nrg_scene::register_resource_types(&shared_data);
 
         let scene = SharedData::add_resource::<Scene>(
@@ -42,12 +42,26 @@ impl ViewerSystem {
             Scene::default(),
         );
 
-        let mut camera = Camera::new([0., 10., 10.].into(), [0., 0., 0.].into());
-        camera.set_projection(45., config.width as _, config.height as _, 0.001, 1000.);
-        let camera =
-            SharedData::add_resource::<Camera>(&shared_data, generate_random_uid(), camera);
-        camera.get_mut(|c| {
-            c.set_active(false);
+        let camera_object = SharedData::add_resource::<Object>(
+            &shared_data,
+            generate_random_uid(),
+            Object::default(),
+        );
+        camera_object.get_mut(|o| {
+            o.translate([0., 0., -15.].into());
+            o.look_at([0., 0., 0.].into());
+            let camera = o.add_default_component::<Camera>(&shared_data);
+            camera.get_mut(|c| {
+                c.set_parent(&camera_object)
+                    .set_active(false)
+                    .set_projection(
+                        Degrees::new(22.),
+                        config.width as _,
+                        config.height as _,
+                        0.001,
+                        1000.,
+                    );
+            });
         });
 
         Self {
@@ -57,7 +71,7 @@ impl ViewerSystem {
             message_channel,
             render_passes: Vec::new(),
             scene,
-            camera,
+            camera_object,
             last_mouse_pos: Vector2::zero(),
             is_changing_camera: false,
         }
@@ -87,7 +101,6 @@ impl ViewerSystem {
 impl Drop for ViewerSystem {
     fn drop(&mut self) {
         nrg_scene::unregister_resource_types(&self.shared_data);
-        nrg_camera::unregister_resource_types(&self.shared_data);
     }
 }
 
@@ -112,8 +125,20 @@ impl System for ViewerSystem {
     fn run(&mut self) -> bool {
         self.update_events().update_view_from_camera();
 
-        self.scene.get_mut(|s| {
-            s.update_hierarchy(&self.shared_data);
+        let mut map: HashMap<ObjectId, Option<Matrix4>> = HashMap::new();
+        self.shared_data
+            .for_each_resource(|r: &Resource<Object>, o: &Object| {
+                let parent_transform = if let Some(parent) = o.parent() {
+                    Some(parent.get(|p| p.transform()))
+                } else {
+                    None
+                };
+                map.insert(*r.id(), parent_transform);
+            });
+        self.shared_data.for_each_resource_mut(|r, o: &mut Object| {
+            if let Some(parent_transform) = map.remove(&r.id()) {
+                o.update_transform(parent_transform);
+            }
         });
 
         true
@@ -173,6 +198,7 @@ impl ViewerSystem {
                 &self.shared_data,
                 &self.global_messenger,
                 PathBuf::from(filename).as_path(),
+                None,
             );
         }
     }
@@ -214,16 +240,53 @@ impl ViewerSystem {
             .match_resource(|view: &View| view.view_index() == 0)
         {
             if self.shared_data.get_num_resources_of_type::<Camera>() == 1 {
-                self.camera.get_mut(|c| {
-                    c.set_active(true);
+                self.camera_object.get_mut(|c| {
+                    if let Some(camera) = c.get_component::<Camera>() {
+                        camera.get_mut(|c| {
+                            c.set_active(true);
+                        })
+                    }
                 });
             } else {
-                self.camera.get_mut(|c| {
-                    c.set_active(false);
+                self.camera_object.get_mut(|c| {
+                    if let Some(camera) = c.get_component::<Camera>() {
+                        camera.get_mut(|c| {
+                            c.set_active(false);
+                        })
+                    }
+                });
+            }
+
+            if FORCE_USE_DEFAULT_CAMERA {
+                self.shared_data.for_each_resource_mut(|_, c: &mut Camera| {
+                    if let Some(parent) = c.parent() {
+                        if parent.id() == self.camera_object.id() {
+                            /*parent.get_mut(|o| {
+                                o.look_at([0., 0., 0.].into());
+                            });*/
+                            c.set_active(true);
+                        } else {
+                            c.set_active(false);
+                        }
+                    }
                 });
             }
 
             self.shared_data.for_each_resource(|_, c: &Camera| {
+                if let Some(parent) = c.parent() {
+                    if parent.get(|o| o.is_dirty()) {
+                        println!("Cam Active: {:?}", c.is_active());
+                        let (t, r, _) = c.view_matrix().get_translation_rotation_scale();
+                        println!("Cam Pos: {:?}", t);
+                        let roll: Degrees = Radians::new(r.x).into();
+                        let yaw: Degrees = Radians::new(r.y).into();
+                        let pitch: Degrees = Radians::new(r.z).into();
+                        println!("Cam Roll: {:?}", roll);
+                        println!("Cam Yaw: {:?}", yaw);
+                        println!("Cam Pitch: {:?}", pitch);
+                    }
+                }
+
                 if c.is_active() {
                     let view_matrix = c.view_matrix();
                     let proj_matrix = c.proj_matrix();
@@ -252,11 +315,17 @@ impl ViewerSystem {
         } else if event.code == Key::E {
             movement.y -= 1.;
         }
-        self.shared_data.for_each_resource_mut(|_, c: &mut Camera| {
-            if c.is_active() {
-                c.translate(movement);
-            }
-        });
+        if movement != Vector3::zero() {
+            self.shared_data.for_each_resource_mut(|_, c: &mut Camera| {
+                if c.is_active() {
+                    let matrix = c.transform();
+                    let translation = matrix.x.xyz().normalize() * movement.x
+                        + matrix.y.xyz().normalize() * movement.y
+                        + matrix.z.xyz().normalize() * movement.z;
+                    c.translate(translation);
+                }
+            });
+        }
     }
 
     fn handle_mouse_event(&mut self, event: &MouseEvent) {
@@ -268,11 +337,13 @@ impl ViewerSystem {
 
             rotation_angle.x = event.normalized_y - self.last_mouse_pos.y;
             rotation_angle.y = event.normalized_x - self.last_mouse_pos.x;
-            self.shared_data.for_each_resource_mut(|_, c: &mut Camera| {
-                if c.is_active() {
-                    c.rotate(rotation_angle * 5.);
-                }
-            });
+            if rotation_angle != Vector3::zero() {
+                self.shared_data.for_each_resource_mut(|_, c: &mut Camera| {
+                    if c.is_active() {
+                        c.rotate(rotation_angle * 5.);
+                    }
+                });
+            }
         }
         self.last_mouse_pos = Vector2::new(event.normalized_x as _, event.normalized_y as _);
     }

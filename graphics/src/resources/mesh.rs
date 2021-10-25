@@ -80,6 +80,7 @@ impl DataTypeResource for Mesh {
                 shared_data,
                 global_messenger,
                 mesh_data.material.as_path(),
+                None,
             );
             Some(material)
         } else {
