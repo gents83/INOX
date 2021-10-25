@@ -45,19 +45,13 @@ pub trait SerializableResource: DataTypeResource + Sized {
         Self: Sized;
 
     #[inline]
-    fn get_name(&self) -> String {
-        format!(
-            "{:?}",
-            if let Some(name) = self.path().file_name() {
-                if let Some(name) = name.to_str() {
-                    name.to_string()
-                } else {
-                    self.path().to_str().unwrap().to_string()
-                }
-            } else {
-                self.path().to_str().unwrap().to_string()
-            }
-        )
+    fn name(&self) -> String {
+        self.path()
+            .file_stem()
+            .unwrap_or_default()
+            .to_str()
+            .unwrap_or_default()
+            .to_string()
     }
     #[inline]
     fn create_from_file(

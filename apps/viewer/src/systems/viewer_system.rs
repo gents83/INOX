@@ -1,6 +1,6 @@
 use nrg_core::System;
 use nrg_graphics::{RenderPass, View};
-use nrg_math::{Degrees, InnerSpace, Mat4Ops, Matrix4, NewAngle, Radians, Vector2, Vector3, Zero};
+use nrg_math::{Degrees, InnerSpace, Matrix4, NewAngle, Vector2, Vector3, Zero};
 use nrg_messenger::{read_messages, send_global_event, MessageChannel, MessengerRw};
 use nrg_platform::{Key, KeyEvent, MouseButton, MouseEvent, WindowEvent};
 use nrg_resources::{DataTypeResource, Resource, SerializableResource, SharedData, SharedDataRc};
@@ -28,7 +28,7 @@ pub struct ViewerSystem {
     is_changing_camera: bool,
 }
 
-const FORCE_USE_DEFAULT_CAMERA: bool = true;
+const FORCE_USE_DEFAULT_CAMERA: bool = false;
 
 impl ViewerSystem {
     pub fn new(shared_data: SharedDataRc, global_messenger: MessengerRw, config: &Config) -> Self {
@@ -48,8 +48,8 @@ impl ViewerSystem {
             Object::default(),
         );
         camera_object.get_mut(|o| {
-            o.translate([0., 0., -15.].into());
-            o.look_at([0., 0., 0.].into());
+            o.set_position(Vector3::new(0.0, 0.0, -10.0));
+            o.look_at(Vector3::new(0.0, 0.0, 0.0));
             let camera = o.add_default_component::<Camera>(&shared_data);
             camera.get_mut(|c| {
                 c.set_parent(&camera_object)
@@ -261,9 +261,6 @@ impl ViewerSystem {
                 self.shared_data.for_each_resource_mut(|_, c: &mut Camera| {
                     if let Some(parent) = c.parent() {
                         if parent.id() == self.camera_object.id() {
-                            /*parent.get_mut(|o| {
-                                o.look_at([0., 0., 0.].into());
-                            });*/
                             c.set_active(true);
                         } else {
                             c.set_active(false);
@@ -273,10 +270,11 @@ impl ViewerSystem {
             }
 
             self.shared_data.for_each_resource(|_, c: &Camera| {
+                /*
                 if let Some(parent) = c.parent() {
                     if parent.get(|o| o.is_dirty()) {
                         println!("Cam Active: {:?}", c.is_active());
-                        let (t, r, _) = c.view_matrix().get_translation_rotation_scale();
+                        let (t, r, _) = c.transform().get_translation_rotation_scale();
                         println!("Cam Pos: {:?}", t);
                         let roll: Degrees = Radians::new(r.x).into();
                         let yaw: Degrees = Radians::new(r.y).into();
@@ -285,7 +283,7 @@ impl ViewerSystem {
                         println!("Cam Yaw: {:?}", yaw);
                         println!("Cam Pitch: {:?}", pitch);
                     }
-                }
+                }*/
 
                 if c.is_active() {
                     let view_matrix = c.view_matrix();
@@ -301,6 +299,30 @@ impl ViewerSystem {
     }
 
     fn handle_keyboard_event(&mut self, event: &KeyEvent) {
+        /*
+        self.shared_data.for_each_resource_mut(|_, o: &mut Object| {
+            if o.name() == "Suzanne" {
+                if event.code == Key::W {
+                    let dir = Vector3::new(0.0, 0.0, 1.0);
+                    //o.set_position(dir * 10.);
+                    o.look_toward(dir);
+                } else if event.code == Key::S {
+                    let dir = Vector3::new(0.0, 0.0, -1.0);
+                    //o.set_position(dir * 10.);
+                    o.look_toward(dir);
+                } else if event.code == Key::A {
+                    let dir = Vector3::new(-1.0, 0.0, 0.0);
+                    //o.set_position(dir * 10.);
+                    o.look_toward(dir);
+                } else if event.code == Key::D {
+                    let dir = Vector3::new(1.0, 0.0, 0.0);
+                    //o.set_position(dir * 10.);
+                    o.look_toward(dir);
+                }
+            }
+        });
+        */
+
         let mut movement = Vector3::zero();
         if event.code == Key::W {
             movement.z += 1.;
@@ -323,6 +345,13 @@ impl ViewerSystem {
                         + matrix.y.xyz().normalize() * movement.y
                         + matrix.z.xyz().normalize() * movement.z;
                     c.translate(translation);
+                    /*
+                    println!("Camera");
+                    println!("Pos: {:?}", c.transform().translation());
+                    println!("Right: {:?}", c.transform().x.xyz());
+                    println!("Up: {:?}", c.transform().y.xyz());
+                    println!("Forward: {:?}", c.transform().z.xyz());
+                    */
                 }
             });
         }
@@ -341,6 +370,17 @@ impl ViewerSystem {
                 self.shared_data.for_each_resource_mut(|_, c: &mut Camera| {
                     if c.is_active() {
                         c.rotate(rotation_angle * 5.);
+                        /*
+                        let (translation, rotation, _) =
+                            c.transform().get_translation_rotation_scale();
+                        let mut direction = Vector3::zero();
+                        let yaw = rotation.y + rotation_angle.y + PI / 2.;
+                        let pitch = rotation.x + rotation_angle.x;
+                        direction.x = yaw.cos() * pitch.cos();
+                        direction.y = pitch.sin();
+                        direction.z = yaw.sin() * pitch.cos();
+                        c.look_at(translation + direction * 5.);
+                        */
                     }
                 });
             }

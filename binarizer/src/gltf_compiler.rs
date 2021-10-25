@@ -17,7 +17,7 @@ use nrg_filesystem::convert_in_local_path;
 use nrg_graphics::{
     MaterialData, MeshCategoryId, MeshData, VertexData, DEFAULT_MESH_CATEGORY_IDENTIFIER,
 };
-use nrg_math::{Matrix4, NewAngle, Parser, Radians, Vector2, Vector3, Vector4};
+use nrg_math::{Mat4Ops, Matrix4, NewAngle, Parser, Radians, Vector2, Vector3, Vector4};
 use nrg_messenger::MessengerRw;
 use nrg_resources::{DATA_FOLDER, DATA_RAW_FOLDER};
 use nrg_scene::{CameraData, ObjectData, SceneData};
@@ -332,6 +332,11 @@ impl GltfCompiler {
             }
         }
         if let Some(camera) = node.camera() {
+            let position = object_data.transform.translation();
+            let mut matrix =
+                Matrix4::from_nonuniform_scale(1., 1., -1.) * object_data.transform.inverse();
+            matrix.set_translation(position);
+            object_data.transform = matrix;
             let (_, camera_path) = self.process_camera(path, &camera);
             object_data.components.push(convert_in_local_path(
                 camera_path.as_path(),
@@ -344,6 +349,11 @@ impl GltfCompiler {
             if let Some(camera) = child.camera() {
                 object_data.transform =
                     object_data.transform * Matrix4::from(child.transform().matrix());
+                let position = object_data.transform.translation();
+                let mut matrix =
+                    Matrix4::from_nonuniform_scale(1., 1., -1.) * object_data.transform.inverse();
+                matrix.set_translation(position);
+                object_data.transform = matrix;
                 let (_, camera_path) = self.process_camera(path, &camera);
                 object_data.components.push(convert_in_local_path(
                     camera_path.as_path(),
@@ -361,12 +371,6 @@ impl GltfCompiler {
                 }
             }
         }
-
-        //CONVERT FROM GLTF TO NRG COORDINATE SYSTEM THAT IS LEFT HANDED
-        // +X is right
-        // +Y is up
-        // +Z is forward
-        object_data.transform = Matrix4::from_nonuniform_scale(1., 1., -1.) * object_data.transform;
 
         (
             NodeType::Object,

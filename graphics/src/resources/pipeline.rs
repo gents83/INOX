@@ -226,7 +226,7 @@ impl Pipeline {
     }
 
     pub fn bind(&mut self, command_buffer: &CommandBuffer) -> &mut Self {
-        nrg_profiler::scoped_profile!(format!("pipeline::bind[{:?}]", self.get_name()).as_str());
+        nrg_profiler::scoped_profile!(format!("pipeline::bind[{:?}]", self.name()).as_str());
         if let Some(backend_pipeline) = &mut self.backend_pipeline {
             backend_pipeline.bind_pipeline(command_buffer);
         }
@@ -239,7 +239,7 @@ impl Pipeline {
         physical_device: &BackendPhysicalDevice,
     ) -> &mut Self {
         nrg_profiler::scoped_profile!(
-            format!("pipeline::bind_indirect[{:?}]", self.get_name()).as_str()
+            format!("pipeline::bind_indirect[{:?}]", self.name()).as_str()
         );
         if let Some(backend_pipeline) = &mut self.backend_pipeline {
             backend_pipeline.bind_indirect(
@@ -253,11 +253,9 @@ impl Pipeline {
     }
 
     fn bind_instance_buffer(&mut self, command_buffer: &CommandBuffer) -> &mut Self {
-        nrg_profiler::scoped_profile!(format!(
-            "pipeline::bind_instance_buffer[{:?}]",
-            self.get_name()
-        )
-        .as_str());
+        nrg_profiler::scoped_profile!(
+            format!("pipeline::bind_instance_buffer[{:?}]", self.name()).as_str()
+        );
         if let Some(backend_pipeline) = &mut self.backend_pipeline {
             backend_pipeline.bind_instance_buffer(command_buffer);
         }
@@ -265,23 +263,19 @@ impl Pipeline {
     }
     fn bind_vertices(&mut self, command_buffer: &CommandBuffer) -> &mut Self {
         nrg_profiler::scoped_profile!(
-            format!("pipeline::bind_vertices[{:?}]", self.get_name()).as_str()
+            format!("pipeline::bind_vertices[{:?}]", self.name()).as_str()
         );
         self.mesh.bind_vertices(command_buffer);
         self
     }
     fn bind_indices(&mut self, command_buffer: &CommandBuffer) -> &mut Self {
-        nrg_profiler::scoped_profile!(
-            format!("pipeline::bind_indices[{:?}]", self.get_name()).as_str()
-        );
+        nrg_profiler::scoped_profile!(format!("pipeline::bind_indices[{:?}]", self.name()).as_str());
         self.mesh.bind_indices(command_buffer);
         self
     }
 
     fn draw_single(&mut self, command_buffer: &CommandBuffer) -> &mut Self {
-        nrg_profiler::scoped_profile!(
-            format!("pipeline::draw_indexed[{:?}]", self.get_name()).as_str()
-        );
+        nrg_profiler::scoped_profile!(format!("pipeline::draw_indexed[{:?}]", self.name()).as_str());
         if let Some(backend_pipeline) = &mut self.backend_pipeline {
             backend_pipeline.draw_single(
                 command_buffer,
@@ -295,7 +289,7 @@ impl Pipeline {
 
     fn draw_indirect_batch(&mut self, command_buffer: &CommandBuffer) -> &mut Self {
         nrg_profiler::scoped_profile!(
-            format!("pipeline::draw_indirect[{:?}]", self.get_name()).as_str()
+            format!("pipeline::draw_indirect[{:?}]", self.name()).as_str()
         );
         if let Some(backend_pipeline) = &mut self.backend_pipeline {
             backend_pipeline.draw_indirect_batch(command_buffer, self.instance_count);
@@ -318,7 +312,7 @@ impl Pipeline {
         }
 
         nrg_profiler::scoped_profile!(
-            format!("pipeline::add_mesh_instance[{}]", self.get_name()).as_str()
+            format!("pipeline::add_mesh_instance[{}]", self.name()).as_str()
         );
 
         let mesh_data_ref = self.mesh.bind_at_index(
@@ -381,7 +375,7 @@ impl Pipeline {
         command_buffer: &CommandBuffer,
     ) {
         nrg_profiler::scoped_profile!(
-            format!("renderer::draw_pipeline[{:?}]", self.get_name()).as_str()
+            format!("renderer::draw_pipeline[{:?}]", self.name()).as_str()
         );
 
         self.bind_indirect(device, physical_device)

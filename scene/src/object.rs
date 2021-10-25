@@ -5,7 +5,7 @@ use std::{
 };
 
 use nrg_graphics::Mesh;
-use nrg_math::{Mat4Ops, MatBase, Matrix4, Vector3};
+use nrg_math::{InnerSpace, Mat4Ops, MatBase, Matrix4, Vector3};
 use nrg_messenger::MessengerRw;
 use nrg_resources::{
     DataTypeResource, Function, GenericResource, Handle, Resource, ResourceCastTo, ResourceId,
@@ -177,8 +177,20 @@ impl DataTypeResource for Object {
 
 impl Object {
     #[inline]
+    pub fn set_transform(&mut self, transform: Matrix4) -> &mut Self {
+        self.transform = transform;
+        self.set_dirty();
+        self
+    }
+    #[inline]
     pub fn transform(&self) -> Matrix4 {
         self.transform
+    }
+    #[inline]
+    pub fn set_position(&mut self, position: Vector3) -> &mut Self {
+        self.transform.set_translation(position);
+        self.set_dirty();
+        self
     }
     #[inline]
     pub fn translate(&mut self, translation: Vector3) -> &mut Self {
@@ -203,6 +215,12 @@ impl Object {
         self.transform.look_at(position);
         self.set_dirty();
         self
+    }
+    #[inline]
+    pub fn look_toward(&mut self, direction: Vector3) -> &mut Self {
+        let position = self.transform.translation();
+        let target = position + direction.normalize();
+        self.look_at(target)
     }
 
     pub fn is_dirty(&self) -> bool {
@@ -325,12 +343,9 @@ impl Object {
     pub fn update_transform(&mut self, parent_transform: Option<Matrix4>) {
         if self.is_dirty() {
             self.is_transform_dirty = false;
-            println!("Object {:?}", self.filepath.file_stem().unwrap_or_default());
             if let Some(parent_transform) = parent_transform {
                 self.transform = parent_transform * self.transform;
             }
-            let t = self.transform.translation();
-            println!("Pos: {:?}", t);
         }
         if let Some(mesh) = self.get_component::<Mesh>() {
             mesh.get_mut(|m| {

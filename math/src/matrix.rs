@@ -66,17 +66,17 @@ macro_rules! implement_matrix4_operations {
             }
             #[inline]
             fn add_translation(&mut self, translation: Vector3) -> &mut Self {
-                *self = Matrix4::from_translation(translation) * *self;
-                self
+                let p = self.translation();
+                self.set_translation(p + translation)
             }
             #[inline]
             fn add_scale(&mut self, scale: Vector3) -> &mut Self {
-                *self = Matrix4::from_nonuniform_scale(scale.x, scale.y, scale.z) * *self;
+                *self = *self * Matrix4::from_nonuniform_scale(scale.x, scale.y, scale.z);
                 self
             }
             #[inline]
             fn add_rotation(&mut self, rotation: Vector3) -> &mut Self {
-                *self = Matrix4::from_euler_angles(rotation) * *self;
+                *self = *self * Matrix4::from_euler_angles(rotation);
                 self
             }
             #[inline]
@@ -129,11 +129,10 @@ macro_rules! implement_matrix4_operations {
 
             fn look_at(&mut self, target: Vector3) {
                 let p = self.translation();
-                let mut l = Matrix4::look_at_lh(
-                    [p.x, p.y, p.z].into(),
-                    [target.x, target.y, target.z].into(),
-                    Vector3::unit_y(),
-                );
+                let forward = (target - p).normalize();
+                let right = Vector3::unit_y().cross(forward).normalize();
+                let up = forward.cross(right).normalize();
+                let mut l: Matrix4 = Matrix3::from_cols(right, up, forward).into();
                 l.set_translation(p);
                 *self = l;
             }

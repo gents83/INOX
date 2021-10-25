@@ -151,6 +151,15 @@ impl Camera {
         self
     }
     #[inline]
+    pub fn set_transform(&mut self, transform: Matrix4) -> &mut Self {
+        if let Some(parent) = &self.parent {
+            parent.get_mut(|o| {
+                o.set_transform(transform);
+            });
+        }
+        self
+    }
+    #[inline]
     pub fn transform(&self) -> Matrix4 {
         if let Some(parent) = &self.parent {
             let transform = parent.get(|o| o.transform());
@@ -179,6 +188,14 @@ impl Camera {
         if let Some(parent) = &self.parent {
             parent.get_mut(|o| {
                 o.look_at(target);
+            });
+        }
+    }
+    #[inline]
+    pub fn look_toward(&self, direction: Vector3) {
+        if let Some(parent) = &self.parent {
+            parent.get_mut(|o| {
+                o.look_toward(direction);
             });
         }
     }

@@ -21,15 +21,15 @@ impl Quat for Quaternion {
         // pitch (z-axis rotation)
         let sinp = 2. * (self.s * self.v.y - self.v.z * self.v.x);
         if sinp.abs() >= 1. {
-            roll_yaw_pitch.z = (PI / 2.).copysign(sinp); // use 90 degrees if out of range
+            roll_yaw_pitch.y = (PI / 2.).copysign(sinp); // use 90 degrees if out of range
         } else {
-            roll_yaw_pitch.z = sinp.asin();
+            roll_yaw_pitch.y = sinp.asin();
         }
 
         // yaw (y-axis rotation)
         let siny_cosp = 2. * (self.s * self.v.z + self.v.x * self.v.y);
         let cosy_cosp = 1. - 2. * (self.v.y * self.v.y + self.v.z * self.v.z);
-        roll_yaw_pitch.y = siny_cosp.atan2(cosy_cosp);
+        roll_yaw_pitch.z = siny_cosp.atan2(cosy_cosp);
 
         return roll_yaw_pitch;
     }
@@ -37,10 +37,10 @@ impl Quat for Quaternion {
     fn from_euler_angles(roll_yaw_pitch: Vector3) -> Quaternion {
         // Abbreviations for the various angular functions
         // yaw (Y), pitch (Z), roll (X)
-        let cy = (roll_yaw_pitch.y * 0.5).cos();
-        let sy = (roll_yaw_pitch.y * 0.5).sin();
-        let cp = (roll_yaw_pitch.z * 0.5).cos();
-        let sp = (roll_yaw_pitch.z * 0.5).sin();
+        let cy = (roll_yaw_pitch.z * 0.5).cos();
+        let sy = (roll_yaw_pitch.z * 0.5).sin();
+        let cp = (roll_yaw_pitch.y * 0.5).cos();
+        let sp = (roll_yaw_pitch.y * 0.5).sin();
         let cr = (roll_yaw_pitch.x * 0.5).cos();
         let sr = (roll_yaw_pitch.x * 0.5).sin();
 
