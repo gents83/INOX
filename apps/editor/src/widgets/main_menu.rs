@@ -9,6 +9,7 @@ use std::{
 
 use nrg_messenger::{get_events_from_string, Message, MessageBox, MessengerRw};
 use nrg_platform::WindowEvent;
+use nrg_profiler::debug_log;
 use nrg_resources::{Resource, SharedDataRc, DATA_FOLDER, DATA_RAW_FOLDER};
 use nrg_serialize::deserialize;
 use nrg_ui::{implement_widget_data, menu, DialogEvent, DialogOp, TopBottomPanel, UIWidget};
@@ -159,14 +160,14 @@ impl MainMenu {
         match result {
             Ok(output) => {
                 let string = String::from_utf8(output.stdout).unwrap();
-                println!("{}", string);
+                debug_log(format!("{}", string).as_str());
                 for e in get_events_from_string(string) {
                     let event: DialogEvent = deserialize(e);
                     dispatcher.write().unwrap().send(event.as_boxed()).ok();
                 }
             }
             Err(_) => {
-                println!("Failed to execute process");
+                debug_log("Failed to execute process");
             }
         }
     }

@@ -71,7 +71,7 @@ impl FileWatcherServer {
         if !path.is_dir() && !path.is_file() {
             eprintln!(
                 "Unable to create a FileWatcher on a p thatath is neither a folder or a file: {}",
-                path.to_str().unwrap()
+                path.to_str().unwrap(),
             );
         }
         let dir: PathBuf = if path.is_dir() {
@@ -95,7 +95,7 @@ impl FileWatcherServer {
         if handle == INVALID_HANDLE_VALUE {
             eprintln!(
                 "Path {} cannot be opened or not found",
-                dir.to_str().unwrap()
+                dir.to_str().unwrap(),
             );
             return dir;
         }
@@ -104,7 +104,7 @@ impl FileWatcherServer {
         if semaphore.is_null() || semaphore == INVALID_HANDLE_VALUE {
             eprintln!(
                 "Failed to create a semaphore for file watcher on Path {}",
-                dir.to_str().unwrap()
+                dir.to_str().unwrap(),
             );
             unsafe { CloseHandle(handle) };
             return dir;
@@ -205,7 +205,7 @@ impl FileWatcherImpl {
         if !pb.is_dir() && !pb.is_file() {
             eprintln!(
                 "Requesting to watch a path that is neither a file nor a directory {}",
-                path.to_str().unwrap()
+                path.to_str().unwrap(),
             );
         }
         pb
@@ -284,7 +284,7 @@ fn process_folder(folder: &FolderData, event_fn: Arc<Mutex<dyn EventFn>>, handle
         let request: Box<WatchRequest> = unsafe { mem::transmute(request_p) };
         eprintln!(
             "Failed to create file watcher on Path {}",
-            request.data.dir.to_str().unwrap()
+            request.data.dir.to_str().unwrap(),
         );
         unsafe { ReleaseSemaphore(request.data.complete_sem, 1, ptr::null_mut()) };
     } else {

@@ -23,6 +23,7 @@ use nrg_platform::{
     InputState, KeyEvent, KeyTextEvent, MouseButton, MouseEvent, MouseState, WindowEvent,
     DEFAULT_DPI,
 };
+use nrg_profiler::debug_log;
 use nrg_resources::{DataTypeResource, Handle, Resource, SharedData, SharedDataRc};
 use nrg_serialize::generate_random_uid;
 
@@ -350,7 +351,7 @@ impl UISystem {
 
     fn handle_output(&mut self, output: Output) -> &mut Self {
         if let Some(open) = output.open_url {
-            println!("Trying to open url: {:?}", open.url);
+            debug_log(format!("Trying to open url: {:?}", open.url).as_str());
         }
 
         if !output.copied_text.is_empty() {

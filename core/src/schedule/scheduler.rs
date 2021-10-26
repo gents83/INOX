@@ -70,7 +70,7 @@ impl Scheduler {
         } else {
             eprintln!(
                 "Previous Phase witn name {} does not exist",
-                previous_phase_name
+                previous_phase_name,
             );
         }
         self
@@ -84,7 +84,7 @@ impl Scheduler {
         } else {
             eprintln!(
                 "Next Phase with name {} does not exist",
-                previous_phase_name
+                previous_phase_name,
             );
         }
         self

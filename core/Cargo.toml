@@ -13,6 +13,6 @@ downcast-rs = { git = "https://github.com/marcianx/downcast-rs" }
 nrg_messenger = { path = "../messenger" }
 nrg_filesystem = { path = "../filesystem" }
 nrg_platform = { path = "../platform" }
+nrg_profiler = { path = "../profiler" }
 nrg_resources = { path = "../resources" }
 nrg_serialize = { path = "../serialize" }
-nrg_profiler = { path = "../profiler" }

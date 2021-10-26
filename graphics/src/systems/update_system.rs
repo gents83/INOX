@@ -78,6 +78,9 @@ impl UpdateSystem {
         let mut texture_id = INVALID_UID;
         if let Some(material) = mesh.material() {
             material.get(|material| {
+                if !material.is_initialized() {
+                    return;
+                }
                 if material.has_diffuse_texture() {
                     texture_id = *material.diffuse_texture().id();
                 }
@@ -209,7 +212,7 @@ impl System for UpdateSystem {
                         .iter()
                         .any(|id| mesh.category_identifier() == id);
 
-                    if !should_render || !mesh.is_visible() {
+                    if !should_render || !mesh.is_visible() || !mesh.is_initialized() {
                         return;
                     }
                     let renderer = self.renderer.clone();

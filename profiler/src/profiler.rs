@@ -164,6 +164,22 @@ impl Profiler {
         thread_entry.profiler.clone()
     }
 
+    pub fn log(&self, msg: &str) {
+        let thread_id = get_raw_thread_id();
+        let name = {
+            let locked_data = self.locked_data.lock().unwrap();
+            if let Some(thread_data) = locked_data.threads.get(&thread_id) {
+                thread_data.name.clone()
+            } else {
+                std::thread::current()
+                    .name()
+                    .unwrap_or(format!("Thread {}", thread_id).as_str())
+                    .to_string()
+            }
+        };
+        println!("[{}]: {}", name, msg);
+    }
+
     pub fn write_profile_file(&self) {
         let end_time = self.get_elapsed_time();
         let mut thread_data = HashMap::new();

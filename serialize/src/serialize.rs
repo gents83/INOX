@@ -44,7 +44,7 @@ where
         } else {
             eprintln!(
                 "Unable to deserialize file {}",
-                filepath.to_str().unwrap_or("InvalidPath")
+                filepath.to_str().unwrap_or("InvalidPath"),
             );
         }
     }
@@ -64,7 +64,7 @@ where
         } else {
             eprintln!(
                 "Unable to deserialize file {}",
-                filepath.to_str().unwrap_or("InvalidPath")
+                filepath.to_str().unwrap_or("InvalidPath"),
             );
         }
     }

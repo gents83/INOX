@@ -1,5 +1,6 @@
 use std::path::Path;
 
+use nrg_profiler::debug_log;
 use nrg_serialize::generate_random_uid;
 
 use crate::{
@@ -310,14 +311,17 @@ impl TextureHandler {
             .remove_from_layer(device, layer_index, &area);
         */
         allocator.remove(area);
-        println!(
-            "Removing from texture atlas {:?} at layer {:}",
-            texture_index, layer_index
+        debug_log(
+            format!(
+                "Removing from texture atlas {:?} at layer {:}",
+                texture_index, layer_index
+            )
+            .as_str(),
         );
         if texture_atlas.allocators.iter().all(|a| a.is_empty()) {
             let texture_atlas = self.texture_atlas.remove(texture_index as usize);
             texture_atlas.destroy(device);
-            println!("Removing texture atlas {:?}", texture_index);
+            debug_log(format!("Removing texture atlas {:?}", texture_index).as_str());
         }
         //todo remove the real texture from device memory
     }

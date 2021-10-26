@@ -2,6 +2,7 @@ use std::path::{Path, PathBuf};
 
 use nrg_filesystem::convert_from_local_path;
 use nrg_messenger::{send_global_event, MessengerRw};
+use nrg_profiler::debug_log;
 use nrg_serialize::generate_uid_from_string;
 
 use crate::{
@@ -72,7 +73,7 @@ pub trait SerializableResource: DataTypeResource + Sized {
         let data = Self::deserialize_data(path.as_path());
         let resource_id = generate_uid_from_string(path.as_path().to_str().unwrap());
         let resource = Self::create_from_data(shared_data, global_messenger, resource_id, data);
-        println!("Created resource {:?}", path.as_path());
+        debug_log(format!("Created resource {:?}", path.as_path()).as_str());
         resource.get_mut(|r| r.set_path(path.as_path()));
         resource
     }

@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use image::RgbaImage;
 use nrg_filesystem::convert_from_local_path;
 use nrg_messenger::MessengerRw;
+use nrg_profiler::debug_log;
 use nrg_resources::{
     DataTypeResource, Handle, Resource, ResourceId, SerializableResource, SharedData, SharedDataRc,
     DATA_FOLDER,
@@ -46,7 +47,7 @@ impl DataTypeResource for Texture {
     type DataType = RgbaImage;
     fn invalidate(&mut self) {
         self.is_initialized = false;
-        println!("Texture {:?} will be reloaded", self.path);
+        debug_log(format!("Texture {:?} will be reloaded", self.path).as_str());
     }
     fn is_initialized(&self) -> bool {
         self.is_initialized

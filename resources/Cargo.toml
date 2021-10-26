@@ -11,4 +11,8 @@ crate-type = ["cdylib",'rlib']
 [dependencies]
 nrg_filesystem = { path = "../filesystem" }
 nrg_messenger = { path = "../messenger" }
+nrg_profiler = { path = "../profiler" }
 nrg_serialize = { path = "../serialize" }
+
+#TO REMOVE
+nrg_platform = { path = "../platform" }

@@ -28,20 +28,12 @@
     "scene" : 0,
     "scenes" : [
         {
-            "extras" : {
-                "glTF2ExportSettings" : {
-                    "export_apply" : 1,
-                    "export_cameras" : 1,
-                    "export_extras" : 1,
-                    "export_format" : "GLTF_SEPARATE",
-                    "export_lights" : 1
-                }
-            },
             "name" : "Scene",
             "nodes" : [
                 1,
                 3,
-                4
+                4,
+                5
             ]
         }
     ],
@@ -93,20 +85,29 @@
             ],
             "name" : "Camera",
             "rotation" : [
-                0.7071068286895752,
-                0,
-                0,
-                0.7071068286895752
+                0.5220142602920532,
+                0.19421043992042542,
+                -0.1234380379319191,
+                0.8213077783584595
             ],
             "translation" : [
-                0,
-                0,
-                15
+                5.93658971786499,
+                3.902752637863159,
+                7.087425231933594
             ]
         },
         {
             "mesh" : 0,
             "name" : "Suzanne"
+        },
+        {
+            "mesh" : 1,
+            "name" : "Torus",
+            "translation" : [
+                2.3721742630004883,
+                0,
+                0
+            ]
         }
     ],
     "cameras" : [
@@ -132,6 +133,19 @@
                         "TEXCOORD_0" : 2
                     },
                     "indices" : 3
+                }
+            ]
+        },
+        {
+            "name" : "Torus",
+            "primitives" : [
+                {
+                    "attributes" : {
+                        "POSITION" : 4,
+                        "NORMAL" : 5,
+                        "TEXCOORD_0" : 6
+                    },
+                    "indices" : 7
                 }
             ]
         }
@@ -170,6 +184,40 @@
             "componentType" : 5123,
             "count" : 2904,
             "type" : "SCALAR"
+        },
+        {
+            "bufferView" : 4,
+            "componentType" : 5126,
+            "count" : 2304,
+            "max" : [
+                1.25,
+                0.25,
+                1.25
+            ],
+            "min" : [
+                -1.25,
+                -0.25,
+                -1.25
+            ],
+            "type" : "VEC3"
+        },
+        {
+            "bufferView" : 5,
+            "componentType" : 5126,
+            "count" : 2304,
+            "type" : "VEC3"
+        },
+        {
+            "bufferView" : 6,
+            "componentType" : 5126,
+            "count" : 2304,
+            "type" : "VEC2"
+        },
+        {
+            "bufferView" : 7,
+            "componentType" : 5123,
+            "count" : 3456,
+            "type" : "SCALAR"
         }
     ],
     "bufferViews" : [
@@ -192,11 +240,31 @@
             "buffer" : 0,
             "byteLength" : 5808,
             "byteOffset" : 62912
+        },
+        {
+            "buffer" : 0,
+            "byteLength" : 27648,
+            "byteOffset" : 68720
+        },
+        {
+            "buffer" : 0,
+            "byteLength" : 27648,
+            "byteOffset" : 96368
+        },
+        {
+            "buffer" : 0,
+            "byteLength" : 18432,
+            "byteOffset" : 124016
+        },
+        {
+            "buffer" : 0,
+            "byteLength" : 6912,
+            "byteOffset" : 142448
         }
     ],
     "buffers" : [
         {
-            "byteLength" : 68720,
+            "byteLength" : 149360,
             "uri" : "Monkey.bin"
         }
     ]

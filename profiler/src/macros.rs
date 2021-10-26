@@ -2,7 +2,7 @@
 macro_rules! load_profiler_lib {
     () => {
         #[cfg(debug_assertions)]
-        unsafe {
+        {
             use std::path::PathBuf;
             use $crate::*;
 
@@ -31,10 +31,8 @@ macro_rules! get_profiler {
                     .unwrap()
                     .get::<PfnGetProfiler>(GET_PROFILER_FUNCTION_NAME)
                 {
-                    unsafe {
-                        let profiler = get_profiler_fn.unwrap()();
-                        GLOBAL_PROFILER.replace(profiler);
-                    }
+                    let profiler = get_profiler_fn.unwrap()();
+                    GLOBAL_PROFILER.replace(profiler);
                 }
             }
         }
@@ -147,4 +145,14 @@ macro_rules! scoped_profile {
             None
         };
     };
+}
+
+pub fn debug_log(msg: &str) {
+    #[cfg(debug_assertions)]
+    {
+        get_profiler!();
+        if let Some(profiler) = unsafe { &crate::GLOBAL_PROFILER } {
+            profiler.log(msg);
+        }
+    }
 }

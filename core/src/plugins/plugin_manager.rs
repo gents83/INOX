@@ -2,6 +2,7 @@ use std::{path::PathBuf, process};
 
 use nrg_filesystem::{library, Library};
 use nrg_platform::{FileEvent, FileWatcher};
+use nrg_profiler::debug_log;
 
 use crate::{
     App, PfnCreatePlugin, PfnDestroyPlugin, PfnPreparePlugin, PfnUnpreparePlugin, PluginHolder,
@@ -78,7 +79,7 @@ impl PluginManager {
                     eprintln!(
                         "Folder creation failed {:?} - unable to create in_use folder {}",
                         res.err(),
-                        in_use_path.to_str().unwrap()
+                        in_use_path.to_str().unwrap(),
                     );
                 }
             }
@@ -112,16 +113,19 @@ impl PluginManager {
                 "Copy failed {:?} - unable to create in_use version of the lib {}\nUsing {}",
                 res.err(),
                 in_use_fullpath.to_str().unwrap(),
-                fullpath.to_str().unwrap()
+                fullpath.to_str().unwrap(),
             );
             in_use_fullpath = fullpath.clone();
         }
 
         let (lib, plugin_holder) = PluginManager::load_plugin(in_use_fullpath.clone());
 
-        println!(
-            "Loaded plugin {}",
-            fullpath.file_stem().unwrap().to_str().unwrap()
+        debug_log(
+            format!(
+                "Loaded plugin {}",
+                fullpath.file_stem().unwrap().to_str().unwrap(),
+            )
+            .as_str(),
         );
 
         if let Some(prepare_fn) = lib.get::<PfnPreparePlugin>(PREPARE_PLUGIN_FUNCTION_NAME) {
@@ -155,9 +159,12 @@ impl PluginManager {
         }
         lib.close();
 
-        println!(
-            "Unloaded plugin {:?}",
-            plugin_data.original_path.as_os_str()
+        debug_log(
+            format!(
+                "Unloaded plugin {:?}",
+                plugin_data.original_path.as_os_str(),
+            )
+            .as_str(),
         );
 
         delete_file(in_use_path);

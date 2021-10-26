@@ -27,7 +27,7 @@ impl Job {
     {
         pending_jobs.fetch_add(1, Ordering::SeqCst);
         /*
-        println!(
+        debug_log(
             "Adding job {:?} - remaining {:?}",
             name,
             pending_jobs.load(Ordering::SeqCst)
@@ -46,7 +46,7 @@ impl Job {
     pub fn execute(self) {
         nrg_profiler::scoped_profile!(self.name.as_str());
         /*
-        println!(
+        debug_log(
             "Starting {:?} - remaining {:?}",
             self.name.as_str(),
             self.pending_jobs.load(Ordering::SeqCst)
@@ -57,7 +57,7 @@ impl Job {
 
         self.pending_jobs.fetch_sub(1, Ordering::SeqCst);
         /*
-        println!(
+        debug_log(
             "Ending {:?} - remaining {:?}",
             self.name.as_str(),
             self.pending_jobs.load(Ordering::SeqCst)

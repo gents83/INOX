@@ -34,7 +34,7 @@ impl SharedData {
             "Type {} has been already registered",
             type_name::<T>()
         );
-        //println!("Registering resource type: {:?}", type_name::<T>(),);
+        //debug_log("Registering resource type: {:?}", type_name::<T>(),);
         self.storage.write().unwrap().insert(
             typeid,
             Arc::new(RwLock::new(Box::new(Storage::<T>::default()))),
@@ -52,7 +52,7 @@ impl SharedData {
             "Type {} has been already registered",
             type_name::<T>()
         );
-        //println!("Registering resource type: {:?}", type_name::<T>(),);
+        //debug_log("Registering resource type: {:?}", type_name::<T>(),);
         self.event_handlers
             .write()
             .unwrap()
@@ -69,7 +69,7 @@ impl SharedData {
             "Type {} has never been registered",
             type_name::<T>()
         );
-        //println!("Unregistering resource type: {:?}", type_name::<T>());
+        //debug_log("Unregistering resource type: {:?}", type_name::<T>());
         if let Some(rs) = self.storage.write().unwrap().remove(&typeid) {
             rs.write().unwrap().remove_all();
         }
@@ -86,7 +86,7 @@ impl SharedData {
             "Type {} has never been registered",
             type_name::<T>()
         );
-        //println!("Unregistering resource type: {:?}", type_name::<T>());
+        //debug_log("Unregistering resource type: {:?}", type_name::<T>());
         self.event_handlers.write().unwrap().remove(&typeid);
     }
     #[inline]

@@ -2,6 +2,7 @@ use std::path::{Path, PathBuf};
 
 use nrg_math::{matrix4_to_array, Matrix4, Vector4};
 use nrg_messenger::MessengerRw;
+use nrg_profiler::debug_log;
 use nrg_resources::{
     DataTypeResource, Resource, ResourceId, SerializableResource, SharedData, SharedDataRc,
 };
@@ -151,37 +152,43 @@ impl Pipeline {
             && !self.data.vertex_shader.to_str().unwrap().is_empty()
         {
             self.invalidate();
-            println!("VertexShader {:?} will be reloaded", path_as_string);
+            debug_log(format!("VertexShader {:?} will be reloaded", path_as_string).as_str());
         }
         if path_as_string.contains(self.data.fragment_shader.to_str().unwrap())
             && !self.data.fragment_shader.to_str().unwrap().is_empty()
         {
             self.invalidate();
-            println!("FragmentShader {:?} will be reloaded", path_as_string);
+            debug_log(format!("FragmentShader {:?} will be reloaded", path_as_string).as_str());
         }
         if path_as_string.contains(self.data.tcs_shader.to_str().unwrap())
             && !self.data.tcs_shader.to_str().unwrap().is_empty()
         {
             self.invalidate();
-            println!(
-                "TessellationControlShader {:?} will be reloaded",
-                path_as_string
+            debug_log(
+                format!(
+                    "TessellationControlShader {:?} will be reloaded",
+                    path_as_string
+                )
+                .as_str(),
             );
         }
         if path_as_string.contains(self.data.tes_shader.to_str().unwrap())
             && !self.data.tes_shader.to_str().unwrap().is_empty()
         {
             self.invalidate();
-            println!(
-                "TessellationEvaluationShader {:?} will be reloaded",
-                path_as_string
+            debug_log(
+                format!(
+                    "TessellationEvaluationShader {:?} will be reloaded",
+                    path_as_string
+                )
+                .as_str(),
             );
         }
         if path_as_string.contains(self.data.geometry_shader.to_str().unwrap())
             && !self.data.geometry_shader.to_str().unwrap().is_empty()
         {
             self.invalidate();
-            println!("GeometryShader {:?} will be reloaded", path_as_string);
+            debug_log(format!("GeometryShader {:?} will be reloaded", path_as_string).as_str());
         }
     }
 
@@ -307,7 +314,10 @@ impl Pipeline {
         diffuse_texture_index: i32,
         diffuse_layer_index: i32,
     ) -> &mut Self {
-        if mesh.mesh_data().vertices.is_empty() || mesh.mesh_data().indices.is_empty() {
+        if !self.is_initialized()
+            || mesh.mesh_data().vertices.is_empty()
+            || mesh.mesh_data().indices.is_empty()
+        {
             return self;
         }
 

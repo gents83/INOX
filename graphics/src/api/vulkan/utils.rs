@@ -224,7 +224,7 @@ pub fn find_available_memory_type(
     }
     eprintln!(
         "Unable to find suitable memory type with filter {} and flags {}",
-        filter, properties
+        filter, properties,
     );
     VK_INVALID_ID as _
 }

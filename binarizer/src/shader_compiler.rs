@@ -141,7 +141,7 @@ impl ExtensionHandler for ShaderCompiler {
                     if !result {
                         eprintln!(
                             "Failed to process GEOMETRY shader {}",
-                            path.to_str().unwrap()
+                            path.to_str().unwrap(),
                         );
                     }
                 }
@@ -150,7 +150,7 @@ impl ExtensionHandler for ShaderCompiler {
                     if !result {
                         eprintln!(
                             "Failed to process FRAGMENT shader {}",
-                            path.to_str().unwrap()
+                            path.to_str().unwrap(),
                         );
                     }
                 }

@@ -3,6 +3,7 @@ use nrg_graphics::{RenderPass, View};
 use nrg_math::{Degrees, InnerSpace, Matrix4, NewAngle, Vector2, Vector3, Zero};
 use nrg_messenger::{read_messages, send_global_event, MessageChannel, MessengerRw};
 use nrg_platform::{Key, KeyEvent, MouseButton, MouseEvent, WindowEvent};
+use nrg_profiler::debug_log;
 use nrg_resources::{DataTypeResource, Resource, SerializableResource, SharedData, SharedDataRc};
 use nrg_scene::{Camera, Object, ObjectId, Scene};
 use nrg_serialize::generate_random_uid;
@@ -172,7 +173,7 @@ impl ViewerSystem {
         let args: Vec<String> = env::args().collect();
         if args.len() > 1 {
             (1..args.len()).for_each(|i| {
-                println!("{:?}", args[i].as_str());
+                debug_log(format!("{:?}", args[i].as_str()).as_str());
                 if args[i].starts_with("-load_file") {
                     next_op = Operation::LoadFile;
                     if let Some(argument) = args[i].strip_prefix("-load_file ") {
@@ -273,15 +274,15 @@ impl ViewerSystem {
                 /*
                 if let Some(parent) = c.parent() {
                     if parent.get(|o| o.is_dirty()) {
-                        println!("Cam Active: {:?}", c.is_active());
+                        debug_log("Cam Active: {:?}", c.is_active());
                         let (t, r, _) = c.transform().get_translation_rotation_scale();
-                        println!("Cam Pos: {:?}", t);
+                        debug_log("Cam Pos: {:?}", t);
                         let roll: Degrees = Radians::new(r.x).into();
                         let yaw: Degrees = Radians::new(r.y).into();
                         let pitch: Degrees = Radians::new(r.z).into();
-                        println!("Cam Roll: {:?}", roll);
-                        println!("Cam Yaw: {:?}", yaw);
-                        println!("Cam Pitch: {:?}", pitch);
+                        debug_log("Cam Roll: {:?}", roll);
+                        debug_log("Cam Yaw: {:?}", yaw);
+                        debug_log("Cam Pitch: {:?}", pitch);
                     }
                 }*/
 
@@ -346,11 +347,11 @@ impl ViewerSystem {
                         + matrix.z.xyz().normalize() * movement.z;
                     c.translate(translation);
                     /*
-                    println!("Camera");
-                    println!("Pos: {:?}", c.transform().translation());
-                    println!("Right: {:?}", c.transform().x.xyz());
-                    println!("Up: {:?}", c.transform().y.xyz());
-                    println!("Forward: {:?}", c.transform().z.xyz());
+                    debug_log("Camera");
+                    debug_log("Pos: {:?}", c.transform().translation());
+                    debug_log("Right: {:?}", c.transform().x.xyz());
+                    debug_log("Up: {:?}", c.transform().y.xyz());
+                    debug_log("Forward: {:?}", c.transform().z.xyz());
                     */
                 }
             });

@@ -19,6 +19,7 @@ use nrg_graphics::{
 };
 use nrg_math::{Mat4Ops, Matrix4, NewAngle, Parser, Radians, Vector2, Vector3, Vector4};
 use nrg_messenger::MessengerRw;
+use nrg_profiler::debug_log;
 use nrg_resources::{DATA_FOLDER, DATA_RAW_FOLDER};
 use nrg_scene::{CameraData, ObjectData, SceneData};
 use nrg_serialize::serialize_to_file;
@@ -144,7 +145,7 @@ impl GltfCompiler {
     fn extract_mesh_data(&mut self, path: &Path, primitive: &Primitive) -> Vec<VertexData> {
         let mut vertices = Vec::new();
         for (_attribute_index, (semantic, accessor)) in primitive.attributes().enumerate() {
-            //println!("Attribute[{}]: {:?}", _attribute_index, semantic);
+            //debug_log("Attribute[{}]: {:?}", _attribute_index, semantic);
             match semantic {
                 Semantic::Positions => {
                     let num = self.num_from_type(&accessor);
@@ -311,7 +312,7 @@ impl GltfCompiler {
 
         if let Some(mesh) = node.mesh() {
             for (_primitive_index, primitive) in mesh.primitives().enumerate() {
-                //println!("Primitive[{}]: ", _primitive_index);
+                //debug_log("Primitive[{}]: ", _primitive_index);
                 let name = format!("Mesh_{}", mesh.index());
                 let material_path = self.process_material_data(path, &primitive);
                 let material_path = convert_in_local_path(
@@ -464,7 +465,7 @@ impl GltfCompiler {
             debug_assert!(result.is_ok());
         }
         if need_to_binarize(path, new_path.as_path()) {
-            println!("Serializing {:?}", new_path);
+            debug_log(format!("Serializing {:?}", new_path).as_str());
             serialize_to_file(data, new_path.as_path());
         }
         new_path

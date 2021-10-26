@@ -2,6 +2,7 @@ use std::path::Path;
 
 use crate::{copy_into_data_folder, ExtensionHandler};
 use nrg_messenger::MessengerRw;
+use nrg_profiler::debug_log;
 
 const FONT_EXTENSION: &str = "ttf";
 
@@ -21,7 +22,7 @@ impl ExtensionHandler for FontCompiler {
             if ext.to_str().unwrap().to_string().as_str() == FONT_EXTENSION
                 && copy_into_data_folder(&self.global_messenger, path)
             {
-                println!("Serializing {:?}", path);
+                debug_log(format!("Serializing {:?}", path).as_str());
             }
         }
     }

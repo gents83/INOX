@@ -2,6 +2,7 @@ use std::path::Path;
 
 use crate::{copy_into_data_folder, ExtensionHandler};
 use nrg_messenger::MessengerRw;
+use nrg_profiler::debug_log;
 
 const IMAGE_PNG_EXTENSION: &str = "png";
 const IMAGE_JPG_EXTENSION: &str = "jpg";
@@ -38,7 +39,7 @@ impl ExtensionHandler for ImageCompiler {
                 || extension.as_str() == IMAGE_DDS_EXTENSION)
                 && copy_into_data_folder(&self.global_messenger, path)
             {
-                println!("Serializing {:?}", path);
+                debug_log(format!("Serializing {:?}", path).as_str());
             }
         }
     }

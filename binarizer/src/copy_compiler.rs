@@ -2,6 +2,7 @@ use std::path::Path;
 
 use crate::{copy_into_data_folder, ExtensionHandler};
 use nrg_messenger::MessengerRw;
+use nrg_profiler::debug_log;
 
 const CONFIG_EXTENSION: &str = "cfg";
 const MATERIAL_EXTENSION: &str = "material_data";
@@ -34,7 +35,7 @@ impl ExtensionHandler for CopyCompiler {
                 || ext.as_str() == CAMERA_EXTENSION)
                 && copy_into_data_folder(&self.global_messenger, path)
             {
-                println!("Serializing {:?}", path);
+                debug_log(format!("Serializing {:?}", path).as_str());
             }
         }
     }

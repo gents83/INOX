@@ -113,7 +113,7 @@ impl RenderPass {
     ) {
         if let Some(t) = texture {
             if texture_handler.get_texture_atlas(t.id()).is_none() {
-                //println!("Adding texture {:?}", t.id());
+                //debug_log("Adding texture {:?}", t.id());
                 t.get_mut(|t| {
                     t.set_update_from_gpu(should_update_from_gpu);
                 });
@@ -198,7 +198,7 @@ impl RenderPass {
             backend_render_pass.destroy(device);
         }
         self.texture_to_recycle.iter().for_each(|t| {
-            //println!("Removing texture {:?}", t.id());
+            //debug_log("Removing texture {:?}", t.id());
             texture_handler.remove(device, t.id());
         });
         self.texture_to_recycle.clear();

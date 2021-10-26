@@ -37,7 +37,7 @@ impl PhaseWithSystems {
         if self.systems.contains(&system.id()) {
             eprintln!(
                 "Trying to add twice a System with id {:?} in this Phase",
-                system.id()
+                system.id(),
             );
         } else {
             self.systems_to_add.push(Box::new(system));
@@ -49,7 +49,7 @@ impl PhaseWithSystems {
         if !self.systems.contains(system_id) {
             eprintln!(
                 "Trying to remove a System with id {:?} in this Phase",
-                system_id
+                system_id,
             );
         } else if !self.systems_to_remove.contains(system_id) {
             self.systems_to_remove.push(*system_id);

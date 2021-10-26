@@ -346,13 +346,13 @@ impl EditorUpdater {
                         let extension = filename.extension().unwrap().to_str().unwrap();
                         match operation {
                             DialogOp::Open => {
-                                println!("Loading {:?}", filename);
+                                debug_log(format!("Loading {:?}", filename).as_str());
                                 if extension.contains("scene_data") {
                                     self.load_object(filename.as_path());
                                 }
                             }
                             DialogOp::Save => {
-                                println!("Saving {:?}", filename);
+                                debug_log(format!("Saving {:?}", filename).as_str());
                                 if extension.contains("scene_data") {}
                             }
                             DialogOp::New => {}
