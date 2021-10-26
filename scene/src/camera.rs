@@ -195,7 +195,7 @@ impl Camera {
     pub fn look_toward(&self, direction: Vector3) {
         if let Some(parent) = &self.parent {
             parent.get_mut(|o| {
-                o.look_toward(direction);
+                o.look_towards(direction);
             });
         }
     }

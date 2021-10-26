@@ -252,7 +252,7 @@ pub fn create_arrow(position: Vector3, direction: Vector3) -> (Vec<VertexData>, 
     shape_indices.append(&mut indices);
 
     let mut matrix = Matrix4::default_identity();
-    matrix.from_direction(direction);
+    matrix.look_towards(direction);
     shape_vertices.iter_mut().for_each(|v| {
         v.pos = position + matrix.transform(v.pos);
     });
@@ -311,7 +311,7 @@ pub fn create_hammer(position: Vector3, direction: Vector3) -> (Vec<VertexData>,
     shape_indices.append(&mut indices.to_vec());
 
     let mut matrix = Matrix4::default_identity();
-    matrix.from_direction(direction);
+    matrix.look_towards(direction);
     shape_vertices.iter_mut().for_each(|v| {
         v.pos = position + matrix.transform(v.pos);
     });
@@ -377,7 +377,7 @@ pub fn create_torus(
     }
 
     let mut matrix = Matrix4::default_identity();
-    matrix.from_direction(direction);
+    matrix.look_towards(direction);
     vertices.iter_mut().for_each(|v| {
         v.pos = position + matrix.transform(v.pos);
     });

@@ -41,8 +41,8 @@ pub trait Mat4Ops {
         scale: Vector3,
     );
     fn look_at(&mut self, position: Vector3);
+    fn look_towards(&mut self, direction: Vector3);
     fn get_direction(&self) -> Vector3;
-    fn from_direction(&mut self, direction: Vector3);
     fn transform(&self, vec: Vector3) -> Vector3;
 }
 
@@ -130,34 +130,28 @@ macro_rules! implement_matrix4_operations {
             fn look_at(&mut self, target: Vector3) {
                 let p = self.translation();
                 let forward = (target - p).normalize();
-                let right = Vector3::unit_y().cross(forward).normalize();
-                let up = forward.cross(right).normalize();
+                let mut up = Vector3::unit_y();
+                if forward.dot(up) >= 1. - f32::EPSILON && forward.dot(up) <= 1. + f32::EPSILON {
+                    up = Matrix4::from_angle_x(Degrees::new(90.)).transform(forward);
+                };
+                let right = up.cross(forward).normalize();
+                up = forward.cross(right).normalize();
                 let mut l: Matrix4 = Matrix3::from_cols(right, up, forward).into();
                 l.set_translation(p);
                 *self = l;
+            }
+            #[inline]
+            fn look_towards(&mut self, direction: Vector3) {
+                let position = self.translation();
+                let target = position + direction.normalize();
+                self.look_at(target)
             }
 
             #[inline]
             fn get_direction(&self) -> Vector3 {
                 let rotation = self.rotation();
                 let q = Quaternion::from_euler_angles(rotation);
-                q.v
-            }
-
-            #[inline]
-            fn from_direction(&mut self, direction: Vector3) {
-                let forward = direction.normalize();
-                let mut up = Vector3::new(0., 1., 0.);
-                if forward.dot(up) >= 1. - f32::EPSILON && forward.dot(up) <= 1. + f32::EPSILON {
-                    up = Matrix4::from_angle_x(Degrees::new(90.)).transform(forward);
-                };
-                let right: Vector3 = forward.cross(up).normalize();
-                up = right.cross(forward).normalize();
-
-                *self = Matrix4::new(
-                    right.x, up.x, forward.x, 0., right.y, up.y, forward.y, 0., right.z, up.z,
-                    forward.z, 0., 0., 0., 0., 1.,
-                );
+                q.v.normalize()
             }
         }
     };

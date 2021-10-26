@@ -5,7 +5,7 @@ use std::{
 };
 
 use nrg_graphics::Mesh;
-use nrg_math::{InnerSpace, Mat4Ops, MatBase, Matrix4, Vector3};
+use nrg_math::{Mat4Ops, MatBase, Matrix4, Vector3};
 use nrg_messenger::MessengerRw;
 use nrg_resources::{
     DataTypeResource, Function, GenericResource, Handle, Resource, ResourceCastTo, ResourceId,
@@ -217,10 +217,10 @@ impl Object {
         self
     }
     #[inline]
-    pub fn look_toward(&mut self, direction: Vector3) -> &mut Self {
-        let position = self.transform.translation();
-        let target = position + direction.normalize();
-        self.look_at(target)
+    pub fn look_towards(&mut self, direction: Vector3) -> &mut Self {
+        self.transform.look_towards(direction);
+        self.set_dirty();
+        self
     }
 
     pub fn is_dirty(&self) -> bool {

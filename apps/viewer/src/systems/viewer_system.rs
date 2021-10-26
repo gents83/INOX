@@ -370,17 +370,6 @@ impl ViewerSystem {
                 self.shared_data.for_each_resource_mut(|_, c: &mut Camera| {
                     if c.is_active() {
                         c.rotate(rotation_angle * 5.);
-                        /*
-                        let (translation, rotation, _) =
-                            c.transform().get_translation_rotation_scale();
-                        let mut direction = Vector3::zero();
-                        let yaw = rotation.y + rotation_angle.y + PI / 2.;
-                        let pitch = rotation.x + rotation_angle.x;
-                        direction.x = yaw.cos() * pitch.cos();
-                        direction.y = pitch.sin();
-                        direction.z = yaw.sin() * pitch.cos();
-                        c.look_at(translation + direction * 5.);
-                        */
                     }
                 });
             }
