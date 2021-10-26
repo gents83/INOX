@@ -83,6 +83,8 @@ impl DataTypeResource for Material {
 
         let material = Self {
             textures,
+            diffuse_color: material_data.diffuse_color,
+            outline_color: material_data.outline_color,
             pipeline: Some(pipeline),
             ..Default::default()
         };

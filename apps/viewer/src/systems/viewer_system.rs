@@ -48,14 +48,14 @@ impl ViewerSystem {
             Object::default(),
         );
         camera_object.get_mut(|o| {
-            o.set_position(Vector3::new(0.0, 0.0, -10.0));
+            o.set_position(Vector3::new(0.0, 0.0, -50.0));
             o.look_at(Vector3::new(0.0, 0.0, 0.0));
             let camera = o.add_default_component::<Camera>(&shared_data);
             camera.get_mut(|c| {
                 c.set_parent(&camera_object)
                     .set_active(false)
                     .set_projection(
-                        Degrees::new(22.),
+                        Degrees::new(45.),
                         config.width as _,
                         config.height as _,
                         0.001,
