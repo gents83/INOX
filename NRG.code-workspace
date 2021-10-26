@@ -2,13 +2,13 @@
 	"folders": [
 		{
 			"path": "."
-		},
+		} /*,
 		{
 			"path": "..\\egui"
 		},
 		{
 			"path": "..\\rust-cpython"
-		}
+		}*/
 	],
 	"extensions": {
 		"recommendations": [

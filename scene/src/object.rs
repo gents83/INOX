@@ -14,7 +14,7 @@ use nrg_resources::{
 use nrg_serialize::{generate_random_uid, read_from_file};
 use nrg_ui::{CollapsingHeader, UIProperties, UIPropertiesRegistry, Ui};
 
-use crate::{Camera, ObjectData};
+use crate::{Camera, Light, ObjectData};
 
 pub type ComponentId = ResourceId;
 pub type ObjectId = ResourceId;
@@ -147,6 +147,23 @@ impl DataTypeResource for Object {
                     Some(on_camera_loaded),
                 );
                 object.add_component::<Camera>(camera);
+            } else if Light::is_matching_extension(path) {
+                let shared_data_rc = shared_data.clone();
+                let on_light_loaded: Box<dyn Function<Light>> =
+                    Box::new(move |light: &Resource<Light>| {
+                        if let Some(parent) = shared_data_rc.get_resource::<Object>(&id) {
+                            light.get_mut(|l| {
+                                l.set_parent(&parent);
+                            })
+                        }
+                    });
+                let light = Light::load_from_file(
+                    shared_data,
+                    global_messenger,
+                    path,
+                    Some(on_light_loaded),
+                );
+                object.add_component::<Light>(light);
             }
         });
 

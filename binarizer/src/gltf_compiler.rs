@@ -10,6 +10,7 @@ use gltf::{
     buffer::{Source, View},
     camera::Projection,
     image::Source as ImageSource,
+    khr_lights_punctual::{Kind, Light},
     mesh::Mode,
     Accessor, Camera, Gltf, Node, Primitive, Semantic,
 };
@@ -21,7 +22,7 @@ use nrg_math::{Mat4Ops, Matrix4, NewAngle, Parser, Radians, Vector2, Vector3, Ve
 use nrg_messenger::MessengerRw;
 use nrg_profiler::debug_log;
 use nrg_resources::{DATA_FOLDER, DATA_RAW_FOLDER};
-use nrg_scene::{CameraData, ObjectData, SceneData};
+use nrg_scene::{CameraData, LightData, LightType, ObjectData, SceneData};
 use nrg_serialize::serialize_to_file;
 
 const GLTF_EXTENSION: &str = "gltf";
@@ -29,6 +30,7 @@ const MESH_DATA_EXTENSION: &str = "mesh_data";
 const MATERIAL_DATA_EXTENSION: &str = "material_data";
 const OBJECT_DATA_EXTENSION: &str = "object_data";
 const CAMERA_DATA_EXTENSION: &str = "camera_data";
+const LIGHT_DATA_EXTENSION: &str = "light_data";
 const SCENE_DATA_EXTENSION: &str = "scene_data";
 
 const DEFAULT_PIPELINE: &str = "pipelines/Default.pipeline_data";
@@ -344,6 +346,13 @@ impl GltfCompiler {
                 PathBuf::from(DATA_FOLDER).as_path(),
             ));
         }
+        if let Some(light) = node.light() {
+            let (_, light_path) = self.process_light(path, &light);
+            object_data.components.push(convert_in_local_path(
+                light_path.as_path(),
+                PathBuf::from(DATA_FOLDER).as_path(),
+            ));
+        }
 
         for (_child_index, child) in node.children().enumerate() {
             let name = format!("Node_{}", child.index());
@@ -376,6 +385,33 @@ impl GltfCompiler {
         (
             NodeType::Object,
             Self::create_file(path, &object_data, node_name, OBJECT_DATA_EXTENSION),
+        )
+    }
+
+    fn process_light(&mut self, path: &Path, light: &Light) -> (NodeType, PathBuf) {
+        let mut light_data = LightData::default();
+        light_data.color = light.color().into();
+        light_data.intensity = light.intensity();
+        light_data.range = light.range().unwrap_or(1.);
+        match light.kind() {
+            Kind::Directional => {
+                light_data.light_type = LightType::Directional;
+            }
+            Kind::Point => {
+                light_data.light_type = LightType::Point;
+            }
+            Kind::Spot {
+                inner_cone_angle,
+                outer_cone_angle,
+            } => {
+                light_data.light_type = LightType::Spot(inner_cone_angle, outer_cone_angle);
+            }
+        }
+
+        let name = format!("Light_{}", light.index());
+        (
+            NodeType::Light,
+            Self::create_file(path, &light_data, &name, LIGHT_DATA_EXTENSION),
         )
     }
 
