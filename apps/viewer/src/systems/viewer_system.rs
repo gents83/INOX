@@ -2,7 +2,7 @@ use nrg_core::System;
 use nrg_graphics::{DrawEvent, View};
 use nrg_math::{InnerSpace, Matrix4, Vector2, Vector3, Zero};
 use nrg_messenger::{read_messages, send_global_event, MessageChannel, MessengerRw};
-use nrg_platform::{Key, KeyEvent, MouseButton, MouseEvent, WindowEvent};
+use nrg_platform::{Key, KeyEvent, MouseEvent, WindowEvent};
 use nrg_profiler::debug_log;
 use nrg_resources::{Resource, SerializableResource, SharedData, SharedDataRc};
 use nrg_scene::{Camera, Light, Object, ObjectId, Scene};
@@ -24,7 +24,6 @@ pub struct ViewerSystem {
     scene: Resource<Scene>,
     camera_object: Resource<Object>,
     last_mouse_pos: Vector2,
-    is_changing_camera: bool,
     _view_3d: Option<View3D>,
     _hierarchy: Option<Hierarchy>,
 }
@@ -63,7 +62,6 @@ impl ViewerSystem {
             scene,
             camera_object,
             last_mouse_pos: Vector2::zero(),
-            is_changing_camera: false,
         }
     }
 }
@@ -90,14 +88,8 @@ impl System for ViewerSystem {
             .register_messagebox::<MouseEvent>(self.message_channel.get_messagebox())
             .register_messagebox::<WindowEvent>(self.message_channel.get_messagebox());
 
-        /*
-        self._view_3d = Some(View3D::new(
-            &self.shared_data,
-            &self.global_messenger,
-            self.config.default_pipeline.as_path(),
-            self.config.wireframe_pipeline.as_path(),
-        ));
-        */
+        self._view_3d = Some(View3D::new(&self.shared_data, &self.global_messenger));
+
         self._hierarchy = Some(Hierarchy::new(
             &self.shared_data,
             &self.global_messenger,
@@ -138,12 +130,6 @@ impl System for ViewerSystem {
                 );
             }
         });
-
-        /*
-        if let Some(view3d) = &mut self._view_3d {
-            view3d.update();
-        }
-        */
 
         true
     }
@@ -262,21 +248,6 @@ impl ViewerSystem {
             }
 
             self.shared_data.for_each_resource(|_, c: &Camera| {
-                /*
-                if let Some(parent) = c.parent() {
-                    if parent.get(|o| o.is_dirty()) {
-                        debug_log("Cam Active: {:?}", c.is_active());
-                        let (t, r, _) = c.transform().get_translation_rotation_scale();
-                        debug_log("Cam Pos: {:?}", t);
-                        let roll: Degrees = Radians::new(r.x).into();
-                        let yaw: Degrees = Radians::new(r.y).into();
-                        let pitch: Degrees = Radians::new(r.z).into();
-                        debug_log("Cam Roll: {:?}", roll);
-                        debug_log("Cam Yaw: {:?}", yaw);
-                        debug_log("Cam Pitch: {:?}", pitch);
-                    }
-                }*/
-
                 if c.is_active() {
                     let view_matrix = c.view_matrix();
                     let proj_matrix = c.proj_matrix();
@@ -291,30 +262,6 @@ impl ViewerSystem {
     }
 
     fn handle_keyboard_event(&mut self, event: &KeyEvent) {
-        /*
-        self.shared_data.for_each_resource_mut(|_, o: &mut Object| {
-            if o.name() == "Suzanne" {
-                if event.code == Key::W {
-                    let dir = Vector3::new(0.0, 0.0, 1.0);
-                    //o.set_position(dir * 10.);
-                    o.look_toward(dir);
-                } else if event.code == Key::S {
-                    let dir = Vector3::new(0.0, 0.0, -1.0);
-                    //o.set_position(dir * 10.);
-                    o.look_toward(dir);
-                } else if event.code == Key::A {
-                    let dir = Vector3::new(-1.0, 0.0, 0.0);
-                    //o.set_position(dir * 10.);
-                    o.look_toward(dir);
-                } else if event.code == Key::D {
-                    let dir = Vector3::new(1.0, 0.0, 0.0);
-                    //o.set_position(dir * 10.);
-                    o.look_toward(dir);
-                }
-            }
-        });
-        */
-
         let mut movement = Vector3::zero();
         if event.code == Key::W {
             movement.z += 1.;
@@ -337,23 +284,17 @@ impl ViewerSystem {
                         + matrix.y.xyz().normalize() * movement.y
                         + matrix.z.xyz().normalize() * movement.z;
                     c.translate(translation);
-                    /*
-                    debug_log("Camera");
-                    debug_log("Pos: {:?}", c.transform().translation());
-                    debug_log("Right: {:?}", c.transform().x.xyz());
-                    debug_log("Up: {:?}", c.transform().y.xyz());
-                    debug_log("Forward: {:?}", c.transform().z.xyz());
-                    */
                 }
             });
         }
     }
 
     fn handle_mouse_event(&mut self, event: &MouseEvent) {
-        if event.button == MouseButton::Left {
-            self.is_changing_camera = !self.is_changing_camera;
+        let mut is_on_view3d = false;
+        if let Some(view_3d) = &self._view_3d {
+            is_on_view3d = view_3d.is_interacting();
         }
-        if self.is_changing_camera {
+        if is_on_view3d {
             let mut rotation_angle = Vector3::zero();
 
             rotation_angle.x = event.normalized_y - self.last_mouse_pos.y;

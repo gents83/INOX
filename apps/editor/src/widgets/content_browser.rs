@@ -203,7 +203,7 @@ impl ContentBrowser {
         let left_panel_max_width = left_panel_min_width * 4.;
         let button_size = 50.;
         UIWidget::register(shared_data, data, move |ui_data, ui_context| {
-            if let Some(data) = ui_data.as_any().downcast_mut::<ContentBrowserData>() {
+            if let Some(data) = ui_data.as_any_mut().downcast_mut::<ContentBrowserData>() {
                 let mut open = true;
                 let mut rect = ui_context.available_rect();
                 rect.min.x += rect.size().x * 0.05;

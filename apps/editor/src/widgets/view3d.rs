@@ -311,7 +311,7 @@ impl View3D {
 
     fn create(shared_data: &SharedDataRc, data: View3DData) -> Resource<UIWidget> {
         UIWidget::register(shared_data, data, |ui_data, ui_context| {
-            if let Some(data) = ui_data.as_any().downcast_mut::<View3DData>() {
+            if let Some(data) = ui_data.as_any_mut().downcast_mut::<View3DData>() {
                 CentralPanel::default()
                     .frame(Frame::dark_canvas(ui_context.style().as_ref()))
                     .show(ui_context, |ui| {

@@ -51,7 +51,7 @@ impl Hierarchy {
 
     fn create(shared_data: &SharedDataRc, data: HierarchyData) -> Resource<UIWidget> {
         UIWidget::register(shared_data, data, |ui_data, ui_context| {
-            if let Some(data) = ui_data.as_any().downcast_mut::<HierarchyData>() {
+            if let Some(data) = ui_data.as_any_mut().downcast_mut::<HierarchyData>() {
                 SidePanel::left("Hierarchy")
                     .resizable(true)
                     .show(ui_context, |ui| {

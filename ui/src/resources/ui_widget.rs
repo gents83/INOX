@@ -9,7 +9,8 @@ use crate::{UIProperties, UIPropertiesRegistry};
 pub type UIWidgetId = ResourceId;
 
 pub trait UIWidgetData: Send + Sync + Any + 'static {
-    fn as_any(&mut self) -> &mut dyn Any;
+    fn as_any(&self) -> &dyn Any;
+    fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 #[macro_export]
 macro_rules! implement_widget_data {
@@ -19,7 +20,11 @@ macro_rules! implement_widget_data {
 
         impl $crate::UIWidgetData for $Type {
             #[inline]
-            fn as_any(&mut self) -> &mut dyn std::any::Any {
+            fn as_any(&self) -> &dyn std::any::Any {
+                self
+            }
+            #[inline]
+            fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
                 self
             }
         }
@@ -77,7 +82,7 @@ impl UIWidget {
         SharedData::add_resource::<UIWidget>(shared_data, generate_random_uid(), ui_page)
     }
 
-    pub fn data<D>(&mut self) -> Option<&D>
+    pub fn data<D>(&self) -> Option<&D>
     where
         D: UIWidgetData + Sized,
     {
@@ -88,7 +93,7 @@ impl UIWidget {
     where
         D: UIWidgetData + Sized + 'static,
     {
-        self.data.as_any().downcast_mut::<D>()
+        self.data.as_any_mut().downcast_mut::<D>()
     }
 
     pub fn execute(&mut self, ui_context: &CtxRef) {

@@ -5,7 +5,8 @@ use nrg_messenger::MessengerRw;
 use nrg_resources::{DataTypeResource, Resource, SharedData, SharedDataRc};
 use nrg_serialize::generate_random_uid;
 use nrg_ui::{
-    implement_widget_data, CentralPanel, Frame, LayerId, TextureId as eguiTextureId, UIWidget,
+    implement_widget_data, CentralPanel, Frame, Image, LayerId, Sense, TextureId as eguiTextureId,
+    UIWidget, Widget,
 };
 const VIEW3D_IMAGE_WIDTH: u32 = 1920;
 const VIEW3D_IMAGE_HEIGHT: u32 = 1080;
@@ -13,6 +14,7 @@ const VIEW3D_IMAGE_HEIGHT: u32 = 1080;
 struct View3DData {
     shared_data: SharedDataRc,
     texture: Resource<Texture>,
+    is_interacting: bool,
 }
 implement_widget_data!(View3DData);
 
@@ -36,14 +38,24 @@ impl View3D {
         let data = View3DData {
             shared_data: shared_data.clone(),
             texture,
+            is_interacting: false,
         };
         let ui_page = Self::create(shared_data, data);
         Self { _ui_page: ui_page }
     }
 
+    pub fn is_interacting(&self) -> bool {
+        self._ui_page.get(|p| {
+            if let Some(data) = p.data::<View3DData>() {
+                return data.is_interacting;
+            }
+            false
+        })
+    }
+
     fn create(shared_data: &SharedDataRc, data: View3DData) -> Resource<UIWidget> {
         UIWidget::register(shared_data, data, |ui_data, ui_context| {
-            if let Some(data) = ui_data.as_any().downcast_mut::<View3DData>() {
+            if let Some(data) = ui_data.as_any_mut().downcast_mut::<View3DData>() {
                 CentralPanel::default()
                     .frame(Frame::dark_canvas(ui_context.style().as_ref()))
                     .show(ui_context, |ui| {
@@ -61,10 +73,13 @@ impl View3D {
                         };
 
                         ui.with_layer_id(LayerId::background(), |ui| {
-                            ui.image(
+                            let response = Image::new(
                                 eguiTextureId::User(texture_index as _),
                                 [view_width as _, view_height as _],
-                            );
+                            )
+                            .sense(Sense::click_and_drag())
+                            .ui(ui);
+                            data.is_interacting = response.is_pointer_button_down_on();
                         })
                     });
             }

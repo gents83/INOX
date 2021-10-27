@@ -34,7 +34,7 @@ impl DebugInfo {
 
     fn create(shared_data: &SharedDataRc, data: DebugData) -> Resource<UIWidget> {
         UIWidget::register(shared_data, data, |ui_data, ui_context| {
-            if let Some(data) = ui_data.as_any().downcast_mut::<DebugData>() {
+            if let Some(data) = ui_data.as_any_mut().downcast_mut::<DebugData>() {
                 let now = Instant::now();
                 let one_sec_before = now - Duration::from_secs(1);
                 data.frame_seconds.push_back(now);

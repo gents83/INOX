@@ -3,7 +3,7 @@ use nrg_resources::{Resource, SerializableResource, SharedData, SharedDataRc};
 use nrg_scene::{Object, ObjectId, Scene, SceneId};
 use nrg_serialize::INVALID_UID;
 use nrg_ui::{
-    implement_widget_data, CollapsingHeader, ScrollArea, SelectableLabel, SidePanel, UIWidget, Ui,
+    implement_widget_data, CollapsingHeader, ScrollArea, SelectableLabel, UIWidget, Ui, Window,
 };
 
 struct HierarchyData {
@@ -49,12 +49,12 @@ impl Hierarchy {
 
     fn create(shared_data: &SharedDataRc, data: HierarchyData) -> Resource<UIWidget> {
         UIWidget::register(shared_data, data, |ui_data, ui_context| {
-            if let Some(data) = ui_data.as_any().downcast_mut::<HierarchyData>() {
-                SidePanel::left("Hierarchy")
+            if let Some(data) = ui_data.as_any_mut().downcast_mut::<HierarchyData>() {
+                Window::new("Hierarchy")
+                    .vscroll(true)
+                    .title_bar(true)
                     .resizable(true)
                     .show(ui_context, |ui| {
-                        ui.heading("Hierarchy:");
-
                         CollapsingHeader::new("Scene")
                             .selected(false)
                             .selectable(false)

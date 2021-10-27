@@ -67,7 +67,7 @@ impl Toolbar {
 
     fn create(shared_data: &SharedDataRc, data: ToolbarData) -> Resource<UIWidget> {
         UIWidget::register(shared_data, data, |ui_data, ui_context| {
-            if let Some(data) = ui_data.as_any().downcast_mut::<ToolbarData>() {
+            if let Some(data) = ui_data.as_any_mut().downcast_mut::<ToolbarData>() {
                 TopBottomPanel::top("toolbar")
                     .resizable(false)
                     .show(ui_context, |ui| {

@@ -40,7 +40,7 @@ impl MainMenu {
 
     fn create(shared_data: &SharedDataRc, data: MenuData) -> Resource<UIWidget> {
         UIWidget::register(shared_data, data, |ui_data, ui_context| {
-            if let Some(data) = ui_data.as_any().downcast_mut::<MenuData>() {
+            if let Some(data) = ui_data.as_any_mut().downcast_mut::<MenuData>() {
                 TopBottomPanel::top("main_menu")
                     .resizable(false)
                     .show(ui_context, |ui| {
