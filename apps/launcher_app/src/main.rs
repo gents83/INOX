@@ -13,9 +13,6 @@ fn main() {
     let mut binarizer = Binarizer::new(app.get_global_messenger(), DATA_RAW_FOLDER, DATA_FOLDER);
     binarizer.start();
 
-    let mut launcher = Launcher::default();
-    launcher.prepare(&mut app);
-
     //additional plugins
     let args: Vec<String> = env::args().collect();
     if args.len() > 1 {
@@ -34,8 +31,12 @@ fn main() {
         });
     }
 
+    let mut launcher = Launcher::default();
+    launcher.prepare(&mut app);
+
     for name in plugins.iter() {
         let path = PathBuf::from(library_filename(*name));
+        launcher.read_config(&mut app, name);
         app.add_plugin(path);
     }
 

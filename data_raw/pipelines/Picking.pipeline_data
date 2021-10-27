@@ -1,4 +1,5 @@
 {
+    "pipeline_type": "Custom",
     "fragment_shader": "shaders/shader_uid_frag.spv",
     "vertex_shader": "shaders/shader_uid_vert.spv",
     "tcs_shader": "",

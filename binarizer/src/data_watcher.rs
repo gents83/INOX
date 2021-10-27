@@ -36,7 +36,7 @@ unsafe impl Send for DataWatcher {}
 unsafe impl Sync for DataWatcher {}
 
 impl Binarizer {
-    pub fn new(global_messenger: MessengerRw, data_raw_folder: &str, data_folder: &str) -> Self {
+    pub fn new(global_messenger: &MessengerRw, data_raw_folder: &str, data_folder: &str) -> Self {
         let mut data_raw_folder = PathBuf::from(data_raw_folder);
         let mut data_folder = PathBuf::from(data_folder);
         if !data_raw_folder.exists() {
@@ -54,7 +54,7 @@ impl Binarizer {
         );
         debug_assert!(data_folder.exists() && data_folder.is_dir() && data_folder.is_absolute());
         Self {
-            global_messenger,
+            global_messenger: global_messenger.clone(),
             data_raw_folder,
             data_folder,
             thread_handle: None,

@@ -12,8 +12,10 @@ pub trait ConfigBase: Data {
         self.get_data_folder().join(CONFIG_FOLDER)
     }
     #[inline]
-    fn get_filepath(&self) -> PathBuf {
-        self.get_folder().join(self.get_filename())
+    fn get_filepath(&self, plugin_name: &str) -> PathBuf {
+        self.get_folder()
+            .join(plugin_name)
+            .join(self.get_filename())
     }
     fn get_filename(&self) -> &'static str;
 }

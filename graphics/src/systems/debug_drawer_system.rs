@@ -1,11 +1,13 @@
 use std::any::TypeId;
 
-use nrg_graphics::{
+use crate::{
     create_arrow, create_colored_quad, create_line, create_sphere, Material, Mesh, MeshData,
-    Pipeline,
+    Pipeline, PipelineType,
 };
+use nrg_core::System;
 use nrg_math::{Vector2, Vector3, Vector4};
 use nrg_messenger::{implement_message, read_messages, Message, MessageChannel, MessengerRw};
+use nrg_profiler::debug_log;
 use nrg_resources::{DataTypeResource, Resource, SharedDataRc};
 use nrg_serialize::generate_random_uid;
 
@@ -55,29 +57,42 @@ implement_message!(DrawEvent);
 
 const WIREFRAME_MESH_CATEGORY_IDENTIFIER: &str = "EditorWireframe";
 
-pub struct DebugDrawer {
+pub struct DebugDrawerSystem {
     mesh_instance: Resource<Mesh>,
     wireframe_mesh_instance: Resource<Mesh>,
     message_channel: MessageChannel,
 }
 
-impl DebugDrawer {
-    pub fn new(
-        shared_data: &SharedDataRc,
-        global_messenger: &MessengerRw,
-        pipeline_default: &Resource<Pipeline>,
-        pipeline_wirefrane: &Resource<Pipeline>,
-    ) -> Self {
+impl DebugDrawerSystem {
+    pub fn new(shared_data: &SharedDataRc, global_messenger: &MessengerRw) -> Self {
+        let default_pipeline = shared_data
+            .match_resource(|p: &Pipeline| p.data().pipeline_type == PipelineType::Default);
+        let wireframe_pipeline = shared_data
+            .match_resource(|p: &Pipeline| p.data().pipeline_type == PipelineType::Wireframe);
+
+        if default_pipeline.is_none() {
+            debug_log(
+                "No pipeline with type Default found - did you forgot to read render.cfg file?",
+            );
+        }
+        if wireframe_pipeline.is_none() {
+            debug_log(
+                "No pipeline with type Wireframe found - did you forgot to read render.cfg file?",
+            );
+        }
+
         let mesh_instance = Mesh::create_from_data(
             shared_data,
             global_messenger,
             generate_random_uid(),
             MeshData::new(WIREFRAME_MESH_CATEGORY_IDENTIFIER),
         );
-        mesh_instance.get_mut(|m| {
-            let material = Material::duplicate_from_pipeline(shared_data, pipeline_default);
-            m.set_material(material);
-        });
+        if let Some(default_pipeline) = &default_pipeline {
+            mesh_instance.get_mut(|m| {
+                let material = Material::duplicate_from_pipeline(shared_data, default_pipeline);
+                m.set_material(material);
+            });
+        }
 
         let wireframe_mesh_instance = Mesh::create_from_data(
             shared_data,
@@ -85,11 +100,12 @@ impl DebugDrawer {
             generate_random_uid(),
             MeshData::new(WIREFRAME_MESH_CATEGORY_IDENTIFIER),
         );
-        wireframe_mesh_instance.get_mut(|m| {
-            let material = Material::duplicate_from_pipeline(shared_data, pipeline_wirefrane);
-            m.set_material(material);
-        });
-
+        if let Some(wireframe_pipeline) = &wireframe_pipeline {
+            wireframe_mesh_instance.get_mut(|m| {
+                let material = Material::duplicate_from_pipeline(shared_data, wireframe_pipeline);
+                m.set_material(material);
+            });
+        }
         let message_channel = MessageChannel::default();
 
         global_messenger
@@ -101,9 +117,6 @@ impl DebugDrawer {
             wireframe_mesh_instance,
             message_channel,
         }
-    }
-    pub fn update(&mut self) {
-        self.update_events();
     }
 
     fn auto_send_event(&self, event: DrawEvent) {
@@ -229,4 +242,23 @@ impl DebugDrawer {
             m.set_mesh_data(wireframe_mesh_data.clone());
         });
     }
+}
+
+unsafe impl Send for DebugDrawerSystem {}
+unsafe impl Sync for DebugDrawerSystem {}
+
+impl System for DebugDrawerSystem {
+    fn read_config(&mut self, _plugin_name: &str) {}
+
+    fn should_run_when_not_focused(&self) -> bool {
+        false
+    }
+    fn init(&mut self) {}
+
+    fn run(&mut self) -> bool {
+        self.update_events();
+        true
+    }
+
+    fn uninit(&mut self) {}
 }

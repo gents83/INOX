@@ -6,7 +6,7 @@ use nrg_profiler::debug_log;
 use nrg_resources::{
     DataTypeResource, Resource, ResourceId, SerializableResource, SharedData, SharedDataRc,
 };
-use nrg_serialize::read_from_file;
+use nrg_serialize::*;
 
 use crate::{
     api::backend::{self, BackendPhysicalDevice, BackendPipeline},

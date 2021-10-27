@@ -170,9 +170,7 @@ impl App {
     pub fn run_once(&mut self) -> bool {
         nrg_profiler::scoped_profile!("app::run_frame");
 
-        let can_continue = self
-            .scheduler
-            .run_once(self.is_enabled, self.get_job_handler());
+        let can_continue = self.scheduler.run_once(self.is_enabled, &self.job_handler);
 
         self.update_events();
 
@@ -211,10 +209,9 @@ impl App {
     }
     fn add_worker(&mut self, name: &str) -> &mut Worker {
         let key = String::from(name);
-        let job_handler = self.get_job_handler();
         let w = self.workers.entry(key).or_insert_with(Worker::default);
         if !w.is_started() {
-            w.start(name, job_handler, self.receiver.clone());
+            w.start(name, &self.job_handler, self.receiver.clone());
         }
         w
     }
@@ -223,14 +220,14 @@ impl App {
         self.workers.get_mut(&key).unwrap()
     }
 
-    pub fn get_job_handler(&self) -> JobHandlerRw {
-        self.job_handler.clone()
+    pub fn get_job_handler(&self) -> &JobHandlerRw {
+        &self.job_handler
     }
-    pub fn get_shared_data(&self) -> SharedDataRc {
-        self.shared_data.clone()
+    pub fn get_shared_data(&self) -> &SharedDataRc {
+        &self.shared_data
     }
-    pub fn get_global_messenger(&self) -> MessengerRw {
-        self.global_messenger.clone()
+    pub fn get_global_messenger(&self) -> &MessengerRw {
+        &self.global_messenger
     }
     pub fn create_phase_on_worker<P: Phase>(&mut self, phase: P, name: &'static str) {
         let w = self.add_worker(name);

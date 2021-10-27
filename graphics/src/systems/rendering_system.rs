@@ -14,6 +14,8 @@ use nrg_serialize::generate_random_uid;
 
 use crate::{Pipeline, PipelineId, RenderPass, RendererRw, RendererState, View};
 
+pub const RENDERING_PHASE: &str = "RENDERING_PHASE";
+
 pub struct RenderingSystem {
     view: Resource<View>,
     renderer: RendererRw,
@@ -26,12 +28,12 @@ impl RenderingSystem {
         renderer: RendererRw,
         shared_data: &SharedDataRc,
         global_messenger: &MessengerRw,
-        job_handler: JobHandlerRw,
+        job_handler: &JobHandlerRw,
     ) -> Self {
         Self {
             view: View::create_from_data(shared_data, global_messenger, generate_random_uid(), 0),
             renderer,
-            job_handler,
+            job_handler: job_handler.clone(),
             shared_data: shared_data.clone(),
         }
     }
@@ -75,6 +77,7 @@ unsafe impl Send for RenderingSystem {}
 unsafe impl Sync for RenderingSystem {}
 
 impl System for RenderingSystem {
+    fn read_config(&mut self, _plugin_name: &str) {}
     fn should_run_when_not_focused(&self) -> bool {
         false
     }
@@ -117,7 +120,7 @@ impl System for RenderingSystem {
                     wait_count.fetch_add(1, Ordering::SeqCst);
 
                     self.job_handler.write().unwrap().add_job(
-                        &self.id(),
+                        &RenderingSystem::id(),
                         job_name.as_str(),
                         move || {
                             render_pass.get_mut(|render_pass: &mut RenderPass| {
@@ -151,8 +154,7 @@ impl System for RenderingSystem {
                                         }
                                     });
                                 } else {
-                                    SharedData::for_each_resource_mut(
-                                        &shared_data,
+                                    shared_data.for_each_resource_mut(
                                         |pipeline_handle, pipeline: &mut Pipeline| {
                                             let should_render = {
                                                 pipeline.is_initialized()
@@ -193,7 +195,7 @@ impl System for RenderingSystem {
         self.job_handler
             .write()
             .unwrap()
-            .add_job(&self.id(), job_name, move || {
+            .add_job(&RenderingSystem::id(), job_name, move || {
                 while wait_count.load(Ordering::SeqCst) > 0 {
                     thread::yield_now();
                 }

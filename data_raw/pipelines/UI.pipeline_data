@@ -1,4 +1,5 @@
 {
+    "pipeline_type": "UI",
     "fragment_shader": "shaders/new_ui_frag.spv",
     "vertex_shader": "shaders/new_ui_vert.spv",
     "tcs_shader": "",

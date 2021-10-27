@@ -1,6 +1,6 @@
 use nrg_graphics::{
-    utils::compute_id_from_color, DynamicImage, Mesh, MeshCategoryId, Pipeline, RenderPass,
-    Texture, View, DEFAULT_MESH_CATEGORY_IDENTIFIER, TEXTURE_CHANNEL_COUNT,
+    utils::compute_id_from_color, DynamicImage, Mesh, MeshCategoryId, Pipeline, PipelineType,
+    RenderPass, Texture, View, DEFAULT_MESH_CATEGORY_IDENTIFIER, TEXTURE_CHANNEL_COUNT,
 };
 use nrg_math::{
     raycast_oob, Degrees, InnerSpace, MatBase, Matrix4, NewAngle, Vector2, Vector3, Vector4, Zero,
@@ -17,11 +17,7 @@ use nrg_ui::{
     UIWidget, Widget,
 };
 
-use crate::{
-    resources::Gizmo,
-    systems::{BoundingBoxDrawer, DebugDrawer},
-    EditMode, EditorEvent,
-};
+use crate::{resources::Gizmo, systems::BoundingBoxDrawer, EditMode, EditorEvent};
 
 const VIEW3D_IMAGE_WIDTH: u32 = 1280;
 const VIEW3D_IMAGE_HEIGHT: u32 = 768;
@@ -47,7 +43,6 @@ implement_widget_data!(View3DData);
 pub struct View3D {
     ui_page: Resource<UIWidget>,
     shared_data: SharedDataRc,
-    debug_drawer: DebugDrawer,
     bounding_box_drawer: BoundingBoxDrawer,
 }
 
@@ -55,12 +50,7 @@ unsafe impl Send for View3D {}
 unsafe impl Sync for View3D {}
 
 impl View3D {
-    pub fn new(
-        shared_data: &SharedDataRc,
-        global_messenger: &MessengerRw,
-        default_pipeline: &Resource<Pipeline>,
-        wireframe_pipeline: &Resource<Pipeline>,
-    ) -> Self {
+    pub fn new(shared_data: &SharedDataRc, global_messenger: &MessengerRw) -> Self {
         let texture = Self::update_render_pass(
             shared_data,
             global_messenger,
@@ -116,12 +106,6 @@ impl View3D {
         let ui_page = Self::create(shared_data, data);
         Self {
             ui_page,
-            debug_drawer: DebugDrawer::new(
-                shared_data,
-                global_messenger,
-                &default_pipeline,
-                &wireframe_pipeline,
-            ),
             bounding_box_drawer: BoundingBoxDrawer::new(shared_data, global_messenger),
             shared_data: shared_data.clone(),
         }
@@ -130,7 +114,6 @@ impl View3D {
     pub fn update(&mut self) -> &mut Self {
         self.update_camera().update_gizmo();
         self.bounding_box_drawer.update();
-        self.debug_drawer.update();
 
         self
     }
@@ -154,11 +137,10 @@ impl View3D {
         self
     }
 
-    pub fn change_edit_mode(
-        &mut self,
-        mode: EditMode,
-        default_material_pipeline: &Resource<Pipeline>,
-    ) -> &mut Self {
+    pub fn change_edit_mode(&mut self, mode: EditMode) -> &mut Self {
+        let default_pipeline = self
+            .shared_data
+            .match_resource(|p: &Pipeline| p.data().pipeline_type == PipelineType::Default);
         self.ui_page.get_mut(|w| {
             if let Some(data) = w.data_mut::<View3DData>() {
                 match mode {
@@ -172,7 +154,7 @@ impl View3D {
                         let gizmo = Gizmo::new_translation(
                             &data.shared_data,
                             &data.global_messenger,
-                            default_material_pipeline,
+                            default_pipeline.as_ref().unwrap(),
                         );
                         gizmo.get_mut(|g| g.select_object(&data.selected_object));
                         data.gizmo = Some(gizmo);
@@ -181,7 +163,7 @@ impl View3D {
                         let gizmo = Gizmo::new_rotation(
                             &data.shared_data,
                             &data.global_messenger,
-                            default_material_pipeline,
+                            default_pipeline.as_ref().unwrap(),
                         );
                         gizmo.get_mut(|g| g.select_object(&data.selected_object));
                         data.gizmo = Some(gizmo);
@@ -190,7 +172,7 @@ impl View3D {
                         let gizmo = Gizmo::new_scale(
                             &data.shared_data,
                             &data.global_messenger,
-                            default_material_pipeline,
+                            default_pipeline.as_ref().unwrap(),
                         );
                         gizmo.get_mut(|g| g.select_object(&data.selected_object));
                         data.gizmo = Some(gizmo);

@@ -1,9 +1,6 @@
-use std::{
-    collections::HashMap,
-    sync::{Arc, RwLock},
-};
+use std::collections::HashMap;
 
-use crate::{JobHandler, Phase, PhaseWithSystems};
+use crate::{JobHandlerRw, Phase, PhaseWithSystems};
 
 pub struct Scheduler {
     is_running: bool,
@@ -176,7 +173,7 @@ impl Scheduler {
             })
     }
 
-    pub fn run_once(&mut self, is_focused: bool, job_handler: Arc<RwLock<JobHandler>>) -> bool {
+    pub fn run_once(&mut self, is_focused: bool, job_handler: &JobHandlerRw) -> bool {
         if !self.is_started {
             return self.is_running;
         }

@@ -180,9 +180,19 @@ pub enum DrawMode {
     Single,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
+#[serde(crate = "nrg_serialize")]
+pub enum PipelineType {
+    Custom,
+    Default,
+    Wireframe,
+    UI,
+}
+
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 #[serde(crate = "nrg_serialize")]
 pub struct PipelineData {
+    pub pipeline_type: PipelineType,
     pub fragment_shader: PathBuf,
     pub vertex_shader: PathBuf,
     pub tcs_shader: PathBuf,
@@ -200,6 +210,7 @@ pub struct PipelineData {
 impl Default for PipelineData {
     fn default() -> Self {
         Self {
+            pipeline_type: PipelineType::Custom,
             fragment_shader: PathBuf::new(),
             vertex_shader: PathBuf::new(),
             tcs_shader: PathBuf::new(),

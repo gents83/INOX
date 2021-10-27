@@ -1,4 +1,3 @@
-use nrg_graphics::RenderPassData;
 use nrg_resources::{ConfigBase, Data};
 use nrg_serialize::*;
 
@@ -10,8 +9,6 @@ pub struct Config {
     pub pos_y: u32,
     pub width: u32,
     pub height: u32,
-    pub scale_factor: f32,
-    pub render_passes: Vec<RenderPassData>,
 }
 
 impl Default for Config {
@@ -22,8 +19,6 @@ impl Default for Config {
             pos_y: 0,
             width: 1280,
             height: 720,
-            scale_factor: 1.,
-            render_passes: Vec::new(),
         }
     }
 }
@@ -31,6 +26,6 @@ impl Default for Config {
 impl Data for Config {}
 impl ConfigBase for Config {
     fn get_filename(&self) -> &'static str {
-        "content_browser.cfg"
+        "app.cfg"
     }
 }

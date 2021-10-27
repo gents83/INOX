@@ -1,5 +1,6 @@
 use std::{
     any::TypeId,
+    path::PathBuf,
     sync::{
         atomic::{AtomicUsize, Ordering},
         Arc,
@@ -11,20 +12,27 @@ use nrg_core::{JobHandlerRw, System};
 use nrg_math::{VecBase, Vector4};
 use nrg_messenger::{read_messages, MessageChannel, MessengerRw};
 use nrg_resources::{
-    DataTypeResource, Resource, SerializableResource, SharedData, SharedDataRc, UpdateResourceEvent,
+    ConfigBase, DataTypeResource, Resource, SerializableResource, SharedData, SharedDataRc,
+    UpdateResourceEvent,
 };
-use nrg_serialize::INVALID_UID;
+use nrg_serialize::{generate_random_uid, read_from_file, INVALID_UID};
 
 use crate::{
-    is_shader, Mesh, MeshId, Pipeline, RenderPass, RendererRw, RendererState, Texture,
-    INVALID_INDEX,
+    is_shader, Mesh, MeshId, Pipeline, RenderPass, RenderPassData, RendererRw, RendererState,
+    Texture, INVALID_INDEX,
 };
+
+use super::config::Config;
+pub const RENDERING_UPDATE: &str = "RENDERING_UPDATE";
 
 pub struct UpdateSystem {
     renderer: RendererRw,
     shared_data: SharedDataRc,
+    global_messenger: MessengerRw,
     job_handler: JobHandlerRw,
     message_channel: MessageChannel,
+    render_passes: Vec<Resource<RenderPass>>,
+    pipelines: Vec<Resource<Pipeline>>,
 }
 
 impl UpdateSystem {
@@ -32,7 +40,7 @@ impl UpdateSystem {
         renderer: RendererRw,
         shared_data: &SharedDataRc,
         global_messenger: &MessengerRw,
-        job_handler: JobHandlerRw,
+        job_handler: &JobHandlerRw,
     ) -> Self {
         let message_channel = MessageChannel::default();
         global_messenger
@@ -44,9 +52,36 @@ impl UpdateSystem {
         Self {
             renderer,
             shared_data: shared_data.clone(),
-            job_handler,
+            global_messenger: global_messenger.clone(),
+            job_handler: job_handler.clone(),
             message_channel,
+            render_passes: Vec::new(),
+            pipelines: Vec::new(),
         }
+    }
+
+    pub fn load_render_passes(&mut self, render_passes: &[RenderPassData]) -> &mut Self {
+        for render_pass_data in render_passes.iter() {
+            self.render_passes.push(RenderPass::create_from_data(
+                &self.shared_data,
+                &self.global_messenger,
+                generate_random_uid(),
+                render_pass_data.clone(),
+            ));
+        }
+        self
+    }
+
+    pub fn load_pipelines(&mut self, pipelines: &[PathBuf]) -> &mut Self {
+        for pipeline_path in pipelines.iter() {
+            self.pipelines.push(Pipeline::load_from_file(
+                &self.shared_data,
+                &self.global_messenger,
+                pipeline_path.as_path(),
+                None,
+            ));
+        }
+        self
     }
 
     fn handle_events(&self) {
@@ -155,6 +190,14 @@ unsafe impl Send for UpdateSystem {}
 unsafe impl Sync for UpdateSystem {}
 
 impl System for UpdateSystem {
+    fn read_config(&mut self, plugin_name: &str) {
+        let mut config = Config::default();
+        config = read_from_file(config.get_filepath(plugin_name).as_path());
+
+        self.load_render_passes(&config.render_passes)
+            .load_pipelines(&config.pipelines);
+    }
+
     fn should_run_when_not_focused(&self) -> bool {
         false
     }
@@ -188,7 +231,7 @@ impl System for UpdateSystem {
                 let wait_count = wait_count.clone();
                 wait_count.fetch_add(1, Ordering::SeqCst);
                 self.job_handler.write().unwrap().add_job(
-                    &self.id(),
+                    &UpdateSystem::id(),
                     job_name.as_str(),
                     move || {
                         let renderer = renderer.read().unwrap();
@@ -227,7 +270,7 @@ impl System for UpdateSystem {
                     );
                     wait_count.fetch_add(1, Ordering::SeqCst);
                     self.job_handler.write().unwrap().add_job(
-                        &self.id(),
+                        &UpdateSystem::id(),
                         job_name.as_str(),
                         move || {
                             let mesh_id = *mesh_handle.id();
@@ -256,7 +299,7 @@ impl System for UpdateSystem {
         self.job_handler
             .write()
             .unwrap()
-            .add_job(&self.id(), job_name, move || {
+            .add_job(&UpdateSystem::id(), job_name, move || {
                 while wait_count.load(Ordering::SeqCst) > 0 {
                     thread::yield_now();
                 }

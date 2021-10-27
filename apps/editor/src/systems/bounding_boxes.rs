@@ -1,14 +1,12 @@
 use std::any::TypeId;
 
-use nrg_graphics::Mesh;
+use nrg_graphics::{DrawEvent, Mesh};
 use nrg_math::{Mat4Ops, Vector3, Zero};
 use nrg_messenger::{read_messages, Message, MessageBox, MessageChannel, MessengerRw};
 use nrg_resources::{SharedData, SharedDataRc};
 use nrg_scene::{Hitbox, Object, ObjectId};
 
 use crate::{EditMode, EditorEvent};
-
-use super::DrawEvent;
 
 pub struct BoundingBoxDrawer {
     shared_data: SharedDataRc,

@@ -6,12 +6,13 @@ use nrg_serialize::*;
 #[derive(Default, Serialize, Deserialize, Debug, Clone)]
 #[serde(crate = "nrg_serialize")]
 pub struct Config {
-    pub grid_material: PathBuf,
+    pub ui_scale: f32,
+    pub ui_pipeline: PathBuf,
 }
 
 impl Data for Config {}
 impl ConfigBase for Config {
     fn get_filename(&self) -> &'static str {
-        "editor.cfg"
+        "ui.cfg"
     }
 }

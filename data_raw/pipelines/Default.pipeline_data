@@ -1,5 +1,5 @@
 {
-    "path": "",
+    "pipeline_type": "Default",
     "fragment_shader": "shaders/diffuse_shader_frag.spv",
     "vertex_shader": "shaders/diffuse_shader_vert.spv",
     "tcs_shader": "",

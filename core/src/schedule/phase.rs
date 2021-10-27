@@ -1,6 +1,6 @@
 use downcast_rs::{impl_downcast, Downcast};
 
-use std::collections::HashSet;
+use std::collections::HashMap;
 
 use crate::{JobId, System, SystemBoxed, SystemId};
 
@@ -16,9 +16,9 @@ impl_downcast!(Phase);
 
 pub struct PhaseWithSystems {
     name: String,
-    systems: HashSet<SystemId>,
-    systems_running: Vec<SystemBoxed>,
-    systems_to_add: Vec<SystemBoxed>,
+    systems: HashMap<SystemId, SystemBoxed>,
+    systems_running: Vec<SystemId>,
+    systems_to_add: Vec<SystemId>,
     systems_to_remove: Vec<SystemId>,
 }
 
@@ -26,27 +26,46 @@ impl PhaseWithSystems {
     pub fn new(name: &str) -> Self {
         Self {
             name: String::from(name),
-            systems: HashSet::new(),
+            systems: HashMap::new(),
             systems_running: Vec::new(),
             systems_to_add: Vec::new(),
             systems_to_remove: Vec::new(),
         }
     }
 
+    pub fn get_system_mut<S: System + Sized>(&mut self) -> Option<&mut dyn System> {
+        if let Some(system) = self.systems.get_mut(&S::id()) {
+            return Some(system.as_mut());
+        }
+        None
+    }
+
+    pub fn get_system<S: System + Sized + 'static>(
+        &self,
+        system_id: &SystemId,
+    ) -> Option<&dyn System> {
+        if let Some(system) = self.systems.get(system_id) {
+            return Some(system.as_ref());
+        }
+        None
+    }
+
     pub fn add_system<S: System + 'static>(&mut self, system: S) -> &mut Self {
-        if self.systems.contains(&system.id()) {
+        let id = S::id();
+        if self.systems.contains_key(&id) {
             eprintln!(
                 "Trying to add twice a System with id {:?} in this Phase",
-                system.id(),
+                id,
             );
         } else {
-            self.systems_to_add.push(Box::new(system));
+            self.systems_to_add.push(id);
+            self.systems.insert(id, Box::new(system));
         }
         self
     }
 
     pub fn remove_system(&mut self, system_id: &SystemId) -> &mut Self {
-        if !self.systems.contains(system_id) {
+        if !self.systems.contains_key(system_id) {
             eprintln!(
                 "Trying to remove a System with id {:?} in this Phase",
                 system_id,
@@ -58,9 +77,9 @@ impl PhaseWithSystems {
     }
 
     fn remove_all_systems(&mut self) -> &mut Self {
-        for s in self.systems_running.iter() {
-            if !self.systems_to_remove.contains(&s.id()) {
-                self.systems_to_remove.push(s.id());
+        for id in self.systems_running.iter() {
+            if !self.systems_to_remove.contains(id) {
+                self.systems_to_remove.push(*id);
             }
         }
         self
@@ -69,39 +88,40 @@ impl PhaseWithSystems {
     fn execute_systems(&mut self, is_focused: bool) -> bool {
         nrg_profiler::scoped_profile!("phase::execute_systems");
         let mut can_continue = true;
-        for s in self.systems_running.iter_mut() {
-            nrg_profiler::scoped_profile!(format!(
-                "{} {:?}",
-                "phase::execute_system",
-                s.as_mut().name()
-            )
-            .as_str());
-            let ok = if is_focused || s.should_run_when_not_focused() {
-                s.run()
-            } else {
-                true
-            };
-            can_continue &= ok;
-        }
+        self.systems_running.iter().for_each(|id| {
+            if let Some(system) = self.systems.get_mut(id) {
+                nrg_profiler::scoped_profile!(format!(
+                    "{} {:?}",
+                    "phase::execute_system",
+                    system.get_name()
+                )
+                .as_str());
+                if is_focused || system.should_run_when_not_focused() {
+                    can_continue &= system.run();
+                }
+            }
+        });
         can_continue
     }
 
     fn remove_pending_systems_from_execution(&mut self) -> &mut Self {
-        for id in self.systems_to_remove.iter_mut() {
-            if let Some(index) = self.systems_running.iter().position(|s| s.id() == *id) {
-                let mut system = self.systems_running.remove(index);
-                system.uninit();
+        for id in self.systems_to_remove.iter() {
+            if let Some(index) = self.systems_running.iter().position(|s| s == id) {
+                self.systems_running.remove(index);
             }
-            self.systems.remove(id);
+            if let Some(mut system) = self.systems.remove(id) {
+                system.as_mut().uninit();
+            }
         }
         self.systems_to_remove.clear();
         self
     }
 
     fn add_pending_systems_into_execution(&mut self) -> &mut Self {
-        for s in self.systems_to_add.iter_mut() {
-            s.init();
-            self.systems.insert(s.id());
+        for id in self.systems_to_add.iter() {
+            if let Some(system) = self.systems.get_mut(id) {
+                system.init();
+            }
         }
         self.systems_running.append(&mut self.systems_to_add);
         self
@@ -113,9 +133,11 @@ impl Phase for PhaseWithSystems {
         &self.name
     }
     fn should_run_when_not_focused(&self) -> bool {
-        for s in self.systems_running.iter() {
-            if s.should_run_when_not_focused() {
-                return true;
+        for id in self.systems_running.iter() {
+            if let Some(system) = self.systems.get(id) {
+                if system.should_run_when_not_focused() {
+                    return true;
+                }
             }
         }
         false
@@ -139,11 +161,7 @@ impl Phase for PhaseWithSystems {
     }
 
     fn get_jobs_id_to_wait(&self) -> Vec<JobId> {
-        let mut jobs_id_to_wait = Vec::new();
-        for s in self.systems_running.iter() {
-            jobs_id_to_wait.push(s.id());
-        }
-        jobs_id_to_wait
+        self.systems_running.clone()
     }
 }
 

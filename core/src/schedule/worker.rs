@@ -3,7 +3,7 @@ use std::{
     thread::{self, JoinHandle},
 };
 
-use crate::{Job, JobHandler, Phase, Scheduler};
+use crate::{Job, JobHandlerRw, Phase, Scheduler};
 
 pub struct Worker {
     scheduler: Arc<RwLock<Scheduler>>,
@@ -41,21 +41,19 @@ impl Worker {
     pub fn start(
         &mut self,
         name: &str,
-        job_handler: Arc<RwLock<JobHandler>>,
+        job_handler: &JobHandlerRw,
         receiver: Arc<Mutex<Receiver<Job>>>,
     ) {
         if self.thread_handle.is_none() {
             let builder = thread::Builder::new().name(name.into());
             let scheduler = Arc::clone(&self.scheduler);
+            let job_handler = job_handler.clone();
             let t = builder
                 .spawn(move || {
                     nrg_profiler::register_thread!();
                     scheduler.write().unwrap().resume();
                     loop {
-                        let can_continue = scheduler
-                            .write()
-                            .unwrap()
-                            .run_once(true, job_handler.clone());
+                        let can_continue = scheduler.write().unwrap().run_once(true, &job_handler);
                         if let Some(job) = Worker::get_job(&receiver) {
                             job.execute();
                         }

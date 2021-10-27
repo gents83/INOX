@@ -42,7 +42,7 @@ impl Window {
         mut width: u32,
         mut height: u32,
         icon_path: &Path,
-        global_messenger: MessengerRw,
+        global_messenger: &MessengerRw,
     ) -> Self {
         let mut global_dispatcher = global_messenger.write().unwrap();
 

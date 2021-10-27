@@ -14,7 +14,8 @@ use egui::{
 use image::RgbaImage;
 use nrg_core::{JobHandlerRw, System};
 use nrg_graphics::{
-    Material, Mesh, MeshCategoryId, MeshData, RenderPass, Texture, TextureId, VertexData,
+    Material, Mesh, MeshCategoryId, MeshData, Pipeline, RenderPass, RenderTarget, Texture,
+    TextureId, VertexData,
 };
 
 use nrg_math::Vector4;
@@ -24,10 +25,14 @@ use nrg_platform::{
     DEFAULT_DPI,
 };
 use nrg_profiler::debug_log;
-use nrg_resources::{DataTypeResource, Handle, Resource, SharedData, SharedDataRc};
-use nrg_serialize::generate_random_uid;
+use nrg_resources::{
+    ConfigBase, DataTypeResource, Handle, Resource, SerializableResource, SharedData, SharedDataRc,
+};
+use nrg_serialize::{generate_random_uid, read_from_file};
 
 use crate::UIWidget;
+
+use super::config::Config;
 
 const UI_MESH_CATEGORY_IDENTIFIER: &str = "ui_mesh";
 
@@ -42,6 +47,7 @@ pub struct UISystem {
     ui_input: RawInput,
     ui_input_modifiers: Modifiers,
     ui_clipboard: Option<String>,
+    ui_pipeline: Handle<Pipeline>,
     ui_materials: HashMap<TextureId, Resource<Material>>,
     ui_meshes: Vec<Resource<Mesh>>,
     ui_scale: f32,
@@ -49,18 +55,19 @@ pub struct UISystem {
 
 impl UISystem {
     pub fn new(
-        shared_data: SharedDataRc,
-        global_messenger: MessengerRw,
-        job_handler: JobHandlerRw,
+        shared_data: &SharedDataRc,
+        global_messenger: &MessengerRw,
+        job_handler: &JobHandlerRw,
     ) -> Self {
         let message_channel = MessageChannel::default();
 
         crate::register_resource_types(&shared_data);
 
         Self {
-            shared_data,
-            job_handler,
-            global_messenger,
+            ui_pipeline: None,
+            shared_data: shared_data.clone(),
+            job_handler: job_handler.clone(),
+            global_messenger: global_messenger.clone(),
             message_channel,
             ui_context: CtxRef::default(),
             ui_texture_version: 0,
@@ -82,26 +89,27 @@ impl UISystem {
             Entry::Vacant(e) => {
                 if let Some(render_pass) =
                     SharedData::match_resource(&self.shared_data, |r: &RenderPass| {
-                        r.data().name == "UIPass"
+                        r.data().render_target == RenderTarget::Screen
                     })
                 {
                     let shared_data = self.shared_data.clone();
                     let material = render_pass.get_mut(|r| {
                         r.add_category_to_draw(MeshCategoryId::new(UI_MESH_CATEGORY_IDENTIFIER));
-                        if let Some(pipeline) = r.pipeline() {
+                        if let Some(pipeline) = &self.ui_pipeline {
                             let material =
                                 Material::duplicate_from_pipeline(&shared_data, pipeline);
                             material.get_mut(|m| {
                                 m.add_texture(texture.clone());
                             });
                             return material;
+                        } else {
+                            panic!("UI pipeline not set - maybe you forgot to read ui.cfg file");
                         }
-                        panic!("No pipeline inside UIPass has been loaded");
                     });
                     e.insert(material.clone());
                     return material;
                 }
-                panic!("No UIPass has been loaded");
+                panic!("No Pass with Screen as RenderTarget has been loaded");
             }
         }
     }
@@ -174,10 +182,10 @@ impl UISystem {
             let ui_scale = self.ui_scale;
             let screen_rect = self.ui_input.screen_rect.clone();
             let job_name = format!("ui_system::compute_mesh_data[{}]", i);
-            self.job_handler
-                .write()
-                .unwrap()
-                .add_job(&self.id(), job_name.as_str(), move || {
+            self.job_handler.write().unwrap().add_job(
+                &UISystem::id(),
+                job_name.as_str(),
+                move || {
                     let mut mesh_data = MeshData::new(UI_MESH_CATEGORY_IDENTIFIER);
                     let mut vertices: Vec<VertexData> = Vec::new();
                     vertices.resize(mesh.vertices.len(), VertexData::default());
@@ -214,7 +222,8 @@ impl UISystem {
                             .set_mesh_data(mesh_data.clone())
                             .set_draw_area(clip_rect);
                     });
-                });
+                },
+            );
         }
     }
 
@@ -330,7 +339,7 @@ impl UISystem {
                     let wait_count = wait_count.clone();
                     wait_count.fetch_add(1, Ordering::SeqCst);
                     self.job_handler.write().unwrap().add_job(
-                        &self.id(),
+                        &UISystem::id(),
                         job_name.as_str(),
                         move || {
                             widget_handle.get_mut(|w| {
@@ -369,6 +378,18 @@ impl Drop for UISystem {
 }
 
 impl System for UISystem {
+    fn read_config(&mut self, plugin_name: &str) {
+        let mut config = Config::default();
+        config = read_from_file(config.get_filepath(plugin_name).as_path());
+
+        self.ui_scale = config.ui_scale;
+        self.ui_pipeline = Some(Pipeline::load_from_file(
+            &self.shared_data,
+            &self.global_messenger,
+            config.ui_pipeline.as_path(),
+            None,
+        ));
+    }
     fn should_run_when_not_focused(&self) -> bool {
         false
     }

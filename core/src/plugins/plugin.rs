@@ -21,9 +21,7 @@ pub trait Plugin: Any + Send + Sync {
     fn id(&self) -> PluginId {
         generate_uid_from_string(self.name())
     }
-    fn name(&self) -> &str {
-        std::any::type_name::<Self>()
-    }
+    fn name(&self) -> &str;
 }
 
 #[repr(C)]
@@ -50,13 +48,13 @@ macro_rules! define_plugin {
         pub(crate) static mut PLUGIN: Option<$Type> = None;
 
         #[no_mangle]
-        pub extern "C" fn create_plugin() -> PluginHolder {
+        pub extern "C" fn create_plugin() -> $crate::PluginHolder {
             let plugin = unsafe { PLUGIN.get_or_insert($Type::default()) };
-            PluginHolder::new(plugin.id(), plugin.name())
+            $crate::PluginHolder::new(plugin.id(), plugin.name())
         }
 
         #[no_mangle]
-        pub extern "C" fn destroy_plugin(id: PluginId) {
+        pub extern "C" fn destroy_plugin(id: $crate::PluginId) {
             unsafe {
                 debug_assert!(
                     PLUGIN.is_some(),

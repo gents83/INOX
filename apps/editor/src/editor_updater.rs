@@ -2,15 +2,15 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::{any::TypeId, path::Path};
 
+use crate::config::Config;
 use crate::EditorEvent;
 
-use super::config::*;
 use super::widgets::*;
 
 use nrg_core::*;
 
-use nrg_graphics::{Font, Material, Mesh, MeshData, Pipeline, RenderPass, Texture, View};
-use nrg_messenger::{read_messages, send_global_event, MessageChannel, MessengerRw};
+use nrg_graphics::{Font, Material, Mesh, MeshData, Pipeline, Texture, View};
+use nrg_messenger::{read_messages, MessageChannel, MessengerRw};
 use nrg_platform::{InputState, Key, KeyEvent, MouseEvent, WindowEvent};
 use nrg_resources::{DataTypeResource, Resource, SerializableResource, SharedData, SharedDataRc};
 use nrg_scene::{Camera, Hitbox, Object, Scene};
@@ -24,13 +24,7 @@ const GRID_MESH_CATEGORY_IDENTIFIER: &str = "EditorGrid";
 pub struct EditorUpdater {
     shared_data: SharedDataRc,
     global_messenger: MessengerRw,
-    config: Config,
     message_channel: MessageChannel,
-    pipelines: Vec<Resource<Pipeline>>,
-    render_passes: Vec<Resource<RenderPass>>,
-    fonts: Vec<Resource<Font>>,
-    default_pipeline: Resource<Pipeline>,
-    wireframe_pipeline: Resource<Pipeline>,
     grid_mesh: Resource<Mesh>,
     scene: Resource<Scene>,
     main_menu: Option<MainMenu>,
@@ -45,59 +39,37 @@ pub struct EditorUpdater {
 }
 
 impl EditorUpdater {
-    pub fn new(shared_data: SharedDataRc, global_messenger: MessengerRw, config: &Config) -> Self {
+    pub fn new(shared_data: &SharedDataRc, global_messenger: &MessengerRw, config: Config) -> Self {
         let message_channel = MessageChannel::default();
 
-        nrg_scene::register_resource_types(&shared_data);
-        crate::resources::register_resource_types(&shared_data);
-
-        let default_pipeline = Pipeline::load_from_file(
-            &shared_data,
-            &global_messenger,
-            config.default_pipeline.as_path(),
-            None,
-        );
-        let wireframe_pipeline = Pipeline::load_from_file(
-            &shared_data,
-            &global_messenger,
-            config.wireframe_pipeline.as_path(),
-            None,
-        );
+        nrg_scene::register_resource_types(shared_data);
+        crate::resources::register_resource_types(shared_data);
 
         let mut mesh_data = MeshData::new(GRID_MESH_CATEGORY_IDENTIFIER);
         mesh_data.add_quad_default([-1., -1., 1., 1.].into(), 0.);
         let grid_mesh = Mesh::create_from_data(
-            &shared_data,
-            &global_messenger,
+            shared_data,
+            global_messenger,
             generate_random_uid(),
             mesh_data,
         );
         grid_mesh.get_mut(|m| {
             let grid_material = Material::load_from_file(
-                &shared_data,
-                &global_messenger,
+                shared_data,
+                global_messenger,
                 config.grid_material.as_path(),
                 None,
             );
             m.set_material(grid_material);
         });
 
-        let scene = SharedData::add_resource::<Scene>(
-            &shared_data,
-            generate_random_uid(),
-            Scene::default(),
-        );
+        let scene =
+            SharedData::add_resource::<Scene>(shared_data, generate_random_uid(), Scene::default());
 
         Self {
-            pipelines: Vec::new(),
-            render_passes: Vec::new(),
-            fonts: Vec::new(),
-            shared_data,
-            global_messenger,
-            config: config.clone(),
+            shared_data: shared_data.clone(),
+            global_messenger: global_messenger.clone(),
             message_channel,
-            default_pipeline,
-            wireframe_pipeline,
             grid_mesh,
             scene,
             main_menu: None,
@@ -110,26 +82,6 @@ impl EditorUpdater {
             show_debug_info: Arc::new(AtomicBool::new(false)),
             ui_registry: Arc::new(Self::create_registry()),
         }
-    }
-
-    fn window_init(&self) -> &Self {
-        send_global_event(
-            &self.global_messenger,
-            WindowEvent::RequestChangeTitle(self.config.title.clone()),
-        );
-        send_global_event(
-            &self.global_messenger,
-            WindowEvent::RequestChangeSize(self.config.width, self.config.height),
-        );
-        send_global_event(
-            &self.global_messenger,
-            WindowEvent::RequestChangePos(self.config.pos_x, self.config.pos_y),
-        );
-        send_global_event(
-            &self.global_messenger,
-            WindowEvent::RequestChangeVisible(true),
-        );
-        self
     }
 
     fn create_registry() -> UIPropertiesRegistry {
@@ -160,14 +112,12 @@ impl Drop for EditorUpdater {
 }
 
 impl System for EditorUpdater {
+    fn read_config(&mut self, _plugin_name: &str) {}
     fn should_run_when_not_focused(&self) -> bool {
         false
     }
 
     fn init(&mut self) {
-        self.window_init();
-        self.load_pipelines();
-
         self.global_messenger
             .write()
             .unwrap()
@@ -240,12 +190,7 @@ impl EditorUpdater {
         self
     }
     fn create_view3d(&mut self) -> &mut Self {
-        let view3d = View3D::new(
-            &self.shared_data,
-            &self.global_messenger,
-            &self.default_pipeline,
-            &self.wireframe_pipeline,
-        );
+        let view3d = View3D::new(&self.shared_data, &self.global_messenger);
         self.view3d = Some(view3d);
         self
     }
@@ -296,26 +241,6 @@ impl EditorUpdater {
             self.create_debug_info();
         } else if !show_debug_info && is_debug_info_created {
             self.destroy_debug_info();
-        }
-    }
-
-    fn load_pipelines(&mut self) {
-        for render_pass_data in self.config.render_passes.iter() {
-            self.render_passes.push(RenderPass::create_from_data(
-                &self.shared_data,
-                &self.global_messenger,
-                generate_random_uid(),
-                render_pass_data.clone(),
-            ));
-        }
-
-        if let Some(default_font_path) = self.config.fonts.first() {
-            self.fonts.push(Font::load_from_file(
-                &self.shared_data,
-                &self.global_messenger,
-                default_font_path,
-                None,
-            ));
         }
     }
 
@@ -394,7 +319,7 @@ impl EditorUpdater {
                     }
                     EditorEvent::ChangeMode(mode) => {
                         if let Some(view3d) = &mut self.view3d {
-                            view3d.change_edit_mode(mode, &self.default_pipeline);
+                            view3d.change_edit_mode(mode);
                         }
                     }
                     _ => {}

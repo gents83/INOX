@@ -1,77 +1,44 @@
+use nrg_core::System;
+
+use nrg_messenger::{read_messages, send_global_event, MessageChannel, MessengerRw};
+use nrg_platform::WindowEvent;
 use std::env;
 use std::path::PathBuf;
 use std::{any::TypeId, path::Path};
 
-use super::config::*;
-use super::widgets::*;
-
-use nrg_core::*;
-use nrg_graphics::{Font, Pipeline, RenderPass};
-use nrg_messenger::{read_messages, send_global_event, MessageChannel, MessengerRw};
-use nrg_platform::WindowEvent;
-
-use nrg_resources::{DataTypeResource, Resource, SharedDataRc};
-use nrg_serialize::generate_random_uid;
+use nrg_resources::SharedDataRc;
 use nrg_ui::{DialogEvent, DialogOp};
+
+use crate::widgets::ContentBrowser;
 
 #[allow(dead_code)]
 pub struct ContentBrowserUpdater {
     shared_data: SharedDataRc,
     global_messenger: MessengerRw,
-    config: Config,
     message_channel: MessageChannel,
-    pipelines: Vec<Resource<Pipeline>>,
-    render_passes: Vec<Resource<RenderPass>>,
-    fonts: Vec<Resource<Font>>,
     content_browser: Option<ContentBrowser>,
 }
 
 impl ContentBrowserUpdater {
-    pub fn new(shared_data: SharedDataRc, global_messenger: MessengerRw, config: &Config) -> Self {
+    pub fn new(shared_data: &SharedDataRc, global_messenger: &MessengerRw) -> Self {
         let message_channel = MessageChannel::default();
 
         Self {
-            pipelines: Vec::new(),
-            render_passes: Vec::new(),
-            fonts: Vec::new(),
-            shared_data,
-            global_messenger,
-            config: config.clone(),
+            shared_data: shared_data.clone(),
+            global_messenger: global_messenger.clone(),
             message_channel,
             content_browser: None,
         }
     }
-
-    fn window_init(&self) -> &Self {
-        send_global_event(
-            &self.global_messenger,
-            WindowEvent::RequestChangeTitle(self.config.title.clone()),
-        );
-        send_global_event(
-            &self.global_messenger,
-            WindowEvent::RequestChangeSize(self.config.width, self.config.height),
-        );
-        send_global_event(
-            &self.global_messenger,
-            WindowEvent::RequestChangePos(self.config.pos_x, self.config.pos_y),
-        );
-        send_global_event(
-            &self.global_messenger,
-            WindowEvent::RequestChangeVisible(true),
-        );
-        self
-    }
 }
 
 impl System for ContentBrowserUpdater {
+    fn read_config(&mut self, _plugin_name: &str) {}
     fn should_run_when_not_focused(&self) -> bool {
         false
     }
 
     fn init(&mut self) {
-        self.window_init();
-        self.load_render_passes();
-
         self.global_messenger
             .write()
             .unwrap()
@@ -165,18 +132,6 @@ impl ContentBrowserUpdater {
     fn destroy_content_browser(&mut self) -> &mut Self {
         self.content_browser = None;
         self
-    }
-
-    fn load_render_passes(&mut self) {
-        for render_pass_data in self.config.render_passes.iter() {
-            let render_pass = RenderPass::create_from_data(
-                &self.shared_data,
-                &self.global_messenger,
-                generate_random_uid(),
-                render_pass_data.clone(),
-            );
-            self.render_passes.push(render_pass);
-        }
     }
 
     fn update_events(&mut self) -> &mut Self {

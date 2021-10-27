@@ -1,15 +1,15 @@
 use nrg_core::System;
-use nrg_graphics::{RenderPass, View};
-use nrg_math::{Degrees, InnerSpace, Matrix4, NewAngle, Vector2, Vector3, Zero};
-use nrg_messenger::{read_messages, send_global_event, MessageChannel, MessengerRw};
+use nrg_graphics::View;
+use nrg_math::{InnerSpace, Matrix4, Vector2, Vector3, Zero};
+use nrg_messenger::{read_messages, MessageChannel, MessengerRw};
 use nrg_platform::{Key, KeyEvent, MouseButton, MouseEvent, WindowEvent};
 use nrg_profiler::debug_log;
-use nrg_resources::{DataTypeResource, Resource, SerializableResource, SharedData, SharedDataRc};
+use nrg_resources::{Resource, SerializableResource, SharedData, SharedDataRc};
 use nrg_scene::{Camera, Object, ObjectId, Scene};
 use nrg_serialize::generate_random_uid;
 use std::{any::TypeId, collections::HashMap, env, path::PathBuf};
 
-use crate::config::Config;
+use crate::widgets::{Hierarchy, View3D};
 
 #[derive(PartialEq, Eq)]
 enum Operation {
@@ -20,31 +20,28 @@ enum Operation {
 pub struct ViewerSystem {
     shared_data: SharedDataRc,
     global_messenger: MessengerRw,
-    config: Config,
     message_channel: MessageChannel,
-    render_passes: Vec<Resource<RenderPass>>,
     scene: Resource<Scene>,
     camera_object: Resource<Object>,
     last_mouse_pos: Vector2,
     is_changing_camera: bool,
+    _view_3d: Option<View3D>,
+    _hierarchy: Option<Hierarchy>,
 }
 
 const FORCE_USE_DEFAULT_CAMERA: bool = false;
 
 impl ViewerSystem {
-    pub fn new(shared_data: SharedDataRc, global_messenger: MessengerRw, config: &Config) -> Self {
+    pub fn new(shared_data: &SharedDataRc, global_messenger: &MessengerRw) -> Self {
         let message_channel = MessageChannel::default();
 
-        nrg_scene::register_resource_types(&shared_data);
+        nrg_scene::register_resource_types(shared_data);
 
-        let scene = SharedData::add_resource::<Scene>(
-            &shared_data,
-            generate_random_uid(),
-            Scene::default(),
-        );
+        let scene =
+            SharedData::add_resource::<Scene>(shared_data, generate_random_uid(), Scene::default());
 
         let camera_object = SharedData::add_resource::<Object>(
-            &shared_data,
+            shared_data,
             generate_random_uid(),
             Object::default(),
         );
@@ -53,49 +50,21 @@ impl ViewerSystem {
             o.look_at(Vector3::new(0.0, 0.0, 0.0));
             let camera = o.add_default_component::<Camera>(&shared_data);
             camera.get_mut(|c| {
-                c.set_parent(&camera_object)
-                    .set_active(false)
-                    .set_projection(
-                        Degrees::new(45.),
-                        config.width as _,
-                        config.height as _,
-                        0.001,
-                        1000.,
-                    );
+                c.set_parent(&camera_object).set_active(false);
             });
         });
 
         Self {
-            shared_data,
-            global_messenger,
-            config: config.clone(),
+            _view_3d: None,
+            _hierarchy: None,
+            shared_data: shared_data.clone(),
+            global_messenger: global_messenger.clone(),
             message_channel,
-            render_passes: Vec::new(),
             scene,
             camera_object,
             last_mouse_pos: Vector2::zero(),
             is_changing_camera: false,
         }
-    }
-
-    fn window_init(&mut self) -> &mut Self {
-        send_global_event(
-            &self.global_messenger,
-            WindowEvent::RequestChangeTitle(self.config.title.clone()),
-        );
-        send_global_event(
-            &self.global_messenger,
-            WindowEvent::RequestChangeSize(self.config.width, self.config.height),
-        );
-        send_global_event(
-            &self.global_messenger,
-            WindowEvent::RequestChangePos(self.config.pos_x, self.config.pos_y),
-        );
-        send_global_event(
-            &self.global_messenger,
-            WindowEvent::RequestChangeVisible(true),
-        );
-        self
     }
 }
 
@@ -106,14 +75,13 @@ impl Drop for ViewerSystem {
 }
 
 impl System for ViewerSystem {
+    fn read_config(&mut self, _plugin_name: &str) {}
     fn should_run_when_not_focused(&self) -> bool {
         false
     }
 
     fn init(&mut self) {
-        self.window_init()
-            .load_pipelines()
-            .check_command_line_arguments();
+        self.check_command_line_arguments();
 
         self.global_messenger
             .write()
@@ -121,6 +89,20 @@ impl System for ViewerSystem {
             .register_messagebox::<KeyEvent>(self.message_channel.get_messagebox())
             .register_messagebox::<MouseEvent>(self.message_channel.get_messagebox())
             .register_messagebox::<WindowEvent>(self.message_channel.get_messagebox());
+
+        /*
+        self._view_3d = Some(View3D::new(
+            &self.shared_data,
+            &self.global_messenger,
+            self.config.default_pipeline.as_path(),
+            self.config.wireframe_pipeline.as_path(),
+        ));
+        */
+        self._hierarchy = Some(Hierarchy::new(
+            &self.shared_data,
+            &self.global_messenger,
+            self.scene.id(),
+        ));
     }
 
     fn run(&mut self) -> bool {
@@ -142,6 +124,12 @@ impl System for ViewerSystem {
             }
         });
 
+        /*
+        if let Some(view3d) = &mut self._view_3d {
+            view3d.update();
+        }
+        */
+
         true
     }
     fn uninit(&mut self) {
@@ -155,18 +143,6 @@ impl System for ViewerSystem {
 }
 
 impl ViewerSystem {
-    fn load_pipelines(&mut self) -> &mut Self {
-        for render_pass_data in self.config.render_passes.iter() {
-            self.render_passes.push(RenderPass::create_from_data(
-                &self.shared_data,
-                &self.global_messenger,
-                generate_random_uid(),
-                render_pass_data.clone(),
-            ));
-        }
-        self
-    }
-
     fn check_command_line_arguments(&mut self) -> &mut Self {
         let mut next_op = Operation::None;
 

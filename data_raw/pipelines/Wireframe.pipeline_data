@@ -1,4 +1,5 @@
 {
+    "pipeline_type": "Wireframe",
     "fragment_shader": "shaders/basic_color_frag.spv",
     "vertex_shader": "shaders/basic_color_vert.spv",
     "tcs_shader": "",

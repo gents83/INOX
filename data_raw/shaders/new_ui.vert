@@ -17,8 +17,8 @@ layout(location = 4) in vec3 instancePos;
 layout(location = 6) in vec3 instanceScale;
 
 layout(location = 8) in vec4 instanceDrawArea;
-layout(location = 10) in int instanceDiffuseTextureIndex;
-layout(location = 11) in int instanceDiffuseLayerIndex;
+layout(location = 11) in int instanceDiffuseTextureIndex;
+layout(location = 12) in int instanceDiffuseLayerIndex;
 
 //Output
 layout(location = 0) out vec4 outColor;
