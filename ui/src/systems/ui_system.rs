@@ -410,7 +410,7 @@ impl System for UISystem {
             self.ui_context.begin_frame(self.ui_input.take());
         }
 
-        self.show_ui(false);
+        self.show_ui(true);
 
         let (output, shapes) = {
             nrg_profiler::scoped_profile!("ui_context::end_frame");

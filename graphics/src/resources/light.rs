@@ -1,20 +1,19 @@
 use std::path::{Path, PathBuf};
 
+use nrg_math::Vector3;
 use nrg_messenger::MessengerRw;
 use nrg_resources::{
-    DataTypeResource, Handle, Resource, ResourceId, SerializableResource, SharedData, SharedDataRc,
+    DataTypeResource, Resource, ResourceId, SerializableResource, SharedData, SharedDataRc,
 };
 use nrg_serialize::read_from_file;
-use nrg_ui::{CollapsingHeader, UIProperties, UIPropertiesRegistry, Ui};
 
-use crate::{LightData, LightType, Object};
+use crate::LightData;
 
 pub type LightId = ResourceId;
 
 #[derive(Clone)]
 pub struct Light {
     filepath: PathBuf,
-    parent: Handle<Object>,
     data: LightData,
     is_active: bool,
 }
@@ -23,46 +22,9 @@ impl Default for Light {
     fn default() -> Self {
         Self {
             filepath: PathBuf::new(),
-            parent: None,
             data: LightData::default(),
             is_active: true,
         }
-    }
-}
-
-impl UIProperties for Light {
-    fn show(
-        &mut self,
-        id: &ResourceId,
-        ui_registry: &UIPropertiesRegistry,
-        ui: &mut Ui,
-        collapsed: bool,
-    ) {
-        CollapsingHeader::new(format!("Light [{:?}]", id.to_simple().to_string()))
-            .show_background(true)
-            .default_open(!collapsed)
-            .show(ui, |ui| {
-                ui.horizontal(|ui| {
-                    ui.label("Type: ");
-                    match self.data.light_type {
-                        LightType::Directional => ui.label("Directional"),
-                        LightType::Point => ui.label("Point"),
-                        LightType::Spot(_, _) => ui.label("Spot"),
-                    };
-                });
-                ui.horizontal(|ui| {
-                    ui.label("Color: ");
-                    self.data.color.show(id, ui_registry, ui, collapsed);
-                });
-                ui.horizontal(|ui| {
-                    ui.label("Intensity: ");
-                    self.data.intensity.show(id, ui_registry, ui, collapsed);
-                });
-                ui.horizontal(|ui| {
-                    ui.label("Range: ");
-                    self.data.range.show(id, ui_registry, ui, collapsed);
-                });
-            });
     }
 }
 
@@ -113,19 +75,19 @@ impl DataTypeResource for Light {
 
 impl Light {
     #[inline]
-    pub fn parent(&self) -> &Handle<Object> {
-        &self.parent
-    }
-
-    #[inline]
-    pub fn set_parent(&mut self, parent: &Resource<Object>) -> &mut Self {
-        self.parent = Some(parent.clone());
+    pub fn set_position(&mut self, position: Vector3) -> &mut Self {
+        self.data.position = position;
         self
     }
 
     #[inline]
     pub fn data(&self) -> &LightData {
         &self.data
+    }
+
+    #[inline]
+    pub fn data_mut(&mut self) -> &mut LightData {
+        &mut self.data
     }
 
     #[inline]

@@ -7,12 +7,14 @@ use crate::api::backend::{
 
 use crate::utils::read_spirv_from_bytes;
 use crate::{
-    BlendFactor, ConstantData, CullingModeType, InstanceCommand, InstanceData, PolygonModeType,
-    ShaderType, TextureAtlas, UniformData, VertexData, MAX_TEXTURE_COUNT,
+    BlendFactor, ConstantData, CullingModeType, InstanceCommand, InstanceData, LightData,
+    PolygonModeType, ShaderType, TextureAtlas, UniformData, VertexData, MAX_NUM_LIGHTS,
+    MAX_TEXTURE_COUNT,
 };
 use nrg_filesystem::convert_from_local_path;
 
 use nrg_math::{matrix4_to_array, Matrix4};
+use nrg_profiler::debug_log;
 use nrg_resources::DATA_FOLDER;
 use std::path::{Path, PathBuf};
 use vulkan_bindings::*;
@@ -206,7 +208,7 @@ impl BackendPipeline {
             rasterizerDiscardEnable: VK_FALSE,
             polygonMode: (*mode).into(),
             cullMode: (*culling).into(),
-            frontFace: VkFrontFace_VK_FRONT_FACE_CLOCKWISE,
+            frontFace: VkFrontFace_VK_FRONT_FACE_COUNTER_CLOCKWISE,
             depthBiasEnable: VK_FALSE,
             depthBiasConstantFactor: 0.0,
             depthBiasClamp: 0.0,
@@ -799,17 +801,26 @@ impl BackendPipeline {
         self
     }
 
-    pub fn update_uniform_buffer(
-        &self,
-        device: &BackendDevice,
-        view: &Matrix4,
-        proj: &Matrix4,
-    ) -> &Self {
+    pub fn update_uniform_buffer(&self, device: &BackendDevice, light_data: &[LightData]) -> &Self {
         let image_index = device.get_current_image_index();
-        let uniform_data: [UniformData; 1] = [UniformData {
-            view: *view,
-            proj: *proj,
-        }];
+        let mut uniform_data: [UniformData; 1] = [UniformData::default(); 1];
+        if light_data.len() >= MAX_NUM_LIGHTS {
+            debug_log(
+                format!(
+                    "Too many lights, max supported number is {} instead of {}",
+                    MAX_NUM_LIGHTS,
+                    light_data.len()
+                )
+                .as_str(),
+            );
+            uniform_data[0].num_lights = MAX_NUM_LIGHTS as _;
+        } else {
+            uniform_data[0].num_lights = light_data.len() as _;
+        }
+
+        for i in 0..uniform_data[0].num_lights as usize {
+            uniform_data[0].light_data[i] = light_data[i];
+        }
 
         let mut buffer_memory = self.uniform_buffers_memory[image_index];
         copy_from_buffer(device, &mut buffer_memory, 0, &uniform_data);

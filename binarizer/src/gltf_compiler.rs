@@ -16,13 +16,14 @@ use gltf::{
 };
 use nrg_filesystem::convert_in_local_path;
 use nrg_graphics::{
-    MaterialData, MeshCategoryId, MeshData, VertexData, DEFAULT_MESH_CATEGORY_IDENTIFIER,
+    LightData, LightType, MaterialData, MeshCategoryId, MeshData, VertexData,
+    DEFAULT_MESH_CATEGORY_IDENTIFIER,
 };
 use nrg_math::{Mat4Ops, Matrix4, NewAngle, Parser, Radians, Vector2, Vector3, Vector4};
 use nrg_messenger::MessengerRw;
 use nrg_profiler::debug_log;
 use nrg_resources::{DATA_FOLDER, DATA_RAW_FOLDER};
-use nrg_scene::{CameraData, LightData, LightType, ObjectData, SceneData};
+use nrg_scene::{CameraData, ObjectData, SceneData};
 use nrg_serialize::serialize_to_file;
 
 const GLTF_EXTENSION: &str = "gltf";
@@ -390,21 +391,23 @@ impl GltfCompiler {
 
     fn process_light(&mut self, path: &Path, light: &Light) -> (NodeType, PathBuf) {
         let mut light_data = LightData::default();
-        light_data.color = light.color().into();
+        light_data.color = [light.color()[0], light.color()[1], light.color()[2], 1.].into();
         light_data.intensity = light.intensity();
         light_data.range = light.range().unwrap_or(1.);
         match light.kind() {
             Kind::Directional => {
-                light_data.light_type = LightType::Directional;
+                light_data.light_type = LightType::Directional as _;
             }
             Kind::Point => {
-                light_data.light_type = LightType::Point;
+                light_data.light_type = LightType::Point as _;
             }
             Kind::Spot {
                 inner_cone_angle,
                 outer_cone_angle,
             } => {
-                light_data.light_type = LightType::Spot(inner_cone_angle, outer_cone_angle);
+                light_data.light_type = LightType::Spot as _;
+                light_data.inner_cone_angle = inner_cone_angle;
+                light_data.outer_cone_angle = outer_cone_angle;
             }
         }
 

@@ -4,7 +4,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use nrg_graphics::Mesh;
+use nrg_graphics::{Light, Mesh};
 use nrg_math::{Mat4Ops, MatBase, Matrix4, Vector3};
 use nrg_messenger::MessengerRw;
 use nrg_resources::{
@@ -14,7 +14,7 @@ use nrg_resources::{
 use nrg_serialize::{generate_random_uid, read_from_file};
 use nrg_ui::{CollapsingHeader, UIProperties, UIPropertiesRegistry, Ui};
 
-use crate::{Camera, Light, ObjectData};
+use crate::{Camera, ObjectData};
 
 pub type ComponentId = ResourceId;
 pub type ObjectId = ResourceId;
@@ -153,7 +153,7 @@ impl DataTypeResource for Object {
                     Box::new(move |light: &Resource<Light>| {
                         if let Some(parent) = shared_data_rc.get_resource::<Object>(&id) {
                             light.get_mut(|l| {
-                                l.set_parent(&parent);
+                                l.set_position(parent.get(|o| o.get_position()));
                             })
                         }
                     });

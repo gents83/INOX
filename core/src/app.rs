@@ -15,7 +15,7 @@ use nrg_serialize::{generate_uid_from_string, Uid};
 
 use crate::{Job, JobHandler, JobHandlerRw, Phase, PluginId, PluginManager, Scheduler, Worker};
 
-const NUM_WORKER_THREADS: usize = 8;
+const NUM_WORKER_THREADS: usize = 5;
 
 pub struct App {
     is_profiling: bool,

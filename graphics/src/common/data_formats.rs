@@ -37,12 +37,52 @@ impl Default for InstanceData {
         }
     }
 }
-#[repr(C, align(16))]
-#[derive(Debug, PartialEq, Clone, Copy)]
-pub struct UniformData {
-    pub view: Matrix4,
-    pub proj: Matrix4,
+
+pub const MAX_NUM_LIGHTS: usize = 32;
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[serde(crate = "nrg_serialize")]
+pub enum LightType {
+    None = 0,
+    Directional = 1,
+    Point = 2,
+    Spot = 3,
 }
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Copy)]
+#[serde(crate = "nrg_serialize")]
+pub struct LightData {
+    pub position: Vector3,
+    pub light_type: u32, //act as padding too
+    pub color: Vector4,
+    pub intensity: f32,
+    pub range: f32,
+    pub inner_cone_angle: f32,
+    pub outer_cone_angle: f32,
+}
+
+impl Default for LightData {
+    fn default() -> Self {
+        Self {
+            position: Vector3::default_zero(),
+            light_type: 0,
+            color: [1., 1., 1., 1.].into(),
+            intensity: 1000.,
+            range: 1.,
+            inner_cone_angle: 0.,
+            outer_cone_angle: 0.,
+        }
+    }
+}
+
+#[repr(C, align(16))]
+#[derive(Default, Debug, PartialEq, Clone, Copy)]
+pub struct UniformData {
+    pub num_lights: u32,
+    _padding: [u32; 3],
+    pub light_data: [LightData; MAX_NUM_LIGHTS],
+}
+
 #[repr(C, align(16))]
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct ConstantData {

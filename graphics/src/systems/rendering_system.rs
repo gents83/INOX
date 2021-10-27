@@ -68,6 +68,7 @@ impl RenderingSystem {
                 &proj,
                 textures,
                 used_textures.as_slice(),
+                renderer.light_data(),
             )
             .fill_command_buffer(device, physical_device, render_pass.get_command_buffer());
     }

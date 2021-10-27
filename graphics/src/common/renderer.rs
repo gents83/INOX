@@ -1,4 +1,4 @@
-use crate::{Device, Instance, Pipeline, RenderPass, Texture, TextureHandler};
+use crate::{Device, Instance, Light, LightData, Pipeline, RenderPass, Texture, TextureHandler};
 use nrg_resources::DataTypeResource;
 
 use nrg_platform::Handle;
@@ -21,6 +21,7 @@ pub struct Renderer {
     device: Device,
     shared_data: SharedDataRc,
     texture_handler: TextureHandler,
+    light_data: Vec<LightData>,
     state: RendererState,
 }
 pub type RendererRw = Arc<RwLock<Renderer>>;
@@ -38,6 +39,7 @@ impl Renderer {
             instance,
             device,
             texture_handler,
+            light_data: Vec::new(),
             state: RendererState::Submitted,
         }
     }
@@ -54,6 +56,10 @@ impl Renderer {
         &mut self.device
     }
 
+    pub fn light_data(&self) -> &[LightData] {
+        self.light_data.as_slice()
+    }
+
     pub fn state(&self) -> RendererState {
         self.state
     }
@@ -67,6 +73,7 @@ impl Renderer {
         self.init_render_passes();
         self.init_pipelines_for_pass("MainPass");
         self.init_textures();
+        self.init_lights();
 
         self
     }
@@ -186,6 +193,16 @@ impl Renderer {
                         texture.set_texture_info(&texture_info);
                     }
                 }
+            }
+        });
+    }
+
+    fn init_lights(&mut self) {
+        nrg_profiler::scoped_profile!("renderer::init_lights");
+        self.light_data.clear();
+        self.shared_data.for_each_resource(|_id, light: &Light| {
+            if light.is_active() {
+                self.light_data.push(*light.data());
             }
         });
     }

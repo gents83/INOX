@@ -1,7 +1,7 @@
 use std::{any::TypeId, marker::PhantomData};
 
 use egui::{Checkbox, CollapsingHeader, DragValue, TextEdit, Ui, Widget};
-use nrg_graphics::{Font, Material, Mesh, Pipeline, Texture, View};
+use nrg_graphics::{Font, Light, LightType, Material, Mesh, Pipeline, Texture, View};
 use nrg_math::{Degrees, Matrix4, Vector2, Vector3, Vector4};
 use nrg_resources::{
     GenericResource, ResourceCastTo, ResourceId, ResourceTrait, SerializableResource,
@@ -402,6 +402,46 @@ impl UIProperties for View {
                     ui.label("Index: ");
                     let mut index = format!("{}", self.view_index());
                     TextEdit::singleline(&mut index).interactive(false).ui(ui);
+                });
+            });
+    }
+}
+
+impl UIProperties for Light {
+    fn show(
+        &mut self,
+        id: &ResourceId,
+        ui_registry: &UIPropertiesRegistry,
+        ui: &mut Ui,
+        collapsed: bool,
+    ) {
+        CollapsingHeader::new(format!("Light [{:?}]", id.to_simple().to_string()))
+            .show_background(true)
+            .default_open(!collapsed)
+            .show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    ui.label("Type: ");
+                    if self.data().light_type == LightType::Directional as u32 {
+                        ui.label("Directional");
+                    } else if self.data().light_type == LightType::Point as u32 {
+                        ui.label("Point");
+                    } else if self.data().light_type == LightType::Spot as u32 {
+                        ui.label("Spot");
+                    }
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Color: ");
+                    self.data_mut().color.show(id, ui_registry, ui, collapsed);
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Intensity: ");
+                    self.data_mut()
+                        .intensity
+                        .show(id, ui_registry, ui, collapsed);
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Range: ");
+                    self.data_mut().range.show(id, ui_registry, ui, collapsed);
                 });
             });
     }

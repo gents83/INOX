@@ -11,7 +11,7 @@ use nrg_serialize::*;
 use crate::{
     api::backend::{self, BackendPhysicalDevice, BackendPipeline},
     utils::compute_color_from_id,
-    CommandBuffer, Device, DrawMode, GraphicsMesh, InstanceCommand, InstanceData, Mesh,
+    CommandBuffer, Device, DrawMode, GraphicsMesh, InstanceCommand, InstanceData, LightData, Mesh,
     MeshCategoryId, MeshId, PipelineData, RenderPass, ShaderType, TextureAtlas,
 };
 
@@ -221,11 +221,13 @@ impl Pipeline {
         proj: &Matrix4,
         textures: &[TextureAtlas],
         used_textures: &[bool],
+        light_data: &[LightData],
     ) -> &mut Self {
         nrg_profiler::scoped_profile!("device::update_bindings");
         if let Some(backend_pipeline) = &mut self.backend_pipeline {
             backend_pipeline
                 .update_constant_data(command_buffer, width, height, view, proj)
+                .update_uniform_buffer(device, light_data)
                 .update_descriptor_sets(device, textures, used_textures)
                 .bind_descriptors(device, command_buffer);
         }
