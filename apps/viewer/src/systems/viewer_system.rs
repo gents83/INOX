@@ -1,11 +1,11 @@
 use nrg_core::System;
-use nrg_graphics::View;
+use nrg_graphics::{DrawEvent, View};
 use nrg_math::{InnerSpace, Matrix4, Vector2, Vector3, Zero};
-use nrg_messenger::{read_messages, MessageChannel, MessengerRw};
+use nrg_messenger::{read_messages, send_global_event, MessageChannel, MessengerRw};
 use nrg_platform::{Key, KeyEvent, MouseButton, MouseEvent, WindowEvent};
 use nrg_profiler::debug_log;
 use nrg_resources::{Resource, SerializableResource, SharedData, SharedDataRc};
-use nrg_scene::{Camera, Object, ObjectId, Scene};
+use nrg_scene::{Camera, Light, Object, ObjectId, Scene};
 use nrg_serialize::generate_random_uid;
 use std::{any::TypeId, collections::HashMap, env, path::PathBuf};
 
@@ -121,6 +121,21 @@ impl System for ViewerSystem {
         self.shared_data.for_each_resource_mut(|r, o: &mut Object| {
             if let Some(parent_transform) = map.remove(&r.id()) {
                 o.update_transform(parent_transform);
+            }
+        });
+
+        self.shared_data.for_each_resource(|_, l: &Light| {
+            if let Some(parent) = l.parent() {
+                let p = parent.get(|p| p.get_position());
+                send_global_event(
+                    &self.global_messenger,
+                    DrawEvent::Sphere(
+                        p,
+                        l.data().range,
+                        [l.data().color.x, l.data().color.y, l.data().color.z, 1.].into(),
+                        true,
+                    ),
+                );
             }
         });
 

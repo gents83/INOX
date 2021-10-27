@@ -124,6 +124,11 @@ impl Light {
     }
 
     #[inline]
+    pub fn data(&self) -> &LightData {
+        &self.data
+    }
+
+    #[inline]
     pub fn set_active(&mut self, is_active: bool) -> &mut Self {
         self.is_active = is_active;
         self

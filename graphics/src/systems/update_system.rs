@@ -74,11 +74,10 @@ impl UpdateSystem {
 
     pub fn load_pipelines(&mut self, pipelines: &[PathBuf]) -> &mut Self {
         for pipeline_path in pipelines.iter() {
-            self.pipelines.push(Pipeline::load_from_file(
+            self.pipelines.push(Pipeline::create_from_file(
                 &self.shared_data,
                 &self.global_messenger,
                 pipeline_path.as_path(),
-                None,
             ));
         }
         self

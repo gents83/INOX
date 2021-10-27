@@ -1,5 +1,6 @@
 use nrg_core::{define_plugin, App, PhaseWithSystems, Plugin, System, SystemId};
 
+use nrg_graphics::DebugDrawerSystem;
 use nrg_ui::UISystem;
 
 use crate::systems::viewer_system::ViewerSystem;
@@ -9,7 +10,7 @@ const VIEWER_UPDATE_PHASE: &str = "VIEWER_UPDATE_PHASE";
 #[repr(C)]
 pub struct Viewer {
     updater_id: SystemId,
-    renderer_id: SystemId,
+    debug_drawer_id: SystemId,
     ui_id: SystemId,
 }
 define_plugin!(Viewer);
@@ -18,7 +19,7 @@ impl Default for Viewer {
     fn default() -> Self {
         Self {
             updater_id: SystemId::default(),
-            renderer_id: SystemId::default(),
+            debug_drawer_id: SystemId::default(),
             ui_id: SystemId::default(),
         }
     }
@@ -33,6 +34,11 @@ impl Plugin for Viewer {
         let system = ViewerSystem::new(app.get_shared_data(), app.get_global_messenger());
         self.updater_id = ViewerSystem::id();
         update_phase.add_system(system);
+
+        let debug_drawer_system =
+            DebugDrawerSystem::new(app.get_shared_data(), app.get_global_messenger());
+        self.debug_drawer_id = DebugDrawerSystem::id();
+        update_phase.add_system(debug_drawer_system);
 
         let mut ui_system = UISystem::new(
             app.get_shared_data(),
