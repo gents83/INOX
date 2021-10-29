@@ -1,7 +1,13 @@
+use nrg_math::Vector4;
+use nrg_serialize::{generate_random_uid, Uid, INVALID_UID};
+
+use crate::TextureId;
+
 pub const DEFAULT_AREA_SIZE: u32 = 4096;
 
 #[derive(Clone, Copy)]
 pub struct Area {
+    pub id: TextureId,
     pub x: u32,
     pub y: u32,
     pub width: u32,
@@ -11,6 +17,7 @@ pub struct Area {
 impl Default for Area {
     fn default() -> Self {
         Self {
+            id: INVALID_UID,
             x: 0,
             y: 0,
             width: 0,
@@ -18,10 +25,31 @@ impl Default for Area {
         }
     }
 }
+impl From<&Area> for [f32; 4] {
+    fn from(area: &Area) -> Self {
+        [
+            area.x as f32,
+            area.y as f32,
+            area.width as f32,
+            area.height as f32,
+        ]
+    }
+}
+impl From<&Area> for Vector4 {
+    fn from(area: &Area) -> Self {
+        Vector4::new(
+            area.x as f32,
+            area.y as f32,
+            area.width as f32,
+            area.height as f32,
+        )
+    }
+}
 
 impl Area {
-    pub fn new(x: u32, y: u32, width: u32, height: u32) -> Self {
+    pub fn new(id: &TextureId, x: u32, y: u32, width: u32, height: u32) -> Self {
         Self {
+            id: *id,
             x,
             y,
             width,
@@ -94,12 +122,16 @@ impl AreaList {
         self.list.last()
     }
 
+    pub fn get_area(&self, id: &TextureId) -> Option<&Area> {
+        self.list.iter().find(|&area| area.id == *id)
+    }
+
     pub fn find(&self, width: u32, height: u32) -> Option<usize> {
         self.list
             .iter()
             .position(|a| a.width >= width && a.height >= height)
     }
-    pub fn remove(&mut self, area: Area) {
+    pub fn remove(&mut self, area: &Area) {
         if let Some(index) = self.list.iter().position(|a| {
             a.x == area.x && a.width == area.width && a.y == area.y && a.height == area.height
         }) {
@@ -152,26 +184,30 @@ impl AreaList {
 
 #[derive(Clone)]
 pub struct AreaAllocator {
+    id: Uid,
     free: AreaList,
     occupied: AreaList,
 }
 
 impl AreaAllocator {
     pub fn new(width: u32, height: u32) -> Self {
+        let id = generate_random_uid();
         Self {
-            free: AreaList::new(&[Area::new(0, 0, width as _, height as _)]),
+            free: AreaList::new(&[Area::new(&id, 0, 0, width as _, height as _)]),
             occupied: AreaList::default(),
+            id,
         }
     }
-    pub fn allocate(&mut self, width: u32, height: u32) -> Option<&Area> {
+    pub fn allocate(&mut self, id: &TextureId, width: u32, height: u32) -> Option<&Area> {
         self.free.collapse();
         if let Some(index) = self.free.find(width, height) {
             let old_area = self.free.pop(index);
-            let new_area = Area::new(old_area.x, old_area.y, width, height);
+            let new_area = Area::new(id, old_area.x, old_area.y, width, height);
             self.occupied.insert(new_area);
 
             if old_area.width > width {
                 self.free.insert(Area::new(
+                    &self.id,
                     old_area.x + width,
                     old_area.y,
                     old_area.width - width,
@@ -180,6 +216,7 @@ impl AreaAllocator {
             }
             if old_area.height > height {
                 self.free.insert(Area::new(
+                    &self.id,
                     old_area.x,
                     old_area.y + height,
                     width,
@@ -188,6 +225,7 @@ impl AreaAllocator {
             }
             if old_area.width > width && old_area.height > height {
                 self.free.insert(Area::new(
+                    &self.id,
                     old_area.x + width,
                     old_area.y + height,
                     old_area.width - width,
@@ -200,8 +238,24 @@ impl AreaAllocator {
         None
     }
 
-    pub fn remove(&mut self, area: Area) {
-        self.occupied.remove(area);
+    pub fn get_area(&self, id: &TextureId) -> Option<Area> {
+        if let Some(area) = self.occupied.get_area(id) {
+            return Some(area.clone());
+        }
+        None
+    }
+
+    pub fn remove_texture(&mut self, id: &TextureId) -> bool {
+        if let Some(area) = self.get_area(id) {
+            self.remove(area);
+            return true;
+        }
+        false
+    }
+
+    pub fn remove(&mut self, mut area: Area) {
+        self.occupied.remove(&area);
+        area.id = self.id;
         self.free.insert(area);
         self.free.collapse();
     }

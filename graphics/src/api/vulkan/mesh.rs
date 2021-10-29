@@ -1,8 +1,9 @@
+use crate::VertexData;
+
 use super::{
     copy_from_buffer, create_buffer, data_formats::VERTEX_BUFFER_BIND_ID, destroy_buffer,
     device::*, physical_device::BackendPhysicalDevice, BackendCommandBuffer,
 };
-use crate::common::data_formats::*;
 use vulkan_bindings::*;
 
 #[derive(Clone)]

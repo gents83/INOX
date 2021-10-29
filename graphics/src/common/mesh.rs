@@ -1,8 +1,5 @@
 use crate::api::backend::{BackendMesh, BackendPhysicalDevice};
-use crate::CommandBuffer;
-
-use super::data_formats::*;
-use super::device::*;
+use crate::{CommandBuffer, Device, MeshCategoryId, MeshData, MeshDataRef, VertexData};
 
 #[derive(Default, Clone)]
 pub struct GraphicsMesh {

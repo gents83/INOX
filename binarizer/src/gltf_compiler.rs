@@ -11,13 +11,14 @@ use gltf::{
     camera::Projection,
     image::Source as ImageSource,
     khr_lights_punctual::{Kind, Light},
+    material::AlphaMode,
     mesh::Mode,
-    Accessor, Camera, Gltf, Node, Primitive, Semantic,
+    Accessor, Camera, Gltf, Node, Primitive, Semantic, Texture,
 };
 use nrg_filesystem::convert_in_local_path;
 use nrg_graphics::{
-    LightData, LightType, MaterialData, MeshCategoryId, MeshData, VertexData,
-    DEFAULT_MESH_CATEGORY_IDENTIFIER,
+    LightData, LightType, MaterialAlphaMode, MaterialData, MeshCategoryId, MeshData, TextureType,
+    VertexData, DEFAULT_MESH_CATEGORY_IDENTIFIER, MAX_TEXTURE_COORDS_SETS,
 };
 use nrg_math::{Mat4Ops, Matrix4, NewAngle, Parser, Radians, Vector2, Vector3, Vector4};
 use nrg_messenger::MessengerRw;
@@ -194,6 +195,28 @@ impl GltfCompiler {
                         }
                     }
                 }
+                Semantic::Tangents => {
+                    let num = self.num_from_type(&accessor);
+                    let num_bytes = self.bytes_from_dimension(&accessor);
+                    debug_assert!(num == 4 && num_bytes == 4);
+                    if let Some(tang) = self.read_accessor_from_path::<Vector4>(path, &accessor) {
+                        if vertices.len() < tang.len() {
+                            debug_assert!(vertices.is_empty());
+                            for t in tang.iter() {
+                                let v = VertexData {
+                                    tangent: [t.x, t.y, t.z].into(),
+                                    ..Default::default()
+                                };
+                                vertices.push(v);
+                            }
+                        } else {
+                            debug_assert!(vertices.len() == tang.len());
+                            for (i, t) in tang.iter().enumerate() {
+                                vertices[i].tangent = [t.x, t.y, t.z].into();
+                            }
+                        }
+                    }
+                }
                 Semantic::Colors(_color_index) => {
                     let num = self.num_from_type(&accessor);
                     let num_bytes = self.bytes_from_dimension(&accessor);
@@ -216,22 +239,27 @@ impl GltfCompiler {
                         }
                     }
                 }
-                Semantic::TexCoords(_texture_index) => {
+                Semantic::TexCoords(texture_index) => {
+                    if texture_index >= MAX_TEXTURE_COORDS_SETS as _ {
+                        eprintln!(
+                            "ERROR: Texture coordinate set {} is out of range (max {})",
+                            texture_index, MAX_TEXTURE_COORDS_SETS
+                        );
+                        continue;
+                    }
                     let num = self.num_from_type(&accessor);
                     let num_bytes = self.bytes_from_dimension(&accessor);
                     debug_assert!(num == 2 && num_bytes == 4);
                     if let Some(tex) = self.read_accessor_from_path::<Vector2>(path, &accessor) {
                         if !vertices.is_empty() {
                             for (i, v) in vertices.iter_mut().enumerate() {
-                                v.tex_coord = tex[i];
+                                v.tex_coord[texture_index as usize] = tex[i];
                             }
                         } else {
                             debug_assert!(vertices.is_empty());
                             for t in tex.iter() {
-                                let v = VertexData {
-                                    tex_coord: *t,
-                                    ..Default::default()
-                                };
+                                let mut v = VertexData::default();
+                                v.tex_coord[texture_index as usize] = *t;
                                 vertices.push(v);
                             }
                         }
@@ -259,34 +287,101 @@ impl GltfCompiler {
 
         Self::create_file(path, &mesh_data, mesh_name, MESH_DATA_EXTENSION)
     }
+    fn process_texture(&mut self, path: &Path, texture: Texture) -> PathBuf {
+        match texture.source().source() {
+            ImageSource::Uri {
+                uri,
+                mime_type: _, /* fields */
+            } => {
+                if let Some(parent_folder) = path.parent() {
+                    let parent_path = parent_folder.to_str().unwrap().to_string();
+                    let filepath = PathBuf::from(parent_path).join(uri);
+                    let path = convert_in_local_path(
+                        filepath.as_path(),
+                        PathBuf::from(DATA_RAW_FOLDER).as_path(),
+                    );
+                    return path;
+                }
+            }
+            _ => {}
+        }
+        PathBuf::new()
+    }
     fn process_material_data(&mut self, path: &Path, primitive: &Primitive) -> PathBuf {
         let mut material_data = MaterialData::default();
 
         let material = primitive.material().pbr_metallic_roughness();
-        material_data.diffuse_color = material.base_color_factor().into();
+        material_data.base_color = material.base_color_factor().into();
+        material_data.roughness_factor = material.roughness_factor().into();
+        material_data.metallic_factor = material.metallic_factor().into();
         material_data.pipeline = PathBuf::from(DEFAULT_PIPELINE);
-        if let Some(texture) = material.base_color_texture() {
-            match texture.texture().source().source() {
-                ImageSource::Uri {
-                    uri,
-                    mime_type: _, /* fields */
-                } => {
-                    if let Some(parent_folder) = path.parent() {
-                        let parent_path = parent_folder.to_str().unwrap().to_string();
-                        let filepath = PathBuf::from(parent_path).join(uri);
-                        let path = convert_in_local_path(
-                            filepath.as_path(),
-                            PathBuf::from(DATA_RAW_FOLDER).as_path(),
-                        );
-                        material_data.textures.push(path);
-                    }
-                }
-                ImageSource::View {
-                    view: _,
-                    mime_type: _,
-                } => {}
-            }
+        if let Some(info) = material.base_color_texture() {
+            material_data.textures[TextureType::BaseColor as usize] =
+                self.process_texture(path, info.texture());
+            material_data.texcoords_set[TextureType::BaseColor as usize] = info.tex_coord() as _;
         }
+        if let Some(info) = material.metallic_roughness_texture() {
+            material_data.textures[TextureType::MetallicRoughness as usize] =
+                self.process_texture(path, info.texture());
+            material_data.texcoords_set[TextureType::MetallicRoughness as usize] =
+                info.tex_coord() as _;
+        }
+
+        let material = primitive.material();
+        if let Some(texture) = material.normal_texture() {
+            material_data.textures[TextureType::Normal as usize] =
+                self.process_texture(path, texture.texture());
+            material_data.texcoords_set[TextureType::Normal as usize] = texture.tex_coord() as _;
+        }
+        if let Some(texture) = material.emissive_texture() {
+            material_data.textures[TextureType::Emissive as usize] =
+                self.process_texture(path, texture.texture());
+            material_data.texcoords_set[TextureType::Emissive as usize] = texture.tex_coord() as _;
+        }
+        if let Some(texture) = material.occlusion_texture() {
+            material_data.textures[TextureType::Occlusion as usize] =
+                self.process_texture(path, texture.texture());
+            material_data.texcoords_set[TextureType::Occlusion as usize] = texture.tex_coord() as _;
+        }
+        material_data.alpha_mode = match material.alpha_mode() {
+            AlphaMode::Opaque => MaterialAlphaMode::Opaque,
+            AlphaMode::Mask => {
+                material_data.alpha_cutoff = 0.5;
+                MaterialAlphaMode::Mask
+            }
+            AlphaMode::Blend => MaterialAlphaMode::Blend,
+        };
+        material_data.alpha_cutoff = primitive.material().alpha_cutoff().unwrap_or(1.);
+        material_data.emissive_color = [
+            primitive.material().emissive_factor()[0],
+            primitive.material().emissive_factor()[1],
+            primitive.material().emissive_factor()[2],
+            1.,
+        ]
+        .into();
+        if let Some(material) = material.pbr_specular_glossiness() {
+            if let Some(texture) = material.specular_glossiness_texture() {
+                material_data.textures[TextureType::SpecularGlossiness as usize] =
+                    self.process_texture(path, texture.texture());
+                material_data.texcoords_set[TextureType::SpecularGlossiness as usize] =
+                    texture.tex_coord() as _;
+            }
+            if let Some(texture) = material.diffuse_texture() {
+                material_data.textures[TextureType::Diffuse as usize] =
+                    self.process_texture(path, texture.texture());
+                material_data.texcoords_set[TextureType::Diffuse as usize] =
+                    texture.tex_coord() as _;
+            }
+            material_data.diffuse_color = material.diffuse_factor().into();
+            material_data.specular_color = [
+                material.specular_factor()[0],
+                material.specular_factor()[1],
+                material.specular_factor()[2],
+                1.,
+            ]
+            .into();
+        }
+
         let name = format!(
             "Material_{}",
             primitive.material().index().unwrap_or_default()

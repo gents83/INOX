@@ -76,7 +76,7 @@ impl DataTypeResource for Light {
 impl Light {
     #[inline]
     pub fn set_position(&mut self, position: Vector3) -> &mut Self {
-        self.data.position = position;
+        self.data.position = position.into();
         self
     }
 

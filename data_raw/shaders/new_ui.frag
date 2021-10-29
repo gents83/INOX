@@ -1,23 +1,19 @@
 #version 450
-precision highp float;
+#extension GL_GOOGLE_include_directive : require
 
-layout(std140, push_constant) uniform PushConsts {
-    mat4 view;
-    mat4 proj;
-	vec2 screen_size;
-} pushConsts;
+#include "common.glsl"
 
 //Input
 layout(binding = 1) uniform sampler2DArray texture0Sampler[8]; //texture index 0
 
 layout(location = 0) in vec4 inColor;
-layout(location = 1) in vec3 inTexCoord;
-layout(location = 2) flat in uint inTextureIndex;
+layout(location = 1) in flat uint inTexIdx[TEXTURE_TYPE_COUNT];
+layout(location = 9) in vec3 inTexCoords[TEXTURE_TYPE_COUNT];
 
 //Output
 layout(location = 0) out vec4 outColor;
 
 void main() {	
-    vec4 textureColor = texture(texture0Sampler[inTextureIndex], inTexCoord);
+    vec4 textureColor = texture(texture0Sampler[inTexIdx[TEXTURE_TYPE_BASE_COLOR]], inTexCoords[TEXTURE_TYPE_BASE_COLOR]);
     outColor = textureColor * inColor;
 }

@@ -9,13 +9,13 @@ use std::{
 };
 
 use nrg_core::{JobHandlerRw, System};
-use nrg_math::{VecBase, Vector4};
+
 use nrg_messenger::{read_messages, MessageChannel, MessengerRw};
 use nrg_resources::{
     ConfigBase, DataTypeResource, Resource, SerializableResource, SharedData, SharedDataRc,
     UpdateResourceEvent,
 };
-use nrg_serialize::{generate_random_uid, read_from_file, INVALID_UID};
+use nrg_serialize::{generate_random_uid, read_from_file};
 
 use crate::{
     is_shader, Mesh, MeshId, Pipeline, RenderPass, RenderPassData, RendererRw, RendererState,
@@ -109,72 +109,29 @@ impl UpdateSystem {
         mesh: &mut Mesh,
         render_pass_pipeline: Option<&Resource<Pipeline>>,
     ) {
-        let mut texture_id = INVALID_UID;
+        let renderer = renderer.read().unwrap();
+        let device = renderer.device();
+        let physical_device = renderer.instance().get_physical_device();
+        let mut material_index = INVALID_INDEX;
         if let Some(material) = mesh.material() {
             material.get(|material| {
-                if !material.is_initialized() {
-                    return;
-                }
-                if material.has_diffuse_texture() {
-                    texture_id = *material.diffuse_texture().id();
+                if material.is_initialized() {
+                    material_index = material.uniform_index();
                 }
             });
         }
-        if !texture_id.is_nil() {
-            let renderer = renderer.read().unwrap();
-            let texture_info = renderer.get_texture_handler().get_texture_info(&texture_id);
-            mesh.process_uv_for_texture(texture_info);
-        }
-        if let Some(material) = mesh.material() {
-            let mut diffuse_color = Vector4::default_zero();
-            let (mut diffuse_texture_index, mut diffuse_layer_index) =
-                (INVALID_INDEX, INVALID_INDEX);
+        if let Some(pipeline) = render_pass_pipeline {
+            pipeline.get_mut(|p| {
+                p.add_mesh_instance(device, physical_device, mesh_id, mesh, material_index);
+            });
+        } else if let Some(material) = mesh.material() {
             material.get(|material| {
-                nrg_profiler::scoped_profile!("Obtaining material data");
-                diffuse_color = material.diffuse_color();
-                if material.has_diffuse_texture() {
-                    material.diffuse_texture().get(|t| {
-                        nrg_profiler::scoped_profile!("Obtaining texture info");
-                        diffuse_texture_index = t.texture_index();
-                        diffuse_layer_index = t.layer_index();
+                if let Some(pipeline) = material.pipeline() {
+                    pipeline.get_mut(|p| {
+                        p.add_mesh_instance(device, physical_device, mesh_id, mesh, material_index);
                     });
                 }
             });
-            if let Some(pipeline) = render_pass_pipeline {
-                let renderer = renderer.read().unwrap();
-                let device = renderer.device();
-                let physical_device = renderer.instance().get_physical_device();
-                pipeline.get_mut(|p| {
-                    p.add_mesh_instance(
-                        device,
-                        physical_device,
-                        mesh_id,
-                        mesh,
-                        diffuse_color,
-                        diffuse_texture_index,
-                        diffuse_layer_index,
-                    );
-                });
-            } else {
-                material.get(|material| {
-                    if let Some(pipeline) = material.pipeline() {
-                        let renderer = renderer.read().unwrap();
-                        let device = renderer.device();
-                        let physical_device = renderer.instance().get_physical_device();
-                        pipeline.get_mut(|p| {
-                            p.add_mesh_instance(
-                                device,
-                                physical_device,
-                                mesh_id,
-                                mesh,
-                                diffuse_color,
-                                diffuse_texture_index,
-                                diffuse_layer_index,
-                            );
-                        });
-                    }
-                });
-            }
         }
     }
 }

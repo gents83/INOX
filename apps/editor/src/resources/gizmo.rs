@@ -73,28 +73,28 @@ impl Gizmo {
 
         let center_color = mesh_center.get(|m| {
             if let Some(material) = m.material() {
-                material.get(|m| m.diffuse_color())
+                material.get(|m| m.base_color())
             } else {
                 hex_to_rgba("#FFFFFF")
             }
         });
         let axis_x_color = mesh_x.get(|m| {
             if let Some(material) = m.material() {
-                material.get(|m| m.diffuse_color())
+                material.get(|m| m.base_color())
             } else {
                 hex_to_rgba("#FF0000")
             }
         });
         let axis_y_color = mesh_y.get(|m| {
             if let Some(material) = m.material() {
-                material.get(|m| m.diffuse_color())
+                material.get(|m| m.base_color())
             } else {
                 hex_to_rgba("#00FF00")
             }
         });
         let axis_z_color = mesh_z.get(|m| {
             if let Some(material) = m.material() {
-                material.get(|m| m.diffuse_color())
+                material.get(|m| m.base_color())
             } else {
                 hex_to_rgba("#0000FF")
             }
@@ -287,7 +287,7 @@ impl Gizmo {
             let material =
                 Material::duplicate_from_pipeline(shared_data, default_material_pipeline);
             material.get_mut(|m| {
-                m.set_diffuse_color(color);
+                m.set_base_color(color);
             });
             m.set_material(material);
         });
@@ -315,7 +315,7 @@ impl Gizmo {
             let material =
                 Material::duplicate_from_pipeline(shared_data, default_material_pipeline);
             material.get_mut(|m| {
-                m.set_diffuse_color(color);
+                m.set_base_color(color);
             });
             m.set_material(material);
         });
@@ -343,7 +343,7 @@ impl Gizmo {
             let material =
                 Material::duplicate_from_pipeline(shared_data, default_material_pipeline);
             material.get_mut(|m| {
-                m.set_diffuse_color(color);
+                m.set_base_color(color);
             });
             m.set_material(material);
         });
@@ -520,10 +520,10 @@ impl Gizmo {
         mesh.get(|m| {
             if let Some(material) = m.material() {
                 if mesh.id().as_u128() as u32 == mesh_u32 {
-                    material.get_mut(|m| m.set_diffuse_color(highlight_color));
+                    material.get_mut(|m| m.set_base_color(highlight_color));
                     return true;
                 } else {
-                    material.get_mut(|m| m.set_diffuse_color(default_color));
+                    material.get_mut(|m| m.set_base_color(default_color));
                 }
             }
             return false;

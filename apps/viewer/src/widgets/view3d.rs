@@ -8,8 +8,8 @@ use nrg_ui::{
     implement_widget_data, CentralPanel, Frame, Image, LayerId, Sense, TextureId as eguiTextureId,
     UIWidget, Widget,
 };
-const VIEW3D_IMAGE_WIDTH: u32 = 1920;
-const VIEW3D_IMAGE_HEIGHT: u32 = 1080;
+const VIEW3D_IMAGE_WIDTH: u32 = 1912;
+const VIEW3D_IMAGE_HEIGHT: u32 = 1072;
 
 struct View3DData {
     shared_data: SharedDataRc,

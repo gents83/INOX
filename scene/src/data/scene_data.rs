@@ -1,4 +1,4 @@
-use nrg_serialize::*;
+use nrg_serialize::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]

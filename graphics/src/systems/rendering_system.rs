@@ -55,8 +55,9 @@ impl RenderingSystem {
         pipeline.bind(render_pass.get_command_buffer());
 
         let textures = texture_handler.get_textures_atlas();
+        let material_data = renderer.material_data();
         debug_assert!(textures.is_empty() == false);
-        let used_textures = pipeline.find_used_textures(textures);
+        let used_textures = pipeline.find_used_textures(textures, material_data);
 
         pipeline
             .update_bindings(
@@ -69,6 +70,8 @@ impl RenderingSystem {
                 textures,
                 used_textures.as_slice(),
                 renderer.light_data(),
+                renderer.texture_data(),
+                renderer.material_data(),
             )
             .fill_command_buffer(device, physical_device, render_pass.get_command_buffer());
     }

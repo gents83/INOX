@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use nrg_messenger::implement_message;
-use nrg_serialize::*;
+use nrg_serialize::{Deserialize, Serialize};
 
 #[derive(Copy, Clone, Serialize, Deserialize)]
 #[serde(crate = "nrg_serialize")]

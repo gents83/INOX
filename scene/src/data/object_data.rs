@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use nrg_math::{MatBase, Matrix4};
-use nrg_serialize::*;
+use nrg_serialize::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 #[serde(crate = "nrg_serialize")]

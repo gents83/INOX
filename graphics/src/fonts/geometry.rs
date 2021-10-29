@@ -1,6 +1,6 @@
 use super::raster::*;
 use nrg_math::*;
-use nrg_serialize::*;
+use nrg_serialize::{Deserialize, Serialize};
 use ttf_parser::*;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]

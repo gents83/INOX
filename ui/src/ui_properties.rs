@@ -284,23 +284,19 @@ impl UIProperties for Material {
                 }
                 ui.collapsing(format!("Textures [{}]", self.textures().len()), |ui| {
                     for t in self.textures() {
-                        let id = t.id();
-                        t.get_mut(|t| {
-                            t.show(id, ui_registry, ui, collapsed);
-                        });
+                        if let Some(t) = t {
+                            let id = t.id();
+                            t.get_mut(|t| {
+                                t.show(id, ui_registry, ui, collapsed);
+                            });
+                        }
                     }
                 });
                 ui.horizontal(|ui| {
-                    ui.label("Diffuse Color: ");
-                    let mut diffuse_color = self.diffuse_color();
-                    diffuse_color.show(&INVALID_UID, ui_registry, ui, collapsed);
-                    self.set_diffuse_color(diffuse_color);
-                });
-                ui.horizontal(|ui| {
-                    ui.label("Outline Color: ");
-                    let mut outline_color = self.outline_color();
-                    outline_color.show(&INVALID_UID, ui_registry, ui, collapsed);
-                    self.set_outline_color(outline_color);
+                    ui.label("Base Color: ");
+                    let mut base_color = self.base_color();
+                    base_color.show(&INVALID_UID, ui_registry, ui, collapsed);
+                    self.set_base_color(base_color);
                 });
             });
     }
@@ -368,13 +364,6 @@ impl UIProperties for Texture {
                         .ui(ui);
                 });
                 ui.horizontal(|ui| {
-                    ui.label("Layer Index: ");
-                    let mut layer_index = format!("{}", self.layer_index());
-                    TextEdit::singleline(&mut layer_index)
-                        .interactive(false)
-                        .ui(ui);
-                });
-                ui.horizontal(|ui| {
                     ui.label("Dimensions: ");
                     let mut width = format!("{}", self.dimensions().0);
                     TextEdit::singleline(&mut width).interactive(false).ui(ui);
@@ -431,7 +420,9 @@ impl UIProperties for Light {
                 });
                 ui.horizontal(|ui| {
                     ui.label("Color: ");
-                    self.data_mut().color.show(id, ui_registry, ui, collapsed);
+                    let mut color: Vector4 = self.data().color.into();
+                    color.show(id, ui_registry, ui, collapsed);
+                    self.data_mut().color = color.into();
                 });
                 ui.horizontal(|ui| {
                     ui.label("Intensity: ");

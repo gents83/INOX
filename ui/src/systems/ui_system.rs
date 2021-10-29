@@ -15,7 +15,7 @@ use image::RgbaImage;
 use nrg_core::{JobHandlerRw, System};
 use nrg_graphics::{
     Material, Mesh, MeshCategoryId, MeshData, Pipeline, RenderPass, RenderTarget, Texture,
-    TextureId, VertexData,
+    TextureId, TextureType, VertexData,
 };
 
 use nrg_math::Vector4;
@@ -99,7 +99,7 @@ impl UISystem {
                             let material =
                                 Material::duplicate_from_pipeline(&shared_data, pipeline);
                             material.get_mut(|m| {
-                                m.add_texture(texture.clone());
+                                m.set_texture(TextureType::BaseColor, &texture);
                             });
                             return material;
                         } else {
@@ -133,7 +133,7 @@ impl UISystem {
             if let Some(texture) = &self.ui_texture {
                 if let Some(material) = self.ui_materials.remove(&texture.id()) {
                     material.get_mut(|m| {
-                        m.remove_texture(texture.id());
+                        m.remove_texture(TextureType::BaseColor);
                     })
                 }
             }
@@ -191,7 +191,9 @@ impl UISystem {
                     vertices.resize(mesh.vertices.len(), VertexData::default());
                     for (i, v) in mesh.vertices.iter().enumerate() {
                         vertices[i].pos = [v.pos.x * ui_scale, v.pos.y * ui_scale, 0.].into();
-                        vertices[i].tex_coord = [v.uv.x, v.uv.y].into();
+                        vertices[i].tex_coord.iter_mut().for_each(|t| {
+                            *t = [v.uv.x, v.uv.y].into();
+                        });
                         vertices[i].color = [
                             v.color.r() as _,
                             v.color.g() as _,

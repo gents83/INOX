@@ -1,12 +1,11 @@
-use crate::common::data_formats::*;
 use image::*;
-use nrg_math::*;
-use nrg_platform::*;
-use nrg_serialize::*;
+use nrg_math::{Vector2, Vector4};
+use nrg_platform::DEFAULT_DPI;
+use nrg_serialize::{Deserialize, Serialize};
 use std::{collections::HashMap, num::NonZeroU16, path::Path};
 use ttf_parser::*;
 
-use super::glyph::*;
+use crate::{Glyph, MeshData, Metrics};
 
 const DEFAULT_FONT_COUNT: u8 = 255;
 pub const DEFAULT_FONT_TEXTURE_SIZE: usize = 1024;

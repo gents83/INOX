@@ -89,12 +89,13 @@ impl System for ViewerSystem {
             .register_messagebox::<WindowEvent>(self.message_channel.get_messagebox());
 
         self._view_3d = Some(View3D::new(&self.shared_data, &self.global_messenger));
-
+        /*
         self._hierarchy = Some(Hierarchy::new(
             &self.shared_data,
             &self.global_messenger,
             self.scene.id(),
         ));
+        */
     }
 
     fn run(&mut self) -> bool {
@@ -126,9 +127,9 @@ impl System for ViewerSystem {
                 send_global_event(
                     &self.global_messenger,
                     DrawEvent::Sphere(
-                        l.data().position,
+                        l.data().position.into(),
                         l.data().range,
-                        [l.data().color.x, l.data().color.y, l.data().color.z, 1.].into(),
+                        [l.data().color[0], l.data().color[1], l.data().color[2], 1.].into(),
                         true,
                     ),
                 );

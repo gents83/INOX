@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use crate::{Material, MeshCategoryId, MeshData, TextureInfo, INVALID_INDEX};
+use crate::{Material, MeshCategoryId, MeshData, INVALID_INDEX};
 use nrg_math::{MatBase, Matrix4, Vector4};
 use nrg_messenger::MessengerRw;
 use nrg_resources::{
@@ -149,20 +149,5 @@ impl Mesh {
 
     pub fn category_identifier(&self) -> &MeshCategoryId {
         &self.mesh_data.mesh_category_identifier
-    }
-
-    pub fn process_uv_for_texture(&mut self, texture: Option<&TextureInfo>) -> &mut Self {
-        if let Some(texture) = texture {
-            if !self.uv_converted {
-                nrg_profiler::scoped_profile!("Texture::process_uv_for_texture");
-                self.uv_converted = true;
-                for v in self.mesh_data.vertices.iter_mut() {
-                    let tex_coord = &mut v.tex_coord;
-                    let (u, v) = texture.convert_uv(tex_coord.x, tex_coord.y);
-                    *tex_coord = [u, v].into();
-                }
-            }
-        }
-        self
     }
 }

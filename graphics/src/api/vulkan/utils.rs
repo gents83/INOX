@@ -327,7 +327,7 @@ pub fn create_buffer(
     properties: VkMemoryPropertyFlags,
     buffer: &mut VkBuffer,
     buffer_memory: &mut VkDeviceMemory,
-) {
+) -> (u64, u64) {
     nrg_profiler::scoped_profile!("Vulkan create_buffer");
 
     let buffer_info = VkBufferCreateInfo {
@@ -377,6 +377,8 @@ pub fn create_buffer(
 
         vkBindBufferMemory.unwrap()(**device, *buffer, *buffer_memory, 0);
     }
+
+    (mem_requirement.size, mem_requirement.alignment)
 }
 
 pub fn destroy_buffer(device: &BackendDevice, buffer: &VkBuffer, buffer_memory: &VkDeviceMemory) {

@@ -10,7 +10,7 @@ use nrg_resources::{
 };
 
 use crate::{
-    api::backend::BackendPhysicalDevice, Device, TextureHandler, TextureInfo, INVALID_INDEX,
+    api::backend::BackendPhysicalDevice, Device, TextureHandler, INVALID_INDEX,
     TEXTURE_CHANNEL_COUNT,
 };
 
@@ -20,11 +20,9 @@ pub type TextureId = ResourceId;
 pub struct Texture {
     path: PathBuf,
     image_data: Option<Vec<u8>>,
-    texture_index: i32,
-    layer_index: i32,
+    uniform_index: i32,
     width: u32,
     height: u32,
-    is_initialized: bool,
     update_from_gpu: bool,
 }
 
@@ -33,11 +31,9 @@ impl Default for Texture {
         Self {
             path: PathBuf::new(),
             image_data: None,
-            texture_index: INVALID_INDEX,
-            layer_index: INVALID_INDEX,
+            uniform_index: INVALID_INDEX,
             width: 0,
             height: 0,
-            is_initialized: false,
             update_from_gpu: false,
         }
     }
@@ -46,11 +42,11 @@ impl Default for Texture {
 impl DataTypeResource for Texture {
     type DataType = RgbaImage;
     fn invalidate(&mut self) {
-        self.is_initialized = false;
+        self.uniform_index = INVALID_INDEX;
         debug_log(format!("Texture {:?} will be reloaded", self.path).as_str());
     }
     fn is_initialized(&self) -> bool {
-        self.is_initialized
+        self.uniform_index != INVALID_INDEX
     }
     fn deserialize_data(path: &Path) -> Self::DataType {
         let image_data = image::open(path).unwrap();
@@ -124,15 +120,16 @@ impl Texture {
     pub fn height(&self) -> u32 {
         self.height
     }
+    pub fn texture_index(&self) -> i32 {
+        self.uniform_index
+    }
     pub fn image_data(&self) -> &Option<Vec<u8>> {
         &self.image_data
     }
-    pub fn set_texture_info(&mut self, texture_info: &TextureInfo) -> &mut Self {
-        self.texture_index = texture_info.texture_index as _;
-        self.layer_index = texture_info.layer_index as _;
-        self.width = texture_info.area.width as u32;
-        self.height = texture_info.area.height as u32;
-        self.is_initialized = true;
+    pub fn set_texture_data(&mut self, index: usize, width: u32, height: u32) -> &mut Self {
+        self.uniform_index = index as _;
+        self.width = width;
+        self.height = height;
         self
     }
     pub fn update_from_gpu(&self) -> bool {
@@ -141,12 +138,6 @@ impl Texture {
     pub fn set_update_from_gpu(&mut self, should_update: bool) -> &mut Self {
         self.update_from_gpu = should_update;
         self
-    }
-    pub fn texture_index(&self) -> i32 {
-        self.texture_index
-    }
-    pub fn layer_index(&self) -> i32 {
-        self.layer_index
     }
     pub fn capture_image(
         &mut self,

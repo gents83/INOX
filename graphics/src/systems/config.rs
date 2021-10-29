@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use nrg_resources::{ConfigBase, Data};
-use nrg_serialize::*;
+use nrg_serialize::{Deserialize, Serialize};
 
 use crate::RenderPassData;
 

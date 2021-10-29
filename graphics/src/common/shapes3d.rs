@@ -2,7 +2,7 @@ use std::f32::consts::PI;
 
 use nrg_math::{InnerSpace, Mat4Ops, MatBase, Matrix4, VecBase, Vector3, Vector4};
 
-use crate::VertexData;
+use crate::{VertexData, MAX_TEXTURE_COORDS_SETS};
 
 pub fn create_cube(size: Vector3) -> ([VertexData; 8], [u32; 36]) {
     create_cube_from_min_max(-size, size)
@@ -26,14 +26,14 @@ pub fn create_cube_from_min_max(min: Vector3, max: Vector3) -> ([VertexData; 8],
     vertices[5].normal = [1., -1., 1.].into();
     vertices[6].normal = [1., 1., 1.].into();
     vertices[7].normal = [-1., 1., 1.].into();
-    vertices[0].tex_coord = [0., 0.].into();
-    vertices[1].tex_coord = [1., 0.].into();
-    vertices[2].tex_coord = [1., 1.].into();
-    vertices[3].tex_coord = [0., 1.].into();
-    vertices[4].tex_coord = [0., 0.].into();
-    vertices[5].tex_coord = [1., 0.].into();
-    vertices[6].tex_coord = [1., 1.].into();
-    vertices[7].tex_coord = [0., 1.].into();
+    vertices[0].tex_coord = [[0., 0.].into(); MAX_TEXTURE_COORDS_SETS];
+    vertices[1].tex_coord = [[1., 0.].into(); MAX_TEXTURE_COORDS_SETS];
+    vertices[2].tex_coord = [[1., 1.].into(); MAX_TEXTURE_COORDS_SETS];
+    vertices[3].tex_coord = [[0., 1.].into(); MAX_TEXTURE_COORDS_SETS];
+    vertices[4].tex_coord = [[0., 0.].into(); MAX_TEXTURE_COORDS_SETS];
+    vertices[5].tex_coord = [[1., 0.].into(); MAX_TEXTURE_COORDS_SETS];
+    vertices[6].tex_coord = [[1., 1.].into(); MAX_TEXTURE_COORDS_SETS];
+    vertices[7].tex_coord = [[0., 1.].into(); MAX_TEXTURE_COORDS_SETS];
     let indices = [
         0, 1, 3, 3, 1, 2, 1, 5, 2, 2, 5, 6, 5, 4, 6, 6, 4, 7, 4, 0, 7, 7, 0, 3, 3, 2, 7, 7, 2, 6,
         4, 5, 0, 0, 5, 1,
@@ -75,7 +75,7 @@ pub fn create_cylinder(
                 nz0,
             ]
             .into();
-            vertex.tex_coord = [j as f32 / num_slices as f32, t].into();
+            vertex.tex_coord = [[j as f32 / num_slices as f32, t].into(); MAX_TEXTURE_COORDS_SETS];
             vertices.push(vertex);
         }
     }
@@ -86,7 +86,7 @@ pub fn create_cylinder(
 
     center_base_vertex.pos.z = -height * 0.5;
     center_base_vertex.normal.z = -1.;
-    center_base_vertex.tex_coord = [0.5, 0.5].into();
+    center_base_vertex.tex_coord = [[0.5, 0.5].into(); MAX_TEXTURE_COORDS_SETS];
     vertices.push(center_base_vertex);
 
     for i in 0..num_slices + 1 {
@@ -100,7 +100,8 @@ pub fn create_cylinder(
         ]
         .into();
         vertex.normal = center_base_vertex.normal;
-        vertex.tex_coord = [-angle.cos() * 0.5 + 0.5, -angle.sin() * 0.5 + 0.5].into(); // flip horizontal
+        vertex.tex_coord =
+            [[-angle.cos() * 0.5 + 0.5, -angle.sin() * 0.5 + 0.5].into(); MAX_TEXTURE_COORDS_SETS]; // flip horizontal
         vertices.push(vertex);
     }
 
@@ -110,7 +111,7 @@ pub fn create_cylinder(
 
     center_top_vertex.pos.z = height * 0.5;
     center_top_vertex.normal.z = 1.;
-    center_top_vertex.tex_coord = [0.5, 0.5].into();
+    center_top_vertex.tex_coord = [[0.5, 0.5].into(); MAX_TEXTURE_COORDS_SETS];
     vertices.push(center_top_vertex);
 
     for i in 0..num_slices + 1 {
@@ -124,7 +125,8 @@ pub fn create_cylinder(
         ]
         .into();
         vertex.normal = center_top_vertex.normal;
-        vertex.tex_coord = [angle.cos() * 0.5 + 0.5, -angle.sin() * 0.5 + 0.5].into();
+        vertex.tex_coord =
+            [[angle.cos() * 0.5 + 0.5, -angle.sin() * 0.5 + 0.5].into(); MAX_TEXTURE_COORDS_SETS];
         vertices.push(vertex);
     }
 
@@ -196,7 +198,8 @@ pub fn create_sphere(radius: f32, num_slices: u32, num_stack: u32) -> (Vec<Verte
             let slice_angle = j as f32 * slice_step; // from 0 to 2pi
             vertex.pos = [xy * slice_angle.cos(), xy * slice_angle.sin(), z].into();
             vertex.normal = vertex.pos * inv;
-            vertex.tex_coord = [j as f32 / num_slices as f32, i as f32 / num_stack as f32].into();
+            vertex.tex_coord = [[j as f32 / num_slices as f32, i as f32 / num_stack as f32].into();
+                MAX_TEXTURE_COORDS_SETS];
             vertices.push(vertex);
         }
     }
@@ -271,7 +274,7 @@ pub fn create_line(start: Vector3, end: Vector3, color: Vector4) -> ([VertexData
     vertices[1].normal = -direction;
     vertices[2].normal = direction;
 
-    vertices[2].tex_coord = [1., 1.].into();
+    vertices[2].tex_coord = [[1., 1.].into(); MAX_TEXTURE_COORDS_SETS];
 
     vertices[0].color = color;
     vertices[1].color = color;
@@ -350,11 +353,11 @@ pub fn create_torus(
                 tube_angle.sin(),
             ]
             .into();
-            vertex.tex_coord = [
+            vertex.tex_coord = [[
                 j as f32 / num_tube_slices as f32,
                 i as f32 * (2. / num_main_slices as f32),
             ]
-            .into();
+            .into(); MAX_TEXTURE_COORDS_SETS];
             vertices.push(vertex);
         }
     }

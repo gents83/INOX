@@ -1,6 +1,6 @@
 use super::geometry::*;
 use nrg_math::*;
-use nrg_serialize::*;
+use nrg_serialize::{Deserialize, Serialize};
 use ttf_parser::*;
 
 pub const DEFAULT_FONT_GLYPH_SIZE: usize = 64;

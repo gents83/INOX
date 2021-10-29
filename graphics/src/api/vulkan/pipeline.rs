@@ -8,8 +8,8 @@ use crate::api::backend::{
 use crate::utils::read_spirv_from_bytes;
 use crate::{
     BlendFactor, ConstantData, CullingModeType, InstanceCommand, InstanceData, LightData,
-    PolygonModeType, ShaderType, TextureAtlas, UniformData, VertexData, MAX_NUM_LIGHTS,
-    MAX_TEXTURE_COUNT,
+    PolygonModeType, ShaderData, ShaderMaterialData, ShaderTextureData, ShaderType, TextureAtlas,
+    VertexData, MAX_NUM_LIGHTS, MAX_NUM_MATERIALS, MAX_NUM_TEXTURES, MAX_TEXTURE_ATLAS_COUNT,
 };
 use nrg_filesystem::convert_from_local_path;
 
@@ -33,9 +33,9 @@ pub struct BackendPipeline {
     descriptor_set_layout: VkDescriptorSetLayout,
     descriptor_pool: VkDescriptorPool,
     descriptor_sets: Vec<VkDescriptorSet>,
-    uniform_buffers_size: usize,
-    uniform_buffers: Vec<VkBuffer>,
-    uniform_buffers_memory: Vec<VkDeviceMemory>,
+    data_buffers_size: usize,
+    data_buffers: Vec<VkBuffer>,
+    data_buffers_memory: Vec<VkDeviceMemory>,
     pipeline_layout: VkPipelineLayout,
 }
 impl Default for BackendPipeline {
@@ -53,9 +53,9 @@ impl Default for BackendPipeline {
             descriptor_set_layout: ::std::ptr::null_mut(),
             descriptor_sets: Vec::new(),
             descriptor_pool: ::std::ptr::null_mut(),
-            uniform_buffers_size: 0,
-            uniform_buffers: Vec::new(),
-            uniform_buffers_memory: Vec::new(),
+            data_buffers_size: 0,
+            data_buffers: Vec::new(),
+            data_buffers_memory: Vec::new(),
             pipeline_layout: ::std::ptr::null_mut(),
         }
     }
@@ -92,12 +92,8 @@ impl BackendPipeline {
         );
         destroy_buffer(device, &self.instance_buffer, &self.instance_buffer_memory);
 
-        for i in 0..self.uniform_buffers.len() {
-            destroy_buffer(
-                device,
-                &self.uniform_buffers[i],
-                &self.uniform_buffers_memory[i],
-            );
+        for i in 0..self.data_buffers.len() {
+            destroy_buffer(device, &self.data_buffers[i], &self.data_buffers_memory[i]);
         }
         unsafe {
             let images_count = device.get_images_count();
@@ -140,7 +136,7 @@ impl BackendPipeline {
         dst_alpha_blend_factor: &BlendFactor,
     ) -> &mut Self {
         self.create_descriptor_set_layout(device)
-            .create_uniform_buffers(device, physical_device)
+            .create_data_buffer(device, physical_device)
             .create_descriptor_pool(device)
             .create_descriptor_sets(device)
             .create_pipeline_layout(device);
@@ -543,37 +539,39 @@ impl BackendPipeline {
         }
     }
 
-    fn create_uniform_buffers(
+    fn create_data_buffer(
         &mut self,
         device: &BackendDevice,
         physical_device: &BackendPhysicalDevice,
     ) -> &mut Self {
         let images_count = device.get_images_count();
-        let mut uniform_buffers = Vec::<VkBuffer>::with_capacity(images_count);
-        let mut uniform_buffers_memory = Vec::<VkDeviceMemory>::with_capacity(images_count);
+        let mut data_buffers = Vec::<VkBuffer>::with_capacity(images_count);
+        let mut data_buffers_memory = Vec::<VkDeviceMemory>::with_capacity(images_count);
         unsafe {
-            uniform_buffers.set_len(images_count);
-            uniform_buffers_memory.set_len(images_count);
+            data_buffers.set_len(images_count);
+            data_buffers_memory.set_len(images_count);
         }
 
-        let uniform_buffers_size = std::mem::size_of::<UniformData>();
+        let data_buffers_size = std::mem::size_of::<ShaderData>();
+        //ShaderData::debug_size();
+
         let flags = VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
             | VkMemoryPropertyFlagBits_VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-        for i in 0..uniform_buffers.len() {
+        for i in 0..data_buffers.len() {
             create_buffer(
                 device,
                 physical_device,
-                uniform_buffers_size as _,
-                VkBufferUsageFlagBits_VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT as _,
+                data_buffers_size as _,
+                VkBufferUsageFlagBits_VK_BUFFER_USAGE_STORAGE_BUFFER_BIT as _,
                 flags as _,
-                &mut uniform_buffers[i],
-                &mut uniform_buffers_memory[i],
+                &mut data_buffers[i],
+                &mut data_buffers_memory[i],
             );
         }
 
-        self.uniform_buffers_size = uniform_buffers_size;
-        self.uniform_buffers = uniform_buffers;
-        self.uniform_buffers_memory = uniform_buffers_memory;
+        self.data_buffers_size = data_buffers_size;
+        self.data_buffers = data_buffers;
+        self.data_buffers_memory = data_buffers_memory;
         self
     }
     fn create_descriptor_pool(&mut self, device: &BackendDevice) -> &mut Self {
@@ -589,12 +587,12 @@ impl BackendPipeline {
         let images_count = device.get_images_count();
         let pool_sizes: Vec<VkDescriptorPoolSize> = vec![
             VkDescriptorPoolSize {
-                type_: VkDescriptorType_VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                type_: VkDescriptorType_VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
                 descriptorCount: images_count as u32,
             },
             VkDescriptorPoolSize {
                 type_: VkDescriptorType_VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                descriptorCount: MAX_TEXTURE_COUNT as u32 * images_count as u32,
+                descriptorCount: MAX_TEXTURE_ATLAS_COUNT as u32 * images_count as u32,
             },
         ];
 
@@ -726,7 +724,7 @@ impl BackendPipeline {
             VkDescriptorSetLayoutBinding {
                 binding: 0,
                 descriptorCount: 1,
-                descriptorType: VkDescriptorType_VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                descriptorType: VkDescriptorType_VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
                 pImmutableSamplers: ::std::ptr::null_mut(),
                 stageFlags: (VkShaderStageFlagBits_VK_SHADER_STAGE_VERTEX_BIT
                     | VkShaderStageFlagBits_VK_SHADER_STAGE_FRAGMENT_BIT)
@@ -734,7 +732,7 @@ impl BackendPipeline {
             },
             VkDescriptorSetLayoutBinding {
                 binding: 1,
-                descriptorCount: MAX_TEXTURE_COUNT as _,
+                descriptorCount: MAX_TEXTURE_ATLAS_COUNT as _,
                 descriptorType: VkDescriptorType_VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
                 pImmutableSamplers: ::std::ptr::null_mut(),
                 stageFlags: VkShaderStageFlagBits_VK_SHADER_STAGE_FRAGMENT_BIT as _,
@@ -786,6 +784,7 @@ impl BackendPipeline {
             proj: matrix4_to_array(LEFT_HANDED_VULKAN_MATRIX * *proj),
             screen_width: width as _,
             screen_height: height as _,
+            ..Default::default()
         };
 
         unsafe {
@@ -801,9 +800,15 @@ impl BackendPipeline {
         self
     }
 
-    pub fn update_uniform_buffer(&self, device: &BackendDevice, light_data: &[LightData]) -> &Self {
+    pub fn update_data_buffer(
+        &self,
+        device: &BackendDevice,
+        light_data: &[LightData],
+        texture_data: &[ShaderTextureData],
+        material_data: &[ShaderMaterialData],
+    ) -> &Self {
         let image_index = device.get_current_image_index();
-        let mut uniform_data: [UniformData; 1] = [UniformData::default(); 1];
+        let mut uniform_data: [ShaderData; 1] = [ShaderData::default(); 1];
         if light_data.len() >= MAX_NUM_LIGHTS {
             debug_log(
                 format!(
@@ -817,18 +822,50 @@ impl BackendPipeline {
         } else {
             uniform_data[0].num_lights = light_data.len() as _;
         }
+        if texture_data.len() >= MAX_NUM_TEXTURES {
+            debug_log(
+                format!(
+                    "Too many textures, max supported number is {} instead of {}",
+                    MAX_NUM_TEXTURES,
+                    texture_data.len()
+                )
+                .as_str(),
+            );
+            uniform_data[0].num_textures = MAX_NUM_TEXTURES as _;
+        } else {
+            uniform_data[0].num_textures = texture_data.len() as _;
+        }
+        if material_data.len() >= MAX_NUM_MATERIALS {
+            debug_log(
+                format!(
+                    "Too many materials, max supported number is {} instead of {}",
+                    MAX_NUM_MATERIALS,
+                    material_data.len()
+                )
+                .as_str(),
+            );
+            uniform_data[0].num_materials = MAX_NUM_MATERIALS as _;
+        } else {
+            uniform_data[0].num_materials = material_data.len() as _;
+        }
 
         for i in 0..uniform_data[0].num_lights as usize {
             uniform_data[0].light_data[i] = light_data[i];
         }
+        for i in 0..uniform_data[0].num_textures as usize {
+            uniform_data[0].textures_data[i] = texture_data[i];
+        }
+        for i in 0..uniform_data[0].num_materials as usize {
+            uniform_data[0].materials_data[i] = material_data[i];
+        }
 
-        let mut buffer_memory = self.uniform_buffers_memory[image_index];
+        let mut buffer_memory = self.data_buffers_memory[image_index];
         copy_from_buffer(device, &mut buffer_memory, 0, &uniform_data);
 
         let buffer_info = VkDescriptorBufferInfo {
-            buffer: self.uniform_buffers[image_index],
+            buffer: self.data_buffers[image_index],
             offset: 0,
-            range: self.uniform_buffers_size as _,
+            range: self.data_buffers_size as _,
         };
 
         let descriptor_write: Vec<VkWriteDescriptorSet> = vec![VkWriteDescriptorSet {
@@ -838,7 +875,7 @@ impl BackendPipeline {
             dstBinding: 0,
             dstArrayElement: 0,
             descriptorCount: 1,
-            descriptorType: VkDescriptorType_VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+            descriptorType: VkDescriptorType_VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
             pImageInfo: ::std::ptr::null_mut(),
             pBufferInfo: &buffer_info,
             pTexelBufferView: ::std::ptr::null_mut(),
@@ -867,7 +904,7 @@ impl BackendPipeline {
             "At least one texture should be received"
         );
         debug_assert!(
-            textures.len() <= MAX_TEXTURE_COUNT,
+            textures.len() <= MAX_TEXTURE_ATLAS_COUNT,
             "Max num textures exceeded"
         );
         debug_assert!(
@@ -879,7 +916,7 @@ impl BackendPipeline {
 
         let mut descriptor_write: Vec<VkWriteDescriptorSet> = Vec::new();
         let mut descriptors = Vec::new();
-        for i in 0..MAX_TEXTURE_COUNT {
+        for i in 0..MAX_TEXTURE_ATLAS_COUNT {
             let index = if i < textures.len() && used_textures[i] {
                 i
             } else {
@@ -916,7 +953,7 @@ impl BackendPipeline {
         &self,
         device: &BackendDevice,
         command_buffer: &BackendCommandBuffer,
-    ) -> &Self {
+    ) -> usize {
         let image_index = device.get_current_image_index();
 
         unsafe {
@@ -931,6 +968,6 @@ impl BackendPipeline {
                 ::std::ptr::null_mut(),
             );
         }
-        self
+        image_index
     }
 }

@@ -2,8 +2,9 @@
 
 use nrg_math::*;
 
+use crate::VertexData;
+
 use super::block::*;
-use crate::common::data_formats::*;
 
 const N: DeltaDir = DeltaDir::Negative;
 const Z: DeltaDir = DeltaDir::Zero;

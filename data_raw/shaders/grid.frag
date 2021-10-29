@@ -1,6 +1,6 @@
 #version 450
 
-layout(std140, push_constant) uniform PushConsts {
+layout(std430, push_constant) uniform PushConsts {
     mat4 view;
     mat4 proj;
 	vec2 screen_size;

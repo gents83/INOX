@@ -1,5 +1,5 @@
 use nrg_math::{Degrees, NewAngle};
-use nrg_serialize::*;
+use nrg_serialize::{Deserialize, Serialize};
 
 use crate::{
     DEFAULT_CAMERA_ASPECT_RATIO, DEFAULT_CAMERA_FAR, DEFAULT_CAMERA_FOV, DEFAULT_CAMERA_NEAR,

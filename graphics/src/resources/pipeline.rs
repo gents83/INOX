@@ -1,18 +1,19 @@
 use std::path::{Path, PathBuf};
 
-use nrg_math::{matrix4_to_array, Matrix4, Vector4};
+use nrg_math::{matrix4_to_array, Matrix4};
 use nrg_messenger::MessengerRw;
 use nrg_profiler::debug_log;
 use nrg_resources::{
     DataTypeResource, Resource, ResourceId, SerializableResource, SharedData, SharedDataRc,
 };
-use nrg_serialize::*;
+use nrg_serialize::read_from_file;
 
 use crate::{
     api::backend::{self, BackendPhysicalDevice, BackendPipeline},
     utils::compute_color_from_id,
     CommandBuffer, Device, DrawMode, GraphicsMesh, InstanceCommand, InstanceData, LightData, Mesh,
-    MeshCategoryId, MeshId, PipelineData, RenderPass, ShaderType, TextureAtlas,
+    MeshCategoryId, MeshId, PipelineData, RenderPass, ShaderMaterialData, ShaderTextureData,
+    ShaderType, TextureAtlas, INVALID_INDEX,
 };
 
 pub type PipelineId = ResourceId;
@@ -29,6 +30,7 @@ pub struct Pipeline {
     instance_count: usize,
     instance_data: Vec<InstanceData>,
     instance_commands: Vec<InstanceCommand>,
+    last_binding_index: i32,
 }
 
 impl SerializableResource for Pipeline {
@@ -54,6 +56,7 @@ impl DataTypeResource for Pipeline {
 
     fn invalidate(&mut self) {
         self.is_initialized = false;
+        self.last_binding_index = -1;
     }
     fn is_initialized(&self) -> bool {
         self.is_initialized
@@ -200,12 +203,23 @@ impl Pipeline {
         self
     }
 
-    pub fn find_used_textures(&self, textures: &[TextureAtlas]) -> Vec<bool> {
+    pub fn find_used_textures(
+        &self,
+        textures: &[TextureAtlas],
+        material_data: &[ShaderMaterialData],
+    ) -> Vec<bool> {
         let mut used_textures = Vec::new();
         used_textures.resize_with(textures.len(), || false);
         self.instance_data.iter().for_each(|data| {
-            if data.diffuse_texture_index >= 0 && data.diffuse_texture_index < textures.len() as _ {
-                used_textures[data.diffuse_texture_index as usize] = true;
+            if data.material_index != INVALID_INDEX {
+                material_data[data.material_index as usize]
+                    .textures_indices
+                    .iter()
+                    .for_each(|index| {
+                        if *index != INVALID_INDEX {
+                            used_textures[*index as usize] = true;
+                        }
+                    });
             }
         });
         used_textures
@@ -222,14 +236,17 @@ impl Pipeline {
         textures: &[TextureAtlas],
         used_textures: &[bool],
         light_data: &[LightData],
+        texture_data: &[ShaderTextureData],
+        material_data: &[ShaderMaterialData],
     ) -> &mut Self {
         nrg_profiler::scoped_profile!("device::update_bindings");
         if let Some(backend_pipeline) = &mut self.backend_pipeline {
             backend_pipeline
+                .update_data_buffer(device, light_data, texture_data, material_data)
                 .update_constant_data(command_buffer, width, height, view, proj)
-                .update_uniform_buffer(device, light_data)
-                .update_descriptor_sets(device, textures, used_textures)
-                .bind_descriptors(device, command_buffer);
+                .update_descriptor_sets(device, textures, used_textures);
+            self.last_binding_index =
+                backend_pipeline.bind_descriptors(device, command_buffer) as _;
         }
         self
     }
@@ -312,9 +329,7 @@ impl Pipeline {
         physical_device: &BackendPhysicalDevice,
         mesh_id: &MeshId,
         mesh: &Mesh,
-        diffuse_color: Vector4,
-        diffuse_texture_index: i32,
-        diffuse_layer_index: i32,
+        material_index: i32,
     ) -> &mut Self {
         if !self.is_initialized()
             || mesh.mesh_data().vertices.is_empty()
@@ -354,9 +369,7 @@ impl Pipeline {
             id: compute_color_from_id(mesh_id.as_u128() as _),
             matrix: matrix4_to_array(mesh.matrix()),
             draw_area: mesh.draw_area(),
-            diffuse_color,
-            diffuse_texture_index,
-            diffuse_layer_index,
+            material_index,
         };
         if mesh_index >= self.instance_commands.len() {
             self.instance_commands

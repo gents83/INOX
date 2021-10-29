@@ -1,5 +1,5 @@
 use nrg_resources::{ConfigBase, Data};
-use nrg_serialize::*;
+use nrg_serialize::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(crate = "nrg_serialize")]

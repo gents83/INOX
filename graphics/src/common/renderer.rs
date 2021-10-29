@@ -1,12 +1,13 @@
-use crate::{Device, Instance, Light, LightData, Pipeline, RenderPass, Texture, TextureHandler};
+use crate::{
+    Device, Instance, Light, LightData, Material, Pipeline, RenderPass, ShaderMaterialData,
+    ShaderTextureData, Texture, TextureHandler,
+};
 use nrg_resources::DataTypeResource;
 
 use nrg_platform::Handle;
 use nrg_resources::{SharedData, SharedDataRc};
 
 use std::sync::{Arc, RwLock};
-
-pub const INVALID_INDEX: i32 = -1;
 
 #[derive(PartialEq, Eq, Copy, Clone)]
 pub enum RendererState {
@@ -22,6 +23,8 @@ pub struct Renderer {
     shared_data: SharedDataRc,
     texture_handler: TextureHandler,
     light_data: Vec<LightData>,
+    texture_data: Vec<ShaderTextureData>,
+    material_data: Vec<ShaderMaterialData>,
     state: RendererState,
 }
 pub type RendererRw = Arc<RwLock<Renderer>>;
@@ -40,6 +43,8 @@ impl Renderer {
             device,
             texture_handler,
             light_data: Vec::new(),
+            texture_data: Vec::new(),
+            material_data: Vec::new(),
             state: RendererState::Submitted,
         }
     }
@@ -59,6 +64,12 @@ impl Renderer {
     pub fn light_data(&self) -> &[LightData] {
         self.light_data.as_slice()
     }
+    pub fn texture_data(&self) -> &[ShaderTextureData] {
+        self.texture_data.as_slice()
+    }
+    pub fn material_data(&self) -> &[ShaderMaterialData] {
+        self.material_data.as_slice()
+    }
 
     pub fn state(&self) -> RendererState {
         self.state
@@ -73,6 +84,7 @@ impl Renderer {
         self.init_render_passes();
         self.init_pipelines_for_pass("MainPass");
         self.init_textures();
+        self.init_materials();
         self.init_lights();
 
         self
@@ -172,17 +184,19 @@ impl Renderer {
         let shared_data = &self.shared_data;
         SharedData::for_each_resource_mut(shared_data, |texture_handle, texture: &mut Texture| {
             if !texture.is_initialized() {
-                if texture.texture_index() != INVALID_INDEX {
-                    //texture needs to be recreated
-                    texture_handler.remove(device, texture_handle.id());
-                }
-                if let Some(texture_info) = texture_handler.get_texture_info(texture_handle.id()) {
-                    texture.set_texture_info(texture_info);
+                if let Some(texture_data) = texture_handler.get_texture_data(texture_handle.id()) {
+                    let uniform_index = self.texture_data.len();
+                    texture.set_texture_data(
+                        uniform_index,
+                        texture_data.get_width(),
+                        texture_data.get_height(),
+                    );
+                    self.texture_data.push(texture_data);
                 } else {
                     let width = texture.width();
                     let height = texture.height();
                     if let Some(image_data) = texture.image_data() {
-                        let texture_info = texture_handler.add(
+                        let texture_data = texture_handler.add_image(
                             device,
                             physical_device,
                             texture_handle.id(),
@@ -190,7 +204,13 @@ impl Renderer {
                             height,
                             image_data,
                         );
-                        texture.set_texture_info(&texture_info);
+                        let uniform_index = self.texture_data.len();
+                        texture.set_texture_data(
+                            uniform_index,
+                            texture_data.get_width(),
+                            texture_data.get_height(),
+                        );
+                        self.texture_data.push(texture_data);
                     }
                 }
             }
@@ -205,6 +225,18 @@ impl Renderer {
                 self.light_data.push(*light.data());
             }
         });
+    }
+    fn init_materials(&mut self) {
+        nrg_profiler::scoped_profile!("renderer::init_materials");
+        self.shared_data
+            .for_each_resource_mut(|_id, material: &mut Material| {
+                if !material.is_initialized() {
+                    let uniform_index = self.material_data.len() as i32;
+                    self.material_data
+                        .push(material.create_uniform_material_data());
+                    material.set_uniform_index(uniform_index);
+                }
+            });
     }
 }
 
