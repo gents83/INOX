@@ -2,14 +2,14 @@ use nrg_core::System;
 use nrg_graphics::{DrawEvent, Light, View};
 use nrg_math::{InnerSpace, Matrix4, Vector2, Vector3, Zero};
 use nrg_messenger::{read_messages, send_global_event, MessageChannel, MessengerRw};
-use nrg_platform::{Key, KeyEvent, MouseEvent, WindowEvent};
+use nrg_platform::{InputState, Key, KeyEvent, MouseEvent, WindowEvent};
 use nrg_profiler::debug_log;
 use nrg_resources::{Resource, SerializableResource, SharedData, SharedDataRc};
 use nrg_scene::{Camera, Object, ObjectId, Scene};
 use nrg_serialize::generate_random_uid;
 use std::{any::TypeId, collections::HashMap, env, path::PathBuf};
 
-use crate::widgets::{Hierarchy, View3D};
+use crate::widgets::{Hierarchy, Info, View3D};
 
 #[derive(PartialEq, Eq)]
 enum Operation {
@@ -25,6 +25,7 @@ pub struct ViewerSystem {
     camera_object: Resource<Object>,
     last_mouse_pos: Vector2,
     _view_3d: Option<View3D>,
+    _info: Option<Info>,
     _hierarchy: Option<Hierarchy>,
 }
 
@@ -55,6 +56,7 @@ impl ViewerSystem {
 
         Self {
             _view_3d: None,
+            _info: None,
             _hierarchy: None,
             shared_data: shared_data.clone(),
             global_messenger: global_messenger.clone(),
@@ -89,13 +91,6 @@ impl System for ViewerSystem {
             .register_messagebox::<WindowEvent>(self.message_channel.get_messagebox());
 
         self._view_3d = Some(View3D::new(&self.shared_data, &self.global_messenger));
-        /*
-        self._hierarchy = Some(Hierarchy::new(
-            &self.shared_data,
-            &self.global_messenger,
-            self.scene.id(),
-        ));
-        */
     }
 
     fn run(&mut self) -> bool {
@@ -267,6 +262,24 @@ impl ViewerSystem {
     }
 
     fn handle_keyboard_event(&mut self, event: &KeyEvent) {
+        if event.code == Key::F1 && event.state == InputState::Released {
+            if self._info.is_some() {
+                self._info = None;
+            } else {
+                self._info = Some(Info::new(&self.shared_data));
+            }
+        } else if event.code == Key::F2 && event.state == InputState::Released {
+            if self._hierarchy.is_some() {
+                self._hierarchy = None;
+            } else {
+                self._hierarchy = Some(Hierarchy::new(
+                    &self.shared_data,
+                    &self.global_messenger,
+                    self.scene.id(),
+                ));
+            }
+        }
+
         let mut movement = Vector3::zero();
         if event.code == Key::W {
             movement.z += 1.;
