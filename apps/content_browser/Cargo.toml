@@ -9,10 +9,8 @@ build = "build.rs"
 crate-type = ["cdylib"]
 
 [dependencies]
-nrg_binarizer = { path = "../../binarizer" }
 nrg_core = { path = "../../core" }
 nrg_filesystem = { path = "../../filesystem" }
-nrg_events = { path = "../../events" }
 nrg_graphics = { path = "../../graphics" }
 nrg_messenger = { path = "../../messenger" }
 nrg_platform = { path = "../../platform" }

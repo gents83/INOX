@@ -841,9 +841,7 @@ dependencies = [
 name = "nrg_content_browser"
 version = "0.1.0"
 dependencies = [
- "nrg_binarizer",
  "nrg_core",
- "nrg_events",
  "nrg_filesystem",
  "nrg_graphics",
  "nrg_messenger",
@@ -871,9 +869,7 @@ dependencies = [
 name = "nrg_editor"
 version = "0.1.0"
 dependencies = [
- "nrg_binarizer",
  "nrg_core",
- "nrg_events",
  "nrg_filesystem",
  "nrg_graphics",
  "nrg_math",
@@ -934,7 +930,6 @@ name = "nrg_math"
 version = "0.1.0"
 dependencies = [
  "cgmath",
- "nrg_filesystem",
  "rand",
 ]
 
@@ -1012,9 +1007,7 @@ dependencies = [
 name = "nrg_viewer"
 version = "0.1.0"
 dependencies = [
- "nrg_binarizer",
  "nrg_core",
- "nrg_events",
  "nrg_filesystem",
  "nrg_graphics",
  "nrg_math",

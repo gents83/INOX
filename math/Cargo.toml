@@ -11,4 +11,3 @@ crate-type = ["cdylib",'rlib']
 [dependencies]
 cgmath = { git = "https://github.com/rustgd/cgmath", features = ["serde", "swizzle"] }
 rand = { git = "https://github.com/rust-random/rand" }
-nrg_filesystem = { path = "../filesystem" }
