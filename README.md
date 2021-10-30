@@ -1,4 +1,4 @@
-# NRG: New Rust Game engine - written in Rust and using Blender as an Editor
+# NRG: New Rust Game engine - in Rust with Blender as Editor
 
 [<img alt="github" src="https://img.shields.io/badge/github-gents83/NRG-8da0cb?logo=github" height="20">](https://github.com/gents83/NRG)
 ![MIT](https://img.shields.io/badge/license-MIT-blue.svg)
@@ -6,41 +6,50 @@
 
 ## NRG
 
-It's a Game Engine written in Rust language with some bindings for external libs.
-NRG is a game engine written in Rust and developed by [GENTS][https://twitter.com/gents83]. 
-The main idea behind NRG is to use [Blender][https://www.blender.org/] as external editor, even being able to create visual logic scripting nodes in it, and then have a button to launch the Rust engine, that should be scalable to create games of any scale and for users with every kind of experience.
+It's a Game Engine written in Rust language with some bindings for external libs and with Blender as editor.
+NRG is a game engine written in Rust and developed by [GENTS](https://twitter.com/gents83). 
+The main idea behind NRG is to use [Blender](https://www.blender.org/) as external editor, even being able to create visual logic scripting nodes in it, and then have a button to launch the Rust engine, that should be scalable to create games of any scale and for users with every kind of experience.
 [Rust] will give to NRG high performance, reliability and safe code, while [Blender] will bring easy customization and powerful editor capabilities.
 
-[Philosophy](#philosopy)
+Summary:
 
-- NRG engine core should be written in Rust
-- The engine is developed with following pillars:
-  - [x] Multi-platform support (Windows-only implemented right now)
-  - [x] Multi-GFX api support (Vulkan-only implemented right now)
-  - [x] Multi-threading support with different Phases, Systems and Jobs
-  - [x] Easy to use profiling tools of CPU through custom NRG Profiler using [Chrome Trace Event] format and usable through chrome://tracing/
-  - [x] Multi-threading Rendering support with IndirectDraw, Render-to-Texture, Multiple passes, Bindless descriptors, etc
-  - [ ] Should support high-end performance rendering features like PBR, Raytracing, etc
-  - [x] Easy to use profiling of GPU through [RenderDoc][https://renderdoc.org/] by [Baldurk Karlsson][https://twitter.com/baldurk]
-  - [x] [Blender][https://www.blender.org/] should be used as external 3D scene editor in order to press a button and launch the external NRG window 
-  - [x] Blender files are converted through custom NRG Blender add-on written in Python in Khronos [GLTF][https://www.khronos.org/gltf/] files 
-  - [x] File binarization in background as a continuos thread to convert from raw data to binarized one used by the engine 
-  - [x] Resources should be loaded at runtime while game is running as a background task
-  - [x] Hot reload of code to be able to change Rust code with the engine still running 
-  - [x] Hot reload of data to enable content creators to reload their data changed on the fly  
-  - [x] In-game GUI library for debugging purposes or in-game tooling through [egui][https://github.com/emilk/egui] by [emilk][https://twitter.com/ernerfeldt]
-  - [ ] Documentations should be written trough [mdBook][https://rust-lang.github.io/mdBook/]
-  - [ ] Continous integration and build support should be granted by Github Actions 
+* [Philosophy](#philosopy)
+* [Notes](#notes)
+* [External crates dependencies](#dependencies)
+* [Hotkeys](#hotkeys)
+* [Screenshots](#screenshot)
+
+
+## Philosophy
+
+The engine is developed with following pillars:
+- [x] The game engine should be written in Rust
+- [x] Multi-platform support (Windows-only implemented right now)
+- [x] Multi-GFX api support (Vulkan-only implemented right now)
+- [x] Multi-threading support with different Phases, Systems and Jobs
+- [x] Easy to use profiling tools of CPU through custom NRG Profiler using [Chrome Trace Event] format and usable through chrome://tracing/
+- [x] Multi-threading Rendering support with IndirectDraw, Render-to-Texture, Multiple passes, Bindless descriptors, etc
+- [ ] Should support high-end performance rendering features like PBR, Raytracing, etc
+- [x] Easy to use profiling of GPU through [RenderDoc](https://renderdoc.org/) by [Baldurk Karlsson](https://twitter.com/baldurk)
+- [x] [Blender] should be used as external 3D scene editor in order to press a button and launch the external NRG window 
+- [x] [Blender] files are converted through custom NRG Blender add-on written in Python in Khronos [GLTF](https://www.khronos.org/gltf/) files 
+- [x] File binarization in background as a continuos thread to convert from raw data to binarized one used by the engine 
+- [x] Resources should be loaded at runtime while game is running as a background task
+- [x] Hot reload of code to be able to change Rust code with the engine still running 
+- [x] Hot reload of data to enable content creators to reload their data changed on the fly  
+- [x] In-game GUI library for debugging purposes or in-game tooling through [egui](https://github.com/emilk/egui) by [emilk](https://twitter.com/ernerfeldt)
+- [ ] Documentations should be written trough [mdBook](https://rust-lang.github.io/mdBook/)
+- [ ] Continous integration and build support should be granted by Github Actions 
   
 
-[Notes](#notes)
+## Notes
 
 Not ready yet for production.
 
 
-[External crates dependencies](#dependencies)
+## External crates dependencies
 
-Focus is to have all of them with MIT license.
+Focus is to have all of them with MIT or Apache license.
 
 - FFI bindings from C\C++ - used for vulkan_bindings: https://github.com/rust-lang/rust-bindgen
 - XML parser - used for Vulkan xml specification: https://github.com/netvl/xml-rs 
@@ -51,16 +60,21 @@ Focus is to have all of them with MIT license.
 - GUI library: https://github.com/emilk/egui
 - Python library: https://github.com/dgrunwald/rust-cpython
 
-[Hotkeys](#hotkeys)
+
+## Hotkeys
 
 Useful hotkeys to know:
-- F5: Launch Game from Editor app
-- F9: Start\Stop Profiler and generate profile file on stop
+- in [Blender]:
+  - F5: Launch Game Engine with current scene or you can use the panel inside Render properties
+- in [NRG]:
+  - F1: Open\Close Info window
+  - F2: Open\Close Hierarchy window
+  - F9: Start\Stop Profiler and generate profile file on stop
 
 
+## Screenshots
 
-[Screenshots](#screenshot)
-
+Following screenshots are just related about NRG engine capabilities:
 
 ![Editor test](https://user-images.githubusercontent.com/62186646/130697761-056e6de4-fccb-42fc-8271-ccfa9ab0544f.gif)
 
