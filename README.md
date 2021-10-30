@@ -1,4 +1,4 @@
-# NRG :zap: New Rust Game engine - in Rust with Blender as Editor
+# NRG :zap: New Rust Game engine - with Blender as Editor
 
 [<img alt="github" src="https://img.shields.io/badge/github-gents83/NRG-8da0cb?logo=github" height="20">](https://github.com/gents83/NRG)
 ![MIT](https://img.shields.io/badge/license-MIT-blue.svg)
