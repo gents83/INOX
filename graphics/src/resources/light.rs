@@ -2,9 +2,7 @@ use std::path::{Path, PathBuf};
 
 use nrg_math::Vector3;
 use nrg_messenger::MessengerRw;
-use nrg_resources::{
-    DataTypeResource, Resource, ResourceId, SerializableResource, SharedData, SharedDataRc,
-};
+use nrg_resources::{DataTypeResource, ResourceId, SerializableResource, SharedDataRc};
 use nrg_serialize::read_from_file;
 
 use crate::LightData;
@@ -59,17 +57,20 @@ impl DataTypeResource for Light {
     fn deserialize_data(path: &std::path::Path) -> Self::DataType {
         read_from_file::<Self::DataType>(path)
     }
+
     fn create_from_data(
-        shared_data: &SharedDataRc,
+        _shared_data: &SharedDataRc,
         _global_messenger: &MessengerRw,
-        id: LightId,
+        _id: ResourceId,
         data: Self::DataType,
-    ) -> Resource<Self> {
-        let light = Self {
+    ) -> Self
+    where
+        Self: Sized,
+    {
+        Self {
             data,
             ..Default::default()
-        };
-        SharedData::add_resource(shared_data, id, light)
+        }
     }
 }
 

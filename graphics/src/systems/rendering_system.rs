@@ -31,7 +31,7 @@ impl RenderingSystem {
         job_handler: &JobHandlerRw,
     ) -> Self {
         Self {
-            view: View::create_from_data(shared_data, global_messenger, generate_random_uid(), 0),
+            view: View::new_resource(shared_data, global_messenger, generate_random_uid(), 0),
             renderer,
             job_handler: job_handler.clone(),
             shared_data: shared_data.clone(),

@@ -1,12 +1,16 @@
 use nrg_serialize::Uid;
 use std::{
-    any::Any,
+    any::{type_name, Any},
     sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard},
 };
 
 pub type ResourceId = Uid;
 
-pub trait ResourceTrait: Send + Sync + 'static {}
+pub trait ResourceTrait: Send + Sync + 'static {
+    fn on_resource_swap(&mut self, new: &Self)
+    where
+        Self: Sized;
+}
 
 pub trait GenericResourceTrait: Send + Sync + Any {
     fn as_any(self: Arc<Self>) -> Arc<dyn Any + Send + Sync>;
@@ -18,7 +22,7 @@ where
     T: ResourceTrait,
 {
     id: ResourceId,
-    storage: ResourceStorage<T>,
+    data: Arc<RwLock<T>>,
 }
 
 impl<T> ResourceHandle<T>
@@ -26,10 +30,12 @@ where
     T: ResourceTrait,
 {
     #[inline]
-    pub fn new(id: ResourceId, storage: ResourceStorage<T>) -> Self {
-        Self { id, storage }
+    pub fn new(id: ResourceId, data: T) -> Self {
+        Self {
+            id,
+            data: Arc::new(RwLock::new(data)),
+        }
     }
-
     #[inline]
     pub fn id(&self) -> &ResourceId {
         &self.id
@@ -40,8 +46,7 @@ where
     where
         F: FnMut(&T) -> R,
     {
-        let storage = self.storage.read().unwrap();
-        let resource = storage.get(self.id());
+        let resource = self.data.read().unwrap();
         f(&resource)
     }
 
@@ -50,21 +55,8 @@ where
     where
         F: FnMut(&mut T) -> R,
     {
-        let storage = self.storage.read().unwrap();
-        let mut resource = storage.get_mut(self.id());
+        let mut resource = self.data.write().unwrap();
         f(&mut resource)
-    }
-
-    #[inline]
-    pub fn move_before(&self, other_id: &ResourceId) {
-        let mut storage = self.storage.write().unwrap();
-        storage.move_before_other(self.id(), other_id)
-    }
-
-    #[inline]
-    pub fn move_after(&self, other_id: &ResourceId) {
-        let mut storage = self.storage.write().unwrap();
-        storage.move_after_other(self.id(), other_id)
     }
 }
 
@@ -117,19 +109,12 @@ impl StorageCastTo for ResourceStorageRw {
     }
 }
 
-struct ResourceData<T>
-where
-    T: ResourceTrait,
-{
-    data: RwLock<T>,
-    handle: Resource<T>,
-}
-
 pub struct Storage<T>
 where
     T: ResourceTrait,
 {
-    resources: Vec<ResourceData<T>>,
+    resources: Vec<Resource<T>>,
+    pending: Vec<Resource<T>>,
 }
 
 impl<T> Default for Storage<T>
@@ -139,6 +124,7 @@ where
     fn default() -> Self {
         Self {
             resources: Vec::new(),
+            pending: Vec::new(),
         }
     }
 }
@@ -154,10 +140,28 @@ where
 
     #[inline]
     fn flush(&mut self) {
+        let mut num_pending = self.pending.len() as i32 - 1;
+        while num_pending >= 0 {
+            let pending = self.pending.remove(num_pending as usize);
+            if let Some(resource) = self.resources.iter_mut().find(|r| r.id() == pending.id()) {
+                resource
+                    .data
+                    .write()
+                    .unwrap()
+                    .on_resource_swap(&pending.data.read().unwrap());
+            } else {
+                panic!(
+                    "Trying to swap a Resource with id {} not found in storage {}",
+                    pending.id(),
+                    type_name::<T>()
+                );
+            }
+            num_pending -= 1;
+        }
         let mut to_remove = Vec::new();
         self.resources.iter_mut().for_each(|data| {
-            if Arc::strong_count(&data.handle) == 1 && Arc::weak_count(&data.handle) == 0 {
-                to_remove.push(*data.handle.id());
+            if Arc::strong_count(&data) == 1 && Arc::weak_count(&data) == 0 {
+                to_remove.push(*data.id());
             }
         });
         to_remove.iter().for_each(|id| {
@@ -166,11 +170,11 @@ where
     }
     #[inline]
     fn remove(&mut self, resource_id: &ResourceId) {
-        self.resources.retain(|r| r.handle.id() != resource_id);
+        self.resources.retain(|r| r.id() != resource_id);
     }
     #[inline]
     fn has(&self, resource_id: &ResourceId) -> bool {
-        self.resources.iter().any(|r| r.handle.id() == resource_id)
+        self.resources.iter().any(|r| r.id() == resource_id)
     }
     #[inline]
     fn count(&self) -> usize {
@@ -186,7 +190,7 @@ where
     pub fn get(&self, id: &ResourceId) -> RwLockReadGuard<'_, T> {
         self.resources
             .iter()
-            .find(|r| r.handle.id() == id)
+            .find(|r| r.id() == id)
             .unwrap()
             .data
             .read()
@@ -196,7 +200,7 @@ where
     pub fn get_mut(&self, id: &ResourceId) -> RwLockWriteGuard<'_, T> {
         self.resources
             .iter()
-            .find(|r| r.handle.id() == id)
+            .find(|r| r.id() == id)
             .unwrap()
             .data
             .write()
@@ -204,21 +208,21 @@ where
     }
     #[inline]
     pub fn resource(&self, id: &ResourceId) -> Handle<T> {
-        if let Some(r) = self.resources.iter().find(|r| r.handle.id() == id) {
-            return Some(r.handle.clone());
+        if let Some(r) = self.resources.iter().find(|r| r.id() == id) {
+            return Some(r.clone());
         }
         None
     }
     #[inline]
-    pub fn add(&mut self, id: ResourceId, data: T, storage: ResourceStorage<T>) {
-        if let Some(resource) = self.resources.iter().find(|r| r.handle.id() == &id) {
-            let mut resource_data = resource.data.write().unwrap();
-            *resource_data = data;
+    pub fn add(&mut self, resource_id: ResourceId, data: T) -> Resource<T> {
+        if self.resources.iter().any(|r| r.id() == &resource_id) {
+            let handle = Arc::new(ResourceHandle::new(resource_id, data));
+            self.pending.push(handle.clone());
+            return handle;
         } else {
-            self.resources.push(ResourceData {
-                data: RwLock::new(data),
-                handle: Arc::new(ResourceHandle::new(id, storage)),
-            });
+            let handle = Arc::new(ResourceHandle::new(resource_id, data));
+            self.resources.push(handle.clone());
+            return handle;
         }
     }
     #[inline]
@@ -228,7 +232,7 @@ where
     {
         for r in self.resources.iter() {
             if f(&r.data.read().unwrap()) {
-                return Some(r.handle.clone());
+                return Some(r.clone());
             }
         }
         None
@@ -240,7 +244,7 @@ where
     {
         self.resources
             .iter()
-            .for_each(|r| f(&r.handle, &r.data.read().unwrap()));
+            .for_each(|r| f(&r, &r.data.read().unwrap()));
     }
     #[inline]
     pub fn for_each_resource_mut<F>(&self, mut f: F)
@@ -249,18 +253,16 @@ where
     {
         self.resources
             .iter()
-            .for_each(|r| f(&r.handle, &mut r.data.write().unwrap()));
+            .for_each(|r| f(&r, &mut r.data.write().unwrap()));
     }
     #[inline]
     pub fn get_index_of(&self, resource_id: &ResourceId) -> Option<usize> {
-        self.resources
-            .iter()
-            .position(|r| r.handle.id() == resource_id)
+        self.resources.iter().position(|r| r.id() == resource_id)
     }
     #[inline]
     pub fn resource_at_index(&self, index: u32) -> Handle<T> {
         if let Some(r) = self.resources.iter().nth(index as _) {
-            return Some(r.handle.clone());
+            return Some(r.clone());
         }
         None
     }

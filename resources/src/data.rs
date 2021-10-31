@@ -22,6 +22,10 @@ pub trait Data {
 pub trait DataTypeResource: ResourceTrait + Default + Clone {
     type DataType;
 
+    fn on_data_changed(&mut self, _new: &Self) {
+        *self = _new.clone();
+    }
+
     fn is_initialized(&self) -> bool;
     fn invalidate(&mut self);
     fn deserialize_data(path: &Path) -> Self::DataType;
@@ -31,12 +35,35 @@ pub trait DataTypeResource: ResourceTrait + Default + Clone {
         global_messenger: &MessengerRw,
         id: ResourceId,
         data: Self::DataType,
-    ) -> Resource<Self>
+    ) -> Self
     where
         Self: Sized;
+
+    fn new_resource(
+        shared_data: &SharedDataRc,
+        global_messenger: &MessengerRw,
+        id: ResourceId,
+        data: Self::DataType,
+    ) -> Resource<Self>
+    where
+        Self: Sized,
+    {
+        let resource = Self::create_from_data(shared_data, global_messenger, id, data);
+        SharedData::add_resource(shared_data, id, resource)
+    }
 }
 
-impl<T> ResourceTrait for T where T: DataTypeResource {}
+impl<T> ResourceTrait for T
+where
+    T: DataTypeResource,
+{
+    fn on_resource_swap(&mut self, new: &Self)
+    where
+        Self: Sized,
+    {
+        self.on_data_changed(new);
+    }
+}
 
 pub trait SerializableResource: DataTypeResource + Sized {
     fn set_path(&mut self, path: &Path);
@@ -59,7 +86,7 @@ pub trait SerializableResource: DataTypeResource + Sized {
         shared_data: &SharedDataRc,
         global_messenger: &MessengerRw,
         filepath: &Path,
-    ) -> Resource<Self>
+    ) -> Self
     where
         Self: Sized + DataTypeResource,
     {
@@ -72,9 +99,9 @@ pub trait SerializableResource: DataTypeResource + Sized {
         }
         let data = Self::deserialize_data(path.as_path());
         let resource_id = generate_uid_from_string(path.as_path().to_str().unwrap());
-        let resource = Self::create_from_data(shared_data, global_messenger, resource_id, data);
+        let mut resource = Self::create_from_data(shared_data, global_messenger, resource_id, data);
         debug_log(format!("Created resource {:?}", path.as_path()).as_str());
-        resource.get_mut(|r| r.set_path(path.as_path()));
+        resource.set_path(path.as_path());
         resource
     }
 
@@ -101,7 +128,7 @@ pub trait SerializableResource: DataTypeResource + Sized {
         let resource = SharedData::add_resource(shared_data, resource_id, Self::default());
         send_global_event(
             &global_messenger,
-            LoadResourceEvent::<Self>::new(path.as_path(), on_loaded_callback),
+            LoadResourceEvent::<Self>::new(resource.id(), path.as_path(), on_loaded_callback),
         );
         resource
     }

@@ -36,7 +36,14 @@ pub struct UIWidget {
     data: Box<dyn UIWidgetData>,
     func: Box<dyn FnMut(&mut dyn UIWidgetData, &CtxRef)>,
 }
-impl ResourceTrait for UIWidget {}
+impl ResourceTrait for UIWidget {
+    fn on_resource_swap(&mut self, _new: &Self)
+    where
+        Self: Sized,
+    {
+        //println!("UIWidget resource swapped {:?}", self.type_name);
+    }
+}
 
 unsafe impl Send for UIWidget {}
 unsafe impl Sync for UIWidget {}

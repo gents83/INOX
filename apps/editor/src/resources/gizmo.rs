@@ -49,7 +49,14 @@ pub struct Gizmo {
     axis_y_color: Vector4,
     axis_z_color: Vector4,
 }
-impl ResourceTrait for Gizmo {}
+impl ResourceTrait for Gizmo {
+    fn on_resource_swap(&mut self, _new: &Self)
+    where
+        Self: Sized,
+    {
+        //println!("Gizmo resource swapped");
+    }
+}
 
 unsafe impl Sync for Gizmo {}
 unsafe impl Send for Gizmo {}
@@ -251,7 +258,7 @@ impl Gizmo {
             v.pos += position;
         });
         mesh_data.append_mesh(vertices.as_slice(), indices.as_slice());
-        let mesh = Mesh::create_from_data(
+        let mesh = Mesh::new_resource(
             shared_data,
             global_messenger,
             generate_random_uid(),
@@ -277,7 +284,7 @@ impl Gizmo {
         let (vertices, indices) = create_arrow(Vector3::zero(), direction);
         mesh_data.append_mesh(vertices.as_slice(), indices.as_slice());
 
-        let mesh = Mesh::create_from_data(
+        let mesh = Mesh::new_resource(
             shared_data,
             global_messenger,
             generate_random_uid(),
@@ -305,7 +312,7 @@ impl Gizmo {
         let (vertices, indices) = create_hammer(Vector3::zero(), direction);
         mesh_data.append_mesh(vertices.as_slice(), indices.as_slice());
 
-        let mesh = Mesh::create_from_data(
+        let mesh = Mesh::new_resource(
             shared_data,
             global_messenger,
             generate_random_uid(),
@@ -333,7 +340,7 @@ impl Gizmo {
         let (vertices, indices) = create_torus(Vector3::zero(), 10., 0.2, 32, 32, direction);
         mesh_data.append_mesh(vertices.as_slice(), indices.as_slice());
 
-        let mesh = Mesh::create_from_data(
+        let mesh = Mesh::new_resource(
             shared_data,
             global_messenger,
             generate_random_uid(),

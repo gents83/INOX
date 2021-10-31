@@ -396,7 +396,7 @@ impl View3D {
     ) -> Resource<Texture> {
         let image = DynamicImage::new_rgba8(width, height);
         let image_data = image.to_rgba8();
-        let texture = Texture::create_from_data(
+        let texture = Texture::new_resource(
             shared_data,
             global_messenger,
             generate_random_uid(),

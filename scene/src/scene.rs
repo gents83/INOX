@@ -1,9 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use nrg_messenger::MessengerRw;
-use nrg_resources::{
-    DataTypeResource, Resource, ResourceId, SerializableResource, SharedData, SharedDataRc,
-};
+use nrg_resources::{DataTypeResource, Resource, ResourceId, SerializableResource, SharedDataRc};
 use nrg_serialize::read_from_file;
 use nrg_ui::{CollapsingHeader, UIProperties, UIPropertiesRegistry, Ui};
 
@@ -66,11 +64,9 @@ impl DataTypeResource for Scene {
     fn is_initialized(&self) -> bool {
         !self.objects.is_empty()
     }
-
     fn invalidate(&mut self) {
         self.clear();
     }
-
     fn deserialize_data(path: &Path) -> Self::DataType {
         read_from_file::<Self::DataType>(path)
     }
@@ -78,9 +74,9 @@ impl DataTypeResource for Scene {
     fn create_from_data(
         shared_data: &SharedDataRc,
         global_messenger: &MessengerRw,
-        id: SceneId,
+        _id: SceneId,
         scene_data: Self::DataType,
-    ) -> Resource<Self> {
+    ) -> Self {
         let mut scene = Self::default();
 
         for object in scene_data.objects.iter() {
@@ -93,7 +89,7 @@ impl DataTypeResource for Scene {
             scene.add_camera(c);
         }
 
-        SharedData::add_resource(shared_data, id, scene)
+        scene
     }
 }
 

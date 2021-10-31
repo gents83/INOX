@@ -10,7 +10,11 @@ pub struct Hitbox {
     max: Vector3,
     transform: Matrix4,
 }
-impl ResourceTrait for Hitbox {}
+impl ResourceTrait for Hitbox {
+    fn on_resource_swap(&mut self, _new: &Self) {
+        //println!("Hitbox resource swapped");
+    }
+}
 
 impl UIProperties for Hitbox {
     fn show(

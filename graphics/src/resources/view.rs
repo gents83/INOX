@@ -1,6 +1,6 @@
 use nrg_math::{Degrees, MatBase, Matrix4, NewAngle};
 use nrg_messenger::MessengerRw;
-use nrg_resources::{DataTypeResource, Handle, Resource, ResourceId, SharedData, SharedDataRc};
+use nrg_resources::{DataTypeResource, Handle, ResourceId, SharedData, SharedDataRc};
 
 pub type ViewId = ResourceId;
 
@@ -23,29 +23,31 @@ impl Default for View {
 
 impl DataTypeResource for View {
     type DataType = u32;
+
     fn is_initialized(&self) -> bool {
         true
     }
-
     fn invalidate(&mut self) {
         panic!("View cannot be invalidated!");
     }
-
     fn deserialize_data(_path: &std::path::Path) -> Self::DataType {
         0
     }
+
     fn create_from_data(
-        shared_data: &SharedDataRc,
+        _shared_data: &SharedDataRc,
         _global_messenger: &MessengerRw,
-        id: ViewId,
-        view_index: Self::DataType,
-    ) -> Resource<Self> {
-        let view = Self {
-            view_index,
+        _id: ResourceId,
+        data: Self::DataType,
+    ) -> Self
+    where
+        Self: Sized,
+    {
+        Self {
+            view_index: data,
             view: Matrix4::default_identity(),
             proj: nrg_math::perspective(Degrees::new(45.), 800. / 600., 0.001, 1000.0),
-        };
-        SharedData::add_resource(shared_data, id, view)
+        }
     }
 }
 

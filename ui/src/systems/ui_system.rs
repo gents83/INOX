@@ -137,7 +137,7 @@ impl UISystem {
                     })
                 }
             }
-            let texture = Texture::create_from_data(
+            let texture = Texture::new_resource(
                 &self.shared_data,
                 &self.global_messenger,
                 generate_random_uid(),
@@ -154,7 +154,7 @@ impl UISystem {
         let shared_data = self.shared_data.clone();
         let global_messenger = self.global_messenger.clone();
         self.ui_meshes.resize_with(clipped_meshes.len(), || {
-            Mesh::create_from_data(
+            Mesh::new_resource(
                 &shared_data,
                 &global_messenger,
                 generate_random_uid(),

@@ -5,7 +5,7 @@ use nrg_math::{
 };
 use nrg_messenger::MessengerRw;
 use nrg_resources::{
-    DataTypeResource, Handle, Resource, ResourceId, SerializableResource, SharedData, SharedDataRc,
+    DataTypeResource, Handle, Resource, ResourceId, SerializableResource, SharedDataRc,
 };
 use nrg_serialize::read_from_file;
 use nrg_ui::{CollapsingHeader, UIProperties, UIPropertiesRegistry, Ui};
@@ -98,28 +98,28 @@ impl SerializableResource for Camera {
 }
 impl DataTypeResource for Camera {
     type DataType = CameraData;
+
     fn is_initialized(&self) -> bool {
         true
     }
-
     fn invalidate(&mut self) {
         panic!("Camera cannot be invalidated!");
     }
-
     fn deserialize_data(path: &std::path::Path) -> Self::DataType {
         read_from_file::<Self::DataType>(path)
     }
+
     fn create_from_data(
-        shared_data: &SharedDataRc,
+        _shared_data: &SharedDataRc,
         _global_messenger: &MessengerRw,
-        id: CameraId,
+        _id: CameraId,
         data: Self::DataType,
-    ) -> Resource<Self> {
+    ) -> Self {
         let mut camera = Self {
             ..Default::default()
         };
         camera.set_projection(data.fov, data.aspect_ratio, 1., data.near, data.far);
-        SharedData::add_resource(shared_data, id, camera)
+        camera
     }
 }
 

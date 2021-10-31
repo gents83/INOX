@@ -13,7 +13,7 @@ pub type MeshId = ResourceId;
 #[derive(Clone)]
 pub struct Mesh {
     path: PathBuf,
-    mesh_data: MeshData,
+    data: MeshData,
     matrix: Matrix4,
     material: Handle<Material>,
     draw_area: Vector4, //pos (x,y) - size(z,w)
@@ -27,7 +27,7 @@ impl Default for Mesh {
     fn default() -> Self {
         Self {
             path: PathBuf::new(),
-            mesh_data: MeshData::default(),
+            data: MeshData::default(),
             matrix: Matrix4::default_identity(),
             material: None,
             draw_area: [0., 0., f32::MAX, f32::MAX].into(),
@@ -60,38 +60,41 @@ impl SerializableResource for Mesh {
 impl DataTypeResource for Mesh {
     type DataType = MeshData;
     fn is_initialized(&self) -> bool {
-        !self.mesh_data.vertices.is_empty()
+        !self.data.vertices.is_empty()
     }
 
     fn invalidate(&mut self) {
-        self.mesh_data = MeshData::default();
+        self.data = MeshData::default();
     }
     fn deserialize_data(path: &Path) -> Self::DataType {
         read_from_file::<Self::DataType>(path)
     }
+
     fn create_from_data(
         shared_data: &SharedDataRc,
         global_messenger: &MessengerRw,
-        id: MeshId,
-        mesh_data: Self::DataType,
-    ) -> Resource<Self> {
-        let material = if !mesh_data.material.to_str().unwrap_or_default().is_empty() {
+        _id: ResourceId,
+        data: Self::DataType,
+    ) -> Self
+    where
+        Self: Sized,
+    {
+        let material = if !data.material.to_str().unwrap_or_default().is_empty() {
             let material = Material::load_from_file(
                 shared_data,
                 global_messenger,
-                mesh_data.material.as_path(),
+                data.material.as_path(),
                 None,
             );
             Some(material)
         } else {
             None
         };
-        let mesh = Self {
-            mesh_data,
+        Self {
+            data,
             material,
             ..Default::default()
-        };
-        SharedData::add_resource(shared_data, id, mesh)
+        }
     }
 }
 
@@ -100,10 +103,10 @@ impl Mesh {
         SharedData::match_resource(shared_data, |m: &Mesh| m.path() == path)
     }
     pub fn mesh_data(&self) -> &MeshData {
-        &self.mesh_data
+        &self.data
     }
     pub fn is_visible(&self) -> bool {
-        self.is_visible && !self.mesh_data.vertices.is_empty() && !self.mesh_data.indices.is_empty()
+        self.is_visible && !self.data.vertices.is_empty() && !self.data.indices.is_empty()
     }
     pub fn set_visible(&mut self, is_visible: bool) -> &mut Self {
         self.is_visible = is_visible;
@@ -121,7 +124,7 @@ impl Mesh {
         self
     }
     pub fn set_mesh_data(&mut self, mesh_data: MeshData) -> &mut Self {
-        self.mesh_data = mesh_data;
+        self.data = mesh_data;
         self.uv_converted = false;
         self.is_dirty = true;
         self
@@ -148,6 +151,6 @@ impl Mesh {
     }
 
     pub fn category_identifier(&self) -> &MeshCategoryId {
-        &self.mesh_data.mesh_category_identifier
+        &self.data.mesh_category_identifier
     }
 }

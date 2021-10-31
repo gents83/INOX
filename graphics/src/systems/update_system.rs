@@ -62,7 +62,7 @@ impl UpdateSystem {
 
     pub fn load_render_passes(&mut self, render_passes: &[RenderPassData]) -> &mut Self {
         for render_pass_data in render_passes.iter() {
-            self.render_passes.push(RenderPass::create_from_data(
+            self.render_passes.push(RenderPass::new_resource(
                 &self.shared_data,
                 &self.global_messenger,
                 generate_random_uid(),
@@ -74,11 +74,13 @@ impl UpdateSystem {
 
     pub fn load_pipelines(&mut self, pipelines: &[PathBuf]) -> &mut Self {
         for pipeline_path in pipelines.iter() {
-            self.pipelines.push(Pipeline::create_from_file(
+            let pipeline = Pipeline::load_from_file(
                 &self.shared_data,
                 &self.global_messenger,
                 pipeline_path.as_path(),
-            ));
+                None,
+            );
+            self.pipelines.push(pipeline);
         }
         self
     }

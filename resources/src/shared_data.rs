@@ -94,11 +94,14 @@ impl SharedData {
         let typeid = generate_uid_from_string(type_name::<T>());
         if let Some(rs) = self.storage.read().unwrap().get(&typeid) {
             let storage = rs.of_type::<T>();
-            storage
-                .write()
-                .unwrap()
-                .add(resource_id, data, storage.clone());
-            return storage.read().unwrap().resource(&resource_id).unwrap();
+            if let Ok(mut rs) = storage.write() {
+                return rs.add(resource_id, data);
+            } else {
+                panic!(
+                    "Unable to write to storage {} in add_resource()",
+                    type_name::<T>()
+                );
+            };
         }
         panic!("Unable to find storage for type {:?}", type_name::<T>());
     }
@@ -107,7 +110,14 @@ impl SharedData {
         let typeid = generate_uid_from_string(type_name::<T>());
         if let Some(rs) = self.storage.read().unwrap().get(&typeid) {
             let storage = rs.of_type::<T>();
-            return storage.read().unwrap().resource(resource_id);
+            if let Ok(storage) = storage.read() {
+                return storage.resource(resource_id);
+            } else {
+                panic!(
+                    "Unable to write to storage {} in get_resource()",
+                    type_name::<T>()
+                );
+            };
         }
         None
     }
@@ -116,7 +126,14 @@ impl SharedData {
         let typeid = generate_uid_from_string(type_name::<T>());
         if let Some(rs) = self.storage.read().unwrap().get(&typeid) {
             let storage = rs.of_type::<T>();
-            return storage.read().unwrap().resource_at_index(index);
+            if let Ok(storage) = storage.read() {
+                return storage.resource_at_index(index);
+            } else {
+                panic!(
+                    "Unable to write to storage {} in get_resource_at_index()",
+                    type_name::<T>()
+                );
+            };
         }
         None
     }
@@ -128,21 +145,39 @@ impl SharedData {
         let typeid = generate_uid_from_string(type_name::<T>());
         if let Some(rs) = self.storage.read().unwrap().get(&typeid) {
             let storage = rs.of_type::<T>();
-            return storage.read().unwrap().get_index_of(resource_id);
+            if let Ok(storage) = storage.read() {
+                return storage.get_index_of(resource_id);
+            } else {
+                panic!(
+                    "Unable to write to storage {} in get_index_of_resource()",
+                    type_name::<T>()
+                );
+            };
         }
         None
     }
     #[inline]
     fn clear(&mut self) {
-        for (&_t, rs) in self.storage.read().unwrap().iter() {
-            rs.write().unwrap().remove_all();
+        for (type_id, rs) in self.storage.read().unwrap().iter() {
+            if let Ok(mut rs) = rs.write() {
+                rs.remove_all();
+            } else {
+                panic!("Unable to write to storage {} in clear()", type_id);
+            };
         }
         self.storage.write().unwrap().clear();
     }
     #[inline]
     pub fn flush_resources(&self) {
-        for (_type_id, rs) in self.storage.read().unwrap().iter() {
-            rs.write().unwrap().flush();
+        for (type_id, rs) in self.storage.read().unwrap().iter() {
+            if let Ok(mut rs) = rs.write() {
+                rs.flush();
+            } else {
+                panic!(
+                    "Unable to write to storage {} in flush_resources()",
+                    type_id
+                );
+            };
         }
     }
     #[inline]
@@ -170,7 +205,11 @@ impl SharedData {
     pub fn has<T: 'static>(&self, resource_id: &ResourceId) -> bool {
         let typeid = generate_uid_from_string(type_name::<T>());
         if let Some(rs) = self.storage.read().unwrap().get(&typeid) {
-            return rs.read().unwrap().has(resource_id);
+            if let Ok(storage) = rs.read() {
+                return storage.has(resource_id);
+            } else {
+                panic!("Unable to write to storage {} in has()", type_name::<T>());
+            };
         }
         false
     }
@@ -178,7 +217,14 @@ impl SharedData {
     pub fn has_resources_of_type<T: 'static>(&self) -> bool {
         let typeid = generate_uid_from_string(type_name::<T>());
         if let Some(rs) = self.storage.read().unwrap().get(&typeid) {
-            return rs.read().unwrap().count() > 0;
+            if let Ok(storage) = rs.read() {
+                return storage.count() > 0;
+            } else {
+                panic!(
+                    "Unable to read to storage {} in has_resources_of_type()",
+                    type_name::<T>()
+                );
+            };
         }
         false
     }
@@ -191,7 +237,14 @@ impl SharedData {
         let typeid = generate_uid_from_string(type_name::<T>());
         if let Some(rs) = self.storage.read().unwrap().get(&typeid) {
             let storage = rs.of_type::<T>();
-            return storage.read().unwrap().for_each_resource(f);
+            if let Ok(storage) = storage.read() {
+                storage.for_each_resource(f);
+            } else {
+                panic!(
+                    "Unable to read to storage {} in for_each_resource()",
+                    type_name::<T>()
+                );
+            };
         }
     }
     #[inline]
@@ -203,7 +256,14 @@ impl SharedData {
         let typeid = generate_uid_from_string(type_name::<T>());
         if let Some(rs) = self.storage.read().unwrap().get(&typeid) {
             let storage = rs.of_type::<T>();
-            return storage.write().unwrap().for_each_resource_mut(f);
+            if let Ok(storage) = storage.write() {
+                storage.for_each_resource_mut(f);
+            } else {
+                panic!(
+                    "Unable to write to storage {} in for_each_resource_mut()",
+                    type_name::<T>()
+                );
+            };
         }
     }
     #[inline]
@@ -215,8 +275,14 @@ impl SharedData {
         let typeid = generate_uid_from_string(type_name::<T>());
         if let Some(rs) = self.storage.read().unwrap().get(&typeid) {
             let storage = rs.of_type::<T>();
-            let s = storage.write().unwrap();
-            return s.match_resource(f);
+            if let Ok(storage) = storage.write() {
+                return storage.match_resource(f);
+            } else {
+                panic!(
+                    "Unable to write to storage {} in match_resource()",
+                    type_name::<T>()
+                );
+            };
         }
         None
     }
@@ -224,7 +290,14 @@ impl SharedData {
     pub fn get_num_resources_of_type<T: ResourceTrait>(&self) -> usize {
         let typeid = generate_uid_from_string(type_name::<T>());
         if let Some(rs) = self.storage.read().unwrap().get(&typeid) {
-            return rs.read().unwrap().count();
+            if let Ok(storage) = rs.read() {
+                return storage.count();
+            } else {
+                panic!(
+                    "Unable to read to storage {} in get_num_resources_of_type()",
+                    type_name::<T>()
+                );
+            };
         }
         0
     }

@@ -5,7 +5,7 @@ use nrg_filesystem::convert_from_local_path;
 use nrg_messenger::MessengerRw;
 use nrg_profiler::debug_log;
 use nrg_resources::{
-    DataTypeResource, Handle, Resource, ResourceId, SerializableResource, SharedData, SharedDataRc,
+    DataTypeResource, Handle, ResourceId, SerializableResource, SharedData, SharedDataRc,
     DATA_FOLDER,
 };
 
@@ -19,7 +19,7 @@ pub type TextureId = ResourceId;
 #[derive(Clone)]
 pub struct Texture {
     path: PathBuf,
-    image_data: Option<Vec<u8>>,
+    data: Option<Vec<u8>>,
     uniform_index: i32,
     width: u32,
     height: u32,
@@ -30,7 +30,7 @@ impl Default for Texture {
     fn default() -> Self {
         Self {
             path: PathBuf::new(),
-            image_data: None,
+            data: None,
             uniform_index: INVALID_INDEX,
             width: 0,
             height: 0,
@@ -52,20 +52,23 @@ impl DataTypeResource for Texture {
         let image_data = image::open(path).unwrap();
         image_data.to_rgba8()
     }
+
     fn create_from_data(
-        shared_data: &SharedDataRc,
+        _shared_data: &SharedDataRc,
         _global_messenger: &MessengerRw,
-        id: TextureId,
-        image_data: Self::DataType,
-    ) -> Resource<Self> {
-        let dimensions = image_data.dimensions();
-        let texture = Self {
-            image_data: Some(image_data.as_raw().clone()),
+        _id: ResourceId,
+        data: Self::DataType,
+    ) -> Self
+    where
+        Self: Sized,
+    {
+        let dimensions = data.dimensions();
+        Self {
+            data: Some(data.as_raw().clone()),
             width: dimensions.0,
             height: dimensions.1,
             ..Default::default()
-        };
-        SharedData::add_resource(shared_data, id, texture)
+        }
     }
 }
 
@@ -124,7 +127,7 @@ impl Texture {
         self.uniform_index
     }
     pub fn image_data(&self) -> &Option<Vec<u8>> {
-        &self.image_data
+        &self.data
     }
     pub fn set_texture_data(&mut self, index: usize, width: u32, height: u32) -> &mut Self {
         self.uniform_index = index as _;
@@ -147,19 +150,19 @@ impl Texture {
         physical_device: &BackendPhysicalDevice,
     ) {
         nrg_profiler::scoped_profile!("texture::capture_image");
-        if self.image_data.is_none() {
+        if self.data.is_none() {
             let mut image_data = Vec::new();
             image_data.resize_with(
                 (self.width * self.height * TEXTURE_CHANNEL_COUNT) as _,
                 || 0u8,
             );
-            self.image_data = Some(image_data)
+            self.data = Some(image_data)
         }
         texture_handler.copy(
             device,
             physical_device,
             texture_id,
-            self.image_data.as_mut().unwrap().as_mut_slice(),
+            self.data.as_mut().unwrap().as_mut_slice(),
         );
     }
 }

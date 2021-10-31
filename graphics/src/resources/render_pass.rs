@@ -2,7 +2,7 @@ use std::path::Path;
 
 use nrg_messenger::MessengerRw;
 use nrg_resources::{
-    DataTypeResource, Handle, Resource, ResourceId, SerializableResource, SharedData, SharedDataRc,
+    DataTypeResource, Handle, Resource, ResourceId, SerializableResource, SharedDataRc,
 };
 use nrg_serialize::read_from_file;
 
@@ -56,14 +56,17 @@ impl DataTypeResource for RenderPass {
     fn create_from_data(
         shared_data: &SharedDataRc,
         global_messenger: &MessengerRw,
-        id: RenderPassId,
-        render_pass_data: Self::DataType,
-    ) -> Resource<Self> {
-        let pipeline = if render_pass_data.pipeline.extension().is_some() {
+        _id: ResourceId,
+        data: Self::DataType,
+    ) -> Self
+    where
+        Self: Sized,
+    {
+        let pipeline = if data.pipeline.extension().is_some() {
             Some(Pipeline::load_from_file(
                 shared_data,
                 global_messenger,
-                render_pass_data.pipeline.as_path(),
+                data.pipeline.as_path(),
                 None,
             ))
         } else {
@@ -71,20 +74,16 @@ impl DataTypeResource for RenderPass {
         };
 
         let mut mesh_category_to_draw = Vec::new();
-        render_pass_data
-            .mesh_category_to_draw
-            .iter()
-            .for_each(|name| {
-                mesh_category_to_draw.push(MeshCategoryId::new(name.as_str()));
-            });
+        data.mesh_category_to_draw.iter().for_each(|name| {
+            mesh_category_to_draw.push(MeshCategoryId::new(name.as_str()));
+        });
 
-        let render_pass = Self {
-            data: render_pass_data.clone(),
+        Self {
+            data,
             pipeline,
             mesh_category_to_draw,
             ..Default::default()
-        };
-        SharedData::add_resource(shared_data, id, render_pass)
+        }
     }
 }
 

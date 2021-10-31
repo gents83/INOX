@@ -106,12 +106,10 @@ impl DataTypeResource for Object {
     fn is_initialized(&self) -> bool {
         !self.components.is_empty()
     }
-
     fn invalidate(&mut self) {
         self.components.clear();
         self.children.clear();
     }
-
     fn deserialize_data(path: &Path) -> Self::DataType {
         read_from_file::<Self::DataType>(path)
     }
@@ -121,7 +119,7 @@ impl DataTypeResource for Object {
         global_messenger: &MessengerRw,
         id: ObjectId,
         object_data: Self::DataType,
-    ) -> Resource<Self> {
+    ) -> Self {
         let mut object = Self::default();
         object.transform = object_data.transform;
 
@@ -133,11 +131,9 @@ impl DataTypeResource for Object {
             } else if Camera::is_matching_extension(path) {
                 let shared_data_rc = shared_data.clone();
                 let on_camera_loaded: Box<dyn Function<Camera>> =
-                    Box::new(move |camera: &Resource<Camera>| {
+                    Box::new(move |camera: &mut Camera| {
                         if let Some(parent) = shared_data_rc.get_resource::<Object>(&id) {
-                            camera.get_mut(|c| {
-                                c.set_parent(&parent);
-                            })
+                            camera.set_parent(&parent);
                         }
                     });
                 let camera = Camera::load_from_file(
@@ -150,11 +146,9 @@ impl DataTypeResource for Object {
             } else if Light::is_matching_extension(path) {
                 let shared_data_rc = shared_data.clone();
                 let on_light_loaded: Box<dyn Function<Light>> =
-                    Box::new(move |light: &Resource<Light>| {
+                    Box::new(move |light: &mut Light| {
                         if let Some(parent) = shared_data_rc.get_resource::<Object>(&id) {
-                            light.get_mut(|l| {
-                                l.set_position(parent.get(|o| o.get_position()));
-                            })
+                            light.set_position(parent.get(|o| o.get_position()));
                         }
                     });
                 let light = Light::load_from_file(
@@ -170,14 +164,9 @@ impl DataTypeResource for Object {
         for child in object_data.children.iter() {
             let shared_data_rc = shared_data.clone();
             let on_loaded_object: Box<dyn Function<Object>> =
-                Box::new(move |child: &Resource<Object>| {
+                Box::new(move |child: &mut Object| {
                     let parent = shared_data_rc.get_resource::<Object>(&id);
-                    child.get_mut(|c| {
-                        c.set_parent(parent.clone());
-                    });
-                    if let Some(parent) = &parent {
-                        child.move_after(parent.id());
-                    }
+                    child.set_parent(parent.clone());
                 });
             let child = Object::load_from_file(
                 shared_data,
@@ -188,7 +177,7 @@ impl DataTypeResource for Object {
             object.add_child(child);
         }
 
-        SharedData::add_resource(shared_data, id, object)
+        object
     }
 }
 

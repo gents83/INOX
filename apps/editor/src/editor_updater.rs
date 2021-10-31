@@ -47,7 +47,7 @@ impl EditorUpdater {
 
         let mut mesh_data = MeshData::new(GRID_MESH_CATEGORY_IDENTIFIER);
         mesh_data.add_quad_default([-1., -1., 1., 1.].into(), 0.);
-        let grid_mesh = Mesh::create_from_data(
+        let grid_mesh = Mesh::new_resource(
             shared_data,
             global_messenger,
             generate_random_uid(),

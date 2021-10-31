@@ -82,9 +82,12 @@ impl DataTypeResource for Material {
     fn create_from_data(
         shared_data: &SharedDataRc,
         global_messenger: &MessengerRw,
-        id: MaterialId,
+        _id: ResourceId,
         material_data: Self::DataType,
-    ) -> Resource<Self> {
+    ) -> Self
+    where
+        Self: Sized,
+    {
         let mut textures: [Handle<Texture>; TextureType::Count as _] = Default::default();
         for (i, t) in material_data.textures.iter().enumerate() {
             if !t.as_os_str().is_empty() {
@@ -105,7 +108,7 @@ impl DataTypeResource for Material {
             ))
         };
 
-        let material = Self {
+        Self {
             textures,
             roughness_factor: material_data.roughness_factor,
             metallic_factor: material_data.metallic_factor,
@@ -117,8 +120,7 @@ impl DataTypeResource for Material {
             specular_color: material_data.specular_color,
             pipeline,
             ..Default::default()
-        };
-        SharedData::add_resource(shared_data, id, material)
+        }
     }
 }
 

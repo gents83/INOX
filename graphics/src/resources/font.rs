@@ -3,7 +3,7 @@ use crate::{FontData, Texture};
 use nrg_math::Vector4;
 use nrg_messenger::MessengerRw;
 use nrg_resources::{
-    DataTypeResource, Handle, Resource, ResourceId, SerializableResource, SharedData, SharedDataRc,
+    DataTypeResource, Handle, ResourceId, SerializableResource, SharedData, SharedDataRc,
 };
 use nrg_serialize::{generate_random_uid, INVALID_UID};
 use std::path::{Path, PathBuf};
@@ -23,32 +23,32 @@ impl DataTypeResource for Font {
     fn create_from_data(
         shared_data: &SharedDataRc,
         global_messenger: &MessengerRw,
-        id: FontId,
-        font_data: Self::DataType,
-    ) -> Resource<Self> {
-        let mut font_data = font_data;
-        let texture = Texture::create_from_data(
+        _id: ResourceId,
+        data: Self::DataType,
+    ) -> Self
+    where
+        Self: Sized,
+    {
+        let mut font_data = data;
+        let texture = Texture::new_resource(
             shared_data,
             global_messenger,
             generate_random_uid(),
             font_data.create_texture(),
         );
-        let font = Self {
+        Self {
             texture: Some(texture),
             font_data,
             ..Default::default()
-        };
-        SharedData::add_resource(shared_data, id, font)
+        }
     }
 
     fn is_initialized(&self) -> bool {
         self.texture.is_some()
     }
-
     fn invalidate(&mut self) {
         self.texture = None;
     }
-
     fn deserialize_data(path: &Path) -> Self::DataType {
         FontData::new(path)
     }

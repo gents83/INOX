@@ -3,9 +3,7 @@ use std::path::{Path, PathBuf};
 use nrg_math::{matrix4_to_array, Matrix4};
 use nrg_messenger::MessengerRw;
 use nrg_profiler::debug_log;
-use nrg_resources::{
-    DataTypeResource, Resource, ResourceId, SerializableResource, SharedData, SharedDataRc,
-};
+use nrg_resources::{DataTypeResource, ResourceId, SerializableResource, SharedDataRc};
 use nrg_serialize::read_from_file;
 
 use crate::{
@@ -66,17 +64,19 @@ impl DataTypeResource for Pipeline {
     }
 
     fn create_from_data(
-        shared_data: &SharedDataRc,
+        _shared_data: &SharedDataRc,
         _global_messenger: &MessengerRw,
-        id: PipelineId,
-        pipeline_data: Self::DataType,
-    ) -> Resource<Self> {
-        let canonicalized_pipeline_data = pipeline_data.canonicalize_paths();
-        let pipeline = Self {
+        _id: ResourceId,
+        data: Self::DataType,
+    ) -> Self
+    where
+        Self: Sized,
+    {
+        let canonicalized_pipeline_data = data.canonicalize_paths();
+        Self {
             data: canonicalized_pipeline_data,
             ..Default::default()
-        };
-        SharedData::add_resource(shared_data, id, pipeline)
+        }
     }
 }
 

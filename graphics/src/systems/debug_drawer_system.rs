@@ -81,7 +81,7 @@ impl DebugDrawerSystem {
             );
         }
 
-        let mesh_instance = Mesh::create_from_data(
+        let mesh_instance = Mesh::new_resource(
             shared_data,
             global_messenger,
             generate_random_uid(),
@@ -94,7 +94,7 @@ impl DebugDrawerSystem {
             });
         }
 
-        let wireframe_mesh_instance = Mesh::create_from_data(
+        let wireframe_mesh_instance = Mesh::new_resource(
             shared_data,
             global_messenger,
             generate_random_uid(),
