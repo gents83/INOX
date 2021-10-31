@@ -1,6 +1,6 @@
+use super::super::handle::*;
 use core::ffi::c_void;
 use core::ptr;
-use super::super::handle::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct MacOSHandle {
@@ -42,6 +42,6 @@ impl MacOSHandle {
         MacOSHandle {
             ns_window: ptr::null_mut(),
             ns_view: ptr::null_mut(),
-        } 
+        }
     }
 }

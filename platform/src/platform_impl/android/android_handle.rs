@@ -1,6 +1,6 @@
+use super::super::handle::*;
 use core::ffi::c_void;
 use core::ptr;
-use super::super::handle::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct AndroidHandle {
@@ -41,6 +41,6 @@ impl AndroidHandle {
     pub fn empty() -> AndroidHandle {
         AndroidHandle {
             a_native_window: ptr::null_mut(),
-        } 
+        }
     }
 }

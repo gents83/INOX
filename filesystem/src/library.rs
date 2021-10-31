@@ -1,4 +1,8 @@
-use std::{env::{self, consts::*}, ffi::{OsStr, OsString}, path::PathBuf};
+use std::{
+    env::{self, consts::*},
+    ffi::{OsStr, OsString},
+    path::PathBuf,
+};
 
 use super::platform_impl::platform::library as platform;
 
@@ -11,7 +15,6 @@ pub fn library_filename<S: AsRef<OsStr>>(name: S) -> OsString {
     string.push(DLL_SUFFIX);
     string
 }
-
 
 #[inline]
 pub fn compute_folder_and_filename(lib_path: PathBuf) -> (PathBuf, PathBuf) {
@@ -31,7 +34,7 @@ pub struct Library(platform::Library);
 
 impl Library {
     #[inline]
-    pub fn new<S: AsRef<::std::ffi::OsStr>>(filename: S) -> Library{
+    pub fn new<S: AsRef<::std::ffi::OsStr>>(filename: S) -> Library {
         let _lib = platform::Library::load(filename);
         Library(_lib)
     }

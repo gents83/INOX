@@ -46,8 +46,7 @@ fn main() {
     move_all_files_with_extension(deps_path, deps_build_path, "pdb");
     move_all_files_with_extension(out_dir, in_use_build_path, "pdb");
 
-    if let Ok(_) = env::var("BLENDER_ADDONS_PATH") {
-    } else {
+    if env::var("BLENDER_ADDONS_PATH").is_err() {
         panic!("No BLENDER_ADDONS_PATH enviroment variable for this user");
     }
 }

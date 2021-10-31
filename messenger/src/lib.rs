@@ -1,5 +1,5 @@
-pub use macros::*;
 pub use channel::*;
+pub use macros::*;
 pub use message::*;
 pub use messenger::*;
 

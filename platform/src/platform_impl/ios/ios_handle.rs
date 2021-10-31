@@ -1,6 +1,6 @@
+use super::super::handle::*;
 use core::ffi::c_void;
 use core::ptr;
-use super::super::handle::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct IOSHandle {
@@ -44,6 +44,6 @@ impl IOSHandle {
             ui_window: ptr::null_mut(),
             ui_view: ptr::null_mut(),
             ui_view_controller: ptr::null_mut(),
-        } 
+        }
     }
 }

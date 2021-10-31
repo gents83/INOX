@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use nrg_math::{Vector4};
+use nrg_math::Vector4;
 use nrg_serialize::{Deserialize, Serialize};
 
 use crate::TextureType;

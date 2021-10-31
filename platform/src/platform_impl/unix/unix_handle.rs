@@ -1,6 +1,6 @@
+use super::super::handle::*;
 use core::ffi::c_void;
 use core::ptr;
-use super::super::handle::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct XlibHandle {
@@ -44,6 +44,6 @@ impl XlibHandle {
         XlibHandle {
             window: 0,
             display: ptr::null_mut(),
-        } 
+        }
     }
 }

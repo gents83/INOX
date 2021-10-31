@@ -44,6 +44,6 @@ impl WebHandle {
     pub fn empty() -> WebHandle {
         WebHandle {
             id: ptr::null_mut(),
-        } 
+        }
     }
 }

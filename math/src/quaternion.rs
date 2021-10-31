@@ -31,7 +31,7 @@ impl Quat for Quaternion {
         let cosy_cosp = 1. - 2. * (self.v.y * self.v.y + self.v.z * self.v.z);
         roll_yaw_pitch.z = siny_cosp.atan2(cosy_cosp);
 
-        return roll_yaw_pitch;
+        roll_yaw_pitch
     }
 
     fn from_euler_angles(roll_yaw_pitch: Vector3) -> Quaternion {

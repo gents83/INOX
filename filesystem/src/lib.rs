@@ -14,7 +14,7 @@ pub mod platform_impl {
     pub mod platform;
 
     #[cfg(target_os = "ios")]
-    #[path = "iosmacos/platform.rs"]
+    #[path = "ios/platform.rs"]
     pub mod platform;
 
     #[cfg(target_os = "macos")]
