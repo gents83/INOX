@@ -12,7 +12,14 @@ env:
 jobs:
   check:
     name: Build
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os:
+          - windows-latest
+          #- macOS-latest
+          #- ubuntu-latest
+
     steps:
       - name: Checkout sources
         uses: actions/checkout@v2
@@ -33,6 +40,7 @@ jobs:
       - name: Run cargo clippy
         uses: actions-rs/cargo@v1
         with:
+          token: ${{ secrets.GITHUB_TOKEN }}
           command: clippy
           args: -- -D warnings
           
@@ -40,4 +48,4 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build 
-          args: -v --workspace
+          args: -v --workspace --release
