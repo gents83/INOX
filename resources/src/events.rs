@@ -5,7 +5,7 @@ use std::{
 
 use nrg_messenger::{implement_message, Message, MessengerRw};
 
-use crate::{ResourceId, ResourceTrait, SerializableResource, SharedDataRc};
+use crate::{ResourceTrait, SerializableResource, SharedDataRc};
 
 pub trait Function<T>: Fn(&mut T)
 where
@@ -36,7 +36,6 @@ pub struct LoadResourceEvent<T>
 where
     T: ResourceTrait,
 {
-    id: ResourceId,
     path: PathBuf,
     on_loaded: Option<Box<dyn Function<T>>>,
     resource_type: PhantomData<T>,
@@ -48,10 +47,9 @@ impl<T> LoadResourceEvent<T>
 where
     T: ResourceTrait,
 {
-    pub fn new(id: &ResourceId, path: &Path, f: Option<Box<dyn Function<T>>>) -> Self {
+    pub fn new(path: &Path, f: Option<Box<dyn Function<T>>>) -> Self {
         Self {
             resource_type: PhantomData::<T>::default(),
-            id: *id,
             path: path.to_path_buf(),
             on_loaded: if let Some(f) = f {
                 Some(Box::new(f))
@@ -61,10 +59,8 @@ where
         }
     }
 
-    pub fn call(&self, resource: &mut T) {
-        if let Some(on_loaded_callback) = &self.on_loaded {
-            on_loaded_callback.as_ref()(resource);
-        }
+    pub fn loaded_callback(&self) -> Option<&Box<dyn Function<T>>> {
+        self.on_loaded.as_ref()
     }
 }
 
@@ -115,10 +111,12 @@ where
     ) -> bool {
         if let Some(e) = msg.as_any().downcast_ref::<LoadResourceEvent<T>>() {
             if T::is_matching_extension(e.path.as_path()) {
-                let mut resource =
-                    T::create_from_file(shared_data, global_messenger, e.path.as_path());
-                e.call(&mut resource);
-                shared_data.add_resource::<T>(e.id, resource);
+                T::create_from_file(
+                    shared_data,
+                    global_messenger,
+                    e.path.as_path(),
+                    e.loaded_callback(),
+                );
                 return true;
             }
         }

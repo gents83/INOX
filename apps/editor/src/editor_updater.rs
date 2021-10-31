@@ -53,7 +53,7 @@ impl EditorUpdater {
             generate_random_uid(),
             mesh_data,
         );
-        let grid_material = Material::load_from_file(
+        let grid_material = Material::request_load(
             shared_data,
             global_messenger,
             config.grid_material.as_path(),
@@ -243,7 +243,7 @@ impl EditorUpdater {
     fn load_object(&mut self, filename: &Path) {
         self.scene.get_mut().clear();
         let object =
-            Object::load_from_file(&self.shared_data, &self.global_messenger, filename, None);
+            Object::request_load(&self.shared_data, &self.global_messenger, filename, None);
         self.scene.get_mut().add_object(object);
     }
 

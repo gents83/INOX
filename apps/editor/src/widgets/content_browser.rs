@@ -52,7 +52,7 @@ impl ContentBrowser {
         path: &Path,
         extension: String,
     ) -> Self {
-        let file_icon = Texture::load_from_file(
+        let file_icon = Texture::request_load(
             shared_data,
             global_messenger,
             PathBuf::from("./icons/file.png").as_path(),

@@ -63,7 +63,7 @@ impl DataTypeResource for RenderPass {
         Self: Sized,
     {
         let pipeline = if data.pipeline.extension().is_some() {
-            Some(Pipeline::load_from_file(
+            Some(Pipeline::request_load(
                 shared_data,
                 global_messenger,
                 data.pipeline.as_path(),

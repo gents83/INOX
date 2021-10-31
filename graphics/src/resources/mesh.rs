@@ -80,7 +80,7 @@ impl DataTypeResource for Mesh {
         Self: Sized,
     {
         let material = if !data.material.to_str().unwrap_or_default().is_empty() {
-            let material = Material::load_from_file(
+            let material = Material::request_load(
                 shared_data,
                 global_messenger,
                 data.material.as_path(),

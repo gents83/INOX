@@ -376,7 +376,7 @@ impl System for UISystem {
         config = read_from_file(config.get_filepath(plugin_name).as_path());
 
         self.ui_scale = config.ui_scale;
-        self.ui_pipeline = Some(Pipeline::load_from_file(
+        self.ui_pipeline = Some(Pipeline::request_load(
             &self.shared_data,
             &self.global_messenger,
             config.ui_pipeline.as_path(),

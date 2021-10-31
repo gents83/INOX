@@ -78,12 +78,12 @@ impl DataTypeResource for Scene {
         let mut scene = Self::default();
 
         for object in scene_data.objects.iter() {
-            let o = Object::load_from_file(shared_data, global_messenger, object.as_path(), None);
+            let o = Object::request_load(shared_data, global_messenger, object.as_path(), None);
             scene.add_object(o);
         }
 
         for camera in scene_data.cameras.iter() {
-            let c = Camera::load_from_file(shared_data, global_messenger, camera.as_path(), None);
+            let c = Camera::request_load(shared_data, global_messenger, camera.as_path(), None);
             scene.add_camera(c);
         }
 

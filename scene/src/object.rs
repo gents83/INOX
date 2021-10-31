@@ -124,7 +124,7 @@ impl DataTypeResource for Object {
         object_data.components.iter().for_each(|component_path| {
             let path = component_path.as_path();
             if Mesh::is_matching_extension(path) {
-                let mesh = Mesh::load_from_file(shared_data, global_messenger, path, None);
+                let mesh = Mesh::request_load(shared_data, global_messenger, path, None);
                 object.add_component::<Mesh>(mesh);
             } else if Camera::is_matching_extension(path) {
                 let shared_data_rc = shared_data.clone();
@@ -134,7 +134,7 @@ impl DataTypeResource for Object {
                             camera.set_parent(&parent);
                         }
                     });
-                let camera = Camera::load_from_file(
+                let camera = Camera::request_load(
                     shared_data,
                     global_messenger,
                     path,
@@ -149,12 +149,8 @@ impl DataTypeResource for Object {
                             light.set_position(parent.get().get_position());
                         }
                     });
-                let light = Light::load_from_file(
-                    shared_data,
-                    global_messenger,
-                    path,
-                    Some(on_light_loaded),
-                );
+                let light =
+                    Light::request_load(shared_data, global_messenger, path, Some(on_light_loaded));
                 object.add_component::<Light>(light);
             }
         });
@@ -166,7 +162,7 @@ impl DataTypeResource for Object {
                     let parent = shared_data_rc.get_resource::<Object>(&id);
                     child.set_parent(parent.clone());
                 });
-            let child = Object::load_from_file(
+            let child = Object::request_load(
                 shared_data,
                 global_messenger,
                 child.as_path(),

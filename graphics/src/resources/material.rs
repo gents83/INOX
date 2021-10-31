@@ -92,7 +92,7 @@ impl DataTypeResource for Material {
         for (i, t) in material_data.textures.iter().enumerate() {
             if !t.as_os_str().is_empty() {
                 let texture =
-                    Texture::load_from_file(shared_data, global_messenger, t.as_path(), None);
+                    Texture::request_load(shared_data, global_messenger, t.as_path(), None);
                 textures[i] = Some(texture);
             }
         }
@@ -100,7 +100,7 @@ impl DataTypeResource for Material {
         let pipeline = if material_data.pipeline.as_os_str().is_empty() {
             None
         } else {
-            Some(Pipeline::load_from_file(
+            Some(Pipeline::request_load(
                 shared_data,
                 global_messenger,
                 material_data.pipeline.as_path(),

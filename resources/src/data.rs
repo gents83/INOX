@@ -86,7 +86,8 @@ pub trait SerializableResource: DataTypeResource + Sized {
         shared_data: &SharedDataRc,
         global_messenger: &MessengerRw,
         filepath: &Path,
-    ) -> Self
+        on_loaded_callback: Option<&Box<dyn Function<Self>>>,
+    ) -> Resource<Self>
     where
         Self: Sized + DataTypeResource,
     {
@@ -102,10 +103,14 @@ pub trait SerializableResource: DataTypeResource + Sized {
         let mut resource = Self::create_from_data(shared_data, global_messenger, resource_id, data);
         debug_log(format!("Created resource {:?}", path.as_path()).as_str());
         resource.set_path(path.as_path());
-        resource
+
+        if let Some(on_loaded_callback) = on_loaded_callback {
+            on_loaded_callback.as_ref()(&mut resource);
+        }
+        shared_data.add_resource(resource_id, resource)
     }
 
-    fn load_from_file(
+    fn request_load(
         shared_data: &SharedDataRc,
         global_messenger: &MessengerRw,
         filepath: &Path,
@@ -128,7 +133,7 @@ pub trait SerializableResource: DataTypeResource + Sized {
         let resource = SharedData::add_resource(shared_data, resource_id, Self::default());
         send_global_event(
             &global_messenger,
-            LoadResourceEvent::<Self>::new(resource.id(), path.as_path(), on_loaded_callback),
+            LoadResourceEvent::<Self>::new(path.as_path(), on_loaded_callback),
         );
         resource
     }

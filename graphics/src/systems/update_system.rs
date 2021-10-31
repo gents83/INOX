@@ -74,7 +74,7 @@ impl UpdateSystem {
 
     pub fn load_pipelines(&mut self, pipelines: &[PathBuf]) -> &mut Self {
         for pipeline_path in pipelines.iter() {
-            let pipeline = Pipeline::load_from_file(
+            let pipeline = Pipeline::create_from_file(
                 &self.shared_data,
                 &self.global_messenger,
                 pipeline_path.as_path(),
