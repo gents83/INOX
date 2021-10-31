@@ -73,9 +73,7 @@ impl UIProperties for Object {
                     .show(ui, |ui| {
                         for c in self.children.iter() {
                             let id = c.id();
-                            c.get_mut(|c| {
-                                c.show(id, ui_registry, ui, collapsed);
-                            })
+                            c.get_mut().show(id, ui_registry, ui, collapsed);
                         }
                     });
             });
@@ -148,7 +146,7 @@ impl DataTypeResource for Object {
                 let on_light_loaded: Box<dyn Function<Light>> =
                     Box::new(move |light: &mut Light| {
                         if let Some(parent) = shared_data_rc.get_resource::<Object>(&id) {
-                            light.set_position(parent.get(|o| o.get_position()));
+                            light.set_position(parent.get().get_position());
                         }
                     });
                 let light = Light::load_from_file(
@@ -236,9 +234,7 @@ impl Object {
     fn set_dirty(&mut self) {
         self.is_transform_dirty = true;
         self.children.iter().for_each(|c| {
-            c.get_mut(|o| {
-                o.set_dirty();
-            });
+            c.get_mut().set_dirty();
         });
     }
 
@@ -290,7 +286,7 @@ impl Object {
     #[inline]
     pub fn is_child_recursive(&self, object_id: &ObjectId) -> bool {
         for c in self.children.iter() {
-            if c.id() == object_id || c.get(|o| o.is_child_recursive(object_id)) {
+            if c.id() == object_id || c.get().is_child_recursive(object_id) {
                 return true;
             }
         }
@@ -336,7 +332,7 @@ impl Object {
         self
     }
 
-    pub fn get_component<C>(&self) -> Handle<C>
+    pub fn component<C>(&self) -> Handle<C>
     where
         C: ResourceTrait,
     {
@@ -353,10 +349,8 @@ impl Object {
                 self.transform = parent_transform * self.transform;
             }
         }
-        if let Some(mesh) = self.get_component::<Mesh>() {
-            mesh.get_mut(|m| {
-                m.set_matrix(self.transform);
-            });
+        if let Some(mesh) = self.component::<Mesh>() {
+            mesh.get_mut().set_matrix(self.transform);
         }
     }
 }

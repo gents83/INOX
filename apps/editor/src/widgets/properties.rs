@@ -36,11 +36,9 @@ impl Properties {
     }
 
     pub fn select_object(&mut self, object_id: ObjectId) -> &mut Self {
-        self.ui_page.get_mut(|w| {
-            if let Some(data) = w.data_mut::<PropertiesData>() {
-                data.selected_object = object_id;
-            }
-        });
+        if let Some(data) = self.ui_page.get_mut().data_mut::<PropertiesData>() {
+            data.selected_object = object_id;
+        }
         self
     }
 
@@ -87,9 +85,7 @@ impl Properties {
         object_id: &ObjectId,
     ) {
         if let Some(object) = SharedData::get_resource::<Object>(shared_data, object_id) {
-            object.get_mut(|o| {
-                o.show(object_id, ui_registry, ui, false);
-            });
+            object.get_mut().show(object_id, ui_registry, ui, false);
         }
     }
 }

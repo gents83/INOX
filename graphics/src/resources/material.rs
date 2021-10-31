@@ -224,9 +224,7 @@ impl Material {
         let mut textures_indices = [INVALID_INDEX; TextureType::Count as _];
         for i in 0..TextureType::Count as usize {
             if let Some(texture) = &self.textures[i] {
-                texture.get(|t| {
-                    textures_indices[i] = t.texture_index();
-                });
+                textures_indices[i] = texture.get().texture_index();
             }
         }
         ShaderMaterialData {

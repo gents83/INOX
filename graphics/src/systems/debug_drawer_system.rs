@@ -88,10 +88,8 @@ impl DebugDrawerSystem {
             MeshData::new(WIREFRAME_MESH_CATEGORY_IDENTIFIER),
         );
         if let Some(default_pipeline) = &default_pipeline {
-            mesh_instance.get_mut(|m| {
-                let material = Material::duplicate_from_pipeline(shared_data, default_pipeline);
-                m.set_material(material);
-            });
+            let material = Material::duplicate_from_pipeline(shared_data, default_pipeline);
+            mesh_instance.get_mut().set_material(material);
         }
 
         let wireframe_mesh_instance = Mesh::new_resource(
@@ -101,10 +99,8 @@ impl DebugDrawerSystem {
             MeshData::new(WIREFRAME_MESH_CATEGORY_IDENTIFIER),
         );
         if let Some(wireframe_pipeline) = &wireframe_pipeline {
-            wireframe_mesh_instance.get_mut(|m| {
-                let material = Material::duplicate_from_pipeline(shared_data, wireframe_pipeline);
-                m.set_material(material);
-            });
+            let material = Material::duplicate_from_pipeline(shared_data, wireframe_pipeline);
+            wireframe_mesh_instance.get_mut().set_material(material);
         }
         let message_channel = MessageChannel::default();
 
@@ -235,12 +231,12 @@ impl DebugDrawerSystem {
                 }
             }
         });
-        self.mesh_instance.get_mut(|m| {
-            m.set_mesh_data(mesh_data.clone());
-        });
-        self.wireframe_mesh_instance.get_mut(|m| {
-            m.set_mesh_data(wireframe_mesh_data.clone());
-        });
+        self.mesh_instance
+            .get_mut()
+            .set_mesh_data(mesh_data.clone());
+        self.wireframe_mesh_instance
+            .get_mut()
+            .set_mesh_data(wireframe_mesh_data.clone());
     }
 }
 

@@ -45,12 +45,11 @@ impl View3D {
     }
 
     pub fn is_interacting(&self) -> bool {
-        self._ui_page.get(|p| {
-            if let Some(data) = p.data::<View3DData>() {
-                return data.is_interacting;
-            }
+        if let Some(data) = self._ui_page.get().data::<View3DData>() {
+            return data.is_interacting;
+        } else {
             false
-        })
+        }
     }
 
     fn create(shared_data: &SharedDataRc, data: View3DData) -> Resource<UIWidget> {
@@ -105,10 +104,10 @@ impl View3D {
         if let Some(render_pass) = SharedData::match_resource(shared_data, |r: &RenderPass| {
             r.data().name == render_pass_name
         }) {
-            render_pass.get_mut(|r| {
-                r.set_color_texture(texture.clone())
-                    .add_category_to_draw(MeshCategoryId::new(DEFAULT_MESH_CATEGORY_IDENTIFIER));
-            });
+            render_pass
+                .get_mut()
+                .set_color_texture(texture.clone())
+                .add_category_to_draw(MeshCategoryId::new(DEFAULT_MESH_CATEGORY_IDENTIFIER));
         }
 
         texture

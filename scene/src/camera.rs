@@ -153,16 +153,14 @@ impl Camera {
     #[inline]
     pub fn set_transform(&mut self, transform: Matrix4) -> &mut Self {
         if let Some(parent) = &self.parent {
-            parent.get_mut(|o| {
-                o.set_transform(transform);
-            });
+            parent.get_mut().set_transform(transform);
         }
         self
     }
     #[inline]
     pub fn transform(&self) -> Matrix4 {
         if let Some(parent) = &self.parent {
-            let transform = parent.get(|o| o.transform());
+            let transform = parent.get().transform();
             return transform;
         }
         Matrix4::default_identity()
@@ -170,33 +168,25 @@ impl Camera {
     #[inline]
     pub fn translate(&self, translation: Vector3) {
         if let Some(parent) = &self.parent {
-            parent.get_mut(|o| {
-                o.translate(translation);
-            });
+            parent.get_mut().translate(translation);
         }
     }
     #[inline]
     pub fn rotate(&self, roll_yaw_pitch: Vector3) {
         if let Some(parent) = &self.parent {
-            parent.get_mut(|o| {
-                o.rotate(roll_yaw_pitch);
-            });
+            parent.get_mut().rotate(roll_yaw_pitch);
         }
     }
     #[inline]
     pub fn look_at(&self, target: Vector3) {
         if let Some(parent) = &self.parent {
-            parent.get_mut(|o| {
-                o.look_at(target);
-            });
+            parent.get_mut().look_at(target);
         }
     }
     #[inline]
     pub fn look_toward(&self, direction: Vector3) {
         if let Some(parent) = &self.parent {
-            parent.get_mut(|o| {
-                o.look_towards(direction);
-            });
+            parent.get_mut().look_towards(direction);
         }
     }
 

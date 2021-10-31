@@ -38,12 +38,12 @@ impl BoundingBoxDrawer {
                 let mut min = Vector3::zero();
                 let mut max = Vector3::zero();
 
-                if let Some(hitbox) = object.get(|o| o.get_component::<Hitbox>()) {
-                    min = hitbox.get(|h| h.min());
-                    max = hitbox.get(|h| h.max());
-                } else if let Some(mesh) = object.get(|o| o.get_component::<Mesh>()) {
-                    let transform = mesh.get(|m| m.matrix());
-                    let (mesh_min, mesh_max) = mesh.get(|m| m.mesh_data().compute_min_max());
+                if let Some(hitbox) = object.get().component::<Hitbox>() {
+                    min = hitbox.get().min();
+                    max = hitbox.get().max();
+                } else if let Some(mesh) = object.get().component::<Mesh>() {
+                    let transform = mesh.get().matrix();
+                    let (mesh_min, mesh_max) = mesh.get().mesh_data().compute_min_max();
                     min = transform.transform(mesh_min);
                     max = transform.transform(mesh_max);
                 }

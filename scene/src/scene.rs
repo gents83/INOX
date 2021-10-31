@@ -31,9 +31,7 @@ impl UIProperties for Scene {
                 ui.collapsing(format!("Objects [{}]", self.objects.len()), |ui| {
                     for o in self.objects.iter() {
                         let id = o.id();
-                        o.get_mut(|o| {
-                            o.show(id, ui_registry, ui, collapsed);
-                        });
+                        o.get_mut().show(id, ui_registry, ui, collapsed);
                     }
                 });
             });

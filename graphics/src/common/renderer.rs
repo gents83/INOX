@@ -146,12 +146,11 @@ impl Renderer {
                     render_pass.init(device, physical_device, texture_handler);
                 }
                 if let Some(pipeline) = render_pass.pipeline() {
-                    pipeline.get_mut(|p| {
-                        if !p.is_initialized() {
-                            p.init(device, physical_device, render_pass);
-                        }
-                        p.prepare();
-                    });
+                    let mut p = pipeline.get_mut();
+                    if !p.is_initialized() {
+                        p.init(device, physical_device, render_pass);
+                    }
+                    p.prepare();
                 }
             },
         );
@@ -167,9 +166,7 @@ impl Renderer {
             let physical_device = self.instance.get_physical_device();
             SharedData::for_each_resource_mut(&self.shared_data, |_id, p: &mut Pipeline| {
                 if !p.is_initialized() {
-                    geometry_render_pass.get(|render_pass| {
-                        p.init(device, physical_device, render_pass);
-                    });
+                    p.init(device, physical_device, &geometry_render_pass.get());
                 }
                 p.prepare();
             });

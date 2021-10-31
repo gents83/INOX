@@ -53,15 +53,13 @@ impl EditorUpdater {
             generate_random_uid(),
             mesh_data,
         );
-        grid_mesh.get_mut(|m| {
-            let grid_material = Material::load_from_file(
-                shared_data,
-                global_messenger,
-                config.grid_material.as_path(),
-                None,
-            );
-            m.set_material(grid_material);
-        });
+        let grid_material = Material::load_from_file(
+            shared_data,
+            global_messenger,
+            config.grid_material.as_path(),
+            None,
+        );
+        grid_mesh.get_mut().set_material(grid_material);
 
         let scene =
             SharedData::add_resource::<Scene>(shared_data, generate_random_uid(), Scene::default());
@@ -140,13 +138,11 @@ impl System for EditorUpdater {
         self.shared_data
             .for_each_resource(|r: &Resource<Object>, o: &Object| {
                 let parent_transform = if let Some(parent) = o.parent() {
-                    Some(parent.get(|p| p.transform()))
+                    Some(parent.get().transform())
                 } else {
                     None
                 };
-                r.get_mut(|o| {
-                    o.update_transform(parent_transform);
-                });
+                r.get_mut().update_transform(parent_transform);
             });
 
         true
@@ -245,12 +241,10 @@ impl EditorUpdater {
     }
 
     fn load_object(&mut self, filename: &Path) {
-        self.scene.get_mut(|s| {
-            s.clear();
-            let object =
-                Object::load_from_file(&self.shared_data, &self.global_messenger, filename, None);
-            s.add_object(object);
-        });
+        self.scene.get_mut().clear();
+        let object =
+            Object::load_from_file(&self.shared_data, &self.global_messenger, filename, None);
+        self.scene.get_mut().add_object(object);
     }
 
     fn update_events(&mut self) -> &mut Self {

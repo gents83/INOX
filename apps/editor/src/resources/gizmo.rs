@@ -78,34 +78,26 @@ impl Gizmo {
             .unwrap()
             .register_messagebox::<EditorEvent>(message_channel.get_messagebox());
 
-        let center_color = mesh_center.get(|m| {
-            if let Some(material) = m.material() {
-                material.get(|m| m.base_color())
-            } else {
-                hex_to_rgba("#FFFFFF")
-            }
-        });
-        let axis_x_color = mesh_x.get(|m| {
-            if let Some(material) = m.material() {
-                material.get(|m| m.base_color())
-            } else {
-                hex_to_rgba("#FF0000")
-            }
-        });
-        let axis_y_color = mesh_y.get(|m| {
-            if let Some(material) = m.material() {
-                material.get(|m| m.base_color())
-            } else {
-                hex_to_rgba("#00FF00")
-            }
-        });
-        let axis_z_color = mesh_z.get(|m| {
-            if let Some(material) = m.material() {
-                material.get(|m| m.base_color())
-            } else {
-                hex_to_rgba("#0000FF")
-            }
-        });
+        let center_color = if let Some(material) = mesh_center.get().material() {
+            material.get().base_color()
+        } else {
+            hex_to_rgba("#FFFFFF")
+        };
+        let axis_x_color = if let Some(material) = mesh_x.get().material() {
+            material.get().base_color()
+        } else {
+            hex_to_rgba("#FF0000")
+        };
+        let axis_y_color = if let Some(material) = mesh_y.get().material() {
+            material.get().base_color()
+        } else {
+            hex_to_rgba("#00FF00")
+        };
+        let axis_z_color = if let Some(material) = mesh_z.get().material() {
+            material.get().base_color()
+        } else {
+            hex_to_rgba("#0000FF")
+        };
 
         let gizmo = Self {
             mode_type,
@@ -264,12 +256,11 @@ impl Gizmo {
             generate_random_uid(),
             mesh_data,
         );
-        mesh.get_mut(|m| {
-            m.set_material(Material::duplicate_from_pipeline(
+        mesh.get_mut()
+            .set_material(Material::duplicate_from_pipeline(
                 shared_data,
                 default_material_pipeline,
             ));
-        });
         mesh
     }
     fn create_arrow(
@@ -290,14 +281,9 @@ impl Gizmo {
             generate_random_uid(),
             mesh_data,
         );
-        mesh.get_mut(|m| {
-            let material =
-                Material::duplicate_from_pipeline(shared_data, default_material_pipeline);
-            material.get_mut(|m| {
-                m.set_base_color(color);
-            });
-            m.set_material(material);
-        });
+        let material = Material::duplicate_from_pipeline(shared_data, default_material_pipeline);
+        material.get_mut().set_base_color(color);
+        mesh.get_mut().set_material(material);
         mesh
     }
     fn create_hammer(
@@ -318,14 +304,9 @@ impl Gizmo {
             generate_random_uid(),
             mesh_data,
         );
-        mesh.get_mut(|m| {
-            let material =
-                Material::duplicate_from_pipeline(shared_data, default_material_pipeline);
-            material.get_mut(|m| {
-                m.set_base_color(color);
-            });
-            m.set_material(material);
-        });
+        let material = Material::duplicate_from_pipeline(shared_data, default_material_pipeline);
+        material.get_mut().set_base_color(color);
+        mesh.get_mut().set_material(material);
         mesh
     }
     fn create_torus(
@@ -346,36 +327,23 @@ impl Gizmo {
             generate_random_uid(),
             mesh_data,
         );
-        mesh.get_mut(|m| {
-            let material =
-                Material::duplicate_from_pipeline(shared_data, default_material_pipeline);
-            material.get_mut(|m| {
-                m.set_base_color(color);
-            });
-            m.set_material(material);
-        });
+        let material = Material::duplicate_from_pipeline(shared_data, default_material_pipeline);
+        material.get_mut().set_base_color(color);
+        mesh.get_mut().set_material(material);
         mesh
     }
 
     pub fn set_visible(&mut self, is_visible: bool) -> &mut Self {
-        self.mesh_center.get_mut(|m| {
-            m.set_visible(is_visible);
-        });
+        self.mesh_center.get_mut().set_visible(is_visible);
 
-        self.mesh_x.get_mut(|m| {
-            m.set_visible(is_visible);
-        });
-        self.mesh_y.get_mut(|m| {
-            m.set_visible(is_visible);
-        });
-        self.mesh_z.get_mut(|m| {
-            m.set_visible(is_visible);
-        });
+        self.mesh_x.get_mut().set_visible(is_visible);
+        self.mesh_y.get_mut().set_visible(is_visible);
+        self.mesh_z.get_mut().set_visible(is_visible);
         self
     }
 
     pub fn is_visible(&self) -> bool {
-        self.mesh_center.get(|m| m.is_visible())
+        self.mesh_center.get().is_visible()
     }
 
     pub fn update_meshes(&mut self, camera_scale: f32) -> &mut Self {
@@ -385,25 +353,17 @@ impl Gizmo {
             rotation,
             Vector3::from_value(camera_scale),
         );
-        self.mesh_center.get_mut(|m| {
-            m.set_matrix(self.transform);
-        });
+        self.mesh_center.get_mut().set_matrix(self.transform);
 
-        self.mesh_x.get_mut(|m| {
-            m.set_matrix(self.transform);
-        });
-        self.mesh_y.get_mut(|m| {
-            m.set_matrix(self.transform);
-        });
-        self.mesh_z.get_mut(|m| {
-            m.set_matrix(self.transform);
-        });
+        self.mesh_x.get_mut().set_matrix(self.transform);
+        self.mesh_y.get_mut().set_matrix(self.transform);
+        self.mesh_z.get_mut().set_matrix(self.transform);
         self
     }
 
     fn is_ray_inside(&self, start: Vector3, end: Vector3, mesh: &Resource<Mesh>) -> bool {
-        let (min, max) = mesh.get(|m| m.mesh_data().compute_min_max());
-        let matrix = mesh.get(|m| m.matrix());
+        let (min, max) = mesh.get().mesh_data().compute_min_max();
+        let matrix = mesh.get().matrix();
         let min = matrix.transform(min);
         let max = matrix.transform(max);
         raycast_oob(
@@ -451,22 +411,16 @@ impl Gizmo {
         if self.mode_type == GizmoType::Move {
             self.transform.add_translation(delta);
             if let Some(object) = SharedData::get_resource::<Object>(&self.shared_data, object_id) {
-                object.get_mut(|o| {
-                    o.translate(delta);
-                });
+                object.get_mut().translate(delta);
             }
         } else if self.mode_type == GizmoType::Scale {
             if let Some(object) = SharedData::get_resource::<Object>(&self.shared_data, object_id) {
-                object.get_mut(|o| {
-                    o.scale(delta);
-                });
+                object.get_mut().scale(delta);
             }
         } else if self.mode_type == GizmoType::Rotate {
             delta *= -1.;
             if let Some(object) = SharedData::get_resource::<Object>(&self.shared_data, object_id) {
-                object.get_mut(|o| {
-                    o.rotate(delta);
-                });
+                object.get_mut().rotate(delta);
             }
         }
         self.update_meshes(self.camera_scale);
@@ -524,17 +478,15 @@ impl Gizmo {
         highlight_color: Vector4,
         default_color: Vector4,
     ) -> bool {
-        mesh.get(|m| {
-            if let Some(material) = m.material() {
-                if mesh.id().as_u128() as u32 == mesh_u32 {
-                    material.get_mut(|m| m.set_base_color(highlight_color));
-                    return true;
-                } else {
-                    material.get_mut(|m| m.set_base_color(default_color));
-                }
+        if let Some(material) = mesh.get().material() {
+            if mesh.id().as_u128() as u32 == mesh_u32 {
+                material.get_mut().set_base_color(highlight_color);
+                return true;
+            } else {
+                material.get_mut().set_base_color(default_color);
             }
-            return false;
-        })
+        }
+        return false;
     }
 
     fn update_events(&mut self) {
@@ -590,8 +542,7 @@ impl Gizmo {
             self.transform.set_translation(Vector3::zero());
         } else {
             if let Some(object) = SharedData::get_resource::<Object>(&self.shared_data, object_id) {
-                self.transform
-                    .set_translation(object.get(|o| o.get_position()));
+                self.transform.set_translation(object.get().get_position());
                 self.update_meshes(self.camera_scale);
                 self.set_visible(true);
             }

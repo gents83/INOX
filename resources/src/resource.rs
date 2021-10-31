@@ -42,21 +42,13 @@ where
     }
 
     #[inline]
-    pub fn get<F, R>(&self, mut f: F) -> R
-    where
-        F: FnMut(&T) -> R,
-    {
-        let resource = self.data.read().unwrap();
-        f(&resource)
+    pub fn get<'a>(&'a self) -> RwLockReadGuard<'a, T> {
+        self.data.read().unwrap()
     }
 
     #[inline]
-    pub fn get_mut<F, R>(&self, mut f: F) -> R
-    where
-        F: FnMut(&mut T) -> R,
-    {
-        let mut resource = self.data.write().unwrap();
-        f(&mut resource)
+    pub fn get_mut<'a>(&'a self) -> RwLockWriteGuard<'a, T> {
+        self.data.write().unwrap()
     }
 }
 

@@ -45,14 +45,17 @@ impl ViewerSystem {
             generate_random_uid(),
             Object::default(),
         );
-        camera_object.get_mut(|o| {
-            o.set_position(Vector3::new(0.0, 0.0, -50.0));
-            o.look_at(Vector3::new(0.0, 0.0, 0.0));
-            let camera = o.add_default_component::<Camera>(&shared_data);
-            camera.get_mut(|c| {
-                c.set_parent(&camera_object).set_active(false);
-            });
-        });
+        camera_object
+            .get_mut()
+            .set_position(Vector3::new(0.0, 0.0, -50.0));
+        camera_object.get_mut().look_at(Vector3::new(0.0, 0.0, 0.0));
+        let camera = camera_object
+            .get_mut()
+            .add_default_component::<Camera>(&shared_data);
+        camera
+            .get_mut()
+            .set_parent(&camera_object)
+            .set_active(false);
 
         Self {
             _view_3d: None,
@@ -100,7 +103,7 @@ impl System for ViewerSystem {
         self.shared_data
             .for_each_resource(|r: &Resource<Object>, o: &Object| {
                 let parent_transform = if let Some(parent) = o.parent() {
-                    Some(parent.get(|p| p.transform()))
+                    Some(parent.get().transform())
                 } else {
                     None
                 };
@@ -110,10 +113,8 @@ impl System for ViewerSystem {
             if let Some(parent_transform) = map.remove(&r.id()) {
                 o.update_transform(parent_transform);
             }
-            if let Some(light) = o.get_component::<Light>() {
-                light.get_mut(|l| {
-                    l.set_position(o.get_position());
-                });
+            if let Some(light) = o.component::<Light>() {
+                light.get_mut().set_position(o.get_position());
             }
         });
 
@@ -169,9 +170,7 @@ impl ViewerSystem {
 
     fn load_scene(&mut self, filename: &str) {
         if filename.ends_with("scene_data") {
-            self.scene.get_mut(|s| {
-                s.clear();
-            });
+            self.scene.get_mut().clear();
             self.scene = Scene::load_from_file(
                 &self.shared_data,
                 &self.global_messenger,
@@ -218,21 +217,13 @@ impl ViewerSystem {
             .match_resource(|view: &View| view.view_index() == 0)
         {
             if self.shared_data.get_num_resources_of_type::<Camera>() == 1 {
-                self.camera_object.get_mut(|c| {
-                    if let Some(camera) = c.get_component::<Camera>() {
-                        camera.get_mut(|c| {
-                            c.set_active(true);
-                        })
-                    }
-                });
+                if let Some(camera) = self.camera_object.get().component::<Camera>() {
+                    camera.get_mut().set_active(true);
+                }
             } else {
-                self.camera_object.get_mut(|c| {
-                    if let Some(camera) = c.get_component::<Camera>() {
-                        camera.get_mut(|c| {
-                            c.set_active(false);
-                        })
-                    }
-                });
+                if let Some(camera) = self.camera_object.get().component::<Camera>() {
+                    camera.get_mut().set_active(false);
+                }
             }
 
             if FORCE_USE_DEFAULT_CAMERA {
@@ -252,9 +243,9 @@ impl ViewerSystem {
                     let view_matrix = c.view_matrix();
                     let proj_matrix = c.proj_matrix();
 
-                    view.get_mut(|v| {
-                        v.update_view(view_matrix).update_proj(proj_matrix);
-                    });
+                    view.get_mut()
+                        .update_view(view_matrix)
+                        .update_proj(proj_matrix);
                 }
             })
         }

@@ -113,10 +113,8 @@ impl RenderPass {
         if let Some(t) = texture {
             if texture_handler.get_texture_atlas(t.id()).is_none() {
                 //debug_log("Adding texture {:?}", t.id());
-                t.get_mut(|t| {
-                    t.set_update_from_gpu(should_update_from_gpu);
-                });
-                let dimensions = t.get(|t| t.dimensions());
+                t.get_mut().set_update_from_gpu(should_update_from_gpu);
+                let dimensions = t.get().dimensions();
                 texture_handler.add_render_target(
                     device,
                     physical_device,
@@ -212,9 +210,7 @@ impl RenderPass {
             );
         }
         if let Some(pipeline) = &self.pipeline {
-            pipeline.get_mut(|p| {
-                p.init(device, physical_device, self);
-            });
+            pipeline.get_mut().init(device, physical_device, self);
         }
         self.is_initialized = true;
         self

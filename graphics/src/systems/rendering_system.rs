@@ -102,8 +102,8 @@ impl System for RenderingSystem {
 
         let wait_count = Arc::new(AtomicUsize::new(0));
 
-        let view = self.view.get(|v| v.view());
-        let proj = self.view.get(|v| v.proj());
+        let view = self.view.get().view();
+        let proj = self.view.get().proj();
 
         let mut render_pass_specific_pipeline: Vec<PipelineId> = Vec::new();
         SharedData::for_each_resource(&self.shared_data, |_, render_pass: &RenderPass| {
@@ -127,27 +127,45 @@ impl System for RenderingSystem {
                         &RenderingSystem::id(),
                         job_name.as_str(),
                         move || {
-                            render_pass.get_mut(|render_pass: &mut RenderPass| {
-                                nrg_profiler::scoped_profile!(format!(
-                                    "fill_command_buffer_for_render_pass[{}]",
-                                    render_pass.data().name
-                                )
-                                .as_str());
+                            let mut render_pass = render_pass.get_mut();
 
-                                {
-                                    let mut renderer = renderer.write().unwrap();
+                            nrg_profiler::scoped_profile!(format!(
+                                "fill_command_buffer_for_render_pass[{}]",
+                                render_pass.data().name
+                            )
+                            .as_str());
 
-                                    render_pass.acquire_command_buffer(renderer.device_mut());
+                            {
+                                let mut renderer = renderer.write().unwrap();
+
+                                render_pass.acquire_command_buffer(renderer.device_mut());
+                            }
+
+                            {
+                                let renderer = renderer.read().unwrap();
+                                render_pass.begin_command_buffer(renderer.device());
+                            }
+
+                            if let Some(pipeline) = render_pass.pipeline() {
+                                if pipeline.get().is_initialized() {
+                                    Self::draw_pipeline(
+                                        &renderer,
+                                        &render_pass,
+                                        &mut pipeline.get_mut(),
+                                        &view,
+                                        &proj,
+                                    );
                                 }
-
-                                {
-                                    let renderer = renderer.read().unwrap();
-                                    render_pass.begin_command_buffer(renderer.device());
-                                }
-
-                                if let Some(pipeline) = render_pass.pipeline() {
-                                    pipeline.get_mut(|pipeline| {
-                                        if pipeline.is_initialized() {
+                            } else {
+                                shared_data.for_each_resource_mut(
+                                    |pipeline_handle, pipeline: &mut Pipeline| {
+                                        let should_render = {
+                                            pipeline.is_initialized()
+                                                && !render_pass_specific_pipeline
+                                                    .iter()
+                                                    .any(|id| id == pipeline_handle.id())
+                                        };
+                                        if should_render {
                                             Self::draw_pipeline(
                                                 &renderer,
                                                 &render_pass,
@@ -156,34 +174,14 @@ impl System for RenderingSystem {
                                                 &proj,
                                             );
                                         }
-                                    });
-                                } else {
-                                    shared_data.for_each_resource_mut(
-                                        |pipeline_handle, pipeline: &mut Pipeline| {
-                                            let should_render = {
-                                                pipeline.is_initialized()
-                                                    && !render_pass_specific_pipeline
-                                                        .iter()
-                                                        .any(|id| id == pipeline_handle.id())
-                                            };
-                                            if should_render {
-                                                Self::draw_pipeline(
-                                                    &renderer,
-                                                    &render_pass,
-                                                    pipeline,
-                                                    &view,
-                                                    &proj,
-                                                );
-                                            }
-                                        },
-                                    );
-                                }
+                                    },
+                                );
+                            }
 
-                                {
-                                    let renderer = renderer.read().unwrap();
-                                    render_pass.end_command_buffer(renderer.device());
-                                }
-                            });
+                            {
+                                let renderer = renderer.read().unwrap();
+                                render_pass.end_command_buffer(renderer.device());
+                            }
 
                             wait_count.fetch_sub(1, Ordering::SeqCst);
                         },

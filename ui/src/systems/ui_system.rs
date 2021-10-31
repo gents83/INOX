@@ -93,21 +93,19 @@ impl UISystem {
                     })
                 {
                     let shared_data = self.shared_data.clone();
-                    let material = render_pass.get_mut(|r| {
-                        r.add_category_to_draw(MeshCategoryId::new(UI_MESH_CATEGORY_IDENTIFIER));
-                        if let Some(pipeline) = &self.ui_pipeline {
-                            let material =
-                                Material::duplicate_from_pipeline(&shared_data, pipeline);
-                            material.get_mut(|m| {
-                                m.set_texture(TextureType::BaseColor, &texture);
-                            });
-                            return material;
-                        } else {
-                            panic!("UI pipeline not set - maybe you forgot to read ui.cfg file");
-                        }
-                    });
-                    e.insert(material.clone());
-                    return material;
+                    render_pass
+                        .get_mut()
+                        .add_category_to_draw(MeshCategoryId::new(UI_MESH_CATEGORY_IDENTIFIER));
+                    if let Some(pipeline) = &self.ui_pipeline {
+                        let material = Material::duplicate_from_pipeline(&shared_data, pipeline);
+                        material
+                            .get_mut()
+                            .set_texture(TextureType::BaseColor, &texture);
+                        e.insert(material.clone());
+                        return material;
+                    } else {
+                        panic!("UI pipeline not set - maybe you forgot to read ui.cfg file");
+                    };
                 }
                 panic!("No Pass with Screen as RenderTarget has been loaded");
             }
@@ -132,9 +130,7 @@ impl UISystem {
             );
             if let Some(texture) = &self.ui_texture {
                 if let Some(material) = self.ui_materials.remove(&texture.id()) {
-                    material.get_mut(|m| {
-                        m.remove_texture(TextureType::BaseColor);
-                    })
+                    material.get_mut().remove_texture(TextureType::BaseColor);
                 }
             }
             let texture = Texture::new_resource(
@@ -165,9 +161,7 @@ impl UISystem {
         for (i, clipped_mesh) in clipped_meshes.into_iter().enumerate() {
             let ClippedMesh(clip_rect, mesh) = clipped_mesh;
             let draw_index = i as u32;
-            self.ui_meshes[i].get_mut(|m| {
-                m.set_draw_index(draw_index);
-            });
+            self.ui_meshes[i].get_mut().set_draw_index(draw_index);
             if mesh.vertices.is_empty() || mesh.indices.is_empty() {
                 continue;
             }
@@ -218,11 +212,11 @@ impl UISystem {
                         clip_rect.w = clip_rect.y.clamp(clip_rect.y, screen_rect.height());
                     }
 
-                    mesh_instance.get_mut(|m| {
-                        m.set_material(material.clone())
-                            .set_mesh_data(mesh_data.clone())
-                            .set_draw_area(clip_rect);
-                    });
+                    mesh_instance
+                        .get_mut()
+                        .set_material(material.clone())
+                        .set_mesh_data(mesh_data.clone())
+                        .set_draw_area(clip_rect);
                 },
             );
         }
@@ -343,9 +337,7 @@ impl UISystem {
                         &UISystem::id(),
                         job_name.as_str(),
                         move || {
-                            widget_handle.get_mut(|w| {
-                                w.execute(&context);
-                            });
+                            widget_handle.get_mut().execute(&context);
                             wait_count.fetch_sub(1, Ordering::SeqCst);
                         },
                     );

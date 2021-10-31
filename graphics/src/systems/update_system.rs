@@ -116,24 +116,28 @@ impl UpdateSystem {
         let physical_device = renderer.instance().get_physical_device();
         let mut material_index = INVALID_INDEX;
         if let Some(material) = mesh.material() {
-            material.get(|material| {
-                if material.is_initialized() {
-                    material_index = material.uniform_index();
-                }
-            });
+            if material.get().is_initialized() {
+                material_index = material.get().uniform_index();
+            }
         }
         if let Some(pipeline) = render_pass_pipeline {
-            pipeline.get_mut(|p| {
-                p.add_mesh_instance(device, physical_device, mesh_id, mesh, material_index);
-            });
+            pipeline.get_mut().add_mesh_instance(
+                device,
+                physical_device,
+                mesh_id,
+                mesh,
+                material_index,
+            );
         } else if let Some(material) = mesh.material() {
-            material.get(|material| {
-                if let Some(pipeline) = material.pipeline() {
-                    pipeline.get_mut(|p| {
-                        p.add_mesh_instance(device, physical_device, mesh_id, mesh, material_index);
-                    });
-                }
-            });
+            if let Some(pipeline) = material.get().pipeline() {
+                pipeline.get_mut().add_mesh_instance(
+                    device,
+                    physical_device,
+                    mesh_id,
+                    mesh,
+                    material_index,
+                );
+            }
         }
     }
 }
@@ -196,9 +200,13 @@ impl System for UpdateSystem {
                         let device = renderer.device();
                         let physical_device = renderer.instance().get_physical_device();
                         let texture_handler = renderer.get_texture_handler();
-                        texture.get_mut(|t| {
-                            t.capture_image(texture.id(), texture_handler, device, physical_device);
-                        });
+                        texture.get_mut().capture_image(
+                            texture.id(),
+                            texture_handler,
+                            device,
+                            physical_device,
+                        );
+
                         wait_count.fetch_sub(1, Ordering::SeqCst);
                     },
                 );
@@ -237,14 +245,12 @@ impl System for UpdateSystem {
                                 mesh_id
                             )
                             .as_str());
-                            mesh_handle.get_mut(|mesh| {
-                                Self::create_render_mesh_job(
-                                    &renderer,
-                                    &mesh_id,
-                                    mesh,
-                                    pipeline.as_ref(),
-                                );
-                            });
+                            Self::create_render_mesh_job(
+                                &renderer,
+                                &mesh_id,
+                                &mut mesh_handle.get_mut(),
+                                pipeline.as_ref(),
+                            );
                             wait_count.fetch_sub(1, Ordering::SeqCst);
                         },
                     );

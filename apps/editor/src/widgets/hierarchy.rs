@@ -41,11 +41,9 @@ impl Hierarchy {
     }
 
     pub fn select_object(&mut self, object_id: ObjectId) -> &mut Self {
-        self.ui_page.get_mut(|w| {
-            if let Some(data) = w.data_mut::<HierarchyData>() {
-                data.selected_object = object_id;
-            }
-        });
+        if let Some(data) = self.ui_page.get_mut().data_mut::<HierarchyData>() {
+            data.selected_object = object_id;
+        }
         self
     }
 
@@ -64,16 +62,13 @@ impl Hierarchy {
                             .default_open(true)
                             .show(ui, |ui| {
                                 ScrollArea::vertical().show(ui, |ui| {
-                                    data.scene.get(|s| {
-                                        let objects = s.objects();
-                                        objects.iter().for_each(|object| {
-                                            Self::object_hierarchy(
-                                                ui,
-                                                object,
-                                                &data.selected_object,
-                                                &data.global_dispatcher,
-                                            );
-                                        });
+                                    data.scene.get().objects().iter().for_each(|object| {
+                                        Self::object_hierarchy(
+                                            ui,
+                                            object,
+                                            &data.selected_object,
+                                            &data.global_dispatcher,
+                                        );
                                     });
                                 });
                             });
@@ -91,16 +86,14 @@ impl Hierarchy {
         nrg_profiler::scoped_profile!("object_hierarchy");
 
         let mut object_name = format!("Object [{:?}]", object.id().to_simple().to_string());
-        object.get(|o| {
-            if let Some(name) = o.path().file_stem() {
-                if let Some(name) = name.to_str() {
-                    object_name = name.to_string();
-                }
+        if let Some(name) = object.get().path().file_stem() {
+            if let Some(name) = name.to_str() {
+                object_name = name.to_string();
             }
-        });
+        }
         let is_selected = object.id() == selected_id;
-        let is_child_recursive = object.get(|o| o.is_child_recursive(selected_id));
-        let has_children = object.get(|o| o.has_children());
+        let is_child_recursive = object.get().is_child_recursive(selected_id);
+        let has_children = object.get().has_children();
 
         let response = if has_children {
             let response = CollapsingHeader::new(object_name.as_str())
@@ -109,11 +102,8 @@ impl Hierarchy {
                 .show_background(is_selected || is_child_recursive)
                 .default_open(true)
                 .show(ui, |ui| {
-                    object.get(|o| {
-                        let children = o.children();
-                        children.iter().for_each(|child| {
-                            Self::object_hierarchy(ui, child, selected_id, global_dispatcher);
-                        });
+                    object.get().children().iter().for_each(|child| {
+                        Self::object_hierarchy(ui, child, selected_id, global_dispatcher);
                     });
                 });
             response.header_response

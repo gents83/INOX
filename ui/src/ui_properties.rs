@@ -46,9 +46,9 @@ where
         collapsed: bool,
     ) {
         let resource = resource.of_type::<T>();
-        resource.get_mut(|w| {
-            w.show(resource.id(), ui_registry, ui, collapsed);
-        });
+        resource
+            .get_mut()
+            .show(resource.id(), ui_registry, ui, collapsed);
     }
 }
 pub struct UIPropertiesRegistry {
@@ -278,17 +278,15 @@ impl UIProperties for Material {
                     TextEdit::singleline(&mut path).interactive(false).ui(ui);
                 });
                 if let Some(pipeline) = self.pipeline() {
-                    pipeline.get_mut(|p| {
-                        p.show(pipeline.id(), ui_registry, ui, true);
-                    });
+                    pipeline
+                        .get_mut()
+                        .show(pipeline.id(), ui_registry, ui, true);
                 }
                 ui.collapsing(format!("Textures [{}]", self.textures().len()), |ui| {
                     for t in self.textures() {
                         if let Some(t) = t {
                             let id = t.id();
-                            t.get_mut(|t| {
-                                t.show(id, ui_registry, ui, collapsed);
-                            });
+                            t.get_mut().show(id, ui_registry, ui, collapsed);
                         }
                     }
                 });
@@ -331,9 +329,7 @@ impl UIProperties for Mesh {
                 });
                 if let Some(material) = self.material() {
                     let id = material.id();
-                    material.get_mut(|m| {
-                        m.show(id, ui_registry, ui, true);
-                    });
+                    material.get_mut().show(id, ui_registry, ui, true);
                 }
             });
     }

@@ -72,22 +72,22 @@ impl View3D {
             generate_random_uid(),
             Object::default(),
         );
-        camera_object.get_mut(|o| {
-            o.translate([10., 10., -10.].into());
-            o.look_at([0., 0., 0.].into());
-            let camera = o.add_default_component::<Camera>(&shared_data);
-            camera.get_mut(|c| {
-                c.set_parent(&camera_object)
-                    .set_active(true)
-                    .set_projection(
-                        Degrees::new(DEFAULT_CAMERA_FOV),
-                        VIEW3D_IMAGE_WIDTH as _,
-                        VIEW3D_IMAGE_HEIGHT as _,
-                        DEFAULT_CAMERA_NEAR,
-                        DEFAULT_CAMERA_FAR,
-                    );
-            });
-        });
+        camera_object.get_mut().translate([10., 10., -10.].into());
+        camera_object.get_mut().look_at([0., 0., 0.].into());
+        let camera = camera_object
+            .get_mut()
+            .add_default_component::<Camera>(&shared_data);
+        camera
+            .get_mut()
+            .set_parent(&camera_object)
+            .set_active(true)
+            .set_projection(
+                Degrees::new(DEFAULT_CAMERA_FOV),
+                VIEW3D_IMAGE_WIDTH as _,
+                VIEW3D_IMAGE_HEIGHT as _,
+                DEFAULT_CAMERA_NEAR,
+                DEFAULT_CAMERA_FAR,
+            );
 
         let data = View3DData {
             shared_data: shared_data.clone(),
@@ -119,21 +119,13 @@ impl View3D {
     }
 
     fn update_gizmo(&mut self) -> &mut Self {
-        self.ui_page.get_mut(|w| {
-            if let Some(data) = w.data_mut::<View3DData>() {
-                if let Some(gizmo) = &data.gizmo {
-                    gizmo.get_mut(|g| {
-                        if let Some(camera) =
-                            data.camera_object.get(|o| o.get_component::<Camera>())
-                        {
-                            camera.get(|c| {
-                                g.update(c);
-                            });
-                        }
-                    });
+        if let Some(data) = self.ui_page.get_mut().data_mut::<View3DData>() {
+            if let Some(gizmo) = &data.gizmo {
+                if let Some(camera) = data.camera_object.get().component::<Camera>() {
+                    gizmo.get_mut().update(&camera.get());
                 }
             }
-        });
+        }
         self
     }
 
@@ -141,71 +133,65 @@ impl View3D {
         let default_pipeline = self
             .shared_data
             .match_resource(|p: &Pipeline| p.data().pipeline_type == PipelineType::Default);
-        self.ui_page.get_mut(|w| {
-            if let Some(data) = w.data_mut::<View3DData>() {
-                match mode {
-                    EditMode::View => {
-                        data.gizmo = None;
-                    }
-                    EditMode::Select => {
-                        data.gizmo = None;
-                    }
-                    EditMode::Move => {
-                        let gizmo = Gizmo::new_translation(
-                            &data.shared_data,
-                            &data.global_messenger,
-                            default_pipeline.as_ref().unwrap(),
-                        );
-                        gizmo.get_mut(|g| g.select_object(&data.selected_object));
-                        data.gizmo = Some(gizmo);
-                    }
-                    EditMode::Rotate => {
-                        let gizmo = Gizmo::new_rotation(
-                            &data.shared_data,
-                            &data.global_messenger,
-                            default_pipeline.as_ref().unwrap(),
-                        );
-                        gizmo.get_mut(|g| g.select_object(&data.selected_object));
-                        data.gizmo = Some(gizmo);
-                    }
-                    EditMode::Scale => {
-                        let gizmo = Gizmo::new_scale(
-                            &data.shared_data,
-                            &data.global_messenger,
-                            default_pipeline.as_ref().unwrap(),
-                        );
-                        gizmo.get_mut(|g| g.select_object(&data.selected_object));
-                        data.gizmo = Some(gizmo);
-                    }
+        if let Some(data) = self.ui_page.get_mut().data_mut::<View3DData>() {
+            match mode {
+                EditMode::View => {
+                    data.gizmo = None;
+                }
+                EditMode::Select => {
+                    data.gizmo = None;
+                }
+                EditMode::Move => {
+                    let gizmo = Gizmo::new_translation(
+                        &data.shared_data,
+                        &data.global_messenger,
+                        default_pipeline.as_ref().unwrap(),
+                    );
+                    gizmo.get_mut().select_object(&data.selected_object);
+                    data.gizmo = Some(gizmo);
+                }
+                EditMode::Rotate => {
+                    let gizmo = Gizmo::new_rotation(
+                        &data.shared_data,
+                        &data.global_messenger,
+                        default_pipeline.as_ref().unwrap(),
+                    );
+                    gizmo.get_mut().select_object(&data.selected_object);
+                    data.gizmo = Some(gizmo);
+                }
+                EditMode::Scale => {
+                    let gizmo = Gizmo::new_scale(
+                        &data.shared_data,
+                        &data.global_messenger,
+                        default_pipeline.as_ref().unwrap(),
+                    );
+                    gizmo.get_mut().select_object(&data.selected_object);
+                    data.gizmo = Some(gizmo);
                 }
             }
-        });
+        }
         self
     }
     pub fn handle_keyboard_event(&mut self, event: &KeyEvent) {
-        self.ui_page.get_mut(|w| {
-            if let Some(data) = w.data_mut::<View3DData>() {
-                let mut movement = Vector3::zero();
-                if event.code == Key::W {
-                    movement.z += 1.;
-                } else if event.code == Key::S {
-                    movement.z -= 1.;
-                } else if event.code == Key::A {
-                    movement.x += 1.;
-                } else if event.code == Key::D {
-                    movement.x -= 1.;
-                } else if event.code == Key::Q {
-                    movement.y -= 1.;
-                } else if event.code == Key::E {
-                    movement.y += 1.;
-                }
-                if data.should_manage_input {
-                    data.camera_object.get_mut(|o| {
-                        o.translate(movement);
-                    });
-                }
+        if let Some(data) = self.ui_page.get_mut().data_mut::<View3DData>() {
+            let mut movement = Vector3::zero();
+            if event.code == Key::W {
+                movement.z += 1.;
+            } else if event.code == Key::S {
+                movement.z -= 1.;
+            } else if event.code == Key::A {
+                movement.x += 1.;
+            } else if event.code == Key::D {
+                movement.x -= 1.;
+            } else if event.code == Key::Q {
+                movement.y -= 1.;
+            } else if event.code == Key::E {
+                movement.y += 1.;
             }
-        });
+            if data.should_manage_input {
+                data.camera_object.get_mut().translate(movement);
+            }
+        }
     }
 
     fn resize_view(data: &mut View3DData, view_width: u32, view_height: u32) {
@@ -225,33 +211,30 @@ impl View3D {
     }
 
     fn manage_picking_texture(data: &mut View3DData, normalized_pos: Vector2) {
-        let texture = data.picking_texture.clone();
-        texture.get(|t| {
-            if let Some(image_buffer) = t.image_data() {
-                let x = ((normalized_pos.x * PICKING_TEXTURE_WIDTH as f32) as u32)
-                    .max(0)
-                    .min(PICKING_TEXTURE_WIDTH - 1);
-                let y = ((normalized_pos.y * PICKING_TEXTURE_HEIGHT as f32) as u32)
-                    .max(0)
-                    .min(PICKING_TEXTURE_HEIGHT - 1);
-                let index = (TEXTURE_CHANNEL_COUNT * (y * PICKING_TEXTURE_WIDTH + x)) as usize;
-                let color = Vector4::new(
-                    image_buffer[index] as f32 / 255.,
-                    image_buffer[index + 1] as f32 / 255.,
-                    image_buffer[index + 2] as f32 / 255.,
-                    image_buffer[index + 3] as f32 / 255.,
-                );
-                data.hover_mesh = compute_id_from_color(color);
-                data.global_messenger
-                    .read()
-                    .unwrap()
-                    .get_dispatcher()
-                    .write()
-                    .unwrap()
-                    .send(EditorEvent::HoverMesh(data.hover_mesh).as_boxed())
-                    .ok();
-            }
-        });
+        if let Some(image_buffer) = data.picking_texture.get().image_data() {
+            let x = ((normalized_pos.x * PICKING_TEXTURE_WIDTH as f32) as u32)
+                .max(0)
+                .min(PICKING_TEXTURE_WIDTH - 1);
+            let y = ((normalized_pos.y * PICKING_TEXTURE_HEIGHT as f32) as u32)
+                .max(0)
+                .min(PICKING_TEXTURE_HEIGHT - 1);
+            let index = (TEXTURE_CHANNEL_COUNT * (y * PICKING_TEXTURE_WIDTH + x)) as usize;
+            let color = Vector4::new(
+                image_buffer[index] as f32 / 255.,
+                image_buffer[index + 1] as f32 / 255.,
+                image_buffer[index + 2] as f32 / 255.,
+                image_buffer[index + 3] as f32 / 255.,
+            );
+            data.hover_mesh = compute_id_from_color(color);
+            data.global_messenger
+                .read()
+                .unwrap()
+                .get_dispatcher()
+                .write()
+                .unwrap()
+                .send(EditorEvent::HoverMesh(data.hover_mesh).as_boxed())
+                .ok();
+        }
     }
     fn manage_input(
         data: &mut View3DData,
@@ -278,21 +261,18 @@ impl View3D {
                 .ok();
         } else {
             let is_manipulating_gizmo = if let Some(gizmo) = &data.gizmo {
-                gizmo.get_mut(|g| {
-                    if let Some(camera) = data.camera_object.get(|o| o.get_component::<Camera>()) {
-                        camera.get(|c| {
-                            return g.manipulate(
-                                c,
-                                data.last_mouse_pos,
-                                normalized_pos,
-                                is_drag_started,
-                                is_drag_ended,
-                                &data.selected_object,
-                            );
-                        });
-                    }
+                if let Some(camera) = data.camera_object.get().component::<Camera>() {
+                    gizmo.get_mut().manipulate(
+                        &camera.get(),
+                        data.last_mouse_pos,
+                        normalized_pos,
+                        is_drag_started,
+                        is_drag_ended,
+                        &data.selected_object,
+                    )
+                } else {
                     false
-                })
+                }
             } else {
                 false
             };
@@ -301,9 +281,7 @@ impl View3D {
 
                 rotation_angle.x = normalized_pos.y - data.last_mouse_pos.y;
                 rotation_angle.y = data.last_mouse_pos.x - normalized_pos.x;
-                data.camera_object.get_mut(|o| {
-                    o.rotate(rotation_angle * 5.);
-                });
+                data.camera_object.get_mut().rotate(rotation_angle * 5.);
             }
         }
         data.last_mouse_pos = normalized_pos;
@@ -369,21 +347,19 @@ impl View3D {
     }
 
     fn update_camera(&mut self) -> &mut Self {
-        self.ui_page.get_mut(|w| {
-            if let Some(data) = w.data_mut::<View3DData>() {
-                if let Some(view) = SharedData::match_resource(&self.shared_data, |view: &View| {
-                    view.view_index() == 0
-                }) {
-                    data.shared_data.for_each_resource(|_, c: &Camera| {
-                        if c.is_active() {
-                            view.get_mut(|v| {
-                                v.update_view(c.view_matrix()).update_proj(c.proj_matrix());
-                            });
-                        }
-                    });
-                }
+        if let Some(data) = self.ui_page.get_mut().data_mut::<View3DData>() {
+            if let Some(view) =
+                SharedData::match_resource(&self.shared_data, |view: &View| view.view_index() == 0)
+            {
+                data.shared_data.for_each_resource(|_, c: &Camera| {
+                    if c.is_active() {
+                        view.get_mut()
+                            .update_view(c.view_matrix())
+                            .update_proj(c.proj_matrix());
+                    }
+                });
             }
-        });
+        }
         self
     }
 
@@ -406,10 +382,10 @@ impl View3D {
         if let Some(render_pass) = SharedData::match_resource(shared_data, |r: &RenderPass| {
             r.data().name == render_pass_name
         }) {
-            render_pass.get_mut(|r| {
-                r.set_color_texture(texture.clone())
-                    .add_category_to_draw(MeshCategoryId::new(DEFAULT_MESH_CATEGORY_IDENTIFIER));
-            });
+            render_pass
+                .get_mut()
+                .set_color_texture(texture.clone())
+                .add_category_to_draw(MeshCategoryId::new(DEFAULT_MESH_CATEGORY_IDENTIFIER));
         }
 
         texture
@@ -440,11 +416,11 @@ impl View3D {
         let mut matrix = Matrix4::default_identity();
         SharedData::for_each_resource(&data.shared_data, |object_handle, obj: &Object| {
             matrix = obj.transform();
-            if let Some(hitbox) = obj.get_component::<Hitbox>() {
-                min = hitbox.get(|h| h.min());
-                max = hitbox.get(|h| h.max());
-            } else if let Some(mesh) = obj.get_component::<Mesh>() {
-                let (mesh_min, mesh_max) = mesh.get(|m| m.mesh_data().compute_min_max());
+            if let Some(hitbox) = obj.component::<Hitbox>() {
+                min = hitbox.get().min();
+                max = hitbox.get().max();
+            } else if let Some(mesh) = obj.component::<Mesh>() {
+                let (mesh_min, mesh_max) = mesh.get().mesh_data().compute_min_max();
                 min = mesh_min;
                 max = mesh_max;
             }
@@ -457,10 +433,8 @@ impl View3D {
     }
 
     pub fn select_object(&mut self, object_id: ObjectId) {
-        self.ui_page.get_mut(|w| {
-            if let Some(data) = w.data_mut::<View3DData>() {
-                data.selected_object = object_id;
-            }
-        });
+        if let Some(data) = self.ui_page.get_mut().data_mut::<View3DData>() {
+            data.selected_object = object_id;
+        }
     }
 }
