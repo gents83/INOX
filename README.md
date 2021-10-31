@@ -14,6 +14,7 @@ _Rust_ will give to NRG high performance, reliability and safe code, while _Blen
 Summary:
 
 * [Vision](#vision)
+* [Documentation](#documentation)
 * [Notes](#notes)
 * [Dependencies](#dependencies)
 * [Hotkeys](#hotkeys)
@@ -40,7 +41,10 @@ The engine is developed with following pillars:
 - [x] In-game GUI library for debugging purposes or in-game tooling through [egui](https://github.com/emilk/egui) by [emilk](https://twitter.com/ernerfeldt)
 - [ ] Documentations should be written trough [mdBook](https://rust-lang.github.io/mdBook/)
 - [ ] Continous integration and build support should be granted by Github Actions 
-  
+
+## Documentation 
+
+You can find documentation [here](https://gents83.github.io/NRG/)
 
 ## Notes
 
