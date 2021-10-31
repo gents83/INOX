@@ -1,4 +1,5 @@
 #![crate_type = "dylib"]
+#![allow(clippy::all)]
 
 extern crate cpython;
 

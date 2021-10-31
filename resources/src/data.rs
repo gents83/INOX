@@ -86,7 +86,7 @@ pub trait SerializableResource: DataTypeResource + Sized {
         shared_data: &SharedDataRc,
         global_messenger: &MessengerRw,
         filepath: &Path,
-        on_loaded_callback: Option<&Box<dyn Function<Self>>>,
+        on_loaded_callback: Option<Box<dyn Function<Self>>>,
     ) -> Resource<Self>
     where
         Self: Sized + DataTypeResource,
@@ -132,7 +132,7 @@ pub trait SerializableResource: DataTypeResource + Sized {
         }
         let resource = SharedData::add_resource(shared_data, resource_id, Self::default());
         send_global_event(
-            &global_messenger,
+            global_messenger,
             LoadResourceEvent::<Self>::new(path.as_path(), on_loaded_callback),
         );
         resource

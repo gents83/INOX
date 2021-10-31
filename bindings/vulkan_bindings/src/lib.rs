@@ -34,4 +34,9 @@ impl Default for Lib {
     }
 }
 
-include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
+#[allow(clippy::all)]
+#[allow(unaligned_references)]
+pub mod vulkan_generated {
+    include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
+}
+pub use vulkan_generated::*;

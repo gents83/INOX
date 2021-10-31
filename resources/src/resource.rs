@@ -42,12 +42,12 @@ where
     }
 
     #[inline]
-    pub fn get<'a>(&'a self) -> RwLockReadGuard<'a, T> {
+    pub fn get(&self) -> RwLockReadGuard<'_, T> {
         self.data.read().unwrap()
     }
 
     #[inline]
-    pub fn get_mut<'a>(&'a self) -> RwLockWriteGuard<'a, T> {
+    pub fn get_mut(&self) -> RwLockWriteGuard<'_, T> {
         self.data.write().unwrap()
     }
 }
@@ -152,7 +152,7 @@ where
         }
         let mut to_remove = Vec::new();
         self.resources.iter_mut().for_each(|data| {
-            if Arc::strong_count(&data) == 1 && Arc::weak_count(&data) == 0 {
+            if Arc::strong_count(data) == 1 && Arc::weak_count(data) == 0 {
                 to_remove.push(*data.id());
             }
         });
@@ -210,11 +210,11 @@ where
         if self.resources.iter().any(|r| r.id() == &resource_id) {
             let handle = Arc::new(ResourceHandle::new(resource_id, data));
             self.pending.push(handle.clone());
-            return handle;
+            handle
         } else {
             let handle = Arc::new(ResourceHandle::new(resource_id, data));
             self.resources.push(handle.clone());
-            return handle;
+            handle
         }
     }
     #[inline]
@@ -236,7 +236,7 @@ where
     {
         self.resources
             .iter()
-            .for_each(|r| f(&r, &r.data.read().unwrap()));
+            .for_each(|r| f(r, &r.data.read().unwrap()));
     }
     #[inline]
     pub fn for_each_resource_mut<F>(&self, mut f: F)
@@ -245,7 +245,7 @@ where
     {
         self.resources
             .iter()
-            .for_each(|r| f(&r, &mut r.data.write().unwrap()));
+            .for_each(|r| f(r, &mut r.data.write().unwrap()));
     }
     #[inline]
     pub fn get_index_of(&self, resource_id: &ResourceId) -> Option<usize> {
@@ -253,7 +253,7 @@ where
     }
     #[inline]
     pub fn resource_at_index(&self, index: u32) -> Handle<T> {
-        if let Some(r) = self.resources.iter().nth(index as _) {
+        if let Some(r) = self.resources.get(index as usize) {
             return Some(r.clone());
         }
         None

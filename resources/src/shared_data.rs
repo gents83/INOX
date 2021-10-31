@@ -184,7 +184,7 @@ impl SharedData {
     pub fn is_message_handled(&self, msg: &dyn Message) -> Option<Uid> {
         for (type_id, handler) in self.event_handlers.read().unwrap().iter() {
             if handler.is_handled(msg) {
-                return Some(type_id.clone());
+                return Some(*type_id);
             }
         }
         None

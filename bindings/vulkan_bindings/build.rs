@@ -20,7 +20,8 @@ fn main() {
     let vulkan_sdk_path = if let Ok(vulkan_sdk_path) = env::var("VULKAN_SDK") {
         vulkan_sdk_path
     } else {
-        panic!("No VULKAN_SDK enviroment variable for this user");
+        eprintln!("[ERROR] Enviroment settings are not correct -> No VULKAN_SDK enviroment variable for this user");
+        ".".to_string()
     };
     let mut vulkan_header = vulkan_sdk_path.clone();
     vulkan_header.push_str("\\include\\vulkan\\vulkan.h");
@@ -212,7 +213,7 @@ fn main() {
     writeln!(f).unwrap();
 
     writeln!(f, "impl<'a> VK {{").unwrap();
-    writeln!(f, "  pub fn initialize(lib : &'a Lib) {{").unwrap();
+    writeln!(f, "  pub fn initialize(lib : &'a crate::Lib) {{").unwrap();
     writeln!(f, "       unsafe {{").unwrap();
     for command in allcommands.clone() {
         writeln!(

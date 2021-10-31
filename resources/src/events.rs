@@ -59,8 +59,8 @@ where
         }
     }
 
-    pub fn loaded_callback(&self) -> Option<&Box<dyn Function<T>>> {
-        self.on_loaded.as_ref()
+    pub fn loaded_callback(&self) -> &Option<Box<dyn Function<T>>> {
+        &self.on_loaded
     }
 }
 
@@ -115,7 +115,7 @@ where
                     shared_data,
                     global_messenger,
                     e.path.as_path(),
-                    e.loaded_callback(),
+                    *e.loaded_callback(),
                 );
                 return true;
             }
