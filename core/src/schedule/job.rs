@@ -92,7 +92,7 @@ impl JobHandler {
         let pending_jobs = self
             .pending_jobs
             .entry(*job_category)
-            .or_insert(Arc::new(AtomicUsize::new(0)))
+            .or_insert_with(|| Arc::new(AtomicUsize::new(0)))
             .clone();
         let job = Job::new(job_name, func, pending_jobs);
         self.sender.send(job).ok();

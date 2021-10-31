@@ -207,15 +207,13 @@ where
     }
     #[inline]
     pub fn add(&mut self, resource_id: ResourceId, data: T) -> Resource<T> {
+        let handle = Arc::new(ResourceHandle::new(resource_id, data));
         if self.resources.iter().any(|r| r.id() == &resource_id) {
-            let handle = Arc::new(ResourceHandle::new(resource_id, data));
             self.pending.push(handle.clone());
-            handle
         } else {
-            let handle = Arc::new(ResourceHandle::new(resource_id, data));
             self.resources.push(handle.clone());
-            handle
         }
+        handle
     }
     #[inline]
     pub fn match_resource<F>(&self, f: F) -> Handle<T>

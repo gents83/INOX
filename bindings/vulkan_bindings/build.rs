@@ -20,7 +20,7 @@ fn main() {
     let vulkan_sdk_path = if let Ok(vulkan_sdk_path) = env::var("VULKAN_SDK") {
         vulkan_sdk_path
     } else {
-        eprintln!("[ERROR] Enviroment settings are not correct -> No VULKAN_SDK enviroment variable for this user");
+        println!("[ERROR] Enviroment settings are not correct -> No VULKAN_SDK enviroment variable for this user");
         ".".to_string()
     };
     let mut vulkan_header = vulkan_sdk_path.clone();
