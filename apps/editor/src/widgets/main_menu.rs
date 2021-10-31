@@ -44,8 +44,11 @@ impl MainMenu {
                 TopBottomPanel::top("main_menu")
                     .resizable(false)
                     .show(ui_context, |ui| {
+                        let _ = &data;
                         menu::bar(ui, |ui| {
+                            let _ = &data;
                             menu::menu_button(ui, "File", |ui| {
+                                let _ = &data;
                                 if ui.button("New").clicked() {
                                     /*
                                     let op: &str = DialogOp::New.into();

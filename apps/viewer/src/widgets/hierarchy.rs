@@ -53,14 +53,18 @@ impl Hierarchy {
                     .title_bar(true)
                     .resizable(true)
                     .show(ui_context, |ui| {
+                        let _ = &data;
                         CollapsingHeader::new("Scene")
                             .selected(false)
                             .selectable(false)
                             .show_background(false)
                             .default_open(true)
                             .show(ui, |ui| {
+                                let _ = &data;
                                 ScrollArea::vertical().show(ui, |ui| {
+                                    let _ = &data;
                                     data.scene.get().objects().iter().for_each(|object| {
+                                        let _ = &data;
                                         Self::object_hierarchy(
                                             ui,
                                             object,

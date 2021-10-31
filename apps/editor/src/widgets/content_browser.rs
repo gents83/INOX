@@ -218,6 +218,7 @@ impl ContentBrowser {
                     .open(&mut open)
                     .default_rect(rect)
                     .show(ui_context, |ui| {
+                        let _ = &data;
                         nrg_profiler::scoped_profile!("Window");
                         SidePanel::left("Folders")
                             .resizable(true)
@@ -238,8 +239,10 @@ impl ContentBrowser {
                             .resizable(false)
                             .min_height(0.0)
                             .show_inside(ui, |ui| {
+                                let _ = &data;
                                 nrg_profiler::scoped_profile!("BottomPanel");
                                 ui.horizontal(|ui| {
+                                    let _ = &data;
                                     ui.label("Filename: ");
                                     TextEdit::singleline(&mut data.selected_file)
                                         .hint_text("File name here")

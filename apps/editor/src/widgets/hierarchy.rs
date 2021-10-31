@@ -53,6 +53,7 @@ impl Hierarchy {
                 SidePanel::left("Hierarchy")
                     .resizable(true)
                     .show(ui_context, |ui| {
+                        let _ = &data;
                         ui.heading("Hierarchy:");
 
                         CollapsingHeader::new("Scene")
@@ -61,8 +62,11 @@ impl Hierarchy {
                             .show_background(false)
                             .default_open(true)
                             .show(ui, |ui| {
+                                let _ = &data;
                                 ScrollArea::vertical().show(ui, |ui| {
+                                    let _ = &data;
                                     data.scene.get().objects().iter().for_each(|object| {
+                                        let _ = &data;
                                         Self::object_hierarchy(
                                             ui,
                                             object,

@@ -71,7 +71,9 @@ impl Toolbar {
                 TopBottomPanel::top("toolbar")
                     .resizable(false)
                     .show(ui_context, |ui| {
+                        let _ = &data;
                         ui.horizontal(|ui| {
+                            let _ = &data;
                             let mode = data.mode;
                             if Self::show_icon(ui, &data.shared_data, data.select_icon.id()) {
                                 data.mode = EditMode::Select;
