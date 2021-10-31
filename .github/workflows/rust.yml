@@ -24,22 +24,20 @@ jobs:
           toolchain: stable
           override: true
 
-      - name: Run cargo build -v --workspace
+      - name: Run cargo fmt
         uses: actions-rs/cargo@v1
-        continue-on-error: true  # WARNING: only for this example, remove it!
         with:
-          command: check
-      
-  clippy_check:
-    runs-on: ubuntu-latest
-    
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
+          command: fmt
+          args: --all -- --check
+          
+      - name: Run cargo clippy
+        uses: actions-rs/cargo@v1
         with:
-            toolchain: nightly
-            components: clippy
-            override: true
-      - uses: actions-rs/clippy-check@v1
+          command: clippy
+          args: -- -D warnings
+          
+      - name: Run cargo build
+        uses: actions-rs/cargo@v1
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          command: build 
+          args: -v --workspace
