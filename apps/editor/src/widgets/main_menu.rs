@@ -45,7 +45,7 @@ impl MainMenu {
                     .resizable(false)
                     .show(ui_context, |ui| {
                         menu::bar(ui, |ui| {
-                            menu::menu(ui, "File", |ui| {
+                            menu::menu_button(ui, "File", |ui| {
                                 if ui.button("New").clicked() {
                                     /*
                                     let op: &str = DialogOp::New.into();
@@ -142,7 +142,7 @@ impl MainMenu {
                                         .ok();
                                 }
                             });
-                            menu::menu(ui, "Settings", |ui| {
+                            menu::menu_button(ui, "Settings", |ui| {
                                 let mut show_debug_info =
                                     data.show_debug_info.load(Ordering::SeqCst);
                                 ui.checkbox(&mut show_debug_info, "Debug Info");

@@ -4,7 +4,8 @@ use nrg_resources::{Resource, SharedData, SharedDataRc};
 use nrg_scene::{Object, ObjectId};
 use nrg_serialize::INVALID_UID;
 use nrg_ui::{
-    implement_widget_data, ScrollArea, SidePanel, UIProperties, UIPropertiesRegistry, UIWidget, Ui,
+    implement_widget_data, Id, ScrollArea, SidePanel, UIProperties, UIPropertiesRegistry, UIWidget,
+    Ui,
 };
 
 #[derive(Clone)]
@@ -16,6 +17,7 @@ struct PropertiesData {
     shared_data: SharedDataRc,
     ui_registry: Arc<UIPropertiesRegistry>,
     selected_object: ObjectId,
+    id: Id,
 }
 implement_widget_data!(PropertiesData);
 
@@ -29,6 +31,7 @@ impl Properties {
             shared_data: shared_data.clone(),
             ui_registry,
             selected_object: INVALID_UID,
+            id: Id::new("PropertiesData"),
         };
         Self {
             ui_page: Self::create(shared_data, data),
@@ -47,8 +50,10 @@ impl Properties {
             if let Some(data) = ui_data.as_any_mut().downcast_mut::<PropertiesData>() {
                 let min_width = 200.;
                 let mut width = min_width;
-                if let Some(panel_runtime_data) =
-                    ui_context.memory().data_temp.get::<PropertiesRuntimeData>()
+                if let Some(panel_runtime_data) = ui_context
+                    .memory()
+                    .data
+                    .get_temp::<PropertiesRuntimeData>(data.id)
                 {
                     width = panel_runtime_data.width;
                 }
@@ -71,9 +76,12 @@ impl Properties {
                         }
                     });
 
-                ui_context.memory().data_temp.insert(PropertiesRuntimeData {
-                    width: width.max(min_width),
-                });
+                ui_context.memory().data.insert_temp(
+                    data.id,
+                    PropertiesRuntimeData {
+                        width: width.max(min_width),
+                    },
+                );
             }
         })
     }
