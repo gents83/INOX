@@ -21,9 +21,10 @@
 		},
 		{
 			"label": "BUILD BOOK",
+			"group": "build",
 			"type": "shell",
 			"isBackground": true,
-			"command": "mdbook build ./docs/",
+			"command": "mdbook build ./docs/ --open",
 			"presentation": {
 				"clear": true,
 				"reveal": "never", //process does not switch terminal (focus on program output)
@@ -160,7 +161,6 @@
 				"CREATE IN_USE FOLDER",
 				"CREATE DEPS IN_USE FOLDER",
 				"COMPILE DEBUG",
-				"BUILD BOOK",
 				"RENAME BLENDER DLL IN PYD - DEBUG",
 				"COPY ADDON IN BLENDER",
 			],
@@ -178,7 +178,6 @@
 				"CREATE IN_USE FOLDER",
 				"CREATE DEPS IN_USE FOLDER",
 				"COMPILE RELEASE",
-				"BUILD BOOK",
 				"RENAME BLENDER DLL IN PYD - RELEASE",
 				"COPY ADDON IN BLENDER",
 			],

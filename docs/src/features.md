@@ -22,8 +22,12 @@ Here you can find a list of features that are currently supported by the library
 - [x] Hot reload of code while NRG engine is running 
 - [x] Hot reload of data reloading on the fly while NRG engine is running  
 - [x] In-game GUI integration using [egui](https://github.com/emilk/egui) by [emilk](https://twitter.com/ernerfeldt)
-- [x] Documentations using [mdBook](https://rust-lang.github.io/mdBook/)
 
-Next steps:
+TODO:
+- [ ] Documentations using [mdBook](https://rust-lang.github.io/mdBook/)
 - [ ] Continous integration and build support using Github Actions 
-- [ ] Should support high-end performance rendering features like PBR, Raytracing, etc
+- [ ] Create custom Logic Nodes editor in _**Blender**_
+- [ ] Integrate PBR rendering
+- [ ] Raytracing on GPU compute
+- [ ] Integrate wgpu as optional feature
+- [ ] Dynamic vertex data per-shader
