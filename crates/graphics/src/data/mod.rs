@@ -55,6 +55,6 @@ macro_rules! print_field_size {
             size * $Number,
             offset + (size * $Number)
         );
-        $Expected_offset = $Expected_offset + (size * $Number)
+        $Expected_offset += (size * $Number)
     };
 }

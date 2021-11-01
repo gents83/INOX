@@ -240,7 +240,7 @@ impl AreaAllocator {
 
     pub fn get_area(&self, id: &TextureId) -> Option<Area> {
         if let Some(area) = self.occupied.get_area(id) {
-            return Some(area.clone());
+            return Some(*area);
         }
         None
     }

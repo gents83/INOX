@@ -345,7 +345,7 @@ impl Pipeline {
         let mesh_data_ref = self.mesh.bind_at_index(
             device,
             physical_device,
-            mesh.category_identifier().clone(),
+            *mesh.category_identifier(),
             &mesh.mesh_data().vertices,
             self.vertex_count,
             &mesh.mesh_data().indices,

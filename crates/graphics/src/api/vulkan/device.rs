@@ -100,7 +100,7 @@ impl BackendDevice {
             queue_infos.push(queue_create_info);
         }
 
-        let layer_names_str = get_available_layers_names(&instance.get_supported_layers());
+        let layer_names_str = get_available_layers_names(instance.get_supported_layers());
         let mut required_layers = get_minimum_required_vulkan_layers(enable_validation);
         for layer in layer_names_str.iter() {
             if let Some(index) = required_layers.iter().position(|l| l == layer) {

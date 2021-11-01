@@ -16,8 +16,7 @@
 			"command": "cargo clippy --manifest-path ./crates/Cargo.toml --no-deps --fix --allow-dirty",
 			"presentation": {
 				"clear": true,
-				"reveal": "never", //process does not switch terminal (focus on program output)
-			},
+			}
 		},
 		{
 			"label": "BUILD BOOK",

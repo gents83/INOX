@@ -56,7 +56,7 @@ impl RenderingSystem {
 
         let textures = texture_handler.get_textures_atlas();
         let material_data = renderer.material_data();
-        debug_assert!(textures.is_empty() == false);
+        debug_assert!(!textures.is_empty());
         let used_textures = pipeline.find_used_textures(textures, material_data);
 
         pipeline
@@ -65,8 +65,8 @@ impl RenderingSystem {
                 render_pass.get_command_buffer(),
                 width,
                 height,
-                &view,
-                &proj,
+                view,
+                proj,
                 textures,
                 used_textures.as_slice(),
                 renderer.light_data(),
