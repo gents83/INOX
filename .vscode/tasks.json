@@ -13,7 +13,7 @@
 			"group": "build",
 			"type": "shell",
 			"isBackground": true,
-			"command": "cargo clippy --no-deps --fix --allow-dirty",
+			"command": "cargo clippy --manifest-path ./crates/Cargo.toml --fix --allow-dirty",
 			"presentation": {
 				"clear": true,
 				"reveal": "never", //process does not switch terminal (focus on program output)

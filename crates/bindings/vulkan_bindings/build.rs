@@ -33,12 +33,12 @@ fn main() {
         .unwrap()
         .to_string();
 
-    if let Err(_) = env::var("VULKAN_SDK") {
+    if env::var("VULKAN_SDK").is_err() {
         println!("[ENVIROMENT SETTINGS ISSUE] Enviroment settings are not correct -> Setting VULKAN_SDK enviroment variable to {}", extern_vulkan_header);
         env::set_var("VULKAN_SDK", extern_vulkan_header.as_str());
     }
 
-    let mut vulkan_header_path = extern_vulkan_header.clone();
+    let mut vulkan_header_path = extern_vulkan_header;
     vulkan_header_path.push_str("\\include\\vulkan");
     let mut vulkan_header = vulkan_header_path.clone();
     vulkan_header.push_str("\\vulkan.h");
