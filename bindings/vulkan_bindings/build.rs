@@ -17,25 +17,29 @@ fn main() {
     let out_dir = env::var("OUT_DIR").unwrap();
     let dest_path = Path::new(&out_dir).join("bindings.rs");
 
-    let vulkan_sdk_path = if let Ok(vulkan_sdk_path) = env::var("VULKAN_SDK") {
-        vulkan_sdk_path
-    } else {
-        println!("[ENVIROMENT SETTINGS ISSUE] Enviroment settings are not correct -> No VULKAN_SDK enviroment variable for this user");
-        let out_dir = Path::new(&out_dir)
-            .join("..\\..\\..\\..\\..\\")
-            .join("extern")
-            .join("Vulkan-Docs")
-            .canonicalize()
-            .unwrap();
-        out_dir.as_os_str().to_str().unwrap().to_string()
-    };
-    let mut vulkan_header = vulkan_sdk_path.clone();
-    vulkan_header.push_str("\\include\\vulkan\\vulkan.h");
+    let out_dir = Path::new(&out_dir)
+        .join("..\\..\\..\\..\\..\\")
+        .join("extern")
+        .join("Vulkan-Headers")
+        .canonicalize()
+        .unwrap();
+    let vulkan_sdk_path = out_dir.as_os_str().to_str().unwrap().to_string();
+
+    if let Err(_) = env::var("VULKAN_SDK") {
+        println!("[ENVIROMENT SETTINGS ISSUE] Enviroment settings are not correct -> Setting VULKAN_SDK enviroment variable to {}", vulkan_sdk_path);
+        env::set_var("VULKAN_SDK", vulkan_sdk_path.as_str());
+    }
+
+    let mut vulkan_header_path = vulkan_sdk_path.clone();
+    vulkan_header_path.push_str("\\include\\vulkan\\");
+    let mut vulkan_header = vulkan_header_path.clone();
+    vulkan_header.push_str("vulkan.h");
 
     let vulkan_plaftorm;
 
     let mut builder = bindgen::Builder::default()
         .header(vulkan_header)
+        .clang_arg(format!("-I/{}", vulkan_header_path))
         .rustfmt_bindings(true)
         .rust_target(RustTarget::Nightly)
         .derive_debug(false)
@@ -91,7 +95,7 @@ fn main() {
     let mut f = OpenOptions::new().append(true).open(dest_path).unwrap();
 
     let mut vulkan_xml = vulkan_sdk_path;
-    vulkan_xml.push_str("\\share\\vulkan\\registry\\vk.xml");
+    vulkan_xml.push_str("\\xml\\vk.xml");
     let file = File::open(vulkan_xml).unwrap();
     let file = BufReader::new(file);
 
