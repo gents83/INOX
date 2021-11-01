@@ -1,6 +1,6 @@
 use downcast_rs::{impl_downcast, Downcast};
 
-use std::collections::HashMap;
+use std::collections::{hash_map::Entry, HashMap};
 
 use crate::{JobId, System, SystemBoxed, SystemId};
 
@@ -52,14 +52,14 @@ impl PhaseWithSystems {
 
     pub fn add_system<S: System + 'static>(&mut self, system: S) -> &mut Self {
         let id = S::id();
-        if self.systems.contains_key(&id) {
+        if let Entry::Vacant(e) = self.systems.entry(id) {
+            self.systems_to_add.push(id);
+            e.insert(Box::new(system));
+        } else {
             eprintln!(
                 "Trying to add twice a System with id {:?} in this Phase",
                 id,
             );
-        } else {
-            self.systems_to_add.push(id);
-            self.systems.insert(id, Box::new(system));
         }
         self
     }

@@ -21,8 +21,10 @@ jobs:
           #- ubuntu-latest
 
     steps:
-      - name: Checkout sources
+      - name: Checkout repository and submodules
         uses: actions/checkout@v2
+        with:
+          submodules: recursive
 
       - name: Install stable toolchain
         uses: actions-rs/toolchain@v1
@@ -45,7 +47,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           command: clippy
-          args: --fix --allow-dirty
+          args: --no-deps --fix --allow-dirty
           
       - name: Run cargo clippy check
         uses: actions-rs/cargo@v1

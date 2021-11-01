@@ -142,7 +142,7 @@ impl App {
                     let shared_data = self.shared_data.clone();
                     let global_messenger = self.global_messenger.clone();
                     let msg = msg.as_boxed();
-                    let job_name = format!("Load Event");
+                    let job_name = "Load Event".to_string();
                     let load_event_category: Uid = generate_uid_from_string("LOAD_EVENT_CATEGORY");
                     self.job_handler.write().unwrap().add_job(
                         &load_event_category,
