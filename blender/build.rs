@@ -47,6 +47,6 @@ fn main() {
     move_all_files_with_extension(out_dir, in_use_build_path, "pdb");
 
     if env::var("BLENDER_ADDONS_PATH").is_err() {
-        println!("[ERROR] Enviroment settings are not correct -> No BLENDER_ADDONS_PATH enviroment variable for this user");
+        println!("[ENVIROMENT SETTINGS ISSUE] Enviroment settings are not correct -> No BLENDER_ADDONS_PATH enviroment variable for this user");
     }
 }

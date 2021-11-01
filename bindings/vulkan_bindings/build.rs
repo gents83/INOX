@@ -20,8 +20,8 @@ fn main() {
     let vulkan_sdk_path = if let Ok(vulkan_sdk_path) = env::var("VULKAN_SDK") {
         vulkan_sdk_path
     } else {
-        println!("[ERROR] Enviroment settings are not correct -> No VULKAN_SDK enviroment variable for this user");
-        ".".to_string()
+        println!("[ENVIROMENT SETTINGS ISSUE] Enviroment settings are not correct -> No VULKAN_SDK enviroment variable for this user");
+        "https://raw.githubusercontent.com/KhronosGroup/Vulkan-Headers/main".to_string()
     };
     let mut vulkan_header = vulkan_sdk_path.clone();
     vulkan_header.push_str("\\include\\vulkan\\vulkan.h");

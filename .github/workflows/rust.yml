@@ -53,9 +53,13 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           command: clippy
           args: --no-deps -D warnings
-          
+          env:
+            VULKAN_SDK: https://raw.githubusercontent.com/KhronosGroup/Vulkan-Headers/main
+
       - name: Run cargo build workspace
         uses: actions-rs/cargo@v1
         with:
           command: build 
           args: -v --workspace --release
+          env:
+            VULKAN_SDK: https://raw.githubusercontent.com/KhronosGroup/Vulkan-Headers/main
