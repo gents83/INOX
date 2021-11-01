@@ -40,7 +40,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: fmt
-          args: --manifest-path ./crates/Cargo.toml --all -- --check          
+          args: --manifest-path ./crates/Cargo.toml --no-deps -- --check          
           
       - name: Run cargo clippy fix
         uses: actions-rs/cargo@v1
