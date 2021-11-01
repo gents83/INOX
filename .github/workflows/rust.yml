@@ -44,7 +44,7 @@ jobs:
       #   args: --manifest-path ./crates/Cargo.toml --no-deps -- --check
           
       - name: Run cargo clippy check
-        run: cargo clippy --manifest-path ./crates/Cargo.toml --no-deps -- -D warnings
+        uses: actions-rs/cargo@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           command: clippy
