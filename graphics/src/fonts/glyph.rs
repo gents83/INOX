@@ -1,7 +1,10 @@
-use super::geometry::*;
-use nrg_math::*;
+use nrg_math::{Vector2, Vector4};
 use nrg_serialize::{Deserialize, Serialize};
-use ttf_parser::*;
+use ttf_parser::{Face, GlyphId, TableName};
+
+use crate::fonts::geometry::Geometry;
+
+use super::geometry::Line;
 
 pub const DEFAULT_FONT_GLYPH_SIZE: usize = 64;
 
