@@ -68,7 +68,7 @@ impl View3D {
         );
 
         let camera_object = SharedData::add_resource::<Object>(
-            &shared_data,
+            shared_data,
             generate_random_uid(),
             Object::default(),
         );
@@ -76,7 +76,7 @@ impl View3D {
         camera_object.get_mut().look_at([0., 0., 0.].into());
         let camera = camera_object
             .get_mut()
-            .add_default_component::<Camera>(&shared_data);
+            .add_default_component::<Camera>(shared_data);
         camera
             .get_mut()
             .set_parent(&camera_object)
@@ -302,7 +302,7 @@ impl View3D {
                         let texture_index = if let Some(texture_index) =
                             SharedData::get_index_of_resource::<Texture>(
                                 &data.shared_data,
-                                &data.texture.id(),
+                                data.texture.id(),
                             ) {
                             texture_index
                         } else {

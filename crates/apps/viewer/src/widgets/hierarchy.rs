@@ -24,7 +24,7 @@ impl Hierarchy {
         global_messenger: &MessengerRw,
         scene_id: &SceneId,
     ) -> Self {
-        if let Some(scene) = SharedData::get_resource::<Scene>(&shared_data, scene_id) {
+        if let Some(scene) = SharedData::get_resource::<Scene>(shared_data, scene_id) {
             let data = HierarchyData {
                 shared_data: shared_data.clone(),
                 global_dispatcher: global_messenger.read().unwrap().get_dispatcher().clone(),

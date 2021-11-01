@@ -312,8 +312,8 @@ impl GltfCompiler {
 
         let material = primitive.material().pbr_metallic_roughness();
         material_data.base_color = material.base_color_factor().into();
-        material_data.roughness_factor = material.roughness_factor().into();
-        material_data.metallic_factor = material.metallic_factor().into();
+        material_data.roughness_factor = material.roughness_factor();
+        material_data.metallic_factor = material.metallic_factor();
         material_data.pipeline = PathBuf::from(DEFAULT_PIPELINE);
         if let Some(info) = material.base_color_texture() {
             material_data.textures[TextureType::BaseColor as usize] =
@@ -400,7 +400,7 @@ impl GltfCompiler {
         node: &Node,
         node_name: &str,
     ) -> Option<(NodeType, PathBuf)> {
-        return Some(self.process_object(path, node, node_name));
+        Some(self.process_object(path, node, node_name))
     }
 
     fn process_object(&mut self, path: &Path, node: &Node, node_name: &str) -> (NodeType, PathBuf) {
@@ -486,7 +486,7 @@ impl GltfCompiler {
 
     fn process_light(&mut self, path: &Path, light: &Light) -> (NodeType, PathBuf) {
         let mut light_data = LightData::default();
-        light_data.color = [light.color()[0], light.color()[1], light.color()[2], 1.].into();
+        light_data.color = [light.color()[0], light.color()[1], light.color()[2], 1.];
         light_data.intensity = light.intensity();
         light_data.range = light.range().unwrap_or(1.);
         match light.kind() {

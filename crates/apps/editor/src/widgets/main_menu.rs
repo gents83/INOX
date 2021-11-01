@@ -163,7 +163,7 @@ impl MainMenu {
         match result {
             Ok(output) => {
                 let string = String::from_utf8(output.stdout).unwrap();
-                debug_log(format!("{}", string).as_str());
+                debug_log(string.as_str());
                 for e in get_events_from_string(string) {
                     let event: DialogEvent = deserialize(e);
                     dispatcher.write().unwrap().send(event.as_boxed()).ok();

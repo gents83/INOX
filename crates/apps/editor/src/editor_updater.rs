@@ -137,11 +137,7 @@ impl System for EditorUpdater {
 
         self.shared_data
             .for_each_resource(|r: &Resource<Object>, o: &Object| {
-                let parent_transform = if let Some(parent) = o.parent() {
-                    Some(parent.get().transform())
-                } else {
-                    None
-                };
+                let parent_transform = o.parent().map(|parent| parent.get().transform());
                 r.get_mut().update_transform(parent_transform);
             });
 

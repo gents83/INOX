@@ -61,7 +61,7 @@ impl UISystem {
     ) -> Self {
         let message_channel = MessageChannel::default();
 
-        crate::register_resource_types(&shared_data);
+        crate::register_resource_types(shared_data);
 
         Self {
             ui_pipeline: None,
@@ -129,7 +129,7 @@ impl UISystem {
                 pixels,
             );
             if let Some(texture) = &self.ui_texture {
-                if let Some(material) = self.ui_materials.remove(&texture.id()) {
+                if let Some(material) = self.ui_materials.remove(texture.id()) {
                     material.get_mut().remove_texture(TextureType::BaseColor);
                 }
             }
@@ -174,7 +174,7 @@ impl UISystem {
             let material = self.get_ui_material(texture);
             let mesh_instance = self.ui_meshes[i].clone();
             let ui_scale = self.ui_scale;
-            let screen_rect = self.ui_input.screen_rect.clone();
+            let screen_rect = self.ui_input.screen_rect;
             let job_name = format!("ui_system::compute_mesh_data[{}]", i);
             self.job_handler.write().unwrap().add_job(
                 &UISystem::id(),

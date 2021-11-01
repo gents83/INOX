@@ -46,7 +46,7 @@ impl View3D {
 
     pub fn is_interacting(&self) -> bool {
         if let Some(data) = self._ui_page.get().data::<View3DData>() {
-            return data.is_interacting;
+            data.is_interacting
         } else {
             false
         }
@@ -64,7 +64,7 @@ impl View3D {
                         let texture_index = if let Some(texture_index) =
                             SharedData::get_index_of_resource::<Texture>(
                                 &data.shared_data,
-                                &data.texture.id(),
+                                data.texture.id(),
                             ) {
                             texture_index
                         } else {

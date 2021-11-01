@@ -35,7 +35,7 @@ impl Launcher {
             )
         };
 
-        let renderer = Renderer::new(window.get_handle(), &app.get_shared_data(), false);
+        let renderer = Renderer::new(window.get_handle(), app.get_shared_data(), false);
         let renderer = Arc::new(RwLock::new(renderer));
 
         let mut window_update_phase = PhaseWithSystems::new(MAIN_WINDOW_PHASE);

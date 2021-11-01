@@ -51,7 +51,7 @@ impl ViewerSystem {
         camera_object.get_mut().look_at(Vector3::new(0.0, 0.0, 0.0));
         let camera = camera_object
             .get_mut()
-            .add_default_component::<Camera>(&shared_data);
+            .add_default_component::<Camera>(shared_data);
         camera
             .get_mut()
             .set_parent(&camera_object)
@@ -102,15 +102,11 @@ impl System for ViewerSystem {
         let mut map: HashMap<ObjectId, Option<Matrix4>> = HashMap::new();
         self.shared_data
             .for_each_resource(|r: &Resource<Object>, o: &Object| {
-                let parent_transform = if let Some(parent) = o.parent() {
-                    Some(parent.get().transform())
-                } else {
-                    None
-                };
+                let parent_transform = o.parent().map(|parent| parent.get().transform());
                 map.insert(*r.id(), parent_transform);
             });
         self.shared_data.for_each_resource_mut(|r, o: &mut Object| {
-            if let Some(parent_transform) = map.remove(&r.id()) {
+            if let Some(parent_transform) = map.remove(r.id()) {
                 o.update_transform(parent_transform);
             }
             if let Some(light) = o.component::<Light>() {
@@ -220,10 +216,8 @@ impl ViewerSystem {
                 if let Some(camera) = self.camera_object.get().component::<Camera>() {
                     camera.get_mut().set_active(true);
                 }
-            } else {
-                if let Some(camera) = self.camera_object.get().component::<Camera>() {
-                    camera.get_mut().set_active(false);
-                }
+            } else if let Some(camera) = self.camera_object.get().component::<Camera>() {
+                camera.get_mut().set_active(false);
             }
 
             if FORCE_USE_DEFAULT_CAMERA {

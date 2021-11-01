@@ -160,7 +160,7 @@ impl DataTypeResource for Object {
             let on_loaded_object: Box<dyn Function<Object>> =
                 Box::new(move |child: &mut Object| {
                     let parent = shared_data_rc.get_resource::<Object>(&id);
-                    child.set_parent(parent.clone());
+                    child.set_parent(parent);
                 });
             let child = Object::request_load(
                 shared_data,

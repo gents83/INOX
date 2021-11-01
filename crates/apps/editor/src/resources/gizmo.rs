@@ -376,15 +376,11 @@ impl Gizmo {
     }
 
     pub fn start_drag(&mut self, start_ray: Vector3, end_ray: Vector3) -> bool {
-        let is_dragging = if self.is_ray_inside(start_ray, end_ray, &self.mesh_center) {
+        
+        if self.is_ray_inside(start_ray, end_ray, &self.mesh_center) {
             self.axis = Vector3::default_one();
             true
-        } else if self.axis != Vector3::zero() {
-            true
-        } else {
-            false
-        };
-        is_dragging
+        } else { self.axis != Vector3::zero() }
     }
     pub fn end_drag(&mut self) {
         self.axis = Vector3::zero();
@@ -486,7 +482,7 @@ impl Gizmo {
                 material.get_mut().set_base_color(default_color);
             }
         }
-        return false;
+        false
     }
 
     fn update_events(&mut self) {
@@ -540,12 +536,10 @@ impl Gizmo {
         if object_id.is_nil() {
             self.set_visible(false);
             self.transform.set_translation(Vector3::zero());
-        } else {
-            if let Some(object) = SharedData::get_resource::<Object>(&self.shared_data, object_id) {
-                self.transform.set_translation(object.get().get_position());
-                self.update_meshes(self.camera_scale);
-                self.set_visible(true);
-            }
+        } else if let Some(object) = SharedData::get_resource::<Object>(&self.shared_data, object_id) {
+            self.transform.set_translation(object.get().get_position());
+            self.update_meshes(self.camera_scale);
+            self.set_visible(true);
         }
     }
 }
