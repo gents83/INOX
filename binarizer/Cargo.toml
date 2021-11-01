@@ -9,7 +9,7 @@ build = "build.rs"
 crate-type = ["cdylib",'rlib']
 
 [dependencies]
-gltf = { git = "https://github.com/gltf-rs/gltf", features = ["extras", "names", "KHR_lights_punctual", "KHR_materials_pbrSpecularGlossiness"] }
+gltf = { path = "../extern/gltf", features = ["extras", "names", "KHR_lights_punctual", "KHR_materials_pbrSpecularGlossiness"] }
 nrg_filesystem = { path = "../filesystem" }
 nrg_graphics = { path = "../graphics" }
 nrg_math = { path = "../math" }

@@ -11,6 +11,6 @@ build = "build.rs"
 nrg_filesystem = { path = "../../filesystem"}
 
 [build-dependencies]
-bindgen = { git = "https://github.com/rust-lang/rust-bindgen"}
-xml-rs = { git = "https://github.com/netvl/xml-rs" }
+bindgen = { path = "../extern/rust-bindgen"}
+xml-rs = { path = "../extern/xml-rs" }
 

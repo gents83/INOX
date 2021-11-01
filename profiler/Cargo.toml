@@ -9,6 +9,6 @@ build = "build.rs"
 crate-type = ["cdylib",'rlib']
 
 [dependencies]
-serde_json = {git = "https://github.com/serde-rs/json"}
+serde_json = { path = "../extern/json"}
 nrg_filesystem = { path = "../filesystem" }
 nrg_platform = { path = "../platform" }

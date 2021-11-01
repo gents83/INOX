@@ -8,8 +8,8 @@ edition = "2021"
 crate-type = ["cdylib",'rlib']
 
 [dependencies]
-image = { git = "https://github.com/image-rs/image" }
-ttf-parser = { git = "https://github.com/RazrFalcon/ttf-parser" }
+image = { path = "../extern/image" }
+ttf-parser = {path = "../extern/ttf-parser" }
 vulkan_bindings = { path = "../bindings/vulkan_bindings" }
 nrg_core = { path = "../core" }
 nrg_filesystem = { path = "../filesystem" }
