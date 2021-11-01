@@ -10,4 +10,4 @@ name = "nrg_blender"
 crate-type = ['cdylib', 'rlib']
 
 [dependencies]
-cpython = { path = "../extern/rust-cpython", version = "*", features = ["extension-module"] }
+cpython = { path = "../../extern/rust-cpython", version = "*", features = ["extension-module"] }

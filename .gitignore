@@ -1,4 +1,5 @@
 /target
+/crates/target
 /data
 Cargo.lock
 *.lock
@@ -8,6 +9,4 @@ Cargo.lock
 *.dll
 *.exe
 *.pyd
-vert.spv
-frag.spv
-geom.spv
+*.spv

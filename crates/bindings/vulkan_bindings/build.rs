@@ -17,7 +17,7 @@ fn main() {
     let out_dir = env::var("OUT_DIR").unwrap();
     let dest_path = Path::new(&out_dir).join("bindings.rs");
 
-    let project_dir = Path::new(&out_dir).join("..\\..\\..\\..\\..\\");
+    let project_dir = Path::new(&out_dir).join("..\\..\\..\\..\\..\\..\\");
     let extern_vulkan_header = project_dir
         .join("extern")
         .join("Vulkan-Headers")

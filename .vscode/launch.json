@@ -8,7 +8,7 @@
             "name": "RUN LAUNCHER DEBUG",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/target/debug/nrg_launcher.exe",
+            "program": "${workspaceFolder}/crates/target/debug/nrg_launcher.exe",
             "args": [],
             "cwd": "${workspaceFolder}",
             "stopOnEntry": false,
@@ -21,13 +21,13 @@
                 "/rustc/c390d69a615f095208ac94841f3310268521b2ee": "${env:USERPROFILE}/.rustup/toolchains/nightly-x86_64-pc-windows-msvc/lib/rustlib/src/rust"
             },
             "console": "integratedTerminal",
-            "symbolSearchPath": "${workspaceFolder}/target/debug/, https://msdl.microsoft.com/download/symbols",
+            "symbolSearchPath": "${workspaceFolder}/crates/target//debug/, https://msdl.microsoft.com/download/symbols",
         },
         {
             "name": "RUN EDITOR DEBUG",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/target/debug/nrg_launcher.exe",
+            "program": "${workspaceFolder}/crates/target/debug/nrg_launcher.exe",
             "args": [
                 "-plugin nrg_editor"
             ],
@@ -42,13 +42,13 @@
                 "/rustc/c390d69a615f095208ac94841f3310268521b2ee": "${env:USERPROFILE}/.rustup/toolchains/nightly-x86_64-pc-windows-msvc/lib/rustlib/src/rust"
             },
             "console": "integratedTerminal",
-            "symbolSearchPath": "${workspaceFolder}/target/debug/in_use/, ${workspaceFolder}/target/debug/, https://msdl.microsoft.com/download/symbols",
+            "symbolSearchPath": "${workspaceFolder}/crates/target/debug/in_use/, ${workspaceFolder}/crates/target/debug/, https://msdl.microsoft.com/download/symbols",
         },
         {
             "name": "RUN VIEWER DEBUG",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/target/debug/nrg_launcher.exe",
+            "program": "${workspaceFolder}/crates/target/debug/nrg_launcher.exe",
             "args": [
                 "-plugin nrg_viewer",
                 "-load_file",
@@ -65,13 +65,13 @@
                 "/rustc/c390d69a615f095208ac94841f3310268521b2ee": "${env:USERPROFILE}/.rustup/toolchains/nightly-x86_64-pc-windows-msvc/lib/rustlib/src/rust"
             },
             "console": "integratedTerminal",
-            "symbolSearchPath": "${workspaceFolder}/target/debug/in_use/, ${workspaceFolder}/target/debug/, https://msdl.microsoft.com/download/symbols",
+            "symbolSearchPath": "${workspaceFolder}/crates/target/debug/in_use/, ${workspaceFolder}/crates/target/debug/, https://msdl.microsoft.com/download/symbols",
         },
         {
             "name": "RUN CONTENT BROWSER DEBUG",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/target/debug/nrg_launcher.exe",
+            "program": "${workspaceFolder}/crates/target/debug/nrg_launcher.exe",
             "args": [
                 "-plugin nrg_content_browser"
             ],
@@ -86,13 +86,13 @@
                 "/rustc/c390d69a615f095208ac94841f3310268521b2ee": "${env:USERPROFILE}/.rustup/toolchains/nightly-x86_64-pc-windows-msvc/lib/rustlib/src/rust"
             },
             "console": "integratedTerminal",
-            "symbolSearchPath": "${workspaceFolder}/target/debug/in_use/, ${workspaceFolder}/target/debug/, https://msdl.microsoft.com/download/symbols",
+            "symbolSearchPath": "${workspaceFolder}/crates/target/debug/in_use/, ${workspaceFolder}/crates/target/debug/, https://msdl.microsoft.com/download/symbols",
         },
         {
             "name": "RUN LAUNCHER RELEASE",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/target/release/nrg_launcher.exe",
+            "program": "${workspaceFolder}/crates/target/release/nrg_launcher.exe",
             "args": [],
             "cwd": "${workspaceFolder}",
             "stopOnEntry": false,
@@ -105,7 +105,7 @@
                 "/rustc/c390d69a615f095208ac94841f3310268521b2ee": "${env:USERPROFILE}/.rustup/toolchains/nightly-x86_64-pc-windows-msvc/lib/rustlib/src/rust"
             },
             "console": "integratedTerminal",
-            "symbolSearchPath": "${workspaceFolder}/target/release/, https://msdl.microsoft.com/download/symbols",
+            "symbolSearchPath": "${workspaceFolder}/crates/target/release/, https://msdl.microsoft.com/download/symbols",
         },
     ]
 }

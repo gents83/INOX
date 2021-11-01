@@ -34,7 +34,7 @@
 			"label": "COPY ADDON IN BLENDER",
 			"type": "shell",
 			"isBackground": true,
-			"command": "Copy-Item -Path ${workspaceFolder}\\blender\\nrg_blender\\NRG -Destination ${env:BLENDER_ADDONS_PATH} -Force -Recurse",
+			"command": "Copy-Item -Path ${workspaceFolder}\\crates\\blender\\nrg_blender\\NRG -Destination ${env:BLENDER_ADDONS_PATH} -Force -Recurse",
 			"presentation": {
 				"clear": true,
 				"reveal": "never", //process does not switch terminal (focus on program output)
@@ -44,7 +44,7 @@
 			"label": "RENAME BLENDER DLL IN PYD - DEBUG",
 			"type": "shell",
 			"isBackground": true,
-			"command": "Copy-Item -Path ${workspaceFolder}\\target\\debug\\nrg_blender.dll -Destination ${workspaceFolder}\\blender\\nrg_blender\\NRG\\nrg_blender.pyd -Force",
+			"command": "Copy-Item -Path ${workspaceFolder}\\crates\\target\\debug\\nrg_blender.dll -Destination ${workspaceFolder}\\crates\\blender\\nrg_blender\\NRG\\nrg_blender.pyd -Force",
 			"presentation": {
 				"clear": true,
 				"reveal": "never", //process does not switch terminal (focus on program output)
@@ -54,7 +54,7 @@
 			"label": "RENAME BLENDER DLL IN PYD - RELEASE",
 			"type": "shell",
 			"isBackground": true,
-			"command": "Copy-Item -Path ${workspaceFolder}\\target\\release\\nrg_blender.dll -Destination ${workspaceFolder}\\blender\\nrg_blender\\NRG\\nrg_blender.pyd -Force",
+			"command": "Copy-Item -Path ${workspaceFolder}\\crates\\target\\release\\nrg_blender.dll -Destination ${workspaceFolder}\\crates\\blender\\nrg_blender\\NRG\\nrg_blender.pyd -Force",
 			"presentation": {
 				"clear": true,
 				"reveal": "never", //process does not switch terminal (focus on program output)
@@ -64,7 +64,7 @@
 			"label": "CLEANUP",
 			"type": "shell",
 			"isBackground": true,
-			"command": "Remove-Item -Path ${workspaceFolder}\\target\\debug\\in_use\\* -Recurse -Force",
+			"command": "Remove-Item -Path ${workspaceFolder}\\crates\\target\\debug\\in_use\\* -Recurse -Force",
 			"presentation": {
 				"clear": true,
 				"reveal": "never", //process does not switch terminal (focus on program output)
@@ -74,7 +74,7 @@
 			"label": "CREATE IN_USE FOLDER",
 			"type": "shell",
 			"isBackground": true,
-			"command": "New-Item -Path ${workspaceFolder}\\target\\debug\\ -Force -Name in_use -ItemType directory",
+			"command": "New-Item -Path ${workspaceFolder}\\crates\\target\\debug\\ -Force -Name in_use -ItemType directory",
 			"presentation": {
 				"clear": true,
 				"reveal": "never", //process does not switch terminal (focus on program output)
@@ -84,7 +84,7 @@
 			"label": "CREATE DEPS IN_USE FOLDER",
 			"type": "shell",
 			"isBackground": true,
-			"command": "New-Item -Path ${workspaceFolder}\\target\\debug\\in_use\\ -Force -Name deps -ItemType directory",
+			"command": "New-Item -Path ${workspaceFolder}\\crates\\target\\debug\\in_use\\ -Force -Name deps -ItemType directory",
 			"presentation": {
 				"clear": true,
 				"reveal": "never", //process does not switch terminal (focus on program output)
@@ -94,8 +94,8 @@
 			"label": "COMPILE DEBUG",
 			"args": [
 				"build",
-				"-v",
-				"--workspace"
+				"--manifest-path",
+				"./crates/Cargo.toml",
 			],
 			"command": "cargo",
 			"problemMatcher": [
@@ -125,8 +125,8 @@
 			"label": "COMPILE RELEASE",
 			"args": [
 				"build",
-				"-v",
-				"--workspace",
+				"--manifest-path",
+				"./crates/Cargo.toml",
 				"--release"
 			],
 			"command": "cargo",

@@ -1,5 +1,5 @@
 [package]
-name = "nrg_profiler"
+name = "nrg_math"
 version = "0.1.0"
 authors = ["gents83 <gents83@gmail.com>"]
 edition = "2021"
@@ -9,6 +9,5 @@ build = "build.rs"
 crate-type = ["cdylib",'rlib']
 
 [dependencies]
-serde_json = { path = "../extern/json"}
-nrg_filesystem = { path = "../filesystem" }
-nrg_platform = { path = "../platform" }
+cgmath = { path = "../../extern/cgmath", features = ["serde", "swizzle"] }
+rand = { path = "../../extern/rand" }

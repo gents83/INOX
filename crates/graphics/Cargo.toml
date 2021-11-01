@@ -1,22 +1,21 @@
 [package]
-name = "nrg_ui"
+name = "nrg_graphics"
 version = "0.1.0"
 authors = ["gents83 <gents83@gmail.com>"]
 edition = "2021"
-build = "build.rs"
 
 [lib]
 crate-type = ["cdylib",'rlib']
 
 [dependencies]
-egui = { path = "../extern/egui", features = ["multi_threaded"] }
-image = { path = "../extern/image" }
-
+image = { path = "../../extern/image" }
+ttf-parser = {path = "../../extern/ttf-parser" }
+vulkan_bindings = { path = "../bindings/vulkan_bindings" }
 nrg_core = { path = "../core" }
-nrg_messenger = { path = "../messenger" }
+nrg_filesystem = { path = "../filesystem" }
 nrg_math = { path = "../math" }
-nrg_graphics = { path = "../graphics" }
+nrg_messenger = { path = "../messenger" }
 nrg_platform = { path = "../platform" }
-nrg_profiler = { path = "../profiler" }
 nrg_resources = { path = "../resources" }
+nrg_profiler = { path = "../profiler" }
 nrg_serialize = { path = "../serialize" }

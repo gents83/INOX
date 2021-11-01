@@ -9,7 +9,7 @@ build = "build.rs"
 crate-type = ["cdylib",'rlib']
 
 [dependencies]
-downcast-rs = { path = "../extern/downcast-rs" }
+downcast-rs = { path = "../../extern/downcast-rs" }
 nrg_messenger = { path = "../messenger" }
 nrg_filesystem = { path = "../filesystem" }
 nrg_platform = { path = "../platform" }
