@@ -1,5 +1,7 @@
 use crate::api::backend::{BackendMesh, BackendPhysicalDevice};
-use crate::{CommandBuffer, Device, MeshCategoryId, MeshData, MeshDataRef, VertexData};
+use crate::{
+    CommandBuffer, Device, MeshBindingData, MeshCategoryId, MeshData, MeshDataRef, VertexData,
+};
 
 #[derive(Default, Clone)]
 pub struct GraphicsMesh {
@@ -27,33 +29,43 @@ impl GraphicsMesh {
         &mut self,
         device: &Device,
         physical_device: &BackendPhysicalDevice,
-        mesh_category_identifier: MeshCategoryId,
-        vertices: &[VertexData],
-        first_vertex: u32,
-        indices: &[u32],
-        first_index: u32,
+        binding_data: MeshBindingData,
     ) -> MeshDataRef {
-        if first_vertex as usize + vertices.len() >= self.data.vertices.len() {
+        if binding_data.first_vertex as usize + binding_data.vertices.len()
+            >= self.data.vertices.len()
+        {
             self.data.vertices.resize_with(
-                (self.data.vertices.len() + vertices.len()) * 2,
+                (self.data.vertices.len() + binding_data.vertices.len()) * 2,
                 VertexData::default,
             );
             self.inner
                 .create_vertex_buffer(device, physical_device, self.data.vertices.as_slice());
         }
-        if first_index as usize + indices.len() >= self.data.indices.len() {
-            self.data
-                .indices
-                .resize_with((self.data.indices.len() + indices.len()) * 2, u32::default);
+        if binding_data.first_index as usize + binding_data.indices.len() >= self.data.indices.len()
+        {
+            self.data.indices.resize_with(
+                (self.data.indices.len() + binding_data.indices.len()) * 2,
+                u32::default,
+            );
             self.inner
                 .create_index_buffer(device, physical_device, self.data.indices.as_slice());
         }
 
-        self.mesh_categories.push(mesh_category_identifier);
-        self.inner
-            .bind_at_index(device, vertices, first_vertex, indices, first_index);
-        self.data
-            .set_mesh_at_index(vertices, first_vertex, indices, first_index)
+        self.mesh_categories
+            .push(binding_data.mesh_category_identifier);
+        self.inner.bind_at_index(
+            device,
+            binding_data.vertices,
+            binding_data.first_vertex,
+            binding_data.indices,
+            binding_data.first_index,
+        );
+        self.data.set_mesh_at_index(
+            binding_data.vertices,
+            binding_data.first_vertex,
+            binding_data.indices,
+            binding_data.first_index,
+        )
     }
 
     pub fn bind_vertices(&self, command_buffer: &CommandBuffer) {

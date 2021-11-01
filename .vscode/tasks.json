@@ -11,11 +11,37 @@
 		{
 			"label": "RUN CLIPPY",
 			"group": "build",
+			"isBackground": true,
+			"dependsOn": [
+				"CLIPPY CHECK",
+			],
+			"problemMatcher": [],
+			"presentation": {
+				"clear": true,
+				"reveal": "silent", //process does not switch terminal (focus on program output)
+			}
+		},
+		{
+			"label": "CLIPPY FIX",
 			"type": "shell",
 			"isBackground": true,
 			"command": "cargo clippy --manifest-path ./crates/Cargo.toml --no-deps --fix --allow-dirty",
 			"presentation": {
 				"clear": true,
+				"reveal": "silent", //process does not switch terminal (focus on program output)
+			}
+		},
+		{
+			"label": "CLIPPY CHECK",
+			"type": "shell",
+			"dependsOn": [
+				"CLIPPY FIX",
+			],
+			"isBackground": true,
+			"command": "cargo clippy --manifest-path ./crates/Cargo.toml --no-deps -- -D warnings",
+			"presentation": {
+				"clear": true,
+				"reveal": "silent", //process does not switch terminal (focus on program output)
 			}
 		},
 		{

@@ -12,7 +12,9 @@ use nrg_messenger::MessengerRw;
 use nrg_resources::{DataTypeResource, Resource, SharedData, SharedDataRc};
 use nrg_serialize::generate_random_uid;
 
-use crate::{Pipeline, PipelineId, RenderPass, RendererRw, RendererState, View};
+use crate::{
+    Pipeline, PipelineBindingData, PipelineId, RenderPass, RendererRw, RendererState, View,
+};
 
 pub const RENDERING_PHASE: &str = "RENDERING_PHASE";
 
@@ -63,15 +65,17 @@ impl RenderingSystem {
             .update_bindings(
                 device,
                 render_pass.get_command_buffer(),
-                width,
-                height,
-                view,
-                proj,
-                textures,
-                used_textures.as_slice(),
-                renderer.light_data(),
-                renderer.texture_data(),
-                renderer.material_data(),
+                PipelineBindingData {
+                    width,
+                    height,
+                    view,
+                    proj,
+                    textures,
+                    used_textures: used_textures.as_slice(),
+                    light_data: renderer.light_data(),
+                    texture_data: renderer.texture_data(),
+                    material_data: renderer.material_data(),
+                },
             )
             .fill_command_buffer(device, physical_device, render_pass.get_command_buffer());
     }

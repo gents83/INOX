@@ -7,9 +7,9 @@ use crate::api::backend::{
 
 use crate::utils::read_spirv_from_bytes;
 use crate::{
-    BlendFactor, ConstantData, CullingModeType, InstanceCommand, InstanceData, LightData,
-    PolygonModeType, ShaderData, ShaderMaterialData, ShaderTextureData, ShaderType, TextureAtlas,
-    VertexData, MAX_NUM_LIGHTS, MAX_NUM_MATERIALS, MAX_NUM_TEXTURES, MAX_TEXTURE_ATLAS_COUNT,
+    ConstantData, InstanceCommand, InstanceData, LightData, PipelineData, ShaderData,
+    ShaderMaterialData, ShaderTextureData, ShaderType, TextureAtlas, VertexData, MAX_NUM_LIGHTS,
+    MAX_NUM_MATERIALS, MAX_NUM_TEXTURES, MAX_TEXTURE_ATLAS_COUNT,
 };
 use nrg_filesystem::convert_from_local_path;
 
@@ -128,12 +128,7 @@ impl BackendPipeline {
         device: &BackendDevice,
         physical_device: &BackendPhysicalDevice,
         render_pass: &BackendRenderPass,
-        culling: &CullingModeType,
-        mode: &PolygonModeType,
-        src_color_blend_factor: &BlendFactor,
-        dst_color_blend_factor: &BlendFactor,
-        src_alpha_blend_factor: &BlendFactor,
-        dst_alpha_blend_factor: &BlendFactor,
+        data: &PipelineData,
     ) -> &mut Self {
         self.create_descriptor_set_layout(device)
             .create_data_buffer(device, physical_device)
@@ -202,8 +197,8 @@ impl BackendPipeline {
             flags: 0,
             depthClampEnable: VK_TRUE,
             rasterizerDiscardEnable: VK_FALSE,
-            polygonMode: (*mode).into(),
-            cullMode: (*culling).into(),
+            polygonMode: data.mode.into(),
+            cullMode: data.culling.into(),
             frontFace: VkFrontFace_VK_FRONT_FACE_COUNTER_CLOCKWISE,
             depthBiasEnable: VK_FALSE,
             depthBiasConstantFactor: 0.0,
@@ -251,11 +246,11 @@ impl BackendPipeline {
 
         let color_blend_attachment = VkPipelineColorBlendAttachmentState {
             blendEnable: VK_TRUE,
-            srcColorBlendFactor: (*src_color_blend_factor).into(),
-            dstColorBlendFactor: (*dst_color_blend_factor).into(),
+            srcColorBlendFactor: data.src_color_blend_factor.into(),
+            dstColorBlendFactor: data.dst_color_blend_factor.into(),
             colorBlendOp: VkBlendOp_VK_BLEND_OP_ADD,
-            srcAlphaBlendFactor: (*src_alpha_blend_factor).into(),
-            dstAlphaBlendFactor: (*dst_alpha_blend_factor).into(),
+            srcAlphaBlendFactor: data.src_alpha_blend_factor.into(),
+            dstAlphaBlendFactor: data.dst_alpha_blend_factor.into(),
             alphaBlendOp: VkBlendOp_VK_BLEND_OP_ADD,
             colorWriteMask: (VkColorComponentFlagBits_VK_COLOR_COMPONENT_R_BIT
                 | VkColorComponentFlagBits_VK_COLOR_COMPONENT_G_BIT
@@ -504,7 +499,7 @@ impl BackendPipeline {
         instance_count: usize,
     ) {
         unsafe {
-            for i in 0..instance_count {
+            (0..instance_count).for_each(|i| {
                 if let Some(c) = instance_commands.iter().find(|c| c.mesh_index == i) {
                     if c.mesh_index == i {
                         let instance_data_ref = &instance_data[i];
@@ -535,7 +530,7 @@ impl BackendPipeline {
                         );
                     }
                 }
-            }
+            });
         }
     }
 
@@ -849,15 +844,15 @@ impl BackendPipeline {
             uniform_data[0].num_materials = material_data.len() as _;
         }
 
-        for i in 0..uniform_data[0].num_lights as usize {
+        (0..uniform_data[0].num_lights as usize).for_each(|i| {
             uniform_data[0].light_data[i] = light_data[i];
-        }
-        for i in 0..uniform_data[0].num_textures as usize {
+        });
+        (0..uniform_data[0].num_textures as usize).for_each(|i| {
             uniform_data[0].textures_data[i] = texture_data[i];
-        }
-        for i in 0..uniform_data[0].num_materials as usize {
+        });
+        (0..uniform_data[0].num_materials as usize).for_each(|i| {
             uniform_data[0].materials_data[i] = material_data[i];
-        }
+        });
 
         let mut buffer_memory = self.data_buffers_memory[image_index];
         copy_from_buffer(device, &mut buffer_memory, 0, &uniform_data);
@@ -916,14 +911,14 @@ impl BackendPipeline {
 
         let mut descriptor_write: Vec<VkWriteDescriptorSet> = Vec::new();
         let mut descriptors = Vec::new();
-        for i in 0..MAX_TEXTURE_ATLAS_COUNT {
+        (0..MAX_TEXTURE_ATLAS_COUNT).for_each(|i| {
             let index = if i < textures.len() && used_textures[i] {
                 i
             } else {
                 0
             };
             descriptors.push(textures[index].get_texture().get_descriptor());
-        }
+        });
         descriptor_write.push(VkWriteDescriptorSet {
             sType: VkStructureType_VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
             pNext: ::std::ptr::null_mut(),

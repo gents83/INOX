@@ -222,11 +222,11 @@ impl Material {
 
     pub fn create_uniform_material_data(&self) -> ShaderMaterialData {
         let mut textures_indices = [INVALID_INDEX; TextureType::Count as _];
-        for i in 0..TextureType::Count as usize {
+        (0..TextureType::Count as usize).for_each(|i| {
             if let Some(texture) = &self.textures[i] {
                 textures_indices[i] = texture.get().texture_index();
             }
-        }
+        });
         ShaderMaterialData {
             textures_indices,
             roughness_factor: self.roughness_factor,

@@ -14,9 +14,9 @@ pub enum TextureType {
     Count = 8,
 }
 
-impl Into<usize> for TextureType {
-    fn into(self) -> usize {
-        self as _
+impl From<TextureType> for usize {
+    fn from(val: TextureType) -> Self {
+        val as _
     }
 }
 impl From<usize> for TextureType {

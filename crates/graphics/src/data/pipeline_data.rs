@@ -1,8 +1,11 @@
 use std::path::PathBuf;
 
 use nrg_filesystem::convert_from_local_path;
+use nrg_math::Matrix4;
 use nrg_resources::DATA_FOLDER;
 use nrg_serialize::{Deserialize, Serialize};
+
+use crate::{LightData, ShaderMaterialData, ShaderTextureData, TextureAtlas};
 
 #[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
 #[serde(crate = "nrg_serialize")]
@@ -127,4 +130,16 @@ impl PipelineData {
             && self.tes_shader == other.tes_shader
             && self.geometry_shader == other.geometry_shader
     }
+}
+
+pub struct PipelineBindingData<'a> {
+    pub width: u32,
+    pub height: u32,
+    pub view: &'a Matrix4,
+    pub proj: &'a Matrix4,
+    pub textures: &'a [TextureAtlas],
+    pub used_textures: &'a [bool],
+    pub light_data: &'a [LightData],
+    pub texture_data: &'a [ShaderTextureData],
+    pub material_data: &'a [ShaderMaterialData],
 }

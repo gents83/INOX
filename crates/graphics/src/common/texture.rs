@@ -228,7 +228,6 @@ impl TextureHandler {
                         area: area.into(),
                         total_width: texture_atlas.get_texture().width() as _,
                         total_height: texture_atlas.get_texture().height() as _,
-                        ..Default::default()
                     };
                 }
             }
@@ -246,7 +245,6 @@ impl TextureHandler {
                         area: (&area).into(),
                         total_width: texture_atlas.get_texture().width() as _,
                         total_height: texture_atlas.get_texture().height() as _,
-                        ..Default::default()
                     });
                 }
             }

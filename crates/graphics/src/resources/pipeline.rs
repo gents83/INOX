@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use nrg_math::{matrix4_to_array, Matrix4};
+use nrg_math::matrix4_to_array;
 use nrg_messenger::MessengerRw;
 use nrg_profiler::debug_log;
 use nrg_resources::{DataTypeResource, ResourceId, SerializableResource, SharedDataRc};
@@ -9,9 +9,9 @@ use nrg_serialize::read_from_file;
 use crate::{
     api::backend::{self, BackendPhysicalDevice, BackendPipeline},
     utils::compute_color_from_id,
-    CommandBuffer, Device, DrawMode, GraphicsMesh, InstanceCommand, InstanceData, LightData, Mesh,
-    MeshCategoryId, MeshId, PipelineData, RenderPass, ShaderMaterialData, ShaderTextureData,
-    ShaderType, TextureAtlas, INVALID_INDEX,
+    CommandBuffer, Device, DrawMode, GraphicsMesh, InstanceCommand, InstanceData, Mesh,
+    MeshBindingData, MeshCategoryId, MeshId, PipelineBindingData, PipelineData, RenderPass,
+    ShaderMaterialData, ShaderType, TextureAtlas, INVALID_INDEX,
 };
 
 pub type PipelineId = ResourceId;
@@ -132,17 +132,7 @@ impl Pipeline {
                 self.data.geometry_shader.as_path(),
             );
         }
-        backend_pipeline.build(
-            device,
-            physical_device,
-            &*render_pass,
-            &self.data.culling,
-            &self.data.mode,
-            &self.data.src_color_blend_factor,
-            &self.data.dst_color_blend_factor,
-            &self.data.src_alpha_blend_factor,
-            &self.data.dst_alpha_blend_factor,
-        );
+        backend_pipeline.build(device, physical_device, &*render_pass, &self.data);
         self.backend_pipeline = Some(backend_pipeline);
 
         self.is_initialized = true;
@@ -229,22 +219,25 @@ impl Pipeline {
         &mut self,
         device: &Device,
         command_buffer: &CommandBuffer,
-        width: u32,
-        height: u32,
-        view: &Matrix4,
-        proj: &Matrix4,
-        textures: &[TextureAtlas],
-        used_textures: &[bool],
-        light_data: &[LightData],
-        texture_data: &[ShaderTextureData],
-        material_data: &[ShaderMaterialData],
+        binding_data: PipelineBindingData,
     ) -> &mut Self {
         nrg_profiler::scoped_profile!("device::update_bindings");
         if let Some(backend_pipeline) = &mut self.backend_pipeline {
             backend_pipeline
-                .update_data_buffer(device, light_data, texture_data, material_data)
-                .update_constant_data(command_buffer, width, height, view, proj)
-                .update_descriptor_sets(device, textures, used_textures);
+                .update_data_buffer(
+                    device,
+                    binding_data.light_data,
+                    binding_data.texture_data,
+                    binding_data.material_data,
+                )
+                .update_constant_data(
+                    command_buffer,
+                    binding_data.width,
+                    binding_data.height,
+                    binding_data.view,
+                    binding_data.proj,
+                )
+                .update_descriptor_sets(device, binding_data.textures, binding_data.used_textures);
             self.last_binding_index =
                 backend_pipeline.bind_descriptors(device, command_buffer) as _;
         }
@@ -345,11 +338,13 @@ impl Pipeline {
         let mesh_data_ref = self.mesh.bind_at_index(
             device,
             physical_device,
-            *mesh.category_identifier(),
-            &mesh.mesh_data().vertices,
-            self.vertex_count,
-            &mesh.mesh_data().indices,
-            self.index_count,
+            MeshBindingData {
+                mesh_category_identifier: *mesh.category_identifier(),
+                vertices: &mesh.mesh_data().vertices,
+                first_vertex: self.vertex_count,
+                indices: &mesh.mesh_data().indices,
+                first_index: self.index_count,
+            },
         );
 
         self.vertex_count += mesh.mesh_data().vertices.len() as u32;

@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+use super::data_formats::VkImageBarrierData;
 use super::physical_device::BackendPhysicalDevice;
 use super::{types::*, BackendDevice};
 use crate::Area;
@@ -553,28 +554,20 @@ pub fn create_image(
 
 pub fn image_memory_barrier(
     command_buffer: VkCommandBuffer,
-    image: VkImage,
-    old_layout: VkImageLayout,
-    new_layout: VkImageLayout,
-    src_access_mask: VkAccessFlags,
-    dst_access_mask: VkAccessFlags,
-    src_stage_mask: VkPipelineStageFlags,
-    dst_stage_mask: VkPipelineStageFlags,
-    layer_index: u32,
-    layers_count: u32,
+    image_barrier_data: VkImageBarrierData,
 ) {
     let barrier = VkImageMemoryBarrier {
         sType: VkStructureType_VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
         pNext: ::std::ptr::null_mut(),
-        srcAccessMask: src_access_mask,
-        dstAccessMask: dst_access_mask,
-        oldLayout: old_layout,
-        newLayout: new_layout,
+        srcAccessMask: image_barrier_data.src_access_mask,
+        dstAccessMask: image_barrier_data.dst_access_mask,
+        oldLayout: image_barrier_data.old_layout,
+        newLayout: image_barrier_data.new_layout,
         srcQueueFamilyIndex: VK_QUEUE_FAMILY_IGNORED as _,
         dstQueueFamilyIndex: VK_QUEUE_FAMILY_IGNORED as _,
-        image,
+        image: image_barrier_data.image,
         subresourceRange: VkImageSubresourceRange {
-            aspectMask: if new_layout
+            aspectMask: if image_barrier_data.new_layout
                 == VkImageLayout_VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
             {
                 VkImageAspectFlagBits_VK_IMAGE_ASPECT_DEPTH_BIT as _
@@ -583,16 +576,16 @@ pub fn image_memory_barrier(
             },
             baseMipLevel: 0,
             levelCount: 1,
-            baseArrayLayer: layer_index,
-            layerCount: layers_count,
+            baseArrayLayer: image_barrier_data.layer_index,
+            layerCount: image_barrier_data.layers_count,
         },
     };
 
     unsafe {
         vkCmdPipelineBarrier.unwrap()(
             command_buffer,
-            src_stage_mask,
-            dst_stage_mask,
+            image_barrier_data.src_stage_mask,
+            image_barrier_data.dst_stage_mask,
             0,
             0,
             ::std::ptr::null_mut(),
@@ -639,15 +632,18 @@ pub fn copy_image_to_buffer(
     let command_buffer = begin_single_time_commands(device);
     image_memory_barrier(
         command_buffer,
-        image,
-        VkImageLayout_VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-        VkImageLayout_VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-        VkAccessFlagBits_VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT as _,
-        VkAccessFlagBits_VK_ACCESS_TRANSFER_READ_BIT as _,
-        VkPipelineStageFlagBits_VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT as _,
-        VkPipelineStageFlagBits_VK_PIPELINE_STAGE_TRANSFER_BIT as _,
-        layer_index,
-        layers_count,
+        VkImageBarrierData {
+            image,
+            old_layout: VkImageLayout_VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            new_layout: VkImageLayout_VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+            src_access_mask: VkAccessFlagBits_VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT as _,
+            dst_access_mask: VkAccessFlagBits_VK_ACCESS_TRANSFER_READ_BIT as _,
+            src_stage_mask: VkPipelineStageFlagBits_VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+                as _,
+            dst_stage_mask: VkPipelineStageFlagBits_VK_PIPELINE_STAGE_TRANSFER_BIT as _,
+            layer_index,
+            layers_count,
+        },
     );
 
     unsafe {
@@ -663,15 +659,17 @@ pub fn copy_image_to_buffer(
 
     image_memory_barrier(
         command_buffer,
-        image,
-        VkImageLayout_VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-        VkImageLayout_VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-        VkAccessFlagBits_VK_ACCESS_TRANSFER_READ_BIT as _,
-        VkAccessFlagBits_VK_ACCESS_SHADER_READ_BIT as _,
-        VkPipelineStageFlagBits_VK_PIPELINE_STAGE_TRANSFER_BIT as _,
-        VkPipelineStageFlagBits_VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT as _,
-        layer_index,
-        layers_count,
+        VkImageBarrierData {
+            image,
+            old_layout: VkImageLayout_VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+            new_layout: VkImageLayout_VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            src_access_mask: VkAccessFlagBits_VK_ACCESS_TRANSFER_READ_BIT as _,
+            dst_access_mask: VkAccessFlagBits_VK_ACCESS_SHADER_READ_BIT as _,
+            src_stage_mask: VkPipelineStageFlagBits_VK_PIPELINE_STAGE_TRANSFER_BIT as _,
+            dst_stage_mask: VkPipelineStageFlagBits_VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT as _,
+            layer_index,
+            layers_count,
+        },
     );
     end_single_time_commands(device, command_buffer, device.get_transfers_queue());
 }
@@ -709,15 +707,17 @@ pub fn copy_buffer_to_image(
     let command_buffer = begin_single_time_commands(device);
     image_memory_barrier(
         command_buffer,
-        image,
-        VkImageLayout_VK_IMAGE_LAYOUT_UNDEFINED,
-        VkImageLayout_VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-        0,
-        VkAccessFlagBits_VK_ACCESS_TRANSFER_WRITE_BIT as _,
-        VkPipelineStageFlagBits_VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT as _,
-        VkPipelineStageFlagBits_VK_PIPELINE_STAGE_TRANSFER_BIT as _,
-        layer_index,
-        layers_count,
+        VkImageBarrierData {
+            image,
+            old_layout: VkImageLayout_VK_IMAGE_LAYOUT_UNDEFINED,
+            new_layout: VkImageLayout_VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            src_access_mask: 0,
+            dst_access_mask: VkAccessFlagBits_VK_ACCESS_TRANSFER_WRITE_BIT as _,
+            src_stage_mask: VkPipelineStageFlagBits_VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT as _,
+            dst_stage_mask: VkPipelineStageFlagBits_VK_PIPELINE_STAGE_TRANSFER_BIT as _,
+            layer_index,
+            layers_count,
+        },
     );
 
     unsafe {
@@ -733,15 +733,17 @@ pub fn copy_buffer_to_image(
 
     image_memory_barrier(
         command_buffer,
-        image,
-        VkImageLayout_VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-        VkImageLayout_VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-        VkAccessFlagBits_VK_ACCESS_TRANSFER_WRITE_BIT as _,
-        VkAccessFlagBits_VK_ACCESS_SHADER_READ_BIT as _,
-        VkPipelineStageFlagBits_VK_PIPELINE_STAGE_TRANSFER_BIT as _,
-        VkPipelineStageFlagBits_VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT as _,
-        layer_index,
-        layers_count,
+        VkImageBarrierData {
+            image,
+            old_layout: VkImageLayout_VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            new_layout: VkImageLayout_VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            src_access_mask: VkAccessFlagBits_VK_ACCESS_TRANSFER_WRITE_BIT as _,
+            dst_access_mask: VkAccessFlagBits_VK_ACCESS_SHADER_READ_BIT as _,
+            src_stage_mask: VkPipelineStageFlagBits_VK_PIPELINE_STAGE_TRANSFER_BIT as _,
+            dst_stage_mask: VkPipelineStageFlagBits_VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT as _,
+            layer_index,
+            layers_count,
+        },
     );
     end_single_time_commands(device, command_buffer, device.get_transfers_queue());
 }

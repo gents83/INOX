@@ -18,6 +18,14 @@ impl MeshCategoryId {
     }
 }
 
+pub struct MeshBindingData<'a> {
+    pub mesh_category_identifier: MeshCategoryId,
+    pub vertices: &'a [VertexData],
+    pub first_vertex: u32,
+    pub indices: &'a [u32],
+    pub first_index: u32,
+}
+
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 #[serde(crate = "nrg_serialize")]
 pub struct MeshData {

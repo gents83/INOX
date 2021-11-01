@@ -149,9 +149,9 @@ impl InstanceData {
     }
 }
 
-impl Into<VkPolygonMode> for PolygonModeType {
-    fn into(self) -> VkPolygonMode {
-        match self {
+impl From<PolygonModeType> for VkPolygonMode {
+    fn from(val: PolygonModeType) -> Self {
+        match val {
             PolygonModeType::Line => VkPolygonMode_VK_POLYGON_MODE_LINE,
             PolygonModeType::Point => VkPolygonMode_VK_POLYGON_MODE_POINT,
             _ => VkPolygonMode_VK_POLYGON_MODE_FILL,
@@ -159,9 +159,9 @@ impl Into<VkPolygonMode> for PolygonModeType {
     }
 }
 
-impl Into<VkCullModeFlags> for CullingModeType {
-    fn into(self) -> VkCullModeFlags {
-        match self {
+impl From<CullingModeType> for VkCullModeFlags {
+    fn from(val: CullingModeType) -> Self {
+        match val {
             CullingModeType::Back => VkCullModeFlagBits_VK_CULL_MODE_BACK_BIT as VkCullModeFlags,
             CullingModeType::Front => VkCullModeFlagBits_VK_CULL_MODE_FRONT_BIT as VkCullModeFlags,
             CullingModeType::Both => {
@@ -172,9 +172,9 @@ impl Into<VkCullModeFlags> for CullingModeType {
     }
 }
 
-impl Into<VkBlendFactor> for BlendFactor {
-    fn into(self) -> VkBlendFactor {
-        match self {
+impl From<BlendFactor> for VkBlendFactor {
+    fn from(val: BlendFactor) -> Self {
+        match val {
             BlendFactor::Zero => VkBlendFactor_VK_BLEND_FACTOR_ZERO,
             BlendFactor::One => VkBlendFactor_VK_BLEND_FACTOR_ONE,
             BlendFactor::SrcColor => VkBlendFactor_VK_BLEND_FACTOR_ONE,
@@ -196,4 +196,16 @@ impl Into<VkBlendFactor> for BlendFactor {
             BlendFactor::SrcAlphaSaturate => VkBlendFactor_VK_BLEND_FACTOR_SRC_ALPHA_SATURATE,
         }
     }
+}
+
+pub struct VkImageBarrierData {
+    pub image: VkImage,
+    pub old_layout: VkImageLayout,
+    pub new_layout: VkImageLayout,
+    pub src_access_mask: VkAccessFlags,
+    pub dst_access_mask: VkAccessFlags,
+    pub src_stage_mask: VkPipelineStageFlags,
+    pub dst_stage_mask: VkPipelineStageFlags,
+    pub layer_index: u32,
+    pub layers_count: u32,
 }
