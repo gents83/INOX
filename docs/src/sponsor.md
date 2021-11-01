@@ -1,9 +1,7 @@
 # Sponsor
 
 
-<iframe src="https://avatars.githubusercontent.com/u/62186646?s=160&v=4" title="gents83" height="80" width="80" style="border: 0;"></iframe>
-
-I'm Mauro Gentile aka GENTS.
+I'm Mauro Gentile aka **GENTS**.
 
 I work in videogame industry since a long time and on several differenti projects but in September 2020 I decided in my spare time to learn Rust programming language and quickly I become a real rustucean.
 I decided to use Rust and I also wanted to use all my personal knowledge to write a new Game Engine from scratch in Rust on my own (but contributions could be an option to consider)
