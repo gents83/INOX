@@ -32,29 +32,23 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
+          components: rustfmt, clippy
 
       - name: Run cargo update
         run: cargo update --manifest-path ./crates/Cargo.toml
 
-      - name: Run cargo fmt check
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --manifest-path ./crates/Cargo.toml --check --all
-          
-      - name: Run cargo clippy fix
-        uses: actions-rs/cargo@v1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          command: clippy
-          args: --manifest-path ./crates/Cargo.toml --no-deps --fix --allow-dirty
+      #- name: Run cargo fmt check
+      # uses: actions-rs/cargo@v1
+      # with:
+      #   command: fmt
+      #   args: --manifest-path ./crates/Cargo.toml --no-deps -- --check
           
       - name: Run cargo clippy check
-        uses: actions-rs/cargo@v1
+        run: cargo clippy --manifest-path ./crates/Cargo.toml --no-deps -- -D warnings
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           command: clippy
-          args: --manifest-path ./crates/Cargo.toml --no-deps -D warnings
+          args: --manifest-path ./crates/Cargo.toml --no-deps -- -D warnings
 
       - name: Run cargo build workspace
         uses: actions-rs/cargo@v1
