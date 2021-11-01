@@ -52,6 +52,16 @@ jobs:
           override: true
           components: rustfmt, clippy
 
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            ./crates/target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
       - name: Run cargo update
         run: cargo update --manifest-path ./crates/Cargo.toml
 
@@ -82,3 +92,19 @@ jobs:
         with:
           command: build 
           args: --manifest-path ./crates/Cargo.toml --release
+
+  deploy:
+    name: "Deploy for OS: ${{ matrix.os }}"
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os:
+          - windows-latest
+          #- macOS-latest
+          #- ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: LuisEnMarroquin/gh-pages-publish@v2.4.4
+      with:
+        FOLDER: release/${{ matrix.os }}
+        SSHKEY: ${{ secrets.SSH }}
