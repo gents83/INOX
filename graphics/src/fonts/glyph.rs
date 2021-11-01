@@ -1,6 +1,6 @@
 use nrg_math::{Vector2, Vector4};
 use nrg_serialize::{Deserialize, Serialize};
-use ttf_parser::{Face, GlyphId, TableName};
+use ttf_parser::{Face, GlyphId};
 
 use crate::fonts::geometry::Geometry;
 
@@ -104,8 +104,8 @@ impl Glyph {
         face.outline_glyph(glyph_id, &mut geometry);
         let lines = geometry.get_lines().clone();
 
-        let is_upside_down =
-            face.has_table(TableName::GlyphVariations) || face.has_table(TableName::GlyphData);
+        let is_upside_down = false;
+        //face.has_table(TableName::GlyphVariations) || face.has_table(TableName::GlyphData);
 
         Self {
             id,

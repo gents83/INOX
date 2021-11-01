@@ -86,8 +86,7 @@ impl Font {
         &self.texture
     }
     pub fn glyph_texture_coord(&self, c: char) -> Vector4 {
-        let index = self.font_data.get_glyph_index(c);
-        let texture_coord = self.font_data.get_glyph(index).texture_coord;
+        let texture_coord = self.font_data.get_glyph(c as _).texture_coord;
         texture_coord
     }
 }

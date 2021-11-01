@@ -2,7 +2,7 @@ use image::*;
 use nrg_math::{Vector2, Vector4};
 use nrg_platform::DEFAULT_DPI;
 use nrg_serialize::{Deserialize, Serialize};
-use std::{collections::HashMap, num::NonZeroU16, path::Path};
+use std::path::Path;
 use ttf_parser::*;
 
 use crate::{Glyph, MeshData, Metrics};
@@ -17,7 +17,6 @@ pub const FONT_PT_TO_PIXEL: f32 = DEFAULT_DPI / (72. * 2048.);
 pub struct FontData {
     metrics: Metrics,
     glyphs: Vec<Glyph>,
-    char_to_glyph: HashMap<u32, NonZeroU16>,
 }
 
 #[derive(Clone)]
@@ -34,7 +33,6 @@ impl Default for FontData {
         Self {
             metrics: Metrics::default(),
             glyphs: Vec::new(),
-            char_to_glyph: HashMap::new(),
         }
     }
 }
@@ -69,11 +67,6 @@ impl FontData {
     }
 
     #[inline]
-    pub fn get_glyph_index(&self, character: char) -> usize {
-        FontData::get_glyph_index_from_map(&self.char_to_glyph, character)
-    }
-
-    #[inline]
     pub fn get_glyph(&self, index: usize) -> &Glyph {
         if index >= self.glyphs.len() {
             &self.glyphs[0]
@@ -92,8 +85,7 @@ impl FontData {
         let spacing_y = FONT_PT_TO_PIXEL * text_data.spacing.y;
 
         for (i, c) in text_data.text.as_bytes().iter().enumerate() {
-            let id = self.get_glyph_index(*c as _);
-            let g = &self.glyphs[id];
+            let g = &self.glyphs[*c as usize];
             mesh_data.add_quad(
                 Vector4::new(prev_pos.x, prev_pos.y, prev_pos.x + size, prev_pos.y + size),
                 0.0,
@@ -119,19 +111,7 @@ impl FontData {
         let font_data = ::std::fs::read(filepath).unwrap();
 
         let face = Face::from_slice(font_data.as_slice(), 0).unwrap();
-        // Collect all the unique codepoint to glyph mappings.
-        let mut char_to_glyph = HashMap::new();
-        for subtable in face.character_mapping_subtables() {
-            subtable.codepoints(|codepoint| {
-                let mapping = match subtable.glyph_index(codepoint) {
-                    Some(id) => id.0,
-                    None => 0,
-                };
-                // Zero is a valid value for missing glyphs, so even if a mapping is zero, the
-                // result is desireable.
-                char_to_glyph.insert(codepoint, unsafe { NonZeroU16::new_unchecked(mapping) });
-            });
-        }
+
         let mut max_glyph_metrics = Metrics::default();
         for character in 0..DEFAULT_FONT_COUNT {
             let metrics = Glyph::compute_metrics(character as _, &face);
@@ -140,13 +120,16 @@ impl FontData {
 
         let mut glyphs: Vec<Glyph> = Vec::new();
         for character in 0..DEFAULT_FONT_COUNT {
-            glyphs.push(Glyph::create(character as _, &face, &max_glyph_metrics));
+            glyphs.push(Glyph::create(
+                face.glyph_index(character as _).unwrap_or_default().0,
+                &face,
+                &max_glyph_metrics,
+            ));
         }
 
         Self {
             metrics: max_glyph_metrics,
             glyphs,
-            char_to_glyph,
         }
     }
 
@@ -196,17 +179,5 @@ impl FontData {
         }
 
         image.to_rgba8()
-    }
-
-    #[inline]
-    fn get_glyph_index_from_map(
-        char_to_glyph: &HashMap<u32, NonZeroU16>,
-        character: char,
-    ) -> usize {
-        unsafe {
-            ::std::mem::transmute::<Option<NonZeroU16>, u16>(
-                char_to_glyph.get(&(character as u32)).copied(),
-            ) as usize
-        }
     }
 }
