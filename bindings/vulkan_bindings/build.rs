@@ -24,7 +24,7 @@ fn main() {
         let out_dir = Path::new(&out_dir)
             .join("..\\..\\..\\..\\..\\")
             .join("extern")
-            .join("Vulkan-Headers")
+            .join("Vulkan-Docs")
             .canonicalize()
             .unwrap();
         out_dir.as_os_str().to_str().unwrap().to_string()
