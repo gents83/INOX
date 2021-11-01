@@ -17,29 +17,40 @@ fn main() {
     let out_dir = env::var("OUT_DIR").unwrap();
     let dest_path = Path::new(&out_dir).join("bindings.rs");
 
-    let out_dir = Path::new(&out_dir)
-        .join("..\\..\\..\\..\\..\\")
+    let project_dir = Path::new(&out_dir).join("..\\..\\..\\..\\..\\");
+    let extern_vulkan_header = project_dir
         .join("extern")
         .join("Vulkan-Headers")
-        .canonicalize()
-        .unwrap();
-    let vulkan_sdk_path = out_dir.as_os_str().to_str().unwrap().to_string();
+        .as_os_str()
+        .to_str()
+        .unwrap()
+        .to_string();
+    let extern_vulkan_docs = project_dir
+        .join("extern")
+        .join("Vulkan-Docs")
+        .as_os_str()
+        .to_str()
+        .unwrap()
+        .to_string();
 
     if let Err(_) = env::var("VULKAN_SDK") {
-        println!("[ENVIROMENT SETTINGS ISSUE] Enviroment settings are not correct -> Setting VULKAN_SDK enviroment variable to {}", vulkan_sdk_path);
-        env::set_var("VULKAN_SDK", vulkan_sdk_path.as_str());
+        println!("[ENVIROMENT SETTINGS ISSUE] Enviroment settings are not correct -> Setting VULKAN_SDK enviroment variable to {}", extern_vulkan_header);
+        env::set_var("VULKAN_SDK", extern_vulkan_header.as_str());
     }
 
-    let mut vulkan_header_path = vulkan_sdk_path.clone();
-    vulkan_header_path.push_str("\\include\\vulkan\\");
+    let mut vulkan_header_path = extern_vulkan_header.clone();
+    vulkan_header_path.push_str("\\include\\vulkan");
     let mut vulkan_header = vulkan_header_path.clone();
-    vulkan_header.push_str("vulkan.h");
+    vulkan_header.push_str("\\vulkan.h");
+
+    println!("cargo:rerun-if-changed={}", vulkan_header);
 
     let vulkan_plaftorm;
 
     let mut builder = bindgen::Builder::default()
-        .header(vulkan_header)
+        .clang_arg("-v")
         .clang_arg(format!("-I/{}", vulkan_header_path))
+        .header(vulkan_header)
         .rustfmt_bindings(true)
         .rust_target(RustTarget::Nightly)
         .derive_debug(false)
@@ -94,7 +105,7 @@ fn main() {
 
     let mut f = OpenOptions::new().append(true).open(dest_path).unwrap();
 
-    let mut vulkan_xml = vulkan_sdk_path;
+    let mut vulkan_xml = extern_vulkan_docs;
     vulkan_xml.push_str("\\xml\\vk.xml");
     let file = File::open(vulkan_xml).unwrap();
     let file = BufReader::new(file);
