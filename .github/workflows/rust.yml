@@ -54,7 +54,7 @@ jobs:
           command: clippy
           args: --no-deps -D warnings
           env:
-            VULKAN_SDK: https://raw.githubusercontent.com/KhronosGroup/Vulkan-Headers/main
+            VULKAN_SDK: ./extern/Vulkan-Headers
 
       - name: Run cargo build workspace
         uses: actions-rs/cargo@v1
@@ -62,4 +62,4 @@ jobs:
           command: build 
           args: -v --workspace --release
           env:
-            VULKAN_SDK: https://raw.githubusercontent.com/KhronosGroup/Vulkan-Headers/main
+            VULKAN_SDK: ./extern/Vulkan-Headers
