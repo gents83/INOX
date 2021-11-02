@@ -188,19 +188,16 @@ impl ViewerSystem {
                 self.handle_mouse_event(event);
             } else if msg.type_id() == TypeId::of::<WindowEvent>() {
                 let event = msg.as_any().downcast_ref::<WindowEvent>().unwrap();
-                match event {
-                    WindowEvent::SizeChanged(width, height) => {
-                        self.shared_data.for_each_resource_mut(|_, c: &mut Camera| {
-                            c.set_projection(
-                                c.fov_in_degrees(),
-                                *width as _,
-                                *height as _,
-                                c.near_plane(),
-                                c.far_plane(),
-                            );
-                        });
-                    }
-                    _ => {}
+                if let WindowEvent::SizeChanged(width, height) = event {
+                    self.shared_data.for_each_resource_mut(|_, c: &mut Camera| {
+                        c.set_projection(
+                            c.fov_in_degrees(),
+                            *width as _,
+                            *height as _,
+                            c.near_plane(),
+                            c.far_plane(),
+                        );
+                    });
                 }
             }
         });

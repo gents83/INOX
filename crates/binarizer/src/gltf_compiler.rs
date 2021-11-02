@@ -288,22 +288,20 @@ impl GltfCompiler {
         Self::create_file(path, &mesh_data, mesh_name, MESH_DATA_EXTENSION)
     }
     fn process_texture(&mut self, path: &Path, texture: Texture) -> PathBuf {
-        match texture.source().source() {
-            ImageSource::Uri {
-                uri,
-                mime_type: _, /* fields */
-            } => {
-                if let Some(parent_folder) = path.parent() {
-                    let parent_path = parent_folder.to_str().unwrap().to_string();
-                    let filepath = PathBuf::from(parent_path).join(uri);
-                    let path = convert_in_local_path(
-                        filepath.as_path(),
-                        PathBuf::from(DATA_RAW_FOLDER).as_path(),
-                    );
-                    return path;
-                }
+        if let ImageSource::Uri {
+            uri,
+            mime_type: _, /* fields */
+        } = texture.source().source()
+        {
+            if let Some(parent_folder) = path.parent() {
+                let parent_path = parent_folder.to_str().unwrap().to_string();
+                let filepath = PathBuf::from(parent_path).join(uri);
+                let path = convert_in_local_path(
+                    filepath.as_path(),
+                    PathBuf::from(DATA_RAW_FOLDER).as_path(),
+                );
+                return path;
             }
-            _ => {}
         }
         PathBuf::new()
     }
@@ -485,10 +483,12 @@ impl GltfCompiler {
     }
 
     fn process_light(&mut self, path: &Path, light: &Light) -> (NodeType, PathBuf) {
-        let mut light_data = LightData::default();
-        light_data.color = [light.color()[0], light.color()[1], light.color()[2], 1.];
-        light_data.intensity = light.intensity();
-        light_data.range = light.range().unwrap_or(1.);
+        let mut light_data = LightData {
+            color: [light.color()[0], light.color()[1], light.color()[2], 1.],
+            intensity: light.intensity(),
+            range: light.range().unwrap_or(1.),
+            ..Default::default()
+        };
         match light.kind() {
             Kind::Directional => {
                 light_data.light_type = LightType::Directional as _;

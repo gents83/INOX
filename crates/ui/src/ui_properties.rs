@@ -283,12 +283,12 @@ impl UIProperties for Material {
                         .show(pipeline.id(), ui_registry, ui, true);
                 }
                 ui.collapsing(format!("Textures [{}]", self.textures().len()), |ui| {
-                    for t in self.textures() {
+                    self.textures().iter().for_each(|t| {
                         if let Some(t) = t {
                             let id = t.id();
                             t.get_mut().show(id, ui_registry, ui, collapsed);
                         }
-                    }
+                    });
                 });
                 ui.horizontal(|ui| {
                     ui.label("Base Color: ");

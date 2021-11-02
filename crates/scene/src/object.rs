@@ -118,8 +118,10 @@ impl DataTypeResource for Object {
         id: ObjectId,
         object_data: Self::DataType,
     ) -> Self {
-        let mut object = Self::default();
-        object.transform = object_data.transform;
+        let mut object = Self {
+            transform: object_data.transform,
+            ..Default::default()
+        };
 
         object_data.components.iter().for_each(|component_path| {
             let path = component_path.as_path();
