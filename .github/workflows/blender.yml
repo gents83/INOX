@@ -3,7 +3,7 @@ on:
   [push]
     
 jobs:
-  mdBook-deploy:
+  Blender-addon-deploy:
     runs-on: windows-latest
     concurrency:
       group: ${{ github.workflow }}-${{ github.ref }}
