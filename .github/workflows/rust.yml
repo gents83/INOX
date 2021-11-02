@@ -105,4 +105,4 @@ jobs:
           personal_token: ${{ secrets.PERSONAL_TOKEN }}
           publish_dir: ./crates/target/release/  # default: public
           destination_dir: release/${{ matrix.os }}
-          exclude_assets: '.cargo-lock,.d,.rlib,.lib,.fingerprint,build,deps,examples,in_use,incremental'
+          exclude_assets: '.cargo-lock,**.pdb,**.d,**.rlib,**.lib,.fingerprint,build,deps,examples,in_use,incremental'
