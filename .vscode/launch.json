@@ -52,7 +52,7 @@
             "args": [
                 "-plugin nrg_viewer",
                 "-load_file",
-                "C:\\PROJECTS\\NRG\\data\\blender_export\\TestScene\\TestScene.scene_data"
+                "./data/blender_export/TestScene/TestScene.scene_data"
             ],
             "cwd": "${workspaceFolder}",
             "stopAtEntry": false,

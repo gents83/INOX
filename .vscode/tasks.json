@@ -11,6 +11,7 @@
 		{
 			"label": "CHECK CRATES DEPENDENCIES",
 			"type": "shell",
+			"group": "build",
 			"isBackground": true,
 			"command": "cargo +nightly udeps --manifest-path ./crates/Cargo.toml --all-targets",
 			"presentation": {
