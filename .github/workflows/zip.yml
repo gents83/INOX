@@ -1,0 +1,22 @@
+name: Rust
+
+on:
+  push:
+    branches: [ gh-pages ]
+
+env:
+  CARGO_TERM_COLOR: always
+    
+jobs:
+  Blender-addon-deploy:
+    runs-on: windows-latest
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}
+    steps:
+      - uses: actions/checkout@v2
+      
+      - name: Install zip
+        uses: montudor/action-zip@v1
+
+      - name: Zip NRG
+        run: zip -qq -r NRG.zip NRG
