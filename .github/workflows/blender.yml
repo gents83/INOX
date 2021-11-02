@@ -16,7 +16,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           deploy_key: ${{ secrets.ACTIONS_DEPLOY_KEY }}
           personal_token: ${{ secrets.PERSONAL_TOKEN }}
-          publish_dir: ./crates/nrg_blender/NRG/  # default: public
+          publish_dir: ./crates/blender/nrg_blender/NRG/  # default: public
           destination_dir: NRG
 
       - name: "Copy nrg_viewer configs"
@@ -26,7 +26,7 @@ jobs:
           deploy_key: ${{ secrets.ACTIONS_DEPLOY_KEY }}
           personal_token: ${{ secrets.PERSONAL_TOKEN }}
           publish_dir: ./data_raw/config/nrg_viewer  # default: public
-          destination_dir: NRG/data_raw/config/nrg_viewer
+          destination_dir: NRG/bin/data_raw/config/nrg_viewer
 
       - name: "Copy pipelines"
         uses: peaceiris/actions-gh-pages@v3
@@ -35,7 +35,7 @@ jobs:
           deploy_key: ${{ secrets.ACTIONS_DEPLOY_KEY }}
           personal_token: ${{ secrets.PERSONAL_TOKEN }}
           publish_dir: ./data_raw/pipelines  # default: public
-          destination_dir: NRG/data_raw/pipelines
+          destination_dir: NRG/bin/data_raw/pipelines
 
       - name: "Copy nrg_viewer configs"
         uses: peaceiris/actions-gh-pages@v3
@@ -44,4 +44,4 @@ jobs:
           deploy_key: ${{ secrets.ACTIONS_DEPLOY_KEY }}
           personal_token: ${{ secrets.PERSONAL_TOKEN }}
           publish_dir: ./data_raw/shaders  # default: public
-          destination_dir: NRG/data_raw/shaders
+          destination_dir: NRG/bin/data_raw/shaders
