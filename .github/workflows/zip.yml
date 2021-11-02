@@ -1,4 +1,4 @@
-name: Rust
+name: Create Zip file
 
 on:
   push:
@@ -20,3 +20,13 @@ jobs:
 
       - name: Zip NRG
         run: zip -qq -r NRG.zip NRG
+
+      - name: Push <ip file
+        uses: dmnemec/copy_file_to_another_repo_action@main
+        env:
+          API_TOKEN_GITHUB: ${{ secrets.API_TOKEN_GITHUB }}
+        with:
+          source_file: 'NRG.zip'
+          destination_repo: 'gents83/gh-pages'
+          destination_folder: 'release'
+          commit_message: 'Commit Blender Add-on'
