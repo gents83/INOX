@@ -8,8 +8,8 @@ env:
   CARGO_TERM_COLOR: always
     
 jobs:
-  Blender-addon-deploy:
-    runs-on: windows-latest
+  Create Zip file:
+    runs-on: ubuntu-latest
     concurrency:
       group: ${{ github.workflow }}-${{ github.ref }}
     steps:
