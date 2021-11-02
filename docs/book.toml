@@ -1,9 +1,0 @@
-[book]
-authors = ["Mauro Gentile"]
-language = "en"
-multilingual = false
-src = "src"
-title = "NRG"
-
-[output.html]
-index = "index.html"
