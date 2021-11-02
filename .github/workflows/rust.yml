@@ -97,12 +97,13 @@ jobs:
       #- name: Detect unused dependencies with cargo-udeps
       #  run: cargo +nightly udeps --manifest-path ./crates/Cargo.toml --all-targets
 
-      - name: "Deploy for OS: ${{ matrix.os }}"
+      - name: "Deploy Binaries for OS: ${{ matrix.os }}"
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           deploy_key: ${{ secrets.ACTIONS_DEPLOY_KEY }}
           personal_token: ${{ secrets.PERSONAL_TOKEN }}
           publish_dir: ./crates/target/release/  # default: public
-          destination_dir: release/${{ matrix.os }}
+          destination_dir: NRG/bin
           exclude_assets: '.cargo-lock,**.pdb,**.d,**.rlib,**.lib,.fingerprint,build,deps,examples,in_use,incremental'
+      
