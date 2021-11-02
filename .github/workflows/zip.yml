@@ -23,7 +23,7 @@ jobs:
 
       - name: Push zip file
         uses: test-room-7/action-update-file@v1
-          with:
-              file-path: NRG.zip
-              commit-msg: Update NRG add-on for Blender
-              github-token: ${{ secrets.GITHUB_TOKEN }}
+        with:
+            file-path: NRG.zip
+            commit-msg: Update NRG add-on for Blender
+            github-token: ${{ secrets.GITHUB_TOKEN }}
