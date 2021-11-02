@@ -1,6 +1,8 @@
 name: Blender addon Deploy
+
 on:
-  [push]
+  push:
+    branches: [ master ]
     
 jobs:
   Blender-addon-deploy:

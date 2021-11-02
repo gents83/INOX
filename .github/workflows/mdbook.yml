@@ -1,6 +1,8 @@
 name: mdBook Build and Deploy
+
 on:
-  [push]
+  push:
+    branches: [ master ]
     
 jobs:
   mdBook-deploy:
