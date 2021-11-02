@@ -21,12 +21,13 @@ jobs:
       - name: Zip NRG
         run: zip -qq -r NRG.zip NRG
 
-      - name: Push <ip file
+      - name: Push zip file
         uses: dmnemec/copy_file_to_another_repo_action@main
         env:
           API_TOKEN_GITHUB: ${{ secrets.API_TOKEN_GITHUB }}
+          INPUT_DESTINATION_BRANCH: gh-pages
+          OUTPUT_BRANCH: gh-pages
         with:
           source_file: 'NRG.zip'
-          destination_repo: 'gents83/gh-pages'
           destination_folder: 'release'
           commit_message: 'Commit Blender Add-on'
