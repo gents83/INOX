@@ -106,4 +106,4 @@ jobs:
           publish_dir: ./crates/target/release/  # default: public
           destination_dir: NRG/bin
           exclude_assets: '.cargo-lock,**.pdb,**.d,**.rlib,**.lib,.fingerprint,build,deps,examples,in_use,incremental'
-      
+          keep_files: true
