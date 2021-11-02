@@ -84,17 +84,19 @@ jobs:
           command: build 
           args: --manifest-path ./crates/Cargo.toml --release
 
-      - name: Install cargo-udeps
-        uses: actions-rs/cargo@v1
-        with:
-          command: install
-          args: cargo-udeps
+      #- name: Install cargo-udeps
+      #  uses: actions-rs/cargo@v1
+      #  with:
+      #    command: install
+      #    args: cargo-udeps
 
-      - name: Detect unused dependencies with cargo-udeps
-        run: cargo +nightly udeps --manifest-path ./crates/Cargo.toml --all-targets
+      #- name: Detect unused dependencies with cargo-udeps
+      #  run: cargo +nightly udeps --manifest-path ./crates/Cargo.toml --all-targets
 
       - name: "Deploy for OS: ${{ matrix.os }}"
-        uses: LuisEnMarroquin/gh-pages-publish@v2.4.4
+        uses: peaceiris/actions-gh-pages@v3
         with:
-          FOLDER: release/${{ matrix.os }}
-          SSHKEY: ${{ secrets.SSH }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./crates/target/release/  # default: public
+          destination_dir: release/${{ matrix.os }}
+          exclude_assets: '.cargo-lock,.d,.rlib,.lib,.fingerprint/**.*,build/**.*,deps/**.*,build/**.*,examples/**.*,in_use/**.*,incremental/**.*'

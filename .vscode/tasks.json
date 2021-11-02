@@ -9,6 +9,16 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
+			"label": "CHECK CRATES DEPENDENCIES",
+			"type": "shell",
+			"isBackground": true,
+			"command": "cargo +nightly udeps --manifest-path ./crates/Cargo.toml --all-targets",
+			"presentation": {
+				"clear": true,
+				"reveal": "silent", //process does not switch terminal (focus on program output)
+			}
+		},
+		{
 			"label": "RUN CLIPPY",
 			"group": "build",
 			"isBackground": true,
