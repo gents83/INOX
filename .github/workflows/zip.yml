@@ -8,7 +8,7 @@ env:
   CARGO_TERM_COLOR: always
     
 jobs:
-  Create Zip file:
+  Create-zip-file:
     runs-on: ubuntu-latest
     concurrency:
       group: ${{ github.workflow }}-${{ github.ref }}
