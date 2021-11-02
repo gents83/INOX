@@ -25,5 +25,6 @@ jobs:
         uses: test-room-7/action-update-file@v1
         with:
             file-path: NRG.zip
+            branch: gh-pages
             commit-msg: Update NRG add-on for Blender
             github-token: ${{ secrets.GITHUB_TOKEN }}
