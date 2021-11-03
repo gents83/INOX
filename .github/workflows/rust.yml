@@ -106,8 +106,6 @@ jobs:
       - name: "Deploy Binaries for OS: ${{ matrix.os }}"
         uses: peaceiris/actions-gh-pages@v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          deploy_key: ${{ secrets.ACTIONS_DEPLOY_KEY }}
           personal_token: ${{ secrets.PERSONAL_TOKEN }}
           publish_dir: ./crates/target/release/  # default: public
           destination_dir: NRG/bin
