@@ -27,6 +27,7 @@ fn execute(_py: Python, executable_path: &str, file_to_load: &str) -> PyResult<S
     if current_dir.ends_with("release") || current_dir.ends_with("debug") {
         current_dir.pop();
         current_dir.pop();
+        current_dir.pop();
     }
     output_string += format!("Current Dir = {:?}\n", current_dir.as_path()).as_str();
 

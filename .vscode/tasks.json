@@ -67,10 +67,10 @@
 			},
 		},
 		{
-			"label": "RENAME BLENDER DEBUG DLL",
+			"label": "COPY AND RENAME BLENDER DEBUG DLL IN ADDON FOLDER",
 			"type": "shell",
 			"isBackground": true,
-			"command": "Copy-Item -Path ${workspaceFolder}\\crates\\target\\debug\\nrg_blender.dll -Destination ${workspaceFolder}\\crates\\target\\debug\\nrg_blender.pyd -Force",
+			"command": "Copy-Item -Path ${workspaceFolder}\\crates\\target\\debug\\nrg_blender.dll -Destination ${env:BLENDER_ADDONS_PATH}\\NRG\\nrg_blender.pyd -Force",
 			"presentation": {
 				"clear": true,
 				"reveal": "never", //process does not switch terminal (focus on program output)
@@ -81,7 +81,7 @@
 			"group": "build",
 			"type": "shell",
 			"dependsOn": [
-				"RENAME BLENDER DEBUG DLL",
+				"COPY AND RENAME BLENDER DEBUG DLL IN ADDON FOLDER",
 			],
 			"isBackground": true,
 			"command": "Copy-Item -Path ${workspaceFolder}\\crates\\blender\\nrg_blender\\NRG -Destination ${env:BLENDER_ADDONS_PATH} -Force -Recurse",

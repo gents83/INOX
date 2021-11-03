@@ -4,8 +4,8 @@ from glob import glob
 from os.path import join, exists
 from os import chmod, mkdir
 from pathlib import Path
-from . import nrg_blender
 
+from NRG import nrg_blender
 
 blender_classes = []
 
@@ -34,7 +34,7 @@ class NRGRun(bpy.types.Operator):
         path = Path(preferences.exe_path).absolute()
         last_part = path.parts[-1]
         if last_part.endswith('debug') or last_part.endswith('release'):
-            path = path.parent.absolute().parent.absolute()
+            path = path.parent.absolute().parent.absolute().parent.absolute()
 
         filename = Path(bpy.data.filepath).absolute().parts[-1]
 
