@@ -97,6 +97,11 @@ jobs:
       #- name: Detect unused dependencies with cargo-udeps
       #  run: cargo +nightly udeps --manifest-path ./crates/Cargo.toml --all-targets
 
+  deploy:
+    name: "Deploy on Github Pages"
+    runs-on: ubuntu-latest
+    
+    steps:
       - name: "Copy dll into pyd"
         uses: andstor/copycat-action@v3
         with:
