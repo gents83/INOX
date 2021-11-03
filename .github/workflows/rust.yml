@@ -97,11 +97,11 @@ jobs:
       #- name: Detect unused dependencies with cargo-udeps
       #  run: cargo +nightly udeps --manifest-path ./crates/Cargo.toml --all-targets
 
-      - name: Rename nrg_blender.dll into nrg_blender.pyd
-      uses: canastro/copy-file-action@master
-      with:
-        source: "./crates/target/release/nrg_blender.dll"
-        target: "./crates/target/release/nrg_blender.pyd"
+      - name: Rename dll into pyd
+        uses: canastro/copy-file-action@master
+        with:
+          source: "./crates/target/release/nrg_blender.dll"
+          target: "./crates/target/release/nrg_blender.pyd"
 
       - name: "Deploy Binaries for OS: ${{ matrix.os }}"
         uses: peaceiris/actions-gh-pages@v3
