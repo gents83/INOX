@@ -96,27 +96,3 @@ jobs:
 
       #- name: Detect unused dependencies with cargo-udeps
       #  run: cargo +nightly udeps --manifest-path ./crates/Cargo.toml --all-targets
-
-  deploy:
-    name: "Deploy on Github Pages"
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: "Copy dll into pyd"
-        uses: andstor/copycat-action@v3
-        with:
-          personal_token: ${{ secrets.PERSONAL_TOKEN }}
-          src_path: crates/target/release/nrg_blender.dll
-          dst_path: NRG/nrg_blender.pyd
-          dst_owner: gents83
-          dst_repo_name: NRG
-          dst_branch: gh-pages
-
-      - name: "Deploy Binaries for OS: ${{ matrix.os }}"
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          personal_token: ${{ secrets.PERSONAL_TOKEN }}
-          publish_dir: ./crates/target/release/  # default: public
-          destination_dir: NRG/bin
-          exclude_assets: '.cargo-lock,**.pdb,**.d,**.rlib,**.lib,.fingerprint,build,deps,examples,in_use,incremental'
-          keep_files: true
