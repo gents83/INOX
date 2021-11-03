@@ -97,11 +97,15 @@ jobs:
       #- name: Detect unused dependencies with cargo-udeps
       #  run: cargo +nightly udeps --manifest-path ./crates/Cargo.toml --all-targets
 
-      - name: Rename dll into pyd
-        uses: canastro/copy-file-action@master
+      - name: "Copy dll into pyd"
+        uses: andstor/copycat-action@v3
         with:
-          source: "./crates/target/release/nrg_blender.dll"
-          target: "./crates/target/release/nrg_blender.pyd"
+          personal_token: ${{ secrets.PERSONAL_TOKEN }}
+          src_path: crates/target/release/nrg_blender.dll
+          dst_path: NRG/nrg_blender.pyd
+          dst_owner: gents83
+          dst_repo_name: NRG
+          dst_branch: gh-pages
 
       - name: "Deploy Binaries for OS: ${{ matrix.os }}"
         uses: peaceiris/actions-gh-pages@v3
