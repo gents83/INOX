@@ -55,7 +55,8 @@ class NRGRun(bpy.types.Operator):
         filename = filename.replace('.gltf', '.scene_data')
 
         print("Running NRG Engine")
-        print(nrg_blender.execute(str(preferences.exe_path), str(filename)))
+        print(nrg_blender.execute(
+            str(preferences.exe_path), str(filename)))
 
         return {'FINISHED'}
 
