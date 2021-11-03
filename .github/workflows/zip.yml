@@ -2,8 +2,8 @@ name: Create Zip file
 
 on:
   workflow_run:
-    workflows: ["Rust"]
-    branches: [main]
+    workflows: ["Deploy"]
+    branches: [master]
     types:
       - completed
 
