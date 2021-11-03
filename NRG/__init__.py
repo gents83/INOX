@@ -1,15 +1,26 @@
 
 import bpy
-
 from glob import glob
 from os.path import dirname, join, isfile
 from os import chmod, add_dll_directory
 
 from . import *
 
-from . import panels
-from . import operators
+if "bpy" in locals():
+    import importlib
+    if "keymaps" in locals():
+        importlib.reload(keymaps)
+    if "node_tree" in locals():
+        importlib.reload(node_tree)
+    if "operators" in locals():
+        importlib.reload(operators)
+    if "panels" in locals():
+        importlib.reload(panels)
+
 from . import keymaps
+from . import node_tree
+from . import operators
+from . import panels
 
 bl_info = {
     "name": "NRG Engine",
@@ -34,7 +45,7 @@ class NRGAddonPreferences(bpy.types.AddonPreferences):
         name="NRG folder",
         description="Set folder where nrg_launcher.exe can be found",
         subtype="DIR_PATH",
-        default="C:/PROJECTS/NRG")
+        default="./bin/")
 
     def draw(self, context):
         layout = self.layout
@@ -60,16 +71,18 @@ def register():
         chmod(file_path, 0o755)
 
     keymaps.register()
+    node_tree.register()
     operators.register()
     panels.register()
 
 
 def unregister():
+    panels.unregister()
+    operators.unregister()
+    node_tree.unregister()
+    keymaps.unregister()
+
     # Unregister Blender Classes
     blender_classes.reverse()
     for blender_class in blender_classes:
         bpy.utils.unregister_class(blender_class)
-
-    keymaps.register()
-    panels.unregister()
-    operators.unregister()
