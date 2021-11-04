@@ -56,6 +56,17 @@
 			}
 		},
 		{
+			"label": "RUSTFMT CHECK",
+			"type": "shell",
+			"group": "build",
+			"isBackground": true,
+			"command": "cargo fmt --manifest-path ./crates/Cargo.toml -- --check",
+			"presentation": {
+				"clear": true,
+				"reveal": "silent", //process does not switch terminal (focus on program output)
+			}
+		},
+		{
 			"label": "BUILD BOOK",
 			"group": "build",
 			"type": "shell",

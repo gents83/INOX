@@ -12,14 +12,18 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      - name: Checkout repository and submodules
+      - name: "Checkout repository and submodules"
         uses: actions/checkout@v2
         with:
           submodules: recursive
-
-      - uses: actions/download-artifact@v2
-        with:
-          name: output-binaries
+      
+      - name: "Download artifact"
+          uses: dawidd6/action-download-artifact@v2
+          with:
+            workflow: rust.yml
+            workflow_conclusion: success
+            name: output-binaries
+            path: crates/target/release/
 
       - name: "Deploy Blender Plugin"
         uses: peaceiris/actions-gh-pages@v3
