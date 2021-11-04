@@ -28,6 +28,16 @@ jobs:
           name: output-binaries
           path: crates/target/release/
 
+      - name: "Copy and rename nrgblender dll into pyd"
+        run: |
+          find ./crates/target/release/ -type f -name "nrg_blender.dll" | while read fname; do
+            dirname=`dirname "$fname"`
+            foldername=`basename "$dirname"`
+            filename=`basename "$fname"`
+            newname=`echo "$dirname" | sed -e "s/ /_/g"`
+            cp "${dirname}/$filename" "./crates/blender/nrg_blender/NRG/nrg_blender.pyd"
+          done
+
       - name: "Deploy Blender Plugin"
         uses: peaceiris/actions-gh-pages@v3
         with:
@@ -55,16 +65,6 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./data_raw/shaders  # default: public
           destination_dir: NRG/bin/data_raw/shaders
-
-      - name: "Copy dll into pyd"
-        uses: andstor/copycat-action@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          src_path: crates/target/release/nrg_blender.dll
-          dst_path: NRG/nrg_blender.pyd
-          dst_owner: gents83
-          dst_repo_name: NRG
-          dst_branch: gh-pages
 
       - name: "Deploy Binaries for OS: ${{ matrix.os }}"
         uses: peaceiris/actions-gh-pages@v3
