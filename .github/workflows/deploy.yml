@@ -79,8 +79,8 @@ jobs:
         uses: montudor/action-zip@v1
 
       - name: Zip NRG
-        run: zip -qq -r NRG.zip output/NRG/
-        working-directory: ./NRG/
+        run: zip -qq -r NRG.zip ./output/NRG/
+        working-directory: ./NRG
 
       - name: "Deploy zip on Github Pages"
         uses: peaceiris/actions-gh-pages@v3
