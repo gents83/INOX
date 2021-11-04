@@ -12,8 +12,8 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      - name: "Wait previous workflow run to be successful"
-        uses: ahmadnassri/action-workflow-run-wait@v1
+      #- name: "Wait previous workflow run to be successful"
+      #  uses: ahmadnassri/action-workflow-run-wait@v1
       
       - name: "Checkout repository and submodules"
         uses: actions/checkout@v2
