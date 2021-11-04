@@ -1,11 +1,14 @@
 name: "Rust"
 
 on:
-  workflow_run:
-    workflows: ["mdBook Build and Deploy"]
-    branches: [master]
-    types:
-      - completed
+  push:
+    branches: [ master ]
+    tags:
+      - 'v*.*.*'
+  pull_request:
+    branches: [ master ]
+    tags:
+      - 'v*.*.*'
     
 env:
   CARGO_TERM_COLOR: always

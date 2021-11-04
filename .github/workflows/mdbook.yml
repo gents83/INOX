@@ -1,14 +1,11 @@
-name: "mdBook Build and Deploy"
+name: "Deploy on Github Pages"
 
 on:
-  push:
-    branches: [ master ]
-    tags:
-      - 'v*.*.*'
-  pull_request:
-    branches: [ master ]
-    tags:
-      - 'v*.*.*'
+  workflow_run:
+    workflows: ["mdBook Build and Deploy"]
+    branches: [master]
+    types:
+      - completed
     
 jobs:
   mdBook-deploy:
