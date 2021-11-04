@@ -30,9 +30,7 @@ jobs:
         run: |
           find ./crates/target/release/ -type f -name "nrg_blender.dll" | while read fname; do
             dirname=`dirname "$fname"`
-            foldername=`basename "$dirname"`
             filename=`basename "$fname"`
-            newname=`echo "$dirname" | sed -e "s/ /_/g"`
             cp "${dirname}/$filename" "./crates/blender/nrg_blender/NRG/nrg_blender.pyd"
           done
       
@@ -62,11 +60,19 @@ jobs:
 
       - name: "Copy dlls in NRG"
         run: |
-          cp "./crates/target/release/*.exe" "./output/NRG/bin/"
+          find ./crates/target/release/ -type f -name *.dll | while read fname; do
+            dirname=`dirname "$fname"`
+            filename=`basename "$fname"`
+            cp "${dirname}/$filename" "./output/NRG/bin/$filename"
+          done
           
       - name: "Copy exes in NRG"
         run: |
-          cp "./crates/target/release/*.dll" "./output/NRG/bin/"
+          find ./crates/target/release/ -type f -name *.exe | while read fname; do
+            dirname=`dirname "$fname"`
+            filename=`basename "$fname"`
+            cp "${dirname}/$filename" "./output/NRG/bin/$filename"
+          done
           
       - name: Install zip
         uses: montudor/action-zip@v1
