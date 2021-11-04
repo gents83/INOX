@@ -60,7 +60,7 @@
 			"type": "shell",
 			"group": "build",
 			"isBackground": true,
-			"command": "cargo fmt --manifest-path ./crates/Cargo.toml -- --check",
+			"command": "cargo fmt --manifest-path ./crates/Cargo.toml --all -- --check",
 			"presentation": {
 				"clear": true,
 				"reveal": "silent", //process does not switch terminal (focus on program output)

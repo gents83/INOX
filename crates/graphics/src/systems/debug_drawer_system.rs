@@ -231,9 +231,7 @@ impl DebugDrawerSystem {
                 }
             }
         });
-        self.mesh_instance
-            .get_mut()
-            .set_mesh_data(mesh_data);
+        self.mesh_instance.get_mut().set_mesh_data(mesh_data);
         self.wireframe_mesh_instance
             .get_mut()
             .set_mesh_data(wireframe_mesh_data);
