@@ -1,6 +1,8 @@
 import nodeitems_utils
 import bpy
 
+blender_classes = []
+
 
 class LogicNodeTree(bpy.types.NodeTree):
     '''A Logic node tree type'''
@@ -57,24 +59,37 @@ node_categories = [
         #   NOTE: use 'repr()' to convert the value to string IMPORTANT
         nodeitems_utils.NodeItem("LogicSimpleInputNode",
                                  label="Simple Input Node", settings={"integer_value": repr(1.0)}),
-        nodeitems_utils.NodeItem("LogicSimpleInputNode"),
     ]),
 ]
 
 
-classes = (
-    LogicNodeTree,
-    LogicSimpleInputNode,
-)
+class OpenInLogicEditor(bpy.types.Operator):
+    bl_idname = "nrg.open_in_logic_editor"
+    bl_label = "Open Logic Editor"
+
+    def execute(self, context):
+        for area in bpy.context.screen.areas:
+            if area.type == 'VIEW_3D':
+                area.type = 'NODE_EDITOR'
+                area.spaces.active.node_tree = context.object.nrg_properties.logic
+        return {'FINISHED'}
+
+
+blender_classes.append(LogicNodeTree)
+blender_classes.append(LogicSimpleInputNode)
+
+blender_classes.append(OpenInLogicEditor)
 
 
 def register():
-    for cls in classes:
+    for cls in blender_classes:
         bpy.utils.register_class(cls)
+
     nodeitems_utils.register_node_categories("LOGIC_NODES", node_categories)
 
 
 def unregister():
     nodeitems_utils.unregister_node_categories("LOGIC_NODES")
-    for cls in classes:
+
+    for cls in blender_classes:
         bpy.utils.unregister_class(cls)
