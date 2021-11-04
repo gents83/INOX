@@ -1,4 +1,4 @@
-name: Deploy on Github Pages
+name: "Deploy on Github Pages"
 
 on:
   workflow_run:

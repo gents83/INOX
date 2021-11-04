@@ -1,8 +1,8 @@
-name: "Deploy on Github Pages"
+name: "Publish documentation on Github Pages"
 
 on:
   workflow_run:
-    workflows: ["mdBook Build and Deploy"]
+    workflows: ["Deploy on Github Pages"]
     branches: [master]
     types:
       - completed
