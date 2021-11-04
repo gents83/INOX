@@ -60,10 +60,14 @@ jobs:
           mkdir -p "./output/NRG/bin/data_raw/shaders/"
           cp -r "./data_raw/shaders/" "./output/NRG/bin/data_raw/shaders/"
 
-      - name: "Copy binaries in NRG"
+      - name: "Copy dlls in NRG"
         run: |
-          rsync "./crates/target/release/" "./output/NRG/bin/" -a /.cargo-lock/** /**.pdb /**.d /**.rlib /**.lib /.fingerprint/** /build/** /deps/** /examples/** /in_use/** /incremental/**
-
+          cp "./crates/target/release/*.exe" "./output/NRG/bin/"
+          
+      - name: "Copy exes in NRG"
+        run: |
+          cp "./crates/target/release/*.dll" "./output/NRG/bin/"
+          
       - name: Install zip
         uses: montudor/action-zip@v1
 
