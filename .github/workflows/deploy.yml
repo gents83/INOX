@@ -1,4 +1,4 @@
-name: Deploy
+name: Deploy on Github Pages
 
 on:
   workflow_run:
@@ -7,20 +7,52 @@ on:
     types:
       - completed
 
-
-env:
-  CARGO_TERM_COLOR: always
-
 jobs:
-  deploy:
-    name: "Deploy on Github Pages"
+  final-deploy:
     runs-on: ubuntu-latest
     
     steps:
+      - name: Checkout repository and submodules
+        uses: actions/checkout@v2
+        with:
+          submodules: recursive
+
+      - uses: actions/download-artifact@v2
+        with:
+          name: output-binaries
+
+      - name: "Deploy Blender Plugin"
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./crates/blender/nrg_blender/NRG/  # default: public
+          destination_dir: NRG
+
+      - name: "Copy nrg_viewer configs"
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./data_raw/config/nrg_viewer  # default: public
+          destination_dir: NRG/bin/data_raw/config/nrg_viewer
+
+      - name: "Copy pipelines"
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./data_raw/pipelines  # default: public
+          destination_dir: NRG/bin/data_raw/pipelines
+
+      - name: "Copy nrg_viewer configs"
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./data_raw/shaders  # default: public
+          destination_dir: NRG/bin/data_raw/shaders
+
       - name: "Copy dll into pyd"
         uses: andstor/copycat-action@v3
         with:
-          personal_token: ${{ secrets.PERSONAL_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           src_path: crates/target/release/nrg_blender.dll
           dst_path: NRG/nrg_blender.pyd
           dst_owner: gents83

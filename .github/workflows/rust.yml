@@ -1,15 +1,12 @@
 name: Rust
 
 on:
-  push:
-    branches: [ master ]
-    tags:
-      - 'v*.*.*'
-  pull_request:
-    branches: [ master ]
-    tags:
-      - 'v*.*.*'
-
+  workflow_run:
+    workflows: ["mdBook Build and Deploy"]
+    branches: [master]
+    types:
+      - completed
+    
 env:
   CARGO_TERM_COLOR: always
 
@@ -82,11 +79,6 @@ jobs:
           command: clippy
           args: --manifest-path ./crates/Cargo.toml --no-deps -- -D warnings
 
-      - name: Run cargo build workspace
-        uses: actions-rs/cargo@v1
-        with:
-          command: build 
-          args: --manifest-path ./crates/Cargo.toml --release
 
       #- name: Install cargo-udeps
       #  uses: actions-rs/cargo@v1
@@ -96,3 +88,14 @@ jobs:
 
       #- name: Detect unused dependencies with cargo-udeps
       #  run: cargo +nightly udeps --manifest-path ./crates/Cargo.toml --all-targets
+
+      - name: Run cargo build workspace
+        uses: actions-rs/cargo@v1
+        with:
+          command: build 
+          args: --manifest-path ./crates/Cargo.toml --release
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: output-binaries
+          path: crates/target/release/
