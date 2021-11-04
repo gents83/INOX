@@ -18,7 +18,7 @@
             "requireExactSource": false,
             "postDebugTask": "CLEANUP",
             "sourceFileMap": {
-                "/rustc/c390d69a615f095208ac94841f3310268521b2ee": "${env:USERPROFILE}/.rustup/toolchains/nightly-x86_64-pc-windows-msvc/lib/rustlib/src/rust"
+                "/rustc/09c42c45858d5f3aedfa670698275303a3d19afa": "${env:USERPROFILE}/.rustup/toolchains/nightly-x86_64-pc-windows-msvc/lib/rustlib/src/rust"
             },
             "console": "integratedTerminal",
             "symbolSearchPath": "${workspaceFolder}/crates/target//debug/, https://msdl.microsoft.com/download/symbols",
@@ -39,7 +39,7 @@
                 "rust"
             ],
             "sourceFileMap": {
-                "/rustc/c390d69a615f095208ac94841f3310268521b2ee": "${env:USERPROFILE}/.rustup/toolchains/nightly-x86_64-pc-windows-msvc/lib/rustlib/src/rust"
+                "/rustc/09c42c45858d5f3aedfa670698275303a3d19afa": "${env:USERPROFILE}/.rustup/toolchains/nightly-x86_64-pc-windows-msvc/lib/rustlib/src/rust"
             },
             "console": "integratedTerminal",
             "symbolSearchPath": "${workspaceFolder}/crates/target/debug/in_use/, ${workspaceFolder}/crates/target/debug/, https://msdl.microsoft.com/download/symbols",
@@ -62,7 +62,7 @@
                 "rust"
             ],
             "sourceFileMap": {
-                "/rustc/c390d69a615f095208ac94841f3310268521b2ee": "${env:USERPROFILE}/.rustup/toolchains/nightly-x86_64-pc-windows-msvc/lib/rustlib/src/rust"
+                "/rustc/09c42c45858d5f3aedfa670698275303a3d19afa": "${env:USERPROFILE}/.rustup/toolchains/nightly-x86_64-pc-windows-msvc/lib/rustlib/src/rust"
             },
             "console": "integratedTerminal",
             "symbolSearchPath": "${workspaceFolder}/crates/target/debug/in_use/, ${workspaceFolder}/crates/target/debug/, https://msdl.microsoft.com/download/symbols",
@@ -83,7 +83,7 @@
                 "rust"
             ],
             "sourceFileMap": {
-                "/rustc/c390d69a615f095208ac94841f3310268521b2ee": "${env:USERPROFILE}/.rustup/toolchains/nightly-x86_64-pc-windows-msvc/lib/rustlib/src/rust"
+                "/rustc/09c42c45858d5f3aedfa670698275303a3d19afa": "${env:USERPROFILE}/.rustup/toolchains/nightly-x86_64-pc-windows-msvc/lib/rustlib/src/rust"
             },
             "console": "integratedTerminal",
             "symbolSearchPath": "${workspaceFolder}/crates/target/debug/in_use/, ${workspaceFolder}/crates/target/debug/, https://msdl.microsoft.com/download/symbols",
@@ -102,7 +102,7 @@
             "requireExactSource": false,
             "postDebugTask": "CLEANUP",
             "sourceFileMap": {
-                "/rustc/c390d69a615f095208ac94841f3310268521b2ee": "${env:USERPROFILE}/.rustup/toolchains/nightly-x86_64-pc-windows-msvc/lib/rustlib/src/rust"
+                "/rustc/09c42c45858d5f3aedfa670698275303a3d19afa": "${env:USERPROFILE}/.rustup/toolchains/nightly-x86_64-pc-windows-msvc/lib/rustlib/src/rust"
             },
             "console": "integratedTerminal",
             "symbolSearchPath": "${workspaceFolder}/crates/target/release/, https://msdl.microsoft.com/download/symbols",

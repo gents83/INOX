@@ -644,9 +644,9 @@ impl BackendDevice {
             option.assume_init()
         };
 
-        let mut swap_chain_images = Vec::with_capacity(swapchain_images_count as usize);
+        let mut swap_chain_images = Vec::new();
+        swap_chain_images.resize(swapchain_images_count as usize, ::std::ptr::null_mut());
         unsafe {
-            swap_chain_images.set_len(swapchain_images_count as usize);
             assert_eq!(
                 VkResult_VK_SUCCESS,
                 vkGetSwapchainImagesKHR.unwrap()(
@@ -658,15 +658,13 @@ impl BackendDevice {
             );
         }
 
-        self.swap_chain.image_data = Vec::with_capacity(swapchain_images_count as usize);
-        unsafe {
-            self.swap_chain
-                .image_data
-                .set_len(swapchain_images_count as usize);
-        }
-        for (index, image) in swap_chain_images.into_iter().enumerate() {
-            self.swap_chain.image_data[index].image = image;
-        }
+        self.swap_chain.image_data.clear();
+        swap_chain_images.into_iter().for_each(|image| {
+            self.swap_chain.image_data.push(ImageViewData {
+                image,
+                ..Default::default()
+            });
+        });
 
         let depth_format = find_depth_format(**physical_device);
 

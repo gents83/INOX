@@ -42,10 +42,24 @@ impl BackendPhysicalDevice {
             );
             output.assume_init()
         };
-        let mut physical_device_extensions: Vec<VkExtensionProperties> =
-            Vec::with_capacity(device_extension_count as usize);
+        let physical_device_extensions = unsafe {
+            let mut output = ::std::mem::MaybeUninit::<
+                [VkExtensionProperties; device_extension_count],
+            >::uninit();
+
+            assert_eq!(
+                VkResult_VK_SUCCESS,
+                vkEnumerateDeviceExtensionProperties.unwrap()(
+                    physical_device,
+                    ::std::ptr::null_mut(),
+                    &mut device_extension_count,
+                    output.as_mut_ptr()
+                )
+            );
+            output.assume_init()
+        };
+
         unsafe {
-            physical_device_extensions.set_len(device_extension_count as usize);
             assert_eq!(
                 VkResult_VK_SUCCESS,
                 vkEnumerateDeviceExtensionProperties.unwrap()(

@@ -15,10 +15,8 @@ jobs:
       #- name: "Wait previous workflow run to be successful"
       #  uses: ahmadnassri/action-workflow-run-wait@v1
       
-      - name: "Checkout repository and submodules"
+      - name: "Checkout repository"
         uses: actions/checkout@v2
-        with:
-          submodules: recursive
       
       - name: "Download artifact"
         uses: dawidd6/action-download-artifact@v2
@@ -37,41 +35,35 @@ jobs:
             newname=`echo "$dirname" | sed -e "s/ /_/g"`
             cp "${dirname}/$filename" "./crates/blender/nrg_blender/NRG/nrg_blender.pyd"
           done
+      
+      - name: "Copy nrgblender in NRG"
+        run: |
+          cp "./crates/blender/nrg_blender/NRG/" "./output/NRG/"
+          
+      - name: "Copy nrg_viewer configs in NRG"
+        run: |
+          cp "./data_raw/config/nrg_viewer/" "./output/NRG/bin/data_raw/config/nrg_viewer/"
 
-      - name: "Deploy Blender Plugin"
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./crates/blender/nrg_blender/NRG/  # default: public
-          destination_dir: NRG
+      - name: "Copy pipelines in NRG"
+        run: |
+          cp "./data_raw/pipelines/" "./output/NRG/bin/data_raw/pipelines/"
 
-      - name: "Copy nrg_viewer configs"
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./data_raw/config/nrg_viewer  # default: public
-          destination_dir: NRG/bin/data_raw/config/nrg_viewer
+      - name: "Copy shaders in NRG"
+        run: |
+          cp "./data_raw/shaders/" "./output/NRG/bin/data_raw/shaders/"
 
-      - name: "Copy pipelines"
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./data_raw/pipelines  # default: public
-          destination_dir: NRG/bin/data_raw/pipelines
+      - name: "Copy binaries in NRG"
+        run: |
+          rsync "./crates/target/release/" "./output/NRG/bin/" -a /.cargo-lock/** /**.pdb /**.d /**.rlib /**.lib /.fingerprint/** /build/** /deps/** /examples/** /in_use/** /incremental/**
 
-      - name: "Copy nrg_viewer configs"
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./data_raw/shaders  # default: public
-          destination_dir: NRG/bin/data_raw/shaders
+      - name: Install zip
+        uses: montudor/action-zip@v1
 
-      - name: "Deploy Binaries for OS: ${{ matrix.os }}"
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          personal_token: ${{ secrets.PERSONAL_TOKEN }}
-          publish_dir: ./crates/target/release/  # default: public
-          destination_dir: NRG/bin
-          exclude_assets: '.cargo-lock,**.pdb,**.d,**.rlib,**.lib,.fingerprint,build,deps,examples,in_use,incremental'
-          keep_files: true
+      - name: Zip NRG
+        run: zip -qq -r NRG.zip ./output/NRG/
+
+      - name: "Deploy zip on Github Pages"
+        run: |
+          git checkout gh-pages
+          git checkout master -- NRG.zip
+          git commit -m 'Deploy NRG.zip from master to gh-pages'
