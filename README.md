@@ -16,7 +16,6 @@ Summary:
 * [Vision](#vision)
 * [Documentation](#documentation)
 * [Notes](#notes)
-* [Dependencies](#dependencies)
 * [Hotkeys](#hotkeys)
 * [Screenshots](#screenshots)
 
@@ -51,21 +50,6 @@ You can find documentation [here](https://gents83.github.io/NRG/)
 Not ready yet for production.
 NRG is in active development, it still lacks many features code architecture or interfaces could still change. 
 New releases could still have breaking changes.
-
-
-## Dependencies
-
-Focus is to have all of them with MIT or Apache license.
-
-- FFI bindings from C\C++ - used for vulkan_bindings: https://github.com/rust-lang/rust-bindgen
-- XML parser - used for Vulkan xml specification: https://github.com/netvl/xml-rs 
-- Image processing library: https://github.com/image-rs/image
-- Trait casting: https://github.com/marcianx/downcast-rs
-- Serialization - serde, serde_derive & serde_json: https://github.com/serde-rs/serde
-- CG Math library: https://github.com/rustgd/cgmath
-- GUI library: https://github.com/emilk/egui
-- Python library: https://github.com/dgrunwald/rust-cpython
-
 
 ## Hotkeys
 
