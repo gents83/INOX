@@ -50,7 +50,7 @@ impl UIProperties for Object {
         ui: &mut Ui,
         collapsed: bool,
     ) {
-        let mut object_name = format!("Object [{:?}]", id.to_simple().to_string());
+        let mut object_name = format!("Object [{:?}]", id.as_simple().to_string());
         if let Some(name) = self.path().file_stem() {
             if let Some(name) = name.to_str() {
                 object_name = name.to_string();

@@ -1,8 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use nrg_math::{
-    Degrees, Mat4Ops, MatBase, Matrix4, NewAngle, SquareMatrix, Vector2, Vector3, Vector4,
-};
+use nrg_math::{Degrees, Mat4Ops, MatBase, Matrix4, NewAngle, Vector2, Vector3, Vector4};
 use nrg_messenger::MessengerRw;
 use nrg_resources::{
     DataTypeResource, Handle, Resource, ResourceId, SerializableResource, SharedDataRc,
@@ -52,7 +50,7 @@ impl UIProperties for Camera {
         ui: &mut Ui,
         collapsed: bool,
     ) {
-        CollapsingHeader::new(format!("Camera [{:?}]", id.to_simple().to_string()))
+        CollapsingHeader::new(format!("Camera [{:?}]", id.as_simple().to_string()))
             .show_background(true)
             .default_open(!collapsed)
             .show(ui, |ui| {
@@ -254,8 +252,8 @@ impl Camera {
             1.,
         );
 
-        let inv_proj = proj.invert().unwrap();
-        let inv_view = view.invert().unwrap();
+        let inv_proj = proj.inverse();
+        let inv_view = view.inverse();
 
         let ray_start_world = self.view_matrix().translation();
 

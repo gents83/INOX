@@ -87,7 +87,7 @@ impl Hierarchy {
     ) {
         nrg_profiler::scoped_profile!("object_hierarchy");
 
-        let mut object_name = format!("Object [{:?}]", object.id().to_simple().to_string());
+        let mut object_name = format!("Object [{:?}]", object.id().as_simple().to_string());
         if let Some(name) = object.get().path().file_stem() {
             if let Some(name) = name.to_str() {
                 object_name = name.to_string();

@@ -24,7 +24,7 @@ impl UIProperties for Hitbox {
         ui: &mut Ui,
         collapsed: bool,
     ) {
-        CollapsingHeader::new(format!("Hitbox [{:?}]", id.to_simple().to_string()))
+        CollapsingHeader::new(format!("Hitbox [{:?}]", id.as_simple().to_string()))
             .show_background(true)
             .default_open(!collapsed)
             .show(ui, |ui| {

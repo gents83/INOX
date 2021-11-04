@@ -321,31 +321,33 @@ impl UISystem {
         self
     }
 
-    fn show_ui(&mut self, use_multithreading: bool) {
+    fn show_ui(
+        shared_data: SharedDataRc,
+        job_handler: JobHandlerRw,
+        context: CtxRef,
+        use_multithreading: bool,
+    ) {
         nrg_profiler::scoped_profile!("ui_system::show_ui");
         let wait_count = Arc::new(AtomicUsize::new(0));
-        SharedData::for_each_resource_mut(
-            &self.shared_data,
-            |widget_handle, widget: &mut UIWidget| {
-                if use_multithreading {
-                    let context = self.ui_context.clone();
-                    let widget_handle = widget_handle.clone();
-                    let job_name = format!("ui_system::show_ui[{:?}]", widget_handle.id());
-                    let wait_count = wait_count.clone();
-                    wait_count.fetch_add(1, Ordering::SeqCst);
-                    self.job_handler.write().unwrap().add_job(
-                        &UISystem::id(),
-                        job_name.as_str(),
-                        move || {
-                            widget_handle.get_mut().execute(&context);
-                            wait_count.fetch_sub(1, Ordering::SeqCst);
-                        },
-                    );
-                } else {
-                    widget.execute(&self.ui_context);
-                }
-            },
-        );
+        shared_data.for_each_resource_mut(|widget_handle, widget: &mut UIWidget| {
+            if use_multithreading {
+                let context = context.clone();
+                let widget_handle = widget_handle.clone();
+                let job_name = format!("ui_system::show_ui[{:?}]", widget_handle.id());
+                let wait_count = wait_count.clone();
+                wait_count.fetch_add(1, Ordering::SeqCst);
+                job_handler.write().unwrap().add_job(
+                    &UISystem::id(),
+                    job_name.as_str(),
+                    move || {
+                        widget_handle.get_mut().execute(&context);
+                        wait_count.fetch_sub(1, Ordering::SeqCst);
+                    },
+                );
+            } else {
+                widget.execute(&context);
+            }
+        });
         while wait_count.load(Ordering::SeqCst) > 0 {
             thread::yield_now();
         }
@@ -399,16 +401,14 @@ impl System for UISystem {
     fn run(&mut self) -> bool {
         self.update_events();
 
-        {
-            nrg_profiler::scoped_profile!("ui_context::begin_frame");
-            self.ui_context.begin_frame(self.ui_input.take());
-        }
-
-        self.show_ui(true);
-
         let (output, shapes) = {
-            nrg_profiler::scoped_profile!("ui_context::end_frame");
-            self.ui_context.end_frame()
+            nrg_profiler::scoped_profile!("ui_context::run");
+            let shared_data = self.shared_data.clone();
+            let job_handler = self.job_handler.clone();
+            let ui_context = self.ui_context.clone();
+            self.ui_context.run(self.ui_input.take(), move |_| {
+                Self::show_ui(shared_data, job_handler, ui_context, true);
+            })
         };
         let clipped_meshes = {
             nrg_profiler::scoped_profile!("ui_context::tessellate");

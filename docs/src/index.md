@@ -1,7 +1,10 @@
 # **NRG** 
 ## New Rust Game engine - with Blender as Editor
 
-[<img alt="github" src="https://img.shields.io/badge/github-gents83/NRG-8da0cb?logo=github" height="20">](https://github.com/gents83/NRG)
+[<img alt="github repository" src="https://img.shields.io/badge/github-gents83/NRG-8da0cb?logo=github" height="20">](https://github.com/gents83/NRG)
+[<img alt="github pages" src="https://img.shields.io/badge/Docs-github-brightgreen" height="20">](https://gents83.github.io/NRG/)
+[<img alt="github workflow sattus" src="https://img.shields.io/github/workflow/status/gents83/NRG/Deploy%20on%20Github%20Pages?style=plastic" height="20">](https://github.com/gents83/NRG/actions)
+[<img alt="github sponsor" src="https://img.shields.io/github/sponsors/gents83?style=plastic" height="20">](https://github.com/sponsors/gents83)
 ![MIT](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Apache](https://img.shields.io/badge/license-Apache-blue.svg)
 

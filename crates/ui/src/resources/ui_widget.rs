@@ -59,7 +59,7 @@ impl UIProperties for UIWidget {
         CollapsingHeader::new(format!(
             "UIWidget_{:?} [{:?}]",
             self.type_name,
-            id.to_simple().to_string()
+            id.as_simple().to_string()
         ))
         .show_background(true)
         .default_open(!collapsed)

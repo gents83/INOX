@@ -1,5 +1,11 @@
 {
     "recommendations": [
-        "matklad.rust-analyzer"
+        "matklad.rust-analyzer",
+        "bungcip.better-toml",
+        "ms-vscode.cpptools",
+        "vadimcn.vscode-lldb",
+        "cadenas.vscode-glsllint",
+        "github.vscode-pull-request-github",
+        "ms-python.python"
     ]
 }

@@ -189,7 +189,7 @@ impl UIProperties for Pipeline {
         ui: &mut Ui,
         collapsed: bool,
     ) {
-        CollapsingHeader::new(format!("Pipeline [{:?}]", id.to_simple().to_string()))
+        CollapsingHeader::new(format!("Pipeline [{:?}]", id.as_simple().to_string()))
             .show_background(true)
             .default_open(!collapsed)
             .show(ui, |ui| {
@@ -242,7 +242,7 @@ impl UIProperties for Font {
         ui: &mut Ui,
         collapsed: bool,
     ) {
-        CollapsingHeader::new(format!("Font [{:?}]", id.to_simple().to_string()))
+        CollapsingHeader::new(format!("Font [{:?}]", id.as_simple().to_string()))
             .show_background(true)
             .default_open(!collapsed)
             .show(ui, |ui| {
@@ -263,7 +263,7 @@ impl UIProperties for Material {
         ui: &mut Ui,
         collapsed: bool,
     ) {
-        CollapsingHeader::new(format!("Material [{:?}]", id.to_simple().to_string()))
+        CollapsingHeader::new(format!("Material [{:?}]", id.as_simple().to_string()))
             .show_background(true)
             .default_open(!collapsed)
             .show(ui, |ui| {
@@ -303,7 +303,7 @@ impl UIProperties for Mesh {
         ui: &mut Ui,
         collapsed: bool,
     ) {
-        CollapsingHeader::new(format!("Mesh [{:?}]", id.to_simple().to_string()))
+        CollapsingHeader::new(format!("Mesh [{:?}]", id.as_simple().to_string()))
             .show_background(true)
             .default_open(!collapsed)
             .show(ui, |ui| {
@@ -338,7 +338,7 @@ impl UIProperties for Texture {
         ui: &mut Ui,
         collapsed: bool,
     ) {
-        CollapsingHeader::new(format!("Texture [{:?}]", id.to_simple().to_string()))
+        CollapsingHeader::new(format!("Texture [{:?}]", id.as_simple().to_string()))
             .show_background(true)
             .default_open(!collapsed)
             .show(ui, |ui| {
@@ -395,7 +395,7 @@ impl UIProperties for Light {
         ui: &mut Ui,
         collapsed: bool,
     ) {
-        CollapsingHeader::new(format!("Light [{:?}]", id.to_simple().to_string()))
+        CollapsingHeader::new(format!("Light [{:?}]", id.as_simple().to_string()))
             .show_background(true)
             .default_open(!collapsed)
             .show(ui, |ui| {
