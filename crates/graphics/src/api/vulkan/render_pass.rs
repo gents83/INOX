@@ -271,13 +271,9 @@ impl BackendRenderPass {
         }
 
         let swapchain_images_count = device.get_images_count();
-        self.framebuffers = Vec::with_capacity(swapchain_images_count);
-        self.images = Vec::with_capacity(swapchain_images_count);
-        unsafe {
-            self.images.set_len(swapchain_images_count);
-            self.framebuffers.set_len(swapchain_images_count);
-        }
-        for i in 0..device.get_images_count() {
+        self.framebuffers.clear();
+        self.images.clear();
+        for i in 0..swapchain_images_count {
             let attachments: Vec<VkImageView> = vec![
                 if let Some(texture) = color {
                     texture.get_image_view()
@@ -290,11 +286,11 @@ impl BackendRenderPass {
                     device.get_depth_image_view(0)
                 },
             ];
-            self.images[i] = if let Some(texture) = color {
+            self.images.push(if let Some(texture) = color {
                 texture.get_image()
             } else {
                 device.get_image(i)
-            };
+            });
 
             let framebuffer_create_info = VkFramebufferCreateInfo {
                 sType: VkStructureType_VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
@@ -308,17 +304,20 @@ impl BackendRenderPass {
                 layers: 1,
             };
 
-            unsafe {
+            let framebuffer = unsafe {
+                let mut option = ::std::mem::MaybeUninit::uninit();
                 assert_eq!(
                     VkResult_VK_SUCCESS,
                     vkCreateFramebuffer.unwrap()(
                         **device,
                         &framebuffer_create_info,
                         ::std::ptr::null_mut(),
-                        &mut self.framebuffers[i]
+                        option.as_mut_ptr(),
                     )
                 );
-            }
+                option.assume_init()
+            };
+            self.framebuffers.push(framebuffer);
         }
 
         self

@@ -96,15 +96,9 @@ impl Area {
     }
 }
 
-#[derive(Clone)]
+#[derive(Default, Clone)]
 struct AreaList {
     list: Vec<Area>,
-}
-
-impl Default for AreaList {
-    fn default() -> Self {
-        Self { list: Vec::new() }
-    }
 }
 
 impl AreaList {

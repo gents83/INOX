@@ -1,3 +1,5 @@
+use std::mem::MaybeUninit;
+
 use super::{get_minimum_required_vulkan_extensions, types::*};
 use vulkan_bindings::*;
 
@@ -42,20 +44,22 @@ impl BackendPhysicalDevice {
             );
             output.assume_init()
         };
-        let mut physical_device_extensions: Vec<VkExtensionProperties> =
-            Vec::with_capacity(device_extension_count as usize);
-        unsafe {
-            physical_device_extensions.set_len(device_extension_count as usize);
+
+        let physical_device_extensions: Vec<VkExtensionProperties> = unsafe {
+            let mut option: Vec<MaybeUninit<VkExtensionProperties>> =
+                Vec::with_capacity(device_extension_count as usize);
+            option.set_len(device_extension_count as usize);
             assert_eq!(
                 VkResult_VK_SUCCESS,
                 vkEnumerateDeviceExtensionProperties.unwrap()(
                     physical_device,
                     ::std::ptr::null_mut(),
                     &mut device_extension_count,
-                    physical_device_extensions.as_mut_ptr()
+                    option.as_mut_ptr() as _
                 )
             );
-        }
+            option.into_iter().map(|e| e.assume_init()).collect()
+        };
 
         let mut physical_device = BackendPhysicalDevice {
             physical_device,
@@ -120,16 +124,17 @@ impl BackendPhysicalDevice {
             output.assume_init()
         };
 
-        let mut queue_family_properties: Vec<VkQueueFamilyProperties> =
-            Vec::with_capacity(queue_family_count as usize);
-        unsafe {
-            queue_family_properties.set_len(queue_family_count as usize);
+        let queue_family_properties: Vec<VkQueueFamilyProperties> = unsafe {
+            let mut option: Vec<MaybeUninit<VkQueueFamilyProperties>> =
+                Vec::with_capacity(queue_family_count as usize);
+            option.set_len(queue_family_count as usize);
             vkGetPhysicalDeviceQueueFamilyProperties.unwrap()(
                 self.physical_device,
                 &mut queue_family_count,
-                queue_family_properties.as_mut_ptr(),
+                option.as_mut_ptr() as _,
             );
-        }
+            option.into_iter().map(|e| e.assume_init()).collect()
+        };
 
         let mut transfers_index = VK_INVALID_ID;
         let mut graphic_index = VK_INVALID_ID;
@@ -192,20 +197,21 @@ impl BackendPhysicalDevice {
             option.assume_init()
         };
 
-        let mut supported_formats: Vec<VkSurfaceFormatKHR> =
-            Vec::with_capacity(format_count as usize);
-        unsafe {
-            supported_formats.set_len(format_count as usize);
+        let supported_formats: Vec<VkSurfaceFormatKHR> = unsafe {
+            let mut option: Vec<MaybeUninit<VkSurfaceFormatKHR>> =
+                Vec::with_capacity(format_count as usize);
+            option.set_len(format_count as usize);
             assert_eq!(
                 VkResult_VK_SUCCESS,
                 vkGetPhysicalDeviceSurfaceFormatsKHR.unwrap()(
                     self.physical_device,
                     surface,
                     &mut format_count,
-                    supported_formats.as_mut_ptr()
+                    option.as_mut_ptr() as _
                 )
             );
-        }
+            option.into_iter().map(|e| e.assume_init()).collect()
+        };
 
         let mut present_mode_count = unsafe {
             let mut option = ::std::mem::MaybeUninit::uninit();
@@ -218,20 +224,21 @@ impl BackendPhysicalDevice {
             option.assume_init()
         };
 
-        let mut supported_present_modes: Vec<VkPresentModeKHR> =
-            Vec::with_capacity(present_mode_count as usize);
-        unsafe {
-            supported_present_modes.set_len(present_mode_count as usize);
+        let supported_present_modes: Vec<VkPresentModeKHR> = unsafe {
+            let mut option: Vec<MaybeUninit<VkPresentModeKHR>> =
+                Vec::with_capacity(present_mode_count as usize);
+            option.set_len(present_mode_count as usize);
             assert_eq!(
                 VkResult_VK_SUCCESS,
                 vkGetPhysicalDeviceSurfacePresentModesKHR.unwrap()(
                     self.physical_device,
                     surface,
                     &mut present_mode_count,
-                    supported_present_modes.as_mut_ptr()
+                    option.as_mut_ptr() as _
                 )
             );
-        }
+            option.into_iter().map(|e| e.assume_init()).collect()
+        };
 
         self.swap_chain_details = SwapChainSupportDetails {
             capabilities: surface_capabilities,

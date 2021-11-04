@@ -12,7 +12,7 @@ pub const DEFAULT_FONT_TEXTURE_SIZE: usize = 1024;
 //12pt = 16px = 1em = 100%
 pub const FONT_PT_TO_PIXEL: f32 = DEFAULT_DPI / (72. * 2048.);
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[derive(Default, Serialize, Deserialize, Debug, PartialEq, Clone)]
 #[serde(crate = "nrg_serialize")]
 pub struct FontData {
     metrics: Metrics,
@@ -26,15 +26,6 @@ pub struct TextData {
     pub scale: f32,
     pub color: Vector4,
     pub spacing: Vector2,
-}
-
-impl Default for FontData {
-    fn default() -> Self {
-        Self {
-            metrics: Metrics::default(),
-            glyphs: Vec::new(),
-        }
-    }
 }
 
 impl FontData {

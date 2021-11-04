@@ -5,20 +5,11 @@ use nrg_serialize::{Deserialize, Serialize};
 
 use crate::RenderPassData;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Default, Serialize, Deserialize, Debug, Clone)]
 #[serde(crate = "nrg_serialize")]
 pub struct Config {
     pub render_passes: Vec<RenderPassData>,
     pub pipelines: Vec<PathBuf>,
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            render_passes: Vec::new(),
-            pipelines: Vec::new(),
-        }
-    }
 }
 
 impl Data for Config {}

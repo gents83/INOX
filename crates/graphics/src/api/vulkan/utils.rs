@@ -6,6 +6,7 @@ use super::{types::*, BackendDevice};
 use crate::Area;
 use nrg_platform::Handle;
 use std::ffi::{c_void, CStr, CString};
+use std::mem::MaybeUninit;
 use std::os::raw::c_char;
 use vulkan_bindings::*;
 
@@ -41,19 +42,19 @@ pub fn get_available_layers_count() -> u32 {
 
 pub fn enumerate_available_layers() -> Vec<VkLayerProperties> {
     let mut layers_count = get_available_layers_count();
-
-    let mut available_layers: Vec<VkLayerProperties> = Vec::with_capacity(layers_count as usize);
     unsafe {
-        available_layers.set_len(layers_count as usize);
+        let mut option: Vec<MaybeUninit<VkLayerProperties>> =
+            Vec::with_capacity(layers_count as usize);
+        option.set_len(layers_count as usize);
         assert_eq!(
             VkResult_VK_SUCCESS,
             vkEnumerateInstanceLayerProperties.unwrap()(
                 &mut layers_count,
-                available_layers.as_mut_ptr()
+                option.as_mut_ptr() as _
             )
         );
+        option.into_iter().map(|e| e.assume_init()).collect()
     }
-    available_layers
 }
 
 pub fn get_available_layers_names(
@@ -82,20 +83,21 @@ pub fn get_available_extensions_count() -> u32 {
 
 pub fn enumerate_available_extensions() -> Vec<VkExtensionProperties> {
     let mut extensions_count = get_available_extensions_count();
-    let mut supported_extensions: Vec<VkExtensionProperties> =
-        Vec::with_capacity(extensions_count as usize);
     unsafe {
-        supported_extensions.set_len(extensions_count as usize);
+        let mut option: Vec<MaybeUninit<VkExtensionProperties>> =
+            Vec::with_capacity(extensions_count as usize);
+        option.set_len(extensions_count as usize);
+
         assert_eq!(
             VkResult_VK_SUCCESS,
             vkEnumerateInstanceExtensionProperties.unwrap()(
                 ::std::ptr::null_mut(),
                 &mut extensions_count,
-                supported_extensions.as_mut_ptr()
+                option.as_mut_ptr() as _
             )
         );
+        option.into_iter().map(|e| e.assume_init()).collect()
     }
-    supported_extensions
 }
 
 pub fn get_available_extensions_names(
@@ -124,19 +126,20 @@ pub fn get_physical_devices_count(instance: VkInstance) -> u32 {
 
 pub fn enumerate_physical_devices(instance: VkInstance) -> Vec<VkPhysicalDevice> {
     let mut physical_device_count = get_physical_devices_count(instance);
-    let mut physical_devices: Vec<VkPhysicalDevice> =
-        Vec::with_capacity(physical_device_count as usize);
-    unsafe {
-        physical_devices.set_len(physical_device_count as usize);
+    let physical_devices: Vec<VkPhysicalDevice> = unsafe {
+        let mut option: Vec<MaybeUninit<VkPhysicalDevice>> =
+            Vec::with_capacity(physical_device_count as usize);
+        option.set_len(physical_device_count as usize);
         assert_eq!(
             VkResult_VK_SUCCESS,
             vkEnumeratePhysicalDevices.unwrap()(
                 instance,
                 &mut physical_device_count,
-                physical_devices.as_mut_ptr()
+                option.as_mut_ptr() as _
             )
         );
-    }
+        option.into_iter().map(|e| e.assume_init()).collect()
+    };
     physical_devices
 }
 
@@ -165,17 +168,18 @@ pub fn find_plane_for_display(
             continue;
         }
 
-        let mut supported_displays: Vec<VkDisplayKHR> =
-            Vec::with_capacity(supported_count as usize);
-        unsafe {
-            supported_displays.set_len(supported_count as usize);
+        let supported_displays: Vec<VkDisplayKHR> = unsafe {
+            let mut option: Vec<MaybeUninit<VkDisplayKHR>> =
+                Vec::with_capacity(supported_count as usize);
+            option.set_len(supported_count as usize);
             vkGetDisplayPlaneSupportedDisplaysKHR.unwrap()(
                 *device,
                 index as u32,
                 &mut supported_count,
-                supported_displays.as_mut_ptr(),
+                option.as_mut_ptr() as _,
             );
-        }
+            option.into_iter().map(|e| e.assume_init()).collect()
+        };
 
         let found = supported_displays.iter().any(|item| item == display);
 
@@ -999,28 +1003,25 @@ pub fn allocate_command_buffers(
     level: VkCommandBufferLevel,
     num_frames: usize,
 ) -> Vec<VkCommandBuffer> {
-    let mut command_buffers = Vec::<VkCommandBuffer>::with_capacity(num_frames);
-    unsafe {
-        command_buffers.set_len(num_frames);
-    }
-
     let command_alloc_info = VkCommandBufferAllocateInfo {
         sType: VkStructureType_VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
         pNext: ::std::ptr::null_mut(),
         commandPool: command_pool,
         level,
-        commandBufferCount: command_buffers.len() as _,
+        commandBufferCount: num_frames as _,
     };
 
     unsafe {
+        let mut option: Vec<MaybeUninit<VkCommandBuffer>> = Vec::with_capacity(num_frames as usize);
+        option.set_len(num_frames as usize);
         assert_eq!(
             VkResult_VK_SUCCESS,
             vkAllocateCommandBuffers.unwrap()(
                 device,
                 &command_alloc_info,
-                command_buffers.as_mut_ptr()
+                option.as_mut_ptr() as _
             )
         );
+        option.into_iter().map(|e| e.assume_init()).collect()
     }
-    command_buffers
 }

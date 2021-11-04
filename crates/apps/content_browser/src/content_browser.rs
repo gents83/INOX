@@ -6,22 +6,13 @@ use crate::content_browser_updater::ContentBrowserUpdater;
 const CONTENT_BROWSER_UPDATE_PHASE: &str = "CONTENT_BROWSER_UPDATE_PHASE";
 
 #[repr(C)]
+#[derive(Default)]
 pub struct ContentBrowser {
     updater_id: SystemId,
     ui_id: SystemId,
     renderer_id: SystemId,
 }
 define_plugin!(ContentBrowser);
-
-impl Default for ContentBrowser {
-    fn default() -> Self {
-        Self {
-            updater_id: SystemId::default(),
-            ui_id: SystemId::default(),
-            renderer_id: SystemId::default(),
-        }
-    }
-}
 
 impl Plugin for ContentBrowser {
     fn name(&self) -> &str {

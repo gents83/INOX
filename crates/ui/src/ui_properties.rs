@@ -51,6 +51,8 @@ where
             .show(resource.id(), ui_registry, ui, collapsed);
     }
 }
+
+#[derive(Default)]
 pub struct UIPropertiesRegistry {
     registry: Vec<Box<dyn UIData>>,
 }
@@ -58,13 +60,6 @@ pub struct UIPropertiesRegistry {
 unsafe impl Send for UIPropertiesRegistry {}
 unsafe impl Sync for UIPropertiesRegistry {}
 
-impl Default for UIPropertiesRegistry {
-    fn default() -> Self {
-        Self {
-            registry: Vec::new(),
-        }
-    }
-}
 impl UIPropertiesRegistry {
     pub fn register<T>(&mut self) -> &mut Self
     where

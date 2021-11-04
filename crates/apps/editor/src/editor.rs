@@ -9,6 +9,7 @@ use crate::{config::Config, editor_updater::EditorUpdater};
 const EDITOR_UPDATE_PHASE: &str = "EDITOR_UPDATE_PHASE";
 
 #[repr(C)]
+#[derive(Default)]
 pub struct Editor {
     updater_id: SystemId,
     debug_drawer_id: SystemId,
@@ -16,17 +17,6 @@ pub struct Editor {
     renderer_id: SystemId,
 }
 define_plugin!(Editor);
-
-impl Default for Editor {
-    fn default() -> Self {
-        Self {
-            updater_id: SystemId::default(),
-            debug_drawer_id: SystemId::default(),
-            ui_id: SystemId::default(),
-            renderer_id: SystemId::default(),
-        }
-    }
-}
 
 impl Plugin for Editor {
     fn name(&self) -> &str {

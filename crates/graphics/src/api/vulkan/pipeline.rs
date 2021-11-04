@@ -16,6 +16,7 @@ use nrg_filesystem::convert_from_local_path;
 use nrg_math::{matrix4_to_array, Matrix4};
 use nrg_profiler::debug_log;
 use nrg_resources::DATA_FOLDER;
+use std::mem::MaybeUninit;
 use std::path::{Path, PathBuf};
 use vulkan_bindings::*;
 
@@ -629,12 +630,9 @@ impl BackendPipeline {
             }
         }
 
-        let mut layouts = Vec::<VkDescriptorSetLayout>::with_capacity(images_count);
-        unsafe {
-            layouts.set_len(images_count);
-        }
-        for layout in layouts.iter_mut() {
-            *layout = self.descriptor_set_layout;
+        let mut layouts = Vec::new();
+        for _i in 0..images_count {
+            layouts.push(self.descriptor_set_layout);
         }
 
         let alloc_info = VkDescriptorSetAllocateInfo {
@@ -645,18 +643,16 @@ impl BackendPipeline {
             pSetLayouts: layouts.as_mut_ptr(),
         };
 
-        let mut descriptor_sets = Vec::<VkDescriptorSet>::with_capacity(images_count);
-        unsafe {
-            descriptor_sets.set_len(images_count);
+        let descriptor_sets: Vec<VkDescriptorSet> = unsafe {
+            let mut option: Vec<MaybeUninit<VkDescriptorSet>> =
+                Vec::with_capacity(images_count as usize);
+            option.set_len(images_count as usize);
             assert_eq!(
                 VkResult_VK_SUCCESS,
-                vkAllocateDescriptorSets.unwrap()(
-                    **device,
-                    &alloc_info,
-                    descriptor_sets.as_mut_ptr()
-                )
+                vkAllocateDescriptorSets.unwrap()(**device, &alloc_info, option.as_mut_ptr() as _)
             );
-        }
+            option.into_iter().map(|e| e.assume_init()).collect()
+        };
 
         self.descriptor_sets = descriptor_sets;
         self

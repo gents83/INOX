@@ -8,22 +8,13 @@ use crate::systems::viewer_system::ViewerSystem;
 const VIEWER_UPDATE_PHASE: &str = "VIEWER_UPDATE_PHASE";
 
 #[repr(C)]
+#[derive(Default)]
 pub struct Viewer {
     updater_id: SystemId,
     debug_drawer_id: SystemId,
     ui_id: SystemId,
 }
 define_plugin!(Viewer);
-
-impl Default for Viewer {
-    fn default() -> Self {
-        Self {
-            updater_id: SystemId::default(),
-            debug_drawer_id: SystemId::default(),
-            ui_id: SystemId::default(),
-        }
-    }
-}
 
 impl Plugin for Viewer {
     fn name(&self) -> &str {
