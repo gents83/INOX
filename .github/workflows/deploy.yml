@@ -36,32 +36,31 @@ jobs:
       
       - name: "Copy nrgblender in NRG"
         run: |
-          mkdir -p "./NRG/"
           mkdir -p "./output/"
           mkdir -p "./output/NRG/"
           mkdir -p "./output/NRG/bin/"
           mkdir -p "./output/NRG/bin/data_raw/"
-          cp -r "./crates/blender/nrg_blender/NRG/" "./output/NRG/"
+          cp -r "./crates/blender/nrg_blender/NRG/" "./output/"
           
       - name: "Copy nrg_viewer configs in NRG"
         run: |
           mkdir -p "./output/NRG/bin/data_raw/config/"
           mkdir -p "./output/NRG/bin/data_raw/config/nrg_viewer/"
-          cp -r "./data_raw/config/nrg_viewer/" "./output/NRG/bin/data_raw/config/nrg_viewer/"
+          cp -r "./data_raw/config/nrg_viewer/" "./output/NRG/bin/data_raw/config/"
 
       - name: "Copy pipelines in NRG"
         run: |
           mkdir -p "./output/NRG/bin/data_raw/pipelines/"
-          cp -r "./data_raw/pipelines/" "./output/NRG/bin/data_raw/pipelines/"
+          cp -r "./data_raw/pipelines/" "./output/NRG/bin/data_raw/"
 
       - name: "Copy shaders in NRG"
         run: |
           mkdir -p "./output/NRG/bin/data_raw/shaders/"
-          cp -r "./data_raw/shaders/" "./output/NRG/bin/data_raw/shaders/"
+          cp -r "./data_raw/shaders/" "./output/NRG/bin/data_raw/"
 
       - name: "Copy dlls in NRG"
         run: |
-          find ./crates/target/release/ -type f -name *.dll | while read fname; do
+          find ./crates/target/release/ -maxdepth 1 -type f -name *.dll | while read fname; do
             dirname=`dirname "$fname"`
             filename=`basename "$fname"`
             cp "${dirname}/$filename" "./output/NRG/bin/$filename"
@@ -69,7 +68,7 @@ jobs:
           
       - name: "Copy exes in NRG"
         run: |
-          find ./crates/target/release/ -type f -name *.exe | while read fname; do
+          find ./crates/target/release/ -maxdepth 1 -type f -name *.exe | while read fname; do
             dirname=`dirname "$fname"`
             filename=`basename "$fname"`
             cp "${dirname}/$filename" "./output/NRG/bin/$filename"
@@ -79,8 +78,11 @@ jobs:
         uses: montudor/action-zip@v1
 
       - name: Zip NRG
-        run: zip -qq -v -r NRG.zip ./../output/NRG/
-        working-directory: ./NRG
+        run: |
+          cd "./output/"
+          zip -qq -v -r NRG.zip NRG/   
+          mkdir -p "./NRG/"
+          cp "./output/NRG/NRG.zip" "./NRG/NRG.zip"     
 
       - name: "Deploy zip on Github Pages"
         uses: peaceiris/actions-gh-pages@v3
