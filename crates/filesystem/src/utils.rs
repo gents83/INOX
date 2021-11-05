@@ -76,7 +76,12 @@ pub fn convert_from_local_path(parent_folder: &Path, relative_path: &Path) -> Pa
 
 #[inline]
 pub fn convert_in_local_path(original_path: &Path, base_path: &Path) -> PathBuf {
-    let path = original_path.to_str().unwrap().to_string();
+    let path = original_path
+        .canonicalize()
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_string();
     let path = path.replace(
         PathBuf::from(base_path)
             .canonicalize()

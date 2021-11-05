@@ -1,13 +1,62 @@
 import bpy
+import threading
+import subprocess
 
 from glob import glob
 from os.path import join, exists
 from os import chmod, mkdir
 from pathlib import Path
 
-from NRG import nrg_blender
 
 blender_classes = []
+
+nrg_engine = None
+#process = None
+#running_thread = None
+#thread_request = None
+#can_continue = True
+#
+#
+# class ThreadRequest:
+#    nrg_context = None
+#    filepath = ""
+#    exe_path = ""
+#
+#    def __init__(self, nrg_context, filepath, exe_path):
+#        self.nrg_context = nrg_context
+#        self.filepath = filepath
+#        self.exe_path = exe_path
+#
+#
+# def nrg_update():
+#    import bpy
+#    from NRG import nrg_blender
+#
+#    global can_continue
+#    while can_continue:
+#
+#        global thread_request
+#        if thread_request is not None:
+#            filename = thread_request.filepath
+#            exe_path = thread_request.exe_path
+#
+#            thread_request = None
+#
+#            print("Exporting scene into: " + filename)
+#
+#            for obj in bpy.context.scene.objects:
+#                print("Exporting object: " + obj.name)
+#
+#            # bpy.ops.export_scene.gltf(filepath=filename, check_existing=True, export_format='GLTF_SEPARATE',
+#            #                          export_apply=True, export_materials='EXPORT', export_cameras=True,
+#            #                          export_yup=True, export_lights=True)
+#
+#            filename = filename.replace('data_raw', 'data')
+#            filename = filename.replace('.gltf', '.scene_data')
+#
+#            print("Running NRG Engine")
+#            print(nrg_blender.execute(
+#                str(exe_path), str(filename)))
 
 
 class NRGRun(bpy.types.Operator):
@@ -36,31 +85,58 @@ class NRGRun(bpy.types.Operator):
         if last_part.endswith('debug') or last_part.endswith('release'):
             path = path.parent.absolute().parent.absolute().parent.absolute()
 
-        filename = Path(bpy.data.filepath).absolute().parts[-1]
+        #filename = Path(bpy.data.filepath).absolute().parts[-1]
 
-        data_raw_path = join(join(join(path, "data_raw"),
-                             "blender_export"), filename.replace('.blend', ''))
+        # data_raw_path = join(join(join(path, "data_raw"),
+        #                     "blender_export"), filename.replace('.blend', ''))
+#
+        # if not Path(data_raw_path).exists():
+        #    Path(data_raw_path).mkdir(parents=True, exist_ok=True)
+#
+        #filename = join(data_raw_path, filename.replace('.blend', '.gltf'))
+#
+        #filename = filename.replace('data_raw', 'data')
+        #filename = filename.replace('.gltf', '.scene_data')
 
-        if not Path(data_raw_path).exists():
-            Path(data_raw_path).mkdir(parents=True, exist_ok=True)
+        global nrg_engine
+        if nrg_engine is None:
+            from NRG import nrg_blender
+            nrg_engine = nrg_blender.NRGEngine()
 
-        filename = join(data_raw_path, filename.replace('.blend', '.gltf'))
+#
+        print(nrg_blender.load(nrg_engine, str(
+            preferences.exe_path), str(bpy.data.filepath)))
 
-        print("Exporting scene into: " + data_raw_path)
-        bpy.ops.export_scene.gltf(filepath=filename, check_existing=True, export_format='GLTF_SEPARATE',
-                                  export_apply=True, export_materials='EXPORT', export_cameras=True,
-                                  export_yup=True, export_lights=True)
+        #global process
+        # if process is None:
+        #    exe = join(preferences.exe_path, "nrg_launcher")
+#
+        #    filename = filename.replace('data_raw', 'data')
+        #    filename = filename.replace('.gltf', '.scene_data')
+#
+        #    cmd_argument = [exe]
+        #    cmd_argument.append('-plugin nrg_viewer')
+        #    cmd_argument.append('-load_file '+filename)
+#
+        #    process = subprocess.Popen(
+        #        cmd_argument, cwd=path)
 
-        filename = filename.replace('data_raw', 'data')
-        filename = filename.replace('.gltf', '.scene_data')
+        #global running_thread
+        # if running_thread is None:
+        #    global can_continue
+        #    can_continue = True
+        #    running_thread = threading.Thread(target=nrg_update)
+        #    running_thread.start()
+        #    print("Creating thread")
+#
+        #global thread_request
+        # if thread_request is None:
+        #    thread_request = ThreadRequest(
+        #        bpy.context, filename, preferences.exe_path)
+        #    print("Creating thread request")
 
-        print("Running NRG Engine")
-        print(nrg_blender.execute(
-            str(preferences.exe_path), str(filename)))
-
+        # Do NOT wait for the thread to be ended
         return {'FINISHED'}
-
-
 
 
 blender_classes.append(NRGRun)
@@ -72,6 +148,13 @@ def register():
 
 
 def unregister():
+    #global can_continue
+    #can_continue = False
+    #
+    #global running_thread
+    # if running_thread is not None:
+    #    running_thread.join()
+
     blender_classes.reverse()
     for blender_class in blender_classes:
         bpy.utils.unregister_class(blender_class)
