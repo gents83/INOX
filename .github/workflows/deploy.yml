@@ -82,7 +82,7 @@ jobs:
           cd "./output/"
           zip -qq -v -r NRG.zip NRG/   
           mkdir -p "./NRG/"
-          cp "./output/NRG/NRG.zip" "./NRG/NRG.zip"     
+          cp "./output/NRG.zip" "./NRG/NRG.zip"     
 
       - name: "Deploy zip on Github Pages"
         uses: peaceiris/actions-gh-pages@v3
