@@ -81,11 +81,12 @@ jobs:
         run: |
           cd "./output/"
           zip -qq -v -r NRG.zip NRG/   
-          mkdir -p "./NRG/"
-          cp "./output/NRG.zip" "./NRG/NRG.zip"     
+          mkdir -p "./release/"
+          cp "./NRG.zip" "./release/NRG.zip"     
+          cd ..
 
       - name: "Deploy zip on Github Pages"
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./NRG  # default: public
+          publish_dir: ./output/release  # default: public
