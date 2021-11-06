@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use nrg_resources::{ConfigBase, Data};
-use nrg_serialize::{Deserialize, Serialize};
+use nrg_serialize::{Deserialize, Serialize, SerializeFile};
 
 use crate::RenderPassData;
 
@@ -13,6 +13,11 @@ pub struct Config {
 }
 
 impl Data for Config {}
+impl SerializeFile for Config {
+    fn extension() -> &'static str {
+        "cfg"
+    }
+}
 impl ConfigBase for Config {
     fn get_filename(&self) -> &'static str {
         "render.cfg"

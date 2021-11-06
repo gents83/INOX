@@ -1,6 +1,6 @@
 use std::f32::consts::PI;
 
-use nrg_math::{InnerSpace, Mat4Ops, MatBase, Matrix4, VecBase, Vector3, Vector4};
+use nrg_math::{Mat4Ops, MatBase, Matrix4, VecBase, Vector3, Vector4};
 
 use crate::{VertexData, MAX_TEXTURE_COORDS_SETS};
 
@@ -264,7 +264,7 @@ pub fn create_arrow(position: Vector3, direction: Vector3) -> (Vec<VertexData>, 
 }
 
 pub fn create_line(start: Vector3, end: Vector3, color: Vector4) -> ([VertexData; 3], [u32; 3]) {
-    let direction = (end - start).normalize();
+    let direction = (end - start).normalized();
     let mut vertices = [VertexData::default(); 3];
     vertices[0].pos = [start.x, start.y, start.z].into();
     vertices[1].pos = [start.x, start.y, start.z].into();

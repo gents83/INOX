@@ -80,6 +80,10 @@ impl SerializableResource for Texture {
         self.path.as_path()
     }
 
+    fn extension() -> &'static str {
+        "png"
+    }
+
     fn is_matching_extension(path: &Path) -> bool {
         const IMAGE_PNG_EXTENSION: &str = "png";
         const IMAGE_JPG_EXTENSION: &str = "jpg";

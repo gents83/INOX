@@ -25,15 +25,9 @@ use nrg_messenger::MessengerRw;
 use nrg_profiler::debug_log;
 use nrg_resources::{DATA_FOLDER, DATA_RAW_FOLDER};
 use nrg_scene::{CameraData, ObjectData, SceneData};
-use nrg_serialize::serialize_to_file;
+use nrg_serialize::{Serialize, SerializeFile};
 
 const GLTF_EXTENSION: &str = "gltf";
-const MESH_DATA_EXTENSION: &str = "mesh_data";
-const MATERIAL_DATA_EXTENSION: &str = "material_data";
-const OBJECT_DATA_EXTENSION: &str = "object_data";
-const CAMERA_DATA_EXTENSION: &str = "camera_data";
-const LIGHT_DATA_EXTENSION: &str = "light_data";
-const SCENE_DATA_EXTENSION: &str = "scene_data";
 
 const DEFAULT_PIPELINE: &str = "pipelines/Default.pipeline_data";
 
@@ -285,7 +279,7 @@ impl GltfCompiler {
         mesh_data.material = material_path.to_path_buf();
         mesh_data.mesh_category_identifier = MeshCategoryId::new(DEFAULT_MESH_CATEGORY_IDENTIFIER);
 
-        Self::create_file(path, &mesh_data, mesh_name, MESH_DATA_EXTENSION)
+        Self::create_file(path, &mesh_data, mesh_name)
     }
     fn process_texture(&mut self, path: &Path, texture: Texture) -> PathBuf {
         if let ImageSource::Uri {
@@ -388,7 +382,6 @@ impl GltfCompiler {
             path,
             &material_data,
             primitive.material().name().unwrap_or_else(|| name.as_str()),
-            MATERIAL_DATA_EXTENSION,
         )
     }
 
@@ -478,7 +471,7 @@ impl GltfCompiler {
 
         (
             NodeType::Object,
-            Self::create_file(path, &object_data, node_name, OBJECT_DATA_EXTENSION),
+            Self::create_file(path, &object_data, node_name),
         )
     }
 
@@ -507,10 +500,7 @@ impl GltfCompiler {
         }
 
         let name = format!("Light_{}", light.index());
-        (
-            NodeType::Light,
-            Self::create_file(path, &light_data, &name, LIGHT_DATA_EXTENSION),
-        )
+        (NodeType::Light, Self::create_file(path, &light_data, &name))
     }
 
     fn process_camera(&mut self, path: &Path, camera: &Camera) -> (NodeType, PathBuf) {
@@ -531,7 +521,7 @@ impl GltfCompiler {
 
         (
             NodeType::Camera,
-            Self::create_file(path, &camera_data, &name, CAMERA_DATA_EXTENSION),
+            Self::create_file(path, &camera_data, &name),
         )
     }
 
@@ -566,17 +556,17 @@ impl GltfCompiler {
                     }
                 }
 
-                Self::create_file(path, &scene_data, scene_name, SCENE_DATA_EXTENSION);
+                Self::create_file(path, &scene_data, scene_name);
             }
         }
     }
 
-    fn create_file<T>(path: &Path, data: &T, new_name: &str, new_extension: &str) -> PathBuf
+    fn create_file<T>(path: &Path, data: &T, new_name: &str) -> PathBuf
     where
-        T: nrg_serialize::Serialize,
+        T: Serialize + SerializeFile,
     {
         let filename = path.file_name().unwrap().to_str().unwrap();
-        let destination_ext = format!("{}.{}", new_name, new_extension);
+        let destination_ext = format!("{}.{}", new_name, T::extension());
         let mut from_source_to_compiled = path.to_str().unwrap().to_string();
         from_source_to_compiled = from_source_to_compiled.replace(
             PathBuf::from(DATA_RAW_FOLDER)
@@ -600,7 +590,7 @@ impl GltfCompiler {
         }
         if need_to_binarize(path, new_path.as_path()) {
             debug_log(format!("Serializing {:?}", new_path).as_str());
-            serialize_to_file(data, new_path.as_path());
+            data.save_to_file(new_path.as_path());
         }
         new_path
     }

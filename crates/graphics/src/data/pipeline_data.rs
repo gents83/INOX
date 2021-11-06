@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use nrg_filesystem::convert_from_local_path;
 use nrg_math::Matrix4;
 use nrg_resources::DATA_FOLDER;
-use nrg_serialize::{Deserialize, Serialize};
+use nrg_serialize::{Deserialize, Serialize, SerializeFile};
 
 use crate::{LightData, ShaderMaterialData, ShaderTextureData, TextureAtlas};
 
@@ -76,6 +76,12 @@ pub struct PipelineData {
     pub src_alpha_blend_factor: BlendFactor,
     pub dst_alpha_blend_factor: BlendFactor,
     pub draw_mode: DrawMode,
+}
+
+impl SerializeFile for PipelineData {
+    fn extension() -> &'static str {
+        "pipeline_data"
+    }
 }
 
 impl Default for PipelineData {

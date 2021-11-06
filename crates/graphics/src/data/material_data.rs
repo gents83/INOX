@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use nrg_math::Vector4;
-use nrg_serialize::{Deserialize, Serialize};
+use nrg_serialize::{Deserialize, Serialize, SerializeFile};
 
 use crate::TextureType;
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Copy)]
@@ -26,6 +26,12 @@ pub struct MaterialData {
     pub emissive_color: Vector4,
     pub diffuse_color: Vector4,
     pub specular_color: Vector4,
+}
+
+impl SerializeFile for MaterialData {
+    fn extension() -> &'static str {
+        "material_data"
+    }
 }
 
 impl Default for MaterialData {

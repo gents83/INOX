@@ -4,6 +4,31 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
+trait NormalizedPath {
+    fn normalize(&self) -> PathBuf;
+}
+
+impl NormalizedPath for PathBuf {
+    fn normalize(&self) -> PathBuf {
+        self.canonicalize().unwrap_or_else(|_| {
+            let path = self.to_str().unwrap().to_string();
+            let win_prefix = "\\\\?\\".to_string();
+            let string = if path.starts_with(&win_prefix) {
+                path
+            } else {
+                win_prefix + &path
+            };
+            PathBuf::from(string)
+        })
+    }
+}
+
+impl NormalizedPath for Path {
+    fn normalize(&self) -> PathBuf {
+        self.to_path_buf().normalize()
+    }
+}
+
 #[inline]
 pub fn is_folder_empty(path: &Path) -> bool {
     let mut is_empty = true;
@@ -55,41 +80,24 @@ where
 #[inline]
 pub fn convert_from_local_path(parent_folder: &Path, relative_path: &Path) -> PathBuf {
     let mut pathbuf = parent_folder.to_path_buf();
-    let data_folder = pathbuf
-        .canonicalize()
-        .unwrap()
-        .to_str()
-        .unwrap()
-        .to_string();
+    let data_folder = pathbuf.normalize().to_str().unwrap().to_string();
     let string = relative_path.to_str().unwrap().to_string();
     if string.contains(parent_folder.to_str().unwrap()) {
-        pathbuf = relative_path.canonicalize().unwrap()
+        pathbuf = relative_path.normalize()
     } else if string.contains(data_folder.as_str()) {
         pathbuf = relative_path.to_path_buf()
     } else if let Ok(result_path) = pathbuf.join(relative_path).canonicalize() {
         pathbuf = result_path;
     } else {
-        eprintln!("Unable to find file: {:?}{:?}", pathbuf, relative_path);
+        pathbuf = relative_path.normalize();
     }
     pathbuf
 }
 
 #[inline]
 pub fn convert_in_local_path(original_path: &Path, base_path: &Path) -> PathBuf {
-    let path = original_path
-        .canonicalize()
-        .unwrap()
-        .to_str()
-        .unwrap()
-        .to_string();
-    let path = path.replace(
-        PathBuf::from(base_path)
-            .canonicalize()
-            .unwrap()
-            .to_str()
-            .unwrap(),
-        "",
-    );
+    let path = original_path.normalize().to_str().unwrap().to_string();
+    let path = path.replace(PathBuf::from(base_path).normalize().to_str().unwrap(), "");
     let mut path = path.replace("\\", "/");
     if path.starts_with('/') {
         path.remove(0);

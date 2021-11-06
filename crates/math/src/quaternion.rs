@@ -1,6 +1,7 @@
 use std::f32::consts::PI;
 
-use crate::{Vector3, Zero};
+use crate::Vector3;
+use cgmath::Zero;
 
 use crate::Quaternion;
 

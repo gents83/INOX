@@ -1,6 +1,6 @@
 use std::f32::consts::PI;
 
-use nrg_math::{InnerSpace, Vector2, Vector3, Vector4};
+use nrg_math::{VecBase, Vector2, Vector3, Vector4};
 
 use crate::{VertexData, MAX_TEXTURE_COORDS_SETS};
 
@@ -223,7 +223,7 @@ pub fn create_rounded_rect(
         vertices.push(VertexData {
             pos,
             tex_coord: [[rect.z / v.x, rect.w / v.y].into(); MAX_TEXTURE_COORDS_SETS],
-            normal: (pos - center.pos).normalize(),
+            normal: (pos - center.pos).normalized(),
             ..Default::default()
         });
     }

@@ -1,16 +1,13 @@
 use std::path::Path;
 
 use crate::{copy_into_data_folder, ExtensionHandler};
+use nrg_graphics::{Light, Material, Mesh, Pipeline};
 use nrg_messenger::MessengerRw;
 use nrg_profiler::debug_log;
+use nrg_resources::SerializableResource;
+use nrg_scene::{Camera, Object, Scene};
 
 const CONFIG_EXTENSION: &str = "cfg";
-const MATERIAL_EXTENSION: &str = "material_data";
-const MESH_EXTENSION: &str = "mesh_data";
-const PIPELINE_EXTENSION: &str = "pipeline_data";
-const OBJECT_EXTENSION: &str = "object_data";
-const SCENE_EXTENSION: &str = "scene_data";
-const CAMERA_EXTENSION: &str = "camera_data";
 
 pub struct CopyCompiler {
     global_messenger: MessengerRw,
@@ -27,12 +24,13 @@ impl ExtensionHandler for CopyCompiler {
         if let Some(ext) = path.extension() {
             let ext = ext.to_str().unwrap().to_string();
             if (ext.as_str() == CONFIG_EXTENSION
-                || ext.as_str() == MATERIAL_EXTENSION
-                || ext.as_str() == MESH_EXTENSION
-                || ext.as_str() == PIPELINE_EXTENSION
-                || ext.as_str() == SCENE_EXTENSION
-                || ext.as_str() == OBJECT_EXTENSION
-                || ext.as_str() == CAMERA_EXTENSION)
+                || ext.as_str() == Material::extension()
+                || ext.as_str() == Mesh::extension()
+                || ext.as_str() == Pipeline::extension()
+                || ext.as_str() == Scene::extension()
+                || ext.as_str() == Object::extension()
+                || ext.as_str() == Camera::extension()
+                || ext.as_str() == Light::extension())
                 && copy_into_data_folder(&self.global_messenger, path)
             {
                 debug_log(format!("Serializing {:?}", path).as_str());

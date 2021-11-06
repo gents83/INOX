@@ -56,13 +56,9 @@ impl SerializableResource for Material {
     fn path(&self) -> &Path {
         self.filepath.as_path()
     }
-    fn is_matching_extension(path: &Path) -> bool {
-        const MATERIAL_EXTENSION: &str = "material_data";
 
-        if let Some(ext) = path.extension().unwrap().to_str() {
-            return ext == MATERIAL_EXTENSION;
-        }
-        false
+    fn extension() -> &'static str {
+        "material_data"
     }
 }
 

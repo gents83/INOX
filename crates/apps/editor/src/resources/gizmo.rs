@@ -4,10 +4,7 @@ use nrg_graphics::{
     create_arrow, create_hammer, create_sphere, create_torus, Material, Mesh, MeshData, Pipeline,
 };
 
-use nrg_math::{
-    raycast_oob, Array, InnerSpace, Mat4Ops, MatBase, Matrix4, VecBase, Vector2, Vector3, Vector4,
-    Zero,
-};
+use nrg_math::{raycast_oob, Mat4Ops, MatBase, Matrix4, VecBase, Vector2, Vector3, Vector4};
 
 use nrg_messenger::{read_messages, MessageBox, MessageChannel, MessengerRw};
 use nrg_resources::{
@@ -103,7 +100,7 @@ impl Gizmo {
             mode_type,
             transform: Matrix4::default_identity(),
             camera_scale: 1.,
-            axis: Vector3::zero(),
+            axis: Vector3::default_zero(),
             shared_data: shared_data.clone(),
             message_channel,
             global_dispatcher: global_messenger.read().unwrap().get_dispatcher(),
@@ -133,7 +130,7 @@ impl Gizmo {
             Self::create_center_mesh(
                 shared_data,
                 global_messenger,
-                Vector3::zero(),
+                Vector3::default_zero(),
                 default_material_pipeline,
             ),
             Self::create_arrow(
@@ -172,7 +169,7 @@ impl Gizmo {
             Self::create_center_mesh(
                 shared_data,
                 global_messenger,
-                Vector3::zero(),
+                Vector3::default_zero(),
                 default_material_pipeline,
             ),
             Self::create_hammer(
@@ -211,7 +208,7 @@ impl Gizmo {
             Self::create_center_mesh(
                 shared_data,
                 global_messenger,
-                Vector3::zero(),
+                Vector3::default_zero(),
                 default_material_pipeline,
             ),
             Self::create_torus(
@@ -272,7 +269,7 @@ impl Gizmo {
     ) -> Resource<Mesh> {
         let mut mesh_data = MeshData::default();
 
-        let (vertices, indices) = create_arrow(Vector3::zero(), direction);
+        let (vertices, indices) = create_arrow(Vector3::default_zero(), direction);
         mesh_data.append_mesh(vertices.as_slice(), indices.as_slice());
 
         let mesh = Mesh::new_resource(
@@ -295,7 +292,7 @@ impl Gizmo {
     ) -> Resource<Mesh> {
         let mut mesh_data = MeshData::default();
 
-        let (vertices, indices) = create_hammer(Vector3::zero(), direction);
+        let (vertices, indices) = create_hammer(Vector3::default_zero(), direction);
         mesh_data.append_mesh(vertices.as_slice(), indices.as_slice());
 
         let mesh = Mesh::new_resource(
@@ -318,7 +315,8 @@ impl Gizmo {
     ) -> Resource<Mesh> {
         let mut mesh_data = MeshData::default();
 
-        let (vertices, indices) = create_torus(Vector3::zero(), 10., 0.2, 32, 32, direction);
+        let (vertices, indices) =
+            create_torus(Vector3::default_zero(), 10., 0.2, 32, 32, direction);
         mesh_data.append_mesh(vertices.as_slice(), indices.as_slice());
 
         let mesh = Mesh::new_resource(
@@ -351,7 +349,7 @@ impl Gizmo {
         self.transform.from_translation_rotation_scale(
             translation,
             rotation,
-            Vector3::from_value(camera_scale),
+            Vector3::default_value(camera_scale),
         );
         self.mesh_center.get_mut().set_matrix(self.transform);
 
@@ -368,7 +366,7 @@ impl Gizmo {
         let max = matrix.transform(max);
         raycast_oob(
             start,
-            (end - start).normalize(),
+            (end - start).normalized(),
             min,
             max,
             Matrix4::default_identity(),
@@ -380,11 +378,11 @@ impl Gizmo {
             self.axis = Vector3::default_one();
             true
         } else {
-            self.axis != Vector3::zero()
+            self.axis != Vector3::default_zero()
         }
     }
     pub fn end_drag(&mut self) {
-        self.axis = Vector3::zero();
+        self.axis = Vector3::default_zero();
     }
     pub fn drag(&mut self, intensity: f32, object_id: &ObjectId) {
         if object_id.is_nil() {
@@ -399,9 +397,9 @@ impl Gizmo {
             let min = delta.x.min(delta.y).min(delta.z);
             let max = delta.x.max(delta.y).max(delta.z);
             if min.abs() >= max.abs() {
-                delta = Vector3::from_value(min);
+                delta = Vector3::default_value(min);
             } else {
-                delta = Vector3::from_value(max);
+                delta = Vector3::default_value(max);
             }
         }
 
@@ -536,7 +534,7 @@ impl Gizmo {
     pub fn select_object(&mut self, object_id: &ObjectId) {
         if object_id.is_nil() {
             self.set_visible(false);
-            self.transform.set_translation(Vector3::zero());
+            self.transform.set_translation(Vector3::default_zero());
         } else if let Some(object) =
             SharedData::get_resource::<Object>(&self.shared_data, object_id)
         {

@@ -1,5 +1,5 @@
 use nrg_math::{Degrees, NewAngle};
-use nrg_serialize::{Deserialize, Serialize};
+use nrg_serialize::{Deserialize, Serialize, SerializeFile};
 
 use crate::{
     DEFAULT_CAMERA_ASPECT_RATIO, DEFAULT_CAMERA_FAR, DEFAULT_CAMERA_FOV, DEFAULT_CAMERA_NEAR,
@@ -12,6 +12,12 @@ pub struct CameraData {
     pub near: f32,
     pub far: f32,
     pub fov: Degrees,
+}
+
+impl SerializeFile for CameraData {
+    fn extension() -> &'static str {
+        "camera_data"
+    }
 }
 
 impl Default for CameraData {

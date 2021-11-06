@@ -85,13 +85,8 @@ impl SerializableResource for Camera {
         self.filepath = path.to_path_buf();
     }
 
-    fn is_matching_extension(path: &Path) -> bool {
-        const CAMERA_EXTENSION: &str = "camera_data";
-
-        if let Some(ext) = path.extension().unwrap().to_str() {
-            return ext == CAMERA_EXTENSION;
-        }
-        false
+    fn extension() -> &'static str {
+        "camera_data"
     }
 }
 impl DataTypeResource for Camera {

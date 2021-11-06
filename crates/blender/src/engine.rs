@@ -1,5 +1,7 @@
 use crate::exporter::Exporter;
 use cpython::{py_class, PyResult, Python};
+use nrg_scene::SceneData;
+use nrg_serialize::SerializeFile;
 use std::{path::PathBuf, process::Command};
 
 #[derive(Default)]
@@ -46,7 +48,10 @@ impl NRGEngine {
         let mut command = Command::new(path.as_path());
         command.arg("-plugin nrg_viewer");
         for file in files_to_load {
-            command.arg("-load_file").arg(file.to_str().unwrap());
+            let mut filepath = file.to_str().unwrap().to_string();
+            filepath = filepath.replace("data_raw", "data");
+            filepath = filepath.replace("gltf", SceneData::extension());
+            command.arg("-load_file").arg(filepath.as_str());
         }
         command.current_dir(current_dir.as_path());
 

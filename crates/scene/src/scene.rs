@@ -47,13 +47,8 @@ impl SerializableResource for Scene {
         self.filepath = path.to_path_buf();
     }
 
-    fn is_matching_extension(path: &Path) -> bool {
-        const SCENE_EXTENSION: &str = "scene_data";
-
-        if let Some(ext) = path.extension().unwrap().to_str() {
-            return ext == SCENE_EXTENSION;
-        }
-        false
+    fn extension() -> &'static str {
+        "scene_data"
     }
 }
 impl DataTypeResource for Scene {

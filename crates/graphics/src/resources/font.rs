@@ -61,13 +61,8 @@ impl SerializableResource for Font {
     fn path(&self) -> &Path {
         self.path.as_path()
     }
-    fn is_matching_extension(path: &Path) -> bool {
-        const FONT_EXTENSION: &str = "ttf";
-
-        if let Some(ext) = path.extension().unwrap().to_str() {
-            return ext == FONT_EXTENSION;
-        }
-        false
+    fn extension() -> &'static str {
+        "ttf"
     }
 }
 

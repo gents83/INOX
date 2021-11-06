@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use nrg_math::{is_point_in_triangle, Vector2, Vector3, Vector4};
-use nrg_serialize::{generate_uid_from_string, Deserialize, Serialize, Uid};
+use nrg_serialize::{generate_uid_from_string, Deserialize, Serialize, SerializeFile, Uid};
 
 use crate::{create_quad, MeshDataRef, VertexData};
 
@@ -33,6 +33,12 @@ pub struct MeshData {
     pub indices: Vec<u32>,
     pub material: PathBuf,
     pub mesh_category_identifier: MeshCategoryId,
+}
+
+impl SerializeFile for MeshData {
+    fn extension() -> &'static str {
+        "mesh_data"
+    }
 }
 
 impl Default for MeshData {

@@ -1,6 +1,6 @@
 use nrg_core::System;
 use nrg_graphics::{DrawEvent, Light, View};
-use nrg_math::{InnerSpace, Matrix4, Vector2, Vector3, Zero};
+use nrg_math::{Matrix4, VecBase, Vector2, Vector3};
 use nrg_messenger::{read_messages, send_global_event, MessageChannel, MessengerRw};
 use nrg_platform::{InputState, Key, KeyEvent, MouseEvent, WindowEvent};
 use nrg_profiler::debug_log;
@@ -66,7 +66,7 @@ impl ViewerSystem {
             message_channel,
             scene,
             camera_object,
-            last_mouse_pos: Vector2::zero(),
+            last_mouse_pos: Vector2::default_zero(),
         }
     }
 }
@@ -262,7 +262,7 @@ impl ViewerSystem {
             }
         }
 
-        let mut movement = Vector3::zero();
+        let mut movement = Vector3::default_zero();
         if event.code == Key::W {
             movement.z += 1.;
         } else if event.code == Key::S {
@@ -276,13 +276,13 @@ impl ViewerSystem {
         } else if event.code == Key::E {
             movement.y -= 1.;
         }
-        if movement != Vector3::zero() {
+        if movement != Vector3::default_zero() {
             self.shared_data.for_each_resource_mut(|_, c: &mut Camera| {
                 if c.is_active() {
                     let matrix = c.transform();
-                    let translation = matrix.x.xyz().normalize() * movement.x
-                        + matrix.y.xyz().normalize() * movement.y
-                        + matrix.z.xyz().normalize() * movement.z;
+                    let translation = matrix.x.xyz().normalized() * movement.x
+                        + matrix.y.xyz().normalized() * movement.y
+                        + matrix.z.xyz().normalized() * movement.z;
                     c.translate(translation);
                 }
             });
@@ -295,11 +295,11 @@ impl ViewerSystem {
             is_on_view3d = view_3d.is_interacting();
         }
         if is_on_view3d {
-            let mut rotation_angle = Vector3::zero();
+            let mut rotation_angle = Vector3::default_zero();
 
             rotation_angle.x = event.normalized_y - self.last_mouse_pos.y;
             rotation_angle.y = event.normalized_x - self.last_mouse_pos.x;
-            if rotation_angle != Vector3::zero() {
+            if rotation_angle != Vector3::default_zero() {
                 self.shared_data.for_each_resource_mut(|_, c: &mut Camera| {
                     if c.is_active() {
                         c.rotate(rotation_angle * 5.);

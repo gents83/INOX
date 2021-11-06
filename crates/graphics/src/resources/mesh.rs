@@ -47,13 +47,8 @@ impl SerializableResource for Mesh {
         self.path.as_path()
     }
 
-    fn is_matching_extension(path: &Path) -> bool {
-        const MESH_EXTENSION: &str = "mesh_data";
-
-        if let Some(ext) = path.extension().unwrap().to_str() {
-            return ext == MESH_EXTENSION;
-        }
-        false
+    fn extension() -> &'static str {
+        "mesh_data"
     }
 }
 

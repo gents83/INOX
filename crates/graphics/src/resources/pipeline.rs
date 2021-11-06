@@ -39,13 +39,8 @@ impl SerializableResource for Pipeline {
         self.path.as_path()
     }
 
-    fn is_matching_extension(path: &Path) -> bool {
-        const PIPELINE_EXTENSION: &str = "pipeline_data";
-
-        if let Some(ext) = path.extension().unwrap().to_str() {
-            return ext == PIPELINE_EXTENSION;
-        }
-        false
+    fn extension() -> &'static str {
+        "pipeline_data"
     }
 }
 

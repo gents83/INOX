@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use nrg_serialize::{Deserialize, Serialize};
+use nrg_serialize::{Deserialize, Serialize, SerializeFile};
 
 #[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
 #[serde(crate = "nrg_serialize")]
@@ -36,6 +36,13 @@ pub struct RenderPassData {
     pub pipeline: PathBuf,
     pub mesh_category_to_draw: Vec<String>,
 }
+
+impl SerializeFile for RenderPassData {
+    fn extension() -> &'static str {
+        "render_pass_data"
+    }
+}
+
 unsafe impl Send for RenderPassData {}
 unsafe impl Sync for RenderPassData {}
 

@@ -1,4 +1,4 @@
-use nrg_math::{Vector2, Vector3, Vector4, Zero};
+use nrg_math::{VecBase, Vector2, Vector3, Vector4};
 use nrg_serialize::{Deserialize, Serialize};
 
 pub const MAX_TEXTURE_COORDS_SETS: usize = 4;
@@ -17,11 +17,11 @@ pub struct VertexData {
 impl Default for VertexData {
     fn default() -> VertexData {
         VertexData {
-            pos: Vector3::zero(),
+            pos: Vector3::default_zero(),
             normal: Vector3::new(0., 0., 1.),
             tangent: Vector3::new(0., 0., 1.),
             color: Vector4::new(1., 1., 1., 1.),
-            tex_coord: [Vector2::zero(); MAX_TEXTURE_COORDS_SETS],
+            tex_coord: [Vector2::default_zero(); MAX_TEXTURE_COORDS_SETS],
         }
     }
 }

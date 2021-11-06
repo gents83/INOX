@@ -68,9 +68,13 @@ where
 pub trait SerializableResource: DataTypeResource + Sized {
     fn set_path(&mut self, path: &Path);
     fn path(&self) -> &Path;
-    fn is_matching_extension(path: &Path) -> bool
-    where
-        Self: Sized;
+    fn extension() -> &'static str;
+    fn is_matching_extension(path: &Path) -> bool {
+        if let Some(ext) = path.extension().unwrap().to_str() {
+            return ext == Self::extension();
+        }
+        false
+    }
 
     #[inline]
     fn name(&self) -> String {

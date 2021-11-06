@@ -3,7 +3,7 @@ use nrg_graphics::{
     RenderPass, Texture, View, DEFAULT_MESH_CATEGORY_IDENTIFIER, TEXTURE_CHANNEL_COUNT,
 };
 use nrg_math::{
-    raycast_oob, Degrees, InnerSpace, MatBase, Matrix4, NewAngle, Vector2, Vector3, Vector4, Zero,
+    raycast_oob, Degrees, MatBase, Matrix4, NewAngle, VecBase, Vector2, Vector3, Vector4,
 };
 use nrg_messenger::{Message, MessengerRw};
 use nrg_platform::{Key, KeyEvent};
@@ -95,7 +95,7 @@ impl View3D {
             texture,
             picking_texture,
             camera_object,
-            last_mouse_pos: Vector2::zero(),
+            last_mouse_pos: Vector2::default_zero(),
             selected_object: INVALID_UID,
             hover_mesh: 0,
             view_width: VIEW3D_IMAGE_WIDTH,
@@ -174,7 +174,7 @@ impl View3D {
     }
     pub fn handle_keyboard_event(&mut self, event: &KeyEvent) {
         if let Some(data) = self.ui_page.get_mut().data_mut::<View3DData>() {
-            let mut movement = Vector3::zero();
+            let mut movement = Vector3::default_zero();
             if event.code == Key::W {
                 movement.z += 1.;
             } else if event.code == Key::S {
@@ -277,7 +277,7 @@ impl View3D {
                 false
             };
             if !is_manipulating_gizmo {
-                let mut rotation_angle = Vector3::zero();
+                let mut rotation_angle = Vector3::default_zero();
 
                 rotation_angle.x = normalized_pos.y - data.last_mouse_pos.y;
                 rotation_angle.y = data.last_mouse_pos.x - normalized_pos.x;
@@ -398,8 +398,8 @@ impl View3D {
     ) -> ObjectId {
         let mut selected_object = INVALID_UID;
 
-        let mut ray_start_world = Vector3::zero();
-        let mut ray_end_world = Vector3::zero();
+        let mut ray_start_world = Vector3::default_zero();
+        let mut ray_end_world = Vector3::default_zero();
         data.shared_data.for_each_resource(|_, c: &Camera| {
             if c.is_active() {
                 let (start, end) = c.convert_in_3d([normalized_x, normalized_y].into());
@@ -409,7 +409,7 @@ impl View3D {
         });
 
         let ray_dir_world = ray_end_world - ray_start_world;
-        let ray_dir_world = ray_dir_world.normalize();
+        let ray_dir_world = ray_dir_world.normalized();
 
         let mut min = [-5., -5., -5.].into();
         let mut max = [5., 5., 5.].into();

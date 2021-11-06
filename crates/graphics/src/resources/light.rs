@@ -35,13 +35,8 @@ impl SerializableResource for Light {
         self.filepath = path.to_path_buf();
     }
 
-    fn is_matching_extension(path: &Path) -> bool {
-        const LIGHT_EXTENSION: &str = "light_data";
-
-        if let Some(ext) = path.extension().unwrap().to_str() {
-            return ext == LIGHT_EXTENSION;
-        }
-        false
+    fn extension() -> &'static str {
+        "light_data"
     }
 }
 impl DataTypeResource for Light {

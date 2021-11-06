@@ -1,7 +1,7 @@
 use std::any::TypeId;
 
 use nrg_graphics::{DrawEvent, Mesh};
-use nrg_math::{Mat4Ops, Vector3, Zero};
+use nrg_math::{Mat4Ops, VecBase, Vector3};
 use nrg_messenger::{read_messages, Message, MessageBox, MessageChannel, MessengerRw};
 use nrg_resources::{SharedData, SharedDataRc};
 use nrg_scene::{Hitbox, Object, ObjectId};
@@ -35,8 +35,8 @@ impl BoundingBoxDrawer {
 
         for object_id in self.objects_to_draw.iter() {
             if let Some(object) = SharedData::get_resource::<Object>(&self.shared_data, object_id) {
-                let mut min = Vector3::zero();
-                let mut max = Vector3::zero();
+                let mut min = Vector3::default_zero();
+                let mut max = Vector3::default_zero();
 
                 if let Some(hitbox) = object.get().component::<Hitbox>() {
                     min = hitbox.get().min();

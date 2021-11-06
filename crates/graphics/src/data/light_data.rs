@@ -1,4 +1,4 @@
-use nrg_serialize::{Deserialize, Serialize};
+use nrg_serialize::{Deserialize, Serialize, SerializeFile};
 
 use crate::print_field_size;
 
@@ -24,6 +24,12 @@ pub struct LightData {
     pub range: f32,
     pub inner_cone_angle: f32,
     pub outer_cone_angle: f32,
+}
+
+impl SerializeFile for LightData {
+    fn extension() -> &'static str {
+        "light_data"
+    }
 }
 
 impl Default for LightData {

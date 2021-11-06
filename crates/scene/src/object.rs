@@ -89,13 +89,8 @@ impl SerializableResource for Object {
         self.filepath = path.to_path_buf();
     }
 
-    fn is_matching_extension(path: &Path) -> bool {
-        const OBJECT_EXTENSION: &str = "object_data";
-
-        if let Some(ext) = path.extension().unwrap().to_str() {
-            return ext == OBJECT_EXTENSION;
-        }
-        false
+    fn extension() -> &'static str {
+        "object_data"
     }
 }
 impl DataTypeResource for Object {

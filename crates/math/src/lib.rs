@@ -1,7 +1,5 @@
 #![warn(clippy::all)]
 
-pub use cgmath::prelude::*;
-
 pub use crate::angle::*;
 pub use crate::matrix::*;
 pub use crate::parser::*;

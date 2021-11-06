@@ -1,6 +1,8 @@
 use std::f32::consts::PI;
 
-use cgmath::*;
+use cgmath::prelude::*;
+use cgmath::InnerSpace;
+use cgmath::{Deg, Rad};
 
 pub type Vector2 = cgmath::Vector2<f32>;
 pub type Vector3 = cgmath::Vector3<f32>;
@@ -9,8 +11,10 @@ pub type Vector4 = cgmath::Vector4<f32>;
 pub trait VecBase {
     fn default_zero() -> Self;
     fn default_one() -> Self;
+    fn default_value(v: f32) -> Self;
     fn squared_distance(self, other: Self) -> f32;
     fn length(self) -> f32;
+    fn normalized(self) -> Self;
     fn add(self, rhs: Self) -> Self;
     fn sub(self, rhs: Self) -> Self;
     fn mul(self, rhs: Self) -> Self;
@@ -26,11 +30,17 @@ macro_rules! implement_vector_base {
             fn default_zero() -> Self {
                 Self::zero()
             }
+            fn default_value(v: f32) -> Self {
+                Self::from_value(v)
+            }
             fn default_one() -> Self {
                 Self::from_value(1.)
             }
             fn length(self) -> f32 {
                 self.magnitude()
+            }
+            fn normalized(self) -> Self {
+                self.normalize()
             }
             fn squared_distance(self, other: Self) -> f32 {
                 self.distance2(other)
