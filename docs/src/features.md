@@ -26,9 +26,12 @@ Here you can find a list of features that are currently supported by the library
 - [x] Continous integration and build support using Github Actions 
 
 TODO:
+- [ ] NRG Window should not block Blender usage
 - [ ] Create custom Logic Nodes editor in _**Blender**_ (in progress)
 - [ ] Integrate PBR rendering
-- [ ] Raytracing on GPU compute
+- [ ] Quick example of game 
+- [ ] Integrate raw-window-handle as optional feature
 - [ ] Integrate wgpu as optional feature
+- [ ] Raytracing on GPU
 - [ ] Dynamic vertex data per-shader
 - [ ] Integrate wasm as target
