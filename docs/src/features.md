@@ -26,8 +26,9 @@ Here you can find a list of features that are currently supported by the library
 - [x] Continous integration and build support using Github Actions 
 
 TODO:
-- [ ] Create custom Logic Nodes editor in _**Blender**_
+- [ ] Create custom Logic Nodes editor in _**Blender**_ (in progress)
 - [ ] Integrate PBR rendering
 - [ ] Raytracing on GPU compute
 - [ ] Integrate wgpu as optional feature
 - [ ] Dynamic vertex data per-shader
+- [ ] Integrate wasm as target
