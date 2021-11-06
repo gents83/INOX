@@ -46,7 +46,9 @@ impl NRGEngine {
         path = path.join("nrg_launcher.exe");
 
         let mut command = Command::new(path.as_path());
-        command.arg("-plugin nrg_viewer");
+        command
+            .arg("-plugin nrg_connector")
+            .arg("-plugin nrg_viewer");
         for file in files_to_load {
             let mut filepath = file.to_str().unwrap().to_string();
             filepath = filepath.replace("data_raw", "data");

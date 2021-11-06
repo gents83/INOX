@@ -50,6 +50,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/crates/target/debug/nrg_launcher.exe",
             "args": [
+                "-plugin nrg_connector",
                 "-plugin nrg_viewer",
                 "-load_file",
                 "C:\\PROJECTS\\NRG\\data\\blender_export\\TestScene\\TestScene.scene_data"

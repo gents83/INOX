@@ -1,10 +1,7 @@
 [workspace]
 
 members = [
-    "apps/content_browser",
-    "apps/editor",
-    "apps/launcher_app",
-    "apps/viewer",
+    "app",
     "binarizer",
     "blender",
     "bindings/vulkan_bindings",
@@ -15,6 +12,10 @@ members = [
     "math",
     "messenger",
     "platform",
+    "plugins/content_browser",
+    "plugins/editor",
+    "plugins/viewer",
+    "plugins/connector",
     "profiler",
     "resources",
     "scene",
