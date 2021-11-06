@@ -26,9 +26,10 @@ Here you can find a list of features that are currently supported by the library
 - [x] Continous integration and build support using Github Actions 
 
 TODO:
-- [ ] NRG Window should not block Blender usage
+- [ ] NRG <-> Blender communication through TCP connection
 - [ ] Create custom Logic Nodes editor in _**Blender**_ (in progress)
 - [ ] Integrate PBR rendering
+- [ ] Possibility to run Phases in parallel when not dependent
 - [ ] Quick example of game 
 - [ ] Integrate raw-window-handle as optional feature
 - [ ] Integrate wgpu as optional feature
