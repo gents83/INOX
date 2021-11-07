@@ -24,12 +24,13 @@ Here you can find a list of features that are currently supported by the library
 - [x] In-game GUI integration using [egui](https://github.com/emilk/egui) by [emilk](https://twitter.com/ernerfeldt)
 - [x] Documentations using [mdBook](https://rust-lang.github.io/mdBook/)
 - [x] Continous integration and build support using Github Actions 
+- [x] _**NRG**_ <-> _**Blender**_ communication through TCP connection
 
 TODO:
-- [ ] NRG <-> Blender communication through TCP connection
 - [ ] Create custom Logic Nodes editor in _**Blender**_ (in progress)
 - [ ] Integrate PBR rendering
 - [ ] Possibility to run Phases in parallel when not dependent
+- [ ] Plugin indipendent and ability to enable\disable them at runtime
 - [ ] Quick example of game 
 - [ ] Integrate KTX universal texture compression
 - [ ] Integrate raw-window-handle as optional feature
