@@ -7,3 +7,6 @@ build = "build.rs"
 
 [lib]
 crate-type = ["cdylib",'rlib']
+
+[dependencies]
+nrg_commands = { path = "../commands" }

@@ -9,6 +9,7 @@ build = "build.rs"
 crate-type = ["cdylib"]
 
 [dependencies]
+nrg_commands = { path = "../../commands" }
 nrg_core = { path = "../../core" }
 nrg_filesystem = { path = "../../filesystem" }
 nrg_graphics = { path = "../../graphics" }

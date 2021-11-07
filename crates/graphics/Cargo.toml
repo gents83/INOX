@@ -11,6 +11,7 @@ crate-type = ["cdylib",'rlib']
 image = { path = "../../extern/image" }
 ttf-parser = {path = "../../extern/ttf-parser" }
 vulkan_bindings = { path = "../bindings/vulkan_bindings" }
+nrg_commands = { path = "../commands" }
 nrg_core = { path = "../core" }
 nrg_filesystem = { path = "../filesystem" }
 nrg_math = { path = "../math" }

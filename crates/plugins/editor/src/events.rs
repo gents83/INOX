@@ -1,4 +1,5 @@
-use nrg_messenger::implement_message;
+use nrg_commands::CommandParser;
+use nrg_messenger::{implement_message, Message, MessageFromString};
 use nrg_scene::ObjectId;
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -17,3 +18,17 @@ pub enum EditorEvent {
     ChangeMode(EditMode),
 }
 implement_message!(EditorEvent);
+
+impl MessageFromString for EditorEvent {
+    fn from_command_parser(command_parser: CommandParser) -> Option<Box<dyn Message>>
+    where
+        Self: Sized,
+    {
+        if command_parser.has("select_object") {
+            let values = command_parser.get_values_of::<ObjectId>("select_object");
+            return Some(EditorEvent::Selected(values[0]).as_boxed());
+        }
+        //TODO support other messages
+        None
+    }
+}

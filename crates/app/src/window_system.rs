@@ -1,5 +1,5 @@
 use nrg_core::System;
-use nrg_messenger::{send_global_event, MessengerRw};
+use nrg_messenger::{GlobalMessenger, MessengerRw};
 use nrg_platform::{Window, WindowEvent};
 use nrg_resources::ConfigBase;
 use nrg_serialize::read_from_file;
@@ -25,22 +25,14 @@ impl System for WindowSystem {
         let mut config = Config::default();
         config = read_from_file(config.get_filepath(plugin_name).as_path());
 
-        send_global_event(
-            &self.global_messenger,
-            WindowEvent::RequestChangeTitle(config.title.clone()),
-        );
-        send_global_event(
-            &self.global_messenger,
-            WindowEvent::RequestChangeSize(config.width, config.height),
-        );
-        send_global_event(
-            &self.global_messenger,
-            WindowEvent::RequestChangePos(config.pos_x, config.pos_y),
-        );
-        send_global_event(
-            &self.global_messenger,
-            WindowEvent::RequestChangeVisible(true),
-        );
+        self.global_messenger
+            .send_event(WindowEvent::RequestChangeTitle(config.title.clone()));
+        self.global_messenger
+            .send_event(WindowEvent::RequestChangeSize(config.width, config.height));
+        self.global_messenger
+            .send_event(WindowEvent::RequestChangePos(config.pos_x, config.pos_y));
+        self.global_messenger
+            .send_event(WindowEvent::RequestChangeVisible(true));
     }
     fn should_run_when_not_focused(&self) -> bool {
         true

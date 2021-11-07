@@ -5,6 +5,7 @@ members = [
     "binarizer",
     "blender",
     "bindings/vulkan_bindings",
+    "commands",
     "core",
     "events",
     "filesystem",

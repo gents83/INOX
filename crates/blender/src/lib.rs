@@ -16,31 +16,30 @@ py_module_initializer!(nrg_blender, initnrg_blender, PyInit_nrg_blender, |py, m|
     m.add_class::<NRGEngine>(py)?;
     m.add(
         py,
-        "load",
-        py_fn!(
-            py,
-            load(
-                nrg_engine: NRGEngine,
-                executable_path: &str,
-                file_to_export: &str
-            )
-        ),
+        "start",
+        py_fn!(py, start(nrg_engine: NRGEngine, executable_path: &str,)),
+    )?;
+    m.add(
+        py,
+        "export",
+        py_fn!(py, export(nrg_engine: NRGEngine, file_to_export: &str,)),
     )?;
     Ok(())
 });
 
-fn load(
-    py: Python,
-    nrg_engine: NRGEngine,
-    executable_path: &str,
-    file_to_export: &str,
-) -> PyResult<bool> {
+fn start(py: Python, nrg_engine: NRGEngine, executable_path: &str) -> PyResult<bool> {
     let is_running = nrg_engine.is_running(py);
-    println!("NRGEngine is running = {}", is_running);
 
-    if !is_running {
-        nrg_engine.start(py, executable_path, file_to_export)?;
-    }
+    let result = if !is_running {
+        nrg_engine.start(py, executable_path)?
+    } else {
+        true
+    };
+    println!("NRGEngine is running = {}", result);
 
-    Ok(nrg_engine.is_running(py))
+    Ok(result)
+}
+
+fn export(py: Python, nrg_engine: NRGEngine, file_to_export: &str) -> PyResult<bool> {
+    nrg_engine.export(py, file_to_export)
 }

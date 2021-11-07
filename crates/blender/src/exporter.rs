@@ -43,10 +43,10 @@ impl Exporter {
                     filename.to_str().unwrap_or("Scene"),
                     "gltf"
                 ));
-                println!("Creating scene {:?}", scene_path);
+                let scene_path = scene_path.to_str().unwrap_or_default().to_string();
 
                 let kwargs = PyDict::new(py);
-                kwargs.set_item(py, "filepath", scene_path.to_str().unwrap().to_string())?;
+                kwargs.set_item(py, "filepath", scene_path.clone())?;
                 kwargs.set_item(py, "check_existing", true)?;
                 kwargs.set_item(py, "export_format", "GLTF_SEPARATE")?;
                 kwargs.set_item(py, "export_apply", true)?;
@@ -58,7 +58,9 @@ impl Exporter {
 
                 self.export_custom_data(py, self.export_dir.as_path())?;
 
-                scene_paths.push(scene_path);
+                let scene_path = scene_path.replace("data_raw", "data");
+                let scene_path = scene_path.replace(".gltf", ".scene_data");
+                scene_paths.push(PathBuf::from(scene_path));
             }
         }
         Ok(scene_paths)
@@ -92,7 +94,7 @@ impl Exporter {
                         .join(format!("{}.{}", object_name, ObjectData::extension()).as_str())
                         .as_path(),
                 );
-                println!("Checking object {:?}", object_name);
+                //println!("Checking object {:?}", object_name);
             }
         }
         Ok(true)

@@ -10,8 +10,9 @@ crate-type = ["cdylib",'rlib']
 
 [dependencies]
 downcast-rs = { path = "../../extern/downcast-rs" }
-nrg_messenger = { path = "../messenger" }
+nrg_commands = { path = "../commands" }
 nrg_filesystem = { path = "../filesystem" }
+nrg_messenger = { path = "../messenger" }
 nrg_platform = { path = "../platform" }
 nrg_profiler = { path = "../profiler" }
 nrg_resources = { path = "../resources" }

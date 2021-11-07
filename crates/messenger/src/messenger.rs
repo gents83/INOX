@@ -1,18 +1,46 @@
 use std::{
     any::TypeId,
     collections::HashMap,
+    marker::PhantomData,
     sync::{Arc, RwLock},
 };
 
-use crate::{Listener, Message, MessageBox, MessageChannel};
+use crate::{Listener, Message, MessageBox, MessageChannel, MessageFromString};
 
 pub type MessengerRw = Arc<RwLock<Messenger>>;
+
+trait MsgType {
+    fn type_id(&self) -> TypeId;
+    fn name(&self) -> &'static str {
+        std::any::type_name::<Self>()
+    }
+    fn from_string(&self, s: String) -> Option<Box<dyn Message>>;
+}
+
+#[derive(Default)]
+struct MessageType<T>
+where
+    T: MessageFromString,
+{
+    msg_type: PhantomData<T>,
+}
+impl<T> MsgType for MessageType<T>
+where
+    T: MessageFromString,
+{
+    fn type_id(&self) -> TypeId {
+        TypeId::of::<Self>()
+    }
+    fn from_string(&self, s: String) -> Option<Box<dyn Message>> {
+        T::from_string(s)
+    }
+}
 
 #[derive(Default)]
 pub struct Messenger {
     message_channel: MessageChannel,
     messageboxes: HashMap<TypeId, Vec<MessageBox>>,
-    registered_types: Vec<TypeId>,
+    registered_types: HashMap<TypeId, Box<dyn MsgType>>,
 }
 
 unsafe impl Send for Messenger {}
@@ -27,32 +55,23 @@ impl Messenger {
     #[inline]
     pub fn register_type<T>(&mut self)
     where
-        T: Message + 'static,
+        T: MessageFromString + 'static,
     {
         let typeid = TypeId::of::<T>();
-        self.register_type_with_id(typeid);
-    }
-
-    #[inline]
-    fn register_type_with_id(&mut self, typeid: TypeId) {
-        if !self.registered_types.contains(&typeid) {
-            self.registered_types.push(typeid);
-        }
+        self.registered_types.entry(typeid).or_insert_with(|| {
+            Box::new(MessageType::<T> {
+                msg_type: PhantomData::<T>::default(),
+            })
+        });
     }
 
     #[inline]
     pub fn register_messagebox<T>(&mut self, messagebox: MessageBox) -> &mut Self
     where
-        T: Message + 'static,
+        T: MessageFromString + 'static,
     {
+        self.register_type::<T>();
         let typeid = TypeId::of::<T>();
-        self.register_messagebox_for_typeid(typeid, messagebox);
-        self
-    }
-
-    #[inline]
-    fn register_messagebox_for_typeid(&mut self, typeid: TypeId, messagebox: MessageBox) {
-        self.register_type_with_id(typeid);
         let messageboxes = self.messageboxes.entry(typeid).or_insert_with(Vec::new);
         let index = messageboxes
             .iter()
@@ -60,8 +79,8 @@ impl Messenger {
         if index.is_none() {
             messageboxes.push(messagebox);
         }
+        self
     }
-
     #[inline]
     pub fn unregister_messagebox<T>(&mut self, messagebox: MessageBox) -> &mut Self
     where
@@ -91,6 +110,15 @@ impl Messenger {
             }
         });
     }
+
+    pub fn send_from_string(&self, s: String) {
+        let dispatcher = self.get_dispatcher();
+        self.registered_types.iter().for_each(|(_, t)| {
+            if let Some(boxed_msg) = t.from_string(s.clone()) {
+                dispatcher.write().unwrap().send(boxed_msg).ok();
+            }
+        });
+    }
 }
 
 #[inline]
@@ -103,14 +131,28 @@ where
     }
 }
 
-#[inline]
-pub fn send_global_event<Event: Message>(global_messenger: &MessengerRw, event: Event) {
-    global_messenger
-        .read()
-        .unwrap()
-        .get_dispatcher()
-        .write()
-        .unwrap()
-        .send(event.as_boxed())
-        .ok();
+pub trait GlobalMessenger {
+    fn send_boxed(&self, msg: Box<dyn Message>);
+    fn send_event<Event: Message>(&self, event: Event);
+    fn send_event_from_string(&self, s: String);
+}
+
+impl GlobalMessenger for MessengerRw {
+    fn send_boxed(&self, msg: Box<dyn Message>) {
+        self.read()
+            .unwrap()
+            .get_dispatcher()
+            .write()
+            .unwrap()
+            .send(msg)
+            .ok();
+    }
+
+    fn send_event<Event: Message>(&self, event: Event) {
+        self.send_boxed(event.as_boxed());
+    }
+
+    fn send_event_from_string(&self, s: String) {
+        self.read().unwrap().send_from_string(s);
+    }
 }

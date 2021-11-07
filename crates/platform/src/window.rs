@@ -1,7 +1,10 @@
 use std::{any::TypeId, path::Path};
 
 use crate::{handle::*, KeyEvent, KeyTextEvent, MouseEvent};
-use nrg_messenger::{implement_message, read_messages, MessageChannel, MessengerRw};
+use nrg_commands::CommandParser;
+use nrg_messenger::{
+    implement_message, read_messages, Message, MessageChannel, MessageFromString, MessengerRw,
+};
 
 pub const DEFAULT_DPI: f32 = 96.0;
 
@@ -19,6 +22,43 @@ pub enum WindowEvent {
     RequestChangeSize(u32, u32),
 }
 implement_message!(WindowEvent);
+
+impl MessageFromString for WindowEvent {
+    fn from_command_parser(command_parser: CommandParser) -> Option<Box<dyn Message>>
+    where
+        Self: Sized,
+    {
+        if command_parser.has("window_show") {
+            return Some(WindowEvent::Show.as_boxed());
+        } else if command_parser.has("window_hide") {
+            return Some(WindowEvent::Hide.as_boxed());
+        } else if command_parser.has("window_close") {
+            return Some(WindowEvent::Close.as_boxed());
+        } else if command_parser.has("dpi_changed") {
+            let values = command_parser.get_values_of("dpi_changed");
+            return Some(WindowEvent::DpiChanged(values[0], values[1]).as_boxed());
+        } else if command_parser.has("window_size_changed") {
+            let values = command_parser.get_values_of("window_size_changed");
+            return Some(WindowEvent::SizeChanged(values[0], values[1]).as_boxed());
+        } else if command_parser.has("window_position_changed") {
+            let values = command_parser.get_values_of("window_position_changed");
+            return Some(WindowEvent::PosChanged(values[0], values[1]).as_boxed());
+        } else if command_parser.has("window_visible") {
+            let values = command_parser.get_values_of("window_visible");
+            return Some(WindowEvent::RequestChangeVisible(values[0]).as_boxed());
+        } else if command_parser.has("window_title") {
+            let values = command_parser.get_values_of::<String>("window_title");
+            return Some(WindowEvent::RequestChangeTitle(values[0].clone()).as_boxed());
+        } else if command_parser.has("window_size") {
+            let values = command_parser.get_values_of("window_size");
+            return Some(WindowEvent::RequestChangeSize(values[0], values[1]).as_boxed());
+        } else if command_parser.has("window_position") {
+            let values = command_parser.get_values_of("window_position");
+            return Some(WindowEvent::RequestChangePos(values[0], values[1]).as_boxed());
+        }
+        None
+    }
+}
 
 pub struct Window {
     handle: Handle,

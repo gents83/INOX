@@ -1,6 +1,6 @@
 use nrg_core::System;
 
-use nrg_messenger::{read_messages, send_global_event, MessageChannel, MessengerRw};
+use nrg_messenger::{read_messages, GlobalMessenger, MessageChannel, MessengerRw};
 use nrg_platform::WindowEvent;
 use std::env;
 use std::path::PathBuf;
@@ -99,22 +99,16 @@ impl ContentBrowserUpdater {
         if self.content_browser.is_none() {
             match operation {
                 DialogOp::Open => {
-                    send_global_event(
-                        &self.global_messenger,
-                        WindowEvent::RequestChangeTitle("Open File".to_string()),
-                    );
+                    self.global_messenger
+                        .send_event(WindowEvent::RequestChangeTitle("Open File".to_string()));
                 }
                 DialogOp::Save => {
-                    send_global_event(
-                        &self.global_messenger,
-                        WindowEvent::RequestChangeTitle("Save File".to_string()),
-                    );
+                    self.global_messenger
+                        .send_event(WindowEvent::RequestChangeTitle("Save File".to_string()));
                 }
                 DialogOp::New => {
-                    send_global_event(
-                        &self.global_messenger,
-                        WindowEvent::RequestChangeTitle("New File".to_string()),
-                    );
+                    self.global_messenger
+                        .send_event(WindowEvent::RequestChangeTitle("New File".to_string()));
                 }
             }
 

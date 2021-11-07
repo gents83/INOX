@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use nrg_filesystem::convert_from_local_path;
-use nrg_messenger::{send_global_event, MessengerRw};
+use nrg_messenger::{GlobalMessenger, MessengerRw};
 use nrg_profiler::debug_log;
 use nrg_serialize::generate_uid_from_string;
 
@@ -135,10 +135,10 @@ pub trait SerializableResource: DataTypeResource + Sized {
             return SharedData::get_resource::<Self>(shared_data, &resource_id).unwrap();
         }
         let resource = SharedData::add_resource(shared_data, resource_id, Self::default());
-        send_global_event(
-            global_messenger,
-            LoadResourceEvent::<Self>::new(path.as_path(), on_loaded_callback),
-        );
+        global_messenger.send_event(LoadResourceEvent::<Self>::new(
+            path.as_path(),
+            on_loaded_callback,
+        ));
         resource
     }
 }

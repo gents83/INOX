@@ -1,5 +1,7 @@
 use std::any::{type_name, Any};
 
+use nrg_commands::CommandParser;
+
 use crate::MessageBox;
 
 pub trait Message: Send + Sync + Any {
@@ -21,6 +23,20 @@ pub trait Message: Send + Sync + Any {
     }
     fn get_debug_info(&self) -> String;
     fn as_boxed(&self) -> Box<dyn Message>;
+}
+
+pub trait MessageFromString: Message {
+    fn from_command_parser(command_parser: CommandParser) -> Option<Box<dyn Message>>
+    where
+        Self: Sized;
+
+    fn from_string(s: String) -> Option<Box<dyn Message>>
+    where
+        Self: Sized,
+    {
+        let command_parser = CommandParser::from_string(s);
+        Self::from_command_parser(command_parser)
+    }
 }
 
 fn read_event(string: String) -> (bool, String, String) {

@@ -3,7 +3,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use nrg_messenger::{implement_message, Message, MessengerRw};
+use nrg_commands::CommandParser;
+use nrg_messenger::{implement_message, Message, MessageFromString, MessengerRw};
 
 use crate::{ResourceTrait, SerializableResource, SharedDataRc};
 
@@ -34,18 +35,44 @@ where
 #[derive(Clone)]
 pub struct LoadResourceEvent<T>
 where
-    T: ResourceTrait,
+    T: SerializableResource,
 {
     path: PathBuf,
     on_loaded: Option<Box<dyn Function<T>>>,
     resource_type: PhantomData<T>,
 }
-unsafe impl<T> Send for LoadResourceEvent<T> where T: ResourceTrait {}
-unsafe impl<T> Sync for LoadResourceEvent<T> where T: ResourceTrait {}
+implement_message!(LoadResourceEvent<SerializableResource>);
+
+impl<T> MessageFromString for LoadResourceEvent<T>
+where
+    T: SerializableResource,
+{
+    fn from_command_parser(command_parser: CommandParser) -> Option<Box<dyn Message>>
+    where
+        Self: Sized,
+    {
+        if command_parser.has("load_file") {
+            let values = command_parser.get_values_of::<String>("load_file");
+            let path = PathBuf::from(values[0].as_str());
+            let extension = path
+                .extension()
+                .unwrap_or_default()
+                .to_str()
+                .unwrap_or_default();
+            if extension == T::extension() {
+                return Some(LoadResourceEvent::<T>::new(path.as_path(), None).as_boxed());
+            }
+        }
+        None
+    }
+}
+
+unsafe impl<T> Send for LoadResourceEvent<T> where T: SerializableResource {}
+unsafe impl<T> Sync for LoadResourceEvent<T> where T: SerializableResource {}
 
 impl<T> LoadResourceEvent<T>
 where
-    T: ResourceTrait,
+    T: SerializableResource,
 {
     pub fn new(path: &Path, f: Option<Box<dyn Function<T>>>) -> Self {
         Self {
@@ -59,6 +86,10 @@ where
         }
     }
 
+    pub fn path(&self) -> &Path {
+        self.path.as_path()
+    }
+
     pub fn loaded_callback(&mut self) -> Option<Box<dyn Function<T>>> {
         self.on_loaded.take()
     }
@@ -68,8 +99,25 @@ where
 pub struct UpdateResourceEvent {
     pub path: PathBuf,
 }
-implement_message!(LoadResourceEvent<ResourceTrait>);
 implement_message!(UpdateResourceEvent);
+
+impl MessageFromString for UpdateResourceEvent {
+    fn from_command_parser(command_parser: CommandParser) -> Option<Box<dyn Message>>
+    where
+        Self: Sized,
+    {
+        if command_parser.has("reload_file") {
+            let values = command_parser.get_values_of::<String>("reload_file");
+            return Some(
+                UpdateResourceEvent {
+                    path: PathBuf::from(values[0].as_str()),
+                }
+                .as_boxed(),
+            );
+        }
+        None
+    }
+}
 
 pub trait ResourceEventHandler {
     fn is_handled(&self, msg: &dyn Message) -> bool;

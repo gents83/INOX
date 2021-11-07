@@ -1,6 +1,6 @@
 use std::any::TypeId;
 
-use nrg_messenger::{Message, MessageBox, MessageChannel, MessengerRw};
+use nrg_messenger::{Message, MessageBox, MessageChannel, MessageFromString, MessengerRw};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EventsHistoryOperation {
@@ -55,7 +55,7 @@ impl EventsHistory {
 
     pub fn register_event_as_undoable<T>(&mut self, global_messenger: &MessengerRw) -> &mut Self
     where
-        T: Message + Clone,
+        T: MessageFromString + Clone,
     {
         let typeid = TypeId::of::<T>();
         if !self.registered_event_types.contains(&typeid) {

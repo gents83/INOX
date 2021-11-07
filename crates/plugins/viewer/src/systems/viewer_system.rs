@@ -1,21 +1,15 @@
+use nrg_commands::CommandParser;
 use nrg_core::System;
 use nrg_graphics::{DrawEvent, Light, View};
 use nrg_math::{Matrix4, VecBase, Vector2, Vector3};
-use nrg_messenger::{read_messages, send_global_event, MessageChannel, MessengerRw};
+use nrg_messenger::{read_messages, GlobalMessenger, MessageChannel, MessengerRw};
 use nrg_platform::{InputState, Key, KeyEvent, MouseEvent, WindowEvent};
-use nrg_profiler::debug_log;
-use nrg_resources::{Resource, SerializableResource, SharedData, SharedDataRc};
+use nrg_resources::{LoadResourceEvent, Resource, SerializableResource, SharedData, SharedDataRc};
 use nrg_scene::{Camera, Object, ObjectId, Scene};
 use nrg_serialize::generate_random_uid;
-use std::{any::TypeId, collections::HashMap, env, path::PathBuf};
+use std::{any::TypeId, collections::HashMap, path::PathBuf};
 
 use crate::widgets::{Hierarchy, Info, View3D};
-
-#[derive(PartialEq, Eq)]
-enum Operation {
-    None,
-    LoadFile,
-}
 
 pub struct ViewerSystem {
     shared_data: SharedDataRc,
@@ -91,12 +85,14 @@ impl System for ViewerSystem {
             .unwrap()
             .register_messagebox::<KeyEvent>(self.message_channel.get_messagebox())
             .register_messagebox::<MouseEvent>(self.message_channel.get_messagebox())
-            .register_messagebox::<WindowEvent>(self.message_channel.get_messagebox());
+            .register_messagebox::<WindowEvent>(self.message_channel.get_messagebox())
+            .register_messagebox::<LoadResourceEvent<Scene>>(self.message_channel.get_messagebox());
 
         self._view_3d = Some(View3D::new(&self.shared_data, &self.global_messenger));
     }
 
     fn run(&mut self) -> bool {
+        nrg_profiler::scoped_profile!("viewer_system::run");
         self.update_events().update_view_from_camera();
 
         let mut map: HashMap<ObjectId, Option<Matrix4>> = HashMap::new();
@@ -116,15 +112,12 @@ impl System for ViewerSystem {
 
         self.shared_data.for_each_resource(|_, l: &Light| {
             if l.is_active() {
-                send_global_event(
-                    &self.global_messenger,
-                    DrawEvent::Sphere(
-                        l.data().position.into(),
-                        l.data().range,
-                        [l.data().color[0], l.data().color[1], l.data().color[2], 1.].into(),
-                        true,
-                    ),
-                );
+                self.global_messenger.send_event(DrawEvent::Sphere(
+                    l.data().position.into(),
+                    l.data().range,
+                    [l.data().color[0], l.data().color[1], l.data().color[2], 1.].into(),
+                    true,
+                ));
             }
         });
 
@@ -136,30 +129,19 @@ impl System for ViewerSystem {
             .unwrap()
             .unregister_messagebox::<KeyEvent>(self.message_channel.get_messagebox())
             .unregister_messagebox::<MouseEvent>(self.message_channel.get_messagebox())
-            .unregister_messagebox::<WindowEvent>(self.message_channel.get_messagebox());
+            .unregister_messagebox::<WindowEvent>(self.message_channel.get_messagebox())
+            .unregister_messagebox::<LoadResourceEvent<Scene>>(
+                self.message_channel.get_messagebox(),
+            );
     }
 }
 
 impl ViewerSystem {
     fn check_command_line_arguments(&mut self) -> &mut Self {
-        let mut next_op = Operation::None;
-
-        let args: Vec<String> = env::args().collect();
-        if args.len() > 1 {
-            (1..args.len()).for_each(|i| {
-                debug_log(format!("{:?}", args[i].as_str()).as_str());
-                if args[i].starts_with("-load_file") {
-                    next_op = Operation::LoadFile;
-                    if let Some(argument) = args[i].strip_prefix("-load_file ") {
-                        self.load_scene(argument);
-                        next_op = Operation::None;
-                    }
-                } else if next_op == Operation::LoadFile {
-                    let argument = args[i].as_str();
-                    self.load_scene(argument);
-                    next_op = Operation::None;
-                }
-            });
+        let command_parser = CommandParser::from_command_line();
+        if command_parser.has("load_file") {
+            let values = command_parser.get_values_of::<String>("load_file");
+            self.load_scene(values[0].as_str());
         }
         self
     }
@@ -199,12 +181,22 @@ impl ViewerSystem {
                         );
                     });
                 }
+            } else if msg.type_id() == TypeId::of::<LoadResourceEvent<Scene>>() {
+                let event = msg
+                    .as_any()
+                    .downcast_ref::<LoadResourceEvent<Scene>>()
+                    .unwrap();
+                if let Some(scene_path) = event.path().to_str() {
+                    self.load_scene(scene_path);
+                }
             }
         });
         self
     }
 
     fn update_view_from_camera(&mut self) -> &mut Self {
+        nrg_profiler::scoped_profile!("update_view_from_camera");
+
         if let Some(view) = self
             .shared_data
             .match_resource(|view: &View| view.view_index() == 0)

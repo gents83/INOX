@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
-use nrg_messenger::implement_message;
+use nrg_commands::CommandParser;
+use nrg_messenger::{implement_message, Message, MessageFromString};
 
 #[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone, Copy)]
 pub enum MouseButton {
@@ -29,6 +30,81 @@ pub struct MouseEvent {
     pub state: MouseState,
 }
 implement_message!(MouseEvent);
+
+impl MessageFromString for MouseEvent {
+    fn from_command_parser(command_parser: CommandParser) -> Option<Box<dyn Message>>
+    where
+        Self: Sized,
+    {
+        if command_parser.has("mouse_move") {
+            let values = command_parser.get_values_of("mouse_move");
+            return Some(
+                MouseEvent {
+                    x: values[0],
+                    y: values[1],
+                    normalized_x: values[0] as _,
+                    normalized_y: values[1] as _,
+                    button: MouseButton::None,
+                    state: MouseState::Move,
+                }
+                .as_boxed(),
+            );
+        } else if command_parser.has("mouse_left_down") {
+            let values = command_parser.get_values_of("mouse_left_down");
+            return Some(
+                MouseEvent {
+                    x: values[0],
+                    y: values[1],
+                    normalized_x: values[0] as _,
+                    normalized_y: values[1] as _,
+                    button: MouseButton::Left,
+                    state: MouseState::Down,
+                }
+                .as_boxed(),
+            );
+        } else if command_parser.has("mouse_right_down") {
+            let values = command_parser.get_values_of("mouse_right_down");
+            return Some(
+                MouseEvent {
+                    x: values[0],
+                    y: values[1],
+                    normalized_x: values[0] as _,
+                    normalized_y: values[1] as _,
+                    button: MouseButton::Right,
+                    state: MouseState::Down,
+                }
+                .as_boxed(),
+            );
+        } else if command_parser.has("mouse_left_up") {
+            let values = command_parser.get_values_of("mouse_left_up");
+            return Some(
+                MouseEvent {
+                    x: values[0],
+                    y: values[1],
+                    normalized_x: values[0] as _,
+                    normalized_y: values[1] as _,
+                    button: MouseButton::Left,
+                    state: MouseState::Up,
+                }
+                .as_boxed(),
+            );
+        } else if command_parser.has("mouse_right_up") {
+            let values = command_parser.get_values_of("mouse_right_up");
+            return Some(
+                MouseEvent {
+                    x: values[0],
+                    y: values[1],
+                    normalized_x: values[0] as _,
+                    normalized_y: values[1] as _,
+                    button: MouseButton::Right,
+                    state: MouseState::Up,
+                }
+                .as_boxed(),
+            );
+        }
+        None
+    }
+}
 
 impl Default for MouseEvent {
     #[inline]

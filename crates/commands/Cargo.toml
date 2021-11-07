@@ -1,13 +1,9 @@
 [package]
-name = "nrg_platform"
+name = "nrg_commands"
 version = "0.1.0"
 authors = ["gents83 <gents83@gmail.com>"]
 edition = "2021"
+build = "build.rs"
 
 [lib]
 crate-type = ["cdylib",'rlib']
-
-
-[dependencies]
-nrg_commands = { path = "../commands" }
-nrg_messenger = { path = "../messenger" }

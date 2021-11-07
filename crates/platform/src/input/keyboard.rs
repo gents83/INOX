@@ -1,6 +1,9 @@
 #![allow(clippy::upper_case_acronyms)]
 
-use nrg_messenger::implement_message;
+use std::str::FromStr;
+
+use nrg_commands::CommandParser;
+use nrg_messenger::{implement_message, Message, MessageFromString};
 
 use super::state::*;
 
@@ -715,6 +718,19 @@ pub struct KeyTextEvent {
 }
 implement_message!(KeyTextEvent);
 
+impl MessageFromString for KeyTextEvent {
+    fn from_command_parser(command_parser: CommandParser) -> Option<Box<dyn Message>>
+    where
+        Self: Sized,
+    {
+        if command_parser.has("key_text") {
+            let values = command_parser.get_values_of("key_text");
+            return Some(KeyTextEvent { char: values[0] }.as_boxed());
+        }
+        None
+    }
+}
+
 #[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone, Copy)]
 pub struct KeyEvent {
     pub code: Key,
@@ -722,12 +738,140 @@ pub struct KeyEvent {
 }
 implement_message!(KeyEvent);
 
+impl MessageFromString for KeyEvent {
+    fn from_command_parser(command_parser: nrg_commands::CommandParser) -> Option<Box<dyn Message>>
+    where
+        Self: Sized,
+    {
+        if command_parser.has("key_pressed") {
+            let values = command_parser.get_values_of("key_pressed");
+            return Some(
+                KeyEvent {
+                    code: values[0],
+                    state: InputState::Pressed,
+                }
+                .as_boxed(),
+            );
+        } else if command_parser.has("key_released") {
+            let values = command_parser.get_values_of("key_released");
+            return Some(
+                KeyEvent {
+                    code: values[0],
+                    state: InputState::Released,
+                }
+                .as_boxed(),
+            );
+        } else if command_parser.has("key_just_pressed") {
+            let values = command_parser.get_values_of("key_just_pressed");
+            return Some(
+                KeyEvent {
+                    code: values[0],
+                    state: InputState::JustPressed,
+                }
+                .as_boxed(),
+            );
+        } else if command_parser.has("key_just_released") {
+            let values = command_parser.get_values_of("key_just_released");
+            return Some(
+                KeyEvent {
+                    code: values[0],
+                    state: InputState::JustReleased,
+                }
+                .as_boxed(),
+            );
+        }
+        None
+    }
+}
+
 impl Default for KeyEvent {
     #[inline]
     fn default() -> Self {
         Self {
             code: Key::Unidentified,
             state: InputState::Invalid,
+        }
+    }
+}
+
+impl Default for Key {
+    #[inline]
+    fn default() -> Self {
+        Key::Unidentified
+    }
+}
+
+impl FromStr for Key {
+    type Err = Key;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let s = s.to_lowercase();
+        match s.as_str() {
+            "a" => Ok(Key::A),
+            "b" => Ok(Key::B),
+            "c" => Ok(Key::C),
+            "d" => Ok(Key::D),
+            "e" => Ok(Key::E),
+            "f" => Ok(Key::F),
+            "g" => Ok(Key::G),
+            "h" => Ok(Key::H),
+            "i" => Ok(Key::I),
+            "j" => Ok(Key::J),
+            "k" => Ok(Key::K),
+            "l" => Ok(Key::L),
+            "m" => Ok(Key::M),
+            "n" => Ok(Key::N),
+            "o" => Ok(Key::O),
+            "p" => Ok(Key::P),
+            "q" => Ok(Key::Q),
+            "r" => Ok(Key::R),
+            "s" => Ok(Key::S),
+            "t" => Ok(Key::T),
+            "u" => Ok(Key::U),
+            "v" => Ok(Key::V),
+            "w" => Ok(Key::W),
+            "x" => Ok(Key::X),
+            "y" => Ok(Key::Y),
+            "z" => Ok(Key::Z),
+            "1" => Ok(Key::Numpad1),
+            "2" => Ok(Key::Numpad2),
+            "3" => Ok(Key::Numpad3),
+            "4" => Ok(Key::Numpad4),
+            "5" => Ok(Key::Numpad5),
+            "6" => Ok(Key::Numpad6),
+            "7" => Ok(Key::Numpad7),
+            "8" => Ok(Key::Numpad8),
+            "9" => Ok(Key::Numpad9),
+            "0" => Ok(Key::Numpad0),
+            "f1" => Ok(Key::F1),
+            "f2" => Ok(Key::F2),
+            "f3" => Ok(Key::F3),
+            "f4" => Ok(Key::F4),
+            "f5" => Ok(Key::F5),
+            "f6" => Ok(Key::F6),
+            "f7" => Ok(Key::F7),
+            "f8" => Ok(Key::F8),
+            "f9" => Ok(Key::F9),
+            "f10" => Ok(Key::F10),
+            "f11" => Ok(Key::F11),
+            "f12" => Ok(Key::F12),
+            "f13" => Ok(Key::F13),
+            "f14" => Ok(Key::F14),
+            "f15" => Ok(Key::F15),
+            "f16" => Ok(Key::F16),
+            "f17" => Ok(Key::F17),
+            "f18" => Ok(Key::F18),
+            "f19" => Ok(Key::F19),
+            "f20" => Ok(Key::F20),
+            "up" => Ok(Key::ArrowUp),
+            "down" => Ok(Key::ArrowDown),
+            "left" => Ok(Key::ArrowLeft),
+            "right" => Ok(Key::ArrowRight),
+            "alt" => Ok(Key::Alt),
+            "altgr" => Ok(Key::AltGraph),
+            "ctrl" => Ok(Key::Control),
+            "shift" => Ok(Key::Shift),
+            _ => Err(Key::Unidentified),
         }
     }
 }

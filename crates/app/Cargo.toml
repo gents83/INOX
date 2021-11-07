@@ -7,6 +7,7 @@ edition = "2021"
 [dependencies]
 nrg_binarizer = { path = "../binarizer" }
 nrg_resources = { path = "../resources" }
+nrg_commands = { path = "../commands" }
 nrg_core = { path = "../core" }
 nrg_filesystem = { path = "../filesystem" }
 nrg_graphics = { path = "../graphics" }
