@@ -31,6 +31,7 @@ TODO:
 - [ ] Integrate PBR rendering
 - [ ] Possibility to run Phases in parallel when not dependent
 - [ ] Quick example of game 
+- [ ] Integrate KTX universal texture compression
 - [ ] Integrate raw-window-handle as optional feature
 - [ ] Integrate wgpu as optional feature
 - [ ] Raytracing on GPU
