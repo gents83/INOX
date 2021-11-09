@@ -46,3 +46,9 @@
 [submodule "extern/rust-bindgen"]
 	path = extern/rust-bindgen
 	url = https://github.com/rust-lang/rust-bindgen
+[submodule "extern/syn"]
+	path = extern/syn
+	url = https://github.com/dtolnay/syn
+[submodule "extern/quote"]
+	path = extern/quote
+	url = https://github.com/dtolnay/quote
