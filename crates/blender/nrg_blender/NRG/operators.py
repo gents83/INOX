@@ -1,8 +1,4 @@
 import bpy
-import time
-import threading
-import socket
-import platform
 
 from glob import glob
 from os.path import join, exists
@@ -19,12 +15,6 @@ class NRGRun(bpy.types.Operator):
     """Run NRG Engine"""
     bl_idname = "nrg.run"
     bl_label = "Run in NRG"
-
-    def __init__(self):
-        global nrg_engine
-        if nrg_engine is None:
-            from NRG import nrg_blender
-            nrg_engine = nrg_blender.NRGEngine()
 
     def execute(self, context):
         # Ensure blend has been saved before running game
@@ -48,11 +38,8 @@ class NRGRun(bpy.types.Operator):
             path = path.parent.absolute().parent.absolute().parent.absolute()
 #
         from NRG import nrg_blender
-        print(nrg_blender.start(nrg_engine, str(
-            preferences.exe_path)))
-
-        print(nrg_blender.export(nrg_engine, str(
-            bpy.data.filepath)))
+        #nrg_blender.start(nrg_engine, str(preferences.exe_path))
+        nrg_blender.export(nrg_engine, str(bpy.data.filepath), True)
 
         # Do NOT wait for the thread to be ended
         return {'FINISHED'}
@@ -64,6 +51,14 @@ blender_classes.append(NRGRun)
 def register():
     for blender_class in blender_classes:
         bpy.utils.register_class(blender_class)
+
+    global nrg_engine
+    if nrg_engine is None:
+        from NRG import nrg_blender
+        from NRG import node_tree
+
+        nrg_engine = nrg_blender.NRGEngine()
+        node_tree.register_nodes(nrg_engine)
 
 
 def unregister():

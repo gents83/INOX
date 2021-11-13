@@ -3,9 +3,12 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use cpython::{NoArgs, ObjectProtocol, PyDict, PyList, PyResult, Python};
 use nrg_scene::{ObjectData, SceneData};
 use nrg_serialize::SerializeFile;
+use pyo3::{
+    types::{PyDict, PyList},
+    PyObject, PyResult, Python, ToPyObject,
+};
 
 #[derive(Default)]
 pub struct Exporter {
@@ -33,10 +36,7 @@ impl Exporter {
 
             if let Ok(_) = create_dir_all(self.export_dir.as_path()) {
                 // Blender data import
-                let export_scene = py
-                    .import("bpy")?
-                    .get(py, "ops")?
-                    .getattr(py, "export_scene")?;
+                let export_scene = py.import("bpy")?.getattr("ops")?.getattr("export_scene")?;
 
                 let scene_path = self.export_dir.join(format!(
                     "{}.{}",
@@ -46,15 +46,15 @@ impl Exporter {
                 let scene_path = scene_path.to_str().unwrap_or_default().to_string();
 
                 let kwargs = PyDict::new(py);
-                kwargs.set_item(py, "filepath", scene_path.clone())?;
-                kwargs.set_item(py, "check_existing", true)?;
-                kwargs.set_item(py, "export_format", "GLTF_SEPARATE")?;
-                kwargs.set_item(py, "export_apply", true)?;
-                kwargs.set_item(py, "export_materials", "EXPORT")?;
-                kwargs.set_item(py, "export_cameras", true)?;
-                kwargs.set_item(py, "export_yup", true)?;
-                kwargs.set_item(py, "export_lights", true)?;
-                export_scene.call_method(py, "gltf", NoArgs, Some(&kwargs))?;
+                kwargs.set_item("filepath", scene_path.clone())?;
+                kwargs.set_item("check_existing", true)?;
+                kwargs.set_item("export_format", "GLTF_SEPARATE")?;
+                kwargs.set_item("export_apply", true)?;
+                kwargs.set_item("export_materials", "EXPORT")?;
+                kwargs.set_item("export_cameras", true)?;
+                kwargs.set_item("export_yup", true)?;
+                kwargs.set_item("export_lights", true)?;
+                export_scene.call_method("gltf", (), Some(&kwargs))?;
 
                 self.export_custom_data(py, self.export_dir.as_path())?;
 
@@ -67,34 +67,81 @@ impl Exporter {
     }
 
     fn export_custom_data(&self, py: Python, export_dir: &Path) -> PyResult<bool> {
-        let data = py.import("bpy")?.get(py, "data")?;
+        let data = py.import("bpy")?.getattr("data")?;
 
         // For every Blender scene
-        let scenes = data
-            .getattr(py, "scenes")?
-            .call_method(py, "values", NoArgs, None)?;
-        let scenes = scenes.cast_as::<PyList>(py)?;
-        for scene in scenes.iter(py) {
-            let scene_name: String = scene.getattr(py, "name")?.extract(py)?;
+        let scenes = data.getattr("scenes")?.call_method("values", (), None)?;
+        let scenes = scenes.cast_as::<PyList>()?;
+        for scene in scenes.iter() {
+            let scene_name: String = scene.getattr("name")?.extract()?;
             let mut scene_data = SceneData::default();
             scene_data.load_from_file(
                 export_dir
                     .join(format!("{}.{}", scene_name, SceneData::extension()).as_str())
                     .as_path(),
             );
-            let objects = scene
-                .getattr(py, "objects")?
-                .call_method(py, "values", NoArgs, None)?;
-            let objects = objects.cast_as::<PyList>(py)?;
-            for object in objects.iter(py) {
-                let object_name: String = object.getattr(py, "name")?.extract(py)?;
+            let objects = scene.getattr("objects")?.call_method("values", (), None)?;
+            let objects = objects.cast_as::<PyList>()?;
+            for object in objects.iter() {
+                let object_name: String = object.getattr("name")?.extract()?;
                 let mut object_data = ObjectData::default();
-                object_data.load_from_file(
-                    export_dir
-                        .join(format!("{}.{}", object_name, ObjectData::extension()).as_str())
-                        .as_path(),
-                );
-                //println!("Checking object {:?}", object_name);
+                let path = export_dir
+                    .join(format!("{}.{}", object_name, ObjectData::extension()).as_str());
+                object_data.load_from_file(path.as_path());
+                self.process_object_properties(
+                    py,
+                    &object.to_object(py),
+                    &mut object_data,
+                    path.as_path(),
+                )?;
+            }
+        }
+        Ok(true)
+    }
+
+    fn process_object_properties(
+        &self,
+        py: Python,
+        object: &PyObject,
+        object_data: &mut ObjectData,
+        path: &Path,
+    ) -> PyResult<bool> {
+        let is_dirty = false;
+        if let Ok(properties) = object.getattr(py, "nrg_properties") {
+            let logic = properties.getattr(py, "logic")?;
+            self.export_logic(py, &logic, object_data)?;
+        }
+        if is_dirty {
+            object_data.save_to_file(path);
+        }
+        Ok(true)
+    }
+
+    fn export_logic(
+        &self,
+        py: Python,
+        logic: &PyObject,
+        _object_data: &mut ObjectData,
+    ) -> PyResult<bool> {
+        if !logic.is_none(py) {
+            let name: String = logic.getattr(py, "name")?.extract(py)?;
+            println!("NodeTree: {}", name);
+            let nodes = logic
+                .getattr(py, "nodes")?
+                .call_method(py, "values", (), None)?;
+            let nodes = nodes.cast_as::<PyList>(py)?;
+            for node in nodes.iter() {
+                let node_name: String = node.getattr("name")?.extract()?;
+                println!("Node: {}", node_name);
+                let logic_node_type: String = py
+                    .import("NRG")?
+                    .getattr("node_tree")?
+                    .getattr("LogicNodeBase")?
+                    .getattr("bl_idname")?
+                    .extract()?;
+                let node_type: String = node.getattr("bl_idname")?.extract()?;
+                println!("logic_node_type: {}", logic_node_type);
+                println!("node_type: {}", node_type);
             }
         }
         Ok(true)

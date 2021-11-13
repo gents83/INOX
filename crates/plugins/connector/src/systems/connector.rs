@@ -119,7 +119,8 @@ fn client_thread_execution(
     global_messenger: &MessengerRw,
     is_running: Arc<AtomicBool>,
 ) {
-    println!("New Thread for client at {:?}", addr);
+    println!("Thread for client at {:?} started", addr);
+
     let mut buffer = [0u8; 1024];
     while is_running.load(Ordering::SeqCst) {
         match client_stream.read(&mut buffer) {
@@ -131,8 +132,6 @@ fn client_thread_execution(
                 let s = String::from(from_utf8(&buffer).unwrap_or_default());
                 let s = s.split_at(last + 1).0.to_string();
 
-                println!("[ServerThread] Received: {}", s);
-
                 global_messenger.send_event_from_string(s);
             }
             Err(e) => {
@@ -140,5 +139,6 @@ fn client_thread_execution(
             }
         }
     }
+
     println!("Thread for client at {:?} terminated", addr);
 }

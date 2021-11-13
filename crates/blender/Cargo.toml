@@ -10,7 +10,7 @@ name = "nrg_blender"
 crate-type = ['cdylib', 'rlib']
 
 [dependencies]
-cpython = { path = "../../extern/rust-cpython", version = "*", features = ["extension-module", "serde-convert"] }
+pyo3 = { path = "../../extern/pyo3", features = ["macros", "extension-module", "auto-initialize"] }
 nrg_graphics = { path = "../graphics" }
 nrg_filesystem = { path = "../filesystem" }
 nrg_math = { path = "../math" }

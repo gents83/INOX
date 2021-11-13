@@ -37,18 +37,12 @@
 [submodule "extern/egui"]
 	path = extern/egui
 	url = https://github.com/emilk/egui
-[submodule "extern/rust-cpython"]
-	path = extern/rust-cpython
-	url = https://github.com/dgrunwald/rust-cpython
 [submodule "extern/rand"]
 	path = extern/rand
 	url = https://github.com/rust-random/rand
 [submodule "extern/rust-bindgen"]
 	path = extern/rust-bindgen
 	url = https://github.com/rust-lang/rust-bindgen
-[submodule "extern/syn"]
-	path = extern/syn
-	url = https://github.com/dtolnay/syn
-[submodule "extern/quote"]
-	path = extern/quote
-	url = https://github.com/dtolnay/quote
+[submodule "extern/pyo3"]
+	path = extern/pyo3
+	url = https://github.com/PyO3/pyo3

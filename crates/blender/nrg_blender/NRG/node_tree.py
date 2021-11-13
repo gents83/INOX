@@ -1,7 +1,12 @@
 import nodeitems_utils
+import collections
+import functools
+import types
 import bpy
 
 blender_classes = []
+
+RUST_NODES = []
 
 
 class LogicNodeTree(bpy.types.NodeTree):
@@ -12,9 +17,101 @@ class LogicNodeTree(bpy.types.NodeTree):
 
 
 class LogicNodeBase(bpy.types.Node):
+    bl_idname = 'LogicNodeBase'
+
     @classmethod
     def poll(cls, ntree):
         return ntree.bl_idname == 'LogicNodeTree'
+
+    def copy(self, node):
+        print("copied node", node)
+
+    def free(self):
+        print("Node removed", self)
+
+
+def register_nodes(nrg_engine):
+    from NRG import nrg_blender
+    nrg_blender.register_nodes(nrg_engine)
+
+    global RUST_NODES
+    node_items = []
+    for n in RUST_NODES:
+        print("name = " + n.name)
+        print("type = " + str(n))
+        bpy.utils.register_class(n)
+        node_items.append(
+            nodeitems_utils.NodeItem("NRG_" + n.name,
+                                     label=n.name)
+        )
+
+    nodeitems_utils.register_node_categories(
+        "RUST_NODES", [nodeitems_utils.NodeCategory(
+            "RUST_CATEGORY", "Rust Nodes", items=node_items)])
+
+
+def create_node_from_data(node):
+
+    # Create a class that stores all the internals of the properties in
+    # a blender-compatible way.
+    properties = type(
+        "NRG_" + node.node_type + "Properties",
+        (bpy.types.PropertyGroup, ),
+        {
+            "bl_idname": "NRG_" + node.node_type + "Properties"
+        }
+    )
+
+    def register_fields(self):
+        print("register_fields")
+        properties.integer_value = bpy.props.IntProperty(name="InputPin")
+        properties.test = bpy.props.BoolProperty(name="test", default=False)
+
+    def draw(self, layout, context):
+        col = layout.column()
+        col.prop(self, "integer_value")
+        col.prop(self, "test")
+
+    properties.register_fields = register_fields
+    properties.draw = draw
+
+    def register():
+        print("register")
+        bpy.utils.register_class(properties)
+        node_class.properties = bpy.props.PointerProperty(
+            name="properties", type=properties)
+
+    def unregister():
+        bpy.utils.unregister_class(properties)
+        print("unregister")
+
+    def init(self, context):
+        print("init" + str(self))
+        self.properties.register_fields()
+        self.outputs.new("NodeSocketShader", "output")
+
+    def draw_buttons(self, context, layout):
+        row = layout.row()
+        self.properties.draw(row, context)
+
+    # Create a class to store the data about this node inside the
+    # blender object
+    node_class = type(
+        "NRG_" + node.node_type,
+        (LogicNodeBase, bpy.types.Node, ),
+        {
+            "bl_idname": "NRG_" + node.node_type,
+            "bl_label": node.node_type,
+            "name": node.node_type,
+            "description": node.description,
+            "init": init,
+            "register": register,
+            "unregister": unregister,
+            "draw_buttons": draw_buttons,
+        }
+    )
+
+    RUST_NODES.append(node_class)
 
 
 class LogicSimpleInputNode(LogicNodeBase):
@@ -27,13 +124,7 @@ class LogicSimpleInputNode(LogicNodeBase):
 
     def init(self, context):
         self.integer_value = 0
-        self.outputs.new('OutputPin', "output")
-
-    def copy(self, node):
-        print("copied node", node)
-
-    def free(self):
-        print("Node removed", self)
+        self.outputs.new("NodeSocketShader", "output")
 
     # NOTE: input sockets are drawn by their respective methods
     #   but output ones DO NOT for some reason, do it manually
@@ -58,7 +149,7 @@ node_categories = [
     LogicNodeCategory("LOGICINPUTNODES", "Logic Input Nodes", items=[
         #   NOTE: use 'repr()' to convert the value to string IMPORTANT
         nodeitems_utils.NodeItem("LogicSimpleInputNode",
-                                 label="Simple Input Node", settings={"integer_value": repr(1.0)}),
+                                 label="Simple Input Node"),
     ]),
 ]
 
@@ -83,6 +174,7 @@ blender_classes.append(OpenInLogicEditor)
 
 def register():
     for cls in blender_classes:
+        print("type = " + str(cls))
         bpy.utils.register_class(cls)
 
     nodeitems_utils.register_node_categories("LOGIC_NODES", node_categories)
