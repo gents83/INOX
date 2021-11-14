@@ -3,7 +3,10 @@
 use std::any::type_name;
 
 use nrg_serialize::{generate_uid_from_string, Uid};
-use pyo3::{prelude::*, types::PyDict, PyClass};
+use pyo3::{
+    prelude::*,
+    types::{PyDict, PyList},
+};
 
 pub type NodeId = Uid;
 
@@ -26,7 +29,6 @@ pub trait Node: Default + Send + Sync + 'static {
     fn description() -> &'static str;
 }
 
-#[pyclass]
 #[derive(Default)]
 pub struct RustNode {
     rust_value: u32,
@@ -41,56 +43,28 @@ impl Node for RustNode {
     }
 }
 
-#[pymethods]
-impl RustNode {
-    #[new]
-    pub fn new() -> Self {
-        Self::default()
-    }
-    #[classattr]
-    fn type_id() -> u128 {
-        <Self as Node>::type_id().as_u128()
-    }
-    #[classattr]
-    fn node_type() -> &'static str {
-        <Self as Node>::node_type()
-    }
-    #[classattr]
-    fn base_type() -> &'static str {
-        <Self as Node>::base_type()
-    }
-    #[classattr]
-    fn description() -> &'static str {
-        <Self as Node>::description()
-    }
-    #[classattr]
-    fn fields<'a>() -> &'a PyDict {
-        let py = Self::python();
-        let _fields = PyDict::new(py);
-        let py_dict = PyDict::new(py);
-        py_dict
-    }
-}
-
 pub fn register_node<N>(py: Python) -> PyResult<bool>
 where
-    N: Node + 'static + PyClass,
+    N: Node + 'static,
 {
     println!("Registering node {}", N::node_type());
 
-    let module = py.import("NRG.nrg_blender")?;
-    module.add_class::<N>()?;
-    let class = module.getattr(N::node_type())?;
+    let node_name = N::node_type();
+    let base_class = N::base_type();
+    let description = N::description();
+    let value = 10u32;
 
-    py.import("NRG")?
-        .getattr("node_tree")?
-        .call_method1("create_node_from_data", (class,))?;
+    let fields: &PyList = PyList::empty(py);
+    let field_data: &PyDict = PyDict::from_sequence(
+        py,
+        (("name", "rust_value"), ("type", "u32"), ("default", value)).into_py(py),
+    )?;
+    fields.append(field_data)?;
 
-    println!(
-        "{} in Rust exists? -> {}",
-        N::node_type(),
-        class.getattr("__name__")?.extract::<String>()?
-    );
+    py.import("NRG")?.getattr("node_tree")?.call_method1(
+        "create_node_from_data",
+        (node_name, base_class, description, fields),
+    )?;
 
     Ok(true)
 }

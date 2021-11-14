@@ -1,7 +1,4 @@
 import nodeitems_utils
-import collections
-import functools
-import types
 import bpy
 
 blender_classes = []
@@ -37,11 +34,9 @@ def register_nodes(nrg_engine):
     global RUST_NODES
     node_items = []
     for n in RUST_NODES:
-        print("name = " + n.name)
-        print("type = " + str(n))
         bpy.utils.register_class(n)
         node_items.append(
-            nodeitems_utils.NodeItem("NRG_" + n.name,
+            nodeitems_utils.NodeItem(n.name,
                                      label=n.name)
         )
 
@@ -50,43 +45,44 @@ def register_nodes(nrg_engine):
             "RUST_CATEGORY", "Rust Nodes", items=node_items)])
 
 
-def create_node_from_data(node):
+def create_node_from_data(node_name, base_class, description, fields):
+    from NRG import utils
+    base_type = utils.gettype(base_class)
 
     # Create a class that stores all the internals of the properties in
     # a blender-compatible way.
     properties = type(
-        "NRG_" + node.node_type + "Properties",
+        node_name + "Properties",
         (bpy.types.PropertyGroup, ),
         {
-            "bl_idname": "NRG_" + node.node_type + "Properties"
+            "bl_idname": node_name + "Properties"
         }
     )
 
     def register_fields(self):
-        print("register_fields")
-        properties.integer_value = bpy.props.IntProperty(name="InputPin")
-        properties.test = bpy.props.BoolProperty(name="test", default=False)
+        properties.fields = []
+        for i, f in enumerate(fields):
+            properties.fields.append(f["name"])
+            setattr(properties, f["name"], utils.TYPE_PROPERTIES[f["type"]](
+                name=f["name"], default=f["default"]))
 
     def draw(self, layout, context):
         col = layout.column()
-        col.prop(self, "integer_value")
-        col.prop(self, "test")
+        for field_name in properties.fields:
+            col.prop(self, field_name)
 
     properties.register_fields = register_fields
     properties.draw = draw
 
     def register():
-        print("register")
         bpy.utils.register_class(properties)
         node_class.properties = bpy.props.PointerProperty(
             name="properties", type=properties)
 
     def unregister():
         bpy.utils.unregister_class(properties)
-        print("unregister")
 
     def init(self, context):
-        print("init" + str(self))
         self.properties.register_fields()
         self.outputs.new("NodeSocketShader", "output")
 
@@ -97,13 +93,13 @@ def create_node_from_data(node):
     # Create a class to store the data about this node inside the
     # blender object
     node_class = type(
-        "NRG_" + node.node_type,
-        (LogicNodeBase, bpy.types.Node, ),
+        node_name,
+        (base_type, bpy.types.Node, ),
         {
-            "bl_idname": "NRG_" + node.node_type,
-            "bl_label": node.node_type,
-            "name": node.node_type,
-            "description": node.description,
+            "bl_idname": node_name,
+            "bl_label": node_name,
+            "name": node_name,
+            "description": description,
             "init": init,
             "register": register,
             "unregister": unregister,
@@ -139,7 +135,7 @@ class LogicSimpleInputNode(LogicNodeBase):
 
 
 class LogicNodeCategory(nodeitems_utils.NodeCategory):
-    @classmethod
+    @ classmethod
     def poll(cls, context):
         return context.space_data.tree_type == 'LogicNodeTree'
 
@@ -151,6 +147,8 @@ node_categories = [
         nodeitems_utils.NodeItem("LogicSimpleInputNode",
                                  label="Simple Input Node"),
     ]),
+
+
 ]
 
 
@@ -174,7 +172,6 @@ blender_classes.append(OpenInLogicEditor)
 
 def register():
     for cls in blender_classes:
-        print("type = " + str(cls))
         bpy.utils.register_class(cls)
 
     nodeitems_utils.register_node_categories("LOGIC_NODES", node_categories)
