@@ -1,10 +1,10 @@
 use std::path::PathBuf;
 
-use nrg_graphics::{Texture, TextureId};
-use nrg_messenger::{Message, MessageBox, MessengerRw};
+use sabi_graphics::{Texture, TextureId};
+use sabi_messenger::{Message, MessageBox, MessengerRw};
 
-use nrg_resources::{Resource, SerializableResource, SharedData, SharedDataRc};
-use nrg_ui::{
+use sabi_resources::{Resource, SerializableResource, SharedData, SharedDataRc};
+use sabi_ui::{
     implement_widget_data, ImageButton, TextureId as eguiTextureId, TopBottomPanel, UIWidget, Ui,
     Widget,
 };

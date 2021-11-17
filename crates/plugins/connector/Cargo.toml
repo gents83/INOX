@@ -1,5 +1,5 @@
 [package]
-name = "nrg_connector"
+name = "sabi_connector"
 version = "0.1.0"
 authors = ["gents83 <gents83@gmail.com>"]
 edition = "2021"
@@ -9,11 +9,11 @@ build = "build.rs"
 crate-type = ["cdylib"]
 
 [dependencies]
-nrg_commands = { path = "../../commands" }
-nrg_core = { path = "../../core" }
-nrg_filesystem = { path = "../../filesystem" }
-nrg_messenger = { path = "../../messenger" }
-nrg_platform = { path = "../../platform" }
-nrg_profiler = { path = "../../profiler" }
-nrg_resources = { path = "../../resources" }
-nrg_serialize = { path = "../../serialize" }
+sabi_commands = { path = "../../commands" }
+sabi_core = { path = "../../core" }
+sabi_filesystem = { path = "../../filesystem" }
+sabi_messenger = { path = "../../messenger" }
+sabi_platform = { path = "../../platform" }
+sabi_profiler = { path = "../../profiler" }
+sabi_resources = { path = "../../resources" }
+sabi_serialize = { path = "../../serialize" }

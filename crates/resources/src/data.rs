@@ -1,9 +1,9 @@
 use std::path::{Path, PathBuf};
 
-use nrg_filesystem::convert_from_local_path;
-use nrg_messenger::{GlobalMessenger, MessengerRw};
-use nrg_profiler::debug_log;
-use nrg_serialize::generate_uid_from_string;
+use sabi_filesystem::convert_from_local_path;
+use sabi_messenger::{GlobalMessenger, MessengerRw};
+use sabi_profiler::debug_log;
+use sabi_serialize::generate_uid_from_string;
 
 use crate::{
     Function, LoadResourceEvent, Resource, ResourceId, ResourceTrait, SharedData, SharedDataRc,

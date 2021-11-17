@@ -3,12 +3,12 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use nrg_scene::{ObjectData, SceneData};
-use nrg_serialize::SerializeFile;
 use pyo3::{
     types::{PyDict, PyList},
     PyObject, PyResult, Python, ToPyObject,
 };
+use sabi_scene::{ObjectData, SceneData};
+use sabi_serialize::SerializeFile;
 
 #[derive(Default)]
 pub struct Exporter {
@@ -107,7 +107,7 @@ impl Exporter {
         path: &Path,
     ) -> PyResult<bool> {
         let is_dirty = false;
-        if let Ok(properties) = object.getattr(py, "nrg_properties") {
+        if let Ok(properties) = object.getattr(py, "sabi_properties") {
             let logic = properties.getattr(py, "logic")?;
             self.export_logic(py, &logic, object_data)?;
         }
@@ -134,7 +134,7 @@ impl Exporter {
                 let node_name: String = node.getattr("name")?.extract()?;
                 println!("Node: {}", node_name);
                 let logic_node_type: String = py
-                    .import("NRG")?
+                    .import("SABI")?
                     .getattr("node_tree")?
                     .getattr("LogicNodeBase")?
                     .getattr("bl_idname")?

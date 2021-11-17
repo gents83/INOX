@@ -86,11 +86,11 @@ impl PhaseWithSystems {
     }
 
     fn execute_systems(&mut self, is_focused: bool) -> bool {
-        nrg_profiler::scoped_profile!("phase::execute_systems");
+        sabi_profiler::scoped_profile!("phase::execute_systems");
         let mut can_continue = true;
         self.systems_running.iter().for_each(|id| {
             if let Some(system) = self.systems.get_mut(id) {
-                nrg_profiler::scoped_profile!(format!(
+                sabi_profiler::scoped_profile!(format!(
                     "{} {:?}",
                     "phase::execute_system",
                     system.get_name()

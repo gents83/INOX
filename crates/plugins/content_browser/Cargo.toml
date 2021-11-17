@@ -1,5 +1,5 @@
 [package]
-name = "nrg_content_browser"
+name = "sabi_content_browser"
 version = "0.1.0"
 authors = ["gents83 <gents83@gmail.com>"]
 edition = "2021"
@@ -9,12 +9,12 @@ build = "build.rs"
 crate-type = ["cdylib"]
 
 [dependencies]
-nrg_core = { path = "../../core" }
-nrg_filesystem = { path = "../../filesystem" }
-nrg_graphics = { path = "../../graphics" }
-nrg_messenger = { path = "../../messenger" }
-nrg_platform = { path = "../../platform" }
-nrg_profiler = { path = "../../profiler" }
-nrg_resources = { path = "../../resources" }
-nrg_serialize = { path = "../../serialize" }
-nrg_ui = { path = "../../ui" }
+sabi_core = { path = "../../core" }
+sabi_filesystem = { path = "../../filesystem" }
+sabi_graphics = { path = "../../graphics" }
+sabi_messenger = { path = "../../messenger" }
+sabi_platform = { path = "../../platform" }
+sabi_profiler = { path = "../../profiler" }
+sabi_resources = { path = "../../resources" }
+sabi_serialize = { path = "../../serialize" }
+sabi_ui = { path = "../../ui" }

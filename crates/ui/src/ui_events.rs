@@ -1,11 +1,11 @@
 use std::path::PathBuf;
 
-use nrg_commands::CommandParser;
-use nrg_messenger::{implement_message, Message, MessageFromString};
-use nrg_serialize::{Deserialize, Serialize};
+use sabi_commands::CommandParser;
+use sabi_messenger::{implement_message, Message, MessageFromString};
+use sabi_serialize::{Deserialize, Serialize};
 
 #[derive(Copy, Clone, Serialize, Deserialize)]
-#[serde(crate = "nrg_serialize")]
+#[serde(crate = "sabi_serialize")]
 pub enum DialogOp {
     New,
     Open,
@@ -33,7 +33,7 @@ impl From<DialogOp> for &str {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
-#[serde(crate = "nrg_serialize")]
+#[serde(crate = "sabi_serialize")]
 pub enum DialogEvent {
     Request(DialogOp, PathBuf),
     Confirmed(DialogOp, PathBuf),

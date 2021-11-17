@@ -1,18 +1,18 @@
-use nrg_graphics::{
+use sabi_graphics::{
     utils::compute_id_from_color, DynamicImage, Mesh, MeshCategoryId, Pipeline, PipelineType,
     RenderPass, Texture, View, DEFAULT_MESH_CATEGORY_IDENTIFIER, TEXTURE_CHANNEL_COUNT,
 };
-use nrg_math::{
+use sabi_math::{
     raycast_oob, Degrees, MatBase, Matrix4, NewAngle, VecBase, Vector2, Vector3, Vector4,
 };
-use nrg_messenger::{Message, MessengerRw};
-use nrg_platform::{Key, KeyEvent};
-use nrg_resources::{DataTypeResource, Handle, Resource, SharedData, SharedDataRc};
-use nrg_scene::{
+use sabi_messenger::{Message, MessengerRw};
+use sabi_platform::{Key, KeyEvent};
+use sabi_resources::{DataTypeResource, Handle, Resource, SharedData, SharedDataRc};
+use sabi_scene::{
     Camera, Hitbox, Object, ObjectId, DEFAULT_CAMERA_FAR, DEFAULT_CAMERA_FOV, DEFAULT_CAMERA_NEAR,
 };
-use nrg_serialize::{generate_random_uid, INVALID_UID};
-use nrg_ui::{
+use sabi_serialize::{generate_random_uid, INVALID_UID};
+use sabi_ui::{
     implement_widget_data, CentralPanel, Frame, Image, LayerId, Sense, TextureId as eguiTextureId,
     UIWidget, Widget,
 };

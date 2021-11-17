@@ -1,10 +1,10 @@
 use std::any::TypeId;
 
-use nrg_graphics::{DrawEvent, Mesh};
-use nrg_math::{Mat4Ops, VecBase, Vector3};
-use nrg_messenger::{read_messages, Message, MessageBox, MessageChannel, MessengerRw};
-use nrg_resources::{SharedData, SharedDataRc};
-use nrg_scene::{Hitbox, Object, ObjectId};
+use sabi_graphics::{DrawEvent, Mesh};
+use sabi_math::{Mat4Ops, VecBase, Vector3};
+use sabi_messenger::{read_messages, Message, MessageBox, MessageChannel, MessengerRw};
+use sabi_resources::{SharedData, SharedDataRc};
+use sabi_scene::{Hitbox, Object, ObjectId};
 
 use crate::{EditMode, EditorEvent};
 
@@ -56,7 +56,7 @@ impl BoundingBoxDrawer {
         }
     }
     fn update_events(&mut self) {
-        nrg_profiler::scoped_profile!("update_events");
+        sabi_profiler::scoped_profile!("update_events");
 
         read_messages(self.message_channel.get_listener(), |msg| {
             if msg.type_id() == TypeId::of::<EditorEvent>() {

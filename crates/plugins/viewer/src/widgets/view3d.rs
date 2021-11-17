@@ -1,10 +1,10 @@
-use nrg_graphics::{
+use sabi_graphics::{
     DynamicImage, MeshCategoryId, RenderPass, Texture, DEFAULT_MESH_CATEGORY_IDENTIFIER,
 };
-use nrg_messenger::MessengerRw;
-use nrg_resources::{DataTypeResource, Resource, SharedData, SharedDataRc};
-use nrg_serialize::generate_random_uid;
-use nrg_ui::{
+use sabi_messenger::MessengerRw;
+use sabi_resources::{DataTypeResource, Resource, SharedData, SharedDataRc};
+use sabi_serialize::generate_random_uid;
+use sabi_ui::{
     implement_widget_data, CentralPanel, Frame, Image, LayerId, Sense, TextureId as eguiTextureId,
     UIWidget, Widget,
 };

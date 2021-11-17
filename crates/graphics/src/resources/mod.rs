@@ -1,4 +1,4 @@
-use nrg_resources::SharedDataRc;
+use sabi_resources::SharedDataRc;
 
 pub use self::font::*;
 pub use self::light::*;

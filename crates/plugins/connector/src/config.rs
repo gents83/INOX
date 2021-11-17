@@ -1,8 +1,8 @@
-use nrg_resources::{ConfigBase, Data};
-use nrg_serialize::{Deserialize, Serialize, SerializeFile};
+use sabi_resources::{ConfigBase, Data};
+use sabi_serialize::{Deserialize, Serialize, SerializeFile};
 
 #[derive(Default, Serialize, Deserialize, Debug, Clone)]
-#[serde(crate = "nrg_serialize")]
+#[serde(crate = "sabi_serialize")]
 pub struct Config {
     pub host_address: String,
     pub port: u32,

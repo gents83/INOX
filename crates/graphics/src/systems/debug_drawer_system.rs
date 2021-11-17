@@ -4,22 +4,22 @@ use crate::{
     create_arrow, create_colored_quad, create_line, create_sphere, Material, Mesh, MeshData,
     Pipeline, PipelineType,
 };
-use nrg_commands::CommandParser;
-use nrg_core::System;
-use nrg_math::{Vector2, Vector3, Vector4};
-use nrg_messenger::{
+use sabi_commands::CommandParser;
+use sabi_core::System;
+use sabi_math::{Vector2, Vector3, Vector4};
+use sabi_messenger::{
     implement_message, read_messages, Message, MessageChannel, MessageFromString, MessengerRw,
 };
-use nrg_profiler::debug_log;
-use nrg_resources::{DataTypeResource, Resource, SharedDataRc};
-use nrg_serialize::generate_random_uid;
+use sabi_profiler::debug_log;
+use sabi_resources::{DataTypeResource, Resource, SharedDataRc};
+use sabi_serialize::generate_random_uid;
 
 /// A debug drawer
 /// You can use this to draw things in the editor just sending events:
 /// ```
-/// use nrg_editor::systems::{DebugDrawer, DrawEvent};
-/// use nrg_math::{Vector3, Zero};
-/// use nrg_messenger::{MessengerRw, Message};
+/// use sabi_editor::systems::{DebugDrawer, DrawEvent};
+/// use sabi_math::{Vector3, Zero};
+/// use sabi_messenger::{MessengerRw, Message};
 ///
 /// let global_messenger = MessengerRw::default();
 /// let global_dispatcher = global_messenger.read().unwrap().get_dispatcher().clone();
@@ -226,7 +226,7 @@ impl DebugDrawerSystem {
     }
 
     fn update_events(&mut self) {
-        nrg_profiler::scoped_profile!("update_events");
+        sabi_profiler::scoped_profile!("update_events");
 
         let mut mesh_data = MeshData::new(WIREFRAME_MESH_CATEGORY_IDENTIFIER);
         let mut wireframe_mesh_data = MeshData::new(WIREFRAME_MESH_CATEGORY_IDENTIFIER);

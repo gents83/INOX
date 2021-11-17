@@ -1,7 +1,7 @@
 #![allow(improper_ctypes_definitions)]
 
-use nrg_filesystem::Library;
-use nrg_platform::{get_raw_thread_id, RawThreadId};
+use sabi_filesystem::Library;
+use sabi_platform::{get_raw_thread_id, RawThreadId};
 use std::{
     cell::RefCell,
     collections::HashMap,
@@ -20,7 +20,7 @@ use std::{
 };
 
 pub type GlobalProfiler = Arc<Profiler>;
-pub static mut NRG_PROFILER_LIB: Option<Library> = None;
+pub static mut SABI_PROFILER_LIB: Option<Library> = None;
 
 pub const GET_PROFILER_FUNCTION_NAME: &str = "get_profiler";
 pub type PfnGetProfiler = ::std::option::Option<unsafe extern "C" fn() -> GlobalProfiler>;
@@ -231,7 +231,7 @@ impl Profiler {
             }
         }
 
-        let profile_file_name = "app.nrg_profile";
+        let profile_file_name = "app.sabi_profile";
 
         let f = BufWriter::new(File::create(profile_file_name).unwrap());
         serde_json::to_writer(f, &data).unwrap();

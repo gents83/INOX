@@ -1,6 +1,6 @@
-use nrg_math::{Degrees, MatBase, Matrix4, NewAngle};
-use nrg_messenger::MessengerRw;
-use nrg_resources::{DataTypeResource, Handle, ResourceId, SharedData, SharedDataRc};
+use sabi_math::{Degrees, MatBase, Matrix4, NewAngle};
+use sabi_messenger::MessengerRw;
+use sabi_resources::{DataTypeResource, Handle, ResourceId, SharedData, SharedDataRc};
 
 pub type ViewId = ResourceId;
 
@@ -46,7 +46,7 @@ impl DataTypeResource for View {
         Self {
             view_index: data,
             view: Matrix4::default_identity(),
-            proj: nrg_math::perspective(Degrees::new(45.), 800. / 600., 0.001, 1000.0),
+            proj: sabi_math::perspective(Degrees::new(45.), 800. / 600., 0.001, 1000.0),
         }
     }
 }

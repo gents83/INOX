@@ -3,8 +3,8 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use nrg_resources::{Resource, SharedDataRc};
-use nrg_ui::{implement_widget_data, UIWidget, Window};
+use sabi_resources::{Resource, SharedDataRc};
+use sabi_ui::{implement_widget_data, UIWidget, Window};
 
 struct Data {
     frame_seconds: VecDeque<SystemTime>,

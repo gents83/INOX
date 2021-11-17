@@ -134,7 +134,7 @@ impl BackendTexture {
         area: &Area,
         image_data: &[u8],
     ) {
-        nrg_profiler::scoped_profile!("texture::add_in_layer");
+        sabi_profiler::scoped_profile!("texture::add_in_layer");
 
         if self.width < area.width || self.height < area.height {
             panic!("Image resolution is different from texture one");
@@ -176,7 +176,7 @@ impl BackendTexture {
         area: &Area,
         image_data: &mut [u8],
     ) {
-        nrg_profiler::scoped_profile!("texture::get_from_layer");
+        sabi_profiler::scoped_profile!("texture::get_from_layer");
 
         if self.width < area.width || self.height < area.height {
             panic!("Image resolution is different from texture one");

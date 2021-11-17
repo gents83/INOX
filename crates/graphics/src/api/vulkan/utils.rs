@@ -4,7 +4,7 @@ use super::data_formats::VkImageBarrierData;
 use super::physical_device::BackendPhysicalDevice;
 use super::{types::*, BackendDevice};
 use crate::Area;
-use nrg_platform::Handle;
+use sabi_platform::Handle;
 use std::ffi::{c_void, CStr, CString};
 use std::mem::MaybeUninit;
 use std::os::raw::c_char;
@@ -333,7 +333,7 @@ pub fn create_buffer(
     buffer: &mut VkBuffer,
     buffer_memory: &mut VkDeviceMemory,
 ) -> (u64, u64) {
-    nrg_profiler::scoped_profile!("Vulkan create_buffer");
+    sabi_profiler::scoped_profile!("Vulkan create_buffer");
 
     let buffer_info = VkBufferCreateInfo {
         sType: VkStructureType_VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
@@ -387,7 +387,7 @@ pub fn create_buffer(
 }
 
 pub fn destroy_buffer(device: &BackendDevice, buffer: &VkBuffer, buffer_memory: &VkDeviceMemory) {
-    nrg_profiler::scoped_profile!("Vulkan destroy_buffer");
+    sabi_profiler::scoped_profile!("Vulkan destroy_buffer");
 
     unsafe {
         vkDestroyBuffer.unwrap()(**device, *buffer, ::std::ptr::null_mut());
@@ -401,7 +401,7 @@ pub fn copy_buffer(
     buffer_dst: &mut VkBuffer,
     buffer_size: VkDeviceSize,
 ) {
-    nrg_profiler::scoped_profile!("Vulkan copy_buffer");
+    sabi_profiler::scoped_profile!("Vulkan copy_buffer");
 
     let command_buffer = begin_single_time_commands(device);
 
@@ -423,7 +423,7 @@ pub fn map_buffer_memory<T>(
     starting_index: usize,
     data_src: &[T],
 ) -> (*mut c_void, usize) {
-    nrg_profiler::scoped_profile!("Vulkan map_buffer_memory");
+    sabi_profiler::scoped_profile!("Vulkan map_buffer_memory");
 
     let element_size = ::std::mem::size_of::<T>();
     let offset = starting_index * element_size;
@@ -452,7 +452,7 @@ pub fn copy_from_buffer<T>(
     starting_index: usize,
     data_src: &[T],
 ) {
-    nrg_profiler::scoped_profile!("Vulkan copy_from_buffer");
+    sabi_profiler::scoped_profile!("Vulkan copy_from_buffer");
 
     let (data_ptr, length) = map_buffer_memory(device, buffer_memory, starting_index, data_src);
     unsafe {
@@ -466,7 +466,7 @@ pub fn copy_to_buffer<T>(
     starting_index: usize,
     data_dst: &mut [T],
 ) {
-    nrg_profiler::scoped_profile!("Vulkan copy_to_buffer");
+    sabi_profiler::scoped_profile!("Vulkan copy_to_buffer");
 
     let (data_ptr, length) = map_buffer_memory(device, buffer_memory, starting_index, data_dst);
     unsafe {
@@ -475,7 +475,7 @@ pub fn copy_to_buffer<T>(
     unmap_buffer_memory(device, buffer_memory);
 }
 pub fn unmap_buffer_memory(device: &BackendDevice, buffer_memory: &mut VkDeviceMemory) {
-    nrg_profiler::scoped_profile!("Vulkan unmap_buffer_memory");
+    sabi_profiler::scoped_profile!("Vulkan unmap_buffer_memory");
     unsafe {
         vkUnmapMemory.unwrap()(**device, *buffer_memory);
     }
@@ -609,7 +609,7 @@ pub fn copy_image_to_buffer(
     layers_count: u32,
     area: &Area,
 ) {
-    nrg_profiler::scoped_profile!("Vulkan copy_image_to_buffer");
+    sabi_profiler::scoped_profile!("Vulkan copy_image_to_buffer");
 
     let region = VkBufferImageCopy {
         bufferOffset: 0,
@@ -838,7 +838,7 @@ pub fn create_instance(
     supported_extensions: &[VkExtensionProperties],
     enable_validation: bool,
 ) -> VkInstance {
-    let engine_name = "NRG";
+    let engine_name = "SABI";
     let app_info = VkApplicationInfo {
         sType: VkStructureType_VK_STRUCTURE_TYPE_APPLICATION_INFO,
         pNext: ::std::ptr::null_mut(),

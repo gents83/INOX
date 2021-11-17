@@ -1,11 +1,11 @@
 use std::{path::PathBuf, thread};
 
-use nrg_binarizer::Binarizer;
-use nrg_commands::CommandParser;
-use nrg_core::App;
-use nrg_filesystem::library_filename;
-use nrg_launcher::launcher::Launcher;
-use nrg_resources::{DATA_FOLDER, DATA_RAW_FOLDER};
+use sabi_binarizer::Binarizer;
+use sabi_commands::CommandParser;
+use sabi_core::App;
+use sabi_filesystem::library_filename;
+use sabi_launcher::launcher::Launcher;
+use sabi_resources::{DATA_FOLDER, DATA_RAW_FOLDER};
 
 fn main() {
     let mut app = App::new();

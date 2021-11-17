@@ -1,10 +1,10 @@
 use std::path::PathBuf;
 
-use nrg_math::{MatBase, Matrix4};
-use nrg_serialize::{Deserialize, Serialize, SerializeFile};
+use sabi_math::{MatBase, Matrix4};
+use sabi_serialize::{Deserialize, Serialize, SerializeFile};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
-#[serde(crate = "nrg_serialize")]
+#[serde(crate = "sabi_serialize")]
 pub struct ObjectData {
     pub transform: Matrix4,
     pub components: Vec<PathBuf>,

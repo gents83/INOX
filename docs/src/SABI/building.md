@@ -1,12 +1,12 @@
-# Building **NRG** code
+# Building **SABI** code
 
-## How to download _**NRG**_ repository
+## How to download _**SABI**_ repository
 
 You can clone it using [https://github.com/gents83/NRG.git](https://github.com/gents83/NRG.git)
 
 Or you can download the zip from [here](https://github.com/gents83/NRG/archive/refs/heads/master.zip)
 
-## How to build and run _**NRG**_ code
+## How to build and run _**SABI**_ code
 
 Once that you've cloned and downloaded the repository, you can build it by running the following commands:
 
@@ -18,17 +18,17 @@ The above command is needed to download all extern submodules and could require 
 
 The above command build the project in debug but you can switch to release adding --release at the end.
 
-> cargo run --manifest-path ./crates/Cargo.toml -- -plugin nrg_viewer
+> cargo run --manifest-path ./crates/Cargo.toml -- -plugin sabi_viewer
 
-The above command run the nrg_launcher executable with the nrg_viewer plugin. \
+The above command run the sabi_launcher executable with the sabi_viewer plugin. \
 Please provided needed command line parameters, like the -file_to_load 'path' \
-See the section [Command line parameters accepted by nrg_launcher](#command-line-parameters-accepted-by-nrg_launcher)
+See the section [Command line parameters accepted by sabi_launcher](#command-line-parameters-accepted-by-sabi_launcher)
 
-## How to use _**Microsoft VSCode**_ launch and tasks created for _**NRG**_ on Windows
+## How to use _**Microsoft VSCode**_ launch and tasks created for _**SABI**_ on Windows
 
-If you are using _**Microsoft VSCode**_ on Windows you can benefits of several shortcuts to build and execute _**NRG**_ code.
+If you are using _**Microsoft VSCode**_ on Windows you can benefits of several shortcuts to build and execute _**SABI**_ code.
 
-Using the _NRG.code-workspace_ file will allow you to get even raccomandation on useful extensions to maximise the _VSCode_ experience.
+Using the _SABI.code-workspace_ file will allow you to get even raccomandation on useful extensions to maximise the _VSCode_ experience.
 
 Let's see some useful shortcuts.
 
@@ -46,11 +46,11 @@ Let's see some useful shortcuts.
    - RUN LAUNCHER RELEASE - Run the launcher in release mode
    - RUN VIEWER RELEASE - Run the viewer with a test scene (customizable in `/.vscode/launch.json`)
 
-## Command line parameters accepted by **nrg_launcher**
+## Command line parameters accepted by **sabi_launcher**
 
 - **-plugin [name]**: \
     The plugin to use. \
-    You can specify names of crates inside apps folder like nrg_viewer, nrg_editor, etc \
+    You can specify names of crates inside apps folder like sabi_viewer, sabi_editor, etc \
     When not specified an empty window will be opened with only the binarizer executing in background.
     
 - **-load_file [path]**: \

@@ -6,7 +6,7 @@ pub use crate::systems::*;
 pub use crate::ui_events::*;
 pub use crate::ui_properties::*;
 pub use egui::*;
-use nrg_resources::SharedDataRc;
+use sabi_resources::SharedDataRc;
 
 pub mod color;
 pub mod resources;

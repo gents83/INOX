@@ -23,12 +23,12 @@ from . import operators
 from . import panels
 
 bl_info = {
-    "name": "NRG Engine",
+    "name": "SABI Engine",
     "author": "GENTS <gents83@gmail.com>",
     "version": (0, 1, 0),
     "blender": (2, 93, 0),
     "location": "Everywhere",
-    "description": "NRG Game Engine",
+    "description": "SABI Game Engine",
     "category": "Game Engines",
 }
 
@@ -36,14 +36,14 @@ bl_info = {
 blender_classes = []
 
 
-class NRGAddonPreferences(bpy.types.AddonPreferences):
+class SABIAddonPreferences(bpy.types.AddonPreferences):
     # this must match the add-on name, use '__package__'
     # when defining this in a submodule of a python package.
     bl_idname = __name__
 
     exe_path: bpy.props.StringProperty(
-        name="NRG folder",
-        description="Set folder where nrg_launcher.exe can be found",
+        name="SABI folder",
+        description="Set folder where sabi_launcher.exe can be found",
         subtype="DIR_PATH",
         default="./bin/")
 
@@ -52,7 +52,7 @@ class NRGAddonPreferences(bpy.types.AddonPreferences):
         layout.prop(self, "exe_path")
 
 
-blender_classes.append(NRGAddonPreferences)
+blender_classes.append(SABIAddonPreferences)
 
 
 def register():
@@ -64,7 +64,7 @@ def register():
     for blender_class in blender_classes:
         bpy.utils.register_class(blender_class)
 
-    preferences = bpy.context.preferences.addons['NRG'].preferences
+    preferences = bpy.context.preferences.addons['SABI'].preferences
 
     file_path = join(preferences.exe_path, "*")
     for file_path in glob(file_path):

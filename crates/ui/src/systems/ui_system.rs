@@ -12,23 +12,23 @@ use egui::{
     TextureId as eguiTextureId,
 };
 use image::RgbaImage;
-use nrg_core::{JobHandlerRw, System};
-use nrg_graphics::{
+use sabi_core::{JobHandlerRw, System};
+use sabi_graphics::{
     Material, Mesh, MeshCategoryId, MeshData, Pipeline, RenderPass, RenderTarget, Texture,
     TextureId, TextureType, VertexData,
 };
 
-use nrg_math::Vector4;
-use nrg_messenger::{read_messages, MessageChannel, MessengerRw};
-use nrg_platform::{
+use sabi_math::Vector4;
+use sabi_messenger::{read_messages, MessageChannel, MessengerRw};
+use sabi_platform::{
     InputState, KeyEvent, KeyTextEvent, MouseButton, MouseEvent, MouseState, WindowEvent,
     DEFAULT_DPI,
 };
-use nrg_profiler::debug_log;
-use nrg_resources::{
+use sabi_profiler::debug_log;
+use sabi_resources::{
     ConfigBase, DataTypeResource, Handle, Resource, SerializableResource, SharedData, SharedDataRc,
 };
-use nrg_serialize::{generate_random_uid, read_from_file};
+use sabi_serialize::{generate_random_uid, read_from_file};
 
 use crate::UIWidget;
 
@@ -82,7 +82,7 @@ impl UISystem {
     }
 
     fn get_ui_material(&mut self, texture: Resource<Texture>) -> Resource<Material> {
-        nrg_profiler::scoped_profile!("ui_system::get_ui_material");
+        sabi_profiler::scoped_profile!("ui_system::get_ui_material");
 
         match self.ui_materials.entry(*texture.id()) {
             Entry::Occupied(e) => e.get().clone(),
@@ -113,7 +113,7 @@ impl UISystem {
     }
 
     fn update_egui_texture(&mut self) -> &mut Self {
-        nrg_profiler::scoped_profile!("ui_system::update_egui_texture");
+        sabi_profiler::scoped_profile!("ui_system::update_egui_texture");
         if self.ui_texture_version != self.ui_context.texture().version {
             let mut pixels: Vec<u8> =
                 Vec::with_capacity(self.ui_context.texture().pixels.len() * 4);
@@ -146,7 +146,7 @@ impl UISystem {
     }
 
     fn compute_mesh_data(&mut self, clipped_meshes: Vec<ClippedMesh>) {
-        nrg_profiler::scoped_profile!("ui_system::compute_mesh_data");
+        sabi_profiler::scoped_profile!("ui_system::compute_mesh_data");
         let shared_data = self.shared_data.clone();
         let global_messenger = self.global_messenger.clone();
         self.ui_meshes.resize_with(clipped_meshes.len(), || {
@@ -278,31 +278,31 @@ impl UISystem {
                     });
                 }
 
-                if event.code == nrg_platform::Key::Shift {
+                if event.code == sabi_platform::Key::Shift {
                     self.ui_input_modifiers.shift = pressed;
-                } else if event.code == nrg_platform::Key::Control {
+                } else if event.code == sabi_platform::Key::Control {
                     self.ui_input_modifiers.ctrl = pressed;
                     self.ui_input_modifiers.command = pressed;
-                } else if event.code == nrg_platform::Key::Alt {
+                } else if event.code == sabi_platform::Key::Alt {
                     self.ui_input_modifiers.alt = pressed;
-                } else if event.code == nrg_platform::Key::Meta {
+                } else if event.code == sabi_platform::Key::Meta {
                     self.ui_input_modifiers.command = pressed;
                     self.ui_input_modifiers.mac_cmd = pressed;
                 }
 
                 if just_pressed
                     && self.ui_input_modifiers.ctrl
-                    && event.code == nrg_platform::input::Key::C
+                    && event.code == sabi_platform::input::Key::C
                 {
                     self.ui_input.events.push(Event::Copy);
                 } else if just_pressed
                     && self.ui_input_modifiers.ctrl
-                    && event.code == nrg_platform::input::Key::X
+                    && event.code == sabi_platform::input::Key::X
                 {
                     self.ui_input.events.push(Event::Cut);
                 } else if just_pressed
                     && self.ui_input_modifiers.ctrl
-                    && event.code == nrg_platform::input::Key::V
+                    && event.code == sabi_platform::input::Key::V
                 {
                     if let Some(content) = &self.ui_clipboard {
                         self.ui_input.events.push(Event::Text(content.clone()));
@@ -327,7 +327,7 @@ impl UISystem {
         context: CtxRef,
         use_multithreading: bool,
     ) {
-        nrg_profiler::scoped_profile!("ui_system::show_ui");
+        sabi_profiler::scoped_profile!("ui_system::show_ui");
         let wait_count = Arc::new(AtomicUsize::new(0));
         shared_data.for_each_resource_mut(|widget_handle, widget: &mut UIWidget| {
             if use_multithreading {
@@ -402,7 +402,7 @@ impl System for UISystem {
         self.update_events();
 
         let (output, shapes) = {
-            nrg_profiler::scoped_profile!("ui_context::run");
+            sabi_profiler::scoped_profile!("ui_context::run");
             let shared_data = self.shared_data.clone();
             let job_handler = self.job_handler.clone();
             let ui_context = self.ui_context.clone();
@@ -411,7 +411,7 @@ impl System for UISystem {
             })
         };
         let clipped_meshes = {
-            nrg_profiler::scoped_profile!("ui_context::tessellate");
+            sabi_profiler::scoped_profile!("ui_context::tessellate");
             self.ui_context.tessellate(shapes)
         };
         self.handle_output(output)
@@ -432,59 +432,59 @@ impl System for UISystem {
     }
 }
 
-fn convert_key(key: nrg_platform::input::Key) -> Option<egui::Key> {
+fn convert_key(key: sabi_platform::input::Key) -> Option<egui::Key> {
     match key {
-        nrg_platform::Key::ArrowDown => Some(egui::Key::ArrowDown),
-        nrg_platform::Key::ArrowLeft => Some(egui::Key::ArrowLeft),
-        nrg_platform::Key::ArrowRight => Some(egui::Key::ArrowRight),
-        nrg_platform::Key::ArrowUp => Some(egui::Key::ArrowUp),
-        nrg_platform::Key::Escape => Some(egui::Key::Escape),
-        nrg_platform::Key::Tab => Some(egui::Key::Tab),
-        nrg_platform::Key::Backspace => Some(egui::Key::Backspace),
-        nrg_platform::Key::Enter => Some(egui::Key::Enter),
-        nrg_platform::Key::Space => Some(egui::Key::Space),
-        nrg_platform::Key::Insert => Some(egui::Key::Insert),
-        nrg_platform::Key::Delete => Some(egui::Key::Delete),
-        nrg_platform::Key::Home => Some(egui::Key::Home),
-        nrg_platform::Key::End => Some(egui::Key::End),
-        nrg_platform::Key::PageUp => Some(egui::Key::PageUp),
-        nrg_platform::Key::PageDown => Some(egui::Key::PageDown),
-        nrg_platform::Key::Numpad0 | nrg_platform::Key::Key0 => Some(egui::Key::Num0),
-        nrg_platform::Key::Numpad1 | nrg_platform::Key::Key1 => Some(egui::Key::Num1),
-        nrg_platform::Key::Numpad2 | nrg_platform::Key::Key2 => Some(egui::Key::Num2),
-        nrg_platform::Key::Numpad3 | nrg_platform::Key::Key3 => Some(egui::Key::Num3),
-        nrg_platform::Key::Numpad4 | nrg_platform::Key::Key4 => Some(egui::Key::Num4),
-        nrg_platform::Key::Numpad5 | nrg_platform::Key::Key5 => Some(egui::Key::Num5),
-        nrg_platform::Key::Numpad6 | nrg_platform::Key::Key6 => Some(egui::Key::Num6),
-        nrg_platform::Key::Numpad7 | nrg_platform::Key::Key7 => Some(egui::Key::Num7),
-        nrg_platform::Key::Numpad8 | nrg_platform::Key::Key8 => Some(egui::Key::Num8),
-        nrg_platform::Key::Numpad9 | nrg_platform::Key::Key9 => Some(egui::Key::Num9),
-        nrg_platform::Key::A => Some(egui::Key::A),
-        nrg_platform::Key::B => Some(egui::Key::B),
-        nrg_platform::Key::C => Some(egui::Key::C),
-        nrg_platform::Key::D => Some(egui::Key::D),
-        nrg_platform::Key::E => Some(egui::Key::E),
-        nrg_platform::Key::F => Some(egui::Key::F),
-        nrg_platform::Key::G => Some(egui::Key::G),
-        nrg_platform::Key::H => Some(egui::Key::H),
-        nrg_platform::Key::I => Some(egui::Key::I),
-        nrg_platform::Key::J => Some(egui::Key::J),
-        nrg_platform::Key::K => Some(egui::Key::K),
-        nrg_platform::Key::L => Some(egui::Key::L),
-        nrg_platform::Key::M => Some(egui::Key::M),
-        nrg_platform::Key::N => Some(egui::Key::N),
-        nrg_platform::Key::O => Some(egui::Key::O),
-        nrg_platform::Key::P => Some(egui::Key::P),
-        nrg_platform::Key::Q => Some(egui::Key::Q),
-        nrg_platform::Key::R => Some(egui::Key::R),
-        nrg_platform::Key::S => Some(egui::Key::S),
-        nrg_platform::Key::T => Some(egui::Key::T),
-        nrg_platform::Key::U => Some(egui::Key::U),
-        nrg_platform::Key::V => Some(egui::Key::V),
-        nrg_platform::Key::W => Some(egui::Key::W),
-        nrg_platform::Key::X => Some(egui::Key::X),
-        nrg_platform::Key::Y => Some(egui::Key::Y),
-        nrg_platform::Key::Z => Some(egui::Key::Z),
+        sabi_platform::Key::ArrowDown => Some(egui::Key::ArrowDown),
+        sabi_platform::Key::ArrowLeft => Some(egui::Key::ArrowLeft),
+        sabi_platform::Key::ArrowRight => Some(egui::Key::ArrowRight),
+        sabi_platform::Key::ArrowUp => Some(egui::Key::ArrowUp),
+        sabi_platform::Key::Escape => Some(egui::Key::Escape),
+        sabi_platform::Key::Tab => Some(egui::Key::Tab),
+        sabi_platform::Key::Backspace => Some(egui::Key::Backspace),
+        sabi_platform::Key::Enter => Some(egui::Key::Enter),
+        sabi_platform::Key::Space => Some(egui::Key::Space),
+        sabi_platform::Key::Insert => Some(egui::Key::Insert),
+        sabi_platform::Key::Delete => Some(egui::Key::Delete),
+        sabi_platform::Key::Home => Some(egui::Key::Home),
+        sabi_platform::Key::End => Some(egui::Key::End),
+        sabi_platform::Key::PageUp => Some(egui::Key::PageUp),
+        sabi_platform::Key::PageDown => Some(egui::Key::PageDown),
+        sabi_platform::Key::Numpad0 | sabi_platform::Key::Key0 => Some(egui::Key::Num0),
+        sabi_platform::Key::Numpad1 | sabi_platform::Key::Key1 => Some(egui::Key::Num1),
+        sabi_platform::Key::Numpad2 | sabi_platform::Key::Key2 => Some(egui::Key::Num2),
+        sabi_platform::Key::Numpad3 | sabi_platform::Key::Key3 => Some(egui::Key::Num3),
+        sabi_platform::Key::Numpad4 | sabi_platform::Key::Key4 => Some(egui::Key::Num4),
+        sabi_platform::Key::Numpad5 | sabi_platform::Key::Key5 => Some(egui::Key::Num5),
+        sabi_platform::Key::Numpad6 | sabi_platform::Key::Key6 => Some(egui::Key::Num6),
+        sabi_platform::Key::Numpad7 | sabi_platform::Key::Key7 => Some(egui::Key::Num7),
+        sabi_platform::Key::Numpad8 | sabi_platform::Key::Key8 => Some(egui::Key::Num8),
+        sabi_platform::Key::Numpad9 | sabi_platform::Key::Key9 => Some(egui::Key::Num9),
+        sabi_platform::Key::A => Some(egui::Key::A),
+        sabi_platform::Key::B => Some(egui::Key::B),
+        sabi_platform::Key::C => Some(egui::Key::C),
+        sabi_platform::Key::D => Some(egui::Key::D),
+        sabi_platform::Key::E => Some(egui::Key::E),
+        sabi_platform::Key::F => Some(egui::Key::F),
+        sabi_platform::Key::G => Some(egui::Key::G),
+        sabi_platform::Key::H => Some(egui::Key::H),
+        sabi_platform::Key::I => Some(egui::Key::I),
+        sabi_platform::Key::J => Some(egui::Key::J),
+        sabi_platform::Key::K => Some(egui::Key::K),
+        sabi_platform::Key::L => Some(egui::Key::L),
+        sabi_platform::Key::M => Some(egui::Key::M),
+        sabi_platform::Key::N => Some(egui::Key::N),
+        sabi_platform::Key::O => Some(egui::Key::O),
+        sabi_platform::Key::P => Some(egui::Key::P),
+        sabi_platform::Key::Q => Some(egui::Key::Q),
+        sabi_platform::Key::R => Some(egui::Key::R),
+        sabi_platform::Key::S => Some(egui::Key::S),
+        sabi_platform::Key::T => Some(egui::Key::T),
+        sabi_platform::Key::U => Some(egui::Key::U),
+        sabi_platform::Key::V => Some(egui::Key::V),
+        sabi_platform::Key::W => Some(egui::Key::W),
+        sabi_platform::Key::X => Some(egui::Key::X),
+        sabi_platform::Key::Y => Some(egui::Key::Y),
+        sabi_platform::Key::Z => Some(egui::Key::Z),
         _ => None,
     }
 }

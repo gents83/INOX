@@ -6,8 +6,8 @@ use std::{
 };
 
 use crate::{need_to_binarize, send_reloaded_event, ExtensionHandler};
-use nrg_messenger::MessengerRw;
-use nrg_resources::{DATA_FOLDER, DATA_RAW_FOLDER};
+use sabi_messenger::MessengerRw;
+use sabi_resources::{DATA_FOLDER, DATA_RAW_FOLDER};
 
 const SHADERS_FOLDER_NAME: &str = "shaders";
 

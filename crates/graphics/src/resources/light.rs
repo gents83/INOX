@@ -1,9 +1,9 @@
 use std::path::{Path, PathBuf};
 
-use nrg_math::Vector3;
-use nrg_messenger::MessengerRw;
-use nrg_resources::{DataTypeResource, ResourceId, SerializableResource, SharedDataRc};
-use nrg_serialize::read_from_file;
+use sabi_math::Vector3;
+use sabi_messenger::MessengerRw;
+use sabi_resources::{DataTypeResource, ResourceId, SerializableResource, SharedDataRc};
+use sabi_serialize::read_from_file;
 
 use crate::LightData;
 

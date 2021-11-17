@@ -1,4 +1,4 @@
-use nrg_serialize::Uid;
+use sabi_serialize::Uid;
 use std::{
     any::{type_name, Any},
     sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard},

@@ -1,10 +1,10 @@
 use super::raster::*;
-use nrg_math::*;
-use nrg_serialize::{Deserialize, Serialize};
+use sabi_math::*;
+use sabi_serialize::{Deserialize, Serialize};
 use ttf_parser::*;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
-#[serde(crate = "nrg_serialize")]
+#[serde(crate = "sabi_serialize")]
 pub struct Line {
     pub start: Vector2,
     pub end: Vector2,

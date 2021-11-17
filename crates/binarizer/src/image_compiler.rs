@@ -1,8 +1,8 @@
 use std::path::Path;
 
 use crate::{copy_into_data_folder, ExtensionHandler};
-use nrg_messenger::MessengerRw;
-use nrg_profiler::debug_log;
+use sabi_messenger::MessengerRw;
+use sabi_profiler::debug_log;
 
 const IMAGE_PNG_EXTENSION: &str = "png";
 const IMAGE_JPG_EXTENSION: &str = "jpg";

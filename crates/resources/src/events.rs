@@ -3,8 +3,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use nrg_commands::CommandParser;
-use nrg_messenger::{implement_message, Message, MessageFromString, MessengerRw};
+use sabi_commands::CommandParser;
+use sabi_messenger::{implement_message, Message, MessageFromString, MessengerRw};
 
 use crate::{ResourceTrait, SerializableResource, SharedDataRc};
 

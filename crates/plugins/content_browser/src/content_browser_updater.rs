@@ -1,13 +1,13 @@
-use nrg_core::System;
+use sabi_core::System;
 
-use nrg_messenger::{read_messages, GlobalMessenger, MessageChannel, MessengerRw};
-use nrg_platform::WindowEvent;
+use sabi_messenger::{read_messages, GlobalMessenger, MessageChannel, MessengerRw};
+use sabi_platform::WindowEvent;
 use std::env;
 use std::path::PathBuf;
 use std::{any::TypeId, path::Path};
 
-use nrg_resources::SharedDataRc;
-use nrg_ui::{DialogEvent, DialogOp};
+use sabi_resources::SharedDataRc;
+use sabi_ui::{DialogEvent, DialogOp};
 
 use crate::widgets::ContentBrowser;
 
@@ -129,7 +129,7 @@ impl ContentBrowserUpdater {
     }
 
     fn update_events(&mut self) -> &mut Self {
-        nrg_profiler::scoped_profile!("update_events");
+        sabi_profiler::scoped_profile!("update_events");
 
         read_messages(self.message_channel.get_listener(), |msg| {
             if msg.type_id() == TypeId::of::<DialogEvent>() {

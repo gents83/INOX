@@ -27,9 +27,9 @@ class LogicNodeBase(bpy.types.Node):
         print("Node removed", self)
 
 
-def register_nodes(nrg_engine):
-    from NRG import nrg_blender
-    nrg_blender.register_nodes(nrg_engine)
+def register_nodes(sabi_engine):
+    from SABI import sabi_blender
+    sabi_blender.register_nodes(sabi_engine)
 
     global RUST_NODES
     node_items = []
@@ -46,7 +46,7 @@ def register_nodes(nrg_engine):
 
 
 def create_node_from_data(node_name, base_class, description, fields):
-    from NRG import utils
+    from SABI import utils
     base_type = utils.gettype(base_class)
 
     # Create a class that stores all the internals of the properties in
@@ -153,14 +153,14 @@ node_categories = [
 
 
 class OpenInLogicEditor(bpy.types.Operator):
-    bl_idname = "nrg.open_in_logic_editor"
+    bl_idname = "sabi.open_in_logic_editor"
     bl_label = "Open Logic Editor"
 
     def execute(self, context):
         for area in bpy.context.screen.areas:
             if area.type == 'VIEW_3D':
                 area.type = 'NODE_EDITOR'
-                area.spaces.active.node_tree = context.object.nrg_properties.logic
+                area.spaces.active.node_tree = context.object.sabi_properties.logic
         return {'FINISHED'}
 
 

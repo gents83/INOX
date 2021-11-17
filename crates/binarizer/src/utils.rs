@@ -3,8 +3,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use nrg_messenger::{Message, MessengerRw};
-use nrg_resources::{UpdateResourceEvent, DATA_FOLDER, DATA_RAW_FOLDER};
+use sabi_messenger::{Message, MessengerRw};
+use sabi_resources::{UpdateResourceEvent, DATA_FOLDER, DATA_RAW_FOLDER};
 
 pub fn need_to_binarize(original_path: &Path, new_path: &Path) -> bool {
     let mut need_copy = false;

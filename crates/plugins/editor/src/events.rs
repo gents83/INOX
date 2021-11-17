@@ -1,6 +1,6 @@
-use nrg_commands::CommandParser;
-use nrg_messenger::{implement_message, Message, MessageFromString};
-use nrg_scene::ObjectId;
+use sabi_commands::CommandParser;
+use sabi_messenger::{implement_message, Message, MessageFromString};
+use sabi_scene::ObjectId;
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum EditMode {

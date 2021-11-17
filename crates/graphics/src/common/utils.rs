@@ -1,4 +1,4 @@
-use nrg_math::Vector4;
+use sabi_math::Vector4;
 
 pub fn read_spirv_from_bytes<Data: ::std::io::Read + ::std::io::Seek>(
     data: &mut Data,

@@ -1,11 +1,11 @@
 use crate::{FontData, Texture};
 
-use nrg_math::Vector4;
-use nrg_messenger::MessengerRw;
-use nrg_resources::{
+use sabi_math::Vector4;
+use sabi_messenger::MessengerRw;
+use sabi_resources::{
     DataTypeResource, Handle, ResourceId, SerializableResource, SharedData, SharedDataRc,
 };
-use nrg_serialize::{generate_random_uid, INVALID_UID};
+use sabi_serialize::{generate_random_uid, INVALID_UID};
 use std::path::{Path, PathBuf};
 
 pub type FontId = ResourceId;

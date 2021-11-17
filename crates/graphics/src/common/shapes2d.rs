@@ -1,6 +1,6 @@
 use std::f32::consts::PI;
 
-use nrg_math::{VecBase, Vector2, Vector3, Vector4};
+use sabi_math::{VecBase, Vector2, Vector3, Vector4};
 
 use crate::{VertexData, MAX_TEXTURE_COORDS_SETS};
 

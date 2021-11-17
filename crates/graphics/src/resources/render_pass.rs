@@ -1,10 +1,10 @@
 use std::path::Path;
 
-use nrg_messenger::MessengerRw;
-use nrg_resources::{
+use sabi_messenger::MessengerRw;
+use sabi_resources::{
     DataTypeResource, Handle, Resource, ResourceId, SerializableResource, SharedDataRc,
 };
-use nrg_serialize::read_from_file;
+use sabi_serialize::read_from_file;
 
 use crate::{
     api::backend::{self, BackendPhysicalDevice},

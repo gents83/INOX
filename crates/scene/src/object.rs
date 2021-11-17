@@ -4,15 +4,15 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use nrg_graphics::{Light, Mesh};
-use nrg_math::{Mat4Ops, MatBase, Matrix4, Vector3};
-use nrg_messenger::MessengerRw;
-use nrg_resources::{
+use sabi_graphics::{Light, Mesh};
+use sabi_math::{Mat4Ops, MatBase, Matrix4, Vector3};
+use sabi_messenger::MessengerRw;
+use sabi_resources::{
     DataTypeResource, Function, GenericResource, Handle, Resource, ResourceCastTo, ResourceId,
     ResourceTrait, SerializableResource, SharedData, SharedDataRc,
 };
-use nrg_serialize::{generate_random_uid, read_from_file};
-use nrg_ui::{CollapsingHeader, UIProperties, UIPropertiesRegistry, Ui};
+use sabi_serialize::{generate_random_uid, read_from_file};
+use sabi_ui::{CollapsingHeader, UIProperties, UIPropertiesRegistry, Ui};
 
 use crate::{Camera, ObjectData};
 

@@ -7,12 +7,12 @@ use std::{
     },
 };
 
-use nrg_messenger::{get_events_from_string, Message, MessageBox, MessengerRw};
-use nrg_platform::WindowEvent;
-use nrg_profiler::debug_log;
-use nrg_resources::{Resource, SharedDataRc, DATA_FOLDER, DATA_RAW_FOLDER};
-use nrg_serialize::deserialize;
-use nrg_ui::{implement_widget_data, menu, DialogEvent, DialogOp, TopBottomPanel, UIWidget};
+use sabi_messenger::{get_events_from_string, Message, MessageBox, MessengerRw};
+use sabi_platform::WindowEvent;
+use sabi_profiler::debug_log;
+use sabi_resources::{Resource, SharedDataRc, DATA_FOLDER, DATA_RAW_FOLDER};
+use sabi_serialize::deserialize;
+use sabi_ui::{implement_widget_data, menu, DialogEvent, DialogOp, TopBottomPanel, UIWidget};
 
 struct MenuData {
     show_debug_info: Arc<AtomicBool>,
@@ -52,9 +52,9 @@ impl MainMenu {
                                 if ui.button("New").clicked() {
                                     /*
                                     let op: &str = DialogOp::New.into();
-                                    let mut command = Command::new("nrg_launcher.exe");
+                                    let mut command = Command::new("sabi_launcher.exe");
                                     command
-                                        .arg("-plugin nrg_content_browser")
+                                        .arg("-plugin sabi_content_browser")
                                         .arg("-folder")
                                         .arg(PathBuf::from(DATA_RAW_FOLDER).to_str().unwrap())
                                         .arg("-operation")
@@ -81,9 +81,9 @@ impl MainMenu {
                                 if ui.button("Open").clicked() {
                                     /*
                                     let op: &str = DialogOp::Open.into();
-                                    let mut command = Command::new("nrg_launcher.exe");
+                                    let mut command = Command::new("sabi_launcher.exe");
                                     command
-                                        .arg("-plugin nrg_content_browser")
+                                        .arg("-plugin sabi_content_browser")
                                         .arg("-operation")
                                         .arg(op)
                                         .arg("-folder")
@@ -111,9 +111,9 @@ impl MainMenu {
                                 if ui.button("Save").clicked() {
                                     /*
                                     let op: &str = DialogOp::Save.into();
-                                    let mut command = Command::new("nrg_launcher.exe");
+                                    let mut command = Command::new("sabi_launcher.exe");
                                     command
-                                        .arg("-plugin nrg_content_browser")
+                                        .arg("-plugin sabi_content_browser")
                                         .arg("-folder")
                                         .arg(PathBuf::from(DATA_RAW_FOLDER).to_str().unwrap())
                                         .arg("-operation")

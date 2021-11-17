@@ -4,10 +4,10 @@ from . import node_tree
 blender_classes = []
 
 
-class NRGRunner(bpy.types.Panel):
-    """NRG Runner"""
-    bl_label = "NRG"
-    bl_idname = "NRG_PT_runner"
+class SABIRunner(bpy.types.Panel):
+    """SABI Runner"""
+    bl_label = "SABI"
+    bl_idname = "sabi_PT_runner"
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_context = "render"
@@ -16,10 +16,10 @@ class NRGRunner(bpy.types.Panel):
         layout = self.layout
 
         row = layout.row()
-        row.operator("nrg.run", icon='PLAY')
+        row.operator("sabi.run", icon='PLAY')
 
 
-class NRGPropertiesGroup(bpy.types.PropertyGroup):
+class SABIPropertiesGroup(bpy.types.PropertyGroup):
     def filter_on_custom_property(self, node_group):
         return node_group.bl_idname == 'LogicNodeTree'
 
@@ -33,13 +33,13 @@ class NRGPropertiesGroup(bpy.types.PropertyGroup):
         col_1 = split.column()
         col_2 = split.column()
         col_1.prop_search(self, "logic", bpy.data, "node_groups")
-        col_2.operator("nrg.open_in_logic_editor", icon='FILE_FOLDER')
+        col_2.operator("sabi.open_in_logic_editor", icon='FILE_FOLDER')
 
 
-class NRGProperties(bpy.types.Panel):
-    """NRG related Object Data"""
-    bl_label = "NRG Properties"
-    bl_idname = "NRG_PT_object_data"
+class SABIProperties(bpy.types.Panel):
+    """SABI related Object Data"""
+    bl_label = "SABI Properties"
+    bl_idname = "sabi_PT_object_data"
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_context = "object"
@@ -49,20 +49,20 @@ class NRGProperties(bpy.types.Panel):
 
         obj = context.object
         row = layout.row()
-        obj.nrg_properties.draw(layout, context)
+        obj.sabi_properties.draw(layout, context)
 
 
-blender_classes.append(NRGRunner)
-blender_classes.append(NRGProperties)
-blender_classes.append(NRGPropertiesGroup)
+blender_classes.append(SABIRunner)
+blender_classes.append(SABIProperties)
+blender_classes.append(SABIPropertiesGroup)
 
 
 def register():
     for blender_class in blender_classes:
         bpy.utils.register_class(blender_class)
 
-    bpy.types.Object.nrg_properties = bpy.props.PointerProperty(
-        type=NRGPropertiesGroup)
+    bpy.types.Object.sabi_properties = bpy.props.PointerProperty(
+        type=SABIPropertiesGroup)
 
 
 def unregister():

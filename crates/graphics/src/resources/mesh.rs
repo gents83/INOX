@@ -1,12 +1,12 @@
 use std::path::{Path, PathBuf};
 
 use crate::{Material, MeshCategoryId, MeshData, INVALID_INDEX};
-use nrg_math::{MatBase, Matrix4, Vector4};
-use nrg_messenger::MessengerRw;
-use nrg_resources::{
+use sabi_math::{MatBase, Matrix4, Vector4};
+use sabi_messenger::MessengerRw;
+use sabi_resources::{
     DataTypeResource, Handle, Resource, ResourceId, SerializableResource, SharedData, SharedDataRc,
 };
-use nrg_serialize::read_from_file;
+use sabi_serialize::read_from_file;
 
 pub type MeshId = ResourceId;
 

@@ -8,13 +8,13 @@ from pathlib import Path
 
 blender_classes = []
 
-nrg_engine = None
+sabi_engine = None
 
 
-class NRGRun(bpy.types.Operator):
-    """Run NRG Engine"""
-    bl_idname = "nrg.run"
-    bl_label = "Run in NRG"
+class SABIRun(bpy.types.Operator):
+    """Run SABI Engine"""
+    bl_idname = "sabi.run"
+    bl_label = "Run in SABI"
 
     def execute(self, context):
         # Ensure blend has been saved before running game
@@ -26,7 +26,7 @@ class NRGRun(bpy.types.Operator):
             context.window_manager.popover(draw_popup)
             return {'FINISHED'}
 
-        preferences = context.preferences.addons['NRG'].preferences
+        preferences = context.preferences.addons['SABI'].preferences
 
         file_path = join(preferences.exe_path, "*")
         for file_path in glob(file_path):
@@ -37,28 +37,28 @@ class NRGRun(bpy.types.Operator):
         if last_part.endswith('debug') or last_part.endswith('release'):
             path = path.parent.absolute().parent.absolute().parent.absolute()
 #
-        from NRG import nrg_blender
-        #nrg_blender.start(nrg_engine, str(preferences.exe_path))
-        nrg_blender.export(nrg_engine, str(bpy.data.filepath), True)
+        from SABI import sabi_blender
+        #sabi_blender.start(sabi_engine, str(preferences.exe_path))
+        sabi_blender.export(sabi_engine, str(bpy.data.filepath), True)
 
         # Do NOT wait for the thread to be ended
         return {'FINISHED'}
 
 
-blender_classes.append(NRGRun)
+blender_classes.append(SABIRun)
 
 
 def register():
     for blender_class in blender_classes:
         bpy.utils.register_class(blender_class)
 
-    global nrg_engine
-    if nrg_engine is None:
-        from NRG import nrg_blender
-        from NRG import node_tree
+    global sabi_engine
+    if sabi_engine is None:
+        from SABI import sabi_blender
+        from SABI import node_tree
 
-        nrg_engine = nrg_blender.NRGEngine()
-        node_tree.register_nodes(nrg_engine)
+        sabi_engine = sabi_blender.SABIEngine()
+        node_tree.register_nodes(sabi_engine)
 
 
 def unregister():

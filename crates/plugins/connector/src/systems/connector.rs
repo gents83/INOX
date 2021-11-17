@@ -9,11 +9,11 @@ use std::{
     thread::{self, JoinHandle},
 };
 
-use nrg_core::System;
-use nrg_messenger::{GlobalMessenger, MessengerRw};
-use nrg_profiler::debug_log;
-use nrg_resources::ConfigBase;
-use nrg_serialize::SerializeFile;
+use sabi_core::System;
+use sabi_messenger::{GlobalMessenger, MessengerRw};
+use sabi_profiler::debug_log;
+use sabi_resources::ConfigBase;
+use sabi_serialize::SerializeFile;
 
 use crate::config::Config;
 

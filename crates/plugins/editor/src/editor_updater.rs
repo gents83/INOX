@@ -7,16 +7,16 @@ use crate::EditorEvent;
 
 use super::widgets::*;
 
-use nrg_core::*;
+use sabi_core::*;
 
-use nrg_graphics::{Font, Material, Mesh, MeshData, Pipeline, Texture, View};
-use nrg_messenger::{read_messages, MessageChannel, MessengerRw};
-use nrg_platform::{InputState, Key, KeyEvent, MouseEvent, WindowEvent};
-use nrg_resources::{DataTypeResource, Resource, SerializableResource, SharedData, SharedDataRc};
-use nrg_scene::{Camera, Hitbox, Object, Scene};
+use sabi_graphics::{Font, Material, Mesh, MeshData, Pipeline, Texture, View};
+use sabi_messenger::{read_messages, MessageChannel, MessengerRw};
+use sabi_platform::{InputState, Key, KeyEvent, MouseEvent, WindowEvent};
+use sabi_resources::{DataTypeResource, Resource, SerializableResource, SharedData, SharedDataRc};
+use sabi_scene::{Camera, Hitbox, Object, Scene};
 
-use nrg_serialize::generate_random_uid;
-use nrg_ui::{DialogEvent, DialogOp, UIPropertiesRegistry, UIWidget};
+use sabi_serialize::generate_random_uid;
+use sabi_ui::{DialogEvent, DialogOp, UIPropertiesRegistry, UIWidget};
 
 const GRID_MESH_CATEGORY_IDENTIFIER: &str = "EditorGrid";
 
@@ -42,7 +42,7 @@ impl EditorUpdater {
     pub fn new(shared_data: &SharedDataRc, global_messenger: &MessengerRw, config: Config) -> Self {
         let message_channel = MessageChannel::default();
 
-        nrg_scene::register_resource_types(shared_data);
+        sabi_scene::register_resource_types(shared_data);
         crate::resources::register_resource_types(shared_data);
 
         let mut mesh_data = MeshData::new(GRID_MESH_CATEGORY_IDENTIFIER);
@@ -105,7 +105,7 @@ impl EditorUpdater {
 impl Drop for EditorUpdater {
     fn drop(&mut self) {
         crate::resources::unregister_resource_types(&self.shared_data);
-        nrg_scene::unregister_resource_types(&self.shared_data);
+        sabi_scene::unregister_resource_types(&self.shared_data);
     }
 }
 
@@ -225,7 +225,7 @@ impl EditorUpdater {
         self
     }
     fn update_widgets(&mut self) {
-        nrg_profiler::scoped_profile!("update_widgets");
+        sabi_profiler::scoped_profile!("update_widgets");
 
         let show_debug_info = self.show_debug_info.load(Ordering::SeqCst);
         let is_debug_info_created = self.debug_info.is_some();
@@ -244,7 +244,7 @@ impl EditorUpdater {
     }
 
     fn update_events(&mut self) -> &mut Self {
-        nrg_profiler::scoped_profile!("update_events");
+        sabi_profiler::scoped_profile!("update_events");
 
         read_messages(self.message_channel.get_listener(), |msg| {
             if msg.type_id() == TypeId::of::<DialogEvent>() {

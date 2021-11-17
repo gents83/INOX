@@ -1,6 +1,6 @@
 use std::any::{type_name, Any};
 
-use nrg_serialize::{generate_uid_from_string, Uid};
+use sabi_serialize::{generate_uid_from_string, Uid};
 
 pub type SystemId = Uid;
 

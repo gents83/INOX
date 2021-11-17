@@ -4,7 +4,7 @@ use crate::api::backend::{
     get_minimum_required_vulkan_extensions, get_minimum_required_vulkan_layers,
     BackendCommandBuffer, BackendInstance, BackendPhysicalDevice, BackendRenderPass,
 };
-use nrg_platform::{get_raw_thread_id, RawThreadId};
+use sabi_platform::{get_raw_thread_id, RawThreadId};
 use std::collections::HashMap;
 use std::os::raw::c_char;
 use vulkan_bindings::*;

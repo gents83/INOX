@@ -9,9 +9,9 @@ use std::{
 };
 
 use crate::{CopyCompiler, FontCompiler, GltfCompiler, ImageCompiler, ShaderCompiler};
-use nrg_filesystem::convert_from_local_path;
-use nrg_messenger::MessengerRw;
-use nrg_platform::{FileEvent, FileWatcher};
+use sabi_filesystem::convert_from_local_path;
+use sabi_messenger::MessengerRw;
+use sabi_platform::{FileEvent, FileWatcher};
 
 pub trait ExtensionHandler {
     fn on_changed(&mut self, path: &Path);

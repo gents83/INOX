@@ -1,8 +1,8 @@
 use std::any::{type_name, Any};
 
 use egui::{CollapsingHeader, CtxRef, Ui};
-use nrg_resources::{Resource, ResourceId, ResourceTrait, SharedData, SharedDataRc};
-use nrg_serialize::generate_random_uid;
+use sabi_resources::{Resource, ResourceId, ResourceTrait, SharedData, SharedDataRc};
+use sabi_serialize::generate_random_uid;
 
 use crate::{UIProperties, UIPropertiesRegistry};
 
@@ -104,7 +104,7 @@ impl UIWidget {
     }
 
     pub fn execute(&mut self, ui_context: &CtxRef) {
-        nrg_profiler::scoped_profile!(
+        sabi_profiler::scoped_profile!(
             format!("{} {:?}", "ui_widget::execute", self.type_name).as_str()
         );
         (self.func)(self.data.as_mut(), ui_context);

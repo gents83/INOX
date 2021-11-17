@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 #![warn(clippy::all)]
 
-use nrg_resources::SharedDataRc;
+use sabi_resources::SharedDataRc;
 
 pub use crate::data::*;
 

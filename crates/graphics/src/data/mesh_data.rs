@@ -1,15 +1,15 @@
 use std::path::PathBuf;
 
-use nrg_math::{is_point_in_triangle, Vector2, Vector3, Vector4};
-use nrg_serialize::{generate_uid_from_string, Deserialize, Serialize, SerializeFile, Uid};
+use sabi_math::{is_point_in_triangle, Vector2, Vector3, Vector4};
+use sabi_serialize::{generate_uid_from_string, Deserialize, Serialize, SerializeFile, Uid};
 
 use crate::{create_quad, MeshDataRef, VertexData};
 
-pub const DEFAULT_MESH_CATEGORY_IDENTIFIER: &str = "NRG_Default";
+pub const DEFAULT_MESH_CATEGORY_IDENTIFIER: &str = "SABI_Default";
 
 #[repr(C)]
 #[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
-#[serde(crate = "nrg_serialize")]
+#[serde(crate = "sabi_serialize")]
 pub struct MeshCategoryId(Uid);
 
 impl MeshCategoryId {
@@ -27,7 +27,7 @@ pub struct MeshBindingData<'a> {
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
-#[serde(crate = "nrg_serialize")]
+#[serde(crate = "sabi_serialize")]
 pub struct MeshData {
     pub vertices: Vec<VertexData>,
     pub indices: Vec<u32>,

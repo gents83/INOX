@@ -1,18 +1,18 @@
 use std::any::TypeId;
 
-use nrg_graphics::{
+use sabi_graphics::{
     create_arrow, create_hammer, create_sphere, create_torus, Material, Mesh, MeshData, Pipeline,
 };
 
-use nrg_math::{raycast_oob, Mat4Ops, MatBase, Matrix4, VecBase, Vector2, Vector3, Vector4};
+use sabi_math::{raycast_oob, Mat4Ops, MatBase, Matrix4, VecBase, Vector2, Vector3, Vector4};
 
-use nrg_messenger::{read_messages, MessageBox, MessageChannel, MessengerRw};
-use nrg_resources::{
+use sabi_messenger::{read_messages, MessageBox, MessageChannel, MessengerRw};
+use sabi_resources::{
     DataTypeResource, Resource, ResourceId, ResourceTrait, SharedData, SharedDataRc,
 };
-use nrg_scene::{Camera, Object, ObjectId};
-use nrg_serialize::generate_random_uid;
-use nrg_ui::hex_to_rgba;
+use sabi_scene::{Camera, Object, ObjectId};
+use sabi_serialize::generate_random_uid;
+use sabi_ui::hex_to_rgba;
 
 use crate::EditorEvent;
 
@@ -485,7 +485,7 @@ impl Gizmo {
     }
 
     fn update_events(&mut self) {
-        nrg_profiler::scoped_profile!("update_events");
+        sabi_profiler::scoped_profile!("update_events");
 
         read_messages(self.message_channel.get_listener(), |msg| {
             if msg.type_id() == TypeId::of::<EditorEvent>() {

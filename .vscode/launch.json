@@ -8,7 +8,7 @@
             "name": "RUN LAUNCHER DEBUG",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/crates/target/debug/nrg_launcher.exe",
+            "program": "${workspaceFolder}/crates/target/debug/sabi_launcher.exe",
             "args": [],
             "cwd": "${workspaceFolder}",
             "stopOnEntry": false,
@@ -27,9 +27,9 @@
             "name": "RUN EDITOR DEBUG",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/crates/target/debug/nrg_launcher.exe",
+            "program": "${workspaceFolder}/crates/target/debug/sabi_launcher.exe",
             "args": [
-                "-plugin nrg_editor"
+                "-plugin sabi_editor"
             ],
             "cwd": "${workspaceFolder}",
             "stopAtEntry": false,
@@ -48,12 +48,12 @@
             "name": "RUN VIEWER DEBUG",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/crates/target/debug/nrg_launcher.exe",
+            "program": "${workspaceFolder}/crates/target/debug/sabi_launcher.exe",
             "args": [
-                "-plugin nrg_connector",
-                "-plugin nrg_viewer",
+                "-plugin sabi_connector",
+                "-plugin sabi_viewer",
                 "-load_file",
-                "C:\\PROJECTS\\NRG\\data\\blender_export\\TestScene\\TestScene.scene_data"
+                "C:\\PROJECTS\\SABI\\data\\blender_export\\TestScene\\TestScene.scene_data"
             ],
             "cwd": "${workspaceFolder}",
             "stopAtEntry": false,
@@ -72,9 +72,9 @@
             "name": "RUN CONTENT BROWSER DEBUG",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/crates/target/debug/nrg_launcher.exe",
+            "program": "${workspaceFolder}/crates/target/debug/sabi_launcher.exe",
             "args": [
-                "-plugin nrg_content_browser"
+                "-plugin sabi_content_browser"
             ],
             "cwd": "${workspaceFolder}",
             "stopAtEntry": false,
@@ -93,7 +93,7 @@
             "name": "RUN LAUNCHER RELEASE",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/crates/target/release/nrg_launcher.exe",
+            "program": "${workspaceFolder}/crates/target/release/sabi_launcher.exe",
             "args": [],
             "cwd": "${workspaceFolder}",
             "stopOnEntry": false,

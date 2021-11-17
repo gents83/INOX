@@ -1,16 +1,19 @@
 import bpy
 
-from .operators import NRGRun
+from .operators import SABIRun
 
 key_maps = []
+
 
 def register():
     wm = bpy.context.window_manager
 
     # Add F5 shortcut for running the game
-    window_keymap = wm.keyconfigs.addon.keymaps.new(name='Window', space_type='EMPTY', region_type="WINDOW")
-    window_keymap.keymap_items.new(NRGRun.bl_idname, type='F5', value='PRESS')
+    window_keymap = wm.keyconfigs.addon.keymaps.new(
+        name='Window', space_type='EMPTY', region_type="WINDOW")
+    window_keymap.keymap_items.new(SABIRun.bl_idname, type='F5', value='PRESS')
     key_maps.append(window_keymap)
+
 
 def unregister():
     wm = bpy.context.window_manager

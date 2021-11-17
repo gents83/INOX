@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use nrg_commands::CommandParser;
-use nrg_messenger::{implement_message, Message, MessageFromString};
+use sabi_commands::CommandParser;
+use sabi_messenger::{implement_message, Message, MessageFromString};
 
 #[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone, Copy)]
 pub enum MouseButton {

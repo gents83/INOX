@@ -7,7 +7,7 @@ use crate::ctypes::*;
 use crate::handle::*;
 use crate::input::*;
 use crate::window::*;
-use nrg_messenger::MessageBox;
+use sabi_messenger::MessageBox;
 
 static mut EVENTS_DISPATCHER: Option<MessageBox> = None;
 

@@ -4,8 +4,8 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use nrg_messenger::{Message, MessengerRw};
-use nrg_serialize::{generate_uid_from_string, Uid};
+use sabi_messenger::{Message, MessengerRw};
+use sabi_serialize::{generate_uid_from_string, Uid};
 
 use crate::{
     Data, Handle, Resource, ResourceEventHandler, ResourceId, ResourceStorageRw, ResourceTrait,

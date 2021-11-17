@@ -15,17 +15,17 @@ use gltf::{
     mesh::Mode,
     Accessor, Camera, Gltf, Node, Primitive, Semantic, Texture,
 };
-use nrg_filesystem::convert_in_local_path;
-use nrg_graphics::{
+use sabi_filesystem::convert_in_local_path;
+use sabi_graphics::{
     LightData, LightType, MaterialAlphaMode, MaterialData, MeshCategoryId, MeshData, TextureType,
     VertexData, DEFAULT_MESH_CATEGORY_IDENTIFIER, MAX_TEXTURE_COORDS_SETS,
 };
-use nrg_math::{Mat4Ops, Matrix4, NewAngle, Parser, Radians, Vector2, Vector3, Vector4};
-use nrg_messenger::MessengerRw;
-use nrg_profiler::debug_log;
-use nrg_resources::{DATA_FOLDER, DATA_RAW_FOLDER};
-use nrg_scene::{CameraData, ObjectData, SceneData};
-use nrg_serialize::{Serialize, SerializeFile};
+use sabi_math::{Mat4Ops, Matrix4, NewAngle, Parser, Radians, Vector2, Vector3, Vector4};
+use sabi_messenger::MessengerRw;
+use sabi_profiler::debug_log;
+use sabi_resources::{DATA_FOLDER, DATA_RAW_FOLDER};
+use sabi_scene::{CameraData, ObjectData, SceneData};
+use sabi_serialize::{Serialize, SerializeFile};
 
 const GLTF_EXTENSION: &str = "gltf";
 

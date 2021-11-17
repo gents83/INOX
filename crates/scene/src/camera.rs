@@ -1,12 +1,12 @@
 use std::path::{Path, PathBuf};
 
-use nrg_math::{Degrees, Mat4Ops, MatBase, Matrix4, NewAngle, Vector2, Vector3, Vector4};
-use nrg_messenger::MessengerRw;
-use nrg_resources::{
+use sabi_math::{Degrees, Mat4Ops, MatBase, Matrix4, NewAngle, Vector2, Vector3, Vector4};
+use sabi_messenger::MessengerRw;
+use sabi_resources::{
     DataTypeResource, Handle, Resource, ResourceId, SerializableResource, SharedDataRc,
 };
-use nrg_serialize::read_from_file;
-use nrg_ui::{CollapsingHeader, UIProperties, UIPropertiesRegistry, Ui};
+use sabi_serialize::read_from_file;
+use sabi_ui::{CollapsingHeader, UIProperties, UIPropertiesRegistry, Ui};
 
 use crate::{CameraData, Object};
 
@@ -133,7 +133,7 @@ impl Camera {
         near: f32,
         far: f32,
     ) -> &mut Self {
-        let proj = nrg_math::perspective(fov, screen_width / screen_height, near, far);
+        let proj = sabi_math::perspective(fov, screen_width / screen_height, near, far);
 
         self.proj = proj;
 

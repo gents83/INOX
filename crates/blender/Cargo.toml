@@ -1,19 +1,19 @@
 [package]
-name = "nrg_blender"
+name = "sabi_blender"
 version = "0.1.0"
 authors = ["gents83 <gents83@gmail.com>"]
 edition = "2021"
 build = "build.rs"
 
 [lib]
-name = "nrg_blender"
+name = "sabi_blender"
 crate-type = ['cdylib', 'rlib']
 
 [dependencies]
 pyo3 = { path = "../../extern/pyo3", features = ["macros", "extension-module", "auto-initialize"] }
-nrg_graphics = { path = "../graphics" }
-nrg_filesystem = { path = "../filesystem" }
-nrg_math = { path = "../math" }
-nrg_resources = { path = "../resources" }
-nrg_scene = { path = "../scene" }
-nrg_serialize = { path = "../serialize" }
+sabi_graphics = { path = "../graphics" }
+sabi_filesystem = { path = "../filesystem" }
+sabi_math = { path = "../math" }
+sabi_resources = { path = "../resources" }
+sabi_scene = { path = "../scene" }
+sabi_serialize = { path = "../serialize" }

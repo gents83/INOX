@@ -1,6 +1,6 @@
 use std::str::from_utf8;
 
-use nrg_math::{Vector3, Vector4};
+use sabi_math::{Vector3, Vector4};
 
 const HASH_CHAR: u8 = b'#';
 

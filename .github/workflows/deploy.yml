@@ -26,63 +26,63 @@ jobs:
           name: output-binaries
           path: crates/target/release/
 
-      - name: "Copy and rename nrgblender dll into pyd"
+      - name: "Copy and rename sabiblender dll into pyd"
         run: |
-          find ./crates/target/release/ -type f -name "nrg_blender.dll" | while read fname; do
+          find ./crates/target/release/ -type f -name "sabi_blender.dll" | while read fname; do
             dirname=`dirname "$fname"`
             filename=`basename "$fname"`
-            cp "${dirname}/$filename" "./crates/blender/nrg_blender/NRG/nrg_blender.pyd"
+            cp "${dirname}/$filename" "./crates/blender/sabi_blender/SABI/sabi_blender.pyd"
           done
       
-      - name: "Copy nrgblender in NRG"
+      - name: "Copy sabiblender in SABI"
         run: |
           mkdir -p "./output/"
-          mkdir -p "./output/NRG/"
-          mkdir -p "./output/NRG/bin/"
-          mkdir -p "./output/NRG/bin/data_raw/"
-          cp -r "./crates/blender/nrg_blender/NRG/" "./output/"
+          mkdir -p "./output/SABI/"
+          mkdir -p "./output/SABI/bin/"
+          mkdir -p "./output/SABI/bin/data_raw/"
+          cp -r "./crates/blender/sabi_blender/SABI/" "./output/"
           
-      - name: "Copy nrg_viewer configs in NRG"
+      - name: "Copy sabi_viewer configs in SABI"
         run: |
-          mkdir -p "./output/NRG/bin/data_raw/config/"
-          mkdir -p "./output/NRG/bin/data_raw/config/nrg_viewer/"
-          cp -r "./data_raw/config/nrg_viewer/" "./output/NRG/bin/data_raw/config/"
+          mkdir -p "./output/SABI/bin/data_raw/config/"
+          mkdir -p "./output/SABI/bin/data_raw/config/sabi_viewer/"
+          cp -r "./data_raw/config/sabi_viewer/" "./output/SABI/bin/data_raw/config/"
 
-      - name: "Copy pipelines in NRG"
+      - name: "Copy pipelines in SABI"
         run: |
-          mkdir -p "./output/NRG/bin/data_raw/pipelines/"
-          cp -r "./data_raw/pipelines/" "./output/NRG/bin/data_raw/"
+          mkdir -p "./output/SABI/bin/data_raw/pipelines/"
+          cp -r "./data_raw/pipelines/" "./output/SABI/bin/data_raw/"
 
-      - name: "Copy shaders in NRG"
+      - name: "Copy shaders in SABI"
         run: |
-          mkdir -p "./output/NRG/bin/data_raw/shaders/"
-          cp -r "./data_raw/shaders/" "./output/NRG/bin/data_raw/"
+          mkdir -p "./output/SABI/bin/data_raw/shaders/"
+          cp -r "./data_raw/shaders/" "./output/SABI/bin/data_raw/"
 
-      - name: "Copy dlls in NRG"
+      - name: "Copy dlls in SABI"
         run: |
           find ./crates/target/release/ -maxdepth 1 -type f -name *.dll | while read fname; do
             dirname=`dirname "$fname"`
             filename=`basename "$fname"`
-            cp "${dirname}/$filename" "./output/NRG/bin/$filename"
+            cp "${dirname}/$filename" "./output/SABI/bin/$filename"
           done
           
-      - name: "Copy exes in NRG"
+      - name: "Copy exes in SABI"
         run: |
           find ./crates/target/release/ -maxdepth 1 -type f -name *.exe | while read fname; do
             dirname=`dirname "$fname"`
             filename=`basename "$fname"`
-            cp "${dirname}/$filename" "./output/NRG/bin/$filename"
+            cp "${dirname}/$filename" "./output/SABI/bin/$filename"
           done
           
       - name: Install zip
         uses: montudor/action-zip@v1
 
-      - name: Zip NRG
+      - name: Zip SABI
         run: |
           cd "./output/"
-          zip -qq -v -r NRG.zip NRG/   
+          zip -qq -v -r SABI.zip SABI/   
           mkdir -p "./release/"
-          cp "./NRG.zip" "./release/NRG.zip"     
+          cp "./SABI.zip" "./release/SABI.zip"     
           cd ..
 
       - name: "Deploy zip on Github Pages"

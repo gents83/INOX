@@ -1,10 +1,10 @@
 use std::path::{Path, PathBuf};
 
-use nrg_math::matrix4_to_array;
-use nrg_messenger::MessengerRw;
-use nrg_profiler::debug_log;
-use nrg_resources::{DataTypeResource, ResourceId, SerializableResource, SharedDataRc};
-use nrg_serialize::read_from_file;
+use sabi_math::matrix4_to_array;
+use sabi_messenger::MessengerRw;
+use sabi_profiler::debug_log;
+use sabi_resources::{DataTypeResource, ResourceId, SerializableResource, SharedDataRc};
+use sabi_serialize::read_from_file;
 
 use crate::{
     api::backend::{self, BackendPhysicalDevice, BackendPipeline},
@@ -216,7 +216,7 @@ impl Pipeline {
         command_buffer: &CommandBuffer,
         binding_data: PipelineBindingData,
     ) -> &mut Self {
-        nrg_profiler::scoped_profile!("device::update_bindings");
+        sabi_profiler::scoped_profile!("device::update_bindings");
         if let Some(backend_pipeline) = &mut self.backend_pipeline {
             backend_pipeline
                 .update_data_buffer(
@@ -240,7 +240,7 @@ impl Pipeline {
     }
 
     pub fn bind(&mut self, command_buffer: &CommandBuffer) -> &mut Self {
-        nrg_profiler::scoped_profile!(format!("pipeline::bind[{:?}]", self.name()).as_str());
+        sabi_profiler::scoped_profile!(format!("pipeline::bind[{:?}]", self.name()).as_str());
         if let Some(backend_pipeline) = &mut self.backend_pipeline {
             backend_pipeline.bind_pipeline(command_buffer);
         }
@@ -252,7 +252,7 @@ impl Pipeline {
         device: &Device,
         physical_device: &BackendPhysicalDevice,
     ) -> &mut Self {
-        nrg_profiler::scoped_profile!(
+        sabi_profiler::scoped_profile!(
             format!("pipeline::bind_indirect[{:?}]", self.name()).as_str()
         );
         if let Some(backend_pipeline) = &mut self.backend_pipeline {
@@ -267,7 +267,7 @@ impl Pipeline {
     }
 
     fn bind_instance_buffer(&mut self, command_buffer: &CommandBuffer) -> &mut Self {
-        nrg_profiler::scoped_profile!(
+        sabi_profiler::scoped_profile!(
             format!("pipeline::bind_instance_buffer[{:?}]", self.name()).as_str()
         );
         if let Some(backend_pipeline) = &mut self.backend_pipeline {
@@ -276,20 +276,20 @@ impl Pipeline {
         self
     }
     fn bind_vertices(&mut self, command_buffer: &CommandBuffer) -> &mut Self {
-        nrg_profiler::scoped_profile!(
+        sabi_profiler::scoped_profile!(
             format!("pipeline::bind_vertices[{:?}]", self.name()).as_str()
         );
         self.mesh.bind_vertices(command_buffer);
         self
     }
     fn bind_indices(&mut self, command_buffer: &CommandBuffer) -> &mut Self {
-        nrg_profiler::scoped_profile!(format!("pipeline::bind_indices[{:?}]", self.name()).as_str());
+        sabi_profiler::scoped_profile!(format!("pipeline::bind_indices[{:?}]", self.name()).as_str());
         self.mesh.bind_indices(command_buffer);
         self
     }
 
     fn draw_single(&mut self, command_buffer: &CommandBuffer) -> &mut Self {
-        nrg_profiler::scoped_profile!(format!("pipeline::draw_indexed[{:?}]", self.name()).as_str());
+        sabi_profiler::scoped_profile!(format!("pipeline::draw_indexed[{:?}]", self.name()).as_str());
         if let Some(backend_pipeline) = &mut self.backend_pipeline {
             backend_pipeline.draw_single(
                 command_buffer,
@@ -302,7 +302,7 @@ impl Pipeline {
     }
 
     fn draw_indirect_batch(&mut self, command_buffer: &CommandBuffer) -> &mut Self {
-        nrg_profiler::scoped_profile!(
+        sabi_profiler::scoped_profile!(
             format!("pipeline::draw_indirect[{:?}]", self.name()).as_str()
         );
         if let Some(backend_pipeline) = &mut self.backend_pipeline {
@@ -326,7 +326,7 @@ impl Pipeline {
             return self;
         }
 
-        nrg_profiler::scoped_profile!(
+        sabi_profiler::scoped_profile!(
             format!("pipeline::add_mesh_instance[{}]", self.name()).as_str()
         );
 
@@ -389,7 +389,7 @@ impl Pipeline {
         physical_device: &BackendPhysicalDevice,
         command_buffer: &CommandBuffer,
     ) {
-        nrg_profiler::scoped_profile!(
+        sabi_profiler::scoped_profile!(
             format!("renderer::draw_pipeline[{:?}]", self.name()).as_str()
         );
 

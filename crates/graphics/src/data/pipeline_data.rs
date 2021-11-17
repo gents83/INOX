@@ -1,14 +1,14 @@
 use std::path::PathBuf;
 
-use nrg_filesystem::convert_from_local_path;
-use nrg_math::Matrix4;
-use nrg_resources::DATA_FOLDER;
-use nrg_serialize::{Deserialize, Serialize, SerializeFile};
+use sabi_filesystem::convert_from_local_path;
+use sabi_math::Matrix4;
+use sabi_resources::DATA_FOLDER;
+use sabi_serialize::{Deserialize, Serialize, SerializeFile};
 
 use crate::{LightData, ShaderMaterialData, ShaderTextureData, TextureAtlas};
 
 #[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
-#[serde(crate = "nrg_serialize")]
+#[serde(crate = "sabi_serialize")]
 pub enum PolygonModeType {
     Fill,
     Line,
@@ -16,7 +16,7 @@ pub enum PolygonModeType {
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
-#[serde(crate = "nrg_serialize")]
+#[serde(crate = "sabi_serialize")]
 pub enum CullingModeType {
     None,
     Back,
@@ -25,7 +25,7 @@ pub enum CullingModeType {
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
-#[serde(crate = "nrg_serialize")]
+#[serde(crate = "sabi_serialize")]
 pub enum BlendFactor {
     Zero,
     One,
@@ -45,14 +45,14 @@ pub enum BlendFactor {
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
-#[serde(crate = "nrg_serialize")]
+#[serde(crate = "sabi_serialize")]
 pub enum DrawMode {
     Batch,
     Single,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
-#[serde(crate = "nrg_serialize")]
+#[serde(crate = "sabi_serialize")]
 pub enum PipelineType {
     Custom,
     Default,
@@ -61,7 +61,7 @@ pub enum PipelineType {
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
-#[serde(crate = "nrg_serialize")]
+#[serde(crate = "sabi_serialize")]
 pub struct PipelineData {
     pub pipeline_type: PipelineType,
     pub fragment_shader: PathBuf,

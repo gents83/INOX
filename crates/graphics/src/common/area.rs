@@ -1,5 +1,5 @@
-use nrg_math::Vector4;
-use nrg_serialize::{generate_random_uid, Uid, INVALID_UID};
+use sabi_math::Vector4;
+use sabi_serialize::{generate_random_uid, Uid, INVALID_UID};
 
 use crate::TextureId;
 

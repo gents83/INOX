@@ -11,11 +11,11 @@ use crate::{
     ShaderMaterialData, ShaderTextureData, ShaderType, TextureAtlas, VertexData, MAX_NUM_LIGHTS,
     MAX_NUM_MATERIALS, MAX_NUM_TEXTURES, MAX_TEXTURE_ATLAS_COUNT,
 };
-use nrg_filesystem::convert_from_local_path;
+use sabi_filesystem::convert_from_local_path;
 
-use nrg_math::{matrix4_to_array, Matrix4};
-use nrg_profiler::debug_log;
-use nrg_resources::DATA_FOLDER;
+use sabi_math::{matrix4_to_array, Matrix4};
+use sabi_profiler::debug_log;
+use sabi_resources::DATA_FOLDER;
 use std::mem::MaybeUninit;
 use std::path::{Path, PathBuf};
 use vulkan_bindings::*;

@@ -1,7 +1,7 @@
-use nrg_math::{Mat4Ops, MatBase, Matrix4, VecBase, Vector3};
-use nrg_resources::{ResourceId, ResourceTrait};
+use sabi_math::{Mat4Ops, MatBase, Matrix4, VecBase, Vector3};
+use sabi_resources::{ResourceId, ResourceTrait};
 
-use nrg_ui::{CollapsingHeader, UIProperties, UIPropertiesRegistry, Ui};
+use sabi_ui::{CollapsingHeader, UIProperties, UIPropertiesRegistry, Ui};
 
 pub type HitboxId = ResourceId;
 

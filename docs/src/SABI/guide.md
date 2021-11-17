@@ -1,8 +1,8 @@
-# NRG Development Guide
+# SABI Development Guide
 
 ---
 
-- [Building NRG code](./building.md)
+- [Building SABI code](./building.md)
 - [Architecture](./architecture.md)
 - [Crates](./crates.md)
 - [Dependencies](./external-dependencies.md)

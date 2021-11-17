@@ -22,14 +22,14 @@ pub fn get_vulkan_lib_path() -> &'static str {
 }
 
 pub struct Lib {
-    pub library: nrg_filesystem::library::Library,
+    pub library: sabi_filesystem::library::Library,
 }
 
 impl Default for Lib {
     fn default() -> Self {
         let library_path = get_vulkan_lib_path();
         Self {
-            library: nrg_filesystem::library::Library::new(library_path),
+            library: sabi_filesystem::library::Library::new(library_path),
         }
     }
 }

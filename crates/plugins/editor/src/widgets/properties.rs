@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
-use nrg_resources::{Resource, SharedData, SharedDataRc};
-use nrg_scene::{Object, ObjectId};
-use nrg_serialize::INVALID_UID;
-use nrg_ui::{
+use sabi_resources::{Resource, SharedData, SharedDataRc};
+use sabi_scene::{Object, ObjectId};
+use sabi_serialize::INVALID_UID;
+use sabi_ui::{
     implement_widget_data, Id, ScrollArea, SidePanel, UIProperties, UIPropertiesRegistry, UIWidget,
     Ui,
 };

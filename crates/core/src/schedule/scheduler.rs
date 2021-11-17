@@ -177,17 +177,17 @@ impl Scheduler {
         if !self.is_started {
             return self.is_running;
         }
-        nrg_profiler::scoped_profile!("scheduler::run_once");
+        sabi_profiler::scoped_profile!("scheduler::run_once");
         let mut can_continue = self.is_running;
         for name in self.phases_order.iter() {
             if let Some(phase) = self.phases.get_mut(name) {
                 let ok = if is_focused || phase.should_run_when_not_focused() {
-                    nrg_profiler::scoped_profile!(
+                    sabi_profiler::scoped_profile!(
                         format!("{}[{}]", "scheduler::run_phase", name).as_str()
                     );
                     let ok = phase.run(is_focused);
                     {
-                        nrg_profiler::scoped_profile!(format!(
+                        sabi_profiler::scoped_profile!(format!(
                             "{}[{}]",
                             "scheduler::wait_jobs", name
                         )

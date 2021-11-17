@@ -1,8 +1,8 @@
-use nrg_messenger::{Message, MessageBox, MessengerRw};
-use nrg_resources::{Resource, SerializableResource, SharedData, SharedDataRc};
-use nrg_scene::{Object, ObjectId, Scene, SceneId};
-use nrg_serialize::INVALID_UID;
-use nrg_ui::{
+use sabi_messenger::{Message, MessageBox, MessengerRw};
+use sabi_resources::{Resource, SerializableResource, SharedData, SharedDataRc};
+use sabi_scene::{Object, ObjectId, Scene, SceneId};
+use sabi_serialize::INVALID_UID;
+use sabi_ui::{
     implement_widget_data, CollapsingHeader, ScrollArea, SelectableLabel, SidePanel, UIWidget, Ui,
 };
 
@@ -87,7 +87,7 @@ impl Hierarchy {
         selected_id: &ObjectId,
         global_dispatcher: &MessageBox,
     ) {
-        nrg_profiler::scoped_profile!("object_hierarchy");
+        sabi_profiler::scoped_profile!("object_hierarchy");
 
         let mut object_name = format!("Object [{:?}]", object.id().as_simple().to_string());
         if let Some(name) = object.get().path().file_stem() {

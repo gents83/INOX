@@ -1,6 +1,6 @@
 use std::any::{type_name, Any};
 
-use nrg_commands::CommandParser;
+use sabi_commands::CommandParser;
 
 use crate::MessageBox;
 

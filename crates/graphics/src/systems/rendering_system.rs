@@ -6,11 +6,11 @@ use std::{
     thread,
 };
 
-use nrg_core::{JobHandlerRw, System};
-use nrg_math::Matrix4;
-use nrg_messenger::MessengerRw;
-use nrg_resources::{DataTypeResource, Resource, SharedData, SharedDataRc};
-use nrg_serialize::generate_random_uid;
+use sabi_core::{JobHandlerRw, System};
+use sabi_math::Matrix4;
+use sabi_messenger::MessengerRw;
+use sabi_resources::{DataTypeResource, Resource, SharedData, SharedDataRc};
+use sabi_serialize::generate_random_uid;
 
 use crate::{
     Pipeline, PipelineBindingData, PipelineId, RenderPass, RendererRw, RendererState, View,
@@ -133,7 +133,7 @@ impl System for RenderingSystem {
                         move || {
                             let mut render_pass = render_pass.get_mut();
 
-                            nrg_profiler::scoped_profile!(format!(
+                            sabi_profiler::scoped_profile!(format!(
                                 "fill_command_buffer_for_render_pass[{}]",
                                 render_pass.data().name
                             )
@@ -215,7 +215,7 @@ impl System for RenderingSystem {
                     &shared_data,
                     |_, render_pass: &mut RenderPass| {
                         if render_pass.is_initialized() {
-                            nrg_profiler::scoped_profile!(format!(
+                            sabi_profiler::scoped_profile!(format!(
                                 "draw_render_pass[{}]",
                                 render_pass.data().name
                             )

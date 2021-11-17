@@ -1,7 +1,7 @@
-use nrg_core::{define_plugin, App, PhaseWithSystems, Plugin, System, SystemId};
+use sabi_core::{define_plugin, App, PhaseWithSystems, Plugin, System, SystemId};
 
-use nrg_graphics::DebugDrawerSystem;
-use nrg_ui::UISystem;
+use sabi_graphics::DebugDrawerSystem;
+use sabi_ui::UISystem;
 
 use crate::systems::viewer_system::ViewerSystem;
 
@@ -18,7 +18,7 @@ define_plugin!(Viewer);
 
 impl Plugin for Viewer {
     fn name(&self) -> &str {
-        "nrg_viewer"
+        "sabi_viewer"
     }
     fn prepare(&mut self, app: &mut App) {
         let mut update_phase = PhaseWithSystems::new(VIEWER_UPDATE_PHASE);

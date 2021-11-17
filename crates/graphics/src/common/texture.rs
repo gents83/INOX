@@ -1,7 +1,7 @@
 use std::path::Path;
 
-use nrg_profiler::debug_log;
-use nrg_serialize::generate_random_uid;
+use sabi_profiler::debug_log;
+use sabi_serialize::generate_random_uid;
 
 use crate::{
     api::backend::{self, BackendPhysicalDevice},
@@ -136,7 +136,7 @@ impl TextureHandler {
         id: &TextureId,
         image_data: &mut [u8],
     ) {
-        nrg_profiler::scoped_profile!("texture::copy");
+        sabi_profiler::scoped_profile!("texture::copy");
 
         self.texture_atlas.iter().for_each(|atlas| {
             for (layer_index, allocator) in atlas.allocators.iter().enumerate() {

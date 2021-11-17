@@ -25,7 +25,7 @@ unsafe impl Send for ThreadData {}
 unsafe impl Sync for ThreadData {}
 
 #[pyclass]
-pub struct NRGEngine {
+pub struct SABIEngine {
     is_running: Arc<AtomicBool>,
     exporter: Exporter,
     current_dir: PathBuf,
@@ -34,7 +34,7 @@ pub struct NRGEngine {
     client_thread: Option<JoinHandle<()>>,
 }
 
-impl Default for NRGEngine {
+impl Default for SABIEngine {
     fn default() -> Self {
         Self {
             is_running: Arc::new(AtomicBool::new(false)),
@@ -48,7 +48,7 @@ impl Default for NRGEngine {
 }
 
 #[pymethods]
-impl NRGEngine {
+impl SABIEngine {
     #[new]
     fn new() -> Self {
         Self::default()
@@ -58,7 +58,7 @@ impl NRGEngine {
         self.is_running.load(Ordering::SeqCst)
     }
     pub fn start(&mut self, executable_path: &str) -> PyResult<bool> {
-        println!("NRGEngine started");
+        println!("SABIEngine started");
 
         let mut path = PathBuf::from(executable_path);
 
@@ -69,12 +69,12 @@ impl NRGEngine {
             self.current_dir.pop();
         }
 
-        path = path.join("nrg_launcher.exe");
+        path = path.join("sabi_launcher.exe");
 
         let mut command = Command::new(path.as_path());
         command
-            .arg("-plugin nrg_connector")
-            .arg("-plugin nrg_viewer");
+            .arg("-plugin sabi_connector")
+            .arg("-plugin sabi_viewer");
         command.current_dir(self.current_dir.as_path());
 
         if let Ok(process) = command.spawn() {
@@ -95,7 +95,7 @@ impl NRGEngine {
     }
 
     pub fn stop(&mut self) {
-        println!("NRGEngine stopped");
+        println!("SABIEngine stopped");
         self.is_running.store(false, Ordering::SeqCst);
     }
 
@@ -142,7 +142,7 @@ fn client_thread_execution(thread_data: Arc<RwLock<ThreadData>>) {
                 if let Some(file) = file {
                     let file = file.to_str().unwrap_or_default().to_string();
 
-                    println!("NRGEngine sending to load {:?}", file);
+                    println!("SABIEngine sending to load {:?}", file);
 
                     let message = format!("-load_file {}", file);
                     let msg = message.as_bytes();

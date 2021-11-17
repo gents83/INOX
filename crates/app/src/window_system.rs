@@ -1,8 +1,8 @@
-use nrg_core::System;
-use nrg_messenger::{GlobalMessenger, MessengerRw};
-use nrg_platform::{Window, WindowEvent};
-use nrg_resources::ConfigBase;
-use nrg_serialize::read_from_file;
+use sabi_core::System;
+use sabi_messenger::{GlobalMessenger, MessengerRw};
+use sabi_platform::{Window, WindowEvent};
+use sabi_resources::ConfigBase;
+use sabi_serialize::read_from_file;
 
 use crate::config::Config;
 

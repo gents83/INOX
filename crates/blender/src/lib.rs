@@ -7,25 +7,25 @@ mod engine;
 mod exporter;
 mod node_graph;
 
-use engine::NRGEngine;
+use engine::SABIEngine;
 
 // add bindings to the generated python module
-// N.B: names: "nrg_blender" must be the name of the `.so` or `.pyd` file
+// N.B: names: "sabi_blender" must be the name of the `.so` or `.pyd` file
 #[pymodule]
-#[pyo3(name = "nrg_blender")]
-fn nrg_blender(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_class::<NRGEngine>()?;
+#[pyo3(name = "sabi_blender")]
+fn sabi_blender(_py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_class::<SABIEngine>()?;
 
     #[pyfn(m)]
-    fn start(nrg_engine: &mut NRGEngine, executable_path: &str) -> PyResult<bool> {
-        let is_running = nrg_engine.is_running();
+    fn start(sabi_engine: &mut SABIEngine, executable_path: &str) -> PyResult<bool> {
+        let is_running = sabi_engine.is_running();
 
         let result = if !is_running {
-            nrg_engine.start(executable_path)?
+            sabi_engine.start(executable_path)?
         } else {
             true
         };
-        println!("NRGEngine is running = {}", result);
+        println!("SABIEngine is running = {}", result);
 
         Ok(result)
     }
@@ -33,16 +33,16 @@ fn nrg_blender(_py: Python, m: &PyModule) -> PyResult<()> {
     #[pyfn(m)]
     fn export(
         py: Python,
-        nrg_engine: &mut NRGEngine,
+        sabi_engine: &mut SABIEngine,
         file_to_export: &str,
         load_immediately: bool,
     ) -> PyResult<bool> {
-        nrg_engine.export(py, file_to_export, load_immediately)
+        sabi_engine.export(py, file_to_export, load_immediately)
     }
 
     #[pyfn(m)]
-    fn register_nodes(py: Python, nrg_engine: &NRGEngine) -> PyResult<bool> {
-        nrg_engine.register_nodes(py)
+    fn register_nodes(py: Python, sabi_engine: &SABIEngine) -> PyResult<bool> {
+        sabi_engine.register_nodes(py)
     }
     Ok(())
 }

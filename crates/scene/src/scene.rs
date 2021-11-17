@@ -1,9 +1,9 @@
 use std::path::{Path, PathBuf};
 
-use nrg_messenger::MessengerRw;
-use nrg_resources::{DataTypeResource, Resource, ResourceId, SerializableResource, SharedDataRc};
-use nrg_serialize::read_from_file;
-use nrg_ui::{CollapsingHeader, UIProperties, UIPropertiesRegistry, Ui};
+use sabi_messenger::MessengerRw;
+use sabi_resources::{DataTypeResource, Resource, ResourceId, SerializableResource, SharedDataRc};
+use sabi_serialize::read_from_file;
+use sabi_ui::{CollapsingHeader, UIProperties, UIPropertiesRegistry, Ui};
 
 use crate::{Camera, Object, SceneData};
 

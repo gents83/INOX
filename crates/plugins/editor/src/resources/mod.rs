@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 pub use gizmo::*;
-use nrg_resources::SharedDataRc;
+use sabi_resources::SharedDataRc;
 
 pub mod gizmo;
 

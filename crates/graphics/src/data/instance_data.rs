@@ -1,4 +1,4 @@
-use nrg_math::{VecBase, Vector4};
+use sabi_math::{VecBase, Vector4};
 
 use crate::INVALID_INDEX;
 

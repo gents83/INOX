@@ -1,8 +1,8 @@
-use nrg_resources::{ConfigBase, Data};
-use nrg_serialize::{Deserialize, Serialize, SerializeFile};
+use sabi_resources::{ConfigBase, Data};
+use sabi_serialize::{Deserialize, Serialize, SerializeFile};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(crate = "nrg_serialize")]
+#[serde(crate = "sabi_serialize")]
 pub struct Config {
     pub title: String,
     pub pos_x: u32,

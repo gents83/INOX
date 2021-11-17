@@ -3,7 +3,7 @@ authors = ["Mauro Gentile"]
 language = "en"
 multilingual = false
 src = "src"
-title = "NRG"
+title = "SABI"
 
 [output.html]
 index = "index.html"

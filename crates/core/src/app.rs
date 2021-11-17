@@ -8,10 +8,10 @@ use std::{
     },
 };
 
-use nrg_messenger::MessengerRw;
-use nrg_platform::{InputState, Key, KeyEvent, WindowEvent};
-use nrg_resources::{SharedData, SharedDataRc};
-use nrg_serialize::{generate_uid_from_string, Uid};
+use sabi_messenger::MessengerRw;
+use sabi_platform::{InputState, Key, KeyEvent, WindowEvent};
+use sabi_resources::{SharedData, SharedDataRc};
+use sabi_serialize::{generate_uid_from_string, Uid};
 
 use crate::{Job, JobHandler, JobHandlerRw, Phase, PluginId, PluginManager, Scheduler, Worker};
 
@@ -40,7 +40,7 @@ impl Drop for App {
         self.stop_worker_threads();
 
         if self.is_profiling {
-            nrg_profiler::write_profile_file!();
+            sabi_profiler::write_profile_file!();
         }
 
         self.scheduler.uninit();
@@ -52,7 +52,7 @@ impl Drop for App {
 
 impl App {
     pub fn new() -> Self {
-        nrg_profiler::create_profiler!();
+        sabi_profiler::create_profiler!();
 
         let (sender, receiver) = channel();
 
@@ -106,7 +106,7 @@ impl App {
     }
 
     fn update_events(&mut self) {
-        nrg_profiler::scoped_profile!("app::update_events");
+        sabi_profiler::scoped_profile!("app::update_events");
 
         let mut is_profiling = self.is_profiling;
         let mut is_enabled = self.is_enabled;
@@ -118,12 +118,12 @@ impl App {
                     let e = msg.as_any().downcast_ref::<KeyEvent>().unwrap();
                     if e.code == Key::F9 && e.state == InputState::JustPressed {
                         if !is_profiling {
-                            nrg_profiler::start_profiler!();
+                            sabi_profiler::start_profiler!();
                             is_profiling = true;
                         } else {
                             is_profiling = false;
-                            nrg_profiler::stop_profiler!();
-                            nrg_profiler::write_profile_file!();
+                            sabi_profiler::stop_profiler!();
+                            sabi_profiler::write_profile_file!();
                         }
                     }
                 } else if msg.type_id() == TypeId::of::<WindowEvent>() {
@@ -168,7 +168,7 @@ impl App {
     }
 
     pub fn run_once(&mut self) -> bool {
-        nrg_profiler::scoped_profile!("app::run_frame");
+        sabi_profiler::scoped_profile!("app::run_frame");
 
         let can_continue = self.scheduler.run_once(self.is_enabled, &self.job_handler);
 

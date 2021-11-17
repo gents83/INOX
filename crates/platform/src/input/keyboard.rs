@@ -2,8 +2,8 @@
 
 use std::str::FromStr;
 
-use nrg_commands::CommandParser;
-use nrg_messenger::{implement_message, Message, MessageFromString};
+use sabi_commands::CommandParser;
+use sabi_messenger::{implement_message, Message, MessageFromString};
 
 use super::state::*;
 
@@ -739,7 +739,7 @@ pub struct KeyEvent {
 implement_message!(KeyEvent);
 
 impl MessageFromString for KeyEvent {
-    fn from_command_parser(command_parser: nrg_commands::CommandParser) -> Option<Box<dyn Message>>
+    fn from_command_parser(command_parser: sabi_commands::CommandParser) -> Option<Box<dyn Message>>
     where
         Self: Sized,
     {

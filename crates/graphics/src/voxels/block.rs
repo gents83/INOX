@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use nrg_math::*;
+use sabi_math::*;
 
 use crate::VertexData;
 

@@ -8,14 +8,14 @@ use std::{
     thread,
 };
 
-use nrg_core::{JobHandlerRw, System};
+use sabi_core::{JobHandlerRw, System};
 
-use nrg_messenger::{read_messages, MessageChannel, MessengerRw};
-use nrg_resources::{
+use sabi_messenger::{read_messages, MessageChannel, MessengerRw};
+use sabi_resources::{
     ConfigBase, DataTypeResource, Resource, SerializableResource, SharedData, SharedDataRc,
     UpdateResourceEvent,
 };
-use nrg_serialize::{generate_random_uid, read_from_file};
+use sabi_serialize::{generate_random_uid, read_from_file};
 
 use crate::{
     is_shader, Mesh, MeshId, Pipeline, RenderPass, RenderPassData, RendererRw, RendererState,
@@ -240,7 +240,7 @@ impl System for UpdateSystem {
                         job_name.as_str(),
                         move || {
                             let mesh_id = *mesh_handle.id();
-                            nrg_profiler::scoped_profile!(format!(
+                            sabi_profiler::scoped_profile!(format!(
                                 "create_render_mesh_job[{}]",
                                 mesh_id
                             )

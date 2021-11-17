@@ -1,12 +1,12 @@
-use nrg_commands::CommandParser;
-use nrg_core::System;
-use nrg_graphics::{DrawEvent, Light, View};
-use nrg_math::{Matrix4, VecBase, Vector2, Vector3};
-use nrg_messenger::{read_messages, GlobalMessenger, MessageChannel, MessengerRw};
-use nrg_platform::{InputState, Key, KeyEvent, MouseEvent, WindowEvent};
-use nrg_resources::{LoadResourceEvent, Resource, SerializableResource, SharedData, SharedDataRc};
-use nrg_scene::{Camera, Object, ObjectId, Scene};
-use nrg_serialize::generate_random_uid;
+use sabi_commands::CommandParser;
+use sabi_core::System;
+use sabi_graphics::{DrawEvent, Light, View};
+use sabi_math::{Matrix4, VecBase, Vector2, Vector3};
+use sabi_messenger::{read_messages, GlobalMessenger, MessageChannel, MessengerRw};
+use sabi_platform::{InputState, Key, KeyEvent, MouseEvent, WindowEvent};
+use sabi_resources::{LoadResourceEvent, Resource, SerializableResource, SharedData, SharedDataRc};
+use sabi_scene::{Camera, Object, ObjectId, Scene};
+use sabi_serialize::generate_random_uid;
 use std::{any::TypeId, collections::HashMap, path::PathBuf};
 
 use crate::widgets::{Hierarchy, Info, View3D};
@@ -29,7 +29,7 @@ impl ViewerSystem {
     pub fn new(shared_data: &SharedDataRc, global_messenger: &MessengerRw) -> Self {
         let message_channel = MessageChannel::default();
 
-        nrg_scene::register_resource_types(shared_data);
+        sabi_scene::register_resource_types(shared_data);
 
         let scene =
             SharedData::add_resource::<Scene>(shared_data, generate_random_uid(), Scene::default());
@@ -67,7 +67,7 @@ impl ViewerSystem {
 
 impl Drop for ViewerSystem {
     fn drop(&mut self) {
-        nrg_scene::unregister_resource_types(&self.shared_data);
+        sabi_scene::unregister_resource_types(&self.shared_data);
     }
 }
 
@@ -92,7 +92,7 @@ impl System for ViewerSystem {
     }
 
     fn run(&mut self) -> bool {
-        nrg_profiler::scoped_profile!("viewer_system::run");
+        sabi_profiler::scoped_profile!("viewer_system::run");
         self.update_events().update_view_from_camera();
 
         let mut map: HashMap<ObjectId, Option<Matrix4>> = HashMap::new();
@@ -159,7 +159,7 @@ impl ViewerSystem {
     }
 
     fn update_events(&mut self) -> &mut Self {
-        nrg_profiler::scoped_profile!("update_events");
+        sabi_profiler::scoped_profile!("update_events");
 
         read_messages(self.message_channel.get_listener(), |msg| {
             if msg.type_id() == TypeId::of::<KeyEvent>() {
@@ -195,7 +195,7 @@ impl ViewerSystem {
     }
 
     fn update_view_from_camera(&mut self) -> &mut Self {
-        nrg_profiler::scoped_profile!("update_view_from_camera");
+        sabi_profiler::scoped_profile!("update_view_from_camera");
 
         if let Some(view) = self
             .shared_data

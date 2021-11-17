@@ -1,5 +1,5 @@
-use nrg_core::{define_plugin, App, PhaseWithSystems, Plugin, System, SystemId};
-use nrg_ui::UISystem;
+use sabi_core::{define_plugin, App, PhaseWithSystems, Plugin, System, SystemId};
+use sabi_ui::UISystem;
 
 use crate::content_browser_updater::ContentBrowserUpdater;
 
@@ -16,7 +16,7 @@ define_plugin!(ContentBrowser);
 
 impl Plugin for ContentBrowser {
     fn name(&self) -> &str {
-        "nrg_content_browser"
+        "sabi_content_browser"
     }
     fn prepare(&mut self, app: &mut App) {
         let mut update_phase = PhaseWithSystems::new(CONTENT_BROWSER_UPDATE_PHASE);

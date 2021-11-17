@@ -1,5 +1,5 @@
-use nrg_math::{Vector2, Vector4};
-use nrg_serialize::{Deserialize, Serialize};
+use sabi_math::{Vector2, Vector4};
+use sabi_serialize::{Deserialize, Serialize};
 use ttf_parser::{Face, GlyphId};
 
 use crate::fonts::geometry::Geometry;
@@ -9,7 +9,7 @@ use super::geometry::Line;
 pub const DEFAULT_FONT_GLYPH_SIZE: usize = 64;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
-#[serde(crate = "nrg_serialize")]
+#[serde(crate = "sabi_serialize")]
 pub struct Metrics {
     pub width: f32,
     pub height: f32,
@@ -29,7 +29,7 @@ impl Default for Metrics {
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
-#[serde(crate = "nrg_serialize")]
+#[serde(crate = "sabi_serialize")]
 pub struct Glyph {
     pub id: u16,
     pub metrics: Metrics,

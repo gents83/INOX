@@ -1,8 +1,8 @@
-use nrg_core::{define_plugin, App, PhaseWithSystems, Plugin, System, SystemId};
-use nrg_graphics::DebugDrawerSystem;
-use nrg_resources::ConfigBase;
-use nrg_serialize::read_from_file;
-use nrg_ui::UISystem;
+use sabi_core::{define_plugin, App, PhaseWithSystems, Plugin, System, SystemId};
+use sabi_graphics::DebugDrawerSystem;
+use sabi_resources::ConfigBase;
+use sabi_serialize::read_from_file;
+use sabi_ui::UISystem;
 
 use crate::{config::Config, editor_updater::EditorUpdater};
 
@@ -20,7 +20,7 @@ define_plugin!(Editor);
 
 impl Plugin for Editor {
     fn name(&self) -> &str {
-        "nrg_editor"
+        "sabi_editor"
     }
     fn prepare(&mut self, app: &mut App) {
         let mut config = Config::default();

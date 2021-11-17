@@ -3,14 +3,14 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use nrg_core::{App, PhaseWithSystems};
-use nrg_graphics::{
+use sabi_core::{App, PhaseWithSystems};
+use sabi_graphics::{
     rendering_system::{RenderingSystem, RENDERING_PHASE},
     update_system::{UpdateSystem, RENDERING_UPDATE},
     Renderer,
 };
 
-use nrg_platform::Window;
+use sabi_platform::Window;
 
 use crate::window_system::WindowSystem;
 
@@ -25,7 +25,7 @@ impl Launcher {
     pub fn prepare(&mut self, app: &mut App) {
         let window = {
             Window::create(
-                "NRG".to_string(),
+                "SABI".to_string(),
                 0,
                 0,
                 0,

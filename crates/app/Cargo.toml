@@ -1,18 +1,18 @@
 [package]
-name = "nrg_launcher"
+name = "sabi_launcher"
 version = "0.1.0"
 authors = ["gents83 <gents83@gmail.com>"]
 edition = "2021"
 
 [dependencies]
-nrg_binarizer = { path = "../binarizer" }
-nrg_resources = { path = "../resources" }
-nrg_commands = { path = "../commands" }
-nrg_core = { path = "../core" }
-nrg_filesystem = { path = "../filesystem" }
-nrg_graphics = { path = "../graphics" }
-nrg_math = { path = "../math" }
-nrg_messenger = { path = "../messenger" }
-nrg_platform = { path = "../platform" }
-nrg_serialize = { path = "../serialize" }
+sabi_binarizer = { path = "../binarizer" }
+sabi_resources = { path = "../resources" }
+sabi_commands = { path = "../commands" }
+sabi_core = { path = "../core" }
+sabi_filesystem = { path = "../filesystem" }
+sabi_graphics = { path = "../graphics" }
+sabi_math = { path = "../math" }
+sabi_messenger = { path = "../messenger" }
+sabi_platform = { path = "../platform" }
+sabi_serialize = { path = "../serialize" }
 

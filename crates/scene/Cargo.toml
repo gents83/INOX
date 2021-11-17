@@ -1,5 +1,5 @@
 [package]
-name = "nrg_scene"
+name = "sabi_scene"
 version = "0.1.0"
 authors = ["gents83 <gents83@gmail.com>"]
 edition = "2021"
@@ -9,9 +9,9 @@ build = "build.rs"
 crate-type = ["cdylib",'rlib']
 
 [dependencies]
-nrg_math = { path = "../math" }
-nrg_graphics = { path = "../graphics" }
-nrg_messenger = { path = "../messenger" }
-nrg_resources = { path = "../resources" }
-nrg_serialize = { path = "../serialize" }
-nrg_ui = { path = "../ui" }
+sabi_math = { path = "../math" }
+sabi_graphics = { path = "../graphics" }
+sabi_messenger = { path = "../messenger" }
+sabi_resources = { path = "../resources" }
+sabi_serialize = { path = "../serialize" }
+sabi_ui = { path = "../ui" }

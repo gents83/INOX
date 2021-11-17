@@ -1,8 +1,8 @@
 use std::{path::PathBuf, process};
 
-use nrg_filesystem::{library, Library};
-use nrg_platform::{FileEvent, FileWatcher};
-use nrg_profiler::debug_log;
+use sabi_filesystem::{library, Library};
+use sabi_platform::{FileEvent, FileWatcher};
+use sabi_profiler::debug_log;
 
 use crate::{
     App, PfnCreatePlugin, PfnDestroyPlugin, PfnPreparePlugin, PfnUnpreparePlugin, PluginHolder,
@@ -47,12 +47,12 @@ impl PluginManager {
     }
 
     pub fn add_plugin(&mut self, plugin_data: PluginData) {
-        nrg_profiler::scoped_profile!("plugin_manager::add_plugin");
+        sabi_profiler::scoped_profile!("plugin_manager::add_plugin");
         self.plugins.push(plugin_data);
     }
 
     pub fn remove_plugin(&mut self, plugin_id: &PluginId) -> Option<PluginData> {
-        nrg_profiler::scoped_profile!("plugin_manager::remove_plugin");
+        sabi_profiler::scoped_profile!("plugin_manager::remove_plugin");
         if let Some(index) = self
             .plugins
             .iter()
@@ -88,7 +88,7 @@ impl PluginManager {
     }
 
     fn load_plugin(fullpath: PathBuf) -> (library::Library, Option<PluginHolder>) {
-        nrg_profiler::scoped_profile!("plugin_manager::load_plugin");
+        sabi_profiler::scoped_profile!("plugin_manager::load_plugin");
         let lib = library::Library::new(fullpath);
         if let Some(create_fn) = lib.get::<PfnCreatePlugin>(CREATE_PLUGIN_FUNCTION_NAME) {
             let plugin_holder = unsafe { create_fn.unwrap()() };
@@ -142,7 +142,7 @@ impl PluginManager {
     }
 
     pub fn clear_plugin_data(mut plugin_data: PluginData, app: &mut App) {
-        nrg_profiler::scoped_profile!("plugin_manager::clear_plugin_data");
+        sabi_profiler::scoped_profile!("plugin_manager::clear_plugin_data");
         plugin_data.filewatcher.stop();
 
         let in_use_path = plugin_data.in_use_path;
@@ -171,7 +171,7 @@ impl PluginManager {
     }
 
     pub fn update(&mut self) -> Vec<PluginId> {
-        nrg_profiler::scoped_profile!("plugin_manager::update");
+        sabi_profiler::scoped_profile!("plugin_manager::update");
 
         let mut plugins_to_remove: Vec<PluginId> = Vec::new();
         for plugin_data in self.plugins.iter_mut() {

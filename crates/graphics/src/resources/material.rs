@@ -5,12 +5,12 @@ use crate::{
     INVALID_INDEX,
 };
 
-use nrg_math::Vector4;
-use nrg_messenger::MessengerRw;
-use nrg_resources::{
+use sabi_math::Vector4;
+use sabi_messenger::MessengerRw;
+use sabi_resources::{
     DataTypeResource, Handle, Resource, ResourceId, SerializableResource, SharedData, SharedDataRc,
 };
-use nrg_serialize::{generate_random_uid, read_from_file};
+use sabi_serialize::{generate_random_uid, read_from_file};
 
 pub type MaterialId = ResourceId;
 

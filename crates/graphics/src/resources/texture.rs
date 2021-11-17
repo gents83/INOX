@@ -1,10 +1,10 @@
 use std::path::{Path, PathBuf};
 
 use image::RgbaImage;
-use nrg_filesystem::convert_from_local_path;
-use nrg_messenger::MessengerRw;
-use nrg_profiler::debug_log;
-use nrg_resources::{
+use sabi_filesystem::convert_from_local_path;
+use sabi_messenger::MessengerRw;
+use sabi_profiler::debug_log;
+use sabi_resources::{
     DataTypeResource, Handle, ResourceId, SerializableResource, SharedData, SharedDataRc,
     DATA_FOLDER,
 };
@@ -153,7 +153,7 @@ impl Texture {
         device: &Device,
         physical_device: &BackendPhysicalDevice,
     ) {
-        nrg_profiler::scoped_profile!("texture::capture_image");
+        sabi_profiler::scoped_profile!("texture::capture_image");
         if self.data.is_none() {
             let mut image_data = Vec::new();
             image_data.resize_with(

@@ -1,11 +1,11 @@
 use std::path::Path;
 
 use crate::{copy_into_data_folder, ExtensionHandler};
-use nrg_graphics::{Light, Material, Mesh, Pipeline};
-use nrg_messenger::MessengerRw;
-use nrg_profiler::debug_log;
-use nrg_resources::SerializableResource;
-use nrg_scene::{Camera, Object, Scene};
+use sabi_graphics::{Light, Material, Mesh, Pipeline};
+use sabi_messenger::MessengerRw;
+use sabi_profiler::debug_log;
+use sabi_resources::SerializableResource;
+use sabi_scene::{Camera, Object, Scene};
 
 const CONFIG_EXTENSION: &str = "cfg";
 

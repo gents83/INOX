@@ -1,8 +1,8 @@
-use nrg_serialize::{Deserialize, Serialize, SerializeFile};
+use sabi_serialize::{Deserialize, Serialize, SerializeFile};
 use std::path::PathBuf;
 
 #[derive(Default, Serialize, Deserialize, Debug, PartialEq, Clone)]
-#[serde(crate = "nrg_serialize")]
+#[serde(crate = "sabi_serialize")]
 pub struct SceneData {
     pub objects: Vec<PathBuf>,
     pub cameras: Vec<PathBuf>,

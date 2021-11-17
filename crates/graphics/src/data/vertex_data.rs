@@ -1,11 +1,11 @@
-use nrg_math::{VecBase, Vector2, Vector3, Vector4};
-use nrg_serialize::{Deserialize, Serialize};
+use sabi_math::{VecBase, Vector2, Vector3, Vector4};
+use sabi_serialize::{Deserialize, Serialize};
 
 pub const MAX_TEXTURE_COORDS_SETS: usize = 4;
 
 #[repr(C, align(16))]
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Copy)]
-#[serde(crate = "nrg_serialize")]
+#[serde(crate = "sabi_serialize")]
 pub struct VertexData {
     pub pos: Vector3,
     pub normal: Vector3,

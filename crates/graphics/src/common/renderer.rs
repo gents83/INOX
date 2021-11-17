@@ -2,10 +2,10 @@ use crate::{
     Device, Instance, Light, LightData, Material, Pipeline, RenderPass, ShaderMaterialData,
     ShaderTextureData, Texture, TextureHandler,
 };
-use nrg_resources::DataTypeResource;
+use sabi_resources::DataTypeResource;
 
-use nrg_platform::Handle;
-use nrg_resources::{SharedData, SharedDataRc};
+use sabi_platform::Handle;
+use sabi_resources::{SharedData, SharedDataRc};
 
 use std::sync::{Arc, RwLock};
 
@@ -80,7 +80,7 @@ impl Renderer {
     }
 
     pub fn prepare_frame(&mut self) -> &mut Self {
-        nrg_profiler::scoped_profile!("renderer::prepare_frame");
+        sabi_profiler::scoped_profile!("renderer::prepare_frame");
         self.init_render_passes();
         self.init_pipelines_for_pass("MainPass");
         self.init_textures();
@@ -102,24 +102,24 @@ impl Renderer {
     }
 
     pub fn begin_frame(&mut self) {
-        nrg_profiler::scoped_profile!("renderer::begin_frame");
+        sabi_profiler::scoped_profile!("renderer::begin_frame");
 
         self.device.begin_frame();
     }
 
     pub fn end_frame(&self) {
-        nrg_profiler::scoped_profile!("renderer::end_frame");
+        sabi_profiler::scoped_profile!("renderer::end_frame");
 
         self.device.end_frame();
         self.device.submit();
     }
     pub fn present(&mut self) -> bool {
-        nrg_profiler::scoped_profile!("renderer::present");
+        sabi_profiler::scoped_profile!("renderer::present");
         self.device.present()
     }
 
     pub fn recreate(&mut self) {
-        nrg_profiler::scoped_profile!("renderer::recreate");
+        sabi_profiler::scoped_profile!("renderer::recreate");
 
         self.device.recreate_swap_chain(&mut self.instance);
 
@@ -135,7 +135,7 @@ impl Renderer {
 
 impl Renderer {
     fn init_render_passes(&mut self) {
-        nrg_profiler::scoped_profile!("renderer::init_render_passes");
+        sabi_profiler::scoped_profile!("renderer::init_render_passes");
         let device = &mut self.device;
         let physical_device = self.instance.get_physical_device();
         let texture_handler = &mut self.texture_handler;
@@ -156,7 +156,7 @@ impl Renderer {
         );
     }
     fn init_pipelines_for_pass(&mut self, render_pass_name: &str) {
-        nrg_profiler::scoped_profile!("renderer::init_pipelines");
+        sabi_profiler::scoped_profile!("renderer::init_pipelines");
         let geometry_render_pass =
             SharedData::match_resource(&self.shared_data, |render_pass: &RenderPass| {
                 render_pass.data().name == render_pass_name
@@ -174,7 +174,7 @@ impl Renderer {
     }
 
     fn init_textures(&mut self) {
-        nrg_profiler::scoped_profile!("renderer::init_textures");
+        sabi_profiler::scoped_profile!("renderer::init_textures");
         let device = &mut self.device;
         let physical_device = &self.instance.get_physical_device();
         let texture_handler = &mut self.texture_handler;
@@ -215,7 +215,7 @@ impl Renderer {
     }
 
     fn init_lights(&mut self) {
-        nrg_profiler::scoped_profile!("renderer::init_lights");
+        sabi_profiler::scoped_profile!("renderer::init_lights");
         self.light_data.clear();
         self.shared_data.for_each_resource(|_id, light: &Light| {
             if light.is_active() {
@@ -224,7 +224,7 @@ impl Renderer {
         });
     }
     fn init_materials(&mut self) {
-        nrg_profiler::scoped_profile!("renderer::init_materials");
+        sabi_profiler::scoped_profile!("renderer::init_materials");
         self.shared_data
             .for_each_resource_mut(|_id, material: &mut Material| {
                 if !material.is_initialized() {

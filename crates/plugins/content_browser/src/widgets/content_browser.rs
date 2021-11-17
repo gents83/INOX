@@ -3,13 +3,13 @@ use std::{
     process::Command,
 };
 
-use nrg_graphics::{Texture, TextureId};
-use nrg_messenger::{get_events_from_string, Message, MessageBox, MessengerRw};
+use sabi_graphics::{Texture, TextureId};
+use sabi_messenger::{get_events_from_string, Message, MessageBox, MessengerRw};
 
-use nrg_profiler::debug_log;
-use nrg_resources::{Resource, SerializableResource, SharedData, SharedDataRc, DATA_FOLDER};
-use nrg_serialize::{deserialize, serialize};
-use nrg_ui::{
+use sabi_profiler::debug_log;
+use sabi_resources::{Resource, SerializableResource, SharedData, SharedDataRc, DATA_FOLDER};
+use sabi_serialize::{deserialize, serialize};
+use sabi_ui::{
     implement_widget_data, CentralPanel, CollapsingHeader, DialogEvent, DialogOp, ScrollArea,
     SidePanel, TextEdit, TextureId as eguiTextureId, TopBottomPanel, UIWidget, Ui, Widget,
 };
@@ -135,7 +135,7 @@ impl ContentBrowser {
         selected_folder: &mut PathBuf,
         selected_file: &mut String,
     ) {
-        nrg_profiler::scoped_profile!("populate_with_folders_tree");
+        sabi_profiler::scoped_profile!("populate_with_folders_tree");
         let selected = selected_folder == &directory.path;
         if directory.subdirs.is_empty() {
             if ui
@@ -180,7 +180,7 @@ impl ContentBrowser {
         selected_extension: &str,
         texture_index: u64,
     ) {
-        nrg_profiler::scoped_profile!("populate_with_files");
+        sabi_profiler::scoped_profile!("populate_with_files");
         ui.vertical(|ui| {
             for file in files.iter() {
                 let filename = file.path.file_name().unwrap().to_str().unwrap().to_string();
@@ -210,7 +210,7 @@ impl ContentBrowser {
                     .resizable(true)
                     .width_range(left_panel_min_width..=left_panel_max_width)
                     .show(ui_context, |ui| {
-                        nrg_profiler::scoped_profile!("SidePanel");
+                        sabi_profiler::scoped_profile!("SidePanel");
                         ScrollArea::vertical().show(ui, |ui| {
                             Self::populate_with_folders_tree(
                                 ui,
@@ -225,7 +225,7 @@ impl ContentBrowser {
                     .resizable(false)
                     .min_height(0.0)
                     .show(ui_context, |ui| {
-                        nrg_profiler::scoped_profile!("BottomPanel");
+                        sabi_profiler::scoped_profile!("BottomPanel");
                         ui.horizontal(|ui| {
                             ui.label("Filename: ");
                             TextEdit::singleline(&mut data.selected_file)
@@ -264,7 +264,7 @@ impl ContentBrowser {
                     });
 
                 CentralPanel::default().show(ui_context, |ui| {
-                    nrg_profiler::scoped_profile!("CentralPanel");
+                    sabi_profiler::scoped_profile!("CentralPanel");
                     let rect = ui.max_rect();
                     ScrollArea::vertical()
                         .max_height(rect.height())

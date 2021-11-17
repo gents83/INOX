@@ -1,8 +1,8 @@
 use std::{any::TypeId, path::Path};
 
 use crate::{handle::*, KeyEvent, KeyTextEvent, MouseEvent};
-use nrg_commands::CommandParser;
-use nrg_messenger::{
+use sabi_commands::CommandParser;
+use sabi_messenger::{
     implement_message, read_messages, Message, MessageChannel, MessageFromString, MessengerRw,
 };
 

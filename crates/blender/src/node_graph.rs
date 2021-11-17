@@ -2,11 +2,11 @@
 
 use std::any::type_name;
 
-use nrg_serialize::{generate_uid_from_string, Uid};
 use pyo3::{
     prelude::*,
     types::{PyDict, PyList},
 };
+use sabi_serialize::{generate_uid_from_string, Uid};
 
 pub type NodeId = Uid;
 
@@ -61,7 +61,7 @@ where
     )?;
     fields.append(field_data)?;
 
-    py.import("NRG")?.getattr("node_tree")?.call_method1(
+    py.import("SABI")?.getattr("node_tree")?.call_method1(
         "create_node_from_data",
         (node_name, base_class, description, fields),
     )?;

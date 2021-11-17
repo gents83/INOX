@@ -4,10 +4,10 @@ use std::{
     time::{Duration, Instant},
 };
 
-use nrg_graphics::{Font, Material, Mesh, Pipeline, Texture, View};
-use nrg_resources::{Resource, ResourceTrait, SharedData, SharedDataRc};
-use nrg_scene::{Camera, Hitbox, Object, Scene};
-use nrg_ui::{implement_widget_data, UIProperties, UIPropertiesRegistry, UIWidget, Ui, Window};
+use sabi_graphics::{Font, Material, Mesh, Pipeline, Texture, View};
+use sabi_resources::{Resource, ResourceTrait, SharedData, SharedDataRc};
+use sabi_scene::{Camera, Hitbox, Object, Scene};
+use sabi_ui::{implement_widget_data, UIProperties, UIPropertiesRegistry, UIWidget, Ui, Window};
 
 struct DebugData {
     frame_seconds: VecDeque<Instant>,

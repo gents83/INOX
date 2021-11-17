@@ -1,6 +1,6 @@
 use std::any::TypeId;
 
-use nrg_messenger::{Message, MessageBox, MessageChannel, MessageFromString, MessengerRw};
+use sabi_messenger::{Message, MessageBox, MessageChannel, MessageFromString, MessengerRw};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EventsHistoryOperation {
