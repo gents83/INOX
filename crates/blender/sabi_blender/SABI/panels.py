@@ -7,7 +7,7 @@ blender_classes = []
 class SABIRunner(bpy.types.Panel):
     """SABI Runner"""
     bl_label = "SABI"
-    bl_idname = "sabi_PT_runner"
+    bl_idname = "SABI_PT_runner"
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_context = "render"
@@ -39,7 +39,7 @@ class SABIPropertiesGroup(bpy.types.PropertyGroup):
 class SABIProperties(bpy.types.Panel):
     """SABI related Object Data"""
     bl_label = "SABI Properties"
-    bl_idname = "sabi_PT_object_data"
+    bl_idname = "SABI_PT_object_data"
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_context = "object"

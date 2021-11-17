@@ -1,5 +1,6 @@
 import nodeitems_utils
 import bpy
+import json
 
 blender_classes = []
 
@@ -45,7 +46,7 @@ def register_nodes(sabi_engine):
             "RUST_CATEGORY", "Rust Nodes", items=node_items)])
 
 
-def create_node_from_data(node_name, base_class, description, fields):
+def create_node_from_data(node_name, base_class, description, serialized_class):
     from SABI import utils
     base_type = utils.gettype(base_class)
 
@@ -59,12 +60,38 @@ def create_node_from_data(node_name, base_class, description, fields):
         }
     )
 
+    def add_fields(dict):
+        for key in dict:
+            name = str(key)
+            value = dict[key]
+            print("Name: " + name)
+            print("Value: " + str(value))
+            properties.fields.append(name)
+            if type(value) is int:
+                prop_type = bpy.props.IntProperty
+                setattr(properties, name, prop_type(
+                    name=name, default=value))
+            elif type(value) is float:
+                prop_type = bpy.props.FloatProperty
+                setattr(properties, name, prop_type(
+                    name=name, default=value))
+            elif type(value) is bool:
+                prop_type = bpy.props.BoolProperty
+                setattr(properties, name, prop_type(
+                    name=name, default=value))
+            elif type(value) is dict:
+                add_fields(value)
+            else:
+                prop_type = bpy.props.StringProperty
+                setattr(properties, name, prop_type(
+                    name=name, default=value))
+
     def register_fields(self):
         properties.fields = []
-        for i, f in enumerate(fields):
-            properties.fields.append(f["name"])
-            setattr(properties, f["name"], utils.TYPE_PROPERTIES[f["type"]](
-                name=f["name"], default=f["default"]))
+        dict_from_fields = json.loads(serialized_class)
+        print("Data: " + str(dict_from_fields))
+        print("Type: " + str(type(dict_from_fields)))
+        add_fields(dict_from_fields)
 
     def draw(self, layout, context):
         col = layout.column()

@@ -78,8 +78,21 @@
 			},
 		},
 		{
-			"label": "COPY AND RENAME BLENDER DEBUG DLL IN ADDON FOLDER",
+			"label": "CREATE SABI FOLDER IN ADDON FOLDER",
 			"type": "shell",
+			"isBackground": true,
+			"command": "New-Item -ItemType Directory -Force -Path ${env:BLENDER_ADDONS_PATH}\\SABI\\",
+			"presentation": {
+				"clear": true,
+				"reveal": "never", //process does not switch terminal (focus on program output)
+			},
+		},
+		{
+			"label": "RENAME BLENDER DEBUG DLL IN ADDON FOLDER",
+			"type": "shell",
+			"dependsOn": [
+				"CREATE SABI FOLDER IN ADDON FOLDER",
+			],
 			"isBackground": true,
 			"command": "Copy-Item -Path ${workspaceFolder}\\crates\\target\\debug\\sabi_blender.dll -Destination ${env:BLENDER_ADDONS_PATH}\\SABI\\sabi_blender.pyd -Force",
 			"presentation": {
@@ -92,7 +105,7 @@
 			"group": "build",
 			"type": "shell",
 			"dependsOn": [
-				"COPY AND RENAME BLENDER DEBUG DLL IN ADDON FOLDER",
+				"RENAME BLENDER DEBUG DLL IN ADDON FOLDER",
 			],
 			"isBackground": true,
 			"command": "Copy-Item -Path ${workspaceFolder}\\crates\\blender\\sabi_blender\\SABI -Destination ${env:BLENDER_ADDONS_PATH} -Force -Recurse",
