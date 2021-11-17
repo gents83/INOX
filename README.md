@@ -56,7 +56,7 @@ The engine is developed with following pillars:
 
 ## Documentation 
 
-You can find documentation [here](https://gents83.github.io/NRG/)
+You can find documentation [here](https://gents83.github.io/SABI/)
 
 ## Notes
 
