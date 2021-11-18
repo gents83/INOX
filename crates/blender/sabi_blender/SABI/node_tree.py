@@ -1,5 +1,6 @@
 import nodeitems_utils
 import bpy
+from bpy.types import NodeTree, Node, NodeSocket, Operator, PropertyGroup
 import json
 
 blender_classes = []
@@ -7,15 +8,27 @@ blender_classes = []
 RUST_NODES = []
 
 
-class LogicNodeTree(bpy.types.NodeTree):
+class LogicNodeTree(NodeTree):
     '''A Logic node tree type'''
     bl_idname = 'LogicNodeTree'
     bl_label = 'Logic Node Tree'
     bl_icon = 'BLENDER'
 
 
-class LogicNodeBase(bpy.types.Node):
+class LogicExecutionSocket(NodeSocket):
+    bl_idname = 'LogicExecutionSocket'
+    bl_label = 'Script Execution Socket'
+
+    def draw(self, context, layout, node, text):
+        layout.label(text=text)
+
+    def draw_color(self, context, node):
+        return (0.0, 0.0, 1.0, 1.0)
+
+
+class LogicNodeBase(Node):
     bl_idname = 'LogicNodeBase'
+    bl_label = 'Logic Node Base'
 
     @classmethod
     def poll(cls, ntree):
@@ -54,51 +67,73 @@ def create_node_from_data(node_name, base_class, description, serialized_class):
     # a blender-compatible way.
     properties = type(
         node_name + "Properties",
-        (bpy.types.PropertyGroup, ),
+        (PropertyGroup, ),
         {
             "bl_idname": node_name + "Properties"
         }
     )
 
-    def add_fields(dict):
-        for key in dict:
-            name = str(key)
-            value = dict[key]
-            print("Name: " + name)
-            print("Value: " + str(value))
-            properties.fields.append(name)
-            if type(value) is int:
-                prop_type = bpy.props.IntProperty
-                setattr(properties, name, prop_type(
-                    name=name, default=value))
-            elif type(value) is float:
-                prop_type = bpy.props.FloatProperty
-                setattr(properties, name, prop_type(
-                    name=name, default=value))
-            elif type(value) is bool:
-                prop_type = bpy.props.BoolProperty
-                setattr(properties, name, prop_type(
-                    name=name, default=value))
-            elif type(value) is dict:
-                add_fields(value)
-            else:
-                prop_type = bpy.props.StringProperty
-                setattr(properties, name, prop_type(
-                    name=name, default=value))
+    def is_field_input(key):
+        name = str(key)
+        if name.startswith("in_"):
+            return True
+        elif name.startswith("out_"):
+            return False
+        elif name != "type_name":
+            print(
+                "Node members should start with 'in_' or 'out_'! Invalid name: " + name)
+        return False
 
-    def register_fields(self):
-        properties.fields = []
+    def field_name(key, is_input):
+        if is_input:
+            return key[3:]
+        else:
+            return key[4:]
+
+    def add_to_node(node, name, value_type, is_input):
+        field = field_name(name, is_input)
+        if is_input:
+            node.inputs.new(value_type, field)
+        else:
+            node.outputs.new(value_type, field)
+
+    def add_fields(node, dictionary, group_name):
+        for key in dictionary:
+            name = str(key)
+            value = dictionary[key]
+            value_type = type(value)
+            is_input = is_field_input(name)
+
+            if value_type is int:
+                add_to_node(node, name, "NodeSocketInt", is_input)
+            elif value_type is float:
+                add_to_node(node, name, "NodeSocketFloat", is_input)
+            elif value_type is bool:
+                add_to_node(node, name, "NodeSocketBool", is_input)
+            elif value_type is dict:
+                add_fields(node, value, name)
+            elif value_type is str:
+                if name == "type_name":
+                    is_input = is_field_input(group_name)
+                    if value == "ScriptExecution":
+                        add_to_node(node, group_name,
+                                    "LogicExecutionSocket", is_input)
+                else:
+                    add_to_node(
+                        node, name, "NodeSocketString", is_input)
+            else:
+                print("Type not supported " + str(value_type) + " for " + name)
+
+    def register_fields(node):
+        properties.node = node
         dict_from_fields = json.loads(serialized_class)
-        print("Data: " + str(dict_from_fields))
-        print("Type: " + str(type(dict_from_fields)))
-        add_fields(dict_from_fields)
+        add_fields(node, dict_from_fields, "node")
 
     def draw(self, layout, context):
         col = layout.column()
-        for field_name in properties.fields:
-            col.prop(self, field_name)
+        # for field_name in properties.node.inputs:
+        #    col.prop(self, field_name)
 
-    properties.register_fields = register_fields
     properties.draw = draw
 
     def register():
@@ -110,8 +145,7 @@ def create_node_from_data(node_name, base_class, description, serialized_class):
         bpy.utils.unregister_class(properties)
 
     def init(self, context):
-        self.properties.register_fields()
-        self.outputs.new("NodeSocketShader", "output")
+        register_fields(self)
 
     def draw_buttons(self, context, layout):
         row = layout.row()
@@ -121,7 +155,7 @@ def create_node_from_data(node_name, base_class, description, serialized_class):
     # blender object
     node_class = type(
         node_name,
-        (base_type, bpy.types.Node, ),
+        (base_type, Node, ),
         {
             "bl_idname": node_name,
             "bl_label": node_name,
@@ -179,7 +213,7 @@ node_categories = [
 ]
 
 
-class OpenInLogicEditor(bpy.types.Operator):
+class OpenInLogicEditor(Operator):
     bl_idname = "sabi.open_in_logic_editor"
     bl_label = "Open Logic Editor"
 
@@ -192,6 +226,8 @@ class OpenInLogicEditor(bpy.types.Operator):
 
 
 blender_classes.append(LogicNodeTree)
+blender_classes.append(LogicExecutionSocket)
+blender_classes.append(LogicNodeBase)
 blender_classes.append(LogicSimpleInputNode)
 
 blender_classes.append(OpenInLogicEditor)
