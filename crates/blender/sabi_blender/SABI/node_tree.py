@@ -14,6 +14,17 @@ class LogicNodeTree(NodeTree):
     bl_label = 'Logic Node Tree'
     bl_icon = 'BLENDER'
 
+    is_just_opened = True
+
+    def update_nodes(self):
+        for n in self.nodes:
+            n.init(self)
+
+    def update(self):
+        if self.is_just_opened:
+            self.is_just_opened = False
+            self.update_nodes()
+
 
 class LogicExecutionSocket(NodeSocket):
     bl_idname = 'LogicExecutionSocket'
@@ -63,6 +74,9 @@ def create_node_from_data(node_name, base_class, description, serialized_class):
     from SABI import utils
     base_type = utils.gettype(base_class)
 
+    updated_node_inputs = []
+    updated_node_outputs = []
+
     # Create a class that stores all the internals of the properties in
     # a blender-compatible way.
     properties = type(
@@ -93,9 +107,9 @@ def create_node_from_data(node_name, base_class, description, serialized_class):
     def add_to_node(node, name, value_type, is_input):
         field = field_name(name, is_input)
         if is_input:
-            node.inputs.new(value_type, field)
+            updated_node_inputs.append((value_type, field))
         else:
-            node.outputs.new(value_type, field)
+            updated_node_outputs.append((value_type, field))
 
     def add_fields(node, dictionary, group_name):
         for key in dictionary:
@@ -124,10 +138,52 @@ def create_node_from_data(node_name, base_class, description, serialized_class):
             else:
                 print("Type not supported " + str(value_type) + " for " + name)
 
+    def update_inputs(node):
+        for input in node.inputs:
+            exists = False
+            for n in updated_node_inputs:
+                if input.name == n[1]:
+                    exists = True
+            if not exists:
+                print("Removing input " + input.name +
+                      " from node " + node.name)
+                node.inputs.remove(input)
+
+        for n in updated_node_inputs:
+            exists = False
+            for input in node.inputs:
+                if input.name == n[1]:
+                    exists = True
+            if not exists:
+                print("Adding input " + n[1] + " to node " + node.name)
+                node.inputs.new(n[0], n[1])
+
+    def update_outputs(node):
+        for output in node.outputs:
+            exists = False
+            for n in updated_node_outputs:
+                if output.name == n[1]:
+                    exists = True
+            if not exists:
+                print("Removing output " + output.name +
+                      " from node " + node.name)
+                node.outputs.remove(output)
+
+        for n in updated_node_outputs:
+            exists = False
+            for output in node.outputs:
+                if output.name == n[1]:
+                    exists = True
+            if not exists:
+                print("Adding output " + n[1] + " to node " + node.name)
+                node.outputs.new(n[0], n[1])
+
     def register_fields(node):
         properties.node = node
         dict_from_fields = json.loads(serialized_class)
         add_fields(node, dict_from_fields, "node")
+        update_inputs(node)
+        update_outputs(node)
 
     def draw(self, layout, context):
         col = layout.column()

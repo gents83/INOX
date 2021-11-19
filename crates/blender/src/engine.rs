@@ -1,7 +1,7 @@
 use pyo3::{pyclass, pymethods, PyResult, Python};
 
 use crate::exporter::Exporter;
-use crate::node_graph::{register_node, RustNode};
+use crate::node_graph::{register_node, MoveNode, RustNode, ScriptInitNode};
 
 use std::{
     io::Write,
@@ -127,6 +127,8 @@ impl SABIEngine {
         println!("Registering nodes");
 
         register_node::<RustNode>(py)?;
+        register_node::<ScriptInitNode>(py)?;
+        register_node::<MoveNode>(py)?;
 
         Ok(true)
     }

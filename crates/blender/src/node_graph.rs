@@ -5,30 +5,9 @@ use std::any::type_name;
 use pyo3::prelude::*;
 use sabi_serialize::{generate_uid_from_string, serialize, Deserialize, Serialize, Uid};
 
-pub type NodeId = Uid;
+use crate::{implement_node, implement_output_pin};
 
-#[macro_export]
-macro_rules! implement_output_pin {
-    ($Type:ident) => {
-        #[pyclass(module = "sabi_blender")]
-        #[derive(Serialize, Deserialize)]
-        #[serde(crate = "sabi_serialize")]
-        pub struct $Type {
-            type_name: String,
-        }
-        impl Default for $Type {
-            fn default() -> Self {
-                let type_name = std::any::type_name::<Self>()
-                    .split(':')
-                    .collect::<Vec<&str>>()
-                    .last()
-                    .unwrap()
-                    .to_string();
-                Self { type_name }
-            }
-        }
-    };
-}
+pub type NodeId = Uid;
 
 implement_output_pin!(ScriptExecution);
 
@@ -51,29 +30,6 @@ pub trait Node: Default + Send + Sync + 'static {
     fn description() -> &'static str;
 }
 
-#[derive(Default, Serialize, Deserialize)]
-#[serde(crate = "sabi_serialize")]
-pub struct RustNode {
-    in_int_value: u32,
-    in_float_value: f32,
-    in_string_value: String,
-    in_bool_value: bool,
-    out_execute: ScriptExecution,
-    out_int_value: u32,
-    out_float_value: f32,
-    out_string_value: String,
-    out_bool_value: bool,
-}
-
-impl Node for RustNode {
-    fn base_type() -> &'static str {
-        "LogicNodeBase"
-    }
-    fn description() -> &'static str {
-        "Node created in Rust"
-    }
-}
-
 pub fn register_node<N>(py: Python) -> PyResult<bool>
 where
     N: Node + 'static + Serialize,
@@ -92,3 +48,38 @@ where
 
     Ok(true)
 }
+
+#[derive(Default, Serialize, Deserialize)]
+#[serde(crate = "sabi_serialize")]
+pub struct RustNode {
+    in_int_value: u32,
+    in_float_value: f32,
+    in_string_value: String,
+    in_bool_value: bool,
+    out_execute: ScriptExecution,
+    out_int_value: u32,
+    out_float_value: f32,
+    out_string_value: String,
+    out_bool_value: bool,
+}
+implement_node!(RustNode, "Example node created from Rust");
+
+#[derive(Default, Serialize, Deserialize)]
+#[serde(crate = "sabi_serialize")]
+pub struct ScriptInitNode {
+    out_execute: ScriptExecution,
+}
+implement_node!(
+    ScriptInitNode,
+    "Node will be called when starting the script"
+);
+
+#[derive(Default, Serialize, Deserialize)]
+#[serde(crate = "sabi_serialize")]
+pub struct MoveNode {
+    in_run: ScriptExecution,
+    in_x: f32,
+    in_y: f32,
+    in_z: f32,
+}
+implement_node!(MoveNode, "Node will move object in space");

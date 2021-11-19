@@ -5,6 +5,7 @@ use pyo3::prelude::*;
 
 mod engine;
 mod exporter;
+mod macros;
 mod node_graph;
 
 use engine::SABIEngine;
