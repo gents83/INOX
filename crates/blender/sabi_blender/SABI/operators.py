@@ -38,7 +38,7 @@ class SABIRun(bpy.types.Operator):
             path = path.parent.absolute().parent.absolute().parent.absolute()
 #
         from SABI import sabi_blender
-        #sabi_blender.start(sabi_engine, str(preferences.exe_path))
+        # sabi_blender.start(sabi_engine)
         sabi_blender.export(sabi_engine, str(bpy.data.filepath), True)
 
         # Do NOT wait for the thread to be ended
@@ -52,12 +52,19 @@ def register():
     for blender_class in blender_classes:
         bpy.utils.register_class(blender_class)
 
+    prefs = bpy.context.preferences.addons['SABI'].preferences
+    libs_to_load = []
+    for i, v in enumerate(prefs.checkboxes):
+        if v is True and i < len(prefs.libs_to_load):
+            libs_to_load.append(prefs.libs_to_load[i])
+
     global sabi_engine
     if sabi_engine is None:
         from SABI import sabi_blender
         from SABI import node_tree
 
-        sabi_engine = sabi_blender.SABIEngine()
+        sabi_engine = sabi_blender.SABIEngine(
+            str(prefs.exe_path), libs_to_load)
         node_tree.register_nodes(sabi_engine)
 
 

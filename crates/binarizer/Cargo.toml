@@ -6,7 +6,7 @@ edition = "2021"
 build = "build.rs"
 
 [lib]
-crate-type = ["cdylib",'rlib']
+crate-type = ["lib"]
 
 [dependencies]
 gltf = { path = "../../extern/gltf", features = ["extras", "names", "KHR_lights_punctual", "KHR_materials_pbrSpecularGlossiness"] }

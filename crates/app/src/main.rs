@@ -8,7 +8,7 @@ use sabi_launcher::launcher::Launcher;
 use sabi_resources::{DATA_FOLDER, DATA_RAW_FOLDER};
 
 fn main() {
-    let mut app = App::new();
+    let mut app = App::default();
 
     let mut binarizer = Binarizer::new(app.get_global_messenger(), DATA_RAW_FOLDER, DATA_FOLDER);
     binarizer.start();
@@ -25,6 +25,8 @@ fn main() {
         launcher.read_config(&mut app, name);
         app.add_plugin(path);
     }
+
+    app.start();
 
     while !binarizer.is_running() {
         thread::yield_now();

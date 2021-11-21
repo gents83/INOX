@@ -3,6 +3,7 @@ use std::{
     any::{type_name, Any},
     sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard},
 };
+pub trait Singleton: Any + Send + Sync + 'static {}
 
 pub type ResourceId = Uid;
 

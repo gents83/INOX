@@ -4,7 +4,7 @@
         "bungcip.better-toml",
         "ms-vscode.cpptools",
         "vadimcn.vscode-lldb",
-        "cadenas.vscode-glsllint",
+        "dtoplak.vscode-glsllint",
         "github.vscode-pull-request-github",
         "ms-python.python"
     ]

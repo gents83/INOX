@@ -11,6 +11,7 @@ crate-type = ['cdylib', 'rlib']
 
 [dependencies]
 pyo3 = { path = "../../extern/pyo3", features = ["macros", "extension-module", "auto-initialize"] }
+sabi_core = { path = "../core" }
 sabi_graphics = { path = "../graphics" }
 sabi_filesystem = { path = "../filesystem" }
 sabi_math = { path = "../math" }

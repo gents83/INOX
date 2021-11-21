@@ -1,15 +1,15 @@
-#![crate_type = "cdylib"]
-#![allow(clippy::all)]
-
 use pyo3::prelude::*;
 
 mod engine;
 mod exporter;
-mod macros;
-mod node_graph;
+pub mod macros;
+pub mod nodes;
+
+pub use macros::*;
+pub use nodes::*;
 
 use engine::SABIEngine;
-use node_graph::ScriptExecution;
+use nodes::logic_nodes::ScriptExecution;
 
 // add bindings to the generated python module
 // N.B: names: "sabi_blender" must be the name of the `.so` or `.pyd` file
@@ -20,11 +20,11 @@ fn sabi_blender(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<ScriptExecution>()?;
 
     #[pyfn(m)]
-    fn start(sabi_engine: &mut SABIEngine, executable_path: &str) -> PyResult<bool> {
+    fn start(sabi_engine: &mut SABIEngine) -> PyResult<bool> {
         let is_running = sabi_engine.is_running();
 
         let result = if !is_running {
-            sabi_engine.start(executable_path)?
+            sabi_engine.start()?
         } else {
             true
         };

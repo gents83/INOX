@@ -1,7 +1,9 @@
 use pyo3::{pyclass, pymethods, PyResult, Python};
+use sabi_core::App;
 
-use crate::exporter::Exporter;
-use crate::node_graph::{register_node, MoveNode, RustNode, ScriptInitNode};
+use crate::{
+    exporter::Exporter, node_registry::LogicNodeRegistry, NodeType, RustExampleNode, ScriptInitNode,
+};
 
 use std::{
     io::Write,
@@ -28,7 +30,9 @@ unsafe impl Sync for ThreadData {}
 pub struct SABIEngine {
     is_running: Arc<AtomicBool>,
     exporter: Exporter,
-    current_dir: PathBuf,
+    app: App,
+    app_dir: PathBuf,
+    working_dir: PathBuf,
     thread_data: Arc<RwLock<ThreadData>>,
     process: Option<std::process::Child>,
     client_thread: Option<JoinHandle<()>>,
@@ -38,11 +42,13 @@ impl Default for SABIEngine {
     fn default() -> Self {
         Self {
             is_running: Arc::new(AtomicBool::new(false)),
-            current_dir: PathBuf::new(),
+            app_dir: PathBuf::new(),
+            working_dir: PathBuf::new(),
             thread_data: Arc::new(RwLock::new(ThreadData::default())),
             process: None,
             client_thread: None,
             exporter: Exporter::default(),
+            app: App::default(),
         }
     }
 }
@@ -50,32 +56,48 @@ impl Default for SABIEngine {
 #[pymethods]
 impl SABIEngine {
     #[new]
-    fn new() -> Self {
-        Self::default()
+    fn new(executable_path: &str, plugins_to_load: Vec<String>) -> Self {
+        let app_dir = PathBuf::from(executable_path);
+
+        let mut working_dir = app_dir.clone();
+        if working_dir.ends_with("release") || working_dir.ends_with("debug") {
+            working_dir.pop();
+            working_dir.pop();
+            working_dir.pop();
+        }
+
+        let mut app = App::default();
+        let data = app.get_shared_data();
+        data.register_singleton(LogicNodeRegistry::default());
+
+        plugins_to_load.iter().for_each(|plugin| {
+            let mut plugin_path = app_dir.clone();
+            plugin_path = plugin_path.join(plugin);
+            println!("Loading plugin: {:?}", plugin_path);
+            app.add_plugin(plugin_path);
+        });
+
+        Self {
+            app_dir,
+            working_dir,
+            app,
+            ..Default::default()
+        }
     }
 
     pub fn is_running(&self) -> bool {
         self.is_running.load(Ordering::SeqCst)
     }
-    pub fn start(&mut self, executable_path: &str) -> PyResult<bool> {
+    pub fn start(&mut self) -> PyResult<bool> {
         println!("SABIEngine started");
 
-        let mut path = PathBuf::from(executable_path);
-
-        self.current_dir = path.clone();
-        if self.current_dir.ends_with("release") || self.current_dir.ends_with("debug") {
-            self.current_dir.pop();
-            self.current_dir.pop();
-            self.current_dir.pop();
-        }
-
-        path = path.join("sabi_launcher.exe");
+        let path = self.app_dir.join("sabi_launcher.exe");
 
         let mut command = Command::new(path.as_path());
         command
             .arg("-plugin sabi_connector")
             .arg("-plugin sabi_viewer");
-        command.current_dir(self.current_dir.as_path());
+        command.current_dir(self.working_dir.as_path());
 
         if let Ok(process) = command.spawn() {
             self.process = Some(process);
@@ -105,7 +127,7 @@ impl SABIEngine {
         file_to_export: &str,
         load_immediately: bool,
     ) -> PyResult<bool> {
-        let current_dir = self.current_dir.clone();
+        let current_dir = self.working_dir.clone();
         let scenes = self.exporter.process(
             py,
             current_dir.as_path(),
@@ -117,21 +139,42 @@ impl SABIEngine {
                     .write()
                     .unwrap()
                     .files_to_load
-                    .insert(0, PathBuf::from(scene_file));
+                    .insert(0, scene_file);
             }
         }
         Ok(true)
     }
 
     pub fn register_nodes(&self, py: Python) -> PyResult<bool> {
-        println!("Registering nodes");
-
-        register_node::<RustNode>(py)?;
-        register_node::<ScriptInitNode>(py)?;
-        register_node::<MoveNode>(py)?;
-
+        let data = self.app.get_shared_data();
+        if let Some(registry) = data.get_singleton_mut::<LogicNodeRegistry>() {
+            registry.register_node::<RustExampleNode>();
+            registry.register_node::<ScriptInitNode>();
+        }
+        if let Some(registry) = data.get_singleton::<LogicNodeRegistry>() {
+            registry.for_each_node(|node| add_node_in_blender(node, py));
+        }
         Ok(true)
     }
+}
+
+fn add_node_in_blender(node: &dyn NodeType, py: Python) {
+    let node_name = node.name();
+    let base_class = node.base_type();
+    let description = node.description();
+    let serialized_class = node.create_serialized();
+
+    println!("Registering node {}", node_name);
+
+    py.import("SABI")
+        .unwrap()
+        .getattr("node_tree")
+        .unwrap()
+        .call_method1(
+            "create_node_from_data",
+            (node_name, base_class, description, serialized_class),
+        )
+        .ok();
 }
 
 fn client_thread_execution(thread_data: Arc<RwLock<ThreadData>>) {
@@ -149,7 +192,7 @@ fn client_thread_execution(thread_data: Arc<RwLock<ThreadData>>) {
                     let message = format!("-load_file {}", file);
                     let msg = message.as_bytes();
 
-                    stream.write(msg).unwrap();
+                    stream.write_all(msg).ok();
                 }
                 thread::yield_now();
             }

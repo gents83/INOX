@@ -15,6 +15,7 @@ members = [
     "platform",
     "plugins/content_browser",
     "plugins/editor",
+    "plugins/example_game",
     "plugins/viewer",
     "plugins/connector",
     "profiler",

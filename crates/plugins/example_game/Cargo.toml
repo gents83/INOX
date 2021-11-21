@@ -1,0 +1,20 @@
+[package]
+name = "sabi_example_game"
+version = "0.1.0"
+authors = ["gents83 <gents83@gmail.com>"]
+edition = "2021"
+build = "build.rs"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+sabi_blender = { path = "../../blender" }
+sabi_commands = { path = "../../commands" }
+sabi_core = { path = "../../core" }
+sabi_filesystem = { path = "../../filesystem" }
+sabi_messenger = { path = "../../messenger" }
+sabi_platform = { path = "../../platform" }
+sabi_profiler = { path = "../../profiler" }
+sabi_resources = { path = "../../resources" }
+sabi_serialize = { path = "../../serialize" }

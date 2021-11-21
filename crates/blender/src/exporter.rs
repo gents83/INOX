@@ -34,7 +34,7 @@ impl Exporter {
                 .join("blender_export")
                 .join(filename);
 
-            if let Ok(_) = create_dir_all(self.export_dir.as_path()) {
+            if create_dir_all(self.export_dir.as_path()).is_ok() {
                 // Blender data import
                 let export_scene = py.import("bpy")?.getattr("ops")?.getattr("export_scene")?;
 
@@ -54,7 +54,7 @@ impl Exporter {
                 kwargs.set_item("export_cameras", true)?;
                 kwargs.set_item("export_yup", true)?;
                 kwargs.set_item("export_lights", true)?;
-                export_scene.call_method("gltf", (), Some(&kwargs))?;
+                export_scene.call_method("gltf", (), Some(kwargs))?;
 
                 self.export_custom_data(py, self.export_dir.as_path())?;
 

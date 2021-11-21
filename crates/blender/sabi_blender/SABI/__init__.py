@@ -1,4 +1,5 @@
 
+import os
 import bpy
 from glob import glob
 from os.path import dirname, join, isfile
@@ -36,6 +37,15 @@ bl_info = {
 blender_classes = []
 
 
+def load_dlls():
+    preferences = bpy.context.preferences.addons['SABI'].preferences
+
+    if len(preferences.libs_to_load) == 0:
+        for file in os.listdir(preferences.exe_path):
+            if file.endswith(".dll") or file.endswith(".so"):
+                preferences.libs_to_load.append(file)
+
+
 class SABIAddonPreferences(bpy.types.AddonPreferences):
     # this must match the add-on name, use '__package__'
     # when defining this in a submodule of a python package.
@@ -47,9 +57,22 @@ class SABIAddonPreferences(bpy.types.AddonPreferences):
         subtype="DIR_PATH",
         default="./bin/")
 
+    checkboxes: bpy.props.BoolVectorProperty(
+        name="DLLs to load", size=32)
+
+    libs_to_load = []
+
     def draw(self, context):
         layout = self.layout
         layout.prop(self, "exe_path")
+
+        box = layout.box()
+        split = box.split(factor=.25)
+        column = split.column()
+        column.label(text="DLLs to load:")
+        for i, lib in enumerate(self.libs_to_load):
+            name = lib.removesuffix(".dll").removesuffix(".so")
+            column.row().prop(self, 'checkboxes', index=i, text=name)
 
 
 blender_classes.append(SABIAddonPreferences)
@@ -65,6 +88,7 @@ def register():
         bpy.utils.register_class(blender_class)
 
     preferences = bpy.context.preferences.addons['SABI'].preferences
+    load_dlls()
 
     file_path = join(preferences.exe_path, "*")
     for file_path in glob(file_path):

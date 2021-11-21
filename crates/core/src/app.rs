@@ -31,7 +31,19 @@ pub struct App {
 
 impl Default for App {
     fn default() -> Self {
-        Self::new()
+        let (sender, receiver) = channel();
+
+        Self {
+            is_enabled: true,
+            is_profiling: false,
+            scheduler: Scheduler::new(),
+            plugin_manager: PluginManager::new(),
+            workers: HashMap::new(),
+            job_handler: JobHandler::new(sender),
+            receiver: Arc::new(Mutex::new(receiver)),
+            shared_data: SharedDataRc::default(),
+            global_messenger: MessengerRw::default(),
+        }
     }
 }
 
@@ -51,26 +63,10 @@ impl Drop for App {
 }
 
 impl App {
-    pub fn new() -> Self {
+    pub fn start(&mut self) -> &mut Self {
         sabi_profiler::create_profiler!();
-
-        let (sender, receiver) = channel();
-
-        let mut app = Self {
-            is_enabled: true,
-            is_profiling: false,
-            scheduler: Scheduler::new(),
-            plugin_manager: PluginManager::new(),
-            workers: HashMap::new(),
-            job_handler: JobHandler::new(sender),
-            receiver: Arc::new(Mutex::new(receiver)),
-            shared_data: SharedDataRc::default(),
-            global_messenger: MessengerRw::default(),
-        };
-
-        app.setup_worker_threads();
-
-        app
+        self.setup_worker_threads();
+        self
     }
 
     fn setup_worker_threads(&mut self) {

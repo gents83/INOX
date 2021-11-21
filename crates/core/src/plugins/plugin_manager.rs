@@ -21,6 +21,9 @@ pub struct PluginData {
     in_use_path: PathBuf,
 }
 
+unsafe impl Send for PluginData {}
+unsafe impl Sync for PluginData {}
+
 pub struct PluginManager {
     plugins: Vec<PluginData>,
 }

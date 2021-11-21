@@ -1,5 +1,5 @@
 use std::{
-    any::type_name,
+    any::{type_name, TypeId},
     collections::HashMap,
     sync::{Arc, RwLock},
 };
@@ -9,11 +9,12 @@ use sabi_serialize::{generate_uid_from_string, Uid};
 
 use crate::{
     Data, Handle, Resource, ResourceEventHandler, ResourceId, ResourceStorageRw, ResourceTrait,
-    SerializableResource, Storage, StorageCastTo, TypedResourceEventHandler,
+    SerializableResource, Singleton, Storage, StorageCastTo, TypedResourceEventHandler,
 };
 
 #[derive(Default)]
 pub struct SharedData {
+    singletons: RwLock<Vec<RwLock<Box<dyn Singleton>>>>,
     storage: RwLock<HashMap<Uid, ResourceStorageRw>>,
     event_handlers: RwLock<HashMap<Uid, Box<dyn ResourceEventHandler>>>,
 }
@@ -23,6 +24,59 @@ unsafe impl Sync for SharedData {}
 impl Data for SharedData {}
 
 impl SharedData {
+    #[inline]
+    pub fn register_singleton<T>(&self, singleton: T)
+    where
+        T: Singleton + 'static,
+    {
+        self.singletons
+            .write()
+            .unwrap()
+            .push(RwLock::new(Box::new(singleton)));
+    }
+    #[inline]
+    pub fn unregister_singleton<T>(&self)
+    where
+        T: Singleton + 'static,
+    {
+        self.singletons
+            .write()
+            .unwrap()
+            .retain(|s| s.read().unwrap().as_ref().type_id() != TypeId::of::<T>());
+    }
+    #[inline]
+    pub fn get_singleton<T>(&self) -> Option<&T>
+    where
+        T: Singleton,
+    {
+        if let Some(s) = self
+            .singletons
+            .read()
+            .unwrap()
+            .iter()
+            .find(|s| s.read().unwrap().as_ref().type_id() == TypeId::of::<T>())
+        {
+            return Some(unsafe { &*(s.read().unwrap().as_ref() as *const _ as *const T) });
+        }
+        None
+    }
+    #[inline]
+    pub fn get_singleton_mut<T>(&self) -> Option<&mut T>
+    where
+        T: Singleton,
+    {
+        if let Some(s) = self
+            .singletons
+            .read()
+            .unwrap()
+            .iter()
+            .find(|s| s.read().unwrap().as_ref().type_id() == TypeId::of::<T>())
+        {
+            return Some(unsafe { &mut *(s.write().unwrap().as_mut() as *mut _ as *mut T) });
+        }
+        None
+    }
+
     #[inline]
     pub fn register_type<T>(&self)
     where
