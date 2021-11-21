@@ -15,6 +15,7 @@ sabi_core = { path = "../core" }
 sabi_graphics = { path = "../graphics" }
 sabi_filesystem = { path = "../filesystem" }
 sabi_math = { path = "../math" }
+sabi_nodes = { path = "../nodes" }
 sabi_resources = { path = "../resources" }
 sabi_scene = { path = "../scene" }
 sabi_serialize = { path = "../serialize" }

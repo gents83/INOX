@@ -1,6 +1,6 @@
-use sabi_blender::LogicNodeRegistry;
 use sabi_core::System;
 use sabi_messenger::MessengerRw;
+use sabi_nodes::LogicNodeRegistry;
 use sabi_resources::{ConfigBase, SharedDataRc};
 use sabi_serialize::SerializeFile;
 

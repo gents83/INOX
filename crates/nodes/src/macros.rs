@@ -1,7 +1,6 @@
 #[macro_export]
 macro_rules! implement_output_pin {
     ($Type:ident) => {
-        #[pyo3::pyclass(module = "sabi_blender")]
         #[derive(Serialize, Deserialize)]
         #[serde(crate = "sabi_serialize")]
         pub struct $Type {
@@ -24,7 +23,7 @@ macro_rules! implement_output_pin {
 #[macro_export]
 macro_rules! implement_node {
     ($Type:ident, $BaseType:expr, $Description:expr) => {
-        impl $crate::nodes::Node for $Type {
+        impl $crate::Node for $Type {
             fn base_type() -> &'static str {
                 $BaseType
             }

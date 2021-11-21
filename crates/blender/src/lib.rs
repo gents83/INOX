@@ -2,14 +2,8 @@ use pyo3::prelude::*;
 
 mod engine;
 mod exporter;
-pub mod macros;
-pub mod nodes;
-
-pub use macros::*;
-pub use nodes::*;
 
 use engine::SABIEngine;
-use nodes::logic_nodes::ScriptExecution;
 
 // add bindings to the generated python module
 // N.B: names: "sabi_blender" must be the name of the `.so` or `.pyd` file
@@ -17,7 +11,6 @@ use nodes::logic_nodes::ScriptExecution;
 #[pyo3(name = "sabi_blender")]
 fn sabi_blender(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<SABIEngine>()?;
-    m.add_class::<ScriptExecution>()?;
 
     #[pyfn(m)]
     fn start(sabi_engine: &mut SABIEngine) -> PyResult<bool> {

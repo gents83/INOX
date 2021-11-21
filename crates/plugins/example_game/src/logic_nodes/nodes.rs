@@ -1,4 +1,4 @@
-use sabi_blender::{implement_node, logic_nodes::ScriptExecution};
+use sabi_nodes::{implement_node, ScriptExecution};
 use sabi_serialize::{Deserialize, Serialize};
 
 #[derive(Default, Serialize, Deserialize)]

@@ -9,11 +9,11 @@ build = "build.rs"
 crate-type = ["cdylib"]
 
 [dependencies]
-sabi_blender = { path = "../../blender" }
 sabi_commands = { path = "../../commands" }
 sabi_core = { path = "../../core" }
 sabi_filesystem = { path = "../../filesystem" }
 sabi_messenger = { path = "../../messenger" }
+sabi_nodes = { path = "../../nodes" }
 sabi_platform = { path = "../../platform" }
 sabi_profiler = { path = "../../profiler" }
 sabi_resources = { path = "../../resources" }

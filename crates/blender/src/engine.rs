@@ -1,9 +1,7 @@
+use crate::exporter::Exporter;
 use pyo3::{pyclass, pymethods, PyResult, Python};
 use sabi_core::App;
-
-use crate::{
-    exporter::Exporter, node_registry::LogicNodeRegistry, NodeType, RustExampleNode, ScriptInitNode,
-};
+use sabi_nodes::{LogicNodeRegistry, NodeType, RustExampleNode, ScriptInitNode};
 
 use std::{
     io::Write,

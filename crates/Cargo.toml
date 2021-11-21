@@ -12,6 +12,7 @@ members = [
     "graphics",
     "math",
     "messenger",
+    "nodes",
     "platform",
     "plugins/content_browser",
     "plugins/editor",
