@@ -132,16 +132,12 @@ impl Exporter {
             let nodes = nodes.cast_as::<PyList>(py)?;
             for node in nodes.iter() {
                 let node_name: String = node.getattr("name")?.extract()?;
-                println!("Node: {}", node_name);
-                let logic_node_type: String = py
-                    .import("SABI")?
-                    .getattr("node_tree")?
-                    .getattr("LogicNodeBase")?
-                    .getattr("bl_idname")?
-                    .extract()?;
                 let node_type: String = node.getattr("bl_idname")?.extract()?;
-                println!("logic_node_type: {}", logic_node_type);
-                println!("node_type: {}", node_type);
+
+                println!("Node: {}", node_name);
+                println!("Type: {}", node_type);
+                println!("Serialized:");
+                node.call_method("serialize", (), None)?;
             }
         }
         Ok(true)

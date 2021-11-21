@@ -77,64 +77,44 @@ def create_node_from_data(node_name, base_class, description, serialized_class):
     updated_node_inputs = []
     updated_node_outputs = []
 
-    # Create a class that stores all the internals of the properties in
-    # a blender-compatible way.
-    properties = type(
-        node_name + "Properties",
-        (PropertyGroup, ),
-        {
-            "bl_idname": node_name + "Properties"
-        }
-    )
-
-    def is_field_input(key):
-        name = str(key)
-        if name.startswith("in_"):
-            return True
-        elif name.startswith("out_"):
-            return False
-        elif name != "type_name":
-            print(
-                "Node members should start with 'in_' or 'out_'! Invalid name: " + name)
-        return False
-
-    def field_name(key, is_input):
+    def add_to_node(name, fullname, value_type, is_input):
         if is_input:
-            return key[3:]
+            updated_node_inputs.append((value_type, fullname, name))
         else:
-            return key[4:]
+            updated_node_outputs.append((value_type, fullname, name))
 
-    def add_to_node(node, name, value_type, is_input):
-        field = field_name(name, is_input)
-        if is_input:
-            updated_node_inputs.append((value_type, field))
-        else:
-            updated_node_outputs.append((value_type, field))
-
-    def add_fields(node, dictionary, group_name):
+    def add_fields(node, dictionary, group_name, is_parent_input):
         for key in dictionary:
             name = str(key)
+            is_input = is_parent_input
+            if name.startswith("in_"):
+                is_input = True
+            elif name.startswith("out_"):
+                is_input = False
+            name = name.removeprefix("in_").removeprefix("out_")
+            group = group_name.removeprefix("in_").removeprefix("out_")
+            if group_name == "":
+                fullname = name
+            else:
+                fullname = "[" + group + "]" + name
             value = dictionary[key]
             value_type = type(value)
-            is_input = is_field_input(name)
 
             if value_type is int:
-                add_to_node(node, name, "NodeSocketInt", is_input)
+                add_to_node(name, fullname, "NodeSocketInt", is_input)
             elif value_type is float:
-                add_to_node(node, name, "NodeSocketFloat", is_input)
+                add_to_node(name, fullname, "NodeSocketFloat", is_input)
             elif value_type is bool:
-                add_to_node(node, name, "NodeSocketBool", is_input)
+                add_to_node(name, fullname, "NodeSocketBool", is_input)
             elif value_type is dict:
-                add_fields(node, value, name)
+                add_fields(node, value, fullname, is_input)
             elif value_type is str:
                 if name == "type_name":
-                    is_input = is_field_input(group_name)
                     if value == "ScriptExecution":
-                        add_to_node(node, group_name,
-                                    "LogicExecutionSocket", is_input)
+                        add_to_node(fullname, group,
+                                    "LogicExecutionSocket", is_parent_input)
                 else:
-                    add_to_node(
-                        node, name, "NodeSocketString", is_input)
+                    add_to_node(name, fullname, "NodeSocketString", is_input)
             else:
                 print("Type not supported " + str(value_type) + " for " + name)
 
@@ -145,8 +125,6 @@ def create_node_from_data(node_name, base_class, description, serialized_class):
                 if input.name == n[1]:
                     exists = True
             if not exists:
-                print("Removing input " + input.name +
-                      " from node " + node.name)
                 node.inputs.remove(input)
 
         for n in updated_node_inputs:
@@ -155,7 +133,6 @@ def create_node_from_data(node_name, base_class, description, serialized_class):
                 if input.name == n[1]:
                     exists = True
             if not exists:
-                print("Adding input " + n[1] + " to node " + node.name)
                 node.inputs.new(n[0], n[1])
 
     def update_outputs(node):
@@ -165,8 +142,6 @@ def create_node_from_data(node_name, base_class, description, serialized_class):
                 if output.name == n[1]:
                     exists = True
             if not exists:
-                print("Removing output " + output.name +
-                      " from node " + node.name)
                 node.outputs.remove(output)
 
         for n in updated_node_outputs:
@@ -175,40 +150,49 @@ def create_node_from_data(node_name, base_class, description, serialized_class):
                 if output.name == n[1]:
                     exists = True
             if not exists:
-                print("Adding output " + n[1] + " to node " + node.name)
                 node.outputs.new(n[0], n[1])
 
     def register_fields(node):
-        properties.node = node
         dict_from_fields = json.loads(serialized_class)
-        add_fields(node, dict_from_fields, "node")
+        print("Serialized in Rust:\n" + str(dict_from_fields))
+        add_fields(node, dict_from_fields, "", False)
         update_inputs(node)
         update_outputs(node)
-
-    def draw(self, layout, context):
-        col = layout.column()
-        # for field_name in properties.node.inputs:
-        #    col.prop(self, field_name)
-
-    properties.draw = draw
-
-    def register():
-        bpy.utils.register_class(properties)
-        node_class.properties = bpy.props.PointerProperty(
-            name="properties", type=properties)
-
-    def unregister():
-        bpy.utils.unregister_class(properties)
 
     def init(self, context):
         register_fields(self)
 
-    def draw_buttons(self, context, layout):
-        row = layout.row()
-        self.properties.draw(row, context)
+    def serialize_fields(dict, fields, is_input):
+        for f in fields:
+            name = f.name
+            if is_input:
+                name = "in_" + name
+            else:
+                name = "out_" + name
+            print("Field type " + f.bl_idname + " for " + name)
+            if f.bl_idname == "LogicExecutionSocket":
+                script_execution = {}
+                script_execution["type_name"] = "ScriptExecution"
+                dict[name] = script_execution
+            elif f.bl_idname == "NodeSocketInt":
+                dict[name] = int(f.default_value)
+            elif f.bl_idname == "NodeSocketFloat":
+                dict[name] = float(f.default_value)
+            elif f.bl_idname == "NodeSocketBool":
+                dict[name] = bool(f.default_value)
+            elif f.bl_idname == "NodeSocketString":
+                dict[name] = str(f.default_value)
+            elif hasattr(input, "default_value"):
+                dict[name] = f.default_value
+            else:
+                dict[name] = len(f.links)
 
-    # Create a class to store the data about this node inside the
-    # blender object
+    def serialize(self):
+        serialized_class = {}
+        serialize_fields(serialized_class, self.inputs, True)
+        serialize_fields(serialized_class, self.outputs, False)
+        print("Serialized from Python:\n" + str(serialized_class))
+
     node_class = type(
         node_name,
         (base_type, Node, ),
@@ -218,37 +202,11 @@ def create_node_from_data(node_name, base_class, description, serialized_class):
             "name": node_name,
             "description": description,
             "init": init,
-            "register": register,
-            "unregister": unregister,
-            "draw_buttons": draw_buttons,
+            "serialize": serialize,
         }
     )
 
     RUST_NODES.append(node_class)
-
-
-class LogicSimpleInputNode(LogicNodeBase):
-    '''A simple input node'''
-    bl_idname = 'LogicSimpleInputNode'
-    bl_label = 'Simple Input Node'
-    bl_icon = 'PLUS'
-
-    integer_value: bpy.props.IntProperty(name="InputPin")
-
-    def init(self, context):
-        self.integer_value = 0
-        self.outputs.new("NodeSocketShader", "output")
-
-    # NOTE: input sockets are drawn by their respective methods
-    #   but output ones DO NOT for some reason, do it manually
-    #   and connect the drawn value to the output socket
-    def draw_buttons(self, context, layout):
-        layout.prop(self, "integer_value")
-
-    # this method lets you design how the node properties
-    #   are drawn on the side panel (to the right)
-    #   if it is not defined, draw_buttons will be used instead
-    # def draw_buttons_ext(self, context, layout):
 
 
 class LogicNodeCategory(nodeitems_utils.NodeCategory):
@@ -258,15 +216,7 @@ class LogicNodeCategory(nodeitems_utils.NodeCategory):
 
 
 # make a list of node categories for registration
-node_categories = [
-    LogicNodeCategory("LOGICINPUTNODES", "Logic Input Nodes", items=[
-        #   NOTE: use 'repr()' to convert the value to string IMPORTANT
-        nodeitems_utils.NodeItem("LogicSimpleInputNode",
-                                 label="Simple Input Node"),
-    ]),
-
-
-]
+node_categories = []
 
 
 class OpenInLogicEditor(Operator):
@@ -284,7 +234,6 @@ class OpenInLogicEditor(Operator):
 blender_classes.append(LogicNodeTree)
 blender_classes.append(LogicExecutionSocket)
 blender_classes.append(LogicNodeBase)
-blender_classes.append(LogicSimpleInputNode)
 
 blender_classes.append(OpenInLogicEditor)
 
