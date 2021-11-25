@@ -34,7 +34,7 @@ class LogicExecutionSocket(NodeSocket):
         layout.label(text=text)
 
     def draw_color(self, context, node):
-        return (0.0, 0.0, 1.0, 1.0)
+        return (1.0, 0.0, 1.0, 1.0)
 
 
 class LogicNodeBase(Node):
@@ -50,6 +50,24 @@ class LogicNodeBase(Node):
 
     def free(self):
         print("Node removed", self)
+
+
+class FieldData:
+    def __init__(self, key, value, is_parent_input, group_name):
+        self.key = str(key)
+        self.is_input = is_parent_input
+        if self.key.startswith("in_"):
+            self.is_input = True
+        elif self.key.startswith("out_"):
+            self.is_input = False
+        self.name = self.key.removeprefix("in_").removeprefix("out_")
+        self.group = group_name.removeprefix("in_").removeprefix("out_")
+        if group_name == "":
+            self.fullname = self.name
+        else:
+            self.fullname = self.group + "." + self.name
+        self.value = value
+        self.value_type = type(self.value)
 
 
 def register_nodes(sabi_engine):
@@ -74,124 +92,96 @@ def create_node_from_data(node_name, base_class, description, serialized_class):
     from SABI import utils
     base_type = utils.gettype(base_class)
 
-    updated_node_inputs = []
-    updated_node_outputs = []
-
-    def add_to_node(name, fullname, value_type, is_input):
-        if is_input:
-            updated_node_inputs.append((value_type, fullname, name))
-        else:
-            updated_node_outputs.append((value_type, fullname, name))
-
-    def add_fields(node, dictionary, group_name, is_parent_input):
+    def create_fields_data(dictionary, group_name, is_parent_input):
+        fields_data = []
         for key in dictionary:
-            name = str(key)
-            is_input = is_parent_input
-            if name.startswith("in_"):
-                is_input = True
-            elif name.startswith("out_"):
-                is_input = False
-            name = name.removeprefix("in_").removeprefix("out_")
-            group = group_name.removeprefix("in_").removeprefix("out_")
-            if group_name == "":
-                fullname = name
+            f = FieldData(
+                key, dictionary[key], is_parent_input, group_name)
+            if f.value_type is dict:
+                inner_fields = create_fields_data(f.value,
+                                                  f.fullname, f.is_input)
+                for i in inner_fields:
+                    fields_data.append(i)
             else:
-                fullname = "[" + group + "]" + name
-            value = dictionary[key]
-            value_type = type(value)
+                fields_data.append(f)
+        return fields_data
 
-            if value_type is int:
-                add_to_node(name, fullname, "NodeSocketInt", is_input)
-            elif value_type is float:
-                add_to_node(name, fullname, "NodeSocketFloat", is_input)
-            elif value_type is bool:
-                add_to_node(name, fullname, "NodeSocketBool", is_input)
-            elif value_type is dict:
-                add_fields(node, value, fullname, is_input)
-            elif value_type is str:
-                if name == "type_name":
-                    if value == "ScriptExecution":
-                        add_to_node(fullname, group,
-                                    "LogicExecutionSocket", is_parent_input)
+    fields_dictionary = json.loads(serialized_class)
+    fields_data = create_fields_data(fields_dictionary, "", False)
+
+    def socket_from_field(f):
+        socket_type = "LogicExecutionSocket"
+        if f.value_type is int:
+            socket_type = "NodeSocketInt"
+        elif f.value_type is float:
+            socket_type = "NodeSocketFloat"
+        elif f.value_type is bool:
+            socket_type = "NodeSocketBool"
+        elif f.value_type is str:
+            if f.name == "type_name" and f.value == "ScriptExecution":
+                socket_type = "LogicExecutionSocket"
+            else:
+                socket_type = "NodeSocketString"
+        return socket_type
+
+    def update_sockets(new_values, node_values):
+        for v in node_values:
+            exists = False
+            for n in new_values:
+                if v.name == n[0]:
+                    exists = True
+            if not exists:
+                node_values.remove(v)
+
+        for n in new_values:
+            exists = False
+            for v in node_values:
+                if v.name == n[0]:
+                    exists = True
+            if not exists:
+                node_values.new(n[1], n[0])
+
+    def deserialize(self):
+        inputs = []
+        outputs = []
+        for f in fields_data:
+            socket_type = socket_from_field(f)
+            if socket_type == "LogicExecutionSocket":
+                name = f.group
+            else:
+                name = f.fullname
+            if f.is_input:
+                inputs.append((name, socket_type))
+            else:
+                outputs.append((name, socket_type))
+        update_sockets(inputs, self.inputs)
+        update_sockets(outputs, self.outputs)
+
+    def serialize_fields(self, dictionary, group_name, is_parent_input, input_index, output_index):
+        for f in fields_data:
+            if f.value_type is int or f.value_type is float or f.value_type is bool or f.value_type is str:
+                if f.is_input:
+                    i = [x for x in self.inputs if x.name == f.fullname]
+                    if len(i) > 0 and hasattr(i[0], "default_value"):
+                        dictionary[f.key] = i[0].default_value
                 else:
-                    add_to_node(name, fullname, "NodeSocketString", is_input)
+                    o = [x for x in self.outputs if x.name == f.fullname]
+                    if len(o) > 0 and hasattr(o[0], "default_value"):
+                        dictionary[f.key] = o[0].default_value
             else:
-                print("Type not supported " + str(value_type) + " for " + name)
-
-    def update_inputs(node):
-        for input in node.inputs:
-            exists = False
-            for n in updated_node_inputs:
-                if input.name == n[1]:
-                    exists = True
-            if not exists:
-                node.inputs.remove(input)
-
-        for n in updated_node_inputs:
-            exists = False
-            for input in node.inputs:
-                if input.name == n[1]:
-                    exists = True
-            if not exists:
-                node.inputs.new(n[0], n[1])
-
-    def update_outputs(node):
-        for output in node.outputs:
-            exists = False
-            for n in updated_node_outputs:
-                if output.name == n[1]:
-                    exists = True
-            if not exists:
-                node.outputs.remove(output)
-
-        for n in updated_node_outputs:
-            exists = False
-            for output in node.outputs:
-                if output.name == n[1]:
-                    exists = True
-            if not exists:
-                node.outputs.new(n[0], n[1])
-
-    def register_fields(node):
-        dict_from_fields = json.loads(serialized_class)
-        print("Serialized in Rust:\n" + str(dict_from_fields))
-        add_fields(node, dict_from_fields, "", False)
-        update_inputs(node)
-        update_outputs(node)
-
-    def init(self, context):
-        register_fields(self)
-
-    def serialize_fields(dict, fields, is_input):
-        for f in fields:
-            name = f.name
-            if is_input:
-                name = "in_" + name
-            else:
-                name = "out_" + name
-            print("Field type " + f.bl_idname + " for " + name)
-            if f.bl_idname == "LogicExecutionSocket":
-                script_execution = {}
-                script_execution["type_name"] = "ScriptExecution"
-                dict[name] = script_execution
-            elif f.bl_idname == "NodeSocketInt":
-                dict[name] = int(f.default_value)
-            elif f.bl_idname == "NodeSocketFloat":
-                dict[name] = float(f.default_value)
-            elif f.bl_idname == "NodeSocketBool":
-                dict[name] = bool(f.default_value)
-            elif f.bl_idname == "NodeSocketString":
-                dict[name] = str(f.default_value)
-            elif hasattr(input, "default_value"):
-                dict[name] = f.default_value
-            else:
-                dict[name] = len(f.links)
+                if f.is_input:
+                    i = [x for x in self.inputs if x.name == f.fullname]
+                else:
+                    o = [x for x in self.outputs if x.name == f.fullname]
+        return dictionary
 
     def serialize(self):
-        serialized_class = {}
-        serialize_fields(serialized_class, self.inputs, True)
-        serialize_fields(serialized_class, self.outputs, False)
-        print("Serialized from Python:\n" + str(serialized_class))
+        output = self.serialize_fields(
+            fields_dictionary, "", False, 0, 0)
+        return json.dumps(output)
+
+    def init(self, context):
+        self.deserialize()
 
     node_class = type(
         node_name,
@@ -202,7 +192,9 @@ def create_node_from_data(node_name, base_class, description, serialized_class):
             "name": node_name,
             "description": description,
             "init": init,
+            "deserialize": deserialize,
             "serialize": serialize,
+            "serialize_fields": serialize_fields,
         }
     )
 

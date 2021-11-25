@@ -137,7 +137,8 @@ impl Exporter {
                 println!("Node: {}", node_name);
                 println!("Type: {}", node_type);
                 println!("Serialized:");
-                node.call_method("serialize", (), None)?;
+                let data: String = node.call_method("serialize", (), None)?.extract()?;
+                println!("{}", data);
             }
         }
         Ok(true)
