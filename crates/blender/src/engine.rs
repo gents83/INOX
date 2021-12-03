@@ -174,7 +174,7 @@ impl SABIEngine {
 
 fn add_node_in_blender(node: &dyn NodeType, py: Python) {
     let node_name = node.name();
-    let base_class = "LogicBaseNode";
+    let base_class = "LogicNodeBase";
     let description = node.description();
     let serialized_class = node.serialize();
 

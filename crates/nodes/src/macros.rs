@@ -2,10 +2,7 @@
 macro_rules! implement_pin {
     ($Type:ident) => {
         #[typetag::serde]
-        impl $crate::InputPin for $Type {}
-        #[typetag::serde]
-        impl $crate::OutputPin for $Type {}
-        impl<const T: usize> $crate::Pin<T> for $Type {
+        impl $crate::Pin for $Type {
             fn as_any(&self) -> &dyn std::any::Any {
                 self
             }
@@ -46,8 +43,26 @@ macro_rules! implement_pin {
 
 #[macro_export]
 macro_rules! implement_node {
-    ($Type:ident, $NodeField:ident) => {
-        impl NodeTrait for $Type {
+    ($Type:ident, $NodeField:ident, $Category:expr, $Description:expr) => {
+        impl $crate::NodeTrait for $Type {
+            fn get_type() -> &'static str
+            where
+                Self: Sized,
+            {
+                stringify!($Type)
+            }
+            fn category() -> &'static str
+            where
+                Self: Sized,
+            {
+                $Category
+            }
+            fn description() -> &'static str
+            where
+                Self: Sized,
+            {
+                $Description
+            }
             fn node(&self) -> &$crate::Node {
                 &self.$NodeField
             }

@@ -13,6 +13,8 @@ pub trait NodeType: Send + Sync + 'static {
 
 struct SpecificNodeType<N> {
     n: N,
+    category: String,
+    description: String,
     marker: std::marker::PhantomData<N>,
 }
 impl<N> NodeType for SpecificNodeType<N>
@@ -23,10 +25,10 @@ where
         self.n.name()
     }
     fn category(&self) -> &str {
-        self.n.category()
+        &self.category
     }
     fn description(&self) -> &str {
-        self.n.description()
+        &self.description
     }
     fn serialize(&self) -> String {
         serialize(&self.n)
@@ -66,6 +68,8 @@ impl LogicNodeRegistry {
         let n = N::default();
         self.node_types.push(Box::new(SpecificNodeType::<N> {
             n,
+            category: String::from(N::category()),
+            description: String::from(N::description()),
             marker: std::marker::PhantomData::<N>::default(),
         }));
     }

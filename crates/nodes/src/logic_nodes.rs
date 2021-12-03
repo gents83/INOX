@@ -20,10 +20,10 @@ implement_pin!(LogicExecution);
 pub struct RustExampleNode {
     node: Node,
 }
-implement_node!(RustExampleNode, node);
+implement_node!(RustExampleNode, node, "Example", "Rust example node");
 impl Default for RustExampleNode {
     fn default() -> Self {
-        let mut node = Node::new("RustExampleNode", "Example", "Rust example node");
+        let mut node = Node::new(stringify!(RustExampleNode));
         node.add_input("in_int", 0_i32);
         node.add_input("in_float", 0_f32);
         node.add_input("in_string", String::new());
@@ -44,10 +44,10 @@ impl Default for RustExampleNode {
 pub struct ScriptInitNode {
     node: Node,
 }
-implement_node!(ScriptInitNode, node);
+implement_node!(ScriptInitNode, node, "Init", "Script init node");
 impl Default for ScriptInitNode {
     fn default() -> Self {
-        let mut node = Node::new("ScriptInitNode", "Init", "Script init node");
+        let mut node = Node::new(stringify!(ScriptInitNode));
         node.add_output("out_execute", LogicExecution::default());
         Self { node }
     }

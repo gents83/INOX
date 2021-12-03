@@ -3,17 +3,26 @@ use std::{
     collections::HashMap,
 };
 
-use crate::{InputPin, OutputPin, PinId};
+use crate::{Pin, PinId};
 use sabi_serialize::{generate_uid_from_string, Deserialize, Serialize, Uid};
 
 pub type NodeId = Uid;
 
 pub trait NodeTrait: Any + 'static {
+    fn get_type() -> &'static str
+    where
+        Self: Sized;
+    fn category() -> &'static str
+    where
+        Self: Sized;
+    fn description() -> &'static str
+    where
+        Self: Sized;
     fn node(&self) -> &Node;
     fn node_mut(&mut self) -> &mut Node;
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
-    fn id(&self) -> &NodeId {
+    fn id(&self) -> NodeId {
         self.node().id()
     }
     fn name(&self) -> &str {
@@ -22,50 +31,31 @@ pub trait NodeTrait: Any + 'static {
     fn set_name(&mut self, name: &str) {
         self.node_mut().set_name(name)
     }
-    fn category(&self) -> &str {
-        self.node().category()
-    }
-    fn description(&self) -> &str {
-        self.node().description()
-    }
 }
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "sabi_serialize")]
 pub struct Node {
-    id: NodeId,
     name: String,
-    category: String,
-    description: String,
-    inputs: HashMap<PinId, Box<dyn InputPin>>,
-    outputs: HashMap<PinId, Box<dyn OutputPin>>,
+    inputs: HashMap<PinId, Box<dyn Pin>>,
+    outputs: HashMap<PinId, Box<dyn Pin>>,
 }
 impl Node {
-    pub fn new(name: &str, category: &str, description: &str) -> Self {
+    pub fn new(name: &str) -> Self {
         Self {
-            id: generate_uid_from_string(name),
             name: String::from(name),
-            category: String::from(category),
-            description: String::from(description),
             inputs: HashMap::new(),
             outputs: HashMap::new(),
         }
     }
-    pub fn id(&self) -> &NodeId {
-        &self.id
+    pub fn id(&self) -> NodeId {
+        generate_uid_from_string(&self.name)
     }
     pub fn name(&self) -> &str {
         &self.name
     }
     pub fn set_name(&mut self, name: &str) {
         self.name = String::from(name);
-        self.id = generate_uid_from_string(name);
-    }
-    pub fn category(&self) -> &str {
-        &self.category
-    }
-    pub fn description(&self) -> &str {
-        &self.description
     }
     pub fn get_pin_type_name(&self, name: &str) -> &str {
         let uid = PinId::new(name);
@@ -99,21 +89,21 @@ impl Node {
     }
     pub fn add_input<V>(&mut self, name: &str, value: V)
     where
-        V: InputPin,
+        V: Pin,
     {
         let uid = PinId::new(name);
         self.inputs.insert(uid, Box::new(value));
     }
     pub fn add_output<V>(&mut self, name: &str, value: V)
     where
-        V: OutputPin,
+        V: Pin,
     {
         let uid = PinId::new(name);
         self.outputs.insert(uid, Box::new(value));
     }
     pub fn get_input<V>(&self, name: &str) -> Option<&V>
     where
-        V: InputPin,
+        V: Pin,
     {
         let uid = PinId::new(name);
         if let Some(i) = self.inputs.get(&uid) {
@@ -123,7 +113,7 @@ impl Node {
     }
     pub fn get_output<V>(&self, name: &str) -> Option<&V>
     where
-        V: OutputPin,
+        V: Pin,
     {
         let uid = PinId::new(name);
         if let Some(o) = self.outputs.get(&uid) {

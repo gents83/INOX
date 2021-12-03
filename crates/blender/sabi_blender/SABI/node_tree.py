@@ -110,9 +110,12 @@ def create_node_from_data(node_name, base_class, description, serialized_class):
     from SABI import utils
     base_type = utils.gettype(base_class)
 
+    print(serialized_class)
+
     def create_fields_data(dictionary, group_name, is_parent_input):
         fields_data = []
-        for key in dictionary:
+        for key in dictionary["node"]:
+            print(key)
             f = FieldData(
                 key, dictionary[key], is_parent_input, group_name)
             if f.value_type is dict:
@@ -125,6 +128,7 @@ def create_node_from_data(node_name, base_class, description, serialized_class):
         return fields_data
 
     fields_dictionary = json.loads(serialized_class)
+    node
     fields_data = create_fields_data(fields_dictionary, "", False)
 
     def socket_from_field(f):

@@ -27,14 +27,14 @@ impl NodeTree {
         let uid = generate_uid_from_string(name);
         self.nodes
             .iter()
-            .find(|n| n.id() == &uid)
+            .find(|n| n.id() == uid)
             .map(|n| n.as_ref())
     }
     pub fn find_node_mut(&mut self, name: &str) -> Option<&mut dyn NodeTrait> {
         let uid = generate_uid_from_string(name);
         self.nodes
             .iter_mut()
-            .find(|n| n.id() == &uid)
+            .find(|n| n.id() == uid)
             .map(|n| n.as_mut())
     }
     pub fn find_node_as<T>(&self, name: &str) -> Option<&T>
@@ -44,7 +44,7 @@ impl NodeTree {
         let uid = generate_uid_from_string(name);
         self.nodes
             .iter()
-            .find(|n| n.id() == &uid)
+            .find(|n| n.id() == uid)
             .map(|n| n.as_any().downcast_ref::<T>().unwrap())
     }
     pub fn find_node_mut_as<T>(&mut self, name: &str) -> Option<&mut T>
@@ -54,7 +54,7 @@ impl NodeTree {
         let uid = generate_uid_from_string(name);
         self.nodes
             .iter_mut()
-            .find(|n| n.id() == &uid)
+            .find(|n| n.id() == uid)
             .map(|n| n.as_any_mut().downcast_mut::<T>().unwrap())
     }
     pub fn get_nodes_count(&self) -> usize {
