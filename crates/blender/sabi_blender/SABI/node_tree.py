@@ -44,8 +44,8 @@ class LogicNodeTree(NodeTree):
         return json.dumps(node_tree)
 
 
-class LogicExecutionSocket(NodeSocket):
-    bl_idname = 'LogicExecutionSocket'
+class NodeSocketLogicExecution(NodeSocket):
+    bl_idname = 'NodeSocketLogicExecution'
     bl_label = 'Script Execution Socket'
 
     def draw(self, context, layout, node, text):
@@ -71,21 +71,31 @@ class LogicNodeBase(Node):
 
 
 class FieldData:
-    def __init__(self, key, value, is_parent_input, group_name):
-        self.key = str(key)
-        self.is_input = is_parent_input
-        if self.key.startswith("in_"):
-            self.is_input = True
-        elif self.key.startswith("out_"):
-            self.is_input = False
-        self.name = self.key.removeprefix("in_").removeprefix("out_")
-        self.group = group_name.removeprefix("in_").removeprefix("out_")
-        if group_name == "":
-            self.fullname = self.name
-        else:
-            self.fullname = self.group + "." + self.name
-        self.value = value
-        self.value_type = type(self.value)
+    def __init__(self, name, value, is_input):
+        self.name = str(name)
+        self.is_input = is_input
+
+        self.rust_type = str(value["pin_type"])
+        if "value" in value:
+            self.value = value["value"]
+            self.value_type = type(self.value)
+
+        if self.rust_type == "LogicExecution":
+            self.socket_type = "NodeSocketLogicExecution"
+        elif self.rust_type == "u32" or self.rust_type == "i32" or self.rust_type == "i8" or self.rust_type == "u8" or self.rust_type == "i16" or self.rust_type == "u16":
+            self.socket_type = "NodeSocketInt"
+        elif self.rust_type == "f32" or self.rust_type == "f64":
+            self.socket_type = "NodeSocketFloat"
+        elif self.rust_type == "String":
+            self.socket_type = "NodeSocketString"
+        elif self.value_type is int:
+            self.socket_type = "NodeSocketInt"
+        elif self.value_type is float:
+            self.socket_type = "NodeSocketFloat"
+        elif self.value_type is bool:
+            self.socket_type = "NodeSocketBool"
+        elif self.value_type is str:
+            self.socket_type = "NodeSocketString"
 
 
 def register_nodes(sabi_engine):
@@ -93,58 +103,37 @@ def register_nodes(sabi_engine):
     sabi_blender.register_nodes(sabi_engine)
 
     global RUST_NODES
-    node_items = []
+    node_items = {}
     for n in RUST_NODES:
         bpy.utils.register_class(n)
-        node_items.append(
-            nodeitems_utils.NodeItem(n.name,
-                                     label=n.name)
-        )
+        if n.category not in node_items:
+            node_items[n.category] = []
+        node_items[n.category].append(
+            nodeitems_utils.NodeItem(n.name, label=n.name))
 
-    nodeitems_utils.register_node_categories(
-        "RUST_NODES", [nodeitems_utils.NodeCategory(
-            "RUST_CATEGORY", "Rust Nodes", items=node_items)])
+    for key in node_items:
+        nodeitems_utils.register_node_categories(
+            key, [nodeitems_utils.NodeCategory(
+                key, key, items=node_items[key])])
 
 
-def create_node_from_data(node_name, base_class, description, serialized_class):
+def create_node_from_data(node_name, base_class, category, description, serialized_class):
     from SABI import utils
     base_type = utils.gettype(base_class)
 
-    print(serialized_class)
-
-    def create_fields_data(dictionary, group_name, is_parent_input):
+    def extract(dictionary, is_input):
+        types = "inputs"
+        if is_input == False:
+            types = "outputs"
         fields_data = []
-        for key in dictionary["node"]:
-            print(key)
-            f = FieldData(
-                key, dictionary[key], is_parent_input, group_name)
-            if f.value_type is dict:
-                inner_fields = create_fields_data(f.value,
-                                                  f.fullname, f.is_input)
-                for i in inner_fields:
-                    fields_data.append(i)
-            else:
-                fields_data.append(f)
+        for k in dictionary["node"][types]:
+            f = FieldData(k, dictionary["node"][types][k], is_input)
+            fields_data.append(f)
         return fields_data
 
     fields_dictionary = json.loads(serialized_class)
-    node
-    fields_data = create_fields_data(fields_dictionary, "", False)
-
-    def socket_from_field(f):
-        socket_type = "LogicExecutionSocket"
-        if f.value_type is int:
-            socket_type = "NodeSocketInt"
-        elif f.value_type is float:
-            socket_type = "NodeSocketFloat"
-        elif f.value_type is bool:
-            socket_type = "NodeSocketBool"
-        elif f.value_type is str:
-            if f.name == "type_name" and f.value == "ScriptExecution":
-                socket_type = "LogicExecutionSocket"
-            else:
-                socket_type = "NodeSocketString"
-        return socket_type
+    fields_input = extract(fields_dictionary, True)
+    fields_output = extract(fields_dictionary, False)
 
     def update_sockets(new_values, node_values):
         for v in node_values:
@@ -166,41 +155,30 @@ def create_node_from_data(node_name, base_class, description, serialized_class):
     def deserialize(self):
         inputs = []
         outputs = []
-        for f in fields_data:
-            socket_type = socket_from_field(f)
-            if socket_type == "LogicExecutionSocket":
-                name = f.group
-            else:
-                name = f.fullname
-            if f.is_input:
-                inputs.append((name, socket_type))
-            else:
-                outputs.append((name, socket_type))
+        for f in fields_input:
+            inputs.append((f.name, f.socket_type))
+        for f in fields_output:
+            outputs.append((f.name, f.socket_type))
         update_sockets(inputs, self.inputs)
         update_sockets(outputs, self.outputs)
 
-    def serialize_fields(self, dictionary, group_name, is_parent_input, input_index, output_index):
-        for f in fields_data:
-            if f.value_type is int or f.value_type is float or f.value_type is bool or f.value_type is str:
-                if f.is_input:
-                    i = [x for x in self.inputs if x.name == f.fullname]
-                    if len(i) > 0 and hasattr(i[0], "default_value"):
-                        dictionary[f.key] = i[0].default_value
-                else:
-                    o = [x for x in self.outputs if x.name == f.fullname]
-                    if len(o) > 0 and hasattr(o[0], "default_value"):
-                        dictionary[f.key] = o[0].default_value
-            else:
-                if f.is_input:
-                    i = [x for x in self.inputs if x.name == f.fullname]
-                else:
-                    o = [x for x in self.outputs if x.name == f.fullname]
+    def serialize_fields(self, dictionary):
+        for f in fields_input:
+            if f.rust_type != "LogicExecution":
+                i = [x for x in self.inputs if x.name == f.name]
+                if len(i) > 0 and hasattr(i[0], "default_value"):
+                    dictionary["node"]["inputs"][f.name] = i[0].default_value
+        for f in fields_output:
+            if f.rust_type != "LogicExecution":
+                i = [x for x in self.outputs if x.name == f.name]
+                if len(i) > 0 and hasattr(i[0], "default_value"):
+                    dictionary["node"]["outputs"][f.name] = i[0].default_value
         return dictionary
 
     def serialize(self):
         output = self.serialize_fields(
-            fields_dictionary, "", False, 0, 0)
-        return json.dumps(output)
+            fields_dictionary)
+        return output
 
     def init(self, context):
         self.deserialize()
@@ -212,6 +190,7 @@ def create_node_from_data(node_name, base_class, description, serialized_class):
             "bl_idname": node_name,
             "bl_label": node_name,
             "name": node_name,
+            "category": category,
             "description": description,
             "init": init,
             "deserialize": deserialize,
@@ -245,8 +224,8 @@ class OpenInLogicEditor(Operator):
         return {'FINISHED'}
 
 
+blender_classes.append(NodeSocketLogicExecution)
 blender_classes.append(LogicNodeTree)
-blender_classes.append(LogicExecutionSocket)
 blender_classes.append(LogicNodeBase)
 
 blender_classes.append(OpenInLogicEditor)
