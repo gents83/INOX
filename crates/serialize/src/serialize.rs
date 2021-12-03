@@ -30,11 +30,11 @@ where
 }
 
 #[inline]
-pub fn deserialize<'a, T>(serialized_data: String) -> T
+pub fn deserialize<'a, T>(serialized_data: &str) -> Result<T, serde_json::Error>
 where
     T: for<'de> Deserialize<'de>,
 {
-    serde_json::from_str(&serialized_data).unwrap()
+    serde_json::from_str(serialized_data)
 }
 
 #[inline]

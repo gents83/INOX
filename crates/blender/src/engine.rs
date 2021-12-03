@@ -1,7 +1,7 @@
 use crate::exporter::Exporter;
 use pyo3::{pyclass, pymethods, PyResult, Python};
 use sabi_core::App;
-use sabi_nodes::{LogicNodeRegistry, NodeType, RustExampleNode, ScriptInitNode};
+use sabi_nodes::{LogicExecution, LogicNodeRegistry, NodeType, RustExampleNode, ScriptInitNode};
 
 use std::{
     io::Write,
@@ -145,10 +145,26 @@ impl SABIEngine {
 
     pub fn register_nodes(&self, py: Python) -> PyResult<bool> {
         let data = self.app.get_shared_data();
+
         if let Some(registry) = data.get_singleton_mut::<LogicNodeRegistry>() {
+            //Registering default nodes
             registry.register_node::<RustExampleNode>();
             registry.register_node::<ScriptInitNode>();
+
+            //Registering basic types
+            registry.register_pin_type::<f32>();
+            registry.register_pin_type::<f64>();
+            registry.register_pin_type::<u8>();
+            registry.register_pin_type::<i8>();
+            registry.register_pin_type::<u16>();
+            registry.register_pin_type::<i16>();
+            registry.register_pin_type::<u32>();
+            registry.register_pin_type::<i32>();
+            registry.register_pin_type::<bool>();
+            registry.register_pin_type::<String>();
+            registry.register_pin_type::<LogicExecution>();
         }
+
         if let Some(registry) = data.get_singleton::<LogicNodeRegistry>() {
             registry.for_each_node(|node| add_node_in_blender(node, py));
         }
@@ -158,9 +174,9 @@ impl SABIEngine {
 
 fn add_node_in_blender(node: &dyn NodeType, py: Python) {
     let node_name = node.name();
-    let base_class = node.base_type();
+    let base_class = "LogicBaseNode";
     let description = node.description();
-    let serialized_class = node.create_serialized();
+    let serialized_class = node.serialize();
 
     println!("Registering node {}", node_name);
 

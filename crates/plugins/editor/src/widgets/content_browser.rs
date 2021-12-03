@@ -318,8 +318,9 @@ impl ContentBrowser {
                 let string = String::from_utf8(output.stdout).unwrap();
                 debug_log(string.as_str());
                 for e in get_events_from_string(string) {
-                    let event: DialogEvent = deserialize(e);
-                    dispatcher.write().unwrap().send(event.as_boxed()).ok();
+                    if let Ok(event) = deserialize::<DialogEvent>(&e) {
+                        dispatcher.write().unwrap().send(event.as_boxed()).ok();
+                    }
                 }
             }
             Err(_) => {

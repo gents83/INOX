@@ -25,6 +25,24 @@ class LogicNodeTree(NodeTree):
             self.is_just_opened = False
             self.update_nodes()
 
+    def serialize(self):
+        node_tree = {}
+        nodes = {}
+        links = []
+
+        for l in self.links:
+            links.append((l.from_socket.node.name, l.from_socket.name,
+                          l.to_socket.node.name, l.to_socket.name))
+            if hasattr(l.from_socket, 'default_value') and hasattr(l.to_socket, 'default_value'):
+                l.to_socket.default_value = l.from_socket.default_value
+        for n in self.nodes:
+            nodes[n.name] = n.serialize()
+
+        node_tree['nodes'] = nodes
+        node_tree['links'] = links
+
+        return json.dumps(node_tree)
+
 
 class LogicExecutionSocket(NodeSocket):
     bl_idname = 'LogicExecutionSocket'

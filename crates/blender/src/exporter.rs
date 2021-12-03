@@ -124,22 +124,26 @@ impl Exporter {
         _object_data: &mut ObjectData,
     ) -> PyResult<bool> {
         if !logic.is_none(py) {
+            let data: String = logic.call_method(py, "serialize", (), None)?.extract(py)?;
+            println!("NodeTree:\n{}", data);
+            /*
             let name: String = logic.getattr(py, "name")?.extract(py)?;
             println!("NodeTree: {}", name);
             let nodes = logic
                 .getattr(py, "nodes")?
                 .call_method(py, "values", (), None)?;
             let nodes = nodes.cast_as::<PyList>(py)?;
+            let mut serialized_nodes = HashMap::new();
             for node in nodes.iter() {
                 let node_name: String = node.getattr("name")?.extract()?;
                 let node_type: String = node.getattr("bl_idname")?.extract()?;
 
                 println!("Node: {}", node_name);
                 println!("Type: {}", node_type);
-                println!("Serialized:");
                 let data: String = node.call_method("serialize", (), None)?.extract()?;
-                println!("{}", data);
+                serialized_nodes.insert(node_name, data);
             }
+            */
         }
         Ok(true)
     }
