@@ -50,6 +50,7 @@ impl System for Connector {
         config.load_from_file(config.get_filepath(plugin_name).as_path());
 
         self.host_address_and_port = config.host_address + ":" + config.port.to_string().as_str();
+        println!("Host address and port: {}", self.host_address_and_port);
     }
     fn should_run_when_not_focused(&self) -> bool {
         false
