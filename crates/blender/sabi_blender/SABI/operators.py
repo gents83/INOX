@@ -38,7 +38,7 @@ class SABIRun(bpy.types.Operator):
             path = path.parent.absolute().parent.absolute().parent.absolute()
 #
         from SABI import sabi_blender
-        # sabi_blender.start(sabi_engine)
+        sabi_blender.start(sabi_engine)
         sabi_blender.export(sabi_engine, str(bpy.data.filepath), True)
 
         # Do NOT wait for the thread to be ended

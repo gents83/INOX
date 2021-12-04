@@ -6,7 +6,7 @@ use sabi_messenger::MessengerRw;
 use sabi_nodes::NodeTree;
 use sabi_profiler::debug_log;
 use sabi_resources::SerializableResource;
-use sabi_scene::{Camera, Object, Scene};
+use sabi_scene::{Camera, Object, Scene, Script};
 use sabi_serialize::SerializeFile;
 
 const CONFIG_EXTENSION: &str = "cfg";
@@ -26,6 +26,7 @@ impl ExtensionHandler for CopyCompiler {
         if let Some(ext) = path.extension() {
             let ext = ext.to_str().unwrap().to_string();
             if (ext.as_str() == CONFIG_EXTENSION
+                || ext.as_str() == NodeTree::extension()
                 || ext.as_str() == Material::extension()
                 || ext.as_str() == Mesh::extension()
                 || ext.as_str() == Pipeline::extension()
@@ -33,7 +34,7 @@ impl ExtensionHandler for CopyCompiler {
                 || ext.as_str() == Object::extension()
                 || ext.as_str() == Camera::extension()
                 || ext.as_str() == Light::extension()
-                || ext.as_str() == NodeTree::extension())
+                || ext.as_str() == Script::extension())
                 && copy_into_data_folder(&self.global_messenger, path)
             {
                 debug_log(format!("Serializing {:?}", path).as_str());

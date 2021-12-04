@@ -14,7 +14,7 @@ use sabi_resources::{
 use sabi_serialize::{generate_random_uid, read_from_file, SerializeFile};
 use sabi_ui::{CollapsingHeader, UIProperties, UIPropertiesRegistry, Ui};
 
-use crate::{Camera, ObjectData};
+use crate::{Camera, ObjectData, Script};
 
 pub type ComponentId = ResourceId;
 pub type ObjectId = ResourceId;
@@ -149,6 +149,9 @@ impl DataTypeResource for Object {
                 let light =
                     Light::request_load(shared_data, global_messenger, path, Some(on_light_loaded));
                 object.add_component::<Light>(light);
+            } else if Script::is_matching_extension(path) {
+                let script = Script::request_load(shared_data, global_messenger, path, None);
+                object.add_component::<Script>(script);
             }
         });
 
