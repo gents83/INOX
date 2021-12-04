@@ -9,7 +9,7 @@ use sabi_serialize::{generate_uid_from_string, typetag, Deserialize, Serialize, 
 pub type NodeId = Uid;
 
 #[typetag::serde(tag = "node_type")]
-pub trait NodeTrait: Any + 'static {
+pub trait NodeTrait: Any + Send + Sync + 'static {
     fn get_type() -> &'static str
     where
         Self: Sized;
@@ -32,13 +32,19 @@ pub trait NodeTrait: Any + 'static {
     fn set_name(&mut self, name: &str) {
         self.node_mut().set_name(name)
     }
+    fn duplicate(&self) -> Box<dyn NodeTrait>;
     fn serialize_node(&self) -> String;
     fn deserialize_node(&self, s: &str) -> Option<Self>
     where
         Self: Sized;
 }
+impl Clone for Box<dyn NodeTrait> {
+    fn clone(&self) -> Box<dyn NodeTrait> {
+        self.duplicate()
+    }
+}
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 #[serde(crate = "sabi_serialize")]
 pub struct Node {
     name: String,

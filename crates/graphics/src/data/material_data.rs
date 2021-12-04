@@ -30,7 +30,7 @@ pub struct MaterialData {
 
 impl SerializeFile for MaterialData {
     fn extension() -> &'static str {
-        "material_data"
+        "material"
     }
 }
 

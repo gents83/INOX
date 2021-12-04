@@ -59,7 +59,7 @@ impl MainMenu {
                                         .arg("-operation")
                                         .arg(op)
                                         .arg("-extension")
-                                        .arg("scene_data");
+                                        .arg("scene");
                                     Self::process_command_result(
                                         &mut command,
                                         data.global_dispatcher.clone(),
@@ -88,7 +88,7 @@ impl MainMenu {
                                         .arg("-folder")
                                         .arg(PathBuf::from(DATA_FOLDER).to_str().unwrap())
                                         .arg("-extension")
-                                        .arg("scene_data");
+                                        .arg("scene");
 
                                     Self::process_command_result(
                                         &mut command,
@@ -118,7 +118,7 @@ impl MainMenu {
                                         .arg("-operation")
                                         .arg(op)
                                         .arg("-extension")
-                                        .arg("scene_data");
+                                        .arg("scene");
                                     Self::process_command_result(
                                         &mut command,
                                         data.global_dispatcher.clone(),

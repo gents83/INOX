@@ -28,7 +28,7 @@ pub struct LightData {
 
 impl SerializeFile for LightData {
     fn extension() -> &'static str {
-        "light_data"
+        "light"
     }
 }
 

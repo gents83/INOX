@@ -11,6 +11,6 @@ pub struct SceneData {
 
 impl SerializeFile for SceneData {
     fn extension() -> &'static str {
-        "scene_data"
+        "scene"
     }
 }

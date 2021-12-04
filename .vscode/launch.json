@@ -53,7 +53,7 @@
                 "-plugin sabi_connector",
                 "-plugin sabi_viewer",
                 "-load_file",
-                "C:\\PROJECTS\\SABI\\data\\blender_export\\TestScene\\TestScene.scene_data"
+                "C:\\PROJECTS\\SABI\\data\\blender_export\\TestScene\\TestScene.scene"
             ],
             "cwd": "${workspaceFolder}",
             "stopAtEntry": false,

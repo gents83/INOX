@@ -254,7 +254,7 @@ impl EditorUpdater {
                         self.create_content_browser(
                             *operation,
                             path.as_path(),
-                            "scene_data".to_string(),
+                            Scene::extension().to_string(),
                         );
                     }
                     DialogEvent::Confirmed(operation, filename) => {
@@ -262,13 +262,13 @@ impl EditorUpdater {
                         match operation {
                             DialogOp::Open => {
                                 debug_log(format!("Loading {:?}", filename).as_str());
-                                if extension.contains("scene_data") {
+                                if extension.contains(Scene::extension()) {
                                     self.load_object(filename.as_path());
                                 }
                             }
                             DialogOp::Save => {
                                 debug_log(format!("Saving {:?}", filename).as_str());
-                                if extension.contains("scene_data") {}
+                                if extension.contains(Scene::extension()) {}
                             }
                             DialogOp::New => {}
                         }

@@ -2,7 +2,7 @@ use sabi_serialize::{generate_uid_from_string, Deserialize, Serialize, Serialize
 
 use crate::{LogicNodeRegistry, NodeLink, NodeTrait};
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Default, Serialize, Deserialize, Clone)]
 #[serde(crate = "sabi_serialize")]
 pub struct NodeTree {
     nodes: Vec<Box<dyn NodeTrait>>,

@@ -39,7 +39,7 @@ pub struct RenderPassData {
 
 impl SerializeFile for RenderPassData {
     fn extension() -> &'static str {
-        "render_pass_data"
+        "render_pass"
     }
 }
 

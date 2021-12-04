@@ -6,7 +6,7 @@ use sabi_messenger::MessengerRw;
 use sabi_resources::{
     DataTypeResource, Handle, Resource, ResourceId, SerializableResource, SharedData, SharedDataRc,
 };
-use sabi_serialize::read_from_file;
+use sabi_serialize::{read_from_file, SerializeFile};
 
 pub type MeshId = ResourceId;
 
@@ -48,7 +48,7 @@ impl SerializableResource for Mesh {
     }
 
     fn extension() -> &'static str {
-        "mesh_data"
+        MeshData::extension()
     }
 }
 

@@ -4,7 +4,7 @@ use sabi_math::matrix4_to_array;
 use sabi_messenger::MessengerRw;
 use sabi_profiler::debug_log;
 use sabi_resources::{DataTypeResource, ResourceId, SerializableResource, SharedDataRc};
-use sabi_serialize::read_from_file;
+use sabi_serialize::{read_from_file, SerializeFile};
 
 use crate::{
     api::backend::{self, BackendPhysicalDevice, BackendPipeline},
@@ -40,7 +40,7 @@ impl SerializableResource for Pipeline {
     }
 
     fn extension() -> &'static str {
-        "pipeline_data"
+        PipelineData::extension()
     }
 }
 

@@ -18,6 +18,12 @@ pub trait Pin: Any + Send + Sync + 'static {
     fn as_any_mut(&mut self) -> &mut dyn Any;
     fn get_type_id(&self) -> TypeId;
     fn get_type_name(&self) -> &'static str;
+    fn duplicate(&self) -> Box<dyn Pin>;
+}
+impl Clone for Box<dyn Pin> {
+    fn clone(&self) -> Box<dyn Pin> {
+        self.duplicate()
+    }
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash, Clone)]

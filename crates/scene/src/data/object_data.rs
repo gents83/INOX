@@ -13,7 +13,7 @@ pub struct ObjectData {
 
 impl SerializeFile for ObjectData {
     fn extension() -> &'static str {
-        "object_data"
+        "object"
     }
 }
 

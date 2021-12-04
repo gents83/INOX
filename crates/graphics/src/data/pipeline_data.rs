@@ -80,7 +80,7 @@ pub struct PipelineData {
 
 impl SerializeFile for PipelineData {
     fn extension() -> &'static str {
-        "pipeline_data"
+        "pipeline"
     }
 }
 

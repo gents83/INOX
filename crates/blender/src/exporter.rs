@@ -8,7 +8,7 @@ use pyo3::{
     PyObject, PyResult, Python, ToPyObject,
 };
 
-use sabi_nodes::NodeTree;
+use sabi_nodes::{LogicData, NodeTree};
 
 use sabi_serialize::{deserialize, SerializeFile};
 
@@ -59,7 +59,7 @@ impl Exporter {
                 self.export_custom_data(py, self.export_dir.as_path())?;
 
                 let scene_path = scene_path.replace("data_raw", "data");
-                let scene_path = scene_path.replace(".gltf", ".scene_data");
+                let scene_path = scene_path.replace(".gltf", ".scene");
                 scene_paths.push(PathBuf::from(scene_path));
             }
         }
@@ -97,13 +97,13 @@ impl Exporter {
     }
 
     fn export_logic(&self, py: Python, logic: &PyObject, path: &Path) -> PyResult<bool> {
-        let export_dir = path.join("logic");
+        let export_dir = path.join(LogicData::extension());
         if !logic.is_none(py) && create_dir_all(export_dir.as_path()).is_ok() {
             let data: String = logic.call_method(py, "serialize", (), None)?.extract(py)?;
             let name: String = logic.getattr(py, "name")?.extract(py)?;
 
             if let Ok(node_tree) = deserialize::<NodeTree>(&data) {
-                let path = export_dir.join(format!("{}.{}", name, NodeTree::extension()).as_str());
+                let path = export_dir.join(format!("{}.{}", name, LogicData::extension()).as_str());
                 println!("NodeTree deserialized in {:?}", path);
                 node_tree.save_to_file(path.as_path());
             }

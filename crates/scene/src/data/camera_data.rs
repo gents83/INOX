@@ -16,7 +16,7 @@ pub struct CameraData {
 
 impl SerializeFile for CameraData {
     fn extension() -> &'static str {
-        "camera_data"
+        "camera"
     }
 }
 

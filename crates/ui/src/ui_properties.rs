@@ -116,6 +116,20 @@ impl UIProperties for f32 {
     }
 }
 
+impl UIProperties for usize {
+    fn show(
+        &mut self,
+        _id: &ResourceId,
+        _ui_registry: &UIPropertiesRegistry,
+        ui: &mut Ui,
+        _collapsed: bool,
+    ) {
+        ui.horizontal(|ui| {
+            ui.add(DragValue::new(self).prefix("value: "));
+        });
+    }
+}
+
 impl UIProperties for Vector2 {
     fn show(
         &mut self,

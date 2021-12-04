@@ -37,7 +37,7 @@ pub struct MeshData {
 
 impl SerializeFile for MeshData {
     fn extension() -> &'static str {
-        "mesh_data"
+        "mesh"
     }
 }
 

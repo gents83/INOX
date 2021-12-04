@@ -10,7 +10,7 @@ use sabi_messenger::MessengerRw;
 use sabi_resources::{
     DataTypeResource, Handle, Resource, ResourceId, SerializableResource, SharedData, SharedDataRc,
 };
-use sabi_serialize::{generate_random_uid, read_from_file};
+use sabi_serialize::{generate_random_uid, read_from_file, SerializeFile};
 
 pub type MaterialId = ResourceId;
 
@@ -58,7 +58,7 @@ impl SerializableResource for Material {
     }
 
     fn extension() -> &'static str {
-        "material_data"
+        MaterialData::extension()
     }
 }
 

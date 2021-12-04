@@ -11,7 +11,7 @@ use sabi_resources::{
     DataTypeResource, Function, GenericResource, Handle, Resource, ResourceCastTo, ResourceId,
     ResourceTrait, SerializableResource, SharedData, SharedDataRc,
 };
-use sabi_serialize::{generate_random_uid, read_from_file};
+use sabi_serialize::{generate_random_uid, read_from_file, SerializeFile};
 use sabi_ui::{CollapsingHeader, UIProperties, UIPropertiesRegistry, Ui};
 
 use crate::{Camera, ObjectData};
@@ -90,7 +90,7 @@ impl SerializableResource for Object {
     }
 
     fn extension() -> &'static str {
-        "object_data"
+        ObjectData::extension()
     }
 }
 impl DataTypeResource for Object {

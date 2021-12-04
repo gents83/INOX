@@ -19,6 +19,9 @@ macro_rules! implement_pin {
                     .last()
                     .unwrap()
             }
+            fn duplicate(&self) -> Box<dyn $crate::Pin> {
+                Box::new(self.clone())
+            }
         }
         impl $crate::PinType for $Type {
             fn type_id(&self) -> std::any::TypeId {
@@ -75,6 +78,12 @@ macro_rules! implement_node {
             }
             fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
                 self
+            }
+            fn duplicate(&self) -> Box<dyn NodeTrait>
+            where
+                Self: Sized,
+            {
+                Box::new(self.clone())
             }
             fn serialize_node(&self) -> String {
                 sabi_serialize::serialize(self)

@@ -5,7 +5,7 @@ use sabi_messenger::MessengerRw;
 use sabi_resources::{
     DataTypeResource, Handle, Resource, ResourceId, SerializableResource, SharedDataRc,
 };
-use sabi_serialize::read_from_file;
+use sabi_serialize::{read_from_file, SerializeFile};
 use sabi_ui::{CollapsingHeader, UIProperties, UIPropertiesRegistry, Ui};
 
 use crate::{CameraData, Object};
@@ -86,7 +86,7 @@ impl SerializableResource for Camera {
     }
 
     fn extension() -> &'static str {
-        "camera_data"
+        CameraData::extension()
     }
 }
 impl DataTypeResource for Camera {

@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use sabi_messenger::MessengerRw;
 use sabi_resources::{DataTypeResource, Resource, ResourceId, SerializableResource, SharedDataRc};
-use sabi_serialize::read_from_file;
+use sabi_serialize::{read_from_file, SerializeFile};
 use sabi_ui::{CollapsingHeader, UIProperties, UIPropertiesRegistry, Ui};
 
 use crate::{Camera, Object, SceneData};
@@ -48,7 +48,7 @@ impl SerializableResource for Scene {
     }
 
     fn extension() -> &'static str {
-        "scene_data"
+        SceneData::extension()
     }
 }
 impl DataTypeResource for Scene {

@@ -22,7 +22,7 @@ use sabi_graphics::{
 };
 use sabi_math::{Mat4Ops, Matrix4, NewAngle, Parser, Radians, Vector2, Vector3, Vector4};
 use sabi_messenger::MessengerRw;
-use sabi_nodes::NodeTree;
+use sabi_nodes::{LogicData, NodeTree};
 use sabi_profiler::debug_log;
 use sabi_resources::Data;
 use sabi_scene::{CameraData, ObjectData, SceneData};
@@ -30,7 +30,7 @@ use sabi_serialize::{deserialize, Deserialize, Serialize, SerializeFile};
 
 const GLTF_EXTENSION: &str = "gltf";
 
-const DEFAULT_PIPELINE: &str = "pipelines/Default.pipeline_data";
+const DEFAULT_PIPELINE: &str = "pipelines/Default.pipeline";
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 #[serde(crate = "sabi_serialize")]
@@ -301,7 +301,7 @@ impl GltfCompiler {
         mesh_data.material = material_path.to_path_buf();
         mesh_data.mesh_category_identifier = MeshCategoryId::new(DEFAULT_MESH_CATEGORY_IDENTIFIER);
 
-        Self::create_file(path, &mesh_data, mesh_name)
+        Self::create_file(path, &mesh_data, mesh_name, "mesh")
     }
     fn process_texture(&mut self, path: &Path, texture: Texture) -> PathBuf {
         if let ImageSource::Uri {
@@ -401,6 +401,7 @@ impl GltfCompiler {
             path,
             &material_data,
             primitive.material().name().unwrap_or_else(|| name.as_str()),
+            "material",
         )
     }
 
@@ -457,7 +458,7 @@ impl GltfCompiler {
                     let mut path = path
                         .parent()
                         .unwrap()
-                        .join("logic")
+                        .join(LogicData::extension())
                         .to_str()
                         .unwrap()
                         .to_string();
@@ -502,7 +503,7 @@ impl GltfCompiler {
 
         (
             NodeType::Object,
-            Self::create_file(path, &object_data, node_name),
+            Self::create_file(path, &object_data, node_name, "object"),
         )
     }
 
@@ -531,7 +532,10 @@ impl GltfCompiler {
         }
 
         let name = format!("Light_{}", light.index());
-        (NodeType::Light, Self::create_file(path, &light_data, &name))
+        (
+            NodeType::Light,
+            Self::create_file(path, &light_data, &name, "light"),
+        )
     }
 
     fn process_camera(&mut self, path: &Path, camera: &Camera) -> (NodeType, PathBuf) {
@@ -552,7 +556,7 @@ impl GltfCompiler {
 
         (
             NodeType::Camera,
-            Self::create_file(path, &camera_data, &name),
+            Self::create_file(path, &camera_data, &name, "camera"),
         )
     }
 
@@ -588,18 +592,23 @@ impl GltfCompiler {
                     }
                 }
 
-                Self::create_file(path, &scene_data, scene_name);
+                Self::create_file(path, &scene_data, scene_name, "");
             }
         }
     }
 
-    fn create_file<T>(path: &Path, data: &T, new_name: &str) -> PathBuf
+    fn create_file<T>(path: &Path, data: &T, new_name: &str, folder: &str) -> PathBuf
     where
         T: Serialize + SerializeFile,
     {
         let filename = path.file_name().unwrap().to_str().unwrap();
         let destination_ext = format!("{}.{}", new_name, T::extension());
-        let mut from_source_to_compiled = path.to_str().unwrap().to_string();
+        let mut filepath = path.parent().unwrap().to_path_buf();
+        if !folder.is_empty() {
+            filepath = filepath.join(folder);
+        }
+        filepath = filepath.join(filename);
+        let mut from_source_to_compiled = filepath.to_str().unwrap().to_string();
         from_source_to_compiled = from_source_to_compiled.replace(
             Data::data_raw_folder()
                 .canonicalize()

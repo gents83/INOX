@@ -147,7 +147,7 @@ impl ViewerSystem {
     }
 
     fn load_scene(&mut self, filename: &str) {
-        if filename.ends_with("scene_data") {
+        if filename.ends_with(Scene::extension()) {
             self.scene.get_mut().clear();
             self.scene = Scene::request_load(
                 &self.shared_data,

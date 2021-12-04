@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use sabi_math::Vector3;
 use sabi_messenger::MessengerRw;
 use sabi_resources::{DataTypeResource, ResourceId, SerializableResource, SharedDataRc};
-use sabi_serialize::read_from_file;
+use sabi_serialize::{read_from_file, SerializeFile};
 
 use crate::LightData;
 
@@ -36,7 +36,7 @@ impl SerializableResource for Light {
     }
 
     fn extension() -> &'static str {
-        "light_data"
+        LightData::extension()
     }
 }
 impl DataTypeResource for Light {

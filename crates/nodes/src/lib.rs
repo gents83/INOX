@@ -1,4 +1,5 @@
 pub mod link;
+pub mod logic_data;
 pub mod logic_nodes;
 pub mod macros;
 pub mod node;
@@ -7,6 +8,7 @@ pub mod node_tree;
 pub mod pin;
 
 pub use link::*;
+pub use logic_data::*;
 pub use logic_nodes::*;
 pub use macros::*;
 pub use node::*;
