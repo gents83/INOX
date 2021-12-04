@@ -76,6 +76,18 @@ macro_rules! implement_node {
             fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
                 self
             }
+            fn serialize_node(&self) -> String {
+                sabi_serialize::serialize(self)
+            }
+            fn deserialize_node(&self, s: &str) -> Option<Self>
+            where
+                Self: Sized,
+            {
+                if let Ok(n) = sabi_serialize::deserialize(s) {
+                    return Some(n);
+                }
+                None
+            }
         }
     };
 }

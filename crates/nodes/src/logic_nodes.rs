@@ -1,4 +1,4 @@
-use sabi_serialize::{Deserialize, Serialize};
+use sabi_serialize::{deserialize, Deserialize, Serialize};
 
 use crate::{implement_node, implement_pin, Node, NodeTrait};
 use sabi_serialize::typetag;
@@ -80,11 +80,11 @@ fn test_node() {
     assert_eq!(tree.get_links_count(), 2);
 
     let init = ScriptInitNode::default();
-    let serialized_data = serialize(&init);
+    let serialized_data = init.serialize_node();
     println!("ScriptInitNode");
     println!("{}", serialized_data);
 
-    if let Some(n) = registry.deserialize(&serialized_data) {
+    if let Some(n) = registry.deserialize_node(&serialized_data) {
         tree.add_node(n);
     }
     assert_eq!(tree.get_nodes_count(), 1);
@@ -95,11 +95,11 @@ fn test_node() {
         *v = 19;
     }
     assert_eq!(*node_a.node().get_output::<i32>("out_int").unwrap(), 19);
-    let serialized_data = serialize(&node_a);
+    let serialized_data = node_a.serialize_node();
     println!("RustExampleNode - A");
     println!("{}", serialized_data);
 
-    if let Some(n) = registry.deserialize(&serialized_data) {
+    if let Some(n) = registry.deserialize_node(&serialized_data) {
         tree.add_node(n);
     }
     assert_eq!(tree.get_nodes_count(), 2);
@@ -119,6 +119,11 @@ fn test_node() {
     let serialized_tree = serialize(&tree);
     println!("NodeTree:");
     println!("{}", serialized_tree);
+
+    let deserialized_tree = r#"{"nodes": [{"node_type": "ScriptInitNode", "node": {"name": "ScriptInitNode", "inputs": {}, "outputs": {"execute": {"pin_type": "LogicExecution", "Type": null}}}}, {"node_type": "RustExampleNode", "node": {"name": "RustExampleNode", "inputs": {"in_execute": {"pin_type": "LogicExecution", "Type": null}, "in_float": {"pin_type": "f32", "value": 0.0}, "in_string": {"pin_type": "String", "value": ""}, "in_int": {"pin_type": "i32", "value": 0}, "in_bool": {"pin_type": "bool", "value": false}}, "outputs": {"out_float": {"pin_type": "f32", "value": 0.0}, "out_execute": {"pin_type": "LogicExecution", "Type": null}, "out_bool": {"pin_type": "bool", "value": false}, "out_int": {"pin_type": "i32", "value": 0}, "out_string": {"pin_type": "String", "value": ""}}}}, {"node_type": "RustExampleNode", "node": {"name": "RustExampleNode", "inputs": {"in_execute": {"pin_type": "LogicExecution", "Type": null}, "in_float": {"pin_type": "f32", "value": 0.0}, "in_string": {"pin_type": "String", "value": ""}, "in_int": {"pin_type": "i32", "value": 0}, "in_bool": {"pin_type": "bool", "value": false}}, "outputs": {"out_float": {"pin_type": "f32", "value": 0.0}, "out_execute": {"pin_type": "LogicExecution", "Type": null}, "out_bool": {"pin_type": "bool", "value": false}, "out_int": {"pin_type": "i32", "value": 0}, "out_string": {"pin_type": "String", "value": ""}}}}], "links": [{"from_node": "RustExampleNode", "to_node": "RustExampleNode.001", "from_pin": "out_string", "to_pin": "out_string"}, {"from_node": "RustExampleNode", "to_node": "RustExampleNode.001", "from_pin": "out_float", "to_pin": "out_float"}, {"from_node": "RustExampleNode", "to_node": "RustExampleNode.001", "from_pin": "out_execute", "to_pin": "out_execute"}, {"from_node": "RustExampleNode", "to_node": "RustExampleNode.001", "from_pin": "out_bool", "to_pin": "out_bool"}, {"from_node": "RustExampleNode", "to_node": "RustExampleNode.001", "from_pin": "out_int", "to_pin": "out_int"}, {"from_node": "ScriptInitNode", "to_node": "RustExampleNode", "from_pin": "execute", "to_pin": "execute"}]}"#;
+    if deserialize::<NodeTree>(deserialized_tree).is_err() {
+        panic!("Deserialization failed");
+    }
 }
 
 #[test]

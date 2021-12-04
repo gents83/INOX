@@ -40,8 +40,10 @@ class LogicNodeTree(NodeTree):
             if hasattr(l.from_socket, 'default_value') and hasattr(l.to_socket, 'default_value'):
                 l.to_socket.default_value = l.from_socket.default_value
         for n in self.nodes:
-            serialized_node = n.serialize()
+            serialized_node = {}
             serialized_node["node_type"] = n.bl_idname
+            node = n.serialize()
+            serialized_node["node"] = node["node"]
             nodes.append(serialized_node)
 
         node_tree['nodes'] = nodes
@@ -173,12 +175,12 @@ def create_node_from_data(node_name, base_class, category, description, serializ
             if f.rust_type != "LogicExecution":
                 i = [x for x in self.inputs if x.name == f.name]
                 if len(i) > 0 and hasattr(i[0], "default_value"):
-                    dictionary["node"]["inputs"][f.name] = i[0].default_value
+                    dictionary["node"]["inputs"][f.name]["value"] = i[0].default_value
         for f in fields_output:
             if f.rust_type != "LogicExecution":
                 i = [x for x in self.outputs if x.name == f.name]
                 if len(i) > 0 and hasattr(i[0], "default_value"):
-                    dictionary["node"]["outputs"][f.name] = i[0].default_value
+                    dictionary["node"]["outputs"][f.name]["value"] = i[0].default_value
         return dictionary
 
     def serialize(self):

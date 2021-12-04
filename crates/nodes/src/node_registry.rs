@@ -1,5 +1,5 @@
 use sabi_resources::Singleton;
-use sabi_serialize::{deserialize, serialize, Deserialize, Serialize};
+use sabi_serialize::{Deserialize, Serialize};
 
 use crate::{Node, NodeTrait, PinType};
 
@@ -7,8 +7,8 @@ pub trait NodeType: Send + Sync + 'static {
     fn name(&self) -> &str;
     fn category(&self) -> &str;
     fn description(&self) -> &str;
-    fn serialize(&self) -> String;
-    fn deserialize(&self, data: &str) -> Option<Box<dyn NodeTrait>>;
+    fn serialize_node(&self) -> String;
+    fn deserialize_node(&self, data: &str) -> Option<Box<dyn NodeTrait>>;
 }
 
 struct SpecificNodeType<N> {
@@ -19,7 +19,7 @@ struct SpecificNodeType<N> {
 }
 impl<N> NodeType for SpecificNodeType<N>
 where
-    N: NodeTrait + Serialize + Default + for<'de> Deserialize<'de> + 'static,
+    N: NodeTrait + Serialize + Default + for<'de> Deserialize<'de> + 'static + Sized,
 {
     fn name(&self) -> &str {
         self.n.name()
@@ -30,18 +30,21 @@ where
     fn description(&self) -> &str {
         &self.description
     }
-    fn serialize(&self) -> String {
-        serialize(&self.n)
+    fn serialize_node(&self) -> String {
+        self.n.serialize_node()
     }
-    fn deserialize(&self, data: &str) -> Option<Box<dyn NodeTrait>>
+    fn deserialize_node(&self, data: &str) -> Option<Box<dyn NodeTrait>>
     where
         Self: Sized,
     {
-        if let Ok(n) = deserialize::<N>(data) {
-            Some(Box::new(n))
-        } else {
-            None
+        if let Some(n) = self.n.deserialize_node(data) {
+            if self.n.node().has_same_pins(n.node()) {
+                return Some(Box::new(n) as Box<dyn NodeTrait>);
+            } else {
+                return None;
+            }
         }
+        None
     }
 }
 unsafe impl<N> Send for SpecificNodeType<N> where N: NodeTrait + Serialize + Default {}
@@ -81,9 +84,10 @@ impl LogicNodeRegistry {
             f(node.as_ref());
         }
     }
-    pub fn deserialize(&self, data: &str) -> Option<Box<dyn NodeTrait>> {
+    pub fn deserialize_node(&self, data: &str) -> Option<Box<dyn NodeTrait>> {
         for node in &self.node_types {
-            if let Some(n) = node.deserialize(data) {
+            if let Some(n) = node.deserialize_node(data) {
+                println!("Deserializing as {}", n.typetag_name());
                 return Some(n);
             }
         }

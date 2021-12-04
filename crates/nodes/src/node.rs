@@ -32,6 +32,10 @@ pub trait NodeTrait: Any + 'static {
     fn set_name(&mut self, name: &str) {
         self.node_mut().set_name(name)
     }
+    fn serialize_node(&self) -> String;
+    fn deserialize_node(&self, s: &str) -> Option<Self>
+    where
+        Self: Sized;
 }
 
 #[derive(Serialize, Deserialize)]
@@ -141,5 +145,28 @@ impl Node {
             return o.as_any_mut().downcast_mut::<V>();
         }
         None
+    }
+    pub fn has_same_pins(&self, node: &Node) -> bool {
+        let mut same_inputs = true;
+        let mut same_outputs = true;
+        for (uid, input) in &self.inputs {
+            if let Some(other_input) = node.inputs.get(uid) {
+                if input.get_type_id() != other_input.get_type_id() {
+                    same_inputs = false;
+                }
+            } else {
+                same_inputs = false;
+            }
+        }
+        for (uid, output) in &self.outputs {
+            if let Some(other_output) = node.outputs.get(uid) {
+                if output.get_type_id() != other_output.get_type_id() {
+                    same_outputs = false;
+                }
+            } else {
+                same_outputs = false;
+            }
+        }
+        same_inputs && same_outputs
     }
 }

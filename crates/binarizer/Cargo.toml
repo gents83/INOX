@@ -14,6 +14,7 @@ sabi_filesystem = { path = "../filesystem" }
 sabi_graphics = { path = "../graphics" }
 sabi_math = { path = "../math" }
 sabi_messenger = { path = "../messenger" }
+sabi_nodes = { path = "../nodes" }
 sabi_platform = { path = "../platform" }
 sabi_profiler = { path = "../profiler" }
 sabi_resources = { path = "../resources" }

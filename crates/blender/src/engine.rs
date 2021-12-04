@@ -1,6 +1,6 @@
 use crate::exporter::Exporter;
 use pyo3::{pyclass, pymethods, PyResult, Python};
-use sabi_binarizer::GltfCompiler;
+
 use sabi_core::App;
 use sabi_nodes::{LogicExecution, LogicNodeRegistry, NodeType, RustExampleNode, ScriptInitNode};
 
@@ -69,8 +69,6 @@ impl SABIEngine {
 
         let mut app = App::default();
 
-        let gltf_compiler = GltfCompiler::new(app.get_global_messenger().clone());
-
         let data = app.get_shared_data();
         data.register_singleton(LogicNodeRegistry::default());
 
@@ -85,7 +83,6 @@ impl SABIEngine {
             app_dir,
             working_dir,
             app,
-            exporter: Exporter::new(gltf_compiler),
             ..Default::default()
         }
     }
@@ -184,7 +181,7 @@ fn add_node_in_blender(node: &dyn NodeType, py: Python) {
     let category = node.category();
     let base_class = "LogicNodeBase";
     let description = node.description();
-    let serialized_class = node.serialize();
+    let serialized_class = node.serialize_node();
 
     println!("Registering node {}", node_name);
 

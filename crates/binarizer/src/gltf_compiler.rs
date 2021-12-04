@@ -22,14 +22,35 @@ use sabi_graphics::{
 };
 use sabi_math::{Mat4Ops, Matrix4, NewAngle, Parser, Radians, Vector2, Vector3, Vector4};
 use sabi_messenger::MessengerRw;
+use sabi_nodes::NodeTree;
 use sabi_profiler::debug_log;
 use sabi_resources::Data;
 use sabi_scene::{CameraData, ObjectData, SceneData};
-use sabi_serialize::{Serialize, SerializeFile};
+use sabi_serialize::{deserialize, Deserialize, Serialize, SerializeFile};
 
 const GLTF_EXTENSION: &str = "gltf";
 
 const DEFAULT_PIPELINE: &str = "pipelines/Default.pipeline_data";
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[serde(crate = "sabi_serialize")]
+struct ExtraData {
+    name: String,
+    #[serde(rename = "type")]
+    typename: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[serde(crate = "sabi_serialize")]
+struct ExtraProperties {
+    logic: ExtraData,
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[serde(crate = "sabi_serialize")]
+struct Extras {
+    sabi_properties: ExtraProperties,
+}
 
 #[derive(PartialEq, Eq)]
 enum NodeType {
@@ -429,6 +450,30 @@ impl GltfCompiler {
             object_data
                 .components
                 .push(to_local_path(light_path.as_path()));
+        }
+        if let Some(extras) = node.extras() {
+            if let Ok(extras) = deserialize::<Extras>(extras.to_string().as_str()) {
+                if !extras.sabi_properties.logic.name.is_empty() {
+                    let mut path = path
+                        .parent()
+                        .unwrap()
+                        .join("logic")
+                        .to_str()
+                        .unwrap()
+                        .to_string();
+                    path.push_str(
+                        format!(
+                            "\\{}.{}",
+                            extras.sabi_properties.logic.name,
+                            NodeTree::extension()
+                        )
+                        .as_str(),
+                    );
+                    object_data
+                        .components
+                        .push(to_local_path(PathBuf::from(path).as_path()));
+                }
+            }
         }
 
         for (_child_index, child) in node.children().enumerate() {
