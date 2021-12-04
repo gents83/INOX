@@ -1,4 +1,7 @@
-use std::path::{Path, PathBuf};
+use std::{
+    env,
+    path::{Path, PathBuf},
+};
 
 use sabi_filesystem::convert_from_local_path;
 use sabi_messenger::{GlobalMessenger, MessengerRw};
@@ -9,13 +12,18 @@ use crate::{
     Function, LoadResourceEvent, Resource, ResourceId, ResourceTrait, SharedData, SharedDataRc,
 };
 
-pub const DATA_RAW_FOLDER: &str = "./data_raw/";
-pub const DATA_FOLDER: &str = "./data/";
+pub const DATA_RAW_FOLDER: &str = "data_raw";
+pub const DATA_FOLDER: &str = "data";
 
-pub trait Data {
+pub struct Data {}
+impl Data {
     #[inline]
-    fn get_data_folder(&self) -> PathBuf {
-        PathBuf::from(DATA_FOLDER)
+    pub fn data_raw_folder() -> PathBuf {
+        env::current_dir().unwrap().join(DATA_RAW_FOLDER)
+    }
+    #[inline]
+    pub fn data_folder() -> PathBuf {
+        env::current_dir().unwrap().join(DATA_FOLDER)
     }
 }
 
@@ -95,7 +103,7 @@ pub trait SerializableResource: DataTypeResource + Sized {
     where
         Self: Sized + DataTypeResource,
     {
-        let path = convert_from_local_path(PathBuf::from(DATA_FOLDER).as_path(), filepath);
+        let path = convert_from_local_path(Data::data_folder().as_path(), filepath);
         if !path.exists() || !path.is_file() {
             panic!(
                 "Unable to create_from_file with an invalid path {}",
@@ -123,7 +131,7 @@ pub trait SerializableResource: DataTypeResource + Sized {
     where
         Self: Sized + DataTypeResource,
     {
-        let path = convert_from_local_path(PathBuf::from(DATA_FOLDER).as_path(), filepath);
+        let path = convert_from_local_path(Data::data_folder().as_path(), filepath);
         if !path.exists() || !path.is_file() {
             panic!(
                 "Unable to load_from_file with an invalid path {}",

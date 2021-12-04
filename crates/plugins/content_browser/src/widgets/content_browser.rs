@@ -7,7 +7,7 @@ use sabi_graphics::{Texture, TextureId};
 use sabi_messenger::{get_events_from_string, Message, MessageBox, MessengerRw};
 
 use sabi_profiler::debug_log;
-use sabi_resources::{Resource, SerializableResource, SharedData, SharedDataRc, DATA_FOLDER};
+use sabi_resources::{Data, Resource, SerializableResource, SharedData, SharedDataRc};
 use sabi_serialize::{deserialize, serialize};
 use sabi_ui::{
     implement_widget_data, CentralPanel, CollapsingHeader, DialogEvent, DialogOp, ScrollArea,
@@ -58,7 +58,7 @@ impl ContentBrowser {
             PathBuf::from("./icons/file.png").as_path(),
             None,
         );
-        let mut selected_folder = PathBuf::from(DATA_FOLDER);
+        let mut selected_folder = Data::data_folder();
         let mut selected_file = String::new();
         if path.to_path_buf().is_file() {
             if let Some(folder) = path.parent() {

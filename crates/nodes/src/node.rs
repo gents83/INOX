@@ -4,10 +4,11 @@ use std::{
 };
 
 use crate::{Pin, PinId};
-use sabi_serialize::{generate_uid_from_string, Deserialize, Serialize, Uid};
+use sabi_serialize::{generate_uid_from_string, typetag, Deserialize, Serialize, Uid};
 
 pub type NodeId = Uid;
 
+#[typetag::serde(tag = "node_type")]
 pub trait NodeTrait: Any + 'static {
     fn get_type() -> &'static str
     where

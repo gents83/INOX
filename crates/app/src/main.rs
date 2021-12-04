@@ -1,16 +1,22 @@
-use std::{path::PathBuf, thread};
+use std::{env, path::PathBuf, thread};
 
 use sabi_binarizer::Binarizer;
 use sabi_commands::CommandParser;
 use sabi_core::App;
 use sabi_filesystem::library_filename;
 use sabi_launcher::launcher::Launcher;
-use sabi_resources::{DATA_FOLDER, DATA_RAW_FOLDER};
+use sabi_resources::Data;
 
 fn main() {
+    env::set_current_dir(".").ok();
+
     let mut app = App::default();
 
-    let mut binarizer = Binarizer::new(app.get_global_messenger(), DATA_RAW_FOLDER, DATA_FOLDER);
+    let mut binarizer = Binarizer::new(
+        app.get_global_messenger(),
+        Data::data_raw_folder(),
+        Data::data_folder(),
+    );
     binarizer.start();
 
     //additional plugins

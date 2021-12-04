@@ -4,7 +4,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::{need_to_binarize, ExtensionHandler};
+use crate::{need_to_binarize, to_local_path, ExtensionHandler};
 use gltf::{
     accessor::{DataType, Dimensions},
     buffer::{Source, View},
@@ -15,7 +15,7 @@ use gltf::{
     mesh::Mode,
     Accessor, Camera, Gltf, Node, Primitive, Semantic, Texture,
 };
-use sabi_filesystem::convert_in_local_path;
+
 use sabi_graphics::{
     LightData, LightType, MaterialAlphaMode, MaterialData, MeshCategoryId, MeshData, TextureType,
     VertexData, DEFAULT_MESH_CATEGORY_IDENTIFIER, MAX_TEXTURE_COORDS_SETS,
@@ -23,7 +23,7 @@ use sabi_graphics::{
 use sabi_math::{Mat4Ops, Matrix4, NewAngle, Parser, Radians, Vector2, Vector3, Vector4};
 use sabi_messenger::MessengerRw;
 use sabi_profiler::debug_log;
-use sabi_resources::{DATA_FOLDER, DATA_RAW_FOLDER};
+use sabi_resources::Data;
 use sabi_scene::{CameraData, ObjectData, SceneData};
 use sabi_serialize::{Serialize, SerializeFile};
 
@@ -38,6 +38,7 @@ enum NodeType {
     Light,
 }
 
+#[derive(Default)]
 pub struct GltfCompiler {
     global_messenger: MessengerRw,
 }
@@ -290,10 +291,7 @@ impl GltfCompiler {
             if let Some(parent_folder) = path.parent() {
                 let parent_path = parent_folder.to_str().unwrap().to_string();
                 let filepath = PathBuf::from(parent_path).join(uri);
-                let path = convert_in_local_path(
-                    filepath.as_path(),
-                    PathBuf::from(DATA_RAW_FOLDER).as_path(),
-                );
+                let path = to_local_path(filepath.as_path());
                 return path;
             }
         }
@@ -404,20 +402,14 @@ impl GltfCompiler {
                 //debug_log("Primitive[{}]: ", _primitive_index);
                 let name = format!("Mesh_{}", mesh.index());
                 let material_path = self.process_material_data(path, &primitive);
-                let material_path = convert_in_local_path(
-                    material_path.as_path(),
-                    PathBuf::from(DATA_FOLDER).as_path(),
-                );
+                let material_path = to_local_path(material_path.as_path());
                 let mesh_path = self.process_mesh_data(
                     path,
                     mesh.name().unwrap_or_else(|| name.as_str()),
                     &primitive,
                     material_path.as_path(),
                 );
-                let mesh_path = convert_in_local_path(
-                    mesh_path.as_path(),
-                    PathBuf::from(DATA_FOLDER).as_path(),
-                );
+                let mesh_path = to_local_path(mesh_path.as_path());
                 object_data.components.push(mesh_path);
             }
         }
@@ -428,17 +420,15 @@ impl GltfCompiler {
             matrix.set_translation(position);
             object_data.transform = matrix;
             let (_, camera_path) = self.process_camera(path, &camera);
-            object_data.components.push(convert_in_local_path(
-                camera_path.as_path(),
-                PathBuf::from(DATA_FOLDER).as_path(),
-            ));
+            object_data
+                .components
+                .push(to_local_path(camera_path.as_path()));
         }
         if let Some(light) = node.light() {
             let (_, light_path) = self.process_light(path, &light);
-            object_data.components.push(convert_in_local_path(
-                light_path.as_path(),
-                PathBuf::from(DATA_FOLDER).as_path(),
-            ));
+            object_data
+                .components
+                .push(to_local_path(light_path.as_path()));
         }
 
         for (_child_index, child) in node.children().enumerate() {
@@ -452,18 +442,14 @@ impl GltfCompiler {
                 matrix.set_translation(position);
                 object_data.transform = matrix;
                 let (_, camera_path) = self.process_camera(path, &camera);
-                object_data.components.push(convert_in_local_path(
-                    camera_path.as_path(),
-                    PathBuf::from(DATA_FOLDER).as_path(),
-                ));
+                object_data
+                    .components
+                    .push(to_local_path(camera_path.as_path()));
             } else if let Some((node_type, node_path)) =
                 self.process_node(path, &child, child.name().unwrap_or_else(|| name.as_str()))
             {
                 if node_type == NodeType::Object {
-                    let node_path = convert_in_local_path(
-                        node_path.as_path(),
-                        PathBuf::from(DATA_FOLDER).as_path(),
-                    );
+                    let node_path = to_local_path(node_path.as_path());
                     object_data.children.push(node_path);
                 }
             }
@@ -525,7 +511,7 @@ impl GltfCompiler {
         )
     }
 
-    fn process_path(&mut self, path: &Path) {
+    pub fn process_path(&mut self, path: &Path) {
         if let Ok(gltf) = Gltf::open(path) {
             for scene in gltf.scenes() {
                 let mut scene_data = SceneData::default();
@@ -542,6 +528,7 @@ impl GltfCompiler {
                     if let Some((node_type, node_path)) =
                         self.process_node(path, &node, node.name().unwrap_or_else(|| name.as_str()))
                     {
+                        let node_path = to_local_path(node_path.as_path());
                         match node_type {
                             NodeType::Camera => {
                                 scene_data.cameras.push(node_path);
@@ -569,12 +556,12 @@ impl GltfCompiler {
         let destination_ext = format!("{}.{}", new_name, T::extension());
         let mut from_source_to_compiled = path.to_str().unwrap().to_string();
         from_source_to_compiled = from_source_to_compiled.replace(
-            PathBuf::from(DATA_RAW_FOLDER)
+            Data::data_raw_folder()
                 .canonicalize()
                 .unwrap()
                 .to_str()
                 .unwrap(),
-            PathBuf::from(DATA_FOLDER)
+            Data::data_folder()
                 .canonicalize()
                 .unwrap()
                 .to_str()

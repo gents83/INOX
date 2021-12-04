@@ -1,5 +1,4 @@
 use std::{
-    path::PathBuf,
     process::Command,
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -10,7 +9,7 @@ use std::{
 use sabi_messenger::{get_events_from_string, Message, MessageBox, MessengerRw};
 use sabi_platform::WindowEvent;
 use sabi_profiler::debug_log;
-use sabi_resources::{Resource, SharedDataRc, DATA_FOLDER, DATA_RAW_FOLDER};
+use sabi_resources::{Data, Resource, SharedDataRc};
 use sabi_serialize::deserialize;
 use sabi_ui::{implement_widget_data, menu, DialogEvent, DialogOp, TopBottomPanel, UIWidget};
 
@@ -72,7 +71,7 @@ impl MainMenu {
                                         .send(
                                             DialogEvent::Request(
                                                 DialogOp::New,
-                                                PathBuf::from(DATA_RAW_FOLDER),
+                                                Data::data_raw_folder(),
                                             )
                                             .as_boxed(),
                                         )
@@ -102,7 +101,7 @@ impl MainMenu {
                                         .send(
                                             DialogEvent::Request(
                                                 DialogOp::Open,
-                                                PathBuf::from(DATA_FOLDER),
+                                                Data::data_folder(),
                                             )
                                             .as_boxed(),
                                         )
@@ -131,7 +130,7 @@ impl MainMenu {
                                         .send(
                                             DialogEvent::Request(
                                                 DialogOp::Save,
-                                                PathBuf::from(DATA_RAW_FOLDER),
+                                                Data::data_raw_folder(),
                                             )
                                             .as_boxed(),
                                         )

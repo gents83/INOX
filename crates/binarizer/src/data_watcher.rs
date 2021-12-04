@@ -36,9 +36,11 @@ unsafe impl Send for DataWatcher {}
 unsafe impl Sync for DataWatcher {}
 
 impl Binarizer {
-    pub fn new(global_messenger: &MessengerRw, data_raw_folder: &str, data_folder: &str) -> Self {
-        let mut data_raw_folder = PathBuf::from(data_raw_folder);
-        let mut data_folder = PathBuf::from(data_folder);
+    pub fn new(
+        global_messenger: &MessengerRw,
+        mut data_raw_folder: PathBuf,
+        mut data_folder: PathBuf,
+    ) -> Self {
         if !data_raw_folder.exists() {
             let result = create_dir_all(data_raw_folder.as_path());
             debug_assert!(result.is_ok());

@@ -5,8 +5,7 @@ use sabi_filesystem::convert_from_local_path;
 use sabi_messenger::MessengerRw;
 use sabi_profiler::debug_log;
 use sabi_resources::{
-    DataTypeResource, Handle, ResourceId, SerializableResource, SharedData, SharedDataRc,
-    DATA_FOLDER,
+    Data, DataTypeResource, Handle, ResourceId, SerializableResource, SharedData, SharedDataRc,
 };
 
 use crate::{
@@ -112,7 +111,7 @@ impl SerializableResource for Texture {
 
 impl Texture {
     pub fn find_from_path(shared_data: &SharedDataRc, texture_path: &Path) -> Handle<Self> {
-        let path = convert_from_local_path(PathBuf::from(DATA_FOLDER).as_path(), texture_path);
+        let path = convert_from_local_path(Data::data_folder().as_path(), texture_path);
         SharedData::match_resource(shared_data, |t: &Texture| t.path == path)
     }
     pub fn path(&self) -> &Path {

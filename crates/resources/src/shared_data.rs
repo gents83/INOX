@@ -8,7 +8,7 @@ use sabi_messenger::{Message, MessengerRw};
 use sabi_serialize::{generate_uid_from_string, Uid};
 
 use crate::{
-    Data, Handle, Resource, ResourceEventHandler, ResourceId, ResourceStorageRw, ResourceTrait,
+    Handle, Resource, ResourceEventHandler, ResourceId, ResourceStorageRw, ResourceTrait,
     SerializableResource, Singleton, Storage, StorageCastTo, TypedResourceEventHandler,
 };
 
@@ -20,8 +20,6 @@ pub struct SharedData {
 }
 unsafe impl Send for SharedData {}
 unsafe impl Sync for SharedData {}
-
-impl Data for SharedData {}
 
 impl SharedData {
     #[inline]

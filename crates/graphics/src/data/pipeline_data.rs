@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use sabi_filesystem::convert_from_local_path;
 use sabi_math::Matrix4;
-use sabi_resources::DATA_FOLDER;
+use sabi_resources::Data;
 use sabi_serialize::{Deserialize, Serialize, SerializeFile};
 
 use crate::{LightData, ShaderMaterialData, ShaderTextureData, TextureAtlas};
@@ -106,7 +106,7 @@ impl Default for PipelineData {
 
 impl PipelineData {
     pub fn canonicalize_paths(mut self) -> Self {
-        let data_path = PathBuf::from(DATA_FOLDER);
+        let data_path = Data::data_folder();
         if !self.vertex_shader.to_str().unwrap().is_empty() {
             self.vertex_shader =
                 convert_from_local_path(data_path.as_path(), self.vertex_shader.as_path());

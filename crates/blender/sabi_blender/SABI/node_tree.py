@@ -27,16 +27,22 @@ class LogicNodeTree(NodeTree):
 
     def serialize(self):
         node_tree = {}
-        nodes = {}
+        nodes = []
         links = []
 
         for l in self.links:
-            links.append((l.from_socket.node.name, l.from_socket.name,
-                          l.to_socket.node.name, l.to_socket.name))
+            link = {}
+            link["from_node"] = l.from_socket.node.name
+            link["to_node"] = l.to_socket.node.name
+            link["from_pin"] = l.from_socket.name
+            link["to_pin"] = l.from_socket.name
+            links.append(link)
             if hasattr(l.from_socket, 'default_value') and hasattr(l.to_socket, 'default_value'):
                 l.to_socket.default_value = l.from_socket.default_value
         for n in self.nodes:
-            nodes[n.name] = n.serialize()
+            serialized_node = n.serialize()
+            serialized_node["node_type"] = n.bl_idname
+            nodes.append(serialized_node)
 
         node_tree['nodes'] = nodes
         node_tree['links'] = links

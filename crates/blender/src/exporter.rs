@@ -7,16 +7,25 @@ use pyo3::{
     types::{PyDict, PyList},
     PyObject, PyResult, Python, ToPyObject,
 };
+use sabi_binarizer::GltfCompiler;
+use sabi_nodes::NodeTree;
 use sabi_scene::{ObjectData, SceneData};
-use sabi_serialize::SerializeFile;
+use sabi_serialize::{deserialize, SerializeFile};
 
 #[derive(Default)]
 pub struct Exporter {
+    gltf_compiler: GltfCompiler,
     working_dir: PathBuf,
     export_dir: PathBuf,
 }
 
 impl Exporter {
+    pub fn new(gltf_compiler: GltfCompiler) -> Self {
+        Self {
+            gltf_compiler,
+            ..Default::default()
+        }
+    }
     pub fn process(
         &mut self,
         py: Python,
@@ -55,6 +64,9 @@ impl Exporter {
                 kwargs.set_item("export_yup", true)?;
                 kwargs.set_item("export_lights", true)?;
                 export_scene.call_method("gltf", (), Some(kwargs))?;
+
+                self.gltf_compiler
+                    .process_path(PathBuf::from(scene_path.clone()).as_path());
 
                 self.export_custom_data(py, self.export_dir.as_path())?;
 
@@ -109,7 +121,7 @@ impl Exporter {
         let is_dirty = false;
         if let Ok(properties) = object.getattr(py, "sabi_properties") {
             let logic = properties.getattr(py, "logic")?;
-            self.export_logic(py, &logic, object_data)?;
+            self.export_logic(py, &logic, path.parent().unwrap())?;
         }
         if is_dirty {
             object_data.save_to_file(path);
@@ -117,33 +129,15 @@ impl Exporter {
         Ok(true)
     }
 
-    fn export_logic(
-        &self,
-        py: Python,
-        logic: &PyObject,
-        _object_data: &mut ObjectData,
-    ) -> PyResult<bool> {
+    fn export_logic(&self, py: Python, logic: &PyObject, path: &Path) -> PyResult<bool> {
         if !logic.is_none(py) {
             let data: String = logic.call_method(py, "serialize", (), None)?.extract(py)?;
-            println!("NodeTree:\n{}", data);
-            /*
-            let name: String = logic.getattr(py, "name")?.extract(py)?;
-            println!("NodeTree: {}", name);
-            let nodes = logic
-                .getattr(py, "nodes")?
-                .call_method(py, "values", (), None)?;
-            let nodes = nodes.cast_as::<PyList>(py)?;
-            let mut serialized_nodes = HashMap::new();
-            for node in nodes.iter() {
-                let node_name: String = node.getattr("name")?.extract()?;
-                let node_type: String = node.getattr("bl_idname")?.extract()?;
 
-                println!("Node: {}", node_name);
-                println!("Type: {}", node_type);
-                let data: String = node.call_method("serialize", (), None)?.extract()?;
-                serialized_nodes.insert(node_name, data);
+            if let Ok(node_tree) = deserialize::<NodeTree>(&data) {
+                let path = path.join(format!("{}.{}", logic, NodeTree::extension()).as_str());
+                node_tree.save_to_file(path.as_path());
+                println!("NodeTree deserialized in {:?}", path);
             }
-            */
         }
         Ok(true)
     }

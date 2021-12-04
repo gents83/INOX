@@ -267,9 +267,11 @@ impl Pipeline {
     }
 
     fn bind_instance_buffer(&mut self, command_buffer: &CommandBuffer) -> &mut Self {
-        sabi_profiler::scoped_profile!(
-            format!("pipeline::bind_instance_buffer[{:?}]", self.name()).as_str()
-        );
+        sabi_profiler::scoped_profile!(format!(
+            "pipeline::bind_instance_buffer[{:?}]",
+            self.name()
+        )
+        .as_str());
         if let Some(backend_pipeline) = &mut self.backend_pipeline {
             backend_pipeline.bind_instance_buffer(command_buffer);
         }
@@ -283,13 +285,17 @@ impl Pipeline {
         self
     }
     fn bind_indices(&mut self, command_buffer: &CommandBuffer) -> &mut Self {
-        sabi_profiler::scoped_profile!(format!("pipeline::bind_indices[{:?}]", self.name()).as_str());
+        sabi_profiler::scoped_profile!(
+            format!("pipeline::bind_indices[{:?}]", self.name()).as_str()
+        );
         self.mesh.bind_indices(command_buffer);
         self
     }
 
     fn draw_single(&mut self, command_buffer: &CommandBuffer) -> &mut Self {
-        sabi_profiler::scoped_profile!(format!("pipeline::draw_indexed[{:?}]", self.name()).as_str());
+        sabi_profiler::scoped_profile!(
+            format!("pipeline::draw_indexed[{:?}]", self.name()).as_str()
+        );
         if let Some(backend_pipeline) = &mut self.backend_pipeline {
             backend_pipeline.draw_single(
                 command_buffer,

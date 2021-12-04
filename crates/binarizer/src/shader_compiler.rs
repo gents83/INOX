@@ -7,7 +7,7 @@ use std::{
 
 use crate::{need_to_binarize, send_reloaded_event, ExtensionHandler};
 use sabi_messenger::MessengerRw;
-use sabi_resources::{DATA_FOLDER, DATA_RAW_FOLDER};
+use sabi_resources::Data;
 
 const SHADERS_FOLDER_NAME: &str = "shaders";
 
@@ -29,11 +29,11 @@ impl ShaderCompiler {
         if let Ok(vulkan_path) = env::var("VULKAN_SDK") {
             vulkan_sdk_path = PathBuf::from(vulkan_path.as_str());
         }
-        let shader_raw_folder: PathBuf = PathBuf::from(DATA_RAW_FOLDER)
+        let shader_raw_folder: PathBuf = Data::data_raw_folder()
             .canonicalize()
             .unwrap()
             .join(SHADERS_FOLDER_NAME);
-        let shader_data_folder: PathBuf = PathBuf::from(DATA_FOLDER)
+        let shader_data_folder: PathBuf = Data::data_folder()
             .canonicalize()
             .unwrap()
             .join(SHADERS_FOLDER_NAME);
@@ -56,12 +56,12 @@ impl ShaderCompiler {
         let destination_ext = format!("_{}.{}_assembly", extension, SHADER_EXTENSION);
         let mut from_source_to_temp = path.to_str().unwrap().to_string();
         from_source_to_temp = from_source_to_temp.replace(
-            PathBuf::from(DATA_RAW_FOLDER)
+            Data::data_raw_folder()
                 .canonicalize()
                 .unwrap()
                 .to_str()
                 .unwrap(),
-            PathBuf::from(DATA_FOLDER)
+            Data::data_folder()
                 .canonicalize()
                 .unwrap()
                 .to_str()
@@ -86,12 +86,12 @@ impl ShaderCompiler {
         let destination_ext = format!("_{}.{}", extension, SHADER_EXTENSION);
         let mut from_source_to_compiled = path.to_str().unwrap().to_string();
         from_source_to_compiled = from_source_to_compiled.replace(
-            PathBuf::from(DATA_RAW_FOLDER)
+            Data::data_raw_folder()
                 .canonicalize()
                 .unwrap()
                 .to_str()
                 .unwrap(),
-            PathBuf::from(DATA_FOLDER)
+            Data::data_folder()
                 .canonicalize()
                 .unwrap()
                 .to_str()

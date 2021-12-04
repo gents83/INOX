@@ -44,6 +44,7 @@ macro_rules! implement_pin {
 #[macro_export]
 macro_rules! implement_node {
     ($Type:ident, $NodeField:ident, $Category:expr, $Description:expr) => {
+        #[typetag::serde]
         impl $crate::NodeTrait for $Type {
             fn get_type() -> &'static str
             where

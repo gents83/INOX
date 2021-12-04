@@ -1,12 +1,20 @@
-use sabi_serialize::{generate_uid_from_string, Serialize};
+use sabi_serialize::{generate_uid_from_string, Deserialize, Serialize, SerializeFile};
 
 use crate::{LogicNodeRegistry, NodeLink, NodeTrait};
 
-#[derive(Default)]
+#[derive(Default, Serialize, Deserialize)]
+#[serde(crate = "sabi_serialize")]
 pub struct NodeTree {
     nodes: Vec<Box<dyn NodeTrait>>,
     links: Vec<NodeLink>,
 }
+
+impl SerializeFile for NodeTree {
+    fn extension() -> &'static str {
+        "node_tree"
+    }
+}
+
 impl NodeTree {
     pub fn add_node(&mut self, node: Box<dyn NodeTrait>) {
         if self.find_node(node.name()).is_none() {

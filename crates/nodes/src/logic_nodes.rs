@@ -48,7 +48,7 @@ implement_node!(ScriptInitNode, node, "Init", "Script init node");
 impl Default for ScriptInitNode {
     fn default() -> Self {
         let mut node = Node::new(stringify!(ScriptInitNode));
-        node.add_output("out_execute", LogicExecution::default());
+        node.add_output("execute", LogicExecution::default());
         Self { node }
     }
 }
@@ -59,8 +59,8 @@ fn test_node() {
     use sabi_serialize::serialize;
 
     let mut registry = LogicNodeRegistry::default();
-    registry.register_node::<RustExampleNode>();
     registry.register_node::<ScriptInitNode>();
+    registry.register_node::<RustExampleNode>();
 
     registry.register_pin_type::<f32>();
     registry.register_pin_type::<f64>();
@@ -115,6 +115,10 @@ fn test_node() {
         println!("RustExampleNode - B");
         println!("{}", serialized_data);
     }
+
+    let serialized_tree = serialize(&tree);
+    println!("NodeTree:");
+    println!("{}", serialized_tree);
 }
 
 #[test]

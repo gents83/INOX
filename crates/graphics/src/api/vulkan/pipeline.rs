@@ -15,9 +15,9 @@ use sabi_filesystem::convert_from_local_path;
 
 use sabi_math::{matrix4_to_array, Matrix4};
 use sabi_profiler::debug_log;
-use sabi_resources::DATA_FOLDER;
+use sabi_resources::Data;
 use std::mem::MaybeUninit;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use vulkan_bindings::*;
 
 #[derive(Clone)]
@@ -72,7 +72,7 @@ impl BackendPipeline {
         shader_type: ShaderType,
         shader_filepath: &Path,
     ) -> &mut Self {
-        let path = convert_from_local_path(PathBuf::from(DATA_FOLDER).as_path(), shader_filepath);
+        let path = convert_from_local_path(Data::data_folder().as_path(), shader_filepath);
         if path.exists() && path.is_file() {
             self.remove_shader(device, shader_type);
 

@@ -1,4 +1,4 @@
-use sabi_resources::{ConfigBase, Data};
+use sabi_resources::ConfigBase;
 use sabi_serialize::{Deserialize, Serialize, SerializeFile};
 
 #[derive(Default, Serialize, Deserialize, Debug, Clone)]
@@ -8,7 +8,6 @@ pub struct Config {
     pub port: u32,
 }
 
-impl Data for Config {}
 impl SerializeFile for Config {
     fn extension() -> &'static str {
         "cfg"

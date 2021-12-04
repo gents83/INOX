@@ -1,9 +1,11 @@
 use crate::exporter::Exporter;
 use pyo3::{pyclass, pymethods, PyResult, Python};
+use sabi_binarizer::GltfCompiler;
 use sabi_core::App;
 use sabi_nodes::{LogicExecution, LogicNodeRegistry, NodeType, RustExampleNode, ScriptInitNode};
 
 use std::{
+    env,
     io::Write,
     net::{Shutdown, TcpStream},
     path::PathBuf,
@@ -63,8 +65,12 @@ impl SABIEngine {
             working_dir.pop();
             working_dir.pop();
         }
+        env::set_current_dir(&working_dir).ok();
 
         let mut app = App::default();
+
+        let gltf_compiler = GltfCompiler::new(app.get_global_messenger().clone());
+
         let data = app.get_shared_data();
         data.register_singleton(LogicNodeRegistry::default());
 
@@ -79,6 +85,7 @@ impl SABIEngine {
             app_dir,
             working_dir,
             app,
+            exporter: Exporter::new(gltf_compiler),
             ..Default::default()
         }
     }

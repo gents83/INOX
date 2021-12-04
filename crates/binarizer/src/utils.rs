@@ -3,8 +3,9 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use sabi_filesystem::convert_in_local_path;
 use sabi_messenger::{Message, MessengerRw};
-use sabi_resources::{UpdateResourceEvent, DATA_FOLDER, DATA_RAW_FOLDER};
+use sabi_resources::{Data, UpdateResourceEvent};
 
 pub fn need_to_binarize(original_path: &Path, new_path: &Path) -> bool {
     let mut need_copy = false;
@@ -25,12 +26,12 @@ pub fn need_to_binarize(original_path: &Path, new_path: &Path) -> bool {
 pub fn copy_into_data_folder(global_messenger: &MessengerRw, path: &Path) -> bool {
     let mut from_source_to_compiled = path.to_str().unwrap().to_string();
     from_source_to_compiled = from_source_to_compiled.replace(
-        PathBuf::from(DATA_RAW_FOLDER)
+        Data::data_raw_folder()
             .canonicalize()
             .unwrap()
             .to_str()
             .unwrap(),
-        PathBuf::from(DATA_FOLDER)
+        Data::data_folder()
             .canonicalize()
             .unwrap()
             .to_str()
@@ -63,4 +64,10 @@ pub fn send_reloaded_event(messenger: &MessengerRw, new_path: &Path) {
             .as_boxed(),
         )
         .ok();
+}
+
+pub fn to_local_path(original_path: &Path) -> PathBuf {
+    let base_path = convert_in_local_path(original_path, Data::data_raw_folder().as_path());
+    let path = convert_in_local_path(base_path.as_path(), Data::data_folder().as_path());
+    path
 }
