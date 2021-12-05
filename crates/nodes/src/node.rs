@@ -6,6 +6,18 @@ use std::{
 use crate::{Pin, PinId};
 use sabi_serialize::{generate_uid_from_string, typetag, Deserialize, Serialize, Uid};
 
+#[derive(Clone, PartialEq, Eq, Hash)]
+pub enum NodeState {
+    Active,
+    Running,
+    Executed(Vec<PinId>),
+}
+impl Default for NodeState {
+    fn default() -> Self {
+        NodeState::Active
+    }
+}
+
 pub type NodeId = Uid;
 
 #[typetag::serde(tag = "node_type")]
@@ -32,6 +44,7 @@ pub trait NodeTrait: Any + Send + Sync + 'static {
     fn set_name(&mut self, name: &str) {
         self.node_mut().set_name(name)
     }
+    fn execute(&mut self) -> NodeState;
     fn duplicate(&self) -> Box<dyn NodeTrait>;
     fn serialize_node(&self) -> String;
     fn deserialize_node(&self, s: &str) -> Option<Self>
@@ -58,6 +71,18 @@ impl Node {
             inputs: HashMap::new(),
             outputs: HashMap::new(),
         }
+    }
+    pub fn inputs(&self) -> &HashMap<PinId, Box<dyn Pin>> {
+        &self.inputs
+    }
+    pub fn outputs(&self) -> &HashMap<PinId, Box<dyn Pin>> {
+        &self.outputs
+    }
+    pub fn inputs_mut(&mut self) -> &mut HashMap<PinId, Box<dyn Pin>> {
+        &mut self.inputs
+    }
+    pub fn outputs_mut(&mut self) -> &mut HashMap<PinId, Box<dyn Pin>> {
+        &mut self.outputs
     }
     pub fn id(&self) -> NodeId {
         generate_uid_from_string(&self.name)
@@ -112,25 +137,37 @@ impl Node {
         let uid = PinId::new(name);
         self.outputs.insert(uid, Box::new(value));
     }
+    pub fn input<V>(&self, pin_id: &PinId) -> Option<&V>
+    where
+        V: Pin,
+    {
+        if let Some(i) = self.inputs.get(pin_id) {
+            return i.as_any().downcast_ref::<V>();
+        }
+        None
+    }
+    pub fn output<V>(&self, pin_id: &PinId) -> Option<&V>
+    where
+        V: Pin,
+    {
+        if let Some(o) = self.outputs.get(pin_id) {
+            return o.as_any().downcast_ref::<V>();
+        }
+        None
+    }
     pub fn get_input<V>(&self, name: &str) -> Option<&V>
     where
         V: Pin,
     {
         let uid = PinId::new(name);
-        if let Some(i) = self.inputs.get(&uid) {
-            return i.as_any().downcast_ref::<V>();
-        }
-        None
+        self.input::<V>(&uid)
     }
     pub fn get_output<V>(&self, name: &str) -> Option<&V>
     where
         V: Pin,
     {
         let uid = PinId::new(name);
-        if let Some(o) = self.outputs.get(&uid) {
-            return o.as_any().downcast_ref::<V>();
-        }
-        None
+        self.output::<V>(&uid)
     }
     pub fn get_input_mut<V>(&mut self, name: &str) -> Option<&mut V>
     where
@@ -174,5 +211,56 @@ impl Node {
             }
         }
         same_inputs && same_outputs
+    }
+    pub fn has_input<V>(&self) -> bool
+    where
+        V: Pin,
+    {
+        self.inputs
+            .iter()
+            .any(|(_, i)| i.as_any().downcast_ref::<V>().is_some())
+    }
+    pub fn has_output<V>(&self) -> bool
+    where
+        V: Pin,
+    {
+        self.outputs
+            .iter()
+            .any(|(_, i)| i.as_any().downcast_ref::<V>().is_some())
+    }
+    pub fn is_input<V>(&self, pin_id: &PinId) -> bool
+    where
+        V: Pin,
+    {
+        self.inputs
+            .get(pin_id)
+            .map_or(false, |i| i.as_any().downcast_ref::<V>().is_some())
+    }
+    pub fn is_output<V>(&self, pin_id: &PinId) -> bool
+    where
+        V: Pin,
+    {
+        self.outputs
+            .get(pin_id)
+            .map_or(false, |o| o.as_any().downcast_ref::<V>().is_some())
+    }
+    pub fn pass_value<V>(&mut self, input_name: &str, output_name: &str)
+    where
+        V: Pin + Clone,
+    {
+        let input_uid = PinId::new(input_name);
+        let output_uid = PinId::new(output_name);
+        let input = self.inputs.get(&input_uid);
+        let output = self.outputs.get_mut(&output_uid);
+        if let (Some(output), Some(input)) = (output, input) {
+            let i = input.as_any().downcast_ref::<V>().unwrap();
+            let o = output.as_any_mut().downcast_mut::<V>().unwrap();
+            *o = i.clone();
+        }
+    }
+    pub fn resolve(&mut self, input: &PinId, from_node: &Node, from_pin: &PinId) {
+        if let Some(i) = self.inputs.get_mut(input) {
+            i.copy_from(from_node, from_pin);
+        }
     }
 }

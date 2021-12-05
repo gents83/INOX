@@ -40,6 +40,11 @@ macro_rules! implement_pin {
                     }
                 }
             }
+            fn copy_from(&mut self, node: &Node, output_pin: &$crate::PinId) {
+                if let Some(o) = node.output::<$Type>(output_pin) {
+                    *self = o.clone();
+                }
+            }
         }
     };
 }
@@ -78,6 +83,10 @@ macro_rules! implement_node {
             }
             fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
                 self
+            }
+            //need an on_update() function in the node
+            fn execute(&mut self) -> NodeState {
+                self.on_update()
             }
             fn duplicate(&self) -> Box<dyn NodeTrait>
             where

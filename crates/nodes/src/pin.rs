@@ -10,10 +10,11 @@ pub trait PinType: Send + Sync + 'static {
         self.type_id() == type_id
     }
     fn resolve_pin(&self, from_node: &Node, from_pin: &str, to_node: &mut Node, to_pin: &str);
+    fn copy_from(&mut self, node: &Node, output_pin: &PinId);
 }
 
 #[typetag::serde(tag = "pin_type")]
-pub trait Pin: Any + Send + Sync + 'static {
+pub trait Pin: Any + PinType + Send + Sync + 'static {
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
     fn get_type_id(&self) -> TypeId;
@@ -26,11 +27,14 @@ impl Clone for Box<dyn Pin> {
     }
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Hash, Clone)]
+#[derive(Default, Serialize, Deserialize, PartialEq, Eq, Hash, Clone)]
 #[serde(crate = "sabi_serialize")]
 pub struct PinId(String);
 impl PinId {
     pub fn new(name: &str) -> Self {
         PinId(String::from(name))
+    }
+    pub fn name(&self) -> &str {
+        &self.0
     }
 }

@@ -117,4 +117,17 @@ impl NodeTree {
             }
         });
     }
+    pub fn nodes(&self) -> &Vec<Box<dyn NodeTrait>> {
+        &self.nodes
+    }
+    pub fn nodes_mut(&mut self) -> &mut Vec<Box<dyn NodeTrait>> {
+        &mut self.nodes
+    }
+    pub fn links(&self) -> &Vec<NodeLink> {
+        &self.links
+    }
+    pub fn find_node_index(&self, name: &str) -> Option<usize> {
+        let uid = generate_uid_from_string(name);
+        self.nodes.iter().position(|n| n.id() == uid)
+    }
 }
