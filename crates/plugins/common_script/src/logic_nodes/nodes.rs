@@ -5,7 +5,7 @@ use sabi_nodes::{
 };
 use sabi_resources::Resource;
 use sabi_scene::{Object, Script};
-use sabi_serialize::{deserialize, serialize, typetag, Deserialize, Serialize, SerializeFile};
+use sabi_serialize::{deserialize, typetag, Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(crate = "sabi_serialize")]
