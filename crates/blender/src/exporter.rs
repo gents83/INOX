@@ -1,5 +1,6 @@
 use std::{
-    fs::create_dir_all,
+    fs::{create_dir_all, File},
+    io::{BufWriter, Write},
     path::{Path, PathBuf},
 };
 
@@ -8,9 +9,9 @@ use pyo3::{
     PyObject, PyResult, Python, ToPyObject,
 };
 
-use sabi_nodes::{LogicData, NodeTree};
+use sabi_nodes::LogicData;
 
-use sabi_serialize::{deserialize, SerializeFile};
+use sabi_serialize::SerializeFile;
 
 #[derive(Default)]
 pub struct Exporter {
@@ -99,13 +100,18 @@ impl Exporter {
     fn export_logic(&self, py: Python, logic: &PyObject, path: &Path) -> PyResult<bool> {
         let export_dir = path.join(LogicData::extension());
         if !logic.is_none(py) && create_dir_all(export_dir.as_path()).is_ok() {
-            let data: String = logic.call_method(py, "serialize", (), None)?.extract(py)?;
+            let mut data: String = logic.call_method(py, "serialize", (), None)?.extract(py)?;
+            data = data.replace(": ", ":");
+            data = data.replace(", ", ",");
             let name: String = logic.getattr(py, "name")?.extract(py)?;
+            let path = export_dir.join(format!("{}.{}", name, LogicData::extension()).as_str());
 
-            if let Ok(node_tree) = deserialize::<NodeTree>(&data) {
-                let path = export_dir.join(format!("{}.{}", name, LogicData::extension()).as_str());
-                println!("NodeTree deserialized in {:?}", path);
-                node_tree.save_to_file(path.as_path());
+            let file = File::create(path.as_path()).unwrap();
+            let mut writer = BufWriter::new(file);
+            if writer.write_all(data.as_bytes()).is_ok() {
+                println!("NodeTree {} exported in {:?}", name, path);
+            } else {
+                eprintln!("Failed to deserialize logic {}", name);
             }
         }
         Ok(true)

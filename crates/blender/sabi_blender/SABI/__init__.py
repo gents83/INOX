@@ -40,10 +40,11 @@ blender_classes = []
 def load_dlls():
     preferences = bpy.context.preferences.addons['SABI'].preferences
 
-    if len(preferences.libs_to_load) == 0:
-        for file in os.listdir(preferences.exe_path):
-            if file.endswith(".dll") or file.endswith(".so"):
-                preferences.libs_to_load.append(file)
+    if os.path.isdir(preferences.exe_path):
+        if len(preferences.libs_to_load) == 0:
+            for file in os.listdir(preferences.exe_path):
+                if file.endswith(".dll") or file.endswith(".so"):
+                    preferences.libs_to_load.append(file)
 
 
 class SABIAddonPreferences(bpy.types.AddonPreferences):

@@ -80,4 +80,10 @@ impl Script {
             .set(Script::LOGIC_OBJECT, parent.clone());
         self
     }
+
+    pub fn update(&mut self) {
+        if self.logic.is_initialized() {
+            self.logic.execute();
+        }
+    }
 }

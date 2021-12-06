@@ -1,11 +1,11 @@
 use sabi_math::{VecBase, Vector3};
 use sabi_nodes::{
     implement_node, LogicContext, LogicData, LogicExecution, LogicNodeRegistry, Node,
-    NodeExecutionType, NodeState, NodeTrait, NodeTree, PinId, ScriptInitNode,
+    NodeExecutionType, NodeState, NodeTree, PinId, ScriptInitNode,
 };
 use sabi_resources::Resource;
 use sabi_scene::{Object, Script};
-use sabi_serialize::{typetag, Deserialize, Serialize};
+use sabi_serialize::{deserialize, serialize, typetag, Deserialize, Serialize, SerializeFile};
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(crate = "sabi_serialize")]
@@ -64,6 +64,8 @@ impl RotateNode {
         rotation.z = rotation.z.to_radians();
         if let Some(object) = context.get_with_name::<Resource<Object>>(Script::LOGIC_OBJECT) {
             object.get_mut().rotate(rotation);
+        } else {
+            eprintln!("Unable to find {} in LogicContext", Script::LOGIC_OBJECT);
         }
     }
 }
@@ -86,29 +88,10 @@ fn test_nodes() {
     registry.register_pin_type::<String>();
     registry.register_pin_type::<LogicExecution>();
 
-    let mut tree = NodeTree::default();
-    tree.add_link("ScriptInitNode", "RotateNode", "Execute", "Start");
-    assert_eq!(tree.get_links_count(), 1);
-
-    tree.add_default_node::<ScriptInitNode>("ScriptInitNode");
-    assert_eq!(tree.get_nodes_count(), 1);
-
-    let mut rotate_node = RotateNode::default();
-    if let Some(v) = rotate_node
-        .node_mut()
-        .get_input_mut::<f32>("Y (in degrees)")
-    {
-        *v = 10.;
-    }
-    assert_eq!(
-        *rotate_node
-            .node()
-            .get_input::<f32>("Y (in degrees)")
-            .unwrap(),
-        10.
-    );
-    tree.add_node(Box::new(rotate_node));
+    let data = r#"{"nodes": [{"node_type": "ScriptInitNode", "node": {"name": "ScriptInitNode", "inputs": {}, "outputs": {"Execute": {"pin_type": "LogicExecution", "Type": null}}}}, {"node_type": "RotateNode", "node": {"name": "RotateNode", "inputs": {"OnImpulse": {"pin_type": "LogicExecution", "Type": null}, "Stop": {"pin_type": "LogicExecution", "Type": null}, "Start": {"pin_type": "LogicExecution", "Type": null}, "X (in degrees)": {"pin_type": "f32", "value": 0.0}, "Y (in degrees)": {"pin_type": "f32", "value": 1.0}, "Z (in degrees)": {"pin_type": "f32", "value": 0.0}}, "outputs": {}}}], "links": [{"from_node": "ScriptInitNode", "to_node": "RotateNode", "from_pin": "Execute", "to_pin": "Start"}]}"#;
+    let tree = deserialize::<NodeTree>(data).unwrap();
     assert_eq!(tree.get_nodes_count(), 2);
+    assert_eq!(tree.get_links_count(), 1);
 
     let mut logic_data = LogicData::from(tree);
     logic_data.init();

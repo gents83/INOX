@@ -35,7 +35,7 @@ class LogicNodeTree(NodeTree):
             link["from_node"] = l.from_socket.node.name
             link["to_node"] = l.to_socket.node.name
             link["from_pin"] = l.from_socket.name
-            link["to_pin"] = l.from_socket.name
+            link["to_pin"] = l.to_socket.name
             links.append(link)
             if hasattr(l.from_socket, 'default_value') and hasattr(l.to_socket, 'default_value'):
                 l.to_socket.default_value = l.from_socket.default_value

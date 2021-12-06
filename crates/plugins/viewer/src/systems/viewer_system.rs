@@ -5,7 +5,7 @@ use sabi_math::{Matrix4, VecBase, Vector2, Vector3};
 use sabi_messenger::{read_messages, GlobalMessenger, MessageChannel, MessengerRw};
 use sabi_platform::{InputState, Key, KeyEvent, MouseEvent, WindowEvent};
 use sabi_resources::{LoadResourceEvent, Resource, SerializableResource, SharedData, SharedDataRc};
-use sabi_scene::{Camera, Object, ObjectId, Scene};
+use sabi_scene::{Camera, Object, ObjectId, Scene, Script};
 use sabi_serialize::generate_random_uid;
 use std::{any::TypeId, collections::HashMap, path::PathBuf};
 
@@ -94,6 +94,10 @@ impl System for ViewerSystem {
     fn run(&mut self) -> bool {
         sabi_profiler::scoped_profile!("viewer_system::run");
         self.update_events().update_view_from_camera();
+
+        self.shared_data.for_each_resource_mut(|_, s: &mut Script| {
+            s.update();
+        });
 
         let mut map: HashMap<ObjectId, Option<Matrix4>> = HashMap::new();
         self.shared_data

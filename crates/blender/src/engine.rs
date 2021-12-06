@@ -1,8 +1,10 @@
 use crate::exporter::Exporter;
 use pyo3::{pyclass, pymethods, PyResult, Python};
 
+use sabi_binarizer::Binarizer;
 use sabi_core::App;
 use sabi_nodes::{LogicExecution, LogicNodeRegistry, NodeType, RustExampleNode, ScriptInitNode};
+use sabi_resources::{DATA_FOLDER, DATA_RAW_FOLDER};
 
 use std::{
     env,
@@ -30,27 +32,13 @@ unsafe impl Sync for ThreadData {}
 pub struct SABIEngine {
     is_running: Arc<AtomicBool>,
     exporter: Exporter,
+    binarizer: Binarizer,
     app: App,
     app_dir: PathBuf,
     working_dir: PathBuf,
     thread_data: Arc<RwLock<ThreadData>>,
     process: Option<std::process::Child>,
     client_thread: Option<JoinHandle<()>>,
-}
-
-impl Default for SABIEngine {
-    fn default() -> Self {
-        Self {
-            is_running: Arc::new(AtomicBool::new(false)),
-            app_dir: PathBuf::new(),
-            working_dir: PathBuf::new(),
-            thread_data: Arc::new(RwLock::new(ThreadData::default())),
-            process: None,
-            client_thread: None,
-            exporter: Exporter::default(),
-            app: App::default(),
-        }
-    }
 }
 
 #[pymethods]
@@ -69,6 +57,13 @@ impl SABIEngine {
 
         let mut app = App::default();
 
+        let mut binarizer = Binarizer::new(
+            app.get_global_messenger(),
+            working_dir.join(DATA_RAW_FOLDER),
+            working_dir.join(DATA_FOLDER),
+        );
+        binarizer.stop();
+
         let data = app.get_shared_data();
         data.register_singleton(LogicNodeRegistry::default());
 
@@ -82,8 +77,13 @@ impl SABIEngine {
         Self {
             app_dir,
             working_dir,
+            is_running: Arc::new(AtomicBool::new(false)),
+            thread_data: Arc::new(RwLock::new(ThreadData::default())),
+            process: None,
+            client_thread: None,
+            exporter: Exporter::default(),
+            binarizer,
             app,
-            ..Default::default()
         }
     }
 
@@ -135,6 +135,13 @@ impl SABIEngine {
             current_dir.as_path(),
             PathBuf::from(file_to_export).as_path(),
         )?;
+
+        self.binarizer.start();
+        while !self.binarizer.is_running() {
+            thread::yield_now();
+        }
+        self.binarizer.stop();
+
         if load_immediately {
             for scene_file in scenes {
                 self.thread_data

@@ -55,14 +55,22 @@ where
     if filepath.exists() && filepath.is_file() {
         let file = File::open(filepath).unwrap();
         let reader = BufReader::new(file);
-        if let Ok(result) = serde_json::from_reader(reader) {
-            return result;
-        } else {
-            eprintln!(
-                "Unable to deserialize file {}",
-                filepath.to_str().unwrap_or("InvalidPath"),
-            );
+
+        match serde_json::from_reader(reader) {
+            Ok(data) => return data,
+            Err(e) => {
+                eprintln!(
+                    "Error {} - Unable to deserialize file {}",
+                    e,
+                    filepath.to_str().unwrap_or("InvalidPath"),
+                );
+            }
         }
+    } else {
+        eprintln!(
+            "Unable to find file {}",
+            filepath.to_str().unwrap_or("InvalidPath"),
+        );
     }
     T::default()
 }

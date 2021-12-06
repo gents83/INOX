@@ -31,6 +31,7 @@ pub struct App {
 
 impl Default for App {
     fn default() -> Self {
+        sabi_profiler::create_profiler!();
         let (sender, receiver) = channel();
 
         Self {
@@ -64,7 +65,6 @@ impl Drop for App {
 
 impl App {
     pub fn start(&mut self) -> &mut Self {
-        sabi_profiler::create_profiler!();
         self.setup_worker_threads();
         self
     }

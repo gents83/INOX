@@ -22,7 +22,7 @@ use sabi_graphics::{
 };
 use sabi_math::{Mat4Ops, Matrix4, NewAngle, Parser, Radians, Vector2, Vector3, Vector4};
 use sabi_messenger::MessengerRw;
-use sabi_nodes::{LogicData, NodeTree};
+use sabi_nodes::LogicData;
 use sabi_profiler::debug_log;
 use sabi_resources::Data;
 use sabi_scene::{CameraData, ObjectData, SceneData};
@@ -466,7 +466,7 @@ impl GltfCompiler {
                         format!(
                             "\\{}.{}",
                             extras.sabi_properties.logic.name,
-                            NodeTree::extension()
+                            LogicData::extension()
                         )
                         .as_str(),
                     );

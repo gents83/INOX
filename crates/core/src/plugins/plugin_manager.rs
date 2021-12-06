@@ -50,12 +50,10 @@ impl PluginManager {
     }
 
     pub fn add_plugin(&mut self, plugin_data: PluginData) {
-        sabi_profiler::scoped_profile!("plugin_manager::add_plugin");
         self.plugins.push(plugin_data);
     }
 
     pub fn remove_plugin(&mut self, plugin_id: &PluginId) -> Option<PluginData> {
-        sabi_profiler::scoped_profile!("plugin_manager::remove_plugin");
         if let Some(index) = self
             .plugins
             .iter()
@@ -91,7 +89,6 @@ impl PluginManager {
     }
 
     fn load_plugin(fullpath: PathBuf) -> (library::Library, Option<PluginHolder>) {
-        sabi_profiler::scoped_profile!("plugin_manager::load_plugin");
         let lib = library::Library::new(fullpath);
         if let Some(create_fn) = lib.get::<PfnCreatePlugin>(CREATE_PLUGIN_FUNCTION_NAME) {
             let plugin_holder = unsafe { create_fn.unwrap()() };

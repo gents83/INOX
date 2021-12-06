@@ -6,7 +6,7 @@ edition = "2021"
 build = "build.rs"
 
 [lib]
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 sabi_commands = { path = "../../commands" }

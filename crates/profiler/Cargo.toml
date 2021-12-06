@@ -6,7 +6,7 @@ edition = "2021"
 build = "build.rs"
 
 [lib]
-crate-type = ["lib"]
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 serde_json = { path = "../../extern/json"}
