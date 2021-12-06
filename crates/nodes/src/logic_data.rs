@@ -1,8 +1,8 @@
 use sabi_serialize::{Deserialize, Serialize, SerializeFile};
 
-use crate::{LogicExecution, NodeState, NodeTree, PinId};
+use crate::{LogicExecution, NodeExecutionType, NodeState, NodeTree, PinId};
 
-#[derive(Default, Clone)]
+#[derive(Default, PartialEq, Eq, Hash, Clone)]
 struct LinkInfo {
     node: usize,
     pin: PinId,
@@ -24,7 +24,7 @@ pub struct LogicData {
     #[serde(flatten)]
     tree: NodeTree,
     #[serde(skip)]
-    active_nodes: Vec<usize>,
+    active_nodes: Vec<LinkInfo>,
     #[serde(skip)]
     nodes_info: Vec<NodeInfo>,
     #[serde(skip)]
@@ -56,7 +56,10 @@ impl LogicData {
         let nodes = self.tree.nodes();
         nodes.iter().enumerate().for_each(|(node_index, n)| {
             if !n.node().has_input::<LogicExecution>() && n.node().has_output::<LogicExecution>() {
-                self.active_nodes.push(node_index);
+                self.active_nodes.push(LinkInfo {
+                    node: node_index,
+                    pin: PinId::invalid(),
+                });
             }
             let mut node_info = NodeInfo::default();
             //Get for each pin of each input links info of linked node and its pin
@@ -79,6 +82,12 @@ impl LogicData {
                                 pin: from_pin_id.clone(),
                             };
                             pin_info.links.push(link_info);
+                        } else {
+                            eprintln!(
+                                "Unable to find output pin {} of node {}",
+                                l.from_pin(),
+                                nodes[from_node_index].name()
+                            );
                         }
                     }
                 });
@@ -104,6 +113,12 @@ impl LogicData {
                                 pin: to_pin_id.clone(),
                             };
                             pin_info.links.push(link_info);
+                        } else {
+                            eprintln!(
+                                "Unable to find input pin {} of node {}",
+                                l.to_pin(),
+                                nodes[to_node_index].name()
+                            );
                         }
                     }
                 });
@@ -116,84 +131,99 @@ impl LogicData {
     }
 
     pub fn execute(&mut self) {
-        self.execution_state.fill(NodeState::Active);
         self.execute_active_nodes(self.active_nodes.clone());
     }
 
-    fn execute_active_nodes(&mut self, mut nodes_to_execute: Vec<usize>) {
+    fn execute_active_nodes(&mut self, mut nodes_to_execute: Vec<LinkInfo>) {
         if nodes_to_execute.is_empty() {
             return;
         }
         let mut new_nodes = Vec::new();
-        nodes_to_execute.iter().for_each(|i| {
+        nodes_to_execute.iter().for_each(|l| {
             let mut nodes = Self::execute_node(
                 &mut self.tree,
-                *i,
+                l,
                 &self.nodes_info,
                 &mut self.execution_state,
             );
             new_nodes.append(&mut nodes);
         });
-        nodes_to_execute.retain(|i| self.execution_state[*i] == NodeState::Active);
-        new_nodes.iter().for_each(|i| {
-            if self.execution_state[*i] == NodeState::Active && !nodes_to_execute.contains(i) {
-                nodes_to_execute.push(*i);
-            } else if self.execution_state[*i] == NodeState::Running
-                && !self.active_nodes.contains(i)
-            {
-                self.active_nodes.push(*i);
+        nodes_to_execute.retain(|link_info| {
+            let node_state = &self.execution_state[link_info.node];
+            match node_state {
+                NodeState::Active => true,
+                NodeState::Running(_) => {
+                    if !self.active_nodes.contains(link_info) {
+                        self.active_nodes.push(link_info.clone());
+                    }
+                    false
+                }
+                NodeState::Executed(_) => false,
             }
+        });
+        new_nodes.iter().for_each(|l| {
+            if self.execution_state[l.node] == NodeState::Active && !nodes_to_execute.contains(l) {
+                nodes_to_execute.push(l.clone());
+            }
+        });
+        self.active_nodes.retain(|l| {
+            self.tree.nodes()[l.node].execytion_type() != NodeExecutionType::OneShot
+                || self.tree.nodes()[l.node].execytion_type() == NodeExecutionType::Continuous
         });
         self.execute_active_nodes(nodes_to_execute);
     }
 
     fn execute_node(
         tree: &mut NodeTree,
-        node_index: usize,
+        link_info: &LinkInfo,
         nodes_info: &[NodeInfo],
         execution_state: &mut [NodeState],
-    ) -> Vec<usize> {
+    ) -> Vec<LinkInfo> {
         let mut new_nodes_to_execute = Vec::new();
 
-        let info = &nodes_info[node_index];
+        let info = &nodes_info[link_info.node];
         info.inputs.iter().for_each(|pin_info| {
-            let node = tree.nodes_mut()[node_index].node();
+            let node = tree.nodes_mut()[link_info.node].node();
             if node.is_input::<LogicExecution>(&pin_info.id) {
                 return;
             }
-            pin_info.links.iter().for_each(|link_info| {
-                if execution_state[link_info.node] == NodeState::Active {
-                    let mut nodes =
-                        Self::execute_node(tree, link_info.node, nodes_info, execution_state);
+            pin_info.links.iter().for_each(|l| {
+                if execution_state[l.node] == NodeState::Active {
+                    let mut nodes = Self::execute_node(tree, l, nodes_info, execution_state);
                     new_nodes_to_execute.append(&mut nodes);
                 }
 
                 let nodes = tree.nodes_mut();
-                let (from_node, to_node) = if link_info.node < node_index {
-                    let (start, end) = nodes.split_at_mut(node_index);
-                    (start[link_info.node].node(), end[0].node_mut())
-                } else {
+                let (from_node, to_node) = if l.node < link_info.node {
                     let (start, end) = nodes.split_at_mut(link_info.node);
-                    (end[0].node(), start[node_index].node_mut())
+                    (start[l.node].node(), end[0].node_mut())
+                } else {
+                    let (start, end) = nodes.split_at_mut(l.node);
+                    (end[0].node(), start[link_info.node].node_mut())
                 };
                 if let Some(input) = to_node.inputs_mut().get_mut(&pin_info.id) {
-                    input.copy_from(from_node, &link_info.pin);
+                    input.copy_from(from_node, &l.pin);
                 }
             });
         });
-        let node = &mut tree.nodes_mut()[node_index];
-        execution_state[node_index] = node.execute();
+        let node = &mut tree.nodes_mut()[link_info.node];
+        execution_state[link_info.node] = node.execute(&link_info.pin);
 
-        if let NodeState::Executed(output_pins) = &execution_state[node_index] {
-            output_pins.iter().for_each(|pin_id| {
-                info.outputs.iter().for_each(|o| {
-                    if pin_id == &o.id {
-                        o.links.iter().for_each(|link_info| {
-                            new_nodes_to_execute.push(link_info.node);
+        match &execution_state[link_info.node] {
+            NodeState::Executed(output_pins) | NodeState::Running(output_pins) => {
+                if let Some(pins) = output_pins {
+                    pins.iter().for_each(|pin_id| {
+                        info.outputs.iter().for_each(|o| {
+                            if pin_id == &o.id {
+                                o.links.iter().for_each(|link_info| {
+                                    new_nodes_to_execute.push(link_info.clone());
+                                });
+                            }
                         });
-                    }
-                });
-            });
+                    });
+                }
+            }
+            _ => {}
         }
 
         new_nodes_to_execute

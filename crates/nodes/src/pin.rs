@@ -37,4 +37,7 @@ impl PinId {
     pub fn name(&self) -> &str {
         &self.0
     }
+    pub fn invalid() -> Self {
+        PinId(String::new())
+    }
 }

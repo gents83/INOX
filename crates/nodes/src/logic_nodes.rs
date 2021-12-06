@@ -1,7 +1,8 @@
 use sabi_serialize::{deserialize, Deserialize, Serialize};
 
 use crate::{
-    implement_node, implement_pin, LogicData, Node, NodeState, NodeTrait, NodeTree, PinId,
+    implement_node, implement_pin, LogicData, Node, NodeExecutionType, NodeState, NodeTrait,
+    NodeTree, PinId,
 };
 use sabi_serialize::typetag;
 
@@ -22,7 +23,13 @@ implement_pin!(LogicExecution);
 pub struct RustExampleNode {
     node: Node,
 }
-implement_node!(RustExampleNode, node, "Example", "Rust example node");
+implement_node!(
+    RustExampleNode,
+    node,
+    "Example",
+    "Rust example node",
+    NodeExecutionType::OnDemand
+);
 impl Default for RustExampleNode {
     fn default() -> Self {
         let mut node = Node::new(stringify!(RustExampleNode));
@@ -41,28 +48,32 @@ impl Default for RustExampleNode {
     }
 }
 impl RustExampleNode {
-    pub fn on_update(&mut self) -> NodeState {
-        println!("Executing {}", self.name());
-        println!("in_int {}", self.node().get_input::<i32>("in_int").unwrap());
-        println!(
-            "in_float {}",
-            self.node().get_input::<f32>("in_float").unwrap()
-        );
-        println!(
-            "in_string {}",
-            self.node().get_input::<String>("in_string").unwrap()
-        );
-        println!(
-            "in_bool {}",
-            self.node().get_input::<bool>("in_bool").unwrap()
-        );
+    pub fn on_update(&mut self, pin: &PinId) -> NodeState {
+        if *pin == PinId::new("in_execute") {
+            println!("Executing {}", self.name());
+            println!("in_int {}", self.node().get_input::<i32>("in_int").unwrap());
+            println!(
+                "in_float {}",
+                self.node().get_input::<f32>("in_float").unwrap()
+            );
+            println!(
+                "in_string {}",
+                self.node().get_input::<String>("in_string").unwrap()
+            );
+            println!(
+                "in_bool {}",
+                self.node().get_input::<bool>("in_bool").unwrap()
+            );
 
-        self.node_mut().pass_value::<i32>("in_int", "out_int");
-        self.node_mut().pass_value::<f32>("in_float", "out_float");
-        self.node_mut()
-            .pass_value::<String>("in_string", "out_string");
-        self.node_mut().pass_value::<bool>("in_bool", "out_bool");
-        NodeState::Executed(vec![PinId::new("out_execute")])
+            self.node_mut().pass_value::<i32>("in_int", "out_int");
+            self.node_mut().pass_value::<f32>("in_float", "out_float");
+            self.node_mut()
+                .pass_value::<String>("in_string", "out_string");
+            self.node_mut().pass_value::<bool>("in_bool", "out_bool");
+            NodeState::Executed(Some(vec![PinId::new("out_execute")]))
+        } else {
+            panic!("Trying to execute through an unexpected pin {}", pin.name());
+        }
     }
 }
 
@@ -71,18 +82,26 @@ impl RustExampleNode {
 pub struct ScriptInitNode {
     node: Node,
 }
-implement_node!(ScriptInitNode, node, "Init", "Script init node");
+implement_node!(
+    ScriptInitNode,
+    node,
+    "Init",
+    "Script init node",
+    NodeExecutionType::OneShot
+);
 impl Default for ScriptInitNode {
     fn default() -> Self {
         let mut node = Node::new(stringify!(ScriptInitNode));
-        node.add_output("execute", LogicExecution::default());
+        node.add_output("Execute", LogicExecution::default());
         Self { node }
     }
 }
 impl ScriptInitNode {
-    pub fn on_update(&mut self) -> NodeState {
+    pub fn on_update(&mut self, pin: &PinId) -> NodeState {
+        debug_assert!(*pin == PinId::invalid());
+
         println!("Executing {}", self.name());
-        NodeState::Executed(vec![PinId::new("execute")])
+        NodeState::Executed(Some(vec![PinId::new("Execute")]))
     }
 }
 
@@ -108,7 +127,7 @@ fn test_node() {
     registry.register_pin_type::<LogicExecution>();
 
     let mut tree = NodeTree::default();
-    tree.add_link("ScriptInitNode", "NodeA", "execute", "in_execute");
+    tree.add_link("ScriptInitNode", "NodeA", "Execute", "in_execute");
     tree.add_link("NodeA", "NodeB", "out_int", "in_int");
     tree.add_link("NodeA", "NodeB", "out_string", "in_string");
     tree.add_link("NodeA", "NodeB", "out_execute", "in_execute");

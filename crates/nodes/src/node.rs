@@ -7,10 +7,17 @@ use crate::{Pin, PinId};
 use sabi_serialize::{generate_uid_from_string, typetag, Deserialize, Serialize, Uid};
 
 #[derive(Clone, PartialEq, Eq, Hash)]
+pub enum NodeExecutionType {
+    OnDemand, //default
+    OneShot,
+    Continuous,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub enum NodeState {
     Active,
-    Running,
-    Executed(Vec<PinId>),
+    Running(Option<Vec<PinId>>),
+    Executed(Option<Vec<PinId>>),
 }
 impl Default for NodeState {
     fn default() -> Self {
@@ -44,7 +51,8 @@ pub trait NodeTrait: Any + Send + Sync + 'static {
     fn set_name(&mut self, name: &str) {
         self.node_mut().set_name(name)
     }
-    fn execute(&mut self) -> NodeState;
+    fn execytion_type(&self) -> NodeExecutionType;
+    fn execute(&mut self, pin: &PinId) -> NodeState;
     fn duplicate(&self) -> Box<dyn NodeTrait>;
     fn serialize_node(&self) -> String;
     fn deserialize_node(&self, s: &str) -> Option<Self>

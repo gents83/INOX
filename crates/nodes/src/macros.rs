@@ -51,7 +51,7 @@ macro_rules! implement_pin {
 
 #[macro_export]
 macro_rules! implement_node {
-    ($Type:ident, $NodeField:ident, $Category:expr, $Description:expr) => {
+    ($Type:ident, $NodeField:ident, $Category:expr, $Description:expr, $ExecutionType:expr) => {
         #[typetag::serde]
         impl $crate::NodeTrait for $Type {
             fn get_type() -> &'static str
@@ -75,7 +75,7 @@ macro_rules! implement_node {
             fn node(&self) -> &$crate::Node {
                 &self.$NodeField
             }
-            fn node_mut(&mut self) -> &mut crate::Node {
+            fn node_mut(&mut self) -> &mut $crate::Node {
                 &mut self.$NodeField
             }
             fn as_any(&self) -> &dyn std::any::Any {
@@ -85,10 +85,13 @@ macro_rules! implement_node {
                 self
             }
             //need an on_update() function in the node
-            fn execute(&mut self) -> NodeState {
-                self.on_update()
+            fn execute(&mut self, pin: &$crate::PinId) -> NodeState {
+                self.on_update(pin)
             }
-            fn duplicate(&self) -> Box<dyn NodeTrait>
+            fn execytion_type(&self) -> $crate::NodeExecutionType {
+                $ExecutionType
+            }
+            fn duplicate(&self) -> Box<dyn $crate::NodeTrait>
             where
                 Self: Sized,
             {
