@@ -3,7 +3,7 @@ use std::{
     collections::HashMap,
 };
 
-use crate::{Pin, PinId};
+use crate::{LogicContext, Pin, PinId};
 use sabi_serialize::{generate_uid_from_string, typetag, Deserialize, Serialize, Uid};
 
 #[derive(Clone, PartialEq, Eq, Hash)]
@@ -52,7 +52,7 @@ pub trait NodeTrait: Any + Send + Sync + 'static {
         self.node_mut().set_name(name)
     }
     fn execytion_type(&self) -> NodeExecutionType;
-    fn execute(&mut self, pin: &PinId) -> NodeState;
+    fn execute(&mut self, pin: &PinId, context: &LogicContext) -> NodeState;
     fn duplicate(&self) -> Box<dyn NodeTrait>;
     fn serialize_node(&self) -> String;
     fn deserialize_node(&self, s: &str) -> Option<Self>
@@ -149,19 +149,33 @@ impl Node {
     where
         V: Pin,
     {
-        if let Some(i) = self.inputs.get(pin_id) {
-            return i.as_any().downcast_ref::<V>();
-        }
-        None
+        self.inputs
+            .get(pin_id)
+            .and_then(|i| i.as_any().downcast_ref::<V>())
     }
     pub fn output<V>(&self, pin_id: &PinId) -> Option<&V>
     where
         V: Pin,
     {
-        if let Some(o) = self.outputs.get(pin_id) {
-            return o.as_any().downcast_ref::<V>();
-        }
-        None
+        self.outputs
+            .get(pin_id)
+            .and_then(|o| o.as_any().downcast_ref::<V>())
+    }
+    pub fn input_mut<V>(&mut self, pin_id: &PinId) -> Option<&mut V>
+    where
+        V: 'static,
+    {
+        self.inputs
+            .get_mut(pin_id)
+            .and_then(|i| i.as_any_mut().downcast_mut::<V>())
+    }
+    pub fn output_mut<V>(&mut self, pin_id: &PinId) -> Option<&mut V>
+    where
+        V: 'static,
+    {
+        self.outputs
+            .get_mut(pin_id)
+            .and_then(|o| o.as_any_mut().downcast_mut::<V>())
     }
     pub fn get_input<V>(&self, name: &str) -> Option<&V>
     where
@@ -182,20 +196,14 @@ impl Node {
         V: 'static,
     {
         let uid = PinId::new(name);
-        if let Some(i) = self.inputs.get_mut(&uid) {
-            return i.as_any_mut().downcast_mut::<V>();
-        }
-        None
+        self.input_mut::<V>(&uid)
     }
     pub fn get_output_mut<V>(&mut self, name: &str) -> Option<&mut V>
     where
         V: 'static,
     {
         let uid = PinId::new(name);
-        if let Some(o) = self.outputs.get_mut(&uid) {
-            return o.as_any_mut().downcast_mut::<V>();
-        }
-        None
+        self.output_mut::<V>(&uid)
     }
     pub fn has_same_pins(&self, node: &Node) -> bool {
         let mut same_inputs = true;

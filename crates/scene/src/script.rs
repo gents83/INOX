@@ -4,7 +4,6 @@ use sabi_messenger::MessengerRw;
 use sabi_nodes::LogicData;
 use sabi_resources::{DataTypeResource, Handle, ResourceId, SerializableResource, SharedDataRc};
 use sabi_serialize::{read_from_file, SerializeFile};
-use sabi_ui::{CollapsingHeader, UIProperties, UIPropertiesRegistry, Ui};
 
 use crate::Object;
 
@@ -27,36 +26,6 @@ impl Default for Script {
     }
 }
 
-impl UIProperties for Script {
-    fn show(
-        &mut self,
-        id: &ResourceId,
-        ui_registry: &UIPropertiesRegistry,
-        ui: &mut Ui,
-        collapsed: bool,
-    ) {
-        CollapsingHeader::new(format!("Script [{:?}]", id.as_simple().to_string()))
-            .show_background(true)
-            .default_open(!collapsed)
-            .show(ui, |ui| {
-                ui.horizontal(|ui| {
-                    ui.label("Num Nodes: ");
-                    self.logic
-                        .tree()
-                        .get_nodes_count()
-                        .show(id, ui_registry, ui, collapsed);
-                });
-                ui.horizontal(|ui| {
-                    ui.label("Num Links: ");
-                    self.logic
-                        .tree()
-                        .get_links_count()
-                        .show(id, ui_registry, ui, collapsed);
-                });
-            });
-    }
-}
-
 impl SerializableResource for Script {
     fn path(&self) -> &Path {
         self.filepath.as_path()
@@ -74,7 +43,7 @@ impl DataTypeResource for Script {
     type DataType = LogicData;
 
     fn is_initialized(&self) -> bool {
-        self.logic.tree().get_nodes_count() > 0
+        self.logic.is_initialized()
     }
     fn invalidate(&mut self) {
         panic!("Script cannot be invalidated!");
@@ -89,8 +58,10 @@ impl DataTypeResource for Script {
         _id: ScriptId,
         data: Self::DataType,
     ) -> Self {
+        let mut logic = data;
+        logic.init();
         Self {
-            logic: data,
+            logic,
             ..Default::default()
         }
     }

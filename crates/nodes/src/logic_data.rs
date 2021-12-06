@@ -1,6 +1,6 @@
 use sabi_serialize::{Deserialize, Serialize, SerializeFile};
 
-use crate::{LogicExecution, NodeExecutionType, NodeState, NodeTree, PinId};
+use crate::{LogicContext, LogicExecution, NodeExecutionType, NodeState, NodeTree, PinId};
 
 #[derive(Default, PartialEq, Eq, Hash, Clone)]
 struct LinkInfo {
@@ -18,7 +18,7 @@ struct NodeInfo {
     outputs: Vec<PinInfo>,
 }
 
-#[derive(Clone, Default, Serialize, Deserialize)]
+#[derive(Default, Serialize, Deserialize, Clone)]
 #[serde(crate = "sabi_serialize")]
 pub struct LogicData {
     #[serde(flatten)]
@@ -29,6 +29,8 @@ pub struct LogicData {
     nodes_info: Vec<NodeInfo>,
     #[serde(skip)]
     execution_state: Vec<NodeState>,
+    #[serde(skip)]
+    context: LogicContext,
 }
 
 impl SerializeFile for LogicData {
@@ -44,13 +46,20 @@ impl From<NodeTree> for LogicData {
             active_nodes: Vec::new(),
             nodes_info: Vec::new(),
             execution_state: Vec::new(),
+            context: LogicContext::default(),
         }
     }
 }
 
 impl LogicData {
-    pub fn tree(&self) -> &NodeTree {
-        &self.tree
+    pub fn context(&self) -> &LogicContext {
+        &self.context
+    }
+    pub fn context_mut(&mut self) -> &mut LogicContext {
+        &mut self.context
+    }
+    pub fn is_initialized(&self) -> bool {
+        !self.execution_state.is_empty()
     }
     pub fn init(&mut self) {
         let nodes = self.tree.nodes();
@@ -142,6 +151,7 @@ impl LogicData {
         nodes_to_execute.iter().for_each(|l| {
             let mut nodes = Self::execute_node(
                 &mut self.tree,
+                &self.context,
                 l,
                 &self.nodes_info,
                 &mut self.execution_state,
@@ -175,6 +185,7 @@ impl LogicData {
 
     fn execute_node(
         tree: &mut NodeTree,
+        context: &LogicContext,
         link_info: &LinkInfo,
         nodes_info: &[NodeInfo],
         execution_state: &mut [NodeState],
@@ -189,7 +200,8 @@ impl LogicData {
             }
             pin_info.links.iter().for_each(|l| {
                 if execution_state[l.node] == NodeState::Active {
-                    let mut nodes = Self::execute_node(tree, l, nodes_info, execution_state);
+                    let mut nodes =
+                        Self::execute_node(tree, context, l, nodes_info, execution_state);
                     new_nodes_to_execute.append(&mut nodes);
                 }
 
@@ -207,7 +219,7 @@ impl LogicData {
             });
         });
         let node = &mut tree.nodes_mut()[link_info.node];
-        execution_state[link_info.node] = node.execute(&link_info.pin);
+        execution_state[link_info.node] = node.execute(&link_info.pin, context);
 
         match &execution_state[link_info.node] {
             NodeState::Executed(output_pins) | NodeState::Running(output_pins) => {

@@ -30,8 +30,8 @@ impl Data {
 pub trait DataTypeResource: ResourceTrait + Default + Clone {
     type DataType;
 
-    fn on_data_changed(&mut self, _new: &Self) {
-        *self = _new.clone();
+    fn on_data_changed(&mut self, new: &Self) {
+        *self = new.clone();
     }
 
     fn is_initialized(&self) -> bool;

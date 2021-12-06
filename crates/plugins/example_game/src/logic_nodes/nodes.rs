@@ -1,6 +1,6 @@
 use sabi_nodes::{
-    implement_node, LogicData, LogicExecution, LogicNodeRegistry, Node, NodeExecutionType,
-    NodeState, NodeTrait, NodeTree, PinId, ScriptInitNode,
+    implement_node, LogicContext, LogicData, LogicExecution, LogicNodeRegistry, Node,
+    NodeExecutionType, NodeState, NodeTrait, NodeTree, PinId, ScriptInitNode,
 };
 use sabi_serialize::{typetag, Deserialize, Serialize};
 
@@ -34,9 +34,9 @@ impl Default for RotateNode {
     }
 }
 impl RotateNode {
-    pub fn on_update(&mut self, pin: &PinId) -> NodeState {
+    pub fn on_update(&mut self, pin: &PinId, context: &LogicContext) -> NodeState {
         if *pin == PinId::new("OnImpulse") {
-            self.rotate();
+            self.rotate(context);
             return NodeState::Executed(None);
         } else if *pin == PinId::new("Start") {
             self.is_running = true;
@@ -45,12 +45,17 @@ impl RotateNode {
             return NodeState::Executed(None);
         }
         if self.is_running {
-            self.rotate();
+            self.rotate(context);
         }
         NodeState::Running(None)
     }
 
-    fn rotate(&self) {
+    fn rotate(&self, _context: &LogicContext) {
+        /*
+        if let Some(object) = context.get::<Handle<Object>>() {
+
+        }
+        */
         println!(
             "Rotating of [{:?}, {}, {}] degrees",
             self.node.get_input::<f32>("X (in degrees)").unwrap(),

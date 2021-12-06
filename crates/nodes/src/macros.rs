@@ -85,8 +85,12 @@ macro_rules! implement_node {
                 self
             }
             //need an on_update() function in the node
-            fn execute(&mut self, pin: &$crate::PinId) -> NodeState {
-                self.on_update(pin)
+            fn execute(
+                &mut self,
+                pin: &$crate::PinId,
+                context: &$crate::LogicContext,
+            ) -> NodeState {
+                self.on_update(pin, context)
             }
             fn execytion_type(&self) -> $crate::NodeExecutionType {
                 $ExecutionType
@@ -108,6 +112,26 @@ macro_rules! implement_node {
                     return Some(n);
                 }
                 None
+            }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! implement_logic_context_data {
+    ($Type:ident) => {
+        impl $crate::LogicContextData for $Type {
+            fn as_any(&self) -> &dyn std::any::Any {
+                self
+            }
+            fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+                self
+            }
+            fn duplicate(&self) -> Box<dyn $crate::LogicContextData>
+            where
+                Self: Sized,
+            {
+                Box::new(self.clone())
             }
         }
     };

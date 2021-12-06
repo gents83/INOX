@@ -1,8 +1,8 @@
 use sabi_serialize::{deserialize, Deserialize, Serialize};
 
 use crate::{
-    implement_node, implement_pin, LogicData, Node, NodeExecutionType, NodeState, NodeTrait,
-    NodeTree, PinId,
+    implement_node, implement_pin, LogicContext, LogicData, Node, NodeExecutionType, NodeState,
+    NodeTrait, NodeTree, PinId,
 };
 use sabi_serialize::typetag;
 
@@ -48,7 +48,7 @@ impl Default for RustExampleNode {
     }
 }
 impl RustExampleNode {
-    pub fn on_update(&mut self, pin: &PinId) -> NodeState {
+    pub fn on_update(&mut self, pin: &PinId, _context: &LogicContext) -> NodeState {
         if *pin == PinId::new("in_execute") {
             println!("Executing {}", self.name());
             println!("in_int {}", self.node().get_input::<i32>("in_int").unwrap());
@@ -97,7 +97,7 @@ impl Default for ScriptInitNode {
     }
 }
 impl ScriptInitNode {
-    pub fn on_update(&mut self, pin: &PinId) -> NodeState {
+    pub fn on_update(&mut self, pin: &PinId, _context: &LogicContext) -> NodeState {
         debug_assert!(*pin == PinId::invalid());
 
         println!("Executing {}", self.name());
@@ -182,7 +182,6 @@ fn test_node() {
     let serialized_tree = serialize(&tree);
     if let Ok(new_tree) = deserialize::<NodeTree>(&serialized_tree) {
         let mut logic_data = LogicData::from(new_tree);
-        assert_eq!(tree.get_nodes_count(), logic_data.tree().get_nodes_count());
         logic_data.init();
         logic_data.execute();
     } else {
