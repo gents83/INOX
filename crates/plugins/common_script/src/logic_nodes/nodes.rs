@@ -1,7 +1,10 @@
+use sabi_math::{VecBase, Vector3};
 use sabi_nodes::{
     implement_node, LogicContext, LogicData, LogicExecution, LogicNodeRegistry, Node,
     NodeExecutionType, NodeState, NodeTrait, NodeTree, PinId, ScriptInitNode,
 };
+use sabi_resources::Resource;
+use sabi_scene::{Object, Script};
 use sabi_serialize::{typetag, Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -50,18 +53,18 @@ impl RotateNode {
         NodeState::Running(None)
     }
 
-    fn rotate(&self, _context: &LogicContext) {
-        /*
-        if let Some(object) = context.get::<Handle<Object>>() {
-
+    fn rotate(&self, context: &LogicContext) {
+        let mut rotation = Vector3::default_zero();
+        rotation.x = *self.node.get_input::<f32>("X (in degrees)").unwrap();
+        rotation.y = *self.node.get_input::<f32>("Y (in degrees)").unwrap();
+        rotation.z = *self.node.get_input::<f32>("Z (in degrees)").unwrap();
+        println!("Rotating of [{:?}] degrees", rotation);
+        rotation.x = rotation.x.to_radians();
+        rotation.y = rotation.y.to_radians();
+        rotation.z = rotation.z.to_radians();
+        if let Some(object) = context.get_with_name::<Resource<Object>>(Script::LOGIC_OBJECT) {
+            object.get_mut().rotate(rotation);
         }
-        */
-        println!(
-            "Rotating of [{:?}, {}, {}] degrees",
-            self.node.get_input::<f32>("X (in degrees)").unwrap(),
-            self.node.get_input::<f32>("Y (in degrees)").unwrap(),
-            self.node.get_input::<f32>("Z (in degrees)").unwrap()
-        );
     }
 }
 

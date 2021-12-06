@@ -2,7 +2,9 @@ use std::path::{Path, PathBuf};
 
 use sabi_messenger::MessengerRw;
 use sabi_nodes::LogicData;
-use sabi_resources::{DataTypeResource, Handle, ResourceId, SerializableResource, SharedDataRc};
+use sabi_resources::{
+    DataTypeResource, Handle, Resource, ResourceId, SerializableResource, SharedDataRc,
+};
 use sabi_serialize::{read_from_file, SerializeFile};
 
 use crate::Object;
@@ -64,5 +66,18 @@ impl DataTypeResource for Script {
             logic,
             ..Default::default()
         }
+    }
+}
+
+impl Script {
+    pub const LOGIC_OBJECT: &'static str = "logic_object";
+
+    #[inline]
+    pub fn set_parent(&mut self, parent: &Resource<Object>) -> &mut Self {
+        self.parent = Some(parent.clone());
+        self.logic
+            .context_mut()
+            .set(Script::LOGIC_OBJECT, parent.clone());
+        self
     }
 }

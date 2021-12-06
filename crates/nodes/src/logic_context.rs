@@ -1,5 +1,6 @@
 use std::{any::Any, collections::HashMap};
 
+use sabi_resources::{Resource, ResourceTrait};
 use sabi_serialize::{generate_uid_from_string, Uid};
 
 pub type DataId = Uid;
@@ -11,6 +12,22 @@ pub trait LogicContextData: Any + Send + Sync {
 impl Clone for Box<dyn LogicContextData> {
     fn clone(&self) -> Box<dyn LogicContextData> {
         self.duplicate()
+    }
+}
+impl<T> LogicContextData for Resource<T>
+where
+    T: ResourceTrait,
+{
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn duplicate(&self) -> Box<dyn LogicContextData> {
+        Box::new(self.clone())
     }
 }
 
@@ -35,5 +52,12 @@ impl LogicContext {
         self.data
             .get(&id)
             .and_then(|data| data.as_any().downcast_ref::<T>())
+    }
+    pub fn get_with_name<T>(&self, name: &str) -> Option<&T>
+    where
+        T: LogicContextData + 'static,
+    {
+        let id = generate_uid_from_string(name);
+        self.get::<T>(id)
     }
 }

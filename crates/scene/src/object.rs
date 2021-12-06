@@ -150,7 +150,19 @@ impl DataTypeResource for Object {
                     Light::request_load(shared_data, global_messenger, path, Some(on_light_loaded));
                 object.add_component::<Light>(light);
             } else if Script::is_matching_extension(path) {
-                let script = Script::request_load(shared_data, global_messenger, path, None);
+                let shared_data_rc = shared_data.clone();
+                let on_script_loaded: Box<dyn Function<Script>> =
+                    Box::new(move |script: &mut Script| {
+                        if let Some(parent) = shared_data_rc.get_resource::<Object>(&id) {
+                            script.set_parent(&parent);
+                        }
+                    });
+                let script = Script::request_load(
+                    shared_data,
+                    global_messenger,
+                    path,
+                    Some(on_script_loaded),
+                );
                 object.add_component::<Script>(script);
             }
         });
