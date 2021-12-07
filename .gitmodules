@@ -46,3 +46,6 @@
 [submodule "extern/pyo3"]
 	path = extern/pyo3
 	url = https://github.com/PyO3/pyo3
+[submodule "extern/erased-serde"]
+	path = extern/erased-serde
+	url = https://github.com/dtolnay/erased-serde
