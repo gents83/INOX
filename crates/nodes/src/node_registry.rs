@@ -1,7 +1,7 @@
-use sabi_resources::Singleton;
+use sabi_resources::implement_singleton;
 use sabi_serialize::{Deserialize, Serialize};
 
-use crate::{Node, NodeTrait, PinType};
+use crate::{LogicExecution, Node, NodeTrait, PinType, RustExampleNode, ScriptInitNode};
 
 pub trait NodeType: Send + Sync + 'static {
     fn name(&self) -> &str;
@@ -55,20 +55,42 @@ pub struct LogicNodeRegistry {
     pin_types: Vec<Box<dyn PinType>>,
     node_types: Vec<Box<dyn NodeType>>,
 }
-impl Singleton for LogicNodeRegistry {}
+implement_singleton!(LogicNodeRegistry, on_create);
 
 impl LogicNodeRegistry {
+    pub fn on_create(&mut self) {
+        //Registering basic types
+        self.register_pin_type::<f32>();
+        self.register_pin_type::<f64>();
+        self.register_pin_type::<u8>();
+        self.register_pin_type::<i8>();
+        self.register_pin_type::<u16>();
+        self.register_pin_type::<i16>();
+        self.register_pin_type::<u32>();
+        self.register_pin_type::<i32>();
+        self.register_pin_type::<bool>();
+        self.register_pin_type::<String>();
+        self.register_pin_type::<LogicExecution>();
+
+        //Registering default nodes
+        self.register_node::<RustExampleNode>();
+        self.register_node::<ScriptInitNode>();
+    }
+
     pub fn register_pin_type<V>(&mut self)
     where
         V: PinType + Default + 'static,
     {
-        self.pin_types.push(Box::new(V::default()));
+        let p = V::default();
+        println!("Registering pin type: {}", p.name());
+        self.pin_types.push(Box::new(p));
     }
     pub fn register_node<N>(&mut self)
     where
         N: NodeTrait + Default + Serialize + for<'de> Deserialize<'de> + 'static,
     {
         let n = N::default();
+        println!("Registering node: {}", n.name());
         self.node_types.push(Box::new(SpecificNodeType::<N> {
             n,
             category: String::from(N::category()),

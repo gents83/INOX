@@ -3,10 +3,11 @@ use sabi_core::System;
 use sabi_graphics::{DrawEvent, Light, View};
 use sabi_math::{Matrix4, VecBase, Vector2, Vector3};
 use sabi_messenger::{read_messages, GlobalMessenger, MessageChannel, MessengerRw};
+use sabi_nodes::LogicData;
 use sabi_platform::{InputState, Key, KeyEvent, MouseEvent, WindowEvent};
 use sabi_resources::{LoadResourceEvent, Resource, SerializableResource, SharedData, SharedDataRc};
 use sabi_scene::{Camera, Object, ObjectId, Scene, Script};
-use sabi_serialize::generate_random_uid;
+use sabi_serialize::{generate_random_uid, read_from_file};
 use std::{any::TypeId, collections::HashMap, path::PathBuf};
 
 use crate::widgets::{Hierarchy, Info, View3D};
@@ -79,6 +80,11 @@ impl System for ViewerSystem {
 
     fn init(&mut self) {
         self.check_command_line_arguments();
+
+        let _script = read_from_file::<LogicData>(
+            PathBuf::from("C:\\PROJECTS\\SABI\\data\\blender_export\\TestScene\\logic\\test.logic")
+                .as_path(),
+        );
 
         self.global_messenger
             .write()

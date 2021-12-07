@@ -1,9 +1,10 @@
 use crate::exporter::Exporter;
 use pyo3::{pyclass, pymethods, PyResult, Python};
+use sabi_resources::Singleton;
 
 use sabi_binarizer::Binarizer;
 use sabi_core::App;
-use sabi_nodes::{LogicExecution, LogicNodeRegistry, NodeType, RustExampleNode, ScriptInitNode};
+use sabi_nodes::{LogicNodeRegistry, NodeType};
 use sabi_resources::{DATA_FOLDER, DATA_RAW_FOLDER};
 
 use std::{
@@ -63,9 +64,6 @@ impl SABIEngine {
             working_dir.join(DATA_FOLDER),
         );
         binarizer.stop();
-
-        let data = app.get_shared_data();
-        data.register_singleton(LogicNodeRegistry::default());
 
         plugins_to_load.iter().for_each(|plugin| {
             let mut plugin_path = app_dir.clone();
@@ -157,28 +155,9 @@ impl SABIEngine {
     pub fn register_nodes(&self, py: Python) -> PyResult<bool> {
         let data = self.app.get_shared_data();
 
-        if let Some(registry) = data.get_singleton_mut::<LogicNodeRegistry>() {
-            //Registering default nodes
-            registry.register_node::<RustExampleNode>();
-            registry.register_node::<ScriptInitNode>();
+        let registry = LogicNodeRegistry::get(data);
 
-            //Registering basic types
-            registry.register_pin_type::<f32>();
-            registry.register_pin_type::<f64>();
-            registry.register_pin_type::<u8>();
-            registry.register_pin_type::<i8>();
-            registry.register_pin_type::<u16>();
-            registry.register_pin_type::<i16>();
-            registry.register_pin_type::<u32>();
-            registry.register_pin_type::<i32>();
-            registry.register_pin_type::<bool>();
-            registry.register_pin_type::<String>();
-            registry.register_pin_type::<LogicExecution>();
-        }
-
-        if let Some(registry) = data.get_singleton::<LogicNodeRegistry>() {
-            registry.for_each_node(|node| add_node_in_blender(node, py));
-        }
+        registry.for_each_node(|node| add_node_in_blender(node, py));
         Ok(true)
     }
 }

@@ -1,10 +1,17 @@
-use std::any::{Any, TypeId};
+use std::any::{type_name, Any, TypeId};
 
 use sabi_serialize::{typetag, Deserialize, Serialize};
 
 use crate::Node;
 
 pub trait PinType: Send + Sync + 'static {
+    fn name(&self) -> &'static str {
+        type_name::<Self>()
+            .split(':')
+            .collect::<Vec<&str>>()
+            .last()
+            .unwrap()
+    }
     fn type_id(&self) -> TypeId;
     fn is_pin_of_type(&self, type_id: std::any::TypeId) -> bool {
         self.type_id() == type_id
