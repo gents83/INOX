@@ -1,10 +1,9 @@
 use std::path::PathBuf;
 
 use sabi_resources::ConfigBase;
-use sabi_serialize::{Deserialize, Serialize, SerializeFile};
+use sabi_serialize::*;
 
-#[derive(Default, Serialize, Deserialize, Debug, Clone)]
-#[serde(crate = "sabi_serialize")]
+#[derive(Default, Serializable, Debug, Clone)]
 pub struct Config {
     pub grid_material: PathBuf,
 }

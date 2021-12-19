@@ -1,13 +1,12 @@
 use super::raster::*;
 use sabi_math::*;
-use sabi_serialize::{Deserialize, Serialize};
+use sabi_serialize::*;
 use ttf_parser::*;
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
-#[serde(crate = "sabi_serialize")]
+#[derive(Serializable, Debug, PartialEq, Clone)]
 pub struct Line {
-    pub start: Vector2,
-    pub end: Vector2,
+    pub start: [f32; 2],
+    pub end: [f32; 2],
 }
 
 pub struct Geometry<'a> {
@@ -107,7 +106,10 @@ impl<'a> OutlineBuilder for Geometry<'a> {
 
 impl<'a> Geometry<'a> {
     fn draw_line(&mut self, start: Vector2, end: Vector2) {
-        self.lines.push(Line { start, end });
+        self.lines.push(Line {
+            start: start.into(),
+            end: end.into(),
+        });
         self.rasterizer.draw_line(start, end);
     }
 

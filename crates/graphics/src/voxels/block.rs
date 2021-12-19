@@ -160,9 +160,9 @@ impl Block {
                 let normal = Block::NORMALS[side as usize];
 
                 vertices.push(VertexData {
-                    pos: position.into(),
-                    color: color.into(),
-                    normal: normal.into(),
+                    pos: position,
+                    color,
+                    normal,
                     ..VertexData::default()
                 });
             }

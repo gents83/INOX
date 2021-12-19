@@ -1,25 +1,42 @@
 use std::{
     any::{type_name, TypeId},
     collections::HashMap,
-    sync::{Arc, RwLock},
+    sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard},
 };
 
 use sabi_messenger::{Message, MessengerRw};
-use sabi_serialize::{generate_uid_from_string, Uid};
+use sabi_serialize::{
+    generate_uid_from_string, Serializable, SerializableRegistry, SerializableRegistryRw, TypeInfo,
+    Uid,
+};
 
 use crate::{
     Handle, Resource, ResourceEventHandler, ResourceId, ResourceStorageRw, ResourceTrait,
     SerializableResource, Singleton, Storage, StorageCastTo, TypedResourceEventHandler,
 };
 
-#[derive(Default)]
 pub struct SharedData {
+    serializable_registry: SerializableRegistryRw,
     singletons: RwLock<Vec<RwLock<Box<dyn Singleton>>>>,
     storage: RwLock<HashMap<Uid, ResourceStorageRw>>,
     event_handlers: RwLock<HashMap<Uid, Box<dyn ResourceEventHandler>>>,
 }
 unsafe impl Send for SharedData {}
 unsafe impl Sync for SharedData {}
+
+impl Default for SharedData {
+    fn default() -> Self {
+        let serializable_registry = SerializableRegistryRw::default();
+        sabi_serialize::register_common_types(&mut serializable_registry.write().unwrap());
+
+        SharedData {
+            serializable_registry,
+            singletons: RwLock::new(Vec::new()),
+            storage: RwLock::new(HashMap::new()),
+            event_handlers: RwLock::new(HashMap::new()),
+        }
+    }
+}
 
 impl SharedData {
     #[inline]
@@ -74,9 +91,32 @@ impl SharedData {
         }
         None
     }
+    #[inline]
+    pub fn serializable_registry(&self) -> RwLockReadGuard<'_, SerializableRegistry> {
+        self.serializable_registry.read().unwrap()
+    }
+    #[inline]
+    pub fn serializable_registry_mut(&self) -> RwLockWriteGuard<'_, SerializableRegistry> {
+        self.serializable_registry.write().unwrap()
+    }
 
     #[inline]
-    pub fn register_type<T>(&self)
+    pub fn register_serializable_type<T>(&self)
+    where
+        T: Serializable + TypeInfo,
+    {
+        self.serializable_registry_mut().register_type::<T>();
+    }
+    #[inline]
+    pub fn unregister_serializable_type<T>(&self)
+    where
+        T: Serializable + TypeInfo,
+    {
+        self.serializable_registry_mut().unregister_type::<T>();
+    }
+
+    #[inline]
+    pub fn register_resource_type<T>(&self)
     where
         T: ResourceTrait,
     {
@@ -93,25 +133,7 @@ impl SharedData {
         );
     }
     #[inline]
-    pub fn register_type_serializable<T>(&self)
-    where
-        T: SerializableResource,
-    {
-        self.register_type::<T>();
-        let typeid = generate_uid_from_string(type_name::<T>());
-        debug_assert!(
-            self.event_handlers.read().unwrap().get(&typeid).is_none(),
-            "Type {} has been already registered",
-            type_name::<T>()
-        );
-        //debug_log("Registering resource type: {:?}", type_name::<T>(),);
-        self.event_handlers
-            .write()
-            .unwrap()
-            .insert(typeid, Box::new(TypedResourceEventHandler::<T>::default()));
-    }
-    #[inline]
-    pub fn unregister_type<T>(&self)
+    pub fn unregister_resource_type<T>(&self)
     where
         T: ResourceTrait,
     {
@@ -127,11 +149,29 @@ impl SharedData {
         }
     }
     #[inline]
-    pub fn unregister_type_serializable<T>(&self)
+    pub fn register_serializable_resource_type<T>(&self)
+    where
+        T: SerializableResource,
+    {
+        self.register_resource_type::<T>();
+        let typeid = generate_uid_from_string(type_name::<T>());
+        debug_assert!(
+            self.event_handlers.read().unwrap().get(&typeid).is_none(),
+            "Type {} has been already registered",
+            type_name::<T>()
+        );
+        //debug_log("Registering resource type: {:?}", type_name::<T>(),);
+        self.event_handlers
+            .write()
+            .unwrap()
+            .insert(typeid, Box::new(TypedResourceEventHandler::<T>::default()));
+    }
+    #[inline]
+    pub fn unregister_serializable_resource_type<T>(&self)
     where
         T: ResourceTrait,
     {
-        self.unregister_type::<T>();
+        self.unregister_resource_type::<T>();
         let typeid = generate_uid_from_string(type_name::<T>());
         debug_assert!(
             self.event_handlers.read().unwrap().get(&typeid).is_some(),
@@ -359,6 +399,7 @@ impl Drop for SharedData {
     #[inline]
     fn drop(&mut self) {
         self.clear();
+        sabi_serialize::unregister_common_types(&mut self.serializable_registry.write().unwrap());
     }
 }
 

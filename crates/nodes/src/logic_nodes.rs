@@ -1,13 +1,13 @@
-use sabi_serialize::{deserialize, Deserialize, Serialize};
+use sabi_resources::SharedDataRc;
+use sabi_serialize::*;
 
 use crate::{
-    implement_node, implement_pin, LogicContext, LogicData, Node, NodeExecutionType, NodeState,
-    NodeTrait, NodeTree, PinId,
+    implement_node, implement_pin, LogicContext, Node, NodeExecutionType, NodeState, NodeTrait,
+    NodeTree, PinId, SerializableNodeTrait, SerializablePin,
 };
-use sabi_serialize::typetag;
 
-#[derive(Serialize, Deserialize, Copy, Clone)]
-#[serde(crate = "sabi_serialize")]
+#[derive(Serializable, Copy, Clone)]
+#[serializable(Pin)]
 pub enum LogicExecution {
     Type,
 }
@@ -18,8 +18,9 @@ impl Default for LogicExecution {
 }
 implement_pin!(LogicExecution);
 
-#[derive(Serialize, Deserialize, Clone)]
-#[serde(crate = "sabi_serialize")]
+#[derive(Serializable, Clone)]
+#[serializable(NodeTrait)]
+
 pub struct RustExampleNode {
     node: Node,
 }
@@ -77,8 +78,8 @@ impl RustExampleNode {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone)]
-#[serde(crate = "sabi_serialize")]
+#[derive(Serializable, Clone)]
+#[serializable(NodeTrait)]
 pub struct ScriptInitNode {
     node: Node,
 }
@@ -108,23 +109,10 @@ impl ScriptInitNode {
 #[allow(dead_code)]
 fn test_node() {
     use crate::LogicNodeRegistry;
-    use sabi_serialize::serialize;
 
+    let shared_data = SharedDataRc::default();
     let mut registry = LogicNodeRegistry::default();
-    registry.register_node::<ScriptInitNode>();
-    registry.register_node::<RustExampleNode>();
-
-    registry.register_pin_type::<f32>();
-    registry.register_pin_type::<f64>();
-    registry.register_pin_type::<u8>();
-    registry.register_pin_type::<i8>();
-    registry.register_pin_type::<u16>();
-    registry.register_pin_type::<i16>();
-    registry.register_pin_type::<u32>();
-    registry.register_pin_type::<i32>();
-    registry.register_pin_type::<bool>();
-    registry.register_pin_type::<String>();
-    registry.register_pin_type::<LogicExecution>();
+    registry.on_create(&shared_data);
 
     let mut tree = NodeTree::default();
     tree.add_link("ScriptInitNode", "NodeA", "Execute", "in_execute");
@@ -134,7 +122,7 @@ fn test_node() {
     assert_eq!(tree.get_links_count(), 4);
 
     let init = ScriptInitNode::default();
-    let serialized_data = init.serialize_node();
+    let serialized_data = init.serialize_node(&shared_data.serializable_registry());
 
     if let Some(n) = registry.deserialize_node(&serialized_data) {
         tree.add_node(n);
@@ -169,7 +157,7 @@ fn test_node() {
     );
     assert!(*node_a.node().get_input::<bool>("in_bool").unwrap());
     assert!(!*node_a.node().get_output::<bool>("out_bool").unwrap());
-    let serialized_data = node_a.serialize_node();
+    let serialized_data = node_a.serialize_node(&shared_data.serializable_registry());
 
     if let Some(n) = registry.deserialize_node(&serialized_data) {
         tree.add_node(n);
@@ -179,12 +167,14 @@ fn test_node() {
     tree.add_default_node::<RustExampleNode>("NodeB");
     assert_eq!(tree.get_nodes_count(), 3);
 
+    /*
     let serialized_tree = serialize(&tree);
     if let Ok(new_tree) = deserialize::<NodeTree>(&serialized_tree) {
         let mut logic_data = LogicData::from(new_tree);
         logic_data.init();
         logic_data.execute();
-    } else {
+    } else*/
+    {
         panic!("Deserialization failed");
     }
 }

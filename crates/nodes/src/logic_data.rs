@@ -1,4 +1,4 @@
-use sabi_serialize::{Deserialize, Serialize, SerializeFile};
+use sabi_serialize::*;
 
 use crate::{LogicContext, LogicExecution, NodeExecutionType, NodeState, NodeTree, PinId};
 
@@ -18,18 +18,16 @@ struct NodeInfo {
     outputs: Vec<PinInfo>,
 }
 
-#[derive(Default, Serialize, Deserialize, Clone)]
-#[serde(crate = "sabi_serialize")]
+#[derive(Default, Serializable, Clone)]
 pub struct LogicData {
-    #[serde(flatten)]
     tree: NodeTree,
-    #[serde(skip)]
+    #[serializable(ignore)]
     active_nodes: Vec<LinkInfo>,
-    #[serde(skip)]
+    #[serializable(ignore)]
     nodes_info: Vec<NodeInfo>,
-    #[serde(skip)]
+    #[serializable(ignore)]
     execution_state: Vec<NodeState>,
-    #[serde(skip)]
+    #[serializable(ignore)]
     context: LogicContext,
 }
 

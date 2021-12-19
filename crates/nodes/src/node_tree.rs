@@ -1,9 +1,7 @@
-use sabi_serialize::{generate_uid_from_string, Deserialize, Serialize, SerializeFile};
-
 use crate::{LogicNodeRegistry, NodeLink, NodeTrait};
+use sabi_serialize::*;
 
-#[derive(Default, Serialize, Deserialize, Clone)]
-#[serde(crate = "sabi_serialize")]
+#[derive(Default, Serializable, Clone)]
 pub struct NodeTree {
     nodes: Vec<Box<dyn NodeTrait>>,
     links: Vec<NodeLink>,
@@ -23,7 +21,7 @@ impl NodeTree {
     }
     pub fn add_default_node<T>(&mut self, name: &str)
     where
-        T: NodeTrait + Default + Serialize + 'static,
+        T: NodeTrait + Default + Serializable + 'static,
     {
         if self.find_node(name).is_none() {
             let mut node = Box::new(T::default());
@@ -47,7 +45,7 @@ impl NodeTree {
     }
     pub fn find_node_as<T>(&self, name: &str) -> Option<&T>
     where
-        T: NodeTrait + Default + Serialize + 'static,
+        T: NodeTrait + Default + Serializable + 'static,
     {
         let uid = generate_uid_from_string(name);
         self.nodes
@@ -57,7 +55,7 @@ impl NodeTree {
     }
     pub fn find_node_mut_as<T>(&mut self, name: &str) -> Option<&mut T>
     where
-        T: NodeTrait + Default + Serialize + 'static,
+        T: NodeTrait + Default + Serializable + 'static,
     {
         let uid = generate_uid_from_string(name);
         self.nodes

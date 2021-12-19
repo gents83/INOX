@@ -2,10 +2,9 @@ use std::path::PathBuf;
 
 use sabi_commands::CommandParser;
 use sabi_messenger::{implement_message, Message, MessageFromString};
-use sabi_serialize::{Deserialize, Serialize};
+use sabi_serialize::*;
 
-#[derive(Copy, Clone, Serialize, Deserialize)]
-#[serde(crate = "sabi_serialize")]
+#[derive(Copy, Clone, Serializable)]
 pub enum DialogOp {
     New,
     Open,
@@ -32,8 +31,7 @@ impl From<DialogOp> for &str {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize)]
-#[serde(crate = "sabi_serialize")]
+#[derive(Clone, Serializable)]
 pub enum DialogEvent {
     Request(DialogOp, PathBuf),
     Confirmed(DialogOp, PathBuf),

@@ -12,7 +12,7 @@ use sabi_graphics::{
 
 use sabi_platform::Window;
 
-use crate::window_system::WindowSystem;
+use crate::{config::Config, window_system::WindowSystem};
 
 const RENDERING_THREAD: &str = "Worker1";
 const MAIN_WINDOW_PHASE: &str = "MAIN_WINDOW_PHASE";
@@ -23,6 +23,8 @@ pub struct Launcher {}
 
 impl Launcher {
     pub fn prepare(&mut self, app: &mut App) {
+        app.get_shared_data().register_serializable_type::<Config>();
+
         let window = {
             Window::create(
                 "SABI".to_string(),
@@ -71,6 +73,9 @@ impl Launcher {
         app.destroy_phase_on_worker(RENDERING_PHASE, RENDERING_THREAD);
         app.destroy_phase(RENDERING_UPDATE);
         app.destroy_phase(MAIN_WINDOW_PHASE);
+
+        app.get_shared_data()
+            .unregister_serializable_type::<Config>();
     }
 
     pub fn read_config(&mut self, app: &mut App, plugin_name: &str) {

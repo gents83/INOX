@@ -1,6 +1,5 @@
 use std::path::{Path, PathBuf};
 
-use sabi_math::matrix4_to_array;
 use sabi_messenger::MessengerRw;
 use sabi_profiler::debug_log;
 use sabi_resources::{DataTypeResource, ResourceId, SerializableResource, SharedDataRc};
@@ -363,7 +362,7 @@ impl Pipeline {
 
         let data = InstanceData {
             id: compute_color_from_id(mesh_id.as_u128() as _),
-            matrix: matrix4_to_array(mesh.matrix()),
+            matrix: mesh.matrix().into(),
             draw_area: mesh.draw_area(),
             material_index,
         };

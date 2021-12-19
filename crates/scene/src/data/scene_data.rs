@@ -1,8 +1,7 @@
-use sabi_serialize::{Deserialize, Serialize, SerializeFile};
+use sabi_serialize::*;
 use std::path::PathBuf;
 
-#[derive(Default, Serialize, Deserialize, Debug, PartialEq, Clone)]
-#[serde(crate = "sabi_serialize")]
+#[derive(Default, Serializable, Debug, PartialEq, Clone)]
 pub struct SceneData {
     pub objects: Vec<PathBuf>,
     pub cameras: Vec<PathBuf>,

@@ -1,7 +1,6 @@
-use sabi_serialize::{Deserialize, Serialize};
+use sabi_serialize::*;
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
-#[serde(crate = "sabi_serialize")]
+#[derive(Serializable, Debug, PartialEq, Clone)]
 pub enum TextureType {
     BaseColor = 0,
     MetallicRoughness = 1,

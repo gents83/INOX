@@ -1,5 +1,5 @@
-use sabi_math::{Vector2, Vector4};
-use sabi_serialize::{Deserialize, Serialize};
+use sabi_math::Vector2;
+use sabi_serialize::*;
 use ttf_parser::{Face, GlyphId};
 
 use crate::fonts::geometry::Geometry;
@@ -8,8 +8,7 @@ use super::geometry::Line;
 
 pub const DEFAULT_FONT_GLYPH_SIZE: usize = 64;
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
-#[serde(crate = "sabi_serialize")]
+#[derive(Serializable, Debug, PartialEq, Clone)]
 pub struct Metrics {
     pub width: f32,
     pub height: f32,
@@ -28,13 +27,12 @@ impl Default for Metrics {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
-#[serde(crate = "sabi_serialize")]
+#[derive(Serializable, Debug, PartialEq, Clone)]
 pub struct Glyph {
     pub id: u16,
     pub metrics: Metrics,
     is_upside_down: bool,
-    pub texture_coord: Vector4,
+    pub texture_coord: [f32; 4],
     pub data: Vec<f32>,
     pub lines: Vec<Line>,
 }
@@ -111,7 +109,7 @@ impl Glyph {
             id,
             metrics,
             is_upside_down,
-            texture_coord: [0.0, 0.0, 1.0, 1.0].into(),
+            texture_coord: [0.0, 0.0, 1.0, 1.0],
             data,
             lines,
         }

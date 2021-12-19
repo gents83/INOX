@@ -3,7 +3,7 @@ use std::f32::consts::PI;
 use crate::Vector3;
 use cgmath::Zero;
 
-use crate::Quaternion;
+pub type Quaternion = cgmath::Quaternion<f32>;
 
 pub trait Quat {
     fn from_euler_angles(roll_yaw_pitch: Vector3) -> Quaternion;

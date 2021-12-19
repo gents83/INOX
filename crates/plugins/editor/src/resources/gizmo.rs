@@ -244,7 +244,9 @@ impl Gizmo {
         let mut mesh_data = MeshData::default();
         let (mut vertices, indices) = create_sphere(0.5, 32, 16);
         vertices.iter_mut().for_each(|v| {
-            v.pos += position;
+            v.pos[0] += position.x;
+            v.pos[1] += position.y;
+            v.pos[2] += position.z;
         });
         mesh_data.append_mesh(vertices.as_slice(), indices.as_slice());
         let mesh = Mesh::new_resource(

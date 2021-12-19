@@ -6,6 +6,7 @@ use sabi_binarizer::Binarizer;
 use sabi_core::App;
 use sabi_nodes::{LogicNodeRegistry, NodeType};
 use sabi_resources::{DATA_FOLDER, DATA_RAW_FOLDER};
+use sabi_serialize::SerializableRegistry;
 
 use std::{
     env,
@@ -60,6 +61,7 @@ impl SABIEngine {
 
         let mut binarizer = Binarizer::new(
             app.get_global_messenger(),
+            app.get_shared_data(),
             working_dir.join(DATA_RAW_FOLDER),
             working_dir.join(DATA_FOLDER),
         );
@@ -157,17 +159,21 @@ impl SABIEngine {
 
         let registry = LogicNodeRegistry::get(data);
 
-        registry.for_each_node(|node| add_node_in_blender(node, py));
+        registry.for_each_node(|node| add_node_in_blender(node, &data.serializable_registry(), py));
         Ok(true)
     }
 }
 
-fn add_node_in_blender(node: &dyn NodeType, py: Python) {
+fn add_node_in_blender(
+    node: &dyn NodeType,
+    serializable_registry: &SerializableRegistry,
+    py: Python,
+) {
     let node_name = node.name();
     let category = node.category();
     let base_class = "LogicNodeBase";
     let description = node.description();
-    let serialized_class = node.serialize_node();
+    let serialized_class = node.serialize_node(serializable_registry);
 
     println!("Registering node {}", node_name);
 

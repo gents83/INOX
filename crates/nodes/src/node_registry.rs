@@ -1,13 +1,16 @@
-use sabi_resources::implement_singleton;
-use sabi_serialize::{Deserialize, Serialize};
+use sabi_resources::{implement_singleton, SharedDataRc};
+use sabi_serialize::*;
 
-use crate::{LogicExecution, Node, NodeTrait, PinType, RustExampleNode, ScriptInitNode};
+use crate::{
+    LogicData, LogicExecution, Node, NodeLink, NodeTrait, NodeTree, Pin, PinId, PinType,
+    RustExampleNode, ScriptInitNode,
+};
 
 pub trait NodeType: Send + Sync + 'static {
     fn name(&self) -> &str;
     fn category(&self) -> &str;
     fn description(&self) -> &str;
-    fn serialize_node(&self) -> String;
+    fn serialize_node(&self, serializable_registry: &SerializableRegistry) -> String;
     fn deserialize_node(&self, data: &str) -> Option<Box<dyn NodeTrait>>;
 }
 
@@ -19,7 +22,7 @@ struct SpecificNodeType<N> {
 }
 impl<N> NodeType for SpecificNodeType<N>
 where
-    N: NodeTrait + Serialize + Default + for<'de> Deserialize<'de> + 'static + Sized,
+    N: NodeTrait + Serializable + Default + 'static + Sized,
 {
     fn name(&self) -> &str {
         self.n.name()
@@ -30,8 +33,8 @@ where
     fn description(&self) -> &str {
         &self.description
     }
-    fn serialize_node(&self) -> String {
-        self.n.serialize_node()
+    fn serialize_node(&self, serializable_registry: &SerializableRegistry) -> String {
+        self.n.serialize_node(serializable_registry)
     }
     fn deserialize_node(&self, data: &str) -> Option<Box<dyn NodeTrait>>
     where
@@ -47,8 +50,8 @@ where
         None
     }
 }
-unsafe impl<N> Send for SpecificNodeType<N> where N: NodeTrait + Serialize + Default {}
-unsafe impl<N> Sync for SpecificNodeType<N> where N: NodeTrait + Serialize + Default {}
+unsafe impl<N> Send for SpecificNodeType<N> where N: NodeTrait + Serializable + Default {}
+unsafe impl<N> Sync for SpecificNodeType<N> where N: NodeTrait + Serializable + Default {}
 
 #[derive(Default)]
 pub struct LogicNodeRegistry {
@@ -58,37 +61,47 @@ pub struct LogicNodeRegistry {
 implement_singleton!(LogicNodeRegistry, on_create);
 
 impl LogicNodeRegistry {
-    pub fn on_create(&mut self) {
+    pub fn on_create(&mut self, shared_data: &SharedDataRc) {
+        shared_data.register_serializable_type::<PinId>();
+        shared_data.register_serializable_type::<NodeLink>();
+        shared_data.register_serializable_type::<Node>();
+        shared_data.register_serializable_type::<NodeTree>();
+        shared_data.register_serializable_type::<LogicData>();
+
         //Registering basic types
-        self.register_pin_type::<f32>();
-        self.register_pin_type::<f64>();
-        self.register_pin_type::<u8>();
-        self.register_pin_type::<i8>();
-        self.register_pin_type::<u16>();
-        self.register_pin_type::<i16>();
-        self.register_pin_type::<u32>();
-        self.register_pin_type::<i32>();
-        self.register_pin_type::<bool>();
-        self.register_pin_type::<String>();
-        self.register_pin_type::<LogicExecution>();
+        self.register_pin_type::<f32>(shared_data);
+        self.register_pin_type::<f64>(shared_data);
+        self.register_pin_type::<u8>(shared_data);
+        self.register_pin_type::<i8>(shared_data);
+        self.register_pin_type::<u16>(shared_data);
+        self.register_pin_type::<i16>(shared_data);
+        self.register_pin_type::<u32>(shared_data);
+        self.register_pin_type::<i32>(shared_data);
+        self.register_pin_type::<bool>(shared_data);
+        self.register_pin_type::<String>(shared_data);
+        self.register_pin_type::<LogicExecution>(shared_data);
 
         //Registering default nodes
-        self.register_node::<RustExampleNode>();
-        self.register_node::<ScriptInitNode>();
+        self.register_node::<RustExampleNode>(shared_data);
+        self.register_node::<ScriptInitNode>(shared_data);
     }
 
-    pub fn register_pin_type<V>(&mut self)
+    pub fn register_pin_type<V>(&mut self, shared_data: &SharedDataRc)
     where
-        V: PinType + Default + 'static,
+        V: Pin + Default + 'static + Serializable + TypeInfo,
     {
+        shared_data.register_serializable_type::<V>();
+
         let p = V::default();
         println!("Registering pin type: {}", p.name());
         self.pin_types.push(Box::new(p));
     }
-    pub fn register_node<N>(&mut self)
+    pub fn register_node<N>(&mut self, shared_data: &SharedDataRc)
     where
-        N: NodeTrait + Default + Serialize + for<'de> Deserialize<'de> + 'static,
+        N: NodeTrait + Default + 'static + Serializable + TypeInfo,
     {
+        shared_data.register_serializable_type::<N>();
+
         let n = N::default();
         println!("Registering node: {}", n.name());
         self.node_types.push(Box::new(SpecificNodeType::<N> {
@@ -109,7 +122,7 @@ impl LogicNodeRegistry {
     pub fn deserialize_node(&self, data: &str) -> Option<Box<dyn NodeTrait>> {
         for node in &self.node_types {
             if let Some(n) = node.deserialize_node(data) {
-                println!("Deserializing as {}", n.typetag_name());
+                println!("Deserializing as {}", n.name());
                 return Some(n);
             }
         }

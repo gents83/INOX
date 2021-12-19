@@ -161,11 +161,6 @@ implement_matrix_base!(Matrix3);
 implement_matrix_base!(Matrix4);
 implement_matrix4_operations!(Matrix4);
 
-#[inline]
-pub fn matrix4_to_array(mat: Matrix4) -> [[f32; 4]; 4] {
-    mat.into()
-}
-
 pub fn unproject(position: Vector3, view: Matrix4, projection: Matrix4) -> Vector3 {
     let view_inverse = view.inverse();
     let proj_inverse = projection.inverse();

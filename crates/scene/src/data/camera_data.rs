@@ -1,17 +1,15 @@
-use sabi_math::{Degrees, NewAngle};
-use sabi_serialize::{Deserialize, Serialize, SerializeFile};
+use sabi_serialize::*;
 
 use crate::{
     DEFAULT_CAMERA_ASPECT_RATIO, DEFAULT_CAMERA_FAR, DEFAULT_CAMERA_FOV, DEFAULT_CAMERA_NEAR,
 };
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
-#[serde(crate = "sabi_serialize")]
+#[derive(Serializable, Debug, PartialEq, Clone)]
 pub struct CameraData {
     pub aspect_ratio: f32,
     pub near: f32,
     pub far: f32,
-    pub fov: Degrees,
+    pub fov: f32, // in degrees
 }
 
 impl SerializeFile for CameraData {
@@ -26,7 +24,7 @@ impl Default for CameraData {
             aspect_ratio: DEFAULT_CAMERA_ASPECT_RATIO,
             near: DEFAULT_CAMERA_NEAR,
             far: DEFAULT_CAMERA_FAR,
-            fov: Degrees::new(DEFAULT_CAMERA_FOV),
+            fov: DEFAULT_CAMERA_FOV,
         }
     }
 }

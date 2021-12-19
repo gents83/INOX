@@ -1,12 +1,11 @@
 use std::path::PathBuf;
 
 use sabi_math::{MatBase, Matrix4};
-use sabi_serialize::{Deserialize, Serialize, SerializeFile};
+use sabi_serialize::*;
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
-#[serde(crate = "sabi_serialize")]
+#[derive(Serializable, Debug, PartialEq, Clone)]
 pub struct ObjectData {
-    pub transform: Matrix4,
+    pub transform: [[f32; 4]; 4],
     pub components: Vec<PathBuf>,
     pub children: Vec<PathBuf>,
 }
@@ -20,9 +19,15 @@ impl SerializeFile for ObjectData {
 impl Default for ObjectData {
     fn default() -> Self {
         Self {
-            transform: Matrix4::default_identity(),
+            transform: Matrix4::default_identity().into(),
             components: Vec::new(),
             children: Vec::new(),
         }
+    }
+}
+
+impl ObjectData {
+    pub fn transform(&self) -> Matrix4 {
+        self.transform.into()
     }
 }

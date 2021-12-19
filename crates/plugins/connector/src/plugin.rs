@@ -1,6 +1,6 @@
 use sabi_core::{define_plugin, App, PhaseWithSystems, Plugin, System, SystemId};
 
-use crate::systems::connector::Connector;
+use crate::{config::Config, systems::connector::Connector};
 
 const CONNECTOR_PHASE: &str = "CONNECTOR_PHASE";
 
@@ -16,6 +16,8 @@ impl Plugin for ConnectorPlugin {
         "sabi_connector"
     }
     fn prepare(&mut self, app: &mut App) {
+        app.get_shared_data().register_serializable_type::<Config>();
+
         let mut update_phase = PhaseWithSystems::new(CONNECTOR_PHASE);
         let mut system = Connector::new(app.get_global_messenger());
         self.updater_id = Connector::id();
@@ -29,5 +31,8 @@ impl Plugin for ConnectorPlugin {
         let update_phase: &mut PhaseWithSystems = app.get_phase_mut(CONNECTOR_PHASE);
         update_phase.remove_system(&self.updater_id);
         app.destroy_phase(CONNECTOR_PHASE);
+
+        app.get_shared_data()
+            .unregister_serializable_type::<Config>();
     }
 }

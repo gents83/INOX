@@ -18,8 +18,6 @@ pub use node_registry::*;
 pub use node_tree::*;
 pub use pin::*;
 
-pub use sabi_serialize::typetag;
-
 implement_pin!(f32);
 implement_pin!(f64);
 implement_pin!(u8);

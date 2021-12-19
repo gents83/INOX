@@ -1,6 +1,6 @@
 use std::any::{type_name, Any, TypeId};
 
-use sabi_serialize::{typetag, Deserialize, Serialize};
+use sabi_serialize::*;
 
 use crate::Node;
 
@@ -20,22 +20,21 @@ pub trait PinType: Send + Sync + 'static {
     fn copy_from(&mut self, node: &Node, output_pin: &PinId);
 }
 
-#[typetag::serde(tag = "pin_type")]
-pub trait Pin: Any + PinType + Send + Sync + 'static {
+#[serializable_trait]
+pub trait Pin: Serializable + Any + PinType + Send + Sync + 'static {
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
     fn get_type_id(&self) -> TypeId;
     fn get_type_name(&self) -> &'static str;
-    fn duplicate(&self) -> Box<dyn Pin>;
+    fn duplicate_pin(&self) -> Box<dyn Pin>;
 }
 impl Clone for Box<dyn Pin> {
     fn clone(&self) -> Box<dyn Pin> {
-        self.duplicate()
+        self.duplicate_pin()
     }
 }
 
-#[derive(Default, Serialize, Deserialize, PartialEq, Eq, Hash, Clone)]
-#[serde(crate = "sabi_serialize")]
+#[derive(Default, Serializable, PartialEq, Eq, Hash, Clone)]
 pub struct PinId(String);
 impl PinId {
     pub fn new(name: &str) -> Self {

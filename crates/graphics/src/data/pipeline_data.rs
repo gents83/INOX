@@ -3,20 +3,18 @@ use std::path::PathBuf;
 use sabi_filesystem::convert_from_local_path;
 use sabi_math::Matrix4;
 use sabi_resources::Data;
-use sabi_serialize::{Deserialize, Serialize, SerializeFile};
+use sabi_serialize::*;
 
 use crate::{LightData, ShaderMaterialData, ShaderTextureData, TextureAtlas};
 
-#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
-#[serde(crate = "sabi_serialize")]
+#[derive(Serializable, Debug, PartialOrd, PartialEq, Copy, Clone)]
 pub enum PolygonModeType {
     Fill,
     Line,
     Point,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
-#[serde(crate = "sabi_serialize")]
+#[derive(Serializable, Debug, PartialOrd, PartialEq, Copy, Clone)]
 pub enum CullingModeType {
     None,
     Back,
@@ -24,8 +22,7 @@ pub enum CullingModeType {
     Both,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
-#[serde(crate = "sabi_serialize")]
+#[derive(Serializable, Debug, PartialOrd, PartialEq, Copy, Clone)]
 pub enum BlendFactor {
     Zero,
     One,
@@ -44,15 +41,13 @@ pub enum BlendFactor {
     SrcAlphaSaturate,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
-#[serde(crate = "sabi_serialize")]
+#[derive(Serializable, Debug, PartialOrd, PartialEq, Copy, Clone)]
 pub enum DrawMode {
     Batch,
     Single,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
-#[serde(crate = "sabi_serialize")]
+#[derive(Serializable, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum PipelineType {
     Custom,
     Default,
@@ -60,8 +55,7 @@ pub enum PipelineType {
     UI,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
-#[serde(crate = "sabi_serialize")]
+#[derive(Serializable, Debug, PartialEq, Clone)]
 pub struct PipelineData {
     pub pipeline_type: PipelineType,
     pub fragment_shader: PathBuf,

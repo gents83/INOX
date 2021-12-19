@@ -111,7 +111,13 @@ impl DataTypeResource for Camera {
         let mut camera = Self {
             ..Default::default()
         };
-        camera.set_projection(data.fov, data.aspect_ratio, 1., data.near, data.far);
+        camera.set_projection(
+            Degrees::new(data.fov),
+            data.aspect_ratio,
+            1.,
+            data.near,
+            data.far,
+        );
         camera
     }
 }

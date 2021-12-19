@@ -13,7 +13,7 @@ use crate::{
 };
 use sabi_filesystem::convert_from_local_path;
 
-use sabi_math::{matrix4_to_array, Matrix4};
+use sabi_math::Matrix4;
 use sabi_profiler::debug_log;
 use sabi_resources::Data;
 use std::mem::MaybeUninit;
@@ -771,8 +771,8 @@ impl BackendPipeline {
              0.0,  0.0, 0.5, 1.0,
         );
         let constant_data = ConstantData {
-            view: matrix4_to_array(*view),
-            proj: matrix4_to_array(LEFT_HANDED_VULKAN_MATRIX * *proj),
+            view: (*view).into(),
+            proj: (LEFT_HANDED_VULKAN_MATRIX * *proj).into(),
             screen_width: width as _,
             screen_height: height as _,
             ..Default::default()

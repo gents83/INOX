@@ -48,6 +48,7 @@ impl UpdateSystem {
             .unwrap()
             .register_messagebox::<UpdateResourceEvent>(message_channel.get_messagebox());
 
+        shared_data.register_serializable_type::<Config>();
         crate::register_resource_types(shared_data);
         Self {
             renderer,

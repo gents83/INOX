@@ -10,7 +10,7 @@ use sabi_messenger::MessengerRw;
 use sabi_resources::{
     DataTypeResource, Handle, Resource, ResourceId, SerializableResource, SharedData, SharedDataRc,
 };
-use sabi_serialize::{generate_random_uid, read_from_file, SerializeFile};
+use sabi_serialize::*;
 
 pub type MaterialId = ResourceId;
 
@@ -110,10 +110,10 @@ impl DataTypeResource for Material {
             metallic_factor: material_data.metallic_factor,
             alpha_cutoff: material_data.alpha_cutoff,
             alpha_mode: material_data.alpha_mode,
-            base_color: material_data.base_color,
-            emissive_color: material_data.emissive_color,
-            diffuse_color: material_data.diffuse_color,
-            specular_color: material_data.specular_color,
+            base_color: material_data.base_color.into(),
+            emissive_color: material_data.emissive_color.into(),
+            diffuse_color: material_data.diffuse_color.into(),
+            specular_color: material_data.specular_color.into(),
             pipeline,
             ..Default::default()
         }

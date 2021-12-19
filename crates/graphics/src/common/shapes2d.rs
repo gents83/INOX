@@ -12,27 +12,27 @@ pub fn create_quad(
 ) -> ([VertexData; 4], [u32; 6]) {
     let vertices = [
         VertexData {
-            pos: [rect.x, rect.y, z].into(),
-            normal: [-1., -1., 0.].into(),
-            tex_coord: [[tex_coords.x, tex_coords.y].into(); MAX_TEXTURE_COORDS_SETS],
+            pos: [rect.x, rect.y, z],
+            normal: [-1., -1., 0.],
+            tex_coord: [[tex_coords.x, tex_coords.y]; MAX_TEXTURE_COORDS_SETS],
             ..Default::default()
         },
         VertexData {
-            pos: [rect.x, rect.w, z].into(),
-            normal: [-1., 1., 0.].into(),
-            tex_coord: [[tex_coords.x, tex_coords.w].into(); MAX_TEXTURE_COORDS_SETS],
+            pos: [rect.x, rect.w, z],
+            normal: [-1., 1., 0.],
+            tex_coord: [[tex_coords.x, tex_coords.w]; MAX_TEXTURE_COORDS_SETS],
             ..Default::default()
         },
         VertexData {
-            pos: [rect.z, rect.w, z].into(),
-            normal: [1., 1., 0.].into(),
-            tex_coord: [[tex_coords.z, tex_coords.w].into(); MAX_TEXTURE_COORDS_SETS],
+            pos: [rect.z, rect.w, z],
+            normal: [1., 1., 0.],
+            tex_coord: [[tex_coords.z, tex_coords.w]; MAX_TEXTURE_COORDS_SETS],
             ..Default::default()
         },
         VertexData {
-            pos: [rect.z, rect.y, z].into(),
-            normal: [1., -1., 0.].into(),
-            tex_coord: [[tex_coords.z, tex_coords.y].into(); MAX_TEXTURE_COORDS_SETS],
+            pos: [rect.z, rect.y, z],
+            normal: [1., -1., 0.],
+            tex_coord: [[tex_coords.z, tex_coords.y]; MAX_TEXTURE_COORDS_SETS],
             ..Default::default()
         },
     ];
@@ -50,31 +50,31 @@ pub fn create_quad(
 pub fn create_colored_quad(rect: Vector4, z: f32, color: Vector4) -> ([VertexData; 4], [u32; 6]) {
     let vertices = [
         VertexData {
-            pos: [rect.x, rect.y, z].into(),
-            normal: [-1., -1., 0.].into(),
-            color,
-            tex_coord: [[0., 0.].into(); MAX_TEXTURE_COORDS_SETS],
+            pos: [rect.x, rect.y, z],
+            normal: [-1., -1., 0.],
+            color: color.into(),
+            tex_coord: [[0., 0.]; MAX_TEXTURE_COORDS_SETS],
             ..Default::default()
         },
         VertexData {
-            pos: [rect.x, rect.w, z].into(),
-            normal: [-1., 1., 0.].into(),
-            color,
-            tex_coord: [[0., 1.].into(); MAX_TEXTURE_COORDS_SETS],
+            pos: [rect.x, rect.w, z],
+            normal: [-1., 1., 0.],
+            color: color.into(),
+            tex_coord: [[0., 1.]; MAX_TEXTURE_COORDS_SETS],
             ..Default::default()
         },
         VertexData {
-            pos: [rect.z, rect.w, z].into(),
-            normal: [1., 1., 0.].into(),
-            color,
-            tex_coord: [[1., 1.].into(); MAX_TEXTURE_COORDS_SETS],
+            pos: [rect.z, rect.w, z],
+            normal: [1., 1., 0.],
+            color: color.into(),
+            tex_coord: [[1., 1.]; MAX_TEXTURE_COORDS_SETS],
             ..Default::default()
         },
         VertexData {
-            pos: [rect.z, rect.y, z].into(),
-            normal: [1., -1., 0.].into(),
-            color,
-            tex_coord: [[1., 0.].into(); MAX_TEXTURE_COORDS_SETS],
+            pos: [rect.z, rect.y, z],
+            normal: [1., -1., 0.],
+            color: color.into(),
+            tex_coord: [[1., 0.]; MAX_TEXTURE_COORDS_SETS],
             ..Default::default()
         },
     ];
@@ -84,54 +84,54 @@ pub fn create_colored_quad(rect: Vector4, z: f32, color: Vector4) -> ([VertexDat
 
 pub fn create_triangle_up() -> ([VertexData; 3], [u32; 3]) {
     let mut vertices = [VertexData::default(); 3];
-    vertices[0].pos = [0., 1., 0.].into();
-    vertices[1].pos = [1., 1., 0.].into();
-    vertices[2].pos = [0.5, 0., 0.].into();
-    vertices[0].normal = [-1., -1., 0.].into();
-    vertices[1].normal = [1., -1., 0.].into();
-    vertices[2].normal = [0., 1., 0.].into();
-    vertices[0].tex_coord = [[0., 1.].into(); MAX_TEXTURE_COORDS_SETS];
-    vertices[1].tex_coord = [[1., 1.].into(); MAX_TEXTURE_COORDS_SETS];
-    vertices[2].tex_coord = [[0.5, 0.].into(); MAX_TEXTURE_COORDS_SETS];
-    vertices[0].color = [1., 1., 1., 1.].into();
-    vertices[1].color = [1., 1., 1., 1.].into();
-    vertices[2].color = [1., 1., 1., 1.].into();
+    vertices[0].pos = [0., 1., 0.];
+    vertices[1].pos = [1., 1., 0.];
+    vertices[2].pos = [0.5, 0., 0.];
+    vertices[0].normal = [-1., -1., 0.];
+    vertices[1].normal = [1., -1., 0.];
+    vertices[2].normal = [0., 1., 0.];
+    vertices[0].tex_coord = [[0., 1.]; MAX_TEXTURE_COORDS_SETS];
+    vertices[1].tex_coord = [[1., 1.]; MAX_TEXTURE_COORDS_SETS];
+    vertices[2].tex_coord = [[0.5, 0.]; MAX_TEXTURE_COORDS_SETS];
+    vertices[0].color = [1., 1., 1., 1.];
+    vertices[1].color = [1., 1., 1., 1.];
+    vertices[2].color = [1., 1., 1., 1.];
     let indices = [0u32, 2, 1];
     (vertices, indices)
 }
 
 pub fn create_triangle_down() -> ([VertexData; 3], [u32; 3]) {
     let mut vertices = [VertexData::default(); 3];
-    vertices[0].pos = [0., 0., 0.].into();
-    vertices[1].pos = [1., 0., 0.].into();
-    vertices[2].pos = [0.5, 1., 0.].into();
-    vertices[0].normal = [-1., 1., 0.].into();
-    vertices[1].normal = [1., 1., 0.].into();
-    vertices[2].normal = [0., -1., 0.].into();
-    vertices[0].tex_coord = [[0., 0.].into(); MAX_TEXTURE_COORDS_SETS];
-    vertices[1].tex_coord = [[1., 0.].into(); MAX_TEXTURE_COORDS_SETS];
-    vertices[2].tex_coord = [[0.5, 1.].into(); MAX_TEXTURE_COORDS_SETS];
-    vertices[0].color = [1., 1., 1., 1.].into();
-    vertices[1].color = [1., 1., 1., 1.].into();
-    vertices[2].color = [1., 1., 1., 1.].into();
+    vertices[0].pos = [0., 0., 0.];
+    vertices[1].pos = [1., 0., 0.];
+    vertices[2].pos = [0.5, 1., 0.];
+    vertices[0].normal = [-1., 1., 0.];
+    vertices[1].normal = [1., 1., 0.];
+    vertices[2].normal = [0., -1., 0.];
+    vertices[0].tex_coord = [[0., 0.]; MAX_TEXTURE_COORDS_SETS];
+    vertices[1].tex_coord = [[1., 0.]; MAX_TEXTURE_COORDS_SETS];
+    vertices[2].tex_coord = [[0.5, 1.]; MAX_TEXTURE_COORDS_SETS];
+    vertices[0].color = [1., 1., 1., 1.];
+    vertices[1].color = [1., 1., 1., 1.];
+    vertices[2].color = [1., 1., 1., 1.];
     let indices = [0u32, 2, 1];
     (vertices, indices)
 }
 
 pub fn create_triangle_right() -> ([VertexData; 3], [u32; 3]) {
     let mut vertices = [VertexData::default(); 3];
-    vertices[0].pos = [0., 0., 0.].into();
-    vertices[1].pos = [1., 0.5, 0.].into();
-    vertices[2].pos = [0., 1., 0.].into();
-    vertices[0].normal = [-1., 1., 0.].into();
-    vertices[1].normal = [1., 0., 0.].into();
-    vertices[2].normal = [-1., -1., 0.].into();
-    vertices[0].tex_coord = [[0., 0.].into(); MAX_TEXTURE_COORDS_SETS];
-    vertices[1].tex_coord = [[1., 0.5].into(); MAX_TEXTURE_COORDS_SETS];
-    vertices[2].tex_coord = [[0., 1.].into(); MAX_TEXTURE_COORDS_SETS];
-    vertices[0].color = [1., 1., 1., 1.].into();
-    vertices[1].color = [1., 1., 1., 1.].into();
-    vertices[2].color = [1., 1., 1., 1.].into();
+    vertices[0].pos = [0., 0., 0.];
+    vertices[1].pos = [1., 0.5, 0.];
+    vertices[2].pos = [0., 1., 0.];
+    vertices[0].normal = [-1., 1., 0.];
+    vertices[1].normal = [1., 0., 0.];
+    vertices[2].normal = [-1., -1., 0.];
+    vertices[0].tex_coord = [[0., 0.]; MAX_TEXTURE_COORDS_SETS];
+    vertices[1].tex_coord = [[1., 0.5]; MAX_TEXTURE_COORDS_SETS];
+    vertices[2].tex_coord = [[0., 1.]; MAX_TEXTURE_COORDS_SETS];
+    vertices[0].color = [1., 1., 1., 1.];
+    vertices[1].color = [1., 1., 1., 1.];
+    vertices[2].color = [1., 1., 1., 1.];
     let indices = [0u32, 2, 1];
     (vertices, indices)
 }
@@ -165,9 +165,8 @@ pub fn create_rounded_rect(
             rect.x + (rect.z - rect.x) * 0.5,
             rect.y + (rect.w - rect.y) * 0.5,
             0.,
-        ]
-        .into(),
-        tex_coord: [[0.5, 0.5].into(); MAX_TEXTURE_COORDS_SETS],
+        ],
+        tex_coord: [[0.5, 0.5]; MAX_TEXTURE_COORDS_SETS],
         ..Default::default()
     };
 
@@ -221,9 +220,9 @@ pub fn create_rounded_rect(
     for v in positions.iter() {
         let pos: Vector3 = [v.x, v.y, 0.].into();
         vertices.push(VertexData {
-            pos,
-            tex_coord: [[rect.z / v.x, rect.w / v.y].into(); MAX_TEXTURE_COORDS_SETS],
-            normal: (pos - center.pos).normalized(),
+            pos: pos.into(),
+            tex_coord: [[rect.z / v.x, rect.w / v.y]; MAX_TEXTURE_COORDS_SETS],
+            normal: (pos - Vector3::from(center.pos)).normalized().into(),
             ..Default::default()
         });
     }

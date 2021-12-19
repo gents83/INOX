@@ -309,7 +309,7 @@ impl DebugDrawerSystem {
                     DrawEvent::Arrow(position, direction, color, is_wireframe) => {
                         let (mut vertices, indices) = create_arrow(position, direction);
                         vertices.iter_mut().for_each(|v| {
-                            v.color = color;
+                            v.color = color.into();
                         });
                         if is_wireframe {
                             wireframe_mesh_data.append_mesh(&vertices, &indices);
@@ -320,8 +320,10 @@ impl DebugDrawerSystem {
                     DrawEvent::Sphere(position, radius, color, is_wireframe) => {
                         let (mut vertices, indices) = create_sphere(radius, 32, 16);
                         vertices.iter_mut().for_each(|v| {
-                            v.pos += position;
-                            v.color = color;
+                            v.pos[0] += position.x;
+                            v.pos[1] += position.y;
+                            v.pos[2] += position.z;
+                            v.color = color.into();
                         });
                         if is_wireframe {
                             wireframe_mesh_data.append_mesh(&vertices, &indices);

@@ -1,15 +1,14 @@
 use std::path::PathBuf;
 
 use sabi_math::{is_point_in_triangle, Vector2, Vector3, Vector4};
-use sabi_serialize::{generate_uid_from_string, Deserialize, Serialize, SerializeFile, Uid};
+use sabi_serialize::*;
 
 use crate::{create_quad, MeshDataRef, VertexData};
 
 pub const DEFAULT_MESH_CATEGORY_IDENTIFIER: &str = "SABI_Default";
 
 #[repr(C)]
-#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
-#[serde(crate = "sabi_serialize")]
+#[derive(Serializable, Debug, PartialOrd, PartialEq, Copy, Clone)]
 pub struct MeshCategoryId(Uid);
 
 impl MeshCategoryId {
@@ -26,8 +25,7 @@ pub struct MeshBindingData<'a> {
     pub first_index: u32,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
-#[serde(crate = "sabi_serialize")]
+#[derive(Serializable, Debug, PartialEq, Clone)]
 pub struct MeshData {
     pub vertices: Vec<VertexData>,
     pub indices: Vec<u32>,
@@ -71,12 +69,12 @@ impl MeshData {
         let mut min = Vector3::new(f32::MAX, f32::MAX, f32::MAX);
         let mut max = Vector3::new(f32::MIN, f32::MIN, f32::MIN);
         for v in self.vertices.iter() {
-            min.x = min.x.min(v.pos.x);
-            min.y = min.y.min(v.pos.y);
-            min.z = min.z.min(v.pos.z);
-            max.x = max.x.max(v.pos.x);
-            max.y = max.y.max(v.pos.y);
-            max.z = max.z.max(v.pos.z);
+            min.x = min.x.min(v.pos[0]);
+            min.y = min.y.min(v.pos[1]);
+            min.z = min.z.min(v.pos[2]);
+            max.x = max.x.max(v.pos[0]);
+            max.y = max.y.max(v.pos[1]);
+            max.z = max.z.max(v.pos[2]);
         }
         (min, max)
     }
@@ -93,7 +91,7 @@ impl MeshData {
 
     pub fn set_vertex_color(&mut self, color: Vector4) -> &mut Self {
         for v in self.vertices.iter_mut() {
-            v.color = color;
+            v.color = color.into();
         }
         self
     }
@@ -162,10 +160,10 @@ impl MeshData {
 
     pub fn clip_in_rect(&mut self, clip_rect: Vector4) -> &mut Self {
         for v in self.vertices.iter_mut() {
-            v.pos.x = v.pos.x.max(clip_rect.x);
-            v.pos.x = v.pos.x.min(clip_rect.z);
-            v.pos.y = v.pos.y.max(clip_rect.y);
-            v.pos.y = v.pos.y.min(clip_rect.w);
+            v.pos[0] = v.pos[0].max(clip_rect.x);
+            v.pos[0] = v.pos[0].min(clip_rect.z);
+            v.pos[1] = v.pos[1].max(clip_rect.y);
+            v.pos[1] = v.pos[1].min(clip_rect.w);
         }
         self.compute_center();
         self
@@ -175,9 +173,9 @@ impl MeshData {
         let mut i = 0;
         let count = self.indices.len();
         while i < count {
-            let v1 = self.vertices[self.indices[i] as usize].pos.xy();
-            let v2 = self.vertices[self.indices[i + 1] as usize].pos.xy();
-            let v3 = self.vertices[self.indices[i + 2] as usize].pos.xy();
+            let v1 = Vector3::from(self.vertices[self.indices[i] as usize].pos).xy();
+            let v2 = Vector3::from(self.vertices[self.indices[i + 1] as usize].pos).xy();
+            let v3 = Vector3::from(self.vertices[self.indices[i + 2] as usize].pos).xy();
             if is_point_in_triangle(v1, v2, v3, pos_in_screen_space.x, pos_in_screen_space.y) {
                 return true;
             }

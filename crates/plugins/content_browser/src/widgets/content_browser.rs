@@ -245,7 +245,10 @@ impl ContentBrowser {
                                     .send(dialog_event.as_boxed())
                                     .ok();
                                 */
-                                let serialized_event = serialize(&dialog_event);
+                                let serialized_event = serialize(
+                                    &dialog_event,
+                                    &data.shared_data.serializable_registry(),
+                                );
                                 println!("[[[{}]]]", serialized_event);
                             }
                             if ui.button("Cancel").clicked() {
@@ -257,7 +260,10 @@ impl ContentBrowser {
                                     .send(dialog_event.as_boxed())
                                     .ok();
                                     */
-                                let serialized_event = serialize(&dialog_event);
+                                let serialized_event = serialize(
+                                    &dialog_event,
+                                    &data.shared_data.serializable_registry(),
+                                );
                                 println!("[[[{}]]]", serialized_event);
                             }
                         });

@@ -1,17 +1,16 @@
 use sabi_math::{VecBase, Vector3};
 use sabi_nodes::{
     implement_node, LogicContext, LogicData, LogicExecution, LogicNodeRegistry, Node,
-    NodeExecutionType, NodeState, NodeTree, PinId, ScriptInitNode,
+    NodeExecutionType, NodeState, NodeTree, PinId,
 };
-use sabi_resources::Resource;
+use sabi_resources::{Resource, SharedDataRc};
 use sabi_scene::{Object, Script};
-use sabi_serialize::{deserialize, typetag, Deserialize, Serialize};
+use sabi_serialize::*;
 
-#[derive(Serialize, Deserialize, Clone)]
-#[serde(crate = "sabi_serialize")]
+#[derive(Serializable, Clone)]
 pub struct RotateNode {
     node: Node,
-    #[serde(skip)]
+    #[serializable(ignore)]
     is_running: bool,
 }
 implement_node!(
@@ -72,21 +71,10 @@ impl RotateNode {
 
 #[allow(dead_code)]
 fn test_nodes() {
+    let shared_data = SharedDataRc::default();
     let mut registry = LogicNodeRegistry::default();
-    registry.register_node::<ScriptInitNode>();
-    registry.register_node::<RotateNode>();
-
-    registry.register_pin_type::<f32>();
-    registry.register_pin_type::<f64>();
-    registry.register_pin_type::<u8>();
-    registry.register_pin_type::<i8>();
-    registry.register_pin_type::<u16>();
-    registry.register_pin_type::<i16>();
-    registry.register_pin_type::<u32>();
-    registry.register_pin_type::<i32>();
-    registry.register_pin_type::<bool>();
-    registry.register_pin_type::<String>();
-    registry.register_pin_type::<LogicExecution>();
+    registry.on_create(&shared_data);
+    registry.register_node::<RotateNode>(&shared_data);
 
     let data = r#"{"nodes": [{"node_type": "ScriptInitNode", "node": {"name": "ScriptInitNode", "inputs": {}, "outputs": {"Execute": {"pin_type": "LogicExecution", "Type": null}}}}, {"node_type": "RotateNode", "node": {"name": "RotateNode", "inputs": {"OnImpulse": {"pin_type": "LogicExecution", "Type": null}, "Stop": {"pin_type": "LogicExecution", "Type": null}, "Start": {"pin_type": "LogicExecution", "Type": null}, "X (in degrees)": {"pin_type": "f32", "value": 0.0}, "Y (in degrees)": {"pin_type": "f32", "value": 1.0}, "Z (in degrees)": {"pin_type": "f32", "value": 0.0}}, "outputs": {}}}], "links": [{"from_node": "ScriptInitNode", "to_node": "RotateNode", "from_pin": "Execute", "to_pin": "Start"}]}"#;
     let tree = deserialize::<NodeTree>(data).unwrap();

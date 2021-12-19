@@ -1,8 +1,7 @@
 use sabi_resources::ConfigBase;
-use sabi_serialize::{Deserialize, Serialize, SerializeFile};
+use sabi_serialize::*;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(crate = "sabi_serialize")]
+#[derive(Serializable, Debug, Clone)]
 pub struct Config {
     pub title: String,
     pub pos_x: u32,

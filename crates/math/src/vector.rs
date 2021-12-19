@@ -7,6 +7,9 @@ use cgmath::{Deg, Rad};
 pub type Vector2 = cgmath::Vector2<f32>;
 pub type Vector3 = cgmath::Vector3<f32>;
 pub type Vector4 = cgmath::Vector4<f32>;
+pub type Vector2u = cgmath::Vector2<u32>;
+pub type Vector3u = cgmath::Vector3<u32>;
+pub type Vector4u = cgmath::Vector4<u32>;
 
 pub trait VecBase {
     fn default_zero() -> Self;

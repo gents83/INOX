@@ -23,6 +23,8 @@ impl Plugin for Editor {
         "sabi_editor"
     }
     fn prepare(&mut self, app: &mut App) {
+        app.get_shared_data().register_serializable_type::<Config>();
+
         let mut config = Config::default();
         config = read_from_file(config.get_filepath(self.name()).as_path());
 
@@ -52,5 +54,8 @@ impl Plugin for Editor {
         let update_phase: &mut PhaseWithSystems = app.get_phase_mut(EDITOR_UPDATE_PHASE);
         update_phase.remove_system(&self.updater_id);
         app.destroy_phase(EDITOR_UPDATE_PHASE);
+
+        app.get_shared_data()
+            .unregister_serializable_type::<Config>();
     }
 }

@@ -1,22 +1,19 @@
 use std::path::PathBuf;
 
-use sabi_serialize::{Deserialize, Serialize, SerializeFile};
+use sabi_serialize::*;
 
-#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
-#[serde(crate = "sabi_serialize")]
+#[derive(Serializable, Debug, PartialOrd, PartialEq, Copy, Clone)]
 pub enum LoadOperation {
     Load,
     Clear,
     DontCare,
 }
-#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
-#[serde(crate = "sabi_serialize")]
+#[derive(Serializable, Debug, PartialOrd, PartialEq, Copy, Clone)]
 pub enum StoreOperation {
     Store,
     DontCare,
 }
-#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
-#[serde(crate = "sabi_serialize")]
+#[derive(Serializable, Debug, PartialOrd, PartialEq, Copy, Clone)]
 pub enum RenderTarget {
     Screen,
     Texture,
@@ -24,8 +21,7 @@ pub enum RenderTarget {
 }
 
 #[repr(C)]
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
-#[serde(crate = "sabi_serialize")]
+#[derive(Serializable, Debug, PartialEq, Clone)]
 pub struct RenderPassData {
     pub name: String,
     pub load_color: LoadOperation,

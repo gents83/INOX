@@ -1,9 +1,8 @@
-use sabi_serialize::{Deserialize, Serialize};
+use sabi_serialize::*;
 
 use crate::{LogicNodeRegistry, Node};
 
-#[derive(Default, Serialize, Deserialize, Clone)]
-#[serde(crate = "sabi_serialize")]
+#[derive(Default, Serializable, Clone)]
 pub struct NodeLink {
     from_node: String,
     to_node: String,

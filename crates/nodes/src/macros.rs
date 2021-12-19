@@ -1,7 +1,6 @@
 #[macro_export]
 macro_rules! implement_pin {
     ($Type:ident) => {
-        #[typetag::serde]
         impl $crate::Pin for $Type {
             fn as_any(&self) -> &dyn std::any::Any {
                 self
@@ -19,7 +18,7 @@ macro_rules! implement_pin {
                     .last()
                     .unwrap()
             }
-            fn duplicate(&self) -> Box<dyn $crate::Pin> {
+            fn duplicate_pin(&self) -> Box<dyn $crate::Pin> {
                 Box::new(self.clone())
             }
         }
@@ -52,7 +51,6 @@ macro_rules! implement_pin {
 #[macro_export]
 macro_rules! implement_node {
     ($Type:ident, $NodeField:ident, $Category:expr, $Description:expr, $ExecutionType:expr) => {
-        #[typetag::serde]
         impl $crate::NodeTrait for $Type {
             fn get_type() -> &'static str
             where
@@ -95,23 +93,26 @@ macro_rules! implement_node {
             fn execytion_type(&self) -> $crate::NodeExecutionType {
                 $ExecutionType
             }
-            fn duplicate(&self) -> Box<dyn $crate::NodeTrait>
+            fn duplicate_node(&self) -> Box<dyn $crate::NodeTrait>
             where
                 Self: Sized,
             {
                 Box::new(self.clone())
             }
-            fn serialize_node(&self) -> String {
-                sabi_serialize::serialize(self)
+            fn serialize_node(&self, serializable_registry: &SerializableRegistry) -> String {
+                sabi_serialize::serialize(self, serializable_registry)
             }
-            fn deserialize_node(&self, s: &str) -> Option<Self>
+            fn deserialize_node(&self, _s: &str) -> Option<Self>
             where
                 Self: Sized,
             {
+                todo!()
+                /*
                 if let Ok(n) = sabi_serialize::deserialize(s) {
                     return Some(n);
                 }
                 None
+                */
             }
         }
     };

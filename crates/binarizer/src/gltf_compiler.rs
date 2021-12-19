@@ -1,3 +1,4 @@
+use sabi_resources::SharedDataRc;
 use std::{
     fs::{self, create_dir_all, File},
     io::{Seek, SeekFrom},
@@ -20,34 +21,30 @@ use sabi_graphics::{
     LightData, LightType, MaterialAlphaMode, MaterialData, MeshCategoryId, MeshData, TextureType,
     VertexData, DEFAULT_MESH_CATEGORY_IDENTIFIER, MAX_TEXTURE_COORDS_SETS,
 };
-use sabi_math::{Mat4Ops, Matrix4, NewAngle, Parser, Radians, Vector2, Vector3, Vector4};
+use sabi_math::{Degrees, Mat4Ops, Matrix4, NewAngle, Parser, Radians, Vector2, Vector3, Vector4};
 use sabi_messenger::MessengerRw;
 use sabi_nodes::LogicData;
 use sabi_profiler::debug_log;
 use sabi_resources::Data;
 use sabi_scene::{CameraData, ObjectData, SceneData};
-use sabi_serialize::{deserialize, Deserialize, Serialize, SerializeFile};
+use sabi_serialize::*;
 
 const GLTF_EXTENSION: &str = "gltf";
 
 const DEFAULT_PIPELINE: &str = "pipelines/Default.pipeline";
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
-#[serde(crate = "sabi_serialize")]
+#[derive(Serializable, Debug, PartialEq, Clone)]
 struct ExtraData {
     name: String,
-    #[serde(rename = "type")]
     typename: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
-#[serde(crate = "sabi_serialize")]
+#[derive(Serializable, Debug, PartialEq, Clone)]
 struct ExtraProperties {
     logic: ExtraData,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
-#[serde(crate = "sabi_serialize")]
+#[derive(Serializable, Debug, PartialEq, Clone)]
 struct Extras {
     sabi_properties: ExtraProperties,
 }
@@ -62,11 +59,27 @@ enum NodeType {
 #[derive(Default)]
 pub struct GltfCompiler {
     global_messenger: MessengerRw,
+    shared_data: SharedDataRc,
+}
+
+impl Drop for GltfCompiler {
+    fn drop(&mut self) {
+        self.shared_data.unregister_serializable_type::<ExtraData>();
+        self.shared_data
+            .unregister_serializable_type::<ExtraProperties>();
+        self.shared_data.unregister_serializable_type::<Extras>();
+    }
 }
 
 impl GltfCompiler {
-    pub fn new(global_messenger: MessengerRw) -> Self {
-        Self { global_messenger }
+    pub fn new(global_messenger: MessengerRw, shared_data: SharedDataRc) -> Self {
+        shared_data.register_serializable_type::<ExtraData>();
+        shared_data.register_serializable_type::<ExtraProperties>();
+        shared_data.register_serializable_type::<Extras>();
+        Self {
+            global_messenger,
+            shared_data,
+        }
     }
 
     fn num_from_type(&mut self, accessor: &Accessor) -> usize {
@@ -176,7 +189,7 @@ impl GltfCompiler {
                             debug_assert!(vertices.is_empty());
                             for p in pos.iter() {
                                 let v = VertexData {
-                                    pos: *p,
+                                    pos: (*p).into(),
                                     ..Default::default()
                                 };
                                 vertices.push(v);
@@ -184,7 +197,7 @@ impl GltfCompiler {
                         } else {
                             debug_assert!(vertices.len() == pos.len());
                             for (i, p) in pos.iter().enumerate() {
-                                vertices[i].pos = *p;
+                                vertices[i].pos = (*p).into();
                             }
                         }
                     }
@@ -198,7 +211,7 @@ impl GltfCompiler {
                             debug_assert!(vertices.is_empty());
                             for n in norm.iter() {
                                 let v = VertexData {
-                                    normal: *n,
+                                    normal: (*n).into(),
                                     ..Default::default()
                                 };
                                 vertices.push(v);
@@ -206,7 +219,7 @@ impl GltfCompiler {
                         } else {
                             debug_assert!(vertices.len() == norm.len());
                             for (i, n) in norm.iter().enumerate() {
-                                vertices[i].normal = *n;
+                                vertices[i].normal = (*n).into();
                             }
                         }
                     }
@@ -220,7 +233,7 @@ impl GltfCompiler {
                             debug_assert!(vertices.is_empty());
                             for t in tang.iter() {
                                 let v = VertexData {
-                                    tangent: [t.x, t.y, t.z].into(),
+                                    tangent: [t.x, t.y, t.z],
                                     ..Default::default()
                                 };
                                 vertices.push(v);
@@ -228,7 +241,7 @@ impl GltfCompiler {
                         } else {
                             debug_assert!(vertices.len() == tang.len());
                             for (i, t) in tang.iter().enumerate() {
-                                vertices[i].tangent = [t.x, t.y, t.z].into();
+                                vertices[i].tangent = [t.x, t.y, t.z];
                             }
                         }
                     }
@@ -242,7 +255,7 @@ impl GltfCompiler {
                             debug_assert!(vertices.is_empty());
                             for c in col.iter() {
                                 let v = VertexData {
-                                    color: *c,
+                                    color: (*c).into(),
                                     ..Default::default()
                                 };
                                 vertices.push(v);
@@ -250,7 +263,7 @@ impl GltfCompiler {
                         } else {
                             debug_assert!(vertices.len() == col.len());
                             for (i, c) in col.iter().enumerate() {
-                                vertices[i].color = *c;
+                                vertices[i].color = (*c).into();
                             }
                         }
                     }
@@ -269,13 +282,13 @@ impl GltfCompiler {
                     if let Some(tex) = self.read_accessor_from_path::<Vector2>(path, &accessor) {
                         if !vertices.is_empty() {
                             for (i, v) in vertices.iter_mut().enumerate() {
-                                v.tex_coord[texture_index as usize] = tex[i];
+                                v.tex_coord[texture_index as usize] = tex[i].into();
                             }
                         } else {
                             debug_assert!(vertices.is_empty());
                             for t in tex.iter() {
                                 let mut v = VertexData::default();
-                                v.tex_coord[texture_index as usize] = *t;
+                                v.tex_coord[texture_index as usize] = (*t).into();
                                 vertices.push(v);
                             }
                         }
@@ -322,7 +335,7 @@ impl GltfCompiler {
         let mut material_data = MaterialData::default();
 
         let material = primitive.material().pbr_metallic_roughness();
-        material_data.base_color = material.base_color_factor().into();
+        material_data.base_color = material.base_color_factor();
         material_data.roughness_factor = material.roughness_factor();
         material_data.metallic_factor = material.metallic_factor();
         material_data.pipeline = PathBuf::from(DEFAULT_PIPELINE);
@@ -368,8 +381,7 @@ impl GltfCompiler {
             primitive.material().emissive_factor()[1],
             primitive.material().emissive_factor()[2],
             1.,
-        ]
-        .into();
+        ];
         if let Some(material) = material.pbr_specular_glossiness() {
             if let Some(texture) = material.specular_glossiness_texture() {
                 material_data.textures[TextureType::SpecularGlossiness as usize] =
@@ -383,14 +395,13 @@ impl GltfCompiler {
                 material_data.texcoords_set[TextureType::Diffuse as usize] =
                     texture.tex_coord() as _;
             }
-            material_data.diffuse_color = material.diffuse_factor().into();
+            material_data.diffuse_color = material.diffuse_factor();
             material_data.specular_color = [
                 material.specular_factor()[0],
                 material.specular_factor()[1],
                 material.specular_factor()[2],
                 1.,
-            ]
-            .into();
+            ];
         }
 
         let name = format!(
@@ -417,7 +428,7 @@ impl GltfCompiler {
     fn process_object(&mut self, path: &Path, node: &Node, node_name: &str) -> (NodeType, PathBuf) {
         let mut object_data = ObjectData::default();
         let object_transform: Matrix4 = Matrix4::from(node.transform().matrix());
-        object_data.transform = object_transform;
+        object_data.transform = object_transform.into();
 
         if let Some(mesh) = node.mesh() {
             for (_primitive_index, primitive) in mesh.primitives().enumerate() {
@@ -436,11 +447,11 @@ impl GltfCompiler {
             }
         }
         if let Some(camera) = node.camera() {
-            let position = object_data.transform.translation();
+            let position = object_data.transform().translation();
             let mut matrix =
-                Matrix4::from_nonuniform_scale(1., 1., -1.) * object_data.transform.inverse();
+                Matrix4::from_nonuniform_scale(1., 1., -1.) * object_data.transform().inverse();
             matrix.set_translation(position);
-            object_data.transform = matrix;
+            object_data.transform = matrix.into();
             let (_, camera_path) = self.process_camera(path, &camera);
             object_data
                 .components
@@ -481,12 +492,12 @@ impl GltfCompiler {
             let name = format!("Node_{}", child.index());
             if let Some(camera) = child.camera() {
                 object_data.transform =
-                    object_data.transform * Matrix4::from(child.transform().matrix());
-                let position = object_data.transform.translation();
+                    (object_data.transform() * Matrix4::from(child.transform().matrix())).into();
+                let position = object_data.transform().translation();
                 let mut matrix =
-                    Matrix4::from_nonuniform_scale(1., 1., -1.) * object_data.transform.inverse();
+                    Matrix4::from_nonuniform_scale(1., 1., -1.) * object_data.transform().inverse();
                 matrix.set_translation(position);
-                object_data.transform = matrix;
+                object_data.transform = matrix.into();
                 let (_, camera_path) = self.process_camera(path, &camera);
                 object_data
                     .components
@@ -545,7 +556,8 @@ impl GltfCompiler {
                 camera_data.aspect_ratio = p.aspect_ratio().unwrap_or(1920. / 1080.);
                 camera_data.near = p.znear();
                 camera_data.far = p.zfar().unwrap_or(camera_data.near + 1000.);
-                camera_data.fov = Radians::new(p.yfov()).into();
+                let fov: Degrees = Radians::new(p.yfov()).into();
+                camera_data.fov = fov.0;
             }
             Projection::Orthographic(o) => {
                 camera_data.near = o.znear();
@@ -599,7 +611,7 @@ impl GltfCompiler {
 
     fn create_file<T>(path: &Path, data: &T, new_name: &str, folder: &str) -> PathBuf
     where
-        T: Serialize + SerializeFile,
+        T: Serializable + SerializeFile,
     {
         let filename = path.file_name().unwrap().to_str().unwrap();
         let destination_ext = format!("{}.{}", new_name, T::extension());

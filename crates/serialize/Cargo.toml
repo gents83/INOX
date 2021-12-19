@@ -9,8 +9,10 @@ build = "build.rs"
 crate-type = ["lib"]
 
 [dependencies]
+sabi_serialize_derive = { path = "./serialize_derive"}
 serde_derive = {version = "1.0"}
 serde = {version = "1.0", features = ["derive", "rc"]}
 serde_json = { path = "../../extern/json"}
 uuid = { path = "../../extern/uuid", features = ["serde", "v4", "v5"] }
-typetag = { path = "../../extern/typetag" }
+erased-serde = { path = "../../extern/erased-serde" }
+downcast-rs = { path = "../../extern/downcast-rs" }

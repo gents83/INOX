@@ -114,7 +114,7 @@ impl DataTypeResource for Object {
         object_data: Self::DataType,
     ) -> Self {
         let mut object = Self {
-            transform: object_data.transform,
+            transform: object_data.transform.into(),
             ..Default::default()
         };
 
