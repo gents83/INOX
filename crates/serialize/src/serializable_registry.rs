@@ -127,13 +127,6 @@ impl SerializableRegistry {
     where
         T: 'static + ?Sized + Serializable + Any,
     {
-        let typeid = registration.type_id;
-        println!(
-            "Trait {:?} id {:?} - reg_typeid = {:?}",
-            registration.fullname(),
-            typeid,
-            registration.type_id()
-        );
         self.add_name(
             registration.type_id,
             registration.name(),
@@ -141,8 +134,6 @@ impl SerializableRegistry {
         );
         self.trait_registrations
             .insert(registration.type_id, registration);
-        let trait_info = self.trait_registrations.get(&typeid).unwrap();
-        println!("reg_typeid = {:?}", trait_info.type_id());
     }
 
     fn remove_trait<T>(&mut self, registration: SerializableTraitInfo<T>)

@@ -2,20 +2,13 @@ use sabi_resources::SharedDataRc;
 use sabi_serialize::*;
 
 use crate::{
-    implement_node, implement_pin, LogicContext, Node, NodeExecutionType, NodeState, NodeTrait,
-    NodeTree, PinId, SerializableNodeTrait, SerializablePin,
+    implement_node, implement_pin, LogicContext, LogicData, Node, NodeExecutionType, NodeState,
+    NodeTrait, NodeTree, Pin, PinId, SerializableNodeTrait, SerializablePin,
 };
 
-#[derive(Serializable, Copy, Clone)]
+#[derive(Default, Serializable, Copy, Clone)]
 #[serializable(Pin)]
-pub enum LogicExecution {
-    Type,
-}
-impl Default for LogicExecution {
-    fn default() -> Self {
-        LogicExecution::Type
-    }
-}
+pub struct LogicExecution {}
 implement_pin!(LogicExecution);
 
 #[derive(Serializable, Clone)]
@@ -171,16 +164,16 @@ fn test_node() {
     tree.add_default_node::<RustExampleNode>("NodeB");
     assert_eq!(tree.get_nodes_count(), 3);
 
-    /*
-    let serialized_tree = serialize(&tree);
-    if let Ok(new_tree) = deserialize::<NodeTree>(&serialized_tree) {
+    let serialized_tree = serialize(&tree, &shared_data.serializable_registry());
+    if let Ok(new_tree) =
+        deserialize::<NodeTree>(&serialized_tree, &shared_data.serializable_registry())
+    {
         let mut logic_data = LogicData::from(new_tree);
         logic_data.init();
         logic_data.execute();
-    } else*/
-    {
+    } else {
         panic!("Deserialization failed");
-    }
+    };
 }
 
 #[test]

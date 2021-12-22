@@ -45,6 +45,12 @@ macro_rules! implement_pin {
                 }
             }
         }
+    };
+}
+#[macro_export]
+macro_rules! implement_pin_with_as_serializable {
+    ($Type:ident) => {
+        implement_pin!($Type);
         impl sabi_serialize::AsSerializable<dyn $crate::Pin> for $Type {
             fn into_type(self: Box<$Type>) -> Box<dyn $crate::Pin> {
                 self
