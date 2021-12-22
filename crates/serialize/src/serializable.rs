@@ -28,6 +28,13 @@ pub enum SerializableMut<'a> {
     Value(&'a mut dyn Serializable),
 }
 
+pub trait AsSerializable<T>
+where
+    T: 'static + ?Sized + Serializable,
+{
+    fn into_type(self: Box<Self>) -> Box<T>;
+}
+
 pub trait Serializable: Any + Send + Sync {
     fn type_name(&self) -> String;
     fn as_serializable(&self) -> &dyn Serializable;

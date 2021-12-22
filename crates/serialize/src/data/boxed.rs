@@ -1,11 +1,5 @@
 use crate::Serializable;
 
-pub trait AsSerializable {
-    fn into_type<T>(self: Box<Self>) -> Box<T>
-    where
-        Box<Self>: Serializable,
-        T: Serializable + ?Sized;
-}
 
 #[macro_export]
 macro_rules! impl_boxed_trait {

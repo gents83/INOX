@@ -1,4 +1,4 @@
-use crate::{FromSerializable, Serializable};
+use crate::{AsSerializable, FromSerializable, Serializable};
 use downcast_rs::{impl_downcast, Downcast};
 use serde::Deserialize;
 use std::{
@@ -10,7 +10,7 @@ use std::{
 #[derive(Default)]
 pub struct SerializableRegistry {
     type_registrations: HashMap<TypeId, SerializableTypeInfo>,
-    trait_registrations: HashMap<TypeId, SerializableTraitInfo>,
+    trait_registrations: HashMap<TypeId, Box<dyn TraitInfo>>,
     names: HashMap<String, TypeId>,
     full_names: HashMap<String, TypeId>,
     ambiguous_names: HashSet<String>,
@@ -37,40 +37,57 @@ impl SerializableRegistry {
     }
     pub fn register_trait<T>(&mut self)
     where
-        T: 'static + ?Sized,
+        T: 'static + ?Sized + Serializable + Any,
     {
-        self.add_trait(SerializableTraitInfo::of::<T>());
+        self.add_trait::<T>(Box::new(SerializableTraitInfo::<T>::default()));
     }
     pub fn unregister_trait<T>(&mut self)
     where
-        T: 'static + ?Sized,
+        T: 'static + ?Sized + Serializable + Any,
     {
-        self.remove_trait(SerializableTraitInfo::of::<T>());
+        self.remove_trait::<T>(SerializableTraitInfo::<T>::default());
     }
     pub fn register_type_with_trait<Trait, Type>(&mut self)
     where
-        Trait: 'static + ?Sized,
-        Type: TypeInfo + 'static + Sized + Serializable + FromSerializable,
+        Trait: 'static + ?Sized + Serializable + Any,
+        Type: TypeInfo
+            + 'static
+            + Sized
+            + Serializable
+            + FromSerializable
+            + Any
+            + AsSerializable<Trait>,
     {
         self.add_type(Type::type_info());
         let trait_id = TypeId::of::<Trait>();
         let trait_info = self.trait_registrations.get_mut(&trait_id).unwrap();
+        let trait_info = trait_info
+            .as_mut()
+            .as_any_mut()
+            .downcast_mut::<SerializableTraitInfo<Trait>>()
+            .unwrap();
         trait_info.data.insert(
             type_name::<Type>().to_string(),
-            Box::new(|v, r| Box::new(Type::from_serializable(v, r).unwrap())),
+            Box::new(|v, r| {
+                let b = Box::new(Type::from_serializable(v, r).unwrap());
+                b.into_type()
+            }),
         );
     }
 
-    pub fn create_value_from_trait<Trait>(&self, value: &dyn Serializable) -> Box<dyn Serializable>
+    pub fn create_value_from_trait<Trait>(&self, value: &dyn Serializable) -> Box<Trait>
     where
         Trait: 'static + ?Sized + Serializable + Any,
         Box<Trait>: Serializable + Sized,
     {
         let trait_id = TypeId::of::<Trait>();
         let trait_info = self.trait_registrations.get(&trait_id).unwrap();
-        let b = trait_info.data.get(value.type_name().as_str()).unwrap()(value, self);
-        //b.into_type::<Trait>()
-        b
+        let trait_info = trait_info
+            .as_ref()
+            .as_any()
+            .downcast_ref::<SerializableTraitInfo<Trait>>()
+            .unwrap();
+        trait_info.data.get(value.type_name().as_str()).unwrap()(value, self)
     }
 
     fn add_name(&mut self, type_id: TypeId, short_name: &str, fullname: &str) {
@@ -106,7 +123,17 @@ impl SerializableRegistry {
         self.type_registrations.remove(&registration.type_id);
     }
 
-    fn add_trait(&mut self, registration: SerializableTraitInfo) {
+    fn add_trait<T>(&mut self, registration: Box<SerializableTraitInfo<T>>)
+    where
+        T: 'static + ?Sized + Serializable + Any,
+    {
+        let typeid = registration.type_id;
+        println!(
+            "Trait {:?} id {:?} - reg_typeid = {:?}",
+            registration.fullname(),
+            typeid,
+            registration.type_id()
+        );
         self.add_name(
             registration.type_id,
             registration.name(),
@@ -114,9 +141,14 @@ impl SerializableRegistry {
         );
         self.trait_registrations
             .insert(registration.type_id, registration);
+        let trait_info = self.trait_registrations.get(&typeid).unwrap();
+        println!("reg_typeid = {:?}", trait_info.type_id());
     }
 
-    fn remove_trait(&mut self, registration: SerializableTraitInfo) {
+    fn remove_trait<T>(&mut self, registration: SerializableTraitInfo<T>)
+    where
+        T: 'static + ?Sized + Serializable + Any,
+    {
         self.remove_name(registration.name(), registration.fullname());
         self.trait_registrations.remove(&registration.type_id);
     }
@@ -156,27 +188,36 @@ impl SerializableRegistry {
     }
 }
 
-type FromSerializableFn = dyn Fn(&dyn Serializable, &SerializableRegistry) -> Box<dyn Serializable>;
-pub struct SerializableTraitInfo {
+type FromSerializableFn<Trait> = dyn Fn(&dyn Serializable, &SerializableRegistry) -> Box<Trait>;
+trait TraitInfo: Any + Downcast {}
+impl_downcast!(TraitInfo);
+pub struct SerializableTraitInfo<Trait>
+where
+    Trait: 'static + ?Sized + Serializable + Any,
+{
     type_id: TypeId,
     fullname: &'static str,
-    data: HashMap<String, Box<FromSerializableFn>>,
+    data: HashMap<String, Box<FromSerializableFn<Trait>>>,
 }
+impl<T> TraitInfo for SerializableTraitInfo<T> where T: 'static + ?Sized + Serializable + Any {}
 
-impl SerializableTraitInfo {
-    pub fn of<T>() -> Self
-    where
-        T: ?Sized + 'static,
-    {
-        let ty = TypeId::of::<T>();
-        let type_name = std::any::type_name::<T>();
-        Self {
-            type_id: ty,
-            fullname: type_name,
-            data: HashMap::default(),
+impl<T> Default for SerializableTraitInfo<T>
+where
+    T: 'static + ?Sized + Serializable + Any,
+{
+    fn default() -> Self {
+        SerializableTraitInfo {
+            type_id: TypeId::of::<T>(),
+            fullname: type_name::<T>(),
+            data: HashMap::new(),
         }
     }
+}
 
+impl<T> SerializableTraitInfo<T>
+where
+    T: 'static + ?Sized + Serializable + Any,
+{
     pub fn name(&self) -> &str {
         self.fullname
             .split(':')

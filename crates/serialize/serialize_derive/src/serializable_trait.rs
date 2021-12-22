@@ -67,6 +67,6 @@ pub fn serializable_trait(_args: TokenStream, input: TokenStream) -> TokenStream
             }
         }
 
-        //impl_boxed_trait!(dyn #trait_ident);
+        impl_boxed_trait!(dyn #trait_ident);
     })
 }

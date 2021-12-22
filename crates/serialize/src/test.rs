@@ -44,9 +44,9 @@ impl TestBaseTrait for Bar {
 
 #[derive(Serializable)]
 struct MyMap {
-    map: HashMap<String, Box<dyn Serializable>>,
-    foo: Box<dyn Serializable>,
-    bar: Box<dyn Serializable>,
+    map: HashMap<String, Box<dyn TestBaseTrait>>,
+    foo: Box<dyn TestBaseTrait>,
+    bar: Box<dyn TestBaseTrait>,
 }
 
 impl Default for MyMap {
@@ -62,14 +62,12 @@ impl Default for MyMap {
 #[allow(dead_code)]
 fn test_trait() {
     let mut registry = SerializableRegistry::default();
-    registry.register_trait::<dyn Serializable>();
     registry.register_type::<f32>();
     registry.register_type::<u32>();
     registry.register_type::<String>();
-    registry.register_type_with_trait::<dyn Serializable, Foo>();
-    registry.register_type_with_trait::<dyn Serializable, Bar>();
-    //registry.register_type_with_trait::<dyn TestBaseTrait, Foo>();
-    //registry.register_type_with_trait::<dyn TestBaseTrait, Bar>();
+    registry.register_trait::<dyn TestBaseTrait>();
+    registry.register_type_with_trait::<dyn TestBaseTrait, Foo>();
+    registry.register_type_with_trait::<dyn TestBaseTrait, Bar>();
     registry.register_type::<MyMap>();
 
     //Test trait casting
@@ -80,12 +78,12 @@ fn test_trait() {
     let bar = Bar { y: 9, z: 19.83 };
 
     let my_map = MyMap {
-        foo: foo.duplicate(),
-        bar: bar.duplicate(),
+        foo: foo.clone_trait(),
+        bar: bar.clone_trait(),
         map: {
             let mut map = HashMap::new();
-            map.insert("foo".to_string(), foo.duplicate());
-            map.insert("bar".to_string(), bar.duplicate());
+            map.insert("foo".to_string(), foo.clone_trait());
+            map.insert("bar".to_string(), bar.clone_trait());
             map
         },
     };

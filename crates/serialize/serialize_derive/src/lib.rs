@@ -115,6 +115,7 @@ pub fn derive_serializable(input: TokenStream) -> TokenStream {
     let type_name = &ast.ident;
 
     let mut attrs = SerializableAttributes::default();
+    let mut parent_traits = Vec::new();
     for attribute in ast.attrs.iter().filter_map(|attr| attr.parse_meta().ok()) {
         let meta_list = if let Meta::List(meta_list) = attribute {
             meta_list
@@ -124,22 +125,28 @@ pub fn derive_serializable(input: TokenStream) -> TokenStream {
 
         if let Some(ident) = meta_list.path.get_ident() {
             if ident == SERIALIZABLE_ATTRIBUTE_NAME {
-                attrs = SerializableAttributes::from_nested_metas(&meta_list.nested);
+                attrs = SerializableAttributes::from_nested_metas(
+                    &meta_list.nested,
+                    Some(&mut parent_traits),
+                );
             } else if ident == SERIALIZABLE_VALUE_ATTRIBUTE_NAME {
                 derive_type = DeriveType::Value;
-                attrs = SerializableAttributes::from_nested_metas(&meta_list.nested);
+                attrs = SerializableAttributes::from_nested_metas(&meta_list.nested, None);
             }
         }
     }
 
     let registration_data = &attrs.data;
     let get_type_registration_impl = impl_type_info(type_name, registration_data, &ast.generics);
+    let get_parentr_trait_registration_impl =
+        impl_as_serializable_trait_info(type_name, &parent_traits, &ast.generics);
 
     match derive_type {
         DeriveType::Struct | DeriveType::UnitStruct => impl_struct(
             type_name,
             &ast.generics,
             get_type_registration_impl,
+            get_parentr_trait_registration_impl,
             &attrs,
             &active_fields,
             &ignored_fields,
@@ -148,6 +155,7 @@ pub fn derive_serializable(input: TokenStream) -> TokenStream {
             type_name,
             &ast.generics,
             get_type_registration_impl,
+            get_parentr_trait_registration_impl,
             &attrs,
             &active_fields,
             &ignored_fields,
@@ -162,6 +170,7 @@ fn impl_struct(
     struct_name: &Ident,
     generics: &Generics,
     type_info_impl: proc_macro2::TokenStream,
+    parent_trait_info_impl: proc_macro2::TokenStream,
     attrs: &SerializableAttributes,
     active_fields: &[(&Field, usize)],
     ignored_fields: &[(&Field, usize)],
@@ -228,6 +237,8 @@ fn impl_struct(
 
     TokenStream::from(quote! {
         #type_info_impl
+
+        #parent_trait_info_impl
 
         impl #impl_generics SerializableStruct for #struct_name #ty_generics #where_clause {
             fn field(&self, name: &str) -> Option<&dyn Serializable> {
@@ -370,6 +381,7 @@ fn impl_tuple_struct(
     struct_name: &Ident,
     generics: &Generics,
     type_info_impl: proc_macro2::TokenStream,
+    parent_trait_info_impl: proc_macro2::TokenStream,
     attrs: &SerializableAttributes,
     active_fields: &[(&Field, usize)],
     ignored_fields: &[(&Field, usize)],
@@ -414,6 +426,8 @@ fn impl_tuple_struct(
 
     TokenStream::from(quote! {
         #type_info_impl
+
+        #parent_trait_info_impl
 
         impl #impl_generics SerializableTupleStruct for #struct_name #ty_generics {
             fn field(&self, index: usize) -> Option<&dyn Serializable> {
@@ -669,7 +683,10 @@ struct SerializableAttributes {
 }
 
 impl SerializableAttributes {
-    fn from_nested_metas(nested_metas: &Punctuated<NestedMeta, Comma>) -> Self {
+    fn from_nested_metas(
+        nested_metas: &Punctuated<NestedMeta, Comma>,
+        mut parent_traits: Option<&mut Vec<Ident>>,
+    ) -> Self {
         let mut attrs = SerializableAttributes::default();
         for nested_meta in nested_metas.iter() {
             match nested_meta {
@@ -686,10 +703,15 @@ impl SerializableAttributes {
                                     &format!("Serializable{}", segment.ident),
                                     Span::call_site(),
                                 )),
-                                _ => attrs.data.push(Ident::new(
-                                    &format!("Serializable{}", segment.ident),
-                                    Span::call_site(),
-                                )),
+                                _ => {
+                                    attrs.data.push(Ident::new(
+                                        &format!("Serializable{}", segment.ident),
+                                        Span::call_site(),
+                                    ));
+                                    if let Some(parent_traits) = &mut parent_traits {
+                                        parent_traits.push(segment.ident.clone());
+                                    }
+                                }
                             }
                         }
                     }
@@ -793,7 +815,7 @@ impl SerializableAttributes {
 impl Parse for SerializableAttributes {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let result = Punctuated::<NestedMeta, Comma>::parse_terminated(input)?;
-        Ok(SerializableAttributes::from_nested_metas(&result))
+        Ok(SerializableAttributes::from_nested_metas(&result, None))
     }
 }
 
@@ -813,6 +835,22 @@ fn impl_type_info(
                 type_registration
             }
         }
+    }
+}
+
+fn impl_as_serializable_trait_info(
+    type_name: &Ident,
+    parent_traits: &[Ident],
+    generics: &Generics,
+) -> proc_macro2::TokenStream {
+    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+    quote! {
+        #(impl #impl_generics AsSerializable<dyn #parent_traits> for #type_name #ty_generics #where_clause {
+            fn into_type(self: Box<#type_name #ty_generics>) -> Box<dyn #parent_traits>
+            #where_clause {
+                self
+            }
+        })*
     }
 }
 
