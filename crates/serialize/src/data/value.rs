@@ -96,7 +96,7 @@ where
         self
     }
 
-    fn set_from(&mut self, value: &dyn Serializable, registry: &SerializableRegistry) {
+    fn set(&mut self, value: &dyn Serializable, registry: &SerializableRegistry) {
         apply_in_list(self, value, registry);
     }
 
@@ -229,11 +229,11 @@ where
     }
 
     #[inline]
-    fn set_from(&mut self, value: &dyn Serializable, registry: &SerializableRegistry) {
+    fn set(&mut self, value: &dyn Serializable, registry: &SerializableRegistry) {
         if let SerializableRef::Map(map_value) = value.serializable_ref() {
             for (key, value) in map_value.iter_serializable() {
                 if let Some(v) = self.get_with_key_mut(key) {
-                    v.set_from(value, registry)
+                    v.set(value, registry)
                 } else {
                     let k = K::from_serializable(key, registry).unwrap_or_else(|| {
                         panic!(
@@ -341,7 +341,7 @@ impl Serializable for Cow<'static, str> {
     }
 
     #[inline]
-    fn set_from(&mut self, value: &dyn Serializable, _registry: &SerializableRegistry) {
+    fn set(&mut self, value: &dyn Serializable, _registry: &SerializableRegistry) {
         let value = value.any();
         if let Some(value) = value.downcast_ref::<Self>() {
             *self = value.clone();
@@ -428,7 +428,7 @@ where
         self
     }
     #[inline]
-    fn set_from(&mut self, value: &dyn Serializable, registry: &SerializableRegistry) {
+    fn set(&mut self, value: &dyn Serializable, registry: &SerializableRegistry) {
         crate::apply_in_array(self, value, registry);
     }
 

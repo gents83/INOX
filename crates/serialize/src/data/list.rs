@@ -111,7 +111,7 @@ impl Serializable for SerializableDynamicList {
     }
 
     #[inline]
-    fn set_from(&mut self, value: &dyn Serializable, registry: &SerializableRegistry) {
+    fn set(&mut self, value: &dyn Serializable, registry: &SerializableRegistry) {
         apply_in_list(self, value, registry);
     }
 
@@ -230,7 +230,7 @@ where
         for (i, value) in list_value.iter_serializable().enumerate() {
             if i < a.count() {
                 if let Some(v) = SerializableList::get_at_mut(a, i) {
-                    v.set_from(value, registry);
+                    v.set(value, registry);
                 }
             } else {
                 a.add(value.duplicate(), registry);

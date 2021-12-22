@@ -128,7 +128,7 @@ fn test_trait() {
     println!("m type_name: {:?}", m.type_name());
 
     //let m = value.take::<MyMap>().unwrap();
-    m.set_from(value.as_ref(), &registry);
+    m.set(value.as_ref(), &registry);
 
     println!(
         "m.foo Type: {:?} value: {:?}",

@@ -314,15 +314,15 @@ fn impl_struct(
             }
 
             #[inline]
-            fn set_from(&mut self, value: &dyn Serializable, registry: &SerializableRegistry) {
+            fn set(&mut self, value: &dyn Serializable, registry: &SerializableRegistry) {
                 use SerializableStruct;
                 if let SerializableRef::Struct(struct_value) = value.serializable_ref() {
                     for (i, value) in struct_value.iter_fields().enumerate() {
                         let name = struct_value.name_at(i).unwrap();
-                        self.field_mut(name).map(|v| v.set_from(value, registry));
+                        self.field_mut(name).map(|v| v.set(value, registry));
                     }
                 } else {
-                    panic!("Attempted to set_from non-struct type to struct type.");
+                    panic!("Attempted to set non-struct type to struct type.");
                 }
             }
 
@@ -472,14 +472,14 @@ fn impl_tuple_struct(
             }
 
             #[inline]
-            fn set_from(&mut self, value: &dyn Serializable, registry: &SerializableRegistry) {
+            fn set(&mut self, value: &dyn Serializable, registry: &SerializableRegistry) {
                 use SerializableTupleStruct;
                 if let SerializableRef::TupleStruct(struct_value) = value.serializable_ref() {
                     for (i, value) in struct_value.iter_fields().enumerate() {
-                        self.field_mut(i).map(|v| v.set_from(value, registry));
+                        self.field_mut(i).map(|v| v.set(value, registry));
                     }
                 } else {
-                    panic!("Attempted to set_from non-TupleStruct type to TupleStruct type.");
+                    panic!("Attempted to set non-TupleStruct type to TupleStruct type.");
                 }
             }
 
@@ -561,7 +561,7 @@ fn impl_value(
             }
 
             #[inline]
-            fn set_from(&mut self, value: &dyn Serializable, _registry: &SerializableRegistry) {
+            fn set(&mut self, value: &dyn Serializable, _registry: &SerializableRegistry) {
                 let value = value.any();
                 if let Some(value) = value.downcast_ref::<Self>() {
                     *self = value.clone();

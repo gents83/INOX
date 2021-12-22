@@ -110,7 +110,7 @@ where
         let value = deserializer.deserialize(&mut json_deserializer).unwrap();
         let mut v = T::default();
 
-        v.set_from(value.as_ref(), serializable_registry);
+        v.set(value.as_ref(), serializable_registry);
         return v;
     } else {
         eprintln!(
@@ -144,6 +144,6 @@ where
     let value = deserializer.deserialize(&mut json_deserializer).unwrap();
     let mut v = T::default();
 
-    v.set_from(value.as_ref(), serializable_registry);
+    v.set(value.as_ref(), serializable_registry);
     Ok(v)
 }

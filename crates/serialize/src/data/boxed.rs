@@ -21,12 +21,12 @@ macro_rules! impl_boxed_trait {
             }
 
             #[inline]
-            fn set_from(
+            fn set(
                 &mut self,
                 value: &dyn $crate::Serializable,
                 registry: &$crate::SerializableRegistry,
             ) {
-                self.as_mut().set_from(value, registry)
+                self.as_mut().set(value, registry)
             }
 
             #[inline]

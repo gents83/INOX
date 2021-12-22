@@ -176,11 +176,11 @@ impl Serializable for SerializableDynamicTupleStruct {
     }
 
     #[inline]
-    fn set_from(&mut self, value: &dyn Serializable, registry: &SerializableRegistry) {
+    fn set(&mut self, value: &dyn Serializable, registry: &SerializableRegistry) {
         if let SerializableRef::TupleStruct(tuple_struct) = value.serializable_ref() {
             for (i, value) in tuple_struct.iter_fields().enumerate() {
                 if let Some(v) = self.field_mut(i) {
-                    v.set_from(value, registry)
+                    v.set(value, registry)
                 }
             }
         } else {

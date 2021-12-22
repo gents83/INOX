@@ -204,12 +204,12 @@ impl Serializable for SerializableDynamicStruct {
     }
 
     #[inline]
-    fn set_from(&mut self, value: &dyn Serializable, registry: &SerializableRegistry) {
+    fn set(&mut self, value: &dyn Serializable, registry: &SerializableRegistry) {
         if let SerializableRef::Struct(struct_value) = value.serializable_ref() {
             for (i, value) in struct_value.iter_fields().enumerate() {
                 let name = struct_value.name_at(i).unwrap();
                 if let Some(v) = self.field_mut(name) {
-                    v.set_from(value, registry)
+                    v.set(value, registry)
                 }
             }
         } else {

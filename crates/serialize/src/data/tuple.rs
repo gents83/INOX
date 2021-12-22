@@ -227,7 +227,7 @@ impl Serializable for SerializableDynamicTuple {
     }
 
     #[inline]
-    fn set_from(&mut self, value: &dyn Serializable, registry: &SerializableRegistry) {
+    fn set(&mut self, value: &dyn Serializable, registry: &SerializableRegistry) {
         apply_in_tuple(self, value, registry);
     }
 
@@ -272,7 +272,7 @@ pub fn apply_in_tuple<T: SerializableTuple>(
     if let SerializableRef::Tuple(tuple) = b.serializable_ref() {
         for (i, value) in tuple.iter_fields().enumerate() {
             if let Some(v) = a.field_mut(i) {
-                v.set_from(value, registry)
+                v.set(value, registry)
             }
         }
     } else {
@@ -369,7 +369,7 @@ macro_rules! impl_serializable_tuple {
             }
 
             #[inline]
-            fn set_from(&mut self, value: &dyn Serializable, registry: &SerializableRegistry) {
+            fn set(&mut self, value: &dyn Serializable, registry: &SerializableRegistry) {
                 crate::apply_in_tuple(self, value, registry);
             }
 

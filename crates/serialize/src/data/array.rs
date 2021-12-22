@@ -112,7 +112,7 @@ impl Serializable for SerializableDynamicArray {
     }
 
     #[inline]
-    fn set_from(&mut self, value: &dyn Serializable, registry: &SerializableRegistry) {
+    fn set(&mut self, value: &dyn Serializable, registry: &SerializableRegistry) {
         apply_in_array(self, value, registry);
     }
 
@@ -267,7 +267,7 @@ where
     if let SerializableRef::Array(serializable_array) = value.serializable_ref() {
         for (i, value) in serializable_array.iter_serializable().enumerate() {
             let v = array.get_mut(i).unwrap();
-            v.set_from(value, registry);
+            v.set(value, registry);
         }
     } else {
         panic!("Attempted to apply a non-`Array` type to an `Array` type.");

@@ -119,11 +119,11 @@ impl Serializable for DynamicSerializableMap {
     }
 
     #[inline]
-    fn set_from(&mut self, value: &dyn Serializable, registry: &SerializableRegistry) {
+    fn set(&mut self, value: &dyn Serializable, registry: &SerializableRegistry) {
         if let SerializableRef::Map(map_value) = value.serializable_ref() {
             for (key, value) in map_value.iter_serializable() {
                 if let Some(v) = self.get_with_key_mut(key) {
-                    v.set_from(value, registry)
+                    v.set(value, registry)
                 } else {
                     self.insert_boxed(key.duplicate(), value.duplicate());
                 }

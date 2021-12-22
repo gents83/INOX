@@ -37,7 +37,7 @@ pub trait Serializable: Any + Send + Sync {
     fn type_name(&self) -> String;
     fn any(&self) -> &dyn Any;
     fn any_mut(&mut self) -> &mut dyn Any;
-    fn set_from(&mut self, value: &dyn Serializable, registry: &SerializableRegistry);
+    fn set(&mut self, value: &dyn Serializable, registry: &SerializableRegistry);
     fn duplicate(&self) -> Box<dyn Serializable>;
     fn compute_hash(&self) -> Option<u64>;
     fn is_equal(&self, _value: &dyn Serializable) -> Option<bool>;
