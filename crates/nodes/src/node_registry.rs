@@ -11,7 +11,11 @@ pub trait NodeType: Send + Sync + 'static {
     fn category(&self) -> &str;
     fn description(&self) -> &str;
     fn serialize_node(&self, serializable_registry: &SerializableRegistry) -> String;
-    fn deserialize_node(&self, data: &str) -> Option<Box<dyn NodeTrait>>;
+    fn deserialize_node(
+        &self,
+        data: &str,
+        serializable_registry: &SerializableRegistry,
+    ) -> Option<Box<dyn NodeTrait>>;
 }
 
 struct SpecificNodeType<N> {
@@ -36,11 +40,15 @@ where
     fn serialize_node(&self, serializable_registry: &SerializableRegistry) -> String {
         self.n.serialize_node(serializable_registry)
     }
-    fn deserialize_node(&self, data: &str) -> Option<Box<dyn NodeTrait>>
+    fn deserialize_node(
+        &self,
+        data: &str,
+        serializable_registry: &SerializableRegistry,
+    ) -> Option<Box<dyn NodeTrait>>
     where
         Self: Sized,
     {
-        if let Some(n) = self.n.deserialize_node(data) {
+        if let Some(n) = self.n.deserialize_node(data, serializable_registry) {
             if self.n.node().has_same_pins(n.node()) {
                 return Some(Box::new(n) as Box<dyn NodeTrait>);
             } else {
@@ -133,9 +141,13 @@ impl LogicNodeRegistry {
             f(node.as_ref());
         }
     }
-    pub fn deserialize_node(&self, data: &str) -> Option<Box<dyn NodeTrait>> {
+    pub fn deserialize_node(
+        &self,
+        data: &str,
+        serializable_registry: &SerializableRegistry,
+    ) -> Option<Box<dyn NodeTrait>> {
         for node in &self.node_types {
-            if let Some(n) = node.deserialize_node(data) {
+            if let Some(n) = node.deserialize_node(data, serializable_registry) {
                 println!("Deserializing as {}", n.name());
                 return Some(n);
             }

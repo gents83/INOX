@@ -124,7 +124,9 @@ fn test_node() {
     let init = ScriptInitNode::default();
     let serialized_data = init.serialize_node(&shared_data.serializable_registry());
 
-    if let Some(n) = registry.deserialize_node(&serialized_data) {
+    if let Some(n) =
+        registry.deserialize_node(&serialized_data, &shared_data.serializable_registry())
+    {
         tree.add_node(n);
     }
     assert_eq!(tree.get_nodes_count(), 1);
@@ -159,7 +161,9 @@ fn test_node() {
     assert!(!*node_a.node().get_output::<bool>("out_bool").unwrap());
     let serialized_data = node_a.serialize_node(&shared_data.serializable_registry());
 
-    if let Some(n) = registry.deserialize_node(&serialized_data) {
+    if let Some(n) =
+        registry.deserialize_node(&serialized_data, &shared_data.serializable_registry())
+    {
         tree.add_node(n);
     }
     assert_eq!(tree.get_nodes_count(), 2);

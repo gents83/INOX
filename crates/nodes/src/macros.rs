@@ -107,17 +107,18 @@ macro_rules! implement_node {
             fn serialize_node(&self, serializable_registry: &SerializableRegistry) -> String {
                 sabi_serialize::serialize(self, serializable_registry)
             }
-            fn deserialize_node(&self, _s: &str) -> Option<Self>
+            fn deserialize_node(
+                &self,
+                s: &str,
+                serializable_registry: &SerializableRegistry,
+            ) -> Option<Self>
             where
                 Self: Sized,
             {
-                todo!()
-                /*
-                if let Ok(n) = sabi_serialize::deserialize(s) {
+                if let Ok(n) = sabi_serialize::deserialize(s, serializable_registry) {
                     return Some(n);
                 }
                 None
-                */
             }
         }
     };
