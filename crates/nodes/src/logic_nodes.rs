@@ -165,6 +165,7 @@ fn test_node() {
     assert_eq!(tree.get_nodes_count(), 3);
 
     let serialized_tree = serialize(&tree, &shared_data.serializable_registry());
+    //println!("{}", serialized_tree);
     if let Ok(new_tree) =
         deserialize::<NodeTree>(&serialized_tree, &shared_data.serializable_registry())
     {
