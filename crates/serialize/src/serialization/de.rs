@@ -159,15 +159,6 @@ impl<'a, 'de> Visitor<'de> for SerializableVisitor<'a> {
                     map.set_name(type_name);
                     return Ok(Box::new(map));
                 }
-                serializable_types::BOX => {
-                    let _type_name = type_name
-                        .take()
-                        .ok_or_else(|| de::Error::missing_field(serializable_types::TYPE))?;
-                    let boxed = map.next_value_seed(BoxDeserializer {
-                        registry: self.registry,
-                    })?;
-                    return Ok(boxed);
-                }
                 serializable_types::STRUCT => {
                     let type_name = type_name
                         .take()

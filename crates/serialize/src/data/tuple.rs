@@ -202,16 +202,6 @@ impl Serializable for SerializableDynamicTuple {
     }
 
     #[inline]
-    fn as_serializable(&self) -> &dyn Serializable {
-        self
-    }
-
-    #[inline]
-    fn as_serializable_mut(&mut self) -> &mut dyn Serializable {
-        self
-    }
-
-    #[inline]
     fn any(&self) -> &dyn Any {
         self
     }
@@ -366,16 +356,6 @@ macro_rules! impl_serializable_tuple {
             #[inline]
             fn type_name(&self) -> String {
                 std::any::type_name::<Self>().to_string()
-            }
-
-            #[inline]
-            fn as_serializable(&self) -> &dyn Serializable {
-                self
-            }
-
-            #[inline]
-            fn as_serializable_mut(&mut self) -> &mut dyn Serializable {
-                self
             }
 
             #[inline]

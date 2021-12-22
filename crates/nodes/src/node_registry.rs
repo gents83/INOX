@@ -62,6 +62,8 @@ implement_singleton!(LogicNodeRegistry, on_create);
 
 impl LogicNodeRegistry {
     pub fn on_create(&mut self, shared_data: &SharedDataRc) {
+        shared_data.register_serializable_trait::<dyn Pin>();
+        shared_data.register_serializable_trait::<dyn NodeTrait>();
         shared_data.register_serializable_type::<PinId>();
         shared_data.register_serializable_type::<NodeLink>();
         shared_data.register_serializable_type::<Node>();
@@ -88,9 +90,15 @@ impl LogicNodeRegistry {
 
     pub fn register_pin_type<V>(&mut self, shared_data: &SharedDataRc)
     where
-        V: Pin + Default + 'static + Serializable + TypeInfo,
+        V: Pin
+            + Default
+            + 'static
+            + Serializable
+            + TypeInfo
+            + FromSerializable
+            + AsSerializable<dyn Pin>,
     {
-        shared_data.register_serializable_type::<V>();
+        shared_data.register_serializable_type_with_trait::<dyn Pin, V>();
 
         let p = V::default();
         println!("Registering pin type: {}", p.name());
@@ -98,9 +106,15 @@ impl LogicNodeRegistry {
     }
     pub fn register_node<N>(&mut self, shared_data: &SharedDataRc)
     where
-        N: NodeTrait + Default + 'static + Serializable + TypeInfo,
+        N: NodeTrait
+            + Default
+            + 'static
+            + Serializable
+            + TypeInfo
+            + FromSerializable
+            + AsSerializable<dyn NodeTrait>,
     {
-        shared_data.register_serializable_type::<N>();
+        shared_data.register_serializable_type_with_trait::<dyn NodeTrait, N>();
 
         let n = N::default();
         println!("Registering node: {}", n.name());

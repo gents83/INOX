@@ -1,16 +1,11 @@
-use std::{
-    process::Command,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    },
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
 };
 
-use sabi_messenger::{get_events_from_string, Message, MessageBox, MessengerRw};
+use sabi_messenger::{Message, MessageBox, MessengerRw};
 use sabi_platform::WindowEvent;
-use sabi_profiler::debug_log;
 use sabi_resources::{Data, Resource, SharedDataRc};
-use sabi_serialize::deserialize;
 use sabi_ui::{implement_widget_data, menu, DialogEvent, DialogOp, TopBottomPanel, UIWidget};
 
 struct MenuData {
@@ -156,7 +151,7 @@ impl MainMenu {
             }
         })
     }
-
+    /*
     fn process_command_result(command: &mut Command, dispatcher: MessageBox) {
         let result = command.output();
         match result {
@@ -174,4 +169,5 @@ impl MainMenu {
             }
         }
     }
+    */
 }

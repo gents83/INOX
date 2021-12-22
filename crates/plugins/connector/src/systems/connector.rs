@@ -12,7 +12,7 @@ use std::{
 use sabi_core::System;
 use sabi_messenger::{GlobalMessenger, MessengerRw};
 use sabi_profiler::debug_log;
-use sabi_resources::ConfigBase;
+use sabi_resources::{ConfigBase, SharedDataRc};
 use sabi_serialize::SerializeFile;
 
 use crate::config::Config;
@@ -27,6 +27,7 @@ struct ConnectorData {
 }
 
 pub struct Connector {
+    shared_data: SharedDataRc,
     global_messenger: MessengerRw,
     can_continue: Arc<AtomicBool>,
     host_address_and_port: String,
@@ -34,8 +35,9 @@ pub struct Connector {
 }
 
 impl Connector {
-    pub fn new(global_messenger: &MessengerRw) -> Self {
+    pub fn new(shared_data: &SharedDataRc, global_messenger: &MessengerRw) -> Self {
         Self {
+            shared_data: shared_data.clone(),
             global_messenger: global_messenger.clone(),
             can_continue: Arc::new(AtomicBool::new(false)),
             host_address_and_port: String::new(),
@@ -47,7 +49,10 @@ impl Connector {
 impl System for Connector {
     fn read_config(&mut self, plugin_name: &str) {
         let mut config = Config::default();
-        config.load_from_file(config.get_filepath(plugin_name).as_path());
+        config.load_from_file(
+            config.get_filepath(plugin_name).as_path(),
+            &self.shared_data.serializable_registry(),
+        );
 
         self.host_address_and_port = config.host_address + ":" + config.port.to_string().as_str();
         println!("Host address and port: {}", self.host_address_and_port);

@@ -84,6 +84,7 @@ impl System for ViewerSystem {
         let _script = read_from_file::<LogicData>(
             PathBuf::from("C:\\PROJECTS\\SABI\\data\\blender_export\\TestScene\\logic\\test.logic")
                 .as_path(),
+            &self.shared_data.serializable_registry(),
         );
 
         self.global_messenger

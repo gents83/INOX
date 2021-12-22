@@ -11,7 +11,7 @@ use sabi_resources::{
     DataTypeResource, Function, GenericResource, Handle, Resource, ResourceCastTo, ResourceId,
     ResourceTrait, SerializableResource, SharedData, SharedDataRc,
 };
-use sabi_serialize::{generate_random_uid, read_from_file, SerializeFile};
+use sabi_serialize::{generate_random_uid, read_from_file, SerializableRegistry, SerializeFile};
 use sabi_ui::{CollapsingHeader, UIProperties, UIPropertiesRegistry, Ui};
 
 use crate::{Camera, ObjectData, Script};
@@ -103,8 +103,8 @@ impl DataTypeResource for Object {
         self.components.clear();
         self.children.clear();
     }
-    fn deserialize_data(path: &Path) -> Self::DataType {
-        read_from_file::<Self::DataType>(path)
+    fn deserialize_data(path: &Path, registry: &SerializableRegistry) -> Self::DataType {
+        read_from_file::<Self::DataType>(path, registry)
     }
 
     fn create_from_data(

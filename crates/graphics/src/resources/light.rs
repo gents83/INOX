@@ -49,8 +49,8 @@ impl DataTypeResource for Light {
         panic!("Light cannot be invalidated!");
     }
 
-    fn deserialize_data(path: &std::path::Path) -> Self::DataType {
-        read_from_file::<Self::DataType>(path)
+    fn deserialize_data(path: &std::path::Path, registry: &SerializableRegistry) -> Self::DataType {
+        read_from_file::<Self::DataType>(path, registry)
     }
 
     fn create_from_data(

@@ -6,7 +6,7 @@ use std::{
 use sabi_filesystem::convert_from_local_path;
 use sabi_messenger::{GlobalMessenger, MessengerRw};
 use sabi_profiler::debug_log;
-use sabi_serialize::generate_uid_from_string;
+use sabi_serialize::{generate_uid_from_string, SerializableRegistry};
 
 use crate::{
     Function, LoadResourceEvent, Resource, ResourceId, ResourceTrait, SharedData, SharedDataRc,
@@ -36,7 +36,7 @@ pub trait DataTypeResource: ResourceTrait + Default + Clone {
 
     fn is_initialized(&self) -> bool;
     fn invalidate(&mut self);
-    fn deserialize_data(path: &Path) -> Self::DataType;
+    fn deserialize_data(path: &Path, registry: &SerializableRegistry) -> Self::DataType;
 
     fn create_from_data(
         shared_data: &SharedDataRc,
@@ -110,7 +110,7 @@ pub trait SerializableResource: DataTypeResource + Sized {
                 path.to_str().unwrap()
             );
         }
-        let data = Self::deserialize_data(path.as_path());
+        let data = Self::deserialize_data(path.as_path(), &shared_data.serializable_registry());
         let resource_id = generate_uid_from_string(path.as_path().to_str().unwrap());
         let mut resource = Self::create_from_data(shared_data, global_messenger, resource_id, data);
         debug_log(format!("Created resource {:?}", path.as_path()).as_str());

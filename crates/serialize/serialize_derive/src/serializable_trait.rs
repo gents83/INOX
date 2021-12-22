@@ -48,9 +48,6 @@ pub fn serializable_trait(_args: TokenStream, input: TokenStream) -> TokenStream
 
         impl<T> SerializableType<T> for #serializable_trait_ident
         where T: #trait_ident + FromSerializable + Serializable {
-            fn from_value(&self, value: &dyn Serializable, registry: &SerializableRegistry) -> T {
-                T::from_serializable(value, registry).unwrap()
-            }
             fn from_type_to_serializable() -> Self {
                 Self {
                     get_func: |value| {

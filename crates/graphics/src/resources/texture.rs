@@ -7,6 +7,7 @@ use sabi_profiler::debug_log;
 use sabi_resources::{
     Data, DataTypeResource, Handle, ResourceId, SerializableResource, SharedData, SharedDataRc,
 };
+use sabi_serialize::SerializableRegistry;
 
 use crate::{
     api::backend::BackendPhysicalDevice, Device, TextureHandler, INVALID_INDEX,
@@ -47,7 +48,7 @@ impl DataTypeResource for Texture {
     fn is_initialized(&self) -> bool {
         self.uniform_index != INVALID_INDEX
     }
-    fn deserialize_data(path: &Path) -> Self::DataType {
+    fn deserialize_data(path: &Path, _registry: &SerializableRegistry) -> Self::DataType {
         let image_data = image::open(path).unwrap();
         image_data.to_rgba8()
     }

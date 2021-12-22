@@ -1,6 +1,7 @@
 use sabi_math::{Degrees, MatBase, Matrix4, NewAngle};
 use sabi_messenger::MessengerRw;
 use sabi_resources::{DataTypeResource, Handle, ResourceId, SharedData, SharedDataRc};
+use sabi_serialize::SerializableRegistry;
 
 pub type ViewId = ResourceId;
 
@@ -30,7 +31,10 @@ impl DataTypeResource for View {
     fn invalidate(&mut self) {
         panic!("View cannot be invalidated!");
     }
-    fn deserialize_data(_path: &std::path::Path) -> Self::DataType {
+    fn deserialize_data(
+        _path: &std::path::Path,
+        _registry: &SerializableRegistry,
+    ) -> Self::DataType {
         0
     }
 

@@ -19,7 +19,7 @@ impl Plugin for ConnectorPlugin {
         app.get_shared_data().register_serializable_type::<Config>();
 
         let mut update_phase = PhaseWithSystems::new(CONNECTOR_PHASE);
-        let mut system = Connector::new(app.get_global_messenger());
+        let mut system = Connector::new(app.get_shared_data(), app.get_global_messenger());
         self.updater_id = Connector::id();
         system.read_config(self.name());
         update_phase.add_system(system);

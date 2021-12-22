@@ -26,7 +26,10 @@ impl Plugin for Editor {
         app.get_shared_data().register_serializable_type::<Config>();
 
         let mut config = Config::default();
-        config = read_from_file(config.get_filepath(self.name()).as_path());
+        config = read_from_file(
+            config.get_filepath(self.name()).as_path(),
+            &app.get_shared_data().serializable_registry(),
+        );
 
         let mut update_phase = PhaseWithSystems::new(EDITOR_UPDATE_PHASE);
         let system = EditorUpdater::new(app.get_shared_data(), app.get_global_messenger(), config);

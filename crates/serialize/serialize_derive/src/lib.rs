@@ -299,16 +299,6 @@ fn impl_struct(
             }
 
             #[inline]
-            fn as_serializable(&self) -> &dyn Serializable {
-                self
-            }
-
-            #[inline]
-            fn as_serializable_mut(&mut self) -> &mut dyn Serializable {
-                self
-            }
-
-            #[inline]
             fn any(&self) -> &dyn std::any::Any {
                 self
             }
@@ -467,16 +457,6 @@ fn impl_tuple_struct(
             }
 
             #[inline]
-            fn as_serializable(&self) -> &dyn Serializable {
-                self
-            }
-
-            #[inline]
-            fn as_serializable_mut(&mut self) -> &mut dyn Serializable {
-                self
-            }
-
-            #[inline]
             fn any(&self) -> &dyn std::any::Any {
                 self
             }
@@ -563,16 +543,6 @@ fn impl_value(
             #[inline]
             fn type_name(&self) -> String {
                 std::any::type_name::<Self>().to_string()
-            }
-
-            #[inline]
-            fn as_serializable(&self) -> &dyn Serializable {
-                self
-            }
-
-            #[inline]
-            fn as_serializable_mut(&mut self) -> &mut dyn Serializable {
-                self
             }
 
             #[inline]

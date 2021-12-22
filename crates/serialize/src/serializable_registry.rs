@@ -331,7 +331,6 @@ where
 }
 
 pub trait SerializableType<T> {
-    fn from_value(&self, value: &dyn Serializable, registry: &SerializableRegistry) -> T;
     fn from_type_to_serializable() -> Self;
 }
 
@@ -358,9 +357,6 @@ impl<T> SerializableType<T> for SerializableDeserialize
 where
     T: for<'a> Deserialize<'a> + Serializable + FromSerializable,
 {
-    fn from_value(&self, value: &dyn Serializable, registry: &SerializableRegistry) -> T {
-        T::from_serializable(value, registry).unwrap()
-    }
     fn from_type_to_serializable() -> Self {
         SerializableDeserialize {
             func: |deserializer| Ok(Box::new(T::deserialize(deserializer)?)),

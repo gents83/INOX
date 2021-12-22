@@ -155,7 +155,10 @@ unsafe impl Sync for UpdateSystem {}
 impl System for UpdateSystem {
     fn read_config(&mut self, plugin_name: &str) {
         let mut config = Config::default();
-        config = read_from_file(config.get_filepath(plugin_name).as_path());
+        config = read_from_file(
+            config.get_filepath(plugin_name).as_path(),
+            &self.shared_data.serializable_registry(),
+        );
 
         self.load_render_passes(&config.render_passes)
             .load_pipelines(&config.pipelines);

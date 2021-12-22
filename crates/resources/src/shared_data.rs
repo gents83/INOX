@@ -6,8 +6,8 @@ use std::{
 
 use sabi_messenger::{Message, MessengerRw};
 use sabi_serialize::{
-    generate_uid_from_string, Serializable, SerializableRegistry, SerializableRegistryRw, TypeInfo,
-    Uid,
+    generate_uid_from_string, AsSerializable, FromSerializable, Serializable, SerializableRegistry,
+    SerializableRegistryRw, TypeInfo, Uid,
 };
 
 use crate::{
@@ -113,6 +113,29 @@ impl SharedData {
         T: Serializable + TypeInfo,
     {
         self.serializable_registry_mut().unregister_type::<T>();
+    }
+    #[inline]
+    pub fn register_serializable_type_with_trait<Trait, Type>(&self)
+    where
+        Trait: 'static + ?Sized + Serializable,
+        Type: TypeInfo + 'static + Sized + Serializable + FromSerializable + AsSerializable<Trait>,
+    {
+        self.serializable_registry_mut()
+            .register_type_with_trait::<Trait, Type>();
+    }
+    #[inline]
+    pub fn register_serializable_trait<T>(&self)
+    where
+        T: Serializable + ?Sized,
+    {
+        self.serializable_registry_mut().register_trait::<T>();
+    }
+    #[inline]
+    pub fn unregister_serializable_trait<T>(&self)
+    where
+        T: Serializable + ?Sized,
+    {
+        self.serializable_registry_mut().unregister_trait::<T>();
     }
 
     #[inline]

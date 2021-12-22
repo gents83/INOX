@@ -53,16 +53,11 @@ pub trait NodeTrait: Serializable + Any + Send + Sync + 'static {
     }
     fn execytion_type(&self) -> NodeExecutionType;
     fn execute(&mut self, pin: &PinId, context: &LogicContext) -> NodeState;
-    fn duplicate_node(&self) -> Box<dyn NodeTrait>;
+    fn clone_trait(&self) -> Box<dyn NodeTrait>;
     fn serialize_node(&self, serializable_registry: &SerializableRegistry) -> String;
     fn deserialize_node(&self, s: &str) -> Option<Self>
     where
         Self: Sized;
-}
-impl Clone for Box<dyn NodeTrait> {
-    fn clone(&self) -> Box<dyn NodeTrait> {
-        self.duplicate_node()
-    }
 }
 
 #[derive(Serializable, Clone)]

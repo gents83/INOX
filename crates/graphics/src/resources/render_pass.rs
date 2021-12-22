@@ -4,7 +4,7 @@ use sabi_messenger::MessengerRw;
 use sabi_resources::{
     DataTypeResource, Handle, Resource, ResourceId, SerializableResource, SharedDataRc,
 };
-use sabi_serialize::read_from_file;
+use sabi_serialize::{read_from_file, SerializableRegistry};
 
 use crate::{
     api::backend::{self, BackendPhysicalDevice},
@@ -49,8 +49,8 @@ impl DataTypeResource for RenderPass {
     fn is_initialized(&self) -> bool {
         self.is_initialized
     }
-    fn deserialize_data(path: &Path) -> Self::DataType {
-        read_from_file::<Self::DataType>(path)
+    fn deserialize_data(path: &Path, registry: &SerializableRegistry) -> Self::DataType {
+        read_from_file::<Self::DataType>(path, registry)
     }
 
     fn create_from_data(

@@ -1,14 +1,10 @@
-use std::{
-    path::{Path, PathBuf},
-    process::Command,
-};
+use std::path::{Path, PathBuf};
 
 use sabi_graphics::{Texture, TextureId};
-use sabi_messenger::{get_events_from_string, Message, MessageBox, MessengerRw};
+use sabi_messenger::{Message, MessageBox, MessengerRw};
 
-use sabi_profiler::debug_log;
 use sabi_resources::{Data, Resource, SerializableResource, SharedData, SharedDataRc};
-use sabi_serialize::{deserialize, serialize};
+use sabi_serialize::serialize;
 use sabi_ui::{
     implement_widget_data, CentralPanel, CollapsingHeader, DialogEvent, DialogOp, ScrollArea,
     SidePanel, TextEdit, TextureId as eguiTextureId, TopBottomPanel, UIWidget, Ui, Widget,
@@ -306,7 +302,7 @@ impl ContentBrowser {
             }
         })
     }
-
+    /*
     pub fn process_command_result(command: &mut Command, dispatcher: MessageBox) {
         let result = command.output();
         match result {
@@ -324,4 +320,5 @@ impl ContentBrowser {
             }
         }
     }
+    */
 }

@@ -51,11 +51,6 @@ impl<'a> Serialize for SerializableSerializer<'a> {
         S: serde::Serializer,
     {
         match self.value.serializable_ref() {
-            SerializableRef::Box(value) => BoxSerializer {
-                boxed_value: value,
-                registry: self.registry,
-            }
-            .serialize(serializer),
             SerializableRef::Struct(value) => StructSerializer {
                 struct_value: value,
                 registry: self.registry,
@@ -110,52 +105,6 @@ impl<'a> Serialize for SerializableValueSerializer<'a> {
         state.serialize_entry(
             serializable_types::VALUE,
             get_serializable::<S::Error>(self.value)?.borrow(),
-        )?;
-        state.end()
-    }
-}
-
-pub struct BoxSerializer<'a> {
-    pub boxed_value: &'a dyn Serializable,
-    pub registry: &'a SerializableRegistry,
-}
-
-impl<'a> Serialize for BoxSerializer<'a> {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let mut state = serializer.serialize_map(Some(2))?;
-
-        state.serialize_entry(
-            serializable_types::TYPE,
-            self.boxed_value.type_name().as_str(),
-        )?;
-        state.serialize_entry(
-            serializable_types::BOX,
-            &BoxValueSerializer {
-                boxed_value: self.boxed_value,
-                registry: self.registry,
-            },
-        )?;
-        state.end()
-    }
-}
-
-pub struct BoxValueSerializer<'a> {
-    pub boxed_value: &'a dyn Serializable,
-    pub registry: &'a SerializableRegistry,
-}
-
-impl<'a> Serialize for BoxValueSerializer<'a> {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let mut state = serializer.serialize_map(Some(1))?;
-        state.serialize_entry(
-            serializable_types::CONTENT,
-            &SerializableSerializer::new(self.boxed_value, self.registry),
         )?;
         state.end()
     }

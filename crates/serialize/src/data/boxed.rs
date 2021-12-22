@@ -1,39 +1,13 @@
 use crate::Serializable;
 
-
 #[macro_export]
 macro_rules! impl_boxed_trait {
     ($Type:ty) => {
-        /*
-        impl $crate::AsSerializable for $Type {
-            fn into_type<T>(self: Box<Self>) -> Box<T>
-            where
-                Box<Self>: Serializable,
-                T: Serializable + ?Sized,
-            {
-                unsafe {
-                    let ptr = Box::into_raw(self);
-                    Box::from_raw(ptr as _)
-                }
-            }
-        }
-        */
-
         impl $crate::Serializable for Box<$Type> {
             #[inline]
             fn type_name(&self) -> String {
                 let str = format!("alloc::boxed::Box<{}>", self.as_ref().type_name().as_str());
                 str
-            }
-
-            #[inline]
-            fn as_serializable(&self) -> &dyn $crate::Serializable {
-                self.as_ref().as_serializable()
-            }
-
-            #[inline]
-            fn as_serializable_mut(&mut self) -> &mut dyn $crate::Serializable {
-                self.as_mut().as_serializable_mut()
             }
 
             #[inline]

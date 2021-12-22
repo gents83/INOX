@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use sabi_messenger::MessengerRw;
 use sabi_profiler::debug_log;
 use sabi_resources::{DataTypeResource, ResourceId, SerializableResource, SharedDataRc};
-use sabi_serialize::{read_from_file, SerializeFile};
+use sabi_serialize::{read_from_file, SerializableRegistry, SerializeFile};
 
 use crate::{
     api::backend::{self, BackendPhysicalDevice, BackendPipeline},
@@ -53,8 +53,8 @@ impl DataTypeResource for Pipeline {
     fn is_initialized(&self) -> bool {
         self.is_initialized
     }
-    fn deserialize_data(path: &Path) -> Self::DataType {
-        read_from_file::<Self::DataType>(path)
+    fn deserialize_data(path: &Path, registry: &SerializableRegistry) -> Self::DataType {
+        read_from_file::<Self::DataType>(path, registry)
     }
 
     fn create_from_data(

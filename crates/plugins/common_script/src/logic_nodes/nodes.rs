@@ -1,13 +1,14 @@
 use sabi_math::{VecBase, Vector3};
 use sabi_nodes::{
     implement_node, LogicContext, LogicData, LogicExecution, LogicNodeRegistry, Node,
-    NodeExecutionType, NodeState, NodeTree, PinId,
+    NodeExecutionType, NodeState, NodeTrait, NodeTree, PinId, SerializableNodeTrait,
 };
 use sabi_resources::{Resource, SharedDataRc};
 use sabi_scene::{Object, Script};
 use sabi_serialize::*;
 
 #[derive(Serializable, Clone)]
+#[serializable(NodeTrait)]
 pub struct RotateNode {
     node: Node,
     #[serializable(ignore)]
@@ -77,7 +78,7 @@ fn test_nodes() {
     registry.register_node::<RotateNode>(&shared_data);
 
     let data = r#"{"nodes": [{"node_type": "ScriptInitNode", "node": {"name": "ScriptInitNode", "inputs": {}, "outputs": {"Execute": {"pin_type": "LogicExecution", "Type": null}}}}, {"node_type": "RotateNode", "node": {"name": "RotateNode", "inputs": {"OnImpulse": {"pin_type": "LogicExecution", "Type": null}, "Stop": {"pin_type": "LogicExecution", "Type": null}, "Start": {"pin_type": "LogicExecution", "Type": null}, "X (in degrees)": {"pin_type": "f32", "value": 0.0}, "Y (in degrees)": {"pin_type": "f32", "value": 1.0}, "Z (in degrees)": {"pin_type": "f32", "value": 0.0}}, "outputs": {}}}], "links": [{"from_node": "ScriptInitNode", "to_node": "RotateNode", "from_pin": "Execute", "to_pin": "Start"}]}"#;
-    let tree = deserialize::<NodeTree>(data).unwrap();
+    let tree = deserialize::<NodeTree>(data, &shared_data.serializable_registry()).unwrap();
     assert_eq!(tree.get_nodes_count(), 2);
     assert_eq!(tree.get_links_count(), 1);
 

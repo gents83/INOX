@@ -18,7 +18,7 @@ macro_rules! implement_pin {
                     .last()
                     .unwrap()
             }
-            fn duplicate_pin(&self) -> Box<dyn $crate::Pin> {
+            fn clone_trait(&self) -> Box<dyn $crate::Pin> {
                 Box::new(self.clone())
             }
         }
@@ -43,6 +43,11 @@ macro_rules! implement_pin {
                 if let Some(o) = node.output::<$Type>(output_pin) {
                     *self = o.clone();
                 }
+            }
+        }
+        impl sabi_serialize::AsSerializable<dyn $crate::Pin> for $Type {
+            fn into_type(self: Box<$Type>) -> Box<dyn $crate::Pin> {
+                self
             }
         }
     };
@@ -93,7 +98,7 @@ macro_rules! implement_node {
             fn execytion_type(&self) -> $crate::NodeExecutionType {
                 $ExecutionType
             }
-            fn duplicate_node(&self) -> Box<dyn $crate::NodeTrait>
+            fn clone_trait(&self) -> Box<dyn $crate::NodeTrait>
             where
                 Self: Sized,
             {

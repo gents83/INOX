@@ -5,7 +5,7 @@ use sabi_nodes::LogicData;
 use sabi_resources::{
     DataTypeResource, Handle, Resource, ResourceId, SerializableResource, SharedDataRc,
 };
-use sabi_serialize::{read_from_file, SerializeFile};
+use sabi_serialize::{read_from_file, SerializableRegistry, SerializeFile};
 
 use crate::Object;
 
@@ -50,8 +50,8 @@ impl DataTypeResource for Script {
     fn invalidate(&mut self) {
         panic!("Script cannot be invalidated!");
     }
-    fn deserialize_data(path: &std::path::Path) -> Self::DataType {
-        read_from_file::<Self::DataType>(path)
+    fn deserialize_data(path: &std::path::Path, registry: &SerializableRegistry) -> Self::DataType {
+        read_from_file::<Self::DataType>(path, registry)
     }
 
     fn create_from_data(

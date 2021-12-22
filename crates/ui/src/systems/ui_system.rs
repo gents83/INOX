@@ -374,7 +374,10 @@ impl Drop for UISystem {
 impl System for UISystem {
     fn read_config(&mut self, plugin_name: &str) {
         let mut config = Config::default();
-        config = read_from_file(config.get_filepath(plugin_name).as_path());
+        config = read_from_file(
+            config.get_filepath(plugin_name).as_path(),
+            &self.shared_data.serializable_registry(),
+        );
 
         self.ui_scale = config.ui_scale;
         self.ui_pipeline = Some(Pipeline::request_load(

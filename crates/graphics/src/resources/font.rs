@@ -5,7 +5,7 @@ use sabi_messenger::MessengerRw;
 use sabi_resources::{
     DataTypeResource, Handle, ResourceId, SerializableResource, SharedData, SharedDataRc,
 };
-use sabi_serialize::{generate_random_uid, INVALID_UID};
+use sabi_serialize::{generate_random_uid, SerializableRegistry, INVALID_UID};
 use std::path::{Path, PathBuf};
 
 pub type FontId = ResourceId;
@@ -49,7 +49,7 @@ impl DataTypeResource for Font {
     fn invalidate(&mut self) {
         self.texture = None;
     }
-    fn deserialize_data(path: &Path) -> Self::DataType {
+    fn deserialize_data(path: &Path, _registry: &SerializableRegistry) -> Self::DataType {
         FontData::new(path)
     }
 }

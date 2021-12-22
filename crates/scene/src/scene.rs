@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use sabi_messenger::MessengerRw;
 use sabi_resources::{DataTypeResource, Resource, ResourceId, SerializableResource, SharedDataRc};
-use sabi_serialize::{read_from_file, SerializeFile};
+use sabi_serialize::{read_from_file, SerializableRegistry, SerializeFile};
 use sabi_ui::{CollapsingHeader, UIProperties, UIPropertiesRegistry, Ui};
 
 use crate::{Camera, Object, SceneData};
@@ -60,8 +60,8 @@ impl DataTypeResource for Scene {
     fn invalidate(&mut self) {
         self.clear();
     }
-    fn deserialize_data(path: &Path) -> Self::DataType {
-        read_from_file::<Self::DataType>(path)
+    fn deserialize_data(path: &Path, registry: &SerializableRegistry) -> Self::DataType {
+        read_from_file::<Self::DataType>(path, registry)
     }
 
     fn create_from_data(

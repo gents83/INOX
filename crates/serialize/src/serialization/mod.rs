@@ -6,8 +6,6 @@ pub use ser::*;
 
 pub(crate) mod serializable_types {
     pub const TYPE: &str = "type";
-    pub const BOX: &str = "box";
-    pub const CONTENT: &str = "content";
     pub const MAP: &str = "map";
     pub const STRUCT: &str = "struct";
     pub const TUPLE_STRUCT: &str = "tuple_struct";

@@ -87,16 +87,6 @@ where
     }
 
     #[inline]
-    fn as_serializable(&self) -> &dyn Serializable {
-        self
-    }
-
-    #[inline]
-    fn as_serializable_mut(&mut self) -> &mut dyn Serializable {
-        self
-    }
-
-    #[inline]
     fn any(&self) -> &dyn Any {
         self
     }
@@ -229,16 +219,6 @@ where
     }
 
     #[inline]
-    fn as_serializable(&self) -> &dyn Serializable {
-        self
-    }
-
-    #[inline]
-    fn as_serializable_mut(&mut self) -> &mut dyn Serializable {
-        self
-    }
-
-    #[inline]
     fn any(&self) -> &dyn Any {
         self
     }
@@ -351,16 +331,6 @@ impl Serializable for Cow<'static, str> {
     }
 
     #[inline]
-    fn as_serializable(&self) -> &dyn Serializable {
-        self
-    }
-
-    #[inline]
-    fn as_serializable_mut(&mut self) -> &mut dyn Serializable {
-        self
-    }
-
-    #[inline]
     fn any(&self) -> &dyn Any {
         self
     }
@@ -449,16 +419,6 @@ where
     }
 
     #[inline]
-    fn as_serializable(&self) -> &dyn Serializable {
-        self
-    }
-
-    #[inline]
-    fn as_serializable_mut(&mut self) -> &mut dyn Serializable {
-        self
-    }
-
-    #[inline]
     fn any(&self) -> &dyn Any {
         self
     }
@@ -507,18 +467,20 @@ where
 
 impl<T, const N: usize> FromSerializable for [T; N]
 where
-    T: FromSerializable + Default + Copy,
+    T: FromSerializable + Default,
 {
     fn from_serializable(
         value: &dyn Serializable,
         registry: &SerializableRegistry,
     ) -> Option<Self> {
         if let SerializableRef::Array(ref_array) = value.serializable_ref() {
-            let mut new_array = [T::default(); N];
-            for (index, value) in ref_array.iter_serializable().enumerate() {
-                new_array[index] = T::from_serializable(value, registry)?;
-            }
-            Some(new_array)
+            let mut array = Vec::new();
+            ref_array.iter_serializable().for_each(|value| {
+                array.push(T::from_serializable(value, registry).unwrap());
+            });
+            Some(array.try_into().unwrap_or_else(|v: Vec<T>| {
+                panic!("Expected a Vec of length {} but it was {}", N, v.len())
+            }))
         } else {
             None
         }

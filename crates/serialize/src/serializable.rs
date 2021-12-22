@@ -7,7 +7,6 @@ use std::any::Any;
 use std::fmt::Debug;
 
 pub enum SerializableRef<'a> {
-    Box(&'a dyn Serializable),
     Struct(&'a dyn SerializableStruct),
     TupleStruct(&'a dyn SerializableTupleStruct),
     Tuple(&'a dyn SerializableTuple),
@@ -18,7 +17,6 @@ pub enum SerializableRef<'a> {
 }
 
 pub enum SerializableMut<'a> {
-    Box(&'a mut dyn Serializable),
     Struct(&'a mut dyn SerializableStruct),
     TupleStruct(&'a mut dyn SerializableTupleStruct),
     Tuple(&'a mut dyn SerializableTuple),
@@ -37,8 +35,6 @@ where
 
 pub trait Serializable: Any + Send + Sync {
     fn type_name(&self) -> String;
-    fn as_serializable(&self) -> &dyn Serializable;
-    fn as_serializable_mut(&mut self) -> &mut dyn Serializable;
     fn any(&self) -> &dyn Any;
     fn any_mut(&mut self) -> &mut dyn Any;
     fn set_from(&mut self, value: &dyn Serializable, registry: &SerializableRegistry);
