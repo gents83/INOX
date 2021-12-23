@@ -12,7 +12,8 @@ use syn::{
     parse_macro_input,
     punctuated::Punctuated,
     token::{Comma, Paren, Where},
-    Data, DataStruct, DeriveInput, Field, Fields, Generics, Ident, Index, Member, Meta, NestedMeta,
+    Data, DataEnum, DataStruct, DeriveInput, Field, Fields, Generics, Ident, Index, Member, Meta,
+    NestedMeta, Token, Variant,
 };
 
 #[derive(Default)]
@@ -37,7 +38,13 @@ enum DeriveType {
     Struct,
     TupleStruct,
     UnitStruct,
+    Enum,
     Value,
+}
+
+enum Item<'a> {
+    Field(&'a Field),
+    Variant(&'a Variant),
 }
 
 static SERIALIZABLE_ATTRIBUTE_NAME: &str = "serializable";
@@ -46,71 +53,90 @@ static SERIALIZABLE_VALUE_ATTRIBUTE_NAME: &str = "serializable_value";
 #[proc_macro_derive(Serializable, attributes(serializable, serializable_value, module))]
 pub fn derive_serializable(input: TokenStream) -> TokenStream {
     let ast = parse_macro_input!(input as DeriveInput);
-    let unit_struct_punctuated = Punctuated::new();
-    let (fields, mut derive_type) = match &ast.data {
+    let unit_struct_punctuated = Punctuated::<Field, Token![,]>::new();
+    let (items, mut derive_type): (Vec<Item>, DeriveType) = match &ast.data {
         Data::Struct(DataStruct {
             fields: Fields::Named(fields),
             ..
-        }) => (&fields.named, DeriveType::Struct),
+        }) => (
+            fields.named.iter().map(Item::Field).collect(),
+            DeriveType::Struct,
+        ),
         Data::Struct(DataStruct {
             fields: Fields::Unnamed(fields),
             ..
-        }) => (&fields.unnamed, DeriveType::TupleStruct),
+        }) => (
+            fields.unnamed.iter().map(Item::Field).collect(),
+            DeriveType::TupleStruct,
+        ),
         Data::Struct(DataStruct {
             fields: Fields::Unit,
             ..
-        }) => (&unit_struct_punctuated, DeriveType::UnitStruct),
-        _ => (&unit_struct_punctuated, DeriveType::Value),
+        }) => (
+            unit_struct_punctuated.iter().map(Item::Field).collect(),
+            DeriveType::UnitStruct,
+        ),
+        Data::Enum(DataEnum { variants, .. }) => (
+            variants.iter().map(Item::Variant).collect(),
+            DeriveType::Enum,
+        ),
+        _ => (
+            unit_struct_punctuated.iter().map(Item::Field).collect(),
+            DeriveType::Value,
+        ),
     };
 
-    let fields_and_args = fields
+    let items_and_args = items
         .iter()
         .enumerate()
-        .map(|(i, f)| {
+        .map(|(i, item)| {
             (
-                f,
-                f.attrs
-                    .iter()
-                    .find(|a| *a.path.get_ident().as_ref().unwrap() == SERIALIZABLE_ATTRIBUTE_NAME)
-                    .map(|a| {
-                        syn::custom_keyword!(ignore);
-                        let mut attribute_args = PropAttributeArgs { ignore: None };
-                        a.parse_args_with(|input: ParseStream| {
-                            if input.parse::<Option<ignore>>()?.is_some() {
-                                attribute_args.ignore = Some(true);
-                                return Ok(());
-                            }
-                            Ok(())
-                        })
-                        .expect("Invalid 'property' attribute format.");
+                item,
+                match *item {
+                    Item::Field(field) => &field.attrs,
+                    Item::Variant(variant) => &variant.attrs,
+                }
+                .iter()
+                .find(|a| *a.path.get_ident().as_ref().unwrap() == SERIALIZABLE_ATTRIBUTE_NAME)
+                .map(|a| {
+                    syn::custom_keyword!(ignore);
+                    let mut attribute_args = PropAttributeArgs { ignore: None };
+                    a.parse_args_with(|input: ParseStream| {
+                        if input.parse::<Option<ignore>>()?.is_some() {
+                            attribute_args.ignore = Some(true);
+                            return Ok(());
+                        }
+                        Ok(())
+                    })
+                    .expect("Invalid 'property' attribute format.");
 
-                        attribute_args
-                    }),
+                    attribute_args
+                }),
                 i,
             )
         })
-        .collect::<Vec<(&Field, Option<PropAttributeArgs>, usize)>>();
-    let active_fields = fields_and_args
+        .collect::<Vec<(&Item, Option<PropAttributeArgs>, usize)>>();
+    let active_items = items_and_args
         .iter()
-        .filter(|(_field, attrs, _i)| {
+        .filter(|(_item, attrs, _i)| {
             attrs.is_none()
                 || match attrs.as_ref().unwrap().ignore {
                     Some(ignore) => !ignore,
                     None => true,
                 }
         })
-        .map(|(f, _attr, i)| (*f, *i))
-        .collect::<Vec<(&Field, usize)>>();
-    let ignored_fields = fields_and_args
+        .map(|(item, _attr, i)| (*item, *i))
+        .collect::<Vec<(&Item, usize)>>();
+    let ignored_items = items_and_args
         .iter()
-        .filter(|(_field, attrs, _i)| {
+        .filter(|(_item, attrs, _i)| {
             attrs
                 .as_ref()
                 .map(|attrs| attrs.ignore.unwrap_or(false))
                 .unwrap_or(false)
         })
-        .map(|(f, _attr, i)| (*f, *i))
-        .collect::<Vec<(&Field, usize)>>();
+        .map(|(item, _attr, i)| (*item, *i))
+        .collect::<Vec<(&Item, usize)>>();
 
     let type_name = &ast.ident;
 
@@ -142,24 +168,118 @@ pub fn derive_serializable(input: TokenStream) -> TokenStream {
         impl_as_serializable_trait_info(type_name, &parent_traits, &ast.generics);
 
     match derive_type {
-        DeriveType::Struct | DeriveType::UnitStruct => impl_struct(
-            type_name,
-            &ast.generics,
-            get_type_registration_impl,
-            get_parentr_trait_registration_impl,
-            &attrs,
-            &active_fields,
-            &ignored_fields,
-        ),
-        DeriveType::TupleStruct => impl_tuple_struct(
-            type_name,
-            &ast.generics,
-            get_type_registration_impl,
-            get_parentr_trait_registration_impl,
-            &attrs,
-            &active_fields,
-            &ignored_fields,
-        ),
+        DeriveType::Struct | DeriveType::UnitStruct => {
+            let active_fields = active_items
+                .iter()
+                .map(|(item, i)| {
+                    (
+                        match *item {
+                            Item::Field(field) => *field,
+                            Item::Variant(_) => {
+                                unreachable!()
+                            }
+                        },
+                        *i,
+                    )
+                })
+                .collect::<Vec<_>>();
+            let ignored_fields = ignored_items
+                .iter()
+                .map(|(item, i)| {
+                    (
+                        match *item {
+                            Item::Field(field) => *field,
+                            Item::Variant(_) => {
+                                unreachable!()
+                            }
+                        },
+                        *i,
+                    )
+                })
+                .collect::<Vec<_>>();
+            impl_struct(
+                type_name,
+                &ast.generics,
+                get_type_registration_impl,
+                get_parentr_trait_registration_impl,
+                &attrs,
+                &active_fields,
+                &ignored_fields,
+            )
+        }
+        DeriveType::TupleStruct => {
+            let active_fields = active_items
+                .iter()
+                .map(|(item, i)| {
+                    (
+                        match *item {
+                            Item::Field(field) => *field,
+                            Item::Variant(_) => {
+                                unreachable!()
+                            }
+                        },
+                        *i,
+                    )
+                })
+                .collect::<Vec<_>>();
+            let ignored_fields = ignored_items
+                .iter()
+                .map(|(item, i)| {
+                    (
+                        match *item {
+                            Item::Field(field) => *field,
+                            Item::Variant(_) => {
+                                unreachable!()
+                            }
+                        },
+                        *i,
+                    )
+                })
+                .collect::<Vec<_>>();
+            impl_tuple_struct(
+                type_name,
+                &ast.generics,
+                get_type_registration_impl,
+                get_parentr_trait_registration_impl,
+                &attrs,
+                &active_fields,
+                &ignored_fields,
+            )
+        }
+        DeriveType::Enum => {
+            let active_variants = active_items
+                .iter()
+                .map(|(item, i)| {
+                    (
+                        match *item {
+                            Item::Field(_) => unreachable!(),
+                            Item::Variant(variant) => *variant,
+                        },
+                        *i,
+                    )
+                })
+                .collect::<Vec<_>>();
+            let ignored_variants = ignored_items
+                .iter()
+                .map(|(item, i)| {
+                    (
+                        match *item {
+                            Item::Field(_) => unreachable!(),
+                            Item::Variant(variant) => *variant,
+                        },
+                        *i,
+                    )
+                })
+                .collect::<Vec<_>>();
+            impl_enum(
+                type_name,
+                &ast.generics,
+                get_type_registration_impl,
+                &attrs,
+                &active_variants,
+                &ignored_variants,
+            )
+        }
         DeriveType::Value => {
             impl_value(type_name, &ast.generics, get_type_registration_impl, &attrs)
         }
@@ -299,6 +419,16 @@ fn impl_struct(
             }
 
             #[inline]
+            fn as_serializable(&self) -> &dyn Serializable {
+                self
+            }
+
+            #[inline]
+            fn as_serializable_mut(&mut self) -> &mut dyn Serializable {
+                self
+            }
+
+            #[inline]
             fn any(&self) -> &dyn std::any::Any {
                 self
             }
@@ -365,6 +495,14 @@ fn impl_struct(
             }
         }
     })
+}
+
+fn tuple_field_name(i: usize) -> String {
+    format!("t{}", i)
+}
+
+fn tuple_field_ident(i: usize) -> Ident {
+    Ident::new(tuple_field_name(i).as_str(), Span::call_site())
 }
 
 fn impl_tuple_struct(
@@ -457,6 +595,16 @@ fn impl_tuple_struct(
             }
 
             #[inline]
+            fn as_serializable(&self) -> &dyn Serializable {
+                self
+            }
+
+            #[inline]
+            fn as_serializable_mut(&mut self) -> &mut dyn Serializable {
+                self
+            }
+
+            #[inline]
             fn any(&self) -> &dyn std::any::Any {
                 self
             }
@@ -546,6 +694,16 @@ fn impl_value(
             }
 
             #[inline]
+            fn as_serializable(&self) -> &dyn Serializable {
+                self
+            }
+
+            #[inline]
+            fn as_serializable_mut(&mut self) -> &mut dyn Serializable {
+                self
+            }
+
+            #[inline]
             fn any(&self) -> &dyn std::any::Any {
                 self
             }
@@ -598,6 +756,546 @@ fn impl_value(
         }
     })
 }
+
+fn impl_enum(
+    enum_name: &Ident,
+    generics: &Generics,
+    get_type_registration_impl: proc_macro2::TokenStream,
+    attrs: &SerializableAttributes,
+    active_variants: &[(&Variant, usize)],
+    _ignored_variants: &[(&Variant, usize)],
+) -> TokenStream {
+    let mut variant_indices = Vec::new();
+    let mut struct_wrappers = Vec::new();
+    let mut tuple_wrappers = Vec::new();
+    let mut variant_names = Vec::new();
+    let mut variant_idents = Vec::new();
+    let mut reflect_variants = Vec::new();
+    let mut reflect_variants_mut = Vec::new();
+    let mut variant_with_fields_idents = Vec::new();
+    let mut variant_without_fields_idents = Vec::new();
+    for (variant, variant_index) in active_variants.iter() {
+        let variant_ident = {
+            let ident = &variant.ident;
+            quote!(#enum_name::#ident)
+        };
+        let variant_name = variant_ident
+            .to_string()
+            .chars()
+            .filter(|c| !c.is_whitespace())
+            .collect::<String>();
+        let variant_without_fields_ident = {
+            match &variant.fields {
+                Fields::Named(_struct_fields) => {
+                    quote!(#variant_ident {..})
+                }
+                Fields::Unnamed(tuple) => {
+                    let tuple_fields = &tuple.unnamed;
+                    if tuple_fields.len() == 1 {
+                        quote!(#variant_ident (_))
+                    } else {
+                        quote!(#variant_ident (..))
+                    }
+                }
+                Fields::Unit => {
+                    quote!(#variant_ident)
+                }
+            }
+        };
+        let variant_with_fields_ident = {
+            match &variant.fields {
+                Fields::Named(struct_fields) => {
+                    let field_idents = struct_fields
+                        .named
+                        .iter()
+                        .map(|field| field.ident.as_ref().unwrap())
+                        .collect::<Vec<_>>();
+                    quote!(#variant_ident {#(#field_idents,)*})
+                }
+                Fields::Unnamed(tuple_fields) => {
+                    let field_idents = (0..tuple_fields.unnamed.len())
+                        .map(tuple_field_ident)
+                        .collect::<Vec<_>>();
+                    if tuple_fields.unnamed.len() == 1 {
+                        quote!(#variant_ident (new_type))
+                    } else {
+                        quote!(#variant_ident (#(#field_idents,)*))
+                    }
+                }
+                Fields::Unit => {
+                    quote!(#variant_ident)
+                }
+            }
+        };
+        let wrapper_ident = if let Fields::Named(_) | Fields::Unnamed(_) = &variant.fields {
+            Ident::new(
+                format!("{}{}Wrapper", enum_name, variant.ident).as_str(),
+                Span::call_site(),
+            )
+        } else {
+            Ident::new("unused", Span::call_site())
+        };
+        let wrapper_name = match &variant.fields {
+            Fields::Named(struct_fields) => quote!(#struct_fields).to_string(),
+            Fields::Unnamed(tuple_fields) => quote!(#tuple_fields).to_string(),
+            Fields::Unit => "unused".to_string(),
+        };
+        let reflect_variant = {
+            match &variant.fields {
+                Fields::Named(_struct_fields) => {
+                    quote!({
+                        let wrapper_ref = unsafe { std::mem::transmute::< &Self, &#wrapper_ident >(self) };
+                        SerializableEnumVariant::Struct(wrapper_ref as &dyn SerializableStruct)
+                    })
+                }
+                Fields::Unnamed(tuple_fields) => {
+                    if tuple_fields.unnamed.len() == 1 {
+                        quote!(SerializableEnumVariant::NewType(
+                            new_type as &dyn Serializable
+                        ))
+                    } else {
+                        quote!({
+                            let wrapper_ref = unsafe { std::mem::transmute::< &Self, &#wrapper_ident >(self) };
+                            SerializableEnumVariant::Tuple(wrapper_ref as &dyn SerializableTuple)
+                        })
+                    }
+                }
+                Fields::Unit => {
+                    quote!(SerializableEnumVariant::Unit)
+                }
+            }
+        };
+        let reflect_variant_mut = {
+            match &variant.fields {
+                Fields::Named(_struct_fields) => {
+                    quote!({
+                        let wrapper_ref = unsafe { std::mem::transmute::< &mut Self, &mut #wrapper_ident >(self) };
+                        SerializableEnumVariantMut::Struct(wrapper_ref as &mut dyn SerializableStruct)
+                    })
+                }
+                Fields::Unnamed(tuple) => {
+                    let tuple_fields = &tuple.unnamed;
+                    if tuple_fields.len() == 1 {
+                        quote!(SerializableEnumVariantMut::NewType(
+                            new_type as &mut dyn Serializable
+                        ))
+                    } else {
+                        quote!({
+                            let wrapper_ref = unsafe { std::mem::transmute::< &mut Self, &mut #wrapper_ident >(self) };
+                            SerializableEnumVariantMut::Tuple(wrapper_ref as &mut dyn SerializableTuple)
+                        })
+                    }
+                }
+                Fields::Unit => {
+                    quote!(SerializableEnumVariantMut::Unit)
+                }
+            }
+        };
+        match &variant.fields {
+            Fields::Named(struct_fields) => {
+                struct_wrappers.push((
+                    wrapper_ident,
+                    wrapper_name,
+                    variant_index,
+                    variant_with_fields_ident.clone(),
+                    struct_fields.clone(),
+                ));
+            }
+            Fields::Unnamed(tuple_fields) => {
+                if tuple_fields.unnamed.len() > 1 {
+                    tuple_wrappers.push((
+                        wrapper_ident,
+                        wrapper_name,
+                        variant_index,
+                        variant_with_fields_ident.clone(),
+                        tuple_fields.clone(),
+                    ));
+                }
+            }
+            Fields::Unit => {}
+        }
+        variant_indices.push(variant_index);
+        variant_names.push(variant_name);
+        variant_idents.push(variant_ident);
+        reflect_variants.push(reflect_variant);
+        reflect_variants_mut.push(reflect_variant_mut);
+        variant_with_fields_idents.push(variant_with_fields_ident);
+        variant_without_fields_idents.push(variant_without_fields_ident);
+    }
+    let hash_fn = attrs.get_hash_impl();
+    let serialize_fn = attrs.get_serialize_impl();
+    let partial_eq_fn = match attrs.equal_trait {
+        TraitImpl::NotImplemented => quote! {
+            use SerializableEnum;
+            Some(is_enum_equal(self, value))
+        },
+        TraitImpl::Implemented | TraitImpl::Custom(_) => attrs.get_partial_eq_impl(),
+    };
+
+    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+
+    let mut token_stream = TokenStream::from(quote! {
+        #get_type_registration_impl
+
+        impl #impl_generics SerializableEnum for #enum_name #ty_generics #where_clause {
+            fn variant(&self) -> SerializableEnumVariant<'_> {
+                match self {
+                    #(#variant_with_fields_idents => #reflect_variants,)*
+                }
+            }
+
+            fn variant_mut(&mut self) -> SerializableEnumVariantMut<'_> {
+                match self {
+                    #(#variant_with_fields_idents => #reflect_variants_mut,)*
+                }
+            }
+
+            fn variant_info(&self) -> SerializableVariantInfo<'_> {
+                let index = match self {
+                    #(#variant_without_fields_idents => #variant_indices,)*
+                };
+                SerializableVariantInfo {
+                    index,
+                    name: self.get_index_name(index).unwrap(),
+                }
+            }
+
+            fn get_index_name(&self, index: usize) -> Option<&'_ str> {
+                match index {
+                    #(#variant_indices => Some(#variant_names),)*
+                    _ => None,
+                }
+            }
+
+            fn get_index_from_name(&self, name: &str) -> Option<usize> {
+                match name {
+                    #(#variant_names => Some(#variant_indices),)*
+                    _ => None,
+                }
+            }
+
+            fn iter_variants_info(&self) -> SerializableVariantInfoIterator<'_> {
+                SerializableVariantInfoIterator::new(self)
+            }
+        }
+
+        impl #impl_generics Serializable for #enum_name #ty_generics #where_clause {
+            #[inline]
+            fn type_name(&self) -> String {
+                std::any::type_name::<Self>().to_string()
+            }
+
+            fn as_serializable(&self) -> &dyn Serializable {
+                self
+            }
+
+            fn as_serializable_mut(&mut self) -> &mut dyn Serializable {
+                self
+            }
+
+            #[inline]
+            fn any(&self) -> &dyn std::any::Any {
+                self
+            }
+            #[inline]
+            fn any_mut(&mut self) -> &mut dyn std::any::Any {
+                self
+            }
+            #[inline]
+            fn duplicate(&self) -> Box<dyn Serializable> {
+                use SerializableEnum;
+                Box::new(self.clone()) //FIXME: todo()! should use clone_as_dynamic instead
+             }
+
+            #[inline]
+            fn set(&mut self, value: &dyn Serializable, _registry: &SerializableRegistry) {
+                use SerializableEnum;
+                let value = value.any();
+                if let Some(value) = value.downcast_ref::<Self>() {
+                    *self = value.clone(); //FIXME: should apply the variant instead
+                    todo!();
+                } else {
+                    panic!("Attempted to apply non-enum type to enum type.");
+                }
+            }
+
+            fn serializable_ref(&self) -> SerializableRef {
+                SerializableRef::Enum(self)
+            }
+
+            fn serializable_mut(&mut self) -> SerializableMut {
+                SerializableMut::Enum(self)
+            }
+
+            fn serializable_value(&self) -> Option<SerializableValue> {
+                #serialize_fn
+            }
+
+            fn compute_hash(&self) -> Option<u64> {
+                #hash_fn
+            }
+
+            fn is_equal(&self, value: &dyn Serializable) -> Option<bool> {
+                #partial_eq_fn
+            }
+        }
+
+        impl #impl_generics FromSerializable for #enum_name #ty_generics #where_clause {
+            fn from_serializable(
+                value: &dyn Serializable,
+                registry: &SerializableRegistry,
+            ) -> Option<Self> {
+                if let SerializableRef::Enum(ref_enum) = value.serializable_ref() {
+                    //Todo: load the enum from the registry
+                    todo!();
+                } else {
+                    None
+                }
+            }
+        }
+    });
+    for (wrapper_ident, wrapper_name, _variant_index, variant_with_fields_ident, fields) in
+        struct_wrappers
+    {
+        let mut field_names = Vec::new();
+        let mut field_idents = Vec::new();
+        let mut field_indices = Vec::new();
+        for (i, field) in fields.named.iter().enumerate() {
+            field_names.push(field.ident.as_ref().unwrap().to_string());
+            field_idents.push(field.ident.clone());
+            field_indices.push(i);
+        }
+        let fields_len = field_indices.len();
+        let match_fields = quote!(
+            #variant_with_fields_ident => (#(#field_idents,)*),
+            _ => unreachable!(),
+        );
+        let match_fields_mut = quote!(let (#(#field_idents,)*) = match &mut self.0 {
+            #match_fields
+        };);
+        let match_fields = quote!(let (#(#field_idents,)*) = match &self.0 {
+            #match_fields
+        };);
+        token_stream.extend(TokenStream::from(quote! {
+            #[repr(transparent)]
+            pub struct #wrapper_ident(#enum_name);
+            impl Serializable for #wrapper_ident {
+                fn type_name(&self) -> String {
+                    #wrapper_name.to_string()
+                }
+
+                fn as_serializable(&self) -> &dyn Serializable {
+                    self
+                }
+
+                fn as_serializable_mut(&mut self) -> &mut dyn Serializable {
+                    self
+                }
+
+                fn any(&self) -> &dyn std::any::Any {
+                    self.0.any()
+                }
+
+                fn any_mut(&mut self) -> &mut dyn std::any::Any {
+                    self.0.any_mut()
+                }
+
+                fn set(&mut self, value: &dyn Serializable) {
+                    self.0.set(value);
+                }
+
+                fn serializable_ref(&self) -> SerializableRef {
+                    SerializableRef::Struct(self)
+                }
+
+                fn serializable_mut(&mut self) -> SerializableMut {
+                    SerializableMut::Struct(self)
+                }
+
+                fn duplicate(&self) -> Box<dyn Serializable> {
+                    self.0.duplicate()
+                }
+
+                fn compute_hash(&self) -> Option<u64> {
+                    self.0.compute_hash()
+                }
+
+                fn is_equal(&self, value: &dyn Serializable) -> Option<bool> {
+                    self.0.is_equal(value)
+                }
+
+                fn serializable_value(&self) -> Option<SerializableValue> {
+                    self.0.serializable_value()
+                }
+            }
+            impl SerializableStruct for #wrapper_ident {
+                fn field(&self, name: &str) -> Option<&dyn Serializable> {
+                    #match_fields
+                    match name {
+                        #(#field_names => Some(#field_idents),)*
+                        _ => None,
+                    }
+                }
+
+                fn field_mut(&mut self, name: &str) -> Option<&mut dyn Serializable> {
+                    #match_fields_mut
+                    match name {
+                        #(#field_names => Some(#field_idents),)*
+                        _ => None,
+                    }
+                }
+
+                fn field_at(&self, index: usize) -> Option<&dyn Serializable> {
+                    #match_fields
+                    match index {
+                        #(#field_indices => Some(#field_idents),)*
+                        _ => None,
+                    }
+                }
+
+                fn field_at_mut(&mut self, index: usize) -> Option<&mut dyn Serializable> {
+                    #match_fields_mut
+                    match index {
+                        #(#field_indices => Some(#field_idents),)*
+                        _ => None,
+                    }
+                }
+                fn name_at(&self, index: usize) -> Option<&str> {
+                    match index {
+                        #(#field_indices => Some(#field_names),)*
+                        _ => None,
+                    }
+                }
+
+                fn fields_count(&self) -> usize {
+                    #fields_len
+                }
+
+                fn iter_fields(&self) -> SerializableFieldIterator {
+                    SerializableFieldIterator::new(self)
+                }
+
+                fn clone_as_dynamic(&self) -> SerializableDynamicStruct {
+                    #match_fields
+                    let mut dynamic = SerializableDynamicStruct::default();
+                    dynamic.set_name(self.type_name().to_string());
+                    #(dynamic.insert_boxed(#field_names, #field_idents.duplicate());)*
+                    dynamic
+                }
+            }
+        }));
+    }
+    for (wrapper_ident, wrapper_name, _variant_index, variant_with_fields_ident, fields) in
+        tuple_wrappers
+    {
+        let mut field_names = Vec::new();
+        let mut field_idents = Vec::new();
+        let mut field_indices = Vec::new();
+        for (index, _field) in fields.unnamed.iter().enumerate() {
+            field_names.push(tuple_field_name(index));
+            field_idents.push(tuple_field_ident(index));
+            field_indices.push(index);
+        }
+        let fields_len = field_indices.len();
+        let match_fields = quote!(
+            #variant_with_fields_ident => (#(#field_idents,)*),
+            _ => unreachable!(),
+        );
+        let match_fields_mut = quote!(let (#(#field_idents,)*) = match &mut self.0 {
+            #match_fields
+        };);
+        let match_fields = quote!(let (#(#field_idents,)*) = match &self.0 {
+            #match_fields
+        };);
+        token_stream.extend(TokenStream::from(quote! {
+            #[repr(transparent)]
+            pub struct #wrapper_ident(#enum_name);
+            impl Serializable for #wrapper_ident {
+                fn type_name(&self) -> String {
+                    #wrapper_name.to_string()
+                }
+
+                fn as_serializable(&self) -> &dyn Serializable {
+                    self
+                }
+
+                fn as_serializable_mut(&mut self) -> &mut dyn Serializable {
+                    self
+                }
+
+                fn any(&self) -> &dyn std::any::Any {
+                    self.0.any()
+                }
+
+                fn any_mut(&mut self) -> &mut dyn std::any::Any {
+                    self.0.any_mut()
+                }
+
+                fn set(&mut self, value: &dyn Serializable, registry: &SerializableRegistry) {
+                    self.0.set(value, registry);
+                }
+
+                fn serializable_ref(&self) -> SerializableRef {
+                    SerializableRef::Tuple(self)
+                }
+
+                fn serializable_mut(&mut self) -> SerializableMut {
+                    SerializableMut::Tuple(self)
+                }
+
+                fn duplicate(&self) -> Box<dyn Serializable> {
+                    self.0.duplicate()
+                }
+
+                fn compute_hash(&self) -> Option<u64> {
+                    self.0.compute_hash()
+                }
+
+                fn is_equal(&self, value: &dyn Serializable) -> Option<bool> {
+                    self.0.is_equal(value)
+                }
+
+                fn serializable_value(&self) -> Option<SerializableValue> {
+                    self.0.serializable_value()
+                }
+            }
+            impl SerializableTuple for #wrapper_ident {
+                fn field(&self, index: usize) -> Option<&dyn Serializable> {
+                    #match_fields
+                    match index {
+                        #(#field_indices => Some(#field_idents),)*
+                        _ => None,
+                    }
+                }
+
+                fn field_mut(&mut self, index: usize) -> Option<&mut dyn Serializable> {
+                    #match_fields_mut
+                    match index {
+                        #(#field_indices => Some(#field_idents),)*
+                        _ => None,
+                    }
+                }
+
+                fn fields_count(&self) -> usize {
+                    #fields_len
+                }
+
+                fn iter_fields(&self) -> SerializableTupleFieldIterator {
+                    SerializableTupleFieldIterator::new(self)
+                }
+
+                fn clone_as_dynamic(&self) -> SerializableDynamicTuple {
+                    #match_fields
+                    let mut dynamic = SerializableDynamicTuple::default();
+                    #(dynamic.insert_boxed(#field_idents.duplicate());)*
+                    dynamic
+                }
+            }
+        }));
+    }
+    token_stream
+}
+
 struct SerializableDef {
     type_name: Ident,
     generics: Generics,

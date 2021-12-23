@@ -102,6 +102,16 @@ impl Serializable for SerializableDynamicArray {
     }
 
     #[inline]
+    fn as_serializable(&self) -> &dyn Serializable {
+        self
+    }
+
+    #[inline]
+    fn as_serializable_mut(&mut self) -> &mut dyn Serializable {
+        self
+    }
+
+    #[inline]
     fn any(&self) -> &dyn Any {
         self
     }

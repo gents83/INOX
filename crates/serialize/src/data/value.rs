@@ -1,9 +1,11 @@
 use crate::{
     apply_in_list, is_list_equal, is_map_equal, serialization::SerializableValue,
     AsSerializableArray, AsSerializableList, DynamicSerializableMap, FromSerializable,
-    Serializable, SerializableArray, SerializableDeserialize, SerializableList,
+    Serializable, SerializableArray, SerializableDeserialize, SerializableEnum,
+    SerializableEnumVariant, SerializableEnumVariantMut, SerializableList,
     SerializableListIterator, SerializableMap, SerializableMapIterator, SerializableMut,
-    SerializableRef, SerializableRegistry, SerializableType, SerializableTypeInfo, TypeInfo, Uid,
+    SerializableRef, SerializableRegistry, SerializableType, SerializableTypeInfo,
+    SerializableVariantInfo, SerializableVariantInfoIterator, TypeInfo, Uid,
 };
 
 use sabi_serialize_derive::impl_serializable_value;
@@ -36,7 +38,6 @@ impl_serializable_value!(f64(Serialize, Deserialize));
 impl_serializable_value!(String(Hash, PartialEq, Serialize, Deserialize));
 impl_serializable_value!(PathBuf(Hash, PartialEq, Serialize, Deserialize));
 impl_serializable_value!(Uid(Hash, PartialEq, Serialize, Deserialize));
-impl_serializable_value!(Option<T: Serialize + Clone + for<'de> Deserialize<'de> + Serializable + 'static>(Serialize, Deserialize));
 impl_serializable_value!(HashSet<T: Serialize + Hash + Eq + Clone + for<'de> Deserialize<'de> + Send + Sync + 'static>(Serialize, Deserialize));
 impl_serializable_value!(Range<T: Serialize + Clone + for<'de> Deserialize<'de> + Send + Sync + 'static>(Serialize, Deserialize));
 impl_serializable_value!(Duration);
@@ -84,6 +85,16 @@ where
     #[inline]
     fn type_name(&self) -> String {
         std::any::type_name::<Self>().to_string()
+    }
+
+    #[inline]
+    fn as_serializable(&self) -> &dyn Serializable {
+        self
+    }
+
+    #[inline]
+    fn as_serializable_mut(&mut self) -> &mut dyn Serializable {
+        self
     }
 
     #[inline]
@@ -219,6 +230,16 @@ where
     }
 
     #[inline]
+    fn as_serializable(&self) -> &dyn Serializable {
+        self
+    }
+
+    #[inline]
+    fn as_serializable_mut(&mut self) -> &mut dyn Serializable {
+        self
+    }
+
+    #[inline]
     fn any(&self) -> &dyn Any {
         self
     }
@@ -331,6 +352,16 @@ impl Serializable for Cow<'static, str> {
     }
 
     #[inline]
+    fn as_serializable(&self) -> &dyn Serializable {
+        self
+    }
+
+    #[inline]
+    fn as_serializable_mut(&mut self) -> &mut dyn Serializable {
+        self
+    }
+
+    #[inline]
     fn any(&self) -> &dyn Any {
         self
     }
@@ -419,6 +450,16 @@ where
     }
 
     #[inline]
+    fn as_serializable(&self) -> &dyn Serializable {
+        self
+    }
+
+    #[inline]
+    fn as_serializable_mut(&mut self) -> &mut dyn Serializable {
+        self
+    }
+
+    #[inline]
     fn any(&self) -> &dyn Any {
         self
     }
@@ -484,5 +525,132 @@ where
         } else {
             None
         }
+    }
+}
+
+impl<T> TypeInfo for Option<T>
+where
+    T: Serializable + Clone + Send + Sync + 'static,
+{
+    fn type_info() -> SerializableTypeInfo {
+        SerializableTypeInfo::of::<Option<T>>()
+    }
+}
+
+impl<T> SerializableEnum for Option<T>
+where
+    T: Serializable + Clone + Send + Sync + 'static,
+{
+    fn variant(&self) -> SerializableEnumVariant<'_> {
+        match self {
+            Option::Some(new_type) => {
+                SerializableEnumVariant::NewType(new_type as &dyn Serializable)
+            }
+            Option::None => SerializableEnumVariant::Unit,
+        }
+    }
+
+    fn variant_mut(&mut self) -> SerializableEnumVariantMut<'_> {
+        match self {
+            Option::Some(new_type) => {
+                SerializableEnumVariantMut::NewType(new_type as &mut dyn Serializable)
+            }
+            Option::None => SerializableEnumVariantMut::Unit,
+        }
+    }
+
+    fn variant_info(&self) -> SerializableVariantInfo<'_> {
+        let index = match self {
+            Option::Some(_) => 0usize,
+            Option::None => 1usize,
+        };
+        SerializableVariantInfo {
+            index,
+            name: self.get_index_name(index).unwrap(),
+        }
+    }
+
+    fn get_index_name(&self, index: usize) -> Option<&'_ str> {
+        match index {
+            0usize => Some("Option::Some"),
+            1usize => Some("Option::None"),
+            _ => None,
+        }
+    }
+
+    fn get_index_from_name(&self, name: &str) -> Option<usize> {
+        match name {
+            "Option::Some" => Some(0usize),
+            "Option::None" => Some(1usize),
+            _ => None,
+        }
+    }
+
+    fn iter_variants_info(&self) -> SerializableVariantInfoIterator<'_> {
+        SerializableVariantInfoIterator::new(self)
+    }
+}
+impl<T> Serializable for Option<T>
+where
+    T: Serializable + Clone + Send + Sync + 'static,
+{
+    #[inline]
+    fn type_name(&self) -> String {
+        std::any::type_name::<Self>().to_string()
+    }
+
+    fn as_serializable(&self) -> &dyn Serializable {
+        self
+    }
+
+    fn as_serializable_mut(&mut self) -> &mut dyn Serializable {
+        self
+    }
+
+    #[inline]
+    fn any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    #[inline]
+    fn any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+
+    #[inline]
+    fn duplicate(&self) -> Box<dyn Serializable> {
+        Box::new(self.clone())
+    }
+
+    #[inline]
+    fn set(&mut self, value: &dyn Serializable, _registry: &SerializableRegistry) {
+        let value = value.any();
+        if let Some(value) = value.downcast_ref::<Self>() {
+            *self = value.clone();
+        } else {
+            {
+                panic!("Enum is not {}.", &std::any::type_name::<Self>());
+            };
+        }
+    }
+
+    fn serializable_ref(&self) -> SerializableRef {
+        SerializableRef::Enum(self)
+    }
+
+    fn serializable_mut(&mut self) -> SerializableMut {
+        SerializableMut::Enum(self)
+    }
+
+    fn serializable_value(&self) -> Option<SerializableValue> {
+        None
+    }
+
+    fn compute_hash(&self) -> Option<u64> {
+        None
+    }
+
+    fn is_equal(&self, value: &dyn Serializable) -> Option<bool> {
+        Some(crate::is_enum_equal(self, value))
     }
 }

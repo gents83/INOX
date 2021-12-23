@@ -1,7 +1,7 @@
 use crate::{
-    serialization::serializable_types, Serializable, SerializableArray, SerializableList,
-    SerializableMap, SerializableRef, SerializableRegistry, SerializableStruct, SerializableTuple,
-    SerializableTupleStruct,
+    serialization::serializable_types, Serializable, SerializableArray, SerializableEnum,
+    SerializableEnumVariant, SerializableList, SerializableMap, SerializableRef,
+    SerializableRegistry, SerializableStruct, SerializableTuple, SerializableTupleStruct,
 };
 use serde::{
     ser::{SerializeMap, SerializeSeq},
@@ -81,6 +81,11 @@ impl<'a> Serialize for SerializableSerializer<'a> {
                 registry: self.registry,
             }
             .serialize(serializer),
+            SerializableRef::Enum(value) => EnumSerializer {
+                enum_value: value,
+                registry: self.registry,
+            }
+            .serialize(serializer),
             SerializableRef::Value(value) => SerializableValueSerializer {
                 registry: self.registry,
                 value,
@@ -151,6 +156,76 @@ impl<'a> Serialize for StructValueSerializer<'a> {
         for (index, value) in self.struct_value.iter_fields().enumerate() {
             let key = self.struct_value.name_at(index).unwrap();
             state.serialize_entry(key, &SerializableSerializer::new(value, self.registry))?;
+        }
+        state.end()
+    }
+}
+
+pub struct EnumSerializer<'a> {
+    pub enum_value: &'a dyn SerializableEnum,
+    pub registry: &'a SerializableRegistry,
+}
+
+impl<'a> Serialize for EnumSerializer<'a> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut state = serializer.serialize_map(Some(2))?;
+
+        state.serialize_entry(
+            serializable_types::TYPE,
+            self.enum_value.type_name().as_str(),
+        )?;
+        state.serialize_entry(
+            serializable_types::ENUM,
+            &EnumValueSerializer {
+                enum_value: self.enum_value,
+                registry: self.registry,
+            },
+        )?;
+        state.end()
+    }
+}
+
+pub struct EnumValueSerializer<'a> {
+    pub enum_value: &'a dyn SerializableEnum,
+    pub registry: &'a SerializableRegistry,
+}
+
+impl<'a> Serialize for EnumValueSerializer<'a> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut state = serializer.serialize_map(Some(2))?;
+        let info = self.enum_value.variant_info();
+        state.serialize_entry("name", &info.name)?;
+        match self.enum_value.variant() {
+            SerializableEnumVariant::Unit => {
+                state.serialize_entry(
+                    "value",
+                    &SerializableSerializer::new(&info.index, self.registry),
+                )?;
+            }
+            SerializableEnumVariant::NewType(value) => {
+                state.serialize_entry(
+                    serializable_types::VALUE,
+                    &SerializableSerializer::new(value, self.registry),
+                )?;
+            }
+            SerializableEnumVariant::Tuple(value) => {
+                state.serialize_entry(
+                    serializable_types::VALUE,
+                    &SerializableSerializer::new(value.as_serializable(), self.registry),
+                )?;
+            }
+            SerializableEnumVariant::Struct(value) => {
+                state.serialize_entry(
+                    serializable_types::VALUE,
+                    &SerializableSerializer::new(value.as_serializable(), self.registry),
+                )?;
+            }
         }
         state.end()
     }
@@ -283,16 +358,6 @@ impl<'a> Serialize for MapValueSerializer<'a> {
             state.serialize_element(&SerializableSerializer::new(value, self.registry))?;
         }
         state.end()
-        /*
-        let mut state = serializer.serialize_map(Some(self.map.count()))?;
-        for (key, value) in self.map.iter_serializable() {
-            let k = SerializableSerializer::new(key, self.registry);
-            let v = SerializableSerializer::new(value, self.registry);
-            state.serialize_entry(serializable_types::KEY, &k)?;
-            state.serialize_entry(serializable_types::VALUE, &v)?;
-        }
-        state.end()
-        */
     }
 }
 

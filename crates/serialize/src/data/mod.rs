@@ -1,5 +1,6 @@
 pub mod array;
 pub mod boxed;
+pub mod enum_trait;
 pub mod list;
 pub mod map;
 pub mod struct_trait;
@@ -9,6 +10,7 @@ pub mod value;
 
 pub use array::*;
 pub use boxed::*;
+pub use enum_trait::*;
 pub use list::*;
 pub use map::*;
 pub use struct_trait::*;

@@ -1,7 +1,7 @@
-use crate::SerializableRegistry;
 use crate::{
-    serialization::SerializableValue, SerializableArray, SerializableList, SerializableMap,
-    SerializableStruct, SerializableTuple, SerializableTupleStruct,
+    serialization::SerializableValue, SerializableArray, SerializableEnum, SerializableList,
+    SerializableMap, SerializableRegistry, SerializableStruct, SerializableTuple,
+    SerializableTupleStruct,
 };
 use std::any::Any;
 use std::fmt::Debug;
@@ -13,6 +13,7 @@ pub enum SerializableRef<'a> {
     Array(&'a dyn SerializableArray),
     List(&'a dyn SerializableList),
     Map(&'a dyn SerializableMap),
+    Enum(&'a dyn SerializableEnum),
     Value(&'a dyn Serializable),
 }
 
@@ -23,6 +24,7 @@ pub enum SerializableMut<'a> {
     Array(&'a mut dyn SerializableArray),
     List(&'a mut dyn SerializableList),
     Map(&'a mut dyn SerializableMap),
+    Enum(&'a mut dyn SerializableEnum),
     Value(&'a mut dyn Serializable),
 }
 
@@ -35,6 +37,8 @@ where
 
 pub trait Serializable: Any + Send + Sync {
     fn type_name(&self) -> String;
+    fn as_serializable(&self) -> &dyn Serializable;
+    fn as_serializable_mut(&mut self) -> &mut dyn Serializable;
     fn any(&self) -> &dyn Any;
     fn any_mut(&mut self) -> &mut dyn Any;
     fn set(&mut self, value: &dyn Serializable, registry: &SerializableRegistry);

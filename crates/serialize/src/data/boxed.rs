@@ -11,6 +11,16 @@ macro_rules! impl_boxed_trait {
             }
 
             #[inline]
+            fn as_serializable(&self) -> &dyn Serializable {
+                self.as_ref().as_serializable()
+            }
+
+            #[inline]
+            fn as_serializable_mut(&mut self) -> &mut dyn Serializable {
+                self.as_mut().as_serializable_mut()
+            }
+
+            #[inline]
             fn any(&self) -> &dyn std::any::Any {
                 self.as_ref().any()
             }

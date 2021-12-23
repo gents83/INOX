@@ -42,7 +42,7 @@ impl TestBaseTrait for Bar {
     }
 }
 
-#[derive(Serializable)]
+#[derive(Serializable, Clone)]
 struct MyMap {
     map: HashMap<String, Box<dyn TestBaseTrait>>,
     foo: Box<dyn TestBaseTrait>,
@@ -57,6 +57,19 @@ impl Default for MyMap {
             bar: Box::new(Bar::default()),
         }
     }
+}
+
+#[derive(Serializable, Clone)]
+enum SimpleEnum {
+    A,
+    B,
+    C,
+}
+
+#[derive(Serializable, Clone)]
+enum ComplexEnum {
+    Empty,
+    MapValue(MyMap),
 }
 
 #[allow(dead_code)]
@@ -127,7 +140,6 @@ fn test_trait() {
 
     println!("m type_name: {:?}", m.type_name());
 
-    //let m = value.take::<MyMap>().unwrap();
     m.set(value.as_ref(), &registry);
 
     println!(
@@ -167,7 +179,52 @@ fn test_trait() {
     }
 }
 
+#[allow(dead_code)]
+fn test_enum() {
+    let mut registry = SerializableRegistry::default();
+    registry.register_type::<f32>();
+    registry.register_type::<u32>();
+    registry.register_type::<String>();
+    registry.register_trait::<dyn TestBaseTrait>();
+    registry.register_type_with_trait::<dyn TestBaseTrait, Foo>();
+    registry.register_type_with_trait::<dyn TestBaseTrait, Bar>();
+    registry.register_type::<MyMap>();
+    registry.register_type::<SimpleEnum>();
+    registry.register_type::<ComplexEnum>();
+
+    let simple = SimpleEnum::B;
+    assert!(!simple.is_equal(&SimpleEnum::A).unwrap());
+    assert!(simple.is_equal(&SimpleEnum::B).unwrap());
+    assert!(!simple.is_equal(&SimpleEnum::C).unwrap());
+
+    let serializer = SerializableSerializer::new(&simple, &registry);
+    let serialized = to_string_pretty(&serializer).unwrap();
+
+    println!("simple enum:\n {}", serialized);
+
+    let mut complex = ComplexEnum::Empty;
+    assert!(complex.is_equal(&ComplexEnum::Empty).unwrap());
+    complex = ComplexEnum::MapValue(MyMap {
+        foo: Foo { x: 1 }.clone_trait(),
+        bar: Bar { y: 2, z: 3.4 }.clone_trait(),
+        map: {
+            let mut map = HashMap::new();
+            map.insert("foo".to_string(), Foo { x: 1 }.clone_trait());
+            map.insert("bar".to_string(), Bar { y: 2, z: 3.4 }.clone_trait());
+            map
+        },
+    });
+    assert!(!complex.is_equal(&ComplexEnum::Empty).unwrap());
+
+    let serializer = SerializableSerializer::new(&complex, &registry);
+    let serialized = to_string_pretty(&serializer).unwrap();
+
+    println!("complex enum:\n {}", serialized);
+}
+
 #[test]
 fn serialization_tests() {
     test_trait();
+
+    test_enum();
 }
