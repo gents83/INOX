@@ -1,8 +1,8 @@
 use crate::{
     serialization::serializable_types, DynamicSerializableMap, Serializable,
-    SerializableDeserialize, SerializableDynamicArray, SerializableDynamicList,
-    SerializableDynamicStruct, SerializableDynamicTuple, SerializableDynamicTupleStruct,
-    SerializableRegistry,
+    SerializableDeserialize, SerializableDynamicArray, SerializableDynamicEnum,
+    SerializableDynamicList, SerializableDynamicStruct, SerializableDynamicTuple,
+    SerializableDynamicTupleStruct, SerializableRef, SerializableRegistry,
 };
 use erased_serde::Deserializer;
 use serde::de::{self, DeserializeSeed, MapAccess, SeqAccess, Visitor};
@@ -168,6 +168,16 @@ impl<'a, 'de> Visitor<'de> for SerializableVisitor<'a> {
                     })?;
                     dynamic_struct.set_name(type_name);
                     return Ok(Box::new(dynamic_struct));
+                }
+                serializable_types::ENUM => {
+                    let type_name = type_name
+                        .take()
+                        .ok_or_else(|| de::Error::missing_field(serializable_types::TYPE))?;
+                    let mut dynamic_enum = map.next_value_seed(EnumDeserializer {
+                        registry: self.registry,
+                    })?;
+                    dynamic_enum.set_name(type_name);
+                    return Ok(Box::new(dynamic_enum));
                 }
                 serializable_types::TUPLE_STRUCT => {
                     let type_name = type_name
@@ -431,43 +441,84 @@ impl<'a, 'de> Visitor<'de> for StructVisitor<'a> {
     }
 }
 
-struct BoxDeserializer<'a> {
+struct EnumDeserializer<'a> {
     registry: &'a SerializableRegistry,
 }
 
-impl<'a, 'de> DeserializeSeed<'de> for BoxDeserializer<'a> {
-    type Value = Box<dyn Serializable>;
+impl<'a, 'de> DeserializeSeed<'de> for EnumDeserializer<'a> {
+    type Value = SerializableDynamicEnum;
 
     fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
-        deserializer.deserialize_map(BoxVisitor {
+        deserializer.deserialize_map(EnumVisitor {
             registry: self.registry,
         })
     }
 }
 
-struct BoxVisitor<'a> {
+struct EnumVisitor<'a> {
     registry: &'a SerializableRegistry,
 }
 
-impl<'a, 'de> Visitor<'de> for BoxVisitor<'a> {
-    type Value = Box<dyn Serializable>;
+impl<'a, 'de> Visitor<'de> for EnumVisitor<'a> {
+    type Value = SerializableDynamicEnum;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.write_str("box value")
+        formatter.write_str("enum value")
     }
 
     fn visit_map<V>(self, mut map: V) -> Result<Self::Value, V::Error>
     where
         V: MapAccess<'de>,
     {
-        let _key = map.next_key::<String>()?;
-        let value = map.next_value_seed(SerializableDeserializer {
-            registry: self.registry,
-        })?;
-        Ok(value)
+        let mut dynamic_enum = SerializableDynamicEnum::default();
+        let mut variant_name = std::any::type_name::<Self>().to_string();
+        while let Some(key) = map.next_key::<String>()? {
+            match key.as_str() {
+                serializable_types::ENTRY => {
+                    variant_name = map.next_value::<String>()?;
+                }
+                serializable_types::VALUE => {
+                    let value = map.next_value_seed(SerializableDeserializer {
+                        registry: self.registry,
+                    })?;
+                    match value.serializable_ref() {
+                        SerializableRef::Struct(value) => {
+                            dynamic_enum.insert_boxed(&variant_name, value.duplicate());
+                        }
+                        SerializableRef::Array(value) => {
+                            dynamic_enum.insert_boxed(&variant_name, value.duplicate());
+                        }
+                        SerializableRef::List(value) => {
+                            dynamic_enum.insert_boxed(&variant_name, value.duplicate());
+                        }
+                        SerializableRef::Map(value) => {
+                            dynamic_enum.insert_boxed(&variant_name, value.duplicate());
+                        }
+                        SerializableRef::Tuple(value) => {
+                            dynamic_enum.insert_boxed(&variant_name, value.duplicate());
+                        }
+                        SerializableRef::TupleStruct(value) => {
+                            dynamic_enum.insert_boxed(&variant_name, value.duplicate());
+                        }
+                        SerializableRef::Value(value) => {
+                            dynamic_enum.insert_boxed(&variant_name, value.duplicate());
+                        }
+                        _ => {
+                            panic!("Unsupported enum variant {:?}", value);
+                        }
+                    }
+                }
+                _ => {
+                    let _entry = map.next_value_seed(SerializableDeserializer {
+                        registry: self.registry,
+                    })?;
+                }
+            }
+        }
+        Ok(dynamic_enum)
     }
 }
 

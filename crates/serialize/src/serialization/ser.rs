@@ -200,11 +200,11 @@ impl<'a> Serialize for EnumValueSerializer<'a> {
     {
         let mut state = serializer.serialize_map(Some(2))?;
         let info = self.enum_value.variant_info();
-        state.serialize_entry("name", &info.name)?;
+        state.serialize_entry(serializable_types::ENTRY, &info.name)?;
         match self.enum_value.variant() {
             SerializableEnumVariant::Unit => {
                 state.serialize_entry(
-                    "value",
+                    serializable_types::VALUE,
                     &SerializableSerializer::new(&info.index, self.registry),
                 )?;
             }

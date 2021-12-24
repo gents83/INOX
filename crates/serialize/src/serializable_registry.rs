@@ -91,6 +91,7 @@ impl SerializableRegistry {
     }
 
     fn add_name(&mut self, type_id: TypeId, short_name: &str, fullname: &str) {
+        println!("Registering type {:?} as {}", type_id, fullname);
         if self.names.contains_key(short_name) || self.ambiguous_names.contains(short_name) {
             // name is ambiguous. fall back to long names for all ambiguous types
             self.names.remove(short_name);

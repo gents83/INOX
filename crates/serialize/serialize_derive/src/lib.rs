@@ -770,8 +770,8 @@ fn impl_enum(
     let mut tuple_wrappers = Vec::new();
     let mut variant_names = Vec::new();
     let mut variant_idents = Vec::new();
-    let mut reflect_variants = Vec::new();
-    let mut reflect_variants_mut = Vec::new();
+    let mut serializable_variants = Vec::new();
+    let mut serializable_variants_mut = Vec::new();
     let mut variant_with_fields_idents = Vec::new();
     let mut variant_without_fields_idents = Vec::new();
     for (variant, variant_index) in active_variants.iter() {
@@ -817,7 +817,7 @@ fn impl_enum(
                         .map(tuple_field_ident)
                         .collect::<Vec<_>>();
                     if tuple_fields.unnamed.len() == 1 {
-                        quote!(#variant_ident (new_type))
+                        quote!(#variant_ident (#(#field_idents,)*))
                     } else {
                         quote!(#variant_ident (#(#field_idents,)*))
                     }
@@ -840,7 +840,7 @@ fn impl_enum(
             Fields::Unnamed(tuple_fields) => quote!(#tuple_fields).to_string(),
             Fields::Unit => "unused".to_string(),
         };
-        let reflect_variant = {
+        let serializable_variant = {
             match &variant.fields {
                 Fields::Named(_struct_fields) => {
                     quote!({
@@ -848,24 +848,18 @@ fn impl_enum(
                         SerializableEnumVariant::Struct(wrapper_ref as &dyn SerializableStruct)
                     })
                 }
-                Fields::Unnamed(tuple_fields) => {
-                    if tuple_fields.unnamed.len() == 1 {
-                        quote!(SerializableEnumVariant::NewType(
-                            new_type as &dyn Serializable
-                        ))
-                    } else {
-                        quote!({
-                            let wrapper_ref = unsafe { std::mem::transmute::< &Self, &#wrapper_ident >(self) };
-                            SerializableEnumVariant::Tuple(wrapper_ref as &dyn SerializableTuple)
-                        })
-                    }
+                Fields::Unnamed(_tuple_fields) => {
+                    quote!({
+                        let wrapper_ref = unsafe { std::mem::transmute::< &Self, &#wrapper_ident >(self) };
+                        SerializableEnumVariant::Tuple(wrapper_ref as &dyn SerializableTuple)
+                    })
                 }
                 Fields::Unit => {
                     quote!(SerializableEnumVariant::Unit)
                 }
             }
         };
-        let reflect_variant_mut = {
+        let serializable_variant_mut = {
             match &variant.fields {
                 Fields::Named(_struct_fields) => {
                     quote!({
@@ -873,18 +867,11 @@ fn impl_enum(
                         SerializableEnumVariantMut::Struct(wrapper_ref as &mut dyn SerializableStruct)
                     })
                 }
-                Fields::Unnamed(tuple) => {
-                    let tuple_fields = &tuple.unnamed;
-                    if tuple_fields.len() == 1 {
-                        quote!(SerializableEnumVariantMut::NewType(
-                            new_type as &mut dyn Serializable
-                        ))
-                    } else {
-                        quote!({
-                            let wrapper_ref = unsafe { std::mem::transmute::< &mut Self, &mut #wrapper_ident >(self) };
-                            SerializableEnumVariantMut::Tuple(wrapper_ref as &mut dyn SerializableTuple)
-                        })
-                    }
+                Fields::Unnamed(_tuple) => {
+                    quote!({
+                        let wrapper_ref = unsafe { std::mem::transmute::< &mut Self, &mut #wrapper_ident >(self) };
+                        SerializableEnumVariantMut::Tuple(wrapper_ref as &mut dyn SerializableTuple)
+                    })
                 }
                 Fields::Unit => {
                     quote!(SerializableEnumVariantMut::Unit)
@@ -902,23 +889,21 @@ fn impl_enum(
                 ));
             }
             Fields::Unnamed(tuple_fields) => {
-                if tuple_fields.unnamed.len() > 1 {
-                    tuple_wrappers.push((
-                        wrapper_ident,
-                        wrapper_name,
-                        variant_index,
-                        variant_with_fields_ident.clone(),
-                        tuple_fields.clone(),
-                    ));
-                }
+                tuple_wrappers.push((
+                    wrapper_ident,
+                    wrapper_name,
+                    variant_index,
+                    variant_with_fields_ident.clone(),
+                    tuple_fields.clone(),
+                ));
             }
             Fields::Unit => {}
         }
         variant_indices.push(variant_index);
         variant_names.push(variant_name);
         variant_idents.push(variant_ident);
-        reflect_variants.push(reflect_variant);
-        reflect_variants_mut.push(reflect_variant_mut);
+        serializable_variants.push(serializable_variant);
+        serializable_variants_mut.push(serializable_variant_mut);
         variant_with_fields_idents.push(variant_with_fields_ident);
         variant_without_fields_idents.push(variant_without_fields_ident);
     }
@@ -940,13 +925,13 @@ fn impl_enum(
         impl #impl_generics SerializableEnum for #enum_name #ty_generics #where_clause {
             fn variant(&self) -> SerializableEnumVariant<'_> {
                 match self {
-                    #(#variant_with_fields_idents => #reflect_variants,)*
+                    #(#variant_with_fields_idents => #serializable_variants,)*
                 }
             }
 
             fn variant_mut(&mut self) -> SerializableEnumVariantMut<'_> {
                 match self {
-                    #(#variant_with_fields_idents => #reflect_variants_mut,)*
+                    #(#variant_with_fields_idents => #serializable_variants_mut,)*
                 }
             }
 
@@ -977,6 +962,30 @@ fn impl_enum(
             fn iter_variants_info(&self) -> SerializableVariantInfoIterator<'_> {
                 SerializableVariantInfoIterator::new(self)
             }
+
+            fn clone_as_dynamic(&self) -> SerializableDynamicEnum {
+                let mut dynamic = SerializableDynamicEnum::default();
+                dynamic.set_name(self.type_name().to_string());
+                #(match #serializable_variants {
+                    SerializableEnumVariant::Unit => {
+                        dynamic.insert_boxed(#variant_names, Box::new(#variant_indices));
+                    },
+                    SerializableEnumVariant::NewType(value) => {
+                        dynamic.insert_boxed(#variant_names, value.duplicate());
+                    },
+                    SerializableEnumVariant::Tuple(tuple_value) => {
+                        dynamic.insert_boxed(#variant_names, tuple_value.duplicate());
+                    },
+                    SerializableEnumVariant::Struct(struct_value) => {
+                        dynamic.insert_boxed(#variant_names, struct_value.duplicate());
+                    },
+                })*
+                let index = match self {
+                    #(#variant_without_fields_idents => #variant_indices,)*
+                };
+                dynamic.set_variant_index(index);
+                dynamic
+            }
         }
 
         impl #impl_generics Serializable for #enum_name #ty_generics #where_clause {
@@ -1004,18 +1013,18 @@ fn impl_enum(
             #[inline]
             fn duplicate(&self) -> Box<dyn Serializable> {
                 use SerializableEnum;
-                Box::new(self.clone()) //FIXME: todo()! should use clone_as_dynamic instead
-             }
+                Box::new(self.clone_as_dynamic())
+            }
 
             #[inline]
             fn set(&mut self, value: &dyn Serializable, _registry: &SerializableRegistry) {
                 use SerializableEnum;
-                let value = value.any();
-                if let Some(value) = value.downcast_ref::<Self>() {
-                    *self = value.clone(); //FIXME: should apply the variant instead
+                let v = value.any();
+                if let Some(v) = v.downcast_ref::<Self>() {
+                    *self = v.clone(); //FIXME: should apply the variant instead
                     todo!();
                 } else {
-                    panic!("Attempted to apply non-enum type to enum type.");
+                    panic!("Attempted to apply non-enum type {} to enum type {}", value.type_name(), self.type_name());
                 }
             }
 

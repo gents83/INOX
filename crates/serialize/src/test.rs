@@ -59,17 +59,18 @@ impl Default for MyMap {
     }
 }
 
-#[derive(Serializable, Clone)]
+#[derive(Serializable, Clone, Debug)]
 enum SimpleEnum {
     A,
     B,
     C,
 }
 
-#[derive(Serializable, Clone)]
+#[derive(Serializable, Clone, Debug)]
 enum ComplexEnum {
     Empty,
-    MapValue(MyMap),
+    FooValue(Foo),
+    BarValue(Bar),
 }
 
 #[allow(dead_code)]
@@ -140,7 +141,7 @@ fn test_trait() {
 
     println!("m type_name: {:?}", m.type_name());
 
-    m.set(value.as_ref(), &registry);
+    m.set(&value, &registry);
 
     println!(
         "m.foo Type: {:?} value: {:?}",
@@ -184,11 +185,11 @@ fn test_enum() {
     let mut registry = SerializableRegistry::default();
     registry.register_type::<f32>();
     registry.register_type::<u32>();
+    registry.register_type::<usize>();
     registry.register_type::<String>();
     registry.register_trait::<dyn TestBaseTrait>();
     registry.register_type_with_trait::<dyn TestBaseTrait, Foo>();
     registry.register_type_with_trait::<dyn TestBaseTrait, Bar>();
-    registry.register_type::<MyMap>();
     registry.register_type::<SimpleEnum>();
     registry.register_type::<ComplexEnum>();
 
@@ -200,26 +201,35 @@ fn test_enum() {
     let serializer = SerializableSerializer::new(&simple, &registry);
     let serialized = to_string_pretty(&serializer).unwrap();
 
-    println!("simple enum:\n {}", serialized);
+    println!("simple enum:\n{}", serialized);
+
+    let mut json_deserializer = serde_json::Deserializer::new(StrRead::new(serialized.as_str()));
+    let deserializer = SerializableDeserializer::new(&registry);
+
+    let value = deserializer.deserialize(&mut json_deserializer).unwrap();
+
+    println!("value type_name: {:?}", value.type_name());
+    println!("value ref type_name: {:?}", value.as_ref().type_name());
+
+    let mut v = SimpleEnum::A;
+    println!("default simple enum value: {:?}", v);
+
+    v.set(value.as_ref(), &registry);
+
+    println!("deserialized simple enum value: {:?}", v);
 
     let mut complex = ComplexEnum::Empty;
     assert!(complex.is_equal(&ComplexEnum::Empty).unwrap());
-    complex = ComplexEnum::MapValue(MyMap {
-        foo: Foo { x: 1 }.clone_trait(),
-        bar: Bar { y: 2, z: 3.4 }.clone_trait(),
-        map: {
-            let mut map = HashMap::new();
-            map.insert("foo".to_string(), Foo { x: 1 }.clone_trait());
-            map.insert("bar".to_string(), Bar { y: 2, z: 3.4 }.clone_trait());
-            map
-        },
-    });
+    complex = ComplexEnum::FooValue(Foo { x: 1 });
     assert!(!complex.is_equal(&ComplexEnum::Empty).unwrap());
+    assert!(!complex
+        .is_equal(&ComplexEnum::BarValue(Bar { y: 2, z: 3.4 }))
+        .unwrap());
 
     let serializer = SerializableSerializer::new(&complex, &registry);
     let serialized = to_string_pretty(&serializer).unwrap();
 
-    println!("complex enum:\n {}", serialized);
+    println!("complex enum:\n{}", serialized);
 }
 
 #[test]

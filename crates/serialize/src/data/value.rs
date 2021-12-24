@@ -1,8 +1,8 @@
 use crate::{
     apply_in_list, is_list_equal, is_map_equal, serialization::SerializableValue,
     AsSerializableArray, AsSerializableList, DynamicSerializableMap, FromSerializable,
-    Serializable, SerializableArray, SerializableDeserialize, SerializableEnum,
-    SerializableEnumVariant, SerializableEnumVariantMut, SerializableList,
+    Serializable, SerializableArray, SerializableDeserialize, SerializableDynamicEnum,
+    SerializableEnum, SerializableEnumVariant, SerializableEnumVariantMut, SerializableList,
     SerializableListIterator, SerializableMap, SerializableMapIterator, SerializableMut,
     SerializableRef, SerializableRegistry, SerializableType, SerializableTypeInfo,
     SerializableVariantInfo, SerializableVariantInfoIterator, TypeInfo, Uid,
@@ -588,6 +588,14 @@ where
 
     fn iter_variants_info(&self) -> SerializableVariantInfoIterator<'_> {
         SerializableVariantInfoIterator::new(self)
+    }
+
+    fn clone_as_dynamic(&self) -> SerializableDynamicEnum {
+        let mut dynamic_enum = SerializableDynamicEnum::default();
+        dynamic_enum.set_name(self.type_name());
+        dynamic_enum.insert("Option::Some", self.as_ref().unwrap().clone());
+        dynamic_enum.insert("Option::None", 1);
+        dynamic_enum
     }
 }
 impl<T> Serializable for Option<T>
