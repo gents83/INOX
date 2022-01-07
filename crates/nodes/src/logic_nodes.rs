@@ -4,7 +4,7 @@ use crate::{
     implement_node, implement_pin, LogicContext, LogicData, Node, NodeExecutionType, NodeState,
     NodeTrait, NodeTree, PinId,
 };
-use sabi_serialize::typetag;
+use sabi_serialize::sabi_serializable;
 
 #[derive(Serialize, Deserialize, Copy, Clone)]
 #[serde(crate = "sabi_serialize")]
@@ -110,6 +110,7 @@ fn test_node() {
     use crate::LogicNodeRegistry;
     use sabi_serialize::serialize;
 
+    sabi_serialize::sabi_serializable::create_serializable_registry!();
     let mut registry = LogicNodeRegistry::default();
     registry.register_node::<ScriptInitNode>();
     registry.register_node::<RustExampleNode>();

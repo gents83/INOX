@@ -9,3 +9,8 @@ pub fn register_nodes(shared_data: &SharedDataRc) {
     let registry = LogicNodeRegistry::get(shared_data);
     registry.register_node::<RotateNode>();
 }
+
+pub fn unregister_nodes(shared_data: &SharedDataRc) {
+    let registry = LogicNodeRegistry::get(shared_data);
+    registry.unregister_node::<RotateNode>();
+}

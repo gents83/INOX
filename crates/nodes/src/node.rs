@@ -4,7 +4,7 @@ use std::{
 };
 
 use crate::{LogicContext, Pin, PinId};
-use sabi_serialize::{generate_uid_from_string, typetag, Deserialize, Serialize, Uid};
+use sabi_serialize::{generate_uid_from_string, sabi_serializable, Deserialize, Serialize, Uid};
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub enum NodeExecutionType {
@@ -27,7 +27,7 @@ impl Default for NodeState {
 
 pub type NodeId = Uid;
 
-#[typetag::serde(tag = "node_type")]
+#[sabi_serializable::serializable(tag = "node_type")]
 pub trait NodeTrait: Any + Send + Sync + 'static {
     fn get_type() -> &'static str
     where
@@ -53,14 +53,14 @@ pub trait NodeTrait: Any + Send + Sync + 'static {
     }
     fn execytion_type(&self) -> NodeExecutionType;
     fn execute(&mut self, pin: &PinId, context: &LogicContext) -> NodeState;
-    fn duplicate(&self) -> Box<dyn NodeTrait>;
+    fn duplicate(&self) -> Box<dyn NodeTrait + Send + Sync>;
     fn serialize_node(&self) -> String;
     fn deserialize_node(&self, s: &str) -> Option<Self>
     where
         Self: Sized;
 }
-impl Clone for Box<dyn NodeTrait> {
-    fn clone(&self) -> Box<dyn NodeTrait> {
+impl Clone for Box<dyn NodeTrait + Send + Sync> {
+    fn clone(&self) -> Box<dyn NodeTrait + Send + Sync> {
         self.duplicate()
     }
 }

@@ -1,0 +1,15 @@
+[package]
+name = "sabi_serializable"
+version = "0.1.0"
+authors = ["gents83 <gents83@gmail.com>"]
+edition = "2021"
+build = "build.rs"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+sabi_serialize_attribute = { path = "./attribute" }
+sabi_filesystem = { path = "../../filesystem" }
+erased-serde = {path = "../../../extern/erased-serde"}
+serde = {version = "1.0", features = ["derive", "rc"]}

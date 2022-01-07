@@ -1,14 +1,14 @@
 use sabi_resources::implement_singleton;
 use sabi_serialize::{Deserialize, Serialize};
 
-use crate::{LogicExecution, Node, NodeTrait, PinType, RustExampleNode, ScriptInitNode};
+use crate::{Node, NodeTrait, Pin, PinType};
 
 pub trait NodeType: Send + Sync + 'static {
     fn name(&self) -> &str;
     fn category(&self) -> &str;
     fn description(&self) -> &str;
     fn serialize_node(&self) -> String;
-    fn deserialize_node(&self, data: &str) -> Option<Box<dyn NodeTrait>>;
+    fn deserialize_node(&self, data: &str) -> Option<Box<dyn NodeTrait + Send + Sync>>;
 }
 
 struct SpecificNodeType<N> {
@@ -33,13 +33,13 @@ where
     fn serialize_node(&self) -> String {
         self.n.serialize_node()
     }
-    fn deserialize_node(&self, data: &str) -> Option<Box<dyn NodeTrait>>
+    fn deserialize_node(&self, data: &str) -> Option<Box<dyn NodeTrait + Send + Sync>>
     where
         Self: Sized,
     {
         if let Some(n) = self.n.deserialize_node(data) {
             if self.n.node().has_same_pins(n.node()) {
-                return Some(Box::new(n) as Box<dyn NodeTrait>);
+                return Some(Box::new(n) as Box<dyn NodeTrait + Send + Sync>);
             } else {
                 return None;
             }
@@ -55,48 +55,49 @@ pub struct LogicNodeRegistry {
     pin_types: Vec<Box<dyn PinType>>,
     node_types: Vec<Box<dyn NodeType>>,
 }
-implement_singleton!(LogicNodeRegistry, on_create);
+implement_singleton!(LogicNodeRegistry);
 
 impl LogicNodeRegistry {
-    pub fn on_create(&mut self) {
-        //Registering basic types
-        self.register_pin_type::<f32>();
-        self.register_pin_type::<f64>();
-        self.register_pin_type::<u8>();
-        self.register_pin_type::<i8>();
-        self.register_pin_type::<u16>();
-        self.register_pin_type::<i16>();
-        self.register_pin_type::<u32>();
-        self.register_pin_type::<i32>();
-        self.register_pin_type::<bool>();
-        self.register_pin_type::<String>();
-        self.register_pin_type::<LogicExecution>();
-
-        //Registering default nodes
-        self.register_node::<RustExampleNode>();
-        self.register_node::<ScriptInitNode>();
-    }
-
     pub fn register_pin_type<V>(&mut self)
     where
-        V: PinType + Default + 'static,
+        V: Pin + PinType + Default + 'static,
     {
         let p = V::default();
-        println!("Registering pin type: {}", p.name());
         self.pin_types.push(Box::new(p));
+
+        V::register_as_serializable();
+    }
+    pub fn unregister_pin_type<V>(&mut self)
+    where
+        V: Pin + PinType + Default + 'static,
+    {
+        let p = V::default();
+        self.pin_types.retain(|v| v.name() != p.name());
+
+        V::unregister_as_serializable();
     }
     pub fn register_node<N>(&mut self)
     where
         N: NodeTrait + Default + Serialize + for<'de> Deserialize<'de> + 'static,
     {
         let n = N::default();
-        println!("Registering node: {}", n.name());
         self.node_types.push(Box::new(SpecificNodeType::<N> {
             n,
             category: String::from(N::category()),
             description: String::from(N::description()),
             marker: std::marker::PhantomData::<N>::default(),
         }));
+
+        N::register_as_serializable();
+    }
+    pub fn unregister_node<N>(&mut self)
+    where
+        N: NodeTrait + Default + Serialize + for<'de> Deserialize<'de> + 'static,
+    {
+        let n = N::default();
+        self.node_types.retain(|v| v.name() != n.name());
+
+        N::unregister_as_serializable();
     }
     pub fn for_each_node<F>(&self, mut f: F)
     where
@@ -106,10 +107,10 @@ impl LogicNodeRegistry {
             f(node.as_ref());
         }
     }
-    pub fn deserialize_node(&self, data: &str) -> Option<Box<dyn NodeTrait>> {
+    pub fn deserialize_node(&self, data: &str) -> Option<Box<dyn NodeTrait + Send + Sync>> {
         for node in &self.node_types {
             if let Some(n) = node.deserialize_node(data) {
-                println!("Deserializing as {}", n.typetag_name());
+                println!("Deserializing as {}", n.serializable_name());
                 return Some(n);
             }
         }

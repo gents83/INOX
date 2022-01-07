@@ -10,4 +10,5 @@ crate-type = ["lib"]
 
 [dependencies]
 sabi_resources = { path = "../resources" }
+sabi_filesystem = { path = "../filesystem" }
 sabi_serialize = { path = "../serialize" }

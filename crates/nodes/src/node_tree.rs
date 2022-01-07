@@ -5,7 +5,7 @@ use crate::{LogicNodeRegistry, NodeLink, NodeTrait};
 #[derive(Default, Serialize, Deserialize, Clone)]
 #[serde(crate = "sabi_serialize")]
 pub struct NodeTree {
-    nodes: Vec<Box<dyn NodeTrait>>,
+    nodes: Vec<Box<dyn NodeTrait + Send + Sync>>,
     links: Vec<NodeLink>,
 }
 
@@ -16,7 +16,7 @@ impl SerializeFile for NodeTree {
 }
 
 impl NodeTree {
-    pub fn add_node(&mut self, node: Box<dyn NodeTrait>) {
+    pub fn add_node(&mut self, node: Box<dyn NodeTrait + Send + Sync>) {
         if self.find_node(node.name()).is_none() {
             self.nodes.push(node);
         }
@@ -31,14 +31,14 @@ impl NodeTree {
             self.nodes.push(node);
         }
     }
-    pub fn find_node(&self, name: &str) -> Option<&dyn NodeTrait> {
+    pub fn find_node(&self, name: &str) -> Option<&(dyn NodeTrait + Send + Sync)> {
         let uid = generate_uid_from_string(name);
         self.nodes
             .iter()
             .find(|n| n.id() == uid)
             .map(|n| n.as_ref())
     }
-    pub fn find_node_mut(&mut self, name: &str) -> Option<&mut dyn NodeTrait> {
+    pub fn find_node_mut(&mut self, name: &str) -> Option<&mut (dyn NodeTrait + Send + Sync)> {
         let uid = generate_uid_from_string(name);
         self.nodes
             .iter_mut()
@@ -117,10 +117,10 @@ impl NodeTree {
             }
         });
     }
-    pub fn nodes(&self) -> &Vec<Box<dyn NodeTrait>> {
+    pub fn nodes(&self) -> &Vec<Box<dyn NodeTrait + Send + Sync>> {
         &self.nodes
     }
-    pub fn nodes_mut(&mut self) -> &mut Vec<Box<dyn NodeTrait>> {
+    pub fn nodes_mut(&mut self) -> &mut Vec<Box<dyn NodeTrait + Send + Sync>> {
         &mut self.nodes
     }
     pub fn links(&self) -> &Vec<NodeLink> {

@@ -1,6 +1,6 @@
 use std::any::{type_name, Any, TypeId};
 
-use sabi_serialize::{typetag, Deserialize, Serialize};
+use sabi_serialize::{sabi_serializable, Deserialize, Serialize};
 
 use crate::Node;
 
@@ -20,7 +20,7 @@ pub trait PinType: Send + Sync + 'static {
     fn copy_from(&mut self, node: &Node, output_pin: &PinId);
 }
 
-#[typetag::serde(tag = "pin_type")]
+#[sabi_serializable::serializable(tag = "pin_type")]
 pub trait Pin: Any + PinType + Send + Sync + 'static {
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;

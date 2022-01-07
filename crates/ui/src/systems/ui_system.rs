@@ -114,20 +114,17 @@ impl UISystem {
 
     fn update_egui_texture(&mut self) -> &mut Self {
         sabi_profiler::scoped_profile!("ui_system::update_egui_texture");
-        if self.ui_texture_version != self.ui_context.texture().version {
-            let mut pixels: Vec<u8> =
-                Vec::with_capacity(self.ui_context.texture().pixels.len() * 4);
-            for srgba in self.ui_context.texture().srgba_pixels(1.) {
+        let font_texture = &self.ui_context.font_image();
+        if self.ui_texture_version != font_texture.version {
+            let mut pixels: Vec<u8> = Vec::with_capacity(font_texture.pixels.len() * 4);
+            for srgba in font_texture.srgba_pixels(1.) {
                 pixels.push(srgba.r());
                 pixels.push(srgba.g());
                 pixels.push(srgba.b());
                 pixels.push(srgba.a());
             }
-            let image_data = RgbaImage::from_vec(
-                self.ui_context.texture().width as _,
-                self.ui_context.texture().height as _,
-                pixels,
-            );
+            let image_data =
+                RgbaImage::from_vec(font_texture.width as _, font_texture.height as _, pixels);
             if let Some(texture) = &self.ui_texture {
                 if let Some(material) = self.ui_materials.remove(texture.id()) {
                     material.get_mut().remove_texture(TextureType::BaseColor);
@@ -140,7 +137,7 @@ impl UISystem {
                 image_data.unwrap(),
             );
             self.ui_texture = Some(texture);
-            self.ui_texture_version = self.ui_context.texture().version;
+            self.ui_texture_version = font_texture.version;
         }
         self
     }

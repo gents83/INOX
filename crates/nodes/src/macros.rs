@@ -1,7 +1,7 @@
 #[macro_export]
 macro_rules! implement_pin {
     ($Type:ident) => {
-        #[typetag::serde]
+        #[sabi_serializable::serializable]
         impl $crate::Pin for $Type {
             fn as_any(&self) -> &dyn std::any::Any {
                 self
@@ -52,7 +52,7 @@ macro_rules! implement_pin {
 #[macro_export]
 macro_rules! implement_node {
     ($Type:ident, $NodeField:ident, $Category:expr, $Description:expr, $ExecutionType:expr) => {
-        #[typetag::serde]
+        #[sabi_serializable::serializable]
         impl $crate::NodeTrait for $Type {
             fn get_type() -> &'static str
             where
@@ -95,7 +95,7 @@ macro_rules! implement_node {
             fn execytion_type(&self) -> $crate::NodeExecutionType {
                 $ExecutionType
             }
-            fn duplicate(&self) -> Box<dyn $crate::NodeTrait>
+            fn duplicate(&self) -> Box<dyn $crate::NodeTrait + Send + Sync>
             where
                 Self: Sized,
             {

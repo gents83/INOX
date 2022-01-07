@@ -19,9 +19,6 @@
 [submodule "extern/json"]
 	path = extern/json
 	url = https://github.com/serde-rs/json
-[submodule "extern/typetag"]
-	path = extern/typetag
-	url = https://github.com/dtolnay/typetag
 [submodule "extern/image"]
 	path = extern/image
 	url = https://github.com/image-rs/image

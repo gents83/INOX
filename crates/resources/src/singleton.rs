@@ -11,7 +11,7 @@ pub trait Singleton: Any + Send + Sync + 'static {
 
 #[macro_export]
 macro_rules! implement_singleton {
-    ($Type:ident, $CreateFn:ident) => {
+    ($Type:ident) => {
         impl $crate::Singleton for $Type {
             fn get(shared_data_rc: &$crate::SharedDataRc) -> &mut $Type
             where
@@ -21,9 +21,7 @@ macro_rules! implement_singleton {
                     .get_singleton_mut::<$Type>()
                     .unwrap_or_else(|| {
                         shared_data_rc.register_singleton($Type::default());
-                        let singleton = shared_data_rc.get_singleton_mut::<$Type>().unwrap();
-                        singleton.$CreateFn();
-                        singleton
+                        shared_data_rc.get_singleton_mut::<$Type>().unwrap()
                     })
             }
         }

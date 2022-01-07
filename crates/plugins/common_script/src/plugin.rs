@@ -12,8 +12,12 @@ impl Plugin for CommonScriptPlugin {
         "sabi_common_script"
     }
     fn prepare(&mut self, app: &mut App) {
+        sabi_nodes::register_nodes(app.get_shared_data());
         crate::logic_nodes::register_nodes(app.get_shared_data());
     }
 
-    fn unprepare(&mut self, _app: &mut App) {}
+    fn unprepare(&mut self, app: &mut App) {
+        crate::logic_nodes::unregister_nodes(app.get_shared_data());
+        sabi_nodes::unregister_nodes(app.get_shared_data());
+    }
 }

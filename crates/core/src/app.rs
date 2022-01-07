@@ -11,7 +11,7 @@ use std::{
 use sabi_messenger::MessengerRw;
 use sabi_platform::{InputState, Key, KeyEvent, WindowEvent};
 use sabi_resources::{SharedData, SharedDataRc};
-use sabi_serialize::{generate_uid_from_string, Uid};
+use sabi_serialize::{generate_uid_from_string, sabi_serializable, Uid};
 
 use crate::{Job, JobHandler, JobHandlerRw, Phase, PluginId, PluginManager, Scheduler, Worker};
 
@@ -31,7 +31,9 @@ pub struct App {
 
 impl Default for App {
     fn default() -> Self {
+        sabi_serializable::create_serializable_registry!();
         sabi_profiler::create_profiler!();
+
         let (sender, receiver) = channel();
 
         Self {

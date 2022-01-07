@@ -5,7 +5,7 @@ use sabi_nodes::{
 };
 use sabi_resources::Resource;
 use sabi_scene::{Object, Script};
-use sabi_serialize::{deserialize, typetag, Deserialize, Serialize};
+use sabi_serialize::{deserialize, sabi_serializable, Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(crate = "sabi_serialize")]
@@ -58,7 +58,7 @@ impl RotateNode {
         rotation.x = *self.node.get_input::<f32>("X (in degrees)").unwrap();
         rotation.y = *self.node.get_input::<f32>("Y (in degrees)").unwrap();
         rotation.z = *self.node.get_input::<f32>("Z (in degrees)").unwrap();
-        println!("Rotating of [{:?}] degrees", rotation);
+        //println!("Rotating of [{:?}] degrees", rotation);
         rotation.x = rotation.x.to_radians();
         rotation.y = rotation.y.to_radians();
         rotation.z = rotation.z.to_radians();
@@ -72,6 +72,8 @@ impl RotateNode {
 
 #[allow(dead_code)]
 fn test_nodes() {
+    sabi_serialize::sabi_serializable::create_serializable_registry!();
+
     let mut registry = LogicNodeRegistry::default();
     registry.register_node::<ScriptInitNode>();
     registry.register_node::<RotateNode>();
