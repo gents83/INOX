@@ -24,3 +24,5 @@ members = [
     "serialize",
     "ui",
 ]
+
+resolver = "2"
