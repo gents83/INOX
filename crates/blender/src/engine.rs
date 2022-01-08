@@ -4,6 +4,7 @@ use sabi_resources::Singleton;
 
 use sabi_binarizer::Binarizer;
 use sabi_core::App;
+use sabi_filesystem::EXE_PATH;
 use sabi_nodes::{LogicNodeRegistry, NodeType};
 use sabi_resources::{DATA_FOLDER, DATA_RAW_FOLDER};
 
@@ -37,6 +38,7 @@ pub struct SABIEngine {
     app: App,
     app_dir: PathBuf,
     working_dir: PathBuf,
+    plugins: Vec<String>,
     thread_data: Arc<RwLock<ThreadData>>,
     process: Option<std::process::Child>,
     client_thread: Option<JoinHandle<()>>,
@@ -54,6 +56,7 @@ impl SABIEngine {
             working_dir.pop();
             working_dir.pop();
         }
+        env::set_var(EXE_PATH, app_dir.clone());
         env::set_current_dir(&working_dir).ok();
 
         let mut app = App::default();
@@ -65,7 +68,16 @@ impl SABIEngine {
         );
         binarizer.stop();
 
+        let mut plugins = Vec::new();
         plugins_to_load.iter().for_each(|plugin| {
+            plugins.push(
+                PathBuf::from(plugin)
+                    .file_stem()
+                    .unwrap()
+                    .to_str()
+                    .unwrap()
+                    .to_string(),
+            );
             let mut plugin_path = app_dir.clone();
             plugin_path = plugin_path.join(plugin);
             println!("Loading plugin: {:?}", plugin_path);
@@ -82,6 +94,7 @@ impl SABIEngine {
             exporter: Exporter::default(),
             binarizer,
             app,
+            plugins,
         }
     }
 
@@ -94,9 +107,11 @@ impl SABIEngine {
         let path = self.app_dir.join("sabi_launcher.exe");
 
         let mut command = Command::new(path.as_path());
-        command
-            .arg("-plugin sabi_connector")
-            .arg("-plugin sabi_viewer");
+        self.plugins.iter().for_each(|plugin| {
+            let string = "-plugin ".to_string() + plugin;
+            command.arg(string);
+        });
+        command.arg("-plugin sabi_viewer");
         command.current_dir(self.working_dir.as_path());
 
         if let Ok(process) = command.spawn() {

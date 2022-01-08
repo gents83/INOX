@@ -3,11 +3,15 @@ use std::{env, path::PathBuf, thread};
 use sabi_binarizer::Binarizer;
 use sabi_commands::CommandParser;
 use sabi_core::App;
-use sabi_filesystem::library_filename;
+use sabi_filesystem::{library_filename, EXE_PATH};
 use sabi_launcher::launcher::Launcher;
 use sabi_resources::Data;
 
 fn main() {
+    env::set_var(
+        EXE_PATH,
+        env::current_exe().unwrap().parent().unwrap().to_path_buf(),
+    );
     env::set_current_dir(".").ok();
 
     let mut app = App::default();

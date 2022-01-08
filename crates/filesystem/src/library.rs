@@ -6,6 +6,8 @@ use std::{
 
 use super::platform_impl::platform::library as platform;
 
+pub const EXE_PATH: &str = "EXE_PATH";
+
 #[inline]
 pub fn library_filename<S: AsRef<OsStr>>(name: S) -> OsString {
     let name = name.as_ref();
@@ -23,6 +25,8 @@ pub fn compute_folder_and_filename(lib_path: PathBuf) -> (PathBuf, PathBuf) {
     if path.is_absolute() {
         filename = PathBuf::from(path.file_name().unwrap());
         path = PathBuf::from(path.parent().unwrap());
+    } else if let Ok(current_exe_folder) = env::var("EXE_PATH") {
+        path = PathBuf::from(current_exe_folder);
     } else {
         path = env::current_exe().unwrap().parent().unwrap().to_path_buf();
     }
