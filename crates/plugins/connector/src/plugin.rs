@@ -22,7 +22,7 @@ impl Plugin for ConnectorPlugin {
         system.read_config(self.name());
         update_phase.add_system(system);
 
-        app.create_phase_before(update_phase, "RENDERING_UPDATE");
+        app.create_phase(update_phase);
     }
 
     fn unprepare(&mut self, app: &mut App) {

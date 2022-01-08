@@ -80,7 +80,6 @@ impl SABIEngine {
             );
             let mut plugin_path = app_dir.clone();
             plugin_path = plugin_path.join(plugin);
-            println!("Loading plugin: {:?}", plugin_path);
             app.add_plugin(plugin_path);
         });
 
@@ -102,7 +101,7 @@ impl SABIEngine {
         self.is_running.load(Ordering::SeqCst)
     }
     pub fn start(&mut self) -> PyResult<bool> {
-        println!("SABIEngine started");
+        println!("[Blender] SABIEngine started");
 
         let path = self.app_dir.join("sabi_launcher.exe");
 
@@ -111,13 +110,16 @@ impl SABIEngine {
             let string = "-plugin ".to_string() + plugin;
             command.arg(string);
         });
+        command.arg("-plugin sabi_connector");
         command.arg("-plugin sabi_viewer");
         command.current_dir(self.working_dir.as_path());
 
         if let Ok(process) = command.spawn() {
             self.process = Some(process);
             self.is_running.store(true, Ordering::SeqCst);
+        }
 
+        if self.process.is_some() {
             let thread_data = self.thread_data.clone();
             thread_data.write().unwrap().can_continue = self.is_running.clone();
 
@@ -126,13 +128,15 @@ impl SABIEngine {
                 .spawn(move || client_thread_execution(thread_data))
                 .unwrap();
             self.client_thread = Some(client_thread);
-        }
 
-        Ok(true)
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 
     pub fn stop(&mut self) {
-        println!("SABIEngine stopped");
+        println!("[Blender] SABIEngine stopped");
         self.is_running.store(false, Ordering::SeqCst);
     }
 
@@ -184,8 +188,6 @@ fn add_node_in_blender(node: &dyn NodeType, py: Python) {
     let description = node.description();
     let serialized_class = node.serialize_node();
 
-    println!("Registering node {}", node_name);
-
     py.import("SABI")
         .unwrap()
         .getattr("node_tree")
@@ -206,14 +208,14 @@ fn add_node_in_blender(node: &dyn NodeType, py: Python) {
 fn client_thread_execution(thread_data: Arc<RwLock<ThreadData>>) {
     match TcpStream::connect("127.0.0.1:1983") {
         Ok(mut stream) => {
-            println!("Successfully connected to server in port 1983");
+            println!("[Blender] Successfully connected to server in port 1983");
             let is_running = thread_data.read().unwrap().can_continue.clone();
             while is_running.load(Ordering::SeqCst) {
                 let file = { thread_data.write().unwrap().files_to_load.pop() };
                 if let Some(file) = file {
                     let file = file.to_str().unwrap_or_default().to_string();
 
-                    println!("SABIEngine sending to load {:?}", file);
+                    println!("[Blender] SABIEngine sending to load {:?}", file);
 
                     let message = format!("-load_file {}", file);
                     let msg = message.as_bytes();
@@ -224,10 +226,10 @@ fn client_thread_execution(thread_data: Arc<RwLock<ThreadData>>) {
             }
             stream
                 .shutdown(Shutdown::Both)
-                .expect("Client thread shutdown call failed");
+                .expect("[Blender] Client thread shutdown call failed");
         }
         Err(e) => {
-            println!("Failed to connect: {}", e);
+            println!("[Blender] Failed to connect: {}", e);
         }
     }
 }
