@@ -1,9 +1,3 @@
-[submodule "extern/Vulkan-Docs"]
-	path = extern/Vulkan-Docs
-	url = https://github.com/KhronosGroup/Vulkan-Docs
-[submodule "extern/Vulkan-Headers"]
-	path = extern/Vulkan-Headers
-	url = https://github.com/KhronosGroup/Vulkan-Headers
 [submodule "extern/cgmath"]
 	path = extern/cgmath
 	url = https://github.com/rustgd/cgmath
@@ -46,3 +40,9 @@
 [submodule "extern/erased-serde"]
 	path = extern/erased-serde
 	url = https://github.com/dtolnay/erased-serde
+[submodule "extern/wgpu"]
+	path = extern/wgpu
+	url = https://github.com/gfx-rs/wgpu
+[submodule "extern/raw-window-handle"]
+	path = extern/raw-window-handle
+	url = https://github.com/rust-windowing/raw-window-handle

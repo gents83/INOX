@@ -1,7 +1,9 @@
+use raw_window_handle::RawWindowHandle;
+
 use super::super::handle::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct WebHandle {
+pub struct HandleImpl {
     /// An ID value inserted into the data attributes of the canvas element as 'raw-handle'
     ///
     /// When accessing from JS, the attribute will automatically be called rawHandle
@@ -11,39 +13,19 @@ pub struct WebHandle {
     pub id: u32,
 }
 
-impl Handle for WebHandle {
-    fn is_valid(&self) -> bool {
-        self.is_valid()
+impl HandleImpl {
+    pub fn as_raw_window_handle(&self) -> RawWindowHandle {
+        let mut handle = raw_window_handle::WebHandle::empty();
+        handle.id = self.id;
+        RawWindowHandle::Web(handle)
     }
-}
-
-impl TrustedHandle {
-    pub fn new() -> TrustedHandle {
-        WebHandle::empty().as_ref().clone()
-    }
-}
-
-impl AsRef<TrustedHandle> for WebHandle {
-    #[inline]
-    fn as_ref(&self) -> &TrustedHandle {
-        unsafe { ::std::mem::transmute(self) }
-    }
-}
-
-impl AsMut<TrustedHandle> for WebHandle {
-    #[inline]
-    fn as_mut(&mut self) -> &mut TrustedHandle {
-        unsafe { ::std::mem::transmute(self) }
-    }
-}
-
-impl WebHandle {
     pub fn is_valid(&self) -> bool {
         self.id != 0
     }
-    pub fn empty() -> WebHandle {
-        WebHandle {
-            id: ptr::null_mut(),
-        }
+}
+
+impl Handle for HandleImpl {
+    fn is_valid(&self) -> bool {
+        self.is_valid()
     }
 }

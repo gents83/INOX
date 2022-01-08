@@ -1,5 +1,6 @@
+use raw_window_handle::RawWindowHandle;
+
 use super::types::*;
-use crate::handle::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct HandleImpl {
@@ -9,16 +10,11 @@ pub struct HandleImpl {
     pub hinstance: HINSTANCE,
 }
 
-impl AsRef<Handle> for HandleImpl {
-    #[inline]
-    fn as_ref(&self) -> &Handle {
-        unsafe { &*(self as *const HandleImpl as *const Handle) }
-    }
-}
-
-impl AsMut<Handle> for HandleImpl {
-    #[inline]
-    fn as_mut(&mut self) -> &mut Handle {
-        unsafe { &mut *(self as *mut HandleImpl as *mut Handle) }
+impl HandleImpl {
+    pub fn as_raw_window_handle(&self) -> RawWindowHandle {
+        let mut handle = raw_window_handle::Win32Handle::empty();
+        handle.hwnd = self.hwnd as *mut _;
+        handle.hinstance = self.hinstance as *mut _;
+        RawWindowHandle::Win32(handle)
     }
 }

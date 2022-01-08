@@ -1,47 +1,29 @@
+use raw_window_handle::RawWindowHandle;
+
 use super::super::handle::*;
 use core::ffi::c_void;
 use core::ptr;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct MacOSHandle {
+pub struct HandleImpl {
     pub ns_window: *mut c_void,
     pub ns_view: *mut c_void,
 }
 
-impl Handle for MacOSHandle {
-    fn is_valid(&self) -> bool {
-        self.is_valid()
+impl HandleImpl {
+    pub fn as_raw_window_handle(&self) -> RawWindowHandle {
+        let mut handle = raw_window_handle::AppKitHandle::empty();
+        handle.ns_window = *self.ns_window as *mut _;
+        handle.ns_view = *self.ns_view as *mut _;
+        RawWindowHandle::AppKit(handle)
     }
-}
-
-impl TrustedHandle {
-    pub fn new() -> TrustedHandle {
-        MacOSHandle::empty().as_ref().clone()
-    }
-}
-
-impl AsRef<TrustedHandle> for MacOSHandle {
-    #[inline]
-    fn as_ref(&self) -> &TrustedHandle {
-        unsafe { ::std::mem::transmute(self) }
-    }
-}
-
-impl AsMut<TrustedHandle> for MacOSHandle {
-    #[inline]
-    fn as_mut(&mut self) -> &mut TrustedHandle {
-        unsafe { ::std::mem::transmute(self) }
-    }
-}
-
-impl MacOSHandle {
     pub fn is_valid(&self) -> bool {
         !self.ns_window.is_null()
     }
-    pub fn empty() -> MacOSHandle {
-        MacOSHandle {
-            ns_window: ptr::null_mut(),
-            ns_view: ptr::null_mut(),
-        }
+}
+
+impl Handle for HandleImpl {
+    fn is_valid(&self) -> bool {
+        self.is_valid()
     }
 }
