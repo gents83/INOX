@@ -25,16 +25,17 @@ Here you can find a list of features that are currently supported by the library
 - [x] Documentations using [mdBook](https://rust-lang.github.io/mdBook/)
 - [x] Continous integration and build support using Github Actions 
 - [x] _**SABI**_ <-> _**Blender**_ communication through TCP connection
+- [x] Create custom Logic Nodes editor in _**Blender**_
+- [x] Possibility to define and use custom nodes in external dlls
 
 TODO:
-- [ ] Create custom Logic Nodes editor in _**Blender**_ (in progress)
+- [ ] Integrate wgpu as default rendering api
 - [ ] Integrate PBR rendering
 - [ ] Possibility to run Phases in parallel when not dependent
 - [ ] Plugin indipendent and ability to enable\disable them at runtime
 - [ ] Quick example of game 
 - [ ] Integrate KTX universal texture compression
 - [ ] Integrate raw-window-handle as optional feature
-- [ ] Integrate wgpu as optional feature
 - [ ] Raytracing on GPU
 - [ ] Dynamic vertex data per-shader
 - [ ] Integrate wasm as target
