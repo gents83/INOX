@@ -1,6 +1,6 @@
 use sabi_commands::CommandParser;
 use sabi_core::System;
-use sabi_graphics::{DrawEvent, Light, Material, Mesh, MeshData, Pipeline, View};
+use sabi_graphics::{DrawEvent, Light, Material, Mesh, MeshData, Pipeline, Texture, View};
 use sabi_math::{Matrix4, VecBase, Vector2, Vector3};
 use sabi_messenger::{read_messages, GlobalMessenger, MessageChannel, MessengerRw};
 
@@ -168,6 +168,15 @@ impl ViewerSystem {
                 None,
             );
             let material = Material::duplicate_from_pipeline(&self.shared_data, &pipeline);
+            let texture = Texture::request_load(
+                &self.shared_data,
+                &self.global_messenger,
+                PathBuf::from("textures\\Test.jpg").as_path(),
+                None,
+            );
+            material
+                .get_mut()
+                .set_texture(sabi_graphics::TextureType::Diffuse, &texture);
             mesh.get_mut().set_material(material);
             let mut mesh_data = MeshData::default();
             mesh_data.add_quad_default([-10., -10., 10., 10.].into(), 0.);
