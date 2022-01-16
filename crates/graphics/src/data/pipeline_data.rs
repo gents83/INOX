@@ -3,9 +3,23 @@ use std::path::PathBuf;
 use sabi_filesystem::convert_from_local_path;
 use sabi_math::Matrix4;
 use sabi_resources::Data;
-use sabi_serialize::{Deserialize, Serialize, SerializeFile};
+use sabi_serialize::{generate_uid_from_string, Deserialize, Serialize, SerializeFile, Uid};
 
 use crate::{LightData, ShaderMaterialData, ShaderTextureData, TextureAtlas};
+
+pub const DEFAULT_PIPELINE_IDENTIFIER: &str = "SABI_Default_Pipeline";
+pub const WIREFRAME_PIPELINE_IDENTIFIER: &str = "EditorWireframe";
+
+#[repr(C)]
+#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Eq, Hash, Copy, Clone)]
+#[serde(crate = "sabi_serialize")]
+pub struct PipelineIdentifier(Uid);
+
+impl PipelineIdentifier {
+    pub fn new(string: &str) -> Self {
+        Self(generate_uid_from_string(string))
+    }
+}
 
 #[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
 #[serde(crate = "sabi_serialize")]
@@ -21,7 +35,6 @@ pub enum CullingModeType {
     None,
     Back,
     Front,
-    Both,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
@@ -44,6 +57,28 @@ pub enum BlendFactor {
     SrcAlphaSaturate,
 }
 
+impl From<BlendFactor> for wgpu::BlendFactor {
+    fn from(blend_factor: BlendFactor) -> Self {
+        match blend_factor {
+            BlendFactor::Zero => wgpu::BlendFactor::Zero,
+            BlendFactor::One => wgpu::BlendFactor::One,
+            BlendFactor::SrcColor => wgpu::BlendFactor::Src,
+            BlendFactor::OneMinusSrcColor => wgpu::BlendFactor::OneMinusSrc,
+            BlendFactor::DstColor => wgpu::BlendFactor::Dst,
+            BlendFactor::OneMinusDstColor => wgpu::BlendFactor::OneMinusDst,
+            BlendFactor::SrcAlpha => wgpu::BlendFactor::SrcAlpha,
+            BlendFactor::OneMinusSrcAlpha => wgpu::BlendFactor::OneMinusSrcAlpha,
+            BlendFactor::DstAlpha => wgpu::BlendFactor::DstAlpha,
+            BlendFactor::OneMinusDstAlpha => wgpu::BlendFactor::OneMinusDstAlpha,
+            BlendFactor::ConstantColor => wgpu::BlendFactor::Constant,
+            BlendFactor::OneMinusConstantColor => wgpu::BlendFactor::OneMinusConstant,
+            BlendFactor::ConstantAlpha => wgpu::BlendFactor::Constant,
+            BlendFactor::OneMinusConstantAlpha => wgpu::BlendFactor::OneMinusConstant,
+            BlendFactor::SrcAlphaSaturate => wgpu::BlendFactor::SrcAlphaSaturated,
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
 #[serde(crate = "sabi_serialize")]
 pub enum DrawMode {
@@ -51,24 +86,11 @@ pub enum DrawMode {
     Single,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
-#[serde(crate = "sabi_serialize")]
-pub enum PipelineType {
-    Custom,
-    Default,
-    Wireframe,
-    UI,
-}
-
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 #[serde(crate = "sabi_serialize")]
 pub struct PipelineData {
-    pub pipeline_type: PipelineType,
-    pub fragment_shader: PathBuf,
-    pub vertex_shader: PathBuf,
-    pub tcs_shader: PathBuf,
-    pub tes_shader: PathBuf,
-    pub geometry_shader: PathBuf,
+    pub identifier: String,
+    pub shader: PathBuf,
     pub culling: CullingModeType,
     pub mode: PolygonModeType,
     pub src_color_blend_factor: BlendFactor,
@@ -87,12 +109,8 @@ impl SerializeFile for PipelineData {
 impl Default for PipelineData {
     fn default() -> Self {
         Self {
-            pipeline_type: PipelineType::Custom,
-            fragment_shader: PathBuf::new(),
-            vertex_shader: PathBuf::new(),
-            tcs_shader: PathBuf::new(),
-            tes_shader: PathBuf::new(),
-            geometry_shader: PathBuf::new(),
+            identifier: DEFAULT_PIPELINE_IDENTIFIER.to_string(),
+            shader: PathBuf::new(),
             culling: CullingModeType::Back,
             mode: PolygonModeType::Fill,
             src_color_blend_factor: BlendFactor::One,
@@ -107,34 +125,13 @@ impl Default for PipelineData {
 impl PipelineData {
     pub fn canonicalize_paths(mut self) -> Self {
         let data_path = Data::data_folder();
-        if !self.vertex_shader.to_str().unwrap().is_empty() {
-            self.vertex_shader =
-                convert_from_local_path(data_path.as_path(), self.vertex_shader.as_path());
-        }
-        if !self.fragment_shader.to_str().unwrap().is_empty() {
-            self.fragment_shader =
-                convert_from_local_path(data_path.as_path(), self.fragment_shader.as_path());
-        }
-        if !self.tcs_shader.to_str().unwrap().is_empty() {
-            self.tcs_shader =
-                convert_from_local_path(data_path.as_path(), self.tcs_shader.as_path());
-        }
-        if !self.tes_shader.to_str().unwrap().is_empty() {
-            self.tes_shader =
-                convert_from_local_path(data_path.as_path(), self.tes_shader.as_path());
-        }
-        if !self.geometry_shader.to_str().unwrap().is_empty() {
-            self.geometry_shader =
-                convert_from_local_path(data_path.as_path(), self.geometry_shader.as_path());
+        if !self.shader.to_str().unwrap().is_empty() {
+            self.shader = convert_from_local_path(data_path.as_path(), self.shader.as_path());
         }
         self
     }
     pub fn has_same_shaders(&self, other: &PipelineData) -> bool {
-        self.vertex_shader == other.vertex_shader
-            && self.fragment_shader == other.fragment_shader
-            && self.tcs_shader == other.tcs_shader
-            && self.tes_shader == other.tes_shader
-            && self.geometry_shader == other.geometry_shader
+        self.shader == other.shader
     }
 }
 

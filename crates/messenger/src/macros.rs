@@ -32,7 +32,8 @@ macro_rules! implement_message {
     ($Type:ident<$InnerType:ident>) => {
         impl<T> $crate::Message for $Type<T>
         where
-            T: $InnerType + Clone,
+            $Type<T>: Clone,
+            T: $InnerType,
         {
             #[inline]
             fn as_any(&self) -> &dyn std::any::Any {
@@ -61,7 +62,8 @@ macro_rules! implement_message {
     ($Type:ident<$InnerType1:ident, $InnerType2:ident>) => {
         impl<T1, T2> $crate::Message for $Type<T1, T2>
         where
-            T1: $InnerType1 + Clone,
+            $Type<T1, T2>: Clone,
+            T1: $InnerType1,
             T2: $InnerType2,
         {
             #[inline]

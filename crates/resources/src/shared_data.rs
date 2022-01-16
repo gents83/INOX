@@ -129,7 +129,7 @@ impl SharedData {
     #[inline]
     pub fn unregister_type_serializable<T>(&self)
     where
-        T: ResourceTrait,
+        T: SerializableResource,
     {
         self.unregister_type::<T>();
         let typeid = generate_uid_from_string(type_name::<T>());
@@ -223,7 +223,7 @@ impl SharedData {
     pub fn flush_resources(&self) {
         for (type_id, rs) in self.storage.read().unwrap().iter() {
             if let Ok(mut rs) = rs.write() {
-                rs.flush();
+                rs.flush(self);
             } else {
                 panic!(
                     "Unable to write to storage {} in flush_resources()",

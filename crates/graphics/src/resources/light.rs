@@ -2,12 +2,19 @@ use std::path::{Path, PathBuf};
 
 use sabi_math::Vector3;
 use sabi_messenger::MessengerRw;
-use sabi_resources::{DataTypeResource, ResourceId, SerializableResource, SharedDataRc};
+use sabi_resources::{
+    DataTypeResource, ResourceId, ResourceTrait, SerializableResource, SharedData, SharedDataRc,
+};
 use sabi_serialize::{read_from_file, SerializeFile};
 
 use crate::LightData;
 
 pub type LightId = ResourceId;
+
+#[derive(Clone)]
+pub struct OnLightCreateData {
+    pub position: Vector3,
+}
 
 #[derive(Clone)]
 pub struct Light {
@@ -41,6 +48,8 @@ impl SerializableResource for Light {
 }
 impl DataTypeResource for Light {
     type DataType = LightData;
+    type OnCreateData = OnLightCreateData;
+
     fn is_initialized(&self) -> bool {
         true
     }
@@ -52,6 +61,18 @@ impl DataTypeResource for Light {
     fn deserialize_data(path: &std::path::Path) -> Self::DataType {
         read_from_file::<Self::DataType>(path)
     }
+
+    fn on_create(
+        &mut self,
+        _shared_data_rc: &SharedDataRc,
+        _id: &LightId,
+        on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
+    ) {
+        if let Some(on_create_data) = on_create_data {
+            self.set_position(on_create_data.position);
+        }
+    }
+    fn on_destroy(&mut self, _shared_data: &SharedData, _id: &LightId) {}
 
     fn create_from_data(
         _shared_data: &SharedDataRc,

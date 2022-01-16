@@ -5,12 +5,10 @@ use std::{
 
 use sabi_filesystem::convert_from_local_path;
 use sabi_messenger::{GlobalMessenger, MessengerRw};
-use sabi_profiler::debug_log;
+
 use sabi_serialize::generate_uid_from_string;
 
-use crate::{
-    Function, LoadResourceEvent, Resource, ResourceId, ResourceTrait, SharedData, SharedDataRc,
-};
+use crate::{LoadResourceEvent, Resource, ResourceId, ResourceTrait, SharedData, SharedDataRc};
 
 pub const DATA_RAW_FOLDER: &str = "data_raw";
 pub const DATA_FOLDER: &str = "data";
@@ -26,13 +24,20 @@ impl Data {
         env::current_dir().unwrap().join(DATA_FOLDER)
     }
 }
-
-pub trait DataTypeResource: ResourceTrait + Default + Clone {
+pub trait DataTypeResource: ResourceTrait + Default + Clone
+where
+    <Self as DataTypeResource>::OnCreateData: Clone,
+{
     type DataType;
+    type OnCreateData;
 
-    fn on_data_changed(&mut self, new: &Self) {
-        *self = new.clone();
-    }
+    fn on_create(
+        &mut self,
+        shared_data: &SharedDataRc,
+        id: &ResourceId,
+        on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
+    );
+    fn on_destroy(&mut self, shared_data: &SharedData, id: &ResourceId);
 
     fn is_initialized(&self) -> bool;
     fn invalidate(&mut self);
@@ -64,12 +69,29 @@ pub trait DataTypeResource: ResourceTrait + Default + Clone {
 impl<T> ResourceTrait for T
 where
     T: DataTypeResource,
+    <T as DataTypeResource>::OnCreateData: Clone,
 {
-    fn on_resource_swap(&mut self, new: &Self)
-    where
+    type OnCreateData = <T as DataTypeResource>::OnCreateData;
+
+    fn on_create_resource(
+        &mut self,
+        shared_data: &SharedDataRc,
+        id: &ResourceId,
+        on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
+    ) where
         Self: Sized,
     {
-        self.on_data_changed(new);
+        self.on_create(shared_data, id, on_create_data);
+    }
+    fn on_destroy_resource(&mut self, shared_data: &SharedData, id: &ResourceId) {
+        self.on_destroy(shared_data, id);
+    }
+
+    fn on_copy_resource(&mut self, other: &Self)
+    where
+        Self: Sized + Clone,
+    {
+        *self = other.clone();
     }
 }
 
@@ -98,7 +120,7 @@ pub trait SerializableResource: DataTypeResource + Sized {
         shared_data: &SharedDataRc,
         global_messenger: &MessengerRw,
         filepath: &Path,
-        on_loaded_callback: Option<Box<dyn Function<Self>>>,
+        on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
     ) -> Resource<Self>
     where
         Self: Sized + DataTypeResource,
@@ -113,12 +135,11 @@ pub trait SerializableResource: DataTypeResource + Sized {
         let data = Self::deserialize_data(path.as_path());
         let resource_id = generate_uid_from_string(path.as_path().to_str().unwrap());
         let mut resource = Self::create_from_data(shared_data, global_messenger, resource_id, data);
-        debug_log(format!("Created resource {:?}", path.as_path()).as_str());
+        //debug_log(format!("Created resource [{:?}] {:?}", resource_id, path.as_path()).as_str());
         resource.set_path(path.as_path());
 
-        if let Some(on_loaded_callback) = on_loaded_callback {
-            on_loaded_callback.as_ref()(&mut resource);
-        }
+        resource.on_create(shared_data, &resource_id, on_create_data);
+
         shared_data.add_resource(resource_id, resource)
     }
 
@@ -126,7 +147,7 @@ pub trait SerializableResource: DataTypeResource + Sized {
         shared_data: &SharedDataRc,
         global_messenger: &MessengerRw,
         filepath: &Path,
-        on_loaded_callback: Option<Box<dyn Function<Self>>>,
+        on_create_data: Option<<Self as ResourceTrait>::OnCreateData>,
     ) -> Resource<Self>
     where
         Self: Sized + DataTypeResource,
@@ -145,7 +166,7 @@ pub trait SerializableResource: DataTypeResource + Sized {
         let resource = SharedData::add_resource(shared_data, resource_id, Self::default());
         global_messenger.send_event(LoadResourceEvent::<Self>::new(
             path.as_path(),
-            on_loaded_callback,
+            on_create_data,
         ));
         resource
     }

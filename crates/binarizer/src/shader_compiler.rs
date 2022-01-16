@@ -5,12 +5,13 @@ use std::{
     process::Command,
 };
 
-use crate::{need_to_binarize, send_reloaded_event, ExtensionHandler};
+use crate::{copy_into_data_folder, need_to_binarize, send_reloaded_event, ExtensionHandler};
 use sabi_messenger::MessengerRw;
 use sabi_resources::Data;
 
 const SHADERS_FOLDER_NAME: &str = "shaders";
 
+const WGSL_EXTENSION: &str = "wgsl";
 const SHADER_EXTENSION: &str = "spv";
 const VERTEX_SHADER_EXTENSION: &str = "vert";
 const FRAGMENT_SHADER_EXTENSION: &str = "frag";
@@ -130,6 +131,9 @@ impl ExtensionHandler for ShaderCompiler {
     fn on_changed(&mut self, path: &Path) {
         if let Some(ext) = path.extension() {
             match ext.to_str().unwrap().to_string().as_str() {
+                WGSL_EXTENSION => {
+                    copy_into_data_folder(&self.global_messenger, path);
+                }
                 VERTEX_SHADER_EXTENSION => {
                     let result = self.convert_in_spirv(path);
                     if !result {

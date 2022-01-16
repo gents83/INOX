@@ -8,7 +8,8 @@ use crate::{
 use sabi_math::Vector4;
 use sabi_messenger::MessengerRw;
 use sabi_resources::{
-    DataTypeResource, Handle, Resource, ResourceId, SerializableResource, SharedData, SharedDataRc,
+    DataTypeResource, Handle, Resource, ResourceId, ResourceTrait, SerializableResource,
+    SharedData, SharedDataRc,
 };
 use sabi_serialize::{generate_random_uid, read_from_file, SerializeFile};
 
@@ -64,6 +65,7 @@ impl SerializableResource for Material {
 
 impl DataTypeResource for Material {
     type DataType = MaterialData;
+    type OnCreateData = ();
 
     fn is_initialized(&self) -> bool {
         self.uniform_index != INVALID_INDEX
@@ -74,6 +76,14 @@ impl DataTypeResource for Material {
     fn deserialize_data(path: &Path) -> Self::DataType {
         read_from_file::<Self::DataType>(path)
     }
+    fn on_create(
+        &mut self,
+        _shared_data_rc: &SharedDataRc,
+        _id: &MaterialId,
+        _on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
+    ) {
+    }
+    fn on_destroy(&mut self, _shared_data: &SharedData, _id: &MaterialId) {}
 
     fn create_from_data(
         shared_data: &SharedDataRc,

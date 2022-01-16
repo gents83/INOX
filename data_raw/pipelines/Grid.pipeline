@@ -1,10 +1,6 @@
 {
-    "pipeline_type": "Custom",
-    "fragment_shader": "shaders/grid_frag.spv",
-    "vertex_shader": "shaders/grid_vert.spv",
-    "tcs_shader": "",
-    "tes_shader": "",
-    "geometry_shader": "",
+    "identifier": "GridPipeline",
+    "shader": "shaders/basic_color.wgsl",
     "culling": "Back",
     "mode": "Fill",
     "src_color_blend_factor": "One",

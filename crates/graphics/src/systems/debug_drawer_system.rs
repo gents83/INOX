@@ -2,7 +2,7 @@ use std::any::TypeId;
 
 use crate::{
     create_arrow, create_colored_quad, create_line, create_sphere, Material, Mesh, MeshData,
-    Pipeline, PipelineType,
+    Pipeline, DEFAULT_PIPELINE_IDENTIFIER, WIREFRAME_PIPELINE_IDENTIFIER,
 };
 use sabi_commands::CommandParser;
 use sabi_core::System;
@@ -162,47 +162,24 @@ pub struct DebugDrawerSystem {
     mesh_instance: Resource<Mesh>,
     wireframe_mesh_instance: Resource<Mesh>,
     message_channel: MessageChannel,
+    shared_data: SharedDataRc,
 }
 
 impl DebugDrawerSystem {
     pub fn new(shared_data: &SharedDataRc, global_messenger: &MessengerRw) -> Self {
-        let default_pipeline = shared_data
-            .match_resource(|p: &Pipeline| p.data().pipeline_type == PipelineType::Default);
-        let wireframe_pipeline = shared_data
-            .match_resource(|p: &Pipeline| p.data().pipeline_type == PipelineType::Wireframe);
-
-        if default_pipeline.is_none() {
-            debug_log(
-                "No pipeline with type Default found - did you forgot to read render.cfg file?",
-            );
-        }
-        if wireframe_pipeline.is_none() {
-            debug_log(
-                "No pipeline with type Wireframe found - did you forgot to read render.cfg file?",
-            );
-        }
-
         let mesh_instance = Mesh::new_resource(
             shared_data,
             global_messenger,
             generate_random_uid(),
-            MeshData::new(WIREFRAME_MESH_CATEGORY_IDENTIFIER),
+            MeshData::default(),
         );
-        if let Some(default_pipeline) = &default_pipeline {
-            let material = Material::duplicate_from_pipeline(shared_data, default_pipeline);
-            mesh_instance.get_mut().set_material(material);
-        }
 
         let wireframe_mesh_instance = Mesh::new_resource(
             shared_data,
             global_messenger,
             generate_random_uid(),
-            MeshData::new(WIREFRAME_MESH_CATEGORY_IDENTIFIER),
+            MeshData::default(),
         );
-        if let Some(wireframe_pipeline) = &wireframe_pipeline {
-            let material = Material::duplicate_from_pipeline(shared_data, wireframe_pipeline);
-            wireframe_mesh_instance.get_mut().set_material(material);
-        }
         let message_channel = MessageChannel::default();
 
         global_messenger
@@ -213,6 +190,7 @@ impl DebugDrawerSystem {
             mesh_instance,
             wireframe_mesh_instance,
             message_channel,
+            shared_data: shared_data.clone(),
         }
     }
 
@@ -228,8 +206,8 @@ impl DebugDrawerSystem {
     fn update_events(&mut self) {
         sabi_profiler::scoped_profile!("update_events");
 
-        let mut mesh_data = MeshData::new(WIREFRAME_MESH_CATEGORY_IDENTIFIER);
-        let mut wireframe_mesh_data = MeshData::new(WIREFRAME_MESH_CATEGORY_IDENTIFIER);
+        let mut mesh_data = MeshData::default();
+        let mut wireframe_mesh_data = MeshData::default();
         read_messages(self.message_channel.get_listener(), |msg| {
             if msg.type_id() == TypeId::of::<DrawEvent>() {
                 let event = msg.as_any().downcast_ref::<DrawEvent>().unwrap();
@@ -332,10 +310,47 @@ impl DebugDrawerSystem {
                 }
             }
         });
+        self.update_materials();
         self.mesh_instance.get_mut().set_mesh_data(mesh_data);
         self.wireframe_mesh_instance
             .get_mut()
             .set_mesh_data(wireframe_mesh_data);
+    }
+
+    fn update_materials(&mut self) {
+        if self.mesh_instance.get().material().is_none() {
+            let default_pipeline = self
+                .shared_data
+                .match_resource(|p: &Pipeline| p.data().identifier == DEFAULT_PIPELINE_IDENTIFIER);
+            if default_pipeline.is_none() {
+                debug_log(
+                    "No pipeline with type Default found - did you forgot to read render.cfg file?",
+                );
+            }
+            if let Some(default_pipeline) = &default_pipeline {
+                let material =
+                    Material::duplicate_from_pipeline(&self.shared_data, default_pipeline);
+                self.mesh_instance.get_mut().set_material(material);
+            }
+        }
+        if self.wireframe_mesh_instance.get().material().is_none() {
+            let wireframe_pipeline = self.shared_data.match_resource(|p: &Pipeline| {
+                p.data().identifier == WIREFRAME_PIPELINE_IDENTIFIER
+            });
+
+            if wireframe_pipeline.is_none() {
+                debug_log(
+                    "No pipeline with type Wireframe found - did you forgot to read render.cfg file?",
+                );
+            }
+            if let Some(wireframe_pipeline) = &wireframe_pipeline {
+                let material =
+                    Material::duplicate_from_pipeline(&self.shared_data, wireframe_pipeline);
+                self.wireframe_mesh_instance
+                    .get_mut()
+                    .set_material(material);
+            }
+        }
     }
 }
 

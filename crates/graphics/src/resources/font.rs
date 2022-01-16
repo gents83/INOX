@@ -3,7 +3,8 @@ use crate::{FontData, Texture};
 use sabi_math::Vector4;
 use sabi_messenger::MessengerRw;
 use sabi_resources::{
-    DataTypeResource, Handle, ResourceId, SerializableResource, SharedData, SharedDataRc,
+    DataTypeResource, Handle, ResourceId, ResourceTrait, SerializableResource, SharedData,
+    SharedDataRc,
 };
 use sabi_serialize::{generate_random_uid, INVALID_UID};
 use std::path::{Path, PathBuf};
@@ -19,6 +20,16 @@ pub struct Font {
 
 impl DataTypeResource for Font {
     type DataType = FontData;
+    type OnCreateData = ();
+
+    fn on_create(
+        &mut self,
+        _shared_data_rc: &SharedDataRc,
+        _id: &FontId,
+        _on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
+    ) {
+    }
+    fn on_destroy(&mut self, _shared_data: &SharedData, _id: &FontId) {}
 
     fn create_from_data(
         shared_data: &SharedDataRc,

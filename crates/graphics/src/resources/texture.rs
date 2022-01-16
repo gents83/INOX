@@ -5,13 +5,11 @@ use sabi_filesystem::convert_from_local_path;
 use sabi_messenger::MessengerRw;
 use sabi_profiler::debug_log;
 use sabi_resources::{
-    Data, DataTypeResource, Handle, ResourceId, SerializableResource, SharedData, SharedDataRc,
+    Data, DataTypeResource, Handle, ResourceId, ResourceTrait, SerializableResource, SharedData,
+    SharedDataRc,
 };
 
-use crate::{
-    api::backend::BackendPhysicalDevice, Device, TextureHandler, INVALID_INDEX,
-    TEXTURE_CHANNEL_COUNT,
-};
+use crate::{RenderContext, TextureHandler, INVALID_INDEX, TEXTURE_CHANNEL_COUNT};
 
 pub type TextureId = ResourceId;
 
@@ -40,6 +38,8 @@ impl Default for Texture {
 
 impl DataTypeResource for Texture {
     type DataType = RgbaImage;
+    type OnCreateData = ();
+
     fn invalidate(&mut self) {
         self.uniform_index = INVALID_INDEX;
         debug_log(format!("Texture {:?} will be reloaded", self.path).as_str());
@@ -51,6 +51,14 @@ impl DataTypeResource for Texture {
         let image_data = image::open(path).unwrap();
         image_data.to_rgba8()
     }
+    fn on_create(
+        &mut self,
+        _shared_data_rc: &SharedDataRc,
+        _id: &TextureId,
+        _on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
+    ) {
+    }
+    fn on_destroy(&mut self, _shared_data: &SharedData, _id: &TextureId) {}
 
     fn create_from_data(
         _shared_data: &SharedDataRc,
@@ -149,8 +157,7 @@ impl Texture {
         &mut self,
         texture_id: &TextureId,
         texture_handler: &TextureHandler,
-        device: &Device,
-        physical_device: &BackendPhysicalDevice,
+        context: &RenderContext,
     ) {
         sabi_profiler::scoped_profile!("texture::capture_image");
         if self.data.is_none() {
@@ -162,8 +169,7 @@ impl Texture {
             self.data = Some(image_data)
         }
         texture_handler.copy(
-            device,
-            physical_device,
+            context,
             texture_id,
             self.data.as_mut().unwrap().as_mut_slice(),
         );

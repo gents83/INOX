@@ -6,9 +6,10 @@ use std::{
 use sabi_commands::CommandParser;
 use sabi_messenger::{implement_message, Message, MessageFromString, MessengerRw};
 
-use crate::{ResourceTrait, SerializableResource, SharedDataRc};
+use crate::{ResourceId, ResourceTrait, SerializableResource, SharedDataRc};
 
-pub trait Function<T>: Fn(&mut T)
+pub trait Function<T>:
+    Fn(&mut T, &ResourceId, Option<&<T as ResourceTrait>::OnCreateData>)
 where
     T: ResourceTrait,
 {
@@ -16,7 +17,7 @@ where
 }
 impl<F, T> Function<T> for F
 where
-    F: 'static + Fn(&mut T) + Clone,
+    F: 'static + Fn(&mut T, &ResourceId, Option<&<T as ResourceTrait>::OnCreateData>) + Clone,
     T: ResourceTrait,
 {
     fn as_boxed(&self) -> Box<dyn Function<T>> {
@@ -32,16 +33,28 @@ where
     }
 }
 
-#[derive(Clone)]
 pub struct LoadResourceEvent<T>
 where
     T: SerializableResource,
 {
     path: PathBuf,
-    on_loaded: Option<Box<dyn Function<T>>>,
+    creation_data: Option<<T as ResourceTrait>::OnCreateData>,
     resource_type: PhantomData<T>,
 }
 implement_message!(LoadResourceEvent<SerializableResource>);
+
+impl<T> Clone for LoadResourceEvent<T>
+where
+    T: SerializableResource,
+{
+    fn clone(&self) -> Self {
+        Self {
+            path: self.path.clone(),
+            creation_data: self.creation_data.clone(),
+            resource_type: PhantomData::<T>::default(),
+        }
+    }
+}
 
 impl<T> MessageFromString for LoadResourceEvent<T>
 where
@@ -74,24 +87,19 @@ impl<T> LoadResourceEvent<T>
 where
     T: SerializableResource,
 {
-    pub fn new(path: &Path, f: Option<Box<dyn Function<T>>>) -> Self {
+    pub fn new(path: &Path, creation_data: Option<<T as ResourceTrait>::OnCreateData>) -> Self {
         Self {
             resource_type: PhantomData::<T>::default(),
             path: path.to_path_buf(),
-            on_loaded: if let Some(f) = f {
-                Some(Box::new(f))
-            } else {
-                None
-            },
+            creation_data,
         }
     }
 
     pub fn path(&self) -> &Path {
         self.path.as_path()
     }
-
-    pub fn loaded_callback(&mut self) -> Option<Box<dyn Function<T>>> {
-        self.on_loaded.take()
+    pub fn on_create_data(&self) -> Option<&<T as ResourceTrait>::OnCreateData> {
+        self.creation_data.as_ref()
     }
 }
 
@@ -121,7 +129,6 @@ impl MessageFromString for UpdateResourceEvent {
 
 pub trait ResourceEventHandler {
     fn is_handled(&self, msg: &dyn Message) -> bool;
-    fn as_boxed(&self) -> Box<dyn ResourceEventHandler>;
     fn handle_event(
         &self,
         shared_data: &SharedDataRc,
@@ -147,9 +154,6 @@ where
             .downcast_ref::<LoadResourceEvent<T>>()
             .is_some()
     }
-    fn as_boxed(&self) -> Box<dyn ResourceEventHandler> {
-        Box::new(self.clone())
-    }
 
     fn handle_event(
         &self,
@@ -163,7 +167,7 @@ where
                     shared_data,
                     global_messenger,
                     e.path.as_path(),
-                    e.clone().loaded_callback(),
+                    e.clone().on_create_data(),
                 );
                 return true;
             }

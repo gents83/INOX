@@ -1,6 +1,4 @@
-use sabi_graphics::{
-    DynamicImage, MeshCategoryId, RenderPass, Texture, DEFAULT_MESH_CATEGORY_IDENTIFIER,
-};
+use sabi_graphics::{DynamicImage, Texture};
 use sabi_messenger::MessengerRw;
 use sabi_resources::{DataTypeResource, Resource, SharedData, SharedDataRc};
 use sabi_serialize::generate_random_uid;
@@ -88,28 +86,26 @@ impl View3D {
     fn update_render_pass(
         shared_data: &SharedDataRc,
         global_messenger: &MessengerRw,
-        render_pass_name: &str,
+        _render_pass_name: &str,
         width: u32,
         height: u32,
     ) -> Resource<Texture> {
         let image = DynamicImage::new_rgba8(width, height);
         let image_data = image.to_rgba8();
-        let texture = Texture::new_resource(
+        Texture::new_resource(
             shared_data,
             global_messenger,
             generate_random_uid(),
             image_data,
-        );
-
+        )
+        /*
         if let Some(render_pass) = SharedData::match_resource(shared_data, |r: &RenderPass| {
             r.data().name == render_pass_name
         }) {
             render_pass
                 .get_mut()
                 .set_color_texture(texture.clone())
-                .add_category_to_draw(MeshCategoryId::new(DEFAULT_MESH_CATEGORY_IDENTIFIER));
         }
-
-        texture
+        */
     }
 }

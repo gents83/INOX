@@ -1,27 +1,21 @@
 #![warn(clippy::all)]
+#![allow(dead_code)]
 
 pub use image::DynamicImage;
 
 pub use crate::common::*;
 pub use crate::data::*;
 pub use crate::fonts::*;
+pub use crate::meshes::*;
 pub use crate::resources::*;
 pub use crate::systems::*;
-
-pub mod api {
-    #[cfg(target_os = "ios")]
-    #[path = "metal/backend.rs"]
-    pub mod backend;
-
-    //Vulkan is supported by Windows, Android, MacOs, Unix
-    #[cfg(not(target_os = "ios"))]
-    #[path = "vulkan/backend.rs"]
-    pub mod backend;
-}
+pub use crate::textures::*;
 
 pub mod common;
 pub mod data;
 pub mod fonts;
+pub mod meshes;
 pub mod resources;
 pub mod systems;
+pub mod textures;
 mod voxels;

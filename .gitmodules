@@ -46,6 +46,3 @@
 [submodule "extern/raw-window-handle"]
 	path = extern/raw-window-handle
 	url = https://github.com/rust-windowing/raw-window-handle
-[submodule "extern/futures-rs"]
-	path = extern/futures-rs
-	url = https://github.com/rust-lang/futures-rs

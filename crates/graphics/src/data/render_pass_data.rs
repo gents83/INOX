@@ -33,8 +33,7 @@ pub struct RenderPassData {
     pub load_depth: LoadOperation,
     pub store_depth: StoreOperation,
     pub render_target: RenderTarget,
-    pub pipeline: PathBuf,
-    pub mesh_category_to_draw: Vec<String>,
+    pub pipelines: Vec<PathBuf>,
 }
 
 impl SerializeFile for RenderPassData {
@@ -55,8 +54,7 @@ impl Default for RenderPassData {
             load_depth: LoadOperation::Clear,
             store_depth: StoreOperation::DontCare,
             render_target: RenderTarget::Screen,
-            pipeline: PathBuf::new(),
-            mesh_category_to_draw: Vec::new(),
+            pipelines: Vec::new(),
         }
     }
 }

@@ -1,10 +1,11 @@
 use std::path::{Path, PathBuf};
 
-use crate::{Material, MeshCategoryId, MeshData, INVALID_INDEX};
+use crate::{Material, MeshData, INVALID_INDEX};
 use sabi_math::{MatBase, Matrix4, Vector4};
 use sabi_messenger::MessengerRw;
 use sabi_resources::{
-    DataTypeResource, Handle, Resource, ResourceId, SerializableResource, SharedData, SharedDataRc,
+    DataTypeResource, Handle, Resource, ResourceId, ResourceTrait, SerializableResource,
+    SharedData, SharedDataRc,
 };
 use sabi_serialize::{read_from_file, SerializeFile};
 
@@ -19,7 +20,7 @@ pub struct Mesh {
     draw_area: Vector4, //pos (x,y) - size(z,w)
     is_visible: bool,
     is_dirty: bool,
-    uv_converted: bool,
+    is_initialized: bool,
     draw_index: i32,
 }
 
@@ -33,7 +34,7 @@ impl Default for Mesh {
             draw_area: [0., 0., f32::MAX, f32::MAX].into(),
             is_visible: true,
             is_dirty: true,
-            uv_converted: false,
+            is_initialized: false,
             draw_index: INVALID_INDEX,
         }
     }
@@ -54,16 +55,27 @@ impl SerializableResource for Mesh {
 
 impl DataTypeResource for Mesh {
     type DataType = MeshData;
+    type OnCreateData = ();
+
     fn is_initialized(&self) -> bool {
-        !self.data.vertices.is_empty()
+        !self.data.vertices.is_empty() && self.is_initialized
     }
 
     fn invalidate(&mut self) {
         self.data = MeshData::default();
+        self.is_initialized = false;
     }
     fn deserialize_data(path: &Path) -> Self::DataType {
         read_from_file::<Self::DataType>(path)
     }
+    fn on_create(
+        &mut self,
+        _shared_data_rc: &SharedDataRc,
+        _id: &MeshId,
+        _on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
+    ) {
+    }
+    fn on_destroy(&mut self, _shared_data: &SharedData, _id: &MeshId) {}
 
     fn create_from_data(
         shared_data: &SharedDataRc,
@@ -94,6 +106,9 @@ impl DataTypeResource for Mesh {
 }
 
 impl Mesh {
+    pub fn init(&mut self) {
+        self.is_initialized = true;
+    }
     pub fn find_from_path(shared_data: &SharedDataRc, path: &Path) -> Handle<Self> {
         SharedData::match_resource(shared_data, |m: &Mesh| m.path() == path)
     }
@@ -120,7 +135,7 @@ impl Mesh {
     }
     pub fn set_mesh_data(&mut self, mesh_data: MeshData) -> &mut Self {
         self.data = mesh_data;
-        self.uv_converted = false;
+        self.is_initialized = false;
         self.is_dirty = true;
         self
     }
@@ -143,9 +158,5 @@ impl Mesh {
     }
     pub fn draw_area(&self) -> Vector4 {
         self.draw_area
-    }
-
-    pub fn category_identifier(&self) -> &MeshCategoryId {
-        &self.data.mesh_category_identifier
     }
 }

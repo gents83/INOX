@@ -14,8 +14,7 @@ use egui::{
 use image::RgbaImage;
 use sabi_core::{JobHandlerRw, System};
 use sabi_graphics::{
-    Material, Mesh, MeshCategoryId, MeshData, Pipeline, RenderPass, RenderTarget, Texture,
-    TextureId, TextureType, VertexData,
+    Material, Mesh, MeshData, Pipeline, Texture, TextureId, TextureType, VertexData,
 };
 
 use sabi_math::Vector4;
@@ -87,27 +86,17 @@ impl UISystem {
         match self.ui_materials.entry(*texture.id()) {
             Entry::Occupied(e) => e.get().clone(),
             Entry::Vacant(e) => {
-                if let Some(render_pass) =
-                    SharedData::match_resource(&self.shared_data, |r: &RenderPass| {
-                        r.data().render_target == RenderTarget::Screen
-                    })
-                {
-                    let shared_data = self.shared_data.clone();
-                    render_pass
+                let shared_data = self.shared_data.clone();
+                if let Some(pipeline) = &self.ui_pipeline {
+                    let material = Material::duplicate_from_pipeline(&shared_data, pipeline);
+                    material
                         .get_mut()
-                        .add_category_to_draw(MeshCategoryId::new(UI_MESH_CATEGORY_IDENTIFIER));
-                    if let Some(pipeline) = &self.ui_pipeline {
-                        let material = Material::duplicate_from_pipeline(&shared_data, pipeline);
-                        material
-                            .get_mut()
-                            .set_texture(TextureType::BaseColor, &texture);
-                        e.insert(material.clone());
-                        return material;
-                    } else {
-                        panic!("UI pipeline not set - maybe you forgot to read ui.cfg file");
-                    };
+                        .set_texture(TextureType::BaseColor, &texture);
+                    e.insert(material.clone());
+                    material
+                } else {
+                    panic!("UI pipeline not set - maybe you forgot to read ui.cfg file");
                 }
-                panic!("No Pass with Screen as RenderTarget has been loaded");
             }
         }
     }
@@ -151,7 +140,7 @@ impl UISystem {
                 &shared_data,
                 &global_messenger,
                 generate_random_uid(),
-                MeshData::new(UI_MESH_CATEGORY_IDENTIFIER),
+                MeshData::default(),
             )
         });
 
@@ -177,7 +166,7 @@ impl UISystem {
                 &UISystem::id(),
                 job_name.as_str(),
                 move || {
-                    let mut mesh_data = MeshData::new(UI_MESH_CATEGORY_IDENTIFIER);
+                    let mut mesh_data = MeshData::default();
                     let mut vertices: Vec<VertexData> = Vec::new();
                     vertices.resize(mesh.vertices.len(), VertexData::default());
                     for (i, v) in mesh.vertices.iter().enumerate() {

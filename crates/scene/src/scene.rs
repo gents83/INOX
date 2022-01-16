@@ -1,7 +1,10 @@
 use std::path::{Path, PathBuf};
 
 use sabi_messenger::MessengerRw;
-use sabi_resources::{DataTypeResource, Resource, ResourceId, SerializableResource, SharedDataRc};
+use sabi_resources::{
+    DataTypeResource, Resource, ResourceId, ResourceTrait, SerializableResource, SharedData,
+    SharedDataRc,
+};
 use sabi_serialize::{read_from_file, SerializeFile};
 use sabi_ui::{CollapsingHeader, UIProperties, UIPropertiesRegistry, Ui};
 
@@ -53,6 +56,16 @@ impl SerializableResource for Scene {
 }
 impl DataTypeResource for Scene {
     type DataType = SceneData;
+    type OnCreateData = ();
+
+    fn on_create(
+        &mut self,
+        _shared_data_rc: &SharedDataRc,
+        _id: &SceneId,
+        _on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
+    ) {
+    }
+    fn on_destroy(&mut self, _shared_data: &SharedData, _id: &SceneId) {}
 
     fn is_initialized(&self) -> bool {
         !self.objects.is_empty()

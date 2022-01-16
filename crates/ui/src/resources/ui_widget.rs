@@ -37,12 +37,22 @@ pub struct UIWidget {
     func: Box<dyn FnMut(&mut dyn UIWidgetData, &CtxRef)>,
 }
 impl ResourceTrait for UIWidget {
-    fn on_resource_swap(&mut self, _new: &Self)
-    where
+    type OnCreateData = ();
+
+    fn on_copy_resource(&mut self, _other: &Self) {
+        todo!()
+    }
+    fn on_create_resource(
+        &mut self,
+        _shared_data: &SharedDataRc,
+        _id: &ResourceId,
+        _on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
+    ) where
         Self: Sized,
     {
-        //println!("UIWidget resource swapped {:?}", self.type_name);
     }
+
+    fn on_destroy_resource(&mut self, _shared_data: &SharedData, _id: &ResourceId) {}
 }
 
 unsafe impl Send for UIWidget {}

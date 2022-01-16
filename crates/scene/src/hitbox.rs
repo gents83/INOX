@@ -1,5 +1,5 @@
 use sabi_math::{Mat4Ops, MatBase, Matrix4, VecBase, Vector3};
-use sabi_resources::{ResourceId, ResourceTrait};
+use sabi_resources::{ResourceId, ResourceTrait, SharedData, SharedDataRc};
 
 use sabi_ui::{CollapsingHeader, UIProperties, UIPropertiesRegistry, Ui};
 
@@ -11,8 +11,24 @@ pub struct Hitbox {
     transform: Matrix4,
 }
 impl ResourceTrait for Hitbox {
-    fn on_resource_swap(&mut self, _new: &Self) {
-        //println!("Hitbox resource swapped");
+    fn on_copy_resource(&mut self, _other: &Self) {
+        todo!()
+    }
+    type OnCreateData = ();
+
+    fn on_create_resource(
+        &mut self,
+        _shared_data: &SharedDataRc,
+        _id: &ResourceId,
+        _on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
+    ) where
+        Self: Sized,
+    {
+        todo!()
+    }
+
+    fn on_destroy_resource(&mut self, _shared_data: &SharedData, _id: &ResourceId) {
+        todo!()
     }
 }
 

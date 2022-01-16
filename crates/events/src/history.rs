@@ -55,7 +55,7 @@ impl EventsHistory {
 
     pub fn register_event_as_undoable<T>(&mut self, global_messenger: &MessengerRw) -> &mut Self
     where
-        T: MessageFromString + Clone,
+        T: MessageFromString + Clone + 'static,
     {
         let typeid = TypeId::of::<T>();
         if !self.registered_event_types.contains(&typeid) {

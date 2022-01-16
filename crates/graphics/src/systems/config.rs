@@ -1,6 +1,4 @@
-use std::path::PathBuf;
-
-use sabi_resources::{ConfigBase};
+use sabi_resources::ConfigBase;
 use sabi_serialize::{Deserialize, Serialize, SerializeFile};
 
 use crate::RenderPassData;
@@ -9,7 +7,6 @@ use crate::RenderPassData;
 #[serde(crate = "sabi_serialize")]
 pub struct Config {
     pub render_passes: Vec<RenderPassData>,
-    pub pipelines: Vec<PathBuf>,
 }
 
 impl SerializeFile for Config {

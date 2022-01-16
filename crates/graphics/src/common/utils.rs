@@ -1,3 +1,6 @@
+use std::io::Read;
+use std::{fs::File, path::Path};
+
 use sabi_math::Vector4;
 
 pub fn read_spirv_from_bytes<Data: ::std::io::Read + ::std::io::Seek>(
@@ -36,6 +39,13 @@ pub fn read_spirv_from_bytes<Data: ::std::io::Read + ::std::io::Seek>(
     result
 }
 
+pub fn parse_shader_from(path: &Path) -> String {
+    let mut file = File::open(path).unwrap();
+    let mut data = Vec::new();
+    file.read_to_end(&mut data).unwrap();
+    String::from_utf8(data).unwrap()
+}
+
 #[inline]
 pub fn compute_color_from_id(id: u32) -> Vector4 {
     let r = ((id & 0xFF) as f32) / 255.;
@@ -49,4 +59,16 @@ pub fn compute_color_from_id(id: u32) -> Vector4 {
 pub fn compute_id_from_color(color: Vector4) -> u32 {
     let color = color * 255.;
     (color.x as u32) | (color.y as u32) << 8 | (color.z as u32) << 16 | (color.w as u32) << 24
+}
+
+pub fn as_u8_slice<T: Sized>(p: &T) -> &[u8] {
+    unsafe {
+        ::std::slice::from_raw_parts((p as *const T) as *const u8, ::std::mem::size_of::<T>())
+    }
+}
+pub fn to_u8_slice<T: Sized>(a: &[T]) -> &[u8] {
+    unsafe {
+        let len = a.len() * ::std::mem::size_of::<T>();
+        ::std::slice::from_raw_parts((&a[0] as *const T) as *const u8, len)
+    }
 }

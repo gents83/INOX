@@ -3,13 +3,19 @@ use std::path::{Path, PathBuf};
 use sabi_messenger::MessengerRw;
 use sabi_nodes::LogicData;
 use sabi_resources::{
-    DataTypeResource, Handle, Resource, ResourceId, SerializableResource, SharedDataRc,
+    DataTypeResource, Handle, Resource, ResourceId, ResourceTrait, SerializableResource,
+    SharedData, SharedDataRc,
 };
 use sabi_serialize::{read_from_file, SerializeFile};
 
-use crate::Object;
+use crate::{Object, ObjectId};
 
 pub type ScriptId = ResourceId;
+
+#[derive(Clone)]
+pub struct OnScriptCreateData {
+    pub parent_id: ObjectId,
+}
 
 #[derive(Clone)]
 pub struct Script {
@@ -43,6 +49,21 @@ impl SerializableResource for Script {
 }
 impl DataTypeResource for Script {
     type DataType = LogicData;
+    type OnCreateData = OnScriptCreateData;
+
+    fn on_create(
+        &mut self,
+        shared_data_rc: &SharedDataRc,
+        _id: &ObjectId,
+        on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
+    ) {
+        if let Some(on_create_data) = on_create_data {
+            if let Some(parent) = shared_data_rc.get_resource::<Object>(&on_create_data.parent_id) {
+                self.set_parent(&parent);
+            }
+        }
+    }
+    fn on_destroy(&mut self, _shared_data: &SharedData, _id: &ObjectId) {}
 
     fn is_initialized(&self) -> bool {
         self.logic.is_initialized()

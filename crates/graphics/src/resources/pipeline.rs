@@ -3,32 +3,43 @@ use std::path::{Path, PathBuf};
 use sabi_math::matrix4_to_array;
 use sabi_messenger::MessengerRw;
 use sabi_profiler::debug_log;
-use sabi_resources::{DataTypeResource, ResourceId, SerializableResource, SharedDataRc};
+use sabi_resources::{
+    BufferData, DataTypeResource, ResourceId, ResourceTrait, SerializableResource, SharedData,
+    SharedDataRc,
+};
 use sabi_serialize::{read_from_file, SerializeFile};
 
 use crate::{
-    api::backend::{self, BackendPhysicalDevice, BackendPipeline},
-    utils::compute_color_from_id,
-    CommandBuffer, Device, DrawMode, GraphicsMesh, InstanceCommand, InstanceData, Mesh,
-    MeshBindingData, MeshCategoryId, MeshId, PipelineBindingData, PipelineData, RenderPass,
-    ShaderMaterialData, ShaderType, TextureAtlas, INVALID_INDEX,
+    utils::{compute_color_from_id, parse_shader_from},
+    CullingModeType, GpuBuffer, InstanceData, Mesh, MeshId, PipelineData, PipelineIdentifier,
+    PolygonModeType, RenderContext, VertexData,
 };
 
 pub type PipelineId = ResourceId;
 
-#[derive(Default, Clone)]
+#[derive(Default)]
 pub struct Pipeline {
     path: PathBuf,
-    backend_pipeline: Option<backend::BackendPipeline>,
     data: PipelineData,
-    is_initialized: bool,
-    mesh: GraphicsMesh,
-    vertex_count: u32,
-    index_count: u32,
-    instance_count: usize,
-    instance_data: Vec<InstanceData>,
-    instance_commands: Vec<InstanceCommand>,
-    last_binding_index: i32,
+    render_pipeline: Option<wgpu::RenderPipeline>,
+    instance_buffer:
+        GpuBuffer<InstanceData, { wgpu::BufferUsages::bits(&wgpu::BufferUsages::VERTEX) }>,
+    indirect_buffer: GpuBuffer<
+        wgpu::util::DrawIndexedIndirect,
+        { wgpu::BufferUsages::bits(&wgpu::BufferUsages::INDIRECT) },
+    >,
+}
+
+impl Clone for Pipeline {
+    fn clone(&self) -> Self {
+        Self {
+            path: self.path.clone(),
+            data: self.data.clone(),
+            render_pipeline: None,
+            instance_buffer: GpuBuffer::default(),
+            indirect_buffer: GpuBuffer::default(),
+        }
+    }
 }
 
 impl SerializableResource for Pipeline {
@@ -46,17 +57,25 @@ impl SerializableResource for Pipeline {
 
 impl DataTypeResource for Pipeline {
     type DataType = PipelineData;
+    type OnCreateData = ();
 
     fn invalidate(&mut self) {
-        self.is_initialized = false;
-        self.last_binding_index = -1;
+        self.render_pipeline = None;
     }
     fn is_initialized(&self) -> bool {
-        self.is_initialized
+        self.render_pipeline.is_some()
     }
     fn deserialize_data(path: &Path) -> Self::DataType {
         read_from_file::<Self::DataType>(path)
     }
+    fn on_create(
+        &mut self,
+        _shared_data_rc: &SharedDataRc,
+        _id: &PipelineId,
+        _on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
+    ) {
+    }
+    fn on_destroy(&mut self, _shared_data: &SharedData, _id: &PipelineId) {}
 
     fn create_from_data(
         _shared_data: &SharedDataRc,
@@ -79,335 +98,172 @@ impl Pipeline {
     pub fn data(&self) -> &PipelineData {
         &self.data
     }
+    pub fn identifier(&self) -> PipelineIdentifier {
+        PipelineIdentifier::new(&self.data.identifier)
+    }
+    pub fn render_pipeline(&self) -> &wgpu::RenderPipeline {
+        self.render_pipeline.as_ref().unwrap()
+    }
     pub fn init(
         &mut self,
-        device: &Device,
-        physical_device: &BackendPhysicalDevice,
-        render_pass: &RenderPass,
-    ) -> &mut Self {
-        if self.data.vertex_shader.to_str().unwrap().is_empty()
-            || self.data.fragment_shader.to_str().unwrap().is_empty()
-        {
-            return self;
+        context: &RenderContext,
+        constant_data_bind_group_layout: &wgpu::BindGroupLayout,
+    ) {
+        if self.data.shader.to_str().unwrap().is_empty() {
+            return;
         }
         self.invalidate();
-        if let Some(backend_pipeline) = &mut self.backend_pipeline {
-            backend_pipeline.destroy(device);
-        }
-        let mut backend_pipeline = BackendPipeline::default();
-        backend_pipeline
-            .set_shader(
-                device,
-                ShaderType::Vertex,
-                self.data.vertex_shader.as_path(),
-            )
-            .set_shader(
-                device,
-                ShaderType::Fragment,
-                self.data.fragment_shader.as_path(),
-            );
-        if !self.data.tcs_shader.to_str().unwrap().is_empty() {
-            backend_pipeline.set_shader(
-                device,
-                ShaderType::TessellationControl,
-                self.data.tcs_shader.as_path(),
-            );
-        }
-        if !self.data.tes_shader.to_str().unwrap().is_empty() {
-            backend_pipeline.set_shader(
-                device,
-                ShaderType::TessellationEvaluation,
-                self.data.tes_shader.as_path(),
-            );
-        }
-        if !self.data.geometry_shader.to_str().unwrap().is_empty() {
-            backend_pipeline.set_shader(
-                device,
-                ShaderType::Geometry,
-                self.data.geometry_shader.as_path(),
-            );
-        }
-        backend_pipeline.build(device, physical_device, &*render_pass, &self.data);
-        self.backend_pipeline = Some(backend_pipeline);
 
-        self.is_initialized = true;
+        let shader_code = parse_shader_from(self.data.shader.as_path());
+        let shader = context
+            .device
+            .create_shader_module(&wgpu::ShaderModuleDescriptor {
+                label: Some("Shader"),
+                source: wgpu::ShaderSource::Wgsl(shader_code.into()),
+            });
 
-        self
+        let render_pipeline_layout =
+            context
+                .device
+                .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                    label: Some("Render Pipeline Layout"),
+                    bind_group_layouts: &[constant_data_bind_group_layout],
+                    push_constant_ranges: &[],
+                });
+
+        let render_pipeline =
+            context
+                .device
+                .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                    label: Some("Render Pipeline"),
+                    layout: Some(&render_pipeline_layout),
+                    vertex: wgpu::VertexState {
+                        module: &shader,
+                        entry_point: "vs_main",
+                        buffers: &[
+                            VertexData::descriptor().build(),
+                            InstanceData::descriptor().build(),
+                        ],
+                    },
+                    fragment: Some(wgpu::FragmentState {
+                        module: &shader,
+                        entry_point: "fs_main",
+                        targets: &[wgpu::ColorTargetState {
+                            format: context.config.format,
+                            blend: Some(wgpu::BlendState {
+                                color: wgpu::BlendComponent {
+                                    src_factor: self.data.src_color_blend_factor.into(),
+                                    dst_factor: self.data.dst_color_blend_factor.into(),
+                                    operation: wgpu::BlendOperation::Add,
+                                },
+                                alpha: wgpu::BlendComponent {
+                                    src_factor: self.data.src_alpha_blend_factor.into(),
+                                    dst_factor: self.data.dst_alpha_blend_factor.into(),
+                                    operation: wgpu::BlendOperation::Add,
+                                },
+                            }),
+                            write_mask: wgpu::ColorWrites::ALL,
+                        }],
+                    }),
+                    primitive: wgpu::PrimitiveState {
+                        topology: wgpu::PrimitiveTopology::TriangleList,
+                        strip_index_format: None,
+                        front_face: wgpu::FrontFace::Ccw,
+                        cull_mode: match &self.data.culling {
+                            CullingModeType::Back => Some(wgpu::Face::Back),
+                            CullingModeType::Front => Some(wgpu::Face::Front),
+                            CullingModeType::None => None,
+                        },
+                        // Setting this to anything other than Fill requires Features::NON_FILL_POLYGON_MODE
+                        polygon_mode: match &self.data.mode {
+                            PolygonModeType::Fill => wgpu::PolygonMode::Fill,
+                            PolygonModeType::Line => wgpu::PolygonMode::Line,
+                            PolygonModeType::Point => wgpu::PolygonMode::Point,
+                        },
+                        // Requires Features::DEPTH_CLIP_CONTROL
+                        unclipped_depth: false,
+                        // Requires Features::CONSERVATIVE_RASTERIZATION
+                        conservative: false,
+                    },
+                    depth_stencil: None,
+                    multisample: wgpu::MultisampleState {
+                        count: 1,
+                        mask: !0,
+                        alpha_to_coverage_enabled: false,
+                    },
+                    // If the pipeline will be used with a multiview render pass, this
+                    // indicates how many array layers the attachments will have.
+                    multiview: None,
+                });
+
+        self.render_pipeline = Some(render_pipeline)
     }
 
     pub fn check_shaders_to_reload(&mut self, path_as_string: String) {
-        if path_as_string.contains(self.data.vertex_shader.to_str().unwrap())
-            && !self.data.vertex_shader.to_str().unwrap().is_empty()
+        if path_as_string.contains(self.data.shader.to_str().unwrap())
+            && !self.data.shader.to_str().unwrap().is_empty()
         {
             self.invalidate();
-            debug_log(format!("VertexShader {:?} will be reloaded", path_as_string).as_str());
-        }
-        if path_as_string.contains(self.data.fragment_shader.to_str().unwrap())
-            && !self.data.fragment_shader.to_str().unwrap().is_empty()
-        {
-            self.invalidate();
-            debug_log(format!("FragmentShader {:?} will be reloaded", path_as_string).as_str());
-        }
-        if path_as_string.contains(self.data.tcs_shader.to_str().unwrap())
-            && !self.data.tcs_shader.to_str().unwrap().is_empty()
-        {
-            self.invalidate();
-            debug_log(
-                format!(
-                    "TessellationControlShader {:?} will be reloaded",
-                    path_as_string
-                )
-                .as_str(),
-            );
-        }
-        if path_as_string.contains(self.data.tes_shader.to_str().unwrap())
-            && !self.data.tes_shader.to_str().unwrap().is_empty()
-        {
-            self.invalidate();
-            debug_log(
-                format!(
-                    "TessellationEvaluationShader {:?} will be reloaded",
-                    path_as_string
-                )
-                .as_str(),
-            );
-        }
-        if path_as_string.contains(self.data.geometry_shader.to_str().unwrap())
-            && !self.data.geometry_shader.to_str().unwrap().is_empty()
-        {
-            self.invalidate();
-            debug_log(format!("GeometryShader {:?} will be reloaded", path_as_string).as_str());
+            debug_log(format!("Shader {:?} will be reloaded", path_as_string).as_str());
         }
     }
 
-    pub fn prepare(&mut self) -> &mut Self {
-        self.vertex_count = 0;
-        self.index_count = 0;
-        self.instance_count = 0;
-        self.mesh.reset_mesh_categories();
-        self
+    pub fn send_to_gpu(&mut self, context: &RenderContext) {
+        self.instance_buffer.send_to_gpu(context);
+        self.indirect_buffer.send_to_gpu(context);
     }
 
-    pub fn find_used_textures(
-        &self,
-        textures: &[TextureAtlas],
-        material_data: &[ShaderMaterialData],
-    ) -> Vec<bool> {
-        let mut used_textures = Vec::new();
-        used_textures.resize_with(textures.len(), || false);
-        self.instance_data.iter().for_each(|data| {
-            if data.material_index != INVALID_INDEX {
-                material_data[data.material_index as usize]
-                    .textures_indices
-                    .iter()
-                    .for_each(|index| {
-                        if *index != INVALID_INDEX {
-                            used_textures[*index as usize] = true;
-                        }
-                    });
-            }
-        });
-        used_textures
+    pub fn instance_buffer(&self) -> Option<wgpu::BufferSlice> {
+        if let Some(buffer) = self.instance_buffer.gpu_buffer() {
+            return Some(buffer.slice(..));
+        }
+        None
+    }
+    pub fn instance_count(&self) -> usize {
+        self.instance_buffer.len()
+    }
+    pub fn indirect_buffer(&self) -> Option<&wgpu::Buffer> {
+        self.indirect_buffer.gpu_buffer()
     }
 
-    pub fn update_bindings(
+    pub fn add_mesh_to_instance_buffer(&mut self, mesh_id: &MeshId, mesh: &Mesh) {
+        if self.instance_buffer.get(mesh_id).is_none() {
+            let instance = InstanceData {
+                id: compute_color_from_id(mesh_id.as_u128() as _).into(),
+                ..Default::default()
+            };
+            self.instance_buffer.add(mesh_id, &[instance]);
+        } else {
+            let data = self.instance_buffer.data();
+            let instance_index = self.instance_buffer.get(mesh_id).unwrap().start;
+            let mut instance_data = data[instance_index];
+            instance_data.matrix = matrix4_to_array(mesh.matrix());
+            self.instance_buffer
+                .update(instance_index as _, &[instance_data]);
+        }
+    }
+    pub fn add_mesh_to_indirect_buffer(
         &mut self,
-        device: &Device,
-        command_buffer: &CommandBuffer,
-        binding_data: PipelineBindingData,
-    ) -> &mut Self {
-        sabi_profiler::scoped_profile!("device::update_bindings");
-        if let Some(backend_pipeline) = &mut self.backend_pipeline {
-            backend_pipeline
-                .update_data_buffer(
-                    device,
-                    binding_data.light_data,
-                    binding_data.texture_data,
-                    binding_data.material_data,
-                )
-                .update_constant_data(
-                    command_buffer,
-                    binding_data.width,
-                    binding_data.height,
-                    binding_data.view,
-                    binding_data.proj,
-                )
-                .update_descriptor_sets(device, binding_data.textures, binding_data.used_textures);
-            self.last_binding_index =
-                backend_pipeline.bind_descriptors(device, command_buffer) as _;
-        }
-        self
-    }
-
-    pub fn bind(&mut self, command_buffer: &CommandBuffer) -> &mut Self {
-        sabi_profiler::scoped_profile!(format!("pipeline::bind[{:?}]", self.name()).as_str());
-        if let Some(backend_pipeline) = &mut self.backend_pipeline {
-            backend_pipeline.bind_pipeline(command_buffer);
-        }
-        self
-    }
-
-    fn bind_indirect(
-        &mut self,
-        device: &Device,
-        physical_device: &BackendPhysicalDevice,
-    ) -> &mut Self {
-        sabi_profiler::scoped_profile!(
-            format!("pipeline::bind_indirect[{:?}]", self.name()).as_str()
-        );
-        if let Some(backend_pipeline) = &mut self.backend_pipeline {
-            backend_pipeline.bind_indirect(
-                device,
-                physical_device,
-                &self.instance_commands,
-                &self.instance_data,
-            );
-        }
-        self
-    }
-
-    fn bind_instance_buffer(&mut self, command_buffer: &CommandBuffer) -> &mut Self {
-        sabi_profiler::scoped_profile!(format!(
-            "pipeline::bind_instance_buffer[{:?}]",
-            self.name()
-        )
-        .as_str());
-        if let Some(backend_pipeline) = &mut self.backend_pipeline {
-            backend_pipeline.bind_instance_buffer(command_buffer);
-        }
-        self
-    }
-    fn bind_vertices(&mut self, command_buffer: &CommandBuffer) -> &mut Self {
-        sabi_profiler::scoped_profile!(
-            format!("pipeline::bind_vertices[{:?}]", self.name()).as_str()
-        );
-        self.mesh.bind_vertices(command_buffer);
-        self
-    }
-    fn bind_indices(&mut self, command_buffer: &CommandBuffer) -> &mut Self {
-        sabi_profiler::scoped_profile!(
-            format!("pipeline::bind_indices[{:?}]", self.name()).as_str()
-        );
-        self.mesh.bind_indices(command_buffer);
-        self
-    }
-
-    fn draw_single(&mut self, command_buffer: &CommandBuffer) -> &mut Self {
-        sabi_profiler::scoped_profile!(
-            format!("pipeline::draw_indexed[{:?}]", self.name()).as_str()
-        );
-        if let Some(backend_pipeline) = &mut self.backend_pipeline {
-            backend_pipeline.draw_single(
-                command_buffer,
-                self.instance_commands.as_slice(),
-                self.instance_data.as_slice(),
-                self.instance_count,
-            );
-        }
-        self
-    }
-
-    fn draw_indirect_batch(&mut self, command_buffer: &CommandBuffer) -> &mut Self {
-        sabi_profiler::scoped_profile!(
-            format!("pipeline::draw_indirect[{:?}]", self.name()).as_str()
-        );
-        if let Some(backend_pipeline) = &mut self.backend_pipeline {
-            backend_pipeline.draw_indirect_batch(command_buffer, self.instance_count);
-        }
-        self
-    }
-
-    pub fn add_mesh_instance(
-        &mut self,
-        device: &Device,
-        physical_device: &BackendPhysicalDevice,
         mesh_id: &MeshId,
-        mesh: &Mesh,
-        material_index: i32,
-    ) -> &mut Self {
-        if !self.is_initialized()
-            || mesh.mesh_data().vertices.is_empty()
-            || mesh.mesh_data().indices.is_empty()
-        {
-            return self;
-        }
-
-        sabi_profiler::scoped_profile!(
-            format!("pipeline::add_mesh_instance[{}]", self.name()).as_str()
-        );
-
-        let mesh_data_ref = self.mesh.bind_at_index(
-            device,
-            physical_device,
-            MeshBindingData {
-                mesh_category_identifier: *mesh.category_identifier(),
-                vertices: &mesh.mesh_data().vertices,
-                first_vertex: self.vertex_count,
-                indices: &mesh.mesh_data().indices,
-                first_index: self.index_count,
-            },
-        );
-
-        self.vertex_count += mesh.mesh_data().vertices.len() as u32;
-        self.index_count += mesh.mesh_data().indices.len() as u32;
-        let mesh_index = if mesh.draw_index() >= 0 {
-            mesh.draw_index() as usize
-        } else {
-            self.instance_count
-        };
-
-        let command = InstanceCommand {
-            mesh_index,
-            mesh_data_ref,
-        };
-
-        let data = InstanceData {
-            id: compute_color_from_id(mesh_id.as_u128() as _),
-            matrix: matrix4_to_array(mesh.matrix()),
-            draw_area: mesh.draw_area(),
-            material_index,
-        };
-        if mesh_index >= self.instance_commands.len() {
-            self.instance_commands
-                .resize(mesh_index + 1, InstanceCommand::default());
-        }
-        if mesh_index >= self.instance_data.len() {
-            self.instance_data
-                .resize(mesh_index + 1, InstanceData::default());
-        }
-        self.instance_commands[mesh_index] = command;
-        self.instance_data[mesh_index] = data;
-        self.instance_count += 1;
-        self
-    }
-
-    pub fn should_draw(&self, mesh_category_to_draw: &[MeshCategoryId]) -> bool {
-        let mut should_draw = false;
-        mesh_category_to_draw.iter().for_each(|category_id| {
-            should_draw |= self.mesh.mesh_categories().iter().any(|c| c == category_id);
-        });
-        should_draw
-    }
-
-    pub fn fill_command_buffer(
-        &mut self,
-        device: &Device,
-        physical_device: &BackendPhysicalDevice,
-        command_buffer: &CommandBuffer,
+        vertex_data: &BufferData,
+        index_data: &BufferData,
     ) {
-        sabi_profiler::scoped_profile!(
-            format!("renderer::draw_pipeline[{:?}]", self.name()).as_str()
-        );
-
-        self.bind_indirect(device, physical_device)
-            .bind_vertices(command_buffer)
-            .bind_instance_buffer(command_buffer)
-            .bind_indices(command_buffer);
-
-        if self.data.draw_mode == DrawMode::Single {
-            self.draw_single(command_buffer);
-        } else {
-            self.draw_indirect_batch(command_buffer);
+        if self.indirect_buffer.get(mesh_id).is_none() {
+            let instance_index = self.instance_buffer.get(mesh_id).unwrap().start;
+            self.indirect_buffer.add(
+                mesh_id,
+                &[wgpu::util::DrawIndexedIndirect {
+                    vertex_count: index_data.len() as _,
+                    instance_count: 1,
+                    base_index: index_data.start as _,
+                    vertex_offset: vertex_data.start as _,
+                    base_instance: instance_index as _,
+                }],
+            );
         }
+    }
+    pub fn remove_mesh(&mut self, mesh_id: &MeshId) {
+        self.instance_buffer.remove(mesh_id);
+        self.indirect_buffer.remove(mesh_id);
     }
 }

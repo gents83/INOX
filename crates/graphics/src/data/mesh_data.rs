@@ -1,29 +1,13 @@
-use std::path::PathBuf;
+use std::{ops::Range, path::PathBuf};
 
 use sabi_math::{is_point_in_triangle, Vector2, Vector3, Vector4};
-use sabi_serialize::{generate_uid_from_string, Deserialize, Serialize, SerializeFile, Uid};
+use sabi_serialize::{Deserialize, Serialize, SerializeFile};
 
 use crate::{create_quad, MeshDataRef, VertexData};
 
-pub const DEFAULT_MESH_CATEGORY_IDENTIFIER: &str = "SABI_Default";
-
-#[repr(C)]
-#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
-#[serde(crate = "sabi_serialize")]
-pub struct MeshCategoryId(Uid);
-
-impl MeshCategoryId {
-    pub fn new(string: &str) -> Self {
-        Self(generate_uid_from_string(string))
-    }
-}
-
-pub struct MeshBindingData<'a> {
-    pub mesh_category_identifier: MeshCategoryId,
-    pub vertices: &'a [VertexData],
-    pub first_vertex: u32,
-    pub indices: &'a [u32],
-    pub first_index: u32,
+pub struct MeshBindingData {
+    pub vertices: Range<u32>,
+    pub indices: Range<u32>,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
@@ -32,7 +16,6 @@ pub struct MeshData {
     pub vertices: Vec<VertexData>,
     pub indices: Vec<u32>,
     pub material: PathBuf,
-    pub mesh_category_identifier: MeshCategoryId,
 }
 
 impl SerializeFile for MeshData {
@@ -47,20 +30,11 @@ impl Default for MeshData {
             vertices: Vec::new(),
             indices: Vec::new(),
             material: PathBuf::new(),
-            mesh_category_identifier: MeshCategoryId::new(DEFAULT_MESH_CATEGORY_IDENTIFIER),
         }
     }
 }
 
 impl MeshData {
-    pub fn new(mesh_category_identifier: &str) -> Self {
-        Self {
-            vertices: Vec::new(),
-            indices: Vec::new(),
-            material: PathBuf::new(),
-            mesh_category_identifier: MeshCategoryId::new(mesh_category_identifier),
-        }
-    }
     pub fn clear(&mut self) -> &mut Self {
         self.vertices.clear();
         self.indices.clear();

@@ -4,20 +4,25 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use sabi_graphics::{Light, Mesh};
+use sabi_graphics::{Light, Mesh, OnLightCreateData};
 use sabi_math::{Mat4Ops, MatBase, Matrix4, Vector3};
 use sabi_messenger::MessengerRw;
 use sabi_resources::{
-    DataTypeResource, Function, GenericResource, Handle, Resource, ResourceCastTo, ResourceId,
-    ResourceTrait, SerializableResource, SharedData, SharedDataRc,
+    DataTypeResource, GenericResource, Handle, Resource, ResourceCastTo, ResourceId, ResourceTrait,
+    SerializableResource, SharedData, SharedDataRc,
 };
 use sabi_serialize::{generate_random_uid, read_from_file, SerializeFile};
 use sabi_ui::{CollapsingHeader, UIProperties, UIPropertiesRegistry, Ui};
 
-use crate::{Camera, ObjectData, Script};
+use crate::{Camera, ObjectData, OnCameraCreateData, OnScriptCreateData, Script};
 
 pub type ComponentId = ResourceId;
 pub type ObjectId = ResourceId;
+
+#[derive(Clone)]
+pub struct OnObjectCreateData {
+    pub parent_id: ObjectId,
+}
 
 #[derive(Clone)]
 pub struct Object {
@@ -95,6 +100,20 @@ impl SerializableResource for Object {
 }
 impl DataTypeResource for Object {
     type DataType = ObjectData;
+    type OnCreateData = OnObjectCreateData;
+
+    fn on_create(
+        &mut self,
+        shared_data_rc: &SharedDataRc,
+        _id: &ObjectId,
+        on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
+    ) {
+        if let Some(on_create_data) = on_create_data {
+            let parent = shared_data_rc.get_resource::<Object>(&on_create_data.parent_id);
+            self.set_parent(parent);
+        }
+    }
+    fn on_destroy(&mut self, _shared_data: &SharedData, _id: &ObjectId) {}
 
     fn is_initialized(&self) -> bool {
         !self.components.is_empty()
@@ -124,61 +143,40 @@ impl DataTypeResource for Object {
                 let mesh = Mesh::request_load(shared_data, global_messenger, path, None);
                 object.add_component::<Mesh>(mesh);
             } else if Camera::is_matching_extension(path) {
-                let shared_data_rc = shared_data.clone();
-                let on_camera_loaded: Box<dyn Function<Camera>> =
-                    Box::new(move |camera: &mut Camera| {
-                        if let Some(parent) = shared_data_rc.get_resource::<Object>(&id) {
-                            camera.set_parent(&parent);
-                        }
-                    });
                 let camera = Camera::request_load(
                     shared_data,
                     global_messenger,
                     path,
-                    Some(on_camera_loaded),
+                    Some(OnCameraCreateData { parent_id: id }),
                 );
                 object.add_component::<Camera>(camera);
             } else if Light::is_matching_extension(path) {
-                let shared_data_rc = shared_data.clone();
-                let on_light_loaded: Box<dyn Function<Light>> =
-                    Box::new(move |light: &mut Light| {
-                        if let Some(parent) = shared_data_rc.get_resource::<Object>(&id) {
-                            light.set_position(parent.get().get_position());
-                        }
-                    });
-                let light =
-                    Light::request_load(shared_data, global_messenger, path, Some(on_light_loaded));
+                let light = Light::request_load(
+                    shared_data,
+                    global_messenger,
+                    path,
+                    Some(OnLightCreateData {
+                        position: object.get_position(),
+                    }),
+                );
                 object.add_component::<Light>(light);
             } else if Script::is_matching_extension(path) {
-                let shared_data_rc = shared_data.clone();
-                let on_script_loaded: Box<dyn Function<Script>> =
-                    Box::new(move |script: &mut Script| {
-                        if let Some(parent) = shared_data_rc.get_resource::<Object>(&id) {
-                            script.set_parent(&parent);
-                        }
-                    });
                 let script = Script::request_load(
                     shared_data,
                     global_messenger,
                     path,
-                    Some(on_script_loaded),
+                    Some(OnScriptCreateData { parent_id: id }),
                 );
                 object.add_component::<Script>(script);
             }
         });
 
         for child in object_data.children.iter() {
-            let shared_data_rc = shared_data.clone();
-            let on_loaded_object: Box<dyn Function<Object>> =
-                Box::new(move |child: &mut Object| {
-                    let parent = shared_data_rc.get_resource::<Object>(&id);
-                    child.set_parent(parent);
-                });
             let child = Object::request_load(
                 shared_data,
                 global_messenger,
                 child.as_path(),
-                Some(on_loaded_object),
+                Some(OnObjectCreateData { parent_id: id }),
             );
             object.add_child(child);
         }

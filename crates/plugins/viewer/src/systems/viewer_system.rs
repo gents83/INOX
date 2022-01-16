@@ -1,13 +1,13 @@
 use sabi_commands::CommandParser;
 use sabi_core::System;
-use sabi_graphics::{DrawEvent, Light, View};
+use sabi_graphics::{DrawEvent, Light, Material, Mesh, MeshData, Pipeline, View};
 use sabi_math::{Matrix4, VecBase, Vector2, Vector3};
 use sabi_messenger::{read_messages, GlobalMessenger, MessageChannel, MessengerRw};
-use sabi_nodes::LogicData;
+
 use sabi_platform::{InputState, Key, KeyEvent, MouseEvent, WindowEvent};
 use sabi_resources::{LoadResourceEvent, Resource, SerializableResource, SharedData, SharedDataRc};
 use sabi_scene::{Camera, Object, ObjectId, Scene, Script};
-use sabi_serialize::{generate_random_uid, read_from_file};
+use sabi_serialize::generate_random_uid;
 use std::{any::TypeId, collections::HashMap, path::PathBuf};
 
 use crate::widgets::{Hierarchy, Info, View3D};
@@ -81,11 +81,6 @@ impl System for ViewerSystem {
     fn init(&mut self) {
         self.check_command_line_arguments();
 
-        let _script = read_from_file::<LogicData>(
-            PathBuf::from("C:\\PROJECTS\\SABI\\data\\blender_export\\TestScene\\logic\\test.logic")
-                .as_path(),
-        );
-
         self.global_messenger
             .write()
             .unwrap()
@@ -152,8 +147,59 @@ impl ViewerSystem {
         if command_parser.has("load_file") {
             let values = command_parser.get_values_of::<String>("load_file");
             self.load_scene(values[0].as_str());
+        } else {
+            self.create_default_scene();
         }
         self
+    }
+
+    fn create_default_scene(&mut self) {
+        let default_object = {
+            let object = self
+                .shared_data
+                .add_resource(generate_random_uid(), Object::default());
+            let mesh = self
+                .shared_data
+                .add_resource(generate_random_uid(), Mesh::default());
+            let pipeline = Pipeline::request_load(
+                &self.shared_data,
+                &self.global_messenger,
+                PathBuf::from("pipelines\\Default.pipeline").as_path(),
+                None,
+            );
+            let material = Material::duplicate_from_pipeline(&self.shared_data, &pipeline);
+            mesh.get_mut().set_material(material);
+            let mut mesh_data = MeshData::default();
+            mesh_data.add_quad_default([-10., -10., 10., 10.].into(), 0.);
+            mesh.get_mut().set_mesh_data(mesh_data);
+            object.get_mut().add_component(mesh);
+            object.get_mut().set_position([-10., 0., 0.].into());
+            object
+        };
+        let wireframe_object = {
+            let object = self
+                .shared_data
+                .add_resource(generate_random_uid(), Object::default());
+            let mesh = self
+                .shared_data
+                .add_resource(generate_random_uid(), Mesh::default());
+            let pipeline = Pipeline::request_load(
+                &self.shared_data,
+                &self.global_messenger,
+                PathBuf::from("pipelines\\Wireframe.pipeline").as_path(),
+                None,
+            );
+            let material = Material::duplicate_from_pipeline(&self.shared_data, &pipeline);
+            mesh.get_mut().set_material(material);
+            let mut mesh_data = MeshData::default();
+            mesh_data.add_quad_default([-10., -10., 10., 10.].into(), 0.);
+            mesh.get_mut().set_mesh_data(mesh_data);
+            object.get_mut().add_component(mesh);
+            object.get_mut().set_position([10., 0., 0.].into());
+            object
+        };
+        self.scene.get_mut().add_object(default_object);
+        self.scene.get_mut().add_object(wireframe_object);
     }
 
     fn load_scene(&mut self, filename: &str) {

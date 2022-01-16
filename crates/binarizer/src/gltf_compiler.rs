@@ -17,8 +17,8 @@ use gltf::{
 };
 
 use sabi_graphics::{
-    LightData, LightType, MaterialAlphaMode, MaterialData, MeshCategoryId, MeshData, TextureType,
-    VertexData, DEFAULT_MESH_CATEGORY_IDENTIFIER, MAX_TEXTURE_COORDS_SETS,
+    LightData, LightType, MaterialAlphaMode, MaterialData, MeshData, TextureType, VertexData,
+    MAX_TEXTURE_COORDS_SETS,
 };
 use sabi_math::{Mat4Ops, Matrix4, NewAngle, Parser, Radians, Vector2, Vector3, Vector4};
 use sabi_messenger::MessengerRw;
@@ -299,7 +299,6 @@ impl GltfCompiler {
         let mut mesh_data = MeshData::default();
         mesh_data.append_mesh(vertices.as_slice(), indices.as_slice());
         mesh_data.material = material_path.to_path_buf();
-        mesh_data.mesh_category_identifier = MeshCategoryId::new(DEFAULT_MESH_CATEGORY_IDENTIFIER);
 
         Self::create_file(path, &mesh_data, mesh_name, "mesh")
     }
