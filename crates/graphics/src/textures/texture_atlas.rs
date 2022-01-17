@@ -72,16 +72,16 @@ impl TextureAtlas {
     pub fn allocate(
         &mut self,
         context: &RenderContext,
+        encoder: &mut wgpu::CommandEncoder,
         id: &TextureId,
         texture_index: u32,
-        width: u32,
-        height: u32,
+        dimensions: (u32, u32),
         image_data: &[u8],
     ) -> Option<ShaderTextureData> {
         for (layer_index, area_allocator) in self.allocators.iter_mut().enumerate() {
-            if let Some(area) = area_allocator.allocate(id, width, height) {
+            if let Some(area) = area_allocator.allocate(id, dimensions.0, dimensions.1) {
                 self.texture
-                    .write_to_gpu(context, layer_index as _, area, image_data);
+                    .send_to_gpu(context, encoder, layer_index as _, area, image_data);
                 return Some(ShaderTextureData {
                     texture_index: texture_index as _,
                     layer_index: layer_index as _,

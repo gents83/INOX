@@ -73,15 +73,16 @@ impl TextureHandler {
     pub fn add_from_path(
         &mut self,
         context: &RenderContext,
+        encoder: &mut wgpu::CommandEncoder,
         id: &TextureId,
         filepath: &Path,
     ) -> ShaderTextureData {
         let image = image::open(filepath).unwrap();
         self.add_image(
             context,
+            encoder,
             id,
-            image.width(),
-            image.height(),
+            (image.width(), image.height()),
             image.to_rgba8().as_raw().as_slice(),
         )
     }
@@ -89,15 +90,20 @@ impl TextureHandler {
     pub fn add_image(
         &mut self,
         context: &RenderContext,
+        encoder: &mut wgpu::CommandEncoder,
         id: &TextureId,
-        width: u32,
-        height: u32,
+        dimensions: (u32, u32),
         image_data: &[u8],
     ) -> ShaderTextureData {
         for (texture_index, texture_atlas) in self.texture_atlas.iter_mut().enumerate() {
-            if let Some(texture_data) =
-                texture_atlas.allocate(context, id, texture_index as _, width, height, image_data)
-            {
+            if let Some(texture_data) = texture_atlas.allocate(
+                context,
+                encoder,
+                id,
+                texture_index as _,
+                dimensions,
+                image_data,
+            ) {
                 return texture_data;
             }
         }

@@ -1,6 +1,6 @@
 use crate::{
     utils::to_u8_slice, ConstantData, GraphicsMesh, LightData, Mesh, Pipeline, RenderPass,
-    ShaderMaterialData, ShaderTextureData, TextureHandler,
+    ShaderMaterialData, ShaderTextureData, Texture, TextureHandler,
 };
 use sabi_math::{matrix4_to_array, Matrix4};
 use sabi_resources::DataTypeResource;
@@ -190,8 +190,8 @@ impl Renderer {
 
         self.init_pipelines();
         self.init_meshes();
-        /*
         self.init_textures();
+        /*
         self.init_materials();
         self.init_lights();
         */
@@ -307,28 +307,19 @@ impl Renderer {
                 }
             });
     }
-
-    fn send_to_gpu(&mut self) {
-        sabi_profiler::scoped_profile!("renderer::send_to_gpu");
-        let render_context = &self.context;
-        let graphic_mesh = &mut self.graphics_mesh;
-
-        graphic_mesh.send_to_gpu(render_context);
-
-        self.shared_data
-            .for_each_resource_mut(|_h, p: &mut Pipeline| {
-                if p.is_initialized() {
-                    p.send_to_gpu(render_context);
-                }
-            });
-    }
-    /*
     fn init_textures(&mut self) {
         sabi_profiler::scoped_profile!("renderer::init_textures");
-        let device = &mut self.device;
-        let physical_device = &self.instance.get_physical_device();
+        let render_context = &self.context;
         let texture_handler = &mut self.texture_handler;
         let shared_data = &self.shared_data;
+
+        let mut encoder =
+            self.context
+                .device
+                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                    label: Some("Update Encoder"),
+                });
+
         SharedData::for_each_resource_mut(shared_data, |texture_handle, texture: &mut Texture| {
             if !texture.is_initialized() {
                 if let Some(texture_data) = texture_handler.get_texture_data(texture_handle.id()) {
@@ -344,11 +335,10 @@ impl Renderer {
                     let height = texture.height();
                     if let Some(image_data) = texture.image_data() {
                         let texture_data = texture_handler.add_image(
-                            device,
-                            physical_device,
+                            render_context,
+                            &mut encoder,
                             texture_handle.id(),
-                            width,
-                            height,
+                            (width, height),
                             image_data,
                         );
                         let uniform_index = self.texture_data.len();
@@ -362,8 +352,12 @@ impl Renderer {
                 }
             }
         });
-    }
 
+        render_context
+            .queue
+            .submit(std::iter::once(encoder.finish()));
+    }
+    /*
     fn init_lights(&mut self) {
         sabi_profiler::scoped_profile!("renderer::init_lights");
         self.light_data.clear();
@@ -386,4 +380,19 @@ impl Renderer {
             });
     }
     */
+
+    fn send_to_gpu(&mut self) {
+        sabi_profiler::scoped_profile!("renderer::send_to_gpu");
+        let render_context = &self.context;
+        let graphic_mesh = &mut self.graphics_mesh;
+
+        graphic_mesh.send_to_gpu(render_context);
+
+        self.shared_data
+            .for_each_resource_mut(|_h, p: &mut Pipeline| {
+                if p.is_initialized() {
+                    p.send_to_gpu(render_context);
+                }
+            });
+    }
 }
