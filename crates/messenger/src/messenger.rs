@@ -9,7 +9,7 @@ use crate::{Listener, Message, MessageBox, MessageChannel, MessageFromString};
 
 pub type MessengerRw = Arc<RwLock<Messenger>>;
 
-trait MsgType {
+trait MsgType: Send + Sync {
     fn type_id(&self) -> TypeId;
     fn name(&self) -> &'static str {
         std::any::type_name::<Self>()
@@ -35,6 +35,8 @@ where
         T::from_string(s)
     }
 }
+unsafe impl<T> Send for MessageType<T> where T: MessageFromString {}
+unsafe impl<T> Sync for MessageType<T> where T: MessageFromString {}
 
 #[derive(Default)]
 pub struct Messenger {
