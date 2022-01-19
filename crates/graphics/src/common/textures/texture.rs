@@ -63,6 +63,12 @@ impl Texture {
             layers_count,
         }
     }
+    pub fn view(&self) -> &wgpu::TextureView {
+        &self.view
+    }
+    pub fn sampler(&self) -> &wgpu::Sampler {
+        &self.sampler
+    }
 
     pub fn id(&self) -> &TextureId {
         &self.id

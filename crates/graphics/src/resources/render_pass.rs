@@ -88,7 +88,7 @@ impl RenderPass {
         encoder: &mut wgpu::CommandEncoder,
         texture_view: &wgpu::TextureView,
         graphics_mesh: &GraphicsMesh,
-        constant_data_bind_group: &wgpu::BindGroup,
+        bind_groups: &[&wgpu::BindGroup],
     ) {
         if graphics_mesh.vertex_count() == 0 {
             return;
@@ -98,14 +98,10 @@ impl RenderPass {
             .iter()
             .map(|h| h.get_mut())
             .collect::<Vec<_>>();
-        let color_operations = self.color_operations(wgpu::Color {
-            r: 0.,
-            g: 0.,
-            b: 0.,
-            a: 1.,
-        });
+        let color_operations = self.color_operations(wgpu::Color::BLACK);
+        let label = format!("RenderPass {}", self.data.name);
         let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: Some("Render Pass"),
+            label: Some(label.as_str()),
             color_attachments: &[wgpu::RenderPassColorAttachment {
                 view: texture_view,
                 resolve_target: None,
@@ -114,7 +110,9 @@ impl RenderPass {
             depth_stencil_attachment: None,
         });
 
-        render_pass.set_bind_group(0, constant_data_bind_group, &[]);
+        bind_groups.iter().enumerate().for_each(|(i, &bind_group)| {
+            render_pass.set_bind_group(i as u32, bind_group, &[]);
+        });
 
         if let Some(buffer_slice) = graphics_mesh.vertex_buffer() {
             render_pass.set_vertex_buffer(0, buffer_slice);

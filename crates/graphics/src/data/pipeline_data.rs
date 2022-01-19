@@ -5,7 +5,7 @@ use sabi_math::Matrix4;
 use sabi_resources::Data;
 use sabi_serialize::{generate_uid_from_string, Deserialize, Serialize, SerializeFile, Uid};
 
-use crate::{LightData, ShaderMaterialData, ShaderTextureData, TextureAtlas};
+use crate::{LightData, ShaderMaterialData, TextureAtlas, TextureData};
 
 pub const DEFAULT_PIPELINE_IDENTIFIER: &str = "SABI_Default_Pipeline";
 pub const WIREFRAME_PIPELINE_IDENTIFIER: &str = "EditorWireframe";
@@ -143,6 +143,6 @@ pub struct PipelineBindingData<'a> {
     pub textures: &'a [TextureAtlas],
     pub used_textures: &'a [bool],
     pub light_data: &'a [LightData],
-    pub texture_data: &'a [ShaderTextureData],
+    pub texture_data: &'a [TextureData],
     pub material_data: &'a [ShaderMaterialData],
 }

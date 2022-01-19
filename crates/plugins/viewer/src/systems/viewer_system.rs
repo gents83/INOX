@@ -182,7 +182,7 @@ impl ViewerSystem {
             mesh_data.add_quad_default([-10., -10., 10., 10.].into(), 0.);
             mesh.get_mut().set_mesh_data(mesh_data);
             object.get_mut().add_component(mesh);
-            object.get_mut().set_position([-10., 0., 0.].into());
+            object.get_mut().set_position([-20., 0., 0.].into());
             object
         };
         let wireframe_object = {
@@ -204,7 +204,7 @@ impl ViewerSystem {
             mesh_data.add_quad_default([-10., -10., 10., 10.].into(), 0.);
             mesh.get_mut().set_mesh_data(mesh_data);
             object.get_mut().add_component(mesh);
-            object.get_mut().set_position([10., 0., 0.].into());
+            object.get_mut().set_position([20., 0., 0.].into());
             object
         };
         self.scene.get_mut().add_object(default_object);

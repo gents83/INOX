@@ -3,10 +3,7 @@ use sabi_messenger::MessengerRw;
 use sabi_resources::{DataTypeResource, Resource, SharedDataRc};
 use sabi_serialize::generate_random_uid;
 
-use crate::{
-    RendererRw, RendererState,
-    View,
-};
+use crate::{RendererRw, RendererState, View};
 
 pub const RENDERING_PHASE: &str = "RENDERING_PHASE";
 
@@ -31,7 +28,6 @@ impl RenderingSystem {
             shared_data: shared_data.clone(),
         }
     }
-    
 }
 
 unsafe impl Send for RenderingSystem {}
@@ -53,7 +49,7 @@ impl System for RenderingSystem {
         {
             let mut renderer = self.renderer.write().unwrap();
             renderer.change_state(RendererState::Drawing);
-            renderer.update_constant(self.view.get().view(), self.view.get().proj());
+            renderer.update_shader_data(self.view.get().view(), self.view.get().proj());
         }
 
         {

@@ -1,13 +1,12 @@
 use crate::{
-    utils::to_u8_slice, ConstantData, GraphicsMesh, LightData, Mesh, Pipeline, RenderPass,
-    ShaderMaterialData, ShaderTextureData, Texture, TextureHandler,
+    GraphicsMesh, Light, LightId, Material, MaterialId, Mesh, Pipeline, RenderPass, ShaderData,
+    Texture, TextureHandler, TextureId,
 };
 use sabi_math::{matrix4_to_array, Matrix4};
-use sabi_resources::DataTypeResource;
+use sabi_resources::{DataTypeResource, HashIndexer};
 
 use sabi_platform::Handle;
 use sabi_resources::{SharedData, SharedDataRc};
-use wgpu::util::DeviceExt;
 
 use std::sync::{Arc, RwLock};
 
@@ -43,15 +42,12 @@ pub struct Renderer {
     context: RenderContext,
     shared_data: SharedDataRc,
     texture_handler: TextureHandler,
-    light_data: Vec<LightData>,
-    texture_data: Vec<ShaderTextureData>,
-    material_data: Vec<ShaderMaterialData>,
     state: RendererState,
     graphics_mesh: GraphicsMesh,
-    constant_data: ConstantData,
-    constant_data_buffer: wgpu::Buffer,
-    constant_data_bind_group_layout: wgpu::BindGroupLayout,
-    constant_data_bind_group: wgpu::BindGroup,
+    texture_hash_indexer: HashIndexer<TextureId>,
+    material_hash_indexer: HashIndexer<MaterialId>,
+    light_hash_indexer: HashIndexer<LightId>,
+    shader_data: ShaderData,
 }
 pub type RendererRw = Arc<RwLock<Renderer>>;
 
@@ -62,57 +58,17 @@ impl Renderer {
     pub fn new(handle: &Handle, shared_data: &SharedDataRc, _enable_debug: bool) -> Self {
         let render_context = futures::executor::block_on(Self::create_render_context(handle));
         let texture_handler = TextureHandler::create(&render_context);
-        let constant_data = ConstantData::default();
-        let constant_data_buffer =
-            render_context
-                .device
-                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("ConstantData Buffer"),
-                    contents: to_u8_slice(&[constant_data]),
-                    usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-                });
 
-        let constant_data_bind_group_layout =
-            render_context
-                .device
-                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                    entries: &[wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Uniform,
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
-                        },
-                        count: None,
-                    }],
-                    label: Some("constant_data_bind_group_layout"),
-                });
-
-        let constant_data_bind_group =
-            render_context
-                .device
-                .create_bind_group(&wgpu::BindGroupDescriptor {
-                    layout: &constant_data_bind_group_layout,
-                    entries: &[wgpu::BindGroupEntry {
-                        binding: 0,
-                        resource: constant_data_buffer.as_entire_binding(),
-                    }],
-                    label: Some("constant_data_bind_group"),
-                });
         Renderer {
-            shared_data: shared_data.clone(),
-            context: render_context,
             texture_handler,
-            light_data: Vec::new(),
-            texture_data: Vec::new(),
-            material_data: Vec::new(),
-            state: RendererState::Submitted,
+            shader_data: ShaderData::new(&render_context),
             graphics_mesh: GraphicsMesh::default(),
-            constant_data,
-            constant_data_buffer,
-            constant_data_bind_group_layout,
-            constant_data_bind_group,
+            texture_hash_indexer: HashIndexer::default(),
+            material_hash_indexer: HashIndexer::default(),
+            light_hash_indexer: HashIndexer::default(),
+            state: RendererState::Submitted,
+            context: render_context,
+            shared_data: shared_data.clone(),
         }
     }
 
@@ -130,6 +86,7 @@ impl Renderer {
         let required_features = wgpu::Features::all_webgpu_mask()
             | wgpu::Features::POLYGON_MODE_LINE
             | wgpu::Features::INDIRECT_FIRST_INSTANCE
+            | wgpu::Features::TEXTURE_BINDING_ARRAY
             | wgpu::Features::MULTI_DRAW_INDIRECT
             | wgpu::Features::MULTI_DRAW_INDIRECT_COUNT;
 
@@ -167,16 +124,6 @@ impl Renderer {
         &self.context
     }
 
-    pub fn light_data(&self) -> &[LightData] {
-        self.light_data.as_slice()
-    }
-    pub fn texture_data(&self) -> &[ShaderTextureData] {
-        self.texture_data.as_slice()
-    }
-    pub fn material_data(&self) -> &[ShaderMaterialData] {
-        self.material_data.as_slice()
-    }
-
     pub fn state(&self) -> RendererState {
         self.state
     }
@@ -189,26 +136,19 @@ impl Renderer {
         sabi_profiler::scoped_profile!("renderer::prepare_frame");
 
         self.init_pipelines();
+        self.init_materials();
         self.init_meshes();
         self.init_textures();
-        /*
-        self.init_materials();
         self.init_lights();
-        */
 
         self.send_to_gpu();
         self
     }
 
-    pub fn update_constant(&mut self, view: Matrix4, proj: Matrix4) {
-        self.constant_data.view = matrix4_to_array(view);
-        self.constant_data.proj = matrix4_to_array(OPENGL_TO_WGPU_MATRIX * proj);
-
-        self.context.queue.write_buffer(
-            &self.constant_data_buffer,
-            0,
-            to_u8_slice(&[self.constant_data]),
-        );
+    pub fn update_shader_data(&mut self, view: Matrix4, proj: Matrix4) {
+        self.shader_data.constant_data_mut().view = matrix4_to_array(view);
+        self.shader_data.constant_data_mut().proj = matrix4_to_array(OPENGL_TO_WGPU_MATRIX * proj);
+        self.shader_data.send_to_gpu(&self.context);
     }
 
     pub fn get_texture_handler(&self) -> &TextureHandler {
@@ -260,15 +200,16 @@ impl Renderer {
                 let debug_should_draw_only_first = true;
                 let mut index = 0;
                 let graphics_mesh = &self.graphics_mesh;
+
+                let bind_group = vec![
+                    self.texture_handler.bind_group(),
+                    self.shader_data.bind_group(),
+                ];
+
                 self.shared_data
                     .for_each_resource_mut(|_id, r: &mut RenderPass| {
                         if !debug_should_draw_only_first || index == 0 {
-                            r.draw(
-                                &mut encoder,
-                                &view,
-                                graphics_mesh,
-                                &self.constant_data_bind_group,
-                            );
+                            r.draw(&mut encoder, &view, graphics_mesh, bind_group.as_slice());
                         }
                         index += 1;
                     });
@@ -286,11 +227,15 @@ impl Renderer {
     fn init_pipelines(&mut self) {
         sabi_profiler::scoped_profile!("renderer::init_pipelines");
         let render_context = &self.context;
-        let constant_data_bind_group_layout = &self.constant_data_bind_group_layout;
+        let bind_group_layouts = vec![
+            self.texture_handler.bind_group_layout(),
+            self.shader_data.bind_group_layout(),
+        ];
+
         self.shared_data
             .for_each_resource_mut(|_h, p: &mut Pipeline| {
                 if !p.is_initialized() {
-                    p.init(render_context, constant_data_bind_group_layout);
+                    p.init(render_context, bind_group_layouts.as_slice());
                 }
             });
     }
@@ -311,8 +256,7 @@ impl Renderer {
         sabi_profiler::scoped_profile!("renderer::init_textures");
         let render_context = &self.context;
         let texture_handler = &mut self.texture_handler;
-        let shared_data = &self.shared_data;
-
+        let mut is_dirty = false;
         let mut encoder =
             self.context
                 .device
@@ -320,66 +264,63 @@ impl Renderer {
                     label: Some("Update Encoder"),
                 });
 
-        SharedData::for_each_resource_mut(shared_data, |texture_handle, texture: &mut Texture| {
-            if !texture.is_initialized() {
-                if let Some(texture_data) = texture_handler.get_texture_data(texture_handle.id()) {
-                    let uniform_index = self.texture_data.len();
-                    texture.set_texture_data(
-                        uniform_index,
-                        texture_data.get_width(),
-                        texture_data.get_height(),
-                    );
-                    self.texture_data.push(texture_data);
-                } else {
-                    let width = texture.width();
-                    let height = texture.height();
-                    if let Some(image_data) = texture.image_data() {
-                        let texture_data = texture_handler.add_image(
-                            render_context,
-                            &mut encoder,
-                            texture_handle.id(),
-                            (width, height),
-                            image_data,
-                        );
-                        let uniform_index = self.texture_data.len();
+        self.shared_data
+            .for_each_resource_mut(|handle, texture: &mut Texture| {
+                let uniform_index = self.texture_hash_indexer.insert(handle.id());
+                if !texture.is_initialized() {
+                    if let Some(texture_data) = texture_handler.get_texture_data(handle.id()) {
                         texture.set_texture_data(
                             uniform_index,
                             texture_data.get_width(),
                             texture_data.get_height(),
                         );
-                        self.texture_data.push(texture_data);
+                    } else {
+                        let width = texture.width();
+                        let height = texture.height();
+                        if let Some(image_data) = texture.image_data() {
+                            let texture_data = texture_handler.add_image(
+                                render_context,
+                                &mut encoder,
+                                handle.id(),
+                                (width, height),
+                                image_data,
+                            );
+                            is_dirty = true;
+                            texture.set_texture_data(
+                                uniform_index,
+                                texture_data.get_width(),
+                                texture_data.get_height(),
+                            );
+                        }
                     }
                 }
-            }
-        });
+                texture.set_uniform_index(uniform_index as _);
+            });
+        if is_dirty {
+            render_context
+                .queue
+                .submit(std::iter::once(encoder.finish()));
 
-        render_context
-            .queue
-            .submit(std::iter::once(encoder.finish()));
-    }
-    /*
-    fn init_lights(&mut self) {
-        sabi_profiler::scoped_profile!("renderer::init_lights");
-        self.light_data.clear();
-        self.shared_data.for_each_resource(|_id, light: &Light| {
-            if light.is_active() {
-                self.light_data.push(*light.data());
-            }
-        });
+            self.texture_handler.update_bind_group(render_context);
+        }
     }
     fn init_materials(&mut self) {
         sabi_profiler::scoped_profile!("renderer::init_materials");
         self.shared_data
-            .for_each_resource_mut(|_id, material: &mut Material| {
-                if !material.is_initialized() {
-                    let uniform_index = self.material_data.len() as i32;
-                    self.material_data
-                        .push(material.create_uniform_material_data());
-                    material.set_uniform_index(uniform_index);
-                }
+            .for_each_resource_mut(|handle, material: &mut Material| {
+                let uniform_index = self.material_hash_indexer.insert(handle.id());
+                material.set_uniform_index(uniform_index as _);
             });
     }
-    */
+
+    fn init_lights(&mut self) {
+        sabi_profiler::scoped_profile!("renderer::init_lights");
+        self.shared_data
+            .for_each_resource_mut(|handle, light: &mut Light| {
+                let uniform_index = self.light_hash_indexer.insert(handle.id());
+                light.set_uniform_index(uniform_index as _);
+            });
+    }
 
     fn send_to_gpu(&mut self) {
         sabi_profiler::scoped_profile!("renderer::send_to_gpu");

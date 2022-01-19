@@ -12,7 +12,7 @@ use sabi_serialize::{read_from_file, SerializeFile};
 use crate::{
     utils::{compute_color_from_id, parse_shader_from},
     CullingModeType, GpuBuffer, InstanceData, Mesh, MeshId, PipelineData, PipelineIdentifier,
-    PolygonModeType, RenderContext, VertexData,
+    PolygonModeType, RenderContext, VertexData, INVALID_INDEX,
 };
 
 pub type PipelineId = ResourceId;
@@ -104,11 +104,7 @@ impl Pipeline {
     pub fn render_pipeline(&self) -> &wgpu::RenderPipeline {
         self.render_pipeline.as_ref().unwrap()
     }
-    pub fn init(
-        &mut self,
-        context: &RenderContext,
-        constant_data_bind_group_layout: &wgpu::BindGroupLayout,
-    ) {
+    pub fn init(&mut self, context: &RenderContext, bind_group_layouts: &[&wgpu::BindGroupLayout]) {
         if self.data.shader.to_str().unwrap().is_empty() {
             return;
         }
@@ -127,7 +123,7 @@ impl Pipeline {
                 .device
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: Some("Render Pipeline Layout"),
-                    bind_group_layouts: &[constant_data_bind_group_layout],
+                    bind_group_layouts,
                     push_constant_ranges: &[],
                 });
 
@@ -230,7 +226,11 @@ impl Pipeline {
         if self.instance_buffer.get(mesh_id).is_none() {
             let instance = InstanceData {
                 id: compute_color_from_id(mesh_id.as_u128() as _).into(),
-                ..Default::default()
+                matrix: matrix4_to_array(mesh.matrix()),
+                material_index: mesh
+                    .material()
+                    .as_ref()
+                    .map_or(INVALID_INDEX, |m| m.get().uniform_index()),
             };
             self.instance_buffer.add(mesh_id, &[instance]);
         } else {
@@ -238,6 +238,10 @@ impl Pipeline {
             let instance_index = self.instance_buffer.get(mesh_id).unwrap().start;
             let mut instance_data = data[instance_index];
             instance_data.matrix = matrix4_to_array(mesh.matrix());
+            instance_data.material_index = mesh
+                .material()
+                .as_ref()
+                .map_or(INVALID_INDEX, |m| m.get().uniform_index());
             self.instance_buffer
                 .update(instance_index as _, &[instance_data]);
         }

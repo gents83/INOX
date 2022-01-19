@@ -349,7 +349,7 @@ impl UIProperties for Texture {
                 });
                 ui.horizontal(|ui| {
                     ui.label("Texture Index: ");
-                    let mut texture_index = format!("{}", self.texture_index());
+                    let mut texture_index = format!("{}", self.uniform_index());
                     TextEdit::singleline(&mut texture_index)
                         .interactive(false)
                         .ui(ui);

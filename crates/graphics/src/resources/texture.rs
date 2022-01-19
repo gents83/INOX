@@ -134,11 +134,14 @@ impl Texture {
     pub fn height(&self) -> u32 {
         self.height
     }
-    pub fn texture_index(&self) -> i32 {
-        self.uniform_index
-    }
     pub fn image_data(&self) -> &Option<Vec<u8>> {
         &self.data
+    }
+    pub fn uniform_index(&self) -> i32 {
+        self.uniform_index
+    }
+    pub fn set_uniform_index(&mut self, uniform_index: u32) {
+        self.uniform_index = uniform_index as _;
     }
     pub fn set_texture_data(&mut self, index: usize, width: u32, height: u32) -> &mut Self {
         self.uniform_index = index as _;

@@ -2,7 +2,7 @@ use sabi_serialize::{Deserialize, Serialize, SerializeFile};
 
 use crate::print_field_size;
 
-pub const MAX_NUM_LIGHTS: usize = 32;
+pub const MAX_NUM_LIGHTS: usize = 64;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 #[serde(crate = "sabi_serialize")]
@@ -13,8 +13,7 @@ pub enum LightType {
     Spot = 3,
 }
 
-#[repr(C, align(16))]
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Copy)]
+#[derive(Default, Serialize, Deserialize, Debug, PartialEq, Clone, Copy)]
 #[serde(crate = "sabi_serialize")]
 pub struct LightData {
     pub position: [f32; 3],
@@ -29,20 +28,6 @@ pub struct LightData {
 impl SerializeFile for LightData {
     fn extension() -> &'static str {
         "light"
-    }
-}
-
-impl Default for LightData {
-    fn default() -> Self {
-        Self {
-            position: [0.; 3],
-            light_type: 0,
-            color: [1.; 4],
-            intensity: 1000.,
-            range: 1.,
-            inner_cone_angle: 0.,
-            outer_cone_angle: 0.,
-        }
     }
 }
 

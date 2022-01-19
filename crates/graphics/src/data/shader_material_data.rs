@@ -20,7 +20,7 @@ pub struct ShaderMaterialData {
 impl Default for ShaderMaterialData {
     fn default() -> Self {
         Self {
-            textures_indices: [INVALID_INDEX; TextureType::Count as _],
+            textures_indices: [INVALID_INDEX as _; TextureType::Count as _],
             textures_coord_set: [0; TextureType::Count as _],
             roughness_factor: 1.,
             metallic_factor: 1.,

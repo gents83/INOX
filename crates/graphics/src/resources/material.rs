@@ -150,8 +150,8 @@ impl Material {
     pub fn uniform_index(&self) -> i32 {
         self.uniform_index
     }
-    pub fn set_uniform_index(&mut self, uniform_index: i32) {
-        self.uniform_index = uniform_index;
+    pub fn set_uniform_index(&mut self, uniform_index: u32) {
+        self.uniform_index = uniform_index as _;
     }
 
     pub fn textures(&self) -> &[Handle<Texture>; TextureType::Count as _] {
@@ -226,11 +226,11 @@ impl Material {
         self.specular_color = specular_color;
     }
 
-    pub fn create_uniform_material_data(&self) -> ShaderMaterialData {
+    pub fn uniform_material_data(&self) -> ShaderMaterialData {
         let mut textures_indices = [INVALID_INDEX; TextureType::Count as _];
         (0..TextureType::Count as usize).for_each(|i| {
             if let Some(texture) = &self.textures[i] {
-                textures_indices[i] = texture.get().texture_index();
+                textures_indices[i] = texture.get().uniform_index() as _;
             }
         });
         ShaderMaterialData {

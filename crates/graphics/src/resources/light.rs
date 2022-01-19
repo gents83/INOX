@@ -7,7 +7,7 @@ use sabi_resources::{
 };
 use sabi_serialize::{read_from_file, SerializeFile};
 
-use crate::LightData;
+use crate::{LightData, INVALID_INDEX};
 
 pub type LightId = ResourceId;
 
@@ -20,6 +20,7 @@ pub struct OnLightCreateData {
 pub struct Light {
     filepath: PathBuf,
     data: LightData,
+    uniform_index: i32,
     is_active: bool,
 }
 
@@ -28,6 +29,7 @@ impl Default for Light {
         Self {
             filepath: PathBuf::new(),
             data: LightData::default(),
+            uniform_index: INVALID_INDEX,
             is_active: true,
         }
     }
@@ -51,11 +53,11 @@ impl DataTypeResource for Light {
     type OnCreateData = OnLightCreateData;
 
     fn is_initialized(&self) -> bool {
-        true
+        self.uniform_index != INVALID_INDEX
     }
 
     fn invalidate(&mut self) {
-        panic!("Light cannot be invalidated!");
+        self.uniform_index = INVALID_INDEX;
     }
 
     fn deserialize_data(path: &std::path::Path) -> Self::DataType {
@@ -116,5 +118,12 @@ impl Light {
     #[inline]
     pub fn is_active(&self) -> bool {
         self.is_active
+    }
+
+    pub fn set_uniform_index(&mut self, uniform_index: u32) {
+        self.uniform_index = uniform_index as _;
+    }
+    pub fn uniform_index(&self) -> i32 {
+        self.uniform_index
     }
 }

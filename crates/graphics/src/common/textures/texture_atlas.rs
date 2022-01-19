@@ -1,14 +1,15 @@
 use sabi_profiler::debug_log;
 use sabi_serialize::generate_random_uid;
 
-use crate::{RenderContext, ShaderTextureData, TextureId};
+use crate::{RenderContext, TextureData, TextureId};
 
 use super::{
     area::{Area, AreaAllocator, DEFAULT_AREA_SIZE},
     texture::Texture,
 };
 
-pub const DEFAULT_LAYER_COUNT: u32 = 8;
+pub const DEFAULT_LAYER_COUNT: u32 = 8u32;
+pub const MAX_TEXTURE_ATLAS_COUNT: u32 = 16u32;
 
 pub struct TextureAtlas {
     texture: Texture,
@@ -59,6 +60,12 @@ impl TextureAtlas {
     pub fn texture_id(&self) -> &TextureId {
         self.texture.id()
     }
+    pub fn texture(&self) -> &wgpu::TextureView {
+        self.texture.view()
+    }
+    pub fn sampler(&self) -> &wgpu::Sampler {
+        self.texture.sampler()
+    }
 
     pub fn get_area(&self, texture_id: &TextureId) -> Option<Area> {
         for allocator in &self.allocators {
@@ -77,12 +84,12 @@ impl TextureAtlas {
         texture_index: u32,
         dimensions: (u32, u32),
         image_data: &[u8],
-    ) -> Option<ShaderTextureData> {
+    ) -> Option<TextureData> {
         for (layer_index, area_allocator) in self.allocators.iter_mut().enumerate() {
             if let Some(area) = area_allocator.allocate(id, dimensions.0, dimensions.1) {
                 self.texture
                     .send_to_gpu(context, encoder, layer_index as _, area, image_data);
-                return Some(ShaderTextureData {
+                return Some(TextureData {
                     texture_index: texture_index as _,
                     layer_index: layer_index as _,
                     area: area.into(),
@@ -98,10 +105,10 @@ impl TextureAtlas {
         &self,
         texture_index: u32,
         texture_id: &TextureId,
-    ) -> Option<ShaderTextureData> {
+    ) -> Option<TextureData> {
         for (layer_index, area_allocator) in self.allocators.iter().enumerate() {
             if let Some(area) = area_allocator.get_area(texture_id) {
-                return Some(ShaderTextureData {
+                return Some(TextureData {
                     texture_index: texture_index as _,
                     layer_index: layer_index as _,
                     area: (&area).into(),

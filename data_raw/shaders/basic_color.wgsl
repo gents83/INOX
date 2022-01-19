@@ -1,14 +1,78 @@
-// Vertex shader
+let MAX_TEXTURE_ATLAS_COUNT: u32 = 16u;
+let MAX_NUM_LIGHTS: u32 = 64u;
+let MAX_NUM_TEXTURES: u32 = 512u;
+let MAX_NUM_MATERIALS: u32 = 512u;
+
+let TEXTURE_TYPE_BASE_COLOR: u32 = 0u;
+let TEXTURE_TYPE_METALLIC_ROUGHNESS: u32 = 1u;
+let TEXTURE_TYPE_NORMAL: u32 = 2u;
+let TEXTURE_TYPE_EMISSIVE: u32 = 3u;
+let TEXTURE_TYPE_OCCLUSION: u32 = 4u;
+let TEXTURE_TYPE_SPECULAR_GLOSSINESS: u32 = 5u;
+let TEXTURE_TYPE_DIFFUSE: u32 = 6u;
+let TEXTURE_TYPE_EMPTY_FOR_PADDING: u32 = 7u;
+let TEXTURE_TYPE_COUNT: u32 = 8u;
 
 struct ConstantData {
     view: mat4x4<f32>;
     proj: mat4x4<f32>;
     screen_width: f32;
     screen_height: f32;
-    padding: vec2<f32>;
+    num_textures: u32;
+    num_materials: u32;
+    num_lights: u32;
+    padding: u32;
 };
+
+struct LightData {
+    position: vec3<f32>;
+    light_type: u32;
+    color: vec4<f32>;
+    intensity: f32;
+    range: f32;
+    inner_cone_angle: f32;
+    outer_cone_angle: f32;
+};
+
+struct TextureData {
+    texture_index: u32;
+    layer_index: u32;
+    total_width: u32;
+    total_height: u32;
+    area: vec4<f32>;
+};
+
+struct ShaderMaterialData {
+    textures_indices: array<i32, TEXTURE_TYPE_COUNT>;
+    textures_coord_set: array<u32, TEXTURE_TYPE_COUNT>;
+    roughness_factor: f32;
+    metallic_factor: f32;
+    alpha_cutoff: f32;
+    alpha_mode: u32;
+    base_color: vec4<f32>;
+    emissive_color: vec4<f32>;
+    diffuse_color: vec4<f32>;
+    specular_color: vec4<f32>;
+};
+
+struct DynamicData {
+    data: array<LightData, MAX_NUM_LIGHTS>;
+    data: array<TextureData, MAX_NUM_TEXTURES>;
+    data: array<ShaderMaterialData, MAX_NUM_MATERIALS>;
+};
+
+
 [[group(0), binding(0)]]
+var texture_array: texture_2d_array<f32>;
+[[group(0), binding(1)]]
+var sampler_array: sampler;
+
+[[group(1), binding(0)]]
 var<uniform> constant_data: ConstantData;
+[[group(1), binding(1)]]
+var<storage, read> dynamic_data: DynamicData;
+
+
 
 struct InstanceInput {
     //[[builtin(instance_index)]] index: u32;
@@ -35,11 +99,13 @@ struct VertexInput {
 struct VertexOutput {
     [[builtin(position)]] clip_position: vec4<f32>;
     [[location(0)]] color: vec4<f32>;
+    [[location(1)]] tex_coords_0: vec2<f32>;
+    [[location(2)]] material_index: i32;
 };
 
 [[stage(vertex)]]
 fn vs_main(
-    model: VertexInput,
+    v: VertexInput,
     instance: InstanceInput,
 ) -> VertexOutput {
     let instance_matrix = mat4x4<f32>(
@@ -49,14 +115,16 @@ fn vs_main(
         instance.model_matrix_3,
     );
     var out: VertexOutput;
-    out.color = model.color;
-    out.clip_position = constant_data.proj * constant_data.view * instance_matrix * vec4<f32>(model.position, 1.0);
+    out.color = v.color;
+    out.tex_coords_0 = v.tex_coords_0;
+    out.material_index = instance.material_index;
+    out.clip_position = constant_data.proj * constant_data.view * instance_matrix * vec4<f32>(v.position, 1.0);
     return out;
 }
 
-// Fragment shader
 
 [[stage(fragment)]]
-fn fs_main(in: VertexOutput) -> [[location(0)]] vec4<f32> {
-    return in.color;
+fn fs_main(v: VertexOutput) -> [[location(0)]] vec4<f32> {
+    let t = textureSample(texture_array, sampler_array, v.tex_coords_0, v.material_index);
+    return t * v.color;
 }
