@@ -56,23 +56,16 @@ struct ShaderMaterialData {
 };
 
 struct DynamicData {
-    data: array<LightData, MAX_NUM_LIGHTS>;
-    data: array<TextureData, MAX_NUM_TEXTURES>;
-    data: array<ShaderMaterialData, MAX_NUM_MATERIALS>;
+    lights: array<LightData, MAX_NUM_LIGHTS>;
+    textures: array<TextureData, MAX_NUM_TEXTURES>;
+    materials: array<ShaderMaterialData, MAX_NUM_MATERIALS>;
 };
 
 
 [[group(0), binding(0)]]
-var texture_array: texture_2d_array<f32>;
-[[group(0), binding(1)]]
-var sampler_array: sampler;
-
-[[group(1), binding(0)]]
 var<uniform> constant_data: ConstantData;
-[[group(1), binding(1)]]
+[[group(0), binding(1)]]
 var<storage, read> dynamic_data: DynamicData;
-
-
 
 struct InstanceInput {
     //[[builtin(instance_index)]] index: u32;
@@ -122,9 +115,27 @@ fn vs_main(
     return out;
 }
 
+[[group(1), binding(0)]]
+var default_sampler: sampler;
+[[group(1), binding(1)]]
+var texture_array: texture_2d_array<f32>;
 
 [[stage(fragment)]]
-fn fs_main(v: VertexOutput) -> [[location(0)]] vec4<f32> {
-    let t = textureSample(texture_array, sampler_array, v.tex_coords_0, v.material_index);
-    return t * v.color;
+fn fs_main(v: VertexOutput) -> [[location(0)]] vec4<f32> {     
+    var diffuse_index = 0;
+    if (v.material_index >= 0) {
+        diffuse_index = dynamic_data.materials[v.material_index].textures_indices[TEXTURE_TYPE_BASE_COLOR];
+    }
+    let area = dynamic_data.textures[diffuse_index].area;
+    let index = i32(dynamic_data.textures[diffuse_index].layer_index);
+    let size = vec2<f32>(f32(dynamic_data.textures[diffuse_index].total_width), f32(dynamic_data.textures[diffuse_index].total_height));
+    let tex_coords = vec2<f32>(
+                (area.x + (v.tex_coords_0.x * area.z)) / size.x,
+                (area.y + (v.tex_coords_0.y * area.w)) / size.y);
+    let t = textureSample(texture_array, default_sampler, tex_coords.xy, index);
+    if (diffuse_index >= 0) {
+        return t * v.color;
+    }
+    return v.color;
+    
 }

@@ -140,7 +140,7 @@ impl Texture {
     pub fn uniform_index(&self) -> i32 {
         self.uniform_index
     }
-    pub fn set_uniform_index(&mut self, uniform_index: u32) {
+    pub fn update_uniform(&mut self, uniform_index: u32) {
         self.uniform_index = uniform_index as _;
     }
     pub fn set_texture_data(&mut self, index: usize, width: u32, height: u32) -> &mut Self {

@@ -63,9 +63,6 @@ impl TextureAtlas {
     pub fn texture(&self) -> &wgpu::TextureView {
         self.texture.view()
     }
-    pub fn sampler(&self) -> &wgpu::Sampler {
-        self.texture.sampler()
-    }
 
     pub fn get_area(&self, texture_id: &TextureId) -> Option<Area> {
         for allocator in &self.allocators {

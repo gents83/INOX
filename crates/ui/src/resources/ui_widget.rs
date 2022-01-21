@@ -1,6 +1,6 @@
 use std::any::{type_name, Any};
 
-use egui::{CollapsingHeader, CtxRef, Ui};
+use egui::{CollapsingHeader, Context, Ui};
 use sabi_resources::{Resource, ResourceId, ResourceTrait, SharedData, SharedDataRc};
 use sabi_serialize::generate_random_uid;
 
@@ -34,7 +34,7 @@ macro_rules! implement_widget_data {
 pub struct UIWidget {
     type_name: String,
     data: Box<dyn UIWidgetData>,
-    func: Box<dyn FnMut(&mut dyn UIWidgetData, &CtxRef)>,
+    func: Box<dyn FnMut(&mut dyn UIWidgetData, &Context)>,
 }
 impl ResourceTrait for UIWidget {
     type OnCreateData = ();
@@ -89,7 +89,7 @@ impl UIWidget {
     pub fn register<D, F>(shared_data: &SharedDataRc, data: D, f: F) -> Resource<Self>
     where
         D: UIWidgetData + Sized,
-        F: FnMut(&mut dyn UIWidgetData, &CtxRef) + 'static,
+        F: FnMut(&mut dyn UIWidgetData, &Context) + 'static,
     {
         let ui_page = Self {
             type_name: type_name::<D>().to_string(),
@@ -113,7 +113,7 @@ impl UIWidget {
         self.data.as_any_mut().downcast_mut::<D>()
     }
 
-    pub fn execute(&mut self, ui_context: &CtxRef) {
+    pub fn execute(&mut self, ui_context: &Context) {
         sabi_profiler::scoped_profile!(
             format!("{} {:?}", "ui_widget::execute", self.type_name).as_str()
         );

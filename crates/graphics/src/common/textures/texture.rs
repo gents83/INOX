@@ -10,7 +10,6 @@ pub struct Texture {
     id: TextureId,
     texture: wgpu::Texture,
     view: wgpu::TextureView,
-    sampler: wgpu::Sampler,
     width: u32,
     height: u32,
     layers_count: u32,
@@ -44,20 +43,10 @@ impl Texture {
             dimension: Some(wgpu::TextureViewDimension::D2Array),
             ..Default::default()
         });
-        let sampler = context.device.create_sampler(&wgpu::SamplerDescriptor {
-            address_mode_u: wgpu::AddressMode::ClampToEdge,
-            address_mode_v: wgpu::AddressMode::ClampToEdge,
-            address_mode_w: wgpu::AddressMode::ClampToEdge,
-            mag_filter: wgpu::FilterMode::Linear,
-            min_filter: wgpu::FilterMode::Nearest,
-            mipmap_filter: wgpu::FilterMode::Nearest,
-            ..Default::default()
-        });
         Self {
             id,
             texture,
             view,
-            sampler,
             width,
             height,
             layers_count,
@@ -65,9 +54,6 @@ impl Texture {
     }
     pub fn view(&self) -> &wgpu::TextureView {
         &self.view
-    }
-    pub fn sampler(&self) -> &wgpu::Sampler {
-        &self.sampler
     }
 
     pub fn id(&self) -> &TextureId {

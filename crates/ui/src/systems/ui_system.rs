@@ -8,7 +8,7 @@ use std::{
 };
 
 use egui::{
-    ClippedMesh, CtxRef, Event, Modifiers, Output, PointerButton, RawInput, Rect,
+    ClippedMesh, Context, Event, Modifiers, Output, PointerButton, RawInput, Rect,
     TextureId as eguiTextureId,
 };
 use image::RgbaImage;
@@ -40,7 +40,7 @@ pub struct UISystem {
     job_handler: JobHandlerRw,
     global_messenger: MessengerRw,
     message_channel: MessageChannel,
-    ui_context: CtxRef,
+    ui_context: Context,
     ui_texture_version: u64,
     ui_texture: Handle<Texture>,
     ui_input: RawInput,
@@ -68,7 +68,7 @@ impl UISystem {
             job_handler: job_handler.clone(),
             global_messenger: global_messenger.clone(),
             message_channel,
-            ui_context: CtxRef::default(),
+            ui_context: Context::default(),
             ui_texture_version: 0,
             ui_texture: None,
             ui_input: RawInput::default(),
@@ -103,17 +103,20 @@ impl UISystem {
 
     fn update_egui_texture(&mut self) -> &mut Self {
         sabi_profiler::scoped_profile!("ui_system::update_egui_texture");
-        let font_texture = &self.ui_context.font_image();
+        let font_texture = &self.ui_context.fonts().font_image();
         if self.ui_texture_version != font_texture.version {
-            let mut pixels: Vec<u8> = Vec::with_capacity(font_texture.pixels.len() * 4);
-            for srgba in font_texture.srgba_pixels(1.) {
+            let mut pixels: Vec<u8> = Vec::with_capacity(font_texture.image.pixels.len() * 4);
+            for srgba in font_texture.image.srgba_pixels(1.) {
                 pixels.push(srgba.r());
                 pixels.push(srgba.g());
                 pixels.push(srgba.b());
                 pixels.push(srgba.a());
             }
-            let image_data =
-                RgbaImage::from_vec(font_texture.width as _, font_texture.height as _, pixels);
+            let image_data = RgbaImage::from_vec(
+                font_texture.width() as _,
+                font_texture.height() as _,
+                pixels,
+            );
             if let Some(texture) = &self.ui_texture {
                 if let Some(material) = self.ui_materials.remove(texture.id()) {
                     material.get_mut().remove_texture(TextureType::BaseColor);
@@ -152,7 +155,7 @@ impl UISystem {
                 continue;
             }
             let texture = match mesh.texture_id {
-                eguiTextureId::Egui => self.ui_texture.as_ref().unwrap().clone(),
+                eguiTextureId::Managed(_) => self.ui_texture.as_ref().unwrap().clone(),
                 eguiTextureId::User(index) => {
                     SharedData::get_resource_at_index(&self.shared_data, index as _).unwrap()
                 }
@@ -310,7 +313,7 @@ impl UISystem {
     fn show_ui(
         shared_data: SharedDataRc,
         job_handler: JobHandlerRw,
-        context: CtxRef,
+        context: Context,
         use_multithreading: bool,
     ) {
         sabi_profiler::scoped_profile!("ui_system::show_ui");

@@ -10,17 +10,28 @@ pub struct TextureHandler {
     texture_atlas: Vec<TextureAtlas>,
     texture_data_bind_group_layout: wgpu::BindGroupLayout,
     texture_data_bind_group: wgpu::BindGroup,
+    default_sampler: wgpu::Sampler,
 }
 
 impl TextureHandler {
     pub fn create(context: &RenderContext) -> Self {
+        let default_sampler = context.device.create_sampler(&wgpu::SamplerDescriptor {
+            address_mode_u: wgpu::AddressMode::ClampToEdge,
+            address_mode_v: wgpu::AddressMode::ClampToEdge,
+            address_mode_w: wgpu::AddressMode::ClampToEdge,
+            mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Nearest,
+            mipmap_filter: wgpu::FilterMode::Nearest,
+            ..Default::default()
+        });
         let texture_atlas = vec![TextureAtlas::create_default(context)];
         let (texture_data_bind_group_layout, texture_data_bind_group) =
-            Self::create_bind_group(context, texture_atlas.as_slice());
+            Self::create_bind_group(context, texture_atlas.as_slice(), &default_sampler);
         Self {
             texture_atlas,
             texture_data_bind_group_layout,
             texture_data_bind_group,
+            default_sampler,
         }
     }
     pub fn bind_group(&self) -> &wgpu::BindGroup {
@@ -29,10 +40,16 @@ impl TextureHandler {
     pub fn bind_group_layout(&self) -> &wgpu::BindGroupLayout {
         &self.texture_data_bind_group_layout
     }
+    pub fn default_sampler(&self) -> &wgpu::Sampler {
+        &self.default_sampler
+    }
 
     pub fn update_bind_group(&mut self, context: &RenderContext) {
-        let (texture_data_bind_group_layout, texture_data_bind_group) =
-            Self::create_bind_group(context, self.texture_atlas.as_slice());
+        let (texture_data_bind_group_layout, texture_data_bind_group) = Self::create_bind_group(
+            context,
+            self.texture_atlas.as_slice(),
+            &self.default_sampler,
+        );
 
         self.texture_data_bind_group_layout = texture_data_bind_group_layout;
         self.texture_data_bind_group = texture_data_bind_group;
@@ -41,6 +58,7 @@ impl TextureHandler {
     fn create_bind_group(
         context: &RenderContext,
         actual_texture_atlas: &[TextureAtlas],
+        default_sampler: &wgpu::Sampler,
     ) -> (wgpu::BindGroupLayout, wgpu::BindGroup) {
         let mut texture_atlas = Vec::new();
         for i in 0..MAX_TEXTURE_ATLAS_COUNT as usize {
@@ -49,11 +67,9 @@ impl TextureHandler {
         }
 
         let mut textures = Vec::new();
-        let mut samplers = Vec::new();
 
         texture_atlas.iter().for_each(|texture_atlas| {
             textures.push(texture_atlas.texture());
-            samplers.push(texture_atlas.sampler());
         });
 
         let bind_group_layout =
@@ -65,17 +81,17 @@ impl TextureHandler {
                         wgpu::BindGroupLayoutEntry {
                             binding: 0,
                             visibility: wgpu::ShaderStages::FRAGMENT,
+                            ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                            count: None,
+                        },
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 1,
+                            visibility: wgpu::ShaderStages::FRAGMENT,
                             ty: wgpu::BindingType::Texture {
                                 sample_type: wgpu::TextureSampleType::Float { filterable: true },
                                 view_dimension: wgpu::TextureViewDimension::D2Array,
                                 multisampled: false,
                             },
-                            count: NonZeroU32::new(MAX_TEXTURE_ATLAS_COUNT),
-                        },
-                        wgpu::BindGroupLayoutEntry {
-                            binding: 1,
-                            visibility: wgpu::ShaderStages::FRAGMENT,
-                            ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
                             count: NonZeroU32::new(MAX_TEXTURE_ATLAS_COUNT),
                         },
                     ],
@@ -87,11 +103,11 @@ impl TextureHandler {
                 entries: &[
                     wgpu::BindGroupEntry {
                         binding: 0,
-                        resource: wgpu::BindingResource::TextureViewArray(textures.as_slice()),
+                        resource: wgpu::BindingResource::Sampler(default_sampler),
                     },
                     wgpu::BindGroupEntry {
                         binding: 1,
-                        resource: wgpu::BindingResource::SamplerArray(samplers.as_slice()),
+                        resource: wgpu::BindingResource::TextureViewArray(textures.as_slice()),
                     },
                 ],
                 layout: &bind_group_layout,

@@ -120,8 +120,9 @@ impl Light {
         self.is_active
     }
 
-    pub fn set_uniform_index(&mut self, uniform_index: u32) {
+    pub fn update_uniform(&mut self, uniform_index: u32, data: &mut LightData) {
         self.uniform_index = uniform_index as _;
+        *data = self.data;
     }
     pub fn uniform_index(&self) -> i32 {
         self.uniform_index

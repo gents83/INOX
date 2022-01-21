@@ -202,8 +202,8 @@ impl Renderer {
                 let graphics_mesh = &self.graphics_mesh;
 
                 let bind_group = vec![
-                    self.texture_handler.bind_group(),
                     self.shader_data.bind_group(),
+                    self.texture_handler.bind_group(),
                 ];
 
                 self.shared_data
@@ -228,8 +228,8 @@ impl Renderer {
         sabi_profiler::scoped_profile!("renderer::init_pipelines");
         let render_context = &self.context;
         let bind_group_layouts = vec![
-            self.texture_handler.bind_group_layout(),
             self.shader_data.bind_group_layout(),
+            self.texture_handler.bind_group_layout(),
         ];
 
         self.shared_data
@@ -266,14 +266,16 @@ impl Renderer {
 
         self.shared_data
             .for_each_resource_mut(|handle, texture: &mut Texture| {
-                let uniform_index = self.texture_hash_indexer.insert(handle.id());
                 if !texture.is_initialized() {
+                    let uniform_index = self.texture_hash_indexer.insert(handle.id());
                     if let Some(texture_data) = texture_handler.get_texture_data(handle.id()) {
                         texture.set_texture_data(
                             uniform_index,
                             texture_data.get_width(),
                             texture_data.get_height(),
                         );
+                        texture.update_uniform(uniform_index as _);
+                        self.shader_data.textures_data_mut()[uniform_index] = texture_data;
                     } else {
                         let width = texture.width();
                         let height = texture.height();
@@ -291,10 +293,11 @@ impl Renderer {
                                 texture_data.get_width(),
                                 texture_data.get_height(),
                             );
+                            texture.update_uniform(uniform_index as _);
+                            self.shader_data.textures_data_mut()[uniform_index] = texture_data;
                         }
                     }
                 }
-                texture.set_uniform_index(uniform_index as _);
             });
         if is_dirty {
             render_context
@@ -309,7 +312,10 @@ impl Renderer {
         self.shared_data
             .for_each_resource_mut(|handle, material: &mut Material| {
                 let uniform_index = self.material_hash_indexer.insert(handle.id());
-                material.set_uniform_index(uniform_index as _);
+                material.update_uniform(
+                    uniform_index as _,
+                    &mut self.shader_data.material_data_mut()[uniform_index],
+                );
             });
     }
 
@@ -318,7 +324,10 @@ impl Renderer {
         self.shared_data
             .for_each_resource_mut(|handle, light: &mut Light| {
                 let uniform_index = self.light_hash_indexer.insert(handle.id());
-                light.set_uniform_index(uniform_index as _);
+                light.update_uniform(
+                    uniform_index as _,
+                    &mut self.shader_data.light_data_mut()[uniform_index],
+                );
             });
     }
 

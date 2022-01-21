@@ -176,7 +176,7 @@ impl ViewerSystem {
             );
             material
                 .get_mut()
-                .set_texture(sabi_graphics::TextureType::Diffuse, &texture);
+                .set_texture(sabi_graphics::TextureType::BaseColor, &texture);
             mesh.get_mut().set_material(material);
             let mut mesh_data = MeshData::default();
             mesh_data.add_quad_default([-10., -10., 10., 10.].into(), 0.);

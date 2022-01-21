@@ -150,8 +150,25 @@ impl Material {
     pub fn uniform_index(&self) -> i32 {
         self.uniform_index
     }
-    pub fn set_uniform_index(&mut self, uniform_index: u32) {
+
+    pub fn update_uniform(&mut self, uniform_index: u32, data: &mut ShaderMaterialData) {
         self.uniform_index = uniform_index as _;
+        data.textures_indices
+            .iter_mut()
+            .enumerate()
+            .for_each(|(i, texture_index)| {
+                if let Some(texture) = &self.textures[i] {
+                    *texture_index = texture.get().uniform_index() as _;
+                }
+            });
+        data.roughness_factor = self.roughness_factor;
+        data.metallic_factor = self.metallic_factor;
+        data.alpha_cutoff = self.alpha_cutoff;
+        data.alpha_mode = self.alpha_mode as _;
+        data.base_color = self.base_color.into();
+        data.emissive_color = self.emissive_color.into();
+        data.diffuse_color = self.diffuse_color.into();
+        data.specular_color = self.specular_color.into();
     }
 
     pub fn textures(&self) -> &[Handle<Texture>; TextureType::Count as _] {
@@ -224,26 +241,5 @@ impl Material {
     }
     pub fn set_specular_color(&mut self, specular_color: Vector4) {
         self.specular_color = specular_color;
-    }
-
-    pub fn uniform_material_data(&self) -> ShaderMaterialData {
-        let mut textures_indices = [INVALID_INDEX; TextureType::Count as _];
-        (0..TextureType::Count as usize).for_each(|i| {
-            if let Some(texture) = &self.textures[i] {
-                textures_indices[i] = texture.get().uniform_index() as _;
-            }
-        });
-        ShaderMaterialData {
-            textures_indices,
-            roughness_factor: self.roughness_factor,
-            metallic_factor: self.metallic_factor,
-            alpha_cutoff: self.alpha_cutoff,
-            alpha_mode: self.alpha_mode as _,
-            base_color: self.base_color.into(),
-            emissive_color: self.emissive_color.into(),
-            diffuse_color: self.diffuse_color.into(),
-            specular_color: self.specular_color.into(),
-            ..Default::default()
-        }
     }
 }
