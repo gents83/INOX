@@ -5,7 +5,7 @@ use crate::{VertexBufferLayoutBuilder, INVALID_INDEX};
 #[repr(C)]
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct InstanceData {
-    pub id: [f32; 4],
+    pub id: u32,
     pub draw_area: [f32; 4],
     pub matrix: [[f32; 4]; 4],
     pub material_index: i32,
@@ -14,7 +14,7 @@ pub struct InstanceData {
 impl Default for InstanceData {
     fn default() -> Self {
         Self {
-            id: [0.; 4],
+            id: 0,
             draw_area: [0.; 4],
             matrix: [[0.; 4]; 4],
             material_index: INVALID_INDEX,
@@ -27,7 +27,7 @@ impl InstanceData {
         let mut layout_builder = VertexBufferLayoutBuilder::instance();
         layout_builder.starting_location(8);
         //id
-        layout_builder.add_attribute::<Vector4>(wgpu::VertexFormat::Float32x4);
+        layout_builder.add_attribute::<u32>(wgpu::VertexFormat::Uint32);
         //draw_area
         layout_builder.add_attribute::<Vector4>(wgpu::VertexFormat::Float32x4);
         //matrix_0

@@ -174,7 +174,7 @@ impl RenderPass {
             });
 
         pipelines.iter_mut().for_each(|pipeline| {
-            let instance_count = pipeline.instance_count();
+            let instance_count = pipeline.instances().len();
             if instance_count > 0 {
                 {
                     pipeline.init(
@@ -205,34 +205,36 @@ impl RenderPass {
                                 );
                             }
                         } else {
-                            for i in 0..instance_count {
-                                let indirect_command = pipeline.indirect(i);
-                                let instance_data = pipeline.instance(i);
-                                let x = (instance_data.draw_area[0] as u32)
-                                    .max(0)
-                                    .min(render_pass_context.context.config.width);
-                                let y = (instance_data.draw_area[1] as u32)
-                                    .max(0)
-                                    .min(render_pass_context.context.config.height);
-                                let width = (instance_data.draw_area[2] as u32)
-                                    .max(0)
-                                    .min(render_pass_context.context.config.width);
-                                let height = (instance_data.draw_area[3] as u32)
-                                    .max(0)
-                                    .min(render_pass_context.context.config.height);
-                                render_pass.set_scissor_rect(x, y, width, height);
-                                render_pass.draw_indexed(
-                                    indirect_command.base_index
-                                        ..(indirect_command.base_index
-                                            + indirect_command.vertex_count)
-                                            as _,
-                                    indirect_command.vertex_offset as _,
-                                    indirect_command.base_instance
-                                        ..(indirect_command.base_instance
-                                            + indirect_command.instance_count)
-                                            as _,
-                                )
-                            }
+                            let instances = pipeline.instances();
+                            for i in 0..instance_count as u32 {
+                                if let Some(index) = instances.iter().position(|instance| instance.id == i) {
+                                    let instance_data = instances[index];
+                                    let indirect_command = pipeline.indirect(index);
+                                    let x = (instance_data.draw_area[0] as u32)
+                                        .max(0)
+                                        .min(render_pass_context.context.config.width);
+                                    let y = (instance_data.draw_area[1] as u32)
+                                        .max(0)
+                                        .min(render_pass_context.context.config.height);
+                                    let width = (instance_data.draw_area[2] as u32)
+                                        .max(0)
+                                        .min(render_pass_context.context.config.width);
+                                    let height = (instance_data.draw_area[3] as u32)
+                                        .max(0)
+                                        .min(render_pass_context.context.config.height);
+                                    render_pass.set_scissor_rect(x, y, width, height);
+                                    render_pass.draw_indexed(
+                                        indirect_command.base_index
+                                            ..(indirect_command.base_index
+                                                + indirect_command.vertex_count)
+                                                as _,
+                                        indirect_command.vertex_offset as _,
+                                        (index as u32)..(index as u32 + 1),
+                                    )
+                                } else {
+                                    eprintln!("Unable to find instance {} for pipeline {} - did you forget to assign draw_index to meshes?", i, pipeline.name());
+                                }
+                            } 
                         }
                     } else {
                         render_pass.draw(

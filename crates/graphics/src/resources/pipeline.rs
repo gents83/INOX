@@ -11,9 +11,9 @@ use sabi_serialize::{read_from_file, SerializeFile};
 use wgpu::{util::DrawIndexedIndirect, ShaderModule};
 
 use crate::{
-    create_shader, utils::compute_color_from_id, CullingModeType, GpuBuffer, InstanceData, Mesh,
-    MeshId, PipelineData, PipelineIdentifier, PolygonModeType, RenderContext, VertexData,
-    FRAGMENT_SHADER_ENTRY_POINT, INVALID_INDEX, SHADER_ENTRY_POINT, VERTEX_SHADER_ENTRY_POINT,
+    create_shader, CullingModeType, GpuBuffer, InstanceData, Mesh, MeshId, PipelineData,
+    PipelineIdentifier, PolygonModeType, RenderContext, VertexData, FRAGMENT_SHADER_ENTRY_POINT,
+    INVALID_INDEX, SHADER_ENTRY_POINT, VERTEX_SHADER_ENTRY_POINT,
 };
 
 pub type PipelineId = ResourceId;
@@ -247,11 +247,8 @@ impl Pipeline {
         }
         None
     }
-    pub fn instance(&self, index: usize) -> &InstanceData {
-        &self.instance_buffer.data()[index]
-    }
-    pub fn instance_count(&self) -> usize {
-        self.instance_buffer.len()
+    pub fn instances(&self) -> &[InstanceData] {
+        self.instance_buffer.data()
     }
     pub fn indirect(&self, index: usize) -> &DrawIndexedIndirect {
         &self.indirect_buffer.data()[index]
@@ -263,7 +260,7 @@ impl Pipeline {
     pub fn add_mesh_to_instance_buffer(&mut self, mesh_id: &MeshId, mesh: &Mesh) {
         if self.instance_buffer.get(mesh_id).is_none() {
             let instance = InstanceData {
-                id: compute_color_from_id(mesh_id.as_u128() as _).into(),
+                id: mesh.draw_index() as _,
                 matrix: matrix4_to_array(mesh.matrix()),
                 draw_area: mesh.draw_area().into(),
                 material_index: mesh
