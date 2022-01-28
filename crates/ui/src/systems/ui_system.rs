@@ -41,8 +41,7 @@ pub struct UISystem {
     global_messenger: MessengerRw,
     message_channel: MessageChannel,
     ui_context: Context,
-    ui_texture_version: u64,
-    ui_texture: Handle<Texture>,
+    ui_textures: HashMap<eguiTextureId, Resource<Texture>>,
     ui_input: RawInput,
     ui_input_modifiers: Modifiers,
     ui_clipboard: Option<String>,
@@ -69,8 +68,7 @@ impl UISystem {
             global_messenger: global_messenger.clone(),
             message_channel,
             ui_context: Context::default(),
-            ui_texture_version: 0,
-            ui_texture: None,
+            ui_textures: HashMap::new(),
             ui_input: RawInput::default(),
             ui_input_modifiers: Modifiers::default(),
             ui_clipboard: None,
@@ -106,40 +104,6 @@ impl UISystem {
         }
     }
 
-    fn update_egui_texture(&mut self) -> &mut Self {
-        sabi_profiler::scoped_profile!("ui_system::update_egui_texture");
-        let font_texture = &self.ui_context.fonts().font_image();
-        if self.ui_texture_version != font_texture.version {
-            let mut pixels: Vec<u8> = Vec::with_capacity(font_texture.image.pixels.len() * 4);
-            for srgba in font_texture.image.srgba_pixels(1.) {
-                pixels.push(srgba.r());
-                pixels.push(srgba.g());
-                pixels.push(srgba.b());
-                pixels.push(srgba.a());
-            }
-            let image_data = RgbaImage::from_vec(
-                font_texture.width() as _,
-                font_texture.height() as _,
-                pixels,
-            );
-            if let Some(texture) = &self.ui_texture {
-                if let Some(material) = self.ui_materials.remove(texture.id()) {
-                    material.get_mut().remove_texture(TextureType::BaseColor);
-                }
-            }
-            let texture = Texture::new_resource(
-                &self.shared_data,
-                &self.global_messenger,
-                generate_random_uid(),
-                image_data.unwrap(),
-            );
-            println!("UI Texture: {}", texture.id());
-            self.ui_texture = Some(texture);
-            self.ui_texture_version = font_texture.version;
-        }
-        self
-    }
-
     fn compute_mesh_data(&mut self, clipped_meshes: Vec<ClippedMesh>) {
         sabi_profiler::scoped_profile!("ui_system::compute_mesh_data");
         let shared_data = self.shared_data.clone();
@@ -161,14 +125,17 @@ impl UISystem {
                 continue;
             }
             let texture = match mesh.texture_id {
-                eguiTextureId::Managed(_) => self.ui_texture.as_ref().unwrap().clone(),
+                eguiTextureId::Managed(_) => self.ui_textures[&mesh.texture_id].clone(),
                 eguiTextureId::User(texture_uniform_index) => {
                     if let Some(texture) = self.shared_data.match_resource(|t: &Texture| {
                         t.uniform_index() as u64 == texture_uniform_index
                     }) {
                         texture.clone()
                     } else {
-                        self.ui_texture.as_ref().unwrap().clone()
+                        panic!(
+                            "Texture not found for uniform index {}",
+                            texture_uniform_index
+                        );
                     }
                 }
             };
@@ -363,6 +330,49 @@ impl UISystem {
             self.ui_clipboard = Some(output.copied_text);
         }
 
+        for (egui_texture_id, image_delta) in output.textures_delta.set {
+            let pixels: Vec<u8> = match &image_delta.image {
+                egui::ImageData::Color(image) => {
+                    assert_eq!(
+                        image.width() * image.height(),
+                        image.pixels.len(),
+                        "Mismatch between texture size and texel count"
+                    );
+                    image
+                        .pixels
+                        .iter()
+                        .map(|color| color.to_array().iter().copied().collect::<Vec<_>>())
+                        .flatten()
+                        .collect()
+                }
+                egui::ImageData::Alpha(image) => {
+                    let gamma = 1.0;
+                    image
+                        .srgba_pixels(gamma)
+                        .map(|color| color.to_array().iter().copied().collect::<Vec<_>>())
+                        .flatten()
+                        .collect()
+                }
+            };
+            let image_data = RgbaImage::from_vec(
+                image_delta.image.width() as _,
+                image_delta.image.height() as _,
+                pixels,
+            );
+            if let Some(texture) = self.ui_textures.get(&egui_texture_id) {
+                if let Some(material) = self.ui_materials.remove(texture.id()) {
+                    material.get_mut().remove_texture(TextureType::BaseColor);
+                }
+            }
+            let texture = Texture::new_resource(
+                &self.shared_data,
+                &self.global_messenger,
+                generate_random_uid(),
+                image_data.unwrap(),
+            );
+            self.ui_textures.insert(egui_texture_id, texture);
+        }
+
         self
     }
 }
@@ -415,9 +425,7 @@ impl System for UISystem {
             sabi_profiler::scoped_profile!("ui_context::tessellate");
             self.ui_context.tessellate(shapes)
         };
-        self.handle_output(output)
-            .update_egui_texture()
-            .compute_mesh_data(clipped_meshes);
+        self.handle_output(output).compute_mesh_data(clipped_meshes);
 
         true
     }
