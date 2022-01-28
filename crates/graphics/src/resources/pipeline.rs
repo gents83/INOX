@@ -8,11 +8,12 @@ use sabi_resources::{
     SharedDataRc,
 };
 use sabi_serialize::{read_from_file, SerializeFile};
+use wgpu::{util::DrawIndexedIndirect, ShaderModule};
 
 use crate::{
-    utils::{compute_color_from_id, parse_shader_from},
-    CullingModeType, GpuBuffer, InstanceData, Mesh, MeshId, PipelineData, PipelineIdentifier,
-    PolygonModeType, RenderContext, VertexData, INVALID_INDEX,
+    create_shader, utils::compute_color_from_id, CullingModeType, GpuBuffer, InstanceData, Mesh,
+    MeshId, PipelineData, PipelineIdentifier, PolygonModeType, RenderContext, VertexData,
+    FRAGMENT_SHADER_ENTRY_POINT, INVALID_INDEX, SHADER_ENTRY_POINT, VERTEX_SHADER_ENTRY_POINT,
 };
 
 pub type PipelineId = ResourceId;
@@ -21,6 +22,9 @@ pub type PipelineId = ResourceId;
 pub struct Pipeline {
     path: PathBuf,
     data: PipelineData,
+    format: Option<wgpu::TextureFormat>,
+    vertex_shader: Option<ShaderModule>,
+    fragment_shader: Option<ShaderModule>,
     render_pipeline: Option<wgpu::RenderPipeline>,
     instance_buffer:
         GpuBuffer<InstanceData, { wgpu::BufferUsages::bits(&wgpu::BufferUsages::VERTEX) }>,
@@ -35,6 +39,9 @@ impl Clone for Pipeline {
         Self {
             path: self.path.clone(),
             data: self.data.clone(),
+            format: None,
+            vertex_shader: None,
+            fragment_shader: None,
             render_pipeline: None,
             instance_buffer: GpuBuffer::default(),
             indirect_buffer: GpuBuffer::default(),
@@ -60,10 +67,11 @@ impl DataTypeResource for Pipeline {
     type OnCreateData = ();
 
     fn invalidate(&mut self) {
-        self.render_pipeline = None;
+        self.vertex_shader = None;
+        self.fragment_shader = None;
     }
     fn is_initialized(&self) -> bool {
-        self.render_pipeline.is_some()
+        self.vertex_shader.is_some() && self.fragment_shader.is_some()
     }
     fn deserialize_data(path: &Path) -> Self::DataType {
         read_from_file::<Self::DataType>(path)
@@ -104,20 +112,30 @@ impl Pipeline {
     pub fn render_pipeline(&self) -> &wgpu::RenderPipeline {
         self.render_pipeline.as_ref().unwrap()
     }
-    pub fn init(&mut self, context: &RenderContext, bind_group_layouts: &[&wgpu::BindGroupLayout]) {
-        if self.data.shader.to_str().unwrap().is_empty() {
+    pub fn init(
+        &mut self,
+        context: &RenderContext,
+        bind_group_layouts: &[&wgpu::BindGroupLayout],
+        format: &wgpu::TextureFormat,
+    ) {
+        if self.data.vertex_shader.to_str().unwrap().is_empty()
+            || self.data.fragment_shader.to_str().unwrap().is_empty()
+        {
             return;
         }
-        self.invalidate();
-
-        let shader_code = parse_shader_from(self.data.shader.as_path());
-        let shader = context
-            .device
-            .create_shader_module(&wgpu::ShaderModuleDescriptor {
-                label: Some("Shader"),
-                source: wgpu::ShaderSource::Wgsl(shader_code.into()),
-            });
-
+        if self.vertex_shader.is_none() {
+            self.vertex_shader = create_shader(context, self.data.vertex_shader.as_path());
+            self.format = None;
+        }
+        if self.fragment_shader.is_none() {
+            self.fragment_shader = create_shader(context, self.data.fragment_shader.as_path());
+            self.format = None;
+        }
+        if let Some(f) = &self.format {
+            if f == format {
+                return;
+            }
+        }
         let render_pipeline_layout =
             context
                 .device
@@ -134,18 +152,26 @@ impl Pipeline {
                     label: Some("Render Pipeline"),
                     layout: Some(&render_pipeline_layout),
                     vertex: wgpu::VertexState {
-                        module: &shader,
-                        entry_point: "vs_main",
+                        module: self.vertex_shader.as_ref().unwrap(),
+                        entry_point: if self.data.vertex_shader == self.data.fragment_shader {
+                            VERTEX_SHADER_ENTRY_POINT
+                        } else {
+                            SHADER_ENTRY_POINT
+                        },
                         buffers: &[
                             VertexData::descriptor().build(),
                             InstanceData::descriptor().build(),
                         ],
                     },
                     fragment: Some(wgpu::FragmentState {
-                        module: &shader,
-                        entry_point: "fs_main",
+                        module: self.fragment_shader.as_ref().unwrap(),
+                        entry_point: if self.data.vertex_shader == self.data.fragment_shader {
+                            FRAGMENT_SHADER_ENTRY_POINT
+                        } else {
+                            SHADER_ENTRY_POINT
+                        },
                         targets: &[wgpu::ColorTargetState {
-                            format: context.config.format,
+                            format: *format,
                             blend: Some(wgpu::BlendState {
                                 color: wgpu::BlendComponent {
                                     src_factor: self.data.src_color_blend_factor.into(),
@@ -191,16 +217,22 @@ impl Pipeline {
                     // indicates how many array layers the attachments will have.
                     multiview: None,
                 });
-
+        self.format = Some(*format);
         self.render_pipeline = Some(render_pipeline)
     }
 
     pub fn check_shaders_to_reload(&mut self, path_as_string: String) {
-        if path_as_string.contains(self.data.shader.to_str().unwrap())
-            && !self.data.shader.to_str().unwrap().is_empty()
+        if path_as_string.contains(self.data.vertex_shader.to_str().unwrap())
+            && !self.data.vertex_shader.to_str().unwrap().is_empty()
         {
             self.invalidate();
-            debug_log(format!("Shader {:?} will be reloaded", path_as_string).as_str());
+            debug_log(format!("Vertex Shader {:?} will be reloaded", path_as_string).as_str());
+        }
+        if path_as_string.contains(self.data.fragment_shader.to_str().unwrap())
+            && !self.data.fragment_shader.to_str().unwrap().is_empty()
+        {
+            self.invalidate();
+            debug_log(format!("Fragment Shader {:?} will be reloaded", path_as_string).as_str());
         }
     }
 
@@ -215,8 +247,14 @@ impl Pipeline {
         }
         None
     }
+    pub fn instance(&self, index: usize) -> &InstanceData {
+        &self.instance_buffer.data()[index]
+    }
     pub fn instance_count(&self) -> usize {
         self.instance_buffer.len()
+    }
+    pub fn indirect(&self, index: usize) -> &DrawIndexedIndirect {
+        &self.indirect_buffer.data()[index]
     }
     pub fn indirect_buffer(&self) -> Option<&wgpu::Buffer> {
         self.indirect_buffer.gpu_buffer()
@@ -227,6 +265,7 @@ impl Pipeline {
             let instance = InstanceData {
                 id: compute_color_from_id(mesh_id.as_u128() as _).into(),
                 matrix: matrix4_to_array(mesh.matrix()),
+                draw_area: mesh.draw_area().into(),
                 material_index: mesh
                     .material()
                     .as_ref()

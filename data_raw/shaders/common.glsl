@@ -1,7 +1,10 @@
+#extension GL_EXT_scalar_block_layout : require
+
 #define MAX_TEXTURE_COORDS_SETS 4
+#define MAX_TEXTURE_ATLAS_COUNT 16
 #define MAX_NUM_MATERIALS 512
 #define MAX_NUM_TEXTURES 512
-#define MAX_NUM_LIGHTS 32
+#define MAX_NUM_LIGHTS 64
 
 #define TEXTURE_TYPE_BASE_COLOR 0
 #define TEXTURE_TYPE_METALLIC_ROUGHNESS 1
@@ -33,7 +36,7 @@ struct TextureData
     vec4 area;
 };
 
-struct MaterialData
+struct ShaderMaterialData
 {
     int textures_indices[TEXTURE_TYPE_COUNT];
     int textures_coord_set[TEXTURE_TYPE_COUNT];
@@ -48,20 +51,20 @@ struct MaterialData
 };
 
 //Input
-layout(std430, push_constant) uniform Globals
+layout(std430, binding = 0) uniform ConstantData
 {
     mat4 view;
     mat4 proj;
     vec2 screen_size;
-}
-globals;
-layout(std430, binding = 0) buffer ShaderData
+} 
+constant_data;
+
+layout(std430, binding = 1) buffer DynamicData
 {
-    uint num_textures;
-    uint num_materials;
-    uint num_lights;
     LightData light_data[MAX_NUM_LIGHTS];
     TextureData textures_data[MAX_NUM_TEXTURES];
-    MaterialData material_data[MAX_NUM_MATERIALS];
-}
-uniforms;
+    ShaderMaterialData material_data[MAX_NUM_MATERIALS];
+} 
+dynamic_data;
+
+

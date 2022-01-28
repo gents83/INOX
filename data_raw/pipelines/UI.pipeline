@@ -1,11 +1,11 @@
 {
     "identifier": "UI",
-    "shader": "shaders/basic_color.wgsl",
+    "vertex_shader": "shaders/ui_vert.spv",
+    "fragment_shader": "shaders/ui_frag.spv",
     "culling": "None",
     "mode": "Fill",
     "src_color_blend_factor": "One",
     "dst_color_blend_factor": "OneMinusSrcAlpha",
     "src_alpha_blend_factor": "SrcAlpha",
-    "dst_alpha_blend_factor": "OneMinusSrcAlpha",
-    "draw_mode": "Single"
+    "dst_alpha_blend_factor": "OneMinusSrcAlpha"
 }

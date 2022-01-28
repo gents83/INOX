@@ -34,10 +34,13 @@ where
     T: Clone,
 {
     pub fn add(&mut self, id: &ResourceId, value: &[T]) -> u32 {
+        let mut is_removed = false;
         if self.cpu_buffer.get(id).is_some() {
             self.remove(id);
+            is_removed = true;
         }
         self.is_realloc_needed = self.cpu_buffer.allocate(id, value);
+        self.is_realloc_needed |= is_removed;
         self.is_dirty = true;
 
         self.cpu_buffer.get(id).unwrap().start as _
@@ -69,6 +72,9 @@ where
             self.create_gpu_buffer(context);
         } else if let Some(buffer) = &self.gpu_buffer {
             let data = self.cpu_buffer.data();
+            if data.is_empty() {
+                return;
+            }
             context.queue.write_buffer(buffer, 0, to_u8_slice(data));
         }
         self.is_dirty = false;
@@ -87,6 +93,11 @@ where
             buffer.destroy();
         }
         let data = self.cpu_buffer.data();
+        if data.is_empty() {
+            self.gpu_buffer = None;
+            self.is_realloc_needed = false;
+            return;
+        }
         let buffer = context
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {

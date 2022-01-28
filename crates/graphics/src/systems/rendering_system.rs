@@ -1,4 +1,5 @@
 use sabi_core::{JobHandlerRw, System};
+use sabi_math::Vector2;
 use sabi_messenger::MessengerRw;
 use sabi_resources::{DataTypeResource, Resource, SharedDataRc};
 use sabi_serialize::generate_random_uid;
@@ -49,7 +50,16 @@ impl System for RenderingSystem {
         {
             let mut renderer = self.renderer.write().unwrap();
             renderer.change_state(RendererState::Drawing);
-            renderer.update_shader_data(self.view.get().view(), self.view.get().proj());
+
+            let screen_size = Vector2::new(
+                renderer.context().config.width as f32,
+                renderer.context().config.height as f32,
+            );
+            renderer.update_shader_data(
+                self.view.get().view(),
+                self.view.get().proj(),
+                screen_size,
+            );
         }
 
         {

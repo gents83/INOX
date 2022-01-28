@@ -1,13 +1,17 @@
 use std::path::Path;
 
+use image::DynamicImage;
 use sabi_messenger::MessengerRw;
 use sabi_resources::{
-    DataTypeResource, Resource, ResourceId, ResourceTrait, SerializableResource, SharedData,
-    SharedDataRc,
+    DataTypeResource, Handle, Resource, ResourceId, ResourceTrait, SerializableResource,
+    SharedData, SharedDataRc,
 };
-use sabi_serialize::read_from_file;
+use sabi_serialize::{generate_random_uid, read_from_file};
 
-use crate::{GraphicsMesh, LoadOperation, Pipeline, RenderPassData, StoreOperation};
+use crate::{
+    GraphicsMesh, LoadOperation, Pipeline, RenderContext, RenderMode, RenderPassData, RenderTarget,
+    StoreOperation, Texture, TextureHandler,
+};
 
 pub type RenderPassId = ResourceId;
 
@@ -15,15 +19,29 @@ pub type RenderPassId = ResourceId;
 pub struct RenderPass {
     data: RenderPassData,
     pipelines: Vec<Resource<Pipeline>>,
+    target_texture: Handle<Texture>,
+    is_initialized: bool,
+}
+
+pub struct RenderPassDrawContext<'a> {
+    pub context: &'a RenderContext,
+    pub encoder: &'a mut wgpu::CommandEncoder,
+    pub texture_view: &'a wgpu::TextureView,
+    pub format: &'a wgpu::TextureFormat,
+    pub graphics_mesh: &'a GraphicsMesh,
+    pub bind_groups: &'a [&'a wgpu::BindGroup],
+    pub bind_group_layouts: &'a [&'a wgpu::BindGroupLayout],
 }
 
 impl DataTypeResource for RenderPass {
     type DataType = RenderPassData;
     type OnCreateData = ();
 
-    fn invalidate(&mut self) {}
+    fn invalidate(&mut self) {
+        self.is_initialized = false;
+    }
     fn is_initialized(&self) -> bool {
-        true
+        self.is_initialized
     }
     fn deserialize_data(path: &Path) -> Self::DataType {
         read_from_file::<Self::DataType>(path)
@@ -40,7 +58,7 @@ impl DataTypeResource for RenderPass {
     fn create_from_data(
         shared_data: &SharedDataRc,
         global_messenger: &MessengerRw,
-        _id: ResourceId,
+        id: ResourceId,
         data: Self::DataType,
     ) -> Self
     where
@@ -55,13 +73,53 @@ impl DataTypeResource for RenderPass {
             };
         });
 
-        Self { data, pipelines }
+        let render_target = match &data.render_target {
+            RenderTarget::Texture {
+                width,
+                height,
+                read_back: _,
+            } => {
+                let image = DynamicImage::new_rgba8(*width, *height);
+                let image_data = image.to_rgba8();
+                let texture =
+                    Texture::create_from_data(shared_data, global_messenger, id, image_data);
+                let texture = shared_data.add_resource(generate_random_uid(), texture);
+                Some(texture)
+            }
+            _ => None,
+        };
+
+        Self {
+            data,
+            pipelines,
+            target_texture: render_target,
+            is_initialized: false,
+        }
     }
 }
 
 impl RenderPass {
     pub fn data(&self) -> &RenderPassData {
         &self.data
+    }
+    pub fn render_target(&self) -> &Handle<Texture> {
+        &self.target_texture
+    }
+    pub fn init(&mut self, context: &RenderContext, texture_handler: &mut TextureHandler) {
+        if self.is_initialized {
+            return;
+        }
+        if let Some(texture) = &self.target_texture {
+            if texture_handler.get_texture_atlas(texture.id()).is_none() {
+                texture_handler.add_render_target(
+                    context,
+                    texture.id(),
+                    texture.get().width(),
+                    texture.get().height(),
+                );
+            }
+        }
+        self.is_initialized = true;
     }
     fn color_operations(&self, c: wgpu::Color) -> wgpu::Operations<wgpu::Color> {
         wgpu::Operations {
@@ -83,65 +141,98 @@ impl RenderPass {
         }
     }
 
-    pub fn draw(
-        &mut self,
-        encoder: &mut wgpu::CommandEncoder,
-        texture_view: &wgpu::TextureView,
-        graphics_mesh: &GraphicsMesh,
-        bind_groups: &[&wgpu::BindGroup],
-    ) {
-        if graphics_mesh.vertex_count() == 0 {
+    pub fn draw(&mut self, render_pass_context: RenderPassDrawContext) {
+        if render_pass_context.graphics_mesh.vertex_count() == 0 {
             return;
         }
-        let pipelines = self
+        let mut pipelines = self
             .pipelines
             .iter()
             .map(|h| h.get_mut())
             .collect::<Vec<_>>();
         let color_operations = self.color_operations(wgpu::Color::BLACK);
         let label = format!("RenderPass {}", self.data.name);
-        let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: Some(label.as_str()),
-            color_attachments: &[wgpu::RenderPassColorAttachment {
-                view: texture_view,
-                resolve_target: None,
-                ops: color_operations,
-            }],
-            depth_stencil_attachment: None,
-        });
+        let mut render_pass =
+            render_pass_context
+                .encoder
+                .begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: Some(label.as_str()),
+                    color_attachments: &[wgpu::RenderPassColorAttachment {
+                        view: render_pass_context.texture_view,
+                        resolve_target: None,
+                        ops: color_operations,
+                    }],
+                    depth_stencil_attachment: None,
+                });
 
-        bind_groups.iter().enumerate().for_each(|(i, &bind_group)| {
-            render_pass.set_bind_group(i as u32, bind_group, &[]);
-        });
+        render_pass_context
+            .bind_groups
+            .iter()
+            .enumerate()
+            .for_each(|(i, &bind_group)| {
+                render_pass.set_bind_group(i as u32, bind_group, &[]);
+            });
 
-        if let Some(buffer_slice) = graphics_mesh.vertex_buffer() {
-            render_pass.set_vertex_buffer(0, buffer_slice);
-        }
-        if let Some(buffer_slice) = graphics_mesh.index_buffer() {
-            render_pass.set_index_buffer(buffer_slice, wgpu::IndexFormat::Uint32);
-        }
-
-        pipelines.iter().for_each(|pipeline| {
+        pipelines.iter_mut().for_each(|pipeline| {
             let instance_count = pipeline.instance_count();
-            if pipeline.is_initialized() && instance_count > 0 {
-                if let Some(instance_buffer) = pipeline.instance_buffer() {
-                    render_pass.set_vertex_buffer(1, instance_buffer);
+            if instance_count > 0 {
+                {
+                    pipeline.init(
+                        render_pass_context.context,
+                        render_pass_context.bind_group_layouts,
+                        render_pass_context.format,
+                    );
                 }
-                render_pass.set_pipeline(pipeline.render_pipeline());
+                if pipeline.is_initialized() {
+                    render_pass.set_pipeline(pipeline.render_pipeline());
+                    if let Some(buffer_slice) = render_pass_context.graphics_mesh.vertex_buffer() {
+                        render_pass.set_vertex_buffer(0, buffer_slice);
+                    }
+                    if let Some(instance_buffer) = pipeline.instance_buffer() {
+                        render_pass.set_vertex_buffer(1, instance_buffer);
+                    }
+                    if let Some(buffer_slice) = render_pass_context.graphics_mesh.index_buffer() {
+                        render_pass.set_index_buffer(buffer_slice, wgpu::IndexFormat::Uint32);
+                    }
 
-                if graphics_mesh.index_count() > 0 {
-                    if let Some(indirect_buffer) = pipeline.indirect_buffer() {
-                        render_pass.multi_draw_indexed_indirect(
-                            indirect_buffer,
-                            0,
-                            instance_count as u32,
+                    if render_pass_context.graphics_mesh.index_count() > 0 {
+                        if self.data.render_mode == RenderMode::Indirect {
+                            if let Some(indirect_buffer) = pipeline.indirect_buffer() {
+                                render_pass.multi_draw_indexed_indirect(
+                                    indirect_buffer,
+                                    0,
+                                    instance_count as u32,
+                                );
+                            }
+                        } else {
+                            for i in 0..instance_count {
+                                let indirect_command = pipeline.indirect(i);
+                                let instance_data = pipeline.instance(i);
+                                render_pass.set_scissor_rect(
+                                    instance_data.draw_area[0].max(0.) as _,
+                                    instance_data.draw_area[1].max(0.) as _,
+                                    instance_data.draw_area[2].max(0.) as _,
+                                    instance_data.draw_area[3].max(0.) as _,
+                                );
+                                render_pass.draw_indexed(
+                                    indirect_command.base_index
+                                        ..(indirect_command.base_index
+                                            + indirect_command.vertex_count)
+                                            as _,
+                                    indirect_command.vertex_offset as _,
+                                    indirect_command.base_instance
+                                        ..(indirect_command.base_instance
+                                            + indirect_command.instance_count)
+                                            as _,
+                                )
+                            }
+                        }
+                    } else {
+                        render_pass.draw(
+                            0..render_pass_context.graphics_mesh.vertex_count() as u32,
+                            0..instance_count as u32,
                         );
                     }
-                } else {
-                    render_pass.draw(
-                        0..graphics_mesh.vertex_count() as u32,
-                        0..instance_count as u32,
-                    );
                 }
             }
         });

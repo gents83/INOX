@@ -1,17 +1,14 @@
-use sabi_graphics::{DynamicImage, Texture};
-use sabi_messenger::MessengerRw;
-use sabi_resources::{DataTypeResource, Resource, SharedData, SharedDataRc};
-use sabi_serialize::generate_random_uid;
+use sabi_graphics::{RenderPass, Texture};
+
+use sabi_resources::{Handle, Resource, SharedData, SharedDataRc};
 use sabi_ui::{
     implement_widget_data, CentralPanel, Frame, Image, LayerId, Sense, TextureId as eguiTextureId,
     UIWidget, Widget,
 };
-const VIEW3D_IMAGE_WIDTH: u32 = 1912;
-const VIEW3D_IMAGE_HEIGHT: u32 = 1072;
 
 struct View3DData {
     shared_data: SharedDataRc,
-    texture: Resource<Texture>,
+    texture: Handle<Texture>,
     is_interacting: bool,
 }
 implement_widget_data!(View3DData);
@@ -24,14 +21,8 @@ unsafe impl Send for View3D {}
 unsafe impl Sync for View3D {}
 
 impl View3D {
-    pub fn new(shared_data: &SharedDataRc, global_messenger: &MessengerRw) -> Self {
-        let texture = Self::update_render_pass(
-            shared_data,
-            global_messenger,
-            "MainPass",
-            VIEW3D_IMAGE_WIDTH,
-            VIEW3D_IMAGE_HEIGHT,
-        );
+    pub fn new(shared_data: &SharedDataRc) -> Self {
+        let texture = Self::get_render_pass_output_texture(shared_data, "MainPass");
 
         let data = View3DData {
             shared_data: shared_data.clone(),
@@ -59,19 +50,15 @@ impl View3D {
                         let view_width = ui.max_rect().width() as u32;
                         let view_height = ui.max_rect().height() as u32;
 
-                        let texture_index = if let Some(texture_index) =
-                            SharedData::get_index_of_resource::<Texture>(
-                                &data.shared_data,
-                                data.texture.id(),
-                            ) {
-                            texture_index
+                        let texture_uniform_index = if let Some(t) = &data.texture {
+                            t.get().uniform_index()
                         } else {
                             0
                         };
 
                         ui.with_layer_id(LayerId::background(), |ui| {
                             let response = Image::new(
-                                eguiTextureId::User(texture_index as _),
+                                eguiTextureId::User(texture_uniform_index as _),
                                 [view_width as _, view_height as _],
                             )
                             .sense(Sense::click_and_drag())
@@ -83,29 +70,15 @@ impl View3D {
         })
     }
 
-    fn update_render_pass(
+    fn get_render_pass_output_texture(
         shared_data: &SharedDataRc,
-        global_messenger: &MessengerRw,
-        _render_pass_name: &str,
-        width: u32,
-        height: u32,
-    ) -> Resource<Texture> {
-        let image = DynamicImage::new_rgba8(width, height);
-        let image_data = image.to_rgba8();
-        Texture::new_resource(
-            shared_data,
-            global_messenger,
-            generate_random_uid(),
-            image_data,
-        )
-        /*
+        render_pass_name: &str,
+    ) -> Handle<Texture> {
         if let Some(render_pass) = SharedData::match_resource(shared_data, |r: &RenderPass| {
             r.data().name == render_pass_name
         }) {
-            render_pass
-                .get_mut()
-                .set_color_texture(texture.clone())
+            return render_pass.get().render_target().clone();
         }
-        */
+        None
     }
 }

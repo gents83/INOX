@@ -17,6 +17,10 @@ impl<T> HashIndexer<T>
 where
     T: Eq + Hash + Copy,
 {
+    pub fn insert_at(&mut self, id: &T, index: usize) {
+        self.remove(id);
+        self.map.insert(*id, index);
+    }
     pub fn insert(&mut self, id: &T) -> usize {
         if let Some(index) = self.map.get(id) {
             *index
@@ -27,6 +31,11 @@ where
         }
     }
     pub fn remove(&mut self, id: &T) {
+        if self.map.contains_key(id) {
+            self.map.remove(id);
+        }
+    }
+    pub fn remove_and_update(&mut self, id: &T) {
         if let Some(index) = self.map.remove(id) {
             self.map.iter_mut().for_each(|(_, v)| {
                 if *v > index {

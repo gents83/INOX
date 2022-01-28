@@ -90,14 +90,14 @@ pub enum DrawMode {
 #[serde(crate = "sabi_serialize")]
 pub struct PipelineData {
     pub identifier: String,
-    pub shader: PathBuf,
+    pub vertex_shader: PathBuf,
+    pub fragment_shader: PathBuf,
     pub culling: CullingModeType,
     pub mode: PolygonModeType,
     pub src_color_blend_factor: BlendFactor,
     pub dst_color_blend_factor: BlendFactor,
     pub src_alpha_blend_factor: BlendFactor,
     pub dst_alpha_blend_factor: BlendFactor,
-    pub draw_mode: DrawMode,
 }
 
 impl SerializeFile for PipelineData {
@@ -110,14 +110,14 @@ impl Default for PipelineData {
     fn default() -> Self {
         Self {
             identifier: DEFAULT_PIPELINE_IDENTIFIER.to_string(),
-            shader: PathBuf::new(),
+            vertex_shader: PathBuf::new(),
+            fragment_shader: PathBuf::new(),
             culling: CullingModeType::Back,
             mode: PolygonModeType::Fill,
             src_color_blend_factor: BlendFactor::One,
             dst_color_blend_factor: BlendFactor::OneMinusSrcColor,
             src_alpha_blend_factor: BlendFactor::One,
             dst_alpha_blend_factor: BlendFactor::OneMinusSrcAlpha,
-            draw_mode: DrawMode::Batch,
         }
     }
 }
@@ -125,13 +125,18 @@ impl Default for PipelineData {
 impl PipelineData {
     pub fn canonicalize_paths(mut self) -> Self {
         let data_path = Data::data_folder();
-        if !self.shader.to_str().unwrap().is_empty() {
-            self.shader = convert_from_local_path(data_path.as_path(), self.shader.as_path());
+        if !self.vertex_shader.to_str().unwrap().is_empty() {
+            self.vertex_shader =
+                convert_from_local_path(data_path.as_path(), self.vertex_shader.as_path());
+        }
+        if !self.fragment_shader.to_str().unwrap().is_empty() {
+            self.fragment_shader =
+                convert_from_local_path(data_path.as_path(), self.fragment_shader.as_path());
         }
         self
     }
     pub fn has_same_shaders(&self, other: &PipelineData) -> bool {
-        self.shader == other.shader
+        self.vertex_shader == other.vertex_shader && self.fragment_shader == other.fragment_shader
     }
 }
 

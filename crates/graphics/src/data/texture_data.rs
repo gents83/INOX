@@ -44,8 +44,8 @@ impl From<usize> for TextureType {
 pub struct TextureData {
     pub texture_index: u32,
     pub layer_index: u32,
-    pub total_width: u32,
-    pub total_height: u32,
+    pub total_width: f32,
+    pub total_height: f32,
     pub area: [f32; 4],
 }
 
@@ -54,8 +54,8 @@ impl Default for TextureData {
         Self {
             texture_index: 0,
             layer_index: 0,
-            total_width: 0,
-            total_height: 0,
+            total_width: 0.,
+            total_height: 0.,
             area: [0., 0., 1., 1.],
         }
     }
@@ -68,10 +68,16 @@ impl TextureData {
     pub fn get_layer_index(&self) -> u32 {
         self.layer_index
     }
-    pub fn get_width(&self) -> u32 {
+    pub fn total_width(&self) -> u32 {
+        self.total_width as _
+    }
+    pub fn total_height(&self) -> u32 {
+        self.total_height as _
+    }
+    pub fn width(&self) -> u32 {
         self.area[2] as _
     }
-    pub fn get_height(&self) -> u32 {
+    pub fn height(&self) -> u32 {
         self.area[3] as _
     }
 }

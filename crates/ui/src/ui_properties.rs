@@ -214,9 +214,23 @@ impl UIProperties for Pipeline {
                         TextEdit::singleline(&mut path).interactive(false).ui(ui);
                     });
                     ui.horizontal(|ui| {
-                        ui.label("Shader: ");
-                        let mut shader =
-                            self.data().shader.to_str().unwrap_or_default().to_string();
+                        ui.label("Vertex Shader: ");
+                        let mut shader = self
+                            .data()
+                            .vertex_shader
+                            .to_str()
+                            .unwrap_or_default()
+                            .to_string();
+                        TextEdit::singleline(&mut shader).interactive(false).ui(ui);
+                    });
+                    ui.horizontal(|ui| {
+                        ui.label("Fragment Shader: ");
+                        let mut shader = self
+                            .data()
+                            .fragment_shader
+                            .to_str()
+                            .unwrap_or_default()
+                            .to_string();
                         TextEdit::singleline(&mut shader).interactive(false).ui(ui);
                     });
                     ui.horizontal(|ui| {

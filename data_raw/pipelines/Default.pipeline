@@ -1,11 +1,11 @@
 {
     "identifier": "SABI_Default_Pipeline",
-    "shader": "shaders/basic_color.wgsl",
+    "vertex_shader": "shaders/pbr_vert.spv",
+    "fragment_shader": "shaders/pbr_frag.spv",
     "culling": "Back",
     "mode": "Fill",
     "src_color_blend_factor": "One",
     "dst_color_blend_factor": "OneMinusSrcAlpha",
     "src_alpha_blend_factor": "OneMinusDstAlpha",
-    "dst_alpha_blend_factor": "One",
-    "draw_mode": "Batch"
+    "dst_alpha_blend_factor": "One"
 }

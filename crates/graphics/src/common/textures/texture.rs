@@ -13,6 +13,7 @@ pub struct Texture {
     width: u32,
     height: u32,
     layers_count: u32,
+    format: wgpu::TextureFormat,
 }
 
 impl Texture {
@@ -28,19 +29,22 @@ impl Texture {
             height,
             depth_or_array_layers: layers_count,
         };
+        let format = wgpu::TextureFormat::Rgba8UnormSrgb;
         let texture = context.device.create_texture(&wgpu::TextureDescriptor {
             label: Some(format!("Texture[{}]", id).as_str()),
             size,
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
-            format: wgpu::TextureFormat::Rgba8UnormSrgb,
+            format,
             usage: wgpu::TextureUsages::TEXTURE_BINDING
                 | wgpu::TextureUsages::COPY_DST
-                | wgpu::TextureUsages::COPY_SRC,
+                | wgpu::TextureUsages::RENDER_ATTACHMENT,
         });
         let view = texture.create_view(&wgpu::TextureViewDescriptor {
-            dimension: Some(wgpu::TextureViewDimension::D2Array),
+            dimension: Some(wgpu::TextureViewDimension::D2),
+            base_array_layer: 0,
+            array_layer_count: NonZeroU32::new(layers_count),
             ..Default::default()
         });
         Self {
@@ -50,12 +54,15 @@ impl Texture {
             width,
             height,
             layers_count,
+            format,
         }
     }
     pub fn view(&self) -> &wgpu::TextureView {
         &self.view
     }
-
+    pub fn format(&self) -> &wgpu::TextureFormat {
+        &self.format
+    }
     pub fn id(&self) -> &TextureId {
         &self.id
     }

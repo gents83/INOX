@@ -8,7 +8,7 @@ use super::{
     texture::Texture,
 };
 
-pub const DEFAULT_LAYER_COUNT: u32 = 8u32;
+pub const DEFAULT_LAYER_COUNT: u32 = 1u32;
 pub const MAX_TEXTURE_ATLAS_COUNT: u32 = 16u32;
 
 pub struct TextureAtlas {
@@ -62,6 +62,15 @@ impl TextureAtlas {
     }
     pub fn texture(&self) -> &wgpu::TextureView {
         self.texture.view()
+    }
+    pub fn texture_format(&self) -> &wgpu::TextureFormat {
+        self.texture.format()
+    }
+    pub fn width(&self) -> u32 {
+        self.texture.width()
+    }
+    pub fn height(&self) -> u32 {
+        self.texture.height()
     }
 
     pub fn get_area(&self, texture_id: &TextureId) -> Option<Area> {

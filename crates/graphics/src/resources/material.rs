@@ -151,24 +151,32 @@ impl Material {
         self.uniform_index
     }
 
-    pub fn update_uniform(&mut self, uniform_index: u32, data: &mut ShaderMaterialData) {
-        self.uniform_index = uniform_index as _;
+    pub fn update_uniform(&mut self, uniform_index: u32, data: &mut ShaderMaterialData) -> bool {
+        let mut is_changed = false;
+        if self.uniform_index != uniform_index as i32 {
+            is_changed = true;
+            self.uniform_index = uniform_index as _;
+            data.roughness_factor = self.roughness_factor;
+            data.metallic_factor = self.metallic_factor;
+            data.alpha_cutoff = self.alpha_cutoff;
+            data.alpha_mode = self.alpha_mode as _;
+            data.base_color = self.base_color.into();
+            data.emissive_color = self.emissive_color.into();
+            data.diffuse_color = self.diffuse_color.into();
+            data.specular_color = self.specular_color.into();
+        }
         data.textures_indices
             .iter_mut()
             .enumerate()
             .for_each(|(i, texture_index)| {
                 if let Some(texture) = &self.textures[i] {
-                    *texture_index = texture.get().uniform_index() as _;
+                    if *texture_index != texture.get().uniform_index() as i32 {
+                        is_changed = true;
+                        *texture_index = texture.get().uniform_index() as _;
+                    }
                 }
             });
-        data.roughness_factor = self.roughness_factor;
-        data.metallic_factor = self.metallic_factor;
-        data.alpha_cutoff = self.alpha_cutoff;
-        data.alpha_mode = self.alpha_mode as _;
-        data.base_color = self.base_color.into();
-        data.emissive_color = self.emissive_color.into();
-        data.diffuse_color = self.diffuse_color.into();
-        data.specular_color = self.specular_color.into();
+        is_changed
     }
 
     pub fn textures(&self) -> &[Handle<Texture>; TextureType::Count as _] {

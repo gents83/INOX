@@ -89,7 +89,7 @@ impl System for ViewerSystem {
             .register_messagebox::<WindowEvent>(self.message_channel.get_messagebox())
             .register_messagebox::<LoadResourceEvent<Scene>>(self.message_channel.get_messagebox());
 
-        self._view_3d = Some(View3D::new(&self.shared_data, &self.global_messenger));
+        self._view_3d = Some(View3D::new(&self.shared_data));
     }
 
     fn run(&mut self) -> bool {

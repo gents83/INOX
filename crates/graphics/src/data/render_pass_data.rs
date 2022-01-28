@@ -16,11 +16,20 @@ pub enum StoreOperation {
     DontCare,
 }
 #[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
-#[serde(crate = "sabi_serialize")]
+#[serde(crate = "sabi_serialize", tag = "type")]
 pub enum RenderTarget {
     Screen,
-    Texture,
-    TextureAndReadback,
+    Texture {
+        width: u32,
+        height: u32,
+        read_back: bool,
+    },
+}
+#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
+#[serde(crate = "sabi_serialize")]
+pub enum RenderMode {
+    Indirect,
+    Single,
 }
 
 #[repr(C)]
@@ -33,6 +42,7 @@ pub struct RenderPassData {
     pub load_depth: LoadOperation,
     pub store_depth: StoreOperation,
     pub render_target: RenderTarget,
+    pub render_mode: RenderMode,
     pub pipelines: Vec<PathBuf>,
 }
 
@@ -54,6 +64,7 @@ impl Default for RenderPassData {
             load_depth: LoadOperation::Clear,
             store_depth: StoreOperation::DontCare,
             render_target: RenderTarget::Screen,
+            render_mode: RenderMode::Indirect,
             pipelines: Vec::new(),
         }
     }

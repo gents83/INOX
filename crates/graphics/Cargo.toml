@@ -9,7 +9,7 @@ crate-type = ["lib"]
 
 [dependencies]
 futures = "0.3"
-wgpu = { path = "../../extern/wgpu/wgpu" }
+wgpu = { path = "../../extern/wgpu/wgpu", features = ["spirv"] }
 image = { path = "../../extern/image" }
 ttf-parser = {path = "../../extern/ttf-parser" }
 sabi_commands = { path = "../commands" }

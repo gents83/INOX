@@ -10,9 +10,6 @@ pub struct ConstantData {
     pub proj: [[f32; 4]; 4],
     pub screen_width: f32,
     pub screen_height: f32,
-    pub num_textures: u32,
-    pub num_materials: u32,
-    pub num_lights: u32,
 }
 
 impl Default for ConstantData {
@@ -22,9 +19,6 @@ impl Default for ConstantData {
             proj: [[0.; 4]; 4],
             screen_width: 0.,
             screen_height: 0.,
-            num_textures: 0,
-            num_materials: 0,
-            num_lights: 0,
         }
     }
 }

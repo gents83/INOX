@@ -174,22 +174,6 @@ impl SharedData {
         None
     }
     #[inline]
-    pub fn get_resource_at_index<T: ResourceTrait>(&self, index: u32) -> Handle<T> {
-        let typeid = generate_uid_from_string(type_name::<T>());
-        if let Some(rs) = self.storage.read().unwrap().get(&typeid) {
-            let storage = rs.of_type::<T>();
-            if let Ok(storage) = storage.read() {
-                return storage.resource_at_index(index);
-            } else {
-                panic!(
-                    "Unable to write to storage {} in get_resource_at_index()",
-                    type_name::<T>()
-                );
-            };
-        }
-        None
-    }
-    #[inline]
     pub fn get_index_of_resource<T: ResourceTrait>(
         &self,
         resource_id: &ResourceId,

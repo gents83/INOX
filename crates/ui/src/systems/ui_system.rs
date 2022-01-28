@@ -25,7 +25,7 @@ use sabi_platform::{
 };
 use sabi_profiler::debug_log;
 use sabi_resources::{
-    ConfigBase, DataTypeResource, Handle, Resource, SerializableResource, SharedData, SharedDataRc,
+    ConfigBase, DataTypeResource, Handle, Resource, SerializableResource, SharedDataRc,
 };
 use sabi_serialize::{generate_random_uid, read_from_file};
 
@@ -92,6 +92,11 @@ impl UISystem {
                     material
                         .get_mut()
                         .set_texture(TextureType::BaseColor, &texture);
+                    println!(
+                        "UI Material for texture[{}]: {}",
+                        texture.id(),
+                        material.id()
+                    );
                     e.insert(material.clone());
                     material
                 } else {
@@ -128,6 +133,7 @@ impl UISystem {
                 generate_random_uid(),
                 image_data.unwrap(),
             );
+            println!("UI Texture: {}", texture.id());
             self.ui_texture = Some(texture);
             self.ui_texture_version = font_texture.version;
         }
@@ -156,8 +162,14 @@ impl UISystem {
             }
             let texture = match mesh.texture_id {
                 eguiTextureId::Managed(_) => self.ui_texture.as_ref().unwrap().clone(),
-                eguiTextureId::User(index) => {
-                    SharedData::get_resource_at_index(&self.shared_data, index as _).unwrap()
+                eguiTextureId::User(texture_uniform_index) => {
+                    if let Some(texture) = self.shared_data.match_resource(|t: &Texture| {
+                        t.uniform_index() as u64 == texture_uniform_index
+                    }) {
+                        texture.clone()
+                    } else {
+                        self.ui_texture.as_ref().unwrap().clone()
+                    }
                 }
             };
             let material = self.get_ui_material(texture);

@@ -3,7 +3,7 @@ use std::{ops::Range, path::PathBuf};
 use sabi_math::{is_point_in_triangle, Vector2, Vector3, Vector4};
 use sabi_serialize::{Deserialize, Serialize, SerializeFile};
 
-use crate::{create_quad, MeshDataRef, VertexData};
+use crate::{create_quad, VertexData};
 
 pub struct MeshBindingData {
     pub vertices: Range<u32>,
@@ -77,7 +77,7 @@ impl MeshData {
         first_vertex: u32,
         indices: &[u32],
         first_index: u32,
-    ) -> MeshDataRef {
+    ) {
         let start = first_vertex as usize;
         let end = start + vertices.len();
         self.vertices[start..end].copy_from_slice(vertices);
@@ -85,42 +85,27 @@ impl MeshData {
         let start = first_index as usize;
         let end = start + indices.len();
         self.indices[start..end].copy_from_slice(indices);
-
-        MeshDataRef {
-            first_vertex,
-            last_vertex: first_vertex + vertices.len() as u32,
-            first_index,
-            last_index: first_index + indices.len() as u32,
-        }
     }
 
-    pub fn append_mesh(&mut self, vertices: &[VertexData], indices: &[u32]) -> MeshDataRef {
+    pub fn append_mesh(&mut self, vertices: &[VertexData], indices: &[u32]) {
         let first_vertex = self.vertices.len() as u32;
         let first_index = self.indices.len() as u32;
 
         self.vertices.append(&mut vertices.to_vec());
         self.indices.append(&mut indices.to_vec());
 
-        let last_vertex = self.vertices.len() as u32 - 1;
         let last_index = self.indices.len() as u32 - 1;
 
         self.indices[first_index as usize..(last_index + 1) as usize]
             .iter_mut()
             .for_each(|i| *i += first_vertex);
         self.compute_center();
-
-        MeshDataRef {
-            first_vertex,
-            last_vertex,
-            first_index,
-            last_index,
-        }
     }
 
-    pub fn add_quad_default(&mut self, rect: Vector4, z: f32) -> MeshDataRef {
+    pub fn add_quad_default(&mut self, rect: Vector4, z: f32) {
         let tex_coords = [0.0, 0.0, 1.0, 1.0].into();
         let (vertices, indices) = create_quad(rect, z, tex_coords, None);
-        self.append_mesh(&vertices, &indices)
+        self.append_mesh(&vertices, &indices);
     }
 
     pub fn add_quad(
@@ -129,9 +114,9 @@ impl MeshData {
         z: f32,
         tex_coords: Vector4,
         index_start: Option<usize>,
-    ) -> MeshDataRef {
+    ) {
         let (vertices, indices) = create_quad(rect, z, tex_coords, index_start);
-        self.append_mesh(&vertices, &indices)
+        self.append_mesh(&vertices, &indices);
     }
 
     pub fn clip_in_rect(&mut self, clip_rect: Vector4) -> &mut Self {
