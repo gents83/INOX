@@ -251,7 +251,7 @@ impl Renderer {
             self.context.queue.submit(std::iter::once(encoder.finish()));
             output.present();
         } else {
-            eprintln!("Error drawing");
+            eprintln!("Error drawing on screen");
         }
     }
 }
@@ -317,15 +317,6 @@ impl Renderer {
                             texture_data.total_width(),
                             texture_data.total_height(),
                         );
-                        println!(
-                            "Texture[{}] {}: {}x{} in a {}x{} ",
-                            handle.id(),
-                            uniform_index,
-                            texture_data.width(),
-                            texture_data.height(),
-                            texture_data.total_width(),
-                            texture_data.total_height()
-                        );
                     }
                 }
             });
@@ -340,23 +331,10 @@ impl Renderer {
         self.shared_data
             .for_each_resource_mut(|handle, material: &mut Material| {
                 let uniform_index = self.material_hash_indexer.insert(handle.id());
-                if material.update_uniform(
+                material.update_uniform(
                     uniform_index as _,
                     &mut self.shader_data.material_data_mut()[uniform_index],
-                ) {
-                    material.textures().iter().enumerate().for_each(|(i, t)| {
-                        if let Some(t) = t {
-                            println!(
-                                "Material[{}] {}: [{}] = {}",
-                                handle.id(),
-                                uniform_index,
-                                self.shader_data.material_data_mut()[uniform_index]
-                                    .textures_indices[i],
-                                t.id()
-                            );
-                        }
-                    });
-                }
+                );
             });
     }
 
