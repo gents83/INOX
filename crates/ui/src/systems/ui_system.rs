@@ -90,11 +90,6 @@ impl UISystem {
                     material
                         .get_mut()
                         .set_texture(TextureType::BaseColor, &texture);
-                    println!(
-                        "UI Material for texture[{}]: {}",
-                        texture.id(),
-                        material.id()
-                    );
                     e.insert(material.clone());
                     material
                 } else {
@@ -120,11 +115,8 @@ impl UISystem {
         for (i, clipped_mesh) in clipped_meshes.into_iter().enumerate() {
             let ClippedMesh(clip_rect, mesh) = clipped_mesh;
             let draw_index = i as u32;
-            self.ui_meshes[i]
-                .get_mut()
-                .set_visible(false)
-                .set_draw_index(draw_index);
             if mesh.vertices.is_empty() || mesh.indices.is_empty() {
+                self.ui_meshes[i].get_mut().set_visible(false);
                 continue;
             }
             let texture = match mesh.texture_id {
@@ -145,7 +137,6 @@ impl UISystem {
             let material = self.get_ui_material(texture);
             let mesh_instance = &self.ui_meshes[i];
             let ui_scale = self.ui_scale;
-            let screen_rect = self.ui_input.screen_rect;
 
             let mut mesh_data = MeshData::default();
             let mut vertices: Vec<VertexData> = Vec::new();
@@ -165,25 +156,19 @@ impl UISystem {
             }
             mesh_data.append_mesh(vertices.as_slice(), mesh.indices.as_slice());
 
-            let mut clip_rect = Vector4::new(
+            let clip_rect = Vector4::new(
                 clip_rect.min.x * ui_scale,
                 clip_rect.min.y * ui_scale,
                 clip_rect.max.x * ui_scale,
                 clip_rect.max.y * ui_scale,
             );
 
-            if let Some(screen_rect) = &screen_rect {
-                clip_rect.x = clip_rect.x.clamp(0.0, screen_rect.width());
-                clip_rect.y = clip_rect.y.clamp(0.0, screen_rect.height());
-                clip_rect.z = clip_rect.x.clamp(clip_rect.x, screen_rect.width());
-                clip_rect.w = clip_rect.y.clamp(clip_rect.y, screen_rect.height());
-            }
-
             mesh_instance
                 .get_mut()
                 .set_material(material)
                 .set_mesh_data(mesh_data)
                 .set_draw_area(clip_rect)
+                .set_draw_index(draw_index)
                 .set_visible(true);
         }
     }

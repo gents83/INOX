@@ -1,5 +1,3 @@
-use sabi_resources::DataTypeResource;
-
 use crate::{GpuBuffer, Mesh, MeshId, RenderContext, VertexData};
 
 #[derive(Default)]
@@ -32,7 +30,9 @@ impl GraphicsMesh {
     }
     pub fn add_mesh(&mut self, mesh_id: &MeshId, mesh: &mut Mesh) {
         let mesh_data = mesh.mesh_data();
-        if mesh.is_initialized() || mesh_data.vertices.is_empty() {
+        if mesh_data.vertices.is_empty() {
+            self.vertex_buffer.remove(mesh_id);
+            self.index_buffer.remove(mesh_id);
             return;
         }
         self.vertex_buffer
@@ -40,32 +40,27 @@ impl GraphicsMesh {
         self.index_buffer.add(mesh_id, mesh_data.indices.as_slice());
 
         self.add_mesh_to_pipeline(mesh_id, mesh);
-        mesh.init();
     }
-    pub fn update_mesh(&mut self, mesh_id: &MeshId, mesh: &Mesh) {
-        if !mesh.is_initialized() || mesh.mesh_data().vertices.is_empty() {
-            return;
-        }
-        self.add_mesh_to_pipeline(mesh_id, mesh);
-    }
+
     fn add_mesh_to_pipeline(&mut self, mesh_id: &MeshId, mesh: &Mesh) {
         if let Some(material) = mesh.material() {
             if let Some(pipeline) = material.get().pipeline() {
                 let vertex_data = self.vertex_buffer.get(mesh_id).unwrap();
                 let index_data = self.index_buffer.get(mesh_id).unwrap();
-                pipeline
+                let instance_index = pipeline
                     .get_mut()
                     .add_mesh_to_instance_buffer(mesh_id, mesh);
                 pipeline.get_mut().add_mesh_to_indirect_buffer(
                     mesh_id,
                     mesh,
+                    instance_index,
                     vertex_data,
                     index_data,
                 )
             }
         }
     }
-    pub fn remove_mesh(&mut self, mesh_id: &MeshId) {
+    pub fn remove_mesh(&mut self, mesh_id: &MeshId, mesh: &Mesh) {
         self.vertex_buffer.remove(mesh_id);
         self.index_buffer.remove(mesh_id);
 
@@ -74,6 +69,12 @@ impl GraphicsMesh {
         }
         if self.index_buffer.is_empty() {
             self.index_buffer.clear();
+        }
+
+        if let Some(material) = mesh.material() {
+            if let Some(pipeline) = material.get().pipeline() {
+                pipeline.get_mut().remove_mesh(mesh_id);
+            }
         }
     }
     pub fn clear(&mut self) {

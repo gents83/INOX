@@ -259,71 +259,51 @@ impl Pipeline {
         self.indirect_buffer.gpu_buffer()
     }
 
-    pub fn add_mesh_to_instance_buffer(&mut self, mesh_id: &MeshId, mesh: &Mesh) {
-        if self.instance_buffer.get(mesh_id).is_none() {
-            let instance = InstanceData {
-                id: mesh.draw_index() as _,
-                matrix: matrix4_to_array(mesh.matrix()),
-                draw_area: mesh.draw_area().into(),
-                material_index: mesh
-                    .material()
-                    .as_ref()
-                    .map_or(INVALID_INDEX, |m| m.get().uniform_index()),
-            };
-            self.instance_buffer.add(mesh_id, &[instance]);
-        } else {
-            let data = self.instance_buffer.data();
-            let instance_index = self.instance_buffer.get(mesh_id).unwrap().start;
-            let mut instance_data = data[instance_index];
-            instance_data.id = mesh.draw_index() as _;
-            instance_data.matrix = matrix4_to_array(mesh.matrix());
-            instance_data.material_index = mesh
+    pub fn add_mesh_to_instance_buffer(&mut self, mesh_id: &MeshId, mesh: &Mesh) -> u32 {
+        let instance = InstanceData {
+            id: mesh.draw_index() as _,
+            matrix: matrix4_to_array(mesh.matrix()),
+            draw_area: mesh.draw_area().into(),
+            material_index: mesh
                 .material()
                 .as_ref()
-                .map_or(INVALID_INDEX, |m| m.get().uniform_index());
+                .map_or(INVALID_INDEX, |m| m.get().uniform_index()),
+        };
+        let instance_index = self.instance_buffer.add(mesh_id, &[instance]);
+        if mesh.draw_index() >= 0 {
             self.instance_buffer
-                .update(instance_index as _, &[instance_data]);
-            if mesh.draw_index() >= 0 {
-                self.instance_buffer
-                    .swap(instance_index as _, mesh.draw_index() as _);
-            }
+                .swap(instance_index as _, mesh.draw_index() as _);
         }
+        if mesh.draw_index() >= 0 {
+            return mesh.draw_index() as _;
+        }
+        instance_index as _
     }
     pub fn add_mesh_to_indirect_buffer(
         &mut self,
         mesh_id: &MeshId,
         mesh: &Mesh,
+        instance_index: u32,
         vertex_data: &BufferData,
         index_data: &BufferData,
     ) {
-        let mut instance_index: i32 = INVALID_INDEX;
-        if let Some(buffer_data) = self.indirect_buffer.get(mesh_id) {
-            instance_index = buffer_data.start as _;
-        }
-        if instance_index >= 0 {
-            if mesh.draw_index() >= 0 {
-                self.indirect_buffer
-                    .swap(instance_index as _, mesh.draw_index() as _);
-                if let Some(indirect_command) = self.indirect_buffer.get_mut(mesh_id) {
-                    indirect_command[0].base_instance = mesh.draw_index() as _;
-                }
-            }
-        } else {
-            instance_index = self.indirect_buffer.len() as _;
-            self.indirect_buffer.add(
-                mesh_id,
-                &[wgpu::util::DrawIndexedIndirect {
-                    vertex_count: index_data.len() as _,
-                    instance_count: 1,
-                    base_index: index_data.start as _,
-                    vertex_offset: vertex_data.start as _,
-                    base_instance: if mesh.draw_index() >= 0 {
-                        mesh.draw_index() as _
-                    } else {
-                        instance_index as _
-                    },
-                }],
-            );
+        self.indirect_buffer.add(
+            mesh_id,
+            &[wgpu::util::DrawIndexedIndirect {
+                vertex_count: index_data.len() as _,
+                instance_count: 1,
+                base_index: index_data.start as _,
+                vertex_offset: vertex_data.start as _,
+                base_instance: if mesh.draw_index() >= 0 {
+                    mesh.draw_index() as _
+                } else {
+                    instance_index as _
+                },
+            }],
+        );
+        if mesh.draw_index() >= 0 {
+            self.indirect_buffer
+                .swap(instance_index as _, mesh.draw_index() as _);
         }
     }
     pub fn remove_mesh(&mut self, mesh_id: &MeshId) {

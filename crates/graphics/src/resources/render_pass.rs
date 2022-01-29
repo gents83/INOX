@@ -197,7 +197,6 @@ impl RenderPass {
                     }
 
                     if render_pass_context.graphics_mesh.index_count() > 0 {
-                        //TODO: Use always Indirect and reorder by instance.id (alias mesh draw_index)
                         if self.data.render_mode == RenderMode::Indirect {
                             if let Some(indirect_buffer) = pipeline.indirect_buffer() {
                                 render_pass.multi_draw_indexed_indirect(
@@ -213,17 +212,14 @@ impl RenderPass {
                                     let instance_data = instances[index];
                                     let indirect_command = pipeline.indirect(index);
                                     let x = (instance_data.draw_area[0] as u32)
-                                        .max(0)
-                                        .min(render_pass_context.context.config.width);
+                                        .clamp(0, render_pass_context.context.config.width);
                                     let y = (instance_data.draw_area[1] as u32)
-                                        .max(0)
-                                        .min(render_pass_context.context.config.height);
+                                        .clamp(0, render_pass_context.context.config.height);
                                     let width = (instance_data.draw_area[2] as u32)
-                                        .max(0)
-                                        .min(render_pass_context.context.config.width);
+                                        .clamp(0, render_pass_context.context.config.width - x);
                                     let height = (instance_data.draw_area[3] as u32)
-                                        .max(0)
-                                        .min(render_pass_context.context.config.height);
+                                        .clamp(0, render_pass_context.context.config.height - y);
+                                        
                                     render_pass.set_scissor_rect(x, y, width, height);
                                     render_pass.draw_indexed(
                                         indirect_command.base_index

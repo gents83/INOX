@@ -20,7 +20,6 @@ pub struct Mesh {
     draw_area: Vector4, //pos (x,y) - size(z,w)
     is_visible: bool,
     is_dirty: bool,
-    is_initialized: bool,
     draw_index: i32,
 }
 
@@ -34,7 +33,6 @@ impl Default for Mesh {
             draw_area: [0., 0., f32::MAX, f32::MAX].into(),
             is_visible: true,
             is_dirty: true,
-            is_initialized: false,
             draw_index: INVALID_INDEX,
         }
     }
@@ -58,11 +56,11 @@ impl DataTypeResource for Mesh {
     type OnCreateData = ();
 
     fn is_initialized(&self) -> bool {
-        !self.data.vertices.is_empty() && self.is_initialized
+        !self.data.vertices.is_empty()
     }
 
     fn invalidate(&mut self) -> &mut Self {
-        self.is_initialized = false;
+        self.is_dirty = true;
         self
     }
     fn deserialize_data(path: &Path) -> Self::DataType {
@@ -113,10 +111,10 @@ impl DataTypeResource for Mesh {
 
 impl Mesh {
     pub fn init(&mut self) {
-        if self.is_initialized {
-            return;
-        }
-        self.is_initialized = true;
+        self.is_dirty = false;
+    }
+    pub fn is_dirty(&self) -> bool {
+        self.is_dirty
     }
     pub fn find_from_path(shared_data: &SharedDataRc, path: &Path) -> Handle<Self> {
         SharedData::match_resource(shared_data, |m: &Mesh| m.path() == path)
@@ -144,7 +142,6 @@ impl Mesh {
     }
     pub fn set_mesh_data(&mut self, mesh_data: MeshData) -> &mut Self {
         self.data = mesh_data;
-        self.is_initialized = false;
         self.is_dirty = true;
         self
     }
@@ -159,8 +156,9 @@ impl Mesh {
     pub fn draw_index(&self) -> i32 {
         self.draw_index
     }
-    pub fn set_draw_index(&mut self, draw_index: u32) {
+    pub fn set_draw_index(&mut self, draw_index: u32) -> &mut Self {
         self.draw_index = draw_index as _;
+        self
     }
     pub fn matrix(&self) -> Matrix4 {
         self.matrix
