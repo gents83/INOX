@@ -70,8 +70,9 @@ impl DataTypeResource for Scene {
     fn is_initialized(&self) -> bool {
         !self.objects.is_empty()
     }
-    fn invalidate(&mut self) {
+    fn invalidate(&mut self) -> &mut Self {
         self.clear();
+        self
     }
     fn deserialize_data(path: &Path) -> Self::DataType {
         read_from_file::<Self::DataType>(path)

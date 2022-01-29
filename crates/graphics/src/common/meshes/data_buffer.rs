@@ -49,8 +49,14 @@ where
         self.cpu_buffer.update(start_index as _, value);
         self.is_dirty = true;
     }
+    pub fn swap(&mut self, index: u32, other: u32) {
+        self.cpu_buffer.swap(index as _, other as _);
+    }
     pub fn get(&self, id: &ResourceId) -> Option<&BufferData> {
         self.cpu_buffer.get(id)
+    }
+    pub fn get_mut(&mut self, id: &ResourceId) -> Option<&mut [T]> {
+        self.cpu_buffer.get_mut(id)
     }
     pub fn remove(&mut self, id: &ResourceId) {
         self.cpu_buffer.remove_with_id(id);

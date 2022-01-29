@@ -56,8 +56,9 @@ impl DataTypeResource for Light {
         self.uniform_index != INVALID_INDEX
     }
 
-    fn invalidate(&mut self) {
+    fn invalidate(&mut self) -> &mut Self {
         self.uniform_index = INVALID_INDEX;
+        self
     }
 
     fn deserialize_data(path: &std::path::Path) -> Self::DataType {

@@ -37,8 +37,9 @@ impl DataTypeResource for RenderPass {
     type DataType = RenderPassData;
     type OnCreateData = ();
 
-    fn invalidate(&mut self) {
+    fn invalidate(&mut self) -> &mut Self {
         self.is_initialized = false;
+        self
     }
     fn is_initialized(&self) -> bool {
         self.is_initialized
@@ -196,6 +197,7 @@ impl RenderPass {
                     }
 
                     if render_pass_context.graphics_mesh.index_count() > 0 {
+                        //TODO: Use always Indirect and reorder by instance.id (alias mesh draw_index)
                         if self.data.render_mode == RenderMode::Indirect {
                             if let Some(indirect_buffer) = pipeline.indirect_buffer() {
                                 render_pass.multi_draw_indexed_indirect(

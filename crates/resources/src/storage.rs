@@ -66,6 +66,9 @@ where
             let pending = self.pending.remove(num_pending as usize);
             if let Some(resource) = self.resources.iter_mut().find(|r| r.id() == pending.id()) {
                 //debug_log(format!("Updating resource [{:?}]", resource.id()).as_str());
+                resource
+                    .get_mut()
+                    .on_destroy_resource(shared_data, resource.id());
                 swap_resource(resource, &pending);
             } else {
                 panic!(

@@ -57,8 +57,9 @@ impl DataTypeResource for Font {
     fn is_initialized(&self) -> bool {
         self.texture.is_some()
     }
-    fn invalidate(&mut self) {
+    fn invalidate(&mut self) -> &mut Self {
         self.texture = None;
+        self
     }
     fn deserialize_data(path: &Path) -> Self::DataType {
         FontData::new(path)

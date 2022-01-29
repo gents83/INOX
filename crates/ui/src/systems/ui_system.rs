@@ -120,7 +120,10 @@ impl UISystem {
         for (i, clipped_mesh) in clipped_meshes.into_iter().enumerate() {
             let ClippedMesh(clip_rect, mesh) = clipped_mesh;
             let draw_index = i as u32;
-            self.ui_meshes[i].get_mut().set_draw_index(draw_index);
+            self.ui_meshes[i]
+                .get_mut()
+                .set_visible(false)
+                .set_draw_index(draw_index);
             if mesh.vertices.is_empty() || mesh.indices.is_empty() {
                 continue;
             }
@@ -140,53 +143,48 @@ impl UISystem {
                 }
             };
             let material = self.get_ui_material(texture);
-            let mesh_instance = self.ui_meshes[i].clone();
+            let mesh_instance = &self.ui_meshes[i];
             let ui_scale = self.ui_scale;
             let screen_rect = self.ui_input.screen_rect;
-            let job_name = format!("ui_system::compute_mesh_data[{}]", i);
-            self.job_handler.write().unwrap().add_job(
-                &UISystem::id(),
-                job_name.as_str(),
-                move || {
-                    let mut mesh_data = MeshData::default();
-                    let mut vertices: Vec<VertexData> = Vec::new();
-                    vertices.resize(mesh.vertices.len(), VertexData::default());
-                    for (i, v) in mesh.vertices.iter().enumerate() {
-                        vertices[i].pos = [v.pos.x * ui_scale, v.pos.y * ui_scale, 0.].into();
-                        vertices[i].tex_coord.iter_mut().for_each(|t| {
-                            *t = [v.uv.x, v.uv.y].into();
-                        });
-                        vertices[i].color = [
-                            v.color.r() as _,
-                            v.color.g() as _,
-                            v.color.b() as _,
-                            v.color.a() as _,
-                        ]
-                        .into();
-                    }
-                    mesh_data.append_mesh(vertices.as_slice(), mesh.indices.as_slice());
 
-                    let mut clip_rect = Vector4::new(
-                        clip_rect.min.x * ui_scale,
-                        clip_rect.min.y * ui_scale,
-                        clip_rect.max.x * ui_scale,
-                        clip_rect.max.y * ui_scale,
-                    );
+            let mut mesh_data = MeshData::default();
+            let mut vertices: Vec<VertexData> = Vec::new();
+            vertices.resize(mesh.vertices.len(), VertexData::default());
+            for (i, v) in mesh.vertices.iter().enumerate() {
+                vertices[i].pos = [v.pos.x * ui_scale, v.pos.y * ui_scale, 0.].into();
+                vertices[i].tex_coord.iter_mut().for_each(|t| {
+                    *t = [v.uv.x, v.uv.y].into();
+                });
+                vertices[i].color = [
+                    v.color.r() as _,
+                    v.color.g() as _,
+                    v.color.b() as _,
+                    v.color.a() as _,
+                ]
+                .into();
+            }
+            mesh_data.append_mesh(vertices.as_slice(), mesh.indices.as_slice());
 
-                    if let Some(screen_rect) = &screen_rect {
-                        clip_rect.x = clip_rect.x.clamp(0.0, screen_rect.width());
-                        clip_rect.y = clip_rect.y.clamp(0.0, screen_rect.height());
-                        clip_rect.z = clip_rect.x.clamp(clip_rect.x, screen_rect.width());
-                        clip_rect.w = clip_rect.y.clamp(clip_rect.y, screen_rect.height());
-                    }
-
-                    mesh_instance
-                        .get_mut()
-                        .set_material(material.clone())
-                        .set_mesh_data(mesh_data.clone())
-                        .set_draw_area(clip_rect);
-                },
+            let mut clip_rect = Vector4::new(
+                clip_rect.min.x * ui_scale,
+                clip_rect.min.y * ui_scale,
+                clip_rect.max.x * ui_scale,
+                clip_rect.max.y * ui_scale,
             );
+
+            if let Some(screen_rect) = &screen_rect {
+                clip_rect.x = clip_rect.x.clamp(0.0, screen_rect.width());
+                clip_rect.y = clip_rect.y.clamp(0.0, screen_rect.height());
+                clip_rect.z = clip_rect.x.clamp(clip_rect.x, screen_rect.width());
+                clip_rect.w = clip_rect.y.clamp(clip_rect.y, screen_rect.height());
+            }
+
+            mesh_instance
+                .get_mut()
+                .set_material(material)
+                .set_mesh_data(mesh_data)
+                .set_draw_area(clip_rect)
+                .set_visible(true);
         }
     }
 
@@ -418,7 +416,7 @@ impl System for UISystem {
             let job_handler = self.job_handler.clone();
             let ui_context = self.ui_context.clone();
             self.ui_context.run(self.ui_input.take(), move |_| {
-                Self::show_ui(shared_data, job_handler, ui_context, true);
+                Self::show_ui(shared_data, job_handler, ui_context, false);
             })
         };
         let clipped_meshes = {

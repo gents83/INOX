@@ -40,7 +40,7 @@ where
     fn on_destroy(&mut self, shared_data: &SharedData, id: &ResourceId);
 
     fn is_initialized(&self) -> bool;
-    fn invalidate(&mut self);
+    fn invalidate(&mut self) -> &mut Self;
     fn deserialize_data(path: &Path) -> Self::DataType;
 
     fn create_from_data(

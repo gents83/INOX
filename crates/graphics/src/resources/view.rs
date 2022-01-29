@@ -30,8 +30,9 @@ impl DataTypeResource for View {
     fn is_initialized(&self) -> bool {
         true
     }
-    fn invalidate(&mut self) {
-        panic!("View cannot be invalidated!");
+    fn invalidate(&mut self) -> &mut Self {
+        eprintln!("View cannot be invalidated!");
+        self
     }
     fn deserialize_data(_path: &std::path::Path) -> Self::DataType {
         0

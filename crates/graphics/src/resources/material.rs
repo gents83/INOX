@@ -70,8 +70,9 @@ impl DataTypeResource for Material {
     fn is_initialized(&self) -> bool {
         self.uniform_index != INVALID_INDEX
     }
-    fn invalidate(&mut self) {
+    fn invalidate(&mut self) -> &mut Self {
         self.uniform_index = INVALID_INDEX;
+        self
     }
     fn deserialize_data(path: &Path) -> Self::DataType {
         read_from_file::<Self::DataType>(path)

@@ -130,6 +130,22 @@ where
         self.data[start..(start + data.len())]
             .clone_from_slice(&data[..((start + data.len()) - start)]);
     }
+    pub fn swap(&mut self, index: usize, other: usize) {
+        if index == other {
+            return;
+        }
+        debug_assert!(index <= self.data.len());
+        debug_assert!(other <= self.data.len());
+        let index_a = self.occupied.iter().position(|b| b.start == index).unwrap();
+        let index_b = self.occupied.iter().position(|b| b.start == other).unwrap();
+        self.data.swap(index, other);
+        self.occupied[index_a].end =
+            other + (self.occupied[index_a].end - self.occupied[index_a].start);
+        self.occupied[index_a].start = other;
+        self.occupied[index_b].end =
+            index + (self.occupied[index_b].end - self.occupied[index_b].start);
+        self.occupied[index_b].start = index;
+    }
     pub fn last(&self) -> Option<&BufferData> {
         self.occupied.last()
     }
@@ -144,6 +160,12 @@ where
     }
     pub fn get(&self, id: &ResourceId) -> Option<&BufferData> {
         self.occupied.iter().find(|d| d.id == *id)
+    }
+    pub fn get_mut(&mut self, id: &ResourceId) -> Option<&mut [T]> {
+        if let Some(buffer_data) = self.occupied.iter().find(|d| d.id == *id) {
+            return Some(&mut self.data[buffer_data.start..(buffer_data.end + 1)]);
+        }
+        None
     }
     pub fn remove_with_id(&mut self, id: &ResourceId) -> bool {
         if let Some(index) = self.occupied.iter().position(|d| d.id == *id) {

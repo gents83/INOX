@@ -61,9 +61,9 @@ impl DataTypeResource for Mesh {
         !self.data.vertices.is_empty() && self.is_initialized
     }
 
-    fn invalidate(&mut self) {
-        self.data = MeshData::default();
+    fn invalidate(&mut self) -> &mut Self {
         self.is_initialized = false;
+        self
     }
     fn deserialize_data(path: &Path) -> Self::DataType {
         read_from_file::<Self::DataType>(path)
@@ -75,7 +75,13 @@ impl DataTypeResource for Mesh {
         _on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
     ) {
     }
-    fn on_destroy(&mut self, _shared_data: &SharedData, _id: &MeshId) {}
+    fn on_destroy(&mut self, _shared_data: &SharedData, id: &MeshId) {
+        if let Some(material) = &self.material {
+            if let Some(pipeline) = material.get().pipeline() {
+                pipeline.get_mut().remove_mesh(id);
+            }
+        }
+    }
 
     fn create_from_data(
         shared_data: &SharedDataRc,
@@ -107,6 +113,9 @@ impl DataTypeResource for Mesh {
 
 impl Mesh {
     pub fn init(&mut self) {
+        if self.is_initialized {
+            return;
+        }
         self.is_initialized = true;
     }
     pub fn find_from_path(shared_data: &SharedDataRc, path: &Path) -> Handle<Self> {

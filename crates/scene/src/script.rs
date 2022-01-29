@@ -68,8 +68,9 @@ impl DataTypeResource for Script {
     fn is_initialized(&self) -> bool {
         self.logic.is_initialized()
     }
-    fn invalidate(&mut self) {
-        panic!("Script cannot be invalidated!");
+    fn invalidate(&mut self) -> &mut Self {
+        eprintln!("Script cannot be invalidated!");
+        self
     }
     fn deserialize_data(path: &std::path::Path) -> Self::DataType {
         read_from_file::<Self::DataType>(path)

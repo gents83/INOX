@@ -40,9 +40,10 @@ impl DataTypeResource for Texture {
     type DataType = RgbaImage;
     type OnCreateData = ();
 
-    fn invalidate(&mut self) {
+    fn invalidate(&mut self) -> &mut Self {
         self.uniform_index = INVALID_INDEX;
         debug_log(format!("Texture {:?} will be reloaded", self.path).as_str());
+        self
     }
     fn is_initialized(&self) -> bool {
         self.uniform_index != INVALID_INDEX

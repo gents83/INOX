@@ -66,9 +66,10 @@ impl DataTypeResource for Pipeline {
     type DataType = PipelineData;
     type OnCreateData = ();
 
-    fn invalidate(&mut self) {
+    fn invalidate(&mut self) -> &mut Self {
         self.vertex_shader = None;
         self.fragment_shader = None;
+        self
     }
     fn is_initialized(&self) -> bool {
         self.vertex_shader.is_some() && self.fragment_shader.is_some()
@@ -83,7 +84,13 @@ impl DataTypeResource for Pipeline {
         _on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
     ) {
     }
-    fn on_destroy(&mut self, _shared_data: &SharedData, _id: &PipelineId) {}
+    fn on_destroy(&mut self, _shared_data: &SharedData, _id: &PipelineId) {
+        self.render_pipeline = None;
+        self.vertex_shader = None;
+        self.fragment_shader = None;
+        self.instance_buffer.clear();
+        self.indirect_buffer.clear();
+    }
 
     fn create_from_data(
         _shared_data: &SharedDataRc,
@@ -236,11 +243,6 @@ impl Pipeline {
         }
     }
 
-    pub fn send_to_gpu(&mut self, context: &RenderContext) {
-        self.instance_buffer.send_to_gpu(context);
-        self.indirect_buffer.send_to_gpu(context);
-    }
-
     pub fn instance_buffer(&self) -> Option<wgpu::BufferSlice> {
         if let Some(buffer) = self.instance_buffer.gpu_buffer() {
             return Some(buffer.slice(..));
@@ -273,6 +275,7 @@ impl Pipeline {
             let data = self.instance_buffer.data();
             let instance_index = self.instance_buffer.get(mesh_id).unwrap().start;
             let mut instance_data = data[instance_index];
+            instance_data.id = mesh.draw_index() as _;
             instance_data.matrix = matrix4_to_array(mesh.matrix());
             instance_data.material_index = mesh
                 .material()
@@ -280,16 +283,33 @@ impl Pipeline {
                 .map_or(INVALID_INDEX, |m| m.get().uniform_index());
             self.instance_buffer
                 .update(instance_index as _, &[instance_data]);
+            if mesh.draw_index() >= 0 {
+                self.instance_buffer
+                    .swap(instance_index as _, mesh.draw_index() as _);
+            }
         }
     }
     pub fn add_mesh_to_indirect_buffer(
         &mut self,
         mesh_id: &MeshId,
+        mesh: &Mesh,
         vertex_data: &BufferData,
         index_data: &BufferData,
     ) {
-        if self.indirect_buffer.get(mesh_id).is_none() {
-            let instance_index = self.instance_buffer.get(mesh_id).unwrap().start;
+        let mut instance_index: i32 = INVALID_INDEX;
+        if let Some(buffer_data) = self.indirect_buffer.get(mesh_id) {
+            instance_index = buffer_data.start as _;
+        }
+        if instance_index >= 0 {
+            if mesh.draw_index() >= 0 {
+                self.indirect_buffer
+                    .swap(instance_index as _, mesh.draw_index() as _);
+                if let Some(indirect_command) = self.indirect_buffer.get_mut(mesh_id) {
+                    indirect_command[0].base_instance = mesh.draw_index() as _;
+                }
+            }
+        } else {
+            instance_index = self.indirect_buffer.len() as _;
             self.indirect_buffer.add(
                 mesh_id,
                 &[wgpu::util::DrawIndexedIndirect {
@@ -297,7 +317,11 @@ impl Pipeline {
                     instance_count: 1,
                     base_index: index_data.start as _,
                     vertex_offset: vertex_data.start as _,
-                    base_instance: instance_index as _,
+                    base_instance: if mesh.draw_index() >= 0 {
+                        mesh.draw_index() as _
+                    } else {
+                        instance_index as _
+                    },
                 }],
             );
         }
@@ -305,5 +329,10 @@ impl Pipeline {
     pub fn remove_mesh(&mut self, mesh_id: &MeshId) {
         self.instance_buffer.remove(mesh_id);
         self.indirect_buffer.remove(mesh_id);
+    }
+
+    pub fn send_to_gpu(&mut self, context: &RenderContext) {
+        self.instance_buffer.send_to_gpu(context);
+        self.indirect_buffer.send_to_gpu(context);
     }
 }

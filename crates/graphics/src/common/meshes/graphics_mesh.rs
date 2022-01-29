@@ -56,9 +56,12 @@ impl GraphicsMesh {
                 pipeline
                     .get_mut()
                     .add_mesh_to_instance_buffer(mesh_id, mesh);
-                pipeline
-                    .get_mut()
-                    .add_mesh_to_indirect_buffer(mesh_id, vertex_data, index_data)
+                pipeline.get_mut().add_mesh_to_indirect_buffer(
+                    mesh_id,
+                    mesh,
+                    vertex_data,
+                    index_data,
+                )
             }
         }
     }
@@ -73,7 +76,7 @@ impl GraphicsMesh {
             self.index_buffer.clear();
         }
     }
-    pub fn destroy(&mut self) {
+    pub fn clear(&mut self) {
         self.vertex_buffer.clear();
         self.index_buffer.clear();
     }

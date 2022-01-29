@@ -208,6 +208,70 @@
 			}
 		},
 		{
+			"label": "COMPILE RELEASE WASM",
+			"args": [
+				"build",
+				"--manifest-path",
+				"./crates/Cargo.toml",
+				"--release",
+				"--target",
+				"wasm32-unknown-unknown"
+			],
+			"command": "cargo",
+			"problemMatcher": [
+				{
+					"owner": "rust",
+					"fileLocation": [
+						"relative",
+						"${workspaceRoot}"
+					],
+					"pattern": {
+						"regexp": "^(.*):(\\d+):(\\d+):\\s+(\\d+):(\\d+)\\s+(warning|error):\\s+(.*)$",
+						"file": 1,
+						"line": 2,
+						"column": 3,
+						"endLine": 4,
+						"endColumn": 5,
+						"severity": 6,
+						"message": 7
+					}
+				}
+			],
+			"presentation": {
+				"clear": true,
+			}
+		},
+		{
+			"label": "WASM BINDGEN",
+			"args": [
+				"--target",
+				"web"
+			],
+			"command": "wasm-bindgen",
+			"problemMatcher": [
+				{
+					"owner": "rust",
+					"fileLocation": [
+						"relative",
+						"${workspaceRoot}"
+					],
+					"pattern": {
+						"regexp": "^(.*):(\\d+):(\\d+):\\s+(\\d+):(\\d+)\\s+(warning|error):\\s+(.*)$",
+						"file": 1,
+						"line": 2,
+						"column": 3,
+						"endLine": 4,
+						"endColumn": 5,
+						"severity": 6,
+						"message": 7
+					}
+				}
+			],
+			"presentation": {
+				"clear": true,
+			}
+		},
+		{
 			"label": "BUILD DEBUG",
 			"group": "build",
 			"isBackground": true,
@@ -232,6 +296,20 @@
 				"CREATE DEPS IN_USE FOLDER",
 				"COMPILE RELEASE",
 				"COPY ADDON IN BLENDER",
+			],
+			"problemMatcher": [],
+			"presentation": {
+				"clear": true,
+				"reveal": "never", //process does not switch terminal (focus on program output)
+			},
+		},
+		{
+			"label": "BUILD RELEASE WASM",
+			"group": "build",
+			"isBackground": true,
+			"dependsOn": [
+				"COMPILE RELEASE WASM",
+				"WASM BINDGEN",
 			],
 			"problemMatcher": [],
 			"presentation": {

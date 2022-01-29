@@ -118,9 +118,10 @@ impl DataTypeResource for Object {
     fn is_initialized(&self) -> bool {
         !self.components.is_empty()
     }
-    fn invalidate(&mut self) {
+    fn invalidate(&mut self) -> &mut Self {
         self.components.clear();
         self.children.clear();
+        self
     }
     fn deserialize_data(path: &Path) -> Self::DataType {
         read_from_file::<Self::DataType>(path)

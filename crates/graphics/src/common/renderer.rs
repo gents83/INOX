@@ -176,7 +176,9 @@ impl Renderer {
         });
         SharedData::for_each_resource_mut(
             &self.shared_data,
-            |_id, render_pass: &mut RenderPass| render_pass.invalidate(),
+            |_id, render_pass: &mut RenderPass| {
+                render_pass.invalidate();
+            },
         );
     }
 
@@ -274,9 +276,11 @@ impl Renderer {
         let graphic_mesh = &mut self.graphics_mesh;
         self.shared_data
             .for_each_resource_mut(|handle, m: &mut Mesh| {
-                if !m.is_initialized() {
+                if !m.is_initialized() && m.is_visible() {
                     graphic_mesh.add_mesh(handle.id(), m);
-                } else {
+                } else if m.is_initialized() && !m.is_visible() {
+                    graphic_mesh.remove_mesh(handle.id());
+                } else if m.is_initialized() && m.is_visible() {
                     graphic_mesh.update_mesh(handle.id(), m);
                 }
             });
