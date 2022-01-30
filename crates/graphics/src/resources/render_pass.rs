@@ -54,7 +54,7 @@ impl DataTypeResource for RenderPass {
         _on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
     ) {
     }
-    fn on_destroy(&mut self, _shared_data: &SharedData, _id: &RenderPassId) {}
+    fn on_destroy(&mut self, _shared_data: &SharedData, _messenger: &MessengerRw, _id: &RenderPassId) {}
 
     fn create_from_data(
         shared_data: &SharedDataRc,
@@ -84,7 +84,7 @@ impl DataTypeResource for RenderPass {
                 let image_data = image.to_rgba8();
                 let texture =
                     Texture::create_from_data(shared_data, global_messenger, id, image_data);
-                let texture = shared_data.add_resource(generate_random_uid(), texture);
+                let texture = shared_data.add_resource(global_messenger, generate_random_uid(), texture);
                 Some(texture)
             }
             _ => None,

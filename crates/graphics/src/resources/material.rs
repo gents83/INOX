@@ -84,7 +84,13 @@ impl DataTypeResource for Material {
         _on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
     ) {
     }
-    fn on_destroy(&mut self, _shared_data: &SharedData, _id: &MaterialId) {}
+    fn on_destroy(
+        &mut self,
+        _shared_data: &SharedData,
+        _messenger: &MessengerRw,
+        _id: &MaterialId,
+    ) {
+    }
 
     fn create_from_data(
         shared_data: &SharedDataRc,
@@ -134,10 +140,12 @@ impl DataTypeResource for Material {
 impl Material {
     pub fn duplicate_from_pipeline(
         shared_data: &SharedDataRc,
+        messenger: &MessengerRw,
         pipeline: &Resource<Pipeline>,
     ) -> Resource<Self> {
         SharedData::add_resource(
             shared_data,
+            messenger,
             generate_random_uid(),
             Self {
                 pipeline: Some(pipeline.clone()),

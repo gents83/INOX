@@ -74,7 +74,12 @@ impl DataTypeResource for Pipeline {
         _on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
     ) {
     }
-    fn on_destroy(&mut self, _shared_data: &SharedData, _id: &PipelineId) {
+    fn on_destroy(
+        &mut self,
+        _shared_data: &SharedData,
+        _messenger: &MessengerRw,
+        _id: &PipelineId,
+    ) {
         self.render_pipeline = None;
         self.vertex_shader = None;
         self.fragment_shader = None;

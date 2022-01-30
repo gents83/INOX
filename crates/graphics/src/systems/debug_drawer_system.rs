@@ -163,6 +163,7 @@ pub struct DebugDrawerSystem {
     wireframe_mesh_instance: Resource<Mesh>,
     message_channel: MessageChannel,
     shared_data: SharedDataRc,
+    global_messenger: MessengerRw,
 }
 
 impl DebugDrawerSystem {
@@ -193,6 +194,7 @@ impl DebugDrawerSystem {
             wireframe_mesh_instance,
             message_channel,
             shared_data: shared_data.clone(),
+            global_messenger: global_messenger.clone(),
         }
     }
 
@@ -334,8 +336,11 @@ impl DebugDrawerSystem {
                 );
             }
             if let Some(default_pipeline) = &default_pipeline {
-                let material =
-                    Material::duplicate_from_pipeline(&self.shared_data, default_pipeline);
+                let material = Material::duplicate_from_pipeline(
+                    &self.shared_data,
+                    &self.global_messenger,
+                    default_pipeline,
+                );
                 self.mesh_instance.get_mut().set_material(material);
             }
         }
@@ -350,8 +355,11 @@ impl DebugDrawerSystem {
                 );
             }
             if let Some(wireframe_pipeline) = &wireframe_pipeline {
-                let material =
-                    Material::duplicate_from_pipeline(&self.shared_data, wireframe_pipeline);
+                let material = Material::duplicate_from_pipeline(
+                    &self.shared_data,
+                    &self.global_messenger,
+                    wireframe_pipeline,
+                );
                 self.wireframe_mesh_instance
                     .get_mut()
                     .set_material(material);

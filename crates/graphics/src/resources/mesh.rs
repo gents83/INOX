@@ -82,7 +82,7 @@ impl DataTypeResource for Mesh {
             self.set_matrix(on_create_data.parent_matrix);
         }
     }
-    fn on_destroy(&mut self, _shared_data: &SharedData, _id: &MeshId) {}
+    fn on_destroy(&mut self, _shared_data: &SharedData, _messenger: &MessengerRw, _id: &MeshId) {}
 
     fn create_from_data(
         shared_data: &SharedDataRc,

@@ -75,7 +75,7 @@ impl DataTypeResource for Light {
             self.set_position(on_create_data.position);
         }
     }
-    fn on_destroy(&mut self, _shared_data: &SharedData, _id: &LightId) {}
+    fn on_destroy(&mut self, _shared_data: &SharedData, _messenger: &MessengerRw, _id: &LightId) {}
 
     fn create_from_data(
         _shared_data: &SharedDataRc,

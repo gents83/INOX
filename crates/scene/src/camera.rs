@@ -122,7 +122,7 @@ impl DataTypeResource for Camera {
             }
         }
     }
-    fn on_destroy(&mut self, _shared_data: &SharedData, _id: &CameraId) {}
+    fn on_destroy(&mut self, _shared_data: &SharedData, _messenger: &MessengerRw, _id: &CameraId) {}
 
     fn create_from_data(
         _shared_data: &SharedDataRc,

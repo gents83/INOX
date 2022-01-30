@@ -5,12 +5,14 @@ use sabi_core::{JobHandlerRw, System};
 use sabi_messenger::{read_messages, MessageChannel, MessengerRw};
 use sabi_platform::WindowEvent;
 use sabi_resources::{
-    ConfigBase, DataTypeResource, Resource, SerializableResource, SharedData, SharedDataRc,
-    UpdateResourceEvent,
+    ConfigBase, DataTypeResource, Resource, ResourceDestroyedEvent, SerializableResource,
+    SharedData, SharedDataRc, UpdateResourceEvent,
 };
 use sabi_serialize::{generate_random_uid, read_from_file};
 
-use crate::{is_shader, Pipeline, RenderPass, RenderPassData, RendererRw, RendererState, Texture};
+use crate::{
+    is_shader, Mesh, Pipeline, RenderPass, RenderPassData, RendererRw, RendererState, Texture,
+};
 
 use super::config::Config;
 pub const RENDERING_UPDATE: &str = "RENDERING_UPDATE";
@@ -36,7 +38,8 @@ impl UpdateSystem {
             .write()
             .unwrap()
             .register_messagebox::<WindowEvent>(message_channel.get_messagebox())
-            .register_messagebox::<UpdateResourceEvent>(message_channel.get_messagebox());
+            .register_messagebox::<UpdateResourceEvent>(message_channel.get_messagebox())
+            .register_messagebox::<ResourceDestroyedEvent<Mesh>>(message_channel.get_messagebox());
 
         crate::register_resource_types(shared_data);
         Self {
@@ -83,6 +86,15 @@ impl UpdateSystem {
                         }
                     });
                 }
+            } else if msg.type_id() == TypeId::of::<ResourceDestroyedEvent<Mesh>>() {
+                let e = msg
+                    .as_any()
+                    .downcast_ref::<ResourceDestroyedEvent<Mesh>>()
+                    .unwrap();
+                self.renderer
+                    .write()
+                    .unwrap()
+                    .on_mesh_removed(e.resource.id());
             }
         });
     }

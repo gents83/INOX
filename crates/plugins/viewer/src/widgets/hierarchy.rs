@@ -32,7 +32,7 @@ impl Hierarchy {
                 scene,
             };
             return Self {
-                ui_page: Self::create(shared_data, data),
+                ui_page: Self::create(shared_data, global_messenger, data),
             };
         }
         panic!("Hierarchy scene {:?} not found", scene_id);
@@ -45,8 +45,12 @@ impl Hierarchy {
         self
     }
 
-    fn create(shared_data: &SharedDataRc, data: HierarchyData) -> Resource<UIWidget> {
-        UIWidget::register(shared_data, data, |ui_data, ui_context| {
+    fn create(
+        shared_data: &SharedDataRc,
+        messenger: &MessengerRw,
+        data: HierarchyData,
+    ) -> Resource<UIWidget> {
+        UIWidget::register(shared_data, messenger, data, |ui_data, ui_context| {
             if let Some(data) = ui_data.as_any_mut().downcast_mut::<HierarchyData>() {
                 Window::new("Hierarchy")
                     .vscroll(true)

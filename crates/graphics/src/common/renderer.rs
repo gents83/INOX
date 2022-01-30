@@ -1,5 +1,5 @@
 use crate::{
-    GraphicsMesh, Light, LightId, Material, MaterialId, Mesh, Pipeline, RenderPass,
+    GraphicsMesh, Light, LightId, Material, MaterialId, Mesh, MeshId, Pipeline, RenderPass,
     RenderPassDrawContext, ShaderData, Texture, TextureHandler,
 };
 use sabi_math::{matrix4_to_array, Matrix4, Vector2};
@@ -189,6 +189,10 @@ impl Renderer {
             .surface
             .configure(&self.context.device, &self.context.config);
         self.recreate();
+    }
+
+    pub fn on_mesh_removed(&mut self, mesh_id: &MeshId) {
+        self.graphics_mesh.remove_mesh(mesh_id);
     }
 
     pub fn draw(&self) {

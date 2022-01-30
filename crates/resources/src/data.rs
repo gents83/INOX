@@ -37,7 +37,7 @@ where
         id: &ResourceId,
         on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
     );
-    fn on_destroy(&mut self, shared_data: &SharedData, id: &ResourceId);
+    fn on_destroy(&mut self, shared_data: &SharedData, messenger: &MessengerRw, id: &ResourceId);
 
     fn is_initialized(&self) -> bool;
     fn invalidate(&mut self) -> &mut Self;
@@ -62,7 +62,7 @@ where
         Self: Sized,
     {
         let resource = Self::create_from_data(shared_data, global_messenger, id, data);
-        SharedData::add_resource(shared_data, id, resource)
+        shared_data.add_resource(global_messenger, id, resource)
     }
 }
 
@@ -83,8 +83,13 @@ where
     {
         self.on_create(shared_data, id, on_create_data);
     }
-    fn on_destroy_resource(&mut self, shared_data: &SharedData, id: &ResourceId) {
-        self.on_destroy(shared_data, id);
+    fn on_destroy_resource(
+        &mut self,
+        shared_data: &SharedData,
+        messenger: &MessengerRw,
+        id: &ResourceId,
+    ) {
+        self.on_destroy(shared_data, messenger, id);
     }
 
     fn on_copy_resource(&mut self, other: &Self)
@@ -140,7 +145,7 @@ pub trait SerializableResource: DataTypeResource + Sized {
 
         resource.on_create(shared_data, &resource_id, on_create_data);
 
-        shared_data.add_resource(resource_id, resource)
+        shared_data.add_resource(global_messenger, resource_id, resource)
     }
 
     fn request_load(
@@ -163,7 +168,7 @@ pub trait SerializableResource: DataTypeResource + Sized {
         if SharedData::has::<Self>(shared_data, &resource_id) {
             return SharedData::get_resource::<Self>(shared_data, &resource_id).unwrap();
         }
-        let resource = SharedData::add_resource(shared_data, resource_id, Self::default());
+        let resource = shared_data.add_resource(global_messenger, resource_id, Self::default());
         global_messenger.send_event(LoadResourceEvent::<Self>::new(
             path.as_path(),
             on_create_data,

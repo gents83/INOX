@@ -6,7 +6,7 @@ use std::{
 use sabi_commands::CommandParser;
 use sabi_messenger::{implement_message, Message, MessageFromString, MessengerRw};
 
-use crate::{ResourceId, ResourceTrait, SerializableResource, SharedDataRc};
+use crate::{Resource, ResourceId, ResourceTrait, SerializableResource, SharedDataRc};
 
 pub trait Function<T>:
     Fn(&mut T, &ResourceId, Option<&<T as ResourceTrait>::OnCreateData>)
@@ -30,6 +30,68 @@ where
 {
     fn clone(&self) -> Self {
         (**self).as_boxed()
+    }
+}
+
+pub struct ResourceCreatedEvent<T>
+where
+    T: ResourceTrait,
+{
+    pub resource: Resource<T>,
+}
+implement_message!(ResourceCreatedEvent<ResourceTrait>);
+
+impl<T> Clone for ResourceCreatedEvent<T>
+where
+    T: ResourceTrait,
+{
+    fn clone(&self) -> Self {
+        Self {
+            resource: self.resource.clone(),
+        }
+    }
+}
+
+impl<T> MessageFromString for ResourceCreatedEvent<T>
+where
+    T: ResourceTrait,
+{
+    fn from_command_parser(_command_parser: CommandParser) -> Option<Box<dyn Message>>
+    where
+        Self: Sized,
+    {
+        None
+    }
+}
+
+pub struct ResourceDestroyedEvent<T>
+where
+    T: ResourceTrait,
+{
+    pub resource: Resource<T>,
+}
+implement_message!(ResourceDestroyedEvent<ResourceTrait>);
+
+impl<T> Clone for ResourceDestroyedEvent<T>
+where
+    T: ResourceTrait,
+{
+    fn clone(&self) -> Self {
+        Self {
+            resource: self.resource.clone(),
+        }
+    }
+}
+
+impl<T> MessageFromString for ResourceDestroyedEvent<T>
+where
+    T: ResourceTrait,
+{
+    fn from_command_parser(_command_parser: CommandParser) -> Option<Box<dyn Message>>
+    where
+        Self: Sized,
+    {
+        None
     }
 }
 

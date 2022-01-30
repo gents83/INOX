@@ -176,11 +176,11 @@ impl App {
             let plugins_to_remove = self.plugin_manager.update();
             let plugins_to_reload = self.update_plugins(plugins_to_remove);
             if !plugins_to_reload.is_empty() {
-                SharedData::flush_resources(&self.shared_data);
+                SharedData::flush_resources(&self.shared_data, &self.global_messenger);
             }
             self.reload_plugins(plugins_to_reload);
         }
-        SharedData::flush_resources(&self.shared_data);
+        SharedData::flush_resources(&self.shared_data, &self.global_messenger);
 
         can_continue
     }

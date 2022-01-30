@@ -1,6 +1,7 @@
 use std::any::{type_name, Any};
 
 use egui::{CollapsingHeader, Context, Ui};
+use sabi_messenger::MessengerRw;
 use sabi_resources::{Resource, ResourceId, ResourceTrait, SharedData, SharedDataRc};
 use sabi_serialize::generate_random_uid;
 
@@ -52,7 +53,13 @@ impl ResourceTrait for UIWidget {
     {
     }
 
-    fn on_destroy_resource(&mut self, _shared_data: &SharedData, _id: &ResourceId) {}
+    fn on_destroy_resource(
+        &mut self,
+        _shared_data: &SharedData,
+        _messenger: &MessengerRw,
+        _id: &ResourceId,
+    ) {
+    }
 }
 
 unsafe impl Send for UIWidget {}
@@ -86,7 +93,12 @@ impl UIProperties for UIWidget {
 }
 
 impl UIWidget {
-    pub fn register<D, F>(shared_data: &SharedDataRc, data: D, f: F) -> Resource<Self>
+    pub fn register<D, F>(
+        shared_data: &SharedDataRc,
+        messenger: &MessengerRw,
+        data: D,
+        f: F,
+    ) -> Resource<Self>
     where
         D: UIWidgetData + Sized,
         F: FnMut(&mut dyn UIWidgetData, &Context) + 'static,
@@ -96,7 +108,7 @@ impl UIWidget {
             data: Box::new(data),
             func: Box::new(f),
         };
-        SharedData::add_resource::<UIWidget>(shared_data, generate_random_uid(), ui_page)
+        shared_data.add_resource::<UIWidget>(messenger, generate_random_uid(), ui_page)
     }
 
     pub fn data<D>(&self) -> Option<&D>

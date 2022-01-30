@@ -1,3 +1,4 @@
+use sabi_messenger::MessengerRw;
 use sabi_serialize::Uid;
 use std::{
     any::Any,
@@ -21,7 +22,12 @@ where
         on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
     ) where
         Self: Sized;
-    fn on_destroy_resource(&mut self, shared_data: &SharedData, id: &ResourceId);
+    fn on_destroy_resource(
+        &mut self,
+        shared_data: &SharedData,
+        messenger: &MessengerRw,
+        id: &ResourceId,
+    );
     fn on_copy_resource(&mut self, other: &Self);
 }
 

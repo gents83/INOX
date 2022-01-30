@@ -29,7 +29,7 @@ impl DataTypeResource for Font {
         _on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
     ) {
     }
-    fn on_destroy(&mut self, _shared_data: &SharedData, _id: &FontId) {}
+    fn on_destroy(&mut self, _shared_data: &SharedData, _messenger: &MessengerRw, _id: &FontId) {}
 
     fn create_from_data(
         shared_data: &SharedDataRc,

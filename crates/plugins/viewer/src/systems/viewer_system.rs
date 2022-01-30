@@ -5,7 +5,7 @@ use sabi_math::{Matrix4, VecBase, Vector2, Vector3};
 use sabi_messenger::{read_messages, GlobalMessenger, MessageChannel, MessengerRw};
 
 use sabi_platform::{InputState, Key, KeyEvent, MouseEvent, WindowEvent};
-use sabi_resources::{LoadResourceEvent, Resource, SerializableResource, SharedData, SharedDataRc};
+use sabi_resources::{LoadResourceEvent, Resource, SerializableResource, SharedDataRc};
 use sabi_scene::{Camera, Object, ObjectId, Scene, Script};
 use sabi_serialize::generate_random_uid;
 use std::{any::TypeId, collections::HashMap, path::PathBuf};
@@ -32,11 +32,14 @@ impl ViewerSystem {
 
         sabi_scene::register_resource_types(shared_data);
 
-        let scene =
-            SharedData::add_resource::<Scene>(shared_data, generate_random_uid(), Scene::default());
+        let scene = shared_data.add_resource::<Scene>(
+            global_messenger,
+            generate_random_uid(),
+            Scene::default(),
+        );
 
-        let camera_object = SharedData::add_resource::<Object>(
-            shared_data,
+        let camera_object = shared_data.add_resource::<Object>(
+            global_messenger,
             generate_random_uid(),
             Object::default(),
         );
@@ -46,7 +49,7 @@ impl ViewerSystem {
         camera_object.get_mut().look_at(Vector3::new(0.0, 0.0, 0.0));
         let camera = camera_object
             .get_mut()
-            .add_default_component::<Camera>(shared_data);
+            .add_default_component::<Camera>(shared_data, global_messenger);
         camera
             .get_mut()
             .set_parent(&camera_object)
@@ -89,7 +92,7 @@ impl System for ViewerSystem {
             .register_messagebox::<WindowEvent>(self.message_channel.get_messagebox())
             .register_messagebox::<LoadResourceEvent<Scene>>(self.message_channel.get_messagebox());
 
-        self._view_3d = Some(View3D::new(&self.shared_data));
+        self._view_3d = Some(View3D::new(&self.shared_data, &self.global_messenger));
     }
 
     fn run(&mut self) -> bool {
@@ -155,19 +158,27 @@ impl ViewerSystem {
 
     fn create_default_scene(&mut self) {
         let default_object = {
-            let object = self
-                .shared_data
-                .add_resource(generate_random_uid(), Object::default());
-            let mesh = self
-                .shared_data
-                .add_resource(generate_random_uid(), Mesh::default());
+            let object = self.shared_data.add_resource(
+                &self.global_messenger,
+                generate_random_uid(),
+                Object::default(),
+            );
+            let mesh = self.shared_data.add_resource(
+                &self.global_messenger,
+                generate_random_uid(),
+                Mesh::default(),
+            );
             let pipeline = Pipeline::request_load(
                 &self.shared_data,
                 &self.global_messenger,
                 PathBuf::from("pipelines\\Default.pipeline").as_path(),
                 None,
             );
-            let material = Material::duplicate_from_pipeline(&self.shared_data, &pipeline);
+            let material = Material::duplicate_from_pipeline(
+                &self.shared_data,
+                &self.global_messenger,
+                &pipeline,
+            );
             let texture = Texture::request_load(
                 &self.shared_data,
                 &self.global_messenger,
@@ -189,19 +200,27 @@ impl ViewerSystem {
             object
         };
         let wireframe_object = {
-            let object = self
-                .shared_data
-                .add_resource(generate_random_uid(), Object::default());
-            let mesh = self
-                .shared_data
-                .add_resource(generate_random_uid(), Mesh::default());
+            let object = self.shared_data.add_resource(
+                &self.global_messenger,
+                generate_random_uid(),
+                Object::default(),
+            );
+            let mesh = self.shared_data.add_resource(
+                &self.global_messenger,
+                generate_random_uid(),
+                Mesh::default(),
+            );
             let pipeline = Pipeline::request_load(
                 &self.shared_data,
                 &self.global_messenger,
                 PathBuf::from("pipelines\\Wireframe.pipeline").as_path(),
                 None,
             );
-            let material = Material::duplicate_from_pipeline(&self.shared_data, &pipeline);
+            let material = Material::duplicate_from_pipeline(
+                &self.shared_data,
+                &self.global_messenger,
+                &pipeline,
+            );
             mesh.get_mut().set_material(material);
             let mut mesh_data = MeshData::default();
             mesh_data.add_quad_default([-10., -10., 10., 10.].into(), 0.);
@@ -311,7 +330,7 @@ impl ViewerSystem {
             if self._info.is_some() {
                 self._info = None;
             } else {
-                self._info = Some(Info::new(&self.shared_data));
+                self._info = Some(Info::new(&self.shared_data, &self.global_messenger));
             }
         } else if event.code == Key::F2 && event.state == InputState::Released {
             if self._hierarchy.is_some() {

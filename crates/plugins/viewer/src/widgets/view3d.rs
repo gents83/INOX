@@ -1,5 +1,6 @@
 use sabi_graphics::{RenderPass, Texture};
 
+use sabi_messenger::MessengerRw;
 use sabi_resources::{Handle, Resource, SharedData, SharedDataRc};
 use sabi_ui::{
     implement_widget_data, CentralPanel, Frame, Image, LayerId, Sense, TextureId as eguiTextureId,
@@ -21,7 +22,7 @@ unsafe impl Send for View3D {}
 unsafe impl Sync for View3D {}
 
 impl View3D {
-    pub fn new(shared_data: &SharedDataRc) -> Self {
+    pub fn new(shared_data: &SharedDataRc, global_messenger: &MessengerRw) -> Self {
         let texture = Self::get_render_pass_output_texture(shared_data, "MainPass");
 
         let data = View3DData {
@@ -29,7 +30,7 @@ impl View3D {
             texture,
             is_interacting: false,
         };
-        let ui_page = Self::create(shared_data, data);
+        let ui_page = Self::create(shared_data, global_messenger, data);
         Self { _ui_page: ui_page }
     }
 
@@ -41,8 +42,12 @@ impl View3D {
         }
     }
 
-    fn create(shared_data: &SharedDataRc, data: View3DData) -> Resource<UIWidget> {
-        UIWidget::register(shared_data, data, |ui_data, ui_context| {
+    fn create(
+        shared_data: &SharedDataRc,
+        messenger: &MessengerRw,
+        data: View3DData,
+    ) -> Resource<UIWidget> {
+        UIWidget::register(shared_data, messenger, data, |ui_data, ui_context| {
             if let Some(data) = ui_data.as_any_mut().downcast_mut::<View3DData>() {
                 CentralPanel::default()
                     .frame(Frame::dark_canvas(ui_context.style().as_ref()))

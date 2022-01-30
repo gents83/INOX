@@ -63,7 +63,7 @@ impl DataTypeResource for Script {
             }
         }
     }
-    fn on_destroy(&mut self, _shared_data: &SharedData, _id: &ObjectId) {}
+    fn on_destroy(&mut self, _shared_data: &SharedData, _messenger: &MessengerRw, _id: &ObjectId) {}
 
     fn is_initialized(&self) -> bool {
         self.logic.is_initialized()

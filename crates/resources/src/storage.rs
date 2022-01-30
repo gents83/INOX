@@ -3,15 +3,23 @@ use std::{
     sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard},
 };
 
+use sabi_messenger::{GlobalMessenger, MessengerRw};
+
 use crate::{
-    swap_resource, Handle, Resource, ResourceHandle, ResourceId, ResourceTrait, SharedData,
+    swap_resource, Handle, Resource, ResourceCreatedEvent, ResourceDestroyedEvent, ResourceHandle,
+    ResourceId, ResourceTrait, SharedData,
 };
 
 pub trait TypedStorage: Send + Sync + Any {
     fn remove_all(&mut self);
-    fn flush(&mut self, shared_data: &SharedData);
     fn has(&self, resource_id: &ResourceId) -> bool;
-    fn remove(&mut self, resource_id: &ResourceId, shared_data: &SharedData);
+    fn flush(&mut self, shared_data: &SharedData, messenger: &MessengerRw);
+    fn remove(
+        &mut self,
+        resource_id: &ResourceId,
+        shared_data: &SharedData,
+        messenger: &MessengerRw,
+    );
     fn count(&self) -> usize;
 }
 pub type ResourceStorageRw = Arc<RwLock<Box<dyn TypedStorage>>>;
@@ -60,14 +68,11 @@ where
     }
 
     #[inline]
-    fn flush(&mut self, shared_data: &SharedData) {
+    fn flush(&mut self, shared_data: &SharedData, messenger: &MessengerRw) {
         let mut num_pending = self.pending.len() as i32 - 1;
         while num_pending >= 0 {
             let pending = self.pending.remove(num_pending as usize);
             if let Some(resource) = self.resources.iter_mut().find(|r| r.id() == pending.id()) {
-                resource
-                    .get_mut()
-                    .on_destroy_resource(shared_data, resource.id());
                 swap_resource(resource, &pending);
             } else {
                 panic!(
@@ -86,16 +91,24 @@ where
         });
 
         to_remove.iter().for_each(|id| {
-            self.remove(id, shared_data);
+            self.remove(id, shared_data, messenger);
         });
     }
     #[inline]
-    fn remove(&mut self, resource_id: &ResourceId, shared_data: &SharedData) {
+    fn remove(
+        &mut self,
+        resource_id: &ResourceId,
+        shared_data: &SharedData,
+        messenger: &MessengerRw,
+    ) {
         if let Some(index) = self.resources.iter().position(|r| r.id() == resource_id) {
             let resource = self.resources.remove(index);
+            messenger.send_event(ResourceDestroyedEvent {
+                resource: resource.clone(),
+            });
             resource
                 .get_mut()
-                .on_destroy_resource(shared_data, resource_id);
+                .on_destroy_resource(shared_data, messenger, resource_id);
         }
     }
     #[inline]
@@ -132,11 +145,19 @@ where
         None
     }
     #[inline]
-    pub fn add(&mut self, resource_id: ResourceId, data: T) -> Resource<T> {
+    pub fn add(
+        &mut self,
+        messenger: &MessengerRw,
+        resource_id: ResourceId,
+        data: T,
+    ) -> Resource<T> {
         let handle = Arc::new(ResourceHandle::new(resource_id, data));
         if self.resources.iter().any(|r| r.id() == &resource_id) {
             self.pending.push(handle.clone());
         } else {
+            messenger.send_event(ResourceCreatedEvent {
+                resource: handle.clone(),
+            });
             self.resources.push(handle.clone());
         }
         handle
