@@ -127,10 +127,7 @@ impl UISystem {
                     }) {
                         texture.clone()
                     } else {
-                        panic!(
-                            "Texture not found for uniform index {}",
-                            texture_uniform_index
-                        );
+                        self.ui_textures.iter().next().unwrap().1.clone()
                     }
                 }
             };

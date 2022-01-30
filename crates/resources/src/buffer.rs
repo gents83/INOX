@@ -136,15 +136,17 @@ where
         }
         debug_assert!(index <= self.data.len());
         debug_assert!(other <= self.data.len());
-        let index_a = self.occupied.iter().position(|b| b.start == index).unwrap();
-        let index_b = self.occupied.iter().position(|b| b.start == other).unwrap();
-        self.data.swap(index, other);
-        self.occupied[index_a].end =
-            other + (self.occupied[index_a].end - self.occupied[index_a].start);
-        self.occupied[index_a].start = other;
-        self.occupied[index_b].end =
-            index + (self.occupied[index_b].end - self.occupied[index_b].start);
-        self.occupied[index_b].start = index;
+        if let Some(index_a) = self.occupied.iter().position(|b| b.start == index) {
+            if let Some(index_b) = self.occupied.iter().position(|b| b.start == other) {
+                self.data.swap(index, other);
+                self.occupied[index_a].end =
+                    other + (self.occupied[index_a].end - self.occupied[index_a].start);
+                self.occupied[index_a].start = other;
+                self.occupied[index_b].end =
+                    index + (self.occupied[index_b].end - self.occupied[index_b].start);
+                self.occupied[index_b].start = index;
+            }
+        }
     }
     pub fn last(&self) -> Option<&BufferData> {
         self.occupied.last()

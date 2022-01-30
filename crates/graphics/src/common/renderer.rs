@@ -277,12 +277,17 @@ impl Renderer {
         self.shared_data
             .for_each_resource_mut(|handle, m: &mut Mesh| {
                 if m.is_dirty() {
-                    if m.is_visible() {
-                        graphic_mesh.add_mesh(handle.id(), m);
+                    if m.is_visible() && !m.mesh_data().vertices.is_empty() {
+                        //println!("Adding Mesh {:?}", handle.id());
+                        if graphic_mesh.add_mesh(handle.id(), m) {
+                            m.init();
+                        }
                     } else {
-                        graphic_mesh.remove_mesh(handle.id(), m);
+                        //println!("Removing Mesh {:?}", handle.id());
+                        graphic_mesh.remove_mesh(handle.id());
+                        m.invalidate();
+                        m.init();
                     }
-                    m.init();
                 }
             });
     }
@@ -361,10 +366,5 @@ impl Renderer {
         let graphic_mesh = &mut self.graphics_mesh;
 
         graphic_mesh.send_to_gpu(render_context);
-
-        self.shared_data
-            .for_each_resource_mut(|_h, p: &mut Pipeline| {
-                p.send_to_gpu(render_context);
-            });
     }
 }

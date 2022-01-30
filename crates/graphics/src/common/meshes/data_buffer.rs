@@ -29,6 +29,20 @@ where
     }
 }
 
+impl<T, const U: u32> Clone for GpuBuffer<T, U>
+where
+    T: Clone,
+{
+    fn clone(&self) -> Self {
+        Self {
+            cpu_buffer: self.cpu_buffer.clone(),
+            gpu_buffer: None,
+            is_dirty: true,
+            is_realloc_needed: true,
+        }
+    }
+}
+
 impl<T, const U: u32> GpuBuffer<T, U>
 where
     T: Clone,

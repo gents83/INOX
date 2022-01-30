@@ -181,6 +181,8 @@ impl ViewerSystem {
             let mut mesh_data = MeshData::default();
             mesh_data.add_quad_default([-10., -10., 10., 10.].into(), 0.);
 
+            //println!("Quad Mesh {:?}", mesh.id());
+
             mesh.get_mut().set_mesh_data(mesh_data);
             object.get_mut().add_component(mesh);
             object.get_mut().set_position([-20., 0., 0.].into());
@@ -203,6 +205,8 @@ impl ViewerSystem {
             mesh.get_mut().set_material(material);
             let mut mesh_data = MeshData::default();
             mesh_data.add_quad_default([-10., -10., 10., 10.].into(), 0.);
+
+            //println!("Wireframe Mesh {:?}", mesh.id());
 
             mesh.get_mut().set_mesh_data(mesh_data);
             object.get_mut().add_component(mesh);

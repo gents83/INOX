@@ -1,19 +1,17 @@
 use std::path::{Path, PathBuf};
 
-use sabi_math::matrix4_to_array;
 use sabi_messenger::MessengerRw;
 use sabi_profiler::debug_log;
 use sabi_resources::{
-    BufferData, DataTypeResource, ResourceId, ResourceTrait, SerializableResource, SharedData,
-    SharedDataRc,
+    DataTypeResource, ResourceId, ResourceTrait, SerializableResource, SharedData, SharedDataRc,
 };
 use sabi_serialize::{read_from_file, SerializeFile};
-use wgpu::{util::DrawIndexedIndirect, ShaderModule};
+use wgpu::ShaderModule;
 
 use crate::{
-    create_shader, CullingModeType, GpuBuffer, InstanceData, Mesh, MeshId, PipelineData,
-    PipelineIdentifier, PolygonModeType, RenderContext, VertexData, FRAGMENT_SHADER_ENTRY_POINT,
-    INVALID_INDEX, SHADER_ENTRY_POINT, VERTEX_SHADER_ENTRY_POINT,
+    create_shader, CullingModeType, InstanceData, PipelineData, PipelineIdentifier,
+    PolygonModeType, RenderContext, VertexData, FRAGMENT_SHADER_ENTRY_POINT, SHADER_ENTRY_POINT,
+    VERTEX_SHADER_ENTRY_POINT,
 };
 
 pub type PipelineId = ResourceId;
@@ -26,12 +24,6 @@ pub struct Pipeline {
     vertex_shader: Option<ShaderModule>,
     fragment_shader: Option<ShaderModule>,
     render_pipeline: Option<wgpu::RenderPipeline>,
-    instance_buffer:
-        GpuBuffer<InstanceData, { wgpu::BufferUsages::bits(&wgpu::BufferUsages::VERTEX) }>,
-    indirect_buffer: GpuBuffer<
-        wgpu::util::DrawIndexedIndirect,
-        { wgpu::BufferUsages::bits(&wgpu::BufferUsages::INDIRECT) },
-    >,
 }
 
 impl Clone for Pipeline {
@@ -43,8 +35,6 @@ impl Clone for Pipeline {
             vertex_shader: None,
             fragment_shader: None,
             render_pipeline: None,
-            instance_buffer: GpuBuffer::default(),
-            indirect_buffer: GpuBuffer::default(),
         }
     }
 }
@@ -88,8 +78,6 @@ impl DataTypeResource for Pipeline {
         self.render_pipeline = None;
         self.vertex_shader = None;
         self.fragment_shader = None;
-        self.instance_buffer.clear();
-        self.indirect_buffer.clear();
     }
 
     fn create_from_data(
@@ -241,78 +229,5 @@ impl Pipeline {
             self.invalidate();
             debug_log(format!("Fragment Shader {:?} will be reloaded", path_as_string).as_str());
         }
-    }
-
-    pub fn instance_buffer(&self) -> Option<wgpu::BufferSlice> {
-        if let Some(buffer) = self.instance_buffer.gpu_buffer() {
-            return Some(buffer.slice(..));
-        }
-        None
-    }
-    pub fn instances(&self) -> &[InstanceData] {
-        self.instance_buffer.data()
-    }
-    pub fn indirect(&self, index: usize) -> &DrawIndexedIndirect {
-        &self.indirect_buffer.data()[index]
-    }
-    pub fn indirect_buffer(&self) -> Option<&wgpu::Buffer> {
-        self.indirect_buffer.gpu_buffer()
-    }
-
-    pub fn add_mesh_to_instance_buffer(&mut self, mesh_id: &MeshId, mesh: &Mesh) -> u32 {
-        let instance = InstanceData {
-            id: mesh.draw_index() as _,
-            matrix: matrix4_to_array(mesh.matrix()),
-            draw_area: mesh.draw_area().into(),
-            material_index: mesh
-                .material()
-                .as_ref()
-                .map_or(INVALID_INDEX, |m| m.get().uniform_index()),
-        };
-        let instance_index = self.instance_buffer.add(mesh_id, &[instance]);
-        if mesh.draw_index() >= 0 {
-            self.instance_buffer
-                .swap(instance_index as _, mesh.draw_index() as _);
-        }
-        if mesh.draw_index() >= 0 {
-            return mesh.draw_index() as _;
-        }
-        instance_index as _
-    }
-    pub fn add_mesh_to_indirect_buffer(
-        &mut self,
-        mesh_id: &MeshId,
-        mesh: &Mesh,
-        instance_index: u32,
-        vertex_data: &BufferData,
-        index_data: &BufferData,
-    ) {
-        self.indirect_buffer.add(
-            mesh_id,
-            &[wgpu::util::DrawIndexedIndirect {
-                vertex_count: index_data.len() as _,
-                instance_count: 1,
-                base_index: index_data.start as _,
-                vertex_offset: vertex_data.start as _,
-                base_instance: if mesh.draw_index() >= 0 {
-                    mesh.draw_index() as _
-                } else {
-                    instance_index as _
-                },
-            }],
-        );
-        if mesh.draw_index() >= 0 {
-            self.indirect_buffer
-                .swap(instance_index as _, mesh.draw_index() as _);
-        }
-    }
-    pub fn remove_mesh(&mut self, mesh_id: &MeshId) {
-        self.instance_buffer.remove(mesh_id);
-        self.indirect_buffer.remove(mesh_id);
-    }
-
-    pub fn send_to_gpu(&mut self, context: &RenderContext) {
-        self.instance_buffer.send_to_gpu(context);
-        self.indirect_buffer.send_to_gpu(context);
     }
 }

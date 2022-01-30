@@ -12,6 +12,11 @@ use sabi_serialize::{read_from_file, SerializeFile};
 pub type MeshId = ResourceId;
 
 #[derive(Clone)]
+pub struct OnMeshCreateData {
+    pub parent_matrix: Matrix4,
+}
+
+#[derive(Clone)]
 pub struct Mesh {
     path: PathBuf,
     data: MeshData,
@@ -32,7 +37,7 @@ impl Default for Mesh {
             material: None,
             draw_area: [0., 0., f32::MAX, f32::MAX].into(),
             is_visible: true,
-            is_dirty: true,
+            is_dirty: false,
             draw_index: INVALID_INDEX,
         }
     }
@@ -53,13 +58,14 @@ impl SerializableResource for Mesh {
 
 impl DataTypeResource for Mesh {
     type DataType = MeshData;
-    type OnCreateData = ();
+    type OnCreateData = OnMeshCreateData;
 
     fn is_initialized(&self) -> bool {
         !self.data.vertices.is_empty()
     }
 
     fn invalidate(&mut self) -> &mut Self {
+        self.data = MeshData::default();
         self.is_dirty = true;
         self
     }
@@ -70,16 +76,13 @@ impl DataTypeResource for Mesh {
         &mut self,
         _shared_data_rc: &SharedDataRc,
         _id: &MeshId,
-        _on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
+        on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
     ) {
-    }
-    fn on_destroy(&mut self, _shared_data: &SharedData, id: &MeshId) {
-        if let Some(material) = &self.material {
-            if let Some(pipeline) = material.get().pipeline() {
-                pipeline.get_mut().remove_mesh(id);
-            }
+        if let Some(on_create_data) = on_create_data {
+            self.set_matrix(on_create_data.parent_matrix);
         }
     }
+    fn on_destroy(&mut self, _shared_data: &SharedData, _id: &MeshId) {}
 
     fn create_from_data(
         shared_data: &SharedDataRc,
@@ -104,6 +107,7 @@ impl DataTypeResource for Mesh {
         Self {
             data,
             material,
+            is_dirty: true,
             ..Default::default()
         }
     }

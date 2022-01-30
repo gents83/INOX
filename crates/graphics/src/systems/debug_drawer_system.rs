@@ -173,13 +173,15 @@ impl DebugDrawerSystem {
             generate_random_uid(),
             MeshData::default(),
         );
-
+        //println!("DebugDrawerMesh {:?}", mesh_instance.id());
         let wireframe_mesh_instance = Mesh::new_resource(
             shared_data,
             global_messenger,
             generate_random_uid(),
             MeshData::default(),
         );
+        //println!("DebugDrawerWireframeMesh {:?}", wireframe_mesh_instance.id());
+
         let message_channel = MessageChannel::default();
 
         global_messenger
@@ -311,10 +313,14 @@ impl DebugDrawerSystem {
             }
         });
         self.update_materials();
-        self.mesh_instance.get_mut().set_mesh_data(mesh_data);
-        self.wireframe_mesh_instance
-            .get_mut()
-            .set_mesh_data(wireframe_mesh_data);
+        if !mesh_data.vertices.is_empty() {
+            self.mesh_instance.get_mut().set_mesh_data(mesh_data);
+        }
+        if !wireframe_mesh_data.vertices.is_empty() {
+            self.wireframe_mesh_instance
+                .get_mut()
+                .set_mesh_data(wireframe_mesh_data);
+        }
     }
 
     fn update_materials(&mut self) {

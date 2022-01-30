@@ -4,7 +4,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use sabi_graphics::{Light, Mesh, OnLightCreateData};
+use sabi_graphics::{Light, Mesh, OnLightCreateData, OnMeshCreateData};
 use sabi_math::{Mat4Ops, MatBase, Matrix4, Vector3};
 use sabi_messenger::MessengerRw;
 use sabi_resources::{
@@ -141,7 +141,14 @@ impl DataTypeResource for Object {
         object_data.components.iter().for_each(|component_path| {
             let path = component_path.as_path();
             if Mesh::is_matching_extension(path) {
-                let mesh = Mesh::request_load(shared_data, global_messenger, path, None);
+                let mesh = Mesh::request_load(
+                    shared_data,
+                    global_messenger,
+                    path,
+                    Some(OnMeshCreateData {
+                        parent_matrix: object_data.transform,
+                    }),
+                );
                 object.add_component::<Mesh>(mesh);
             } else if Camera::is_matching_extension(path) {
                 let camera = Camera::request_load(
@@ -357,7 +364,9 @@ impl Object {
             }
         }
         if let Some(mesh) = self.component::<Mesh>() {
-            mesh.get_mut().set_matrix(self.transform);
+            if mesh.get().matrix() != self.transform {
+                mesh.get_mut().set_matrix(self.transform);
+            }
         }
     }
 }
