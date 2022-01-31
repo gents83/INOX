@@ -50,6 +50,7 @@ impl DataTypeResource for RenderPass {
     fn on_create(
         &mut self,
         _shared_data_rc: &SharedDataRc,
+        _messenger: &MessengerRw,
         _id: &RenderPassId,
         _on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
     ) {
@@ -144,7 +145,7 @@ impl RenderPass {
 
     pub fn draw(&mut self, render_pass_context: RenderPassDrawContext) {
         let graphics_mesh = render_pass_context.graphics_mesh;
-        if graphics_mesh.vertex_count() == 0 {
+        if graphics_mesh.vertex_count() == 0 || graphics_mesh.vertex_buffer().is_none() {
             return;
         }
         let mut pipelines = self
@@ -191,7 +192,7 @@ impl RenderPass {
                         render_pass_context.format,
                     );
                 }
-                if pipeline.is_initialized() {
+                if pipeline.is_initialized() && graphics_mesh.instance_buffer(pipeline_id).is_some() {
                     render_pass.set_pipeline(pipeline.render_pipeline());
                     if let Some(buffer_slice) = graphics_mesh.vertex_buffer() {
                         render_pass.set_vertex_buffer(0, buffer_slice);
@@ -216,7 +217,7 @@ impl RenderPass {
                             for i in 0..instance_count as u32 {
                                 if let Some(index) = instance_data.iter().position(|instance| instance.id == i) {
                                     let instance_data = instance_data[index];
-                                    if let Some(indirect_command) = graphics_mesh.indirect(index, pipeline_id) {
+                                    if let Some(indirect_command) = graphics_mesh.indirect(index as _, pipeline_id) {
                                         let x = (instance_data.draw_area[0] as u32)
                                             .clamp(0, render_pass_context.context.config.width);
                                         let y = (instance_data.draw_area[1] as u32)

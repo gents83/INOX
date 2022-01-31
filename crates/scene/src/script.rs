@@ -54,6 +54,7 @@ impl DataTypeResource for Script {
     fn on_create(
         &mut self,
         shared_data_rc: &SharedDataRc,
+        _messenger: &MessengerRw,
         _id: &ObjectId,
         on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
     ) {

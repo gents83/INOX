@@ -80,6 +80,7 @@ impl DataTypeResource for Material {
     fn on_create(
         &mut self,
         _shared_data_rc: &SharedDataRc,
+        _messenger: &MessengerRw,
         _id: &MaterialId,
         _on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
     ) {

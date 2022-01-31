@@ -1,5 +1,5 @@
-pub use self::data_buffer::*;
+pub use self::gpu_buffer::*;
 pub use self::graphics_mesh::*;
 
-mod data_buffer;
+mod gpu_buffer;
 mod graphics_mesh;

@@ -20,6 +20,7 @@ impl ResourceTrait for Hitbox {
     fn on_create_resource(
         &mut self,
         _shared_data: &SharedDataRc,
+        _messenger: &MessengerRw,
         _id: &ResourceId,
         _on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
     ) where

@@ -3,7 +3,7 @@ use crate::{
     RenderPassDrawContext, ShaderData, Texture, TextureHandler,
 };
 use sabi_math::{matrix4_to_array, Matrix4, Vector2};
-use sabi_resources::{DataTypeResource, HashIndexer};
+use sabi_resources::{DataTypeResource, HashIndexer, Resource};
 
 use sabi_platform::Handle;
 use sabi_resources::{SharedData, SharedDataRc};
@@ -140,7 +140,6 @@ impl Renderer {
 
         self.init_render_passes();
         self.init_materials();
-        self.init_meshes();
         self.init_textures();
         self.init_lights();
 
@@ -191,6 +190,20 @@ impl Renderer {
         self.recreate();
     }
 
+    pub fn on_mesh_added(&mut self, mesh: &Resource<Mesh>) {
+        if mesh.get().is_visible()
+            && !mesh.get().mesh_data().vertices.is_empty()
+            && self.graphics_mesh.add_mesh(mesh.id(), &mesh.get())
+        {
+            mesh.get_mut().init();
+        }
+    }
+    pub fn on_mesh_changed(&mut self, mesh_id: &MeshId) {
+        self.on_mesh_removed(mesh_id);
+        if let Some(mesh) = self.shared_data.get_resource::<Mesh>(mesh_id) {
+            self.on_mesh_added(&mesh);
+        }
+    }
     pub fn on_mesh_removed(&mut self, mesh_id: &MeshId) {
         self.graphics_mesh.remove_mesh(mesh_id);
     }
@@ -271,27 +284,6 @@ impl Renderer {
             .for_each_resource_mut(|_h, r: &mut RenderPass| {
                 if !r.is_initialized() {
                     r.init(render_context, texture_handler);
-                }
-            });
-    }
-    fn init_meshes(&mut self) {
-        sabi_profiler::scoped_profile!("renderer::init_meshes");
-
-        let graphic_mesh = &mut self.graphics_mesh;
-        self.shared_data
-            .for_each_resource_mut(|handle, m: &mut Mesh| {
-                if m.is_dirty() {
-                    if m.is_visible() && !m.mesh_data().vertices.is_empty() {
-                        //println!("Adding Mesh {:?}", handle.id());
-                        if graphic_mesh.add_mesh(handle.id(), m) {
-                            m.init();
-                        }
-                    } else {
-                        //println!("Removing Mesh {:?}", handle.id());
-                        graphic_mesh.remove_mesh(handle.id());
-                        m.invalidate();
-                        m.init();
-                    }
                 }
             });
     }

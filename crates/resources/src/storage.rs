@@ -6,8 +6,8 @@ use std::{
 use sabi_messenger::{GlobalMessenger, MessengerRw};
 
 use crate::{
-    swap_resource, Handle, Resource, ResourceCreatedEvent, ResourceDestroyedEvent, ResourceHandle,
-    ResourceId, ResourceTrait, SharedData,
+    swap_resource, Handle, Resource, ResourceEvent, ResourceHandle, ResourceId, ResourceTrait,
+    SharedData,
 };
 
 pub trait TypedStorage: Send + Sync + Any {
@@ -103,9 +103,7 @@ where
     ) {
         if let Some(index) = self.resources.iter().position(|r| r.id() == resource_id) {
             let resource = self.resources.remove(index);
-            messenger.send_event(ResourceDestroyedEvent {
-                resource: resource.clone(),
-            });
+            messenger.send_event(ResourceEvent::<T>::Destroyed(*resource.id()));
             resource
                 .get_mut()
                 .on_destroy_resource(shared_data, messenger, resource_id);
@@ -155,9 +153,7 @@ where
         if self.resources.iter().any(|r| r.id() == &resource_id) {
             self.pending.push(handle.clone());
         } else {
-            messenger.send_event(ResourceCreatedEvent {
-                resource: handle.clone(),
-            });
+            messenger.send_event(ResourceEvent::<T>::Created(handle.clone()));
             self.resources.push(handle.clone());
         }
         handle

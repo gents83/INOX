@@ -40,6 +40,7 @@ impl DataTypeResource for View {
     fn on_create(
         &mut self,
         _shared_data_rc: &SharedDataRc,
+        _messenger: &MessengerRw,
         _id: &ViewId,
         _on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
     ) {

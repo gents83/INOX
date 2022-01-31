@@ -113,6 +113,7 @@ impl DataTypeResource for Camera {
     fn on_create(
         &mut self,
         shared_data_rc: &SharedDataRc,
+        _messenger: &MessengerRw,
         _id: &CameraId,
         on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
     ) {

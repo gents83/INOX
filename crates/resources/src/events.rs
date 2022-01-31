@@ -1,7 +1,4 @@
-use std::{
-    marker::PhantomData,
-    path::{Path, PathBuf},
-};
+use std::{marker::PhantomData, path::PathBuf};
 
 use sabi_commands::CommandParser;
 use sabi_messenger::{implement_message, Message, MessageFromString, MessengerRw};
@@ -33,92 +30,36 @@ where
     }
 }
 
-pub struct ResourceCreatedEvent<T>
+pub enum ResourceEvent<T>
 where
     T: ResourceTrait,
 {
-    pub resource: Resource<T>,
+    Load(PathBuf, Option<<T as ResourceTrait>::OnCreateData>),
+    Created(Resource<T>),
+    Changed(ResourceId),
+    Destroyed(ResourceId),
 }
-implement_message!(ResourceCreatedEvent<ResourceTrait>);
+implement_message!(ResourceEvent<ResourceTrait>);
 
-impl<T> Clone for ResourceCreatedEvent<T>
-where
-    T: ResourceTrait,
-{
-    fn clone(&self) -> Self {
-        Self {
-            resource: self.resource.clone(),
-        }
-    }
-}
-
-impl<T> MessageFromString for ResourceCreatedEvent<T>
-where
-    T: ResourceTrait,
-{
-    fn from_command_parser(_command_parser: CommandParser) -> Option<Box<dyn Message>>
-    where
-        Self: Sized,
-    {
-        None
-    }
-}
-
-pub struct ResourceDestroyedEvent<T>
-where
-    T: ResourceTrait,
-{
-    pub resource: Resource<T>,
-}
-implement_message!(ResourceDestroyedEvent<ResourceTrait>);
-
-impl<T> Clone for ResourceDestroyedEvent<T>
+impl<T> Clone for ResourceEvent<T>
 where
     T: ResourceTrait,
 {
     fn clone(&self) -> Self {
-        Self {
-            resource: self.resource.clone(),
+        match self {
+            ResourceEvent::Load(path, on_create_data) => {
+                ResourceEvent::Load(path.clone(), on_create_data.clone())
+            }
+            ResourceEvent::Created(resource) => ResourceEvent::Created(resource.clone()),
+            ResourceEvent::Changed(id) => ResourceEvent::Changed(*id),
+            ResourceEvent::Destroyed(id) => ResourceEvent::Destroyed(*id),
         }
     }
 }
+unsafe impl<T> Send for ResourceEvent<T> where T: ResourceTrait {}
+unsafe impl<T> Sync for ResourceEvent<T> where T: ResourceTrait {}
 
-impl<T> MessageFromString for ResourceDestroyedEvent<T>
-where
-    T: ResourceTrait,
-{
-    fn from_command_parser(_command_parser: CommandParser) -> Option<Box<dyn Message>>
-    where
-        Self: Sized,
-    {
-        None
-    }
-}
-
-pub struct LoadResourceEvent<T>
-where
-    T: SerializableResource,
-{
-    path: PathBuf,
-    creation_data: Option<<T as ResourceTrait>::OnCreateData>,
-    resource_type: PhantomData<T>,
-}
-implement_message!(LoadResourceEvent<SerializableResource>);
-
-impl<T> Clone for LoadResourceEvent<T>
-where
-    T: SerializableResource,
-{
-    fn clone(&self) -> Self {
-        Self {
-            path: self.path.clone(),
-            creation_data: self.creation_data.clone(),
-            resource_type: PhantomData::<T>::default(),
-        }
-    }
-}
-
-impl<T> MessageFromString for LoadResourceEvent<T>
+impl<T> MessageFromString for ResourceEvent<T>
 where
     T: SerializableResource,
 {
@@ -135,43 +76,22 @@ where
                 .to_str()
                 .unwrap_or_default();
             if extension == T::extension() {
-                return Some(LoadResourceEvent::<T>::new(path.as_path(), None).as_boxed());
+                return Some(
+                    ResourceEvent::<T>::Load(path.as_path().to_path_buf(), None).as_boxed(),
+                );
             }
         }
         None
     }
 }
 
-unsafe impl<T> Send for LoadResourceEvent<T> where T: SerializableResource {}
-unsafe impl<T> Sync for LoadResourceEvent<T> where T: SerializableResource {}
-
-impl<T> LoadResourceEvent<T>
-where
-    T: SerializableResource,
-{
-    pub fn new(path: &Path, creation_data: Option<<T as ResourceTrait>::OnCreateData>) -> Self {
-        Self {
-            resource_type: PhantomData::<T>::default(),
-            path: path.to_path_buf(),
-            creation_data,
-        }
-    }
-
-    pub fn path(&self) -> &Path {
-        self.path.as_path()
-    }
-    pub fn on_create_data(&self) -> Option<&<T as ResourceTrait>::OnCreateData> {
-        self.creation_data.as_ref()
-    }
-}
-
 #[derive(Clone)]
-pub struct UpdateResourceEvent {
+pub struct ReloadEvent {
     pub path: PathBuf,
 }
-implement_message!(UpdateResourceEvent);
+implement_message!(ReloadEvent);
 
-impl MessageFromString for UpdateResourceEvent {
+impl MessageFromString for ReloadEvent {
     fn from_command_parser(command_parser: CommandParser) -> Option<Box<dyn Message>>
     where
         Self: Sized,
@@ -179,7 +99,7 @@ impl MessageFromString for UpdateResourceEvent {
         if command_parser.has("reload_file") {
             let values = command_parser.get_values_of::<String>("reload_file");
             return Some(
-                UpdateResourceEvent {
+                ReloadEvent {
                     path: PathBuf::from(values[0].as_str()),
                 }
                 .as_boxed(),
@@ -212,9 +132,7 @@ where
     T: SerializableResource,
 {
     fn is_handled(&self, msg: &dyn Message) -> bool {
-        msg.as_any()
-            .downcast_ref::<LoadResourceEvent<T>>()
-            .is_some()
+        msg.as_any().downcast_ref::<ResourceEvent<T>>().is_some()
     }
 
     fn handle_event(
@@ -223,13 +141,15 @@ where
         global_messenger: &MessengerRw,
         msg: &dyn Message,
     ) -> bool {
-        if let Some(e) = msg.as_any().downcast_ref::<LoadResourceEvent<T>>() {
-            if T::is_matching_extension(e.path.as_path()) {
+        if let Some(ResourceEvent::Load(path, on_create_data)) =
+            msg.as_any().downcast_ref::<ResourceEvent<T>>()
+        {
+            if T::is_matching_extension(path.as_path()) {
                 T::create_from_file(
                     shared_data,
                     global_messenger,
-                    e.path.as_path(),
-                    e.clone().on_create_data(),
+                    path.as_path(),
+                    on_create_data.as_ref(),
                 );
                 return true;
             }

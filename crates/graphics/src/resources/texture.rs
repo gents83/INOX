@@ -55,6 +55,7 @@ impl DataTypeResource for Texture {
     fn on_create(
         &mut self,
         _shared_data_rc: &SharedDataRc,
+        _messenger: &MessengerRw,
         _id: &TextureId,
         _on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
     ) {

@@ -5,7 +5,7 @@ use sabi_math::{Matrix4, VecBase, Vector2, Vector3};
 use sabi_messenger::{read_messages, GlobalMessenger, MessageChannel, MessengerRw};
 
 use sabi_platform::{InputState, Key, KeyEvent, MouseEvent, WindowEvent};
-use sabi_resources::{LoadResourceEvent, Resource, SerializableResource, SharedDataRc};
+use sabi_resources::{Resource, ResourceEvent, SerializableResource, SharedDataRc};
 use sabi_scene::{Camera, Object, ObjectId, Scene, Script};
 use sabi_serialize::generate_random_uid;
 use std::{any::TypeId, collections::HashMap, path::PathBuf};
@@ -90,7 +90,7 @@ impl System for ViewerSystem {
             .register_messagebox::<KeyEvent>(self.message_channel.get_messagebox())
             .register_messagebox::<MouseEvent>(self.message_channel.get_messagebox())
             .register_messagebox::<WindowEvent>(self.message_channel.get_messagebox())
-            .register_messagebox::<LoadResourceEvent<Scene>>(self.message_channel.get_messagebox());
+            .register_messagebox::<ResourceEvent<Scene>>(self.message_channel.get_messagebox());
 
         self._view_3d = Some(View3D::new(&self.shared_data, &self.global_messenger));
     }
@@ -138,9 +138,7 @@ impl System for ViewerSystem {
             .unregister_messagebox::<KeyEvent>(self.message_channel.get_messagebox())
             .unregister_messagebox::<MouseEvent>(self.message_channel.get_messagebox())
             .unregister_messagebox::<WindowEvent>(self.message_channel.get_messagebox())
-            .unregister_messagebox::<LoadResourceEvent<Scene>>(
-                self.message_channel.get_messagebox(),
-            );
+            .unregister_messagebox::<ResourceEvent<Scene>>(self.message_channel.get_messagebox());
     }
 }
 
@@ -271,13 +269,13 @@ impl ViewerSystem {
                         );
                     });
                 }
-            } else if msg.type_id() == TypeId::of::<LoadResourceEvent<Scene>>() {
-                let event = msg
-                    .as_any()
-                    .downcast_ref::<LoadResourceEvent<Scene>>()
-                    .unwrap();
-                if let Some(scene_path) = event.path().to_str() {
-                    self.load_scene(scene_path);
+            } else if msg.type_id() == TypeId::of::<ResourceEvent<Scene>>() {
+                if let Some(ResourceEvent::<Scene>::Load(path, _option)) =
+                    msg.as_any().downcast_ref::<ResourceEvent<Scene>>()
+                {
+                    if let Some(scene_path) = path.to_str() {
+                        self.load_scene(scene_path);
+                    }
                 }
             }
         });

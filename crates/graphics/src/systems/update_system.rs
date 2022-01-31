@@ -5,8 +5,8 @@ use sabi_core::{JobHandlerRw, System};
 use sabi_messenger::{read_messages, MessageChannel, MessengerRw};
 use sabi_platform::WindowEvent;
 use sabi_resources::{
-    ConfigBase, DataTypeResource, Resource, ResourceDestroyedEvent, SerializableResource,
-    SharedData, SharedDataRc, UpdateResourceEvent,
+    ConfigBase, DataTypeResource, Resource, ResourceEvent, SerializableResource, SharedData,
+    SharedDataRc, ReloadEvent,
 };
 use sabi_serialize::{generate_random_uid, read_from_file};
 
@@ -34,12 +34,6 @@ impl UpdateSystem {
         job_handler: &JobHandlerRw,
     ) -> Self {
         let message_channel = MessageChannel::default();
-        global_messenger
-            .write()
-            .unwrap()
-            .register_messagebox::<WindowEvent>(message_channel.get_messagebox())
-            .register_messagebox::<UpdateResourceEvent>(message_channel.get_messagebox())
-            .register_messagebox::<ResourceDestroyedEvent<Mesh>>(message_channel.get_messagebox());
 
         crate::register_resource_types(shared_data);
         Self {
@@ -72,8 +66,8 @@ impl UpdateSystem {
                     let mut renderer = self.renderer.write().unwrap();
                     renderer.set_surface_size(*width, *height);
                 }
-            } else if msg.type_id() == TypeId::of::<UpdateResourceEvent>() {
-                let e = msg.as_any().downcast_ref::<UpdateResourceEvent>().unwrap();
+            } else if msg.type_id() == TypeId::of::<ReloadEvent>() {
+                let e = msg.as_any().downcast_ref::<ReloadEvent>().unwrap();
                 let path = e.path.as_path();
                 if is_shader(path) {
                     SharedData::for_each_resource_mut(&self.shared_data, |_, p: &mut Pipeline| {
@@ -86,15 +80,20 @@ impl UpdateSystem {
                         }
                     });
                 }
-            } else if msg.type_id() == TypeId::of::<ResourceDestroyedEvent<Mesh>>() {
-                let e = msg
-                    .as_any()
-                    .downcast_ref::<ResourceDestroyedEvent<Mesh>>()
-                    .unwrap();
-                self.renderer
-                    .write()
-                    .unwrap()
-                    .on_mesh_removed(e.resource.id());
+            } else if msg.type_id() == TypeId::of::<ResourceEvent<Mesh>>() {
+                let e = msg.as_any().downcast_ref::<ResourceEvent<Mesh>>().unwrap();
+                match e {
+                    ResourceEvent::Created(resource) => {
+                        self.renderer.write().unwrap().on_mesh_added(resource);
+                    }
+                    ResourceEvent::Changed(id) => {
+                        self.renderer.write().unwrap().on_mesh_changed(id);
+                    }
+                    ResourceEvent::Destroyed(id) => {
+                        self.renderer.write().unwrap().on_mesh_removed(id);
+                    }
+                    _ => {}
+                }
             }
         });
     }
@@ -120,7 +119,14 @@ impl System for UpdateSystem {
     fn should_run_when_not_focused(&self) -> bool {
         false
     }
-    fn init(&mut self) {}
+    fn init(&mut self) {
+        self.global_messenger
+            .write()
+            .unwrap()
+            .register_messagebox::<WindowEvent>(self.message_channel.get_messagebox())
+            .register_messagebox::<ReloadEvent>(self.message_channel.get_messagebox())
+            .register_messagebox::<ResourceEvent<Mesh>>(self.message_channel.get_messagebox());
+    }
 
     fn run(&mut self) -> bool {
         let state = self.renderer.read().unwrap().state();
@@ -148,5 +154,12 @@ impl System for UpdateSystem {
 
         true
     }
-    fn uninit(&mut self) {}
+    fn uninit(&mut self) {
+        self.global_messenger
+            .write()
+            .unwrap()
+            .unregister_messagebox::<WindowEvent>(self.message_channel.get_messagebox())
+            .unregister_messagebox::<ReloadEvent>(self.message_channel.get_messagebox())
+            .unregister_messagebox::<ResourceEvent<Mesh>>(self.message_channel.get_messagebox());
+    }
 }

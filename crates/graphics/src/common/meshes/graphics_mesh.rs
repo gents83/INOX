@@ -50,7 +50,7 @@ impl GraphicsMesh {
     pub fn has_mesh(&mut self, mesh_id: &MeshId) -> bool {
         self.vertex_buffer.get(mesh_id).is_some()
     }
-    pub fn add_mesh(&mut self, mesh_id: &MeshId, mesh: &mut Mesh) -> bool {
+    pub fn add_mesh(&mut self, mesh_id: &MeshId, mesh: &Mesh) -> bool {
         let mesh_data = mesh.mesh_data();
         if mesh_data.vertices.is_empty() {
             self.vertex_buffer.remove(mesh_id);
@@ -117,19 +117,19 @@ impl GraphicsMesh {
         }
         None
     }
-    pub fn instances(&self, pipeline_id: &PipelineId) -> Option<&[InstanceData]> {
+    pub fn instances(&self, pipeline_id: &PipelineId) -> Option<Vec<&InstanceData>> {
         if let Some(buffer) = self.instance_buffers.get(pipeline_id) {
-            return Some(buffer.data());
+            return Some(buffer.occupied_data());
         }
         None
     }
     pub fn indirect(
         &self,
-        index: usize,
+        index: u32,
         pipeline_id: &PipelineId,
     ) -> Option<&wgpu::util::DrawIndexedIndirect> {
         if let Some(buffer) = self.indirect_buffers.get(pipeline_id) {
-            return Some(&buffer.data()[index]);
+            return Some(buffer.data_at_index(index));
         }
         None
     }

@@ -2,12 +2,12 @@ use std::path::{Path, PathBuf};
 
 use crate::{Material, MeshData, INVALID_INDEX};
 use sabi_math::{MatBase, Matrix4, Vector4};
-use sabi_messenger::MessengerRw;
+use sabi_messenger::{GlobalMessenger, MessengerRw};
 use sabi_resources::{
-    DataTypeResource, Handle, Resource, ResourceId, ResourceTrait, SerializableResource,
-    SharedData, SharedDataRc,
+    DataTypeResource, Handle, Resource, ResourceEvent, ResourceId, ResourceTrait,
+    SerializableResource, SharedData, SharedDataRc,
 };
-use sabi_serialize::{read_from_file, SerializeFile};
+use sabi_serialize::{read_from_file, SerializeFile, INVALID_UID};
 
 pub type MeshId = ResourceId;
 
@@ -18,7 +18,10 @@ pub struct OnMeshCreateData {
 
 #[derive(Clone)]
 pub struct Mesh {
+    id: MeshId,
     path: PathBuf,
+    messenger: Option<MessengerRw>,
+    shared_data: Option<SharedDataRc>,
     data: MeshData,
     matrix: Matrix4,
     material: Handle<Material>,
@@ -31,7 +34,10 @@ pub struct Mesh {
 impl Default for Mesh {
     fn default() -> Self {
         Self {
+            id: INVALID_UID,
             path: PathBuf::new(),
+            messenger: None,
+            shared_data: None,
             data: MeshData::default(),
             matrix: Matrix4::default_identity(),
             material: None,
@@ -66,7 +72,7 @@ impl DataTypeResource for Mesh {
 
     fn invalidate(&mut self) -> &mut Self {
         self.data = MeshData::default();
-        self.is_dirty = true;
+        self.mark_as_dirty();
         self
     }
     fn deserialize_data(path: &Path) -> Self::DataType {
@@ -75,6 +81,7 @@ impl DataTypeResource for Mesh {
     fn on_create(
         &mut self,
         _shared_data_rc: &SharedDataRc,
+        _messenger: &MessengerRw,
         _id: &MeshId,
         on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
     ) {
@@ -87,7 +94,7 @@ impl DataTypeResource for Mesh {
     fn create_from_data(
         shared_data: &SharedDataRc,
         global_messenger: &MessengerRw,
-        _id: ResourceId,
+        id: ResourceId,
         data: Self::DataType,
     ) -> Self
     where
@@ -105,6 +112,9 @@ impl DataTypeResource for Mesh {
             None
         };
         Self {
+            id,
+            messenger: Some(global_messenger.clone()),
+            shared_data: Some(shared_data.clone()),
             data,
             material,
             is_dirty: true,
@@ -120,6 +130,13 @@ impl Mesh {
     pub fn is_dirty(&self) -> bool {
         self.is_dirty
     }
+    fn mark_as_dirty(&mut self) -> &mut Self {
+        self.is_dirty = true;
+        if let Some(messenger) = &self.messenger {
+            messenger.send_event(ResourceEvent::<Mesh>::Changed(self.id));
+        }
+        self
+    }
     pub fn find_from_path(shared_data: &SharedDataRc, path: &Path) -> Handle<Self> {
         SharedData::match_resource(shared_data, |m: &Mesh| m.path() == path)
     }
@@ -131,27 +148,27 @@ impl Mesh {
     }
     pub fn set_visible(&mut self, is_visible: bool) -> &mut Self {
         self.is_visible = is_visible;
-        self.is_dirty = true;
+        self.mark_as_dirty();
         self
     }
     pub fn set_draw_area(&mut self, draw_area: Vector4) -> &mut Self {
         self.draw_area = draw_area;
-        self.is_dirty = true;
+        self.mark_as_dirty();
         self
     }
     pub fn set_matrix(&mut self, transform: Matrix4) -> &mut Self {
         self.matrix = transform;
-        self.is_dirty = true;
+        self.mark_as_dirty();
         self
     }
     pub fn set_mesh_data(&mut self, mesh_data: MeshData) -> &mut Self {
         self.data = mesh_data;
-        self.is_dirty = true;
+        self.mark_as_dirty();
         self
     }
     pub fn set_material(&mut self, material: Resource<Material>) -> &mut Self {
         self.material = Some(material);
-        self.is_dirty = true;
+        self.mark_as_dirty();
         self
     }
     pub fn material(&self) -> &Handle<Material> {

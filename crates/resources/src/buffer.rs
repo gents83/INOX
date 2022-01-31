@@ -130,9 +130,9 @@ where
         self.data[start..(start + data.len())]
             .clone_from_slice(&data[..((start + data.len()) - start)]);
     }
-    pub fn swap(&mut self, index: usize, other: usize) {
+    pub fn swap(&mut self, index: usize, other: usize) -> bool {
         if index == other {
-            return;
+            return false;
         }
         debug_assert!(index <= self.data.len());
         debug_assert!(other <= self.data.len());
@@ -145,14 +145,18 @@ where
                 self.occupied[index_b].end =
                     index + (self.occupied[index_b].end - self.occupied[index_b].start);
                 self.occupied[index_b].start = index;
+                return true;
             }
         }
+        false
     }
     pub fn last(&self) -> Option<&BufferData> {
         self.occupied.last()
     }
     pub fn clear(&mut self) {
         self.occupied.clear();
+        self.data.clear();
+        self.free.clear();
     }
     pub fn len(&self) -> usize {
         self.data.len()
@@ -173,7 +177,6 @@ where
         if let Some(index) = self.occupied.iter().position(|d| d.id == *id) {
             let data = self.occupied.remove(index);
             self.free.push(data);
-            self.collapse_free();
             return true;
         }
         false
@@ -187,7 +190,18 @@ where
     pub fn is_full(&self) -> bool {
         !self.occupied.is_empty() && self.free.is_empty()
     }
-    pub fn data(&self) -> &[T] {
+    pub fn occupied_data(&self) -> Vec<&T> {
+        self.occupied
+            .iter()
+            .map(|b| self.data[b.start..(b.end + 1)].iter().collect::<Vec<_>>())
+            .flatten()
+            .collect::<Vec<&T>>()
+    }
+    pub fn data_at_index(&self, index: usize) -> &T {
+        debug_assert!(index < self.data.len());
+        self.data[index..(index + 1)].first().unwrap()
+    }
+    pub fn total_data(&self) -> &[T] {
         &self.data
     }
     pub fn collapse_free(&mut self) {
@@ -320,7 +334,7 @@ fn test_buffer() {
     );
 
     assert_eq!(
-        buffer.data().len(),
+        buffer.total_data().len(),
         mesh.data.len() * meshes.len(),
         "Allocator should hold {} quad",
         meshes.len()

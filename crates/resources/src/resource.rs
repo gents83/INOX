@@ -18,6 +18,7 @@ where
     fn on_create_resource(
         &mut self,
         shared_data: &SharedDataRc,
+        messenger: &MessengerRw,
         id: &ResourceId,
         on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
     ) where

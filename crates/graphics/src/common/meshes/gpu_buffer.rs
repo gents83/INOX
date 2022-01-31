@@ -48,13 +48,10 @@ where
     T: Clone,
 {
     pub fn add(&mut self, id: &ResourceId, value: &[T]) -> u32 {
-        let mut is_removed = false;
         if self.cpu_buffer.get(id).is_some() {
             self.remove(id);
-            is_removed = true;
         }
-        self.is_realloc_needed = self.cpu_buffer.allocate(id, value);
-        self.is_realloc_needed |= is_removed;
+        self.is_realloc_needed |= self.cpu_buffer.allocate(id, value);
         self.is_dirty = true;
 
         self.cpu_buffer.get(id).unwrap().start as _
@@ -64,7 +61,9 @@ where
         self.is_dirty = true;
     }
     pub fn swap(&mut self, index: u32, other: u32) {
-        self.cpu_buffer.swap(index as _, other as _);
+        if self.cpu_buffer.swap(index as _, other as _) {
+            self.is_dirty = true;
+        }
     }
     pub fn get(&self, id: &ResourceId) -> Option<&BufferData> {
         self.cpu_buffer.get(id)
@@ -73,7 +72,9 @@ where
         self.cpu_buffer.get_mut(id)
     }
     pub fn remove(&mut self, id: &ResourceId) {
-        self.cpu_buffer.remove_with_id(id);
+        if self.cpu_buffer.remove_with_id(id) {
+            self.is_dirty = true;
+        }
     }
     pub fn is_empty(&self) -> bool {
         self.cpu_buffer.is_empty()
@@ -83,15 +84,17 @@ where
             buffer.destroy();
         }
         self.cpu_buffer.clear();
+        self.is_dirty = true;
+        self.is_realloc_needed = true;
     }
     pub fn send_to_gpu(&mut self, context: &RenderContext) {
         if !self.is_dirty {
             return;
         }
-        if self.is_realloc_needed {
+        if self.is_realloc_needed || self.gpu_buffer.is_none() {
             self.create_gpu_buffer(context);
         } else if let Some(buffer) = &self.gpu_buffer {
-            let data = self.cpu_buffer.data();
+            let data = self.cpu_buffer.total_data();
             if data.is_empty() {
                 return;
             }
@@ -112,7 +115,7 @@ where
         if let Some(buffer) = self.gpu_buffer.take() {
             buffer.destroy();
         }
-        let data = self.cpu_buffer.data();
+        let data = self.cpu_buffer.total_data();
         if data.is_empty() {
             self.gpu_buffer = None;
             self.is_realloc_needed = false;
@@ -132,8 +135,11 @@ where
     pub fn len(&self) -> usize {
         self.cpu_buffer.len()
     }
-    pub fn data(&self) -> &[T] {
-        self.cpu_buffer.data()
+    pub fn data_at_index(&self, index: u32) -> &T {
+        self.cpu_buffer.data_at_index(index as _)
+    }
+    pub fn occupied_data(&self) -> Vec<&T> {
+        self.cpu_buffer.occupied_data()
     }
     pub fn gpu_buffer(&self) -> Option<&wgpu::Buffer> {
         self.gpu_buffer.as_ref()

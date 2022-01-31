@@ -5,7 +5,7 @@ use std::{
 
 use sabi_filesystem::convert_in_local_path;
 use sabi_messenger::{Message, MessengerRw};
-use sabi_resources::{Data, UpdateResourceEvent};
+use sabi_resources::{Data, ReloadEvent};
 
 pub fn need_to_binarize(original_path: &Path, new_path: &Path) -> bool {
     let mut need_copy = false;
@@ -58,7 +58,7 @@ pub fn send_reloaded_event(messenger: &MessengerRw, new_path: &Path) {
         .write()
         .unwrap()
         .send(
-            UpdateResourceEvent {
+            ReloadEvent {
                 path: new_path.to_path_buf(),
             }
             .as_boxed(),
