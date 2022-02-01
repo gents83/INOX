@@ -117,11 +117,19 @@ impl GraphicsMesh {
         }
         None
     }
-    pub fn instances(&self, pipeline_id: &PipelineId) -> Option<Vec<&InstanceData>> {
+    pub fn instance_count(&self, pipeline_id: &PipelineId) -> usize {
         if let Some(buffer) = self.instance_buffers.get(pipeline_id) {
-            return Some(buffer.occupied_data());
+            return buffer.len();
         }
-        None
+        0
+    }
+    pub fn for_each_instance<F>(&self, pipeline_id: &PipelineId, f: F)
+    where
+        F: FnMut(usize, &InstanceData),
+    {
+        if let Some(buffer) = self.instance_buffers.get(pipeline_id) {
+            buffer.for_each_data(f);
+        }
     }
     pub fn indirect(
         &self,

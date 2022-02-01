@@ -98,6 +98,7 @@ where
             if data.is_empty() {
                 return;
             }
+            sabi_profiler::scoped_profile!("gpu_buffer::send_to_gpu - write_buffer");
             context.queue.write_buffer(buffer, 0, to_u8_slice(data));
         }
         self.is_dirty = false;
@@ -112,7 +113,9 @@ where
     }
 
     fn create_gpu_buffer(&mut self, context: &RenderContext) {
+        sabi_profiler::scoped_profile!("gpu_buffer::create_gpu_buffer");
         if let Some(buffer) = self.gpu_buffer.take() {
+            sabi_profiler::scoped_profile!("gpu_buffer::destroy_buffer");
             buffer.destroy();
         }
         let data = self.cpu_buffer.total_data();
@@ -135,11 +138,14 @@ where
     pub fn len(&self) -> usize {
         self.cpu_buffer.len()
     }
+    pub fn for_each_data<F>(&self, f: F)
+    where
+        F: FnMut(usize, &T),
+    {
+        self.cpu_buffer.for_each_data(f);
+    }
     pub fn data_at_index(&self, index: u32) -> &T {
         self.cpu_buffer.data_at_index(index as _)
-    }
-    pub fn occupied_data(&self) -> Vec<&T> {
-        self.cpu_buffer.occupied_data()
     }
     pub fn gpu_buffer(&self) -> Option<&wgpu::Buffer> {
         self.gpu_buffer.as_ref()

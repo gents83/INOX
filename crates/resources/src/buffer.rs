@@ -159,6 +159,13 @@ where
         self.free.clear();
     }
     pub fn len(&self) -> usize {
+        let mut count = 0;
+        self.occupied.iter().for_each(|b| {
+            count += b.end + 1 - b.start;
+        });
+        count
+    }
+    pub fn total_len(&self) -> usize {
         self.data.len()
     }
     pub fn find(&self, size: usize) -> Option<usize> {
@@ -190,12 +197,19 @@ where
     pub fn is_full(&self) -> bool {
         !self.occupied.is_empty() && self.free.is_empty()
     }
-    pub fn occupied_data(&self) -> Vec<&T> {
-        self.occupied
-            .iter()
-            .map(|b| self.data[b.start..(b.end + 1)].iter().collect::<Vec<_>>())
-            .flatten()
-            .collect::<Vec<&T>>()
+    pub fn for_each_data<F>(&self, mut f: F)
+    where
+        F: FnMut(usize, &T),
+    {
+        self.occupied.iter().for_each(|b| {
+            let func = &mut f;
+            self.data[b.start..(b.end + 1)]
+                .iter()
+                .enumerate()
+                .for_each(|(i, d)| {
+                    func(b.start + i, d);
+                });
+        });
     }
     pub fn data_at_index(&self, index: usize) -> &T {
         debug_assert!(index < self.data.len());
