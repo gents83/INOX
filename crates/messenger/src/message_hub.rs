@@ -139,6 +139,10 @@ where
             .retain(|l| l.id != *listener_id);
     }
     pub fn send_event(&self, msg: T) {
+        self.new_messages
+            .write()
+            .unwrap()
+            .retain(|other| !msg.compare_and_discard(other));
         self.new_messages.write().unwrap().push(msg);
     }
     pub fn process_messages<F>(&self, listener_id: &ListenerId, mut f: F)

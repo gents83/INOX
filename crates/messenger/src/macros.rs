@@ -1,11 +1,10 @@
 #[macro_export]
 macro_rules! implement_message {
-    ($Type:ident, $Func:ident) => {
+    ($Type:ident, $Func:ident, $Policy:ident) => {
         impl $crate::Message for $Type {
             #[inline]
-            fn send(self: Box<Self>, message_hub: &mut $crate::MessageHub) {
-                let msg = unsafe { *self };
-                message_hub.send_event(msg);
+            fn compare_and_discard(&self, other: &Self) -> bool {
+                Self::$Policy(self, other)
             }
         }
         impl $crate::MessageFromString for $Type {
@@ -18,12 +17,11 @@ macro_rules! implement_message {
             }
         }
     };
-    ($Type:ident, $RestrictedType:ident, $Func:ident) => {
+    ($Type:ident, $RestrictedType:ident, $Func:ident, $Policy:ident) => {
         impl $crate::Message for $Type {
             #[inline]
-            fn send(self: Box<Self>, message_hub: &mut $crate::MessageHub) {
-                let msg = unsafe { *self };
-                message_hub.send_event(msg);
+            fn compare_and_discard(&self, other: &Self) -> bool {
+                Self::$Policy(self, other)
             }
         }
         impl $crate::MessageFromString for $RestrictedType {
@@ -36,24 +34,22 @@ macro_rules! implement_message {
             }
         }
     };
-    ($Type:ident) => {
+    ($Type:ident, $Policy:ident) => {
         impl $crate::Message for $Type {
             #[inline]
-            fn send(self: Box<Self>, message_hub: &mut $crate::MessageHub) {
-                let msg = unsafe { *self };
-                message_hub.send_event(msg);
+            fn compare_and_discard(&self, other: &Self) -> bool {
+                Self::$Policy(self, other)
             }
         }
     };
-    ($Type:ident<$InnerType:ident>, $Func:ident) => {
+    ($Type:ident<$InnerType:ident>, $Func:ident, $Policy:ident) => {
         impl<T> $crate::Message for $Type<T>
         where
             T: $InnerType,
         {
             #[inline]
-            fn send(self: Box<Self>, message_hub: &mut $crate::MessageHub) {
-                let msg = unsafe { *self };
-                message_hub.send_event(msg);
+            fn compare_and_discard(&self, other: &Self) -> bool {
+                Self::$Policy(self, other)
             }
         }
         impl<T> $crate::MessageFromString for $Type<T>
@@ -69,15 +65,14 @@ macro_rules! implement_message {
             }
         }
     };
-    ($Type:ident<$InnerType:ident>, $SameType:ident<$RestrictedType:ident>, $Func:ident) => {
+    ($Type:ident<$InnerType:ident>, $SameType:ident<$RestrictedType:ident>, $Func:ident, $Policy:ident) => {
         impl<T> $crate::Message for $Type<T>
         where
             T: $InnerType,
         {
             #[inline]
-            fn send(self: Box<Self>, message_hub: &mut $crate::MessageHub) {
-                let msg = unsafe { *self };
-                message_hub.send_event(msg);
+            fn compare_and_discard(&self, other: &Self) -> bool {
+                Self::$Policy(self, other)
             }
         }
         impl<T> $crate::MessageFromString for $Type<T>
@@ -93,15 +88,14 @@ macro_rules! implement_message {
             }
         }
     };
-    ($Type:ident<$InnerType:ident>) => {
+    ($Type:ident<$InnerType:ident>, $Policy:ident) => {
         impl<T> $crate::Message for $Type<T>
         where
             T: $InnerType,
         {
             #[inline]
-            fn send(self: Box<Self>, message_hub: &mut $crate::MessageHub) {
-                let msg = unsafe { *self };
-                message_hub.send_event(msg);
+            fn compare_and_discard(&self, other: &Self) -> bool {
+                Self::$Policy(self, other)
             }
         }
     };

@@ -716,9 +716,16 @@ pub enum Key {
 pub struct KeyTextEvent {
     pub char: char,
 }
-implement_message!(KeyTextEvent, key_text_event_from_command_parser);
+implement_message!(
+    KeyTextEvent,
+    key_text_event_from_command_parser,
+    compare_and_discard
+);
 
 impl KeyTextEvent {
+    fn compare_and_discard(&self, _other: &Self) -> bool {
+        false
+    }
     fn key_text_event_from_command_parser(command_parser: CommandParser) -> Option<Self> {
         if command_parser.has("key_text") {
             let values = command_parser.get_values_of("key_text");
@@ -733,9 +740,12 @@ pub struct KeyEvent {
     pub code: Key,
     pub state: InputState,
 }
-implement_message!(KeyEvent, key_event_from_command_parser);
+implement_message!(KeyEvent, key_event_from_command_parser, compare_and_discard);
 
 impl KeyEvent {
+    fn compare_and_discard(&self, _other: &Self) -> bool {
+        false
+    }
     fn key_event_from_command_parser(command_parser: inox_commands::CommandParser) -> Option<Self> {
         if command_parser.has("key_pressed") {
             let values = command_parser.get_values_of("key_pressed");

@@ -52,9 +52,12 @@ pub enum DrawEvent {
     Arrow(Vector3, Vector3, Vector4, bool),     // (start, direction, color, is_wireframe)
     Sphere(Vector3, f32, Vector4, bool),        // (position, radius, color, is_wireframe)
 }
-implement_message!(DrawEvent, message_from_command_parser);
+implement_message!(DrawEvent, message_from_command_parser, compare_and_discard);
 
 impl DrawEvent {
+    fn compare_and_discard(&self, _other: &Self) -> bool {
+        false
+    }
     fn message_from_command_parser(command_parser: CommandParser) -> Option<Self>
     where
         Self: Sized,

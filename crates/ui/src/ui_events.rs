@@ -39,9 +39,16 @@ pub enum DialogEvent {
     Confirmed(DialogOp, PathBuf),
     Canceled(DialogOp),
 }
-implement_message!(DialogEvent, message_from_command_parser);
+implement_message!(
+    DialogEvent,
+    message_from_command_parser,
+    compare_and_discard
+);
 
 impl DialogEvent {
+    fn compare_and_discard(&self, _other: &Self) -> bool {
+        true
+    }
     fn message_from_command_parser(command_parser: CommandParser) -> Option<Self>
     where
         Self: Sized,

@@ -29,9 +29,16 @@ pub struct MouseEvent {
     pub button: MouseButton,
     pub state: MouseState,
 }
-implement_message!(MouseEvent, mouse_event_from_command_parser);
+implement_message!(
+    MouseEvent,
+    mouse_event_from_command_parser,
+    compare_and_discard
+);
 
 impl MouseEvent {
+    fn compare_and_discard(&self, _other: &Self) -> bool {
+        false
+    }
     fn mouse_event_from_command_parser(command_parser: CommandParser) -> Option<Self> {
         if command_parser.has("mouse_move") {
             let values = command_parser.get_values_of("mouse_move");

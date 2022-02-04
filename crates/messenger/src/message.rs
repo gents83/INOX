@@ -5,7 +5,14 @@ use inox_commands::CommandParser;
 use crate::{MessageHub, MessageHubRc};
 
 pub trait Message: Send + Sync + 'static {
-    fn send(self: Box<Self>, message_hub: &mut MessageHub);
+    #[inline]
+    fn send(self: Box<Self>, message_hub: &mut MessageHub)
+    where
+        Self: Sized,
+    {
+        let msg = *self;
+        message_hub.send_event(msg);
+    }
     #[inline]
     fn send_to(self, message_hub: &MessageHubRc)
     where
@@ -19,7 +26,7 @@ pub trait Message: Send + Sync + 'static {
     {
         None
     }
-
+    fn compare_and_discard(&self, other: &Self) -> bool;
     #[inline]
     fn get_type_name(&self) -> String {
         type_name::<Self>()

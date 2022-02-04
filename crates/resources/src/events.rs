@@ -48,11 +48,38 @@ where
 implement_message!(
     ResourceEvent<ResourceTrait>,
     ResourceEvent<SerializableResource>,
-    message_from_command_parser
+    message_from_command_parser,
+    compare_and_discard
 );
 
 unsafe impl<T> Send for ResourceEvent<T> where T: ResourceTrait {}
 unsafe impl<T> Sync for ResourceEvent<T> where T: ResourceTrait {}
+
+impl<T> ResourceEvent<T>
+where
+    T: ResourceTrait,
+{
+    fn compare_and_discard(&self, other: &Self) -> bool {
+        match self {
+            Self::Load(path, _on_create_data) => match other {
+                Self::Load(other_path, _other_on_create_data) => path == other_path,
+                _ => false,
+            },
+            Self::Created(resource) => match other {
+                Self::Created(other_resource) => resource.id() == other_resource.id(),
+                _ => false,
+            },
+            Self::Changed(id) => match other {
+                Self::Changed(other_id) => id == other_id,
+                _ => false,
+            },
+            Self::Destroyed(id) => match other {
+                Self::Destroyed(other_id) => id == other_id,
+                _ => false,
+            },
+        }
+    }
+}
 
 impl<T> ResourceEvent<T>
 where
@@ -79,9 +106,16 @@ where
 pub struct ReloadEvent {
     pub path: PathBuf,
 }
-implement_message!(ReloadEvent, message_from_command_parser);
+implement_message!(
+    ReloadEvent,
+    message_from_command_parser,
+    compare_and_discard
+);
 
 impl ReloadEvent {
+    fn compare_and_discard(&self, other: &Self) -> bool {
+        self.path == other.path
+    }
     fn message_from_command_parser(command_parser: CommandParser) -> Option<Self> {
         if command_parser.has("reload_file") {
             let values = command_parser.get_values_of::<String>("reload_file");

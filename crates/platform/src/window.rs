@@ -19,9 +19,16 @@ pub enum WindowEvent {
     RequestChangePos(u32, u32),
     RequestChangeSize(u32, u32),
 }
-implement_message!(WindowEvent, window_event_from_command_parser);
+implement_message!(
+    WindowEvent,
+    window_event_from_command_parser,
+    compare_and_discard
+);
 
 impl WindowEvent {
+    fn compare_and_discard(&self, _other: &Self) -> bool {
+        false
+    }
     fn window_event_from_command_parser(command_parser: CommandParser) -> Option<Self> {
         if command_parser.has("window_show") {
             return Some(WindowEvent::Show);
