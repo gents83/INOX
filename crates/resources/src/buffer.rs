@@ -295,6 +295,7 @@ fn test_buffer() {
     }
 
     const NUM_VERTICES: u32 = 4;
+    const NUM_MESHES: usize = 4;
 
     let mut buffer = Buffer::<Data>::default();
 
@@ -303,14 +304,14 @@ fn test_buffer() {
     mesh.add(NUM_VERTICES);
     let mut octo_mesh = Mesh::default();
     octo_mesh.add(2 * NUM_VERTICES);
-    for _ in 0..4 {
+    for _ in 0..NUM_MESHES {
         meshes.push(mesh.clone());
     }
 
     assert!(buffer.is_empty(), "Allocator should be empty");
     buffer.allocate(
-        &meshes.last().unwrap().id,
-        meshes.last().unwrap().data.as_slice(),
+        &meshes[NUM_MESHES - 1].id,
+        meshes[NUM_MESHES - 1].data.as_slice(),
     );
 
     assert_eq!(
@@ -319,18 +320,20 @@ fn test_buffer() {
         "Allocator should hold a quad"
     );
 
-    buffer.remove_with_id(&meshes.last().unwrap().id);
+    buffer.remove_with_id(&meshes[NUM_MESHES - 1].id);
 
+    assert_eq!(buffer.len(), 0, "Allocator should be 0");
     assert_eq!(
-        buffer.len(),
+        buffer.total_len(),
         NUM_VERTICES as usize,
         "Allocator should have an empty space for a quad"
     );
     assert!(buffer.is_empty(), "Allocator should be empty");
 
     buffer.defrag();
+
     assert_eq!(
-        buffer.len(),
+        buffer.total_len(),
         0,
         "Allocator should be defragged and completely empty"
     );
@@ -342,30 +345,27 @@ fn test_buffer() {
 
     assert_eq!(
         buffer.len(),
-        mesh.data.len() * meshes.len(),
+        mesh.data.len() * NUM_MESHES,
         "Allocator should hold {} quad",
-        meshes.len()
+        NUM_MESHES
     );
 
     assert_eq!(
         buffer.total_data().len(),
-        mesh.data.len() * meshes.len(),
+        mesh.data.len() * NUM_MESHES,
         "Allocator should hold {} quad",
-        meshes.len()
+        NUM_MESHES
     );
 
     buffer.remove_with_id(&meshes[1].id);
     buffer.remove_with_id(&meshes[2].id);
 
     assert_eq!(
-        buffer.len(),
-        mesh.data.len() * meshes.len(),
+        buffer.total_len(),
+        mesh.data.len() * NUM_MESHES,
         "Allocator should hold anyway {} quad",
-        meshes.len()
+        NUM_MESHES
     );
-
-    buffer.defrag();
-
     assert_eq!(
         buffer.len(),
         mesh.data.len() * 2,
@@ -376,9 +376,15 @@ fn test_buffer() {
 
     assert_eq!(
         buffer.len(),
-        mesh.data.len() * meshes.len(),
-        "Allocator should hold anyway {} quad",
-        meshes.len()
+        mesh.data.len() * NUM_MESHES,
+        "Allocator should hold anyway {} quads",
+        NUM_MESHES
+    );
+    assert_eq!(
+        buffer.total_len(),
+        mesh.data.len() * NUM_MESHES,
+        "Allocator should hold anyway {} quads",
+        NUM_MESHES
     );
     assert!(buffer.is_full(), "Allocator should be full now");
 }
