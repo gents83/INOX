@@ -2,7 +2,7 @@
 
 ## How to download _**INOX**_ repository
 
-You can clone it using [https://github.com/gents83/NRG.git](https://github.com/gents83/INOX.git)
+You can clone it using [https://github.com/gents83/INOX.git](https://github.com/gents83/INOX.git)
 
 Or you can download the zip from [here](https://github.com/gents83/INOX/archive/refs/heads/master.zip)
 
