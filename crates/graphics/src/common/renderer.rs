@@ -143,7 +143,6 @@ impl Renderer {
         self.init_textures();
         self.init_lights();
 
-        self.send_to_gpu();
         self
     }
 
@@ -353,7 +352,7 @@ impl Renderer {
             });
     }
 
-    fn send_to_gpu(&mut self) {
+    pub fn send_to_gpu(&mut self) {
         sabi_profiler::scoped_profile!("renderer::send_to_gpu");
         let render_context = &self.context;
         let graphic_mesh = &mut self.graphics_mesh;

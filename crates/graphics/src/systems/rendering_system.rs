@@ -60,6 +60,8 @@ impl System for RenderingSystem {
                 self.view.get().proj(),
                 screen_size,
             );
+
+            renderer.send_to_gpu();
         }
 
         {
