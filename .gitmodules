@@ -19,9 +19,6 @@
 [submodule "extern/ttf-parser"]
 	path = extern/ttf-parser
 	url = https://github.com/RazrFalcon/ttf-parser
-[submodule "extern/xml-rs"]
-	path = extern/xml-rs
-	url = https://github.com/netvl/xml-rs
 [submodule "extern/gltf"]
 	path = extern/gltf
 	url = https://github.com/gltf-rs/gltf
@@ -31,9 +28,6 @@
 [submodule "extern/rand"]
 	path = extern/rand
 	url = https://github.com/rust-random/rand
-[submodule "extern/rust-bindgen"]
-	path = extern/rust-bindgen
-	url = https://github.com/rust-lang/rust-bindgen
 [submodule "extern/pyo3"]
 	path = extern/pyo3
 	url = https://github.com/PyO3/pyo3
@@ -46,6 +40,3 @@
 [submodule "extern/raw-window-handle"]
 	path = extern/raw-window-handle
 	url = https://github.com/rust-windowing/raw-window-handle
-[submodule "extern/naga"]
-	path = extern/naga
-	url = https://github.com/gfx-rs/naga
