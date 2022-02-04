@@ -21,12 +21,7 @@ _**Rust**_ will give to INOX high performance, reliability and safe code, while 
 
 ## Why INOX?
 
-In Japanese languace _Sabi_ means things whose beauty stems from age. It refers to the patina of age, and the concept that changes due to use may make an object more beautiful and valuable. This also incorporates an appreciation of the cycles of life, as well as careful, artful mending of damage.
-
-So it actually resemble the concept of _Rust_ in its beauty and pure meaning.
-
-Maybe one day when the engine will be finished and fully functional it'll be possible to refer to it using Wabi-Sabi japanese expression :)
-
+Well... because even if made in Rust it should become an inoxidable game development engine :)
 
 ## Vision
 
