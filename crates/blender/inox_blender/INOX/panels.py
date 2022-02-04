@@ -4,10 +4,10 @@ from . import node_tree
 blender_classes = []
 
 
-class SABIRunner(bpy.types.Panel):
-    """SABI Runner"""
-    bl_label = "SABI"
-    bl_idname = "SABI_PT_runner"
+class INOXRunner(bpy.types.Panel):
+    """INOX Runner"""
+    bl_label = "INOX"
+    bl_idname = "INOX_PT_runner"
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_context = "render"
@@ -16,10 +16,10 @@ class SABIRunner(bpy.types.Panel):
         layout = self.layout
 
         row = layout.row()
-        row.operator("sabi.run", icon='PLAY')
+        row.operator("inox.run", icon='PLAY')
 
 
-class SABIPropertiesGroup(bpy.types.PropertyGroup):
+class INOXPropertiesGroup(bpy.types.PropertyGroup):
     def filter_on_custom_property(self, node_group):
         return node_group.bl_idname == 'LogicNodeTree'
 
@@ -33,13 +33,13 @@ class SABIPropertiesGroup(bpy.types.PropertyGroup):
         col_1 = split.column()
         col_2 = split.column()
         col_1.prop_search(self, "logic", bpy.data, "node_groups")
-        col_2.operator("sabi.open_in_logic_editor", icon='FILE_FOLDER')
+        col_2.operator("inox.open_in_logic_editor", icon='FILE_FOLDER')
 
 
-class SABIProperties(bpy.types.Panel):
-    """SABI related Object Data"""
-    bl_label = "SABI Properties"
-    bl_idname = "SABI_PT_object_data"
+class INOXProperties(bpy.types.Panel):
+    """INOX related Object Data"""
+    bl_label = "INOX Properties"
+    bl_idname = "INOX_PT_object_data"
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_context = "object"
@@ -52,9 +52,9 @@ class SABIProperties(bpy.types.Panel):
         obj.inox_properties.draw(layout, context)
 
 
-blender_classes.append(SABIRunner)
-blender_classes.append(SABIProperties)
-blender_classes.append(SABIPropertiesGroup)
+blender_classes.append(INOXRunner)
+blender_classes.append(INOXProperties)
+blender_classes.append(INOXPropertiesGroup)
 
 
 def register():
@@ -62,7 +62,7 @@ def register():
         bpy.utils.register_class(blender_class)
 
     bpy.types.Object.inox_properties = bpy.props.PointerProperty(
-        type=SABIPropertiesGroup)
+        type=INOXPropertiesGroup)
 
 
 def unregister():

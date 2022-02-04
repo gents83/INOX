@@ -107,7 +107,7 @@ class FieldData:
 
 
 def register_nodes(inox_engine):
-    from SABI import inox_blender
+    from INOX import inox_blender
     inox_blender.register_nodes(inox_engine)
 
     global RUST_NODES
@@ -126,7 +126,7 @@ def register_nodes(inox_engine):
 
 
 def create_node_from_data(node_name, base_class, category, description, serialized_class):
-    from SABI import utils
+    from INOX import utils
     base_type = utils.gettype(base_class)
 
     def extract(dictionary, is_input):
@@ -221,7 +221,7 @@ node_categories = []
 
 
 class OpenInLogicEditor(Operator):
-    bl_idname = "sabi.open_in_logic_editor"
+    bl_idname = "inox.open_in_logic_editor"
     bl_label = "Open Logic Editor"
 
     def execute(self, context):

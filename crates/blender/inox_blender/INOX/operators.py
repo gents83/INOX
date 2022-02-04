@@ -11,10 +11,10 @@ blender_classes = []
 inox_engine = None
 
 
-class SABIRun(bpy.types.Operator):
-    """Run SABI Engine"""
-    bl_idname = "sabi.run"
-    bl_label = "Run in SABI"
+class INOXRun(bpy.types.Operator):
+    """Run INOX Engine"""
+    bl_idname = "inox.run"
+    bl_label = "Run in INOX"
 
     def execute(self, context):
         # Ensure blend has been saved before running game
@@ -26,7 +26,7 @@ class SABIRun(bpy.types.Operator):
             context.window_manager.popover(draw_popup)
             return {'FINISHED'}
 
-        preferences = context.preferences.addons['SABI'].preferences
+        preferences = context.preferences.addons['INOX'].preferences
 
         file_path = join(preferences.exe_path, "*")
         for file_path in glob(file_path):
@@ -37,7 +37,7 @@ class SABIRun(bpy.types.Operator):
         if last_part.endswith('debug') or last_part.endswith('release'):
             path = path.parent.absolute().parent.absolute().parent.absolute()
 #
-        from SABI import inox_blender
+        from INOX import inox_blender
         inox_blender.start(inox_engine)
         inox_blender.export(inox_engine, str(bpy.data.filepath), True)
 
@@ -45,14 +45,14 @@ class SABIRun(bpy.types.Operator):
         return {'FINISHED'}
 
 
-blender_classes.append(SABIRun)
+blender_classes.append(INOXRun)
 
 
 def register():
     for blender_class in blender_classes:
         bpy.utils.register_class(blender_class)
 
-    prefs = bpy.context.preferences.addons['SABI'].preferences
+    prefs = bpy.context.preferences.addons['INOX'].preferences
     libs_to_load = []
     for i, v in enumerate(prefs.checkboxes):
         if v is True and i < len(prefs.libs_to_load):
@@ -60,10 +60,10 @@ def register():
 
     global inox_engine
     if inox_engine is None:
-        from SABI import inox_blender
-        from SABI import node_tree
+        from INOX import inox_blender
+        from INOX import node_tree
 
-        inox_engine = inox_blender.SABIEngine(
+        inox_engine = inox_blender.INOXEngine(
             str(prefs.exe_path), libs_to_load)
         node_tree.register_nodes(inox_engine)
 

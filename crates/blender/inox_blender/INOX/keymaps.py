@@ -1,6 +1,6 @@
 import bpy
 
-from .operators import SABIRun
+from .operators import INOXRun
 
 key_maps = []
 
@@ -11,7 +11,7 @@ def register():
     # Add F5 shortcut for running the game
     window_keymap = wm.keyconfigs.addon.keymaps.new(
         name='Window', space_type='EMPTY', region_type="WINDOW")
-    window_keymap.keymap_items.new(SABIRun.bl_idname, type='F5', value='PRESS')
+    window_keymap.keymap_items.new(INOXRun.bl_idname, type='F5', value='PRESS')
     key_maps.append(window_keymap)
 
 

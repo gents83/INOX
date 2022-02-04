@@ -31,7 +31,7 @@ unsafe impl Send for ThreadData {}
 unsafe impl Sync for ThreadData {}
 
 #[pyclass]
-pub struct SABIEngine {
+pub struct INOXEngine {
     is_running: Arc<AtomicBool>,
     exporter: Exporter,
     binarizer: Binarizer,
@@ -45,7 +45,7 @@ pub struct SABIEngine {
 }
 
 #[pymethods]
-impl SABIEngine {
+impl INOXEngine {
     #[new]
     fn new(executable_path: &str, plugins_to_load: Vec<String>) -> Self {
         let app_dir = PathBuf::from(executable_path);
@@ -101,7 +101,7 @@ impl SABIEngine {
         self.is_running.load(Ordering::SeqCst)
     }
     pub fn start(&mut self) -> PyResult<bool> {
-        println!("[Blender] SABIEngine started");
+        println!("[Blender] INOXEngine started");
 
         let path = self.app_dir.join("inox_launcher.exe");
 
@@ -136,7 +136,7 @@ impl SABIEngine {
     }
 
     pub fn stop(&mut self) {
-        println!("[Blender] SABIEngine stopped");
+        println!("[Blender] INOXEngine stopped");
         self.is_running.store(false, Ordering::SeqCst);
     }
 
@@ -188,7 +188,7 @@ fn add_node_in_blender(node: &dyn NodeType, py: Python) {
     let description = node.description();
     let serialized_class = node.serialize_node();
 
-    py.import("SABI")
+    py.import("INOX")
         .unwrap()
         .getattr("node_tree")
         .unwrap()
@@ -215,7 +215,7 @@ fn client_thread_execution(thread_data: Arc<RwLock<ThreadData>>) {
                 if let Some(file) = file {
                     let file = file.to_str().unwrap_or_default().to_string();
 
-                    println!("[Blender] SABIEngine sending to load {:?}", file);
+                    println!("[Blender] INOXEngine sending to load {:?}", file);
 
                     let message = format!("-load_file {}", file);
                     let msg = message.as_bytes();

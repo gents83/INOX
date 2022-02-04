@@ -24,12 +24,12 @@ from . import operators
 from . import panels
 
 bl_info = {
-    "name": "SABI Engine",
+    "name": "INOX Engine",
     "author": "GENTS <gents83@gmail.com>",
     "version": (0, 1, 0),
     "blender": (2, 93, 0),
     "location": "Everywhere",
-    "description": "SABI Game Engine",
+    "description": "INOX Game Engine",
     "category": "Game Engines",
 }
 
@@ -38,7 +38,7 @@ blender_classes = []
 
 
 def load_dlls():
-    preferences = bpy.context.preferences.addons['SABI'].preferences
+    preferences = bpy.context.preferences.addons['INOX'].preferences
 
     if os.path.isdir(preferences.exe_path):
         if len(preferences.libs_to_load) == 0:
@@ -47,13 +47,13 @@ def load_dlls():
                     preferences.libs_to_load.append(file)
 
 
-class SABIAddonPreferences(bpy.types.AddonPreferences):
+class INOXAddonPreferences(bpy.types.AddonPreferences):
     # this must match the add-on name, use '__package__'
     # when defining this in a submodule of a python package.
     bl_idname = __name__
 
     exe_path: bpy.props.StringProperty(
-        name="SABI folder",
+        name="INOX folder",
         description="Set folder where inox_launcher.exe can be found",
         subtype="DIR_PATH",
         default="./bin/")
@@ -76,7 +76,7 @@ class SABIAddonPreferences(bpy.types.AddonPreferences):
             column.row().prop(self, 'checkboxes', index=i, text=name)
 
 
-blender_classes.append(SABIAddonPreferences)
+blender_classes.append(INOXAddonPreferences)
 
 
 def register():
@@ -88,7 +88,7 @@ def register():
     for blender_class in blender_classes:
         bpy.utils.register_class(blender_class)
 
-    preferences = bpy.context.preferences.addons['SABI'].preferences
+    preferences = bpy.context.preferences.addons['INOX'].preferences
     load_dlls()
 
     file_path = join(preferences.exe_path, "*")

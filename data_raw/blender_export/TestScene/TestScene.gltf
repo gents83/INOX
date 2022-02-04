@@ -59,6 +59,12 @@
                         "type" : "LogicNodeTree"
                     }
                 },
+                "sabi_properties" : {
+                    "logic" : {
+                        "name" : "TestNodeTree",
+                        "type" : "LogicNodeTree"
+                    }
+                },
                 "inox_properties" : {
                     "logic" : {
                         "name" : "TestNodeTree",
@@ -94,7 +100,7 @@
                 1
             ],
             "extras" : {
-                "inox_properties" : {}
+                "sabi_properties" : {}
             },
             "name" : "Light",
             "rotation" : [
@@ -124,7 +130,7 @@
                 3
             ],
             "extras" : {
-                "inox_properties" : {}
+                "sabi_properties" : {}
             },
             "name" : "Camera",
             "rotation" : [
@@ -142,7 +148,7 @@
         {
             "extras" : {
                 "nrg_properties" : {},
-                "inox_properties" : {}
+                "sabi_properties" : {}
             },
             "mesh" : 1,
             "name" : "Suzanne",
@@ -161,7 +167,7 @@
         {
             "extras" : {
                 "nrg_properties" : {},
-                "inox_properties" : {}
+                "sabi_properties" : {}
             },
             "mesh" : 2,
             "name" : "Cone",
@@ -179,7 +185,7 @@
         },
         {
             "extras" : {
-                "inox_properties" : {}
+                "sabi_properties" : {}
             },
             "mesh" : 3,
             "name" : "Torus",
@@ -192,7 +198,7 @@
         {
             "extras" : {
                 "nrg_properties" : {},
-                "inox_properties" : {}
+                "sabi_properties" : {}
             },
             "mesh" : 4,
             "name" : "Cylinder",

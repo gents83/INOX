@@ -78,10 +78,10 @@
 			},
 		},
 		{
-			"label": "CREATE SABI FOLDER IN ADDON FOLDER",
+			"label": "CREATE INOX FOLDER IN ADDON FOLDER",
 			"type": "shell",
 			"isBackground": true,
-			"command": "New-Item -ItemType Directory -Force -Path ${env:BLENDER_ADDONS_PATH}\\SABI\\",
+			"command": "New-Item -ItemType Directory -Force -Path ${env:BLENDER_ADDONS_PATH}\\INOX\\",
 			"presentation": {
 				"clear": true,
 				"reveal": "never", //process does not switch terminal (focus on program output)
@@ -91,10 +91,10 @@
 			"label": "RENAME BLENDER DEBUG DLL IN ADDON FOLDER",
 			"type": "shell",
 			"dependsOn": [
-				"CREATE SABI FOLDER IN ADDON FOLDER",
+				"CREATE INOX FOLDER IN ADDON FOLDER",
 			],
 			"isBackground": true,
-			"command": "Copy-Item -Path ${workspaceFolder}\\crates\\target\\debug\\inox_blender.dll -Destination ${env:BLENDER_ADDONS_PATH}\\SABI\\inox_blender.pyd -Force",
+			"command": "Copy-Item -Path ${workspaceFolder}\\crates\\target\\debug\\inox_blender.dll -Destination ${env:BLENDER_ADDONS_PATH}\\INOX\\inox_blender.pyd -Force",
 			"presentation": {
 				"clear": true,
 				"reveal": "never", //process does not switch terminal (focus on program output)
@@ -108,7 +108,7 @@
 				"RENAME BLENDER DEBUG DLL IN ADDON FOLDER",
 			],
 			"isBackground": true,
-			"command": "Copy-Item -Path ${workspaceFolder}\\crates\\blender\\inox_blender\\SABI -Destination ${env:BLENDER_ADDONS_PATH} -Force -Recurse",
+			"command": "Copy-Item -Path ${workspaceFolder}\\crates\\blender\\inox_blender\\INOX -Destination ${env:BLENDER_ADDONS_PATH} -Force -Recurse",
 			"presentation": {
 				"clear": true,
 				"reveal": "never", //process does not switch terminal (focus on program output)
