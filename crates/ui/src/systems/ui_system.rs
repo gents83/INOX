@@ -11,22 +11,22 @@ use egui::{
     TextureId as eguiTextureId,
 };
 use image::RgbaImage;
-use sabi_core::{JobHandlerRw, System};
-use sabi_graphics::{
+use inox_core::{JobHandlerRw, System};
+use inox_graphics::{
     Material, Mesh, MeshData, Pipeline, Texture, TextureId, TextureType, VertexData,
 };
 
-use sabi_math::Vector4;
-use sabi_messenger::{Listener, MessageHubRc};
-use sabi_platform::{
+use inox_math::Vector4;
+use inox_messenger::{Listener, MessageHubRc};
+use inox_platform::{
     InputState, KeyEvent, KeyTextEvent, MouseButton, MouseEvent, MouseState, WindowEvent,
     DEFAULT_DPI,
 };
-use sabi_profiler::debug_log;
-use sabi_resources::{
+use inox_profiler::debug_log;
+use inox_resources::{
     ConfigBase, DataTypeResource, Handle, Resource, SerializableResource, SharedDataRc,
 };
-use sabi_serialize::{generate_random_uid, read_from_file};
+use inox_serialize::{generate_random_uid, read_from_file};
 
 use crate::UIWidget;
 
@@ -78,7 +78,7 @@ impl UISystem {
     }
 
     fn get_ui_material(&mut self, texture: Resource<Texture>) -> Resource<Material> {
-        sabi_profiler::scoped_profile!("ui_system::get_ui_material");
+        inox_profiler::scoped_profile!("ui_system::get_ui_material");
 
         match self.ui_materials.entry(*texture.id()) {
             Entry::Occupied(e) => e.get().clone(),
@@ -101,7 +101,7 @@ impl UISystem {
     }
 
     fn compute_mesh_data(&mut self, clipped_meshes: Vec<ClippedMesh>) {
-        sabi_profiler::scoped_profile!("ui_system::compute_mesh_data");
+        inox_profiler::scoped_profile!("ui_system::compute_mesh_data");
         let shared_data = self.shared_data.clone();
         let message_hub = self.message_hub.clone();
         self.ui_meshes.resize_with(clipped_meshes.len(), || {
@@ -224,31 +224,31 @@ impl UISystem {
                 });
             }
 
-            if event.code == sabi_platform::Key::Shift {
+            if event.code == inox_platform::Key::Shift {
                 self.ui_input_modifiers.shift = pressed;
-            } else if event.code == sabi_platform::Key::Control {
+            } else if event.code == inox_platform::Key::Control {
                 self.ui_input_modifiers.ctrl = pressed;
                 self.ui_input_modifiers.command = pressed;
-            } else if event.code == sabi_platform::Key::Alt {
+            } else if event.code == inox_platform::Key::Alt {
                 self.ui_input_modifiers.alt = pressed;
-            } else if event.code == sabi_platform::Key::Meta {
+            } else if event.code == inox_platform::Key::Meta {
                 self.ui_input_modifiers.command = pressed;
                 self.ui_input_modifiers.mac_cmd = pressed;
             }
 
             if just_pressed
                 && self.ui_input_modifiers.ctrl
-                && event.code == sabi_platform::input::Key::C
+                && event.code == inox_platform::input::Key::C
             {
                 self.ui_input.events.push(Event::Copy);
             } else if just_pressed
                 && self.ui_input_modifiers.ctrl
-                && event.code == sabi_platform::input::Key::X
+                && event.code == inox_platform::input::Key::X
             {
                 self.ui_input.events.push(Event::Cut);
             } else if just_pressed
                 && self.ui_input_modifiers.ctrl
-                && event.code == sabi_platform::input::Key::V
+                && event.code == inox_platform::input::Key::V
             {
                 if let Some(content) = &self.ui_clipboard {
                     self.ui_input.events.push(Event::Text(content.clone()));
@@ -273,7 +273,7 @@ impl UISystem {
         context: Context,
         use_multithreading: bool,
     ) {
-        sabi_profiler::scoped_profile!("ui_system::show_ui");
+        inox_profiler::scoped_profile!("ui_system::show_ui");
         let wait_count = Arc::new(AtomicUsize::new(0));
         shared_data.for_each_resource_mut(|widget_handle, widget: &mut UIWidget| {
             if use_multithreading {
@@ -387,7 +387,7 @@ impl System for UISystem {
         self.update_events();
 
         let (output, shapes) = {
-            sabi_profiler::scoped_profile!("ui_context::run");
+            inox_profiler::scoped_profile!("ui_context::run");
             let shared_data = self.shared_data.clone();
             let job_handler = self.job_handler.clone();
             let ui_context = self.ui_context.clone();
@@ -396,7 +396,7 @@ impl System for UISystem {
             })
         };
         let clipped_meshes = {
-            sabi_profiler::scoped_profile!("ui_context::tessellate");
+            inox_profiler::scoped_profile!("ui_context::tessellate");
             self.ui_context.tessellate(shapes)
         };
         self.handle_output(output).compute_mesh_data(clipped_meshes);
@@ -413,59 +413,59 @@ impl System for UISystem {
     }
 }
 
-fn convert_key(key: sabi_platform::input::Key) -> Option<egui::Key> {
+fn convert_key(key: inox_platform::input::Key) -> Option<egui::Key> {
     match key {
-        sabi_platform::Key::ArrowDown => Some(egui::Key::ArrowDown),
-        sabi_platform::Key::ArrowLeft => Some(egui::Key::ArrowLeft),
-        sabi_platform::Key::ArrowRight => Some(egui::Key::ArrowRight),
-        sabi_platform::Key::ArrowUp => Some(egui::Key::ArrowUp),
-        sabi_platform::Key::Escape => Some(egui::Key::Escape),
-        sabi_platform::Key::Tab => Some(egui::Key::Tab),
-        sabi_platform::Key::Backspace => Some(egui::Key::Backspace),
-        sabi_platform::Key::Enter => Some(egui::Key::Enter),
-        sabi_platform::Key::Space => Some(egui::Key::Space),
-        sabi_platform::Key::Insert => Some(egui::Key::Insert),
-        sabi_platform::Key::Delete => Some(egui::Key::Delete),
-        sabi_platform::Key::Home => Some(egui::Key::Home),
-        sabi_platform::Key::End => Some(egui::Key::End),
-        sabi_platform::Key::PageUp => Some(egui::Key::PageUp),
-        sabi_platform::Key::PageDown => Some(egui::Key::PageDown),
-        sabi_platform::Key::Numpad0 | sabi_platform::Key::Key0 => Some(egui::Key::Num0),
-        sabi_platform::Key::Numpad1 | sabi_platform::Key::Key1 => Some(egui::Key::Num1),
-        sabi_platform::Key::Numpad2 | sabi_platform::Key::Key2 => Some(egui::Key::Num2),
-        sabi_platform::Key::Numpad3 | sabi_platform::Key::Key3 => Some(egui::Key::Num3),
-        sabi_platform::Key::Numpad4 | sabi_platform::Key::Key4 => Some(egui::Key::Num4),
-        sabi_platform::Key::Numpad5 | sabi_platform::Key::Key5 => Some(egui::Key::Num5),
-        sabi_platform::Key::Numpad6 | sabi_platform::Key::Key6 => Some(egui::Key::Num6),
-        sabi_platform::Key::Numpad7 | sabi_platform::Key::Key7 => Some(egui::Key::Num7),
-        sabi_platform::Key::Numpad8 | sabi_platform::Key::Key8 => Some(egui::Key::Num8),
-        sabi_platform::Key::Numpad9 | sabi_platform::Key::Key9 => Some(egui::Key::Num9),
-        sabi_platform::Key::A => Some(egui::Key::A),
-        sabi_platform::Key::B => Some(egui::Key::B),
-        sabi_platform::Key::C => Some(egui::Key::C),
-        sabi_platform::Key::D => Some(egui::Key::D),
-        sabi_platform::Key::E => Some(egui::Key::E),
-        sabi_platform::Key::F => Some(egui::Key::F),
-        sabi_platform::Key::G => Some(egui::Key::G),
-        sabi_platform::Key::H => Some(egui::Key::H),
-        sabi_platform::Key::I => Some(egui::Key::I),
-        sabi_platform::Key::J => Some(egui::Key::J),
-        sabi_platform::Key::K => Some(egui::Key::K),
-        sabi_platform::Key::L => Some(egui::Key::L),
-        sabi_platform::Key::M => Some(egui::Key::M),
-        sabi_platform::Key::N => Some(egui::Key::N),
-        sabi_platform::Key::O => Some(egui::Key::O),
-        sabi_platform::Key::P => Some(egui::Key::P),
-        sabi_platform::Key::Q => Some(egui::Key::Q),
-        sabi_platform::Key::R => Some(egui::Key::R),
-        sabi_platform::Key::S => Some(egui::Key::S),
-        sabi_platform::Key::T => Some(egui::Key::T),
-        sabi_platform::Key::U => Some(egui::Key::U),
-        sabi_platform::Key::V => Some(egui::Key::V),
-        sabi_platform::Key::W => Some(egui::Key::W),
-        sabi_platform::Key::X => Some(egui::Key::X),
-        sabi_platform::Key::Y => Some(egui::Key::Y),
-        sabi_platform::Key::Z => Some(egui::Key::Z),
+        inox_platform::Key::ArrowDown => Some(egui::Key::ArrowDown),
+        inox_platform::Key::ArrowLeft => Some(egui::Key::ArrowLeft),
+        inox_platform::Key::ArrowRight => Some(egui::Key::ArrowRight),
+        inox_platform::Key::ArrowUp => Some(egui::Key::ArrowUp),
+        inox_platform::Key::Escape => Some(egui::Key::Escape),
+        inox_platform::Key::Tab => Some(egui::Key::Tab),
+        inox_platform::Key::Backspace => Some(egui::Key::Backspace),
+        inox_platform::Key::Enter => Some(egui::Key::Enter),
+        inox_platform::Key::Space => Some(egui::Key::Space),
+        inox_platform::Key::Insert => Some(egui::Key::Insert),
+        inox_platform::Key::Delete => Some(egui::Key::Delete),
+        inox_platform::Key::Home => Some(egui::Key::Home),
+        inox_platform::Key::End => Some(egui::Key::End),
+        inox_platform::Key::PageUp => Some(egui::Key::PageUp),
+        inox_platform::Key::PageDown => Some(egui::Key::PageDown),
+        inox_platform::Key::Numpad0 | inox_platform::Key::Key0 => Some(egui::Key::Num0),
+        inox_platform::Key::Numpad1 | inox_platform::Key::Key1 => Some(egui::Key::Num1),
+        inox_platform::Key::Numpad2 | inox_platform::Key::Key2 => Some(egui::Key::Num2),
+        inox_platform::Key::Numpad3 | inox_platform::Key::Key3 => Some(egui::Key::Num3),
+        inox_platform::Key::Numpad4 | inox_platform::Key::Key4 => Some(egui::Key::Num4),
+        inox_platform::Key::Numpad5 | inox_platform::Key::Key5 => Some(egui::Key::Num5),
+        inox_platform::Key::Numpad6 | inox_platform::Key::Key6 => Some(egui::Key::Num6),
+        inox_platform::Key::Numpad7 | inox_platform::Key::Key7 => Some(egui::Key::Num7),
+        inox_platform::Key::Numpad8 | inox_platform::Key::Key8 => Some(egui::Key::Num8),
+        inox_platform::Key::Numpad9 | inox_platform::Key::Key9 => Some(egui::Key::Num9),
+        inox_platform::Key::A => Some(egui::Key::A),
+        inox_platform::Key::B => Some(egui::Key::B),
+        inox_platform::Key::C => Some(egui::Key::C),
+        inox_platform::Key::D => Some(egui::Key::D),
+        inox_platform::Key::E => Some(egui::Key::E),
+        inox_platform::Key::F => Some(egui::Key::F),
+        inox_platform::Key::G => Some(egui::Key::G),
+        inox_platform::Key::H => Some(egui::Key::H),
+        inox_platform::Key::I => Some(egui::Key::I),
+        inox_platform::Key::J => Some(egui::Key::J),
+        inox_platform::Key::K => Some(egui::Key::K),
+        inox_platform::Key::L => Some(egui::Key::L),
+        inox_platform::Key::M => Some(egui::Key::M),
+        inox_platform::Key::N => Some(egui::Key::N),
+        inox_platform::Key::O => Some(egui::Key::O),
+        inox_platform::Key::P => Some(egui::Key::P),
+        inox_platform::Key::Q => Some(egui::Key::Q),
+        inox_platform::Key::R => Some(egui::Key::R),
+        inox_platform::Key::S => Some(egui::Key::S),
+        inox_platform::Key::T => Some(egui::Key::T),
+        inox_platform::Key::U => Some(egui::Key::U),
+        inox_platform::Key::V => Some(egui::Key::V),
+        inox_platform::Key::W => Some(egui::Key::W),
+        inox_platform::Key::X => Some(egui::Key::X),
+        inox_platform::Key::Y => Some(egui::Key::Y),
+        inox_platform::Key::Z => Some(egui::Key::Z),
         _ => None,
     }
 }

@@ -1,5 +1,5 @@
 [package]
-name = "sabi_resources"
+name = "inox_resources"
 version = "0.1.0"
 authors = ["gents83 <gents83@gmail.com>"]
 edition = "2021"
@@ -9,8 +9,8 @@ build = "build.rs"
 crate-type = ["lib"]
 
 [dependencies]
-sabi_commands = { path = "../commands" }
-sabi_filesystem = { path = "../filesystem" }
-sabi_messenger = { path = "../messenger" }
-sabi_profiler = { path = "../profiler" }
-sabi_serialize = { path = "../serialize" }
+inox_commands = { path = "../commands" }
+inox_filesystem = { path = "../filesystem" }
+inox_messenger = { path = "../messenger" }
+inox_profiler = { path = "../profiler" }
+inox_serialize = { path = "../serialize" }

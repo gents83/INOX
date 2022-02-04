@@ -54,7 +54,7 @@ class SABIAddonPreferences(bpy.types.AddonPreferences):
 
     exe_path: bpy.props.StringProperty(
         name="SABI folder",
-        description="Set folder where sabi_launcher.exe can be found",
+        description="Set folder where inox_launcher.exe can be found",
         subtype="DIR_PATH",
         default="./bin/")
 

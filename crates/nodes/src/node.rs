@@ -4,7 +4,7 @@ use std::{
 };
 
 use crate::{LogicContext, Pin, PinId};
-use sabi_serialize::{generate_uid_from_string, sabi_serializable, Deserialize, Serialize, Uid};
+use inox_serialize::{generate_uid_from_string, inox_serializable, Deserialize, Serialize, Uid};
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub enum NodeExecutionType {
@@ -27,7 +27,7 @@ impl Default for NodeState {
 
 pub type NodeId = Uid;
 
-#[sabi_serializable::serializable(tag = "node_type")]
+#[inox_serializable::serializable(tag = "node_type")]
 pub trait NodeTrait: Any + Send + Sync + 'static {
     fn get_type() -> &'static str
     where
@@ -66,7 +66,7 @@ impl Clone for Box<dyn NodeTrait + Send + Sync> {
 }
 
 #[derive(Serialize, Deserialize, Clone)]
-#[serde(crate = "sabi_serialize")]
+#[serde(crate = "inox_serialize")]
 pub struct Node {
     name: String,
     inputs: HashMap<PinId, Box<dyn Pin>>,

@@ -1,5 +1,5 @@
 [package]
-name = "sabi_serialize_attribute"
+name = "inox_serialize_attribute"
 version = "0.1.0"
 authors = ["gents83 <gents83@gmail.com>"]
 edition = "2021"

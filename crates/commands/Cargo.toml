@@ -1,5 +1,5 @@
 [package]
-name = "sabi_commands"
+name = "inox_commands"
 version = "0.1.0"
 authors = ["gents83 <gents83@gmail.com>"]
 edition = "2021"

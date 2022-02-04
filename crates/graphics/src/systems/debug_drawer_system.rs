@@ -2,20 +2,20 @@ use crate::{
     create_arrow, create_colored_quad, create_line, create_sphere, Material, Mesh, MeshData,
     Pipeline, DEFAULT_PIPELINE_IDENTIFIER, WIREFRAME_PIPELINE_IDENTIFIER,
 };
-use sabi_commands::CommandParser;
-use sabi_core::System;
-use sabi_math::{Vector2, Vector3, Vector4};
-use sabi_messenger::{implement_message, Listener, MessageHubRc};
-use sabi_profiler::debug_log;
-use sabi_resources::{DataTypeResource, Resource, SharedDataRc};
-use sabi_serialize::generate_random_uid;
+use inox_commands::CommandParser;
+use inox_core::System;
+use inox_math::{Vector2, Vector3, Vector4};
+use inox_messenger::{implement_message, Listener, MessageHubRc};
+use inox_profiler::debug_log;
+use inox_resources::{DataTypeResource, Resource, SharedDataRc};
+use inox_serialize::generate_random_uid;
 
 /// A debug drawer
 /// You can use this to draw things in the editor just sending events:
 /// ```
-/// use sabi_editor::systems::{DebugDrawer, DrawEvent};
-/// use sabi_math::{Vector3, Zero};
-/// use sabi_messenger::{MessengerRw, Message};
+/// use inox_editor::systems::{DebugDrawer, DrawEvent};
+/// use inox_math::{Vector3, Zero};
+/// use inox_messenger::{MessengerRw, Message};
 ///
 /// let message_hub = MessengerRw::default();
 /// let global_dispatcher = message_hub.read().unwrap().get_dispatcher().clone();
@@ -172,7 +172,7 @@ impl DebugDrawerSystem {
     }
 
     fn update_events(&mut self) {
-        sabi_profiler::scoped_profile!("update_events");
+        inox_profiler::scoped_profile!("update_events");
 
         let mut mesh_data = MeshData::default();
         let mut wireframe_mesh_data = MeshData::default();

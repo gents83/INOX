@@ -6,8 +6,8 @@ use std::{
 };
 
 use crate::{copy_into_data_folder, need_to_binarize, send_reloaded_event, ExtensionHandler};
-use sabi_messenger::MessageHubRc;
-use sabi_resources::Data;
+use inox_messenger::MessageHubRc;
+use inox_resources::Data;
 
 const SHADERS_FOLDER_NAME: &str = "shaders";
 

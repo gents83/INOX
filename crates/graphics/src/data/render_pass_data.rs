@@ -1,22 +1,22 @@
 use std::path::PathBuf;
 
-use sabi_serialize::{Deserialize, Serialize, SerializeFile};
+use inox_serialize::{Deserialize, Serialize, SerializeFile};
 
 #[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
-#[serde(crate = "sabi_serialize")]
+#[serde(crate = "inox_serialize")]
 pub enum LoadOperation {
     Load,
     Clear,
     DontCare,
 }
 #[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
-#[serde(crate = "sabi_serialize")]
+#[serde(crate = "inox_serialize")]
 pub enum StoreOperation {
     Store,
     DontCare,
 }
 #[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
-#[serde(crate = "sabi_serialize", tag = "type")]
+#[serde(crate = "inox_serialize", tag = "type")]
 pub enum RenderTarget {
     Screen,
     Texture {
@@ -26,7 +26,7 @@ pub enum RenderTarget {
     },
 }
 #[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
-#[serde(crate = "sabi_serialize")]
+#[serde(crate = "inox_serialize")]
 pub enum RenderMode {
     Indirect,
     Single,
@@ -34,7 +34,7 @@ pub enum RenderMode {
 
 #[repr(C)]
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
-#[serde(crate = "sabi_serialize")]
+#[serde(crate = "inox_serialize")]
 pub struct RenderPassData {
     pub name: String,
     pub load_color: LoadOperation,

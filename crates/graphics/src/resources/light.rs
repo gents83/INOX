@@ -1,11 +1,11 @@
 use std::path::{Path, PathBuf};
 
-use sabi_math::Vector3;
-use sabi_messenger::MessageHubRc;
-use sabi_resources::{
+use inox_math::Vector3;
+use inox_messenger::MessageHubRc;
+use inox_resources::{
     DataTypeResource, ResourceId, ResourceTrait, SerializableResource, SharedData, SharedDataRc,
 };
-use sabi_serialize::{read_from_file, SerializeFile};
+use inox_serialize::{read_from_file, SerializeFile};
 
 use crate::{LightData, INVALID_INDEX};
 

@@ -1,8 +1,8 @@
-use sabi_graphics::{RenderPass, Texture};
+use inox_graphics::{RenderPass, Texture};
 
-use sabi_messenger::MessageHubRc;
-use sabi_resources::{Handle, Resource, SharedData, SharedDataRc};
-use sabi_ui::{
+use inox_messenger::MessageHubRc;
+use inox_resources::{Handle, Resource, SharedData, SharedDataRc};
+use inox_ui::{
     implement_widget_data, CentralPanel, Frame, Image, LayerId, Sense, TextureId as eguiTextureId,
     UIWidget, Widget,
 };

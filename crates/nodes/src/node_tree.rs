@@ -1,9 +1,9 @@
-use sabi_serialize::{generate_uid_from_string, Deserialize, Serialize, SerializeFile};
+use inox_serialize::{generate_uid_from_string, Deserialize, Serialize, SerializeFile};
 
 use crate::{LogicNodeRegistry, NodeLink, NodeTrait};
 
 #[derive(Default, Serialize, Deserialize, Clone)]
-#[serde(crate = "sabi_serialize")]
+#[serde(crate = "inox_serialize")]
 pub struct NodeTree {
     nodes: Vec<Box<dyn NodeTrait + Send + Sync>>,
     links: Vec<NodeLink>,

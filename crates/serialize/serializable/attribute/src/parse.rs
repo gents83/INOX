@@ -54,9 +54,9 @@ impl Parse for Input {
     }
 }
 
-// #[sabi_serializable::serializable]
-// #[sabi_serializable::serializable(tag = "type")]
-// #[sabi_serializable::serializable(tag = "type", content = "content")]
+// #[inox_serializable::serializable]
+// #[inox_serializable::serializable(tag = "type")]
+// #[inox_serializable::serializable(tag = "type", content = "content")]
 impl Parse for TraitArgs {
     fn parse(input: ParseStream) -> Result<Self> {
         if input.is_empty() {
@@ -76,8 +76,8 @@ impl Parse for TraitArgs {
     }
 }
 
-// #[sabi_serializable::serializable]
-// #[sabi_serializable::serializable(name = "Tag")]
+// #[inox_serializable::serializable]
+// #[inox_serializable::serializable(name = "Tag")]
 impl Parse for ImplArgs {
     fn parse(input: ParseStream) -> Result<Self> {
         let name = if input.is_empty() {

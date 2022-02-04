@@ -1,8 +1,8 @@
-# SABI Development Guide
+# INOX Development Guide
 
 ---
 
-- [Building SABI code](./building.md)
+- [Building INOX code](./building.md)
 - [Architecture](./architecture.md)
 - [Crates](./crates.md)
 - [Dependencies](./external-dependencies.md)

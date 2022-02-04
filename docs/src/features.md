@@ -19,12 +19,12 @@ Here you can find a list of features that are currently supported by the library
       &emsp;&emsp;Exporting scene as Khronos [GLTF](https://www.khronos.org/gltf/), binarizing and loading it into _SABI_
 - [x] Data binarization, shader compilation, etc as background task \
       &emsp;&emsp;See more info in _sabibinarizer_ crate section
-- [x] Hot reload of code while SABI engine is running 
-- [x] Hot reload of data reloading on the fly while SABI engine is running  
+- [x] Hot reload of code while INOX engine is running 
+- [x] Hot reload of data reloading on the fly while INOX engine is running  
 - [x] In-game GUI integration using [egui](https://github.com/emilk/egui) by [emilk](https://twitter.com/ernerfeldt)
 - [x] Documentations using [mdBook](https://rust-lang.github.io/mdBook/)
 - [x] Continous integration and build support using Github Actions 
-- [x] _**SABI**_ <-> _**Blender**_ communication through TCP connection
+- [x] _**INOX**_ <-> _**Blender**_ communication through TCP connection
 - [x] Create custom Logic Nodes editor in _**Blender**_
 - [x] Possibility to define and use custom nodes in external dlls
 

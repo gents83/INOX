@@ -1,4 +1,4 @@
-use sabi_serialize::{Deserialize, Serialize, SerializeFile};
+use inox_serialize::{Deserialize, Serialize, SerializeFile};
 
 use crate::{LogicContext, LogicExecution, NodeExecutionType, NodeState, NodeTree, PinId};
 
@@ -19,7 +19,7 @@ struct NodeInfo {
 }
 
 #[derive(Default, Serialize, Deserialize, Clone)]
-#[serde(crate = "sabi_serialize")]
+#[serde(crate = "inox_serialize")]
 pub struct LogicData {
     #[serde(flatten)]
     tree: NodeTree,

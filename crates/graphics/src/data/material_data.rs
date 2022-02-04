@@ -1,11 +1,11 @@
 use std::path::PathBuf;
 
-use sabi_math::Vector4;
-use sabi_serialize::{Deserialize, Serialize, SerializeFile};
+use inox_math::Vector4;
+use inox_serialize::{Deserialize, Serialize, SerializeFile};
 
 use crate::TextureType;
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Copy)]
-#[serde(crate = "sabi_serialize")]
+#[serde(crate = "inox_serialize")]
 pub enum MaterialAlphaMode {
     Opaque = 0,
     Mask = 1,
@@ -13,7 +13,7 @@ pub enum MaterialAlphaMode {
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
-#[serde(crate = "sabi_serialize")]
+#[serde(crate = "inox_serialize")]
 pub struct MaterialData {
     pub pipeline: PathBuf,
     pub textures: [PathBuf; TextureType::Count as _],

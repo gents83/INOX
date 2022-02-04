@@ -3,14 +3,14 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use sabi_core::{App, PhaseWithSystems};
-use sabi_graphics::{
+use inox_core::{App, PhaseWithSystems};
+use inox_graphics::{
     rendering_system::{RenderingSystem, RENDERING_PHASE},
     update_system::{UpdateSystem, RENDERING_UPDATE},
     Renderer,
 };
 
-use sabi_platform::Window;
+use inox_platform::Window;
 
 use crate::window_system::WindowSystem;
 

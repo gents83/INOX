@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use sabi_math::*;
+use inox_math::*;
 use std::collections::HashMap;
 
 use super::block::*;

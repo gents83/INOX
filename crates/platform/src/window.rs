@@ -1,8 +1,8 @@
 use std::path::Path;
 
 use crate::{handle::*, KeyEvent, KeyTextEvent, MouseEvent};
-use sabi_commands::CommandParser;
-use sabi_messenger::{implement_message, Listener, MessageHubRc};
+use inox_commands::CommandParser;
+use inox_messenger::{implement_message, Listener, MessageHubRc};
 
 pub const DEFAULT_DPI: f32 = 96.0;
 

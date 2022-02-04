@@ -1,5 +1,5 @@
-use sabi_profiler::debug_log;
-use sabi_serialize::generate_random_uid;
+use inox_profiler::debug_log;
+use inox_serialize::generate_random_uid;
 
 use crate::{RenderContext, TextureData, TextureId};
 

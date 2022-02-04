@@ -1,12 +1,12 @@
-use sabi_core::{JobHandlerRw, System};
+use inox_core::{JobHandlerRw, System};
 
-use sabi_messenger::{Listener, MessageHubRc};
-use sabi_platform::WindowEvent;
-use sabi_resources::{
+use inox_messenger::{Listener, MessageHubRc};
+use inox_platform::WindowEvent;
+use inox_resources::{
     ConfigBase, DataTypeResource, ReloadEvent, Resource, ResourceEvent, SerializableResource,
     SharedData, SharedDataRc,
 };
-use sabi_serialize::{generate_random_uid, read_from_file};
+use inox_serialize::{generate_random_uid, read_from_file};
 
 use crate::{
     is_shader, Mesh, Pipeline, RenderPass, RenderPassData, RendererRw, RendererState, Texture,

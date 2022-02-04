@@ -1,12 +1,12 @@
 use crate::{FontData, Texture};
 
-use sabi_math::Vector4;
-use sabi_messenger::MessageHubRc;
-use sabi_resources::{
+use inox_math::Vector4;
+use inox_messenger::MessageHubRc;
+use inox_resources::{
     DataTypeResource, Handle, ResourceId, ResourceTrait, SerializableResource, SharedData,
     SharedDataRc,
 };
-use sabi_serialize::{generate_random_uid, INVALID_UID};
+use inox_serialize::{generate_random_uid, INVALID_UID};
 use std::path::{Path, PathBuf};
 
 pub type FontId = ResourceId;

@@ -1,12 +1,12 @@
 use std::path::{Path, PathBuf};
 
-use sabi_messenger::MessageHubRc;
-use sabi_nodes::LogicData;
-use sabi_resources::{
+use inox_messenger::MessageHubRc;
+use inox_nodes::LogicData;
+use inox_resources::{
     DataTypeResource, Handle, Resource, ResourceId, ResourceTrait, SerializableResource,
     SharedData, SharedDataRc,
 };
-use sabi_serialize::{read_from_file, SerializeFile};
+use inox_serialize::{read_from_file, SerializeFile};
 
 use crate::{Object, ObjectId};
 
@@ -64,7 +64,8 @@ impl DataTypeResource for Script {
             }
         }
     }
-    fn on_destroy(&mut self, _shared_data: &SharedData, _messenger: &MessageHubRc, _id: &ObjectId) {}
+    fn on_destroy(&mut self, _shared_data: &SharedData, _messenger: &MessageHubRc, _id: &ObjectId) {
+    }
 
     fn is_initialized(&self) -> bool {
         self.logic.is_initialized()

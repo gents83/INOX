@@ -1,13 +1,13 @@
 use std::path::Path;
 
 use crate::{copy_into_data_folder, ExtensionHandler};
-use sabi_graphics::{Light, Material, Mesh, Pipeline};
-use sabi_messenger::MessageHubRc;
-use sabi_nodes::NodeTree;
-use sabi_profiler::debug_log;
-use sabi_resources::SerializableResource;
-use sabi_scene::{Camera, Object, Scene, Script};
-use sabi_serialize::SerializeFile;
+use inox_graphics::{Light, Material, Mesh, Pipeline};
+use inox_messenger::MessageHubRc;
+use inox_nodes::NodeTree;
+use inox_profiler::debug_log;
+use inox_resources::SerializableResource;
+use inox_scene::{Camera, Object, Scene, Script};
+use inox_serialize::SerializeFile;
 
 const CONFIG_EXTENSION: &str = "cfg";
 

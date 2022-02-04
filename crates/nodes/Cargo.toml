@@ -1,5 +1,5 @@
 [package]
-name = "sabi_nodes"
+name = "inox_nodes"
 version = "0.1.0"
 authors = ["gents83 <gents83@gmail.com>"]
 edition = "2021"
@@ -9,6 +9,6 @@ build = "build.rs"
 crate-type = ["lib"]
 
 [dependencies]
-sabi_resources = { path = "../resources" }
-sabi_filesystem = { path = "../filesystem" }
-sabi_serialize = { path = "../serialize" }
+inox_resources = { path = "../resources" }
+inox_filesystem = { path = "../filesystem" }
+inox_serialize = { path = "../serialize" }

@@ -1,6 +1,6 @@
 use std::any::type_name;
 
-use sabi_resources::{Buffer, BufferData, ResourceId};
+use inox_resources::{Buffer, BufferData, ResourceId};
 use wgpu::util::DeviceExt;
 
 use crate::{utils::to_u8_slice, RenderContext};
@@ -98,7 +98,7 @@ where
             if data.is_empty() {
                 return;
             }
-            sabi_profiler::scoped_profile!("gpu_buffer::send_to_gpu - write_buffer");
+            inox_profiler::scoped_profile!("gpu_buffer::send_to_gpu - write_buffer");
             context.queue.write_buffer(buffer, 0, to_u8_slice(data));
         }
         self.is_dirty = false;
@@ -113,9 +113,9 @@ where
     }
 
     fn create_gpu_buffer(&mut self, context: &RenderContext) {
-        sabi_profiler::scoped_profile!("gpu_buffer::create_gpu_buffer");
+        inox_profiler::scoped_profile!("gpu_buffer::create_gpu_buffer");
         if let Some(buffer) = self.gpu_buffer.take() {
-            sabi_profiler::scoped_profile!("gpu_buffer::destroy_buffer");
+            inox_profiler::scoped_profile!("gpu_buffer::destroy_buffer");
             buffer.destroy();
         }
         let data = self.cpu_buffer.total_data();

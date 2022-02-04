@@ -1,12 +1,12 @@
-use sabi_math::{Degrees, NewAngle};
-use sabi_serialize::{Deserialize, Serialize, SerializeFile};
+use inox_math::{Degrees, NewAngle};
+use inox_serialize::{Deserialize, Serialize, SerializeFile};
 
 use crate::{
     DEFAULT_CAMERA_ASPECT_RATIO, DEFAULT_CAMERA_FAR, DEFAULT_CAMERA_FOV, DEFAULT_CAMERA_NEAR,
 };
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
-#[serde(crate = "sabi_serialize")]
+#[serde(crate = "inox_serialize")]
 pub struct CameraData {
     pub aspect_ratio: f32,
     pub near: f32,

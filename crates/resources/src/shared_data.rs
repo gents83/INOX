@@ -4,8 +4,8 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use sabi_messenger::MessageHubRc;
-use sabi_serialize::{generate_uid_from_string, Uid};
+use inox_messenger::MessageHubRc;
+use inox_serialize::{generate_uid_from_string, Uid};
 
 use crate::{
     Handle, LoadFunction, Resource, ResourceEventHandler, ResourceId, ResourceStorageRw,

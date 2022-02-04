@@ -3,9 +3,9 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use sabi_filesystem::convert_in_local_path;
-use sabi_messenger::MessageHubRc;
-use sabi_resources::{Data, ReloadEvent};
+use inox_filesystem::convert_in_local_path;
+use inox_messenger::MessageHubRc;
+use inox_resources::{Data, ReloadEvent};
 
 pub fn need_to_binarize(original_path: &Path, new_path: &Path) -> bool {
     let mut need_copy = false;

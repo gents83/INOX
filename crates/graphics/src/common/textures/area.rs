@@ -1,5 +1,5 @@
-use sabi_math::Vector4;
-use sabi_serialize::{generate_random_uid, Uid, INVALID_UID};
+use inox_math::Vector4;
+use inox_serialize::{generate_random_uid, Uid, INVALID_UID};
 
 use crate::TextureId;
 

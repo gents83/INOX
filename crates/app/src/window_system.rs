@@ -1,8 +1,8 @@
-use sabi_core::System;
-use sabi_messenger::MessageHubRc;
-use sabi_platform::{Window, WindowEvent};
-use sabi_resources::ConfigBase;
-use sabi_serialize::read_from_file;
+use inox_core::System;
+use inox_messenger::MessageHubRc;
+use inox_platform::{Window, WindowEvent};
+use inox_resources::ConfigBase;
+use inox_serialize::read_from_file;
 
 use crate::config::Config;
 

@@ -1,5 +1,5 @@
-use sabi_messenger::MessageHubRc;
-use sabi_serialize::Uid;
+use inox_messenger::MessageHubRc;
+use inox_serialize::Uid;
 use std::{
     any::Any,
     sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard},

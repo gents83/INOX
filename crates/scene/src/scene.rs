@@ -1,12 +1,12 @@
 use std::path::{Path, PathBuf};
 
-use sabi_messenger::MessageHubRc;
-use sabi_resources::{
+use inox_messenger::MessageHubRc;
+use inox_resources::{
     DataTypeResource, Resource, ResourceId, ResourceTrait, SerializableResource, SharedData,
     SharedDataRc,
 };
-use sabi_serialize::{read_from_file, SerializeFile};
-use sabi_ui::{CollapsingHeader, UIProperties, UIPropertiesRegistry, Ui};
+use inox_serialize::{read_from_file, SerializeFile};
+use inox_ui::{CollapsingHeader, UIProperties, UIPropertiesRegistry, Ui};
 
 use crate::{Camera, Object, SceneData};
 

@@ -1,6 +1,6 @@
 use std::f32::consts::PI;
 
-use sabi_math::{Mat4Ops, MatBase, Matrix4, VecBase, Vector3, Vector4};
+use inox_math::{Mat4Ops, MatBase, Matrix4, VecBase, Vector3, Vector4};
 
 use crate::{VertexData, MAX_TEXTURE_COORDS_SETS};
 

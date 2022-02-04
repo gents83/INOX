@@ -6,7 +6,7 @@ use syn::{parse_quote, Error, Ident, ItemTrait, LitStr, TraitBoundModifier, Type
 pub(crate) fn expand(args: TraitArgs, mut input: ItemTrait, mode: Mode) -> TokenStream {
     if mode.de && !input.generics.params.is_empty() {
         let msg = "deserialization of generic traits is not supported yet; \
-                   use #[sabi_serializable::serialize] to generate serialization only";
+                   use #[inox_serializable::serialize] to generate serialization only";
         return Error::new_spanned(input.generics, msg).to_compile_error();
     }
 
@@ -23,22 +23,22 @@ pub(crate) fn expand(args: TraitArgs, mut input: ItemTrait, mode: Mode) -> Token
     let mut expanded = TokenStream::new();
 
     expanded.extend(quote! {
-        type SerializableInheritTrait = <dyn #object as sabi_serializable::InheritTrait>::Object;
-        type SerializableFn = sabi_serializable::DeserializeFn<SerializableInheritTrait>;
+        type SerializableInheritTrait = <dyn #object as inox_serializable::InheritTrait>::Object;
+        type SerializableFn = inox_serializable::DeserializeFn<SerializableInheritTrait>;
     });
 
     if mode.ser {
         let mut impl_generics = input.generics.clone();
-        impl_generics.params.push(parse_quote!('sabi_serialize));
+        impl_generics.params.push(parse_quote!('inox_serialize));
         let (impl_generics, _, _) = impl_generics.split_for_impl();
         let (_, ty_generics, where_clause) = input.generics.split_for_impl();
 
         expanded.extend(quote! {
-            impl #impl_generics sabi_serializable::serde::Serialize
-            for dyn #object #ty_generics + 'sabi_serialize #where_clause {
+            impl #impl_generics inox_serializable::serde::Serialize
+            for dyn #object #ty_generics + 'inox_serialize #where_clause {
                 fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
                 where
-                    S: sabi_serializable::serde::Serializer,
+                    S: inox_serializable::serde::Serializer,
                 {
                     #serialize_impl
                 }
@@ -47,13 +47,13 @@ pub(crate) fn expand(args: TraitArgs, mut input: ItemTrait, mode: Mode) -> Token
 
         for marker_traits in &[quote!(Send), quote!(Sync), quote!(Send + Sync)] {
             expanded.extend(quote! {
-                impl #impl_generics sabi_serializable::serde::Serialize
-                for dyn #object #ty_generics + #marker_traits + 'sabi_serialize #where_clause {
+                impl #impl_generics inox_serializable::serde::Serialize
+                for dyn #object #ty_generics + #marker_traits + 'inox_serialize #where_clause {
                     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
                     where
-                        S: sabi_serializable::serde::Serializer,
+                        S: inox_serializable::serde::Serializer,
                     {
-                        sabi_serializable::serde::Serialize::serialize(self as &dyn #object #ty_generics, serializer)
+                        inox_serializable::serde::Serialize::serialize(self as &dyn #object #ty_generics, serializer)
                     }
                 }
             });
@@ -74,14 +74,14 @@ pub(crate) fn expand(args: TraitArgs, mut input: ItemTrait, mode: Mode) -> Token
         };
 
         expanded.extend(quote! {
-            impl sabi_serializable::InheritTrait for dyn #object {
+            impl inox_serializable::InheritTrait for dyn #object {
                 type Object = dyn #object + #inherit;
             }
 
-            impl<'de> sabi_serializable::serde::Deserialize<'de> for std::boxed::Box<dyn #object + #inherit> {
+            impl<'de> inox_serializable::serde::Deserialize<'de> for std::boxed::Box<dyn #object + #inherit> {
                 fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
                 where
-                    D: sabi_serializable::serde::Deserializer<'de>,
+                    D: inox_serializable::serde::Deserializer<'de>,
                 {
                     #deserialize_impl
                 }
@@ -90,14 +90,14 @@ pub(crate) fn expand(args: TraitArgs, mut input: ItemTrait, mode: Mode) -> Token
 
         for marker_traits in others {
             expanded.extend(quote! {
-                impl<'de> sabi_serializable::serde::Deserialize<'de> for std::boxed::Box<dyn #object + #marker_traits> {
+                impl<'de> inox_serializable::serde::Deserialize<'de> for std::boxed::Box<dyn #object + #marker_traits> {
                     fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
                     where
-                        D: sabi_serializable::serde::Deserializer<'de>,
+                        D: inox_serializable::serde::Deserializer<'de>,
                     {
                         std::result::Result::Ok(
                             <std::boxed::Box<dyn #object + #inherit>
-                                as sabi_serializable::serde::Deserialize<'de>>::deserialize(deserializer)?
+                                as inox_serializable::serde::Deserialize<'de>>::deserialize(deserializer)?
                         )
                     }
                 }
@@ -119,7 +119,7 @@ fn augment_trait(input: &mut ItemTrait, mode: Mode) {
     if mode.ser {
         input
             .supertraits
-            .push(parse_quote!(sabi_serializable::Serialize));
+            .push(parse_quote!(inox_serializable::Serialize));
 
         input.items.push(parse_quote! {
             #[doc(hidden)]
@@ -130,9 +130,9 @@ fn augment_trait(input: &mut ItemTrait, mode: Mode) {
     if mode.de {
         input
             .supertraits
-            .push(parse_quote!(sabi_serializable::Deserialize));
+            .push(parse_quote!(inox_serializable::Deserialize));
 
-        // Only to catch missing sabi_serialize attribute on impl blocks. Not called.
+        // Only to catch missing inox_serialize attribute on impl blocks. Not called.
         input.items.push(parse_quote! {
             #[doc(hidden)]
             fn serializable_deserialize(&self);
@@ -147,11 +147,11 @@ fn externally_tagged(input: &ItemTrait) -> (TokenStream, TokenStream) {
 
     let serialize_impl = quote! {
         let name = <Self as #object #ty_generics>::serializable_name(self);
-        sabi_serializable::externally::serialize(serializer, name, self)
+        inox_serializable::externally::serialize(serializer, name, self)
     };
 
     let deserialize_impl = quote! {
-        sabi_serializable::deserialize_serializable!(SerializableInheritTrait, D, deserializer,
+        inox_serializable::deserialize_serializable!(SerializableInheritTrait, D, deserializer,
             DeserializeType::External {
                 trait_object: #object_name
         })
@@ -167,10 +167,10 @@ fn internally_tagged(tag: LitStr, input: &ItemTrait) -> (TokenStream, TokenStrea
 
     let serialize_impl = quote! {
         let name = <Self as #object #ty_generics>::serializable_name(self);
-        sabi_serializable::internally::serialize(serializer, #tag, name, self)
+        inox_serializable::internally::serialize(serializer, #tag, name, self)
     };
     let deserialize_impl = quote! {
-        sabi_serializable::deserialize_serializable!(SerializableInheritTrait, D, deserializer,
+        inox_serializable::deserialize_serializable!(SerializableInheritTrait, D, deserializer,
             DeserializeType::Internal {
                 trait_object: #object_name,
                 tag: #tag,
@@ -191,11 +191,11 @@ fn adjacently_tagged(
 
     let serialize_impl = quote! {
         let name = <Self as #object #ty_generics>::serializable_name(self);
-        sabi_serializable::adjacently::serialize(serializer, #object_name, #tag, name, #content, self)
+        inox_serializable::adjacently::serialize(serializer, #object_name, #tag, name, #content, self)
     };
 
     let deserialize_impl = quote! {
-        sabi_serializable::deserialize_serializable!(SerializableInheritTrait, D, deserializer,
+        inox_serializable::deserialize_serializable!(SerializableInheritTrait, D, deserializer,
             DeserializeType::Adjacent {
             trait_object: #object_name,
             fields: &[#tag, #content],

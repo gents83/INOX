@@ -1,11 +1,11 @@
 use std::path::{Path, PathBuf};
 
-use sabi_messenger::MessageHubRc;
-use sabi_profiler::debug_log;
-use sabi_resources::{
+use inox_messenger::MessageHubRc;
+use inox_profiler::debug_log;
+use inox_resources::{
     DataTypeResource, ResourceId, ResourceTrait, SerializableResource, SharedData, SharedDataRc,
 };
-use sabi_serialize::{read_from_file, SerializeFile};
+use inox_serialize::{read_from_file, SerializeFile};
 use wgpu::ShaderModule;
 
 use crate::{

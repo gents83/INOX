@@ -1,11 +1,11 @@
-use sabi_serialize::{Deserialize, Serialize, SerializeFile};
+use inox_serialize::{Deserialize, Serialize, SerializeFile};
 
 use crate::print_field_size;
 
 pub const MAX_NUM_LIGHTS: usize = 64;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
-#[serde(crate = "sabi_serialize")]
+#[serde(crate = "inox_serialize")]
 pub enum LightType {
     None = 0,
     Directional = 1,
@@ -14,7 +14,7 @@ pub enum LightType {
 }
 
 #[derive(Default, Serialize, Deserialize, Debug, PartialEq, Clone, Copy)]
-#[serde(crate = "sabi_serialize")]
+#[serde(crate = "inox_serialize")]
 pub struct LightData {
     pub position: [f32; 3],
     pub light_type: u32,

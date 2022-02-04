@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use sabi_messenger::MessageHubRc;
+use inox_messenger::MessageHubRc;
 
 use super::externs::*;
 use super::handle::*;

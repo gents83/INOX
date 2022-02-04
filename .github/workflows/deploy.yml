@@ -28,10 +28,10 @@ jobs:
 
       - name: "Copy and rename sabiblender dll into pyd"
         run: |
-          find ./crates/target/release/ -type f -name "sabi_blender.dll" | while read fname; do
+          find ./crates/target/release/ -type f -name "inox_blender.dll" | while read fname; do
             dirname=`dirname "$fname"`
             filename=`basename "$fname"`
-            cp "${dirname}/$filename" "./crates/blender/sabi_blender/SABI/sabi_blender.pyd"
+            cp "${dirname}/$filename" "./crates/blender/inox_blender/SABI/inox_blender.pyd"
           done
       
       - name: "Copy sabiblender in SABI"
@@ -40,13 +40,13 @@ jobs:
           mkdir -p "./output/SABI/"
           mkdir -p "./output/SABI/bin/"
           mkdir -p "./output/SABI/bin/data_raw/"
-          cp -r "./crates/blender/sabi_blender/SABI/" "./output/"
+          cp -r "./crates/blender/inox_blender/SABI/" "./output/"
           
-      - name: "Copy sabi_viewer configs in SABI"
+      - name: "Copy inox_viewer configs in SABI"
         run: |
           mkdir -p "./output/SABI/bin/data_raw/config/"
-          mkdir -p "./output/SABI/bin/data_raw/config/sabi_viewer/"
-          cp -r "./data_raw/config/sabi_viewer/" "./output/SABI/bin/data_raw/config/"
+          mkdir -p "./output/SABI/bin/data_raw/config/inox_viewer/"
+          cp -r "./data_raw/config/inox_viewer/" "./output/SABI/bin/data_raw/config/"
 
       - name: "Copy pipelines in SABI"
         run: |

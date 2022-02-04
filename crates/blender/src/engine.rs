@@ -1,12 +1,12 @@
 use crate::exporter::Exporter;
 use pyo3::{pyclass, pymethods, PyResult, Python};
-use sabi_resources::Singleton;
+use inox_resources::Singleton;
 
-use sabi_binarizer::Binarizer;
-use sabi_core::App;
-use sabi_filesystem::EXE_PATH;
-use sabi_nodes::{LogicNodeRegistry, NodeType};
-use sabi_resources::{DATA_FOLDER, DATA_RAW_FOLDER};
+use inox_binarizer::Binarizer;
+use inox_core::App;
+use inox_filesystem::EXE_PATH;
+use inox_nodes::{LogicNodeRegistry, NodeType};
+use inox_resources::{DATA_FOLDER, DATA_RAW_FOLDER};
 
 use std::{
     env,
@@ -103,15 +103,15 @@ impl SABIEngine {
     pub fn start(&mut self) -> PyResult<bool> {
         println!("[Blender] SABIEngine started");
 
-        let path = self.app_dir.join("sabi_launcher.exe");
+        let path = self.app_dir.join("inox_launcher.exe");
 
         let mut command = Command::new(path.as_path());
         self.plugins.iter().for_each(|plugin| {
             let string = "-plugin ".to_string() + plugin;
             command.arg(string);
         });
-        command.arg("-plugin sabi_connector");
-        command.arg("-plugin sabi_viewer");
+        command.arg("-plugin inox_connector");
+        command.arg("-plugin inox_viewer");
         command.current_dir(self.working_dir.as_path());
 
         if let Ok(process) = command.spawn() {

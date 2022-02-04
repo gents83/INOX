@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use sabi_profiler::debug_log;
+use inox_profiler::debug_log;
 
 use crate::{JobHandlerRw, Phase, PhaseWithSystems};
 
@@ -187,17 +187,17 @@ impl Scheduler {
         if !self.is_started {
             return self.is_running;
         }
-        sabi_profiler::scoped_profile!("scheduler::run_once");
+        inox_profiler::scoped_profile!("scheduler::run_once");
         let mut can_continue = self.is_running;
         for name in self.phases_order.iter() {
             if let Some(phase) = self.phases.get_mut(name) {
                 let ok = if is_focused || phase.should_run_when_not_focused() {
-                    sabi_profiler::scoped_profile!(
+                    inox_profiler::scoped_profile!(
                         format!("{}[{}]", "scheduler::run_phase", name).as_str()
                     );
                     let ok = phase.run(is_focused);
                     {
-                        sabi_profiler::scoped_profile!(format!(
+                        inox_profiler::scoped_profile!(format!(
                             "{}[{}]",
                             "scheduler::wait_jobs", name
                         )

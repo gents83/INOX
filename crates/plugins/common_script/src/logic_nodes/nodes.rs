@@ -1,14 +1,14 @@
-use sabi_math::{VecBase, Vector3};
-use sabi_nodes::{
+use inox_math::{VecBase, Vector3};
+use inox_nodes::{
     implement_node, LogicContext, LogicData, LogicExecution, LogicNodeRegistry, Node,
     NodeExecutionType, NodeState, NodeTree, PinId, ScriptInitNode,
 };
-use sabi_resources::Resource;
-use sabi_scene::{Object, Script};
-use sabi_serialize::{deserialize, sabi_serializable, Deserialize, Serialize};
+use inox_resources::Resource;
+use inox_scene::{Object, Script};
+use inox_serialize::{deserialize, inox_serializable, Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone)]
-#[serde(crate = "sabi_serialize")]
+#[serde(crate = "inox_serialize")]
 pub struct RotateNode {
     node: Node,
     #[serde(skip)]
@@ -72,7 +72,7 @@ impl RotateNode {
 
 #[allow(dead_code)]
 fn test_nodes() {
-    sabi_serialize::sabi_serializable::create_serializable_registry!();
+    inox_serialize::inox_serializable::create_serializable_registry!();
 
     let mut registry = LogicNodeRegistry::default();
     registry.register_node::<ScriptInitNode>();

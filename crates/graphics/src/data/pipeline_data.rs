@@ -1,9 +1,9 @@
 use std::path::PathBuf;
 
-use sabi_filesystem::convert_from_local_path;
-use sabi_math::Matrix4;
-use sabi_resources::Data;
-use sabi_serialize::{generate_uid_from_string, Deserialize, Serialize, SerializeFile, Uid};
+use inox_filesystem::convert_from_local_path;
+use inox_math::Matrix4;
+use inox_resources::Data;
+use inox_serialize::{generate_uid_from_string, Deserialize, Serialize, SerializeFile, Uid};
 
 use crate::{LightData, ShaderMaterialData, TextureAtlas, TextureData};
 
@@ -12,7 +12,7 @@ pub const WIREFRAME_PIPELINE_IDENTIFIER: &str = "EditorWireframe";
 
 #[repr(C)]
 #[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Eq, Hash, Copy, Clone)]
-#[serde(crate = "sabi_serialize")]
+#[serde(crate = "inox_serialize")]
 pub struct PipelineIdentifier(Uid);
 
 impl PipelineIdentifier {
@@ -22,7 +22,7 @@ impl PipelineIdentifier {
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
-#[serde(crate = "sabi_serialize")]
+#[serde(crate = "inox_serialize")]
 pub enum PolygonModeType {
     Fill,
     Line,
@@ -30,7 +30,7 @@ pub enum PolygonModeType {
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
-#[serde(crate = "sabi_serialize")]
+#[serde(crate = "inox_serialize")]
 pub enum CullingModeType {
     None,
     Back,
@@ -38,7 +38,7 @@ pub enum CullingModeType {
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
-#[serde(crate = "sabi_serialize")]
+#[serde(crate = "inox_serialize")]
 pub enum BlendFactor {
     Zero,
     One,
@@ -80,14 +80,14 @@ impl From<BlendFactor> for wgpu::BlendFactor {
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
-#[serde(crate = "sabi_serialize")]
+#[serde(crate = "inox_serialize")]
 pub enum DrawMode {
     Batch,
     Single,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
-#[serde(crate = "sabi_serialize")]
+#[serde(crate = "inox_serialize")]
 pub struct PipelineData {
     pub identifier: String,
     pub vertex_shader: PathBuf,

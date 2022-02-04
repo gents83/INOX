@@ -1,7 +1,7 @@
 use std::{marker::PhantomData, path::PathBuf};
 
-use sabi_commands::CommandParser;
-use sabi_messenger::{implement_message, Listener, MessageHubRc};
+use inox_commands::CommandParser;
+use inox_messenger::{implement_message, Listener, MessageHubRc};
 
 use crate::{Resource, ResourceId, ResourceTrait, SerializableResource, SharedDataRc};
 

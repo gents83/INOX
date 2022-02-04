@@ -1,7 +1,7 @@
 #![allow(improper_ctypes_definitions)]
 
-use sabi_filesystem::Library;
-use sabi_platform::{get_raw_thread_id, RawThreadId};
+use inox_filesystem::Library;
+use inox_platform::{get_raw_thread_id, RawThreadId};
 use std::{
     cell::RefCell,
     collections::HashMap,
@@ -231,7 +231,7 @@ impl Profiler {
             }
         }
 
-        let profile_file_name = "app.sabi_profile";
+        let profile_file_name = "app.inox_profile";
 
         let f = BufWriter::new(File::create(profile_file_name).unwrap());
         serde_json::to_writer(f, &data).unwrap();

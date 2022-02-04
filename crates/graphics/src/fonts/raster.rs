@@ -1,4 +1,4 @@
-use sabi_math::*;
+use inox_math::*;
 
 pub struct Raster<'a> {
     width: usize,

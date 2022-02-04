@@ -1,12 +1,12 @@
 use std::{any::TypeId, marker::PhantomData};
 
 use egui::{Checkbox, CollapsingHeader, DragValue, TextEdit, Ui, Widget};
-use sabi_graphics::{Font, Light, LightType, Material, Mesh, Pipeline, Texture, View};
-use sabi_math::{Degrees, Matrix4, Vector2, Vector3, Vector4};
-use sabi_resources::{
+use inox_graphics::{Font, Light, LightType, Material, Mesh, Pipeline, Texture, View};
+use inox_math::{Degrees, Matrix4, Vector2, Vector3, Vector4};
+use inox_resources::{
     GenericResource, ResourceCastTo, ResourceId, ResourceTrait, SerializableResource,
 };
-use sabi_serialize::INVALID_UID;
+use inox_serialize::INVALID_UID;
 pub trait UIProperties {
     fn show(
         &mut self,

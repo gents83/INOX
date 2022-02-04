@@ -1,12 +1,12 @@
 use std::path::Path;
 
 use image::DynamicImage;
-use sabi_messenger::MessageHubRc;
-use sabi_resources::{
+use inox_messenger::MessageHubRc;
+use inox_resources::{
     DataTypeResource, Handle, Resource, ResourceId, ResourceTrait, SerializableResource,
     SharedData, SharedDataRc,
 };
-use sabi_serialize::{generate_random_uid, read_from_file};
+use inox_serialize::{generate_random_uid, read_from_file};
 
 use crate::{
     GraphicsMesh, LoadOperation, Pipeline, RenderContext, RenderMode, RenderPassData, RenderTarget,

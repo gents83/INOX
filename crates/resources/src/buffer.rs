@@ -1,5 +1,5 @@
 use crate::ResourceId;
-use sabi_serialize::{generate_random_uid, INVALID_UID};
+use inox_serialize::{generate_random_uid, INVALID_UID};
 
 #[derive(Clone)]
 pub struct BufferData {

@@ -1,8 +1,8 @@
-use sabi_core::{JobHandlerRw, System};
-use sabi_math::Vector2;
-use sabi_messenger::MessageHubRc;
-use sabi_resources::{DataTypeResource, Resource, SharedDataRc};
-use sabi_serialize::generate_random_uid;
+use inox_core::{JobHandlerRw, System};
+use inox_math::Vector2;
+use inox_messenger::MessageHubRc;
+use inox_resources::{DataTypeResource, Resource, SharedDataRc};
+use inox_serialize::generate_random_uid;
 
 use crate::{RendererRw, RendererState, View};
 

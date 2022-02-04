@@ -3,10 +3,10 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use sabi_filesystem::convert_from_local_path;
-use sabi_messenger::MessageHubRc;
+use inox_filesystem::convert_from_local_path;
+use inox_messenger::MessageHubRc;
 
-use sabi_serialize::generate_uid_from_string;
+use inox_serialize::generate_uid_from_string;
 
 use crate::{Resource, ResourceEvent, ResourceId, ResourceTrait, SharedData, SharedDataRc};
 

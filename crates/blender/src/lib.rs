@@ -6,18 +6,18 @@ mod exporter;
 use engine::SABIEngine;
 
 // add bindings to the generated python module
-// N.B: names: "sabi_blender" must be the name of the `.so` or `.pyd` file
+// N.B: names: "inox_blender" must be the name of the `.so` or `.pyd` file
 #[pymodule]
-#[pyo3(name = "sabi_blender")]
-fn sabi_blender(_py: Python, m: &PyModule) -> PyResult<()> {
+#[pyo3(name = "inox_blender")]
+fn inox_blender(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<SABIEngine>()?;
 
     #[pyfn(m)]
-    fn start(sabi_engine: &mut SABIEngine) -> PyResult<bool> {
-        let is_running = sabi_engine.is_running();
+    fn start(inox_engine: &mut SABIEngine) -> PyResult<bool> {
+        let is_running = inox_engine.is_running();
 
         let result = if !is_running {
-            sabi_engine.start()?
+            inox_engine.start()?
         } else {
             true
         };
@@ -29,16 +29,16 @@ fn sabi_blender(_py: Python, m: &PyModule) -> PyResult<()> {
     #[pyfn(m)]
     fn export(
         py: Python,
-        sabi_engine: &mut SABIEngine,
+        inox_engine: &mut SABIEngine,
         file_to_export: &str,
         load_immediately: bool,
     ) -> PyResult<bool> {
-        sabi_engine.export(py, file_to_export, load_immediately)
+        inox_engine.export(py, file_to_export, load_immediately)
     }
 
     #[pyfn(m)]
-    fn register_nodes(py: Python, sabi_engine: &SABIEngine) -> PyResult<bool> {
-        sabi_engine.register_nodes(py)
+    fn register_nodes(py: Python, inox_engine: &SABIEngine) -> PyResult<bool> {
+        inox_engine.register_nodes(py)
     }
     Ok(())
 }

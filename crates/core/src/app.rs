@@ -7,10 +7,10 @@ use std::{
     },
 };
 
-use sabi_messenger::{Listener, MessageHubRc};
-use sabi_platform::{InputState, Key, KeyEvent, WindowEvent};
-use sabi_resources::{DeserializeFunction, SharedData, SharedDataRc};
-use sabi_serialize::{generate_uid_from_string, sabi_serializable};
+use inox_messenger::{Listener, MessageHubRc};
+use inox_platform::{InputState, Key, KeyEvent, WindowEvent};
+use inox_resources::{DeserializeFunction, SharedData, SharedDataRc};
+use inox_serialize::{generate_uid_from_string, inox_serializable};
 
 use crate::{Job, JobHandler, JobHandlerRw, Phase, PluginId, PluginManager, Scheduler, Worker};
 
@@ -31,8 +31,8 @@ pub struct App {
 
 impl Default for App {
     fn default() -> Self {
-        sabi_serializable::create_serializable_registry!();
-        sabi_profiler::create_profiler!();
+        inox_serializable::create_serializable_registry!();
+        inox_profiler::create_profiler!();
 
         let (sender, receiver) = channel();
 
@@ -61,7 +61,7 @@ impl Drop for App {
         self.stop_worker_threads();
 
         if self.is_profiling {
-            sabi_profiler::write_profile_file!();
+            inox_profiler::write_profile_file!();
         }
 
         self.scheduler.uninit();
@@ -110,7 +110,7 @@ impl App {
     }
 
     fn update_events(&mut self) {
-        sabi_profiler::scoped_profile!("app::update_events");
+        inox_profiler::scoped_profile!("app::update_events");
 
         let mut is_profiling = self.is_profiling;
         let mut is_enabled = self.is_enabled;
@@ -118,12 +118,12 @@ impl App {
         self.listener.process_messages(|e: &KeyEvent| {
             if e.code == Key::F9 && e.state == InputState::JustPressed {
                 if !is_profiling {
-                    sabi_profiler::start_profiler!();
+                    inox_profiler::start_profiler!();
                     is_profiling = true;
                 } else {
                     is_profiling = false;
-                    sabi_profiler::stop_profiler!();
-                    sabi_profiler::write_profile_file!();
+                    inox_profiler::stop_profiler!();
+                    inox_profiler::write_profile_file!();
                 }
             }
         });
@@ -192,7 +192,7 @@ impl App {
     }
 
     pub fn run_once(&mut self) -> bool {
-        sabi_profiler::scoped_profile!("app::run_frame");
+        inox_profiler::scoped_profile!("app::run_frame");
 
         let can_continue = self.scheduler.run_once(self.is_enabled, &self.job_handler);
 

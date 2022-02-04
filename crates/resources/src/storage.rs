@@ -3,7 +3,7 @@ use std::{
     sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard},
 };
 
-use sabi_messenger::MessageHubRc;
+use inox_messenger::MessageHubRc;
 
 use crate::{
     swap_resource, Handle, Resource, ResourceEvent, ResourceHandle, ResourceId, ResourceTrait,

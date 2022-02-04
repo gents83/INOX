@@ -7,7 +7,7 @@ macro_rules! load_profiler_lib {
             use $crate::*;
 
             if SABI_PROFILER_LIB.is_none() {
-                let library_name = library_filename("sabi_profiler");
+                let library_name = library_filename("inox_profiler");
                 let (path, filename) =
                     library::compute_folder_and_filename(PathBuf::from(library_name));
                 let fullpath = path.join(filename);

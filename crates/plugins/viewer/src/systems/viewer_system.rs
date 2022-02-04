@@ -1,13 +1,13 @@
-use sabi_commands::CommandParser;
-use sabi_core::System;
-use sabi_graphics::{DrawEvent, Light, Material, Mesh, MeshData, Pipeline, Texture, View};
-use sabi_math::{Matrix4, VecBase, Vector2, Vector3};
-use sabi_messenger::{Listener, MessageHubRc};
+use inox_commands::CommandParser;
+use inox_core::System;
+use inox_graphics::{DrawEvent, Light, Material, Mesh, MeshData, Pipeline, Texture, View};
+use inox_math::{Matrix4, VecBase, Vector2, Vector3};
+use inox_messenger::{Listener, MessageHubRc};
 
-use sabi_platform::{InputState, Key, KeyEvent, MouseEvent, WindowEvent};
-use sabi_resources::{Resource, ResourceEvent, SerializableResource, SharedDataRc};
-use sabi_scene::{Camera, Object, ObjectId, Scene, Script};
-use sabi_serialize::generate_random_uid;
+use inox_platform::{InputState, Key, KeyEvent, MouseEvent, WindowEvent};
+use inox_resources::{Resource, ResourceEvent, SerializableResource, SharedDataRc};
+use inox_scene::{Camera, Object, ObjectId, Scene, Script};
+use inox_serialize::generate_random_uid;
 use std::{collections::HashMap, path::PathBuf};
 
 use crate::widgets::{Hierarchy, Info, View3D};
@@ -30,7 +30,7 @@ impl ViewerSystem {
     pub fn new(shared_data: &SharedDataRc, message_hub: &MessageHubRc) -> Self {
         let listener = Listener::new(message_hub);
 
-        sabi_scene::register_resource_types(shared_data, message_hub);
+        inox_scene::register_resource_types(shared_data, message_hub);
 
         let scene =
             shared_data.add_resource::<Scene>(message_hub, generate_random_uid(), Scene::default());
@@ -68,7 +68,7 @@ impl ViewerSystem {
 
 impl Drop for ViewerSystem {
     fn drop(&mut self) {
-        sabi_scene::unregister_resource_types(&self.shared_data);
+        inox_scene::unregister_resource_types(&self.shared_data);
     }
 }
 
@@ -91,7 +91,7 @@ impl System for ViewerSystem {
     }
 
     fn run(&mut self) -> bool {
-        sabi_profiler::scoped_profile!("viewer_system::run");
+        inox_profiler::scoped_profile!("viewer_system::run");
         self.update_events().update_view_from_camera();
 
         self.shared_data.for_each_resource_mut(|_, s: &mut Script| {
@@ -175,7 +175,7 @@ impl ViewerSystem {
             );
             material
                 .get_mut()
-                .set_texture(sabi_graphics::TextureType::BaseColor, &texture);
+                .set_texture(inox_graphics::TextureType::BaseColor, &texture);
             mesh.get_mut().set_material(material);
             let mut mesh_data = MeshData::default();
             mesh_data.add_quad_default([-10., -10., 10., 10.].into(), 0.);
@@ -234,7 +234,7 @@ impl ViewerSystem {
     }
 
     fn update_events(&mut self) -> &mut Self {
-        sabi_profiler::scoped_profile!("update_events");
+        inox_profiler::scoped_profile!("update_events");
 
         self.handle_keyboard_event();
         self.handle_mouse_event();
@@ -271,7 +271,7 @@ impl ViewerSystem {
     }
 
     fn update_view_from_camera(&mut self) -> &mut Self {
-        sabi_profiler::scoped_profile!("update_view_from_camera");
+        inox_profiler::scoped_profile!("update_view_from_camera");
 
         if let Some(view) = self
             .shared_data

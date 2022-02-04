@@ -1,7 +1,7 @@
 #![warn(clippy::all)]
 #![allow(dead_code)]
 
-pub use sabi_filesystem::*;
+pub use inox_filesystem::*;
 
 pub use self::macros::*;
 pub mod macros;

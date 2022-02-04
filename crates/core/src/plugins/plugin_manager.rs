@@ -1,8 +1,8 @@
 use std::{path::PathBuf, process};
 
-use sabi_filesystem::{library, Library};
-use sabi_platform::{FileEvent, FileWatcher};
-use sabi_profiler::debug_log;
+use inox_filesystem::{library, Library};
+use inox_platform::{FileEvent, FileWatcher};
+use inox_profiler::debug_log;
 
 use crate::{
     App, PfnCreatePlugin, PfnDestroyPlugin, PfnPreparePlugin, PfnUnpreparePlugin, PluginHolder,
@@ -142,7 +142,7 @@ impl PluginManager {
     }
 
     pub fn clear_plugin_data(mut plugin_data: PluginData, app: &mut App) {
-        sabi_profiler::scoped_profile!("plugin_manager::clear_plugin_data");
+        inox_profiler::scoped_profile!("plugin_manager::clear_plugin_data");
         plugin_data.filewatcher.stop();
 
         let in_use_path = plugin_data.in_use_path;
@@ -171,7 +171,7 @@ impl PluginManager {
     }
 
     pub fn update(&mut self) -> Vec<PluginId> {
-        sabi_profiler::scoped_profile!("plugin_manager::update");
+        inox_profiler::scoped_profile!("plugin_manager::update");
 
         let mut plugins_to_remove: Vec<PluginId> = Vec::new();
         for plugin_data in self.plugins.iter_mut() {

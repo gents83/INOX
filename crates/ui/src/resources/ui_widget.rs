@@ -1,9 +1,9 @@
 use std::any::{type_name, Any};
 
 use egui::{CollapsingHeader, Context, Ui};
-use sabi_messenger::MessageHubRc;
-use sabi_resources::{Resource, ResourceId, ResourceTrait, SharedData, SharedDataRc};
-use sabi_serialize::generate_random_uid;
+use inox_messenger::MessageHubRc;
+use inox_resources::{Resource, ResourceId, ResourceTrait, SharedData, SharedDataRc};
+use inox_serialize::generate_random_uid;
 
 use crate::{UIProperties, UIPropertiesRegistry};
 
@@ -127,7 +127,7 @@ impl UIWidget {
     }
 
     pub fn execute(&mut self, ui_context: &Context) {
-        sabi_profiler::scoped_profile!(
+        inox_profiler::scoped_profile!(
             format!("{} {:?}", "ui_widget::execute", self.type_name).as_str()
         );
         (self.func)(self.data.as_mut(), ui_context);

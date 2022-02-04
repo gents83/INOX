@@ -5,12 +5,12 @@ macro_rules! load_serializable_registry_lib {
         use $crate::*;
         unsafe {
             if SABI_SERIALIZABLE_REGISTRY_LIB.is_none() {
-                let library_name = sabi_filesystem::library_filename("sabi_serializable");
-                let (path, filename) = sabi_filesystem::library::compute_folder_and_filename(
+                let library_name = inox_filesystem::library_filename("inox_serializable");
+                let (path, filename) = inox_filesystem::library::compute_folder_and_filename(
                     PathBuf::from(library_name),
                 );
                 let fullpath = path.join(filename);
-                let library = sabi_filesystem::Library::new(fullpath);
+                let library = inox_filesystem::Library::new(fullpath);
                 SABI_SERIALIZABLE_REGISTRY_LIB = Some(library);
             }
         }
@@ -22,7 +22,7 @@ macro_rules! deserialize_serializable {
     ($T: ty, $D: ty, $Deserializer: expr, $DeserializeType: expr) => {
         unsafe {
             use $crate::*;
-            use sabi_serializable::serde::de::Error;
+            use inox_serializable::serde::de::Error;
 
             $crate::load_serializable_registry_lib!();
 

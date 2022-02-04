@@ -8,7 +8,7 @@
             "name": "RUN LAUNCHER DEBUG",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/crates/target/debug/sabi_launcher.exe",
+            "program": "${workspaceFolder}/crates/target/debug/inox_launcher.exe",
             "args": [],
             "cwd": "${workspaceFolder}",
             "stopOnEntry": false,
@@ -27,9 +27,9 @@
             "name": "RUN EDITOR DEBUG",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/crates/target/debug/sabi_launcher.exe",
+            "program": "${workspaceFolder}/crates/target/debug/inox_launcher.exe",
             "args": [
-                "-plugin sabi_editor"
+                "-plugin inox_editor"
             ],
             "cwd": "${workspaceFolder}",
             "stopAtEntry": false,
@@ -48,11 +48,11 @@
             "name": "RUN VIEWER DEBUG",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/crates/target/debug/sabi_launcher.exe",
+            "program": "${workspaceFolder}/crates/target/debug/inox_launcher.exe",
             "args": [
-                "-plugin sabi_connector",
-                "-plugin sabi_common_script",
-                "-plugin sabi_viewer",
+                "-plugin inox_connector",
+                "-plugin inox_common_script",
+                "-plugin inox_viewer",
                 //"-load_file",
                 //"C:\\PROJECTS\\SABI\\data\\blender_export\\TestScene\\TestScene.scene"
             ],
@@ -73,9 +73,9 @@
             "name": "RUN CONTENT BROWSER DEBUG",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/crates/target/debug/sabi_launcher.exe",
+            "program": "${workspaceFolder}/crates/target/debug/inox_launcher.exe",
             "args": [
-                "-plugin sabi_content_browser"
+                "-plugin inox_content_browser"
             ],
             "cwd": "${workspaceFolder}",
             "stopAtEntry": false,
@@ -94,7 +94,7 @@
             "name": "RUN LAUNCHER RELEASE",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/crates/target/release/sabi_launcher.exe",
+            "program": "${workspaceFolder}/crates/target/release/inox_launcher.exe",
             "args": [],
             "cwd": "${workspaceFolder}",
             "stopOnEntry": false,

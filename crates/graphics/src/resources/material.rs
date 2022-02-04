@@ -5,13 +5,13 @@ use crate::{
     INVALID_INDEX,
 };
 
-use sabi_math::Vector4;
-use sabi_messenger::MessageHubRc;
-use sabi_resources::{
+use inox_math::Vector4;
+use inox_messenger::MessageHubRc;
+use inox_resources::{
     DataTypeResource, Handle, Resource, ResourceId, ResourceTrait, SerializableResource,
     SharedData, SharedDataRc,
 };
-use sabi_serialize::{generate_random_uid, read_from_file, SerializeFile};
+use inox_serialize::{generate_random_uid, read_from_file, SerializeFile};
 
 pub type MaterialId = ResourceId;
 

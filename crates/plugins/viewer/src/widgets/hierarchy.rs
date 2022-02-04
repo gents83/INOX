@@ -1,8 +1,8 @@
-use sabi_messenger::MessageHubRc;
-use sabi_resources::{Resource, SerializableResource, SharedData, SharedDataRc};
-use sabi_scene::{Object, ObjectId, Scene, SceneId};
-use sabi_serialize::INVALID_UID;
-use sabi_ui::{
+use inox_messenger::MessageHubRc;
+use inox_resources::{Resource, SerializableResource, SharedData, SharedDataRc};
+use inox_scene::{Object, ObjectId, Scene, SceneId};
+use inox_serialize::INVALID_UID;
+use inox_ui::{
     implement_widget_data, CollapsingHeader, ScrollArea, SelectableLabel, UIWidget, Ui, Window,
 };
 
@@ -89,7 +89,7 @@ impl Hierarchy {
         selected_id: &ObjectId,
         message_hub: &MessageHubRc,
     ) {
-        sabi_profiler::scoped_profile!("object_hierarchy");
+        inox_profiler::scoped_profile!("object_hierarchy");
 
         let mut object_name = format!("Object [{:?}]", object.id().as_simple().to_string());
         if let Some(name) = object.get().path().file_stem() {

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use sabi_math::matrix4_to_array;
-use sabi_resources::BufferData;
+use inox_math::matrix4_to_array;
+use inox_resources::BufferData;
 
 use crate::{
     GpuBuffer, InstanceData, Mesh, MeshId, PipelineId, RenderContext, VertexData, INVALID_INDEX,

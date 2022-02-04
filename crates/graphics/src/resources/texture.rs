@@ -1,10 +1,10 @@
 use std::path::{Path, PathBuf};
 
 use image::RgbaImage;
-use sabi_filesystem::convert_from_local_path;
-use sabi_messenger::MessageHubRc;
-use sabi_profiler::debug_log;
-use sabi_resources::{
+use inox_filesystem::convert_from_local_path;
+use inox_messenger::MessageHubRc;
+use inox_profiler::debug_log;
+use inox_resources::{
     Data, DataTypeResource, Handle, ResourceId, ResourceTrait, SerializableResource, SharedData,
     SharedDataRc,
 };
@@ -167,7 +167,7 @@ impl Texture {
         texture_handler: &TextureHandler,
         context: &RenderContext,
     ) {
-        sabi_profiler::scoped_profile!("texture::capture_image");
+        inox_profiler::scoped_profile!("texture::capture_image");
         if self.data.is_none() {
             let mut image_data = Vec::new();
             image_data.resize_with(

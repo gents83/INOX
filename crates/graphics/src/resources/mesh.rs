@@ -1,13 +1,13 @@
 use std::path::{Path, PathBuf};
 
 use crate::{Material, MeshData, INVALID_INDEX};
-use sabi_math::{MatBase, Matrix4, Vector4};
-use sabi_messenger::MessageHubRc;
-use sabi_resources::{
+use inox_math::{MatBase, Matrix4, Vector4};
+use inox_messenger::MessageHubRc;
+use inox_resources::{
     DataTypeResource, Handle, Resource, ResourceEvent, ResourceId, ResourceTrait,
     SerializableResource, SharedData, SharedDataRc,
 };
-use sabi_serialize::{read_from_file, SerializeFile, INVALID_UID};
+use inox_serialize::{read_from_file, SerializeFile, INVALID_UID};
 
 pub type MeshId = ResourceId;
 

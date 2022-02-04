@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 
-use sabi_filesystem::convert_from_local_path;
+use inox_filesystem::convert_from_local_path;
 
 use crate::Data;
 

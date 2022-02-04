@@ -8,7 +8,7 @@ from pathlib import Path
 
 blender_classes = []
 
-sabi_engine = None
+inox_engine = None
 
 
 class SABIRun(bpy.types.Operator):
@@ -37,9 +37,9 @@ class SABIRun(bpy.types.Operator):
         if last_part.endswith('debug') or last_part.endswith('release'):
             path = path.parent.absolute().parent.absolute().parent.absolute()
 #
-        from SABI import sabi_blender
-        sabi_blender.start(sabi_engine)
-        sabi_blender.export(sabi_engine, str(bpy.data.filepath), True)
+        from SABI import inox_blender
+        inox_blender.start(inox_engine)
+        inox_blender.export(inox_engine, str(bpy.data.filepath), True)
 
         # Do NOT wait for the thread to be ended
         return {'FINISHED'}
@@ -58,14 +58,14 @@ def register():
         if v is True and i < len(prefs.libs_to_load):
             libs_to_load.append(prefs.libs_to_load[i])
 
-    global sabi_engine
-    if sabi_engine is None:
-        from SABI import sabi_blender
+    global inox_engine
+    if inox_engine is None:
+        from SABI import inox_blender
         from SABI import node_tree
 
-        sabi_engine = sabi_blender.SABIEngine(
+        inox_engine = inox_blender.SABIEngine(
             str(prefs.exe_path), libs_to_load)
-        node_tree.register_nodes(sabi_engine)
+        node_tree.register_nodes(inox_engine)
 
 
 def unregister():

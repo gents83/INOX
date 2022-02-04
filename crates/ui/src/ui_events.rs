@@ -1,11 +1,11 @@
 use std::path::PathBuf;
 
-use sabi_commands::CommandParser;
-use sabi_messenger::implement_message;
-use sabi_serialize::{Deserialize, Serialize};
+use inox_commands::CommandParser;
+use inox_messenger::implement_message;
+use inox_serialize::{Deserialize, Serialize};
 
 #[derive(Copy, Clone, Serialize, Deserialize)]
-#[serde(crate = "sabi_serialize")]
+#[serde(crate = "inox_serialize")]
 pub enum DialogOp {
     New,
     Open,
@@ -33,7 +33,7 @@ impl From<DialogOp> for &str {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
-#[serde(crate = "sabi_serialize")]
+#[serde(crate = "inox_serialize")]
 pub enum DialogEvent {
     Request(DialogOp, PathBuf),
     Confirmed(DialogOp, PathBuf),

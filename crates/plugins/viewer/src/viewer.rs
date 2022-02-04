@@ -1,7 +1,7 @@
-use sabi_core::{define_plugin, App, PhaseWithSystems, Plugin, System, SystemId};
+use inox_core::{define_plugin, App, PhaseWithSystems, Plugin, System, SystemId};
 
-use sabi_graphics::DebugDrawerSystem;
-use sabi_ui::UISystem;
+use inox_graphics::DebugDrawerSystem;
+use inox_ui::UISystem;
 
 use crate::systems::viewer_system::ViewerSystem;
 
@@ -18,7 +18,7 @@ define_plugin!(Viewer);
 
 impl Plugin for Viewer {
     fn name(&self) -> &str {
-        "sabi_viewer"
+        "inox_viewer"
     }
     fn prepare(&mut self, app: &mut App) {
         let mut update_phase = PhaseWithSystems::new(VIEWER_UPDATE_PHASE);

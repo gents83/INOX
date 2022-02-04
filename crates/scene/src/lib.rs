@@ -1,8 +1,8 @@
 #![allow(dead_code)]
 #![warn(clippy::all)]
 
-use sabi_messenger::MessageHubRc;
-use sabi_resources::SharedDataRc;
+use inox_messenger::MessageHubRc;
+use inox_resources::SharedDataRc;
 
 pub use crate::data::*;
 

@@ -2,11 +2,11 @@ use crate::{
     GraphicsMesh, Light, LightId, Material, MaterialId, Mesh, MeshId, Pipeline, RenderPass,
     RenderPassDrawContext, ShaderData, Texture, TextureHandler,
 };
-use sabi_math::{matrix4_to_array, Matrix4, Vector2};
-use sabi_resources::{DataTypeResource, HashIndexer, Resource};
+use inox_math::{matrix4_to_array, Matrix4, Vector2};
+use inox_resources::{DataTypeResource, HashIndexer, Resource};
 
-use sabi_platform::Handle;
-use sabi_resources::{SharedData, SharedDataRc};
+use inox_platform::Handle;
+use inox_resources::{SharedData, SharedDataRc};
 
 use std::sync::{Arc, RwLock};
 
@@ -136,7 +136,7 @@ impl Renderer {
     }
 
     pub fn prepare_frame(&mut self) -> &mut Self {
-        sabi_profiler::scoped_profile!("renderer::prepare_frame");
+        inox_profiler::scoped_profile!("renderer::prepare_frame");
 
         self.init_render_passes();
         self.init_materials();
@@ -167,7 +167,7 @@ impl Renderer {
     }
 
     pub fn recreate(&self) {
-        sabi_profiler::scoped_profile!("renderer::recreate");
+        inox_profiler::scoped_profile!("renderer::recreate");
 
         SharedData::for_each_resource_mut(&self.shared_data, |_id, pipeline: &mut Pipeline| {
             pipeline.invalidate();
@@ -273,7 +273,7 @@ impl Renderer {
 
 impl Renderer {
     fn init_render_passes(&mut self) {
-        sabi_profiler::scoped_profile!("renderer::init_render_passes");
+        inox_profiler::scoped_profile!("renderer::init_render_passes");
         let render_context = &self.context;
         let texture_handler = &mut self.texture_handler;
         self.shared_data
@@ -284,7 +284,7 @@ impl Renderer {
             });
     }
     fn init_textures(&mut self) {
-        sabi_profiler::scoped_profile!("renderer::init_textures");
+        inox_profiler::scoped_profile!("renderer::init_textures");
         let render_context = &self.context;
         let texture_handler = &mut self.texture_handler;
         let mut encoder =
@@ -329,7 +329,7 @@ impl Renderer {
         }
     }
     fn init_materials(&mut self) {
-        sabi_profiler::scoped_profile!("renderer::init_materials");
+        inox_profiler::scoped_profile!("renderer::init_materials");
         self.shared_data
             .for_each_resource_mut(|handle, material: &mut Material| {
                 let uniform_index = self.material_hash_indexer.insert(handle.id());
@@ -341,7 +341,7 @@ impl Renderer {
     }
 
     fn init_lights(&mut self) {
-        sabi_profiler::scoped_profile!("renderer::init_lights");
+        inox_profiler::scoped_profile!("renderer::init_lights");
         self.shared_data
             .for_each_resource_mut(|handle, light: &mut Light| {
                 let uniform_index = self.light_hash_indexer.insert(handle.id());
@@ -353,7 +353,7 @@ impl Renderer {
     }
 
     pub fn send_to_gpu(&mut self) {
-        sabi_profiler::scoped_profile!("renderer::send_to_gpu");
+        inox_profiler::scoped_profile!("renderer::send_to_gpu");
         let render_context = &self.context;
         let graphic_mesh = &mut self.graphics_mesh;
 

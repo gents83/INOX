@@ -1,13 +1,13 @@
 use std::path::{Path, PathBuf};
 
-use sabi_math::{Degrees, Mat4Ops, MatBase, Matrix4, NewAngle, Vector2, Vector3, Vector4};
-use sabi_messenger::MessageHubRc;
-use sabi_resources::{
+use inox_math::{Degrees, Mat4Ops, MatBase, Matrix4, NewAngle, Vector2, Vector3, Vector4};
+use inox_messenger::MessageHubRc;
+use inox_resources::{
     DataTypeResource, Handle, Resource, ResourceId, ResourceTrait, SerializableResource,
     SharedData, SharedDataRc,
 };
-use sabi_serialize::{read_from_file, SerializeFile};
-use sabi_ui::{CollapsingHeader, UIProperties, UIPropertiesRegistry, Ui};
+use inox_serialize::{read_from_file, SerializeFile};
+use inox_ui::{CollapsingHeader, UIProperties, UIPropertiesRegistry, Ui};
 
 use crate::{CameraData, Object, ObjectId};
 
@@ -123,7 +123,8 @@ impl DataTypeResource for Camera {
             }
         }
     }
-    fn on_destroy(&mut self, _shared_data: &SharedData, _messenger: &MessageHubRc, _id: &CameraId) {}
+    fn on_destroy(&mut self, _shared_data: &SharedData, _messenger: &MessageHubRc, _id: &CameraId) {
+    }
 
     fn create_from_data(
         _shared_data: &SharedDataRc,
@@ -156,7 +157,7 @@ impl Camera {
         near: f32,
         far: f32,
     ) -> &mut Self {
-        let proj = sabi_math::perspective(fov, screen_width / screen_height, near, far);
+        let proj = inox_math::perspective(fov, screen_width / screen_height, near, far);
 
         self.proj = proj;
 

@@ -6,7 +6,7 @@ use syn::{parse_quote, Error, ItemImpl, Type, TypePath};
 pub(crate) fn expand(args: ImplArgs, mut input: ItemImpl, mode: Mode) -> TokenStream {
     if mode.de && !input.generics.params.is_empty() {
         let msg = "deserialization of generic impls is not supported yet; \
-                   use #[sabi_serializable::serialize] to generate serialization only";
+                   use #[inox_serializable::serialize] to generate serialization only";
         return Error::new_spanned(input.generics, msg).to_compile_error();
     }
 
@@ -16,7 +16,7 @@ pub(crate) fn expand(args: ImplArgs, mut input: ItemImpl, mode: Mode) -> TokenSt
             Some(name) => quote!(#name),
             None => {
                 let msg =
-                    "use #[sabi_serializable::serde(name = \"...\")] to specify a unique name";
+                    "use #[inox_serializable::serde(name = \"...\")] to specify a unique name";
                 return Error::new_spanned(&input.self_ty, msg).to_compile_error();
             }
         },
@@ -34,20 +34,20 @@ pub(crate) fn expand(args: ImplArgs, mut input: ItemImpl, mode: Mode) -> TokenSt
             {
                 let func = (|deserializer| std::result::Result::Ok(
                     std::boxed::Box::new(
-                        sabi_serializable::erased_serde::deserialize::<#this>(deserializer)?
+                        inox_serializable::erased_serde::deserialize::<#this>(deserializer)?
                     ),
-                )) as sabi_serializable::DeserializeFn<<dyn #object as sabi_serializable::InheritTrait>::Object>;
+                )) as inox_serializable::DeserializeFn<<dyn #object as inox_serializable::InheritTrait>::Object>;
                 
-                let serializable_registry = sabi_serializable::get_serializable_registry!();
-                serializable_registry.register_type::< <dyn #object as sabi_serializable::InheritTrait>::Object >(#name, func);  
+                let serializable_registry = inox_serializable::get_serializable_registry!();
+                serializable_registry.register_type::< <dyn #object as inox_serializable::InheritTrait>::Object >(#name, func);  
             }
         });
         input.items.push(parse_quote! {
             fn unregister_as_serializable()
             where Self: Sized 
             {
-                let serializable_registry = sabi_serializable::get_serializable_registry!();
-                serializable_registry.unregister_type::< <dyn #object as sabi_serializable::InheritTrait>::Object >(#name);  
+                let serializable_registry = inox_serializable::get_serializable_registry!();
+                serializable_registry.unregister_type::< <dyn #object as inox_serializable::InheritTrait>::Object >(#name);  
             }
         });
     }

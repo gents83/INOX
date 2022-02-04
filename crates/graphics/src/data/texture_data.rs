@@ -1,10 +1,10 @@
 use crate::print_field_size;
-use sabi_serialize::{Deserialize, Serialize};
+use inox_serialize::{Deserialize, Serialize};
 
 pub const MAX_NUM_TEXTURES: usize = 512;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
-#[serde(crate = "sabi_serialize")]
+#[serde(crate = "inox_serialize")]
 pub enum TextureType {
     BaseColor = 0,
     MetallicRoughness = 1,

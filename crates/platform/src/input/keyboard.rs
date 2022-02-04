@@ -2,8 +2,8 @@
 
 use std::str::FromStr;
 
-use sabi_commands::CommandParser;
-use sabi_messenger::implement_message;
+use inox_commands::CommandParser;
+use inox_messenger::implement_message;
 
 use super::state::*;
 
@@ -736,7 +736,7 @@ pub struct KeyEvent {
 implement_message!(KeyEvent, key_event_from_command_parser);
 
 impl KeyEvent {
-    fn key_event_from_command_parser(command_parser: sabi_commands::CommandParser) -> Option<Self> {
+    fn key_event_from_command_parser(command_parser: inox_commands::CommandParser) -> Option<Self> {
         if command_parser.has("key_pressed") {
             let values = command_parser.get_values_of("key_pressed");
             return Some(KeyEvent {

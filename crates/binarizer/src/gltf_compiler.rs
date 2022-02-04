@@ -16,24 +16,24 @@ use gltf::{
     Accessor, Camera, Gltf, Node, Primitive, Semantic, Texture,
 };
 
-use sabi_graphics::{
+use inox_graphics::{
     LightData, LightType, MaterialAlphaMode, MaterialData, MeshData, TextureType, VertexData,
     MAX_TEXTURE_COORDS_SETS,
 };
-use sabi_math::{Mat4Ops, Matrix4, NewAngle, Parser, Radians, Vector2, Vector3, Vector4};
-use sabi_messenger::MessageHubRc;
-use sabi_nodes::LogicData;
-use sabi_profiler::debug_log;
-use sabi_resources::Data;
-use sabi_scene::{CameraData, ObjectData, SceneData};
-use sabi_serialize::{deserialize, Deserialize, Serialize, SerializeFile};
+use inox_math::{Mat4Ops, Matrix4, NewAngle, Parser, Radians, Vector2, Vector3, Vector4};
+use inox_messenger::MessageHubRc;
+use inox_nodes::LogicData;
+use inox_profiler::debug_log;
+use inox_resources::Data;
+use inox_scene::{CameraData, ObjectData, SceneData};
+use inox_serialize::{deserialize, Deserialize, Serialize, SerializeFile};
 
 const GLTF_EXTENSION: &str = "gltf";
 
 const DEFAULT_PIPELINE: &str = "pipelines/Default.pipeline";
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
-#[serde(crate = "sabi_serialize")]
+#[serde(crate = "inox_serialize")]
 struct ExtraData {
     name: String,
     #[serde(rename = "type")]
@@ -41,15 +41,15 @@ struct ExtraData {
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
-#[serde(crate = "sabi_serialize")]
+#[serde(crate = "inox_serialize")]
 struct ExtraProperties {
     logic: ExtraData,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
-#[serde(crate = "sabi_serialize")]
+#[serde(crate = "inox_serialize")]
 struct Extras {
-    sabi_properties: ExtraProperties,
+    inox_properties: ExtraProperties,
 }
 
 #[derive(PartialEq, Eq)]
@@ -453,7 +453,7 @@ impl GltfCompiler {
         }
         if let Some(extras) = node.extras() {
             if let Ok(extras) = deserialize::<Extras>(extras.to_string().as_str()) {
-                if !extras.sabi_properties.logic.name.is_empty() {
+                if !extras.inox_properties.logic.name.is_empty() {
                     let mut path = path
                         .parent()
                         .unwrap()
@@ -464,7 +464,7 @@ impl GltfCompiler {
                     path.push_str(
                         format!(
                             "\\{}.{}",
-                            extras.sabi_properties.logic.name,
+                            extras.inox_properties.logic.name,
                             LogicData::extension()
                         )
                         .as_str(),

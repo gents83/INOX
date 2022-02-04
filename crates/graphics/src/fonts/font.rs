@@ -1,7 +1,7 @@
 use image::*;
-use sabi_math::{Vector2, Vector4};
-use sabi_platform::DEFAULT_DPI;
-use sabi_serialize::{Deserialize, Serialize};
+use inox_math::{Vector2, Vector4};
+use inox_platform::DEFAULT_DPI;
+use inox_serialize::{Deserialize, Serialize};
 use std::path::Path;
 use ttf_parser::*;
 
@@ -13,7 +13,7 @@ pub const DEFAULT_FONT_TEXTURE_SIZE: usize = 1024;
 pub const FONT_PT_TO_PIXEL: f32 = DEFAULT_DPI / (72. * 2048.);
 
 #[derive(Default, Serialize, Deserialize, Debug, PartialEq, Clone)]
-#[serde(crate = "sabi_serialize")]
+#[serde(crate = "inox_serialize")]
 pub struct FontData {
     metrics: Metrics,
     glyphs: Vec<Glyph>,

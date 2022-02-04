@@ -1,13 +1,13 @@
-use sabi_serialize::{deserialize, Deserialize, Serialize};
+use inox_serialize::{deserialize, Deserialize, Serialize};
 
 use crate::{
     implement_node, implement_pin, LogicContext, LogicData, Node, NodeExecutionType, NodeState,
     NodeTrait, NodeTree, PinId,
 };
-use sabi_serialize::sabi_serializable;
+use inox_serialize::inox_serializable;
 
 #[derive(Serialize, Deserialize, Copy, Clone)]
-#[serde(crate = "sabi_serialize")]
+#[serde(crate = "inox_serialize")]
 pub enum LogicExecution {
     Type,
 }
@@ -19,7 +19,7 @@ impl Default for LogicExecution {
 implement_pin!(LogicExecution);
 
 #[derive(Serialize, Deserialize, Clone)]
-#[serde(crate = "sabi_serialize")]
+#[serde(crate = "inox_serialize")]
 pub struct RustExampleNode {
     node: Node,
 }
@@ -78,7 +78,7 @@ impl RustExampleNode {
 }
 
 #[derive(Serialize, Deserialize, Clone)]
-#[serde(crate = "sabi_serialize")]
+#[serde(crate = "inox_serialize")]
 pub struct ScriptInitNode {
     node: Node,
 }
@@ -108,9 +108,9 @@ impl ScriptInitNode {
 #[allow(dead_code)]
 fn test_node() {
     use crate::LogicNodeRegistry;
-    use sabi_serialize::serialize;
+    use inox_serialize::serialize;
 
-    sabi_serialize::sabi_serializable::create_serializable_registry!();
+    inox_serialize::inox_serializable::create_serializable_registry!();
     let mut registry = LogicNodeRegistry::default();
     registry.register_node::<ScriptInitNode>();
     registry.register_node::<RustExampleNode>();

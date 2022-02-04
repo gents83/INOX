@@ -1,6 +1,6 @@
-use sabi_math::{Degrees, MatBase, Matrix4, NewAngle};
-use sabi_messenger::MessageHubRc;
-use sabi_resources::{
+use inox_math::{Degrees, MatBase, Matrix4, NewAngle};
+use inox_messenger::MessageHubRc;
+use inox_resources::{
     DataTypeResource, Handle, ResourceId, ResourceTrait, SharedData, SharedDataRc,
 };
 
@@ -59,7 +59,7 @@ impl DataTypeResource for View {
         Self {
             view_index: data,
             view: Matrix4::default_identity(),
-            proj: sabi_math::perspective(Degrees::new(45.), 800. / 600., 0.001, 1000.0),
+            proj: inox_math::perspective(Degrees::new(45.), 800. / 600., 0.001, 1000.0),
         }
     }
 }

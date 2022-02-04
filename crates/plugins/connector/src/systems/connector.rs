@@ -9,11 +9,11 @@ use std::{
     thread::{self, JoinHandle},
 };
 
-use sabi_core::System;
-use sabi_messenger::MessageHubRc;
-use sabi_profiler::debug_log;
-use sabi_resources::ConfigBase;
-use sabi_serialize::SerializeFile;
+use inox_core::System;
+use inox_messenger::MessageHubRc;
+use inox_profiler::debug_log;
+use inox_resources::ConfigBase;
+use inox_serialize::SerializeFile;
 
 use crate::config::Config;
 

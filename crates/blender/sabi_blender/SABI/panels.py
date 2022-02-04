@@ -49,7 +49,7 @@ class SABIProperties(bpy.types.Panel):
 
         obj = context.object
         row = layout.row()
-        obj.sabi_properties.draw(layout, context)
+        obj.inox_properties.draw(layout, context)
 
 
 blender_classes.append(SABIRunner)
@@ -61,7 +61,7 @@ def register():
     for blender_class in blender_classes:
         bpy.utils.register_class(blender_class)
 
-    bpy.types.Object.sabi_properties = bpy.props.PointerProperty(
+    bpy.types.Object.inox_properties = bpy.props.PointerProperty(
         type=SABIPropertiesGroup)
 
 

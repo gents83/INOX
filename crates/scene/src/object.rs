@@ -4,15 +4,15 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use sabi_graphics::{Light, Mesh, OnLightCreateData, OnMeshCreateData};
-use sabi_math::{Mat4Ops, MatBase, Matrix4, Vector3};
-use sabi_messenger::MessageHubRc;
-use sabi_resources::{
+use inox_graphics::{Light, Mesh, OnLightCreateData, OnMeshCreateData};
+use inox_math::{Mat4Ops, MatBase, Matrix4, Vector3};
+use inox_messenger::MessageHubRc;
+use inox_resources::{
     DataTypeResource, GenericResource, Handle, Resource, ResourceCastTo, ResourceId, ResourceTrait,
     SerializableResource, SharedData, SharedDataRc,
 };
-use sabi_serialize::{generate_random_uid, read_from_file, SerializeFile};
-use sabi_ui::{CollapsingHeader, UIProperties, UIPropertiesRegistry, Ui};
+use inox_serialize::{generate_random_uid, read_from_file, SerializeFile};
+use inox_ui::{CollapsingHeader, UIProperties, UIPropertiesRegistry, Ui};
 
 use crate::{Camera, ObjectData, OnCameraCreateData, OnScriptCreateData, Script};
 
@@ -114,7 +114,8 @@ impl DataTypeResource for Object {
             self.set_parent(parent);
         }
     }
-    fn on_destroy(&mut self, _shared_data: &SharedData, _messenger: &MessageHubRc, _id: &ObjectId) {}
+    fn on_destroy(&mut self, _shared_data: &SharedData, _messenger: &MessageHubRc, _id: &ObjectId) {
+    }
 
     fn is_initialized(&self) -> bool {
         !self.components.is_empty()

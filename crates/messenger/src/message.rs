@@ -1,6 +1,6 @@
 use std::any::type_name;
 
-use sabi_commands::CommandParser;
+use inox_commands::CommandParser;
 
 use crate::{MessageHub, MessageHubRc};
 

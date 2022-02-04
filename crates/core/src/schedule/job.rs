@@ -7,7 +7,7 @@ use std::{
     },
 };
 
-use sabi_serialize::Uid;
+use inox_serialize::Uid;
 
 pub type JobId = Uid;
 
@@ -44,7 +44,7 @@ impl Job {
     }
 
     pub fn execute(self) {
-        sabi_profiler::scoped_profile!(self.name.as_str());
+        inox_profiler::scoped_profile!(self.name.as_str());
         /*
         debug_log(
             "Starting {:?} - remaining {:?}",

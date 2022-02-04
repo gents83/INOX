@@ -1,5 +1,5 @@
-use sabi_resources::implement_singleton;
-use sabi_serialize::{Deserialize, Serialize};
+use inox_resources::implement_singleton;
+use inox_serialize::{Deserialize, Serialize};
 
 use crate::{Node, NodeTrait, Pin, PinType};
 

@@ -106,9 +106,9 @@ class FieldData:
             self.socket_type = "NodeSocketString"
 
 
-def register_nodes(sabi_engine):
-    from SABI import sabi_blender
-    sabi_blender.register_nodes(sabi_engine)
+def register_nodes(inox_engine):
+    from SABI import inox_blender
+    inox_blender.register_nodes(inox_engine)
 
     global RUST_NODES
     node_items = {}
@@ -228,7 +228,7 @@ class OpenInLogicEditor(Operator):
         for area in bpy.context.screen.areas:
             if area.type == 'VIEW_3D':
                 area.type = 'NODE_EDITOR'
-                area.spaces.active.node_tree = context.object.sabi_properties.logic
+                area.spaces.active.node_tree = context.object.inox_properties.logic
         return {'FINISHED'}
 
 

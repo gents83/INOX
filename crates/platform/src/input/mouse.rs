@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use sabi_commands::CommandParser;
-use sabi_messenger::implement_message;
+use inox_commands::CommandParser;
+use inox_messenger::implement_message;
 
 #[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone, Copy)]
 pub enum MouseButton {

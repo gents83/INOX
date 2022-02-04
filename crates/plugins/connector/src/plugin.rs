@@ -1,4 +1,4 @@
-use sabi_core::{define_plugin, App, PhaseWithSystems, Plugin, System, SystemId};
+use inox_core::{define_plugin, App, PhaseWithSystems, Plugin, System, SystemId};
 
 use crate::systems::connector::Connector;
 
@@ -13,7 +13,7 @@ define_plugin!(ConnectorPlugin);
 
 impl Plugin for ConnectorPlugin {
     fn name(&self) -> &str {
-        "sabi_connector"
+        "inox_connector"
     }
     fn prepare(&mut self, app: &mut App) {
         let mut update_phase = PhaseWithSystems::new(CONNECTOR_PHASE);

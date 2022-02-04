@@ -1,8 +1,8 @@
-use sabi_resources::ConfigBase;
-use sabi_serialize::{Deserialize, Serialize, SerializeFile};
+use inox_resources::ConfigBase;
+use inox_serialize::{Deserialize, Serialize, SerializeFile};
 
 #[derive(Default, Serialize, Deserialize, Debug, Clone)]
-#[serde(crate = "sabi_serialize")]
+#[serde(crate = "inox_serialize")]
 pub struct Config {
     pub host_address: String,
     pub port: u32,

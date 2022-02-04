@@ -1,4 +1,4 @@
-use sabi_math::Vector4;
+use inox_math::Vector4;
 
 #[inline]
 pub fn compute_color_from_id(id: u32) -> Vector4 {

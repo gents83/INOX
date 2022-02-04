@@ -1,4 +1,4 @@
-use sabi_math::Vector4;
+use inox_math::Vector4;
 
 use crate::{VertexBufferLayoutBuilder, INVALID_INDEX};
 

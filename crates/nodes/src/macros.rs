@@ -1,7 +1,7 @@
 #[macro_export]
 macro_rules! implement_pin {
     ($Type:ident) => {
-        #[sabi_serializable::serializable]
+        #[inox_serializable::serializable]
         impl $crate::Pin for $Type {
             fn as_any(&self) -> &dyn std::any::Any {
                 self
@@ -52,7 +52,7 @@ macro_rules! implement_pin {
 #[macro_export]
 macro_rules! implement_node {
     ($Type:ident, $NodeField:ident, $Category:expr, $Description:expr, $ExecutionType:expr) => {
-        #[sabi_serializable::serializable]
+        #[inox_serializable::serializable]
         impl $crate::NodeTrait for $Type {
             fn get_type() -> &'static str
             where
@@ -102,13 +102,13 @@ macro_rules! implement_node {
                 Box::new(self.clone())
             }
             fn serialize_node(&self) -> String {
-                sabi_serialize::serialize(self)
+                inox_serialize::serialize(self)
             }
             fn deserialize_node(&self, s: &str) -> Option<Self>
             where
                 Self: Sized,
             {
-                if let Ok(n) = sabi_serialize::deserialize(s) {
+                if let Ok(n) = inox_serialize::deserialize(s) {
                     return Some(n);
                 }
                 None

@@ -1,5 +1,5 @@
 [package]
-name = "sabi_messenger"
+name = "inox_messenger"
 version = "0.1.0"
 authors = ["gents83 <gents83@gmail.com>"]
 edition = "2021"
@@ -9,5 +9,5 @@ build = "build.rs"
 crate-type = ["lib"]
 
 [dependencies]
-sabi_commands = { path = "../commands" }
-sabi_serialize = { path = "../serialize" }
+inox_commands = { path = "../commands" }
+inox_serialize = { path = "../serialize" }

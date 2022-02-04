@@ -18,9 +18,9 @@ pub use node_registry::*;
 pub use node_tree::*;
 pub use pin::*;
 
-use sabi_resources::SharedDataRc;
-use sabi_resources::Singleton;
-use sabi_serialize::sabi_serializable;
+use inox_resources::SharedDataRc;
+use inox_resources::Singleton;
+use inox_serialize::inox_serializable;
 
 implement_pin!(f32);
 implement_pin!(f64);

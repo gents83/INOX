@@ -1,5 +1,5 @@
 [package]
-name = "sabi_binarizer"
+name = "inox_binarizer"
 version = "0.1.0"
 authors = ["gents83 <gents83@gmail.com>"]
 edition = "2021"
@@ -10,14 +10,14 @@ crate-type = ["lib"]
 
 [dependencies]
 gltf = { path = "../../extern/gltf", features = ["extras", "names", "KHR_lights_punctual", "KHR_materials_pbrSpecularGlossiness"] }
-sabi_filesystem = { path = "../filesystem" }
-sabi_graphics = { path = "../graphics" }
-sabi_math = { path = "../math" }
-sabi_messenger = { path = "../messenger" }
-sabi_nodes = { path = "../nodes" }
-sabi_platform = { path = "../platform" }
-sabi_profiler = { path = "../profiler" }
-sabi_resources = { path = "../resources" }
-sabi_scene = { path = "../scene" }
-sabi_serialize = { path = "../serialize" }
+inox_filesystem = { path = "../filesystem" }
+inox_graphics = { path = "../graphics" }
+inox_math = { path = "../math" }
+inox_messenger = { path = "../messenger" }
+inox_nodes = { path = "../nodes" }
+inox_platform = { path = "../platform" }
+inox_profiler = { path = "../profiler" }
+inox_resources = { path = "../resources" }
+inox_scene = { path = "../scene" }
+inox_serialize = { path = "../serialize" }
 

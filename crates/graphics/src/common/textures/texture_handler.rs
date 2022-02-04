@@ -1,6 +1,6 @@
 use std::{num::NonZeroU32, path::Path};
 
-use sabi_profiler::debug_log;
+use inox_profiler::debug_log;
 
 use crate::{RenderContext, TextureData, TextureId, MAX_TEXTURE_ATLAS_COUNT};
 
@@ -138,7 +138,7 @@ impl TextureHandler {
     }
 
     pub fn copy(&self, context: &RenderContext, id: &TextureId, _image_data: &mut [u8]) {
-        sabi_profiler::scoped_profile!("texture::copy");
+        inox_profiler::scoped_profile!("texture::copy");
 
         self.texture_atlas.iter().for_each(|atlas| {
             if atlas.read_from_gpu(context, id) {

@@ -6,7 +6,7 @@ use std::{
     sync::RwLock,
 };
 
-use sabi_filesystem::Library;
+use inox_filesystem::Library;
 
 pub trait TraitRegistry: Any {
     fn as_any(&self) -> &dyn Any;

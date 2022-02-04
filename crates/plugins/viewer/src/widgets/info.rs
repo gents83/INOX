@@ -3,9 +3,9 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use sabi_messenger::MessageHubRc;
-use sabi_resources::{Resource, SharedDataRc};
-use sabi_ui::{implement_widget_data, UIWidget, Window};
+use inox_messenger::MessageHubRc;
+use inox_resources::{Resource, SharedDataRc};
+use inox_ui::{implement_widget_data, UIWidget, Window};
 
 struct Data {
     frame_seconds: VecDeque<SystemTime>,

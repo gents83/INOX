@@ -9,9 +9,9 @@ use std::{
 };
 
 use crate::{CopyCompiler, FontCompiler, GltfCompiler, ImageCompiler, ShaderCompiler};
-use sabi_filesystem::convert_from_local_path;
-use sabi_messenger::MessageHubRc;
-use sabi_platform::{FileEvent, FileWatcher};
+use inox_filesystem::convert_from_local_path;
+use inox_messenger::MessageHubRc;
+use inox_platform::{FileEvent, FileWatcher};
 
 pub trait ExtensionHandler {
     fn on_changed(&mut self, path: &Path);

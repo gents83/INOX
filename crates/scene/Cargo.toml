@@ -1,5 +1,5 @@
 [package]
-name = "sabi_scene"
+name = "inox_scene"
 version = "0.1.0"
 authors = ["gents83 <gents83@gmail.com>"]
 edition = "2021"
@@ -9,10 +9,10 @@ build = "build.rs"
 crate-type = ["lib"]
 
 [dependencies]
-sabi_math = { path = "../math" }
-sabi_nodes = { path = "../nodes" }
-sabi_graphics = { path = "../graphics" }
-sabi_messenger = { path = "../messenger" }
-sabi_resources = { path = "../resources" }
-sabi_serialize = { path = "../serialize" }
-sabi_ui = { path = "../ui" }
+inox_math = { path = "../math" }
+inox_nodes = { path = "../nodes" }
+inox_graphics = { path = "../graphics" }
+inox_messenger = { path = "../messenger" }
+inox_resources = { path = "../resources" }
+inox_serialize = { path = "../serialize" }
+inox_ui = { path = "../ui" }

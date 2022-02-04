@@ -1,8 +1,8 @@
-use sabi_math::{Mat4Ops, MatBase, Matrix4, VecBase, Vector3};
-use sabi_messenger::MessageHubRc;
-use sabi_resources::{ResourceId, ResourceTrait, SharedData, SharedDataRc};
+use inox_math::{Mat4Ops, MatBase, Matrix4, VecBase, Vector3};
+use inox_messenger::MessageHubRc;
+use inox_resources::{ResourceId, ResourceTrait, SharedData, SharedDataRc};
 
-use sabi_ui::{CollapsingHeader, UIProperties, UIPropertiesRegistry, Ui};
+use inox_ui::{CollapsingHeader, UIProperties, UIPropertiesRegistry, Ui};
 
 pub type HitboxId = ResourceId;
 

@@ -9,9 +9,9 @@ use pyo3::{
     PyObject, PyResult, Python, ToPyObject,
 };
 
-use sabi_nodes::LogicData;
+use inox_nodes::LogicData;
 
-use sabi_serialize::SerializeFile;
+use inox_serialize::SerializeFile;
 
 #[derive(Default)]
 pub struct Exporter {
@@ -89,7 +89,7 @@ impl Exporter {
         object: &PyObject,
         path: &Path,
     ) -> PyResult<bool> {
-        if let Ok(properties) = object.getattr(py, "sabi_properties") {
+        if let Ok(properties) = object.getattr(py, "inox_properties") {
             if let Ok(logic) = properties.getattr(py, "logic") {
                 self.export_logic(py, &logic, path)?;
             }

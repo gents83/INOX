@@ -1,7 +1,7 @@
 use std::{ops::Range, path::PathBuf};
 
-use sabi_math::{is_point_in_triangle, Vector2, Vector3, Vector4};
-use sabi_serialize::{Deserialize, Serialize, SerializeFile};
+use inox_math::{is_point_in_triangle, Vector2, Vector3, Vector4};
+use inox_serialize::{Deserialize, Serialize, SerializeFile};
 
 use crate::{create_quad, VertexData};
 
@@ -11,7 +11,7 @@ pub struct MeshBindingData {
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
-#[serde(crate = "sabi_serialize")]
+#[serde(crate = "inox_serialize")]
 pub struct MeshData {
     pub vertices: Vec<VertexData>,
     pub indices: Vec<u32>,

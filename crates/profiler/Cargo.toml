@@ -1,5 +1,5 @@
 [package]
-name = "sabi_profiler"
+name = "inox_profiler"
 version = "0.1.0"
 authors = ["gents83 <gents83@gmail.com>"]
 edition = "2021"
@@ -10,5 +10,5 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 serde_json = { path = "../../extern/json"}
-sabi_filesystem = { path = "../filesystem" }
-sabi_platform = { path = "../platform" }
+inox_filesystem = { path = "../filesystem" }
+inox_platform = { path = "../platform" }

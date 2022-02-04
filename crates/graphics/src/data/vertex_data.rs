@@ -1,5 +1,5 @@
-use sabi_math::{VecBase, Vector2, Vector3, Vector4};
-use sabi_serialize::{Deserialize, Serialize};
+use inox_math::{VecBase, Vector2, Vector3, Vector4};
+use inox_serialize::{Deserialize, Serialize};
 
 use crate::InstanceData;
 
@@ -7,7 +7,7 @@ pub const MAX_TEXTURE_COORDS_SETS: usize = 4;
 
 #[repr(C, align(16))]
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Copy)]
-#[serde(crate = "sabi_serialize")]
+#[serde(crate = "inox_serialize")]
 pub struct VertexData {
     pub pos: Vector3,
     pub normal: Vector3,

@@ -50,7 +50,7 @@ impl Worker {
             let job_handler = job_handler.clone();
             let t = builder
                 .spawn(move || {
-                    sabi_profiler::register_thread!();
+                    inox_profiler::register_thread!();
                     scheduler.write().unwrap().resume();
                     loop {
                         let can_continue = scheduler.write().unwrap().run_once(true, &job_handler);

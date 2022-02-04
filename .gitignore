@@ -5,7 +5,7 @@ Cargo.lock
 *.lock
 *.gfxr
 *.foz
-*.sabi_profile
+*.inox_profile
 *.dll
 *.exe
 *.pyd

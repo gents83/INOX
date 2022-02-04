@@ -1,5 +1,5 @@
 [package]
-name = "sabi_viewer"
+name = "inox_viewer"
 version = "0.1.0"
 authors = ["gents83 <gents83@gmail.com>"]
 edition = "2021"
@@ -9,16 +9,16 @@ build = "build.rs"
 crate-type = ["cdylib"]
 
 [dependencies]
-sabi_commands = { path = "../../commands" }
-sabi_core = { path = "../../core" }
-sabi_filesystem = { path = "../../filesystem" }
-sabi_graphics = { path = "../../graphics" }
-sabi_messenger = { path = "../../messenger" }
-sabi_math = { path = "../../math" }
-sabi_nodes = { path = "../../nodes" }
-sabi_platform = { path = "../../platform" }
-sabi_profiler = { path = "../../profiler" }
-sabi_resources = { path = "../../resources" }
-sabi_scene = { path = "../../scene" }
-sabi_serialize = { path = "../../serialize" }
-sabi_ui = { path = "../../ui" }
+inox_commands = { path = "../../commands" }
+inox_core = { path = "../../core" }
+inox_filesystem = { path = "../../filesystem" }
+inox_graphics = { path = "../../graphics" }
+inox_messenger = { path = "../../messenger" }
+inox_math = { path = "../../math" }
+inox_nodes = { path = "../../nodes" }
+inox_platform = { path = "../../platform" }
+inox_profiler = { path = "../../profiler" }
+inox_resources = { path = "../../resources" }
+inox_scene = { path = "../../scene" }
+inox_serialize = { path = "../../serialize" }
+inox_ui = { path = "../../ui" }

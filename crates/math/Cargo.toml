@@ -1,5 +1,5 @@
 [package]
-name = "sabi_math"
+name = "inox_math"
 version = "0.1.0"
 authors = ["gents83 <gents83@gmail.com>"]
 edition = "2021"
