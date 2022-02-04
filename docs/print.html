@@ -1,0 +1,438 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>INOX</title>
+        <meta name="robots" content="noindex" />
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="shortcut icon" href="">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link href="https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800" rel="stylesheet" type="text/css">
+        <link href="https://fonts.googleapis.com/css?family=Source+Code+Pro:500" rel="stylesheet" type="text/css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        <!-- CHANGED: Matomo -->
+        <script type="text/javascript">
+        var _paq = window._paq || [];
+        /* tracker methods like "setCustomDimension" should be called before "trackPageView" */
+        _paq.push(['trackPageView']);
+        _paq.push(['enableLinkTracking']);
+        (function() {
+            var u="//matomo.katharostech.com/";
+            _paq.push(['setTrackerUrl', u+'matomo.php']);
+            _paq.push(['setSiteId', '4']);
+            var d=document, g=d.createElement('script'), s=d.getElementsByTagName('script')[0];
+            g.type='text/javascript'; g.async=true; g.defer=true; g.src=u+'matomo.js'; s.parentNode.insertBefore(g,s);
+        })();
+        </script>
+        <noscript><p><img src="//matomo.katharostech.com/matomo.php?idsite=4&amp;rec=1" style="border:0;" alt="" /></p></noscript>
+        <!-- End Matomo Code -->
+    </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="index.html">Overview</a></li><li class="spacer"></li><li class="chapter-item expanded "><a href="features.html"><strong aria-hidden="true">1.</strong> Features</a></li><li class="chapter-item expanded "><a href="getting-started.html"><strong aria-hidden="true">2.</strong> Getting Started</a></li><li class="chapter-item expanded "><a href="INOX/guide.html"><strong aria-hidden="true">3.</strong> Development Guide</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="INOX/building.html"><strong aria-hidden="true">3.1.</strong> Building INOX code</a></li><li class="chapter-item expanded "><a href="INOX/architecture.html"><strong aria-hidden="true">3.2.</strong> Architecture</a></li><li class="chapter-item expanded "><a href="INOX/crates.html"><strong aria-hidden="true">3.3.</strong> Crates</a></li><li class="chapter-item expanded "><a href="INOX/external-dependencies.html"><strong aria-hidden="true">3.4.</strong> Dependencies</a></li></ol></li><li class="chapter-item expanded "><a href="sponsor.html"><strong aria-hidden="true">4.</strong> Sponsor</a></li><li class="spacer"></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">INOX</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" name="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="inox"><a class="header" href="#inox"><strong>INOX</strong></a></h1>
+<h2 id="rust-game-engine-integrated-in-blender"><a class="header" href="#rust-game-engine-integrated-in-blender">Rust Game engine integrated in Blender</a></h2>
+<p><a href="https://github.com/gents83/INOX"><img alt="github repository" src="https://img.shields.io/badge/github-gents83/INOX-8da0cb?logo=github" height="20"></a>
+<a href="https://gents83.github.io/INOX/"><img alt="github pages" src="https://img.shields.io/badge/Docs-github-brightgreen" height="20"></a>
+<a href="https://github.com/gents83/INOX/actions"><img alt="github workflow sattus" src="https://img.shields.io/github/workflow/status/gents83/INOX/Deploy%20on%20Github%20Pages?style=plastic" height="20"></a>
+<a href="https://github.com/sponsors/gents83"><img alt="github sponsor" src="https://img.shields.io/github/sponsors/gents83?style=plastic" height="20"></a>
+<img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT" />
+<img src="https://img.shields.io/badge/license-Apache-blue.svg" alt="Apache" /></p>
+<h2 id="inox-1"><a class="header" href="#inox-1">INOX</a></h2>
+<p>It's a Game Engine written in <em><strong>Rust</strong></em> with some bindings for external libs and with <em><strong>Blender</strong></em> as editor.</p>
+<p>INOX is a game engine written in <em><strong>Rust</strong></em> and developed by <a href="https://twitter.com/gents83">GENTS</a>. </p>
+<p>The main idea behind INOX is to use <a href="https://www.blender.org/">Blender</a> as external editor, even being able to create visual logic scripting nodes in it, and then have a button to launch the <em><strong>Rust</strong></em> engine, that should be scalable to create games of any scale and for users with every kind of experience.</p>
+<p><em><strong>Rust</strong></em> will give to INOX high performance, reliability and safe code, while <em><strong>Blender</strong></em> will bring easy customization and powerful editor capabilities.</p>
+<h2 id="why-inox"><a class="header" href="#why-inox">Why INOX?</a></h2>
+<p>Well... because even if made in Rust it should become an inoxidable game development engine :)</p>
+<h2 id="vision"><a class="header" href="#vision">Vision</a></h2>
+<p>The engine is developed with following pillars:</p>
+<ul>
+<li>The game engine should be obviously written in <em><strong>Rust</strong></em></li>
+<li>The engine should support multiple platforms (PC, Mobile, Sony Playstation, Microsoft XBox, Nintendo Switch, etc)</li>
+<li>The rendering engine should support different GFX API as well (like Vulkan, DirectX, Metal, etc)</li>
+<li>The engine should be multi-threaded both on CPU and GPU to reach high-end performances</li>
+<li>The engine should support streaming, quick background loading and hot-reload of Code and Data</li>
+<li><em><strong>Blender</strong></em> should be used as external 3D scene, Material, Animation and other content edition </li>
+<li>INOX should generate a <em><strong>Blender</strong></em> addon that could be installed in order to launch and communicate with it</li>
+<li><em><strong>Blender</strong></em> should be used as external editor with new custom INOX editors (like Logic Node Visual Scripting, etc) </li>
+<li>From <em><strong>Blender</strong></em> the user should be able to see the same scene rendered in INOX just pressing a button</li>
+<li>INOX Engine could be used just as a high quality rendering engine</li>
+<li>INOX Engine could be used to run game logic</li>
+</ul>
+<h2 id="notes"><a class="header" href="#notes">Notes</a></h2>
+<p>Not ready yet for production.
+INOX is in active development, it still lacks many features code architecture or interfaces could still change. 
+New releases could still have breaking changes.</p>
+<div style="break-before: page; page-break-before: always;"></div><h2 id="features"><a class="header" href="#features">Features</a></h2>
+<p>Here you can find a list of features that are currently supported by the library.</p>
+<ul>
+<li><input disabled="" type="checkbox" checked=""/>
+Multi platform architecture <br />
+  <strong>Windows</strong> only implemented right now <br />
+  <em>rawwindowhandle</em> integration could be an option in the future</li>
+<li><input disabled="" type="checkbox" checked=""/>
+Multi graphics api support <br />
+  <strong>Vulkan</strong> only implemented right now, <br />
+  <em>wgpu</em> integration could be an option in the future</li>
+<li><input disabled="" type="checkbox" checked=""/>
+Multi threading architecture with different Phases &gt; Systems &gt; Jobs <br />
+  See more info in <em>sabicore</em> crate section related to scheduling</li>
+<li><input disabled="" type="checkbox" checked=""/>
+CPU profiling using <em>Chrome Trace Event</em> format and usable through chrome://tracing/ <br />
+  See more info in <em>sabiprofiler</em> crate section</li>
+<li><input disabled="" type="checkbox" checked=""/>
+GPU profiling using <a href="https://renderdoc.org/">RenderDoc</a> by <a href="https://twitter.com/baldurk">Baldurk Karlsson</a></li>
+<li><input disabled="" type="checkbox" checked=""/>
+<em>Blender</em> addon written in <em>Python</em> and <em>Rust</em> built and copied into right folder to be used right away <br />
+  See more info in <em>sabiblender</em> crate section)</li>
+<li><input disabled="" type="checkbox" checked=""/>
+Launch and execute <em>SABI</em> directly from <em>Blender</em> <br />
+  Exporting scene as Khronos <a href="https://www.khronos.org/gltf/">GLTF</a>, binarizing and loading it into <em>SABI</em></li>
+<li><input disabled="" type="checkbox" checked=""/>
+Data binarization, shader compilation, etc as background task <br />
+  See more info in <em>sabibinarizer</em> crate section</li>
+<li><input disabled="" type="checkbox" checked=""/>
+Hot reload of code while INOX engine is running </li>
+<li><input disabled="" type="checkbox" checked=""/>
+Hot reload of data reloading on the fly while INOX engine is running</li>
+<li><input disabled="" type="checkbox" checked=""/>
+In-game GUI integration using <a href="https://github.com/emilk/egui">egui</a> by <a href="https://twitter.com/ernerfeldt">emilk</a></li>
+<li><input disabled="" type="checkbox" checked=""/>
+Documentations using <a href="https://rust-lang.github.io/mdBook/">mdBook</a></li>
+<li><input disabled="" type="checkbox" checked=""/>
+Continous integration and build support using Github Actions </li>
+<li><input disabled="" type="checkbox" checked=""/>
+<em><strong>INOX</strong></em> &lt;-&gt; <em><strong>Blender</strong></em> communication through TCP connection</li>
+<li><input disabled="" type="checkbox" checked=""/>
+Create custom Logic Nodes editor in <em><strong>Blender</strong></em></li>
+<li><input disabled="" type="checkbox" checked=""/>
+Possibility to define and use custom nodes in external dlls</li>
+</ul>
+<p>TODO:</p>
+<ul>
+<li><input disabled="" type="checkbox"/>
+Integrate wgpu as default rendering api</li>
+<li><input disabled="" type="checkbox"/>
+Integrate PBR rendering</li>
+<li><input disabled="" type="checkbox"/>
+Possibility to run Phases in parallel when not dependent</li>
+<li><input disabled="" type="checkbox"/>
+Plugin indipendent and ability to enable\disable them at runtime</li>
+<li><input disabled="" type="checkbox"/>
+Quick example of game </li>
+<li><input disabled="" type="checkbox"/>
+Integrate KTX universal texture compression</li>
+<li><input disabled="" type="checkbox"/>
+Integrate raw-window-handle as optional feature</li>
+<li><input disabled="" type="checkbox"/>
+Raytracing on GPU</li>
+<li><input disabled="" type="checkbox"/>
+Dynamic vertex data per-shader</li>
+<li><input disabled="" type="checkbox"/>
+Integrate wasm as target</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="getting-started"><a class="header" href="#getting-started">Getting Started</a></h1>
+<p>In this page you'll find info related to:</p>
+<h2 id="how-to-setup-blender-add-on"><a class="header" href="#how-to-setup-blender-add-on">How to setup <em><strong>Blender</strong></em> add-on</a></h2>
+<p>Every time that the code is updated a new version of the add-on is built and uploaded to the repository.
+You can download latest version directly from <a href="https://github.com/gents83/NRG/raw/gh-pages/INOX.zip">here</a></p>
+<p>Once that you downloaded it, you've two options install it or extract it in your <em><strong>Blender</strong></em> add-on folder.
+Usually the path is something like [Blender folder]/[version]/[scripts]/[addons</p>
+<p>If you extracted it, you should have now an INOX folder inside your add-on folder:</p>
+<p><img src="img/BlenderAddonFolder.jpg" alt="BlenderAddonFolder" /></p>
+<h2 id="how-to-enable-the-inox-addon-directly-in-blender"><a class="header" href="#how-to-enable-the-inox-addon-directly-in-blender">How to enable the <em><strong>INOX</strong></em> addon directly in <em><strong>Blender</strong></em></a></h2>
+<p>You should go in the Add-ons panel and enable the <em><strong>INOX</strong></em> add-on</p>
+<p><img src="img/BlenderAddon.jpg" alt="BlenderAddon" /></p>
+<p>If you want to install it you've to choose the <strong>INOX.zip</strong> file that you've downloaded and install it.</p>
+<p><img src="img/BlenderInstall.jpg" alt="BlenderPreferences" /></p>
+<p>Or if you've extracted the <em><strong>INOX</strong></em> folder inside the Blender add-on folder, you should already have it into the addons list. <br />
+You've to enable it in the <em><strong>Blender</strong></em> preferences <br />
+Once enabled please remember to setup add-on parameters, like the folder where you've the <em><strong>INOX</strong></em> binaries. This step is mainly available to allow users to have <strong><strong>INOX</strong></strong> binaries in a different folder, if needed (as example for the one working directly in code could be useful to set it to build output directory).</p>
+<p><img src="img/BlenderFolder.jpg" alt="BlenderFolder" /></p>
+<h2 id="how-to-use-the-inox-addon-in-blender"><a class="header" href="#how-to-use-the-inox-addon-in-blender">How to use the <em><strong>INOX</strong></em> addon in <em><strong>Blender</strong></em></a></h2>
+<p>Once that the <em><strong>INOX</strong></em> add-on is enabled and correctly setup, you should be able to edit your scene and run the <em><strong>INOX</strong></em> viewer just pressing <strong>F5</strong> or going in the <em>Render Properties</em> panel and pressing <strong>Run in INOX</strong> button under the <em>SABI</em> dropdown tab:</p>
+<p><img src="img/BlenderRun.jpg" alt="BlenderRun" /></p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="inox-development-guide"><a class="header" href="#inox-development-guide">INOX Development Guide</a></h1>
+<hr />
+<ul>
+<li><a href="INOX/./building.html">Building INOX code</a></li>
+<li><a href="INOX/./architecture.html">Architecture</a></li>
+<li><a href="INOX/./crates.html">Crates</a></li>
+<li><a href="INOX/./external-dependencies.html">Dependencies</a></li>
+</ul>
+<hr />
+<div style="break-before: page; page-break-before: always;"></div><h1 id="building-inox-code"><a class="header" href="#building-inox-code">Building <strong>INOX</strong> code</a></h1>
+<h2 id="how-to-download-inox-repository"><a class="header" href="#how-to-download-inox-repository">How to download <em><strong>INOX</strong></em> repository</a></h2>
+<p>You can clone it using <a href="https://github.com/gents83/INOX.git">https://github.com/gents83/INOX.git</a></p>
+<p>Or you can download the zip from <a href="https://github.com/gents83/INOX/archive/refs/heads/master.zip">here</a></p>
+<h2 id="how-to-build-and-run-inox-code"><a class="header" href="#how-to-build-and-run-inox-code">How to build and run <em><strong>INOX</strong></em> code</a></h2>
+<p>Once that you've cloned and downloaded the repository, you can build it by running the following commands:</p>
+<blockquote>
+<p>git submodule update --init --recursive</p>
+</blockquote>
+<p>The above command is needed to download all extern submodules and could require some time.</p>
+<blockquote>
+<p>cargo build --manifest-path ./crates/Cargo.toml</p>
+</blockquote>
+<p>The above command build the project in debug but you can switch to release adding --release at the end.</p>
+<blockquote>
+<p>cargo run --manifest-path ./crates/Cargo.toml -- -plugin inox_viewer</p>
+</blockquote>
+<p>The above command run the inox_launcher executable with the inox_viewer plugin. <br />
+Please provided needed command line parameters, like the -file_to_load 'path' <br />
+See the section <a href="INOX/building.html#command-line-parameters-accepted-by-inox_launcher">Command line parameters accepted by inox_launcher</a></p>
+<h2 id="how-to-use-microsoft-vscode-launch-and-tasks-created-for-inox-on-windows"><a class="header" href="#how-to-use-microsoft-vscode-launch-and-tasks-created-for-inox-on-windows">How to use <em><strong>Microsoft VSCode</strong></em> launch and tasks created for <em><strong>INOX</strong></em> on Windows</a></h2>
+<p>If you are using <em><strong>Microsoft VSCode</strong></em> on Windows you can benefits of several shortcuts to build and execute <em><strong>INOX</strong></em> code.</p>
+<p>Using the <em>SABI.code-workspace</em> file will allow you to get even raccomandation on useful extensions to maximise the <em>VSCode</em> experience.</p>
+<p>Let's see some useful shortcuts.</p>
+<ul>
+<li>
+<p>When building or pressing CTRL+SHIFT+B: <br />
+You'll have many debug possibilities as:</p>
+<ul>
+<li>BUILD DEBUG - Build workspace in debug</li>
+<li>BUILD RELEASE WASM - Build workspace in release with wasm as target</li>
+<li>BUILD RELEASE - Build workspace in release</li>
+<li>BUILD BOOK - Build and launch a rendered version of documentation in <code>/docs/</code> folder</li>
+<li>RUN CLIPPY - Execute clippy fix on crates code and check if there are any errors</li>
+<li>CHECK CRATES DEPENDENCIES - Check crates dependencies detecting and warning on unused ones.</li>
+</ul>
+</li>
+<li>
+<p>When debugging or pressing F5: <br />
+You'll have many debug possibilities as:</p>
+<ul>
+<li>RUN LAUNCHER DEBUG - Run the launcher in debug mode</li>
+<li>RUN LAUNCHER RELEASE - Run the launcher in release mode</li>
+<li>RUN VIEWER RELEASE - Run the viewer with a test scene (customizable in <code>/.vscode/launch.json</code>)</li>
+</ul>
+</li>
+</ul>
+<h2 id="command-line-parameters-accepted-by-inox_launcher"><a class="header" href="#command-line-parameters-accepted-by-inox_launcher">Command line parameters accepted by <strong>inox_launcher</strong></a></h2>
+<ul>
+<li>
+<p><strong>-plugin [name]</strong>: <br />
+The plugin to use. <br />
+You can specify names of crates inside apps folder like inox_viewer, inox_editor, etc <br />
+When not specified an empty window will be opened with only the binarizer executing in background.</p>
+</li>
+<li>
+<p><strong>-load_file [path]</strong>: <br />
+A path of a scene to load with path relative to <code>/data/</code> <br />
+As example could be <code>./data/blender_export/TestScene/TestScene.scene_data</code></p>
+</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><h2 id="architecture"><a class="header" href="#architecture">Architecture</a></h2>
+<div style="break-before: page; page-break-before: always;"></div><h2 id="inox-crates"><a class="header" href="#inox-crates">INOX Crates</a></h2>
+<p>In this page you'll find:</p>
+<ul>
+<li>A list of crates and their description and main concepts of the <em><strong>INOX</strong></em> project.</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><h2 id="external-dependencies"><a class="header" href="#external-dependencies">External Dependencies</a></h2>
+<p>In this page you'll find a list of external dependencies that are required from the <em><strong>INOX</strong></em> engine
+and that are referenced as git submodules inside the <code>/extern/</code> folder. </p>
+<ul>
+<li><a href="https://github.com/rustgd/cgmath"><strong>cgmath</strong></a>: <br />
+A linear algebra and mathematics library for computer graphics <br />
+Used in <em><strong>INOX</strong></em> as math library for vectors, matrices, quaternions, etc.</li>
+<li><a href="https://github.com/marcianx/downcast-rs"><strong>downcast-rs</strong></a>: <br />
+Adds downcasting support to trait objects using only safe Rust <br />
+Used in <em><strong>INOX</strong></em> for trait downcasting.</li>
+<li><a href="https://github.com/uuid-rs/uuid"><strong>uuid</strong></a>: <br />
+Generate and parse UUIDs. <br />
+Used in <em><strong>INOX</strong></em> for all resource IDs and for every UUID generated.</li>
+<li><a href="https://github.com/serde-rs/serde"><strong>serde</strong></a>: <br />
+Serialization framework for Rust <br />
+Used in <em><strong>INOX</strong></em> for serialization and deserialization purposes.</li>
+<li><a href="https://github.com/serde-rs/json"><strong>serde-json</strong></a>: <br />
+Strongly typed JSON library for Rust <br />
+Used in <em><strong>INOX</strong></em> for serialization and deserialization purposes of data.</li>
+<li><a href="https://github.com/dtolnay/typetag"><strong>typetag</strong></a>: <br />
+Serde serializable and deserializable trait objects <br />
+Used in <em><strong>INOX</strong></em> for serialization and deserialization purposes.</li>
+<li><a href="https://github.com/image-rs/image"><strong>image-rs</strong></a>: <br />
+Encoding and decoding images in Rust <br />
+Used in <em><strong>INOX</strong></em> for images loading and saving.</li>
+<li><a href="https://github.com/RazrFalcon/ttf-parser"><strong>ttf-parser</strong></a>: <br />
+A high-level, safe, zero-allocation TrueType font parser <br />
+Used in <em><strong>INOX</strong></em> for TrueType fonts loading and parsing.</li>
+<li><a href="https://github.com/netvl/xml-rs"><strong>xml-rs</strong></a>: <br />
+An XML library in Rust <br />
+Used in <em><strong>INOX</strong></em> for Vulkan docs parsing.</li>
+<li><a href="https://github.com/gltf-rs/gltf"><strong>gltf-rs</strong></a>: <br />
+A crate for loading glTF 2.0 <br />
+Used in <em><strong>INOX</strong></em> for GLTF file loading and parsing.</li>
+<li><a href="https://github.com/emilk/egui"><strong>egui</strong></a>: <br />
+An easy-to-use immediate mode GUI in pure Rust <br />
+Used in <em><strong>INOX</strong></em> for in-game tooling and debug UI.</li>
+<li><a href="https://github.com/dgrunwald/rust-cpython"><strong>cpython</strong></a>: <br />
+Rust &lt;-&gt; Python bindings <br />
+Used in <em><strong>INOX</strong></em> for Blender add-on interaction.</li>
+<li><a href="https://github.com/rust-random/rand"><strong>rand</strong></a>: <br />
+A Rust library for random number generation. <br />
+Used in <em><strong>INOX</strong></em> for random number generation.</li>
+<li><a href="https://github.com/rust-lang/rust-bindgen"><strong>rust-bindgen</strong></a>: <br />
+Automatically generates Rust FFI bindings to C (and some C++) libraries. <br />
+Used in <em><strong>INOX</strong></em> to generate Rust bindings of Vulkan headers.</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="sponsor"><a class="header" href="#sponsor">Sponsor</a></h1>
+<p>I'm Mauro Gentile aka <strong>GENTS</strong>.</p>
+<p>I work in videogame industry since a long time and on several differenti projects but in September 2020 I decided in my spare time to learn Rust programming language and quickly I become a real rustucean.
+I decided to use Rust and I also wanted to use all my personal knowledge to write a new Game Engine from scratch in Rust on my own (but contributions could be an option to consider)</p>
+<p>Working on INOX is really absorbing me a lot of energies and it would be awesome to get some contributions to continue to push it forward and accomplish its vision.</p>
+<p>Take a look to <strong>INOX</strong> here:
+https://github.com/gents83/NRG</p>
+<iframe src="https://github.com/sponsors/gents83/card" title="Sponsor gents83" height="225" width="600" style="border: 0;"></iframe>
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+            </nav>
+
+        </div>
+
+        
+        <script src="elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="searcher.js" type="text/javascript" charset="utf-8"></script>
+        <script src="clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+        <script type="text/javascript">
+        window.addEventListener('load', function() {
+            window.setTimeout(window.print, 100);
+        });
+        </script>
+    </body>
+</html>
