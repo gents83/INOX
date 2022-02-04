@@ -399,7 +399,7 @@ impl GltfCompiler {
         Self::create_file(
             path,
             &material_data,
-            primitive.material().name().unwrap_or(name.as_str()),
+            primitive.material().name().unwrap_or(&name),
             "material",
         )
     }
@@ -426,7 +426,7 @@ impl GltfCompiler {
                 let material_path = to_local_path(material_path.as_path());
                 let mesh_path = self.process_mesh_data(
                     path,
-                    mesh.name().unwrap_or(name.as_str()),
+                    mesh.name().unwrap_or(&name),
                     &primitive,
                     material_path.as_path(),
                 );
@@ -491,7 +491,7 @@ impl GltfCompiler {
                     .components
                     .push(to_local_path(camera_path.as_path()));
             } else if let Some((node_type, node_path)) =
-                self.process_node(path, &child, child.name().unwrap_or(name.as_str()))
+                self.process_node(path, &child, child.name().unwrap_or(&name))
             {
                 if node_type == NodeType::Object {
                     let node_path = to_local_path(node_path.as_path());
@@ -574,7 +574,7 @@ impl GltfCompiler {
                 for node in scene.nodes() {
                     let name = format!("Node_{}", node.index());
                     if let Some((node_type, node_path)) =
-                        self.process_node(path, &node, node.name().unwrap_or(name.as_str()))
+                        self.process_node(path, &node, node.name().unwrap_or(&name))
                     {
                         let node_path = to_local_path(node_path.as_path());
                         match node_type {
