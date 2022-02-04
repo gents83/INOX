@@ -151,7 +151,53 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="dependencies"><a class="header" href="#dependencies">Dependencies</a></h1>
+                        <h2 id="external-dependencies"><a class="header" href="#external-dependencies">External Dependencies</a></h2>
+<p>In this page you'll find a list of external dependencies that are required from the <em><strong>INOX</strong></em> engine
+and that are referenced as git submodules inside the <code>/extern/</code> folder. </p>
+<ul>
+<li><a href="https://github.com/rustgd/cgmath"><strong>cgmath</strong></a>: <br />
+A linear algebra and mathematics library for computer graphics <br />
+Used in <em><strong>INOX</strong></em> as math library for vectors, matrices, quaternions, etc.</li>
+<li><a href="https://github.com/marcianx/downcast-rs"><strong>downcast-rs</strong></a>: <br />
+Adds downcasting support to trait objects using only safe Rust <br />
+Used in <em><strong>INOX</strong></em> for trait downcasting.</li>
+<li><a href="https://github.com/uuid-rs/uuid"><strong>uuid</strong></a>: <br />
+Generate and parse UUIDs. <br />
+Used in <em><strong>INOX</strong></em> for all resource IDs and for every UUID generated.</li>
+<li><a href="https://github.com/serde-rs/serde"><strong>serde</strong></a>: <br />
+Serialization framework for Rust <br />
+Used in <em><strong>INOX</strong></em> for serialization and deserialization purposes.</li>
+<li><a href="https://github.com/serde-rs/json"><strong>serde-json</strong></a>: <br />
+Strongly typed JSON library for Rust <br />
+Used in <em><strong>INOX</strong></em> for serialization and deserialization purposes of data.</li>
+<li><a href="https://github.com/dtolnay/typetag"><strong>typetag</strong></a>: <br />
+Serde serializable and deserializable trait objects <br />
+Used in <em><strong>INOX</strong></em> for serialization and deserialization purposes.</li>
+<li><a href="https://github.com/image-rs/image"><strong>image-rs</strong></a>: <br />
+Encoding and decoding images in Rust <br />
+Used in <em><strong>INOX</strong></em> for images loading and saving.</li>
+<li><a href="https://github.com/RazrFalcon/ttf-parser"><strong>ttf-parser</strong></a>: <br />
+A high-level, safe, zero-allocation TrueType font parser <br />
+Used in <em><strong>INOX</strong></em> for TrueType fonts loading and parsing.</li>
+<li><a href="https://github.com/netvl/xml-rs"><strong>xml-rs</strong></a>: <br />
+An XML library in Rust <br />
+Used in <em><strong>INOX</strong></em> for Vulkan docs parsing.</li>
+<li><a href="https://github.com/gltf-rs/gltf"><strong>gltf-rs</strong></a>: <br />
+A crate for loading glTF 2.0 <br />
+Used in <em><strong>INOX</strong></em> for GLTF file loading and parsing.</li>
+<li><a href="https://github.com/emilk/egui"><strong>egui</strong></a>: <br />
+An easy-to-use immediate mode GUI in pure Rust <br />
+Used in <em><strong>INOX</strong></em> for in-game tooling and debug UI.</li>
+<li><a href="https://github.com/dgrunwald/rust-cpython"><strong>cpython</strong></a>: <br />
+Rust &lt;-&gt; Python bindings <br />
+Used in <em><strong>INOX</strong></em> for Blender add-on interaction.</li>
+<li><a href="https://github.com/rust-random/rand"><strong>rand</strong></a>: <br />
+A Rust library for random number generation. <br />
+Used in <em><strong>INOX</strong></em> for random number generation.</li>
+<li><a href="https://github.com/rust-lang/rust-bindgen"><strong>rust-bindgen</strong></a>: <br />
+Automatically generates Rust FFI bindings to C (and some C++) libraries. <br />
+Used in <em><strong>INOX</strong></em> to generate Rust bindings of Vulkan headers.</li>
+</ul>
 
                     </main>
 

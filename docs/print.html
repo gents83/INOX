@@ -275,11 +275,129 @@ Once enabled please remember to setup add-on parameters, like the folder where y
 <h2 id="how-to-use-the-inox-addon-in-blender"><a class="header" href="#how-to-use-the-inox-addon-in-blender">How to use the <em><strong>INOX</strong></em> addon in <em><strong>Blender</strong></em></a></h2>
 <p>Once that the <em><strong>INOX</strong></em> add-on is enabled and correctly setup, you should be able to edit your scene and run the <em><strong>INOX</strong></em> viewer just pressing <strong>F5</strong> or going in the <em>Render Properties</em> panel and pressing <strong>Run in INOX</strong> button under the <em>SABI</em> dropdown tab:</p>
 <p><img src="img/BlenderRunSABI.jpg" alt="BlenderRunSABI" /></p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="development-guide"><a class="header" href="#development-guide">Development Guide</a></h1>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="building-inox-code"><a class="header" href="#building-inox-code">Building INOX code</a></h1>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="architecture"><a class="header" href="#architecture">Architecture</a></h1>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="crates"><a class="header" href="#crates">Crates</a></h1>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="dependencies"><a class="header" href="#dependencies">Dependencies</a></h1>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="inox-development-guide"><a class="header" href="#inox-development-guide">INOX Development Guide</a></h1>
+<hr />
+<ul>
+<li><a href="INOX/./building.html">Building INOX code</a></li>
+<li><a href="INOX/./architecture.html">Architecture</a></li>
+<li><a href="INOX/./crates.html">Crates</a></li>
+<li><a href="INOX/./external-dependencies.html">Dependencies</a></li>
+</ul>
+<hr />
+<div style="break-before: page; page-break-before: always;"></div><h1 id="building-inox-code"><a class="header" href="#building-inox-code">Building <strong>INOX</strong> code</a></h1>
+<h2 id="how-to-download-inox-repository"><a class="header" href="#how-to-download-inox-repository">How to download <em><strong>INOX</strong></em> repository</a></h2>
+<p>You can clone it using <a href="https://github.com/gents83/INOX.git">https://github.com/gents83/NRG.git</a></p>
+<p>Or you can download the zip from <a href="https://github.com/gents83/INOX/archive/refs/heads/master.zip">here</a></p>
+<h2 id="how-to-build-and-run-inox-code"><a class="header" href="#how-to-build-and-run-inox-code">How to build and run <em><strong>INOX</strong></em> code</a></h2>
+<p>Once that you've cloned and downloaded the repository, you can build it by running the following commands:</p>
+<blockquote>
+<p>git submodule update --init --recursive</p>
+</blockquote>
+<p>The above command is needed to download all extern submodules and could require some time.</p>
+<blockquote>
+<p>cargo build --manifest-path ./crates/Cargo.toml</p>
+</blockquote>
+<p>The above command build the project in debug but you can switch to release adding --release at the end.</p>
+<blockquote>
+<p>cargo run --manifest-path ./crates/Cargo.toml -- -plugin inox_viewer</p>
+</blockquote>
+<p>The above command run the inox_launcher executable with the inox_viewer plugin. <br />
+Please provided needed command line parameters, like the -file_to_load 'path' <br />
+See the section <a href="INOX/building.html#command-line-parameters-accepted-by-inox_launcher">Command line parameters accepted by inox_launcher</a></p>
+<h2 id="how-to-use-microsoft-vscode-launch-and-tasks-created-for-inox-on-windows"><a class="header" href="#how-to-use-microsoft-vscode-launch-and-tasks-created-for-inox-on-windows">How to use <em><strong>Microsoft VSCode</strong></em> launch and tasks created for <em><strong>INOX</strong></em> on Windows</a></h2>
+<p>If you are using <em><strong>Microsoft VSCode</strong></em> on Windows you can benefits of several shortcuts to build and execute <em><strong>INOX</strong></em> code.</p>
+<p>Using the <em>SABI.code-workspace</em> file will allow you to get even raccomandation on useful extensions to maximise the <em>VSCode</em> experience.</p>
+<p>Let's see some useful shortcuts.</p>
+<ul>
+<li>
+<p>When building or pressing CTRL+SHIFT+B: <br />
+You'll have many debug possibilities as:</p>
+<ul>
+<li>BUILD DEBUG - Build workspace in debug</li>
+<li>BUILD RELEASE WASM - Build workspace in release with wasm as target</li>
+<li>BUILD RELEASE - Build workspace in release</li>
+<li>BUILD BOOK - Build and launch a rendered version of documentation in <code>/docs/</code> folder</li>
+<li>RUN CLIPPY - Execute clippy fix on crates code and check if there are any errors</li>
+<li>CHECK CRATES DEPENDENCIES - Check crates dependencies detecting and warning on unused ones.</li>
+</ul>
+</li>
+<li>
+<p>When debugging or pressing F5: <br />
+You'll have many debug possibilities as:</p>
+<ul>
+<li>RUN LAUNCHER DEBUG - Run the launcher in debug mode</li>
+<li>RUN LAUNCHER RELEASE - Run the launcher in release mode</li>
+<li>RUN VIEWER RELEASE - Run the viewer with a test scene (customizable in <code>/.vscode/launch.json</code>)</li>
+</ul>
+</li>
+</ul>
+<h2 id="command-line-parameters-accepted-by-inox_launcher"><a class="header" href="#command-line-parameters-accepted-by-inox_launcher">Command line parameters accepted by <strong>inox_launcher</strong></a></h2>
+<ul>
+<li>
+<p><strong>-plugin [name]</strong>: <br />
+The plugin to use. <br />
+You can specify names of crates inside apps folder like inox_viewer, inox_editor, etc <br />
+When not specified an empty window will be opened with only the binarizer executing in background.</p>
+</li>
+<li>
+<p><strong>-load_file [path]</strong>: <br />
+A path of a scene to load with path relative to <code>/data/</code> <br />
+As example could be <code>./data/blender_export/TestScene/TestScene.scene_data</code></p>
+</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><h2 id="architecture"><a class="header" href="#architecture">Architecture</a></h2>
+<div style="break-before: page; page-break-before: always;"></div><h2 id="inox-crates"><a class="header" href="#inox-crates">INOX Crates</a></h2>
+<p>In this page you'll find:</p>
+<ul>
+<li>A list of crates and their description and main concepts of the <em><strong>INOX</strong></em> project.</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><h2 id="external-dependencies"><a class="header" href="#external-dependencies">External Dependencies</a></h2>
+<p>In this page you'll find a list of external dependencies that are required from the <em><strong>INOX</strong></em> engine
+and that are referenced as git submodules inside the <code>/extern/</code> folder. </p>
+<ul>
+<li><a href="https://github.com/rustgd/cgmath"><strong>cgmath</strong></a>: <br />
+A linear algebra and mathematics library for computer graphics <br />
+Used in <em><strong>INOX</strong></em> as math library for vectors, matrices, quaternions, etc.</li>
+<li><a href="https://github.com/marcianx/downcast-rs"><strong>downcast-rs</strong></a>: <br />
+Adds downcasting support to trait objects using only safe Rust <br />
+Used in <em><strong>INOX</strong></em> for trait downcasting.</li>
+<li><a href="https://github.com/uuid-rs/uuid"><strong>uuid</strong></a>: <br />
+Generate and parse UUIDs. <br />
+Used in <em><strong>INOX</strong></em> for all resource IDs and for every UUID generated.</li>
+<li><a href="https://github.com/serde-rs/serde"><strong>serde</strong></a>: <br />
+Serialization framework for Rust <br />
+Used in <em><strong>INOX</strong></em> for serialization and deserialization purposes.</li>
+<li><a href="https://github.com/serde-rs/json"><strong>serde-json</strong></a>: <br />
+Strongly typed JSON library for Rust <br />
+Used in <em><strong>INOX</strong></em> for serialization and deserialization purposes of data.</li>
+<li><a href="https://github.com/dtolnay/typetag"><strong>typetag</strong></a>: <br />
+Serde serializable and deserializable trait objects <br />
+Used in <em><strong>INOX</strong></em> for serialization and deserialization purposes.</li>
+<li><a href="https://github.com/image-rs/image"><strong>image-rs</strong></a>: <br />
+Encoding and decoding images in Rust <br />
+Used in <em><strong>INOX</strong></em> for images loading and saving.</li>
+<li><a href="https://github.com/RazrFalcon/ttf-parser"><strong>ttf-parser</strong></a>: <br />
+A high-level, safe, zero-allocation TrueType font parser <br />
+Used in <em><strong>INOX</strong></em> for TrueType fonts loading and parsing.</li>
+<li><a href="https://github.com/netvl/xml-rs"><strong>xml-rs</strong></a>: <br />
+An XML library in Rust <br />
+Used in <em><strong>INOX</strong></em> for Vulkan docs parsing.</li>
+<li><a href="https://github.com/gltf-rs/gltf"><strong>gltf-rs</strong></a>: <br />
+A crate for loading glTF 2.0 <br />
+Used in <em><strong>INOX</strong></em> for GLTF file loading and parsing.</li>
+<li><a href="https://github.com/emilk/egui"><strong>egui</strong></a>: <br />
+An easy-to-use immediate mode GUI in pure Rust <br />
+Used in <em><strong>INOX</strong></em> for in-game tooling and debug UI.</li>
+<li><a href="https://github.com/dgrunwald/rust-cpython"><strong>cpython</strong></a>: <br />
+Rust &lt;-&gt; Python bindings <br />
+Used in <em><strong>INOX</strong></em> for Blender add-on interaction.</li>
+<li><a href="https://github.com/rust-random/rand"><strong>rand</strong></a>: <br />
+A Rust library for random number generation. <br />
+Used in <em><strong>INOX</strong></em> for random number generation.</li>
+<li><a href="https://github.com/rust-lang/rust-bindgen"><strong>rust-bindgen</strong></a>: <br />
+Automatically generates Rust FFI bindings to C (and some C++) libraries. <br />
+Used in <em><strong>INOX</strong></em> to generate Rust bindings of Vulkan headers.</li>
+</ul>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="sponsor"><a class="header" href="#sponsor">Sponsor</a></h1>
 <p>I'm Mauro Gentile aka <strong>GENTS</strong>.</p>
 <p>I work in videogame industry since a long time and on several differenti projects but in September 2020 I decided in my spare time to learn Rust programming language and quickly I become a real rustucean.
