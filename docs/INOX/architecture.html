@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Dependencies - SABI</title>
+        <title>Architecture - INOX</title>
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
         <meta name="description" content="">
         <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -92,7 +92,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../index.html">Overview</a></li><li class="spacer"></li><li class="chapter-item expanded "><a href="../features.html"><strong aria-hidden="true">1.</strong> Features</a></li><li class="chapter-item expanded "><a href="../getting-started.html"><strong aria-hidden="true">2.</strong> Getting Started</a></li><li class="chapter-item expanded "><a href="../SABI/guide.html"><strong aria-hidden="true">3.</strong> Development Guide</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../SABI/building.html"><strong aria-hidden="true">3.1.</strong> Building SABI code</a></li><li class="chapter-item expanded "><a href="../SABI/architecture.html"><strong aria-hidden="true">3.2.</strong> Architecture</a></li><li class="chapter-item expanded "><a href="../SABI/crates.html"><strong aria-hidden="true">3.3.</strong> Crates</a></li><li class="chapter-item expanded "><a href="../SABI/external-dependencies.html" class="active"><strong aria-hidden="true">3.4.</strong> Dependencies</a></li></ol></li><li class="chapter-item expanded "><a href="../sponsor.html"><strong aria-hidden="true">4.</strong> Sponsor</a></li><li class="spacer"></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../index.html">Overview</a></li><li class="spacer"></li><li class="chapter-item expanded "><a href="../features.html"><strong aria-hidden="true">1.</strong> Features</a></li><li class="chapter-item expanded "><a href="../getting-started.html"><strong aria-hidden="true">2.</strong> Getting Started</a></li><li class="chapter-item expanded "><a href="../INOX/guide.html"><strong aria-hidden="true">3.</strong> Development Guide</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../INOX/building.html"><strong aria-hidden="true">3.1.</strong> Building INOX code</a></li><li class="chapter-item expanded "><a href="../INOX/architecture.html" class="active"><strong aria-hidden="true">3.2.</strong> Architecture</a></li><li class="chapter-item expanded "><a href="../INOX/crates.html"><strong aria-hidden="true">3.3.</strong> Crates</a></li><li class="chapter-item expanded "><a href="../INOX/external-dependencies.html"><strong aria-hidden="true">3.4.</strong> Dependencies</a></li></ol></li><li class="chapter-item expanded "><a href="../sponsor.html"><strong aria-hidden="true">4.</strong> Sponsor</a></li><li class="spacer"></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -121,7 +121,7 @@
                         </button>
                     </div>
 
-                    <h1 class="menu-title">SABI</h1>
+                    <h1 class="menu-title">INOX</h1>
 
                     <div class="right-buttons">
                         <a href="../print.html" title="Print this book" aria-label="Print this book">
@@ -151,62 +151,16 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h2 id="external-dependencies"><a class="header" href="#external-dependencies">External Dependencies</a></h2>
-<p>In this page you'll find a list of external dependencies that are required from the <em><strong>SABI</strong></em> engine
-and that are referenced as git submodules inside the <code>/extern/</code> folder. </p>
-<ul>
-<li><a href="https://github.com/rustgd/cgmath"><strong>cgmath</strong></a>: <br />
-A linear algebra and mathematics library for computer graphics <br />
-Used in <em><strong>SABI</strong></em> as math library for vectors, matrices, quaternions, etc.</li>
-<li><a href="https://github.com/marcianx/downcast-rs"><strong>downcast-rs</strong></a>: <br />
-Adds downcasting support to trait objects using only safe Rust <br />
-Used in <em><strong>SABI</strong></em> for trait downcasting.</li>
-<li><a href="https://github.com/uuid-rs/uuid"><strong>uuid</strong></a>: <br />
-Generate and parse UUIDs. <br />
-Used in <em><strong>SABI</strong></em> for all resource IDs and for every UUID generated.</li>
-<li><a href="https://github.com/serde-rs/serde"><strong>serde</strong></a>: <br />
-Serialization framework for Rust <br />
-Used in <em><strong>SABI</strong></em> for serialization and deserialization purposes.</li>
-<li><a href="https://github.com/serde-rs/json"><strong>serde-json</strong></a>: <br />
-Strongly typed JSON library for Rust <br />
-Used in <em><strong>SABI</strong></em> for serialization and deserialization purposes of data.</li>
-<li><a href="https://github.com/dtolnay/typetag"><strong>typetag</strong></a>: <br />
-Serde serializable and deserializable trait objects <br />
-Used in <em><strong>SABI</strong></em> for serialization and deserialization purposes.</li>
-<li><a href="https://github.com/image-rs/image"><strong>image-rs</strong></a>: <br />
-Encoding and decoding images in Rust <br />
-Used in <em><strong>SABI</strong></em> for images loading and saving.</li>
-<li><a href="https://github.com/RazrFalcon/ttf-parser"><strong>ttf-parser</strong></a>: <br />
-A high-level, safe, zero-allocation TrueType font parser <br />
-Used in <em><strong>SABI</strong></em> for TrueType fonts loading and parsing.</li>
-<li><a href="https://github.com/netvl/xml-rs"><strong>xml-rs</strong></a>: <br />
-An XML library in Rust <br />
-Used in <em><strong>SABI</strong></em> for Vulkan docs parsing.</li>
-<li><a href="https://github.com/gltf-rs/gltf"><strong>gltf-rs</strong></a>: <br />
-A crate for loading glTF 2.0 <br />
-Used in <em><strong>SABI</strong></em> for GLTF file loading and parsing.</li>
-<li><a href="https://github.com/emilk/egui"><strong>egui</strong></a>: <br />
-An easy-to-use immediate mode GUI in pure Rust <br />
-Used in <em><strong>SABI</strong></em> for in-game tooling and debug UI.</li>
-<li><a href="https://github.com/dgrunwald/rust-cpython"><strong>cpython</strong></a>: <br />
-Rust &lt;-&gt; Python bindings <br />
-Used in <em><strong>SABI</strong></em> for Blender add-on interaction.</li>
-<li><a href="https://github.com/rust-random/rand"><strong>rand</strong></a>: <br />
-A Rust library for random number generation. <br />
-Used in <em><strong>SABI</strong></em> for random number generation.</li>
-<li><a href="https://github.com/rust-lang/rust-bindgen"><strong>rust-bindgen</strong></a>: <br />
-Automatically generates Rust FFI bindings to C (and some C++) libraries. <br />
-Used in <em><strong>SABI</strong></em> to generate Rust bindings of Vulkan headers.</li>
-</ul>
+                        <h1 id="architecture"><a class="header" href="#architecture">Architecture</a></h1>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../SABI/crates.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../INOX/building.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
-                            <a rel="next" href="../sponsor.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next" href="../INOX/crates.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
                         <div style="clear: both"></div>
@@ -215,10 +169,10 @@ Used in <em><strong>SABI</strong></em> to generate Rust bindings of Vulkan heade
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../SABI/crates.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../INOX/building.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
-                    <a rel="next" href="../sponsor.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next" href="../INOX/crates.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>

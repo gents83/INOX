@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Building SABI code - SABI</title>
+        <title>Crates - INOX</title>
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
         <meta name="description" content="">
         <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -92,7 +92,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../index.html">Overview</a></li><li class="spacer"></li><li class="chapter-item expanded "><a href="../features.html"><strong aria-hidden="true">1.</strong> Features</a></li><li class="chapter-item expanded "><a href="../getting-started.html"><strong aria-hidden="true">2.</strong> Getting Started</a></li><li class="chapter-item expanded "><a href="../SABI/guide.html"><strong aria-hidden="true">3.</strong> Development Guide</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../SABI/building.html" class="active"><strong aria-hidden="true">3.1.</strong> Building SABI code</a></li><li class="chapter-item expanded "><a href="../SABI/architecture.html"><strong aria-hidden="true">3.2.</strong> Architecture</a></li><li class="chapter-item expanded "><a href="../SABI/crates.html"><strong aria-hidden="true">3.3.</strong> Crates</a></li><li class="chapter-item expanded "><a href="../SABI/external-dependencies.html"><strong aria-hidden="true">3.4.</strong> Dependencies</a></li></ol></li><li class="chapter-item expanded "><a href="../sponsor.html"><strong aria-hidden="true">4.</strong> Sponsor</a></li><li class="spacer"></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../index.html">Overview</a></li><li class="spacer"></li><li class="chapter-item expanded "><a href="../features.html"><strong aria-hidden="true">1.</strong> Features</a></li><li class="chapter-item expanded "><a href="../getting-started.html"><strong aria-hidden="true">2.</strong> Getting Started</a></li><li class="chapter-item expanded "><a href="../INOX/guide.html"><strong aria-hidden="true">3.</strong> Development Guide</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../INOX/building.html"><strong aria-hidden="true">3.1.</strong> Building INOX code</a></li><li class="chapter-item expanded "><a href="../INOX/architecture.html"><strong aria-hidden="true">3.2.</strong> Architecture</a></li><li class="chapter-item expanded "><a href="../INOX/crates.html" class="active"><strong aria-hidden="true">3.3.</strong> Crates</a></li><li class="chapter-item expanded "><a href="../INOX/external-dependencies.html"><strong aria-hidden="true">3.4.</strong> Dependencies</a></li></ol></li><li class="chapter-item expanded "><a href="../sponsor.html"><strong aria-hidden="true">4.</strong> Sponsor</a></li><li class="spacer"></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -121,7 +121,7 @@
                         </button>
                     </div>
 
-                    <h1 class="menu-title">SABI</h1>
+                    <h1 class="menu-title">INOX</h1>
 
                     <div class="right-buttons">
                         <a href="../print.html" title="Print this book" aria-label="Print this book">
@@ -151,75 +151,16 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="building-sabi-code"><a class="header" href="#building-sabi-code">Building <strong>SABI</strong> code</a></h1>
-<h2 id="how-to-download-sabi-repository"><a class="header" href="#how-to-download-sabi-repository">How to download <em><strong>SABI</strong></em> repository</a></h2>
-<p>You can clone it using <a href="https://github.com/gents83/NRG.git">https://github.com/gents83/NRG.git</a></p>
-<p>Or you can download the zip from <a href="https://github.com/gents83/NRG/archive/refs/heads/master.zip">here</a></p>
-<h2 id="how-to-build-and-run-sabi-code"><a class="header" href="#how-to-build-and-run-sabi-code">How to build and run <em><strong>SABI</strong></em> code</a></h2>
-<p>Once that you've cloned and downloaded the repository, you can build it by running the following commands:</p>
-<blockquote>
-<p>git submodule update --init --recursive</p>
-</blockquote>
-<p>The above command is needed to download all extern submodules and could require some time.</p>
-<blockquote>
-<p>cargo build --manifest-path ./crates/Cargo.toml</p>
-</blockquote>
-<p>The above command build the project in debug but you can switch to release adding --release at the end.</p>
-<blockquote>
-<p>cargo run --manifest-path ./crates/Cargo.toml -- -plugin sabi_viewer</p>
-</blockquote>
-<p>The above command run the sabi_launcher executable with the sabi_viewer plugin. <br />
-Please provided needed command line parameters, like the -file_to_load 'path' <br />
-See the section <a href="#command-line-parameters-accepted-by-sabi_launcher">Command line parameters accepted by sabi_launcher</a></p>
-<h2 id="how-to-use-microsoft-vscode-launch-and-tasks-created-for-sabi-on-windows"><a class="header" href="#how-to-use-microsoft-vscode-launch-and-tasks-created-for-sabi-on-windows">How to use <em><strong>Microsoft VSCode</strong></em> launch and tasks created for <em><strong>SABI</strong></em> on Windows</a></h2>
-<p>If you are using <em><strong>Microsoft VSCode</strong></em> on Windows you can benefits of several shortcuts to build and execute <em><strong>SABI</strong></em> code.</p>
-<p>Using the <em>SABI.code-workspace</em> file will allow you to get even raccomandation on useful extensions to maximise the <em>VSCode</em> experience.</p>
-<p>Let's see some useful shortcuts.</p>
-<ul>
-<li>
-<p>When building or pressing CTRL+SHIFT+B: <br />
-You'll have many debug possibilities as:</p>
-<ul>
-<li>BUILD DEBUG - Build workspace in debug</li>
-<li>BUILD RELEASE - Build workspace in release</li>
-<li>BUILD BOOK - Build and launch a rendered version of documentation in <code>/docs/</code> folder</li>
-<li>RUN CLIPPY - Execute clippy fix on crates code and check if there are any errors</li>
-<li>CHECK CRATES DEPENDENCIES - Check crates dependencies detecting and warning on unused ones.</li>
-</ul>
-</li>
-<li>
-<p>When debugging or pressing F5: <br />
-You'll have many debug possibilities as:</p>
-<ul>
-<li>RUN LAUNCHER DEBUG - Run the launcher in debug mode</li>
-<li>RUN LAUNCHER RELEASE - Run the launcher in release mode</li>
-<li>RUN VIEWER RELEASE - Run the viewer with a test scene (customizable in <code>/.vscode/launch.json</code>)</li>
-</ul>
-</li>
-</ul>
-<h2 id="command-line-parameters-accepted-by-sabi_launcher"><a class="header" href="#command-line-parameters-accepted-by-sabi_launcher">Command line parameters accepted by <strong>sabi_launcher</strong></a></h2>
-<ul>
-<li>
-<p><strong>-plugin [name]</strong>: <br />
-The plugin to use. <br />
-You can specify names of crates inside apps folder like sabi_viewer, sabi_editor, etc <br />
-When not specified an empty window will be opened with only the binarizer executing in background.</p>
-</li>
-<li>
-<p><strong>-load_file [path]</strong>: <br />
-A path of a scene to load with path relative to <code>/data/</code> <br />
-As example could be <code>./data/blender_export/TestScene/TestScene.scene_data</code></p>
-</li>
-</ul>
+                        <h1 id="crates"><a class="header" href="#crates">Crates</a></h1>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../SABI/guide.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../INOX/architecture.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
-                            <a rel="next" href="../SABI/architecture.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next" href="../INOX/external-dependencies.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
                         <div style="clear: both"></div>
@@ -228,10 +169,10 @@ As example could be <code>./data/blender_export/TestScene/TestScene.scene_data</
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../SABI/guide.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../INOX/architecture.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
-                    <a rel="next" href="../SABI/architecture.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next" href="../INOX/external-dependencies.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
