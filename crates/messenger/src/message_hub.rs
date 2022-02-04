@@ -100,6 +100,17 @@ where
                 .any(|l| l.messages.read().unwrap().contains(msg_id))
         });
         for msg in self.new_messages.write().unwrap().drain(..) {
+            self.messages.write().unwrap().retain(|msg_id, other| {
+                let discard = msg.compare_and_discard(other);
+                if discard {
+                    self.listeners
+                        .read()
+                        .unwrap()
+                        .iter()
+                        .for_each(|l| l.messages.write().unwrap().retain(|id| id != msg_id));
+                }
+                !discard
+            });
             let msg_id = generate_random_uid();
             self.listeners
                 .read()
