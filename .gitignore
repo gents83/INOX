@@ -1,6 +1,7 @@
 /target
 /crates/target
 /data
+/data_raw/blender_export
 Cargo.lock
 *.lock
 *.gfxr
