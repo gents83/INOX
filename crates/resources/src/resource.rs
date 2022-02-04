@@ -18,7 +18,7 @@ where
     fn on_create_resource(
         &mut self,
         shared_data: &SharedDataRc,
-        messenger: &MessageHubRc,
+        message_hub: &MessageHubRc,
         id: &ResourceId,
         on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
     ) where
@@ -26,7 +26,7 @@ where
     fn on_destroy_resource(
         &mut self,
         shared_data: &SharedData,
-        messenger: &MessageHubRc,
+        message_hub: &MessageHubRc,
         id: &ResourceId,
     );
     fn on_copy_resource(&mut self, other: &Self)

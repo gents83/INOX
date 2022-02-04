@@ -19,11 +19,7 @@ pub struct Hierarchy {
 }
 
 impl Hierarchy {
-    pub fn new(
-        shared_data: &SharedDataRc,
-        message_hub: &MessageHubRc,
-        scene_id: &SceneId,
-    ) -> Self {
+    pub fn new(shared_data: &SharedDataRc, message_hub: &MessageHubRc, scene_id: &SceneId) -> Self {
         if let Some(scene) = SharedData::get_resource::<Scene>(shared_data, scene_id) {
             let data = HierarchyData {
                 shared_data: shared_data.clone(),
@@ -47,10 +43,10 @@ impl Hierarchy {
 
     fn create(
         shared_data: &SharedDataRc,
-        messenger: &MessageHubRc,
+        message_hub: &MessageHubRc,
         data: HierarchyData,
     ) -> Resource<UIWidget> {
-        UIWidget::register(shared_data, messenger, data, |ui_data, ui_context| {
+        UIWidget::register(shared_data, message_hub, data, |ui_data, ui_context| {
             if let Some(data) = ui_data.as_any_mut().downcast_mut::<HierarchyData>() {
                 Window::new("Hierarchy")
                     .vscroll(true)

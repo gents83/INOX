@@ -113,7 +113,7 @@ impl DataTypeResource for Camera {
     fn on_create(
         &mut self,
         shared_data_rc: &SharedDataRc,
-        _messenger: &MessageHubRc,
+        _message_hub: &MessageHubRc,
         _id: &CameraId,
         on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
     ) {
@@ -123,7 +123,12 @@ impl DataTypeResource for Camera {
             }
         }
     }
-    fn on_destroy(&mut self, _shared_data: &SharedData, _messenger: &MessageHubRc, _id: &CameraId) {
+    fn on_destroy(
+        &mut self,
+        _shared_data: &SharedData,
+        _message_hub: &MessageHubRc,
+        _id: &CameraId,
+    ) {
     }
 
     fn create_from_data(

@@ -105,7 +105,7 @@ impl DataTypeResource for Object {
     fn on_create(
         &mut self,
         shared_data_rc: &SharedDataRc,
-        _messenger: &MessageHubRc,
+        _message_hub: &MessageHubRc,
         _id: &ObjectId,
         on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
     ) {
@@ -114,7 +114,12 @@ impl DataTypeResource for Object {
             self.set_parent(parent);
         }
     }
-    fn on_destroy(&mut self, _shared_data: &SharedData, _messenger: &MessageHubRc, _id: &ObjectId) {
+    fn on_destroy(
+        &mut self,
+        _shared_data: &SharedData,
+        _message_hub: &MessageHubRc,
+        _id: &ObjectId,
+    ) {
     }
 
     fn is_initialized(&self) -> bool {
@@ -324,7 +329,7 @@ impl Object {
     pub fn add_default_component<C>(
         &mut self,
         shared_data: &SharedDataRc,
-        messenger: &MessageHubRc,
+        message_hub: &MessageHubRc,
     ) -> Resource<C>
     where
         C: ResourceTrait + Default,
@@ -334,7 +339,7 @@ impl Object {
             "Object already contains a component of type {:?}",
             type_name::<C>()
         );
-        let resource = shared_data.add_resource(messenger, generate_random_uid(), C::default());
+        let resource = shared_data.add_resource(message_hub, generate_random_uid(), C::default());
         self.components.insert(TypeId::of::<C>(), resource.clone());
         resource
     }

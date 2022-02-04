@@ -13,12 +13,12 @@ use crate::{
 pub trait TypedStorage: Send + Sync + Any {
     fn remove_all(&mut self);
     fn has(&self, resource_id: &ResourceId) -> bool;
-    fn flush(&mut self, shared_data: &SharedData, messenger: &MessageHubRc);
+    fn flush(&mut self, shared_data: &SharedData, message_hub: &MessageHubRc);
     fn remove(
         &mut self,
         resource_id: &ResourceId,
         shared_data: &SharedData,
-        messenger: &MessageHubRc,
+        message_hub: &MessageHubRc,
     );
     fn count(&self) -> usize;
 }
@@ -68,12 +68,13 @@ where
     }
 
     #[inline]
-    fn flush(&mut self, shared_data: &SharedData, messenger: &MessageHubRc) {
+    fn flush(&mut self, shared_data: &SharedData, message_hub: &MessageHubRc) {
         let mut num_pending = self.pending.len() as i32 - 1;
         while num_pending >= 0 {
             let pending = self.pending.remove(num_pending as usize);
             if let Some(resource) = self.resources.iter_mut().find(|r| r.id() == pending.id()) {
                 swap_resource(resource, &pending);
+                message_hub.send_event(ResourceEvent::<T>::Changed(*resource.id()));
             } else {
                 panic!(
                     "Trying to swap a Resource with id {} not found in storage {}",
@@ -91,7 +92,7 @@ where
         });
 
         to_remove.iter().for_each(|id| {
-            self.remove(id, shared_data, messenger);
+            self.remove(id, shared_data, message_hub);
         });
     }
     #[inline]
@@ -99,14 +100,14 @@ where
         &mut self,
         resource_id: &ResourceId,
         shared_data: &SharedData,
-        messenger: &MessageHubRc,
+        message_hub: &MessageHubRc,
     ) {
         if let Some(index) = self.resources.iter().position(|r| r.id() == resource_id) {
             let resource = self.resources.remove(index);
-            messenger.send_event(ResourceEvent::<T>::Destroyed(*resource.id()));
+            message_hub.send_event(ResourceEvent::<T>::Destroyed(*resource.id()));
             resource
                 .get_mut()
-                .on_destroy_resource(shared_data, messenger, resource_id);
+                .on_destroy_resource(shared_data, message_hub, resource_id);
         }
     }
     #[inline]
@@ -145,7 +146,7 @@ where
     #[inline]
     pub fn add(
         &mut self,
-        messenger: &MessageHubRc,
+        message_hub: &MessageHubRc,
         resource_id: ResourceId,
         data: T,
     ) -> Resource<T> {
@@ -153,7 +154,7 @@ where
         if self.resources.iter().any(|r| r.id() == &resource_id) {
             self.pending.push(handle.clone());
         } else {
-            messenger.send_event(ResourceEvent::<T>::Created(handle.clone()));
+            message_hub.send_event(ResourceEvent::<T>::Created(handle.clone()));
             self.resources.push(handle.clone());
         }
         handle

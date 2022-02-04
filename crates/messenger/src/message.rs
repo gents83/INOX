@@ -5,13 +5,13 @@ use inox_commands::CommandParser;
 use crate::{MessageHub, MessageHubRc};
 
 pub trait Message: Send + Sync + 'static {
-    fn send(self: Box<Self>, messenger: &mut MessageHub);
+    fn send(self: Box<Self>, message_hub: &mut MessageHub);
     #[inline]
-    fn send_to(self, messenger: &MessageHubRc)
+    fn send_to(self, message_hub: &MessageHubRc)
     where
         Self: Sized,
     {
-        messenger.send_event(self);
+        message_hub.send_event(self);
     }
     fn from_string(_s: &str) -> Option<Self>
     where

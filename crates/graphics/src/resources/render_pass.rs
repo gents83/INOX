@@ -6,7 +6,7 @@ use inox_resources::{
     DataTypeResource, Handle, Resource, ResourceId, ResourceTrait, SerializableResource,
     SharedData, SharedDataRc,
 };
-use inox_serialize::{generate_random_uid, read_from_file};
+use inox_serialize::read_from_file;
 
 use crate::{
     GraphicsMesh, LoadOperation, Pipeline, RenderContext, RenderMode, RenderPassData, RenderTarget,
@@ -50,7 +50,7 @@ impl DataTypeResource for RenderPass {
     fn on_create(
         &mut self,
         _shared_data_rc: &SharedDataRc,
-        _messenger: &MessageHubRc,
+        _message_hub: &MessageHubRc,
         _id: &RenderPassId,
         _on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
     ) {
@@ -58,7 +58,7 @@ impl DataTypeResource for RenderPass {
     fn on_destroy(
         &mut self,
         _shared_data: &SharedData,
-        _messenger: &MessageHubRc,
+        _message_hub: &MessageHubRc,
         _id: &RenderPassId,
     ) {
     }
@@ -89,8 +89,10 @@ impl DataTypeResource for RenderPass {
             } => {
                 let image = DynamicImage::new_rgba8(*width, *height);
                 let image_data = image.to_rgba8();
-                let texture = Texture::create_from_data(shared_data, message_hub, id, image_data);
-                let texture = shared_data.add_resource(message_hub, generate_random_uid(), texture);
+                let mut texture =
+                    Texture::create_from_data(shared_data, message_hub, id, image_data);
+                texture.on_create(shared_data, message_hub, &id, None);
+                let texture = shared_data.add_resource(message_hub, id, texture);
                 Some(texture)
             }
             _ => None,
@@ -124,9 +126,11 @@ impl RenderPass {
                     texture.get().width(),
                     texture.get().height(),
                 );
+                self.is_initialized = true;
             }
+        } else {
+            self.is_initialized = true;
         }
-        self.is_initialized = true;
     }
     fn color_operations(&self, c: wgpu::Color) -> wgpu::Operations<wgpu::Color> {
         wgpu::Operations {

@@ -5,9 +5,10 @@ use inox_filesystem::convert_from_local_path;
 use inox_messenger::MessageHubRc;
 use inox_profiler::debug_log;
 use inox_resources::{
-    Data, DataTypeResource, Handle, ResourceId, ResourceTrait, SerializableResource, SharedData,
-    SharedDataRc,
+    Data, DataTypeResource, Handle, ResourceEvent, ResourceId, ResourceTrait, SerializableResource,
+    SharedData, SharedDataRc,
 };
+use inox_serialize::INVALID_UID;
 
 use crate::{RenderContext, TextureHandler, INVALID_INDEX, TEXTURE_CHANNEL_COUNT};
 
@@ -15,6 +16,9 @@ pub type TextureId = ResourceId;
 
 #[derive(Clone)]
 pub struct Texture {
+    id: TextureId,
+    message_hub: Option<MessageHubRc>,
+    shared_data: Option<SharedDataRc>,
     path: PathBuf,
     data: Option<Vec<u8>>,
     uniform_index: i32,
@@ -26,6 +30,9 @@ pub struct Texture {
 impl Default for Texture {
     fn default() -> Self {
         Self {
+            id: INVALID_UID,
+            message_hub: None,
+            shared_data: None,
             path: PathBuf::new(),
             data: None,
             uniform_index: INVALID_INDEX,
@@ -55,7 +62,7 @@ impl DataTypeResource for Texture {
     fn on_create(
         &mut self,
         _shared_data_rc: &SharedDataRc,
-        _messenger: &MessageHubRc,
+        _message_hub: &MessageHubRc,
         _id: &TextureId,
         _on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
     ) {
@@ -63,15 +70,15 @@ impl DataTypeResource for Texture {
     fn on_destroy(
         &mut self,
         _shared_data: &SharedData,
-        _messenger: &MessageHubRc,
+        _message_hub: &MessageHubRc,
         _id: &TextureId,
     ) {
     }
 
     fn create_from_data(
-        _shared_data: &SharedDataRc,
-        _message_hub: &MessageHubRc,
-        _id: ResourceId,
+        shared_data: &SharedDataRc,
+        message_hub: &MessageHubRc,
+        id: ResourceId,
         data: Self::DataType,
     ) -> Self
     where
@@ -79,6 +86,9 @@ impl DataTypeResource for Texture {
     {
         let dimensions = data.dimensions();
         Self {
+            id,
+            shared_data: Some(shared_data.clone()),
+            message_hub: Some(message_hub.clone()),
             data: Some(data.as_raw().clone()),
             width: dimensions.0,
             height: dimensions.1,
@@ -126,6 +136,12 @@ impl SerializableResource for Texture {
 }
 
 impl Texture {
+    fn mark_as_dirty(&self) -> &Self {
+        if let Some(message_hub) = &self.message_hub {
+            message_hub.send_event(ResourceEvent::<Self>::Changed(self.id));
+        }
+        self
+    }
     pub fn find_from_path(shared_data: &SharedDataRc, texture_path: &Path) -> Handle<Self> {
         let path = convert_from_local_path(Data::data_folder().as_path(), texture_path);
         SharedData::match_resource(shared_data, |t: &Texture| t.path == path)
@@ -154,13 +170,7 @@ impl Texture {
         self.height = height;
         self
     }
-    pub fn update_from_gpu(&self) -> bool {
-        self.update_from_gpu
-    }
-    pub fn set_update_from_gpu(&mut self, should_update: bool) -> &mut Self {
-        self.update_from_gpu = should_update;
-        self
-    }
+
     pub fn capture_image(
         &mut self,
         texture_id: &TextureId,
@@ -181,5 +191,6 @@ impl Texture {
             texture_id,
             self.data.as_mut().unwrap().as_mut_slice(),
         );
+        self.mark_as_dirty();
     }
 }

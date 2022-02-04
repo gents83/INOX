@@ -46,7 +46,7 @@ impl ResourceTrait for UIWidget {
     fn on_create_resource(
         &mut self,
         _shared_data: &SharedDataRc,
-        _messenger: &MessageHubRc,
+        _message_hub: &MessageHubRc,
         _id: &ResourceId,
         _on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
     ) where
@@ -57,7 +57,7 @@ impl ResourceTrait for UIWidget {
     fn on_destroy_resource(
         &mut self,
         _shared_data: &SharedData,
-        _messenger: &MessageHubRc,
+        _message_hub: &MessageHubRc,
         _id: &ResourceId,
     ) {
     }
@@ -96,7 +96,7 @@ impl UIProperties for UIWidget {
 impl UIWidget {
     pub fn register<D, F>(
         shared_data: &SharedDataRc,
-        messenger: &MessageHubRc,
+        message_hub: &MessageHubRc,
         data: D,
         f: F,
     ) -> Resource<Self>
@@ -109,7 +109,7 @@ impl UIWidget {
             data: Box::new(data),
             func: Box::new(f),
         };
-        shared_data.add_resource::<UIWidget>(messenger, generate_random_uid(), ui_page)
+        shared_data.add_resource::<UIWidget>(message_hub, generate_random_uid(), ui_page)
     }
 
     pub fn data<D>(&self) -> Option<&D>

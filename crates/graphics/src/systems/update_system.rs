@@ -9,7 +9,8 @@ use inox_resources::{
 use inox_serialize::{generate_random_uid, read_from_file};
 
 use crate::{
-    is_shader, Mesh, Pipeline, RenderPass, RenderPassData, RendererRw, RendererState, Texture,
+    is_shader, Light, Material, Mesh, Pipeline, RenderPass, RenderPassData, RendererRw,
+    RendererState, Texture,
 };
 
 use super::config::Config;
@@ -57,6 +58,8 @@ impl UpdateSystem {
     }
 
     fn handle_events(&self) {
+        //REMINDER: message processing order is important - RenderPass must be processed before Texture
+
         self.listener
             .process_messages(|e: &WindowEvent| {
                 if let WindowEvent::SizeChanged(width, height) = e {
@@ -77,6 +80,45 @@ impl UpdateSystem {
                         }
                     });
                 }
+            })
+            .process_messages(|e: &ResourceEvent<RenderPass>| match e {
+                ResourceEvent::Changed(id) => {
+                    self.renderer.write().unwrap().on_render_pass_changed(id);
+                }
+                ResourceEvent::Created(r) => {
+                    self.renderer
+                        .write()
+                        .unwrap()
+                        .on_render_pass_changed(r.id());
+                }
+                _ => {}
+            })
+            .process_messages(|e: &ResourceEvent<Texture>| match e {
+                ResourceEvent::Changed(id) => {
+                    self.renderer.write().unwrap().on_texture_changed(id);
+                }
+                ResourceEvent::Created(t) => {
+                    self.renderer.write().unwrap().on_texture_changed(t.id());
+                }
+                _ => {}
+            })
+            .process_messages(|e: &ResourceEvent<Light>| match e {
+                ResourceEvent::Changed(id) => {
+                    self.renderer.write().unwrap().on_light_changed(id);
+                }
+                ResourceEvent::Created(l) => {
+                    self.renderer.write().unwrap().on_light_changed(l.id());
+                }
+                _ => {}
+            })
+            .process_messages(|e: &ResourceEvent<Material>| match e {
+                ResourceEvent::Changed(id) => {
+                    self.renderer.write().unwrap().on_material_changed(id);
+                }
+                ResourceEvent::Created(m) => {
+                    self.renderer.write().unwrap().on_material_changed(m.id());
+                }
+                _ => {}
             })
             .process_messages(|e: &ResourceEvent<Mesh>| match e {
                 ResourceEvent::Created(resource) => {
@@ -117,6 +159,10 @@ impl System for UpdateSystem {
         self.listener
             .register::<WindowEvent>()
             .register::<ReloadEvent>()
+            .register::<ResourceEvent<RenderPass>>()
+            .register::<ResourceEvent<Material>>()
+            .register::<ResourceEvent<Texture>>()
+            .register::<ResourceEvent<Light>>()
             .register::<ResourceEvent<Mesh>>();
     }
 
@@ -133,12 +179,6 @@ impl System for UpdateSystem {
 
         self.handle_events();
 
-        //[...]
-        {
-            let mut renderer = self.renderer.write().unwrap();
-            renderer.prepare_frame();
-        }
-
         {
             let mut renderer = self.renderer.write().unwrap();
             renderer.change_state(RendererState::Prepared);
@@ -150,6 +190,10 @@ impl System for UpdateSystem {
         self.listener
             .unregister::<WindowEvent>()
             .unregister::<ReloadEvent>()
+            .unregister::<ResourceEvent<Light>>()
+            .unregister::<ResourceEvent<Texture>>()
+            .unregister::<ResourceEvent<Material>>()
+            .unregister::<ResourceEvent<RenderPass>>()
             .unregister::<ResourceEvent<Mesh>>();
     }
 }

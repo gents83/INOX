@@ -84,10 +84,10 @@ impl UISystem {
             Entry::Occupied(e) => e.get().clone(),
             Entry::Vacant(e) => {
                 let shared_data = self.shared_data.clone();
-                let messenger = self.message_hub.clone();
+                let message_hub = self.message_hub.clone();
                 if let Some(pipeline) = &self.ui_pipeline {
                     let material =
-                        Material::duplicate_from_pipeline(&shared_data, &messenger, pipeline);
+                        Material::duplicate_from_pipeline(&shared_data, &message_hub, pipeline);
                     material
                         .get_mut()
                         .set_texture(TextureType::BaseColor, &texture);

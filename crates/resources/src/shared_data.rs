@@ -145,7 +145,7 @@ impl SharedData {
     #[inline]
     pub fn add_resource<T: ResourceTrait>(
         &self,
-        messenger: &MessageHubRc,
+        message_hub: &MessageHubRc,
         resource_id: ResourceId,
         data: T,
     ) -> Resource<T> {
@@ -153,7 +153,7 @@ impl SharedData {
         if let Some(rs) = self.storage.read().unwrap().get(&typeid) {
             let storage = rs.of_type::<T>();
             if let Ok(mut rs) = storage.write() {
-                return rs.add(messenger, resource_id, data);
+                return rs.add(message_hub, resource_id, data);
             } else {
                 panic!(
                     "Unable to write to storage {} in add_resource()",
@@ -210,10 +210,10 @@ impl SharedData {
         self.storage.write().unwrap().clear();
     }
     #[inline]
-    pub fn flush_resources(&self, messenger: &MessageHubRc) {
+    pub fn flush_resources(&self, message_hub: &MessageHubRc) {
         for (type_id, rs) in self.storage.read().unwrap().iter() {
             if let Ok(mut rs) = rs.write() {
-                rs.flush(self, messenger);
+                rs.flush(self, message_hub);
             } else {
                 panic!(
                     "Unable to write to storage {} in flush_resources()",

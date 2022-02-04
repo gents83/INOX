@@ -1,6 +1,6 @@
 use crate::{
     GraphicsMesh, Light, LightId, Material, MaterialId, Mesh, MeshId, Pipeline, RenderPass,
-    RenderPassDrawContext, ShaderData, Texture, TextureHandler,
+    RenderPassDrawContext, RenderPassId, ShaderData, Texture, TextureHandler, TextureId,
 };
 use inox_math::{matrix4_to_array, Matrix4, Vector2};
 use inox_resources::{DataTypeResource, HashIndexer, Resource};
@@ -135,17 +135,6 @@ impl Renderer {
         self
     }
 
-    pub fn prepare_frame(&mut self) -> &mut Self {
-        inox_profiler::scoped_profile!("renderer::prepare_frame");
-
-        self.init_render_passes();
-        self.init_materials();
-        self.init_textures();
-        self.init_lights();
-
-        self
-    }
-
     pub fn update_shader_data(&mut self, view: Matrix4, proj: Matrix4, screen_size: Vector2) {
         let constant_data = self.shader_data.constant_data_mut();
         constant_data.view = matrix4_to_array(view);
@@ -189,18 +178,84 @@ impl Renderer {
         self.recreate();
     }
 
-    pub fn on_mesh_added(&mut self, mesh: &Resource<Mesh>) {
-        if self.graphics_mesh.add_mesh(mesh.id(), &mesh.get()) {
-            mesh.get_mut().init();
+    pub fn on_texture_changed(&mut self, texture_id: &TextureId) {
+        inox_profiler::scoped_profile!("renderer::on_texture_changed");
+        let render_context = &self.context;
+        let texture_handler = &mut self.texture_handler;
+
+        if let Some(texture) = self.shared_data.get_resource::<Texture>(texture_id) {
+            if !texture.get().is_initialized() {
+                if texture_handler.get_texture_index(texture_id) == None {
+                    let width = texture.get().width();
+                    let height = texture.get().height();
+                    if let Some(image_data) = texture.get().image_data() {
+                        texture_handler.add_image(
+                            render_context,
+                            texture_id,
+                            (width, height),
+                            image_data,
+                        );
+                    }
+                }
+                if let Some(texture_data) = texture_handler.get_texture_data(texture_id) {
+                    let uniform_index = self.texture_hash_indexer.insert(texture_id);
+                    self.shader_data.textures_data_mut()[uniform_index] = texture_data;
+                    texture.get_mut().set_texture_data(
+                        uniform_index,
+                        texture_data.total_width(),
+                        texture_data.total_height(),
+                    );
+                }
+            }
         }
     }
+
+    pub fn on_light_changed(&mut self, light_id: &LightId) {
+        inox_profiler::scoped_profile!("renderer::on_light_changed");
+        if let Some(light) = self.shared_data.get_resource::<Light>(light_id) {
+            let uniform_index = self.light_hash_indexer.insert(light_id);
+            light.get_mut().update_uniform(
+                uniform_index as _,
+                &mut self.shader_data.light_data_mut()[uniform_index],
+            );
+        }
+    }
+
+    pub fn on_material_changed(&mut self, material_id: &MaterialId) {
+        inox_profiler::scoped_profile!("renderer::on_material_changed");
+        if let Some(material) = self.shared_data.get_resource::<Material>(material_id) {
+            let uniform_index = self.material_hash_indexer.insert(material_id);
+            material.get_mut().update_uniform(
+                uniform_index as _,
+                &mut self.shader_data.material_data_mut()[uniform_index],
+            );
+        }
+    }
+
+    pub fn on_render_pass_changed(&mut self, render_pass_id: &RenderPassId) {
+        inox_profiler::scoped_profile!("renderer::on_render_pass_changed");
+        let render_context = &self.context;
+        let texture_handler = &mut self.texture_handler;
+        if let Some(render_pass) = self.shared_data.get_resource::<RenderPass>(render_pass_id) {
+            if !render_pass.get().is_initialized() {
+                render_pass.get_mut().init(render_context, texture_handler);
+            }
+        }
+    }
+
+    pub fn on_mesh_added(&mut self, mesh: &Resource<Mesh>) {
+        inox_profiler::scoped_profile!("renderer::on_mesh_added");
+        self.graphics_mesh.add_mesh(mesh.id(), &mesh.get());
+    }
     pub fn on_mesh_changed(&mut self, mesh_id: &MeshId) {
+        inox_profiler::scoped_profile!("renderer::on_mesh_changed");
         self.on_mesh_removed(mesh_id);
         if let Some(mesh) = self.shared_data.get_resource::<Mesh>(mesh_id) {
             self.on_mesh_added(&mesh);
         }
     }
     pub fn on_mesh_removed(&mut self, mesh_id: &MeshId) {
+        inox_profiler::scoped_profile!("renderer::on_mesh_removed");
         self.graphics_mesh.remove_mesh(mesh_id);
     }
 
@@ -269,94 +324,13 @@ impl Renderer {
             eprintln!("Error drawing on screen");
         }
     }
-}
-
-impl Renderer {
-    fn init_render_passes(&mut self) {
-        inox_profiler::scoped_profile!("renderer::init_render_passes");
-        let render_context = &self.context;
-        let texture_handler = &mut self.texture_handler;
-        self.shared_data
-            .for_each_resource_mut(|_h, r: &mut RenderPass| {
-                if !r.is_initialized() {
-                    r.init(render_context, texture_handler);
-                }
-            });
-    }
-    fn init_textures(&mut self) {
-        inox_profiler::scoped_profile!("renderer::init_textures");
-        let render_context = &self.context;
-        let texture_handler = &mut self.texture_handler;
-        let mut encoder =
-            self.context
-                .device
-                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                    label: Some("Update Encoder"),
-                });
-        let mut is_dirty = false;
-        self.shared_data
-            .for_each_resource_mut(|handle, texture: &mut Texture| {
-                if !texture.is_initialized() {
-                    is_dirty = true;
-                    if texture_handler.get_texture_index(handle.id()) == None {
-                        let width = texture.width();
-                        let height = texture.height();
-                        if let Some(image_data) = texture.image_data() {
-                            texture_handler.add_image(
-                                render_context,
-                                &mut encoder,
-                                handle.id(),
-                                (width, height),
-                                image_data,
-                            );
-                        }
-                    }
-                    if let Some(texture_data) = texture_handler.get_texture_data(handle.id()) {
-                        let uniform_index = self.texture_hash_indexer.insert(handle.id());
-                        self.shader_data.textures_data_mut()[uniform_index] = texture_data;
-                        texture.set_texture_data(
-                            uniform_index,
-                            texture_data.total_width(),
-                            texture_data.total_height(),
-                        );
-                    }
-                }
-            });
-        if is_dirty {
-            render_context
-                .queue
-                .submit(std::iter::once(encoder.finish()));
-        }
-    }
-    fn init_materials(&mut self) {
-        inox_profiler::scoped_profile!("renderer::init_materials");
-        self.shared_data
-            .for_each_resource_mut(|handle, material: &mut Material| {
-                let uniform_index = self.material_hash_indexer.insert(handle.id());
-                material.update_uniform(
-                    uniform_index as _,
-                    &mut self.shader_data.material_data_mut()[uniform_index],
-                );
-            });
-    }
-
-    fn init_lights(&mut self) {
-        inox_profiler::scoped_profile!("renderer::init_lights");
-        self.shared_data
-            .for_each_resource_mut(|handle, light: &mut Light| {
-                let uniform_index = self.light_hash_indexer.insert(handle.id());
-                light.update_uniform(
-                    uniform_index as _,
-                    &mut self.shader_data.light_data_mut()[uniform_index],
-                );
-            });
-    }
 
     pub fn send_to_gpu(&mut self) {
         inox_profiler::scoped_profile!("renderer::send_to_gpu");
         let render_context = &self.context;
         let graphic_mesh = &mut self.graphics_mesh;
 
+        self.texture_handler.send_to_gpu(render_context);
         graphic_mesh.send_to_gpu(render_context);
     }
 }

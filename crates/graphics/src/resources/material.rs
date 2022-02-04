@@ -8,15 +8,18 @@ use crate::{
 use inox_math::Vector4;
 use inox_messenger::MessageHubRc;
 use inox_resources::{
-    DataTypeResource, Handle, Resource, ResourceId, ResourceTrait, SerializableResource,
-    SharedData, SharedDataRc,
+    DataTypeResource, Handle, Resource, ResourceEvent, ResourceId, ResourceTrait,
+    SerializableResource, SharedData, SharedDataRc,
 };
-use inox_serialize::{generate_random_uid, read_from_file, SerializeFile};
+use inox_serialize::{generate_random_uid, read_from_file, SerializeFile, INVALID_UID};
 
 pub type MaterialId = ResourceId;
 
 #[derive(Clone)]
 pub struct Material {
+    id: MaterialId,
+    message_hub: Option<MessageHubRc>,
+    shared_data: Option<SharedDataRc>,
     pipeline: Handle<Pipeline>,
     uniform_index: i32,
     filepath: PathBuf,
@@ -34,6 +37,9 @@ pub struct Material {
 impl Default for Material {
     fn default() -> Self {
         Self {
+            id: INVALID_UID,
+            message_hub: None,
+            shared_data: None,
             pipeline: None,
             uniform_index: INVALID_INDEX,
             filepath: PathBuf::new(),
@@ -80,7 +86,7 @@ impl DataTypeResource for Material {
     fn on_create(
         &mut self,
         _shared_data_rc: &SharedDataRc,
-        _messenger: &MessageHubRc,
+        _message_hub: &MessageHubRc,
         _id: &MaterialId,
         _on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
     ) {
@@ -88,7 +94,7 @@ impl DataTypeResource for Material {
     fn on_destroy(
         &mut self,
         _shared_data: &SharedData,
-        _messenger: &MessageHubRc,
+        _message_hub: &MessageHubRc,
         _id: &MaterialId,
     ) {
     }
@@ -96,7 +102,7 @@ impl DataTypeResource for Material {
     fn create_from_data(
         shared_data: &SharedDataRc,
         message_hub: &MessageHubRc,
-        _id: ResourceId,
+        id: ResourceId,
         material_data: Self::DataType,
     ) -> Self
     where
@@ -105,8 +111,7 @@ impl DataTypeResource for Material {
         let mut textures: [Handle<Texture>; TextureType::Count as _] = Default::default();
         for (i, t) in material_data.textures.iter().enumerate() {
             if !t.as_os_str().is_empty() {
-                let texture =
-                    Texture::request_load(shared_data, message_hub, t.as_path(), None);
+                let texture = Texture::request_load(shared_data, message_hub, t.as_path(), None);
                 textures[i] = Some(texture);
             }
         }
@@ -123,6 +128,9 @@ impl DataTypeResource for Material {
         };
 
         Self {
+            id,
+            message_hub: Some(message_hub.clone()),
+            shared_data: Some(shared_data.clone()),
             textures,
             roughness_factor: material_data.roughness_factor,
             metallic_factor: material_data.metallic_factor,
@@ -139,14 +147,20 @@ impl DataTypeResource for Material {
 }
 
 impl Material {
+    fn mark_as_dirty(&self) -> &Self {
+        if let Some(message_hub) = &self.message_hub {
+            message_hub.send_event(ResourceEvent::<Self>::Changed(self.id));
+        }
+        self
+    }
     pub fn duplicate_from_pipeline(
         shared_data: &SharedDataRc,
-        messenger: &MessageHubRc,
+        message_hub: &MessageHubRc,
         pipeline: &Resource<Pipeline>,
     ) -> Resource<Self> {
         SharedData::add_resource(
             shared_data,
-            messenger,
+            message_hub,
             generate_random_uid(),
             Self {
                 pipeline: Some(pipeline.clone()),
@@ -198,8 +212,11 @@ impl Material {
     pub fn texture(&self, texture_type: TextureType) -> &Handle<Texture> {
         &self.textures[texture_type as usize]
     }
-    pub fn remove_texture(&mut self, texture_type: TextureType) {
+
+    pub fn remove_texture(&mut self, texture_type: TextureType) -> &mut Self {
         self.textures[texture_type as usize] = None;
+        self.mark_as_dirty();
+        self
     }
     pub fn set_texture(
         &mut self,
@@ -207,6 +224,7 @@ impl Material {
         texture: &Resource<Texture>,
     ) -> &mut Self {
         self.textures[texture_type as usize] = Some(texture.clone());
+        self.mark_as_dirty();
         self
     }
 
@@ -215,18 +233,21 @@ impl Material {
     }
     pub fn set_roughness_factor(&mut self, roughness_factor: f32) {
         self.roughness_factor = roughness_factor;
+        self.mark_as_dirty();
     }
     pub fn metallic_factor(&self) -> f32 {
         self.metallic_factor
     }
     pub fn set_metallic_factor(&mut self, metallic_factor: f32) {
         self.metallic_factor = metallic_factor;
+        self.mark_as_dirty();
     }
     pub fn alpha_cutoff(&self) -> f32 {
         self.alpha_cutoff
     }
     pub fn set_alpha_cutoff(&mut self, alpha_cutoff: f32) {
         self.alpha_cutoff = alpha_cutoff;
+        self.mark_as_dirty();
     }
 
     pub fn alpha_mode(&self) -> MaterialAlphaMode {
@@ -234,6 +255,7 @@ impl Material {
     }
     pub fn set_alpha_mode(&mut self, alpha_mode: MaterialAlphaMode) {
         self.alpha_mode = alpha_mode;
+        self.mark_as_dirty();
     }
 
     pub fn base_color(&self) -> Vector4 {
@@ -241,23 +263,27 @@ impl Material {
     }
     pub fn set_base_color(&mut self, base_color: Vector4) {
         self.base_color = base_color;
+        self.mark_as_dirty();
     }
     pub fn emissive_color(&self) -> Vector4 {
         self.emissive_color
     }
     pub fn set_emissive_color(&mut self, emissive_color: Vector4) {
         self.emissive_color = emissive_color;
+        self.mark_as_dirty();
     }
     pub fn diffuse_color(&self) -> Vector4 {
         self.diffuse_color
     }
     pub fn set_diffuse_color(&mut self, diffuse_color: Vector4) {
         self.diffuse_color = diffuse_color;
+        self.mark_as_dirty();
     }
     pub fn specular_color(&self) -> Vector4 {
         self.specular_color
     }
     pub fn set_specular_color(&mut self, specular_color: Vector4) {
         self.specular_color = specular_color;
+        self.mark_as_dirty();
     }
 }

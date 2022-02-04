@@ -34,11 +34,11 @@ where
     fn on_create(
         &mut self,
         shared_data: &SharedDataRc,
-        messenger: &MessageHubRc,
+        message_hub: &MessageHubRc,
         id: &ResourceId,
         on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
     );
-    fn on_destroy(&mut self, shared_data: &SharedData, messenger: &MessageHubRc, id: &ResourceId);
+    fn on_destroy(&mut self, shared_data: &SharedData, message_hub: &MessageHubRc, id: &ResourceId);
 
     fn is_initialized(&self) -> bool;
     fn invalidate(&mut self) -> &mut Self;
@@ -62,7 +62,8 @@ where
     where
         Self: Sized,
     {
-        let resource = Self::create_from_data(shared_data, message_hub, id, data);
+        let mut resource = Self::create_from_data(shared_data, message_hub, id, data);
+        resource.on_create(shared_data, message_hub, &id, None);
         shared_data.add_resource(message_hub, id, resource)
     }
 }
@@ -77,25 +78,25 @@ where
     fn on_create_resource(
         &mut self,
         shared_data: &SharedDataRc,
-        messenger: &MessageHubRc,
+        message_hub: &MessageHubRc,
         id: &ResourceId,
         on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
     ) where
         Self: Sized,
     {
-        self.on_create(shared_data, messenger, id, on_create_data);
-        messenger.send_event(ResourceEvent::<T>::Created(
+        self.on_create(shared_data, message_hub, id, on_create_data);
+        message_hub.send_event(ResourceEvent::<T>::Created(
             shared_data.get_resource(id).unwrap(),
         ));
     }
     fn on_destroy_resource(
         &mut self,
         shared_data: &SharedData,
-        messenger: &MessageHubRc,
+        message_hub: &MessageHubRc,
         id: &ResourceId,
     ) {
-        messenger.send_event(ResourceEvent::<T>::Destroyed(*id));
-        self.on_destroy(shared_data, messenger, id);
+        message_hub.send_event(ResourceEvent::<T>::Destroyed(*id));
+        self.on_destroy(shared_data, message_hub, id);
     }
 
     fn on_copy_resource(&mut self, other: &Self)

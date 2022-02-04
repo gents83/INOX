@@ -44,10 +44,10 @@ impl View3D {
 
     fn create(
         shared_data: &SharedDataRc,
-        messenger: &MessageHubRc,
+        message_hub: &MessageHubRc,
         data: View3DData,
     ) -> Resource<UIWidget> {
-        UIWidget::register(shared_data, messenger, data, |ui_data, ui_context| {
+        UIWidget::register(shared_data, message_hub, data, |ui_data, ui_context| {
             if let Some(data) = ui_data.as_any_mut().downcast_mut::<View3DData>() {
                 CentralPanel::default()
                     .frame(Frame::dark_canvas(ui_context.style().as_ref()))

@@ -70,7 +70,7 @@ impl DataTypeResource for Pipeline {
     fn on_create(
         &mut self,
         _shared_data_rc: &SharedDataRc,
-        _messenger: &MessageHubRc,
+        _message_hub: &MessageHubRc,
         _id: &PipelineId,
         _on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
     ) {
@@ -78,7 +78,7 @@ impl DataTypeResource for Pipeline {
     fn on_destroy(
         &mut self,
         _shared_data: &SharedData,
-        _messenger: &MessageHubRc,
+        _message_hub: &MessageHubRc,
         _id: &PipelineId,
     ) {
         self.render_pipeline = None;

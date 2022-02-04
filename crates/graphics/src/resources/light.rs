@@ -68,7 +68,7 @@ impl DataTypeResource for Light {
     fn on_create(
         &mut self,
         _shared_data_rc: &SharedDataRc,
-        _messenger: &MessageHubRc,
+        _message_hub: &MessageHubRc,
         _id: &LightId,
         on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
     ) {
@@ -76,7 +76,13 @@ impl DataTypeResource for Light {
             self.set_position(on_create_data.position);
         }
     }
-    fn on_destroy(&mut self, _shared_data: &SharedData, _messenger: &MessageHubRc, _id: &LightId) {}
+    fn on_destroy(
+        &mut self,
+        _shared_data: &SharedData,
+        _message_hub: &MessageHubRc,
+        _id: &LightId,
+    ) {
+    }
 
     fn create_from_data(
         _shared_data: &SharedDataRc,

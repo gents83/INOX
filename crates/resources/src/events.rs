@@ -51,21 +51,6 @@ implement_message!(
     message_from_command_parser
 );
 
-impl<T> Clone for ResourceEvent<T>
-where
-    T: ResourceTrait,
-{
-    fn clone(&self) -> Self {
-        match self {
-            ResourceEvent::Load(path, on_create_data) => {
-                ResourceEvent::Load(path.clone(), on_create_data.clone())
-            }
-            ResourceEvent::Created(resource) => ResourceEvent::Created(resource.clone()),
-            ResourceEvent::Changed(id) => ResourceEvent::Changed(*id),
-            ResourceEvent::Destroyed(id) => ResourceEvent::Destroyed(*id),
-        }
-    }
-}
 unsafe impl<T> Send for ResourceEvent<T> where T: ResourceTrait {}
 unsafe impl<T> Sync for ResourceEvent<T> where T: ResourceTrait {}
 

@@ -8,6 +8,7 @@ use super::texture_atlas::TextureAtlas;
 
 pub struct TextureHandler {
     texture_atlas: Vec<TextureAtlas>,
+    encoder: Option<wgpu::CommandEncoder>,
     texture_data_bind_group_layout: wgpu::BindGroupLayout,
     default_sampler: wgpu::Sampler,
 }
@@ -48,10 +49,31 @@ impl TextureHandler {
                         },
                     ],
                 });
+
         Self {
+            encoder: None,
             texture_atlas,
             texture_data_bind_group_layout,
             default_sampler,
+        }
+    }
+    fn create_encoder(&mut self, render_context: &RenderContext) -> &mut wgpu::CommandEncoder {
+        if self.encoder.is_none() {
+            let encoder =
+                render_context
+                    .device
+                    .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                        label: Some("Texture Update Encoder"),
+                    });
+            self.encoder = Some(encoder);
+        }
+        self.encoder.as_mut().unwrap()
+    }
+    pub fn send_to_gpu(&mut self, render_context: &RenderContext) {
+        if let Some(encoder) = self.encoder.take() {
+            render_context
+                .queue
+                .submit(std::iter::once(encoder.finish()));
         }
     }
     pub fn bind_group_layout(&self) -> &wgpu::BindGroupLayout {
@@ -167,14 +189,12 @@ impl TextureHandler {
     pub fn add_from_path(
         &mut self,
         context: &RenderContext,
-        encoder: &mut wgpu::CommandEncoder,
         id: &TextureId,
         filepath: &Path,
     ) -> TextureData {
         let image = image::open(filepath).unwrap();
         self.add_image(
             context,
-            encoder,
             id,
             (image.width(), image.height()),
             image.to_rgba8().as_raw().as_slice(),
@@ -183,16 +203,16 @@ impl TextureHandler {
 
     pub fn add_image(
         &mut self,
-        context: &RenderContext,
-        encoder: &mut wgpu::CommandEncoder,
+        render_context: &RenderContext,
         id: &TextureId,
         dimensions: (u32, u32),
         image_data: &[u8],
     ) -> TextureData {
+        self.create_encoder(render_context);
         for (texture_index, texture_atlas) in self.texture_atlas.iter_mut().enumerate() {
             if let Some(texture_data) = texture_atlas.allocate(
-                context,
-                encoder,
+                render_context,
+                self.encoder.as_mut().unwrap(),
                 id,
                 texture_index as _,
                 dimensions,

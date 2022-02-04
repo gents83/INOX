@@ -61,12 +61,18 @@ impl DataTypeResource for Scene {
     fn on_create(
         &mut self,
         _shared_data_rc: &SharedDataRc,
-        _messenger: &MessageHubRc,
+        _message_hub: &MessageHubRc,
         _id: &SceneId,
         _on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
     ) {
     }
-    fn on_destroy(&mut self, _shared_data: &SharedData, _messenger: &MessageHubRc, _id: &SceneId) {}
+    fn on_destroy(
+        &mut self,
+        _shared_data: &SharedData,
+        _message_hub: &MessageHubRc,
+        _id: &SceneId,
+    ) {
+    }
 
     fn is_initialized(&self) -> bool {
         !self.objects.is_empty()

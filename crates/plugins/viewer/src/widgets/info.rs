@@ -32,10 +32,10 @@ impl Info {
 
     fn create(
         shared_data: &SharedDataRc,
-        messenger: &MessageHubRc,
+        message_hub: &MessageHubRc,
         data: Data,
     ) -> Resource<UIWidget> {
-        UIWidget::register(shared_data, messenger, data, |ui_data, ui_context| {
+        UIWidget::register(shared_data, message_hub, data, |ui_data, ui_context| {
             if let Some(data) = ui_data.as_any_mut().downcast_mut::<Data>() {
                 let last_time = data.time;
                 data.time = SystemTime::now();

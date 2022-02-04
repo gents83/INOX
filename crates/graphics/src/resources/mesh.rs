@@ -19,15 +19,14 @@ pub struct OnMeshCreateData {
 #[derive(Clone)]
 pub struct Mesh {
     id: MeshId,
-    path: PathBuf,
-    messenger: Option<MessageHubRc>,
+    message_hub: Option<MessageHubRc>,
     shared_data: Option<SharedDataRc>,
+    path: PathBuf,
     data: MeshData,
     matrix: Matrix4,
     material: Handle<Material>,
     draw_area: Vector4, //pos (x,y) - size(z,w)
     is_visible: bool,
-    is_dirty: bool,
     draw_index: i32,
 }
 
@@ -35,15 +34,14 @@ impl Default for Mesh {
     fn default() -> Self {
         Self {
             id: INVALID_UID,
-            path: PathBuf::new(),
-            messenger: None,
+            message_hub: None,
             shared_data: None,
+            path: PathBuf::new(),
             data: MeshData::default(),
             matrix: Matrix4::default_identity(),
             material: None,
             draw_area: [0., 0., f32::MAX, f32::MAX].into(),
             is_visible: true,
-            is_dirty: false,
             draw_index: INVALID_INDEX,
         }
     }
@@ -81,7 +79,7 @@ impl DataTypeResource for Mesh {
     fn on_create(
         &mut self,
         _shared_data_rc: &SharedDataRc,
-        _messenger: &MessageHubRc,
+        _message_hub: &MessageHubRc,
         _id: &MeshId,
         on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
     ) {
@@ -89,7 +87,8 @@ impl DataTypeResource for Mesh {
             self.set_matrix(on_create_data.parent_matrix);
         }
     }
-    fn on_destroy(&mut self, _shared_data: &SharedData, _messenger: &MessageHubRc, _id: &MeshId) {}
+    fn on_destroy(&mut self, _shared_data: &SharedData, _message_hub: &MessageHubRc, _id: &MeshId) {
+    }
 
     fn create_from_data(
         shared_data: &SharedDataRc,
@@ -109,27 +108,19 @@ impl DataTypeResource for Mesh {
         };
         Self {
             id,
-            messenger: Some(message_hub.clone()),
+            message_hub: Some(message_hub.clone()),
             shared_data: Some(shared_data.clone()),
             data,
             material,
-            is_dirty: true,
             ..Default::default()
         }
     }
 }
 
 impl Mesh {
-    pub fn init(&mut self) {
-        self.is_dirty = false;
-    }
-    pub fn is_dirty(&self) -> bool {
-        self.is_dirty
-    }
-    fn mark_as_dirty(&mut self) -> &mut Self {
-        self.is_dirty = true;
-        if let Some(messenger) = &self.messenger {
-            messenger.send_event(ResourceEvent::<Mesh>::Changed(self.id));
+    fn mark_as_dirty(&self) -> &Self {
+        if let Some(message_hub) = &self.message_hub {
+            message_hub.send_event(ResourceEvent::<Self>::Changed(self.id));
         }
         self
     }
