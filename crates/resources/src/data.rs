@@ -4,7 +4,7 @@ use std::{
 };
 
 use sabi_filesystem::convert_from_local_path;
-use sabi_messenger::{GlobalMessenger, MessengerRw};
+use sabi_messenger::MessageHubRc;
 
 use sabi_serialize::generate_uid_from_string;
 
@@ -34,11 +34,11 @@ where
     fn on_create(
         &mut self,
         shared_data: &SharedDataRc,
-        messenger: &MessengerRw,
+        messenger: &MessageHubRc,
         id: &ResourceId,
         on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
     );
-    fn on_destroy(&mut self, shared_data: &SharedData, messenger: &MessengerRw, id: &ResourceId);
+    fn on_destroy(&mut self, shared_data: &SharedData, messenger: &MessageHubRc, id: &ResourceId);
 
     fn is_initialized(&self) -> bool;
     fn invalidate(&mut self) -> &mut Self;
@@ -46,7 +46,7 @@ where
 
     fn create_from_data(
         shared_data: &SharedDataRc,
-        global_messenger: &MessengerRw,
+        message_hub: &MessageHubRc,
         id: ResourceId,
         data: Self::DataType,
     ) -> Self
@@ -55,29 +55,29 @@ where
 
     fn new_resource(
         shared_data: &SharedDataRc,
-        global_messenger: &MessengerRw,
+        message_hub: &MessageHubRc,
         id: ResourceId,
         data: Self::DataType,
     ) -> Resource<Self>
     where
         Self: Sized,
     {
-        let resource = Self::create_from_data(shared_data, global_messenger, id, data);
-        shared_data.add_resource(global_messenger, id, resource)
+        let resource = Self::create_from_data(shared_data, message_hub, id, data);
+        shared_data.add_resource(message_hub, id, resource)
     }
 }
 
 impl<T> ResourceTrait for T
 where
     T: DataTypeResource,
-    <T as DataTypeResource>::OnCreateData: Clone,
+    <T as DataTypeResource>::OnCreateData: Send + Sync + Clone,
 {
     type OnCreateData = <T as DataTypeResource>::OnCreateData;
 
     fn on_create_resource(
         &mut self,
         shared_data: &SharedDataRc,
-        messenger: &MessengerRw,
+        messenger: &MessageHubRc,
         id: &ResourceId,
         on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
     ) where
@@ -91,7 +91,7 @@ where
     fn on_destroy_resource(
         &mut self,
         shared_data: &SharedData,
-        messenger: &MessengerRw,
+        messenger: &MessageHubRc,
         id: &ResourceId,
     ) {
         messenger.send_event(ResourceEvent::<T>::Destroyed(*id));
@@ -129,7 +129,7 @@ pub trait SerializableResource: DataTypeResource + Sized {
     #[inline]
     fn create_from_file(
         shared_data: &SharedDataRc,
-        global_messenger: &MessengerRw,
+        message_hub: &MessageHubRc,
         filepath: &Path,
         on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
     ) -> Resource<Self>
@@ -145,18 +145,18 @@ pub trait SerializableResource: DataTypeResource + Sized {
         }
         let data = Self::deserialize_data(path.as_path());
         let resource_id = generate_uid_from_string(path.as_path().to_str().unwrap());
-        let mut resource = Self::create_from_data(shared_data, global_messenger, resource_id, data);
+        let mut resource = Self::create_from_data(shared_data, message_hub, resource_id, data);
         //debug_log(format!("Created resource [{:?}] {:?}", resource_id, path.as_path()).as_str());
         resource.set_path(path.as_path());
 
-        resource.on_create(shared_data, global_messenger, &resource_id, on_create_data);
+        resource.on_create(shared_data, message_hub, &resource_id, on_create_data);
 
-        shared_data.add_resource(global_messenger, resource_id, resource)
+        shared_data.add_resource(message_hub, resource_id, resource)
     }
 
     fn request_load(
         shared_data: &SharedDataRc,
-        global_messenger: &MessengerRw,
+        message_hub: &MessageHubRc,
         filepath: &Path,
         on_create_data: Option<<Self as ResourceTrait>::OnCreateData>,
     ) -> Resource<Self>
@@ -174,8 +174,8 @@ pub trait SerializableResource: DataTypeResource + Sized {
         if SharedData::has::<Self>(shared_data, &resource_id) {
             return SharedData::get_resource::<Self>(shared_data, &resource_id).unwrap();
         }
-        let resource = shared_data.add_resource(global_messenger, resource_id, Self::default());
-        global_messenger.send_event(ResourceEvent::<Self>::Load(path, on_create_data));
+        let resource = shared_data.add_resource(message_hub, resource_id, Self::default());
+        message_hub.send_event(ResourceEvent::<Self>::Load(path, on_create_data));
         resource
     }
 }

@@ -3,7 +3,7 @@ use std::{
     sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard},
 };
 
-use sabi_messenger::{GlobalMessenger, MessengerRw};
+use sabi_messenger::MessageHubRc;
 
 use crate::{
     swap_resource, Handle, Resource, ResourceEvent, ResourceHandle, ResourceId, ResourceTrait,
@@ -13,12 +13,12 @@ use crate::{
 pub trait TypedStorage: Send + Sync + Any {
     fn remove_all(&mut self);
     fn has(&self, resource_id: &ResourceId) -> bool;
-    fn flush(&mut self, shared_data: &SharedData, messenger: &MessengerRw);
+    fn flush(&mut self, shared_data: &SharedData, messenger: &MessageHubRc);
     fn remove(
         &mut self,
         resource_id: &ResourceId,
         shared_data: &SharedData,
-        messenger: &MessengerRw,
+        messenger: &MessageHubRc,
     );
     fn count(&self) -> usize;
 }
@@ -68,7 +68,7 @@ where
     }
 
     #[inline]
-    fn flush(&mut self, shared_data: &SharedData, messenger: &MessengerRw) {
+    fn flush(&mut self, shared_data: &SharedData, messenger: &MessageHubRc) {
         let mut num_pending = self.pending.len() as i32 - 1;
         while num_pending >= 0 {
             let pending = self.pending.remove(num_pending as usize);
@@ -99,7 +99,7 @@ where
         &mut self,
         resource_id: &ResourceId,
         shared_data: &SharedData,
-        messenger: &MessengerRw,
+        messenger: &MessageHubRc,
     ) {
         if let Some(index) = self.resources.iter().position(|r| r.id() == resource_id) {
             let resource = self.resources.remove(index);
@@ -145,7 +145,7 @@ where
     #[inline]
     pub fn add(
         &mut self,
-        messenger: &MessengerRw,
+        messenger: &MessageHubRc,
         resource_id: ResourceId,
         data: T,
     ) -> Resource<T> {

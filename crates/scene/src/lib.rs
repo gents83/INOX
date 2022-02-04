@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 #![warn(clippy::all)]
 
+use sabi_messenger::MessageHubRc;
 use sabi_resources::SharedDataRc;
 
 pub use crate::data::*;
@@ -18,12 +19,12 @@ pub mod object;
 pub mod scene;
 pub mod script;
 
-pub fn register_resource_types(shared_data: &SharedDataRc) {
-    shared_data.register_type_serializable::<Object>();
+pub fn register_resource_types(shared_data: &SharedDataRc, message_hub: &MessageHubRc) {
+    shared_data.register_type_serializable::<Object>(message_hub);
     shared_data.register_type::<Hitbox>();
-    shared_data.register_type_serializable::<Camera>();
-    shared_data.register_type_serializable::<Script>();
-    shared_data.register_type_serializable::<Scene>();
+    shared_data.register_type_serializable::<Camera>(message_hub);
+    shared_data.register_type_serializable::<Script>(message_hub);
+    shared_data.register_type_serializable::<Scene>(message_hub);
 }
 
 pub fn unregister_resource_types(shared_data: &SharedDataRc) {

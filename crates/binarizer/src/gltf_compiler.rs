@@ -21,7 +21,7 @@ use sabi_graphics::{
     MAX_TEXTURE_COORDS_SETS,
 };
 use sabi_math::{Mat4Ops, Matrix4, NewAngle, Parser, Radians, Vector2, Vector3, Vector4};
-use sabi_messenger::MessengerRw;
+use sabi_messenger::MessageHubRc;
 use sabi_nodes::LogicData;
 use sabi_profiler::debug_log;
 use sabi_resources::Data;
@@ -61,12 +61,12 @@ enum NodeType {
 
 #[derive(Default)]
 pub struct GltfCompiler {
-    global_messenger: MessengerRw,
+    message_hub: MessageHubRc,
 }
 
 impl GltfCompiler {
-    pub fn new(global_messenger: MessengerRw) -> Self {
-        Self { global_messenger }
+    pub fn new(message_hub: MessageHubRc) -> Self {
+        Self { message_hub }
     }
 
     fn num_from_type(&mut self, accessor: &Accessor) -> usize {

@@ -1,7 +1,7 @@
 use std::any::{type_name, Any};
 
 use egui::{CollapsingHeader, Context, Ui};
-use sabi_messenger::MessengerRw;
+use sabi_messenger::MessageHubRc;
 use sabi_resources::{Resource, ResourceId, ResourceTrait, SharedData, SharedDataRc};
 use sabi_serialize::generate_random_uid;
 
@@ -46,7 +46,7 @@ impl ResourceTrait for UIWidget {
     fn on_create_resource(
         &mut self,
         _shared_data: &SharedDataRc,
-        _messenger: &MessengerRw,
+        _messenger: &MessageHubRc,
         _id: &ResourceId,
         _on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
     ) where
@@ -57,7 +57,7 @@ impl ResourceTrait for UIWidget {
     fn on_destroy_resource(
         &mut self,
         _shared_data: &SharedData,
-        _messenger: &MessengerRw,
+        _messenger: &MessageHubRc,
         _id: &ResourceId,
     ) {
     }
@@ -96,7 +96,7 @@ impl UIProperties for UIWidget {
 impl UIWidget {
     pub fn register<D, F>(
         shared_data: &SharedDataRc,
-        messenger: &MessengerRw,
+        messenger: &MessageHubRc,
         data: D,
         f: F,
     ) -> Resource<Self>

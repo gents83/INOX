@@ -4,12 +4,13 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use sabi_messenger::{Message, MessengerRw};
+use sabi_messenger::MessageHubRc;
 use sabi_serialize::{generate_uid_from_string, Uid};
 
 use crate::{
-    Handle, Resource, ResourceEventHandler, ResourceId, ResourceStorageRw, ResourceTrait,
-    SerializableResource, Singleton, Storage, StorageCastTo, TypedResourceEventHandler,
+    Handle, LoadFunction, Resource, ResourceEventHandler, ResourceId, ResourceStorageRw,
+    ResourceTrait, SerializableResource, Singleton, Storage, StorageCastTo,
+    TypedResourceEventHandler,
 };
 
 #[derive(Default)]
@@ -93,7 +94,7 @@ impl SharedData {
         );
     }
     #[inline]
-    pub fn register_type_serializable<T>(&self)
+    pub fn register_type_serializable<T>(&self, message_hub: &MessageHubRc)
     where
         T: SerializableResource,
     {
@@ -105,10 +106,10 @@ impl SharedData {
             type_name::<T>()
         );
         //debug_log("Registering resource type: {:?}", type_name::<T>(),);
-        self.event_handlers
-            .write()
-            .unwrap()
-            .insert(typeid, Box::new(TypedResourceEventHandler::<T>::default()));
+        self.event_handlers.write().unwrap().insert(
+            typeid,
+            Box::new(TypedResourceEventHandler::<T>::new(message_hub)),
+        );
     }
     #[inline]
     pub fn unregister_type<T>(&self)
@@ -144,7 +145,7 @@ impl SharedData {
     #[inline]
     pub fn add_resource<T: ResourceTrait>(
         &self,
-        messenger: &MessengerRw,
+        messenger: &MessageHubRc,
         resource_id: ResourceId,
         data: T,
     ) -> Resource<T> {
@@ -209,7 +210,7 @@ impl SharedData {
         self.storage.write().unwrap().clear();
     }
     #[inline]
-    pub fn flush_resources(&self, messenger: &MessengerRw) {
+    pub fn flush_resources(&self, messenger: &MessageHubRc) {
         for (type_id, rs) in self.storage.read().unwrap().iter() {
             if let Ok(mut rs) = rs.write() {
                 rs.flush(self, messenger);
@@ -222,25 +223,14 @@ impl SharedData {
         }
     }
     #[inline]
-    pub fn is_message_handled(&self, msg: &dyn Message) -> Option<Uid> {
-        for (type_id, handler) in self.event_handlers.read().unwrap().iter() {
-            if handler.is_handled(msg) {
-                return Some(*type_id);
-            }
-        }
-        None
-    }
-    #[inline]
-    pub fn handle_events(
-        shared_data: &SharedDataRc,
-        global_messenger: &MessengerRw,
-        type_id: Uid,
-        msg: &dyn Message,
-    ) -> bool {
-        if let Some(event_handler) = shared_data.event_handlers.read().unwrap().get(&type_id) {
-            return event_handler.handle_event(shared_data, global_messenger, msg);
-        }
-        false
+    pub fn handle_events(&self, f: impl LoadFunction) {
+        self.event_handlers
+            .write()
+            .unwrap()
+            .iter_mut()
+            .for_each(|(_, handler)| {
+                handler.handle_events(&f);
+            });
     }
     #[inline]
     pub fn has<T: 'static>(&self, resource_id: &ResourceId) -> bool {

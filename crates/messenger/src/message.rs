@@ -1,41 +1,46 @@
-use std::any::{type_name, Any};
+use std::any::type_name;
 
 use sabi_commands::CommandParser;
 
-use crate::MessageBox;
+use crate::{MessageHub, MessageHubRc};
 
-pub trait Message: Send + Sync + Any {
-    fn as_any(&self) -> &dyn Any;
-    fn redo(&self, events_rw: &MessageBox);
-    fn undo(&self, events_rw: &MessageBox);
+pub trait Message: Send + Sync + 'static {
+    fn send(self: Box<Self>, messenger: &mut MessageHub);
+    #[inline]
+    fn send_to(self, messenger: &MessageHubRc)
+    where
+        Self: Sized,
+    {
+        messenger.send_event(self);
+    }
+    fn from_string(_s: &str) -> Option<Self>
+    where
+        Self: Sized,
+    {
+        None
+    }
 
     #[inline]
     fn get_type_name(&self) -> String {
-        let mut str = type_name::<Self>()
+        type_name::<Self>()
             .split(':')
             .collect::<Vec<&str>>()
             .last()
             .unwrap()
-            .to_string();
-        str.push_str(" - ");
-        str.push_str(self.get_debug_info().as_str());
-        str
+            .to_string()
     }
-    fn get_debug_info(&self) -> String;
-    fn as_boxed(&self) -> Box<dyn Message>;
 }
-
 pub trait MessageFromString: Message {
-    fn from_command_parser(command_parser: CommandParser) -> Option<Box<dyn Message>>
+    fn from_command_parser(command_parser: CommandParser) -> Option<Self>
     where
         Self: Sized;
-
-    fn from_string(s: String) -> Option<Box<dyn Message>>
+    #[inline]
+    fn from_string(s: &str) -> Option<Self>
     where
         Self: Sized,
     {
         let command_parser = CommandParser::from_string(s);
-        Self::from_command_parser(command_parser)
+        <Self as MessageFromString>::from_command_parser(command_parser)
     }
 }
 

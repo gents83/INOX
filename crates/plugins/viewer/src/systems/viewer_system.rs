@@ -2,20 +2,20 @@ use sabi_commands::CommandParser;
 use sabi_core::System;
 use sabi_graphics::{DrawEvent, Light, Material, Mesh, MeshData, Pipeline, Texture, View};
 use sabi_math::{Matrix4, VecBase, Vector2, Vector3};
-use sabi_messenger::{read_messages, GlobalMessenger, MessageChannel, MessengerRw};
+use sabi_messenger::{Listener, MessageHubRc};
 
 use sabi_platform::{InputState, Key, KeyEvent, MouseEvent, WindowEvent};
 use sabi_resources::{Resource, ResourceEvent, SerializableResource, SharedDataRc};
 use sabi_scene::{Camera, Object, ObjectId, Scene, Script};
 use sabi_serialize::generate_random_uid;
-use std::{any::TypeId, collections::HashMap, path::PathBuf};
+use std::{collections::HashMap, path::PathBuf};
 
 use crate::widgets::{Hierarchy, Info, View3D};
 
 pub struct ViewerSystem {
     shared_data: SharedDataRc,
-    global_messenger: MessengerRw,
-    message_channel: MessageChannel,
+    message_hub: MessageHubRc,
+    listener: Listener,
     scene: Resource<Scene>,
     camera_object: Resource<Object>,
     last_mouse_pos: Vector2,
@@ -27,19 +27,16 @@ pub struct ViewerSystem {
 const FORCE_USE_DEFAULT_CAMERA: bool = false;
 
 impl ViewerSystem {
-    pub fn new(shared_data: &SharedDataRc, global_messenger: &MessengerRw) -> Self {
-        let message_channel = MessageChannel::default();
+    pub fn new(shared_data: &SharedDataRc, message_hub: &MessageHubRc) -> Self {
+        let listener = Listener::new(message_hub);
 
-        sabi_scene::register_resource_types(shared_data);
+        sabi_scene::register_resource_types(shared_data, message_hub);
 
-        let scene = shared_data.add_resource::<Scene>(
-            global_messenger,
-            generate_random_uid(),
-            Scene::default(),
-        );
+        let scene =
+            shared_data.add_resource::<Scene>(message_hub, generate_random_uid(), Scene::default());
 
         let camera_object = shared_data.add_resource::<Object>(
-            global_messenger,
+            message_hub,
             generate_random_uid(),
             Object::default(),
         );
@@ -49,7 +46,7 @@ impl ViewerSystem {
         camera_object.get_mut().look_at(Vector3::new(0.0, 0.0, 0.0));
         let camera = camera_object
             .get_mut()
-            .add_default_component::<Camera>(shared_data, global_messenger);
+            .add_default_component::<Camera>(shared_data, message_hub);
         camera
             .get_mut()
             .set_parent(&camera_object)
@@ -60,8 +57,8 @@ impl ViewerSystem {
             _info: None,
             _hierarchy: None,
             shared_data: shared_data.clone(),
-            global_messenger: global_messenger.clone(),
-            message_channel,
+            message_hub: message_hub.clone(),
+            listener,
             scene,
             camera_object,
             last_mouse_pos: Vector2::default_zero(),
@@ -84,15 +81,13 @@ impl System for ViewerSystem {
     fn init(&mut self) {
         self.check_command_line_arguments();
 
-        self.global_messenger
-            .write()
-            .unwrap()
-            .register_messagebox::<KeyEvent>(self.message_channel.get_messagebox())
-            .register_messagebox::<MouseEvent>(self.message_channel.get_messagebox())
-            .register_messagebox::<WindowEvent>(self.message_channel.get_messagebox())
-            .register_messagebox::<ResourceEvent<Scene>>(self.message_channel.get_messagebox());
+        self.listener
+            .register::<KeyEvent>()
+            .register::<MouseEvent>()
+            .register::<WindowEvent>()
+            .register::<ResourceEvent<Scene>>();
 
-        self._view_3d = Some(View3D::new(&self.shared_data, &self.global_messenger));
+        self._view_3d = Some(View3D::new(&self.shared_data, &self.message_hub));
     }
 
     fn run(&mut self) -> bool {
@@ -120,7 +115,7 @@ impl System for ViewerSystem {
 
         self.shared_data.for_each_resource(|_, l: &Light| {
             if l.is_active() {
-                self.global_messenger.send_event(DrawEvent::Sphere(
+                self.message_hub.send_event(DrawEvent::Sphere(
                     l.data().position.into(),
                     l.data().range,
                     [l.data().color[0], l.data().color[1], l.data().color[2], 1.].into(),
@@ -132,13 +127,11 @@ impl System for ViewerSystem {
         true
     }
     fn uninit(&mut self) {
-        self.global_messenger
-            .write()
-            .unwrap()
-            .unregister_messagebox::<KeyEvent>(self.message_channel.get_messagebox())
-            .unregister_messagebox::<MouseEvent>(self.message_channel.get_messagebox())
-            .unregister_messagebox::<WindowEvent>(self.message_channel.get_messagebox())
-            .unregister_messagebox::<ResourceEvent<Scene>>(self.message_channel.get_messagebox());
+        self.listener
+            .unregister::<KeyEvent>()
+            .unregister::<MouseEvent>()
+            .unregister::<WindowEvent>()
+            .unregister::<ResourceEvent<Scene>>();
     }
 }
 
@@ -157,29 +150,26 @@ impl ViewerSystem {
     fn create_default_scene(&mut self) {
         let default_object = {
             let object = self.shared_data.add_resource(
-                &self.global_messenger,
+                &self.message_hub,
                 generate_random_uid(),
                 Object::default(),
             );
             let mesh = self.shared_data.add_resource(
-                &self.global_messenger,
+                &self.message_hub,
                 generate_random_uid(),
                 Mesh::default(),
             );
             let pipeline = Pipeline::request_load(
                 &self.shared_data,
-                &self.global_messenger,
+                &self.message_hub,
                 PathBuf::from("pipelines\\Default.pipeline").as_path(),
                 None,
             );
-            let material = Material::duplicate_from_pipeline(
-                &self.shared_data,
-                &self.global_messenger,
-                &pipeline,
-            );
+            let material =
+                Material::duplicate_from_pipeline(&self.shared_data, &self.message_hub, &pipeline);
             let texture = Texture::request_load(
                 &self.shared_data,
-                &self.global_messenger,
+                &self.message_hub,
                 PathBuf::from("textures\\Test.jpg").as_path(),
                 None,
             );
@@ -199,26 +189,23 @@ impl ViewerSystem {
         };
         let wireframe_object = {
             let object = self.shared_data.add_resource(
-                &self.global_messenger,
+                &self.message_hub,
                 generate_random_uid(),
                 Object::default(),
             );
             let mesh = self.shared_data.add_resource(
-                &self.global_messenger,
+                &self.message_hub,
                 generate_random_uid(),
                 Mesh::default(),
             );
             let pipeline = Pipeline::request_load(
                 &self.shared_data,
-                &self.global_messenger,
+                &self.message_hub,
                 PathBuf::from("pipelines\\Wireframe.pipeline").as_path(),
                 None,
             );
-            let material = Material::duplicate_from_pipeline(
-                &self.shared_data,
-                &self.global_messenger,
-                &pipeline,
-            );
+            let material =
+                Material::duplicate_from_pipeline(&self.shared_data, &self.message_hub, &pipeline);
             mesh.get_mut().set_material(material);
             let mut mesh_data = MeshData::default();
             mesh_data.add_quad_default([-10., -10., 10., 10.].into(), 0.);
@@ -239,7 +226,7 @@ impl ViewerSystem {
             self.scene.get_mut().clear();
             self.scene = Scene::request_load(
                 &self.shared_data,
-                &self.global_messenger,
+                &self.message_hub,
                 PathBuf::from(filename).as_path(),
                 None,
             );
@@ -249,15 +236,10 @@ impl ViewerSystem {
     fn update_events(&mut self) -> &mut Self {
         sabi_profiler::scoped_profile!("update_events");
 
-        read_messages(self.message_channel.get_listener(), |msg| {
-            if msg.type_id() == TypeId::of::<KeyEvent>() {
-                let event = msg.as_any().downcast_ref::<KeyEvent>().unwrap();
-                self.handle_keyboard_event(event);
-            } else if msg.type_id() == TypeId::of::<MouseEvent>() {
-                let event = msg.as_any().downcast_ref::<MouseEvent>().unwrap();
-                self.handle_mouse_event(event);
-            } else if msg.type_id() == TypeId::of::<WindowEvent>() {
-                let event = msg.as_any().downcast_ref::<WindowEvent>().unwrap();
+        self.handle_keyboard_event();
+        self.handle_mouse_event();
+        self.listener
+            .process_messages(|event: &WindowEvent| {
                 if let WindowEvent::SizeChanged(width, height) = event {
                     self.shared_data.for_each_resource_mut(|_, c: &mut Camera| {
                         c.set_projection(
@@ -269,16 +251,22 @@ impl ViewerSystem {
                         );
                     });
                 }
-            } else if msg.type_id() == TypeId::of::<ResourceEvent<Scene>>() {
-                if let Some(ResourceEvent::<Scene>::Load(path, _option)) =
-                    msg.as_any().downcast_ref::<ResourceEvent<Scene>>()
-                {
+            })
+            .process_messages(|event: &ResourceEvent<Scene>| {
+                if let ResourceEvent::<Scene>::Load(path, _option) = event {
                     if let Some(scene_path) = path.to_str() {
-                        self.load_scene(scene_path);
+                        if scene_path.ends_with(Scene::extension()) {
+                            self.scene.get_mut().clear();
+                            self.scene = Scene::request_load(
+                                &self.shared_data,
+                                &self.message_hub,
+                                PathBuf::from(scene_path).as_path(),
+                                None,
+                            );
+                        }
                     }
                 }
-            }
-        });
+            });
         self
     }
 
@@ -323,70 +311,74 @@ impl ViewerSystem {
         self
     }
 
-    fn handle_keyboard_event(&mut self, event: &KeyEvent) {
-        if event.code == Key::F1 && event.state == InputState::Released {
-            if self._info.is_some() {
-                self._info = None;
-            } else {
-                self._info = Some(Info::new(&self.shared_data, &self.global_messenger));
-            }
-        } else if event.code == Key::F2 && event.state == InputState::Released {
-            if self._hierarchy.is_some() {
-                self._hierarchy = None;
-            } else {
-                self._hierarchy = Some(Hierarchy::new(
-                    &self.shared_data,
-                    &self.global_messenger,
-                    self.scene.id(),
-                ));
-            }
-        }
-
-        let mut movement = Vector3::default_zero();
-        if event.code == Key::W {
-            movement.z += 1.;
-        } else if event.code == Key::S {
-            movement.z -= 1.;
-        } else if event.code == Key::A {
-            movement.x -= 1.;
-        } else if event.code == Key::D {
-            movement.x += 1.;
-        } else if event.code == Key::Q {
-            movement.y += 1.;
-        } else if event.code == Key::E {
-            movement.y -= 1.;
-        }
-        if movement != Vector3::default_zero() {
-            self.shared_data.for_each_resource_mut(|_, c: &mut Camera| {
-                if c.is_active() {
-                    let matrix = c.transform();
-                    let translation = matrix.x.xyz().normalized() * movement.x
-                        + matrix.y.xyz().normalized() * movement.y
-                        + matrix.z.xyz().normalized() * movement.z;
-                    c.translate(translation);
+    fn handle_keyboard_event(&mut self) {
+        self.listener.process_messages(|event: &KeyEvent| {
+            if event.code == Key::F1 && event.state == InputState::Released {
+                if self._info.is_some() {
+                    self._info = None;
+                } else {
+                    self._info = Some(Info::new(&self.shared_data, &self.message_hub));
                 }
-            });
-        }
-    }
+            } else if event.code == Key::F2 && event.state == InputState::Released {
+                if self._hierarchy.is_some() {
+                    self._hierarchy = None;
+                } else {
+                    self._hierarchy = Some(Hierarchy::new(
+                        &self.shared_data,
+                        &self.message_hub,
+                        self.scene.id(),
+                    ));
+                }
+            }
 
-    fn handle_mouse_event(&mut self, event: &MouseEvent) {
-        let mut is_on_view3d = false;
-        if let Some(view_3d) = &self._view_3d {
-            is_on_view3d = view_3d.is_interacting();
-        }
-        if is_on_view3d {
-            let mut rotation_angle = Vector3::default_zero();
-
-            rotation_angle.x = event.normalized_y - self.last_mouse_pos.y;
-            rotation_angle.y = event.normalized_x - self.last_mouse_pos.x;
-            if rotation_angle != Vector3::default_zero() {
+            let mut movement = Vector3::default_zero();
+            if event.code == Key::W {
+                movement.z += 1.;
+            } else if event.code == Key::S {
+                movement.z -= 1.;
+            } else if event.code == Key::A {
+                movement.x -= 1.;
+            } else if event.code == Key::D {
+                movement.x += 1.;
+            } else if event.code == Key::Q {
+                movement.y += 1.;
+            } else if event.code == Key::E {
+                movement.y -= 1.;
+            }
+            if movement != Vector3::default_zero() {
                 self.shared_data.for_each_resource_mut(|_, c: &mut Camera| {
                     if c.is_active() {
-                        c.rotate(rotation_angle * 5.);
+                        let matrix = c.transform();
+                        let translation = matrix.x.xyz().normalized() * movement.x
+                            + matrix.y.xyz().normalized() * movement.y
+                            + matrix.z.xyz().normalized() * movement.z;
+                        c.translate(translation);
                     }
                 });
             }
-        }
-        self.last_mouse_pos = Vector2::new(event.normalized_x as _, event.normalized_y as _);
+        });
+    }
+
+    fn handle_mouse_event(&mut self) {
+        self.listener.process_messages(|event: &MouseEvent| {
+            let mut is_on_view3d = false;
+            if let Some(view_3d) = &self._view_3d {
+                is_on_view3d = view_3d.is_interacting();
+            }
+            if is_on_view3d {
+                let mut rotation_angle = Vector3::default_zero();
+
+                rotation_angle.x = event.normalized_y - self.last_mouse_pos.y;
+                rotation_angle.y = event.normalized_x - self.last_mouse_pos.x;
+                if rotation_angle != Vector3::default_zero() {
+                    self.shared_data.for_each_resource_mut(|_, c: &mut Camera| {
+                        if c.is_active() {
+                            c.rotate(rotation_angle * 5.);
+                        }
+                    });
+                }
+            }
+            self.last_mouse_pos = Vector2::new(event.normalized_x as _, event.normalized_y as _);
+        });
     }
 }

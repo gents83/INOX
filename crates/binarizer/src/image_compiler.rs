@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use crate::{copy_into_data_folder, ExtensionHandler};
-use sabi_messenger::MessengerRw;
+use sabi_messenger::MessageHubRc;
 use sabi_profiler::debug_log;
 
 const IMAGE_PNG_EXTENSION: &str = "png";
@@ -15,12 +15,12 @@ const IMAGE_GIF_EXTENSION: &str = "bmp";
 const IMAGE_ICO_EXTENSION: &str = "ico";
 
 pub struct ImageCompiler {
-    global_messenger: MessengerRw,
+    message_hub: MessageHubRc,
 }
 
 impl ImageCompiler {
-    pub fn new(global_messenger: MessengerRw) -> Self {
-        Self { global_messenger }
+    pub fn new(message_hub: MessageHubRc) -> Self {
+        Self { message_hub }
     }
 }
 
@@ -37,7 +37,7 @@ impl ExtensionHandler for ImageCompiler {
                 || extension.as_str() == IMAGE_GIF_EXTENSION
                 || extension.as_str() == IMAGE_ICO_EXTENSION
                 || extension.as_str() == IMAGE_DDS_EXTENSION)
-                && copy_into_data_folder(&self.global_messenger, path)
+                && copy_into_data_folder(&self.message_hub, path)
             {
                 debug_log(format!("Serializing {:?}", path).as_str());
             }

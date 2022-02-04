@@ -31,7 +31,7 @@ impl Launcher {
                 0,
                 0,
                 PathBuf::from("").as_path(),
-                app.get_global_messenger(),
+                app.get_message_hub(),
             )
         };
 
@@ -39,7 +39,7 @@ impl Launcher {
         let renderer = Arc::new(RwLock::new(renderer));
 
         let mut window_update_phase = PhaseWithSystems::new(MAIN_WINDOW_PHASE);
-        let window_system = WindowSystem::new(window, app.get_global_messenger());
+        let window_system = WindowSystem::new(window, app.get_message_hub());
 
         window_update_phase.add_system(window_system);
         app.create_phase(window_update_phase);
@@ -48,7 +48,7 @@ impl Launcher {
         let render_update_system = UpdateSystem::new(
             renderer.clone(),
             app.get_shared_data(),
-            app.get_global_messenger(),
+            app.get_message_hub(),
             app.get_job_handler(),
         );
 
@@ -56,7 +56,7 @@ impl Launcher {
         let rendering_draw_system = RenderingSystem::new(
             renderer,
             app.get_shared_data(),
-            app.get_global_messenger(),
+            app.get_message_hub(),
             app.get_job_handler(),
         );
 

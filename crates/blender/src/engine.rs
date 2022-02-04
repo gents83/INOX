@@ -62,7 +62,7 @@ impl SABIEngine {
         let mut app = App::default();
 
         let mut binarizer = Binarizer::new(
-            app.get_global_messenger(),
+            app.get_message_hub(),
             working_dir.join(DATA_RAW_FOLDER),
             working_dir.join(DATA_FOLDER),
         );

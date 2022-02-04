@@ -6,7 +6,7 @@ use crate::{
 };
 
 use sabi_math::Vector4;
-use sabi_messenger::MessengerRw;
+use sabi_messenger::MessageHubRc;
 use sabi_resources::{
     DataTypeResource, Handle, Resource, ResourceId, ResourceTrait, SerializableResource,
     SharedData, SharedDataRc,
@@ -80,7 +80,7 @@ impl DataTypeResource for Material {
     fn on_create(
         &mut self,
         _shared_data_rc: &SharedDataRc,
-        _messenger: &MessengerRw,
+        _messenger: &MessageHubRc,
         _id: &MaterialId,
         _on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
     ) {
@@ -88,14 +88,14 @@ impl DataTypeResource for Material {
     fn on_destroy(
         &mut self,
         _shared_data: &SharedData,
-        _messenger: &MessengerRw,
+        _messenger: &MessageHubRc,
         _id: &MaterialId,
     ) {
     }
 
     fn create_from_data(
         shared_data: &SharedDataRc,
-        global_messenger: &MessengerRw,
+        message_hub: &MessageHubRc,
         _id: ResourceId,
         material_data: Self::DataType,
     ) -> Self
@@ -106,7 +106,7 @@ impl DataTypeResource for Material {
         for (i, t) in material_data.textures.iter().enumerate() {
             if !t.as_os_str().is_empty() {
                 let texture =
-                    Texture::request_load(shared_data, global_messenger, t.as_path(), None);
+                    Texture::request_load(shared_data, message_hub, t.as_path(), None);
                 textures[i] = Some(texture);
             }
         }
@@ -116,7 +116,7 @@ impl DataTypeResource for Material {
         } else {
             Some(Pipeline::request_load(
                 shared_data,
-                global_messenger,
+                message_hub,
                 material_data.pipeline.as_path(),
                 None,
             ))
@@ -141,7 +141,7 @@ impl DataTypeResource for Material {
 impl Material {
     pub fn duplicate_from_pipeline(
         shared_data: &SharedDataRc,
-        messenger: &MessengerRw,
+        messenger: &MessageHubRc,
         pipeline: &Resource<Pipeline>,
     ) -> Resource<Self> {
         SharedData::add_resource(

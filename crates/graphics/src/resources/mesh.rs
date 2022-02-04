@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use crate::{Material, MeshData, INVALID_INDEX};
 use sabi_math::{MatBase, Matrix4, Vector4};
-use sabi_messenger::{GlobalMessenger, MessengerRw};
+use sabi_messenger::MessageHubRc;
 use sabi_resources::{
     DataTypeResource, Handle, Resource, ResourceEvent, ResourceId, ResourceTrait,
     SerializableResource, SharedData, SharedDataRc,
@@ -20,7 +20,7 @@ pub struct OnMeshCreateData {
 pub struct Mesh {
     id: MeshId,
     path: PathBuf,
-    messenger: Option<MessengerRw>,
+    messenger: Option<MessageHubRc>,
     shared_data: Option<SharedDataRc>,
     data: MeshData,
     matrix: Matrix4,
@@ -81,7 +81,7 @@ impl DataTypeResource for Mesh {
     fn on_create(
         &mut self,
         _shared_data_rc: &SharedDataRc,
-        _messenger: &MessengerRw,
+        _messenger: &MessageHubRc,
         _id: &MeshId,
         on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
     ) {
@@ -89,11 +89,11 @@ impl DataTypeResource for Mesh {
             self.set_matrix(on_create_data.parent_matrix);
         }
     }
-    fn on_destroy(&mut self, _shared_data: &SharedData, _messenger: &MessengerRw, _id: &MeshId) {}
+    fn on_destroy(&mut self, _shared_data: &SharedData, _messenger: &MessageHubRc, _id: &MeshId) {}
 
     fn create_from_data(
         shared_data: &SharedDataRc,
-        global_messenger: &MessengerRw,
+        message_hub: &MessageHubRc,
         id: ResourceId,
         data: Self::DataType,
     ) -> Self
@@ -101,19 +101,15 @@ impl DataTypeResource for Mesh {
         Self: Sized,
     {
         let material = if !data.material.to_str().unwrap_or_default().is_empty() {
-            let material = Material::request_load(
-                shared_data,
-                global_messenger,
-                data.material.as_path(),
-                None,
-            );
+            let material =
+                Material::request_load(shared_data, message_hub, data.material.as_path(), None);
             Some(material)
         } else {
             None
         };
         Self {
             id,
-            messenger: Some(global_messenger.clone()),
+            messenger: Some(message_hub.clone()),
             shared_data: Some(shared_data.clone()),
             data,
             material,

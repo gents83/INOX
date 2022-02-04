@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use image::RgbaImage;
 use sabi_filesystem::convert_from_local_path;
-use sabi_messenger::MessengerRw;
+use sabi_messenger::MessageHubRc;
 use sabi_profiler::debug_log;
 use sabi_resources::{
     Data, DataTypeResource, Handle, ResourceId, ResourceTrait, SerializableResource, SharedData,
@@ -55,17 +55,22 @@ impl DataTypeResource for Texture {
     fn on_create(
         &mut self,
         _shared_data_rc: &SharedDataRc,
-        _messenger: &MessengerRw,
+        _messenger: &MessageHubRc,
         _id: &TextureId,
         _on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
     ) {
     }
-    fn on_destroy(&mut self, _shared_data: &SharedData, _messenger: &MessengerRw, _id: &TextureId) {
+    fn on_destroy(
+        &mut self,
+        _shared_data: &SharedData,
+        _messenger: &MessageHubRc,
+        _id: &TextureId,
+    ) {
     }
 
     fn create_from_data(
         _shared_data: &SharedDataRc,
-        _global_messenger: &MessengerRw,
+        _message_hub: &MessageHubRc,
         _id: ResourceId,
         data: Self::DataType,
     ) -> Self

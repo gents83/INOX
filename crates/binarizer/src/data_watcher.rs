@@ -10,7 +10,7 @@ use std::{
 
 use crate::{CopyCompiler, FontCompiler, GltfCompiler, ImageCompiler, ShaderCompiler};
 use sabi_filesystem::convert_from_local_path;
-use sabi_messenger::MessengerRw;
+use sabi_messenger::MessageHubRc;
 use sabi_platform::{FileEvent, FileWatcher};
 
 pub trait ExtensionHandler {
@@ -20,7 +20,7 @@ pub trait ExtensionHandler {
 pub struct Binarizer {
     data_raw_folder: PathBuf,
     data_folder: PathBuf,
-    global_messenger: MessengerRw,
+    message_hub: MessageHubRc,
     thread_handle: Option<JoinHandle<bool>>,
     is_running: Arc<AtomicBool>,
 }
@@ -37,7 +37,7 @@ unsafe impl Sync for DataWatcher {}
 
 impl Binarizer {
     pub fn new(
-        global_messenger: &MessengerRw,
+        message_hub: &MessageHubRc,
         mut data_raw_folder: PathBuf,
         mut data_folder: PathBuf,
     ) -> Self {
@@ -56,7 +56,7 @@ impl Binarizer {
         );
         debug_assert!(data_folder.exists() && data_folder.is_dir() && data_folder.is_absolute());
         Self {
-            global_messenger: global_messenger.clone(),
+            message_hub: message_hub.clone(),
             data_raw_folder,
             data_folder,
             thread_handle: None,
@@ -76,11 +76,11 @@ impl Binarizer {
             data_folder: self.data_folder.clone(),
         };
 
-        let shader_compiler = ShaderCompiler::new(self.global_messenger.clone());
-        let config_compiler = CopyCompiler::new(self.global_messenger.clone());
-        let font_compiler = FontCompiler::new(self.global_messenger.clone());
-        let image_compiler = ImageCompiler::new(self.global_messenger.clone());
-        let gltf_compiler = GltfCompiler::new(self.global_messenger.clone());
+        let shader_compiler = ShaderCompiler::new(self.message_hub.clone());
+        let config_compiler = CopyCompiler::new(self.message_hub.clone());
+        let font_compiler = FontCompiler::new(self.message_hub.clone());
+        let image_compiler = ImageCompiler::new(self.message_hub.clone());
+        let gltf_compiler = GltfCompiler::new(self.message_hub.clone());
         binarizer.add_handler(config_compiler);
         binarizer.add_handler(shader_compiler);
         binarizer.add_handler(font_compiler);

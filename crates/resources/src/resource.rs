@@ -1,4 +1,4 @@
-use sabi_messenger::MessengerRw;
+use sabi_messenger::MessageHubRc;
 use sabi_serialize::Uid;
 use std::{
     any::Any,
@@ -11,14 +11,14 @@ pub type ResourceId = Uid;
 
 pub trait ResourceTrait: Send + Sync + 'static
 where
-    Self::OnCreateData: Clone,
+    Self::OnCreateData: Send + Sync + Clone,
 {
     type OnCreateData;
 
     fn on_create_resource(
         &mut self,
         shared_data: &SharedDataRc,
-        messenger: &MessengerRw,
+        messenger: &MessageHubRc,
         id: &ResourceId,
         on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
     ) where
@@ -26,10 +26,12 @@ where
     fn on_destroy_resource(
         &mut self,
         shared_data: &SharedData,
-        messenger: &MessengerRw,
+        messenger: &MessageHubRc,
         id: &ResourceId,
     );
-    fn on_copy_resource(&mut self, other: &Self);
+    fn on_copy_resource(&mut self, other: &Self)
+    where
+        Self: Sized;
 }
 
 pub trait GenericResourceTrait: Send + Sync + Any {

@@ -5,7 +5,6 @@ members = [
     "blender",
     "commands",
     "core",
-    "events",
     "filesystem",
     "graphics",
     "math",

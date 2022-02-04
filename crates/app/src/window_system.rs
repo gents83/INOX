@@ -1,5 +1,5 @@
 use sabi_core::System;
-use sabi_messenger::{GlobalMessenger, MessengerRw};
+use sabi_messenger::MessageHubRc;
 use sabi_platform::{Window, WindowEvent};
 use sabi_resources::ConfigBase;
 use sabi_serialize::read_from_file;
@@ -8,14 +8,14 @@ use crate::config::Config;
 
 pub struct WindowSystem {
     window: Window,
-    global_messenger: MessengerRw,
+    message_hub: MessageHubRc,
 }
 
 impl WindowSystem {
-    pub fn new(window: Window, global_messenger: &MessengerRw) -> Self {
+    pub fn new(window: Window, message_hub: &MessageHubRc) -> Self {
         Self {
             window,
-            global_messenger: global_messenger.clone(),
+            message_hub: message_hub.clone(),
         }
     }
 }
@@ -25,13 +25,13 @@ impl System for WindowSystem {
         let mut config = Config::default();
         config = read_from_file(config.get_filepath(plugin_name).as_path());
 
-        self.global_messenger
+        self.message_hub
             .send_event(WindowEvent::RequestChangeTitle(config.title.clone()));
-        self.global_messenger
+        self.message_hub
             .send_event(WindowEvent::RequestChangeSize(config.width, config.height));
-        self.global_messenger
+        self.message_hub
             .send_event(WindowEvent::RequestChangePos(config.pos_x, config.pos_y));
-        self.global_messenger
+        self.message_hub
             .send_event(WindowEvent::RequestChangeVisible(true));
     }
     fn should_run_when_not_focused(&self) -> bool {

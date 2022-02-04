@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use image::DynamicImage;
-use sabi_messenger::MessengerRw;
+use sabi_messenger::MessageHubRc;
 use sabi_resources::{
     DataTypeResource, Handle, Resource, ResourceId, ResourceTrait, SerializableResource,
     SharedData, SharedDataRc,
@@ -50,7 +50,7 @@ impl DataTypeResource for RenderPass {
     fn on_create(
         &mut self,
         _shared_data_rc: &SharedDataRc,
-        _messenger: &MessengerRw,
+        _messenger: &MessageHubRc,
         _id: &RenderPassId,
         _on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
     ) {
@@ -58,14 +58,14 @@ impl DataTypeResource for RenderPass {
     fn on_destroy(
         &mut self,
         _shared_data: &SharedData,
-        _messenger: &MessengerRw,
+        _messenger: &MessageHubRc,
         _id: &RenderPassId,
     ) {
     }
 
     fn create_from_data(
         shared_data: &SharedDataRc,
-        global_messenger: &MessengerRw,
+        message_hub: &MessageHubRc,
         id: ResourceId,
         data: Self::DataType,
     ) -> Self
@@ -76,7 +76,7 @@ impl DataTypeResource for RenderPass {
         data.pipelines.iter().for_each(|path| {
             if !path.as_os_str().is_empty() {
                 let pipeline =
-                    Pipeline::request_load(shared_data, global_messenger, path.as_path(), None);
+                    Pipeline::request_load(shared_data, message_hub, path.as_path(), None);
                 pipelines.push(pipeline);
             };
         });
@@ -90,9 +90,9 @@ impl DataTypeResource for RenderPass {
                 let image = DynamicImage::new_rgba8(*width, *height);
                 let image_data = image.to_rgba8();
                 let texture =
-                    Texture::create_from_data(shared_data, global_messenger, id, image_data);
+                    Texture::create_from_data(shared_data, message_hub, id, image_data);
                 let texture =
-                    shared_data.add_resource(global_messenger, generate_random_uid(), texture);
+                    shared_data.add_resource(message_hub, generate_random_uid(), texture);
                 Some(texture)
             }
             _ => None,

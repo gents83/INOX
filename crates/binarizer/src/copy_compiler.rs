@@ -2,7 +2,7 @@ use std::path::Path;
 
 use crate::{copy_into_data_folder, ExtensionHandler};
 use sabi_graphics::{Light, Material, Mesh, Pipeline};
-use sabi_messenger::MessengerRw;
+use sabi_messenger::MessageHubRc;
 use sabi_nodes::NodeTree;
 use sabi_profiler::debug_log;
 use sabi_resources::SerializableResource;
@@ -12,12 +12,12 @@ use sabi_serialize::SerializeFile;
 const CONFIG_EXTENSION: &str = "cfg";
 
 pub struct CopyCompiler {
-    global_messenger: MessengerRw,
+    message_hub: MessageHubRc,
 }
 
 impl CopyCompiler {
-    pub fn new(global_messenger: MessengerRw) -> Self {
-        Self { global_messenger }
+    pub fn new(message_hub: MessageHubRc) -> Self {
+        Self { message_hub }
     }
 }
 
@@ -35,7 +35,7 @@ impl ExtensionHandler for CopyCompiler {
                 || ext.as_str() == Camera::extension()
                 || ext.as_str() == Light::extension()
                 || ext.as_str() == Script::extension())
-                && copy_into_data_folder(&self.global_messenger, path)
+                && copy_into_data_folder(&self.message_hub, path)
             {
                 debug_log(format!("Serializing {:?}", path).as_str());
             }

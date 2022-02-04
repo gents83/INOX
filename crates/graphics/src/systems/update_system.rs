@@ -1,12 +1,10 @@
-use std::any::TypeId;
-
 use sabi_core::{JobHandlerRw, System};
 
-use sabi_messenger::{read_messages, MessageChannel, MessengerRw};
+use sabi_messenger::{Listener, MessageHubRc};
 use sabi_platform::WindowEvent;
 use sabi_resources::{
-    ConfigBase, DataTypeResource, Resource, ResourceEvent, SerializableResource, SharedData,
-    SharedDataRc, ReloadEvent,
+    ConfigBase, DataTypeResource, ReloadEvent, Resource, ResourceEvent, SerializableResource,
+    SharedData, SharedDataRc,
 };
 use sabi_serialize::{generate_random_uid, read_from_file};
 
@@ -20,9 +18,9 @@ pub const RENDERING_UPDATE: &str = "RENDERING_UPDATE";
 pub struct UpdateSystem {
     renderer: RendererRw,
     shared_data: SharedDataRc,
-    global_messenger: MessengerRw,
+    message_hub: MessageHubRc,
     job_handler: JobHandlerRw,
-    message_channel: MessageChannel,
+    listener: Listener,
     render_passes: Vec<Resource<RenderPass>>,
 }
 
@@ -30,18 +28,18 @@ impl UpdateSystem {
     pub fn new(
         renderer: RendererRw,
         shared_data: &SharedDataRc,
-        global_messenger: &MessengerRw,
+        message_hub: &MessageHubRc,
         job_handler: &JobHandlerRw,
     ) -> Self {
-        let message_channel = MessageChannel::default();
+        let listener = Listener::new(message_hub);
 
-        crate::register_resource_types(shared_data);
+        crate::register_resource_types(shared_data, message_hub);
         Self {
             renderer,
             shared_data: shared_data.clone(),
-            global_messenger: global_messenger.clone(),
+            message_hub: message_hub.clone(),
             job_handler: job_handler.clone(),
-            message_channel,
+            listener,
             render_passes: Vec::new(),
         }
     }
@@ -50,7 +48,7 @@ impl UpdateSystem {
         for render_pass_data in render_passes.iter() {
             self.render_passes.push(RenderPass::new_resource(
                 &self.shared_data,
-                &self.global_messenger,
+                &self.message_hub,
                 generate_random_uid(),
                 render_pass_data.clone(),
             ));
@@ -59,15 +57,14 @@ impl UpdateSystem {
     }
 
     fn handle_events(&self) {
-        read_messages(self.message_channel.get_listener(), |msg| {
-            if msg.type_id() == TypeId::of::<WindowEvent>() {
-                let e = msg.as_any().downcast_ref::<WindowEvent>().unwrap();
+        self.listener
+            .process_messages(|e: &WindowEvent| {
                 if let WindowEvent::SizeChanged(width, height) = e {
                     let mut renderer = self.renderer.write().unwrap();
                     renderer.set_surface_size(*width, *height);
                 }
-            } else if msg.type_id() == TypeId::of::<ReloadEvent>() {
-                let e = msg.as_any().downcast_ref::<ReloadEvent>().unwrap();
+            })
+            .process_messages(|e: &ReloadEvent| {
                 let path = e.path.as_path();
                 if is_shader(path) {
                     SharedData::for_each_resource_mut(&self.shared_data, |_, p: &mut Pipeline| {
@@ -80,22 +77,19 @@ impl UpdateSystem {
                         }
                     });
                 }
-            } else if msg.type_id() == TypeId::of::<ResourceEvent<Mesh>>() {
-                let e = msg.as_any().downcast_ref::<ResourceEvent<Mesh>>().unwrap();
-                match e {
-                    ResourceEvent::Created(resource) => {
-                        self.renderer.write().unwrap().on_mesh_added(resource);
-                    }
-                    ResourceEvent::Changed(id) => {
-                        self.renderer.write().unwrap().on_mesh_changed(id);
-                    }
-                    ResourceEvent::Destroyed(id) => {
-                        self.renderer.write().unwrap().on_mesh_removed(id);
-                    }
-                    _ => {}
+            })
+            .process_messages(|e: &ResourceEvent<Mesh>| match e {
+                ResourceEvent::Created(resource) => {
+                    self.renderer.write().unwrap().on_mesh_added(resource);
                 }
-            }
-        });
+                ResourceEvent::Changed(id) => {
+                    self.renderer.write().unwrap().on_mesh_changed(id);
+                }
+                ResourceEvent::Destroyed(id) => {
+                    self.renderer.write().unwrap().on_mesh_removed(id);
+                }
+                _ => {}
+            });
     }
 }
 
@@ -120,12 +114,10 @@ impl System for UpdateSystem {
         false
     }
     fn init(&mut self) {
-        self.global_messenger
-            .write()
-            .unwrap()
-            .register_messagebox::<WindowEvent>(self.message_channel.get_messagebox())
-            .register_messagebox::<ReloadEvent>(self.message_channel.get_messagebox())
-            .register_messagebox::<ResourceEvent<Mesh>>(self.message_channel.get_messagebox());
+        self.listener
+            .register::<WindowEvent>()
+            .register::<ReloadEvent>()
+            .register::<ResourceEvent<Mesh>>();
     }
 
     fn run(&mut self) -> bool {
@@ -155,11 +147,9 @@ impl System for UpdateSystem {
         true
     }
     fn uninit(&mut self) {
-        self.global_messenger
-            .write()
-            .unwrap()
-            .unregister_messagebox::<WindowEvent>(self.message_channel.get_messagebox())
-            .unregister_messagebox::<ReloadEvent>(self.message_channel.get_messagebox())
-            .unregister_messagebox::<ResourceEvent<Mesh>>(self.message_channel.get_messagebox());
+        self.listener
+            .unregister::<WindowEvent>()
+            .unregister::<ReloadEvent>()
+            .unregister::<ResourceEvent<Mesh>>();
     }
 }

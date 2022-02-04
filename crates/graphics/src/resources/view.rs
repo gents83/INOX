@@ -1,5 +1,5 @@
 use sabi_math::{Degrees, MatBase, Matrix4, NewAngle};
-use sabi_messenger::MessengerRw;
+use sabi_messenger::MessageHubRc;
 use sabi_resources::{
     DataTypeResource, Handle, ResourceId, ResourceTrait, SharedData, SharedDataRc,
 };
@@ -40,16 +40,16 @@ impl DataTypeResource for View {
     fn on_create(
         &mut self,
         _shared_data_rc: &SharedDataRc,
-        _messenger: &MessengerRw,
+        _messenger: &MessageHubRc,
         _id: &ViewId,
         _on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
     ) {
     }
-    fn on_destroy(&mut self, _shared_data: &SharedData, _messenger: &MessengerRw, _id: &ViewId) {}
+    fn on_destroy(&mut self, _shared_data: &SharedData, _messenger: &MessageHubRc, _id: &ViewId) {}
 
     fn create_from_data(
         _shared_data: &SharedDataRc,
-        _global_messenger: &MessengerRw,
+        _message_hub: &MessageHubRc,
         _id: ResourceId,
         data: Self::DataType,
     ) -> Self

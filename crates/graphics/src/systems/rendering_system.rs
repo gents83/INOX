@@ -1,6 +1,6 @@
 use sabi_core::{JobHandlerRw, System};
 use sabi_math::Vector2;
-use sabi_messenger::MessengerRw;
+use sabi_messenger::MessageHubRc;
 use sabi_resources::{DataTypeResource, Resource, SharedDataRc};
 use sabi_serialize::generate_random_uid;
 
@@ -19,11 +19,11 @@ impl RenderingSystem {
     pub fn new(
         renderer: RendererRw,
         shared_data: &SharedDataRc,
-        global_messenger: &MessengerRw,
+        message_hub: &MessageHubRc,
         job_handler: &JobHandlerRw,
     ) -> Self {
         Self {
-            view: View::new_resource(shared_data, global_messenger, generate_random_uid(), 0),
+            view: View::new_resource(shared_data, message_hub, generate_random_uid(), 0),
             renderer,
             job_handler: job_handler.clone(),
             shared_data: shared_data.clone(),

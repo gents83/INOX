@@ -15,7 +15,7 @@ impl CommandParser {
     pub fn from_command_line() -> Self {
         Self::from_strings(env::args().collect())
     }
-    pub fn from_string(s: String) -> Self {
+    pub fn from_string(s: &str) -> Self {
         let mut strings = Vec::new();
         s.lines().for_each(|s| {
             s.split_whitespace()

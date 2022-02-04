@@ -1,5 +1,4 @@
 use std::{
-    any::TypeId,
     collections::{hash_map::Entry, HashMap},
     sync::{
         atomic::{AtomicUsize, Ordering},
@@ -18,7 +17,7 @@ use sabi_graphics::{
 };
 
 use sabi_math::Vector4;
-use sabi_messenger::{read_messages, MessageChannel, MessengerRw};
+use sabi_messenger::{Listener, MessageHubRc};
 use sabi_platform::{
     InputState, KeyEvent, KeyTextEvent, MouseButton, MouseEvent, MouseState, WindowEvent,
     DEFAULT_DPI,
@@ -38,8 +37,8 @@ const UI_MESH_CATEGORY_IDENTIFIER: &str = "ui_mesh";
 pub struct UISystem {
     shared_data: SharedDataRc,
     job_handler: JobHandlerRw,
-    global_messenger: MessengerRw,
-    message_channel: MessageChannel,
+    message_hub: MessageHubRc,
+    listener: Listener,
     ui_context: Context,
     ui_textures: HashMap<eguiTextureId, Resource<Texture>>,
     ui_input: RawInput,
@@ -54,10 +53,10 @@ pub struct UISystem {
 impl UISystem {
     pub fn new(
         shared_data: &SharedDataRc,
-        global_messenger: &MessengerRw,
+        message_hub: &MessageHubRc,
         job_handler: &JobHandlerRw,
     ) -> Self {
-        let message_channel = MessageChannel::default();
+        let listener = Listener::new(message_hub);
 
         crate::register_resource_types(shared_data);
 
@@ -65,8 +64,8 @@ impl UISystem {
             ui_pipeline: None,
             shared_data: shared_data.clone(),
             job_handler: job_handler.clone(),
-            global_messenger: global_messenger.clone(),
-            message_channel,
+            message_hub: message_hub.clone(),
+            listener,
             ui_context: Context::default(),
             ui_textures: HashMap::new(),
             ui_input: RawInput::default(),
@@ -85,7 +84,7 @@ impl UISystem {
             Entry::Occupied(e) => e.get().clone(),
             Entry::Vacant(e) => {
                 let shared_data = self.shared_data.clone();
-                let messenger = self.global_messenger.clone();
+                let messenger = self.message_hub.clone();
                 if let Some(pipeline) = &self.ui_pipeline {
                     let material =
                         Material::duplicate_from_pipeline(&shared_data, &messenger, pipeline);
@@ -104,11 +103,11 @@ impl UISystem {
     fn compute_mesh_data(&mut self, clipped_meshes: Vec<ClippedMesh>) {
         sabi_profiler::scoped_profile!("ui_system::compute_mesh_data");
         let shared_data = self.shared_data.clone();
-        let global_messenger = self.global_messenger.clone();
+        let message_hub = self.message_hub.clone();
         self.ui_meshes.resize_with(clipped_meshes.len(), || {
             Mesh::new_resource(
                 &shared_data,
-                &global_messenger,
+                &message_hub,
                 generate_random_uid(),
                 MeshData::default(),
             )
@@ -174,100 +173,97 @@ impl UISystem {
 
     fn update_events(&mut self) -> &mut Self {
         self.ui_input.events.clear();
-        read_messages(self.message_channel.get_listener(), |msg| {
-            if msg.type_id() == TypeId::of::<MouseEvent>() {
-                let event = msg.as_any().downcast_ref::<MouseEvent>().unwrap();
-                if event.state == MouseState::Move {
-                    self.ui_input.events.push(Event::PointerMoved(
-                        [
-                            event.x as f32 / self.ui_scale,
-                            event.y as f32 / self.ui_scale,
-                        ]
-                        .into(),
-                    ));
-                } else if event.state == MouseState::Down || event.state == MouseState::Up {
-                    self.ui_input.events.push(Event::PointerButton {
-                        pos: [
-                            event.x as f32 / self.ui_scale,
-                            event.y as f32 / self.ui_scale,
-                        ]
-                        .into(),
-                        button: match event.button {
-                            MouseButton::Right => PointerButton::Secondary,
-                            MouseButton::Middle => PointerButton::Middle,
-                            _ => PointerButton::Primary,
-                        },
-                        pressed: event.state == MouseState::Down,
-                        modifiers: self.ui_input_modifiers,
-                    });
-                }
-            } else if msg.type_id() == TypeId::of::<WindowEvent>() {
-                let event = msg.as_any().downcast_ref::<WindowEvent>().unwrap();
-                match *event {
-                    WindowEvent::SizeChanged(width, height) => {
-                        self.ui_input.screen_rect = Some(Rect::from_min_size(
-                            Default::default(),
-                            [width as f32 / self.ui_scale, height as f32 / self.ui_scale].into(),
-                        ));
-                    }
-                    WindowEvent::DpiChanged(x, _y) => {
-                        self.ui_input.pixels_per_point = Some(x / DEFAULT_DPI);
-                    }
-                    _ => {}
-                }
-            } else if msg.type_id() == TypeId::of::<KeyEvent>() {
-                let event = msg.as_any().downcast_ref::<KeyEvent>().unwrap();
-                let just_pressed = event.state == InputState::JustPressed;
-                let pressed = just_pressed || event.state == InputState::Pressed;
 
-                if let Some(key) = convert_key(event.code) {
-                    self.ui_input.events.push(Event::Key {
-                        key,
-                        pressed,
-                        modifiers: self.ui_input_modifiers,
-                    });
-                }
-
-                if event.code == sabi_platform::Key::Shift {
-                    self.ui_input_modifiers.shift = pressed;
-                } else if event.code == sabi_platform::Key::Control {
-                    self.ui_input_modifiers.ctrl = pressed;
-                    self.ui_input_modifiers.command = pressed;
-                } else if event.code == sabi_platform::Key::Alt {
-                    self.ui_input_modifiers.alt = pressed;
-                } else if event.code == sabi_platform::Key::Meta {
-                    self.ui_input_modifiers.command = pressed;
-                    self.ui_input_modifiers.mac_cmd = pressed;
-                }
-
-                if just_pressed
-                    && self.ui_input_modifiers.ctrl
-                    && event.code == sabi_platform::input::Key::C
-                {
-                    self.ui_input.events.push(Event::Copy);
-                } else if just_pressed
-                    && self.ui_input_modifiers.ctrl
-                    && event.code == sabi_platform::input::Key::X
-                {
-                    self.ui_input.events.push(Event::Cut);
-                } else if just_pressed
-                    && self.ui_input_modifiers.ctrl
-                    && event.code == sabi_platform::input::Key::V
-                {
-                    if let Some(content) = &self.ui_clipboard {
-                        self.ui_input.events.push(Event::Text(content.clone()));
-                    }
-                }
-            } else if msg.type_id() == TypeId::of::<KeyTextEvent>() {
-                let event = msg.as_any().downcast_ref::<KeyTextEvent>().unwrap();
-                if event.char.is_ascii_control() {
-                    return;
-                }
-                self.ui_input
-                    .events
-                    .push(Event::Text(event.char.to_string()));
+        Listener::process_messages(&self.listener, |event: &MouseEvent| {
+            if event.state == MouseState::Move {
+                self.ui_input.events.push(Event::PointerMoved(
+                    [
+                        event.x as f32 / self.ui_scale,
+                        event.y as f32 / self.ui_scale,
+                    ]
+                    .into(),
+                ));
+            } else if event.state == MouseState::Down || event.state == MouseState::Up {
+                self.ui_input.events.push(Event::PointerButton {
+                    pos: [
+                        event.x as f32 / self.ui_scale,
+                        event.y as f32 / self.ui_scale,
+                    ]
+                    .into(),
+                    button: match event.button {
+                        MouseButton::Right => PointerButton::Secondary,
+                        MouseButton::Middle => PointerButton::Middle,
+                        _ => PointerButton::Primary,
+                    },
+                    pressed: event.state == MouseState::Down,
+                    modifiers: self.ui_input_modifiers,
+                });
             }
         });
+        Listener::process_messages(&self.listener, |event: &WindowEvent| match *event {
+            WindowEvent::SizeChanged(width, height) => {
+                self.ui_input.screen_rect = Some(Rect::from_min_size(
+                    Default::default(),
+                    [width as f32 / self.ui_scale, height as f32 / self.ui_scale].into(),
+                ));
+            }
+            WindowEvent::DpiChanged(x, _y) => {
+                self.ui_input.pixels_per_point = Some(x / DEFAULT_DPI);
+            }
+            _ => {}
+        });
+        Listener::process_messages(&self.listener, |event: &KeyEvent| {
+            let just_pressed = event.state == InputState::JustPressed;
+            let pressed = just_pressed || event.state == InputState::Pressed;
+
+            if let Some(key) = convert_key(event.code) {
+                self.ui_input.events.push(Event::Key {
+                    key,
+                    pressed,
+                    modifiers: self.ui_input_modifiers,
+                });
+            }
+
+            if event.code == sabi_platform::Key::Shift {
+                self.ui_input_modifiers.shift = pressed;
+            } else if event.code == sabi_platform::Key::Control {
+                self.ui_input_modifiers.ctrl = pressed;
+                self.ui_input_modifiers.command = pressed;
+            } else if event.code == sabi_platform::Key::Alt {
+                self.ui_input_modifiers.alt = pressed;
+            } else if event.code == sabi_platform::Key::Meta {
+                self.ui_input_modifiers.command = pressed;
+                self.ui_input_modifiers.mac_cmd = pressed;
+            }
+
+            if just_pressed
+                && self.ui_input_modifiers.ctrl
+                && event.code == sabi_platform::input::Key::C
+            {
+                self.ui_input.events.push(Event::Copy);
+            } else if just_pressed
+                && self.ui_input_modifiers.ctrl
+                && event.code == sabi_platform::input::Key::X
+            {
+                self.ui_input.events.push(Event::Cut);
+            } else if just_pressed
+                && self.ui_input_modifiers.ctrl
+                && event.code == sabi_platform::input::Key::V
+            {
+                if let Some(content) = &self.ui_clipboard {
+                    self.ui_input.events.push(Event::Text(content.clone()));
+                }
+            }
+        });
+        Listener::process_messages(&self.listener, |event: &KeyTextEvent| {
+            if event.char.is_ascii_control() {
+                return;
+            }
+            self.ui_input
+                .events
+                .push(Event::Text(event.char.to_string()));
+        });
+
         self
     }
 
@@ -348,7 +344,7 @@ impl UISystem {
             }
             let texture = Texture::new_resource(
                 &self.shared_data,
-                &self.global_messenger,
+                &self.message_hub,
                 generate_random_uid(),
                 image_data.unwrap(),
             );
@@ -373,7 +369,7 @@ impl System for UISystem {
         self.ui_scale = config.ui_scale;
         self.ui_pipeline = Some(Pipeline::request_load(
             &self.shared_data,
-            &self.global_messenger,
+            &self.message_hub,
             config.ui_pipeline.as_path(),
             None,
         ));
@@ -382,13 +378,11 @@ impl System for UISystem {
         false
     }
     fn init(&mut self) {
-        self.global_messenger
-            .write()
-            .unwrap()
-            .register_messagebox::<WindowEvent>(self.message_channel.get_messagebox())
-            .register_messagebox::<KeyEvent>(self.message_channel.get_messagebox())
-            .register_messagebox::<KeyTextEvent>(self.message_channel.get_messagebox())
-            .register_messagebox::<MouseEvent>(self.message_channel.get_messagebox());
+        self.listener
+            .register::<WindowEvent>()
+            .register::<KeyEvent>()
+            .register::<KeyTextEvent>()
+            .register::<MouseEvent>();
     }
 
     fn run(&mut self) -> bool {
@@ -413,13 +407,11 @@ impl System for UISystem {
     }
 
     fn uninit(&mut self) {
-        self.global_messenger
-            .write()
-            .unwrap()
-            .unregister_messagebox::<MouseEvent>(self.message_channel.get_messagebox())
-            .unregister_messagebox::<KeyTextEvent>(self.message_channel.get_messagebox())
-            .unregister_messagebox::<KeyEvent>(self.message_channel.get_messagebox())
-            .unregister_messagebox::<WindowEvent>(self.message_channel.get_messagebox());
+        self.listener
+            .unregister::<MouseEvent>()
+            .unregister::<KeyTextEvent>()
+            .unregister::<KeyEvent>()
+            .unregister::<WindowEvent>();
     }
 }
 

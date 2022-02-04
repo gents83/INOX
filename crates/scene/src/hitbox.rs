@@ -1,5 +1,5 @@
 use sabi_math::{Mat4Ops, MatBase, Matrix4, VecBase, Vector3};
-use sabi_messenger::MessengerRw;
+use sabi_messenger::MessageHubRc;
 use sabi_resources::{ResourceId, ResourceTrait, SharedData, SharedDataRc};
 
 use sabi_ui::{CollapsingHeader, UIProperties, UIPropertiesRegistry, Ui};
@@ -20,7 +20,7 @@ impl ResourceTrait for Hitbox {
     fn on_create_resource(
         &mut self,
         _shared_data: &SharedDataRc,
-        _messenger: &MessengerRw,
+        _messenger: &MessageHubRc,
         _id: &ResourceId,
         _on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
     ) where
@@ -32,7 +32,7 @@ impl ResourceTrait for Hitbox {
     fn on_destroy_resource(
         &mut self,
         _shared_data: &SharedData,
-        _messenger: &MessengerRw,
+        _messenger: &MessageHubRc,
         _id: &ResourceId,
     ) {
         todo!()

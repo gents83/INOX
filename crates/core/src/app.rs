@@ -1,5 +1,4 @@
 use std::{
-    any::TypeId,
     collections::HashMap,
     path::PathBuf,
     sync::{
@@ -8,10 +7,10 @@ use std::{
     },
 };
 
-use sabi_messenger::MessengerRw;
+use sabi_messenger::{Listener, MessageHubRc};
 use sabi_platform::{InputState, Key, KeyEvent, WindowEvent};
-use sabi_resources::{SharedData, SharedDataRc};
-use sabi_serialize::{generate_uid_from_string, sabi_serializable, Uid};
+use sabi_resources::{DeserializeFunction, SharedData, SharedDataRc};
+use sabi_serialize::{generate_uid_from_string, sabi_serializable};
 
 use crate::{Job, JobHandler, JobHandlerRw, Phase, PluginId, PluginManager, Scheduler, Worker};
 
@@ -21,7 +20,8 @@ pub struct App {
     is_profiling: bool,
     is_enabled: bool,
     shared_data: SharedDataRc,
-    global_messenger: MessengerRw,
+    message_hub: MessageHubRc,
+    listener: Listener,
     plugin_manager: PluginManager,
     scheduler: Scheduler,
     workers: HashMap<String, Worker>,
@@ -36,6 +36,11 @@ impl Default for App {
 
         let (sender, receiver) = channel();
 
+        let message_hub = MessageHubRc::default();
+        let listener = Listener::new(&message_hub);
+
+        listener.register::<KeyEvent>().register::<WindowEvent>();
+
         Self {
             is_enabled: true,
             is_profiling: false,
@@ -45,7 +50,8 @@ impl Default for App {
             job_handler: JobHandler::new(sender),
             receiver: Arc::new(Mutex::new(receiver)),
             shared_data: SharedDataRc::default(),
-            global_messenger: MessengerRw::default(),
+            message_hub,
+            listener,
         }
     }
 }
@@ -108,37 +114,56 @@ impl App {
 
         let mut is_profiling = self.is_profiling;
         let mut is_enabled = self.is_enabled;
-        self.global_messenger
+
+        self.listener.process_messages(|e: &KeyEvent| {
+            if e.code == Key::F9 && e.state == InputState::JustPressed {
+                if !is_profiling {
+                    sabi_profiler::start_profiler!();
+                    is_profiling = true;
+                } else {
+                    is_profiling = false;
+                    sabi_profiler::stop_profiler!();
+                    sabi_profiler::write_profile_file!();
+                }
+            }
+        });
+        self.listener.process_messages(|e: &WindowEvent| match e {
+            WindowEvent::Show => {
+                is_enabled = true;
+            }
+            WindowEvent::Hide => {
+                is_enabled = false;
+            }
+            _ => {}
+        });
+        self.shared_data
+            .handle_events(|load_fn: Box<dyn DeserializeFunction>| {
+                let shared_data = self.shared_data.clone();
+                let message_hub = self.message_hub.clone();
+                let job_name = "Load Event".to_string();
+                let load_event_category = generate_uid_from_string("LOAD_EVENT_CATEGORY");
+                self.job_handler.write().unwrap().add_job(
+                    &load_event_category,
+                    job_name.as_str(),
+                    move || load_fn(&shared_data, &message_hub),
+                );
+            });
+
+        //flush messages between frames
+        self.message_hub.flush();
+        /*
+        self.message_hub
             .read()
             .unwrap()
             .process_messages(|msg| {
                 if msg.type_id() == TypeId::of::<KeyEvent>() {
                     let e = msg.as_any().downcast_ref::<KeyEvent>().unwrap();
-                    if e.code == Key::F9 && e.state == InputState::JustPressed {
-                        if !is_profiling {
-                            sabi_profiler::start_profiler!();
-                            is_profiling = true;
-                        } else {
-                            is_profiling = false;
-                            sabi_profiler::stop_profiler!();
-                            sabi_profiler::write_profile_file!();
-                        }
-                    }
                 } else if msg.type_id() == TypeId::of::<WindowEvent>() {
                     let e = msg.as_any().downcast_ref::<WindowEvent>().unwrap();
-                    match e {
-                        WindowEvent::Show => {
-                            is_enabled = true;
-                        }
-                        WindowEvent::Hide => {
-                            is_enabled = false;
-                        }
-                        _ => {}
-                    }
                 } else if let Some(type_id) = SharedData::is_message_handled(&self.shared_data, msg)
                 {
                     let shared_data = self.shared_data.clone();
-                    let global_messenger = self.global_messenger.clone();
+                    let message_hub = self.message_hub.clone();
                     let msg = msg.as_boxed();
                     let job_name = "Load Event".to_string();
                     let load_event_category: Uid = generate_uid_from_string("LOAD_EVENT_CATEGORY");
@@ -148,7 +173,7 @@ impl App {
                         move || {
                             SharedData::handle_events(
                                 &shared_data,
-                                &global_messenger,
+                                &message_hub,
                                 type_id,
                                 msg.as_ref(),
                             );
@@ -156,6 +181,7 @@ impl App {
                     );
                 }
             });
+        */
         self.is_profiling = is_profiling;
         if self.is_enabled && !is_enabled {
             self.stop_worker_threads();
@@ -176,11 +202,11 @@ impl App {
             let plugins_to_remove = self.plugin_manager.update();
             let plugins_to_reload = self.update_plugins(plugins_to_remove);
             if !plugins_to_reload.is_empty() {
-                SharedData::flush_resources(&self.shared_data, &self.global_messenger);
+                SharedData::flush_resources(&self.shared_data, &self.message_hub);
             }
             self.reload_plugins(plugins_to_reload);
         }
-        SharedData::flush_resources(&self.shared_data, &self.global_messenger);
+        SharedData::flush_resources(&self.shared_data, &self.message_hub);
 
         can_continue
     }
@@ -224,8 +250,8 @@ impl App {
     pub fn get_shared_data(&self) -> &SharedDataRc {
         &self.shared_data
     }
-    pub fn get_global_messenger(&self) -> &MessengerRw {
-        &self.global_messenger
+    pub fn get_message_hub(&self) -> &MessageHubRc {
+        &self.message_hub
     }
     pub fn create_phase_on_worker<P: Phase>(&mut self, phase: P, name: &'static str) {
         let w = self.add_worker(name);

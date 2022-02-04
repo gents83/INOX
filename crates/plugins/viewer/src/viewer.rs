@@ -22,18 +22,18 @@ impl Plugin for Viewer {
     }
     fn prepare(&mut self, app: &mut App) {
         let mut update_phase = PhaseWithSystems::new(VIEWER_UPDATE_PHASE);
-        let system = ViewerSystem::new(app.get_shared_data(), app.get_global_messenger());
+        let system = ViewerSystem::new(app.get_shared_data(), app.get_message_hub());
         self.updater_id = ViewerSystem::id();
         update_phase.add_system(system);
 
         let debug_drawer_system =
-            DebugDrawerSystem::new(app.get_shared_data(), app.get_global_messenger());
+            DebugDrawerSystem::new(app.get_shared_data(), app.get_message_hub());
         self.debug_drawer_id = DebugDrawerSystem::id();
         update_phase.add_system(debug_drawer_system);
 
         let mut ui_system = UISystem::new(
             app.get_shared_data(),
-            app.get_global_messenger(),
+            app.get_message_hub(),
             app.get_job_handler(),
         );
         ui_system.read_config(self.name());

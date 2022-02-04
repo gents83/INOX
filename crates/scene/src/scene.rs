@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use sabi_messenger::MessengerRw;
+use sabi_messenger::MessageHubRc;
 use sabi_resources::{
     DataTypeResource, Resource, ResourceId, ResourceTrait, SerializableResource, SharedData,
     SharedDataRc,
@@ -61,12 +61,12 @@ impl DataTypeResource for Scene {
     fn on_create(
         &mut self,
         _shared_data_rc: &SharedDataRc,
-        _messenger: &MessengerRw,
+        _messenger: &MessageHubRc,
         _id: &SceneId,
         _on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
     ) {
     }
-    fn on_destroy(&mut self, _shared_data: &SharedData, _messenger: &MessengerRw, _id: &SceneId) {}
+    fn on_destroy(&mut self, _shared_data: &SharedData, _messenger: &MessageHubRc, _id: &SceneId) {}
 
     fn is_initialized(&self) -> bool {
         !self.objects.is_empty()
@@ -81,19 +81,19 @@ impl DataTypeResource for Scene {
 
     fn create_from_data(
         shared_data: &SharedDataRc,
-        global_messenger: &MessengerRw,
+        message_hub: &MessageHubRc,
         _id: SceneId,
         scene_data: Self::DataType,
     ) -> Self {
         let mut scene = Self::default();
 
         for object in scene_data.objects.iter() {
-            let o = Object::request_load(shared_data, global_messenger, object.as_path(), None);
+            let o = Object::request_load(shared_data, message_hub, object.as_path(), None);
             scene.add_object(o);
         }
 
         for camera in scene_data.cameras.iter() {
-            let c = Camera::request_load(shared_data, global_messenger, camera.as_path(), None);
+            let c = Camera::request_load(shared_data, message_hub, camera.as_path(), None);
             scene.add_camera(c);
         }
 

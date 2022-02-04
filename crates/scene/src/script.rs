@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use sabi_messenger::MessengerRw;
+use sabi_messenger::MessageHubRc;
 use sabi_nodes::LogicData;
 use sabi_resources::{
     DataTypeResource, Handle, Resource, ResourceId, ResourceTrait, SerializableResource,
@@ -54,7 +54,7 @@ impl DataTypeResource for Script {
     fn on_create(
         &mut self,
         shared_data_rc: &SharedDataRc,
-        _messenger: &MessengerRw,
+        _messenger: &MessageHubRc,
         _id: &ObjectId,
         on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
     ) {
@@ -64,7 +64,7 @@ impl DataTypeResource for Script {
             }
         }
     }
-    fn on_destroy(&mut self, _shared_data: &SharedData, _messenger: &MessengerRw, _id: &ObjectId) {}
+    fn on_destroy(&mut self, _shared_data: &SharedData, _messenger: &MessageHubRc, _id: &ObjectId) {}
 
     fn is_initialized(&self) -> bool {
         self.logic.is_initialized()
@@ -79,7 +79,7 @@ impl DataTypeResource for Script {
 
     fn create_from_data(
         _shared_data: &SharedDataRc,
-        _global_messenger: &MessengerRw,
+        _message_hub: &MessageHubRc,
         _id: ScriptId,
         data: Self::DataType,
     ) -> Self {

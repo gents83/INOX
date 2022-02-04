@@ -17,7 +17,7 @@ fn main() {
     let mut app = App::default();
 
     let mut binarizer = Binarizer::new(
-        app.get_global_messenger(),
+        app.get_message_hub(),
         Data::data_raw_folder(),
         Data::data_folder(),
     );

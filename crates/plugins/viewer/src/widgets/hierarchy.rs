@@ -1,4 +1,4 @@
-use sabi_messenger::{MessageBox, MessengerRw};
+use sabi_messenger::MessageHubRc;
 use sabi_resources::{Resource, SerializableResource, SharedData, SharedDataRc};
 use sabi_scene::{Object, ObjectId, Scene, SceneId};
 use sabi_serialize::INVALID_UID;
@@ -8,7 +8,7 @@ use sabi_ui::{
 
 struct HierarchyData {
     shared_data: SharedDataRc,
-    global_dispatcher: MessageBox,
+    message_hub: MessageHubRc,
     selected_object: ObjectId,
     scene: Resource<Scene>,
 }
@@ -21,18 +21,18 @@ pub struct Hierarchy {
 impl Hierarchy {
     pub fn new(
         shared_data: &SharedDataRc,
-        global_messenger: &MessengerRw,
+        message_hub: &MessageHubRc,
         scene_id: &SceneId,
     ) -> Self {
         if let Some(scene) = SharedData::get_resource::<Scene>(shared_data, scene_id) {
             let data = HierarchyData {
                 shared_data: shared_data.clone(),
-                global_dispatcher: global_messenger.read().unwrap().get_dispatcher().clone(),
+                message_hub: message_hub.clone(),
                 selected_object: INVALID_UID,
                 scene,
             };
             return Self {
-                ui_page: Self::create(shared_data, global_messenger, data),
+                ui_page: Self::create(shared_data, message_hub, data),
             };
         }
         panic!("Hierarchy scene {:?} not found", scene_id);
@@ -47,7 +47,7 @@ impl Hierarchy {
 
     fn create(
         shared_data: &SharedDataRc,
-        messenger: &MessengerRw,
+        messenger: &MessageHubRc,
         data: HierarchyData,
     ) -> Resource<UIWidget> {
         UIWidget::register(shared_data, messenger, data, |ui_data, ui_context| {
@@ -73,7 +73,7 @@ impl Hierarchy {
                                             ui,
                                             object,
                                             &data.selected_object,
-                                            &data.global_dispatcher,
+                                            &data.message_hub,
                                         );
                                     });
                                 });
@@ -87,7 +87,7 @@ impl Hierarchy {
         ui: &mut Ui,
         object: &Resource<Object>,
         selected_id: &ObjectId,
-        global_dispatcher: &MessageBox,
+        message_hub: &MessageHubRc,
     ) {
         sabi_profiler::scoped_profile!("object_hierarchy");
 
@@ -109,7 +109,7 @@ impl Hierarchy {
                 .default_open(true)
                 .show(ui, |ui| {
                     object.get().children().iter().for_each(|child| {
-                        Self::object_hierarchy(ui, child, selected_id, global_dispatcher);
+                        Self::object_hierarchy(ui, child, selected_id, message_hub);
                     });
                 });
             response.header_response

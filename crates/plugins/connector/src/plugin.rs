@@ -17,7 +17,7 @@ impl Plugin for ConnectorPlugin {
     }
     fn prepare(&mut self, app: &mut App) {
         let mut update_phase = PhaseWithSystems::new(CONNECTOR_PHASE);
-        let mut system = Connector::new(app.get_global_messenger());
+        let mut system = Connector::new(app.get_message_hub());
         self.updater_id = Connector::id();
         system.read_config(self.name());
         update_phase.add_system(system);

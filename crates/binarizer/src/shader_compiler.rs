@@ -6,7 +6,7 @@ use std::{
 };
 
 use crate::{copy_into_data_folder, need_to_binarize, send_reloaded_event, ExtensionHandler};
-use sabi_messenger::MessengerRw;
+use sabi_messenger::MessageHubRc;
 use sabi_resources::Data;
 
 const SHADERS_FOLDER_NAME: &str = "shaders";
@@ -18,14 +18,14 @@ const FRAGMENT_SHADER_EXTENSION: &str = "frag";
 const GEOMETRY_SHADER_EXTENSION: &str = "geom";
 
 pub struct ShaderCompiler {
-    global_messenger: MessengerRw,
+    message_hub: MessageHubRc,
     glsl_compiler: PathBuf,
     glsl_validator: PathBuf,
     spirv_validator: PathBuf,
 }
 
 impl ShaderCompiler {
-    pub fn new(global_messenger: MessengerRw) -> Self {
+    pub fn new(message_hub: MessageHubRc) -> Self {
         let mut vulkan_sdk_path = PathBuf::new();
         if let Ok(vulkan_path) = env::var("VULKAN_SDK") {
             vulkan_sdk_path = PathBuf::from(vulkan_path.as_str());
@@ -44,7 +44,7 @@ impl ShaderCompiler {
             debug_assert!(result.is_ok());
         }
         Self {
-            global_messenger,
+            message_hub,
             glsl_compiler: vulkan_sdk_path.join("Bin\\glslc.exe"),
             glsl_validator: vulkan_sdk_path.join("Bin\\glslangValidator.exe"),
             spirv_validator: vulkan_sdk_path.join("Bin\\spirv-val.exe"),
@@ -118,7 +118,7 @@ impl ShaderCompiler {
                     .spawn()
                     .is_ok();
                 if result {
-                    send_reloaded_event(&self.global_messenger, new_path.as_path());
+                    send_reloaded_event(&self.message_hub, new_path.as_path());
                 }
             }
             return converted;
@@ -132,7 +132,7 @@ impl ExtensionHandler for ShaderCompiler {
         if let Some(ext) = path.extension() {
             match ext.to_str().unwrap().to_string().as_str() {
                 WGSL_EXTENSION => {
-                    copy_into_data_folder(&self.global_messenger, path);
+                    copy_into_data_folder(&self.message_hub, path);
                 }
                 VERTEX_SHADER_EXTENSION => {
                     let result = self.convert_in_spirv(path);

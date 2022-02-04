@@ -1,7 +1,7 @@
 use crate::{FontData, Texture};
 
 use sabi_math::Vector4;
-use sabi_messenger::MessengerRw;
+use sabi_messenger::MessageHubRc;
 use sabi_resources::{
     DataTypeResource, Handle, ResourceId, ResourceTrait, SerializableResource, SharedData,
     SharedDataRc,
@@ -25,16 +25,16 @@ impl DataTypeResource for Font {
     fn on_create(
         &mut self,
         _shared_data_rc: &SharedDataRc,
-        _messenger: &MessengerRw,
+        _messenger: &MessageHubRc,
         _id: &FontId,
         _on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
     ) {
     }
-    fn on_destroy(&mut self, _shared_data: &SharedData, _messenger: &MessengerRw, _id: &FontId) {}
+    fn on_destroy(&mut self, _shared_data: &SharedData, _messenger: &MessageHubRc, _id: &FontId) {}
 
     fn create_from_data(
         shared_data: &SharedDataRc,
-        global_messenger: &MessengerRw,
+        message_hub: &MessageHubRc,
         _id: ResourceId,
         data: Self::DataType,
     ) -> Self
@@ -44,7 +44,7 @@ impl DataTypeResource for Font {
         let mut font_data = data;
         let texture = Texture::new_resource(
             shared_data,
-            global_messenger,
+            message_hub,
             generate_random_uid(),
             font_data.create_texture(),
         );

@@ -3,7 +3,7 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use sabi_messenger::MessengerRw;
+use sabi_messenger::MessageHubRc;
 use sabi_resources::{Resource, SharedDataRc};
 use sabi_ui::{implement_widget_data, UIWidget, Window};
 
@@ -19,20 +19,20 @@ pub struct Info {
 }
 
 impl Info {
-    pub fn new(shared_data: &SharedDataRc, global_messenger: &MessengerRw) -> Self {
+    pub fn new(shared_data: &SharedDataRc, message_hub: &MessageHubRc) -> Self {
         let data = Data {
             time: SystemTime::now(),
             frame_seconds: VecDeque::default(),
             shared_data: shared_data.clone(),
         };
         Self {
-            ui_page: Self::create(shared_data, global_messenger, data),
+            ui_page: Self::create(shared_data, message_hub, data),
         }
     }
 
     fn create(
         shared_data: &SharedDataRc,
-        messenger: &MessengerRw,
+        messenger: &MessageHubRc,
         data: Data,
     ) -> Resource<UIWidget> {
         UIWidget::register(shared_data, messenger, data, |ui_data, ui_context| {

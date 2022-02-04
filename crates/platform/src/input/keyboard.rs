@@ -3,7 +3,7 @@
 use std::str::FromStr;
 
 use sabi_commands::CommandParser;
-use sabi_messenger::{implement_message, Message, MessageFromString};
+use sabi_messenger::implement_message;
 
 use super::state::*;
 
@@ -716,16 +716,13 @@ pub enum Key {
 pub struct KeyTextEvent {
     pub char: char,
 }
-implement_message!(KeyTextEvent);
+implement_message!(KeyTextEvent, key_text_event_from_command_parser);
 
-impl MessageFromString for KeyTextEvent {
-    fn from_command_parser(command_parser: CommandParser) -> Option<Box<dyn Message>>
-    where
-        Self: Sized,
-    {
+impl KeyTextEvent {
+    fn key_text_event_from_command_parser(command_parser: CommandParser) -> Option<Self> {
         if command_parser.has("key_text") {
             let values = command_parser.get_values_of("key_text");
-            return Some(KeyTextEvent { char: values[0] }.as_boxed());
+            return Some(KeyTextEvent { char: values[0] });
         }
         None
     }
@@ -736,49 +733,34 @@ pub struct KeyEvent {
     pub code: Key,
     pub state: InputState,
 }
-implement_message!(KeyEvent);
+implement_message!(KeyEvent, key_event_from_command_parser);
 
-impl MessageFromString for KeyEvent {
-    fn from_command_parser(command_parser: sabi_commands::CommandParser) -> Option<Box<dyn Message>>
-    where
-        Self: Sized,
-    {
+impl KeyEvent {
+    fn key_event_from_command_parser(command_parser: sabi_commands::CommandParser) -> Option<Self> {
         if command_parser.has("key_pressed") {
             let values = command_parser.get_values_of("key_pressed");
-            return Some(
-                KeyEvent {
-                    code: values[0],
-                    state: InputState::Pressed,
-                }
-                .as_boxed(),
-            );
+            return Some(KeyEvent {
+                code: values[0],
+                state: InputState::Pressed,
+            });
         } else if command_parser.has("key_released") {
             let values = command_parser.get_values_of("key_released");
-            return Some(
-                KeyEvent {
-                    code: values[0],
-                    state: InputState::Released,
-                }
-                .as_boxed(),
-            );
+            return Some(KeyEvent {
+                code: values[0],
+                state: InputState::Released,
+            });
         } else if command_parser.has("key_just_pressed") {
             let values = command_parser.get_values_of("key_just_pressed");
-            return Some(
-                KeyEvent {
-                    code: values[0],
-                    state: InputState::JustPressed,
-                }
-                .as_boxed(),
-            );
+            return Some(KeyEvent {
+                code: values[0],
+                state: InputState::JustPressed,
+            });
         } else if command_parser.has("key_just_released") {
             let values = command_parser.get_values_of("key_just_released");
-            return Some(
-                KeyEvent {
-                    code: values[0],
-                    state: InputState::JustReleased,
-                }
-                .as_boxed(),
-            );
+            return Some(KeyEvent {
+                code: values[0],
+                state: InputState::JustReleased,
+            });
         }
         None
     }

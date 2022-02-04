@@ -6,7 +6,7 @@ use std::{
 
 use sabi_graphics::{Light, Mesh, OnLightCreateData, OnMeshCreateData};
 use sabi_math::{Mat4Ops, MatBase, Matrix4, Vector3};
-use sabi_messenger::MessengerRw;
+use sabi_messenger::MessageHubRc;
 use sabi_resources::{
     DataTypeResource, GenericResource, Handle, Resource, ResourceCastTo, ResourceId, ResourceTrait,
     SerializableResource, SharedData, SharedDataRc,
@@ -105,7 +105,7 @@ impl DataTypeResource for Object {
     fn on_create(
         &mut self,
         shared_data_rc: &SharedDataRc,
-        _messenger: &MessengerRw,
+        _messenger: &MessageHubRc,
         _id: &ObjectId,
         on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
     ) {
@@ -114,7 +114,7 @@ impl DataTypeResource for Object {
             self.set_parent(parent);
         }
     }
-    fn on_destroy(&mut self, _shared_data: &SharedData, _messenger: &MessengerRw, _id: &ObjectId) {}
+    fn on_destroy(&mut self, _shared_data: &SharedData, _messenger: &MessageHubRc, _id: &ObjectId) {}
 
     fn is_initialized(&self) -> bool {
         !self.components.is_empty()
@@ -130,7 +130,7 @@ impl DataTypeResource for Object {
 
     fn create_from_data(
         shared_data: &SharedDataRc,
-        global_messenger: &MessengerRw,
+        message_hub: &MessageHubRc,
         id: ObjectId,
         object_data: Self::DataType,
     ) -> Self {
@@ -144,7 +144,7 @@ impl DataTypeResource for Object {
             if Mesh::is_matching_extension(path) {
                 let mesh = Mesh::request_load(
                     shared_data,
-                    global_messenger,
+                    message_hub,
                     path,
                     Some(OnMeshCreateData {
                         parent_matrix: object_data.transform,
@@ -154,7 +154,7 @@ impl DataTypeResource for Object {
             } else if Camera::is_matching_extension(path) {
                 let camera = Camera::request_load(
                     shared_data,
-                    global_messenger,
+                    message_hub,
                     path,
                     Some(OnCameraCreateData { parent_id: id }),
                 );
@@ -162,7 +162,7 @@ impl DataTypeResource for Object {
             } else if Light::is_matching_extension(path) {
                 let light = Light::request_load(
                     shared_data,
-                    global_messenger,
+                    message_hub,
                     path,
                     Some(OnLightCreateData {
                         position: object.get_position(),
@@ -172,7 +172,7 @@ impl DataTypeResource for Object {
             } else if Script::is_matching_extension(path) {
                 let script = Script::request_load(
                     shared_data,
-                    global_messenger,
+                    message_hub,
                     path,
                     Some(OnScriptCreateData { parent_id: id }),
                 );
@@ -183,7 +183,7 @@ impl DataTypeResource for Object {
         for child in object_data.children.iter() {
             let child = Object::request_load(
                 shared_data,
-                global_messenger,
+                message_hub,
                 child.as_path(),
                 Some(OnObjectCreateData { parent_id: id }),
             );
@@ -323,7 +323,7 @@ impl Object {
     pub fn add_default_component<C>(
         &mut self,
         shared_data: &SharedDataRc,
-        messenger: &MessengerRw,
+        messenger: &MessageHubRc,
     ) -> Resource<C>
     where
         C: ResourceTrait + Default,

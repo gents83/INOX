@@ -1,9 +1,7 @@
-pub use channel::*;
 pub use macros::*;
 pub use message::*;
-pub use messenger::*;
+pub use message_hub::*;
 
-pub mod channel;
 pub mod macros;
 pub mod message;
-pub mod messenger;
+pub mod message_hub;

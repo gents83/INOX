@@ -1,5 +1,3 @@
-use std::any::TypeId;
-
 use crate::{
     create_arrow, create_colored_quad, create_line, create_sphere, Material, Mesh, MeshData,
     Pipeline, DEFAULT_PIPELINE_IDENTIFIER, WIREFRAME_PIPELINE_IDENTIFIER,
@@ -7,9 +5,7 @@ use crate::{
 use sabi_commands::CommandParser;
 use sabi_core::System;
 use sabi_math::{Vector2, Vector3, Vector4};
-use sabi_messenger::{
-    implement_message, read_messages, Message, MessageChannel, MessageFromString, MessengerRw,
-};
+use sabi_messenger::{implement_message, Listener, MessageHubRc};
 use sabi_profiler::debug_log;
 use sabi_resources::{DataTypeResource, Resource, SharedDataRc};
 use sabi_serialize::generate_random_uid;
@@ -21,8 +17,8 @@ use sabi_serialize::generate_random_uid;
 /// use sabi_math::{Vector3, Zero};
 /// use sabi_messenger::{MessengerRw, Message};
 ///
-/// let global_messenger = MessengerRw::default();
-/// let global_dispatcher = global_messenger.read().unwrap().get_dispatcher().clone();
+/// let message_hub = MessengerRw::default();
+/// let global_dispatcher = message_hub.read().unwrap().get_dispatcher().clone();
 ///     global_dispatcher
 ///     .write()
 ///     .unwrap()
@@ -56,101 +52,77 @@ pub enum DrawEvent {
     Arrow(Vector3, Vector3, Vector4, bool),     // (start, direction, color, is_wireframe)
     Sphere(Vector3, f32, Vector4, bool),        // (position, radius, color, is_wireframe)
 }
-implement_message!(DrawEvent);
+implement_message!(DrawEvent, message_from_command_parser);
 
-impl MessageFromString for DrawEvent {
-    fn from_command_parser(command_parser: CommandParser) -> Option<Box<dyn Message>>
+impl DrawEvent {
+    fn message_from_command_parser(command_parser: CommandParser) -> Option<Self>
     where
         Self: Sized,
     {
         if command_parser.has("draw_line") {
             let values = command_parser.get_values_of("draw_line");
-            return Some(
-                DrawEvent::Line(
-                    Vector3::new(values[0], values[1], values[2]),
-                    Vector3::new(values[3], values[4], values[5]),
-                    Vector4::new(values[6], values[7], values[8], values[9]),
-                )
-                .as_boxed(),
-            );
+            return Some(DrawEvent::Line(
+                Vector3::new(values[0], values[1], values[2]),
+                Vector3::new(values[3], values[4], values[5]),
+                Vector4::new(values[6], values[7], values[8], values[9]),
+            ));
         } else if command_parser.has("draw_bounding_box") {
             let values = command_parser.get_values_of("draw_bounding_box");
-            return Some(
-                DrawEvent::BoundingBox(
-                    Vector3::new(values[0], values[1], values[2]),
-                    Vector3::new(values[3], values[4], values[5]),
-                    Vector4::new(values[6], values[7], values[8], values[9]),
-                )
-                .as_boxed(),
-            );
+            return Some(DrawEvent::BoundingBox(
+                Vector3::new(values[0], values[1], values[2]),
+                Vector3::new(values[3], values[4], values[5]),
+                Vector4::new(values[6], values[7], values[8], values[9]),
+            ));
         } else if command_parser.has("draw_quad") {
             let values = command_parser.get_values_of("draw_quad");
-            return Some(
-                DrawEvent::Quad(
-                    Vector2::new(values[0], values[1]),
-                    Vector2::new(values[2], values[3]),
-                    values[4],
-                    Vector4::new(values[5], values[6], values[7], values[8]),
-                    false,
-                )
-                .as_boxed(),
-            );
+            return Some(DrawEvent::Quad(
+                Vector2::new(values[0], values[1]),
+                Vector2::new(values[2], values[3]),
+                values[4],
+                Vector4::new(values[5], values[6], values[7], values[8]),
+                false,
+            ));
         } else if command_parser.has("draw_quad_wireframe") {
             let values = command_parser.get_values_of("draw_quad_wireframe");
-            return Some(
-                DrawEvent::Quad(
-                    Vector2::new(values[0], values[1]),
-                    Vector2::new(values[2], values[3]),
-                    values[4],
-                    Vector4::new(values[5], values[6], values[7], values[8]),
-                    true,
-                )
-                .as_boxed(),
-            );
+            return Some(DrawEvent::Quad(
+                Vector2::new(values[0], values[1]),
+                Vector2::new(values[2], values[3]),
+                values[4],
+                Vector4::new(values[5], values[6], values[7], values[8]),
+                true,
+            ));
         } else if command_parser.has("draw_arrow") {
             let values = command_parser.get_values_of("draw_arrow");
-            return Some(
-                DrawEvent::Arrow(
-                    Vector3::new(values[0], values[1], values[2]),
-                    Vector3::new(values[3], values[4], values[5]),
-                    Vector4::new(values[6], values[7], values[8], values[9]),
-                    false,
-                )
-                .as_boxed(),
-            );
+            return Some(DrawEvent::Arrow(
+                Vector3::new(values[0], values[1], values[2]),
+                Vector3::new(values[3], values[4], values[5]),
+                Vector4::new(values[6], values[7], values[8], values[9]),
+                false,
+            ));
         } else if command_parser.has("draw_arrow_wireframe") {
             let values = command_parser.get_values_of("draw_arrow_wireframe");
-            return Some(
-                DrawEvent::Arrow(
-                    Vector3::new(values[0], values[1], values[2]),
-                    Vector3::new(values[3], values[4], values[5]),
-                    Vector4::new(values[6], values[7], values[8], values[9]),
-                    true,
-                )
-                .as_boxed(),
-            );
+            return Some(DrawEvent::Arrow(
+                Vector3::new(values[0], values[1], values[2]),
+                Vector3::new(values[3], values[4], values[5]),
+                Vector4::new(values[6], values[7], values[8], values[9]),
+                true,
+            ));
         } else if command_parser.has("draw_sphere") {
             let values = command_parser.get_values_of("draw_sphere");
-            return Some(
-                DrawEvent::Sphere(
-                    Vector3::new(values[0], values[1], values[2]),
-                    values[3],
-                    Vector4::new(values[4], values[5], values[6], values[7]),
-                    false,
-                )
-                .as_boxed(),
-            );
+            return Some(DrawEvent::Sphere(
+                Vector3::new(values[0], values[1], values[2]),
+                values[3],
+                Vector4::new(values[4], values[5], values[6], values[7]),
+                false,
+            ));
         } else if command_parser.has("draw_sphere_wireframe") {
             let values = command_parser.get_values_of("draw_sphere_wireframe");
-            return Some(
-                DrawEvent::Sphere(
-                    Vector3::new(values[0], values[1], values[2]),
-                    values[3],
-                    Vector4::new(values[4], values[5], values[6], values[7]),
-                    true,
-                )
-                .as_boxed(),
-            );
+            return Some(DrawEvent::Sphere(
+                Vector3::new(values[0], values[1], values[2]),
+                values[3],
+                Vector4::new(values[4], values[5], values[6], values[7]),
+                true,
+            ));
         }
         None
     }
@@ -161,50 +133,42 @@ const WIREFRAME_MESH_CATEGORY_IDENTIFIER: &str = "EditorWireframe";
 pub struct DebugDrawerSystem {
     mesh_instance: Resource<Mesh>,
     wireframe_mesh_instance: Resource<Mesh>,
-    message_channel: MessageChannel,
+    listener: Listener,
     shared_data: SharedDataRc,
-    global_messenger: MessengerRw,
+    message_hub: MessageHubRc,
 }
 
 impl DebugDrawerSystem {
-    pub fn new(shared_data: &SharedDataRc, global_messenger: &MessengerRw) -> Self {
+    pub fn new(shared_data: &SharedDataRc, message_hub: &MessageHubRc) -> Self {
         let mesh_instance = Mesh::new_resource(
             shared_data,
-            global_messenger,
+            message_hub,
             generate_random_uid(),
             MeshData::default(),
         );
         //println!("DebugDrawerMesh {:?}", mesh_instance.id());
         let wireframe_mesh_instance = Mesh::new_resource(
             shared_data,
-            global_messenger,
+            message_hub,
             generate_random_uid(),
             MeshData::default(),
         );
         //println!("DebugDrawerWireframeMesh {:?}", wireframe_mesh_instance.id());
 
-        let message_channel = MessageChannel::default();
+        let listener = Listener::new(message_hub);
+        listener.register::<DrawEvent>();
 
-        global_messenger
-            .write()
-            .unwrap()
-            .register_messagebox::<DrawEvent>(message_channel.get_messagebox());
         Self {
             mesh_instance,
             wireframe_mesh_instance,
-            message_channel,
+            listener,
             shared_data: shared_data.clone(),
-            global_messenger: global_messenger.clone(),
+            message_hub: message_hub.clone(),
         }
     }
 
     fn auto_send_event(&self, event: DrawEvent) {
-        self.message_channel
-            .get_messagebox()
-            .write()
-            .unwrap()
-            .send(event.as_boxed())
-            .ok();
+        self.message_hub.send_event(event);
     }
 
     fn update_events(&mut self) {
@@ -212,108 +176,93 @@ impl DebugDrawerSystem {
 
         let mut mesh_data = MeshData::default();
         let mut wireframe_mesh_data = MeshData::default();
-        read_messages(self.message_channel.get_listener(), |msg| {
-            if msg.type_id() == TypeId::of::<DrawEvent>() {
-                let event = msg.as_any().downcast_ref::<DrawEvent>().unwrap();
-                match *event {
-                    DrawEvent::Line(start, end, color) => {
-                        let (vertices, indices) = create_line(start, end, color);
+        self.listener
+            .process_messages(|event: &DrawEvent| match *event {
+                DrawEvent::Line(start, end, color) => {
+                    let (vertices, indices) = create_line(start, end, color);
+                    wireframe_mesh_data.append_mesh(&vertices, &indices);
+                }
+                DrawEvent::BoundingBox(min, max, color) => {
+                    self.auto_send_event(DrawEvent::Quad(
+                        [min.x, min.y].into(),
+                        [max.x, max.y].into(),
+                        min.z,
+                        color,
+                        true,
+                    ));
+                    self.auto_send_event(DrawEvent::Quad(
+                        [min.x, min.y].into(),
+                        [max.x, max.y].into(),
+                        max.z,
+                        color,
+                        true,
+                    ));
+                    self.auto_send_event(DrawEvent::Line(
+                        [min.x, min.y, min.z].into(),
+                        [min.x, min.y, max.z].into(),
+                        color,
+                    ));
+                    self.auto_send_event(DrawEvent::Line(
+                        [min.x, max.y, min.z].into(),
+                        [min.x, max.y, max.z].into(),
+                        color,
+                    ));
+                    self.auto_send_event(DrawEvent::Line(
+                        [max.x, min.y, min.z].into(),
+                        [max.x, min.y, max.z].into(),
+                        color,
+                    ));
+                    self.auto_send_event(DrawEvent::Line(
+                        [max.x, max.y, min.z].into(),
+                        [max.x, max.y, max.z].into(),
+                        color,
+                    ));
+                }
+                DrawEvent::Quad(min, max, z, color, is_wireframe) => {
+                    if is_wireframe {
+                        let (vertices, indices) =
+                            create_line([min.x, min.y, z].into(), [min.x, max.y, z].into(), color);
                         wireframe_mesh_data.append_mesh(&vertices, &indices);
-                    }
-                    DrawEvent::BoundingBox(min, max, color) => {
-                        self.auto_send_event(DrawEvent::Quad(
-                            [min.x, min.y].into(),
-                            [max.x, max.y].into(),
-                            min.z,
-                            color,
-                            true,
-                        ));
-                        self.auto_send_event(DrawEvent::Quad(
-                            [min.x, min.y].into(),
-                            [max.x, max.y].into(),
-                            max.z,
-                            color,
-                            true,
-                        ));
-                        self.auto_send_event(DrawEvent::Line(
-                            [min.x, min.y, min.z].into(),
-                            [min.x, min.y, max.z].into(),
-                            color,
-                        ));
-                        self.auto_send_event(DrawEvent::Line(
-                            [min.x, max.y, min.z].into(),
-                            [min.x, max.y, max.z].into(),
-                            color,
-                        ));
-                        self.auto_send_event(DrawEvent::Line(
-                            [max.x, min.y, min.z].into(),
-                            [max.x, min.y, max.z].into(),
-                            color,
-                        ));
-                        self.auto_send_event(DrawEvent::Line(
-                            [max.x, max.y, min.z].into(),
-                            [max.x, max.y, max.z].into(),
-                            color,
-                        ));
-                    }
-                    DrawEvent::Quad(min, max, z, color, is_wireframe) => {
-                        if is_wireframe {
-                            let (vertices, indices) = create_line(
-                                [min.x, min.y, z].into(),
-                                [min.x, max.y, z].into(),
-                                color,
-                            );
-                            wireframe_mesh_data.append_mesh(&vertices, &indices);
-                            let (vertices, indices) = create_line(
-                                [min.x, max.y, z].into(),
-                                [max.x, max.y, z].into(),
-                                color,
-                            );
-                            wireframe_mesh_data.append_mesh(&vertices, &indices);
-                            let (vertices, indices) = create_line(
-                                [max.x, max.y, z].into(),
-                                [max.x, min.y, z].into(),
-                                color,
-                            );
-                            wireframe_mesh_data.append_mesh(&vertices, &indices);
-                            let (vertices, indices) = create_line(
-                                [max.x, min.y, z].into(),
-                                [min.x, min.y, z].into(),
-                                color,
-                            );
-                            wireframe_mesh_data.append_mesh(&vertices, &indices);
-                        } else {
-                            let (vertices, indices) =
-                                create_colored_quad([min.x, min.y, max.x, max.y].into(), z, color);
-                            mesh_data.append_mesh(&vertices, &indices);
-                        }
-                    }
-                    DrawEvent::Arrow(position, direction, color, is_wireframe) => {
-                        let (mut vertices, indices) = create_arrow(position, direction);
-                        vertices.iter_mut().for_each(|v| {
-                            v.color = color;
-                        });
-                        if is_wireframe {
-                            wireframe_mesh_data.append_mesh(&vertices, &indices);
-                        } else {
-                            mesh_data.append_mesh(&vertices, &indices);
-                        }
-                    }
-                    DrawEvent::Sphere(position, radius, color, is_wireframe) => {
-                        let (mut vertices, indices) = create_sphere(radius, 32, 16);
-                        vertices.iter_mut().for_each(|v| {
-                            v.pos += position;
-                            v.color = color;
-                        });
-                        if is_wireframe {
-                            wireframe_mesh_data.append_mesh(&vertices, &indices);
-                        } else {
-                            mesh_data.append_mesh(&vertices, &indices);
-                        }
+                        let (vertices, indices) =
+                            create_line([min.x, max.y, z].into(), [max.x, max.y, z].into(), color);
+                        wireframe_mesh_data.append_mesh(&vertices, &indices);
+                        let (vertices, indices) =
+                            create_line([max.x, max.y, z].into(), [max.x, min.y, z].into(), color);
+                        wireframe_mesh_data.append_mesh(&vertices, &indices);
+                        let (vertices, indices) =
+                            create_line([max.x, min.y, z].into(), [min.x, min.y, z].into(), color);
+                        wireframe_mesh_data.append_mesh(&vertices, &indices);
+                    } else {
+                        let (vertices, indices) =
+                            create_colored_quad([min.x, min.y, max.x, max.y].into(), z, color);
+                        mesh_data.append_mesh(&vertices, &indices);
                     }
                 }
-            }
-        });
+                DrawEvent::Arrow(position, direction, color, is_wireframe) => {
+                    let (mut vertices, indices) = create_arrow(position, direction);
+                    vertices.iter_mut().for_each(|v| {
+                        v.color = color;
+                    });
+                    if is_wireframe {
+                        wireframe_mesh_data.append_mesh(&vertices, &indices);
+                    } else {
+                        mesh_data.append_mesh(&vertices, &indices);
+                    }
+                }
+                DrawEvent::Sphere(position, radius, color, is_wireframe) => {
+                    let (mut vertices, indices) = create_sphere(radius, 32, 16);
+                    vertices.iter_mut().for_each(|v| {
+                        v.pos += position;
+                        v.color = color;
+                    });
+                    if is_wireframe {
+                        wireframe_mesh_data.append_mesh(&vertices, &indices);
+                    } else {
+                        mesh_data.append_mesh(&vertices, &indices);
+                    }
+                }
+            });
+
         self.update_materials();
         if !mesh_data.vertices.is_empty() {
             self.mesh_instance.get_mut().set_mesh_data(mesh_data);
@@ -338,7 +287,7 @@ impl DebugDrawerSystem {
             if let Some(default_pipeline) = &default_pipeline {
                 let material = Material::duplicate_from_pipeline(
                     &self.shared_data,
-                    &self.global_messenger,
+                    &self.message_hub,
                     default_pipeline,
                 );
                 self.mesh_instance.get_mut().set_material(material);
@@ -357,7 +306,7 @@ impl DebugDrawerSystem {
             if let Some(wireframe_pipeline) = &wireframe_pipeline {
                 let material = Material::duplicate_from_pipeline(
                     &self.shared_data,
-                    &self.global_messenger,
+                    &self.message_hub,
                     wireframe_pipeline,
                 );
                 self.wireframe_mesh_instance

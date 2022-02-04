@@ -1,7 +1,7 @@
 use std::{marker::PhantomData, path::PathBuf};
 
 use sabi_commands::CommandParser;
-use sabi_messenger::{implement_message, Message, MessageFromString, MessengerRw};
+use sabi_messenger::{implement_message, Listener, MessageHubRc};
 
 use crate::{Resource, ResourceId, ResourceTrait, SerializableResource, SharedDataRc};
 
@@ -30,6 +30,12 @@ where
     }
 }
 
+pub trait DeserializeFunction: FnOnce(&SharedDataRc, &MessageHubRc) + Send + Sync {}
+impl<F> DeserializeFunction for F where F: FnOnce(&SharedDataRc, &MessageHubRc) + Send + Sync {}
+
+pub trait LoadFunction: Fn(Box<dyn DeserializeFunction>) + Send + Sync {}
+impl<F> LoadFunction for F where F: Fn(Box<dyn DeserializeFunction>) + Clone + Send + Sync {}
+
 pub enum ResourceEvent<T>
 where
     T: ResourceTrait,
@@ -39,7 +45,11 @@ where
     Changed(ResourceId),
     Destroyed(ResourceId),
 }
-implement_message!(ResourceEvent<ResourceTrait>);
+implement_message!(
+    ResourceEvent<ResourceTrait>,
+    ResourceEvent<SerializableResource>,
+    message_from_command_parser
+);
 
 impl<T> Clone for ResourceEvent<T>
 where
@@ -59,14 +69,11 @@ where
 unsafe impl<T> Send for ResourceEvent<T> where T: ResourceTrait {}
 unsafe impl<T> Sync for ResourceEvent<T> where T: ResourceTrait {}
 
-impl<T> MessageFromString for ResourceEvent<T>
+impl<T> ResourceEvent<T>
 where
     T: SerializableResource,
 {
-    fn from_command_parser(command_parser: CommandParser) -> Option<Box<dyn Message>>
-    where
-        Self: Sized,
-    {
+    fn message_from_command_parser(command_parser: CommandParser) -> Option<Self> {
         if command_parser.has("load_file") {
             let values = command_parser.get_values_of::<String>("load_file");
             let path = PathBuf::from(values[0].as_str());
@@ -76,9 +83,7 @@ where
                 .to_str()
                 .unwrap_or_default();
             if extension == T::extension() {
-                return Some(
-                    ResourceEvent::<T>::Load(path.as_path().to_path_buf(), None).as_boxed(),
-                );
+                return Some(ResourceEvent::<T>::Load(path.as_path().to_path_buf(), None));
             }
         }
         None
@@ -89,71 +94,66 @@ where
 pub struct ReloadEvent {
     pub path: PathBuf,
 }
-implement_message!(ReloadEvent);
+implement_message!(ReloadEvent, message_from_command_parser);
 
-impl MessageFromString for ReloadEvent {
-    fn from_command_parser(command_parser: CommandParser) -> Option<Box<dyn Message>>
-    where
-        Self: Sized,
-    {
+impl ReloadEvent {
+    fn message_from_command_parser(command_parser: CommandParser) -> Option<Self> {
         if command_parser.has("reload_file") {
             let values = command_parser.get_values_of::<String>("reload_file");
-            return Some(
-                ReloadEvent {
-                    path: PathBuf::from(values[0].as_str()),
-                }
-                .as_boxed(),
-            );
+            return Some(ReloadEvent {
+                path: PathBuf::from(values[0].as_str()),
+            });
         }
         None
     }
 }
 
 pub trait ResourceEventHandler {
-    fn is_handled(&self, msg: &dyn Message) -> bool;
-    fn handle_event(
-        &self,
-        shared_data: &SharedDataRc,
-        global_messenger: &MessengerRw,
-        msg: &dyn Message,
-    ) -> bool;
+    fn handle_events(&self, f: &dyn LoadFunction);
 }
 
-#[derive(Default, Clone)]
 pub struct TypedResourceEventHandler<T>
 where
-    T: SerializableResource,
+    T: ResourceTrait,
 {
     marker: PhantomData<T>,
+    listener: Listener,
+}
+
+impl<T> TypedResourceEventHandler<T>
+where
+    T: ResourceTrait,
+{
+    pub fn new(message_hub: &MessageHubRc) -> Self {
+        let listener = Listener::new(message_hub);
+        listener.register::<ResourceEvent<T>>();
+        TypedResourceEventHandler {
+            marker: PhantomData::<T>::default(),
+            listener,
+        }
+    }
 }
 
 impl<T> ResourceEventHandler for TypedResourceEventHandler<T>
 where
     T: SerializableResource,
 {
-    fn is_handled(&self, msg: &dyn Message) -> bool {
-        msg.as_any().downcast_ref::<ResourceEvent<T>>().is_some()
-    }
-
-    fn handle_event(
-        &self,
-        shared_data: &SharedDataRc,
-        global_messenger: &MessengerRw,
-        msg: &dyn Message,
-    ) -> bool {
-        if let Some(ResourceEvent::Load(path, on_create_data)) =
-            msg.as_any().downcast_ref::<ResourceEvent<T>>()
-        {
-            if T::is_matching_extension(path.as_path()) {
-                T::create_from_file(
-                    shared_data,
-                    global_messenger,
-                    path.as_path(),
-                    on_create_data.as_ref(),
-                );
-                return true;
+    fn handle_events(&self, f: &dyn LoadFunction) {
+        self.listener.process_messages(|msg: &ResourceEvent<T>| {
+            if let ResourceEvent::<T>::Load(path, on_create_data) = msg {
+                if T::is_matching_extension(path.as_path()) {
+                    let p = path.clone();
+                    let on_create_data = on_create_data.clone();
+                    f(Box::new(move |shared_data, message_hub| {
+                        T::create_from_file(
+                            shared_data,
+                            message_hub,
+                            p.as_path(),
+                            on_create_data.as_ref(),
+                        );
+                    }));
+                }
             }
-        }
-        false
+        });
     }
 }

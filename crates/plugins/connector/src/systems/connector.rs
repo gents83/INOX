@@ -10,7 +10,7 @@ use std::{
 };
 
 use sabi_core::System;
-use sabi_messenger::{GlobalMessenger, MessengerRw};
+use sabi_messenger::MessageHubRc;
 use sabi_profiler::debug_log;
 use sabi_resources::ConfigBase;
 use sabi_serialize::SerializeFile;
@@ -22,21 +22,21 @@ const SERVER_THREAD_NAME: &str = "Server Thread";
 #[derive(Default)]
 struct ConnectorData {
     can_continue: Arc<AtomicBool>,
-    global_messenger: MessengerRw,
+    message_hub: MessageHubRc,
     client_threads: Vec<JoinHandle<()>>,
 }
 
 pub struct Connector {
-    global_messenger: MessengerRw,
+    message_hub: MessageHubRc,
     can_continue: Arc<AtomicBool>,
     host_address_and_port: String,
     server_thread: Option<JoinHandle<()>>,
 }
 
 impl Connector {
-    pub fn new(global_messenger: &MessengerRw) -> Self {
+    pub fn new(message_hub: &MessageHubRc) -> Self {
         Self {
-            global_messenger: global_messenger.clone(),
+            message_hub: message_hub.clone(),
             can_continue: Arc::new(AtomicBool::new(false)),
             host_address_and_port: String::new(),
             server_thread: None,
@@ -62,7 +62,7 @@ impl System for Connector {
                 self.can_continue.store(true, Ordering::SeqCst);
                 let mut connector_data = ConnectorData {
                     can_continue: self.can_continue.clone(),
-                    global_messenger: self.global_messenger.clone(),
+                    message_hub: self.message_hub.clone(),
                     ..Default::default()
                 };
                 let builder = thread::Builder::new().name(SERVER_THREAD_NAME.to_string());
@@ -72,14 +72,14 @@ impl System for Connector {
                             match tcp_listener.accept() {
                                 Ok((client_stream, addr)) => {
                                     let is_running = connector_data.can_continue.clone();
-                                    let global_messenger = connector_data.global_messenger.clone();
+                                    let message_hub = connector_data.message_hub.clone();
                                     let thread = thread::Builder::new()
                                         .name("Reader".to_string())
                                         .spawn(move || {
                                             client_thread_execution(
                                                 client_stream,
                                                 addr,
-                                                &global_messenger,
+                                                &message_hub,
                                                 is_running,
                                             )
                                         })
@@ -117,7 +117,7 @@ impl System for Connector {
 fn client_thread_execution(
     mut client_stream: TcpStream,
     addr: SocketAddr,
-    global_messenger: &MessengerRw,
+    message_hub: &MessageHubRc,
     is_running: Arc<AtomicBool>,
 ) {
     println!("Thread for client at {:?} started", addr);
@@ -133,7 +133,7 @@ fn client_thread_execution(
                 let s = String::from(from_utf8(&buffer).unwrap_or_default());
                 let s = s.split_at(last + 1).0.to_string();
 
-                global_messenger.send_event_from_string(s);
+                message_hub.send_from_string(s);
             }
             Err(e) => {
                 println!("[ServerThread] Failed to receive msg: {}", e);

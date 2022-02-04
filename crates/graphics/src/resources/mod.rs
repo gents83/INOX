@@ -1,3 +1,4 @@
+use sabi_messenger::MessageHubRc;
 use sabi_resources::SharedDataRc;
 
 pub use self::font::*;
@@ -18,15 +19,15 @@ pub mod render_pass;
 pub mod texture;
 pub mod view;
 
-pub fn register_resource_types(shared_data: &SharedDataRc) {
-    shared_data.register_type_serializable::<Font>();
-    shared_data.register_type_serializable::<Material>();
-    shared_data.register_type_serializable::<Mesh>();
-    shared_data.register_type_serializable::<Pipeline>();
+pub fn register_resource_types(shared_data: &SharedDataRc, message_hub: &MessageHubRc) {
+    shared_data.register_type_serializable::<Font>(message_hub);
+    shared_data.register_type_serializable::<Material>(message_hub);
+    shared_data.register_type_serializable::<Mesh>(message_hub);
+    shared_data.register_type_serializable::<Pipeline>(message_hub);
     shared_data.register_type::<RenderPass>();
-    shared_data.register_type_serializable::<Texture>();
+    shared_data.register_type_serializable::<Texture>(message_hub);
     shared_data.register_type::<View>();
-    shared_data.register_type_serializable::<Light>();
+    shared_data.register_type_serializable::<Light>(message_hub);
 }
 
 pub fn unregister_resource_types(shared_data: &SharedDataRc) {

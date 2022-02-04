@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use sabi_messenger::MessengerRw;
+use sabi_messenger::MessageHubRc;
 use sabi_profiler::debug_log;
 use sabi_resources::{
     DataTypeResource, ResourceId, ResourceTrait, SerializableResource, SharedData, SharedDataRc,
@@ -70,7 +70,7 @@ impl DataTypeResource for Pipeline {
     fn on_create(
         &mut self,
         _shared_data_rc: &SharedDataRc,
-        _messenger: &MessengerRw,
+        _messenger: &MessageHubRc,
         _id: &PipelineId,
         _on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
     ) {
@@ -78,7 +78,7 @@ impl DataTypeResource for Pipeline {
     fn on_destroy(
         &mut self,
         _shared_data: &SharedData,
-        _messenger: &MessengerRw,
+        _messenger: &MessageHubRc,
         _id: &PipelineId,
     ) {
         self.render_pipeline = None;
@@ -88,7 +88,7 @@ impl DataTypeResource for Pipeline {
 
     fn create_from_data(
         _shared_data: &SharedDataRc,
-        _global_messenger: &MessengerRw,
+        _message_hub: &MessageHubRc,
         _id: ResourceId,
         data: Self::DataType,
     ) -> Self
