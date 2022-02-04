@@ -319,16 +319,14 @@ impl UISystem {
                     image
                         .pixels
                         .iter()
-                        .map(|color| color.to_array().iter().copied().collect::<Vec<_>>())
-                        .flatten()
+                        .flat_map(|color| color.to_array().to_vec())
                         .collect()
                 }
                 egui::ImageData::Alpha(image) => {
                     let gamma = 1.0;
                     image
                         .srgba_pixels(gamma)
-                        .map(|color| color.to_array().iter().copied().collect::<Vec<_>>())
-                        .flatten()
+                        .flat_map(|color| color.to_array().to_vec())
                         .collect()
                 }
             };

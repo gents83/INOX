@@ -35,11 +35,12 @@ pub trait Mat4Ops {
     fn rotation(&self) -> Vector3;
     fn get_translation_rotation_scale(&self) -> (Vector3, Vector3, Vector3);
     fn from_translation_rotation_scale(
-        &mut self,
         translation: Vector3,
         roll_yaw_pitch: Vector3,
         scale: Vector3,
-    );
+    ) -> Self
+    where
+        Self: Sized;
     fn look_at(&mut self, position: Vector3);
     fn look_towards(&mut self, direction: Vector3);
     fn get_direction(&self) -> Vector3;
@@ -109,16 +110,18 @@ macro_rules! implement_matrix4_operations {
             }
             #[inline]
             fn from_translation_rotation_scale(
-                &mut self,
                 translation: Vector3,
                 rotation: Vector3, //in radians
                 scale: Vector3,
-            ) {
+            ) -> Self
+            where
+                Self: Sized,
+            {
                 let t = Matrix4::from_translation(translation);
                 let r = Matrix4::from(Quaternion::from_euler_angles(rotation));
                 let s = Matrix4::from_nonuniform_scale(scale.x, scale.y, scale.z);
 
-                *self = t * r * s;
+                t * r * s
             }
 
             #[inline]

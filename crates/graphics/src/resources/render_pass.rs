@@ -89,10 +89,8 @@ impl DataTypeResource for RenderPass {
             } => {
                 let image = DynamicImage::new_rgba8(*width, *height);
                 let image_data = image.to_rgba8();
-                let texture =
-                    Texture::create_from_data(shared_data, message_hub, id, image_data);
-                let texture =
-                    shared_data.add_resource(message_hub, generate_random_uid(), texture);
+                let texture = Texture::create_from_data(shared_data, message_hub, id, image_data);
+                let texture = shared_data.add_resource(message_hub, generate_random_uid(), texture);
                 Some(texture)
             }
             _ => None,

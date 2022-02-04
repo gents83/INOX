@@ -283,12 +283,18 @@ fn test_buffer() {
         pos_y: f32,
     }
 
-    #[derive(Default, Clone)]
+    #[derive(Clone)]
     struct Mesh {
         id: ResourceId,
         data: Vec<Data>,
     }
     impl Mesh {
+        fn new() -> Self {
+            Self {
+                id: generate_random_uid(),
+                data: Vec::new(),
+            }
+        }
         fn add(&mut self, count: u32) {
             (0..count).for_each(|_| self.data.push(Data::default()));
         }
@@ -300,10 +306,12 @@ fn test_buffer() {
     let mut buffer = Buffer::<Data>::default();
 
     let mut meshes = Vec::new();
-    let mut mesh = Mesh::default();
+    let mut mesh = Mesh::new();
     mesh.add(NUM_VERTICES);
-    let mut octo_mesh = Mesh::default();
-    octo_mesh.add(2 * NUM_VERTICES);
+    let mut octo_mesh_1 = Mesh::new();
+    octo_mesh_1.add(2 * NUM_VERTICES);
+    let mut octo_mesh_2 = Mesh::new();
+    octo_mesh_2.add(2 * NUM_VERTICES);
     for _ in 0..NUM_MESHES {
         meshes.push(mesh.clone());
     }
@@ -372,20 +380,51 @@ fn test_buffer() {
         "Allocator should hold only 2 quad",
     );
 
-    buffer.allocate(&octo_mesh.id, &octo_mesh.data);
+    buffer.allocate(&octo_mesh_1.id, &octo_mesh_1.data);
 
     assert_eq!(
         buffer.len(),
-        mesh.data.len() * NUM_MESHES,
-        "Allocator should hold anyway {} quads",
-        NUM_MESHES
+        mesh.data.len() * (NUM_MESHES / 2) + octo_mesh_1.data.len(),
+        "Allocator should hold anyway {} quads + 1 octo",
+        NUM_MESHES / 2
     );
     assert_eq!(
         buffer.total_len(),
-        mesh.data.len() * NUM_MESHES,
-        "Allocator should hold anyway {} quads",
-        NUM_MESHES
+        mesh.data.len() * (NUM_MESHES / 2) + octo_mesh_1.data.len(),
+        "Allocator should hold anyway {} quads + 1 octo",
+        NUM_MESHES / 2
     );
+    assert!(buffer.is_full(), "Allocator should be full now");
+
+    buffer.remove_with_id(&meshes[0].id);
+
+    assert_eq!(
+        buffer.total_len(),
+        mesh.data.len() * (NUM_MESHES / 2) + octo_mesh_1.data.len(),
+        "Allocator should hold anyway {} quads + 1 octo",
+        NUM_MESHES / 2
+    );
+    assert_eq!(
+        buffer.len(),
+        mesh.data.len() + octo_mesh_1.data.len(),
+        "Allocator should have some space {} vs {}",
+        buffer.len(),
+        mesh.data.len() + octo_mesh_1.data.len(),
+    );
+
+    buffer.allocate(&octo_mesh_2.id, &octo_mesh_2.data);
+
+    assert_eq!(
+        buffer.total_len(),
+        mesh.data.len() + octo_mesh_1.data.len() + octo_mesh_2.data.len(),
+        "Allocator should hold anyway 1 quads + 2 octos",
+    );
+    assert_eq!(
+        buffer.len(),
+        mesh.data.len() + octo_mesh_1.data.len() + octo_mesh_2.data.len(),
+        "Allocator should hold anyway 1 quads + 2 octos",
+    );
+
     assert!(buffer.is_full(), "Allocator should be full now");
 }
 

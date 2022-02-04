@@ -117,7 +117,7 @@ impl TextureAtlas {
                 return Some(TextureData {
                     texture_index: texture_index as _,
                     layer_index: layer_index as _,
-                    area: (&area).into(),
+                    area: area.into(),
                     total_width: self.texture.width() as _,
                     total_height: self.texture.height() as _,
                 });

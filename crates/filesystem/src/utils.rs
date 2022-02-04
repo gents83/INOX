@@ -99,7 +99,7 @@ pub fn convert_in_local_path(original_path: &Path, base_path: &Path) -> PathBuf 
     let path = original_path.normalize().to_str().unwrap().to_string();
     if path.contains(PathBuf::from(base_path).normalize().to_str().unwrap()) {
         let path = path.replace(PathBuf::from(base_path).normalize().to_str().unwrap(), "");
-        let mut path = path.replace("\\", "/");
+        let mut path = path.replace('\\', "/");
         if path.starts_with('/') {
             path.remove(0);
         }

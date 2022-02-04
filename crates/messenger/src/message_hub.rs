@@ -72,7 +72,7 @@ trait MsgType: Send + Sync + Any + 'static {
         std::any::type_name::<Self>()
     }
     fn flush(&self);
-    fn from_string(&self, s: &str);
+    fn message_from_string(&self, s: &str);
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
 }
@@ -109,7 +109,7 @@ where
             self.messages.write().unwrap().insert(msg_id, msg);
         }
     }
-    fn from_string(&self, s: &str) {
+    fn message_from_string(&self, s: &str) {
         if let Some(msg) = T::from_string(s) {
             self.send_event(msg);
         }
@@ -252,7 +252,7 @@ impl MessageHub {
             .unwrap()
             .iter()
             .for_each(|(_, t)| {
-                t.from_string(s.as_str());
+                t.message_from_string(s.as_str());
             });
     }
 

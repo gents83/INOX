@@ -25,6 +25,16 @@ impl Default for Area {
         }
     }
 }
+impl From<Area> for [f32; 4] {
+    fn from(area: Area) -> Self {
+        [
+            area.x as f32,
+            area.y as f32,
+            area.width as f32,
+            area.height as f32,
+        ]
+    }
+}
 impl From<&Area> for [f32; 4] {
     fn from(area: &Area) -> Self {
         [
@@ -33,6 +43,16 @@ impl From<&Area> for [f32; 4] {
             area.width as f32,
             area.height as f32,
         ]
+    }
+}
+impl From<Area> for Vector4 {
+    fn from(area: Area) -> Self {
+        Vector4::new(
+            area.x as f32,
+            area.y as f32,
+            area.width as f32,
+            area.height as f32,
+        )
     }
 }
 impl From<&Area> for Vector4 {

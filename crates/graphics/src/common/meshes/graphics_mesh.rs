@@ -75,7 +75,6 @@ impl GraphicsMesh {
                     Self::add_mesh_to_instance_buffer(mesh_id, mesh, instance_buffer);
                 Self::add_mesh_to_indirect_buffer(
                     mesh_id,
-                    mesh,
                     instance_index,
                     vertex_data,
                     index_data,
@@ -165,18 +164,15 @@ impl GraphicsMesh {
                 .as_ref()
                 .map_or(INVALID_INDEX, |m| m.get().uniform_index()),
         };
-        let instance_index = instance_buffer.add(mesh_id, &[instance]);
-        if mesh.draw_index() >= 0 {
+        let mut instance_index = instance_buffer.add(mesh_id, &[instance]);
+        if mesh.draw_index() >= 0 && instance_index != mesh.draw_index() as u32 {
             instance_buffer.swap(instance_index as _, mesh.draw_index() as _);
-        }
-        if mesh.draw_index() >= 0 {
-            return mesh.draw_index() as _;
+            instance_index = mesh.draw_index() as _;
         }
         instance_index as _
     }
     fn add_mesh_to_indirect_buffer(
         mesh_id: &MeshId,
-        mesh: &Mesh,
         instance_index: u32,
         vertex_data: &BufferData,
         index_data: &BufferData,
@@ -185,22 +181,18 @@ impl GraphicsMesh {
             { wgpu::BufferUsages::bits(&wgpu::BufferUsages::INDIRECT) },
         >,
     ) {
-        indirect_buffer.add(
+        let old_index = indirect_buffer.add(
             mesh_id,
             &[wgpu::util::DrawIndexedIndirect {
                 vertex_count: index_data.len() as _,
                 instance_count: 1,
                 base_index: index_data.start as _,
                 vertex_offset: vertex_data.start as _,
-                base_instance: if mesh.draw_index() >= 0 {
-                    mesh.draw_index() as _
-                } else {
-                    instance_index as _
-                },
+                base_instance: instance_index as _,
             }],
         );
-        if mesh.draw_index() >= 0 {
-            indirect_buffer.swap(instance_index as _, mesh.draw_index() as _);
+        if old_index != instance_index {
+            indirect_buffer.swap(instance_index as _, old_index);
         }
     }
 

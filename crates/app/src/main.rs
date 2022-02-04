@@ -8,10 +8,7 @@ use sabi_launcher::launcher::Launcher;
 use sabi_resources::Data;
 
 fn main() {
-    env::set_var(
-        EXE_PATH,
-        env::current_exe().unwrap().parent().unwrap().to_path_buf(),
-    );
+    env::set_var(EXE_PATH, env::current_exe().unwrap().parent().unwrap());
     env::set_current_dir(".").ok();
 
     let mut app = App::default();
