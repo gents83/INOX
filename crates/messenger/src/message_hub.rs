@@ -92,6 +92,13 @@ where
     T: Message,
 {
     fn flush(&self) {
+        self.messages.write().unwrap().retain(|msg_id, _| {
+            self.listeners
+                .read()
+                .unwrap()
+                .iter()
+                .any(|l| l.messages.read().unwrap().contains(msg_id))
+        });
         for msg in self.new_messages.write().unwrap().drain(..) {
             let msg_id = generate_random_uid();
             self.listeners
@@ -101,13 +108,6 @@ where
                 .for_each(|l| l.messages.write().unwrap().push(msg_id));
             self.messages.write().unwrap().insert(msg_id, msg);
         }
-        self.messages.write().unwrap().retain(|msg_id, _| {
-            self.listeners
-                .read()
-                .unwrap()
-                .iter()
-                .any(|l| l.messages.read().unwrap().contains(msg_id))
-        });
     }
     fn from_string(&self, s: &str) {
         if let Some(msg) = T::from_string(s) {
