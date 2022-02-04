@@ -191,10 +191,7 @@ impl Renderer {
     }
 
     pub fn on_mesh_added(&mut self, mesh: &Resource<Mesh>) {
-        if mesh.get().is_visible()
-            && !mesh.get().mesh_data().vertices.is_empty()
-            && self.graphics_mesh.add_mesh(mesh.id(), &mesh.get())
-        {
+        if self.graphics_mesh.add_mesh(mesh.id(), &mesh.get()) {
             mesh.get_mut().init();
         }
     }

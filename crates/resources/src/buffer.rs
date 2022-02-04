@@ -89,15 +89,14 @@ where
         let size = data.len();
         if let Some(index) = self.free.iter().position(|d| (d.end + 1 - d.start) >= size) {
             let free_data = self.free.remove(index);
-            self.insert_at(id, free_data.start, data);
-
-            if (free_data.end - free_data.start) > (size) {
+            if (free_data.end + 1 - free_data.start) > size {
                 self.free.push(BufferData::new(
                     &generate_random_uid(),
-                    free_data.end - (size),
+                    free_data.start + size,
                     free_data.end,
                 ));
             }
+            self.insert_at(id, free_data.start, data);
         } else {
             self.defrag();
             self.insert(id, data);
@@ -109,21 +108,36 @@ where
         let start = self.data.len();
         let end = start + data.len() - 1;
         self.data.extend_from_slice(data);
-        if let Some(i) = self.occupied.iter().position(|d| d.end > start) {
-            self.occupied.insert(i, BufferData::new(id, start, end));
-        } else {
-            self.occupied.push(BufferData::new(id, start, end));
-        }
+        self.occupied.push(BufferData::new(id, start, end));
+        let is_not_overlapping = (0..self.occupied.len()).rev().all(|i| {
+            if i > 0 {
+                self.occupied[i].start > self.occupied[i - 1].end
+            } else {
+                true
+            }
+        });
+        debug_assert!(is_not_overlapping);
     }
+
     fn insert_at(&mut self, id: &ResourceId, start: usize, data: &[T]) {
         debug_assert!(start <= self.data.len());
         let end = start + data.len() - 1;
         self.update(start, data);
-        if let Some(i) = self.occupied.iter().position(|d| d.end > start) {
+        if let Some(i) = self.occupied.iter().position(|d| (d.end + 1) == start) {
+            self.occupied.insert(i + 1, BufferData::new(id, start, end));
+        } else if let Some(i) = self.occupied.iter().position(|d| d.start > end) {
             self.occupied.insert(i, BufferData::new(id, start, end));
         } else {
             self.occupied.push(BufferData::new(id, start, end));
         }
+        let is_not_overlapping = (0..self.occupied.len()).rev().all(|i| {
+            if i > 0 {
+                self.occupied[i].start > self.occupied[i - 1].end
+            } else {
+                true
+            }
+        });
+        debug_assert!(is_not_overlapping);
     }
     pub fn update(&mut self, start: usize, data: &[T]) {
         debug_assert!(start <= self.data.len());

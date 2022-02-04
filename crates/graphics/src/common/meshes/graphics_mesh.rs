@@ -52,9 +52,8 @@ impl GraphicsMesh {
     }
     pub fn add_mesh(&mut self, mesh_id: &MeshId, mesh: &Mesh) -> bool {
         let mesh_data = mesh.mesh_data();
-        if mesh_data.vertices.is_empty() {
-            self.vertex_buffer.remove(mesh_id);
-            self.index_buffer.remove(mesh_id);
+        if mesh_data.vertices.is_empty() || !mesh.is_visible() {
+            self.remove_mesh(mesh_id);
             return false;
         }
         self.vertex_buffer
