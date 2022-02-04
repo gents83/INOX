@@ -54,7 +54,7 @@
                 "-plugin inox_common_script",
                 "-plugin inox_viewer",
                 //"-load_file",
-                //"C:\\PROJECTS\\SABI\\data\\blender_export\\TestScene\\TestScene.scene"
+                //"C:\\PROJECTS\\INOX\\data\\blender_export\\TestScene\\TestScene.scene"
             ],
             "cwd": "${workspaceFolder}",
             "stopAtEntry": false,

@@ -10,7 +10,7 @@ name = "inox_blender"
 crate-type = ['cdylib', 'rlib']
 
 [dependencies]
-pyo3 = { path = "../../extern/pyo3", features = ["macros", "extension-module", "auto-initialize"] }
+pyo3 = { path = "../../extern/pyo3", features = ["macros", "extension-module", "auto-initialize", "abi3-py310"] }
 inox_binarizer = { path = "../binarizer" }
 inox_core = { path = "../core" }
 inox_graphics = { path = "../graphics" }

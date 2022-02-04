@@ -49,4 +49,10 @@ fn main() {
     if env::var("BLENDER_ADDONS_PATH").is_err() {
         println!("[ENVIROMENT SETTINGS ISSUE] Enviroment settings are not correct -> No BLENDER_ADDONS_PATH enviroment variable for this user");
     }
+    if let Ok(python_path) = env::var("PYTHON_SDK") {
+        if env::var("PYO3_PYTHON").is_err() {
+            let python_exe = PathBuf::from(python_path).join("python.exe");
+            env::set_var("PYO3_PYTHON", python_exe.to_str().unwrap());
+        }
+    }
 }
