@@ -2,9 +2,9 @@
 
 ## How to download _**INOX**_ repository
 
-You can clone it using [https://github.com/gents83/NRG.git](https://github.com/gents83/NRG.git)
+You can clone it using [https://github.com/gents83/NRG.git](https://github.com/gents83/INOX.git)
 
-Or you can download the zip from [here](https://github.com/gents83/NRG/archive/refs/heads/master.zip)
+Or you can download the zip from [here](https://github.com/gents83/INOX/archive/refs/heads/master.zip)
 
 ## How to build and run _**INOX**_ code
 
@@ -35,6 +35,7 @@ Let's see some useful shortcuts.
 - When building or pressing CTRL+SHIFT+B: \
    You'll have many debug possibilities as:
    - BUILD DEBUG - Build workspace in debug
+   - BUILD RELEASE WASM - Build workspace in release with wasm as target
    - BUILD RELEASE - Build workspace in release
    - BUILD BOOK - Build and launch a rendered version of documentation in `/docs/` folder
    - RUN CLIPPY - Execute clippy fix on crates code and check if there are any errors
