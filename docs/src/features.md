@@ -4,10 +4,9 @@ Here you can find a list of features that are currently supported by the library
 
 - [x] Multi platform architecture \
       &emsp;&emsp;**Windows** only implemented right now \
-      &emsp;&emsp;_rawwindowhandle_ integration could be an option in the future
+      &emsp;&emsp;_rawwindowhandle_ integrated and working on WASM intergration
 - [x] Multi graphics api support \
-      &emsp;&emsp;**Vulkan** only implemented right now, \
-      &emsp;&emsp;_wgpu_ integration could be an option in the future
+      &emsp;&emsp;_wgpu_ integration done
 - [x] Multi threading architecture with different Phases > Systems > Jobs \
       &emsp;&emsp;See more info in _sabicore_ crate section related to scheduling
 - [x] CPU profiling using _Chrome Trace Event_ format and usable through chrome://tracing/ \
@@ -29,13 +28,12 @@ Here you can find a list of features that are currently supported by the library
 - [x] Possibility to define and use custom nodes in external dlls
 
 TODO:
-- [ ] Integrate wgpu as default rendering api
-- [ ] Integrate PBR rendering
+- [ ] Integrate wasm as target
 - [ ] Possibility to run Phases in parallel when not dependent
 - [ ] Plugin indipendent and ability to enable\disable them at runtime
+- [ ] Integrate PBR rendering
 - [ ] Quick example of game 
 - [ ] Integrate KTX universal texture compression
 - [ ] Integrate raw-window-handle as optional feature
 - [ ] Raytracing on GPU
 - [ ] Dynamic vertex data per-shader
-- [ ] Integrate wasm as target
