@@ -64,6 +64,7 @@ layout(std430, binding = 1) buffer DynamicData
     LightData light_data[MAX_NUM_LIGHTS];
     TextureData textures_data[MAX_NUM_TEXTURES];
     ShaderMaterialData material_data[MAX_NUM_MATERIALS];
+    uint num_lights;
 } 
 dynamic_data;
 

@@ -14,15 +14,23 @@ layout(location = 10) in mat4 instance_matrix;
 layout(location = 14) in int instance_material_index;
 
 layout(location = 0) out vec4 out_color;
-layout(location = 1) out vec3 out_tex_coord[TEXTURE_TYPE_COUNT];
-layout(location = 9) out int out_material_index;
+layout(location = 1) out vec3 out_position;
+layout(location = 2) out vec3 out_normal;
+layout(location = 3) out vec3 out_tex_coord[TEXTURE_TYPE_COUNT];
+layout(location = 11) out int out_material_index;
 
 
 #include "utils.glsl"
 
 
 void main() {
-    gl_Position = constant_data.proj * constant_data.view * instance_matrix * vec4(vertex_position, 1.0);
+    mat4 proj_view = constant_data.proj * constant_data.view;
+    out_position = (instance_matrix * vec4(vertex_position.xyz, 1.)).xyz;
+
+    mat3 normal_matrix = mat3(transpose(inverse(instance_matrix)));
+    out_normal = normal_matrix * vertex_normal;
+
+    gl_Position = proj_view * vec4(out_position.xyz, 1.);
     
     out_color = vertex_color;
     out_material_index = instance_material_index;

@@ -141,6 +141,8 @@ impl Renderer {
         constant_data.proj = matrix4_to_array(OPENGL_TO_WGPU_MATRIX * proj);
         constant_data.screen_width = screen_size.x;
         constant_data.screen_height = screen_size.y;
+        self.shader_data
+            .set_num_lights(self.light_hash_indexer.len());
         self.shader_data.send_to_gpu(&self.context);
     }
 

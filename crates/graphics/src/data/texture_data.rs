@@ -3,6 +3,7 @@ use inox_serialize::{Deserialize, Serialize};
 
 pub const MAX_NUM_TEXTURES: usize = 512;
 
+#[repr(C)]
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 #[serde(crate = "inox_serialize")]
 pub enum TextureType {
@@ -39,7 +40,7 @@ impl From<usize> for TextureType {
     }
 }
 
-#[repr(C, align(16))]
+#[repr(C, align(4))]
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct TextureData {
     pub texture_index: u32,

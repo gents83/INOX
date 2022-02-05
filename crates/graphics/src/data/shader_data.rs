@@ -23,12 +23,13 @@ impl Default for ConstantData {
     }
 }
 
-#[repr(C, align(16))]
+#[repr(C, align(4))]
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct DynamicData {
     pub light_data: [LightData; MAX_NUM_LIGHTS],
     pub textures_data: [TextureData; MAX_NUM_TEXTURES],
     pub materials_data: [ShaderMaterialData; MAX_NUM_MATERIALS],
+    pub num_lights: u32,
 }
 
 impl Default for DynamicData {
@@ -37,6 +38,7 @@ impl Default for DynamicData {
             light_data: [LightData::default(); MAX_NUM_LIGHTS],
             textures_data: [TextureData::default(); MAX_NUM_TEXTURES],
             materials_data: [ShaderMaterialData::default(); MAX_NUM_MATERIALS],
+            num_lights: 0,
         }
     }
 }
@@ -81,6 +83,9 @@ impl ShaderData {
 
     pub fn material_data_mut(&mut self) -> &mut [ShaderMaterialData] {
         &mut self.dynamic_data.data_mut()[0].materials_data
+    }
+    pub fn set_num_lights(&mut self, num_lights: usize) {
+        self.dynamic_data.data_mut()[0].num_lights = num_lights as _;
     }
 
     pub fn bind_group(&self) -> &wgpu::BindGroup {
