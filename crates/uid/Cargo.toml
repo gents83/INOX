@@ -1,5 +1,5 @@
 [package]
-name = "inox_messenger"
+name = "inox_uid"
 version = "0.1.0"
 authors = ["gents83 <gents83@gmail.com>"]
 edition = "2021"
@@ -9,5 +9,4 @@ build = "build.rs"
 crate-type = ["lib"]
 
 [dependencies]
-inox_commands = { path = "../commands" }
-inox_uid = { path = "../uid" }
+uuid = { path = "../../extern/uuid", features = ["serde", "v4", "v5"] }

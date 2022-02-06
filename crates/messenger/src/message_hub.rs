@@ -5,7 +5,7 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use inox_serialize::{generate_random_uid, Uid};
+use inox_uid::{generate_random_uid, Uid};
 
 use crate::Message;
 

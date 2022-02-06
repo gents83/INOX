@@ -19,6 +19,7 @@ members = [
     "scene",
     "serialize",
     "ui",
+    "uid",
 ]
 
 resolver = "2"

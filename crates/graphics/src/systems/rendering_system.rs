@@ -2,7 +2,7 @@ use inox_core::{JobHandlerRw, System};
 use inox_math::Vector2;
 use inox_messenger::MessageHubRc;
 use inox_resources::{DataTypeResource, Resource, SharedDataRc};
-use inox_serialize::generate_random_uid;
+use inox_uid::generate_random_uid;
 
 use crate::{RendererRw, RendererState, View};
 

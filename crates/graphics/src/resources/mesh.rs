@@ -7,7 +7,8 @@ use inox_resources::{
     DataTypeResource, Handle, Resource, ResourceEvent, ResourceId, ResourceTrait,
     SerializableResource, SharedData, SharedDataRc,
 };
-use inox_serialize::{read_from_file, SerializeFile, INVALID_UID};
+use inox_serialize::{read_from_file, SerializeFile};
+use inox_uid::INVALID_UID;
 
 pub type MeshId = ResourceId;
 

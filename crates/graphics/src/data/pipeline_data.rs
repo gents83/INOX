@@ -3,7 +3,8 @@ use std::path::PathBuf;
 use inox_filesystem::convert_from_local_path;
 use inox_math::Matrix4;
 use inox_resources::Data;
-use inox_serialize::{generate_uid_from_string, Deserialize, Serialize, SerializeFile, Uid};
+use inox_serialize::{Deserialize, Serialize, SerializeFile};
+use inox_uid::{generate_uid_from_string, Uid};
 
 use crate::{LightData, ShaderMaterialData, TextureAtlas, TextureData};
 

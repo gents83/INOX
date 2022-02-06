@@ -6,7 +6,7 @@ use std::{
 use inox_filesystem::convert_from_local_path;
 use inox_messenger::MessageHubRc;
 
-use inox_serialize::generate_uid_from_string;
+use inox_uid::generate_uid_from_string;
 
 use crate::{Resource, ResourceEvent, ResourceId, ResourceTrait, SharedData, SharedDataRc};
 

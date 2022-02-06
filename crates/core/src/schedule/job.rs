@@ -7,7 +7,7 @@ use std::{
     },
 };
 
-use inox_serialize::Uid;
+use inox_uid::Uid;
 
 pub type JobId = Uid;
 

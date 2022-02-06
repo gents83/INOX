@@ -1,6 +1,6 @@
 use std::any::{type_name, Any};
 
-use inox_serialize::{generate_uid_from_string, Uid};
+use inox_uid::{generate_uid_from_string, Uid};
 
 pub type SystemId = Uid;
 

@@ -1,5 +1,5 @@
 use inox_profiler::debug_log;
-use inox_serialize::generate_random_uid;
+use inox_uid::generate_random_uid;
 
 use crate::{RenderContext, TextureData, TextureId};
 

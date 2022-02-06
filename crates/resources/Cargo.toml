@@ -14,3 +14,4 @@ inox_filesystem = { path = "../filesystem" }
 inox_messenger = { path = "../messenger" }
 inox_profiler = { path = "../profiler" }
 inox_serialize = { path = "../serialize" }
+inox_uid = { path = "../uid" }

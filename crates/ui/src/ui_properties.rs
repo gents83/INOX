@@ -6,7 +6,7 @@ use inox_math::{Degrees, Matrix4, Vector2, Vector3, Vector4};
 use inox_resources::{
     GenericResource, ResourceCastTo, ResourceId, ResourceTrait, SerializableResource,
 };
-use inox_serialize::INVALID_UID;
+use inox_uid::INVALID_UID;
 pub trait UIProperties {
     fn show(
         &mut self,

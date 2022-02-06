@@ -12,3 +12,4 @@ crate-type = ["lib"]
 inox_resources = { path = "../resources" }
 inox_filesystem = { path = "../filesystem" }
 inox_serialize = { path = "../serialize" }
+inox_uid = { path = "../uid" }

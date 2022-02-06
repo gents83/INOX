@@ -8,7 +8,7 @@ use inox_resources::{
     Data, DataTypeResource, Handle, ResourceEvent, ResourceId, ResourceTrait, SerializableResource,
     SharedData, SharedDataRc,
 };
-use inox_serialize::INVALID_UID;
+use inox_uid::INVALID_UID;
 
 use crate::{RenderContext, TextureHandler, INVALID_INDEX, TEXTURE_CHANNEL_COUNT};
 

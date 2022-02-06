@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::hash::Hash;
 
-use inox_serialize::generate_random_uid;
+use inox_uid::generate_random_uid;
 
 use crate::ResourceId;
 

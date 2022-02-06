@@ -11,8 +11,9 @@ use inox_resources::{
     DataTypeResource, GenericResource, Handle, Resource, ResourceCastTo, ResourceId, ResourceTrait,
     SerializableResource, SharedData, SharedDataRc,
 };
-use inox_serialize::{generate_random_uid, read_from_file, SerializeFile};
+use inox_serialize::{read_from_file, SerializeFile};
 use inox_ui::{CollapsingHeader, UIProperties, UIPropertiesRegistry, Ui};
+use inox_uid::generate_random_uid;
 
 use crate::{Camera, ObjectData, OnCameraCreateData, OnScriptCreateData, Script};
 

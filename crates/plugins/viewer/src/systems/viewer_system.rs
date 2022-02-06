@@ -7,7 +7,7 @@ use inox_messenger::{Listener, MessageHubRc};
 use inox_platform::{InputState, Key, KeyEvent, MouseEvent, WindowEvent};
 use inox_resources::{Resource, ResourceEvent, SerializableResource, SharedDataRc};
 use inox_scene::{Camera, Object, ObjectId, Scene, Script};
-use inox_serialize::generate_random_uid;
+use inox_uid::generate_random_uid;
 use std::{collections::HashMap, path::PathBuf};
 
 use crate::widgets::{Hierarchy, Info, View3D};

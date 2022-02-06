@@ -1,10 +1,10 @@
 use inox_messenger::MessageHubRc;
 use inox_resources::{Resource, SerializableResource, SharedData, SharedDataRc};
 use inox_scene::{Object, ObjectId, Scene, SceneId};
-use inox_serialize::INVALID_UID;
 use inox_ui::{
     implement_widget_data, CollapsingHeader, ScrollArea, SelectableLabel, UIWidget, Ui, Window,
 };
+use inox_uid::INVALID_UID;
 
 struct HierarchyData {
     shared_data: SharedDataRc,

@@ -1,4 +1,5 @@
-use inox_serialize::{generate_uid_from_string, Deserialize, Serialize, SerializeFile};
+use inox_serialize::{Deserialize, Serialize, SerializeFile};
+use inox_uid::generate_uid_from_string;
 
 use crate::{LogicNodeRegistry, NodeLink, NodeTrait};
 

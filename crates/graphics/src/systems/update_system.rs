@@ -6,7 +6,8 @@ use inox_resources::{
     ConfigBase, DataTypeResource, ReloadEvent, Resource, ResourceEvent, SerializableResource,
     SharedData, SharedDataRc,
 };
-use inox_serialize::{generate_random_uid, read_from_file};
+use inox_serialize::read_from_file;
+use inox_uid::generate_random_uid;
 
 use crate::{
     is_shader, Light, Material, Mesh, Pipeline, RenderPass, RenderPassData, RendererRw,

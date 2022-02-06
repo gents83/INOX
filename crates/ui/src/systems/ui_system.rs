@@ -26,7 +26,8 @@ use inox_profiler::debug_log;
 use inox_resources::{
     ConfigBase, DataTypeResource, Handle, Resource, SerializableResource, SharedDataRc,
 };
-use inox_serialize::{generate_random_uid, read_from_file};
+use inox_serialize::read_from_file;
+use inox_uid::generate_random_uid;
 
 use crate::UIWidget;
 

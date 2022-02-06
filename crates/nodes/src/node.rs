@@ -4,7 +4,8 @@ use std::{
 };
 
 use crate::{LogicContext, Pin, PinId};
-use inox_serialize::{generate_uid_from_string, inox_serializable, Deserialize, Serialize, Uid};
+use inox_serialize::{inox_serializable, Deserialize, Serialize};
+use inox_uid::{generate_uid_from_string, Uid};
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub enum NodeExecutionType {

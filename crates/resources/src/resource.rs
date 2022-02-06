@@ -1,5 +1,5 @@
 use inox_messenger::MessageHubRc;
-use inox_serialize::Uid;
+use inox_uid::Uid;
 use std::{
     any::Any,
     sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard},

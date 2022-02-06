@@ -1,7 +1,7 @@
 use std::{any::Any, collections::HashMap};
 
 use inox_resources::{Resource, ResourceTrait};
-use inox_serialize::{generate_uid_from_string, Uid};
+use inox_uid::{generate_uid_from_string, Uid};
 
 pub type DataId = Uid;
 pub trait LogicContextData: Any + Send + Sync {

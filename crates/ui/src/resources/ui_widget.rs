@@ -3,7 +3,7 @@ use std::any::{type_name, Any};
 use egui::{CollapsingHeader, Context, Ui};
 use inox_messenger::MessageHubRc;
 use inox_resources::{Resource, ResourceId, ResourceTrait, SharedData, SharedDataRc};
-use inox_serialize::generate_random_uid;
+use inox_uid::generate_random_uid;
 
 use crate::{UIProperties, UIPropertiesRegistry};
 

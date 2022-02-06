@@ -21,3 +21,4 @@ inox_platform = { path = "../platform" }
 inox_profiler = { path = "../profiler" }
 inox_resources = { path = "../resources" }
 inox_serialize = { path = "../serialize" }
+inox_uid = { path = "../uid" }

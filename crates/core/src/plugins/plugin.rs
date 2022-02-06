@@ -1,6 +1,6 @@
 use std::any::Any;
 
-use inox_serialize::{generate_uid_from_string, Uid};
+use inox_uid::{generate_uid_from_string, Uid};
 
 use crate::App;
 
