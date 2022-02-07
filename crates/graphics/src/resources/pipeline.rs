@@ -5,7 +5,7 @@ use inox_profiler::debug_log;
 use inox_resources::{
     DataTypeResource, ResourceId, ResourceTrait, SerializableResource, SharedData, SharedDataRc,
 };
-use inox_serialize::{read_from_file, SerializeFile};
+use inox_serialize::{inox_serializable::SerializableRegistryRc, read_from_file, SerializeFile};
 use wgpu::ShaderModule;
 
 use crate::{
@@ -64,8 +64,8 @@ impl DataTypeResource for Pipeline {
     fn is_initialized(&self) -> bool {
         self.vertex_shader.is_some() && self.fragment_shader.is_some()
     }
-    fn deserialize_data(path: &Path) -> Self::DataType {
-        read_from_file::<Self::DataType>(path)
+    fn deserialize_data(path: &Path, registry: &SerializableRegistryRc) -> Self::DataType {
+        read_from_file::<Self::DataType>(path, registry)
     }
     fn on_create(
         &mut self,

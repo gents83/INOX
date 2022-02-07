@@ -3,10 +3,18 @@
 use std::{
     any::{Any, TypeId},
     collections::{BTreeMap, HashMap},
-    sync::RwLock,
+    sync::{Arc, RwLock},
 };
 
-use inox_filesystem::Library;
+pub static mut SERIALIZABLE_REGISTRY: Option<SerializableRegistryRc> = None;
+
+pub fn check_serializable_registry(registry: &SerializableRegistryRc) {
+    unsafe {
+        if SERIALIZABLE_REGISTRY.is_none() {
+            SERIALIZABLE_REGISTRY.replace(registry.clone());
+        }
+    }
+}
 
 pub trait TraitRegistry: Any {
     fn as_any(&self) -> &dyn Any;
@@ -28,6 +36,7 @@ pub enum DeserializeType {
     },
 }
 
+pub type SerializableRegistryRc = Arc<RwLock<SerializableRegistry>>;
 pub type DeserializeFn<T> = fn(&mut dyn erased_serde::Deserializer) -> erased_serde::Result<Box<T>>;
 
 pub struct Registry<T>
@@ -37,6 +46,8 @@ where
     pub map: BTreeMap<&'static str, Option<DeserializeFn<T>>>,
     pub names: Vec<&'static str>,
 }
+unsafe impl<T> Send for Registry<T> where T: ?Sized + 'static {}
+unsafe impl<T> Sync for Registry<T> where T: ?Sized + 'static {}
 
 impl<T> Registry<T>
 where
@@ -82,6 +93,8 @@ where
 pub struct SerializableRegistry {
     pub type_map: RwLock<HashMap<TypeId, Box<dyn TraitRegistry>>>,
 }
+unsafe impl Send for SerializableRegistry {}
+unsafe impl Sync for SerializableRegistry {}
 
 impl Drop for SerializableRegistry {
     fn drop(&mut self) {
@@ -150,29 +163,5 @@ impl SerializableRegistry {
             ))),
         };
         result
-    }
-}
-
-pub static mut SABI_SERIALIZABLE_REGISTRY_LIB: Option<Library> = None;
-
-pub const CREATE_SERIALIZABLE_REGISTRY_FUNCTION_NAME: &str = "create_serializable_registry";
-pub type PfnCreateSerializableRegistry = ::std::option::Option<unsafe extern "C" fn()>;
-
-pub const GET_SERIALIZABLE_REGISTRY_FUNCTION_NAME: &str = "get_serializable_registry";
-pub type PfnGetSerializableRegistry<'a> =
-    ::std::option::Option<unsafe extern "C" fn() -> &'a SerializableRegistry>;
-
-pub static mut GLOBAL_SERIALIZABLE_REGISTRY: Option<SerializableRegistry> = None;
-
-#[no_mangle]
-pub extern "C" fn get_serializable_registry<'a>() -> &'a SerializableRegistry {
-    debug_assert!(unsafe { GLOBAL_SERIALIZABLE_REGISTRY.is_some() });
-    unsafe { GLOBAL_SERIALIZABLE_REGISTRY.as_ref().unwrap() }
-}
-
-#[no_mangle]
-pub extern "C" fn create_serializable_registry() {
-    unsafe {
-        GLOBAL_SERIALIZABLE_REGISTRY.replace(SerializableRegistry::default());
     }
 }

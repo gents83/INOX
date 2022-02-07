@@ -2,14 +2,12 @@
 
 pub use erased_serde;
 pub use inox_serialize_attribute::*;
-pub use macros::*;
 pub use registry::*;
 pub use serde;
 
 pub mod adjacently;
 pub mod externally;
 pub mod internally;
-pub mod macros;
 pub mod registry;
 
 mod content;

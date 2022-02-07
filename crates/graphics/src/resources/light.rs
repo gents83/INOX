@@ -5,7 +5,7 @@ use inox_messenger::MessageHubRc;
 use inox_resources::{
     DataTypeResource, ResourceId, ResourceTrait, SerializableResource, SharedData, SharedDataRc,
 };
-use inox_serialize::{read_from_file, SerializeFile};
+use inox_serialize::{inox_serializable::SerializableRegistryRc, read_from_file, SerializeFile};
 
 use crate::{LightData, INVALID_INDEX};
 
@@ -61,8 +61,11 @@ impl DataTypeResource for Light {
         self
     }
 
-    fn deserialize_data(path: &std::path::Path) -> Self::DataType {
-        read_from_file::<Self::DataType>(path)
+    fn deserialize_data(
+        path: &std::path::Path,
+        registry: &SerializableRegistryRc,
+    ) -> Self::DataType {
+        read_from_file::<Self::DataType>(path, registry)
     }
 
     fn on_create(

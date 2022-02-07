@@ -6,6 +6,7 @@ use std::{
 use inox_filesystem::convert_from_local_path;
 use inox_messenger::MessageHubRc;
 
+use inox_serialize::inox_serializable::SerializableRegistryRc;
 use inox_uid::generate_uid_from_string;
 
 use crate::{Resource, ResourceEvent, ResourceId, ResourceTrait, SharedData, SharedDataRc};
@@ -42,7 +43,7 @@ where
 
     fn is_initialized(&self) -> bool;
     fn invalidate(&mut self) -> &mut Self;
-    fn deserialize_data(path: &Path) -> Self::DataType;
+    fn deserialize_data(path: &Path, registry: &SerializableRegistryRc) -> Self::DataType;
 
     fn create_from_data(
         shared_data: &SharedDataRc,
@@ -144,7 +145,7 @@ pub trait SerializableResource: DataTypeResource + Sized {
                 path.to_str().unwrap()
             );
         }
-        let data = Self::deserialize_data(path.as_path());
+        let data = Self::deserialize_data(path.as_path(), shared_data.serializable_registry());
         let resource_id = generate_uid_from_string(path.as_path().to_str().unwrap());
         let mut resource = Self::create_from_data(shared_data, message_hub, resource_id, data);
         //debug_log(format!("Created resource [{:?}] {:?}", resource_id, path.as_path()).as_str());

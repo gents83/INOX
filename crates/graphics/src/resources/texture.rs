@@ -8,6 +8,7 @@ use inox_resources::{
     Data, DataTypeResource, Handle, ResourceEvent, ResourceId, ResourceTrait, SerializableResource,
     SharedData, SharedDataRc,
 };
+use inox_serialize::inox_serializable::SerializableRegistryRc;
 use inox_uid::INVALID_UID;
 
 use crate::{RenderContext, TextureHandler, INVALID_INDEX, TEXTURE_CHANNEL_COUNT};
@@ -55,7 +56,7 @@ impl DataTypeResource for Texture {
     fn is_initialized(&self) -> bool {
         self.uniform_index != INVALID_INDEX
     }
-    fn deserialize_data(path: &Path) -> Self::DataType {
+    fn deserialize_data(path: &Path, _registry: &SerializableRegistryRc) -> Self::DataType {
         let image_data = image::open(path).unwrap();
         image_data.to_rgba8()
     }

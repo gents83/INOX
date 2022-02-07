@@ -1,6 +1,7 @@
 use crate::exporter::Exporter;
-use pyo3::{pyclass, pymethods, PyResult, Python};
 use inox_resources::Singleton;
+use inox_serialize::inox_serializable::SerializableRegistryRc;
+use pyo3::{pyclass, pymethods, PyResult, Python};
 
 use inox_binarizer::Binarizer;
 use inox_core::App;
@@ -62,6 +63,7 @@ impl INOXEngine {
         let mut app = App::default();
 
         let mut binarizer = Binarizer::new(
+            app.get_shared_data(),
             app.get_message_hub(),
             working_dir.join(DATA_RAW_FOLDER),
             working_dir.join(DATA_FOLDER),
@@ -176,17 +178,23 @@ impl INOXEngine {
 
         let registry = LogicNodeRegistry::get(data);
 
-        registry.for_each_node(|node| add_node_in_blender(node, py));
+        registry.for_each_node(|node, serializable_registry| {
+            add_node_in_blender(node, serializable_registry, py)
+        });
         Ok(true)
     }
 }
 
-fn add_node_in_blender(node: &dyn NodeType, py: Python) {
+fn add_node_in_blender(
+    node: &dyn NodeType,
+    serializable_registry: &SerializableRegistryRc,
+    py: Python,
+) {
     let node_name = node.name();
     let category = node.category();
     let base_class = "LogicNodeBase";
     let description = node.description();
-    let serialized_class = node.serialize_node();
+    let serialized_class = node.serialize_node(serializable_registry);
 
     py.import("INOX")
         .unwrap()

@@ -11,7 +11,7 @@ use inox_resources::{
     DataTypeResource, GenericResource, Handle, Resource, ResourceCastTo, ResourceId, ResourceTrait,
     SerializableResource, SharedData, SharedDataRc,
 };
-use inox_serialize::{read_from_file, SerializeFile};
+use inox_serialize::{inox_serializable::SerializableRegistryRc, read_from_file, SerializeFile};
 use inox_ui::{CollapsingHeader, UIProperties, UIPropertiesRegistry, Ui};
 use inox_uid::generate_random_uid;
 
@@ -131,8 +131,8 @@ impl DataTypeResource for Object {
         self.children.clear();
         self
     }
-    fn deserialize_data(path: &Path) -> Self::DataType {
-        read_from_file::<Self::DataType>(path)
+    fn deserialize_data(path: &Path, registry: &SerializableRegistryRc) -> Self::DataType {
+        read_from_file::<Self::DataType>(path, registry)
     }
 
     fn create_from_data(

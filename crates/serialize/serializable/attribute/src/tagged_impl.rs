@@ -29,25 +29,29 @@ pub(crate) fn expand(args: ImplArgs, mut input: ItemImpl, mode: Mode) -> TokenSt
 
     if mode.de {
         input.items.push(parse_quote! {
-            fn register_as_serializable()
+            fn register_as_serializable(registry: &inox_serializable::SerializableRegistryRc)
             where Self: Sized 
             {
+                unsafe {
+                    if inox_serializable::SERIALIZABLE_REGISTRY.is_none() {
+                        inox_serializable::SERIALIZABLE_REGISTRY.replace(registry.clone());
+                    }
+                }
                 let func = (|deserializer| std::result::Result::Ok(
                     std::boxed::Box::new(
                         inox_serializable::erased_serde::deserialize::<#this>(deserializer)?
                     ),
                 )) as inox_serializable::DeserializeFn<<dyn #object as inox_serializable::InheritTrait>::Object>;
                 
-                let serializable_registry = inox_serializable::get_serializable_registry!();
-                serializable_registry.register_type::< <dyn #object as inox_serializable::InheritTrait>::Object >(#name, func);  
+                registry.write().unwrap().register_type::< <dyn #object as inox_serializable::InheritTrait>::Object >(#name, func);  
+            
             }
         });
         input.items.push(parse_quote! {
-            fn unregister_as_serializable()
+            fn unregister_as_serializable(registry: &inox_serializable::SerializableRegistryRc)
             where Self: Sized 
             {
-                let serializable_registry = inox_serializable::get_serializable_registry!();
-                serializable_registry.unregister_type::< <dyn #object as inox_serializable::InheritTrait>::Object >(#name);  
+                registry.write().unwrap().unregister_type::< <dyn #object as inox_serializable::InheritTrait>::Object >(#name);  
             }
         });
     }
@@ -57,20 +61,13 @@ pub(crate) fn expand(args: ImplArgs, mut input: ItemImpl, mode: Mode) -> TokenSt
     }
 }
 
-fn augment_impl(input: &mut ItemImpl, name: &TokenStream, mode: Mode) {
+fn augment_impl(input: &mut ItemImpl, name: &TokenStream, mode: Mode) {    
     if mode.ser {
         input.items.push(parse_quote! {
             #[doc(hidden)]
             fn serializable_name(&self) -> &'static str {
                 #name
             }
-        });
-    }
-
-    if mode.de {
-        input.items.push(parse_quote! {
-            #[doc(hidden)]
-            fn serializable_deserialize(&self) {}
         });
     }
 }

@@ -6,7 +6,7 @@ use inox_resources::{
     DataTypeResource, Handle, Resource, ResourceId, ResourceTrait, SerializableResource,
     SharedData, SharedDataRc,
 };
-use inox_serialize::read_from_file;
+use inox_serialize::{inox_serializable::SerializableRegistryRc, read_from_file};
 
 use crate::{
     GraphicsMesh, LoadOperation, Pipeline, RenderContext, RenderMode, RenderPassData, RenderTarget,
@@ -44,8 +44,8 @@ impl DataTypeResource for RenderPass {
     fn is_initialized(&self) -> bool {
         self.is_initialized
     }
-    fn deserialize_data(path: &Path) -> Self::DataType {
-        read_from_file::<Self::DataType>(path)
+    fn deserialize_data(path: &Path, registry: &SerializableRegistryRc) -> Self::DataType {
+        read_from_file::<Self::DataType>(path, registry)
     }
     fn on_create(
         &mut self,

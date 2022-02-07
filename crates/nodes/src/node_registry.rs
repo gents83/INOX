@@ -1,5 +1,5 @@
 use inox_resources::implement_singleton;
-use inox_serialize::{Deserialize, Serialize};
+use inox_serialize::{inox_serializable::SerializableRegistryRc, Deserialize, Serialize};
 
 use crate::{Node, NodeTrait, Pin, PinType};
 
@@ -7,8 +7,12 @@ pub trait NodeType: Send + Sync + 'static {
     fn name(&self) -> &str;
     fn category(&self) -> &str;
     fn description(&self) -> &str;
-    fn serialize_node(&self) -> String;
-    fn deserialize_node(&self, data: &str) -> Option<Box<dyn NodeTrait + Send + Sync>>;
+    fn serialize_node(&self, registry: &SerializableRegistryRc) -> String;
+    fn deserialize_node(
+        &self,
+        data: &str,
+        registry: &SerializableRegistryRc,
+    ) -> Option<Box<dyn NodeTrait + Send + Sync>>;
 }
 
 struct SpecificNodeType<N> {
@@ -30,14 +34,18 @@ where
     fn description(&self) -> &str {
         &self.description
     }
-    fn serialize_node(&self) -> String {
-        self.n.serialize_node()
+    fn serialize_node(&self, registry: &SerializableRegistryRc) -> String {
+        self.n.serialize_node(registry)
     }
-    fn deserialize_node(&self, data: &str) -> Option<Box<dyn NodeTrait + Send + Sync>>
+    fn deserialize_node(
+        &self,
+        data: &str,
+        registry: &SerializableRegistryRc,
+    ) -> Option<Box<dyn NodeTrait + Send + Sync>>
     where
         Self: Sized,
     {
-        if let Some(n) = self.n.deserialize_node(data) {
+        if let Some(n) = self.n.deserialize_node(data, registry) {
             if self.n.node().has_same_pins(n.node()) {
                 return Some(Box::new(n) as Box<dyn NodeTrait + Send + Sync>);
             } else {
@@ -50,14 +58,21 @@ where
 unsafe impl<N> Send for SpecificNodeType<N> where N: NodeTrait + Serialize + Default {}
 unsafe impl<N> Sync for SpecificNodeType<N> where N: NodeTrait + Serialize + Default {}
 
-#[derive(Default)]
 pub struct LogicNodeRegistry {
+    serializable_registry: SerializableRegistryRc,
     pin_types: Vec<Box<dyn PinType>>,
     node_types: Vec<Box<dyn NodeType>>,
 }
 implement_singleton!(LogicNodeRegistry);
 
 impl LogicNodeRegistry {
+    pub fn new(serializable_registry: &SerializableRegistryRc) -> Self {
+        Self {
+            serializable_registry: serializable_registry.clone(),
+            pin_types: Vec::new(),
+            node_types: Vec::new(),
+        }
+    }
     pub fn register_pin_type<V>(&mut self)
     where
         V: Pin + PinType + Default + 'static,
@@ -65,7 +80,7 @@ impl LogicNodeRegistry {
         let p = V::default();
         self.pin_types.push(Box::new(p));
 
-        V::register_as_serializable();
+        V::register_as_serializable(&self.serializable_registry);
     }
     pub fn unregister_pin_type<V>(&mut self)
     where
@@ -74,7 +89,7 @@ impl LogicNodeRegistry {
         let p = V::default();
         self.pin_types.retain(|v| v.name() != p.name());
 
-        V::unregister_as_serializable();
+        V::unregister_as_serializable(&self.serializable_registry);
     }
     pub fn register_node<N>(&mut self)
     where
@@ -88,7 +103,7 @@ impl LogicNodeRegistry {
             marker: std::marker::PhantomData::<N>::default(),
         }));
 
-        N::register_as_serializable();
+        N::register_as_serializable(&self.serializable_registry);
     }
     pub fn unregister_node<N>(&mut self)
     where
@@ -97,19 +112,19 @@ impl LogicNodeRegistry {
         let n = N::default();
         self.node_types.retain(|v| v.name() != n.name());
 
-        N::unregister_as_serializable();
+        N::unregister_as_serializable(&self.serializable_registry);
     }
     pub fn for_each_node<F>(&self, mut f: F)
     where
-        F: FnMut(&dyn NodeType),
+        F: FnMut(&dyn NodeType, &SerializableRegistryRc),
     {
         for node in &self.node_types {
-            f(node.as_ref());
+            f(node.as_ref(), &self.serializable_registry);
         }
     }
     pub fn deserialize_node(&self, data: &str) -> Option<Box<dyn NodeTrait + Send + Sync>> {
         for node in &self.node_types {
-            if let Some(n) = node.deserialize_node(data) {
+            if let Some(n) = node.deserialize_node(data, &self.serializable_registry) {
                 println!("Deserializing as {}", n.serializable_name());
                 return Some(n);
             }

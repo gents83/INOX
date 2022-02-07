@@ -10,7 +10,7 @@ use std::{
 use inox_messenger::{Listener, MessageHubRc};
 use inox_platform::{InputState, Key, KeyEvent, WindowEvent};
 use inox_resources::{DeserializeFunction, SharedData, SharedDataRc};
-use inox_serialize::inox_serializable;
+
 use inox_uid::generate_uid_from_string;
 
 use crate::{Job, JobHandler, JobHandlerRw, Phase, PluginId, PluginManager, Scheduler, Worker};
@@ -32,7 +32,6 @@ pub struct App {
 
 impl Default for App {
     fn default() -> Self {
-        inox_serializable::create_serializable_registry!();
         inox_profiler::create_profiler!();
 
         let (sender, receiver) = channel();

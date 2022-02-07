@@ -24,9 +24,11 @@ use inox_math::{Mat4Ops, Matrix4, NewAngle, Parser, Radians, Vector2, Vector3, V
 use inox_messenger::MessageHubRc;
 use inox_nodes::LogicData;
 use inox_profiler::debug_log;
-use inox_resources::Data;
+use inox_resources::{Data, SharedDataRc};
 use inox_scene::{CameraData, ObjectData, SceneData};
-use inox_serialize::{deserialize, Deserialize, Serialize, SerializeFile};
+use inox_serialize::{
+    deserialize, inox_serializable::SerializableRegistryRc, Deserialize, Serialize, SerializeFile,
+};
 
 const GLTF_EXTENSION: &str = "gltf";
 
@@ -61,12 +63,16 @@ enum NodeType {
 
 #[derive(Default)]
 pub struct GltfCompiler {
+    shared_data: SharedDataRc,
     message_hub: MessageHubRc,
 }
 
 impl GltfCompiler {
-    pub fn new(message_hub: MessageHubRc) -> Self {
-        Self { message_hub }
+    pub fn new(shared_data: SharedDataRc, message_hub: MessageHubRc) -> Self {
+        Self {
+            shared_data,
+            message_hub,
+        }
     }
 
     fn num_from_type(&mut self, accessor: &Accessor) -> usize {
@@ -300,7 +306,13 @@ impl GltfCompiler {
         mesh_data.append_mesh(vertices.as_slice(), indices.as_slice());
         mesh_data.material = material_path.to_path_buf();
 
-        Self::create_file(path, &mesh_data, mesh_name, "mesh")
+        Self::create_file(
+            path,
+            &mesh_data,
+            mesh_name,
+            "mesh",
+            self.shared_data.serializable_registry(),
+        )
     }
     fn process_texture(&mut self, path: &Path, texture: Texture) -> PathBuf {
         if let ImageSource::Uri {
@@ -401,6 +413,7 @@ impl GltfCompiler {
             &material_data,
             primitive.material().name().unwrap_or(&name),
             "material",
+            self.shared_data.serializable_registry(),
         )
     }
 
@@ -452,7 +465,10 @@ impl GltfCompiler {
                 .push(to_local_path(light_path.as_path()));
         }
         if let Some(extras) = node.extras() {
-            if let Ok(extras) = deserialize::<Extras>(extras.to_string().as_str()) {
+            if let Ok(extras) = deserialize::<Extras>(
+                extras.to_string().as_str(),
+                self.shared_data.serializable_registry(),
+            ) {
                 if !extras.inox_properties.logic.name.is_empty() {
                     let mut path = path
                         .parent()
@@ -502,7 +518,13 @@ impl GltfCompiler {
 
         (
             NodeType::Object,
-            Self::create_file(path, &object_data, node_name, "object"),
+            Self::create_file(
+                path,
+                &object_data,
+                node_name,
+                "object",
+                self.shared_data.serializable_registry(),
+            ),
         )
     }
 
@@ -533,7 +555,13 @@ impl GltfCompiler {
         let name = format!("Light_{}", light.index());
         (
             NodeType::Light,
-            Self::create_file(path, &light_data, &name, "light"),
+            Self::create_file(
+                path,
+                &light_data,
+                &name,
+                "light",
+                self.shared_data.serializable_registry(),
+            ),
         )
     }
 
@@ -555,7 +583,13 @@ impl GltfCompiler {
 
         (
             NodeType::Camera,
-            Self::create_file(path, &camera_data, &name, "camera"),
+            Self::create_file(
+                path,
+                &camera_data,
+                &name,
+                "camera",
+                self.shared_data.serializable_registry(),
+            ),
         )
     }
 
@@ -591,12 +625,24 @@ impl GltfCompiler {
                     }
                 }
 
-                Self::create_file(path, &scene_data, scene_name, "");
+                Self::create_file(
+                    path,
+                    &scene_data,
+                    scene_name,
+                    "",
+                    self.shared_data.serializable_registry(),
+                );
             }
         }
     }
 
-    fn create_file<T>(path: &Path, data: &T, new_name: &str, folder: &str) -> PathBuf
+    fn create_file<T>(
+        path: &Path,
+        data: &T,
+        new_name: &str,
+        folder: &str,
+        serializable_registry: &SerializableRegistryRc,
+    ) -> PathBuf
     where
         T: Serialize + SerializeFile,
     {
@@ -630,7 +676,7 @@ impl GltfCompiler {
         }
         if need_to_binarize(path, new_path.as_path()) {
             debug_log(format!("Serializing {:?}", new_path).as_str());
-            data.save_to_file(new_path.as_path());
+            data.save_to_file(new_path.as_path(), serializable_registry);
         }
         new_path
     }

@@ -39,7 +39,7 @@ impl Launcher {
         let renderer = Arc::new(RwLock::new(renderer));
 
         let mut window_update_phase = PhaseWithSystems::new(MAIN_WINDOW_PHASE);
-        let window_system = WindowSystem::new(window, app.get_message_hub());
+        let window_system = WindowSystem::new(window, app.get_shared_data(), app.get_message_hub());
 
         window_update_phase.add_system(window_system);
         app.create_phase(window_update_phase);

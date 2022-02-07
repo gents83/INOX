@@ -3,6 +3,7 @@ use inox_messenger::MessageHubRc;
 use inox_resources::{
     DataTypeResource, Handle, ResourceId, ResourceTrait, SharedData, SharedDataRc,
 };
+use inox_serialize::inox_serializable::SerializableRegistryRc;
 
 pub type ViewId = ResourceId;
 
@@ -34,7 +35,10 @@ impl DataTypeResource for View {
         eprintln!("View cannot be invalidated!");
         self
     }
-    fn deserialize_data(_path: &std::path::Path) -> Self::DataType {
+    fn deserialize_data(
+        _path: &std::path::Path,
+        _registry: &SerializableRegistryRc,
+    ) -> Self::DataType {
         0
     }
     fn on_create(
@@ -45,7 +49,8 @@ impl DataTypeResource for View {
         _on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
     ) {
     }
-    fn on_destroy(&mut self, _shared_data: &SharedData, _message_hub: &MessageHubRc, _id: &ViewId) {}
+    fn on_destroy(&mut self, _shared_data: &SharedData, _message_hub: &MessageHubRc, _id: &ViewId) {
+    }
 
     fn create_from_data(
         _shared_data: &SharedDataRc,

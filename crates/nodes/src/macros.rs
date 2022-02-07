@@ -101,14 +101,14 @@ macro_rules! implement_node {
             {
                 Box::new(self.clone())
             }
-            fn serialize_node(&self) -> String {
-                inox_serialize::serialize(self)
+            fn serialize_node(&self, registry: &inox_serializable::SerializableRegistryRc) -> String {
+                inox_serialize::serialize(self, registry)
             }
-            fn deserialize_node(&self, s: &str) -> Option<Self>
+            fn deserialize_node(&self, s: &str, registry: &inox_serializable::SerializableRegistryRc) -> Option<Self>
             where
                 Self: Sized,
             {
-                if let Ok(n) = inox_serialize::deserialize(s) {
+                if let Ok(n) = inox_serialize::deserialize(s, registry) {
                     return Some(n);
                 }
                 None

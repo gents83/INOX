@@ -12,6 +12,7 @@ use crate::{CopyCompiler, FontCompiler, GltfCompiler, ImageCompiler, ShaderCompi
 use inox_filesystem::convert_from_local_path;
 use inox_messenger::MessageHubRc;
 use inox_platform::{FileEvent, FileWatcher};
+use inox_resources::SharedDataRc;
 
 pub trait ExtensionHandler {
     fn on_changed(&mut self, path: &Path);
@@ -20,6 +21,7 @@ pub trait ExtensionHandler {
 pub struct Binarizer {
     data_raw_folder: PathBuf,
     data_folder: PathBuf,
+    shared_data: SharedDataRc,
     message_hub: MessageHubRc,
     thread_handle: Option<JoinHandle<bool>>,
     is_running: Arc<AtomicBool>,
@@ -37,6 +39,7 @@ unsafe impl Sync for DataWatcher {}
 
 impl Binarizer {
     pub fn new(
+        shared_data: &SharedDataRc,
         message_hub: &MessageHubRc,
         mut data_raw_folder: PathBuf,
         mut data_folder: PathBuf,
@@ -56,6 +59,7 @@ impl Binarizer {
         );
         debug_assert!(data_folder.exists() && data_folder.is_dir() && data_folder.is_absolute());
         Self {
+            shared_data: shared_data.clone(),
             message_hub: message_hub.clone(),
             data_raw_folder,
             data_folder,
@@ -80,7 +84,7 @@ impl Binarizer {
         let config_compiler = CopyCompiler::new(self.message_hub.clone());
         let font_compiler = FontCompiler::new(self.message_hub.clone());
         let image_compiler = ImageCompiler::new(self.message_hub.clone());
-        let gltf_compiler = GltfCompiler::new(self.message_hub.clone());
+        let gltf_compiler = GltfCompiler::new(self.shared_data.clone(), self.message_hub.clone());
         binarizer.add_handler(config_compiler);
         binarizer.add_handler(shader_compiler);
         binarizer.add_handler(font_compiler);
