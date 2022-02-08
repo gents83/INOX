@@ -1,5 +1,5 @@
-#![cfg(target_os = "wasm32")]
+#![cfg(target_arch = "wasm32")]
 
-pub use super::*;
-
-pub mod web_handle;
+pub mod handle;
+pub mod window;
+pub mod watcher;

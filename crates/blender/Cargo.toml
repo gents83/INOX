@@ -9,7 +9,7 @@ build = "build.rs"
 name = "inox_blender"
 crate-type = ['cdylib', 'rlib']
 
-[dependencies]
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 pyo3 = { path = "../../extern/pyo3", features = ["macros", "extension-module", "auto-initialize", "abi3-py310"] }
 inox_binarizer = { path = "../binarizer" }
 inox_core = { path = "../core" }

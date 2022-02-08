@@ -13,7 +13,7 @@ use crate::window::*;
 static mut EVENTS_DISPATCHER: Option<MessageHubRc> = None;
 
 impl Window {
-    pub(crate) fn create_handle(
+    pub fn create_handle(
         title: String,
         x: u32,
         y: u32,

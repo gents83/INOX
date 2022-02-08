@@ -1,7 +1,5 @@
 use raw_window_handle::RawWindowHandle;
 
-use super::super::handle::*;
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct HandleImpl {
     /// An ID value inserted into the data attributes of the canvas element as 'raw-handle'
@@ -21,11 +19,5 @@ impl HandleImpl {
     }
     pub fn is_valid(&self) -> bool {
         self.id != 0
-    }
-}
-
-impl Handle for HandleImpl {
-    fn is_valid(&self) -> bool {
-        self.is_valid()
     }
 }

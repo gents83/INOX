@@ -38,7 +38,7 @@ pub struct Library(platform::Library);
 
 impl Library {
     #[inline]
-    pub fn new<S: AsRef<::std::ffi::OsStr>>(filename: S) -> Library {
+    pub fn new(filename: &str) -> Library {
         let _lib = platform::Library::load(filename);
         Library(_lib)
     }

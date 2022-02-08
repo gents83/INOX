@@ -248,6 +248,9 @@
 				"web"
 			],
 			"command": "wasm-bindgen",
+			"dependsOn": [
+				"COMPILE RELEASE WASM",
+			],
 			"problemMatcher": [
 				{
 					"owner": "rust",
@@ -308,7 +311,6 @@
 			"group": "build",
 			"isBackground": true,
 			"dependsOn": [
-				"COMPILE RELEASE WASM",
 				"WASM BINDGEN",
 			],
 			"problemMatcher": [],

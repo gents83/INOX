@@ -11,7 +11,7 @@ macro_rules! load_profiler_lib {
                 let (path, filename) =
                     library::compute_folder_and_filename(PathBuf::from(library_name));
                 let fullpath = path.join(filename);
-                let library = Library::new(fullpath);
+                let library = Library::new(fullpath.to_str().unwrap());
                 SABI_PROFILER_LIB = Some(library);
             }
         }

@@ -89,7 +89,7 @@ impl PluginManager {
     }
 
     fn load_plugin(fullpath: PathBuf) -> (library::Library, Option<PluginHolder>) {
-        let lib = library::Library::new(fullpath);
+        let lib = library::Library::new(fullpath.to_str().unwrap());
         if let Some(create_fn) = lib.get::<PfnCreatePlugin>(CREATE_PLUGIN_FUNCTION_NAME) {
             let plugin_holder = unsafe { create_fn.unwrap()() };
             return (lib, Some(plugin_holder));
