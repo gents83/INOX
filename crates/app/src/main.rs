@@ -7,7 +7,7 @@ use inox_filesystem::{library_filename, EXE_PATH};
 use inox_launcher::launcher::Launcher;
 use inox_resources::Data;
 
-fn main() {
+fn run() {
     env::set_var(EXE_PATH, env::current_exe().unwrap().parent().unwrap());
     env::set_current_dir(".").ok();
 
@@ -51,4 +51,17 @@ fn main() {
     launcher.unprepare(&mut app);
 
     binarizer.stop();
+}
+
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::prelude::*;
+
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn start() {
+    run();
+}
+
+fn main() {
+    run();
 }

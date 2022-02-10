@@ -316,7 +316,7 @@
 			"group": "build",
 			"isBackground": true,
 			"dependsOn": [
-				"WASM BINDGEN",
+				"COMPILE RELEASE WASM",
 			],
 			"problemMatcher": [],
 			"presentation": {
