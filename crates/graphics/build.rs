@@ -43,4 +43,11 @@ fn main() {
 
     move_all_files_with_extension(deps_path, deps_build_path, "pdb");
     move_all_files_with_extension(out_dir, in_use_build_path, "pdb");
+
+    let target_arch = ::std::env::var("CARGO_CFG_TARGET_ARCH").unwrap();
+    let is_web_platform = target_arch == "wasm32";
+
+    if is_web_platform {
+        ::std::env::set_var("RUSTFLAGS", "--cfg=web_sys_unstable_apis");
+    }
 }

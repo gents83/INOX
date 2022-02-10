@@ -216,8 +216,12 @@
 				"--release",
 				"--target",
 				"wasm32-unknown-unknown",
-				"RUSTFLAGS=--cfg=web_sys_unstable_apis"
 			],
+			"options": {
+				"env": {
+					"RUSTFLAGS": "--cfg=web_sys_unstable_apis"
+				}
+			},
 			"command": "cargo",
 			"problemMatcher": [
 				{
