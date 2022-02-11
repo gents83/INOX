@@ -81,10 +81,10 @@
 			"label": "CREATE INOX FOLDER IN ADDON FOLDER",
 			"type": "shell",
 			"isBackground": true,
-			"command": "New-Item -ItemType \"directory\" -Path ${env:BLENDER_ADDONS_PATH}\\INOX",
+			"command": "New-Item -ItemType \"directory\" -Path \"$env:BLENDER_ADDONS_PATH\\INOX\" -Force",
 			"presentation": {
-				"clear": false,
-				"reveal": "always", //process does not switch terminal (focus on program output)
+				"clear": true,
+				"reveal": "never", //process does not switch terminal (focus on program output)
 			},
 		},
 		{
@@ -94,7 +94,7 @@
 				"CREATE INOX FOLDER IN ADDON FOLDER",
 			],
 			"isBackground": true,
-			"command": "Copy-Item -Path ${workspaceFolder}\\crates\\target\\debug\\inox_blender.dll -Destination ${env:BLENDER_ADDONS_PATH}\\INOX\\inox_blender.pyd -Force",
+			"command": "Copy-Item -Path ${workspaceFolder}\\crates\\target\\debug\\inox_blender.dll -Destination \"$env:BLENDER_ADDONS_PATH\\INOX\\inox_blender.pyd\" -Force",
 			"presentation": {
 				"clear": true,
 				"reveal": "never", //process does not switch terminal (focus on program output)
@@ -108,7 +108,7 @@
 				"RENAME BLENDER DEBUG DLL IN ADDON FOLDER",
 			],
 			"isBackground": true,
-			"command": "Copy-Item -Path ${workspaceFolder}\\crates\\blender\\inox_blender\\INOX -Destination ${env:BLENDER_ADDONS_PATH} -Force -Recurse",
+			"command": "Copy-Item -Path ${workspaceFolder}\\crates\\blender\\inox_blender\\INOX -Destination \"$env:BLENDER_ADDONS_PATH\" -Force -Recurse",
 			"presentation": {
 				"clear": true,
 				"reveal": "never", //process does not switch terminal (focus on program output)
