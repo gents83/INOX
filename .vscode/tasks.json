@@ -268,8 +268,8 @@
 			"isBackground": true,
 			"command": "cd ${workspaceFolder}\\crates\\web\\wasm\\ \n wasm-bindgen inox_launcher.wasm --out-dir ./ --target web --no-typescript",
 			"presentation": {
-				"clear": false,
-				"reveal": "always", //process does not switch terminal (focus on program output)
+				"clear": true,
+				"reveal": "never", //process does not switch terminal (focus on program output)
 			},
 		},
 		{
