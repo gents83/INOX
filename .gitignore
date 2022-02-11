@@ -1,5 +1,5 @@
-/target
 /crates/target
+/crates/web/wasm
 /data
 /data_raw/blender_export
 Cargo.lock
