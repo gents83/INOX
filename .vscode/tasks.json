@@ -81,10 +81,10 @@
 			"label": "CREATE INOX FOLDER IN ADDON FOLDER",
 			"type": "shell",
 			"isBackground": true,
-			"command": "New-Item -ItemType Directory -Force -Path ${env:BLENDER_ADDONS_PATH}\\INOX\\",
+			"command": "New-Item -ItemType \"directory\" -Path ${env:BLENDER_ADDONS_PATH}\\INOX",
 			"presentation": {
-				"clear": true,
-				"reveal": "never", //process does not switch terminal (focus on program output)
+				"clear": false,
+				"reveal": "always", //process does not switch terminal (focus on program output)
 			},
 		},
 		{
