@@ -247,37 +247,30 @@
 			}
 		},
 		{
-			"label": "WASM BINDGEN",
-			"args": [
-				"--target",
-				"web"
-			],
-			"command": "wasm-bindgen",
+			"label": "PREPARE WASM IN WEB FOLDER",
+			"type": "shell",
 			"dependsOn": [
 				"COMPILE RELEASE WASM",
 			],
-			"problemMatcher": [
-				{
-					"owner": "rust",
-					"fileLocation": [
-						"relative",
-						"${workspaceRoot}"
-					],
-					"pattern": {
-						"regexp": "^(.*):(\\d+):(\\d+):\\s+(\\d+):(\\d+)\\s+(warning|error):\\s+(.*)$",
-						"file": 1,
-						"line": 2,
-						"column": 3,
-						"endLine": 4,
-						"endColumn": 5,
-						"severity": 6,
-						"message": 7
-					}
-				}
-			],
+			"isBackground": true,
+			"command": "New-Item -ItemType \"directory\" -Path \"${workspaceFolder}\\crates\\web\\wasm\" -Force \n Copy-Item -Path ${workspaceFolder}\\crates\\target\\wasm32-unknown-unknown\\release\\*.wasm -Destination ${workspaceFolder}\\crates\\web\\wasm\\ -Force",
 			"presentation": {
 				"clear": true,
-			}
+				"reveal": "never", //process does not switch terminal (focus on program output)
+			},
+		},
+		{
+			"label": "WASM BINDGEN",
+			"type": "shell",
+			"dependsOn": [
+				"PREPARE WASM IN WEB FOLDER",
+			],
+			"isBackground": true,
+			"command": "cd ${workspaceFolder}\\crates\\web\\wasm\\ \n wasm-bindgen inox_launcher.wasm --out-dir ./ --target web --no-typescript",
+			"presentation": {
+				"clear": false,
+				"reveal": "always", //process does not switch terminal (focus on program output)
+			},
 		},
 		{
 			"label": "BUILD DEBUG",
@@ -316,7 +309,7 @@
 			"group": "build",
 			"isBackground": true,
 			"dependsOn": [
-				"COMPILE RELEASE WASM",
+				"WASM BINDGEN",
 			],
 			"problemMatcher": [],
 			"presentation": {

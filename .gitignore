@@ -3,6 +3,7 @@
 /data
 /data_raw/blender_export
 Cargo.lock
+*.wasm
 *.lock
 *.gfxr
 *.foz

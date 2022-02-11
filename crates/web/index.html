@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>INOX WebGPU</title>
+</head>
+
+<body>
+    <noscript>This page contains webassembly and javascript content, please enable javascript in your
+        browser.</noscript>
+    <script type="module">
+        import init from './wasm/inox_launcher.js';
+
+        if (!document.createElement('canvas').getContext('webgpu')) {
+            const span = document.createElement('span');
+            span.innerText = 'Your browser does not seem to support WebGPU';
+            document.body.appendChild(span);
+        } else {
+            init().catch(console.error);
+        }
+    </script>
+</body>
+
+</html>
