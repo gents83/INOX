@@ -12,3 +12,8 @@ crate-type = ["lib"]
 inox_commands = { path = "../commands" }
 inox_messenger = { path = "../messenger" }
 raw-window-handle = { version = "0.4" }
+
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = "0.2.57"
+web-sys = "0.3.56"

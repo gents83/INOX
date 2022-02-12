@@ -8,18 +8,28 @@ use inox_launcher::launcher::Launcher;
 use inox_resources::Data;
 
 fn run() {
-    env::set_var(EXE_PATH, env::current_exe().unwrap().parent().unwrap());
-    env::set_current_dir(".").ok();
+    let mut _binarizer: Option<Binarizer> = None;
+    #[cfg(all(not(target_arch = "wasm32")))]
+    {
+        env::set_var(EXE_PATH, env::current_exe().unwrap().parent().unwrap());
+        env::set_current_dir(".").ok();
+    }
 
     let mut app = App::default();
 
-    let mut binarizer = Binarizer::new(
-        app.get_shared_data(),
-        app.get_message_hub(),
-        Data::data_raw_folder(),
-        Data::data_folder(),
-    );
-    binarizer.start();
+    #[cfg(all(not(target_arch = "wasm32")))]
+    {
+        _binarizer = {
+            let mut binarizer = Binarizer::new(
+                app.get_shared_data(),
+                app.get_message_hub(),
+                Data::data_raw_folder(),
+                Data::data_folder(),
+            );
+            binarizer.start();
+            Some(binarizer)
+        };
+    }
 
     //additional plugins
     let command_parser = CommandParser::from_command_line();
@@ -36,8 +46,10 @@ fn run() {
 
     app.start();
 
-    while !binarizer.is_running() {
-        thread::yield_now();
+    if let Some(binarizer) = &mut _binarizer {
+        while !binarizer.is_running() {
+            thread::yield_now();
+        }
     }
 
     loop {
@@ -50,18 +62,63 @@ fn run() {
 
     launcher.unprepare(&mut app);
 
-    binarizer.stop();
+    if let Some(binarizer) = &mut _binarizer {
+        binarizer.stop();
+    }
 }
 
 #[cfg(target_arch = "wasm32")]
-use wasm_bindgen::prelude::*;
+mod wasm {
+    use wasm_bindgen::prelude::*;
 
-#[cfg(target_arch = "wasm32")]
-#[wasm_bindgen]
-pub fn start() {
-    run();
+    #[wasm_bindgen]
+    extern "C" {
+        #[wasm_bindgen(js_namespace = console)]
+        fn error(msg: String);
+
+        type Error;
+
+        #[wasm_bindgen(constructor)]
+        fn new() -> Error;
+
+        #[wasm_bindgen(structural, method, getter)]
+        fn stack(error: &Error) -> String;
+    }
+
+    pub fn hook(info: &std::panic::PanicInfo) {
+        hook_impl(info);
+    }
+
+    fn hook_impl(info: &std::panic::PanicInfo) {
+        let mut msg = info.to_string();
+        msg.push_str("\n\nStack:\n\n");
+        let e = Error::new();
+        let stack = e.stack();
+        msg.push_str(&stack);
+        msg.push_str("\n\n");
+        error(msg);
+    }
+
+    #[inline]
+    pub fn set_once() {
+        use std::sync::Once;
+        static SET_HOOK: Once = Once::new();
+        SET_HOOK.call_once(|| {
+            std::panic::set_hook(Box::new(hook));
+        });
+    }
+
+    #[wasm_bindgen]
+    pub fn init_panic_hook() {
+        set_once();
+    }
 }
 
 fn main() {
+    #[cfg(target_arch = "wasm32")]
+    {
+        wasm::init_panic_hook();
+    }
+
     run();
 }

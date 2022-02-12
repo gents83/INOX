@@ -1,6 +1,6 @@
 use raw_window_handle::RawWindowHandle;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HandleImpl {
     /// An ID value inserted into the data attributes of the canvas element as 'raw-handle'
     ///

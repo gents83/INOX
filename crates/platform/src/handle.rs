@@ -2,7 +2,7 @@ use raw_window_handle::RawWindowHandle;
 
 use super::platform_impl::platform::handle::*;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Handle {
     pub handle_impl: HandleImpl,
 }

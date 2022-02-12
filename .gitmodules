@@ -40,3 +40,6 @@
 [submodule "extern/raw-window-handle"]
 	path = extern/raw-window-handle
 	url = https://github.com/rust-windowing/raw-window-handle
+[submodule "extern/wasm-bindgen"]
+	path = extern/wasm-bindgen
+	url = https://github.com/rustwasm/wasm-bindgen
