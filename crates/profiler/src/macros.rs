@@ -156,13 +156,13 @@ macro_rules! scoped_profile {
     };
 }
 
-pub fn debug_log(msg: &str) {
+pub fn debug_log(_msg: &str) {
     #[cfg(all(not(target_arch = "wasm32")))]
     #[cfg(debug_assertions)]
     {
         get_profiler!();
         if let Some(profiler) = unsafe { &crate::GLOBAL_PROFILER } {
-            profiler.log(msg);
+            profiler.log(_msg);
         }
     }
 }

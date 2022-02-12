@@ -56,7 +56,16 @@ unsafe impl Sync for Renderer {}
 
 impl Renderer {
     pub fn new(handle: &Handle, shared_data: &SharedDataRc, _enable_debug: bool) -> Self {
+        #[cfg(all(not(target_arch = "wasm32")))]
         let render_context = futures::executor::block_on(Self::create_render_context(handle));
+
+        #[cfg(target_arch = "wasm32")]
+        let render_context = {
+            let (tx, rx) = std::sync::mpsc::channel::<RenderContext>();
+            wasm_bindgen_futures::spawn_local(Self::create_render_context_wasm(handle.clone(), tx));
+            rx.recv().unwrap()
+        };
+
         let texture_handler = TextureHandler::create(&render_context);
 
         Renderer {
@@ -72,6 +81,15 @@ impl Renderer {
         }
     }
 
+    #[cfg(target_arch = "wasm32")]
+    async fn create_render_context_wasm(
+        handle: Handle,
+        tx: std::sync::mpsc::Sender<RenderContext>,
+    ) {
+        let render_context = Self::create_render_context(&handle);
+        tx.send(render_context.await).unwrap();
+    }
+
     async fn create_render_context(handle: &Handle) -> RenderContext {
         let instance = wgpu::Instance::new(wgpu::Backends::all());
         let surface = unsafe { instance.create_surface(handle) };
@@ -83,6 +101,11 @@ impl Renderer {
             })
             .await
             .unwrap();
+
+        #[cfg(target_arch = "wasm32")]
+        let required_features = wgpu::Features::default();
+
+        #[cfg(all(not(target_arch = "wasm32")))]
         let required_features = wgpu::Features::all_webgpu_mask()
             | wgpu::Features::POLYGON_MODE_LINE
             | wgpu::Features::INDIRECT_FIRST_INSTANCE

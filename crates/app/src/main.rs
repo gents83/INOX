@@ -1,18 +1,20 @@
-use std::{env, path::PathBuf, thread};
+use std::{path::PathBuf, thread};
 
 use inox_binarizer::Binarizer;
 use inox_commands::CommandParser;
 use inox_core::App;
-use inox_filesystem::{library_filename, EXE_PATH};
+use inox_filesystem::library_filename;
 use inox_launcher::launcher::Launcher;
-use inox_resources::Data;
 
 fn run() {
     let mut _binarizer: Option<Binarizer> = None;
     #[cfg(all(not(target_arch = "wasm32")))]
     {
-        env::set_var(EXE_PATH, env::current_exe().unwrap().parent().unwrap());
-        env::set_current_dir(".").ok();
+        std::env::set_var(
+            inox_filesystem::EXE_PATH,
+            std::env::current_exe().unwrap().parent().unwrap(),
+        );
+        std::env::set_current_dir(".").ok();
     }
 
     let mut app = App::default();
@@ -23,8 +25,8 @@ fn run() {
             let mut binarizer = Binarizer::new(
                 app.get_shared_data(),
                 app.get_message_hub(),
-                Data::data_raw_folder(),
-                Data::data_folder(),
+                inox_resources::Data::data_raw_folder(),
+                inox_resources::Data::data_folder(),
             );
             binarizer.start();
             Some(binarizer)
