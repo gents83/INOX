@@ -15,6 +15,9 @@ use inox_uid::generate_uid_from_string;
 
 use crate::{Job, JobHandler, JobHandlerRw, Phase, PluginId, PluginManager, Scheduler, Worker};
 
+#[cfg(target_arch = "wasm32")]
+const NUM_WORKER_THREADS: usize = 0;
+#[cfg(all(not(target_arch = "wasm32")))]
 const NUM_WORKER_THREADS: usize = 5;
 
 pub struct App {
@@ -78,8 +81,10 @@ impl App {
     }
 
     fn setup_worker_threads(&mut self) {
-        for i in 1..NUM_WORKER_THREADS + 1 {
-            self.add_worker(format!("Worker{}", i).as_str());
+        if NUM_WORKER_THREADS > 0 {
+            for i in 1..NUM_WORKER_THREADS + 1 {
+                self.add_worker(format!("Worker{}", i).as_str());
+            }
         }
     }
 
@@ -151,37 +156,7 @@ impl App {
 
         //flush messages between frames
         self.message_hub.flush();
-        /*
-        self.message_hub
-            .read()
-            .unwrap()
-            .process_messages(|msg| {
-                if msg.type_id() == TypeId::of::<KeyEvent>() {
-                    let e = msg.as_any().downcast_ref::<KeyEvent>().unwrap();
-                } else if msg.type_id() == TypeId::of::<WindowEvent>() {
-                    let e = msg.as_any().downcast_ref::<WindowEvent>().unwrap();
-                } else if let Some(type_id) = SharedData::is_message_handled(&self.shared_data, msg)
-                {
-                    let shared_data = self.shared_data.clone();
-                    let message_hub = self.message_hub.clone();
-                    let msg = msg.as_boxed();
-                    let job_name = "Load Event".to_string();
-                    let load_event_category: Uid = generate_uid_from_string("LOAD_EVENT_CATEGORY");
-                    self.job_handler.write().unwrap().add_job(
-                        &load_event_category,
-                        job_name.as_str(),
-                        move || {
-                            SharedData::handle_events(
-                                &shared_data,
-                                &message_hub,
-                                type_id,
-                                msg.as_ref(),
-                            );
-                        },
-                    );
-                }
-            });
-        */
+
         self.is_profiling = is_profiling;
         if self.is_enabled && !is_enabled {
             self.stop_worker_threads();

@@ -14,7 +14,6 @@ use inox_platform::Window;
 
 use crate::window_system::WindowSystem;
 
-const RENDERING_THREAD: &str = "Worker1";
 const MAIN_WINDOW_PHASE: &str = "MAIN_WINDOW_PHASE";
 
 #[repr(C)]
@@ -64,11 +63,11 @@ impl Launcher {
         rendering_draw_phase.add_system(rendering_draw_system);
 
         app.create_phase(rendering_update_phase);
-        app.create_phase_on_worker(rendering_draw_phase, RENDERING_THREAD);
+        app.create_phase(rendering_draw_phase);
     }
 
     pub fn unprepare(&mut self, app: &mut App) {
-        app.destroy_phase_on_worker(RENDERING_PHASE, RENDERING_THREAD);
+        app.destroy_phase(RENDERING_PHASE);
         app.destroy_phase(RENDERING_UPDATE);
         app.destroy_phase(MAIN_WINDOW_PHASE);
     }
