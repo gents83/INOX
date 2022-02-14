@@ -188,7 +188,7 @@ impl Texture {
             self.data = Some(image_data)
         }
         texture_handler.copy(
-            context,
+            &context.device,
             texture_id,
             self.data.as_mut().unwrap().as_mut_slice(),
         );

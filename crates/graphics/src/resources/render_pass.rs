@@ -10,7 +10,7 @@ use inox_serialize::{inox_serializable::SerializableRegistryRc, read_from_file};
 
 use crate::{
     GraphicsMesh, LoadOperation, Pipeline, RenderContext, RenderMode, RenderPassData, RenderTarget,
-    StoreOperation, Texture, TextureHandler,
+    StoreOperation, Texture,
 };
 
 pub type RenderPassId = ResourceId;
@@ -114,14 +114,15 @@ impl RenderPass {
     pub fn render_target(&self) -> &Handle<Texture> {
         &self.target_texture
     }
-    pub fn init(&mut self, context: &RenderContext, texture_handler: &mut TextureHandler) {
+    pub fn init(&mut self, context: &mut RenderContext) {
         if self.is_initialized {
             return;
         }
         if let Some(texture) = &self.target_texture {
+            let texture_handler = &mut context.texture_handler;
             if texture_handler.get_texture_atlas(texture.id()).is_none() {
                 texture_handler.add_render_target(
-                    context,
+                    &context.device,
                     texture.id(),
                     texture.get().width(),
                     texture.get().height(),

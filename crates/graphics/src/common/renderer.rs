@@ -8,7 +8,7 @@ use inox_resources::{DataTypeResource, HashIndexer, Resource};
 use inox_platform::Handle;
 use inox_resources::{SharedData, SharedDataRc};
 
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 const DEFAULT_WIDTH: u32 = 1920;
 const DEFAULT_HEIGHT: u32 = 1080;
@@ -23,6 +23,7 @@ const OPENGL_TO_WGPU_MATRIX: Matrix4 = Matrix4::new(
 
 #[derive(PartialEq, Eq, Copy, Clone)]
 pub enum RendererState {
+    Init,
     Preparing,
     Prepared,
     Drawing,
@@ -36,12 +37,28 @@ pub struct RenderContext {
     pub adapter: wgpu::Adapter,
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
+    pub texture_handler: TextureHandler,
+}
+
+pub type RenderContextRw = Arc<RwLock<Option<RenderContext>>>;
+
+pub trait GetRenderContext {
+    fn get(&self) -> RwLockReadGuard<Option<RenderContext>>;
+    fn get_mut(&self) -> RwLockWriteGuard<Option<RenderContext>>;
+}
+
+impl GetRenderContext for RenderContextRw {
+    fn get(&self) -> RwLockReadGuard<Option<RenderContext>> {
+        self.read().unwrap()
+    }
+    fn get_mut(&self) -> RwLockWriteGuard<Option<RenderContext>> {
+        self.write().unwrap()
+    }
 }
 
 pub struct Renderer {
-    context: RenderContext,
+    context: RenderContextRw,
     shared_data: SharedDataRc,
-    texture_handler: TextureHandler,
     state: RendererState,
     graphics_mesh: GraphicsMesh,
     material_hash_indexer: HashIndexer<MaterialId>,
@@ -56,51 +73,51 @@ unsafe impl Sync for Renderer {}
 
 impl Renderer {
     pub fn new(handle: &Handle, shared_data: &SharedDataRc, _enable_debug: bool) -> Self {
-        #[cfg(all(not(target_arch = "wasm32")))]
-        let render_context = futures::executor::block_on(Self::create_render_context(handle));
+        let render_context = Arc::new(RwLock::new(None));
 
         #[cfg(target_arch = "wasm32")]
-        let render_context = {
-            let (tx, rx) = std::sync::mpsc::channel::<RenderContext>();
-            wasm_bindgen_futures::spawn_local(Self::create_render_context_wasm(handle.clone(), tx));
-            rx.recv().unwrap()
-        };
+        wasm_bindgen_futures::spawn_local(Self::create_render_context(
+            handle.clone(),
+            render_context.clone(),
+        ));
 
-        let texture_handler = TextureHandler::create(&render_context);
+        #[cfg(all(not(target_arch = "wasm32")))]
+        futures::executor::block_on(Self::create_render_context(
+            handle.clone(),
+            render_context.clone(),
+        ));
 
         Renderer {
-            texture_handler,
-            shader_data: ShaderData::new(&render_context),
+            shader_data: ShaderData::default(),
             graphics_mesh: GraphicsMesh::default(),
             texture_hash_indexer: HashIndexer::default(),
             material_hash_indexer: HashIndexer::default(),
             light_hash_indexer: HashIndexer::default(),
-            state: RendererState::Submitted,
+            state: RendererState::Init,
             context: render_context,
             shared_data: shared_data.clone(),
         }
     }
 
-    #[cfg(target_arch = "wasm32")]
-    async fn create_render_context_wasm(
-        handle: Handle,
-        tx: std::sync::mpsc::Sender<RenderContext>,
-    ) {
-        let render_context = Self::create_render_context(&handle);
-        tx.send(render_context.await).unwrap();
+    pub fn check_initialization(&mut self) {
+        if self.context.read().unwrap().is_none() {
+            self.state = RendererState::Init;
+        } else {
+            self.state = RendererState::Submitted;
+        }
     }
 
-    async fn create_render_context(handle: &Handle) -> RenderContext {
+    async fn create_render_context(handle: Handle, render_context: RenderContextRw) {
         let instance = wgpu::Instance::new(wgpu::Backends::all());
-        let surface = unsafe { instance.create_surface(handle) };
+        let surface = unsafe { instance.create_surface(&handle) };
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
-                power_preference: wgpu::PowerPreference::default(),
+                power_preference: wgpu::PowerPreference::HighPerformance,
                 compatible_surface: Some(&surface),
                 force_fallback_adapter: false,
             })
             .await
-            .unwrap();
+            .expect("Failed to find an appropriate adapter");
 
         #[cfg(target_arch = "wasm32")]
         let required_features = wgpu::Features::default();
@@ -121,13 +138,17 @@ impl Renderer {
                 &wgpu::DeviceDescriptor {
                     label: None,
                     features: required_features,
+                    #[cfg(all(not(target_arch = "wasm32")))]
                     limits: wgpu::Limits::default(),
+                    #[cfg(target_arch = "wasm32")]
+                    limits: wgpu::Limits::downlevel_webgl2_defaults()
+                        .using_resolution(adapter.limits()),
                 },
                 // Some(&std::path::Path::new("trace")), // Trace path
                 None,
             )
             .await
-            .unwrap();
+            .expect("Failed to create device");
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: surface.get_preferred_format(&adapter).unwrap(),
@@ -136,18 +157,23 @@ impl Renderer {
             present_mode: wgpu::PresentMode::Fifo,
         };
         surface.configure(&device, &config);
-        RenderContext {
+
+        render_context.write().unwrap().replace(RenderContext {
+            texture_handler: TextureHandler::create(&device),
             instance,
             device,
             adapter,
             surface,
             config,
             queue,
-        }
+        });
     }
 
-    pub fn context(&self) -> &RenderContext {
-        &self.context
+    pub fn resolution(&self) -> (u32, u32) {
+        (
+            self.context.get().as_ref().unwrap().config.width,
+            self.context.get().as_ref().unwrap().config.height,
+        )
     }
 
     pub fn state(&self) -> RendererState {
@@ -166,14 +192,8 @@ impl Renderer {
         constant_data.screen_height = screen_size.y;
         self.shader_data
             .set_num_lights(self.light_hash_indexer.len());
-        self.shader_data.send_to_gpu(&self.context);
-    }
-
-    pub fn get_texture_handler(&self) -> &TextureHandler {
-        &self.texture_handler
-    }
-    pub fn get_texture_handler_mut(&mut self) -> &mut TextureHandler {
-        &mut self.texture_handler
+        self.shader_data
+            .send_to_gpu(self.context.get().as_ref().unwrap());
     }
 
     pub fn need_redraw(&self) -> bool {
@@ -195,18 +215,19 @@ impl Renderer {
     }
 
     pub fn set_surface_size(&mut self, width: u32, height: u32) {
-        self.context.config.width = width;
-        self.context.config.height = height;
-        self.context
-            .surface
-            .configure(&self.context.device, &self.context.config);
+        let mut context = self.context.get_mut();
+        let context = context.as_mut().unwrap();
+        context.config.width = width;
+        context.config.height = height;
+        context.surface.configure(&context.device, &context.config);
         self.recreate();
     }
 
     pub fn on_texture_changed(&mut self, texture_id: &TextureId) {
         inox_profiler::scoped_profile!("renderer::on_texture_changed");
-        let render_context = &self.context;
-        let texture_handler = &mut self.texture_handler;
+        let mut render_context = self.context.get_mut();
+        let render_context = render_context.as_mut().unwrap();
+        let texture_handler = &mut render_context.texture_handler;
 
         if let Some(texture) = self.shared_data.get_resource::<Texture>(texture_id) {
             if !texture.get().is_initialized() {
@@ -215,7 +236,7 @@ impl Renderer {
                     let height = texture.get().height();
                     if let Some(image_data) = texture.get().image_data() {
                         texture_handler.add_image(
-                            render_context,
+                            &render_context.device,
                             texture_id,
                             (width, height),
                             image_data,
@@ -259,11 +280,11 @@ impl Renderer {
 
     pub fn on_render_pass_changed(&mut self, render_pass_id: &RenderPassId) {
         inox_profiler::scoped_profile!("renderer::on_render_pass_changed");
-        let render_context = &self.context;
-        let texture_handler = &mut self.texture_handler;
+        let mut render_context = self.context.get_mut();
+        let render_context = render_context.as_mut().unwrap();
         if let Some(render_pass) = self.shared_data.get_resource::<RenderPass>(render_pass_id) {
             if !render_pass.get().is_initialized() {
-                render_pass.get_mut().init(render_context, texture_handler);
+                render_pass.get_mut().init(render_context);
             }
         }
     }
@@ -285,52 +306,64 @@ impl Renderer {
     }
 
     pub fn draw(&self) {
-        if let Ok(output) = self.context.surface.get_current_texture() {
+        if let Ok(output) = self
+            .context
+            .get()
+            .as_ref()
+            .unwrap()
+            .surface
+            .get_current_texture()
+        {
             let screen_view = output
                 .texture
                 .create_view(&wgpu::TextureViewDescriptor::default());
-            let mut encoder =
-                self.context
-                    .device
-                    .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                        label: Some("Render Encoder"),
-                    });
+            let mut encoder = self
+                .context
+                .get()
+                .as_ref()
+                .unwrap()
+                .device
+                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                    label: Some("Render Encoder"),
+                });
 
             {
                 let debug_should_draw_only_first = false;
                 let mut index = 0;
                 let graphics_mesh = &self.graphics_mesh;
+                let mut render_target = &screen_view;
+                let render_context = self.context.get();
+                let render_context = render_context.as_ref().unwrap();
+                let texture_handler = &render_context.texture_handler;
 
                 let bind_group_layouts = vec![
                     self.shader_data.bind_group_layout(),
-                    self.texture_handler.bind_group_layout(),
+                    texture_handler.bind_group_layout(),
                 ];
-                let mut render_target = &screen_view;
-                let mut render_format = &self.context.config.format;
+                let mut render_format = &render_context.config.format;
                 self.shared_data
                     .for_each_resource_mut(|_id, r: &mut RenderPass| {
                         if !debug_should_draw_only_first || index == 0 {
-                            let texture_bind_group = self.texture_handler.bind_group(
-                                &self.context,
+                            let texture_bind_group = texture_handler.bind_group(
+                                &render_context.device,
                                 r.render_target().as_ref().map(|t| t.id()),
                             );
                             let bind_group =
                                 vec![self.shader_data.bind_group(), &texture_bind_group];
 
                             if let Some(texture) = r.render_target() {
-                                if let Some(atlas) =
-                                    self.texture_handler.get_texture_atlas(texture.id())
+                                if let Some(atlas) = texture_handler.get_texture_atlas(texture.id())
                                 {
                                     render_target = atlas.texture();
                                     render_format = atlas.texture_format();
                                 }
                             } else {
                                 render_target = &screen_view;
-                                render_format = &self.context.config.format;
+                                render_format = &render_context.config.format;
                             }
 
                             r.draw(RenderPassDrawContext {
-                                context: &self.context,
+                                context: render_context,
                                 encoder: &mut encoder,
                                 texture_view: render_target,
                                 format: render_format,
@@ -343,7 +376,12 @@ impl Renderer {
                     });
             }
 
-            self.context.queue.submit(std::iter::once(encoder.finish()));
+            self.context
+                .get()
+                .as_ref()
+                .unwrap()
+                .queue
+                .submit(std::iter::once(encoder.finish()));
             output.present();
         } else {
             eprintln!("Error drawing on screen");
@@ -352,10 +390,12 @@ impl Renderer {
 
     pub fn send_to_gpu(&mut self) {
         inox_profiler::scoped_profile!("renderer::send_to_gpu");
-        let render_context = &self.context;
+        let mut render_context = self.context.get_mut();
+        let render_context = render_context.as_mut().unwrap();
+        let texture_handler = &mut render_context.texture_handler;
         let graphic_mesh = &mut self.graphics_mesh;
 
-        self.texture_handler.send_to_gpu(render_context);
+        texture_handler.send_to_gpu(&render_context.queue);
         graphic_mesh.send_to_gpu(render_context);
     }
 }

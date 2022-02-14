@@ -2,7 +2,7 @@ use std::{num::NonZeroU32, path::Path};
 
 use inox_profiler::debug_log;
 
-use crate::{RenderContext, TextureData, TextureId, MAX_TEXTURE_ATLAS_COUNT};
+use crate::{TextureData, TextureId, MAX_TEXTURE_ATLAS_COUNT};
 
 use super::texture_atlas::TextureAtlas;
 
@@ -14,8 +14,8 @@ pub struct TextureHandler {
 }
 
 impl TextureHandler {
-    pub fn create(context: &RenderContext) -> Self {
-        let default_sampler = context.device.create_sampler(&wgpu::SamplerDescriptor {
+    pub fn create(device: &wgpu::Device) -> Self {
+        let default_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
             address_mode_u: wgpu::AddressMode::ClampToEdge,
             address_mode_v: wgpu::AddressMode::ClampToEdge,
             address_mode_w: wgpu::AddressMode::ClampToEdge,
@@ -24,31 +24,29 @@ impl TextureHandler {
             mipmap_filter: wgpu::FilterMode::Nearest,
             ..Default::default()
         });
-        let texture_atlas = vec![TextureAtlas::create_default(context)];
+        let texture_atlas = vec![TextureAtlas::create_default(device)];
         let texture_data_bind_group_layout =
-            context
-                .device
-                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                    label: Some("Textures bind group layout"),
-                    entries: &[
-                        wgpu::BindGroupLayoutEntry {
-                            binding: 0,
-                            visibility: wgpu::ShaderStages::FRAGMENT,
-                            ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                            count: None,
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: Some("Textures bind group layout"),
+                entries: &[
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                        count: None,
+                    },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Texture {
+                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                            multisampled: false,
                         },
-                        wgpu::BindGroupLayoutEntry {
-                            binding: 1,
-                            visibility: wgpu::ShaderStages::FRAGMENT,
-                            ty: wgpu::BindingType::Texture {
-                                sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                                view_dimension: wgpu::TextureViewDimension::D2,
-                                multisampled: false,
-                            },
-                            count: NonZeroU32::new(MAX_TEXTURE_ATLAS_COUNT),
-                        },
-                    ],
-                });
+                        count: NonZeroU32::new(MAX_TEXTURE_ATLAS_COUNT),
+                    },
+                ],
+            });
 
         Self {
             encoder: None,
@@ -57,23 +55,18 @@ impl TextureHandler {
             default_sampler,
         }
     }
-    fn create_encoder(&mut self, render_context: &RenderContext) -> &mut wgpu::CommandEncoder {
+    fn create_encoder(&mut self, device: &wgpu::Device) -> &mut wgpu::CommandEncoder {
         if self.encoder.is_none() {
-            let encoder =
-                render_context
-                    .device
-                    .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                        label: Some("Texture Update Encoder"),
-                    });
+            let encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("Texture Update Encoder"),
+            });
             self.encoder = Some(encoder);
         }
         self.encoder.as_mut().unwrap()
     }
-    pub fn send_to_gpu(&mut self, render_context: &RenderContext) {
+    pub fn send_to_gpu(&mut self, queue: &wgpu::Queue) {
         if let Some(encoder) = self.encoder.take() {
-            render_context
-                .queue
-                .submit(std::iter::once(encoder.finish()));
+            queue.submit(std::iter::once(encoder.finish()));
         }
     }
     pub fn bind_group_layout(&self) -> &wgpu::BindGroupLayout {
@@ -85,7 +78,7 @@ impl TextureHandler {
 
     pub fn bind_group(
         &self,
-        context: &RenderContext,
+        device: &wgpu::Device,
         render_target: Option<&TextureId>,
     ) -> wgpu::BindGroup {
         let mut textures = Vec::new();
@@ -101,35 +94,33 @@ impl TextureHandler {
             textures.push(textures[0]);
         }
 
-        let bind_group = context
-            .device
-            .create_bind_group(&wgpu::BindGroupDescriptor {
-                entries: &[
-                    wgpu::BindGroupEntry {
-                        binding: 0,
-                        resource: wgpu::BindingResource::Sampler(&self.default_sampler),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 1,
-                        resource: wgpu::BindingResource::TextureViewArray(textures.as_slice()),
-                    },
-                ],
-                layout: &self.texture_data_bind_group_layout,
-                label: Some("Textures bind group"),
-            });
+        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::Sampler(&self.default_sampler),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::TextureViewArray(textures.as_slice()),
+                },
+            ],
+            layout: &self.texture_data_bind_group_layout,
+            label: Some("Textures bind group"),
+        });
 
         bind_group
     }
 
     pub fn add_render_target(
         &mut self,
-        context: &RenderContext,
+        device: &wgpu::Device,
         id: &TextureId,
         width: u32,
         height: u32,
     ) {
         self.texture_atlas
-            .push(TextureAtlas::create_texture(context, id, width, height, 1));
+            .push(TextureAtlas::create_texture(device, id, width, height, 1));
     }
 
     pub fn get_textures_atlas(&self) -> &[TextureAtlas] {
@@ -159,11 +150,11 @@ impl TextureHandler {
         self.texture_atlas.is_empty()
     }
 
-    pub fn copy(&self, context: &RenderContext, id: &TextureId, _image_data: &mut [u8]) {
+    pub fn copy(&self, device: &wgpu::Device, id: &TextureId, _image_data: &mut [u8]) {
         inox_profiler::scoped_profile!("texture::copy");
 
         self.texture_atlas.iter().for_each(|atlas| {
-            if atlas.read_from_gpu(context, id) {
+            if atlas.read_from_gpu(device, id) {
                 todo!();
             }
         });
@@ -188,13 +179,13 @@ impl TextureHandler {
 
     pub fn add_from_path(
         &mut self,
-        context: &RenderContext,
+        device: &wgpu::Device,
         id: &TextureId,
         filepath: &Path,
     ) -> TextureData {
         let image = image::open(filepath).unwrap();
         self.add_image(
-            context,
+            device,
             id,
             (image.width(), image.height()),
             image.to_rgba8().as_raw().as_slice(),
@@ -203,15 +194,15 @@ impl TextureHandler {
 
     pub fn add_image(
         &mut self,
-        render_context: &RenderContext,
+        device: &wgpu::Device,
         id: &TextureId,
         dimensions: (u32, u32),
         image_data: &[u8],
     ) -> TextureData {
-        self.create_encoder(render_context);
+        self.create_encoder(device);
         for (texture_index, texture_atlas) in self.texture_atlas.iter_mut().enumerate() {
             if let Some(texture_data) = texture_atlas.allocate(
-                render_context,
+                device,
                 self.encoder.as_mut().unwrap(),
                 id,
                 texture_index as _,

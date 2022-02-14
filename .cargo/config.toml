@@ -35,6 +35,9 @@ rustflags = ["-C", "link-arg=-fuse-ld=/usr/local/bin/zld"]
 [target.aarch64-apple-darwin]
 rustflags = ["-C", "link-arg=-fuse-ld=/usr/local/bin/zld"]
 
+[target.wasm32-unknown-unknown]
+rustflags = ["--cfg=web_sys_unstable_apis"]
+
 [target.x86_64-pc-windows-msvc]
 linker = "rust-lld.exe"
 

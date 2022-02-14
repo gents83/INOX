@@ -43,30 +43,32 @@ impl Default for DynamicData {
     }
 }
 
+#[derive(Default)]
 pub struct ShaderData {
     pub constant_data: DataBuffer<ConstantData, 1>,
     pub dynamic_data: DataBuffer<DynamicData, 1>,
-    data_bind_group_layout: wgpu::BindGroupLayout,
-    data_bind_group: wgpu::BindGroup,
+    data_bind_group_layout: Option<wgpu::BindGroupLayout>,
+    data_bind_group: Option<wgpu::BindGroup>,
 }
 
 impl ShaderData {
-    pub fn new(context: &RenderContext) -> Self {
-        let mut constant_data = DataBuffer::new(context);
-        let mut dynamic_data = DataBuffer::new(context);
-        let (data_bind_group_layout, data_bind_group) =
-            Self::create_data(context, &mut constant_data, &mut dynamic_data);
-        Self {
-            constant_data,
-            dynamic_data,
-            data_bind_group_layout,
-            data_bind_group,
-        }
+    pub fn bind_group(&self) -> &wgpu::BindGroup {
+        self.data_bind_group.as_ref().unwrap()
+    }
+    pub fn bind_group_layout(&self) -> &wgpu::BindGroupLayout {
+        self.data_bind_group_layout.as_ref().unwrap()
     }
 
-    pub fn send_to_gpu(&self, context: &RenderContext) {
+    pub fn send_to_gpu(&mut self, context: &RenderContext) {
         self.constant_data.send_to_gpu(context);
         self.dynamic_data.send_to_gpu(context);
+
+        if self.data_bind_group.is_none() {
+            let (data_bind_group_layout, data_bind_group) =
+                Self::create_data(context, &mut self.constant_data, &mut self.dynamic_data);
+            self.data_bind_group = Some(data_bind_group);
+            self.data_bind_group_layout = Some(data_bind_group_layout);
+        }
     }
 
     pub fn constant_data_mut(&mut self) -> &mut ConstantData {
@@ -86,13 +88,6 @@ impl ShaderData {
     }
     pub fn set_num_lights(&mut self, num_lights: usize) {
         self.dynamic_data.data_mut()[0].num_lights = num_lights as _;
-    }
-
-    pub fn bind_group(&self) -> &wgpu::BindGroup {
-        &self.data_bind_group
-    }
-    pub fn bind_group_layout(&self) -> &wgpu::BindGroupLayout {
-        &self.data_bind_group_layout
     }
 
     fn create_data(

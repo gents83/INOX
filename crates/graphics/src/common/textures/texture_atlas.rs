@@ -1,7 +1,7 @@
 use inox_profiler::debug_log;
 use inox_uid::generate_random_uid;
 
-use crate::{RenderContext, TextureData, TextureId};
+use crate::{TextureData, TextureId};
 
 use super::{
     area::{Area, AreaAllocator, DEFAULT_AREA_SIZE},
@@ -17,13 +17,13 @@ pub struct TextureAtlas {
 }
 
 impl TextureAtlas {
-    pub fn create_default(context: &RenderContext) -> Self {
+    pub fn create_default(device: &wgpu::Device) -> Self {
         let mut allocators: Vec<AreaAllocator> = Vec::new();
         for _i in 0..DEFAULT_LAYER_COUNT {
             allocators.push(AreaAllocator::new(DEFAULT_AREA_SIZE, DEFAULT_AREA_SIZE));
         }
         let texture = Texture::create(
-            context,
+            device,
             generate_random_uid(),
             DEFAULT_AREA_SIZE,
             DEFAULT_AREA_SIZE,
@@ -36,7 +36,7 @@ impl TextureAtlas {
     }
 
     pub fn create_texture(
-        context: &RenderContext,
+        device: &wgpu::Device,
         id: &TextureId,
         width: u32,
         height: u32,
@@ -46,7 +46,7 @@ impl TextureAtlas {
         if area_allocator.allocate(id, width, height).is_none() {
             panic!("Unable to create render target");
         }
-        let texture = Texture::create(context, *id, width, height, layers_count);
+        let texture = Texture::create(device, *id, width, height, layers_count);
         Self {
             texture,
             allocators: vec![area_allocator],
@@ -84,7 +84,7 @@ impl TextureAtlas {
 
     pub fn allocate(
         &mut self,
-        context: &RenderContext,
+        device: &wgpu::Device,
         encoder: &mut wgpu::CommandEncoder,
         id: &TextureId,
         texture_index: u32,
@@ -94,7 +94,7 @@ impl TextureAtlas {
         for (layer_index, area_allocator) in self.allocators.iter_mut().enumerate() {
             if let Some(area) = area_allocator.allocate(id, dimensions.0, dimensions.1) {
                 self.texture
-                    .send_to_gpu(context, encoder, layer_index as _, area, image_data);
+                    .send_to_gpu(device, encoder, layer_index as _, area, image_data);
                 return Some(TextureData {
                     texture_index: texture_index as _,
                     layer_index: layer_index as _,
@@ -147,10 +147,10 @@ impl TextureAtlas {
         false
     }
 
-    pub fn read_from_gpu(&self, context: &RenderContext, texture_id: &TextureId) -> bool {
+    pub fn read_from_gpu(&self, device: &wgpu::Device, texture_id: &TextureId) -> bool {
         for (layer_index, allocator) in self.allocators.iter().enumerate() {
             if let Some(area) = allocator.get_area(texture_id) {
-                self.texture.read_from_gpu(context, &area, layer_index as _);
+                self.texture.read_from_gpu(device, &area, layer_index as _);
                 return true;
             }
         }

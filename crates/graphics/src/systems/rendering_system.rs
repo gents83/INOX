@@ -51,10 +51,8 @@ impl System for RenderingSystem {
             let mut renderer = self.renderer.write().unwrap();
             renderer.change_state(RendererState::Drawing);
 
-            let screen_size = Vector2::new(
-                renderer.context().config.width as f32,
-                renderer.context().config.height as f32,
-            );
+            let resolution = renderer.resolution();
+            let screen_size = Vector2::new(resolution.0 as f32, resolution.1 as f32);
             renderer.update_shader_data(
                 self.view.get().view(),
                 self.view.get().proj(),

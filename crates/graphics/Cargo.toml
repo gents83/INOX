@@ -8,7 +8,6 @@ edition = "2021"
 crate-type = ["lib"]
 
 [dependencies]
-futures = "0.3"
 wgpu = { path = "../../extern/wgpu/wgpu", features = ["spirv"] }
 image = { path = "../../extern/image" }
 ttf-parser = {path = "../../extern/ttf-parser" }
@@ -23,7 +22,9 @@ inox_profiler = { path = "../profiler" }
 inox_serialize = { path = "../serialize" }
 inox_uid = { path = "../uid" }
 
+[target.'cfg(all(not(target_arch = "wasm32")))'.dependencies]
+futures = { version = "0.3", features = ["std", "thread-pool"] }
+
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = "0.2.57"
 wasm-bindgen-futures = "0.4.29"
-js-sys = "0.3.56"

@@ -173,6 +173,9 @@ impl System for UpdateSystem {
     fn run(&mut self) -> bool {
         let state = self.renderer.read().unwrap().state();
         if state != RendererState::Submitted {
+            if state == RendererState::Init {
+                self.renderer.write().unwrap().check_initialization();
+            }
             return true;
         }
 
