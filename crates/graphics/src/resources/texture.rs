@@ -50,7 +50,7 @@ impl DataTypeResource for Texture {
 
     fn invalidate(&mut self) -> &mut Self {
         self.uniform_index = INVALID_INDEX;
-        debug_log(format!("Texture {:?} will be reloaded", self.path).as_str());
+        debug_log!("Texture {:?} will be reloaded", self.path);
         self
     }
     fn is_initialized(&self) -> bool {

@@ -4,14 +4,19 @@ use inox_commands::CommandParser;
 use inox_core::App;
 use inox_filesystem::library_filename;
 use inox_launcher::{launcher::Launcher, platform::*};
+use inox_profiler::debug_log;
 
 fn main() {
     setup_env();
-    
+
     let mut app = App::default();
+
+    debug_log!("Creating launcher");
 
     let mut launcher = Launcher::default();
     launcher.prepare(&mut app);
+
+    debug_log!("Prepared launcher");
 
     //additional plugins
     let command_parser = CommandParser::from_command_line();
@@ -23,8 +28,12 @@ fn main() {
         app.add_plugin(path);
     }
 
+    debug_log!("Binarizing");
+
     let mut binarizer = binarizer_start(&app);
     binarizer = binarizer_update(binarizer);
+
+    debug_log!("Starting app");
 
     app.start();
 

@@ -22,7 +22,7 @@ impl ExtensionHandler for FontCompiler {
             if ext.to_str().unwrap().to_string().as_str() == FONT_EXTENSION
                 && copy_into_data_folder(&self.message_hub, path)
             {
-                debug_log(format!("Serializing {:?}", path).as_str());
+                debug_log!("Serializing {:?}", path);
             }
         }
     }

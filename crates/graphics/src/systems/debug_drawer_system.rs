@@ -283,7 +283,7 @@ impl DebugDrawerSystem {
                 .shared_data
                 .match_resource(|p: &Pipeline| p.data().identifier == DEFAULT_PIPELINE_IDENTIFIER);
             if default_pipeline.is_none() {
-                debug_log(
+                debug_log!(
                     "No pipeline with type Default found - did you forgot to read render.cfg file?",
                 );
             }
@@ -302,7 +302,7 @@ impl DebugDrawerSystem {
             });
 
             if wireframe_pipeline.is_none() {
-                debug_log(
+                debug_log!(
                     "No pipeline with type Wireframe found - did you forgot to read render.cfg file?",
                 );
             }

@@ -131,12 +131,10 @@ impl TextureAtlas {
             if allocator.remove_texture(texture_id) {
                 //todo remove the real texture from device memory
                 //atlas.texture.remove_from_layer(device, layer_index, &area);
-                debug_log(
-                    format!(
-                        "Removing from texture atlas {:?} at layer {:}",
-                        atlas_index, layer_index
-                    )
-                    .as_str(),
+                debug_log!(
+                    "Removing from texture atlas {:?} at layer {:}",
+                    atlas_index,
+                    layer_index
                 );
                 if self.allocators.iter().all(|a| a.is_empty()) {
                     return true;

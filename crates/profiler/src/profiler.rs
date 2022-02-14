@@ -19,6 +19,8 @@ use std::{
     u64,
 };
 
+use crate::debug_log;
+
 pub type GlobalProfiler = Arc<Profiler>;
 pub static mut SABI_PROFILER_LIB: Option<Library> = None;
 
@@ -125,14 +127,14 @@ impl Profiler {
             .swap(true, std::sync::atomic::Ordering::SeqCst);
         self.time_start
             .swap(Profiler::get_time(), std::sync::atomic::Ordering::SeqCst);
-        println!("Starting profiler");
+        debug_log!("Starting profiler");
     }
     pub fn stop(&self) {
         self.is_started
             .swap(false, std::sync::atomic::Ordering::SeqCst);
         let current_time = Profiler::get_time();
         let start_time = self.time_start.load(std::sync::atomic::Ordering::SeqCst);
-        println!(
+        debug_log!(
             "Stopping profiler for a total duration of {:.3}",
             (current_time - start_time) as f64 / 1000. / 1000.
         );

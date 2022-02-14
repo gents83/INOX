@@ -173,7 +173,7 @@ impl TextureHandler {
         texture_to_remove.iter().rev().for_each(|i| {
             let mut texture_atlas = self.texture_atlas.remove(*i);
             texture_atlas.destroy();
-            debug_log(format!("Removing texture atlas {:?}", i).as_str());
+            debug_log!("Removing texture atlas {:?}", i);
         });
     }
 

@@ -1,3 +1,4 @@
+use inox_profiler::debug_log;
 use inox_serialize::{
     deserialize, inox_serializable::SerializableRegistryRc, serialize, Deserialize, Serialize,
 };
@@ -52,17 +53,17 @@ impl Default for RustExampleNode {
 impl RustExampleNode {
     pub fn on_update(&mut self, pin: &PinId, _context: &LogicContext) -> NodeState {
         if *pin == PinId::new("in_execute") {
-            println!("Executing {}", self.name());
-            println!("in_int {}", self.node().get_input::<i32>("in_int").unwrap());
-            println!(
+            debug_log!("Executing {}", self.name());
+            debug_log!("in_int {}", self.node().get_input::<i32>("in_int").unwrap());
+            debug_log!(
                 "in_float {}",
                 self.node().get_input::<f32>("in_float").unwrap()
             );
-            println!(
+            debug_log!(
                 "in_string {}",
                 self.node().get_input::<String>("in_string").unwrap()
             );
-            println!(
+            debug_log!(
                 "in_bool {}",
                 self.node().get_input::<bool>("in_bool").unwrap()
             );
@@ -102,7 +103,7 @@ impl ScriptInitNode {
     pub fn on_update(&mut self, pin: &PinId, _context: &LogicContext) -> NodeState {
         debug_assert!(*pin == PinId::invalid());
 
-        println!("Executing {}", self.name());
+        debug_log!("Executing {}", self.name());
         NodeState::Executed(Some(vec![PinId::new("Execute")]))
     }
 }

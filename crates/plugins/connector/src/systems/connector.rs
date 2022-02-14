@@ -100,12 +100,9 @@ impl System for Connector {
                     .unwrap();
                 self.server_thread = Some(server_thread);
             } else {
-                debug_log(
-                    format!(
-                        "Unable to bind to requested address {:?}",
-                        self.host_address_and_port,
-                    )
-                    .as_str(),
+                debug_log!(
+                    "Unable to bind to requested address {:?}",
+                    self.host_address_and_port,
                 );
             }
         }

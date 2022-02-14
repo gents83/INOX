@@ -67,12 +67,9 @@ impl Scheduler {
             self.phases_order
                 .insert((phase_index + 1) as _, phase_name.to_string());
         } else {
-            debug_log(
-                format!(
-                    "Previous Phase witn name {} does not exist",
-                    previous_phase_name,
-                )
-                .as_str(),
+            debug_log!(
+                "Previous Phase witn name {} does not exist",
+                previous_phase_name,
             );
             self.phases_order.push(phase_name.to_string());
         }
@@ -85,12 +82,9 @@ impl Scheduler {
             self.phases_order
                 .insert(phase_index as _, phase_name.to_string());
         } else {
-            debug_log(
-                format!(
-                    "Next Phase with name {} does not exist",
-                    previous_phase_name,
-                )
-                .as_str(),
+            debug_log!(
+                "Next Phase with name {} does not exist",
+                previous_phase_name,
             );
             self.phases_order.insert(0, phase_name.to_string());
         }

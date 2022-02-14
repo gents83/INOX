@@ -1,3 +1,4 @@
+use inox_profiler::debug_log;
 use inox_resources::implement_singleton;
 use inox_serialize::{inox_serializable::SerializableRegistryRc, Deserialize, Serialize};
 
@@ -125,7 +126,7 @@ impl LogicNodeRegistry {
     pub fn deserialize_node(&self, data: &str) -> Option<Box<dyn NodeTrait + Send + Sync>> {
         for node in &self.node_types {
             if let Some(n) = node.deserialize_node(data, &self.serializable_registry) {
-                println!("Deserializing as {}", n.serializable_name());
+                debug_log!("Deserializing as {}", n.serializable_name());
                 return Some(n);
             }
         }

@@ -227,13 +227,13 @@ impl Pipeline {
             && !self.data.vertex_shader.to_str().unwrap().is_empty()
         {
             self.invalidate();
-            debug_log(format!("Vertex Shader {:?} will be reloaded", path_as_string).as_str());
+            debug_log!("Vertex Shader {:?} will be reloaded", path_as_string);
         }
         if path_as_string.contains(self.data.fragment_shader.to_str().unwrap())
             && !self.data.fragment_shader.to_str().unwrap().is_empty()
         {
             self.invalidate();
-            debug_log(format!("Fragment Shader {:?} will be reloaded", path_as_string).as_str());
+            debug_log!("Fragment Shader {:?} will be reloaded", path_as_string);
         }
     }
 }

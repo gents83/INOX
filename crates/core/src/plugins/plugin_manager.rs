@@ -120,12 +120,9 @@ impl PluginManager {
 
         let (lib, plugin_holder) = PluginManager::load_plugin(in_use_fullpath.clone());
 
-        debug_log(
-            format!(
-                "Loaded plugin {}",
-                fullpath.file_stem().unwrap().to_str().unwrap(),
-            )
-            .as_str(),
+        debug_log!(
+            "Loaded plugin {}",
+            fullpath.file_stem().unwrap().to_str().unwrap(),
         );
 
         if let Some(prepare_fn) = lib.get::<PfnPreparePlugin>(PREPARE_PLUGIN_FUNCTION_NAME) {
@@ -159,12 +156,9 @@ impl PluginManager {
         }
         lib.close();
 
-        debug_log(
-            format!(
-                "Unloaded plugin {:?}",
-                plugin_data.original_path.as_os_str(),
-            )
-            .as_str(),
+        debug_log!(
+            "Unloaded plugin {:?}",
+            plugin_data.original_path.as_os_str(),
         );
 
         delete_file(in_use_path);

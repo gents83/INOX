@@ -171,7 +171,7 @@ impl GltfCompiler {
     fn extract_mesh_data(&mut self, path: &Path, primitive: &Primitive) -> Vec<VertexData> {
         let mut vertices = Vec::new();
         for (_attribute_index, (semantic, accessor)) in primitive.attributes().enumerate() {
-            //debug_log("Attribute[{}]: {:?}", _attribute_index, semantic);
+            //debug_log!("Attribute[{}]: {:?}", _attribute_index, semantic);
             match semantic {
                 Semantic::Positions => {
                     let num = self.num_from_type(&accessor);
@@ -433,7 +433,7 @@ impl GltfCompiler {
 
         if let Some(mesh) = node.mesh() {
             for (_primitive_index, primitive) in mesh.primitives().enumerate() {
-                //debug_log("Primitive[{}]: ", _primitive_index);
+                //debug_log!("Primitive[{}]: ", _primitive_index);
                 let name = format!("Mesh_{}", mesh.index());
                 let material_path = self.process_material_data(path, &primitive);
                 let material_path = to_local_path(material_path.as_path());
@@ -675,7 +675,7 @@ impl GltfCompiler {
             debug_assert!(result.is_ok());
         }
         if need_to_binarize(path, new_path.as_path()) {
-            debug_log(format!("Serializing {:?}", new_path).as_str());
+            debug_log!("Serializing {:?}", new_path);
             data.save_to_file(new_path.as_path(), serializable_registry);
         }
         new_path

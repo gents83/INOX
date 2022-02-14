@@ -156,13 +156,21 @@ macro_rules! scoped_profile {
     };
 }
 
-pub fn debug_log(_msg: &str) {
-    #[cfg(all(not(target_arch = "wasm32")))]
-    #[cfg(debug_assertions)]
-    {
-        get_profiler!();
-        if let Some(profiler) = unsafe { &crate::GLOBAL_PROFILER } {
-            profiler.log(_msg);
+#[macro_export]
+macro_rules! debug_log {
+    ($($t:tt)*) => {
+        #[cfg(all(not(target_arch = "wasm32")))]
+        #[cfg(debug_assertions)]
+        {
+            $crate::get_profiler!();
+            if let Some(profiler) = unsafe { &$crate::GLOBAL_PROFILER } {
+                profiler.log(format_args!($($t)*).to_string().as_str());
+            }
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            ($crate::log(&format_args!($($t)*).to_string()))
         }
     }
+
 }

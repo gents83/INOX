@@ -302,7 +302,7 @@ impl UISystem {
 
     fn handle_output(&mut self, output: Output) -> &mut Self {
         if let Some(open) = output.open_url {
-            debug_log(format!("Trying to open url: {:?}", open.url).as_str());
+            debug_log!("Trying to open url: {:?}", open.url);
         }
 
         if !output.copied_text.is_empty() {

@@ -37,7 +37,7 @@ impl ExtensionHandler for CopyCompiler {
                 || ext.as_str() == Script::extension())
                 && copy_into_data_folder(&self.message_hub, path)
             {
-                debug_log(format!("Serializing {:?}", path).as_str());
+                debug_log!("Serializing {:?}", path);
             }
         }
     }

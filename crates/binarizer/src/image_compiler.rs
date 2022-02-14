@@ -39,7 +39,7 @@ impl ExtensionHandler for ImageCompiler {
                 || extension.as_str() == IMAGE_DDS_EXTENSION)
                 && copy_into_data_folder(&self.message_hub, path)
             {
-                debug_log(format!("Serializing {:?}", path).as_str());
+                debug_log!("Serializing {:?}", path);
             }
         }
     }
