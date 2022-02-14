@@ -66,7 +66,7 @@ New releases could still have breaking changes.
 Useful hotkeys to know:
 - in **_Blender_**:
   - F5: Launch Game Engine with current scene or you can use the panel inside Render properties
-- in **_SABI_**:
+- in **_INOX_**:
   - F1: Open\Close Info window
   - F2: Open\Close Hierarchy window
   - F9: Start\Stop Profiler and generate profile file on stop
