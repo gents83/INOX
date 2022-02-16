@@ -1,9 +1,13 @@
 #![cfg(target_os = "windows")]
 
-use std::thread;
+use std::{sync::Arc, thread};
 
 use inox_binarizer::Binarizer;
-use inox_core::App;
+use inox_messenger::MessageHubRc;
+use inox_profiler::debug_log;
+use inox_resources::SharedDataRc;
+
+use crate::launcher::Launcher;
 
 pub fn setup_env() {
     std::env::set_var(
@@ -13,10 +17,11 @@ pub fn setup_env() {
     std::env::set_current_dir(".").ok();
 }
 
-pub fn binarizer_start(app: &App) -> Binarizer {
+pub fn binarizer_start(shared_data: SharedDataRc, message_hub: MessageHubRc) -> Binarizer {
+    debug_log!("Binarizing");
     let mut binarizer = Binarizer::new(
-        app.get_shared_data(),
-        app.get_message_hub(),
+        &shared_data,
+        &message_hub,
         inox_resources::Data::data_raw_folder(),
         inox_resources::Data::data_folder(),
     );
@@ -33,4 +38,13 @@ pub fn binarizer_update(binarizer: Binarizer) -> Binarizer {
 
 pub fn binarizer_stop(mut binarizer: Binarizer) {
     binarizer.stop();
+}
+
+pub fn main_update(launcher: Arc<Launcher>) {
+    loop {
+        let can_continue = launcher.update();
+        if !can_continue {
+            break;
+        }
+    }
 }

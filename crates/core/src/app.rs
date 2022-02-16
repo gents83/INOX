@@ -166,7 +166,7 @@ impl App {
         self.is_enabled = is_enabled;
     }
 
-    pub fn run_once(&mut self) -> bool {
+    pub fn run(&mut self) -> bool {
         inox_profiler::scoped_profile!("app::run_frame");
 
         let can_continue = self.scheduler.run_once(self.is_enabled, &self.job_handler);
@@ -184,16 +184,6 @@ impl App {
         SharedData::flush_resources(&self.shared_data, &self.message_hub);
 
         can_continue
-    }
-
-    pub fn run(&mut self) {
-        loop {
-            let can_continue = self.run_once();
-
-            if !can_continue {
-                break;
-            }
-        }
     }
 
     pub fn add_plugin(&mut self, lib_path: PathBuf) {

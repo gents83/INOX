@@ -1,8 +1,14 @@
 #![cfg(target_arch = "wasm32")]
 
-use wasm_bindgen::prelude::*;
+use std::sync::Arc;
 
-use inox_core::App;
+use wasm_bindgen::prelude::*;
+use wasm_bindgen::JsCast;
+
+use inox_messenger::MessageHubRc;
+use inox_resources::SharedDataRc;
+
+use crate::launcher::Launcher;
 
 #[wasm_bindgen]
 extern "C" {
@@ -22,9 +28,23 @@ pub fn setup_env() {
     init_panic_hook();
 }
 
-pub fn binarizer_start(_app: &App) {}
+pub fn binarizer_start(_shared_data: SharedDataRc, _message_hub: MessageHubRc) {}
 pub fn binarizer_update(_: ()) {}
 pub fn binarizer_stop(_: ()) {}
+
+pub fn main_update(launcher: Arc<Launcher>) {
+    let can_continue = launcher.update();
+    if can_continue {
+        let cb = Closure::wrap(Box::new(move || {
+            main_update(launcher.clone());
+        }) as Box<dyn FnMut()>);
+        web_sys::window()
+            .unwrap()
+            .request_animation_frame(cb.as_ref().unchecked_ref())
+            .ok();
+        cb.forget();
+    }
+}
 
 pub fn hook(info: &std::panic::PanicInfo) {
     hook_impl(info);
