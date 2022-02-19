@@ -22,7 +22,15 @@ impl Data {
     }
     #[inline]
     pub fn data_folder() -> PathBuf {
-        env::current_dir().unwrap().join(DATA_FOLDER)
+        #[cfg(target_arch = "wasm32")]
+        {
+            PathBuf::from(".").join(DATA_FOLDER)
+        }
+
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            env::current_dir().unwrap().join(DATA_FOLDER)
+        }
     }
 }
 pub trait DataTypeResource: ResourceTrait + Default + Clone

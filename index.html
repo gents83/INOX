@@ -11,7 +11,7 @@
         browser.</noscript>
     <canvas id="canvas" height="1024" width="768"></canvas>
     <script type="module">
-        import init from './wasm/inox_launcher.js';
+        import init from './web/inox_launcher.js';
 
         if (!document.createElement('canvas').getContext('webgpu')) {
             const span = document.createElement('span');
