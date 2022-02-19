@@ -60,6 +60,7 @@ impl Library {
         drop(wide_filename);
         Library(handle)
     }
+
     #[inline]
     pub fn get<T>(&self, symbol: &str) -> Option<T> {
         unsafe {

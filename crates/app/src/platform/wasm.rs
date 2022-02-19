@@ -2,10 +2,12 @@
 
 use std::sync::Arc;
 
+use js_sys::{Function, Reflect};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 
 use inox_messenger::MessageHubRc;
+use inox_profiler::debug_log;
 use inox_resources::SharedDataRc;
 
 use crate::launcher::Launcher;
@@ -31,6 +33,18 @@ pub fn setup_env() {
 pub fn binarizer_start(_shared_data: SharedDataRc, _message_hub: MessageHubRc) {}
 pub fn binarizer_update(_: ()) {}
 pub fn binarizer_stop(_: ()) {}
+
+pub fn load_plugins(launcher: &Arc<Launcher>) {
+    debug_log!("Loading plugins");
+
+    launcher.add_static_plugin(
+        "inox_viewer",
+        Some(|| inox_viewer::viewer::create_plugin()),
+        Some(|app| inox_viewer::viewer::prepare_plugin(app)),
+        Some(|app| inox_viewer::viewer::unprepare_plugin(app)),
+        Some(|| inox_viewer::viewer::destroy_plugin()),
+    );
+}
 
 pub fn main_update(launcher: Arc<Launcher>) {
     let can_continue = launcher.update();

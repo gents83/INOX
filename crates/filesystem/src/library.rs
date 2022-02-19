@@ -1,7 +1,7 @@
 use std::{
     env::{self, consts::*},
     ffi::{OsStr, OsString},
-    path::PathBuf,
+    path::{Path, PathBuf},
 };
 
 use super::platform_impl::platform::library as platform;
@@ -19,8 +19,8 @@ pub fn library_filename<S: AsRef<OsStr>>(name: S) -> OsString {
 }
 
 #[inline]
-pub fn compute_folder_and_filename(lib_path: PathBuf) -> (PathBuf, PathBuf) {
-    let mut path = lib_path;
+pub fn compute_folder_and_filename(lib_path: &Path) -> (PathBuf, PathBuf) {
+    let mut path = lib_path.to_path_buf();
     let mut filename = path.clone();
     if path.is_absolute() {
         filename = PathBuf::from(path.file_name().unwrap());

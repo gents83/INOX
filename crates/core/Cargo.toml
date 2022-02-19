@@ -18,3 +18,6 @@ inox_profiler = { path = "../profiler" }
 inox_resources = { path = "../resources" }
 inox_serialize = { path = "../serialize" }
 inox_uid = { path = "../uid" }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = "0.2.57"

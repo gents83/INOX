@@ -82,7 +82,7 @@ impl INOXEngine {
             );
             let mut plugin_path = app_dir.clone();
             plugin_path = plugin_path.join(plugin);
-            app.add_plugin(plugin_path);
+            app.add_dynamic_plugin(plugin_path.as_path());
         });
 
         Self {

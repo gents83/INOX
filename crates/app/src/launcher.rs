@@ -1,11 +1,11 @@
 use std::{
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::{Arc, RwLock},
 };
 
-use inox_commands::CommandParser;
-use inox_core::{App, PhaseWithSystems};
-use inox_filesystem::library_filename;
+use inox_core::{
+    App, PfnCreatePlugin, PfnDestroyPlugin, PfnPreparePlugin, PfnUnpreparePlugin, PhaseWithSystems,
+};
 use inox_graphics::{
     rendering_system::{RenderingSystem, RENDERING_PHASE},
     update_system::{UpdateSystem, RENDERING_UPDATE},
@@ -85,24 +85,38 @@ impl Launcher {
     pub fn start(&self) {
         let app = &mut self.app.write().unwrap();
 
-        debug_log!("Loading plugins");
-
-        //additional plugins
-        let command_parser = CommandParser::from_command_line();
-        let plugins = command_parser.get_values_of::<String>("plugin");
-
-        for name in plugins.iter() {
-            let path = PathBuf::from(library_filename(name));
-            Self::read_config(app, name);
-            app.add_plugin(path);
-        }
-
         debug_log!("Starting app");
 
         app.start();
     }
 
-    pub fn read_config(app: &mut App, plugin_name: &str) {
+    pub fn add_dynamic_plugin(&self, name: &str, path: &Path) {
+        let app = &mut self.app.write().unwrap();
+        Self::read_config(app, name);
+        app.add_dynamic_plugin(path);
+    }
+
+    pub fn add_static_plugin(
+        &self,
+        name: &str,
+        fn_c: PfnCreatePlugin,
+        fn_p: PfnPreparePlugin,
+        fn_u: PfnUnpreparePlugin,
+        fn_d: PfnDestroyPlugin,
+    ) {
+        let app = &mut self.app.write().unwrap();
+        Self::read_config(app, name);
+
+        if let Some(fn_c) = fn_c {
+            let mut plugin_holder = unsafe { fn_c() };
+            plugin_holder.prepare_fn = fn_p;
+            plugin_holder.unprepare_fn = fn_u;
+            plugin_holder.destroy_fn = fn_d;
+            app.add_static_plugin(plugin_holder);
+        }
+    }
+
+    fn read_config(app: &mut App, plugin_name: &str) {
         debug_log!("Reading launcher configs");
 
         let phase = app.get_phase_mut::<PhaseWithSystems>(MAIN_WINDOW_PHASE);

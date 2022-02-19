@@ -5,13 +5,13 @@ use inox_uid::{generate_uid_from_string, Uid};
 use crate::App;
 
 pub const CREATE_PLUGIN_FUNCTION_NAME: &str = "create_plugin";
-pub type PfnCreatePlugin = ::std::option::Option<unsafe extern "C" fn() -> PluginHolder>;
+pub type PfnCreatePlugin = ::std::option::Option<unsafe fn() -> PluginHolder>;
 pub const DESTROY_PLUGIN_FUNCTION_NAME: &str = "destroy_plugin";
-pub type PfnDestroyPlugin = ::std::option::Option<unsafe extern "C" fn(id: PluginId)>;
+pub type PfnDestroyPlugin = ::std::option::Option<unsafe fn()>;
 pub const PREPARE_PLUGIN_FUNCTION_NAME: &str = "prepare_plugin";
-pub type PfnPreparePlugin = ::std::option::Option<unsafe extern "C" fn(app: &mut App)>;
+pub type PfnPreparePlugin = ::std::option::Option<unsafe fn(app: &mut App)>;
 pub const UNPREPARE_PLUGIN_FUNCTION_NAME: &str = "unprepare_plugin";
-pub type PfnUnpreparePlugin = ::std::option::Option<unsafe extern "C" fn(app: &mut App)>;
+pub type PfnUnpreparePlugin = ::std::option::Option<unsafe fn(app: &mut App)>;
 
 pub type PluginId = Uid;
 
@@ -28,6 +28,9 @@ pub trait Plugin: Any + Send + Sync {
 pub struct PluginHolder {
     plugin_id: PluginId,
     plugin_name: String,
+    pub destroy_fn: PfnDestroyPlugin,
+    pub prepare_fn: PfnPreparePlugin,
+    pub unprepare_fn: PfnUnpreparePlugin,
 }
 
 impl PluginHolder {
@@ -35,6 +38,9 @@ impl PluginHolder {
         Self {
             plugin_id,
             plugin_name: name.to_string(),
+            destroy_fn: None,
+            prepare_fn: None,
+            unprepare_fn: None,
         }
     }
     pub fn id(&self) -> PluginId {
@@ -54,19 +60,12 @@ macro_rules! define_plugin {
         }
 
         #[no_mangle]
-        pub extern "C" fn destroy_plugin(id: $crate::PluginId) {
+        pub extern "C" fn destroy_plugin() {
             unsafe {
                 debug_assert!(
                     PLUGIN.is_some(),
                     "Destroying {:?} plugin never created",
                     PLUGIN.as_ref().unwrap().name()
-                );
-                debug_assert!(
-                    PLUGIN.as_ref().unwrap().id() == id,
-                    "Trying to destroy wrong plugin {:?} while {:?} has id {:?}",
-                    PLUGIN.as_ref().unwrap().name(),
-                    id,
-                    PLUGIN.as_ref().unwrap().id()
                 );
                 PLUGIN = None;
             }

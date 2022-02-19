@@ -10,7 +10,7 @@ macro_rules! load_profiler_lib {
             if SABI_PROFILER_LIB.is_none() {
                 let library_name = library_filename("inox_profiler");
                 let (path, filename) =
-                    library::compute_folder_and_filename(PathBuf::from(library_name));
+                    library::compute_folder_and_filename(PathBuf::from(library_name).as_path());
                 let fullpath = path.join(filename);
                 let library = Library::new(fullpath.to_str().unwrap());
                 SABI_PROFILER_LIB = Some(library);

@@ -1,6 +1,6 @@
 use std::{
     collections::HashMap,
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::{
         mpsc::{channel, Receiver},
         Arc, Mutex, RwLock,
@@ -13,7 +13,9 @@ use inox_resources::{DeserializeFunction, SharedData, SharedDataRc};
 
 use inox_uid::generate_uid_from_string;
 
-use crate::{Job, JobHandler, JobHandlerRw, Phase, PluginId, PluginManager, Scheduler, Worker};
+use crate::{
+    Job, JobHandler, JobHandlerRw, Phase, PluginHolder, PluginId, PluginManager, Scheduler, Worker,
+};
 
 #[cfg(target_arch = "wasm32")]
 const NUM_WORKER_THREADS: usize = 0;
@@ -48,7 +50,7 @@ impl Default for App {
             is_enabled: true,
             is_profiling: false,
             scheduler: Scheduler::new(),
-            plugin_manager: PluginManager::new(),
+            plugin_manager: PluginManager::default(),
             workers: HashMap::new(),
             job_handler: JobHandler::new(sender),
             receiver: Arc::new(Mutex::new(receiver)),
@@ -70,7 +72,7 @@ impl Drop for App {
         self.scheduler.uninit();
 
         let plugins_to_remove = self.plugin_manager.release();
-        self.update_plugins(plugins_to_remove);
+        self.update_dynamic_plugins(plugins_to_remove);
     }
 }
 
@@ -95,10 +97,10 @@ impl App {
         self.job_handler.write().unwrap().clear_pending_jobs();
     }
 
-    fn update_plugins(&mut self, plugins_to_remove: Vec<PluginId>) -> Vec<PathBuf> {
+    fn update_dynamic_plugins(&mut self, plugins_to_remove: Vec<PluginId>) -> Vec<PathBuf> {
         let mut plugins_to_reload = Vec::new();
         for id in plugins_to_remove.iter() {
-            if let Some(plugin_data) = self.plugin_manager.remove_plugin(id) {
+            if let Some(plugin_data) = self.plugin_manager.remove_dynamic_plugin(id) {
                 let lib_path = plugin_data.original_path.clone();
                 PluginManager::clear_plugin_data(plugin_data, self);
                 plugins_to_reload.push(lib_path);
@@ -107,10 +109,10 @@ impl App {
         plugins_to_reload
     }
 
-    fn reload_plugins(&mut self, plugins_to_reload: Vec<PathBuf>) {
+    fn reload_dynamic_plugins(&mut self, plugins_to_reload: Vec<PathBuf>) {
         for lib_path in plugins_to_reload.into_iter() {
-            let reloaded_plugin_data = PluginManager::create_plugin_data(lib_path, self);
-            self.plugin_manager.add_plugin(reloaded_plugin_data);
+            let reloaded_plugin_data = PluginManager::create_plugin_data(lib_path.as_path(), self);
+            self.plugin_manager.add_dynamic_plugin(reloaded_plugin_data);
         }
     }
 
@@ -175,24 +177,35 @@ impl App {
 
         if !self.is_enabled {
             let plugins_to_remove = self.plugin_manager.update();
-            let plugins_to_reload = self.update_plugins(plugins_to_remove);
+            let plugins_to_reload = self.update_dynamic_plugins(plugins_to_remove);
             if !plugins_to_reload.is_empty() {
                 SharedData::flush_resources(&self.shared_data, &self.message_hub);
             }
-            self.reload_plugins(plugins_to_reload);
+            self.reload_dynamic_plugins(plugins_to_reload);
         }
         SharedData::flush_resources(&self.shared_data, &self.message_hub);
 
         can_continue
     }
 
-    pub fn add_plugin(&mut self, lib_path: PathBuf) {
-        let plugin_data = PluginManager::create_plugin_data(lib_path, self);
-        self.plugin_manager.add_plugin(plugin_data);
+    pub fn add_static_plugin(&mut self, plugin_holder: PluginHolder) {
+        PluginManager::prepare_plugin_holder(&plugin_holder, self);
+        self.plugin_manager.add_static_plugin(plugin_holder);
     }
 
-    pub fn remove_plugin(&mut self, plugin_id: &PluginId) {
-        if let Some(plugin_data) = self.plugin_manager.remove_plugin(plugin_id) {
+    pub fn add_dynamic_plugin(&mut self, lib_path: &Path) {
+        let plugin_data = PluginManager::create_plugin_data(lib_path, self);
+        self.plugin_manager.add_dynamic_plugin(plugin_data);
+    }
+
+    pub fn remove_static_plugin(&mut self, plugin_id: &PluginId) {
+        if let Some(plugin_holder) = self.plugin_manager.remove_static_plugin(plugin_id) {
+            PluginManager::release_plugin_holder(plugin_holder, self);
+        }
+    }
+
+    pub fn remove_dynamic_plugin(&mut self, plugin_id: &PluginId) {
+        if let Some(plugin_data) = self.plugin_manager.remove_dynamic_plugin(plugin_id) {
             PluginManager::clear_plugin_data(plugin_data, self);
         }
     }

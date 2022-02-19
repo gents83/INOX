@@ -1,8 +1,10 @@
 #![cfg(target_os = "windows")]
 
-use std::{sync::Arc, thread};
+use std::{path::PathBuf, sync::Arc, thread};
 
 use inox_binarizer::Binarizer;
+use inox_commands::CommandParser;
+use inox_filesystem::library_filename;
 use inox_messenger::MessageHubRc;
 use inox_profiler::debug_log;
 use inox_resources::SharedDataRc;
@@ -38,6 +40,19 @@ pub fn binarizer_update(binarizer: Binarizer) -> Binarizer {
 
 pub fn binarizer_stop(mut binarizer: Binarizer) {
     binarizer.stop();
+}
+
+pub fn load_plugins(launcher: &Arc<Launcher>) {
+    debug_log!("Loading plugins");
+
+    //additional plugins
+    let command_parser = CommandParser::from_command_line();
+    let plugins = command_parser.get_values_of::<String>("plugin");
+
+    for name in plugins.iter() {
+        let path = PathBuf::from(library_filename(name));
+        launcher.add_dynamic_plugin(name, path.as_path());
+    }
 }
 
 pub fn main_update(launcher: Arc<Launcher>) {

@@ -9,7 +9,7 @@
 <body>
     <noscript>This page contains webassembly and javascript content, please enable javascript in your
         browser.</noscript>
-    <canvas id="canvas" height="1920" width="1080"></canvas>
+    <canvas id="canvas" height="1024" width="768"></canvas>
     <script type="module">
         import init from './wasm/inox_launcher.js';
 
@@ -18,7 +18,7 @@
             span.innerText = 'Your browser does not seem to support WebGPU';
             document.body.appendChild(span);
         } else {
-            init().catch(console.error);
+            window.inox_launcher = init().catch(console.error);
         }
     </script>
 </body>

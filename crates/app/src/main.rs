@@ -9,6 +9,8 @@ fn main() {
 
     launcher.prepare();
 
+    load_plugins(&launcher);
+
     launcher.start();
 
     let mut binarizer = binarizer_start(launcher.shared_data(), launcher.message_hub());

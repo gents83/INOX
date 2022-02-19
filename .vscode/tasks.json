@@ -253,7 +253,7 @@
 				"COMPILE RELEASE WASM",
 			],
 			"isBackground": true,
-			"command": "New-Item -ItemType \"directory\" -Path \"${workspaceFolder}\\crates\\web\\wasm\" -Force \n Copy-Item -Path ${workspaceFolder}\\crates\\target\\wasm32-unknown-unknown\\release\\*.wasm -Destination ${workspaceFolder}\\crates\\web\\wasm\\ -Force",
+			"command": "New-Item -ItemType \"directory\" -Path \"${workspaceFolder}\\crates\\web\\wasm\" -Force \n Copy-Item -Path ${workspaceFolder}\\crates\\target\\wasm32-unknown-unknown\\release\\inox_launcher.wasm -Destination ${workspaceFolder}\\crates\\web\\wasm\\ -Force",
 			"presentation": {
 				"clear": true,
 				"reveal": "never", //process does not switch terminal (focus on program output)
