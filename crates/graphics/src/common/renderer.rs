@@ -248,9 +248,16 @@ impl Renderer {
                     self.shader_data.textures_data_mut()[uniform_index] = texture_data;
                     texture.get_mut().set_texture_data(
                         uniform_index,
-                        texture_data.total_width(),
-                        texture_data.total_height(),
+                        texture_data.width(),
+                        texture_data.height(),
                     );
+                    //Need to update all materials that use this texture
+                    self.shared_data
+                        .for_each_resource_mut(|_, m: &mut Material| {
+                            if m.has_texture_id(texture_id) {
+                                m.mark_as_dirty();
+                            }
+                        });
                 }
             }
         }
@@ -275,6 +282,14 @@ impl Renderer {
                 uniform_index as _,
                 &mut self.shader_data.material_data_mut()[uniform_index],
             );
+            //Need to update all meshes that use this material
+            self.shared_data.for_each_resource_mut(|_, m: &mut Mesh| {
+                if let Some(material) = m.material() {
+                    if material.id() == material_id {
+                        m.mark_as_dirty();
+                    }
+                }
+            });
         }
     }
 

@@ -8,7 +8,6 @@ use inox_resources::{
     SerializableResource, SharedData, SharedDataRc,
 };
 use inox_serialize::{inox_serializable::SerializableRegistryRc, read_from_file, SerializeFile};
-use inox_uid::INVALID_UID;
 
 pub type MeshId = ResourceId;
 
@@ -20,8 +19,8 @@ pub struct OnMeshCreateData {
 #[derive(Clone)]
 pub struct Mesh {
     id: MeshId,
-    message_hub: Option<MessageHubRc>,
-    shared_data: Option<SharedDataRc>,
+    message_hub: MessageHubRc,
+    shared_data: SharedDataRc,
     path: PathBuf,
     data: MeshData,
     matrix: Matrix4,
@@ -29,23 +28,6 @@ pub struct Mesh {
     draw_area: Vector4, //pos (x,y) - size(z,w)
     is_visible: bool,
     draw_index: i32,
-}
-
-impl Default for Mesh {
-    fn default() -> Self {
-        Self {
-            id: INVALID_UID,
-            message_hub: None,
-            shared_data: None,
-            path: PathBuf::new(),
-            data: MeshData::default(),
-            matrix: Matrix4::default_identity(),
-            material: None,
-            draw_area: [0., 0., f32::MAX, f32::MAX].into(),
-            is_visible: true,
-            draw_index: INVALID_INDEX,
-        }
-    }
 }
 
 impl SerializableResource for Mesh {
@@ -65,6 +47,20 @@ impl DataTypeResource for Mesh {
     type DataType = MeshData;
     type OnCreateData = OnMeshCreateData;
 
+    fn new(id: ResourceId, shared_data: &SharedDataRc, message_hub: &MessageHubRc) -> Self {
+        Self {
+            id,
+            shared_data: shared_data.clone(),
+            message_hub: message_hub.clone(),
+            path: PathBuf::new(),
+            data: MeshData::default(),
+            matrix: Matrix4::default_identity(),
+            material: None,
+            draw_area: [0., 0., f32::MAX, f32::MAX].into(),
+            is_visible: true,
+            draw_index: INVALID_INDEX,
+        }
+    }
     fn is_initialized(&self) -> bool {
         !self.data.vertices.is_empty()
     }
@@ -111,22 +107,17 @@ impl DataTypeResource for Mesh {
         } else {
             None
         };
-        Self {
-            id,
-            message_hub: Some(message_hub.clone()),
-            shared_data: Some(shared_data.clone()),
-            data,
-            material,
-            ..Default::default()
-        }
+        let mut mesh = Mesh::new(id, shared_data, message_hub);
+        mesh.data = data;
+        mesh.material = material;
+        mesh
     }
 }
 
 impl Mesh {
-    fn mark_as_dirty(&self) -> &Self {
-        if let Some(message_hub) = &self.message_hub {
-            message_hub.send_event(ResourceEvent::<Self>::Changed(self.id));
-        }
+    pub fn mark_as_dirty(&self) -> &Self {
+        self.message_hub
+            .send_event(ResourceEvent::<Self>::Changed(self.id));
         self
     }
     pub fn find_from_path(shared_data: &SharedDataRc, path: &Path) -> Handle<Self> {

@@ -108,6 +108,7 @@ where
             resource
                 .get_mut()
                 .on_destroy_resource(shared_data, message_hub, resource_id);
+            //debug_log!("Resource {} destroyed", resource_id);
         }
     }
     #[inline]

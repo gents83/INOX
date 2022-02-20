@@ -13,13 +13,14 @@ pub const DATA_RAW_FOLDER: &str = "data_raw";
 pub const DATA_FOLDER: &str = "data";
 
 pub struct Data {}
-pub trait DataTypeResource: ResourceTrait + Default + Clone
+pub trait DataTypeResource: ResourceTrait + Clone
 where
     <Self as DataTypeResource>::OnCreateData: Clone,
 {
     type DataType;
     type OnCreateData;
 
+    fn new(id: ResourceId, shared_data: &SharedDataRc, message_hub: &MessageHubRc) -> Self;
     fn on_create(
         &mut self,
         shared_data: &SharedDataRc,
@@ -142,7 +143,7 @@ pub trait SerializableResource: DataTypeResource + Sized {
                 filepath
             );
         }
-        debug_log!("Creating resource : {:?}", filepath);
+        //debug_log!("Creating resource : {:?}", filepath);
         let cloned_shared_data = shared_data.clone();
         let cloned_message_hub = message_hub.clone();
         let cloned_path = path.clone();
@@ -165,12 +166,13 @@ pub trait SerializableResource: DataTypeResource + Sized {
                     &resource_id,
                     on_create_data.as_ref(),
                 );
-
+                /*
                 debug_log!(
                     "Created resource [{:?}] {:?}",
                     resource_id,
                     cloned_path.as_path()
                 );
+                */
                 cloned_shared_data.add_resource(&cloned_message_hub, resource_id, resource);
             }),
         );
@@ -198,7 +200,11 @@ pub trait SerializableResource: DataTypeResource + Sized {
         if SharedData::has::<Self>(shared_data, &resource_id) {
             return SharedData::get_resource::<Self>(shared_data, &resource_id).unwrap();
         }
-        let resource = shared_data.add_resource(message_hub, resource_id, Self::default());
+        let resource = shared_data.add_resource(
+            message_hub,
+            resource_id,
+            Self::new(resource_id, shared_data, message_hub),
+        );
         message_hub.send_event(ResourceEvent::<Self>::Load(path, on_create_data));
         resource
     }

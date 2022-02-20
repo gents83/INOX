@@ -34,20 +34,6 @@ pub struct Camera {
     far_plane: f32,
 }
 
-impl Default for Camera {
-    fn default() -> Self {
-        Self {
-            filepath: PathBuf::new(),
-            parent: None,
-            proj: Matrix4::default_identity(),
-            is_active: true,
-            fov_in_degrees: Degrees::new(DEFAULT_CAMERA_FOV),
-            near_plane: DEFAULT_CAMERA_NEAR,
-            far_plane: DEFAULT_CAMERA_FAR,
-        }
-    }
-}
-
 impl UIProperties for Camera {
     fn show(
         &mut self,
@@ -99,6 +85,17 @@ impl DataTypeResource for Camera {
     type DataType = CameraData;
     type OnCreateData = OnCameraCreateData;
 
+    fn new(_id: ResourceId, _shared_data: &SharedDataRc, _message_hub: &MessageHubRc) -> Self {
+        Self {
+            filepath: PathBuf::new(),
+            parent: None,
+            proj: Matrix4::default_identity(),
+            is_active: true,
+            fov_in_degrees: Degrees::new(DEFAULT_CAMERA_FOV),
+            near_plane: DEFAULT_CAMERA_NEAR,
+            far_plane: DEFAULT_CAMERA_FAR,
+        }
+    }
     fn is_initialized(&self) -> bool {
         true
     }
@@ -135,27 +132,18 @@ impl DataTypeResource for Camera {
     }
 
     fn create_from_data(
-        _shared_data: &SharedDataRc,
-        _message_hub: &MessageHubRc,
-        _id: CameraId,
+        shared_data: &SharedDataRc,
+        message_hub: &MessageHubRc,
+        id: CameraId,
         data: Self::DataType,
     ) -> Self {
-        let mut camera = Self {
-            ..Default::default()
-        };
+        let mut camera = Self::new(id, shared_data, message_hub);
         camera.set_projection(data.fov, data.aspect_ratio, 1., data.near, data.far);
         camera
     }
 }
 
 impl Camera {
-    pub fn new(parent: &Resource<Object>) -> Self {
-        Self {
-            parent: Some(parent.clone()),
-            ..Default::default()
-        }
-    }
-
     #[inline]
     pub fn set_projection(
         &mut self,

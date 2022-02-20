@@ -9,7 +9,6 @@ use inox_resources::{
     SharedData, SharedDataRc,
 };
 use inox_serialize::inox_serializable::SerializableRegistryRc;
-use inox_uid::INVALID_UID;
 
 use crate::{RenderContext, TextureHandler, INVALID_INDEX, TEXTURE_CHANNEL_COUNT};
 
@@ -18,8 +17,8 @@ pub type TextureId = ResourceId;
 #[derive(Clone)]
 pub struct Texture {
     id: TextureId,
-    message_hub: Option<MessageHubRc>,
-    shared_data: Option<SharedDataRc>,
+    message_hub: MessageHubRc,
+    shared_data: SharedDataRc,
     path: PathBuf,
     data: Option<Vec<u8>>,
     uniform_index: i32,
@@ -28,12 +27,15 @@ pub struct Texture {
     update_from_gpu: bool,
 }
 
-impl Default for Texture {
-    fn default() -> Self {
+impl DataTypeResource for Texture {
+    type DataType = RgbaImage;
+    type OnCreateData = ();
+
+    fn new(id: ResourceId, shared_data: &SharedDataRc, message_hub: &MessageHubRc) -> Self {
         Self {
-            id: INVALID_UID,
-            message_hub: None,
-            shared_data: None,
+            id,
+            message_hub: message_hub.clone(),
+            shared_data: shared_data.clone(),
             path: PathBuf::new(),
             data: None,
             uniform_index: INVALID_INDEX,
@@ -42,11 +44,6 @@ impl Default for Texture {
             update_from_gpu: false,
         }
     }
-}
-
-impl DataTypeResource for Texture {
-    type DataType = RgbaImage;
-    type OnCreateData = ();
 
     fn invalidate(&mut self) -> &mut Self {
         self.uniform_index = INVALID_INDEX;
@@ -98,15 +95,11 @@ impl DataTypeResource for Texture {
         Self: Sized,
     {
         let dimensions = data.dimensions();
-        Self {
-            id,
-            shared_data: Some(shared_data.clone()),
-            message_hub: Some(message_hub.clone()),
-            data: Some(data.as_raw().clone()),
-            width: dimensions.0,
-            height: dimensions.1,
-            ..Default::default()
-        }
+        let mut texture = Self::new(id, shared_data, message_hub);
+        texture.data = Some(data.as_raw().clone());
+        texture.width = dimensions.0;
+        texture.height = dimensions.1;
+        texture
     }
 }
 
@@ -150,9 +143,8 @@ impl SerializableResource for Texture {
 
 impl Texture {
     fn mark_as_dirty(&self) -> &Self {
-        if let Some(message_hub) = &self.message_hub {
-            message_hub.send_event(ResourceEvent::<Self>::Changed(self.id));
-        }
+        self.message_hub
+            .send_event(ResourceEvent::<Self>::Changed(self.id));
         self
     }
     pub fn find_from_path(shared_data: &SharedDataRc, texture_path: &Path) -> Handle<Self> {

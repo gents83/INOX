@@ -2,7 +2,6 @@ use std::{marker::PhantomData, path::PathBuf};
 
 use inox_commands::CommandParser;
 use inox_messenger::{implement_message, Listener, MessageHubRc};
-use inox_profiler::debug_log;
 
 use crate::{Resource, ResourceId, ResourceTrait, SerializableResource, SharedDataRc};
 
@@ -162,7 +161,7 @@ where
         self.listener.process_messages(|msg: &ResourceEvent<T>| {
             if let ResourceEvent::<T>::Load(path, on_create_data) = msg {
                 if T::is_matching_extension(path.as_path()) {
-                    debug_log!("Handling resource load event: {:?}", path);
+                    //debug_log!("Handling resource load event: {:?}", path);
                     let p = path.clone();
                     let on_create_data = on_create_data.clone();
                     f(Box::new(move |shared_data, message_hub| {

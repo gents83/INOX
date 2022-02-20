@@ -1,26 +1,27 @@
 use std::path::{Path, PathBuf};
 
 use crate::{
-    MaterialAlphaMode, MaterialData, Pipeline, ShaderMaterialData, Texture, TextureType,
+    MaterialAlphaMode, MaterialData, Pipeline, ShaderMaterialData, Texture, TextureId, TextureType,
     INVALID_INDEX,
 };
 
 use inox_math::Vector4;
 use inox_messenger::MessageHubRc;
+use inox_profiler::debug_log;
 use inox_resources::{
     DataTypeResource, Handle, Resource, ResourceEvent, ResourceId, ResourceTrait,
     SerializableResource, SharedData, SharedDataRc,
 };
 use inox_serialize::{inox_serializable::SerializableRegistryRc, read_from_file, SerializeFile};
-use inox_uid::{generate_random_uid, INVALID_UID};
+use inox_uid::generate_random_uid;
 
 pub type MaterialId = ResourceId;
 
 #[derive(Clone)]
 pub struct Material {
     id: MaterialId,
-    message_hub: Option<MessageHubRc>,
-    shared_data: Option<SharedDataRc>,
+    message_hub: MessageHubRc,
+    shared_data: SharedDataRc,
     pipeline: Handle<Pipeline>,
     uniform_index: i32,
     filepath: PathBuf,
@@ -33,28 +34,6 @@ pub struct Material {
     emissive_color: Vector4,
     diffuse_color: Vector4,
     specular_color: Vector4,
-}
-
-impl Default for Material {
-    fn default() -> Self {
-        Self {
-            id: INVALID_UID,
-            message_hub: None,
-            shared_data: None,
-            pipeline: None,
-            uniform_index: INVALID_INDEX,
-            filepath: PathBuf::new(),
-            textures: Default::default(),
-            roughness_factor: 1.,
-            metallic_factor: 1.,
-            alpha_cutoff: 1.,
-            alpha_mode: MaterialAlphaMode::Opaque,
-            base_color: Vector4::new(1., 1., 1., 1.),
-            emissive_color: Vector4::new(1., 1., 1., 1.),
-            diffuse_color: Vector4::new(1., 1., 1., 1.),
-            specular_color: Vector4::new(0., 0., 0., 1.),
-        }
-    }
 }
 
 impl SerializableResource for Material {
@@ -74,6 +53,25 @@ impl DataTypeResource for Material {
     type DataType = MaterialData;
     type OnCreateData = ();
 
+    fn new(id: ResourceId, shared_data: &SharedDataRc, message_hub: &MessageHubRc) -> Self {
+        Self {
+            id,
+            message_hub: message_hub.clone(),
+            shared_data: shared_data.clone(),
+            pipeline: None,
+            uniform_index: INVALID_INDEX,
+            filepath: PathBuf::new(),
+            textures: Default::default(),
+            roughness_factor: 1.,
+            metallic_factor: 1.,
+            alpha_cutoff: 1.,
+            alpha_mode: MaterialAlphaMode::Opaque,
+            base_color: Vector4::new(1., 1., 1., 1.),
+            emissive_color: Vector4::new(1., 1., 1., 1.),
+            diffuse_color: Vector4::new(1., 1., 1., 1.),
+            specular_color: Vector4::new(0., 0., 0., 1.),
+        }
+    }
     fn is_initialized(&self) -> bool {
         self.uniform_index != INVALID_INDEX
     }
@@ -134,8 +132,8 @@ impl DataTypeResource for Material {
 
         Self {
             id,
-            message_hub: Some(message_hub.clone()),
-            shared_data: Some(shared_data.clone()),
+            message_hub: message_hub.clone(),
+            shared_data: shared_data.clone(),
             textures,
             roughness_factor: material_data.roughness_factor,
             metallic_factor: material_data.metallic_factor,
@@ -146,16 +144,16 @@ impl DataTypeResource for Material {
             diffuse_color: material_data.diffuse_color,
             specular_color: material_data.specular_color,
             pipeline,
-            ..Default::default()
+            uniform_index: INVALID_INDEX,
+            filepath: PathBuf::new(),
         }
     }
 }
 
 impl Material {
-    fn mark_as_dirty(&self) -> &Self {
-        if let Some(message_hub) = &self.message_hub {
-            message_hub.send_event(ResourceEvent::<Self>::Changed(self.id));
-        }
+    pub fn mark_as_dirty(&self) -> &Self {
+        self.message_hub
+            .send_event(ResourceEvent::<Self>::Changed(self.id));
         self
     }
     pub fn duplicate_from_pipeline(
@@ -163,15 +161,10 @@ impl Material {
         message_hub: &MessageHubRc,
         pipeline: &Resource<Pipeline>,
     ) -> Resource<Self> {
-        SharedData::add_resource(
-            shared_data,
-            message_hub,
-            generate_random_uid(),
-            Self {
-                pipeline: Some(pipeline.clone()),
-                ..Default::default()
-            },
-        )
+        let id = generate_random_uid();
+        let mut data = Self::new(id, shared_data, message_hub);
+        data.pipeline = Some(pipeline.clone());
+        SharedData::add_resource(shared_data, message_hub, data.id, data)
     }
     pub fn pipeline(&self) -> &Handle<Pipeline> {
         &self.pipeline
@@ -185,15 +178,15 @@ impl Material {
         if self.uniform_index != uniform_index as i32 {
             is_changed = true;
             self.uniform_index = uniform_index as _;
-            data.roughness_factor = self.roughness_factor;
-            data.metallic_factor = self.metallic_factor;
-            data.alpha_cutoff = self.alpha_cutoff;
-            data.alpha_mode = self.alpha_mode as _;
-            data.base_color = self.base_color.into();
-            data.emissive_color = self.emissive_color.into();
-            data.diffuse_color = self.diffuse_color.into();
-            data.specular_color = self.specular_color.into();
         }
+        data.roughness_factor = self.roughness_factor;
+        data.metallic_factor = self.metallic_factor;
+        data.alpha_cutoff = self.alpha_cutoff;
+        data.alpha_mode = self.alpha_mode as _;
+        data.base_color = self.base_color.into();
+        data.emissive_color = self.emissive_color.into();
+        data.diffuse_color = self.diffuse_color.into();
+        data.specular_color = self.specular_color.into();
         data.textures_indices
             .iter_mut()
             .enumerate()
@@ -210,6 +203,17 @@ impl Material {
 
     pub fn textures(&self) -> &[Handle<Texture>; TextureType::Count as _] {
         &self.textures
+    }
+    pub fn has_texture_id(&self, texture_id: &TextureId) -> bool {
+        let mut has_texture = false;
+        self.textures.iter().for_each(|t| {
+            if let Some(texture) = t {
+                if texture.id() == texture_id {
+                    has_texture = true;
+                }
+            }
+        });
+        has_texture
     }
     pub fn has_texture(&self, texture_type: TextureType) -> bool {
         self.textures[texture_type as usize].is_some()

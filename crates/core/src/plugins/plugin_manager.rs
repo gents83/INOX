@@ -141,11 +141,12 @@ impl PluginManager {
         }
 
         let (lib, plugin_holder) = PluginManager::load_dynamic_plugin(in_use_fullpath.clone());
-
+        /*
         debug_log!(
             "Loaded plugin {}",
             fullpath.file_stem().unwrap().to_str().unwrap(),
         );
+        */
 
         Self::prepare_plugin_holder(plugin_holder.as_ref().unwrap(), app);
 
@@ -183,11 +184,12 @@ impl PluginManager {
             Self::release_plugin_holder(plugin_holder, app);
         }
         lib.close();
-
+        /*
         debug_log!(
             "Unloaded plugin {:?}",
             plugin_data.original_path.as_os_str(),
         );
+        */
 
         delete_file(in_use_path);
     }

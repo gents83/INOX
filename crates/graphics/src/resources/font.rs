@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 
 pub type FontId = ResourceId;
 
-#[derive(Default, Clone)]
+#[derive(Clone)]
 pub struct Font {
     path: PathBuf,
     texture: Handle<Texture>,
@@ -22,6 +22,14 @@ pub struct Font {
 impl DataTypeResource for Font {
     type DataType = FontData;
     type OnCreateData = ();
+
+    fn new(_id: ResourceId, _shared_data: &SharedDataRc, _message_hub: &MessageHubRc) -> Self {
+        Self {
+            path: PathBuf::new(),
+            texture: None,
+            font_data: FontData::default(),
+        }
+    }
 
     fn on_create(
         &mut self,
@@ -53,7 +61,7 @@ impl DataTypeResource for Font {
         Self {
             texture: Some(texture),
             font_data,
-            ..Default::default()
+            path: PathBuf::new(),
         }
     }
 

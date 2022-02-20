@@ -16,7 +16,6 @@ use crate::{
 
 pub type PipelineId = ResourceId;
 
-#[derive(Default)]
 pub struct Pipeline {
     path: PathBuf,
     data: PipelineData,
@@ -56,6 +55,17 @@ impl DataTypeResource for Pipeline {
     type DataType = PipelineData;
     type OnCreateData = ();
 
+    fn new(_id: ResourceId, _shared_data: &SharedDataRc, _message_hub: &MessageHubRc) -> Self {
+        Self {
+            path: PathBuf::new(),
+            data: PipelineData::default(),
+            format: None,
+            vertex_shader: None,
+            fragment_shader: None,
+            render_pipeline: None,
+        }
+    }
+
     fn invalidate(&mut self) -> &mut Self {
         self.vertex_shader = None;
         self.fragment_shader = None;
@@ -91,19 +101,18 @@ impl DataTypeResource for Pipeline {
     }
 
     fn create_from_data(
-        _shared_data: &SharedDataRc,
-        _message_hub: &MessageHubRc,
-        _id: ResourceId,
+        shared_data: &SharedDataRc,
+        message_hub: &MessageHubRc,
+        id: ResourceId,
         data: Self::DataType,
     ) -> Self
     where
         Self: Sized,
     {
         let canonicalized_pipeline_data = data.canonicalize_paths();
-        Self {
-            data: canonicalized_pipeline_data,
-            ..Default::default()
-        }
+        let mut pipeline = Self::new(id, shared_data, message_hub);
+        pipeline.data = canonicalized_pipeline_data;
+        pipeline
     }
 }
 

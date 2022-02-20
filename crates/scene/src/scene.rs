@@ -12,7 +12,7 @@ use crate::{Camera, Object, SceneData};
 
 pub type SceneId = ResourceId;
 
-#[derive(Default, Clone)]
+#[derive(Clone)]
 pub struct Scene {
     filepath: PathBuf,
     objects: Vec<Resource<Object>>,
@@ -58,6 +58,13 @@ impl DataTypeResource for Scene {
     type DataType = SceneData;
     type OnCreateData = ();
 
+    fn new(_id: ResourceId, _shared_data: &SharedDataRc, _message_hub: &MessageHubRc) -> Self {
+        Self {
+            filepath: PathBuf::new(),
+            objects: Vec::new(),
+            cameras: Vec::new(),
+        }
+    }
     fn on_create(
         &mut self,
         _shared_data_rc: &SharedDataRc,
@@ -91,10 +98,10 @@ impl DataTypeResource for Scene {
     fn create_from_data(
         shared_data: &SharedDataRc,
         message_hub: &MessageHubRc,
-        _id: SceneId,
+        id: SceneId,
         scene_data: Self::DataType,
     ) -> Self {
-        let mut scene = Self::default();
+        let mut scene = Self::new(id, shared_data, message_hub);
 
         for object in scene_data.objects.iter() {
             let o = Object::request_load(shared_data, message_hub, object.as_path(), None);

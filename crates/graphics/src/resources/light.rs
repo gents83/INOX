@@ -24,17 +24,6 @@ pub struct Light {
     is_active: bool,
 }
 
-impl Default for Light {
-    fn default() -> Self {
-        Self {
-            filepath: PathBuf::new(),
-            data: LightData::default(),
-            uniform_index: INVALID_INDEX,
-            is_active: true,
-        }
-    }
-}
-
 impl SerializableResource for Light {
     fn path(&self) -> &Path {
         self.filepath.as_path()
@@ -51,6 +40,15 @@ impl SerializableResource for Light {
 impl DataTypeResource for Light {
     type DataType = LightData;
     type OnCreateData = OnLightCreateData;
+
+    fn new(_id: ResourceId, _shared_data: &SharedDataRc, _message_hub: &MessageHubRc) -> Self {
+        Self {
+            filepath: PathBuf::new(),
+            data: LightData::default(),
+            uniform_index: INVALID_INDEX,
+            is_active: true,
+        }
+    }
 
     fn is_initialized(&self) -> bool {
         self.uniform_index != INVALID_INDEX
@@ -89,18 +87,17 @@ impl DataTypeResource for Light {
     }
 
     fn create_from_data(
-        _shared_data: &SharedDataRc,
-        _message_hub: &MessageHubRc,
-        _id: ResourceId,
+        shared_data: &SharedDataRc,
+        message_hub: &MessageHubRc,
+        id: ResourceId,
         data: Self::DataType,
     ) -> Self
     where
         Self: Sized,
     {
-        Self {
-            data,
-            ..Default::default()
-        }
+        let mut light = Self::new(id, shared_data, message_hub);
+        light.data = data;
+        light
     }
 }
 

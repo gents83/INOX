@@ -35,19 +35,6 @@ pub struct Object {
     components: HashMap<TypeId, GenericResource>,
 }
 
-impl Default for Object {
-    fn default() -> Self {
-        Self {
-            filepath: PathBuf::new(),
-            transform: Matrix4::default_identity(),
-            parent: None,
-            is_transform_dirty: true,
-            children: Vec::new(),
-            components: HashMap::new(),
-        }
-    }
-}
-
 impl UIProperties for Object {
     fn show(
         &mut self,
@@ -103,6 +90,17 @@ impl DataTypeResource for Object {
     type DataType = ObjectData;
     type OnCreateData = OnObjectCreateData;
 
+    fn new(_id: ResourceId, _shared_data: &SharedDataRc, _message_hub: &MessageHubRc) -> Self {
+        Self {
+            filepath: PathBuf::new(),
+            transform: Matrix4::default_identity(),
+            parent: None,
+            is_transform_dirty: true,
+            children: Vec::new(),
+            components: HashMap::new(),
+        }
+    }
+
     fn on_create(
         &mut self,
         shared_data_rc: &SharedDataRc,
@@ -144,10 +142,8 @@ impl DataTypeResource for Object {
         id: ObjectId,
         object_data: Self::DataType,
     ) -> Self {
-        let mut object = Self {
-            transform: object_data.transform,
-            ..Default::default()
-        };
+        let mut object = Self::new(id, shared_data, message_hub);
+        object.transform = object_data.transform;
 
         object_data.components.iter().for_each(|component_path| {
             let path = component_path.as_path();
@@ -336,14 +332,16 @@ impl Object {
         message_hub: &MessageHubRc,
     ) -> Resource<C>
     where
-        C: ResourceTrait + Default,
+        C: DataTypeResource,
     {
         debug_assert!(
             !self.components.contains_key(&TypeId::of::<C>()),
             "Object already contains a component of type {:?}",
             type_name::<C>()
         );
-        let resource = shared_data.add_resource(message_hub, generate_random_uid(), C::default());
+        let id = generate_random_uid();
+        let resource =
+            shared_data.add_resource(message_hub, id, C::new(id, shared_data, message_hub));
         self.components.insert(TypeId::of::<C>(), resource.clone());
         resource
     }

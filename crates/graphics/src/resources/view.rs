@@ -14,20 +14,17 @@ pub struct View {
     proj: Matrix4,
 }
 
-impl Default for View {
-    fn default() -> Self {
+impl DataTypeResource for View {
+    type DataType = u32;
+    type OnCreateData = ();
+
+    fn new(_id: ResourceId, _shared_data: &SharedDataRc, _message_hub: &MessageHubRc) -> Self {
         Self {
             view_index: 0,
             view: Matrix4::default_identity(),
             proj: Matrix4::default_identity(),
         }
     }
-}
-
-impl DataTypeResource for View {
-    type DataType = u32;
-    type OnCreateData = ();
-
     fn is_initialized(&self) -> bool {
         true
     }

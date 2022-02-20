@@ -13,7 +13,7 @@ use crate::{
 
 pub type RenderPassId = ResourceId;
 
-#[derive(Default, Clone)]
+#[derive(Clone)]
 pub struct RenderPass {
     data: RenderPassData,
     pipelines: Vec<Resource<Pipeline>>,
@@ -35,6 +35,14 @@ impl DataTypeResource for RenderPass {
     type DataType = RenderPassData;
     type OnCreateData = ();
 
+    fn new(_id: ResourceId, _shared_data: &SharedDataRc, _message_hub: &MessageHubRc) -> Self {
+        Self {
+            data: RenderPassData::default(),
+            pipelines: Vec::new(),
+            target_texture: None,
+            is_initialized: false,
+        }
+    }
     fn invalidate(&mut self) -> &mut Self {
         self.is_initialized = false;
         self

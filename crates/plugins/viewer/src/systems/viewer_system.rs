@@ -5,7 +5,9 @@ use inox_math::{Matrix4, VecBase, Vector2, Vector3};
 use inox_messenger::{Listener, MessageHubRc};
 
 use inox_platform::{InputState, Key, KeyEvent, MouseEvent, WindowEvent};
-use inox_resources::{Resource, ResourceEvent, SerializableResource, SharedDataRc};
+use inox_resources::{
+    DataTypeResource, Resource, ResourceEvent, SerializableResource, SharedDataRc,
+};
 use inox_scene::{Camera, Object, ObjectId, Scene, Script};
 use inox_uid::generate_random_uid;
 use std::{collections::HashMap, path::PathBuf};
@@ -32,13 +34,18 @@ impl ViewerSystem {
 
         inox_scene::register_resource_types(shared_data, message_hub);
 
-        let scene =
-            shared_data.add_resource::<Scene>(message_hub, generate_random_uid(), Scene::default());
+        let scene_id = generate_random_uid();
+        let scene = shared_data.add_resource::<Scene>(
+            message_hub,
+            scene_id,
+            Scene::new(scene_id, shared_data, message_hub),
+        );
 
+        let camera_id = generate_random_uid();
         let camera_object = shared_data.add_resource::<Object>(
             message_hub,
-            generate_random_uid(),
-            Object::default(),
+            camera_id,
+            Object::new(camera_id, shared_data, message_hub),
         );
         camera_object
             .get_mut()
@@ -79,7 +86,7 @@ impl System for ViewerSystem {
     }
 
     fn init(&mut self) {
-        self.check_command_line_arguments();
+        self.check_command_line_arguments(false);
 
         self.listener
             .register::<KeyEvent>()
@@ -136,28 +143,31 @@ impl System for ViewerSystem {
 }
 
 impl ViewerSystem {
-    fn check_command_line_arguments(&mut self) -> &mut Self {
+    fn check_command_line_arguments(&mut self, force_default: bool) -> &mut Self {
         let command_parser = CommandParser::from_command_line();
-        if command_parser.has("load_file") {
+        if !force_default && command_parser.has("load_file") {
             let values = command_parser.get_values_of::<String>("load_file");
             self.load_scene(values[0].as_str());
         } else {
             self.create_default_scene();
         }
+
         self
     }
 
     fn create_default_scene(&mut self) {
         let default_object = {
+            let object_id = generate_random_uid();
             let object = self.shared_data.add_resource(
                 &self.message_hub,
-                generate_random_uid(),
-                Object::default(),
+                object_id,
+                Object::new(object_id, &self.shared_data, &self.message_hub),
             );
+            let mesh_id = generate_random_uid();
             let mesh = self.shared_data.add_resource(
                 &self.message_hub,
-                generate_random_uid(),
-                Mesh::default(),
+                mesh_id,
+                Mesh::new(mesh_id, &self.shared_data, &self.message_hub),
             );
             let pipeline = Pipeline::request_load(
                 &self.shared_data,
@@ -188,15 +198,17 @@ impl ViewerSystem {
             object
         };
         let wireframe_object = {
+            let object_id = generate_random_uid();
             let object = self.shared_data.add_resource(
                 &self.message_hub,
-                generate_random_uid(),
-                Object::default(),
+                object_id,
+                Object::new(object_id, &self.shared_data, &self.message_hub),
             );
+            let mesh_id = generate_random_uid();
             let mesh = self.shared_data.add_resource(
                 &self.message_hub,
-                generate_random_uid(),
-                Mesh::default(),
+                mesh_id,
+                Mesh::new(mesh_id, &self.shared_data, &self.message_hub),
             );
             let pipeline = Pipeline::request_load(
                 &self.shared_data,

@@ -23,17 +23,6 @@ pub struct Script {
     parent: Handle<Object>,
     logic: LogicData,
 }
-
-impl Default for Script {
-    fn default() -> Self {
-        Self {
-            filepath: PathBuf::new(),
-            parent: None,
-            logic: LogicData::default(),
-        }
-    }
-}
-
 impl SerializableResource for Script {
     fn path(&self) -> &Path {
         self.filepath.as_path()
@@ -51,6 +40,13 @@ impl DataTypeResource for Script {
     type DataType = LogicData;
     type OnCreateData = OnScriptCreateData;
 
+    fn new(_id: ResourceId, _shared_data_rc: &SharedDataRc, _message_hub: &MessageHubRc) -> Self {
+        Self {
+            filepath: PathBuf::new(),
+            parent: None,
+            logic: LogicData::default(),
+        }
+    }
     fn on_create(
         &mut self,
         shared_data_rc: &SharedDataRc,
@@ -87,17 +83,16 @@ impl DataTypeResource for Script {
         read_from_file::<Self::DataType>(path, registry, f);
     }
     fn create_from_data(
-        _shared_data: &SharedDataRc,
-        _message_hub: &MessageHubRc,
-        _id: ScriptId,
+        shared_data: &SharedDataRc,
+        message_hub: &MessageHubRc,
+        id: ScriptId,
         data: Self::DataType,
     ) -> Self {
+        let mut script = Self::new(id, shared_data, message_hub);
         let mut logic = data;
         logic.init();
-        Self {
-            logic,
-            ..Default::default()
-        }
+        script.logic = logic;
+        script
     }
 }
 
