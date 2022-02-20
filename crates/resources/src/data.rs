@@ -139,6 +139,7 @@ pub trait SerializableResource: DataTypeResource + Sized {
                 filepath
             );
         }
+        debug_log!("Creating resource : {:?}", filepath);
         let data = Self::deserialize_data(path.as_path(), shared_data.serializable_registry());
         let resource_id = generate_uid_from_string(path.as_path().to_str().unwrap());
         let mut resource = Self::create_from_data(shared_data, message_hub, resource_id, data);

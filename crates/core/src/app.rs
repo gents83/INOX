@@ -160,12 +160,25 @@ impl App {
         self.message_hub.flush();
 
         self.is_profiling = is_profiling;
-        if self.is_enabled && !is_enabled {
+
+        self.update_workers(is_enabled);
+        self.is_enabled = is_enabled;
+    }
+
+    fn update_workers(&mut self, is_enabled: bool) {
+        if NUM_WORKER_THREADS == 0 {
+            //no workers - need to handle events ourself
+            let recv = self.receiver.lock().unwrap();
+            if let Ok(job) = recv.try_recv() {
+                drop(recv);
+                job.execute();
+            }
+        }
+        if !self.is_enabled && !is_enabled {
             self.stop_worker_threads();
         } else if !self.is_enabled && is_enabled {
             self.setup_worker_threads();
         }
-        self.is_enabled = is_enabled;
     }
 
     pub fn run(&mut self) -> bool {
