@@ -7,7 +7,6 @@ use crate::{
 
 use inox_math::Vector4;
 use inox_messenger::MessageHubRc;
-use inox_profiler::debug_log;
 use inox_resources::{
     DataTypeResource, Handle, Resource, ResourceEvent, ResourceId, ResourceTrait,
     SerializableResource, SharedData, SharedDataRc,

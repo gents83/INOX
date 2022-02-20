@@ -5,7 +5,6 @@ use std::{
 
 use inox_filesystem::{library, Library};
 use inox_platform::{FileEvent, FileWatcher};
-use inox_profiler::debug_log;
 
 use crate::{
     App, PfnCreatePlugin, PfnDestroyPlugin, PfnPreparePlugin, PfnUnpreparePlugin, PluginHolder,
