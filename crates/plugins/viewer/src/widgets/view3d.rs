@@ -1,7 +1,7 @@
-use inox_graphics::{RenderPass, Texture};
+use inox_graphics::RenderPass;
 
 use inox_messenger::MessageHubRc;
-use inox_resources::{Handle, Resource, SharedData, SharedDataRc};
+use inox_resources::{Resource, SharedData, SharedDataRc};
 use inox_ui::{
     implement_widget_data, CentralPanel, Frame, Image, LayerId, Sense, TextureId as eguiTextureId,
     UIWidget, Widget,
@@ -9,7 +9,6 @@ use inox_ui::{
 
 struct View3DData {
     shared_data: SharedDataRc,
-    texture: Handle<Texture>,
     is_interacting: bool,
 }
 implement_widget_data!(View3DData);
@@ -23,11 +22,8 @@ unsafe impl Sync for View3D {}
 
 impl View3D {
     pub fn new(shared_data: &SharedDataRc, message_hub: &MessageHubRc) -> Self {
-        let texture = Self::get_render_pass_output_texture(shared_data, "MainPass");
-
         let data = View3DData {
             shared_data: shared_data.clone(),
-            texture,
             is_interacting: false,
         };
         let ui_page = Self::create(shared_data, message_hub, data);
@@ -55,11 +51,8 @@ impl View3D {
                         let view_width = ui.max_rect().width() as u32;
                         let view_height = ui.max_rect().height() as u32;
 
-                        let texture_uniform_index = if let Some(t) = &data.texture {
-                            t.get().uniform_index()
-                        } else {
-                            0
-                        };
+                        let texture_uniform_index =
+                            Self::get_render_pass_texture_index(&data.shared_data, "MainPass");
 
                         ui.with_layer_id(LayerId::background(), |ui| {
                             let response = Image::new(
@@ -75,15 +68,14 @@ impl View3D {
         })
     }
 
-    fn get_render_pass_output_texture(
-        shared_data: &SharedDataRc,
-        render_pass_name: &str,
-    ) -> Handle<Texture> {
+    fn get_render_pass_texture_index(shared_data: &SharedDataRc, render_pass_name: &str) -> i32 {
         if let Some(render_pass) = SharedData::match_resource(shared_data, |r: &RenderPass| {
             r.data().name == render_pass_name
         }) {
-            return render_pass.get().render_target().clone();
+            if let Some(texture) = render_pass.get().render_target() {
+                return texture.get().uniform_index();
+            }
         }
-        None
+        0
     }
 }

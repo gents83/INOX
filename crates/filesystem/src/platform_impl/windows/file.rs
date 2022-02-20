@@ -10,7 +10,10 @@ impl File {
         false
     }
 
-    pub fn load(&mut self) {
+    pub fn load<F>(&mut self, f: F)
+    where
+        F: FnMut(&mut Vec<u8>) + 'static,
+    {
         if self.exists() {
             let file = std::fs::File::open(self.path.as_path()).unwrap();
             let mut reader = BufReader::new(file);
@@ -18,12 +21,19 @@ impl File {
             let bytes = bytes.as_mut();
             reader.read_to_end(bytes).ok();
         }
+        self.apply(f);
     }
 
-    pub fn save(&self) {
-        let file = std::fs::File::create(self.path.as_path()).unwrap();
-        let mut writer = BufWriter::new(file);
-        let bytes = self.bytes.read().unwrap();
-        writer.write_all(bytes.as_slice()).ok();
+    pub fn save<F>(&mut self, f: F)
+    where
+        F: FnMut(&mut Vec<u8>) + 'static,
+    {
+        {
+            let file = std::fs::File::create(self.path.as_path()).unwrap();
+            let mut writer = BufWriter::new(file);
+            let bytes = self.bytes.read().unwrap();
+            writer.write_all(bytes.as_slice()).ok();
+        }
+        self.apply(f);
     }
 }

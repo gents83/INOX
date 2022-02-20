@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
-use image::RgbaImage;
-use inox_filesystem::convert_from_local_path;
+use image::{ImageFormat, RgbaImage};
+use inox_filesystem::{convert_from_local_path, File};
 use inox_messenger::MessageHubRc;
 use inox_profiler::debug_log;
 use inox_resources::{
@@ -56,9 +56,21 @@ impl DataTypeResource for Texture {
     fn is_initialized(&self) -> bool {
         self.uniform_index != INVALID_INDEX
     }
-    fn deserialize_data(path: &Path, _registry: &SerializableRegistryRc) -> Self::DataType {
-        let image_data = image::open(path).unwrap();
-        image_data.to_rgba8()
+    fn deserialize_data(
+        path: &Path,
+        _registry: &SerializableRegistryRc,
+        mut f: Box<dyn FnMut(Self::DataType) + 'static>,
+    ) {
+        let mut file = File::new(path);
+        let filepath = path.to_path_buf();
+        file.load(move |bytes| {
+            let image_data = image::load_from_memory_with_format(
+                bytes.as_slice(),
+                ImageFormat::from_path(filepath.as_path()).unwrap(),
+            )
+            .unwrap();
+            f(image_data.to_rgba8());
+        });
     }
     fn on_create(
         &mut self,

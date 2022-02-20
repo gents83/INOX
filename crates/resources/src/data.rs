@@ -31,7 +31,11 @@ where
 
     fn is_initialized(&self) -> bool;
     fn invalidate(&mut self) -> &mut Self;
-    fn deserialize_data(path: &Path, registry: &SerializableRegistryRc) -> Self::DataType;
+    fn deserialize_data(
+        path: &Path,
+        registry: &SerializableRegistryRc,
+        f: Box<dyn FnMut(Self::DataType) + 'static>,
+    );
 
     fn create_from_data(
         shared_data: &SharedDataRc,
@@ -125,9 +129,8 @@ pub trait SerializableResource: DataTypeResource + Sized {
         shared_data: &SharedDataRc,
         message_hub: &MessageHubRc,
         filepath: &Path,
-        on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
-    ) -> Resource<Self>
-    where
+        on_create_data: Option<<Self as ResourceTrait>::OnCreateData>,
+    ) where
         Self: Sized + DataTypeResource,
     {
         let path = convert_from_local_path(Data::data_folder().as_path(), filepath);
@@ -140,15 +143,37 @@ pub trait SerializableResource: DataTypeResource + Sized {
             );
         }
         debug_log!("Creating resource : {:?}", filepath);
-        let data = Self::deserialize_data(path.as_path(), shared_data.serializable_registry());
-        let resource_id = generate_uid_from_string(path.as_path().to_str().unwrap());
-        let mut resource = Self::create_from_data(shared_data, message_hub, resource_id, data);
-        //debug_log(format!("Created resource [{:?}] {:?}", resource_id, path.as_path()).as_str());
-        resource.set_path(path.as_path());
+        let cloned_shared_data = shared_data.clone();
+        let cloned_message_hub = message_hub.clone();
+        let cloned_path = path.clone();
+        Self::deserialize_data(
+            path.as_path(),
+            shared_data.serializable_registry(),
+            Box::new(move |data| {
+                let resource_id = generate_uid_from_string(cloned_path.as_path().to_str().unwrap());
+                let mut resource = Self::create_from_data(
+                    &cloned_shared_data,
+                    &cloned_message_hub,
+                    resource_id,
+                    data,
+                );
+                resource.set_path(cloned_path.as_path());
 
-        resource.on_create(shared_data, message_hub, &resource_id, on_create_data);
+                resource.on_create(
+                    &cloned_shared_data,
+                    &cloned_message_hub,
+                    &resource_id,
+                    on_create_data.as_ref(),
+                );
 
-        shared_data.add_resource(message_hub, resource_id, resource)
+                debug_log!(
+                    "Created resource [{:?}] {:?}",
+                    resource_id,
+                    cloned_path.as_path()
+                );
+                cloned_shared_data.add_resource(&cloned_message_hub, resource_id, resource);
+            }),
+        );
     }
 
     fn request_load(

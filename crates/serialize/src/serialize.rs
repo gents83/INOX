@@ -7,15 +7,19 @@ pub trait SerializeFile {
     fn extension() -> &'static str;
     fn save_to_file(&self, path: &Path, registry: &SerializableRegistryRc)
     where
-        Self: Serialize + Sized + Clone + 'static,
+        Self: Serialize + Sized + 'static + Clone,
     {
         serialize_to_file(self, path, registry);
     }
-    fn load_from_file(&mut self, path: &Path, registry: &SerializableRegistryRc)
-    where
-        Self: for<'de> Deserialize<'de> + Default,
+    fn load_from_file(
+        &mut self,
+        path: &Path,
+        registry: &SerializableRegistryRc,
+        f: Box<dyn FnMut(Self) + 'static>,
+    ) where
+        Self: for<'de> Deserialize<'de> + Default + 'static,
     {
-        *self = read_from_file(path, registry);
+        read_from_file(path, registry, f);
     }
 }
 
@@ -43,41 +47,46 @@ where
 #[inline]
 pub fn serialize_to_file<T>(data: &T, filepath: &Path, registry: &SerializableRegistryRc)
 where
-    T: Serialize + Clone + Sized + SerializeFile + 'static,
+    T: Serialize + Sized + SerializeFile + 'static + Clone,
 {
     check_serializable_registry(registry);
     let data = data.clone();
     let mut file = File::new(filepath);
-    file.apply(move |bytes| {
+    file.save(move |bytes| {
         serde_json::to_writer(bytes.as_mut_slice(), &data).unwrap();
     });
-    file.save();
 }
 
 #[inline]
-pub fn read_from_file<'a, T>(filepath: &Path, registry: &SerializableRegistryRc) -> T
-where
-    T: for<'de> Deserialize<'de> + Default + SerializeFile,
+pub fn read_from_file<'a, T>(
+    filepath: &Path,
+    registry: &SerializableRegistryRc,
+    mut f: Box<dyn FnMut(T) + 'static>,
+) where
+    T: for<'de> Deserialize<'de> + Default + SerializeFile + 'static,
 {
     let mut file = File::new(filepath);
     if file.exists() {
         check_serializable_registry(registry);
-        file.load();
-        match serde_json::from_reader(file.bytes().as_slice()) {
-            Ok(data) => return data,
-            Err(e) => {
-                eprintln!(
-                    "Error {} - Unable to deserialize file {}",
-                    e,
-                    filepath.to_str().unwrap_or("InvalidPath"),
-                );
-            }
-        }
+        let path = filepath.to_path_buf();
+        file.load(
+            move |bytes| match serde_json::from_reader(bytes.as_slice()) {
+                Ok(data) => {
+                    f(data);
+                }
+                Err(e) => {
+                    eprintln!(
+                        "Error {} - Unable to deserialize file {}",
+                        e,
+                        path.to_str().unwrap_or("InvalidPath"),
+                    );
+                }
+            },
+        );
     } else {
         eprintln!(
             "Unable to find file {}",
             filepath.to_str().unwrap_or("InvalidPath"),
         );
     }
-    T::default()
 }

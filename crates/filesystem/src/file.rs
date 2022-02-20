@@ -4,8 +4,8 @@ use std::{
 };
 
 pub struct File {
-    pub path: PathBuf,
-    pub bytes: Arc<RwLock<Vec<u8>>>,
+    pub(crate) path: PathBuf,
+    pub(crate) bytes: Arc<RwLock<Vec<u8>>>,
 }
 
 impl File {

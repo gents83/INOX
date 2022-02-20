@@ -166,12 +166,7 @@ where
                     let p = path.clone();
                     let on_create_data = on_create_data.clone();
                     f(Box::new(move |shared_data, message_hub| {
-                        T::create_from_file(
-                            shared_data,
-                            message_hub,
-                            p.as_path(),
-                            on_create_data.as_ref(),
-                        );
+                        T::create_from_file(shared_data, message_hub, p.as_path(), on_create_data);
                     }));
                 }
             }

@@ -38,8 +38,8 @@ impl DataTypeResource for View {
     fn deserialize_data(
         _path: &std::path::Path,
         _registry: &SerializableRegistryRc,
-    ) -> Self::DataType {
-        0
+        _f: Box<dyn FnMut(Self::DataType) + 'static>,
+    ) {
     }
     fn on_create(
         &mut self,

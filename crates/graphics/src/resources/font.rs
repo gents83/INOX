@@ -64,8 +64,12 @@ impl DataTypeResource for Font {
         self.texture = None;
         self
     }
-    fn deserialize_data(path: &Path, _registry: &SerializableRegistryRc) -> Self::DataType {
-        FontData::new(path)
+    fn deserialize_data(
+        path: &Path,
+        _registry: &SerializableRegistryRc,
+        mut f: Box<dyn FnMut(Self::DataType) + 'static>,
+    ) {
+        f(FontData::new(path));
     }
 }
 

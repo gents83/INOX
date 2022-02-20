@@ -3,7 +3,7 @@ use inox_serialize::{Deserialize, Serialize, SerializeFile};
 
 use crate::RenderPassData;
 
-#[derive(Default, Serialize, Deserialize, Debug, Clone)]
+#[derive(Default, Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(crate = "inox_serialize")]
 pub struct Config {
     pub render_passes: Vec<RenderPassData>,

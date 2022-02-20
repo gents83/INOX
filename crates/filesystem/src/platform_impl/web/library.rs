@@ -1,12 +1,12 @@
 pub struct Library {}
 impl Library {
     #[inline]
-    pub fn load(filename: &str) -> Self {
+    pub fn load(_filename: &str) -> Self {
         Self {}
     }
 
     #[inline]
-    pub fn get<T>(&self, symbol: &str) -> Option<T> {
+    pub fn get<T>(&self, _symbol: &str) -> Option<T> {
         None
     }
 

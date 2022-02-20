@@ -81,8 +81,12 @@ impl DataTypeResource for Material {
         self.uniform_index = INVALID_INDEX;
         self
     }
-    fn deserialize_data(path: &Path, registry: &SerializableRegistryRc) -> Self::DataType {
-        read_from_file::<Self::DataType>(path, registry)
+    fn deserialize_data(
+        path: &std::path::Path,
+        registry: &SerializableRegistryRc,
+        f: Box<dyn FnMut(Self::DataType) + 'static>,
+    ) {
+        read_from_file::<Self::DataType>(path, registry, f);
     }
     fn on_create(
         &mut self,

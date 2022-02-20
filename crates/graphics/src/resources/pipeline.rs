@@ -64,8 +64,12 @@ impl DataTypeResource for Pipeline {
     fn is_initialized(&self) -> bool {
         self.vertex_shader.is_some() && self.fragment_shader.is_some()
     }
-    fn deserialize_data(path: &Path, registry: &SerializableRegistryRc) -> Self::DataType {
-        read_from_file::<Self::DataType>(path, registry)
+    fn deserialize_data(
+        path: &std::path::Path,
+        registry: &SerializableRegistryRc,
+        f: Box<dyn FnMut(Self::DataType) + 'static>,
+    ) {
+        read_from_file::<Self::DataType>(path, registry, f);
     }
     fn on_create(
         &mut self,

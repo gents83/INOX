@@ -3,21 +3,21 @@ use inox_core::{JobHandlerRw, System};
 use inox_messenger::{Listener, MessageHubRc};
 use inox_platform::WindowEvent;
 use inox_resources::{
-    ConfigBase, DataTypeResource, ReloadEvent, Resource, ResourceEvent, SerializableResource,
-    SharedData, SharedDataRc,
+    ConfigBase, ConfigEvent, DataTypeResource, ReloadEvent, Resource, ResourceEvent,
+    SerializableResource, SharedData, SharedDataRc,
 };
 use inox_serialize::read_from_file;
 use inox_uid::generate_random_uid;
 
 use crate::{
-    is_shader, Light, Material, Mesh, Pipeline, RenderPass, RenderPassData, RendererRw,
-    RendererState, Texture,
+    is_shader, Light, Material, Mesh, Pipeline, RenderPass, RendererRw, RendererState, Texture,
 };
 
 use super::config::Config;
 pub const RENDERING_UPDATE: &str = "RENDERING_UPDATE";
 
 pub struct UpdateSystem {
+    config: Config,
     renderer: RendererRw,
     shared_data: SharedDataRc,
     message_hub: MessageHubRc,
@@ -37,6 +37,7 @@ impl UpdateSystem {
 
         crate::register_resource_types(shared_data, message_hub);
         Self {
+            config: Config::default(),
             renderer,
             shared_data: shared_data.clone(),
             message_hub: message_hub.clone(),
@@ -46,21 +47,8 @@ impl UpdateSystem {
         }
     }
 
-    pub fn load_render_passes(&mut self, render_passes: &[RenderPassData]) -> &mut Self {
-        for render_pass_data in render_passes.iter() {
-            self.render_passes.push(RenderPass::new_resource(
-                &self.shared_data,
-                &self.message_hub,
-                generate_random_uid(),
-                render_pass_data.clone(),
-            ));
-        }
-        self
-    }
-
-    fn handle_events(&self) {
+    fn handle_events(&mut self) {
         //REMINDER: message processing order is important - RenderPass must be processed before Texture
-
         self.listener
             .process_messages(|e: &WindowEvent| {
                 if let WindowEvent::SizeChanged(width, height) = e {
@@ -132,6 +120,22 @@ impl UpdateSystem {
                     self.renderer.write().unwrap().on_mesh_removed(id);
                 }
                 _ => {}
+            })
+            .process_messages(|e: &ConfigEvent<Config>| match e {
+                ConfigEvent::Loaded(filename, config) => {
+                    if filename == self.config.get_filename() {
+                        self.config = config.clone();
+                        self.render_passes.clear();
+                        for render_pass_data in self.config.render_passes.iter() {
+                            self.render_passes.push(RenderPass::new_resource(
+                                &self.shared_data,
+                                &self.message_hub,
+                                generate_random_uid(),
+                                render_pass_data.clone(),
+                            ));
+                        }
+                    }
+                }
             });
     }
 }
@@ -147,13 +151,18 @@ unsafe impl Sync for UpdateSystem {}
 
 impl System for UpdateSystem {
     fn read_config(&mut self, plugin_name: &str) {
-        let mut config = Config::default();
-        config = read_from_file(
-            config.get_filepath(plugin_name).as_path(),
+        
+        self.listener
+            .register::<ConfigEvent<Config>>();
+        let message_hub = self.message_hub.clone();
+        let filename = self.config.get_filename().to_string();
+        read_from_file(
+            self.config.get_filepath(plugin_name).as_path(),
             self.shared_data.serializable_registry(),
+            Box::new(move |data: Config| {
+                message_hub.send_event(ConfigEvent::Loaded(filename.clone(), data));
+            }),
         );
-
-        self.load_render_passes(&config.render_passes);
     }
 
     fn should_run_when_not_focused(&self) -> bool {
@@ -197,6 +206,7 @@ impl System for UpdateSystem {
         self.listener
             .unregister::<WindowEvent>()
             .unregister::<ReloadEvent>()
+            .unregister::<ConfigEvent<Config>>()
             .unregister::<ResourceEvent<Light>>()
             .unregister::<ResourceEvent<Texture>>()
             .unregister::<ResourceEvent<Material>>()

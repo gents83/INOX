@@ -10,10 +10,10 @@ use std::{
 };
 
 use inox_core::System;
-use inox_messenger::MessageHubRc;
+use inox_messenger::{Listener, MessageHubRc};
 use inox_profiler::debug_log;
-use inox_resources::{ConfigBase, SharedDataRc};
-use inox_serialize::SerializeFile;
+use inox_resources::{ConfigBase, ConfigEvent, SharedDataRc};
+use inox_serialize::read_from_file;
 
 use crate::config::Config;
 
@@ -27,8 +27,10 @@ struct ConnectorData {
 }
 
 pub struct Connector {
+    config: Config,
     shared_data: SharedDataRc,
     message_hub: MessageHubRc,
+    listener: Listener,
     can_continue: Arc<AtomicBool>,
     host_address_and_port: String,
     server_thread: Option<JoinHandle<()>>,
@@ -36,26 +38,46 @@ pub struct Connector {
 
 impl Connector {
     pub fn new(shared_data: &SharedDataRc, message_hub: &MessageHubRc) -> Self {
+        let listener = Listener::new(message_hub);
         Self {
+            config: Config::default(),
             shared_data: shared_data.clone(),
             message_hub: message_hub.clone(),
+            listener,
             can_continue: Arc::new(AtomicBool::new(false)),
             host_address_and_port: String::new(),
             server_thread: None,
         }
     }
+
+    fn handle_events(&mut self) {
+        self.listener
+            .process_messages(|e: &ConfigEvent<Config>| match e {
+                ConfigEvent::Loaded(filename, config) => {
+                    if filename == self.config.get_filename() {
+                        self.config = config.clone();
+                        self.host_address_and_port = self.config.host_address.clone()
+                            + ":"
+                            + self.config.port.to_string().as_str();
+                        println!("Host address and port: {}", self.host_address_and_port);
+                    }
+                }
+            });
+    }
 }
 
 impl System for Connector {
     fn read_config(&mut self, plugin_name: &str) {
-        let mut config = Config::default();
-        config.load_from_file(
-            config.get_filepath(plugin_name).as_path(),
+        self.listener.register::<ConfigEvent<Config>>();
+        let message_hub = self.message_hub.clone();
+        let filename = self.config.get_filename().to_string();
+        read_from_file(
+            self.config.get_filepath(plugin_name).as_path(),
             self.shared_data.serializable_registry(),
+            Box::new(move |data: Config| {
+                message_hub.send_event(ConfigEvent::Loaded(filename.clone(), data));
+            }),
         );
-
-        self.host_address_and_port = config.host_address + ":" + config.port.to_string().as_str();
-        println!("Host address and port: {}", self.host_address_and_port);
     }
     fn should_run_when_not_focused(&self) -> bool {
         false
@@ -109,10 +131,14 @@ impl System for Connector {
     }
 
     fn run(&mut self) -> bool {
+        self.handle_events();
+
         true
     }
     fn uninit(&mut self) {
         self.can_continue.store(false, Ordering::SeqCst);
+
+        self.listener.unregister::<ConfigEvent<Config>>();
     }
 }
 

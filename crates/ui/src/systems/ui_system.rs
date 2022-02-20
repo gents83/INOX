@@ -24,7 +24,7 @@ use inox_platform::{
 };
 use inox_profiler::debug_log;
 use inox_resources::{
-    ConfigBase, DataTypeResource, Handle, Resource, SerializableResource, SharedDataRc,
+    ConfigBase, ConfigEvent, DataTypeResource, Handle, Resource, SerializableResource, SharedDataRc,
 };
 use inox_serialize::read_from_file;
 use inox_uid::generate_random_uid;
@@ -88,7 +88,7 @@ impl UISystem {
             Entry::Vacant(e) => {
                 let shared_data = self.shared_data.clone();
                 let message_hub = self.message_hub.clone();
-                if let Some(pipeline) = &self.ui_pipeline {
+                if let Some(pipeline) = self.ui_pipeline.as_ref() {
                     let material =
                         Material::duplicate_from_pipeline(&shared_data, &message_hub, pipeline);
                     material
@@ -97,7 +97,7 @@ impl UISystem {
                     e.insert(material.clone());
                     material
                 } else {
-                    panic!("UI pipeline not set - maybe you forgot to read ui.cfg file");
+                    panic!("UI pipeline not loaded yet or maybe you forgot to read ui.cfg file");
                 }
             }
         }
@@ -177,95 +177,111 @@ impl UISystem {
     fn update_events(&mut self) -> &mut Self {
         self.ui_input.events.clear();
 
-        Listener::process_messages(&self.listener, |event: &MouseEvent| {
-            if event.state == MouseState::Move {
-                self.ui_input.events.push(Event::PointerMoved(
-                    [
-                        event.x as f32 / self.ui_scale,
-                        event.y as f32 / self.ui_scale,
-                    ]
-                    .into(),
-                ));
-            } else if event.state == MouseState::Down || event.state == MouseState::Up {
-                self.ui_input.events.push(Event::PointerButton {
-                    pos: [
-                        event.x as f32 / self.ui_scale,
-                        event.y as f32 / self.ui_scale,
-                    ]
-                    .into(),
-                    button: match event.button {
-                        MouseButton::Right => PointerButton::Secondary,
-                        MouseButton::Middle => PointerButton::Middle,
-                        _ => PointerButton::Primary,
-                    },
-                    pressed: event.state == MouseState::Down,
-                    modifiers: self.ui_input_modifiers,
-                });
-            }
-        });
-        Listener::process_messages(&self.listener, |event: &WindowEvent| match *event {
-            WindowEvent::SizeChanged(width, height) => {
-                self.ui_input.screen_rect = Some(Rect::from_min_size(
-                    Default::default(),
-                    [width as f32 / self.ui_scale, height as f32 / self.ui_scale].into(),
-                ));
-            }
-            WindowEvent::DpiChanged(x, _y) => {
-                self.ui_input.pixels_per_point = Some(x / DEFAULT_DPI);
-            }
-            _ => {}
-        });
-        Listener::process_messages(&self.listener, |event: &KeyEvent| {
-            let just_pressed = event.state == InputState::JustPressed;
-            let pressed = just_pressed || event.state == InputState::Pressed;
-
-            if let Some(key) = convert_key(event.code) {
-                self.ui_input.events.push(Event::Key {
-                    key,
-                    pressed,
-                    modifiers: self.ui_input_modifiers,
-                });
-            }
-
-            if event.code == inox_platform::Key::Shift {
-                self.ui_input_modifiers.shift = pressed;
-            } else if event.code == inox_platform::Key::Control {
-                self.ui_input_modifiers.ctrl = pressed;
-                self.ui_input_modifiers.command = pressed;
-            } else if event.code == inox_platform::Key::Alt {
-                self.ui_input_modifiers.alt = pressed;
-            } else if event.code == inox_platform::Key::Meta {
-                self.ui_input_modifiers.command = pressed;
-                self.ui_input_modifiers.mac_cmd = pressed;
-            }
-
-            if just_pressed
-                && self.ui_input_modifiers.ctrl
-                && event.code == inox_platform::input::Key::C
-            {
-                self.ui_input.events.push(Event::Copy);
-            } else if just_pressed
-                && self.ui_input_modifiers.ctrl
-                && event.code == inox_platform::input::Key::X
-            {
-                self.ui_input.events.push(Event::Cut);
-            } else if just_pressed
-                && self.ui_input_modifiers.ctrl
-                && event.code == inox_platform::input::Key::V
-            {
-                if let Some(content) = &self.ui_clipboard {
-                    self.ui_input.events.push(Event::Text(content.clone()));
+        self.listener
+            .process_messages(|event: &MouseEvent| {
+                if event.state == MouseState::Move {
+                    self.ui_input.events.push(Event::PointerMoved(
+                        [
+                            event.x as f32 / self.ui_scale,
+                            event.y as f32 / self.ui_scale,
+                        ]
+                        .into(),
+                    ));
+                } else if event.state == MouseState::Down || event.state == MouseState::Up {
+                    self.ui_input.events.push(Event::PointerButton {
+                        pos: [
+                            event.x as f32 / self.ui_scale,
+                            event.y as f32 / self.ui_scale,
+                        ]
+                        .into(),
+                        button: match event.button {
+                            MouseButton::Right => PointerButton::Secondary,
+                            MouseButton::Middle => PointerButton::Middle,
+                            _ => PointerButton::Primary,
+                        },
+                        pressed: event.state == MouseState::Down,
+                        modifiers: self.ui_input_modifiers,
+                    });
                 }
-            }
-        });
-        Listener::process_messages(&self.listener, |event: &KeyTextEvent| {
-            if event.char.is_ascii_control() {
-                return;
-            }
-            self.ui_input
-                .events
-                .push(Event::Text(event.char.to_string()));
-        });
+            })
+            .process_messages(|e: &ConfigEvent<Config>| match e {
+                ConfigEvent::Loaded(filename, config) => {
+                    if filename == self.config.get_filename() {
+                        self.config = config.clone();
+
+                        self.ui_scale = self.config.ui_scale;
+                        self.ui_pipeline = Some(Pipeline::request_load(
+                            &self.shared_data,
+                            &self.message_hub,
+                            self.config.ui_pipeline.as_path(),
+                            None,
+                        ));
+                    }
+                }
+            })
+            .process_messages(|event: &WindowEvent| match *event {
+                WindowEvent::SizeChanged(width, height) => {
+                    self.ui_input.screen_rect = Some(Rect::from_min_size(
+                        Default::default(),
+                        [width as f32 / self.ui_scale, height as f32 / self.ui_scale].into(),
+                    ));
+                }
+                WindowEvent::DpiChanged(x, _y) => {
+                    self.ui_input.pixels_per_point = Some(x / DEFAULT_DPI);
+                }
+                _ => {}
+            })
+            .process_messages(|event: &KeyEvent| {
+                let just_pressed = event.state == InputState::JustPressed;
+                let pressed = just_pressed || event.state == InputState::Pressed;
+
+                if let Some(key) = convert_key(event.code) {
+                    self.ui_input.events.push(Event::Key {
+                        key,
+                        pressed,
+                        modifiers: self.ui_input_modifiers,
+                    });
+                }
+
+                if event.code == inox_platform::Key::Shift {
+                    self.ui_input_modifiers.shift = pressed;
+                } else if event.code == inox_platform::Key::Control {
+                    self.ui_input_modifiers.ctrl = pressed;
+                    self.ui_input_modifiers.command = pressed;
+                } else if event.code == inox_platform::Key::Alt {
+                    self.ui_input_modifiers.alt = pressed;
+                } else if event.code == inox_platform::Key::Meta {
+                    self.ui_input_modifiers.command = pressed;
+                    self.ui_input_modifiers.mac_cmd = pressed;
+                }
+
+                if just_pressed
+                    && self.ui_input_modifiers.ctrl
+                    && event.code == inox_platform::input::Key::C
+                {
+                    self.ui_input.events.push(Event::Copy);
+                } else if just_pressed
+                    && self.ui_input_modifiers.ctrl
+                    && event.code == inox_platform::input::Key::X
+                {
+                    self.ui_input.events.push(Event::Cut);
+                } else if just_pressed
+                    && self.ui_input_modifiers.ctrl
+                    && event.code == inox_platform::input::Key::V
+                {
+                    if let Some(content) = &self.ui_clipboard {
+                        self.ui_input.events.push(Event::Text(content.clone()));
+                    }
+                }
+            })
+            .process_messages(|event: &KeyTextEvent| {
+                if event.char.is_ascii_control() {
+                    return;
+                }
+                self.ui_input
+                    .events
+                    .push(Event::Text(event.char.to_string()));
+            });
 
         self
     }
@@ -364,9 +380,15 @@ impl Drop for UISystem {
 
 impl System for UISystem {
     fn read_config(&mut self, plugin_name: &str) {
-        self.config = read_from_file(
+        self.listener.register::<ConfigEvent<Config>>();
+        let message_hub = self.message_hub.clone();
+        let filename = self.config.get_filename().to_string();
+        read_from_file(
             self.config.get_filepath(plugin_name).as_path(),
             self.shared_data.serializable_registry(),
+            Box::new(move |data: Config| {
+                message_hub.send_event(ConfigEvent::Loaded(filename.clone(), data));
+            }),
         );
     }
     fn should_run_when_not_focused(&self) -> bool {
@@ -378,18 +400,15 @@ impl System for UISystem {
             .register::<KeyEvent>()
             .register::<KeyTextEvent>()
             .register::<MouseEvent>();
-
-        self.ui_scale = self.config.ui_scale;
-        self.ui_pipeline = Some(Pipeline::request_load(
-            &self.shared_data,
-            &self.message_hub,
-            self.config.ui_pipeline.as_path(),
-            None,
-        ));
     }
 
     fn run(&mut self) -> bool {
         self.update_events();
+
+        if self.ui_pipeline.is_none() {
+            //Pipeline not yet loaded - just skip
+            return true;
+        }
 
         let (output, shapes) = {
             inox_profiler::scoped_profile!("ui_context::run");
@@ -414,7 +433,8 @@ impl System for UISystem {
             .unregister::<MouseEvent>()
             .unregister::<KeyTextEvent>()
             .unregister::<KeyEvent>()
-            .unregister::<WindowEvent>();
+            .unregister::<WindowEvent>()
+            .unregister::<ConfigEvent<Config>>();
     }
 }
 

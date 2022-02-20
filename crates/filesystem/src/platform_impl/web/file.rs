@@ -11,7 +11,9 @@ impl File {
         true
     }
 
-    pub fn load(&mut self) {   
+    pub fn load<F>(&mut self, mut f: F)
+    where
+        F: FnMut(&mut Vec<u8>) + 'static, {
         let bytes = self.bytes.clone();
         let filepath = self.path.to_str().unwrap().to_string();
         wasm_bindgen_futures::spawn_local(
@@ -22,12 +24,17 @@ impl File {
                     .unwrap();
                 let resp: Response = resp_value.dyn_into().unwrap();
                 let data = JsFuture::from(resp.array_buffer().unwrap()).await.unwrap();
-                bytes.write().unwrap().append(&mut Uint8Array::new(&data).to_vec());
+                let mut bytes = bytes.write().unwrap();
+                bytes.append(&mut Uint8Array::new(&data).to_vec());
+                f(&mut bytes);
             }
         );
     }
 
-    pub fn save(&self)  {
+    pub fn save<F>(&mut self, _f: F)
+    where
+        F: FnMut(&mut Vec<u8>) + 'static,
+    {
         eprintln!("Save not implemented for this platform");
     }
 }
