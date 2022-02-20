@@ -1,26 +1,10 @@
 use std::{
-    fs,
     path::{Path, PathBuf},
     time::{SystemTime, UNIX_EPOCH},
 };
 
-trait NormalizedPath {
+pub trait NormalizedPath {
     fn normalize(&self) -> PathBuf;
-}
-
-impl NormalizedPath for PathBuf {
-    fn normalize(&self) -> PathBuf {
-        self.canonicalize().unwrap_or_else(|_| {
-            let path = self.to_str().unwrap().to_string();
-            let win_prefix = "\\\\?\\".to_string();
-            let string = if path.starts_with(&win_prefix) {
-                path
-            } else {
-                win_prefix + &path
-            };
-            PathBuf::from(string)
-        })
-    }
 }
 
 impl NormalizedPath for Path {
@@ -130,7 +114,7 @@ pub fn copy_with_random_name(src_path: PathBuf, target_path: PathBuf, name: &str
 
 #[inline]
 pub fn move_all_files_with_extension(src_path: PathBuf, target_path: PathBuf, extension: &str) {
-    let files = fs::read_dir(src_path).unwrap();
+    let files = ::std::fs::read_dir(src_path).unwrap();
     files
         .filter_map(Result::ok)
         .filter(|f| match f.path().extension() {
@@ -148,7 +132,7 @@ pub fn move_all_files_with_extension(src_path: PathBuf, target_path: PathBuf, ex
                 f.path().file_name().unwrap().to_str().unwrap()
             );
             let new_path = target_path.join(new_name);
-            let _res = fs::rename(f.path(), new_path);
+            let _res = ::std::fs::rename(f.path(), new_path);
             let _res = std::fs::remove_file(f.path());
         });
 }

@@ -12,4 +12,5 @@ crate-type = ["lib"]
 serde_derive = {version = "1.0"}
 serde = {version = "1.0", features = ["derive", "rc"]}
 serde_json = { path = "../../extern/json"}
+inox_filesystem = { path = "../filesystem" }
 inox_serializable = { path = "./serializable" }

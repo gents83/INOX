@@ -36,6 +36,7 @@ use super::config::Config;
 const UI_MESH_CATEGORY_IDENTIFIER: &str = "ui_mesh";
 
 pub struct UISystem {
+    config: Config,
     shared_data: SharedDataRc,
     job_handler: JobHandlerRw,
     message_hub: MessageHubRc,
@@ -62,6 +63,7 @@ impl UISystem {
         crate::register_resource_types(shared_data);
 
         Self {
+            config: Config::default(),
             ui_pipeline: None,
             shared_data: shared_data.clone(),
             job_handler: job_handler.clone(),
@@ -362,19 +364,10 @@ impl Drop for UISystem {
 
 impl System for UISystem {
     fn read_config(&mut self, plugin_name: &str) {
-        let mut config = Config::default();
-        config = read_from_file(
-            config.get_filepath(plugin_name).as_path(),
+        self.config = read_from_file(
+            self.config.get_filepath(plugin_name).as_path(),
             self.shared_data.serializable_registry(),
         );
-
-        self.ui_scale = config.ui_scale;
-        self.ui_pipeline = Some(Pipeline::request_load(
-            &self.shared_data,
-            &self.message_hub,
-            config.ui_pipeline.as_path(),
-            None,
-        ));
     }
     fn should_run_when_not_focused(&self) -> bool {
         false
@@ -385,6 +378,14 @@ impl System for UISystem {
             .register::<KeyEvent>()
             .register::<KeyTextEvent>()
             .register::<MouseEvent>();
+
+        self.ui_scale = self.config.ui_scale;
+        self.ui_pipeline = Some(Pipeline::request_load(
+            &self.shared_data,
+            &self.message_hub,
+            self.config.ui_pipeline.as_path(),
+            None,
+        ));
     }
 
     fn run(&mut self) -> bool {

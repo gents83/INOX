@@ -644,7 +644,7 @@ impl GltfCompiler {
         serializable_registry: &SerializableRegistryRc,
     ) -> PathBuf
     where
-        T: Serialize + SerializeFile,
+        T: Serialize + SerializeFile + Clone + 'static,
     {
         let filename = path.file_name().unwrap().to_str().unwrap();
         let destination_ext = format!("{}.{}", new_name, T::extension());

@@ -1,11 +1,9 @@
-use std::{
-    env,
-    path::{Path, PathBuf},
-};
+use std::path::Path;
 
-use inox_filesystem::convert_from_local_path;
+use inox_filesystem::{convert_from_local_path, File};
 use inox_messenger::MessageHubRc;
 
+use inox_profiler::debug_log;
 use inox_serialize::inox_serializable::SerializableRegistryRc;
 use inox_uid::generate_uid_from_string;
 
@@ -15,24 +13,6 @@ pub const DATA_RAW_FOLDER: &str = "data_raw";
 pub const DATA_FOLDER: &str = "data";
 
 pub struct Data {}
-impl Data {
-    #[inline]
-    pub fn data_raw_folder() -> PathBuf {
-        env::current_dir().unwrap().join(DATA_RAW_FOLDER)
-    }
-    #[inline]
-    pub fn data_folder() -> PathBuf {
-        #[cfg(target_arch = "wasm32")]
-        {
-            PathBuf::from(".").join(DATA_FOLDER)
-        }
-
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            env::current_dir().unwrap().join(DATA_FOLDER)
-        }
-    }
-}
 pub trait DataTypeResource: ResourceTrait + Default + Clone
 where
     <Self as DataTypeResource>::OnCreateData: Clone,
@@ -121,8 +101,12 @@ pub trait SerializableResource: DataTypeResource + Sized {
     fn path(&self) -> &Path;
     fn extension() -> &'static str;
     fn is_matching_extension(path: &Path) -> bool {
-        if let Some(ext) = path.extension().unwrap().to_str() {
-            return ext == Self::extension();
+        if let Some(extension) = path.extension() {
+            if let Some(ext) = extension.to_str() {
+                return ext == Self::extension();
+            }
+        } else {
+            debug_log!("No extension found for {:?}", path);
         }
         false
     }
@@ -147,10 +131,12 @@ pub trait SerializableResource: DataTypeResource + Sized {
         Self: Sized + DataTypeResource,
     {
         let path = convert_from_local_path(Data::data_folder().as_path(), filepath);
-        if !path.exists() || !path.is_file() {
+        if !File::new(path.as_path()).exists() {
             panic!(
-                "Unable to create_from_file with an invalid path {}",
-                path.to_str().unwrap()
+                "Unable to create_from_file with an invalid path {:?}\nCombining {:?} with {:?}",
+                path,
+                Data::data_folder().as_path(),
+                filepath
             );
         }
         let data = Self::deserialize_data(path.as_path(), shared_data.serializable_registry());
@@ -174,10 +160,12 @@ pub trait SerializableResource: DataTypeResource + Sized {
         Self: Sized + DataTypeResource,
     {
         let path = convert_from_local_path(Data::data_folder().as_path(), filepath);
-        if !path.exists() || !path.is_file() {
+        if !File::new(path.as_path()).exists() {
             panic!(
-                "Unable to load_from_file with an invalid path {}",
-                path.to_str().unwrap()
+                "Unable to create_from_file with an invalid path {:?}\nCombining {:?} with {:?}",
+                path,
+                Data::data_folder().as_path(),
+                filepath
             );
         }
         let resource_id = generate_uid_from_string(path.as_path().to_str().unwrap());

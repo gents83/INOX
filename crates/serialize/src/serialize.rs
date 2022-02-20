@@ -1,16 +1,13 @@
+use inox_filesystem::File;
 use inox_serializable::{check_serializable_registry, SerializableRegistryRc};
 use serde::{Deserialize, Serialize};
-use std::{
-    fs::File,
-    io::{BufReader, BufWriter},
-    path::Path,
-};
+use std::path::Path;
 
 pub trait SerializeFile {
     fn extension() -> &'static str;
     fn save_to_file(&self, path: &Path, registry: &SerializableRegistryRc)
     where
-        Self: Serialize + Sized,
+        Self: Serialize + Sized + Clone + 'static,
     {
         serialize_to_file(self, path, registry);
     }
@@ -46,12 +43,15 @@ where
 #[inline]
 pub fn serialize_to_file<T>(data: &T, filepath: &Path, registry: &SerializableRegistryRc)
 where
-    T: Serialize + ?Sized + SerializeFile,
+    T: Serialize + Clone + Sized + SerializeFile + 'static,
 {
     check_serializable_registry(registry);
-    let file = File::create(filepath).unwrap();
-    let writer = BufWriter::new(file);
-    serde_json::to_writer(writer, &data).unwrap();
+    let data = data.clone();
+    let mut file = File::new(filepath);
+    file.apply(move |bytes| {
+        serde_json::to_writer(bytes.as_mut_slice(), &data).unwrap();
+    });
+    file.save();
 }
 
 #[inline]
@@ -59,13 +59,11 @@ pub fn read_from_file<'a, T>(filepath: &Path, registry: &SerializableRegistryRc)
 where
     T: for<'de> Deserialize<'de> + Default + SerializeFile,
 {
-    if filepath.exists() && filepath.is_file() {
+    let mut file = File::new(filepath);
+    if file.exists() {
         check_serializable_registry(registry);
-
-        let file = File::open(filepath).unwrap();
-        let reader = BufReader::new(file);
-
-        match serde_json::from_reader(reader) {
+        file.load();
+        match serde_json::from_reader(file.bytes().as_slice()) {
             Ok(data) => return data,
             Err(e) => {
                 eprintln!(

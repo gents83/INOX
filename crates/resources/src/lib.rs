@@ -17,6 +17,7 @@ pub mod hash_indexer;
 pub mod config;
 pub mod data;
 pub mod events;
+pub mod platform;
 pub mod resource;
 pub mod shared_data;
 pub mod singleton;

@@ -1,10 +1,12 @@
 #![warn(clippy::all)]
 
 // Common
+pub use crate::file::*;
 pub use crate::library::*;
 pub use crate::utils::*;
 
 //Modules
+pub mod file;
 pub mod library;
 pub mod utils;
 

@@ -2,7 +2,6 @@
 
 use std::sync::Arc;
 
-use js_sys::{Function, Reflect};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 
