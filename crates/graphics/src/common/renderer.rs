@@ -1,6 +1,7 @@
 use crate::{
-    GraphicsMesh, Light, LightId, Material, MaterialId, Mesh, MeshId, Pipeline, RenderPass,
-    RenderPassDrawContext, RenderPassId, ShaderData, Texture, TextureHandler, TextureId,
+    platform::required_gpu_features, GraphicsMesh, Light, LightId, Material, MaterialId, Mesh,
+    MeshId, Pipeline, RenderPass, RenderPassDrawContext, RenderPassId, ShaderData, Texture,
+    TextureHandler, TextureId,
 };
 use inox_math::{matrix4_to_array, Matrix4, Vector2};
 use inox_resources::{DataTypeResource, HashIndexer, Resource};
@@ -119,30 +120,14 @@ impl Renderer {
             .await
             .expect("Failed to find an appropriate adapter");
 
-        #[cfg(target_arch = "wasm32")]
-        let required_features = wgpu::Features::default();
-
-        #[cfg(all(not(target_arch = "wasm32")))]
-        let required_features = wgpu::Features::all_webgpu_mask()
-            | wgpu::Features::POLYGON_MODE_LINE
-            | wgpu::Features::INDIRECT_FIRST_INSTANCE
-            | wgpu::Features::UNSIZED_BINDING_ARRAY
-            | wgpu::Features::TEXTURE_BINDING_ARRAY
-            | wgpu::Features::SAMPLED_TEXTURE_AND_STORAGE_BUFFER_ARRAY_NON_UNIFORM_INDEXING
-            | wgpu::Features::SPIRV_SHADER_PASSTHROUGH
-            | wgpu::Features::MULTI_DRAW_INDIRECT
-            | wgpu::Features::MULTI_DRAW_INDIRECT_COUNT;
+        let required_features = required_gpu_features();
 
         let (device, queue) = adapter
             .request_device(
                 &wgpu::DeviceDescriptor {
                     label: None,
                     features: required_features,
-                    #[cfg(all(not(target_arch = "wasm32")))]
                     limits: wgpu::Limits::default(),
-                    #[cfg(target_arch = "wasm32")]
-                    limits: wgpu::Limits::downlevel_webgl2_defaults()
-                        .using_resolution(adapter.limits()),
                 },
                 // Some(&std::path::Path::new("trace")), // Trace path
                 None,

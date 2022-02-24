@@ -86,7 +86,7 @@ impl System for ViewerSystem {
     }
 
     fn init(&mut self) {
-        self.check_command_line_arguments(false);
+        self.check_command_line_arguments(true);
 
         self.listener
             .register::<KeyEvent>()
@@ -180,7 +180,7 @@ impl ViewerSystem {
             let texture = Texture::request_load(
                 &self.shared_data,
                 &self.message_hub,
-                PathBuf::from("textures\\Test.jpg").as_path(),
+                PathBuf::from("textures\\Test.png").as_path(),
                 None,
             );
             material

@@ -14,3 +14,4 @@ pub mod data;
 pub mod fonts;
 pub mod resources;
 pub mod systems;
+pub mod platform;
