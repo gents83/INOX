@@ -80,7 +80,8 @@ impl Binarizer {
             data_folder: self.data_folder.clone(),
         };
 
-        let shader_compiler = ShaderCompiler::new(self.message_hub.clone());
+        let shader_compiler =
+            ShaderCompiler::new(self.shared_data.clone(), self.message_hub.clone());
         let config_compiler = CopyCompiler::new(self.message_hub.clone());
         let font_compiler = FontCompiler::new(self.message_hub.clone());
         let image_compiler = ImageCompiler::new(self.message_hub.clone());

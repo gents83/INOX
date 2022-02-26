@@ -86,7 +86,7 @@ impl System for ViewerSystem {
     }
 
     fn init(&mut self) {
-        self.check_command_line_arguments(true);
+        self.check_command_line_arguments(false);
 
         self.listener
             .register::<KeyEvent>()

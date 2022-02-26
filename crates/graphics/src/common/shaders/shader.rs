@@ -60,7 +60,7 @@ pub fn read_spirv_from_bytes<Data: ::std::io::Read + ::std::io::Seek>(
     result
 }
 
-pub fn parse_shader_from(path: &Path) -> String {
+fn parse_shader_from(path: &Path) -> String {
     let mut file = File::open(path).unwrap();
     let mut data = Vec::new();
     file.read_to_end(&mut data).unwrap();

@@ -1,4 +1,4 @@
-use std::{num::NonZeroU32, path::Path};
+use std::path::Path;
 
 use inox_profiler::debug_log;
 
@@ -25,27 +25,29 @@ impl TextureHandler {
             ..Default::default()
         });
         let texture_atlas = vec![TextureAtlas::create_default(device)];
+        let mut bind_group_entries = [wgpu::BindGroupLayoutEntry {
+            binding: 0,
+            visibility: wgpu::ShaderStages::FRAGMENT,
+            ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+            count: None,
+        }]
+        .to_vec();
+        for i in 0..MAX_TEXTURE_ATLAS_COUNT {
+            bind_group_entries.push(wgpu::BindGroupLayoutEntry {
+                binding: i + 1,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Texture {
+                    sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                    view_dimension: wgpu::TextureViewDimension::D2,
+                    multisampled: false,
+                },
+                count: None,
+            });
+        }
         let texture_data_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 label: Some("Textures bind group layout"),
-                entries: &[
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                        count: None,
-                    },
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 1,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Texture {
-                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                            view_dimension: wgpu::TextureViewDimension::D2,
-                            multisampled: false,
-                        },
-                        count: NonZeroU32::new(MAX_TEXTURE_ATLAS_COUNT),
-                    },
-                ],
+                entries: bind_group_entries.as_slice(),
             });
 
         Self {
@@ -81,30 +83,34 @@ impl TextureHandler {
         device: &wgpu::Device,
         render_target: Option<&TextureId>,
     ) -> wgpu::BindGroup {
-        let mut textures = Vec::new();
+        let mut bind_group_entries = [wgpu::BindGroupEntry {
+            binding: 0,
+            resource: wgpu::BindingResource::Sampler(&self.default_sampler),
+        }]
+        .to_vec();
+        let mut index = 0;
         self.texture_atlas.iter().for_each(|texture_atlas| {
             if let Some(id) = render_target {
                 if texture_atlas.texture_id() == id {
                     return;
                 }
             }
-            textures.push(texture_atlas.texture());
+            index += 1;
+            bind_group_entries.push(wgpu::BindGroupEntry {
+                binding: index,
+                resource: wgpu::BindingResource::TextureView(texture_atlas.texture()),
+            });
         });
-        for _ in textures.len()..MAX_TEXTURE_ATLAS_COUNT as usize {
-            textures.push(textures[0]);
+        let start = index;
+        for _ in start..MAX_TEXTURE_ATLAS_COUNT {
+            index += 1;
+            bind_group_entries.push(wgpu::BindGroupEntry {
+                binding: index,
+                resource: bind_group_entries[1].resource.clone(),
+            });
         }
-
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::Sampler(&self.default_sampler),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::TextureViewArray(textures.as_slice()),
-                },
-            ],
+            entries: bind_group_entries.as_slice(),
             layout: &self.texture_data_bind_group_layout,
             label: Some("Textures bind group"),
         });

@@ -160,8 +160,9 @@ where
     fn handle_events(&self, f: &dyn LoadFunction) {
         self.listener.process_messages(|msg: &ResourceEvent<T>| {
             if let ResourceEvent::<T>::Load(path, on_create_data) = msg {
+                //inox_profiler::debug_log!("Received load event for: {:?}", path);
                 if T::is_matching_extension(path.as_path()) {
-                    //debug_log!("Handling resource load event: {:?}", path);
+                    //inox_profiler::debug_log!("Handling it!");
                     let p = path.clone();
                     let on_create_data = on_create_data.clone();
                     f(Box::new(move |shared_data, message_hub| {

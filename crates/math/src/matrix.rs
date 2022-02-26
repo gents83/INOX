@@ -5,6 +5,7 @@ use crate::{Quat, Quaternion};
 use cgmath::{InnerSpace, SquareMatrix, Transform};
 
 pub use cgmath::perspective;
+pub use cgmath::Matrix;
 
 pub type Matrix3 = cgmath::Matrix3<f32>;
 pub type Matrix4 = cgmath::Matrix4<f32>;
@@ -166,6 +167,10 @@ implement_matrix4_operations!(Matrix4);
 
 #[inline]
 pub fn matrix4_to_array(mat: Matrix4) -> [[f32; 4]; 4] {
+    mat.into()
+}
+#[inline]
+pub fn matrix3_to_array(mat: Matrix3) -> [[f32; 3]; 3] {
     mat.into()
 }
 

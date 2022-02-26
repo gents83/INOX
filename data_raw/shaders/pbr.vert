@@ -11,7 +11,8 @@ layout(location = 4) in vec2 vertex_tex_coord[MAX_TEXTURE_COORDS_SETS];
 layout(location = 8) in uint instance_id;
 layout(location = 9) in vec4 instance_draw_area;
 layout(location = 10) in mat4 instance_matrix;
-layout(location = 14) in int instance_material_index;
+layout(location = 14) in mat3 instance_normal_matrix;
+layout(location = 17) in int instance_material_index;
 
 layout(location = 0) out vec4 out_color;
 layout(location = 1) out vec3 out_position;
@@ -25,13 +26,9 @@ layout(location = 11) out int out_material_index;
 
 void main() {
     mat4 proj_view = constant_data.proj * constant_data.view;
-    out_position = (instance_matrix * vec4(vertex_position.xyz, 1.)).xyz;
-
-    mat3 normal_matrix = mat3(transpose(inverse(instance_matrix)));
-    out_normal = normal_matrix * vertex_normal;
-
-    gl_Position = proj_view * vec4(out_position.xyz, 1.);
+    gl_Position = proj_view *(instance_matrix * vec4(vertex_position.xyz, 1.));
     
+    out_normal = instance_normal_matrix * vertex_normal;    
     out_color = vertex_color;
     out_material_index = instance_material_index;
 

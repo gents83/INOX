@@ -11,7 +11,8 @@ layout(location = 4) in vec2 vertex_tex_coord[MAX_TEXTURE_COORDS_SETS];
 layout(location = 8) in uint instance_id;
 layout(location = 9) in vec4 instance_draw_area;
 layout(location = 10) in mat4 instance_matrix;
-layout(location = 14) in int instance_material_index;
+layout(location = 14) in mat3 instance_normal_matrix;
+layout(location = 17) in int instance_material_index;
 
 layout(location = 0) out vec4 out_color;
 layout(location = 1) out vec3 out_tex_coord[TEXTURE_TYPE_COUNT];

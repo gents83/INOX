@@ -6,18 +6,22 @@ use std::{
 };
 
 use crate::{copy_into_data_folder, need_to_binarize, send_reloaded_event, ExtensionHandler};
+use inox_filesystem::delete_file;
+use inox_graphics::{read_spirv_from_bytes, ShaderData, SHADER_EXTENSION};
 use inox_messenger::MessageHubRc;
-use inox_resources::Data;
+use inox_resources::{Data, SharedDataRc};
+use inox_serialize::SerializeFile;
 
 const SHADERS_FOLDER_NAME: &str = "shaders";
 
 const WGSL_EXTENSION: &str = "wgsl";
-const SHADER_EXTENSION: &str = "spv";
+const SPV_EXTENSION: &str = "spv";
 const VERTEX_SHADER_EXTENSION: &str = "vert";
 const FRAGMENT_SHADER_EXTENSION: &str = "frag";
 const GEOMETRY_SHADER_EXTENSION: &str = "geom";
 
 pub struct ShaderCompiler {
+    shared_data: SharedDataRc,
     message_hub: MessageHubRc,
     glsl_compiler: PathBuf,
     glsl_validator: PathBuf,
@@ -25,7 +29,7 @@ pub struct ShaderCompiler {
 }
 
 impl ShaderCompiler {
-    pub fn new(message_hub: MessageHubRc) -> Self {
+    pub fn new(shared_data: SharedDataRc, message_hub: MessageHubRc) -> Self {
         let mut vulkan_sdk_path = PathBuf::new();
         if let Ok(vulkan_path) = env::var("VULKAN_SDK") {
             vulkan_sdk_path = PathBuf::from(vulkan_path.as_str());
@@ -45,6 +49,7 @@ impl ShaderCompiler {
         }
         Self {
             message_hub,
+            shared_data,
             glsl_compiler: vulkan_sdk_path.join("Bin\\glslc.exe"),
             glsl_validator: vulkan_sdk_path.join("Bin\\glslangValidator.exe"),
             spirv_validator: vulkan_sdk_path.join("Bin\\spirv-val.exe"),
@@ -84,7 +89,10 @@ impl ShaderCompiler {
     fn convert_in_spirv(&self, path: &Path) -> bool {
         let extension = path.extension().unwrap().to_str().unwrap();
         let source_ext = format!(".{}", extension);
+        let temp_ext = format!("_{}.{}", extension, SPV_EXTENSION);
         let destination_ext = format!("_{}.{}", extension, SHADER_EXTENSION);
+        let mut from_source_to_temp = path.to_str().unwrap().to_string();
+        from_source_to_temp = from_source_to_temp.replace(source_ext.as_str(), temp_ext.as_str());
         let mut from_source_to_compiled = path.to_str().unwrap().to_string();
         from_source_to_compiled = from_source_to_compiled.replace(
             Data::data_raw_folder()
@@ -100,28 +108,38 @@ impl ShaderCompiler {
         );
         from_source_to_compiled =
             from_source_to_compiled.replace(source_ext.as_str(), destination_ext.as_str());
+        let temp_path = PathBuf::from(from_source_to_temp);
         let new_path = PathBuf::from(from_source_to_compiled);
         if need_to_binarize(path, new_path.as_path()) {
-            let converted = Command::new(self.glsl_validator.to_str().unwrap())
+            if let Ok(mut command) = Command::new(self.glsl_validator.to_str().unwrap())
                 .args(&[
-                    "-o",
-                    new_path.to_str().unwrap(),
+                    "-Os",
+                    "--quiet",
+                    "-w",
+                    "-t",
+                    "-g0",
                     "-V",
                     path.to_str().unwrap(),
+                    "-o",
+                    temp_path.to_str().unwrap(),
                 ])
                 .spawn()
-                .is_ok();
-
-            if converted {
-                let result = Command::new(self.spirv_validator.to_str().unwrap())
-                    .arg(new_path.to_str().unwrap())
-                    .spawn()
-                    .is_ok();
-                if result {
+            {
+                if command.wait().is_ok()
+                    && Command::new(self.spirv_validator.to_str().unwrap())
+                        .arg(temp_path.to_str().unwrap())
+                        .spawn()
+                        .is_ok()
+                {
+                    let mut file = std::fs::File::open(temp_path.to_str().unwrap()).unwrap();
+                    let spirv_code = read_spirv_from_bytes(&mut file);
+                    let shader_data = ShaderData { spirv_code };
+                    shader_data
+                        .save_to_file(new_path.as_path(), self.shared_data.serializable_registry());
                     send_reloaded_event(&self.message_hub, new_path.as_path());
                 }
+                delete_file(temp_path);
             }
-            return converted;
         }
         true
     }

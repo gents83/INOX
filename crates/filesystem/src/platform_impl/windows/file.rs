@@ -28,12 +28,12 @@ impl File {
     where
         F: FnMut(&mut Vec<u8>) + 'static,
     {
+        self.apply(f);
         {
             let file = std::fs::File::create(self.path.as_path()).unwrap();
             let mut writer = BufWriter::new(file);
             let bytes = self.bytes.read().unwrap();
             writer.write_all(bytes.as_slice()).ok();
         }
-        self.apply(f);
     }
 }

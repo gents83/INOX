@@ -1,6 +1,6 @@
 use crate::{
-    platform::required_gpu_features, GraphicsMesh, Light, LightId, Material, MaterialId, Mesh,
-    MeshId, Pipeline, RenderPass, RenderPassDrawContext, RenderPassId, ShaderData, Texture,
+    platform::required_gpu_features, BindingData, GraphicsMesh, Light, LightId, Material,
+    MaterialId, Mesh, MeshId, Pipeline, RenderPass, RenderPassDrawContext, RenderPassId, Texture,
     TextureHandler, TextureId,
 };
 use inox_math::{matrix4_to_array, Matrix4, Vector2};
@@ -65,7 +65,7 @@ pub struct Renderer {
     material_hash_indexer: HashIndexer<MaterialId>,
     texture_hash_indexer: HashIndexer<MaterialId>,
     light_hash_indexer: HashIndexer<LightId>,
-    shader_data: ShaderData,
+    shader_data: BindingData,
 }
 pub type RendererRw = Arc<RwLock<Renderer>>;
 
@@ -89,7 +89,7 @@ impl Renderer {
         ));
 
         Renderer {
-            shader_data: ShaderData::default(),
+            shader_data: BindingData::default(),
             graphics_mesh: GraphicsMesh::default(),
             texture_hash_indexer: HashIndexer::default(),
             material_hash_indexer: HashIndexer::default(),
@@ -121,13 +121,17 @@ impl Renderer {
             .expect("Failed to find an appropriate adapter");
 
         let required_features = required_gpu_features();
+        let limits = wgpu::Limits {
+            max_vertex_attributes: 32,
+            ..Default::default()
+        };
 
         let (device, queue) = adapter
             .request_device(
                 &wgpu::DeviceDescriptor {
                     label: None,
                     features: required_features,
-                    limits: wgpu::Limits::default(),
+                    limits,
                 },
                 // Some(&std::path::Path::new("trace")), // Trace path
                 None,

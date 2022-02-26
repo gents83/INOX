@@ -1,7 +1,7 @@
 {
     "identifier": "SABI_Default_Pipeline",
-    "vertex_shader": "shaders/pbr_vert.spv",
-    "fragment_shader": "shaders/pbr_frag.spv",
+    "vertex_shader": "shaders/pbr_vert.shader",
+    "fragment_shader": "shaders/pbr_frag.shader",
     "culling": "Back",
     "mode": "Fill",
     "src_color_blend_factor": "One",

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use inox_math::matrix4_to_array;
+use inox_math::{matrix3_to_array, matrix4_to_array, Mat4Ops, Matrix, Matrix3};
 use inox_resources::BufferData;
 
 use crate::{
@@ -154,9 +154,16 @@ impl GraphicsMesh {
             { wgpu::BufferUsages::bits(&wgpu::BufferUsages::VERTEX) },
         >,
     ) -> u32 {
+        let normal_matrix = mesh.matrix().inverse().transpose();
+        let normal_matrix = Matrix3::from_cols(
+            normal_matrix.x.xyz(),
+            normal_matrix.y.xyz(),
+            normal_matrix.z.xyz(),
+        );
         let instance = InstanceData {
             id: mesh.draw_index() as _,
             matrix: matrix4_to_array(mesh.matrix()),
+            normal_matrix: matrix3_to_array(normal_matrix),
             draw_area: mesh.draw_area().into(),
             material_index: mesh
                 .material()

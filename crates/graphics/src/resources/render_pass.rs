@@ -201,12 +201,12 @@ impl RenderPass {
             let pipeline_id = pipelines_id[i];
             let instance_count = graphics_mesh.instance_count(pipeline_id);
             if instance_count > 0 {
-                {
-                    pipeline.init(
-                        render_pass_context.context,
-                        render_pass_context.bind_group_layouts,
-                        render_pass_context.format,
-                    );
+                if !pipeline.init(
+                    render_pass_context.context,
+                    render_pass_context.bind_group_layouts,
+                    render_pass_context.format,
+                ) {
+                    return;
                 }
                 if pipeline.is_initialized() && graphics_mesh.instance_buffer(pipeline_id).is_some()
                 {

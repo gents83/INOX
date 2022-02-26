@@ -53,7 +53,8 @@ where
     let data = data.clone();
     let mut file = File::new(filepath);
     file.save(move |bytes| {
-        serde_json::to_writer(bytes.as_mut_slice(), &data).unwrap();
+        let string = serde_json::to_string(&data).unwrap();
+        bytes.extend_from_slice(string.as_bytes());
     });
 }
 

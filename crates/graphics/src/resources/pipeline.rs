@@ -3,14 +3,14 @@ use std::path::{Path, PathBuf};
 use inox_messenger::MessageHubRc;
 use inox_profiler::debug_log;
 use inox_resources::{
-    DataTypeResource, ResourceId, ResourceTrait, SerializableResource, SharedData, SharedDataRc,
+    DataTypeResource, Handle, ResourceId, ResourceTrait, SerializableResource, SharedData,
+    SharedDataRc,
 };
 use inox_serialize::{inox_serializable::SerializableRegistryRc, read_from_file, SerializeFile};
-use wgpu::ShaderModule;
 
 use crate::{
-    create_shader, CullingModeType, InstanceData, PipelineData, PipelineIdentifier,
-    PolygonModeType, RenderContext, VertexData, FRAGMENT_SHADER_ENTRY_POINT, SHADER_ENTRY_POINT,
+    CullingModeType, InstanceData, PipelineData, PipelineIdentifier, PolygonModeType,
+    RenderContext, Shader, VertexData, FRAGMENT_SHADER_ENTRY_POINT, SHADER_ENTRY_POINT,
     VERTEX_SHADER_ENTRY_POINT,
 };
 
@@ -20,8 +20,8 @@ pub struct Pipeline {
     path: PathBuf,
     data: PipelineData,
     format: Option<wgpu::TextureFormat>,
-    vertex_shader: Option<ShaderModule>,
-    fragment_shader: Option<ShaderModule>,
+    vertex_shader: Handle<Shader>,
+    fragment_shader: Handle<Shader>,
     render_pipeline: Option<wgpu::RenderPipeline>,
 }
 
@@ -30,9 +30,9 @@ impl Clone for Pipeline {
         Self {
             path: self.path.clone(),
             data: self.data.clone(),
+            vertex_shader: self.vertex_shader.clone(),
+            fragment_shader: self.fragment_shader.clone(),
             format: None,
-            vertex_shader: None,
-            fragment_shader: None,
             render_pipeline: None,
         }
     }
@@ -67,8 +67,7 @@ impl DataTypeResource for Pipeline {
     }
 
     fn invalidate(&mut self) -> &mut Self {
-        self.vertex_shader = None;
-        self.fragment_shader = None;
+        self.format = None;
         self
     }
     fn is_initialized(&self) -> bool {
@@ -112,6 +111,24 @@ impl DataTypeResource for Pipeline {
         let canonicalized_pipeline_data = data.canonicalize_paths();
         let mut pipeline = Self::new(id, shared_data, message_hub);
         pipeline.data = canonicalized_pipeline_data;
+        let vertex_shader = Shader::request_load(
+            shared_data,
+            message_hub,
+            pipeline.data.vertex_shader.as_path(),
+            None,
+        );
+        if pipeline.data.vertex_shader == pipeline.data.fragment_shader {
+            pipeline.fragment_shader = Some(vertex_shader.clone());
+        } else {
+            let fragment_shader = Shader::request_load(
+                shared_data,
+                message_hub,
+                pipeline.data.fragment_shader.as_path(),
+                None,
+            );
+            pipeline.fragment_shader = Some(fragment_shader);
+        }
+        pipeline.vertex_shader = Some(vertex_shader);
         pipeline
     }
 }
@@ -131,23 +148,29 @@ impl Pipeline {
         context: &RenderContext,
         bind_group_layouts: &[&wgpu::BindGroupLayout],
         format: &wgpu::TextureFormat,
-    ) {
-        if self.data.vertex_shader.to_str().unwrap().is_empty()
-            || self.data.fragment_shader.to_str().unwrap().is_empty()
-        {
-            return;
+    ) -> bool {
+        if self.vertex_shader.is_none() || self.fragment_shader.is_none() {
+            return false;
         }
-        if self.vertex_shader.is_none() {
-            self.vertex_shader = create_shader(context, self.data.vertex_shader.as_path());
-            self.format = None;
+        if let Some(shader) = self.vertex_shader.as_ref() {
+            if !shader.get().is_initialized() {
+                if !shader.get_mut().init(context) {
+                    return false;
+                }
+                self.format = None;
+            }
         }
-        if self.fragment_shader.is_none() {
-            self.fragment_shader = create_shader(context, self.data.fragment_shader.as_path());
-            self.format = None;
+        if let Some(shader) = self.fragment_shader.as_ref() {
+            if !shader.get().is_initialized() {
+                if !shader.get_mut().init(context) {
+                    return false;
+                }
+                self.format = None;
+            }
         }
         if let Some(f) = &self.format {
             if f == format {
-                return;
+                return true;
             }
         }
         let render_pipeline_layout =
@@ -166,7 +189,7 @@ impl Pipeline {
                     label: Some("Render Pipeline"),
                     layout: Some(&render_pipeline_layout),
                     vertex: wgpu::VertexState {
-                        module: self.vertex_shader.as_ref().unwrap(),
+                        module: self.vertex_shader.as_ref().unwrap().get().module(),
                         entry_point: if self.data.vertex_shader == self.data.fragment_shader {
                             VERTEX_SHADER_ENTRY_POINT
                         } else {
@@ -178,7 +201,7 @@ impl Pipeline {
                         ],
                     },
                     fragment: Some(wgpu::FragmentState {
-                        module: self.fragment_shader.as_ref().unwrap(),
+                        module: self.fragment_shader.as_ref().unwrap().get().module(),
                         entry_point: if self.data.vertex_shader == self.data.fragment_shader {
                             FRAGMENT_SHADER_ENTRY_POINT
                         } else {
@@ -232,7 +255,8 @@ impl Pipeline {
                     multiview: None,
                 });
         self.format = Some(*format);
-        self.render_pipeline = Some(render_pipeline)
+        self.render_pipeline = Some(render_pipeline);
+        true
     }
 
     pub fn check_shaders_to_reload(&mut self, path_as_string: String) {

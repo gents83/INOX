@@ -1,0 +1,256 @@
+let MAX_TEXTURE_ATLAS_COUNT: u32 = 16u;
+let MAX_NUM_LIGHTS: u32 = 64u;
+let MAX_NUM_TEXTURES: u32 = 512u;
+let MAX_NUM_MATERIALS: u32 = 512u;
+let MAX_TEXTURE_COORDS_SETS: u32 = 4u;
+
+let TEXTURE_TYPE_BASE_COLOR: u32 = 0u;
+let TEXTURE_TYPE_METALLIC_ROUGHNESS: u32 = 1u;
+let TEXTURE_TYPE_NORMAL: u32 = 2u;
+let TEXTURE_TYPE_EMISSIVE: u32 = 3u;
+let TEXTURE_TYPE_OCCLUSION: u32 = 4u;
+let TEXTURE_TYPE_SPECULAR_GLOSSINESS: u32 = 5u;
+let TEXTURE_TYPE_DIFFUSE: u32 = 6u;
+let TEXTURE_TYPE_EMPTY_FOR_PADDING: u32 = 7u;
+let TEXTURE_TYPE_COUNT: u32 = 8u;
+
+struct ConstantData {
+    view: mat4x4<f32>;
+    proj: mat4x4<f32>;
+    screen_width: f32;
+    screen_height: f32;
+};
+
+struct LightData {
+    position: vec3<f32>;
+    light_type: u32;
+    color: vec4<f32>;
+    intensity: f32;
+    range: f32;
+    inner_cone_angle: f32;
+    outer_cone_angle: f32;
+};
+
+struct TextureData {
+    texture_index: u32;
+    layer_index: u32;
+    total_width: f32;
+    total_height: f32;
+    area: vec4<f32>;
+};
+
+struct ShaderMaterialData {
+    textures_indices: array<i32, TEXTURE_TYPE_COUNT>;
+    textures_coord_set: array<u32, TEXTURE_TYPE_COUNT>;
+    roughness_factor: f32;
+    metallic_factor: f32;
+    alpha_cutoff: f32;
+    alpha_mode: u32;
+    base_color: vec4<f32>;
+    emissive_color: vec4<f32>;
+    diffuse_color: vec4<f32>;
+    specular_color: vec4<f32>;
+};
+
+struct DynamicData {
+    lights_data: array<LightData, MAX_NUM_LIGHTS>;
+    textures_data: array<TextureData, MAX_NUM_TEXTURES>;
+    materials_data: array<ShaderMaterialData, MAX_NUM_MATERIALS>;
+    num_lights: u32;
+};
+
+
+[[group(0), binding(0)]]
+var default_sampler: sampler;
+[[group(0), binding(1)]]
+var texture_1: texture_2d<f32>;
+[[group(0), binding(2)]]
+var texture_2: texture_2d<f32>;
+[[group(0), binding(3)]]
+var texture_3: texture_2d<f32>;
+[[group(0), binding(4)]]
+var texture_4: texture_2d<f32>;
+[[group(0), binding(5)]]
+var texture_5: texture_2d<f32>;
+[[group(0), binding(6)]]
+var texture_6: texture_2d<f32>;
+[[group(0), binding(7)]]
+var texture_7: texture_2d<f32>;
+[[group(0), binding(8)]]
+var texture_8: texture_2d<f32>;
+[[group(0), binding(9)]]
+var texture_9: texture_2d<f32>;
+[[group(0), binding(10)]]
+var texture_10: texture_2d<f32>;
+[[group(0), binding(11)]]
+var texture_11: texture_2d<f32>;
+[[group(0), binding(12)]]
+var texture_12: texture_2d<f32>;
+[[group(0), binding(13)]]
+var texture_13: texture_2d<f32>;
+[[group(0), binding(14)]]
+var texture_14: texture_2d<f32>;
+[[group(0), binding(15)]]
+var texture_15: texture_2d<f32>;
+[[group(0), binding(16)]]
+var texture_16: texture_2d<f32>;
+
+[[group(1), binding(0)]]
+var<uniform> constant_data: ConstantData;
+[[group(1), binding(1)]]
+var<storage, read> dynamic_data: DynamicData;
+
+
+
+struct InstanceInput {
+    //[[builtin(instance_index)]] index: u32;
+    [[location(8)]] id: u32;
+    [[location(9)]] draw_area: vec4<f32>;
+    [[location(10)]] model_matrix_0: vec4<f32>;
+    [[location(11)]] model_matrix_1: vec4<f32>;
+    [[location(12)]] model_matrix_2: vec4<f32>;
+    [[location(13)]] model_matrix_3: vec4<f32>;
+    [[location(14)]] normal_matrix_0: vec3<f32>;
+    [[location(15)]] normal_matrix_1: vec3<f32>;
+    [[location(16)]] normal_matrix_2: vec3<f32>;
+    [[location(17)]] material_index: i32;
+};
+
+struct VertexInput {
+    //[[builtin(vertex_index)]] index: u32;
+    [[location(0)]] position: vec3<f32>;
+    [[location(1)]] normal: vec3<f32>;
+    [[location(2)]] tangent: vec3<f32>;
+    [[location(3)]] color: vec4<f32>;
+    [[location(4)]] tex_coords_0: vec2<f32>;
+    [[location(5)]] tex_coords_1: vec2<f32>;
+    [[location(6)]] tex_coords_2: vec2<f32>;
+    [[location(7)]] tex_coords_3: vec2<f32>;
+};
+
+struct VertexOutput {
+    [[builtin(position)]] clip_position: vec4<f32>;
+    [[location(0)]] color: vec4<f32>;
+    [[location(1)]] material_index: i32;
+    [[location(2)]] tex_coords_base_color: vec3<f32>;
+    [[location(3)]] tex_coords_metallic_roughness: vec3<f32>;
+    [[location(4)]] tex_coords_normal: vec3<f32>;
+    [[location(5)]] tex_coords_emissive: vec3<f32>;
+    [[location(6)]] tex_coords_occlusion: vec3<f32>;
+    [[location(7)]] tex_coords_specular_glossiness: vec3<f32>;
+    [[location(8)]] tex_coords_diffuse: vec3<f32>;
+};
+
+fn get_textures_coord_set(v: VertexInput, material_index: i32, texture_type: u32) -> vec2<f32> {
+    let texture_data_index = dynamic_data.materials_data[material_index].textures_indices[texture_type];
+    if (texture_data_index >= 0) {
+        let textures_coord_set_index = dynamic_data.materials_data[material_index].textures_coord_set[texture_type];
+        if (textures_coord_set_index == 1u) {
+            return v.tex_coords_1;
+        } else if (textures_coord_set_index == 2u) {
+            return v.tex_coords_2;
+        } else if (textures_coord_set_index == 3u) {
+            return v.tex_coords_3;
+        }
+    }
+    return v.tex_coords_0;
+}
+
+
+fn compute_textures_coord(v: VertexInput, material_index: i32, texture_type: u32) -> vec3<f32> {
+    let tex_coords = get_textures_coord_set(v, material_index, texture_type);
+    var output = vec3<f32>(0.0, 0.0, 0.0); 
+    let texture_data_index = dynamic_data.materials_data[material_index].textures_indices[texture_type];
+    if (texture_data_index >= 0) {
+        output.x = (dynamic_data.textures_data[texture_data_index].area.x + 0.5 + tex_coords.x * dynamic_data.textures_data[texture_data_index].area.z) / dynamic_data.textures_data[texture_data_index].total_width;
+        output.y = (dynamic_data.textures_data[texture_data_index].area.y + 0.5 + tex_coords.y * dynamic_data.textures_data[texture_data_index].area.w) / dynamic_data.textures_data[texture_data_index].total_height;
+        output.z = f32(dynamic_data.textures_data[texture_data_index].layer_index);
+    }
+    return output;
+}
+
+[[stage(vertex)]]
+fn vs_main(
+    v: VertexInput,
+    instance: InstanceInput,
+) -> VertexOutput {    
+    var out: VertexOutput;    
+    out.clip_position =
+        vec4( 2. * v.position.x / constant_data.screen_width - 1.,
+              1. - 2. * v.position.y / constant_data.screen_height, 
+              v.position.z, 
+              1.
+            );
+    out.color = v.color;
+    out.material_index = instance.material_index;
+
+    if (instance.material_index >= 0)
+    {
+        out.tex_coords_base_color = compute_textures_coord(v, instance.material_index, TEXTURE_TYPE_BASE_COLOR);
+        out.tex_coords_metallic_roughness = compute_textures_coord(v, instance.material_index, TEXTURE_TYPE_METALLIC_ROUGHNESS);
+        out.tex_coords_normal = compute_textures_coord(v, instance.material_index, TEXTURE_TYPE_NORMAL);
+        out.tex_coords_emissive = compute_textures_coord(v, instance.material_index, TEXTURE_TYPE_EMISSIVE);
+        out.tex_coords_occlusion = compute_textures_coord(v, instance.material_index, TEXTURE_TYPE_OCCLUSION);
+        out.tex_coords_specular_glossiness = compute_textures_coord(v, instance.material_index, TEXTURE_TYPE_SPECULAR_GLOSSINESS);
+        out.tex_coords_diffuse = compute_textures_coord(v, instance.material_index, TEXTURE_TYPE_DIFFUSE);
+    }
+
+    return out;
+}
+
+fn get_atlas_index(material_index: i32, texture_type: u32) -> u32 {
+    let texture_data_index = dynamic_data.materials_data[material_index].textures_indices[texture_type];
+    if (texture_data_index >= 0) {
+        return 0u;
+    }
+    return dynamic_data.textures_data[texture_data_index].texture_index;
+}
+
+fn get_texture(atlas_index: u32) -> texture_2d<f32> {
+    if (atlas_index == 2u) {
+        return texture_2;
+    } else if (atlas_index == 3) {
+        return texture_3;
+    } else if (atlas_index == 4) {
+        return texture_4;
+    } else if (atlas_index == 5) {
+        return texture_5;
+    } else if (atlas_index == 6) {
+        return texture_6;
+    } else if (atlas_index == 7) {
+        return texture_7;
+    } else if (atlas_index == 8) {
+        return texture_8;
+    } else if (atlas_index == 9) {
+        return texture_9;
+    } else if (atlas_index == 10) {
+        return texture_10;
+    } else if (atlas_index == 11) {
+        return texture_11;
+    } else if (atlas_index == 12) {
+        return texture_12;
+    } else if (atlas_index == 13) {
+        return texture_13;
+    } else if (atlas_index == 14) {
+        return texture_14;
+    } else if (atlas_index == 15) {
+        return texture_15;
+    } else if (atlas_index == 16) {
+        return texture_16;
+    }
+    return texture_1;
+}
+
+
+[[stage(fragment)]]
+fn fs_main(v: VertexOutput) -> [[location(0)]] vec4<f32> {
+    var color = v.color;
+    if (v.material_index >= 0)
+    {
+        let atlas_index = get_atlas_index(v.material_index, TEXTURE_TYPE_BASE_COLOR);
+        let texture = get_texture(atlas_index);
+        let texture_color = textureSample(texture, default_sampler, v.tex_coords_base_color.xy);
+        color *= texture_color;
+    }
+    return color;
+}
