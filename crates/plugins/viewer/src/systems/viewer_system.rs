@@ -86,7 +86,7 @@ impl System for ViewerSystem {
     }
 
     fn init(&mut self) {
-        self.check_command_line_arguments(false);
+        self.check_command_line_arguments();
 
         self.listener
             .register::<KeyEvent>()
@@ -143,9 +143,9 @@ impl System for ViewerSystem {
 }
 
 impl ViewerSystem {
-    fn check_command_line_arguments(&mut self, force_default: bool) -> &mut Self {
+    fn check_command_line_arguments(&mut self) -> &mut Self {
         let command_parser = CommandParser::from_command_line();
-        if !force_default && command_parser.has("load_file") {
+        if command_parser.has("load_file") {
             let values = command_parser.get_values_of::<String>("load_file");
             self.load_scene(values[0].as_str());
         } else {
