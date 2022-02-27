@@ -166,6 +166,14 @@ fn compute_textures_coord(v: VertexInput, material_index: i32, texture_type: u32
     return output;
 }
 
+
+fn linear_from_srgb(srgb: vec3<f32>) -> vec3<f32> {
+    let cutoff = srgb < vec3<f32>(10.31475);
+    let lower = srgb / vec3<f32>(3294.6);
+    let higher = pow((srgb + vec3<f32>(14.025)) / vec3<f32>(269.025), vec3<f32>(2.4));
+    return select(higher, lower, cutoff);
+}
+
 @stage(vertex)
 fn vs_main(
     v: VertexInput,
@@ -178,7 +186,8 @@ fn vs_main(
               v.position.z, 
               1.
             );
-    out.color = v.color;
+            
+    out.color = vec4<f32>(linear_from_srgb(v.color.rgb), v.color.a / 255.);  
     out.material_index = instance.material_index;
 
     if (instance.material_index >= 0)
