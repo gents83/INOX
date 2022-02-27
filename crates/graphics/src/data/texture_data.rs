@@ -40,7 +40,7 @@ impl From<usize> for TextureType {
     }
 }
 
-#[repr(C, align(4))]
+#[repr(C, align(16))]
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct TextureData {
     pub texture_index: u32,

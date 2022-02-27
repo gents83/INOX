@@ -12,7 +12,8 @@
 			"vadimcn.vscode-lldb",
 			"dtoplak.vscode-glsllint",
 			"github.vscode-pull-request-github",
-			"ms-python.python"
+			"ms-python.python",
+			"wgsl-analyzer.wgsl-analyzer"
 		]
 	}
 }

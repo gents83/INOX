@@ -2,7 +2,7 @@ use crate::{print_field_size, MaterialAlphaMode, TextureType, INVALID_INDEX};
 
 pub const MAX_NUM_MATERIALS: usize = 512;
 
-#[repr(C, align(4))]
+#[repr(C, align(16))]
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct ShaderMaterialData {
     pub textures_indices: [i32; TextureType::Count as _],

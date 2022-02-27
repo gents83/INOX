@@ -7,8 +7,8 @@ use inox_resources::{
 use inox_serialize::{inox_serializable::SerializableRegistryRc, read_from_file};
 
 use crate::{
-    GraphicsMesh, LoadOperation, Pipeline, RenderContext, RenderMode, RenderPassData, RenderTarget,
-    StoreOperation, Texture,
+    platform::is_indirect_mode_enabled, GraphicsMesh, LoadOperation, Pipeline, RenderContext,
+    RenderMode, RenderPassData, RenderTarget, StoreOperation, Texture,
 };
 
 pub type RenderPassId = ResourceId;
@@ -223,7 +223,9 @@ impl RenderPass {
                     }
 
                     if render_pass_context.graphics_mesh.index_count() > 0 {
-                        if self.data.render_mode == RenderMode::Indirect {
+                        if is_indirect_mode_enabled()
+                            && self.data.render_mode == RenderMode::Indirect
+                        {
                             if let Some(indirect_buffer) =
                                 graphics_mesh.indirect_buffer(pipeline_id)
                             {

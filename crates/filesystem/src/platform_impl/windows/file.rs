@@ -30,6 +30,7 @@ impl File {
     {
         self.apply(f);
         {
+            std::fs::create_dir_all(self.path.parent().unwrap()).ok();
             let file = std::fs::File::create(self.path.as_path()).unwrap();
             let mut writer = BufWriter::new(file);
             let bytes = self.bytes.read().unwrap();

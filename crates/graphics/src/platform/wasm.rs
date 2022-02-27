@@ -7,3 +7,7 @@ pub fn required_gpu_features() -> wgpu::Features {
         | wgpu::Features::MULTI_DRAW_INDIRECT
         | wgpu::Features::MULTI_DRAW_INDIRECT_COUNT
 }
+
+pub fn is_indirect_mode_enabled() -> bool {
+    false
+}

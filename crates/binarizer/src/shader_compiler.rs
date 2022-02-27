@@ -1,11 +1,12 @@
 use std::{
     env,
     fs::create_dir_all,
+    io::Read,
     path::{Path, PathBuf},
     process::Command,
 };
 
-use crate::{copy_into_data_folder, need_to_binarize, send_reloaded_event, ExtensionHandler};
+use crate::{need_to_binarize, send_reloaded_event, ExtensionHandler};
 use inox_filesystem::delete_file;
 use inox_graphics::{read_spirv_from_bytes, ShaderData, SHADER_EXTENSION};
 use inox_messenger::MessageHubRc;
@@ -133,7 +134,10 @@ impl ShaderCompiler {
                 {
                     let mut file = std::fs::File::open(temp_path.to_str().unwrap()).unwrap();
                     let spirv_code = read_spirv_from_bytes(&mut file);
-                    let shader_data = ShaderData { spirv_code };
+                    let shader_data = ShaderData {
+                        spirv_code,
+                        ..Default::default()
+                    };
                     shader_data
                         .save_to_file(new_path.as_path(), self.shared_data.serializable_registry());
                     send_reloaded_event(&self.message_hub, new_path.as_path());
@@ -143,6 +147,39 @@ impl ShaderCompiler {
         }
         true
     }
+    fn create_wgsl_shader_data(&self, path: &Path) {
+        let extension = path.extension().unwrap().to_str().unwrap();
+        let source_ext = format!(".{}", extension);
+        let destination_ext = format!("_{}.{}", extension, SHADER_EXTENSION);
+        let mut from_source_to_compiled = path.to_str().unwrap().to_string();
+        from_source_to_compiled = from_source_to_compiled.replace(
+            Data::data_raw_folder()
+                .canonicalize()
+                .unwrap()
+                .to_str()
+                .unwrap(),
+            Data::data_folder()
+                .canonicalize()
+                .unwrap()
+                .to_str()
+                .unwrap(),
+        );
+        from_source_to_compiled =
+            from_source_to_compiled.replace(source_ext.as_str(), destination_ext.as_str());
+        let new_path = PathBuf::from(from_source_to_compiled);
+
+        if need_to_binarize(path, new_path.as_path()) {
+            let mut file = std::fs::File::open(path.to_str().unwrap()).unwrap();
+            let mut data = Vec::new();
+            file.read_to_end(&mut data).unwrap();
+            let shader_data = ShaderData {
+                wgsl_code: String::from_utf8(data).unwrap(),
+                ..Default::default()
+            };
+            shader_data.save_to_file(new_path.as_path(), self.shared_data.serializable_registry());
+            send_reloaded_event(&self.message_hub, new_path.as_path());
+        }
+    }
 }
 
 impl ExtensionHandler for ShaderCompiler {
@@ -150,7 +187,7 @@ impl ExtensionHandler for ShaderCompiler {
         if let Some(ext) = path.extension() {
             match ext.to_str().unwrap().to_string().as_str() {
                 WGSL_EXTENSION => {
-                    copy_into_data_folder(&self.message_hub, path);
+                    self.create_wgsl_shader_data(path);
                 }
                 VERTEX_SHADER_EXTENSION => {
                     let result = self.convert_in_spirv(path);

@@ -13,7 +13,7 @@ pub enum LightType {
     Spot = 3,
 }
 
-#[repr(C, align(4))]
+#[repr(C, align(16))]
 #[derive(Default, Serialize, Deserialize, Debug, PartialEq, Clone, Copy)]
 #[serde(crate = "inox_serialize")]
 pub struct LightData {

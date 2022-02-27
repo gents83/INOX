@@ -1,6 +1,4 @@
-use std::{fs::File, io::Read, path::Path};
-
-use crate::RenderContext;
+use std::path::Path;
 
 #[derive(PartialEq, Eq, Clone, Copy)]
 pub enum ShaderType {
@@ -58,47 +56,4 @@ pub fn read_spirv_from_bytes<Data: ::std::io::Read + ::std::io::Seek>(
         panic!("Input data is empty");
     }
     result
-}
-
-fn parse_shader_from(path: &Path) -> String {
-    let mut file = File::open(path).unwrap();
-    let mut data = Vec::new();
-    file.read_to_end(&mut data).unwrap();
-    String::from_utf8(data).unwrap()
-}
-
-pub fn create_shader(context: &RenderContext, path: &Path) -> Option<wgpu::ShaderModule> {
-    if let Some(extension) = path.extension() {
-        match extension.to_str().unwrap() {
-            SHADER_EXTENSION_SPV => unsafe {
-                let mut shader_file = File::open(path).unwrap();
-                let shader_code = read_spirv_from_bytes(&mut shader_file);
-
-                return Some(context.device.create_shader_module_spirv(
-                    &wgpu::ShaderModuleDescriptorSpirV {
-                        label: Some("Shader"),
-                        source: std::borrow::Cow::Borrowed(shader_code.as_slice()),
-                    },
-                ));
-            },
-            SHADER_EXTENSION_WGSL => {
-                let shader_code = parse_shader_from(path);
-                return Some(
-                    context
-                        .device
-                        .create_shader_module(&wgpu::ShaderModuleDescriptor {
-                            label: Some("Shader"),
-                            source: wgpu::ShaderSource::Wgsl(shader_code.into()),
-                        }),
-                );
-            }
-            _ => {
-                eprintln!(
-                    "Unsupported shader extension: {}",
-                    extension.to_string_lossy()
-                );
-            }
-        }
-    }
-    None
 }

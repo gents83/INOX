@@ -1,7 +1,7 @@
 {
     "identifier": "UI",
-    "vertex_shader": "shaders/ui_vert.shader",
-    "fragment_shader": "shaders/ui_frag.shader",
+    "vertex_shader": "shaders/wgsl/ui_wgsl.shader",
+    "fragment_shader": "shaders/wgsl/ui_wgsl.shader",
     "culling": "None",
     "mode": "Fill",
     "src_color_blend_factor": "One",
