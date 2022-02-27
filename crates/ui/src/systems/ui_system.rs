@@ -7,8 +7,8 @@ use std::{
 };
 
 use egui::{
-    ClippedMesh, Context, Event, Modifiers, Output, PointerButton, RawInput, Rect,
-    TextureId as eguiTextureId,
+    ClippedMesh, Context, Event, Modifiers, PlatformOutput, PointerButton, RawInput, Rect,
+    TextureId as eguiTextureId, TexturesDelta,
 };
 use image::RgbaImage;
 use inox_core::{JobHandlerRw, System};
@@ -318,7 +318,11 @@ impl UISystem {
         }
     }
 
-    fn handle_output(&mut self, output: Output) -> &mut Self {
+    fn handle_output(
+        &mut self,
+        output: PlatformOutput,
+        textures_delta: TexturesDelta,
+    ) -> &mut Self {
         if let Some(open) = output.open_url {
             debug_log!("Trying to open url: {:?}", open.url);
         }
@@ -327,7 +331,7 @@ impl UISystem {
             self.ui_clipboard = Some(output.copied_text);
         }
 
-        for (egui_texture_id, image_delta) in output.textures_delta.set {
+        for (egui_texture_id, image_delta) in textures_delta.set {
             let pixels: Vec<u8> = match &image_delta.image {
                 egui::ImageData::Color(image) => {
                     assert_eq!(
@@ -410,7 +414,7 @@ impl System for UISystem {
             return true;
         }
 
-        let (output, shapes) = {
+        let output = {
             inox_profiler::scoped_profile!("ui_context::run");
             let shared_data = self.shared_data.clone();
             let job_handler = self.job_handler.clone();
@@ -419,11 +423,17 @@ impl System for UISystem {
                 Self::show_ui(shared_data, job_handler, ui_context, false);
             })
         };
+
+        if !output.needs_repaint {
+            return true;
+        }
+
         let clipped_meshes = {
             inox_profiler::scoped_profile!("ui_context::tessellate");
-            self.ui_context.tessellate(shapes)
+            self.ui_context.tessellate(output.shapes)
         };
-        self.handle_output(output).compute_mesh_data(clipped_meshes);
+        self.handle_output(output.platform_output, output.textures_delta)
+            .compute_mesh_data(clipped_meshes);
 
         true
     }
