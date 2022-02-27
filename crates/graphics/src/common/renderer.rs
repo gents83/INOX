@@ -121,10 +121,7 @@ impl Renderer {
             .expect("Failed to find an appropriate adapter");
 
         let required_features = required_gpu_features();
-        let limits = wgpu::Limits {
-            max_vertex_attributes: 32,
-            ..Default::default()
-        };
+        let limits = wgpu::Limits::default();
 
         let (device, queue) = adapter
             .request_device(

@@ -218,6 +218,7 @@ impl GltfCompiler {
                     }
                 }
                 Semantic::Tangents => {
+                    /*
                     let num = self.num_from_type(&accessor);
                     let num_bytes = self.bytes_from_dimension(&accessor);
                     debug_assert!(num == 4 && num_bytes == 4);
@@ -238,6 +239,7 @@ impl GltfCompiler {
                             }
                         }
                     }
+                    */
                 }
                 Semantic::Colors(_color_index) => {
                     let num = self.num_from_type(&accessor);

@@ -54,28 +54,24 @@ pub fn create_colored_quad(rect: Vector4, z: f32, color: Vector4) -> ([VertexDat
             normal: [-1., -1., 0.].into(),
             color,
             tex_coord: [[0., 0.].into(); MAX_TEXTURE_COORDS_SETS],
-            ..Default::default()
         },
         VertexData {
             pos: [rect.x, rect.w, z].into(),
             normal: [-1., 1., 0.].into(),
             color,
             tex_coord: [[0., 1.].into(); MAX_TEXTURE_COORDS_SETS],
-            ..Default::default()
         },
         VertexData {
             pos: [rect.z, rect.w, z].into(),
             normal: [1., 1., 0.].into(),
             color,
             tex_coord: [[1., 1.].into(); MAX_TEXTURE_COORDS_SETS],
-            ..Default::default()
         },
         VertexData {
             pos: [rect.z, rect.y, z].into(),
             normal: [1., -1., 0.].into(),
             color,
             tex_coord: [[1., 0.].into(); MAX_TEXTURE_COORDS_SETS],
-            ..Default::default()
         },
     ];
     let indices: [u32; 6] = [0, 1, 2, 2, 3, 0];

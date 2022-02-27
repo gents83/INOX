@@ -11,7 +11,6 @@ pub const MAX_TEXTURE_COORDS_SETS: usize = 4;
 pub struct VertexData {
     pub pos: Vector3,
     pub normal: Vector3,
-    pub tangent: Vector3,
     pub color: Vector4,
     pub tex_coord: [Vector2; MAX_TEXTURE_COORDS_SETS],
 }
@@ -21,7 +20,6 @@ impl Default for VertexData {
         VertexData {
             pos: Vector3::default_zero(),
             normal: Vector3::new(0., 0., 1.),
-            tangent: Vector3::new(0., 0., 1.),
             color: Vector4::new(1., 1., 1., 1.),
             tex_coord: [Vector2::default_zero(); MAX_TEXTURE_COORDS_SETS],
         }
@@ -35,8 +33,6 @@ impl VertexData {
         //pos
         layout_builder.add_attribute::<Vector3>(wgpu::VertexFormat::Float32x3);
         //normal
-        layout_builder.add_attribute::<Vector3>(wgpu::VertexFormat::Float32x3);
-        //tangent
         layout_builder.add_attribute::<Vector3>(wgpu::VertexFormat::Float32x3);
         //color
         layout_builder.add_attribute::<Vector4>(wgpu::VertexFormat::Float32x4);

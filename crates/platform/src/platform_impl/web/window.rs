@@ -16,13 +16,15 @@ impl Window {
         _height: &mut u32,
         _scale_factor: &mut f32,
         _icon_path: &Path,
-        _events_dispatcher: &MessageHubRc,
+        events_dispatcher: &MessageHubRc,
     ) -> Handle {
         let document = web_sys::window().unwrap().document().unwrap();
         let canvas = document.get_element_by_id("canvas").unwrap();
         canvas.set_attribute("data-raw-handle", "0").ok();
-        let _canvas: web_sys::HtmlCanvasElement =
+        let canvas: web_sys::HtmlCanvasElement =
             canvas.dyn_into::<web_sys::HtmlCanvasElement>().unwrap();
+
+        events_dispatcher.send_event(WindowEvent::SizeChanged(canvas.width(), canvas.height()));
 
         Handle {
             handle_impl: HandleImpl { id: 0 },

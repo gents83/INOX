@@ -161,7 +161,6 @@ impl GraphicsMesh {
             normal_matrix.z.xyz(),
         );
         let instance = InstanceData {
-            id: mesh.draw_index() as _,
             matrix: matrix4_to_array(mesh.matrix()),
             normal_matrix: matrix3_to_array(normal_matrix),
             draw_area: mesh.draw_area().into(),
