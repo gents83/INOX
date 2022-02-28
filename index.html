@@ -12,8 +12,8 @@
     <canvas id="canvas" width="1024" height="768"></canvas>
     <script type="module">
         import init from './web/inox_launcher.js';
-
-        if (!document.createElement('canvas').getContext('webgpu')) {
+        var canvas = document.getElementById('canvas');
+        if (!canvas.getContext('webgpu')) {
             const span = document.createElement('span');
             span.innerText = 'Your browser does not seem to support WebGPU';
             document.body.appendChild(span);
