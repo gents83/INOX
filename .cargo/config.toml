@@ -16,12 +16,14 @@ incremental = true
 split-debuginfo = "unpacked" # faster debug builds on mac
 
 [profile.release]
-# lto = true # VERY slightly smaller wasm
+lto = true
 # opt-level = 's' # 10-20% smaller wasm compared to `opt-level = 3`
 # opt-level = 1 # very slow and big wasm. Don't do this.
 opt-level = 2 # fast and small wasm, basically same as `opt-level = 's'`
 # opt-level = 3 # unecessarily large wasm for no performance gain
 
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ['-Oz']
 
 [target.x86_64-unknown-linux-gnu]
 linker = "/usr/bin/clang"

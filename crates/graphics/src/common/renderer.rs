@@ -140,7 +140,7 @@ impl Renderer {
             format: surface.get_preferred_format(&adapter).unwrap(),
             width: DEFAULT_WIDTH,
             height: DEFAULT_HEIGHT,
-            present_mode: wgpu::PresentMode::Fifo,
+            present_mode: wgpu::PresentMode::Mailbox,
         };
         surface.configure(&device, &config);
 

@@ -89,11 +89,15 @@ impl TextureHandler {
         }]
         .to_vec();
         let mut index = 0;
+        let mut first_valid_texture = None;
         self.texture_atlas.iter().for_each(|texture_atlas| {
             if let Some(id) = render_target {
                 if texture_atlas.texture_id() == id {
                     return;
                 }
+            }
+            if first_valid_texture.is_none() {
+                first_valid_texture = Some(texture_atlas.texture());
             }
             index += 1;
             bind_group_entries.push(wgpu::BindGroupEntry {
@@ -106,7 +110,7 @@ impl TextureHandler {
             index += 1;
             bind_group_entries.push(wgpu::BindGroupEntry {
                 binding: index,
-                resource: bind_group_entries[1].resource.clone(),
+                resource: wgpu::BindingResource::TextureView(first_valid_texture.as_ref().unwrap()),
             });
         }
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
