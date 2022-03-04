@@ -88,10 +88,25 @@
 			},
 		},
 		{
+			"label": "RENAME BLENDER RELEASE DLL IN ADDON FOLDER",
+			"type": "shell",
+			"dependsOn": [
+				"CREATE INOX FOLDER IN ADDON FOLDER",
+				"COMPILE RELEASE",
+			],
+			"isBackground": true,
+			"command": "Copy-Item -Path ${workspaceFolder}\\crates\\target\\release\\inox_blender.dll -Destination \"$env:BLENDER_ADDONS_PATH\\INOX\\inox_blender.pyd\" -Force",
+			"presentation": {
+				"clear": true,
+				"reveal": "never", //process does not switch terminal (focus on program output)
+			},
+		},
+		{
 			"label": "RENAME BLENDER DEBUG DLL IN ADDON FOLDER",
 			"type": "shell",
 			"dependsOn": [
 				"CREATE INOX FOLDER IN ADDON FOLDER",
+				"COMPILE DEBUG",
 			],
 			"isBackground": true,
 			"command": "Copy-Item -Path ${workspaceFolder}\\crates\\target\\debug\\inox_blender.dll -Destination \"$env:BLENDER_ADDONS_PATH\\INOX\\inox_blender.pyd\" -Force",
@@ -101,7 +116,21 @@
 			},
 		},
 		{
-			"label": "COPY ADDON IN BLENDER",
+			"label": "COPY ADDON IN BLENDER RELEASE",
+			"group": "build",
+			"type": "shell",
+			"dependsOn": [
+				"RENAME BLENDER RELEASE DLL IN ADDON FOLDER",
+			],
+			"isBackground": true,
+			"command": "Copy-Item -Path ${workspaceFolder}\\crates\\blender\\inox_blender\\INOX -Destination \"$env:BLENDER_ADDONS_PATH\" -Force -Recurse",
+			"presentation": {
+				"clear": true,
+				"reveal": "never", //process does not switch terminal (focus on program output)
+			},
+		},
+		{
+			"label": "COPY ADDON IN BLENDER DEBUG",
 			"group": "build",
 			"type": "shell",
 			"dependsOn": [
@@ -279,8 +308,7 @@
 			"dependsOn": [
 				"CREATE IN_USE FOLDER",
 				"CREATE DEPS IN_USE FOLDER",
-				"COMPILE DEBUG",
-				"COPY ADDON IN BLENDER",
+				"COPY ADDON IN BLENDER DEBUG",
 			],
 			"problemMatcher": [],
 			"presentation": {
@@ -296,7 +324,7 @@
 				"CREATE IN_USE FOLDER",
 				"CREATE DEPS IN_USE FOLDER",
 				"COMPILE RELEASE",
-				"COPY ADDON IN BLENDER",
+				"COPY ADDON IN BLENDER RELEASE",
 			],
 			"problemMatcher": [],
 			"presentation": {
