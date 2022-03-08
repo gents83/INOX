@@ -423,10 +423,10 @@ impl System for UISystem {
                 Self::show_ui(shared_data, job_handler, ui_context, false);
             })
         };
-
+        /*
         if !output.needs_repaint {
             return true;
-        }
+        }*/
 
         let clipped_meshes = {
             inox_profiler::scoped_profile!("ui_context::tessellate");
