@@ -94,18 +94,25 @@ impl PhaseWithSystems {
         let can_continue = Arc::new(AtomicBool::new(true));
         self.systems_running.iter().for_each(|id| {
             if let Some(system_runner) = self.systems_runners.get_mut(id) {
-                if execute_in_parallel {
-                    system_runner.execute_as_job(can_continue.clone(), is_focused);
-                } else {
-                    system_runner.execute(can_continue.clone(), is_focused);
-                }
+                system_runner.start();
             }
         });
         while should_wait {
             should_wait = false;
             self.systems_running.iter().for_each(|id| {
-                if let Some(system_data) = self.systems_runners.get_mut(id) {
-                    should_wait &= system_data.is_running();
+                if let Some(system_runner) = self.systems_runners.get_mut(id) {
+                    if system_runner.is_running()
+                        || (system_runner.is_waiting() && system_runner.is_waiting_dependencies())
+                    {
+                        should_wait = true;
+                    } else if !system_runner.is_executed() {
+                        should_wait = true;
+                        if execute_in_parallel {
+                            system_runner.execute_as_job(can_continue.clone(), is_focused);
+                        } else {
+                            system_runner.execute(can_continue.clone(), is_focused);
+                        }
+                    }
                 }
             });
             thread::yield_now();

@@ -32,7 +32,6 @@ impl Worker {
     fn get_job(receiver: &Arc<Mutex<Receiver<Job>>>) -> Option<Job> {
         let recv = receiver.lock().unwrap();
         if let Ok(job) = recv.try_recv() {
-            drop(recv);
             return Some(job);
         }
         None
