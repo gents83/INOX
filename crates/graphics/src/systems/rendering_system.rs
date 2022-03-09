@@ -46,31 +46,35 @@ impl System for RenderingSystem {
         if state != RendererState::Prepared {
             return true;
         }
+        let renderer = self.renderer.clone();
+        let view = self.view.clone();
 
-        {
-            let mut renderer = self.renderer.write().unwrap();
-            renderer.change_state(RendererState::Drawing);
+        self.job_handler.write().unwrap().add_job(
+            &generate_random_uid(),
+            "Render Draw",
+            move || {
+                {
+                    let mut renderer = renderer.write().unwrap();
+                    renderer.change_state(RendererState::Drawing);
 
-            let resolution = renderer.resolution();
-            let screen_size = Vector2::new(resolution.0 as f32, resolution.1 as f32);
-            renderer.update_shader_data(
-                self.view.get().view(),
-                self.view.get().proj(),
-                screen_size,
-            );
+                    let resolution = renderer.resolution();
+                    let screen_size = Vector2::new(resolution.0 as f32, resolution.1 as f32);
+                    renderer.update_shader_data(view.get().view(), view.get().proj(), screen_size);
 
-            renderer.send_to_gpu();
-        }
+                    renderer.send_to_gpu();
+                }
 
-        {
-            let renderer = self.renderer.read().unwrap();
-            renderer.draw();
-        }
+                {
+                    let renderer = renderer.read().unwrap();
+                    renderer.draw();
+                }
 
-        {
-            let mut renderer = self.renderer.write().unwrap();
-            renderer.change_state(RendererState::Submitted);
-        }
+                {
+                    let mut renderer = renderer.write().unwrap();
+                    renderer.change_state(RendererState::Submitted);
+                }
+            },
+        );
         true
     }
     fn uninit(&mut self) {}
