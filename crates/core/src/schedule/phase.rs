@@ -48,6 +48,26 @@ impl PhaseWithSystems {
             system_data.execute_on_system(f);
         }
     }
+    pub fn add_system_with_dependencies<S: System + 'static>(
+        &mut self,
+        system: S,
+        dependencies: &[SystemId],
+        job_handler: &JobHandlerRw,
+    ) -> &mut Self {
+        let id = S::id();
+        self.add_system(system, job_handler);
+        let mut dependencies_states = HashMap::new();
+        dependencies.iter().for_each(|system_id| {
+            if let Some(system_data) = self.systems_runners.get_mut(system_id) {
+                dependencies_states.insert(*system_id, system_data.state());
+            }
+        });
+        self.systems_runners
+            .get_mut(&id)
+            .unwrap()
+            .add_dependencies(dependencies_states);
+        self
+    }
 
     pub fn add_system<S: System + 'static>(
         &mut self,

@@ -252,6 +252,17 @@ impl App {
     {
         self.scheduler.add_system(phase, system, &self.job_handler);
     }
+    pub fn add_system_with_dependencies<S>(
+        &mut self,
+        phase: Phases,
+        system: S,
+        dependencies: &[SystemId],
+    ) where
+        S: System + 'static,
+    {
+        self.scheduler
+            .add_system_with_dependencies(phase, system, dependencies, &self.job_handler);
+    }
     pub fn remove_system(&mut self, phase: Phases, system_id: &SystemId) {
         self.scheduler.remove_system(phase, system_id);
     }

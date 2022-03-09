@@ -45,6 +45,15 @@ impl SystemRunner {
     pub fn uninit(&mut self) {
         self.system.write().unwrap().uninit();
     }
+    pub fn state(&self) -> Arc<AtomicU8> {
+        self.state.clone()
+    }
+
+    pub fn add_dependencies(&mut self, dependencies: HashMap<SystemId, Arc<AtomicU8>>) {
+        for (id, state) in dependencies {
+            self.dependencies.insert(id, state);
+        }
+    }
 
     pub fn execute_on_system<S, F>(&mut self, mut f: F)
     where

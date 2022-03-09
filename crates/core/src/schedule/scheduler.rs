@@ -97,6 +97,19 @@ impl Scheduler {
             phase.add_system(system, job_handler);
         }
     }
+    pub fn add_system_with_dependencies<S>(
+        &mut self,
+        phase: Phases,
+        system: S,
+        dependencies: &[SystemId],
+        job_handler: &JobHandlerRw,
+    ) where
+        S: System + 'static,
+    {
+        if let Some(phase) = self.phases.get_mut(&phase) {
+            phase.add_system_with_dependencies(system, dependencies, job_handler);
+        }
+    }
     pub fn remove_system(&mut self, phase: Phases, system_id: &SystemId) {
         if let Some(phase) = self.phases.get_mut(&phase) {
             phase.remove_system(system_id);
