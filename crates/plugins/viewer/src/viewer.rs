@@ -35,13 +35,13 @@ impl Plugin for Viewer {
         self.ui_id = UISystem::id();
 
         app.add_system(inox_core::Phases::Update, system);
-        app.add_system(inox_core::Phases::PreRender, debug_drawer_system);
         app.add_system(inox_core::Phases::PreRender, ui_system);
+        app.add_system(inox_core::Phases::PreRender, debug_drawer_system);
     }
 
     fn unprepare(&mut self, app: &mut App) {
-        app.remove_system(inox_core::Phases::PreRender, &self.ui_id);
         app.remove_system(inox_core::Phases::PreRender, &self.debug_drawer_id);
+        app.remove_system(inox_core::Phases::PreRender, &self.ui_id);
         app.remove_system(inox_core::Phases::Update, &self.updater_id);
     }
 }

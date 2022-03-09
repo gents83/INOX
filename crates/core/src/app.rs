@@ -250,15 +250,16 @@ impl App {
     where
         S: System + 'static,
     {
-        self.scheduler.add_system(phase, system);
+        self.scheduler.add_system(phase, system, &self.job_handler);
     }
     pub fn remove_system(&mut self, phase: Phases, system_id: &SystemId) {
         self.scheduler.remove_system(phase, system_id);
     }
-    pub fn get_system_mut<S>(&mut self) -> Option<&mut S>
+    pub fn execute_on_system<S, F>(&mut self, f: F)
     where
-        S: System + 'static,
+        S: System + Sized + 'static,
+        F: FnMut(&mut S) + Copy,
     {
-        self.scheduler.get_system_mut::<S>()
+        self.scheduler.execute_on_system::<S, F>(f);
     }
 }

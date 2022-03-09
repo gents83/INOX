@@ -72,11 +72,11 @@ impl Scheduler {
                         let jobs_id_to_wait = phase.get_jobs_id_to_wait();
                         let mut should_wait = true;
                         while should_wait {
-                            thread::yield_now();
                             should_wait = false;
                             jobs_id_to_wait.iter().for_each(|job_id| {
                                 should_wait |= job_handler.read().unwrap().has_pending_jobs(job_id);
                             });
+                            thread::yield_now();
                         }
                     }
                     ok
@@ -89,12 +89,12 @@ impl Scheduler {
         can_continue
     }
 
-    pub fn add_system<S>(&mut self, phase: Phases, system: S)
+    pub fn add_system<S>(&mut self, phase: Phases, system: S, job_handler: &JobHandlerRw)
     where
         S: System + 'static,
     {
         if let Some(phase) = self.phases.get_mut(&phase) {
-            phase.add_system(system);
+            phase.add_system(system, job_handler);
         }
     }
     pub fn remove_system(&mut self, phase: Phases, system_id: &SystemId) {
@@ -103,16 +103,13 @@ impl Scheduler {
         }
     }
 
-    pub fn get_system_mut<S>(&mut self) -> Option<&mut S>
+    pub fn execute_on_system<S, F>(&mut self, f: F)
     where
-        S: System + 'static,
+        S: System + Sized + 'static,
+        F: FnMut(&mut S) + Copy,
     {
-        let mut system = None;
         self.phases.iter_mut().for_each(|(_, phase)| {
-            if system.is_none() {
-                system = phase.get_system_mut::<S>();
-            }
+            phase.execute_on_system::<S, F>(f);
         });
-        system
     }
 }

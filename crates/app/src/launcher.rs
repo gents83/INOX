@@ -105,13 +105,12 @@ impl Launcher {
     fn read_config(app: &mut App, plugin_name: &str) {
         debug_log!("Reading launcher configs");
 
-        if let Some(window_system) = app.get_system_mut::<WindowSystem>() {
+        app.execute_on_system(|window_system: &mut WindowSystem| {
             window_system.read_config(plugin_name);
-        }
-
-        if let Some(window_system) = app.get_system_mut::<UpdateSystem>() {
-            window_system.read_config(plugin_name);
-        }
+        });
+        app.execute_on_system(|update_system: &mut UpdateSystem| {
+            update_system.read_config(plugin_name);
+        });
     }
 
     pub fn update(&self) -> bool {

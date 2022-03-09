@@ -1,4 +1,7 @@
-use std::any::{type_name, Any};
+use std::{
+    any::{type_name, Any},
+    sync::{Arc, RwLock},
+};
 
 use downcast_rs::{impl_downcast, Downcast};
 use inox_uid::{generate_uid_from_string, Uid};
@@ -29,4 +32,4 @@ pub trait System: Downcast + Send + Sync + Any {
 }
 impl_downcast!(System);
 
-pub type SystemBoxed = Box<dyn System>;
+pub type SystemRw = Arc<RwLock<Box<dyn System>>>;
