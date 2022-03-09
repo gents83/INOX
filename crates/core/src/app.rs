@@ -14,7 +14,8 @@ use inox_resources::{DeserializeFunction, SharedData, SharedDataRc};
 use inox_uid::generate_uid_from_string;
 
 use crate::{
-    Job, JobHandler, JobHandlerRw, Phase, PluginHolder, PluginId, PluginManager, Scheduler, Worker,
+    Job, JobHandler, JobHandlerRw, Phases, PluginHolder, PluginId, PluginManager, Scheduler,
+    System, SystemId, Worker,
 };
 
 #[cfg(target_arch = "wasm32")]
@@ -79,6 +80,7 @@ impl Drop for App {
 impl App {
     pub fn start(&mut self) -> &mut Self {
         self.setup_worker_threads();
+        self.scheduler.start();
         self
     }
 
@@ -244,28 +246,19 @@ impl App {
     pub fn get_message_hub(&self) -> &MessageHubRc {
         &self.message_hub
     }
-    pub fn create_phase_on_worker<P: Phase>(&mut self, phase: P, name: &'static str) {
-        let w = self.add_worker(name);
-        w.create_phase(phase);
+    pub fn add_system<S>(&mut self, phase: Phases, system: S)
+    where
+        S: System + 'static,
+    {
+        self.scheduler.add_system(phase, system);
     }
-    pub fn destroy_phase_on_worker(&mut self, phase_name: &str, name: &str) {
-        let w = self.get_worker(name);
-        w.destroy_phase(phase_name);
+    pub fn remove_system(&mut self, phase: Phases, system_id: &SystemId) {
+        self.scheduler.remove_system(phase, system_id);
     }
-    pub fn create_phase_before<P: Phase>(&mut self, phase: P, previous_phase_name: &str) {
-        self.scheduler
-            .create_phase_before(phase, previous_phase_name);
-    }
-    pub fn create_phase<P: Phase>(&mut self, phase: P) {
-        self.scheduler.create_phase(phase);
-    }
-    pub fn destroy_phase(&mut self, phase_name: &str) {
-        self.scheduler.destroy_phase(phase_name);
-    }
-    pub fn get_phase<P: Phase>(&mut self, phase_name: &str) -> &P {
-        self.scheduler.get_phase(phase_name)
-    }
-    pub fn get_phase_mut<P: Phase>(&mut self, phase_name: &str) -> &mut P {
-        self.scheduler.get_phase_mut(phase_name)
+    pub fn get_system_mut<S>(&mut self) -> Option<&mut S>
+    where
+        S: System + 'static,
+    {
+        self.scheduler.get_system_mut::<S>()
     }
 }

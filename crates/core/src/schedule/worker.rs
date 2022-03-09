@@ -3,7 +3,7 @@ use std::{
     thread::{self, JoinHandle},
 };
 
-use crate::{Job, JobHandlerRw, Phase, Scheduler};
+use crate::{Job, JobHandlerRw, Scheduler};
 
 pub struct Worker {
     scheduler: Arc<RwLock<Scheduler>>,
@@ -79,15 +79,5 @@ impl Worker {
 
             self.thread_handle = None;
         }
-    }
-
-    pub fn create_phase<T: Phase>(&mut self, phase: T) -> &mut Self {
-        self.scheduler.write().unwrap().create_phase(phase);
-        self
-    }
-
-    pub fn destroy_phase(&mut self, phase_name: &str) -> &mut Self {
-        self.scheduler.write().unwrap().destroy_phase(phase_name);
-        self
     }
 }

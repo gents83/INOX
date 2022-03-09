@@ -4,13 +4,9 @@ use std::{
 };
 
 use inox_core::{
-    App, PfnCreatePlugin, PfnDestroyPlugin, PfnPreparePlugin, PfnUnpreparePlugin, PhaseWithSystems,
+    App, PfnCreatePlugin, PfnDestroyPlugin, PfnPreparePlugin, PfnUnpreparePlugin, System,
 };
-use inox_graphics::{
-    rendering_system::{RenderingSystem, RENDERING_PHASE},
-    update_system::{UpdateSystem, RENDERING_UPDATE},
-    Renderer,
-};
+use inox_graphics::{rendering_system::RenderingSystem, update_system::UpdateSystem, Renderer};
 
 use inox_messenger::MessageHubRc;
 use inox_platform::Window;
@@ -18,8 +14,6 @@ use inox_profiler::debug_log;
 use inox_resources::SharedDataRc;
 
 use crate::window_system::WindowSystem;
-
-const MAIN_WINDOW_PHASE: &str = "MAIN_WINDOW_PHASE";
 
 #[derive(Default)]
 pub struct Launcher {
@@ -53,13 +47,8 @@ impl Launcher {
         let renderer = Renderer::new(window.get_handle(), app.get_shared_data(), false);
         let renderer = Arc::new(RwLock::new(renderer));
 
-        let mut window_update_phase = PhaseWithSystems::new(MAIN_WINDOW_PHASE);
         let window_system = WindowSystem::new(window, app.get_shared_data(), app.get_message_hub());
 
-        window_update_phase.add_system(window_system);
-        app.create_phase(window_update_phase);
-
-        let mut rendering_update_phase = PhaseWithSystems::new(RENDERING_UPDATE);
         let render_update_system = UpdateSystem::new(
             renderer.clone(),
             app.get_shared_data(),
@@ -67,7 +56,6 @@ impl Launcher {
             app.get_job_handler(),
         );
 
-        let mut rendering_draw_phase = PhaseWithSystems::new(RENDERING_PHASE);
         let rendering_draw_system = RenderingSystem::new(
             renderer,
             app.get_shared_data(),
@@ -75,11 +63,9 @@ impl Launcher {
             app.get_job_handler(),
         );
 
-        rendering_update_phase.add_system(render_update_system);
-        rendering_draw_phase.add_system(rendering_draw_system);
-
-        app.create_phase(rendering_update_phase);
-        app.create_phase(rendering_draw_phase);
+        app.add_system(inox_core::Phases::PlatformUpdate, window_system);
+        app.add_system(inox_core::Phases::Render, render_update_system);
+        app.add_system(inox_core::Phases::Render, rendering_draw_system);
     }
 
     pub fn start(&self) {
@@ -119,13 +105,11 @@ impl Launcher {
     fn read_config(app: &mut App, plugin_name: &str) {
         debug_log!("Reading launcher configs");
 
-        let phase = app.get_phase_mut::<PhaseWithSystems>(MAIN_WINDOW_PHASE);
-        if let Some(window_system) = phase.get_system_mut::<WindowSystem>() {
+        if let Some(window_system) = app.get_system_mut::<WindowSystem>() {
             window_system.read_config(plugin_name);
         }
 
-        let phase = app.get_phase_mut::<PhaseWithSystems>(RENDERING_UPDATE);
-        if let Some(window_system) = phase.get_system_mut::<UpdateSystem>() {
+        if let Some(window_system) = app.get_system_mut::<UpdateSystem>() {
             window_system.read_config(plugin_name);
         }
     }
@@ -139,8 +123,9 @@ impl Drop for Launcher {
     fn drop(&mut self) {
         debug_log!("Dropping launcher");
         let app = &mut self.app.write().unwrap();
-        app.destroy_phase(RENDERING_PHASE);
-        app.destroy_phase(RENDERING_UPDATE);
-        app.destroy_phase(MAIN_WINDOW_PHASE);
+
+        app.remove_system(inox_core::Phases::PlatformUpdate, &WindowSystem::id());
+        app.remove_system(inox_core::Phases::Render, &UpdateSystem::id());
+        app.remove_system(inox_core::Phases::Render, &RenderingSystem::id());
     }
 }

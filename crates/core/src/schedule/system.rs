@@ -1,10 +1,11 @@
 use std::any::{type_name, Any};
 
+use downcast_rs::{impl_downcast, Downcast};
 use inox_uid::{generate_uid_from_string, Uid};
 
 pub type SystemId = Uid;
 
-pub trait System: Send + Sync + Any {
+pub trait System: Downcast + Send + Sync + Any {
     fn id() -> SystemId
     where
         Self: Sized,
@@ -26,5 +27,6 @@ pub trait System: Send + Sync + Any {
     fn run(&mut self) -> bool;
     fn uninit(&mut self);
 }
+impl_downcast!(System);
 
 pub type SystemBoxed = Box<dyn System>;

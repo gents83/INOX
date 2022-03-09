@@ -1,8 +1,6 @@
-use inox_core::{define_plugin, App, PhaseWithSystems, Plugin, System, SystemId};
+use inox_core::{define_plugin, App, Plugin, System, SystemId};
 
 use crate::systems::connector::Connector;
-
-const CONNECTOR_PHASE: &str = "CONNECTOR_PHASE";
 
 #[repr(C)]
 #[derive(Default)]
@@ -16,18 +14,14 @@ impl Plugin for ConnectorPlugin {
         "inox_connector"
     }
     fn prepare(&mut self, app: &mut App) {
-        let mut update_phase = PhaseWithSystems::new(CONNECTOR_PHASE);
         let mut system = Connector::new(app.get_shared_data(), app.get_message_hub());
         self.updater_id = Connector::id();
         system.read_config(self.name());
-        update_phase.add_system(system);
 
-        app.create_phase(update_phase);
+        app.add_system(inox_core::Phases::Update, system);
     }
 
     fn unprepare(&mut self, app: &mut App) {
-        let update_phase: &mut PhaseWithSystems = app.get_phase_mut(CONNECTOR_PHASE);
-        update_phase.remove_system(&self.updater_id);
-        app.destroy_phase(CONNECTOR_PHASE);
+        app.remove_system(inox_core::Phases::Update, &self.updater_id);
     }
 }
