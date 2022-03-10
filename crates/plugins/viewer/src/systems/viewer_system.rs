@@ -102,10 +102,11 @@ impl System for ViewerSystem {
         inox_profiler::scoped_profile!("viewer_system::run");
         self.update_events().update_view_from_camera();
 
+        let timer = self.context.global_timer();
         self.context
             .shared_data()
             .for_each_resource_mut(|_, s: &mut Script| {
-                s.update();
+                s.update(&timer);
             });
 
         let mut map: HashMap<ObjectId, Option<Matrix4>> = HashMap::new();

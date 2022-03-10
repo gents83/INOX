@@ -1,4 +1,4 @@
-use std::{any::Any, collections::HashMap};
+use std::{any::Any, collections::HashMap, time::Duration};
 
 use inox_resources::{Resource, ResourceTrait};
 use inox_uid::{generate_uid_from_string, Uid};
@@ -33,6 +33,7 @@ where
 
 #[derive(Default, Clone)]
 pub struct LogicContext {
+    pub dt: Duration,
     data: HashMap<DataId, Box<dyn LogicContextData>>,
 }
 

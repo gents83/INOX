@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use inox_serialize::{Deserialize, Serialize, SerializeFile};
 
 use crate::{LogicContext, LogicExecution, NodeExecutionType, NodeState, NodeTree, PinId};
@@ -139,7 +141,8 @@ impl LogicData {
         self.execution_state.resize(nodes.len(), NodeState::Active);
     }
 
-    pub fn execute(&mut self) {
+    pub fn execute(&mut self, dt: &Duration) {
+        self.context.dt = *dt;
         self.execute_active_nodes(self.active_nodes.clone());
     }
 

@@ -15,5 +15,6 @@ inox_graphics = { path = "../graphics" }
 inox_messenger = { path = "../messenger" }
 inox_resources = { path = "../resources" }
 inox_serialize = { path = "../serialize" }
+inox_time = { path = "../time" }
 inox_ui = { path = "../ui" }
 inox_uid = { path = "../uid" }

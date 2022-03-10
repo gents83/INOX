@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use inox_math::{VecBase, Vector3};
 use inox_nodes::{
     implement_node, LogicContext, LogicData, LogicExecution, LogicNodeRegistry, Node,
@@ -67,7 +69,7 @@ impl RotateNode {
         rotation.y = rotation.y.to_radians();
         rotation.z = rotation.z.to_radians();
         if let Some(object) = context.get_with_name::<Resource<Object>>(Script::LOGIC_OBJECT) {
-            object.get_mut().rotate(rotation);
+            object.get_mut().rotate(rotation * context.dt.as_secs_f32());
         } else {
             eprintln!("Unable to find {} in LogicContext", Script::LOGIC_OBJECT);
         }
@@ -101,11 +103,12 @@ fn test_nodes() {
 
     let mut logic_data = LogicData::from(tree);
     logic_data.init();
-    logic_data.execute();
-    logic_data.execute();
-    logic_data.execute();
-    logic_data.execute();
-    logic_data.execute();
+    let dt = Duration::from_millis(30);
+    logic_data.execute(&dt);
+    logic_data.execute(&dt);
+    logic_data.execute(&dt);
+    logic_data.execute(&dt);
+    logic_data.execute(&dt);
 }
 
 #[test]

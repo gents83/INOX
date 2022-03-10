@@ -7,6 +7,7 @@ use inox_resources::{
     SharedData, SharedDataRc,
 };
 use inox_serialize::{inox_serializable::SerializableRegistryRc, read_from_file, SerializeFile};
+use inox_time::Timer;
 
 use crate::{Object, ObjectId};
 
@@ -108,9 +109,9 @@ impl Script {
         self
     }
 
-    pub fn update(&mut self) {
+    pub fn update(&mut self, timer: &Timer) {
         if self.logic.is_initialized() {
-            self.logic.execute();
+            self.logic.execute(timer.dt());
         }
     }
 }

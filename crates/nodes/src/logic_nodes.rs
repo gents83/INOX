@@ -186,7 +186,7 @@ fn test_node() {
     if let Ok(new_tree) = deserialize::<NodeTree>(&serialized_tree, &serializable_registry) {
         let mut logic_data = LogicData::from(new_tree);
         logic_data.init();
-        logic_data.execute();
+        logic_data.execute(&std::time::Duration::from_millis(30));
     } else {
         panic!("Deserialization failed");
     }
