@@ -1,16 +1,10 @@
-use std::{
-    collections::VecDeque,
-    time::{Duration, SystemTime},
-};
-
+use inox_core::ContextRc;
 use inox_messenger::MessageHubRc;
 use inox_resources::{Resource, SharedDataRc};
 use inox_ui::{implement_widget_data, UIWidget, Window};
 
 struct Data {
-    frame_seconds: VecDeque<SystemTime>,
-    time: SystemTime,
-    shared_data: SharedDataRc,
+    context: ContextRc,
 }
 implement_widget_data!(Data);
 
@@ -19,14 +13,12 @@ pub struct Info {
 }
 
 impl Info {
-    pub fn new(shared_data: &SharedDataRc, message_hub: &MessageHubRc) -> Self {
+    pub fn new(context: &ContextRc) -> Self {
         let data = Data {
-            time: SystemTime::now(),
-            frame_seconds: VecDeque::default(),
-            shared_data: shared_data.clone(),
+            context: context.clone(),
         };
         Self {
-            ui_page: Self::create(shared_data, message_hub, data),
+            ui_page: Self::create(context.shared_data(), context.message_hub(), data),
         }
     }
 
@@ -37,12 +29,6 @@ impl Info {
     ) -> Resource<UIWidget> {
         UIWidget::register(shared_data, message_hub, data, |ui_data, ui_context| {
             if let Some(data) = ui_data.as_any_mut().downcast_mut::<Data>() {
-                let last_time = data.time;
-                data.time = SystemTime::now();
-                let one_sec_before = data.time - Duration::from_secs(1);
-                data.frame_seconds.push_back(data.time);
-                data.frame_seconds.retain(|t| *t >= one_sec_before);
-
                 Window::new("Stats")
                     .vscroll(true)
                     .title_bar(true)
@@ -50,8 +36,8 @@ impl Info {
                     .show(ui_context, |ui| {
                         ui.label(format!(
                             "FPS: {} - ms: {:?}",
-                            data.frame_seconds.len(),
-                            data.time.duration_since(last_time).unwrap().as_millis()
+                            data.context.global_timer().fps(),
+                            data.context.global_timer().dt().as_millis()
                         ));
                     });
             }

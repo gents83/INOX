@@ -9,7 +9,7 @@ use std::{
     thread::{self, JoinHandle},
 };
 
-use inox_core::System;
+use inox_core::{ContextRc, System};
 use inox_messenger::{Listener, MessageHubRc};
 use inox_profiler::debug_log;
 use inox_resources::{ConfigBase, ConfigEvent, SharedDataRc};
@@ -37,12 +37,12 @@ pub struct Connector {
 }
 
 impl Connector {
-    pub fn new(shared_data: &SharedDataRc, message_hub: &MessageHubRc) -> Self {
-        let listener = Listener::new(message_hub);
+    pub fn new(context: &ContextRc) -> Self {
+        let listener = Listener::new(context.message_hub());
         Self {
             config: Config::default(),
-            shared_data: shared_data.clone(),
-            message_hub: message_hub.clone(),
+            shared_data: context.shared_data().clone(),
+            message_hub: context.message_hub().clone(),
             listener,
             can_continue: Arc::new(AtomicBool::new(false)),
             host_address_and_port: String::new(),

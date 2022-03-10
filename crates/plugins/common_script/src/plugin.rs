@@ -12,12 +12,12 @@ impl Plugin for CommonScriptPlugin {
         "inox_common_script"
     }
     fn prepare(&mut self, app: &mut App) {
-        inox_nodes::register_nodes(app.get_shared_data());
-        crate::logic_nodes::register_nodes(app.get_shared_data());
+        inox_nodes::register_nodes(app.get_context().shared_data());
+        crate::logic_nodes::register_nodes(app.get_context().shared_data());
     }
 
     fn unprepare(&mut self, app: &mut App) {
-        crate::logic_nodes::unregister_nodes(app.get_shared_data());
-        inox_nodes::unregister_nodes(app.get_shared_data());
+        crate::logic_nodes::unregister_nodes(app.get_context().shared_data());
+        inox_nodes::unregister_nodes(app.get_context().shared_data());
     }
 }

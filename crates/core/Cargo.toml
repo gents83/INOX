@@ -17,6 +17,7 @@ inox_platform = { path = "../platform" }
 inox_profiler = { path = "../profiler" }
 inox_resources = { path = "../resources" }
 inox_serialize = { path = "../serialize" }
+inox_time = { path = "../time" }
 inox_uid = { path = "../uid" }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]

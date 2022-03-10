@@ -18,6 +18,7 @@ members = [
     "resources",
     "scene",
     "serialize",
+    "time",
     "ui",
     "uid",
 ]

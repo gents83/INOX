@@ -3,14 +3,14 @@ use std::{
     path::{Path, PathBuf},
     sync::{
         mpsc::{channel, Receiver},
-        Arc, Mutex, RwLock,
+        Arc, Mutex, RwLock, RwLockReadGuard,
     },
 };
 
 use inox_messenger::{Listener, MessageHubRc};
 use inox_platform::{InputState, Key, KeyEvent, WindowEvent};
 use inox_resources::{DeserializeFunction, SharedData, SharedDataRc};
-
+use inox_time::{Timer, TimerRw};
 use inox_uid::generate_uid_from_string;
 
 use crate::{
@@ -23,11 +23,31 @@ const NUM_WORKER_THREADS: usize = 0;
 #[cfg(all(not(target_arch = "wasm32")))]
 const NUM_WORKER_THREADS: usize = 5;
 
+#[derive(Default)]
+pub struct Context {
+    shared_data: SharedDataRc,
+    message_hub: MessageHubRc,
+    global_timer: TimerRw,
+}
+
+impl Context {
+    pub fn shared_data(&self) -> &SharedDataRc {
+        &self.shared_data
+    }
+    pub fn message_hub(&self) -> &MessageHubRc {
+        &self.message_hub
+    }
+    pub fn global_timer(&self) -> RwLockReadGuard<Timer> {
+        self.global_timer.read().unwrap()
+    }
+}
+
+pub type ContextRc = Arc<Context>;
+
 pub struct App {
     is_profiling: bool,
     is_enabled: bool,
-    shared_data: SharedDataRc,
-    message_hub: MessageHubRc,
+    context: ContextRc,
     listener: Listener,
     plugin_manager: PluginManager,
     scheduler: Scheduler,
@@ -42,8 +62,8 @@ impl Default for App {
 
         let (sender, receiver) = channel();
 
-        let message_hub = MessageHubRc::default();
-        let listener = Listener::new(&message_hub);
+        let context = ContextRc::default();
+        let listener = Listener::new(context.message_hub());
 
         listener.register::<KeyEvent>().register::<WindowEvent>();
 
@@ -55,9 +75,8 @@ impl Default for App {
             workers: HashMap::new(),
             job_handler: JobHandler::new(sender),
             receiver: Arc::new(Mutex::new(receiver)),
-            shared_data: SharedDataRc::default(),
-            message_hub,
             listener,
+            context,
         }
     }
 }
@@ -79,6 +98,7 @@ impl Drop for App {
 
 impl App {
     pub fn start(&mut self) -> &mut Self {
+        self.context.global_timer.write().unwrap().update();
         self.setup_worker_threads();
         self.scheduler.start();
         self
@@ -145,10 +165,11 @@ impl App {
             }
             _ => {}
         });
-        self.shared_data
+        self.context
+            .shared_data
             .handle_events(|load_fn: Box<dyn DeserializeFunction>| {
-                let shared_data = self.shared_data.clone();
-                let message_hub = self.message_hub.clone();
+                let shared_data = self.context.shared_data.clone();
+                let message_hub = self.context.message_hub.clone();
                 let job_name = "Load Event".to_string();
                 let load_event_category = generate_uid_from_string("LOAD_EVENT_CATEGORY");
                 self.job_handler.write().unwrap().add_job(
@@ -159,7 +180,7 @@ impl App {
             });
 
         //flush messages between frames
-        self.message_hub.flush();
+        self.context.message_hub.flush();
 
         self.is_profiling = is_profiling;
 
@@ -186,6 +207,8 @@ impl App {
     pub fn run(&mut self) -> bool {
         inox_profiler::scoped_profile!("app::run_frame");
 
+        self.context.global_timer.write().unwrap().update();
+
         let can_continue = self.scheduler.run_once(self.is_enabled, &self.job_handler);
 
         self.update_events();
@@ -194,11 +217,11 @@ impl App {
             let plugins_to_remove = self.plugin_manager.update();
             let plugins_to_reload = self.update_dynamic_plugins(plugins_to_remove);
             if !plugins_to_reload.is_empty() {
-                SharedData::flush_resources(&self.shared_data, &self.message_hub);
+                SharedData::flush_resources(&self.context.shared_data, &self.context.message_hub);
             }
             self.reload_dynamic_plugins(plugins_to_reload);
         }
-        SharedData::flush_resources(&self.shared_data, &self.message_hub);
+        SharedData::flush_resources(&self.context.shared_data, &self.context.message_hub);
 
         can_continue
     }
@@ -240,12 +263,10 @@ impl App {
     pub fn get_job_handler(&self) -> &JobHandlerRw {
         &self.job_handler
     }
-    pub fn get_shared_data(&self) -> &SharedDataRc {
-        &self.shared_data
+    pub fn get_context(&self) -> &ContextRc {
+        &self.context
     }
-    pub fn get_message_hub(&self) -> &MessageHubRc {
-        &self.message_hub
-    }
+
     pub fn add_system<S>(&mut self, phase: Phases, system: S)
     where
         S: System + 'static,

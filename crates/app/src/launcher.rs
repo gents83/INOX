@@ -22,10 +22,10 @@ pub struct Launcher {
 
 impl Launcher {
     pub fn shared_data(&self) -> SharedDataRc {
-        self.app.read().unwrap().get_shared_data().clone()
+        self.app.read().unwrap().get_context().shared_data().clone()
     }
     pub fn message_hub(&self) -> MessageHubRc {
-        self.app.read().unwrap().get_message_hub().clone()
+        self.app.read().unwrap().get_context().message_hub().clone()
     }
 
     pub fn prepare(&self) {
@@ -40,26 +40,30 @@ impl Launcher {
                 0,
                 0,
                 PathBuf::from("").as_path(),
-                app.get_message_hub(),
+                app.get_context().message_hub(),
             )
         };
 
-        let renderer = Renderer::new(window.get_handle(), app.get_shared_data(), false);
+        let renderer = Renderer::new(window.get_handle(), app.get_context().shared_data(), false);
         let renderer = Arc::new(RwLock::new(renderer));
 
-        let window_system = WindowSystem::new(window, app.get_shared_data(), app.get_message_hub());
+        let window_system = WindowSystem::new(
+            window,
+            app.get_context().shared_data(),
+            app.get_context().message_hub(),
+        );
 
         let render_update_system = UpdateSystem::new(
             renderer.clone(),
-            app.get_shared_data(),
-            app.get_message_hub(),
+            app.get_context().shared_data(),
+            app.get_context().message_hub(),
             app.get_job_handler(),
         );
 
         let rendering_draw_system = RenderingSystem::new(
             renderer,
-            app.get_shared_data(),
-            app.get_message_hub(),
+            app.get_context().shared_data(),
+            app.get_context().message_hub(),
             app.get_job_handler(),
         );
 
