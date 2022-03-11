@@ -59,7 +59,7 @@ pub fn main_update(launcher: Arc<Launcher>) {
     }
 }
 
-pub fn hook(info: &std::panic::PanicInfo) {
+fn hook(info: &std::panic::PanicInfo) {
     hook_impl(info);
 }
 
@@ -73,8 +73,7 @@ fn hook_impl(info: &std::panic::PanicInfo) {
     error(msg);
 }
 
-#[wasm_bindgen]
-pub fn init_panic_hook() {
+fn init_panic_hook() {
     use std::sync::Once;
     static SET_HOOK: Once = Once::new();
     SET_HOOK.call_once(|| {
@@ -83,6 +82,6 @@ pub fn init_panic_hook() {
 }
 
 #[wasm_bindgen]
-pub fn pass_command_line_parameters(s: String) {
+pub fn pass_command_line_parameters(s: &str) {
     debug_log!("Received command_line_parameters:\n{}", s);
 }

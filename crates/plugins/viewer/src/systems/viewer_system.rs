@@ -96,6 +96,8 @@ impl System for ViewerSystem {
             self.context.shared_data(),
             self.context.message_hub(),
         ));
+
+        self._info = Some(Info::new(&self.context));
     }
 
     fn run(&mut self) -> bool {
