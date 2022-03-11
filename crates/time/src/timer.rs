@@ -1,8 +1,13 @@
 use std::{
     collections::VecDeque,
     sync::{Arc, RwLock},
-    time::{Duration, SystemTime},
+    time::Duration,
 };
+
+#[cfg(target_arch = "wasm32")]
+use crate::platform::wasm::SystemTime;
+#[cfg(not(target_arch = "wasm32"))]
+use std::time::SystemTime;
 
 pub struct Timer {
     current_time: SystemTime,

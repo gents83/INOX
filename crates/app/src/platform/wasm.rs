@@ -81,3 +81,8 @@ pub fn init_panic_hook() {
         std::panic::set_hook(Box::new(hook));
     });
 }
+
+#[wasm_bindgen]
+pub fn pass_command_line_parameters(s: String) {
+    debug_log!("Received command_line_parameters:\n{}", s);
+}

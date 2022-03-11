@@ -12,6 +12,8 @@
     <canvas id="canvas" width="1024" height="768"></canvas>
     <script type="module">
         import init from './web/inox_launcher.js';
+        //import pass_command_line_parameters from './web/inox_launcher.js';
+
         var canvas = document.getElementById('canvas');
         if (!canvas.getContext('webgpu')) {
             const span = document.createElement('span');
@@ -20,6 +22,8 @@
         } else {
             window.inox_launcher = init().catch(console.error);
         }
+
+        //pass_command_line_parameters("prova");
     </script>
 </body>
 
