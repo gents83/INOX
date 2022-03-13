@@ -53,9 +53,7 @@ pub fn copy_into_data_folder(message_hub: &MessageHubRc, path: &Path) -> bool {
 }
 
 pub fn send_reloaded_event(message_hub: &MessageHubRc, new_path: &Path) {
-    message_hub.send_event(ReloadEvent {
-        path: new_path.to_path_buf(),
-    });
+    message_hub.send_event(ReloadEvent::Reload(new_path.to_path_buf()));
 }
 
 pub fn to_local_path(original_path: &Path) -> PathBuf {

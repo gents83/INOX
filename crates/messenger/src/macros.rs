@@ -6,25 +6,6 @@ macro_rules! implement_message {
             fn compare_and_discard(&self, other: &Self) -> bool {
                 Self::$Policy(self, other)
             }
-        }
-        impl $crate::MessageFromString for $Type {
-            #[inline]
-            fn from_command_parser(command_parser: CommandParser) -> Option<Self>
-            where
-                Self: Sized,
-            {
-                Self::$Func(command_parser)
-            }
-        }
-    };
-    ($Type:ident, $RestrictedType:ident, $Func:ident, $Policy:ident) => {
-        impl $crate::Message for $Type {
-            #[inline]
-            fn compare_and_discard(&self, other: &Self) -> bool {
-                Self::$Policy(self, other)
-            }
-        }
-        impl $crate::MessageFromString for $RestrictedType {
             #[inline]
             fn from_command_parser(command_parser: CommandParser) -> Option<Self>
             where
@@ -40,6 +21,13 @@ macro_rules! implement_message {
             fn compare_and_discard(&self, other: &Self) -> bool {
                 Self::$Policy(self, other)
             }
+            #[inline]
+            fn from_command_parser(command_parser: CommandParser) -> Option<Self>
+            where
+                Self: Sized,
+            {
+                None
+            }
         }
     };
     ($Type:ident<$InnerType:ident>, $Func:ident, $Policy:ident) => {
@@ -51,34 +39,6 @@ macro_rules! implement_message {
             fn compare_and_discard(&self, other: &Self) -> bool {
                 Self::$Policy(self, other)
             }
-        }
-        impl<T> $crate::MessageFromString for $Type<T>
-        where
-            T: $InnerType,
-        {
-            #[inline]
-            fn from_command_parser(command_parser: CommandParser) -> Option<Self>
-            where
-                Self: Sized,
-            {
-                Self::$Func(command_parser)
-            }
-        }
-    };
-    ($Type:ident<$InnerType:ident>, $SameType:ident<$RestrictedType:ident>, $Func:ident, $Policy:ident) => {
-        impl<T> $crate::Message for $Type<T>
-        where
-            T: $InnerType,
-        {
-            #[inline]
-            fn compare_and_discard(&self, other: &Self) -> bool {
-                Self::$Policy(self, other)
-            }
-        }
-        impl<T> $crate::MessageFromString for $Type<T>
-        where
-            T: $RestrictedType,
-        {
             #[inline]
             fn from_command_parser(command_parser: CommandParser) -> Option<Self>
             where
@@ -96,6 +56,13 @@ macro_rules! implement_message {
             #[inline]
             fn compare_and_discard(&self, other: &Self) -> bool {
                 Self::$Policy(self, other)
+            }
+            #[inline]
+            fn from_command_parser(command_parser: CommandParser) -> Option<Self>
+            where
+                Self: Sized,
+            {
+                None
             }
         }
     };

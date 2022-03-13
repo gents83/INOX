@@ -3,11 +3,14 @@ use std::path::Path;
 use inox_filesystem::{convert_from_local_path, File};
 use inox_messenger::MessageHubRc;
 
-use inox_profiler::debug_log;
+use inox_log::debug_log;
 use inox_serialize::inox_serializable::SerializableRegistryRc;
 use inox_uid::generate_uid_from_string;
 
-use crate::{Resource, ResourceEvent, ResourceId, ResourceTrait, SharedData, SharedDataRc};
+use crate::{
+    Resource, ResourceEvent, ResourceId, ResourceTrait, SerializableResourceEvent, SharedData,
+    SharedDataRc,
+};
 
 pub const DATA_RAW_FOLDER: &str = "data_raw";
 pub const DATA_FOLDER: &str = "data";
@@ -205,7 +208,10 @@ pub trait SerializableResource: DataTypeResource + Sized {
             resource_id,
             Self::new(resource_id, shared_data, message_hub),
         );
-        message_hub.send_event(ResourceEvent::<Self>::Load(path, on_create_data));
+        message_hub.send_event(SerializableResourceEvent::<Self>::Load(
+            path,
+            on_create_data,
+        ));
         resource
     }
 }

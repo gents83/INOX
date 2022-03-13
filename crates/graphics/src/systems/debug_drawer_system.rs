@@ -6,7 +6,7 @@ use inox_commands::CommandParser;
 use inox_core::System;
 use inox_math::{Vector2, Vector3, Vector4};
 use inox_messenger::{implement_message, Listener, MessageHubRc};
-use inox_profiler::debug_log;
+use inox_log::debug_log;
 use inox_resources::{DataTypeResource, Resource, SharedDataRc};
 use inox_uid::generate_random_uid;
 

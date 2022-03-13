@@ -12,7 +12,7 @@
     <canvas id="canvas" width="1024" height="768"></canvas>
     <script type="module">
         import init from './web/inox_launcher.js';
-        import { pass_command_line_parameters } from './web/inox_launcher.js';
+        import { send_event_from_string } from './web/inox_launcher.js';
 
         var canvas = document.getElementById('canvas');
         if (!canvas.getContext('webgpu')) {
@@ -21,8 +21,8 @@
             document.body.appendChild(span);
         } else {
             init().then(wasm => {
-                var s = '-plugin inox_common_script -plugin inox_viewer -load_file blender_export/TestScene/TestScene.scene';
-                pass_command_line_parameters(s);
+                var s = '-load_file blender_export/TestScene/TestScene.scene';
+                send_event_from_string(s);
             }).catch(console.error);
         }
     </script>

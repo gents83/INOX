@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use inox_messenger::MessageHubRc;
-use inox_profiler::debug_log;
+use inox_log::debug_log;
 use inox_resources::{
     DataTypeResource, Handle, ResourceId, ResourceTrait, SerializableResource, SharedData,
     SharedDataRc,

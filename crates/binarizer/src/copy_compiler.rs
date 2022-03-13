@@ -4,7 +4,7 @@ use crate::{copy_into_data_folder, ExtensionHandler};
 use inox_graphics::{Light, Material, Mesh, Pipeline};
 use inox_messenger::MessageHubRc;
 use inox_nodes::NodeTree;
-use inox_profiler::debug_log;
+use inox_log::debug_log;
 use inox_resources::SerializableResource;
 use inox_scene::{Camera, Object, Scene, Script};
 use inox_serialize::SerializeFile;

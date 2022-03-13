@@ -33,15 +33,16 @@ pub struct PluginManager {
 }
 
 impl PluginManager {
-    pub fn release(&mut self) -> Vec<PluginId> {
-        let mut plugins_to_remove: Vec<PluginId> = Vec::new();
+    pub fn release(&mut self) -> (Vec<PluginId>, Vec<PluginId>) {
+        let mut dynamic_plugins_to_remove: Vec<PluginId> = Vec::new();
+        let mut static_plugins_to_remove: Vec<PluginId> = Vec::new();
         for plugin in self.dynamic_plugins.iter() {
-            plugins_to_remove.push(plugin.plugin_holder.as_ref().unwrap().id());
+            dynamic_plugins_to_remove.push(plugin.plugin_holder.as_ref().unwrap().id());
         }
         for plugin_holder in self.static_plugins.iter() {
-            plugins_to_remove.push(plugin_holder.id());
+            static_plugins_to_remove.push(plugin_holder.id());
         }
-        plugins_to_remove
+        (dynamic_plugins_to_remove, static_plugins_to_remove)
     }
 
     pub fn add_static_plugin(&mut self, plugin_holder: PluginHolder) {

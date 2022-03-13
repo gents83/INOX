@@ -1,6 +1,7 @@
 #![allow(improper_ctypes_definitions)]
 
 use inox_filesystem::Library;
+use inox_log::debug_log;
 use inox_platform::{get_raw_thread_id, RawThreadId};
 use std::{
     cell::RefCell,
@@ -18,8 +19,6 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
     u64,
 };
-
-use crate::debug_log;
 
 pub type GlobalProfiler = Arc<Profiler>;
 pub static mut SABI_PROFILER_LIB: Option<Library> = None;

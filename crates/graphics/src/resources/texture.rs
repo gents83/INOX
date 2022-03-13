@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use image::{ImageFormat, RgbaImage};
 use inox_filesystem::{convert_from_local_path, File};
 use inox_messenger::MessageHubRc;
-use inox_profiler::debug_log;
+use inox_log::debug_log;
 use inox_resources::{
     Data, DataTypeResource, Handle, ResourceEvent, ResourceId, ResourceTrait, SerializableResource,
     SharedData, SharedDataRc,

@@ -91,8 +91,13 @@ impl Drop for App {
 
         self.scheduler.uninit();
 
-        let plugins_to_remove = self.plugin_manager.release();
-        self.update_dynamic_plugins(plugins_to_remove);
+        let (dynamic_plugins_to_remove, static_plugins_to_remove) = self.plugin_manager.release();
+        self.update_dynamic_plugins(dynamic_plugins_to_remove);
+        self.remove_static_plugins(static_plugins_to_remove);
+
+        self.listener
+            .unregister::<KeyEvent>()
+            .unregister::<WindowEvent>();
     }
 }
 
@@ -117,25 +122,6 @@ impl App {
             w.stop();
         }
         self.job_handler.write().unwrap().clear_pending_jobs();
-    }
-
-    fn update_dynamic_plugins(&mut self, plugins_to_remove: Vec<PluginId>) -> Vec<PathBuf> {
-        let mut plugins_to_reload = Vec::new();
-        for id in plugins_to_remove.iter() {
-            if let Some(plugin_data) = self.plugin_manager.remove_dynamic_plugin(id) {
-                let lib_path = plugin_data.original_path.clone();
-                PluginManager::clear_plugin_data(plugin_data, self);
-                plugins_to_reload.push(lib_path);
-            }
-        }
-        plugins_to_reload
-    }
-
-    fn reload_dynamic_plugins(&mut self, plugins_to_reload: Vec<PathBuf>) {
-        for lib_path in plugins_to_reload.into_iter() {
-            let reloaded_plugin_data = PluginManager::create_plugin_data(lib_path.as_path(), self);
-            self.plugin_manager.add_dynamic_plugin(reloaded_plugin_data);
-        }
     }
 
     fn update_events(&mut self) {
@@ -247,6 +233,32 @@ impl App {
             PluginManager::clear_plugin_data(plugin_data, self);
         }
     }
+
+    fn update_dynamic_plugins(&mut self, plugins_to_remove: Vec<PluginId>) -> Vec<PathBuf> {
+        let mut plugins_to_reload = Vec::new();
+        for id in plugins_to_remove.iter() {
+            if let Some(plugin_data) = self.plugin_manager.remove_dynamic_plugin(id) {
+                let lib_path = plugin_data.original_path.clone();
+                PluginManager::clear_plugin_data(plugin_data, self);
+                plugins_to_reload.push(lib_path);
+            }
+        }
+        plugins_to_reload
+    }
+
+    fn remove_static_plugins(&mut self, plugins_to_remove: Vec<PluginId>) {
+        for id in plugins_to_remove.iter() {
+            self.remove_static_plugin(id);
+        }
+    }
+
+    fn reload_dynamic_plugins(&mut self, plugins_to_reload: Vec<PathBuf>) {
+        for lib_path in plugins_to_reload.into_iter() {
+            let reloaded_plugin_data = PluginManager::create_plugin_data(lib_path.as_path(), self);
+            self.plugin_manager.add_dynamic_plugin(reloaded_plugin_data);
+        }
+    }
+
     fn add_worker(&mut self, name: &str) -> &mut Worker {
         let key = String::from(name);
         let w = self.workers.entry(key).or_insert_with(Worker::default);

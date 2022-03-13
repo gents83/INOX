@@ -14,6 +14,7 @@ ttf-parser = {path = "../../extern/ttf-parser" }
 inox_commands = { path = "../commands" }
 inox_core = { path = "../core" }
 inox_filesystem = { path = "../filesystem" }
+inox_log = { path = "../log" }
 inox_math = { path = "../math" }
 inox_messenger = { path = "../messenger" }
 inox_platform = { path = "../platform" }

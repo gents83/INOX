@@ -1,53 +1,22 @@
-use std::{marker::PhantomData, path::PathBuf};
+use std::{any::type_name, path::PathBuf};
 
 use inox_commands::CommandParser;
-use inox_messenger::{implement_message, Listener, MessageHubRc};
+use inox_log::debug_log;
+use inox_messenger::implement_message;
 
-use crate::{Resource, ResourceId, ResourceTrait, SerializableResource, SharedDataRc};
-
-pub trait Function<T>:
-    Fn(&mut T, &ResourceId, Option<&<T as ResourceTrait>::OnCreateData>)
-where
-    T: ResourceTrait,
-{
-    fn as_boxed(&self) -> Box<dyn Function<T>>;
-}
-impl<F, T> Function<T> for F
-where
-    F: 'static + Fn(&mut T, &ResourceId, Option<&<T as ResourceTrait>::OnCreateData>) + Clone,
-    T: ResourceTrait,
-{
-    fn as_boxed(&self) -> Box<dyn Function<T>> {
-        Box::new(self.clone())
-    }
-}
-impl<T> Clone for Box<dyn Function<T>>
-where
-    T: ResourceTrait,
-{
-    fn clone(&self) -> Self {
-        (**self).as_boxed()
-    }
-}
-
-pub trait DeserializeFunction: FnOnce(&SharedDataRc, &MessageHubRc) + Send + Sync {}
-impl<F> DeserializeFunction for F where F: FnOnce(&SharedDataRc, &MessageHubRc) + Send + Sync {}
-
-pub trait LoadFunction: Fn(Box<dyn DeserializeFunction>) + Send + Sync {}
-impl<F> LoadFunction for F where F: Fn(Box<dyn DeserializeFunction>) + Clone + Send + Sync {}
+use crate::{Resource, ResourceId, ResourceTrait, SerializableResource};
 
 pub enum ResourceEvent<T>
 where
     T: ResourceTrait,
 {
-    Load(PathBuf, Option<<T as ResourceTrait>::OnCreateData>),
     Created(Resource<T>),
     Changed(ResourceId),
     Destroyed(ResourceId),
 }
+
 implement_message!(
     ResourceEvent<ResourceTrait>,
-    ResourceEvent<SerializableResource>,
     message_from_command_parser,
     compare_and_discard
 );
@@ -61,10 +30,6 @@ where
 {
     fn compare_and_discard(&self, other: &Self) -> bool {
         match self {
-            Self::Load(path, _on_create_data) => match other {
-                Self::Load(other_path, _other_on_create_data) => path == other_path,
-                _ => false,
-            },
             Self::Created(resource) => match other {
                 Self::Created(other_resource) => resource.id() == other_resource.id(),
                 _ => false,
@@ -79,23 +44,54 @@ where
             },
         }
     }
+
+    fn message_from_command_parser(_command_parser: CommandParser) -> Option<Self> {
+        None
+    }
 }
 
-impl<T> ResourceEvent<T>
+#[derive(Clone)]
+pub enum SerializableResourceEvent<T>
+where
+    T: SerializableResource + ?Sized,
+{
+    Load(PathBuf, Option<<T as ResourceTrait>::OnCreateData>),
+}
+implement_message!(
+    SerializableResourceEvent<SerializableResource>,
+    message_from_command_parser,
+    compare_and_discard
+);
+
+impl<T> SerializableResourceEvent<T>
 where
     T: SerializableResource,
 {
+    fn compare_and_discard(&self, other: &Self) -> bool {
+        match self {
+            Self::Load(path, _on_create_data) => match other {
+                Self::Load(other_path, _other_on_create_data) => path == other_path,
+            },
+        }
+    }
     fn message_from_command_parser(command_parser: CommandParser) -> Option<Self> {
         if command_parser.has("load_file") {
             let values = command_parser.get_values_of::<String>("load_file");
             let path = PathBuf::from(values[0].as_str());
-            let extension = path
-                .extension()
-                .unwrap_or_default()
-                .to_str()
-                .unwrap_or_default();
-            if extension == T::extension() {
-                return Some(ResourceEvent::<T>::Load(path.as_path().to_path_buf(), None));
+            debug_log!("From command parser: {:?} for {:?}", path, type_name::<T>());
+            if <T as SerializableResource>::is_matching_extension(path.as_path()) {
+                debug_log!(
+                    "Sending ResourceEvent<{}>::Load",
+                    type_name::<T>()
+                        .split(':')
+                        .collect::<Vec<&str>>()
+                        .last()
+                        .unwrap()
+                );
+                return Some(SerializableResourceEvent::<T>::Load(
+                    path.as_path().to_path_buf(),
+                    None,
+                ));
             }
         }
         None
@@ -103,8 +99,8 @@ where
 }
 
 #[derive(Clone)]
-pub struct ReloadEvent {
-    pub path: PathBuf,
+pub enum ReloadEvent {
+    Reload(PathBuf),
 }
 implement_message!(
     ReloadEvent,
@@ -114,62 +110,17 @@ implement_message!(
 
 impl ReloadEvent {
     fn compare_and_discard(&self, other: &Self) -> bool {
-        self.path == other.path
+        match self {
+            Self::Reload(path) => match other {
+                Self::Reload(other_path) => path == other_path,
+            },
+        }
     }
     fn message_from_command_parser(command_parser: CommandParser) -> Option<Self> {
         if command_parser.has("reload_file") {
             let values = command_parser.get_values_of::<String>("reload_file");
-            return Some(ReloadEvent {
-                path: PathBuf::from(values[0].as_str()),
-            });
+            return Some(ReloadEvent::Reload(PathBuf::from(values[0].as_str())));
         }
         None
-    }
-}
-
-pub trait ResourceEventHandler {
-    fn handle_events(&self, f: &dyn LoadFunction);
-}
-
-pub struct TypedResourceEventHandler<T>
-where
-    T: ResourceTrait,
-{
-    marker: PhantomData<T>,
-    listener: Listener,
-}
-
-impl<T> TypedResourceEventHandler<T>
-where
-    T: ResourceTrait,
-{
-    pub fn new(message_hub: &MessageHubRc) -> Self {
-        let listener = Listener::new(message_hub);
-        listener.register::<ResourceEvent<T>>();
-        TypedResourceEventHandler {
-            marker: PhantomData::<T>::default(),
-            listener,
-        }
-    }
-}
-
-impl<T> ResourceEventHandler for TypedResourceEventHandler<T>
-where
-    T: SerializableResource,
-{
-    fn handle_events(&self, f: &dyn LoadFunction) {
-        self.listener.process_messages(|msg: &ResourceEvent<T>| {
-            if let ResourceEvent::<T>::Load(path, on_create_data) = msg {
-                //inox_profiler::debug_log!("Received load event for: {:?}", path);
-                if T::is_matching_extension(path.as_path()) {
-                    //inox_profiler::debug_log!("Handling it!");
-                    let p = path.clone();
-                    let on_create_data = on_create_data.clone();
-                    f(Box::new(move |shared_data, message_hub| {
-                        T::create_from_file(shared_data, message_hub, p.as_path(), on_create_data);
-                    }));
-                }
-            }
-        });
     }
 }

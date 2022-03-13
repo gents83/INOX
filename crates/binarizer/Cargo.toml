@@ -12,6 +12,7 @@ crate-type = ["lib"]
 gltf = { path = "../../extern/gltf", features = ["extras", "names", "KHR_lights_punctual", "KHR_materials_pbrSpecularGlossiness"] }
 inox_filesystem = { path = "../filesystem" }
 inox_graphics = { path = "../graphics" }
+inox_log = { path = "../log" }
 inox_math = { path = "../math" }
 inox_messenger = { path = "../messenger" }
 inox_nodes = { path = "../nodes" }

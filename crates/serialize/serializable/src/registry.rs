@@ -1,7 +1,7 @@
 #![allow(improper_ctypes_definitions)]
 
 use std::{
-    any::{Any, TypeId},
+    any::{type_name, Any, TypeId},
     collections::{BTreeMap, HashMap},
     sync::{Arc, RwLock},
 };
@@ -141,7 +141,9 @@ impl SerializableRegistry {
         use serde::de::Error;
 
         let rlock = self.type_map.read().unwrap();
-        let untyped_registry = rlock.get(&TypeId::of::<T>()).unwrap();
+        let untyped_registry = rlock.get(&TypeId::of::<T>()).unwrap_or_else(|| {
+            panic!("Unable to find type in registry: {:?}", type_name::<T>());
+        });
         let registry = untyped_registry
             .as_any()
             .downcast_ref::<Registry<T>>()

@@ -1,4 +1,4 @@
-use inox_profiler::debug_log;
+use inox_log::debug_log;
 use inox_serialize::{
     deserialize, inox_serializable::SerializableRegistryRc, serialize, Deserialize, Serialize,
 };

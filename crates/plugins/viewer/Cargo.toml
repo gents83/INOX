@@ -13,6 +13,7 @@ inox_commands = { path = "../../commands" }
 inox_core = { path = "../../core" }
 inox_filesystem = { path = "../../filesystem" }
 inox_graphics = { path = "../../graphics" }
+inox_log = { path = "../../log" }
 inox_messenger = { path = "../../messenger" }
 inox_math = { path = "../../math" }
 inox_nodes = { path = "../../nodes" }

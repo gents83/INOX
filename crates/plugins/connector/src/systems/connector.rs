@@ -10,8 +10,8 @@ use std::{
 };
 
 use inox_core::{ContextRc, System};
+use inox_log::debug_log;
 use inox_messenger::{Listener, MessageHubRc};
-use inox_profiler::debug_log;
 use inox_resources::{ConfigBase, ConfigEvent, SharedDataRc};
 use inox_serialize::read_from_file;
 

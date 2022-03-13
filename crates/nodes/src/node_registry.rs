@@ -1,4 +1,4 @@
-use inox_profiler::debug_log;
+use inox_log::debug_log;
 use inox_resources::implement_singleton;
 use inox_serialize::{inox_serializable::SerializableRegistryRc, Deserialize, Serialize};
 

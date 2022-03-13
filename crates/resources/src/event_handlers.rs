@@ -1,0 +1,124 @@
+use std::marker::PhantomData;
+
+use inox_messenger::{Listener, MessageHubRc};
+
+use crate::{
+    ResourceEvent, ResourceId, ResourceTrait, SerializableResource, SerializableResourceEvent,
+    SharedDataRc,
+};
+
+pub trait Function<T>:
+    Fn(&mut T, &ResourceId, Option<&<T as ResourceTrait>::OnCreateData>)
+where
+    T: ResourceTrait,
+{
+    fn as_boxed(&self) -> Box<dyn Function<T>>;
+}
+impl<F, T> Function<T> for F
+where
+    F: 'static + Fn(&mut T, &ResourceId, Option<&<T as ResourceTrait>::OnCreateData>) + Clone,
+    T: ResourceTrait,
+{
+    fn as_boxed(&self) -> Box<dyn Function<T>> {
+        Box::new(self.clone())
+    }
+}
+impl<T> Clone for Box<dyn Function<T>>
+where
+    T: ResourceTrait,
+{
+    fn clone(&self) -> Self {
+        (**self).as_boxed()
+    }
+}
+
+pub trait DeserializeFunction: FnOnce(&SharedDataRc, &MessageHubRc) + Send + Sync {}
+impl<F> DeserializeFunction for F where F: FnOnce(&SharedDataRc, &MessageHubRc) + Send + Sync {}
+
+pub trait LoadFunction: Fn(Box<dyn DeserializeFunction>) + Send + Sync {}
+impl<F> LoadFunction for F where F: Fn(Box<dyn DeserializeFunction>) + Clone + Send + Sync {}
+
+pub trait EventHandler {
+    fn handle_events(&self, f: &dyn LoadFunction);
+}
+
+pub struct ResourceEventHandler<T>
+where
+    T: ResourceTrait,
+{
+    marker: PhantomData<T>,
+}
+
+impl<T> ResourceEventHandler<T>
+where
+    T: ResourceTrait,
+{
+    pub fn new(_message_hub: &MessageHubRc) -> Self {
+        ResourceEventHandler {
+            marker: PhantomData::<T>::default(),
+        }
+    }
+}
+
+impl<T> EventHandler for ResourceEventHandler<T>
+where
+    T: ResourceTrait,
+{
+    fn handle_events(&self, _f: &dyn LoadFunction) {
+        //...
+    }
+}
+
+pub struct SerializableResourceEventHandler<T>
+where
+    T: SerializableResource,
+{
+    marker: PhantomData<T>,
+    listener: Listener,
+}
+
+impl<T> Drop for SerializableResourceEventHandler<T>
+where
+    T: SerializableResource,
+{
+    fn drop(&mut self) {
+        self.listener.unregister::<SerializableResourceEvent<T>>();
+        self.listener.unregister::<ResourceEvent<T>>();
+    }
+}
+
+impl<T> SerializableResourceEventHandler<T>
+where
+    T: SerializableResource,
+{
+    pub fn new(message_hub: &MessageHubRc) -> Self {
+        let listener = Listener::new(message_hub);
+        listener.register::<ResourceEvent<T>>();
+        listener.register::<SerializableResourceEvent<T>>();
+        Self {
+            marker: PhantomData::<T>::default(),
+            listener,
+        }
+    }
+}
+
+impl<T> EventHandler for SerializableResourceEventHandler<T>
+where
+    T: SerializableResource,
+{
+    fn handle_events(&self, f: &dyn LoadFunction) {
+        self.listener
+            .process_messages(|msg: &SerializableResourceEvent<T>| {
+                let SerializableResourceEvent::<T>::Load(path, on_create_data) = msg;
+                //inox_log::debug_log!("Received load event for: {:?}", path);
+                if <T as SerializableResource>::is_matching_extension(path.as_path()) {
+                    //inox_log::debug_log!("Handling it!");
+                    let p = path.clone();
+                    let on_create_data = on_create_data.clone();
+                    f(Box::new(move |shared_data, message_hub| {
+                        T::create_from_file(shared_data, message_hub, p.as_path(), on_create_data);
+                    }));
+                }
+            });
+    }
+}

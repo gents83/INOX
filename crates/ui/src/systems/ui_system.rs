@@ -16,13 +16,13 @@ use inox_graphics::{
     Material, Mesh, MeshData, Pipeline, Texture, TextureId, TextureType, VertexData,
 };
 
+use inox_log::debug_log;
 use inox_math::Vector4;
 use inox_messenger::{Listener, MessageHubRc};
 use inox_platform::{
     InputState, KeyEvent, KeyTextEvent, MouseButton, MouseEvent, MouseState, WindowEvent,
     DEFAULT_DPI,
 };
-use inox_profiler::debug_log;
 use inox_resources::{
     ConfigBase, ConfigEvent, DataTypeResource, Handle, Resource, SerializableResource, SharedDataRc,
 };
@@ -60,7 +60,7 @@ impl UISystem {
     ) -> Self {
         let listener = Listener::new(message_hub);
 
-        crate::register_resource_types(shared_data);
+        crate::register_resource_types(shared_data, message_hub);
 
         Self {
             config: Config::default(),
@@ -378,7 +378,7 @@ impl UISystem {
 
 impl Drop for UISystem {
     fn drop(&mut self) {
-        crate::unregister_resource_types(&self.shared_data);
+        crate::unregister_resource_types(&self.shared_data, &self.message_hub);
     }
 }
 

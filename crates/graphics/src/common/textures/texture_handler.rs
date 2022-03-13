@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use inox_profiler::debug_log;
+use inox_log::debug_log;
 
 use crate::{TextureData, TextureId, MAX_TEXTURE_ATLAS_COUNT};
 

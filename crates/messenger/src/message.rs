@@ -20,11 +20,16 @@ pub trait Message: Send + Sync + 'static {
     {
         message_hub.send_event(self);
     }
-    fn from_string(_s: &str) -> Option<Self>
+    fn from_command_parser(command_parser: CommandParser) -> Option<Self>
+    where
+        Self: Sized;
+    #[inline]
+    fn from_string(s: &str) -> Option<Self>
     where
         Self: Sized,
     {
-        None
+        let command_parser = CommandParser::from_string(s);
+        Self::from_command_parser(command_parser)
     }
     fn compare_and_discard(&self, other: &Self) -> bool;
     #[inline]
@@ -35,19 +40,6 @@ pub trait Message: Send + Sync + 'static {
             .last()
             .unwrap()
             .to_string()
-    }
-}
-pub trait MessageFromString: Message {
-    fn from_command_parser(command_parser: CommandParser) -> Option<Self>
-    where
-        Self: Sized;
-    #[inline]
-    fn from_string(s: &str) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        let command_parser = CommandParser::from_string(s);
-        <Self as MessageFromString>::from_command_parser(command_parser)
     }
 }
 

@@ -9,9 +9,9 @@ use inox_serialize::inox_serializable::SerializableRegistryRc;
 use inox_uid::{generate_uid_from_string, Uid};
 
 use crate::{
-    Handle, LoadFunction, Resource, ResourceEventHandler, ResourceId, ResourceStorageRw,
-    ResourceTrait, SerializableResource, Singleton, Storage, StorageCastTo,
-    TypedResourceEventHandler,
+    EventHandler, Handle, LoadFunction, Resource, ResourceEvent, ResourceEventHandler, ResourceId,
+    ResourceStorageRw, ResourceTrait, SerializableResource, SerializableResourceEvent,
+    SerializableResourceEventHandler, Singleton, Storage, StorageCastTo,
 };
 
 #[derive(Default)]
@@ -19,7 +19,7 @@ pub struct SharedData {
     serialization_registry: SerializableRegistryRc,
     singletons: RwLock<Vec<RwLock<Box<dyn Singleton>>>>,
     storage: RwLock<HashMap<Uid, ResourceStorageRw>>,
-    event_handlers: RwLock<HashMap<Uid, Box<dyn ResourceEventHandler>>>,
+    event_handlers: RwLock<HashMap<Uid, Box<dyn EventHandler>>>,
 }
 unsafe impl Send for SharedData {}
 unsafe impl Sync for SharedData {}
@@ -82,7 +82,7 @@ impl SharedData {
     }
 
     #[inline]
-    pub fn register_type<T>(&self)
+    pub fn register_type<T>(&self, message_hub: &MessageHubRc)
     where
         T: ResourceTrait,
     {
@@ -92,10 +92,15 @@ impl SharedData {
             "Type {} has been already registered",
             type_name::<T>()
         );
+        message_hub.register_type::<ResourceEvent<T>>();
         //debug_log("Registering resource type: {:?}", type_name::<T>(),);
         self.storage.write().unwrap().insert(
             typeid,
             Arc::new(RwLock::new(Box::new(Storage::<T>::default()))),
+        );
+        self.event_handlers.write().unwrap().insert(
+            typeid,
+            Box::new(ResourceEventHandler::<T>::new(message_hub)),
         );
     }
     #[inline]
@@ -103,21 +108,19 @@ impl SharedData {
     where
         T: SerializableResource,
     {
-        self.register_type::<T>();
+        self.register_type::<T>(message_hub);
         let typeid = generate_uid_from_string(type_name::<T>());
-        debug_assert!(
-            self.event_handlers.read().unwrap().get(&typeid).is_none(),
-            "Type {} has been already registered",
-            type_name::<T>()
-        );
+        let mut event_handlers = self.event_handlers.write().unwrap();
+        event_handlers.remove(&typeid);
+        message_hub.register_type::<SerializableResourceEvent<T>>();
         //debug_log("Registering resource type: {:?}", type_name::<T>(),);
-        self.event_handlers.write().unwrap().insert(
+        event_handlers.insert(
             typeid,
-            Box::new(TypedResourceEventHandler::<T>::new(message_hub)),
+            Box::new(SerializableResourceEventHandler::<T>::new(message_hub)),
         );
     }
     #[inline]
-    pub fn unregister_type<T>(&self)
+    pub fn unregister_type<T>(&self, message_hub: &MessageHubRc)
     where
         T: ResourceTrait,
     {
@@ -127,23 +130,21 @@ impl SharedData {
             "Type {} has never been registered",
             type_name::<T>()
         );
+        message_hub.unregister_type::<ResourceEvent<T>>();
         //debug_log("Unregistering resource type: {:?}", type_name::<T>());
         if let Some(rs) = self.storage.write().unwrap().remove(&typeid) {
             rs.write().unwrap().remove_all();
         }
+        self.event_handlers.write().unwrap().remove(&typeid);
     }
     #[inline]
-    pub fn unregister_type_serializable<T>(&self)
+    pub fn unregister_type_serializable<T>(&self, message_hub: &MessageHubRc)
     where
         T: SerializableResource,
     {
-        self.unregister_type::<T>();
+        self.unregister_type::<T>(message_hub);
         let typeid = generate_uid_from_string(type_name::<T>());
-        debug_assert!(
-            self.event_handlers.read().unwrap().get(&typeid).is_some(),
-            "Type {} has never been registered",
-            type_name::<T>()
-        );
+        message_hub.unregister_type::<SerializableResourceEvent<T>>();
         //debug_log("Unregistering resource type: {:?}", type_name::<T>());
         self.event_handlers.write().unwrap().remove(&typeid);
     }

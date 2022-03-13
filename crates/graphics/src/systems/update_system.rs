@@ -4,7 +4,7 @@ use inox_messenger::{Listener, MessageHubRc};
 use inox_platform::WindowEvent;
 use inox_resources::{
     ConfigBase, ConfigEvent, DataTypeResource, ReloadEvent, Resource, ResourceEvent,
-    SerializableResource, SharedData, SharedDataRc,
+    SerializableResource, SerializableResourceEvent, SharedData, SharedDataRc,
 };
 use inox_serialize::read_from_file;
 use inox_uid::generate_random_uid;
@@ -57,7 +57,7 @@ impl UpdateSystem {
                 }
             })
             .process_messages(|e: &ReloadEvent| {
-                let path = e.path.as_path();
+                let ReloadEvent::Reload(path) = e;
                 if is_shader(path) {
                     SharedData::for_each_resource_mut(&self.shared_data, |_, p: &mut Pipeline| {
                         p.check_shaders_to_reload(path.to_str().unwrap().to_string());
@@ -119,7 +119,6 @@ impl UpdateSystem {
                 ResourceEvent::Destroyed(id) => {
                     self.renderer.write().unwrap().on_mesh_removed(id);
                 }
-                _ => {}
             })
             .process_messages(|e: &ConfigEvent<Config>| match e {
                 ConfigEvent::Loaded(filename, config) => {
@@ -142,7 +141,7 @@ impl UpdateSystem {
 
 impl Drop for UpdateSystem {
     fn drop(&mut self) {
-        crate::unregister_resource_types(&self.shared_data);
+        crate::unregister_resource_types(&self.shared_data, &self.message_hub);
     }
 }
 
@@ -151,9 +150,7 @@ unsafe impl Sync for UpdateSystem {}
 
 impl System for UpdateSystem {
     fn read_config(&mut self, plugin_name: &str) {
-        
-        self.listener
-            .register::<ConfigEvent<Config>>();
+        self.listener.register::<ConfigEvent<Config>>();
         let message_hub = self.message_hub.clone();
         let filename = self.config.get_filename().to_string();
         read_from_file(
@@ -171,7 +168,8 @@ impl System for UpdateSystem {
     fn init(&mut self) {
         self.listener
             .register::<WindowEvent>()
-            .register::<ReloadEvent>()
+            .register::<SerializableResourceEvent<Pipeline>>()
+            .register::<SerializableResourceEvent<Texture>>()
             .register::<ResourceEvent<RenderPass>>()
             .register::<ResourceEvent<Material>>()
             .register::<ResourceEvent<Texture>>()
@@ -205,7 +203,8 @@ impl System for UpdateSystem {
     fn uninit(&mut self) {
         self.listener
             .unregister::<WindowEvent>()
-            .unregister::<ReloadEvent>()
+            .unregister::<SerializableResourceEvent<Pipeline>>()
+            .unregister::<SerializableResourceEvent<Texture>>()
             .unregister::<ConfigEvent<Config>>()
             .unregister::<ResourceEvent<Light>>()
             .unregister::<ResourceEvent<Texture>>()

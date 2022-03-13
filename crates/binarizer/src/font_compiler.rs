@@ -2,7 +2,7 @@ use std::path::Path;
 
 use crate::{copy_into_data_folder, ExtensionHandler};
 use inox_messenger::MessageHubRc;
-use inox_profiler::debug_log;
+use inox_log::debug_log;
 
 const FONT_EXTENSION: &str = "ttf";
 

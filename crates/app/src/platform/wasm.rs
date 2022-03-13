@@ -6,10 +6,12 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 
 use inox_messenger::MessageHubRc;
-use inox_profiler::debug_log;
+use inox_log::debug_log;
 use inox_resources::SharedDataRc;
 
 use crate::launcher::Launcher;
+
+static mut MESSAGE_HUB: Option<MessageHubRc> = None;
 
 #[wasm_bindgen]
 extern "C" {
@@ -35,17 +37,28 @@ pub fn binarizer_stop(_: ()) {}
 
 pub fn load_plugins(launcher: &Arc<Launcher>) {
     debug_log!("Loading plugins");
-
+    /*
+        launcher.add_static_plugin(
+            "inox_common_script",
+            Some(|| inox_common_script::create_plugin()),
+            Some(|app| inox_common_script::prepare_plugin(app)),
+            Some(|app| inox_common_script::unprepare_plugin(app)),
+            Some(|| inox_common_script::destroy_plugin()),
+        );
+    */
     launcher.add_static_plugin(
         "inox_viewer",
-        Some(|| inox_viewer::viewer::create_plugin()),
-        Some(|app| inox_viewer::viewer::prepare_plugin(app)),
-        Some(|app| inox_viewer::viewer::unprepare_plugin(app)),
-        Some(|| inox_viewer::viewer::destroy_plugin()),
+        Some(|| inox_viewer::create_plugin()),
+        Some(|app| inox_viewer::prepare_plugin(app)),
+        Some(|app| inox_viewer::unprepare_plugin(app)),
+        Some(|| inox_viewer::destroy_plugin()),
     );
 }
 
 pub fn main_update(launcher: Arc<Launcher>) {
+    unsafe {
+        MESSAGE_HUB = Some(launcher.message_hub());
+    }
     let can_continue = launcher.update();
     if can_continue {
         let cb = Closure::wrap(Box::new(move || {
@@ -82,6 +95,9 @@ fn init_panic_hook() {
 }
 
 #[wasm_bindgen]
-pub fn pass_command_line_parameters(s: &str) {
-    debug_log!("Received command_line_parameters:\n{}", s);
+pub fn send_event_from_string(s: &str) {
+    if let Some(message_hub) = unsafe { MESSAGE_HUB.as_mut() } {
+        debug_log!("Received string to convert into event:\n{}", s);
+        message_hub.send_from_string(s.to_string());
+    }
 }

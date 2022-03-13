@@ -9,6 +9,7 @@ inox_binarizer = { path = "../binarizer" }
 inox_resources = { path = "../resources" }
 inox_commands = { path = "../commands" }
 inox_core = { path = "../core" }
+inox_log = { path = "../log" }
 inox_filesystem = { path = "../filesystem" }
 inox_graphics = { path = "../graphics" }
 inox_math = { path = "../math" }

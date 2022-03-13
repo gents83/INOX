@@ -10,7 +10,7 @@ use inox_graphics::{rendering_system::RenderingSystem, update_system::UpdateSyst
 
 use inox_messenger::MessageHubRc;
 use inox_platform::Window;
-use inox_profiler::debug_log;
+use inox_log::debug_log;
 use inox_resources::SharedDataRc;
 
 use crate::window_system::WindowSystem;

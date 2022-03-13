@@ -147,7 +147,7 @@ impl DataTypeResource for Object {
 
         object_data.components.iter().for_each(|component_path| {
             let path = component_path.as_path();
-            if Mesh::is_matching_extension(path) {
+            if <Mesh as SerializableResource>::is_matching_extension(path) {
                 let mesh = Mesh::request_load(
                     shared_data,
                     message_hub,
@@ -157,7 +157,7 @@ impl DataTypeResource for Object {
                     }),
                 );
                 object.add_component::<Mesh>(mesh);
-            } else if Camera::is_matching_extension(path) {
+            } else if <Camera as SerializableResource>::is_matching_extension(path) {
                 let camera = Camera::request_load(
                     shared_data,
                     message_hub,
@@ -165,7 +165,7 @@ impl DataTypeResource for Object {
                     Some(OnCameraCreateData { parent_id: id }),
                 );
                 object.add_component::<Camera>(camera);
-            } else if Light::is_matching_extension(path) {
+            } else if <Light as SerializableResource>::is_matching_extension(path) {
                 let light = Light::request_load(
                     shared_data,
                     message_hub,
@@ -175,7 +175,7 @@ impl DataTypeResource for Object {
                     }),
                 );
                 object.add_component::<Light>(light);
-            } else if Script::is_matching_extension(path) {
+            } else if <Script as SerializableResource>::is_matching_extension(path) {
                 let script = Script::request_load(
                     shared_data,
                     message_hub,

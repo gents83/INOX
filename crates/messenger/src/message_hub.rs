@@ -1,7 +1,6 @@
 use std::{
     any::{Any, TypeId},
     collections::HashMap,
-    marker::PhantomData,
     sync::{Arc, RwLock},
 };
 
@@ -71,6 +70,8 @@ trait MsgType: Send + Sync + Any + 'static {
     fn name(&self) -> &'static str {
         std::any::type_name::<Self>()
     }
+    fn add_listener(&self, listener_id: &ListenerId);
+    fn remove_listener(&self, listener_id: &ListenerId);
     fn flush(&self);
     fn message_from_string(&self, s: &str);
     fn as_any(&self) -> &dyn Any;
@@ -82,15 +83,45 @@ pub struct MessageType<T>
 where
     T: Message,
 {
-    msg_type: PhantomData<T>,
+    msg_from_str: Option<Box<dyn Fn(&str) -> Option<T>>>,
     new_messages: RwLock<Vec<T>>,
     messages: RwLock<HashMap<MessageId, T>>,
     listeners: RwLock<Vec<ListenerData>>,
 }
+
+impl<T> MessageType<T>
+where
+    T: Message,
+{
+    pub fn new<F>(f: F) -> Self
+    where
+        F: Fn(&str) -> Option<T> + 'static,
+    {
+        Self {
+            msg_from_str: Some(Box::new(f)),
+            new_messages: RwLock::new(Vec::new()),
+            messages: RwLock::new(HashMap::new()),
+            listeners: RwLock::new(Vec::new()),
+        }
+    }
+}
+
 impl<T> MsgType for MessageType<T>
 where
     T: Message,
 {
+    fn add_listener(&self, listener_id: &ListenerId) {
+        self.listeners
+            .write()
+            .unwrap()
+            .push(ListenerData::new(listener_id));
+    }
+    fn remove_listener(&self, listener_id: &ListenerId) {
+        self.listeners
+            .write()
+            .unwrap()
+            .retain(|l| l.id != *listener_id);
+    }
     fn flush(&self) {
         self.messages.write().unwrap().retain(|msg_id, _| {
             self.listeners
@@ -121,8 +152,10 @@ where
         }
     }
     fn message_from_string(&self, s: &str) {
-        if let Some(msg) = T::from_string(s) {
-            self.send_event(msg);
+        if let Some(f) = &self.msg_from_str {
+            if let Some(msg) = f(s) {
+                self.send_event(msg);
+            }
         }
     }
     fn as_any(&self) -> &dyn Any {
@@ -137,18 +170,6 @@ impl<T> MessageType<T>
 where
     T: Message,
 {
-    pub fn add_listener(&self, listener_id: &ListenerId) {
-        self.listeners
-            .write()
-            .unwrap()
-            .push(ListenerData::new(listener_id));
-    }
-    pub fn remove_listener(&self, listener_id: &ListenerId) {
-        self.listeners
-            .write()
-            .unwrap()
-            .retain(|l| l.id != *listener_id);
-    }
     pub fn send_event(&self, msg: T) {
         self.new_messages
             .write()
@@ -188,6 +209,22 @@ pub struct MessageHub {
     registered_types: RwLock<HashMap<TypeId, Box<dyn MsgType>>>,
 }
 
+impl Drop for MessageHub {
+    fn drop(&mut self) {
+        self.registered_types
+            .read()
+            .unwrap()
+            .iter()
+            .for_each(|(_, t)| {
+                println!("Message type {:?} is still registered ", t.name());
+            });
+        debug_assert!(
+            self.registered_types.read().unwrap().is_empty(),
+            "Some message types are still registered",
+        );
+    }
+}
+
 unsafe impl Send for MessageHub {}
 unsafe impl Sync for MessageHub {}
 
@@ -202,14 +239,16 @@ impl MessageHub {
             .write()
             .unwrap()
             .entry(typeid)
-            .or_insert_with(|| {
-                Box::new(MessageType::<T> {
-                    msg_type: PhantomData::<T>::default(),
-                    new_messages: RwLock::new(Vec::new()),
-                    messages: RwLock::new(HashMap::new()),
-                    listeners: RwLock::new(Vec::new()),
-                })
-            });
+            .or_insert_with(|| Box::new(MessageType::<T>::new(|s| T::from_string(s))));
+        self
+    }
+    #[inline]
+    pub fn unregister_type<T>(&self) -> &Self
+    where
+        T: Message,
+    {
+        let typeid = TypeId::of::<T>();
+        self.registered_types.write().unwrap().remove(&typeid);
         self
     }
 

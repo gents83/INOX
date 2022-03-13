@@ -6,7 +6,7 @@ use inox_binarizer::Binarizer;
 use inox_commands::CommandParser;
 use inox_filesystem::library_filename;
 use inox_messenger::MessageHubRc;
-use inox_profiler::debug_log;
+use inox_log::debug_log;
 use inox_resources::SharedDataRc;
 
 use crate::launcher::Launcher;

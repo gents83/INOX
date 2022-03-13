@@ -1,11 +1,11 @@
 use inox_commands::CommandParser;
 use inox_core::{ContextRc, System};
 use inox_graphics::{DrawEvent, Light, Material, Mesh, MeshData, Pipeline, Texture, View};
+use inox_log::debug_log;
 use inox_math::{Matrix4, VecBase, Vector2, Vector3};
 use inox_messenger::Listener;
-
 use inox_platform::{InputState, Key, KeyEvent, MouseEvent, WindowEvent};
-use inox_resources::{DataTypeResource, Resource, ResourceEvent, SerializableResource};
+use inox_resources::{DataTypeResource, Resource, SerializableResource, SerializableResourceEvent};
 use inox_scene::{Camera, Object, ObjectId, Scene, Script};
 use inox_uid::generate_random_uid;
 use std::{collections::HashMap, path::PathBuf};
@@ -73,7 +73,10 @@ impl ViewerSystem {
 
 impl Drop for ViewerSystem {
     fn drop(&mut self) {
-        inox_scene::unregister_resource_types(self.context.shared_data());
+        inox_scene::unregister_resource_types(
+            self.context.shared_data(),
+            self.context.message_hub(),
+        );
     }
 }
 
@@ -90,7 +93,7 @@ impl System for ViewerSystem {
             .register::<KeyEvent>()
             .register::<MouseEvent>()
             .register::<WindowEvent>()
-            .register::<ResourceEvent<Scene>>();
+            .register::<SerializableResourceEvent<Scene>>();
 
         self._view_3d = Some(View3D::new(
             self.context.shared_data(),
@@ -149,7 +152,7 @@ impl System for ViewerSystem {
             .unregister::<KeyEvent>()
             .unregister::<MouseEvent>()
             .unregister::<WindowEvent>()
-            .unregister::<ResourceEvent<Scene>>();
+            .unregister::<SerializableResourceEvent<Scene>>();
     }
 }
 
@@ -299,18 +302,18 @@ impl ViewerSystem {
                         });
                 }
             })
-            .process_messages(|event: &ResourceEvent<Scene>| {
-                if let ResourceEvent::<Scene>::Load(path, _option) = event {
-                    if let Some(scene_path) = path.to_str() {
-                        if scene_path.ends_with(Scene::extension()) {
-                            self.scene.get_mut().clear();
-                            self.scene = Scene::request_load(
-                                self.context.shared_data(),
-                                self.context.message_hub(),
-                                PathBuf::from(scene_path).as_path(),
-                                None,
-                            );
-                        }
+            .process_messages(|event: &SerializableResourceEvent<Scene>| {
+                let SerializableResourceEvent::<Scene>::Load(path, _option) = event;
+                debug_log!("Loading scene: {:?}", path);
+                if let Some(scene_path) = path.to_str() {
+                    if scene_path.ends_with(Scene::extension()) {
+                        self.scene.get_mut().clear();
+                        self.scene = Scene::request_load(
+                            self.context.shared_data(),
+                            self.context.message_hub(),
+                            PathBuf::from(scene_path).as_path(),
+                            None,
+                        );
                     }
                 }
             });

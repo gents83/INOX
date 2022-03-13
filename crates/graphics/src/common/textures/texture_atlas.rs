@@ -1,4 +1,4 @@
-use inox_profiler::debug_log;
+use inox_log::debug_log;
 use inox_uid::generate_random_uid;
 
 use crate::{TextureData, TextureId};

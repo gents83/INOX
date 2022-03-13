@@ -23,7 +23,7 @@ use inox_graphics::{
 use inox_math::{Mat4Ops, Matrix4, NewAngle, Parser, Radians, Vector2, Vector3, Vector4};
 use inox_messenger::MessageHubRc;
 use inox_nodes::LogicData;
-use inox_profiler::debug_log;
+use inox_log::debug_log;
 use inox_resources::{Data, SharedDataRc};
 use inox_scene::{CameraData, ObjectData, SceneData};
 use inox_serialize::{

@@ -10,4 +10,5 @@ crate-type = ["lib"]
 
 [dependencies]
 inox_commands = { path = "../commands" }
+inox_log = { path = "../log" }
 inox_uid = { path = "../uid" }
