@@ -170,14 +170,6 @@ fn compute_textures_coord(v: VertexInput, material_index: i32, texture_type: u32
     return output;
 }
 
-
-fn linear_from_srgb(srgb: vec3<f32>) -> vec3<f32> {
-    let cutoff = srgb < vec3<f32>(10.31475);
-    let lower = srgb / vec3<f32>(3294.6);
-    let higher = pow((srgb + vec3<f32>(14.025)) / vec3<f32>(269.025), vec3<f32>(2.4));
-    return select(higher, lower, cutoff);
-}
-
 @stage(vertex)
 fn vs_main(
     v: VertexInput,
@@ -251,7 +243,6 @@ fn get_texture_color(material_index: u32, texture_type: u32, tex_coords: vec3<f3
     }
     return textureSampleLevel(texture_1, default_sampler, tex_coords.xy, tex_coords.z);
 }
-
 
 @stage(fragment)
 fn fs_main(v: VertexOutput) -> @location(0) vec4<f32> {

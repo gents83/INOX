@@ -149,34 +149,13 @@ impl UISystem {
                 vertices[i].tex_coord.iter_mut().for_each(|t| {
                     *t = [v.uv.x, v.uv.y].into();
                 });
-                /*
-                if use_srgb {
-                    let convert_linear_from_srgb = |c: f32| -> f32 {
-                        if c >= 10.31475_f32 {
-                            c / 3294.6_f32
-                        } else {
-                            ((c + 14.025_f32) / 269.025_f32).powf(2.4_f32)
-                        }
-                    };
-
-                    vertices[i].color = [
-                        convert_linear_from_srgb(v.color.r() as f32),
-                        convert_linear_from_srgb(v.color.g() as f32),
-                        convert_linear_from_srgb(v.color.b() as f32),
-                        v.color.a() as f32 / 255.,
-                    ]
-                    .into();
-                } else
-                */
-                {
-                    vertices[i].color = [
-                        v.color.r() as f32 / 255.,
-                        v.color.g() as f32 / 255.,
-                        v.color.b() as f32 / 255.,
-                        v.color.a() as f32 / 255.,
-                    ]
-                    .into();
-                }
+                vertices[i].color = [
+                    v.color.r() as f32 / 255.,
+                    v.color.g() as f32 / 255.,
+                    v.color.b() as f32 / 255.,
+                    v.color.a() as f32 / 255.,
+                ]
+                .into();
             }
             mesh_data.append_mesh(vertices.as_slice(), mesh.indices.as_slice());
 
