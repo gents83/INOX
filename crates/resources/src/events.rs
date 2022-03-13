@@ -1,7 +1,6 @@
-use std::{any::type_name, path::PathBuf};
+use std::path::PathBuf;
 
 use inox_commands::CommandParser;
-use inox_log::debug_log;
 use inox_messenger::implement_message;
 
 use crate::{Resource, ResourceId, ResourceTrait, SerializableResource};
@@ -78,16 +77,7 @@ where
         if command_parser.has("load_file") {
             let values = command_parser.get_values_of::<String>("load_file");
             let path = PathBuf::from(values[0].as_str());
-            debug_log!("From command parser: {:?} for {:?}", path, type_name::<T>());
             if <T as SerializableResource>::is_matching_extension(path.as_path()) {
-                debug_log!(
-                    "Sending ResourceEvent<{}>::Load",
-                    type_name::<T>()
-                        .split(':')
-                        .collect::<Vec<&str>>()
-                        .last()
-                        .unwrap()
-                );
                 return Some(SerializableResourceEvent::<T>::Load(
                     path.as_path().to_path_buf(),
                     None,
