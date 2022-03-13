@@ -3,6 +3,9 @@ use crate::{
     MAX_NUM_MATERIALS, MAX_NUM_TEXTURES,
 };
 
+pub const CONSTANT_DATA_FLAGS_NONE: u32 = 0;
+pub const CONSTANT_DATA_FLAGS_SUPPORT_SRGB: u32 = 1;
+
 #[repr(C, align(16))]
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct ConstantData {
@@ -10,6 +13,7 @@ pub struct ConstantData {
     pub proj: [[f32; 4]; 4],
     pub screen_width: f32,
     pub screen_height: f32,
+    pub flags: u32,
 }
 
 impl Default for ConstantData {
@@ -19,6 +23,7 @@ impl Default for ConstantData {
             proj: [[0.; 4]; 4],
             screen_width: 0.,
             screen_height: 0.,
+            flags: CONSTANT_DATA_FLAGS_NONE,
         }
     }
 }

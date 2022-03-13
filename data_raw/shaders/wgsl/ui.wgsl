@@ -13,11 +13,15 @@ let TEXTURE_TYPE_DIFFUSE: u32 = 6u;
 let TEXTURE_TYPE_EMPTY_FOR_PADDING: u32 = 7u;
 let TEXTURE_TYPE_COUNT: u32 = 8u;
 
+let CONSTANT_DATA_FLAGS_NONE: u32 = 0u;
+let CONSTANT_DATA_FLAGS_SUPPORT_SRGB: u32 = 1u;
+
 struct ConstantData {
     view: mat4x4<f32>;
     proj: mat4x4<f32>;
     screen_width: f32;
     screen_height: f32;
+    flags: u32;
 };
 
 struct LightData {
@@ -186,8 +190,12 @@ fn vs_main(
               v.position.z, 
               1.
             );
-            
-    out.color = vec4<f32>(linear_from_srgb(v.color.rgb), v.color.a / 255.);  
+    let support_srbg = constant_data.flags & CONSTANT_DATA_FLAGS_SUPPORT_SRGB;
+    if (support_srbg == 1u) {
+        out.color = vec4<f32>(linear_from_srgb(v.color.rgb), v.color.a / 255.);  
+    } else {
+        out.color = vec4<f32>(v.color.rgba / 255.); 
+    } 
     out.material_index = instance.material_index;
 
     if (instance.material_index >= 0)

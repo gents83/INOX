@@ -13,11 +13,15 @@ let TEXTURE_TYPE_DIFFUSE: u32 = 6u;
 let TEXTURE_TYPE_EMPTY_FOR_PADDING: u32 = 7u;
 let TEXTURE_TYPE_COUNT: u32 = 8u;
 
+let CONSTANT_DATA_FLAGS_NONE: u32 = 0u;
+let CONSTANT_DATA_FLAGS_SUPPORT_SRGB: u32 = 1u;
+
 struct ConstantData {
     view: mat4x4<f32>;
     proj: mat4x4<f32>;
     screen_width: f32;
     screen_height: f32;
+    flags: u32;
 };
 
 struct LightData {

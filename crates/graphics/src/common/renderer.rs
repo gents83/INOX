@@ -1,7 +1,7 @@
 use crate::{
     platform::required_gpu_features, BindingData, GraphicsMesh, Light, LightId, Material,
     MaterialId, Mesh, MeshId, Pipeline, RenderPass, RenderPassDrawContext, RenderPassId, Texture,
-    TextureHandler, TextureId,
+    TextureHandler, TextureId, CONSTANT_DATA_FLAGS_SUPPORT_SRGB,
 };
 use inox_math::{matrix4_to_array, Matrix4, Vector2};
 use inox_resources::{DataTypeResource, HashIndexer, Resource};
@@ -176,6 +176,20 @@ impl Renderer {
         constant_data.proj = matrix4_to_array(OPENGL_TO_WGPU_MATRIX * proj);
         constant_data.screen_width = screen_size.x;
         constant_data.screen_height = screen_size.y;
+        if self
+            .context
+            .read()
+            .unwrap()
+            .as_ref()
+            .unwrap()
+            .config
+            .format
+            .describe()
+            .srgb
+        {
+            constant_data.flags |= CONSTANT_DATA_FLAGS_SUPPORT_SRGB;
+        }
+
         self.shader_data
             .set_num_lights(self.light_hash_indexer.len());
         self.shader_data
@@ -329,8 +343,6 @@ impl Renderer {
                 });
 
             {
-                let debug_should_draw_only_first = false;
-                let mut index = 0;
                 let graphics_mesh = &self.graphics_mesh;
                 let mut render_target = &screen_view;
                 let render_context = self.context.get();
@@ -344,36 +356,31 @@ impl Renderer {
                 let mut render_format = &render_context.config.format;
                 self.shared_data
                     .for_each_resource_mut(|_id, r: &mut RenderPass| {
-                        if !debug_should_draw_only_first || index == 0 {
-                            let texture_bind_group = texture_handler.bind_group(
-                                &render_context.device,
-                                r.render_target().as_ref().map(|t| t.id()),
-                            );
-                            let bind_group =
-                                vec![self.shader_data.bind_group(), &texture_bind_group];
+                        let texture_bind_group = texture_handler.bind_group(
+                            &render_context.device,
+                            r.render_target().as_ref().map(|t| t.id()),
+                        );
+                        let bind_group = vec![self.shader_data.bind_group(), &texture_bind_group];
 
-                            if let Some(texture) = r.render_target() {
-                                if let Some(atlas) = texture_handler.get_texture_atlas(texture.id())
-                                {
-                                    render_target = atlas.texture();
-                                    render_format = atlas.texture_format();
-                                }
-                            } else {
-                                render_target = &screen_view;
-                                render_format = &render_context.config.format;
+                        if let Some(texture) = r.render_target() {
+                            if let Some(atlas) = texture_handler.get_texture_atlas(texture.id()) {
+                                render_target = atlas.texture();
+                                render_format = atlas.texture_format();
                             }
-
-                            r.draw(RenderPassDrawContext {
-                                context: render_context,
-                                encoder: &mut encoder,
-                                texture_view: render_target,
-                                format: render_format,
-                                graphics_mesh,
-                                bind_groups: bind_group.as_slice(),
-                                bind_group_layouts: bind_group_layouts.as_slice(),
-                            });
+                        } else {
+                            render_target = &screen_view;
+                            render_format = &render_context.config.format;
                         }
-                        index += 1;
+
+                        r.draw(RenderPassDrawContext {
+                            context: render_context,
+                            encoder: &mut encoder,
+                            texture_view: render_target,
+                            format: render_format,
+                            graphics_mesh,
+                            bind_groups: bind_group.as_slice(),
+                            bind_group_layouts: bind_group_layouts.as_slice(),
+                        });
                     });
             }
 
