@@ -123,6 +123,7 @@ impl UISystem {
                 self.ui_meshes[i].get_mut().set_visible(false);
                 continue;
             }
+
             let texture = match mesh.texture_id {
                 eguiTextureId::Managed(_) => self.ui_textures[&mesh.texture_id].clone(),
                 eguiTextureId::User(texture_uniform_index) => {
@@ -135,6 +136,7 @@ impl UISystem {
                     }
                 }
             };
+
             let material = self.get_ui_material(texture);
             let mesh_instance = &self.ui_meshes[i];
             let ui_scale = self.ui_scale;
@@ -147,13 +149,34 @@ impl UISystem {
                 vertices[i].tex_coord.iter_mut().for_each(|t| {
                     *t = [v.uv.x, v.uv.y].into();
                 });
-                vertices[i].color = [
-                    v.color.r() as _,
-                    v.color.g() as _,
-                    v.color.b() as _,
-                    v.color.a() as _,
-                ]
-                .into();
+                /*
+                if use_srgb {
+                    let convert_linear_from_srgb = |c: f32| -> f32 {
+                        if c >= 10.31475_f32 {
+                            c / 3294.6_f32
+                        } else {
+                            ((c + 14.025_f32) / 269.025_f32).powf(2.4_f32)
+                        }
+                    };
+
+                    vertices[i].color = [
+                        convert_linear_from_srgb(v.color.r() as f32),
+                        convert_linear_from_srgb(v.color.g() as f32),
+                        convert_linear_from_srgb(v.color.b() as f32),
+                        v.color.a() as f32 / 255.,
+                    ]
+                    .into();
+                } else
+                */
+                {
+                    vertices[i].color = [
+                        v.color.r() as f32 / 255.,
+                        v.color.g() as f32 / 255.,
+                        v.color.b() as f32 / 255.,
+                        v.color.a() as f32 / 255.,
+                    ]
+                    .into();
+                }
             }
             mesh_data.append_mesh(vertices.as_slice(), mesh.indices.as_slice());
 

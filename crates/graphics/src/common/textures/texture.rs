@@ -29,7 +29,7 @@ impl Texture {
             height,
             depth_or_array_layers: layers_count,
         };
-        let format = wgpu::TextureFormat::Rgba8UnormSrgb;
+        let format = wgpu::TextureFormat::Rgba8Unorm;
         let texture = device.create_texture(&wgpu::TextureDescriptor {
             label: Some(format!("Texture[{}]", id).as_str()),
             size,

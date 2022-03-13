@@ -191,11 +191,7 @@ fn vs_main(
               1.
             );
     let support_srbg = constant_data.flags & CONSTANT_DATA_FLAGS_SUPPORT_SRGB;
-    if (support_srbg == 1u) {
-        out.color = vec4<f32>(linear_from_srgb(v.color.rgb), v.color.a / 255.);  
-    } else {
-        out.color = vec4<f32>(v.color.rgba / 255.); 
-    } 
+    out.color = v.color;
     out.material_index = instance.material_index;
 
     if (instance.material_index >= 0)

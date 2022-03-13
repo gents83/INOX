@@ -3,6 +3,7 @@ use crate::{
     MaterialId, Mesh, MeshId, Pipeline, RenderPass, RenderPassDrawContext, RenderPassId, Texture,
     TextureHandler, TextureId, CONSTANT_DATA_FLAGS_SUPPORT_SRGB,
 };
+use inox_log::debug_log;
 use inox_math::{matrix4_to_array, Matrix4, Vector2};
 use inox_resources::{DataTypeResource, HashIndexer, Resource};
 
@@ -109,17 +110,14 @@ impl Renderer {
     }
 
     async fn create_render_context(handle: Handle, render_context: RenderContextRw) {
-        let instance = wgpu::Instance::new(wgpu::Backends::all());
+        let backend = wgpu::util::backend_bits_from_env().unwrap_or_else(wgpu::Backends::all);
+        let instance = wgpu::Instance::new(backend);
         let surface = unsafe { instance.create_surface(&handle) };
-        let adapter = instance
-            .request_adapter(&wgpu::RequestAdapterOptions {
-                power_preference: wgpu::PowerPreference::HighPerformance,
-                compatible_surface: Some(&surface),
-                force_fallback_adapter: false,
-            })
-            .await
-            .expect("Failed to find an appropriate adapter");
 
+        let adapter =
+            wgpu::util::initialize_adapter_from_env_or_default(&instance, backend, Some(&surface))
+                .await
+                .expect("No suitable GPU adapters found on the system!");
         let required_features = required_gpu_features();
         let limits = wgpu::Limits::default();
 
@@ -135,13 +133,24 @@ impl Renderer {
             )
             .await
             .expect("Failed to create device");
+        let format_features = adapter.get_texture_format_features(wgpu::TextureFormat::Rgba8Unorm);
+
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: surface.get_preferred_format(&adapter).unwrap(),
+            format: if format_features
+                .allowed_usages
+                .contains(wgpu::TextureUsages::RENDER_ATTACHMENT)
+            {
+                wgpu::TextureFormat::Rgba8Unorm
+            } else {
+                surface.get_preferred_format(&adapter).unwrap()
+            },
             width: DEFAULT_WIDTH,
             height: DEFAULT_HEIGHT,
             present_mode: wgpu::PresentMode::Mailbox,
         };
+
+        debug_log!("Surface format: {:?}", config.format);
         surface.configure(&device, &config);
 
         render_context.write().unwrap().replace(RenderContext {
