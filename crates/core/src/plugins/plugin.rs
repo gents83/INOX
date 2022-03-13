@@ -49,50 +49,85 @@ impl PluginHolder {
 }
 
 #[macro_export]
-macro_rules! define_plugin {
+macro_rules! define_dynamic_plugin {
     ($Type:ident) => {
-        pub(crate) static mut PLUGIN: Option<$Type> = None;
-
         #[no_mangle]
         pub extern "C" fn create_plugin() -> $crate::PluginHolder {
-            let plugin = unsafe { PLUGIN.get_or_insert($Type::default()) };
-            $crate::PluginHolder::new(plugin.id(), plugin.name())
+            static_plugin::create_plugin()
         }
 
         #[no_mangle]
         pub extern "C" fn destroy_plugin() {
-            unsafe {
-                debug_assert!(
-                    PLUGIN.is_some(),
-                    "Destroying {:?} plugin never created",
-                    PLUGIN.as_ref().unwrap().name()
-                );
-                PLUGIN = None;
-            }
+            static_plugin::destroy_plugin()
         }
 
         #[no_mangle]
         pub extern "C" fn prepare_plugin(app: &mut App) {
-            unsafe {
-                debug_assert!(
-                    PLUGIN.is_some(),
-                    "Trying to prepare {:?} plugin never created",
-                    PLUGIN.as_ref().unwrap().name()
-                );
-                PLUGIN.as_mut().unwrap().prepare(app);
-            }
+            static_plugin::prepare_plugin(app)
         }
 
         #[no_mangle]
         pub extern "C" fn unprepare_plugin(app: &mut App) {
-            unsafe {
-                debug_assert!(
-                    PLUGIN.is_some(),
-                    "Trying to unprepare {:?} plugin never created",
-                    PLUGIN.as_ref().unwrap().name()
-                );
-                PLUGIN.as_mut().unwrap().unprepare(app);
+            static_plugin::unprepare_plugin(app)
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! define_static_plugin {
+    ($Type:ident) => {
+        pub mod static_plugin {
+            use $crate::Plugin;
+
+            pub(crate) static mut PLUGIN: Option<crate::$Type> = None;
+
+            pub fn create_plugin() -> $crate::PluginHolder {
+                let plugin = unsafe { PLUGIN.get_or_insert(crate::$Type::default()) };
+                $crate::PluginHolder::new(plugin.id(), plugin.name())
+            }
+
+            pub fn destroy_plugin() {
+                unsafe {
+                    debug_assert!(
+                        PLUGIN.is_some(),
+                        "Destroying {:?} plugin never created",
+                        PLUGIN.as_ref().unwrap().name()
+                    );
+                    PLUGIN = None;
+                }
+            }
+
+            pub fn prepare_plugin(app: &mut inox_core::App) {
+                unsafe {
+                    debug_assert!(
+                        PLUGIN.is_some(),
+                        "Trying to prepare {:?} plugin never created",
+                        PLUGIN.as_ref().unwrap().name()
+                    );
+                    PLUGIN.as_mut().unwrap().prepare(app);
+                }
+            }
+
+            pub fn unprepare_plugin(app: &mut inox_core::App) {
+                unsafe {
+                    debug_assert!(
+                        PLUGIN.is_some(),
+                        "Trying to unprepare {:?} plugin never created",
+                        PLUGIN.as_ref().unwrap().name()
+                    );
+                    PLUGIN.as_mut().unwrap().unprepare(app);
+                }
             }
         }
+    };
+}
+
+#[macro_export]
+macro_rules! define_plugin {
+    ($Type:ident) => {
+        $crate::define_static_plugin!($Type);
+
+        #[cfg(not(target_arch = "wasm32"))]
+        $crate::define_dynamic_plugin!($Type);
     };
 }

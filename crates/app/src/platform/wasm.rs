@@ -5,8 +5,8 @@ use std::sync::Arc;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 
-use inox_messenger::MessageHubRc;
 use inox_log::debug_log;
+use inox_messenger::MessageHubRc;
 use inox_resources::SharedDataRc;
 
 use crate::launcher::Launcher;
@@ -37,21 +37,21 @@ pub fn binarizer_stop(_: ()) {}
 
 pub fn load_plugins(launcher: &Arc<Launcher>) {
     debug_log!("Loading plugins");
-    /*
-        launcher.add_static_plugin(
-            "inox_common_script",
-            Some(|| inox_common_script::create_plugin()),
-            Some(|app| inox_common_script::prepare_plugin(app)),
-            Some(|app| inox_common_script::unprepare_plugin(app)),
-            Some(|| inox_common_script::destroy_plugin()),
-        );
-    */
+
+    launcher.add_static_plugin(
+        "inox_common_script",
+        Some(|| inox_common_script::static_plugin::create_plugin()),
+        Some(|app| inox_common_script::static_plugin::prepare_plugin(app)),
+        Some(|app| inox_common_script::static_plugin::unprepare_plugin(app)),
+        Some(|| inox_common_script::static_plugin::destroy_plugin()),
+    );
+
     launcher.add_static_plugin(
         "inox_viewer",
-        Some(|| inox_viewer::create_plugin()),
-        Some(|app| inox_viewer::prepare_plugin(app)),
-        Some(|app| inox_viewer::unprepare_plugin(app)),
-        Some(|| inox_viewer::destroy_plugin()),
+        Some(|| inox_viewer::static_plugin::create_plugin()),
+        Some(|app| inox_viewer::static_plugin::prepare_plugin(app)),
+        Some(|app| inox_viewer::static_plugin::unprepare_plugin(app)),
+        Some(|| inox_viewer::static_plugin::destroy_plugin()),
     );
 }
 
