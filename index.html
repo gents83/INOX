@@ -9,13 +9,14 @@
 <body>
     <noscript>This page contains webassembly and javascript content, please enable javascript in your
         browser.</noscript>
-    <canvas id="canvas" width="1920" height="1080"></canvas>
+    <canvas id="canvas" width="1280" height="720"></canvas>
     <script type="module">
         import init from './web/inox_launcher.js';
         import { send_event_from_string } from './web/inox_launcher.js';
 
         var canvas = document.getElementById('canvas');
-        if (!canvas.getContext('webgpu')) {
+        var context = canvas.getContext('webgpu');
+        if (!context) {
             const span = document.createElement('span');
             span.innerText = 'Your browser does not seem to support WebGPU';
             document.body.appendChild(span);

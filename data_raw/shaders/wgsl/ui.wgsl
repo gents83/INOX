@@ -160,7 +160,7 @@ fn get_textures_coord_set(v: VertexInput, material_index: i32, texture_type: u32
 
 fn compute_textures_coord(v: VertexInput, material_index: i32, texture_type: u32) -> vec3<f32> {
     let tex_coords = get_textures_coord_set(v, material_index, texture_type);
-    var output = vec3<f32>(0.0, 0.0, 0.0); 
+    var output = vec3<f32>(0.0, 0.0, 0.0);
     let texture_data_index = dynamic_data.materials_data[material_index].textures_indices[texture_type];
     if (texture_data_index >= 0) {
         output.x = (dynamic_data.textures_data[texture_data_index].area.x + 0.5 + tex_coords.x * dynamic_data.textures_data[texture_data_index].area.z) / dynamic_data.textures_data[texture_data_index].total_width;
@@ -174,20 +174,14 @@ fn compute_textures_coord(v: VertexInput, material_index: i32, texture_type: u32
 fn vs_main(
     v: VertexInput,
     instance: InstanceInput,
-) -> VertexOutput {    
-    var out: VertexOutput;    
-    out.clip_position =
-        vec4<f32>( 2. * v.position.x / constant_data.screen_width - 1.,
-              1. - 2. * v.position.y / constant_data.screen_height, 
-              v.position.z, 
-              1.
-            );
+) -> VertexOutput {
+    var out: VertexOutput;
+    out.clip_position = vec4<f32>(2. * v.position.x / constant_data.screen_width - 1., 1. - 2. * v.position.y / constant_data.screen_height, v.position.z, 1.);
     let support_srbg = constant_data.flags & CONSTANT_DATA_FLAGS_SUPPORT_SRGB;
-    out.color = v.color;
+    out.color = v.color / 255.0;
     out.material_index = instance.material_index;
 
-    if (instance.material_index >= 0)
-    {
+    if (instance.material_index >= 0) {
         out.tex_coords_base_color = compute_textures_coord(v, instance.material_index, TEXTURE_TYPE_BASE_COLOR);
         out.tex_coords_metallic_roughness = compute_textures_coord(v, instance.material_index, TEXTURE_TYPE_METALLIC_ROUGHNESS);
         out.tex_coords_normal = compute_textures_coord(v, instance.material_index, TEXTURE_TYPE_NORMAL);
@@ -247,9 +241,8 @@ fn get_texture_color(material_index: u32, texture_type: u32, tex_coords: vec3<f3
 @stage(fragment)
 fn fs_main(v: VertexOutput) -> @location(0) vec4<f32> {
     var color: vec4<f32> = v.color;
-    if (v.material_index >= 0)
-    {
-        color = color * get_texture_color(u32(v.material_index), TEXTURE_TYPE_BASE_COLOR, v.tex_coords_base_color);      
+    if (v.material_index >= 0) {
+        color = color * get_texture_color(u32(v.material_index), TEXTURE_TYPE_BASE_COLOR, v.tex_coords_base_color);
     }
     return color;
 }

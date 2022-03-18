@@ -149,11 +149,12 @@ impl UISystem {
                 vertices[i].tex_coord.iter_mut().for_each(|t| {
                     *t = [v.uv.x, v.uv.y].into();
                 });
+                let color = v.color.to_srgba_unmultiplied();
                 vertices[i].color = [
-                    v.color.r() as f32 / 255.,
-                    v.color.g() as f32 / 255.,
-                    v.color.b() as f32 / 255.,
-                    v.color.a() as f32 / 255.,
+                    color[0] as f32,
+                    color[1] as f32,
+                    color[2] as f32,
+                    color[3] as f32,
                 ]
                 .into();
             }
@@ -344,7 +345,7 @@ impl UISystem {
                     image
                         .pixels
                         .iter()
-                        .flat_map(|color| color.to_array().to_vec())
+                        .flat_map(|color| color.to_srgba_unmultiplied().to_vec())
                         .collect()
                 }
                 egui::ImageData::Alpha(image) => {

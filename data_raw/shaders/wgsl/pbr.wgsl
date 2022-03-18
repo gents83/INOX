@@ -160,7 +160,7 @@ fn get_textures_coord_set(v: VertexInput, material_index: i32, texture_type: u32
 
 fn compute_textures_coord(v: VertexInput, material_index: i32, texture_type: u32) -> vec3<f32> {
     let tex_coords = get_textures_coord_set(v, material_index, texture_type);
-    var output = vec3<f32>(0.0, 0.0, 0.0); 
+    var output = vec3<f32>(0.0, 0.0, 0.0);
     let texture_data_index = dynamic_data.materials_data[material_index].textures_indices[texture_type];
     if (texture_data_index >= 0) {
         output.x = (dynamic_data.textures_data[texture_data_index].area.x + 0.5 + tex_coords.x * dynamic_data.textures_data[texture_data_index].area.z) / dynamic_data.textures_data[texture_data_index].total_width;
@@ -174,7 +174,7 @@ fn compute_textures_coord(v: VertexInput, material_index: i32, texture_type: u32
 fn vs_main(
     v: VertexInput,
     instance: InstanceInput,
-) -> VertexOutput {    
+) -> VertexOutput {
     let instance_matrix = mat4x4<f32>(
         instance.model_matrix_0,
         instance.model_matrix_1,
@@ -193,8 +193,7 @@ fn vs_main(
     out.color = v.color;
     out.material_index = instance.material_index;
 
-    if (instance.material_index >= 0)
-    {
+    if (instance.material_index >= 0) {
         out.tex_coords_base_color = compute_textures_coord(v, instance.material_index, TEXTURE_TYPE_BASE_COLOR);
         out.tex_coords_metallic_roughness = compute_textures_coord(v, instance.material_index, TEXTURE_TYPE_METALLIC_ROUGHNESS);
         out.tex_coords_normal = compute_textures_coord(v, instance.material_index, TEXTURE_TYPE_NORMAL);
@@ -255,9 +254,8 @@ fn get_texture_color(material_index: u32, texture_type: u32, tex_coords: vec3<f3
 @stage(fragment)
 fn fs_main(v: VertexOutput) -> @location(0) vec4<f32> {
     var color: vec4<f32> = v.color;
-    if (v.material_index >= 0)
-    {
-        color = color * get_texture_color(u32(v.material_index), TEXTURE_TYPE_BASE_COLOR, v.tex_coords_base_color);  
+    if (v.material_index >= 0) {
+        color = color * get_texture_color(u32(v.material_index), TEXTURE_TYPE_BASE_COLOR, v.tex_coords_base_color);
     }
 
     var color_from_light = color.rgb;
@@ -266,25 +264,26 @@ fn fs_main(v: VertexOutput) -> @location(0) vec4<f32> {
         if (i >= dynamic_data.num_lights) {
             break;
         }
+        let light_color = dynamic_data.lights_data[i].color.rgb;
         let ambient_strength = dynamic_data.lights_data[i].intensity / 10000.;
-	    let ambient_color = dynamic_data.lights_data[i].color.rgb * ambient_strength;
-
+	    let ambient_color = light_color * ambient_strength;
+    
 	    let light_dir = normalize(dynamic_data.lights_data[i].position - v.clip_position.xyz);
 	    
 	    let diffuse_strength = max(dot(v.normal, light_dir), 0.0);
-	    let diffuse_color = dynamic_data.lights_data[i].color.rgb * diffuse_strength;
+	    let diffuse_color = light_color * diffuse_strength;
 	    let view_pos = vec3<f32>(constant_data.view[3][0], constant_data.view[3][1], constant_data.view[3][2]);
 	    let view_dir = normalize(view_pos - v.clip_position.xyz);
-
+    
 	    //Blinn-Phong
 	    let half_dir = normalize(view_dir + light_dir);
 	    let specular_strength = pow(max(dot(v.normal, half_dir), 0.0), 32.);
-
-	    let specular_color = specular_strength * dynamic_data.lights_data[i].color.rgb;
-
-	    color_from_light = color_from_light * (ambient_color + diffuse_color + specular_color);
+    
+	    let specular_color = specular_strength * light_color;
+    
+        color_from_light = color_from_light * (ambient_color + diffuse_color + specular_color);
         i = i + 1u;
 	}
-    
+
     return vec4<f32>(color_from_light.rgb, color.a);
 }

@@ -12,8 +12,8 @@ use inox_resources::{SharedData, SharedDataRc};
 
 use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
-const DEFAULT_WIDTH: u32 = 1920;
-const DEFAULT_HEIGHT: u32 = 1080;
+const DEFAULT_WIDTH: u32 = 1280;
+const DEFAULT_HEIGHT: u32 = 720;
 
 #[rustfmt::skip]
 const OPENGL_TO_WGPU_MATRIX: Matrix4 = Matrix4::new(
@@ -133,7 +133,9 @@ impl Renderer {
             )
             .await
             .expect("Failed to create device");
-        let format_features = adapter.get_texture_format_features(wgpu::TextureFormat::Rgba8Unorm);
+
+        let output_format = wgpu::TextureFormat::Rgba8Unorm;
+        let format_features = adapter.get_texture_format_features(output_format);
 
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
@@ -141,7 +143,7 @@ impl Renderer {
                 .allowed_usages
                 .contains(wgpu::TextureUsages::RENDER_ATTACHMENT)
             {
-                wgpu::TextureFormat::Rgba8Unorm
+                output_format
             } else {
                 surface.get_preferred_format(&adapter).unwrap()
             },
