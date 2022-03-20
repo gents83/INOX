@@ -169,6 +169,7 @@ impl GraphicsMesh {
                 .as_ref()
                 .map_or(INVALID_INDEX, |m| m.get().uniform_index()),
         };
+
         let mut instance_index = instance_buffer.add(mesh_id, &[instance]);
         if mesh.draw_index() >= 0 && instance_index != mesh.draw_index() as u32 {
             instance_buffer.swap(instance_index as _, mesh.draw_index() as _);

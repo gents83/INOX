@@ -83,7 +83,12 @@ where
 {
     fn drop(&mut self) {
         self.listener.unregister::<SerializableResourceEvent<T>>();
-        self.listener.unregister::<ResourceEvent<T>>();
+        self.listener
+            .message_hub()
+            .unregister_type::<SerializableResourceEvent<T>>();
+        self.listener
+            .message_hub()
+            .unregister_type::<ResourceEvent<T>>();
     }
 }
 
@@ -93,7 +98,8 @@ where
 {
     pub fn new(message_hub: &MessageHubRc) -> Self {
         let listener = Listener::new(message_hub);
-        listener.register::<ResourceEvent<T>>();
+        message_hub.register_type::<ResourceEvent<T>>();
+        message_hub.register_type::<SerializableResourceEvent<T>>();
         listener.register::<SerializableResourceEvent<T>>();
         Self {
             marker: PhantomData::<T>::default(),

@@ -98,7 +98,6 @@ where
             }
             self.insert_at(id, free_data.start, data);
         } else {
-            self.defrag();
             self.insert(id, data);
             need_realloc = true;
         }
@@ -107,21 +106,16 @@ where
     fn insert(&mut self, id: &ResourceId, data: &[T]) {
         let start = self.data.len();
         let end = start + data.len() - 1;
+        //inox_log::debug_log!("[{:?}] added, [start {} : end {}]", id, start, end);
+
         self.data.extend_from_slice(data);
         self.occupied.push(BufferData::new(id, start, end));
-        let is_not_overlapping = (0..self.occupied.len()).rev().all(|i| {
-            if i > 0 {
-                self.occupied[i].start > self.occupied[i - 1].end
-            } else {
-                true
-            }
-        });
-        debug_assert!(is_not_overlapping);
     }
 
     fn insert_at(&mut self, id: &ResourceId, start: usize, data: &[T]) {
         debug_assert!(start <= self.data.len());
         let end = start + data.len() - 1;
+        //inox_log::debug_log!("[{:?}] inserting at {}", id, start);
         self.update(start, data);
         if let Some(i) = self.occupied.iter().position(|d| (d.end + 1) == start) {
             self.occupied.insert(i + 1, BufferData::new(id, start, end));
@@ -130,19 +124,17 @@ where
         } else {
             self.occupied.push(BufferData::new(id, start, end));
         }
-        let is_not_overlapping = (0..self.occupied.len()).rev().all(|i| {
-            if i > 0 {
-                self.occupied[i].start > self.occupied[i - 1].end
-            } else {
-                true
-            }
-        });
-        debug_assert!(is_not_overlapping);
     }
     pub fn update(&mut self, start: usize, data: &[T]) {
         debug_assert!(start <= self.data.len());
-        self.data[start..(start + data.len())]
-            .clone_from_slice(&data[..((start + data.len()) - start)]);
+        /*
+        inox_log::debug_log!(
+            "owerwriting, [start {} : end {}]",
+            start,
+            start + data.len() - 1
+        );
+        */
+        self.data[start..(start + data.len())].clone_from_slice(&data[..data.len()]);
     }
     pub fn swap(&mut self, index: usize, other: usize) -> bool {
         if index == other {
@@ -197,6 +189,14 @@ where
     pub fn remove_with_id(&mut self, id: &ResourceId) -> bool {
         if let Some(index) = self.occupied.iter().position(|d| d.id == *id) {
             let data = self.occupied.remove(index);
+            /*
+            inox_log::debug_log!(
+                "[{:?}] has been removed, [start {} : end {}]",
+                id,
+                data.start,
+                data.end
+            );
+            */
             self.free.push(data);
             return true;
         }

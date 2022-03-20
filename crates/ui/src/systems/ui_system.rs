@@ -107,6 +107,7 @@ impl UISystem {
         inox_profiler::scoped_profile!("ui_system::compute_mesh_data");
         let shared_data = self.shared_data.clone();
         let message_hub = self.message_hub.clone();
+
         self.ui_meshes.resize_with(clipped_meshes.len(), || {
             Mesh::new_resource(
                 &shared_data,

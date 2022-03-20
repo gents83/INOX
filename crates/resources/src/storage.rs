@@ -86,6 +86,14 @@ where
         }
         let mut to_remove = Vec::new();
         self.resources.iter_mut().for_each(|data| {
+            /*
+            inox_log::debug_log!(
+                "[{:?}] Strong: {} Weak: {}",
+                data.id(),
+                Arc::strong_count(data),
+                Arc::weak_count(data)
+            );
+            */
             if Arc::strong_count(data) == 1 && Arc::weak_count(data) == 0 {
                 to_remove.push(*data.id());
             }

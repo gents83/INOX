@@ -25,6 +25,9 @@ impl Listener {
             message_hub: message_hub.clone(),
         }
     }
+    pub fn message_hub(&self) -> &MessageHubRc {
+        &self.message_hub
+    }
     pub fn register<T>(&self) -> &Self
     where
         T: Message,
@@ -111,6 +114,7 @@ where
     T: Message,
 {
     fn add_listener(&self, listener_id: &ListenerId) {
+        //inox_log::debug_log!("Adding listener for {}", type_name::<T>());
         self.listeners
             .write()
             .unwrap()
@@ -123,6 +127,8 @@ where
             .retain(|l| l.id != *listener_id);
     }
     fn flush(&self) {
+        //inox_log::debug_log!("Flushing messages for {}", type_name::<T>());
+        //inox_log::debug_log!("From {}", self.messages.read().unwrap().len());
         self.messages.write().unwrap().retain(|msg_id, _| {
             self.listeners
                 .read()
@@ -130,6 +136,7 @@ where
                 .iter()
                 .any(|l| l.messages.read().unwrap().contains(msg_id))
         });
+        //inox_log::debug_log!("to {}", self.messages.read().unwrap().len());
         for msg in self.new_messages.write().unwrap().drain(..) {
             self.messages.write().unwrap().retain(|msg_id, other| {
                 let discard = msg.compare_and_discard(other);
@@ -192,7 +199,11 @@ where
                 return;
             }
             let mut messages = Vec::new();
-            messages.append(listener.messages.write().unwrap().as_mut());
+            {
+                let mut listener_messages = listener.messages.write().unwrap();
+                messages.append(listener_messages.as_mut());
+                listener_messages.clear();
+            }
             messages.iter().for_each(|msg_id| {
                 if let Some(msg) = self.messages.read().unwrap().get(msg_id) {
                     f(msg);
