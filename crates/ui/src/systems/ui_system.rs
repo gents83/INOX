@@ -139,42 +139,57 @@ impl UISystem {
             };
 
             let material = self.get_ui_material(texture);
-            let mesh_instance = &self.ui_meshes[i];
+            let mesh_instance = self.ui_meshes[i].clone();
             let ui_scale = self.ui_scale;
 
-            let mut mesh_data = MeshData::default();
-            let mut vertices: Vec<VertexData> = Vec::new();
-            vertices.resize(mesh.vertices.len(), VertexData::default());
-            for (i, v) in mesh.vertices.iter().enumerate() {
-                vertices[i].pos = [v.pos.x * ui_scale, v.pos.y * ui_scale, 0.].into();
-                vertices[i].tex_coord.iter_mut().for_each(|t| {
-                    *t = [v.uv.x, v.uv.y].into();
-                });
-                let color = v.color.to_srgba_unmultiplied();
-                vertices[i].color = [
-                    color[0] as f32,
-                    color[1] as f32,
-                    color[2] as f32,
-                    color[3] as f32,
-                ]
-                .into();
-            }
-            mesh_data.append_mesh(vertices.as_slice(), mesh.indices.as_slice());
+            self.job_handler.write().unwrap().add_job(
+                &UISystem::id(),
+                format!("ui_system::ui_mesh_{}_data", i).as_str(),
+                move || {
+                    let mut mesh_data = MeshData::default();
+                    let mut vertices: Vec<VertexData> = Vec::new();
+                    {
+                        inox_profiler::scoped_profile!("ui_system::resize_vertex_data");
+                        vertices.resize(mesh.vertices.len(), VertexData::default());
+                    }
+                    {
+                        inox_profiler::scoped_profile!("ui_system::copy_vertex_data");
+                        for (i, v) in mesh.vertices.iter().enumerate() {
+                            vertices[i].pos = [v.pos.x * ui_scale, v.pos.y * ui_scale, 0.].into();
+                            vertices[i].tex_coord.iter_mut().for_each(|t| {
+                                *t = [v.uv.x, v.uv.y].into();
+                            });
+                            let color = v.color.to_srgba_unmultiplied();
+                            vertices[i].color = [
+                                color[0] as f32,
+                                color[1] as f32,
+                                color[2] as f32,
+                                color[3] as f32,
+                            ]
+                            .into();
+                        }
+                    }
+                    mesh_data.append_mesh(vertices.as_slice(), mesh.indices.as_slice());
 
-            let clip_rect = Vector4::new(
-                clip_rect.min.x * ui_scale,
-                clip_rect.min.y * ui_scale,
-                clip_rect.max.x * ui_scale,
-                clip_rect.max.y * ui_scale,
+                    let clip_rect = Vector4::new(
+                        clip_rect.min.x * ui_scale,
+                        clip_rect.min.y * ui_scale,
+                        clip_rect.max.x * ui_scale,
+                        clip_rect.max.y * ui_scale,
+                    );
+
+                    {
+                        inox_profiler::scoped_profile!("ui_system::set_mesh_properties");
+                        mesh_instance
+                            .get_mut()
+                            .set_material(material)
+                            .set_mesh_data(mesh_data)
+                            .set_draw_area(clip_rect)
+                            .set_draw_index(draw_index)
+                            .set_visible(true);
+                    }
+                },
             );
-
-            mesh_instance
-                .get_mut()
-                .set_material(material)
-                .set_mesh_data(mesh_data)
-                .set_draw_area(clip_rect)
-                .set_draw_index(draw_index)
-                .set_visible(true);
         }
     }
 

@@ -1,10 +1,7 @@
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
-    sync::{
-        mpsc::{channel, Receiver},
-        Arc, Mutex, RwLock, RwLockReadGuard,
-    },
+    sync::{mpsc::channel, Arc, Mutex, RwLockReadGuard},
 };
 
 use inox_messenger::{Listener, MessageHubRc};
@@ -14,8 +11,8 @@ use inox_time::{Timer, TimerRw};
 use inox_uid::generate_uid_from_string;
 
 use crate::{
-    Job, JobHandler, JobHandlerRw, Phases, PluginHolder, PluginId, PluginManager, Scheduler,
-    System, SystemId, Worker,
+    JobHandler, JobHandlerRw, JobReceiverRw, Phases, PluginHolder, PluginId, PluginManager,
+    Scheduler, System, SystemId, Worker,
 };
 
 #[cfg(target_arch = "wasm32")]
@@ -52,8 +49,8 @@ pub struct App {
     plugin_manager: PluginManager,
     scheduler: Scheduler,
     workers: HashMap<String, Worker>,
-    job_handler: Arc<RwLock<JobHandler>>,
-    receiver: Arc<Mutex<Receiver<Job>>>,
+    job_handler: JobHandlerRw,
+    job_receiver: JobReceiverRw,
 }
 
 impl Default for App {
@@ -74,7 +71,7 @@ impl Default for App {
             plugin_manager: PluginManager::default(),
             workers: HashMap::new(),
             job_handler: JobHandler::new(sender),
-            receiver: Arc::new(Mutex::new(receiver)),
+            job_receiver: Arc::new(Mutex::new(receiver)),
             listener,
             context,
         }
@@ -177,7 +174,7 @@ impl App {
     fn update_workers(&mut self, is_enabled: bool) {
         if NUM_WORKER_THREADS == 0 {
             //no workers - need to handle events ourself
-            let recv = self.receiver.lock().unwrap();
+            let recv = self.job_receiver.lock().unwrap();
             if let Ok(job) = recv.try_recv() {
                 drop(recv);
                 job.execute();
@@ -195,7 +192,9 @@ impl App {
 
         self.context.global_timer.write().unwrap().update();
 
-        let can_continue = self.scheduler.run_once(self.is_enabled, &self.job_handler);
+        let can_continue =
+            self.scheduler
+                .run_once(self.is_enabled, &self.job_handler, &self.job_receiver);
 
         self.update_events();
 
@@ -263,7 +262,7 @@ impl App {
         let key = String::from(name);
         let w = self.workers.entry(key).or_insert_with(Worker::default);
         if !w.is_started() {
-            w.start(name, &self.job_handler, self.receiver.clone());
+            w.start(name, &self.job_handler, self.job_receiver.clone());
         }
         w
     }

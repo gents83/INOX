@@ -2,13 +2,14 @@ use std::{
     collections::HashMap,
     sync::{
         atomic::{AtomicUsize, Ordering},
-        mpsc::Sender,
-        Arc, RwLock,
+        mpsc::{Receiver, Sender},
+        Arc, Mutex, RwLock,
     },
 };
 
 use inox_uid::Uid;
 
+pub type JobReceiverRw = Arc<Mutex<Receiver<Job>>>;
 pub type JobId = Uid;
 
 pub struct Job {

@@ -1,4 +1,6 @@
-use crate::{JobHandlerRw, Phase, PhaseWithSystems, Phases, System, SystemId};
+use crate::{
+    JobHandlerRw, JobReceiverRw, Phase, PhaseWithSystems, Phases, System, SystemId, Worker,
+};
 use std::collections::HashMap;
 
 pub struct Scheduler {
@@ -50,7 +52,12 @@ impl Scheduler {
         }
     }
 
-    pub fn run_once(&mut self, is_focused: bool, job_handler: &JobHandlerRw) -> bool {
+    pub fn run_once(
+        &mut self,
+        is_focused: bool,
+        job_handler: &JobHandlerRw,
+        job_receiver: &JobReceiverRw,
+    ) -> bool {
         if !self.is_started {
             return self.is_running;
         }
@@ -62,7 +69,7 @@ impl Scheduler {
                     inox_profiler::scoped_profile!(
                         format!("{}[{:?}]", "scheduler::run_phase", p).as_str()
                     );
-                    let ok = phase.run(is_focused);
+                    let ok = phase.run(is_focused, job_receiver);
                     {
                         inox_profiler::scoped_profile!(format!(
                             "{}[{:?}]",
@@ -76,7 +83,12 @@ impl Scheduler {
                             jobs_id_to_wait.iter().for_each(|job_id| {
                                 should_wait |= job_handler.read().unwrap().has_pending_jobs(job_id);
                             });
-                            thread::yield_now();
+                            if should_wait {
+                                if let Some(job) = Worker::get_job(job_receiver) {
+                                    job.execute();
+                                }
+                                thread::yield_now();
+                            }
                         }
                     }
                     ok

@@ -29,7 +29,7 @@ impl Worker {
     pub fn is_started(&self) -> bool {
         self.thread_handle.is_some()
     }
-    fn get_job(receiver: &Arc<Mutex<Receiver<Job>>>) -> Option<Job> {
+    pub fn get_job(receiver: &Arc<Mutex<Receiver<Job>>>) -> Option<Job> {
         let recv = receiver.lock().unwrap();
         if let Ok(job) = recv.try_recv() {
             return Some(job);
@@ -41,7 +41,7 @@ impl Worker {
         &mut self,
         name: &str,
         job_handler: &JobHandlerRw,
-        receiver: Arc<Mutex<Receiver<Job>>>,
+        job_receiver: Arc<Mutex<Receiver<Job>>>,
     ) {
         if self.thread_handle.is_none() {
             let builder = thread::Builder::new().name(name.into());
@@ -52,14 +52,15 @@ impl Worker {
                     inox_profiler::register_thread!();
                     scheduler.write().unwrap().resume();
                     loop {
-                        let can_continue = scheduler.write().unwrap().run_once(true, &job_handler);
-                        if let Some(job) = Worker::get_job(&receiver) {
+                        let can_continue =
+                            scheduler
+                                .write()
+                                .unwrap()
+                                .run_once(true, &job_handler, &job_receiver);
+                        while let Some(job) = Worker::get_job(&job_receiver) {
                             job.execute();
                         }
                         if !can_continue {
-                            while let Some(job) = Worker::get_job(&receiver) {
-                                job.execute();
-                            }
                             return false;
                         }
                     }
