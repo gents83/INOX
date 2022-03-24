@@ -3,7 +3,7 @@ use std::any::type_name;
 use inox_resources::{Buffer, BufferData, ResourceId};
 use wgpu::util::DeviceExt;
 
-use crate::{utils::to_u8_slice, RenderContext};
+use crate::utils::to_u8_slice;
 
 pub struct GpuBuffer<T, const U: u32>
 where
@@ -87,19 +87,19 @@ where
         self.is_dirty = true;
         self.is_realloc_needed = true;
     }
-    pub fn send_to_gpu(&mut self, context: &RenderContext) {
+    pub fn send_to_gpu(&mut self, device: &wgpu::Device, queue: &wgpu::Queue) {
         if !self.is_dirty {
             return;
         }
         if self.is_realloc_needed || self.gpu_buffer.is_none() {
-            self.create_gpu_buffer(context);
+            self.create_gpu_buffer(device);
         } else if let Some(buffer) = &self.gpu_buffer {
             let data = self.cpu_buffer.total_data();
             if data.is_empty() {
                 return;
             }
             inox_profiler::scoped_profile!("gpu_buffer::send_to_gpu - write_buffer");
-            context.queue.write_buffer(buffer, 0, to_u8_slice(data));
+            queue.write_buffer(buffer, 0, to_u8_slice(data));
         }
         self.is_dirty = false;
     }
@@ -112,7 +112,7 @@ where
             .unwrap()
     }
 
-    fn create_gpu_buffer(&mut self, context: &RenderContext) {
+    fn create_gpu_buffer(&mut self, device: &wgpu::Device) {
         inox_profiler::scoped_profile!("gpu_buffer::create_gpu_buffer");
         if let Some(buffer) = self.gpu_buffer.take() {
             inox_profiler::scoped_profile!("gpu_buffer::destroy_buffer");
@@ -124,13 +124,11 @@ where
             self.is_realloc_needed = false;
             return;
         }
-        let buffer = context
-            .device
-            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some(self.label()),
-                contents: to_u8_slice(data),
-                usage: wgpu::BufferUsages::from_bits(U).unwrap() | wgpu::BufferUsages::COPY_DST,
-            });
+        let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some(self.label()),
+            contents: to_u8_slice(data),
+            usage: wgpu::BufferUsages::from_bits(U).unwrap() | wgpu::BufferUsages::COPY_DST,
+        });
         self.gpu_buffer = Some(buffer);
         self.is_realloc_needed = false;
     }

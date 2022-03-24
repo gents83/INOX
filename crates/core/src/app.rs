@@ -12,7 +12,7 @@ use inox_uid::generate_uid_from_string;
 
 use crate::{
     JobHandler, JobHandlerRw, JobReceiverRw, Phases, PluginHolder, PluginId, PluginManager,
-    Scheduler, System, SystemId, Worker,
+    Scheduler, System, SystemEvent, SystemId, Worker,
 };
 
 #[cfg(target_arch = "wasm32")]
@@ -62,7 +62,10 @@ impl Default for App {
         let context = ContextRc::default();
         let listener = Listener::new(context.message_hub());
 
-        listener.register::<KeyEvent>().register::<WindowEvent>();
+        listener
+            .register::<KeyEvent>()
+            .register::<WindowEvent>()
+            .register::<SystemEvent>();
 
         Self {
             is_enabled: true,
@@ -93,6 +96,7 @@ impl Drop for App {
         self.remove_static_plugins(static_plugins_to_remove);
 
         self.listener
+            .unregister::<SystemEvent>()
             .unregister::<KeyEvent>()
             .unregister::<WindowEvent>();
     }
@@ -283,6 +287,9 @@ impl App {
         S: System + 'static,
     {
         self.scheduler.add_system(phase, system, &self.job_handler);
+        self.context
+            .message_hub
+            .send_event(SystemEvent::Added(S::id(), phase));
     }
     pub fn add_system_with_dependencies<S>(
         &mut self,
@@ -294,9 +301,15 @@ impl App {
     {
         self.scheduler
             .add_system_with_dependencies(phase, system, dependencies, &self.job_handler);
+        self.context
+            .message_hub
+            .send_event(SystemEvent::Added(S::id(), phase));
     }
     pub fn remove_system(&mut self, phase: Phases, system_id: &SystemId) {
         self.scheduler.remove_system(phase, system_id);
+        self.context
+            .message_hub
+            .send_event(SystemEvent::Removed(*system_id, phase));
     }
     pub fn execute_on_system<S, F>(&mut self, f: F)
     where

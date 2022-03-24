@@ -1,4 +1,4 @@
-use inox_core::{JobHandlerRw, System};
+use inox_core::{JobHandlerRw, System, SystemEvent};
 
 use inox_messenger::{Listener, MessageHubRc};
 use inox_platform::WindowEvent;
@@ -10,7 +10,8 @@ use inox_serialize::read_from_file;
 use inox_uid::generate_random_uid;
 
 use crate::{
-    is_shader, Light, Material, Mesh, Pipeline, RenderPass, RendererRw, RendererState, Texture,
+    is_shader, Light, Material, Mesh, Pipeline, RenderPass, RendererEvent, RendererRw,
+    RendererState, Texture,
 };
 
 use super::config::Config;
@@ -50,6 +51,14 @@ impl UpdateSystem {
     fn handle_events(&mut self) {
         //REMINDER: message processing order is important - RenderPass must be processed before Texture
         self.listener
+            .process_messages(|e: &SystemEvent| {
+                if let SystemEvent::Added(_, _) = e {
+                    let renderer = self.renderer.read().unwrap();
+                    let render_context = renderer.render_context().clone();
+                    self.message_hub
+                        .send_event(RendererEvent::RenderContext(render_context));
+                }
+            })
             .process_messages(|e: &WindowEvent| {
                 if let WindowEvent::SizeChanged(width, height) = e {
                     let mut renderer = self.renderer.write().unwrap();
@@ -168,6 +177,7 @@ impl System for UpdateSystem {
     fn init(&mut self) {
         self.listener
             .register::<WindowEvent>()
+            .register::<SystemEvent>()
             .register::<SerializableResourceEvent<Pipeline>>()
             .register::<SerializableResourceEvent<Texture>>()
             .register::<ResourceEvent<RenderPass>>()
@@ -203,6 +213,7 @@ impl System for UpdateSystem {
     fn uninit(&mut self) {
         self.listener
             .unregister::<WindowEvent>()
+            .unregister::<SystemEvent>()
             .unregister::<SerializableResourceEvent<Pipeline>>()
             .unregister::<SerializableResourceEvent<Texture>>()
             .unregister::<ConfigEvent<Config>>()

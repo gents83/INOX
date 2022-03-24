@@ -3,9 +3,7 @@ use std::collections::HashMap;
 use inox_math::{matrix3_to_array, matrix4_to_array, Mat4Ops, Matrix, Matrix3};
 use inox_resources::BufferData;
 
-use crate::{
-    GpuBuffer, InstanceData, Mesh, MeshId, PipelineId, RenderContext, VertexData, INVALID_INDEX,
-};
+use crate::{GpuBuffer, InstanceData, Mesh, MeshId, PipelineId, VertexData, INVALID_INDEX};
 
 #[derive(Default)]
 pub struct GraphicsMesh {
@@ -202,15 +200,15 @@ impl GraphicsMesh {
         }
     }
 
-    pub fn send_to_gpu(&mut self, context: &RenderContext) {
-        self.vertex_buffer.send_to_gpu(context);
-        self.index_buffer.send_to_gpu(context);
+    pub fn send_to_gpu(&mut self, device: &wgpu::Device, queue: &wgpu::Queue) {
+        self.vertex_buffer.send_to_gpu(device, queue);
+        self.index_buffer.send_to_gpu(device, queue);
 
         self.instance_buffers.iter_mut().for_each(|(_, b)| {
-            b.send_to_gpu(context);
+            b.send_to_gpu(device, queue);
         });
         self.indirect_buffers.iter_mut().for_each(|(_, b)| {
-            b.send_to_gpu(context);
+            b.send_to_gpu(device, queue);
         });
     }
 }

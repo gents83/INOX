@@ -40,6 +40,7 @@ pub struct RenderContext {
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
     pub texture_handler: TextureHandler,
+    pub graphics_mesh: GraphicsMesh,
 }
 
 pub type RenderContextRw = Arc<RwLock<Option<RenderContext>>>;
@@ -62,7 +63,6 @@ pub struct Renderer {
     context: RenderContextRw,
     shared_data: SharedDataRc,
     state: RendererState,
-    graphics_mesh: GraphicsMesh,
     material_hash_indexer: HashIndexer<MaterialId>,
     texture_hash_indexer: HashIndexer<MaterialId>,
     light_hash_indexer: HashIndexer<LightId>,
@@ -91,7 +91,6 @@ impl Renderer {
 
         Renderer {
             shader_data: BindingData::default(),
-            graphics_mesh: GraphicsMesh::default(),
             texture_hash_indexer: HashIndexer::default(),
             material_hash_indexer: HashIndexer::default(),
             light_hash_indexer: HashIndexer::default(),
@@ -99,6 +98,10 @@ impl Renderer {
             context: render_context,
             shared_data: shared_data.clone(),
         }
+    }
+
+    pub fn render_context(&self) -> &RenderContextRw {
+        &self.context
     }
 
     pub fn check_initialization(&mut self) {
@@ -156,6 +159,7 @@ impl Renderer {
         surface.configure(&device, &config);
 
         render_context.write().unwrap().replace(RenderContext {
+            graphics_mesh: GraphicsMesh::default(),
             texture_handler: TextureHandler::create(&device),
             instance,
             device,
@@ -317,7 +321,11 @@ impl Renderer {
 
     pub fn on_mesh_added(&mut self, mesh: &Resource<Mesh>) {
         inox_profiler::scoped_profile!("renderer::on_mesh_added");
-        self.graphics_mesh.add_mesh(mesh.id(), &mesh.get());
+        let mut render_context = self.context.get_mut();
+        let render_context = render_context.as_mut().unwrap();
+        render_context
+            .graphics_mesh
+            .add_mesh(mesh.id(), &mesh.get());
     }
     pub fn on_mesh_changed(&mut self, mesh_id: &MeshId) {
         inox_profiler::scoped_profile!("renderer::on_mesh_changed");
@@ -328,7 +336,9 @@ impl Renderer {
     }
     pub fn on_mesh_removed(&mut self, mesh_id: &MeshId) {
         inox_profiler::scoped_profile!("renderer::on_mesh_removed");
-        self.graphics_mesh.remove_mesh(mesh_id);
+        let mut render_context = self.context.get_mut();
+        let render_context = render_context.as_mut().unwrap();
+        render_context.graphics_mesh.remove_mesh(mesh_id);
     }
 
     pub fn draw(&self) {
@@ -354,11 +364,11 @@ impl Renderer {
                 });
 
             {
-                let graphics_mesh = &self.graphics_mesh;
                 let mut render_target = &screen_view;
                 let render_context = self.context.get();
                 let render_context = render_context.as_ref().unwrap();
                 let texture_handler = &render_context.texture_handler;
+                let graphics_mesh = &render_context.graphics_mesh;
 
                 let bind_group_layouts = vec![
                     self.shader_data.bind_group_layout(),
@@ -412,9 +422,9 @@ impl Renderer {
         let mut render_context = self.context.get_mut();
         let render_context = render_context.as_mut().unwrap();
         let texture_handler = &mut render_context.texture_handler;
-        let graphic_mesh = &mut self.graphics_mesh;
+        let graphic_mesh = &mut render_context.graphics_mesh;
 
         texture_handler.send_to_gpu(&render_context.queue);
-        graphic_mesh.send_to_gpu(render_context);
+        graphic_mesh.send_to_gpu(&render_context.device, &render_context.queue);
     }
 }
