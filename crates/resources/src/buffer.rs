@@ -1,19 +1,19 @@
+use std::ops::Range;
+
 use crate::ResourceId;
 use inox_uid::{generate_random_uid, INVALID_UID};
 
 #[derive(Clone)]
 pub struct BufferData {
     pub id: ResourceId,
-    pub start: usize,
-    pub end: usize,
+    pub range: Range<usize>,
 }
 
 impl Default for BufferData {
     fn default() -> Self {
         Self {
             id: INVALID_UID,
-            start: 0,
-            end: 0,
+            range: 0..0,
         }
     }
 }
@@ -22,37 +22,36 @@ impl BufferData {
     pub fn new(id: &ResourceId, start: usize, end: usize) -> Self {
         Self {
             id: *id,
-            start,
-            end,
+            range: start..end,
         }
     }
     #[inline]
     pub fn is_adjacent(&self, buffer: &BufferData) -> bool {
-        if buffer.start > 0 && self.end == (buffer.start - 1) {
+        if buffer.range.start > 0 && self.range.end == (buffer.range.start - 1) {
             return true;
         }
-        if self.start > 0 && buffer.end == (self.start - 1) {
+        if self.range.start > 0 && buffer.range.end == (self.range.start - 1) {
             return true;
         }
         false
     }
     #[inline]
     pub fn combine(&mut self, buffer: &BufferData) -> bool {
-        if buffer.start > 0 && self.end == (buffer.start - 1) {
-            self.end = buffer.end;
+        if buffer.range.start > 0 && self.range.end == (buffer.range.start - 1) {
+            self.range.end = buffer.range.end;
             return true;
         }
-        if self.start > 0 && buffer.end == (self.start - 1) {
-            self.start = buffer.start;
+        if self.range.start > 0 && buffer.range.end == (self.range.start - 1) {
+            self.range.start = buffer.range.start;
             return true;
         }
         false
     }
     pub fn len(&self) -> usize {
-        self.end + 1 - self.start
+        self.range.end + 1 - self.range.start
     }
     pub fn is_empty(&self) -> bool {
-        self.start == self.end
+        self.range.start == self.range.end
     }
 }
 
@@ -87,16 +86,20 @@ where
         self.collapse_free();
         let mut need_realloc = false;
         let size = data.len();
-        if let Some(index) = self.free.iter().position(|d| (d.end + 1 - d.start) >= size) {
+        if let Some(index) = self
+            .free
+            .iter()
+            .position(|d| (d.range.end + 1 - d.range.start) >= size)
+        {
             let free_data = self.free.remove(index);
-            if (free_data.end + 1 - free_data.start) > size {
+            if (free_data.range.end + 1 - free_data.range.start) > size {
                 self.free.push(BufferData::new(
                     &generate_random_uid(),
-                    free_data.start + size,
-                    free_data.end,
+                    free_data.range.start + size,
+                    free_data.range.end,
                 ));
             }
-            self.insert_at(id, free_data.start, data);
+            self.insert_at(id, free_data.range.start, data);
         } else {
             self.insert(id, data);
             need_realloc = true;
@@ -117,9 +120,13 @@ where
         let end = start + data.len() - 1;
         //inox_log::debug_log!("[{:?}] inserting at {}", id, start);
         self.update(start, data);
-        if let Some(i) = self.occupied.iter().position(|d| (d.end + 1) == start) {
+        if let Some(i) = self
+            .occupied
+            .iter()
+            .position(|d| (d.range.end + 1) == start)
+        {
             self.occupied.insert(i + 1, BufferData::new(id, start, end));
-        } else if let Some(i) = self.occupied.iter().position(|d| d.start > end) {
+        } else if let Some(i) = self.occupied.iter().position(|d| d.range.start > end) {
             self.occupied.insert(i, BufferData::new(id, start, end));
         } else {
             self.occupied.push(BufferData::new(id, start, end));
@@ -142,15 +149,15 @@ where
         }
         debug_assert!(index <= self.data.len());
         debug_assert!(other <= self.data.len());
-        if let Some(index_a) = self.occupied.iter().position(|b| b.start == index) {
-            if let Some(index_b) = self.occupied.iter().position(|b| b.start == other) {
+        if let Some(index_a) = self.occupied.iter().position(|b| b.range.start == index) {
+            if let Some(index_b) = self.occupied.iter().position(|b| b.range.start == other) {
                 self.data.swap(index, other);
-                self.occupied[index_a].end =
-                    other + (self.occupied[index_a].end - self.occupied[index_a].start);
-                self.occupied[index_a].start = other;
-                self.occupied[index_b].end =
-                    index + (self.occupied[index_b].end - self.occupied[index_b].start);
-                self.occupied[index_b].start = index;
+                self.occupied[index_a].range.end =
+                    other + (self.occupied[index_a].range.end - self.occupied[index_a].range.start);
+                self.occupied[index_a].range.start = other;
+                self.occupied[index_b].range.end =
+                    index + (self.occupied[index_b].range.end - self.occupied[index_b].range.start);
+                self.occupied[index_b].range.start = index;
                 return true;
             }
         }
@@ -167,7 +174,7 @@ where
     pub fn len(&self) -> usize {
         let mut count = 0;
         self.occupied.iter().for_each(|b| {
-            count += b.end + 1 - b.start;
+            count += b.range.end + 1 - b.range.start;
         });
         count
     }
@@ -175,14 +182,16 @@ where
         self.data.len()
     }
     pub fn find(&self, size: usize) -> Option<usize> {
-        self.occupied.iter().position(|b| (b.end - b.start) >= size)
+        self.occupied
+            .iter()
+            .position(|b| (b.range.end - b.range.start) >= size)
     }
     pub fn get(&self, id: &ResourceId) -> Option<&BufferData> {
         self.occupied.iter().find(|d| d.id == *id)
     }
     pub fn get_mut(&mut self, id: &ResourceId) -> Option<&mut [T]> {
         if let Some(buffer_data) = self.occupied.iter().find(|d| d.id == *id) {
-            return Some(&mut self.data[buffer_data.start..(buffer_data.end + 1)]);
+            return Some(&mut self.data[buffer_data.range.start..(buffer_data.range.end + 1)]);
         }
         None
     }
@@ -217,11 +226,11 @@ where
     {
         self.occupied.iter().for_each(|b| {
             let func = &mut f;
-            self.data[b.start..(b.end + 1)]
+            self.data[b.range.start..(b.range.end + 1)]
                 .iter()
                 .enumerate()
                 .for_each(|(i, d)| {
-                    func(b.start + i, d);
+                    func(b.range.start + i, d);
                 });
         });
     }
@@ -261,7 +270,7 @@ where
                 }
                 if let Some(i) = collapsed_list
                     .iter()
-                    .position(|d| d.end > first_buffer.start)
+                    .position(|d| d.range.end > first_buffer.range.start)
                 {
                     collapsed_list.insert(i, first_buffer);
                 } else {
@@ -280,10 +289,10 @@ where
         let mut new_data = Vec::<T>::new();
         let mut last_index = 0;
         self.occupied.iter_mut().for_each(|d| {
-            new_data.extend_from_slice(&self.data[d.start..=d.end]);
-            d.start = last_index;
+            new_data.extend_from_slice(&self.data[d.range.start..=d.range.end]);
+            d.range.start = last_index;
             last_index = new_data.len();
-            d.end = last_index - 1;
+            d.range.end = last_index - 1;
         });
         self.data = new_data;
     }

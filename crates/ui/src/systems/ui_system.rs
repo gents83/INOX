@@ -13,8 +13,7 @@ use egui::{
 use image::RgbaImage;
 use inox_core::{JobHandlerRw, System};
 use inox_graphics::{
-    GetRenderContext, Material, Mesh, MeshData, Pipeline, RenderContextRw, RendererEvent, Texture,
-    TextureId, TextureType, VertexData,
+    Material, Mesh, MeshData, Pipeline, Texture, TextureId, TextureType, VertexData,
 };
 
 use inox_log::debug_log;
@@ -42,7 +41,6 @@ pub struct UISystem {
     job_handler: JobHandlerRw,
     message_hub: MessageHubRc,
     listener: Listener,
-    render_context: RenderContextRw,
     ui_context: Context,
     ui_textures: HashMap<eguiTextureId, Resource<Texture>>,
     ui_input: RawInput,
@@ -71,7 +69,6 @@ impl UISystem {
             job_handler: job_handler.clone(),
             message_hub: message_hub.clone(),
             listener,
-            render_context: RenderContextRw::default(),
             ui_context: Context::default(),
             ui_textures: HashMap::new(),
             ui_input: RawInput::default(),
@@ -303,10 +300,6 @@ impl UISystem {
                 self.ui_input
                     .events
                     .push(Event::Text(event.char.to_string()));
-            })
-            .process_messages(|event: &RendererEvent| {
-                let RendererEvent::RenderContext(context) = event;
-                self.render_context = context.clone();
             });
 
         self
@@ -429,8 +422,7 @@ impl System for UISystem {
             .register::<WindowEvent>()
             .register::<KeyEvent>()
             .register::<KeyTextEvent>()
-            .register::<MouseEvent>()
-            .register::<RendererEvent>();
+            .register::<MouseEvent>();
     }
 
     fn run(&mut self) -> bool {
@@ -438,10 +430,6 @@ impl System for UISystem {
 
         if self.ui_pipeline.is_none() {
             //Pipeline not yet loaded - just skip
-            return true;
-        }
-        if self.render_context.get().is_none() {
-            //Renderer not yet created - just skip
             return true;
         }
 
@@ -471,7 +459,6 @@ impl System for UISystem {
 
     fn uninit(&mut self) {
         self.listener
-            .unregister::<RendererEvent>()
             .unregister::<MouseEvent>()
             .unregister::<KeyTextEvent>()
             .unregister::<KeyEvent>()

@@ -1,10 +1,11 @@
 use crate::{
     platform::required_gpu_features, BindingData, GraphicsMesh, Light, LightId, Material,
     MaterialId, Mesh, MeshId, Pipeline, RenderPass, RenderPassDrawContext, RenderPassId, Texture,
-    TextureHandler, TextureId, CONSTANT_DATA_FLAGS_SUPPORT_SRGB,
+    TextureHandler, TextureId, CONSTANT_DATA_FLAGS_SUPPORT_SRGB, GRAPHIC_MESH_UID,
 };
 use inox_log::debug_log;
 use inox_math::{matrix4_to_array, Matrix4, Vector2};
+use inox_messenger::MessageHubRc;
 use inox_resources::{DataTypeResource, HashIndexer, Resource};
 
 use inox_platform::Handle;
@@ -40,7 +41,6 @@ pub struct RenderContext {
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
     pub texture_handler: TextureHandler,
-    pub graphics_mesh: GraphicsMesh,
 }
 
 pub type RenderContextRw = Arc<RwLock<Option<RenderContext>>>;
@@ -67,6 +67,7 @@ pub struct Renderer {
     texture_hash_indexer: HashIndexer<MaterialId>,
     light_hash_indexer: HashIndexer<LightId>,
     shader_data: BindingData,
+    graphics_mesh: Resource<GraphicsMesh>,
 }
 pub type RendererRw = Arc<RwLock<Renderer>>;
 
@@ -74,7 +75,15 @@ unsafe impl Send for Renderer {}
 unsafe impl Sync for Renderer {}
 
 impl Renderer {
-    pub fn new(handle: &Handle, shared_data: &SharedDataRc, _enable_debug: bool) -> Self {
+    pub fn new(
+        handle: &Handle,
+        shared_data: &SharedDataRc,
+        message_hub: &MessageHubRc,
+        _enable_debug: bool,
+    ) -> Self {
+        let graphics_mesh =
+            shared_data.add_resource(message_hub, GRAPHIC_MESH_UID, GraphicsMesh::default());
+
         let render_context = Arc::new(RwLock::new(None));
 
         #[cfg(target_arch = "wasm32")]
@@ -97,6 +106,7 @@ impl Renderer {
             state: RendererState::Init,
             context: render_context,
             shared_data: shared_data.clone(),
+            graphics_mesh,
         }
     }
 
@@ -159,7 +169,6 @@ impl Renderer {
         surface.configure(&device, &config);
 
         render_context.write().unwrap().replace(RenderContext {
-            graphics_mesh: GraphicsMesh::default(),
             texture_handler: TextureHandler::create(&device),
             instance,
             device,
@@ -321,10 +330,8 @@ impl Renderer {
 
     pub fn on_mesh_added(&mut self, mesh: &Resource<Mesh>) {
         inox_profiler::scoped_profile!("renderer::on_mesh_added");
-        let mut render_context = self.context.get_mut();
-        let render_context = render_context.as_mut().unwrap();
-        render_context
-            .graphics_mesh
+        self.graphics_mesh
+            .get_mut()
             .add_mesh(mesh.id(), &mesh.get());
     }
     pub fn on_mesh_changed(&mut self, mesh_id: &MeshId) {
@@ -336,9 +343,7 @@ impl Renderer {
     }
     pub fn on_mesh_removed(&mut self, mesh_id: &MeshId) {
         inox_profiler::scoped_profile!("renderer::on_mesh_removed");
-        let mut render_context = self.context.get_mut();
-        let render_context = render_context.as_mut().unwrap();
-        render_context.graphics_mesh.remove_mesh(mesh_id);
+        self.graphics_mesh.get_mut().remove_mesh(mesh_id);
     }
 
     pub fn draw(&self) {
@@ -368,7 +373,7 @@ impl Renderer {
                 let render_context = self.context.get();
                 let render_context = render_context.as_ref().unwrap();
                 let texture_handler = &render_context.texture_handler;
-                let graphics_mesh = &render_context.graphics_mesh;
+                let graphics_mesh = &self.graphics_mesh.get();
 
                 let bind_group_layouts = vec![
                     self.shader_data.bind_group_layout(),
@@ -422,7 +427,7 @@ impl Renderer {
         let mut render_context = self.context.get_mut();
         let render_context = render_context.as_mut().unwrap();
         let texture_handler = &mut render_context.texture_handler;
-        let graphic_mesh = &mut render_context.graphics_mesh;
+        let graphic_mesh = &mut self.graphics_mesh.get_mut();
 
         texture_handler.send_to_gpu(&render_context.queue);
         graphic_mesh.send_to_gpu(&render_context.device, &render_context.queue);

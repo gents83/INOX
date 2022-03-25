@@ -14,9 +14,30 @@ pub struct View {
     proj: Matrix4,
 }
 
+impl ResourceTrait for View {
+    type OnCreateData = ();
+
+    fn on_create(
+        &mut self,
+        _shared_data_rc: &SharedDataRc,
+        _message_hub: &MessageHubRc,
+        _id: &ViewId,
+        _on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
+    ) {
+    }
+    fn on_destroy(&mut self, _shared_data: &SharedData, _message_hub: &MessageHubRc, _id: &ViewId) {
+    }
+    fn on_copy(&mut self, other: &Self)
+    where
+        Self: Sized,
+    {
+        *self = other.clone();
+    }
+}
+
 impl DataTypeResource for View {
     type DataType = u32;
-    type OnCreateData = ();
+    type OnCreateData = <Self as ResourceTrait>::OnCreateData;
 
     fn new(_id: ResourceId, _shared_data: &SharedDataRc, _message_hub: &MessageHubRc) -> Self {
         Self {
@@ -37,16 +58,6 @@ impl DataTypeResource for View {
         _registry: &SerializableRegistryRc,
         _f: Box<dyn FnMut(Self::DataType) + 'static>,
     ) {
-    }
-    fn on_create(
-        &mut self,
-        _shared_data_rc: &SharedDataRc,
-        _message_hub: &MessageHubRc,
-        _id: &ViewId,
-        _on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
-    ) {
-    }
-    fn on_destroy(&mut self, _shared_data: &SharedData, _message_hub: &MessageHubRc, _id: &ViewId) {
     }
 
     fn create_from_data(

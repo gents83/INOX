@@ -30,6 +30,30 @@ pub struct Mesh {
     draw_index: i32,
 }
 
+impl ResourceTrait for Mesh {
+    type OnCreateData = OnMeshCreateData;
+
+    fn on_create(
+        &mut self,
+        _shared_data_rc: &SharedDataRc,
+        _message_hub: &MessageHubRc,
+        _id: &MeshId,
+        on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
+    ) {
+        if let Some(on_create_data) = on_create_data {
+            self.set_matrix(on_create_data.parent_matrix);
+        }
+    }
+    fn on_destroy(&mut self, _shared_data: &SharedData, _message_hub: &MessageHubRc, _id: &MeshId) {
+    }
+    fn on_copy(&mut self, other: &Self)
+    where
+        Self: Sized,
+    {
+        *self = other.clone();
+    }
+}
+
 impl SerializableResource for Mesh {
     fn set_path(&mut self, path: &Path) {
         self.path = path.to_path_buf();
@@ -45,7 +69,7 @@ impl SerializableResource for Mesh {
 
 impl DataTypeResource for Mesh {
     type DataType = MeshData;
-    type OnCreateData = OnMeshCreateData;
+    type OnCreateData = <Self as ResourceTrait>::OnCreateData;
 
     fn new(id: ResourceId, shared_data: &SharedDataRc, message_hub: &MessageHubRc) -> Self {
         Self {
@@ -76,19 +100,6 @@ impl DataTypeResource for Mesh {
         f: Box<dyn FnMut(Self::DataType) + 'static>,
     ) {
         read_from_file::<Self::DataType>(path, registry, f);
-    }
-    fn on_create(
-        &mut self,
-        _shared_data_rc: &SharedDataRc,
-        _message_hub: &MessageHubRc,
-        _id: &MeshId,
-        on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
-    ) {
-        if let Some(on_create_data) = on_create_data {
-            self.set_matrix(on_create_data.parent_matrix);
-        }
-    }
-    fn on_destroy(&mut self, _shared_data: &SharedData, _message_hub: &MessageHubRc, _id: &MeshId) {
     }
 
     fn create_from_data(

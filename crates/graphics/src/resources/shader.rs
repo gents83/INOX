@@ -28,6 +28,33 @@ impl Clone for Shader {
     }
 }
 
+impl ResourceTrait for Shader {
+    type OnCreateData = ();
+
+    fn on_create(
+        &mut self,
+        _shared_data_rc: &SharedDataRc,
+        _message_hub: &MessageHubRc,
+        _id: &ShaderId,
+        _on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
+    ) {
+    }
+    fn on_destroy(
+        &mut self,
+        _shared_data: &SharedData,
+        _message_hub: &MessageHubRc,
+        _id: &ShaderId,
+    ) {
+        self.module = None;
+    }
+    fn on_copy(&mut self, other: &Self)
+    where
+        Self: Sized,
+    {
+        *self = other.clone();
+    }
+}
+
 impl SerializableResource for Shader {
     fn set_path(&mut self, path: &Path) {
         self.path = path.to_path_buf();
@@ -43,7 +70,7 @@ impl SerializableResource for Shader {
 
 impl DataTypeResource for Shader {
     type DataType = ShaderData;
-    type OnCreateData = ();
+    type OnCreateData = <Self as ResourceTrait>::OnCreateData;
 
     fn new(_id: ResourceId, _shared_data: &SharedDataRc, _message_hub: &MessageHubRc) -> Self {
         Self {
@@ -66,22 +93,6 @@ impl DataTypeResource for Shader {
         f: Box<dyn FnMut(Self::DataType) + 'static>,
     ) {
         read_from_file::<Self::DataType>(path, registry, f);
-    }
-    fn on_create(
-        &mut self,
-        _shared_data_rc: &SharedDataRc,
-        _message_hub: &MessageHubRc,
-        _id: &ShaderId,
-        _on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
-    ) {
-    }
-    fn on_destroy(
-        &mut self,
-        _shared_data: &SharedData,
-        _message_hub: &MessageHubRc,
-        _id: &ShaderId,
-    ) {
-        self.module = None;
     }
 
     fn create_from_data(

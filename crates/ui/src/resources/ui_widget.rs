@@ -37,28 +37,29 @@ pub struct UIWidget {
     data: Box<dyn UIWidgetData>,
     func: Box<dyn FnMut(&mut dyn UIWidgetData, &Context)>,
 }
+
 impl ResourceTrait for UIWidget {
     type OnCreateData = ();
 
-    fn on_copy_resource(&mut self, _other: &Self) {
-        todo!()
-    }
-    fn on_create_resource(
+    fn on_create(
         &mut self,
-        _shared_data: &SharedDataRc,
+        _shared_data_rc: &SharedDataRc,
         _message_hub: &MessageHubRc,
-        _id: &ResourceId,
+        _id: &UIWidgetId,
         _on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
-    ) where
+    ) {
+    }
+    fn on_copy(&mut self, _other: &Self)
+    where
         Self: Sized,
     {
+        debug_assert!(false, "UIWidget::on_copy should not be called");
     }
-
-    fn on_destroy_resource(
+    fn on_destroy(
         &mut self,
         _shared_data: &SharedData,
         _message_hub: &MessageHubRc,
-        _id: &ResourceId,
+        _id: &UIWidgetId,
     ) {
     }
 }

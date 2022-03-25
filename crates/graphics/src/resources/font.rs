@@ -19,17 +19,8 @@ pub struct Font {
     font_data: FontData,
 }
 
-impl DataTypeResource for Font {
-    type DataType = FontData;
+impl ResourceTrait for Font {
     type OnCreateData = ();
-
-    fn new(_id: ResourceId, _shared_data: &SharedDataRc, _message_hub: &MessageHubRc) -> Self {
-        Self {
-            path: PathBuf::new(),
-            texture: None,
-            font_data: FontData::default(),
-        }
-    }
 
     fn on_create(
         &mut self,
@@ -40,6 +31,25 @@ impl DataTypeResource for Font {
     ) {
     }
     fn on_destroy(&mut self, _shared_data: &SharedData, _message_hub: &MessageHubRc, _id: &FontId) {
+    }
+    fn on_copy(&mut self, other: &Self)
+    where
+        Self: Sized,
+    {
+        *self = other.clone();
+    }
+}
+
+impl DataTypeResource for Font {
+    type DataType = FontData;
+    type OnCreateData = <Self as ResourceTrait>::OnCreateData;
+
+    fn new(_id: ResourceId, _shared_data: &SharedDataRc, _message_hub: &MessageHubRc) -> Self {
+        Self {
+            path: PathBuf::new(),
+            texture: None,
+            font_data: FontData::default(),
+        }
     }
 
     fn create_from_data(

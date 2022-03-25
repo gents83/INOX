@@ -8,9 +8,9 @@ use inox_core::{
 };
 use inox_graphics::{rendering_system::RenderingSystem, update_system::UpdateSystem, Renderer};
 
+use inox_log::debug_log;
 use inox_messenger::MessageHubRc;
 use inox_platform::Window;
-use inox_log::debug_log;
 use inox_resources::SharedDataRc;
 
 use crate::window_system::WindowSystem;
@@ -44,7 +44,17 @@ impl Launcher {
             )
         };
 
-        let renderer = Renderer::new(window.get_handle(), app.get_context().shared_data(), false);
+        inox_graphics::register_resource_types(
+            app.get_context().shared_data(),
+            app.get_context().message_hub(),
+        );
+
+        let renderer = Renderer::new(
+            window.get_handle(),
+            app.get_context().shared_data(),
+            app.get_context().message_hub(),
+            false,
+        );
         let renderer = Arc::new(RwLock::new(renderer));
 
         let window_system = WindowSystem::new(
@@ -130,5 +140,10 @@ impl Drop for Launcher {
         app.remove_system(inox_core::Phases::PlatformUpdate, &WindowSystem::id());
         app.remove_system(inox_core::Phases::Render, &UpdateSystem::id());
         app.remove_system(inox_core::Phases::Render, &RenderingSystem::id());
+
+        inox_graphics::unregister_resource_types(
+            app.get_context().shared_data(),
+            app.get_context().message_hub(),
+        );
     }
 }

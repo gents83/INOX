@@ -24,6 +24,7 @@ pub struct Script {
     parent: Handle<Object>,
     logic: LogicData,
 }
+
 impl SerializableResource for Script {
     fn path(&self) -> &Path {
         self.filepath.as_path()
@@ -37,17 +38,10 @@ impl SerializableResource for Script {
         LogicData::extension()
     }
 }
-impl DataTypeResource for Script {
-    type DataType = LogicData;
+
+impl ResourceTrait for Script {
     type OnCreateData = OnScriptCreateData;
 
-    fn new(_id: ResourceId, _shared_data_rc: &SharedDataRc, _message_hub: &MessageHubRc) -> Self {
-        Self {
-            filepath: PathBuf::new(),
-            parent: None,
-            logic: LogicData::default(),
-        }
-    }
     fn on_create(
         &mut self,
         shared_data_rc: &SharedDataRc,
@@ -67,6 +61,25 @@ impl DataTypeResource for Script {
         _message_hub: &MessageHubRc,
         _id: &ObjectId,
     ) {
+    }
+    fn on_copy(&mut self, other: &Self)
+    where
+        Self: Sized,
+    {
+        *self = other.clone();
+    }
+}
+
+impl DataTypeResource for Script {
+    type DataType = LogicData;
+    type OnCreateData = <Self as ResourceTrait>::OnCreateData;
+
+    fn new(_id: ResourceId, _shared_data_rc: &SharedDataRc, _message_hub: &MessageHubRc) -> Self {
+        Self {
+            filepath: PathBuf::new(),
+            parent: None,
+            logic: LogicData::default(),
+        }
     }
 
     fn is_initialized(&self) -> bool {

@@ -1,4 +1,4 @@
-use std::any::type_name;
+use std::{any::type_name, ops::Range};
 
 use inox_resources::{Buffer, BufferData, ResourceId};
 use wgpu::util::DeviceExt;
@@ -47,14 +47,14 @@ impl<T, const U: u32> GpuBuffer<T, U>
 where
     T: Clone,
 {
-    pub fn add(&mut self, id: &ResourceId, value: &[T]) -> u32 {
+    pub fn add(&mut self, id: &ResourceId, value: &[T]) -> Range<usize> {
         if self.cpu_buffer.get(id).is_some() {
             self.remove(id);
         }
         self.is_realloc_needed |= self.cpu_buffer.allocate(id, value);
         self.is_dirty = true;
 
-        self.cpu_buffer.get(id).unwrap().start as _
+        self.cpu_buffer.get(id).unwrap().range.clone()
     }
     pub fn update(&mut self, start_index: u32, value: &[T]) {
         self.cpu_buffer.update(start_index as _, value);

@@ -5,7 +5,7 @@ use std::{
     sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard},
 };
 
-use crate::{SharedData, SharedDataRc};
+use crate::{ResourceEvent, SharedData, SharedDataRc};
 
 pub type ResourceId = Uid;
 
@@ -14,6 +14,17 @@ where
     Self::OnCreateData: Send + Sync + Clone,
 {
     type OnCreateData;
+    fn on_create(
+        &mut self,
+        shared_data: &SharedDataRc,
+        message_hub: &MessageHubRc,
+        id: &ResourceId,
+        on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
+    );
+    fn on_copy(&mut self, other: &Self)
+    where
+        Self: Sized;
+    fn on_destroy(&mut self, shared_data: &SharedData, message_hub: &MessageHubRc, id: &ResourceId);
 
     fn on_create_resource(
         &mut self,
@@ -22,16 +33,24 @@ where
         id: &ResourceId,
         on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
     ) where
-        Self: Sized;
+        Self: Sized,
+    {
+        self.on_create(shared_data, message_hub, id, on_create_data);
+        message_hub.send_event(ResourceEvent::<Self>::Created(
+            shared_data.get_resource(id).unwrap(),
+        ));
+    }
     fn on_destroy_resource(
         &mut self,
         shared_data: &SharedData,
         message_hub: &MessageHubRc,
         id: &ResourceId,
-    );
-    fn on_copy_resource(&mut self, other: &Self)
-    where
-        Self: Sized;
+    ) where
+        Self: Sized,
+    {
+        message_hub.send_event(ResourceEvent::<Self>::Destroyed(*id));
+        self.on_destroy(shared_data, message_hub, id);
+    }
 }
 
 pub trait GenericResourceTrait: Send + Sync + Any {
@@ -108,5 +127,5 @@ where
         .data
         .write()
         .unwrap()
-        .on_copy_resource(&other.data.read().unwrap());
+        .on_copy(&other.data.read().unwrap());
 }

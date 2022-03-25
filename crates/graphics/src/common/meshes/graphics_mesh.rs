@@ -1,9 +1,13 @@
 use std::collections::HashMap;
 
 use inox_math::{matrix3_to_array, matrix4_to_array, Mat4Ops, Matrix, Matrix3};
-use inox_resources::BufferData;
+use inox_messenger::MessageHubRc;
+use inox_resources::{BufferData, ResourceId, ResourceTrait, SharedData, SharedDataRc};
 
 use crate::{GpuBuffer, InstanceData, Mesh, MeshId, PipelineId, VertexData, INVALID_INDEX};
+
+pub const GRAPHIC_MESH_UID: ResourceId =
+    inox_uid::generate_static_uid_from_string(stringify!(GraphicMesh));
 
 #[derive(Default)]
 pub struct GraphicsMesh {
@@ -21,6 +25,32 @@ pub struct GraphicsMesh {
             { wgpu::BufferUsages::bits(&wgpu::BufferUsages::INDIRECT) },
         >,
     >,
+}
+
+impl ResourceTrait for GraphicsMesh {
+    type OnCreateData = ();
+
+    fn on_create(
+        &mut self,
+        _shared_data_rc: &SharedDataRc,
+        _message_hub: &MessageHubRc,
+        _id: &ResourceId,
+        _on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
+    ) {
+    }
+    fn on_destroy(
+        &mut self,
+        _shared_data: &SharedData,
+        _message_hub: &MessageHubRc,
+        _id: &ResourceId,
+    ) {
+    }
+    fn on_copy(&mut self, _other: &Self)
+    where
+        Self: Sized,
+    {
+        debug_assert!(false, "GraphicsMesh::on_copy should not be called");
+    }
 }
 
 unsafe impl Send for GraphicsMesh {}
@@ -72,7 +102,7 @@ impl GraphicsMesh {
                     Self::add_mesh_to_instance_buffer(mesh_id, mesh, instance_buffer);
                 Self::add_mesh_to_indirect_buffer(
                     mesh_id,
-                    instance_index,
+                    instance_index as _,
                     vertex_data,
                     index_data,
                     indirect_buffer,
@@ -151,7 +181,7 @@ impl GraphicsMesh {
             InstanceData,
             { wgpu::BufferUsages::bits(&wgpu::BufferUsages::VERTEX) },
         >,
-    ) -> u32 {
+    ) -> usize {
         let normal_matrix = mesh.matrix().inverse().transpose();
         let normal_matrix = Matrix3::from_cols(
             normal_matrix.x.xyz(),
@@ -168,12 +198,12 @@ impl GraphicsMesh {
                 .map_or(INVALID_INDEX, |m| m.get().uniform_index()),
         };
 
-        let mut instance_index = instance_buffer.add(mesh_id, &[instance]);
-        if mesh.draw_index() >= 0 && instance_index != mesh.draw_index() as u32 {
-            instance_buffer.swap(instance_index as _, mesh.draw_index() as _);
-            instance_index = mesh.draw_index() as _;
+        let instance_range = instance_buffer.add(mesh_id, &[instance]);
+        if mesh.draw_index() >= 0 && instance_range.start != mesh.draw_index() as usize {
+            instance_buffer.swap(instance_range.start as _, mesh.draw_index() as _);
+            return mesh.draw_index() as _;
         }
-        instance_index as _
+        instance_range.start
     }
     fn add_mesh_to_indirect_buffer(
         mesh_id: &MeshId,
@@ -185,18 +215,18 @@ impl GraphicsMesh {
             { wgpu::BufferUsages::bits(&wgpu::BufferUsages::INDIRECT) },
         >,
     ) {
-        let old_index = indirect_buffer.add(
+        let old_range = indirect_buffer.add(
             mesh_id,
             &[wgpu::util::DrawIndexedIndirect {
                 vertex_count: index_data.len() as _,
                 instance_count: 1,
-                base_index: index_data.start as _,
-                vertex_offset: vertex_data.start as _,
+                base_index: index_data.range.start as _,
+                vertex_offset: vertex_data.range.start as _,
                 base_instance: instance_index as _,
             }],
         );
-        if old_index != instance_index {
-            indirect_buffer.swap(instance_index as _, old_index);
+        if old_range.start != instance_index as usize {
+            indirect_buffer.swap(instance_index as _, old_range.start as _);
         }
     }
 

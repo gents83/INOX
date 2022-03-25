@@ -54,17 +54,10 @@ impl SerializableResource for Scene {
         SceneData::extension()
     }
 }
-impl DataTypeResource for Scene {
-    type DataType = SceneData;
+
+impl ResourceTrait for Scene {
     type OnCreateData = ();
 
-    fn new(_id: ResourceId, _shared_data: &SharedDataRc, _message_hub: &MessageHubRc) -> Self {
-        Self {
-            filepath: PathBuf::new(),
-            objects: Vec::new(),
-            cameras: Vec::new(),
-        }
-    }
     fn on_create(
         &mut self,
         _shared_data_rc: &SharedDataRc,
@@ -79,6 +72,25 @@ impl DataTypeResource for Scene {
         _message_hub: &MessageHubRc,
         _id: &SceneId,
     ) {
+    }
+    fn on_copy(&mut self, other: &Self)
+    where
+        Self: Sized,
+    {
+        *self = other.clone();
+    }
+}
+
+impl DataTypeResource for Scene {
+    type DataType = SceneData;
+    type OnCreateData = <Self as ResourceTrait>::OnCreateData;
+
+    fn new(_id: ResourceId, _shared_data: &SharedDataRc, _message_hub: &MessageHubRc) -> Self {
+        Self {
+            filepath: PathBuf::new(),
+            objects: Vec::new(),
+            cameras: Vec::new(),
+        }
     }
 
     fn is_initialized(&self) -> bool {

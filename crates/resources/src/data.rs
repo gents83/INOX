@@ -8,8 +8,7 @@ use inox_serialize::inox_serializable::SerializableRegistryRc;
 use inox_uid::generate_uid_from_string;
 
 use crate::{
-    Resource, ResourceEvent, ResourceId, ResourceTrait, SerializableResourceEvent, SharedData,
-    SharedDataRc,
+    Resource, ResourceId, ResourceTrait, SerializableResourceEvent, SharedData, SharedDataRc,
 };
 
 pub const DATA_RAW_FOLDER: &str = "data_raw";
@@ -24,14 +23,6 @@ where
     type OnCreateData;
 
     fn new(id: ResourceId, shared_data: &SharedDataRc, message_hub: &MessageHubRc) -> Self;
-    fn on_create(
-        &mut self,
-        shared_data: &SharedDataRc,
-        message_hub: &MessageHubRc,
-        id: &ResourceId,
-        on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
-    );
-    fn on_destroy(&mut self, shared_data: &SharedData, message_hub: &MessageHubRc, id: &ResourceId);
 
     fn is_initialized(&self) -> bool;
     fn invalidate(&mut self) -> &mut Self;
@@ -62,45 +53,6 @@ where
         let mut resource = Self::create_from_data(shared_data, message_hub, id, data);
         resource.on_create(shared_data, message_hub, &id, None);
         shared_data.add_resource(message_hub, id, resource)
-    }
-}
-
-impl<T> ResourceTrait for T
-where
-    T: DataTypeResource,
-    <T as DataTypeResource>::OnCreateData: Send + Sync + Clone,
-{
-    type OnCreateData = <T as DataTypeResource>::OnCreateData;
-
-    fn on_create_resource(
-        &mut self,
-        shared_data: &SharedDataRc,
-        message_hub: &MessageHubRc,
-        id: &ResourceId,
-        on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
-    ) where
-        Self: Sized,
-    {
-        self.on_create(shared_data, message_hub, id, on_create_data);
-        message_hub.send_event(ResourceEvent::<T>::Created(
-            shared_data.get_resource(id).unwrap(),
-        ));
-    }
-    fn on_destroy_resource(
-        &mut self,
-        shared_data: &SharedData,
-        message_hub: &MessageHubRc,
-        id: &ResourceId,
-    ) {
-        message_hub.send_event(ResourceEvent::<T>::Destroyed(*id));
-        self.on_destroy(shared_data, message_hub, id);
-    }
-
-    fn on_copy_resource(&mut self, other: &Self)
-    where
-        Self: Sized + Clone,
-    {
-        *self = other.clone();
     }
 }
 

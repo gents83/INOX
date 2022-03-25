@@ -24,6 +24,35 @@ pub struct Light {
     is_active: bool,
 }
 
+impl ResourceTrait for Light {
+    type OnCreateData = OnLightCreateData;
+
+    fn on_create(
+        &mut self,
+        _shared_data_rc: &SharedDataRc,
+        _message_hub: &MessageHubRc,
+        _id: &LightId,
+        on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
+    ) {
+        if let Some(on_create_data) = on_create_data {
+            self.set_position(on_create_data.position);
+        }
+    }
+    fn on_destroy(
+        &mut self,
+        _shared_data: &SharedData,
+        _message_hub: &MessageHubRc,
+        _id: &LightId,
+    ) {
+    }
+    fn on_copy(&mut self, other: &Self)
+    where
+        Self: Sized,
+    {
+        *self = other.clone();
+    }
+}
+
 impl SerializableResource for Light {
     fn path(&self) -> &Path {
         self.filepath.as_path()
@@ -39,7 +68,7 @@ impl SerializableResource for Light {
 }
 impl DataTypeResource for Light {
     type DataType = LightData;
-    type OnCreateData = OnLightCreateData;
+    type OnCreateData = <Self as ResourceTrait>::OnCreateData;
 
     fn new(_id: ResourceId, _shared_data: &SharedDataRc, _message_hub: &MessageHubRc) -> Self {
         Self {
@@ -65,25 +94,6 @@ impl DataTypeResource for Light {
         f: Box<dyn FnMut(Self::DataType) + 'static>,
     ) {
         read_from_file::<Self::DataType>(path, registry, f);
-    }
-
-    fn on_create(
-        &mut self,
-        _shared_data_rc: &SharedDataRc,
-        _message_hub: &MessageHubRc,
-        _id: &LightId,
-        on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
-    ) {
-        if let Some(on_create_data) = on_create_data {
-            self.set_position(on_create_data.position);
-        }
-    }
-    fn on_destroy(
-        &mut self,
-        _shared_data: &SharedData,
-        _message_hub: &MessageHubRc,
-        _id: &LightId,
-    ) {
     }
 
     fn create_from_data(

@@ -81,9 +81,41 @@ impl SerializableResource for Camera {
         CameraData::extension()
     }
 }
+
+impl ResourceTrait for Camera {
+    type OnCreateData = OnCameraCreateData;
+
+    fn on_create(
+        &mut self,
+        shared_data_rc: &SharedDataRc,
+        _message_hub: &MessageHubRc,
+        _id: &CameraId,
+        on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
+    ) {
+        if let Some(on_create_data) = on_create_data {
+            if let Some(parent) = shared_data_rc.get_resource::<Object>(&on_create_data.parent_id) {
+                self.set_parent(&parent);
+            }
+        }
+    }
+    fn on_destroy(
+        &mut self,
+        _shared_data: &SharedData,
+        _message_hub: &MessageHubRc,
+        _id: &CameraId,
+    ) {
+    }
+    fn on_copy(&mut self, other: &Self)
+    where
+        Self: Sized,
+    {
+        *self = other.clone();
+    }
+}
+
 impl DataTypeResource for Camera {
     type DataType = CameraData;
-    type OnCreateData = OnCameraCreateData;
+    type OnCreateData = <Self as ResourceTrait>::OnCreateData;
 
     fn new(_id: ResourceId, _shared_data: &SharedDataRc, _message_hub: &MessageHubRc) -> Self {
         Self {
@@ -109,26 +141,6 @@ impl DataTypeResource for Camera {
         f: Box<dyn FnMut(Self::DataType) + 'static>,
     ) {
         read_from_file::<Self::DataType>(path, registry, f);
-    }
-    fn on_create(
-        &mut self,
-        shared_data_rc: &SharedDataRc,
-        _message_hub: &MessageHubRc,
-        _id: &CameraId,
-        on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
-    ) {
-        if let Some(on_create_data) = on_create_data {
-            if let Some(parent) = shared_data_rc.get_resource::<Object>(&on_create_data.parent_id) {
-                self.set_parent(&parent);
-            }
-        }
-    }
-    fn on_destroy(
-        &mut self,
-        _shared_data: &SharedData,
-        _message_hub: &MessageHubRc,
-        _id: &CameraId,
-    ) {
     }
 
     fn create_from_data(

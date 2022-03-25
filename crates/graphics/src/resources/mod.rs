@@ -1,6 +1,8 @@
 use inox_messenger::MessageHubRc;
 use inox_resources::SharedDataRc;
 
+use crate::GraphicsMesh;
+
 pub use self::font::*;
 pub use self::light::*;
 pub use self::material::*;
@@ -22,6 +24,7 @@ pub mod texture;
 pub mod view;
 
 pub fn register_resource_types(shared_data: &SharedDataRc, message_hub: &MessageHubRc) {
+    shared_data.register_type::<GraphicsMesh>(message_hub);
     shared_data.register_type_serializable::<Font>(message_hub);
     shared_data.register_type_serializable::<Material>(message_hub);
     shared_data.register_type_serializable::<Mesh>(message_hub);
@@ -34,13 +37,14 @@ pub fn register_resource_types(shared_data: &SharedDataRc, message_hub: &Message
 }
 
 pub fn unregister_resource_types(shared_data: &SharedDataRc, message_hub: &MessageHubRc) {
-    shared_data.unregister_type_serializable::<Font>(message_hub);
-    shared_data.unregister_type_serializable::<Material>(message_hub);
-    shared_data.unregister_type_serializable::<Mesh>(message_hub);
-    shared_data.unregister_type_serializable::<Pipeline>(message_hub);
-    shared_data.unregister_type_serializable::<Shader>(message_hub);
-    shared_data.unregister_type::<RenderPass>(message_hub);
-    shared_data.unregister_type_serializable::<Texture>(message_hub);
-    shared_data.unregister_type::<View>(message_hub);
     shared_data.unregister_type_serializable::<Light>(message_hub);
+    shared_data.unregister_type::<View>(message_hub);
+    shared_data.unregister_type_serializable::<Texture>(message_hub);
+    shared_data.unregister_type::<RenderPass>(message_hub);
+    shared_data.unregister_type_serializable::<Shader>(message_hub);
+    shared_data.unregister_type_serializable::<Pipeline>(message_hub);
+    shared_data.unregister_type_serializable::<Mesh>(message_hub);
+    shared_data.unregister_type_serializable::<Material>(message_hub);
+    shared_data.unregister_type_serializable::<Font>(message_hub);
+    shared_data.unregister_type::<GraphicsMesh>(message_hub);
 }

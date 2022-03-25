@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
-use inox_messenger::MessageHubRc;
 use inox_log::debug_log;
+use inox_messenger::MessageHubRc;
 use inox_resources::{
     DataTypeResource, Handle, ResourceId, ResourceTrait, SerializableResource, SharedData,
     SharedDataRc,
@@ -38,6 +38,35 @@ impl Clone for Pipeline {
     }
 }
 
+impl ResourceTrait for Pipeline {
+    type OnCreateData = ();
+
+    fn on_create(
+        &mut self,
+        _shared_data_rc: &SharedDataRc,
+        _message_hub: &MessageHubRc,
+        _id: &PipelineId,
+        _on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
+    ) {
+    }
+    fn on_destroy(
+        &mut self,
+        _shared_data: &SharedData,
+        _message_hub: &MessageHubRc,
+        _id: &PipelineId,
+    ) {
+        self.render_pipeline = None;
+        self.vertex_shader = None;
+        self.fragment_shader = None;
+    }
+    fn on_copy(&mut self, other: &Self)
+    where
+        Self: Sized,
+    {
+        *self = other.clone();
+    }
+}
+
 impl SerializableResource for Pipeline {
     fn set_path(&mut self, path: &Path) {
         self.path = path.to_path_buf();
@@ -53,7 +82,7 @@ impl SerializableResource for Pipeline {
 
 impl DataTypeResource for Pipeline {
     type DataType = PipelineData;
-    type OnCreateData = ();
+    type OnCreateData = <Self as ResourceTrait>::OnCreateData;
 
     fn new(_id: ResourceId, _shared_data: &SharedDataRc, _message_hub: &MessageHubRc) -> Self {
         Self {
@@ -79,24 +108,6 @@ impl DataTypeResource for Pipeline {
         f: Box<dyn FnMut(Self::DataType) + 'static>,
     ) {
         read_from_file::<Self::DataType>(path, registry, f);
-    }
-    fn on_create(
-        &mut self,
-        _shared_data_rc: &SharedDataRc,
-        _message_hub: &MessageHubRc,
-        _id: &PipelineId,
-        _on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
-    ) {
-    }
-    fn on_destroy(
-        &mut self,
-        _shared_data: &SharedData,
-        _message_hub: &MessageHubRc,
-        _id: &PipelineId,
-    ) {
-        self.render_pipeline = None;
-        self.vertex_shader = None;
-        self.fragment_shader = None;
     }
 
     fn create_from_data(

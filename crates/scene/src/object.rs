@@ -86,20 +86,9 @@ impl SerializableResource for Object {
         ObjectData::extension()
     }
 }
-impl DataTypeResource for Object {
-    type DataType = ObjectData;
-    type OnCreateData = OnObjectCreateData;
 
-    fn new(_id: ResourceId, _shared_data: &SharedDataRc, _message_hub: &MessageHubRc) -> Self {
-        Self {
-            filepath: PathBuf::new(),
-            transform: Matrix4::default_identity(),
-            parent: None,
-            is_transform_dirty: true,
-            children: Vec::new(),
-            components: HashMap::new(),
-        }
-    }
+impl ResourceTrait for Object {
+    type OnCreateData = OnObjectCreateData;
 
     fn on_create(
         &mut self,
@@ -119,6 +108,28 @@ impl DataTypeResource for Object {
         _message_hub: &MessageHubRc,
         _id: &ObjectId,
     ) {
+    }
+    fn on_copy(&mut self, other: &Self)
+    where
+        Self: Sized,
+    {
+        *self = other.clone();
+    }
+}
+
+impl DataTypeResource for Object {
+    type DataType = ObjectData;
+    type OnCreateData = <Self as ResourceTrait>::OnCreateData;
+
+    fn new(_id: ResourceId, _shared_data: &SharedDataRc, _message_hub: &MessageHubRc) -> Self {
+        Self {
+            filepath: PathBuf::new(),
+            transform: Matrix4::default_identity(),
+            parent: None,
+            is_transform_dirty: true,
+            children: Vec::new(),
+            components: HashMap::new(),
+        }
     }
 
     fn is_initialized(&self) -> bool {
