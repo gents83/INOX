@@ -108,15 +108,9 @@ impl UpdateSystem {
                 }
                 _ => {}
             })
-            .process_messages(|e: &ResourceEvent<Mesh>| match e {
-                ResourceEvent::Created(resource) => {
-                    self.renderer.write().unwrap().on_mesh_added(resource);
-                }
-                ResourceEvent::Changed(id) => {
+            .process_messages(|e: &ResourceEvent<Mesh>| {
+                if let ResourceEvent::Changed(id) = e {
                     self.renderer.write().unwrap().on_mesh_changed(id);
-                }
-                ResourceEvent::Destroyed(id) => {
-                    self.renderer.write().unwrap().on_mesh_removed(id);
                 }
             })
             .process_messages(|e: &ConfigEvent<Config>| match e {

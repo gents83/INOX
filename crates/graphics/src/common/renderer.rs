@@ -332,13 +332,14 @@ impl Renderer {
         inox_profiler::scoped_profile!("renderer::on_mesh_added");
         self.graphics_mesh
             .get_mut()
-            .add_mesh(mesh.id(), &mesh.get());
+            .update_mesh(mesh.id(), &mesh.get());
     }
     pub fn on_mesh_changed(&mut self, mesh_id: &MeshId) {
         inox_profiler::scoped_profile!("renderer::on_mesh_changed");
-        self.on_mesh_removed(mesh_id);
         if let Some(mesh) = self.shared_data.get_resource::<Mesh>(mesh_id) {
-            self.on_mesh_added(&mesh);
+            self.graphics_mesh
+                .get_mut()
+                .update_mesh(mesh.id(), &mesh.get());
         }
     }
     pub fn on_mesh_removed(&mut self, mesh_id: &MeshId) {

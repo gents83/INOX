@@ -1,6 +1,9 @@
-use std::path::{Path, PathBuf};
+use std::{
+    ops::Range,
+    path::{Path, PathBuf},
+};
 
-use crate::{Material, MeshData, INVALID_INDEX};
+use crate::{GraphicsMesh, Material, MeshData, GRAPHIC_MESH_UID, INVALID_INDEX};
 use inox_math::{MatBase, Matrix4, Vector4};
 use inox_messenger::MessageHubRc;
 use inox_resources::{
@@ -22,12 +25,14 @@ pub struct Mesh {
     message_hub: MessageHubRc,
     shared_data: SharedDataRc,
     path: PathBuf,
-    data: MeshData,
     matrix: Matrix4,
     material: Handle<Material>,
     draw_area: Vector4, //pos (x,y) - size(z,w)
     is_visible: bool,
     draw_index: i32,
+    graphics_mesh: Handle<GraphicsMesh>,
+    vertices_range: Range<usize>,
+    indices_range: Range<usize>,
 }
 
 impl ResourceTrait for Mesh {
@@ -44,7 +49,10 @@ impl ResourceTrait for Mesh {
             self.set_matrix(on_create_data.parent_matrix);
         }
     }
-    fn on_destroy(&mut self, _shared_data: &SharedData, _message_hub: &MessageHubRc, _id: &MeshId) {
+    fn on_destroy(&mut self, _shared_data: &SharedData, _message_hub: &MessageHubRc, id: &MeshId) {
+        if let Some(graphics_mesh) = &self.graphics_mesh {
+            graphics_mesh.get_mut().remove_mesh(id);
+        }
     }
     fn on_copy(&mut self, other: &Self)
     where
@@ -77,20 +85,23 @@ impl DataTypeResource for Mesh {
             shared_data: shared_data.clone(),
             message_hub: message_hub.clone(),
             path: PathBuf::new(),
-            data: MeshData::default(),
             matrix: Matrix4::default_identity(),
             material: None,
             draw_area: [0., 0., f32::MAX, f32::MAX].into(),
             is_visible: true,
             draw_index: INVALID_INDEX,
+            graphics_mesh: shared_data.get_resource::<GraphicsMesh>(&GRAPHIC_MESH_UID),
+            vertices_range: 0..0,
+            indices_range: 0..0,
         }
     }
     fn is_initialized(&self) -> bool {
-        !self.data.vertices.is_empty()
+        !self.vertices_range.is_empty()
     }
 
     fn invalidate(&mut self) -> &mut Self {
-        self.data = MeshData::default();
+        self.vertices_range = 0..0;
+        self.indices_range = 0..0;
         self.mark_as_dirty();
         self
     }
@@ -119,8 +130,12 @@ impl DataTypeResource for Mesh {
             None
         };
         let mut mesh = Mesh::new(id, shared_data, message_hub);
-        mesh.data = data;
         mesh.material = material;
+        if let Some(graphics_mesh) = &mesh.graphics_mesh {
+            let (vertex_range, index_range) = graphics_mesh.get_mut().add_mesh_data(&id, &data);
+            mesh.vertices_range = vertex_range;
+            mesh.indices_range = index_range;
+        }
         mesh
     }
 }
@@ -134,11 +149,24 @@ impl Mesh {
     pub fn find_from_path(shared_data: &SharedDataRc, path: &Path) -> Handle<Self> {
         SharedData::match_resource(shared_data, |m: &Mesh| m.path() == path)
     }
-    pub fn mesh_data(&self) -> &MeshData {
-        &self.data
+    pub fn vertices_range(&self) -> &Range<usize> {
+        &self.vertices_range
+    }
+    pub fn set_vertices_range(&mut self, vertices_range: Range<usize>) -> &mut Self {
+        self.vertices_range = vertices_range;
+        self.mark_as_dirty();
+        self
+    }
+    pub fn indices_range(&self) -> &Range<usize> {
+        &self.indices_range
+    }
+    pub fn set_indices_range(&mut self, indices_range: Range<usize>) -> &mut Self {
+        self.indices_range = indices_range;
+        self.mark_as_dirty();
+        self
     }
     pub fn is_visible(&self) -> bool {
-        self.is_visible && !self.data.vertices.is_empty() && !self.data.indices.is_empty()
+        self.is_visible && !self.vertices_range.is_empty()
     }
     pub fn set_visible(&mut self, is_visible: bool) -> &mut Self {
         self.is_visible = is_visible;
@@ -155,11 +183,6 @@ impl Mesh {
         self.mark_as_dirty();
         self
     }
-    pub fn set_mesh_data(&mut self, mesh_data: MeshData) -> &mut Self {
-        self.data = mesh_data;
-        self.mark_as_dirty();
-        self
-    }
     pub fn set_material(&mut self, material: Resource<Material>) -> &mut Self {
         self.material = Some(material);
         self.mark_as_dirty();
@@ -167,6 +190,17 @@ impl Mesh {
     }
     pub fn material(&self) -> &Handle<Material> {
         &self.material
+    }
+    pub fn set_mesh_data(&mut self, mesh_data: MeshData) -> &mut Self {
+        if let Some(graphics_mesh) = &self.graphics_mesh {
+            graphics_mesh.get_mut().remove_mesh(&self.id);
+            let (vertex_range, index_range) =
+                graphics_mesh.get_mut().add_mesh_data(&self.id, &mesh_data);
+            self.vertices_range = vertex_range;
+            self.indices_range = index_range;
+        }
+        self.mark_as_dirty();
+        self
     }
     pub fn draw_index(&self) -> i32 {
         self.draw_index

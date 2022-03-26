@@ -12,8 +12,10 @@ use egui::{
 };
 use image::RgbaImage;
 use inox_core::{JobHandlerRw, System};
+
 use inox_graphics::{
-    Material, Mesh, MeshData, Pipeline, Texture, TextureId, TextureType, VertexData,
+    GraphicsMesh, Material, Mesh, MeshData, Pipeline, Texture, TextureId, TextureType,
+    GRAPHIC_MESH_UID,
 };
 
 use inox_log::debug_log;
@@ -104,6 +106,12 @@ impl UISystem {
     }
 
     fn compute_mesh_data(&mut self, clipped_meshes: Vec<ClippedMesh>) {
+        let graphics_mesh = self
+            .shared_data
+            .get_resource::<GraphicsMesh>(&GRAPHIC_MESH_UID);
+        if graphics_mesh.is_none() {
+            return;
+        }
         inox_profiler::scoped_profile!("ui_system::compute_mesh_data");
         let shared_data = self.shared_data.clone();
         let message_hub = self.message_hub.clone();
@@ -140,27 +148,30 @@ impl UISystem {
 
             let material = self.get_ui_material(texture);
             let mesh_instance = self.ui_meshes[i].clone();
+            let graphics_mesh = graphics_mesh.as_ref().unwrap().clone();
             let ui_scale = self.ui_scale;
 
             self.job_handler.write().unwrap().add_job(
                 &UISystem::id(),
                 format!("ui_system::ui_mesh_{}_data", i).as_str(),
                 move || {
-                    let mut mesh_data = MeshData::default();
-                    let mut vertices: Vec<VertexData> = Vec::new();
-                    {
-                        inox_profiler::scoped_profile!("ui_system::resize_vertex_data");
-                        vertices.resize(mesh.vertices.len(), VertexData::default());
-                    }
-                    {
+                    let (vertices_range, indices_range) = {
                         inox_profiler::scoped_profile!("ui_system::copy_vertex_data");
+
+                        let mut graphics_mesh = graphics_mesh.get_mut();
+                        let vertices_range =
+                            graphics_mesh.reserve_vertices(mesh_instance.id(), mesh.vertices.len());
+                        let indices_range =
+                            graphics_mesh.set_indices(mesh_instance.id(), mesh.indices.as_slice());
+
                         for (i, v) in mesh.vertices.iter().enumerate() {
-                            vertices[i].pos = [v.pos.x * ui_scale, v.pos.y * ui_scale, 0.].into();
-                            vertices[i].tex_coord.iter_mut().for_each(|t| {
+                            let vertex = graphics_mesh.get_vertex_mut(vertices_range.start + i);
+                            vertex.pos = [v.pos.x * ui_scale, v.pos.y * ui_scale, 0.].into();
+                            vertex.tex_coord.iter_mut().for_each(|t| {
                                 *t = [v.uv.x, v.uv.y].into();
                             });
                             let color = v.color.to_srgba_unmultiplied();
-                            vertices[i].color = [
+                            vertex.color = [
                                 color[0] as f32,
                                 color[1] as f32,
                                 color[2] as f32,
@@ -168,23 +179,22 @@ impl UISystem {
                             ]
                             .into();
                         }
-                    }
-                    mesh_data.append_mesh(vertices.as_slice(), mesh.indices.as_slice());
-
-                    let clip_rect = Vector4::new(
-                        clip_rect.min.x * ui_scale,
-                        clip_rect.min.y * ui_scale,
-                        clip_rect.max.x * ui_scale,
-                        clip_rect.max.y * ui_scale,
-                    );
+                        (vertices_range, indices_range)
+                    };
 
                     {
                         inox_profiler::scoped_profile!("ui_system::set_mesh_properties");
                         mesh_instance
                             .get_mut()
+                            .set_vertices_range(vertices_range)
+                            .set_indices_range(indices_range)
                             .set_material(material)
-                            .set_mesh_data(mesh_data)
-                            .set_draw_area(clip_rect)
+                            .set_draw_area(Vector4::new(
+                                clip_rect.min.x * ui_scale,
+                                clip_rect.min.y * ui_scale,
+                                clip_rect.max.x * ui_scale,
+                                clip_rect.max.y * ui_scale,
+                            ))
                             .set_draw_index(draw_index)
                             .set_visible(true);
                     }

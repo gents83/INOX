@@ -48,10 +48,10 @@ impl BufferData {
         false
     }
     pub fn len(&self) -> usize {
-        self.range.end + 1 - self.range.start
+        self.range.len()
     }
     pub fn is_empty(&self) -> bool {
-        self.range.start == self.range.end
+        self.range.is_empty()
     }
 }
 
@@ -237,6 +237,10 @@ where
     pub fn data_at_index(&self, index: usize) -> &T {
         debug_assert!(index < self.data.len());
         self.data[index..(index + 1)].first().unwrap()
+    }
+    pub fn data_at_index_mut(&mut self, index: usize) -> &mut T {
+        debug_assert!(index < self.data.len());
+        self.data[index..(index + 1)].first_mut().unwrap()
     }
     pub fn total_data(&self) -> &[T] {
         &self.data

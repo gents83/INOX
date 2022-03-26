@@ -331,7 +331,7 @@ impl UIProperties for Mesh {
                 self.set_visible(is_visible);
                 ui.horizontal(|ui| {
                     ui.label("Num vertices: ");
-                    let mut vertices = format!("{}", self.mesh_data().vertices.len());
+                    let mut vertices = format!("{}", self.indices_range().len());
                     TextEdit::singleline(&mut vertices)
                         .interactive(false)
                         .ui(ui);

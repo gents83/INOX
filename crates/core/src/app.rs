@@ -1,7 +1,11 @@
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
-    sync::{mpsc::channel, Arc, Mutex, RwLockReadGuard},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        mpsc::channel,
+        Arc, Mutex, RwLockReadGuard,
+    },
 };
 
 use inox_messenger::{Listener, MessageHubRc};
@@ -43,7 +47,7 @@ pub type ContextRc = Arc<Context>;
 
 pub struct App {
     is_profiling: bool,
-    is_enabled: bool,
+    is_enabled: Arc<AtomicBool>,
     context: ContextRc,
     listener: Listener,
     plugin_manager: PluginManager,
@@ -68,7 +72,7 @@ impl Default for App {
             .register::<SystemEvent>();
 
         Self {
-            is_enabled: true,
+            is_enabled: Arc::new(AtomicBool::new(true)),
             is_profiling: false,
             scheduler: Scheduler::new(),
             plugin_manager: PluginManager::default(),
@@ -129,7 +133,7 @@ impl App {
         inox_profiler::scoped_profile!("app::update_events");
 
         let mut is_profiling = self.is_profiling;
-        let mut is_enabled = self.is_enabled;
+        let mut is_enabled = self.is_enabled.load(Ordering::SeqCst);
 
         self.listener.process_messages(|e: &KeyEvent| {
             if e.code == Key::F9 && e.state == InputState::JustPressed {
@@ -162,7 +166,9 @@ impl App {
                 self.job_handler.write().unwrap().add_job(
                     &load_event_category,
                     job_name.as_str(),
-                    move || load_fn(&shared_data, &message_hub),
+                    move || {
+                        load_fn(&shared_data, &message_hub);
+                    },
                 );
             });
 
@@ -171,8 +177,8 @@ impl App {
 
         self.is_profiling = is_profiling;
 
-        self.update_workers(is_enabled);
-        self.is_enabled = is_enabled;
+        self.update_workers(self.is_enabled.load(Ordering::SeqCst));
+        self.is_enabled.store(is_enabled, Ordering::SeqCst);
     }
 
     fn update_workers(&mut self, is_enabled: bool) {
@@ -184,9 +190,9 @@ impl App {
                 job.execute();
             }
         }
-        if !self.is_enabled && !is_enabled {
+        if !self.is_enabled.load(Ordering::SeqCst) && !is_enabled {
             self.stop_worker_threads();
-        } else if !self.is_enabled && is_enabled {
+        } else if !self.is_enabled.load(Ordering::SeqCst) && is_enabled {
             self.setup_worker_threads();
         }
     }
@@ -196,13 +202,15 @@ impl App {
 
         self.context.global_timer.write().unwrap().update();
 
-        let can_continue =
-            self.scheduler
-                .run_once(self.is_enabled, &self.job_handler, &self.job_receiver);
+        let can_continue = self.scheduler.run_once(
+            self.is_enabled.load(Ordering::SeqCst),
+            &self.job_handler,
+            &self.job_receiver,
+        );
 
         self.update_events();
 
-        if !self.is_enabled {
+        if !self.is_enabled.load(Ordering::SeqCst) {
             let plugins_to_remove = self.plugin_manager.update();
             let plugins_to_reload = self.update_dynamic_plugins(plugins_to_remove);
             if !plugins_to_reload.is_empty() {
@@ -211,6 +219,10 @@ impl App {
             self.reload_dynamic_plugins(plugins_to_reload);
         }
         SharedData::flush_resources(&self.context.shared_data, &self.context.message_hub);
+
+        if !can_continue {
+            self.is_enabled.store(false, Ordering::SeqCst);
+        }
 
         can_continue
     }
@@ -266,7 +278,7 @@ impl App {
         let key = String::from(name);
         let w = self.workers.entry(key).or_insert_with(Worker::default);
         if !w.is_started() {
-            w.start(name, &self.job_handler, self.job_receiver.clone());
+            w.start(name, &self.is_enabled, self.job_receiver.clone());
         }
         w
     }

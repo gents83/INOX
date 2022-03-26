@@ -56,6 +56,14 @@ where
 
         self.cpu_buffer.get(id).unwrap().range.clone()
     }
+    pub fn reserve(&mut self, id: &ResourceId, count: usize) -> Range<usize>
+    where
+        T: Default,
+    {
+        let mut data = Vec::new();
+        data.resize_with(count, || T::default());
+        self.add(id, data.as_slice())
+    }
     pub fn update(&mut self, start_index: u32, value: &[T]) {
         self.cpu_buffer.update(start_index as _, value);
         self.is_dirty = true;
@@ -144,6 +152,9 @@ where
     }
     pub fn data_at_index(&self, index: u32) -> &T {
         self.cpu_buffer.data_at_index(index as _)
+    }
+    pub fn data_at_index_mut(&mut self, index: u32) -> &mut T {
+        self.cpu_buffer.data_at_index_mut(index as _)
     }
     pub fn gpu_buffer(&self) -> Option<&wgpu::Buffer> {
         self.gpu_buffer.as_ref()

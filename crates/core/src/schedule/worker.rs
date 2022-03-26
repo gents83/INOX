@@ -1,28 +1,17 @@
 use std::{
-    sync::{mpsc::Receiver, Arc, Mutex, RwLock},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        mpsc::Receiver,
+        Arc, Mutex,
+    },
     thread::{self, JoinHandle},
 };
 
-use crate::{Job, JobHandlerRw, Scheduler};
+use crate::Job;
 
+#[derive(Default)]
 pub struct Worker {
-    scheduler: Arc<RwLock<Scheduler>>,
     thread_handle: Option<JoinHandle<bool>>,
-}
-
-impl Default for Worker {
-    fn default() -> Self {
-        Self {
-            scheduler: Arc::new(RwLock::new(Scheduler::new())),
-            thread_handle: None,
-        }
-    }
-}
-
-impl Drop for Worker {
-    fn drop(&mut self) {
-        self.scheduler.write().unwrap().uninit();
-    }
 }
 
 impl Worker {
@@ -40,27 +29,21 @@ impl Worker {
     pub fn start(
         &mut self,
         name: &str,
-        job_handler: &JobHandlerRw,
+        can_continue: &Arc<AtomicBool>,
         job_receiver: Arc<Mutex<Receiver<Job>>>,
     ) {
         if self.thread_handle.is_none() {
             let builder = thread::Builder::new().name(name.into());
-            let scheduler = Arc::clone(&self.scheduler);
-            let job_handler = job_handler.clone();
+            let can_continue = can_continue.clone();
+
             let t = builder
                 .spawn(move || {
                     inox_profiler::register_thread!();
-                    scheduler.write().unwrap().resume();
                     loop {
-                        let can_continue =
-                            scheduler
-                                .write()
-                                .unwrap()
-                                .run_once(true, &job_handler, &job_receiver);
                         while let Some(job) = Worker::get_job(&job_receiver) {
                             job.execute();
                         }
-                        if !can_continue {
+                        if !can_continue.load(Ordering::SeqCst) {
                             return false;
                         }
                     }
@@ -74,7 +57,6 @@ impl Worker {
         if self.thread_handle.is_some() {
             let t = self.thread_handle.take().unwrap();
 
-            self.scheduler.write().unwrap().cancel();
             t.join().unwrap();
 
             self.thread_handle = None;

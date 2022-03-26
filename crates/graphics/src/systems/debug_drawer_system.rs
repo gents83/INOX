@@ -4,9 +4,9 @@ use crate::{
 };
 use inox_commands::CommandParser;
 use inox_core::System;
+use inox_log::debug_log;
 use inox_math::{Vector2, Vector3, Vector4};
 use inox_messenger::{implement_message, Listener, MessageHubRc};
-use inox_log::debug_log;
 use inox_resources::{DataTypeResource, Resource, SharedDataRc};
 use inox_uid::generate_random_uid;
 
@@ -175,7 +175,7 @@ impl DebugDrawerSystem {
     }
 
     fn update_events(&mut self) {
-        inox_profiler::scoped_profile!("update_events");
+        inox_profiler::scoped_profile!("DebugDrawerSystem::update_events");
 
         let mut mesh_data = MeshData::default();
         let mut wireframe_mesh_data = MeshData::default();
@@ -268,12 +268,20 @@ impl DebugDrawerSystem {
 
         self.update_materials();
         if !mesh_data.vertices.is_empty() {
-            self.mesh_instance.get_mut().set_mesh_data(mesh_data);
+            self.mesh_instance
+                .get_mut()
+                .set_mesh_data(mesh_data)
+                .set_visible(true);
+        } else {
+            self.mesh_instance.get_mut().set_visible(false);
         }
         if !wireframe_mesh_data.vertices.is_empty() {
             self.wireframe_mesh_instance
                 .get_mut()
-                .set_mesh_data(wireframe_mesh_data);
+                .set_mesh_data(wireframe_mesh_data)
+                .set_visible(true);
+        } else {
+            self.wireframe_mesh_instance.get_mut().set_visible(false);
         }
     }
 
