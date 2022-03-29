@@ -10,7 +10,7 @@ use inox_scene::{Camera, Object, ObjectId, Scene, Script};
 use inox_uid::generate_random_uid;
 use std::{collections::HashMap, path::PathBuf};
 
-use crate::widgets::{Hierarchy, Info, View3D};
+use crate::widgets::{Info, InfoParams, View3D};
 
 pub struct ViewerSystem {
     context: ContextRc,
@@ -18,9 +18,8 @@ pub struct ViewerSystem {
     scene: Resource<Scene>,
     camera_object: Resource<Object>,
     last_mouse_pos: Vector2,
-    _view_3d: Option<View3D>,
-    _info: Option<Info>,
-    _hierarchy: Option<Hierarchy>,
+    view_3d: Option<View3D>,
+    info: Info,
 }
 
 const FORCE_USE_DEFAULT_CAMERA: bool = false;
@@ -59,9 +58,14 @@ impl ViewerSystem {
             .set_active(false);
 
         Self {
-            _view_3d: None,
-            _info: None,
-            _hierarchy: None,
+            view_3d: None,
+            info: Info::new(
+                context,
+                InfoParams {
+                    is_active: true,
+                    scene_id: *scene.id(),
+                },
+            ),
             context: context.clone(),
             listener,
             scene,
@@ -95,17 +99,17 @@ impl System for ViewerSystem {
             .register::<WindowEvent>()
             .register::<SerializableResourceEvent<Scene>>();
 
-        self._view_3d = Some(View3D::new(
+        self.view_3d = Some(View3D::new(
             self.context.shared_data(),
             self.context.message_hub(),
-        ));
-
-        self._info = Some(Info::new(&self.context));
+        ))
     }
 
     fn run(&mut self) -> bool {
         inox_profiler::scoped_profile!("viewer_system::run");
         self.update_events().update_view_from_camera();
+
+        self.info.update();
 
         let timer = self.context.global_timer();
         self.context
@@ -278,6 +282,7 @@ impl ViewerSystem {
                 PathBuf::from(filename).as_path(),
                 None,
             );
+            self.info.set_scene_id(self.scene.id());
         }
     }
 
@@ -374,20 +379,10 @@ impl ViewerSystem {
     fn handle_keyboard_event(&mut self) {
         self.listener.process_messages(|event: &KeyEvent| {
             if event.code == Key::F1 && event.state == InputState::Released {
-                if self._info.is_some() {
-                    self._info = None;
+                if self.info.is_active() {
+                    self.info.set_active(false);
                 } else {
-                    self._info = Some(Info::new(&self.context));
-                }
-            } else if event.code == Key::F2 && event.state == InputState::Released {
-                if self._hierarchy.is_some() {
-                    self._hierarchy = None;
-                } else {
-                    self._hierarchy = Some(Hierarchy::new(
-                        self.context.shared_data(),
-                        self.context.message_hub(),
-                        self.scene.id(),
-                    ));
+                    self.info.set_active(true);
                 }
             }
 
@@ -424,7 +419,7 @@ impl ViewerSystem {
     fn handle_mouse_event(&mut self) {
         self.listener.process_messages(|event: &MouseEvent| {
             let mut is_on_view3d = false;
-            if let Some(view_3d) = &self._view_3d {
+            if let Some(view_3d) = &self.view_3d {
                 is_on_view3d = view_3d.is_interacting();
             }
             if is_on_view3d {

@@ -68,8 +68,9 @@ impl ResourceTrait for Pipeline {
 }
 
 impl SerializableResource for Pipeline {
-    fn set_path(&mut self, path: &Path) {
+    fn set_path(&mut self, path: &Path) -> &mut Self {
         self.path = path.to_path_buf();
+        self
     }
     fn path(&self) -> &Path {
         self.path.as_path()

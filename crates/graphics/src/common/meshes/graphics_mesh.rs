@@ -65,6 +65,15 @@ impl GraphicsMesh {
     pub fn index_count(&self) -> usize {
         self.index_buffer.len()
     }
+    pub fn vertices(&self) -> &[VertexData] {
+        self.vertex_buffer.cpu_buffer()
+    }
+    pub fn vertices_range_of(&self, mesh_id: &MeshId) -> Option<&Range<usize>> {
+        self.vertex_buffer
+            .get(mesh_id)
+            .as_ref()
+            .map(|buffer_data| &buffer_data.range)
+    }
     pub fn vertex_buffer(&self) -> Option<wgpu::BufferSlice> {
         if let Some(buffer) = self.vertex_buffer.gpu_buffer() {
             return Some(buffer.slice(..));
@@ -166,10 +175,12 @@ impl GraphicsMesh {
         };
 
         let instance_range = instance_buffer.add(mesh_id, &[instance]);
+        /*
         if mesh.draw_index() >= 0 && instance_range.start != mesh.draw_index() as usize {
             instance_buffer.swap(instance_range.start as _, mesh.draw_index() as _);
             return mesh.draw_index() as _;
         }
+        */
         instance_range.start
     }
     fn remove_mesh_from_instance_buffer(&mut self, mesh_id: &MeshId, pipeline_id: &PipelineId) {
@@ -196,6 +207,7 @@ impl GraphicsMesh {
                 base_instance: instance_index as _,
             }],
         );
+
         if old_range.start != instance_index as usize {
             indirect_buffer.swap(instance_index as _, old_range.start as _);
         }
@@ -232,6 +244,13 @@ impl GraphicsMesh {
             return buffer.len();
         }
         0
+    }
+    pub fn for_each_vertex_buffer_data<F>(&self, mut f: F)
+    where
+        F: FnMut(&MeshId, &Range<usize>),
+    {
+        self.vertex_buffer.for_each_occupied(&mut f);
+        self.vertex_buffer.for_each_free(&mut f);
     }
     pub fn for_each_instance<F>(&self, pipeline_id: &PipelineId, f: F)
     where

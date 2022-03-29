@@ -144,6 +144,18 @@ where
     pub fn len(&self) -> usize {
         self.cpu_buffer.len()
     }
+    pub fn for_each_occupied<F>(&self, f: &mut F)
+    where
+        F: FnMut(&ResourceId, &Range<usize>),
+    {
+        self.cpu_buffer.for_each_occupied(f);
+    }
+    pub fn for_each_free<F>(&self, f: &mut F)
+    where
+        F: FnMut(&ResourceId, &Range<usize>),
+    {
+        self.cpu_buffer.for_each_free(f);
+    }
     pub fn for_each_data<F>(&self, f: F)
     where
         F: FnMut(usize, &T),
@@ -155,6 +167,9 @@ where
     }
     pub fn data_at_index_mut(&mut self, index: u32) -> &mut T {
         self.cpu_buffer.data_at_index_mut(index as _)
+    }
+    pub fn cpu_buffer(&self) -> &[T] {
+        self.cpu_buffer.total_data()
     }
     pub fn gpu_buffer(&self) -> Option<&wgpu::Buffer> {
         self.gpu_buffer.as_ref()

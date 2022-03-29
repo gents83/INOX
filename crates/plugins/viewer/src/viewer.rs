@@ -19,9 +19,6 @@ impl Plugin for Viewer {
         "inox_viewer"
     }
     fn prepare(&mut self, app: &mut App) {
-        let system = ViewerSystem::new(app.get_context());
-        self.updater_id = ViewerSystem::id();
-
         let debug_drawer_system = DebugDrawerSystem::new(
             app.get_context().shared_data(),
             app.get_context().message_hub(),
@@ -35,6 +32,9 @@ impl Plugin for Viewer {
         );
         ui_system.read_config(self.name());
         self.ui_id = UISystem::id();
+
+        let system = ViewerSystem::new(app.get_context());
+        self.updater_id = ViewerSystem::id();
 
         app.add_system(inox_core::Phases::Update, system);
         app.add_system_with_dependencies(

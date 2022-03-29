@@ -57,7 +57,7 @@ where
 }
 
 pub trait SerializableResource: DataTypeResource + Sized {
-    fn set_path(&mut self, path: &Path);
+    fn set_path(&mut self, path: &Path) -> &mut Self;
     fn path(&self) -> &Path;
     fn extension() -> &'static str;
     fn is_matching_extension(path: &Path) -> bool {

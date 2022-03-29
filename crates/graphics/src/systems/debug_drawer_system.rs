@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use crate::{
     create_arrow, create_colored_quad, create_line, create_sphere, Material, Mesh, MeshData,
     Pipeline, DEFAULT_PIPELINE_IDENTIFIER, WIREFRAME_PIPELINE_IDENTIFIER,
@@ -7,7 +9,7 @@ use inox_core::System;
 use inox_log::debug_log;
 use inox_math::{Vector2, Vector3, Vector4};
 use inox_messenger::{implement_message, Listener, MessageHubRc};
-use inox_resources::{DataTypeResource, Resource, SharedDataRc};
+use inox_resources::{DataTypeResource, Resource, SerializableResource, SharedDataRc};
 use inox_uid::generate_random_uid;
 
 /// A debug drawer
@@ -149,6 +151,9 @@ impl DebugDrawerSystem {
             generate_random_uid(),
             MeshData::default(),
         );
+        mesh_instance
+            .get_mut()
+            .set_path(PathBuf::from("DebugDrawerMesh.debugdrawer").as_path());
         //println!("DebugDrawerMesh {:?}", mesh_instance.id());
         let wireframe_mesh_instance = Mesh::new_resource(
             shared_data,
@@ -156,6 +161,9 @@ impl DebugDrawerSystem {
             generate_random_uid(),
             MeshData::default(),
         );
+        wireframe_mesh_instance
+            .get_mut()
+            .set_path(PathBuf::from("DebugDrawerWireframe.debugdrawer").as_path());
         //println!("DebugDrawerWireframeMesh {:?}", wireframe_mesh_instance.id());
 
         let listener = Listener::new(message_hub);

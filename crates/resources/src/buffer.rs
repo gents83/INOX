@@ -220,6 +220,22 @@ where
     pub fn is_full(&self) -> bool {
         !self.occupied.is_empty() && self.free.is_empty()
     }
+    pub fn for_each_occupied<F>(&self, f: &mut F)
+    where
+        F: FnMut(&ResourceId, &Range<usize>),
+    {
+        self.occupied.iter().for_each(|b| {
+            f(&b.id, &b.range);
+        });
+    }
+    pub fn for_each_free<F>(&self, f: &mut F)
+    where
+        F: FnMut(&ResourceId, &Range<usize>),
+    {
+        self.free.iter().for_each(|b| {
+            f(&b.id, &b.range);
+        });
+    }
     pub fn for_each_data<F>(&self, mut f: F)
     where
         F: FnMut(usize, &T),

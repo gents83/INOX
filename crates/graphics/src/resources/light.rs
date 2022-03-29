@@ -58,8 +58,9 @@ impl SerializableResource for Light {
         self.filepath.as_path()
     }
 
-    fn set_path(&mut self, path: &Path) {
+    fn set_path(&mut self, path: &Path) -> &mut Self {
         self.filepath = path.to_path_buf();
+        self
     }
 
     fn extension() -> &'static str {

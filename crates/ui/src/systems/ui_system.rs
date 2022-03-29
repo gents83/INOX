@@ -1,5 +1,6 @@
 use std::{
     collections::{hash_map::Entry, HashMap},
+    path::PathBuf,
     sync::{
         atomic::{AtomicUsize, Ordering},
         Arc,
@@ -186,6 +187,7 @@ impl UISystem {
                         inox_profiler::scoped_profile!("ui_system::set_mesh_properties");
                         mesh_instance
                             .get_mut()
+                            .set_path(PathBuf::from(format!("UI_Mesh[{}].ui", i)).as_path())
                             .set_vertices_range(vertices_range)
                             .set_indices_range(indices_range)
                             .set_material(material)

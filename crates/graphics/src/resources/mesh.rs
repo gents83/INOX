@@ -63,8 +63,9 @@ impl ResourceTrait for Mesh {
 }
 
 impl SerializableResource for Mesh {
-    fn set_path(&mut self, path: &Path) {
+    fn set_path(&mut self, path: &Path) -> &mut Self {
         self.path = path.to_path_buf();
+        self
     }
     fn path(&self) -> &Path {
         self.path.as_path()
@@ -153,39 +154,51 @@ impl Mesh {
         &self.vertices_range
     }
     pub fn set_vertices_range(&mut self, vertices_range: Range<usize>) -> &mut Self {
-        self.vertices_range = vertices_range;
-        self.mark_as_dirty();
+        if self.vertices_range != vertices_range {
+            self.vertices_range = vertices_range;
+            self.mark_as_dirty();
+        }
         self
     }
     pub fn indices_range(&self) -> &Range<usize> {
         &self.indices_range
     }
     pub fn set_indices_range(&mut self, indices_range: Range<usize>) -> &mut Self {
-        self.indices_range = indices_range;
-        self.mark_as_dirty();
+        if self.indices_range != indices_range {
+            self.indices_range = indices_range;
+            self.mark_as_dirty();
+        }
         self
     }
     pub fn is_visible(&self) -> bool {
         self.is_visible && !self.vertices_range.is_empty()
     }
     pub fn set_visible(&mut self, is_visible: bool) -> &mut Self {
-        self.is_visible = is_visible;
-        self.mark_as_dirty();
+        if self.is_visible != is_visible {
+            self.is_visible = is_visible;
+            self.mark_as_dirty();
+        }
         self
     }
     pub fn set_draw_area(&mut self, draw_area: Vector4) -> &mut Self {
-        self.draw_area = draw_area;
-        self.mark_as_dirty();
+        if self.draw_area != draw_area {
+            self.draw_area = draw_area;
+            self.mark_as_dirty();
+        }
         self
     }
     pub fn set_matrix(&mut self, transform: Matrix4) -> &mut Self {
-        self.matrix = transform;
-        self.mark_as_dirty();
+        if self.matrix != transform {
+            self.matrix = transform;
+            self.mark_as_dirty();
+        }
         self
     }
     pub fn set_material(&mut self, material: Resource<Material>) -> &mut Self {
-        self.material = Some(material);
-        self.mark_as_dirty();
+        if self.material.is_none() || self.material.as_ref().unwrap().id() != material.id() {
+            self.material = Some(material);
+            self.mark_as_dirty();
+        }
         self
     }
     pub fn material(&self) -> &Handle<Material> {
@@ -196,17 +209,22 @@ impl Mesh {
             graphics_mesh.get_mut().remove_mesh(&self.id);
             let (vertex_range, index_range) =
                 graphics_mesh.get_mut().add_mesh_data(&self.id, &mesh_data);
-            self.vertices_range = vertex_range;
-            self.indices_range = index_range;
+            if self.vertices_range != vertex_range && self.indices_range != index_range {
+                self.vertices_range = vertex_range;
+                self.indices_range = index_range;
+                self.mark_as_dirty();
+            }
         }
-        self.mark_as_dirty();
         self
     }
     pub fn draw_index(&self) -> i32 {
         self.draw_index
     }
     pub fn set_draw_index(&mut self, draw_index: u32) -> &mut Self {
-        self.draw_index = draw_index as _;
+        if self.draw_index != draw_index as i32 {
+            self.draw_index = draw_index as _;
+            self.mark_as_dirty();
+        }
         self
     }
     pub fn matrix(&self) -> Matrix4 {
