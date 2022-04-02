@@ -205,9 +205,7 @@ impl Mesh {
         &self.material
     }
     pub fn set_mesh_data(&mut self, mesh_data: MeshData) -> &mut Self {
-        self.invalidate();
         if let Some(graphics_mesh) = &self.graphics_mesh {
-            graphics_mesh.get_mut().remove_mesh(&self.id);
             let (vertex_range, index_range) =
                 graphics_mesh.get_mut().add_mesh_data(&self.id, &mesh_data);
             if self.vertices_range != vertex_range && self.indices_range != index_range {

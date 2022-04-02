@@ -82,10 +82,8 @@ where
             }
         }
     }
-    pub fn remove(&mut self, id: &Id) {
-        if self.map.contains_key(id) {
-            self.map.remove(id);
-        }
+    pub fn remove(&mut self, id: &Id) -> Option<usize> {
+        self.map.remove(id)
     }
     pub fn index(&self, id: &Id) -> Option<usize> {
         self.map.get(id).copied()
