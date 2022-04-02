@@ -1,5 +1,6 @@
 use inox_core::{JobHandlerRw, System};
 
+use inox_math::Vector2;
 use inox_messenger::{Listener, MessageHubRc};
 use inox_platform::WindowEvent;
 use inox_resources::{
@@ -11,6 +12,7 @@ use inox_uid::generate_random_uid;
 
 use crate::{
     is_shader, Light, Material, Mesh, Pipeline, RenderPass, RendererRw, RendererState, Texture,
+    View,
 };
 
 use super::config::Config;
@@ -24,6 +26,7 @@ pub struct UpdateSystem {
     job_handler: JobHandlerRw,
     listener: Listener,
     render_passes: Vec<Resource<RenderPass>>,
+    view: Resource<View>,
 }
 
 impl UpdateSystem {
@@ -36,6 +39,7 @@ impl UpdateSystem {
         let listener = Listener::new(message_hub);
 
         Self {
+            view: View::new_resource(shared_data, message_hub, generate_random_uid(), 0),
             config: Config::default(),
             renderer,
             shared_data: shared_data.clone(),
@@ -182,6 +186,17 @@ impl System for UpdateSystem {
 
         {
             let mut renderer = self.renderer.write().unwrap();
+
+            let resolution = renderer.resolution();
+            let screen_size = Vector2::new(resolution.0 as f32, resolution.1 as f32);
+            renderer.update_shader_data(
+                self.view.get().view(),
+                self.view.get().proj(),
+                screen_size,
+            );
+
+            renderer.send_to_gpu();
+
             renderer.change_state(RendererState::Prepared);
         }
 

@@ -61,8 +61,15 @@ impl BindingData {
     }
 
     pub fn send_to_gpu(&mut self, context: &RenderContext) {
-        self.constant_data_buffer
-            .init::<ConstantData>(context, size_of::<ConstantData>() as _);
+        let usage = wgpu::BufferUsages::UNIFORM
+            | wgpu::BufferUsages::STORAGE
+            | wgpu::BufferUsages::COPY_DST;
+
+        self.constant_data_buffer.init::<ConstantData>(
+            context,
+            size_of::<ConstantData>() as _,
+            usage,
+        );
 
         self.constant_data.num_lights = self.dynamic_data.lights_data.item_count() as _;
 
@@ -73,7 +80,7 @@ impl BindingData {
             + size_of::<ShaderMaterialData>() * MAX_NUM_MATERIALS
             + size_of::<LightData>() * MAX_NUM_LIGHTS;
         self.dynamic_data_buffer
-            .init::<DynamicData>(context, total_size as _);
+            .init::<DynamicData>(context, total_size as _, usage);
         self.dynamic_data_buffer
             .add_to_gpu_buffer(context, self.dynamic_data.textures_data.data());
         self.dynamic_data_buffer

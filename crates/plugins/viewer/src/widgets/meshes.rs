@@ -99,17 +99,14 @@ impl Meshes {
                         let instances_count = graphics_mesh.instance_count(handle.id());
 
                         let mut instance_names = Vec::new();
-                        graphics_mesh.for_each_instance(
-                            handle.id(),
-                            |_index, mesh_id, _instance_data| {
-                                let name = if let Some(entry) = data.meshes_names.get(mesh_id) {
-                                    entry.0.clone()
-                                } else {
-                                    "EMPTY".to_string()
-                                };
-                                instance_names.push(name);
-                            },
-                        );
+                        graphics_mesh.for_each_instance(handle.id(), |mesh_id, _, _, _, _| {
+                            let name = if let Some(entry) = data.meshes_names.get(mesh_id) {
+                                entry.0.clone()
+                            } else {
+                                "EMPTY".to_string()
+                            };
+                            instance_names.push(name);
+                        });
                         data.pipeline_instances.insert(
                             *handle.id(),
                             (

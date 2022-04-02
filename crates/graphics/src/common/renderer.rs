@@ -1,7 +1,8 @@
 use crate::{
-    platform::required_gpu_features, BindingData, GraphicsMesh, Light, LightId, Material,
-    MaterialId, Mesh, MeshId, Pipeline, RenderPass, RenderPassDrawContext, RenderPassId, Texture,
-    TextureHandler, TextureId, CONSTANT_DATA_FLAGS_SUPPORT_SRGB, GRAPHIC_MESH_UID,
+    platform::{is_indirect_mode_enabled, required_gpu_features},
+    BindingData, GraphicsMesh, Light, LightId, Material, MaterialId, Mesh, MeshId, Pipeline,
+    RenderPass, RenderPassDrawContext, RenderPassId, Texture, TextureHandler, TextureId,
+    CONSTANT_DATA_FLAGS_SUPPORT_SRGB, GRAPHIC_MESH_UID,
 };
 use inox_log::debug_log;
 use inox_math::{matrix4_to_array, Matrix4, Vector2};
@@ -336,6 +337,16 @@ impl Renderer {
         self.graphics_mesh.get_mut().remove_mesh(mesh_id);
     }
 
+    pub fn prepare(&self) {
+        let render_context = self.context.get();
+        let render_context = render_context.as_ref().unwrap();
+        let graphics_mesh = &mut self.graphics_mesh.get_mut();
+        self.shared_data
+            .for_each_resource_mut(|_id, r: &mut RenderPass| {
+                r.prepare(render_context, graphics_mesh);
+            });
+    }
+
     pub fn draw(&self) {
         if let Ok(output) = self
             .context
@@ -414,12 +425,23 @@ impl Renderer {
 
     pub fn send_to_gpu(&mut self) {
         inox_profiler::scoped_profile!("renderer::send_to_gpu");
-        let mut render_context = self.context.get_mut();
-        let render_context = render_context.as_mut().unwrap();
-        let texture_handler = &mut render_context.texture_handler;
-        let graphic_mesh = &mut self.graphics_mesh.get_mut();
+        {
+            let mut render_context = self.context.get_mut();
+            let render_context = render_context.as_mut().unwrap();
+            let texture_handler = &mut render_context.texture_handler;
+            texture_handler.send_to_gpu(&render_context.queue);
+        }
+        {
+            let render_context = self.context.get();
+            let render_context = render_context.as_ref().unwrap();
+            let graphics_mesh = &mut self.graphics_mesh.get_mut();
+            graphics_mesh.send_to_gpu(render_context);
 
-        texture_handler.send_to_gpu(&render_context.queue);
-        graphic_mesh.send_to_gpu(&render_context.device, &render_context.queue);
+            if is_indirect_mode_enabled() {
+                self.shared_data.for_each_resource(|_id, r: &RenderPass| {
+                    r.prepare(render_context, graphics_mesh);
+                });
+            }
+        }
     }
 }

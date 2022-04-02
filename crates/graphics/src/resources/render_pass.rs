@@ -174,7 +174,23 @@ impl RenderPass {
         }
     }
 
-    pub fn draw(&mut self, render_pass_context: RenderPassDrawContext) {
+    pub fn prepare(&self, render_context: &RenderContext, graphics_mesh: &mut GraphicsMesh) {
+        if graphics_mesh.vertex_count() == 0 || graphics_mesh.vertex_buffer().is_none() {
+            return;
+        }
+        self.pipelines.iter().for_each(|pipeline| {
+            let pipeline_id = pipeline.id();
+            let instance_count = graphics_mesh.instance_count(pipeline_id);
+            if instance_count > 0
+                && is_indirect_mode_enabled()
+                && self.data.render_mode == RenderMode::Indirect
+            {
+                graphics_mesh.fill_command_buffer(render_context, pipeline_id);
+            }
+        });
+    }
+
+    pub fn draw(&self, render_pass_context: RenderPassDrawContext) {
         let graphics_mesh = render_pass_context.graphics_mesh;
         if graphics_mesh.vertex_count() == 0 || graphics_mesh.vertex_buffer().is_none() {
             return;
@@ -219,8 +235,7 @@ impl RenderPass {
                 ) {
                     return;
                 }
-                if pipeline.is_initialized() && graphics_mesh.instance_buffer(pipeline_id).is_some()
-                {
+                if pipeline.is_initialized() {
                     render_pass.set_pipeline(pipeline.render_pipeline());
 
                     if let Some(buffer_slice) = graphics_mesh.vertex_buffer() {
@@ -237,43 +252,36 @@ impl RenderPass {
                         if is_indirect_mode_enabled()
                             && self.data.render_mode == RenderMode::Indirect
                         {
+                            let commands_count = graphics_mesh.commands_count(pipeline_id);
+
                             if let Some(indirect_buffer) =
-                                graphics_mesh.indirect_buffer(pipeline_id)
+                                graphics_mesh.commands_buffer(pipeline_id)
                             {
                                 render_pass.multi_draw_indexed_indirect(
                                     indirect_buffer,
                                     0,
-                                    instance_count as u32,
+                                    commands_count as u32,
                                 );
                             }
                         } else {
                             graphics_mesh.for_each_instance(
                                 pipeline_id,
-                                |index, _mesh_id, instance_data| {
-                                    if let Some(indirect_command) =
-                                        graphics_mesh.indirect(index as _, pipeline_id)
-                                    {
-                                        let x = (instance_data.draw_area[0] as u32)
-                                            .clamp(0, render_pass_context.context.config.width);
-                                        let y = (instance_data.draw_area[1] as u32)
-                                            .clamp(0, render_pass_context.context.config.height);
-                                        let width = (instance_data.draw_area[2] as u32)
-                                            .clamp(0, render_pass_context.context.config.width - x);
-                                        let height = (instance_data.draw_area[3] as u32).clamp(
-                                            0,
-                                            render_pass_context.context.config.height - y,
-                                        );
+                                |_mesh_id, index, instance_data, vertices_range, indices_range| {
+                                    let x = (instance_data.draw_area[0] as u32)
+                                        .clamp(0, render_pass_context.context.config.width);
+                                    let y = (instance_data.draw_area[1] as u32)
+                                        .clamp(0, render_pass_context.context.config.height);
+                                    let width = (instance_data.draw_area[2] as u32)
+                                        .clamp(0, render_pass_context.context.config.width - x);
+                                    let height = (instance_data.draw_area[3] as u32)
+                                        .clamp(0, render_pass_context.context.config.height - y);
 
-                                        render_pass.set_scissor_rect(x, y, width, height);
-                                        render_pass.draw_indexed(
-                                            indirect_command.base_index
-                                                ..(indirect_command.base_index
-                                                    + indirect_command.vertex_count)
-                                                    as _,
-                                            indirect_command.vertex_offset as _,
-                                            (index as u32)..(index as u32 + 1),
-                                        );
-                                    }
+                                    render_pass.set_scissor_rect(x, y, width, height);
+                                    render_pass.draw_indexed(
+                                        indices_range.start as _..indices_range.end as _,
+                                        vertices_range.start as _,
+                                        index as _..(index as u32 + 1),
+                                    );
                                 },
                             );
                         }

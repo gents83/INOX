@@ -1,15 +1,13 @@
 use inox_core::{JobHandlerRw, System};
-use inox_math::Vector2;
-use inox_messenger::MessageHubRc;
-use inox_resources::{DataTypeResource, Resource, SharedDataRc};
+
+use inox_resources::SharedDataRc;
 use inox_uid::generate_random_uid;
 
-use crate::{RendererRw, RendererState, View};
+use crate::{RendererRw, RendererState};
 
 pub const RENDERING_PHASE: &str = "RENDERING_PHASE";
 
 pub struct RenderingSystem {
-    view: Resource<View>,
     renderer: RendererRw,
     job_handler: JobHandlerRw,
     shared_data: SharedDataRc,
@@ -19,11 +17,9 @@ impl RenderingSystem {
     pub fn new(
         renderer: RendererRw,
         shared_data: &SharedDataRc,
-        message_hub: &MessageHubRc,
         job_handler: &JobHandlerRw,
     ) -> Self {
         Self {
-            view: View::new_resource(shared_data, message_hub, generate_random_uid(), 0),
             renderer,
             job_handler: job_handler.clone(),
             shared_data: shared_data.clone(),
@@ -47,7 +43,6 @@ impl System for RenderingSystem {
             return true;
         }
         let renderer = self.renderer.clone();
-        let view = self.view.clone();
 
         self.job_handler.write().unwrap().add_job(
             &generate_random_uid(),
@@ -56,12 +51,6 @@ impl System for RenderingSystem {
                 {
                     let mut renderer = renderer.write().unwrap();
                     renderer.change_state(RendererState::Drawing);
-
-                    let resolution = renderer.resolution();
-                    let screen_size = Vector2::new(resolution.0 as f32, resolution.1 as f32);
-                    renderer.update_shader_data(view.get().view(), view.get().proj(), screen_size);
-
-                    renderer.send_to_gpu();
                 }
 
                 {

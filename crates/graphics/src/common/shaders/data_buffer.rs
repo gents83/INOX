@@ -4,11 +4,12 @@ use crate::{utils::to_u8_slice, RenderContext};
 pub struct DataBuffer {
     gpu_buffer: Option<wgpu::Buffer>,
     offset: u64,
+    size: u64,
 }
 
 impl DataBuffer {
-    pub fn init<T>(&mut self, context: &RenderContext, size: u64) {
-        if !self.is_valid() {
+    pub fn init<T>(&mut self, context: &RenderContext, size: u64, usage: wgpu::BufferUsages) {
+        if !self.is_valid() || self.size != size {
             let typename = std::any::type_name::<T>()
                 .split(':')
                 .collect::<Vec<&str>>()
@@ -20,13 +21,12 @@ impl DataBuffer {
                 label: Some(label.as_str()),
                 size,
                 mapped_at_creation: false,
-                usage: wgpu::BufferUsages::UNIFORM
-                    | wgpu::BufferUsages::STORAGE
-                    | wgpu::BufferUsages::COPY_DST,
+                usage,
             });
             self.gpu_buffer = Some(data_buffer);
         }
         self.offset = 0;
+        self.size = size;
     }
     pub fn add_to_gpu_buffer<T>(&mut self, context: &RenderContext, data: &[T]) {
         context.queue.write_buffer(

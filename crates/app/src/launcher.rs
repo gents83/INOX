@@ -73,7 +73,6 @@ impl Launcher {
         let rendering_draw_system = RenderingSystem::new(
             renderer,
             app.get_context().shared_data(),
-            app.get_context().message_hub(),
             app.get_job_handler(),
         );
 

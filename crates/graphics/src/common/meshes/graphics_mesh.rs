@@ -1,11 +1,13 @@
-use std::{collections::HashMap, ops::Range};
+use std::{collections::HashMap, mem::size_of, ops::Range};
 
 use inox_math::{matrix3_to_array, matrix4_to_array, Mat4Ops, Matrix, Matrix3};
 use inox_messenger::MessageHubRc;
-use inox_resources::{ResourceId, ResourceTrait, SharedData, SharedDataRc};
+use inox_resources::{HashBuffer, ResourceId, ResourceTrait, SharedData, SharedDataRc};
+use wgpu::util::DrawIndexedIndirect;
 
 use crate::{
-    GpuBuffer, InstanceData, Mesh, MeshData, MeshId, PipelineId, VertexData, INVALID_INDEX,
+    DataBuffer, GpuBuffer, InstanceData, Mesh, MeshData, MeshId, PipelineId, RenderContext,
+    VertexData, INVALID_INDEX,
 };
 
 pub const GRAPHIC_MESH_UID: ResourceId =
@@ -16,17 +18,8 @@ pub struct GraphicsMesh {
     vertex_buffer: GpuBuffer<VertexData, { wgpu::BufferUsages::bits(&wgpu::BufferUsages::VERTEX) }>,
     index_buffer: GpuBuffer<u32, { wgpu::BufferUsages::bits(&wgpu::BufferUsages::INDEX) }>,
 
-    instance_buffers: HashMap<
-        PipelineId,
-        GpuBuffer<InstanceData, { wgpu::BufferUsages::bits(&wgpu::BufferUsages::VERTEX) }>,
-    >,
-    indirect_buffers: HashMap<
-        PipelineId,
-        GpuBuffer<
-            wgpu::util::DrawIndexedIndirect,
-            { wgpu::BufferUsages::bits(&wgpu::BufferUsages::INDIRECT) },
-        >,
-    >,
+    instance_buffers: HashMap<PipelineId, (HashBuffer<MeshId, InstanceData, 0>, DataBuffer)>,
+    commands_buffers: HashMap<PipelineId, (Vec<DrawIndexedIndirect>, DataBuffer)>,
 }
 
 impl ResourceTrait for GraphicsMesh {
@@ -70,6 +63,12 @@ impl GraphicsMesh {
     }
     pub fn vertices_range_of(&self, mesh_id: &MeshId) -> Option<&Range<usize>> {
         self.vertex_buffer
+            .get(mesh_id)
+            .as_ref()
+            .map(|buffer_data| &buffer_data.range)
+    }
+    pub fn indices_range_of(&self, mesh_id: &MeshId) -> Option<&Range<usize>> {
+        self.index_buffer
             .get(mesh_id)
             .as_ref()
             .map(|buffer_data| &buffer_data.range)
@@ -135,23 +134,14 @@ impl GraphicsMesh {
         if let Some(material) = mesh.material() {
             if let Some(pipeline) = material.get().pipeline() {
                 if !mesh.is_visible() {
-                    self.remove_mesh_from_instance_buffer(mesh_id, pipeline.id());
-                    self.remove_mesh_from_indirect_buffer(mesh_id, pipeline.id());
+                    self.remove_mesh_from_instances(mesh_id, pipeline.id());
                 } else {
-                    let instance_index =
-                        self.add_mesh_to_instance_buffer(mesh_id, mesh, pipeline.id());
-                    self.add_mesh_to_indirect_buffer(
-                        mesh_id,
-                        pipeline.id(),
-                        instance_index as _,
-                        mesh.vertices_range(),
-                        mesh.indices_range(),
-                    );
+                    self.add_mesh_to_instances(mesh_id, mesh, pipeline.id());
                 }
             }
         }
     }
-    fn add_mesh_to_instance_buffer(
+    fn add_mesh_to_instances(
         &mut self,
         mesh_id: &MeshId,
         mesh: &Mesh,
@@ -174,50 +164,22 @@ impl GraphicsMesh {
                 .map_or(INVALID_INDEX, |m| m.get().uniform_index()),
         };
 
-        let instance_range = instance_buffer.add(mesh_id, &[instance]);
-        if mesh.draw_index() >= 0 && instance_range.start != mesh.draw_index() as usize {
-            instance_buffer.swap(instance_range.start as _, mesh.draw_index() as _);
-            return mesh.draw_index() as _;
+        let mut index = instance_buffer.0.insert(mesh_id, instance);
+        if mesh.draw_index() >= 0 {
+            index = mesh.draw_index() as usize;
+            instance_buffer.0.move_to(mesh_id, index);
         }
-        instance_range.start
+        index
     }
-    fn remove_mesh_from_instance_buffer(&mut self, mesh_id: &MeshId, pipeline_id: &PipelineId) {
+    fn remove_mesh_from_instances(&mut self, mesh_id: &MeshId, pipeline_id: &PipelineId) {
         if let Some(instance_buffer) = self.instance_buffers.get_mut(pipeline_id) {
-            instance_buffer.remove(mesh_id);
-        }
-    }
-    fn add_mesh_to_indirect_buffer(
-        &mut self,
-        mesh_id: &MeshId,
-        pipeline_id: &PipelineId,
-        instance_index: u32,
-        vertices_range: &Range<usize>,
-        indices_range: &Range<usize>,
-    ) {
-        let indirect_buffer = self.indirect_buffers.entry(*pipeline_id).or_default();
-        indirect_buffer.add(
-            mesh_id,
-            &[wgpu::util::DrawIndexedIndirect {
-                vertex_count: 1 + indices_range.len() as u32,
-                instance_count: 1,
-                base_index: indices_range.start as _,
-                vertex_offset: vertices_range.start as _,
-                base_instance: instance_index as _,
-            }],
-        );
-    }
-    fn remove_mesh_from_indirect_buffer(&mut self, mesh_id: &MeshId, pipeline_id: &PipelineId) {
-        if let Some(indirect_buffer) = self.indirect_buffers.get_mut(pipeline_id) {
-            indirect_buffer.remove(mesh_id);
+            instance_buffer.0.remove(mesh_id);
         }
     }
     pub fn remove_mesh(&mut self, mesh_id: &MeshId) {
         self.remove_mesh_data(mesh_id);
         self.instance_buffers.iter_mut().for_each(|(_, b)| {
-            b.remove(mesh_id);
-        });
-        self.indirect_buffers.iter_mut().for_each(|(_, b)| {
-            b.remove(mesh_id);
+            b.0.remove(mesh_id);
         });
     }
     fn clear(&mut self) {
@@ -226,19 +188,103 @@ impl GraphicsMesh {
     }
 
     pub fn instance_buffer(&self, pipeline_id: &PipelineId) -> Option<wgpu::BufferSlice> {
+        self.instance_buffers
+            .get(pipeline_id)
+            .map(|b| b.1.gpu_buffer().slice(..))
+    }
+    pub fn for_each_instance(
+        &self,
+        pipeline_id: &PipelineId,
+        mut f: impl FnMut(&MeshId, usize, &InstanceData, &Range<usize>, &Range<usize>),
+    ) {
         if let Some(buffer) = self.instance_buffers.get(pipeline_id) {
-            if let Some(gpu_buffer) = buffer.gpu_buffer() {
-                return Some(gpu_buffer.slice(..));
-            }
+            buffer.0.for_each_item(|mesh_id, index, instance_data| {
+                if let Some(vertices_range) = self
+                    .vertex_buffer
+                    .get(mesh_id)
+                    .as_ref()
+                    .map(|buffer_data| &buffer_data.range)
+                {
+                    if let Some(indices_range) = self
+                        .index_buffer
+                        .get(mesh_id)
+                        .as_ref()
+                        .map(|buffer_data| &buffer_data.range)
+                    {
+                        f(mesh_id, index, instance_data, vertices_range, indices_range);
+                    }
+                }
+            });
         }
-        None
     }
     pub fn instance_count(&self, pipeline_id: &PipelineId) -> usize {
         if let Some(buffer) = self.instance_buffers.get(pipeline_id) {
-            return buffer.len();
+            return buffer.0.item_count();
         }
         0
     }
+    pub fn commands_count(&self, pipeline_id: &PipelineId) -> usize {
+        self.commands_buffers
+            .get(pipeline_id)
+            .map(|(c, _)| c.len())
+            .unwrap_or_default()
+    }
+    pub fn commands_buffer(&self, pipeline_id: &PipelineId) -> Option<&wgpu::Buffer> {
+        self.commands_buffers
+            .get(pipeline_id)
+            .map(|(_, d)| d.gpu_buffer())
+    }
+
+    pub fn fill_command_buffer(
+        &mut self,
+        context: &RenderContext,
+        pipeline_id: &PipelineId,
+    ) -> u64 {
+        let instances = self.instance_buffers.entry(*pipeline_id).or_default();
+        let commands_buffer = self.commands_buffers.entry(*pipeline_id).or_default();
+
+        commands_buffer.0.clear();
+        commands_buffer.0.reserve(instances.0.item_count());
+        for i in 0..instances.0.buffer_len() {
+            if let Some(mesh_id) = instances.0.id(i) {
+                if let Some(vertices_range) = self
+                    .vertex_buffer
+                    .get(&mesh_id)
+                    .as_ref()
+                    .map(|buffer_data| &buffer_data.range)
+                {
+                    if let Some(indices_range) = self
+                        .index_buffer
+                        .get(&mesh_id)
+                        .as_ref()
+                        .map(|buffer_data| &buffer_data.range)
+                    {
+                        commands_buffer.0.push(wgpu::util::DrawIndexedIndirect {
+                            vertex_count: 1 + indices_range.len() as u32,
+                            instance_count: 1,
+                            base_index: indices_range.start as _,
+                            vertex_offset: vertices_range.start as _,
+                            base_instance: i as _,
+                        });
+                    }
+                }
+            }
+        }
+        let commands_count = commands_buffer.0.len() as u64;
+
+        let total_size = size_of::<wgpu::util::DrawIndexedIndirect>() as u64 * commands_count;
+
+        commands_buffer.1.init::<wgpu::util::DrawIndexedIndirect>(
+            context,
+            total_size,
+            wgpu::BufferUsages::INDIRECT | wgpu::BufferUsages::COPY_DST,
+        );
+        commands_buffer
+            .1
+            .add_to_gpu_buffer(context, commands_buffer.0.as_slice());
+        commands_count
+    }
+
     pub fn for_each_vertex_buffer_data<F>(&self, mut f: F)
     where
         F: FnMut(&MeshId, &Range<usize>),
@@ -246,40 +292,23 @@ impl GraphicsMesh {
         self.vertex_buffer.for_each_occupied(&mut f);
         self.vertex_buffer.for_each_free(&mut f);
     }
-    pub fn for_each_instance<F>(&self, pipeline_id: &PipelineId, f: F)
-    where
-        F: FnMut(usize, &ResourceId, &InstanceData),
-    {
-        if let Some(buffer) = self.instance_buffers.get(pipeline_id) {
-            buffer.for_each_data(f);
-        }
-    }
-    pub fn indirect(
-        &self,
-        index: u32,
-        pipeline_id: &PipelineId,
-    ) -> Option<&wgpu::util::DrawIndexedIndirect> {
-        if let Some(buffer) = self.indirect_buffers.get(pipeline_id) {
-            return Some(buffer.data_at_index(index));
-        }
-        None
-    }
-    pub fn indirect_buffer(&self, pipeline_id: &PipelineId) -> Option<&wgpu::Buffer> {
-        if let Some(buffer) = self.indirect_buffers.get(pipeline_id) {
-            return buffer.gpu_buffer();
-        }
-        None
-    }
 
-    pub fn send_to_gpu(&mut self, device: &wgpu::Device, queue: &wgpu::Queue) {
-        self.vertex_buffer.send_to_gpu(device, queue);
-        self.index_buffer.send_to_gpu(device, queue);
+    pub fn send_to_gpu(&mut self, context: &RenderContext) {
+        self.vertex_buffer
+            .send_to_gpu(&context.device, &context.queue);
+        self.index_buffer
+            .send_to_gpu(&context.device, &context.queue);
 
-        self.instance_buffers.iter_mut().for_each(|(_, b)| {
-            b.send_to_gpu(device, queue);
-        });
-        self.indirect_buffers.iter_mut().for_each(|(_, b)| {
-            b.send_to_gpu(device, queue);
-        });
+        self.instance_buffers
+            .iter_mut()
+            .for_each(|(_pipeline_id, b)| {
+                let total_size = size_of::<InstanceData>() as u64 * b.0.buffer_len() as u64;
+                b.1.init::<InstanceData>(
+                    context,
+                    total_size,
+                    wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+                );
+                b.1.add_to_gpu_buffer(context, b.0.data());
+            });
     }
 }
