@@ -9,9 +9,8 @@ use inox_resources::{
 use inox_serialize::{inox_serializable::SerializableRegistryRc, read_from_file, SerializeFile};
 
 use crate::{
-    CullingModeType, InstanceData, PipelineData, PipelineIdentifier, PolygonModeType,
-    RenderContext, Shader, VertexData, FRAGMENT_SHADER_ENTRY_POINT, SHADER_ENTRY_POINT,
-    VERTEX_SHADER_ENTRY_POINT,
+    CullingModeType, InstanceData, PipelineData, PolygonModeType, RenderContext, Shader,
+    VertexData, FRAGMENT_SHADER_ENTRY_POINT, SHADER_ENTRY_POINT, VERTEX_SHADER_ENTRY_POINT,
 };
 
 pub type PipelineId = ResourceId;
@@ -142,9 +141,6 @@ impl DataTypeResource for Pipeline {
 impl Pipeline {
     pub fn data(&self) -> &PipelineData {
         &self.data
-    }
-    pub fn identifier(&self) -> PipelineIdentifier {
-        PipelineIdentifier::new(&self.data.identifier)
     }
     pub fn render_pipeline(&self) -> &wgpu::RenderPipeline {
         self.render_pipeline.as_ref().unwrap()

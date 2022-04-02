@@ -1,5 +1,4 @@
 {
-    "identifier": "UI",
     "vertex_shader": "shaders/wgsl/ui_wgsl.shader",
     "fragment_shader": "shaders/wgsl/ui_wgsl.shader",
     "culling": "None",

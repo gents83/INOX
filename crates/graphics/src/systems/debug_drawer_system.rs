@@ -2,15 +2,19 @@ use std::path::PathBuf;
 
 use crate::{
     create_arrow, create_colored_quad, create_line, create_sphere, Material, Mesh, MeshData,
-    Pipeline, DEFAULT_PIPELINE_IDENTIFIER, WIREFRAME_PIPELINE_IDENTIFIER,
+    Pipeline,
 };
 use inox_commands::CommandParser;
 use inox_core::System;
-use inox_log::debug_log;
 use inox_math::{Vector2, Vector3, Vector4};
 use inox_messenger::{implement_message, Listener, MessageHubRc};
-use inox_resources::{DataTypeResource, Resource, SerializableResource, SharedDataRc};
+use inox_resources::{
+    ConfigBase, ConfigEvent, DataTypeResource, Handle, Resource, SerializableResource, SharedDataRc,
+};
+use inox_serialize::read_from_file;
 use inox_uid::generate_random_uid;
+
+use super::config::Config;
 
 /// A debug drawer
 /// You can use this to draw things in the editor just sending events:
@@ -136,8 +140,11 @@ impl DrawEvent {
 const WIREFRAME_MESH_CATEGORY_IDENTIFIER: &str = "EditorWireframe";
 
 pub struct DebugDrawerSystem {
+    config: Config,
     mesh_instance: Resource<Mesh>,
     wireframe_mesh_instance: Resource<Mesh>,
+    default_pipeline: Handle<Pipeline>,
+    wireframe_pipeline: Handle<Pipeline>,
     listener: Listener,
     shared_data: SharedDataRc,
     message_hub: MessageHubRc,
@@ -170,8 +177,11 @@ impl DebugDrawerSystem {
         listener.register::<DrawEvent>();
 
         Self {
+            config: Config::default(),
             mesh_instance,
             wireframe_mesh_instance,
+            default_pipeline: None,
+            wireframe_pipeline: None,
             listener,
             shared_data: shared_data.clone(),
             message_hub: message_hub.clone(),
@@ -188,6 +198,42 @@ impl DebugDrawerSystem {
         let mut mesh_data = MeshData::default();
         let mut wireframe_mesh_data = MeshData::default();
         self.listener
+            .process_messages(|e: &ConfigEvent<Config>| match e {
+                ConfigEvent::Loaded(filename, config) => {
+                    if filename == self.config.get_filename() {
+                        self.config = config.clone();
+
+                        let default_pipeline = Pipeline::request_load(
+                            &self.shared_data,
+                            &self.message_hub,
+                            self.config.default_pipeline.as_path(),
+                            None,
+                        );
+                        let wireframe_pipeline = Pipeline::request_load(
+                            &self.shared_data,
+                            &self.message_hub,
+                            self.config.wireframe_pipeline.as_path(),
+                            None,
+                        );
+                        let material = Material::duplicate_from_pipeline(
+                            &self.shared_data,
+                            &self.message_hub,
+                            &default_pipeline,
+                        );
+                        self.mesh_instance.get_mut().set_material(material);
+                        let wireframe_material = Material::duplicate_from_pipeline(
+                            &self.shared_data,
+                            &self.message_hub,
+                            &wireframe_pipeline,
+                        );
+                        self.wireframe_mesh_instance
+                            .get_mut()
+                            .set_material(wireframe_material);
+                        self.default_pipeline = Some(default_pipeline);
+                        self.wireframe_pipeline = Some(wireframe_pipeline);
+                    }
+                }
+            })
             .process_messages(|event: &DrawEvent| match *event {
                 DrawEvent::Line(start, end, color) => {
                     let (vertices, indices) = create_line(start, end, color);
@@ -274,7 +320,6 @@ impl DebugDrawerSystem {
                 }
             });
 
-        self.update_materials();
         if !mesh_data.vertices.is_empty() {
             self.mesh_instance
                 .get_mut()
@@ -292,55 +337,24 @@ impl DebugDrawerSystem {
             self.wireframe_mesh_instance.get_mut().set_visible(false);
         }
     }
-
-    fn update_materials(&mut self) {
-        if self.mesh_instance.get().material().is_none() {
-            let default_pipeline = self
-                .shared_data
-                .match_resource(|p: &Pipeline| p.data().identifier == DEFAULT_PIPELINE_IDENTIFIER);
-            if default_pipeline.is_none() {
-                debug_log!(
-                    "No pipeline with type Default found - did you forgot to read render.cfg file?",
-                );
-            }
-            if let Some(default_pipeline) = &default_pipeline {
-                let material = Material::duplicate_from_pipeline(
-                    &self.shared_data,
-                    &self.message_hub,
-                    default_pipeline,
-                );
-                self.mesh_instance.get_mut().set_material(material);
-            }
-        }
-        if self.wireframe_mesh_instance.get().material().is_none() {
-            let wireframe_pipeline = self.shared_data.match_resource(|p: &Pipeline| {
-                p.data().identifier == WIREFRAME_PIPELINE_IDENTIFIER
-            });
-
-            if wireframe_pipeline.is_none() {
-                debug_log!(
-                    "No pipeline with type Wireframe found - did you forgot to read render.cfg file?",
-                );
-            }
-            if let Some(wireframe_pipeline) = &wireframe_pipeline {
-                let material = Material::duplicate_from_pipeline(
-                    &self.shared_data,
-                    &self.message_hub,
-                    wireframe_pipeline,
-                );
-                self.wireframe_mesh_instance
-                    .get_mut()
-                    .set_material(material);
-            }
-        }
-    }
 }
 
 unsafe impl Send for DebugDrawerSystem {}
 unsafe impl Sync for DebugDrawerSystem {}
 
 impl System for DebugDrawerSystem {
-    fn read_config(&mut self, _plugin_name: &str) {}
+    fn read_config(&mut self, plugin_name: &str) {
+        self.listener.register::<ConfigEvent<Config>>();
+        let message_hub = self.message_hub.clone();
+        let filename = self.config.get_filename().to_string();
+        read_from_file(
+            self.config.get_filepath(plugin_name).as_path(),
+            self.shared_data.serializable_registry(),
+            Box::new(move |data: Config| {
+                message_hub.send_event(ConfigEvent::Loaded(filename.clone(), data));
+            }),
+        );
+    }
 
     fn should_run_when_not_focused(&self) -> bool {
         false
@@ -352,5 +366,7 @@ impl System for DebugDrawerSystem {
         true
     }
 
-    fn uninit(&mut self) {}
+    fn uninit(&mut self) {
+        self.listener.unregister::<ConfigEvent<Config>>();
+    }
 }

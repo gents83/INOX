@@ -202,6 +202,7 @@ impl System for UpdateSystem {
     }
     fn uninit(&mut self) {
         self.listener
+            .unregister::<ConfigEvent<Config>>()
             .unregister::<WindowEvent>()
             .unregister::<SerializableResourceEvent<Pipeline>>()
             .unregister::<SerializableResourceEvent<Texture>>()

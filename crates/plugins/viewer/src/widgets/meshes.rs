@@ -107,10 +107,17 @@ impl Meshes {
                             };
                             instance_names.push(name);
                         });
+                        let name = pipeline
+                            .path()
+                            .file_stem()
+                            .unwrap_or_default()
+                            .to_str()
+                            .unwrap_or_default()
+                            .to_string();
                         data.pipeline_instances.insert(
                             *handle.id(),
                             (
-                                pipeline.data().identifier.clone(),
+                                format!("[{:?}] {}", handle.id(), name),
                                 instances_count,
                                 instance_names,
                             ),

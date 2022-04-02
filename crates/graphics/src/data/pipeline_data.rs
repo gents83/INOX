@@ -4,23 +4,8 @@ use inox_filesystem::convert_from_local_path;
 use inox_math::Matrix4;
 use inox_resources::Data;
 use inox_serialize::{Deserialize, Serialize, SerializeFile};
-use inox_uid::{generate_uid_from_string, Uid};
 
 use crate::{LightData, ShaderMaterialData, TextureAtlas, TextureData};
-
-pub const DEFAULT_PIPELINE_IDENTIFIER: &str = "SABI_Default_Pipeline";
-pub const WIREFRAME_PIPELINE_IDENTIFIER: &str = "EditorWireframe";
-
-#[repr(C)]
-#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Eq, Hash, Copy, Clone)]
-#[serde(crate = "inox_serialize")]
-pub struct PipelineIdentifier(Uid);
-
-impl PipelineIdentifier {
-    pub fn new(string: &str) -> Self {
-        Self(generate_uid_from_string(string))
-    }
-}
 
 #[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
 #[serde(crate = "inox_serialize")]
@@ -90,7 +75,6 @@ pub enum DrawMode {
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 #[serde(crate = "inox_serialize")]
 pub struct PipelineData {
-    pub identifier: String,
     pub vertex_shader: PathBuf,
     pub fragment_shader: PathBuf,
     pub culling: CullingModeType,
@@ -110,7 +94,6 @@ impl SerializeFile for PipelineData {
 impl Default for PipelineData {
     fn default() -> Self {
         Self {
-            identifier: DEFAULT_PIPELINE_IDENTIFIER.to_string(),
             vertex_shader: PathBuf::new(),
             fragment_shader: PathBuf::new(),
             culling: CullingModeType::Back,
