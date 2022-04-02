@@ -73,17 +73,13 @@ where
     pub fn move_to(&mut self, id: &Id, index: usize) {
         let old_index = *self.map.get(id).unwrap();
         if old_index != index {
-            if old_index >= self.buffer.len() {
-                inox_log::debug_log!("Invalid old_index {}", old_index);
-            }
-            if index >= self.buffer.len() {
-                inox_log::debug_log!("Invalid index {}", index);
-            }
-            self.buffer.swap(old_index, index);
             if let Some(old_id) = self.id(index) {
                 self.map.insert(old_id, old_index);
             }
             self.map.insert(*id, index);
+            if old_index < self.buffer.len() && index < self.buffer.len() {
+                self.buffer.swap(old_index, index);
+            }
         }
     }
     pub fn remove(&mut self, id: &Id) {
