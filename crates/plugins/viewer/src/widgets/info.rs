@@ -15,6 +15,8 @@ struct Data {
     params: InfoParams,
     hierarchy: (bool, Option<Hierarchy>),
     meshes: (bool, Option<Meshes>),
+    fps: u32,
+    dt: u128,
 }
 implement_widget_data!(Data);
 
@@ -29,6 +31,8 @@ impl Info {
             params,
             hierarchy: (false, None),
             meshes: (false, None),
+            fps: 0,
+            dt: 0,
         };
         Self {
             ui_page: Self::create(data),
@@ -53,7 +57,12 @@ impl Info {
     }
 
     pub fn update(&mut self) {
+        inox_profiler::scoped_profile!("Info::update");
+
         if let Some(data) = self.ui_page.get_mut().data_mut::<Data>() {
+            data.fps = data.context.global_timer().fps();
+            data.dt = data.context.global_timer().dt().as_millis();
+
             if data.hierarchy.0 && data.hierarchy.1.is_none() {
                 data.hierarchy.1 = Some(Hierarchy::new(
                     data.context.shared_data(),
@@ -89,11 +98,7 @@ impl Info {
                     .title_bar(true)
                     .resizable(true)
                     .show(ui_context, |ui| {
-                        ui.label(format!(
-                            "FPS: {} - ms: {:?}",
-                            data.context.global_timer().fps(),
-                            data.context.global_timer().dt().as_millis()
-                        ));
+                        ui.label(format!("FPS: {} - ms: {:?}", data.fps, data.dt));
                         ui.checkbox(&mut data.hierarchy.0, "Hierarchy");
                         ui.checkbox(&mut data.meshes.0, "Meshes");
                     });

@@ -38,16 +38,8 @@ impl Plugin for Viewer {
         self.updater_id = ViewerSystem::id();
 
         app.add_system(inox_core::Phases::Update, system);
-        app.add_system_with_dependencies(
-            inox_core::Phases::Update,
-            ui_system,
-            &[ViewerSystem::id()],
-        );
-        app.add_system_with_dependencies(
-            inox_core::Phases::Update,
-            debug_drawer_system,
-            &[ViewerSystem::id()],
-        );
+        app.add_system(inox_core::Phases::Update, ui_system);
+        app.add_system(inox_core::Phases::Update, debug_drawer_system);
     }
 
     fn unprepare(&mut self, app: &mut App) {

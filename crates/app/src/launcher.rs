@@ -77,8 +77,16 @@ impl Launcher {
         );
 
         app.add_system(inox_core::Phases::PlatformUpdate, window_system);
-        app.add_system(inox_core::Phases::Render, render_update_system);
-        app.add_system(inox_core::Phases::Render, rendering_draw_system);
+        app.add_system_with_dependencies(
+            inox_core::Phases::Render,
+            render_update_system,
+            &[RenderingSystem::id()],
+        );
+        app.add_system_with_dependencies(
+            inox_core::Phases::Render,
+            rendering_draw_system,
+            &[UpdateSystem::id()],
+        );
     }
 
     pub fn start(&self) {
