@@ -180,7 +180,13 @@ pub fn create_cylinder(
     (vertices, indices)
 }
 
-pub fn create_sphere(radius: f32, num_slices: u32, num_stack: u32) -> (Vec<VertexData>, Vec<u32>) {
+pub fn create_sphere(
+    position: Vector3,
+    radius: f32,
+    num_slices: u32,
+    num_stack: u32,
+    color: Vector4,
+) -> (Vec<VertexData>, Vec<u32>) {
     let mut vertices = Vec::new();
     let mut indices = Vec::new();
 
@@ -196,10 +202,12 @@ pub fn create_sphere(radius: f32, num_slices: u32, num_stack: u32) -> (Vec<Verte
         for j in 0..num_slices + 1 {
             let mut vertex = VertexData::default();
             let slice_angle = j as f32 * slice_step; // from 0 to 2pi
-            vertex.pos = [xy * slice_angle.cos(), xy * slice_angle.sin(), z].into();
+            vertex.pos = position;
+            vertex.pos += [xy * slice_angle.cos(), xy * slice_angle.sin(), z].into();
             vertex.normal = vertex.pos * inv;
             vertex.tex_coord = [[j as f32 / num_slices as f32, i as f32 / num_stack as f32].into();
                 MAX_TEXTURE_COORDS_SETS];
+            vertex.color = color;
             vertices.push(vertex);
         }
     }

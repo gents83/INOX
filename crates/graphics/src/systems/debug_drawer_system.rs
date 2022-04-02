@@ -197,9 +197,11 @@ impl DebugDrawerSystem {
 
         let mut mesh_data = MeshData::default();
         let mut wireframe_mesh_data = MeshData::default();
+
         self.listener
             .process_messages(|e: &ConfigEvent<Config>| match e {
                 ConfigEvent::Loaded(filename, config) => {
+                    inox_profiler::scoped_profile!("Processing ConfigEvent");
                     if filename == self.config.get_filename() {
                         self.config = config.clone();
 
@@ -236,10 +238,14 @@ impl DebugDrawerSystem {
             })
             .process_messages(|event: &DrawEvent| match *event {
                 DrawEvent::Line(start, end, color) => {
+                    inox_profiler::scoped_profile!("DrawEvent::Line");
+
                     let (vertices, indices) = create_line(start, end, color);
                     wireframe_mesh_data.append_mesh(&vertices, &indices);
                 }
                 DrawEvent::BoundingBox(min, max, color) => {
+                    inox_profiler::scoped_profile!("DrawEvent::BoundingBox");
+
                     self.auto_send_event(DrawEvent::Quad(
                         [min.x, min.y].into(),
                         [max.x, max.y].into(),
@@ -276,6 +282,8 @@ impl DebugDrawerSystem {
                     ));
                 }
                 DrawEvent::Quad(min, max, z, color, is_wireframe) => {
+                    inox_profiler::scoped_profile!("DrawEvent::Quad");
+
                     if is_wireframe {
                         let (vertices, indices) =
                             create_line([min.x, min.y, z].into(), [min.x, max.y, z].into(), color);
@@ -296,6 +304,8 @@ impl DebugDrawerSystem {
                     }
                 }
                 DrawEvent::Arrow(position, direction, color, is_wireframe) => {
+                    inox_profiler::scoped_profile!("DrawEvent::Arrow");
+
                     let (mut vertices, indices) = create_arrow(position, direction);
                     vertices.iter_mut().for_each(|v| {
                         v.color = color;
@@ -307,11 +317,9 @@ impl DebugDrawerSystem {
                     }
                 }
                 DrawEvent::Sphere(position, radius, color, is_wireframe) => {
-                    let (mut vertices, indices) = create_sphere(radius, 32, 16);
-                    vertices.iter_mut().for_each(|v| {
-                        v.pos += position;
-                        v.color = color;
-                    });
+                    inox_profiler::scoped_profile!("DrawEvent::Sphere");
+
+                    let (vertices, indices) = create_sphere(position, radius, 16, 8, color);
                     if is_wireframe {
                         wireframe_mesh_data.append_mesh(&vertices, &indices);
                     } else {
