@@ -9,7 +9,7 @@ build = "build.rs"
 crate-type = ["lib"]
 
 [dependencies]
-egui = { path = "../../extern/egui/egui", features = ["multi_threaded"] }
+egui = { path = "../../extern/egui/egui" }
 image = { path = "../../extern/image" }
 
 inox_commands = { path = "../commands" }
