@@ -11,6 +11,7 @@ use inox_uid::Uid;
 
 pub type JobReceiverRw = Arc<Mutex<Receiver<Job>>>;
 pub type JobId = Uid;
+pub const INDEPENDENT_JOB_ID: JobId = inox_uid::generate_static_uid_from_string("IndependentJob");
 
 pub struct Job {
     func: Box<dyn FnOnce() + Send + Sync>,

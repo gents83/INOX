@@ -15,7 +15,7 @@ pub const DATA_RAW_FOLDER: &str = "data_raw";
 pub const DATA_FOLDER: &str = "data";
 
 pub struct Data {}
-pub trait DataTypeResource: ResourceTrait + Clone
+pub trait DataTypeResource: ResourceTrait
 where
     <Self as DataTypeResource>::OnCreateData: Clone,
 {

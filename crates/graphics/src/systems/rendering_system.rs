@@ -1,7 +1,6 @@
-use inox_core::{JobHandlerRw, System};
+use inox_core::{JobHandlerRw, System, INDEPENDENT_JOB_ID};
 
 use inox_resources::SharedDataRc;
-use inox_uid::generate_random_uid;
 
 use crate::{RendererRw, RendererState};
 
@@ -42,15 +41,19 @@ impl System for RenderingSystem {
         if state != RendererState::Prepared {
             return true;
         }
-        let renderer = self.renderer.clone();
+        {
+            let mut renderer = self.renderer.write().unwrap();
+            renderer.change_state(RendererState::Drawing);
+        }
 
-        self.job_handler.write().unwrap().add_job(
-            &generate_random_uid(),
-            "Render Draw",
-            move || {
+        let renderer = self.renderer.clone();
+        self.job_handler
+            .write()
+            .unwrap()
+            .add_job(&INDEPENDENT_JOB_ID, "Render Draw", move || {
                 {
                     let mut renderer = renderer.write().unwrap();
-                    renderer.change_state(RendererState::Drawing);
+                    renderer.send_to_gpu();
                 }
 
                 {
@@ -62,8 +65,7 @@ impl System for RenderingSystem {
                     let mut renderer = renderer.write().unwrap();
                     renderer.change_state(RendererState::Submitted);
                 }
-            },
-        );
+            });
         true
     }
     fn uninit(&mut self) {}

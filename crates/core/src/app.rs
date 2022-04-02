@@ -177,8 +177,7 @@ impl App {
 
         self.is_profiling = is_profiling;
 
-        self.update_workers(self.is_enabled.load(Ordering::SeqCst));
-        self.is_enabled.store(is_enabled, Ordering::SeqCst);
+        self.update_workers(is_enabled);
     }
 
     fn update_workers(&mut self, is_enabled: bool) {
@@ -190,9 +189,11 @@ impl App {
                 job.execute();
             }
         }
-        if !self.is_enabled.load(Ordering::SeqCst) && !is_enabled {
+        if self.is_enabled.load(Ordering::SeqCst) && !is_enabled {
+            self.is_enabled.store(is_enabled, Ordering::SeqCst);
             self.stop_worker_threads();
         } else if !self.is_enabled.load(Ordering::SeqCst) && is_enabled {
+            self.is_enabled.store(is_enabled, Ordering::SeqCst);
             self.setup_worker_threads();
         }
     }

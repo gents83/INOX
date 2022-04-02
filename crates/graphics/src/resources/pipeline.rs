@@ -3,8 +3,8 @@ use std::path::{Path, PathBuf};
 use inox_log::debug_log;
 use inox_messenger::MessageHubRc;
 use inox_resources::{
-    DataTypeResource, Handle, ResourceId, ResourceTrait, SerializableResource, SharedData,
-    SharedDataRc,
+    DataTypeResource, Handle, Resource, ResourceId, ResourceTrait, SerializableResource,
+    SharedData, SharedDataRc,
 };
 use inox_serialize::{inox_serializable::SerializableRegistryRc, read_from_file, SerializeFile};
 
@@ -18,6 +18,8 @@ pub type PipelineId = ResourceId;
 
 pub struct Pipeline {
     path: PathBuf,
+    shared_data: SharedDataRc,
+    message_hub: MessageHubRc,
     data: PipelineData,
     format: Option<wgpu::TextureFormat>,
     vertex_shader: Handle<Shader>,
@@ -27,11 +29,15 @@ pub struct Pipeline {
 
 impl Clone for Pipeline {
     fn clone(&self) -> Self {
+        let (vertex_shader, fragment_shader) =
+            Self::load_shaders(&self.data, &self.shared_data, &self.message_hub);
         Self {
             path: self.path.clone(),
             data: self.data.clone(),
-            vertex_shader: self.vertex_shader.clone(),
-            fragment_shader: self.fragment_shader.clone(),
+            shared_data: self.shared_data.clone(),
+            message_hub: self.message_hub.clone(),
+            vertex_shader: Some(vertex_shader),
+            fragment_shader: Some(fragment_shader),
             format: None,
             render_pipeline: None,
         }
@@ -85,9 +91,11 @@ impl DataTypeResource for Pipeline {
     type DataType = PipelineData;
     type OnCreateData = <Self as ResourceTrait>::OnCreateData;
 
-    fn new(_id: ResourceId, _shared_data: &SharedDataRc, _message_hub: &MessageHubRc) -> Self {
+    fn new(_id: ResourceId, shared_data: &SharedDataRc, message_hub: &MessageHubRc) -> Self {
         Self {
             path: PathBuf::new(),
+            shared_data: shared_data.clone(),
+            message_hub: message_hub.clone(),
             data: PipelineData::default(),
             format: None,
             vertex_shader: None,
@@ -123,24 +131,10 @@ impl DataTypeResource for Pipeline {
         let canonicalized_pipeline_data = data.canonicalize_paths();
         let mut pipeline = Self::new(id, shared_data, message_hub);
         pipeline.data = canonicalized_pipeline_data;
-        let vertex_shader = Shader::request_load(
-            shared_data,
-            message_hub,
-            pipeline.data.vertex_shader.as_path(),
-            None,
-        );
-        if pipeline.data.vertex_shader == pipeline.data.fragment_shader {
-            pipeline.fragment_shader = Some(vertex_shader.clone());
-        } else {
-            let fragment_shader = Shader::request_load(
-                shared_data,
-                message_hub,
-                pipeline.data.fragment_shader.as_path(),
-                None,
-            );
-            pipeline.fragment_shader = Some(fragment_shader);
-        }
+        let (vertex_shader, fragment_shader) =
+            Self::load_shaders(&pipeline.data, shared_data, message_hub);
         pipeline.vertex_shader = Some(vertex_shader);
+        pipeline.fragment_shader = Some(fragment_shader);
         pipeline
     }
 }
@@ -154,6 +148,25 @@ impl Pipeline {
     }
     pub fn render_pipeline(&self) -> &wgpu::RenderPipeline {
         self.render_pipeline.as_ref().unwrap()
+    }
+    fn load_shaders(
+        data: &PipelineData,
+        shared_data: &SharedDataRc,
+        message_hub: &MessageHubRc,
+    ) -> (Resource<Shader>, Resource<Shader>) {
+        let vertex_shader =
+            Shader::request_load(shared_data, message_hub, data.vertex_shader.as_path(), None);
+        let fragment_shader = if data.vertex_shader == data.fragment_shader {
+            vertex_shader.clone()
+        } else {
+            Shader::request_load(
+                shared_data,
+                message_hub,
+                data.fragment_shader.as_path(),
+                None,
+            )
+        };
+        (vertex_shader, fragment_shader)
     }
     pub fn init(
         &mut self,

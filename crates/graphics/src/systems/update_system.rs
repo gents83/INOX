@@ -195,8 +195,6 @@ impl System for UpdateSystem {
                 screen_size,
             );
 
-            renderer.send_to_gpu();
-
             renderer.change_state(RendererState::Prepared);
         }
 
