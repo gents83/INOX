@@ -20,6 +20,7 @@ pub struct ViewerSystem {
     last_mouse_pos: Vector2,
     view_3d: Option<View3D>,
     info: Info,
+    last_frame: u64,
 }
 
 const FORCE_USE_DEFAULT_CAMERA: bool = false;
@@ -58,6 +59,7 @@ impl ViewerSystem {
             .set_active(false);
 
         Self {
+            last_frame: u64::MAX,
             view_3d: None,
             info: Info::new(
                 context,
@@ -107,11 +109,16 @@ impl System for ViewerSystem {
 
     fn run(&mut self) -> bool {
         inox_profiler::scoped_profile!("viewer_system::run");
+
         self.update_events().update_view_from_camera();
 
         self.info.update();
 
         let timer = self.context.global_timer();
+        let current_frame = timer.current_frame();
+        debug_assert!(self.last_frame != current_frame);
+        self.last_frame = current_frame;
+
         self.context
             .shared_data()
             .for_each_resource_mut(|_, s: &mut Script| {

@@ -66,8 +66,12 @@ impl Info {
 
             if data.meshes.0 && data.meshes.1.is_none() {
                 data.meshes.1 = Some(Meshes::new(&data.context));
-            } else if !data.meshes.0 && data.meshes.1.is_some() {
-                data.meshes.1 = None;
+            } else if data.meshes.1.is_some() {
+                if !data.meshes.0 {
+                    data.meshes.1 = None;
+                } else {
+                    data.meshes.1.as_mut().unwrap().update();
+                }
             }
         }
     }

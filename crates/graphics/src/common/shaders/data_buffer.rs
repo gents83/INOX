@@ -1,34 +1,14 @@
-use wgpu::util::DeviceExt;
-
 use crate::{utils::to_u8_slice, RenderContext};
 
-pub struct DataBuffer<T, const N: usize>
-where
-    T: Default + Copy,
-{
-    data: [T; N],
-    data_buffer: Option<wgpu::Buffer>,
-}
-impl<T, const N: usize> Default for DataBuffer<T, N>
-where
-    T: Default + Copy,
-{
-    fn default() -> Self {
-        let data = [T::default(); N];
-
-        Self {
-            data,
-            data_buffer: None,
-        }
-    }
+#[derive(Default)]
+pub struct DataBuffer {
+    gpu_buffer: Option<wgpu::Buffer>,
+    offset: u64,
 }
 
-impl<T, const N: usize> DataBuffer<T, N>
-where
-    T: Default + Copy,
-{
-    pub fn send_to_gpu(&mut self, context: &RenderContext) {
-        if self.data_buffer.is_none() {
+impl DataBuffer {
+    pub fn init<T>(&mut self, context: &RenderContext, size: u64) {
+        if !self.is_valid() {
             let typename = std::any::type_name::<T>()
                 .split(':')
                 .collect::<Vec<&str>>()
@@ -36,35 +16,31 @@ where
                 .unwrap()
                 .to_string();
             let label = format!("{} Buffer", typename);
-            let data_buffer =
-                context
-                    .device
-                    .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                        label: Some(label.as_str()),
-                        contents: to_u8_slice(&self.data),
-                        usage: wgpu::BufferUsages::UNIFORM
-                            | wgpu::BufferUsages::STORAGE
-                            | wgpu::BufferUsages::COPY_DST,
-                    });
-            self.data_buffer = Some(data_buffer);
+            let data_buffer = context.device.create_buffer(&wgpu::BufferDescriptor {
+                label: Some(label.as_str()),
+                size,
+                mapped_at_creation: false,
+                usage: wgpu::BufferUsages::UNIFORM
+                    | wgpu::BufferUsages::STORAGE
+                    | wgpu::BufferUsages::COPY_DST,
+            });
+            self.gpu_buffer = Some(data_buffer);
         }
+        self.offset = 0;
+    }
+    pub fn add_to_gpu_buffer<T>(&mut self, context: &RenderContext, data: &[T]) {
         context.queue.write_buffer(
-            self.data_buffer.as_ref().unwrap(),
-            0,
-            to_u8_slice(&self.data),
+            self.gpu_buffer.as_ref().unwrap(),
+            self.offset,
+            to_u8_slice(data),
         );
+        self.offset += data.len() as u64 * std::mem::size_of::<T>() as u64;
     }
 
-    pub fn data(&self) -> &[T] {
-        &self.data
-    }
-    pub fn data_mut(&mut self) -> &mut [T] {
-        &mut self.data
-    }
     pub fn is_valid(&self) -> bool {
-        self.data_buffer.is_some()
+        self.gpu_buffer.is_some()
     }
-    pub fn data_buffer(&self) -> &wgpu::Buffer {
-        self.data_buffer.as_ref().unwrap()
+    pub fn gpu_buffer(&self) -> &wgpu::Buffer {
+        self.gpu_buffer.as_ref().unwrap()
     }
 }

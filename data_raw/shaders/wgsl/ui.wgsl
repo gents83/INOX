@@ -22,6 +22,7 @@ struct ConstantData {
     screen_width: f32;
     screen_height: f32;
     flags: u32;
+    num_lights: u32;
 };
 
 struct LightData {
@@ -56,10 +57,9 @@ struct ShaderMaterialData {
 };
 
 struct DynamicData {
-    lights_data: array<LightData, 64>;//MAX_NUM_LIGHTS>;
     textures_data: array<TextureData, 512>;//MAX_NUM_TEXTURES>;
     materials_data: array<ShaderMaterialData, 512>;//MAX_NUM_MATERIALS>;
-    num_lights: u32;
+    lights_data: array<LightData, 64>;//MAX_NUM_LIGHTS>;
 };
 
 struct VertexInput {

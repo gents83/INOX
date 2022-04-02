@@ -175,12 +175,10 @@ impl GraphicsMesh {
         };
 
         let instance_range = instance_buffer.add(mesh_id, &[instance]);
-        /*
         if mesh.draw_index() >= 0 && instance_range.start != mesh.draw_index() as usize {
             instance_buffer.swap(instance_range.start as _, mesh.draw_index() as _);
             return mesh.draw_index() as _;
         }
-        */
         instance_range.start
     }
     fn remove_mesh_from_instance_buffer(&mut self, mesh_id: &MeshId, pipeline_id: &PipelineId) {
@@ -197,7 +195,7 @@ impl GraphicsMesh {
         indices_range: &Range<usize>,
     ) {
         let indirect_buffer = self.indirect_buffers.entry(*pipeline_id).or_default();
-        let old_range = indirect_buffer.add(
+        indirect_buffer.add(
             mesh_id,
             &[wgpu::util::DrawIndexedIndirect {
                 vertex_count: 1 + indices_range.len() as u32,
@@ -207,10 +205,6 @@ impl GraphicsMesh {
                 base_instance: instance_index as _,
             }],
         );
-
-        if old_range.start != instance_index as usize {
-            indirect_buffer.swap(instance_index as _, old_range.start as _);
-        }
     }
     fn remove_mesh_from_indirect_buffer(&mut self, mesh_id: &MeshId, pipeline_id: &PipelineId) {
         if let Some(indirect_buffer) = self.indirect_buffers.get_mut(pipeline_id) {
@@ -254,7 +248,7 @@ impl GraphicsMesh {
     }
     pub fn for_each_instance<F>(&self, pipeline_id: &PipelineId, f: F)
     where
-        F: FnMut(usize, &InstanceData),
+        F: FnMut(usize, &ResourceId, &InstanceData),
     {
         if let Some(buffer) = self.instance_buffers.get(pipeline_id) {
             buffer.for_each_data(f);

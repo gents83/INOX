@@ -6,7 +6,7 @@ use crate::{
 use inox_log::debug_log;
 use inox_math::{matrix4_to_array, Matrix4, Vector2};
 use inox_messenger::MessageHubRc;
-use inox_resources::{DataTypeResource, HashIndexer, Resource};
+use inox_resources::{DataTypeResource, Resource};
 
 use inox_platform::Handle;
 use inox_resources::{SharedData, SharedDataRc};
@@ -63,9 +63,6 @@ pub struct Renderer {
     context: RenderContextRw,
     shared_data: SharedDataRc,
     state: RendererState,
-    material_hash_indexer: HashIndexer<MaterialId>,
-    texture_hash_indexer: HashIndexer<MaterialId>,
-    light_hash_indexer: HashIndexer<LightId>,
     shader_data: BindingData,
     graphics_mesh: Resource<GraphicsMesh>,
 }
@@ -100,9 +97,6 @@ impl Renderer {
 
         Renderer {
             shader_data: BindingData::default(),
-            texture_hash_indexer: HashIndexer::default(),
-            material_hash_indexer: HashIndexer::default(),
-            light_hash_indexer: HashIndexer::default(),
             state: RendererState::Init,
             context: render_context,
             shared_data: shared_data.clone(),
@@ -215,8 +209,6 @@ impl Renderer {
         }
 
         self.shader_data
-            .set_num_lights(self.light_hash_indexer.len());
-        self.shader_data
             .send_to_gpu(self.context.get().as_ref().unwrap());
     }
 
@@ -268,8 +260,7 @@ impl Renderer {
                     }
                 }
                 if let Some(texture_data) = texture_handler.get_texture_data(texture_id) {
-                    let uniform_index = self.texture_hash_indexer.insert(texture_id);
-                    self.shader_data.textures_data_mut()[uniform_index] = texture_data;
+                    let uniform_index = self.shader_data.set_texture_data(texture_id, texture_data);
                     texture.get_mut().set_texture_data(
                         uniform_index,
                         texture_data.width(),
@@ -290,22 +281,20 @@ impl Renderer {
     pub fn on_light_changed(&mut self, light_id: &LightId) {
         inox_profiler::scoped_profile!("renderer::on_light_changed");
         if let Some(light) = self.shared_data.get_resource::<Light>(light_id) {
-            let uniform_index = self.light_hash_indexer.insert(light_id);
-            light.get_mut().update_uniform(
-                uniform_index as _,
-                &mut self.shader_data.light_data_mut()[uniform_index],
-            );
+            let uniform_index = self
+                .shader_data
+                .set_light_data(light_id, *light.get().data());
+            light.get_mut().update_uniform(uniform_index as _);
         }
     }
 
     pub fn on_material_changed(&mut self, material_id: &MaterialId) {
         inox_profiler::scoped_profile!("renderer::on_material_changed");
         if let Some(material) = self.shared_data.get_resource::<Material>(material_id) {
-            let uniform_index = self.material_hash_indexer.insert(material_id);
-            material.get_mut().update_uniform(
-                uniform_index as _,
-                &mut self.shader_data.material_data_mut()[uniform_index],
-            );
+            let uniform_index = self
+                .shader_data
+                .set_material_data(material_id, &material.get());
+            material.get_mut().update_uniform(uniform_index as _);
             //Need to update all meshes that use this material
             self.shared_data.for_each_resource_mut(|_, m: &mut Mesh| {
                 if let Some(material) = m.material() {

@@ -10,6 +10,7 @@ use crate::platform::wasm::SystemTime;
 use std::time::SystemTime;
 
 pub struct Timer {
+    current_frame: u64,
     current_time: SystemTime,
     dt: Duration,
     fps: VecDeque<SystemTime>,
@@ -18,6 +19,7 @@ pub struct Timer {
 impl Default for Timer {
     fn default() -> Self {
         Self {
+            current_frame: 0,
             fps: VecDeque::new(),
             current_time: SystemTime::now(),
             dt: Duration::default(),
@@ -28,6 +30,7 @@ impl Default for Timer {
 impl Timer {
     pub fn update(&mut self) -> &mut Self {
         let lastframe_time = self.current_time;
+        self.current_frame += 1 % u64::MAX;
         self.current_time = self.instant_time();
         self.dt = self
             .current_time
@@ -39,6 +42,10 @@ impl Timer {
         self.fps.retain(|t| *t >= one_sec_before);
 
         self
+    }
+
+    pub fn current_frame(&self) -> u64 {
+        self.current_frame
     }
 
     pub fn frame_time(&self) -> &SystemTime {

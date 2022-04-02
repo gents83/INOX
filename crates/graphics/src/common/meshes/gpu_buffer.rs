@@ -158,7 +158,7 @@ where
     }
     pub fn for_each_data<F>(&self, f: F)
     where
-        F: FnMut(usize, &T),
+        F: FnMut(usize, &ResourceId, &T),
     {
         self.cpu_buffer.for_each_data(f);
     }

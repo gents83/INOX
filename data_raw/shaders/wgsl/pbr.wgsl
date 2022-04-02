@@ -22,6 +22,7 @@ struct ConstantData {
     screen_width: f32;
     screen_height: f32;
     flags: u32;
+    num_lights: u32;
 };
 
 struct LightData {
@@ -56,10 +57,9 @@ struct ShaderMaterialData {
 };
 
 struct DynamicData {
-    lights_data: array<LightData, 64>;//MAX_NUM_LIGHTS>;
     textures_data: array<TextureData, 512>;//MAX_NUM_TEXTURES>;
     materials_data: array<ShaderMaterialData, 512>;//MAX_NUM_MATERIALS>;
-    num_lights: u32;
+    lights_data: array<LightData, 64>;//MAX_NUM_LIGHTS>;
 };
 
 
@@ -260,30 +260,30 @@ fn fs_main(v: VertexOutput) -> @location(0) vec4<f32> {
 
     var color_from_light = color.rgb;
     var i = 0u;
-	loop {
-        if (i >= dynamic_data.num_lights) {
+    loop {
+        if (i >= constant_data.num_lights) {
             break;
         }
         let light_color = dynamic_data.lights_data[i].color.rgb;
         let ambient_strength = dynamic_data.lights_data[i].intensity / 10000.;
-	    let ambient_color = light_color * ambient_strength;
-    
-	    let light_dir = normalize(dynamic_data.lights_data[i].position - v.clip_position.xyz);
-	    
-	    let diffuse_strength = max(dot(v.normal, light_dir), 0.0);
-	    let diffuse_color = light_color * diffuse_strength;
-	    let view_pos = vec3<f32>(constant_data.view[3][0], constant_data.view[3][1], constant_data.view[3][2]);
-	    let view_dir = normalize(view_pos - v.clip_position.xyz);
+        let ambient_color = light_color * ambient_strength;
+
+        let light_dir = normalize(dynamic_data.lights_data[i].position - v.clip_position.xyz);
+
+        let diffuse_strength = max(dot(v.normal, light_dir), 0.0);
+        let diffuse_color = light_color * diffuse_strength;
+        let view_pos = vec3<f32>(constant_data.view[3][0], constant_data.view[3][1], constant_data.view[3][2]);
+        let view_dir = normalize(view_pos - v.clip_position.xyz);
     
 	    //Blinn-Phong
-	    let half_dir = normalize(view_dir + light_dir);
-	    let specular_strength = pow(max(dot(v.normal, half_dir), 0.0), 32.);
-    
-	    let specular_color = specular_strength * light_color;
-    
+        let half_dir = normalize(view_dir + light_dir);
+        let specular_strength = pow(max(dot(v.normal, half_dir), 0.0), 32.);
+
+        let specular_color = specular_strength * light_color;
+
         color_from_light = color_from_light * (ambient_color + diffuse_color + specular_color);
         i = i + 1u;
-	}
+    }
 
     return vec4<f32>(color_from_light.rgb, color.a);
 }

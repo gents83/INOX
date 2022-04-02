@@ -1,6 +1,11 @@
+use std::mem::size_of;
+
+use inox_resources::HashBuffer;
+
 use crate::{
-    DataBuffer, LightData, RenderContext, ShaderMaterialData, TextureData, MAX_NUM_LIGHTS,
-    MAX_NUM_MATERIALS, MAX_NUM_TEXTURES,
+    DataBuffer, LightData, LightId, Material, MaterialId, RenderContext, ShaderMaterialData,
+    TextureData, TextureId, TextureType, INVALID_INDEX, MAX_NUM_LIGHTS, MAX_NUM_MATERIALS,
+    MAX_NUM_TEXTURES,
 };
 
 pub const CONSTANT_DATA_FLAGS_NONE: u32 = 0;
@@ -14,6 +19,7 @@ pub struct ConstantData {
     pub screen_width: f32,
     pub screen_height: f32,
     pub flags: u32,
+    pub num_lights: u32,
 }
 
 impl Default for ConstantData {
@@ -24,34 +30,24 @@ impl Default for ConstantData {
             screen_width: 0.,
             screen_height: 0.,
             flags: CONSTANT_DATA_FLAGS_NONE,
-        }
-    }
-}
-
-#[repr(C, align(4))]
-#[derive(Debug, PartialEq, Clone, Copy)]
-pub struct DynamicData {
-    pub light_data: [LightData; MAX_NUM_LIGHTS],
-    pub textures_data: [TextureData; MAX_NUM_TEXTURES],
-    pub materials_data: [ShaderMaterialData; MAX_NUM_MATERIALS],
-    pub num_lights: u32,
-}
-
-impl Default for DynamicData {
-    fn default() -> Self {
-        Self {
-            light_data: [LightData::default(); MAX_NUM_LIGHTS],
-            textures_data: [TextureData::default(); MAX_NUM_TEXTURES],
-            materials_data: [ShaderMaterialData::default(); MAX_NUM_MATERIALS],
             num_lights: 0,
         }
     }
 }
 
 #[derive(Default)]
+struct DynamicData {
+    textures_data: HashBuffer<TextureId, TextureData, MAX_NUM_TEXTURES>,
+    materials_data: HashBuffer<MaterialId, ShaderMaterialData, MAX_NUM_MATERIALS>,
+    lights_data: HashBuffer<LightId, LightData, MAX_NUM_LIGHTS>,
+}
+
+#[derive(Default)]
 pub struct BindingData {
-    pub constant_data: DataBuffer<ConstantData, 1>,
-    pub dynamic_data: DataBuffer<DynamicData, 1>,
+    constant_data: ConstantData,
+    dynamic_data: DynamicData,
+    constant_data_buffer: DataBuffer,
+    dynamic_data_buffer: DataBuffer,
     data_bind_group_layout: Option<wgpu::BindGroupLayout>,
     data_bind_group: Option<wgpu::BindGroup>,
 }
@@ -65,41 +61,73 @@ impl BindingData {
     }
 
     pub fn send_to_gpu(&mut self, context: &RenderContext) {
-        self.constant_data.send_to_gpu(context);
-        self.dynamic_data.send_to_gpu(context);
+        self.constant_data_buffer
+            .init::<ConstantData>(context, size_of::<ConstantData>() as _);
 
-        if self.data_bind_group.is_none() {
-            let (data_bind_group_layout, data_bind_group) =
-                Self::create_data(context, &mut self.constant_data, &mut self.dynamic_data);
-            self.data_bind_group = Some(data_bind_group);
-            self.data_bind_group_layout = Some(data_bind_group_layout);
-        }
+        self.constant_data.num_lights = self.dynamic_data.lights_data.item_count() as _;
+
+        self.constant_data_buffer
+            .add_to_gpu_buffer(context, &[self.constant_data]);
+
+        let total_size = size_of::<TextureData>() * MAX_NUM_TEXTURES
+            + size_of::<ShaderMaterialData>() * MAX_NUM_MATERIALS
+            + size_of::<LightData>() * MAX_NUM_LIGHTS;
+        self.dynamic_data_buffer
+            .init::<DynamicData>(context, total_size as _);
+        self.dynamic_data_buffer
+            .add_to_gpu_buffer(context, self.dynamic_data.textures_data.data());
+        self.dynamic_data_buffer
+            .add_to_gpu_buffer(context, self.dynamic_data.materials_data.data());
+        self.dynamic_data_buffer
+            .add_to_gpu_buffer(context, self.dynamic_data.lights_data.data());
+
+        self.init_bind_group(context);
     }
 
     pub fn constant_data_mut(&mut self) -> &mut ConstantData {
-        &mut self.constant_data.data_mut()[0]
+        &mut self.constant_data
     }
 
-    pub fn light_data_mut(&mut self) -> &mut [LightData] {
-        &mut self.dynamic_data.data_mut()[0].light_data
+    pub fn set_light_data(&mut self, light_id: &LightId, data: LightData) -> usize {
+        self.dynamic_data.lights_data.insert(light_id, data)
     }
 
-    pub fn textures_data_mut(&mut self) -> &mut [TextureData] {
-        &mut self.dynamic_data.data_mut()[0].textures_data
+    pub fn set_texture_data(&mut self, texture_id: &TextureId, data: TextureData) -> usize {
+        self.dynamic_data.textures_data.insert(texture_id, data)
     }
 
-    pub fn material_data_mut(&mut self) -> &mut [ShaderMaterialData] {
-        &mut self.dynamic_data.data_mut()[0].materials_data
-    }
-    pub fn set_num_lights(&mut self, num_lights: usize) {
-        self.dynamic_data.data_mut()[0].num_lights = num_lights as _;
+    pub fn set_material_data(&mut self, material_id: &MaterialId, material: &Material) -> usize {
+        let mut textures_indices = [INVALID_INDEX; TextureType::Count as _];
+        material
+            .textures()
+            .iter()
+            .enumerate()
+            .for_each(|(i, handle_texture)| {
+                if let Some(texture) = handle_texture {
+                    textures_indices[i] = texture.get().uniform_index() as _;
+                }
+            });
+        let shader_material_data = ShaderMaterialData {
+            textures_indices,
+            textures_coord_set: *material.textures_coords_set(),
+            roughness_factor: material.roughness_factor(),
+            metallic_factor: material.metallic_factor(),
+            alpha_cutoff: material.alpha_cutoff(),
+            alpha_mode: material.alpha_mode() as _,
+            base_color: material.base_color().into(),
+            emissive_color: material.emissive_color().into(),
+            diffuse_color: material.diffuse_color().into(),
+            specular_color: material.specular_color().into(),
+        };
+        self.dynamic_data
+            .materials_data
+            .insert(material_id, shader_material_data)
     }
 
-    fn create_data(
-        render_context: &RenderContext,
-        constant_data: &mut DataBuffer<ConstantData, 1>,
-        dynamic_data: &mut DataBuffer<DynamicData, 1>,
-    ) -> (wgpu::BindGroupLayout, wgpu::BindGroup) {
+    fn init_bind_group(&mut self, render_context: &RenderContext) {
+        if self.data_bind_group.is_some() && self.data_bind_group_layout.is_some() {
+            return;
+        }
         let typename = std::any::type_name::<Self>()
             .split(':')
             .collect::<Vec<&str>>()
@@ -145,16 +173,16 @@ impl BindingData {
                 entries: &[
                     wgpu::BindGroupEntry {
                         binding: 0,
-                        resource: constant_data.data_buffer().as_entire_binding(),
+                        resource: self.constant_data_buffer.gpu_buffer().as_entire_binding(),
                     },
                     wgpu::BindGroupEntry {
                         binding: 1,
-                        resource: dynamic_data.data_buffer().as_entire_binding(),
+                        resource: self.dynamic_data_buffer.gpu_buffer().as_entire_binding(),
                     },
                 ],
                 label: Some(label.as_str()),
             });
-
-        (data_bind_group_layout, data_bind_group)
+        self.data_bind_group = Some(data_bind_group);
+        self.data_bind_group_layout = Some(data_bind_group_layout);
     }
 }

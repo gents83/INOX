@@ -143,12 +143,16 @@ where
         */
         self.data[start..(start + data.len())].clone_from_slice(&data[..data.len()]);
     }
-    pub fn swap(&mut self, index: usize, other: usize) -> bool {
-        if index == other {
+    pub fn swap(&mut self, mut index: usize, mut other: usize) -> bool {
+        if index == other || self.data.is_empty() {
             return false;
         }
-        debug_assert!(index <= self.data.len());
-        debug_assert!(other <= self.data.len());
+        if other >= self.data.len() {
+            other = self.data.len() - 1;
+        }
+        if index >= self.data.len() {
+            index = self.data.len() - 1;
+        }
         if let Some(index_a) = self.occupied.iter().position(|b| b.range.start == index) {
             if let Some(index_b) = self.occupied.iter().position(|b| b.range.start == other) {
                 self.data.swap(index, other);
@@ -238,7 +242,7 @@ where
     }
     pub fn for_each_data<F>(&self, mut f: F)
     where
-        F: FnMut(usize, &T),
+        F: FnMut(usize, &ResourceId, &T),
     {
         self.occupied.iter().for_each(|b| {
             let func = &mut f;
@@ -246,7 +250,7 @@ where
                 .iter()
                 .enumerate()
                 .for_each(|(i, d)| {
-                    func(b.range.start + i, d);
+                    func(b.range.start + i, &b.id, d);
                 });
         });
     }

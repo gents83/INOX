@@ -1,8 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use crate::{
-    MaterialAlphaMode, MaterialData, Pipeline, ShaderMaterialData, Texture, TextureId, TextureType,
-    INVALID_INDEX,
+    MaterialAlphaMode, MaterialData, Pipeline, Texture, TextureId, TextureType, INVALID_INDEX,
 };
 
 use inox_math::Vector4;
@@ -25,6 +24,7 @@ pub struct Material {
     uniform_index: i32,
     filepath: PathBuf,
     textures: [Handle<Texture>; TextureType::Count as _], // use specular glossiness if specular_glossiness_texture set
+    textures_coords_set: [u32; TextureType::Count as _],
     roughness_factor: f32,
     metallic_factor: f32,
     alpha_cutoff: f32,
@@ -88,6 +88,7 @@ impl DataTypeResource for Material {
             uniform_index: INVALID_INDEX,
             filepath: PathBuf::new(),
             textures: Default::default(),
+            textures_coords_set: Default::default(),
             roughness_factor: 1.,
             metallic_factor: 1.,
             alpha_cutoff: 1.,
@@ -129,6 +130,10 @@ impl DataTypeResource for Material {
                 textures[i] = Some(texture);
             }
         }
+        let mut textures_coords_set: [u32; TextureType::Count as _] = Default::default();
+        for (i, t) in material_data.texcoords_set.iter().enumerate() {
+            textures_coords_set[i] = *t as _;
+        }
 
         let pipeline = if material_data.pipeline.as_os_str().is_empty() {
             None
@@ -146,6 +151,7 @@ impl DataTypeResource for Material {
             message_hub: message_hub.clone(),
             shared_data: shared_data.clone(),
             textures,
+            textures_coords_set,
             roughness_factor: material_data.roughness_factor,
             metallic_factor: material_data.metallic_factor,
             alpha_cutoff: material_data.alpha_cutoff,
@@ -184,36 +190,20 @@ impl Material {
         self.uniform_index
     }
 
-    pub fn update_uniform(&mut self, uniform_index: u32, data: &mut ShaderMaterialData) -> bool {
+    pub fn update_uniform(&mut self, uniform_index: u32) -> bool {
         let mut is_changed = false;
         if self.uniform_index != uniform_index as i32 {
             is_changed = true;
             self.uniform_index = uniform_index as _;
         }
-        data.roughness_factor = self.roughness_factor;
-        data.metallic_factor = self.metallic_factor;
-        data.alpha_cutoff = self.alpha_cutoff;
-        data.alpha_mode = self.alpha_mode as _;
-        data.base_color = self.base_color.into();
-        data.emissive_color = self.emissive_color.into();
-        data.diffuse_color = self.diffuse_color.into();
-        data.specular_color = self.specular_color.into();
-        data.textures_indices
-            .iter_mut()
-            .enumerate()
-            .for_each(|(i, texture_index)| {
-                if let Some(texture) = &self.textures[i] {
-                    if *texture_index != texture.get().uniform_index() as i32 {
-                        is_changed = true;
-                        *texture_index = texture.get().uniform_index() as _;
-                    }
-                }
-            });
         is_changed
     }
 
     pub fn textures(&self) -> &[Handle<Texture>; TextureType::Count as _] {
         &self.textures
+    }
+    pub fn textures_coords_set(&self) -> &[u32; TextureType::Count as _] {
+        &self.textures_coords_set
     }
     pub fn has_texture_id(&self, texture_id: &TextureId) -> bool {
         let mut has_texture = false;
