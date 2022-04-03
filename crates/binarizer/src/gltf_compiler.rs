@@ -1,6 +1,7 @@
 use std::{
     fs::{self, create_dir_all, File},
     io::{Seek, SeekFrom},
+    mem::size_of,
     path::{Path, PathBuf},
 };
 
@@ -17,13 +18,13 @@ use gltf::{
 };
 
 use inox_graphics::{
-    LightData, LightType, MaterialAlphaMode, MaterialData, MeshData, TextureType, VertexData,
-    MAX_TEXTURE_COORDS_SETS,
+    utils::to_u8_slice, LightData, LightType, MaterialAlphaMode, MaterialData, MeshData,
+    TextureType, VertexData, MAX_TEXTURE_COORDS_SETS,
 };
+use inox_log::debug_log;
 use inox_math::{Mat4Ops, Matrix4, NewAngle, Parser, Radians, Vector2, Vector3, Vector4};
 use inox_messenger::MessageHubRc;
 use inox_nodes::LogicData;
-use inox_log::debug_log;
 use inox_resources::{Data, SharedDataRc};
 use inox_scene::{CameraData, ObjectData, SceneData};
 use inox_serialize::{
@@ -304,8 +305,47 @@ impl GltfCompiler {
     ) -> PathBuf {
         let vertices = self.extract_mesh_data(path, primitive);
         let indices = self.extract_indices(path, primitive);
+
+        let mut old_vertices = Vec::new();
+        vertices.iter().for_each(|v| {
+            old_vertices.push([
+                v.pos.x,
+                v.pos.y,
+                v.pos.z,
+                v.normal.x,
+                v.normal.y,
+                v.normal.z,
+                v.tex_coord[0].x,
+                v.tex_coord[0].y,
+            ]);
+        });
+
+        let (num_vertices, vertices_remap_table) =
+            meshopt::generate_vertex_remap(old_vertices.as_slice(), Some(indices.as_slice()));
+        let new_indices = meshopt::remap_index_buffer(
+            Some(indices.as_slice()),
+            num_vertices,
+            vertices_remap_table.as_slice(),
+        );
+        let new_vertices = meshopt::remap_vertex_buffer(
+            vertices.as_slice(),
+            num_vertices,
+            vertices_remap_table.as_slice(),
+        );
+        let mut new_indices = meshopt::optimize_vertex_cache(new_indices.as_slice(), num_vertices);
+        let vertices_bytes = to_u8_slice(new_vertices.as_slice());
+        let vertex_stride = size_of::<VertexData>();
+        let vertex_data_adapter = meshopt::VertexDataAdapter::new(vertices_bytes, vertex_stride, 0);
+        meshopt::optimize_overdraw_in_place(
+            new_indices.as_mut_slice(),
+            vertex_data_adapter.as_ref().unwrap(),
+            1.05,
+        );
+        let new_vertices =
+            meshopt::optimize_vertex_fetch(new_indices.as_mut_slice(), new_vertices.as_slice());
+
         let mut mesh_data = MeshData::default();
-        mesh_data.append_mesh(vertices.as_slice(), indices.as_slice());
+        mesh_data.append_mesh(new_vertices.as_slice(), new_indices.as_slice());
         mesh_data.material = material_path.to_path_buf();
 
         Self::create_file(

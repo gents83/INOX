@@ -9,6 +9,7 @@ build = "build.rs"
 crate-type = ["lib"]
 
 [dependencies]
+meshopt = { path = "../../extern/meshopt-rs" }
 gltf = { path = "../../extern/gltf", features = ["extras", "names", "KHR_lights_punctual", "KHR_materials_pbrSpecularGlossiness"] }
 inox_filesystem = { path = "../filesystem" }
 inox_graphics = { path = "../graphics" }
