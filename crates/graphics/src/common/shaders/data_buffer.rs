@@ -9,6 +9,8 @@ pub struct DataBuffer {
 
 impl DataBuffer {
     pub fn init<T>(&mut self, context: &RenderContext, size: u64, usage: wgpu::BufferUsages) {
+        inox_profiler::scoped_profile!("DataBuffer::init");
+
         if !self.is_valid() || self.size != size {
             let typename = std::any::type_name::<T>()
                 .split(':')
@@ -29,6 +31,7 @@ impl DataBuffer {
         self.size = size;
     }
     pub fn add_to_gpu_buffer<T>(&mut self, context: &RenderContext, data: &[T]) {
+        inox_profiler::scoped_profile!("DataBuffer::add_to_gpu_buffer");
         context.queue.write_buffer(
             self.gpu_buffer.as_ref().unwrap(),
             self.offset,

@@ -294,6 +294,8 @@ impl GraphicsMesh {
     }
 
     pub fn send_to_gpu(&mut self, context: &RenderContext) {
+        inox_profiler::scoped_profile!("graphics_mesh::send_to_gpu");
+
         self.vertex_buffer
             .send_to_gpu(&context.device, &context.queue);
         self.index_buffer

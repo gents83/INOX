@@ -1,8 +1,7 @@
 use crate::{
-    platform::{is_indirect_mode_enabled, required_gpu_features},
-    BindingData, GraphicsMesh, Light, LightId, Material, MaterialId, Mesh, MeshId, Pipeline,
-    RenderPass, RenderPassDrawContext, RenderPassId, Texture, TextureHandler, TextureId,
-    CONSTANT_DATA_FLAGS_SUPPORT_SRGB, GRAPHIC_MESH_UID,
+    platform::required_gpu_features, BindingData, GraphicsMesh, Light, LightId, Material,
+    MaterialId, Mesh, MeshId, Pipeline, RenderPass, RenderPassDrawContext, RenderPassId, Texture,
+    TextureHandler, TextureId, CONSTANT_DATA_FLAGS_SUPPORT_SRGB, GRAPHIC_MESH_UID,
 };
 use inox_log::debug_log;
 use inox_math::{matrix4_to_array, Matrix4, Vector2};
@@ -337,17 +336,43 @@ impl Renderer {
         self.graphics_mesh.get_mut().remove_mesh(mesh_id);
     }
 
-    pub fn prepare(&self) {
+    fn prepare(&self) {
+        inox_profiler::scoped_profile!("renderer::prepare");
+
         let render_context = self.context.get();
         let render_context = render_context.as_ref().unwrap();
-        let graphics_mesh = &mut self.graphics_mesh.get_mut();
+
+        let mut render_format = &render_context.config.format;
+        let texture_handler = &render_context.texture_handler;
+        let bind_group_layouts = vec![
+            self.shader_data.bind_group_layout(),
+            texture_handler.bind_group_layout(),
+        ];
+
         self.shared_data
             .for_each_resource_mut(|_id, r: &mut RenderPass| {
-                r.prepare(render_context, graphics_mesh);
+                let graphics_mesh = &mut self.graphics_mesh.get_mut();
+
+                if let Some(texture) = r.render_target() {
+                    if let Some(atlas) = texture_handler.get_texture_atlas(texture.id()) {
+                        render_format = atlas.texture_format();
+                    }
+                } else {
+                    render_format = &render_context.config.format;
+                }
+
+                r.prepare(
+                    render_context,
+                    graphics_mesh,
+                    render_format,
+                    &bind_group_layouts,
+                );
             });
     }
 
     pub fn draw(&self) {
+        inox_profiler::scoped_profile!("renderer::draw");
+
         if let Ok(output) = self
             .context
             .get()
@@ -374,7 +399,6 @@ impl Renderer {
                 let render_context = self.context.get();
                 let render_context = render_context.as_ref().unwrap();
                 let texture_handler = &render_context.texture_handler;
-                let graphics_mesh = &self.graphics_mesh.get();
 
                 let bind_group_layouts = vec![
                     self.shader_data.bind_group_layout(),
@@ -404,7 +428,7 @@ impl Renderer {
                             encoder: &mut encoder,
                             texture_view: render_target,
                             format: render_format,
-                            graphics_mesh,
+                            graphics_mesh: &self.graphics_mesh,
                             bind_groups: bind_group.as_slice(),
                             bind_group_layouts: bind_group_layouts.as_slice(),
                         });
@@ -436,12 +460,7 @@ impl Renderer {
             let render_context = render_context.as_ref().unwrap();
             let graphics_mesh = &mut self.graphics_mesh.get_mut();
             graphics_mesh.send_to_gpu(render_context);
-
-            if is_indirect_mode_enabled() {
-                self.shared_data.for_each_resource(|_id, r: &RenderPass| {
-                    r.prepare(render_context, graphics_mesh);
-                });
-            }
         }
+        self.prepare();
     }
 }

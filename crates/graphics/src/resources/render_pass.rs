@@ -26,7 +26,7 @@ pub struct RenderPassDrawContext<'a> {
     pub encoder: &'a mut wgpu::CommandEncoder,
     pub texture_view: &'a wgpu::TextureView,
     pub format: &'a wgpu::TextureFormat,
-    pub graphics_mesh: &'a GraphicsMesh,
+    pub graphics_mesh: &'a Resource<GraphicsMesh>,
     pub bind_groups: &'a [&'a wgpu::BindGroup],
     pub bind_group_layouts: &'a [&'a wgpu::BindGroupLayout],
 }
@@ -174,32 +174,39 @@ impl RenderPass {
         }
     }
 
-    pub fn prepare(&self, render_context: &RenderContext, graphics_mesh: &mut GraphicsMesh) {
-        if graphics_mesh.vertex_count() == 0 || graphics_mesh.vertex_buffer().is_none() {
+    pub fn prepare(
+        &mut self,
+        render_context: &RenderContext,
+        graphics_mesh: &mut GraphicsMesh,
+        format: &wgpu::TextureFormat,
+        bind_group_layouts: &[&wgpu::BindGroupLayout],
+    ) {
+        if graphics_mesh.vertex_count() == 0 {
             return;
         }
-        self.pipelines.iter().for_each(|pipeline| {
+        self.pipelines.iter_mut().for_each(|pipeline| {
             let pipeline_id = pipeline.id();
             let instance_count = graphics_mesh.instance_count(pipeline_id);
-            if instance_count > 0
-                && is_indirect_mode_enabled()
-                && self.data.render_mode == RenderMode::Indirect
-            {
-                graphics_mesh.fill_command_buffer(render_context, pipeline_id);
+            if instance_count > 0 {
+                if !pipeline
+                    .get_mut()
+                    .init(render_context, bind_group_layouts, format)
+                {
+                    return;
+                }
+                if is_indirect_mode_enabled() && self.data.render_mode == RenderMode::Indirect {
+                    graphics_mesh.fill_command_buffer(render_context, pipeline_id);
+                }
             }
         });
     }
 
     pub fn draw(&self, render_pass_context: RenderPassDrawContext) {
-        let graphics_mesh = render_pass_context.graphics_mesh;
+        let graphics_mesh = render_pass_context.graphics_mesh.get();
         if graphics_mesh.vertex_count() == 0 || graphics_mesh.vertex_buffer().is_none() {
             return;
         }
-        let mut pipelines = self
-            .pipelines
-            .iter()
-            .map(|h| h.get_mut())
-            .collect::<Vec<_>>();
+        let pipelines = self.pipelines.iter().map(|h| h.get()).collect::<Vec<_>>();
         let pipelines_id = self.pipelines.iter().map(|h| h.id()).collect::<Vec<_>>();
         let color_operations = self.color_operations(wgpu::Color::BLACK);
         let label = format!("RenderPass {}", self.data.name);
@@ -224,73 +231,60 @@ impl RenderPass {
                 render_pass.set_bind_group(i as u32, bind_group, &[]);
             });
 
-        pipelines.iter_mut().enumerate().for_each(|(i, pipeline)| {
+        pipelines.iter().enumerate().for_each(|(i, pipeline)| {
             let pipeline_id = pipelines_id[i];
             let instance_count = graphics_mesh.instance_count(pipeline_id);
-            if instance_count > 0 {
-                if !pipeline.init(
-                    render_pass_context.context,
-                    render_pass_context.bind_group_layouts,
-                    render_pass_context.format,
-                ) {
-                    return;
+            if instance_count > 0 && pipeline.is_initialized() {
+                render_pass.set_pipeline(pipeline.render_pipeline());
+
+                if let Some(buffer_slice) = graphics_mesh.vertex_buffer() {
+                    render_pass.set_vertex_buffer(0, buffer_slice);
                 }
-                if pipeline.is_initialized() {
-                    render_pass.set_pipeline(pipeline.render_pipeline());
+                if let Some(instance_buffer) = graphics_mesh.instance_buffer(pipeline_id) {
+                    render_pass.set_vertex_buffer(1, instance_buffer);
+                }
+                if let Some(buffer_slice) = graphics_mesh.index_buffer() {
+                    render_pass.set_index_buffer(buffer_slice, wgpu::IndexFormat::Uint32);
+                }
 
-                    if let Some(buffer_slice) = graphics_mesh.vertex_buffer() {
-                        render_pass.set_vertex_buffer(0, buffer_slice);
-                    }
-                    if let Some(instance_buffer) = graphics_mesh.instance_buffer(pipeline_id) {
-                        render_pass.set_vertex_buffer(1, instance_buffer);
-                    }
-                    if let Some(buffer_slice) = graphics_mesh.index_buffer() {
-                        render_pass.set_index_buffer(buffer_slice, wgpu::IndexFormat::Uint32);
-                    }
+                if graphics_mesh.index_count() > 0 {
+                    if is_indirect_mode_enabled() && self.data.render_mode == RenderMode::Indirect {
+                        let commands_count = graphics_mesh.commands_count(pipeline_id);
 
-                    if render_pass_context.graphics_mesh.index_count() > 0 {
-                        if is_indirect_mode_enabled()
-                            && self.data.render_mode == RenderMode::Indirect
-                        {
-                            let commands_count = graphics_mesh.commands_count(pipeline_id);
-
-                            if let Some(indirect_buffer) =
-                                graphics_mesh.commands_buffer(pipeline_id)
-                            {
-                                render_pass.multi_draw_indexed_indirect(
-                                    indirect_buffer,
-                                    0,
-                                    commands_count as u32,
-                                );
-                            }
-                        } else {
-                            graphics_mesh.for_each_instance(
-                                pipeline_id,
-                                |_mesh_id, index, instance_data, vertices_range, indices_range| {
-                                    let x = (instance_data.draw_area[0] as u32)
-                                        .clamp(0, render_pass_context.context.config.width);
-                                    let y = (instance_data.draw_area[1] as u32)
-                                        .clamp(0, render_pass_context.context.config.height);
-                                    let width = (instance_data.draw_area[2] as u32)
-                                        .clamp(0, render_pass_context.context.config.width - x);
-                                    let height = (instance_data.draw_area[3] as u32)
-                                        .clamp(0, render_pass_context.context.config.height - y);
-
-                                    render_pass.set_scissor_rect(x, y, width, height);
-                                    render_pass.draw_indexed(
-                                        indices_range.start as _..indices_range.end as _,
-                                        vertices_range.start as _,
-                                        index as _..(index as u32 + 1),
-                                    );
-                                },
+                        if let Some(indirect_buffer) = graphics_mesh.commands_buffer(pipeline_id) {
+                            render_pass.multi_draw_indexed_indirect(
+                                indirect_buffer,
+                                0,
+                                commands_count as u32,
                             );
                         }
                     } else {
-                        render_pass.draw(
-                            0..render_pass_context.graphics_mesh.vertex_count() as u32,
-                            0..instance_count as u32,
+                        graphics_mesh.for_each_instance(
+                            pipeline_id,
+                            |_mesh_id, index, instance_data, vertices_range, indices_range| {
+                                let x = (instance_data.draw_area[0] as u32)
+                                    .clamp(0, render_pass_context.context.config.width);
+                                let y = (instance_data.draw_area[1] as u32)
+                                    .clamp(0, render_pass_context.context.config.height);
+                                let width = (instance_data.draw_area[2] as u32)
+                                    .clamp(0, render_pass_context.context.config.width - x);
+                                let height = (instance_data.draw_area[3] as u32)
+                                    .clamp(0, render_pass_context.context.config.height - y);
+
+                                render_pass.set_scissor_rect(x, y, width, height);
+                                render_pass.draw_indexed(
+                                    indices_range.start as _..indices_range.end as _,
+                                    vertices_range.start as _,
+                                    index as _..(index as u32 + 1),
+                                );
+                            },
                         );
                     }
+                } else {
+                    render_pass.draw(
+                        0..graphics_mesh.vertex_count() as u32,
+                        0..instance_count as u32,
+                    );
                 }
             }
         });

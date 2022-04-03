@@ -47,29 +47,30 @@ impl Meshes {
                 .shared_data
                 .get_resource::<GraphicsMesh>(&GRAPHIC_MESH_UID)
             {
-                let graphics_mesh = graphics_mesh.get();
-                data.vertices_count = graphics_mesh.vertex_count();
-                data.indices_count = graphics_mesh.index_count();
+                data.vertices_count = graphics_mesh.get().vertex_count();
+                data.indices_count = graphics_mesh.get().index_count();
 
                 let golden_ratio = (5.0_f32.sqrt() - 1.0) / 2.0; // 0.61803398875
                 let mut valid_meshes = Vec::new();
-                graphics_mesh.for_each_vertex_buffer_data(|mesh_id: &MeshId, range| {
-                    let range = range.clone();
-                    if let Some(entry) = data.meshes_names.get_mut(mesh_id) {
-                        entry.1 = range;
-                    } else {
-                        let h = valid_meshes.len() as f32 * golden_ratio;
-                        data.meshes_names.insert(
-                            *mesh_id,
-                            (
-                                "EMPTY".to_string(),
-                                range,
-                                Hsva::new(h, 0.85, 0.5, 1.0).into(),
-                            ),
-                        );
-                    }
-                    valid_meshes.push(*mesh_id);
-                });
+                graphics_mesh
+                    .get()
+                    .for_each_vertex_buffer_data(|mesh_id: &MeshId, range| {
+                        let range = range.clone();
+                        if let Some(entry) = data.meshes_names.get_mut(mesh_id) {
+                            entry.1 = range;
+                        } else {
+                            let h = valid_meshes.len() as f32 * golden_ratio;
+                            data.meshes_names.insert(
+                                *mesh_id,
+                                (
+                                    "EMPTY".to_string(),
+                                    range,
+                                    Hsva::new(h, 0.85, 0.5, 1.0).into(),
+                                ),
+                            );
+                        }
+                        valid_meshes.push(*mesh_id);
+                    });
                 data.shared_data.for_each_resource(|handle, mesh: &Mesh| {
                     let name = mesh
                         .path()
@@ -96,17 +97,20 @@ impl Meshes {
                 data.pipeline_instances.clear();
                 data.shared_data
                     .for_each_resource(|handle, pipeline: &Pipeline| {
-                        let instances_count = graphics_mesh.instance_count(handle.id());
+                        let instances_count = graphics_mesh.get().instance_count(handle.id());
 
                         let mut instance_names = Vec::new();
-                        graphics_mesh.for_each_instance(handle.id(), |mesh_id, _, _, _, _| {
-                            let name = if let Some(entry) = data.meshes_names.get(mesh_id) {
-                                entry.0.clone()
-                            } else {
-                                "EMPTY".to_string()
-                            };
-                            instance_names.push(name);
-                        });
+                        graphics_mesh.get().for_each_instance(
+                            handle.id(),
+                            |mesh_id, _, _, _, _| {
+                                let name = if let Some(entry) = data.meshes_names.get(mesh_id) {
+                                    entry.0.clone()
+                                } else {
+                                    "EMPTY".to_string()
+                                };
+                                instance_names.push(name);
+                            },
+                        );
                         let name = pipeline
                             .path()
                             .file_stem()

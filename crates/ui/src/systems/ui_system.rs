@@ -169,8 +169,8 @@ impl UISystem {
                                 .get_mut()
                                 .set_indices(mesh_instance.id(), mesh.indices.as_slice());
 
+                            let mut graphics_mesh = graphics_mesh.get_mut();
                             for (i, v) in mesh.vertices.iter().enumerate() {
-                                let mut graphics_mesh = graphics_mesh.get_mut();
                                 let vertex = graphics_mesh.get_vertex_mut(vertices_range.start + i);
                                 vertex.pos = [v.pos.x * ui_scale, v.pos.y * ui_scale, 0.].into();
                                 vertex.tex_coord.iter_mut().for_each(|t| {

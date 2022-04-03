@@ -52,11 +52,6 @@ impl System for RenderingSystem {
             .unwrap()
             .add_job(&INDEPENDENT_JOB_ID, "Render Draw", move || {
                 {
-                    let mut renderer = renderer.write().unwrap();
-                    renderer.send_to_gpu();
-                }
-
-                {
                     let renderer = renderer.read().unwrap();
                     renderer.draw();
                 }

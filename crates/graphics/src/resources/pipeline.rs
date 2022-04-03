@@ -108,7 +108,9 @@ impl DataTypeResource for Pipeline {
         self
     }
     fn is_initialized(&self) -> bool {
-        self.vertex_shader.is_some() && self.fragment_shader.is_some()
+        self.vertex_shader.is_some()
+            && self.fragment_shader.is_some()
+            && self.render_pipeline.is_some()
     }
     fn deserialize_data(
         path: &std::path::Path,
