@@ -28,61 +28,65 @@ where
 
 impl<Id, Data, const MAX_COUNT: usize> HashBuffer<Id, Data, MAX_COUNT>
 where
-    Id: Eq + Hash + Copy,
+    Id: Eq + Hash + Copy + std::fmt::Debug,
     Data: Default,
 {
+    fn new_index(&self) -> usize {
+        if self.map.is_empty() {
+            return 0;
+        }
+        for i in 0..self.buffer.len() {
+            if self.map.iter().any(|(_, &j)| j == i) {
+                continue;
+            } else {
+                return i;
+            }
+        }
+        self.buffer.len()
+    }
     pub fn insert(&mut self, id: &Id, data: Data) -> usize {
         if let Some(index) = self.map.get(id) {
+            //inox_log::debug_log!("Trying to reinsert {:?} at {}", id, index);
+            //inox_log::debug_log!("Buffer len is {}", self.buffer.len());
             self.buffer[*index] = data;
             *index
         } else {
-            let count = self.map.len();
-            let mut new_index = count as i32;
-            self.map.iter().for_each(|(_, index)| {
-                let index = *index as i32;
-                if index <= new_index {
-                    new_index = index - 1;
-                }
-            });
-            if new_index >= 0 {
-                let index = new_index as usize;
-                self.map.insert(*id, index);
-                if index >= self.buffer.len() {
-                    self.buffer.push(data);
-                } else {
-                    self.buffer[index] = data;
-                }
-                return index;
-            }
-            self.map.insert(*id, count);
-
-            if MAX_COUNT == 0 {
+            let index = self.new_index();
+            self.map.insert(*id, index);
+            //inox_log::debug_log!("Inserting [{:?}] = {} ", *id, index);
+            if MAX_COUNT == 0 && index >= self.buffer.len() {
                 self.buffer.push(data);
             } else {
-                debug_assert!(
-                    count < MAX_COUNT,
-                    "Trying to insert more than {} elements",
-                    MAX_COUNT
-                );
-                self.buffer[count] = data;
+                self.buffer[index] = data;
             }
+            //inox_log::debug_log!("Buffer len is {}", self.buffer.len());
 
-            count
+            index
         }
     }
     pub fn move_to(&mut self, id: &Id, index: usize) {
         let old_index = *self.map.get(id).unwrap();
         if old_index != index {
-            if let Some(old_id) = self.id(index) {
-                self.map.insert(old_id, old_index);
+            //inox_log::debug_log!("Trying to swap {} in {}", old_index, index);
+            if old_index < self.buffer.len() {
+                if let Some(old_id) = self.id(index) {
+                    self.map.insert(old_id, old_index);
+                    //inox_log::debug_log!("Moving old [{:?}] = {} ", old_id, old_index);
+                }
             }
-            self.map.insert(*id, index);
+            if index < self.buffer.len() {
+                //inox_log::debug_log!("Moving new [{:?}] = {} ", *id, index);
+                self.map.insert(*id, index);
+            }
             if old_index < self.buffer.len() && index < self.buffer.len() {
                 self.buffer.swap(old_index, index);
             }
+            //inox_log::debug_log!("Buffer len is {}", self.buffer.len());
         }
     }
     pub fn remove(&mut self, id: &Id) -> Option<usize> {
+        //inox_log::debug_log!("Removing [{:?}]", *id);
+        //inox_log::debug_log!("Buffer len is {}", self.buffer.len());
         self.map.remove(id)
     }
     pub fn index(&self, id: &Id) -> Option<usize> {

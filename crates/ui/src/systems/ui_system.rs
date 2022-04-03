@@ -126,13 +126,15 @@ impl UISystem {
             )
         });
 
+        let mut index = 0;
         for (i, clipped_mesh) in clipped_meshes.into_iter().enumerate() {
             if let Primitive::Mesh(mesh) = clipped_mesh.primitive {
-                let draw_index = i as u32;
                 if mesh.vertices.is_empty() || mesh.indices.is_empty() {
                     self.ui_meshes[i].get_mut().set_visible(false);
                     continue;
                 }
+                let draw_index = index as u32;
+                index += 1;
 
                 let texture = match mesh.texture_id {
                     eguiTextureId::Managed(_) => self.ui_textures[&mesh.texture_id].clone(),
@@ -160,13 +162,15 @@ impl UISystem {
                         let (vertices_range, indices_range) = {
                             inox_profiler::scoped_profile!("ui_system::copy_vertex_data");
 
-                            let mut graphics_mesh = graphics_mesh.get_mut();
                             let vertices_range = graphics_mesh
+                                .get_mut()
                                 .reserve_vertices(mesh_instance.id(), mesh.vertices.len());
                             let indices_range = graphics_mesh
+                                .get_mut()
                                 .set_indices(mesh_instance.id(), mesh.indices.as_slice());
 
                             for (i, v) in mesh.vertices.iter().enumerate() {
+                                let mut graphics_mesh = graphics_mesh.get_mut();
                                 let vertex = graphics_mesh.get_vertex_mut(vertices_range.start + i);
                                 vertex.pos = [v.pos.x * ui_scale, v.pos.y * ui_scale, 0.].into();
                                 vertex.tex_coord.iter_mut().for_each(|t| {
