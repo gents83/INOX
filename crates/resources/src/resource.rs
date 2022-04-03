@@ -1,7 +1,7 @@
 use inox_messenger::MessageHubRc;
 use inox_uid::Uid;
 use std::{
-    any::Any,
+    any::{type_name, Any},
     sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard},
 };
 
@@ -84,11 +84,27 @@ where
 
     #[inline]
     pub fn get(&self) -> RwLockReadGuard<'_, T> {
+        inox_profiler::scoped_profile!(
+            "Resource<{}>::get",
+            type_name::<T>()
+                .split(':')
+                .collect::<Vec<&str>>()
+                .last()
+                .unwrap()
+        );
         self.data.read().unwrap()
     }
 
     #[inline]
     pub fn get_mut(&self) -> RwLockWriteGuard<'_, T> {
+        inox_profiler::scoped_profile!(
+            "Resource<{}>::get_mut",
+            type_name::<T>()
+                .split(':')
+                .collect::<Vec<&str>>()
+                .last()
+                .unwrap()
+        );
         self.data.write().unwrap()
     }
 }
@@ -123,6 +139,7 @@ pub fn swap_resource<T>(resource: &Resource<T>, other: &Resource<T>)
 where
     T: ResourceTrait,
 {
+    inox_profiler::scoped_profile!("swap_resource");
     resource
         .data
         .write()

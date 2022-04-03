@@ -46,7 +46,7 @@ impl Job {
     }
 
     pub fn execute(self) {
-        inox_profiler::scoped_profile!(self.name.as_str());
+        inox_profiler::scoped_profile!("{}", self.name);
         /*
         debug_log(
             "Starting {:?} - remaining {:?}",

@@ -66,16 +66,10 @@ impl Scheduler {
         for p in Phases::iterator() {
             if let Some(phase) = self.phases.get_mut(&p) {
                 let ok = if is_focused || phase.should_run_when_not_focused() {
-                    inox_profiler::scoped_profile!(
-                        format!("{}[{:?}]", "scheduler::run_phase", p).as_str()
-                    );
+                    inox_profiler::scoped_profile!("{}[{:?}]", "scheduler::run_phase", p);
                     let ok = phase.run(is_focused, job_receiver);
                     {
-                        inox_profiler::scoped_profile!(format!(
-                            "{}[{:?}]",
-                            "scheduler::wait_jobs", p
-                        )
-                        .as_str());
+                        inox_profiler::scoped_profile!("{}[{:?}]", "scheduler::wait_jobs", p);
                         let jobs_id_to_wait = phase.get_jobs_id_to_wait();
                         let mut should_wait = true;
                         while should_wait {

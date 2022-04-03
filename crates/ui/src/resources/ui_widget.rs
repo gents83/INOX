@@ -128,9 +128,7 @@ impl UIWidget {
     }
 
     pub fn execute(&mut self, ui_context: &Context) {
-        inox_profiler::scoped_profile!(
-            format!("{} {:?}", "ui_widget::execute", self.type_name).as_str()
-        );
+        inox_profiler::scoped_profile!("{} {:?}", "ui_widget::execute", self.type_name);
         (self.func)(self.data.as_mut(), ui_context);
     }
 }

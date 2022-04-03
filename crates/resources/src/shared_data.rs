@@ -217,6 +217,7 @@ impl SharedData {
     }
     #[inline]
     pub fn flush_resources(&self, message_hub: &MessageHubRc) {
+        inox_profiler::scoped_profile!("shared_data::flush_resources");
         for (type_id, rs) in self.storage.read().unwrap().iter() {
             if let Ok(mut rs) = rs.write() {
                 rs.flush(self, message_hub);
@@ -230,6 +231,7 @@ impl SharedData {
     }
     #[inline]
     pub fn handle_events(&self, f: impl LoadFunction) {
+        inox_profiler::scoped_profile!("shared_data::flush_resources");
         self.event_handlers
             .write()
             .unwrap()

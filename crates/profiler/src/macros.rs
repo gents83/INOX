@@ -129,10 +129,14 @@ macro_rules! write_profile_file {
         }
     };
 }
-
+/*
+($($t:tt)*) => {
+        (println!("[DEBUG]: {}", &format_args!($($t)*).to_string()))
+    }
+     */
 #[macro_export]
 macro_rules! scoped_profile {
-    ($string:expr) => {
+    ($($t:tt)*) => {
         use std::thread;
         use $crate::*;
 
@@ -144,8 +148,9 @@ macro_rules! scoped_profile {
         #[cfg(debug_assertions)]
         let _profile_scope = if let Some(profiler) = unsafe { &GLOBAL_PROFILER } {
             if profiler.is_started() {
+                let string = format!("{}", &format_args!($($t)*).to_string());
                 let scoped_profiler =
-                    Box::new($crate::ScopedProfile::new(profiler.clone(), "", $string));
+                    Box::new($crate::ScopedProfile::new(profiler.clone(), "", string.as_str()));
                 Some(scoped_profiler)
             } else {
                 None
