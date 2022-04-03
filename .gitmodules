@@ -43,3 +43,6 @@
 [submodule "extern/wasm-bindgen"]
 	path = extern/wasm-bindgen
 	url = https://github.com/rustwasm/wasm-bindgen
+[submodule "extern/meshopt-rs"]
+	path = extern/meshopt-rs
+	url = https://github.com/gwihlidal/meshopt-rs
