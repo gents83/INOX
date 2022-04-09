@@ -10,7 +10,8 @@ use inox_serialize::{inox_serializable::SerializableRegistryRc, read_from_file, 
 
 use crate::{
     CullingModeType, InstanceData, PipelineData, PolygonModeType, RenderContext, Shader,
-    VertexData, FRAGMENT_SHADER_ENTRY_POINT, SHADER_ENTRY_POINT, VERTEX_SHADER_ENTRY_POINT,
+    VertexBufferLayoutBuilder, VertexFormat, FRAGMENT_SHADER_ENTRY_POINT, SHADER_ENTRY_POINT,
+    VERTEX_SHADER_ENTRY_POINT,
 };
 
 pub type PipelineId = ResourceId;
@@ -111,6 +112,7 @@ impl DataTypeResource for Pipeline {
         self.vertex_shader.is_some()
             && self.fragment_shader.is_some()
             && self.render_pipeline.is_some()
+            && self.vertex_format() != 0
     }
     fn deserialize_data(
         path: &std::path::Path,
@@ -143,6 +145,9 @@ impl DataTypeResource for Pipeline {
 impl Pipeline {
     pub fn data(&self) -> &PipelineData {
         &self.data
+    }
+    pub fn vertex_format(&self) -> u32 {
+        VertexFormat::to_bits(self.data.vertex_format.as_slice())
     }
     pub fn render_pipeline(&self) -> &wgpu::RenderPipeline {
         self.render_pipeline.as_ref().unwrap()
@@ -209,7 +214,17 @@ impl Pipeline {
             context
                 .device
                 .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                    label: Some("Render Pipeline"),
+                    label: Some(
+                        format!(
+                            "Render Pipeline [{:?}]",
+                            self.path
+                                .file_stem()
+                                .unwrap_or_default()
+                                .to_str()
+                                .unwrap_or_default()
+                        )
+                        .as_str(),
+                    ),
                     layout: Some(&render_pipeline_layout),
                     vertex: wgpu::VertexState {
                         module: self.vertex_shader.as_ref().unwrap().get().module(),
@@ -219,7 +234,10 @@ impl Pipeline {
                             SHADER_ENTRY_POINT
                         },
                         buffers: &[
-                            VertexData::descriptor().build(),
+                            VertexBufferLayoutBuilder::create_from_vertex_data_attribute(
+                                &self.data.vertex_format,
+                            )
+                            .build(),
                             InstanceData::descriptor().build(),
                         ],
                     },

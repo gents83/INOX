@@ -5,7 +5,7 @@ use inox_math::Matrix4;
 use inox_resources::Data;
 use inox_serialize::{Deserialize, Serialize, SerializeFile};
 
-use crate::{LightData, ShaderMaterialData, TextureAtlas, TextureData};
+use crate::{LightData, ShaderMaterialData, TextureAtlas, TextureData, VertexFormat};
 
 #[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
 #[serde(crate = "inox_serialize")]
@@ -77,6 +77,7 @@ pub enum DrawMode {
 pub struct PipelineData {
     pub vertex_shader: PathBuf,
     pub fragment_shader: PathBuf,
+    pub vertex_format: Vec<VertexFormat>,
     pub culling: CullingModeType,
     pub mode: PolygonModeType,
     pub src_color_blend_factor: BlendFactor,
@@ -96,6 +97,7 @@ impl Default for PipelineData {
         Self {
             vertex_shader: PathBuf::new(),
             fragment_shader: PathBuf::new(),
+            vertex_format: Vec::new(),
             culling: CullingModeType::Back,
             mode: PolygonModeType::Fill,
             src_color_blend_factor: BlendFactor::One,
@@ -107,6 +109,9 @@ impl Default for PipelineData {
 }
 
 impl PipelineData {
+    pub fn is_valid(&self) -> bool {
+        !self.vertex_format.is_empty()
+    }
     pub fn canonicalize_paths(mut self) -> Self {
         let data_path = Data::data_folder();
         if !self.vertex_shader.to_str().unwrap().is_empty() {

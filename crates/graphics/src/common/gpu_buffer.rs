@@ -1,27 +1,19 @@
-use std::{any::type_name, ops::Range};
+use std::ops::Range;
 
-use inox_resources::{Buffer, BufferData, ResourceId};
+use inox_resources::{to_u8_slice, Buffer, BufferData, ResourceId};
 use wgpu::util::DeviceExt;
 
-use crate::utils::to_u8_slice;
-
-pub struct GpuBuffer<T, const U: u32>
-where
-    T: Clone,
-{
-    cpu_buffer: Buffer<T>,
+pub struct GpuBuffer<const U: u32> {
+    cpu_buffer: Buffer,
     gpu_buffer: Option<wgpu::Buffer>,
     is_dirty: bool,
     is_realloc_needed: bool,
 }
 
-impl<T, const U: u32> Default for GpuBuffer<T, U>
-where
-    T: Clone,
-{
+impl<const U: u32> Default for GpuBuffer<U> {
     fn default() -> Self {
         Self {
-            cpu_buffer: Buffer::<T>::default(),
+            cpu_buffer: Buffer::default(),
             gpu_buffer: None,
             is_dirty: false,
             is_realloc_needed: false,
@@ -29,59 +21,45 @@ where
     }
 }
 
-impl<T, const U: u32> Clone for GpuBuffer<T, U>
-where
-    T: Clone,
-{
-    fn clone(&self) -> Self {
-        Self {
-            cpu_buffer: self.cpu_buffer.clone(),
-            gpu_buffer: None,
-            is_dirty: true,
-            is_realloc_needed: true,
+impl<const U: u32> GpuBuffer<U> {
+    pub fn add_with_size(
+        &mut self,
+        id: &ResourceId,
+        value: &[u8],
+        item_size: usize,
+    ) -> Range<usize> {
+        if self.cpu_buffer.get(id).is_some() {
+            self.remove(id);
         }
-    }
-}
+        self.is_realloc_needed |= self.cpu_buffer.allocate_with_size(id, value, item_size);
+        self.is_dirty = true;
 
-impl<T, const U: u32> GpuBuffer<T, U>
-where
-    T: Clone,
-{
-    pub fn add(&mut self, id: &ResourceId, value: &[T]) -> Range<usize> {
+        self.cpu_buffer.get(id).unwrap().item_range()
+    }
+    pub fn add<T>(&mut self, id: &ResourceId, value: &[T]) -> Range<usize> {
         if self.cpu_buffer.get(id).is_some() {
             self.remove(id);
         }
         self.is_realloc_needed |= self.cpu_buffer.allocate(id, value);
         self.is_dirty = true;
 
-        self.cpu_buffer.get(id).unwrap().range.clone()
+        self.cpu_buffer.get(id).unwrap().item_range()
     }
-    pub fn reserve(&mut self, id: &ResourceId, count: usize) -> Range<usize>
-    where
-        T: Default,
-    {
-        let mut data = Vec::new();
-        data.resize_with(count, || T::default());
-        self.add(id, data.as_slice())
-    }
-    pub fn update(&mut self, start_index: u32, value: &[T]) {
-        self.cpu_buffer.update(start_index as _, value);
+    pub fn update<T>(&mut self, start_index: u32, data: &[T]) {
+        let data = to_u8_slice(data);
+        self.cpu_buffer.update(start_index as _, data);
         self.is_dirty = true;
-    }
-    pub fn swap(&mut self, index: u32, other: u32) {
-        if self.cpu_buffer.swap(index as _, other as _) {
-            self.is_dirty = true;
-        }
     }
     pub fn get(&self, id: &ResourceId) -> Option<&BufferData> {
         self.cpu_buffer.get(id)
     }
-    pub fn get_mut(&mut self, id: &ResourceId) -> Option<&mut [T]> {
-        self.cpu_buffer.get_mut(id)
-    }
     pub fn remove(&mut self, id: &ResourceId) {
         if self.cpu_buffer.remove_with_id(id) {
             self.is_dirty = true;
+        }
+
+        if self.cpu_buffer.is_empty() {
+            self.clear();
         }
     }
     pub fn is_empty(&self) -> bool {
@@ -102,22 +80,14 @@ where
         if self.is_realloc_needed || self.gpu_buffer.is_none() {
             self.create_gpu_buffer(device);
         } else if let Some(buffer) = &self.gpu_buffer {
-            let data = self.cpu_buffer.total_data();
+            let data = self.cpu_buffer.data();
             if data.is_empty() {
                 return;
             }
             inox_profiler::scoped_profile!("gpu_buffer::send_to_gpu - write_buffer");
-            queue.write_buffer(buffer, 0, to_u8_slice(data));
+            queue.write_buffer(buffer, 0, data);
         }
         self.is_dirty = false;
-    }
-
-    fn label(&self) -> &str {
-        type_name::<T>()
-            .split(':')
-            .collect::<Vec<&str>>()
-            .last()
-            .unwrap()
     }
 
     fn create_gpu_buffer(&mut self, device: &wgpu::Device) {
@@ -126,15 +96,15 @@ where
             inox_profiler::scoped_profile!("gpu_buffer::destroy_buffer");
             buffer.destroy();
         }
-        let data = self.cpu_buffer.total_data();
+        let data = self.cpu_buffer.data();
         if data.is_empty() {
             self.gpu_buffer = None;
             self.is_realloc_needed = false;
             return;
         }
         let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some(self.label()),
-            contents: to_u8_slice(data),
+            label: Some(format!("GpuBuffer {}", U).as_str()),
+            contents: data,
             usage: wgpu::BufferUsages::from_bits(U).unwrap() | wgpu::BufferUsages::COPY_DST,
         });
         self.gpu_buffer = Some(buffer);
@@ -142,7 +112,7 @@ where
     }
 
     pub fn len(&self) -> usize {
-        self.cpu_buffer.len()
+        self.cpu_buffer.item_count()
     }
     pub fn for_each_occupied<F>(&self, f: &mut F)
     where
@@ -156,30 +126,18 @@ where
     {
         self.cpu_buffer.for_each_free(f);
     }
-    pub fn for_each_data<F>(&self, f: F)
+    pub fn for_each_data<F, T>(&self, f: F)
     where
         F: FnMut(usize, &ResourceId, &T),
     {
         self.cpu_buffer.for_each_data(f);
-    }
-    pub fn data_at_index(&self, index: u32) -> &T {
-        self.cpu_buffer.data_at_index(index as _)
-    }
-    pub fn data_at_index_mut(&mut self, index: u32) -> &mut T {
-        self.cpu_buffer.data_at_index_mut(index as _)
-    }
-    pub fn cpu_buffer(&self) -> &[T] {
-        self.cpu_buffer.total_data()
     }
     pub fn gpu_buffer(&self) -> Option<&wgpu::Buffer> {
         self.gpu_buffer.as_ref()
     }
 }
 
-impl<T, const U: u32> Drop for GpuBuffer<T, U>
-where
-    T: Clone,
-{
+impl<const U: u32> Drop for GpuBuffer<U> {
     fn drop(&mut self) {
         self.clear();
     }

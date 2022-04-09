@@ -18,14 +18,14 @@ use gltf::{
 };
 
 use inox_graphics::{
-    utils::to_u8_slice, LightData, LightType, MaterialAlphaMode, MaterialData, MeshData,
-    TextureType, VertexData, MAX_TEXTURE_COORDS_SETS,
+    LightData, LightType, MaterialAlphaMode, MaterialData, MeshData, TextureType, VertexData,
+    VertexFormat, MAX_TEXTURE_COORDS_SETS,
 };
 use inox_log::debug_log;
 use inox_math::{Mat4Ops, Matrix4, NewAngle, Parser, Radians, Vector2, Vector3, Vector4};
 use inox_messenger::MessageHubRc;
 use inox_nodes::LogicData;
-use inox_resources::{Data, SharedDataRc};
+use inox_resources::{to_u8_slice, Data, SharedDataRc};
 use inox_scene::{CameraData, ObjectData, SceneData};
 use inox_serialize::{
     deserialize, inox_serializable::SerializableRegistryRc, Deserialize, Serialize, SerializeFile,
@@ -344,9 +344,9 @@ impl GltfCompiler {
         let new_vertices =
             meshopt::optimize_vertex_fetch(new_indices.as_mut_slice(), new_vertices.as_slice());
 
-        let mut mesh_data = MeshData::default();
-        mesh_data.append_mesh(new_vertices.as_slice(), new_indices.as_slice());
+        let mut mesh_data = MeshData::new(VertexFormat::pbr());
         mesh_data.material = material_path.to_path_buf();
+        mesh_data.append_mesh(new_vertices.as_slice(), new_indices.as_slice());
 
         Self::create_file(
             path,

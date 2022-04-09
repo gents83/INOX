@@ -64,7 +64,7 @@ pub fn read_from_file<'a, T>(
     registry: &SerializableRegistryRc,
     mut f: Box<dyn FnMut(T) + 'static>,
 ) where
-    T: for<'de> Deserialize<'de> + Default + SerializeFile + 'static,
+    T: for<'de> Deserialize<'de> + SerializeFile + 'static,
 {
     let mut file = File::new(filepath);
     if file.exists() {

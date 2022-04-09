@@ -3,7 +3,10 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::{GraphicsMesh, Material, MeshData, GRAPHIC_MESH_UID, INVALID_INDEX};
+use crate::{
+    GraphicsData, Material, MeshData, VertexFormat, VertexFormatBits, GRAPHICS_DATA_UID,
+    INVALID_INDEX,
+};
 use inox_math::{MatBase, Matrix4, Vector4};
 use inox_messenger::MessageHubRc;
 use inox_resources::{
@@ -30,7 +33,8 @@ pub struct Mesh {
     draw_area: Vector4, //pos (x,y) - size(z,w)
     is_visible: bool,
     draw_index: i32,
-    graphics_mesh: Handle<GraphicsMesh>,
+    graphics_mesh: Handle<GraphicsData>,
+    vertex_format: VertexFormatBits,
     vertices_range: Range<usize>,
     indices_range: Range<usize>,
 }
@@ -91,9 +95,10 @@ impl DataTypeResource for Mesh {
             draw_area: [0., 0., f32::MAX, f32::MAX].into(),
             is_visible: true,
             draw_index: INVALID_INDEX,
-            graphics_mesh: shared_data.get_resource::<GraphicsMesh>(&GRAPHIC_MESH_UID),
+            graphics_mesh: shared_data.get_resource::<GraphicsData>(&GRAPHICS_DATA_UID),
             vertices_range: 0..0,
             indices_range: 0..0,
+            vertex_format: VertexFormat::to_bits(&VertexFormat::pbr()),
         }
     }
     fn is_initialized(&self) -> bool {
@@ -132,6 +137,7 @@ impl DataTypeResource for Mesh {
         };
         let mut mesh = Mesh::new(id, shared_data, message_hub);
         mesh.material = material;
+        mesh.vertex_format = VertexFormat::to_bits(data.vertex_format.as_slice());
         if let Some(graphics_mesh) = &mesh.graphics_mesh {
             let (vertex_range, index_range) = graphics_mesh.get_mut().add_mesh_data(&id, &data);
             mesh.vertices_range = vertex_range;
@@ -146,6 +152,9 @@ impl Mesh {
         self.message_hub
             .send_event(ResourceEvent::<Self>::Changed(self.id));
         self
+    }
+    pub fn vertex_format(&self) -> u32 {
+        self.vertex_format
     }
     pub fn find_from_path(shared_data: &SharedDataRc, path: &Path) -> Handle<Self> {
         SharedData::match_resource(shared_data, |m: &Mesh| m.path() == path)

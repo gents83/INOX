@@ -1,4 +1,6 @@
-use crate::{utils::to_u8_slice, RenderContext};
+use inox_resources::to_u8_slice;
+
+use crate::RenderContext;
 
 #[derive(Default)]
 pub struct DataBuffer {
@@ -43,7 +45,7 @@ impl DataBuffer {
     pub fn is_valid(&self) -> bool {
         self.gpu_buffer.is_some()
     }
-    pub fn gpu_buffer(&self) -> &wgpu::Buffer {
-        self.gpu_buffer.as_ref().unwrap()
+    pub fn gpu_buffer(&self) -> Option<&wgpu::Buffer> {
+        self.gpu_buffer.as_ref()
     }
 }

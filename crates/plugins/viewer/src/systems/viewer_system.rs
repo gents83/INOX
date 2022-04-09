@@ -1,6 +1,8 @@
 use inox_commands::CommandParser;
 use inox_core::{ContextRc, System};
-use inox_graphics::{DrawEvent, Light, Material, Mesh, MeshData, Pipeline, Texture, View};
+use inox_graphics::{
+    DrawEvent, Light, Material, Mesh, MeshData, Pipeline, Texture, VertexFormat, View,
+};
 use inox_log::debug_log;
 use inox_math::{Matrix4, VecBase, Vector2, Vector3};
 use inox_messenger::Listener;
@@ -223,7 +225,7 @@ impl ViewerSystem {
                 .get_mut()
                 .set_texture(inox_graphics::TextureType::BaseColor, &texture);
             mesh.get_mut().set_material(material);
-            let mut mesh_data = MeshData::default();
+            let mut mesh_data = MeshData::new(VertexFormat::pbr());
             mesh_data.add_quad_default([-10., -10., 10., 10.].into(), 0.);
 
             //println!("Quad Mesh {:?}", mesh.id());
@@ -266,7 +268,7 @@ impl ViewerSystem {
                 &pipeline,
             );
             mesh.get_mut().set_material(material);
-            let mut mesh_data = MeshData::default();
+            let mut mesh_data = MeshData::new(VertexFormat::pbr());
             mesh_data.add_quad_default([-10., -10., 10., 10.].into(), 0.);
 
             //println!("Wireframe Mesh {:?}", mesh.id());

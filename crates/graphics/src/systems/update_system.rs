@@ -103,6 +103,11 @@ impl UpdateSystem {
                 }
                 _ => {}
             })
+            .process_messages(|e: &ResourceEvent<Pipeline>| {
+                if let ResourceEvent::Changed(id) = e {
+                    self.renderer.write().unwrap().on_pipeline_changed(id);
+                }
+            })
             .process_messages(|e: &ResourceEvent<Material>| match e {
                 ResourceEvent::Changed(id) => {
                     self.renderer.write().unwrap().on_material_changed(id);
@@ -162,6 +167,7 @@ impl System for UpdateSystem {
             .register::<SerializableResourceEvent<Pipeline>>()
             .register::<SerializableResourceEvent<Texture>>()
             .register::<ResourceEvent<RenderPass>>()
+            .register::<ResourceEvent<Pipeline>>()
             .register::<ResourceEvent<Material>>()
             .register::<ResourceEvent<Texture>>()
             .register::<ResourceEvent<Light>>()
@@ -211,6 +217,7 @@ impl System for UpdateSystem {
             .unregister::<ResourceEvent<Light>>()
             .unregister::<ResourceEvent<Texture>>()
             .unregister::<ResourceEvent<Material>>()
+            .unregister::<ResourceEvent<Pipeline>>()
             .unregister::<ResourceEvent<RenderPass>>()
             .unregister::<ResourceEvent<Mesh>>();
     }

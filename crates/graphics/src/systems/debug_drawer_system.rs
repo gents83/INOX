@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use crate::{
     create_arrow, create_colored_quad, create_line, create_sphere, Material, Mesh, MeshData,
-    Pipeline,
+    Pipeline, VertexFormat,
 };
 use inox_commands::CommandParser;
 use inox_core::System;
@@ -156,7 +156,7 @@ impl DebugDrawerSystem {
             shared_data,
             message_hub,
             generate_random_uid(),
-            MeshData::default(),
+            MeshData::new(VertexFormat::pbr()),
         );
         mesh_instance
             .get_mut()
@@ -166,7 +166,7 @@ impl DebugDrawerSystem {
             shared_data,
             message_hub,
             generate_random_uid(),
-            MeshData::default(),
+            MeshData::new(VertexFormat::pbr()),
         );
         wireframe_mesh_instance
             .get_mut()
@@ -195,8 +195,8 @@ impl DebugDrawerSystem {
     fn update_events(&mut self) {
         inox_profiler::scoped_profile!("DebugDrawerSystem::update_events");
 
-        let mut mesh_data = MeshData::default();
-        let mut wireframe_mesh_data = MeshData::default();
+        let mut mesh_data = MeshData::new(VertexFormat::pbr());
+        let mut wireframe_mesh_data = MeshData::new(VertexFormat::pbr());
 
         self.listener
             .process_messages(|e: &ConfigEvent<Config>| match e {

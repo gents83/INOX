@@ -1,7 +1,7 @@
 use crate::{
-    platform::required_gpu_features, BindingData, GraphicsMesh, Light, LightId, Material,
+    platform::required_gpu_features, BindingData, GraphicsData, Light, LightId, Material,
     MaterialId, Mesh, MeshId, Pipeline, RenderPass, RenderPassDrawContext, RenderPassId, Texture,
-    TextureHandler, TextureId, CONSTANT_DATA_FLAGS_SUPPORT_SRGB, GRAPHIC_MESH_UID,
+    TextureHandler, TextureId, CONSTANT_DATA_FLAGS_SUPPORT_SRGB, GRAPHICS_DATA_UID,
 };
 use inox_log::debug_log;
 use inox_math::{matrix4_to_array, Matrix4, Vector2};
@@ -64,7 +64,7 @@ pub struct Renderer {
     shared_data: SharedDataRc,
     state: RendererState,
     shader_data: BindingData,
-    graphics_mesh: Resource<GraphicsMesh>,
+    graphics_mesh: Resource<GraphicsData>,
 }
 pub type RendererRw = Arc<RwLock<Renderer>>;
 
@@ -79,7 +79,7 @@ impl Renderer {
         _enable_debug: bool,
     ) -> Self {
         let graphics_mesh =
-            shared_data.add_resource(message_hub, GRAPHIC_MESH_UID, GraphicsMesh::default());
+            shared_data.add_resource(message_hub, GRAPHICS_DATA_UID, GraphicsData::default());
 
         let render_context = Arc::new(RwLock::new(None));
 
@@ -288,6 +288,16 @@ impl Renderer {
         }
     }
 
+    pub fn on_pipeline_changed(&mut self, pipeline_id: &MaterialId) {
+        inox_profiler::scoped_profile!("renderer::on_pipeline_changed");
+        if let Some(pipeline) = self.shared_data.get_resource::<Pipeline>(pipeline_id) {
+            let vertex_format = pipeline.get().vertex_format();
+            self.graphics_mesh
+                .get_mut()
+                .set_pipeline_vertex_format(pipeline.id(), vertex_format);
+        }
+    }
+
     pub fn on_material_changed(&mut self, material_id: &MaterialId) {
         inox_profiler::scoped_profile!("renderer::on_material_changed");
         if let Some(material) = self.shared_data.get_resource::<Material>(material_id) {
@@ -455,12 +465,12 @@ impl Renderer {
             let texture_handler = &mut render_context.texture_handler;
             texture_handler.send_to_gpu(&render_context.queue);
         }
+        self.prepare();
         {
             let render_context = self.context.get();
             let render_context = render_context.as_ref().unwrap();
             let graphics_mesh = &mut self.graphics_mesh.get_mut();
             graphics_mesh.send_to_gpu(render_context);
         }
-        self.prepare();
     }
 }

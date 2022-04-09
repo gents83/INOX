@@ -5,7 +5,7 @@ use inox_serialize::{Deserialize, Serialize};
 use std::path::Path;
 use ttf_parser::*;
 
-use crate::{Glyph, MeshData, Metrics};
+use crate::{Glyph, MeshData, Metrics, VertexFormat};
 
 const DEFAULT_FONT_COUNT: u8 = 255;
 pub const DEFAULT_FONT_TEXTURE_SIZE: usize = 1024;
@@ -67,7 +67,7 @@ impl FontData {
     }
 
     pub fn create_mesh_from_text(&self, text_data: &TextData) -> MeshData {
-        let mut mesh_data = MeshData::default();
+        let mut mesh_data = MeshData::new(VertexFormat::ui());
         const VERTICES_COUNT: usize = 4;
 
         let mut prev_pos = text_data.position;

@@ -7,7 +7,7 @@ use inox_resources::{
 use inox_serialize::{inox_serializable::SerializableRegistryRc, read_from_file};
 
 use crate::{
-    platform::is_indirect_mode_enabled, GraphicsMesh, LoadOperation, Pipeline, RenderContext,
+    platform::is_indirect_mode_enabled, GraphicsData, LoadOperation, Pipeline, RenderContext,
     RenderMode, RenderPassData, RenderTarget, StoreOperation, Texture,
 };
 
@@ -26,7 +26,7 @@ pub struct RenderPassDrawContext<'a> {
     pub encoder: &'a mut wgpu::CommandEncoder,
     pub texture_view: &'a wgpu::TextureView,
     pub format: &'a wgpu::TextureFormat,
-    pub graphics_mesh: &'a Resource<GraphicsMesh>,
+    pub graphics_mesh: &'a Resource<GraphicsData>,
     pub bind_groups: &'a [&'a wgpu::BindGroup],
     pub bind_group_layouts: &'a [&'a wgpu::BindGroupLayout],
 }
@@ -177,11 +177,11 @@ impl RenderPass {
     pub fn prepare(
         &mut self,
         render_context: &RenderContext,
-        graphics_mesh: &mut GraphicsMesh,
+        graphics_mesh: &mut GraphicsData,
         format: &wgpu::TextureFormat,
         bind_group_layouts: &[&wgpu::BindGroupLayout],
     ) {
-        if graphics_mesh.vertex_count() == 0 {
+        if graphics_mesh.total_vertex_count() == 0 {
             return;
         }
         self.pipelines.iter_mut().for_each(|pipeline| {
@@ -203,7 +203,7 @@ impl RenderPass {
 
     pub fn draw(&self, render_pass_context: RenderPassDrawContext) {
         let graphics_mesh = render_pass_context.graphics_mesh.get();
-        if graphics_mesh.vertex_count() == 0 || graphics_mesh.vertex_buffer().is_none() {
+        if graphics_mesh.total_vertex_count() == 0 || graphics_mesh.total_index_count() == 0 {
             return;
         }
         let pipelines = self.pipelines.iter().map(|h| h.get()).collect::<Vec<_>>();
@@ -237,23 +237,22 @@ impl RenderPass {
             if instance_count > 0 && pipeline.is_initialized() {
                 render_pass.set_pipeline(pipeline.render_pipeline());
 
-                if let Some(buffer_slice) = graphics_mesh.vertex_buffer() {
+                if let Some(buffer_slice) = graphics_mesh.vertex_buffer(pipeline_id) {
                     render_pass.set_vertex_buffer(0, buffer_slice);
                 }
                 if let Some(instance_buffer) = graphics_mesh.instance_buffer(pipeline_id) {
                     render_pass.set_vertex_buffer(1, instance_buffer);
                 }
-                if let Some(buffer_slice) = graphics_mesh.index_buffer() {
+                if let Some(buffer_slice) = graphics_mesh.index_buffer(pipeline_id) {
                     render_pass.set_index_buffer(buffer_slice, wgpu::IndexFormat::Uint32);
                 }
 
-                if graphics_mesh.index_count() > 0 {
+                if graphics_mesh.index_count(pipeline_id) > 0 {
                     if is_indirect_mode_enabled() && self.data.render_mode == RenderMode::Indirect {
                         let commands_count = graphics_mesh.commands_count(pipeline_id);
-
-                        if let Some(indirect_buffer) = graphics_mesh.commands_buffer(pipeline_id) {
+                        if let Some(command_buffer) = graphics_mesh.commands_buffer(pipeline_id) {
                             render_pass.multi_draw_indexed_indirect(
-                                indirect_buffer,
+                                command_buffer,
                                 0,
                                 commands_count as u32,
                             );
@@ -282,7 +281,7 @@ impl RenderPass {
                     }
                 } else {
                     render_pass.draw(
-                        0..graphics_mesh.vertex_count() as u32,
+                        0..graphics_mesh.vertex_count(pipeline_id) as u32,
                         0..instance_count as u32,
                     );
                 }

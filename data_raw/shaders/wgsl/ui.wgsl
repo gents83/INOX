@@ -65,12 +65,8 @@ struct DynamicData {
 struct VertexInput {
     //@builtin(vertex_index) index: u32,
     @location(0) position: vec3<f32>,
-    @location(1) normal: vec3<f32>,
-    @location(2) color: vec4<f32>,
-    @location(3) tex_coords_0: vec2<f32>,
-    @location(4) tex_coords_1: vec2<f32>,
-    @location(5) tex_coords_2: vec2<f32>,
-    @location(6) tex_coords_3: vec2<f32>,
+    @location(1) tex_coords_0: vec2<f32>,
+    @location(2) color: u32,
 };
 
 struct InstanceInput {
@@ -91,12 +87,6 @@ struct VertexOutput {
     @location(0) color: vec4<f32>,
     @location(1) @interpolate(flat) material_index: i32,
     @location(2) tex_coords_base_color: vec3<f32>,
-    @location(3) tex_coords_metallic_roughness: vec3<f32>,
-    @location(4) tex_coords_normal: vec3<f32>,
-    @location(5) tex_coords_emissive: vec3<f32>,
-    @location(6) tex_coords_occlusion: vec3<f32>,
-    @location(7) tex_coords_specular_glossiness: vec3<f32>,
-    @location(8) tex_coords_diffuse: vec3<f32>,
 };
 
 
@@ -144,16 +134,6 @@ var texture_16: texture_2d<f32>;
 
 fn get_textures_coord_set(v: VertexInput, material_index: i32, texture_type: u32) -> vec2<f32> {
     let texture_data_index = dynamic_data.materials_data[material_index].textures_indices[texture_type];
-    if (texture_data_index >= 0) {
-        let textures_coord_set_index = dynamic_data.materials_data[material_index].textures_coord_set[texture_type];
-        if (textures_coord_set_index == 1u) {
-            return v.tex_coords_1;
-        } else if (textures_coord_set_index == 2u) {
-            return v.tex_coords_2;
-        } else if (textures_coord_set_index == 3u) {
-            return v.tex_coords_3;
-        }
-    }
     return v.tex_coords_0;
 }
 
@@ -170,25 +150,41 @@ fn compute_textures_coord(v: VertexInput, material_index: i32, texture_type: u32
     return output;
 }
 
+fn linear_from_srgb(srgb: vec3<f32>) -> vec3<f32> {
+    let cutoff = srgb < vec3<f32>(10.31475);
+    let lower = srgb / vec3<f32>(3294.6);
+    let higher = pow((srgb + vec3<f32>(14.025)) / vec3<f32>(269.025), vec3<f32>(2.4));
+    return select(higher, lower, cutoff);
+}
+
+fn rgba_from_integer(color: u32) -> vec4<f32> {
+    return vec4<f32>(
+        f32(color & 255u),
+        f32((color >> 8u) & 255u),
+        f32((color >> 16u) & 255u),
+        f32((color >> 24u) & 255u),
+    );
+}
+
 @stage(vertex)
 fn vs_main(
     v: VertexInput,
     instance: InstanceInput,
 ) -> VertexOutput {
     var out: VertexOutput;
-    out.clip_position = vec4<f32>(2. * v.position.x / constant_data.screen_width - 1., 1. - 2. * v.position.y / constant_data.screen_height, v.position.z, 1.);
+    let ui_scale = 2.;
+    out.clip_position = vec4<f32>(2. * v.position.x * ui_scale / constant_data.screen_width - 1., 1. - 2. * v.position.y * ui_scale / constant_data.screen_height, v.position.z, 1.);
     let support_srbg = constant_data.flags & CONSTANT_DATA_FLAGS_SUPPORT_SRGB;
-    out.color = v.color / 255.0;
+    let color = rgba_from_integer(v.color);
+    if (support_srbg == 0u) {
+        out.color = vec4<f32>(color.rgba / 255.);
+    } else {
+        out.color = vec4<f32>(linear_from_srgb(color.rgb), color.a / 255.);
+    }
     out.material_index = instance.material_index;
 
     if (instance.material_index >= 0) {
         out.tex_coords_base_color = compute_textures_coord(v, instance.material_index, TEXTURE_TYPE_BASE_COLOR);
-        out.tex_coords_metallic_roughness = compute_textures_coord(v, instance.material_index, TEXTURE_TYPE_METALLIC_ROUGHNESS);
-        out.tex_coords_normal = compute_textures_coord(v, instance.material_index, TEXTURE_TYPE_NORMAL);
-        out.tex_coords_emissive = compute_textures_coord(v, instance.material_index, TEXTURE_TYPE_EMISSIVE);
-        out.tex_coords_occlusion = compute_textures_coord(v, instance.material_index, TEXTURE_TYPE_OCCLUSION);
-        out.tex_coords_specular_glossiness = compute_textures_coord(v, instance.material_index, TEXTURE_TYPE_SPECULAR_GLOSSINESS);
-        out.tex_coords_diffuse = compute_textures_coord(v, instance.material_index, TEXTURE_TYPE_DIFFUSE);
     }
 
     return out;

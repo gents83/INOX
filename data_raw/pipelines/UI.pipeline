@@ -1,6 +1,11 @@
 {
     "vertex_shader": "shaders/wgsl/ui_wgsl.shader",
     "fragment_shader": "shaders/wgsl/ui_wgsl.shader",
+    "vertex_format" : [
+        "PositionF32x2",
+        "TexCoord0F32x2",
+        "ColorU32"
+    ],
     "culling": "None",
     "mode": "Fill",
     "src_color_blend_factor": "One",

@@ -1,5 +1,6 @@
 use std::{
     collections::{hash_map::Entry, HashMap},
+    mem::size_of,
     path::PathBuf,
     sync::{
         atomic::{AtomicUsize, Ordering},
@@ -8,15 +9,16 @@ use std::{
 };
 
 use egui::{
-    epaint::Primitive, ClippedPrimitive, Context, Event, Modifiers, PlatformOutput, PointerButton,
-    RawInput, Rect, TextureId as eguiTextureId, TexturesDelta,
+    epaint::{Primitive, Vertex},
+    ClippedPrimitive, Context, Event, Modifiers, PlatformOutput, PointerButton, RawInput, Rect,
+    TextureId as eguiTextureId, TexturesDelta,
 };
 use image::RgbaImage;
 use inox_core::{JobHandlerRw, System};
 
 use inox_graphics::{
-    GraphicsMesh, Material, Mesh, MeshData, Pipeline, Texture, TextureId, TextureType,
-    GRAPHIC_MESH_UID,
+    GraphicsData, Material, Mesh, MeshData, Pipeline, Texture, TextureId, TextureType,
+    VertexFormat, GRAPHICS_DATA_UID,
 };
 
 use inox_log::debug_log;
@@ -27,7 +29,8 @@ use inox_platform::{
     DEFAULT_DPI,
 };
 use inox_resources::{
-    ConfigBase, ConfigEvent, DataTypeResource, Handle, Resource, SerializableResource, SharedDataRc,
+    to_u8_slice, ConfigBase, ConfigEvent, DataTypeResource, Handle, Resource, SerializableResource,
+    SharedDataRc,
 };
 use inox_serialize::read_from_file;
 use inox_uid::generate_random_uid;
@@ -109,20 +112,20 @@ impl UISystem {
     fn compute_mesh_data(&mut self, clipped_meshes: Vec<ClippedPrimitive>) {
         let graphics_mesh = self
             .shared_data
-            .get_resource::<GraphicsMesh>(&GRAPHIC_MESH_UID);
+            .get_resource::<GraphicsData>(&GRAPHICS_DATA_UID);
         if graphics_mesh.is_none() {
             return;
         }
         inox_profiler::scoped_profile!("ui_system::compute_mesh_data");
         let shared_data = self.shared_data.clone();
         let message_hub = self.message_hub.clone();
-
+        let vertex_data_attribute_ui_hash = VertexFormat::to_bits(VertexFormat::ui().as_slice());
         self.ui_meshes.resize_with(clipped_meshes.len(), || {
             Mesh::new_resource(
                 &shared_data,
                 &message_hub,
                 generate_random_uid(),
-                MeshData::default(),
+                MeshData::new(VertexFormat::ui()),
             )
         });
 
@@ -162,29 +165,17 @@ impl UISystem {
                         let (vertices_range, indices_range) = {
                             inox_profiler::scoped_profile!("ui_system::copy_vertex_data");
 
-                            let vertices_range = graphics_mesh
-                                .get_mut()
-                                .reserve_vertices(mesh_instance.id(), mesh.vertices.len());
-                            let indices_range = graphics_mesh
-                                .get_mut()
-                                .set_indices(mesh_instance.id(), mesh.indices.as_slice());
-
-                            let mut graphics_mesh = graphics_mesh.get_mut();
-                            for (i, v) in mesh.vertices.iter().enumerate() {
-                                let vertex = graphics_mesh.get_vertex_mut(vertices_range.start + i);
-                                vertex.pos = [v.pos.x * ui_scale, v.pos.y * ui_scale, 0.].into();
-                                vertex.tex_coord.iter_mut().for_each(|t| {
-                                    *t = [v.uv.x, v.uv.y].into();
-                                });
-                                let color = v.color.to_srgba_unmultiplied();
-                                vertex.color = [
-                                    color[0] as f32,
-                                    color[1] as f32,
-                                    color[2] as f32,
-                                    color[3] as f32,
-                                ]
-                                .into();
-                            }
+                            let vertices_range = graphics_mesh.get_mut().add_vertices(
+                                mesh_instance.id(),
+                                vertex_data_attribute_ui_hash,
+                                size_of::<Vertex>(),
+                                to_u8_slice(mesh.vertices.as_slice()),
+                            );
+                            let indices_range = graphics_mesh.get_mut().add_indices(
+                                mesh_instance.id(),
+                                vertex_data_attribute_ui_hash,
+                                mesh.indices.as_slice(),
+                            );
                             (vertices_range, indices_range)
                         };
 

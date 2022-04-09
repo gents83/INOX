@@ -1,4 +1,5 @@
-pub use super::meshes::*;
+pub use super::gpu_buffer::*;
+pub use super::graphics_data::*;
 pub use super::renderer::*;
 pub use super::shaders::*;
 pub use super::shapes2d::*;
@@ -12,6 +13,7 @@ pub mod utils;
 
 pub mod renderer;
 
-pub mod meshes;
+pub mod gpu_buffer;
+pub mod graphics_data;
 pub mod textures;
 mod voxels;

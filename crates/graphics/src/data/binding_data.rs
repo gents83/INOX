@@ -180,11 +180,19 @@ impl BindingData {
                 entries: &[
                     wgpu::BindGroupEntry {
                         binding: 0,
-                        resource: self.constant_data_buffer.gpu_buffer().as_entire_binding(),
+                        resource: self
+                            .constant_data_buffer
+                            .gpu_buffer()
+                            .unwrap()
+                            .as_entire_binding(),
                     },
                     wgpu::BindGroupEntry {
                         binding: 1,
-                        resource: self.dynamic_data_buffer.gpu_buffer().as_entire_binding(),
+                        resource: self
+                            .dynamic_data_buffer
+                            .gpu_buffer()
+                            .unwrap()
+                            .as_entire_binding(),
                     },
                 ],
                 label: Some(label.as_str()),

@@ -1,9 +1,10 @@
-use std::{ops::Range, path::PathBuf};
+use std::{mem::size_of, ops::Range, path::PathBuf};
 
 use inox_math::{is_point_in_triangle, Vector2, Vector3, Vector4};
+use inox_resources::{from_u8_slice, from_u8_slice_mut, to_u8_slice};
 use inox_serialize::{Deserialize, Serialize, SerializeFile};
 
-use crate::{create_quad, VertexData};
+use crate::{create_quad, VertexFormat, VertexFormatBits};
 
 pub struct MeshBindingData {
     pub vertices: Range<u32>,
@@ -13,7 +14,8 @@ pub struct MeshBindingData {
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 #[serde(crate = "inox_serialize")]
 pub struct MeshData {
-    pub vertices: Vec<VertexData>,
+    pub vertex_format: Vec<VertexFormat>,
+    pub vertices: Vec<u8>,
     pub indices: Vec<u32>,
     pub material: PathBuf,
 }
@@ -24,17 +26,60 @@ impl SerializeFile for MeshData {
     }
 }
 
-impl Default for MeshData {
-    fn default() -> Self {
+impl MeshData {
+    pub fn new(vertex_format: Vec<VertexFormat>) -> Self {
         Self {
+            vertex_format,
             vertices: Vec::new(),
             indices: Vec::new(),
             material: PathBuf::new(),
         }
     }
-}
+    pub fn vertex_format_bits(&self) -> VertexFormatBits {
+        VertexFormat::to_bits(&self.vertex_format)
+    }
+    pub fn vertex_size(&self) -> usize {
+        self.vertex_format.iter().map(|a| a.size()).sum::<usize>()
+    }
+    pub fn vertex_count(&self) -> usize {
+        self.vertices.len() / self.vertex_size()
+    }
+    pub fn attribute_offset(&self, attribute: VertexFormat) -> usize {
+        let mut attribute_offset = 0;
+        self.vertex_format
+            .iter()
+            .take_while(|&a| *a != attribute)
+            .for_each(|a| {
+                attribute_offset += a.size();
+            });
+        attribute_offset
+    }
+    fn attribute<T>(&self, i: usize, attribute: VertexFormat) -> &T {
+        let attribute_offset = self.attribute_offset(attribute);
+        let index = attribute_offset + i * self.vertex_size();
+        let data = from_u8_slice::<T>(&self.vertices[index..(index + size_of::<T>())]);
+        &data[0]
+    }
+    fn attribute_mut<T>(&mut self, i: usize, attribute: VertexFormat) -> &mut T {
+        let attribute_offset = self.attribute_offset(attribute);
+        let index = attribute_offset + i * self.vertex_size();
+        let data = from_u8_slice_mut::<T>(&mut self.vertices[index..(index + size_of::<T>())]);
+        &mut data[0]
+    }
 
-impl MeshData {
+    pub fn pos3(&self, i: usize) -> &Vector3 {
+        self.attribute::<Vector3>(i, VertexFormat::PositionF32x3)
+    }
+    pub fn pos3_mut(&mut self, i: usize) -> &mut Vector3 {
+        self.attribute_mut::<Vector3>(i, VertexFormat::PositionF32x3)
+    }
+    pub fn color(&self, i: usize) -> &Vector4 {
+        self.attribute::<Vector4>(i, VertexFormat::ColorF32x4)
+    }
+    pub fn color_mut(&mut self, i: usize) -> &mut Vector4 {
+        self.attribute_mut::<Vector4>(i, VertexFormat::ColorF32x4)
+    }
+
     pub fn clear(&mut self) -> &mut Self {
         self.vertices.clear();
         self.indices.clear();
@@ -44,13 +89,14 @@ impl MeshData {
     pub fn compute_min_max(&self) -> (Vector3, Vector3) {
         let mut min = Vector3::new(f32::MAX, f32::MAX, f32::MAX);
         let mut max = Vector3::new(f32::MIN, f32::MIN, f32::MIN);
-        for v in self.vertices.iter() {
-            min.x = min.x.min(v.pos.x);
-            min.y = min.y.min(v.pos.y);
-            min.z = min.z.min(v.pos.z);
-            max.x = max.x.max(v.pos.x);
-            max.y = max.y.max(v.pos.y);
-            max.z = max.z.max(v.pos.z);
+        for i in 0..self.vertex_count() {
+            let pos = self.pos3(i);
+            min.x = min.x.min(pos.x);
+            min.y = min.y.min(pos.y);
+            min.z = min.z.min(pos.z);
+            max.x = max.x.max(pos.x);
+            max.y = max.y.max(pos.y);
+            max.z = max.z.max(pos.z);
         }
         (min, max)
     }
@@ -66,32 +112,18 @@ impl MeshData {
     }
 
     pub fn set_vertex_color(&mut self, color: Vector4) -> &mut Self {
-        for v in self.vertices.iter_mut() {
-            v.color = color;
+        for i in 0..self.vertex_count() {
+            let c = self.color_mut(i);
+            *c = color;
         }
         self
     }
-    pub fn set_mesh_at_index(
-        &mut self,
-        vertices: &[VertexData],
-        first_vertex: u32,
-        indices: &[u32],
-        first_index: u32,
-    ) {
-        let start = first_vertex as usize;
-        let end = start + vertices.len();
-        self.vertices[start..end].copy_from_slice(vertices);
 
-        let start = first_index as usize;
-        let end = start + indices.len();
-        self.indices[start..end].copy_from_slice(indices);
-    }
-
-    pub fn append_mesh(&mut self, vertices: &[VertexData], indices: &[u32]) {
+    pub fn append_mesh<T>(&mut self, vertices: &[T], indices: &[u32]) {
         let first_vertex = self.vertices.len() as u32;
         let first_index = self.indices.len() as u32;
 
-        self.vertices.append(&mut vertices.to_vec());
+        self.vertices.append(&mut to_u8_slice(vertices).to_vec());
         self.indices.append(&mut indices.to_vec());
 
         let last_index = self.indices.len() as u32 - 1;
@@ -120,11 +152,12 @@ impl MeshData {
     }
 
     pub fn clip_in_rect(&mut self, clip_rect: Vector4) -> &mut Self {
-        for v in self.vertices.iter_mut() {
-            v.pos.x = v.pos.x.max(clip_rect.x);
-            v.pos.x = v.pos.x.min(clip_rect.z);
-            v.pos.y = v.pos.y.max(clip_rect.y);
-            v.pos.y = v.pos.y.min(clip_rect.w);
+        for i in 0..self.vertex_count() {
+            let pos = self.pos3_mut(i);
+            pos.x = pos.x.max(clip_rect.x);
+            pos.x = pos.x.min(clip_rect.z);
+            pos.y = pos.y.max(clip_rect.y);
+            pos.y = pos.y.min(clip_rect.w);
         }
         self.compute_center();
         self
@@ -134,9 +167,9 @@ impl MeshData {
         let mut i = 0;
         let count = self.indices.len();
         while i < count {
-            let v1 = self.vertices[self.indices[i] as usize].pos.xy();
-            let v2 = self.vertices[self.indices[i + 1] as usize].pos.xy();
-            let v3 = self.vertices[self.indices[i + 2] as usize].pos.xy();
+            let v1 = self.pos3(self.indices[i] as usize).xy();
+            let v2 = self.pos3(self.indices[i + 1] as usize).xy();
+            let v3 = self.pos3(self.indices[i + 2] as usize).xy();
             if is_point_in_triangle(v1, v2, v3, pos_in_screen_space.x, pos_in_screen_space.y) {
                 return true;
             }
