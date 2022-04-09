@@ -1,3 +1,4 @@
+#![cfg(not(target_arch = "wasm32"))]
 #![allow(dead_code)]
 #![warn(clippy::all)]
 

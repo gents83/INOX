@@ -8,8 +8,10 @@ build = "build.rs"
 [lib]
 crate-type = ["lib"]
 
-[dependencies]
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 meshopt = { path = "../../extern/meshopt-rs" }
+
+[dependencies]
 gltf = { path = "../../extern/gltf", features = ["extras", "names", "KHR_lights_punctual", "KHR_materials_pbrSpecularGlossiness"] }
 inox_filesystem = { path = "../filesystem" }
 inox_graphics = { path = "../graphics" }
