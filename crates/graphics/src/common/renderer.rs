@@ -117,7 +117,7 @@ impl Renderer {
     }
 
     async fn create_render_context(handle: Handle, render_context: RenderContextRw) {
-        let backend = wgpu::util::backend_bits_from_env().unwrap_or_else(wgpu::Backends::all);
+        let backend = wgpu::Backends::VULKAN | wgpu::Backends::BROWSER_WEBGPU;
         let instance = wgpu::Instance::new(backend);
         let surface = unsafe { instance.create_surface(&handle) };
 
@@ -141,19 +141,9 @@ impl Renderer {
             .await
             .expect("Failed to create device");
 
-        let output_format = wgpu::TextureFormat::Rgba8Unorm;
-        let format_features = adapter.get_texture_format_features(output_format);
-
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: if format_features
-                .allowed_usages
-                .contains(wgpu::TextureUsages::RENDER_ATTACHMENT)
-            {
-                output_format
-            } else {
-                surface.get_preferred_format(&adapter).unwrap()
-            },
+            format: surface.get_preferred_format(&adapter).unwrap(),
             width: DEFAULT_WIDTH,
             height: DEFAULT_HEIGHT,
             present_mode: wgpu::PresentMode::Mailbox,
