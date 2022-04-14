@@ -10,17 +10,17 @@ pub struct DataBuffer {
 }
 
 impl DataBuffer {
-    pub fn init<T>(&mut self, context: &RenderContext, size: u64, usage: wgpu::BufferUsages) {
+    pub fn init(
+        &mut self,
+        context: &RenderContext,
+        size: u64,
+        usage: wgpu::BufferUsages,
+        buffer_name: &str,
+    ) {
         inox_profiler::scoped_profile!("DataBuffer::init");
 
         if !self.is_valid() || self.size != size {
-            let typename = std::any::type_name::<T>()
-                .split(':')
-                .collect::<Vec<&str>>()
-                .last()
-                .unwrap()
-                .to_string();
-            let label = format!("{} Buffer", typename);
+            let label = format!("{} Buffer", buffer_name);
             let data_buffer = context.device.create_buffer(&wgpu::BufferDescriptor {
                 label: Some(label.as_str()),
                 size,
@@ -31,6 +31,20 @@ impl DataBuffer {
         }
         self.offset = 0;
         self.size = size;
+    }
+    pub fn init_from_type<T>(
+        &mut self,
+        context: &RenderContext,
+        size: u64,
+        usage: wgpu::BufferUsages,
+    ) {
+        let typename = std::any::type_name::<T>()
+            .split(':')
+            .collect::<Vec<&str>>()
+            .last()
+            .unwrap()
+            .to_string();
+        self.init(context, size, usage, typename.as_str());
     }
     pub fn add_to_gpu_buffer<T>(&mut self, context: &RenderContext, data: &[T]) {
         inox_profiler::scoped_profile!("DataBuffer::add_to_gpu_buffer");

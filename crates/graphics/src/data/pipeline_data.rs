@@ -5,7 +5,9 @@ use inox_math::Matrix4;
 use inox_resources::Data;
 use inox_serialize::{Deserialize, Serialize, SerializeFile};
 
-use crate::{LightData, ShaderMaterialData, TextureAtlas, TextureData, VertexFormat};
+use crate::{
+    BindingDataType, LightData, ShaderMaterialData, TextureAtlas, TextureData, VertexFormat,
+};
 
 #[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
 #[serde(crate = "inox_serialize")]
@@ -78,6 +80,7 @@ pub struct PipelineData {
     pub vertex_shader: PathBuf,
     pub fragment_shader: PathBuf,
     pub vertex_format: Vec<VertexFormat>,
+    pub binding_data: Vec<BindingDataType>,
     pub culling: CullingModeType,
     pub mode: PolygonModeType,
     pub src_color_blend_factor: BlendFactor,
@@ -98,6 +101,7 @@ impl Default for PipelineData {
             vertex_shader: PathBuf::new(),
             fragment_shader: PathBuf::new(),
             vertex_format: Vec::new(),
+            binding_data: Vec::new(),
             culling: CullingModeType::Back,
             mode: PolygonModeType::Fill,
             src_color_blend_factor: BlendFactor::One,

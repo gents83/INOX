@@ -387,7 +387,7 @@ impl GraphicsData {
 
                 pb.commands_buffer
                     .1
-                    .init::<wgpu::util::DrawIndexedIndirect>(
+                    .init_from_type::<wgpu::util::DrawIndexedIndirect>(
                         context,
                         total_size,
                         wgpu::BufferUsages::INDIRECT | wgpu::BufferUsages::COPY_DST,
@@ -429,7 +429,7 @@ impl GraphicsData {
             let total_size =
                 size_of::<InstanceData>() as u64 * pb.instance_buffer.0.buffer_len() as u64;
             if total_size > 0 {
-                pb.instance_buffer.1.init::<InstanceData>(
+                pb.instance_buffer.1.init_from_type::<InstanceData>(
                     context,
                     total_size,
                     wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,

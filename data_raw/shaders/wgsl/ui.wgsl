@@ -22,7 +22,6 @@ struct ConstantData {
     screen_width: f32,
     screen_height: f32,
     flags: u32,
-    num_lights: u32,
 };
 
 struct LightData {
@@ -62,6 +61,10 @@ struct DynamicData {
     lights_data: array<LightData, 64>,//MAX_NUM_LIGHTS>,
 };
 
+struct UIData {
+    scale: f32,
+};
+
 struct VertexInput {
     //@builtin(vertex_index) index: u32,
     @location(0) position: vec3<f32>,
@@ -95,6 +98,8 @@ struct VertexOutput {
 var<uniform> constant_data: ConstantData;
 @group(0) @binding(1)
 var<storage, read> dynamic_data: DynamicData;
+@group(0) @binding(2)
+var<storage, read> ui_data: UIData;
 
 @group(1) @binding(0)
 var default_sampler: sampler;
@@ -172,7 +177,7 @@ fn vs_main(
     instance: InstanceInput,
 ) -> VertexOutput {
     var out: VertexOutput;
-    let ui_scale = 2.;
+    let ui_scale = ui_data.scale;
     out.clip_position = vec4<f32>(2. * v.position.x * ui_scale / constant_data.screen_width - 1., 1. - 2. * v.position.y * ui_scale / constant_data.screen_height, v.position.z, 1.);
     let support_srbg = constant_data.flags & CONSTANT_DATA_FLAGS_SUPPORT_SRGB;
     let color = rgba_from_integer(v.color);

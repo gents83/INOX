@@ -22,7 +22,6 @@ struct ConstantData {
     screen_width: f32,
     screen_height: f32,
     flags: u32,
-    num_lights: u32,
 };
 
 struct LightData {
@@ -261,7 +260,7 @@ fn fs_main(v: VertexOutput) -> @location(0) vec4<f32> {
     var color_from_light = color.rgb;
     var i = 0u;
     loop {
-        if (i >= constant_data.num_lights) {
+        if (dynamic_data.lights_data[i].light_type == 0u) {
             break;
         }
         let light_color = dynamic_data.lights_data[i].color.rgb;

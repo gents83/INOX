@@ -9,9 +9,9 @@ use inox_resources::{
 use inox_serialize::{inox_serializable::SerializableRegistryRc, read_from_file, SerializeFile};
 
 use crate::{
-    CullingModeType, InstanceData, PipelineData, PolygonModeType, RenderContext, Shader,
-    VertexBufferLayoutBuilder, VertexFormat, FRAGMENT_SHADER_ENTRY_POINT, SHADER_ENTRY_POINT,
-    VERTEX_SHADER_ENTRY_POINT,
+    BindingData, BindingState, CullingModeType, DataBuffer, InstanceData, PipelineData,
+    PolygonModeType, RenderContext, Shader, VertexBufferLayoutBuilder, VertexFormat,
+    FRAGMENT_SHADER_ENTRY_POINT, SHADER_ENTRY_POINT, VERTEX_SHADER_ENTRY_POINT,
 };
 
 pub type PipelineId = ResourceId;
@@ -25,6 +25,7 @@ pub struct Pipeline {
     vertex_shader: Handle<Shader>,
     fragment_shader: Handle<Shader>,
     render_pipeline: Option<wgpu::RenderPipeline>,
+    binding_data: BindingData,
 }
 
 impl Clone for Pipeline {
@@ -40,6 +41,7 @@ impl Clone for Pipeline {
             fragment_shader: Some(fragment_shader),
             format: None,
             render_pipeline: None,
+            binding_data: BindingData::default(),
         }
     }
 }
@@ -101,6 +103,7 @@ impl DataTypeResource for Pipeline {
             vertex_shader: None,
             fragment_shader: None,
             render_pipeline: None,
+            binding_data: BindingData::default(),
         }
     }
 
@@ -146,6 +149,12 @@ impl Pipeline {
     pub fn data(&self) -> &PipelineData {
         &self.data
     }
+    pub fn binding_data(&self) -> &BindingData {
+        &self.binding_data
+    }
+    pub fn binding_data_mut(&mut self) -> &mut BindingData {
+        &mut self.binding_data
+    }
     pub fn vertex_format(&self) -> u32 {
         VertexFormat::to_bits(self.data.vertex_format.as_slice())
     }
@@ -174,8 +183,10 @@ impl Pipeline {
     pub fn init(
         &mut self,
         context: &RenderContext,
-        bind_group_layouts: &[&wgpu::BindGroupLayout],
+        texture_bind_group_layout: &wgpu::BindGroupLayout,
         format: &wgpu::TextureFormat,
+        constant_data_buffer: &DataBuffer,
+        dynamic_data_buffer: &DataBuffer,
     ) -> bool {
         if self.vertex_shader.is_none() || self.fragment_shader.is_none() {
             return false;
@@ -196,17 +207,28 @@ impl Pipeline {
                 self.format = None;
             }
         }
-        if let Some(f) = &self.format {
-            if f == format {
-                return true;
-            }
+        let binding_state = self.binding_data.send_to_gpu(
+            context,
+            self.data.binding_data.as_slice(),
+            constant_data_buffer,
+            dynamic_data_buffer,
+        );
+        if binding_state == BindingState::Error {
+            return false;
+        }
+        let is_different_format = self.format != Some(*format);
+        if binding_state == BindingState::Bound && !is_different_format {
+            return true;
         }
         let render_pipeline_layout =
             context
                 .device
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: Some("Render Pipeline Layout"),
-                    bind_group_layouts,
+                    bind_group_layouts: &[
+                        self.binding_data.bind_group_layout(),
+                        texture_bind_group_layout,
+                    ],
                     push_constant_ranges: &[],
                 });
 

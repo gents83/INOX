@@ -10,6 +10,10 @@
         "TexCoord2F32x2",
         "TexCoord3F32x2"
     ],
+    "binding_data" : [
+        "Constant",
+        "Dynamic"
+    ],
     "culling": "None",
     "mode": "Line",
     "src_color_blend_factor": "One",

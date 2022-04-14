@@ -7,8 +7,8 @@ use inox_resources::{
 use inox_serialize::{inox_serializable::SerializableRegistryRc, read_from_file};
 
 use crate::{
-    platform::is_indirect_mode_enabled, GraphicsData, LoadOperation, Pipeline, RenderContext,
-    RenderMode, RenderPassData, RenderTarget, StoreOperation, Texture,
+    platform::is_indirect_mode_enabled, DataBuffer, GraphicsData, LoadOperation, Pipeline,
+    RenderContext, RenderMode, RenderPassData, RenderTarget, StoreOperation, Texture,
 };
 
 pub type RenderPassId = ResourceId;
@@ -27,8 +27,7 @@ pub struct RenderPassDrawContext<'a> {
     pub texture_view: &'a wgpu::TextureView,
     pub format: &'a wgpu::TextureFormat,
     pub graphics_mesh: &'a Resource<GraphicsData>,
-    pub bind_groups: &'a [&'a wgpu::BindGroup],
-    pub bind_group_layouts: &'a [&'a wgpu::BindGroupLayout],
+    pub texture_bind_group: &'a wgpu::BindGroup,
 }
 
 impl ResourceTrait for RenderPass {
@@ -179,7 +178,9 @@ impl RenderPass {
         render_context: &RenderContext,
         graphics_mesh: &mut GraphicsData,
         format: &wgpu::TextureFormat,
-        bind_group_layouts: &[&wgpu::BindGroupLayout],
+        texture_bind_group_layout: &wgpu::BindGroupLayout,
+        constant_data_buffer: &DataBuffer,
+        dynamic_data_buffer: &DataBuffer,
     ) {
         if graphics_mesh.total_vertex_count() == 0 {
             return;
@@ -188,10 +189,13 @@ impl RenderPass {
             let pipeline_id = pipeline.id();
             let instance_count = graphics_mesh.instance_count(pipeline_id);
             if instance_count > 0 {
-                if !pipeline
-                    .get_mut()
-                    .init(render_context, bind_group_layouts, format)
-                {
+                if !pipeline.get_mut().init(
+                    render_context,
+                    texture_bind_group_layout,
+                    format,
+                    constant_data_buffer,
+                    dynamic_data_buffer,
+                ) {
                     return;
                 }
                 if is_indirect_mode_enabled() && self.data.render_mode == RenderMode::Indirect {
@@ -223,18 +227,13 @@ impl RenderPass {
                     depth_stencil_attachment: None,
                 });
 
-        render_pass_context
-            .bind_groups
-            .iter()
-            .enumerate()
-            .for_each(|(i, &bind_group)| {
-                render_pass.set_bind_group(i as u32, bind_group, &[]);
-            });
-
         pipelines.iter().enumerate().for_each(|(i, pipeline)| {
             let pipeline_id = pipelines_id[i];
             let instance_count = graphics_mesh.instance_count(pipeline_id);
             if instance_count > 0 && pipeline.is_initialized() {
+                render_pass.set_bind_group(0, pipeline.binding_data().bind_group(), &[]);
+                render_pass.set_bind_group(1, render_pass_context.texture_bind_group, &[]);
+
                 render_pass.set_pipeline(pipeline.render_pipeline());
 
                 if let Some(buffer_slice) = graphics_mesh.vertex_buffer(pipeline_id) {

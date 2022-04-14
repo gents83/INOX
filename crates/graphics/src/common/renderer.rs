@@ -1,7 +1,9 @@
 use crate::{
-    platform::required_gpu_features, BindingData, GraphicsData, Light, LightId, Material,
-    MaterialId, Mesh, MeshId, Pipeline, RenderPass, RenderPassDrawContext, RenderPassId, Texture,
-    TextureHandler, TextureId, CONSTANT_DATA_FLAGS_SUPPORT_SRGB, GRAPHICS_DATA_UID,
+    platform::required_gpu_features, ConstantData, DataBuffer, DynamicData, GraphicsData, Light,
+    LightData, LightId, Material, MaterialId, Mesh, MeshId, Pipeline, RenderPass,
+    RenderPassDrawContext, RenderPassId, ShaderMaterialData, Texture, TextureData, TextureHandler,
+    TextureId, CONSTANT_DATA_FLAGS_SUPPORT_SRGB, GRAPHICS_DATA_UID, MAX_NUM_LIGHTS,
+    MAX_NUM_MATERIALS, MAX_NUM_TEXTURES,
 };
 use inox_log::debug_log;
 use inox_math::{matrix4_to_array, Matrix4, Vector2};
@@ -11,7 +13,10 @@ use inox_resources::{DataTypeResource, Resource};
 use inox_platform::Handle;
 use inox_resources::{SharedData, SharedDataRc};
 
-use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use std::{
+    mem::size_of,
+    sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard},
+};
 
 const DEFAULT_WIDTH: u32 = 1280;
 const DEFAULT_HEIGHT: u32 = 720;
@@ -63,7 +68,10 @@ pub struct Renderer {
     context: RenderContextRw,
     shared_data: SharedDataRc,
     state: RendererState,
-    shader_data: BindingData,
+    constant_data: ConstantData,
+    dynamic_data: DynamicData,
+    constant_data_buffer: DataBuffer,
+    dynamic_data_buffer: DataBuffer,
     graphics_mesh: Resource<GraphicsData>,
 }
 pub type RendererRw = Arc<RwLock<Renderer>>;
@@ -96,7 +104,10 @@ impl Renderer {
         ));
 
         Renderer {
-            shader_data: BindingData::default(),
+            constant_data: ConstantData::default(),
+            dynamic_data: DynamicData::default(),
+            constant_data_buffer: DataBuffer::default(),
+            dynamic_data_buffer: DataBuffer::default(),
             state: RendererState::Init,
             context: render_context,
             shared_data: shared_data.clone(),
@@ -179,11 +190,10 @@ impl Renderer {
     }
 
     pub fn update_shader_data(&mut self, view: Matrix4, proj: Matrix4, screen_size: Vector2) {
-        let constant_data = self.shader_data.constant_data_mut();
-        constant_data.view = matrix4_to_array(view);
-        constant_data.proj = matrix4_to_array(OPENGL_TO_WGPU_MATRIX * proj);
-        constant_data.screen_width = screen_size.x;
-        constant_data.screen_height = screen_size.y;
+        self.constant_data.view = matrix4_to_array(view);
+        self.constant_data.proj = matrix4_to_array(OPENGL_TO_WGPU_MATRIX * proj);
+        self.constant_data.screen_width = screen_size.x;
+        self.constant_data.screen_height = screen_size.y;
         if self
             .context
             .read()
@@ -195,11 +205,12 @@ impl Renderer {
             .describe()
             .srgb
         {
-            constant_data.flags |= CONSTANT_DATA_FLAGS_SUPPORT_SRGB;
+            self.constant_data.flags |= CONSTANT_DATA_FLAGS_SUPPORT_SRGB;
         }
-
-        self.shader_data
-            .send_to_gpu(self.context.get().as_ref().unwrap());
+        /*
+        self.binding_data
+        .send_to_gpu(self.context.get().as_ref().unwrap());
+        */
     }
 
     pub fn need_redraw(&self) -> bool {
@@ -250,7 +261,10 @@ impl Renderer {
                     }
                 }
                 if let Some(texture_data) = texture_handler.get_texture_data(texture_id) {
-                    let uniform_index = self.shader_data.set_texture_data(texture_id, texture_data);
+                    let uniform_index = self
+                        .dynamic_data
+                        .textures_data
+                        .insert(texture_id, texture_data);
                     texture.get_mut().set_texture_data(
                         uniform_index,
                         texture_data.width(),
@@ -272,8 +286,9 @@ impl Renderer {
         inox_profiler::scoped_profile!("renderer::on_light_changed");
         if let Some(light) = self.shared_data.get_resource::<Light>(light_id) {
             let uniform_index = self
-                .shader_data
-                .set_light_data(light_id, *light.get().data());
+                .dynamic_data
+                .lights_data
+                .insert(light_id, *light.get().data());
             light.get_mut().update_uniform(uniform_index as _);
         }
     }
@@ -292,7 +307,7 @@ impl Renderer {
         inox_profiler::scoped_profile!("renderer::on_material_changed");
         if let Some(material) = self.shared_data.get_resource::<Material>(material_id) {
             let uniform_index = self
-                .shader_data
+                .dynamic_data
                 .set_material_data(material_id, &material.get());
             material.get_mut().update_uniform(uniform_index as _);
             //Need to update all meshes that use this material
@@ -336,18 +351,55 @@ impl Renderer {
         self.graphics_mesh.get_mut().remove_mesh(mesh_id);
     }
 
-    fn prepare(&self) {
+    fn set_constant_data(&mut self) {
+        let render_context = self.context.get();
+        let render_context = render_context.as_ref().unwrap();
+
+        let usage = wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST;
+
+        self.constant_data_buffer.init_from_type::<ConstantData>(
+            render_context,
+            size_of::<ConstantData>() as _,
+            usage,
+        );
+        self.constant_data_buffer
+            .add_to_gpu_buffer(render_context, &[self.constant_data]);
+    }
+    fn set_dynamic_data(&mut self) {
+        let render_context = self.context.get();
+        let render_context = render_context.as_ref().unwrap();
+
+        let usage = wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST;
+
+        let total_size = size_of::<TextureData>() * MAX_NUM_TEXTURES
+            + size_of::<ShaderMaterialData>() * MAX_NUM_MATERIALS
+            + size_of::<LightData>() * MAX_NUM_LIGHTS;
+
+        self.dynamic_data_buffer.init_from_type::<DynamicData>(
+            render_context,
+            total_size as _,
+            usage,
+        );
+
+        self.dynamic_data_buffer
+            .add_to_gpu_buffer(render_context, self.dynamic_data.textures_data.data());
+        self.dynamic_data_buffer
+            .add_to_gpu_buffer(render_context, self.dynamic_data.materials_data.data());
+        self.dynamic_data_buffer
+            .add_to_gpu_buffer(render_context, self.dynamic_data.lights_data.data());
+    }
+
+    fn prepare(&mut self) {
         inox_profiler::scoped_profile!("renderer::prepare");
+
+        self.set_constant_data();
+        self.set_dynamic_data();
 
         let render_context = self.context.get();
         let render_context = render_context.as_ref().unwrap();
 
         let mut render_format = &render_context.config.format;
         let texture_handler = &render_context.texture_handler;
-        let bind_group_layouts = vec![
-            self.shader_data.bind_group_layout(),
-            texture_handler.bind_group_layout(),
-        ];
 
         self.shared_data
             .for_each_resource_mut(|_id, r: &mut RenderPass| {
@@ -365,7 +417,9 @@ impl Renderer {
                     render_context,
                     graphics_mesh,
                     render_format,
-                    &bind_group_layouts,
+                    texture_handler.bind_group_layout(),
+                    &self.constant_data_buffer,
+                    &self.dynamic_data_buffer,
                 );
             });
     }
@@ -400,10 +454,6 @@ impl Renderer {
                 let render_context = render_context.as_ref().unwrap();
                 let texture_handler = &render_context.texture_handler;
 
-                let bind_group_layouts = vec![
-                    self.shader_data.bind_group_layout(),
-                    texture_handler.bind_group_layout(),
-                ];
                 let mut render_format = &render_context.config.format;
                 self.shared_data
                     .for_each_resource_mut(|_id, r: &mut RenderPass| {
@@ -411,7 +461,6 @@ impl Renderer {
                             &render_context.device,
                             r.render_target().as_ref().map(|t| t.id()),
                         );
-                        let bind_group = vec![self.shader_data.bind_group(), &texture_bind_group];
 
                         if let Some(texture) = r.render_target() {
                             if let Some(atlas) = texture_handler.get_texture_atlas(texture.id()) {
@@ -429,8 +478,7 @@ impl Renderer {
                             texture_view: render_target,
                             format: render_format,
                             graphics_mesh: &self.graphics_mesh,
-                            bind_groups: bind_group.as_slice(),
-                            bind_group_layouts: bind_group_layouts.as_slice(),
+                            texture_bind_group: &texture_bind_group,
                         });
                     });
             }

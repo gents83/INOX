@@ -437,8 +437,12 @@ impl System for UISystem {
     fn run(&mut self) -> bool {
         self.update_events();
 
-        if self.ui_pipeline.is_none() {
-            //Pipeline not yet loaded - just skip
+        if let Some(pipeline) = &self.ui_pipeline {
+            pipeline
+                .get_mut()
+                .binding_data_mut()
+                .set_custom_data(self.ui_scale, true);
+        } else {
             return true;
         }
 
