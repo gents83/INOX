@@ -42,6 +42,14 @@ jobs:
         run: echo "LIBCLANG_PATH=$((gcm clang).source -replace "clang.exe")" >> $env:GITHUB_ENV
         if: ${{ matrix.os }} == 'windows-latest'
 
+      - name: "Creating folders"
+        run: |
+          mkdir -p "./output/"
+          mkdir -p "./output/web/"
+          mkdir -p "./output/INOX/"
+          mkdir -p "./output/INOX/bin/"
+          mkdir -p "./output/INOX/bin/data_raw/"
+          
       - name: "Install stable toolchain"
         uses: actions-rs/toolchain@v1
         with:
@@ -99,31 +107,6 @@ jobs:
           command: build 
           args: --manifest-path ./crates/Cargo.toml --release
 
-      - name: "Run cargo build workspace release wasm32"
-        uses: actions-rs/cargo@v1
-        with:
-          command: build 
-          args: --manifest-path ./crates/Cargo.toml --release --target wasm32-unknown-unknown
-      
-      - name: "Creating folders"
-        run: |
-          mkdir -p "./output/"
-          mkdir -p "./output/web/"
-          mkdir -p "./output/INOX/"
-          mkdir -p "./output/INOX/bin/"
-          mkdir -p "./output/INOX/bin/data_raw/"
-
-      - name: "Run wasm bindgen"
-        run: wasm-bindgen ./crates/target/wasm32-unknown-unknown/release/inox_launcher.wasm --out-dir ./output/web/ --target web --no-typescript
-
-      - name: "Copy wasm in web"
-        run: |
-          cp -r "./crates/target/wasm32-unknown-unknown/release/inox_launcher.wasm" "./output/web/inox_launcher.wasm"
-
-      - name: "Copy wasm32 in output"
-        run: |
-          cp -r "./index.html" "./output/web/"
-
       - name: "Copy and rename inox_blender dll into pyd"
         run: |
           find ./crates/target/release/ -type f -name "inox_blender.dll" | while read fname; do
@@ -167,6 +150,23 @@ jobs:
             filename=`basename "$fname"`
             cp "${dirname}/$filename" "./output/INOX/bin/$filename"
           done
+
+      - name: "Run cargo build workspace release wasm32"
+        uses: actions-rs/cargo@v1
+        with:
+          command: build 
+          args: --manifest-path ./crates/Cargo.toml --release --target wasm32-unknown-unknown
+      
+      - name: "Run wasm bindgen"
+        run: wasm-bindgen ./crates/target/wasm32-unknown-unknown/release/inox_launcher.wasm --out-dir ./output/web/ --target web --no-typescript
+
+      - name: "Copy wasm in web"
+        run: |
+          cp -r "./crates/target/wasm32-unknown-unknown/release/inox_launcher.wasm" "./output/web/inox_launcher.wasm"
+
+      - name: "Copy wasm32 in output"
+        run: |
+          cp -r "./index.html" "./output/web/"
           
       - name: "Upload artifacts"
         uses: actions/upload-artifact@v2
