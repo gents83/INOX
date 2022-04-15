@@ -92,7 +92,7 @@ jobs:
           args: --manifest-path ./crates/Cargo.toml --release
 
       - name: "Copy and rename inox_blender dll into pyd"
-        run: cp -f ./crates/target/release/inox_blender.dll ./crates/blender/inox_blender/INOX/inox_blender.pyd
+        run: cp -Force ./crates/target/release/inox_blender.dll ./crates/blender/inox_blender/INOX/inox_blender.pyd
 
       - name: "Copy inox_blender in INOX"
         run: cp -r "./crates/blender/inox_blender/INOX/" "./output/"
@@ -114,10 +114,10 @@ jobs:
           cp -r "./data_raw/shaders/" "./output/INOX/bin/data_raw/"
 
       - name: "Copy .dll in output"
-        run: cp -f ./crates/target/release/*.dll ./output/INOX/bin/
+        run: cp -Force ./crates/target/release/*.dll ./output/INOX/bin/
           
       - name: "Copy .exes in output"
-        run: cp -f ./crates/target/release/*.exe ./output/INOX/bin/
+        run: cp -Force ./crates/target/release/*.exe ./output/INOX/bin/
 
       - name: "Run cargo build workspace release wasm32"
         uses: actions-rs/cargo@v1
@@ -129,10 +129,10 @@ jobs:
         run: wasm-bindgen ./crates/target/wasm32-unknown-unknown/release/inox_launcher.wasm --out-dir ./output/web/ --target web --no-typescript
 
       - name: "Copy wasm in web"
-        run: cp -f "./crates/target/wasm32-unknown-unknown/release/inox_launcher.wasm" "./output/web/inox_launcher.wasm"
+        run: cp -Force "./crates/target/wasm32-unknown-unknown/release/inox_launcher.wasm" "./output/web/inox_launcher.wasm"
 
       - name: "Copy wasm32 in output"
-        run: cp -f "./index.html" "./output/web/"
+        run: cp -Force "./index.html" "./output/web/"
           
       - name: "Upload artifacts"
         uses: actions/upload-artifact@v2
