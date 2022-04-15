@@ -62,6 +62,7 @@ Let's see some useful shortcuts.
 
 Install AndroidSDK and NDK and setup environment variables (ANDROID_SDK_ROOT and ANDROID_NDK_ROOT).
 Going through Android Studio could be an easy win solution - just remember to go into SDK Manager and install then the Android NDK.   
+(https://mozilla.github.io/firefox-browser-architecture/experiments/2017-09-21-rust-on-android.html)
 
 Install cargo-apk with `cargo install cargo-apk`.
 
