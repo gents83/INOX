@@ -95,23 +95,23 @@ jobs:
         run: cp -Force ./crates/target/release/inox_blender.dll ./crates/blender/inox_blender/INOX/inox_blender.pyd
 
       - name: "Copy inox_blender in INOX"
-        run: cp -r "./crates/blender/inox_blender/INOX/" "./output/"
+        run: cp -r -Force "./crates/blender/inox_blender/INOX/" "./output/"
           
       - name: "Copy inox_viewer configs in output"
         run: |
           mkdir -p "./output/INOX/bin/data_raw/config/"
           mkdir -p "./output/INOX/bin/data_raw/config/inox_viewer/"
-          cp -r "./data_raw/config/inox_viewer/" "./output/INOX/bin/data_raw/config/"
+          cp -r -Force "./data_raw/config/inox_viewer/" "./output/INOX/bin/data_raw/config/"
 
       - name: "Copy pipelines in output"
         run: |
           mkdir -p "./output/INOX/bin/data_raw/pipelines/"
-          cp -r "./data_raw/pipelines/" "./output/INOX/bin/data_raw/"
+          cp -r -Force "./data_raw/pipelines/" "./output/INOX/bin/data_raw/"
 
       - name: "Copy shaders in output"
         run: |
           mkdir -p "./output/INOX/bin/data_raw/shaders/"
-          cp -r "./data_raw/shaders/" "./output/INOX/bin/data_raw/"
+          cp -r -Force "./data_raw/shaders/" "./output/INOX/bin/data_raw/"
 
       - name: "Copy .dll in output"
         run: cp -Force ./crates/target/release/*.dll ./output/INOX/bin/
