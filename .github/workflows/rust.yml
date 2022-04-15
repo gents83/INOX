@@ -12,6 +12,7 @@ on:
     
 env:
   CARGO_TERM_COLOR: always
+  RUSTFLAGS: --cfg=web_sys_unstable_apis
 
 jobs:
   check:
@@ -48,6 +49,12 @@ jobs:
           toolchain: stable
           override: true
           components: rustfmt, clippy
+          
+      - name: "Add rust target wasm32"
+        run: rustup target add wasm32-unknown-unknown
+          
+      - name: "Install wasm bindgen"
+        run: cargo install wasm-bindgen-cli
 
       - name: "Enable use of cache"
         uses: actions/cache@v2
@@ -86,11 +93,20 @@ jobs:
       #- name: "Detect unused dependencies with cargo-udeps"
       #  run: cargo +nightly udeps --manifest-path ./crates/Cargo.toml --all-targets
 
-      - name: "Run cargo build workspace"
+      - name: "Run cargo build workspace release"
         uses: actions-rs/cargo@v1
         with:
           command: build 
           args: --manifest-path ./crates/Cargo.toml --release
+
+      - name: "Run cargo build workspace release wasm32"
+        uses: actions-rs/cargo@v1
+        with:
+          command: build 
+          args: --manifest-path ./crates/Cargo.toml --release --target wasm32-unknown-unknown
+
+      - name: "Run wasm bindgen"
+        run: wasm-bindgen inox_launcher.wasm --out-dir ./web/ --target web --no-typescript
 
       - name: "Upload artifacts"
         uses: actions/upload-artifact@v2

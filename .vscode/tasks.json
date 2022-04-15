@@ -357,7 +357,7 @@
 			"dependsOn": [
 				"CREATE IN_USE FOLDER",
 				"CREATE DEPS IN_USE FOLDER",
-				"COMPILE RELEASE",
+				"COMPILE RELEASE WASM",
 				"COPY ADDON IN BLENDER RELEASE",
 			],
 			"problemMatcher": [],
@@ -372,6 +372,19 @@
 			"isBackground": true,
 			"dependsOn": [
 				"WASM BINDGEN",
+			],
+			"problemMatcher": [],
+			"presentation": {
+				"clear": true,
+				"reveal": "never", //process does not switch terminal (focus on program output)
+			},
+		},
+		{
+			"label": "BUILD RELEASE ANDROID",
+			"group": "build",
+			"isBackground": true,
+			"dependsOn": [
+				"COMPILE RELEASE ANDROID",
 			],
 			"problemMatcher": [],
 			"presentation": {

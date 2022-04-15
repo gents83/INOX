@@ -53,6 +53,7 @@ fn main() {
     let target_os = ::std::env::var("CARGO_CFG_TARGET_OS").unwrap();
     let target_arch = ::std::env::var("CARGO_CFG_TARGET_ARCH").unwrap();
     let is_windows_platform = target_os == "windows";
+    let is_android_platform = target_os == "android";
     let is_web_platform = target_arch == "wasm32";
 
     if is_windows_platform {
@@ -62,7 +63,7 @@ fn main() {
         link_library("gdi32");
         link_library("dwmapi");
         link_library("uxtheme");
-    } else if is_web_platform {
+    } else if is_android_platform || is_web_platform {
     } else {
         panic!("Platform {} not yet supported - Check build.rs to setup this platform to build from source", target_os);
     }

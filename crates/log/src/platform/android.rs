@@ -1,4 +1,4 @@
-#![cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
+#![cfg(target_os = "android")]
 
 #[macro_export]
 macro_rules! debug_log {

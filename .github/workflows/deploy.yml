@@ -42,23 +42,23 @@ jobs:
           mkdir -p "./output/INOX/bin/data_raw/"
           cp -r "./crates/blender/inox_blender/INOX/" "./output/"
           
-      - name: "Copy inox_viewer configs in INOX"
+      - name: "Copy inox_viewer configs in output"
         run: |
           mkdir -p "./output/INOX/bin/data_raw/config/"
           mkdir -p "./output/INOX/bin/data_raw/config/inox_viewer/"
           cp -r "./data_raw/config/inox_viewer/" "./output/INOX/bin/data_raw/config/"
 
-      - name: "Copy pipelines in INOX"
+      - name: "Copy pipelines in output"
         run: |
           mkdir -p "./output/INOX/bin/data_raw/pipelines/"
           cp -r "./data_raw/pipelines/" "./output/INOX/bin/data_raw/"
 
-      - name: "Copy shaders in INOX"
+      - name: "Copy shaders in output"
         run: |
           mkdir -p "./output/INOX/bin/data_raw/shaders/"
           cp -r "./data_raw/shaders/" "./output/INOX/bin/data_raw/"
 
-      - name: "Copy dlls in INOX"
+      - name: "Copy .dll in output"
         run: |
           find ./crates/target/release/ -maxdepth 1 -type f -name *.dll | while read fname; do
             dirname=`dirname "$fname"`
@@ -66,7 +66,7 @@ jobs:
             cp "${dirname}/$filename" "./output/INOX/bin/$filename"
           done
           
-      - name: "Copy exes in INOX"
+      - name: "Copy .exes in output"
         run: |
           find ./crates/target/release/ -maxdepth 1 -type f -name *.exe | while read fname; do
             dirname=`dirname "$fname"`
@@ -74,6 +74,26 @@ jobs:
             cp "${dirname}/$filename" "./output/INOX/bin/$filename"
           done
           
+      - name: "Copy .js in output"
+        run: |
+          find ./web/ -maxdepth 1 -type f -name *.js | while read fname; do
+            dirname=`dirname "$fname"`
+            filename=`basename "$fname"`
+            cp "${dirname}/$filename" "./output/wasm32/$filename"
+          done
+
+      - name: "Copy .wasm in output"
+        run: |
+          find ./web/ -maxdepth 1 -type f -name *.js | while read fname; do
+            dirname=`dirname "$fname"`
+            filename=`basename "$fname"`
+            cp "${dirname}/$filename" "./output/wasm32/$filename"
+          done
+
+      - name: "Copy wasm32 in output"
+        run: |
+          cp -r "./index.html" "./output/wasm32/"
+
       - name: Install zip
         uses: montudor/action-zip@v1
 

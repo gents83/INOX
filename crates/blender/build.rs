@@ -30,6 +30,15 @@ fn move_all_files_with_extension(src_path: PathBuf, target_path: PathBuf, extens
 }
 
 fn main() {
+    let target_os = ::std::env::var("CARGO_CFG_TARGET_OS").unwrap();
+
+    let is_windows_platform = target_os == "windows";
+    let is_macos_platform = target_os == "macos";
+    let is_linux_platform = target_os == "linux";
+    if !is_windows_platform && !is_linux_platform && !is_macos_platform {
+        return;
+    }
+
     let out_dir = env::var("OUT_DIR").unwrap();
     let out_dir = Path::new(&out_dir)
         .join("..\\..\\..\\")
