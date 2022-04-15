@@ -57,3 +57,20 @@ Let's see some useful shortcuts.
 - **-load_file [path]**: \
     A path of a scene to load with path relative to `/data/` \
     As example could be `./data/blender_export/TestScene/TestScene.scene_data`
+
+## How to setup your marchine for Android platform
+
+Install AndroidSDK and NDK and setup environment variables (ANDROID_SDK_ROOT and ANDROID_NDK_ROOT).
+Going through Android Studio could be an easy win solution - just remember to go into SDK Manager and install then the Android NDK.   
+
+Install cargo-apk with `cargo install cargo-apk`.
+
+Add desired android targets with `rustup target add <triple>`.
+
+Run `cargo apk run -p android-build` optionally with the flag `--target <triple>` for explicit target selection.
+
+## How to setup your marchine for Web platform
+
+Add wasm target with `rustup target add wasm32-unknown-unknown`
+
+Use Google Chrome Canary and enable `Unsafe WebGPU` in chrome://flags/
