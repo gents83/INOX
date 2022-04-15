@@ -34,12 +34,16 @@ jobs:
             cp "${dirname}/$filename" "./crates/blender/inox_blender/INOX/inox_blender.pyd"
           done
       
-      - name: "Copy inox_blender in INOX"
+      - name: "Creating folders"
         run: |
           mkdir -p "./output/"
+          mkdir -p "./output/wasm32/"
           mkdir -p "./output/INOX/"
           mkdir -p "./output/INOX/bin/"
           mkdir -p "./output/INOX/bin/data_raw/"
+
+      - name: "Copy inox_blender in INOX"
+        run: |
           cp -r "./crates/blender/inox_blender/INOX/" "./output/"
           
       - name: "Copy inox_viewer configs in output"
