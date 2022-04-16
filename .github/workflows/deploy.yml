@@ -38,7 +38,7 @@ jobs:
         run: |
           mkdir -p "./release/"
           mkdir -p "./release/web/"
-          cp -rf "./web/*.*" "./release/web/*.*"    
+          cp -rf "./web" "./release/web"    
           cp "./INOX.zip" "./release/INOX.zip"     
           cd ..
 
