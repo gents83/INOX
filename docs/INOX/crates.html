@@ -152,9 +152,98 @@
                 <div id="content" class="content">
                     <main>
                         <h2 id="inox-crates"><a class="header" href="#inox-crates">INOX Crates</a></h2>
-<p>In this page you'll find:</p>
+<p>In this page you'll find a list of crates and their description and main concepts of the <em><strong>INOX</strong></em> project:</p>
 <ul>
-<li>A list of crates and their description and main concepts of the <em><strong>INOX</strong></em> project.</li>
+<li>
+<p><a href="app"><strong>app</strong></a>: <br />
+It's the entry point crate of every <em><strong>INOX</strong></em> application. <br />
+It's basically a launcher that load different plugins dinamically or statically depending on platforms. <br />
+It also contains the basic window system and the main loop.</p>
+</li>
+<li>
+<p><a href="binarizer"><strong>binarizer</strong></a>: <br />
+This crate is used on pc platforms to binarize raw data into <em><strong>INOX</strong></em> data format. 
+It supports simple copy, font texture generation, gltf conversion, textures and shaders.</p>
+</li>
+<li>
+<p><a href="blender"><strong>blender</strong></a>: <br />
+This crate contains the interoperability between <em><strong>Blender</strong></em> and <em><strong>INOX</strong></em> engine.</p>
+</li>
+<li>
+<p><a href="comands"><strong>commands</strong></a>: <br />
+It's a useful crate to handle command line parsing easily.</p>
+</li>
+<li>
+<p><a href="core"><strong>core</strong></a>: <br />
+This crate is the real core of <em><strong>INOX</strong></em> engine. <br />
+It contains the real application loop, the scheduler, phases and job system and the handling of plugins.</p>
+</li>
+<li>
+<p><a href="filesystem"><strong>filesystem</strong></a>: <br />
+File handling for different platforms, dinamic library loading and file watchers.</p>
+</li>
+<li>
+<p><a href="graphics"><strong>graphics</strong></a>: <br />
+All graphics related stuff of <em><strong>INOX</strong></em> engine. <br />
+From renderer to shaders, textures, meshes, materials, fonts and all other resources handling. <br />
+It lies on top of wgpu</p>
+</li>
+<li>
+<p><a href="log"><strong>log</strong></a>: <br />
+It's a useful crate to handle logging on different platforms.</p>
+</li>
+<li>
+<p><a href="math"><strong>math</strong></a>: <br />
+This crate contains math classes and utilities. <br />
+It wraps cgmath crate. </p>
+</li>
+<li>
+<p><a href="messenger"><strong>messenger</strong></a>: <br />
+Message handlers and message communication crate. <br />
+It's at the core of <em><strong>INOX</strong></em> engine and it's used to handle messages between different parts of the engine.</p>
+</li>
+<li>
+<p><a href="nodes"><strong>nodes</strong></a>: <br />
+It's a useful crate to handle node graphs, input and output pins and connections.</p>
+</li>
+<li>
+<p><a href="platform"><strong>platform</strong></a>: <br />
+Basic platform code for windowing and input handling.</p>
+</li>
+<li>
+<p><a href="plugins"><strong>plugins</strong></a>: <br />
+In this folder you can find several plugins that you can use for your application. <br />
+They can be used alone or combined together with other plugins easily.</p>
+</li>
+<li>
+<p><a href="profiler"><strong>profiler</strong></a>: <br />
+It's a useful crate to handle profiling. <br />
+It stores data to be used with chrome:://tracing but it can very easily extended if needed.</p>
+</li>
+<li>
+<p><a href="resources"><strong>resources</strong></a>: <br />
+It contains resource concept and shared data that is at the core of ECS paradigm of <em><strong>INOX</strong></em> engine.</p>
+</li>
+<li>
+<p><a href="scene"><strong>scene</strong></a>: <br />
+This crate has scene, object and its components (like camera, script, etc).</p>
+</li>
+<li>
+<p><a href="serialize"><strong>serialize</strong></a>: <br />
+<em><strong>INOX</strong></em> engine serialization and deserialization library.</p>
+</li>
+<li>
+<p><a href=""><strong>time</strong></a>time: <br />
+It's a useful crate to handle timer and fps computation.</p>
+</li>
+<li>
+<p><a href="ui"><strong>ui</strong></a>: <br />
+This crate contains ui system, widget handling and wraps egui.</p>
+</li>
+<li>
+<p><a href="uid"><strong>uid</strong></a>: <br />
+It's a useful crate to handle unique identifiers generation and handling.</p>
+</li>
 </ul>
 
                     </main>

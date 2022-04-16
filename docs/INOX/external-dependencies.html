@@ -161,42 +161,48 @@ Used in <em><strong>INOX</strong></em> as math library for vectors, matrices, qu
 <li><a href="https://github.com/marcianx/downcast-rs"><strong>downcast-rs</strong></a>: <br />
 Adds downcasting support to trait objects using only safe Rust <br />
 Used in <em><strong>INOX</strong></em> for trait downcasting.</li>
-<li><a href="https://github.com/uuid-rs/uuid"><strong>uuid</strong></a>: <br />
-Generate and parse UUIDs. <br />
-Used in <em><strong>INOX</strong></em> for all resource IDs and for every UUID generated.</li>
-<li><a href="https://github.com/serde-rs/serde"><strong>serde</strong></a>: <br />
-Serialization framework for Rust <br />
-Used in <em><strong>INOX</strong></em> for serialization and deserialization purposes.</li>
-<li><a href="https://github.com/serde-rs/json"><strong>serde-json</strong></a>: <br />
-Strongly typed JSON library for Rust <br />
-Used in <em><strong>INOX</strong></em> for serialization and deserialization purposes of data.</li>
-<li><a href="https://github.com/dtolnay/typetag"><strong>typetag</strong></a>: <br />
-Serde serializable and deserializable trait objects <br />
-Used in <em><strong>INOX</strong></em> for serialization and deserialization purposes.</li>
-<li><a href="https://github.com/image-rs/image"><strong>image-rs</strong></a>: <br />
-Encoding and decoding images in Rust <br />
-Used in <em><strong>INOX</strong></em> for images loading and saving.</li>
-<li><a href="https://github.com/RazrFalcon/ttf-parser"><strong>ttf-parser</strong></a>: <br />
-A high-level, safe, zero-allocation TrueType font parser <br />
-Used in <em><strong>INOX</strong></em> for TrueType fonts loading and parsing.</li>
-<li><a href="https://github.com/netvl/xml-rs"><strong>xml-rs</strong></a>: <br />
-An XML library in Rust <br />
-Used in <em><strong>INOX</strong></em> for Vulkan docs parsing.</li>
-<li><a href="https://github.com/gltf-rs/gltf"><strong>gltf-rs</strong></a>: <br />
-A crate for loading glTF 2.0 <br />
-Used in <em><strong>INOX</strong></em> for GLTF file loading and parsing.</li>
 <li><a href="https://github.com/emilk/egui"><strong>egui</strong></a>: <br />
 An easy-to-use immediate mode GUI in pure Rust <br />
 Used in <em><strong>INOX</strong></em> for in-game tooling and debug UI.</li>
-<li><a href="https://github.com/dgrunwald/rust-cpython"><strong>cpython</strong></a>: <br />
-Rust &lt;-&gt; Python bindings <br />
-Used in <em><strong>INOX</strong></em> for Blender add-on interaction.</li>
+<li><a href="https://github.com/dtolnay/erased-serde"><strong>erased-serde</strong></a>: <br />
+Trait serialization and deserialization for Rust <br />
+Used in <em><strong>INOX</strong></em> for trait serialization and deserialization purposes.</li>
+<li><a href="https://github.com/gltf-rs/gltf"><strong>gltf-rs</strong></a>: <br />
+A crate for loading glTF 2.0 <br />
+Used in <em><strong>INOX</strong></em> for GLTF file loading and parsing.</li>
+<li><a href="https://github.com/image-rs/image"><strong>image-rs</strong></a>: <br />
+Encoding and decoding images and textures in Rust <br />
+Used in <em><strong>INOX</strong></em> for images loading and saving.</li>
+<li><a href="https://github.com/serde-rs/json"><strong>serde-json</strong></a>: <br />
+Strongly typed JSON library for Rust <br />
+Used in <em><strong>INOX</strong></em> for serialization and deserialization purposes of data.</li>
+<li><a href="https://github.com/gwihlidal/meshopt-rs"><strong>meshopt-rs</strong></a>: <br />
+Rust ffi and idiomatic wrapper for zeux/meshoptimizer, a mesh optimization library that makes indexed meshes more GPU-friendly. <br />
+Used in <em><strong>INOX</strong></em> for mesh optimization and clustering.</li>
+<li><a href="https://github.com/PyO3/pyo3"><strong>pyo3</strong></a>: <br />
+Rust bindings for the Python interpreter <br />
+Used in <em><strong>INOX</strong></em> for Blender add-on interactions.</li>
 <li><a href="https://github.com/rust-random/rand"><strong>rand</strong></a>: <br />
 A Rust library for random number generation. <br />
 Used in <em><strong>INOX</strong></em> for random number generation.</li>
-<li><a href="https://github.com/rust-lang/rust-bindgen"><strong>rust-bindgen</strong></a>: <br />
-Automatically generates Rust FFI bindings to C (and some C++) libraries. <br />
-Used in <em><strong>INOX</strong></em> to generate Rust bindings of Vulkan headers.</li>
+<li><a href="https://github.com/rust-windowing/raw-window-handle"><strong>raw-window-handle</strong></a>: <br />
+A common windowing interoperability library for Rust <br />
+Used in <em><strong>INOX</strong></em> for shared window and handle concepts needed by wpgu.</li>
+<li><a href="https://github.com/serde-rs/serde"><strong>serde</strong></a>: <br />
+Serialization framework for Rust <br />
+Used in <em><strong>INOX</strong></em> for serialization and deserialization purposes.</li>
+<li><a href="https://github.com/RazrFalcon/ttf-parser"><strong>ttf-parser</strong></a>: <br />
+A high-level, safe, zero-allocation TrueType font parser <br />
+Used in <em><strong>INOX</strong></em> for TrueType fonts loading and parsing.</li>
+<li><a href="https://github.com/uuid-rs/uuid"><strong>uuid</strong></a>: <br />
+Generate and parse UUIDs. <br />
+Used in <em><strong>INOX</strong></em> for all resource IDs and for every UUID generated.</li>
+<li><a href="https://github.com/rustwasm/wasm-bindgen"><strong>wasm-bindgen</strong></a>: <br />
+Facilitating high-level interactions between Wasm modules and JavaScript <br />
+Used in <em><strong>INOX</strong></em> for wasm and javascript bindings.</li>
+<li><a href="https://github.com/gfx-rs/wgpu"><strong>wgpu</strong></a>: <br />
+Safe and portable GPU abstraction in Rust, implementing WebGPU API <br />
+Used in <em><strong>INOX</strong></em> for cross-platform graphics shared api</li>
 </ul>
 
                     </main>
