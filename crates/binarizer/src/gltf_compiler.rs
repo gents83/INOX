@@ -18,7 +18,7 @@ use gltf::{
 };
 
 use inox_graphics::{
-    LightData, LightType, MaterialAlphaMode, MaterialData, MeshData, TextureType, VertexData,
+    LightData, LightType, MaterialAlphaMode, MaterialData, MeshData, PbrVertexData, TextureType,
     VertexFormat, MAX_TEXTURE_COORDS_SETS,
 };
 use inox_log::debug_log;
@@ -169,7 +169,7 @@ impl GltfCompiler {
         indices
     }
 
-    fn extract_mesh_data(&mut self, path: &Path, primitive: &Primitive) -> Vec<VertexData> {
+    fn extract_mesh_data(&mut self, path: &Path, primitive: &Primitive) -> Vec<PbrVertexData> {
         let mut vertices = Vec::new();
         for (_attribute_index, (semantic, accessor)) in primitive.attributes().enumerate() {
             //debug_log!("Attribute[{}]: {:?}", _attribute_index, semantic);
@@ -182,7 +182,7 @@ impl GltfCompiler {
                         if vertices.len() < pos.len() {
                             debug_assert!(vertices.is_empty());
                             for p in pos.iter() {
-                                let v = VertexData {
+                                let v = PbrVertexData {
                                     pos: *p,
                                     ..Default::default()
                                 };
@@ -204,7 +204,7 @@ impl GltfCompiler {
                         if vertices.len() < norm.len() {
                             debug_assert!(vertices.is_empty());
                             for n in norm.iter() {
-                                let v = VertexData {
+                                let v = PbrVertexData {
                                     normal: *n,
                                     ..Default::default()
                                 };
@@ -250,7 +250,7 @@ impl GltfCompiler {
                         if vertices.len() < col.len() {
                             debug_assert!(vertices.is_empty());
                             for c in col.iter() {
-                                let v = VertexData {
+                                let v = PbrVertexData {
                                     color: *c,
                                     ..Default::default()
                                 };
@@ -283,7 +283,7 @@ impl GltfCompiler {
                         } else {
                             debug_assert!(vertices.is_empty());
                             for t in tex.iter() {
-                                let mut v = VertexData::default();
+                                let mut v = PbrVertexData::default();
                                 v.tex_coord[texture_index as usize] = *t;
                                 vertices.push(v);
                             }
@@ -296,16 +296,7 @@ impl GltfCompiler {
         vertices
     }
 
-    fn process_mesh_data(
-        &mut self,
-        path: &Path,
-        mesh_name: &str,
-        primitive: &Primitive,
-        material_path: &Path,
-    ) -> PathBuf {
-        let vertices = self.extract_mesh_data(path, primitive);
-        let indices = self.extract_indices(path, primitive);
-
+    fn optimize_mesh(&self, vertices: Vec<PbrVertexData>, indices: Vec<u32>) -> MeshData {
         let mut old_vertices = Vec::new();
         vertices.iter().for_each(|v| {
             old_vertices.push([
@@ -334,7 +325,7 @@ impl GltfCompiler {
         );
         let mut new_indices = meshopt::optimize_vertex_cache(new_indices.as_slice(), num_vertices);
         let vertices_bytes = to_u8_slice(new_vertices.as_slice());
-        let vertex_stride = size_of::<VertexData>();
+        let vertex_stride = size_of::<PbrVertexData>();
         let vertex_data_adapter = meshopt::VertexDataAdapter::new(vertices_bytes, vertex_stride, 0);
         meshopt::optimize_overdraw_in_place(
             new_indices.as_mut_slice(),
@@ -344,9 +335,45 @@ impl GltfCompiler {
         let new_vertices =
             meshopt::optimize_vertex_fetch(new_indices.as_mut_slice(), new_vertices.as_slice());
 
+        let vertices_bytes = to_u8_slice(new_vertices.as_slice());
+        let vertex_stride = size_of::<PbrVertexData>();
+        let vertex_data_adapter = meshopt::VertexDataAdapter::new(vertices_bytes, vertex_stride, 0);
+        let max_vertices = 64;
+        let max_triangles = 124;
+        let cone_weight = 0.;
+        let meshlets = meshopt::build_meshlets(
+            new_indices.as_slice(),
+            vertex_data_adapter.as_ref().unwrap(),
+            max_vertices,
+            max_triangles,
+            cone_weight,
+        );
+        let mut meshlet_bounds = Vec::new();
+        for m in meshlets.iter() {
+            meshlet_bounds.push(meshopt::compute_meshlet_bounds(
+                m,
+                vertex_data_adapter.as_ref().unwrap(),
+            ));
+        }
+
         let mut mesh_data = MeshData::new(VertexFormat::pbr());
-        mesh_data.material = material_path.to_path_buf();
         mesh_data.append_mesh(new_vertices.as_slice(), new_indices.as_slice());
+
+        mesh_data
+    }
+
+    fn process_mesh_data(
+        &mut self,
+        path: &Path,
+        mesh_name: &str,
+        primitive: &Primitive,
+        material_path: &Path,
+    ) -> PathBuf {
+        let vertices = self.extract_mesh_data(path, primitive);
+        let indices = self.extract_indices(path, primitive);
+
+        let mut mesh_data = self.optimize_mesh(vertices, indices);
+        mesh_data.material = material_path.to_path_buf();
 
         Self::create_file(
             path,

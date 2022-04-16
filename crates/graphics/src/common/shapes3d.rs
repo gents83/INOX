@@ -2,14 +2,14 @@ use std::f32::consts::PI;
 
 use inox_math::{Mat4Ops, MatBase, Matrix4, VecBase, Vector3, Vector4};
 
-use crate::{VertexData, MAX_TEXTURE_COORDS_SETS};
+use crate::{PbrVertexData, MAX_TEXTURE_COORDS_SETS};
 
-pub fn create_cube(size: Vector3) -> ([VertexData; 8], [u32; 36]) {
+pub fn create_cube(size: Vector3) -> ([PbrVertexData; 8], [u32; 36]) {
     create_cube_from_min_max(-size, size)
 }
 
-pub fn create_cube_from_min_max(min: Vector3, max: Vector3) -> ([VertexData; 8], [u32; 36]) {
-    let mut vertices = [VertexData::default(); 8];
+pub fn create_cube_from_min_max(min: Vector3, max: Vector3) -> ([PbrVertexData; 8], [u32; 36]) {
+    let mut vertices = [PbrVertexData::default(); 8];
     vertices[0].pos = [min.x, min.y, min.z].into();
     vertices[1].pos = [max.x, min.y, min.z].into();
     vertices[2].pos = [max.x, max.y, min.z].into();
@@ -47,7 +47,7 @@ pub fn create_cylinder(
     num_slices: u32,
     height: f32,
     num_stack: u32,
-) -> (Vec<VertexData>, Vec<u32>) {
+) -> (Vec<PbrVertexData>, Vec<u32>) {
     let mut vertices = Vec::new();
     let mut indices = Vec::new();
 
@@ -65,7 +65,7 @@ pub fn create_cylinder(
         let t = 1. - i as f32 / num_stack as f32;
 
         for j in 0..num_slices + 1 {
-            let mut vertex = VertexData::default();
+            let mut vertex = PbrVertexData::default();
             let angle: f32 = j as f32 * angle_step;
 
             vertex.pos = [radius * angle.cos(), radius * angle.sin(), z].into();
@@ -82,7 +82,7 @@ pub fn create_cylinder(
 
     //then base
     let base_vertex_index = vertices.len() as _;
-    let mut center_base_vertex = VertexData::default();
+    let mut center_base_vertex = PbrVertexData::default();
 
     center_base_vertex.pos.z = -height * 0.5;
     center_base_vertex.normal.z = -1.;
@@ -90,7 +90,7 @@ pub fn create_cylinder(
     vertices.push(center_base_vertex);
 
     for i in 0..num_slices + 1 {
-        let mut vertex = VertexData::default();
+        let mut vertex = PbrVertexData::default();
         let angle: f32 = i as f32 * angle_step;
 
         vertex.pos = [
@@ -107,7 +107,7 @@ pub fn create_cylinder(
 
     //then top
     let top_vertex_index = vertices.len() as _;
-    let mut center_top_vertex = VertexData::default();
+    let mut center_top_vertex = PbrVertexData::default();
 
     center_top_vertex.pos.z = height * 0.5;
     center_top_vertex.normal.z = 1.;
@@ -115,7 +115,7 @@ pub fn create_cylinder(
     vertices.push(center_top_vertex);
 
     for i in 0..num_slices + 1 {
-        let mut vertex = VertexData::default();
+        let mut vertex = PbrVertexData::default();
         let angle: f32 = i as f32 * angle_step;
 
         vertex.pos = [
@@ -186,7 +186,7 @@ pub fn create_sphere(
     num_slices: u32,
     num_stack: u32,
     color: Vector4,
-) -> (Vec<VertexData>, Vec<u32>) {
+) -> (Vec<PbrVertexData>, Vec<u32>) {
     let mut vertices = Vec::new();
     let mut indices = Vec::new();
 
@@ -200,7 +200,7 @@ pub fn create_sphere(
         let z = radius * stack_angle.sin();
 
         for j in 0..num_slices + 1 {
-            let mut vertex = VertexData::default();
+            let mut vertex = PbrVertexData::default();
             let slice_angle = j as f32 * slice_step; // from 0 to 2pi
             vertex.pos = position;
             vertex.pos += [xy * slice_angle.cos(), xy * slice_angle.sin(), z].into();
@@ -236,7 +236,7 @@ pub fn create_sphere(
     (vertices, indices)
 }
 
-pub fn create_arrow(position: Vector3, direction: Vector3) -> (Vec<VertexData>, Vec<u32>) {
+pub fn create_arrow(position: Vector3, direction: Vector3) -> (Vec<PbrVertexData>, Vec<u32>) {
     let mut shape_vertices = Vec::new();
     let mut shape_indices = Vec::new();
 
@@ -271,9 +271,9 @@ pub fn create_arrow(position: Vector3, direction: Vector3) -> (Vec<VertexData>, 
     (shape_vertices, shape_indices)
 }
 
-pub fn create_line(start: Vector3, end: Vector3, color: Vector4) -> ([VertexData; 3], [u32; 3]) {
+pub fn create_line(start: Vector3, end: Vector3, color: Vector4) -> ([PbrVertexData; 3], [u32; 3]) {
     let direction = (end - start).normalized();
-    let mut vertices = [VertexData::default(); 3];
+    let mut vertices = [PbrVertexData::default(); 3];
     vertices[0].pos = [start.x, start.y, start.z].into();
     vertices[1].pos = [start.x, start.y, start.z].into();
     vertices[2].pos = [end.x, end.y, end.z].into();
@@ -293,7 +293,7 @@ pub fn create_line(start: Vector3, end: Vector3, color: Vector4) -> ([VertexData
     (vertices, indices)
 }
 
-pub fn create_hammer(position: Vector3, direction: Vector3) -> (Vec<VertexData>, Vec<u32>) {
+pub fn create_hammer(position: Vector3, direction: Vector3) -> (Vec<PbrVertexData>, Vec<u32>) {
     let mut shape_vertices = Vec::new();
     let mut shape_indices = Vec::new();
 
@@ -337,7 +337,7 @@ pub fn create_torus(
     num_main_slices: u32,
     num_tube_slices: u32,
     direction: Vector3,
-) -> (Vec<VertexData>, Vec<u32>) {
+) -> (Vec<PbrVertexData>, Vec<u32>) {
     let mut vertices = Vec::new();
     let mut indices = Vec::new();
 
@@ -347,7 +347,7 @@ pub fn create_torus(
     for i in 0..num_main_slices + 1 {
         let main_angle = i as f32 * main_step;
         for j in 0..num_tube_slices + 1 {
-            let mut vertex = VertexData::default();
+            let mut vertex = PbrVertexData::default();
             let tube_angle = j as f32 * tube_step;
             vertex.pos = [
                 (main_radius + tube_radius * tube_angle.cos()) * main_angle.cos(),

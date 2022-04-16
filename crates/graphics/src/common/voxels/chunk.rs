@@ -2,7 +2,7 @@
 
 use inox_math::*;
 
-use crate::VertexData;
+use crate::PbrVertexData;
 
 use super::block::*;
 
@@ -217,7 +217,7 @@ impl Chunk {
         Some(self.blocks[dx][dy][dz])
     }
 
-    pub fn generate_mesh(&self, vertices: &mut Vec<VertexData>) {
+    pub fn generate_mesh(&self, vertices: &mut Vec<PbrVertexData>) {
         for x in 0..Chunk::SIZE_X {
             for y in 0..Chunk::SIZE_Y {
                 for z in 0..Chunk::SIZE_Z {
@@ -236,7 +236,7 @@ impl Chunk {
 
 pub struct ChunkMesh {
     pub transform: Matrix4,
-    pub vertices: Vec<VertexData>,
+    pub vertices: Vec<PbrVertexData>,
 }
 
 pub trait ChunkClamp {

@@ -2,7 +2,7 @@
 
 use inox_math::*;
 
-use crate::VertexData;
+use crate::PbrVertexData;
 
 pub static mut CONFIG: Vec<BlockConfig> = Vec::new();
 
@@ -123,7 +123,7 @@ impl Block {
 
     pub fn generate_mesh(
         &self,
-        vertices: &mut Vec<VertexData>,
+        vertices: &mut Vec<PbrVertexData>,
         coord: Vector3,
         sides: u8,
         edges: u32,
@@ -159,11 +159,11 @@ impl Block {
 
                 let normal = Block::NORMALS[side as usize];
 
-                vertices.push(VertexData {
+                vertices.push(PbrVertexData {
                     pos: position.into(),
                     color: color.into(),
                     normal: normal.into(),
-                    ..VertexData::default()
+                    ..PbrVertexData::default()
                 });
             }
         }

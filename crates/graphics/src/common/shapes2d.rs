@@ -2,34 +2,34 @@ use std::f32::consts::PI;
 
 use inox_math::{VecBase, Vector2, Vector3, Vector4};
 
-use crate::{VertexData, MAX_TEXTURE_COORDS_SETS};
+use crate::{PbrVertexData, MAX_TEXTURE_COORDS_SETS};
 
 pub fn create_quad(
     rect: Vector4,
     z: f32,
     tex_coords: Vector4,
     index_start: Option<usize>,
-) -> ([VertexData; 4], [u32; 6]) {
+) -> ([PbrVertexData; 4], [u32; 6]) {
     let vertices = [
-        VertexData {
+        PbrVertexData {
             pos: [rect.x, rect.y, z].into(),
             normal: [-1., -1., 0.].into(),
             tex_coord: [[tex_coords.x, tex_coords.y].into(); MAX_TEXTURE_COORDS_SETS],
             ..Default::default()
         },
-        VertexData {
+        PbrVertexData {
             pos: [rect.x, rect.w, z].into(),
             normal: [-1., 1., 0.].into(),
             tex_coord: [[tex_coords.x, tex_coords.w].into(); MAX_TEXTURE_COORDS_SETS],
             ..Default::default()
         },
-        VertexData {
+        PbrVertexData {
             pos: [rect.z, rect.w, z].into(),
             normal: [1., 1., 0.].into(),
             tex_coord: [[tex_coords.z, tex_coords.w].into(); MAX_TEXTURE_COORDS_SETS],
             ..Default::default()
         },
-        VertexData {
+        PbrVertexData {
             pos: [rect.z, rect.y, z].into(),
             normal: [1., -1., 0.].into(),
             tex_coord: [[tex_coords.z, tex_coords.y].into(); MAX_TEXTURE_COORDS_SETS],
@@ -47,27 +47,31 @@ pub fn create_quad(
     ];
     (vertices, indices)
 }
-pub fn create_colored_quad(rect: Vector4, z: f32, color: Vector4) -> ([VertexData; 4], [u32; 6]) {
+pub fn create_colored_quad(
+    rect: Vector4,
+    z: f32,
+    color: Vector4,
+) -> ([PbrVertexData; 4], [u32; 6]) {
     let vertices = [
-        VertexData {
+        PbrVertexData {
             pos: [rect.x, rect.y, z].into(),
             normal: [-1., -1., 0.].into(),
             color,
             tex_coord: [[0., 0.].into(); MAX_TEXTURE_COORDS_SETS],
         },
-        VertexData {
+        PbrVertexData {
             pos: [rect.x, rect.w, z].into(),
             normal: [-1., 1., 0.].into(),
             color,
             tex_coord: [[0., 1.].into(); MAX_TEXTURE_COORDS_SETS],
         },
-        VertexData {
+        PbrVertexData {
             pos: [rect.z, rect.w, z].into(),
             normal: [1., 1., 0.].into(),
             color,
             tex_coord: [[1., 1.].into(); MAX_TEXTURE_COORDS_SETS],
         },
-        VertexData {
+        PbrVertexData {
             pos: [rect.z, rect.y, z].into(),
             normal: [1., -1., 0.].into(),
             color,
@@ -78,8 +82,8 @@ pub fn create_colored_quad(rect: Vector4, z: f32, color: Vector4) -> ([VertexDat
     (vertices, indices)
 }
 
-pub fn create_triangle_up() -> ([VertexData; 3], [u32; 3]) {
-    let mut vertices = [VertexData::default(); 3];
+pub fn create_triangle_up() -> ([PbrVertexData; 3], [u32; 3]) {
+    let mut vertices = [PbrVertexData::default(); 3];
     vertices[0].pos = [0., 1., 0.].into();
     vertices[1].pos = [1., 1., 0.].into();
     vertices[2].pos = [0.5, 0., 0.].into();
@@ -96,8 +100,8 @@ pub fn create_triangle_up() -> ([VertexData; 3], [u32; 3]) {
     (vertices, indices)
 }
 
-pub fn create_triangle_down() -> ([VertexData; 3], [u32; 3]) {
-    let mut vertices = [VertexData::default(); 3];
+pub fn create_triangle_down() -> ([PbrVertexData; 3], [u32; 3]) {
+    let mut vertices = [PbrVertexData::default(); 3];
     vertices[0].pos = [0., 0., 0.].into();
     vertices[1].pos = [1., 0., 0.].into();
     vertices[2].pos = [0.5, 1., 0.].into();
@@ -114,8 +118,8 @@ pub fn create_triangle_down() -> ([VertexData; 3], [u32; 3]) {
     (vertices, indices)
 }
 
-pub fn create_triangle_right() -> ([VertexData; 3], [u32; 3]) {
-    let mut vertices = [VertexData::default(); 3];
+pub fn create_triangle_right() -> ([PbrVertexData; 3], [u32; 3]) {
+    let mut vertices = [PbrVertexData::default(); 3];
     vertices[0].pos = [0., 0., 0.].into();
     vertices[1].pos = [1., 0.5, 0.].into();
     vertices[2].pos = [0., 1., 0.].into();
@@ -155,8 +159,8 @@ pub fn create_rounded_rect(
     rect: Vector4,
     corner_radius: f32,
     num_slices: u32,
-) -> (Vec<VertexData>, Vec<u32>) {
-    let center = VertexData {
+) -> (Vec<PbrVertexData>, Vec<u32>) {
+    let center = PbrVertexData {
         pos: [
             rect.x + (rect.z - rect.x) * 0.5,
             rect.y + (rect.w - rect.y) * 0.5,
@@ -216,7 +220,7 @@ pub fn create_rounded_rect(
     let mut vertices = vec![center];
     for v in positions.iter() {
         let pos: Vector3 = [v.x, v.y, 0.].into();
-        vertices.push(VertexData {
+        vertices.push(PbrVertexData {
             pos,
             tex_coord: [[rect.z / v.x, rect.w / v.y].into(); MAX_TEXTURE_COORDS_SETS],
             normal: (pos - center.pos).normalized(),
