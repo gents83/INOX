@@ -32,13 +32,15 @@ jobs:
       - name: "Zip INOX"
         run: |
           cd "./output/"
-          zip -qq -v -r INOX.zip INOX/   
+          zip -qq -v -r INOX.zip INOX/    
+          cd .. 
 
       - name: "Prepare for copy on Github Pages"
         run: |
+          cd "./output/"
           mkdir -p "./release/"
           mkdir -p "./release/web/"
-          cp -rf "./web" "./release/web"    
+          cp -r "./web" "./release/web"    
           cp "./INOX.zip" "./release/INOX.zip"     
           cd ..
 
