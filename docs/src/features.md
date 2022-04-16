@@ -26,14 +26,17 @@ Here you can find a list of features that are currently supported by the library
 - [x] _**INOX**_ <-> _**Blender**_ communication through TCP connection
 - [x] Create custom Logic Nodes editor in _**Blender**_
 - [x] Possibility to define and use custom nodes in external dlls
+- [x] Integrated wasm as target
+- [x] Added meshoptimizer library by [Arseny Kapoulkine](https://twitter.com/zeuxcg)
+- [x] Possibility to run Phases in parallel when not dependent
+- [x] Plugin indipendent and ability to enable\disable them at runtime
+- [x] Dynamic vertex layout and storage buffers per-shader 
 
 TODO:
-- [ ] Integrate wasm as target
-- [ ] Possibility to run Phases in parallel when not dependent
-- [ ] Plugin indipendent and ability to enable\disable them at runtime
+- [ ] Integrate Android as target
+- [ ] Add multithreading workers for WASM target on web
+- [ ] Integrate Meshlet generation and gpu culling
 - [ ] Integrate PBR rendering
+- [ ] Raytracing on GPU
 - [ ] Quick example of game 
 - [ ] Integrate KTX universal texture compression
-- [ ] Integrate raw-window-handle as optional feature
-- [ ] Raytracing on GPU
-- [ ] Dynamic vertex data per-shader
