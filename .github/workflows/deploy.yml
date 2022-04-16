@@ -37,7 +37,7 @@ jobs:
       - name: "Prepare for copy on Github Pages"
         run: |
           mkdir -p "./release/"
-          cp -r -Force "./web/*.*" "./release/web/*.*"    
+          cp -rf "./web/*.*" "./release/web/*.*"    
           cp "./INOX.zip" "./release/INOX.zip"     
           cd ..
 
