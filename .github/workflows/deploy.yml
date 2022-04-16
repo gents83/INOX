@@ -26,14 +26,18 @@ jobs:
           name: output-binaries
           path: output/
 
-      - name: Install zip
+      - name: "Install zip"
         uses: montudor/action-zip@v1
 
-      - name: Zip INOX
+      - name: "Zip INOX"
         run: |
           cd "./output/"
           zip -qq -v -r INOX.zip INOX/   
+
+      - name: "Prepare for copy on Github Pages"
+        run: |
           mkdir -p "./release/"
+          cp -r -Force "./web/*.*" "./release/web/*.*"    
           cp "./INOX.zip" "./release/INOX.zip"     
           cd ..
 
