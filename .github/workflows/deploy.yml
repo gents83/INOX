@@ -39,8 +39,10 @@ jobs:
         run: |
           cd "./output/"
           mkdir -p "./release/"
-          mkdir -p "./release/web/"
-          cp -r "./web" "./release/web"    
+          mkdir -p "./docs/"
+          mkdir -p "./docs/INOX/"
+          mkdir -p "./docs/INOX/web/"
+          cp -r "./web" "./docs/INOX"    
           cp "./INOX.zip" "./release/INOX.zip"     
           cd ..
 

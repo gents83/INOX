@@ -20,6 +20,7 @@ impl Window {
     ) -> Handle {
         let document = web_sys::window().unwrap().document().unwrap();
         let canvas = document.get_element_by_id("canvas").unwrap();
+        canvas.set_attribute("tabindex", "0").ok();
         canvas.set_attribute("data-raw-handle", "0").ok();
         let canvas: web_sys::HtmlCanvasElement =
             canvas.dyn_into::<web_sys::HtmlCanvasElement>().unwrap();
