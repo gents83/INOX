@@ -101,17 +101,24 @@ jobs:
         run: |
           mkdir -p "./output/INOX/bin/data_raw/config/"
           mkdir -p "./output/INOX/bin/data_raw/config/inox_viewer/"
+          mkdir -p "./output/web/data_raw/config/"
+          mkdir -p "./output/web/data_raw/config/inox_viewer/"
           cp -r -Force "./data_raw/config/inox_viewer/" "./output/INOX/bin/data_raw/config/"
+          cp -r -Force "./data_raw/config/inox_viewer/" "./output/web/data_raw/config/"
 
       - name: "Copy pipelines in output"
         run: |
           mkdir -p "./output/INOX/bin/data_raw/pipelines/"
+          mkdir -p "./output/web/data_raw/pipelines/"
           cp -r -Force "./data_raw/pipelines/" "./output/INOX/bin/data_raw/"
+          cp -r -Force "./data_raw/pipelines/" "./output/web/data_raw/"
 
       - name: "Copy shaders in output"
         run: |
           mkdir -p "./output/INOX/bin/data_raw/shaders/"
+          mkdir -p "./output/web/data_raw/shaders/"
           cp -r -Force "./data_raw/shaders/" "./output/INOX/bin/data_raw/"
+          cp -r -Force "./data_raw/shaders/" "./output/web/data_raw/"
 
       - name: "Copy .dll in output"
         run: cp -Force ./crates/target/release/*.dll ./output/INOX/bin/
