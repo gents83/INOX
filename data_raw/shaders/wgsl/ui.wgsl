@@ -171,7 +171,7 @@ fn rgba_from_integer(color: u32) -> vec4<f32> {
     );
 }
 
-@stage(vertex)
+@vertex
 fn vs_main(
     v: VertexInput,
     instance: InstanceInput,
@@ -239,7 +239,7 @@ fn get_texture_color(material_index: u32, texture_type: u32, tex_coords: vec3<f3
     return textureSampleLevel(texture_1, default_sampler, tex_coords.xy, tex_coords.z);
 }
 
-@stage(fragment)
+@fragment
 fn fs_main(v: VertexOutput) -> @location(0) vec4<f32> {
     var color: vec4<f32> = v.color;
     if (v.material_index >= 0) {

@@ -169,7 +169,7 @@ fn compute_textures_coord(v: VertexInput, material_index: i32, texture_type: u32
     return output;
 }
 
-@stage(vertex)
+@vertex
 fn vs_main(
     v: VertexInput,
     instance: InstanceInput,
@@ -250,7 +250,7 @@ fn get_texture_color(material_index: u32, texture_type: u32, tex_coords: vec3<f3
 }
 
 
-@stage(fragment)
+@fragment
 fn fs_main(v: VertexOutput) -> @location(0) vec4<f32> {
     var color: vec4<f32> = v.color;
     if (v.material_index >= 0) {
