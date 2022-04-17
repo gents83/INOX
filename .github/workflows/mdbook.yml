@@ -29,3 +29,4 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./docs/book
           destination_dir: docs
+          keep_files: true

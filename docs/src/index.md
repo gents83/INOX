@@ -18,6 +18,8 @@ The main idea behind INOX is to use [Blender](https://www.blender.org/) as exter
 
 _**Rust**_ will give to INOX high performance, reliability and safe code, while _**Blender**_ will bring easy customization and powerful editor capabilities.
 
+You can see it in action directly online in web at this [link](https://gents83.github.io/web/)
+
 
 ## Why INOX?
 
