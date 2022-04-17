@@ -132,7 +132,7 @@ jobs:
         run: cp -Force "./crates/target/wasm32-unknown-unknown/release/inox_launcher.wasm" "./output/web/inox_launcher.wasm"
 
       - name: "Copy wasm32 in output"
-        run: cp -Force "./index.html" "./output/web/"
+        run: cp -Force "./web/index.html" "./output/web/"
           
       - name: "Upload artifacts"
         uses: actions/upload-artifact@v2
