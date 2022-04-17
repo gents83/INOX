@@ -1,0 +1,20 @@
+{
+    "vertex_shader": "shaders/wgsl/ui_wgsl.shader",
+    "fragment_shader": "shaders/wgsl/ui_wgsl.shader",
+    "vertex_format" : [
+        "PositionF32x2",
+        "TexCoord0F32x2",
+        "ColorU32"
+    ],
+    "binding_data" : [
+        "Constant",
+        "Dynamic",
+        "Custom"
+    ],
+    "culling": "None",
+    "mode": "Fill",
+    "src_color_blend_factor": "One",
+    "dst_color_blend_factor": "OneMinusSrcAlpha",
+    "src_alpha_blend_factor": "OneMinusDstAlpha",
+    "dst_alpha_blend_factor": "One"
+}
