@@ -283,11 +283,6 @@ impl App {
         }
         w
     }
-    fn get_worker(&mut self, name: &str) -> &mut Worker {
-        let key = String::from(name);
-        self.workers.get_mut(&key).unwrap()
-    }
-
     pub fn get_job_handler(&self) -> &JobHandlerRw {
         &self.job_handler
     }

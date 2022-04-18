@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use inox_resources::{to_u8_slice, Buffer, HashBuffer};
 use inox_serialize::{Deserialize, Serialize};
 use inox_uid::INVALID_UID;

@@ -1,4 +1,4 @@
-use inox_core::{JobHandlerRw, System};
+use inox_core::System;
 
 use inox_math::Vector2;
 use inox_messenger::{Listener, MessageHubRc};
@@ -23,7 +23,6 @@ pub struct UpdateSystem {
     renderer: RendererRw,
     shared_data: SharedDataRc,
     message_hub: MessageHubRc,
-    job_handler: JobHandlerRw,
     listener: Listener,
     render_passes: Vec<Resource<RenderPass>>,
     view: Resource<View>,
@@ -34,7 +33,6 @@ impl UpdateSystem {
         renderer: RendererRw,
         shared_data: &SharedDataRc,
         message_hub: &MessageHubRc,
-        job_handler: &JobHandlerRw,
     ) -> Self {
         let listener = Listener::new(message_hub);
 
@@ -44,7 +42,6 @@ impl UpdateSystem {
             renderer,
             shared_data: shared_data.clone(),
             message_hub: message_hub.clone(),
-            job_handler: job_handler.clone(),
             listener,
             render_passes: Vec::new(),
         }

@@ -264,13 +264,6 @@ impl GraphicsData {
             pb.instance_buffer.0.remove(mesh_id);
         });
     }
-    fn clear(&mut self) {
-        self.mesh_buffers.iter_mut().for_each(|(_, mb)| {
-            mb.vertex_buffer.clear();
-            mb.index_buffer.clear();
-        });
-    }
-
     pub fn instance_buffer(&self, pipeline_id: &PipelineId) -> Option<wgpu::BufferSlice> {
         self.pipeline_buffers
             .get(pipeline_id)

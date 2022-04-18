@@ -1,7 +1,6 @@
 [workspace]
 members = [
     "app",
-    "binarizer",
     "blender",
     "commands",
     "core",
@@ -12,6 +11,7 @@ members = [
     "messenger",
     "nodes",
     "platform",
+    "plugins/binarizer",
     "plugins/common_script",
     "plugins/viewer",
     "plugins/connector",

@@ -1,7 +1,5 @@
 use inox_core::{JobHandlerRw, System, INDEPENDENT_JOB_ID};
 
-use inox_resources::SharedDataRc;
-
 use crate::{RendererRw, RendererState};
 
 pub const RENDERING_PHASE: &str = "RENDERING_PHASE";
@@ -9,19 +7,13 @@ pub const RENDERING_PHASE: &str = "RENDERING_PHASE";
 pub struct RenderingSystem {
     renderer: RendererRw,
     job_handler: JobHandlerRw,
-    shared_data: SharedDataRc,
 }
 
 impl RenderingSystem {
-    pub fn new(
-        renderer: RendererRw,
-        shared_data: &SharedDataRc,
-        job_handler: &JobHandlerRw,
-    ) -> Self {
+    pub fn new(renderer: RendererRw, job_handler: &JobHandlerRw) -> Self {
         Self {
             renderer,
             job_handler: job_handler.clone(),
-            shared_data: shared_data.clone(),
         }
     }
 }

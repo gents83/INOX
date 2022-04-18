@@ -72,6 +72,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/crates/target/debug/inox_launcher.exe",
             "args": [
+                "-plugin inox_binarizer",
                 "-plugin inox_connector",
                 "-plugin inox_common_script",
                 "-plugin inox_viewer",
@@ -92,12 +93,12 @@
             "symbolSearchPath": "${workspaceFolder}/crates/target/debug/in_use/, ${workspaceFolder}/crates/target/debug/, https://msdl.microsoft.com/download/symbols",
         },
         {
-            "name": "RUN CONTENT BROWSER DEBUG",
+            "name": "RUN BINARIZER DEBUG",
             "type": "cppvsdbg",
             "request": "launch",
             "program": "${workspaceFolder}/crates/target/debug/inox_launcher.exe",
             "args": [
-                "-plugin inox_content_browser"
+                "-plugin inox_binarizer"
             ],
             "cwd": "${workspaceFolder}",
             "stopAtEntry": false,

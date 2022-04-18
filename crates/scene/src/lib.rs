@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 #![warn(clippy::all)]
 
 use inox_messenger::MessageHubRc;

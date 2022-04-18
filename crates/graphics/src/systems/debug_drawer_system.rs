@@ -137,8 +137,6 @@ impl DrawEvent {
     }
 }
 
-const WIREFRAME_MESH_CATEGORY_IDENTIFIER: &str = "EditorWireframe";
-
 pub struct DebugDrawerSystem {
     config: Config,
     mesh_instance: Resource<Mesh>,

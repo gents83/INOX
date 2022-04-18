@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 pub use self::hierarchy::*;
 pub use self::info::*;
 pub use self::meshes::*;

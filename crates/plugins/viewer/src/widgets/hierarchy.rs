@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use inox_messenger::MessageHubRc;
 use inox_resources::{Resource, SerializableResource, SharedData, SharedDataRc};
 use inox_scene::{Object, ObjectId, Scene, SceneId};

@@ -39,8 +39,6 @@ use crate::UIWidget;
 
 use super::config::Config;
 
-const UI_MESH_CATEGORY_IDENTIFIER: &str = "ui_mesh";
-
 pub struct UISystem {
     config: Config,
     shared_data: SharedDataRc,

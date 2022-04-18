@@ -1,5 +1,4 @@
 #![warn(clippy::all)]
-#![allow(dead_code)]
 
 pub use image::DynamicImage;
 
@@ -12,6 +11,6 @@ pub use crate::systems::*;
 pub mod common;
 pub mod data;
 pub mod fonts;
+pub mod platform;
 pub mod resources;
 pub mod systems;
-pub mod platform;

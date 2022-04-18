@@ -23,7 +23,7 @@ use inox_graphics::{
 };
 use inox_log::debug_log;
 use inox_math::{Mat4Ops, Matrix4, NewAngle, Parser, Radians, Vector2, Vector3, Vector4};
-use inox_messenger::MessageHubRc;
+
 use inox_nodes::LogicData;
 use inox_resources::{to_u8_slice, Data, SharedDataRc};
 use inox_scene::{CameraData, ObjectData, SceneData};
@@ -65,15 +65,11 @@ enum NodeType {
 #[derive(Default)]
 pub struct GltfCompiler {
     shared_data: SharedDataRc,
-    message_hub: MessageHubRc,
 }
 
 impl GltfCompiler {
-    pub fn new(shared_data: SharedDataRc, message_hub: MessageHubRc) -> Self {
-        Self {
-            shared_data,
-            message_hub,
-        }
+    pub fn new(shared_data: SharedDataRc) -> Self {
+        Self { shared_data }
     }
 
     fn num_from_type(&mut self, accessor: &Accessor) -> usize {

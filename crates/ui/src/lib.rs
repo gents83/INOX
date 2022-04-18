@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 pub use crate::color::*;
 pub use crate::resources::*;
 pub use crate::systems::*;

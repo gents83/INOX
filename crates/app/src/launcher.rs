@@ -67,14 +67,9 @@ impl Launcher {
             renderer.clone(),
             app.get_context().shared_data(),
             app.get_context().message_hub(),
-            app.get_job_handler(),
         );
 
-        let rendering_draw_system = RenderingSystem::new(
-            renderer,
-            app.get_context().shared_data(),
-            app.get_job_handler(),
-        );
+        let rendering_draw_system = RenderingSystem::new(renderer, app.get_job_handler());
 
         app.add_system(inox_core::Phases::PlatformUpdate, window_system);
         app.add_system_with_dependencies(

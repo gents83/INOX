@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use std::{
     env,
     fs::create_dir_all,

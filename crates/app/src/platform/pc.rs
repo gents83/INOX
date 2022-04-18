@@ -1,13 +1,10 @@
 #![cfg(target_os = "windows")]
 
-use std::{path::PathBuf, sync::Arc, thread};
+use std::{path::PathBuf, sync::Arc};
 
-use inox_binarizer::Binarizer;
 use inox_commands::CommandParser;
 use inox_filesystem::library_filename;
-use inox_messenger::MessageHubRc;
 use inox_log::debug_log;
-use inox_resources::SharedDataRc;
 
 use crate::launcher::Launcher;
 
@@ -18,7 +15,7 @@ pub fn setup_env() {
     );
     std::env::set_current_dir(".").ok();
 }
-
+/*
 pub fn binarizer_start(shared_data: SharedDataRc, message_hub: MessageHubRc) -> Binarizer {
     debug_log!("Binarizing");
     let mut binarizer = Binarizer::new(
@@ -41,7 +38,7 @@ pub fn binarizer_update(binarizer: Binarizer) -> Binarizer {
 pub fn binarizer_stop(mut binarizer: Binarizer) {
     binarizer.stop();
 }
-
+*/
 pub fn load_plugins(launcher: &Arc<Launcher>) {
     debug_log!("Loading plugins");
 

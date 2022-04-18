@@ -63,8 +63,7 @@ impl INOXEngine {
         let mut app = App::default();
 
         let mut binarizer = Binarizer::new(
-            app.get_context().shared_data(),
-            app.get_context().message_hub(),
+            app.get_context(),
             working_dir.join(DATA_RAW_FOLDER),
             working_dir.join(DATA_FOLDER),
         );

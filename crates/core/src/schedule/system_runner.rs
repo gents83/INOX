@@ -87,7 +87,8 @@ impl SystemRunner {
         if self.is_executed() || self.is_running() {
             return;
         }
-        if is_focused || self.should_run_when_not_focused() {
+        let should_run_when_not_focused = self.should_run_when_not_focused();
+        if is_focused || should_run_when_not_focused {
             self.state.store(STATE_RUNNING, Ordering::SeqCst);
             let result = can_continue.load(Ordering::SeqCst) && self.system.write().unwrap().run();
             can_continue.store(result, Ordering::SeqCst);
@@ -99,7 +100,8 @@ impl SystemRunner {
         if self.is_executed() || self.is_running() {
             return;
         }
-        if is_focused || self.should_run_when_not_focused() {
+        let should_run_when_not_focused = self.should_run_when_not_focused();
+        if is_focused || should_run_when_not_focused {
             self.state.store(STATE_RUNNING, Ordering::SeqCst);
             let state = self.state.clone();
             let system = self.system.clone();

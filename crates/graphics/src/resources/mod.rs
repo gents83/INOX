@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use inox_messenger::MessageHubRc;
 use inox_resources::SharedDataRc;
 

@@ -5,7 +5,6 @@ authors = ["gents83 <gents83@gmail.com>"]
 edition = "2021"
 
 [dependencies]
-inox_binarizer = { path = "../binarizer" }
 inox_resources = { path = "../resources" }
 inox_commands = { path = "../commands" }
 inox_core = { path = "../core" }
