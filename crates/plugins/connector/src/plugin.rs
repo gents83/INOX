@@ -14,10 +14,8 @@ impl Plugin for ConnectorPlugin {
         "inox_connector"
     }
     fn prepare(&mut self, app: &mut App) {
-        let mut system = Connector::new(app.get_context());
+        let system = Connector::new(app.get_context());
         self.updater_id = Connector::id();
-        system.read_config(self.name());
-
         app.add_system(inox_core::Phases::Update, system);
     }
 

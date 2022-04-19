@@ -319,6 +319,12 @@ impl App {
             .message_hub
             .send_event(SystemEvent::Removed(*system_id, phase));
     }
+    pub fn execute_on_systems<F>(&mut self, f: F)
+    where
+        F: FnMut(&mut dyn System) + Copy,
+    {
+        self.scheduler.execute_on_systems::<F>(f);
+    }
     pub fn execute_on_system<S, F>(&mut self, f: F)
     where
         S: System + Sized + 'static,

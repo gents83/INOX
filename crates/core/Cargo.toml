@@ -12,6 +12,7 @@ crate-type = ["lib"]
 downcast-rs = { path = "../../extern/downcast-rs" }
 inox_commands = { path = "../commands" }
 inox_filesystem = { path = "../filesystem" }
+inox_log = { path = "../log" }
 inox_messenger = { path = "../messenger" }
 inox_platform = { path = "../platform" }
 inox_profiler = { path = "../profiler" }

@@ -55,6 +55,14 @@ impl SystemRunner {
         }
     }
 
+    pub fn call_fn<F>(&mut self, f: &mut F)
+    where
+        F: FnMut(&mut dyn System),
+    {
+        let mut system = self.system.write().unwrap();
+        f(system.as_mut());
+    }
+
     pub fn execute_on_system<S, F>(&mut self, mut f: F)
     where
         S: System + Sized + 'static,

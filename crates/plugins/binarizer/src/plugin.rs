@@ -14,14 +14,12 @@ impl Plugin for BinarizerPlugin {
         "inox_binarizer"
     }
     fn prepare(&mut self, app: &mut App) {
-        let mut system = Binarizer::new(
+        let system = Binarizer::new(
             app.get_context(),
             inox_resources::Data::data_raw_folder(),
             inox_resources::Data::data_folder(),
         );
         self.updater_id = Binarizer::id();
-        system.read_config(self.name());
-
         app.add_system(inox_core::Phases::PreUpdate, system);
     }
 

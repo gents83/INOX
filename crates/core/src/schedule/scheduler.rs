@@ -121,7 +121,14 @@ impl Scheduler {
             phase.remove_system(system_id);
         }
     }
-
+    pub fn execute_on_systems<F>(&mut self, mut f: F)
+    where
+        F: FnMut(&mut dyn System),
+    {
+        self.phases.iter_mut().for_each(|(_, phase)| {
+            phase.execute_on_systems::<F>(&mut f);
+        });
+    }
     pub fn execute_on_system<S, F>(&mut self, f: F)
     where
         S: System + Sized + 'static,

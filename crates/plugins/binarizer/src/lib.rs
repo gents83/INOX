@@ -7,6 +7,7 @@ pub use crate::system::*;
 pub use crate::utils::*;
 
 mod compilers;
+mod config;
 pub mod plugin;
 mod system;
 pub mod utils;

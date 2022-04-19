@@ -26,6 +26,7 @@ pub struct PhaseWithSystems {
     systems_running: Vec<SystemId>,
     systems_to_add: Vec<SystemId>,
     systems_to_remove: Vec<SystemId>,
+    can_continue: Arc<AtomicBool>,
 }
 
 impl PhaseWithSystems {
@@ -36,9 +37,19 @@ impl PhaseWithSystems {
             systems_running: Vec::new(),
             systems_to_add: Vec::new(),
             systems_to_remove: Vec::new(),
+            can_continue: Arc::new(AtomicBool::new(true)),
         }
     }
-
+    pub fn execute_on_systems<F>(&mut self, f: &mut F)
+    where
+        F: FnMut(&mut dyn System),
+    {
+        self.systems_runners
+            .iter_mut()
+            .for_each(|(_, system_data)| {
+                system_data.call_fn(f);
+            });
+    }
     pub fn execute_on_system<S, F>(&mut self, f: F)
     where
         S: System + Sized + 'static,
@@ -116,7 +127,6 @@ impl PhaseWithSystems {
     ) -> bool {
         inox_profiler::scoped_profile!("phase::execute_systems");
         let mut should_wait = true;
-        let can_continue = Arc::new(AtomicBool::new(true));
         self.systems_running.iter().for_each(|id| {
             if let Some(system_runner) = self.systems_runners.get_mut(id) {
                 system_runner.start();
@@ -133,9 +143,9 @@ impl PhaseWithSystems {
                     } else if !system_runner.is_executed() {
                         should_wait = true;
                         if execute_in_parallel {
-                            system_runner.execute_as_job(can_continue.clone(), is_focused);
+                            system_runner.execute_as_job(self.can_continue.clone(), is_focused);
                         } else {
-                            system_runner.execute(can_continue.clone(), is_focused);
+                            system_runner.execute(self.can_continue.clone(), is_focused);
                         }
                     }
                 }
@@ -147,7 +157,7 @@ impl PhaseWithSystems {
                 thread::yield_now();
             }
         }
-        can_continue.load(Ordering::Relaxed)
+        self.can_continue.load(Ordering::Relaxed)
     }
 
     fn execute(&mut self, is_focused: bool, job_receiver: &JobReceiverRw) -> bool {

@@ -11,16 +11,22 @@ use std::{
 use inox_core::{ContextRc, System};
 use inox_messenger::MessageHubRc;
 
-use inox_resources::SharedDataRc;
+use inox_resources::{ConfigBase, SharedDataRc};
+use inox_serialize::read_from_file;
 
-use crate::{CopyCompiler, DataWatcher, FontCompiler, GltfCompiler, ImageCompiler, ShaderCompiler};
+use crate::{
+    config::Config, CopyCompiler, DataWatcher, FontCompiler, GltfCompiler, ImageCompiler,
+    ShaderCompiler,
+};
 
 pub struct Binarizer {
+    config: Config,
     data_raw_folder: PathBuf,
     shared_data: SharedDataRc,
     message_hub: MessageHubRc,
     thread_handle: Option<JoinHandle<bool>>,
     is_running: Arc<AtomicBool>,
+    should_end_on_completion: Arc<AtomicBool>,
 }
 
 impl Binarizer {
@@ -44,11 +50,13 @@ impl Binarizer {
         );
         debug_assert!(data_folder.exists() && data_folder.is_dir() && data_folder.is_absolute());
         Self {
+            config: Config::default(),
             shared_data: app_context.shared_data().clone(),
             message_hub: app_context.message_hub().clone(),
             data_raw_folder,
             thread_handle: None,
             is_running: Arc::new(AtomicBool::new(false)),
+            should_end_on_completion: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -57,6 +65,7 @@ impl Binarizer {
     }
 
     pub fn start(&mut self) {
+        inox_log::debug_log!("Starting data binarizer");
         let mut binarizer = DataWatcher::new(self.data_raw_folder.clone());
 
         let shader_compiler =
@@ -73,6 +82,7 @@ impl Binarizer {
 
         self.is_running.store(true, Ordering::SeqCst);
         let can_continue = self.is_running.clone();
+        let should_end_on_completion = self.should_end_on_completion.clone();
         let builder = thread::Builder::new().name("Data Binarizer".to_string());
         let t = builder
             .spawn(move || -> bool {
@@ -81,7 +91,11 @@ impl Binarizer {
                     binarizer.update();
                     thread::yield_now();
 
+                    if should_end_on_completion.load(Ordering::SeqCst) {
+                        can_continue.store(false, Ordering::SeqCst);
+                    }
                     if !can_continue.load(Ordering::SeqCst) {
+                        inox_log::debug_log!("Ending data binarizer thread");
                         return false;
                     }
                 }
@@ -91,6 +105,7 @@ impl Binarizer {
     }
     pub fn stop(&mut self) {
         if self.thread_handle.is_some() {
+            inox_log::debug_log!("Stopping data binarizer");
             let t = self.thread_handle.take().unwrap();
 
             self.is_running.store(false, Ordering::SeqCst);
@@ -102,7 +117,20 @@ impl Binarizer {
 }
 
 impl System for Binarizer {
-    fn read_config(&mut self, _plugin_name: &str) {}
+    fn read_config(&mut self, plugin_name: &str) {
+        let should_end_on_completion = self.should_end_on_completion.clone();
+        read_from_file(
+            self.config.get_filepath(plugin_name).as_path(),
+            self.shared_data.serializable_registry(),
+            Box::new(move |data: Config| {
+                inox_log::debug_log!(
+                    "Binarizer config says that end on completion is: {}",
+                    data.end_on_completion
+                );
+                should_end_on_completion.store(data.end_on_completion, Ordering::SeqCst);
+            }),
+        );
+    }
     fn should_run_when_not_focused(&self) -> bool {
         true
     }
@@ -112,11 +140,12 @@ impl System for Binarizer {
     }
 
     fn run(&mut self) -> bool {
-        if !self.is_running() {
+        let result = self.is_running();
+        if !result {
             self.stop();
             return false;
         }
-        true
+        result
     }
     fn uninit(&mut self) {
         self.stop();

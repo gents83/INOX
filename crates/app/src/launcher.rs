@@ -94,8 +94,8 @@ impl Launcher {
 
     pub fn add_dynamic_plugin(&self, name: &str, path: &Path) {
         let app = &mut self.app.write().unwrap();
-        Self::read_config(app, name);
         app.add_dynamic_plugin(path);
+        Self::read_config(app, name);
     }
 
     pub fn add_static_plugin(
@@ -107,7 +107,6 @@ impl Launcher {
         fn_d: PfnDestroyPlugin,
     ) {
         let app = &mut self.app.write().unwrap();
-        Self::read_config(app, name);
 
         if let Some(fn_c) = fn_c {
             let mut plugin_holder = unsafe { fn_c() };
@@ -116,16 +115,14 @@ impl Launcher {
             plugin_holder.destroy_fn = fn_d;
             app.add_static_plugin(plugin_holder);
         }
+        Self::read_config(app, name);
     }
 
     fn read_config(app: &mut App, plugin_name: &str) {
         debug_log!("Reading launcher configs");
 
-        app.execute_on_system(|window_system: &mut WindowSystem| {
-            window_system.read_config(plugin_name);
-        });
-        app.execute_on_system(|update_system: &mut UpdateSystem| {
-            update_system.read_config(plugin_name);
+        app.execute_on_systems(|s| {
+            s.read_config(plugin_name);
         });
     }
 

@@ -19,19 +19,17 @@ impl Plugin for Viewer {
         "inox_viewer"
     }
     fn prepare(&mut self, app: &mut App) {
-        let mut debug_drawer_system = DebugDrawerSystem::new(
+        let debug_drawer_system = DebugDrawerSystem::new(
             app.get_context().shared_data(),
             app.get_context().message_hub(),
         );
-        debug_drawer_system.read_config(self.name());
         self.debug_drawer_id = DebugDrawerSystem::id();
 
-        let mut ui_system = UISystem::new(
+        let ui_system = UISystem::new(
             app.get_context().shared_data(),
             app.get_context().message_hub(),
             app.get_job_handler(),
         );
-        ui_system.read_config(self.name());
         self.ui_id = UISystem::id();
 
         let system = ViewerSystem::new(app.get_context());
