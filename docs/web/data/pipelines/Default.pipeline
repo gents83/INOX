@@ -1,0 +1,23 @@
+{
+    "vertex_shader": "shaders/wgsl/pbr_wgsl.shader",
+    "fragment_shader": "shaders/wgsl/pbr_wgsl.shader",
+    "vertex_format" : [
+        "PositionF32x3",
+        "NormalF32x3",
+        "ColorF32x4",
+        "TexCoord0F32x2",
+        "TexCoord1F32x2",
+        "TexCoord2F32x2",
+        "TexCoord3F32x2"
+    ],
+    "binding_data" : [
+        "Constant",
+        "Dynamic"
+    ],
+    "culling": "Back",
+    "mode": "Fill",
+    "src_color_blend_factor": "One",
+    "dst_color_blend_factor": "OneMinusSrcAlpha",
+    "src_alpha_blend_factor": "OneMinusDstAlpha",
+    "dst_alpha_blend_factor": "One"
+}
