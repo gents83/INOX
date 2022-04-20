@@ -56,7 +56,7 @@ impl Binarizer {
             data_raw_folder,
             thread_handle: None,
             is_running: Arc::new(AtomicBool::new(false)),
-            should_end_on_completion: Arc::new(AtomicBool::new(false)),
+            should_end_on_completion: Arc::new(AtomicBool::new(true)),
         }
     }
 
