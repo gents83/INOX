@@ -1,19 +1,13 @@
 use std::{
-    path::{Path, PathBuf},
+    path::Path,
     sync::{Arc, RwLock},
 };
 
-use inox_core::{
-    App, PfnCreatePlugin, PfnDestroyPlugin, PfnPreparePlugin, PfnUnpreparePlugin, System,
-};
-use inox_graphics::{rendering_system::RenderingSystem, update_system::UpdateSystem, Renderer};
+use inox_core::{App, PfnCreatePlugin, PfnDestroyPlugin, PfnPreparePlugin, PfnUnpreparePlugin};
 
 use inox_log::debug_log;
 use inox_messenger::MessageHubRc;
-use inox_platform::Window;
 use inox_resources::SharedDataRc;
-
-use crate::window_system::WindowSystem;
 
 #[derive(Default)]
 pub struct Launcher {
@@ -26,62 +20,6 @@ impl Launcher {
     }
     pub fn message_hub(&self) -> MessageHubRc {
         self.app.read().unwrap().get_context().message_hub().clone()
-    }
-
-    pub fn prepare(&self) {
-        debug_log!("Preparing launcher");
-
-        let app = &mut self.app.write().unwrap();
-        let window = {
-            Window::create(
-                "SABI".to_string(),
-                0,
-                0,
-                0,
-                0,
-                PathBuf::from("").as_path(),
-                app.get_context().message_hub(),
-            )
-        };
-
-        inox_graphics::register_resource_types(
-            app.get_context().shared_data(),
-            app.get_context().message_hub(),
-        );
-
-        let renderer = Renderer::new(
-            window.get_handle(),
-            app.get_context().shared_data(),
-            app.get_context().message_hub(),
-            false,
-        );
-        let renderer = Arc::new(RwLock::new(renderer));
-
-        let window_system = WindowSystem::new(
-            window,
-            app.get_context().shared_data(),
-            app.get_context().message_hub(),
-        );
-
-        let render_update_system = UpdateSystem::new(
-            renderer.clone(),
-            app.get_context().shared_data(),
-            app.get_context().message_hub(),
-        );
-
-        let rendering_draw_system = RenderingSystem::new(renderer, app.get_job_handler());
-
-        app.add_system(inox_core::Phases::PlatformUpdate, window_system);
-        app.add_system_with_dependencies(
-            inox_core::Phases::Render,
-            render_update_system,
-            &[RenderingSystem::id()],
-        );
-        app.add_system_with_dependencies(
-            inox_core::Phases::Render,
-            rendering_draw_system,
-            &[UpdateSystem::id()],
-        );
     }
 
     pub fn start(&self) {
@@ -128,21 +66,5 @@ impl Launcher {
 
     pub fn update(&self) -> bool {
         self.app.write().unwrap().run()
-    }
-}
-
-impl Drop for Launcher {
-    fn drop(&mut self) {
-        debug_log!("Dropping launcher");
-        let app = &mut self.app.write().unwrap();
-
-        app.remove_system(inox_core::Phases::PlatformUpdate, &WindowSystem::id());
-        app.remove_system(inox_core::Phases::Render, &UpdateSystem::id());
-        app.remove_system(inox_core::Phases::Render, &RenderingSystem::id());
-
-        inox_graphics::unregister_resource_types(
-            app.get_context().shared_data(),
-            app.get_context().message_hub(),
-        );
     }
 }

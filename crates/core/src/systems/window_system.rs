@@ -1,4 +1,6 @@
-use inox_core::System;
+#![allow(dead_code)]
+
+use crate::System;
 use inox_messenger::{Listener, MessageHubRc};
 use inox_platform::{Window, WindowEvent};
 use inox_resources::{ConfigBase, ConfigEvent, SharedDataRc};

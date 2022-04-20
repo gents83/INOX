@@ -7,8 +7,6 @@ fn main() {
 
     let launcher = Arc::new(Launcher::default());
 
-    launcher.prepare();
-
     load_plugins(&launcher);
 
     launcher.start();

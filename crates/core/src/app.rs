@@ -48,13 +48,13 @@ pub type ContextRc = Arc<Context>;
 pub struct App {
     is_profiling: bool,
     is_enabled: Arc<AtomicBool>,
-    context: ContextRc,
     listener: Listener,
     plugin_manager: PluginManager,
     scheduler: Scheduler,
     workers: HashMap<String, Worker>,
     job_handler: JobHandlerRw,
     job_receiver: JobReceiverRw,
+    context: ContextRc,
 }
 
 impl Default for App {
@@ -79,8 +79,8 @@ impl Default for App {
             workers: HashMap::new(),
             job_handler: JobHandler::new(sender),
             job_receiver: Arc::new(Mutex::new(receiver)),
-            listener,
             context,
+            listener,
         }
     }
 }

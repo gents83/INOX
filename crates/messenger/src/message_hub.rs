@@ -75,6 +75,7 @@ trait MsgType: Send + Sync + Any + 'static {
     }
     fn add_listener(&self, listener_id: &ListenerId);
     fn remove_listener(&self, listener_id: &ListenerId);
+    fn has_listeners(&self) -> bool;
     fn flush(&self);
     fn message_from_string(&self, s: &str);
     fn as_any(&self) -> &dyn Any;
@@ -125,6 +126,9 @@ where
             .write()
             .unwrap()
             .retain(|l| l.id != *listener_id);
+    }
+    fn has_listeners(&self) -> bool {
+        !self.listeners.read().unwrap().is_empty()
     }
     fn flush(&self) {
         //inox_log::debug_log!("Flushing messages for {}", type_name::<T>());
@@ -222,6 +226,10 @@ pub struct MessageHub {
 
 impl Drop for MessageHub {
     fn drop(&mut self) {
+        self.registered_types
+            .write()
+            .unwrap()
+            .retain(|_, t| t.has_listeners());
         self.registered_types
             .read()
             .unwrap()

@@ -33,7 +33,7 @@ pub trait Message: Send + Sync + 'static {
     }
     fn compare_and_discard(&self, other: &Self) -> bool;
     #[inline]
-    fn get_type_name(&self) -> String {
+    fn get_type_name() -> String {
         type_name::<Self>()
             .split(':')
             .collect::<Vec<&str>>()

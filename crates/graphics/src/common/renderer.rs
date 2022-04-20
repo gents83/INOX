@@ -67,6 +67,7 @@ impl GetRenderContext for RenderContextRw {
 pub struct Renderer {
     context: RenderContextRw,
     shared_data: SharedDataRc,
+    message_hub: MessageHubRc,
     state: RendererState,
     constant_data: ConstantData,
     dynamic_data: DynamicData,
@@ -79,6 +80,12 @@ pub type RendererRw = Arc<RwLock<Renderer>>;
 unsafe impl Send for Renderer {}
 unsafe impl Sync for Renderer {}
 
+impl Drop for Renderer {
+    fn drop(&mut self) {
+        crate::unregister_resource_types(&self.shared_data, &self.message_hub);
+    }
+}
+
 impl Renderer {
     pub fn new(
         handle: &Handle,
@@ -86,6 +93,8 @@ impl Renderer {
         message_hub: &MessageHubRc,
         _enable_debug: bool,
     ) -> Self {
+        crate::register_resource_types(shared_data, message_hub);
+
         let graphics_mesh =
             shared_data.add_resource(message_hub, GRAPHICS_DATA_UID, GraphicsData::default());
 
@@ -111,6 +120,7 @@ impl Renderer {
             state: RendererState::Init,
             context: render_context,
             shared_data: shared_data.clone(),
+            message_hub: message_hub.clone(),
             graphics_mesh,
         }
     }
