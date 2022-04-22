@@ -8,14 +8,14 @@ use std::{
     },
 };
 
-use crate::{JobHandlerRw, JobId, JobReceiverRw, System, SystemId, SystemRunner, Worker};
+use crate::{JobHandlerRw, JobHandlerTrait, JobId, System, SystemId, SystemRunner};
 
 pub trait Phase: Downcast + Send + Sync {
     fn get_name(&self) -> &str;
     fn should_run_when_not_focused(&self) -> bool;
     fn get_jobs_id_to_wait(&self) -> Vec<JobId>;
     fn init(&mut self);
-    fn run(&mut self, is_focused: bool, job_receiver: &JobReceiverRw) -> bool;
+    fn run(&mut self, is_focused: bool, job_handler: &JobHandlerRw) -> bool;
     fn uninit(&mut self);
 }
 impl_downcast!(Phase);
@@ -123,7 +123,7 @@ impl PhaseWithSystems {
         &mut self,
         is_focused: bool,
         execute_in_parallel: bool,
-        job_receiver: &JobReceiverRw,
+        job_handler: &JobHandlerRw,
     ) -> bool {
         inox_profiler::scoped_profile!("phase::execute_systems");
         let mut should_wait = true;
@@ -151,7 +151,11 @@ impl PhaseWithSystems {
                 }
             });
             if should_wait {
-                if let Some(job) = Worker::get_job(job_receiver) {
+                if let Some(job) = job_handler.get_job_with_priority(crate::JobPriority::High) {
+                    job.execute();
+                } else if let Some(job) =
+                    job_handler.get_job_with_priority(crate::JobPriority::Medium)
+                {
                     job.execute();
                 }
                 thread::yield_now();
@@ -160,12 +164,12 @@ impl PhaseWithSystems {
         self.can_continue.load(Ordering::Relaxed)
     }
 
-    fn execute(&mut self, is_focused: bool, job_receiver: &JobReceiverRw) -> bool {
+    fn execute(&mut self, is_focused: bool, job_handler: &JobHandlerRw) -> bool {
         #[cfg(target_arch = "wasm32")]
         let execute_in_parallel = false;
         #[cfg(all(not(target_arch = "wasm32")))]
         let execute_in_parallel = self.systems_running.len() > 1;
-        self.execute_systems(is_focused, execute_in_parallel, job_receiver)
+        self.execute_systems(is_focused, execute_in_parallel, job_handler)
     }
 
     fn remove_pending_systems_from_execution(&mut self) -> &mut Self {
@@ -211,10 +215,10 @@ impl Phase for PhaseWithSystems {
         self.add_pending_systems_into_execution();
     }
 
-    fn run(&mut self, is_focused: bool, job_receiver: &JobReceiverRw) -> bool {
+    fn run(&mut self, is_focused: bool, job_handler: &JobHandlerRw) -> bool {
         self.remove_pending_systems_from_execution()
             .add_pending_systems_into_execution()
-            .execute(is_focused, job_receiver)
+            .execute(is_focused, job_handler)
     }
 
     fn uninit(&mut self) {

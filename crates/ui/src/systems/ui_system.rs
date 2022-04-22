@@ -14,7 +14,7 @@ use egui::{
     TextureId as eguiTextureId, TexturesDelta,
 };
 use image::RgbaImage;
-use inox_core::{JobHandlerRw, System};
+use inox_core::{JobHandlerRw, JobHandlerTrait, JobPriority, System};
 
 use inox_graphics::{
     GraphicsData, Material, Mesh, MeshData, Pipeline, Texture, TextureId, TextureType,
@@ -156,9 +156,10 @@ impl UISystem {
                 let ui_scale = self.ui_scale;
                 let clip_rect = clipped_mesh.clip_rect;
 
-                self.job_handler.write().unwrap().add_job(
+                self.job_handler.add_job(
                     &UISystem::id(),
                     format!("ui_system::ui_mesh_{}_data", i).as_str(),
+                    JobPriority::Medium,
                     move || {
                         let (vertices_range, indices_range) = {
                             inox_profiler::scoped_profile!("ui_system::copy_vertex_data");
@@ -327,9 +328,10 @@ impl UISystem {
                 let job_name = format!("ui_system::show_ui[{:?}]", widget_handle.id());
                 let wait_count = wait_count.clone();
                 wait_count.fetch_add(1, Ordering::SeqCst);
-                job_handler.write().unwrap().add_job(
+                job_handler.add_job(
                     &UISystem::id(),
                     job_name.as_str(),
+                    JobPriority::Medium,
                     move || {
                         widget_handle.get_mut().execute(&context);
                         wait_count.fetch_sub(1, Ordering::SeqCst);

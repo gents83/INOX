@@ -1,4 +1,4 @@
-use inox_core::{JobHandlerRw, System, INDEPENDENT_JOB_ID};
+use inox_core::{JobHandlerRw, JobHandlerTrait, JobPriority, System, INDEPENDENT_JOB_ID};
 
 use crate::{RendererRw, RendererState};
 
@@ -39,10 +39,11 @@ impl System for RenderingSystem {
         }
 
         let renderer = self.renderer.clone();
-        self.job_handler
-            .write()
-            .unwrap()
-            .add_job(&INDEPENDENT_JOB_ID, "Render Draw", move || {
+        self.job_handler.add_job(
+            &INDEPENDENT_JOB_ID,
+            "Render Draw",
+            JobPriority::Medium,
+            move || {
                 {
                     let renderer = renderer.read().unwrap();
                     renderer.draw();
@@ -52,7 +53,8 @@ impl System for RenderingSystem {
                     let mut renderer = renderer.write().unwrap();
                     renderer.change_state(RendererState::Submitted);
                 }
-            });
+            },
+        );
         true
     }
     fn uninit(&mut self) {}

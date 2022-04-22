@@ -6,7 +6,7 @@ use std::{
     },
 };
 
-use crate::{JobHandlerRw, System, SystemId, SystemRw};
+use crate::{JobHandlerRw, JobHandlerTrait, JobPriority, System, SystemId, SystemRw};
 
 const STATE_READY: u8 = 0;
 const STATE_WAITING: u8 = 1;
@@ -113,9 +113,10 @@ impl SystemRunner {
             self.state.store(STATE_RUNNING, Ordering::SeqCst);
             let state = self.state.clone();
             let system = self.system.clone();
-            self.job_handler.write().unwrap().add_job(
+            self.job_handler.add_job(
                 &self.system_id,
                 format!("execute_system[{}]", self.name).as_str(),
+                JobPriority::High,
                 move || {
                     let result =
                         can_continue.load(Ordering::SeqCst) && system.write().unwrap().run();

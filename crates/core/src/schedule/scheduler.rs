@@ -1,6 +1,4 @@
-use crate::{
-    JobHandlerRw, JobReceiverRw, Phase, PhaseWithSystems, Phases, System, SystemId, Worker,
-};
+use crate::{JobHandlerRw, JobHandlerTrait, Phase, PhaseWithSystems, Phases, System, SystemId};
 use std::collections::HashMap;
 
 pub struct Scheduler {
@@ -52,12 +50,7 @@ impl Scheduler {
         }
     }
 
-    pub fn run_once(
-        &mut self,
-        is_focused: bool,
-        job_handler: &JobHandlerRw,
-        job_receiver: &JobReceiverRw,
-    ) -> bool {
+    pub fn run_once(&mut self, is_focused: bool, job_handler: &JobHandlerRw) -> bool {
         if !self.is_started {
             return self.is_running;
         }
@@ -67,7 +60,7 @@ impl Scheduler {
             if let Some(phase) = self.phases.get_mut(&p) {
                 let ok = if is_focused || phase.should_run_when_not_focused() {
                     inox_profiler::scoped_profile!("{}[{:?}]", "scheduler::run_phase", p);
-                    let ok = phase.run(is_focused, job_receiver);
+                    let ok = phase.run(is_focused, job_handler);
                     {
                         inox_profiler::scoped_profile!("{}[{:?}]", "scheduler::wait_jobs", p);
                         let jobs_id_to_wait = phase.get_jobs_id_to_wait();
@@ -76,10 +69,16 @@ impl Scheduler {
                             thread::yield_now();
                             should_wait = false;
                             jobs_id_to_wait.iter().for_each(|job_id| {
-                                should_wait |= job_handler.read().unwrap().has_pending_jobs(job_id);
+                                should_wait |= job_handler.has_pending_jobs(job_id);
                             });
                             if should_wait {
-                                if let Some(job) = Worker::get_job(job_receiver) {
+                                if let Some(job) =
+                                    job_handler.get_job_with_priority(crate::JobPriority::High)
+                                {
+                                    job.execute();
+                                } else if let Some(job) =
+                                    job_handler.get_job_with_priority(crate::JobPriority::Medium)
+                                {
                                     job.execute();
                                 }
                             }

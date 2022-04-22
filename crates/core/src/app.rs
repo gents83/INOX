@@ -3,8 +3,7 @@ use std::{
     path::{Path, PathBuf},
     sync::{
         atomic::{AtomicBool, Ordering},
-        mpsc::channel,
-        Arc, Mutex, RwLockReadGuard,
+        Arc, RwLockReadGuard,
     },
 };
 
@@ -15,7 +14,7 @@ use inox_time::{Timer, TimerRw};
 use inox_uid::generate_uid_from_string;
 
 use crate::{
-    JobHandler, JobHandlerRw, JobReceiverRw, Phases, PluginHolder, PluginId, PluginManager,
+    JobHandlerRw, JobHandlerTrait, JobPriority, Phases, PluginHolder, PluginId, PluginManager,
     Scheduler, System, SystemEvent, SystemId, Worker,
 };
 
@@ -53,15 +52,12 @@ pub struct App {
     scheduler: Scheduler,
     workers: HashMap<String, Worker>,
     job_handler: JobHandlerRw,
-    job_receiver: JobReceiverRw,
     context: ContextRc,
 }
 
 impl Default for App {
     fn default() -> Self {
         inox_profiler::create_profiler!();
-
-        let (sender, receiver) = channel();
 
         let context = ContextRc::default();
         let listener = Listener::new(context.message_hub());
@@ -77,8 +73,7 @@ impl Default for App {
             scheduler: Scheduler::new(),
             plugin_manager: PluginManager::default(),
             workers: HashMap::new(),
-            job_handler: JobHandler::new(sender),
-            job_receiver: Arc::new(Mutex::new(receiver)),
+            job_handler: JobHandlerRw::default(),
             context,
             listener,
         }
@@ -126,7 +121,7 @@ impl App {
         for (_name, w) in self.workers.iter_mut() {
             w.stop();
         }
-        self.job_handler.write().unwrap().clear_pending_jobs();
+        self.job_handler.clear_pending_jobs();
     }
 
     fn update_events(&mut self) {
@@ -163,9 +158,10 @@ impl App {
                 let message_hub = self.context.message_hub.clone();
                 let job_name = "Load Event".to_string();
                 let load_event_category = generate_uid_from_string("LOAD_EVENT_CATEGORY");
-                self.job_handler.write().unwrap().add_job(
+                self.job_handler.add_job(
                     &load_event_category,
                     job_name.as_str(),
+                    JobPriority::Low,
                     move || {
                         load_fn(&shared_data, &message_hub);
                     },
@@ -183,11 +179,7 @@ impl App {
     fn update_workers(&mut self, is_enabled: bool) {
         if NUM_WORKER_THREADS == 0 {
             //no workers - need to handle events ourself
-            let recv = self.job_receiver.lock().unwrap();
-            if let Ok(job) = recv.try_recv() {
-                drop(recv);
-                job.execute();
-            }
+            self.job_handler.execute_all_jobs();
         }
         if self.is_enabled.load(Ordering::SeqCst) && !is_enabled {
             self.is_enabled.store(is_enabled, Ordering::SeqCst);
@@ -203,11 +195,9 @@ impl App {
 
         self.context.global_timer.write().unwrap().update();
 
-        let can_continue = self.scheduler.run_once(
-            self.is_enabled.load(Ordering::SeqCst),
-            &self.job_handler,
-            &self.job_receiver,
-        );
+        let can_continue = self
+            .scheduler
+            .run_once(self.is_enabled.load(Ordering::SeqCst), &self.job_handler);
 
         self.update_events();
 
@@ -279,7 +269,7 @@ impl App {
         let key = String::from(name);
         let w = self.workers.entry(key).or_insert_with(Worker::default);
         if !w.is_started() {
-            w.start(name, &self.is_enabled, self.job_receiver.clone());
+            w.start(name, &self.is_enabled, &self.job_handler);
         }
         w
     }
