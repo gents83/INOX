@@ -680,11 +680,11 @@ async function init(input) {
     imports.wbg.__wbg_configure_183f934e025cd071 = function(arg0, arg1) {
         getObject(arg0).configure(getObject(arg1));
     };
-    imports.wbg.__wbindgen_closure_wrapper3304 = function(arg0, arg1, arg2) {
+    imports.wbg.__wbindgen_closure_wrapper3306 = function(arg0, arg1, arg2) {
         const ret = makeMutClosure(arg0, arg1, 245, __wbg_adapter_26);
         return addHeapObject(ret);
     };
-    imports.wbg.__wbindgen_closure_wrapper6576 = function(arg0, arg1, arg2) {
+    imports.wbg.__wbindgen_closure_wrapper6578 = function(arg0, arg1, arg2) {
         const ret = makeMutClosure(arg0, arg1, 390, __wbg_adapter_29);
         return addHeapObject(ret);
     };
