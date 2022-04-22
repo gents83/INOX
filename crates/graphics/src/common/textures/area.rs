@@ -3,7 +3,7 @@ use inox_uid::{generate_random_uid, Uid, INVALID_UID};
 
 use crate::TextureId;
 
-pub const DEFAULT_AREA_SIZE: u32 = 4096;
+pub const DEFAULT_AREA_SIZE: u32 = 4096 * 2; //8K
 
 #[derive(Clone, Copy)]
 pub struct Area {

@@ -228,7 +228,10 @@ impl TextureHandler {
                 return texture_data;
             }
         }
-        panic!("Unable to allocate texture")
+        self.texture_atlas
+            .push(TextureAtlas::create_default(device));
+        inox_log::debug_log!("Adding new texture atlas");
+        self.add_image(device, id, dimensions, image_data)
     }
 
     pub fn get_texture_data(&self, id: &TextureId) -> Option<TextureData> {

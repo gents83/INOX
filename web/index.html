@@ -22,7 +22,7 @@
             document.body.appendChild(span);
         } else {
             init().then(wasm => {
-                var s = '-load_file blender_export/TestScene/TestScene.scene';
+                var s = '-load_file models/Suzanne/Suzanne.scene';
                 send_event_from_string(s);
             }).catch(console.error);
         }

@@ -1,5 +1,5 @@
 use std::{
-    any::{type_name, TypeId},
+    any::TypeId,
     collections::HashMap,
     path::{Path, PathBuf},
 };
@@ -32,7 +32,7 @@ pub struct Object {
     parent: Handle<Object>,
     is_transform_dirty: bool,
     children: Vec<Resource<Object>>,
-    components: HashMap<TypeId, GenericResource>,
+    components: HashMap<TypeId, Vec<GenericResource>>,
 }
 
 impl UIProperties for Object {
@@ -57,8 +57,10 @@ impl UIProperties for Object {
                 CollapsingHeader::new(format!("Components [{}]", self.components.len()))
                     .default_open(!collapsed)
                     .show(ui, |ui| {
-                        for (typeid, c) in self.components.iter() {
-                            ui_registry.show(*typeid, c, ui);
+                        for (typeid, components) in self.components.iter() {
+                            components.iter().for_each(|c| {
+                                ui_registry.show(*typeid, c, ui);
+                            });
                         }
                     });
                 CollapsingHeader::new(format!("Children [{}]", self.children.len()))
@@ -334,7 +336,7 @@ impl Object {
         &self.children
     }
 
-    pub fn components(&self) -> &HashMap<TypeId, GenericResource> {
+    pub fn components(&self) -> &HashMap<TypeId, Vec<GenericResource>> {
         &self.components
     }
 
@@ -346,39 +348,33 @@ impl Object {
     where
         C: DataTypeResource,
     {
-        debug_assert!(
-            !self.components.contains_key(&TypeId::of::<C>()),
-            "Object already contains a component of type {:?}",
-            type_name::<C>()
-        );
         let id = generate_random_uid();
         let resource =
             shared_data.add_resource(message_hub, id, C::new(id, shared_data, message_hub));
-        self.components.insert(TypeId::of::<C>(), resource.clone());
+        let components = self.components.entry(TypeId::of::<C>()).or_default();
+        components.push(resource.clone());
         resource
     }
     pub fn add_component<C>(&mut self, component: Resource<C>) -> &mut Self
     where
         C: ResourceTrait,
     {
-        debug_assert!(
-            !self.components.contains_key(&TypeId::of::<C>()),
-            "Object already contains a component of type {:?}",
-            type_name::<C>()
-        );
-        self.components
-            .insert(TypeId::of::<C>(), component as GenericResource);
+        let components = self.components.entry(TypeId::of::<C>()).or_default();
+        components.push(component as GenericResource);
         self
     }
 
-    pub fn component<C>(&self) -> Handle<C>
+    pub fn components_of_type<C>(&self) -> Vec<Resource<C>>
     where
         C: ResourceTrait,
     {
-        if let Some(component) = self.components.get(&TypeId::of::<C>()) {
-            return Some(component.of_type::<C>());
+        let mut result = Vec::new();
+        if let Some(components) = self.components.get(&TypeId::of::<C>()) {
+            components.iter().for_each(|c| {
+                result.push(c.of_type::<C>());
+            });
         }
-        None
+        result
     }
 
     pub fn update_transform(&mut self, parent_transform: Option<Matrix4>) {
@@ -388,10 +384,10 @@ impl Object {
                 self.transform = parent_transform * self.transform;
             }
         }
-        if let Some(mesh) = self.component::<Mesh>() {
+        self.components_of_type::<Mesh>().iter().for_each(|mesh| {
             if mesh.get().matrix() != self.transform {
                 mesh.get_mut().set_matrix(self.transform);
             }
-        }
+        });
     }
 }

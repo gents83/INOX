@@ -45,7 +45,7 @@ impl Job {
     }
 
     pub fn execute(self) {
-        inox_profiler::scoped_profile!("{}", self.name);
+        inox_profiler::scoped_profile!("Job {}", self.name);
         /*
         debug_log(
             "Starting {:?} - remaining {:?}",
@@ -70,6 +70,7 @@ impl Job {
 pub type JobHandlerRw = Arc<RwLock<JobHandler>>;
 pub type JobReceiverRw = Arc<Mutex<Receiver<Job>>>;
 
+#[derive(Debug)]
 pub enum JobPriority {
     High = 0,
     Medium = 1,
@@ -128,6 +129,7 @@ impl JobHandlerTrait for JobHandlerRw {
     where
         F: FnOnce() + Send + Sync + 'static,
     {
+        inox_profiler::scoped_profile!("JobHandler::add_job[{}]", job_name);
         let pending_jobs = self
             .write()
             .unwrap()
@@ -156,11 +158,13 @@ impl JobHandlerTrait for JobHandlerRw {
         }
     }
     fn get_job_with_priority(&self, job_priority: JobPriority) -> Option<Job> {
+        inox_profiler::scoped_profile!("JobReceiver::get_job_with_priority[{:?}]", job_priority);
         let handler = self.read().unwrap();
         handler.channel[job_priority as usize].receiver.get_job()
     }
     #[inline]
     fn execute_all_jobs(&self) {
+        inox_profiler::scoped_profile!("JobHandler::execute_all_jobs");
         for i in 0..JobPriority::Count as usize {
             while let Some(job) = self.get_job_with_priority(JobPriority::from(i)) {
                 job.execute();
@@ -197,6 +201,7 @@ pub trait JobReceiverTrait {
 
 impl JobReceiverTrait for JobReceiverRw {
     fn get_job(&self) -> Option<Job> {
+        inox_profiler::scoped_profile!("JobReceiver::get_job");
         let mutex = self.lock().unwrap();
         if let Ok(job) = mutex.try_recv() {
             drop(mutex);

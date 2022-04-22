@@ -1,8 +1,6 @@
 use inox_commands::CommandParser;
 use inox_core::{ContextRc, System};
-use inox_graphics::{
-    DrawEvent, Light, Material, Mesh, MeshData, Pipeline, Texture, VertexFormat, View,
-};
+use inox_graphics::{Light, Material, Mesh, MeshData, Pipeline, Texture, VertexFormat, View};
 use inox_log::debug_log;
 use inox_math::{Matrix4, VecBase, Vector2, Vector3};
 use inox_messenger::Listener;
@@ -140,23 +138,24 @@ impl System for ViewerSystem {
                 if let Some(parent_transform) = map.remove(r.id()) {
                     o.update_transform(parent_transform);
                 }
-                if let Some(light) = o.component::<Light>() {
+                o.components_of_type::<Light>().iter().for_each(|light| {
                     light.get_mut().set_position(o.get_position());
-                }
+                });
             });
-
+        /*
         self.context
-            .shared_data()
-            .for_each_resource(|_, l: &Light| {
-                if l.is_active() {
-                    self.context.message_hub().send_event(DrawEvent::Sphere(
-                        l.data().position.into(),
-                        l.data().range,
-                        [l.data().color[0], l.data().color[1], l.data().color[2], 1.].into(),
-                        true,
-                    ));
-                }
-            });
+        .shared_data()
+        .for_each_resource(|_, l: &Light| {
+            if l.is_active() {
+                self.context.message_hub().send_event(DrawEvent::Sphere(
+                    l.data().position.into(),
+                    l.data().range,
+                    [l.data().color[0], l.data().color[1], l.data().color[2], 1.].into(),
+                    true,
+                ));
+            }
+        });
+        */
 
         true
     }
@@ -342,18 +341,22 @@ impl ViewerSystem {
             .shared_data()
             .match_resource(|view: &View| view.view_index() == 0)
         {
+            let mut is_active = false;
             if self
                 .context
                 .shared_data()
                 .get_num_resources_of_type::<Camera>()
                 == 1
             {
-                if let Some(camera) = self.camera_object.get().component::<Camera>() {
-                    camera.get_mut().set_active(true);
-                }
-            } else if let Some(camera) = self.camera_object.get().component::<Camera>() {
-                camera.get_mut().set_active(false);
+                is_active = true;
             }
+            self.camera_object
+                .get()
+                .components_of_type::<Camera>()
+                .iter()
+                .for_each(|camera| {
+                    camera.get_mut().set_active(is_active);
+                });
 
             if FORCE_USE_DEFAULT_CAMERA {
                 self.context
