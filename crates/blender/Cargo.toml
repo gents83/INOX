@@ -10,7 +10,7 @@ name = "inox_blender"
 crate-type = ["cdylib"]
 
 [target.'cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))'.dependencies]
-pyo3 = { path = "../../extern/pyo3", features = ["macros", "extension-module", "auto-initialize", "abi3-py310"] }
+pyo3 = { path = "../../extern/pyo3", features = ["macros", "extension-module", "auto-initialize", "abi3-py310", "generate-abi3-import-lib"] }
 inox_binarizer = { path = "../plugins/binarizer" }
 inox_core = { path = "../core" }
 inox_graphics = { path = "../graphics" }
