@@ -217,8 +217,8 @@ impl Pipeline {
         if binding_state == BindingState::Error {
             return false;
         }
-        let is_different_format = self.format != Some(*format);
-        if binding_state == BindingState::Bound && !is_different_format {
+        let is_same_format = self.format == Some(*format);
+        if binding_state == BindingState::Bound || is_same_format {
             return true;
         }
         let render_pipeline_layout =
@@ -233,7 +233,8 @@ impl Pipeline {
                     push_constant_ranges: &[],
                 });
 
-        let render_pipeline =
+        let render_pipeline = {
+            inox_profiler::scoped_profile!("pipeline::crate[{}]", self.name());
             context
                 .device
                 .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -317,7 +318,8 @@ impl Pipeline {
                     // If the pipeline will be used with a multiview render pass, this
                     // indicates how many array layers the attachments will have.
                     multiview: None,
-                });
+                })
+        };
         self.format = Some(*format);
         self.render_pipeline = Some(render_pipeline);
         true
