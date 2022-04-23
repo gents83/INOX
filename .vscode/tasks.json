@@ -357,7 +357,6 @@
 			"dependsOn": [
 				"CREATE IN_USE FOLDER",
 				"CREATE DEPS IN_USE FOLDER",
-				"COMPILE RELEASE WASM",
 				"COPY ADDON IN BLENDER RELEASE",
 			],
 			"problemMatcher": [],

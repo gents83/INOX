@@ -46,12 +46,17 @@
             "symbolSearchPath": "${workspaceFolder}/crates/target//debug/, https://msdl.microsoft.com/download/symbols",
         },
         {
-            "name": "RUN EDITOR DEBUG",
+            "name": "RUN VIEWER RELEASE",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/crates/target/debug/inox_launcher.exe",
+            "program": "${workspaceFolder}/crates/target/release/inox_launcher.exe",
             "args": [
-                "-plugin inox_editor"
+                "-plugin inox_binarizer",
+                "-plugin inox_connector",
+                "-plugin inox_common_script",
+                "-plugin inox_viewer",
+                "-load_file",
+                "models/craftman/craftman.scene"
             ],
             "cwd": "${workspaceFolder}",
             "stopAtEntry": false,
