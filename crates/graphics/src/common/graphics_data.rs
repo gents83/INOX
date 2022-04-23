@@ -1,6 +1,6 @@
 use std::{collections::HashMap, mem::size_of, ops::Range};
 
-use inox_math::{matrix3_to_array, matrix4_to_array, Mat4Ops, Matrix, Matrix3};
+use inox_math::{matrix3_to_array, matrix4_to_array, Mat4Ops, Matrix3};
 use inox_messenger::MessageHubRc;
 use inox_resources::{HashBuffer, ResourceId, ResourceTrait, SharedData, SharedDataRc};
 use wgpu::util::DrawIndexedIndirect;

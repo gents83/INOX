@@ -2,7 +2,7 @@ use inox_commands::CommandParser;
 use inox_core::{ContextRc, System};
 use inox_graphics::{Light, Material, Mesh, MeshData, Pipeline, Texture, VertexFormat, View};
 use inox_log::debug_log;
-use inox_math::{Matrix4, VecBase, Vector2, Vector3};
+use inox_math::{Matrix4, VecBase, VecBaseFloat, Vector2, Vector3};
 use inox_messenger::Listener;
 use inox_platform::{InputState, Key, KeyEvent, MouseEvent, WindowEvent};
 use inox_resources::{DataTypeResource, Resource, SerializableResource, SerializableResourceEvent};

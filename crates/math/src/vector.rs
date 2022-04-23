@@ -7,42 +7,43 @@ use cgmath::{Deg, Rad};
 pub type Vector2 = cgmath::Vector2<f32>;
 pub type Vector3 = cgmath::Vector3<f32>;
 pub type Vector4 = cgmath::Vector4<f32>;
+pub type Vector2u = cgmath::Vector2<u32>;
+pub type Vector3u = cgmath::Vector3<u32>;
+pub type Vector4u = cgmath::Vector4<u32>;
+pub type Vector2h = cgmath::Vector2<u16>;
+pub type Vector3h = cgmath::Vector3<u16>;
+pub type Vector4h = cgmath::Vector4<u16>;
 
-pub trait VecBase {
+pub trait VecBase<T> {
     fn default_zero() -> Self;
     fn default_one() -> Self;
-    fn default_value(v: f32) -> Self;
-    fn squared_distance(self, other: Self) -> f32;
-    fn length(self) -> f32;
-    fn normalized(self) -> Self;
+    fn default_value(v: T) -> Self;
+    fn squared_distance(self, other: Self) -> T;
     fn add(self, rhs: Self) -> Self;
     fn sub(self, rhs: Self) -> Self;
     fn mul(self, rhs: Self) -> Self;
     fn div(self, rhs: Self) -> Self;
-
+}
+pub trait VecBaseFloat<T> {
+    fn length(self) -> T;
+    fn normalized(self) -> Self;
     fn to_degrees(self) -> Self;
     fn to_radians(self) -> Self;
 }
 
 macro_rules! implement_vector_base {
-    ($VectorN:ident) => {
-        impl VecBase for $VectorN {
+    ($VectorN:ident, $Type:ty) => {
+        impl VecBase<$Type> for $VectorN {
             fn default_zero() -> Self {
                 Self::zero()
             }
-            fn default_value(v: f32) -> Self {
+            fn default_value(v: $Type) -> Self {
                 Self::from_value(v)
             }
             fn default_one() -> Self {
-                Self::from_value(1.)
+                Self::from_value(1. as $Type)
             }
-            fn length(self) -> f32 {
-                self.magnitude()
-            }
-            fn normalized(self) -> Self {
-                self.normalize()
-            }
-            fn squared_distance(self, other: Self) -> f32 {
+            fn squared_distance(self, other: Self) -> $Type {
                 self.distance2(other)
             }
             fn add(self, rhs: Self) -> Self {
@@ -57,6 +58,19 @@ macro_rules! implement_vector_base {
             fn div(self, rhs: Self) -> Self {
                 self.div_element_wise(rhs)
             }
+        }
+    };
+}
+
+macro_rules! implement_vector_base_float {
+    ($VectorN:ident, $Type:ty) => {
+        impl VecBaseFloat<$Type> for $VectorN {
+            fn length(self) -> $Type {
+                self.magnitude()
+            }
+            fn normalized(self) -> Self {
+                self.normalize()
+            }
             fn to_degrees(self) -> Self {
                 self.map(|f| Deg::from(Rad(f)).0)
             }
@@ -67,9 +81,19 @@ macro_rules! implement_vector_base {
     };
 }
 
-implement_vector_base!(Vector2);
-implement_vector_base!(Vector3);
-implement_vector_base!(Vector4);
+implement_vector_base!(Vector2, f32);
+implement_vector_base!(Vector3, f32);
+implement_vector_base!(Vector4, f32);
+implement_vector_base_float!(Vector2, f32);
+implement_vector_base_float!(Vector3, f32);
+implement_vector_base_float!(Vector4, f32);
+
+implement_vector_base!(Vector2u, u32);
+implement_vector_base!(Vector3u, u32);
+implement_vector_base!(Vector4u, u32);
+implement_vector_base!(Vector2h, u16);
+implement_vector_base!(Vector3h, u16);
+implement_vector_base!(Vector4h, u16);
 
 #[inline]
 pub fn lerp_v2(t: f32, p0: Vector2, p1: Vector2) -> Vector2 {

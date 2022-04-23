@@ -1,6 +1,6 @@
 use std::f32::consts::PI;
 
-use inox_math::{VecBase, Vector2, Vector3, Vector4};
+use inox_math::{VecBaseFloat, Vector2, Vector3, Vector4};
 
 use crate::{PbrVertexData, MAX_TEXTURE_COORDS_SETS};
 

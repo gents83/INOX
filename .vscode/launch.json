@@ -77,7 +77,7 @@
                 "-plugin inox_common_script",
                 "-plugin inox_viewer",
                 "-load_file",
-                "blender_export/TestScene/TestScene.scene"
+                "models/Sponza/Sponza.scene"
             ],
             "cwd": "${workspaceFolder}",
             "stopAtEntry": false,

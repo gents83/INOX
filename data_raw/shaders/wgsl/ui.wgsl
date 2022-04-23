@@ -145,14 +145,14 @@ fn get_textures_coord_set(v: VertexInput, material_index: i32, texture_type: u32
 
 fn compute_textures_coord(v: VertexInput, material_index: i32, texture_type: u32) -> vec3<f32> {
     let tex_coords = get_textures_coord_set(v, material_index, texture_type);
-    var output = vec3<f32>(0.0, 0.0, 0.0);
+    var out = vec3<f32>(0.0, 0.0, 0.0);
     let texture_data_index = dynamic_data.materials_data[material_index].textures_indices[texture_type];
     if (texture_data_index >= 0) {
-        output.x = (dynamic_data.textures_data[texture_data_index].area.x + 0.5 + tex_coords.x * dynamic_data.textures_data[texture_data_index].area.z) / dynamic_data.textures_data[texture_data_index].total_width;
-        output.y = (dynamic_data.textures_data[texture_data_index].area.y + 0.5 + tex_coords.y * dynamic_data.textures_data[texture_data_index].area.w) / dynamic_data.textures_data[texture_data_index].total_height;
-        output.z = f32(dynamic_data.textures_data[texture_data_index].layer_index);
+        out.x = (dynamic_data.textures_data[texture_data_index].area.x + 0.5 + tex_coords.x * dynamic_data.textures_data[texture_data_index].area.z) / dynamic_data.textures_data[texture_data_index].total_width;
+        out.y = (dynamic_data.textures_data[texture_data_index].area.y + 0.5 + tex_coords.y * dynamic_data.textures_data[texture_data_index].area.w) / dynamic_data.textures_data[texture_data_index].total_height;
+        out.z = f32(dynamic_data.textures_data[texture_data_index].layer_index);
     }
-    return output;
+    return out;
 }
 
 fn linear_from_srgb(srgb: vec3<f32>) -> vec3<f32> {

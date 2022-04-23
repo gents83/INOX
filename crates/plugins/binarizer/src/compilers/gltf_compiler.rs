@@ -22,7 +22,7 @@ use inox_graphics::{
     VertexFormat, MAX_TEXTURE_COORDS_SETS,
 };
 use inox_log::debug_log;
-use inox_math::{Mat4Ops, Matrix4, NewAngle, Parser, Radians, Vector2, Vector3, Vector4};
+use inox_math::{Mat4Ops, Matrix4, NewAngle, Parser, Radians, Vector2, Vector3, Vector4, Vector4h};
 
 use inox_nodes::LogicData;
 use inox_resources::{to_u8_slice, Data, SharedDataRc};
@@ -241,21 +241,49 @@ impl GltfCompiler {
                 Semantic::Colors(_color_index) => {
                     let num = self.num_from_type(&accessor);
                     let num_bytes = self.bytes_from_dimension(&accessor);
-                    debug_assert!(num == 4 && num_bytes == 4);
-                    if let Some(col) = self.read_accessor_from_path::<Vector4>(path, &accessor) {
-                        if vertices.len() < col.len() {
-                            debug_assert!(vertices.is_empty());
-                            for c in col.iter() {
-                                let v = PbrVertexData {
-                                    color: *c,
-                                    ..Default::default()
-                                };
-                                vertices.push(v);
+                    debug_assert!(num == 4);
+                    if num_bytes == 2 {
+                        debug_assert!(num_bytes == 2);
+                        if let Some(col) = self.read_accessor_from_path::<Vector4h>(path, &accessor)
+                        {
+                            if vertices.len() < col.len() {
+                                debug_assert!(vertices.is_empty());
+                                for c in col.iter() {
+                                    let v = PbrVertexData {
+                                        color: Vector4::new(
+                                            c.x as f32, c.y as f32, c.z as f32, c.w as f32,
+                                        ),
+                                        ..Default::default()
+                                    };
+                                    vertices.push(v);
+                                }
+                            } else {
+                                debug_assert!(vertices.len() == col.len());
+                                for (i, c) in col.iter().enumerate() {
+                                    vertices[i].color = Vector4::new(
+                                        c.x as f32, c.y as f32, c.z as f32, c.w as f32,
+                                    );
+                                }
                             }
-                        } else {
-                            debug_assert!(vertices.len() == col.len());
-                            for (i, c) in col.iter().enumerate() {
-                                vertices[i].color = *c;
+                        }
+                    } else {
+                        debug_assert!(num_bytes == 4);
+                        if let Some(col) = self.read_accessor_from_path::<Vector4>(path, &accessor)
+                        {
+                            if vertices.len() < col.len() {
+                                debug_assert!(vertices.is_empty());
+                                for c in col.iter() {
+                                    let v = PbrVertexData {
+                                        color: *c,
+                                        ..Default::default()
+                                    };
+                                    vertices.push(v);
+                                }
+                            } else {
+                                debug_assert!(vertices.len() == col.len());
+                                for (i, c) in col.iter().enumerate() {
+                                    vertices[i].color = *c;
+                                }
                             }
                         }
                     }
