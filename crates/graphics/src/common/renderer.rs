@@ -1,9 +1,10 @@
 use crate::{
-    platform::required_gpu_features, ConstantData, DataBuffer, DynamicData, GraphicsData, Light,
-    LightData, LightId, Material, MaterialId, Mesh, MeshId, Pipeline, RenderPass,
-    RenderPassDrawContext, RenderPassId, ShaderMaterialData, Texture, TextureData, TextureHandler,
-    TextureId, CONSTANT_DATA_FLAGS_SUPPORT_SRGB, GRAPHICS_DATA_UID, MAX_NUM_LIGHTS,
-    MAX_NUM_MATERIALS, MAX_NUM_TEXTURES,
+    platform::{platform_limits, required_gpu_features},
+    ConstantData, DataBuffer, DynamicData, GraphicsData, Light, LightData, LightId, Material,
+    MaterialId, Mesh, MeshId, Pipeline, RenderPass, RenderPassDrawContext, RenderPassId,
+    ShaderMaterialData, Texture, TextureData, TextureHandler, TextureId,
+    CONSTANT_DATA_FLAGS_SUPPORT_SRGB, GRAPHICS_DATA_UID, MAX_NUM_LIGHTS, MAX_NUM_MATERIALS,
+    MAX_NUM_TEXTURES,
 };
 use inox_log::debug_log;
 use inox_math::{matrix4_to_array, Matrix4, Vector2};
@@ -147,7 +148,7 @@ impl Renderer {
                 .await
                 .expect("No suitable GPU adapters found on the system!");
         let required_features = required_gpu_features();
-        let limits = wgpu::Limits::default();
+        let limits = platform_limits();
 
         let (device, queue) = adapter
             .request_device(

@@ -9,6 +9,10 @@ pub fn required_gpu_features() -> wgpu::Features {
         | wgpu::Features::MULTI_DRAW_INDIRECT_COUNT
 }
 
+pub fn platform_limits() -> wgpu::Limits {
+    wgpu::Limits::default()
+}
+
 pub fn is_indirect_mode_enabled() -> bool {
     true
 }

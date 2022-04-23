@@ -188,7 +188,7 @@ fn vs_main(
 
     var vertex_out: VertexOutput;
     vertex_out.clip_position = constant_data.proj * constant_data.view * instance_matrix * vec4<f32>(v.position, 1.0);
-    vertex_out.normal = normal_matrix * v.normal;
+    vertex_out.normal = normalize(normal_matrix * v.normal);
     vertex_out.color = v.color;
     vertex_out.material_index = instance.material_index;
 
