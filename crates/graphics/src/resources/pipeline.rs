@@ -290,7 +290,7 @@ impl Pipeline {
                     primitive: wgpu::PrimitiveState {
                         topology: wgpu::PrimitiveTopology::TriangleList,
                         strip_index_format: None,
-                        front_face: wgpu::FrontFace::Ccw,
+                        front_face: wgpu::FrontFace::default(),
                         cull_mode: match &self.data.culling {
                             CullingModeType::Back => Some(wgpu::Face::Back),
                             CullingModeType::Front => Some(wgpu::Face::Front),
