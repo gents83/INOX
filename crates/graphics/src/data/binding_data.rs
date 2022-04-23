@@ -137,6 +137,7 @@ impl BindingData {
         constant_data_buffer: &DataBuffer,
         dynamic_data_buffer: &DataBuffer,
     ) -> BindingState {
+        inox_profiler::scoped_profile!("binding_data::send_to_gpu");
         if !self.is_dirty && self.data_bind_group.is_some() && self.data_bind_group_layout.is_some()
         {
             return BindingState::Bound;

@@ -182,6 +182,8 @@ impl RenderPass {
         constant_data_buffer: &DataBuffer,
         dynamic_data_buffer: &DataBuffer,
     ) {
+        inox_profiler::scoped_profile!("render_pass::prepare");
+
         if graphics_mesh.total_vertex_count() == 0 {
             return;
         }

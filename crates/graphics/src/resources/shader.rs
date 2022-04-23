@@ -114,6 +114,7 @@ impl DataTypeResource for Shader {
 impl Shader {
     pub fn init(&mut self, context: &RenderContext) -> bool {
         if self.module.is_none() {
+            inox_profiler::scoped_profile!("shader::init({:?})", self.path);
             let shader_name = format!(
                 "Shader {}",
                 self.path

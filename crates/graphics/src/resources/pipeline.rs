@@ -188,6 +188,7 @@ impl Pipeline {
         constant_data_buffer: &DataBuffer,
         dynamic_data_buffer: &DataBuffer,
     ) -> bool {
+        inox_profiler::scoped_profile!("pipeline::init");
         if self.vertex_shader.is_none() || self.fragment_shader.is_none() {
             return false;
         }

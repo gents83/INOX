@@ -332,6 +332,7 @@ impl GraphicsData {
         context: &RenderContext,
         pipeline_id: &PipelineId,
     ) -> u64 {
+        inox_profiler::scoped_profile!("graphics_data::fill_command_buffer");
         if self.pipeline_buffers.get(pipeline_id).is_none() {
             return 0;
         }

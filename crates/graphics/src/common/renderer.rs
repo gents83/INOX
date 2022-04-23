@@ -362,6 +362,7 @@ impl Renderer {
     }
 
     fn set_constant_data(&mut self) {
+        inox_profiler::scoped_profile!("renderer::set_constant_data");
         let render_context = self.context.get();
         let render_context = render_context.as_ref().unwrap();
 
@@ -376,6 +377,7 @@ impl Renderer {
             .add_to_gpu_buffer(render_context, &[self.constant_data]);
     }
     fn set_dynamic_data(&mut self) {
+        inox_profiler::scoped_profile!("renderer::set_dynamic_data");
         let render_context = self.context.get();
         let render_context = render_context.as_ref().unwrap();
 
