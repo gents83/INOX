@@ -145,14 +145,14 @@ fn get_textures_coord_set(v: VertexInput, material_index: i32, texture_type: u32
 
 fn compute_textures_coord(v: VertexInput, material_index: i32, texture_type: u32) -> vec3<f32> {
     let tex_coords = get_textures_coord_set(v, material_index, texture_type);
-    var out = vec3<f32>(0.0, 0.0, 0.0);
+    var t = vec3<f32>(0.0, 0.0, 0.0);
     let texture_data_index = dynamic_data.materials_data[material_index].textures_indices[texture_type];
     if (texture_data_index >= 0) {
-        out.x = (dynamic_data.textures_data[texture_data_index].area.x + 0.5 + tex_coords.x * dynamic_data.textures_data[texture_data_index].area.z) / dynamic_data.textures_data[texture_data_index].total_width;
-        out.y = (dynamic_data.textures_data[texture_data_index].area.y + 0.5 + tex_coords.y * dynamic_data.textures_data[texture_data_index].area.w) / dynamic_data.textures_data[texture_data_index].total_height;
-        out.z = f32(dynamic_data.textures_data[texture_data_index].layer_index);
+        t.x = (dynamic_data.textures_data[texture_data_index].area.x + 0.5 + tex_coords.x * dynamic_data.textures_data[texture_data_index].area.z) / dynamic_data.textures_data[texture_data_index].total_width;
+        t.y = (dynamic_data.textures_data[texture_data_index].area.y + 0.5 + tex_coords.y * dynamic_data.textures_data[texture_data_index].area.w) / dynamic_data.textures_data[texture_data_index].total_height;
+        t.z = f32(dynamic_data.textures_data[texture_data_index].layer_index);
     }
-    return out;
+    return t;
 }
 
 fn linear_from_srgb(srgb: vec3<f32>) -> vec3<f32> {
@@ -176,23 +176,23 @@ fn vs_main(
     v: VertexInput,
     instance: InstanceInput,
 ) -> VertexOutput {
-    var out: VertexOutput;
+    var vertex_out: VertexOutput;
     let ui_scale = ui_data.scale;
-    out.clip_position = vec4<f32>(2. * v.position.x * ui_scale / constant_data.screen_width - 1., 1. - 2. * v.position.y * ui_scale / constant_data.screen_height, v.position.z, 1.);
+    vertex_out.clip_position = vec4<f32>(2. * v.position.x * ui_scale / constant_data.screen_width - 1., 1. - 2. * v.position.y * ui_scale / constant_data.screen_height, v.position.z, 1.);
     let support_srbg = constant_data.flags & CONSTANT_DATA_FLAGS_SUPPORT_SRGB;
     let color = rgba_from_integer(v.color);
     if (support_srbg == 0u) {
-        out.color = vec4<f32>(color.rgba / 255.);
+        vertex_out.color = vec4<f32>(color.rgba / 255.);
     } else {
-        out.color = vec4<f32>(linear_from_srgb(color.rgb), color.a / 255.);
+        vertex_out.color = vec4<f32>(linear_from_srgb(color.rgb), color.a / 255.);
     }
-    out.material_index = instance.material_index;
+    vertex_out.material_index = instance.material_index;
 
     if (instance.material_index >= 0) {
-        out.tex_coords_base_color = compute_textures_coord(v, instance.material_index, TEXTURE_TYPE_BASE_COLOR);
+        vertex_out.tex_coords_base_color = compute_textures_coord(v, instance.material_index, TEXTURE_TYPE_BASE_COLOR);
     }
 
-    return out;
+    return vertex_out;
 }
 
 fn get_atlas_index(material_index: u32, texture_type: u32) -> u32 {

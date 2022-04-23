@@ -159,14 +159,14 @@ fn get_textures_coord_set(v: VertexInput, material_index: i32, texture_type: u32
 
 fn compute_textures_coord(v: VertexInput, material_index: i32, texture_type: u32) -> vec3<f32> {
     let tex_coords = get_textures_coord_set(v, material_index, texture_type);
-    var out = vec3<f32>(0.0, 0.0, 0.0);
+    var t = vec3<f32>(0.0, 0.0, 0.0);
     let texture_data_index = dynamic_data.materials_data[material_index].textures_indices[texture_type];
     if (texture_data_index >= 0) {
-        out.x = (dynamic_data.textures_data[texture_data_index].area.x + 0.5 + tex_coords.x * dynamic_data.textures_data[texture_data_index].area.z) / dynamic_data.textures_data[texture_data_index].total_width;
-        out.y = (dynamic_data.textures_data[texture_data_index].area.y + 0.5 + tex_coords.y * dynamic_data.textures_data[texture_data_index].area.w) / dynamic_data.textures_data[texture_data_index].total_height;
-        out.z = f32(dynamic_data.textures_data[texture_data_index].layer_index);
+        t.x = (dynamic_data.textures_data[texture_data_index].area.x + 0.5 + tex_coords.x * dynamic_data.textures_data[texture_data_index].area.z) / dynamic_data.textures_data[texture_data_index].total_width;
+        t.y = (dynamic_data.textures_data[texture_data_index].area.y + 0.5 + tex_coords.y * dynamic_data.textures_data[texture_data_index].area.w) / dynamic_data.textures_data[texture_data_index].total_height;
+        t.z = f32(dynamic_data.textures_data[texture_data_index].layer_index);
     }
-    return out;
+    return t;
 }
 
 @vertex
@@ -186,23 +186,23 @@ fn vs_main(
         instance.normal_matrix_2,
     );
 
-    var out: VertexOutput;
-    out.clip_position = constant_data.proj * constant_data.view * instance_matrix * vec4<f32>(v.position, 1.0);
-    out.normal = normal_matrix * v.normal;
-    out.color = v.color;
-    out.material_index = instance.material_index;
+    var vertex_out: VertexOutput;
+    vertex_out.clip_position = constant_data.proj * constant_data.view * instance_matrix * vec4<f32>(v.position, 1.0);
+    vertex_out.normal = normal_matrix * v.normal;
+    vertex_out.color = v.color;
+    vertex_out.material_index = instance.material_index;
 
     if (instance.material_index >= 0) {
-        out.tex_coords_base_color = compute_textures_coord(v, instance.material_index, TEXTURE_TYPE_BASE_COLOR);
-        out.tex_coords_metallic_roughness = compute_textures_coord(v, instance.material_index, TEXTURE_TYPE_METALLIC_ROUGHNESS);
-        out.tex_coords_normal = compute_textures_coord(v, instance.material_index, TEXTURE_TYPE_NORMAL);
-        out.tex_coords_emissive = compute_textures_coord(v, instance.material_index, TEXTURE_TYPE_EMISSIVE);
-        out.tex_coords_occlusion = compute_textures_coord(v, instance.material_index, TEXTURE_TYPE_OCCLUSION);
-        out.tex_coords_specular_glossiness = compute_textures_coord(v, instance.material_index, TEXTURE_TYPE_SPECULAR_GLOSSINESS);
-        out.tex_coords_diffuse = compute_textures_coord(v, instance.material_index, TEXTURE_TYPE_DIFFUSE);
+        vertex_out.tex_coords_base_color = compute_textures_coord(v, instance.material_index, TEXTURE_TYPE_BASE_COLOR);
+        vertex_out.tex_coords_metallic_roughness = compute_textures_coord(v, instance.material_index, TEXTURE_TYPE_METALLIC_ROUGHNESS);
+        vertex_out.tex_coords_normal = compute_textures_coord(v, instance.material_index, TEXTURE_TYPE_NORMAL);
+        vertex_out.tex_coords_emissive = compute_textures_coord(v, instance.material_index, TEXTURE_TYPE_EMISSIVE);
+        vertex_out.tex_coords_occlusion = compute_textures_coord(v, instance.material_index, TEXTURE_TYPE_OCCLUSION);
+        vertex_out.tex_coords_specular_glossiness = compute_textures_coord(v, instance.material_index, TEXTURE_TYPE_SPECULAR_GLOSSINESS);
+        vertex_out.tex_coords_diffuse = compute_textures_coord(v, instance.material_index, TEXTURE_TYPE_DIFFUSE);
     }
 
-    return out;
+    return vertex_out;
 }
 
 fn get_atlas_index(material_index: u32, texture_type: u32) -> u32 {
