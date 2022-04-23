@@ -77,7 +77,7 @@
                 "-plugin inox_common_script",
                 "-plugin inox_viewer",
                 "-load_file",
-                "models/the_noble_craftman/the_noble_craftman.scene"
+                "models/craftman/craftman.scene"
             ],
             "cwd": "${workspaceFolder}",
             "stopAtEntry": false,

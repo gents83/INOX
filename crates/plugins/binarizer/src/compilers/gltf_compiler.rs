@@ -397,6 +397,9 @@ impl GltfCompiler {
         let indices = self.extract_indices(path, primitive);
 
         let mut mesh_data = self.optimize_mesh(vertices, indices);
+
+        //let mut mesh_data = MeshData::new(VertexFormat::pbr());
+        //mesh_data.append_mesh(vertices.as_slice(), indices.as_slice());
         mesh_data.material = material_path.to_path_buf();
 
         Self::create_file(
