@@ -16,8 +16,8 @@
     ],
     "culling": "None",
     "mode": "Line",
-    "src_color_blend_factor": "One",
+    "src_color_blend_factor": "SrcAlpha",
     "dst_color_blend_factor": "OneMinusSrcAlpha",
-    "src_alpha_blend_factor": "OneMinusDstAlpha",
-    "dst_alpha_blend_factor": "One"
+    "src_alpha_blend_factor": "One",
+    "dst_alpha_blend_factor": "OneMinusSrcAlpha"
 }
