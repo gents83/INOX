@@ -1,8 +1,10 @@
 #![allow(dead_code)]
 
+use std::any::type_name;
+
 use inox_resources::{to_u8_slice, Buffer, HashBuffer};
 use inox_serialize::{Deserialize, Serialize};
-use inox_uid::INVALID_UID;
+use inox_uid::generate_uid_from_string;
 
 use crate::{
     DataBuffer, LightData, LightId, Material, MaterialId, RenderContext, ShaderMaterialData,
@@ -121,13 +123,15 @@ impl BindingData {
         &self.custom_data.total_data()[0]
     }
     pub fn set_custom_data<T>(&mut self, data: T, is_read_only: bool) {
-        self.custom_data.allocate_with_size(
-            &INVALID_UID,
+        let typename = type_name::<T>();
+        let id = generate_uid_from_string(typename);
+        self.custom_data.remove_with_id(&id);
+        self.is_dirty = self.custom_data.allocate_with_size(
+            &id,
             to_u8_slice(&[data]),
             std::mem::size_of::<T>(),
         );
         self.is_read_only = is_read_only;
-        self.is_dirty = true;
     }
 
     pub fn send_to_gpu(

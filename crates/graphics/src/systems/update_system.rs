@@ -5,7 +5,7 @@ use inox_messenger::{Listener, MessageHubRc};
 use inox_platform::WindowEvent;
 use inox_resources::{
     ConfigBase, ConfigEvent, DataTypeResource, ReloadEvent, Resource, ResourceEvent,
-    SerializableResource, SerializableResourceEvent, SharedData, SharedDataRc,
+    SerializableResourceEvent, SharedData, SharedDataRc,
 };
 use inox_serialize::read_from_file;
 use inox_uid::generate_random_uid;
@@ -62,14 +62,6 @@ impl UpdateSystem {
                     SharedData::for_each_resource_mut(&self.shared_data, |_, p: &mut Pipeline| {
                         p.check_shaders_to_reload(path.to_str().unwrap().to_string());
                     });
-                } else if Texture::is_matching_extension(path) {
-                    SharedData::for_each_resource_mut(&self.shared_data, |_, t: &mut Texture| {
-                        if t.path() == path {
-                            t.invalidate();
-                        }
-                    });
-                } else {
-                    inox_log::debug_log!("UNMANAGED ReloadEvent: {:?}", path);
                 }
             })
             .process_messages(|e: &ResourceEvent<RenderPass>| match e {
@@ -163,6 +155,8 @@ impl System for UpdateSystem {
     fn init(&mut self) {
         self.listener
             .register::<WindowEvent>()
+            .register::<ReloadEvent>()
+            .register::<ConfigEvent<Config>>()
             .register::<SerializableResourceEvent<Pipeline>>()
             .register::<SerializableResourceEvent<Texture>>()
             .register::<ResourceEvent<RenderPass>>()
@@ -208,8 +202,8 @@ impl System for UpdateSystem {
     }
     fn uninit(&mut self) {
         self.listener
-            .unregister::<ConfigEvent<Config>>()
             .unregister::<WindowEvent>()
+            .unregister::<ReloadEvent>()
             .unregister::<SerializableResourceEvent<Pipeline>>()
             .unregister::<SerializableResourceEvent<Texture>>()
             .unregister::<ConfigEvent<Config>>()

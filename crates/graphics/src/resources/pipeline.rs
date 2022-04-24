@@ -219,7 +219,7 @@ impl Pipeline {
             return false;
         }
         let is_same_format = self.format == Some(*format);
-        if binding_state == BindingState::Bound || is_same_format {
+        if binding_state == BindingState::Bound && is_same_format {
             return true;
         }
         let render_pipeline_layout =
