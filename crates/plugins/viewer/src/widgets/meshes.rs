@@ -43,12 +43,12 @@ impl Meshes {
         inox_profiler::scoped_profile!("Meshes::update");
 
         if let Some(data) = self.ui_page.get_mut().data_mut::<MeshesData>() {
-            if let Some(graphics_mesh) = data
+            if let Some(graphics_data) = data
                 .shared_data
                 .get_resource::<GraphicsData>(&GRAPHICS_DATA_UID)
             {
-                data.vertices_count = graphics_mesh.get().total_vertex_count();
-                data.indices_count = graphics_mesh.get().total_index_count();
+                data.vertices_count = graphics_data.get().total_vertex_count();
+                data.indices_count = graphics_data.get().total_index_count();
 
                 let golden_ratio = (5.0_f32.sqrt() - 1.0) / 2.0; // 0.61803398875
                 let mut valid_meshes = Vec::new();
@@ -79,7 +79,7 @@ impl Meshes {
                 data.pipeline_instances.clear();
                 data.shared_data
                     .for_each_resource(|handle, pipeline: &Pipeline| {
-                        graphics_mesh.get().for_each_vertex_buffer_data(
+                        graphics_data.get().for_each_vertex_buffer_data(
                             handle.id(),
                             |mesh_id: &MeshId, range| {
                                 let range = range.clone();
@@ -100,10 +100,10 @@ impl Meshes {
                             },
                         );
 
-                        let instances_count = graphics_mesh.get().instance_count(handle.id());
+                        let instances_count = graphics_data.get().instance_count(handle.id());
 
                         let mut instance_names = Vec::new();
-                        graphics_mesh.get().for_each_instance(
+                        graphics_data.get().for_each_instance(
                             handle.id(),
                             |mesh_id, _, _, _, _| {
                                 let name = if let Some(entry) = data.meshes_names.get(mesh_id) {

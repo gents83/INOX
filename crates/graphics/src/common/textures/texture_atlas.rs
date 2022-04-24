@@ -28,6 +28,10 @@ impl TextureAtlas {
             DEFAULT_AREA_SIZE,
             DEFAULT_AREA_SIZE,
             DEFAULT_LAYER_COUNT,
+            wgpu::TextureFormat::Rgba8Unorm,
+            wgpu::TextureUsages::TEXTURE_BINDING
+                | wgpu::TextureUsages::COPY_DST
+                | wgpu::TextureUsages::RENDER_ATTACHMENT,
         );
         Self {
             texture,
@@ -41,12 +45,14 @@ impl TextureAtlas {
         width: u32,
         height: u32,
         layers_count: u32,
+        format: wgpu::TextureFormat,
+        usage: wgpu::TextureUsages,
     ) -> Self {
         let mut area_allocator = AreaAllocator::new(width, height);
         if area_allocator.allocate(id, width, height).is_none() {
             panic!("Unable to create render target");
         }
-        let texture = Texture::create(device, *id, width, height, layers_count);
+        let texture = Texture::create(device, *id, width, height, layers_count, format, usage);
         Self {
             texture,
             allocators: vec![area_allocator],

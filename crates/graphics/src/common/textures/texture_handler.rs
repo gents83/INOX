@@ -11,6 +11,7 @@ pub struct TextureHandler {
     encoder: Option<wgpu::CommandEncoder>,
     texture_data_bind_group_layout: wgpu::BindGroupLayout,
     default_sampler: wgpu::Sampler,
+    depth_sampler: wgpu::Sampler,
 }
 
 impl TextureHandler {
@@ -24,17 +25,37 @@ impl TextureHandler {
             mipmap_filter: wgpu::FilterMode::Nearest,
             ..Default::default()
         });
+        let depth_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+            address_mode_u: wgpu::AddressMode::ClampToEdge,
+            address_mode_v: wgpu::AddressMode::ClampToEdge,
+            address_mode_w: wgpu::AddressMode::ClampToEdge,
+            mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Linear,
+            mipmap_filter: wgpu::FilterMode::Nearest,
+            compare: Some(wgpu::CompareFunction::LessEqual),
+            lod_min_clamp: -100.0,
+            lod_max_clamp: 100.0,
+            ..Default::default()
+        });
         let texture_atlas = vec![TextureAtlas::create_default(device)];
-        let mut bind_group_entries = [wgpu::BindGroupLayoutEntry {
-            binding: 0,
-            visibility: wgpu::ShaderStages::FRAGMENT,
-            ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-            count: None,
-        }]
+        let mut bind_group_entries = [
+            wgpu::BindGroupLayoutEntry {
+                binding: 0,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                count: None,
+            },
+            wgpu::BindGroupLayoutEntry {
+                binding: 1,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Comparison),
+                count: None,
+            },
+        ]
         .to_vec();
         for i in 0..MAX_TEXTURE_ATLAS_COUNT {
             bind_group_entries.push(wgpu::BindGroupLayoutEntry {
-                binding: i + 1,
+                binding: i + 2,
                 visibility: wgpu::ShaderStages::FRAGMENT,
                 ty: wgpu::BindingType::Texture {
                     sample_type: wgpu::TextureSampleType::Float { filterable: true },
@@ -55,6 +76,7 @@ impl TextureHandler {
             texture_atlas,
             texture_data_bind_group_layout,
             default_sampler,
+            depth_sampler,
         }
     }
     fn create_encoder(&mut self, device: &wgpu::Device) -> &mut wgpu::CommandEncoder {
@@ -77,47 +99,63 @@ impl TextureHandler {
     pub fn default_sampler(&self) -> &wgpu::Sampler {
         &self.default_sampler
     }
+    pub fn depth_sampler(&self) -> &wgpu::Sampler {
+        &self.depth_sampler
+    }
 
     pub fn bind_group(
         &self,
         device: &wgpu::Device,
         render_target: Option<&TextureId>,
+        depth_target: Option<&TextureId>,
     ) -> wgpu::BindGroup {
-        let mut bind_group_entries = [wgpu::BindGroupEntry {
-            binding: 0,
-            resource: wgpu::BindingResource::Sampler(&self.default_sampler),
-        }]
+        let mut bind_group_entries = [
+            wgpu::BindGroupEntry {
+                binding: 0,
+                resource: wgpu::BindingResource::Sampler(&self.default_sampler),
+            },
+            wgpu::BindGroupEntry {
+                binding: 1,
+                resource: wgpu::BindingResource::Sampler(&self.depth_sampler),
+            },
+        ]
         .to_vec();
-        let mut index = 0;
+        let mut index = 1;
         let mut first_valid_texture = None;
-        self.texture_atlas.iter().for_each(|texture_atlas| {
+        let num_textures = self.texture_atlas.len();
+        for i in 0..MAX_TEXTURE_ATLAS_COUNT as usize {
             if first_valid_texture.is_none() {
-                first_valid_texture = Some(texture_atlas.texture());
+                first_valid_texture = Some(self.texture_atlas[i].texture());
             }
             index += 1;
-            if let Some(id) = render_target {
-                if texture_atlas.texture_id() == id {
-                    bind_group_entries.push(wgpu::BindGroupEntry {
-                        binding: index,
-                        resource: wgpu::BindingResource::TextureView(
-                            first_valid_texture.as_ref().unwrap(),
-                        ),
-                    });
-                    return;
+            let mut use_default = false;
+            if i >= num_textures {
+                use_default = true;
+            } else {
+                if let Some(id) = render_target {
+                    if self.texture_atlas[i].texture_id() == id {
+                        use_default = true;
+                    }
+                }
+                if let Some(id) = depth_target {
+                    if self.texture_atlas[i].texture_id() == id {
+                        use_default = true;
+                    }
                 }
             }
-            bind_group_entries.push(wgpu::BindGroupEntry {
-                binding: index,
-                resource: wgpu::BindingResource::TextureView(texture_atlas.texture()),
-            });
-        });
-        let start = index;
-        for _ in start..MAX_TEXTURE_ATLAS_COUNT {
-            index += 1;
-            bind_group_entries.push(wgpu::BindGroupEntry {
-                binding: index,
-                resource: wgpu::BindingResource::TextureView(first_valid_texture.as_ref().unwrap()),
-            });
+            if use_default {
+                bind_group_entries.push(wgpu::BindGroupEntry {
+                    binding: index,
+                    resource: wgpu::BindingResource::TextureView(
+                        first_valid_texture.as_ref().unwrap(),
+                    ),
+                });
+            } else {
+                bind_group_entries.push(wgpu::BindGroupEntry {
+                    binding: index,
+                    resource: wgpu::BindingResource::TextureView(self.texture_atlas[i].texture()),
+                });
+            }
         }
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             entries: bind_group_entries.as_slice(),
@@ -128,15 +166,18 @@ impl TextureHandler {
         bind_group
     }
 
-    pub fn add_render_target(
+    pub fn add_custom_texture(
         &mut self,
         device: &wgpu::Device,
         id: &TextureId,
         width: u32,
         height: u32,
+        format: wgpu::TextureFormat,
+        usage: wgpu::TextureUsages,
     ) {
-        self.texture_atlas
-            .push(TextureAtlas::create_texture(device, id, width, height, 1));
+        self.texture_atlas.push(TextureAtlas::create_texture(
+            device, id, width, height, 1, format, usage,
+        ));
     }
 
     pub fn get_textures_atlas(&self) -> &[TextureAtlas] {

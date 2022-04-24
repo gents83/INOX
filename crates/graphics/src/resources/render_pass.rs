@@ -5,6 +5,7 @@ use inox_resources::{
     SharedData, SharedDataRc,
 };
 use inox_serialize::{inox_serializable::SerializableRegistryRc, read_from_file};
+use inox_uid::generate_random_uid;
 
 use crate::{
     platform::is_indirect_mode_enabled, DataBuffer, GraphicsData, LoadOperation, Pipeline,
@@ -17,16 +18,28 @@ pub type RenderPassId = ResourceId;
 pub struct RenderPass {
     data: RenderPassData,
     pipelines: Vec<Resource<Pipeline>>,
-    target_texture: Handle<Texture>,
+    render_texture: Handle<Texture>,
+    depth_texture: Handle<Texture>,
     is_initialized: bool,
 }
 
+pub struct RenderPassPrepareContext<'a> {
+    pub context: &'a RenderContext,
+    pub graphics_data: &'a mut GraphicsData,
+    pub render_format: &'a wgpu::TextureFormat,
+    pub depth_format: Option<&'a wgpu::TextureFormat>,
+    pub texture_bind_group_layout: &'a wgpu::BindGroupLayout,
+    pub constant_data_buffer: &'a DataBuffer,
+    pub dynamic_data_buffer: &'a DataBuffer,
+}
 pub struct RenderPassDrawContext<'a> {
     pub context: &'a RenderContext,
     pub encoder: &'a mut wgpu::CommandEncoder,
     pub texture_view: &'a wgpu::TextureView,
-    pub format: &'a wgpu::TextureFormat,
-    pub graphics_mesh: &'a Resource<GraphicsData>,
+    pub render_format: &'a wgpu::TextureFormat,
+    pub depth_view: Option<&'a wgpu::TextureView>,
+    pub depth_format: Option<&'a wgpu::TextureFormat>,
+    pub graphics_data: &'a Resource<GraphicsData>,
     pub texture_bind_group: &'a wgpu::BindGroup,
 }
 
@@ -64,7 +77,8 @@ impl DataTypeResource for RenderPass {
         Self {
             data: RenderPassData::default(),
             pipelines: Vec::new(),
-            target_texture: None,
+            render_texture: None,
+            depth_texture: None,
             is_initialized: false,
         }
     }
@@ -86,7 +100,7 @@ impl DataTypeResource for RenderPass {
     fn create_from_data(
         shared_data: &SharedDataRc,
         message_hub: &MessageHubRc,
-        id: ResourceId,
+        _id: ResourceId,
         data: Self::DataType,
     ) -> Self
     where
@@ -101,18 +115,37 @@ impl DataTypeResource for RenderPass {
             };
         });
 
-        let render_target = match &data.render_target {
+        let render_texture = match &data.render_target {
             RenderTarget::Texture {
                 width,
                 height,
                 read_back: _,
             } => {
+                let texture_id = generate_random_uid();
                 let image = DynamicImage::new_rgba8(*width, *height);
                 let image_data = image.to_rgba8();
                 let mut texture =
-                    Texture::create_from_data(shared_data, message_hub, id, image_data);
-                texture.on_create(shared_data, message_hub, &id, None);
-                let texture = shared_data.add_resource(message_hub, id, texture);
+                    Texture::create_from_data(shared_data, message_hub, texture_id, image_data);
+                texture.on_create(shared_data, message_hub, &texture_id, None);
+                let texture = shared_data.add_resource(message_hub, texture_id, texture);
+                Some(texture)
+            }
+            _ => None,
+        };
+
+        let depth_texture = match &data.depth_target {
+            RenderTarget::Texture {
+                width,
+                height,
+                read_back: _,
+            } => {
+                let texture_id = generate_random_uid();
+                let image = DynamicImage::new_rgba8(*width, *height);
+                let image_data = image.to_rgba8();
+                let mut texture =
+                    Texture::create_from_data(shared_data, message_hub, texture_id, image_data);
+                texture.on_create(shared_data, message_hub, &texture_id, None);
+                let texture = shared_data.add_resource(message_hub, texture_id, texture);
                 Some(texture)
             }
             _ => None,
@@ -121,7 +154,8 @@ impl DataTypeResource for RenderPass {
         Self {
             data,
             pipelines,
-            target_texture: render_target,
+            render_texture,
+            depth_texture,
             is_initialized: false,
         }
     }
@@ -132,22 +166,43 @@ impl RenderPass {
         &self.data
     }
     pub fn render_target(&self) -> &Handle<Texture> {
-        &self.target_texture
+        &self.render_texture
+    }
+    pub fn depth_texture(&self) -> &Handle<Texture> {
+        &self.depth_texture
     }
     pub fn init(&mut self, context: &mut RenderContext) {
         if self.is_initialized {
             return;
         }
-        if let Some(texture) = &self.target_texture {
+        if let Some(texture) = &self.render_texture {
             let texture_handler = &mut context.texture_handler;
             if texture_handler.get_texture_atlas(texture.id()).is_none() {
-                texture_handler.add_render_target(
+                texture_handler.add_custom_texture(
                     &context.device,
                     texture.id(),
                     texture.get().width(),
                     texture.get().height(),
+                    wgpu::TextureFormat::Rgba8Unorm,
+                    wgpu::TextureUsages::TEXTURE_BINDING
+                        | wgpu::TextureUsages::COPY_DST
+                        | wgpu::TextureUsages::RENDER_ATTACHMENT,
                 );
-                self.is_initialized = true;
+            }
+        }
+        if let Some(texture) = &self.depth_texture {
+            let texture_handler = &mut context.texture_handler;
+            if texture_handler.get_texture_atlas(texture.id()).is_none() {
+                texture_handler.add_custom_texture(
+                    &context.device,
+                    texture.id(),
+                    texture.get().width(),
+                    texture.get().height(),
+                    wgpu::TextureFormat::Depth32Float,
+                    wgpu::TextureUsages::TEXTURE_BINDING
+                        | wgpu::TextureUsages::COPY_DST
+                        | wgpu::TextureUsages::RENDER_ATTACHMENT,
+                );
             }
         } else {
             self.is_initialized = true;
@@ -163,53 +218,54 @@ impl RenderPass {
         }
     }
 
-    fn depth_operations(&self, c: wgpu::Color) -> wgpu::Operations<wgpu::Color> {
+    fn depth_operations(&self) -> wgpu::Operations<f32> {
         wgpu::Operations {
             load: match &self.data.load_depth {
                 LoadOperation::Load => wgpu::LoadOp::Load,
-                _ => wgpu::LoadOp::Clear(c),
+                _ => wgpu::LoadOp::Clear(1.),
             },
             store: matches!(&self.data.store_depth, StoreOperation::Store),
         }
     }
 
-    pub fn prepare(
-        &mut self,
-        render_context: &RenderContext,
-        graphics_mesh: &mut GraphicsData,
-        format: &wgpu::TextureFormat,
-        texture_bind_group_layout: &wgpu::BindGroupLayout,
-        constant_data_buffer: &DataBuffer,
-        dynamic_data_buffer: &DataBuffer,
-    ) {
+    pub fn prepare(&mut self, render_pass_prepare_context: RenderPassPrepareContext) {
         inox_profiler::scoped_profile!("render_pass::prepare");
 
-        if graphics_mesh.total_vertex_count() == 0 {
+        if render_pass_prepare_context
+            .graphics_data
+            .total_vertex_count()
+            == 0
+        {
             return;
         }
         self.pipelines.iter_mut().for_each(|pipeline| {
             let pipeline_id = pipeline.id();
-            let instance_count = graphics_mesh.instance_count(pipeline_id);
+            let instance_count = render_pass_prepare_context
+                .graphics_data
+                .instance_count(pipeline_id);
             if instance_count > 0 {
                 if !pipeline.get_mut().init(
-                    render_context,
-                    texture_bind_group_layout,
-                    format,
-                    constant_data_buffer,
-                    dynamic_data_buffer,
+                    render_pass_prepare_context.context,
+                    render_pass_prepare_context.texture_bind_group_layout,
+                    render_pass_prepare_context.render_format,
+                    render_pass_prepare_context.depth_format,
+                    render_pass_prepare_context.constant_data_buffer,
+                    render_pass_prepare_context.dynamic_data_buffer,
                 ) {
                     return;
                 }
                 if is_indirect_mode_enabled() && self.data.render_mode == RenderMode::Indirect {
-                    graphics_mesh.fill_command_buffer(render_context, pipeline_id);
+                    render_pass_prepare_context
+                        .graphics_data
+                        .fill_command_buffer(render_pass_prepare_context.context, pipeline_id);
                 }
             }
         });
     }
 
     pub fn draw(&self, render_pass_context: RenderPassDrawContext) {
-        let graphics_mesh = render_pass_context.graphics_mesh.get();
-        if graphics_mesh.total_vertex_count() == 0 || graphics_mesh.total_index_count() == 0 {
+        let graphics_data = render_pass_context.graphics_data.get();
+        if graphics_data.total_vertex_count() == 0 || graphics_data.total_index_count() == 0 {
             return;
         }
         let pipelines = self.pipelines.iter().map(|h| h.get()).collect::<Vec<_>>();
@@ -226,32 +282,39 @@ impl RenderPass {
                         resolve_target: None,
                         ops: color_operations,
                     }],
-                    depth_stencil_attachment: None,
+                    depth_stencil_attachment: render_pass_context.depth_view.map(|depth_view| {
+                        let depth_operations = self.depth_operations();
+                        wgpu::RenderPassDepthStencilAttachment {
+                            view: depth_view,
+                            depth_ops: Some(depth_operations),
+                            stencil_ops: None,
+                        }
+                    }),
                 });
 
         pipelines.iter().enumerate().for_each(|(i, pipeline)| {
             let pipeline_id = pipelines_id[i];
-            let instance_count = graphics_mesh.instance_count(pipeline_id);
+            let instance_count = graphics_data.instance_count(pipeline_id);
             if instance_count > 0 && pipeline.is_initialized() {
                 render_pass.set_bind_group(0, pipeline.binding_data().bind_group(), &[]);
                 render_pass.set_bind_group(1, render_pass_context.texture_bind_group, &[]);
 
                 render_pass.set_pipeline(pipeline.render_pipeline());
 
-                if let Some(buffer_slice) = graphics_mesh.vertex_buffer(pipeline_id) {
+                if let Some(buffer_slice) = graphics_data.vertex_buffer(pipeline_id) {
                     render_pass.set_vertex_buffer(0, buffer_slice);
                 }
-                if let Some(instance_buffer) = graphics_mesh.instance_buffer(pipeline_id) {
+                if let Some(instance_buffer) = graphics_data.instance_buffer(pipeline_id) {
                     render_pass.set_vertex_buffer(1, instance_buffer);
                 }
-                if let Some(buffer_slice) = graphics_mesh.index_buffer(pipeline_id) {
+                if let Some(buffer_slice) = graphics_data.index_buffer(pipeline_id) {
                     render_pass.set_index_buffer(buffer_slice, wgpu::IndexFormat::Uint32);
                 }
 
-                if graphics_mesh.index_count(pipeline_id) > 0 {
+                if graphics_data.index_count(pipeline_id) > 0 {
                     if is_indirect_mode_enabled() && self.data.render_mode == RenderMode::Indirect {
-                        let commands_count = graphics_mesh.commands_count(pipeline_id);
-                        if let Some(command_buffer) = graphics_mesh.commands_buffer(pipeline_id) {
+                        let commands_count = graphics_data.commands_count(pipeline_id);
+                        if let Some(command_buffer) = graphics_data.commands_buffer(pipeline_id) {
                             render_pass.multi_draw_indexed_indirect(
                                 command_buffer,
                                 0,
@@ -259,7 +322,7 @@ impl RenderPass {
                             );
                         }
                     } else {
-                        graphics_mesh.for_each_instance(
+                        graphics_data.for_each_instance(
                             pipeline_id,
                             |_mesh_id, index, instance_data, vertices_range, indices_range| {
                                 let x = (instance_data.draw_area[0] as u32)
@@ -282,7 +345,7 @@ impl RenderPass {
                     }
                 } else {
                     render_pass.draw(
-                        0..graphics_mesh.vertex_count(pipeline_id) as u32,
+                        0..graphics_data.vertex_count(pipeline_id) as u32,
                         0..instance_count as u32,
                     );
                 }

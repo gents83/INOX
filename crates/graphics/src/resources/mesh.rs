@@ -33,7 +33,7 @@ pub struct Mesh {
     draw_area: Vector4, //pos (x,y) - size(z,w)
     is_visible: bool,
     draw_index: i32,
-    graphics_mesh: Handle<GraphicsData>,
+    graphics_data: Handle<GraphicsData>,
     vertex_format: VertexFormatBits,
     vertices_range: Range<usize>,
     indices_range: Range<usize>,
@@ -54,8 +54,8 @@ impl ResourceTrait for Mesh {
         }
     }
     fn on_destroy(&mut self, _shared_data: &SharedData, _message_hub: &MessageHubRc, id: &MeshId) {
-        if let Some(graphics_mesh) = &self.graphics_mesh {
-            graphics_mesh.get_mut().remove_mesh(id);
+        if let Some(graphics_data) = &self.graphics_data {
+            graphics_data.get_mut().remove_mesh(id);
         }
     }
     fn on_copy(&mut self, other: &Self)
@@ -95,7 +95,7 @@ impl DataTypeResource for Mesh {
             draw_area: [0., 0., f32::MAX, f32::MAX].into(),
             is_visible: true,
             draw_index: INVALID_INDEX,
-            graphics_mesh: shared_data.get_resource::<GraphicsData>(&GRAPHICS_DATA_UID),
+            graphics_data: shared_data.get_resource::<GraphicsData>(&GRAPHICS_DATA_UID),
             vertices_range: 0..0,
             indices_range: 0..0,
             vertex_format: VertexFormat::to_bits(&VertexFormat::pbr()),
@@ -138,8 +138,8 @@ impl DataTypeResource for Mesh {
         let mut mesh = Mesh::new(id, shared_data, message_hub);
         mesh.material = material;
         mesh.vertex_format = VertexFormat::to_bits(data.vertex_format.as_slice());
-        if let Some(graphics_mesh) = &mesh.graphics_mesh {
-            let (vertex_range, index_range) = graphics_mesh.get_mut().add_mesh_data(&id, &data);
+        if let Some(graphics_data) = &mesh.graphics_data {
+            let (vertex_range, index_range) = graphics_data.get_mut().add_mesh_data(&id, &data);
             mesh.vertices_range = vertex_range;
             mesh.indices_range = index_range;
         }
@@ -214,9 +214,9 @@ impl Mesh {
         &self.material
     }
     pub fn set_mesh_data(&mut self, mesh_data: MeshData) -> &mut Self {
-        if let Some(graphics_mesh) = &self.graphics_mesh {
+        if let Some(graphics_data) = &self.graphics_data {
             let (vertex_range, index_range) =
-                graphics_mesh.get_mut().add_mesh_data(&self.id, &mesh_data);
+                graphics_data.get_mut().add_mesh_data(&self.id, &mesh_data);
             if self.vertices_range != vertex_range && self.indices_range != index_range {
                 self.vertices_range = vertex_range;
                 self.indices_range = index_range;

@@ -109,36 +109,38 @@ var<storage, read> dynamic_data: DynamicData;
 @group(1) @binding(0)
 var default_sampler: sampler;
 @group(1) @binding(1)
-var texture_1: texture_2d<f32>;
+var depth_sampler: sampler;
 @group(1) @binding(2)
-var texture_2: texture_2d<f32>;
+var texture_1: texture_2d<f32>;
 @group(1) @binding(3)
-var texture_3: texture_2d<f32>;
+var texture_2: texture_2d<f32>;
 @group(1) @binding(4)
-var texture_4: texture_2d<f32>;
+var texture_3: texture_2d<f32>;
 @group(1) @binding(5)
-var texture_5: texture_2d<f32>;
+var texture_4: texture_2d<f32>;
 @group(1) @binding(6)
-var texture_6: texture_2d<f32>;
+var texture_5: texture_2d<f32>;
 @group(1) @binding(7)
-var texture_7: texture_2d<f32>;
+var texture_6: texture_2d<f32>;
 @group(1) @binding(8)
-var texture_8: texture_2d<f32>;
+var texture_7: texture_2d<f32>;
 @group(1) @binding(9)
-var texture_9: texture_2d<f32>;
+var texture_8: texture_2d<f32>;
 @group(1) @binding(10)
-var texture_10: texture_2d<f32>;
+var texture_9: texture_2d<f32>;
 @group(1) @binding(11)
-var texture_11: texture_2d<f32>;
+var texture_10: texture_2d<f32>;
 @group(1) @binding(12)
-var texture_12: texture_2d<f32>;
+var texture_11: texture_2d<f32>;
 @group(1) @binding(13)
-var texture_13: texture_2d<f32>;
+var texture_12: texture_2d<f32>;
 @group(1) @binding(14)
-var texture_14: texture_2d<f32>;
+var texture_13: texture_2d<f32>;
 @group(1) @binding(15)
-var texture_15: texture_2d<f32>;
+var texture_14: texture_2d<f32>;
 @group(1) @binding(16)
+var texture_15: texture_2d<f32>;
+@group(1) @binding(17)
 var texture_16: texture_2d<f32>;
 
 fn get_textures_coord_set(v: VertexInput, material_index: i32, texture_type: u32) -> vec2<f32> {
@@ -266,9 +268,7 @@ fn fs_main(v: VertexOutput) -> @location(0) vec4<f32> {
         let light_color = dynamic_data.lights_data[i].color.rgb;
         let ambient_strength = dynamic_data.lights_data[i].intensity / 10000.;
         let ambient_color = light_color * ambient_strength;
-
         let light_dir = normalize(dynamic_data.lights_data[i].position - v.clip_position.xyz);
-
         let diffuse_strength = max(dot(v.normal, light_dir), 0.0);
         let diffuse_color = light_color * diffuse_strength;
         let view_pos = vec3<f32>(constant_data.view[3][0], constant_data.view[3][1], constant_data.view[3][2]);
@@ -277,9 +277,7 @@ fn fs_main(v: VertexOutput) -> @location(0) vec4<f32> {
 	    //Blinn-Phong
         let half_dir = normalize(view_dir + light_dir);
         let specular_strength = pow(max(dot(v.normal, half_dir), 0.0), 32.);
-
         let specular_color = specular_strength * light_color;
-
         color_from_light = color_from_light * (ambient_color + diffuse_color + specular_color);
         i = i + 1u;
     }

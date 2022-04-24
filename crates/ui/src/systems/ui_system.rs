@@ -108,10 +108,10 @@ impl UISystem {
     }
 
     fn compute_mesh_data(&mut self, clipped_meshes: Vec<ClippedPrimitive>) {
-        let graphics_mesh = self
+        let graphics_data = self
             .shared_data
             .get_resource::<GraphicsData>(&GRAPHICS_DATA_UID);
-        if graphics_mesh.is_none() {
+        if graphics_data.is_none() {
             return;
         }
         inox_profiler::scoped_profile!("ui_system::compute_mesh_data");
@@ -152,7 +152,7 @@ impl UISystem {
 
                 let material = self.get_ui_material(texture);
                 let mesh_instance = self.ui_meshes[i].clone();
-                let graphics_mesh = graphics_mesh.as_ref().unwrap().clone();
+                let graphics_data = graphics_data.as_ref().unwrap().clone();
                 let ui_scale = self.ui_scale;
                 let clip_rect = clipped_mesh.clip_rect;
 
@@ -164,13 +164,13 @@ impl UISystem {
                         let (vertices_range, indices_range) = {
                             inox_profiler::scoped_profile!("ui_system::copy_vertex_data");
 
-                            let vertices_range = graphics_mesh.get_mut().add_vertices(
+                            let vertices_range = graphics_data.get_mut().add_vertices(
                                 mesh_instance.id(),
                                 vertex_data_attribute_ui_hash,
                                 size_of::<Vertex>(),
                                 to_u8_slice(mesh.vertices.as_slice()),
                             );
-                            let indices_range = graphics_mesh.get_mut().add_indices(
+                            let indices_range = graphics_data.get_mut().add_indices(
                                 mesh_instance.id(),
                                 vertex_data_attribute_ui_hash,
                                 mesh.indices.as_slice(),

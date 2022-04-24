@@ -408,7 +408,7 @@ impl GraphicsData {
     }
 
     pub fn send_to_gpu(&mut self, context: &RenderContext) {
-        inox_profiler::scoped_profile!("graphics_mesh::send_to_gpu");
+        inox_profiler::scoped_profile!("graphics_data::send_to_gpu");
 
         self.mesh_buffers.iter_mut().for_each(|(_, mb)| {
             mb.vertex_buffer

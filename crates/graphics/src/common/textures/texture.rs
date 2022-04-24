@@ -23,13 +23,14 @@ impl Texture {
         width: u32,
         height: u32,
         layers_count: u32,
+        format: wgpu::TextureFormat,
+        usage: wgpu::TextureUsages,
     ) -> Self {
         let size = wgpu::Extent3d {
             width,
             height,
             depth_or_array_layers: layers_count,
         };
-        let format = wgpu::TextureFormat::Rgba8Unorm;
         let texture = device.create_texture(&wgpu::TextureDescriptor {
             label: Some(format!("Texture[{}]", id).as_str()),
             size,
@@ -37,9 +38,7 @@ impl Texture {
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format,
-            usage: wgpu::TextureUsages::TEXTURE_BINDING
-                | wgpu::TextureUsages::COPY_DST
-                | wgpu::TextureUsages::RENDER_ATTACHMENT,
+            usage,
         });
         let view = texture.create_view(&wgpu::TextureViewDescriptor {
             dimension: Some(wgpu::TextureViewDimension::D2),

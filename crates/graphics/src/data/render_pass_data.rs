@@ -18,6 +18,7 @@ pub enum StoreOperation {
 #[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
 #[serde(crate = "inox_serialize", tag = "type")]
 pub enum RenderTarget {
+    None,
     Screen,
     Texture {
         width: u32,
@@ -42,6 +43,7 @@ pub struct RenderPassData {
     pub load_depth: LoadOperation,
     pub store_depth: StoreOperation,
     pub render_target: RenderTarget,
+    pub depth_target: RenderTarget,
     pub render_mode: RenderMode,
     pub pipelines: Vec<PathBuf>,
 }
@@ -64,6 +66,7 @@ impl Default for RenderPassData {
             load_depth: LoadOperation::Clear,
             store_depth: StoreOperation::DontCare,
             render_target: RenderTarget::Screen,
+            depth_target: RenderTarget::None,
             render_mode: RenderMode::Indirect,
             pipelines: Vec::new(),
         }

@@ -185,6 +185,7 @@ impl Pipeline {
         context: &RenderContext,
         texture_bind_group_layout: &wgpu::BindGroupLayout,
         format: &wgpu::TextureFormat,
+        depth_format: Option<&wgpu::TextureFormat>,
         constant_data_buffer: &DataBuffer,
         dynamic_data_buffer: &DataBuffer,
     ) -> bool {
@@ -309,7 +310,13 @@ impl Pipeline {
                         // Requires Features::CONSERVATIVE_RASTERIZATION
                         conservative: false,
                     },
-                    depth_stencil: None,
+                    depth_stencil: depth_format.map(|format| wgpu::DepthStencilState {
+                        format: *format,
+                        depth_write_enabled: true,
+                        depth_compare: wgpu::CompareFunction::Less,
+                        stencil: wgpu::StencilState::default(),
+                        bias: wgpu::DepthBiasState::default(),
+                    }),
                     multisample: wgpu::MultisampleState {
                         count: 1,
                         mask: !0,

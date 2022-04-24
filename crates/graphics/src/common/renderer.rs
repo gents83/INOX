@@ -2,7 +2,7 @@ use crate::{
     platform::{platform_limits, required_gpu_features},
     ConstantData, DataBuffer, DynamicData, GraphicsData, Light, LightData, LightId, Material,
     MaterialId, Mesh, MeshId, Pipeline, RenderPass, RenderPassDrawContext, RenderPassId,
-    ShaderMaterialData, Texture, TextureData, TextureHandler, TextureId,
+    RenderPassPrepareContext, ShaderMaterialData, Texture, TextureData, TextureHandler, TextureId,
     CONSTANT_DATA_FLAGS_SUPPORT_SRGB, GRAPHICS_DATA_UID, MAX_NUM_LIGHTS, MAX_NUM_MATERIALS,
     MAX_NUM_TEXTURES,
 };
@@ -74,7 +74,7 @@ pub struct Renderer {
     dynamic_data: DynamicData,
     constant_data_buffer: DataBuffer,
     dynamic_data_buffer: DataBuffer,
-    graphics_mesh: Resource<GraphicsData>,
+    graphics_data: Resource<GraphicsData>,
 }
 pub type RendererRw = Arc<RwLock<Renderer>>;
 
@@ -96,7 +96,7 @@ impl Renderer {
     ) -> Self {
         crate::register_resource_types(shared_data, message_hub);
 
-        let graphics_mesh =
+        let graphics_data =
             shared_data.add_resource(message_hub, GRAPHICS_DATA_UID, GraphicsData::default());
 
         let render_context = Arc::new(RwLock::new(None));
@@ -122,7 +122,7 @@ impl Renderer {
             context: render_context,
             shared_data: shared_data.clone(),
             message_hub: message_hub.clone(),
-            graphics_mesh,
+            graphics_data,
         }
     }
 
@@ -308,7 +308,7 @@ impl Renderer {
         inox_profiler::scoped_profile!("renderer::on_pipeline_changed");
         if let Some(pipeline) = self.shared_data.get_resource::<Pipeline>(pipeline_id) {
             let vertex_format = pipeline.get().vertex_format();
-            self.graphics_mesh
+            self.graphics_data
                 .get_mut()
                 .set_pipeline_vertex_format(pipeline.id(), vertex_format);
         }
@@ -345,21 +345,21 @@ impl Renderer {
 
     pub fn on_mesh_added(&mut self, mesh: &Resource<Mesh>) {
         inox_profiler::scoped_profile!("renderer::on_mesh_added");
-        self.graphics_mesh
+        self.graphics_data
             .get_mut()
             .update_mesh(mesh.id(), &mesh.get());
     }
     pub fn on_mesh_changed(&mut self, mesh_id: &MeshId) {
         inox_profiler::scoped_profile!("renderer::on_mesh_changed");
         if let Some(mesh) = self.shared_data.get_resource::<Mesh>(mesh_id) {
-            self.graphics_mesh
+            self.graphics_data
                 .get_mut()
                 .update_mesh(mesh.id(), &mesh.get());
         }
     }
     pub fn on_mesh_removed(&mut self, mesh_id: &MeshId) {
         inox_profiler::scoped_profile!("renderer::on_mesh_removed");
-        self.graphics_mesh.get_mut().remove_mesh(mesh_id);
+        self.graphics_data.get_mut().remove_mesh(mesh_id);
     }
 
     fn set_constant_data(&mut self) {
@@ -416,7 +416,7 @@ impl Renderer {
 
         self.shared_data
             .for_each_resource_mut(|_id, r: &mut RenderPass| {
-                let graphics_mesh = &mut self.graphics_mesh.get_mut();
+                let graphics_data = &mut self.graphics_data.get_mut();
 
                 if let Some(texture) = r.render_target() {
                     if let Some(atlas) = texture_handler.get_texture_atlas(texture.id()) {
@@ -425,15 +425,23 @@ impl Renderer {
                 } else {
                     render_format = &render_context.config.format;
                 }
+                let depth_format = if let Some(texture) = r.depth_texture() {
+                    texture_handler
+                        .get_texture_atlas(texture.id())
+                        .map(|atlas| atlas.texture_format())
+                } else {
+                    None
+                };
 
-                r.prepare(
-                    render_context,
-                    graphics_mesh,
+                r.prepare(RenderPassPrepareContext {
+                    context: render_context,
+                    graphics_data,
                     render_format,
-                    texture_handler.bind_group_layout(),
-                    &self.constant_data_buffer,
-                    &self.dynamic_data_buffer,
-                );
+                    depth_format,
+                    texture_bind_group_layout: texture_handler.bind_group_layout(),
+                    constant_data_buffer: &self.constant_data_buffer,
+                    dynamic_data_buffer: &self.dynamic_data_buffer,
+                });
             });
     }
 
@@ -473,6 +481,7 @@ impl Renderer {
                         let texture_bind_group = texture_handler.bind_group(
                             &render_context.device,
                             r.render_target().as_ref().map(|t| t.id()),
+                            r.depth_texture().as_ref().map(|t| t.id()),
                         );
 
                         if let Some(texture) = r.render_target() {
@@ -484,13 +493,27 @@ impl Renderer {
                             render_target = &screen_view;
                             render_format = &render_context.config.format;
                         }
+                        let (depth_view, depth_format) = if let Some(texture) = r.depth_texture() {
+                            (
+                                texture_handler
+                                    .get_texture_atlas(texture.id())
+                                    .map(|atlas| atlas.texture()),
+                                texture_handler
+                                    .get_texture_atlas(texture.id())
+                                    .map(|atlas| atlas.texture_format()),
+                            )
+                        } else {
+                            (None, None)
+                        };
 
                         r.draw(RenderPassDrawContext {
                             context: render_context,
                             encoder: &mut encoder,
                             texture_view: render_target,
-                            format: render_format,
-                            graphics_mesh: &self.graphics_mesh,
+                            depth_view,
+                            render_format,
+                            depth_format,
+                            graphics_data: &self.graphics_data,
                             texture_bind_group: &texture_bind_group,
                         });
                     });
@@ -520,8 +543,8 @@ impl Renderer {
         {
             let render_context = self.context.get();
             let render_context = render_context.as_ref().unwrap();
-            let graphics_mesh = &mut self.graphics_mesh.get_mut();
-            graphics_mesh.send_to_gpu(render_context);
+            let graphics_data = &mut self.graphics_data.get_mut();
+            graphics_data.send_to_gpu(render_context);
         }
     }
 }

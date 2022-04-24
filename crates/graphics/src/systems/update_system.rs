@@ -68,6 +68,8 @@ impl UpdateSystem {
                             t.invalidate();
                         }
                     });
+                } else {
+                    inox_log::debug_log!("UNMANAGED ReloadEvent: {:?}", path);
                 }
             })
             .process_messages(|e: &ResourceEvent<RenderPass>| match e {
