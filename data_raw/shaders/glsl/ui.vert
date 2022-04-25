@@ -3,42 +3,49 @@
 
 #include "common.glsl"
 
+layout(std430, binding = 2) buffer UIData
+{
+    float scale;
+} 
+ui_data;
+
+//Vertex
 layout(location = 0) in vec3 vertex_position;
-layout(location = 1) in vec3 vertex_normal;
-layout(location = 2) in vec3 vertex_tangent;
-layout(location = 3) in vec4 vertex_color;
-layout(location = 4) in vec2 vertex_tex_coord[MAX_TEXTURE_COORDS_SETS];
-layout(location = 8) in uint instance_id;
-layout(location = 9) in vec4 instance_draw_area;
-layout(location = 10) in mat4 instance_matrix;
-layout(location = 14) in mat3 instance_normal_matrix;
-layout(location = 17) in int instance_material_index;
+layout(location = 1) in vec2 vertex_tex_coord;
+layout(location = 2) in uint vertex_color;
+//Instance
+layout(location = 7) in vec4 instance_draw_area;
+layout(location = 8) in mat4 instance_matrix;
+layout(location = 12) in mat3 instance_normal_matrix;
+layout(location = 15) in int instance_material_index;
 
 layout(location = 0) out vec4 out_color;
-layout(location = 1) out vec3 out_tex_coord[TEXTURE_TYPE_COUNT];
-layout(location = 9) out int out_material_index;
+layout(location = 1) out int out_material_index;
+layout(location = 2) out vec3 out_tex_coord;
 
 
 #include "utils.glsl"
 
 
 void main() {
+    float ui_scale = ui_data.scale;
     gl_Position =
-        vec4( 2. * vertex_position.x / constant_data.screen_size.x - 1.,
-              1. - 2. * vertex_position.y / constant_data.screen_size.y, 
+        vec4( 2. * vertex_position.x * ui_scale / constant_data.screen_size.x - 1.,
+              1. - 2. * vertex_position.y * ui_scale/ constant_data.screen_size.y, 
               vertex_position.z, 
               1.
             );
-    // egui encodes vertex colors in gamma spaces, so we must decode the colors here:
-    out_color = vec4(linearFromSrgb(vertex_color.rgb), vertex_color.a / 255.0);  
+    uint support_srbg = constant_data.flags & CONSTANT_DATA_FLAGS_SUPPORT_SRGB;
+    vec4 color = rgbaFromInteger(vertex_color);
+    if (support_srbg == 0u) {
+        out_color = vec4(color.rgba / 255.);
+    } else {
+        out_color = vec4(linearFromSrgb(color.rgb), color.a / 255.0);  
+    }
     out_material_index = instance_material_index;
 
     if (instance_material_index >= 0)
     {
-        for(uint i = TEXTURE_TYPE_BASE_COLOR; i < TEXTURE_TYPE_COUNT; i++)
-        {
-            uint tex_coords_set = getTextureCoordsSet(instance_material_index, i);
-            out_tex_coord[i] = getTextureCoords(instance_material_index, i, vertex_tex_coord[tex_coords_set]);
-        }
+        out_tex_coord = getTextureCoords(instance_material_index, TEXTURE_TYPE_BASE_COLOR, vertex_tex_coord);
     }
 }

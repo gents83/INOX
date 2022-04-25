@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{num::NonZeroU32, path::Path};
 
 use inox_log::debug_log;
 
@@ -38,7 +38,7 @@ impl TextureHandler {
             ..Default::default()
         });
         let texture_atlas = vec![TextureAtlas::create_default(device)];
-        let mut bind_group_entries = [
+        let bind_group_entries = [
             wgpu::BindGroupLayoutEntry {
                 binding: 0,
                 visibility: wgpu::ShaderStages::FRAGMENT,
@@ -51,20 +51,17 @@ impl TextureHandler {
                 ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Comparison),
                 count: None,
             },
-        ]
-        .to_vec();
-        for i in 0..MAX_TEXTURE_ATLAS_COUNT {
-            bind_group_entries.push(wgpu::BindGroupLayoutEntry {
-                binding: i + 2,
+            wgpu::BindGroupLayoutEntry {
+                binding: 2,
                 visibility: wgpu::ShaderStages::FRAGMENT,
                 ty: wgpu::BindingType::Texture {
                     sample_type: wgpu::TextureSampleType::Float { filterable: true },
                     view_dimension: wgpu::TextureViewDimension::D2,
                     multisampled: false,
                 },
-                count: None,
-            });
-        }
+                count: NonZeroU32::new(MAX_TEXTURE_ATLAS_COUNT),
+            },
+        ];
         let texture_data_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 label: Some("Textures bind group layout"),
@@ -109,25 +106,13 @@ impl TextureHandler {
         render_target: Option<&TextureId>,
         depth_target: Option<&TextureId>,
     ) -> wgpu::BindGroup {
-        let mut bind_group_entries = [
-            wgpu::BindGroupEntry {
-                binding: 0,
-                resource: wgpu::BindingResource::Sampler(&self.default_sampler),
-            },
-            wgpu::BindGroupEntry {
-                binding: 1,
-                resource: wgpu::BindingResource::Sampler(&self.depth_sampler),
-            },
-        ]
-        .to_vec();
-        let mut index = 1;
         let mut first_valid_texture = None;
         let num_textures = self.texture_atlas.len();
+        let mut textures = Vec::new();
         for i in 0..MAX_TEXTURE_ATLAS_COUNT as usize {
             if first_valid_texture.is_none() {
                 first_valid_texture = Some(self.texture_atlas[i].texture());
             }
-            index += 1;
             let mut use_default = false;
             if i >= num_textures {
                 use_default = true;
@@ -144,19 +129,25 @@ impl TextureHandler {
                 }
             }
             if use_default {
-                bind_group_entries.push(wgpu::BindGroupEntry {
-                    binding: index,
-                    resource: wgpu::BindingResource::TextureView(
-                        first_valid_texture.as_ref().unwrap(),
-                    ),
-                });
+                textures.push(*first_valid_texture.as_ref().unwrap());
             } else {
-                bind_group_entries.push(wgpu::BindGroupEntry {
-                    binding: index,
-                    resource: wgpu::BindingResource::TextureView(self.texture_atlas[i].texture()),
-                });
+                textures.push(self.texture_atlas[i].texture());
             }
         }
+        let bind_group_entries = [
+            wgpu::BindGroupEntry {
+                binding: 0,
+                resource: wgpu::BindingResource::Sampler(&self.default_sampler),
+            },
+            wgpu::BindGroupEntry {
+                binding: 1,
+                resource: wgpu::BindingResource::Sampler(&self.depth_sampler),
+            },
+            wgpu::BindGroupEntry {
+                binding: 2,
+                resource: wgpu::BindingResource::TextureViewArray(textures.as_slice()),
+            },
+        ];
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             entries: bind_group_entries.as_slice(),
             layout: &self.texture_data_bind_group_layout,

@@ -6,6 +6,14 @@ vec3 linearFromSrgb(vec3 srgb) {
     return mix(higher, lower, cutoff);
 }
 
+vec4 rgbaFromInteger(uint color) {
+    return vec4(
+        float(color & 255), 
+        float((color >> 8) & 255), 
+        float((color >> 16) & 255), 
+        float((color >> 24) & 255));
+}
+
 int getTextureDataIndex(int material_index, uint texture_type) 
 {
     return dynamic_data.material_data[material_index].textures_indices[texture_type];

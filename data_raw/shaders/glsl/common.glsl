@@ -16,6 +16,10 @@
 #define TEXTURE_TYPE_EMPTY_FOR_PADDING 7
 #define TEXTURE_TYPE_COUNT 8
 
+#define CONSTANT_DATA_FLAGS_NONE                0
+#define CONSTANT_DATA_FLAGS_SUPPORT_SRGB        1
+
+
 struct LightData
 {
     vec3 position;
@@ -56,15 +60,15 @@ layout(std430, binding = 0) uniform ConstantData
     mat4 view;
     mat4 proj;
     vec2 screen_size;
+    uint flags;
 } 
 constant_data;
 
 layout(std430, binding = 1) buffer DynamicData
 {
-    LightData light_data[MAX_NUM_LIGHTS];
     TextureData textures_data[MAX_NUM_TEXTURES];
     ShaderMaterialData material_data[MAX_NUM_MATERIALS];
-    uint num_lights;
+    LightData light_data[MAX_NUM_LIGHTS];
 } 
 dynamic_data;
 
