@@ -12,7 +12,9 @@
         browser.</noscript>
     <canvas id="canvas" width="1280" height="720"></canvas>
     <script type="module">
-        import init from './inox_launcher.js';
+        import init from './web/inox_launcher.js';
+        import { send_event_from_string } from './web/inox_launcher.js';
+
         var canvas = document.getElementById('canvas');
         var context = canvas.getContext('webgpu');
         if (!context) {
@@ -20,7 +22,12 @@
             span.innerText = 'Your browser does not seem to support WebGPU';
             document.body.appendChild(span);
         } else {
-            init();
+            window.addEventListener("load", () => {
+                init().then(wasm => {
+                    var s = '-load_file models/Suzanne/Suzanne.scene';
+                    send_event_from_string(s);
+                }).catch(console.error);
+            });
         }
     </script>
 </body>

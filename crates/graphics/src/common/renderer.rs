@@ -139,7 +139,7 @@ impl Renderer {
     }
 
     async fn create_render_context(handle: Handle, render_context: RenderContextRw) {
-        let backend = wgpu::Backends::VULKAN | wgpu::Backends::BROWSER_WEBGPU;
+        let backend = wgpu::Backends::all();
         let instance = wgpu::Instance::new(backend);
         let surface = unsafe { instance.create_surface(&handle) };
 
