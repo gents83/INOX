@@ -234,6 +234,8 @@ impl Pipeline {
                     push_constant_ranges: &[],
                 });
 
+        let vertex_layout =
+            VertexBufferLayoutBuilder::create_from_vertex_data_attribute(&self.data.vertex_format);
         let render_pipeline = {
             inox_profiler::scoped_profile!("pipeline::crate[{}]", self.name());
             context
@@ -259,11 +261,8 @@ impl Pipeline {
                             SHADER_ENTRY_POINT
                         },
                         buffers: &[
-                            VertexBufferLayoutBuilder::create_from_vertex_data_attribute(
-                                &self.data.vertex_format,
-                            )
-                            .build(),
-                            InstanceData::descriptor().build(),
+                            vertex_layout.build(),
+                            InstanceData::descriptor(vertex_layout.location() as _).build(),
                         ],
                     },
                     fragment: Some(wgpu::FragmentState {

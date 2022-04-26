@@ -3,7 +3,7 @@
 
 #include "common.glsl"
 
-layout(std430, binding = 2) buffer UIData
+layout(std430, binding = 2) readonly buffer UIData
 {
     float scale;
 } 
@@ -14,10 +14,7 @@ layout(location = 0) in vec3 vertex_position;
 layout(location = 1) in vec2 vertex_tex_coord;
 layout(location = 2) in uint vertex_color;
 //Instance
-layout(location = 7) in vec4 instance_draw_area;
-layout(location = 8) in mat4 instance_matrix;
-layout(location = 12) in mat3 instance_normal_matrix;
-layout(location = 15) in int instance_material_index;
+layout(location = 11) in int instance_material_index;
 
 layout(location = 0) out vec4 out_color;
 layout(location = 1) out int out_material_index;
@@ -40,7 +37,7 @@ void main() {
     if (support_srbg == 0u) {
         out_color = vec4(color.rgba / 255.);
     } else {
-        out_color = vec4(linearFromSrgb(color.rgb), color.a / 255.0);  
+        out_color = vec4(linearFromSrgb(color.rgb), color.a / 255.);  
     }
     out_material_index = instance_material_index;
 

@@ -162,6 +162,10 @@ impl<'a> VertexBufferLayoutBuilder<'a> {
         self.location = location;
     }
 
+    pub fn location(&self) -> u32 {
+        self.location
+    }
+
     pub fn build(&'a self) -> wgpu::VertexBufferLayout<'a> {
         let mut layout = self.layout.clone();
         layout.array_stride = self.offset;

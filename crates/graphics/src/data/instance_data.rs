@@ -23,9 +23,9 @@ impl Default for InstanceData {
 }
 
 impl InstanceData {
-    pub fn descriptor<'a>() -> VertexBufferLayoutBuilder<'a> {
+    pub fn descriptor<'a>(starting_location: u32) -> VertexBufferLayoutBuilder<'a> {
         let mut layout_builder = VertexBufferLayoutBuilder::instance();
-        layout_builder.starting_location(7);
+        layout_builder.starting_location(starting_location);
         //draw_area
         layout_builder.add_attribute::<Vector4>(wgpu::VertexFormat::Float32x4);
         //matrix_0

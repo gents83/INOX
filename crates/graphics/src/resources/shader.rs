@@ -123,27 +123,24 @@ impl Shader {
                     .to_str()
                     .unwrap_or_default()
             );
-            unsafe {
-                if !self.data.spirv_code.is_empty() {
-                    let module = context.device.create_shader_module_spirv(
-                        &wgpu::ShaderModuleDescriptorSpirV {
-                            label: Some(shader_name.as_str()),
-                            source: std::borrow::Cow::Borrowed(self.data.spirv_code.as_slice()),
-                        },
-                    );
-                    self.module = Some(module);
-                } else if !self.data.wgsl_code.is_empty() {
-                    let module =
-                        context
-                            .device
-                            .create_shader_module(&wgpu::ShaderModuleDescriptor {
-                                label: Some(shader_name.as_str()),
-                                source: wgpu::ShaderSource::Wgsl(
-                                    self.data.wgsl_code.clone().into(),
-                                ),
-                            });
-                    self.module = Some(module);
-                }
+            if !self.data.spirv_code.is_empty() {
+                let module = context
+                    .device
+                    .create_shader_module(&wgpu::ShaderModuleDescriptor {
+                        label: Some(shader_name.as_str()),
+                        source: wgpu::ShaderSource::SpirV(std::borrow::Cow::Borrowed(
+                            self.data.spirv_code.as_slice(),
+                        )),
+                    });
+                self.module = Some(module);
+            } else if !self.data.wgsl_code.is_empty() {
+                let module = context
+                    .device
+                    .create_shader_module(&wgpu::ShaderModuleDescriptor {
+                        label: Some(shader_name.as_str()),
+                        source: wgpu::ShaderSource::Wgsl(self.data.wgsl_code.clone().into()),
+                    });
+                self.module = Some(module);
             }
         }
         self.module.is_some()

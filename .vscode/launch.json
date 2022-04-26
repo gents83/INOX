@@ -137,5 +137,27 @@
             "console": "integratedTerminal",
             "symbolSearchPath": "${workspaceFolder}/crates/target/release/, https://msdl.microsoft.com/download/symbols",
         },
+        {
+            "name": "RUN NAGA DEBUG",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/extern/naga/target/debug/naga.exe",
+            "args": [
+                "./data_raw/shaders/wgsl/ui.wgsl",
+                "./data_raw/shaders/wgsl/ui.txt",
+            ],
+            "cwd": "${workspaceFolder}",
+            "stopAtEntry": false,
+            "requireExactSource": false,
+            "postDebugTask": "CLEANUP",
+            "sourceLanguages": [
+                "rust"
+            ],
+            "sourceFileMap": {
+                "/rustc/9d1b2106e23b1abd32fce1f17267604a5102f57a": "${env:USERPROFILE}/.rustup/toolchains/nightly-x86_64-pc-windows-msvc/lib/rustlib/src/rust"
+            },
+            "console": "integratedTerminal",
+            "symbolSearchPath": "${workspaceFolder}/crates/target/debug/in_use/, ${workspaceFolder}/crates/target/debug/, https://msdl.microsoft.com/download/symbols",
+        },
     ]
 }

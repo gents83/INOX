@@ -106,7 +106,7 @@ impl Default for BindingData {
             custom_data: Buffer::default(),
             custom_data_buffer: DataBuffer::default(),
             custom_data_usage: wgpu::BufferUsages::VERTEX,
-            is_read_only: false,
+            is_read_only: true,
             is_dirty: false,
         }
     }

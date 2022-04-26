@@ -16,9 +16,8 @@
 #define TEXTURE_TYPE_EMPTY_FOR_PADDING 7
 #define TEXTURE_TYPE_COUNT 8
 
-#define CONSTANT_DATA_FLAGS_NONE                0
-#define CONSTANT_DATA_FLAGS_SUPPORT_SRGB        1
-
+#define CONSTANT_DATA_FLAGS_NONE 0
+#define CONSTANT_DATA_FLAGS_SUPPORT_SRGB 1
 
 struct LightData
 {
@@ -64,7 +63,7 @@ layout(std430, binding = 0) uniform ConstantData
 } 
 constant_data;
 
-layout(std430, binding = 1) buffer DynamicData
+layout(std430, binding = 1) readonly buffer DynamicData
 {
     TextureData textures_data[MAX_NUM_TEXTURES];
     ShaderMaterialData material_data[MAX_NUM_MATERIALS];

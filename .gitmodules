@@ -46,3 +46,6 @@
 [submodule "extern/meshopt-rs"]
 	path = extern/meshopt-rs
 	url = https://github.com/gwihlidal/meshopt-rs
+[submodule "extern/naga"]
+	path = extern/naga
+	url = https://github.com/gfx-rs/naga
