@@ -8,7 +8,6 @@ edition = "2021"
 crate-type = ["lib"]
 
 [dependencies]
-wgpu = { path = "../../extern/wgpu/wgpu", features = ["spirv", "glsl"] }
 image = { path = "../../extern/image", default-features = false, features = [ "gif","jpeg","ico","png","pnm","tga","tiff","webp","bmp","hdr","dxt","dds"] }
 ttf-parser = {path = "../../extern/ttf-parser" }
 inox_commands = { path = "../commands" }
@@ -24,8 +23,10 @@ inox_serialize = { path = "../serialize" }
 inox_uid = { path = "../uid" }
 
 [target.'cfg(all(not(target_arch = "wasm32")))'.dependencies]
+wgpu = { path = "../../extern/wgpu/wgpu", features = ["spirv", "glsl"] }
 futures = { version = "0.3", features = ["std", "thread-pool"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
+wgpu = { path = "../../extern/wgpu/wgpu", default-features = false, features = ["spirv", "glsl"] }
 wasm-bindgen = "0.2.79"
 wasm-bindgen-futures = "0.4.29"
