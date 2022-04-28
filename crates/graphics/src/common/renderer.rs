@@ -1,7 +1,7 @@
 use crate::{
     platform::{platform_limits, required_gpu_features},
     ConstantData, DataBuffer, DynamicData, GraphicsData, Light, LightData, LightId, Material,
-    MaterialId, Mesh, MeshId, Pipeline, RenderPass, RenderPassDrawContext, RenderPassId,
+    MaterialId, Mesh, MeshId, PassEvent, Pipeline, RenderPass, RenderPassDrawContext, RenderPassId,
     RenderPassPrepareContext, ShaderMaterialData, Texture, TextureData, TextureHandler, TextureId,
     CONSTANT_DATA_FLAGS_SUPPORT_SRGB, GRAPHICS_DATA_UID, MAX_NUM_LIGHTS, MAX_NUM_MATERIALS,
     MAX_NUM_TEXTURES,
@@ -90,6 +90,7 @@ impl Drop for Renderer {
 
 impl Renderer {
     pub fn new(handle: &Handle, context: &ContextRc, _enable_debug: bool) -> Self {
+        context.message_hub().register_type::<PassEvent>();
         crate::register_resource_types(context.shared_data(), context.message_hub());
 
         let graphics_data = context.shared_data().add_resource(
