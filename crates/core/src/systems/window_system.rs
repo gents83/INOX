@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use crate::System;
+use crate::{ContextRc, System};
 use inox_messenger::{Listener, MessageHubRc};
 use inox_platform::{Window, WindowEvent};
 use inox_resources::{ConfigBase, ConfigEvent, SharedDataRc};
@@ -17,13 +17,13 @@ pub struct WindowSystem {
 }
 
 impl WindowSystem {
-    pub fn new(window: Window, shared_data: &SharedDataRc, message_hub: &MessageHubRc) -> Self {
-        let listener = Listener::new(message_hub);
+    pub fn new(window: Window, context: &ContextRc) -> Self {
+        let listener = Listener::new(context.message_hub());
         Self {
             config: Config::default(),
             window,
-            shared_data: shared_data.clone(),
-            message_hub: message_hub.clone(),
+            shared_data: context.shared_data().clone(),
+            message_hub: context.message_hub().clone(),
             listener,
         }
     }

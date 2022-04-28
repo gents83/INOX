@@ -38,19 +38,25 @@ pub fn binarizer_stop(_: ()) {}
 pub fn load_plugins(launcher: &Arc<Launcher>) {
     debug_log!("Loading plugins");
 
+    let context = launcher.context();
+
     launcher.add_static_plugin(
         "inox_common_script",
-        Some(|| inox_common_script::static_plugin::create_plugin()),
-        Some(|app| inox_common_script::static_plugin::prepare_plugin(app)),
-        Some(|app| inox_common_script::static_plugin::unprepare_plugin(app)),
+        &context,
+        Some(|context| inox_common_script::static_plugin::create_plugin(context)),
+        Some(|context| inox_common_script::static_plugin::load_config_plugin(context)),
+        Some(|context| inox_common_script::static_plugin::prepare_plugin(context)),
+        Some(|context| inox_common_script::static_plugin::unprepare_plugin(context)),
         Some(|| inox_common_script::static_plugin::destroy_plugin()),
     );
 
     launcher.add_static_plugin(
         "inox_viewer",
-        Some(|| inox_viewer::static_plugin::create_plugin()),
-        Some(|app| inox_viewer::static_plugin::prepare_plugin(app)),
-        Some(|app| inox_viewer::static_plugin::unprepare_plugin(app)),
+        &context,
+        Some(|context| inox_viewer::static_plugin::create_plugin(context)),
+        Some(|context| inox_common_script::static_plugin::load_config_plugin(context)),
+        Some(|context| inox_viewer::static_plugin::prepare_plugin(context)),
+        Some(|context| inox_viewer::static_plugin::unprepare_plugin(context)),
         Some(|| inox_viewer::static_plugin::destroy_plugin()),
     );
 }

@@ -3,20 +3,11 @@ use std::path::PathBuf;
 use inox_resources::ConfigBase;
 use inox_serialize::{Deserialize, Serialize, SerializeFile};
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Default, Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(crate = "inox_serialize")]
 pub struct Config {
-    pub default_pipeline: PathBuf,
-    pub wireframe_pipeline: PathBuf,
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            default_pipeline: PathBuf::new(),
-            wireframe_pipeline: PathBuf::new(),
-        }
-    }
+    pub opaque_pass_pipelines: Vec<PathBuf>,
+    pub ui_pass_pipelines: Vec<PathBuf>,
 }
 
 impl SerializeFile for Config {
@@ -26,6 +17,6 @@ impl SerializeFile for Config {
 }
 impl ConfigBase for Config {
     fn get_filename(&self) -> &'static str {
-        "render.cfg"
+        "viewer.cfg"
     }
 }

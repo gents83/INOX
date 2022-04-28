@@ -7,7 +7,6 @@ pub enum SystemEvent {
     Added(SystemId, Phases),
     Removed(SystemId, Phases),
 }
-
 implement_message!(
     SystemEvent,
     message_from_command_parser,

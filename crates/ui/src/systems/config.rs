@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use inox_resources::ConfigBase;
 use inox_serialize::{Deserialize, Serialize, SerializeFile};
 
@@ -7,7 +5,6 @@ use inox_serialize::{Deserialize, Serialize, SerializeFile};
 #[serde(crate = "inox_serialize")]
 pub struct Config {
     pub ui_scale: f32,
-    pub ui_pipeline: PathBuf,
 }
 
 impl SerializeFile for Config {

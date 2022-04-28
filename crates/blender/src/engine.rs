@@ -63,7 +63,7 @@ impl INOXEngine {
         let mut app = App::default();
 
         let mut binarizer = Binarizer::new(
-            app.get_context(),
+            app.context(),
             working_dir.join(DATA_RAW_FOLDER),
             working_dir.join(DATA_FOLDER),
         );
@@ -173,7 +173,7 @@ impl INOXEngine {
     }
 
     pub fn register_nodes(&self, py: Python) -> PyResult<bool> {
-        let data = self.app.get_context().shared_data();
+        let data = self.app.context().shared_data();
 
         let registry = LogicNodeRegistry::get(data);
 

@@ -9,19 +9,16 @@ use inox_uid::{generate_uid_from_string, Uid};
 pub type SystemId = Uid;
 
 pub trait System: Downcast + Send + Sync + Any {
-    fn id() -> SystemId
+    fn system_id() -> SystemId
     where
         Self: Sized,
     {
-        generate_uid_from_string(Self::name())
+        generate_uid_from_string(type_name::<Self>())
     }
-    fn name() -> &'static str
-    where
-        Self: Sized,
-    {
-        type_name::<Self>()
+    fn id(&self) -> SystemId {
+        generate_uid_from_string(type_name::<Self>())
     }
-    fn get_name(&self) -> &'static str {
+    fn name(&self) -> &'static str {
         type_name::<Self>()
     }
     fn read_config(&mut self, plugin_name: &str);

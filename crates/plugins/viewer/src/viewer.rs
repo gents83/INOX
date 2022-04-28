@@ -3,30 +3,27 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use inox_core::{define_plugin, App, Plugin, System, SystemId, WindowSystem};
+use inox_core::{define_plugin, ContextRc, Plugin, System, WindowSystem};
 
 use inox_graphics::{
-    rendering_system::RenderingSystem, update_system::UpdateSystem, DebugDrawerSystem, Renderer,
+    rendering_system::RenderingSystem, update_system::UpdateSystem, DebugDrawerSystem, OpaquePass,
+    Pass, PassEvent, RenderPass, RenderTarget, Renderer, RendererRw, OPAQUE_PASS_NAME,
 };
 use inox_platform::Window;
-use inox_ui::UISystem;
+use inox_resources::ConfigBase;
+use inox_serialize::read_from_file;
+use inox_ui::{UIPass, UISystem, UI_PASS_NAME};
 
-use crate::systems::viewer_system::ViewerSystem;
+use crate::{config::Config, systems::viewer_system::ViewerSystem};
 
-#[repr(C)]
-#[derive(Default)]
 pub struct Viewer {
-    updater_id: SystemId,
-    debug_drawer_id: SystemId,
-    ui_id: SystemId,
+    window: Option<Window>,
+    renderer: RendererRw,
 }
 define_plugin!(Viewer);
 
 impl Plugin for Viewer {
-    fn name(&self) -> &str {
-        "inox_viewer"
-    }
-    fn prepare(&mut self, app: &mut App) {
+    fn create(context: &ContextRc) -> Self {
         let window = {
             Window::create(
                 "SABI".to_string(),
@@ -35,70 +32,108 @@ impl Plugin for Viewer {
                 0,
                 0,
                 PathBuf::from("").as_path(),
-                app.get_context().message_hub(),
+                context.message_hub(),
             )
         };
-        let renderer = Renderer::new(
-            window.get_handle(),
-            app.get_context().shared_data(),
-            app.get_context().message_hub(),
-            false,
-        );
+        let renderer = Renderer::new(window.get_handle(), context, false);
         let renderer = Arc::new(RwLock::new(renderer));
 
-        let window_system = WindowSystem::new(
-            window,
-            app.get_context().shared_data(),
-            app.get_context().message_hub(),
-        );
+        Self::create_render_passes(context);
 
-        let render_update_system = UpdateSystem::new(
-            renderer.clone(),
-            app.get_context().shared_data(),
-            app.get_context().message_hub(),
-        );
-
-        let rendering_draw_system = RenderingSystem::new(renderer, app.get_job_handler());
-
-        let debug_drawer_system = DebugDrawerSystem::new(
-            app.get_context().shared_data(),
-            app.get_context().message_hub(),
-        );
-        self.debug_drawer_id = DebugDrawerSystem::id();
-
-        let ui_system = UISystem::new(
-            app.get_context().shared_data(),
-            app.get_context().message_hub(),
-            app.get_job_handler(),
-        );
-        self.ui_id = UISystem::id();
-
-        let system = ViewerSystem::new(app.get_context());
-        self.updater_id = ViewerSystem::id();
-
-        app.add_system(inox_core::Phases::PlatformUpdate, window_system);
-        app.add_system_with_dependencies(
-            inox_core::Phases::Render,
-            render_update_system,
-            &[RenderingSystem::id()],
-        );
-        app.add_system_with_dependencies(
-            inox_core::Phases::Render,
-            rendering_draw_system,
-            &[UpdateSystem::id()],
-        );
-        app.add_system(inox_core::Phases::Update, system);
-        app.add_system(inox_core::Phases::Update, ui_system);
-        app.add_system(inox_core::Phases::Update, debug_drawer_system);
+        Viewer {
+            window: Some(window),
+            renderer,
+        }
     }
 
-    fn unprepare(&mut self, app: &mut App) {
-        app.remove_system(inox_core::Phases::Update, &self.debug_drawer_id);
-        app.remove_system(inox_core::Phases::Update, &self.ui_id);
-        app.remove_system(inox_core::Phases::Update, &self.updater_id);
+    fn name(&self) -> &str {
+        "inox_viewer"
+    }
 
-        app.remove_system(inox_core::Phases::PlatformUpdate, &WindowSystem::id());
-        app.remove_system(inox_core::Phases::Render, &UpdateSystem::id());
-        app.remove_system(inox_core::Phases::Render, &RenderingSystem::id());
+    fn prepare(&mut self, context: &ContextRc) {
+        let window_system = WindowSystem::new(self.window.take().unwrap(), context);
+        let render_update_system = UpdateSystem::new(self.renderer.clone(), context);
+        let rendering_draw_system = RenderingSystem::new(self.renderer.clone(), context);
+        let debug_drawer_system = DebugDrawerSystem::new(context);
+        let ui_render_pass = context
+            .shared_data()
+            .match_resource(|r: &RenderPass| r.data().name == UI_PASS_NAME);
+        let ui_system = UISystem::new(context, &ui_render_pass.unwrap());
+        let system = ViewerSystem::new(context);
+
+        context.add_system(inox_core::Phases::PlatformUpdate, window_system, None);
+        context.add_system(
+            inox_core::Phases::Render,
+            render_update_system,
+            Some(&[RenderingSystem::system_id()]),
+        );
+        context.add_system(
+            inox_core::Phases::Render,
+            rendering_draw_system,
+            Some(&[UpdateSystem::system_id()]),
+        );
+        context.add_system(inox_core::Phases::Update, system, None);
+        context.add_system(inox_core::Phases::Update, ui_system, None);
+        context.add_system(inox_core::Phases::Update, debug_drawer_system, None);
+    }
+
+    fn unprepare(&mut self, context: &ContextRc) {
+        context.remove_system(inox_core::Phases::Update, &DebugDrawerSystem::system_id());
+        context.remove_system(inox_core::Phases::Update, &UISystem::system_id());
+        context.remove_system(inox_core::Phases::Update, &ViewerSystem::system_id());
+
+        context.remove_system(
+            inox_core::Phases::PlatformUpdate,
+            &WindowSystem::system_id(),
+        );
+        context.remove_system(inox_core::Phases::Render, &UpdateSystem::system_id());
+        context.remove_system(inox_core::Phases::Render, &RenderingSystem::system_id());
+    }
+
+    fn load_config(&mut self, context: &ContextRc) {
+        let config = Config::default();
+        let shared_data = context.shared_data().clone();
+
+        read_from_file(
+            config.get_filepath(self.name()).as_path(),
+            context.shared_data().serializable_registry(),
+            Box::new(move |data: Config| {
+                if let Some(ui_pass) =
+                    shared_data.match_resource(|r: &RenderPass| r.data().name == UI_PASS_NAME)
+                {
+                    ui_pass.get_mut().pipelines(data.ui_pass_pipelines);
+                }
+                if let Some(opaque_pass) =
+                    shared_data.match_resource(|r: &RenderPass| r.data().name == OPAQUE_PASS_NAME)
+                {
+                    opaque_pass.get_mut().pipelines(data.opaque_pass_pipelines);
+                }
+            }),
+        );
+    }
+}
+
+impl Viewer {
+    fn create_render_passes(context: &ContextRc) {
+        let opaque_pass = OpaquePass::create(context);
+        let ui_pass = UIPass::create(context);
+
+        let opaque_pass_render_target = RenderTarget::Texture {
+            width: 1920,
+            height: 1080,
+            read_back: false,
+        };
+        opaque_pass
+            .pass()
+            .get_mut()
+            .render_target(opaque_pass_render_target)
+            .depth_target(opaque_pass_render_target);
+
+        context
+            .message_hub()
+            .send_event(PassEvent::Add(Box::new(opaque_pass)));
+        context
+            .message_hub()
+            .send_event(PassEvent::Add(Box::new(ui_pass)));
     }
 }

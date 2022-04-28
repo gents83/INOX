@@ -3,19 +3,18 @@ use std::{
     path::{Path, PathBuf},
     sync::{
         atomic::{AtomicBool, Ordering},
-        Arc, RwLockReadGuard,
+        Arc,
     },
 };
 
-use inox_messenger::{Listener, MessageHubRc};
+use inox_messenger::Listener;
 use inox_platform::{InputState, Key, KeyEvent, WindowEvent};
-use inox_resources::{DeserializeFunction, SharedData, SharedDataRc};
-use inox_time::{Timer, TimerRw};
+use inox_resources::DeserializeFunction;
 use inox_uid::generate_uid_from_string;
 
 use crate::{
-    JobHandlerRw, JobHandlerTrait, JobPriority, Phases, PluginHolder, PluginId, PluginManager,
-    Scheduler, System, SystemEvent, SystemId, Worker,
+    ContextRc, JobHandlerTrait, JobPriority, PluginHolder, PluginId, PluginManager, System,
+    SystemEvent, Worker,
 };
 
 #[cfg(target_arch = "wasm32")]
@@ -23,36 +22,13 @@ const NUM_WORKER_THREADS: usize = 0;
 #[cfg(all(not(target_arch = "wasm32")))]
 const NUM_WORKER_THREADS: usize = 5;
 
-#[derive(Default)]
-pub struct Context {
-    shared_data: SharedDataRc,
-    message_hub: MessageHubRc,
-    global_timer: TimerRw,
-}
-
-impl Context {
-    pub fn shared_data(&self) -> &SharedDataRc {
-        &self.shared_data
-    }
-    pub fn message_hub(&self) -> &MessageHubRc {
-        &self.message_hub
-    }
-    pub fn global_timer(&self) -> RwLockReadGuard<Timer> {
-        self.global_timer.read().unwrap()
-    }
-}
-
-pub type ContextRc = Arc<Context>;
-
 pub struct App {
+    context: ContextRc,
     is_profiling: bool,
     is_enabled: Arc<AtomicBool>,
     listener: Listener,
     plugin_manager: PluginManager,
-    scheduler: Scheduler,
     workers: HashMap<String, Worker>,
-    job_handler: JobHandlerRw,
-    context: ContextRc,
 }
 
 impl Default for App {
@@ -70,10 +46,8 @@ impl Default for App {
         Self {
             is_enabled: Arc::new(AtomicBool::new(true)),
             is_profiling: false,
-            scheduler: Scheduler::new(),
             plugin_manager: PluginManager::default(),
             workers: HashMap::new(),
-            job_handler: JobHandlerRw::default(),
             context,
             listener,
         }
@@ -88,8 +62,6 @@ impl Drop for App {
             inox_profiler::write_profile_file!();
         }
 
-        self.scheduler.uninit();
-
         let (dynamic_plugins_to_remove, static_plugins_to_remove) = self.plugin_manager.release();
         self.update_dynamic_plugins(dynamic_plugins_to_remove);
         self.remove_static_plugins(static_plugins_to_remove);
@@ -103,9 +75,9 @@ impl Drop for App {
 
 impl App {
     pub fn start(&mut self) -> &mut Self {
-        self.context.global_timer.write().unwrap().update();
+        self.context.global_timer_mut().update();
         self.setup_worker_threads();
-        self.scheduler.start();
+        self.context.scheduler_mut().start();
         self
     }
 
@@ -121,7 +93,7 @@ impl App {
         for (_name, w) in self.workers.iter_mut() {
             w.stop();
         }
-        self.job_handler.clear_pending_jobs();
+        self.context.job_handler().clear_pending_jobs();
     }
 
     fn update_events(&mut self) {
@@ -130,35 +102,36 @@ impl App {
         let mut is_profiling = self.is_profiling;
         let mut is_enabled = self.is_enabled.load(Ordering::SeqCst);
 
-        self.listener.process_messages(|e: &KeyEvent| {
-            if e.code == Key::F9 && e.state == InputState::JustPressed {
-                if !is_profiling {
-                    inox_profiler::start_profiler!();
-                    is_profiling = true;
-                } else {
-                    is_profiling = false;
-                    inox_profiler::stop_profiler!();
-                    inox_profiler::write_profile_file!();
+        self.listener
+            .process_messages(|e: &KeyEvent| {
+                if e.code == Key::F9 && e.state == InputState::JustPressed {
+                    if !is_profiling {
+                        inox_profiler::start_profiler!();
+                        is_profiling = true;
+                    } else {
+                        is_profiling = false;
+                        inox_profiler::stop_profiler!();
+                        inox_profiler::write_profile_file!();
+                    }
                 }
-            }
-        });
-        self.listener.process_messages(|e: &WindowEvent| match e {
-            WindowEvent::Show => {
-                is_enabled = true;
-            }
-            WindowEvent::Hide => {
-                is_enabled = false;
-            }
-            _ => {}
-        });
+            })
+            .process_messages(|e: &WindowEvent| match e {
+                WindowEvent::Show => {
+                    is_enabled = true;
+                }
+                WindowEvent::Hide => {
+                    is_enabled = false;
+                }
+                _ => {}
+            });
         self.context
-            .shared_data
+            .shared_data()
             .handle_events(|load_fn: Box<dyn DeserializeFunction>| {
-                let shared_data = self.context.shared_data.clone();
-                let message_hub = self.context.message_hub.clone();
+                let shared_data = self.context.shared_data().clone();
+                let message_hub = self.context.message_hub().clone();
                 let job_name = "Load Event".to_string();
                 let load_event_category = generate_uid_from_string("LOAD_EVENT_CATEGORY");
-                self.job_handler.add_job(
+                self.context.job_handler().add_job(
                     &load_event_category,
                     job_name.as_str(),
                     JobPriority::Low,
@@ -169,7 +142,7 @@ impl App {
             });
 
         //flush messages between frames
-        self.context.message_hub.flush();
+        self.context.message_hub().flush();
 
         self.is_profiling = is_profiling;
 
@@ -179,7 +152,7 @@ impl App {
     fn update_workers(&mut self, is_enabled: bool) {
         if NUM_WORKER_THREADS == 0 {
             //no workers - need to handle events ourself
-            self.job_handler.execute_all_jobs();
+            self.context.job_handler().execute_all_jobs();
         }
         if self.is_enabled.load(Ordering::SeqCst) && !is_enabled {
             self.is_enabled.store(is_enabled, Ordering::SeqCst);
@@ -193,11 +166,12 @@ impl App {
     pub fn run(&mut self) -> bool {
         inox_profiler::scoped_profile!("app::run_frame");
 
-        self.context.global_timer.write().unwrap().update();
+        self.context.global_timer_mut().update();
 
-        let can_continue = self
-            .scheduler
-            .run_once(self.is_enabled.load(Ordering::SeqCst), &self.job_handler);
+        let can_continue = self.context.scheduler_mut().run_once(
+            self.is_enabled.load(Ordering::SeqCst),
+            self.context.job_handler(),
+        );
 
         self.update_events();
 
@@ -205,11 +179,15 @@ impl App {
             let plugins_to_remove = self.plugin_manager.update();
             let plugins_to_reload = self.update_dynamic_plugins(plugins_to_remove);
             if !plugins_to_reload.is_empty() {
-                SharedData::flush_resources(&self.context.shared_data, &self.context.message_hub);
+                self.context
+                    .shared_data()
+                    .flush_resources(self.context.message_hub());
             }
             self.reload_dynamic_plugins(plugins_to_reload);
         }
-        SharedData::flush_resources(&self.context.shared_data, &self.context.message_hub);
+        self.context
+            .shared_data()
+            .flush_resources(self.context.message_hub());
 
         if !can_continue {
             self.is_enabled.store(false, Ordering::SeqCst);
@@ -218,25 +196,32 @@ impl App {
         can_continue
     }
 
-    pub fn add_static_plugin(&mut self, plugin_holder: PluginHolder) {
-        PluginManager::prepare_plugin_holder(&plugin_holder, self);
-        self.plugin_manager.add_static_plugin(plugin_holder);
+    pub fn add_static_plugin(&mut self, plugin_holder: PluginHolder) -> PluginId {
+        PluginManager::load_config_plugin_holder(&plugin_holder, self.context());
+        PluginManager::prepare_plugin_holder(&plugin_holder, self.context());
+        self.plugin_manager.add_static_plugin(plugin_holder)
     }
 
-    pub fn add_dynamic_plugin(&mut self, lib_path: &Path) {
-        let plugin_data = PluginManager::create_plugin_data(lib_path, self);
-        self.plugin_manager.add_dynamic_plugin(plugin_data);
+    pub fn add_dynamic_plugin(&mut self, lib_path: &Path) -> PluginId {
+        let plugin_data = PluginManager::create_plugin_data(lib_path, self.context());
+        self.plugin_manager.add_dynamic_plugin(plugin_data)
+    }
+
+    pub fn load_config_on_plugin_systems(&mut self, plugin_name: &str) {
+        self.execute_on_systems(|s| {
+            s.read_config(plugin_name);
+        });
     }
 
     pub fn remove_static_plugin(&mut self, plugin_id: &PluginId) {
         if let Some(plugin_holder) = self.plugin_manager.remove_static_plugin(plugin_id) {
-            PluginManager::release_plugin_holder(plugin_holder, self);
+            PluginManager::release_plugin_holder(plugin_holder, self.context());
         }
     }
 
     pub fn remove_dynamic_plugin(&mut self, plugin_id: &PluginId) {
         if let Some(plugin_data) = self.plugin_manager.remove_dynamic_plugin(plugin_id) {
-            PluginManager::clear_plugin_data(plugin_data, self);
+            PluginManager::clear_plugin_data(plugin_data, self.context());
         }
     }
 
@@ -245,7 +230,7 @@ impl App {
         for id in plugins_to_remove.iter() {
             if let Some(plugin_data) = self.plugin_manager.remove_dynamic_plugin(id) {
                 let lib_path = plugin_data.original_path.clone();
-                PluginManager::clear_plugin_data(plugin_data, self);
+                PluginManager::clear_plugin_data(plugin_data, self.context());
                 plugins_to_reload.push(lib_path);
             }
         }
@@ -260,7 +245,8 @@ impl App {
 
     fn reload_dynamic_plugins(&mut self, plugins_to_reload: Vec<PathBuf>) {
         for lib_path in plugins_to_reload.into_iter() {
-            let reloaded_plugin_data = PluginManager::create_plugin_data(lib_path.as_path(), self);
+            let reloaded_plugin_data =
+                PluginManager::create_plugin_data(lib_path.as_path(), self.context());
             self.plugin_manager.add_dynamic_plugin(reloaded_plugin_data);
         }
     }
@@ -269,57 +255,25 @@ impl App {
         let key = String::from(name);
         let w = self.workers.entry(key).or_insert_with(Worker::default);
         if !w.is_started() {
-            w.start(name, &self.is_enabled, &self.job_handler);
+            w.start(name, &self.is_enabled, self.context.job_handler());
         }
         w
     }
-    pub fn get_job_handler(&self) -> &JobHandlerRw {
-        &self.job_handler
-    }
-    pub fn get_context(&self) -> &ContextRc {
+    pub fn context(&self) -> &ContextRc {
         &self.context
     }
 
-    pub fn add_system<S>(&mut self, phase: Phases, system: S)
-    where
-        S: System + 'static,
-    {
-        self.scheduler.add_system(phase, system, &self.job_handler);
-        self.context
-            .message_hub
-            .send_event(SystemEvent::Added(S::id(), phase));
-    }
-    pub fn add_system_with_dependencies<S>(
-        &mut self,
-        phase: Phases,
-        system: S,
-        dependencies: &[SystemId],
-    ) where
-        S: System + 'static,
-    {
-        self.scheduler
-            .add_system_with_dependencies(phase, system, dependencies, &self.job_handler);
-        self.context
-            .message_hub
-            .send_event(SystemEvent::Added(S::id(), phase));
-    }
-    pub fn remove_system(&mut self, phase: Phases, system_id: &SystemId) {
-        self.scheduler.remove_system(phase, system_id);
-        self.context
-            .message_hub
-            .send_event(SystemEvent::Removed(*system_id, phase));
-    }
     pub fn execute_on_systems<F>(&mut self, f: F)
     where
         F: FnMut(&mut dyn System) + Copy,
     {
-        self.scheduler.execute_on_systems::<F>(f);
+        self.context.scheduler_mut().execute_on_systems::<F>(f);
     }
     pub fn execute_on_system<S, F>(&mut self, f: F)
     where
         S: System + Sized + 'static,
         F: FnMut(&mut S) + Copy,
     {
-        self.scheduler.execute_on_system::<S, F>(f);
+        self.context.scheduler_mut().execute_on_system::<S, F>(f);
     }
 }

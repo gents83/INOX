@@ -1,6 +1,9 @@
 use inox_commands::CommandParser;
 use inox_core::{ContextRc, System};
-use inox_graphics::{Light, Material, Mesh, MeshData, Pipeline, Texture, VertexFormat, View};
+use inox_graphics::{
+    Light, Material, Mesh, MeshData, Pipeline, Texture, VertexFormat, View, DEFAULT_PIPELINE,
+    WIREFRAME_PIPELINE,
+};
 use inox_log::debug_log;
 use inox_math::{Matrix4, VecBase, VecBaseFloat, Vector2, Vector3};
 use inox_messenger::Listener;
@@ -24,58 +27,6 @@ pub struct ViewerSystem {
 }
 
 const FORCE_USE_DEFAULT_CAMERA: bool = false;
-
-impl ViewerSystem {
-    pub fn new(context: &ContextRc) -> Self {
-        let listener = Listener::new(context.message_hub());
-        let shared_data = context.shared_data();
-        let message_hub = context.message_hub();
-
-        inox_scene::register_resource_types(shared_data, message_hub);
-
-        let scene_id = generate_random_uid();
-        let scene = shared_data.add_resource::<Scene>(
-            message_hub,
-            scene_id,
-            Scene::new(scene_id, shared_data, message_hub),
-        );
-
-        let camera_id = generate_random_uid();
-        let camera_object = shared_data.add_resource::<Object>(
-            message_hub,
-            camera_id,
-            Object::new(camera_id, shared_data, message_hub),
-        );
-        camera_object
-            .get_mut()
-            .set_position(Vector3::new(0.0, 0.0, -50.0));
-        camera_object.get_mut().look_at(Vector3::new(0.0, 0.0, 0.0));
-        let camera = camera_object
-            .get_mut()
-            .add_default_component::<Camera>(shared_data, message_hub);
-        camera
-            .get_mut()
-            .set_parent(&camera_object)
-            .set_active(false);
-
-        Self {
-            last_frame: u64::MAX,
-            view_3d: None,
-            info: Info::new(
-                context,
-                InfoParams {
-                    is_active: true,
-                    scene_id: *scene.id(),
-                },
-            ),
-            context: context.clone(),
-            listener,
-            scene,
-            camera_object,
-            last_mouse_pos: Vector2::default_zero(),
-        }
-    }
-}
 
 impl Drop for ViewerSystem {
     fn drop(&mut self) {
@@ -169,6 +120,56 @@ impl System for ViewerSystem {
 }
 
 impl ViewerSystem {
+    pub fn new(context: &ContextRc) -> Self {
+        let listener = Listener::new(context.message_hub());
+        let shared_data = context.shared_data();
+        let message_hub = context.message_hub();
+
+        inox_scene::register_resource_types(shared_data, message_hub);
+
+        let scene_id = generate_random_uid();
+        let scene = shared_data.add_resource::<Scene>(
+            message_hub,
+            scene_id,
+            Scene::new(scene_id, shared_data, message_hub),
+        );
+
+        let camera_id = generate_random_uid();
+        let camera_object = shared_data.add_resource::<Object>(
+            message_hub,
+            camera_id,
+            Object::new(camera_id, shared_data, message_hub),
+        );
+        camera_object
+            .get_mut()
+            .set_position(Vector3::new(0.0, 0.0, -50.0));
+        camera_object.get_mut().look_at(Vector3::new(0.0, 0.0, 0.0));
+        let camera = camera_object
+            .get_mut()
+            .add_default_component::<Camera>(shared_data, message_hub);
+        camera
+            .get_mut()
+            .set_parent(&camera_object)
+            .set_active(false);
+
+        Self {
+            last_frame: u64::MAX,
+            view_3d: None,
+            info: Info::new(
+                context,
+                InfoParams {
+                    is_active: true,
+                    scene_id: *scene.id(),
+                },
+            ),
+            context: context.clone(),
+            listener,
+            scene,
+            camera_object,
+            last_mouse_pos: Vector2::default_zero(),
+        }
+    }
+
     fn check_command_line_arguments(&mut self) -> &mut Self {
         let command_parser = CommandParser::from_command_line();
         if command_parser.has("load_file") {
@@ -206,7 +207,7 @@ impl ViewerSystem {
             let pipeline = Pipeline::request_load(
                 self.context.shared_data(),
                 self.context.message_hub(),
-                PathBuf::from("pipelines\\Default.pipeline").as_path(),
+                PathBuf::from(DEFAULT_PIPELINE).as_path(),
                 None,
             );
             let material = Material::duplicate_from_pipeline(
@@ -258,7 +259,7 @@ impl ViewerSystem {
             let pipeline = Pipeline::request_load(
                 self.context.shared_data(),
                 self.context.message_hub(),
-                PathBuf::from("pipelines\\Wireframe.pipeline").as_path(),
+                PathBuf::from(WIREFRAME_PIPELINE).as_path(),
                 None,
             );
             let material = Material::duplicate_from_pipeline(

@@ -1,5 +1,7 @@
 use crate::{JobHandlerRw, JobHandlerTrait, Phase, PhaseWithSystems, Phases, System, SystemId};
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::RwLock};
+
+pub type SchedulerRw = RwLock<Scheduler>;
 
 pub struct Scheduler {
     is_running: bool,
@@ -9,15 +11,6 @@ pub struct Scheduler {
 
 impl Default for Scheduler {
     fn default() -> Self {
-        Self::new()
-    }
-}
-
-unsafe impl Sync for Scheduler {}
-unsafe impl Send for Scheduler {}
-
-impl Scheduler {
-    pub fn new() -> Self {
         let mut phases = HashMap::new();
         for p in Phases::iterator() {
             phases.insert(p, PhaseWithSystems::new(format!("{:?}", p).as_str()));
@@ -28,7 +21,18 @@ impl Scheduler {
             phases,
         }
     }
+}
 
+impl Drop for Scheduler {
+    fn drop(&mut self) {
+        self.uninit();
+    }
+}
+
+unsafe impl Sync for Scheduler {}
+unsafe impl Send for Scheduler {}
+
+impl Scheduler {
     pub fn start(&mut self) {
         self.is_started = true;
     }
@@ -94,23 +98,13 @@ impl Scheduler {
         can_continue
     }
 
-    pub fn add_system<S>(&mut self, phase: Phases, system: S, job_handler: &JobHandlerRw)
-    where
-        S: System + 'static,
-    {
-        if let Some(phase) = self.phases.get_mut(&phase) {
-            phase.add_system(system, job_handler);
-        }
-    }
-    pub fn add_system_with_dependencies<S>(
+    pub fn add_system(
         &mut self,
         phase: Phases,
-        system: S,
-        dependencies: &[SystemId],
+        system: Box<dyn System>,
+        dependencies: Option<&[SystemId]>,
         job_handler: &JobHandlerRw,
-    ) where
-        S: System + 'static,
-    {
+    ) {
         if let Some(phase) = self.phases.get_mut(&phase) {
             phase.add_system_with_dependencies(system, dependencies, job_handler);
         }

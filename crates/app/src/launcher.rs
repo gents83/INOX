@@ -3,7 +3,10 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use inox_core::{App, PfnCreatePlugin, PfnDestroyPlugin, PfnPreparePlugin, PfnUnpreparePlugin};
+use inox_core::{
+    App, ContextRc, PfnCreatePlugin, PfnDestroyPlugin, PfnLoadConfigPlugin, PfnPreparePlugin,
+    PfnUnpreparePlugin,
+};
 
 use inox_log::debug_log;
 use inox_messenger::MessageHubRc;
@@ -15,11 +18,14 @@ pub struct Launcher {
 }
 
 impl Launcher {
+    pub fn context(&self) -> ContextRc {
+        self.app.read().unwrap().context().clone()
+    }
     pub fn shared_data(&self) -> SharedDataRc {
-        self.app.read().unwrap().get_context().shared_data().clone()
+        self.app.read().unwrap().context().shared_data().clone()
     }
     pub fn message_hub(&self) -> MessageHubRc {
-        self.app.read().unwrap().get_context().message_hub().clone()
+        self.app.read().unwrap().context().message_hub().clone()
     }
 
     pub fn start(&self) {
@@ -33,13 +39,16 @@ impl Launcher {
     pub fn add_dynamic_plugin(&self, name: &str, path: &Path) {
         let app = &mut self.app.write().unwrap();
         app.add_dynamic_plugin(path);
-        Self::read_config(app, name);
+        app.load_config_on_plugin_systems(name);
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn add_static_plugin(
         &self,
         name: &str,
+        context: &ContextRc,
         fn_c: PfnCreatePlugin,
+        fn_l: PfnLoadConfigPlugin,
         fn_p: PfnPreparePlugin,
         fn_u: PfnUnpreparePlugin,
         fn_d: PfnDestroyPlugin,
@@ -47,21 +56,14 @@ impl Launcher {
         let app = &mut self.app.write().unwrap();
 
         if let Some(fn_c) = fn_c {
-            let mut plugin_holder = unsafe { fn_c() };
+            let mut plugin_holder = unsafe { fn_c(context) };
+            plugin_holder.load_config_fn = fn_l;
             plugin_holder.prepare_fn = fn_p;
             plugin_holder.unprepare_fn = fn_u;
             plugin_holder.destroy_fn = fn_d;
             app.add_static_plugin(plugin_holder);
+            app.load_config_on_plugin_systems(name);
         }
-        Self::read_config(app, name);
-    }
-
-    fn read_config(app: &mut App, plugin_name: &str) {
-        debug_log!("Reading launcher configs");
-
-        app.execute_on_systems(|s| {
-            s.read_config(plugin_name);
-        });
     }
 
     pub fn update(&self) -> bool {

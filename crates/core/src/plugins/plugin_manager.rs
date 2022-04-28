@@ -7,9 +7,10 @@ use inox_filesystem::{library, Library};
 use inox_platform::{FileEvent, FileWatcher};
 
 use crate::{
-    App, PfnCreatePlugin, PfnDestroyPlugin, PfnPreparePlugin, PfnUnpreparePlugin, PluginHolder,
-    PluginId, CREATE_PLUGIN_FUNCTION_NAME, DESTROY_PLUGIN_FUNCTION_NAME,
-    PREPARE_PLUGIN_FUNCTION_NAME, UNPREPARE_PLUGIN_FUNCTION_NAME,
+    ContextRc, PfnCreatePlugin, PfnDestroyPlugin, PfnLoadConfigPlugin, PfnPreparePlugin,
+    PfnUnpreparePlugin, PluginHolder, PluginId, CREATE_PLUGIN_FUNCTION_NAME,
+    DESTROY_PLUGIN_FUNCTION_NAME, LOAD_CONFIG_PLUGIN_FUNCTION_NAME, PREPARE_PLUGIN_FUNCTION_NAME,
+    UNPREPARE_PLUGIN_FUNCTION_NAME,
 };
 
 pub static IN_USE_PREFIX: &str = "in_use";
@@ -45,12 +46,16 @@ impl PluginManager {
         (dynamic_plugins_to_remove, static_plugins_to_remove)
     }
 
-    pub fn add_static_plugin(&mut self, plugin_holder: PluginHolder) {
+    pub fn add_static_plugin(&mut self, plugin_holder: PluginHolder) -> PluginId {
+        let plugin_id = plugin_holder.id();
         self.static_plugins.push(plugin_holder);
+        plugin_id
     }
 
-    pub fn add_dynamic_plugin(&mut self, plugin_data: PluginData) {
+    pub fn add_dynamic_plugin(&mut self, plugin_data: PluginData) -> PluginId {
+        let plugin_id = plugin_data.plugin_holder.as_ref().unwrap().id();
         self.dynamic_plugins.push(plugin_data);
+        plugin_id
     }
 
     pub fn remove_static_plugin(&mut self, plugin_id: &PluginId) -> Option<PluginHolder> {
@@ -101,12 +106,18 @@ impl PluginManager {
         }
     }
 
-    fn load_dynamic_plugin(fullpath: PathBuf) -> (library::Library, Option<PluginHolder>) {
+    fn load_dynamic_plugin(
+        fullpath: PathBuf,
+        context: &ContextRc,
+    ) -> (library::Library, Option<PluginHolder>) {
         let lib = library::Library::new(fullpath.to_str().unwrap());
         if let Some(create_fn) = lib.get::<PfnCreatePlugin>(CREATE_PLUGIN_FUNCTION_NAME) {
-            let mut plugin_holder = unsafe { create_fn.unwrap()() };
+            let mut plugin_holder = unsafe { create_fn.unwrap()(context) };
             plugin_holder.destroy_fn = lib
                 .get::<PfnDestroyPlugin>(DESTROY_PLUGIN_FUNCTION_NAME)
+                .unwrap();
+            plugin_holder.load_config_fn = lib
+                .get::<PfnLoadConfigPlugin>(LOAD_CONFIG_PLUGIN_FUNCTION_NAME)
                 .unwrap();
             plugin_holder.prepare_fn = lib
                 .get::<PfnPreparePlugin>(PREPARE_PLUGIN_FUNCTION_NAME)
@@ -119,7 +130,7 @@ impl PluginManager {
         (lib, None)
     }
 
-    pub fn create_plugin_data(lib_path: &Path, app: &mut App) -> PluginData {
+    pub fn create_plugin_data(lib_path: &Path, context: &ContextRc) -> PluginData {
         let (path, filename) = library::compute_folder_and_filename(lib_path);
         let fullpath = path.join(filename);
         if !fullpath.exists() && fullpath.is_file() {
@@ -140,7 +151,8 @@ impl PluginManager {
             in_use_fullpath = fullpath.clone();
         }
 
-        let (lib, plugin_holder) = PluginManager::load_dynamic_plugin(in_use_fullpath.clone());
+        let (lib, plugin_holder) =
+            PluginManager::load_dynamic_plugin(in_use_fullpath.clone(), context);
         /*
         debug_log!(
             "Loaded plugin {}",
@@ -148,7 +160,8 @@ impl PluginManager {
         );
         */
 
-        Self::prepare_plugin_holder(plugin_holder.as_ref().unwrap(), app);
+        Self::load_config_plugin_holder(plugin_holder.as_ref().unwrap(), context);
+        Self::prepare_plugin_holder(plugin_holder.as_ref().unwrap(), context);
 
         PluginData {
             lib: Box::new(lib),
@@ -159,29 +172,35 @@ impl PluginManager {
         }
     }
 
-    pub fn prepare_plugin_holder(plugin_holder: &PluginHolder, app: &mut App) {
-        if let Some(prepare_fn) = plugin_holder.prepare_fn.as_ref() {
-            unsafe { prepare_fn(app) };
+    pub fn load_config_plugin_holder(plugin_holder: &PluginHolder, context: &ContextRc) {
+        if let Some(load_config_fn) = plugin_holder.load_config_fn.as_ref() {
+            unsafe { load_config_fn(context) };
         }
     }
 
-    pub fn release_plugin_holder(plugin_holder: PluginHolder, app: &mut App) {
+    pub fn prepare_plugin_holder(plugin_holder: &PluginHolder, context: &ContextRc) {
+        if let Some(prepare_fn) = plugin_holder.prepare_fn.as_ref() {
+            unsafe { prepare_fn(context) };
+        }
+    }
+
+    pub fn release_plugin_holder(plugin_holder: PluginHolder, context: &ContextRc) {
         if let Some(unprepare_fn) = plugin_holder.unprepare_fn.as_ref() {
-            unsafe { unprepare_fn(app) };
+            unsafe { unprepare_fn(context) };
         }
         if let Some(destroy_fn) = plugin_holder.destroy_fn.as_ref() {
             unsafe { destroy_fn() };
         }
     }
 
-    pub fn clear_plugin_data(mut plugin_data: PluginData, app: &mut App) {
+    pub fn clear_plugin_data(mut plugin_data: PluginData, context: &ContextRc) {
         inox_profiler::scoped_profile!("plugin_manager::clear_plugin_data");
         plugin_data.filewatcher.stop();
 
         let in_use_path = plugin_data.in_use_path;
         let lib = unsafe { Box::into_raw(plugin_data.lib).as_mut().unwrap() };
         if let Some(plugin_holder) = plugin_data.plugin_holder {
-            Self::release_plugin_holder(plugin_holder, app);
+            Self::release_plugin_holder(plugin_holder, context);
         }
         lib.close();
         /*

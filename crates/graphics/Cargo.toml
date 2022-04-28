@@ -8,6 +8,7 @@ edition = "2021"
 crate-type = ["lib"]
 
 [dependencies]
+downcast-rs = { path = "../../extern/downcast-rs" }
 image = { path = "../../extern/image", default-features = false, features = [ "gif","jpeg","ico","png","pnm","tga","tiff","webp","bmp","hdr","dxt","dds"] }
 ttf-parser = {path = "../../extern/ttf-parser" }
 inox_commands = { path = "../commands" }

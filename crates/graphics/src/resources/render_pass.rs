@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use image::DynamicImage;
 use inox_messenger::MessageHubRc;
 use inox_resources::{
@@ -16,6 +18,8 @@ pub type RenderPassId = ResourceId;
 
 #[derive(Clone)]
 pub struct RenderPass {
+    shared_data: SharedDataRc,
+    message_hub: MessageHubRc,
     data: RenderPassData,
     pipelines: Vec<Resource<Pipeline>>,
     render_texture: Handle<Texture>,
@@ -73,8 +77,10 @@ impl DataTypeResource for RenderPass {
     type DataType = RenderPassData;
     type OnCreateData = <Self as ResourceTrait>::OnCreateData;
 
-    fn new(_id: ResourceId, _shared_data: &SharedDataRc, _message_hub: &MessageHubRc) -> Self {
+    fn new(_id: ResourceId, shared_data: &SharedDataRc, message_hub: &MessageHubRc) -> Self {
         Self {
+            shared_data: shared_data.clone(),
+            message_hub: message_hub.clone(),
             data: RenderPassData::default(),
             pipelines: Vec::new(),
             render_texture: None,
@@ -106,58 +112,22 @@ impl DataTypeResource for RenderPass {
     where
         Self: Sized,
     {
-        let mut pipelines = Vec::new();
-        data.pipelines.iter().for_each(|path| {
-            if !path.as_os_str().is_empty() {
-                let pipeline =
-                    Pipeline::request_load(shared_data, message_hub, path.as_path(), None);
-                pipelines.push(pipeline);
-            };
-        });
-
-        let render_texture = match &data.render_target {
-            RenderTarget::Texture {
-                width,
-                height,
-                read_back: _,
-            } => {
-                let texture_id = generate_random_uid();
-                let image = DynamicImage::new_rgba8(*width, *height);
-                let image_data = image.to_rgba8();
-                let mut texture =
-                    Texture::create_from_data(shared_data, message_hub, texture_id, image_data);
-                texture.on_create(shared_data, message_hub, &texture_id, None);
-                let texture = shared_data.add_resource(message_hub, texture_id, texture);
-                Some(texture)
-            }
-            _ => None,
-        };
-
-        let depth_texture = match &data.depth_target {
-            RenderTarget::Texture {
-                width,
-                height,
-                read_back: _,
-            } => {
-                let texture_id = generate_random_uid();
-                let image = DynamicImage::new_rgba8(*width, *height);
-                let image_data = image.to_rgba8();
-                let mut texture =
-                    Texture::create_from_data(shared_data, message_hub, texture_id, image_data);
-                texture.on_create(shared_data, message_hub, &texture_id, None);
-                let texture = shared_data.add_resource(message_hub, texture_id, texture);
-                Some(texture)
-            }
-            _ => None,
-        };
-
-        Self {
+        let render_target = data.render_target;
+        let depth_target = data.depth_target;
+        let pipelines = data.pipelines.clone();
+        let mut pass = Self {
+            shared_data: shared_data.clone(),
+            message_hub: message_hub.clone(),
             data,
-            pipelines,
-            render_texture,
-            depth_texture,
+            pipelines: Vec::new(),
+            render_texture: None,
+            depth_texture: None,
             is_initialized: false,
-        }
+        };
+        pass.render_target(render_target)
+            .depth_target(depth_target)
+            .pipelines(pipelines);
+        pass
     }
 }
 
@@ -165,7 +135,80 @@ impl RenderPass {
     pub fn data(&self) -> &RenderPassData {
         &self.data
     }
-    pub fn render_target(&self) -> &Handle<Texture> {
+    pub fn pipeline(&self, index: usize) -> Option<&Resource<Pipeline>> {
+        self.pipelines.get(index)
+    }
+    pub fn pipelines(&mut self, pipelines: Vec<PathBuf>) -> &mut Self {
+        self.pipelines.clear();
+        pipelines.iter().for_each(|path| {
+            if !path.as_os_str().is_empty() {
+                let pipeline = Pipeline::request_load(
+                    &self.shared_data,
+                    &self.message_hub,
+                    path.as_path(),
+                    None,
+                );
+                self.pipelines.push(pipeline);
+            };
+        });
+        self
+    }
+    pub fn render_target(&mut self, render_target: RenderTarget) -> &mut Self {
+        self.data.render_target = render_target;
+        self.render_texture = match render_target {
+            RenderTarget::Texture {
+                width,
+                height,
+                read_back: _,
+            } => {
+                let texture_id = generate_random_uid();
+                let image = DynamicImage::new_rgba8(width, height);
+                let image_data = image.to_rgba8();
+                let mut texture = Texture::create_from_data(
+                    &self.shared_data,
+                    &self.message_hub,
+                    texture_id,
+                    image_data,
+                );
+                texture.on_create(&self.shared_data, &self.message_hub, &texture_id, None);
+                let texture = self
+                    .shared_data
+                    .add_resource(&self.message_hub, texture_id, texture);
+                Some(texture)
+            }
+            _ => None,
+        };
+
+        self
+    }
+    pub fn depth_target(&mut self, render_target: RenderTarget) -> &mut Self {
+        self.data.depth_target = render_target;
+        self.depth_texture = match render_target {
+            RenderTarget::Texture {
+                width,
+                height,
+                read_back: _,
+            } => {
+                let texture_id = generate_random_uid();
+                let image = DynamicImage::new_rgba8(width, height);
+                let image_data = image.to_rgba8();
+                let mut texture = Texture::create_from_data(
+                    &self.shared_data,
+                    &self.message_hub,
+                    texture_id,
+                    image_data,
+                );
+                texture.on_create(&self.shared_data, &self.message_hub, &texture_id, None);
+                let texture = self
+                    .shared_data
+                    .add_resource(&self.message_hub, texture_id, texture);
+                Some(texture)
+            }
+            _ => None,
+        };
+        self
+    }
+    pub fn render_texture(&self) -> &Handle<Texture> {
         &self.render_texture
     }
     pub fn depth_texture(&self) -> &Handle<Texture> {

@@ -23,14 +23,11 @@ pub struct SystemRunner {
 }
 
 impl SystemRunner {
-    pub fn new<S>(system: S, job_handler: JobHandlerRw) -> Self
-    where
-        S: System + 'static,
-    {
+    pub fn new(system: Box<dyn System>, job_handler: JobHandlerRw) -> Self {
         Self {
-            system_id: S::id(),
-            name: S::name().to_string(),
-            system: Arc::new(RwLock::new(Box::new(system))),
+            system_id: system.id(),
+            name: system.name().to_string(),
+            system: Arc::new(RwLock::new(system)),
             dependencies: HashMap::new(),
             state: Arc::new(AtomicU8::new(STATE_READY)),
             job_handler,

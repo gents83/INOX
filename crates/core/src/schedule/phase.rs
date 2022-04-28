@@ -55,37 +55,35 @@ impl PhaseWithSystems {
         S: System + Sized + 'static,
         F: FnMut(&mut S),
     {
-        if let Some(system_data) = self.systems_runners.get_mut(&S::id()) {
+        if let Some(system_data) = self.systems_runners.get_mut(&S::system_id()) {
             system_data.execute_on_system(f);
         }
     }
-    pub fn add_system_with_dependencies<S: System + 'static>(
+    pub fn add_system_with_dependencies(
         &mut self,
-        system: S,
-        dependencies: &[SystemId],
+        system: Box<dyn System>,
+        dependencies: Option<&[SystemId]>,
         job_handler: &JobHandlerRw,
     ) -> &mut Self {
-        let id = S::id();
+        let id = system.id();
         self.add_system(system, job_handler);
-        let mut dependencies_states = HashMap::new();
-        dependencies.iter().for_each(|system_id| {
-            if let Some(system_data) = self.systems_runners.get_mut(system_id) {
-                dependencies_states.insert(*system_id, system_data.state());
-            }
-        });
-        self.systems_runners
-            .get_mut(&id)
-            .unwrap()
-            .add_dependencies(dependencies_states);
+        if let Some(dependencies) = dependencies {
+            let mut dependencies_states = HashMap::new();
+            dependencies.iter().for_each(|system_id| {
+                if let Some(system_data) = self.systems_runners.get_mut(system_id) {
+                    dependencies_states.insert(*system_id, system_data.state());
+                }
+            });
+            self.systems_runners
+                .get_mut(&id)
+                .unwrap()
+                .add_dependencies(dependencies_states);
+        }
         self
     }
 
-    pub fn add_system<S: System + 'static>(
-        &mut self,
-        system: S,
-        job_handler: &JobHandlerRw,
-    ) -> &mut Self {
-        let id = S::id();
+    fn add_system(&mut self, system: Box<dyn System>, job_handler: &JobHandlerRw) -> &mut Self {
+        let id = system.id();
         if let Entry::Vacant(e) = self.systems_runners.entry(id) {
             self.systems_to_add.push(id);
             e.insert(SystemRunner::new(system, job_handler.clone()));

@@ -1,4 +1,6 @@
-use inox_core::{JobHandlerRw, JobHandlerTrait, JobPriority, System, INDEPENDENT_JOB_ID};
+use inox_core::{
+    ContextRc, JobHandlerRw, JobHandlerTrait, JobPriority, System, INDEPENDENT_JOB_ID,
+};
 
 use crate::{RendererRw, RendererState};
 
@@ -10,10 +12,10 @@ pub struct RenderingSystem {
 }
 
 impl RenderingSystem {
-    pub fn new(renderer: RendererRw, job_handler: &JobHandlerRw) -> Self {
+    pub fn new(renderer: RendererRw, context: &ContextRc) -> Self {
         Self {
             renderer,
-            job_handler: job_handler.clone(),
+            job_handler: context.job_handler().clone(),
         }
     }
 }

@@ -14,10 +14,10 @@ use egui::{
     TextureId as eguiTextureId, TexturesDelta,
 };
 use image::RgbaImage;
-use inox_core::{JobHandlerRw, JobHandlerTrait, JobPriority, System};
+use inox_core::{ContextRc, JobHandlerRw, JobHandlerTrait, JobPriority, System};
 
 use inox_graphics::{
-    GraphicsData, Material, Mesh, MeshData, Pipeline, Texture, TextureId, TextureType,
+    GraphicsData, Material, Mesh, MeshData, RenderPass, Texture, TextureId, TextureType,
     VertexFormat, GRAPHICS_DATA_UID,
 };
 
@@ -29,7 +29,7 @@ use inox_platform::{
     DEFAULT_DPI,
 };
 use inox_resources::{
-    to_u8_slice, ConfigBase, ConfigEvent, DataTypeResource, Handle, Resource, SerializableResource,
+    to_u8_slice, ConfigBase, ConfigEvent, DataTypeResource, Resource, SerializableResource,
     SharedDataRc,
 };
 use inox_serialize::read_from_file;
@@ -50,28 +50,24 @@ pub struct UISystem {
     ui_input: RawInput,
     ui_input_modifiers: Modifiers,
     ui_clipboard: Option<String>,
-    ui_pipeline: Handle<Pipeline>,
+    ui_render_pass: Resource<RenderPass>,
     ui_materials: HashMap<TextureId, Resource<Material>>,
     ui_meshes: Vec<Resource<Mesh>>,
     ui_scale: f32,
 }
 
 impl UISystem {
-    pub fn new(
-        shared_data: &SharedDataRc,
-        message_hub: &MessageHubRc,
-        job_handler: &JobHandlerRw,
-    ) -> Self {
-        let listener = Listener::new(message_hub);
+    pub fn new(context: &ContextRc, ui_pass: &Resource<RenderPass>) -> Self {
+        let listener = Listener::new(context.message_hub());
 
-        crate::register_resource_types(shared_data, message_hub);
+        crate::register_resource_types(context.shared_data(), context.message_hub());
 
         Self {
             config: Config::default(),
-            ui_pipeline: None,
-            shared_data: shared_data.clone(),
-            job_handler: job_handler.clone(),
-            message_hub: message_hub.clone(),
+            ui_render_pass: ui_pass.clone(),
+            shared_data: context.shared_data().clone(),
+            message_hub: context.message_hub().clone(),
+            job_handler: context.job_handler().clone(),
             listener,
             ui_context: Context::default(),
             ui_textures: HashMap::new(),
@@ -92,7 +88,7 @@ impl UISystem {
             Entry::Vacant(e) => {
                 let shared_data = self.shared_data.clone();
                 let message_hub = self.message_hub.clone();
-                if let Some(pipeline) = self.ui_pipeline.as_ref() {
+                if let Some(pipeline) = self.ui_render_pass.get().pipeline(0).as_ref() {
                     let material =
                         Material::duplicate_from_pipeline(&shared_data, &message_hub, pipeline);
                     material
@@ -157,7 +153,7 @@ impl UISystem {
                 let clip_rect = clipped_mesh.clip_rect;
 
                 self.job_handler.add_job(
-                    &UISystem::id(),
+                    &UISystem::system_id(),
                     format!("ui_system::ui_mesh_{}_data", i).as_str(),
                     JobPriority::Medium,
                     move || {
@@ -237,12 +233,6 @@ impl UISystem {
                         self.config = config.clone();
 
                         self.ui_scale = self.config.ui_scale;
-                        self.ui_pipeline = Some(Pipeline::request_load(
-                            &self.shared_data,
-                            &self.message_hub,
-                            self.config.ui_pipeline.as_path(),
-                            None,
-                        ));
                     }
                 }
             })
@@ -329,7 +319,7 @@ impl UISystem {
                 let wait_count = wait_count.clone();
                 wait_count.fetch_add(1, Ordering::SeqCst);
                 job_handler.add_job(
-                    &UISystem::id(),
+                    &UISystem::system_id(),
                     job_name.as_str(),
                     JobPriority::Medium,
                     move || {
@@ -437,7 +427,7 @@ impl System for UISystem {
     fn run(&mut self) -> bool {
         self.update_events();
 
-        if let Some(pipeline) = &self.ui_pipeline {
+        if let Some(pipeline) = &self.ui_render_pass.get().pipeline(0) {
             pipeline
                 .get_mut()
                 .binding_data_mut()

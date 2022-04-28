@@ -1,4 +1,4 @@
-use inox_core::System;
+use inox_core::{ContextRc, System};
 
 use inox_math::Vector2;
 use inox_messenger::{Listener, MessageHubRc};
@@ -11,8 +11,8 @@ use inox_serialize::read_from_file;
 use inox_uid::generate_random_uid;
 
 use crate::{
-    is_shader, Light, Material, Mesh, Pipeline, RenderPass, RendererRw, RendererState, Texture,
-    View,
+    is_shader, Light, Material, Mesh, PassEvent, Pipeline, RenderPass, RendererRw, RendererState,
+    Texture, View,
 };
 
 use super::config::Config;
@@ -29,19 +29,21 @@ pub struct UpdateSystem {
 }
 
 impl UpdateSystem {
-    pub fn new(
-        renderer: RendererRw,
-        shared_data: &SharedDataRc,
-        message_hub: &MessageHubRc,
-    ) -> Self {
-        let listener = Listener::new(message_hub);
+    pub fn new(renderer: RendererRw, context: &ContextRc) -> Self {
+        let listener = Listener::new(context.message_hub());
+        listener.register::<PassEvent>();
 
         Self {
-            view: View::new_resource(shared_data, message_hub, generate_random_uid(), 0),
+            view: View::new_resource(
+                context.shared_data(),
+                context.message_hub(),
+                generate_random_uid(),
+                0,
+            ),
             config: Config::default(),
             renderer,
-            shared_data: shared_data.clone(),
-            message_hub: message_hub.clone(),
+            shared_data: context.shared_data().clone(),
+            message_hub: context.message_hub().clone(),
             listener,
             render_passes: Vec::new(),
         }
@@ -113,21 +115,9 @@ impl UpdateSystem {
                     self.renderer.write().unwrap().on_mesh_changed(id);
                 }
             })
-            .process_messages(|e: &ConfigEvent<Config>| match e {
-                ConfigEvent::Loaded(filename, config) => {
-                    if filename == self.config.get_filename() {
-                        self.config = config.clone();
-                        self.render_passes.clear();
-                        for render_pass_data in self.config.render_passes.iter() {
-                            self.render_passes.push(RenderPass::new_resource(
-                                &self.shared_data,
-                                &self.message_hub,
-                                generate_random_uid(),
-                                render_pass_data.clone(),
-                            ));
-                        }
-                    }
-                }
+            .process_messages(|e: &PassEvent| {
+                let PassEvent::Add(pass) = e;
+                self.render_passes.push(pass.pass().clone());
             });
     }
 }
@@ -154,6 +144,7 @@ impl System for UpdateSystem {
     }
     fn init(&mut self) {
         self.listener
+            .register::<PassEvent>()
             .register::<WindowEvent>()
             .register::<ReloadEvent>()
             .register::<ConfigEvent<Config>>()
@@ -202,6 +193,7 @@ impl System for UpdateSystem {
     }
     fn uninit(&mut self) {
         self.listener
+            .unregister::<PassEvent>()
             .unregister::<WindowEvent>()
             .unregister::<ReloadEvent>()
             .unregister::<SerializableResourceEvent<Pipeline>>()

@@ -1,13 +1,12 @@
 use std::path::PathBuf;
 
 use crate::{
-    create_arrow, create_colored_quad, create_line, create_sphere, Material, Mesh, MeshData,
-    Pipeline, VertexFormat,
+    create_arrow, create_colored_quad, create_line, create_sphere, DrawEvent, Material, Mesh,
+    MeshData, Pipeline, VertexFormat,
 };
-use inox_commands::CommandParser;
-use inox_core::System;
-use inox_math::{Vector2, Vector3, Vector4};
-use inox_messenger::{implement_message, Listener, MessageHubRc};
+
+use inox_core::{ContextRc, System};
+use inox_messenger::{Listener, MessageHubRc};
 use inox_resources::{
     ConfigBase, ConfigEvent, DataTypeResource, Handle, Resource, SerializableResource, SharedDataRc,
 };
@@ -49,94 +48,6 @@ use super::config::Config;
 ///     .ok();
 /// ```
 
-#[derive(Clone)]
-#[allow(dead_code)]
-pub enum DrawEvent {
-    Line(Vector3, Vector3, Vector4),            // (start, end, color)
-    BoundingBox(Vector3, Vector3, Vector4),     // (min, max, color)
-    Quad(Vector2, Vector2, f32, Vector4, bool), // (min, max, z, color, is_wireframe)
-    Arrow(Vector3, Vector3, Vector4, bool),     // (start, direction, color, is_wireframe)
-    Sphere(Vector3, f32, Vector4, bool),        // (position, radius, color, is_wireframe)
-}
-implement_message!(DrawEvent, message_from_command_parser, compare_and_discard);
-
-impl DrawEvent {
-    fn compare_and_discard(&self, _other: &Self) -> bool {
-        false
-    }
-    fn message_from_command_parser(command_parser: CommandParser) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        if command_parser.has("draw_line") {
-            let values = command_parser.get_values_of("draw_line");
-            return Some(DrawEvent::Line(
-                Vector3::new(values[0], values[1], values[2]),
-                Vector3::new(values[3], values[4], values[5]),
-                Vector4::new(values[6], values[7], values[8], values[9]),
-            ));
-        } else if command_parser.has("draw_bounding_box") {
-            let values = command_parser.get_values_of("draw_bounding_box");
-            return Some(DrawEvent::BoundingBox(
-                Vector3::new(values[0], values[1], values[2]),
-                Vector3::new(values[3], values[4], values[5]),
-                Vector4::new(values[6], values[7], values[8], values[9]),
-            ));
-        } else if command_parser.has("draw_quad") {
-            let values = command_parser.get_values_of("draw_quad");
-            return Some(DrawEvent::Quad(
-                Vector2::new(values[0], values[1]),
-                Vector2::new(values[2], values[3]),
-                values[4],
-                Vector4::new(values[5], values[6], values[7], values[8]),
-                false,
-            ));
-        } else if command_parser.has("draw_quad_wireframe") {
-            let values = command_parser.get_values_of("draw_quad_wireframe");
-            return Some(DrawEvent::Quad(
-                Vector2::new(values[0], values[1]),
-                Vector2::new(values[2], values[3]),
-                values[4],
-                Vector4::new(values[5], values[6], values[7], values[8]),
-                true,
-            ));
-        } else if command_parser.has("draw_arrow") {
-            let values = command_parser.get_values_of("draw_arrow");
-            return Some(DrawEvent::Arrow(
-                Vector3::new(values[0], values[1], values[2]),
-                Vector3::new(values[3], values[4], values[5]),
-                Vector4::new(values[6], values[7], values[8], values[9]),
-                false,
-            ));
-        } else if command_parser.has("draw_arrow_wireframe") {
-            let values = command_parser.get_values_of("draw_arrow_wireframe");
-            return Some(DrawEvent::Arrow(
-                Vector3::new(values[0], values[1], values[2]),
-                Vector3::new(values[3], values[4], values[5]),
-                Vector4::new(values[6], values[7], values[8], values[9]),
-                true,
-            ));
-        } else if command_parser.has("draw_sphere") {
-            let values = command_parser.get_values_of("draw_sphere");
-            return Some(DrawEvent::Sphere(
-                Vector3::new(values[0], values[1], values[2]),
-                values[3],
-                Vector4::new(values[4], values[5], values[6], values[7]),
-                false,
-            ));
-        } else if command_parser.has("draw_sphere_wireframe") {
-            let values = command_parser.get_values_of("draw_sphere_wireframe");
-            return Some(DrawEvent::Sphere(
-                Vector3::new(values[0], values[1], values[2]),
-                values[3],
-                Vector4::new(values[4], values[5], values[6], values[7]),
-                true,
-            ));
-        }
-        None
-    }
-}
-
 pub struct DebugDrawerSystem {
     config: Config,
     mesh_instance: Resource<Mesh>,
@@ -149,10 +60,10 @@ pub struct DebugDrawerSystem {
 }
 
 impl DebugDrawerSystem {
-    pub fn new(shared_data: &SharedDataRc, message_hub: &MessageHubRc) -> Self {
+    pub fn new(context: &ContextRc) -> Self {
         let mesh_instance = Mesh::new_resource(
-            shared_data,
-            message_hub,
+            context.shared_data(),
+            context.message_hub(),
             generate_random_uid(),
             MeshData::new(VertexFormat::pbr()),
         );
@@ -161,8 +72,8 @@ impl DebugDrawerSystem {
             .set_path(PathBuf::from("DebugDrawerMesh.debugdrawer").as_path());
         //println!("DebugDrawerMesh {:?}", mesh_instance.id());
         let wireframe_mesh_instance = Mesh::new_resource(
-            shared_data,
-            message_hub,
+            context.shared_data(),
+            context.message_hub(),
             generate_random_uid(),
             MeshData::new(VertexFormat::pbr()),
         );
@@ -171,7 +82,7 @@ impl DebugDrawerSystem {
             .set_path(PathBuf::from("DebugDrawerWireframe.debugdrawer").as_path());
         //println!("DebugDrawerWireframeMesh {:?}", wireframe_mesh_instance.id());
 
-        let listener = Listener::new(message_hub);
+        let listener = Listener::new(context.message_hub());
         listener.register::<DrawEvent>();
 
         Self {
@@ -181,8 +92,8 @@ impl DebugDrawerSystem {
             default_pipeline: None,
             wireframe_pipeline: None,
             listener,
-            shared_data: shared_data.clone(),
-            message_hub: message_hub.clone(),
+            shared_data: context.shared_data().clone(),
+            message_hub: context.message_hub().clone(),
         }
     }
 

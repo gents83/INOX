@@ -6,6 +6,7 @@ use crate::{
     CONSTANT_DATA_FLAGS_SUPPORT_SRGB, GRAPHICS_DATA_UID, MAX_NUM_LIGHTS, MAX_NUM_MATERIALS,
     MAX_NUM_TEXTURES,
 };
+use inox_core::ContextRc;
 use inox_log::debug_log;
 use inox_math::{matrix4_to_array, Matrix4, Vector2};
 use inox_messenger::MessageHubRc;
@@ -88,16 +89,14 @@ impl Drop for Renderer {
 }
 
 impl Renderer {
-    pub fn new(
-        handle: &Handle,
-        shared_data: &SharedDataRc,
-        message_hub: &MessageHubRc,
-        _enable_debug: bool,
-    ) -> Self {
-        crate::register_resource_types(shared_data, message_hub);
+    pub fn new(handle: &Handle, context: &ContextRc, _enable_debug: bool) -> Self {
+        crate::register_resource_types(context.shared_data(), context.message_hub());
 
-        let graphics_data =
-            shared_data.add_resource(message_hub, GRAPHICS_DATA_UID, GraphicsData::default());
+        let graphics_data = context.shared_data().add_resource(
+            context.message_hub(),
+            GRAPHICS_DATA_UID,
+            GraphicsData::default(),
+        );
 
         let render_context = Arc::new(RwLock::new(None));
 
@@ -120,8 +119,8 @@ impl Renderer {
             dynamic_data_buffer: DataBuffer::default(),
             state: RendererState::Init,
             context: render_context,
-            shared_data: shared_data.clone(),
-            message_hub: message_hub.clone(),
+            shared_data: context.shared_data().clone(),
+            message_hub: context.message_hub().clone(),
             graphics_data,
         }
     }
@@ -418,7 +417,7 @@ impl Renderer {
             .for_each_resource_mut(|_id, r: &mut RenderPass| {
                 let graphics_data = &mut self.graphics_data.get_mut();
 
-                if let Some(texture) = r.render_target() {
+                if let Some(texture) = r.render_texture() {
                     if let Some(atlas) = texture_handler.get_texture_atlas(texture.id()) {
                         render_format = atlas.texture_format();
                     }
@@ -480,11 +479,11 @@ impl Renderer {
                     .for_each_resource_mut(|_id, r: &mut RenderPass| {
                         let texture_bind_group = texture_handler.bind_group(
                             &render_context.device,
-                            r.render_target().as_ref().map(|t| t.id()),
+                            r.render_texture().as_ref().map(|t| t.id()),
                             r.depth_texture().as_ref().map(|t| t.id()),
                         );
 
-                        if let Some(texture) = r.render_target() {
+                        if let Some(texture) = r.render_texture() {
                             if let Some(atlas) = texture_handler.get_texture_atlas(texture.id()) {
                                 render_target = atlas.texture();
                                 render_format = atlas.texture_format();

@@ -52,7 +52,7 @@ impl View3D {
                         let view_height = ui.max_rect().height() as u32;
 
                         let texture_uniform_index =
-                            Self::get_render_pass_texture_index(&data.shared_data, "MainPass");
+                            Self::get_render_pass_texture_index(&data.shared_data, "OpaquePass");
 
                         ui.with_layer_id(LayerId::background(), |ui| {
                             let response = Image::new(
@@ -72,7 +72,7 @@ impl View3D {
         if let Some(render_pass) = SharedData::match_resource(shared_data, |r: &RenderPass| {
             r.data().name == render_pass_name
         }) {
-            if let Some(texture) = render_pass.get().render_target() {
+            if let Some(texture) = render_pass.get().render_texture() {
                 return texture.get().uniform_index();
             }
         }
