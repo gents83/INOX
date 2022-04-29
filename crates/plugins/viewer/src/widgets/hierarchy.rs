@@ -4,7 +4,8 @@ use inox_messenger::MessageHubRc;
 use inox_resources::{Resource, SerializableResource, SharedData, SharedDataRc};
 use inox_scene::{Object, ObjectId, Scene, SceneId};
 use inox_ui::{
-    implement_widget_data, CollapsingHeader, ScrollArea, SelectableLabel, UIWidget, Ui, Window,
+    collapsing_header::CollapsingState, implement_widget_data, CollapsingHeader, ScrollArea,
+    SelectableLabel, UIWidget, Ui, Window,
 };
 use inox_uid::INVALID_UID;
 
@@ -57,8 +58,6 @@ impl Hierarchy {
                     .show(ui_context, |ui| {
                         let _ = &data;
                         CollapsingHeader::new("Scene")
-                            .selected(false)
-                            .selectable(false)
                             .show_background(false)
                             .default_open(true)
                             .show(ui, |ui| {
@@ -100,19 +99,34 @@ impl Hierarchy {
         let has_children = object.get().has_children();
 
         let _response = if has_children {
-            let response = CollapsingHeader::new(object_name.as_str())
-                .selected(is_selected || is_child_recursive)
-                .selectable(true)
-                .show_background(is_selected || is_child_recursive)
+            let id = ui.make_persistent_id(object_name.as_str());
+            CollapsingState::load_with_default_open(ui.ctx(), id, true)
+                .show_header(ui, |ui| {
+                    let clicked = ui
+                        .selectable_label(is_selected || is_child_recursive, object_name.as_str())
+                        .clicked();
+                    if clicked {
+                        //change selected object
+                    }
+                })
+                .body(|ui| {
+                    object.get().children().iter().for_each(|child| {
+                        Self::object_hierarchy(ui, child, selected_id, message_hub);
+                    });
+                });
+            /*
+            CollapsingHeader::new(object_name.as_str())
+                //.selected(is_selected || is_child_recursive)
                 .default_open(true)
                 .show(ui, |ui| {
                     object.get().children().iter().for_each(|child| {
                         Self::object_hierarchy(ui, child, selected_id, message_hub);
                     });
                 });
-            response.header_response
+                response.header_response
+                */
         } else {
-            ui.add(SelectableLabel::new(is_selected, object_name.as_str()))
+            ui.add(SelectableLabel::new(is_selected, object_name.as_str()));
         };
     }
 }

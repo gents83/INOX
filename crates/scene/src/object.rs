@@ -50,7 +50,6 @@ impl UIProperties for Object {
             }
         }
         CollapsingHeader::new(object_name.as_str())
-            .selected(true)
             .show_background(true)
             .default_open(!collapsed)
             .show(ui, |ui| {
