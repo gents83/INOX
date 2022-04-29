@@ -62,6 +62,8 @@ impl Drop for App {
             inox_profiler::write_profile_file!();
         }
 
+        self.context.scheduler_mut().uninit();
+
         let (dynamic_plugins_to_remove, static_plugins_to_remove) = self.plugin_manager.release();
         self.update_dynamic_plugins(dynamic_plugins_to_remove);
         self.remove_static_plugins(static_plugins_to_remove);
