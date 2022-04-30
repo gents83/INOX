@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use crate::{ContextRc, System};
+use crate::{implement_unique_system_uid, ContextRc, System};
 use inox_messenger::{Listener, MessageHubRc};
 use inox_platform::{Window, WindowEvent};
 use inox_resources::{ConfigBase, ConfigEvent, SharedDataRc};
@@ -49,6 +49,8 @@ impl WindowSystem {
             });
     }
 }
+
+implement_unique_system_uid!(WindowSystem);
 
 impl System for WindowSystem {
     fn read_config(&mut self, plugin_name: &str) {

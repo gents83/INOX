@@ -160,7 +160,7 @@ impl Texture {
         self
     }
     pub fn find_from_path(shared_data: &SharedDataRc, texture_path: &Path) -> Handle<Self> {
-        let path = convert_from_local_path(Data::data_folder().as_path(), texture_path);
+        let path = convert_from_local_path(Data::platform_data_folder().as_path(), texture_path);
         SharedData::match_resource(shared_data, |t: &Texture| t.path == path)
     }
     pub fn path(&self) -> &Path {

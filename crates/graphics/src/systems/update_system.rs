@@ -1,4 +1,4 @@
-use inox_core::{ContextRc, System};
+use inox_core::{implement_unique_system_uid, ContextRc, System};
 
 use inox_math::Vector2;
 use inox_messenger::{Listener, MessageHubRc};
@@ -124,6 +124,8 @@ impl UpdateSystem {
 
 unsafe impl Send for UpdateSystem {}
 unsafe impl Sync for UpdateSystem {}
+
+implement_unique_system_uid!(UpdateSystem);
 
 impl System for UpdateSystem {
     fn read_config(&mut self, plugin_name: &str) {

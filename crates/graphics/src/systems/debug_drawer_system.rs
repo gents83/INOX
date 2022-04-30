@@ -1,17 +1,17 @@
-use std::path::PathBuf;
+use std::{any::type_name, path::PathBuf};
 
 use crate::{
     create_arrow, create_colored_quad, create_line, create_sphere, DrawEvent, Material, Mesh,
     MeshData, Pipeline, VertexFormat,
 };
 
-use inox_core::{ContextRc, System};
+use inox_core::{ContextRc, System, SystemId, SystemUID};
 use inox_messenger::{Listener, MessageHubRc};
 use inox_resources::{
     ConfigBase, ConfigEvent, DataTypeResource, Handle, Resource, SerializableResource, SharedDataRc,
 };
 use inox_serialize::read_from_file;
-use inox_uid::generate_random_uid;
+use inox_uid::{generate_random_uid, generate_uid_from_string};
 
 use super::config::Config;
 
@@ -258,6 +258,15 @@ impl DebugDrawerSystem {
 
 unsafe impl Send for DebugDrawerSystem {}
 unsafe impl Sync for DebugDrawerSystem {}
+
+impl SystemUID for DebugDrawerSystem {
+    fn system_id() -> SystemId
+    where
+        Self: Sized,
+    {
+        generate_uid_from_string(type_name::<Self>())
+    }
+}
 
 impl System for DebugDrawerSystem {
     fn read_config(&mut self, plugin_name: &str) {

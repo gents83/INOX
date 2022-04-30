@@ -11,12 +11,12 @@ pub const CONFIG_FOLDER: &str = "config";
 pub trait ConfigBase: 'static + PartialEq + Send + Sync {
     #[inline]
     fn get_folder(&self) -> PathBuf {
-        Data::data_folder().join(CONFIG_FOLDER)
+        Data::platform_data_folder().join(CONFIG_FOLDER)
     }
     #[inline]
     fn get_filepath(&self, plugin_name: &str) -> PathBuf {
         convert_from_local_path(
-            Data::data_folder().as_path(),
+            Data::platform_data_folder().as_path(),
             self.get_folder()
                 .join(plugin_name)
                 .join(self.get_filename())

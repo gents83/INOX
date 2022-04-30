@@ -11,9 +11,11 @@ use std::{
 use crate::{need_to_binarize, send_reloaded_event, ExtensionHandler};
 use inox_filesystem::delete_file;
 use inox_graphics::{read_spirv_from_bytes, ShaderData, SHADER_EXTENSION};
+
 use inox_messenger::MessageHubRc;
-use inox_resources::{Data, SharedDataRc};
+use inox_resources::SharedDataRc;
 use inox_serialize::SerializeFile;
+use inox_uid::generate_random_uid;
 
 const SHADERS_FOLDER_NAME: &str = "shaders";
 
@@ -26,22 +28,29 @@ const GEOMETRY_SHADER_EXTENSION: &str = "geom";
 pub struct ShaderCompiler {
     shared_data: SharedDataRc,
     message_hub: MessageHubRc,
+    data_raw_folder: PathBuf,
+    data_folder: PathBuf,
     glsl_compiler: PathBuf,
     glsl_validator: PathBuf,
     spirv_validator: PathBuf,
 }
 
 impl ShaderCompiler {
-    pub fn new(shared_data: SharedDataRc, message_hub: MessageHubRc) -> Self {
+    pub fn new(
+        shared_data: SharedDataRc,
+        message_hub: MessageHubRc,
+        data_raw_folder: &Path,
+        data_folder: &Path,
+    ) -> Self {
         let mut vulkan_sdk_path = PathBuf::new();
         if let Ok(vulkan_path) = env::var("VULKAN_SDK") {
             vulkan_sdk_path = PathBuf::from(vulkan_path.as_str());
         }
-        let shader_raw_folder: PathBuf = Data::data_raw_folder()
+        let shader_raw_folder: PathBuf = data_raw_folder
             .canonicalize()
             .unwrap()
             .join(SHADERS_FOLDER_NAME);
-        let shader_data_folder: PathBuf = Data::data_folder()
+        let shader_data_folder: PathBuf = data_folder
             .canonicalize()
             .unwrap()
             .join(SHADERS_FOLDER_NAME);
@@ -53,6 +62,8 @@ impl ShaderCompiler {
         Self {
             message_hub,
             shared_data,
+            data_raw_folder: data_raw_folder.to_path_buf(),
+            data_folder: data_folder.to_path_buf(),
             glsl_compiler: vulkan_sdk_path.join("Bin\\glslc.exe"),
             glsl_validator: vulkan_sdk_path.join("Bin\\glslangValidator.exe"),
             spirv_validator: vulkan_sdk_path.join("Bin\\spirv-val.exe"),
@@ -62,19 +73,20 @@ impl ShaderCompiler {
     fn compile_assembly(&self, path: &Path) -> bool {
         let extension = path.extension().unwrap().to_str().unwrap();
         let source_ext = format!(".{}", extension);
-        let destination_ext = format!("_{}.{}_assembly", extension, SHADER_EXTENSION);
+        let destination_ext = format!(
+            "_{}_{}.{}_assembly",
+            generate_random_uid(),
+            extension,
+            SHADER_EXTENSION
+        );
         let mut from_source_to_temp = path.to_str().unwrap().to_string();
         from_source_to_temp = from_source_to_temp.replace(
-            Data::data_raw_folder()
+            self.data_raw_folder
                 .canonicalize()
                 .unwrap()
                 .to_str()
                 .unwrap(),
-            Data::data_folder()
-                .canonicalize()
-                .unwrap()
-                .to_str()
-                .unwrap(),
+            self.data_folder.canonicalize().unwrap().to_str().unwrap(),
         );
         from_source_to_temp =
             from_source_to_temp.replace(source_ext.as_str(), destination_ext.as_str());
@@ -92,22 +104,18 @@ impl ShaderCompiler {
     fn convert_in_spirv(&self, path: &Path) -> bool {
         let extension = path.extension().unwrap().to_str().unwrap();
         let source_ext = format!(".{}", extension);
-        let temp_ext = format!("_{}.{}", extension, SPV_EXTENSION);
-        let destination_ext = format!("_{}.{}", extension, SHADER_EXTENSION);
+        let temp_ext = format!("_{}_{}.{}", generate_random_uid(), extension, SPV_EXTENSION);
+        let destination_ext = format!(".{}", SHADER_EXTENSION);
         let mut from_source_to_temp = path.to_str().unwrap().to_string();
         from_source_to_temp = from_source_to_temp.replace(source_ext.as_str(), temp_ext.as_str());
         let mut from_source_to_compiled = path.to_str().unwrap().to_string();
         from_source_to_compiled = from_source_to_compiled.replace(
-            Data::data_raw_folder()
+            self.data_raw_folder
                 .canonicalize()
                 .unwrap()
                 .to_str()
                 .unwrap(),
-            Data::data_folder()
-                .canonicalize()
-                .unwrap()
-                .to_str()
-                .unwrap(),
+            self.data_folder.canonicalize().unwrap().to_str().unwrap(),
         );
         from_source_to_compiled =
             from_source_to_compiled.replace(source_ext.as_str(), destination_ext.as_str());
@@ -152,19 +160,15 @@ impl ShaderCompiler {
     fn create_wgsl_shader_data(&self, path: &Path) {
         let extension = path.extension().unwrap().to_str().unwrap();
         let source_ext = format!(".{}", extension);
-        let destination_ext = format!("_{}.{}", extension, SHADER_EXTENSION);
+        let destination_ext = format!(".{}", SHADER_EXTENSION);
         let mut from_source_to_compiled = path.to_str().unwrap().to_string();
         from_source_to_compiled = from_source_to_compiled.replace(
-            Data::data_raw_folder()
+            self.data_raw_folder
                 .canonicalize()
                 .unwrap()
                 .to_str()
                 .unwrap(),
-            Data::data_folder()
-                .canonicalize()
-                .unwrap()
-                .to_str()
-                .unwrap(),
+            self.data_folder.canonicalize().unwrap().to_str().unwrap(),
         );
         from_source_to_compiled =
             from_source_to_compiled.replace(source_ext.as_str(), destination_ext.as_str());

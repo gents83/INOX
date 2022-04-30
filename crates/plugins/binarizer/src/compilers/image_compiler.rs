@@ -1,8 +1,8 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::{copy_into_data_folder, ExtensionHandler};
-use inox_messenger::MessageHubRc;
 use inox_log::debug_log;
+use inox_messenger::MessageHubRc;
 
 const IMAGE_PNG_EXTENSION: &str = "png";
 const IMAGE_JPG_EXTENSION: &str = "jpg";
@@ -16,11 +16,17 @@ const IMAGE_ICO_EXTENSION: &str = "ico";
 
 pub struct ImageCompiler {
     message_hub: MessageHubRc,
+    data_raw_folder: PathBuf,
+    data_folder: PathBuf,
 }
 
 impl ImageCompiler {
-    pub fn new(message_hub: MessageHubRc) -> Self {
-        Self { message_hub }
+    pub fn new(message_hub: MessageHubRc, data_raw_folder: &Path, data_folder: &Path) -> Self {
+        Self {
+            message_hub,
+            data_raw_folder: data_raw_folder.to_path_buf(),
+            data_folder: data_folder.to_path_buf(),
+        }
     }
 }
 
@@ -37,7 +43,12 @@ impl ExtensionHandler for ImageCompiler {
                 || extension.as_str() == IMAGE_GIF_EXTENSION
                 || extension.as_str() == IMAGE_ICO_EXTENSION
                 || extension.as_str() == IMAGE_DDS_EXTENSION)
-                && copy_into_data_folder(&self.message_hub, path)
+                && copy_into_data_folder(
+                    &self.message_hub,
+                    path,
+                    self.data_raw_folder.as_path(),
+                    self.data_folder.as_path(),
+                )
             {
                 debug_log!("Serializing {:?}", path);
             }

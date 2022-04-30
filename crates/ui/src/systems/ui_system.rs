@@ -14,7 +14,10 @@ use egui::{
     TextureId as eguiTextureId, TexturesDelta,
 };
 use image::RgbaImage;
-use inox_core::{ContextRc, JobHandlerRw, JobHandlerTrait, JobPriority, System};
+use inox_core::{
+    implement_unique_system_uid, ContextRc, JobHandlerRw, JobHandlerTrait, JobPriority, System,
+    SystemUID,
+};
 
 use inox_graphics::{
     GraphicsData, Material, Mesh, MeshData, RenderPass, Texture, TextureId, TextureType,
@@ -399,6 +402,8 @@ impl Drop for UISystem {
         crate::unregister_resource_types(&self.shared_data, &self.message_hub);
     }
 }
+
+implement_unique_system_uid!(UISystem);
 
 impl System for UISystem {
     fn read_config(&mut self, plugin_name: &str) {

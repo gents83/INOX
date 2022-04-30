@@ -59,13 +59,16 @@ impl PhaseWithSystems {
             system_data.execute_on_system(f);
         }
     }
-    pub fn add_system_with_dependencies(
+    pub fn add_system_with_dependencies<S>(
         &mut self,
-        system: Box<dyn System>,
+        system: S,
         dependencies: Option<&[SystemId]>,
         job_handler: &JobHandlerRw,
-    ) -> &mut Self {
-        let id = system.id();
+    ) -> &mut Self
+    where
+        S: System + 'static,
+    {
+        let id = S::system_id();
         self.add_system(system, job_handler);
         if let Some(dependencies) = dependencies {
             let mut dependencies_states = HashMap::new();
@@ -82,8 +85,11 @@ impl PhaseWithSystems {
         self
     }
 
-    fn add_system(&mut self, system: Box<dyn System>, job_handler: &JobHandlerRw) -> &mut Self {
-        let id = system.id();
+    fn add_system<S>(&mut self, system: S, job_handler: &JobHandlerRw) -> &mut Self
+    where
+        S: System + 'static,
+    {
+        let id = S::system_id();
         if let Entry::Vacant(e) = self.systems_runners.entry(id) {
             self.systems_to_add.push(id);
             e.insert(SystemRunner::new(system, job_handler.clone()));

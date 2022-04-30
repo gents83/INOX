@@ -1,10 +1,10 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::{copy_into_data_folder, ExtensionHandler};
 use inox_graphics::{Light, Material, Mesh, Pipeline};
+use inox_log::debug_log;
 use inox_messenger::MessageHubRc;
 use inox_nodes::NodeTree;
-use inox_log::debug_log;
 use inox_resources::SerializableResource;
 use inox_scene::{Camera, Object, Scene, Script};
 use inox_serialize::SerializeFile;
@@ -13,11 +13,17 @@ const CONFIG_EXTENSION: &str = "cfg";
 
 pub struct CopyCompiler {
     message_hub: MessageHubRc,
+    data_raw_folder: PathBuf,
+    data_folder: PathBuf,
 }
 
 impl CopyCompiler {
-    pub fn new(message_hub: MessageHubRc) -> Self {
-        Self { message_hub }
+    pub fn new(message_hub: MessageHubRc, data_raw_folder: &Path, data_folder: &Path) -> Self {
+        Self {
+            message_hub,
+            data_raw_folder: data_raw_folder.to_path_buf(),
+            data_folder: data_folder.to_path_buf(),
+        }
     }
 }
 
@@ -35,7 +41,12 @@ impl ExtensionHandler for CopyCompiler {
                 || ext.as_str() == Camera::extension()
                 || ext.as_str() == Light::extension()
                 || ext.as_str() == Script::extension())
-                && copy_into_data_folder(&self.message_hub, path)
+                && copy_into_data_folder(
+                    &self.message_hub,
+                    path,
+                    self.data_raw_folder.as_path(),
+                    self.data_folder.as_path(),
+                )
             {
                 debug_log!("Serializing {:?}", path);
             }

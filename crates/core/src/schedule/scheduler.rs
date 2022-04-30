@@ -98,13 +98,15 @@ impl Scheduler {
         can_continue
     }
 
-    pub fn add_system(
+    pub fn add_system<S>(
         &mut self,
         phase: Phases,
-        system: Box<dyn System>,
+        system: S,
         dependencies: Option<&[SystemId]>,
         job_handler: &JobHandlerRw,
-    ) {
+    ) where
+        S: System + 'static,
+    {
         if let Some(phase) = self.phases.get_mut(&phase) {
             phase.add_system_with_dependencies(system, dependencies, job_handler);
         }

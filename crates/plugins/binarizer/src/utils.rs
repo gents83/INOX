@@ -5,7 +5,7 @@ use std::{
 
 use inox_filesystem::convert_in_local_path;
 use inox_messenger::MessageHubRc;
-use inox_resources::{Data, ReloadEvent};
+use inox_resources::ReloadEvent;
 
 pub fn need_to_binarize(original_path: &Path, new_path: &Path) -> bool {
     let mut need_copy = false;
@@ -23,19 +23,16 @@ pub fn need_to_binarize(original_path: &Path, new_path: &Path) -> bool {
     need_copy
 }
 
-pub fn copy_into_data_folder(message_hub: &MessageHubRc, path: &Path) -> bool {
+pub fn copy_into_data_folder(
+    message_hub: &MessageHubRc,
+    path: &Path,
+    data_raw_folder: &Path,
+    data_folder: &Path,
+) -> bool {
     let mut from_source_to_compiled = path.to_str().unwrap().to_string();
     from_source_to_compiled = from_source_to_compiled.replace(
-        Data::data_raw_folder()
-            .canonicalize()
-            .unwrap()
-            .to_str()
-            .unwrap(),
-        Data::data_folder()
-            .canonicalize()
-            .unwrap()
-            .to_str()
-            .unwrap(),
+        data_raw_folder.canonicalize().unwrap().to_str().unwrap(),
+        data_folder.canonicalize().unwrap().to_str().unwrap(),
     );
     let new_path = PathBuf::from(from_source_to_compiled);
     if !new_path.exists() {
@@ -59,8 +56,8 @@ pub fn send_reloaded_event(message_hub: &MessageHubRc, new_path: &Path) {
     message_hub.send_from_string(message_string);
 }
 
-pub fn to_local_path(original_path: &Path) -> PathBuf {
-    let base_path = convert_in_local_path(original_path, Data::data_raw_folder().as_path());
-    let path = convert_in_local_path(base_path.as_path(), Data::data_folder().as_path());
+pub fn to_local_path(original_path: &Path, data_raw_folder: &Path, data_folder: &Path) -> PathBuf {
+    let base_path = convert_in_local_path(original_path, data_raw_folder);
+    let path = convert_in_local_path(base_path.as_path(), data_folder);
     path
 }

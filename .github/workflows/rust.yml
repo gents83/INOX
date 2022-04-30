@@ -140,7 +140,8 @@ jobs:
       - name: "Copy data binarized in output for wasm"          
         run: |
              mkdir -p "./output/web/data/" 
-             cp -r -Force "./data/" "./output/web/"
+             mkdir -p "./output/web/data/web/" 
+             cp -r -Force "./data/web/" "./output/web/data/"
           
       - name: "Upload artifacts"
         uses: actions/upload-artifact@v2

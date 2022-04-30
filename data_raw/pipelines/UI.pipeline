@@ -1,6 +1,6 @@
 {
-    "vertex_shader": "shaders/wgsl/ui_wgsl.shader",
-    "fragment_shader": "shaders/wgsl/ui_wgsl.shader",
+    "vertex_shader": "shaders/wgsl/ui.shader",
+    "fragment_shader": "shaders/wgsl/ui.shader",
     "vertex_format" : [
         "PositionF32x2",
         "TexCoord0F32x2",

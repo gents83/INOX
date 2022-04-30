@@ -1,5 +1,6 @@
 use inox_core::{
-    ContextRc, JobHandlerRw, JobHandlerTrait, JobPriority, System, INDEPENDENT_JOB_ID,
+    implement_unique_system_uid, ContextRc, JobHandlerRw, JobHandlerTrait, JobPriority, System,
+    INDEPENDENT_JOB_ID,
 };
 
 use crate::{RendererRw, RendererState};
@@ -22,6 +23,8 @@ impl RenderingSystem {
 
 unsafe impl Send for RenderingSystem {}
 unsafe impl Sync for RenderingSystem {}
+
+implement_unique_system_uid!(RenderingSystem);
 
 impl System for RenderingSystem {
     fn read_config(&mut self, _plugin_name: &str) {}

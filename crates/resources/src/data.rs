@@ -14,6 +14,9 @@ use crate::{
 pub const DATA_RAW_FOLDER: &str = "data_raw";
 pub const DATA_FOLDER: &str = "data";
 
+pub const PC_FOLDER: &str = "pc";
+pub const WEB_FOLDER: &str = "web";
+
 pub struct Data {}
 pub trait DataTypeResource: ResourceTrait
 where
@@ -89,12 +92,12 @@ pub trait SerializableResource: DataTypeResource + Sized {
     ) where
         Self: Sized + DataTypeResource,
     {
-        let path = convert_from_local_path(Data::data_folder().as_path(), filepath);
+        let path = convert_from_local_path(Data::platform_data_folder().as_path(), filepath);
         if !File::new(path.as_path()).exists() {
             panic!(
                 "Unable to create_from_file with an invalid path {:?}\nCombining {:?} with {:?}",
                 path,
-                Data::data_folder().as_path(),
+                Data::platform_data_folder().as_path(),
                 filepath
             );
         }
@@ -142,12 +145,12 @@ pub trait SerializableResource: DataTypeResource + Sized {
     where
         Self: Sized + DataTypeResource,
     {
-        let path = convert_from_local_path(Data::data_folder().as_path(), filepath);
+        let path = convert_from_local_path(Data::platform_data_folder().as_path(), filepath);
         if !File::new(path.as_path()).exists() {
             panic!(
                 "Unable to create_from_file with an invalid path {:?}\nCombining {:?} with {:?}",
                 path,
-                Data::data_folder().as_path(),
+                Data::platform_data_folder().as_path(),
                 filepath
             );
         }

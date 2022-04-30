@@ -38,8 +38,7 @@ impl Context {
     where
         S: System + 'static,
     {
-        let system = Box::new(system);
-        let id = system.id();
+        let id = S::system_id();
         self.scheduler_mut()
             .add_system(phase, system, dependencies, &self.job_handler);
         self.message_hub.send_event(SystemEvent::Added(id, phase));

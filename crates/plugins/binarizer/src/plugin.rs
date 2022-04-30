@@ -1,11 +1,13 @@
-use inox_core::{define_plugin, ContextRc, Plugin, System, SystemId};
+use inox_core::{define_plugin, ContextRc, Plugin, SystemId, SystemUID};
+use inox_resources::{PC_FOLDER, WEB_FOLDER};
 
-use crate::Binarizer;
+use crate::{Binarizer, BINARIZER_TYPE_PC, BINARIZER_TYPE_WEB};
 
 #[repr(C)]
 #[derive(Default)]
 pub struct BinarizerPlugin {
-    updater_id: SystemId,
+    pc_id: SystemId,
+    web_id: SystemId,
 }
 define_plugin!(BinarizerPlugin);
 
@@ -17,17 +19,26 @@ impl Plugin for BinarizerPlugin {
         "inox_binarizer"
     }
     fn prepare(&mut self, context: &ContextRc) {
-        let system = Binarizer::new(
+        let system = Binarizer::<BINARIZER_TYPE_PC>::new(
             context,
             inox_resources::Data::data_raw_folder(),
-            inox_resources::Data::data_folder(),
+            inox_resources::Data::data_folder().join(PC_FOLDER),
         );
-        self.updater_id = Binarizer::system_id();
+        self.pc_id = Binarizer::<BINARIZER_TYPE_PC>::system_id();
+        context.add_system(inox_core::Phases::PreUpdate, system, None);
+
+        let system = Binarizer::<BINARIZER_TYPE_WEB>::new(
+            context,
+            inox_resources::Data::data_raw_folder(),
+            inox_resources::Data::data_folder().join(WEB_FOLDER),
+        );
+        self.web_id = Binarizer::<BINARIZER_TYPE_WEB>::system_id();
         context.add_system(inox_core::Phases::PreUpdate, system, None);
     }
 
     fn unprepare(&mut self, context: &ContextRc) {
-        context.remove_system(inox_core::Phases::PreUpdate, &self.updater_id);
+        context.remove_system(inox_core::Phases::PreUpdate, &self.pc_id);
+        context.remove_system(inox_core::Phases::PreUpdate, &self.web_id);
     }
     fn load_config(&mut self, _context: &ContextRc) {}
 }

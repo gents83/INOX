@@ -8,20 +8,26 @@ use std::{
     thread::{self, JoinHandle},
 };
 
-use inox_core::{ContextRc, System};
+use inox_core::{ContextRc, System, SystemId, SystemUID};
 use inox_messenger::MessageHubRc;
 
 use inox_resources::{ConfigBase, SharedDataRc};
 use inox_serialize::read_from_file;
+use inox_uid::generate_uid_from_string;
 
 use crate::{
     config::Config, CopyCompiler, DataWatcher, FontCompiler, GltfCompiler, ImageCompiler,
     ShaderCompiler,
 };
 
-pub struct Binarizer {
+pub type BinarizerType = usize;
+pub const BINARIZER_TYPE_PC: BinarizerType = 0;
+pub const BINARIZER_TYPE_WEB: BinarizerType = 1;
+
+pub struct Binarizer<const UID: BinarizerType> {
     config: Config,
     data_raw_folder: PathBuf,
+    data_folder: PathBuf,
     shared_data: SharedDataRc,
     message_hub: MessageHubRc,
     thread_handle: Option<JoinHandle<bool>>,
@@ -29,7 +35,7 @@ pub struct Binarizer {
     should_end_on_completion: Arc<AtomicBool>,
 }
 
-impl Binarizer {
+impl<const UID: BinarizerType> Binarizer<UID> {
     pub fn new(
         app_context: &ContextRc,
         mut data_raw_folder: PathBuf,
@@ -54,6 +60,7 @@ impl Binarizer {
             shared_data: app_context.shared_data().clone(),
             message_hub: app_context.message_hub().clone(),
             data_raw_folder,
+            data_folder,
             thread_handle: None,
             is_running: Arc::new(AtomicBool::new(false)),
             should_end_on_completion: Arc::new(AtomicBool::new(true)),
@@ -68,12 +75,32 @@ impl Binarizer {
         inox_log::debug_log!("Starting data binarizer");
         let mut binarizer = DataWatcher::new(self.data_raw_folder.clone());
 
-        let shader_compiler =
-            ShaderCompiler::new(self.shared_data.clone(), self.message_hub.clone());
-        let config_compiler = CopyCompiler::new(self.message_hub.clone());
-        let font_compiler = FontCompiler::new(self.message_hub.clone());
-        let image_compiler = ImageCompiler::new(self.message_hub.clone());
-        let gltf_compiler = GltfCompiler::new(self.shared_data.clone());
+        let shader_compiler = ShaderCompiler::new(
+            self.shared_data.clone(),
+            self.message_hub.clone(),
+            self.data_raw_folder.as_path(),
+            self.data_folder.as_path(),
+        );
+        let config_compiler = CopyCompiler::new(
+            self.message_hub.clone(),
+            self.data_raw_folder.as_path(),
+            self.data_folder.as_path(),
+        );
+        let font_compiler = FontCompiler::new(
+            self.message_hub.clone(),
+            self.data_raw_folder.as_path(),
+            self.data_folder.as_path(),
+        );
+        let image_compiler = ImageCompiler::new(
+            self.message_hub.clone(),
+            self.data_raw_folder.as_path(),
+            self.data_folder.as_path(),
+        );
+        let gltf_compiler = GltfCompiler::new(
+            self.shared_data.clone(),
+            self.data_raw_folder.as_path(),
+            self.data_folder.as_path(),
+        );
         binarizer.add_handler(config_compiler);
         binarizer.add_handler(shader_compiler);
         binarizer.add_handler(font_compiler);
@@ -116,7 +143,19 @@ impl Binarizer {
     }
 }
 
-impl System for Binarizer {
+impl<const UID: BinarizerType> SystemUID for Binarizer<UID> {
+    fn system_id() -> SystemId
+    where
+        Self: Sized,
+    {
+        let mut string = std::any::type_name::<Self>().to_string();
+        string.push('_');
+        string.push_str(&UID.to_string());
+        generate_uid_from_string(&string)
+    }
+}
+
+impl<const UID: BinarizerType> System for Binarizer<UID> {
     fn read_config(&mut self, plugin_name: &str) {
         let should_end_on_completion = self.should_end_on_completion.clone();
         read_from_file(

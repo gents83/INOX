@@ -3,7 +3,7 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use inox_core::{define_plugin, ContextRc, Plugin, System, WindowSystem};
+use inox_core::{define_plugin, ContextRc, Plugin, SystemUID, WindowSystem};
 
 use inox_graphics::{
     rendering_system::RenderingSystem, update_system::UpdateSystem, DebugDrawerSystem, OpaquePass,

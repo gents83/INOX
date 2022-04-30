@@ -9,7 +9,7 @@ use std::{
     thread::{self, JoinHandle},
 };
 
-use inox_core::{ContextRc, System};
+use inox_core::{implement_unique_system_uid, ContextRc, System};
 use inox_log::debug_log;
 use inox_messenger::{Listener, MessageHubRc};
 use inox_resources::{ConfigBase, ConfigEvent, SharedDataRc};
@@ -65,6 +65,8 @@ impl Connector {
             });
     }
 }
+
+implement_unique_system_uid!(Connector);
 
 impl System for Connector {
     fn read_config(&mut self, plugin_name: &str) {

@@ -117,7 +117,7 @@ impl PipelineData {
         !self.vertex_format.is_empty()
     }
     pub fn canonicalize_paths(mut self) -> Self {
-        let data_path = Data::data_folder();
+        let data_path = Data::platform_data_folder();
         if !self.vertex_shader.to_str().unwrap().is_empty() {
             self.vertex_shader =
                 convert_from_local_path(data_path.as_path(), self.vertex_shader.as_path());

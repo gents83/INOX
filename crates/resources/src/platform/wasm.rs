@@ -12,4 +12,8 @@ impl Data {
     pub fn data_folder() -> PathBuf {
         PathBuf::from(".").join(DATA_FOLDER)
     }
+    #[inline]
+    pub fn platform_data_folder() -> PathBuf {
+        PathBuf::from(".").join(DATA_FOLDER).join(WEB_FOLDER)
+    }
 }

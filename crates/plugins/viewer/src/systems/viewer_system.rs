@@ -1,5 +1,5 @@
 use inox_commands::CommandParser;
-use inox_core::{ContextRc, System};
+use inox_core::{implement_unique_system_uid, ContextRc, System};
 use inox_graphics::{
     Light, Material, Mesh, MeshData, Pipeline, Texture, VertexFormat, View, DEFAULT_PIPELINE,
     WIREFRAME_PIPELINE,
@@ -36,6 +36,8 @@ impl Drop for ViewerSystem {
         );
     }
 }
+
+implement_unique_system_uid!(ViewerSystem);
 
 impl System for ViewerSystem {
     fn read_config(&mut self, _plugin_name: &str) {}

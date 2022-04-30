@@ -1,4 +1,4 @@
-use inox_core::{define_plugin, ContextRc, Plugin, System, SystemId};
+use inox_core::{define_plugin, ContextRc, Plugin, SystemId, SystemUID};
 
 use crate::systems::connector::Connector;
 
@@ -18,7 +18,7 @@ impl Plugin for ConnectorPlugin {
     }
     fn prepare(&mut self, context: &ContextRc) {
         let system = Connector::new(context);
-        self.updater_id = system.id();
+        self.updater_id = Connector::system_id();
         context.add_system(inox_core::Phases::Update, system, None);
     }
 
