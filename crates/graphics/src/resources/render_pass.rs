@@ -379,7 +379,7 @@ impl RenderPass {
 
                                 render_pass.set_scissor_rect(x, y, width, height);
                                 render_pass.draw_indexed(
-                                    indices_range.start as _..indices_range.end as _,
+                                    indices_range.start as _..(indices_range.end + 1) as _,
                                     vertices_range.start as _,
                                     index as _..(index as u32 + 1),
                                 );
@@ -388,7 +388,7 @@ impl RenderPass {
                     }
                 } else {
                     render_pass.draw(
-                        0..graphics_data.vertex_count(pipeline_id) as u32,
+                        0..(graphics_data.vertex_count(pipeline_id) + 1) as u32,
                         0..instance_count as u32,
                     );
                 }
