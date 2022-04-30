@@ -7,7 +7,8 @@ use inox_core::{define_plugin, ContextRc, Plugin, SystemUID, WindowSystem};
 
 use inox_graphics::{
     rendering_system::RenderingSystem, update_system::UpdateSystem, DebugDrawerSystem, OpaquePass,
-    Pass, PassEvent, RenderPass, RenderTarget, Renderer, RendererRw, OPAQUE_PASS_NAME,
+    Pass, PassEvent, RenderPass, RenderTarget, Renderer, RendererRw, DEFAULT_HEIGHT, DEFAULT_WIDTH,
+    OPAQUE_PASS_NAME,
 };
 use inox_platform::Window;
 use inox_resources::ConfigBase;
@@ -29,8 +30,8 @@ impl Plugin for Viewer {
                 "SABI".to_string(),
                 0,
                 0,
-                0,
-                0,
+                DEFAULT_WIDTH,
+                DEFAULT_HEIGHT,
                 PathBuf::from("").as_path(),
                 context.message_hub(),
             )

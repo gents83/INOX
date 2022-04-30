@@ -20,8 +20,8 @@ use std::{
     sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard},
 };
 
-const DEFAULT_WIDTH: u32 = 1280;
-const DEFAULT_HEIGHT: u32 = 720;
+pub const DEFAULT_WIDTH: u32 = 1280;
+pub const DEFAULT_HEIGHT: u32 = 720;
 
 #[rustfmt::skip]
 const OPENGL_TO_WGPU_MATRIX: Matrix4 = Matrix4::new(
@@ -248,6 +248,7 @@ impl Renderer {
         context.config.width = width;
         context.config.height = height;
         context.surface.configure(&context.device, &context.config);
+        inox_log::debug_log!("Surface size: {}x{}", width, height);
         self.recreate();
     }
 
