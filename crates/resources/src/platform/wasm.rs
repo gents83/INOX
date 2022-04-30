@@ -1,6 +1,6 @@
 #![cfg(target_arch = "wasm32")]
 
-use crate::{Data, DATA_FOLDER, DATA_RAW_FOLDER};
+use crate::{Data, DATA_FOLDER, DATA_RAW_FOLDER, WEB_FOLDER};
 use std::path::PathBuf;
 
 impl Data {
