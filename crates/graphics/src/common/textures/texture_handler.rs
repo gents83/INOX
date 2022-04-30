@@ -2,7 +2,7 @@ use std::{num::NonZeroU32, path::Path};
 
 use inox_log::debug_log;
 
-use crate::{TextureData, TextureId, MAX_TEXTURE_ATLAS_COUNT};
+use crate::{platform::required_gpu_features, TextureData, TextureId, MAX_TEXTURE_ATLAS_COUNT};
 
 use super::texture_atlas::TextureAtlas;
 
@@ -38,7 +38,7 @@ impl TextureHandler {
             ..Default::default()
         });
         let texture_atlas = vec![TextureAtlas::create_default(device)];
-        let bind_group_entries = [
+        let mut bind_group_entries = vec![
             wgpu::BindGroupLayoutEntry {
                 binding: 0,
                 visibility: wgpu::ShaderStages::FRAGMENT,
@@ -51,7 +51,9 @@ impl TextureHandler {
                 ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Comparison),
                 count: None,
             },
-            wgpu::BindGroupLayoutEntry {
+        ];
+        if required_gpu_features().contains(wgpu::Features::TEXTURE_BINDING_ARRAY) {
+            bind_group_entries.push(wgpu::BindGroupLayoutEntry {
                 binding: 2,
                 visibility: wgpu::ShaderStages::FRAGMENT,
                 ty: wgpu::BindingType::Texture {
@@ -60,8 +62,21 @@ impl TextureHandler {
                     multisampled: false,
                 },
                 count: NonZeroU32::new(MAX_TEXTURE_ATLAS_COUNT),
-            },
-        ];
+            });
+        } else {
+            for i in 0..MAX_TEXTURE_ATLAS_COUNT {
+                bind_group_entries.push(wgpu::BindGroupLayoutEntry {
+                    binding: i + 2,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        multisampled: false,
+                    },
+                    count: None,
+                });
+            }
+        }
         let texture_data_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 label: Some("Textures bind group layout"),
@@ -134,7 +149,7 @@ impl TextureHandler {
                 textures.push(self.texture_atlas[i].texture());
             }
         }
-        let bind_group_entries = [
+        let mut bind_group_entries = vec![
             wgpu::BindGroupEntry {
                 binding: 0,
                 resource: wgpu::BindingResource::Sampler(&self.default_sampler),
@@ -143,11 +158,20 @@ impl TextureHandler {
                 binding: 1,
                 resource: wgpu::BindingResource::Sampler(&self.depth_sampler),
             },
-            wgpu::BindGroupEntry {
+        ];
+        if required_gpu_features().contains(wgpu::Features::TEXTURE_BINDING_ARRAY) {
+            bind_group_entries.push(wgpu::BindGroupEntry {
                 binding: 2,
                 resource: wgpu::BindingResource::TextureViewArray(textures.as_slice()),
-            },
-        ];
+            });
+        } else {
+            (0..MAX_TEXTURE_ATLAS_COUNT).for_each(|i| {
+                bind_group_entries.push(wgpu::BindGroupEntry {
+                    binding: i + 2,
+                    resource: wgpu::BindingResource::TextureView(textures[i as usize]),
+                });
+            });
+        }
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             entries: bind_group_entries.as_slice(),
             layout: &self.texture_data_bind_group_layout,
