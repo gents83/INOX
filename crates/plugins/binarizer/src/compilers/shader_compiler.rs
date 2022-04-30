@@ -10,12 +10,16 @@ use std::{
 
 use crate::{need_to_binarize, send_reloaded_event, ExtensionHandler};
 use inox_filesystem::delete_file;
-use inox_graphics::{read_spirv_from_bytes, ShaderData, SHADER_EXTENSION};
+use inox_graphics::{
+    platform::shader_preprocessor_defs, read_spirv_from_bytes, ShaderData, SHADER_EXTENSION,
+};
 
 use inox_messenger::MessageHubRc;
+use inox_platform::PlatformType;
 use inox_resources::SharedDataRc;
 use inox_serialize::SerializeFile;
 use inox_uid::generate_random_uid;
+use regex::Regex;
 
 const SHADERS_FOLDER_NAME: &str = "shaders";
 
@@ -25,7 +29,7 @@ const VERTEX_SHADER_EXTENSION: &str = "vert";
 const FRAGMENT_SHADER_EXTENSION: &str = "frag";
 const GEOMETRY_SHADER_EXTENSION: &str = "geom";
 
-pub struct ShaderCompiler {
+pub struct ShaderCompiler<const PLATFORM_TYPE: PlatformType> {
     shared_data: SharedDataRc,
     message_hub: MessageHubRc,
     data_raw_folder: PathBuf,
@@ -35,7 +39,7 @@ pub struct ShaderCompiler {
     spirv_validator: PathBuf,
 }
 
-impl ShaderCompiler {
+impl<const PLATFORM_TYPE: PlatformType> ShaderCompiler<PLATFORM_TYPE> {
     pub fn new(
         shared_data: SharedDataRc,
         message_hub: MessageHubRc,
@@ -178,17 +182,46 @@ impl ShaderCompiler {
             let mut file = std::fs::File::open(path.to_str().unwrap()).unwrap();
             let mut data = Vec::new();
             file.read_to_end(&mut data).unwrap();
+            let shader_code = String::from_utf8(data).unwrap();
+            let preprocessed_code = self.preprocess_code(shader_code);
             let shader_data = ShaderData {
-                wgsl_code: String::from_utf8(data).unwrap(),
+                wgsl_code: preprocessed_code,
                 ..Default::default()
             };
             shader_data.save_to_file(new_path.as_path(), self.shared_data.serializable_registry());
             send_reloaded_event(&self.message_hub, new_path.as_path());
         }
     }
+
+    fn preprocess_code(&self, code: String) -> String {
+        let available_defs = shader_preprocessor_defs::<PLATFORM_TYPE>();
+        let mut string = String::new();
+        let ifdef_regex = Regex::new(r"^\s*#\s*ifdef\s*([\w|\d|_]+)").unwrap();
+        let else_regex = Regex::new(r"^\s*#\s*else").unwrap();
+        let endif_regex = Regex::new(r"^\s*#\s*endif").unwrap();
+        let mut should_skip = false;
+        for line in code.lines() {
+            if let Some(cap) = ifdef_regex.captures(line) {
+                let def = cap.get(1).unwrap().as_str().to_string();
+                should_skip = !available_defs.contains(&def);
+                continue;
+            } else if else_regex.is_match(line) {
+                should_skip = !should_skip;
+                continue;
+            } else if endif_regex.is_match(line) {
+                should_skip = false;
+                continue;
+            }
+            if !should_skip {
+                string.push_str(line);
+                string.push('\n');
+            }
+        }
+        string
+    }
 }
 
-impl ExtensionHandler for ShaderCompiler {
+impl<const PLATFORM_TYPE: PlatformType> ExtensionHandler for ShaderCompiler<PLATFORM_TYPE> {
     fn on_changed(&mut self, path: &Path) {
         if let Some(ext) = path.extension() {
             match ext.to_str().unwrap().to_string().as_str() {

@@ -11,6 +11,7 @@ use std::{
 use inox_core::{ContextRc, System, SystemId, SystemUID};
 use inox_messenger::MessageHubRc;
 
+use inox_platform::PlatformType;
 use inox_resources::{ConfigBase, SharedDataRc};
 use inox_serialize::read_from_file;
 use inox_uid::generate_uid_from_string;
@@ -20,11 +21,7 @@ use crate::{
     ShaderCompiler,
 };
 
-pub type BinarizerType = usize;
-pub const BINARIZER_TYPE_PC: BinarizerType = 0;
-pub const BINARIZER_TYPE_WEB: BinarizerType = 1;
-
-pub struct Binarizer<const UID: BinarizerType> {
+pub struct Binarizer<const PLATFORM_TYPE: PlatformType> {
     config: Config,
     data_raw_folder: PathBuf,
     data_folder: PathBuf,
@@ -35,7 +32,7 @@ pub struct Binarizer<const UID: BinarizerType> {
     should_end_on_completion: Arc<AtomicBool>,
 }
 
-impl<const UID: BinarizerType> Binarizer<UID> {
+impl<const PLATFORM_TYPE: PlatformType> Binarizer<PLATFORM_TYPE> {
     pub fn new(
         app_context: &ContextRc,
         mut data_raw_folder: PathBuf,
@@ -75,7 +72,7 @@ impl<const UID: BinarizerType> Binarizer<UID> {
         inox_log::debug_log!("Starting data binarizer");
         let mut binarizer = DataWatcher::new(self.data_raw_folder.clone());
 
-        let shader_compiler = ShaderCompiler::new(
+        let shader_compiler = ShaderCompiler::<PLATFORM_TYPE>::new(
             self.shared_data.clone(),
             self.message_hub.clone(),
             self.data_raw_folder.as_path(),
@@ -143,19 +140,19 @@ impl<const UID: BinarizerType> Binarizer<UID> {
     }
 }
 
-impl<const UID: BinarizerType> SystemUID for Binarizer<UID> {
+impl<const PLATFORM_TYPE: PlatformType> SystemUID for Binarizer<PLATFORM_TYPE> {
     fn system_id() -> SystemId
     where
         Self: Sized,
     {
         let mut string = std::any::type_name::<Self>().to_string();
         string.push('_');
-        string.push_str(&UID.to_string());
+        string.push_str(&PLATFORM_TYPE.to_string());
         generate_uid_from_string(&string)
     }
 }
 
-impl<const UID: BinarizerType> System for Binarizer<UID> {
+impl<const PLATFORM_TYPE: PlatformType> System for Binarizer<PLATFORM_TYPE> {
     fn read_config(&mut self, plugin_name: &str) {
         let should_end_on_completion = self.should_end_on_completion.clone();
         read_from_file(

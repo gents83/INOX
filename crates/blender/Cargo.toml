@@ -17,6 +17,7 @@ inox_graphics = { path = "../graphics" }
 inox_filesystem = { path = "../filesystem" }
 inox_math = { path = "../math" }
 inox_nodes = { path = "../nodes" }
+inox_platform = { path = "../platform" }
 inox_resources = { path = "../resources" }
 inox_scene = { path = "../scene" }
 inox_serialize = { path = "../serialize" }

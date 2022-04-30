@@ -3,10 +3,11 @@ use inox_resources::Singleton;
 use inox_serialize::inox_serializable::SerializableRegistryRc;
 use pyo3::{pyclass, pymethods, PyResult, Python};
 
-use inox_binarizer::{Binarizer, BINARIZER_TYPE_PC};
+use inox_binarizer::Binarizer;
 use inox_core::App;
 use inox_filesystem::EXE_PATH;
 use inox_nodes::{LogicNodeRegistry, NodeType};
+use inox_platform::PLATFORM_TYPE_PC;
 use inox_resources::{DATA_FOLDER, DATA_RAW_FOLDER};
 
 use std::{
@@ -35,7 +36,7 @@ unsafe impl Sync for ThreadData {}
 pub struct INOXEngine {
     is_running: Arc<AtomicBool>,
     exporter: Exporter,
-    binarizer: Binarizer<BINARIZER_TYPE_PC>,
+    binarizer: Binarizer<PLATFORM_TYPE_PC>,
     app: App,
     app_dir: PathBuf,
     working_dir: PathBuf,

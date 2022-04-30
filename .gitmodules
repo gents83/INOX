@@ -49,3 +49,6 @@
 [submodule "extern/naga"]
 	path = extern/naga
 	url = https://github.com/gfx-rs/naga
+[submodule "extern/regex"]
+	path = extern/regex
+	url = https://github.com/rust-lang/regex

@@ -10,6 +10,7 @@ crate-type = ["rlib", "cdylib"]
 
 [target.'cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))'.dependencies]
 meshopt = { path = "../../../extern/meshopt-rs" }
+regex = { path = "../../../extern/regex" }
 gltf = { path = "../../../extern/gltf", features = ["extras", "names", "KHR_lights_punctual", "KHR_materials_pbrSpecularGlossiness"] }
 inox_core = { path = "../../core" }
 inox_filesystem = { path = "../../filesystem" }

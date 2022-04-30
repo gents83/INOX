@@ -17,6 +17,12 @@ pub mod window;
 
 pub mod input;
 
+pub type PlatformType = usize;
+pub const PLATFORM_TYPE_PC: PlatformType = 0;
+pub const PLATFORM_TYPE_WEB: PlatformType = 1;
+pub const PLATFORM_TYPE_ANDROID: PlatformType = 2;
+pub const PLATFORM_TYPE_IOS: PlatformType = 3;
+
 pub mod platform_impl {
     #[cfg(target_os = "android")]
     #[path = "android/platform.rs"]
