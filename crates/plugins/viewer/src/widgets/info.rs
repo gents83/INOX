@@ -64,11 +64,11 @@ impl Info {
             data.dt = data.context.global_timer().dt().as_millis();
 
             if data.hierarchy.0 && data.hierarchy.1.is_none() {
-                data.hierarchy.1 = Some(Hierarchy::new(
+                data.hierarchy.1 = Hierarchy::new(
                     data.context.shared_data(),
                     data.context.message_hub(),
                     &data.params.scene_id,
-                ));
+                );
             } else if !data.hierarchy.0 && data.hierarchy.1.is_some() {
                 data.hierarchy.1 = None;
             }

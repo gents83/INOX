@@ -22,7 +22,11 @@ pub struct Hierarchy {
 }
 
 impl Hierarchy {
-    pub fn new(shared_data: &SharedDataRc, message_hub: &MessageHubRc, scene_id: &SceneId) -> Self {
+    pub fn new(
+        shared_data: &SharedDataRc,
+        message_hub: &MessageHubRc,
+        scene_id: &SceneId,
+    ) -> Option<Self> {
         if let Some(scene) = SharedData::get_resource::<Scene>(shared_data, scene_id) {
             let data = HierarchyData {
                 shared_data: shared_data.clone(),
@@ -30,11 +34,11 @@ impl Hierarchy {
                 selected_object: INVALID_UID,
                 scene,
             };
-            return Self {
+            return Some(Self {
                 ui_page: Self::create(shared_data, message_hub, data),
-            };
+            });
         }
-        panic!("Hierarchy scene {:?} not found", scene_id);
+        None
     }
 
     pub fn select_object(&mut self, object_id: ObjectId) -> &mut Self {

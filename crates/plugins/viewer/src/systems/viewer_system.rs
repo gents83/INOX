@@ -330,6 +330,7 @@ impl ViewerSystem {
                             PathBuf::from(scene_path).as_path(),
                             None,
                         );
+                        self.info.set_scene_id(self.scene.id());
                     }
                 }
             });
