@@ -16,27 +16,38 @@ impl Window {
         _y: u32,
         width: &mut u32,
         height: &mut u32,
-        _scale_factor: &mut f32,
+        scale_factor: &mut f32,
         _icon_path: &Path,
         events_dispatcher: &MessageHubRc,
     ) -> Handle {
-        let document = web_sys::window().unwrap().document().unwrap();
+        let window = web_sys::window().unwrap();
+        let document = window.document().unwrap();
         let canvas = document.get_element_by_id("canvas").unwrap();
         canvas.set_attribute("tabindex", "0").ok();
         canvas.set_attribute("data-raw-handle", "0").ok();
         let canvas: web_sys::HtmlCanvasElement =
             canvas.dyn_into::<web_sys::HtmlCanvasElement>().unwrap();
-        canvas.set_width(*width as u32);
-        canvas.set_height(*height as u32);
+        let window_width =
+            (window.inner_width().unwrap().as_f64().unwrap()).max(*width as f64) as f32;
+        let window_height =
+            (window.inner_height().unwrap().as_f64().unwrap()).max(*height as f64) as f32;
+        let device_pixel_ratio = window.device_pixel_ratio();
+        *scale_factor = device_pixel_ratio.min(1.) as _;
+        *width = window_width as u32;
+        *height = window_height as u32;
+        canvas.set_width(*width);
+        canvas.set_height(*height);
         canvas
             .style()
-            .set_property("width", &format!("{}px", width))
+            .set_property("width", &format!("{}px", *width))
             .ok();
         canvas
             .style()
-            .set_property("height", &format!("{}px", height))
+            .set_property("height", &format!("{}px", *height))
             .ok();
-        events_dispatcher.send_event(WindowEvent::SizeChanged(canvas.width(), canvas.height()));
+        events_dispatcher.send_event(WindowEvent::PosChanged(0, 0));
+        events_dispatcher.send_event(WindowEvent::SizeChanged(*width, *height));
+        events_dispatcher.send_event(WindowEvent::ScaleFactorChanged(*scale_factor));
 
         Self::add_mouse_event_listener(events_dispatcher, &canvas, "mousemove", MouseState::Move);
         Self::add_mouse_event_listener(events_dispatcher, &canvas, "mousedown", MouseState::Down);

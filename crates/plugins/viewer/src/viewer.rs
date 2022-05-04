@@ -36,10 +36,10 @@ impl Plugin for Viewer {
                 context.message_hub(),
             )
         };
-        let renderer = Renderer::new(window.get_handle(), context, false);
+        let renderer = Renderer::new(window.handle(), context, false);
         let renderer = Arc::new(RwLock::new(renderer));
 
-        Self::create_render_passes(context);
+        Self::create_render_passes(context, window.width(), window.height());
 
         Viewer {
             window: Some(window),
@@ -115,13 +115,13 @@ impl Plugin for Viewer {
 }
 
 impl Viewer {
-    fn create_render_passes(context: &ContextRc) {
+    fn create_render_passes(context: &ContextRc, width: u32, height: u32) {
         let opaque_pass = OpaquePass::create(context);
         let ui_pass = UIPass::create(context);
 
         let opaque_pass_render_target = RenderTarget::Texture {
-            width: 1920,
-            height: 1080,
+            width,
+            height,
             read_back: false,
         };
         opaque_pass

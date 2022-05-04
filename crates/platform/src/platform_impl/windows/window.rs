@@ -322,7 +322,6 @@ impl Window {
             WM_DPICHANGED => {
                 let mut rect: RECT = *(lparam as *const c_void as *const RECT);
                 let dpi_x = LOWORD(wparam as _);
-                let dpi_y = HIWORD(wparam as _);
                 AdjustWindowRectEx(&mut rect, WS_OVERLAPPEDWINDOW, FALSE, 0);
                 SetWindowPos(
                     hwnd,
@@ -334,7 +333,8 @@ impl Window {
                     SWP_FRAMECHANGED | SWP_NOACTIVATE | SWP_NOZORDER,
                 );
                 if let Some(events_dispatcher) = &mut EVENTS_DISPATCHER {
-                    events_dispatcher.send_event(WindowEvent::DpiChanged(dpi_x as _, dpi_y as _));
+                    events_dispatcher
+                        .send_event(WindowEvent::ScaleFactorChanged(dpi_x as f32 / DEFAULT_DPI));
                 }
             }
             WM_SIZE => {

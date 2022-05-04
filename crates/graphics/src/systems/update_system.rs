@@ -12,7 +12,7 @@ use inox_uid::generate_random_uid;
 
 use crate::{
     is_shader, Light, Material, Mesh, PassEvent, Pipeline, RenderPass, RendererRw, RendererState,
-    Texture, View,
+    Texture, View, DEFAULT_HEIGHT, DEFAULT_WIDTH,
 };
 
 use super::config::Config;
@@ -26,6 +26,9 @@ pub struct UpdateSystem {
     listener: Listener,
     render_passes: Vec<Resource<RenderPass>>,
     view: Resource<View>,
+    scale_factor: f32,
+    width: u32,
+    height: u32,
 }
 
 impl UpdateSystem {
@@ -46,17 +49,34 @@ impl UpdateSystem {
             message_hub: context.message_hub().clone(),
             listener,
             render_passes: Vec::new(),
+            scale_factor: 1.0,
+            width: DEFAULT_WIDTH,
+            height: DEFAULT_HEIGHT,
         }
     }
 
     fn handle_events(&mut self) {
         //REMINDER: message processing order is important - RenderPass must be processed before Texture
         self.listener
-            .process_messages(|e: &WindowEvent| {
-                if let WindowEvent::SizeChanged(width, height) = e {
+            .process_messages(|e: &WindowEvent| match e {
+                WindowEvent::SizeChanged(width, height) => {
+                    self.width = *width;
+                    self.height = *height;
                     let mut renderer = self.renderer.write().unwrap();
-                    renderer.set_surface_size(*width, *height);
+                    renderer.set_surface_size(
+                        (*width as f32 * self.scale_factor) as _,
+                        (*height as f32 * self.scale_factor) as _,
+                    );
                 }
+                WindowEvent::ScaleFactorChanged(v) => {
+                    self.scale_factor = *v;
+                    let mut renderer = self.renderer.write().unwrap();
+                    renderer.set_surface_size(
+                        (self.width as f32 * self.scale_factor) as _,
+                        (self.height as f32 * self.scale_factor) as _,
+                    );
+                }
+                _ => {}
             })
             .process_messages(|e: &ReloadEvent| {
                 let ReloadEvent::Reload(path) = e;

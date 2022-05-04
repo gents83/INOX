@@ -29,7 +29,6 @@ use inox_math::Vector4;
 use inox_messenger::{Listener, MessageHubRc};
 use inox_platform::{
     InputState, KeyEvent, KeyTextEvent, MouseButton, MouseEvent, MouseState, WindowEvent,
-    DEFAULT_DPI,
 };
 use inox_resources::{
     to_u8_slice, ConfigBase, ConfigEvent, DataTypeResource, Resource, SerializableResource,
@@ -246,8 +245,8 @@ impl UISystem {
                         [width as f32 / self.ui_scale, height as f32 / self.ui_scale].into(),
                     ));
                 }
-                WindowEvent::DpiChanged(x, _y) => {
-                    self.ui_input.pixels_per_point = Some(x / DEFAULT_DPI);
+                WindowEvent::ScaleFactorChanged(v) => {
+                    self.ui_input.pixels_per_point = Some(v);
                 }
                 _ => {}
             })

@@ -11,7 +11,7 @@ pub enum WindowEvent {
     Show,
     Hide,
     Close,
-    DpiChanged(f32, f32),
+    ScaleFactorChanged(f32),
     SizeChanged(u32, u32),
     PosChanged(u32, u32),
     RequestChangeVisible(bool),
@@ -37,8 +37,8 @@ impl WindowEvent {
         } else if command_parser.has("window_close") {
             return Some(WindowEvent::Close);
         } else if command_parser.has("dpi_changed") {
-            let values = command_parser.get_values_of("dpi_changed");
-            return Some(WindowEvent::DpiChanged(values[0], values[1]));
+            let values = command_parser.get_values_of("scale_factor");
+            return Some(WindowEvent::ScaleFactorChanged(values[0]));
         } else if command_parser.has("window_size_changed") {
             let values = command_parser.get_values_of("window_size_changed");
             return Some(WindowEvent::SizeChanged(values[0], values[1]));
@@ -119,31 +119,31 @@ impl Window {
     }
 
     #[inline]
-    pub fn get_scale_factor(&self) -> f32 {
+    pub fn scale_factor(&self) -> f32 {
         self.scale_factor
     }
 
     #[inline]
-    pub fn get_x(&self) -> u32 {
+    pub fn x(&self) -> u32 {
         self.x
     }
     #[inline]
-    pub fn get_y(&self) -> u32 {
+    pub fn y(&self) -> u32 {
         self.y
     }
 
     #[inline]
-    pub fn get_width(&self) -> u32 {
+    pub fn width(&self) -> u32 {
         self.width
     }
 
     #[inline]
-    pub fn get_heigth(&self) -> u32 {
+    pub fn height(&self) -> u32 {
         self.height
     }
 
     #[inline]
-    pub fn get_handle(&self) -> &Handle {
+    pub fn handle(&self) -> &Handle {
         &self.handle
     }
 
@@ -163,8 +163,8 @@ impl Window {
         let mut y = self.y;
 
         self.listener.process_messages(|e: &WindowEvent| match e {
-            WindowEvent::DpiChanged(new_x, _y) => {
-                scale_factor = *new_x / DEFAULT_DPI;
+            WindowEvent::ScaleFactorChanged(v) => {
+                scale_factor = *v;
             }
             WindowEvent::SizeChanged(new_width, new_height) => {
                 width = *new_width;
