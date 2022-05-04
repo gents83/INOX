@@ -10,12 +10,14 @@
         body {
             margin: 0;
             overflow: hidden;
+            width: 100%;
             height: 100%;
         }
 
         canvas {
             width: 100vw !important;
             height: 100vh !important;
+            aspect-ratio: 16 / 9;
         }
     </style>
 </head>
@@ -23,10 +25,10 @@
 <body>
     <noscript>This page contains webassembly and javascript content, please enable javascript in your
         browser.</noscript>
-    <canvas id="canvas" width="1280" height="720"></canvas>
+    <canvas id="canvas" width="100%" height="100%"></canvas>
     <script type="module">
-        import init from './inox_launcher.js';
-        import { send_event_from_string } from './inox_launcher.js';
+        import init from './web/inox_launcher.js';
+        import { send_event_from_string } from './web/inox_launcher.js';
 
         var canvas = document.getElementById('canvas');
         var context = canvas.getContext('webgpu');
@@ -35,10 +37,12 @@
             span.innerText = 'Your browser does not seem to support WebGPU';
             document.body.appendChild(span);
         } else {
-            init().then(wasm => {
-                var s = '-load_file models/Suzanne/Suzanne.scene';
-                send_event_from_string(s);
-            }).catch(console.error);
+            window.addEventListener("load", () => {
+                init().then(wasm => {
+                    var s = '-load_file models/craftman/craftman.scene';
+                    send_event_from_string(s);
+                }).catch(console.error);
+            });
         }
     </script>
 </body>
