@@ -52,6 +52,3 @@
 [submodule "extern/regex"]
 	path = extern/regex
 	url = https://github.com/rust-lang/regex
-[submodule "extern/jpeg-decoder"]
-	path = extern/jpeg-decoder
-	url = https://github.com/gents83/jpeg-decoder
