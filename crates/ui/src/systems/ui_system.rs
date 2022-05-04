@@ -159,6 +159,22 @@ impl UISystem {
                     format!("ui_system::ui_mesh_{}_data", i).as_str(),
                     JobPriority::Medium,
                     move || {
+                        {
+                            inox_profiler::scoped_profile!("ui_system::set_mesh_properties");
+                            mesh_instance
+                                .get_mut()
+                                .set_path(PathBuf::from(format!("UI_Mesh[{}].ui", i)).as_path())
+                                .set_material(material)
+                                .set_draw_area(Vector4::new(
+                                    clip_rect.min.x * ui_scale,
+                                    clip_rect.min.y * ui_scale,
+                                    clip_rect.max.x * ui_scale,
+                                    clip_rect.max.y * ui_scale,
+                                ))
+                                .set_draw_index(draw_index)
+                                .set_visible(true);
+                        }
+
                         let (vertices_range, indices_range) = {
                             inox_profiler::scoped_profile!("ui_system::copy_vertex_data");
 
@@ -177,21 +193,11 @@ impl UISystem {
                         };
 
                         {
-                            inox_profiler::scoped_profile!("ui_system::set_mesh_properties");
+                            inox_profiler::scoped_profile!("ui_system::set_mesh_ranges");
                             mesh_instance
                                 .get_mut()
-                                .set_path(PathBuf::from(format!("UI_Mesh[{}].ui", i)).as_path())
                                 .set_vertices_range(vertices_range)
-                                .set_indices_range(indices_range)
-                                .set_material(material)
-                                .set_draw_area(Vector4::new(
-                                    clip_rect.min.x * ui_scale,
-                                    clip_rect.min.y * ui_scale,
-                                    clip_rect.max.x * ui_scale,
-                                    clip_rect.max.y * ui_scale,
-                                ))
-                                .set_draw_index(draw_index)
-                                .set_visible(true);
+                                .set_indices_range(indices_range);
                         }
                     },
                 );

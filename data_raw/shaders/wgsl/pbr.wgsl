@@ -16,6 +16,8 @@ let TEXTURE_TYPE_COUNT: u32 = 8u;
 let CONSTANT_DATA_FLAGS_NONE: u32 = 0u;
 let CONSTANT_DATA_FLAGS_SUPPORT_SRGB: u32 = 1u;
 
+let PI = 3.14159265359;
+
 struct ConstantData {
     view: mat4x4<f32>,
     proj: mat4x4<f32>,
@@ -88,16 +90,18 @@ struct InstanceInput {
 
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
-    @location(0) color: vec4<f32>,
-    @location(1) normal: vec3<f32>,
-    @location(2) @interpolate(flat) material_index: i32,
-    @location(3) tex_coords_base_color: vec3<f32>,
-    @location(4) tex_coords_metallic_roughness: vec3<f32>,
-    @location(5) tex_coords_normal: vec3<f32>,
-    @location(6) tex_coords_emissive: vec3<f32>,
-    @location(7) tex_coords_occlusion: vec3<f32>,
-    @location(8) tex_coords_specular_glossiness: vec3<f32>,
-    @location(9) tex_coords_diffuse: vec3<f32>,
+    @location(0) world_pos: vec4<f32>,
+    @location(1) color: vec4<f32>,
+    @location(2) normal: vec3<f32>,
+    @location(3) view: vec3<f32>,
+    @location(4) @interpolate(flat) material_index: i32,
+    @location(5) tex_coords_base_color: vec3<f32>,
+    @location(6) tex_coords_metallic_roughness: vec3<f32>,
+    @location(7) tex_coords_normal: vec3<f32>,
+    @location(8) tex_coords_emissive: vec3<f32>,
+    @location(9) tex_coords_occlusion: vec3<f32>,
+    @location(10) tex_coords_specular_glossiness: vec3<f32>,
+    @location(11) tex_coords_diffuse: vec3<f32>,
 };
 
 
@@ -195,8 +199,12 @@ fn vs_main(
     );
 
     var vertex_out: VertexOutput;
-    vertex_out.clip_position = constant_data.proj * constant_data.view * instance_matrix * vec4<f32>(v.position, 1.0);
-    vertex_out.normal = normalize(normal_matrix * v.normal);
+    vertex_out.world_pos = instance_matrix * vec4<f32>(v.position, 1.0);
+    vertex_out.clip_position = constant_data.proj * constant_data.view * vertex_out.world_pos;
+    vertex_out.normal = normalize((instance_matrix * vec4<f32>(v.normal, 0.0)).xyz);
+
+    let view_pos = vec3<f32>(constant_data.view[3][0], constant_data.view[3][1], constant_data.view[3][2]);
+    vertex_out.view = view_pos - vertex_out.world_pos.xyz;
     vertex_out.color = v.color;
     vertex_out.material_index = instance.material_index;
 
@@ -213,7 +221,20 @@ fn vs_main(
     return vertex_out;
 }
 
-fn get_atlas_index(material_index: u32, texture_type: u32) -> u32 {
+fn has_texture(material_index: i32, texture_type: u32) -> bool {
+    if (material_index < 0) {
+        return false;
+    }
+    if (dynamic_data.materials_data[u32(material_index)].textures_indices[texture_type] >= 0) {
+        return true;
+    }
+    return false;
+}
+
+fn get_atlas_index(material_index: i32, texture_type: u32) -> u32 {
+    if (material_index < 0) {
+        return 0u;
+    }
     let texture_data_index = dynamic_data.materials_data[material_index].textures_indices[texture_type];
     if (texture_data_index < 0) {
         return 0u;
@@ -221,8 +242,11 @@ fn get_atlas_index(material_index: u32, texture_type: u32) -> u32 {
     return dynamic_data.textures_data[texture_data_index].texture_index;
 }
 
-fn get_texture_color(material_index: u32, texture_type: u32, tex_coords: vec3<f32>) -> vec4<f32> {
-    let atlas_index = get_atlas_index(material_index, texture_type);    
+fn get_texture_color(material_index: i32, texture_type: u32, tex_coords: vec3<f32>) -> vec4<f32> {
+    if (material_index < 0) {
+        return vec4<f32>(0.0, 0.0, 0.0, 0.0);
+    }
+    let atlas_index = get_atlas_index(material_index, texture_type);   
 
 #ifdef FEATURES_TEXTURE_BINDING_ARRAY
     return textureSampleLevel(texture_array[atlas_index], default_sampler, tex_coords.xy, tex_coords.z);
@@ -262,36 +286,148 @@ fn get_texture_color(material_index: u32, texture_type: u32, tex_coords: vec3<f3
 #endif
 }
 
+struct SurfaceInfo {
+    color: vec4<f32>,
+    albedo: vec3<f32>,
+    metallic: f32,
+    roughness: f32,
+    normal: vec3<f32>,
+    f0: vec3<f32>,
+    ao: f32,
+    emissive: vec3<f32>,
+    v: vec3<f32>
+};
+
+fn get_surface_info(v: VertexOutput) -> SurfaceInfo {
+    var surface : SurfaceInfo;
+    surface.v = normalize(v.view);
+    surface.normal = normalize(v.normal);
+    surface.ao = 1.0;
+    surface.color = v.color;
+
+    if (v.material_index < 0) {
+        return surface;
+    }
+    let material = dynamic_data.materials_data[v.material_index];
+    surface.color = surface.color * material.base_color;
+    if (has_texture(v.material_index, TEXTURE_TYPE_BASE_COLOR)) {
+        surface.color = surface.color * get_texture_color(v.material_index, TEXTURE_TYPE_BASE_COLOR, v.tex_coords_base_color);
+    }
+
+    surface.albedo = surface.color.rgb;
+    surface.emissive = material.emissive_color.rgb;
+    surface.metallic = material.metallic_factor;
+    surface.roughness = material.roughness_factor;
+
+    if (has_texture(v.material_index, TEXTURE_TYPE_METALLIC_ROUGHNESS)) {
+        let metallic_roughness = get_texture_color(v.material_index, TEXTURE_TYPE_METALLIC_ROUGHNESS, v.tex_coords_metallic_roughness);
+        surface.metallic = surface.metallic * metallic_roughness.b;
+        surface.roughness = surface.roughness * metallic_roughness.g;
+    }
+
+    let dielectric_specular = vec3<f32>(0.04, 0.04, 0.04);
+    surface.f0 = mix(dielectric_specular, surface.albedo, vec3<f32>(surface.metallic, surface.metallic, surface.metallic));
+
+    if (has_texture(v.material_index, TEXTURE_TYPE_OCCLUSION)) {
+        let ao = get_texture_color(v.material_index, TEXTURE_TYPE_OCCLUSION, v.tex_coords_occlusion);
+        surface.ao = ao.r * material.alpha_cutoff;
+    }
+
+    if (has_texture(v.material_index, TEXTURE_TYPE_EMISSIVE)) {
+        let emissive = get_texture_color(v.material_index, TEXTURE_TYPE_EMISSIVE, v.tex_coords_emissive);
+        surface.emissive = surface.emissive * emissive.rgb;
+    }
+
+    return surface;
+}
+
+
+fn compute_fresnel_schlick(cosTheta: f32, F0: vec3<f32>) -> vec3<f32> {
+    return F0 + (vec3<f32>(1.0, 1.0, 1.0) - F0) * pow(1.0 - cosTheta, 5.0);
+}
+fn compute_distribution_GGX(N: vec3<f32>, H: vec3<f32>, roughness: f32) -> f32 {
+    let a = roughness * roughness;
+    let a2 = a * a;
+    let NdotH = max(dot(N, H), 0.0);
+    let NdotH2 = NdotH * NdotH;
+    let num = a2;
+    let denom = (NdotH2 * (a2 - 1.0) + 1.0);
+    return num / (PI * denom * denom);
+}
+fn compute_geometry_schlick_GGX(NdotV: f32, roughness: f32) -> f32 {
+    let r = (roughness + 1.0);
+    let k = (r * r) / 8.0;
+    let num = NdotV;
+    let denom = NdotV * (1.0 - k) + k;
+    return num / denom;
+}
+fn compute_geometry_smith(N: vec3<f32>, V: vec3<f32>, L: vec3<f32>, roughness: f32) -> f32 {
+    let NdotV = max(dot(N, V), 0.0);
+    let NdotL = max(dot(N, L), 0.0);
+    let ggx2 = compute_geometry_schlick_GGX(NdotV, roughness);
+    let ggx1 = compute_geometry_schlick_GGX(NdotL, roughness);
+    return ggx1 * ggx2;
+}
+fn compute_range_attenuation(range: f32, distance: f32) -> f32 {
+    if (range <= 0.0) {
+      // Negative range means no cutoff
+        return 1.0 / pow(distance, 2.0);
+    }
+    return clamp(1.0 - pow(distance / range, 4.0), 0.0, 1.0) / pow(distance, 2.0);
+}
+fn compute_light_radiance(position: vec3<f32>, light: LightData, surface: SurfaceInfo) -> vec3<f32> {
+    let point_to_light = light.position - position;
+    let L = normalize(point_to_light);
+    let H = normalize(surface.v + L);
+    let distance = length(point_to_light);
+  // cook-torrance brdf
+    let NDF = compute_distribution_GGX(surface.normal, H, surface.roughness);
+    let G = compute_geometry_smith(surface.normal, surface.v, L, surface.roughness);
+    let F = compute_fresnel_schlick(max(dot(H, surface.v), 0.0), surface.f0);
+    let kD = (vec3<f32>(1.0, 1.0, 1.0) - F) * (1.0 - surface.metallic);
+    let NdotL = max(dot(surface.normal, L), 0.0);
+    let numerator = NDF * G * F;
+    let denominator = max(4.0 * max(dot(surface.normal, surface.v), 0.0) * NdotL, 0.001);
+    let specular = numerator / vec3<f32>(denominator, denominator, denominator);
+    // add to outgoing radiance Lo
+    let attenuation = compute_range_attenuation(light.range, distance);
+    let radiance = light.color.rgb * light.intensity * attenuation;
+    return (kD * surface.albedo / vec3<f32>(PI, PI, PI) + specular) * radiance * NdotL;
+}
+
+  // linear <-> sRGB conversions
+fn linear_to_srgb(color: vec3<f32>) -> vec3<f32> {
+    if (all(color <= vec3<f32>(0.0031308, 0.0031308, 0.0031308))) {
+        return color * 12.92;
+    }
+    return (pow(abs(color), vec3<f32>(1.0 / 2.4, 1.0 / 2.4, 1.0 / 2.4)) * 1.055) - vec3<f32>(0.055, 0.055, 0.055);
+}
+fn srgb_to_linear(color: vec3<f32>) -> vec3<f32> {
+    if (all(color <= vec3<f32>(0.04045, 0.04045, 0.04045))) {
+        return color / vec3<f32>(12.92, 12.92, 12.92);
+    }
+    return pow((color + vec3<f32>(0.055, 0.055, 0.055)) / vec3<f32>(1.055, 1.055, 1.055), vec3<f32>(2.4, 2.4, 2.4));
+}
 
 @fragment
 fn fs_main(v: VertexOutput) -> @location(0) vec4<f32> {
-    var color: vec4<f32> = v.color;
-    if (v.material_index >= 0) {
-        color = color * get_texture_color(u32(v.material_index), TEXTURE_TYPE_BASE_COLOR, v.tex_coords_base_color);
-    }
+    let surface = get_surface_info(v);
+    
+    // reflectance equation
+    var color_from_light = vec3<f32>(0.0, 0.0, 0.0);
 
-    var color_from_light = color.rgb;
     var i = 0u;
     loop {
         if (dynamic_data.lights_data[i].light_type == 0u) {
             break;
         }
-        let light_color = dynamic_data.lights_data[i].color.rgb;
-        let ambient_strength = dynamic_data.lights_data[i].intensity / 10000.;
-        let ambient_color = light_color * ambient_strength;
-        let light_dir = normalize(dynamic_data.lights_data[i].position - v.clip_position.xyz);
-        let diffuse_strength = max(dot(v.normal, light_dir), 0.0);
-        let diffuse_color = light_color * diffuse_strength;
-        let view_pos = vec3<f32>(constant_data.view[3][0], constant_data.view[3][1], constant_data.view[3][2]);
-        let view_dir = normalize(view_pos - v.clip_position.xyz);
-    
-	    //Blinn-Phong
-        let half_dir = normalize(view_dir + light_dir);
-        let specular_strength = pow(max(dot(v.normal, half_dir), 0.0), 32.);
-        let specular_color = specular_strength * light_color;
-        color_from_light = color_from_light * (ambient_color + diffuse_color + specular_color);
+        
+        // calculate per-light radiance and add to outgoing radiance Lo
+        color_from_light = color_from_light + compute_light_radiance(v.world_pos.xyz, dynamic_data.lights_data[i], surface);
         i = i + 1u;
     }
 
-    return vec4<f32>(color_from_light.rgb, color.a);
+    let ambient = surface.albedo * surface.ao;
+    let color = linear_to_srgb(color_from_light + ambient + surface.emissive);
+    return vec4<f32>(color, surface.color.a);
 }
