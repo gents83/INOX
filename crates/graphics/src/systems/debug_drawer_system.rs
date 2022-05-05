@@ -2,7 +2,7 @@ use std::{any::type_name, path::PathBuf};
 
 use crate::{
     create_arrow, create_colored_quad, create_line, create_sphere, DrawEvent, Material, Mesh,
-    MeshData, Pipeline, VertexFormat,
+    MeshData, Pipeline, VertexFormat, WireframeVertexData,
 };
 
 use inox_core::{ContextRc, System, SystemId, SystemUID};
@@ -104,7 +104,7 @@ impl DebugDrawerSystem {
     fn update_events(&mut self) {
         inox_profiler::scoped_profile!("DebugDrawerSystem::update_events");
 
-        let mut mesh_data = MeshData::new(VertexFormat::wireframe());
+        let mut mesh_data = MeshData::new(VertexFormat::pbr());
         let mut wireframe_mesh_data = MeshData::new(VertexFormat::wireframe());
 
         self.listener
@@ -149,7 +149,7 @@ impl DebugDrawerSystem {
                 DrawEvent::Line(start, end, color) => {
                     inox_profiler::scoped_profile!("DrawEvent::Line");
 
-                    let (vertices, indices) = create_line(start, end, color);
+                    let (vertices, indices) = create_line::<WireframeVertexData>(start, end, color);
                     wireframe_mesh_data.append_mesh(&vertices, &indices);
                 }
                 DrawEvent::BoundingBox(min, max, color) => {
@@ -194,17 +194,29 @@ impl DebugDrawerSystem {
                     inox_profiler::scoped_profile!("DrawEvent::Quad");
 
                     if is_wireframe {
-                        let (vertices, indices) =
-                            create_line([min.x, min.y, z].into(), [min.x, max.y, z].into(), color);
+                        let (vertices, indices) = create_line::<WireframeVertexData>(
+                            [min.x, min.y, z].into(),
+                            [min.x, max.y, z].into(),
+                            color,
+                        );
                         wireframe_mesh_data.append_mesh(&vertices, &indices);
-                        let (vertices, indices) =
-                            create_line([min.x, max.y, z].into(), [max.x, max.y, z].into(), color);
+                        let (vertices, indices) = create_line::<WireframeVertexData>(
+                            [min.x, max.y, z].into(),
+                            [max.x, max.y, z].into(),
+                            color,
+                        );
                         wireframe_mesh_data.append_mesh(&vertices, &indices);
-                        let (vertices, indices) =
-                            create_line([max.x, max.y, z].into(), [max.x, min.y, z].into(), color);
+                        let (vertices, indices) = create_line::<WireframeVertexData>(
+                            [max.x, max.y, z].into(),
+                            [max.x, min.y, z].into(),
+                            color,
+                        );
                         wireframe_mesh_data.append_mesh(&vertices, &indices);
-                        let (vertices, indices) =
-                            create_line([max.x, min.y, z].into(), [min.x, min.y, z].into(), color);
+                        let (vertices, indices) = create_line::<WireframeVertexData>(
+                            [max.x, min.y, z].into(),
+                            [min.x, min.y, z].into(),
+                            color,
+                        );
                         wireframe_mesh_data.append_mesh(&vertices, &indices);
                     } else {
                         let (vertices, indices) =

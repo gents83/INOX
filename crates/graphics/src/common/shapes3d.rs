@@ -2,7 +2,7 @@ use std::f32::consts::PI;
 
 use inox_math::{Mat4Ops, MatBase, Matrix4, VecBaseFloat, Vector3, Vector4};
 
-use crate::{PbrVertexData, MAX_TEXTURE_COORDS_SETS};
+use crate::{PbrVertexData, VertexData, MAX_TEXTURE_COORDS_SETS};
 
 pub fn create_cube(size: Vector3) -> ([PbrVertexData; 8], [u32; 36]) {
     create_cube_from_min_max(-size, size)
@@ -271,22 +271,18 @@ pub fn create_arrow(position: Vector3, direction: Vector3) -> (Vec<PbrVertexData
     (shape_vertices, shape_indices)
 }
 
-pub fn create_line(start: Vector3, end: Vector3, color: Vector4) -> ([PbrVertexData; 3], [u32; 3]) {
-    let direction = (end - start).normalized();
-    let mut vertices = [PbrVertexData::default(); 3];
-    vertices[0].pos = [start.x, start.y, start.z].into();
-    vertices[1].pos = [start.x, start.y, start.z].into();
-    vertices[2].pos = [end.x, end.y, end.z].into();
+pub fn create_line<T>(start: Vector3, end: Vector3, color: Vector4) -> ([T; 3], [u32; 3])
+where
+    T: VertexData + Copy,
+{
+    let mut vertices = [T::default(); 3];
+    vertices[0].set_position([start.x, start.y, start.z].into());
+    vertices[1].set_position([start.x, start.y, start.z].into());
+    vertices[2].set_position([end.x, end.y, end.z].into());
 
-    vertices[0].normal = -direction;
-    vertices[1].normal = -direction;
-    vertices[2].normal = direction;
-
-    vertices[2].tex_coord = [[1., 1.].into(); MAX_TEXTURE_COORDS_SETS];
-
-    vertices[0].color = color;
-    vertices[1].color = color;
-    vertices[2].color = color;
+    vertices[0].set_color(color);
+    vertices[1].set_color(color);
+    vertices[2].set_color(color);
 
     let indices = [0, 1, 2];
 

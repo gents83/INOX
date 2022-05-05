@@ -87,6 +87,7 @@ impl VertexFormat {
 
 pub trait VertexData: Default {
     fn set_position(&mut self, pos: Vector3);
+    fn set_color(&mut self, color: Vector4);
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Copy)]
@@ -98,6 +99,9 @@ pub struct WireframeVertexData {
 impl VertexData for WireframeVertexData {
     fn set_position(&mut self, pos: Vector3) {
         self.pos = pos;
+    }
+    fn set_color(&mut self, color: Vector4) {
+        self.color = color;
     }
 }
 impl Default for WireframeVertexData {
@@ -121,6 +125,9 @@ pub struct PbrVertexData {
 impl VertexData for PbrVertexData {
     fn set_position(&mut self, pos: Vector3) {
         self.pos = pos;
+    }
+    fn set_color(&mut self, color: Vector4) {
+        self.color = color;
     }
 }
 impl Default for PbrVertexData {
