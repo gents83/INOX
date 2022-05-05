@@ -160,6 +160,21 @@ fn compute_textures_coord(v: VertexInput, material_index: i32, texture_type: u32
     return t;
 }
 
+
+  // linear <-> sRGB conversions
+fn linear_to_srgb(color: vec3<f32>) -> vec3<f32> {
+    if (all(color <= vec3<f32>(0.0031308, 0.0031308, 0.0031308))) {
+        return color * 12.92;
+    }
+    return (pow(abs(color), vec3<f32>(1.0 / 2.4, 1.0 / 2.4, 1.0 / 2.4)) * 1.055) - vec3<f32>(0.055, 0.055, 0.055);
+}
+fn srgb_to_linear(color: vec3<f32>) -> vec3<f32> {
+    if (all(color <= vec3<f32>(0.04045, 0.04045, 0.04045))) {
+        return color / vec3<f32>(12.92, 12.92, 12.92);
+    }
+    return pow((color + vec3<f32>(0.055, 0.055, 0.055)) / vec3<f32>(1.055, 1.055, 1.055), vec3<f32>(2.4, 2.4, 2.4));
+}
+
 fn linear_from_srgb(srgb: vec3<f32>) -> vec3<f32> {
     let cutoff = srgb < vec3<f32>(10.31475);
     let lower = srgb / vec3<f32>(3294.6);

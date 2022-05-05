@@ -38,6 +38,9 @@ impl VertexFormat {
             VertexFormat::ColorU32,
         ]
     }
+    pub fn wireframe() -> Vec<Self> {
+        vec![VertexFormat::PositionF32x2, VertexFormat::ColorF32x4]
+    }
     pub fn pbr() -> Vec<Self> {
         vec![
             VertexFormat::PositionF32x3,
@@ -82,6 +85,30 @@ impl VertexFormat {
     }
 }
 
+pub trait VertexData: Default {
+    fn set_position(&mut self, pos: Vector3);
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Copy)]
+#[serde(crate = "inox_serialize")]
+pub struct WireframeVertexData {
+    pub pos: Vector3,
+    pub color: Vector4,
+}
+impl VertexData for WireframeVertexData {
+    fn set_position(&mut self, pos: Vector3) {
+        self.pos = pos;
+    }
+}
+impl Default for WireframeVertexData {
+    fn default() -> Self {
+        Self {
+            pos: Vector3::default_zero(),
+            color: Vector4::new(1., 1., 1., 1.),
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Copy)]
 #[serde(crate = "inox_serialize")]
 pub struct PbrVertexData {
@@ -91,7 +118,11 @@ pub struct PbrVertexData {
     pub color: Vector4,
     pub tex_coord: [Vector2; MAX_TEXTURE_COORDS_SETS],
 }
-
+impl VertexData for PbrVertexData {
+    fn set_position(&mut self, pos: Vector3) {
+        self.pos = pos;
+    }
+}
 impl Default for PbrVertexData {
     fn default() -> PbrVertexData {
         PbrVertexData {

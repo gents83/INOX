@@ -482,6 +482,7 @@ impl GltfCompiler {
             material_data.textures[TextureType::Occlusion as usize] =
                 self.process_texture(path, texture.texture());
             material_data.texcoords_set[TextureType::Occlusion as usize] = texture.tex_coord() as _;
+            material_data.occlusion_strength = texture.strength();
         }
         material_data.alpha_mode = match material.alpha_mode() {
             AlphaMode::Opaque => MaterialAlphaMode::Opaque,
@@ -496,7 +497,6 @@ impl GltfCompiler {
             primitive.material().emissive_factor()[0],
             primitive.material().emissive_factor()[1],
             primitive.material().emissive_factor()[2],
-            1.,
         ]
         .into();
         if let Some(material) = material.pbr_specular_glossiness() {

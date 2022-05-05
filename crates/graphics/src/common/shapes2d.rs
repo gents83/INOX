@@ -2,9 +2,30 @@ use std::f32::consts::PI;
 
 use inox_math::{VecBaseFloat, Vector2, Vector3, Vector4};
 
-use crate::{PbrVertexData, MAX_TEXTURE_COORDS_SETS};
+use crate::{PbrVertexData, VertexData, MAX_TEXTURE_COORDS_SETS};
 
-pub fn create_quad(
+pub fn create_quad<T>(rect: Vector4, z: f32, index_start: Option<usize>) -> ([T; 4], [u32; 6])
+where
+    T: VertexData + Copy,
+{
+    let mut vertices = [T::default(); 4];
+    vertices[0].set_position([rect.x, rect.y, z].into());
+    vertices[1].set_position([rect.x, rect.w, z].into());
+    vertices[2].set_position([rect.z, rect.w, z].into());
+    vertices[3].set_position([rect.z, rect.y, z].into());
+    let index_offset: u32 = index_start.unwrap_or(0) as _;
+    let indices: [u32; 6] = [
+        index_offset,
+        2 + index_offset,
+        1 + index_offset,
+        3 + index_offset,
+        2 + index_offset,
+        index_offset,
+    ];
+    (vertices, indices)
+}
+
+pub fn create_quad_with_texture(
     rect: Vector4,
     z: f32,
     tex_coords: Vector4,

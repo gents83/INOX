@@ -4,7 +4,7 @@ use crate::{
     MaterialAlphaMode, MaterialData, Pipeline, Texture, TextureId, TextureType, INVALID_INDEX,
 };
 
-use inox_math::Vector4;
+use inox_math::{Vector3, Vector4};
 use inox_messenger::MessageHubRc;
 use inox_resources::{
     DataTypeResource, Handle, Resource, ResourceEvent, ResourceId, ResourceTrait,
@@ -30,7 +30,8 @@ pub struct Material {
     alpha_cutoff: f32,
     alpha_mode: MaterialAlphaMode,
     base_color: Vector4,
-    emissive_color: Vector4,
+    emissive_color: Vector3,
+    occlusion_strength: f32,
     diffuse_color: Vector4,
     specular_color: Vector4,
 }
@@ -94,7 +95,8 @@ impl DataTypeResource for Material {
             alpha_cutoff: 1.,
             alpha_mode: MaterialAlphaMode::Opaque,
             base_color: Vector4::new(1., 1., 1., 1.),
-            emissive_color: Vector4::new(1., 1., 1., 1.),
+            emissive_color: Vector3::new(1., 1., 1.),
+            occlusion_strength: 0.,
             diffuse_color: Vector4::new(1., 1., 1., 1.),
             specular_color: Vector4::new(0., 0., 0., 1.),
         }
@@ -158,6 +160,7 @@ impl DataTypeResource for Material {
             alpha_mode: material_data.alpha_mode,
             base_color: material_data.base_color,
             emissive_color: material_data.emissive_color,
+            occlusion_strength: material_data.occlusion_strength,
             diffuse_color: material_data.diffuse_color,
             specular_color: material_data.specular_color,
             pipeline,
@@ -275,10 +278,17 @@ impl Material {
         self.base_color = base_color;
         self.mark_as_dirty();
     }
-    pub fn emissive_color(&self) -> Vector4 {
+    pub fn occlusion_strength(&self) -> f32 {
+        self.occlusion_strength
+    }
+    pub fn set_occlusion_strength(&mut self, occlusion_strength: f32) {
+        self.occlusion_strength = occlusion_strength;
+        self.mark_as_dirty();
+    }
+    pub fn emissive_color(&self) -> Vector3 {
         self.emissive_color
     }
-    pub fn set_emissive_color(&mut self, emissive_color: Vector4) {
+    pub fn set_emissive_color(&mut self, emissive_color: Vector3) {
         self.emissive_color = emissive_color;
         self.mark_as_dirty();
     }

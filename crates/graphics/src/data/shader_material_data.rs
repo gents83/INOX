@@ -12,7 +12,8 @@ pub struct ShaderMaterialData {
     pub alpha_cutoff: f32,
     pub alpha_mode: u32,
     pub base_color: [f32; 4],
-    pub emissive_color: [f32; 4],
+    pub emissive_color: [f32; 3],
+    pub occlusion_strength: f32,
     pub diffuse_color: [f32; 4],
     pub specular_color: [f32; 4],
 }
@@ -27,7 +28,8 @@ impl Default for ShaderMaterialData {
             alpha_cutoff: 1.,
             alpha_mode: MaterialAlphaMode::Opaque as _,
             base_color: [1., 1., 1., 1.],
-            emissive_color: [1., 1., 1., 1.],
+            emissive_color: [1., 1., 1.],
+            occlusion_strength: 0.,
             diffuse_color: [1., 1., 1., 1.],
             specular_color: [0., 0., 0., 1.],
         }

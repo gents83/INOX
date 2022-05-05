@@ -4,7 +4,7 @@ use inox_math::{is_point_in_triangle, Vector2, Vector3, Vector4};
 use inox_resources::{from_u8_slice, from_u8_slice_mut, to_u8_slice};
 use inox_serialize::{Deserialize, Serialize, SerializeFile};
 
-use crate::{create_quad, VertexFormat, VertexFormatBits};
+use crate::{create_quad_with_texture, VertexFormat, VertexFormatBits};
 
 pub struct MeshBindingData {
     pub vertices: Range<u32>,
@@ -136,7 +136,7 @@ impl MeshData {
 
     pub fn add_quad_default(&mut self, rect: Vector4, z: f32) {
         let tex_coords = [0.0, 0.0, 1.0, 1.0].into();
-        let (vertices, indices) = create_quad(rect, z, tex_coords, None);
+        let (vertices, indices) = create_quad_with_texture(rect, z, tex_coords, None);
         self.append_mesh(&vertices, &indices);
     }
 
@@ -147,7 +147,7 @@ impl MeshData {
         tex_coords: Vector4,
         index_start: Option<usize>,
     ) {
-        let (vertices, indices) = create_quad(rect, z, tex_coords, index_start);
+        let (vertices, indices) = create_quad_with_texture(rect, z, tex_coords, index_start);
         self.append_mesh(&vertices, &indices);
     }
 

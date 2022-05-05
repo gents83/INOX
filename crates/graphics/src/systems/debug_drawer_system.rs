@@ -65,7 +65,7 @@ impl DebugDrawerSystem {
             context.shared_data(),
             context.message_hub(),
             generate_random_uid(),
-            MeshData::new(VertexFormat::pbr()),
+            MeshData::new(VertexFormat::wireframe()),
         );
         mesh_instance
             .get_mut()
@@ -75,7 +75,7 @@ impl DebugDrawerSystem {
             context.shared_data(),
             context.message_hub(),
             generate_random_uid(),
-            MeshData::new(VertexFormat::pbr()),
+            MeshData::new(VertexFormat::wireframe()),
         );
         wireframe_mesh_instance
             .get_mut()
@@ -104,8 +104,8 @@ impl DebugDrawerSystem {
     fn update_events(&mut self) {
         inox_profiler::scoped_profile!("DebugDrawerSystem::update_events");
 
-        let mut mesh_data = MeshData::new(VertexFormat::pbr());
-        let mut wireframe_mesh_data = MeshData::new(VertexFormat::pbr());
+        let mut mesh_data = MeshData::new(VertexFormat::wireframe());
+        let mut wireframe_mesh_data = MeshData::new(VertexFormat::wireframe());
 
         self.listener
             .process_messages(|e: &ConfigEvent<Config>| match e {

@@ -13,10 +13,12 @@ let TEXTURE_TYPE_DIFFUSE: u32 = 6u;
 let TEXTURE_TYPE_EMPTY_FOR_PADDING: u32 = 7u;
 let TEXTURE_TYPE_COUNT: u32 = 8u;
 
+let MATERIAL_ALPHA_BLEND_OPAQUE = 0u;
+let MATERIAL_ALPHA_BLEND_MASK = 1u;
+let MATERIAL_ALPHA_BLEND_BLEND = 2u;
+
 let CONSTANT_DATA_FLAGS_NONE: u32 = 0u;
 let CONSTANT_DATA_FLAGS_SUPPORT_SRGB: u32 = 1u;
-
-let PI = 3.14159265359;
 
 struct ConstantData {
     view: mat4x4<f32>,
@@ -52,7 +54,8 @@ struct ShaderMaterialData {
     alpha_cutoff: f32,
     alpha_mode: u32,
     base_color: vec4<f32>,
-    emissive_color: vec4<f32>,
+    emissive_color: vec3<f32>,
+    occlusion_strength: f32,
     diffuse_color: vec4<f32>,
     specular_color: vec4<f32>,
 };
@@ -88,7 +91,7 @@ struct InstanceInput {
 
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
-    @location(0) world_pos: vec4<f32>,
+    @location(0) position: vec4<f32>,
     @location(1) color: vec4<f32>,
     @location(2) normal: vec3<f32>,
     @location(3) tangent: vec3<f32>,
@@ -199,13 +202,13 @@ fn vs_main(
     );
 
     var vertex_out: VertexOutput;
-    vertex_out.world_pos = instance_matrix * vec4<f32>(v.position, 1.0);
-    vertex_out.clip_position = constant_data.proj * constant_data.view * vertex_out.world_pos;
+    vertex_out.position = instance_matrix * vec4<f32>(v.position, 1.0);
+    vertex_out.clip_position = constant_data.proj * constant_data.view * vertex_out.position;
     vertex_out.normal = normalize((instance_matrix * vec4<f32>(v.normal, 0.0)).xyz);
     vertex_out.tangent = normalize((instance_matrix * vec4<f32>(v.tangent.xyz, 0.0)).xyz);
     vertex_out.bitangent = cross(vertex_out.normal, vertex_out.tangent) * v.tangent.w;
     let view_pos = vec3<f32>(constant_data.view[3][0], constant_data.view[3][1], constant_data.view[3][2]);
-    vertex_out.view = view_pos - vertex_out.world_pos.xyz;
+    vertex_out.view = view_pos - vertex_out.position.xyz;
     vertex_out.color = v.color;
     vertex_out.material_index = instance.material_index;
 
@@ -287,160 +290,203 @@ fn get_texture_color(material_index: i32, texture_type: u32, tex_coords: vec3<f3
 #endif
 }
 
-struct SurfaceInfo {
-    color: vec4<f32>,
-    albedo: vec3<f32>,
-    metallic: f32,
-    roughness: f32,
-    normal: vec3<f32>,
-    f0: vec3<f32>,
-    ao: f32,
-    emissive: vec3<f32>,
-    v: vec3<f32>
+// References:
+// [1] Real Shading in Unreal Engine 4
+//     http://blog.selfshadow.com/publications/s2013-shading-course/karis/s2013_pbs_epic_notes_v2.pdf
+// [2] Physically Based Shading at Disney
+//     http://blog.selfshadow.com/publications/s2012-shading-course/burley/s2012_pbs_disney_brdf_notes_v3.pdf
+// [3] README.md - Environment Maps
+//     https://github.com/KhronosGroup/glTF-WebGL-PBR/#environment-maps
+// [4] "An Inexpensive BRDF Model for Physically based Rendering" by Christophe Schlick
+//     https://www.cs.virginia.edu/~jdl/bib/appearance/analytic%20models/schlick94b.pdf
+struct PBRInfo {
+    NdotL: f32,                  // cos angle between normal and light direction
+    NdotV: f32,                  // cos angle between normal and view direction
+    NdotH: f32,                  // cos angle between normal and half vector
+    LdotH: f32,                  // cos angle between light direction and half vector
+    VdotH: f32,                  // cos angle between view direction and half vector
+    perceptual_roughness: f32,   // roughness value, as authored by the model creator (input to shader)
+    metalness: f32,              // metallic value at the surface
+    alpha_roughness: f32,        // roughness mapped to a more linear change in the roughness (proposed by [2])
+    reflectance0: vec3<f32>,     // full reflectance color (normal incidence angle)
+    reflectance90: vec3<f32>,    // reflectance color at grazing angle
+    diffuse_color: vec3<f32>,    // color contribution from diffuse lighting
+    specular_color: vec3<f32>,   // color contribution from specular lighting
 };
 
-fn get_surface_info(v: VertexOutput) -> SurfaceInfo {
-    var surface : SurfaceInfo;
-    surface.v = normalize(v.view);
-    surface.normal = normalize(v.normal);
-    surface.ao = 1.0;
-    surface.color = v.color;
+let PI = 3.14159265359;
+let MinRoughness = 0.04;
+let AmbientLightColor = vec3<f32>(1., 1., 1.);
+let AmbientLightIntensity = 0.2;
 
-    if (v.material_index < 0) {
-        return surface;
-    }
-    let material = dynamic_data.materials_data[v.material_index];
-    surface.color = surface.color * material.base_color;
-
-    if (has_texture(v.material_index, TEXTURE_TYPE_BASE_COLOR)) {
-        surface.color = surface.color * get_texture_color(v.material_index, TEXTURE_TYPE_BASE_COLOR, v.tex_coords_base_color);
-        if (surface.color.a < 0.5) {
-            discard;
-        }
-    }
-
-    surface.albedo = surface.color.rgb;
-    surface.emissive = material.emissive_color.rgb;
-    surface.metallic = material.metallic_factor;
-    surface.roughness = material.roughness_factor;
-
-    if (has_texture(v.material_index, TEXTURE_TYPE_METALLIC_ROUGHNESS)) {
-        let metallic_roughness = get_texture_color(v.material_index, TEXTURE_TYPE_METALLIC_ROUGHNESS, v.tex_coords_metallic_roughness);
-        surface.metallic = surface.metallic * metallic_roughness.b;
-        surface.roughness = surface.roughness * metallic_roughness.g;
-    }
-
+// Find the normal for this fragment, pulling either from a predefined normal map
+// or from the interpolated mesh normal and tangent attributes.
+fn normal(v: VertexOutput) -> vec3<f32> {
+    // Retrieve the tangent space matrix
+    let tbn = mat3x3<f32>(v.tangent, v.bitangent, v.normal);
+    var n = v.normal;
     if (has_texture(v.material_index, TEXTURE_TYPE_NORMAL)) {
         let tbn = mat3x3<f32>(v.tangent, v.bitangent, v.normal);
         let normal = get_texture_color(v.material_index, TEXTURE_TYPE_NORMAL, v.tex_coords_normal);
-        surface.normal = normalize(tbn * (2.0 * normal.xyz - vec3<f32>(1.0, 1.0, 1.0)));
+        n = tbn * (2.0 * normal.xyz - vec3<f32>(1.0));
     }
-
-    let dielectric_specular = vec3<f32>(0.04, 0.04, 0.04);
-    surface.f0 = mix(dielectric_specular, surface.albedo, vec3<f32>(surface.metallic, surface.metallic, surface.metallic));
-
-    if (has_texture(v.material_index, TEXTURE_TYPE_OCCLUSION)) {
-        let ao = get_texture_color(v.material_index, TEXTURE_TYPE_OCCLUSION, v.tex_coords_occlusion);
-        surface.ao = ao.r * material.alpha_cutoff;
-    }
-
-    if (has_texture(v.material_index, TEXTURE_TYPE_EMISSIVE)) {
-        let emissive = get_texture_color(v.material_index, TEXTURE_TYPE_EMISSIVE, v.tex_coords_emissive);
-        surface.emissive = surface.emissive * emissive.rgb;
-    }
-
-    return surface;
+    n = normalize(n);
+    return n;
 }
+// Basic Lambertian diffuse
+// Implementation from Lambert's Photometria https://archive.org/details/lambertsphotome00lambgoog
+// See also [1], Equation 1
+fn diffuse(info: PBRInfo) -> vec3<f32> {
+    return info.diffuse_color / PI;
+}
+// The following equation models the Fresnel reflectance term of the spec equation (aka F())
+// Implementation of fresnel from [4], Equation 15
+fn specular_reflection(info: PBRInfo) -> vec3<f32> {
+    return info.reflectance0 + (info.reflectance90 - info.reflectance0) * pow(clamp(1.0 - info.VdotH, 0.0, 1.0), 5.0);
+}
+// This calculates the specular geometric attenuation (aka G()),
+// where rougher material will reflect less light back to the viewer.
+// This implementation is based on [1] Equation 4, and we adopt their modifications to
+// alphaRoughness as input as originally proposed in [2].
+fn geometric_occlusion(info: PBRInfo) -> f32 {
+    let r = info.alpha_roughness;
 
-
-fn compute_fresnel_schlick(cosTheta: f32, F0: vec3<f32>) -> vec3<f32> {
-    return F0 + (vec3<f32>(1.0, 1.0, 1.0) - F0) * pow(1.0 - cosTheta, 5.0);
-}
-fn compute_distribution_GGX(N: vec3<f32>, H: vec3<f32>, roughness: f32) -> f32 {
-    let a = roughness * roughness;
-    let a2 = a * a;
-    let NdotH = max(dot(N, H), 0.0);
-    let NdotH2 = NdotH * NdotH;
-    let num = a2;
-    let denom = (NdotH2 * (a2 - 1.0) + 1.0);
-    return num / (PI * denom * denom);
-}
-fn compute_geometry_schlick_GGX(NdotV: f32, roughness: f32) -> f32 {
-    let r = (roughness + 1.0);
-    let k = (r * r) / 8.0;
-    let num = NdotV;
-    let denom = NdotV * (1.0 - k) + k;
-    return num / denom;
-}
-fn compute_geometry_smith(N: vec3<f32>, V: vec3<f32>, L: vec3<f32>, roughness: f32) -> f32 {
-    let NdotV = max(dot(N, V), 0.0);
-    let NdotL = max(dot(N, L), 0.0);
-    let ggx2 = compute_geometry_schlick_GGX(NdotV, roughness);
-    let ggx1 = compute_geometry_schlick_GGX(NdotL, roughness);
-    return ggx1 * ggx2;
-}
-fn compute_range_attenuation(range: f32, distance: f32) -> f32 {
-    if (range <= 0.0) {
-      // Negative range means no cutoff
-        return 1.0 / pow(distance, 2.0);
-    }
-    return clamp(1.0 - pow(distance / range, 4.0), 0.0, 1.0) / pow(distance, 2.0);
-}
-fn compute_light_radiance(vertex_pos: vec3<f32>, light: LightData, surface: SurfaceInfo) -> vec3<f32> {
-    let point_to_light = light.position - vertex_pos;
-    let L = normalize(point_to_light);
-    let H = normalize(surface.v + L);
-    let distance = length(point_to_light);
-  // cook-torrance brdf
-    let NDF = compute_distribution_GGX(surface.normal, H, surface.roughness);
-    let G = compute_geometry_smith(surface.normal, surface.v, L, surface.roughness);
-    let F = compute_fresnel_schlick(max(dot(H, surface.v), 0.0), surface.f0);
-    let kD = (vec3<f32>(1.0, 1.0, 1.0) - F) * (1.0 - surface.metallic);
-    let NdotL = max(dot(surface.normal, L), 0.0);
-    let numerator = NDF * G * F;
-    let denominator = max(4.0 * max(dot(surface.normal, surface.v), 0.0) * NdotL, 0.001);
-    let specular = numerator / vec3<f32>(denominator, denominator, denominator);
-    let intensity = 1.;//light.intensity
-    // add to outgoing radiance Lo
-    let attenuation = compute_range_attenuation(light.range, distance);
-    let radiance = light.color.rgb * intensity * attenuation;
-    return (kD * surface.albedo / vec3<f32>(PI, PI, PI) + specular) * radiance * NdotL;
+    let attenuationL = 2.0 * info.NdotL / (info.NdotL + sqrt(r * r + (1.0 - r * r) * (info.NdotL * info.NdotL)));
+    let attenuationV = 2.0 * info.NdotV / (info.NdotV + sqrt(r * r + (1.0 - r * r) * (info.NdotV * info.NdotV)));
+    return attenuationL * attenuationV;
 }
 
-  // linear <-> sRGB conversions
-fn linear_to_srgb(color: vec3<f32>) -> vec3<f32> {
-    if (all(color <= vec3<f32>(0.0031308, 0.0031308, 0.0031308))) {
-        return color * 12.92;
-    }
-    return (pow(abs(color), vec3<f32>(1.0 / 2.4, 1.0 / 2.4, 1.0 / 2.4)) * 1.055) - vec3<f32>(0.055, 0.055, 0.055);
+// The following equation(s) model the distribution of microfacet normals across the area being drawn (aka D())
+// Implementation from "Average Irregularity Representation of a Roughened Surface for Ray Reflection" by T. S. Trowbridge, and K. P. Reitz
+// Follows the distribution function recommended in the SIGGRAPH 2013 course notes from EPIC Games [1], Equation 3.
+fn microfacet_distribution(info: PBRInfo) -> f32 {
+    let roughnessSq = info.alpha_roughness * info.alpha_roughness;
+    let f = (info.NdotH * roughnessSq - info.NdotH) * info.NdotH + 1.0;
+    return roughnessSq / (PI * f * f);
 }
-fn srgb_to_linear(color: vec3<f32>) -> vec3<f32> {
-    if (all(color <= vec3<f32>(0.04045, 0.04045, 0.04045))) {
-        return color / vec3<f32>(12.92, 12.92, 12.92);
-    }
-    return pow((color + vec3<f32>(0.055, 0.055, 0.055)) / vec3<f32>(1.055, 1.055, 1.055), vec3<f32>(2.4, 2.4, 2.4));
-}
+
 
 @fragment
-fn fs_main(v: VertexOutput) -> @location(0) vec4<f32> {
-    let surface = get_surface_info(v);
+fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
+    if (v_in.material_index < 0) {
+        discard;
+    }
+    let material = dynamic_data.materials_data[v_in.material_index];
     
-    // reflectance equation
-    var ambient_light = vec3<f32>(1.);
-    var color_from_light = vec3<f32>(0.0, 0.0, 0.0);
+    // NOTE: the spec mandates to ignore any alpha value in 'OPAQUE' mode
+    var alpha_blend = 0.;
+    if (material.alpha_mode != MATERIAL_ALPHA_BLEND_OPAQUE) {
+        alpha_blend = 1.;
+    }
+    var alpha = mix(1.0, material.base_color.a, alpha_blend);
+    if (material.alpha_cutoff > 0.0 && material.alpha_mode == MATERIAL_ALPHA_BLEND_MASK) {
+        alpha = step(material.alpha_cutoff, material.base_color.a);
+    }
+    if (alpha == 0.0) {
+        discard;
+    }
 
+    // Metallic and Roughness material properties are packed together
+    // In glTF, these factors can be specified by fixed scalar values
+    // or from a metallic-roughness map
+    var perceptual_roughness = material.roughness_factor;
+    var metallic = material.metallic_factor;
+    if (has_texture(v_in.material_index, TEXTURE_TYPE_METALLIC_ROUGHNESS)) {
+        let t = get_texture_color(v_in.material_index, TEXTURE_TYPE_METALLIC_ROUGHNESS, v_in.tex_coords_metallic_roughness);
+        perceptual_roughness = perceptual_roughness * t.g;
+        metallic = metallic * t.b;
+    }
+    perceptual_roughness = clamp(perceptual_roughness, MinRoughness, 1.0);
+    metallic = clamp(metallic, 0.0, 1.0);
+    // Roughness is authored as perceptual roughness; as is convention,
+    // convert to material roughness by squaring the perceptual roughness [2].
+    let alpha_roughness = perceptual_roughness * perceptual_roughness;
+
+    var base_color = v_in.color * material.base_color;
+    if (has_texture(v_in.material_index, TEXTURE_TYPE_BASE_COLOR)) {
+        let t = get_texture_color(v_in.material_index, TEXTURE_TYPE_BASE_COLOR, v_in.tex_coords_base_color);
+        base_color = base_color * t;
+    }
+    var ao = 1.0;
+    var occlusion_strength = 0.;
+    if (has_texture(v_in.material_index, TEXTURE_TYPE_OCCLUSION)) {
+        let t = get_texture_color(v_in.material_index, TEXTURE_TYPE_OCCLUSION, v_in.tex_coords_occlusion);
+        ao = ao * t.r;
+        occlusion_strength = material.occlusion_strength;
+    }
+    var emissive_color = vec3<f32>(0., 0., 0.);
+    if (has_texture(v_in.material_index, TEXTURE_TYPE_EMISSIVE)) {
+        let t = get_texture_color(v_in.material_index, TEXTURE_TYPE_EMISSIVE, v_in.tex_coords_emissive);
+        emissive_color = t.rgb * material.emissive_color;
+    }
+
+    let f0 = vec3<f32>(0.04, 0.04, 0.04);
+    var diffuse_color = base_color.rgb * (vec3<f32>(1., 1., 1.) - f0);
+    diffuse_color = diffuse_color * (1.0 - metallic);
+    let specular_color = mix(f0, base_color.rgb, metallic);
+
+    // Compute reflectance.
+    let reflectance = max(max(specular_color.r, specular_color.g), specular_color.b);
+
+    // For typical incident reflectance range (between 4% to 100%) set the grazing reflectance to 100% for typical fresnel effect.
+    // For very low reflectance range on highly diffuse objects (below 4%), incrementally reduce grazing reflecance to 0%.
+    let reflectance90 = clamp(reflectance * 25.0, 0.0, 1.0);
+    let specular_environmentR0 = specular_color.rgb;
+    let specular_environmentR90 = vec3<f32>(1., 1., 1.) * reflectance90;
+
+    let n = normal(v_in);                             // normal at surface point
+    let v = normalize(v_in.view);        // Vector from surface point to camera
+    let NdotV = clamp(abs(dot(n, v)), 0.001, 1.0);
+    let reflection = -normalize(reflect(v, n));
+
+    var color = AmbientLightColor * AmbientLightIntensity * base_color.xyz;
     var i = 0u;
     loop {
+        let light = dynamic_data.lights_data[i];
         if (dynamic_data.lights_data[i].light_type == 0u) {
             break;
         }
+        let l = normalize(light.position - v_in.position.xyz);             // Vector from surface point to light
+        let h = normalize(l + v);                          // Half vector between both l and v
+
+        let NdotL = clamp(dot(n, l), 0.001, 1.0);
+        let NdotH = clamp(dot(n, h), 0.0, 1.0);
+        let LdotH = clamp(dot(l, h), 0.0, 1.0);
+        let VdotH = clamp(dot(v, h), 0.0, 1.0);
+
+        let info = PBRInfo(
+            NdotL,
+            NdotV,
+            NdotH,
+            LdotH,
+            VdotH,
+            perceptual_roughness,
+            metallic,
+            alpha_roughness,
+            specular_environmentR0,
+            specular_environmentR90,
+            diffuse_color,
+            specular_color
+        );
         
-        // calculate per-light radiance and add to outgoing radiance Lo
-        color_from_light = color_from_light + compute_light_radiance(v.world_pos.xyz, dynamic_data.lights_data[i], surface);
+        // Calculate the shading terms for the microfacet specular shading model
+        let F = specular_reflection(info);
+        let G = geometric_occlusion(info);
+        let D = microfacet_distribution(info);
+
+        // Calculation of analytical lighting contribution
+        let diffuse_contrib = (1.0 - F) * diffuse(info);
+        let spec_contrib = F * G * D / (4.0 * NdotL * NdotV);
+        let light_color = NdotL * light.color.rgb * (diffuse_contrib + spec_contrib);
+
+        color = mix(color, color * ao, occlusion_strength);
+        color = color + emissive_color;
+        color = color + light_color;
+
         i = i + 1u;
     }
-
-    let ambient = ambient_light * surface.albedo * surface.ao;
-    let color = linear_to_srgb(color_from_light + ambient + surface.emissive);
-    return vec4<f32>(color, surface.color.a);
+    // TODO!: apply fix from reference shader:
+    // https://github.com/KhronosGroup/glTF-WebGL-PBR/pull/55/files#diff-f7232333b020880432a925d5a59e075d
+    let frag_color = vec4<f32>(color.rgb, alpha);
+    return frag_color;
 }

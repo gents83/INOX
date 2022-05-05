@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use inox_math::Vector4;
+use inox_math::{Vector3, Vector4};
 use inox_serialize::{Deserialize, Serialize, SerializeFile};
 
 use crate::TextureType;
@@ -25,7 +25,8 @@ pub struct MaterialData {
     pub alpha_cutoff: f32,
     pub alpha_mode: MaterialAlphaMode,
     pub base_color: Vector4,
-    pub emissive_color: Vector4,
+    pub emissive_color: Vector3,
+    pub occlusion_strength: f32,
     pub diffuse_color: Vector4,
     pub specular_color: Vector4,
 }
@@ -47,7 +48,8 @@ impl Default for MaterialData {
             alpha_cutoff: 1.,
             alpha_mode: MaterialAlphaMode::Opaque,
             base_color: Vector4::new(1., 1., 1., 1.),
-            emissive_color: Vector4::new(1., 1., 1., 1.),
+            emissive_color: Vector3::new(1., 1., 1.),
+            occlusion_strength: 0.,
             diffuse_color: Vector4::new(1., 1., 1., 1.),
             specular_color: Vector4::new(0., 0., 0., 1.),
         }

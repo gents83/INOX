@@ -65,6 +65,7 @@ impl DynamicData {
             alpha_mode: material.alpha_mode() as _,
             base_color: material.base_color().into(),
             emissive_color: material.emissive_color().into(),
+            occlusion_strength: material.occlusion_strength(),
             diffuse_color: material.diffuse_color().into(),
             specular_color: material.specular_color().into(),
         };

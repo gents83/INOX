@@ -1,8 +1,8 @@
 use inox_commands::CommandParser;
 use inox_core::{implement_unique_system_uid, ContextRc, System};
 use inox_graphics::{
-    Light, Material, Mesh, MeshData, Pipeline, Texture, VertexFormat, View, DEFAULT_PIPELINE,
-    WIREFRAME_PIPELINE,
+    create_quad, Light, Material, Mesh, MeshData, Pipeline, Texture, VertexFormat, View,
+    WireframeVertexData, DEFAULT_PIPELINE, WIREFRAME_PIPELINE,
 };
 use inox_log::debug_log;
 use inox_math::{Matrix4, VecBase, VecBaseFloat, Vector2, Vector3};
@@ -270,8 +270,11 @@ impl ViewerSystem {
                 &pipeline,
             );
             mesh.get_mut().set_material(material);
-            let mut mesh_data = MeshData::new(VertexFormat::pbr());
-            mesh_data.add_quad_default([-10., -10., 10., 10.].into(), 0.);
+            let mut mesh_data = MeshData::new(VertexFormat::wireframe());
+
+            let (vertices, indices) =
+                create_quad::<WireframeVertexData>([-10., -10., 10., 10.].into(), 0., None);
+            mesh_data.append_mesh(&vertices, &indices);
 
             //println!("Wireframe Mesh {:?}", mesh.id());
 
