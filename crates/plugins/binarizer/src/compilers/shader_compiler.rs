@@ -13,7 +13,7 @@ use inox_filesystem::delete_file;
 use inox_graphics::{
     platform::shader_preprocessor_defs, read_spirv_from_bytes, ShaderData, SHADER_EXTENSION,
 };
-
+use inox_log::debug_log;
 use inox_messenger::MessageHubRc;
 use inox_platform::PlatformType;
 use inox_resources::SharedDataRc;
@@ -126,6 +126,7 @@ impl<const PLATFORM_TYPE: PlatformType> ShaderCompiler<PLATFORM_TYPE> {
         let temp_path = PathBuf::from(from_source_to_temp);
         let new_path = PathBuf::from(from_source_to_compiled);
         if need_to_binarize(path, new_path.as_path()) {
+            debug_log!("Serializing {:?}", path);
             if let Ok(mut command) = Command::new(self.glsl_validator.to_str().unwrap())
                 .args(&[
                     "-Os",
@@ -179,6 +180,7 @@ impl<const PLATFORM_TYPE: PlatformType> ShaderCompiler<PLATFORM_TYPE> {
         let new_path = PathBuf::from(from_source_to_compiled);
 
         if need_to_binarize(path, new_path.as_path()) {
+            debug_log!("Serializing {:?}", path);
             let mut file = std::fs::File::open(path.to_str().unwrap()).unwrap();
             let mut data = Vec::new();
             file.read_to_end(&mut data).unwrap();
