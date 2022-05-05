@@ -2,7 +2,7 @@ use std::{any::type_name, path::PathBuf};
 
 use crate::{
     create_arrow, create_colored_quad, create_line, create_sphere, DrawEvent, Material, Mesh,
-    MeshData, Pipeline, VertexFormat, WireframeVertexData,
+    MeshData, PbrVertexData, Pipeline, VertexData, VertexFormat, WireframeVertexData,
 };
 
 use inox_core::{ContextRc, System, SystemId, SystemUID};
@@ -229,7 +229,7 @@ impl DebugDrawerSystem {
 
                     let (mut vertices, indices) = create_arrow(position, direction);
                     vertices.iter_mut().for_each(|v| {
-                        v.color = color;
+                        v.set_color(color);
                     });
                     if is_wireframe {
                         wireframe_mesh_data.append_mesh(&vertices, &indices);
@@ -240,10 +240,13 @@ impl DebugDrawerSystem {
                 DrawEvent::Sphere(position, radius, color, is_wireframe) => {
                     inox_profiler::scoped_profile!("DrawEvent::Sphere");
 
-                    let (vertices, indices) = create_sphere(position, radius, 16, 8, color);
                     if is_wireframe {
+                        let (vertices, indices) =
+                            create_sphere::<WireframeVertexData>(position, radius, 16, 8, color);
                         wireframe_mesh_data.append_mesh(&vertices, &indices);
                     } else {
+                        let (vertices, indices) =
+                            create_sphere::<PbrVertexData>(position, radius, 16, 8, color);
                         mesh_data.append_mesh(&vertices, &indices);
                     }
                 }

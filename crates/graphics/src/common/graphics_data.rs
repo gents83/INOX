@@ -210,7 +210,11 @@ impl GraphicsData {
                         inox_log::debug_log!("Pipeline not yet loaded");
                     }
                     if pb.vertex_format != mesh.vertex_format() {
-                        panic!("Mesh vertex format mismatch");
+                        panic!(
+                            "Mesh vertex format mismatch - Pipeline is {:?}, mesh is {:?}",
+                            pb.vertex_format,
+                            mesh.vertex_format()
+                        );
                     }
                 } else {
                     return;

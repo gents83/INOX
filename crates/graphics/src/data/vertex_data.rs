@@ -87,6 +87,8 @@ impl VertexFormat {
 
 pub trait VertexData: Default {
     fn set_position(&mut self, pos: Vector3);
+    fn set_normal(&mut self, normal: Vector3);
+    fn set_tex_coord(&mut self, t: Vector2);
     fn set_color(&mut self, color: Vector4);
 }
 
@@ -103,6 +105,8 @@ impl VertexData for WireframeVertexData {
     fn set_color(&mut self, color: Vector4) {
         self.color = color;
     }
+    fn set_normal(&mut self, _normal: Vector3) {}
+    fn set_tex_coord(&mut self, _t: Vector2) {}
 }
 impl Default for WireframeVertexData {
     fn default() -> Self {
@@ -128,6 +132,14 @@ impl VertexData for PbrVertexData {
     }
     fn set_color(&mut self, color: Vector4) {
         self.color = color;
+    }
+    fn set_normal(&mut self, normal: Vector3) {
+        self.normal = normal;
+    }
+    fn set_tex_coord(&mut self, t: Vector2) {
+        self.tex_coord.iter_mut().for_each(|tex_coord| {
+            *tex_coord = t;
+        });
     }
 }
 impl Default for PbrVertexData {
