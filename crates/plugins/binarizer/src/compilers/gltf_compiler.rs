@@ -731,49 +731,45 @@ impl GltfCompiler {
                     .to_str()
                     .unwrap();
 
-                for node in scene.nodes() {
-                    let name = format!("Node_{}", node.index());
-                    if let Some((node_type, node_path)) =
-                        self.process_node(path, &node, node.name().unwrap_or(&name))
-                    {
-                        let node_path = to_local_path(
-                            node_path.as_path(),
-                            self.data_raw_folder.as_path(),
-                            self.data_folder.as_path(),
-                        );
-                        match node_type {
-                            NodeType::Camera => {
-                                scene_data.cameras.push(node_path);
-                            }
-                            NodeType::Object => {
-                                scene_data.objects.push(node_path);
-                            }
-                            NodeType::Light => {
-                                scene_data.lights.push(node_path);
+                let new_path = self.compute_path_name::<SceneData>(path, scene_name, "");
+                if need_to_binarize(path, new_path.as_path()) {
+                    for node in scene.nodes() {
+                        let name = format!("Node_{}", node.index());
+                        if let Some((node_type, node_path)) =
+                            self.process_node(path, &node, node.name().unwrap_or(&name))
+                        {
+                            let node_path = to_local_path(
+                                node_path.as_path(),
+                                self.data_raw_folder.as_path(),
+                                self.data_folder.as_path(),
+                            );
+                            match node_type {
+                                NodeType::Camera => {
+                                    scene_data.cameras.push(node_path);
+                                }
+                                NodeType::Object => {
+                                    scene_data.objects.push(node_path);
+                                }
+                                NodeType::Light => {
+                                    scene_data.lights.push(node_path);
+                                }
                             }
                         }
                     }
-                }
 
-                self.create_file(
-                    path,
-                    &scene_data,
-                    scene_name,
-                    "",
-                    self.shared_data.serializable_registry(),
-                );
+                    self.create_file(
+                        path,
+                        &scene_data,
+                        scene_name,
+                        "",
+                        self.shared_data.serializable_registry(),
+                    );
+                }
             }
         }
     }
 
-    fn create_file<T>(
-        &self,
-        path: &Path,
-        data: &T,
-        new_name: &str,
-        folder: &str,
-        serializable_registry: &SerializableRegistryRc,
-    ) -> PathBuf
+    fn compute_path_name<T>(&self, path: &Path, new_name: &str, folder: &str) -> PathBuf
     where
         T: Serialize + SerializeFile + Clone + 'static,
     {
@@ -796,7 +792,21 @@ impl GltfCompiler {
         from_source_to_compiled =
             from_source_to_compiled.replace(filename, destination_ext.as_str());
 
-        let new_path = PathBuf::from(from_source_to_compiled);
+        PathBuf::from(from_source_to_compiled)
+    }
+
+    fn create_file<T>(
+        &self,
+        path: &Path,
+        data: &T,
+        new_name: &str,
+        folder: &str,
+        serializable_registry: &SerializableRegistryRc,
+    ) -> PathBuf
+    where
+        T: Serialize + SerializeFile + Clone + 'static,
+    {
+        let new_path = self.compute_path_name::<T>(path, new_name, folder);
         if !new_path.exists() {
             let result = create_dir_all(new_path.parent().unwrap());
             debug_assert!(result.is_ok());
