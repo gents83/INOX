@@ -4,6 +4,7 @@ use inox_serialize::{Deserialize, Serialize, SerializeFile};
 #[derive(Default, Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(crate = "inox_serialize")]
 pub struct Config {
+    pub optimize_meshes: bool,
     pub end_on_completion: bool,
 }
 

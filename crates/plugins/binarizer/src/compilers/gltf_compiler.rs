@@ -67,14 +67,21 @@ pub struct GltfCompiler {
     shared_data: SharedDataRc,
     data_raw_folder: PathBuf,
     data_folder: PathBuf,
+    optimize_meshes: bool,
 }
 
 impl GltfCompiler {
-    pub fn new(shared_data: SharedDataRc, data_raw_folder: &Path, data_folder: &Path) -> Self {
+    pub fn new(
+        shared_data: SharedDataRc,
+        data_raw_folder: &Path,
+        data_folder: &Path,
+        optimize_meshes: bool,
+    ) -> Self {
         Self {
             shared_data,
             data_raw_folder: data_raw_folder.to_path_buf(),
             data_folder: data_folder.to_path_buf(),
+            optimize_meshes,
         }
     }
 
@@ -327,67 +334,74 @@ impl GltfCompiler {
     }
 
     fn optimize_mesh(&self, vertices: Vec<PbrVertexData>, indices: Vec<u32>) -> MeshData {
-        let mut old_vertices = Vec::new();
-        vertices.iter().for_each(|v| {
-            old_vertices.push([
-                v.pos.x,
-                v.pos.y,
-                v.pos.z,
-                v.normal.x,
-                v.normal.y,
-                v.normal.z,
-                v.tex_coord[0].x,
-                v.tex_coord[0].y,
-            ]);
-        });
-
-        let (num_vertices, vertices_remap_table) =
-            meshopt::generate_vertex_remap(old_vertices.as_slice(), Some(indices.as_slice()));
-        let new_indices = meshopt::remap_index_buffer(
-            Some(indices.as_slice()),
-            num_vertices,
-            vertices_remap_table.as_slice(),
-        );
-        let new_vertices = meshopt::remap_vertex_buffer(
-            vertices.as_slice(),
-            num_vertices,
-            vertices_remap_table.as_slice(),
-        );
-        let mut new_indices = meshopt::optimize_vertex_cache(new_indices.as_slice(), num_vertices);
-        let vertices_bytes = to_u8_slice(new_vertices.as_slice());
-        let vertex_stride = size_of::<PbrVertexData>();
-        let vertex_data_adapter = meshopt::VertexDataAdapter::new(vertices_bytes, vertex_stride, 0);
-        meshopt::optimize_overdraw_in_place(
-            new_indices.as_mut_slice(),
-            vertex_data_adapter.as_ref().unwrap(),
-            1.05,
-        );
-        let new_vertices =
-            meshopt::optimize_vertex_fetch(new_indices.as_mut_slice(), new_vertices.as_slice());
-
-        let vertices_bytes = to_u8_slice(new_vertices.as_slice());
-        let vertex_stride = size_of::<PbrVertexData>();
-        let vertex_data_adapter = meshopt::VertexDataAdapter::new(vertices_bytes, vertex_stride, 0);
-        let max_vertices = 64;
-        let max_triangles = 124;
-        let cone_weight = 0.;
-        let meshlets = meshopt::build_meshlets(
-            new_indices.as_slice(),
-            vertex_data_adapter.as_ref().unwrap(),
-            max_vertices,
-            max_triangles,
-            cone_weight,
-        );
-        let mut meshlet_bounds = Vec::new();
-        for m in meshlets.iter() {
-            meshlet_bounds.push(meshopt::compute_meshlet_bounds(
-                m,
-                vertex_data_adapter.as_ref().unwrap(),
-            ));
-        }
-
         let mut mesh_data = MeshData::new(VertexFormat::pbr());
-        mesh_data.append_mesh(new_vertices.as_slice(), new_indices.as_slice());
+        if self.optimize_meshes {
+            let mut old_vertices = Vec::new();
+            vertices.iter().for_each(|v| {
+                old_vertices.push([
+                    v.pos.x,
+                    v.pos.y,
+                    v.pos.z,
+                    v.normal.x,
+                    v.normal.y,
+                    v.normal.z,
+                    v.tex_coord[0].x,
+                    v.tex_coord[0].y,
+                ]);
+            });
+
+            let (num_vertices, vertices_remap_table) =
+                meshopt::generate_vertex_remap(old_vertices.as_slice(), Some(indices.as_slice()));
+            let new_indices = meshopt::remap_index_buffer(
+                Some(indices.as_slice()),
+                num_vertices,
+                vertices_remap_table.as_slice(),
+            );
+            let new_vertices = meshopt::remap_vertex_buffer(
+                vertices.as_slice(),
+                num_vertices,
+                vertices_remap_table.as_slice(),
+            );
+            let mut new_indices =
+                meshopt::optimize_vertex_cache(new_indices.as_slice(), num_vertices);
+            let vertices_bytes = to_u8_slice(new_vertices.as_slice());
+            let vertex_stride = size_of::<PbrVertexData>();
+            let vertex_data_adapter =
+                meshopt::VertexDataAdapter::new(vertices_bytes, vertex_stride, 0);
+            meshopt::optimize_overdraw_in_place(
+                new_indices.as_mut_slice(),
+                vertex_data_adapter.as_ref().unwrap(),
+                1.05,
+            );
+            let new_vertices =
+                meshopt::optimize_vertex_fetch(new_indices.as_mut_slice(), new_vertices.as_slice());
+
+            let vertices_bytes = to_u8_slice(new_vertices.as_slice());
+            let vertex_stride = size_of::<PbrVertexData>();
+            let vertex_data_adapter =
+                meshopt::VertexDataAdapter::new(vertices_bytes, vertex_stride, 0);
+            let max_vertices = 64;
+            let max_triangles = 124;
+            let cone_weight = 0.;
+            let meshlets = meshopt::build_meshlets(
+                new_indices.as_slice(),
+                vertex_data_adapter.as_ref().unwrap(),
+                max_vertices,
+                max_triangles,
+                cone_weight,
+            );
+            let mut meshlet_bounds = Vec::new();
+            for m in meshlets.iter() {
+                meshlet_bounds.push(meshopt::compute_meshlet_bounds(
+                    m,
+                    vertex_data_adapter.as_ref().unwrap(),
+                ));
+            }
+
+            mesh_data.append_mesh(new_vertices.as_slice(), new_indices.as_slice());
+        } else {
+            mesh_data.append_mesh(vertices.as_slice(), indices.as_slice());
+        }
 
         mesh_data
     }
@@ -538,9 +552,9 @@ impl GltfCompiler {
         object_data.transform = object_transform;
 
         if let Some(mesh) = node.mesh() {
-            for (_primitive_index, primitive) in mesh.primitives().enumerate() {
+            for (primitive_index, primitive) in mesh.primitives().enumerate() {
                 //debug_log!("Primitive[{}]: ", _primitive_index);
-                let name = format!("Mesh_{}", mesh.index());
+                let name = format!("Mesh_{}", primitive_index);
                 let material_path = self.process_material_data(path, &primitive);
                 let material_path = to_local_path(
                     material_path.as_path(),
@@ -657,7 +671,7 @@ impl GltfCompiler {
     fn process_light(&mut self, path: &Path, light: &Light) -> (NodeType, PathBuf) {
         let mut light_data = LightData {
             color: [light.color()[0], light.color()[1], light.color()[2], 1.],
-            intensity: light.intensity(),
+            intensity: light.intensity().min(1.),
             range: light.range().unwrap_or(1.),
             ..Default::default()
         };

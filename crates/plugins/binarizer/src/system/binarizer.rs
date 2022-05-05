@@ -1,6 +1,6 @@
 use std::{
     fs::create_dir_all,
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
@@ -21,6 +21,11 @@ use crate::{
     ShaderCompiler,
 };
 
+struct Info {
+    should_end_on_completion: AtomicBool,
+    optimize_meshes: AtomicBool,
+}
+
 pub struct Binarizer<const PLATFORM_TYPE: PlatformType> {
     config: Config,
     data_raw_folder: PathBuf,
@@ -29,7 +34,8 @@ pub struct Binarizer<const PLATFORM_TYPE: PlatformType> {
     message_hub: MessageHubRc,
     thread_handle: Option<JoinHandle<bool>>,
     is_running: Arc<AtomicBool>,
-    should_end_on_completion: Arc<AtomicBool>,
+    is_ready: Arc<AtomicBool>,
+    info: Arc<Info>,
 }
 
 impl<const PLATFORM_TYPE: PlatformType> Binarizer<PLATFORM_TYPE> {
@@ -60,7 +66,11 @@ impl<const PLATFORM_TYPE: PlatformType> Binarizer<PLATFORM_TYPE> {
             data_folder,
             thread_handle: None,
             is_running: Arc::new(AtomicBool::new(false)),
-            should_end_on_completion: Arc::new(AtomicBool::new(true)),
+            info: Arc::new(Info {
+                should_end_on_completion: AtomicBool::new(true),
+                optimize_meshes: AtomicBool::new(true),
+            }),
+            is_ready: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -68,54 +78,76 @@ impl<const PLATFORM_TYPE: PlatformType> Binarizer<PLATFORM_TYPE> {
         self.is_running.load(Ordering::SeqCst)
     }
 
+    fn init_binarizer(
+        mut binarizer: DataWatcher,
+        shared_data: &SharedDataRc,
+        message_hub: &MessageHubRc,
+        data_raw_folder: &Path,
+        data_folder: &Path,
+        info: &Info,
+    ) -> DataWatcher {
+        let shader_compiler = ShaderCompiler::<PLATFORM_TYPE>::new(
+            shared_data.clone(),
+            message_hub.clone(),
+            data_raw_folder,
+            data_folder,
+        );
+        let font_compiler = FontCompiler::new(message_hub.clone(), data_raw_folder, data_folder);
+        let image_compiler = ImageCompiler::new(message_hub.clone(), data_raw_folder, data_folder);
+        let gltf_compiler = GltfCompiler::new(
+            shared_data.clone(),
+            data_raw_folder,
+            data_folder,
+            info.optimize_meshes.load(Ordering::SeqCst),
+        );
+        binarizer.add_handler(shader_compiler);
+        binarizer.add_handler(font_compiler);
+        binarizer.add_handler(image_compiler);
+        binarizer.add_handler(gltf_compiler);
+        binarizer
+    }
+
     pub fn start(&mut self) {
         inox_log::debug_log!("Starting data binarizer");
         let mut binarizer = DataWatcher::new(self.data_raw_folder.clone());
-
-        let shader_compiler = ShaderCompiler::<PLATFORM_TYPE>::new(
-            self.shared_data.clone(),
-            self.message_hub.clone(),
-            self.data_raw_folder.as_path(),
-            self.data_folder.as_path(),
-        );
         let config_compiler = CopyCompiler::new(
             self.message_hub.clone(),
             self.data_raw_folder.as_path(),
             self.data_folder.as_path(),
         );
-        let font_compiler = FontCompiler::new(
-            self.message_hub.clone(),
-            self.data_raw_folder.as_path(),
-            self.data_folder.as_path(),
-        );
-        let image_compiler = ImageCompiler::new(
-            self.message_hub.clone(),
-            self.data_raw_folder.as_path(),
-            self.data_folder.as_path(),
-        );
-        let gltf_compiler = GltfCompiler::new(
-            self.shared_data.clone(),
-            self.data_raw_folder.as_path(),
-            self.data_folder.as_path(),
-        );
         binarizer.add_handler(config_compiler);
-        binarizer.add_handler(shader_compiler);
-        binarizer.add_handler(font_compiler);
-        binarizer.add_handler(image_compiler);
-        binarizer.add_handler(gltf_compiler);
 
         self.is_running.store(true, Ordering::SeqCst);
         let can_continue = self.is_running.clone();
-        let should_end_on_completion = self.should_end_on_completion.clone();
+        let is_ready = self.is_ready.clone();
+        let info = self.info.clone();
         let builder = thread::Builder::new().name("Data Binarizer".to_string());
+        let shared_data = self.shared_data.clone();
+        let message_hub = self.message_hub.clone();
+        let data_raw_folder = self.data_raw_folder.clone();
+        let data_folder = self.data_folder.clone();
+
         let t = builder
             .spawn(move || -> bool {
                 binarizer.binarize_all();
+                while !is_ready.load(Ordering::SeqCst) {
+                    thread::yield_now();
+                }
+                let mut binarizer = Self::init_binarizer(
+                    binarizer,
+                    &shared_data,
+                    &message_hub,
+                    &data_raw_folder,
+                    &data_folder,
+                    &info,
+                );
+                binarizer.binarize_all();
+
                 loop {
                     binarizer.update();
                     thread::yield_now();
 
-                    if should_end_on_completion.load(Ordering::SeqCst) {
+                    if info.should_end_on_completion.load(Ordering::SeqCst) {
                         can_continue.store(false, Ordering::SeqCst);
                     }
                     if !can_continue.load(Ordering::SeqCst) {
@@ -154,7 +186,8 @@ impl<const PLATFORM_TYPE: PlatformType> SystemUID for Binarizer<PLATFORM_TYPE> {
 
 impl<const PLATFORM_TYPE: PlatformType> System for Binarizer<PLATFORM_TYPE> {
     fn read_config(&mut self, plugin_name: &str) {
-        let should_end_on_completion = self.should_end_on_completion.clone();
+        let info = self.info.clone();
+        let is_ready = self.is_ready.clone();
         read_from_file(
             self.config.get_filepath(plugin_name).as_path(),
             self.shared_data.serializable_registry(),
@@ -163,7 +196,11 @@ impl<const PLATFORM_TYPE: PlatformType> System for Binarizer<PLATFORM_TYPE> {
                     "Binarizer config says that end on completion is: {}",
                     data.end_on_completion
                 );
-                should_end_on_completion.store(data.end_on_completion, Ordering::SeqCst);
+                info.optimize_meshes
+                    .store(data.optimize_meshes, Ordering::SeqCst);
+                info.should_end_on_completion
+                    .store(data.end_on_completion, Ordering::SeqCst);
+                is_ready.store(true, Ordering::SeqCst);
             }),
         );
     }
