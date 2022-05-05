@@ -68,24 +68,22 @@ struct VertexInput {
     //@builtin(vertex_index) index: u32,
     @location(0) position: vec3<f32>,
     @location(1) normal: vec3<f32>,
-    @location(2) color: vec4<f32>,
-    @location(3) tex_coords_0: vec2<f32>,
-    @location(4) tex_coords_1: vec2<f32>,
-    @location(5) tex_coords_2: vec2<f32>,
-    @location(6) tex_coords_3: vec2<f32>,
+    @location(2) tangent: vec4<f32>,
+    @location(3) color: vec4<f32>,
+    @location(4) tex_coords_0: vec2<f32>,
+    @location(5) tex_coords_1: vec2<f32>,
+    @location(6) tex_coords_2: vec2<f32>,
+    @location(7) tex_coords_3: vec2<f32>,
 };
 
 struct InstanceInput {
     //@builtin(instance_index) index: u32,
-    @location(7) draw_area: vec4<f32>,
-    @location(8) model_matrix_0: vec4<f32>,
-    @location(9) model_matrix_1: vec4<f32>,
-    @location(10) model_matrix_2: vec4<f32>,
-    @location(11) model_matrix_3: vec4<f32>,
-    @location(12) normal_matrix_0: vec3<f32>,
-    @location(13) normal_matrix_1: vec3<f32>,
-    @location(14) normal_matrix_2: vec3<f32>,
-    @location(15) material_index: i32,
+    @location(8) draw_area: vec4<f32>,
+    @location(9) model_matrix_0: vec4<f32>,
+    @location(10) model_matrix_1: vec4<f32>,
+    @location(11) model_matrix_2: vec4<f32>,
+    @location(12) model_matrix_3: vec4<f32>,
+    @location(13) material_index: i32,
 };
 
 struct VertexOutput {
@@ -93,15 +91,17 @@ struct VertexOutput {
     @location(0) world_pos: vec4<f32>,
     @location(1) color: vec4<f32>,
     @location(2) normal: vec3<f32>,
-    @location(3) view: vec3<f32>,
-    @location(4) @interpolate(flat) material_index: i32,
-    @location(5) tex_coords_base_color: vec3<f32>,
-    @location(6) tex_coords_metallic_roughness: vec3<f32>,
-    @location(7) tex_coords_normal: vec3<f32>,
-    @location(8) tex_coords_emissive: vec3<f32>,
-    @location(9) tex_coords_occlusion: vec3<f32>,
-    @location(10) tex_coords_specular_glossiness: vec3<f32>,
-    @location(11) tex_coords_diffuse: vec3<f32>,
+    @location(3) tangent: vec3<f32>,
+    @location(4) bitangent: vec3<f32>,
+    @location(5) view: vec3<f32>,
+    @location(6) @interpolate(flat) material_index: i32,
+    @location(7) tex_coords_base_color: vec3<f32>,
+    @location(8) tex_coords_metallic_roughness: vec3<f32>,
+    @location(9) tex_coords_normal: vec3<f32>,
+    @location(10) tex_coords_emissive: vec3<f32>,
+    @location(11) tex_coords_occlusion: vec3<f32>,
+    @location(12) tex_coords_specular_glossiness: vec3<f32>,
+    @location(13) tex_coords_diffuse: vec3<f32>,
 };
 
 
@@ -193,16 +193,17 @@ fn vs_main(
         instance.model_matrix_3,
     );
     let normal_matrix = mat3x3<f32>(
-        instance.normal_matrix_0,
-        instance.normal_matrix_1,
-        instance.normal_matrix_2,
+        instance.model_matrix_0.xyz,
+        instance.model_matrix_1.xyz,
+        instance.model_matrix_2.xyz,
     );
 
     var vertex_out: VertexOutput;
     vertex_out.world_pos = instance_matrix * vec4<f32>(v.position, 1.0);
     vertex_out.clip_position = constant_data.proj * constant_data.view * vertex_out.world_pos;
     vertex_out.normal = normalize((instance_matrix * vec4<f32>(v.normal, 0.0)).xyz);
-
+    vertex_out.tangent = normalize((instance_matrix * vec4<f32>(v.tangent.xyz, 0.0)).xyz);
+    vertex_out.bitangent = cross(vertex_out.normal, vertex_out.tangent) * v.tangent.w;
     let view_pos = vec3<f32>(constant_data.view[3][0], constant_data.view[3][1], constant_data.view[3][2]);
     vertex_out.view = view_pos - vertex_out.world_pos.xyz;
     vertex_out.color = v.color;
@@ -310,8 +311,12 @@ fn get_surface_info(v: VertexOutput) -> SurfaceInfo {
     }
     let material = dynamic_data.materials_data[v.material_index];
     surface.color = surface.color * material.base_color;
+
     if (has_texture(v.material_index, TEXTURE_TYPE_BASE_COLOR)) {
         surface.color = surface.color * get_texture_color(v.material_index, TEXTURE_TYPE_BASE_COLOR, v.tex_coords_base_color);
+        if (surface.color.a < 0.5) {
+            discard;
+        }
     }
 
     surface.albedo = surface.color.rgb;
@@ -323,6 +328,12 @@ fn get_surface_info(v: VertexOutput) -> SurfaceInfo {
         let metallic_roughness = get_texture_color(v.material_index, TEXTURE_TYPE_METALLIC_ROUGHNESS, v.tex_coords_metallic_roughness);
         surface.metallic = surface.metallic * metallic_roughness.b;
         surface.roughness = surface.roughness * metallic_roughness.g;
+    }
+
+    if (has_texture(v.material_index, TEXTURE_TYPE_NORMAL)) {
+        let tbn = mat3x3<f32>(v.tangent, v.bitangent, v.normal);
+        let normal = get_texture_color(v.material_index, TEXTURE_TYPE_NORMAL, v.tex_coords_normal);
+        surface.normal = normalize(tbn * (2.0 * normal.xyz - vec3<f32>(1.0, 1.0, 1.0)));
     }
 
     let dielectric_specular = vec3<f32>(0.04, 0.04, 0.04);
@@ -375,8 +386,8 @@ fn compute_range_attenuation(range: f32, distance: f32) -> f32 {
     }
     return clamp(1.0 - pow(distance / range, 4.0), 0.0, 1.0) / pow(distance, 2.0);
 }
-fn compute_light_radiance(position: vec3<f32>, light: LightData, surface: SurfaceInfo) -> vec3<f32> {
-    let point_to_light = light.position - position;
+fn compute_light_radiance(vertex_pos: vec3<f32>, light: LightData, surface: SurfaceInfo) -> vec3<f32> {
+    let point_to_light = light.position - vertex_pos;
     let L = normalize(point_to_light);
     let H = normalize(surface.v + L);
     let distance = length(point_to_light);
@@ -389,9 +400,10 @@ fn compute_light_radiance(position: vec3<f32>, light: LightData, surface: Surfac
     let numerator = NDF * G * F;
     let denominator = max(4.0 * max(dot(surface.normal, surface.v), 0.0) * NdotL, 0.001);
     let specular = numerator / vec3<f32>(denominator, denominator, denominator);
+    let intensity = 1.;//light.intensity
     // add to outgoing radiance Lo
     let attenuation = compute_range_attenuation(light.range, distance);
-    let radiance = light.color.rgb * light.intensity * attenuation;
+    let radiance = light.color.rgb * intensity * attenuation;
     return (kD * surface.albedo / vec3<f32>(PI, PI, PI) + specular) * radiance * NdotL;
 }
 
@@ -414,6 +426,7 @@ fn fs_main(v: VertexOutput) -> @location(0) vec4<f32> {
     let surface = get_surface_info(v);
     
     // reflectance equation
+    var ambient_light = vec3<f32>(1.);
     var color_from_light = vec3<f32>(0.0, 0.0, 0.0);
 
     var i = 0u;
@@ -427,7 +440,7 @@ fn fs_main(v: VertexOutput) -> @location(0) vec4<f32> {
         i = i + 1u;
     }
 
-    let ambient = surface.albedo * surface.ao;
+    let ambient = ambient_light * surface.albedo * surface.ao;
     let color = linear_to_srgb(color_from_light + ambient + surface.emissive);
     return vec4<f32>(color, surface.color.a);
 }

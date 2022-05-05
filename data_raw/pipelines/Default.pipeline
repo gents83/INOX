@@ -4,6 +4,7 @@
     "vertex_format" : [
         "PositionF32x3",
         "NormalF32x3",
+        "TangentF32x4",
         "ColorF32x4",
         "TexCoord0F32x2",
         "TexCoord1F32x2",

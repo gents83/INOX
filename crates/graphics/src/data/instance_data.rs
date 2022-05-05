@@ -1,4 +1,4 @@
-use inox_math::{Vector3, Vector4};
+use inox_math::Vector4;
 
 use crate::{VertexBufferLayoutBuilder, INVALID_INDEX};
 
@@ -7,7 +7,6 @@ use crate::{VertexBufferLayoutBuilder, INVALID_INDEX};
 pub struct InstanceData {
     pub draw_area: [f32; 4],
     pub matrix: [[f32; 4]; 4],
-    pub normal_matrix: [[f32; 3]; 3],
     pub material_index: i32,
 }
 
@@ -16,7 +15,6 @@ impl Default for InstanceData {
         Self {
             draw_area: [0.; 4],
             matrix: [[0.; 4]; 4],
-            normal_matrix: [[0.; 3]; 3],
             material_index: INVALID_INDEX,
         }
     }
@@ -36,12 +34,6 @@ impl InstanceData {
         layout_builder.add_attribute::<Vector4>(wgpu::VertexFormat::Float32x4);
         //matrix_3
         layout_builder.add_attribute::<Vector4>(wgpu::VertexFormat::Float32x4);
-        //normal_matrix_0
-        layout_builder.add_attribute::<Vector3>(wgpu::VertexFormat::Float32x3);
-        //normal_matrix_1
-        layout_builder.add_attribute::<Vector3>(wgpu::VertexFormat::Float32x3);
-        //normal_matrix_2
-        layout_builder.add_attribute::<Vector3>(wgpu::VertexFormat::Float32x3);
         //material_index
         layout_builder.add_attribute::<i32>(wgpu::VertexFormat::Sint32);
         layout_builder

@@ -228,7 +228,6 @@ impl GltfCompiler {
                     }
                 }
                 Semantic::Tangents => {
-                    /*
                     let num = self.num_from_type(&accessor);
                     let num_bytes = self.bytes_from_dimension(&accessor);
                     debug_assert!(num == 4 && num_bytes == 4);
@@ -236,8 +235,8 @@ impl GltfCompiler {
                         if vertices.len() < tang.len() {
                             debug_assert!(vertices.is_empty());
                             for t in tang.iter() {
-                                let v = VertexData {
-                                    tangent: [t.x, t.y, t.z].into(),
+                                let v = PbrVertexData {
+                                    tangent: [t.x, t.y, t.z, t.w].into(),
                                     ..Default::default()
                                 };
                                 vertices.push(v);
@@ -245,11 +244,10 @@ impl GltfCompiler {
                         } else {
                             debug_assert!(vertices.len() == tang.len());
                             for (i, t) in tang.iter().enumerate() {
-                                vertices[i].tangent = [t.x, t.y, t.z].into();
+                                vertices[i].tangent = [t.x, t.y, t.z, t.w].into();
                             }
                         }
                     }
-                    */
                 }
                 Semantic::Colors(_color_index) => {
                     let num = self.num_from_type(&accessor);

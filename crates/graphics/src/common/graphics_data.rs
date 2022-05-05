@@ -1,6 +1,6 @@
 use std::{collections::HashMap, mem::size_of, ops::Range};
 
-use inox_math::{matrix3_to_array, matrix4_to_array, Mat4Ops, Matrix3, Quat, Quaternion};
+use inox_math::matrix4_to_array;
 use inox_messenger::MessageHubRc;
 use inox_resources::{HashBuffer, ResourceId, ResourceTrait, SharedData, SharedDataRc};
 use wgpu::util::DrawIndexedIndirect;
@@ -230,12 +230,13 @@ impl GraphicsData {
         pipeline_id: &PipelineId,
     ) -> usize {
         let pb = self.pipeline_buffers.get_mut(pipeline_id).unwrap();
+        /*
         let euler_angles = mesh.matrix().rotation();
         let rotation = Quaternion::from_euler_angles(euler_angles);
         let normal_matrix = Matrix3::from(rotation);
+        */
         let instance = InstanceData {
             matrix: matrix4_to_array(mesh.matrix()),
-            normal_matrix: matrix3_to_array(normal_matrix),
             draw_area: mesh.draw_area().into(),
             material_index: mesh
                 .material()

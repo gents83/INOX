@@ -42,6 +42,7 @@ impl VertexFormat {
         vec![
             VertexFormat::PositionF32x3,
             VertexFormat::NormalF32x3,
+            VertexFormat::TangentF32x4,
             VertexFormat::ColorF32x4,
             VertexFormat::TexCoord0F32x2,
             VertexFormat::TexCoord1F32x2,
@@ -86,6 +87,7 @@ impl VertexFormat {
 pub struct PbrVertexData {
     pub pos: Vector3,
     pub normal: Vector3,
+    pub tangent: Vector4,
     pub color: Vector4,
     pub tex_coord: [Vector2; MAX_TEXTURE_COORDS_SETS],
 }
@@ -95,6 +97,7 @@ impl Default for PbrVertexData {
         PbrVertexData {
             pos: Vector3::default_zero(),
             normal: Vector3::new(0., 0., 1.),
+            tangent: Vector4::new(1., 0., 0., 1.),
             color: Vector4::new(1., 1., 1., 1.),
             tex_coord: [Vector2::default_zero(); MAX_TEXTURE_COORDS_SETS],
         }
