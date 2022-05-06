@@ -33,10 +33,6 @@
             "program": "${workspaceFolder}/crates/target/debug/inox_launcher.exe",
             "args": [],
             "cwd": "${workspaceFolder}",
-            "stopOnEntry": false,
-            "sourceLanguages": [
-                "rust"
-            ],
             "requireExactSource": false,
             "postDebugTask": "CLEANUP",
             "sourceFileMap": {
@@ -62,9 +58,6 @@
             "stopAtEntry": false,
             "requireExactSource": false,
             "postDebugTask": "CLEANUP",
-            "sourceLanguages": [
-                "rust"
-            ],
             "sourceFileMap": {
                 "/rustc/9d1b2106e23b1abd32fce1f17267604a5102f57a": "${env:USERPROFILE}/.rustup/toolchains/nightly-x86_64-pc-windows-msvc/lib/rustlib/src/rust"
             },
@@ -88,9 +81,6 @@
             "stopAtEntry": false,
             "requireExactSource": false,
             "postDebugTask": "CLEANUP",
-            "sourceLanguages": [
-                "rust"
-            ],
             "sourceFileMap": {
                 "/rustc/9d1b2106e23b1abd32fce1f17267604a5102f57a": "${env:USERPROFILE}/.rustup/toolchains/nightly-x86_64-pc-windows-msvc/lib/rustlib/src/rust"
             },
@@ -109,9 +99,6 @@
             "stopAtEntry": false,
             "requireExactSource": false,
             "postDebugTask": "CLEANUP",
-            "sourceLanguages": [
-                "rust"
-            ],
             "sourceFileMap": {
                 "/rustc/9d1b2106e23b1abd32fce1f17267604a5102f57a": "${env:USERPROFILE}/.rustup/toolchains/nightly-x86_64-pc-windows-msvc/lib/rustlib/src/rust"
             },
@@ -125,10 +112,6 @@
             "program": "${workspaceFolder}/crates/target/release/inox_launcher.exe",
             "args": [],
             "cwd": "${workspaceFolder}",
-            "stopOnEntry": false,
-            "sourceLanguages": [
-                "rust"
-            ],
             "requireExactSource": false,
             "postDebugTask": "CLEANUP",
             "sourceFileMap": {
@@ -150,9 +133,6 @@
             "stopAtEntry": false,
             "requireExactSource": false,
             "postDebugTask": "CLEANUP",
-            "sourceLanguages": [
-                "rust"
-            ],
             "sourceFileMap": {
                 "/rustc/9d1b2106e23b1abd32fce1f17267604a5102f57a": "${env:USERPROFILE}/.rustup/toolchains/nightly-x86_64-pc-windows-msvc/lib/rustlib/src/rust"
             },

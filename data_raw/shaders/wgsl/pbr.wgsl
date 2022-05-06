@@ -440,6 +440,9 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
     let reflection = -normalize(reflect(v, n));
 
     var color = AmbientLightColor * AmbientLightIntensity * base_color.xyz;
+    color = mix(color, color * ao, occlusion_strength);
+    color = color + emissive_color;
+
     var i = 0u;
     loop {
         let light = dynamic_data.lights_data[i];
@@ -479,8 +482,6 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
         let spec_contrib = F * G * D / (4.0 * NdotL * NdotV);
         let light_color = NdotL * light.color.rgb * (diffuse_contrib + spec_contrib);
 
-        color = mix(color, color * ao, occlusion_strength);
-        color = color + emissive_color;
         color = color + light_color;
 
         i = i + 1u;
