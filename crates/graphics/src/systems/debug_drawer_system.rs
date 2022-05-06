@@ -65,7 +65,7 @@ impl DebugDrawerSystem {
             context.shared_data(),
             context.message_hub(),
             generate_random_uid(),
-            MeshData::new(VertexFormat::wireframe()),
+            MeshData::new(VertexFormat::pbr()),
         );
         mesh_instance
             .get_mut()
@@ -120,12 +120,18 @@ impl DebugDrawerSystem {
                             self.config.default_pipeline.as_path(),
                             None,
                         );
+                        default_pipeline
+                            .get_mut()
+                            .set_vertex_format(VertexFormat::pbr());
                         let wireframe_pipeline = Pipeline::request_load(
                             &self.shared_data,
                             &self.message_hub,
                             self.config.wireframe_pipeline.as_path(),
                             None,
                         );
+                        wireframe_pipeline
+                            .get_mut()
+                            .set_vertex_format(VertexFormat::wireframe());
                         let material = Material::duplicate_from_pipeline(
                             &self.shared_data,
                             &self.message_hub,
@@ -219,8 +225,12 @@ impl DebugDrawerSystem {
                         );
                         wireframe_mesh_data.append_mesh(&vertices, &indices);
                     } else {
-                        let (vertices, indices) =
-                            create_colored_quad([min.x, min.y, max.x, max.y].into(), z, color);
+                        let (vertices, indices) = create_colored_quad::<PbrVertexData>(
+                            [min.x, min.y, max.x, max.y].into(),
+                            z,
+                            color,
+                            None,
+                        );
                         mesh_data.append_mesh(&vertices, &indices);
                     }
                 }

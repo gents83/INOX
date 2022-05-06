@@ -25,38 +25,29 @@ where
     (vertices, indices)
 }
 
-pub fn create_quad_with_texture(
+pub fn create_quad_with_texture<T>(
     rect: Vector4,
     z: f32,
     tex_coords: Vector4,
     index_start: Option<usize>,
-) -> ([PbrVertexData; 4], [u32; 6]) {
-    let vertices = [
-        PbrVertexData {
-            pos: [rect.x, rect.y, z].into(),
-            normal: [-1., -1., 0.].into(),
-            tex_coord: [[tex_coords.x, tex_coords.y].into(); MAX_TEXTURE_COORDS_SETS],
-            ..Default::default()
-        },
-        PbrVertexData {
-            pos: [rect.x, rect.w, z].into(),
-            normal: [-1., 1., 0.].into(),
-            tex_coord: [[tex_coords.x, tex_coords.w].into(); MAX_TEXTURE_COORDS_SETS],
-            ..Default::default()
-        },
-        PbrVertexData {
-            pos: [rect.z, rect.w, z].into(),
-            normal: [1., 1., 0.].into(),
-            tex_coord: [[tex_coords.z, tex_coords.w].into(); MAX_TEXTURE_COORDS_SETS],
-            ..Default::default()
-        },
-        PbrVertexData {
-            pos: [rect.z, rect.y, z].into(),
-            normal: [1., -1., 0.].into(),
-            tex_coord: [[tex_coords.z, tex_coords.y].into(); MAX_TEXTURE_COORDS_SETS],
-            ..Default::default()
-        },
-    ];
+) -> ([T; 4], [u32; 6])
+where
+    T: VertexData + Copy,
+{
+    let mut vertices = [T::default(); 4];
+    vertices[0].set_position([rect.x, rect.y, z].into());
+    vertices[0].set_normal([-1., -1., 0.].into());
+    vertices[0].set_tex_coord([tex_coords.x, tex_coords.y].into());
+    vertices[1].set_position([rect.x, rect.w, z].into());
+    vertices[1].set_normal([-1., 1., 0.].into());
+    vertices[1].set_tex_coord([tex_coords.x, tex_coords.w].into());
+    vertices[2].set_position([rect.z, rect.w, z].into());
+    vertices[2].set_normal([1., 1., 0.].into());
+    vertices[2].set_tex_coord([tex_coords.z, tex_coords.w].into());
+    vertices[3].set_position([rect.z, rect.y, z].into());
+    vertices[3].set_normal([1., -1., 0.].into());
+    vertices[3].set_tex_coord([tex_coords.z, tex_coords.y].into());
+
     let index_offset: u32 = index_start.unwrap_or(0) as _;
     let indices: [u32; 6] = [
         index_offset,
@@ -68,42 +59,38 @@ pub fn create_quad_with_texture(
     ];
     (vertices, indices)
 }
-pub fn create_colored_quad(
+pub fn create_colored_quad<T>(
     rect: Vector4,
     z: f32,
     color: Vector4,
-) -> ([PbrVertexData; 4], [u32; 6]) {
-    let vertices = [
-        PbrVertexData {
-            pos: [rect.x, rect.y, z].into(),
-            normal: [-1., -1., 0.].into(),
-            color,
-            tex_coord: [[0., 0.].into(); MAX_TEXTURE_COORDS_SETS],
-            ..Default::default()
-        },
-        PbrVertexData {
-            pos: [rect.x, rect.w, z].into(),
-            normal: [-1., 1., 0.].into(),
-            color,
-            tex_coord: [[0., 1.].into(); MAX_TEXTURE_COORDS_SETS],
-            ..Default::default()
-        },
-        PbrVertexData {
-            pos: [rect.z, rect.w, z].into(),
-            normal: [1., 1., 0.].into(),
-            color,
-            tex_coord: [[1., 1.].into(); MAX_TEXTURE_COORDS_SETS],
-            ..Default::default()
-        },
-        PbrVertexData {
-            pos: [rect.z, rect.y, z].into(),
-            normal: [1., -1., 0.].into(),
-            color,
-            tex_coord: [[1., 0.].into(); MAX_TEXTURE_COORDS_SETS],
-            ..Default::default()
-        },
+    index_start: Option<usize>,
+) -> ([T; 4], [u32; 6])
+where
+    T: VertexData + Copy,
+{
+    let mut vertices = [T::default(); 4];
+    vertices[0].set_position([rect.x, rect.y, z].into());
+    vertices[0].set_normal([-1., -1., 0.].into());
+    vertices[0].set_color(color);
+    vertices[1].set_position([rect.x, rect.w, z].into());
+    vertices[1].set_normal([-1., 1., 0.].into());
+    vertices[1].set_color(color);
+    vertices[2].set_position([rect.z, rect.w, z].into());
+    vertices[2].set_normal([1., 1., 0.].into());
+    vertices[2].set_color(color);
+    vertices[3].set_position([rect.z, rect.y, z].into());
+    vertices[3].set_normal([1., -1., 0.].into());
+    vertices[3].set_color(color);
+
+    let index_offset: u32 = index_start.unwrap_or(0) as _;
+    let indices: [u32; 6] = [
+        index_offset,
+        2 + index_offset,
+        1 + index_offset,
+        3 + index_offset,
+        2 + index_offset,
+        index_offset,
     ];
-    let indices: [u32; 6] = [0, 1, 2, 2, 3, 0];
     (vertices, indices)
 }
 

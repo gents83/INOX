@@ -4,7 +4,7 @@ use inox_math::{is_point_in_triangle, Vector2, Vector3, Vector4};
 use inox_resources::{from_u8_slice, from_u8_slice_mut, to_u8_slice};
 use inox_serialize::{Deserialize, Serialize, SerializeFile};
 
-use crate::{create_quad_with_texture, VertexFormat, VertexFormatBits};
+use crate::{create_quad_with_texture, VertexData, VertexFormat, VertexFormatBits};
 
 pub struct MeshBindingData {
     pub vertices: Range<u32>,
@@ -35,7 +35,7 @@ impl MeshData {
             material: PathBuf::new(),
         }
     }
-    pub fn vertex_format_bits(&self) -> VertexFormatBits {
+    pub fn vertex_format(&self) -> VertexFormatBits {
         VertexFormat::to_bits(&self.vertex_format)
     }
     pub fn vertex_size(&self) -> usize {
@@ -134,20 +134,25 @@ impl MeshData {
         self.compute_center();
     }
 
-    pub fn add_quad_default(&mut self, rect: Vector4, z: f32) {
+    pub fn add_quad_default<T>(&mut self, rect: Vector4, z: f32)
+    where
+        T: VertexData + Copy,
+    {
         let tex_coords = [0.0, 0.0, 1.0, 1.0].into();
-        let (vertices, indices) = create_quad_with_texture(rect, z, tex_coords, None);
+        let (vertices, indices) = create_quad_with_texture::<T>(rect, z, tex_coords, None);
         self.append_mesh(&vertices, &indices);
     }
 
-    pub fn add_quad(
+    pub fn add_quad<T>(
         &mut self,
         rect: Vector4,
         z: f32,
         tex_coords: Vector4,
         index_start: Option<usize>,
-    ) {
-        let (vertices, indices) = create_quad_with_texture(rect, z, tex_coords, index_start);
+    ) where
+        T: VertexData + Copy,
+    {
+        let (vertices, indices) = create_quad_with_texture::<T>(rect, z, tex_coords, index_start);
         self.append_mesh(&vertices, &indices);
     }
 

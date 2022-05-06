@@ -214,6 +214,18 @@ impl Mesh {
         &self.material
     }
     pub fn set_mesh_data(&mut self, mesh_data: MeshData) -> &mut Self {
+        if let Some(material) = self.material.as_ref() {
+            if let Some(pipeline) = material.get().pipeline() {
+                let pipeline_vertex_format = pipeline.get().vertex_format();
+                let mesh_vertex_format = mesh_data.vertex_format();
+                if pipeline_vertex_format != mesh_vertex_format {
+                    panic!(
+                        "Mesh vertex format mismatch - Pipeline is {:?}, mesh is {:?}",
+                        pipeline_vertex_format, mesh_vertex_format
+                    );
+                }
+            }
+        }
         if let Some(graphics_data) = &self.graphics_data {
             let (vertex_range, index_range) =
                 graphics_data.get_mut().add_mesh_data(&self.id, &mesh_data);

@@ -39,7 +39,7 @@ impl VertexFormat {
         ]
     }
     pub fn wireframe() -> Vec<Self> {
-        vec![VertexFormat::PositionF32x2, VertexFormat::ColorF32x4]
+        vec![VertexFormat::PositionF32x3, VertexFormat::ColorF32x4]
     }
     pub fn pbr() -> Vec<Self> {
         vec![
@@ -90,6 +90,39 @@ pub trait VertexData: Default {
     fn set_normal(&mut self, normal: Vector3);
     fn set_tex_coord(&mut self, t: Vector2);
     fn set_color(&mut self, color: Vector4);
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Copy)]
+#[serde(crate = "inox_serialize")]
+pub struct UIVertexData {
+    pub pos: Vector3,
+    pub tex_coord: Vector2,
+    pub color: u32,
+}
+impl VertexData for UIVertexData {
+    fn set_position(&mut self, pos: Vector3) {
+        self.pos = pos;
+    }
+    fn set_color(&mut self, color: Vector4) {
+        let c = (color.x * 255.) as u32 & 0xFF
+            | (((color.y * 255.) as u32 & 0xFF) << 8)
+            | (((color.z * 255.) as u32 & 0xFF) << 16)
+            | (((color.w * 255.) as u32 & 0xFF) << 24);
+        self.color = c;
+    }
+    fn set_normal(&mut self, _normal: Vector3) {}
+    fn set_tex_coord(&mut self, t: Vector2) {
+        self.tex_coord = t;
+    }
+}
+impl Default for UIVertexData {
+    fn default() -> Self {
+        Self {
+            pos: Vector3::default_zero(),
+            tex_coord: Vector2::default_zero(),
+            color: 0,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Copy)]

@@ -5,7 +5,7 @@ use inox_serialize::{Deserialize, Serialize};
 use std::path::Path;
 use ttf_parser::*;
 
-use crate::{Glyph, MeshData, Metrics, VertexFormat};
+use crate::{Glyph, MeshData, Metrics, UIVertexData, VertexFormat};
 
 const DEFAULT_FONT_COUNT: u8 = 255;
 pub const DEFAULT_FONT_TEXTURE_SIZE: usize = 1024;
@@ -77,7 +77,7 @@ impl FontData {
 
         for (i, c) in text_data.text.as_bytes().iter().enumerate() {
             let g = &self.glyphs[*c as usize];
-            mesh_data.add_quad(
+            mesh_data.add_quad::<UIVertexData>(
                 Vector4::new(prev_pos.x, prev_pos.y, prev_pos.x + size, prev_pos.y + size),
                 0.0,
                 g.texture_coord,

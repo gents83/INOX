@@ -177,13 +177,13 @@ impl GraphicsData {
         }
         let vertices_range = self.add_vertices(
             mesh_id,
-            mesh_data.vertex_format_bits(),
+            mesh_data.vertex_format(),
             mesh_data.vertex_size(),
             mesh_data.vertices.as_slice(),
         );
         let indices_range = self.add_indices(
             mesh_id,
-            mesh_data.vertex_format_bits(),
+            mesh_data.vertex_format(),
             mesh_data.indices.as_slice(),
         );
         (vertices_range, indices_range)

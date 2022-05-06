@@ -1,8 +1,8 @@
 use inox_commands::CommandParser;
 use inox_core::{implement_unique_system_uid, ContextRc, System};
 use inox_graphics::{
-    create_quad, Light, Material, Mesh, MeshData, Pipeline, Texture, VertexFormat, View,
-    WireframeVertexData, DEFAULT_PIPELINE, WIREFRAME_PIPELINE,
+    create_quad, Light, Material, Mesh, MeshData, PbrVertexData, Pipeline, Texture, VertexFormat,
+    View, WireframeVertexData, DEFAULT_PIPELINE, WIREFRAME_PIPELINE,
 };
 use inox_log::debug_log;
 use inox_math::{Matrix4, VecBase, VecBaseFloat, Vector2, Vector3};
@@ -197,6 +197,7 @@ impl ViewerSystem {
                 ),
             );
             let mesh_id = generate_random_uid();
+            
             let mesh = self.context.shared_data().add_resource(
                 self.context.message_hub(),
                 mesh_id,
@@ -212,6 +213,7 @@ impl ViewerSystem {
                 PathBuf::from(DEFAULT_PIPELINE).as_path(),
                 None,
             );
+            pipeline.get_mut().set_vertex_format(VertexFormat::pbr());
             let material = Material::duplicate_from_pipeline(
                 self.context.shared_data(),
                 self.context.message_hub(),
@@ -228,7 +230,7 @@ impl ViewerSystem {
                 .set_texture(inox_graphics::TextureType::BaseColor, &texture);
             mesh.get_mut().set_material(material);
             let mut mesh_data = MeshData::new(VertexFormat::pbr());
-            mesh_data.add_quad_default([-10., -10., 10., 10.].into(), 0.);
+            mesh_data.add_quad_default::<PbrVertexData>([-10., -10., 10., 10.].into(), 0.);
 
             //println!("Quad Mesh {:?}", mesh.id());
 
@@ -249,7 +251,8 @@ impl ViewerSystem {
                 ),
             );
             let mesh_id = generate_random_uid();
-            let mesh = self.context.shared_data().add_resource(
+            
+            let wireframe_mesh = self.context.shared_data().add_resource(
                 self.context.message_hub(),
                 mesh_id,
                 Mesh::new(
@@ -258,18 +261,21 @@ impl ViewerSystem {
                     self.context.message_hub(),
                 ),
             );
-            let pipeline = Pipeline::request_load(
+            let wireframe_pipeline = Pipeline::request_load(
                 self.context.shared_data(),
                 self.context.message_hub(),
                 PathBuf::from(WIREFRAME_PIPELINE).as_path(),
                 None,
             );
-            let material = Material::duplicate_from_pipeline(
+            wireframe_pipeline
+                .get_mut()
+                .set_vertex_format(VertexFormat::wireframe());
+            let wireframe_material = Material::duplicate_from_pipeline(
                 self.context.shared_data(),
                 self.context.message_hub(),
-                &pipeline,
+                &wireframe_pipeline,
             );
-            mesh.get_mut().set_material(material);
+            wireframe_mesh.get_mut().set_material(wireframe_material);
             let mut mesh_data = MeshData::new(VertexFormat::wireframe());
 
             let (vertices, indices) =
@@ -278,8 +284,8 @@ impl ViewerSystem {
 
             //println!("Wireframe Mesh {:?}", mesh.id());
 
-            mesh.get_mut().set_mesh_data(mesh_data);
-            object.get_mut().add_component(mesh);
+            wireframe_mesh.get_mut().set_mesh_data(mesh_data);
+            object.get_mut().add_component(wireframe_mesh);
             object.get_mut().set_position([20., 0., 0.].into());
             object
         };

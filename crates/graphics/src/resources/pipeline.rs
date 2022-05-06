@@ -112,7 +112,8 @@ impl DataTypeResource for Pipeline {
         self
     }
     fn is_initialized(&self) -> bool {
-        self.vertex_shader.is_some()
+        self.data.is_valid()
+            && self.vertex_shader.is_some()
             && self.fragment_shader.is_some()
             && self.render_pipeline.is_some()
             && self.vertex_format() != 0
@@ -134,9 +135,9 @@ impl DataTypeResource for Pipeline {
     where
         Self: Sized,
     {
-        let canonicalized_pipeline_data = data.canonicalize_paths();
+        let data = data.canonicalize_paths();
         let mut pipeline = Self::new(id, shared_data, message_hub);
-        pipeline.data = canonicalized_pipeline_data;
+        pipeline.data = data;
         let (vertex_shader, fragment_shader) =
             Self::load_shaders(&pipeline.data, shared_data, message_hub);
         pipeline.vertex_shader = Some(vertex_shader);
@@ -154,6 +155,10 @@ impl Pipeline {
     }
     pub fn binding_data_mut(&mut self) -> &mut BindingData {
         &mut self.binding_data
+    }
+    pub fn set_vertex_format(&mut self, format: Vec<VertexFormat>) -> &mut Self {
+        self.data.vertex_format = format;
+        self
     }
     pub fn vertex_format(&self) -> u32 {
         VertexFormat::to_bits(self.data.vertex_format.as_slice())
