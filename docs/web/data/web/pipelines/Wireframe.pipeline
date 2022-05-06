@@ -1,18 +1,12 @@
 {
-    "vertex_shader": "shaders/wgsl/pbr.shader",
-    "fragment_shader": "shaders/wgsl/pbr.shader",
+    "vertex_shader": "shaders/wgsl/wireframe.shader",
+    "fragment_shader": "shaders/wgsl/wireframe.shader",
     "vertex_format" : [
         "PositionF32x3",
-        "NormalF32x3",
-        "ColorF32x4",
-        "TexCoord0F32x2",
-        "TexCoord1F32x2",
-        "TexCoord2F32x2",
-        "TexCoord3F32x2"
+        "ColorF32x4"
     ],
     "binding_data" : [
-        "Constant",
-        "Dynamic"
+        "Constant"
     ],
     "culling": "None",
     "mode": "Line",
