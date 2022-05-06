@@ -1,17 +1,17 @@
 use inox_commands::CommandParser;
 use inox_core::{implement_unique_system_uid, ContextRc, System};
 use inox_graphics::{
-    create_quad, Light, Material, Mesh, MeshData, PbrVertexData, Pipeline, Texture, VertexFormat,
-    View, WireframeVertexData, DEFAULT_PIPELINE, WIREFRAME_PIPELINE,
+    create_quad, Material, Mesh, MeshData, PbrVertexData, Pipeline, Texture, VertexFormat, View,
+    WireframeVertexData, DEFAULT_PIPELINE, WIREFRAME_PIPELINE,
 };
 use inox_log::debug_log;
-use inox_math::{Matrix4, VecBase, VecBaseFloat, Vector2, Vector3};
+use inox_math::{VecBase, VecBaseFloat, Vector2, Vector3};
 use inox_messenger::Listener;
 use inox_platform::{InputState, Key, KeyEvent, MouseEvent, WindowEvent};
 use inox_resources::{DataTypeResource, Resource, SerializableResource, SerializableResourceEvent};
-use inox_scene::{Camera, Object, ObjectId, Scene, Script};
+use inox_scene::{Camera, Object, Scene};
 use inox_uid::generate_random_uid;
-use std::{collections::HashMap, path::PathBuf};
+use std::path::PathBuf;
 
 use crate::widgets::{Info, InfoParams, View3D};
 
@@ -71,30 +71,6 @@ impl System for ViewerSystem {
         let current_frame = timer.current_frame();
         debug_assert!(self.last_frame != current_frame);
         self.last_frame = current_frame;
-
-        self.context
-            .shared_data()
-            .for_each_resource_mut(|_, s: &mut Script| {
-                s.update(&timer);
-            });
-
-        let mut map: HashMap<ObjectId, Option<Matrix4>> = HashMap::new();
-        self.context
-            .shared_data()
-            .for_each_resource(|r: &Resource<Object>, o: &Object| {
-                let parent_transform = o.parent().map(|parent| parent.get().transform());
-                map.insert(*r.id(), parent_transform);
-            });
-        self.context
-            .shared_data()
-            .for_each_resource_mut(|r, o: &mut Object| {
-                if let Some(parent_transform) = map.remove(r.id()) {
-                    o.update_transform(parent_transform);
-                }
-                o.components_of_type::<Light>().iter().for_each(|light| {
-                    light.get_mut().set_position(o.get_position());
-                });
-            });
         /*
         self.context
         .shared_data()
@@ -197,7 +173,7 @@ impl ViewerSystem {
                 ),
             );
             let mesh_id = generate_random_uid();
-            
+
             let mesh = self.context.shared_data().add_resource(
                 self.context.message_hub(),
                 mesh_id,
@@ -251,7 +227,7 @@ impl ViewerSystem {
                 ),
             );
             let mesh_id = generate_random_uid();
-            
+
             let wireframe_mesh = self.context.shared_data().add_resource(
                 self.context.message_hub(),
                 mesh_id,

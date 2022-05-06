@@ -384,9 +384,10 @@ impl Object {
             }
         }
         self.components_of_type::<Mesh>().iter().for_each(|mesh| {
-            if mesh.get().matrix() != self.transform {
-                mesh.get_mut().set_matrix(self.transform);
-            }
+            mesh.get_mut().set_matrix(self.transform);
+        });
+        self.components_of_type::<Light>().iter().for_each(|light| {
+            light.get_mut().set_position(self.get_position());
         });
     }
 }

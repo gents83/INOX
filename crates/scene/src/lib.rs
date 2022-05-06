@@ -9,12 +9,14 @@ pub use crate::camera::*;
 pub use crate::object::*;
 pub use crate::scene::*;
 pub use crate::script::*;
+pub use crate::systems::*;
 
 pub mod camera;
 pub mod data;
 pub mod object;
 pub mod scene;
 pub mod script;
+pub mod systems;
 
 pub fn register_resource_types(shared_data: &SharedDataRc, message_hub: &MessageHubRc) {
     shared_data.register_type_serializable::<Object>(message_hub);

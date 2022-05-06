@@ -12,6 +12,7 @@ use inox_graphics::{
 };
 use inox_platform::Window;
 use inox_resources::ConfigBase;
+use inox_scene::{ObjectSystem, ScriptSystem};
 use inox_serialize::read_from_file;
 use inox_ui::{UIPass, UISystem, UI_PASS_NAME};
 
@@ -61,6 +62,8 @@ impl Plugin for Viewer {
             .match_resource(|r: &RenderPass| r.data().name == UI_PASS_NAME);
         let ui_system = UISystem::new(context, &ui_render_pass.unwrap());
         let system = ViewerSystem::new(context);
+        let object_system = ObjectSystem::new(context.shared_data());
+        let script_system = ScriptSystem::new(context);
 
         context.add_system(inox_core::Phases::PlatformUpdate, window_system, None);
         context.add_system(
@@ -73,6 +76,14 @@ impl Plugin for Viewer {
             rendering_draw_system,
             Some(&[UpdateSystem::system_id()]),
         );
+
+        context.add_system(inox_core::Phases::Update, object_system, None);
+        context.add_system(
+            inox_core::Phases::Update,
+            script_system,
+            Some(&[ObjectSystem::system_id()]),
+        );
+
         context.add_system(inox_core::Phases::Update, system, None);
         context.add_system(inox_core::Phases::Update, ui_system, None);
         context.add_system(inox_core::Phases::Update, debug_drawer_system, None);
@@ -82,6 +93,9 @@ impl Plugin for Viewer {
         context.remove_system(inox_core::Phases::Update, &DebugDrawerSystem::system_id());
         context.remove_system(inox_core::Phases::Update, &UISystem::system_id());
         context.remove_system(inox_core::Phases::Update, &ViewerSystem::system_id());
+
+        context.remove_system(inox_core::Phases::Update, &ScriptSystem::system_id());
+        context.remove_system(inox_core::Phases::Update, &ObjectSystem::system_id());
 
         context.remove_system(
             inox_core::Phases::PlatformUpdate,
