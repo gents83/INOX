@@ -188,7 +188,7 @@ impl<const PLATFORM_TYPE: PlatformType> System for Binarizer<PLATFORM_TYPE> {
     fn read_config(&mut self, plugin_name: &str) {
         let info = self.info.clone();
         let is_ready = self.is_ready.clone();
-        read_from_file(
+        let file_read_success = read_from_file(
             self.config.get_filepath(plugin_name).as_path(),
             self.shared_data.serializable_registry(),
             Box::new(move |data: Config| {
@@ -203,6 +203,9 @@ impl<const PLATFORM_TYPE: PlatformType> System for Binarizer<PLATFORM_TYPE> {
                 is_ready.store(true, Ordering::SeqCst);
             }),
         );
+        if !file_read_success {
+            self.is_ready.store(true, Ordering::SeqCst);
+        }
     }
     fn should_run_when_not_focused(&self) -> bool {
         true

@@ -63,7 +63,8 @@ pub fn read_from_file<'a, T>(
     filepath: &Path,
     registry: &SerializableRegistryRc,
     mut f: Box<dyn FnMut(T) + 'static>,
-) where
+) -> bool
+where
     T: for<'de> Deserialize<'de> + SerializeFile + 'static,
 {
     let mut file = File::new(filepath);
@@ -84,10 +85,11 @@ pub fn read_from_file<'a, T>(
                 }
             },
         );
-    } else {
-        eprintln!(
-            "Unable to find file {}",
-            filepath.to_str().unwrap_or("InvalidPath"),
-        );
+        return true;
     }
+    eprintln!(
+        "Unable to find file {}",
+        filepath.to_str().unwrap_or("InvalidPath"),
+    );
+    false
 }
