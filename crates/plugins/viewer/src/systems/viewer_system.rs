@@ -26,7 +26,7 @@ pub struct ViewerSystem {
     last_frame: u64,
 }
 
-const FORCE_USE_DEFAULT_CAMERA: bool = false;
+const FORCE_USE_DEFAULT_CAMERA: bool = true;
 
 impl Drop for ViewerSystem {
     fn drop(&mut self) {
