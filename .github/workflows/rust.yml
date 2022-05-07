@@ -135,7 +135,7 @@ jobs:
         run: cp -Force "./web/*.html" "./output/web/"
 
       - name: "Executing binarizer"
-        run:  ./crates/target/release/inox_launcher.exe -plugin inox_binarizer
+        run:  ./crates/target/release/inox_launcher.exe -plugin inox_binarizer -platform pc -platform web
 
       - name: "Copy data binarized in output for wasm"          
         run: |

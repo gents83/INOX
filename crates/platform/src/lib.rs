@@ -23,6 +23,11 @@ pub const PLATFORM_TYPE_WEB: PlatformType = 1;
 pub const PLATFORM_TYPE_ANDROID: PlatformType = 2;
 pub const PLATFORM_TYPE_IOS: PlatformType = 3;
 
+pub const PLATFORM_TYPE_PC_NAME: &str = "pc";
+pub const PLATFORM_TYPE_WEB_NAME: &str = "web";
+pub const PLATFORM_TYPE_ANDROID_NAME: &str = "android";
+pub const PLATFORM_TYPE_IOS_NAME: &str = "ios";
+
 pub mod platform_impl {
     #[cfg(target_os = "android")]
     #[path = "android/platform.rs"]

@@ -1,5 +1,9 @@
+use inox_commands::CommandParser;
 use inox_core::{define_plugin, ContextRc, Plugin, SystemId, SystemUID};
-use inox_platform::{PLATFORM_TYPE_PC, PLATFORM_TYPE_WEB};
+use inox_platform::{
+    PLATFORM_TYPE_ANDROID_NAME, PLATFORM_TYPE_IOS_NAME, PLATFORM_TYPE_PC, PLATFORM_TYPE_PC_NAME,
+    PLATFORM_TYPE_WEB, PLATFORM_TYPE_WEB_NAME,
+};
 use inox_resources::{PC_FOLDER, WEB_FOLDER};
 
 use crate::Binarizer;
@@ -20,21 +24,41 @@ impl Plugin for BinarizerPlugin {
         "inox_binarizer"
     }
     fn prepare(&mut self, context: &ContextRc) {
-        let system = Binarizer::<PLATFORM_TYPE_PC>::new(
-            context,
-            inox_resources::Data::data_raw_folder(),
-            inox_resources::Data::data_folder().join(PC_FOLDER),
-        );
-        self.pc_id = Binarizer::<PLATFORM_TYPE_PC>::system_id();
-        context.add_system(inox_core::Phases::PreUpdate, system, None);
-
-        let system = Binarizer::<PLATFORM_TYPE_WEB>::new(
-            context,
-            inox_resources::Data::data_raw_folder(),
-            inox_resources::Data::data_folder().join(WEB_FOLDER),
-        );
-        self.web_id = Binarizer::<PLATFORM_TYPE_WEB>::system_id();
-        context.add_system(inox_core::Phases::PreUpdate, system, None);
+        let command_parser = CommandParser::from_command_line();
+        let mut platform = command_parser.get_values_of::<String>("platform");
+        if platform.is_empty() {
+            platform.push(PLATFORM_TYPE_PC_NAME.to_string());
+        }
+        for name in platform.iter() {
+            let name = name.as_str();
+            match name {
+                PLATFORM_TYPE_PC_NAME => {
+                    let system = Binarizer::<PLATFORM_TYPE_PC>::new(
+                        context,
+                        inox_resources::Data::data_raw_folder(),
+                        inox_resources::Data::data_folder().join(PC_FOLDER),
+                    );
+                    self.pc_id = Binarizer::<PLATFORM_TYPE_PC>::system_id();
+                    context.add_system(inox_core::Phases::PreUpdate, system, None);
+                }
+                PLATFORM_TYPE_WEB_NAME => {
+                    let system = Binarizer::<PLATFORM_TYPE_WEB>::new(
+                        context,
+                        inox_resources::Data::data_raw_folder(),
+                        inox_resources::Data::data_folder().join(WEB_FOLDER),
+                    );
+                    self.web_id = Binarizer::<PLATFORM_TYPE_WEB>::system_id();
+                    context.add_system(inox_core::Phases::PreUpdate, system, None);
+                }
+                PLATFORM_TYPE_ANDROID_NAME => {
+                    inox_log::debug_log!("Binarization for Android platform is not supported yet");
+                }
+                PLATFORM_TYPE_IOS_NAME => {
+                    inox_log::debug_log!("Binarization for IOS platform is not supported yet");
+                }
+                _ => {}
+            }
+        }
     }
 
     fn unprepare(&mut self, context: &ContextRc) {
