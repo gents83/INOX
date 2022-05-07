@@ -415,9 +415,6 @@ impl GltfCompiler {
         let indices = self.extract_indices(path, primitive);
 
         let mut mesh_data = self.optimize_mesh(vertices, indices);
-
-        //let mut mesh_data = MeshData::new(VertexFormat::pbr());
-        //mesh_data.append_mesh(vertices.as_slice(), indices.as_slice());
         mesh_data.material = material_path.to_path_buf();
 
         self.create_file(
@@ -624,8 +621,8 @@ impl GltfCompiler {
             }
         }
 
-        for (_child_index, child) in node.children().enumerate() {
-            let name = format!("Node_{}", child.index());
+        for (child_index, child) in node.children().enumerate() {
+            let name = format!("Node_{}", child_index);
             if let Some(camera) = child.camera() {
                 object_data.transform =
                     object_data.transform * Matrix4::from(child.transform().matrix());
