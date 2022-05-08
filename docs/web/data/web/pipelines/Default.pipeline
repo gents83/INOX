@@ -15,7 +15,7 @@
         "Constant",
         "Dynamic"
     ],
-    "culling": "None",
+    "culling": "Front",
     "mode": "Fill",
     "src_color_blend_factor": "SrcAlpha",
     "dst_color_blend_factor": "OneMinusSrcAlpha",
