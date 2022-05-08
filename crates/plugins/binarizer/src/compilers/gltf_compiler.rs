@@ -68,6 +68,8 @@ pub struct GltfCompiler {
     data_raw_folder: PathBuf,
     data_folder: PathBuf,
     optimize_meshes: bool,
+    node_index: usize,
+    material_index: usize,
 }
 
 impl GltfCompiler {
@@ -82,6 +84,8 @@ impl GltfCompiler {
             data_raw_folder: data_raw_folder.to_path_buf(),
             data_folder: data_folder.to_path_buf(),
             optimize_meshes,
+            node_index: 0,
+            material_index: 0,
         }
     }
 
@@ -519,10 +523,7 @@ impl GltfCompiler {
             .into();
         }
 
-        let name = format!(
-            "Material_{}",
-            primitive.material().index().unwrap_or_default()
-        );
+        let name = format!("Material_{}", self.material_index);
         self.create_file(
             path,
             &material_data,
@@ -538,7 +539,9 @@ impl GltfCompiler {
         node: &Node,
         node_name: &str,
     ) -> Option<(NodeType, PathBuf)> {
-        Some(self.process_object(path, node, node_name))
+        let (node_type, node_path) = self.process_object(path, node, node_name);
+        self.node_index += 1;
+        Some((node_type, node_path))
     }
 
     fn process_object(&mut self, path: &Path, node: &Node, node_name: &str) -> (NodeType, PathBuf) {
@@ -548,20 +551,15 @@ impl GltfCompiler {
 
         if let Some(mesh) = node.mesh() {
             for (primitive_index, primitive) in mesh.primitives().enumerate() {
-                //debug_log!("Primitive[{}]: ", _primitive_index);
-                let name = format!("Mesh_{}", primitive_index);
+                let name = format!("{}_Primitive_{}", node_name, primitive_index);
                 let material_path = self.process_material_data(path, &primitive);
                 let material_path = to_local_path(
                     material_path.as_path(),
                     self.data_raw_folder.as_path(),
                     self.data_folder.as_path(),
                 );
-                let mesh_path = self.process_mesh_data(
-                    path,
-                    mesh.name().unwrap_or(&name),
-                    &primitive,
-                    material_path.as_path(),
-                );
+                let mesh_path =
+                    self.process_mesh_data(path, &name, &primitive, material_path.as_path());
                 let mesh_path = to_local_path(
                     mesh_path.as_path(),
                     self.data_raw_folder.as_path(),
@@ -622,7 +620,7 @@ impl GltfCompiler {
         }
 
         for (child_index, child) in node.children().enumerate() {
-            let name = format!("Node_{}", child_index);
+            let name = format!("Node_{}_Child_{}", self.node_index, child_index);
             if let Some(camera) = child.camera() {
                 object_data.transform =
                     object_data.transform * Matrix4::from(child.transform().matrix());
@@ -687,7 +685,7 @@ impl GltfCompiler {
             }
         }
 
-        let name = format!("Light_{}", light.index());
+        let name = format!("Node_{}_Light_{}", self.node_index, light.index());
         (
             NodeType::Light,
             self.create_file(
@@ -714,7 +712,7 @@ impl GltfCompiler {
                 camera_data.far = o.zfar();
             }
         }
-        let name = format!("Camera_{}", camera.index());
+        let name = format!("Node_{}_Camera_{}", self.node_index, camera.index());
 
         (
             NodeType::Camera,
@@ -742,8 +740,10 @@ impl GltfCompiler {
 
                 let new_path = self.compute_path_name::<SceneData>(path, scene_name, "");
                 if need_to_binarize(path, new_path.as_path()) {
+                    self.material_index = 0;
+                    self.node_index = 0;
                     for node in scene.nodes() {
-                        let name = format!("Node_{}", node.index());
+                        let name = format!("Node_{}", self.node_index);
                         if let Some((node_type, node_path)) =
                             self.process_node(path, &node, node.name().unwrap_or(&name))
                         {
