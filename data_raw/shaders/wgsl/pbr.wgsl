@@ -157,16 +157,13 @@ var texture_16: texture_2d<f32>;
 #endif
 
 fn get_textures_coord_set(v: VertexInput, material_index: i32, texture_type: u32) -> vec2<f32> {
-    let texture_data_index = dynamic_data.materials_data[material_index].textures_indices[texture_type];
-    if (texture_data_index >= 0) {
-        let textures_coord_set_index = dynamic_data.materials_data[material_index].textures_coord_set[texture_type];
-        if (textures_coord_set_index == 1u) {
-            return v.tex_coords_1;
-        } else if (textures_coord_set_index == 2u) {
-            return v.tex_coords_2;
-        } else if (textures_coord_set_index == 3u) {
-            return v.tex_coords_3;
-        }
+    let textures_coord_set_index = dynamic_data.materials_data[material_index].textures_coord_set[texture_type];
+    if (textures_coord_set_index == 1u) {
+        return v.tex_coords_1;
+    } else if (textures_coord_set_index == 2u) {
+        return v.tex_coords_2;
+    } else if (textures_coord_set_index == 3u) {
+        return v.tex_coords_3;
     }
     return v.tex_coords_0;
 }
