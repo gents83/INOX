@@ -335,6 +335,10 @@ fn normal(v: VertexOutput) -> vec3<f32> {
         n = tbn * (2.0 * normal.xyz - vec3<f32>(1.0));
     }
     n = normalize(n);
+    
+    //being front-facing culling we've to revert
+    n = -n;
+
     return n;
 }
 // Basic Lambertian diffuse
