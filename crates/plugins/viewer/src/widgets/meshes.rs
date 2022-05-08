@@ -155,8 +155,9 @@ impl Meshes {
                                 .ui(ui);
                         });
                         ui.horizontal_wrapped(|ui| {
-                            ui.label("Total indices: ");
-                            inox_ui::DragValue::new(&mut data.indices_count)
+                            ui.label("Total triangles: ");
+                            let mut triangles_count = data.indices_count / 3;
+                            inox_ui::DragValue::new(&mut triangles_count)
                                 .speed(0)
                                 .ui(ui);
                         });
