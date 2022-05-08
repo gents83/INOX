@@ -220,17 +220,6 @@ fn has_texture(material_index: i32, texture_type: u32) -> bool {
     return false;
 }
 
-fn get_atlas_index(material_index: i32, texture_type: u32) -> u32 {
-    if (material_index < 0) {
-        return 0u;
-    }
-    let texture_data_index = dynamic_data.materials_data[material_index].textures_indices[texture_type];
-    if (texture_data_index < 0) {
-        return 0u;
-    }
-    return dynamic_data.textures_data[texture_data_index].texture_index;
-}
-
 fn wrap(a: f32, min: f32, max: f32) -> f32 {
     if (a < min) {
         return max - (min - a);
@@ -246,16 +235,17 @@ fn get_texture_color(material_index: i32, texture_type: u32, tex_coords: vec2<f3
         return vec4<f32>(0.0, 0.0, 0.0, 0.0);
     }
     let texture_data_index = dynamic_data.materials_data[material_index].textures_indices[texture_type];
-    let atlas_index = dynamic_data.textures_data[texture_data_index].texture_index;
     var t = vec3<f32>(0.0, 0.0, 0.0);
-    if (texture_data_index >= 0) {
-        let area = dynamic_data.textures_data[texture_data_index].area;
-        let image_width = dynamic_data.textures_data[texture_data_index].total_width;
-        let image_height = dynamic_data.textures_data[texture_data_index].total_height;
-        t.x = (area.x + 0.5 + area.z * fract(tex_coords.x)) / image_width;
-        t.y = (area.y + 0.5 + area.w * fract(tex_coords.y)) / image_height;
-        t.z = f32(dynamic_data.textures_data[texture_data_index].layer_index);
-    }
+    let area = dynamic_data.textures_data[texture_data_index].area;
+    let image_width = dynamic_data.textures_data[texture_data_index].total_width;
+    let image_height = dynamic_data.textures_data[texture_data_index].total_height;
+    let fract_x = min(fract(tex_coords.x), 1.0);
+    let fract_y = min(fract(tex_coords.y), 1.0);
+    t.x = (area.x + 0.5 + area.z * fract_x) / image_width;
+    t.y = (area.y + 0.5 + area.w * fract_y) / image_height;
+    t.z = f32(dynamic_data.textures_data[texture_data_index].layer_index);
+
+    let atlas_index = dynamic_data.textures_data[texture_data_index].texture_index;
 #ifdef FEATURES_TEXTURE_BINDING_ARRAY
     return textureSampleLevel(texture_array[atlas_index], default_sampler, t.xy, t.z);
 #else
@@ -320,7 +310,7 @@ struct PBRInfo {
 
 let PI = 3.14159265359;
 let MinRoughness = 0.04;
-let AmbientLightColor = vec3<f32>(1., 1., 1.);
+let AmbientLightColor = vec3<f32>(0.9, 0.9, 0.9);
 let AmbientLightIntensity = 0.2;
 
 // Find the normal for this fragment, pulling either from a predefined normal map
@@ -337,7 +327,7 @@ fn normal(v: VertexOutput) -> vec3<f32> {
     n = normalize(n);
     
     //being front-facing culling we've to revert
-    n = -n;
+    //n = -n;
 
     return n;
 }
@@ -410,7 +400,7 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
     // convert to material roughness by squaring the perceptual roughness [2].
     let alpha_roughness = perceptual_roughness * perceptual_roughness;
 
-    var base_color = v_in.color * material.base_color;
+    var base_color = min(v_in.color, material.base_color);
     if (has_texture(v_in.material_index, TEXTURE_TYPE_BASE_COLOR)) {
         let t = get_texture_color(v_in.material_index, TEXTURE_TYPE_BASE_COLOR, v_in.tex_coords_base_color);
         base_color = base_color * t;
@@ -447,7 +437,7 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
     let NdotV = clamp(abs(dot(n, v)), 0.001, 1.0);
     let reflection = -normalize(reflect(v, n));
 
-    var color = AmbientLightColor * AmbientLightIntensity * base_color.xyz;
+    var color = base_color.rgb * AmbientLightColor * AmbientLightIntensity;
     color = mix(color, color * ao, occlusion_strength);
     color = color + emissive_color;
 
@@ -459,6 +449,7 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
         }
         let l = normalize(light.position - v_in.position.xyz);             // Vector from surface point to light
         let h = normalize(l + v);                          // Half vector between both l and v
+        let dist = length(l);                                // Distance from surface point to light
 
         let NdotL = clamp(dot(n, l), 0.001, 1.0);
         let NdotH = clamp(dot(n, h), 0.0, 1.0);
@@ -486,9 +477,13 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
         let D = microfacet_distribution(info);
 
         // Calculation of analytical lighting contribution
+        let intensity = max(1., light.intensity);
+        let range = max(10., light.range);
+        let light_contrib = 1. - min(dist / range, 1.) * intensity;
         let diffuse_contrib = (1.0 - F) * diffuse(info);
         let spec_contrib = F * G * D / (4.0 * NdotL * NdotV);
-        let light_color = NdotL * light.color.rgb * (diffuse_contrib + spec_contrib);
+        var light_color = NdotL * light.color.rgb * (diffuse_contrib + spec_contrib);
+        light_color = light_color * light_contrib;
 
         color = color + light_color;
 
