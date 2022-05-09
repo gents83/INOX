@@ -147,8 +147,8 @@ impl Viewer {
         transparent_pass
             .pass()
             .get_mut()
-            .render_target(opaque_pass_render_target)
-            .depth_target(opaque_pass_render_target);
+            .render_target_from_texture(opaque_pass.pass().get().render_texture().as_ref().unwrap())
+            .depth_target_from_texture(opaque_pass.pass().get().depth_texture().as_ref().unwrap());
 
         context
             .message_hub()

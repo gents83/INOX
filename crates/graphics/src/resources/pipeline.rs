@@ -316,7 +316,7 @@ impl Pipeline {
                     },
                     depth_stencil: depth_format.map(|format| wgpu::DepthStencilState {
                         format: *format,
-                        depth_write_enabled: true,
+                        depth_write_enabled: self.data.depth_write_enabled,
                         depth_compare: wgpu::CompareFunction::Less,
                         stencil: wgpu::StencilState::default(),
                         bias: wgpu::DepthBiasState::default(),

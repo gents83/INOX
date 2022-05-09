@@ -181,6 +181,15 @@ impl RenderPass {
 
         self
     }
+    pub fn render_target_from_texture(&mut self, texture: &Resource<Texture>) -> &mut Self {
+        self.data.render_target = RenderTarget::Texture {
+            width: texture.get().width(),
+            height: texture.get().height(),
+            read_back: false,
+        };
+        self.render_texture = Some(texture.clone());
+        self
+    }
     pub fn depth_target(&mut self, render_target: RenderTarget) -> &mut Self {
         self.data.depth_target = render_target;
         self.depth_texture = match render_target {
@@ -206,6 +215,15 @@ impl RenderPass {
             }
             _ => None,
         };
+        self
+    }
+    pub fn depth_target_from_texture(&mut self, texture: &Resource<Texture>) -> &mut Self {
+        self.data.depth_target = RenderTarget::Texture {
+            width: texture.get().width(),
+            height: texture.get().height(),
+            read_back: false,
+        };
+        self.depth_texture = Some(texture.clone());
         self
     }
     pub fn render_texture(&self) -> &Handle<Texture> {
