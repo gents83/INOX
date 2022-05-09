@@ -10,6 +10,7 @@
     ],
     "culling": "None",
     "mode": "Line",
+    "depth_write_enabled": true,
     "src_color_blend_factor": "SrcAlpha",
     "dst_color_blend_factor": "OneMinusSrcAlpha",
     "src_alpha_blend_factor": "One",
