@@ -1,36 +1,34 @@
 use std::path::PathBuf;
 
-use crate::{Pass, RenderPass, RenderPassData, RenderTarget, StoreOperation};
+use crate::{LoadOperation, Pass, RenderPass, RenderPassData, RenderTarget, StoreOperation};
 
 use inox_core::ContextRc;
 use inox_resources::{DataTypeResource, Resource};
 use inox_uid::generate_random_uid;
 
-pub const DEFAULT_PIPELINE: &str = "pipelines/Default.pipeline";
-pub const WIREFRAME_PIPELINE: &str = "pipelines/Wireframe.pipeline";
-pub const OPAQUE_PASS_NAME: &str = "OpaquePass";
+pub const TRANSPARENT_PIPELINE: &str = "pipelines/Transparent.pipeline";
+pub const TRANSPARENT_PASS_NAME: &str = "TransparentPass";
 
 #[derive(Clone)]
-pub struct OpaquePass {
+pub struct TransparentPass {
     render_pass: Resource<RenderPass>,
 }
-unsafe impl Send for OpaquePass {}
-unsafe impl Sync for OpaquePass {}
+unsafe impl Send for TransparentPass {}
+unsafe impl Sync for TransparentPass {}
 
-impl Pass for OpaquePass {
+impl Pass for TransparentPass {
     fn create(context: &ContextRc) -> Self
     where
         Self: Sized,
     {
         let data = RenderPassData {
-            name: OPAQUE_PASS_NAME.to_string(),
+            name: TRANSPARENT_PASS_NAME.to_string(),
+            load_color: LoadOperation::Load,
             store_color: StoreOperation::Store,
+            load_depth: LoadOperation::Load,
             store_depth: StoreOperation::Store,
             render_target: RenderTarget::Screen,
-            pipelines: vec![
-                PathBuf::from(DEFAULT_PIPELINE),
-                PathBuf::from(WIREFRAME_PIPELINE),
-            ],
+            pipelines: vec![PathBuf::from(TRANSPARENT_PIPELINE)],
             ..Default::default()
         };
         Self {

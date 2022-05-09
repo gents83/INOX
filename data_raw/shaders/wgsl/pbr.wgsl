@@ -91,20 +91,19 @@ struct InstanceInput {
 
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
-    @location(0) position: vec4<f32>,
+    @location(0) world_position: vec4<f32>,
     @location(1) color: vec4<f32>,
-    @location(2) normal: vec3<f32>,
-    @location(3) tangent: vec3<f32>,
-    @location(4) bitangent: vec3<f32>,
-    @location(5) view: vec3<f32>,
-    @location(6) @interpolate(flat) material_index: i32,
-    @location(7) tex_coords_base_color: vec2<f32>,
-    @location(8) tex_coords_metallic_roughness: vec2<f32>,
-    @location(9) tex_coords_normal: vec2<f32>,
-    @location(10) tex_coords_emissive: vec2<f32>,
-    @location(11) tex_coords_occlusion: vec2<f32>,
-    @location(12) tex_coords_specular_glossiness: vec2<f32>,
-    @location(13) tex_coords_diffuse: vec2<f32>,
+    @location(2) world_normal: vec3<f32>,
+    @location(3) world_tangent: vec4<f32>,
+    @location(4) view: vec3<f32>,
+    @location(5) @interpolate(flat) material_index: i32,
+    @location(6) tex_coords_base_color: vec2<f32>,
+    @location(7) tex_coords_metallic_roughness: vec2<f32>,
+    @location(8) tex_coords_normal: vec2<f32>,
+    @location(9) tex_coords_emissive: vec2<f32>,
+    @location(10) tex_coords_occlusion: vec2<f32>,
+    @location(11) tex_coords_specular_glossiness: vec2<f32>,
+    @location(12) tex_coords_diffuse: vec2<f32>,
 };
 
 
@@ -169,6 +168,19 @@ fn get_textures_coord_set(v: VertexInput, material_index: i32, texture_type: u32
 }
 
 
+fn inverse_transpose_3x3(m: mat3x3<f32>) -> mat3x3<f32> {
+    let x = cross(m[1], m[2]);
+    let y = cross(m[2], m[0]);
+    let z = cross(m[0], m[1]);
+    let det = dot(m[2], z);
+    return mat3x3<f32>(
+        x / det,
+        y / det,
+        z / det
+    );
+}
+
+
 @vertex
 fn vs_main(
     v: VertexInput,
@@ -185,15 +197,15 @@ fn vs_main(
         instance.model_matrix_1.xyz,
         instance.model_matrix_2.xyz,
     );
+    let inv_normal_matrix = inverse_transpose_3x3(normal_matrix);
 
     var vertex_out: VertexOutput;
-    vertex_out.position = instance_matrix * vec4<f32>(v.position, 1.0);
-    vertex_out.clip_position = constant_data.proj * constant_data.view * vertex_out.position;
-    vertex_out.normal = normalize((instance_matrix * vec4<f32>(v.normal, 0.0)).xyz);
-    vertex_out.tangent = normalize((instance_matrix * vec4<f32>(v.tangent.xyz, 0.0)).xyz);
-    vertex_out.bitangent = cross(vertex_out.normal, vertex_out.tangent) * v.tangent.w;
-    let view_pos = vec3<f32>(constant_data.view[3][0], constant_data.view[3][1], constant_data.view[3][2]);
-    vertex_out.view = view_pos - vertex_out.position.xyz;
+    vertex_out.world_position = instance_matrix * vec4<f32>(v.position, 1.0);
+    vertex_out.clip_position = constant_data.proj * constant_data.view * vertex_out.world_position;
+    vertex_out.world_normal = inv_normal_matrix * v.normal;
+    vertex_out.world_tangent = vec4<f32>(normal_matrix * v.tangent.xyz, v.tangent.w);
+    let view_pos = constant_data.view[3].xyz;
+    vertex_out.view = view_pos - vertex_out.world_position.xyz;
     vertex_out.color = v.color;
     vertex_out.material_index = instance.material_index;
 
@@ -308,23 +320,26 @@ struct PBRInfo {
     specular_color: vec3<f32>,   // color contribution from specular lighting
 };
 
-let PI = 3.14159265359;
+
+let PI: f32 = 3.141592653589793;
+let AMBIENT_COLOR: vec3<f32> = vec3<f32>(0.95, 0.95, 0.95);
+let AMBIENT_INTENSITY = 0.1;
+let NULL_VEC4: vec4<f32> = vec4<f32>(0.0, 0.0, 0.0, 0.0);
 let MinRoughness = 0.04;
-let AmbientLightColor = vec3<f32>(0.9, 0.9, 0.9);
-let AmbientLightIntensity = 0.2;
 
 // Find the normal for this fragment, pulling either from a predefined normal map
 // or from the interpolated mesh normal and tangent attributes.
 fn normal(v: VertexOutput) -> vec3<f32> {
     // Retrieve the tangent space matrix
-    let tbn = mat3x3<f32>(v.tangent, v.bitangent, v.normal);
-    var n = v.normal;
+    var n = normalize(v.world_normal);
     if (has_texture(v.material_index, TEXTURE_TYPE_NORMAL)) {
-        let tbn = mat3x3<f32>(v.tangent, v.bitangent, v.normal);
+        var t = normalize(v.world_tangent.xyz - n * dot(v.world_tangent.xyz, n));
+        var b = cross(n, t) * v.world_tangent.w;
+        let tbn = mat3x3<f32>(t, b, n);
         let normal = get_texture_color(v.material_index, TEXTURE_TYPE_NORMAL, v.tex_coords_normal);
-        n = tbn * (2.0 * normal.xyz - vec3<f32>(1.0));
+        n = tbn * (2.0 * normal.rgb - vec3<f32>(1.0));
+        n = normalize(n);
     }
-    n = normalize(n);
     
     //being front-facing culling we've to revert
     //n = -n;
@@ -372,16 +387,20 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
     let material = dynamic_data.materials_data[v_in.material_index];
     
     // NOTE: the spec mandates to ignore any alpha value in 'OPAQUE' mode
-    var alpha_blend = 0.;
-    if (material.alpha_mode != MATERIAL_ALPHA_BLEND_OPAQUE) {
-        alpha_blend = 1.;
-    }
-    var alpha = mix(1.0, material.base_color.a, alpha_blend);
-    if (material.alpha_cutoff > 0.0 && material.alpha_mode == MATERIAL_ALPHA_BLEND_MASK) {
-        alpha = step(material.alpha_cutoff, material.base_color.a);
-    }
-    if (alpha == 0.0) {
-        discard;
+    var alpha = 1.;
+    if (material.alpha_mode == MATERIAL_ALPHA_BLEND_OPAQUE) {
+        alpha = 1.0;
+    } else if (material.alpha_mode == MATERIAL_ALPHA_BLEND_MASK) {
+        if (alpha >= material.alpha_cutoff) {
+            // NOTE: If rendering as masked alpha and >= the cutoff, render as fully opaque
+            alpha = 1.0;
+        } else {
+            // NOTE: output_color.a < material.alpha_cutoff should not is not rendered
+            // NOTE: This and any other discards mean that early-z testing cannot be done!
+            discard;
+        }
+    } else if (material.alpha_mode == MATERIAL_ALPHA_BLEND_BLEND) {
+        alpha = mix(1.0, material.base_color.a, 0.);
     }
 
     // Metallic and Roughness material properties are packed together
@@ -391,8 +410,8 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
     var metallic = material.metallic_factor;
     if (has_texture(v_in.material_index, TEXTURE_TYPE_METALLIC_ROUGHNESS)) {
         let t = get_texture_color(v_in.material_index, TEXTURE_TYPE_METALLIC_ROUGHNESS, v_in.tex_coords_metallic_roughness);
-        perceptual_roughness = perceptual_roughness * t.g;
         metallic = metallic * t.b;
+        perceptual_roughness = perceptual_roughness * t.g;
     }
     perceptual_roughness = clamp(perceptual_roughness, MinRoughness, 1.0);
     metallic = clamp(metallic, 0.0, 1.0);
@@ -406,7 +425,7 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
         base_color = base_color * t;
     }
     var ao = 1.0;
-    var occlusion_strength = 0.;
+    var occlusion_strength = 1.;
     if (has_texture(v_in.material_index, TEXTURE_TYPE_OCCLUSION)) {
         let t = get_texture_color(v_in.material_index, TEXTURE_TYPE_OCCLUSION, v_in.tex_coords_occlusion);
         ao = ao * t.r;
@@ -434,10 +453,10 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
 
     let n = normal(v_in);                             // normal at surface point
     let v = normalize(v_in.view);        // Vector from surface point to camera
-    let NdotV = clamp(abs(dot(n, v)), 0.001, 1.0);
-    let reflection = -normalize(reflect(v, n));
+    let NdotV = clamp(abs(dot(n, v)), 0.0001, 1.0);
+    let reflection = reflect(-v, n);
 
-    var color = base_color.rgb * AmbientLightColor * AmbientLightIntensity;
+    var color = base_color.rgb * AMBIENT_COLOR * AMBIENT_INTENSITY;
     color = mix(color, color * ao, occlusion_strength);
     color = color + emissive_color;
 
@@ -447,11 +466,11 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
         if (dynamic_data.lights_data[i].light_type == 0u) {
             break;
         }
-        let l = normalize(light.position - v_in.position.xyz);             // Vector from surface point to light
+        let l = normalize(light.position - v_in.world_position.xyz);             // Vector from surface point to light
         let h = normalize(l + v);                          // Half vector between both l and v
         let dist = length(l);                                // Distance from surface point to light
 
-        let NdotL = clamp(dot(n, l), 0.001, 1.0);
+        let NdotL = clamp(dot(n, l), 0.0001, 1.0);
         let NdotH = clamp(dot(n, h), 0.0, 1.0);
         let LdotH = clamp(dot(l, h), 0.0, 1.0);
         let VdotH = clamp(dot(v, h), 0.0, 1.0);
@@ -478,7 +497,7 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
 
         // Calculation of analytical lighting contribution
         let intensity = max(1., light.intensity);
-        let range = max(10., light.range);
+        let range = max(1.2, light.range);
         let light_contrib = 1. - min(dist / range, 1.) * intensity;
         let diffuse_contrib = (1.0 - F) * diffuse(info);
         let spec_contrib = F * G * D / (4.0 * NdotL * NdotV);

@@ -17,8 +17,8 @@
     ],
     "culling": "Front",
     "mode": "Fill",
-    "src_color_blend_factor": "One",
-    "dst_color_blend_factor": "Zero",
+    "src_color_blend_factor": "SrcAlpha",
+    "dst_color_blend_factor": "OneMinusSrcAlpha",
     "src_alpha_blend_factor": "One",
-    "dst_alpha_blend_factor": "Zero"
+    "dst_alpha_blend_factor": "OneMinusSrcAlpha"
 }

@@ -7,8 +7,8 @@ use inox_core::{define_plugin, ContextRc, Plugin, SystemUID, WindowSystem};
 
 use inox_graphics::{
     rendering_system::RenderingSystem, update_system::UpdateSystem, DebugDrawerSystem, OpaquePass,
-    Pass, PassEvent, RenderPass, RenderTarget, Renderer, RendererRw, DEFAULT_HEIGHT, DEFAULT_WIDTH,
-    OPAQUE_PASS_NAME,
+    Pass, PassEvent, RenderPass, RenderTarget, Renderer, RendererRw, TransparentPass,
+    DEFAULT_HEIGHT, DEFAULT_WIDTH, OPAQUE_PASS_NAME,
 };
 use inox_platform::Window;
 use inox_resources::ConfigBase;
@@ -131,6 +131,7 @@ impl Plugin for Viewer {
 impl Viewer {
     fn create_render_passes(context: &ContextRc, width: u32, height: u32) {
         let opaque_pass = OpaquePass::create(context);
+        let transparent_pass = TransparentPass::create(context);
         let ui_pass = UIPass::create(context);
 
         let opaque_pass_render_target = RenderTarget::Texture {
@@ -143,10 +144,18 @@ impl Viewer {
             .get_mut()
             .render_target(opaque_pass_render_target)
             .depth_target(opaque_pass_render_target);
+        transparent_pass
+            .pass()
+            .get_mut()
+            .render_target(opaque_pass_render_target)
+            .depth_target(opaque_pass_render_target);
 
         context
             .message_hub()
             .send_event(PassEvent::Add(Box::new(opaque_pass)));
+        context
+            .message_hub()
+            .send_event(PassEvent::Add(Box::new(transparent_pass)));
         context
             .message_hub()
             .send_event(PassEvent::Add(Box::new(ui_pass)));

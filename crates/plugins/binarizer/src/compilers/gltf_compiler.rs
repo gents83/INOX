@@ -19,7 +19,7 @@ use gltf::{
 
 use inox_graphics::{
     LightData, LightType, MaterialAlphaMode, MaterialData, MeshData, PbrVertexData, TextureType,
-    VertexFormat, MAX_TEXTURE_COORDS_SETS,
+    VertexFormat, DEFAULT_PIPELINE, MAX_TEXTURE_COORDS_SETS, TRANSPARENT_PIPELINE,
 };
 use inox_log::debug_log;
 use inox_math::{Mat4Ops, Matrix4, NewAngle, Parser, Radians, Vector2, Vector3, Vector4, Vector4h};
@@ -32,8 +32,6 @@ use inox_serialize::{
 };
 
 const GLTF_EXTENSION: &str = "gltf";
-
-const DEFAULT_PIPELINE: &str = "pipelines/Default.pipeline";
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 #[serde(crate = "inox_serialize")]
@@ -455,7 +453,6 @@ impl GltfCompiler {
         material_data.base_color = material.base_color_factor().into();
         material_data.roughness_factor = material.roughness_factor();
         material_data.metallic_factor = material.metallic_factor();
-        material_data.pipeline = PathBuf::from(DEFAULT_PIPELINE);
         if let Some(info) = material.base_color_texture() {
             material_data.textures[TextureType::BaseColor as usize] =
                 self.process_texture(path, info.texture());
@@ -521,6 +518,12 @@ impl GltfCompiler {
                 1.,
             ]
             .into();
+        }
+        if material_data.alpha_mode == MaterialAlphaMode::Blend || material_data.base_color.w < 1.0
+        {
+            material_data.pipeline = PathBuf::from(TRANSPARENT_PIPELINE);
+        } else {
+            material_data.pipeline = PathBuf::from(DEFAULT_PIPELINE);
         }
 
         let name = format!("Material_{}", self.material_index);
