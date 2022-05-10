@@ -74,6 +74,19 @@ pub enum DrawMode {
     Single,
 }
 
+#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
+#[serde(crate = "inox_serialize")]
+pub enum CompareMode {
+    Never,
+    Less,
+    Equal,
+    LessEqual,
+    Greater,
+    NotEqual,
+    GreaterEqual,
+    Always,
+}
+
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 #[serde(crate = "inox_serialize")]
 pub struct PipelineData {
@@ -84,6 +97,7 @@ pub struct PipelineData {
     pub culling: CullingModeType,
     pub mode: PolygonModeType,
     pub depth_write_enabled: bool,
+    pub depth_compare: CompareMode,
     pub src_color_blend_factor: BlendFactor,
     pub dst_color_blend_factor: BlendFactor,
     pub src_alpha_blend_factor: BlendFactor,
@@ -106,6 +120,7 @@ impl Default for PipelineData {
             culling: CullingModeType::Back,
             mode: PolygonModeType::Fill,
             depth_write_enabled: true,
+            depth_compare: CompareMode::Less,
             src_color_blend_factor: BlendFactor::One,
             dst_color_blend_factor: BlendFactor::OneMinusSrcColor,
             src_alpha_blend_factor: BlendFactor::One,

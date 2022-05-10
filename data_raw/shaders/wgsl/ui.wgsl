@@ -102,7 +102,8 @@ var<storage, read> ui_data: UIData;
 @group(1) @binding(0)
 var default_sampler: sampler;
 @group(1) @binding(1)
-var depth_sampler: sampler;
+var depth_sampler: sampler_comparison;
+
 #ifdef FEATURES_TEXTURE_BINDING_ARRAY
 @group(1) @binding(2)
 var texture_array: binding_array<texture_2d<f32>, 16>; //MAX_TEXTURE_ATLAS_COUNT

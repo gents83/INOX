@@ -9,8 +9,8 @@ use inox_resources::{
 use inox_serialize::{inox_serializable::SerializableRegistryRc, read_from_file, SerializeFile};
 
 use crate::{
-    BindingData, BindingState, CullingModeType, DataBuffer, InstanceData, PipelineData,
-    PolygonModeType, RenderContext, Shader, VertexBufferLayoutBuilder, VertexFormat,
+    BindingData, BindingState, CompareMode, CullingModeType, DataBuffer, InstanceData,
+    PipelineData, PolygonModeType, RenderContext, Shader, VertexBufferLayoutBuilder, VertexFormat,
     FRAGMENT_SHADER_ENTRY_POINT, SHADER_ENTRY_POINT, VERTEX_SHADER_ENTRY_POINT,
 };
 
@@ -317,7 +317,16 @@ impl Pipeline {
                     depth_stencil: depth_format.map(|format| wgpu::DepthStencilState {
                         format: *format,
                         depth_write_enabled: self.data.depth_write_enabled,
-                        depth_compare: wgpu::CompareFunction::Less,
+                        depth_compare: match self.data.depth_compare {
+                            CompareMode::Never => wgpu::CompareFunction::Never,
+                            CompareMode::Less => wgpu::CompareFunction::Less,
+                            CompareMode::Equal => wgpu::CompareFunction::Equal,
+                            CompareMode::LessEqual => wgpu::CompareFunction::LessEqual,
+                            CompareMode::Greater => wgpu::CompareFunction::Greater,
+                            CompareMode::NotEqual => wgpu::CompareFunction::NotEqual,
+                            CompareMode::GreaterEqual => wgpu::CompareFunction::GreaterEqual,
+                            CompareMode::Always => wgpu::CompareFunction::Always,
+                        },
                         stencil: wgpu::StencilState::default(),
                         bias: wgpu::DepthBiasState::default(),
                     }),

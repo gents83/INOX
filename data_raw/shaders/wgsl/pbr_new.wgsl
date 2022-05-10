@@ -115,7 +115,7 @@ var<storage, read> dynamic_data: DynamicData;
 @group(1) @binding(0)
 var default_sampler: sampler;
 @group(1) @binding(1)
-var depth_sampler: sampler;
+var depth_sampler: sampler_comparison;
 
 #ifdef FEATURES_TEXTURE_BINDING_ARRAY
 @group(1) @binding(2)

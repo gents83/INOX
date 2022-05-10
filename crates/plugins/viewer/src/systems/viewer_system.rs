@@ -426,7 +426,7 @@ impl ViewerSystem {
             if is_on_view3d {
                 let mut rotation_angle = Vector3::default_zero();
 
-                rotation_angle.x = event.normalized_y - self.last_mouse_pos.y;
+                rotation_angle.x = 0.; // event.normalized_y - self.last_mouse_pos.y;
                 rotation_angle.y = event.normalized_x - self.last_mouse_pos.x;
                 if rotation_angle != Vector3::default_zero() {
                     self.context
