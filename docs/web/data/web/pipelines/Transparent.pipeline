@@ -15,11 +15,12 @@
         "Constant",
         "Dynamic"
     ],
-    "culling": "Front",
+    "culling": "None",
     "mode": "Fill",
     "depth_write_enabled": false,
-    "src_color_blend_factor": "SrcAlpha",
-    "dst_color_blend_factor": "OneMinusSrcAlpha",
+    "depth_compare": "Less",
+    "src_color_blend_factor": "One",
+    "dst_color_blend_factor": "OneMinusSrcColor",
     "src_alpha_blend_factor": "One",
     "dst_alpha_blend_factor": "OneMinusSrcAlpha"
 }

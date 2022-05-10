@@ -15,9 +15,10 @@
         "Constant",
         "Dynamic"
     ],
-    "culling": "Front",
+    "culling": "None",
     "mode": "Fill",
     "depth_write_enabled": true,
+    "depth_compare": "Less",
     "src_color_blend_factor": "One",
     "dst_color_blend_factor": "Zero",
     "src_alpha_blend_factor": "One",
