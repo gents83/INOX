@@ -20,8 +20,8 @@ use std::{
     sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard},
 };
 
-pub const DEFAULT_WIDTH: u32 = 1280;
-pub const DEFAULT_HEIGHT: u32 = 720;
+pub const DEFAULT_WIDTH: u32 = 3840;
+pub const DEFAULT_HEIGHT: u32 = 2160;
 
 #[rustfmt::skip]
 const OPENGL_TO_WGPU_MATRIX: Matrix4 = Matrix4::new(
