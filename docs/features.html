@@ -176,7 +176,7 @@ GPU profiling using <a href="https://renderdoc.org/">RenderDoc</a> by <a href="h
 Launch and execute <em>SABI</em> directly from <em>Blender</em> <br />
   Exporting scene as Khronos <a href="https://www.khronos.org/gltf/">GLTF</a>, binarizing and loading it into <em>SABI</em></li>
 <li><input disabled="" type="checkbox" checked=""/>
-Data binarization, shader compilation, etc as background task <br />
+Data binarization, shader compilation, etc as background task and per target platform <br />
   See more info in <em>sabibinarizer</em> crate section</li>
 <li><input disabled="" type="checkbox" checked=""/>
 Hot reload of code while INOX engine is running </li>
@@ -195,7 +195,7 @@ Create custom Logic Nodes editor in <em><strong>Blender</strong></em></li>
 <li><input disabled="" type="checkbox" checked=""/>
 Possibility to define and use custom nodes in external dlls</li>
 <li><input disabled="" type="checkbox" checked=""/>
-Integrated wasm as target</li>
+Integrated WASM as target</li>
 <li><input disabled="" type="checkbox" checked=""/>
 Added meshoptimizer library by <a href="https://twitter.com/zeuxcg">Arseny Kapoulkine</a></li>
 <li><input disabled="" type="checkbox" checked=""/>
@@ -204,17 +204,19 @@ Possibility to run Phases in parallel when not dependent</li>
 Plugin indipendent and ability to enable\disable them at runtime</li>
 <li><input disabled="" type="checkbox" checked=""/>
 Dynamic vertex layout and storage buffers per-shader </li>
+<li><input disabled="" type="checkbox" checked=""/>
+Support for both glsl and wgsl shaders</li>
+<li><input disabled="" type="checkbox" checked=""/>
+Integrate PBR rendering</li>
 </ul>
 <p>TODO:</p>
 <ul>
 <li><input disabled="" type="checkbox"/>
+Integrate Meshlet generation and gpu culling</li>
+<li><input disabled="" type="checkbox"/>
 Integrate Android as target</li>
 <li><input disabled="" type="checkbox"/>
 Add multithreading workers for WASM target on web</li>
-<li><input disabled="" type="checkbox"/>
-Integrate Meshlet generation and gpu culling</li>
-<li><input disabled="" type="checkbox"/>
-Integrate PBR rendering</li>
 <li><input disabled="" type="checkbox"/>
 Raytracing on GPU</li>
 <li><input disabled="" type="checkbox"/>
