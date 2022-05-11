@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 
+use inox_graphics::{DEFAULT_HEIGHT, DEFAULT_WIDTH};
 use inox_math::{Degrees, Mat4Ops, MatBase, Matrix4, NewAngle, Vector2, Vector3, Vector4};
 use inox_messenger::MessageHubRc;
 use inox_resources::{
@@ -12,9 +13,9 @@ use inox_ui::{CollapsingHeader, UIProperties, UIPropertiesRegistry, Ui};
 use crate::{CameraData, Object, ObjectId};
 
 pub const DEFAULT_CAMERA_FOV: f32 = 45.;
-pub const DEFAULT_CAMERA_ASPECT_RATIO: f32 = 1920. / 1080.;
-pub const DEFAULT_CAMERA_NEAR: f32 = 0.001;
-pub const DEFAULT_CAMERA_FAR: f32 = 1000.;
+pub const DEFAULT_CAMERA_ASPECT_RATIO: f32 = DEFAULT_WIDTH as f32 / DEFAULT_HEIGHT as f32;
+pub const DEFAULT_CAMERA_NEAR: f32 = 0.1;
+pub const DEFAULT_CAMERA_FAR: f32 = 100.;
 
 pub type CameraId = ResourceId;
 

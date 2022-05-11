@@ -385,6 +385,12 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
         discard;
     }
     let material = dynamic_data.materials_data[v_in.material_index];
+
+    var base_color = min(v_in.color, material.base_color);
+    if (has_texture(v_in.material_index, TEXTURE_TYPE_BASE_COLOR)) {
+        let t = get_texture_color(v_in.material_index, TEXTURE_TYPE_BASE_COLOR, v_in.tex_coords_base_color);
+        base_color = base_color * t;
+    }
     
     // NOTE: the spec mandates to ignore any alpha value in 'OPAQUE' mode
     var alpha = 1.;
@@ -400,9 +406,9 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
             discard;
         }
     } else if (material.alpha_mode == MATERIAL_ALPHA_BLEND_BLEND) {
-        alpha = mix(1.0, material.base_color.a, 0.);
+        alpha = min(material.base_color.a, base_color.a);
     }
-
+    
     // Metallic and Roughness material properties are packed together
     // In glTF, these factors can be specified by fixed scalar values
     // or from a metallic-roughness map
@@ -419,11 +425,6 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
     // convert to material roughness by squaring the perceptual roughness [2].
     let alpha_roughness = perceptual_roughness * perceptual_roughness;
 
-    var base_color = min(v_in.color, material.base_color);
-    if (has_texture(v_in.material_index, TEXTURE_TYPE_BASE_COLOR)) {
-        let t = get_texture_color(v_in.material_index, TEXTURE_TYPE_BASE_COLOR, v_in.tex_coords_base_color);
-        base_color = base_color * t;
-    }
     var ao = 1.0;
     var occlusion_strength = 1.;
     if (has_texture(v_in.material_index, TEXTURE_TYPE_OCCLUSION)) {
@@ -497,7 +498,7 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
 
         // Calculation of analytical lighting contribution
         let intensity = max(1., light.intensity);
-        let range = max(1.2, light.range);
+        let range = max(1.5, light.range);
         let light_contrib = 1. - min(dist / range, 1.) * intensity;
         let diffuse_contrib = (1.0 - F) * diffuse(info);
         let spec_contrib = F * G * D / (4.0 * NdotL * NdotV);

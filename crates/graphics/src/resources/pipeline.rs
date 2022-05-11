@@ -9,9 +9,9 @@ use inox_resources::{
 use inox_serialize::{inox_serializable::SerializableRegistryRc, read_from_file, SerializeFile};
 
 use crate::{
-    BindingData, BindingState, CompareMode, CullingModeType, DataBuffer, InstanceData,
-    PipelineData, PolygonModeType, RenderContext, Shader, VertexBufferLayoutBuilder, VertexFormat,
-    FRAGMENT_SHADER_ENTRY_POINT, SHADER_ENTRY_POINT, VERTEX_SHADER_ENTRY_POINT,
+    BindingData, BindingState, DataBuffer, InstanceData, PipelineData, RenderContext, Shader,
+    VertexBufferLayoutBuilder, VertexFormat, FRAGMENT_SHADER_ENTRY_POINT, SHADER_ENTRY_POINT,
+    VERTEX_SHADER_ENTRY_POINT,
 };
 
 pub type PipelineId = ResourceId;
@@ -283,12 +283,12 @@ impl Pipeline {
                                 color: wgpu::BlendComponent {
                                     src_factor: self.data.src_color_blend_factor.into(),
                                     dst_factor: self.data.dst_color_blend_factor.into(),
-                                    operation: wgpu::BlendOperation::Add,
+                                    operation: self.data.color_blend_operation.into(),
                                 },
                                 alpha: wgpu::BlendComponent {
                                     src_factor: self.data.src_alpha_blend_factor.into(),
                                     dst_factor: self.data.dst_alpha_blend_factor.into(),
-                                    operation: wgpu::BlendOperation::Add,
+                                    operation: self.data.alpha_blend_operation.into(),
                                 },
                             }),
                             write_mask: wgpu::ColorWrites::ALL,
@@ -297,18 +297,10 @@ impl Pipeline {
                     primitive: wgpu::PrimitiveState {
                         topology: wgpu::PrimitiveTopology::TriangleList,
                         strip_index_format: None,
-                        front_face: wgpu::FrontFace::default(),
-                        cull_mode: match &self.data.culling {
-                            CullingModeType::Back => Some(wgpu::Face::Back),
-                            CullingModeType::Front => Some(wgpu::Face::Front),
-                            CullingModeType::None => None,
-                        },
+                        front_face: self.data.front_face.into(),
+                        cull_mode: self.data.culling.into(),
                         // Setting this to anything other than Fill requires Features::NON_FILL_POLYGON_MODE
-                        polygon_mode: match &self.data.mode {
-                            PolygonModeType::Fill => wgpu::PolygonMode::Fill,
-                            PolygonModeType::Line => wgpu::PolygonMode::Line,
-                            PolygonModeType::Point => wgpu::PolygonMode::Point,
-                        },
+                        polygon_mode: self.data.mode.into(),
                         // Requires Features::DEPTH_CLIP_CONTROL
                         unclipped_depth: false,
                         // Requires Features::CONSERVATIVE_RASTERIZATION
@@ -317,16 +309,7 @@ impl Pipeline {
                     depth_stencil: depth_format.map(|format| wgpu::DepthStencilState {
                         format: *format,
                         depth_write_enabled: self.data.depth_write_enabled,
-                        depth_compare: match self.data.depth_compare {
-                            CompareMode::Never => wgpu::CompareFunction::Never,
-                            CompareMode::Less => wgpu::CompareFunction::Less,
-                            CompareMode::Equal => wgpu::CompareFunction::Equal,
-                            CompareMode::LessEqual => wgpu::CompareFunction::LessEqual,
-                            CompareMode::Greater => wgpu::CompareFunction::Greater,
-                            CompareMode::NotEqual => wgpu::CompareFunction::NotEqual,
-                            CompareMode::GreaterEqual => wgpu::CompareFunction::GreaterEqual,
-                            CompareMode::Always => wgpu::CompareFunction::Always,
-                        },
+                        depth_compare: self.data.depth_compare.into(),
                         stencil: wgpu::StencilState::default(),
                         bias: wgpu::DepthBiasState::default(),
                     }),

@@ -11,18 +11,54 @@ use crate::{
 
 #[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
 #[serde(crate = "inox_serialize")]
-pub enum PolygonModeType {
+pub enum PolygonMode {
     Fill,
     Line,
     Point,
 }
 
+impl From<PolygonMode> for wgpu::PolygonMode {
+    fn from(mode: PolygonMode) -> Self {
+        match mode {
+            PolygonMode::Fill => wgpu::PolygonMode::Fill,
+            PolygonMode::Line => wgpu::PolygonMode::Line,
+            PolygonMode::Point => wgpu::PolygonMode::Point,
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
 #[serde(crate = "inox_serialize")]
-pub enum CullingModeType {
+pub enum FrontFace {
+    CounterClockwise,
+    Clockwise,
+}
+
+impl From<FrontFace> for wgpu::FrontFace {
+    fn from(mode: FrontFace) -> Self {
+        match mode {
+            FrontFace::CounterClockwise => wgpu::FrontFace::Ccw,
+            FrontFace::Clockwise => wgpu::FrontFace::Cw,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
+#[serde(crate = "inox_serialize")]
+pub enum CullMode {
     None,
     Back,
     Front,
+}
+
+impl From<CullMode> for Option<wgpu::Face> {
+    fn from(mode: CullMode) -> Self {
+        match mode {
+            CullMode::Back => Some(wgpu::Face::Back),
+            CullMode::Front => Some(wgpu::Face::Front),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
@@ -69,14 +105,7 @@ impl From<BlendFactor> for wgpu::BlendFactor {
 
 #[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
 #[serde(crate = "inox_serialize")]
-pub enum DrawMode {
-    Batch,
-    Single,
-}
-
-#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
-#[serde(crate = "inox_serialize")]
-pub enum CompareMode {
+pub enum CompareFunction {
     Never,
     Less,
     Equal,
@@ -87,6 +116,55 @@ pub enum CompareMode {
     Always,
 }
 
+impl From<CompareFunction> for wgpu::CompareFunction {
+    fn from(f: CompareFunction) -> Self {
+        match f {
+            CompareFunction::Never => wgpu::CompareFunction::Never,
+            CompareFunction::Less => wgpu::CompareFunction::Less,
+            CompareFunction::Equal => wgpu::CompareFunction::Equal,
+            CompareFunction::LessEqual => wgpu::CompareFunction::LessEqual,
+            CompareFunction::Greater => wgpu::CompareFunction::Greater,
+            CompareFunction::NotEqual => wgpu::CompareFunction::NotEqual,
+            CompareFunction::GreaterEqual => wgpu::CompareFunction::GreaterEqual,
+            CompareFunction::Always => wgpu::CompareFunction::Always,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
+#[serde(crate = "inox_serialize")]
+pub enum BlendOperation {
+    /// Src + Dst
+    Add = 0,
+    /// Src - Dst
+    Subtract = 1,
+    /// Dst - Src
+    ReverseSubtract = 2,
+    /// min(Src, Dst)
+    Min = 3,
+    /// max(Src, Dst)
+    Max = 4,
+}
+
+impl From<BlendOperation> for wgpu::BlendOperation {
+    fn from(c: BlendOperation) -> Self {
+        match c {
+            BlendOperation::Add => wgpu::BlendOperation::Add,
+            BlendOperation::Subtract => wgpu::BlendOperation::Subtract,
+            BlendOperation::ReverseSubtract => wgpu::BlendOperation::ReverseSubtract,
+            BlendOperation::Min => wgpu::BlendOperation::Min,
+            BlendOperation::Max => wgpu::BlendOperation::Max,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
+#[serde(crate = "inox_serialize")]
+pub enum DrawMode {
+    Batch,
+    Single,
+}
+
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 #[serde(crate = "inox_serialize")]
 pub struct PipelineData {
@@ -94,14 +172,17 @@ pub struct PipelineData {
     pub fragment_shader: PathBuf,
     pub vertex_format: Vec<VertexFormat>,
     pub binding_data: Vec<BindingDataType>,
-    pub culling: CullingModeType,
-    pub mode: PolygonModeType,
+    pub front_face: FrontFace,
+    pub culling: CullMode,
+    pub mode: PolygonMode,
     pub depth_write_enabled: bool,
-    pub depth_compare: CompareMode,
+    pub depth_compare: CompareFunction,
     pub src_color_blend_factor: BlendFactor,
     pub dst_color_blend_factor: BlendFactor,
+    pub color_blend_operation: BlendOperation,
     pub src_alpha_blend_factor: BlendFactor,
     pub dst_alpha_blend_factor: BlendFactor,
+    pub alpha_blend_operation: BlendOperation,
 }
 
 impl SerializeFile for PipelineData {
@@ -117,14 +198,17 @@ impl Default for PipelineData {
             fragment_shader: PathBuf::new(),
             vertex_format: Vec::new(),
             binding_data: Vec::new(),
-            culling: CullingModeType::Back,
-            mode: PolygonModeType::Fill,
+            front_face: FrontFace::CounterClockwise,
+            culling: CullMode::Back,
+            mode: PolygonMode::Fill,
             depth_write_enabled: true,
-            depth_compare: CompareMode::Less,
+            depth_compare: CompareFunction::Less,
             src_color_blend_factor: BlendFactor::One,
             dst_color_blend_factor: BlendFactor::OneMinusSrcColor,
+            color_blend_operation: BlendOperation::Add,
             src_alpha_blend_factor: BlendFactor::One,
             dst_alpha_blend_factor: BlendFactor::OneMinusSrcAlpha,
+            alpha_blend_operation: BlendOperation::Add,
         }
     }
 }

@@ -561,6 +561,8 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
             // NOTE: This and any other discards mean that early-z testing cannot be done!
             discard;
         }
+    } else if (material.alpha_mode == MATERIAL_ALPHA_BLEND_BLEND) {
+        output_color.a = min(material.base_color.a, output_color.a);
     }
 
     // Only valid for a perpective projection

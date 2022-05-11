@@ -32,7 +32,7 @@ impl TextureHandler {
             mag_filter: wgpu::FilterMode::Linear,
             min_filter: wgpu::FilterMode::Linear,
             mipmap_filter: wgpu::FilterMode::Nearest,
-            compare: Some(wgpu::CompareFunction::Less),
+            compare: Some(wgpu::CompareFunction::LessEqual),
             ..Default::default()
         });
         let texture_atlas = vec![TextureAtlas::create_default(device)];

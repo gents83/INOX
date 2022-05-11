@@ -330,6 +330,9 @@ impl RenderPass {
             return;
         }
         let pipelines = self.pipelines.iter().map(|h| h.get()).collect::<Vec<_>>();
+        let depth_write_enabled = pipelines
+            .iter()
+            .any(|pipeline| pipeline.data().depth_write_enabled);
         let pipelines_id = self.pipelines.iter().map(|h| h.id()).collect::<Vec<_>>();
         let color_operations = self.color_operations(wgpu::Color::BLACK);
         let label = format!("RenderPass {}", self.data.name);
@@ -344,10 +347,14 @@ impl RenderPass {
                         ops: color_operations,
                     }],
                     depth_stencil_attachment: render_pass_context.depth_view.map(|depth_view| {
-                        let depth_operations = self.depth_operations();
                         wgpu::RenderPassDepthStencilAttachment {
                             view: depth_view,
-                            depth_ops: Some(depth_operations),
+                            depth_ops: if depth_write_enabled {
+                                let depth_operations = self.depth_operations();
+                                Some(depth_operations)
+                            } else {
+                                None
+                            },
                             stencil_ops: None,
                         }
                     }),
