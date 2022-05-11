@@ -16,7 +16,7 @@ Here you can find a list of features that are currently supported by the library
       &emsp;&emsp;See more info in _sabiblender_ crate section)
 - [x] Launch and execute _SABI_ directly from _Blender_ \
       &emsp;&emsp;Exporting scene as Khronos [GLTF](https://www.khronos.org/gltf/), binarizing and loading it into _SABI_
-- [x] Data binarization, shader compilation, etc as background task \
+- [x] Data binarization, shader compilation, etc as background task and per target platform \
       &emsp;&emsp;See more info in _sabibinarizer_ crate section
 - [x] Hot reload of code while INOX engine is running 
 - [x] Hot reload of data reloading on the fly while INOX engine is running  
@@ -26,17 +26,18 @@ Here you can find a list of features that are currently supported by the library
 - [x] _**INOX**_ <-> _**Blender**_ communication through TCP connection
 - [x] Create custom Logic Nodes editor in _**Blender**_
 - [x] Possibility to define and use custom nodes in external dlls
-- [x] Integrated wasm as target
+- [x] Integrated WASM as target
 - [x] Added meshoptimizer library by [Arseny Kapoulkine](https://twitter.com/zeuxcg)
 - [x] Possibility to run Phases in parallel when not dependent
 - [x] Plugin indipendent and ability to enable\disable them at runtime
 - [x] Dynamic vertex layout and storage buffers per-shader 
+- [x] Support for both glsl and wgsl shaders
+- [x] Integrate PBR rendering
 
 TODO:
+- [ ] Integrate Meshlet generation and gpu culling
 - [ ] Integrate Android as target
 - [ ] Add multithreading workers for WASM target on web
-- [ ] Integrate Meshlet generation and gpu culling
-- [ ] Integrate PBR rendering
 - [ ] Raytracing on GPU
 - [ ] Quick example of game 
 - [ ] Integrate KTX universal texture compression
