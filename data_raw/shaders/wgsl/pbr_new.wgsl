@@ -295,7 +295,8 @@ fn get_texture_color(material_index: i32, texture_type: u32, tex_coords: vec2<f3
 
 let PI: f32 = 3.141592653589793;
 let AMBIENT_COLOR: vec3<f32> = vec3<f32>(0.95, 0.95, 0.95);
-let NULL_VEC4: vec4<f32> = vec4<f32>(0.0, 0.0, 0.0, 0.0);
+let SHADOW_DEPTH_BIAS: f32 = 0.02;
+let SHADOW_NORMAL_BIAS: f32 = 0.6;
 
 // From https://www.unrealengine.com/en-US/blog/physically-based-shading-on-mobile
 fn EnvBRDFApprox(f0: vec3<f32>, perceptual_roughness: f32, NoV: f32) -> vec3<f32> {
@@ -432,6 +433,7 @@ fn Fd_Burley(roughness: f32, NoV: f32, NoL: f32, LoH: f32) -> f32 {
     return lightScatter * viewScatter * (1.0 / PI);
 }
 
+
 fn point_light(
     world_position: vec3<f32>,
     light: LightData,
@@ -443,8 +445,11 @@ fn point_light(
     F0: vec3<f32>,
     diffuseColor: vec3<f32>
 ) -> vec3<f32> {
+    var intensity = max(1000., light.intensity);
+    intensity = intensity / (4.0 * PI);
+    let range = max(2., light.range);
     let light_to_frag = light.position.xyz - world_position.xyz;
-    let ligth_color_inverse_square_range = vec4<f32>(light.color.rgb, 1.0 / (light.range * light.range)) ;
+    let ligth_color_inverse_square_range = vec4<f32>(light.color.rgb * intensity, 1.0 / (range * range)) ;
     let distance_square = dot(light_to_frag, light_to_frag);
     let rangeAttenuation = getDistanceAttenuation(distance_square, ligth_color_inverse_square_range.w);
 
@@ -453,9 +458,9 @@ fn point_light(
     // see http://blog.selfshadow.com/publications/s2013-shading-course/karis/s2013_pbs_epic_notes_v2.pdf p14-16
     let a = roughness;
     let centerToRay = dot(light_to_frag, R) * R - light_to_frag;
-    let closestPoint = light_to_frag + centerToRay * saturate(light.range * inverseSqrt(dot(centerToRay, centerToRay)));
+    let closestPoint = light_to_frag + centerToRay * saturate(range * inverseSqrt(dot(centerToRay, centerToRay)));
     let LspecLengthInverse = inverseSqrt(dot(closestPoint, closestPoint));
-    let normalizationFactor = a / saturate(a + (light.range * 0.5 * LspecLengthInverse));
+    let normalizationFactor = a / saturate(a + (range * 0.5 * LspecLengthInverse));
     let specularIntensity = normalizationFactor * normalizationFactor;
 
     var L: vec3<f32> = closestPoint * LspecLengthInverse; // normalize() equivalent?
@@ -503,9 +508,7 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
     let material = dynamic_data.materials_data[v_in.material_index];
 
     var output_color = material.base_color;
-    if (length(v_in.color - NULL_VEC4) > 0.) {
-        //output_color = output_color * v_in.color;
-    }
+
     if (has_texture(v_in.material_index, TEXTURE_TYPE_BASE_COLOR)) {
         let t = get_texture_color(v_in.material_index, TEXTURE_TYPE_BASE_COLOR, v_in.tex_coords_base_color);
         output_color = output_color * t;
@@ -563,6 +566,7 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
         }
     } else if (material.alpha_mode == MATERIAL_ALPHA_BLEND_BLEND) {
         output_color.a = min(material.base_color.a, output_color.a);
+        return output_color;
     }
 
     // Only valid for a perpective projection
@@ -593,13 +597,8 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
         if (dynamic_data.lights_data[i].light_type == 0u) {
             break;
         }
-        var shadow: f32 = 1.0;
-        //if ((mesh.flags & MESH_FLAGS_SHADOW_RECEIVER_BIT) != 0u
-        //        && (light.flags & POINT_LIGHT_FLAGS_SHADOWS_ENABLED_BIT) != 0u) {
-        //    shadow = fetch_point_shadow(light_id, in.world_position, in.world_normal);
-        //}
         let light_contrib = point_light(v_in.world_position.xyz, light, roughness, NdotV, N, V, R, F0, diffuse_color);
-        light_accum = light_accum + light_contrib * shadow;
+        light_accum = light_accum + light_contrib;
 
         i = i + 1u;
     }
@@ -619,7 +618,7 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
     output_color = vec4<f32>(reinhard_luminance(output_color.rgb), output_color.a);
     // Gamma correction.
     // Not needed with sRGB buffer
-    output_color = vec4<f32>(pow(output_color.rgb, vec3<f32>(1.0 / 2.2)), output_color.a);
+    //output_color = vec4<f32>(pow(output_color.rgb, vec3<f32>(1.0 / 2.2)), output_color.a);
 
     return output_color;
 }

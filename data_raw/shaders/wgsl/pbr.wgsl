@@ -322,8 +322,8 @@ struct PBRInfo {
 
 
 let PI: f32 = 3.141592653589793;
-let AMBIENT_COLOR: vec3<f32> = vec3<f32>(0.95, 0.95, 0.95);
-let AMBIENT_INTENSITY = 0.1;
+let AMBIENT_COLOR: vec3<f32> = vec3<f32>(0.75, 0.75, 0.75);
+let AMBIENT_INTENSITY = 0.45;
 let NULL_VEC4: vec4<f32> = vec4<f32>(0.0, 0.0, 0.0, 0.0);
 let MinRoughness = 0.04;
 
@@ -469,7 +469,7 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
         }
         let l = normalize(light.position - v_in.world_position.xyz);             // Vector from surface point to light
         let h = normalize(l + v);                          // Half vector between both l and v
-        let dist = length(l);                                // Distance from surface point to light
+        let dist = length(light.position - v_in.world_position.xyz);                                // Distance from surface point to light
 
         let NdotL = clamp(dot(n, l), 0.0001, 1.0);
         let NdotH = clamp(dot(n, h), 0.0, 1.0);
@@ -497,9 +497,10 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
         let D = microfacet_distribution(info);
 
         // Calculation of analytical lighting contribution
-        let intensity = max(1., light.intensity);
-        let range = max(1.5, light.range);
-        let light_contrib = 1. - min(dist / range, 1.) * intensity;
+        var intensity = max(200., light.intensity);
+        intensity = intensity / (4.0 * PI);
+        let range = max(5., light.range);
+        let light_contrib = (1. - min(dist / range, 1.)) * intensity;
         let diffuse_contrib = (1.0 - F) * diffuse(info);
         let spec_contrib = F * G * D / (4.0 * NdotL * NdotV);
         var light_color = NdotL * light.color.rgb * (diffuse_contrib + spec_contrib);
