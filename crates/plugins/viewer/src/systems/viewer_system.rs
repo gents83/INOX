@@ -27,6 +27,7 @@ pub struct ViewerSystem {
 }
 
 const FORCE_USE_DEFAULT_CAMERA: bool = true;
+const CAMERA_SPEED: f32 = 200.;
 
 impl Drop for ViewerSystem {
     fn drop(&mut self) {
@@ -389,18 +390,19 @@ impl ViewerSystem {
 
             let mut movement = Vector3::default_zero();
             if event.code == Key::W {
-                movement.z += 1.;
+                movement.z += CAMERA_SPEED;
             } else if event.code == Key::S {
-                movement.z -= 1.;
+                movement.z -= CAMERA_SPEED;
             } else if event.code == Key::A {
-                movement.x -= 1.;
+                movement.x -= CAMERA_SPEED;
             } else if event.code == Key::D {
-                movement.x += 1.;
+                movement.x += CAMERA_SPEED;
             } else if event.code == Key::Q {
-                movement.y += 1.;
+                movement.y += CAMERA_SPEED;
             } else if event.code == Key::E {
-                movement.y -= 1.;
+                movement.y -= CAMERA_SPEED;
             }
+            movement *= self.context.global_timer().dt().as_secs_f32();
             if movement != Vector3::default_zero() {
                 self.context
                     .shared_data()
@@ -426,8 +428,9 @@ impl ViewerSystem {
             if is_on_view3d {
                 let mut rotation_angle = Vector3::default_zero();
 
-                rotation_angle.x = 0.; // event.normalized_y - self.last_mouse_pos.y;
+                rotation_angle.x = event.normalized_y - self.last_mouse_pos.y;
                 rotation_angle.y = event.normalized_x - self.last_mouse_pos.x;
+                rotation_angle *= CAMERA_SPEED * self.context.global_timer().dt().as_secs_f32();
                 if rotation_angle != Vector3::default_zero() {
                     self.context
                         .shared_data()
