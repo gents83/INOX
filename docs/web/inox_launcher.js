@@ -741,19 +741,19 @@ async function init(input) {
         const ret = getObject(arg0).createRenderPipeline(getObject(arg1));
         return addHeapObject(ret);
     };
-    imports.wbg.__wbindgen_closure_wrapper3323 = function(arg0, arg1, arg2) {
+    imports.wbg.__wbindgen_closure_wrapper3329 = function(arg0, arg1, arg2) {
         const ret = makeMutClosure(arg0, arg1, 243, __wbg_adapter_28);
         return addHeapObject(ret);
     };
-    imports.wbg.__wbindgen_closure_wrapper4988 = function(arg0, arg1, arg2) {
+    imports.wbg.__wbindgen_closure_wrapper4994 = function(arg0, arg1, arg2) {
         const ret = makeMutClosure(arg0, arg1, 346, __wbg_adapter_31);
         return addHeapObject(ret);
     };
-    imports.wbg.__wbindgen_closure_wrapper4994 = function(arg0, arg1, arg2) {
+    imports.wbg.__wbindgen_closure_wrapper5000 = function(arg0, arg1, arg2) {
         const ret = makeMutClosure(arg0, arg1, 346, __wbg_adapter_34);
         return addHeapObject(ret);
     };
-    imports.wbg.__wbindgen_closure_wrapper7075 = function(arg0, arg1, arg2) {
+    imports.wbg.__wbindgen_closure_wrapper7081 = function(arg0, arg1, arg2) {
         const ret = makeMutClosure(arg0, arg1, 401, __wbg_adapter_37);
         return addHeapObject(ret);
     };
