@@ -23,7 +23,7 @@
     "src_color_blend_factor": "SrcAlpha",
     "dst_color_blend_factor": "OneMinusSrcAlpha",
     "color_blend_operation": "Add",
-    "src_alpha_blend_factor": "Zero",
+    "src_alpha_blend_factor": "One",
     "dst_alpha_blend_factor": "One",
-    "alpha_blend_operation": "Max"
+    "alpha_blend_operation": "Add"
 }

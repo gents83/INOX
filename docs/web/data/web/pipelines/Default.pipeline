@@ -16,7 +16,7 @@
         "Dynamic"
     ],
     "front_face": "Clockwise",
-    "culling": "Back",
+    "culling": "None",
     "mode": "Fill",
     "depth_write_enabled": true,
     "depth_compare": "Less",
