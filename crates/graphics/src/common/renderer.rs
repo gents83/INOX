@@ -50,6 +50,7 @@ pub struct RenderContext {
     pub queue: wgpu::Queue,
     pub texture_handler: TextureHandler,
     pub surface_texture: Option<wgpu::SurfaceTexture>,
+    pub encoder: Option<wgpu::CommandEncoder>,
 }
 
 pub type RenderContextRw = Arc<RwLock<Option<RenderContext>>>;
@@ -185,6 +186,7 @@ impl Renderer {
             config,
             queue,
             surface_texture: None,
+            encoder: None,
         });
     }
 
@@ -464,9 +466,99 @@ impl Renderer {
             self.context.get_mut().as_mut().unwrap().surface_texture = Some(output);
         }
     }
+    pub fn draw(&self) {
+        let surface_texture = self
+            .context
+            .get_mut()
+            .as_mut()
+            .unwrap()
+            .surface_texture
+            .take();
+        if let Some(surface_texture) = surface_texture {
+            let Some((surface_texture, encoder)) = self.draw_render_passes(surface_texture);
+            self.context.get_mut().as_mut().unwrap().surface_texture = Some(surface_texture);
+            self.context.get_mut().as_mut().unwrap().encoder = Some(encoder);
+        }
+    }
 
-    pub fn draw(&self) -> Option<(wgpu::SurfaceTexture, CommandEncoder)> {
+    fn draw_render_passes(
+        &self,
+        surface_texture: wgpu::SurfaceTexture,
+    ) -> Option<(wgpu::SurfaceTexture, CommandEncoder)> {
         inox_profiler::scoped_profile!("renderer::draw");
+
+        let screen_view = {
+            inox_profiler::scoped_profile!("renderer::create_screen_view");
+
+            surface_texture
+                .texture
+                .create_view(&wgpu::TextureViewDescriptor::default())
+        };
+        let mut encoder = {
+            inox_profiler::scoped_profile!("renderer::create_encoder");
+
+            self.context
+                .get()
+                .as_ref()
+                .unwrap()
+                .device
+                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                    label: Some("Render Encoder"),
+                })
+        };
+
+        let mut render_target = &screen_view;
+        let render_context = self.context.get();
+        let render_context = render_context.as_ref().unwrap();
+        let texture_handler = &render_context.texture_handler;
+
+        let mut render_format = &render_context.config.format;
+        self.shared_data
+            .for_each_resource_mut(|_id, r: &mut RenderPass| {
+                let texture_bind_group = texture_handler.bind_group(
+                    &render_context.device,
+                    r.render_texture().as_ref().map(|t| t.id()),
+                    r.depth_texture().as_ref().map(|t| t.id()),
+                );
+
+                if let Some(texture) = r.render_texture() {
+                    if let Some(atlas) = texture_handler.get_texture_atlas(texture.id()) {
+                        render_target = atlas.texture();
+                        render_format = atlas.texture_format();
+                    }
+                } else {
+                    render_target = &screen_view;
+                    render_format = &render_context.config.format;
+                }
+                let (depth_view, depth_format) = if let Some(texture) = r.depth_texture() {
+                    (
+                        texture_handler
+                            .get_texture_atlas(texture.id())
+                            .map(|atlas| atlas.texture()),
+                        texture_handler
+                            .get_texture_atlas(texture.id())
+                            .map(|atlas| atlas.texture_format()),
+                    )
+                } else {
+                    (None, None)
+                };
+
+                r.draw(RenderPassDrawContext {
+                    context: render_context,
+                    encoder: &mut encoder,
+                    texture_view: render_target,
+                    depth_view,
+                    render_format,
+                    depth_format,
+                    graphics_data: &self.graphics_data,
+                    texture_bind_group: &texture_bind_group,
+                });
+            });
+        Some((surface_texture, encoder))
+    }
+
+    pub fn present(&self) {
+        inox_profiler::scoped_profile!("renderer::present");
 
         let surface_texture = self
             .context
@@ -476,92 +568,19 @@ impl Renderer {
             .surface_texture
             .take();
 
-        if let Some(output) = surface_texture {
-            let screen_view = {
-                inox_profiler::scoped_profile!("renderer::create_screen_view");
+        let encoder = self.context.get_mut().as_mut().unwrap().encoder.take();
 
-                output
-                    .texture
-                    .create_view(&wgpu::TextureViewDescriptor::default())
-            };
-            let mut encoder = {
-                inox_profiler::scoped_profile!("renderer::create_encoder");
-
-                self.context
-                    .get()
-                    .as_ref()
-                    .unwrap()
-                    .device
-                    .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                        label: Some("Render Encoder"),
-                    })
-            };
-
-            {
-                let mut render_target = &screen_view;
-                let render_context = self.context.get();
-                let render_context = render_context.as_ref().unwrap();
-                let texture_handler = &render_context.texture_handler;
-
-                let mut render_format = &render_context.config.format;
-                self.shared_data
-                    .for_each_resource_mut(|_id, r: &mut RenderPass| {
-                        let texture_bind_group = texture_handler.bind_group(
-                            &render_context.device,
-                            r.render_texture().as_ref().map(|t| t.id()),
-                            r.depth_texture().as_ref().map(|t| t.id()),
-                        );
-
-                        if let Some(texture) = r.render_texture() {
-                            if let Some(atlas) = texture_handler.get_texture_atlas(texture.id()) {
-                                render_target = atlas.texture();
-                                render_format = atlas.texture_format();
-                            }
-                        } else {
-                            render_target = &screen_view;
-                            render_format = &render_context.config.format;
-                        }
-                        let (depth_view, depth_format) = if let Some(texture) = r.depth_texture() {
-                            (
-                                texture_handler
-                                    .get_texture_atlas(texture.id())
-                                    .map(|atlas| atlas.texture()),
-                                texture_handler
-                                    .get_texture_atlas(texture.id())
-                                    .map(|atlas| atlas.texture_format()),
-                            )
-                        } else {
-                            (None, None)
-                        };
-
-                        r.draw(RenderPassDrawContext {
-                            context: render_context,
-                            encoder: &mut encoder,
-                            texture_view: render_target,
-                            depth_view,
-                            render_format,
-                            depth_format,
-                            graphics_data: &self.graphics_data,
-                            texture_bind_group: &texture_bind_group,
-                        });
-                    });
-                return Some((output, encoder));
-            }
-        } else {
-            eprintln!("Error drawing on screen");
+        if let Some(encoder) = encoder {
+            self.context
+                .get()
+                .as_ref()
+                .unwrap()
+                .queue
+                .submit(std::iter::once(encoder.finish()));
         }
-        None
-    }
-
-    pub fn present(&self, output: wgpu::SurfaceTexture, encoder: wgpu::CommandEncoder) {
-        inox_profiler::scoped_profile!("renderer::present");
-        self.context
-            .get()
-            .as_ref()
-            .unwrap()
-            .queue
-            .submit(std::iter::once(encoder.finish()));
-        output.present();
+        if let Some(surface_texture) = surface_texture {
+            surface_texture.present();
+        }
     }
 
     pub fn send_to_gpu(&mut self) {

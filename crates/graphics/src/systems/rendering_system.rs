@@ -42,7 +42,7 @@ impl System for RenderingSystem {
             let mut renderer = self.renderer.write().unwrap();
             renderer.change_state(RendererState::Drawing);
         }
-        let result = {
+        {
             let renderer = self.renderer.read().unwrap();
             renderer.draw()
         };
@@ -52,7 +52,7 @@ impl System for RenderingSystem {
             renderer.change_state(RendererState::Submitted);
         }
 
-        if let Some((output, encoder)) = result {
+        {
             let renderer = self.renderer.clone();
             self.job_handler.add_job(
                 &INDEPENDENT_JOB_ID,
@@ -60,7 +60,7 @@ impl System for RenderingSystem {
                 JobPriority::High,
                 move || {
                     let renderer = renderer.read().unwrap();
-                    renderer.present(output, encoder);
+                    renderer.present();
                 },
             );
         }
