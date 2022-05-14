@@ -6,10 +6,8 @@ pub use inox_filesystem::*;
 pub use self::macros::*;
 pub mod macros;
 
-#[cfg(debug_assertions)]
 pub use self::profiler::*;
 
-#[cfg(debug_assertions)]
 pub mod profiler;
 
 //Using Chrome browser for profiling

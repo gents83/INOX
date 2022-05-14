@@ -2,7 +2,6 @@
 macro_rules! load_profiler_lib {
     () => {
         #[cfg(all(not(target_arch = "wasm32")))]
-        #[cfg(debug_assertions)]
         {
             use std::path::PathBuf;
             use $crate::*;
@@ -23,7 +22,6 @@ macro_rules! load_profiler_lib {
 macro_rules! get_profiler {
     () => {
         #[cfg(all(not(target_arch = "wasm32")))]
-        #[cfg(debug_assertions)]
         unsafe {
             use $crate::*;
             $crate::load_profiler_lib!();
@@ -45,7 +43,6 @@ macro_rules! get_profiler {
 macro_rules! create_profiler {
     () => {
         #[cfg(all(not(target_arch = "wasm32")))]
-        #[cfg(debug_assertions)]
         unsafe {
             use $crate::*;
 
@@ -66,7 +63,6 @@ macro_rules! create_profiler {
 macro_rules! start_profiler {
     () => {
         #[cfg(all(not(target_arch = "wasm32")))]
-        #[cfg(debug_assertions)]
         unsafe {
             use $crate::*;
 
@@ -83,7 +79,6 @@ macro_rules! start_profiler {
 macro_rules! stop_profiler {
     () => {
         #[cfg(all(not(target_arch = "wasm32")))]
-        #[cfg(debug_assertions)]
         unsafe {
             use $crate::*;
 
@@ -100,7 +95,6 @@ macro_rules! stop_profiler {
 macro_rules! register_thread {
     () => {
         #[cfg(all(not(target_arch = "wasm32")))]
-        #[cfg(debug_assertions)]
         unsafe {
             use $crate::*;
 
@@ -117,7 +111,6 @@ macro_rules! register_thread {
 macro_rules! write_profile_file {
     () => {
         #[cfg(all(not(target_arch = "wasm32")))]
-        #[cfg(debug_assertions)]
         unsafe {
             use $crate::*;
 
@@ -141,11 +134,9 @@ macro_rules! scoped_profile {
         use $crate::*;
 
         #[cfg(all(not(target_arch = "wasm32")))]
-        #[cfg(debug_assertions)]
         $crate::get_profiler!();
 
         #[cfg(all(not(target_arch = "wasm32")))]
-        #[cfg(debug_assertions)]
         let _profile_scope = if let Some(profiler) = unsafe { &GLOBAL_PROFILER } {
             if profiler.is_started() {
                 let string = format!("{}", &format_args!($($t)*).to_string());
