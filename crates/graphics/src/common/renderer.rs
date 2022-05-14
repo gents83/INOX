@@ -475,9 +475,10 @@ impl Renderer {
             .surface_texture
             .take();
         if let Some(surface_texture) = surface_texture {
-            let Some((surface_texture, encoder)) = self.draw_render_passes(surface_texture);
-            self.context.get_mut().as_mut().unwrap().surface_texture = Some(surface_texture);
-            self.context.get_mut().as_mut().unwrap().encoder = Some(encoder);
+            if let Some((surface_texture, encoder)) = self.draw_render_passes(surface_texture) {
+                self.context.get_mut().as_mut().unwrap().surface_texture = Some(surface_texture);
+                self.context.get_mut().as_mut().unwrap().encoder = Some(encoder);
+            }
         }
     }
 
