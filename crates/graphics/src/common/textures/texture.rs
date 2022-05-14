@@ -41,7 +41,7 @@ impl Texture {
             usage,
         });
         let view = texture.create_view(&wgpu::TextureViewDescriptor {
-            dimension: Some(wgpu::TextureViewDimension::D2),
+            dimension: Some(wgpu::TextureViewDimension::D2Array),
             base_array_layer: 0,
             array_layer_count: NonZeroU32::new(layers_count),
             ..Default::default()
