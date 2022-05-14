@@ -6,7 +6,7 @@
 	],
 	"extensions": {
 		"recommendations": [
-			"matklad.rust-analyzer",
+			"rust-lang.rust-analyzer",
 			"bungcip.better-toml",
 			"ms-vscode.cpptools",
 			"vadimcn.vscode-lldb",
