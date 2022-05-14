@@ -119,6 +119,8 @@ impl TextureHandler {
         render_target: Option<&TextureId>,
         depth_target: Option<&TextureId>,
     ) -> wgpu::BindGroup {
+        inox_profiler::scoped_profile!("texture_handler::bind_group");
+
         let mut first_valid_texture = None;
         let num_textures = self.texture_atlas.len();
         let mut textures = Vec::new();
@@ -170,11 +172,15 @@ impl TextureHandler {
                 });
             });
         }
-        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            entries: bind_group_entries.as_slice(),
-            layout: &self.texture_data_bind_group_layout,
-            label: Some("Textures bind group"),
-        });
+        let bind_group = {
+            inox_profiler::scoped_profile!("texture_handler::create_bind_group");
+
+            device.create_bind_group(&wgpu::BindGroupDescriptor {
+                entries: bind_group_entries.as_slice(),
+                layout: &self.texture_data_bind_group_layout,
+                label: Some("Textures bind group"),
+            })
+        };
 
         bind_group
     }

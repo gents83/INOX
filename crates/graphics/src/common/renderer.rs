@@ -14,6 +14,7 @@ use inox_resources::{DataTypeResource, Resource};
 
 use inox_platform::Handle;
 use inox_resources::{SharedData, SharedDataRc};
+use wgpu::CommandEncoder;
 
 use std::{
     mem::size_of,
@@ -48,6 +49,7 @@ pub struct RenderContext {
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
     pub texture_handler: TextureHandler,
+    pub surface_texture: Option<wgpu::SurfaceTexture>,
 }
 
 pub type RenderContextRw = Arc<RwLock<Option<RenderContext>>>;
@@ -182,6 +184,7 @@ impl Renderer {
             surface,
             config,
             queue,
+            surface_texture: None,
         });
     }
 
@@ -446,29 +449,53 @@ impl Renderer {
             });
     }
 
-    pub fn draw(&self) {
-        inox_profiler::scoped_profile!("renderer::draw");
+    pub fn obtain_surface_texture(&mut self) {
+        let surface_texture = {
+            inox_profiler::scoped_profile!("wgpu::get_current_texture");
 
-        if let Ok(output) = self
-            .context
-            .get()
-            .as_ref()
-            .unwrap()
-            .surface
-            .get_current_texture()
-        {
-            let screen_view = output
-                .texture
-                .create_view(&wgpu::TextureViewDescriptor::default());
-            let mut encoder = self
-                .context
+            self.context
                 .get()
                 .as_ref()
                 .unwrap()
-                .device
-                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                    label: Some("Render Encoder"),
-                });
+                .surface
+                .get_current_texture()
+        };
+        if let Ok(output) = surface_texture {
+            self.context.get_mut().as_mut().unwrap().surface_texture = Some(output);
+        }
+    }
+
+    pub fn draw(&self) -> Option<(wgpu::SurfaceTexture, CommandEncoder)> {
+        inox_profiler::scoped_profile!("renderer::draw");
+
+        let surface_texture = self
+            .context
+            .get_mut()
+            .as_mut()
+            .unwrap()
+            .surface_texture
+            .take();
+
+        if let Some(output) = surface_texture {
+            let screen_view = {
+                inox_profiler::scoped_profile!("renderer::create_screen_view");
+
+                output
+                    .texture
+                    .create_view(&wgpu::TextureViewDescriptor::default())
+            };
+            let mut encoder = {
+                inox_profiler::scoped_profile!("renderer::create_encoder");
+
+                self.context
+                    .get()
+                    .as_ref()
+                    .unwrap()
+                    .device
+                    .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                        label: Some("Render Encoder"),
+                    })
+            };
 
             {
                 let mut render_target = &screen_view;
@@ -518,18 +545,23 @@ impl Renderer {
                             texture_bind_group: &texture_bind_group,
                         });
                     });
+                return Some((output, encoder));
             }
-
-            self.context
-                .get()
-                .as_ref()
-                .unwrap()
-                .queue
-                .submit(std::iter::once(encoder.finish()));
-            output.present();
         } else {
             eprintln!("Error drawing on screen");
         }
+        None
+    }
+
+    pub fn present(&self, output: wgpu::SurfaceTexture, encoder: wgpu::CommandEncoder) {
+        inox_profiler::scoped_profile!("renderer::present");
+        self.context
+            .get()
+            .as_ref()
+            .unwrap()
+            .queue
+            .submit(std::iter::once(encoder.finish()));
+        output.present();
     }
 
     pub fn send_to_gpu(&mut self) {

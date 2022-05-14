@@ -42,24 +42,28 @@ impl System for RenderingSystem {
             let mut renderer = self.renderer.write().unwrap();
             renderer.change_state(RendererState::Drawing);
         }
+        let result = {
+            let renderer = self.renderer.read().unwrap();
+            renderer.draw()
+        };
 
-        let renderer = self.renderer.clone();
-        self.job_handler.add_job(
-            &INDEPENDENT_JOB_ID,
-            "Render Draw",
-            JobPriority::Medium,
-            move || {
-                {
+        {
+            let mut renderer = self.renderer.write().unwrap();
+            renderer.change_state(RendererState::Submitted);
+        }
+
+        if let Some((output, encoder)) = result {
+            let renderer = self.renderer.clone();
+            self.job_handler.add_job(
+                &INDEPENDENT_JOB_ID,
+                "Render Draw",
+                JobPriority::High,
+                move || {
                     let renderer = renderer.read().unwrap();
-                    renderer.draw();
-                }
-
-                {
-                    let mut renderer = renderer.write().unwrap();
-                    renderer.change_state(RendererState::Submitted);
-                }
-            },
-        );
+                    renderer.present(output, encoder);
+                },
+            );
+        }
         true
     }
     fn uninit(&mut self) {}

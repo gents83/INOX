@@ -325,6 +325,8 @@ impl RenderPass {
     }
 
     pub fn draw(&self, render_pass_context: RenderPassDrawContext) {
+        inox_profiler::scoped_profile!("render_pass[{}]::draw", self.data.name);
+
         let graphics_data = render_pass_context.graphics_data.get();
         if graphics_data.total_vertex_count() == 0 || graphics_data.total_index_count() == 0 {
             return;
@@ -361,6 +363,8 @@ impl RenderPass {
                 });
 
         pipelines.iter().enumerate().for_each(|(i, pipeline)| {
+            inox_profiler::scoped_profile!("pipeline[{}]::draw", pipeline.name());
+
             let pipeline_id = pipelines_id[i];
             let instance_count = graphics_data.instance_count(pipeline_id);
             if instance_count > 0 && pipeline.is_initialized() {

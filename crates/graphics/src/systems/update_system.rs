@@ -198,6 +198,7 @@ impl System for UpdateSystem {
 
         {
             let mut renderer = self.renderer.write().unwrap();
+            renderer.obtain_surface_texture();
 
             let resolution = renderer.resolution();
             let screen_size = Vector2::new(resolution.0 as f32, resolution.1 as f32);
