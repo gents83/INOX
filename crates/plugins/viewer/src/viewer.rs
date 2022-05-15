@@ -140,15 +140,33 @@ impl Viewer {
             read_back: false,
         };
         opaque_pass
-            .pass()
+            .render_pass()
+            .unwrap()
             .get_mut()
             .render_target(opaque_pass_render_target)
             .depth_target(opaque_pass_render_target);
         transparent_pass
-            .pass()
+            .render_pass()
+            .unwrap()
             .get_mut()
-            .render_target_from_texture(opaque_pass.pass().get().render_texture().as_ref().unwrap())
-            .depth_target_from_texture(opaque_pass.pass().get().depth_texture().as_ref().unwrap());
+            .render_target_from_texture(
+                opaque_pass
+                    .render_pass()
+                    .unwrap()
+                    .get()
+                    .render_texture()
+                    .as_ref()
+                    .unwrap(),
+            )
+            .depth_target_from_texture(
+                opaque_pass
+                    .render_pass()
+                    .unwrap()
+                    .get()
+                    .depth_texture()
+                    .as_ref()
+                    .unwrap(),
+            );
 
         context
             .message_hub()

@@ -1,0 +1,21 @@
+{
+    "vertex_shader": "shaders/wgsl/cull.shader",
+    "fragment_shader": "shaders/wgsl/cull.shader",
+    "vertex_format" : [
+        "PositionF32x3"
+    ],
+    "binding_data" : [
+        "Custom"
+    ],
+    "front_face": "Clockwise",
+    "culling": "None",
+    "mode": "Fill",
+    "depth_write_enabled": false,
+    "depth_compare": "Less",
+    "src_color_blend_factor": "One",
+    "dst_color_blend_factor": "One",
+    "color_blend_operation": "Add",
+    "src_alpha_blend_factor": "One",
+    "dst_alpha_blend_factor": "One",
+    "alpha_blend_operation": "Add"
+}

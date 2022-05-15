@@ -1,9 +1,11 @@
 use std::path::PathBuf;
 
-use crate::{LoadOperation, Pass, RenderPass, RenderPassData, RenderTarget, StoreOperation};
+use crate::{
+    ComputePass, LoadOperation, Pass, RenderPass, RenderPassData, RenderTarget, StoreOperation,
+};
 
 use inox_core::ContextRc;
-use inox_resources::{DataTypeResource, Resource};
+use inox_resources::{DataTypeResource, Handle, Resource};
 use inox_uid::generate_random_uid;
 
 pub const TRANSPARENT_PIPELINE: &str = "pipelines/Transparent.pipeline";
@@ -40,7 +42,10 @@ impl Pass for TransparentPass {
             ),
         }
     }
-    fn pass(&self) -> &Resource<RenderPass> {
-        &self.render_pass
+    fn render_pass(&self) -> Handle<RenderPass> {
+        Some(self.render_pass.clone())
+    }
+    fn compute_pass(&self) -> Handle<ComputePass> {
+        None
     }
 }

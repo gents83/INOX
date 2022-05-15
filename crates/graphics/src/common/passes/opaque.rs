@@ -1,9 +1,9 @@
 use std::path::PathBuf;
 
-use crate::{Pass, RenderPass, RenderPassData, RenderTarget, StoreOperation};
+use crate::{ComputePass, Pass, RenderPass, RenderPassData, RenderTarget, StoreOperation};
 
 use inox_core::ContextRc;
-use inox_resources::{DataTypeResource, Resource};
+use inox_resources::{DataTypeResource, Handle, Resource};
 use inox_uid::generate_random_uid;
 
 pub const DEFAULT_PIPELINE: &str = "pipelines/Default.pipeline";
@@ -42,7 +42,10 @@ impl Pass for OpaquePass {
             ),
         }
     }
-    fn pass(&self) -> &Resource<RenderPass> {
-        &self.render_pass
+    fn render_pass(&self) -> Handle<RenderPass> {
+        Some(self.render_pass.clone())
+    }
+    fn compute_pass(&self) -> Handle<ComputePass> {
+        None
     }
 }

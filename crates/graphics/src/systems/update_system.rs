@@ -137,7 +137,9 @@ impl UpdateSystem {
             })
             .process_messages(|e: &PassEvent| {
                 let PassEvent::Add(pass) = e;
-                self.render_passes.push(pass.pass().clone());
+                if let Some(render_pass) = pass.render_pass() {
+                    self.render_passes.push(render_pass);
+                }
             });
     }
 }

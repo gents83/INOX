@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
 use inox_core::ContextRc;
-use inox_graphics::{Pass, RenderPass, RenderPassData, RenderTarget, StoreOperation};
-use inox_resources::{DataTypeResource, Resource};
+use inox_graphics::{ComputePass, Pass, RenderPass, RenderPassData, RenderTarget, StoreOperation};
+use inox_resources::{DataTypeResource, Handle, Resource};
 use inox_uid::generate_random_uid;
 
 const UI_PIPELINE: &str = "pipelines/UI.pipeline";
@@ -35,7 +35,10 @@ impl Pass for UIPass {
             ),
         }
     }
-    fn pass(&self) -> &Resource<RenderPass> {
-        &self.render_pass
+    fn render_pass(&self) -> Handle<RenderPass> {
+        Some(self.render_pass.clone())
+    }
+    fn compute_pass(&self) -> Handle<ComputePass> {
+        None
     }
 }
