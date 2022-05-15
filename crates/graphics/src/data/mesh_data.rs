@@ -1,4 +1,4 @@
-use std::{mem::size_of, ops::Range, path::PathBuf};
+use std::{mem::size_of, path::PathBuf};
 
 use inox_math::{is_point_in_triangle, Vector2, Vector3, Vector4};
 use inox_resources::{from_u8_slice, from_u8_slice_mut, to_u8_slice};
@@ -6,9 +6,12 @@ use inox_serialize::{Deserialize, Serialize, SerializeFile};
 
 use crate::{create_quad_with_texture, VertexData, VertexFormat, VertexFormatBits};
 
-pub struct MeshBindingData {
-    pub vertices: Range<u32>,
-    pub indices: Range<u32>,
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[serde(crate = "inox_serialize")]
+pub struct MeshletData {
+    pub indices: Vec<u32>,
+    pub center: Vector3,
+    pub radius: f32,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
@@ -18,6 +21,7 @@ pub struct MeshData {
     pub vertices: Vec<u8>,
     pub indices: Vec<u32>,
     pub material: PathBuf,
+    pub meshlets: Vec<MeshletData>,
 }
 
 impl SerializeFile for MeshData {
@@ -33,6 +37,7 @@ impl MeshData {
             vertices: Vec::new(),
             indices: Vec::new(),
             material: PathBuf::new(),
+            meshlets: Vec::new(),
         }
     }
     pub fn vertex_format(&self) -> VertexFormatBits {

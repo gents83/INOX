@@ -18,8 +18,8 @@ use gltf::{
 };
 
 use inox_graphics::{
-    LightData, LightType, MaterialAlphaMode, MaterialData, MeshData, PbrVertexData, TextureType,
-    VertexFormat, DEFAULT_PIPELINE, MAX_TEXTURE_COORDS_SETS, TRANSPARENT_PIPELINE,
+    LightData, LightType, MaterialAlphaMode, MaterialData, MeshData, MeshletData, PbrVertexData,
+    TextureType, VertexFormat, DEFAULT_PIPELINE, MAX_TEXTURE_COORDS_SETS, TRANSPARENT_PIPELINE,
 };
 use inox_log::debug_log;
 use inox_math::{Mat4Ops, Matrix4, NewAngle, Parser, Radians, Vector2, Vector3, Vector4, Vector4h};
@@ -390,12 +390,14 @@ impl GltfCompiler {
                 max_triangles,
                 cone_weight,
             );
-            let mut meshlet_bounds = Vec::new();
             for m in meshlets.iter() {
-                meshlet_bounds.push(meshopt::compute_meshlet_bounds(
-                    m,
-                    vertex_data_adapter.as_ref().unwrap(),
-                ));
+                let bounds =
+                    meshopt::compute_meshlet_bounds(m, vertex_data_adapter.as_ref().unwrap());
+                mesh_data.meshlets.push(MeshletData {
+                    indices: m.vertices.iter().map(|v| *v as u32).collect(),
+                    center: bounds.center.into(),
+                    radius: bounds.radius,
+                });
             }
 
             mesh_data.append_mesh(new_vertices.as_slice(), new_indices.as_slice());
