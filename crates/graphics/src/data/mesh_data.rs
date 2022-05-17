@@ -9,9 +9,13 @@ use crate::{create_quad_with_texture, VertexData, VertexFormat, VertexFormatBits
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 #[serde(crate = "inox_serialize")]
 pub struct MeshletData {
-    pub indices: Vec<u32>,
     pub center: Vector3,
     pub radius: f32,
+    pub cone_axis: Vector3,
+    pub cone_cutoff: f32,
+    pub vertices_count: u32,
+    pub vertices_offset: u32,
+    pub indices_offset: u32,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]

@@ -382,7 +382,7 @@ impl GltfCompiler {
                 meshopt::VertexDataAdapter::new(vertices_bytes, vertex_stride, 0);
             let max_vertices = 64;
             let max_triangles = 124;
-            let cone_weight = 0.;
+            let cone_weight = 0.5;
             let meshlets = meshopt::build_meshlets(
                 new_indices.as_slice(),
                 vertex_data_adapter.as_ref().unwrap(),
@@ -390,17 +390,32 @@ impl GltfCompiler {
                 max_triangles,
                 cone_weight,
             );
+
+            let mut all_vertices = Vec::new();
+            let mut all_indices = Vec::new();
             for m in meshlets.iter() {
                 let bounds =
                     meshopt::compute_meshlet_bounds(m, vertex_data_adapter.as_ref().unwrap());
+                let vertices_offset = all_vertices.len();
+                let indices_offset = all_indices.len();
+                m.vertices.iter().for_each(|v| {
+                    all_vertices.push(new_vertices[*v as usize]);
+                });
+                m.triangles.iter().for_each(|t| {
+                    all_indices.push(vertices_offset as u32 + *t as u32);
+                });
                 mesh_data.meshlets.push(MeshletData {
-                    indices: m.vertices.iter().map(|v| *v as u32).collect(),
+                    vertices_count: m.vertices.len() as _,
+                    vertices_offset: vertices_offset as _,
+                    indices_offset: indices_offset as _,
                     center: bounds.center.into(),
                     radius: bounds.radius,
+                    cone_axis: bounds.cone_axis.into(),
+                    cone_cutoff: bounds.cone_cutoff,
                 });
             }
 
-            mesh_data.append_mesh(new_vertices.as_slice(), new_indices.as_slice());
+            mesh_data.append_mesh(all_vertices.as_slice(), all_indices.as_slice());
         } else {
             mesh_data.append_mesh(vertices.as_slice(), indices.as_slice());
         }
