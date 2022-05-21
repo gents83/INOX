@@ -34,6 +34,7 @@ macro_rules! implement_message {
         impl<T> $crate::Message for $Type<T>
         where
             T: $InnerType,
+            $Type<T>: 'static,
         {
             #[inline]
             fn compare_and_discard(&self, other: &Self) -> bool {

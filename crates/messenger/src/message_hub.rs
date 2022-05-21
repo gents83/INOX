@@ -30,14 +30,14 @@ impl Listener {
     }
     pub fn register<T>(&self) -> &Self
     where
-        T: Message,
+        T: Message + 'static,
     {
         self.message_hub.register_listener::<T>(&self.id);
         self
     }
     pub fn unregister<T>(&self) -> &Self
     where
-        T: Message,
+        T: Message + 'static,
     {
         self.message_hub.unregister_listener::<T>(&self.id);
         self
@@ -46,7 +46,7 @@ impl Listener {
     pub fn process_messages<T, F>(&self, f: F) -> &Self
     where
         F: FnMut(&T),
-        T: Message,
+        T: Message + 'static,
     {
         self.message_hub.process_messages(&self.id, f);
         self
@@ -66,7 +66,7 @@ impl ListenerData {
     }
 }
 
-trait MsgType: Send + Sync + Any + 'static {
+trait MsgType: Send + Sync + Any {
     fn type_id(&self) -> TypeId {
         TypeId::of::<Self>()
     }
@@ -112,7 +112,7 @@ where
 
 impl<T> MsgType for MessageType<T>
 where
-    T: Message,
+    T: Message + 'static,
 {
     fn add_listener(&self, listener_id: &ListenerId) {
         //inox_log::debug_log!("Adding listener for {}", type_name::<T>());
@@ -252,7 +252,7 @@ impl MessageHub {
     #[inline]
     pub fn register_type<T>(&self) -> &Self
     where
-        T: Message,
+        T: Message + 'static,
     {
         let typeid = TypeId::of::<T>();
         self.registered_types
@@ -265,7 +265,7 @@ impl MessageHub {
     #[inline]
     pub fn unregister_type<T>(&self) -> &Self
     where
-        T: Message,
+        T: Message + 'static,
     {
         let typeid = TypeId::of::<T>();
         self.registered_types.write().unwrap().remove(&typeid);
@@ -301,7 +301,7 @@ impl MessageHub {
     pub fn process_messages<T, F>(&self, listener_id: &ListenerId, f: F)
     where
         F: FnMut(&T),
-        T: Message,
+        T: Message + 'static,
     {
         let typeid = TypeId::of::<T>();
         if let Some(entry) = self.registered_types.read().unwrap().get(&typeid) {
@@ -332,7 +332,7 @@ impl MessageHub {
 
     pub fn send_event<T>(&self, msg: T)
     where
-        T: Message,
+        T: Message + 'static,
     {
         let typeid = TypeId::of::<T>();
         if let Some(entry) = self.registered_types.read().unwrap().get(&typeid) {

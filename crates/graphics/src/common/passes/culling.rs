@@ -1,9 +1,9 @@
 use std::path::PathBuf;
 
-use crate::{ComputePass, ComputePassData, Pass, RenderPass};
+use crate::{ComputePass, ComputePassData, Pass, RenderContext};
 
 use inox_core::ContextRc;
-use inox_resources::{DataTypeResource, Handle, Resource};
+use inox_resources::{DataTypeResource, Resource};
 use inox_uid::generate_random_uid;
 
 pub const CULLING_PIPELINE: &str = "pipelines/Culling.pipeline";
@@ -11,7 +11,7 @@ pub const CULLING_PASS_NAME: &str = "CullingPass";
 
 #[derive(Clone)]
 pub struct CullingPass {
-    compute_pass: Resource<ComputePass>,
+    _compute_pass: Resource<ComputePass>,
 }
 unsafe impl Send for CullingPass {}
 unsafe impl Sync for CullingPass {}
@@ -26,7 +26,7 @@ impl Pass for CullingPass {
             pipelines: vec![PathBuf::from(CULLING_PIPELINE)],
         };
         Self {
-            compute_pass: ComputePass::new_resource(
+            _compute_pass: ComputePass::new_resource(
                 context.shared_data(),
                 context.message_hub(),
                 generate_random_uid(),
@@ -34,10 +34,6 @@ impl Pass for CullingPass {
             ),
         }
     }
-    fn render_pass(&self) -> Handle<RenderPass> {
-        None
-    }
-    fn compute_pass(&self) -> Handle<ComputePass> {
-        Some(self.compute_pass.clone())
-    }
+    fn prepare(&mut self, _render_context: &RenderContext) {}
+    fn update(&mut self, _render_context: &RenderContext) {}
 }

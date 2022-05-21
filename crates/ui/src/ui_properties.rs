@@ -33,7 +33,7 @@ struct UIPropertiesData<T> {
 }
 impl<T> UIData for UIPropertiesData<T>
 where
-    T: UIProperties + ResourceTrait,
+    T: UIProperties + ResourceTrait + 'static,
 {
     fn type_id(&self) -> TypeId {
         TypeId::of::<T>()
@@ -63,7 +63,7 @@ unsafe impl Sync for UIPropertiesRegistry {}
 impl UIPropertiesRegistry {
     pub fn register<T>(&mut self) -> &mut Self
     where
-        T: UIProperties + ResourceTrait,
+        T: UIProperties + ResourceTrait + 'static,
     {
         self.registry.push(Box::new(UIPropertiesData {
             _marker: PhantomData::<T>::default(),

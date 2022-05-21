@@ -20,7 +20,7 @@ use inox_core::{
 };
 
 use inox_graphics::{
-    GraphicsData, Material, Mesh, MeshData, RenderPass, Texture, TextureId, TextureType,
+    GraphicsData, Material, Mesh, MeshData, RendererRw, Texture, TextureId, TextureType,
     VertexFormat, GRAPHICS_DATA_UID,
 };
 
@@ -37,7 +37,7 @@ use inox_resources::{
 use inox_serialize::read_from_file;
 use inox_uid::generate_random_uid;
 
-use crate::UIWidget;
+use crate::{UIPass, UIPassData, UIWidget};
 
 use super::config::Config;
 
@@ -47,30 +47,32 @@ pub struct UISystem {
     job_handler: JobHandlerRw,
     message_hub: MessageHubRc,
     listener: Listener,
+    renderer: RendererRw,
+    ui_pass_index: usize,
     ui_context: Context,
     ui_textures: HashMap<eguiTextureId, Resource<Texture>>,
     ui_input: RawInput,
     ui_input_modifiers: Modifiers,
     ui_clipboard: Option<String>,
-    ui_render_pass: Resource<RenderPass>,
     ui_materials: HashMap<TextureId, Resource<Material>>,
     ui_meshes: Vec<Resource<Mesh>>,
     ui_scale: f32,
 }
 
 impl UISystem {
-    pub fn new(context: &ContextRc, ui_pass: &Resource<RenderPass>) -> Self {
+    pub fn new(context: &ContextRc, renderer: RendererRw, ui_pass_index: usize) -> Self {
         let listener = Listener::new(context.message_hub());
 
         crate::register_resource_types(context.shared_data(), context.message_hub());
 
         Self {
             config: Config::default(),
-            ui_render_pass: ui_pass.clone(),
+            ui_pass_index,
             shared_data: context.shared_data().clone(),
             message_hub: context.message_hub().clone(),
             job_handler: context.job_handler().clone(),
             listener,
+            renderer,
             ui_context: Context::default(),
             ui_textures: HashMap::new(),
             ui_input: RawInput::default(),
@@ -90,7 +92,16 @@ impl UISystem {
             Entry::Vacant(e) => {
                 let shared_data = self.shared_data.clone();
                 let message_hub = self.message_hub.clone();
-                if let Some(pipeline) = self.ui_render_pass.get().pipeline(0).as_ref() {
+                let r = self.renderer.read().unwrap();
+                if let Some(ui_pass) = r.pass::<UIPass>(self.ui_pass_index) {
+                    let render_pass = ui_pass.render_pass().get();
+                    let pipelines = render_pass.pipelines();
+                    if pipelines.is_empty() {
+                        panic!(
+                            "UI pipeline not loaded yet or maybe you forgot to read ui.cfg file"
+                        );
+                    }
+                    let pipeline = &pipelines[0];
                     let material =
                         Material::duplicate_from_pipeline(&shared_data, &message_hub, pipeline);
                     material
@@ -436,14 +447,13 @@ impl System for UISystem {
 
     fn run(&mut self) -> bool {
         self.update_events();
-
-        if let Some(pipeline) = &self.ui_render_pass.get().pipeline(0) {
-            pipeline
-                .get_mut()
-                .binding_data_mut()
-                .set_custom_data(self.ui_scale, true);
-        } else {
-            return true;
+        {
+            let mut r = self.renderer.write().unwrap();
+            if let Some(ui_pass) = r.pass_mut::<UIPass>(self.ui_pass_index) {
+                ui_pass.set_custom_data(UIPassData {
+                    ui_scale: self.ui_scale,
+                });
+            }
         }
 
         let output = {

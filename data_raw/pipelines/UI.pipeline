@@ -6,11 +6,6 @@
         "TexCoord0F32x2",
         "ColorU32"
     ],
-    "binding_data" : [
-        "Constant",
-        "Dynamic",
-        "Custom"
-    ],
     "front_face": "CounterClockwise",
     "culling": "None",
     "mode": "Fill",

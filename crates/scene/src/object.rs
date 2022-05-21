@@ -345,7 +345,7 @@ impl Object {
         message_hub: &MessageHubRc,
     ) -> Resource<C>
     where
-        C: DataTypeResource,
+        C: DataTypeResource + 'static,
     {
         let id = generate_random_uid();
         let resource =
@@ -356,7 +356,7 @@ impl Object {
     }
     pub fn add_component<C>(&mut self, component: Resource<C>) -> &mut Self
     where
-        C: ResourceTrait,
+        C: ResourceTrait + 'static,
     {
         let components = self.components.entry(TypeId::of::<C>()).or_default();
         components.push(component as GenericResource);
@@ -365,7 +365,7 @@ impl Object {
 
     pub fn components_of_type<C>(&self) -> Vec<Resource<C>>
     where
-        C: ResourceTrait,
+        C: ResourceTrait + 'static,
     {
         let mut result = Vec::new();
         if let Some(components) = self.components.get(&TypeId::of::<C>()) {

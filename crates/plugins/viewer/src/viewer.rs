@@ -6,9 +6,10 @@ use std::{
 use inox_core::{define_plugin, ContextRc, Plugin, SystemUID, WindowSystem};
 
 use inox_graphics::{
-    rendering_system::RenderingSystem, update_system::UpdateSystem, DebugDrawerSystem, OpaquePass,
-    Pass, PassEvent, RenderPass, RenderTarget, Renderer, RendererRw, TransparentPass,
-    DEFAULT_HEIGHT, DEFAULT_WIDTH, OPAQUE_PASS_NAME,
+    rendering_system::RenderingSystem, update_system::UpdateSystem, ComputePass, CullingPass,
+    CullingSystem, DebugDrawerSystem, OpaquePass, Pass, RenderPass, RenderTarget, Renderer,
+    RendererRw, TransparentPass, VertexFormat, CULLING_PASS_NAME, DEFAULT_HEIGHT, DEFAULT_WIDTH,
+    OPAQUE_PASS_NAME,
 };
 use inox_platform::Window;
 use inox_resources::ConfigBase;
@@ -40,7 +41,7 @@ impl Plugin for Viewer {
         let renderer = Renderer::new(window.handle(), context, false);
         let renderer = Arc::new(RwLock::new(renderer));
 
-        Self::create_render_passes(context, window.width(), window.height());
+        Self::create_render_passes(context, &renderer, window.width(), window.height());
 
         Viewer {
             window: Some(window),
@@ -55,12 +56,23 @@ impl Plugin for Viewer {
     fn prepare(&mut self, context: &ContextRc) {
         let window_system = WindowSystem::new(self.window.take().unwrap(), context);
         let render_update_system = UpdateSystem::new(self.renderer.clone(), context);
+        let culling_compute_pass = context
+            .shared_data()
+            .match_resource(|r: &ComputePass| r.data().name == CULLING_PASS_NAME);
+        let culling_system = CullingSystem::new(
+            context,
+            &culling_compute_pass.unwrap(),
+            VertexFormat::to_bits(VertexFormat::pbr().as_slice()),
+        );
         let rendering_draw_system = RenderingSystem::new(self.renderer.clone(), context);
         let debug_drawer_system = DebugDrawerSystem::new(context);
-        let ui_render_pass = context
-            .shared_data()
-            .match_resource(|r: &RenderPass| r.data().name == UI_PASS_NAME);
-        let ui_system = UISystem::new(context, &ui_render_pass.unwrap());
+        let ui_pass_index = {
+            let r = self.renderer.read().unwrap();
+            let passes = r.passes();
+            passes.len() - 1
+        };
+        let ui_system = UISystem::new(context, self.renderer.clone(), ui_pass_index);
+
         let system = ViewerSystem::new(context);
         let object_system = ObjectSystem::new(context.shared_data());
         let script_system = ScriptSystem::new(context);
@@ -73,8 +85,13 @@ impl Plugin for Viewer {
         );
         context.add_system(
             inox_core::Phases::Render,
-            rendering_draw_system,
+            culling_system,
             Some(&[UpdateSystem::system_id()]),
+        );
+        context.add_system(
+            inox_core::Phases::Render,
+            rendering_draw_system,
+            Some(&[UpdateSystem::system_id(), CullingSystem::system_id()]),
         );
 
         context.add_system(inox_core::Phases::Update, object_system, None);
@@ -116,12 +133,14 @@ impl Plugin for Viewer {
                 if let Some(ui_pass) =
                     shared_data.match_resource(|r: &RenderPass| r.data().name == UI_PASS_NAME)
                 {
-                    ui_pass.get_mut().pipelines(data.ui_pass_pipelines);
+                    ui_pass.get_mut().set_pipelines(data.ui_pass_pipelines);
                 }
                 if let Some(opaque_pass) =
                     shared_data.match_resource(|r: &RenderPass| r.data().name == OPAQUE_PASS_NAME)
                 {
-                    opaque_pass.get_mut().pipelines(data.opaque_pass_pipelines);
+                    opaque_pass
+                        .get_mut()
+                        .set_pipelines(data.opaque_pass_pipelines);
                 }
             }),
         );
@@ -129,7 +148,8 @@ impl Plugin for Viewer {
 }
 
 impl Viewer {
-    fn create_render_passes(context: &ContextRc, width: u32, height: u32) {
+    fn create_render_passes(context: &ContextRc, renderer: &RendererRw, width: u32, height: u32) {
+        let culling_pass = CullingPass::create(context);
         let opaque_pass = OpaquePass::create(context);
         let transparent_pass = TransparentPass::create(context);
         let ui_pass = UIPass::create(context);
@@ -141,18 +161,15 @@ impl Viewer {
         };
         opaque_pass
             .render_pass()
-            .unwrap()
             .get_mut()
             .render_target(opaque_pass_render_target)
             .depth_target(opaque_pass_render_target);
         transparent_pass
             .render_pass()
-            .unwrap()
             .get_mut()
             .render_target_from_texture(
                 opaque_pass
                     .render_pass()
-                    .unwrap()
                     .get()
                     .render_texture()
                     .as_ref()
@@ -161,21 +178,18 @@ impl Viewer {
             .depth_target_from_texture(
                 opaque_pass
                     .render_pass()
-                    .unwrap()
                     .get()
                     .depth_texture()
                     .as_ref()
                     .unwrap(),
             );
 
-        context
-            .message_hub()
-            .send_event(PassEvent::Add(Box::new(opaque_pass)));
-        context
-            .message_hub()
-            .send_event(PassEvent::Add(Box::new(transparent_pass)));
-        context
-            .message_hub()
-            .send_event(PassEvent::Add(Box::new(ui_pass)));
+        renderer
+            .write()
+            .unwrap()
+            .add_pass(culling_pass)
+            .add_pass(opaque_pass)
+            .add_pass(transparent_pass)
+            .add_pass(ui_pass);
     }
 }

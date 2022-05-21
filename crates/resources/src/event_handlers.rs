@@ -71,7 +71,7 @@ where
 
 pub struct SerializableResourceEventHandler<T>
 where
-    T: SerializableResource,
+    T: SerializableResource + 'static,
 {
     marker: PhantomData<T>,
     listener: Listener,

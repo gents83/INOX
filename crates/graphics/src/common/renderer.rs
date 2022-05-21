@@ -1,31 +1,22 @@
 use crate::{
-    platform::{platform_limits, required_gpu_features},
-    ConstantData, DataBuffer, DynamicData, GraphicsData, Light, LightData, LightId, Material,
-    MaterialId, Mesh, MeshId, PassEvent, Pipeline, RenderPass, RenderPassDrawContext, RenderPassId,
-    RenderPassPrepareContext, ShaderMaterialData, Texture, TextureData, TextureHandler, TextureId,
-    CONSTANT_DATA_FLAGS_SUPPORT_SRGB, GRAPHICS_DATA_UID, MAX_NUM_LIGHTS, MAX_NUM_MATERIALS,
-    MAX_NUM_TEXTURES,
+    GetRenderContext, Light, LightId, Material, MaterialId, Mesh, MeshId, Pass, Pipeline,
+    RenderContext, RenderContextRw, RenderPass, RenderPassId, Texture, TextureId,
 };
 use inox_core::ContextRc;
-use inox_log::debug_log;
-use inox_math::{matrix4_to_array, Matrix4, Vector2};
+use inox_math::Matrix4;
 use inox_messenger::MessageHubRc;
 use inox_resources::{DataTypeResource, Resource};
 
 use inox_platform::Handle;
 use inox_resources::{SharedData, SharedDataRc};
-use wgpu::CommandEncoder;
 
-use std::{
-    mem::size_of,
-    sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard},
-};
+use std::sync::{Arc, RwLock};
 
 pub const DEFAULT_WIDTH: u32 = 3840;
 pub const DEFAULT_HEIGHT: u32 = 2160;
 
 #[rustfmt::skip]
-const OPENGL_TO_WGPU_MATRIX: Matrix4 = Matrix4::new(
+pub const OPENGL_TO_WGPU_MATRIX: Matrix4 = Matrix4::new(
     1.0, 0.0, 0.0, 0.0,
     0.0, 1.0, 0.0, 0.0,
     0.0, 0.0, 0.5, 0.0,
@@ -41,44 +32,12 @@ pub enum RendererState {
     Submitted,
 }
 
-pub struct RenderContext {
-    pub instance: wgpu::Instance,
-    pub surface: wgpu::Surface,
-    pub config: wgpu::SurfaceConfiguration,
-    pub adapter: wgpu::Adapter,
-    pub device: wgpu::Device,
-    pub queue: wgpu::Queue,
-    pub texture_handler: TextureHandler,
-    pub surface_texture: Option<wgpu::SurfaceTexture>,
-    pub encoder: Option<wgpu::CommandEncoder>,
-}
-
-pub type RenderContextRw = Arc<RwLock<Option<RenderContext>>>;
-
-pub trait GetRenderContext {
-    fn get(&self) -> RwLockReadGuard<Option<RenderContext>>;
-    fn get_mut(&self) -> RwLockWriteGuard<Option<RenderContext>>;
-}
-
-impl GetRenderContext for RenderContextRw {
-    fn get(&self) -> RwLockReadGuard<Option<RenderContext>> {
-        self.read().unwrap()
-    }
-    fn get_mut(&self) -> RwLockWriteGuard<Option<RenderContext>> {
-        self.write().unwrap()
-    }
-}
-
 pub struct Renderer {
     context: RenderContextRw,
     shared_data: SharedDataRc,
     message_hub: MessageHubRc,
     state: RendererState,
-    constant_data: ConstantData,
-    dynamic_data: DynamicData,
-    constant_data_buffer: DataBuffer,
-    dynamic_data_buffer: DataBuffer,
-    graphics_data: Resource<GraphicsData>,
+    passes: Vec<Box<dyn Pass>>,
 }
 pub type RendererRw = Arc<RwLock<Renderer>>;
 
@@ -93,44 +52,61 @@ impl Drop for Renderer {
 
 impl Renderer {
     pub fn new(handle: &Handle, context: &ContextRc, _enable_debug: bool) -> Self {
-        context.message_hub().register_type::<PassEvent>();
         crate::register_resource_types(context.shared_data(), context.message_hub());
-
-        let graphics_data = context.shared_data().add_resource(
-            context.message_hub(),
-            GRAPHICS_DATA_UID,
-            GraphicsData::default(),
-        );
 
         let render_context = Arc::new(RwLock::new(None));
 
         #[cfg(target_arch = "wasm32")]
-        wasm_bindgen_futures::spawn_local(Self::create_render_context(
+        wasm_bindgen_futures::spawn_local(RenderContext::create_render_context(
             handle.clone(),
+            context.clone(),
             render_context.clone(),
         ));
 
         #[cfg(all(not(target_arch = "wasm32")))]
-        futures::executor::block_on(Self::create_render_context(
+        futures::executor::block_on(RenderContext::create_render_context(
             handle.clone(),
+            context.clone(),
             render_context.clone(),
         ));
 
         Renderer {
-            constant_data: ConstantData::default(),
-            dynamic_data: DynamicData::default(),
-            constant_data_buffer: DataBuffer::default(),
-            dynamic_data_buffer: DataBuffer::default(),
             state: RendererState::Init,
             context: render_context,
             shared_data: context.shared_data().clone(),
             message_hub: context.message_hub().clone(),
-            graphics_data,
+            passes: Vec::new(),
         }
     }
 
     pub fn render_context(&self) -> &RenderContextRw {
         &self.context
+    }
+    pub fn passes(&self) -> &[Box<dyn Pass>] {
+        self.passes.as_slice()
+    }
+    pub fn pass<T>(&self, index: usize) -> Option<&T>
+    where
+        T: Pass,
+    {
+        if index >= self.passes.len() {
+            return None;
+        }
+        self.passes[index].downcast_ref::<T>()
+    }
+    pub fn pass_mut<T>(&mut self, index: usize) -> Option<&mut T>
+    where
+        T: Pass,
+    {
+        if index >= self.passes.len() {
+            return None;
+        }
+        self.passes[index].downcast_mut::<T>()
+    }
+
+    pub fn add_pass(&mut self, pass: impl Pass) -> &mut Self {
+        self.passes.push(Box::new(pass));
+        self
     }
 
     pub fn check_initialization(&mut self) {
@@ -139,55 +115,6 @@ impl Renderer {
         } else {
             self.state = RendererState::Submitted;
         }
-    }
-
-    async fn create_render_context(handle: Handle, render_context: RenderContextRw) {
-        let backend = wgpu::Backends::all();
-        let instance = wgpu::Instance::new(backend);
-        let surface = unsafe { instance.create_surface(&handle) };
-
-        let adapter =
-            wgpu::util::initialize_adapter_from_env_or_default(&instance, backend, Some(&surface))
-                .await
-                .expect("No suitable GPU adapters found on the system!");
-        let required_features = required_gpu_features();
-        let limits = platform_limits();
-
-        let (device, queue) = adapter
-            .request_device(
-                &wgpu::DeviceDescriptor {
-                    label: None,
-                    features: required_features,
-                    limits,
-                },
-                // Some(&std::path::Path::new("trace")), // Trace path
-                None,
-            )
-            .await
-            .expect("Failed to create device");
-
-        let config = wgpu::SurfaceConfiguration {
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: surface.get_preferred_format(&adapter).unwrap(),
-            width: DEFAULT_WIDTH,
-            height: DEFAULT_HEIGHT,
-            present_mode: wgpu::PresentMode::Mailbox,
-        };
-
-        debug_log!("Surface format: {:?}", config.format);
-        surface.configure(&device, &config);
-
-        render_context.write().unwrap().replace(RenderContext {
-            texture_handler: TextureHandler::create(&device),
-            instance,
-            device,
-            adapter,
-            surface,
-            config,
-            queue,
-            surface_texture: None,
-            encoder: None,
-        });
     }
 
     pub fn resolution(&self) -> (u32, u32) {
@@ -203,30 +130,6 @@ impl Renderer {
     pub fn change_state(&mut self, render_state: RendererState) -> &mut Self {
         self.state = render_state;
         self
-    }
-
-    pub fn update_shader_data(&mut self, view: Matrix4, proj: Matrix4, screen_size: Vector2) {
-        self.constant_data.view = matrix4_to_array(view);
-        self.constant_data.proj = matrix4_to_array(OPENGL_TO_WGPU_MATRIX * proj);
-        self.constant_data.screen_width = screen_size.x;
-        self.constant_data.screen_height = screen_size.y;
-        if self
-            .context
-            .read()
-            .unwrap()
-            .as_ref()
-            .unwrap()
-            .config
-            .format
-            .describe()
-            .srgb
-        {
-            self.constant_data.flags |= CONSTANT_DATA_FLAGS_SUPPORT_SRGB;
-        }
-        /*
-        self.binding_data
-        .send_to_gpu(self.context.get().as_ref().unwrap());
-        */
     }
 
     pub fn need_redraw(&self) -> bool {
@@ -257,7 +160,11 @@ impl Renderer {
         self.recreate();
     }
 
-    pub fn on_texture_changed(&mut self, texture_id: &TextureId) {
+    pub fn on_texture_changed(
+        &mut self,
+        texture_id: &TextureId,
+        encoder: &mut wgpu::CommandEncoder,
+    ) {
         inox_profiler::scoped_profile!("renderer::on_texture_changed");
         let mut render_context = self.context.get_mut();
         let render_context = render_context.as_mut().unwrap();
@@ -265,12 +172,13 @@ impl Renderer {
 
         if let Some(texture) = self.shared_data.get_resource::<Texture>(texture_id) {
             if !texture.get().is_initialized() {
-                if texture_handler.get_texture_index(texture_id) == None {
+                if texture_handler.texture_index(texture_id) == None {
                     let width = texture.get().width();
                     let height = texture.get().height();
                     if let Some(image_data) = texture.get().image_data() {
                         texture_handler.add_image(
                             &render_context.device,
+                            encoder,
                             texture_id,
                             (width, height),
                             image_data,
@@ -278,10 +186,7 @@ impl Renderer {
                     }
                 }
                 if let Some(texture_data) = texture_handler.get_texture_data(texture_id) {
-                    let uniform_index = self
-                        .dynamic_data
-                        .textures_data
-                        .insert(texture_id, texture_data);
+                    let uniform_index = render_context.add_texture_data(texture_id, texture_data);
                     texture.get_mut().set_texture_data(
                         uniform_index,
                         texture_data.width(),
@@ -302,10 +207,9 @@ impl Renderer {
     pub fn on_light_changed(&mut self, light_id: &LightId) {
         inox_profiler::scoped_profile!("renderer::on_light_changed");
         if let Some(light) = self.shared_data.get_resource::<Light>(light_id) {
-            let uniform_index = self
-                .dynamic_data
-                .lights_data
-                .insert(light_id, *light.get().data());
+            let mut render_context = self.context.get_mut();
+            let render_context = render_context.as_mut().unwrap();
+            let uniform_index = render_context.add_light_data(light_id, *light.get().data());
             light.get_mut().update_uniform(uniform_index as _);
         }
     }
@@ -314,7 +218,10 @@ impl Renderer {
         inox_profiler::scoped_profile!("renderer::on_pipeline_changed");
         if let Some(pipeline) = self.shared_data.get_resource::<Pipeline>(pipeline_id) {
             let vertex_format = pipeline.get().vertex_format();
-            self.graphics_data
+            let render_context = self.context.get();
+            let render_context = render_context.as_ref().unwrap();
+            render_context
+                .graphics_data
                 .get_mut()
                 .set_pipeline_vertex_format(pipeline.id(), vertex_format);
         }
@@ -323,9 +230,9 @@ impl Renderer {
     pub fn on_material_changed(&mut self, material_id: &MaterialId) {
         inox_profiler::scoped_profile!("renderer::on_material_changed");
         if let Some(material) = self.shared_data.get_resource::<Material>(material_id) {
-            let uniform_index = self
-                .dynamic_data
-                .set_material_data(material_id, &material.get());
+            let mut render_context = self.context.get_mut();
+            let render_context = render_context.as_mut().unwrap();
+            let uniform_index = render_context.add_material_data(material_id, &material.get());
             material.get_mut().update_uniform(uniform_index as _);
             //Need to update all meshes that use this material
             self.shared_data.for_each_resource_mut(|_, m: &mut Mesh| {
@@ -351,104 +258,29 @@ impl Renderer {
 
     pub fn on_mesh_added(&mut self, mesh: &Resource<Mesh>) {
         inox_profiler::scoped_profile!("renderer::on_mesh_added");
-        self.graphics_data
+        let render_context = self.context.get();
+        let render_context = render_context.as_ref().unwrap();
+        render_context
+            .graphics_data
             .get_mut()
             .update_mesh(mesh.id(), &mesh.get());
     }
     pub fn on_mesh_changed(&mut self, mesh_id: &MeshId) {
         inox_profiler::scoped_profile!("renderer::on_mesh_changed");
         if let Some(mesh) = self.shared_data.get_resource::<Mesh>(mesh_id) {
-            self.graphics_data
+            let render_context = self.context.get();
+            let render_context = render_context.as_ref().unwrap();
+            render_context
+                .graphics_data
                 .get_mut()
                 .update_mesh(mesh.id(), &mesh.get());
         }
     }
     pub fn on_mesh_removed(&mut self, mesh_id: &MeshId) {
         inox_profiler::scoped_profile!("renderer::on_mesh_removed");
-        self.graphics_data.get_mut().remove_mesh(mesh_id);
-    }
-
-    fn set_constant_data(&mut self) {
-        inox_profiler::scoped_profile!("renderer::set_constant_data");
         let render_context = self.context.get();
         let render_context = render_context.as_ref().unwrap();
-
-        let usage = wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST;
-
-        self.constant_data_buffer.init_from_type::<ConstantData>(
-            render_context,
-            size_of::<ConstantData>() as _,
-            usage,
-        );
-        self.constant_data_buffer
-            .add_to_gpu_buffer(render_context, &[self.constant_data]);
-    }
-    fn set_dynamic_data(&mut self) {
-        inox_profiler::scoped_profile!("renderer::set_dynamic_data");
-        let render_context = self.context.get();
-        let render_context = render_context.as_ref().unwrap();
-
-        let usage = wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST;
-
-        let total_size = size_of::<TextureData>() * MAX_NUM_TEXTURES
-            + size_of::<ShaderMaterialData>() * MAX_NUM_MATERIALS
-            + size_of::<LightData>() * MAX_NUM_LIGHTS;
-
-        self.dynamic_data_buffer.init_from_type::<DynamicData>(
-            render_context,
-            total_size as _,
-            usage,
-        );
-
-        self.dynamic_data_buffer
-            .add_to_gpu_buffer(render_context, self.dynamic_data.textures_data.data());
-        self.dynamic_data_buffer
-            .add_to_gpu_buffer(render_context, self.dynamic_data.materials_data.data());
-        self.dynamic_data_buffer
-            .add_to_gpu_buffer(render_context, self.dynamic_data.lights_data.data());
-    }
-
-    fn prepare(&mut self) {
-        inox_profiler::scoped_profile!("renderer::prepare");
-
-        self.set_constant_data();
-        self.set_dynamic_data();
-
-        let render_context = self.context.get();
-        let render_context = render_context.as_ref().unwrap();
-
-        let mut render_format = &render_context.config.format;
-        let texture_handler = &render_context.texture_handler;
-
-        self.shared_data
-            .for_each_resource_mut(|_id, r: &mut RenderPass| {
-                let graphics_data = &mut self.graphics_data.get_mut();
-
-                if let Some(texture) = r.render_texture() {
-                    if let Some(atlas) = texture_handler.get_texture_atlas(texture.id()) {
-                        render_format = atlas.texture_format();
-                    }
-                } else {
-                    render_format = &render_context.config.format;
-                }
-                let depth_format = if let Some(texture) = r.depth_texture() {
-                    texture_handler
-                        .get_texture_atlas(texture.id())
-                        .map(|atlas| atlas.texture_format())
-                } else {
-                    None
-                };
-
-                r.prepare(RenderPassPrepareContext {
-                    context: render_context,
-                    graphics_data,
-                    render_format,
-                    depth_format,
-                    texture_bind_group_layout: texture_handler.bind_group_layout(),
-                    constant_data_buffer: &self.constant_data_buffer,
-                    dynamic_data_buffer: &self.dynamic_data_buffer,
-                });
-            });
+        render_context.graphics_data.get_mut().remove_mesh(mesh_id);
     }
 
     pub fn obtain_surface_texture(&mut self) {
@@ -463,99 +295,49 @@ impl Renderer {
                 .get_current_texture()
         };
         if let Ok(output) = surface_texture {
+            let screen_view = output
+                .texture
+                .create_view(&wgpu::TextureViewDescriptor::default());
+            self.context.get_mut().as_mut().unwrap().surface_view = Some(screen_view);
             self.context.get_mut().as_mut().unwrap().surface_texture = Some(output);
         }
     }
-    pub fn draw(&self) {
-        let surface_texture = self
-            .context
-            .get_mut()
-            .as_mut()
-            .unwrap()
-            .surface_texture
-            .take();
-        if let Some(surface_texture) = surface_texture {
-            if let Some((surface_texture, encoder)) = self.draw_render_passes(surface_texture) {
-                self.context.get_mut().as_mut().unwrap().surface_texture = Some(surface_texture);
-                self.context.get_mut().as_mut().unwrap().encoder = Some(encoder);
+
+    pub fn send_to_gpu(&mut self, encoder: wgpu::CommandEncoder) {
+        inox_profiler::scoped_profile!("renderer::send_to_gpu");
+
+        {
+            let mut render_context = self.context.get_mut();
+            let render_context = render_context.as_mut().unwrap();
+            render_context.submit(encoder);
+        }
+        {
+            let render_context = self.context.get();
+            let render_context = render_context.as_ref().unwrap();
+            if render_context.graphics_data.get().total_vertex_count() == 0 {
+                return;
             }
+
+            self.passes.iter_mut().for_each(|pass| {
+                pass.prepare(render_context);
+            });
+
+            let graphics_data = &mut render_context.graphics_data.get_mut();
+            graphics_data.send_to_gpu(render_context);
         }
     }
 
-    fn draw_render_passes(
-        &self,
-        surface_texture: wgpu::SurfaceTexture,
-    ) -> Option<(wgpu::SurfaceTexture, CommandEncoder)> {
-        inox_profiler::scoped_profile!("renderer::draw");
+    pub fn update_passes(&mut self) {
+        inox_profiler::scoped_profile!("renderer::execute_passes");
 
-        let screen_view = {
-            inox_profiler::scoped_profile!("renderer::create_screen_view");
-
-            surface_texture
-                .texture
-                .create_view(&wgpu::TextureViewDescriptor::default())
-        };
-        let mut encoder = {
-            inox_profiler::scoped_profile!("renderer::create_encoder");
-
-            self.context
-                .get()
-                .as_ref()
-                .unwrap()
-                .device
-                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                    label: Some("Render Encoder"),
-                })
-        };
-
-        let mut render_target = &screen_view;
         let render_context = self.context.get();
         let render_context = render_context.as_ref().unwrap();
-        let texture_handler = &render_context.texture_handler;
-
-        let mut render_format = &render_context.config.format;
-        self.shared_data
-            .for_each_resource_mut(|_id, r: &mut RenderPass| {
-                let texture_bind_group = texture_handler.bind_group(
-                    &render_context.device,
-                    r.render_texture().as_ref().map(|t| t.id()),
-                    r.depth_texture().as_ref().map(|t| t.id()),
-                );
-
-                if let Some(texture) = r.render_texture() {
-                    if let Some(atlas) = texture_handler.get_texture_atlas(texture.id()) {
-                        render_target = atlas.texture();
-                        render_format = atlas.texture_format();
-                    }
-                } else {
-                    render_target = &screen_view;
-                    render_format = &render_context.config.format;
-                }
-                let (depth_view, depth_format) = if let Some(texture) = r.depth_texture() {
-                    (
-                        texture_handler
-                            .get_texture_atlas(texture.id())
-                            .map(|atlas| atlas.texture()),
-                        texture_handler
-                            .get_texture_atlas(texture.id())
-                            .map(|atlas| atlas.texture_format()),
-                    )
-                } else {
-                    (None, None)
-                };
-
-                r.draw(RenderPassDrawContext {
-                    context: render_context,
-                    encoder: &mut encoder,
-                    texture_view: render_target,
-                    depth_view,
-                    render_format,
-                    depth_format,
-                    graphics_data: &self.graphics_data,
-                    texture_bind_group: &texture_bind_group,
-                });
-            });
-        Some((surface_texture, encoder))
+        if render_context.graphics_data.get().total_vertex_count() == 0 {
+            return;
+        }
+        self.passes.iter_mut().for_each(|pass| {
+            pass.update(render_context);
+        });
     }
 
     pub fn present(&self) {
@@ -568,36 +350,8 @@ impl Renderer {
             .unwrap()
             .surface_texture
             .take();
-
-        let encoder = self.context.get_mut().as_mut().unwrap().encoder.take();
-
-        if let Some(encoder) = encoder {
-            self.context
-                .get()
-                .as_ref()
-                .unwrap()
-                .queue
-                .submit(std::iter::once(encoder.finish()));
-        }
         if let Some(surface_texture) = surface_texture {
             surface_texture.present();
-        }
-    }
-
-    pub fn send_to_gpu(&mut self) {
-        inox_profiler::scoped_profile!("renderer::send_to_gpu");
-        {
-            let mut render_context = self.context.get_mut();
-            let render_context = render_context.as_mut().unwrap();
-            let texture_handler = &mut render_context.texture_handler;
-            texture_handler.send_to_gpu(&render_context.queue);
-        }
-        self.prepare();
-        {
-            let render_context = self.context.get();
-            let render_context = render_context.as_ref().unwrap();
-            let graphics_data = &mut self.graphics_data.get_mut();
-            graphics_data.send_to_gpu(render_context);
         }
     }
 }

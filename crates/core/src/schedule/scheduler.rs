@@ -105,7 +105,7 @@ impl Scheduler {
         dependencies: Option<&[SystemId]>,
         job_handler: &JobHandlerRw,
     ) where
-        S: System + 'static,
+        S: System,
     {
         if let Some(phase) = self.phases.get_mut(&phase) {
             phase.add_system_with_dependencies(system, dependencies, job_handler);

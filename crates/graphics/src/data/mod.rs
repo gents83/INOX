@@ -1,6 +1,8 @@
 pub const INVALID_INDEX: i32 = -1;
 
 pub use binding_data::*;
+pub use constant_data::*;
+pub use dynamic_data::*;
 pub use compute_pass_data::*;
 pub use instance_data::*;
 pub use light_data::*;
@@ -14,6 +16,8 @@ pub use texture_data::*;
 pub use vertex_data::*;
 
 pub mod binding_data;
+pub mod constant_data;
+pub mod dynamic_data;
 pub mod compute_pass_data;
 pub mod instance_data;
 pub mod light_data;

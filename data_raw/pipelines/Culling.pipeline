@@ -2,10 +2,14 @@
     "vertex_shader": "shaders/wgsl/cull.shader",
     "fragment_shader": "shaders/wgsl/cull.shader",
     "vertex_format" : [
-        "PositionF32x3"
-    ],
-    "binding_data" : [
-        "Custom"
+        "PositionF32x3",
+        "NormalF32x3",
+        "TangentF32x4",
+        "ColorF32x4",
+        "TexCoord0F32x2",
+        "TexCoord1F32x2",
+        "TexCoord2F32x2",
+        "TexCoord3F32x2"
     ],
     "front_face": "Clockwise",
     "culling": "None",

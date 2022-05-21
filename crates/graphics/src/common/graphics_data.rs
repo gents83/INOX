@@ -6,8 +6,8 @@ use inox_resources::{HashBuffer, ResourceId, ResourceTrait, SharedData, SharedDa
 use wgpu::util::DrawIndexedIndirect;
 
 use crate::{
-    DataBuffer, GpuBuffer, InstanceData, Mesh, MeshData, MeshId, PipelineId, RenderContext,
-    VertexFormatBits, INVALID_INDEX,
+    DataBuffer, GpuBuffer, InstanceData, Mesh, MeshData, MeshId, MeshletData, PipelineId,
+    RenderContext, VertexFormatBits, INVALID_INDEX,
 };
 
 pub const GRAPHICS_DATA_UID: ResourceId =
@@ -17,7 +17,15 @@ pub const GRAPHICS_DATA_UID: ResourceId =
 struct MeshBuffers {
     vertex_buffer: GpuBuffer<{ wgpu::BufferUsages::bits(&wgpu::BufferUsages::VERTEX) }>,
     index_buffer: GpuBuffer<{ wgpu::BufferUsages::bits(&wgpu::BufferUsages::INDEX) }>,
+    meshlet_array: Vec<MeshletData>,
 }
+
+#[derive(Default)]
+struct MeshletsInfo {
+    first_meshlet: u32,
+    meshlet_count: u32,
+}
+
 #[derive(Default)]
 struct PipelineBuffers {
     vertex_format: VertexFormatBits,
@@ -29,6 +37,7 @@ struct PipelineBuffers {
 pub struct GraphicsData {
     mesh_buffers: HashMap<VertexFormatBits, MeshBuffers>,
     pipeline_buffers: HashMap<PipelineId, PipelineBuffers>,
+    meshlets: HashMap<MeshId, MeshletsInfo>,
 }
 
 impl ResourceTrait for GraphicsData {
@@ -166,6 +175,29 @@ impl GraphicsData {
         let entry = self.mesh_buffers.entry(attributes_hash).or_default();
         entry.index_buffer.add(mesh_id, indices)
     }
+    fn add_meshlets(
+        &mut self,
+        mesh_id: &MeshId,
+        attributes_hash: VertexFormatBits,
+        meshlets: &[MeshletData],
+    ) {
+        let entry = self.mesh_buffers.entry(attributes_hash).or_default();
+        meshlets.iter().for_each(|meshlet| {
+            entry.meshlet_array.push(meshlet.clone());
+        });
+        self.meshlets.insert(
+            *mesh_id,
+            MeshletsInfo {
+                first_meshlet: entry.meshlet_array.len() as u32 - meshlets.len() as u32,
+                meshlet_count: meshlets.len() as _,
+            },
+        );
+    }
+    pub fn get_meshlets(&self, attributes_hash: &VertexFormatBits) -> Option<&[MeshletData]> {
+        self.mesh_buffers
+            .get(attributes_hash)
+            .map(|mb| mb.meshlet_array.as_slice())
+    }
     pub fn add_mesh_data(
         &mut self,
         mesh_id: &MeshId,
@@ -186,12 +218,23 @@ impl GraphicsData {
             mesh_data.vertex_format(),
             mesh_data.indices.as_slice(),
         );
+        self.add_meshlets(
+            mesh_id,
+            mesh_data.vertex_format(),
+            mesh_data.meshlets.as_slice(),
+        );
         (vertices_range, indices_range)
     }
     fn remove_mesh_data(&mut self, mesh_id: &MeshId) {
         self.mesh_buffers.iter_mut().for_each(|(_, mb)| {
             mb.vertex_buffer.remove(mesh_id);
             mb.index_buffer.remove(mesh_id);
+            if let Some(meshlet_info) = self.meshlets.remove(mesh_id) {
+                mb.meshlet_array.drain(
+                    meshlet_info.first_meshlet as usize
+                        ..(meshlet_info.first_meshlet + meshlet_info.meshlet_count) as usize,
+                );
+            }
         });
     }
     pub fn set_pipeline_vertex_format(

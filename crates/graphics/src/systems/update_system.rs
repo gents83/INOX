@@ -11,8 +11,8 @@ use inox_serialize::read_from_file;
 use inox_uid::generate_random_uid;
 
 use crate::{
-    is_shader, Light, Material, Mesh, PassEvent, Pipeline, RenderPass, RendererRw, RendererState,
-    Texture, View, DEFAULT_HEIGHT, DEFAULT_WIDTH,
+    is_shader, GetRenderContext, Light, Material, Mesh, Pipeline, RenderPass, RendererRw,
+    RendererState, Texture, View, DEFAULT_HEIGHT, DEFAULT_WIDTH,
 };
 
 use super::config::Config;
@@ -24,7 +24,6 @@ pub struct UpdateSystem {
     shared_data: SharedDataRc,
     message_hub: MessageHubRc,
     listener: Listener,
-    render_passes: Vec<Resource<RenderPass>>,
     view: Resource<View>,
     scale_factor: f32,
     width: u32,
@@ -34,7 +33,6 @@ pub struct UpdateSystem {
 impl UpdateSystem {
     pub fn new(renderer: RendererRw, context: &ContextRc) -> Self {
         let listener = Listener::new(context.message_hub());
-        listener.register::<PassEvent>();
 
         Self {
             view: View::new_resource(
@@ -48,14 +46,13 @@ impl UpdateSystem {
             shared_data: context.shared_data().clone(),
             message_hub: context.message_hub().clone(),
             listener,
-            render_passes: Vec::new(),
             scale_factor: 1.0,
             width: DEFAULT_WIDTH,
             height: DEFAULT_HEIGHT,
         }
     }
 
-    fn handle_events(&mut self) {
+    fn handle_events(&mut self, encoder: &mut wgpu::CommandEncoder) {
         //REMINDER: message processing order is important - RenderPass must be processed before Texture
         self.listener
             .process_messages(|e: &WindowEvent| match e {
@@ -100,10 +97,16 @@ impl UpdateSystem {
             })
             .process_messages(|e: &ResourceEvent<Texture>| match e {
                 ResourceEvent::Changed(id) => {
-                    self.renderer.write().unwrap().on_texture_changed(id);
+                    self.renderer
+                        .write()
+                        .unwrap()
+                        .on_texture_changed(id, encoder);
                 }
                 ResourceEvent::Created(t) => {
-                    self.renderer.write().unwrap().on_texture_changed(t.id());
+                    self.renderer
+                        .write()
+                        .unwrap()
+                        .on_texture_changed(t.id(), encoder);
                 }
                 _ => {}
             })
@@ -134,12 +137,6 @@ impl UpdateSystem {
                 if let ResourceEvent::Changed(id) = e {
                     self.renderer.write().unwrap().on_mesh_changed(id);
                 }
-            })
-            .process_messages(|e: &PassEvent| {
-                let PassEvent::Add(pass) = e;
-                if let Some(render_pass) = pass.render_pass() {
-                    self.render_passes.push(render_pass);
-                }
             });
     }
 }
@@ -168,7 +165,6 @@ impl System for UpdateSystem {
     }
     fn init(&mut self) {
         self.listener
-            .register::<PassEvent>()
             .register::<WindowEvent>()
             .register::<ReloadEvent>()
             .register::<ConfigEvent<Config>>()
@@ -190,27 +186,39 @@ impl System for UpdateSystem {
             }
             return true;
         }
-
-        {
+        let mut encoder = {
             let mut renderer = self.renderer.write().unwrap();
             renderer.change_state(RendererState::Preparing);
-        }
+            let render_context = renderer.render_context().get();
+            let render_context = render_context.as_ref().unwrap();
+            render_context.prepare_bindings();
+            render_context.new_encoder()
+        };
 
-        self.handle_events();
+        self.handle_events(&mut encoder);
 
         {
             let mut renderer = self.renderer.write().unwrap();
             renderer.obtain_surface_texture();
 
-            let resolution = renderer.resolution();
-            let screen_size = Vector2::new(resolution.0 as f32, resolution.1 as f32);
-            renderer.update_shader_data(
-                self.view.get().view(),
-                self.view.get().proj(),
-                screen_size,
-            );
+            {
+                let resolution = renderer.resolution();
+                let screen_size = Vector2::new(resolution.0 as f32, resolution.1 as f32);
 
-            renderer.send_to_gpu();
+                let mut render_context = renderer.render_context().get_mut();
+                let render_context = render_context.as_mut().unwrap();
+                render_context.update_constant_data(
+                    self.view.get().view(),
+                    self.view.get().proj(),
+                    screen_size,
+                );
+            }
+
+            renderer.send_to_gpu(encoder);
+        }
+
+        {
+            let mut renderer = self.renderer.write().unwrap();
             renderer.change_state(RendererState::Prepared);
         }
 
@@ -218,7 +226,6 @@ impl System for UpdateSystem {
     }
     fn uninit(&mut self) {
         self.listener
-            .unregister::<PassEvent>()
             .unregister::<WindowEvent>()
             .unregister::<ReloadEvent>()
             .unregister::<SerializableResourceEvent<Pipeline>>()

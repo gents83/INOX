@@ -84,7 +84,7 @@ impl SharedData {
     #[inline]
     pub fn register_type<T>(&self, message_hub: &MessageHubRc)
     where
-        T: ResourceTrait,
+        T: ResourceTrait + 'static,
     {
         let typeid = generate_uid_from_string(type_name::<T>());
         debug_assert!(
@@ -106,7 +106,7 @@ impl SharedData {
     #[inline]
     pub fn register_type_serializable<T>(&self, message_hub: &MessageHubRc)
     where
-        T: SerializableResource,
+        T: SerializableResource + 'static,
     {
         self.register_type::<T>(message_hub);
         let typeid = generate_uid_from_string(type_name::<T>());
@@ -122,7 +122,7 @@ impl SharedData {
     #[inline]
     pub fn unregister_type<T>(&self, message_hub: &MessageHubRc)
     where
-        T: ResourceTrait,
+        T: ResourceTrait + 'static,
     {
         let typeid = generate_uid_from_string(type_name::<T>());
         debug_assert!(
@@ -140,7 +140,7 @@ impl SharedData {
     #[inline]
     pub fn unregister_type_serializable<T>(&self, message_hub: &MessageHubRc)
     where
-        T: SerializableResource,
+        T: SerializableResource + 'static,
     {
         self.unregister_type::<T>(message_hub);
         let typeid = generate_uid_from_string(type_name::<T>());
@@ -149,12 +149,15 @@ impl SharedData {
         self.event_handlers.write().unwrap().remove(&typeid);
     }
     #[inline]
-    pub fn add_resource<T: ResourceTrait>(
+    pub fn add_resource<T>(
         &self,
         message_hub: &MessageHubRc,
         resource_id: ResourceId,
         data: T,
-    ) -> Resource<T> {
+    ) -> Resource<T>
+    where
+        T: ResourceTrait + 'static,
+    {
         let typeid = generate_uid_from_string(type_name::<T>());
         if let Some(rs) = self.storage.read().unwrap().get(&typeid) {
             let storage = rs.of_type::<T>();
@@ -170,7 +173,10 @@ impl SharedData {
         panic!("Unable to find storage for type {:?}", type_name::<T>());
     }
     #[inline]
-    pub fn get_resource<T: ResourceTrait>(&self, resource_id: &ResourceId) -> Handle<T> {
+    pub fn get_resource<T>(&self, resource_id: &ResourceId) -> Handle<T>
+    where
+        T: ResourceTrait + 'static,
+    {
         let typeid = generate_uid_from_string(type_name::<T>());
         if let Some(rs) = self.storage.read().unwrap().get(&typeid) {
             let storage = rs.of_type::<T>();
@@ -186,10 +192,10 @@ impl SharedData {
         None
     }
     #[inline]
-    pub fn get_index_of_resource<T: ResourceTrait>(
-        &self,
-        resource_id: &ResourceId,
-    ) -> Option<usize> {
+    pub fn get_index_of_resource<T>(&self, resource_id: &ResourceId) -> Option<usize>
+    where
+        T: ResourceTrait + 'static,
+    {
         let typeid = generate_uid_from_string(type_name::<T>());
         if let Some(rs) = self.storage.read().unwrap().get(&typeid) {
             let storage = rs.of_type::<T>();
@@ -270,7 +276,7 @@ impl SharedData {
     #[inline]
     pub fn for_each_resource<T, F>(&self, f: F)
     where
-        T: ResourceTrait,
+        T: ResourceTrait + 'static,
         F: FnMut(&Resource<T>, &T),
     {
         let typeid = generate_uid_from_string(type_name::<T>());
@@ -289,7 +295,7 @@ impl SharedData {
     #[inline]
     pub fn for_each_resource_mut<T, F>(&self, f: F)
     where
-        T: ResourceTrait,
+        T: ResourceTrait + 'static,
         F: FnMut(&Resource<T>, &mut T),
     {
         let typeid = generate_uid_from_string(type_name::<T>());
@@ -308,7 +314,7 @@ impl SharedData {
     #[inline]
     pub fn match_resource<T, F>(&self, f: F) -> Handle<T>
     where
-        T: ResourceTrait,
+        T: ResourceTrait + 'static,
         F: Fn(&T) -> bool,
     {
         let typeid = generate_uid_from_string(type_name::<T>());

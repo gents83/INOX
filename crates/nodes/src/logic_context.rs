@@ -16,7 +16,7 @@ impl Clone for Box<dyn LogicContextData> {
 }
 impl<T> LogicContextData for Resource<T>
 where
-    T: ResourceTrait,
+    T: ResourceTrait + 'static,
 {
     fn as_any(&self) -> &dyn Any {
         self

@@ -4,6 +4,21 @@ use inox_serialize::{Deserialize, Serialize, SerializeFile};
 
 #[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
 #[serde(crate = "inox_serialize")]
+pub enum IndexFormat {
+    U32,
+    U16,
+}
+impl From<IndexFormat> for wgpu::IndexFormat {
+    fn from(val: IndexFormat) -> Self {
+        match val {
+            IndexFormat::U32 => wgpu::IndexFormat::Uint32,
+            IndexFormat::U16 => wgpu::IndexFormat::Uint16,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
+#[serde(crate = "inox_serialize")]
 pub enum LoadOperation {
     Load,
     Clear,

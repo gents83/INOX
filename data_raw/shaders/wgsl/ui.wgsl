@@ -61,7 +61,7 @@ struct DynamicData {
     lights_data: array<LightData, 64>,//MAX_NUM_LIGHTS>,
 };
 
-struct UIData {
+struct UIPassData {
     scale: f32,
 };
 
@@ -95,8 +95,6 @@ struct VertexOutput {
 var<uniform> constant_data: ConstantData;
 @group(0) @binding(1)
 var<storage, read> dynamic_data: DynamicData;
-@group(0) @binding(2)
-var<storage, read> ui_data: UIData;
 
 
 @group(1) @binding(0)
@@ -142,6 +140,8 @@ var texture_15: texture_2d_array<f32>;
 var texture_16: texture_2d_array<f32>;
 #endif
 
+@group(2) @binding(0)
+var<storage, read> ui_data: UIPassData;
 
 fn get_textures_coord_set(v: VertexInput, material_index: i32, texture_type: u32) -> vec2<f32> {
     let texture_data_index = dynamic_data.materials_data[material_index].textures_indices[texture_type];

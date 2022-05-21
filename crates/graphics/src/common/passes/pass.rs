@@ -1,14 +1,13 @@
 use inox_core::ContextRc;
-use inox_resources::Handle;
 
-use crate::{ComputePass, RenderPass};
+use crate::RenderContext;
 use downcast_rs::{impl_downcast, Downcast};
 
-pub trait Pass: Downcast + 'static + Send + Sync {
+pub trait Pass: Downcast + Send + Sync + 'static {
     fn create(context: &ContextRc) -> Self
     where
         Self: Sized;
-    fn render_pass(&self) -> Handle<RenderPass>;
-    fn compute_pass(&self) -> Handle<ComputePass>;
+    fn prepare(&mut self, render_context: &RenderContext);
+    fn update(&mut self, render_context: &RenderContext);
 }
 impl_downcast!(Pass);

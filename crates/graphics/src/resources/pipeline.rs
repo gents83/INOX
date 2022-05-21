@@ -9,9 +9,8 @@ use inox_resources::{
 use inox_serialize::{inox_serializable::SerializableRegistryRc, read_from_file, SerializeFile};
 
 use crate::{
-    BindingData, BindingState, DataBuffer, InstanceData, PipelineData, RenderContext, Shader,
-    VertexBufferLayoutBuilder, VertexFormat, FRAGMENT_SHADER_ENTRY_POINT, SHADER_ENTRY_POINT,
-    VERTEX_SHADER_ENTRY_POINT,
+    BindingData, InstanceData, PipelineData, RenderContext, Shader, VertexBufferLayoutBuilder,
+    VertexFormat, FRAGMENT_SHADER_ENTRY_POINT, SHADER_ENTRY_POINT, VERTEX_SHADER_ENTRY_POINT,
 };
 
 pub type PipelineId = ResourceId;
@@ -25,7 +24,6 @@ pub struct Pipeline {
     vertex_shader: Handle<Shader>,
     fragment_shader: Handle<Shader>,
     render_pipeline: Option<wgpu::RenderPipeline>,
-    binding_data: BindingData,
 }
 
 impl Clone for Pipeline {
@@ -41,7 +39,6 @@ impl Clone for Pipeline {
             fragment_shader: Some(fragment_shader),
             format: None,
             render_pipeline: None,
-            binding_data: BindingData::default(),
         }
     }
 }
@@ -103,7 +100,6 @@ impl DataTypeResource for Pipeline {
             vertex_shader: None,
             fragment_shader: None,
             render_pipeline: None,
-            binding_data: BindingData::default(),
         }
     }
 
@@ -150,12 +146,6 @@ impl Pipeline {
     pub fn data(&self) -> &PipelineData {
         &self.data
     }
-    pub fn binding_data(&self) -> &BindingData {
-        &self.binding_data
-    }
-    pub fn binding_data_mut(&mut self) -> &mut BindingData {
-        &mut self.binding_data
-    }
     pub fn set_vertex_format(&mut self, format: Vec<VertexFormat>) -> &mut Self {
         self.data.vertex_format = format;
         self
@@ -188,11 +178,9 @@ impl Pipeline {
     pub fn init(
         &mut self,
         context: &RenderContext,
-        texture_bind_group_layout: &wgpu::BindGroupLayout,
-        format: &wgpu::TextureFormat,
+        render_format: &wgpu::TextureFormat,
         depth_format: Option<&wgpu::TextureFormat>,
-        constant_data_buffer: &DataBuffer,
-        dynamic_data_buffer: &DataBuffer,
+        binding_data: &BindingData,
     ) -> bool {
         inox_profiler::scoped_profile!("pipeline::init");
         if self.vertex_shader.is_none() || self.fragment_shader.is_none() {
@@ -214,17 +202,8 @@ impl Pipeline {
                 self.format = None;
             }
         }
-        let binding_state = self.binding_data.send_to_gpu(
-            context,
-            self.data.binding_data.as_slice(),
-            constant_data_buffer,
-            dynamic_data_buffer,
-        );
-        if binding_state == BindingState::Error {
-            return false;
-        }
-        let is_same_format = self.format == Some(*format);
-        if binding_state == BindingState::Bound && is_same_format {
+        let is_same_format = self.format == Some(*render_format);
+        if is_same_format {
             return true;
         }
         let render_pipeline_layout =
@@ -232,10 +211,11 @@ impl Pipeline {
                 .device
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: Some("Render Pipeline Layout"),
-                    bind_group_layouts: &[
-                        self.binding_data.bind_group_layout(),
-                        texture_bind_group_layout,
-                    ],
+                    bind_group_layouts: binding_data
+                        .bind_group_layouts()
+                        .iter()
+                        .collect::<Vec<_>>()
+                        .as_slice(),
                     push_constant_ranges: &[],
                 });
 
@@ -278,7 +258,7 @@ impl Pipeline {
                             SHADER_ENTRY_POINT
                         },
                         targets: &[wgpu::ColorTargetState {
-                            format: *format,
+                            format: *render_format,
                             blend: Some(wgpu::BlendState {
                                 color: wgpu::BlendComponent {
                                     src_factor: self.data.src_color_blend_factor.into(),
@@ -323,7 +303,7 @@ impl Pipeline {
                     multiview: None,
                 })
         };
-        self.format = Some(*format);
+        self.format = Some(*render_format);
         self.render_pipeline = Some(render_pipeline);
         true
     }

@@ -11,10 +11,6 @@
         "TexCoord2F32x2",
         "TexCoord3F32x2"
     ],
-    "binding_data" : [
-        "Constant",
-        "Dynamic"
-    ],
     "front_face": "Clockwise",
     "culling": "Back",
     "mode": "Fill",

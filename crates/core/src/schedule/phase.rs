@@ -66,7 +66,7 @@ impl PhaseWithSystems {
         job_handler: &JobHandlerRw,
     ) -> &mut Self
     where
-        S: System + 'static,
+        S: System,
     {
         let id = S::system_id();
         self.add_system(system, job_handler);

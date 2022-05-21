@@ -1,77 +1,15 @@
-#![allow(dead_code)]
+use std::num::NonZeroU32;
 
-use std::any::type_name;
-
-use inox_resources::{to_u8_slice, Buffer, HashBuffer};
-use inox_serialize::{Deserialize, Serialize};
-use inox_uid::generate_uid_from_string;
+use inox_uid::Uid;
 
 use crate::{
-    DataBuffer, LightData, LightId, Material, MaterialId, RenderContext, ShaderMaterialData,
-    TextureData, TextureId, TextureType, INVALID_INDEX, MAX_NUM_LIGHTS, MAX_NUM_MATERIALS,
-    MAX_NUM_TEXTURES,
+    platform::required_gpu_features, DataBuffer, RenderContext, ShaderStage, TextureHandler,
+    TextureId, MAX_TEXTURE_ATLAS_COUNT,
 };
 
-pub const CONSTANT_DATA_FLAGS_NONE: u32 = 0;
-pub const CONSTANT_DATA_FLAGS_SUPPORT_SRGB: u32 = 1;
-
-#[repr(C, align(16))]
-#[derive(Debug, Clone, Copy)]
-pub struct ConstantData {
-    pub view: [[f32; 4]; 4],
-    pub proj: [[f32; 4]; 4],
-    pub screen_width: f32,
-    pub screen_height: f32,
-    pub flags: u32,
-}
-
-impl Default for ConstantData {
-    fn default() -> Self {
-        Self {
-            view: [[0.; 4]; 4],
-            proj: [[0.; 4]; 4],
-            screen_width: 0.,
-            screen_height: 0.,
-            flags: CONSTANT_DATA_FLAGS_NONE,
-        }
-    }
-}
-
-#[repr(C, align(16))]
-#[derive(Default)]
-pub struct DynamicData {
-    pub textures_data: HashBuffer<TextureId, TextureData, MAX_NUM_TEXTURES>,
-    pub materials_data: HashBuffer<MaterialId, ShaderMaterialData, MAX_NUM_MATERIALS>,
-    pub lights_data: HashBuffer<LightId, LightData, MAX_NUM_LIGHTS>,
-}
-impl DynamicData {
-    pub fn set_material_data(&mut self, material_id: &MaterialId, material: &Material) -> usize {
-        let mut textures_indices = [INVALID_INDEX; TextureType::Count as _];
-        material
-            .textures()
-            .iter()
-            .enumerate()
-            .for_each(|(i, handle_texture)| {
-                if let Some(texture) = handle_texture {
-                    textures_indices[i] = texture.get().uniform_index() as _;
-                }
-            });
-        let shader_material_data = ShaderMaterialData {
-            textures_indices,
-            textures_coord_set: *material.textures_coords_set(),
-            roughness_factor: material.roughness_factor(),
-            metallic_factor: material.metallic_factor(),
-            alpha_cutoff: material.alpha_cutoff(),
-            alpha_mode: material.alpha_mode() as _,
-            base_color: material.base_color().into(),
-            emissive_color: material.emissive_color().into(),
-            occlusion_strength: material.occlusion_strength(),
-            diffuse_color: material.diffuse_color().into(),
-            specular_color: material.specular_color().into(),
-        };
-        self.materials_data
-            .insert(material_id, shader_material_data)
-    }
+pub trait AsBufferBinding {
+    fn size(&self) -> u64;
+    fn fill_buffer(&self, render_context: &RenderContext, buffer: &mut DataBuffer);
 }
 
 #[derive(PartialEq, Eq)]
@@ -81,90 +19,218 @@ pub enum BindingState {
     Error,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
-#[serde(crate = "inox_serialize")]
-pub enum BindingDataType {
-    Constant,
-    Dynamic,
-    Custom,
+#[derive(Clone)]
+enum BindingType {
+    Buffer(Uid),
+    DefaultSampler,
+    DepthSampler,
+    TextureArray(Box<[TextureId; MAX_TEXTURE_ATLAS_COUNT as usize]>),
 }
-
+#[derive(Default)]
 pub struct BindingData {
-    data_bind_group_layout: Option<wgpu::BindGroupLayout>,
-    data_bind_group: Option<wgpu::BindGroup>,
-    custom_data: Buffer,
-    custom_data_buffer: DataBuffer,
-    custom_data_usage: wgpu::BufferUsages,
-    is_read_only: bool,
+    bind_group_layout: Vec<wgpu::BindGroupLayout>,
+    bind_group: Vec<wgpu::BindGroup>,
+    binding_types: Vec<Vec<BindingType>>,
+    bind_group_layout_entries: Vec<Vec<wgpu::BindGroupLayoutEntry>>,
     is_dirty: bool,
 }
 
-impl Default for BindingData {
-    fn default() -> Self {
-        Self {
-            data_bind_group_layout: None,
-            data_bind_group: None,
-            custom_data: Buffer::default(),
-            custom_data_buffer: DataBuffer::default(),
-            custom_data_usage: wgpu::BufferUsages::VERTEX,
-            is_read_only: true,
-            is_dirty: false,
+impl BindingData {
+    pub fn clear(&mut self) -> &mut Self {
+        self.bind_group.clear();
+        self.bind_group_layout.clear();
+        self.binding_types.clear();
+        self.bind_group_layout_entries.clear();
+        self.is_dirty = true;
+        self
+    }
+
+    pub fn bind_groups(&self) -> &[wgpu::BindGroup] {
+        self.bind_group.as_slice()
+    }
+    pub fn bind_group_layouts(&self) -> &[wgpu::BindGroupLayout] {
+        self.bind_group_layout.as_slice()
+    }
+
+    fn create_group_index_if_needed(&mut self, group_index: usize) {
+        if group_index >= self.bind_group_layout_entries.len() {
+            self.bind_group_layout_entries
+                .resize(group_index as usize + 1, Default::default());
+            self.binding_types
+                .resize(group_index as usize + 1, Default::default());
         }
     }
-}
 
-impl BindingData {
-    pub fn bind_group(&self) -> &wgpu::BindGroup {
-        self.data_bind_group.as_ref().unwrap()
-    }
-    pub fn bind_group_layout(&self) -> &wgpu::BindGroupLayout {
-        self.data_bind_group_layout.as_ref().unwrap()
-    }
-    pub fn custom_data<T>(&self) -> &T {
-        &self.custom_data.total_data()[0]
-    }
-    pub fn set_custom_data<T>(&mut self, data: T, is_read_only: bool) {
-        let typename = type_name::<T>();
-        let id = generate_uid_from_string(typename);
-        self.custom_data.remove_with_id(&id);
-        self.is_dirty = self.custom_data.allocate_with_size(
-            &id,
-            to_u8_slice(&[data]),
-            std::mem::size_of::<T>(),
-        );
-        self.is_read_only = is_read_only;
-    }
-
-    pub fn send_to_gpu(
+    pub fn add_uniform_data<T>(
         &mut self,
         render_context: &RenderContext,
-        binding_data_type: &[BindingDataType],
-        constant_data_buffer: &DataBuffer,
-        dynamic_data_buffer: &DataBuffer,
-    ) -> BindingState {
-        inox_profiler::scoped_profile!("binding_data::send_to_gpu");
-        if !self.is_dirty && self.data_bind_group.is_some() && self.data_bind_group_layout.is_some()
-        {
-            return BindingState::Bound;
+        group_index: usize,
+        data: &T,
+        stage: ShaderStage,
+    ) -> &mut Self
+    where
+        T: AsBufferBinding,
+    {
+        self.create_group_index_if_needed(group_index);
+        let bind_group_count = self.bind_group_layout_entries[group_index].len() as u32;
+        self.bind_group_layout_entries[group_index].push(wgpu::BindGroupLayoutEntry {
+            binding: bind_group_count,
+            visibility: stage.into(),
+            ty: wgpu::BindingType::Buffer {
+                ty: wgpu::BufferBindingType::Uniform,
+                has_dynamic_offset: false,
+                min_binding_size: None,
+            },
+            count: None,
+        });
+
+        let usage = wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST;
+        let id = render_context.bind_buffer(data, usage);
+
+        self.binding_types[group_index].push(BindingType::Buffer(id));
+
+        self.is_dirty = true;
+        self
+    }
+
+    pub fn add_storage_data<T>(
+        &mut self,
+        render_context: &RenderContext,
+        group_index: usize,
+        data: &T,
+        stage: ShaderStage,
+        read_only: bool,
+    ) -> &mut Self
+    where
+        T: AsBufferBinding,
+    {
+        self.create_group_index_if_needed(group_index);
+        let bind_group_count = self.bind_group_layout_entries[group_index].len();
+        self.bind_group_layout_entries[group_index].push(wgpu::BindGroupLayoutEntry {
+            binding: bind_group_count as _,
+            visibility: stage.into(),
+            ty: wgpu::BindingType::Buffer {
+                ty: wgpu::BufferBindingType::Storage { read_only },
+                has_dynamic_offset: false,
+                min_binding_size: None,
+            },
+            count: None,
+        });
+
+        let usage = wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST;
+        let id = render_context.bind_buffer(data, usage);
+
+        self.binding_types[group_index].push(BindingType::Buffer(id));
+
+        self.is_dirty = true;
+        self
+    }
+
+    pub fn add_textures_data(
+        &mut self,
+        group_index: usize,
+        texture_handler: &TextureHandler,
+        render_target: Option<&TextureId>,
+        depth_target: Option<&TextureId>,
+        stage: ShaderStage,
+    ) -> &mut Self {
+        self.create_group_index_if_needed(group_index);
+        let mut bind_group_layout_count = self.bind_group_layout_entries[group_index].len();
+
+        self.bind_group_layout_entries[group_index].push(wgpu::BindGroupLayoutEntry {
+            binding: {
+                bind_group_layout_count += 1;
+                (bind_group_layout_count - 1) as _
+            },
+            visibility: stage.into(),
+            ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+            count: None,
+        });
+        self.bind_group_layout_entries[group_index].push(wgpu::BindGroupLayoutEntry {
+            binding: {
+                bind_group_layout_count += 1;
+                (bind_group_layout_count - 1) as _
+            },
+            visibility: stage.into(),
+            ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Comparison),
+            count: None,
+        });
+        self.binding_types[group_index].push(BindingType::DefaultSampler);
+        self.binding_types[group_index].push(BindingType::DepthSampler);
+
+        if required_gpu_features().contains(wgpu::Features::TEXTURE_BINDING_ARRAY) {
+            self.bind_group_layout_entries[group_index].push(wgpu::BindGroupLayoutEntry {
+                binding: {
+                    bind_group_layout_count += 1;
+                    (bind_group_layout_count - 1) as _
+                },
+                visibility: stage.into(),
+                ty: wgpu::BindingType::Texture {
+                    sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                    view_dimension: wgpu::TextureViewDimension::D2Array,
+                    multisampled: false,
+                },
+                count: NonZeroU32::new(MAX_TEXTURE_ATLAS_COUNT),
+            });
+        } else {
+            (0..MAX_TEXTURE_ATLAS_COUNT).for_each(|_| {
+                self.bind_group_layout_entries[group_index].push(wgpu::BindGroupLayoutEntry {
+                    binding: {
+                        bind_group_layout_count += 1;
+                        (bind_group_layout_count - 1) as _
+                    },
+                    visibility: stage.into(),
+                    ty: wgpu::BindingType::Texture {
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        view_dimension: wgpu::TextureViewDimension::D2Array,
+                        multisampled: false,
+                    },
+                    count: None,
+                });
+            });
         }
 
-        if binding_data_type.contains(&BindingDataType::Custom) {
-            if self.custom_data.is_empty() {
-                return BindingState::Error;
-            } else {
-                let mut usage = wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST;
-                if !self.is_read_only {
-                    usage |= wgpu::BufferUsages::COPY_SRC;
-                }
-                self.custom_data_buffer.init(
-                    render_context,
-                    self.custom_data.total_len() as _,
-                    usage,
-                    "CustomData",
-                );
-                self.custom_data_buffer
-                    .add_to_gpu_buffer(render_context, self.custom_data.data());
+        let mut first_valid_texture = None;
+        let mut textures = [TextureId::default(); MAX_TEXTURE_ATLAS_COUNT as usize];
+        let textures_atlas = texture_handler.textures_atlas();
+        let num_textures = textures_atlas.len();
+
+        for i in 0..MAX_TEXTURE_ATLAS_COUNT as usize {
+            if first_valid_texture.is_none() {
+                first_valid_texture = Some(textures_atlas[i].texture_id());
             }
+            let mut use_default = false;
+            if i >= num_textures {
+                use_default = true;
+            } else {
+                if let Some(id) = render_target {
+                    if textures_atlas[i].texture_id() == id {
+                        use_default = true;
+                    }
+                }
+                if let Some(id) = depth_target {
+                    if textures_atlas[i].texture_id() == id {
+                        use_default = true;
+                    }
+                }
+            }
+            if use_default {
+                textures[i] = **first_valid_texture.as_ref().unwrap();
+            } else {
+                textures[i] = *textures_atlas[i].texture_id();
+            }
+        }
+
+        self.binding_types[group_index].push(BindingType::TextureArray(Box::new(textures)));
+
+        self.is_dirty = true;
+        self
+    }
+
+    pub fn send_to_gpu(&mut self, render_context: &RenderContext) -> BindingState {
+        inox_profiler::scoped_profile!("binding_data::send_to_gpu");
+        if !self.is_dirty && !self.bind_group.is_empty() && !self.bind_group_layout.is_empty() {
+            return BindingState::Bound;
         }
 
         let typename = std::any::type_name::<Self>()
@@ -174,94 +240,105 @@ impl BindingData {
             .unwrap()
             .to_string();
 
-        let mut bind_group_layout = Vec::new();
-        let mut bind_group = Vec::new();
-        let mut bind_group_count = 0;
-        binding_data_type.iter().for_each(|t| match t {
-            BindingDataType::Constant => {
-                bind_group_layout.push(wgpu::BindGroupLayoutEntry {
-                    binding: bind_group_count,
-                    visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                });
-                bind_group.push(wgpu::BindGroupEntry {
-                    binding: bind_group_count,
-                    resource: constant_data_buffer
-                        .gpu_buffer()
-                        .unwrap()
-                        .as_entire_binding(),
-                });
-                bind_group_count += 1;
-            }
-            BindingDataType::Dynamic => {
-                bind_group_layout.push(wgpu::BindGroupLayoutEntry {
-                    binding: bind_group_count,
-                    visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Storage { read_only: true },
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                });
-                bind_group.push(wgpu::BindGroupEntry {
-                    binding: bind_group_count,
-                    resource: dynamic_data_buffer
-                        .gpu_buffer()
-                        .unwrap()
-                        .as_entire_binding(),
-                });
-                bind_group_count += 1;
-            }
-            BindingDataType::Custom => {
-                bind_group_layout.push(wgpu::BindGroupLayoutEntry {
-                    binding: bind_group_count,
-                    visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Storage {
-                            read_only: self.is_read_only,
-                        },
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                });
-                bind_group.push(wgpu::BindGroupEntry {
-                    binding: bind_group_count,
-                    resource: self
-                        .custom_data_buffer
-                        .gpu_buffer()
-                        .unwrap()
-                        .as_entire_binding(),
-                });
-                bind_group_count += 1;
-            }
-        });
+        self.bind_group_layout.clear();
+        self.bind_group.clear();
 
-        let label = format!("{} bind group layout", typename);
-        let data_bind_group_layout =
-            render_context
-                .device
-                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                    entries: bind_group_layout.as_slice(),
-                    label: Some(label.as_str()),
-                });
+        self.bind_group_layout_entries.iter().enumerate().for_each(
+            |(index, bind_group_layout_entry)| {
+                let label = format!("{} bind group layout {}", typename, index);
 
-        let label = format!("{} bind group", typename);
-        let data_bind_group = render_context
-            .device
-            .create_bind_group(&wgpu::BindGroupDescriptor {
-                layout: &data_bind_group_layout,
-                entries: bind_group.as_slice(),
-                label: Some(label.as_str()),
+                let data_bind_group_layout = render_context.device.create_bind_group_layout(
+                    &wgpu::BindGroupLayoutDescriptor {
+                        entries: bind_group_layout_entry.as_slice(),
+                        label: Some(label.as_str()),
+                    },
+                );
+                self.bind_group_layout.push(data_bind_group_layout);
+            },
+        );
+
+        self.binding_types
+            .iter()
+            .enumerate()
+            .for_each(|(group_index, binding_type_array)| {
+                let label = format!("{} bind group {}", typename, group_index);
+
+                let mut textures_view = Vec::new();
+                binding_type_array.iter().for_each(|binding_type| {
+                    if let BindingType::TextureArray(textures) = binding_type {
+                        textures.iter().for_each(|id| {
+                            if let Some(texture) =
+                                render_context.texture_handler.get_texture_atlas(id)
+                            {
+                                textures_view.push(texture.texture());
+                            }
+                        });
+                    }
+                });
+                let bind_data_buffer = render_context.bind_data_buffer.read().unwrap();
+                let mut bind_group = Vec::new();
+                binding_type_array
+                    .iter()
+                    .enumerate()
+                    .for_each(|(index, binding_type)| match binding_type {
+                        BindingType::Buffer(id) => {
+                            if let Some(entry) = bind_data_buffer.get(id) {
+                                let entry = wgpu::BindGroupEntry {
+                                    binding: index as _,
+                                    resource: entry.0.gpu_buffer().unwrap().as_entire_binding(),
+                                };
+                                bind_group.push(entry);
+                            }
+                        }
+                        BindingType::DefaultSampler => {
+                            bind_group.push(wgpu::BindGroupEntry {
+                                binding: index as _,
+                                resource: wgpu::BindingResource::Sampler(
+                                    render_context.texture_handler.default_sampler(),
+                                ),
+                            });
+                        }
+                        BindingType::DepthSampler => {
+                            bind_group.push(wgpu::BindGroupEntry {
+                                binding: index as _,
+                                resource: wgpu::BindingResource::Sampler(
+                                    render_context.texture_handler.depth_sampler(),
+                                ),
+                            });
+                        }
+                        BindingType::TextureArray(_) => {
+                            if required_gpu_features()
+                                .contains(wgpu::Features::TEXTURE_BINDING_ARRAY)
+                            {
+                                bind_group.push(wgpu::BindGroupEntry {
+                                    binding: index as _,
+                                    resource: wgpu::BindingResource::TextureViewArray({
+                                        textures_view.as_slice()
+                                    }),
+                                });
+                            } else {
+                                (0..MAX_TEXTURE_ATLAS_COUNT).for_each(|i| {
+                                    bind_group.push(wgpu::BindGroupEntry {
+                                        binding: index as u32 + i,
+                                        resource: wgpu::BindingResource::TextureView(
+                                            textures_view[i as usize],
+                                        ),
+                                    });
+                                });
+                            }
+                        }
+                    });
+                let data_bind_group =
+                    render_context
+                        .device
+                        .create_bind_group(&wgpu::BindGroupDescriptor {
+                            layout: &self.bind_group_layout[group_index],
+                            entries: bind_group.as_slice(),
+                            label: Some(label.as_str()),
+                        });
+                self.bind_group.push(data_bind_group);
             });
-        self.data_bind_group = Some(data_bind_group);
-        self.data_bind_group_layout = Some(data_bind_group_layout);
+
         self.is_dirty = false;
         BindingState::Changed
     }

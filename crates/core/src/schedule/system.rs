@@ -25,6 +25,16 @@ macro_rules! implement_unique_system_uid {
             }
         }
     };
+    ($Type:ident<$Lifetime:lifetime>) => {
+        impl $crate::SystemUID for $Type<$Lifetime> {
+            fn system_id() -> $crate::SystemId
+            where
+                Self: Sized,
+            {
+                inox_uid::generate_uid_from_string(std::any::type_name::<Self>())
+            }
+        }
+    };
 }
 
 pub trait System: Downcast + Send + Sync + Any + SystemUID {

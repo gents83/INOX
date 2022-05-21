@@ -9,7 +9,7 @@ use crate::{ResourceEvent, SharedData, SharedDataRc};
 
 pub type ResourceId = Uid;
 
-pub trait ResourceTrait: Send + Sync + 'static
+pub trait ResourceTrait: Send + Sync
 where
     Self::OnCreateData: Send + Sync + Clone,
 {
@@ -33,7 +33,7 @@ where
         id: &ResourceId,
         on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
     ) where
-        Self: Sized,
+        Self: Sized + 'static,
     {
         self.on_create(shared_data, message_hub, id, on_create_data);
         message_hub.send_event(ResourceEvent::<Self>::Created(
@@ -46,7 +46,7 @@ where
         message_hub: &MessageHubRc,
         id: &ResourceId,
     ) where
-        Self: Sized,
+        Self: Sized + 'static,
     {
         message_hub.send_event(ResourceEvent::<Self>::Destroyed(*id));
         self.on_destroy(shared_data, message_hub, id);
@@ -111,7 +111,7 @@ where
 
 impl<T> GenericResourceTrait for ResourceHandle<T>
 where
-    T: ResourceTrait,
+    T: ResourceTrait + 'static,
 {
     #[inline]
     fn as_any(self: Arc<Self>) -> Arc<dyn Any + Send + Sync> {
@@ -124,12 +124,17 @@ pub type GenericResource = Arc<dyn GenericResourceTrait>;
 pub type Handle<T> = Option<Resource<T>>;
 
 pub trait ResourceCastTo {
-    fn of_type<T: ResourceTrait>(&self) -> Resource<T>;
+    fn of_type<T>(&self) -> Resource<T>
+    where
+        T: ResourceTrait + 'static;
 }
 
 impl ResourceCastTo for GenericResource {
     #[inline]
-    fn of_type<T: ResourceTrait>(&self) -> Resource<T> {
+    fn of_type<T>(&self) -> Resource<T>
+    where
+        T: ResourceTrait + 'static,
+    {
         let any = Arc::into_raw(self.clone().as_any());
         Arc::downcast(unsafe { Arc::from_raw(any) }).unwrap()
     }

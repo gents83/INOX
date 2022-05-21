@@ -26,12 +26,17 @@ pub type ResourceStorageRw = Arc<RwLock<Box<dyn TypedStorage>>>;
 pub type ResourceStorage<T> = Arc<RwLock<Box<Storage<T>>>>;
 
 pub trait StorageCastTo {
-    fn of_type<T: ResourceTrait>(&self) -> ResourceStorage<T>;
+    fn of_type<T>(&self) -> ResourceStorage<T>
+    where
+        T: ResourceTrait + 'static;
 }
 
 impl StorageCastTo for ResourceStorageRw {
     #[inline]
-    fn of_type<T: ResourceTrait>(&self) -> ResourceStorage<T> {
+    fn of_type<T>(&self) -> ResourceStorage<T>
+    where
+        T: ResourceTrait + 'static,
+    {
         let lock = Arc::into_raw(self.clone());
         let ptr = lock as *const RwLock<Box<Storage<T>>>;
         Arc::downcast(unsafe { Arc::from_raw(ptr) }).unwrap()

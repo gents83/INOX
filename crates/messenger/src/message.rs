@@ -4,11 +4,11 @@ use inox_commands::CommandParser;
 
 use crate::{MessageHub, MessageHubRc};
 
-pub trait Message: Send + Sync + 'static {
+pub trait Message: Send + Sync {
     #[inline]
     fn send(self: Box<Self>, message_hub: &mut MessageHub)
     where
-        Self: Sized,
+        Self: Sized + 'static,
     {
         let msg = *self;
         message_hub.send_event(msg);
@@ -16,7 +16,7 @@ pub trait Message: Send + Sync + 'static {
     #[inline]
     fn send_to(self, message_hub: &MessageHubRc)
     where
-        Self: Sized,
+        Self: Sized + 'static,
     {
         message_hub.send_event(self);
     }

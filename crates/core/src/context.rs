@@ -36,7 +36,7 @@ impl Context {
     }
     pub fn add_system<S>(&self, phase: Phases, system: S, dependencies: Option<&[SystemId]>)
     where
-        S: System + 'static,
+        S: System,
     {
         let id = S::system_id();
         self.scheduler_mut()

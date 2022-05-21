@@ -51,7 +51,7 @@ where
         data: Self::DataType,
     ) -> Resource<Self>
     where
-        Self: Sized,
+        Self: Sized + 'static,
     {
         let mut resource = Self::create_from_data(shared_data, message_hub, id, data);
         resource.on_create(shared_data, message_hub, &id, None);
@@ -90,7 +90,7 @@ pub trait SerializableResource: DataTypeResource + Sized {
         filepath: &Path,
         on_create_data: Option<<Self as ResourceTrait>::OnCreateData>,
     ) where
-        Self: Sized + DataTypeResource,
+        Self: Sized + DataTypeResource + 'static,
     {
         let path = convert_from_local_path(Data::platform_data_folder().as_path(), filepath);
         if !File::new(path.as_path()).exists() {
@@ -143,7 +143,7 @@ pub trait SerializableResource: DataTypeResource + Sized {
         on_create_data: Option<<Self as ResourceTrait>::OnCreateData>,
     ) -> Resource<Self>
     where
-        Self: Sized + DataTypeResource,
+        Self: Sized + DataTypeResource + 'static,
     {
         let path = convert_from_local_path(Data::platform_data_folder().as_path(), filepath);
         if !File::new(path.as_path()).exists() {
