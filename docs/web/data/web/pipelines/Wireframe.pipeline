@@ -5,9 +5,6 @@
         "PositionF32x3",
         "ColorF32x4"
     ],
-    "binding_data" : [
-        "Constant"
-    ],
     "front_face": "CounterClockwise",
     "culling": "Back",
     "mode": "Line",
