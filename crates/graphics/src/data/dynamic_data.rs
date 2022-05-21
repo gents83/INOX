@@ -10,12 +10,19 @@ use crate::{
 
 #[derive(Default)]
 pub struct DynamicData {
-    pub textures_data: HashBuffer<TextureId, TextureData, MAX_NUM_TEXTURES>,
-    pub materials_data: HashBuffer<MaterialId, ShaderMaterialData, MAX_NUM_MATERIALS>,
-    pub lights_data: HashBuffer<LightId, LightData, MAX_NUM_LIGHTS>,
+    textures_data: HashBuffer<TextureId, TextureData, MAX_NUM_TEXTURES>,
+    materials_data: HashBuffer<MaterialId, ShaderMaterialData, MAX_NUM_MATERIALS>,
+    lights_data: HashBuffer<LightId, LightData, MAX_NUM_LIGHTS>,
 }
+
 impl DynamicData {
-    pub fn set_material_data(&mut self, material_id: &MaterialId, material: &Material) -> usize {
+    pub fn add_texture_data(&mut self, id: &TextureId, data: TextureData) -> usize {
+        self.textures_data.insert(id, data)
+    }
+    pub fn add_light_data(&mut self, id: &LightId, data: LightData) -> usize {
+        self.lights_data.insert(id, data)
+    }
+    pub fn add_material_data(&mut self, material_id: &MaterialId, material: &Material) -> usize {
         let mut textures_indices = [INVALID_INDEX; TextureType::Count as _];
         material
             .textures()

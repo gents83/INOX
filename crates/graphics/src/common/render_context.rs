@@ -1,20 +1,19 @@
 use std::{
-    any::type_name,
     collections::HashMap,
     sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard},
 };
 
 use inox_core::ContextRc;
-use inox_math::{matrix4_to_array, Matrix4, Vector2};
+use inox_math::{Matrix4, Vector2};
 use inox_platform::Handle;
 use inox_resources::Resource;
-use inox_uid::{generate_uid_from_string, Uid};
+use inox_uid::Uid;
 
 use crate::{
     platform::{platform_limits, required_gpu_features},
     AsBufferBinding, ConstantData, DataBuffer, DynamicData, GraphicsData, LightData, LightId,
     Material, RenderPass, TextureData, TextureHandler, TextureId, CONSTANT_DATA_FLAGS_SUPPORT_SRGB,
-    DEFAULT_HEIGHT, DEFAULT_WIDTH, GRAPHICS_DATA_UID, OPENGL_TO_WGPU_MATRIX,
+    DEFAULT_HEIGHT, DEFAULT_WIDTH, GRAPHICS_DATA_UID,
 };
 
 pub struct RenderContext {
@@ -26,8 +25,6 @@ pub struct RenderContext {
     pub queue: wgpu::Queue,
     pub surface_texture: Option<wgpu::SurfaceTexture>,
     pub surface_view: Option<wgpu::TextureView>,
-    pub is_constant_data_dirty: bool,
-    pub is_dynamic_data_dirty: bool,
     pub constant_data: ConstantData,
     pub dynamic_data: DynamicData,
     pub texture_handler: TextureHandler,
@@ -108,8 +105,6 @@ impl RenderContext {
             queue,
             surface_texture: None,
             surface_view: None,
-            is_constant_data_dirty: true,
-            is_dynamic_data_dirty: true,
             constant_data: ConstantData::default(),
             dynamic_data: DynamicData::default(),
             graphics_data,
@@ -128,37 +123,64 @@ impl RenderContext {
     }
 
     pub fn update_constant_data(&mut self, view: Matrix4, proj: Matrix4, screen_size: Vector2) {
-        self.constant_data.view = matrix4_to_array(view);
-        self.constant_data.proj = matrix4_to_array(OPENGL_TO_WGPU_MATRIX * proj);
-        self.constant_data.screen_width = screen_size.x;
-        self.constant_data.screen_height = screen_size.y;
+        let mut is_changed = false;
+        is_changed |= self.constant_data.update(view, proj, screen_size);
         if self.config.format.describe().srgb {
-            self.constant_data.flags |= CONSTANT_DATA_FLAGS_SUPPORT_SRGB;
+            is_changed |= self
+                .constant_data
+                .set_flags(CONSTANT_DATA_FLAGS_SUPPORT_SRGB);
         }
-        self.is_constant_data_dirty = true;
+        if is_changed {
+            self.constant_data.mark_as_dirty(self);
+        }
     }
     pub fn add_texture_data(&mut self, id: &TextureId, data: TextureData) -> usize {
-        let uniform_index = self.dynamic_data.textures_data.insert(id, data);
-        self.is_dynamic_data_dirty = true;
+        let uniform_index = self.dynamic_data.add_texture_data(id, data);
+        self.dynamic_data.mark_as_dirty(self);
         uniform_index
     }
     pub fn add_light_data(&mut self, id: &LightId, data: LightData) -> usize {
-        let uniform_index = self.dynamic_data.lights_data.insert(id, data);
-        self.is_dynamic_data_dirty = true;
+        let uniform_index = self.dynamic_data.add_light_data(id, data);
+        self.dynamic_data.mark_as_dirty(self);
         uniform_index
     }
     pub fn add_material_data(&mut self, id: &LightId, material: &Material) -> usize {
-        let uniform_index = self.dynamic_data.set_material_data(id, material);
-        self.is_dynamic_data_dirty = true;
+        let uniform_index = self.dynamic_data.add_material_data(id, material);
+        self.dynamic_data.mark_as_dirty(self);
         uniform_index
+    }
+
+    pub fn is_buffer_dirty<T>(&self) -> bool
+    where
+        T: AsBufferBinding,
+    {
+        let id = T::id();
+
+        let bind_data_buffer = self.bind_data_buffer.read().unwrap();
+        if let Some(entry) = bind_data_buffer.get(&id) {
+            return entry.1;
+        }
+        true
+    }
+
+    pub fn mark_buffer_as_dirty<T>(&self)
+    where
+        T: AsBufferBinding,
+    {
+        let id = T::id();
+
+        let mut bind_data_buffer = self.bind_data_buffer.write().unwrap();
+        let entry = bind_data_buffer
+            .entry(id)
+            .or_insert((DataBuffer::default(), false));
+        entry.1 = false;
     }
 
     pub fn bind_buffer<T>(&self, data: &T, usage: wgpu::BufferUsages) -> Uid
     where
         T: AsBufferBinding,
     {
-        let typename = type_name::<T>();
-        let id = generate_uid_from_string(typename);
+        let id = T::id();
 
         let mut bind_data_buffer = self.bind_data_buffer.write().unwrap();
         let entry = bind_data_buffer

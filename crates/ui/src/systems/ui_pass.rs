@@ -13,7 +13,7 @@ const UI_PIPELINE: &str = "pipelines/UI.pipeline";
 pub const UI_PASS_NAME: &str = "UIPass";
 
 #[repr(C, align(16))]
-#[derive(Default, Clone, Copy)]
+#[derive(Default, Clone, Copy, PartialEq)]
 pub struct UIPassData {
     pub ui_scale: f32,
 }
@@ -32,6 +32,7 @@ pub struct UIPass {
     render_pass: Resource<RenderPass>,
     binding_data: BindingData,
     custom_data: UIPassData,
+    need_to_update_buffer: bool,
 }
 unsafe impl Send for UIPass {}
 unsafe impl Sync for UIPass {}
@@ -57,6 +58,7 @@ impl Pass for UIPass {
             ),
             binding_data: BindingData::default(),
             custom_data: UIPassData::default(),
+            need_to_update_buffer: true,
         }
     }
     fn prepare(&mut self, render_context: &RenderContext) {
@@ -67,11 +69,15 @@ impl Pass for UIPass {
         let render_texture = pass.render_texture_id();
         let depth_texture = pass.depth_texture_id();
 
-        self.binding_data.clear();
+        if self.need_to_update_buffer {
+            self.custom_data.mark_as_dirty(render_context);
+            self.need_to_update_buffer = false;
+        }
 
         self.binding_data
             .add_uniform_data(
                 render_context,
+                0,
                 0,
                 &render_context.constant_data,
                 ShaderStage::VertexAndFragment,
@@ -79,6 +85,7 @@ impl Pass for UIPass {
             .add_storage_data(
                 render_context,
                 0,
+                1,
                 &render_context.dynamic_data,
                 ShaderStage::VertexAndFragment,
                 true,
@@ -93,6 +100,7 @@ impl Pass for UIPass {
             .add_storage_data(
                 render_context,
                 2,
+                0,
                 &self.custom_data,
                 ShaderStage::VertexAndFragment,
                 true,
@@ -113,15 +121,20 @@ impl Pass for UIPass {
             let render_format = render_context.render_format(&pass);
             let depth_format = render_context.depth_format(&pass);
 
-            if !pipeline.get_mut().init(
+            pipeline.get_mut().init(
                 render_context,
                 render_format,
                 depth_format,
                 &self.binding_data,
-            ) {
-                return;
-            }
+            );
+        });
 
+        render_context.submit(encoder);
+    }
+    fn update(&mut self, render_context: &RenderContext) {
+        let pass = self.render_pass.get();
+
+        pass.pipelines().iter().for_each(|pipeline| {
             if is_indirect_mode_enabled() && pass.data().render_mode == RenderMode::Indirect {
                 render_context
                     .graphics_data
@@ -129,11 +142,6 @@ impl Pass for UIPass {
                     .fill_command_buffer(render_context, pipeline.id());
             }
         });
-
-        render_context.submit(encoder);
-    }
-    fn update(&mut self, render_context: &RenderContext) {
-        let pass = self.render_pass.get();
 
         let mut encoder = render_context.new_encoder();
 
@@ -149,6 +157,9 @@ impl UIPass {
         &self.render_pass
     }
     pub fn set_custom_data(&mut self, data: UIPassData) {
-        self.custom_data = data;
+        if self.custom_data != data {
+            self.need_to_update_buffer = true;
+            self.custom_data = data;
+        }
     }
 }

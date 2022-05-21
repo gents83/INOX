@@ -3,7 +3,8 @@ use std::path::{Path, PathBuf};
 use inox_math::Vector3;
 use inox_messenger::MessageHubRc;
 use inox_resources::{
-    DataTypeResource, ResourceId, ResourceTrait, SerializableResource, SharedData, SharedDataRc,
+    DataTypeResource, ResourceEvent, ResourceId, ResourceTrait, SerializableResource, SharedData,
+    SharedDataRc,
 };
 use inox_serialize::{inox_serializable::SerializableRegistryRc, read_from_file, SerializeFile};
 
@@ -19,6 +20,8 @@ pub struct OnLightCreateData {
 #[derive(Clone)]
 pub struct Light {
     filepath: PathBuf,
+    id: LightId,
+    message_hub: MessageHubRc,
     data: LightData,
     uniform_index: i32,
     is_active: bool,
@@ -71,12 +74,14 @@ impl DataTypeResource for Light {
     type DataType = LightData;
     type OnCreateData = <Self as ResourceTrait>::OnCreateData;
 
-    fn new(_id: ResourceId, _shared_data: &SharedDataRc, _message_hub: &MessageHubRc) -> Self {
+    fn new(id: ResourceId, _shared_data: &SharedDataRc, message_hub: &MessageHubRc) -> Self {
         Self {
+            id,
             filepath: PathBuf::new(),
             data: LightData::default(),
             uniform_index: INVALID_INDEX,
             is_active: true,
+            message_hub: message_hub.clone(),
         }
     }
 
@@ -113,9 +118,18 @@ impl DataTypeResource for Light {
 }
 
 impl Light {
+    pub fn mark_as_dirty(&self) -> &Self {
+        self.message_hub
+            .send_event(ResourceEvent::<Self>::Changed(self.id));
+        self
+    }
     #[inline]
     pub fn set_position(&mut self, position: Vector3) -> &mut Self {
-        self.data.position = position.into();
+        let p = position.into();
+        if self.data.position != p {
+            self.data.position = p;
+            self.mark_as_dirty();
+        }
         self
     }
 
@@ -131,7 +145,10 @@ impl Light {
 
     #[inline]
     pub fn set_active(&mut self, is_active: bool) -> &mut Self {
-        self.is_active = is_active;
+        if self.is_active != is_active {
+            self.is_active = is_active;
+            self.mark_as_dirty();
+        }
         self
     }
 

@@ -52,11 +52,10 @@ impl Pass for TransparentPass {
         let render_texture = pass.render_texture_id();
         let depth_texture = pass.depth_texture_id();
 
-        self.binding_data.clear();
-
         self.binding_data
             .add_uniform_data(
                 render_context,
+                0,
                 0,
                 &render_context.constant_data,
                 ShaderStage::VertexAndFragment,
@@ -64,6 +63,7 @@ impl Pass for TransparentPass {
             .add_storage_data(
                 render_context,
                 0,
+                1,
                 &render_context.dynamic_data,
                 ShaderStage::VertexAndFragment,
                 true,
@@ -91,15 +91,20 @@ impl Pass for TransparentPass {
             let render_format = render_context.render_format(&pass);
             let depth_format = render_context.depth_format(&pass);
 
-            if !pipeline.get_mut().init(
+            pipeline.get_mut().init(
                 render_context,
                 render_format,
                 depth_format,
                 &self.binding_data,
-            ) {
-                return;
-            }
+            );
+        });
 
+        render_context.submit(encoder);
+    }
+    fn update(&mut self, render_context: &RenderContext) {
+        let pass = self.render_pass.get();
+
+        pass.pipelines().iter().for_each(|pipeline| {
             if is_indirect_mode_enabled() && pass.data().render_mode == RenderMode::Indirect {
                 render_context
                     .graphics_data
@@ -107,11 +112,6 @@ impl Pass for TransparentPass {
                     .fill_command_buffer(render_context, pipeline.id());
             }
         });
-
-        render_context.submit(encoder);
-    }
-    fn update(&mut self, render_context: &RenderContext) {
-        let pass = self.render_pass.get();
 
         let mut encoder = render_context.new_encoder();
 
