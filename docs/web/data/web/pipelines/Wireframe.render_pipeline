@@ -1,0 +1,19 @@
+{
+    "vertex_shader": "shaders/wgsl/wireframe.shader",
+    "fragment_shader": "shaders/wgsl/wireframe.shader",
+    "vertex_format" : [
+        "PositionF32x3",
+        "ColorF32x4"
+    ],
+    "front_face": "CounterClockwise",
+    "culling": "Back",
+    "mode": "Line",
+    "depth_write_enabled": true,
+    "depth_compare": "Less",
+    "src_color_blend_factor": "SrcAlpha",
+    "dst_color_blend_factor": "OneMinusSrcAlpha",
+    "color_blend_operation": "Add",
+    "src_alpha_blend_factor": "One",
+    "dst_alpha_blend_factor": "OneMinusSrcAlpha",
+    "alpha_blend_operation": "Add"
+}
