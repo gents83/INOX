@@ -22,8 +22,8 @@ struct MeshBuffers {
 
 #[derive(Default)]
 struct MeshletsInfo {
-    first_meshlet: u32,
-    meshlet_count: u32,
+    first_meshlet: usize,
+    meshlet_count: usize,
 }
 
 #[derive(Default)]
@@ -182,14 +182,15 @@ impl GraphicsData {
         meshlets: &[MeshletData],
     ) {
         let entry = self.mesh_buffers.entry(attributes_hash).or_default();
+        let first_index = entry.meshlet_array.len();
         meshlets.iter().for_each(|meshlet| {
             entry.meshlet_array.push(meshlet.clone());
         });
         self.meshlets.insert(
             *mesh_id,
             MeshletsInfo {
-                first_meshlet: entry.meshlet_array.len() as u32 - meshlets.len() as u32,
-                meshlet_count: meshlets.len() as _,
+                first_meshlet: first_index,
+                meshlet_count: meshlets.len(),
             },
         );
     }
@@ -408,13 +409,27 @@ impl GraphicsData {
                                 )
                             })
                         {
-                            pb.commands_buffer.0.push(wgpu::util::DrawIndexedIndirect {
-                                vertex_count,
-                                instance_count: 1,
-                                base_index,
-                                vertex_offset: vertices_range.start as _,
-                                base_instance: i as _,
-                            });
+                            if let Some(meshlet_info) = self.meshlets.get(&mesh_id) {
+                                let start = meshlet_info.first_meshlet;
+                                let end = meshlet_info.first_meshlet + meshlet_info.meshlet_count;
+                                mb.meshlet_array[start..end].iter().for_each(|meshlet| {
+                                    pb.commands_buffer.0.push(wgpu::util::DrawIndexedIndirect {
+                                        vertex_count: meshlet.indices_count as _,
+                                        instance_count: 1,
+                                        base_index: (base_index + meshlet.indices_offset),
+                                        vertex_offset: vertices_range.start as _,
+                                        base_instance: i as _,
+                                    });
+                                });
+                            } else {
+                                pb.commands_buffer.0.push(wgpu::util::DrawIndexedIndirect {
+                                    vertex_count,
+                                    instance_count: 1,
+                                    base_index,
+                                    vertex_offset: vertices_range.start as _,
+                                    base_instance: i as _,
+                                });
+                            }
                         }
                     }
                 }

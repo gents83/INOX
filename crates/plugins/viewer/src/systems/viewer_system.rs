@@ -26,7 +26,7 @@ pub struct ViewerSystem {
     last_frame: u64,
 }
 
-const FORCE_USE_DEFAULT_CAMERA: bool = true;
+const FORCE_USE_DEFAULT_CAMERA: bool = false;
 const CAMERA_SPEED: f32 = 200.;
 
 impl Drop for ViewerSystem {
