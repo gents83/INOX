@@ -7,7 +7,7 @@ use inox_resources::{
 };
 use inox_serialize::{inox_serializable::SerializableRegistryRc, read_from_file};
 
-use crate::{ComputePassData, Pipeline, RenderContext};
+use crate::{BindingData, ComputePassData, ComputePipeline, RenderContext};
 
 pub type ComputePassId = ResourceId;
 
@@ -16,7 +16,7 @@ pub struct ComputePass {
     shared_data: SharedDataRc,
     message_hub: MessageHubRc,
     data: ComputePassData,
-    pipelines: Vec<Resource<Pipeline>>,
+    pipelines: Vec<Resource<ComputePipeline>>,
     is_initialized: bool,
 }
 
@@ -91,7 +91,7 @@ impl DataTypeResource for ComputePass {
             pipelines: Vec::new(),
             is_initialized: false,
         };
-        pass.pipelines(pipelines);
+        pass.set_pipelines(pipelines);
         pass
     }
 }
@@ -100,14 +100,14 @@ impl ComputePass {
     pub fn data(&self) -> &ComputePassData {
         &self.data
     }
-    pub fn pipeline(&self, index: usize) -> Option<&Resource<Pipeline>> {
-        self.pipelines.get(index)
+    pub fn pipelines(&self) -> &[Resource<ComputePipeline>] {
+        self.pipelines.as_slice()
     }
-    pub fn pipelines(&mut self, pipelines: Vec<PathBuf>) -> &mut Self {
+    pub fn set_pipelines(&mut self, pipelines: Vec<PathBuf>) -> &mut Self {
         self.pipelines.clear();
         pipelines.iter().for_each(|path| {
             if !path.as_os_str().is_empty() {
-                let pipeline = Pipeline::request_load(
+                let pipeline = ComputePipeline::request_load(
                     &self.shared_data,
                     &self.message_hub,
                     path.as_path(),
@@ -119,10 +119,15 @@ impl ComputePass {
         self
     }
 
-    pub fn init(&mut self, _context: &mut RenderContext) {
-        if self.is_initialized {
-            return;
-        }
-        self.is_initialized = true;
+    pub fn init(&mut self, render_context: &RenderContext, binding_data: &BindingData) {
+        let mut is_initialized = false;
+        self.pipelines.iter().for_each(|pipeline| {
+            if pipeline.get().is_initialized() {
+                is_initialized |= true;
+            } else {
+                is_initialized |= pipeline.get_mut().init(render_context, binding_data);
+            }
+        });
+        self.is_initialized = is_initialized;
     }
 }

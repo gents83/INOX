@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use crate::{
-    MaterialAlphaMode, MaterialData, Pipeline, Texture, TextureId, TextureType, INVALID_INDEX,
+    MaterialAlphaMode, MaterialData, RenderPipeline, Texture, TextureId, TextureType, INVALID_INDEX,
 };
 
 use inox_math::{Vector3, Vector4};
@@ -20,7 +20,7 @@ pub struct Material {
     id: MaterialId,
     message_hub: MessageHubRc,
     shared_data: SharedDataRc,
-    pipeline: Handle<Pipeline>,
+    pipeline: Handle<RenderPipeline>,
     uniform_index: i32,
     filepath: PathBuf,
     textures: [Handle<Texture>; TextureType::Count as _], // use specular glossiness if specular_glossiness_texture set
@@ -140,7 +140,7 @@ impl DataTypeResource for Material {
         let pipeline = if material_data.pipeline.as_os_str().is_empty() {
             None
         } else {
-            Some(Pipeline::request_load(
+            Some(RenderPipeline::request_load(
                 shared_data,
                 message_hub,
                 material_data.pipeline.as_path(),
@@ -179,14 +179,14 @@ impl Material {
     pub fn duplicate_from_pipeline(
         shared_data: &SharedDataRc,
         message_hub: &MessageHubRc,
-        pipeline: &Resource<Pipeline>,
+        pipeline: &Resource<RenderPipeline>,
     ) -> Resource<Self> {
         let id = generate_random_uid();
         let mut data = Self::new(id, shared_data, message_hub);
         data.pipeline = Some(pipeline.clone());
         SharedData::add_resource(shared_data, message_hub, data.id, data)
     }
-    pub fn pipeline(&self) -> &Handle<Pipeline> {
+    pub fn pipeline(&self) -> &Handle<RenderPipeline> {
         &self.pipeline
     }
     pub fn uniform_index(&self) -> i32 {

@@ -1,7 +1,7 @@
 use std::{any::TypeId, marker::PhantomData};
 
 use egui::{Checkbox, CollapsingHeader, DragValue, TextEdit, Ui, Widget};
-use inox_graphics::{Font, Light, LightType, Material, Mesh, Pipeline, Texture, View};
+use inox_graphics::{Font, Light, LightType, Material, Mesh, RenderPipeline, Texture, View};
 use inox_math::{Degrees, Matrix4, Vector2, Vector3, Vector4};
 use inox_resources::{
     GenericResource, ResourceCastTo, ResourceId, ResourceTrait, SerializableResource,
@@ -195,7 +195,7 @@ impl UIProperties for Matrix4 {
     }
 }
 
-impl UIProperties for Pipeline {
+impl UIProperties for RenderPipeline {
     fn show(
         &mut self,
         id: &ResourceId,

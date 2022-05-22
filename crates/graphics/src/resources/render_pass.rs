@@ -10,8 +10,8 @@ use inox_serialize::{inox_serializable::SerializableRegistryRc, read_from_file};
 use inox_uid::generate_random_uid;
 
 use crate::{
-    platform::is_indirect_mode_enabled, BindingData, IndexFormat, LoadOperation, Pipeline,
-    RenderContext, RenderMode, RenderPassData, RenderTarget, StoreOperation, Texture, TextureId,
+    platform::is_indirect_mode_enabled, BindingData, IndexFormat, LoadOperation, RenderContext,
+    RenderMode, RenderPassData, RenderPipeline, RenderTarget, StoreOperation, Texture, TextureId,
 };
 
 pub type RenderPassId = ResourceId;
@@ -21,7 +21,7 @@ pub struct RenderPass {
     shared_data: SharedDataRc,
     message_hub: MessageHubRc,
     data: RenderPassData,
-    pipelines: Vec<Resource<Pipeline>>,
+    pipelines: Vec<Resource<RenderPipeline>>,
     render_texture: Handle<Texture>,
     depth_texture: Handle<Texture>,
     is_initialized: bool,
@@ -115,14 +115,14 @@ impl RenderPass {
     pub fn data(&self) -> &RenderPassData {
         &self.data
     }
-    pub fn pipelines(&self) -> &[Resource<Pipeline>] {
+    pub fn pipelines(&self) -> &[Resource<RenderPipeline>] {
         self.pipelines.as_slice()
     }
     pub fn set_pipelines(&mut self, pipelines: Vec<PathBuf>) -> &mut Self {
         self.pipelines.clear();
         pipelines.iter().for_each(|path| {
             if !path.as_os_str().is_empty() {
-                let pipeline = Pipeline::request_load(
+                let pipeline = RenderPipeline::request_load(
                     &self.shared_data,
                     &self.message_hub,
                     path.as_path(),
@@ -218,42 +218,54 @@ impl RenderPass {
     pub fn depth_texture_id(&self) -> Option<&TextureId> {
         self.depth_texture.as_ref().map(|t| t.id())
     }
-    pub fn init(&mut self, context: &mut RenderContext) {
-        if self.is_initialized {
-            return;
-        }
-        if let Some(texture) = &self.render_texture {
-            let texture_handler = &mut context.texture_handler;
-            if texture_handler.get_texture_atlas(texture.id()).is_none() {
-                texture_handler.add_custom_texture(
-                    &context.device,
-                    texture.id(),
-                    texture.get().width(),
-                    texture.get().height(),
-                    wgpu::TextureFormat::Rgba8Unorm,
-                    wgpu::TextureUsages::TEXTURE_BINDING
-                        | wgpu::TextureUsages::COPY_DST
-                        | wgpu::TextureUsages::RENDER_ATTACHMENT,
-                );
+    pub fn init(&mut self, render_context: &mut RenderContext) {
+        if !self.is_initialized {
+            if let Some(texture) = &self.render_texture {
+                let texture_handler = &mut render_context.texture_handler;
+                if texture_handler.get_texture_atlas(texture.id()).is_none() {
+                    texture_handler.add_custom_texture(
+                        &render_context.device,
+                        texture.id(),
+                        texture.get().width(),
+                        texture.get().height(),
+                        wgpu::TextureFormat::Rgba8Unorm,
+                        wgpu::TextureUsages::TEXTURE_BINDING
+                            | wgpu::TextureUsages::COPY_DST
+                            | wgpu::TextureUsages::RENDER_ATTACHMENT,
+                    );
+                }
             }
-        }
-        if let Some(texture) = &self.depth_texture {
-            let texture_handler = &mut context.texture_handler;
-            if texture_handler.get_texture_atlas(texture.id()).is_none() {
-                texture_handler.add_custom_texture(
-                    &context.device,
-                    texture.id(),
-                    texture.get().width(),
-                    texture.get().height(),
-                    wgpu::TextureFormat::Depth32Float,
-                    wgpu::TextureUsages::TEXTURE_BINDING
-                        | wgpu::TextureUsages::COPY_DST
-                        | wgpu::TextureUsages::RENDER_ATTACHMENT,
-                );
+            if let Some(texture) = &self.depth_texture {
+                let texture_handler = &mut render_context.texture_handler;
+                if texture_handler.get_texture_atlas(texture.id()).is_none() {
+                    texture_handler.add_custom_texture(
+                        &render_context.device,
+                        texture.id(),
+                        texture.get().width(),
+                        texture.get().height(),
+                        wgpu::TextureFormat::Depth32Float,
+                        wgpu::TextureUsages::TEXTURE_BINDING
+                            | wgpu::TextureUsages::COPY_DST
+                            | wgpu::TextureUsages::RENDER_ATTACHMENT,
+                    );
+                }
             }
-        } else {
             self.is_initialized = true;
         }
+    }
+
+    pub fn init_pipelines(
+        &mut self,
+        render_context: &mut RenderContext,
+        binding_data: &BindingData,
+    ) {
+        let render_format = render_context.render_format(self);
+        let depth_format = render_context.depth_format(self);
+        self.pipelines.iter().for_each(|pipeline| {
+            pipeline
+                .get_mut()
+                .init(render_context, render_format, depth_format, binding_data);
+        });
     }
     pub fn color_operations(&self) -> wgpu::Operations<wgpu::Color> {
         wgpu::Operations {

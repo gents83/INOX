@@ -2,7 +2,7 @@ use std::{any::type_name, path::PathBuf};
 
 use crate::{
     create_arrow, create_colored_quad, create_line, create_sphere, DrawEvent, Material, Mesh,
-    MeshData, PbrVertexData, Pipeline, VertexData, VertexFormat, WireframeVertexData,
+    MeshData, PbrVertexData, RenderPipeline, VertexData, VertexFormat, WireframeVertexData,
 };
 
 use inox_core::{ContextRc, System, SystemId, SystemUID};
@@ -52,8 +52,8 @@ pub struct DebugDrawerSystem {
     config: Config,
     mesh_instance: Resource<Mesh>,
     wireframe_mesh_instance: Resource<Mesh>,
-    default_pipeline: Handle<Pipeline>,
-    wireframe_pipeline: Handle<Pipeline>,
+    default_pipeline: Handle<RenderPipeline>,
+    wireframe_pipeline: Handle<RenderPipeline>,
     listener: Listener,
     shared_data: SharedDataRc,
     message_hub: MessageHubRc,
@@ -114,7 +114,7 @@ impl DebugDrawerSystem {
                     if filename == self.config.get_filename() {
                         self.config = config.clone();
 
-                        let default_pipeline = Pipeline::request_load(
+                        let default_pipeline = RenderPipeline::request_load(
                             &self.shared_data,
                             &self.message_hub,
                             self.config.default_pipeline.as_path(),
@@ -123,7 +123,7 @@ impl DebugDrawerSystem {
                         default_pipeline
                             .get_mut()
                             .set_vertex_format(VertexFormat::pbr());
-                        let wireframe_pipeline = Pipeline::request_load(
+                        let wireframe_pipeline = RenderPipeline::request_load(
                             &self.shared_data,
                             &self.message_hub,
                             self.config.wireframe_pipeline.as_path(),

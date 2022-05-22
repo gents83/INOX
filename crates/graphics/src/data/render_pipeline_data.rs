@@ -1,11 +1,11 @@
 use std::path::PathBuf;
 
 use inox_filesystem::convert_from_local_path;
-use inox_math::Matrix4;
+
 use inox_resources::Data;
 use inox_serialize::{Deserialize, Serialize, SerializeFile};
 
-use crate::{LightData, ShaderMaterialData, TextureAtlas, TextureData, VertexFormat};
+use crate::VertexFormat;
 
 #[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
 #[serde(crate = "inox_serialize")]
@@ -165,7 +165,7 @@ pub enum DrawMode {
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 #[serde(crate = "inox_serialize")]
-pub struct PipelineData {
+pub struct RenderPipelineData {
     pub vertex_shader: PathBuf,
     pub fragment_shader: PathBuf,
     pub vertex_format: Vec<VertexFormat>,
@@ -182,13 +182,13 @@ pub struct PipelineData {
     pub alpha_blend_operation: BlendOperation,
 }
 
-impl SerializeFile for PipelineData {
+impl SerializeFile for RenderPipelineData {
     fn extension() -> &'static str {
-        "pipeline"
+        "render_pipeline"
     }
 }
 
-impl Default for PipelineData {
+impl Default for RenderPipelineData {
     fn default() -> Self {
         Self {
             vertex_shader: PathBuf::new(),
@@ -209,7 +209,7 @@ impl Default for PipelineData {
     }
 }
 
-impl PipelineData {
+impl RenderPipelineData {
     pub fn is_valid(&self) -> bool {
         !self.vertex_format.is_empty()
     }
@@ -225,19 +225,7 @@ impl PipelineData {
         }
         self
     }
-    pub fn has_same_shaders(&self, other: &PipelineData) -> bool {
+    pub fn has_same_shaders(&self, other: &RenderPipelineData) -> bool {
         self.vertex_shader == other.vertex_shader && self.fragment_shader == other.fragment_shader
     }
-}
-
-pub struct PipelineBindingData<'a> {
-    pub width: u32,
-    pub height: u32,
-    pub view: &'a Matrix4,
-    pub proj: &'a Matrix4,
-    pub textures: &'a [TextureAtlas],
-    pub used_textures: &'a [bool],
-    pub light_data: &'a [LightData],
-    pub texture_data: &'a [TextureData],
-    pub material_data: &'a [ShaderMaterialData],
 }

@@ -6,8 +6,8 @@ use inox_resources::{HashBuffer, ResourceId, ResourceTrait, SharedData, SharedDa
 use wgpu::util::DrawIndexedIndirect;
 
 use crate::{
-    DataBuffer, GpuBuffer, InstanceData, Mesh, MeshData, MeshId, MeshletData, PipelineId,
-    RenderContext, VertexFormatBits, INVALID_INDEX,
+    DataBuffer, GpuBuffer, InstanceData, Mesh, MeshData, MeshId, MeshletData, RenderContext,
+    RenderPipelineId, VertexFormatBits, INVALID_INDEX,
 };
 
 pub const GRAPHICS_DATA_UID: ResourceId =
@@ -36,7 +36,7 @@ struct PipelineBuffers {
 #[derive(Default)]
 pub struct GraphicsData {
     mesh_buffers: HashMap<VertexFormatBits, MeshBuffers>,
-    pipeline_buffers: HashMap<PipelineId, PipelineBuffers>,
+    pipeline_buffers: HashMap<RenderPipelineId, PipelineBuffers>,
     meshlets: HashMap<MeshId, MeshletsInfo>,
 }
 
@@ -70,7 +70,7 @@ unsafe impl Send for GraphicsData {}
 unsafe impl Sync for GraphicsData {}
 
 impl GraphicsData {
-    pub fn is_empty(&self, pipeline_id: &PipelineId) -> bool {
+    pub fn is_empty(&self, pipeline_id: &RenderPipelineId) -> bool {
         self.pipeline_buffers
             .get(pipeline_id)
             .map(|pb| {
@@ -84,7 +84,7 @@ impl GraphicsData {
             })
             .unwrap_or(true)
     }
-    pub fn vertex_count(&self, pipeline_id: &PipelineId) -> usize {
+    pub fn vertex_count(&self, pipeline_id: &RenderPipelineId) -> usize {
         self.pipeline_buffers
             .get(pipeline_id)
             .map(|pb| {
@@ -98,7 +98,7 @@ impl GraphicsData {
             })
             .unwrap_or(0)
     }
-    pub fn index_count(&self, pipeline_id: &PipelineId) -> usize {
+    pub fn index_count(&self, pipeline_id: &RenderPipelineId) -> usize {
         self.pipeline_buffers
             .get(pipeline_id)
             .map(|pb| {
@@ -126,7 +126,7 @@ impl GraphicsData {
             .for_each(|(_, mb)| count += mb.index_buffer.len());
         count
     }
-    pub fn vertex_buffer(&self, pipeline_id: &PipelineId) -> Option<wgpu::BufferSlice> {
+    pub fn vertex_buffer(&self, pipeline_id: &RenderPipelineId) -> Option<wgpu::BufferSlice> {
         self.pipeline_buffers
             .get(pipeline_id)
             .map(|pb| {
@@ -140,7 +140,7 @@ impl GraphicsData {
             })
             .unwrap_or(None)
     }
-    pub fn index_buffer(&self, pipeline_id: &PipelineId) -> Option<wgpu::BufferSlice> {
+    pub fn index_buffer(&self, pipeline_id: &RenderPipelineId) -> Option<wgpu::BufferSlice> {
         self.pipeline_buffers
             .get(pipeline_id)
             .map(|pb| {
@@ -239,7 +239,7 @@ impl GraphicsData {
     }
     pub fn set_pipeline_vertex_format(
         &mut self,
-        pipeline_id: &PipelineId,
+        pipeline_id: &RenderPipelineId,
         vertex_format: VertexFormatBits,
     ) {
         let pb = self.pipeline_buffers.entry(*pipeline_id).or_default();
@@ -274,7 +274,7 @@ impl GraphicsData {
         &mut self,
         mesh_id: &MeshId,
         mesh: &Mesh,
-        pipeline_id: &PipelineId,
+        pipeline_id: &RenderPipelineId,
     ) -> usize {
         let pb = self.pipeline_buffers.get_mut(pipeline_id).unwrap();
         /*
@@ -298,7 +298,7 @@ impl GraphicsData {
         }
         index
     }
-    fn remove_mesh_from_instances(&mut self, mesh_id: &MeshId, pipeline_id: &PipelineId) {
+    fn remove_mesh_from_instances(&mut self, mesh_id: &MeshId, pipeline_id: &RenderPipelineId) {
         self.pipeline_buffers
             .get_mut(pipeline_id)
             .map(|pb| pb.instance_buffer.0.remove(mesh_id));
@@ -309,7 +309,7 @@ impl GraphicsData {
             pb.instance_buffer.0.remove(mesh_id);
         });
     }
-    pub fn instance_buffer(&self, pipeline_id: &PipelineId) -> Option<wgpu::BufferSlice> {
+    pub fn instance_buffer(&self, pipeline_id: &RenderPipelineId) -> Option<wgpu::BufferSlice> {
         self.pipeline_buffers
             .get(pipeline_id)
             .map(|pb| pb.instance_buffer.1.gpu_buffer().map(|b| b.slice(..)))
@@ -317,7 +317,7 @@ impl GraphicsData {
     }
     pub fn for_each_instance(
         &self,
-        pipeline_id: &PipelineId,
+        pipeline_id: &RenderPipelineId,
         mut f: impl FnMut(&MeshId, usize, &InstanceData, &Range<usize>, &Range<usize>),
     ) {
         if let Some(pb) = self.pipeline_buffers.get(pipeline_id) {
@@ -353,19 +353,19 @@ impl GraphicsData {
                 });
         }
     }
-    pub fn instance_count(&self, pipeline_id: &PipelineId) -> usize {
+    pub fn instance_count(&self, pipeline_id: &RenderPipelineId) -> usize {
         self.pipeline_buffers
             .get(pipeline_id)
             .map(|pb| pb.instance_buffer.0.item_count())
             .unwrap_or(0)
     }
-    pub fn commands_count(&self, pipeline_id: &PipelineId) -> usize {
+    pub fn commands_count(&self, pipeline_id: &RenderPipelineId) -> usize {
         self.pipeline_buffers
             .get(pipeline_id)
             .map(|pb| pb.commands_buffer.0.len())
             .unwrap_or(0)
     }
-    pub fn commands_buffer(&self, pipeline_id: &PipelineId) -> Option<&wgpu::Buffer> {
+    pub fn commands_buffer(&self, pipeline_id: &RenderPipelineId) -> Option<&wgpu::Buffer> {
         self.pipeline_buffers
             .get(pipeline_id)
             .map(|pb| pb.commands_buffer.1.gpu_buffer())
@@ -375,7 +375,7 @@ impl GraphicsData {
     pub fn fill_command_buffer(
         &mut self,
         context: &RenderContext,
-        pipeline_id: &PipelineId,
+        pipeline_id: &RenderPipelineId,
     ) -> u64 {
         inox_profiler::scoped_profile!("graphics_data::fill_command_buffer");
         if self.pipeline_buffers.get(pipeline_id).is_none() {
@@ -440,7 +440,7 @@ impl GraphicsData {
         0
     }
 
-    pub fn for_each_vertex_buffer_data<F>(&self, pipeline_id: &PipelineId, mut f: F)
+    pub fn for_each_vertex_buffer_data<F>(&self, pipeline_id: &RenderPipelineId, mut f: F)
     where
         F: FnMut(&MeshId, &Range<usize>),
     {

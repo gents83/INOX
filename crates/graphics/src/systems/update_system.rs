@@ -11,8 +11,8 @@ use inox_serialize::read_from_file;
 use inox_uid::generate_random_uid;
 
 use crate::{
-    is_shader, GetRenderContext, Light, Material, Mesh, Pipeline, RenderPass, RendererRw,
-    RendererState, Texture, View, DEFAULT_HEIGHT, DEFAULT_WIDTH,
+    is_shader, ComputePipeline, GetRenderContext, Light, Material, Mesh, RenderPass,
+    RenderPipeline, RendererRw, RendererState, Texture, View, DEFAULT_HEIGHT, DEFAULT_WIDTH,
 };
 
 use super::config::Config;
@@ -78,9 +78,18 @@ impl UpdateSystem {
             .process_messages(|e: &ReloadEvent| {
                 let ReloadEvent::Reload(path) = e;
                 if is_shader(path) {
-                    SharedData::for_each_resource_mut(&self.shared_data, |_, p: &mut Pipeline| {
-                        p.check_shaders_to_reload(path.to_str().unwrap().to_string());
-                    });
+                    SharedData::for_each_resource_mut(
+                        &self.shared_data,
+                        |_, p: &mut RenderPipeline| {
+                            p.check_shaders_to_reload(path.to_str().unwrap().to_string());
+                        },
+                    );
+                    SharedData::for_each_resource_mut(
+                        &self.shared_data,
+                        |_, p: &mut ComputePipeline| {
+                            p.check_shaders_to_reload(path.to_str().unwrap().to_string());
+                        },
+                    );
                 }
             })
             .process_messages(|e: &ResourceEvent<RenderPass>| match e {
@@ -119,9 +128,12 @@ impl UpdateSystem {
                 }
                 _ => {}
             })
-            .process_messages(|e: &ResourceEvent<Pipeline>| {
+            .process_messages(|e: &ResourceEvent<RenderPipeline>| {
                 if let ResourceEvent::Changed(id) = e {
-                    self.renderer.write().unwrap().on_pipeline_changed(id);
+                    self.renderer
+                        .write()
+                        .unwrap()
+                        .on_render_pipeline_changed(id);
                 }
             })
             .process_messages(|e: &ResourceEvent<Material>| match e {
@@ -168,10 +180,11 @@ impl System for UpdateSystem {
             .register::<WindowEvent>()
             .register::<ReloadEvent>()
             .register::<ConfigEvent<Config>>()
-            .register::<SerializableResourceEvent<Pipeline>>()
+            .register::<SerializableResourceEvent<RenderPipeline>>()
+            .register::<SerializableResourceEvent<ComputePipeline>>()
             .register::<SerializableResourceEvent<Texture>>()
             .register::<ResourceEvent<RenderPass>>()
-            .register::<ResourceEvent<Pipeline>>()
+            .register::<ResourceEvent<RenderPipeline>>()
             .register::<ResourceEvent<Material>>()
             .register::<ResourceEvent<Texture>>()
             .register::<ResourceEvent<Light>>()
@@ -228,13 +241,14 @@ impl System for UpdateSystem {
         self.listener
             .unregister::<WindowEvent>()
             .unregister::<ReloadEvent>()
-            .unregister::<SerializableResourceEvent<Pipeline>>()
+            .unregister::<SerializableResourceEvent<RenderPipeline>>()
+            .unregister::<SerializableResourceEvent<ComputePipeline>>()
             .unregister::<SerializableResourceEvent<Texture>>()
             .unregister::<ConfigEvent<Config>>()
             .unregister::<ResourceEvent<Light>>()
             .unregister::<ResourceEvent<Texture>>()
             .unregister::<ResourceEvent<Material>>()
-            .unregister::<ResourceEvent<Pipeline>>()
+            .unregister::<ResourceEvent<RenderPipeline>>()
             .unregister::<ResourceEvent<RenderPass>>()
             .unregister::<ResourceEvent<Mesh>>();
     }

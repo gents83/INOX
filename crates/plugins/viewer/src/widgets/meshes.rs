@@ -1,7 +1,9 @@
 use std::{collections::HashMap, ops::Range};
 
 use inox_core::ContextRc;
-use inox_graphics::{GraphicsData, Mesh, MeshId, Pipeline, PipelineId, GRAPHICS_DATA_UID};
+use inox_graphics::{
+    GraphicsData, Mesh, MeshId, RenderPipeline, RenderPipelineId, GRAPHICS_DATA_UID,
+};
 
 use inox_messenger::MessageHubRc;
 use inox_resources::{Resource, SerializableResource, SharedDataRc};
@@ -17,7 +19,7 @@ struct MeshesData {
     vertices_count: usize,
     indices_count: usize,
     meshes_names: HashMap<MeshId, (String, Range<usize>, Color32)>,
-    pipeline_instances: HashMap<PipelineId, (String, usize, Vec<String>)>,
+    pipeline_instances: HashMap<RenderPipelineId, (String, usize, Vec<String>)>,
 }
 implement_widget_data!(MeshesData);
 
@@ -78,7 +80,7 @@ impl Meshes {
 
                 data.pipeline_instances.clear();
                 data.shared_data
-                    .for_each_resource(|handle, pipeline: &Pipeline| {
+                    .for_each_resource(|handle, pipeline: &RenderPipeline| {
                         graphics_data.get().for_each_vertex_buffer_data(
                             handle.id(),
                             |mesh_id: &MeshId, range| {

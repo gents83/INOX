@@ -134,6 +134,10 @@ jobs:
       - name: "Copy wasm32 in output"
         run: cp -Force "./web/*.html" "./output/web/"
 
+      - name: "Clearing data folder"
+        run:  rm -r ./data/
+              rm -r ./output/web/data/
+
       - name: "Executing binarizer"
         run:  ./crates/target/release/inox_launcher.exe -plugin inox_binarizer -platform pc -platform web
 

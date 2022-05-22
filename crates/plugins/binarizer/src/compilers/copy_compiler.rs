@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use crate::{copy_into_data_folder, ExtensionHandler};
-use inox_graphics::{Light, Material, Mesh, Pipeline};
+use inox_graphics::{ComputePipeline, Light, Material, Mesh, RenderPipeline};
 use inox_log::debug_log;
 use inox_messenger::MessageHubRc;
 use inox_nodes::NodeTree;
@@ -35,7 +35,8 @@ impl ExtensionHandler for CopyCompiler {
                 || ext.as_str() == NodeTree::extension()
                 || ext.as_str() == Material::extension()
                 || ext.as_str() == Mesh::extension()
-                || ext.as_str() == Pipeline::extension()
+                || ext.as_str() == RenderPipeline::extension()
+                || ext.as_str() == ComputePipeline::extension()
                 || ext.as_str() == Scene::extension()
                 || ext.as_str() == Object::extension()
                 || ext.as_str() == Camera::extension()

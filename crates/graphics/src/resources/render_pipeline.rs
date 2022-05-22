@@ -9,24 +9,25 @@ use inox_resources::{
 use inox_serialize::{inox_serializable::SerializableRegistryRc, read_from_file, SerializeFile};
 
 use crate::{
-    BindingData, InstanceData, PipelineData, RenderContext, Shader, VertexBufferLayoutBuilder,
-    VertexFormat, FRAGMENT_SHADER_ENTRY_POINT, SHADER_ENTRY_POINT, VERTEX_SHADER_ENTRY_POINT,
+    BindingData, InstanceData, RenderContext, RenderPipelineData, Shader,
+    VertexBufferLayoutBuilder, VertexFormat, FRAGMENT_SHADER_ENTRY_POINT, SHADER_ENTRY_POINT,
+    VERTEX_SHADER_ENTRY_POINT,
 };
 
-pub type PipelineId = ResourceId;
+pub type RenderPipelineId = ResourceId;
 
-pub struct Pipeline {
+pub struct RenderPipeline {
     path: PathBuf,
     shared_data: SharedDataRc,
     message_hub: MessageHubRc,
-    data: PipelineData,
+    data: RenderPipelineData,
     format: Option<wgpu::TextureFormat>,
     vertex_shader: Handle<Shader>,
     fragment_shader: Handle<Shader>,
     render_pipeline: Option<wgpu::RenderPipeline>,
 }
 
-impl Clone for Pipeline {
+impl Clone for RenderPipeline {
     fn clone(&self) -> Self {
         let (vertex_shader, fragment_shader) =
             Self::load_shaders(&self.data, &self.shared_data, &self.message_hub);
@@ -43,14 +44,14 @@ impl Clone for Pipeline {
     }
 }
 
-impl ResourceTrait for Pipeline {
+impl ResourceTrait for RenderPipeline {
     type OnCreateData = ();
 
     fn on_create(
         &mut self,
         _shared_data_rc: &SharedDataRc,
         _message_hub: &MessageHubRc,
-        _id: &PipelineId,
+        _id: &RenderPipelineId,
         _on_create_data: Option<&<Self as ResourceTrait>::OnCreateData>,
     ) {
     }
@@ -58,7 +59,7 @@ impl ResourceTrait for Pipeline {
         &mut self,
         _shared_data: &SharedData,
         _message_hub: &MessageHubRc,
-        _id: &PipelineId,
+        _id: &RenderPipelineId,
     ) {
         self.render_pipeline = None;
         self.vertex_shader = None;
@@ -72,7 +73,7 @@ impl ResourceTrait for Pipeline {
     }
 }
 
-impl SerializableResource for Pipeline {
+impl SerializableResource for RenderPipeline {
     fn set_path(&mut self, path: &Path) -> &mut Self {
         self.path = path.to_path_buf();
         self
@@ -82,12 +83,12 @@ impl SerializableResource for Pipeline {
     }
 
     fn extension() -> &'static str {
-        PipelineData::extension()
+        RenderPipelineData::extension()
     }
 }
 
-impl DataTypeResource for Pipeline {
-    type DataType = PipelineData;
+impl DataTypeResource for RenderPipeline {
+    type DataType = RenderPipelineData;
     type OnCreateData = <Self as ResourceTrait>::OnCreateData;
 
     fn new(_id: ResourceId, shared_data: &SharedDataRc, message_hub: &MessageHubRc) -> Self {
@@ -95,7 +96,7 @@ impl DataTypeResource for Pipeline {
             path: PathBuf::new(),
             shared_data: shared_data.clone(),
             message_hub: message_hub.clone(),
-            data: PipelineData::default(),
+            data: RenderPipelineData::default(),
             format: None,
             vertex_shader: None,
             fragment_shader: None,
@@ -142,8 +143,8 @@ impl DataTypeResource for Pipeline {
     }
 }
 
-impl Pipeline {
-    pub fn data(&self) -> &PipelineData {
+impl RenderPipeline {
+    pub fn data(&self) -> &RenderPipelineData {
         &self.data
     }
     pub fn set_vertex_format(&mut self, format: Vec<VertexFormat>) -> &mut Self {
@@ -157,7 +158,7 @@ impl Pipeline {
         self.render_pipeline.as_ref().unwrap()
     }
     fn load_shaders(
-        data: &PipelineData,
+        data: &RenderPipelineData,
         shared_data: &SharedDataRc,
         message_hub: &MessageHubRc,
     ) -> (Resource<Shader>, Resource<Shader>) {
@@ -182,7 +183,7 @@ impl Pipeline {
         depth_format: Option<&wgpu::TextureFormat>,
         binding_data: &BindingData,
     ) -> bool {
-        inox_profiler::scoped_profile!("pipeline::init");
+        inox_profiler::scoped_profile!("render_pipeline::init");
         if self.vertex_shader.is_none() || self.fragment_shader.is_none() {
             return false;
         }
@@ -222,7 +223,7 @@ impl Pipeline {
         let vertex_layout =
             VertexBufferLayoutBuilder::create_from_vertex_data_attribute(&self.data.vertex_format);
         let render_pipeline = {
-            inox_profiler::scoped_profile!("pipeline::crate[{}]", self.name());
+            inox_profiler::scoped_profile!("render_pipeline::crate[{}]", self.name());
             context
                 .device
                 .create_render_pipeline(&wgpu::RenderPipelineDescriptor {

@@ -9,7 +9,7 @@ use inox_core::ContextRc;
 use inox_resources::{DataTypeResource, Resource};
 use inox_uid::generate_random_uid;
 
-pub const TRANSPARENT_PIPELINE: &str = "pipelines/Transparent.pipeline";
+pub const TRANSPARENT_PIPELINE: &str = "pipelines/Transparent.render_pipeline";
 pub const TRANSPARENT_PASS_NAME: &str = "TransparentPass";
 
 pub struct TransparentPass {
@@ -44,11 +44,8 @@ impl Pass for TransparentPass {
             binding_data: BindingData::default(),
         }
     }
-    fn prepare(&mut self, render_context: &RenderContext) {
-        let pass = self.render_pass.get();
-
-        let encoder = render_context.new_encoder();
-
+    fn init(&mut self, render_context: &mut RenderContext) {
+        let mut pass = self.render_pass.get_mut();
         let render_texture = pass.render_texture_id();
         let depth_texture = pass.depth_texture_id();
 
@@ -77,29 +74,7 @@ impl Pass for TransparentPass {
             );
         self.binding_data.send_to_gpu(render_context);
 
-        let pipelines = pass.pipelines();
-        pipelines.iter().for_each(|pipeline| {
-            if render_context
-                .graphics_data
-                .get()
-                .instance_count(pipeline.id())
-                == 0
-            {
-                return;
-            }
-
-            let render_format = render_context.render_format(&pass);
-            let depth_format = render_context.depth_format(&pass);
-
-            pipeline.get_mut().init(
-                render_context,
-                render_format,
-                depth_format,
-                &self.binding_data,
-            );
-        });
-
-        render_context.submit(encoder);
+        pass.init_pipelines(render_context, &self.binding_data);
     }
     fn update(&mut self, render_context: &RenderContext) {
         let pass = self.render_pass.get();

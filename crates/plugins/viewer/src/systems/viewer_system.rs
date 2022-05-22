@@ -1,8 +1,8 @@
 use inox_commands::CommandParser;
 use inox_core::{implement_unique_system_uid, ContextRc, System};
 use inox_graphics::{
-    create_quad, Material, Mesh, MeshData, PbrVertexData, Pipeline, Texture, VertexFormat, View,
-    WireframeVertexData, DEFAULT_PIPELINE, WIREFRAME_PIPELINE,
+    create_quad, Material, Mesh, MeshData, PbrVertexData, RenderPipeline, Texture, VertexFormat,
+    View, WireframeVertexData, DEFAULT_PIPELINE, WIREFRAME_PIPELINE,
 };
 use inox_log::debug_log;
 use inox_math::{VecBase, VecBaseFloat, Vector2, Vector3};
@@ -184,7 +184,7 @@ impl ViewerSystem {
                     self.context.message_hub(),
                 ),
             );
-            let pipeline = Pipeline::request_load(
+            let pipeline = RenderPipeline::request_load(
                 self.context.shared_data(),
                 self.context.message_hub(),
                 PathBuf::from(DEFAULT_PIPELINE).as_path(),
@@ -238,7 +238,7 @@ impl ViewerSystem {
                     self.context.message_hub(),
                 ),
             );
-            let wireframe_pipeline = Pipeline::request_load(
+            let wireframe_pipeline = RenderPipeline::request_load(
                 self.context.shared_data(),
                 self.context.message_hub(),
                 PathBuf::from(WIREFRAME_PIPELINE).as_path(),

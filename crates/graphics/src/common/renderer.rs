@@ -1,6 +1,6 @@
 use crate::{
-    GetRenderContext, Light, LightId, Material, MaterialId, Mesh, MeshId, Pass, Pipeline,
-    RenderContext, RenderContextRw, RenderPass, RenderPassId, Texture, TextureId,
+    ComputePipeline, GetRenderContext, Light, LightId, Material, MaterialId, Mesh, MeshId, Pass,
+    RenderContext, RenderContextRw, RenderPass, RenderPassId, RenderPipeline, Texture, TextureId,
 };
 use inox_core::ContextRc;
 use inox_math::Matrix4;
@@ -139,9 +139,18 @@ impl Renderer {
     pub fn recreate(&self) {
         inox_profiler::scoped_profile!("renderer::recreate");
 
-        SharedData::for_each_resource_mut(&self.shared_data, |_id, pipeline: &mut Pipeline| {
-            pipeline.invalidate();
-        });
+        SharedData::for_each_resource_mut(
+            &self.shared_data,
+            |_id, pipeline: &mut RenderPipeline| {
+                pipeline.invalidate();
+            },
+        );
+        SharedData::for_each_resource_mut(
+            &self.shared_data,
+            |_id, pipeline: &mut ComputePipeline| {
+                pipeline.invalidate();
+            },
+        );
         SharedData::for_each_resource_mut(
             &self.shared_data,
             |_id, render_pass: &mut RenderPass| {
@@ -214,9 +223,9 @@ impl Renderer {
         }
     }
 
-    pub fn on_pipeline_changed(&mut self, pipeline_id: &MaterialId) {
+    pub fn on_render_pipeline_changed(&mut self, pipeline_id: &MaterialId) {
         inox_profiler::scoped_profile!("renderer::on_pipeline_changed");
-        if let Some(pipeline) = self.shared_data.get_resource::<Pipeline>(pipeline_id) {
+        if let Some(pipeline) = self.shared_data.get_resource::<RenderPipeline>(pipeline_id) {
             let vertex_format = pipeline.get().vertex_format();
             let render_context = self.context.get();
             let render_context = render_context.as_ref().unwrap();
@@ -306,25 +315,21 @@ impl Renderer {
     pub fn send_to_gpu(&mut self, encoder: wgpu::CommandEncoder) {
         inox_profiler::scoped_profile!("renderer::send_to_gpu");
 
-        {
-            let mut render_context = self.context.get_mut();
-            let render_context = render_context.as_mut().unwrap();
-            render_context.submit(encoder);
-        }
-        {
-            let render_context = self.context.get();
-            let render_context = render_context.as_ref().unwrap();
-            if render_context.graphics_data.get().total_vertex_count() == 0 {
-                return;
-            }
+        let mut render_context = self.context.get_mut();
+        let render_context = render_context.as_mut().unwrap();
 
-            self.passes.iter_mut().for_each(|pass| {
-                pass.prepare(render_context);
-            });
-
-            let graphics_data = &mut render_context.graphics_data.get_mut();
-            graphics_data.send_to_gpu(render_context);
+        if render_context.graphics_data.get().total_vertex_count() == 0 {
+            return;
         }
+
+        self.passes.iter_mut().for_each(|pass| {
+            pass.init(render_context);
+        });
+
+        let graphics_data = &mut render_context.graphics_data.get_mut();
+        graphics_data.send_to_gpu(render_context);
+
+        render_context.submit(encoder);
     }
 
     pub fn update_passes(&mut self) {
