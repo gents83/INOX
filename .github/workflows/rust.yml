@@ -135,6 +135,7 @@ jobs:
         run: cp -Force "./web/*.html" "./output/web/"
 
       - name: "Clearing data folder"
+        continue-on-error: true
         run:  |
              rm -r "./data/"
              rm -r "./output/web/data/"
