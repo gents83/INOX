@@ -414,7 +414,7 @@ impl GraphicsData {
                                 let end = meshlet_info.first_meshlet + meshlet_info.meshlet_count;
                                 mb.meshlet_array[start..end].iter().for_each(|meshlet| {
                                     pb.commands_buffer.0.push(wgpu::util::DrawIndexedIndirect {
-                                        vertex_count: meshlet.indices_count as _,
+                                        vertex_count: meshlet.vertices_count as _,
                                         instance_count: 1,
                                         base_index: (base_index + meshlet.indices_offset),
                                         vertex_offset: vertices_range.start as _,
