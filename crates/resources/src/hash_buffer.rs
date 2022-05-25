@@ -84,10 +84,13 @@ where
             //inox_log::debug_log!("Buffer len is {}", self.buffer.len());
         }
     }
-    pub fn remove(&mut self, id: &Id) -> Option<usize> {
+    pub fn remove(&mut self, id: &Id) -> Option<&Data> {
         //inox_log::debug_log!("Removing [{:?}]", *id);
         //inox_log::debug_log!("Buffer len is {}", self.buffer.len());
-        self.map.remove(id)
+        if let Some(index) = self.map.remove(id) {
+            return Some(&self.buffer[index]);
+        }
+        None
     }
     pub fn index(&self, id: &Id) -> Option<usize> {
         self.map.get(id).copied()
@@ -123,6 +126,11 @@ where
         self.map
             .iter()
             .for_each(|(id, index)| f(id, *index, &self.buffer[*index]));
+    }
+    pub fn for_each_item_mut(&mut self, mut f: impl FnMut(&Id, usize, &mut Data)) {
+        self.map
+            .iter()
+            .for_each(|(id, index)| f(id, *index, &mut self.buffer[*index]));
     }
 }
 

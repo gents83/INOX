@@ -6,6 +6,7 @@ use crate::{AsBufferBinding, DataBuffer, RenderContext, OPENGL_TO_WGPU_MATRIX};
 
 pub const CONSTANT_DATA_FLAGS_NONE: u32 = 0;
 pub const CONSTANT_DATA_FLAGS_SUPPORT_SRGB: u32 = 1;
+pub const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS: u32 = 2;
 
 #[repr(C, align(16))]
 #[derive(Default, Debug, Clone, Copy)]

@@ -125,11 +125,12 @@ impl RenderContext {
     pub fn update_constant_data(&mut self, view: Matrix4, proj: Matrix4, screen_size: Vector2) {
         let mut is_changed = false;
         is_changed |= self.constant_data.update(view, proj, screen_size);
+        let mut flags = 0;
         if self.config.format.describe().srgb {
-            is_changed |= self
-                .constant_data
-                .set_flags(CONSTANT_DATA_FLAGS_SUPPORT_SRGB);
+            flags |= CONSTANT_DATA_FLAGS_SUPPORT_SRGB;
         }
+        //flags |= CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS;
+        is_changed |= self.constant_data.set_flags(flags);
         if is_changed {
             self.constant_data.mark_as_dirty(self);
         }

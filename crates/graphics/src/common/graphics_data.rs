@@ -31,13 +31,14 @@ struct PipelineBuffers {
     vertex_format: VertexFormatBits,
     instance_buffer: (HashBuffer<MeshId, InstanceData, 0>, DataBuffer),
     commands_buffer: (Vec<DrawIndexedIndirect>, DataBuffer),
+    is_dirty: bool,
 }
 
 #[derive(Default)]
 pub struct GraphicsData {
     mesh_buffers: HashMap<VertexFormatBits, MeshBuffers>,
     pipeline_buffers: HashMap<RenderPipelineId, PipelineBuffers>,
-    meshlets: HashMap<MeshId, MeshletsInfo>,
+    meshlets: HashBuffer<MeshId, MeshletsInfo, 0>,
 }
 
 impl ResourceTrait for GraphicsData {
@@ -187,7 +188,7 @@ impl GraphicsData {
             entry.meshlet_array.push(meshlet.clone());
         });
         self.meshlets.insert(
-            *mesh_id,
+            mesh_id,
             MeshletsInfo {
                 first_meshlet: first_index,
                 meshlet_count: meshlets.len(),
@@ -230,11 +231,19 @@ impl GraphicsData {
         self.mesh_buffers.iter_mut().for_each(|(_, mb)| {
             mb.vertex_buffer.remove(mesh_id);
             mb.index_buffer.remove(mesh_id);
+            let mut start = 0usize;
+            let mut count = 0usize;
             if let Some(meshlet_info) = self.meshlets.remove(mesh_id) {
-                mb.meshlet_array.drain(
-                    meshlet_info.first_meshlet as usize
-                        ..(meshlet_info.first_meshlet + meshlet_info.meshlet_count) as usize,
-                );
+                start = meshlet_info.first_meshlet;
+                count = meshlet_info.meshlet_count;
+                mb.meshlet_array.drain(start..(start + count));
+            }
+            if count > 0 {
+                self.meshlets.for_each_item_mut(|_id, _index, info| {
+                    if info.first_meshlet > start {
+                        info.first_meshlet -= count;
+                    }
+                });
             }
         });
     }
@@ -297,17 +306,20 @@ impl GraphicsData {
             index = mesh.draw_index() as usize;
             pb.instance_buffer.0.move_to(mesh_id, index);
         }
+        pb.is_dirty = true;
         index
     }
     fn remove_mesh_from_instances(&mut self, mesh_id: &MeshId, pipeline_id: &RenderPipelineId) {
-        self.pipeline_buffers
-            .get_mut(pipeline_id)
-            .map(|pb| pb.instance_buffer.0.remove(mesh_id));
+        if let Some(pb) = self.pipeline_buffers.get_mut(pipeline_id) {
+            pb.instance_buffer.0.remove(mesh_id);
+            pb.is_dirty = true;
+        }
     }
     pub fn remove_mesh(&mut self, mesh_id: &MeshId) {
         self.remove_mesh_data(mesh_id);
         self.pipeline_buffers.iter_mut().for_each(|(_, pb)| {
             pb.instance_buffer.0.remove(mesh_id);
+            pb.is_dirty = true;
         });
     }
     pub fn instance_buffer(&self, pipeline_id: &RenderPipelineId) -> Option<wgpu::BufferSlice> {
@@ -383,11 +395,15 @@ impl GraphicsData {
             return 0;
         }
         let pb = self.pipeline_buffers.get_mut(pipeline_id).unwrap();
-        pb.commands_buffer.0.clear();
-
         if pb.vertex_format == 0 || pb.instance_buffer.0.item_count() == 0 {
             return 0;
         }
+        if !pb.is_dirty {
+            return pb.commands_buffer.0.len() as _;
+        }
+        pb.commands_buffer.0.clear();
+        pb.is_dirty = false;
+
         if let Some(mb) = self.mesh_buffers.get(&pb.vertex_format) {
             pb.commands_buffer
                 .0

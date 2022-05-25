@@ -19,6 +19,7 @@ let MATERIAL_ALPHA_BLEND_BLEND = 2u;
 
 let CONSTANT_DATA_FLAGS_NONE: u32 = 0u;
 let CONSTANT_DATA_FLAGS_SUPPORT_SRGB: u32 = 1u;
+let CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS: u32 = 2u;
 
 struct ConstantData {
     view: mat4x4<f32>,
@@ -68,7 +69,7 @@ struct DynamicData {
 
 
 struct VertexInput {
-    //@builtin(vertex_index) index: u32,
+    @builtin(vertex_index) index: u32,
     @location(0) position: vec3<f32>,
     @location(1) normal: vec3<f32>,
     @location(2) tangent: vec4<f32>,
@@ -80,7 +81,7 @@ struct VertexInput {
 };
 
 struct InstanceInput {
-    //@builtin(instance_index) index: u32,
+    @builtin(instance_index) index: u32,
     @location(8) draw_area: vec4<f32>,
     @location(9) model_matrix_0: vec4<f32>,
     @location(10) model_matrix_1: vec4<f32>,
@@ -180,6 +181,20 @@ fn inverse_transpose_3x3(m: mat3x3<f32>) -> mat3x3<f32> {
     );
 }
 
+fn rand(n: u32) -> f32 {    
+    // integer hash copied from Hugo Elias
+    let n = (n << 13u) ^ n;
+    let n = n * (n * n * 15731u + 789221u) + 1376312589u;
+    return f32(n & u32(0x7fffffff)) / f32(0x7fffffff);
+}
+
+fn random_color(v: u32) -> vec3<f32> {
+    let v1 = rand(v * 100u);
+    let v2 = rand(v);
+    let v3 = rand(u32(v1 - v2));
+    return vec3(v1, v2, v3);
+}
+
 
 @vertex
 fn vs_main(
@@ -209,7 +224,11 @@ fn vs_main(
     vertex_out.color = v.color;
     vertex_out.material_index = instance.material_index;
 
-    if (instance.material_index >= 0) {
+    let display_meshlets = constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS;
+    if (display_meshlets != 0u) {
+        let c = random_color(instance.index + v.index / 64u);
+        vertex_out.color = vec4<f32>(c, 1.0);
+    } else if (instance.material_index >= 0) {
         vertex_out.tex_coords_base_color = get_textures_coord_set(v, instance.material_index, TEXTURE_TYPE_BASE_COLOR);
         vertex_out.tex_coords_metallic_roughness = get_textures_coord_set(v, instance.material_index, TEXTURE_TYPE_METALLIC_ROUGHNESS);
         vertex_out.tex_coords_normal = get_textures_coord_set(v, instance.material_index, TEXTURE_TYPE_NORMAL);
@@ -386,6 +405,12 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
     if (v_in.material_index < 0) {
         discard;
     }
+
+    let display_meshlets = constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS;
+    if (display_meshlets != 0u) {
+        return v_in.color;
+    }
+
     let material = dynamic_data.materials_data[v_in.material_index];
 
     var base_color = min(v_in.color, material.base_color);
