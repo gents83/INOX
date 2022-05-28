@@ -2,9 +2,8 @@ use std::path::PathBuf;
 
 use inox_core::ContextRc;
 use inox_graphics::{
-    platform::is_indirect_mode_enabled, AsBufferBinding, BindingData, BindingInfo, DataBuffer,
-    Pass, RenderContext, RenderCoreContext, RenderMode, RenderPass, RenderPassData, RenderTarget,
-    ShaderStage, StoreOperation,
+    AsBufferBinding, BindingData, BindingInfo, DataBuffer, Pass, RenderContext, RenderCoreContext,
+    RenderPass, RenderPassData, RenderTarget, ShaderStage, StoreOperation,
 };
 use inox_resources::{DataTypeResource, Resource};
 use inox_uid::generate_random_uid;
@@ -120,15 +119,6 @@ impl Pass for UIPass {
     }
     fn update(&mut self, render_context: &RenderContext) {
         let pass = self.render_pass.get();
-
-        pass.pipelines().iter().for_each(|pipeline| {
-            if is_indirect_mode_enabled() && pass.data().render_mode == RenderMode::Indirect {
-                render_context
-                    .graphics_data
-                    .get_mut()
-                    .fill_command_buffer(render_context, pipeline.id());
-            }
-        });
 
         let mut encoder = render_context.core.new_encoder();
 

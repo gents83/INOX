@@ -337,6 +337,7 @@ impl RenderPass {
     }
 
     pub fn draw(&self, render_context: &RenderContext, render_pass: wgpu::RenderPass) {
+        let buffers = render_context.binding_data_buffer.buffers.read().unwrap();
         let pipelines = self.pipelines().iter().map(|h| h.get()).collect::<Vec<_>>();
         {
             let graphics_data = render_context.graphics_data.get();
@@ -361,14 +362,17 @@ impl RenderPass {
                         if is_indirect_mode_enabled()
                             && self.data().render_mode == RenderMode::Indirect
                         {
-                            let commands_count = graphics_data.commands_count(pipeline_id);
-                            if let Some(command_buffer) = graphics_data.commands_buffer(pipeline_id)
-                            {
-                                render_pass.multi_draw_indexed_indirect(
-                                    command_buffer,
-                                    0,
-                                    commands_count as u32,
-                                );
+                            if let Some(pipeline_commands) = graphics_data.commands(pipeline_id) {
+                                let commands_count = pipeline_commands.commands.len();
+                                {
+                                    if let Some(command_buffer) = buffers.get(pipeline_id) {
+                                        render_pass.multi_draw_indexed_indirect(
+                                            command_buffer.gpu_buffer().unwrap(),
+                                            0,
+                                            commands_count as u32,
+                                        );
+                                    }
+                                }
                             }
                         } else {
                             graphics_data.for_each_instance(

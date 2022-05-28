@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
 use crate::{
-    platform::is_indirect_mode_enabled, BindingData, BindingInfo, Pass, RenderContext, RenderMode,
-    RenderPass, RenderPassData, RenderTarget, ShaderStage, StoreOperation,
+    BindingData, BindingInfo, Pass, RenderContext, RenderPass, RenderPassData, RenderTarget,
+    ShaderStage, StoreOperation,
 };
 
 use inox_core::ContextRc;
@@ -90,15 +90,6 @@ impl Pass for OpaquePass {
     }
     fn update(&mut self, render_context: &RenderContext) {
         let pass = self.render_pass.get();
-
-        pass.pipelines().iter().for_each(|pipeline| {
-            if is_indirect_mode_enabled() && pass.data().render_mode == RenderMode::Indirect {
-                render_context
-                    .graphics_data
-                    .get_mut()
-                    .fill_command_buffer(render_context, pipeline.id());
-            }
-        });
 
         let mut encoder = render_context.core.new_encoder();
         let render_pass = pass.begin(render_context, &self.binding_data, &mut encoder);

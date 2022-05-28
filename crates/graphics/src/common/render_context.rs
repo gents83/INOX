@@ -22,6 +22,40 @@ pub struct BindingDataBuffer {
 }
 
 impl BindingDataBuffer {
+    pub fn has_buffer(&self, uid: &Uid) -> bool {
+        self.buffers.read().unwrap().contains_key(uid)
+    }
+    pub fn bind_buffer_with_id<T>(
+        &self,
+        id: &Uid,
+        data: &mut T,
+        usage: wgpu::BufferUsages,
+        render_core_context: &RenderCoreContext,
+    ) -> bool
+    where
+        T: AsBufferBinding,
+    {
+        let mut bind_data_buffer = self.buffers.write().unwrap();
+        let buffer = bind_data_buffer
+            .entry(*id)
+            .or_insert_with(DataBuffer::default);
+
+        let mut is_changed = false;
+        if data.is_dirty() {
+            let typename = std::any::type_name::<T>()
+                .split(':')
+                .collect::<Vec<&str>>()
+                .last()
+                .unwrap()
+                .to_string();
+            let label = format!("{}[{}]", typename, id);
+            is_changed |= buffer.init(render_core_context, data.size(), usage, label.as_str());
+            data.fill_buffer(render_core_context, buffer);
+            data.set_dirty(false);
+        }
+
+        is_changed
+    }
     pub fn bind_buffer<T>(
         &self,
         data: &mut T,
@@ -32,19 +66,7 @@ impl BindingDataBuffer {
         T: AsBufferBinding,
     {
         let id = T::id();
-
-        let mut bind_data_buffer = self.buffers.write().unwrap();
-        let buffer = bind_data_buffer
-            .entry(id)
-            .or_insert_with(DataBuffer::default);
-
-        let mut is_changed = false;
-        if data.is_dirty() {
-            is_changed |= buffer.init_from_type::<T>(render_core_context, data.size(), usage);
-            data.fill_buffer(render_core_context, buffer);
-            data.set_dirty(false);
-        }
-
+        let is_changed = self.bind_buffer_with_id(&id, data, usage, render_core_context);
         (id, is_changed)
     }
 }

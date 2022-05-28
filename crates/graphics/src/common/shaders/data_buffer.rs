@@ -16,6 +16,9 @@ impl Drop for DataBuffer {
 }
 
 impl DataBuffer {
+    pub fn size(&self) -> u64 {
+        self.size
+    }
     pub fn release(&mut self) {
         if let Some(buffer) = self.gpu_buffer.take() {
             buffer.destroy();
@@ -23,7 +26,7 @@ impl DataBuffer {
     }
     pub fn init(
         &mut self,
-        device: &wgpu::Device,
+        render_core_context: &RenderCoreContext,
         size: u64,
         usage: wgpu::BufferUsages,
         buffer_name: &str,
@@ -34,12 +37,14 @@ impl DataBuffer {
         if !self.is_valid() || self.size != size {
             let label = format!("{} Buffer", buffer_name);
             self.release();
-            let data_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-                label: Some(label.as_str()),
-                size,
-                mapped_at_creation: false,
-                usage,
-            });
+            let data_buffer = render_core_context
+                .device
+                .create_buffer(&wgpu::BufferDescriptor {
+                    label: Some(label.as_str()),
+                    size,
+                    mapped_at_creation: false,
+                    usage,
+                });
             self.gpu_buffer = Some(data_buffer);
             self.size = size;
             return true;
@@ -58,7 +63,7 @@ impl DataBuffer {
             .last()
             .unwrap()
             .to_string();
-        self.init(&render_core_context.device, size, usage, typename.as_str())
+        self.init(render_core_context, size, usage, typename.as_str())
     }
     pub fn add_to_gpu_buffer<T>(&mut self, render_core_context: &RenderCoreContext, data: &[T]) {
         if data.is_empty() {

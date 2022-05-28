@@ -84,6 +84,17 @@ impl BindingData {
     where
         T: AsBufferBinding,
     {
+        let usage = wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST;
+        let (id, is_changed) = binding_data_buffer.bind_buffer(data, usage, render_core_context);
+
+        self.bind_uniform_buffer(&id, info);
+        if is_changed {
+            self.is_dirty = true;
+        }
+        self
+    }
+
+    pub fn bind_uniform_buffer(&mut self, id: &Uid, info: BindingInfo) -> &mut Self {
         self.create_group_and_binding_index(info.group_index);
 
         if info.binding_index >= self.bind_group_layout_entries[info.group_index].len() {
@@ -101,13 +112,8 @@ impl BindingData {
             self.is_dirty = true;
         }
 
-        let usage = wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST;
-        let (id, is_changed) = binding_data_buffer.bind_buffer(data, usage, render_core_context);
-
         if info.binding_index >= self.binding_types[info.group_index].len() {
-            self.binding_types[info.group_index].push(BindingType::Buffer(id));
-            self.is_dirty = true;
-        } else if is_changed {
+            self.binding_types[info.group_index].push(BindingType::Buffer(*id));
             self.is_dirty = true;
         }
         self
@@ -123,6 +129,21 @@ impl BindingData {
     where
         T: AsBufferBinding,
     {
+        let mut usage = wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST;
+        if !info.read_only {
+            usage |= wgpu::BufferUsages::COPY_SRC;
+        }
+        let (id, is_changed) = binding_data_buffer.bind_buffer(data, usage, render_core_context);
+
+        self.bind_storage_buffer(&id, info);
+
+        if is_changed {
+            self.is_dirty = true;
+        }
+        self
+    }
+
+    pub fn bind_storage_buffer(&mut self, id: &Uid, info: BindingInfo) -> &mut Self {
         self.create_group_and_binding_index(info.group_index);
 
         if info.binding_index >= self.bind_group_layout_entries[info.group_index].len() {
@@ -142,13 +163,8 @@ impl BindingData {
             self.is_dirty = true;
         }
 
-        let usage = wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST;
-        let (id, is_changed) = binding_data_buffer.bind_buffer(data, usage, render_core_context);
-
         if info.binding_index >= self.binding_types[info.group_index].len() {
-            self.binding_types[info.group_index].push(BindingType::Buffer(id));
-            self.is_dirty = true;
-        } else if is_changed {
+            self.binding_types[info.group_index].push(BindingType::Buffer(*id));
             self.is_dirty = true;
         }
         self
@@ -333,6 +349,16 @@ impl BindingData {
                     .for_each(|(index, binding_type)| match binding_type {
                         BindingType::Buffer(id) => {
                             if let Some(buffer) = bind_data_buffer.get(id) {
+                                debug_assert!(
+                                    buffer.gpu_buffer().is_some(),
+                                    "Buffer is not uploaded to gpu already"
+                                );
+                                debug_assert!(
+                                    buffer.size() != 0,
+                                    "Group {} Buffer {} has size 0",
+                                    group_index,
+                                    index
+                                );
                                 let entry = wgpu::BindGroupEntry {
                                     binding: index as _,
                                     resource: buffer.gpu_buffer().unwrap().as_entire_binding(),

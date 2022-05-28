@@ -321,12 +321,14 @@ impl Renderer {
             return;
         }
 
+        {
+            let graphics_data = &mut render_context.graphics_data.get_mut();
+            graphics_data.send_to_gpu(render_context);
+        }
+
         self.passes.iter_mut().for_each(|pass| {
             pass.init(render_context);
         });
-
-        let graphics_data = &mut render_context.graphics_data.get_mut();
-        graphics_data.send_to_gpu(render_context);
 
         render_context.core.submit(encoder);
     }
