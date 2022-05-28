@@ -165,7 +165,7 @@ where
     fn message_from_string(&self, s: &str) {
         if let Some(f) = &self.msg_from_str {
             if let Some(msg) = f(s) {
-                inox_log::debug_log!("Message from string {}", s);
+                //inox_log::debug_log!("Message from string {}", s);
                 self.send_event(msg);
             }
         }

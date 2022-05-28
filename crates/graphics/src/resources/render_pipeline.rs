@@ -70,6 +70,7 @@ impl ResourceTrait for RenderPipeline {
         Self: Sized,
     {
         *self = other.clone();
+        self.invalidate();
     }
 }
 
@@ -192,6 +193,7 @@ impl RenderPipeline {
                 if !shader.get_mut().init(context) {
                     return false;
                 }
+                self.render_pipeline = None;
                 self.format = None;
             }
         }
@@ -200,6 +202,7 @@ impl RenderPipeline {
                 if !shader.get_mut().init(context) {
                     return false;
                 }
+                self.render_pipeline = None;
                 self.format = None;
             }
         }

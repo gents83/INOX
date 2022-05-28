@@ -52,6 +52,7 @@ impl ResourceTrait for Shader {
         Self: Sized,
     {
         *self = other.clone();
+        self.invalidate();
     }
 }
 

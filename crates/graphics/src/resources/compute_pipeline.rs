@@ -60,6 +60,7 @@ impl ResourceTrait for ComputePipeline {
         Self: Sized,
     {
         *self = other.clone();
+        self.invalidate();
     }
 }
 
@@ -145,8 +146,11 @@ impl ComputePipeline {
             return false;
         }
         if let Some(shader) = self.shader.as_ref() {
-            if !shader.get_mut().init(context) {
-                return false;
+            if !shader.get().is_initialized() {
+                if !shader.get_mut().init(context) {
+                    return false;
+                }
+                self.compute_pipeline = None;
             }
         }
         if self.is_initialized() {

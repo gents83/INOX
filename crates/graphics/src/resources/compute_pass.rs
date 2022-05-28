@@ -43,6 +43,7 @@ impl ResourceTrait for ComputePass {
         Self: Sized,
     {
         *self = other.clone();
+        self.invalidate();
     }
 }
 
@@ -122,11 +123,7 @@ impl ComputePass {
     pub fn init(&mut self, render_context: &RenderContext, binding_data: &BindingData) {
         let mut is_initialized = false;
         self.pipelines.iter().for_each(|pipeline| {
-            if pipeline.get().is_initialized() {
-                is_initialized |= true;
-            } else {
-                is_initialized |= pipeline.get_mut().init(render_context, binding_data);
-            }
+            is_initialized |= pipeline.get_mut().init(render_context, binding_data);
         });
         self.is_initialized = is_initialized;
     }

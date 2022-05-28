@@ -57,7 +57,7 @@ fn rotate_quat(pos: vec3<f32>, orientation: vec4<f32>) -> vec3<f32> {
     return pos + 2.0 * cross(orientation.xyz, cross(orientation.xyz, pos) + orientation.w * pos);
 }
 
-fn cone_culling(meshlet: MeshletData, mesh: MeshData, camera_position: vec3<f32>) -> bool {
+fn is_cone_culled(meshlet: MeshletData, mesh: MeshData, camera_position: vec3<f32>) -> bool {
     let center = rotate_quat(meshlet.center, mesh.orientation) * mesh.scale + mesh.position;
     let radius = meshlet.radius * mesh.scale;
 
@@ -66,6 +66,8 @@ fn cone_culling(meshlet: MeshletData, mesh: MeshData, camera_position: vec3<f32>
 
     let direction = center - camera_position;
     return dot(direction, cone_axis) < cone_cutoff * length(direction) + radius;
+//    let direction = meshlet.center - camera_position;
+//    return dot(direction, meshlet.cone_axis) < meshlet.cone_cutoff * length(direction) + meshlet.radius;
 }
 
 
@@ -79,8 +81,8 @@ fn main(@builtin(local_invocation_id) local_invocation_id: vec3<u32>, @builtin(l
     }
     let mesh_index = commands.commands[meshlet_index].base_instance;
 
-    let accept = cone_culling(meshlets.meshlets[meshlet_index], meshes.meshes[mesh_index], constant_data.view[3].xyz);
-    if (!accept) {
+    let is_visible = is_cone_culled(meshlets.meshlets[meshlet_index], meshes.meshes[mesh_index], constant_data.view[3].xyz);
+    if (!is_visible) {
         commands.commands[meshlet_index].vertex_count = 0u;
         commands.commands[meshlet_index].instance_count = 0u;
         commands.commands[meshlet_index].base_index = 0u;

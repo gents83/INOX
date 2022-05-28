@@ -50,6 +50,7 @@ impl ResourceTrait for RenderPass {
         Self: Sized,
     {
         *self = other.clone();
+        self.invalidate();
     }
 }
 
