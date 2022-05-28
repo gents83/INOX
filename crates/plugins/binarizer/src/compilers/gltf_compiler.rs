@@ -405,7 +405,9 @@ impl GltfCompiler {
                     all_indices.push(vertices_offset as u32 + *t as u32);
                 });
                 mesh_data.meshlets.push(MeshletData {
-                    vertices_count: m.triangles.len() as _,
+                    vertices_count: m.vertices.len() as _,
+                    vertices_offset: vertices_offset as _,
+                    indices_count: m.triangles.len() as _,
                     indices_offset: indices_offset as _,
                     center: bounds.center.into(),
                     radius: bounds.radius,

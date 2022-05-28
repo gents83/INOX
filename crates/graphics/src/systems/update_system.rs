@@ -204,8 +204,7 @@ impl System for UpdateSystem {
             renderer.change_state(RendererState::Preparing);
             let render_context = renderer.render_context().get();
             let render_context = render_context.as_ref().unwrap();
-            render_context.prepare_bindings();
-            render_context.new_encoder()
+            render_context.core.new_encoder()
         };
 
         self.handle_events(&mut encoder);

@@ -1,10 +1,10 @@
-use std::{any::type_name, num::NonZeroU32};
+use std::num::NonZeroU32;
 
 use inox_uid::{generate_uid_from_string, Uid};
 
 use crate::{
-    platform::required_gpu_features, DataBuffer, RenderContext, ShaderStage, TextureHandler,
-    TextureId, MAX_TEXTURE_ATLAS_COUNT,
+    platform::required_gpu_features, BindingDataBuffer, DataBuffer, RenderContext,
+    RenderCoreContext, ShaderStage, TextureHandler, TextureId, MAX_TEXTURE_ATLAS_COUNT,
 };
 
 pub trait AsBufferBinding {
@@ -12,17 +12,26 @@ pub trait AsBufferBinding {
     where
         Self: Sized,
     {
-        let typename = type_name::<Self>();
-        generate_uid_from_string(typename)
+        let typename = std::any::type_name::<Self>()
+            .split(':')
+            .collect::<Vec<&str>>()
+            .last()
+            .unwrap()
+            .to_string();
+        generate_uid_from_string(typename.as_str())
     }
-    fn mark_as_dirty(&self, render_context: &RenderContext)
-    where
-        Self: Sized,
-    {
-        render_context.mark_buffer_as_dirty::<Self>();
-    }
+    fn is_dirty(&self) -> bool;
+    fn set_dirty(&mut self, is_dirty: bool);
     fn size(&self) -> u64;
-    fn fill_buffer(&self, render_context: &RenderContext, buffer: &mut DataBuffer);
+    fn fill_buffer(&self, render_core_context: &RenderCoreContext, buffer: &mut DataBuffer);
+}
+
+#[derive(Default)]
+pub struct BindingInfo {
+    pub group_index: usize,
+    pub binding_index: usize,
+    pub stage: ShaderStage,
+    pub read_only: bool,
 }
 
 #[derive(PartialEq, Eq)]
@@ -67,21 +76,20 @@ impl BindingData {
 
     pub fn add_uniform_data<T>(
         &mut self,
-        render_context: &RenderContext,
-        group_index: usize,
-        binding_index: usize,
-        data: &T,
-        stage: ShaderStage,
+        render_core_context: &RenderCoreContext,
+        binding_data_buffer: &BindingDataBuffer,
+        data: &mut T,
+        info: BindingInfo,
     ) -> &mut Self
     where
         T: AsBufferBinding,
     {
-        self.create_group_and_binding_index(group_index);
+        self.create_group_and_binding_index(info.group_index);
 
-        if binding_index >= self.bind_group_layout_entries[group_index].len() {
+        if info.binding_index >= self.bind_group_layout_entries[info.group_index].len() {
             let layout_entry = wgpu::BindGroupLayoutEntry {
-                binding: binding_index as _,
-                visibility: stage.into(),
+                binding: info.binding_index as _,
+                visibility: info.stage.into(),
                 ty: wgpu::BindingType::Buffer {
                     ty: wgpu::BufferBindingType::Uniform,
                     has_dynamic_offset: false,
@@ -89,15 +97,17 @@ impl BindingData {
                 },
                 count: None,
             };
-            self.bind_group_layout_entries[group_index].push(layout_entry);
+            self.bind_group_layout_entries[info.group_index].push(layout_entry);
             self.is_dirty = true;
         }
 
         let usage = wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST;
-        let id = render_context.bind_buffer(data, usage);
+        let (id, is_changed) = binding_data_buffer.bind_buffer(data, usage, render_core_context);
 
-        if binding_index >= self.binding_types[group_index].len() {
-            self.binding_types[group_index].push(BindingType::Buffer(id));
+        if info.binding_index >= self.binding_types[info.group_index].len() {
+            self.binding_types[info.group_index].push(BindingType::Buffer(id));
+            self.is_dirty = true;
+        } else if is_changed {
             self.is_dirty = true;
         }
         self
@@ -105,38 +115,40 @@ impl BindingData {
 
     pub fn add_storage_data<T>(
         &mut self,
-        render_context: &RenderContext,
-        group_index: usize,
-        binding_index: usize,
-        data: &T,
-        stage: ShaderStage,
-        read_only: bool,
+        render_core_context: &RenderCoreContext,
+        binding_data_buffer: &BindingDataBuffer,
+        data: &mut T,
+        info: BindingInfo,
     ) -> &mut Self
     where
         T: AsBufferBinding,
     {
-        self.create_group_and_binding_index(group_index);
+        self.create_group_and_binding_index(info.group_index);
 
-        if binding_index >= self.bind_group_layout_entries[group_index].len() {
+        if info.binding_index >= self.bind_group_layout_entries[info.group_index].len() {
             let layout_entry = wgpu::BindGroupLayoutEntry {
-                binding: binding_index as _,
-                visibility: stage.into(),
+                binding: info.binding_index as _,
+                visibility: info.stage.into(),
                 ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Storage { read_only },
+                    ty: wgpu::BufferBindingType::Storage {
+                        read_only: info.read_only,
+                    },
                     has_dynamic_offset: false,
                     min_binding_size: None,
                 },
                 count: None,
             };
-            self.bind_group_layout_entries[group_index].push(layout_entry);
+            self.bind_group_layout_entries[info.group_index].push(layout_entry);
             self.is_dirty = true;
         }
 
         let usage = wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST;
-        let id = render_context.bind_buffer(data, usage);
+        let (id, is_changed) = binding_data_buffer.bind_buffer(data, usage, render_core_context);
 
-        if binding_index >= self.binding_types[group_index].len() {
-            self.binding_types[group_index].push(BindingType::Buffer(id));
+        if info.binding_index >= self.binding_types[info.group_index].len() {
+            self.binding_types[info.group_index].push(BindingType::Buffer(id));
+            self.is_dirty = true;
+        } else if is_changed {
             self.is_dirty = true;
         }
         self
@@ -144,50 +156,49 @@ impl BindingData {
 
     pub fn add_textures_data(
         &mut self,
-        group_index: usize,
         texture_handler: &TextureHandler,
         render_target: Option<&TextureId>,
         depth_target: Option<&TextureId>,
-        stage: ShaderStage,
+        info: BindingInfo,
     ) -> &mut Self {
-        self.create_group_and_binding_index(group_index);
+        self.create_group_and_binding_index(info.group_index);
 
-        if self.bind_group_layout_entries[group_index].is_empty() {
-            self.bind_group_layout_entries[group_index].push(wgpu::BindGroupLayoutEntry {
+        if self.bind_group_layout_entries[info.group_index].is_empty() {
+            self.bind_group_layout_entries[info.group_index].push(wgpu::BindGroupLayoutEntry {
                 binding: 0,
-                visibility: stage.into(),
+                visibility: info.stage.into(),
                 ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
                 count: None,
             });
             self.is_dirty = true;
         }
-        if self.bind_group_layout_entries[group_index].len() < 2 {
-            self.bind_group_layout_entries[group_index].push(wgpu::BindGroupLayoutEntry {
+        if self.bind_group_layout_entries[info.group_index].len() < 2 {
+            self.bind_group_layout_entries[info.group_index].push(wgpu::BindGroupLayoutEntry {
                 binding: 1,
-                visibility: stage.into(),
+                visibility: info.stage.into(),
                 ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Comparison),
                 count: None,
             });
             self.is_dirty = true;
         }
-        if self.binding_types[group_index].is_empty() {
-            self.binding_types[group_index].push(BindingType::DefaultSampler);
+        if self.binding_types[info.group_index].is_empty() {
+            self.binding_types[info.group_index].push(BindingType::DefaultSampler);
             self.is_dirty = true;
         }
-        if self.binding_types[group_index].len() < 2 {
-            self.binding_types[group_index].push(BindingType::DepthSampler);
+        if self.binding_types[info.group_index].len() < 2 {
+            self.binding_types[info.group_index].push(BindingType::DepthSampler);
             self.is_dirty = true;
         }
 
         let mut bind_group_layout_count = 2;
         if required_gpu_features().contains(wgpu::Features::TEXTURE_BINDING_ARRAY) {
-            if self.bind_group_layout_entries[group_index].len() < 3 {
-                self.bind_group_layout_entries[group_index].push(wgpu::BindGroupLayoutEntry {
+            if self.bind_group_layout_entries[info.group_index].len() < 3 {
+                self.bind_group_layout_entries[info.group_index].push(wgpu::BindGroupLayoutEntry {
                     binding: {
                         bind_group_layout_count += 1;
                         (bind_group_layout_count - 1) as _
                     },
-                    visibility: stage.into(),
+                    visibility: info.stage.into(),
                     ty: wgpu::BindingType::Texture {
                         sample_type: wgpu::TextureSampleType::Float { filterable: true },
                         view_dimension: wgpu::TextureViewDimension::D2Array,
@@ -197,16 +208,16 @@ impl BindingData {
                 });
                 self.is_dirty = true;
             }
-        } else if self.bind_group_layout_entries[group_index].len()
+        } else if self.bind_group_layout_entries[info.group_index].len()
             < (2 + MAX_TEXTURE_ATLAS_COUNT as usize)
         {
             (0..MAX_TEXTURE_ATLAS_COUNT).for_each(|_| {
-                self.bind_group_layout_entries[group_index].push(wgpu::BindGroupLayoutEntry {
+                self.bind_group_layout_entries[info.group_index].push(wgpu::BindGroupLayoutEntry {
                     binding: {
                         bind_group_layout_count += 1;
                         (bind_group_layout_count - 1) as _
                     },
-                    visibility: stage.into(),
+                    visibility: info.stage.into(),
                     ty: wgpu::BindingType::Texture {
                         sample_type: wgpu::TextureSampleType::Float { filterable: true },
                         view_dimension: wgpu::TextureViewDimension::D2Array,
@@ -249,10 +260,12 @@ impl BindingData {
             }
         }
 
-        if self.binding_types[group_index].len() < 3 {
-            self.binding_types[group_index].push(BindingType::TextureArray(Box::new(textures)));
+        if self.binding_types[info.group_index].len() < 3 {
+            self.binding_types[info.group_index]
+                .push(BindingType::TextureArray(Box::new(textures)));
             self.is_dirty = true;
-        } else if let BindingType::TextureArray(old_textures) = &self.binding_types[group_index][2]
+        } else if let BindingType::TextureArray(old_textures) =
+            &self.binding_types[info.group_index][2]
         {
             old_textures.iter().enumerate().for_each(|(index, id)| {
                 if textures[index] != *id {
@@ -284,7 +297,7 @@ impl BindingData {
             |(index, bind_group_layout_entry)| {
                 let label = format!("{} bind group layout {}", typename, index);
 
-                let data_bind_group_layout = render_context.device.create_bind_group_layout(
+                let data_bind_group_layout = render_context.core.device.create_bind_group_layout(
                     &wgpu::BindGroupLayoutDescriptor {
                         entries: bind_group_layout_entry.as_slice(),
                         label: Some(label.as_str()),
@@ -312,17 +325,17 @@ impl BindingData {
                         });
                     }
                 });
-                let bind_data_buffer = render_context.bind_data_buffer.read().unwrap();
+                let bind_data_buffer = render_context.binding_data_buffer.buffers.read().unwrap();
                 let mut bind_group = Vec::new();
                 binding_type_array
                     .iter()
                     .enumerate()
                     .for_each(|(index, binding_type)| match binding_type {
                         BindingType::Buffer(id) => {
-                            if let Some(entry) = bind_data_buffer.get(id) {
+                            if let Some(buffer) = bind_data_buffer.get(id) {
                                 let entry = wgpu::BindGroupEntry {
                                     binding: index as _,
-                                    resource: entry.0.gpu_buffer().unwrap().as_entire_binding(),
+                                    resource: buffer.gpu_buffer().unwrap().as_entire_binding(),
                                 };
                                 bind_group.push(entry);
                             }
@@ -367,6 +380,7 @@ impl BindingData {
                     });
                 let data_bind_group =
                     render_context
+                        .core
                         .device
                         .create_bind_group(&wgpu::BindGroupDescriptor {
                             layout: &self.bind_group_layout[group_index],

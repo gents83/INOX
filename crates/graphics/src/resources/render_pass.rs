@@ -224,7 +224,7 @@ impl RenderPass {
                 let texture_handler = &mut render_context.texture_handler;
                 if texture_handler.get_texture_atlas(texture.id()).is_none() {
                     texture_handler.add_custom_texture(
-                        &render_context.device,
+                        &render_context.core.device,
                         texture.id(),
                         texture.get().width(),
                         texture.get().height(),
@@ -239,7 +239,7 @@ impl RenderPass {
                 let texture_handler = &mut render_context.texture_handler;
                 if texture_handler.get_texture_atlas(texture.id()).is_none() {
                     texture_handler.add_custom_texture(
-                        &render_context.device,
+                        &render_context.core.device,
                         texture.id(),
                         texture.get().width(),
                         texture.get().height(),
@@ -375,13 +375,13 @@ impl RenderPass {
                                 pipeline_id,
                                 |_mesh_id, index, instance_data, vertices_range, indices_range| {
                                     let x = (instance_data.draw_area[0] as u32)
-                                        .clamp(0, render_context.config.width);
+                                        .clamp(0, render_context.core.config.width);
                                     let y = (instance_data.draw_area[1] as u32)
-                                        .clamp(0, render_context.config.height);
+                                        .clamp(0, render_context.core.config.height);
                                     let width = (instance_data.draw_area[2] as u32)
-                                        .clamp(0, render_context.config.width - x);
+                                        .clamp(0, render_context.core.config.width - x);
                                     let height = (instance_data.draw_area[3] as u32)
-                                        .clamp(0, render_context.config.height - y);
+                                        .clamp(0, render_context.core.config.height - y);
 
                                     render_pass.set_scissor_rect(x, y, width, height);
                                     render_pass.draw_indexed(

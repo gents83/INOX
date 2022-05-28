@@ -145,7 +145,7 @@ impl ComputePipeline {
             return false;
         }
         if let Some(shader) = self.shader.as_ref() {
-            if !shader.get().is_initialized() && !shader.get_mut().init(context) {
+            if !shader.get_mut().init(context) {
                 return false;
             }
         }
@@ -154,6 +154,7 @@ impl ComputePipeline {
         }
         let compute_pipeline_layout =
             context
+                .core
                 .device
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: Some("Compute Pipeline Layout"),
@@ -168,6 +169,7 @@ impl ComputePipeline {
         let compute_pipeline = {
             inox_profiler::scoped_profile!("compute_pipeline::crate[{}]", self.name());
             context
+                .core
                 .device
                 .create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
                     label: Some(

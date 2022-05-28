@@ -30,6 +30,7 @@ pub enum RendererState {
     Prepared,
     Drawing,
     Submitted,
+    Rendered,
 }
 
 pub struct Renderer {
@@ -119,8 +120,8 @@ impl Renderer {
 
     pub fn resolution(&self) -> (u32, u32) {
         (
-            self.context.get().as_ref().unwrap().config.width,
-            self.context.get().as_ref().unwrap().config.height,
+            self.context.get().as_ref().unwrap().core.config.width,
+            self.context.get().as_ref().unwrap().core.config.height,
         )
     }
 
@@ -162,10 +163,7 @@ impl Renderer {
     pub fn set_surface_size(&mut self, width: u32, height: u32) {
         let mut context = self.context.get_mut();
         let context = context.as_mut().unwrap();
-        context.config.width = width;
-        context.config.height = height;
-        context.surface.configure(&context.device, &context.config);
-        inox_log::debug_log!("Surface size: {}x{}", width, height);
+        context.core.set_surface_size(width, height);
         self.recreate();
     }
 
@@ -186,7 +184,7 @@ impl Renderer {
                     let height = texture.get().height();
                     if let Some(image_data) = texture.get().image_data() {
                         texture_handler.add_image(
-                            &render_context.device,
+                            &render_context.core.device,
                             encoder,
                             texture_id,
                             (width, height),
@@ -300,6 +298,7 @@ impl Renderer {
                 .get()
                 .as_ref()
                 .unwrap()
+                .core
                 .surface
                 .get_current_texture()
         };
@@ -329,7 +328,7 @@ impl Renderer {
         let graphics_data = &mut render_context.graphics_data.get_mut();
         graphics_data.send_to_gpu(render_context);
 
-        render_context.submit(encoder);
+        render_context.core.submit(encoder);
     }
 
     pub fn update_passes(&mut self) {

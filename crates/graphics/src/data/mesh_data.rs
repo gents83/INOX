@@ -14,6 +14,8 @@ pub struct MeshletData {
     pub cone_axis: Vector3,
     pub cone_cutoff: f32,
     pub vertices_count: u32,
+    pub vertices_offset: u32,
+    pub indices_count: u32,
     pub indices_offset: u32,
 }
 
@@ -25,6 +27,8 @@ impl Default for MeshletData {
             cone_axis: Vector3::default_zero(),
             cone_cutoff: 0.0,
             vertices_count: 0,
+            vertices_offset: 0,
+            indices_count: 0,
             indices_offset: 0,
         }
     }

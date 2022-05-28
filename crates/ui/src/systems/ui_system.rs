@@ -37,7 +37,7 @@ use inox_resources::{
 use inox_serialize::read_from_file;
 use inox_uid::generate_random_uid;
 
-use crate::{UIPass, UIPassData, UIWidget};
+use crate::{UIPass, UIWidget};
 
 use super::config::Config;
 
@@ -450,9 +450,7 @@ impl System for UISystem {
         {
             let mut r = self.renderer.write().unwrap();
             if let Some(ui_pass) = r.pass_mut::<UIPass>(self.ui_pass_index) {
-                ui_pass.set_custom_data(UIPassData {
-                    ui_scale: self.ui_scale,
-                });
+                ui_pass.set_ui_scale(self.ui_scale);
             }
         }
 

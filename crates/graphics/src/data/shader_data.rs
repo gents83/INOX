@@ -11,6 +11,12 @@ pub enum ShaderStage {
     VertexAndFragment,
 }
 
+impl Default for ShaderStage {
+    fn default() -> Self {
+        ShaderStage::None
+    }
+}
+
 impl From<ShaderStage> for wgpu::ShaderStages {
     fn from(val: ShaderStage) -> Self {
         match val {

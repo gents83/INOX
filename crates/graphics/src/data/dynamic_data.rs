@@ -3,7 +3,7 @@ use std::mem::size_of;
 use inox_resources::HashBuffer;
 
 use crate::{
-    AsBufferBinding, DataBuffer, LightData, LightId, Material, MaterialId, RenderContext,
+    AsBufferBinding, DataBuffer, LightData, LightId, Material, MaterialId, RenderCoreContext,
     ShaderMaterialData, TextureData, TextureId, TextureType, INVALID_INDEX, MAX_NUM_LIGHTS,
     MAX_NUM_MATERIALS, MAX_NUM_TEXTURES,
 };
@@ -13,16 +13,20 @@ pub struct DynamicData {
     textures_data: HashBuffer<TextureId, TextureData, MAX_NUM_TEXTURES>,
     materials_data: HashBuffer<MaterialId, ShaderMaterialData, MAX_NUM_MATERIALS>,
     lights_data: HashBuffer<LightId, LightData, MAX_NUM_LIGHTS>,
+    is_dirty: bool,
 }
 
 impl DynamicData {
     pub fn add_texture_data(&mut self, id: &TextureId, data: TextureData) -> usize {
+        self.set_dirty(true);
         self.textures_data.insert(id, data)
     }
     pub fn add_light_data(&mut self, id: &LightId, data: LightData) -> usize {
+        self.set_dirty(true);
         self.lights_data.insert(id, data)
     }
     pub fn add_material_data(&mut self, material_id: &MaterialId, material: &Material) -> usize {
+        self.set_dirty(true);
         let mut textures_indices = [INVALID_INDEX; TextureType::Count as _];
         material
             .textures()
@@ -52,16 +56,21 @@ impl DynamicData {
 }
 
 impl AsBufferBinding for DynamicData {
+    fn is_dirty(&self) -> bool {
+        self.is_dirty
+    }
+    fn set_dirty(&mut self, is_dirty: bool) {
+        self.is_dirty = is_dirty;
+    }
     fn size(&self) -> u64 {
         let total_size = size_of::<TextureData>() * MAX_NUM_TEXTURES
             + size_of::<ShaderMaterialData>() * MAX_NUM_MATERIALS
             + size_of::<LightData>() * MAX_NUM_LIGHTS;
         total_size as _
     }
-
-    fn fill_buffer(&self, render_context: &RenderContext, buffer: &mut DataBuffer) {
-        buffer.add_to_gpu_buffer(render_context, self.textures_data.data());
-        buffer.add_to_gpu_buffer(render_context, self.materials_data.data());
-        buffer.add_to_gpu_buffer(render_context, self.lights_data.data());
+    fn fill_buffer(&self, render_core_context: &RenderCoreContext, buffer: &mut DataBuffer) {
+        buffer.add_to_gpu_buffer(render_core_context, self.textures_data.data());
+        buffer.add_to_gpu_buffer(render_core_context, self.materials_data.data());
+        buffer.add_to_gpu_buffer(render_core_context, self.lights_data.data());
     }
 }

@@ -6,9 +6,9 @@ use std::{
 use inox_core::{define_plugin, ContextRc, Plugin, SystemUID, WindowSystem};
 
 use inox_graphics::{
-    rendering_system::RenderingSystem, update_system::UpdateSystem, DebugDrawerSystem, OpaquePass,
-    Pass, RenderPass, RenderTarget, Renderer, RendererRw, TransparentPass, DEFAULT_HEIGHT,
-    DEFAULT_WIDTH, OPAQUE_PASS_NAME,
+    rendering_system::RenderingSystem, update_system::UpdateSystem, CullingPass, DebugDrawerSystem,
+    OpaquePass, Pass, RenderPass, RenderTarget, Renderer, RendererRw, TransparentPass,
+    DEFAULT_HEIGHT, DEFAULT_WIDTH, OPAQUE_PASS_NAME,
 };
 use inox_platform::Window;
 use inox_resources::ConfigBase;
@@ -55,16 +55,7 @@ impl Plugin for Viewer {
     fn prepare(&mut self, context: &ContextRc) {
         let window_system = WindowSystem::new(self.window.take().unwrap(), context);
         let render_update_system = UpdateSystem::new(self.renderer.clone(), context);
-        /*
-        let culling_compute_pass = context
-        .shared_data()
-        .match_resource(|r: &ComputePass| r.data().name == CULLING_PASS_NAME);
-        let culling_system = CullingSystem::new(
-            context,
-            &culling_compute_pass.unwrap(),
-            VertexFormat::to_bits(VertexFormat::pbr().as_slice()),
-        );
-        */
+
         let rendering_draw_system = RenderingSystem::new(self.renderer.clone(), context);
         let debug_drawer_system = DebugDrawerSystem::new(context);
         let ui_pass_index = {
@@ -84,19 +75,10 @@ impl Plugin for Viewer {
             render_update_system,
             Some(&[RenderingSystem::system_id()]),
         );
-        /*
-        context.add_system(
-            inox_core::Phases::Render,
-            culling_system,
-            Some(&[UpdateSystem::system_id()]),
-        );
-        */
         context.add_system(
             inox_core::Phases::Render,
             rendering_draw_system,
-            Some(&[
-                UpdateSystem::system_id(), /* CullingSystem::system_id() */
-            ]),
+            Some(&[UpdateSystem::system_id()]),
         );
 
         context.add_system(inox_core::Phases::Update, object_system, None);
@@ -124,7 +106,6 @@ impl Plugin for Viewer {
             &WindowSystem::system_id(),
         );
         context.remove_system(inox_core::Phases::Render, &UpdateSystem::system_id());
-        //context.remove_system(inox_core::Phases::Render, &CullingSystem::system_id());
         context.remove_system(inox_core::Phases::Render, &RenderingSystem::system_id());
     }
 
@@ -155,7 +136,7 @@ impl Plugin for Viewer {
 
 impl Viewer {
     fn create_render_passes(context: &ContextRc, renderer: &RendererRw, width: u32, height: u32) {
-        //let culling_pass = CullingPass::create(context);
+        let culling_pass = CullingPass::create(context);
         let opaque_pass = OpaquePass::create(context);
         let transparent_pass = TransparentPass::create(context);
         let ui_pass = UIPass::create(context);
@@ -193,7 +174,7 @@ impl Viewer {
         renderer
             .write()
             .unwrap()
-            //.add_pass(culling_pass)
+            .add_pass(culling_pass)
             .add_pass(opaque_pass)
             .add_pass(transparent_pass)
             .add_pass(ui_pass);

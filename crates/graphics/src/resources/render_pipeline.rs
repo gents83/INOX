@@ -209,6 +209,7 @@ impl RenderPipeline {
         }
         let render_pipeline_layout =
             context
+                .core
                 .device
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: Some("Render Pipeline Layout"),
@@ -225,6 +226,7 @@ impl RenderPipeline {
         let render_pipeline = {
             inox_profiler::scoped_profile!("render_pipeline::crate[{}]", self.name());
             context
+                .core
                 .device
                 .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                     label: Some(

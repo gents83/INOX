@@ -130,4 +130,42 @@ impl ComputePass {
         });
         self.is_initialized = is_initialized;
     }
+
+    pub fn begin<'a>(
+        &'a self,
+        binding_data: &'a BindingData,
+        encoder: &'a mut wgpu::CommandEncoder,
+    ) -> wgpu::ComputePass<'a> {
+        let label = format!("ComputePass {}", self.data().name);
+        let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
+            label: Some(label.as_str()),
+        });
+
+        binding_data
+            .bind_groups()
+            .iter()
+            .enumerate()
+            .for_each(|(index, bind_group)| {
+                compute_pass.set_bind_group(index as _, bind_group, &[]);
+            });
+
+        compute_pass
+    }
+
+    pub fn dispatch(&self, compute_pass: wgpu::ComputePass, x: u32, y: u32, z: u32) {
+        let pipelines = self.pipelines().iter().map(|h| h.get()).collect::<Vec<_>>();
+        {
+            let mut is_ready = false;
+            let mut compute_pass = compute_pass;
+            pipelines.iter().for_each(|pipeline| {
+                if pipeline.is_initialized() {
+                    compute_pass.set_pipeline(pipeline.compute_pipeline());
+                    is_ready = true;
+                }
+            });
+            if is_ready {
+                compute_pass.dispatch_workgroups(x, y, z);
+            }
+        }
+    }
 }

@@ -124,22 +124,26 @@ impl Shader {
                     .unwrap_or_default()
             );
             if !self.data.spirv_code.is_empty() {
-                let module = context
-                    .device
-                    .create_shader_module(&wgpu::ShaderModuleDescriptor {
-                        label: Some(shader_name.as_str()),
-                        source: wgpu::ShaderSource::SpirV(std::borrow::Cow::Borrowed(
-                            self.data.spirv_code.as_slice(),
-                        )),
-                    });
+                let module =
+                    context
+                        .core
+                        .device
+                        .create_shader_module(&wgpu::ShaderModuleDescriptor {
+                            label: Some(shader_name.as_str()),
+                            source: wgpu::ShaderSource::SpirV(std::borrow::Cow::Borrowed(
+                                self.data.spirv_code.as_slice(),
+                            )),
+                        });
                 self.module = Some(module);
             } else if !self.data.wgsl_code.is_empty() {
-                let module = context
-                    .device
-                    .create_shader_module(&wgpu::ShaderModuleDescriptor {
-                        label: Some(shader_name.as_str()),
-                        source: wgpu::ShaderSource::Wgsl(self.data.wgsl_code.clone().into()),
-                    });
+                let module =
+                    context
+                        .core
+                        .device
+                        .create_shader_module(&wgpu::ShaderModuleDescriptor {
+                            label: Some(shader_name.as_str()),
+                            source: wgpu::ShaderSource::Wgsl(self.data.wgsl_code.clone().into()),
+                        });
                 self.module = Some(module);
             }
         }

@@ -1,6 +1,6 @@
 use inox_resources::to_u8_slice;
 
-use crate::RenderContext;
+use crate::RenderCoreContext;
 
 #[derive(Default)]
 pub struct DataBuffer {
@@ -9,46 +9,63 @@ pub struct DataBuffer {
     size: u64,
 }
 
+impl Drop for DataBuffer {
+    fn drop(&mut self) {
+        self.release();
+    }
+}
+
 impl DataBuffer {
+    pub fn release(&mut self) {
+        if let Some(buffer) = self.gpu_buffer.take() {
+            buffer.destroy();
+        }
+    }
     pub fn init(
         &mut self,
-        context: &RenderContext,
+        device: &wgpu::Device,
         size: u64,
         usage: wgpu::BufferUsages,
         buffer_name: &str,
-    ) {
+    ) -> bool {
         inox_profiler::scoped_profile!("DataBuffer::init");
 
+        self.offset = 0;
         if !self.is_valid() || self.size != size {
             let label = format!("{} Buffer", buffer_name);
-            let data_buffer = context.device.create_buffer(&wgpu::BufferDescriptor {
+            self.release();
+            let data_buffer = device.create_buffer(&wgpu::BufferDescriptor {
                 label: Some(label.as_str()),
                 size,
                 mapped_at_creation: false,
                 usage,
             });
             self.gpu_buffer = Some(data_buffer);
+            self.size = size;
+            return true;
         }
-        self.offset = 0;
-        self.size = size;
+        false
     }
     pub fn init_from_type<T>(
         &mut self,
-        context: &RenderContext,
+        render_core_context: &RenderCoreContext,
         size: u64,
         usage: wgpu::BufferUsages,
-    ) {
+    ) -> bool {
         let typename = std::any::type_name::<T>()
             .split(':')
             .collect::<Vec<&str>>()
             .last()
             .unwrap()
             .to_string();
-        self.init(context, size, usage, typename.as_str());
+        self.init(&render_core_context.device, size, usage, typename.as_str())
     }
-    pub fn add_to_gpu_buffer<T>(&mut self, context: &RenderContext, data: &[T]) {
+    pub fn add_to_gpu_buffer<T>(&mut self, render_core_context: &RenderCoreContext, data: &[T]) {
+        if data.is_empty() {
+            return;
+        }
         inox_profiler::scoped_profile!("DataBuffer::add_to_gpu_buffer");
-        context.queue.write_buffer(
+        render_core_context.queue.write_buffer(
             self.gpu_buffer.as_ref().unwrap(),
             self.offset,
             to_u8_slice(data),

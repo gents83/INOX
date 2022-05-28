@@ -6,18 +6,41 @@ use inox_resources::{HashBuffer, ResourceId, ResourceTrait, SharedData, SharedDa
 use wgpu::util::DrawIndexedIndirect;
 
 use crate::{
-    DataBuffer, GpuBuffer, InstanceData, Mesh, MeshData, MeshId, MeshletData, RenderContext,
-    RenderPipelineId, VertexFormatBits, INVALID_INDEX,
+    AsBufferBinding, DataBuffer, GpuBuffer, InstanceData, Mesh, MeshData, MeshId, MeshletData,
+    RenderContext, RenderCoreContext, RenderPipelineId, VertexFormatBits, INVALID_INDEX,
 };
 
 pub const GRAPHICS_DATA_UID: ResourceId =
     inox_uid::generate_static_uid_from_string(stringify!(GraphicsData));
 
+#[repr(C)]
+#[derive(Default, Clone)]
+pub struct Meshlets {
+    is_dirty: bool,
+    pub data: Vec<MeshletData>,
+}
+
+impl AsBufferBinding for Meshlets {
+    fn is_dirty(&self) -> bool {
+        self.is_dirty
+    }
+    fn set_dirty(&mut self, is_dirty: bool) {
+        self.is_dirty = is_dirty;
+    }
+    fn size(&self) -> u64 {
+        (std::mem::size_of::<MeshletData>() * self.data.len()) as _
+    }
+
+    fn fill_buffer(&self, render_core_context: &RenderCoreContext, buffer: &mut DataBuffer) {
+        buffer.add_to_gpu_buffer(render_core_context, self.data.as_slice());
+    }
+}
+
 #[derive(Default)]
 struct MeshBuffers {
     vertex_buffer: GpuBuffer<{ wgpu::BufferUsages::bits(&wgpu::BufferUsages::VERTEX) }>,
     index_buffer: GpuBuffer<{ wgpu::BufferUsages::bits(&wgpu::BufferUsages::INDEX) }>,
-    meshlet_array: Vec<MeshletData>,
+    meshlets: Meshlets,
 }
 
 #[derive(Default)]
@@ -38,7 +61,7 @@ struct PipelineBuffers {
 pub struct GraphicsData {
     mesh_buffers: HashMap<VertexFormatBits, MeshBuffers>,
     pipeline_buffers: HashMap<RenderPipelineId, PipelineBuffers>,
-    meshlets: HashBuffer<MeshId, MeshletsInfo, 0>,
+    meshlets_info: HashBuffer<MeshId, MeshletsInfo, 0>,
 }
 
 impl ResourceTrait for GraphicsData {
@@ -183,11 +206,12 @@ impl GraphicsData {
         meshlets: &[MeshletData],
     ) {
         let entry = self.mesh_buffers.entry(attributes_hash).or_default();
-        let first_index = entry.meshlet_array.len();
+        let first_index = entry.meshlets.data.len();
         meshlets.iter().for_each(|meshlet| {
-            entry.meshlet_array.push(meshlet.clone());
+            entry.meshlets.data.push(meshlet.clone());
         });
-        self.meshlets.insert(
+        entry.meshlets.set_dirty(true);
+        self.meshlets_info.insert(
             mesh_id,
             MeshletsInfo {
                 first_meshlet: first_index,
@@ -195,10 +219,10 @@ impl GraphicsData {
             },
         );
     }
-    pub fn get_meshlets(&self, attributes_hash: &VertexFormatBits) -> Option<&[MeshletData]> {
+    pub fn get_meshlets(&mut self, attributes_hash: &VertexFormatBits) -> Option<&mut Meshlets> {
         self.mesh_buffers
-            .get(attributes_hash)
-            .map(|mb| mb.meshlet_array.as_slice())
+            .get_mut(attributes_hash)
+            .map(|mb| &mut mb.meshlets)
     }
     pub fn add_mesh_data(
         &mut self,
@@ -233,13 +257,14 @@ impl GraphicsData {
             mb.index_buffer.remove(mesh_id);
             let mut start = 0usize;
             let mut count = 0usize;
-            if let Some(meshlet_info) = self.meshlets.remove(mesh_id) {
+            if let Some(meshlet_info) = self.meshlets_info.remove(mesh_id) {
                 start = meshlet_info.first_meshlet;
                 count = meshlet_info.meshlet_count;
-                mb.meshlet_array.drain(start..(start + count));
+                mb.meshlets.data.drain(start..(start + count));
+                mb.meshlets.set_dirty(true);
             }
             if count > 0 {
-                self.meshlets.for_each_item_mut(|_id, _index, info| {
+                self.meshlets_info.for_each_item_mut(|_id, _index, info| {
                     if info.first_meshlet > start {
                         info.first_meshlet -= count;
                     }
@@ -387,7 +412,7 @@ impl GraphicsData {
 
     pub fn fill_command_buffer(
         &mut self,
-        context: &RenderContext,
+        render_context: &RenderContext,
         pipeline_id: &RenderPipelineId,
     ) -> u64 {
         inox_profiler::scoped_profile!("graphics_data::fill_command_buffer");
@@ -425,12 +450,12 @@ impl GraphicsData {
                                 )
                             })
                         {
-                            if let Some(meshlet_info) = self.meshlets.get(&mesh_id) {
+                            if let Some(meshlet_info) = self.meshlets_info.get(&mesh_id) {
                                 let start = meshlet_info.first_meshlet;
                                 let end = meshlet_info.first_meshlet + meshlet_info.meshlet_count;
-                                mb.meshlet_array[start..end].iter().for_each(|meshlet| {
+                                mb.meshlets.data[start..end].iter().for_each(|meshlet| {
                                     pb.commands_buffer.0.push(wgpu::util::DrawIndexedIndirect {
-                                        vertex_count: meshlet.vertices_count as _,
+                                        vertex_count: meshlet.indices_count as _,
                                         instance_count: 1,
                                         base_index: (base_index + meshlet.indices_offset),
                                         vertex_offset: vertices_range.start as _,
@@ -458,13 +483,13 @@ impl GraphicsData {
                 pb.commands_buffer
                     .1
                     .init_from_type::<wgpu::util::DrawIndexedIndirect>(
-                        context,
+                        &render_context.core,
                         total_size,
                         wgpu::BufferUsages::INDIRECT | wgpu::BufferUsages::COPY_DST,
                     );
                 pb.commands_buffer
                     .1
-                    .add_to_gpu_buffer(context, pb.commands_buffer.0.as_slice());
+                    .add_to_gpu_buffer(&render_context.core, pb.commands_buffer.0.as_slice());
                 return commands_count;
             }
         }
@@ -486,13 +511,14 @@ impl GraphicsData {
         }
     }
 
-    pub fn send_to_gpu(&mut self, context: &RenderContext) {
+    pub fn send_to_gpu(&mut self, render_context: &RenderContext) {
         inox_profiler::scoped_profile!("graphics_data::send_to_gpu");
 
         self.mesh_buffers.iter_mut().for_each(|(_, mb)| {
             mb.vertex_buffer
-                .send_to_gpu(&context.device, &context.queue);
-            mb.index_buffer.send_to_gpu(&context.device, &context.queue);
+                .send_to_gpu(&render_context.core.device, &render_context.core.queue);
+            mb.index_buffer
+                .send_to_gpu(&render_context.core.device, &render_context.core.queue);
         });
 
         self.pipeline_buffers.iter_mut().for_each(|(_, pb)| {
@@ -500,13 +526,13 @@ impl GraphicsData {
                 size_of::<InstanceData>() as u64 * pb.instance_buffer.0.buffer_len() as u64;
             if total_size > 0 {
                 pb.instance_buffer.1.init_from_type::<InstanceData>(
-                    context,
+                    &render_context.core,
                     total_size,
                     wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
                 );
                 pb.instance_buffer
                     .1
-                    .add_to_gpu_buffer(context, pb.instance_buffer.0.data());
+                    .add_to_gpu_buffer(&render_context.core, pb.instance_buffer.0.data());
             }
         });
     }

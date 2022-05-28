@@ -2,7 +2,7 @@ use std::mem::size_of;
 
 use inox_math::{matrix4_to_array, Matrix4, Vector2};
 
-use crate::{AsBufferBinding, DataBuffer, RenderContext, OPENGL_TO_WGPU_MATRIX};
+use crate::{AsBufferBinding, DataBuffer, RenderCoreContext, OPENGL_TO_WGPU_MATRIX};
 
 pub const CONSTANT_DATA_FLAGS_NONE: u32 = 0;
 pub const CONSTANT_DATA_FLAGS_SUPPORT_SRGB: u32 = 1;
@@ -20,16 +20,22 @@ struct Data {
 
 #[derive(Default, Debug, Clone, Copy)]
 pub struct ConstantData {
+    is_dirty: bool,
     data: Data,
 }
 
 impl AsBufferBinding for ConstantData {
+    fn is_dirty(&self) -> bool {
+        self.is_dirty
+    }
+    fn set_dirty(&mut self, is_dirty: bool) {
+        self.is_dirty = is_dirty;
+    }
     fn size(&self) -> u64 {
         size_of::<Data>() as _
     }
-
-    fn fill_buffer(&self, render_context: &RenderContext, buffer: &mut DataBuffer) {
-        buffer.add_to_gpu_buffer(render_context, &[self.data]);
+    fn fill_buffer(&self, render_core_context: &RenderCoreContext, buffer: &mut DataBuffer) {
+        buffer.add_to_gpu_buffer(render_core_context, &[self.data]);
     }
 }
 
@@ -37,9 +43,9 @@ impl ConstantData {
     pub fn set_flags(&mut self, flags: u32) -> bool {
         if self.data.flags != flags {
             self.data.flags = flags;
-            return true;
+            self.set_dirty(true);
         }
-        false
+        self.is_dirty()
     }
     pub fn update(&mut self, view: Matrix4, proj: Matrix4, screen_size: Vector2) -> bool {
         let view = matrix4_to_array(view);
@@ -53,8 +59,8 @@ impl ConstantData {
             self.data.proj = proj;
             self.data.screen_width = screen_size.x;
             self.data.screen_height = screen_size.y;
-            return true;
+            self.set_dirty(true);
         }
-        false
+        self.is_dirty()
     }
 }

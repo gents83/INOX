@@ -16,20 +16,75 @@ use crate::{
     DEFAULT_HEIGHT, DEFAULT_WIDTH, GRAPHICS_DATA_UID,
 };
 
-pub struct RenderContext {
+#[derive(Default)]
+pub struct BindingDataBuffer {
+    pub buffers: RwLock<HashMap<Uid, DataBuffer>>,
+}
+
+impl BindingDataBuffer {
+    pub fn bind_buffer<T>(
+        &self,
+        data: &mut T,
+        usage: wgpu::BufferUsages,
+        render_core_context: &RenderCoreContext,
+    ) -> (Uid, bool)
+    where
+        T: AsBufferBinding,
+    {
+        let id = T::id();
+
+        let mut bind_data_buffer = self.buffers.write().unwrap();
+        let buffer = bind_data_buffer
+            .entry(id)
+            .or_insert_with(DataBuffer::default);
+
+        let mut is_changed = false;
+        if data.is_dirty() {
+            is_changed |= buffer.init_from_type::<T>(render_core_context, data.size(), usage);
+            data.fill_buffer(render_core_context, buffer);
+            data.set_dirty(false);
+        }
+
+        (id, is_changed)
+    }
+}
+
+pub struct RenderCoreContext {
     pub instance: wgpu::Instance,
     pub surface: wgpu::Surface,
     pub config: wgpu::SurfaceConfiguration,
     pub adapter: wgpu::Adapter,
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
+}
+
+impl RenderCoreContext {
+    pub fn new_encoder(&self) -> wgpu::CommandEncoder {
+        self.device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("Command Encoder"),
+            })
+    }
+    pub fn submit(&self, encoder: wgpu::CommandEncoder) {
+        self.queue.submit(std::iter::once(encoder.finish()));
+    }
+    pub fn set_surface_size(&mut self, width: u32, height: u32) {
+        self.config.width = width;
+        self.config.height = height;
+        self.surface.configure(&self.device, &self.config);
+        inox_log::debug_log!("Surface size: {}x{}", width, height);
+    }
+}
+
+pub struct RenderContext {
+    pub core: RenderCoreContext,
     pub surface_texture: Option<wgpu::SurfaceTexture>,
     pub surface_view: Option<wgpu::TextureView>,
     pub constant_data: ConstantData,
     pub dynamic_data: DynamicData,
     pub texture_handler: TextureHandler,
     pub graphics_data: Resource<GraphicsData>,
-    pub bind_data_buffer: RwLock<HashMap<Uid, (DataBuffer, bool)>>,
+    pub binding_data_buffer: BindingDataBuffer,
 }
 
 pub type RenderContextRw = Arc<RwLock<Option<RenderContext>>>;
@@ -95,116 +150,54 @@ impl RenderContext {
             GraphicsData::default(),
         );
 
-        render_context.write().unwrap().replace(RenderContext {
-            texture_handler: TextureHandler::create(&device),
+        let render_core_context = RenderCoreContext {
             instance,
-            device,
-            adapter,
             surface,
             config,
+            adapter,
+            device,
             queue,
+        };
+
+        render_context.write().unwrap().replace(RenderContext {
+            texture_handler: TextureHandler::create(&render_core_context.device),
+            core: render_core_context,
             surface_texture: None,
             surface_view: None,
             constant_data: ConstantData::default(),
             dynamic_data: DynamicData::default(),
             graphics_data,
-            bind_data_buffer: RwLock::new(HashMap::new()),
+            binding_data_buffer: BindingDataBuffer::default(),
         });
-    }
-
-    pub fn new_encoder(&self) -> wgpu::CommandEncoder {
-        self.device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                label: Some("Command Encoder"),
-            })
-    }
-    pub fn submit(&self, encoder: wgpu::CommandEncoder) {
-        self.queue.submit(std::iter::once(encoder.finish()));
     }
 
     pub fn update_constant_data(&mut self, view: Matrix4, proj: Matrix4, screen_size: Vector2) {
         let mut is_changed = false;
         is_changed |= self.constant_data.update(view, proj, screen_size);
         let mut flags = 0;
-        if self.config.format.describe().srgb {
+        if self.core.config.format.describe().srgb {
             flags |= CONSTANT_DATA_FLAGS_SUPPORT_SRGB;
         }
         //flags |= CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS;
         is_changed |= self.constant_data.set_flags(flags);
         if is_changed {
-            self.constant_data.mark_as_dirty(self);
+            self.constant_data.set_dirty(true);
         }
     }
     pub fn add_texture_data(&mut self, id: &TextureId, data: TextureData) -> usize {
         let uniform_index = self.dynamic_data.add_texture_data(id, data);
-        self.dynamic_data.mark_as_dirty(self);
+        self.dynamic_data.set_dirty(true);
         uniform_index
     }
     pub fn add_light_data(&mut self, id: &LightId, data: LightData) -> usize {
         let uniform_index = self.dynamic_data.add_light_data(id, data);
-        self.dynamic_data.mark_as_dirty(self);
+        self.dynamic_data.set_dirty(true);
         uniform_index
     }
     pub fn add_material_data(&mut self, id: &LightId, material: &Material) -> usize {
         let uniform_index = self.dynamic_data.add_material_data(id, material);
-        self.dynamic_data.mark_as_dirty(self);
+        self.dynamic_data.set_dirty(true);
         uniform_index
-    }
-
-    pub fn is_buffer_dirty<T>(&self) -> bool
-    where
-        T: AsBufferBinding,
-    {
-        let id = T::id();
-
-        let bind_data_buffer = self.bind_data_buffer.read().unwrap();
-        if let Some(entry) = bind_data_buffer.get(&id) {
-            return entry.1;
-        }
-        true
-    }
-
-    pub fn mark_buffer_as_dirty<T>(&self)
-    where
-        T: AsBufferBinding,
-    {
-        let id = T::id();
-
-        let mut bind_data_buffer = self.bind_data_buffer.write().unwrap();
-        let entry = bind_data_buffer
-            .entry(id)
-            .or_insert((DataBuffer::default(), false));
-        entry.1 = false;
-    }
-
-    pub fn bind_buffer<T>(&self, data: &T, usage: wgpu::BufferUsages) -> Uid
-    where
-        T: AsBufferBinding,
-    {
-        let id = T::id();
-
-        let mut bind_data_buffer = self.bind_data_buffer.write().unwrap();
-        let entry = bind_data_buffer
-            .entry(id)
-            .or_insert((DataBuffer::default(), false));
-
-        if !entry.1 {
-            entry.1 = true;
-            entry.0.init_from_type::<T>(self, data.size(), usage);
-            data.fill_buffer(self, &mut entry.0);
-        }
-
-        id
-    }
-
-    pub fn prepare_bindings(&self) {
-        self.bind_data_buffer
-            .write()
-            .unwrap()
-            .iter_mut()
-            .for_each(|(_, (_buffer, is_dirty))| {
-                *is_dirty = false;
-            });
     }
 
     pub fn render_target<'a>(&'a self, render_pass: &'a RenderPass) -> &'a wgpu::TextureView {
@@ -230,7 +223,7 @@ impl RenderContext {
     }
 
     pub fn render_format(&self, render_pass: &RenderPass) -> &wgpu::TextureFormat {
-        let mut render_format = &self.config.format;
+        let mut render_format = &self.core.config.format;
 
         if let Some(texture) = render_pass.render_texture() {
             if let Some(atlas) = self.texture_handler.get_texture_atlas(texture.id()) {

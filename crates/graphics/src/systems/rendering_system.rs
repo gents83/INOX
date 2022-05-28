@@ -42,6 +42,7 @@ impl System for RenderingSystem {
             let mut renderer = self.renderer.write().unwrap();
             renderer.change_state(RendererState::Drawing);
             renderer.update_passes();
+            renderer.change_state(RendererState::Submitted);
         }
 
         {
@@ -55,11 +56,6 @@ impl System for RenderingSystem {
                     renderer.present();
                 },
             );
-        }
-
-        {
-            let mut renderer = self.renderer.write().unwrap();
-            renderer.change_state(RendererState::Submitted);
         }
         true
     }

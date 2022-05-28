@@ -1,8 +1,9 @@
 use std::path::PathBuf;
 
 use crate::{
-    platform::is_indirect_mode_enabled, BindingData, LoadOperation, Pass, RenderContext,
-    RenderMode, RenderPass, RenderPassData, RenderTarget, ShaderStage, StoreOperation,
+    platform::is_indirect_mode_enabled, BindingData, BindingInfo, LoadOperation, Pass,
+    RenderContext, RenderMode, RenderPass, RenderPassData, RenderTarget, ShaderStage,
+    StoreOperation,
 };
 
 use inox_core::ContextRc;
@@ -51,26 +52,36 @@ impl Pass for TransparentPass {
 
         self.binding_data
             .add_uniform_data(
-                render_context,
-                0,
-                0,
-                &render_context.constant_data,
-                ShaderStage::VertexAndFragment,
+                &render_context.core,
+                &render_context.binding_data_buffer,
+                &mut render_context.constant_data,
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 0,
+                    stage: ShaderStage::VertexAndFragment,
+                    ..Default::default()
+                },
             )
             .add_storage_data(
-                render_context,
-                0,
-                1,
-                &render_context.dynamic_data,
-                ShaderStage::VertexAndFragment,
-                true,
+                &render_context.core,
+                &render_context.binding_data_buffer,
+                &mut render_context.dynamic_data,
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 1,
+                    stage: ShaderStage::VertexAndFragment,
+                    read_only: true,
+                },
             )
             .add_textures_data(
-                1,
                 &render_context.texture_handler,
                 render_texture,
                 depth_texture,
-                ShaderStage::Fragment,
+                BindingInfo {
+                    group_index: 1,
+                    stage: ShaderStage::Fragment,
+                    ..Default::default()
+                },
             );
         self.binding_data.send_to_gpu(render_context);
 
@@ -88,12 +99,12 @@ impl Pass for TransparentPass {
             }
         });
 
-        let mut encoder = render_context.new_encoder();
+        let mut encoder = render_context.core.new_encoder();
 
         let render_pass = pass.begin(render_context, &self.binding_data, &mut encoder);
         pass.draw(render_context, render_pass);
 
-        render_context.submit(encoder);
+        render_context.core.submit(encoder);
     }
 }
 
