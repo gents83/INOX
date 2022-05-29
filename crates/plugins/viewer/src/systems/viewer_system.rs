@@ -5,7 +5,7 @@ use inox_graphics::{
     View, WireframeVertexData, DEFAULT_PIPELINE, WIREFRAME_PIPELINE,
 };
 use inox_log::debug_log;
-use inox_math::{VecBase, VecBaseFloat, Vector2, Vector3};
+use inox_math::{Mat4Ops, Matrix4, VecBase, VecBaseFloat, Vector2, Vector3};
 use inox_messenger::Listener;
 use inox_platform::{InputState, Key, KeyEvent, MouseEvent, WindowEvent};
 use inox_resources::{DataTypeResource, Resource, SerializableResource, SerializableResourceEvent};
@@ -28,6 +28,7 @@ pub struct ViewerSystem {
 
 const FORCE_USE_DEFAULT_CAMERA: bool = false;
 const CAMERA_SPEED: f32 = 200.;
+const CAMERA_ROTATION_SPEED: f32 = 80.;
 
 impl Drop for ViewerSystem {
     fn drop(&mut self) {
@@ -428,15 +429,19 @@ impl ViewerSystem {
             if is_on_view3d {
                 let mut rotation_angle = Vector3::default_zero();
 
-                rotation_angle.x = event.normalized_y - self.last_mouse_pos.y;
-                rotation_angle.y = event.normalized_x - self.last_mouse_pos.x;
-                rotation_angle *= CAMERA_SPEED * self.context.global_timer().dt().as_secs_f32();
+                rotation_angle.x = self.last_mouse_pos.y - event.normalized_y;
+                rotation_angle.y = self.last_mouse_pos.x - event.normalized_x;
+                rotation_angle *=
+                    CAMERA_ROTATION_SPEED * self.context.global_timer().dt().as_secs_f32();
                 if rotation_angle != Vector3::default_zero() {
                     self.context
                         .shared_data()
                         .for_each_resource_mut(|_, c: &mut Camera| {
                             if c.is_active() {
-                                c.rotate(rotation_angle * 5.);
+                                let d = c.transform().direction();
+                                let m = Matrix4::from_euler_angles(rotation_angle);
+                                let v = m.transform(d);
+                                c.look_toward(v);
                             }
                         });
                 }

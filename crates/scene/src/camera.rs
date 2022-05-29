@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use inox_graphics::{DEFAULT_HEIGHT, DEFAULT_WIDTH};
-use inox_math::{Degrees, Mat4Ops, MatBase, Matrix4, NewAngle, Vector2, Vector3, Vector4};
+use inox_math::{convert_in_3d, Degrees, Mat4Ops, MatBase, Matrix4, NewAngle, Vector2, Vector3};
 use inox_messenger::MessageHubRc;
 use inox_resources::{
     DataTypeResource, Handle, Resource, ResourceId, ResourceTrait, SerializableResource,
@@ -270,27 +270,6 @@ impl Camera {
     }
 
     pub fn convert_in_3d(&self, normalized_pos: Vector2) -> (Vector3, Vector3) {
-        let view = self.view_matrix();
-        let proj = self.proj_matrix();
-
-        // The ray Start and End positions, in Normalized Device Coordinates (Have you read Tutorial 4 ?)
-        let ray_end = Vector4::new(
-            normalized_pos.x * 2. - 1.,
-            normalized_pos.y * 2. - 1.,
-            1.,
-            1.,
-        );
-
-        let inv_proj = proj.inverse();
-        let inv_view = view.inverse();
-
-        let ray_start_world = self.view_matrix().translation();
-
-        let mut ray_end_camera = inv_proj * ray_end;
-        ray_end_camera /= ray_end_camera.w;
-        let mut ray_end_world = inv_view * ray_end_camera;
-        ray_end_world /= ray_end_world.w;
-
-        (ray_start_world.xyz(), ray_end_world.xyz())
+        convert_in_3d(normalized_pos, self.view_matrix(), self.proj_matrix())
     }
 }

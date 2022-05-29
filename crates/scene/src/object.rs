@@ -184,7 +184,7 @@ impl DataTypeResource for Object {
                     message_hub,
                     path,
                     Some(OnLightCreateData {
-                        position: object.get_position(),
+                        position: object.position(),
                     }),
                 );
                 object.add_component::<Light>(light);
@@ -273,11 +273,11 @@ impl Object {
     }
 
     #[inline]
-    pub fn get_position(&self) -> Vector3 {
+    pub fn position(&self) -> Vector3 {
         self.transform.translation()
     }
     #[inline]
-    pub fn get_rotation(&self) -> Vector3 {
+    pub fn rotation(&self) -> Vector3 {
         self.transform.rotation()
     }
     #[inline]
@@ -387,7 +387,7 @@ impl Object {
             mesh.get_mut().set_matrix(self.transform);
         });
         self.components_of_type::<Light>().iter().for_each(|light| {
-            light.get_mut().set_position(self.get_position());
+            light.get_mut().set_position(self.position());
         });
     }
 }

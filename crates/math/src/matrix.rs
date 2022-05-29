@@ -42,7 +42,10 @@ pub trait Mat4Ops {
         Self: Sized;
     fn look_at(&mut self, position: Vector3);
     fn look_towards(&mut self, direction: Vector3);
-    fn get_direction(&self) -> Vector3;
+    fn direction(&self) -> Vector3;
+    fn forward(&self) -> Vector3;
+    fn up(&self) -> Vector3;
+    fn right(&self) -> Vector3;
     fn transform(&self, vec: Vector3) -> Vector3;
 }
 
@@ -140,8 +143,8 @@ macro_rules! implement_matrix4_operations {
                 if forward.dot(up) >= 1. - f32::EPSILON && forward.dot(up) <= 1. + f32::EPSILON {
                     up = Matrix4::from_angle_x(Degrees::new(90.)).transform(forward);
                 };
-                let right = up.cross(forward).normalized();
-                up = forward.cross(right).normalize();
+                let right = forward.cross(up).normalized();
+                up = right.cross(forward).normalize();
                 let mut l: Matrix4 = Matrix3::from_cols(right, up, forward).into();
                 l.set_translation(p);
                 *self = l;
@@ -154,10 +157,23 @@ macro_rules! implement_matrix4_operations {
             }
 
             #[inline]
-            fn get_direction(&self) -> Vector3 {
-                let rotation = self.rotation();
-                let q = Quaternion::from_euler_angles(rotation);
-                q.v.normalize()
+            fn direction(&self) -> Vector3 {
+                self.forward()
+            }
+
+            #[inline]
+            fn forward(&self) -> Vector3 {
+                self.z.xyz().normalized()
+            }
+
+            #[inline]
+            fn up(&self) -> Vector3 {
+                self.y.xyz().normalized()
+            }
+
+            #[inline]
+            fn right(&self) -> Vector3 {
+                self.x.xyz().normalized()
             }
         }
     };

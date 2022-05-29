@@ -62,12 +62,13 @@ fn is_cone_culled(meshlet: MeshletData, mesh: MeshData, camera_position: vec3<f3
     let radius = meshlet.radius * mesh.scale;
 
     let cone_axis = rotate_quat(vec3<f32>(meshlet.cone_axis[0] / 127., meshlet.cone_axis[1] / 127., meshlet.cone_axis[2] / 127.), mesh.orientation);
+//    let cone_axis = meshlet.cone_axis / 127.;
     let cone_cutoff = meshlet.cone_cutoff / 127.;
 
     let direction = center - camera_position;
     return dot(direction, cone_axis) < cone_cutoff * length(direction) + radius;
-//    let direction = meshlet.center - camera_position;
-//    return dot(direction, meshlet.cone_axis) < meshlet.cone_cutoff * length(direction) + meshlet.radius;
+//    let direction = normalize((meshlet.center + mesh.position) - camera_position);
+//    return dot(direction, cone_axis) < cone_cutoff;
 }
 
 
@@ -83,10 +84,6 @@ fn main(@builtin(local_invocation_id) local_invocation_id: vec3<u32>, @builtin(l
 
     let is_visible = is_cone_culled(meshlets.meshlets[meshlet_index], meshes.meshes[mesh_index], constant_data.view[3].xyz);
     if (!is_visible) {
-        commands.commands[meshlet_index].vertex_count = 0u;
         commands.commands[meshlet_index].instance_count = 0u;
-        commands.commands[meshlet_index].base_index = 0u;
-        commands.commands[meshlet_index].vertex_offset = 0;
-        commands.commands[meshlet_index].base_instance = 0u;
     }
 }
