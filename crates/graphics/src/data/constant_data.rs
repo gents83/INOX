@@ -2,7 +2,7 @@ use std::mem::size_of;
 
 use inox_math::{matrix4_to_array, Matrix4, Vector2};
 
-use crate::{AsBufferBinding, DataBuffer, RenderCoreContext, OPENGL_TO_WGPU_MATRIX};
+use crate::{AsBufferBinding, DataBuffer, RenderCoreContext};
 
 pub const CONSTANT_DATA_FLAGS_NONE: u32 = 0;
 pub const CONSTANT_DATA_FLAGS_SUPPORT_SRGB: u32 = 1;
@@ -49,7 +49,7 @@ impl ConstantData {
     }
     pub fn update(&mut self, view: Matrix4, proj: Matrix4, screen_size: Vector2) -> bool {
         let view = matrix4_to_array(view);
-        let proj = matrix4_to_array(OPENGL_TO_WGPU_MATRIX * proj);
+        let proj = matrix4_to_array(proj);
         if self.data.view != view
             || self.data.proj != proj
             || self.data.screen_width != screen_size.x

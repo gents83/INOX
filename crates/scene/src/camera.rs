@@ -17,6 +17,14 @@ pub const DEFAULT_CAMERA_ASPECT_RATIO: f32 = DEFAULT_WIDTH as f32 / DEFAULT_HEIG
 pub const DEFAULT_CAMERA_NEAR: f32 = 0.1;
 pub const DEFAULT_CAMERA_FAR: f32 = 100.;
 
+#[rustfmt::skip]
+pub const OPENGL_TO_WGPU_MATRIX: Matrix4 = Matrix4::new(
+    1.0, 0.0, 0.0, 0.0,
+    0.0, 1.0, 0.0, 0.0,
+    0.0, 0.0, 0.5, 0.0,
+    0.0, 0.0, 0.5, 1.0,
+);
+
 pub type CameraId = ResourceId;
 
 #[derive(Clone)]
@@ -169,7 +177,7 @@ impl Camera {
     ) -> &mut Self {
         let proj = inox_math::perspective(fov, screen_width / screen_height, near, far);
 
-        self.proj = proj;
+        self.proj = OPENGL_TO_WGPU_MATRIX * proj;
 
         self.fov_in_degrees = fov;
         self.near_plane = near;

@@ -1,8 +1,6 @@
-#![allow(unused_variables)]
-
 use cgmath::InnerSpace;
 
-use crate::{Mat4Ops, Matrix4, Vector2, Vector3, Vector4};
+use crate::{Mat4Ops, Matrix4, VecBaseFloat, Vector2, Vector3, Vector4};
 
 pub enum Faces {
     Top = 0,
@@ -37,13 +35,25 @@ impl From<Faces> for usize {
 
 pub struct Plane {
     pub normal: Vector3,
+    pub distance: f32, //from origin
 }
 
 impl Default for Plane {
     fn default() -> Self {
         Plane {
             normal: Vector3::new(0., 0., 1.),
+            distance: 0.,
         }
+    }
+}
+impl From<Plane> for Vector4 {
+    fn from(p: Plane) -> Self {
+        [p.normal.x, p.normal.y, p.normal.z, p.distance].into()
+    }
+}
+impl From<Plane> for [f32; 4] {
+    fn from(p: Plane) -> Self {
+        [p.normal.x, p.normal.y, p.normal.z, p.distance]
     }
 }
 
@@ -77,16 +87,61 @@ pub fn convert_in_3d(normalized_pos: Vector2, view: Matrix4, proj: Matrix4) -> (
 pub fn compute_frustum_planes(view: Matrix4, proj: Matrix4) -> Frustum {
     let mut frustum = Frustum::default();
 
-    let (top_left_min, top_left_max) = convert_in_3d(Vector2::new(-1., 1.), view, proj);
-    let (top_right_min, top_right_max) = convert_in_3d(Vector2::new(1., 1.), view, proj);
+    let (ntl, ftl) = convert_in_3d(Vector2::new(-1., 1.), view, proj);
+    let (ntr, _ftr) = convert_in_3d(Vector2::new(1., 1.), view, proj);
 
-    let (bottom_left_min, bottom_left_max) = convert_in_3d(Vector2::new(-1., -1.), view, proj);
-    let (bottom_right_min, bottom_right_max) = convert_in_3d(Vector2::new(1., -1.), view, proj);
+    let (nbl, fbl) = convert_in_3d(Vector2::new(-1., -1.), view, proj);
+    let (nbr, fbr) = convert_in_3d(Vector2::new(1., -1.), view, proj);
 
-    frustum.faces[Faces::Near as usize] = Plane {
-        normal: view.direction().normalize(),
-    };
-    frustum.faces[Faces::Far as usize].normal = -frustum.faces[Faces::Near as usize].normal;
+    ////////////////////////////////
+    // ftl                     ftr
+    //  \                      /
+    //   \                    /
+    //   ntl----------------ntr
+    //    |                  |
+    //    |                  |
+    //    |                  |
+    //    |                  |
+    //   nbl----------------nbr
+    //   /                    \
+    //  /                      \
+    // fbl                     fbr
+    ////////////////////////////////
+    frustum.faces[Faces::Near as usize].normal = -view.direction().normalize();
+    frustum.faces[Faces::Near as usize].distance =
+        -frustum.faces[Faces::Near as usize].normal.dot(ntr);
+
+    frustum.faces[Faces::Far as usize].normal = view.direction().normalize();
+    frustum.faces[Faces::Far as usize].distance =
+        -frustum.faces[Faces::Far as usize].normal.dot(ftl);
+
+    frustum.faces[Faces::Top as usize].normal = (ntr - ntl)
+        .normalized()
+        .cross((ftl - ntl).normalized())
+        .normalize();
+    frustum.faces[Faces::Top as usize].distance =
+        -frustum.faces[Faces::Top as usize].normal.dot(ntl);
+
+    frustum.faces[Faces::Bottom as usize].normal = (nbl - nbr)
+        .normalized()
+        .cross((fbr - nbr).normalized())
+        .normalize();
+    frustum.faces[Faces::Bottom as usize].distance =
+        -frustum.faces[Faces::Bottom as usize].normal.dot(nbr);
+
+    frustum.faces[Faces::Left as usize].normal = (ntl - nbl)
+        .normalized()
+        .cross((fbl - nbl).normalized())
+        .normalize();
+    frustum.faces[Faces::Left as usize].distance =
+        -frustum.faces[Faces::Left as usize].normal.dot(nbl);
+
+    frustum.faces[Faces::Right as usize].normal = (nbr - ntr)
+        .normalized()
+        .cross((fbr - ntr).normalized())
+        .normalize();
+    frustum.faces[Faces::Right as usize].distance =
+        -frustum.faces[Faces::Right as usize].normal.dot(ntr);
 
     frustum
 }

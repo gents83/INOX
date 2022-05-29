@@ -3,7 +3,7 @@ use crate::{
     RenderContext, RenderContextRw, RenderPass, RenderPassId, RenderPipeline, Texture, TextureId,
 };
 use inox_core::ContextRc;
-use inox_math::Matrix4;
+
 use inox_messenger::MessageHubRc;
 use inox_resources::{DataTypeResource, Resource};
 
@@ -14,14 +14,6 @@ use std::sync::{Arc, RwLock};
 
 pub const DEFAULT_WIDTH: u32 = 3840;
 pub const DEFAULT_HEIGHT: u32 = 2160;
-
-#[rustfmt::skip]
-pub const OPENGL_TO_WGPU_MATRIX: Matrix4 = Matrix4::new(
-    1.0, 0.0, 0.0, 0.0,
-    0.0, 1.0, 0.0, 0.0,
-    0.0, 0.0, 0.5, 0.0,
-    0.0, 0.0, 0.5, 1.0,
-);
 
 #[derive(PartialEq, Eq, Copy, Clone)]
 pub enum RendererState {

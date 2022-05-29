@@ -28,7 +28,7 @@ pub struct ViewerSystem {
 
 const FORCE_USE_DEFAULT_CAMERA: bool = false;
 const CAMERA_SPEED: f32 = 200.;
-const CAMERA_ROTATION_SPEED: f32 = 80.;
+const CAMERA_ROTATION_SPEED: f32 = 100.;
 
 impl Drop for ViewerSystem {
     fn drop(&mut self) {
