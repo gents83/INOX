@@ -6,12 +6,17 @@ use crate::{
 };
 
 use inox_core::ContextRc;
-use inox_math::{Mat4Ops, Quat, Quaternion};
+use inox_math::{compute_frustum, Faces, Mat4Ops, Matrix4, Quat, Quaternion};
 use inox_resources::{DataTypeResource, Resource, SerializableResource, SharedDataRc};
 use inox_uid::generate_random_uid;
 
 pub const CULLING_PIPELINE: &str = "pipelines/Culling.compute_pipeline";
 pub const CULLING_PASS_NAME: &str = "CullingPass";
+
+pub enum CullingFlags {
+    None = 0,
+    Freezed = (1 << 1) as _,
+}
 
 #[derive(Default)]
 struct MeshData {
@@ -39,9 +44,34 @@ impl AsBufferBinding for Meshes {
     }
 }
 
+#[derive(Default)]
+struct CullingPassData {
+    is_dirty: bool,
+    cam_pos: [f32; 3],
+    flags: u32,
+    frustum: [[f32; 4]; Faces::Count as usize],
+}
+
+impl AsBufferBinding for CullingPassData {
+    fn is_dirty(&self) -> bool {
+        self.is_dirty
+    }
+    fn set_dirty(&mut self, is_dirty: bool) {
+        self.is_dirty = is_dirty;
+    }
+    fn size(&self) -> u64 {
+        std::mem::size_of::<Self>() as _
+    }
+
+    fn fill_buffer(&self, render_core_context: &RenderCoreContext, buffer: &mut DataBuffer) {
+        buffer.add_to_gpu_buffer(render_core_context, &[self]);
+    }
+}
+
 pub struct CullingPass {
     compute_pass: Resource<ComputePass>,
     default_pipeline: Resource<RenderPipeline>,
+    data: CullingPassData,
     binding_data: BindingData,
     shared_data: SharedDataRc,
     num_meshlets: usize,
@@ -50,6 +80,9 @@ unsafe impl Send for CullingPass {}
 unsafe impl Sync for CullingPass {}
 
 impl Pass for CullingPass {
+    fn name(&self) -> &str {
+        CULLING_PASS_NAME
+    }
     fn create(context: &ContextRc) -> Self
     where
         Self: Sized,
@@ -71,6 +104,10 @@ impl Pass for CullingPass {
                 PathBuf::from(DEFAULT_PIPELINE).as_path(),
                 None,
             ),
+            data: CullingPassData {
+                is_dirty: true,
+                ..Default::default()
+            },
             binding_data: BindingData::default(),
             shared_data: context.shared_data().clone(),
             num_meshlets: 0,
@@ -113,7 +150,7 @@ impl Pass for CullingPass {
                 .add_uniform_data(
                     &render_context.core,
                     &render_context.binding_data_buffer,
-                    &mut render_context.constant_data,
+                    &mut self.data,
                     BindingInfo {
                         group_index: 0,
                         binding_index: 0,
@@ -177,5 +214,21 @@ impl Pass for CullingPass {
         pass.dispatch(compute_pass, count, 1, 1);
 
         render_context.core.submit(encoder);
+    }
+}
+
+impl CullingPass {
+    pub fn set_camera_data(&mut self, view: &Matrix4, proj: &Matrix4) {
+        let frustum = compute_frustum(view, proj);
+        for i in 0..Faces::Count as usize {
+            self.data.frustum[i] = frustum.faces[i].into();
+        }
+        self.data.cam_pos = view.translation().into();
+        self.data.is_dirty = true;
+    }
+
+    pub fn set_flags(&mut self, flags: CullingFlags) {
+        self.data.flags = flags as _;
+        self.data.is_dirty = true;
     }
 }

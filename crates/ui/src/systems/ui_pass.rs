@@ -42,6 +42,9 @@ unsafe impl Send for UIPass {}
 unsafe impl Sync for UIPass {}
 
 impl Pass for UIPass {
+    fn name(&self) -> &str {
+        UI_PASS_NAME
+    }
     fn create(context: &ContextRc) -> Self
     where
         Self: Sized,

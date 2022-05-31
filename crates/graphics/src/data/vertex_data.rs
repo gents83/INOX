@@ -39,7 +39,7 @@ impl VertexFormat {
         ]
     }
     pub fn wireframe() -> Vec<Self> {
-        vec![VertexFormat::PositionF32x3, VertexFormat::ColorF32x4]
+        vec![VertexFormat::PositionF32x3, VertexFormat::ColorU32]
     }
     pub fn pbr() -> Vec<Self> {
         vec![
@@ -129,14 +129,18 @@ impl Default for UIVertexData {
 #[serde(crate = "inox_serialize")]
 pub struct WireframeVertexData {
     pub pos: Vector3,
-    pub color: Vector4,
+    pub color: u32,
 }
 impl VertexData for WireframeVertexData {
     fn set_position(&mut self, pos: Vector3) {
         self.pos = pos;
     }
     fn set_color(&mut self, color: Vector4) {
-        self.color = color;
+        let c = (color.x * 255.) as u32 & 0xFF
+            | (((color.y * 255.) as u32 & 0xFF) << 8)
+            | (((color.z * 255.) as u32 & 0xFF) << 16)
+            | (((color.w * 255.) as u32 & 0xFF) << 24);
+        self.color = c;
     }
     fn set_normal(&mut self, _normal: Vector3) {}
     fn set_tex_coord(&mut self, _t: Vector2) {}
@@ -145,7 +149,7 @@ impl Default for WireframeVertexData {
     fn default() -> Self {
         Self {
             pos: Vector3::default_zero(),
-            color: Vector4::new(1., 1., 1., 1.),
+            color: 0xFFFFFFFF,
         }
     }
 }

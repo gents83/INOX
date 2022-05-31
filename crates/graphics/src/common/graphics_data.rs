@@ -224,6 +224,9 @@ impl GraphicsData {
         attributes_hash: VertexFormatBits,
         meshlets: &[MeshletData],
     ) {
+        if meshlets.is_empty() {
+            return;
+        }
         let entry = self.mesh_buffers.entry(attributes_hash).or_default();
         let first_index = entry.meshlets.data.len();
         meshlets.iter().for_each(|meshlet| {
@@ -302,19 +305,10 @@ impl GraphicsData {
     pub fn update_mesh(&mut self, mesh_id: &MeshId, mesh: &Mesh) {
         if let Some(material) = mesh.material() {
             if let Some(pipeline) = material.get().pipeline() {
-                if let Some(pb) = self.pipeline_buffers.get(pipeline.id()) {
-                    if pb.vertex_format == 0 {
-                        inox_log::debug_log!("Pipeline not yet loaded");
-                    }
-                    if pb.vertex_format != mesh.vertex_format() {
-                        panic!(
-                            "Mesh vertex format mismatch - Pipeline is {:?}, mesh is {:?}",
-                            pb.vertex_format,
-                            mesh.vertex_format()
-                        );
-                    }
-                } else {
-                    return;
+                let pb = self.pipeline_buffers.entry(*pipeline.id()).or_default();
+                if pb.vertex_format == 0 {
+                    inox_log::debug_log!("Pipeline not yet loaded");
+                    pb.vertex_format = mesh.vertex_format();
                 }
                 if !mesh.is_visible() {
                     self.remove_mesh_from_instances(mesh_id, pipeline.id());

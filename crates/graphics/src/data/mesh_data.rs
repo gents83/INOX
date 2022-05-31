@@ -145,7 +145,7 @@ impl MeshData {
     }
 
     pub fn append_mesh<T>(&mut self, vertices: &[T], indices: &[u32]) {
-        let first_vertex = self.vertices.len() as u32;
+        let first_vertex = self.vertices.len() as u32 / self.vertex_size() as u32;
         let first_index = self.indices.len() as u32;
 
         self.vertices.append(&mut to_u8_slice(vertices).to_vec());

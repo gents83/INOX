@@ -15,7 +15,7 @@ use crate::{CameraData, Object, ObjectId};
 pub const DEFAULT_CAMERA_FOV: f32 = 45.;
 pub const DEFAULT_CAMERA_ASPECT_RATIO: f32 = DEFAULT_WIDTH as f32 / DEFAULT_HEIGHT as f32;
 pub const DEFAULT_CAMERA_NEAR: f32 = 0.1;
-pub const DEFAULT_CAMERA_FAR: f32 = 100.;
+pub const DEFAULT_CAMERA_FAR: f32 = 10000.;
 
 #[rustfmt::skip]
 pub const OPENGL_TO_WGPU_MATRIX: Matrix4 = Matrix4::new(
@@ -177,7 +177,7 @@ impl Camera {
     ) -> &mut Self {
         let proj = inox_math::perspective(fov, screen_width / screen_height, near, far);
 
-        self.proj = OPENGL_TO_WGPU_MATRIX * proj;
+        self.proj = /*OPENGL_TO_WGPU_MATRIX * */proj;
 
         self.fov_in_degrees = fov;
         self.near_plane = near;
@@ -278,6 +278,6 @@ impl Camera {
     }
 
     pub fn convert_in_3d(&self, normalized_pos: Vector2) -> (Vector3, Vector3) {
-        convert_in_3d(normalized_pos, self.view_matrix(), self.proj_matrix())
+        convert_in_3d(normalized_pos, &self.view_matrix(), &self.proj_matrix())
     }
 }

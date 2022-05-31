@@ -65,7 +65,7 @@ impl Plugin for Viewer {
         };
         let ui_system = UISystem::new(context, self.renderer.clone(), ui_pass_index);
 
-        let system = ViewerSystem::new(context);
+        let system = ViewerSystem::new(context, &self.renderer);
         let object_system = ObjectSystem::new(context.shared_data());
         let script_system = ScriptSystem::new(context);
 

@@ -4,6 +4,7 @@ use crate::RenderContext;
 use downcast_rs::{impl_downcast, Downcast};
 
 pub trait Pass: Downcast + Send + Sync + 'static {
+    fn name(&self) -> &str;
     fn create(context: &ContextRc) -> Self
     where
         Self: Sized;

@@ -9,7 +9,7 @@ struct ConstantData {
 struct VertexInput {
     //@builtin(vertex_index) index: u32,
     @location(0) position: vec3<f32>,
-    @location(1) color: vec4<f32>,
+    @location(1) color: u32,
 };
 
 struct InstanceInput {
@@ -30,6 +30,14 @@ struct VertexOutput {
 @group(0) @binding(0)
 var<uniform> constant_data: ConstantData;
 
+fn rgba_from_integer(color: u32) -> vec4<f32> {
+    return vec4<f32>(
+        f32(color & 255u),
+        f32((color >> 8u) & 255u),
+        f32((color >> 16u) & 255u),
+        f32((color >> 24u) & 255u),
+    );
+}
 
 @vertex
 fn vs_main(
@@ -45,7 +53,9 @@ fn vs_main(
 
     var vertex_out: VertexOutput;
     vertex_out.clip_position = constant_data.proj * constant_data.view * instance_matrix * vec4<f32>(v.position, 1.0);
-    vertex_out.color = v.color;
+
+    let color = rgba_from_integer(v.color);
+    vertex_out.color = color;
 
     return vertex_out;
 }

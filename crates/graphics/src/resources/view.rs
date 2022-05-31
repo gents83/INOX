@@ -78,7 +78,7 @@ impl DataTypeResource for View {
                 Degrees::new(45.),
                 DEFAULT_WIDTH as f32 / DEFAULT_HEIGHT as f32,
                 0.1,
-                100.0,
+                1000.0,
             ),
         }
     }

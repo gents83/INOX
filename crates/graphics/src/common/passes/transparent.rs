@@ -20,6 +20,9 @@ unsafe impl Send for TransparentPass {}
 unsafe impl Sync for TransparentPass {}
 
 impl Pass for TransparentPass {
+    fn name(&self) -> &str {
+        TRANSPARENT_PASS_NAME
+    }
     fn create(context: &ContextRc) -> Self
     where
         Self: Sized,

@@ -1,12 +1,9 @@
 
-struct ConstantData {
-    view: mat4x4<f32>,
-    proj: mat4x4<f32>,
-    screen_width: f32,
-    screen_height: f32,
+struct CullingPassData {
+    cam_pos: vec3<f32>,
     flags: u32,
+    planes: array<vec4<f32>, 6>,
 };
-
 
 struct DrawCommand {
     vertex_count: u32,
@@ -44,7 +41,7 @@ struct Commands {
 };
 
 @group(0) @binding(0)
-var<uniform> constant_data: ConstantData;
+var<uniform> cull_data: CullingPassData;
 @group(0) @binding(1)
 var<storage, read> meshlets: Meshlets;
 @group(0) @binding(2)
@@ -82,7 +79,8 @@ fn main(@builtin(local_invocation_id) local_invocation_id: vec3<u32>, @builtin(l
     }
     let mesh_index = commands.commands[meshlet_index].base_instance;
 
-    let is_visible = is_cone_culled(meshlets.meshlets[meshlet_index], meshes.meshes[mesh_index], constant_data.view[3].xyz);
+    let cam_pos = cull_data.cam_pos;
+    let is_visible = is_cone_culled(meshlets.meshlets[meshlet_index], meshes.meshes[mesh_index], cam_pos);
     if (!is_visible) {
         commands.commands[meshlet_index].instance_count = 0u;
     }

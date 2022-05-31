@@ -1,12 +1,15 @@
 use inox_core::ContextRc;
+use inox_graphics::{DrawEvent, RendererRw};
+use inox_math::{compute_frustum, MatBase, Matrix4};
 use inox_resources::Resource;
-use inox_scene::SceneId;
+use inox_scene::{Camera, SceneId};
 use inox_ui::{implement_widget_data, UIWidget, Window};
 
 use super::{Hierarchy, Meshes};
 
 pub struct InfoParams {
     pub is_active: bool,
+    pub renderer: RendererRw,
     pub scene_id: SceneId,
 }
 
@@ -15,8 +18,12 @@ struct Data {
     params: InfoParams,
     hierarchy: (bool, Option<Hierarchy>),
     meshes: (bool, Option<Meshes>),
+    show_frustum: bool,
+    freeze_culling_camera: bool,
     fps: u32,
     dt: u128,
+    view: Matrix4,
+    proj: Matrix4,
 }
 implement_widget_data!(Data);
 
@@ -31,8 +38,12 @@ impl Info {
             params,
             hierarchy: (false, None),
             meshes: (false, None),
+            show_frustum: false,
+            freeze_culling_camera: false,
             fps: 0,
             dt: 0,
+            view: Matrix4::default_identity(),
+            proj: Matrix4::default_identity(),
         };
         Self {
             ui_page: Self::create(data),
@@ -82,7 +93,94 @@ impl Info {
                     data.meshes.1.as_mut().unwrap().update();
                 }
             }
+
+            if !data.freeze_culling_camera {
+                if let Some(camera) = data
+                    .context
+                    .shared_data()
+                    .match_resource(|c: &Camera| c.is_active())
+                {
+                    data.view = camera.get().view_matrix();
+                    data.proj = camera.get().proj_matrix();
+                }
+            }
+            if data.show_frustum {
+                Self::show_frustum(data);
+            }
         }
+    }
+
+    fn show_frustum(data: &Data) {
+        let frustum = compute_frustum(&data.view, &data.proj);
+        let color = [1., 1., 0., 1.];
+
+        //NearPlane
+        data.context.message_hub().send_event(DrawEvent::Line(
+            frustum.ntr,
+            frustum.ntl,
+            color.into(),
+        ));
+        data.context.message_hub().send_event(DrawEvent::Line(
+            frustum.ntr,
+            frustum.nbr,
+            color.into(),
+        ));
+        data.context.message_hub().send_event(DrawEvent::Line(
+            frustum.ntl,
+            frustum.nbl,
+            color.into(),
+        ));
+        data.context.message_hub().send_event(DrawEvent::Line(
+            frustum.nbr,
+            frustum.nbl,
+            color.into(),
+        ));
+
+        //FarPlane
+        data.context.message_hub().send_event(DrawEvent::Line(
+            frustum.ftr,
+            frustum.ftl,
+            color.into(),
+        ));
+        data.context.message_hub().send_event(DrawEvent::Line(
+            frustum.ftr,
+            frustum.fbr,
+            color.into(),
+        ));
+        data.context.message_hub().send_event(DrawEvent::Line(
+            frustum.ftl,
+            frustum.fbl,
+            color.into(),
+        ));
+        data.context.message_hub().send_event(DrawEvent::Line(
+            frustum.fbr,
+            frustum.fbl,
+            color.into(),
+        ));
+
+        //LeftPlane
+        data.context.message_hub().send_event(DrawEvent::Line(
+            frustum.ftl,
+            frustum.ntl,
+            color.into(),
+        ));
+        data.context.message_hub().send_event(DrawEvent::Line(
+            frustum.fbl,
+            frustum.nbl,
+            color.into(),
+        ));
+
+        //RightPlane
+        data.context.message_hub().send_event(DrawEvent::Line(
+            frustum.ftr,
+            frustum.ntr,
+            color.into(),
+        ));
+        data.context.message_hub().send_event(DrawEvent::Line(
+            frustum.fbr,
+            frustum.nbr,
+            color.into(),
+        ));
     }
 
     fn create(data: Data) -> Resource<UIWidget> {
@@ -93,7 +191,7 @@ impl Info {
                 if !data.params.is_active {
                     return;
                 }
-                Window::new("Stats")
+                Window::new("Debug")
                     .vscroll(true)
                     .title_bar(true)
                     .resizable(true)
@@ -101,6 +199,8 @@ impl Info {
                         ui.label(format!("FPS: {} - ms: {:?}", data.fps, data.dt));
                         ui.checkbox(&mut data.hierarchy.0, "Hierarchy");
                         ui.checkbox(&mut data.meshes.0, "Meshes");
+                        ui.checkbox(&mut data.show_frustum, "Show Frustum");
+                        ui.checkbox(&mut data.freeze_culling_camera, "Freeze Culling Camera");
                     });
             }
         })

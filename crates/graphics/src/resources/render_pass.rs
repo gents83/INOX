@@ -365,7 +365,7 @@ impl RenderPass {
                         {
                             if let Some(pipeline_commands) = graphics_data.commands(pipeline_id) {
                                 let commands_count = pipeline_commands.commands.len();
-                                {
+                                if commands_count > 0 {
                                     if let Some(command_buffer) = buffers.get(pipeline_id) {
                                         render_pass.multi_draw_indexed_indirect(
                                             command_buffer.gpu_buffer().unwrap(),

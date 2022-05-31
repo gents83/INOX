@@ -21,6 +21,9 @@ unsafe impl Send for OpaquePass {}
 unsafe impl Sync for OpaquePass {}
 
 impl Pass for OpaquePass {
+    fn name(&self) -> &str {
+        OPAQUE_PASS_NAME
+    }
     fn create(context: &ContextRc) -> Self
     where
         Self: Sized,

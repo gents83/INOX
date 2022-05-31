@@ -78,6 +78,12 @@ impl Renderer {
     pub fn passes(&self) -> &[Box<dyn Pass>] {
         self.passes.as_slice()
     }
+    pub fn pass_with_name(&self, name: &str) -> Option<&dyn Pass> {
+        self.passes
+            .iter()
+            .find(|pass| pass.name() == name)
+            .map(|p| p.as_ref())
+    }
     pub fn pass<T>(&self, index: usize) -> Option<&T>
     where
         T: Pass,

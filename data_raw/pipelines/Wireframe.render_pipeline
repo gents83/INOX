@@ -3,10 +3,10 @@
     "fragment_shader": "shaders/wgsl/wireframe.shader",
     "vertex_format" : [
         "PositionF32x3",
-        "ColorF32x4"
+        "ColorU32"
     ],
-    "front_face": "CounterClockwise",
-    "culling": "Back",
+    "front_face": "Clockwise",
+    "culling": "None",
     "mode": "Line",
     "depth_write_enabled": true,
     "depth_compare": "Less",

@@ -1,8 +1,8 @@
 use inox_commands::CommandParser;
 use inox_core::{implement_unique_system_uid, ContextRc, System};
 use inox_graphics::{
-    create_quad, Material, Mesh, MeshData, PbrVertexData, RenderPipeline, Texture, VertexFormat,
-    View, WireframeVertexData, DEFAULT_PIPELINE, WIREFRAME_PIPELINE,
+    create_quad, Material, Mesh, MeshData, PbrVertexData, RenderPipeline, RendererRw, Texture,
+    VertexFormat, View, WireframeVertexData, DEFAULT_PIPELINE, WIREFRAME_PIPELINE,
 };
 use inox_log::debug_log;
 use inox_math::{Mat4Ops, Matrix4, VecBase, VecBaseFloat, Vector2, Vector3};
@@ -100,7 +100,7 @@ impl System for ViewerSystem {
 }
 
 impl ViewerSystem {
-    pub fn new(context: &ContextRc) -> Self {
+    pub fn new(context: &ContextRc, renderer: &RendererRw) -> Self {
         let listener = Listener::new(context.message_hub());
         let shared_data = context.shared_data();
         let message_hub = context.message_hub();
@@ -139,6 +139,7 @@ impl ViewerSystem {
                 context,
                 InfoParams {
                     is_active: true,
+                    renderer: renderer.clone(),
                     scene_id: *scene.id(),
                 },
             ),
