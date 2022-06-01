@@ -6,7 +6,7 @@ use crate::{
 };
 
 use inox_core::ContextRc;
-use inox_math::{compute_frustum, Faces, Mat4Ops, Matrix4, Quat, Quaternion};
+use inox_math::{Faces, Frustum, Mat4Ops, Quat, Quaternion, Vector3};
 use inox_resources::{DataTypeResource, Resource, SerializableResource, SharedDataRc};
 use inox_uid::generate_random_uid;
 
@@ -81,6 +81,9 @@ unsafe impl Sync for CullingPass {}
 
 impl Pass for CullingPass {
     fn name(&self) -> &str {
+        CULLING_PASS_NAME
+    }
+    fn static_name() -> &'static str {
         CULLING_PASS_NAME
     }
     fn create(context: &ContextRc) -> Self
@@ -218,12 +221,11 @@ impl Pass for CullingPass {
 }
 
 impl CullingPass {
-    pub fn set_camera_data(&mut self, view: &Matrix4, proj: &Matrix4) {
-        let frustum = compute_frustum(view, proj);
+    pub fn set_camera_data(&mut self, view_pos: Vector3, frustum: &Frustum) {
         for i in 0..Faces::Count as usize {
             self.data.frustum[i] = frustum.faces[i].into();
         }
-        self.data.cam_pos = view.translation().into();
+        self.data.cam_pos = view_pos.into();
         self.data.is_dirty = true;
     }
 

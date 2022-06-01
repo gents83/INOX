@@ -124,24 +124,24 @@ pub fn compute_frustum(view: &Matrix4, proj: &Matrix4) -> Frustum {
     ////////////////////////////////
     frustum.faces[Faces::Near as usize].normal = -view.direction().normalize();
     frustum.faces[Faces::Near as usize].distance =
-        -frustum.faces[Faces::Near as usize].normal.dot(frustum.ntr);
+        frustum.faces[Faces::Near as usize].normal.dot(frustum.ntr);
 
     frustum.faces[Faces::Far as usize].normal = view.direction().normalize();
     frustum.faces[Faces::Far as usize].distance =
-        -frustum.faces[Faces::Far as usize].normal.dot(frustum.ftl);
+        frustum.faces[Faces::Far as usize].normal.dot(frustum.ftl);
 
     frustum.faces[Faces::Top as usize].normal = (frustum.ntr - frustum.ntl)
         .normalized()
         .cross((frustum.ftl - frustum.ntl).normalized())
         .normalize();
     frustum.faces[Faces::Top as usize].distance =
-        -frustum.faces[Faces::Top as usize].normal.dot(frustum.ntl);
+        frustum.faces[Faces::Top as usize].normal.dot(frustum.ntl);
 
     frustum.faces[Faces::Bottom as usize].normal = (frustum.nbl - frustum.nbr)
         .normalized()
         .cross((frustum.fbr - frustum.nbr).normalized())
         .normalize();
-    frustum.faces[Faces::Bottom as usize].distance = -frustum.faces[Faces::Bottom as usize]
+    frustum.faces[Faces::Bottom as usize].distance = frustum.faces[Faces::Bottom as usize]
         .normal
         .dot(frustum.nbr);
 
@@ -150,14 +150,14 @@ pub fn compute_frustum(view: &Matrix4, proj: &Matrix4) -> Frustum {
         .cross((frustum.fbl - frustum.nbl).normalized())
         .normalize();
     frustum.faces[Faces::Left as usize].distance =
-        -frustum.faces[Faces::Left as usize].normal.dot(frustum.nbl);
+        frustum.faces[Faces::Left as usize].normal.dot(frustum.nbl);
 
     frustum.faces[Faces::Right as usize].normal = (frustum.nbr - frustum.ntr)
         .normalized()
         .cross((frustum.fbr - frustum.ntr).normalized())
         .normalize();
     frustum.faces[Faces::Right as usize].distance =
-        -frustum.faces[Faces::Right as usize].normal.dot(frustum.ntr);
+        frustum.faces[Faces::Right as usize].normal.dot(frustum.ntr);
 
     frustum
 }

@@ -5,6 +5,9 @@ use downcast_rs::{impl_downcast, Downcast};
 
 pub trait Pass: Downcast + Send + Sync + 'static {
     fn name(&self) -> &str;
+    fn static_name() -> &'static str
+    where
+        Self: Sized;
     fn create(context: &ContextRc) -> Self
     where
         Self: Sized;

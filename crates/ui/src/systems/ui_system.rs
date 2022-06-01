@@ -48,7 +48,6 @@ pub struct UISystem {
     message_hub: MessageHubRc,
     listener: Listener,
     renderer: RendererRw,
-    ui_pass_index: usize,
     ui_context: Context,
     ui_textures: HashMap<eguiTextureId, Resource<Texture>>,
     ui_input: RawInput,
@@ -60,14 +59,13 @@ pub struct UISystem {
 }
 
 impl UISystem {
-    pub fn new(context: &ContextRc, renderer: RendererRw, ui_pass_index: usize) -> Self {
+    pub fn new(context: &ContextRc, renderer: RendererRw) -> Self {
         let listener = Listener::new(context.message_hub());
 
         crate::register_resource_types(context.shared_data(), context.message_hub());
 
         Self {
             config: Config::default(),
-            ui_pass_index,
             shared_data: context.shared_data().clone(),
             message_hub: context.message_hub().clone(),
             job_handler: context.job_handler().clone(),
@@ -93,7 +91,7 @@ impl UISystem {
                 let shared_data = self.shared_data.clone();
                 let message_hub = self.message_hub.clone();
                 let r = self.renderer.read().unwrap();
-                if let Some(ui_pass) = r.pass::<UIPass>(self.ui_pass_index) {
+                if let Some(ui_pass) = r.pass::<UIPass>() {
                     let render_pass = ui_pass.render_pass().get();
                     let pipelines = render_pass.pipelines();
                     if pipelines.is_empty() {
@@ -449,7 +447,7 @@ impl System for UISystem {
         self.update_events();
         {
             let mut r = self.renderer.write().unwrap();
-            if let Some(ui_pass) = r.pass_mut::<UIPass>(self.ui_pass_index) {
+            if let Some(ui_pass) = r.pass_mut::<UIPass>() {
                 ui_pass.set_ui_scale(self.ui_scale);
             }
         }

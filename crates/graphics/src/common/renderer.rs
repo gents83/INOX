@@ -78,29 +78,31 @@ impl Renderer {
     pub fn passes(&self) -> &[Box<dyn Pass>] {
         self.passes.as_slice()
     }
-    pub fn pass_with_name(&self, name: &str) -> Option<&dyn Pass> {
-        self.passes
+    pub fn pass<T>(&self) -> Option<&T>
+    where
+        T: Pass,
+    {
+        if let Some(p) = self
+            .passes
             .iter()
-            .find(|pass| pass.name() == name)
-            .map(|p| p.as_ref())
+            .find(|pass| pass.name() == T::static_name())
+        {
+            return p.downcast_ref::<T>();
+        }
+        None
     }
-    pub fn pass<T>(&self, index: usize) -> Option<&T>
+    pub fn pass_mut<T>(&mut self) -> Option<&mut T>
     where
         T: Pass,
     {
-        if index >= self.passes.len() {
-            return None;
+        if let Some(p) = self
+            .passes
+            .iter_mut()
+            .find(|pass| pass.name() == T::static_name())
+        {
+            return p.downcast_mut::<T>();
         }
-        self.passes[index].downcast_ref::<T>()
-    }
-    pub fn pass_mut<T>(&mut self, index: usize) -> Option<&mut T>
-    where
-        T: Pass,
-    {
-        if index >= self.passes.len() {
-            return None;
-        }
-        self.passes[index].downcast_mut::<T>()
+        None
     }
 
     pub fn add_pass(&mut self, pass: impl Pass) -> &mut Self {

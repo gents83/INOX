@@ -58,12 +58,7 @@ impl Plugin for Viewer {
 
         let rendering_draw_system = RenderingSystem::new(self.renderer.clone(), context);
         let debug_drawer_system = DebugDrawerSystem::new(context);
-        let ui_pass_index = {
-            let r = self.renderer.read().unwrap();
-            let passes = r.passes();
-            passes.len() - 1
-        };
-        let ui_system = UISystem::new(context, self.renderer.clone(), ui_pass_index);
+        let ui_system = UISystem::new(context, self.renderer.clone());
 
         let system = ViewerSystem::new(context, &self.renderer);
         let object_system = ObjectSystem::new(context.shared_data());

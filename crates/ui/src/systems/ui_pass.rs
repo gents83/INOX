@@ -45,6 +45,9 @@ impl Pass for UIPass {
     fn name(&self) -> &str {
         UI_PASS_NAME
     }
+    fn static_name() -> &'static str {
+        UI_PASS_NAME
+    }
     fn create(context: &ContextRc) -> Self
     where
         Self: Sized,

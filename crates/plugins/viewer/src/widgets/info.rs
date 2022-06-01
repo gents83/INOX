@@ -1,6 +1,6 @@
 use inox_core::ContextRc;
-use inox_graphics::{DrawEvent, RendererRw};
-use inox_math::{compute_frustum, MatBase, Matrix4};
+use inox_graphics::{CullingPass, DrawEvent, RendererRw};
+use inox_math::{compute_frustum, Frustum, Mat4Ops, MatBase, Matrix4};
 use inox_resources::Resource;
 use inox_scene::{Camera, SceneId};
 use inox_ui::{implement_widget_data, UIWidget, Window};
@@ -15,6 +15,7 @@ pub struct InfoParams {
 
 struct Data {
     context: ContextRc,
+    renderer: RendererRw,
     params: InfoParams,
     hierarchy: (bool, Option<Hierarchy>),
     meshes: (bool, Option<Meshes>),
@@ -35,6 +36,7 @@ impl Info {
     pub fn new(context: &ContextRc, params: InfoParams) -> Self {
         let data = Data {
             context: context.clone(),
+            renderer: params.renderer.clone(),
             params,
             hierarchy: (false, None),
             meshes: (false, None),
@@ -104,14 +106,17 @@ impl Info {
                     data.proj = camera.get().proj_matrix();
                 }
             }
+            let frustum = compute_frustum(&data.view, &data.proj);
+            if let Some(culling_pass) = data.renderer.write().unwrap().pass_mut::<CullingPass>() {
+                culling_pass.set_camera_data(data.view.translation(), &frustum);
+            }
             if data.show_frustum {
-                Self::show_frustum(data);
+                Self::show_frustum(data, &frustum);
             }
         }
     }
 
-    fn show_frustum(data: &Data) {
-        let frustum = compute_frustum(&data.view, &data.proj);
+    fn show_frustum(data: &Data, frustum: &Frustum) {
         let color = [1., 1., 0., 1.];
 
         //NearPlane

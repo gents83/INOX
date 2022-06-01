@@ -24,6 +24,9 @@ impl Pass for OpaquePass {
     fn name(&self) -> &str {
         OPAQUE_PASS_NAME
     }
+    fn static_name() -> &'static str {
+        OPAQUE_PASS_NAME
+    }
     fn create(context: &ContextRc) -> Self
     where
         Self: Sized,

@@ -23,6 +23,9 @@ impl Pass for TransparentPass {
     fn name(&self) -> &str {
         TRANSPARENT_PASS_NAME
     }
+    fn static_name() -> &'static str {
+        TRANSPARENT_PASS_NAME
+    }
     fn create(context: &ContextRc) -> Self
     where
         Self: Sized,
