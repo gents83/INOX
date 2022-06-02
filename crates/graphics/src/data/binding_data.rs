@@ -288,6 +288,10 @@ impl BindingData {
                     self.is_dirty = true;
                 }
             });
+            if self.is_dirty {
+                self.binding_types[info.group_index][2] =
+                    BindingType::TextureArray(Box::new(textures));
+            }
         }
 
         self
