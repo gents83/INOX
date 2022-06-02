@@ -39,6 +39,7 @@ pub struct Camera {
     proj: Matrix4,
     is_active: bool,
     fov_in_degrees: Degrees,
+    aspect_ratio: f32,
     near_plane: f32,
     far_plane: f32,
 }
@@ -136,6 +137,7 @@ impl DataTypeResource for Camera {
             fov_in_degrees: Degrees::new(DEFAULT_CAMERA_FOV),
             near_plane: DEFAULT_CAMERA_NEAR,
             far_plane: DEFAULT_CAMERA_FAR,
+            aspect_ratio: 1.,
         }
     }
     fn is_initialized(&self) -> bool {
@@ -180,6 +182,7 @@ impl Camera {
         self.proj = /*OPENGL_TO_WGPU_MATRIX * */proj;
 
         self.fov_in_degrees = fov;
+        self.aspect_ratio = screen_width / screen_height;
         self.near_plane = near;
         self.far_plane = far;
 
@@ -265,6 +268,11 @@ impl Camera {
     #[inline]
     pub fn fov_in_degrees(&self) -> Degrees {
         self.fov_in_degrees
+    }
+
+    #[inline]
+    pub fn aspect_ratio(&self) -> f32 {
+        self.aspect_ratio
     }
 
     #[inline]

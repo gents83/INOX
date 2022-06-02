@@ -60,11 +60,15 @@ impl AsBufferBinding for CullingPassData {
         self.is_dirty = is_dirty;
     }
     fn size(&self) -> u64 {
-        std::mem::size_of::<Self>() as _
+        std::mem::size_of::<[f32; 3]>() as u64
+            + std::mem::size_of::<u32>() as u64
+            + std::mem::size_of::<[[f32; 4]; Faces::Count as usize]>() as u64
     }
 
     fn fill_buffer(&self, render_core_context: &RenderCoreContext, buffer: &mut DataBuffer) {
-        buffer.add_to_gpu_buffer(render_core_context, &[self]);
+        buffer.add_to_gpu_buffer(render_core_context, &[self.cam_pos]);
+        buffer.add_to_gpu_buffer(render_core_context, &[self.flags]);
+        buffer.add_to_gpu_buffer(render_core_context, &[self.frustum]);
     }
 }
 

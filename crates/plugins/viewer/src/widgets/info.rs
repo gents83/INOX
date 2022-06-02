@@ -1,6 +1,6 @@
 use inox_core::ContextRc;
 use inox_graphics::{CullingPass, DrawEvent, RendererRw};
-use inox_math::{compute_frustum, Frustum, Mat4Ops, MatBase, Matrix4};
+use inox_math::{compute_frustum, Degrees, Frustum, Mat4Ops, MatBase, Matrix4, NewAngle};
 use inox_resources::Resource;
 use inox_scene::{Camera, SceneId};
 use inox_ui::{implement_widget_data, UIWidget, Window};
@@ -24,7 +24,10 @@ struct Data {
     fps: u32,
     dt: u128,
     view: Matrix4,
-    proj: Matrix4,
+    near: f32,
+    far: f32,
+    fov: Degrees,
+    aspect_ratio: f32,
 }
 implement_widget_data!(Data);
 
@@ -45,7 +48,10 @@ impl Info {
             fps: 0,
             dt: 0,
             view: Matrix4::default_identity(),
-            proj: Matrix4::default_identity(),
+            near: 0.,
+            far: 0.,
+            fov: Degrees::new(0.),
+            aspect_ratio: 1.,
         };
         Self {
             ui_page: Self::create(data),
@@ -102,11 +108,16 @@ impl Info {
                     .shared_data()
                     .match_resource(|c: &Camera| c.is_active())
                 {
-                    data.view = camera.get().view_matrix();
-                    data.proj = camera.get().proj_matrix();
+                    let c = &camera.get();
+                    data.view = c.transform();
+                    data.near = c.near_plane();
+                    data.far = c.far_plane();
+                    data.fov = c.fov_in_degrees();
+                    data.aspect_ratio = c.aspect_ratio();
                 }
             }
-            let frustum = compute_frustum(&data.view, &data.proj);
+            let frustum =
+                compute_frustum(&data.view, data.near, data.far, data.fov, data.aspect_ratio);
             if let Some(culling_pass) = data.renderer.write().unwrap().pass_mut::<CullingPass>() {
                 culling_pass.set_camera_data(data.view.translation(), &frustum);
             }
