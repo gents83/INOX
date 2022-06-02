@@ -5,7 +5,7 @@ use inox_graphics::{
     VertexFormat, View, WireframeVertexData, DEFAULT_PIPELINE, WIREFRAME_PIPELINE,
 };
 use inox_log::debug_log;
-use inox_math::{Mat4Ops, Matrix4, VecBase, VecBaseFloat, Vector2, Vector3};
+use inox_math::{Mat4Ops, Matrix4, VecBase, Vector2, Vector3};
 use inox_messenger::Listener;
 use inox_platform::{InputState, Key, KeyEvent, MouseEvent, WindowEvent};
 use inox_resources::{DataTypeResource, Resource, SerializableResource, SerializableResourceEvent};
@@ -19,11 +19,12 @@ pub struct ViewerSystem {
     context: ContextRc,
     listener: Listener,
     scene: Resource<Scene>,
-    camera_object: Resource<Object>,
+    _camera_object: Resource<Object>,
     last_mouse_pos: Vector2,
     view_3d: Option<View3D>,
     info: Info,
     last_frame: u64,
+    camera_index: u32,
 }
 
 const FORCE_USE_DEFAULT_CAMERA: bool = false;
@@ -146,7 +147,8 @@ impl ViewerSystem {
             context: context.clone(),
             listener,
             scene,
-            camera_object,
+            _camera_object: camera_object,
+            camera_index: 0,
             last_mouse_pos: Vector2::default_zero(),
         }
     }
@@ -333,41 +335,19 @@ impl ViewerSystem {
             .shared_data()
             .match_resource(|view: &View| view.view_index() == 0)
         {
-            let mut is_active = false;
-            if self
-                .context
-                .shared_data()
-                .get_num_resources_of_type::<Camera>()
-                == 1
-            {
-                is_active = true;
-            }
-            self.camera_object
-                .get()
-                .components_of_type::<Camera>()
-                .iter()
-                .for_each(|camera| {
-                    camera.get_mut().set_active(is_active);
-                });
-
             if FORCE_USE_DEFAULT_CAMERA {
-                self.context
-                    .shared_data()
-                    .for_each_resource_mut(|_, c: &mut Camera| {
-                        if let Some(parent) = c.parent() {
-                            if parent.id() == self.camera_object.id() {
-                                c.set_active(true);
-                            } else {
-                                c.set_active(false);
-                            }
-                        }
-                    });
+                self.camera_index = 0;
+            } else {
+                self.camera_index = 1;
             }
-
+            let mut index = 0;
             self.context
                 .shared_data()
-                .for_each_resource(|_, c: &Camera| {
-                    if c.is_active() {
+                .for_each_resource_mut(|_, c: &mut Camera| {
+                    c.set_active(false);
+                    if self.camera_index == index {
+                        c.set_active(true);
+
                         let view_matrix = c.view_matrix();
                         let proj_matrix = c.proj_matrix();
 
@@ -375,7 +355,8 @@ impl ViewerSystem {
                             .update_view(view_matrix)
                             .update_proj(proj_matrix);
                     }
-                })
+                    index += 1;
+                });
         }
         self
     }
@@ -411,9 +392,9 @@ impl ViewerSystem {
                     .for_each_resource_mut(|_, c: &mut Camera| {
                         if c.is_active() {
                             let matrix = c.transform();
-                            let translation = matrix.x.xyz().normalized() * movement.x
-                                + matrix.y.xyz().normalized() * movement.y
-                                + matrix.z.xyz().normalized() * movement.z;
+                            let translation = matrix.right() * movement.x
+                                + matrix.up() * movement.y
+                                + matrix.forward() * movement.z;
                             c.translate(translation);
                         }
                     });
