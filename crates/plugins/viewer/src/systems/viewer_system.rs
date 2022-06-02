@@ -421,6 +421,7 @@ impl ViewerSystem {
                         .for_each_resource_mut(|_, c: &mut Camera| {
                             if c.is_active() {
                                 let d = c.transform().direction();
+                                rotation_angle.x *= d.dot_product([0., 0., -1.].into()).signum();
                                 let m = Matrix4::from_euler_angles(rotation_angle);
                                 let v = m.transform(d);
                                 c.look_toward(v);

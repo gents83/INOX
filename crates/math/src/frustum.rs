@@ -1,6 +1,6 @@
-use cgmath::InnerSpace;
-
-use crate::{unproject, Degrees, Mat4Ops, Matrix4, VecBaseFloat, Vector2, Vector3, Vector4};
+use crate::{
+    unproject, Degrees, Mat4Ops, Matrix4, VecBase, VecBaseFloat, Vector2, Vector3, Vector4,
+};
 
 pub enum Faces {
     Near,
@@ -152,34 +152,36 @@ pub fn compute_frustum(
 
     frustum.faces[Faces::Near as usize].normal = facing;
     frustum.faces[Faces::Near as usize].distance =
-        frustum.faces[Faces::Near as usize].normal.dot(nc);
+        frustum.faces[Faces::Near as usize].normal.dot_product(nc);
 
     frustum.faces[Faces::Far as usize].normal = -facing;
-    frustum.faces[Faces::Far as usize].distance = frustum.faces[Faces::Far as usize].normal.dot(fc);
+    frustum.faces[Faces::Far as usize].distance =
+        frustum.faces[Faces::Far as usize].normal.dot_product(fc);
 
     let aux = nc + up * nh;
     frustum.faces[Faces::Top as usize].normal =
-        ((aux - position).normalized()).cross(right).normalize();
+        ((aux - position).normalized()).cross(right).normalized();
     frustum.faces[Faces::Top as usize].distance =
-        frustum.faces[Faces::Top as usize].normal.dot(aux);
+        frustum.faces[Faces::Top as usize].normal.dot_product(aux);
 
     let aux = nc - up * nh;
     frustum.faces[Faces::Bottom as usize].normal =
-        (right).cross((aux - position).normalized()).normalize();
-    frustum.faces[Faces::Bottom as usize].distance =
-        frustum.faces[Faces::Bottom as usize].normal.dot(aux);
+        (right).cross((aux - position).normalized()).normalized();
+    frustum.faces[Faces::Bottom as usize].distance = frustum.faces[Faces::Bottom as usize]
+        .normal
+        .dot_product(aux);
 
     let aux = nc - right * nw;
     frustum.faces[Faces::Left as usize].normal =
-        ((aux - position).normalized()).cross(up).normalize();
+        ((aux - position).normalized()).cross(up).normalized();
     frustum.faces[Faces::Left as usize].distance =
-        frustum.faces[Faces::Left as usize].normal.dot(aux);
+        frustum.faces[Faces::Left as usize].normal.dot_product(aux);
 
     let aux = nc + right * nw;
     frustum.faces[Faces::Right as usize].normal =
-        (up).cross((aux - position).normalized()).normalize();
+        (up).cross((aux - position).normalized()).normalized();
     frustum.faces[Faces::Right as usize].distance =
-        frustum.faces[Faces::Left as usize].normal.dot(aux);
+        frustum.faces[Faces::Left as usize].normal.dot_product(aux);
 
     frustum
 }

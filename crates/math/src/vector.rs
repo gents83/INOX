@@ -23,6 +23,7 @@ pub trait VecBase<T> {
     fn sub(self, rhs: Self) -> Self;
     fn mul(self, rhs: Self) -> Self;
     fn div(self, rhs: Self) -> Self;
+    fn dot_product(self, rhs: Self) -> T;
 }
 pub trait VecBaseFloat<T> {
     fn length(self) -> T;
@@ -57,6 +58,9 @@ macro_rules! implement_vector_base {
             }
             fn div(self, rhs: Self) -> Self {
                 self.div_element_wise(rhs)
+            }
+            fn dot_product(self, rhs: Self) -> $Type {
+                self.dot(rhs)
             }
         }
     };
