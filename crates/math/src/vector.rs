@@ -1,7 +1,7 @@
 use std::f32::consts::PI;
 
 use cgmath::prelude::*;
-use cgmath::InnerSpace;
+pub use cgmath::InnerSpace;
 use cgmath::{Deg, Rad};
 
 pub type Vector2 = cgmath::Vector2<f32>;

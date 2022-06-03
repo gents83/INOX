@@ -1,8 +1,6 @@
 
 struct CullingPassData {
-    cam_pos: vec3<f32>,
-    flags: u32,
-    planes: array<vec4<f32>, 6>,
+    frustum: array<vec4<f32>, 4>,
 };
 
 struct DrawCommand {
@@ -50,24 +48,23 @@ var<storage, read> meshes: Meshes;
 var<storage, read_write> commands: Commands;
 
 
-fn rotate_quat(pos: vec3<f32>, orientation: vec4<f32>) -> vec3<f32> {
-    return pos + 2.0 * cross(orientation.xyz, cross(orientation.xyz, pos) + orientation.w * pos);
+fn transform_vector(v: vec3<f32>, q: vec4<f32>) -> vec3<f32> {
+    return v + 2.0 * cross(q.xyz, cross(q.xyz, v) + q.w * v);
 }
 
-fn is_inside_frustum(cam_pos: vec3<f32>, pos: vec3<f32>, radius: f32) -> bool {
-    var is_inside = true;
-    for (var i = 0; i < 6; i++) {
-        let d = dot(cull_data.planes[i].xyz, pos) - cull_data.planes[i].w;
-        let r = d > -radius;
-        is_inside = is_inside && r;
+//ScreenSpace Frustum Culling
+fn is_inside_frustum(center: vec3<f32>, radius: f32) -> bool {
+    var visible: bool = true;
+    for (var i: i32 = 0; i < 4; i++) {
+        visible = visible && dot(cull_data.frustum[i], vec4<f32>(center, 1.0)) > -radius * 0.5;
     }
-    return is_inside;
+    return visible;
 }
 
 fn is_cone_culled(meshlet: MeshletData, mesh: MeshData, camera_position: vec3<f32>) -> bool {
-    let center = rotate_quat(meshlet.center, mesh.orientation) * mesh.scale + mesh.position;
+    let center = transform_vector(meshlet.center, mesh.orientation) * mesh.scale + mesh.position;
     let radius = meshlet.radius * mesh.scale;
-    let cone_axis = rotate_quat(vec3<f32>(meshlet.cone_axis[0] / 127., meshlet.cone_axis[1] / 127., meshlet.cone_axis[2] / 127.), mesh.orientation);
+    let cone_axis = transform_vector(vec3<f32>(meshlet.cone_axis[0] / 127., meshlet.cone_axis[1] / 127., meshlet.cone_axis[2] / 127.), mesh.orientation);
 //    let cone_axis = meshlet.cone_axis / 127.;
     let cone_cutoff = meshlet.cone_cutoff / 127.;
 
@@ -88,17 +85,17 @@ fn main(@builtin(local_invocation_id) local_invocation_id: vec3<u32>, @builtin(l
     }
     let mesh_index = commands.commands[meshlet_index].base_instance;
 
-    let center = rotate_quat(meshlets.meshlets[meshlet_index].center, meshes.meshes[mesh_index].orientation) * meshes.meshes[mesh_index].scale + meshes.meshes[mesh_index].position;
+    let center = transform_vector(meshlets.meshlets[meshlet_index].center, meshes.meshes[mesh_index].orientation) * meshes.meshes[mesh_index].scale + meshes.meshes[mesh_index].position;
     let radius = meshlets.meshlets[meshlet_index].radius * meshes.meshes[mesh_index].scale;
 
-    if (!is_inside_frustum(cull_data.cam_pos, center, radius)) {
+    if (!is_inside_frustum(center, radius)) {
         commands.commands[meshlet_index].instance_count = 0u;
         return;
     }
 
-    let cam_pos = cull_data.cam_pos;
-    let is_visible = is_cone_culled(meshlets.meshlets[meshlet_index], meshes.meshes[mesh_index], cam_pos);
-    if (!is_visible) {
-        commands.commands[meshlet_index].instance_count = 0u;
-    }
+    //let cam_pos = cull_data.cam_pos;
+    //let is_visible = is_cone_culled(meshlets.meshlets[meshlet_index], meshes.meshes[mesh_index], cam_pos);
+    //if (!is_visible) {
+    //    commands.commands[meshlet_index].instance_count = 0u;
+    //}
 }

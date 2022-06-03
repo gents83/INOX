@@ -2,7 +2,7 @@ use crate::angle::NewAngle;
 use crate::vector::{VecBaseFloat, Vector3, Vector4};
 use crate::Degrees;
 use crate::{Quat, Quaternion};
-use cgmath::{Deg, InnerSpace, SquareMatrix, Transform};
+pub use cgmath::{Deg, InnerSpace, Matrix, SquareMatrix, Transform};
 
 pub type Matrix3 = cgmath::Matrix3<f32>;
 pub type Matrix4 = cgmath::Matrix4<f32>;
@@ -24,7 +24,6 @@ macro_rules! implement_matrix_base {
 pub trait Mat4Ops {
     fn from_euler_angles(roll_yaw_pitch: Vector3) -> Self;
     fn inverse(&self) -> Self;
-    fn transpose(&self) -> Self;
     fn set_translation(&mut self, translation: Vector3) -> &mut Self;
     fn add_translation(&mut self, translation: Vector3) -> &mut Self;
     fn add_scale(&mut self, scale: Vector3) -> &mut Self;
@@ -59,10 +58,6 @@ macro_rules! implement_matrix4_operations {
             #[inline]
             fn inverse(&self) -> Self {
                 self.inverse_transform().unwrap()
-            }
-            #[inline]
-            fn transpose(&self) -> Self {
-                <Self as cgmath::Matrix>::transpose(self)
             }
             #[inline]
             fn set_translation(&mut self, translation: Vector3) -> &mut Self {

@@ -1,7 +1,7 @@
 use std::f32::consts::PI;
 
 use crate::Vector3;
-use cgmath::Zero;
+pub use cgmath::Zero;
 
 pub type Quaternion = cgmath::Quaternion<f32>;
 

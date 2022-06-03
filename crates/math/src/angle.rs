@@ -1,4 +1,4 @@
-use cgmath::{Deg, Rad};
+pub use cgmath::{Deg, Rad};
 
 pub type Degrees = cgmath::Deg<f32>;
 pub type Radians = cgmath::Rad<f32>;

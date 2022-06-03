@@ -1,6 +1,11 @@
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
+
 use inox_core::ContextRc;
-use inox_graphics::{CullingPass, DrawEvent, RendererRw};
-use inox_math::{compute_frustum, Degrees, Frustum, Mat4Ops, MatBase, Matrix4, NewAngle};
+use inox_graphics::DrawEvent;
+use inox_math::{compute_frustum, Degrees, Frustum, MatBase, Matrix4, NewAngle};
 use inox_resources::Resource;
 use inox_scene::{Camera, SceneId};
 use inox_ui::{implement_widget_data, UIWidget, Window};
@@ -9,13 +14,12 @@ use super::{Hierarchy, Meshes};
 
 pub struct InfoParams {
     pub is_active: bool,
-    pub renderer: RendererRw,
     pub scene_id: SceneId,
+    pub update_culling_camera: Arc<AtomicBool>,
 }
 
 struct Data {
     context: ContextRc,
-    renderer: RendererRw,
     params: InfoParams,
     hierarchy: (bool, Option<Hierarchy>),
     meshes: (bool, Option<Meshes>),
@@ -23,7 +27,7 @@ struct Data {
     freeze_culling_camera: bool,
     fps: u32,
     dt: u128,
-    view: Matrix4,
+    cam_matrix: Matrix4,
     near: f32,
     far: f32,
     fov: Degrees,
@@ -39,7 +43,6 @@ impl Info {
     pub fn new(context: &ContextRc, params: InfoParams) -> Self {
         let data = Data {
             context: context.clone(),
-            renderer: params.renderer.clone(),
             params,
             hierarchy: (false, None),
             meshes: (false, None),
@@ -47,7 +50,7 @@ impl Info {
             freeze_culling_camera: false,
             fps: 0,
             dt: 0,
-            view: Matrix4::default_identity(),
+            cam_matrix: Matrix4::default_identity(),
             near: 0.,
             far: 0.,
             fov: Degrees::new(0.),
@@ -101,27 +104,31 @@ impl Info {
                     data.meshes.1.as_mut().unwrap().update();
                 }
             }
-
-            if !data.freeze_culling_camera {
-                if let Some(camera) = data
-                    .context
-                    .shared_data()
-                    .match_resource(|c: &Camera| c.is_active())
-                {
-                    let c = &camera.get();
-                    data.view = c.transform();
-                    data.near = c.near_plane();
-                    data.far = c.far_plane();
-                    data.fov = c.fov_in_degrees();
-                    data.aspect_ratio = c.aspect_ratio();
-                }
-            }
-            let frustum =
-                compute_frustum(&data.view, data.near, data.far, data.fov, data.aspect_ratio);
-            if let Some(culling_pass) = data.renderer.write().unwrap().pass_mut::<CullingPass>() {
-                culling_pass.set_camera_data(data.view.translation(), &frustum);
-            }
+            data.params
+                .update_culling_camera
+                .store(!data.freeze_culling_camera, Ordering::SeqCst);
             if data.show_frustum {
+                if !data.freeze_culling_camera {
+                    if let Some(camera) = data
+                        .context
+                        .shared_data()
+                        .match_resource(|c: &Camera| c.is_active())
+                    {
+                        let c = camera.get();
+                        data.near = c.near_plane();
+                        data.far = c.far_plane();
+                        data.cam_matrix = c.transform();
+                        data.fov = c.fov_in_degrees();
+                        data.aspect_ratio = c.aspect_ratio();
+                    }
+                }
+                let frustum = compute_frustum(
+                    &data.cam_matrix,
+                    data.near,
+                    data.far,
+                    data.fov,
+                    data.aspect_ratio,
+                );
                 Self::show_frustum(data, &frustum);
             }
         }

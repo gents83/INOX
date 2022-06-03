@@ -86,6 +86,10 @@ impl Default for Frustum {
     }
 }
 
+pub fn normalize_plane(plane: Vector4) -> Vector4 {
+    plane / plane.xyz().length()
+}
+
 pub fn convert_in_3d(pos_2d: Vector2, view: &Matrix4, proj: &Matrix4) -> (Vector3, Vector3) {
     let ray_start = Vector3::new(pos_2d.x, pos_2d.y, 0.);
     let ray_end = Vector3::new(ray_start.x, ray_start.y, 1.);
