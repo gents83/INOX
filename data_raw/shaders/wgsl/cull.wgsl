@@ -49,14 +49,14 @@ var<storage, read_write> commands: Commands;
 
 
 fn transform_vector(v: vec3<f32>, q: vec4<f32>) -> vec3<f32> {
-    return v + 2.0 * cross(q.xyz, cross(q.xyz, v) + q.w * v);
+    return v + 2. * cross(q.xyz, cross(q.xyz, v) + q.w * v);
 }
 
 //ScreenSpace Frustum Culling
 fn is_inside_frustum(center: vec3<f32>, radius: f32) -> bool {
     var visible: bool = true;
     for (var i: i32 = 0; i < 4; i++) {
-        visible = visible && dot(cull_data.frustum[i], vec4<f32>(center, 1.0)) > -radius * 0.5;
+        visible = visible && (dot(cull_data.frustum[i].xyz, center) + cull_data.frustum[i].w * 2. + radius > 0.);
     }
     return visible;
 }
@@ -89,6 +89,7 @@ fn main(@builtin(local_invocation_id) local_invocation_id: vec3<u32>, @builtin(l
     let radius = meshlets.meshlets[meshlet_index].radius * meshes.meshes[mesh_index].scale;
 
     if (!is_inside_frustum(center, radius)) {
+        commands.commands[meshlet_index].vertex_count = 0u;
         commands.commands[meshlet_index].instance_count = 0u;
         return;
     }

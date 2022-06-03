@@ -12,8 +12,8 @@ use inox_resources::{SharedData, SharedDataRc};
 
 use std::sync::{Arc, RwLock};
 
-pub const DEFAULT_WIDTH: u32 = 3840;
-pub const DEFAULT_HEIGHT: u32 = 2160;
+pub const DEFAULT_WIDTH: u32 = 1920;
+pub const DEFAULT_HEIGHT: u32 = 1080;
 
 #[derive(PartialEq, Eq, Copy, Clone)]
 pub enum RendererState {

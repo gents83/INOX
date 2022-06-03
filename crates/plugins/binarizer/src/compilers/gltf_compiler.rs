@@ -409,9 +409,9 @@ impl GltfCompiler {
                     vertices_offset: vertices_offset as _,
                     indices_count: m.triangles.len() as _,
                     indices_offset: indices_offset as _,
-                    center: bounds.center.into(),
+                    center: bounds.center,
                     radius: bounds.radius,
-                    cone_axis: bounds.cone_axis.into(),
+                    cone_axis: bounds.cone_axis,
                     cone_cutoff: bounds.cone_cutoff,
                 });
             }
