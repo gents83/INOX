@@ -63,14 +63,11 @@ fn is_inside_frustum(center: vec3<f32>, radius: f32) -> bool {
     return visible;
 }
 
-fn is_cone_culled(meshlet: MeshletData, mesh: MeshData, camera_position: vec3<f32>) -> bool {
-    let center = transform_vector(meshlet.center, mesh.orientation) * mesh.scale + mesh.position;
-    let radius = meshlet.radius * mesh.scale;
-    let cone_axis = transform_vector(vec3<f32>(meshlet.cone_axis[0], meshlet.cone_axis[1], meshlet.cone_axis[2]), mesh.orientation);
-    let cone_cutoff = meshlet.cone_cutoff;
+fn is_cone_culled(center: vec3<f32>, radius: f32, cone_axis: vec3<f32>, cone_cutoff: f32, orientation: vec4<f32>, camera_position: vec3<f32>) -> bool {
+    let axis = transform_vector(cone_axis, orientation);
 
     let direction = center - camera_position;
-    return dot(direction, cone_axis) < cone_cutoff * length(direction) + radius;
+    return dot(direction, axis) < cone_cutoff * length(direction) + radius;
 }
 
 
@@ -84,19 +81,21 @@ fn main(@builtin(local_invocation_id) local_invocation_id: vec3<u32>, @builtin(l
     }
     let mesh_index = commands.commands[meshlet_index].base_instance;
 
+    let cam_pos = cull_data.cam_pos;
     let center = transform_vector(meshlets.meshlets[meshlet_index].center, meshes.meshes[mesh_index].orientation) * meshes.meshes[mesh_index].scale + meshes.meshes[mesh_index].position;
     let radius = meshlets.meshlets[meshlet_index].radius * meshes.meshes[mesh_index].scale;
 
-    if (!is_inside_frustum(center, radius)) {
+    var is_visible = is_inside_frustum(center, radius);
+    if (!is_visible) {
         commands.commands[meshlet_index].vertex_count = 0u;
         commands.commands[meshlet_index].instance_count = 0u;
         return;
     }
-
-    let cam_pos = cull_data.cam_pos;
-    let is_visible = is_cone_culled(meshlets.meshlets[meshlet_index], meshes.meshes[mesh_index], cam_pos);
+    let cone_axis = vec3<f32>(meshlets.meshlets[meshlet_index].cone_axis[0], meshlets.meshlets[meshlet_index].cone_axis[1], meshlets.meshlets[meshlet_index].cone_axis[2]);
+    is_visible = is_cone_culled(center, radius, cone_axis, meshlets.meshlets[meshlet_index].cone_cutoff, meshes.meshes[mesh_index].orientation, cam_pos);
     if (!is_visible) {
         commands.commands[meshlet_index].vertex_count = 0u;
         commands.commands[meshlet_index].instance_count = 0u;
+        return;
     }
 }
