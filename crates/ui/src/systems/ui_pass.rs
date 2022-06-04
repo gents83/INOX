@@ -96,6 +96,7 @@ impl Pass for UIPass {
                     binding_index: 1,
                     stage: ShaderStage::VertexAndFragment,
                     read_only: true,
+                    ..Default::default()
                 },
             )
             .add_textures_data(
@@ -117,6 +118,7 @@ impl Pass for UIPass {
                     binding_index: 0,
                     stage: ShaderStage::VertexAndFragment,
                     read_only: true,
+                    ..Default::default()
                 },
             );
         self.binding_data.send_to_gpu(render_context);

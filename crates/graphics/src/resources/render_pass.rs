@@ -3,15 +3,16 @@ use std::path::PathBuf;
 use image::DynamicImage;
 use inox_messenger::MessageHubRc;
 use inox_resources::{
-    DataTypeResource, Handle, Resource, ResourceId, ResourceTrait, SerializableResource,
-    SharedData, SharedDataRc,
+    from_u8_slice, DataTypeResource, Handle, Resource, ResourceId, ResourceTrait,
+    SerializableResource, SharedData, SharedDataRc,
 };
 use inox_serialize::{inox_serializable::SerializableRegistryRc, read_from_file};
 use inox_uid::generate_random_uid;
 
 use crate::{
-    platform::is_indirect_mode_enabled, BindingData, IndexFormat, LoadOperation, RenderContext,
-    RenderMode, RenderPassData, RenderPipeline, RenderTarget, StoreOperation, Texture, TextureId,
+    platform::is_indirect_mode_enabled, BindingData, Commands, IndexFormat, LoadOperation,
+    RenderContext, RenderMode, RenderPassData, RenderPipeline, RenderTarget, StoreOperation,
+    Texture, TextureId,
 };
 
 pub type RenderPassId = ResourceId;
@@ -337,7 +338,64 @@ impl RenderPass {
         render_pass
     }
 
+    fn prepare_command_buffer(&self, render_context: &RenderContext) {
+        if is_indirect_mode_enabled() && self.data().render_mode == RenderMode::Indirect {
+            self.pipelines.iter().for_each(|pipeline| {
+                let pipeline_id = pipeline.id();
+
+                let commands = {
+                    let buffers = render_context.binding_data_buffer.buffers.read().unwrap();
+
+                    if let Some(buffer) = buffers.get(pipeline_id) {
+                        let mut new_commands = Vec::new();
+                        let data = buffer.read_from_gpu(&render_context.core);
+                        if let Some(data) = data {
+                            let commands =
+                                from_u8_slice::<wgpu::util::DrawIndexedIndirect>(data.as_slice());
+                            if commands.is_empty() {
+                                return;
+                            }
+                            new_commands.reserve(commands.len());
+                            commands.iter().for_each(|c| {
+                                if c.instance_count != 0 {
+                                    new_commands.push(*c);
+                                }
+                            });
+                        }
+                        if new_commands.is_empty() {
+                            None
+                        } else {
+                            Some(new_commands)
+                        }
+                    } else {
+                        let graphics_data = render_context.graphics_data.get();
+                        graphics_data.create_commands(pipeline_id)
+                    }
+                };
+                {
+                    let mut binding_buffers =
+                        render_context.binding_data_buffer.buffers.write().unwrap();
+                    binding_buffers.remove(pipeline_id);
+                }
+                if let Some(commands) = commands {
+                    let mut commands = Commands { commands };
+                    let usage = wgpu::BufferUsages::INDIRECT
+                        | wgpu::BufferUsages::STORAGE
+                        | wgpu::BufferUsages::COPY_DST;
+                    render_context.binding_data_buffer.bind_buffer_with_id(
+                        pipeline_id,
+                        &mut commands,
+                        usage,
+                        &render_context.core,
+                    );
+                }
+            });
+        }
+    }
+
     pub fn draw(&self, render_context: &RenderContext, render_pass: wgpu::RenderPass) {
+        self.prepare_command_buffer(render_context);
+
         let buffers = render_context.binding_data_buffer.buffers.read().unwrap();
         let pipelines = self.pipelines().iter().map(|h| h.get()).collect::<Vec<_>>();
         {
@@ -363,16 +421,15 @@ impl RenderPass {
                         if is_indirect_mode_enabled()
                             && self.data().render_mode == RenderMode::Indirect
                         {
-                            if let Some(pipeline_commands) = graphics_data.commands(pipeline_id) {
-                                let commands_count = pipeline_commands.commands.len();
+                            if let Some(buffer) = buffers.get(pipeline_id) {
+                                let commands_count = buffer.size()
+                                    / std::mem::size_of::<wgpu::util::DrawIndexedIndirect>() as u64;
                                 if commands_count > 0 {
-                                    if let Some(command_buffer) = buffers.get(pipeline_id) {
-                                        render_pass.multi_draw_indexed_indirect(
-                                            command_buffer.gpu_buffer().unwrap(),
-                                            0,
-                                            commands_count as u32,
-                                        );
-                                    }
+                                    render_pass.multi_draw_indexed_indirect(
+                                        buffer.gpu_buffer().unwrap(),
+                                        0,
+                                        commands_count as _,
+                                    );
                                 }
                             }
                         } else {

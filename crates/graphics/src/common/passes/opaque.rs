@@ -78,6 +78,7 @@ impl Pass for OpaquePass {
                     binding_index: 1,
                     stage: ShaderStage::VertexAndFragment,
                     read_only: true,
+                    ..Default::default()
                 },
             )
             .add_textures_data(

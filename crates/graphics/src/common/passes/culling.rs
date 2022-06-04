@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
 use crate::{
-    AsBufferBinding, BindingData, BindingInfo, ComputePass, ComputePassData, DataBuffer, Mesh,
-    Pass, RenderContext, RenderCoreContext, RenderPipeline, ShaderStage, DEFAULT_PIPELINE,
+    AsBufferBinding, BindingData, BindingInfo, Commands, ComputePass, ComputePassData, DataBuffer,
+    Mesh, Pass, RenderContext, RenderCoreContext, RenderPipeline, ShaderStage, DEFAULT_PIPELINE,
 };
 
 use inox_core::ContextRc;
@@ -133,6 +133,15 @@ impl Pass for CullingPass {
             });
         }
 
+        let commands = render_context
+            .graphics_data
+            .get()
+            .create_commands(pipeline_id);
+
+        if commands.is_none() {
+            return;
+        }
+
         if let Some(meshlets) = render_context
             .graphics_data
             .get_mut()
@@ -143,9 +152,25 @@ impl Pass for CullingPass {
             if self.num_meshlets == 0 || meshes.meshes.is_empty() {
                 return;
             }
-            if !render_context.binding_data_buffer.has_buffer(pipeline_id) {
-                return;
+            let mut commands = Commands {
+                commands: commands.unwrap(),
+            };
+            {
+                let mut binding_buffers =
+                    render_context.binding_data_buffer.buffers.write().unwrap();
+                binding_buffers.remove(pipeline_id);
             }
+            let usage = wgpu::BufferUsages::STORAGE
+                | wgpu::BufferUsages::COPY_DST
+                | wgpu::BufferUsages::COPY_SRC
+                | wgpu::BufferUsages::MAP_READ;
+            render_context.binding_data_buffer.bind_buffer_with_id(
+                pipeline_id,
+                &mut commands,
+                usage,
+                &render_context.core,
+            );
+            self.binding_data.mark_as_dirty();
 
             self.binding_data
                 .add_uniform_data(
@@ -168,6 +193,7 @@ impl Pass for CullingPass {
                         binding_index: 1,
                         stage: ShaderStage::Compute,
                         read_only: true,
+                        ..Default::default()
                     },
                 )
                 .add_storage_data(
@@ -179,6 +205,7 @@ impl Pass for CullingPass {
                         binding_index: 2,
                         stage: ShaderStage::Compute,
                         read_only: true,
+                        ..Default::default()
                     },
                 )
                 .bind_storage_buffer(
@@ -188,6 +215,7 @@ impl Pass for CullingPass {
                         binding_index: 3,
                         stage: ShaderStage::Compute,
                         read_only: false,
+                        ..Default::default()
                     },
                 )
                 .send_to_gpu(render_context);

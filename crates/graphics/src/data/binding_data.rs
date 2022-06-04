@@ -26,12 +26,26 @@ pub trait AsBufferBinding {
     fn fill_buffer(&self, render_core_context: &RenderCoreContext, buffer: &mut DataBuffer);
 }
 
-#[derive(Default)]
 pub struct BindingInfo {
     pub group_index: usize,
     pub binding_index: usize,
     pub stage: ShaderStage,
     pub read_only: bool,
+    pub cpu_accessible: bool,
+    pub is_indirect: bool,
+}
+
+impl Default for BindingInfo {
+    fn default() -> Self {
+        Self {
+            group_index: 0,
+            binding_index: 0,
+            stage: ShaderStage::VertexAndFragment,
+            read_only: true,
+            cpu_accessible: false,
+            is_indirect: false,
+        }
+    }
 }
 
 #[derive(PartialEq, Eq)]
@@ -64,7 +78,9 @@ impl BindingData {
     pub fn bind_group_layouts(&self) -> &[wgpu::BindGroupLayout] {
         self.bind_group_layout.as_slice()
     }
-
+    pub fn mark_as_dirty(&mut self) {
+        self.is_dirty = true;
+    }
     fn create_group_and_binding_index(&mut self, group_index: usize) {
         if group_index >= self.bind_group_layout_entries.len() {
             self.bind_group_layout_entries
@@ -132,6 +148,12 @@ impl BindingData {
         let mut usage = wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST;
         if !info.read_only {
             usage |= wgpu::BufferUsages::COPY_SRC;
+        }
+        if info.cpu_accessible {
+            usage |= wgpu::BufferUsages::MAP_READ;
+        }
+        if info.is_indirect {
+            usage |= wgpu::BufferUsages::INDIRECT;
         }
         let (id, is_changed) = binding_data_buffer.bind_buffer(data, usage, render_core_context);
 

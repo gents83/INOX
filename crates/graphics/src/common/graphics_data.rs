@@ -72,7 +72,6 @@ struct MeshletsInfo {
 struct PipelineBuffers {
     vertex_format: VertexFormatBits,
     instance_buffer: (HashBuffer<MeshId, InstanceData, 0>, DataBuffer),
-    commands: Commands,
     is_dirty: bool,
 }
 
@@ -435,19 +434,7 @@ impl GraphicsData {
         })
     }
 
-    pub fn commands(&self, pipeline_id: &RenderPipelineId) -> Option<&Commands> {
-        self.pipeline_buffers
-            .get(pipeline_id)
-            .map(|pb| &pb.commands)
-    }
-
-    pub fn commands_mut(&mut self, pipeline_id: &RenderPipelineId) -> Option<&mut Commands> {
-        self.pipeline_buffers
-            .get_mut(pipeline_id)
-            .map(|pb| &mut pb.commands)
-    }
-
-    fn fill_commands(
+    pub fn create_commands(
         &self,
         pipeline_id: &RenderPipelineId,
     ) -> Option<Vec<wgpu::util::DrawIndexedIndirect>> {
@@ -529,40 +516,26 @@ impl GraphicsData {
                 .send_to_gpu(&render_context.core.device, &render_context.core.queue);
         });
 
-        let pipelines: Vec<RenderPipelineId> =
-            self.pipeline_buffers.iter().map(|(id, _)| *id).collect();
-        pipelines.iter().for_each(|id| {
-            if let Some(commands) = self.fill_commands(id) {
-                if let Some(pb) = self.pipeline_buffers.get_mut(id) {
-                    pb.commands.commands = commands;
-                    let usage = wgpu::BufferUsages::INDIRECT
-                        | wgpu::BufferUsages::STORAGE
-                        | wgpu::BufferUsages::COPY_SRC
-                        | wgpu::BufferUsages::COPY_DST;
-
-                    render_context.binding_data_buffer.bind_buffer_with_id(
-                        id,
-                        &mut pb.commands,
-                        usage,
-                        &render_context.core,
-                    );
+        self.pipeline_buffers
+            .iter_mut()
+            .for_each(|(pipeline_id, pb)| {
+                {
+                    let mut binding_buffers =
+                        render_context.binding_data_buffer.buffers.write().unwrap();
+                    binding_buffers.remove(pipeline_id);
                 }
-            }
-        });
-
-        self.pipeline_buffers.iter_mut().for_each(|(_, pb)| {
-            let total_size =
-                size_of::<InstanceData>() as u64 * pb.instance_buffer.0.buffer_len() as u64;
-            if total_size > 0 {
-                pb.instance_buffer.1.init_from_type::<InstanceData>(
-                    &render_context.core,
-                    total_size,
-                    wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-                );
-                pb.instance_buffer
-                    .1
-                    .add_to_gpu_buffer(&render_context.core, pb.instance_buffer.0.data());
-            }
-        });
+                let total_size =
+                    size_of::<InstanceData>() as u64 * pb.instance_buffer.0.buffer_len() as u64;
+                if total_size > 0 {
+                    pb.instance_buffer.1.init_from_type::<InstanceData>(
+                        &render_context.core,
+                        total_size,
+                        wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+                    );
+                    pb.instance_buffer
+                        .1
+                        .add_to_gpu_buffer(&render_context.core, pb.instance_buffer.0.data());
+                }
+            });
     }
 }
