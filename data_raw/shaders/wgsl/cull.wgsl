@@ -1,5 +1,7 @@
 
 struct CullingPassData {
+    cam_pos: vec3<f32>,
+    padding: f32,
     frustum: array<vec4<f32>, 4>,
 };
 
@@ -64,14 +66,11 @@ fn is_inside_frustum(center: vec3<f32>, radius: f32) -> bool {
 fn is_cone_culled(meshlet: MeshletData, mesh: MeshData, camera_position: vec3<f32>) -> bool {
     let center = transform_vector(meshlet.center, mesh.orientation) * mesh.scale + mesh.position;
     let radius = meshlet.radius * mesh.scale;
-    let cone_axis = transform_vector(vec3<f32>(meshlet.cone_axis[0] / 127., meshlet.cone_axis[1] / 127., meshlet.cone_axis[2] / 127.), mesh.orientation);
-//    let cone_axis = meshlet.cone_axis / 127.;
-    let cone_cutoff = meshlet.cone_cutoff / 127.;
+    let cone_axis = transform_vector(vec3<f32>(meshlet.cone_axis[0], meshlet.cone_axis[1], meshlet.cone_axis[2]), mesh.orientation);
+    let cone_cutoff = meshlet.cone_cutoff;
 
     let direction = center - camera_position;
     return dot(direction, cone_axis) < cone_cutoff * length(direction) + radius;
-//    let direction = normalize((meshlet.center + mesh.position) - camera_position);
-//    return dot(direction, cone_axis) < cone_cutoff;
 }
 
 
@@ -94,9 +93,10 @@ fn main(@builtin(local_invocation_id) local_invocation_id: vec3<u32>, @builtin(l
         return;
     }
 
-    //let cam_pos = cull_data.cam_pos;
-    //let is_visible = is_cone_culled(meshlets.meshlets[meshlet_index], meshes.meshes[mesh_index], cam_pos);
-    //if (!is_visible) {
-    //    commands.commands[meshlet_index].instance_count = 0u;
-    //}
+    let cam_pos = cull_data.cam_pos;
+    let is_visible = is_cone_culled(meshlets.meshlets[meshlet_index], meshes.meshes[mesh_index], cam_pos);
+    if (!is_visible) {
+        commands.commands[meshlet_index].vertex_count = 0u;
+        commands.commands[meshlet_index].instance_count = 0u;
+    }
 }

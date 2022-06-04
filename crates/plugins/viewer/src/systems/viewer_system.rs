@@ -36,7 +36,7 @@ pub struct ViewerSystem {
 }
 
 const FORCE_USE_DEFAULT_CAMERA: bool = false;
-const CAMERA_SPEED: f32 = 200.;
+const CAMERA_SPEED: f32 = 50.;
 const CAMERA_ROTATION_SPEED: f32 = 100.;
 
 impl Drop for ViewerSystem {
@@ -366,7 +366,8 @@ impl ViewerSystem {
                             if let Some(culling_pass) =
                                 self.renderer.write().unwrap().pass_mut::<CullingPass>()
                             {
-                                culling_pass.set_camera_data(proj_matrix * view_matrix);
+                                culling_pass
+                                    .set_camera_data(c.position(), proj_matrix * view_matrix);
                             }
                         }
                         view.get_mut()

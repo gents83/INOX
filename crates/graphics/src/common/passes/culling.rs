@@ -6,7 +6,7 @@ use crate::{
 };
 
 use inox_core::ContextRc;
-use inox_math::{normalize_plane, Mat4Ops, Matrix, Matrix4, Quat, Quaternion};
+use inox_math::{normalize_plane, Mat4Ops, Matrix, Matrix4, Quat, Quaternion, Vector3};
 use inox_resources::{DataTypeResource, Resource, SerializableResource, SharedDataRc};
 use inox_uid::generate_random_uid;
 
@@ -47,6 +47,8 @@ impl AsBufferBinding for Meshes {
 #[derive(Default)]
 struct CullingPassData {
     is_dirty: bool,
+    cam_pos: [f32; 3],
+    _padding: f32,
     frustum: [[f32; 4]; 4],
 }
 
@@ -58,10 +60,14 @@ impl AsBufferBinding for CullingPassData {
         self.is_dirty = is_dirty;
     }
     fn size(&self) -> u64 {
-        std::mem::size_of_val(&self.frustum) as u64
+        std::mem::size_of_val(&self.cam_pos) as u64
+            + std::mem::size_of_val(&self._padding) as u64
+            + std::mem::size_of_val(&self.frustum) as u64
     }
 
     fn fill_buffer(&self, render_core_context: &RenderCoreContext, buffer: &mut DataBuffer) {
+        buffer.add_to_gpu_buffer(render_core_context, &[self.cam_pos]);
+        buffer.add_to_gpu_buffer(render_core_context, &[self._padding]);
         buffer.add_to_gpu_buffer(render_core_context, &[self.frustum]);
     }
 }
@@ -247,7 +253,8 @@ impl Pass for CullingPass {
 }
 
 impl CullingPass {
-    pub fn set_camera_data(&mut self, view_proj: Matrix4) {
+    pub fn set_camera_data(&mut self, cam_pos: Vector3, view_proj: Matrix4) {
+        self.data.cam_pos = cam_pos.into();
         self.data.frustum = [
             normalize_plane(view_proj.row(3) + view_proj.row(0)).into(),
             normalize_plane(view_proj.row(3) - view_proj.row(0)).into(),
