@@ -6,7 +6,7 @@ use crate::{AsBufferBinding, DataBuffer, RenderCoreContext};
 
 pub const CONSTANT_DATA_FLAGS_NONE: u32 = 0;
 pub const CONSTANT_DATA_FLAGS_SUPPORT_SRGB: u32 = 1;
-pub const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS: u32 = 2;
+pub const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS: u32 = 1 << 1;
 
 #[repr(C, align(16))]
 #[derive(Default, Debug, Clone, Copy)]
@@ -40,6 +40,25 @@ impl AsBufferBinding for ConstantData {
 }
 
 impl ConstantData {
+    pub fn add_flag(&mut self, flag: u32) -> bool {
+        if self.data.flags & flag == 0 {
+            self.data.flags |= flag;
+            self.set_dirty(true);
+        }
+        self.is_dirty()
+    }
+    pub fn toggle_flag(&mut self, flag: u32) -> bool {
+        self.data.flags ^= flag;
+        self.set_dirty(true);
+        true
+    }
+    pub fn remove_flag(&mut self, flag: u32) -> bool {
+        if self.data.flags & flag == flag {
+            self.data.flags &= !flag;
+            self.set_dirty(true);
+        }
+        self.is_dirty()
+    }
     pub fn set_flags(&mut self, flags: u32) -> bool {
         if self.data.flags != flags {
             self.data.flags = flags;

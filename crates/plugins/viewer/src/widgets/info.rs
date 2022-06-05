@@ -4,7 +4,7 @@ use std::sync::{
 };
 
 use inox_core::ContextRc;
-use inox_graphics::DrawEvent;
+use inox_graphics::{DrawEvent, RendererRw, CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS};
 use inox_math::{compute_frustum, Degrees, Frustum, MatBase, Matrix4, NewAngle};
 use inox_resources::Resource;
 use inox_scene::{Camera, SceneId};
@@ -15,6 +15,7 @@ use super::{Hierarchy, Meshes};
 pub struct InfoParams {
     pub is_active: bool,
     pub scene_id: SceneId,
+    pub renderer: RendererRw,
     pub update_culling_camera: Arc<AtomicBool>,
 }
 
@@ -25,6 +26,7 @@ struct Data {
     meshes: (bool, Option<Meshes>),
     show_frustum: bool,
     freeze_culling_camera: bool,
+    show_meshlets: bool,
     fps: u32,
     dt: u128,
     cam_matrix: Matrix4,
@@ -48,6 +50,7 @@ impl Info {
             meshes: (false, None),
             show_frustum: false,
             freeze_culling_camera: false,
+            show_meshlets: false,
             fps: 0,
             dt: 0,
             cam_matrix: Matrix4::default_identity(),
@@ -224,6 +227,24 @@ impl Info {
                         ui.checkbox(&mut data.meshes.0, "Meshes");
                         ui.checkbox(&mut data.show_frustum, "Show Frustum");
                         ui.checkbox(&mut data.freeze_culling_camera, "Freeze Culling Camera");
+                        if ui
+                            .checkbox(&mut data.show_meshlets, "Show Meshlets")
+                            .changed()
+                        {
+                            let renderer = data.params.renderer.read().unwrap();
+                            let mut render_context = renderer.render_context().write().unwrap();
+                            if let Some(render_context) = render_context.as_mut() {
+                                if data.show_meshlets {
+                                    render_context
+                                        .constant_data
+                                        .add_flag(CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS);
+                                } else {
+                                    render_context
+                                        .constant_data
+                                        .remove_flag(CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS);
+                                }
+                            }
+                        }
                     });
             }
         })

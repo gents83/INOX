@@ -151,6 +151,7 @@ impl ViewerSystem {
                 InfoParams {
                     is_active: true,
                     scene_id: *scene.id(),
+                    renderer: renderer.clone(),
                     update_culling_camera: update_culling_camera.clone(),
                 },
             ),
