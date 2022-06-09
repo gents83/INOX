@@ -5,8 +5,6 @@ use inox_filesystem::convert_from_local_path;
 use inox_resources::Data;
 use inox_serialize::{Deserialize, Serialize, SerializeFile};
 
-use crate::VertexFormat;
-
 #[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
 #[serde(crate = "inox_serialize")]
 pub enum PolygonMode {
@@ -168,7 +166,6 @@ pub enum DrawMode {
 pub struct RenderPipelineData {
     pub vertex_shader: PathBuf,
     pub fragment_shader: PathBuf,
-    pub vertex_format: Vec<VertexFormat>,
     pub front_face: FrontFace,
     pub culling: CullMode,
     pub mode: PolygonMode,
@@ -193,7 +190,6 @@ impl Default for RenderPipelineData {
         Self {
             vertex_shader: PathBuf::new(),
             fragment_shader: PathBuf::new(),
-            vertex_format: Vec::new(),
             front_face: FrontFace::CounterClockwise,
             culling: CullMode::Back,
             mode: PolygonMode::Fill,
@@ -210,20 +206,18 @@ impl Default for RenderPipelineData {
 }
 
 impl RenderPipelineData {
-    pub fn is_valid(&self) -> bool {
-        !self.vertex_format.is_empty()
-    }
-    pub fn canonicalize_paths(mut self) -> Self {
+    pub fn canonicalize_paths(&self) -> Self {
+        let mut data = self.clone();
         let data_path = Data::platform_data_folder();
-        if !self.vertex_shader.to_str().unwrap().is_empty() {
-            self.vertex_shader =
-                convert_from_local_path(data_path.as_path(), self.vertex_shader.as_path());
+        if !data.vertex_shader.to_str().unwrap().is_empty() {
+            data.vertex_shader =
+                convert_from_local_path(data_path.as_path(), data.vertex_shader.as_path());
         }
-        if !self.fragment_shader.to_str().unwrap().is_empty() {
-            self.fragment_shader =
-                convert_from_local_path(data_path.as_path(), self.fragment_shader.as_path());
+        if !data.fragment_shader.to_str().unwrap().is_empty() {
+            data.fragment_shader =
+                convert_from_local_path(data_path.as_path(), data.fragment_shader.as_path());
         }
-        self
+        data
     }
     pub fn has_same_shaders(&self, other: &RenderPipelineData) -> bool {
         self.vertex_shader == other.vertex_shader && self.fragment_shader == other.fragment_shader

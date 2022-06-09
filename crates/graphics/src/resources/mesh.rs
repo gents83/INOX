@@ -1,21 +1,23 @@
-use std::{
-    ops::Range,
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 
-use crate::{
-    GraphicsData, Material, MeshData, VertexFormat, VertexFormatBits, GRAPHICS_DATA_UID,
-    INVALID_INDEX,
-};
+use crate::{Material, MeshData};
 use inox_math::{MatBase, Matrix4, Vector4};
 use inox_messenger::MessageHubRc;
 use inox_resources::{
-    DataTypeResource, Handle, Resource, ResourceEvent, ResourceId, ResourceTrait,
-    SerializableResource, SharedData, SharedDataRc,
+    DataTypeResource, DataTypeResourceEvent, Handle, Resource, ResourceEvent, ResourceId,
+    ResourceTrait, SerializableResource, SharedData, SharedDataRc,
 };
 use inox_serialize::{inox_serializable::SerializableRegistryRc, read_from_file, SerializeFile};
 
 pub type MeshId = ResourceId;
+
+pub const MESH_FLAGS_NONE: u32 = 0;
+pub const MESH_FLAGS_VISIBLE: u32 = 1;
+pub const MESH_FLAGS_OPAQUE: u32 = 1 << 1;
+pub const MESH_FLAGS_TRANSPARENT: u32 = 1 << 2;
+pub const MESH_FLAGS_WIREFRAME: u32 = 1 << 3;
+pub const MESH_FLAGS_DEBUG: u32 = 1 << 4;
+pub const MESH_FLAGS_UI: u32 = 1 << 5;
 
 #[derive(Clone)]
 pub struct OnMeshCreateData {
@@ -31,12 +33,7 @@ pub struct Mesh {
     matrix: Matrix4,
     material: Handle<Material>,
     draw_area: Vector4, //pos (x,y) - size(z,w)
-    is_visible: bool,
-    draw_index: i32,
-    graphics_data: Handle<GraphicsData>,
-    vertex_format: VertexFormatBits,
-    vertices_range: Range<usize>,
-    indices_range: Range<usize>,
+    flags: u32,
 }
 
 impl ResourceTrait for Mesh {
@@ -53,10 +50,7 @@ impl ResourceTrait for Mesh {
             self.set_matrix(on_create_data.parent_matrix);
         }
     }
-    fn on_destroy(&mut self, _shared_data: &SharedData, _message_hub: &MessageHubRc, id: &MeshId) {
-        if let Some(graphics_data) = &self.graphics_data {
-            graphics_data.get_mut().remove_mesh(id);
-        }
+    fn on_destroy(&mut self, _shared_data: &SharedData, _message_hub: &MessageHubRc, _id: &MeshId) {
     }
     fn on_copy(&mut self, other: &Self)
     where
@@ -93,21 +87,14 @@ impl DataTypeResource for Mesh {
             matrix: Matrix4::default_identity(),
             material: None,
             draw_area: [0., 0., f32::MAX, f32::MAX].into(),
-            is_visible: true,
-            draw_index: INVALID_INDEX,
-            graphics_data: shared_data.get_resource::<GraphicsData>(&GRAPHICS_DATA_UID),
-            vertices_range: 0..0,
-            indices_range: 0..0,
-            vertex_format: VertexFormat::to_bits(&VertexFormat::pbr()),
+            flags: MESH_FLAGS_VISIBLE | MESH_FLAGS_OPAQUE,
         }
     }
     fn is_initialized(&self) -> bool {
-        !self.vertices_range.is_empty()
+        self.material.is_some()
     }
 
     fn invalidate(&mut self) -> &mut Self {
-        self.vertices_range = 0..0;
-        self.indices_range = 0..0;
         self.mark_as_dirty();
         self
     }
@@ -123,7 +110,7 @@ impl DataTypeResource for Mesh {
         shared_data: &SharedDataRc,
         message_hub: &MessageHubRc,
         id: ResourceId,
-        data: Self::DataType,
+        data: &Self::DataType,
     ) -> Self
     where
         Self: Sized,
@@ -137,12 +124,6 @@ impl DataTypeResource for Mesh {
         };
         let mut mesh = Mesh::new(id, shared_data, message_hub);
         mesh.material = material;
-        mesh.vertex_format = VertexFormat::to_bits(data.vertex_format.as_slice());
-        if let Some(graphics_data) = &mesh.graphics_data {
-            let (vertex_range, index_range) = graphics_data.get_mut().add_mesh_data(&id, &data);
-            mesh.vertices_range = vertex_range;
-            mesh.indices_range = index_range;
-        }
         mesh
     }
 }
@@ -153,41 +134,8 @@ impl Mesh {
             .send_event(ResourceEvent::<Self>::Changed(self.id));
         self
     }
-    pub fn vertex_format(&self) -> u32 {
-        self.vertex_format
-    }
     pub fn find_from_path(shared_data: &SharedDataRc, path: &Path) -> Handle<Self> {
         SharedData::match_resource(shared_data, |m: &Mesh| m.path() == path)
-    }
-    pub fn vertices_range(&self) -> &Range<usize> {
-        &self.vertices_range
-    }
-    pub fn set_vertices_range(&mut self, vertices_range: Range<usize>) -> &mut Self {
-        if self.vertices_range != vertices_range {
-            self.vertices_range = vertices_range;
-            self.mark_as_dirty();
-        }
-        self
-    }
-    pub fn indices_range(&self) -> &Range<usize> {
-        &self.indices_range
-    }
-    pub fn set_indices_range(&mut self, indices_range: Range<usize>) -> &mut Self {
-        if self.indices_range != indices_range {
-            self.indices_range = indices_range;
-            self.mark_as_dirty();
-        }
-        self
-    }
-    pub fn is_visible(&self) -> bool {
-        self.is_visible && !self.vertices_range.is_empty()
-    }
-    pub fn set_visible(&mut self, is_visible: bool) -> &mut Self {
-        if self.is_visible != is_visible {
-            self.is_visible = is_visible;
-            self.mark_as_dirty();
-        }
-        self
     }
     pub fn set_draw_area(&mut self, draw_area: Vector4) -> &mut Self {
         if self.draw_area != draw_area {
@@ -214,35 +162,38 @@ impl Mesh {
         &self.material
     }
     pub fn set_mesh_data(&mut self, mesh_data: MeshData) -> &mut Self {
-        if let Some(material) = self.material.as_ref() {
-            if let Some(pipeline) = material.get().pipeline() {
-                let pipeline_vertex_format = pipeline.get().vertex_format();
-                let mesh_vertex_format = mesh_data.vertex_format();
-                if pipeline_vertex_format != mesh_vertex_format {
-                    panic!(
-                        "Mesh vertex format mismatch - Pipeline is {:?}, mesh is {:?}",
-                        pipeline_vertex_format, mesh_vertex_format
-                    );
-                }
-            }
-        }
-        if let Some(graphics_data) = &self.graphics_data {
-            let (vertex_range, index_range) =
-                graphics_data.get_mut().add_mesh_data(&self.id, &mesh_data);
-            if self.vertices_range != vertex_range && self.indices_range != index_range {
-                self.vertices_range = vertex_range;
-                self.indices_range = index_range;
-                self.mark_as_dirty();
-            }
+        self.message_hub
+            .send_event(DataTypeResourceEvent::<Self>::Loaded(self.id, mesh_data));
+        self
+    }
+    pub fn flags(&self) -> u32 {
+        self.flags
+    }
+    pub fn add_flag(&mut self, flag: u32) -> &mut Self {
+        if !self.has_flags(flag) {
+            self.flags |= flag;
+            self.mark_as_dirty();
         }
         self
     }
-    pub fn draw_index(&self) -> i32 {
-        self.draw_index
+    pub fn toggle_flag(&mut self, flag: u32) -> &mut Self {
+        self.flags ^= flag;
+        self.mark_as_dirty();
+        self
     }
-    pub fn set_draw_index(&mut self, draw_index: u32) -> &mut Self {
-        if self.draw_index != draw_index as i32 {
-            self.draw_index = draw_index as _;
+    pub fn remove_flag(&mut self, flag: u32) -> &mut Self {
+        if self.has_flags(flag) {
+            self.flags &= !flag;
+            self.mark_as_dirty();
+        }
+        self
+    }
+    pub fn has_flags(&self, flags: u32) -> bool {
+        self.flags & flags == flags
+    }
+    pub fn set_flags(&mut self, flags: u32) -> &mut Self {
+        if self.flags != flags {
+            self.flags = flags;
             self.mark_as_dirty();
         }
         self

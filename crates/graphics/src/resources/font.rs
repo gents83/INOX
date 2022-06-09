@@ -56,17 +56,18 @@ impl DataTypeResource for Font {
         shared_data: &SharedDataRc,
         message_hub: &MessageHubRc,
         _id: ResourceId,
-        data: Self::DataType,
+        data: &Self::DataType,
     ) -> Self
     where
         Self: Sized,
     {
-        let mut font_data = data;
+        let mut font_data = data.clone();
         let texture = Texture::new_resource(
             shared_data,
             message_hub,
             generate_random_uid(),
             font_data.create_texture(),
+            None,
         );
         Self {
             texture: Some(texture),

@@ -1,24 +1,23 @@
 use std::{
     collections::HashMap,
-    sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard},
+    sync::{Arc, RwLock},
 };
 
-use inox_core::ContextRc;
 use inox_math::{Matrix4, Vector2};
 use inox_platform::Handle;
-use inox_resources::Resource;
+
 use inox_uid::Uid;
 
 use crate::{
     platform::{platform_limits, required_gpu_features},
-    AsBufferBinding, ConstantData, DataBuffer, DynamicData, GraphicsData, LightData, LightId,
-    Material, RenderPass, TextureData, TextureHandler, TextureId, CONSTANT_DATA_FLAGS_SUPPORT_SRGB,
-    DEFAULT_HEIGHT, DEFAULT_WIDTH, GRAPHICS_DATA_UID,
+    AsBinding, ConstantData, GpuBuffer, MeshId, RenderBuffers, RenderPass, RenderPipelineId,
+    RendererRw, TextureData, TextureHandler, TextureId, CONSTANT_DATA_FLAGS_SUPPORT_SRGB,
+    DEFAULT_HEIGHT, DEFAULT_WIDTH,
 };
 
 #[derive(Default)]
 pub struct BindingDataBuffer {
-    pub buffers: RwLock<HashMap<Uid, DataBuffer>>,
+    pub buffers: RwLock<HashMap<Uid, GpuBuffer>>,
 }
 
 impl BindingDataBuffer {
@@ -33,12 +32,12 @@ impl BindingDataBuffer {
         render_core_context: &RenderCoreContext,
     ) -> bool
     where
-        T: AsBufferBinding,
+        T: AsBinding,
     {
         let mut bind_data_buffer = self.buffers.write().unwrap();
         let buffer = bind_data_buffer
             .entry(*id)
-            .or_insert_with(DataBuffer::default);
+            .or_insert_with(GpuBuffer::default);
 
         let mut is_changed = false;
         if data.is_dirty() {
@@ -63,7 +62,7 @@ impl BindingDataBuffer {
         render_core_context: &RenderCoreContext,
     ) -> (Uid, bool)
     where
-        T: AsBufferBinding,
+        T: AsBinding,
     {
         let id = T::id();
         let is_changed = self.bind_buffer_with_id(&id, data, usage, render_core_context);
@@ -103,34 +102,16 @@ pub struct RenderContext {
     pub surface_texture: Option<wgpu::SurfaceTexture>,
     pub surface_view: Option<wgpu::TextureView>,
     pub constant_data: ConstantData,
-    pub dynamic_data: DynamicData,
     pub texture_handler: TextureHandler,
-    pub graphics_data: Resource<GraphicsData>,
     pub binding_data_buffer: BindingDataBuffer,
+    pub render_buffers: RenderBuffers,
+    pub pipeline_meshes: HashMap<RenderPipelineId, Vec<MeshId>>,
 }
 
-pub type RenderContextRw = Arc<RwLock<Option<RenderContext>>>;
-
-pub trait GetRenderContext {
-    fn get(&self) -> RwLockReadGuard<Option<RenderContext>>;
-    fn get_mut(&self) -> RwLockWriteGuard<Option<RenderContext>>;
-}
-
-impl GetRenderContext for RenderContextRw {
-    fn get(&self) -> RwLockReadGuard<Option<RenderContext>> {
-        self.read().unwrap()
-    }
-    fn get_mut(&self) -> RwLockWriteGuard<Option<RenderContext>> {
-        self.write().unwrap()
-    }
-}
+pub type RenderContextRw = Arc<RwLock<RenderContext>>;
 
 impl RenderContext {
-    pub async fn create_render_context(
-        handle: Handle,
-        app_context: ContextRc,
-        render_context: RenderContextRw,
-    ) {
+    pub async fn create_render_context(handle: Handle, renderer: RendererRw) {
         let backend = wgpu::Backends::all();
         let instance = wgpu::Instance::new(backend);
         let surface = unsafe { instance.create_surface(&handle) };
@@ -166,12 +147,6 @@ impl RenderContext {
         //debug_log!("Surface format: {:?}", config.format);
         surface.configure(&device, &config);
 
-        let graphics_data = app_context.shared_data().add_resource(
-            app_context.message_hub(),
-            GRAPHICS_DATA_UID,
-            GraphicsData::default(),
-        );
-
         let render_core_context = RenderCoreContext {
             instance,
             surface,
@@ -181,16 +156,19 @@ impl RenderContext {
             queue,
         };
 
-        render_context.write().unwrap().replace(RenderContext {
-            texture_handler: TextureHandler::create(&render_core_context.device),
-            core: render_core_context,
-            surface_texture: None,
-            surface_view: None,
-            constant_data: ConstantData::default(),
-            dynamic_data: DynamicData::default(),
-            graphics_data,
-            binding_data_buffer: BindingDataBuffer::default(),
-        });
+        renderer
+            .write()
+            .unwrap()
+            .set_render_context(Arc::new(RwLock::new(RenderContext {
+                texture_handler: TextureHandler::create(&render_core_context.device),
+                core: render_core_context,
+                surface_texture: None,
+                surface_view: None,
+                constant_data: ConstantData::default(),
+                binding_data_buffer: BindingDataBuffer::default(),
+                render_buffers: RenderBuffers::default(),
+                pipeline_meshes: HashMap::default(),
+            })));
     }
 
     pub fn update_constant_data(&mut self, view: Matrix4, proj: Matrix4, screen_size: Vector2) {
@@ -209,20 +187,9 @@ impl RenderContext {
             self.constant_data.set_dirty(true);
         }
     }
-    pub fn add_texture_data(&mut self, id: &TextureId, data: TextureData) -> usize {
-        let uniform_index = self.dynamic_data.add_texture_data(id, data);
-        self.dynamic_data.set_dirty(true);
-        uniform_index
-    }
-    pub fn add_light_data(&mut self, id: &LightId, data: LightData) -> usize {
-        let uniform_index = self.dynamic_data.add_light_data(id, data);
-        self.dynamic_data.set_dirty(true);
-        uniform_index
-    }
-    pub fn add_material_data(&mut self, id: &LightId, material: &Material) -> usize {
-        let uniform_index = self.dynamic_data.add_material_data(id, material);
-        self.dynamic_data.set_dirty(true);
-        uniform_index
+
+    pub fn resolution(&self) -> (u32, u32) {
+        (self.core.config.width, self.core.config.height)
     }
 
     pub fn render_target<'a>(&'a self, render_pass: &'a RenderPass) -> &'a wgpu::TextureView {
@@ -266,5 +233,21 @@ impl RenderContext {
         } else {
             None
         }
+    }
+
+    pub fn add_image(
+        &mut self,
+        encoder: &mut wgpu::CommandEncoder,
+        texture_id: &TextureId,
+        dimensions: (u32, u32),
+        image_data: &[u8],
+    ) -> TextureData {
+        self.texture_handler.add_image(
+            &self.core.device,
+            encoder,
+            texture_id,
+            dimensions,
+            image_data,
+        )
     }
 }

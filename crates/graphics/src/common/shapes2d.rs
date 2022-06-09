@@ -1,151 +1,128 @@
 use std::f32::consts::PI;
 
-use inox_math::{VecBaseFloat, Vector2, Vector3, Vector4};
+use inox_math::{VecBase, VecBaseFloat, Vector2, Vector3, Vector4};
 
-use crate::{PbrVertexData, VertexData, MAX_TEXTURE_COORDS_SETS};
+use crate::{MeshData, MeshletData};
 
-pub fn create_quad<T>(rect: Vector4, z: f32, index_start: Option<usize>) -> ([T; 4], [u32; 6])
-where
-    T: VertexData + Copy,
-{
-    let mut vertices = [T::default(); 4];
-    vertices[0].set_position([rect.x, rect.y, z].into());
-    vertices[1].set_position([rect.x, rect.w, z].into());
-    vertices[2].set_position([rect.z, rect.w, z].into());
-    vertices[3].set_position([rect.z, rect.y, z].into());
-    let index_offset: u32 = index_start.unwrap_or(0) as _;
-    let indices: [u32; 6] = [
-        index_offset,
-        2 + index_offset,
-        1 + index_offset,
-        3 + index_offset,
-        2 + index_offset,
-        index_offset,
-    ];
-    (vertices, indices)
+pub fn create_quad(rect: Vector4, z: f32) -> MeshData {
+    create_quad_with_texture(rect, z, [0., 0., 1., 1.].into())
 }
 
-pub fn create_quad_with_texture<T>(
-    rect: Vector4,
-    z: f32,
-    tex_coords: Vector4,
-    index_start: Option<usize>,
-) -> ([T; 4], [u32; 6])
-where
-    T: VertexData + Copy,
-{
-    let mut vertices = [T::default(); 4];
-    vertices[0].set_position([rect.x, rect.y, z].into());
-    vertices[0].set_normal([-1., -1., 0.].into());
-    vertices[0].set_tex_coord([tex_coords.x, tex_coords.y].into());
-    vertices[1].set_position([rect.x, rect.w, z].into());
-    vertices[1].set_normal([-1., 1., 0.].into());
-    vertices[1].set_tex_coord([tex_coords.x, tex_coords.w].into());
-    vertices[2].set_position([rect.z, rect.w, z].into());
-    vertices[2].set_normal([1., 1., 0.].into());
-    vertices[2].set_tex_coord([tex_coords.z, tex_coords.w].into());
-    vertices[3].set_position([rect.z, rect.y, z].into());
-    vertices[3].set_normal([1., -1., 0.].into());
-    vertices[3].set_tex_coord([tex_coords.z, tex_coords.y].into());
+pub fn create_quad_with_texture(rect: Vector4, z: f32, tex_coords: Vector4) -> MeshData {
+    let mut mesh_data = MeshData::default();
+    mesh_data.add_vertex_pos_color_normal_uv(
+        [rect.x, rect.y, z].into(),
+        Vector4::default_one(),
+        [-1., -1., 0.].into(),
+        [tex_coords.x, tex_coords.y].into(),
+    );
+    mesh_data.add_vertex_pos_color_normal_uv(
+        [rect.x, rect.w, z].into(),
+        Vector4::default_one(),
+        [-1., 1., 0.].into(),
+        [tex_coords.x, tex_coords.w].into(),
+    );
+    mesh_data.add_vertex_pos_color_normal_uv(
+        [rect.z, rect.w, z].into(),
+        Vector4::default_one(),
+        [1., 1., 0.].into(),
+        [tex_coords.z, tex_coords.w].into(),
+    );
+    mesh_data.add_vertex_pos_color_normal_uv(
+        [rect.z, rect.y, z].into(),
+        Vector4::default_one(),
+        [1., -1., 0.].into(),
+        [tex_coords.z, tex_coords.y].into(),
+    );
+    mesh_data.indices = [0, 2, 1, 3, 2, 0].to_vec();
 
-    let index_offset: u32 = index_start.unwrap_or(0) as _;
-    let indices: [u32; 6] = [
-        index_offset,
-        2 + index_offset,
-        1 + index_offset,
-        3 + index_offset,
-        2 + index_offset,
-        index_offset,
-    ];
-    (vertices, indices)
+    let meshlet = MeshletData {
+        vertices_count: mesh_data.vertex_count() as _,
+        indices_count: mesh_data.index_count() as _,
+        ..Default::default()
+    };
+    mesh_data.meshlets.push(meshlet);
+    mesh_data
 }
-pub fn create_colored_quad<T>(
-    rect: Vector4,
-    z: f32,
-    color: Vector4,
-    index_start: Option<usize>,
-) -> ([T; 4], [u32; 6])
-where
-    T: VertexData + Copy,
-{
-    let mut vertices = [T::default(); 4];
-    vertices[0].set_position([rect.x, rect.y, z].into());
-    vertices[0].set_normal([-1., -1., 0.].into());
-    vertices[0].set_color(color);
-    vertices[1].set_position([rect.x, rect.w, z].into());
-    vertices[1].set_normal([-1., 1., 0.].into());
-    vertices[1].set_color(color);
-    vertices[2].set_position([rect.z, rect.w, z].into());
-    vertices[2].set_normal([1., 1., 0.].into());
-    vertices[2].set_color(color);
-    vertices[3].set_position([rect.z, rect.y, z].into());
-    vertices[3].set_normal([1., -1., 0.].into());
-    vertices[3].set_color(color);
+pub fn create_colored_quad(rect: Vector4, z: f32, color: Vector4) -> MeshData {
+    let mut mesh_data = MeshData::default();
+    mesh_data.add_vertex_pos_color([rect.x, rect.y, z].into(), color);
+    mesh_data.add_vertex_pos_color([rect.x, rect.w, z].into(), color);
+    mesh_data.add_vertex_pos_color([rect.z, rect.w, z].into(), color);
+    mesh_data.add_vertex_pos_color([rect.z, rect.y, z].into(), color);
+    mesh_data.indices = [0, 2, 1, 3, 2, 0].to_vec();
 
-    let index_offset: u32 = index_start.unwrap_or(0) as _;
-    let indices: [u32; 6] = [
-        index_offset,
-        2 + index_offset,
-        1 + index_offset,
-        3 + index_offset,
-        2 + index_offset,
-        index_offset,
-    ];
-    (vertices, indices)
+    let meshlet = MeshletData {
+        vertices_count: mesh_data.vertex_count() as _,
+        indices_count: mesh_data.index_count() as _,
+        ..Default::default()
+    };
+    mesh_data.meshlets.push(meshlet);
+    mesh_data
 }
 
-pub fn create_triangle_up() -> ([PbrVertexData; 3], [u32; 3]) {
-    let mut vertices = [PbrVertexData::default(); 3];
-    vertices[0].pos = [0., 1., 0.].into();
-    vertices[1].pos = [1., 1., 0.].into();
-    vertices[2].pos = [0.5, 0., 0.].into();
-    vertices[0].normal = [-1., -1., 0.].into();
-    vertices[1].normal = [1., -1., 0.].into();
-    vertices[2].normal = [0., 1., 0.].into();
-    vertices[0].tex_coord = [[0., 1.].into(); MAX_TEXTURE_COORDS_SETS];
-    vertices[1].tex_coord = [[1., 1.].into(); MAX_TEXTURE_COORDS_SETS];
-    vertices[2].tex_coord = [[0.5, 0.].into(); MAX_TEXTURE_COORDS_SETS];
-    vertices[0].color = [1., 1., 1., 1.].into();
-    vertices[1].color = [1., 1., 1., 1.].into();
-    vertices[2].color = [1., 1., 1., 1.].into();
-    let indices = [0u32, 2, 1];
-    (vertices, indices)
+pub fn create_triangle_up() -> MeshData {
+    let mut mesh_data = MeshData::default();
+    mesh_data.add_vertex_pos_color_normal_uv(
+        [0., 1., 0.].into(),
+        Vector4::default_one(),
+        [-1., -1., 0.].into(),
+        [0., 1.].into(),
+    );
+    mesh_data.add_vertex_pos_color_normal_uv(
+        [1., 1., 0.].into(),
+        Vector4::default_one(),
+        [1., -1., 0.].into(),
+        [1., 1.].into(),
+    );
+    mesh_data.add_vertex_pos_color_normal_uv(
+        [0.5, 0., 0.].into(),
+        Vector4::default_one(),
+        [0., 1., 0.].into(),
+        [0.5, 0.].into(),
+    );
+
+    mesh_data.indices = [0, 2, 1].to_vec();
+
+    let meshlet = MeshletData {
+        vertices_count: mesh_data.vertex_count() as _,
+        indices_count: mesh_data.index_count() as _,
+        ..Default::default()
+    };
+    mesh_data.meshlets.push(meshlet);
+    mesh_data
 }
 
-pub fn create_triangle_down() -> ([PbrVertexData; 3], [u32; 3]) {
-    let mut vertices = [PbrVertexData::default(); 3];
-    vertices[0].pos = [0., 0., 0.].into();
-    vertices[1].pos = [1., 0., 0.].into();
-    vertices[2].pos = [0.5, 1., 0.].into();
-    vertices[0].normal = [-1., 1., 0.].into();
-    vertices[1].normal = [1., 1., 0.].into();
-    vertices[2].normal = [0., -1., 0.].into();
-    vertices[0].tex_coord = [[0., 0.].into(); MAX_TEXTURE_COORDS_SETS];
-    vertices[1].tex_coord = [[1., 0.].into(); MAX_TEXTURE_COORDS_SETS];
-    vertices[2].tex_coord = [[0.5, 1.].into(); MAX_TEXTURE_COORDS_SETS];
-    vertices[0].color = [1., 1., 1., 1.].into();
-    vertices[1].color = [1., 1., 1., 1.].into();
-    vertices[2].color = [1., 1., 1., 1.].into();
-    let indices = [0u32, 2, 1];
-    (vertices, indices)
-}
+pub fn create_triangle_down() -> MeshData {
+    let mut mesh_data = MeshData::default();
+    mesh_data.add_vertex_pos_color_normal_uv(
+        [0., 0., 0.].into(),
+        Vector4::default_one(),
+        [-1., 1., 0.].into(),
+        [0., 0.].into(),
+    );
+    mesh_data.add_vertex_pos_color_normal_uv(
+        [1., 0., 0.].into(),
+        Vector4::default_one(),
+        [1., 1., 0.].into(),
+        [1., 0.].into(),
+    );
+    mesh_data.add_vertex_pos_color_normal_uv(
+        [0.5, 1., 0.].into(),
+        Vector4::default_one(),
+        [0., -1., 0.].into(),
+        [0.5, 1.].into(),
+    );
 
-pub fn create_triangle_right() -> ([PbrVertexData; 3], [u32; 3]) {
-    let mut vertices = [PbrVertexData::default(); 3];
-    vertices[0].pos = [0., 0., 0.].into();
-    vertices[1].pos = [1., 0.5, 0.].into();
-    vertices[2].pos = [0., 1., 0.].into();
-    vertices[0].normal = [-1., 1., 0.].into();
-    vertices[1].normal = [1., 0., 0.].into();
-    vertices[2].normal = [-1., -1., 0.].into();
-    vertices[0].tex_coord = [[0., 0.].into(); MAX_TEXTURE_COORDS_SETS];
-    vertices[1].tex_coord = [[1., 0.5].into(); MAX_TEXTURE_COORDS_SETS];
-    vertices[2].tex_coord = [[0., 1.].into(); MAX_TEXTURE_COORDS_SETS];
-    vertices[0].color = [1., 1., 1., 1.].into();
-    vertices[1].color = [1., 1., 1., 1.].into();
-    vertices[2].color = [1., 1., 1., 1.].into();
-    let indices = [0u32, 2, 1];
-    (vertices, indices)
+    mesh_data.indices = [0, 2, 1].to_vec();
+
+    let meshlet = MeshletData {
+        vertices_count: mesh_data.vertex_count() as _,
+        indices_count: mesh_data.index_count() as _,
+        ..Default::default()
+    };
+    mesh_data.meshlets.push(meshlet);
+    mesh_data
 }
 
 #[inline]
@@ -171,17 +148,20 @@ pub fn create_rounded_rect(
     rect: Vector4,
     corner_radius: f32,
     num_slices: u32,
-) -> (Vec<PbrVertexData>, Vec<u32>) {
-    let center = PbrVertexData {
-        pos: [
+    color: Vector4,
+) -> MeshData {
+    let mut mesh_data = MeshData::default();
+    mesh_data.add_vertex_pos_color_normal_uv(
+        [
             rect.x + (rect.z - rect.x) * 0.5,
             rect.y + (rect.w - rect.y) * 0.5,
             0.,
         ]
         .into(),
-        tex_coord: [[0.5, 0.5].into(); MAX_TEXTURE_COORDS_SETS],
-        ..Default::default()
-    };
+        color,
+        [0., 0., 1.].into(),
+        [0.5, 0.5].into(),
+    );
 
     let mut positions = Vec::new();
 
@@ -228,28 +208,35 @@ pub fn create_rounded_rect(
         corner_radius,
         num_slices,
     );
-
-    let mut vertices = vec![center];
+    let center: Vector3 = mesh_data.positions[0].into();
     for v in positions.iter() {
         let pos: Vector3 = [v.x, v.y, 0.].into();
-        vertices.push(PbrVertexData {
+
+        mesh_data.add_vertex_pos_color_normal_uv(
             pos,
-            tex_coord: [[rect.z / v.x, rect.w / v.y].into(); MAX_TEXTURE_COORDS_SETS],
-            normal: (pos - center.pos).normalized(),
-            ..Default::default()
-        });
-    }
-    let mut indices = Vec::new();
-
-    for i in 1..vertices.len() - 1 {
-        indices.push(i as u32 + 1u32);
-        indices.push(i as u32);
-        indices.push(0u32);
+            color,
+            (pos - center).normalized(),
+            [rect.z / v.x, rect.w / v.y].into(),
+        );
     }
 
-    indices.push(1u32);
-    indices.push((vertices.len() - 1) as u32);
-    indices.push(0u32);
+    for i in 1..mesh_data.vertex_count() - 1 {
+        mesh_data.indices.push(i as u32 + 1u32);
+        mesh_data.indices.push(i as u32);
+        mesh_data.indices.push(0u32);
+    }
 
-    (vertices, indices)
+    mesh_data.indices.push(1u32);
+    mesh_data
+        .indices
+        .push((mesh_data.vertex_count() - 1) as u32);
+    mesh_data.indices.push(0u32);
+
+    let meshlet = MeshletData {
+        vertices_count: mesh_data.vertex_count() as _,
+        indices_count: mesh_data.index_count() as _,
+        ..Default::default()
+    };
+    mesh_data.meshlets.push(meshlet);
+    mesh_data
 }

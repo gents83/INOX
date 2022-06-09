@@ -71,11 +71,11 @@ impl View3D {
     }
 
     fn get_render_pass_texture_index(shared_data: &SharedDataRc, render_pass_name: &str) -> i32 {
-        if let Some(render_pass) = SharedData::match_resource(shared_data, |r: &RenderPass| {
-            r.data().name == render_pass_name
-        }) {
+        if let Some(render_pass) =
+            SharedData::match_resource(shared_data, |r: &RenderPass| r.name() == render_pass_name)
+        {
             if let Some(texture) = render_pass.get().render_texture() {
-                return texture.get().uniform_index();
+                return texture.get().texture_index();
             }
         }
         0

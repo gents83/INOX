@@ -1,31 +1,11 @@
 use std::num::NonZeroU32;
 
-use inox_uid::{generate_uid_from_string, Uid};
+use inox_uid::Uid;
 
 use crate::{
-    platform::required_gpu_features, BindingDataBuffer, DataBuffer, RenderContext,
+    platform::required_gpu_features, AsBinding, BindingDataBuffer, RenderContext,
     RenderCoreContext, ShaderStage, TextureHandler, TextureId, MAX_TEXTURE_ATLAS_COUNT,
 };
-
-pub trait AsBufferBinding {
-    fn id() -> Uid
-    where
-        Self: Sized,
-    {
-        let typename = std::any::type_name::<Self>()
-            .split(':')
-            .collect::<Vec<&str>>()
-            .last()
-            .unwrap()
-            .to_string();
-        generate_uid_from_string(typename.as_str())
-    }
-    fn is_dirty(&self) -> bool;
-    fn set_dirty(&mut self, is_dirty: bool);
-    fn size(&self) -> u64;
-    fn fill_buffer(&self, render_core_context: &RenderCoreContext, buffer: &mut DataBuffer);
-}
-
 pub struct BindingInfo {
     pub group_index: usize,
     pub binding_index: usize,
@@ -98,7 +78,7 @@ impl BindingData {
         info: BindingInfo,
     ) -> &mut Self
     where
-        T: AsBufferBinding,
+        T: AsBinding,
     {
         let usage = wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST;
         let (id, is_changed) = binding_data_buffer.bind_buffer(data, usage, render_core_context);
@@ -143,7 +123,7 @@ impl BindingData {
         info: BindingInfo,
     ) -> &mut Self
     where
-        T: AsBufferBinding,
+        T: AsBinding,
     {
         let mut usage = wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST;
         if !info.read_only {

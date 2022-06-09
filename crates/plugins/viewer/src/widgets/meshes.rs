@@ -1,21 +1,18 @@
 use std::{collections::HashMap, ops::Range};
 
 use inox_core::ContextRc;
-use inox_graphics::{
-    GraphicsData, Mesh, MeshId, RenderPipeline, RenderPipelineId, GRAPHICS_DATA_UID,
-};
+use inox_graphics::{MeshId, RenderPipelineId};
 
 use inox_messenger::MessageHubRc;
-use inox_resources::{Resource, SerializableResource, SharedDataRc};
+use inox_resources::{Resource, SharedDataRc};
 use inox_ui::{
-    epaint::color::Hsva,
     implement_widget_data,
     plot::{Bar, BarChart, Plot},
     Color32, UIWidget, Vec2, Widget, Window,
 };
 
 struct MeshesData {
-    shared_data: SharedDataRc,
+    _shared_data: SharedDataRc,
     vertices_count: usize,
     indices_count: usize,
     meshes_names: HashMap<MeshId, (String, Range<usize>, Color32)>,
@@ -24,26 +21,26 @@ struct MeshesData {
 implement_widget_data!(MeshesData);
 
 pub struct Meshes {
-    ui_page: Resource<UIWidget>,
+    _ui_page: Resource<UIWidget>,
 }
 
 impl Meshes {
     pub fn new(context: &ContextRc) -> Self {
         let data = MeshesData {
-            shared_data: context.shared_data().clone(),
+            _shared_data: context.shared_data().clone(),
             vertices_count: 0,
             indices_count: 0,
             meshes_names: HashMap::new(),
             pipeline_instances: HashMap::new(),
         };
         Self {
-            ui_page: Self::create(context.shared_data(), context.message_hub(), data),
+            _ui_page: Self::create(context.shared_data(), context.message_hub(), data),
         }
     }
 
     pub fn update(&mut self) {
         inox_profiler::scoped_profile!("Meshes::update");
-
+        /*
         if let Some(data) = self.ui_page.get_mut().data_mut::<MeshesData>() {
             if let Some(graphics_data) = data
                 .shared_data
@@ -136,6 +133,7 @@ impl Meshes {
                 data.meshes_names.retain(|id, _| valid_meshes.contains(id));
             }
         }
+        */
     }
 
     fn create(

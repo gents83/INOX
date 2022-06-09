@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use inox_core::ContextRc;
 use inox_graphics::{
-    AsBufferBinding, BindingData, BindingInfo, DataBuffer, Pass, RenderContext, RenderCoreContext,
+    AsBinding, BindingData, BindingInfo, GpuBuffer, Pass, RenderContext, RenderCoreContext,
     RenderPass, RenderPassData, RenderTarget, ShaderStage, StoreOperation,
 };
 use inox_resources::{DataTypeResource, Resource};
@@ -18,7 +18,7 @@ pub struct UIPassData {
     is_dirty: bool,
 }
 
-impl AsBufferBinding for UIPassData {
+impl AsBinding for UIPassData {
     fn is_dirty(&self) -> bool {
         self.is_dirty
     }
@@ -28,7 +28,7 @@ impl AsBufferBinding for UIPassData {
     fn size(&self) -> u64 {
         std::mem::size_of::<Self>() as _
     }
-    fn fill_buffer(&self, render_core_context: &RenderCoreContext, buffer: &mut DataBuffer) {
+    fn fill_buffer(&self, render_core_context: &RenderCoreContext, buffer: &mut GpuBuffer) {
         buffer.add_to_gpu_buffer(render_core_context, &[self.ui_scale]);
     }
 }
@@ -65,6 +65,7 @@ impl Pass for UIPass {
                 context.message_hub(),
                 generate_random_uid(),
                 data,
+                None,
             ),
             binding_data: BindingData::default(),
             custom_data: UIPassData::default(),
@@ -90,7 +91,7 @@ impl Pass for UIPass {
             .add_storage_data(
                 &render_context.core,
                 &render_context.binding_data_buffer,
-                &mut render_context.dynamic_data,
+                render_context.render_buffers.materials_mut(),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 1,

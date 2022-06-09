@@ -66,13 +66,13 @@ impl DataTypeResource for View {
         _shared_data: &SharedDataRc,
         _message_hub: &MessageHubRc,
         _id: ResourceId,
-        data: Self::DataType,
+        data: &Self::DataType,
     ) -> Self
     where
         Self: Sized,
     {
         Self {
-            view_index: data,
+            view_index: *data,
             view: Matrix4::default_identity(),
             proj: inox_math::perspective(
                 Degrees::new(45.),

@@ -2,7 +2,7 @@ use std::mem::size_of;
 
 use inox_math::{matrix4_to_array, Matrix4, Vector2};
 
-use crate::{AsBufferBinding, DataBuffer, RenderCoreContext};
+use crate::{AsBinding, GpuBuffer, RenderCoreContext};
 
 pub const CONSTANT_DATA_FLAGS_NONE: u32 = 0;
 pub const CONSTANT_DATA_FLAGS_SUPPORT_SRGB: u32 = 1;
@@ -24,7 +24,7 @@ pub struct ConstantData {
     data: Data,
 }
 
-impl AsBufferBinding for ConstantData {
+impl AsBinding for ConstantData {
     fn is_dirty(&self) -> bool {
         self.is_dirty
     }
@@ -34,7 +34,7 @@ impl AsBufferBinding for ConstantData {
     fn size(&self) -> u64 {
         size_of::<Data>() as _
     }
-    fn fill_buffer(&self, render_core_context: &RenderCoreContext, buffer: &mut DataBuffer) {
+    fn fill_buffer(&self, render_core_context: &RenderCoreContext, buffer: &mut GpuBuffer) {
         buffer.add_to_gpu_buffer(render_core_context, &[self.data]);
     }
 }

@@ -1,16 +1,6 @@
 {
-    "vertex_shader": "shaders/wgsl/pbr.shader",
-    "fragment_shader": "shaders/wgsl/pbr.shader",
-    "vertex_format" : [
-        "PositionF32x3",
-        "NormalF32x3",
-        "TangentF32x4",
-        "ColorF32x4",
-        "TexCoord0F32x2",
-        "TexCoord1F32x2",
-        "TexCoord2F32x2",
-        "TexCoord3F32x2"
-    ],
+    "vertex_shader": "shaders/wgsl/default.shader",
+    "fragment_shader": "shaders/wgsl/default.shader"
     "front_face": "Clockwise",
     "culling": "None",
     "mode": "Fill",

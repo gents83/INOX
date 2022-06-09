@@ -1,7 +1,4 @@
-use std::{
-    path::PathBuf,
-    sync::{Arc, RwLock},
-};
+use std::path::PathBuf;
 
 use inox_core::{define_plugin, ContextRc, Plugin, SystemUID, WindowSystem};
 
@@ -38,7 +35,6 @@ impl Plugin for Viewer {
             )
         };
         let renderer = Renderer::new(window.handle(), context, false);
-        let renderer = Arc::new(RwLock::new(renderer));
 
         Self::create_render_passes(context, &renderer, window.width(), window.height());
 
@@ -113,16 +109,16 @@ impl Plugin for Viewer {
             context.shared_data().serializable_registry(),
             Box::new(move |data: Config| {
                 if let Some(ui_pass) =
-                    shared_data.match_resource(|r: &RenderPass| r.data().name == UI_PASS_NAME)
+                    shared_data.match_resource(|r: &RenderPass| r.name() == UI_PASS_NAME)
                 {
-                    ui_pass.get_mut().set_pipelines(data.ui_pass_pipelines);
+                    ui_pass.get_mut().set_pipelines(&data.ui_pass_pipelines);
                 }
                 if let Some(opaque_pass) =
-                    shared_data.match_resource(|r: &RenderPass| r.data().name == OPAQUE_PASS_NAME)
+                    shared_data.match_resource(|r: &RenderPass| r.name() == OPAQUE_PASS_NAME)
                 {
                     opaque_pass
                         .get_mut()
-                        .set_pipelines(data.opaque_pass_pipelines);
+                        .set_pipelines(&data.opaque_pass_pipelines);
                 }
             }),
         );
@@ -131,6 +127,24 @@ impl Plugin for Viewer {
 
 impl Viewer {
     fn create_render_passes(context: &ContextRc, renderer: &RendererRw, width: u32, height: u32) {
+        const ONLY_OPAQUE_PASS: bool = true;
+        if ONLY_OPAQUE_PASS {
+            Self::create_opaque_pass(context, renderer);
+        } else {
+            Self::create_full_render_passes(context, renderer, width, height);
+        }
+    }
+    fn create_opaque_pass(context: &ContextRc, renderer: &RendererRw) {
+        let opaque_pass = OpaquePass::create(context);
+
+        renderer.write().unwrap().add_pass(opaque_pass);
+    }
+    fn create_full_render_passes(
+        context: &ContextRc,
+        renderer: &RendererRw,
+        width: u32,
+        height: u32,
+    ) {
         let culling_pass = CullingPass::create(context);
         let opaque_pass = OpaquePass::create(context);
         let transparent_pass = TransparentPass::create(context);

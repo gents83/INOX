@@ -21,7 +21,7 @@ pub struct Texture {
     shared_data: SharedDataRc,
     path: PathBuf,
     data: Option<Vec<u8>>,
-    uniform_index: i32,
+    texture_index: i32,
     width: u32,
     height: u32,
     update_from_gpu: bool,
@@ -64,7 +64,7 @@ impl DataTypeResource for Texture {
             shared_data: shared_data.clone(),
             path: PathBuf::new(),
             data: None,
-            uniform_index: INVALID_INDEX,
+            texture_index: INVALID_INDEX,
             width: 0,
             height: 0,
             update_from_gpu: false,
@@ -72,12 +72,12 @@ impl DataTypeResource for Texture {
     }
 
     fn invalidate(&mut self) -> &mut Self {
-        self.uniform_index = INVALID_INDEX;
+        self.texture_index = INVALID_INDEX;
         debug_log!("Texture {:?} will be reloaded", self.path);
         self
     }
     fn is_initialized(&self) -> bool {
-        self.uniform_index != INVALID_INDEX
+        self.texture_index != INVALID_INDEX
     }
     fn deserialize_data(
         path: &Path,
@@ -100,7 +100,7 @@ impl DataTypeResource for Texture {
         shared_data: &SharedDataRc,
         message_hub: &MessageHubRc,
         id: ResourceId,
-        data: Self::DataType,
+        data: &Self::DataType,
     ) -> Self
     where
         Self: Sized,
@@ -178,11 +178,14 @@ impl Texture {
     pub fn image_data(&self) -> &Option<Vec<u8>> {
         &self.data
     }
-    pub fn uniform_index(&self) -> i32 {
-        self.uniform_index
+    pub fn texture_index(&self) -> i32 {
+        self.texture_index
     }
-    pub fn set_texture_data(&mut self, uniform_index: usize, width: u32, height: u32) -> &mut Self {
-        self.uniform_index = uniform_index as _;
+    pub fn set_texture_index(&mut self, texture_index: usize) -> &mut Self {
+        self.texture_index = texture_index as _;
+        self
+    }
+    pub fn set_texture_size(&mut self, width: u32, height: u32) -> &mut Self {
         self.width = width;
         self.height = height;
         self

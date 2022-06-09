@@ -23,7 +23,7 @@ pub struct Light {
     id: LightId,
     message_hub: MessageHubRc,
     data: LightData,
-    uniform_index: i32,
+    light_index: i32,
     is_active: bool,
 }
 
@@ -79,18 +79,18 @@ impl DataTypeResource for Light {
             id,
             filepath: PathBuf::new(),
             data: LightData::default(),
-            uniform_index: INVALID_INDEX,
+            light_index: INVALID_INDEX,
             is_active: true,
             message_hub: message_hub.clone(),
         }
     }
 
     fn is_initialized(&self) -> bool {
-        self.uniform_index != INVALID_INDEX
+        self.light_index != INVALID_INDEX
     }
 
     fn invalidate(&mut self) -> &mut Self {
-        self.uniform_index = INVALID_INDEX;
+        self.light_index = INVALID_INDEX;
         self
     }
 
@@ -106,13 +106,13 @@ impl DataTypeResource for Light {
         shared_data: &SharedDataRc,
         message_hub: &MessageHubRc,
         id: ResourceId,
-        data: Self::DataType,
+        data: &Self::DataType,
     ) -> Self
     where
         Self: Sized,
     {
         let mut light = Self::new(id, shared_data, message_hub);
-        light.data = data;
+        light.data = *data;
         light
     }
 }
@@ -157,10 +157,10 @@ impl Light {
         self.is_active
     }
 
-    pub fn update_uniform(&mut self, uniform_index: u32) {
-        self.uniform_index = uniform_index as _;
+    pub fn set_light_index(&mut self, light_index: u32) {
+        self.light_index = light_index as _;
     }
-    pub fn uniform_index(&self) -> i32 {
-        self.uniform_index
+    pub fn light_index(&self) -> i32 {
+        self.light_index
     }
 }

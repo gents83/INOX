@@ -101,10 +101,10 @@ impl DataTypeResource for Script {
         shared_data: &SharedDataRc,
         message_hub: &MessageHubRc,
         id: ScriptId,
-        data: Self::DataType,
+        data: &Self::DataType,
     ) -> Self {
         let mut script = Self::new(id, shared_data, message_hub);
-        let mut logic = data;
+        let mut logic = data.clone();
         logic.init();
         script.logic = logic;
         script

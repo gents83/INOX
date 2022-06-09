@@ -1,10 +1,6 @@
 {
     "vertex_shader": "shaders/wgsl/wireframe.shader",
     "fragment_shader": "shaders/wgsl/wireframe.shader",
-    "vertex_format" : [
-        "PositionF32x3",
-        "ColorU32"
-    ],
     "front_face": "Clockwise",
     "culling": "None",
     "mode": "Line",

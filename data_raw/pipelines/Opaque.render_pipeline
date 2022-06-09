@@ -1,15 +1,15 @@
 {
     "vertex_shader": "shaders/wgsl/pbr.shader",
-    "fragment_shader": "shaders/wgsl/pbr.shader",
+    "fragment_shader": "shaders/wgsl/pbr.shader"
     "front_face": "Clockwise",
-    "culling": "Back",
+    "culling": "None",
     "mode": "Fill",
-    "depth_write_enabled": false,
+    "depth_write_enabled": true,
     "depth_compare": "Less",
-    "src_color_blend_factor": "SrcAlpha",
-    "dst_color_blend_factor": "OneMinusSrcAlpha",
+    "src_color_blend_factor": "One",
+    "dst_color_blend_factor": "Zero",
     "color_blend_operation": "Add",
     "src_alpha_blend_factor": "One",
-    "dst_alpha_blend_factor": "One",
+    "dst_alpha_blend_factor": "Zero",
     "alpha_blend_operation": "Add"
 }

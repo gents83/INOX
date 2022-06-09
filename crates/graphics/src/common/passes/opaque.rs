@@ -48,6 +48,7 @@ impl Pass for OpaquePass {
                 context.message_hub(),
                 generate_random_uid(),
                 data,
+                None,
             ),
             binding_data: BindingData::default(),
         }
@@ -72,7 +73,7 @@ impl Pass for OpaquePass {
             .add_storage_data(
                 &render_context.core,
                 &render_context.binding_data_buffer,
-                &mut render_context.dynamic_data,
+                render_context.render_buffers.vertex_uvs_mut(),
                 BindingInfo {
                     group_index: 0,
                     binding_index: 1,

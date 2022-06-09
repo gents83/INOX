@@ -1,6 +1,5 @@
 use std::{
     collections::{hash_map::Entry, HashMap},
-    mem::size_of,
     path::PathBuf,
     sync::{
         atomic::{AtomicUsize, Ordering},
@@ -9,9 +8,8 @@ use std::{
 };
 
 use egui::{
-    epaint::{Primitive, Vertex},
-    ClippedPrimitive, Context, Event, Modifiers, PlatformOutput, PointerButton, RawInput, Rect,
-    TextureId as eguiTextureId, TexturesDelta,
+    epaint::Primitive, ClippedPrimitive, Context, Event, Modifiers, PlatformOutput, PointerButton,
+    RawInput, Rect, TextureId as eguiTextureId, TexturesDelta,
 };
 use image::RgbaImage;
 use inox_core::{
@@ -20,8 +18,8 @@ use inox_core::{
 };
 
 use inox_graphics::{
-    GraphicsData, Material, Mesh, MeshData, RendererRw, Texture, TextureId, TextureType,
-    VertexFormat, GRAPHICS_DATA_UID,
+    Material, MaterialData, Mesh, MeshData, MeshletData, RendererRw, Texture, TextureId,
+    TextureType, MESH_FLAGS_UI, MESH_FLAGS_VISIBLE,
 };
 
 use inox_log::debug_log;
@@ -31,13 +29,12 @@ use inox_platform::{
     InputState, KeyEvent, KeyTextEvent, MouseButton, MouseEvent, MouseState, WindowEvent,
 };
 use inox_resources::{
-    to_u8_slice, ConfigBase, ConfigEvent, DataTypeResource, Resource, SerializableResource,
-    SharedDataRc,
+    ConfigBase, ConfigEvent, DataTypeResource, Resource, SerializableResource, SharedDataRc,
 };
 use inox_serialize::read_from_file;
 use inox_uid::generate_random_uid;
 
-use crate::{UIPass, UIWidget};
+use crate::{rgba_u8_to_u32, UIPass, UIWidget};
 
 use super::config::Config;
 
@@ -88,67 +85,51 @@ impl UISystem {
         match self.ui_materials.entry(*texture.id()) {
             Entry::Occupied(e) => e.get().clone(),
             Entry::Vacant(e) => {
-                let shared_data = self.shared_data.clone();
-                let message_hub = self.message_hub.clone();
-                let r = self.renderer.read().unwrap();
-                if let Some(ui_pass) = r.pass::<UIPass>() {
-                    let render_pass = ui_pass.render_pass().get();
-                    let pipelines = render_pass.pipelines();
-                    if pipelines.is_empty() {
-                        panic!(
-                            "UI pipeline not loaded yet or maybe you forgot to read ui.cfg file"
-                        );
-                    }
-                    let pipeline = &pipelines[0];
-                    let material =
-                        Material::duplicate_from_pipeline(&shared_data, &message_hub, pipeline);
-                    material
-                        .get_mut()
-                        .set_texture(TextureType::BaseColor, &texture);
-                    e.insert(material.clone());
-                    material
-                } else {
-                    panic!("UI pipeline not loaded yet or maybe you forgot to read ui.cfg file");
-                }
+                let material = Material::new_resource(
+                    &self.shared_data,
+                    &self.message_hub,
+                    generate_random_uid(),
+                    MaterialData::default(),
+                    None,
+                );
+                material
+                    .get_mut()
+                    .set_texture(TextureType::BaseColor, &texture);
+                e.insert(material.clone());
+                material
             }
         }
     }
 
     fn compute_mesh_data(&mut self, clipped_meshes: Vec<ClippedPrimitive>) {
-        let graphics_data = self
-            .shared_data
-            .get_resource::<GraphicsData>(&GRAPHICS_DATA_UID);
-        if graphics_data.is_none() {
-            return;
-        }
         inox_profiler::scoped_profile!("ui_system::compute_mesh_data");
         let shared_data = self.shared_data.clone();
         let message_hub = self.message_hub.clone();
-        let vertex_data_attribute_ui_hash = VertexFormat::to_bits(VertexFormat::ui().as_slice());
+
         self.ui_meshes.resize_with(clipped_meshes.len(), || {
-            Mesh::new_resource(
+            let mesh = Mesh::new_resource(
                 &shared_data,
                 &message_hub,
                 generate_random_uid(),
-                MeshData::new(VertexFormat::ui()),
-            )
+                MeshData::default(),
+                None,
+            );
+            mesh.get_mut().set_flags(MESH_FLAGS_UI);
+            mesh
         });
 
-        let mut index = 0;
         for (i, clipped_mesh) in clipped_meshes.into_iter().enumerate() {
             if let Primitive::Mesh(mesh) = clipped_mesh.primitive {
                 if mesh.vertices.is_empty() || mesh.indices.is_empty() {
-                    self.ui_meshes[i].get_mut().set_visible(false);
+                    self.ui_meshes[i].get_mut().remove_flag(MESH_FLAGS_VISIBLE);
                     continue;
                 }
-                let draw_index = index as u32;
-                index += 1;
 
                 let texture = match mesh.texture_id {
                     eguiTextureId::Managed(_) => self.ui_textures[&mesh.texture_id].clone(),
                     eguiTextureId::User(texture_uniform_index) => {
                         if let Some(texture) = self.shared_data.match_resource(|t: &Texture| {
-                            t.uniform_index() as u64 == texture_uniform_index
+                            t.texture_index() as u64 == texture_uniform_index
                         }) {
                             texture.clone()
                         } else {
@@ -159,7 +140,6 @@ impl UISystem {
 
                 let material = self.get_ui_material(texture);
                 let mesh_instance = self.ui_meshes[i].clone();
-                let graphics_data = graphics_data.as_ref().unwrap().clone();
                 let ui_scale = self.ui_scale;
                 let clip_rect = clipped_mesh.clip_rect;
 
@@ -180,33 +160,26 @@ impl UISystem {
                                     clip_rect.max.x * ui_scale,
                                     clip_rect.max.y * ui_scale,
                                 ))
-                                .set_draw_index(draw_index)
-                                .set_visible(true);
+                                .add_flag(MESH_FLAGS_VISIBLE);
                         }
 
-                        let (vertices_range, indices_range) = {
-                            inox_profiler::scoped_profile!("ui_system::copy_vertex_data");
-
-                            let vertices_range = graphics_data.get_mut().add_vertices(
-                                mesh_instance.id(),
-                                vertex_data_attribute_ui_hash,
-                                size_of::<Vertex>(),
-                                to_u8_slice(mesh.vertices.as_slice()),
-                            );
-                            let indices_range = graphics_data.get_mut().add_indices(
-                                mesh_instance.id(),
-                                vertex_data_attribute_ui_hash,
-                                mesh.indices.as_slice(),
-                            );
-                            (vertices_range, indices_range)
-                        };
-
                         {
-                            inox_profiler::scoped_profile!("ui_system::set_mesh_ranges");
-                            mesh_instance
-                                .get_mut()
-                                .set_vertices_range(vertices_range)
-                                .set_indices_range(indices_range);
+                            inox_profiler::scoped_profile!("ui_system::create_mesh_data");
+                            let mut mesh_data = MeshData::default();
+                            mesh.vertices.iter().for_each(|v| {
+                                let p = [v.pos.x, v.pos.y, rgba_u8_to_u32(v.color.to_array()) as _];
+                                let uv = [v.uv.x, v.uv.y];
+                                mesh_data.add_vertex_pos_uv(p.into(), uv.into());
+                            });
+                            mesh_data.indices.extend_from_slice(&mesh.indices);
+                            let meshlet = MeshletData {
+                                vertices_count: mesh_data.vertex_count() as _,
+                                indices_count: mesh_data.index_count() as _,
+                                ..Default::default()
+                            };
+                            mesh_data.meshlets.push(meshlet);
+
+                            mesh_instance.get_mut().set_mesh_data(mesh_data);
                         }
                     },
                 );
@@ -403,6 +376,7 @@ impl UISystem {
                 &self.message_hub,
                 generate_random_uid(),
                 image_data.unwrap(),
+                None,
             );
             self.ui_textures.insert(egui_texture_id, texture);
         }

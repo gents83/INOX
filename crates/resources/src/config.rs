@@ -34,8 +34,8 @@ where
 }
 implement_message!(
     ConfigEvent<ConfigBase>,
-    message_from_command_parser,
-    compare_and_discard
+    [conversion = message_from_command_parser],
+    [policy = compare_and_discard]
 );
 
 unsafe impl<T> Send for ConfigEvent<T> where T: ConfigBase {}

@@ -3,8 +3,8 @@ use std::marker::PhantomData;
 use inox_messenger::{Listener, MessageHubRc};
 
 use crate::{
-    ResourceEvent, ResourceId, ResourceTrait, SerializableResource, SerializableResourceEvent,
-    SharedDataRc,
+    DataTypeResource, ResourceEvent, ResourceId, ResourceTrait, SerializableResource,
+    SerializableResourceEvent, SharedDataRc,
 };
 
 pub trait Function<T>:
@@ -111,6 +111,7 @@ where
 impl<T> EventHandler for SerializableResourceEventHandler<T>
 where
     T: SerializableResource,
+    <T as DataTypeResource>::DataType: Send + Sync,
 {
     fn handle_events(&self, f: &dyn LoadFunction) {
         self.listener

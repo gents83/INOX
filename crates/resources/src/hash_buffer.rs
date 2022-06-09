@@ -7,6 +7,7 @@ where
 {
     map: HashMap<Id, usize>,
     buffer: Vec<Data>,
+    is_changed: bool,
 }
 
 impl<Id, Data, const MAX_COUNT: usize> Default for HashBuffer<Id, Data, MAX_COUNT>
@@ -22,15 +23,22 @@ where
         Self {
             map: HashMap::new(),
             buffer,
+            is_changed: false,
         }
     }
 }
 
 impl<Id, Data, const MAX_COUNT: usize> HashBuffer<Id, Data, MAX_COUNT>
 where
-    Id: Eq + Hash + Copy + std::fmt::Debug,
+    Id: Eq + Hash + Copy,
     Data: Default,
 {
+    pub fn is_changed(&self) -> bool {
+        self.is_changed
+    }
+    pub fn mark_as_unchanged(&mut self) {
+        self.is_changed = false;
+    }
     fn new_index(&self) -> usize {
         if self.map.is_empty() {
             return 0;
@@ -45,6 +53,7 @@ where
         self.buffer.len()
     }
     pub fn insert(&mut self, id: &Id, data: Data) -> usize {
+        self.is_changed = true;
         if let Some(index) = self.map.get(id) {
             //inox_log::debug_log!("Trying to reinsert {:?} at {}", id, index);
             //inox_log::debug_log!("Buffer len is {}", self.buffer.len());
@@ -79,6 +88,7 @@ where
                 self.map.insert(*id, index);
             }
             if old_index < self.buffer.len() && index < self.buffer.len() {
+                self.is_changed = true;
                 self.buffer.swap(old_index, index);
             }
             //inox_log::debug_log!("Buffer len is {}", self.buffer.len());
@@ -88,6 +98,7 @@ where
         //inox_log::debug_log!("Removing [{:?}]", *id);
         //inox_log::debug_log!("Buffer len is {}", self.buffer.len());
         if let Some(index) = self.map.remove(id) {
+            self.is_changed = true;
             return Some(&self.buffer[index]);
         }
         None

@@ -66,3 +66,29 @@ fn hex_digit_to_rgb(num: u32) -> Vector3 {
         (num & 0x0000_00FF) as f32 / 255.,
     )
 }
+
+pub fn rgba_u8_to_u32(rgba: [u8; 4]) -> u32 {
+    rgba_to_u32(
+        rgba[0] as f32 / 255.,
+        rgba[1] as f32 / 255.,
+        rgba[2] as f32 / 255.,
+        rgba[3] as f32 / 255.,
+    )
+}
+
+pub fn rgba_to_u32(r: f32, g: f32, b: f32, a: f32) -> u32 {
+    let r = r as u32 & 0xFF;
+    let g = g as u32 & 0xFF;
+    let b = b as u32 & 0xFF;
+    let a = a as u32 & 0xFF;
+
+    (r << 24) + (g << 16) + (b << 8) + a
+}
+
+pub fn u32_to_rgba(color: u32) -> Vector4 {
+    let r = (color & 255) as f32;
+    let g = ((color >> 8) & 255) as f32;
+    let b = ((color >> 16) & 255) as f32;
+    let a = ((color >> 24) & 255) as f32;
+    [r, g, b, a].into()
+}

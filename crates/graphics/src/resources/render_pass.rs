@@ -3,16 +3,15 @@ use std::path::PathBuf;
 use image::DynamicImage;
 use inox_messenger::MessageHubRc;
 use inox_resources::{
-    from_u8_slice, DataTypeResource, Handle, Resource, ResourceId, ResourceTrait,
-    SerializableResource, SharedData, SharedDataRc,
+    DataTypeResource, Handle, Resource, ResourceId, ResourceTrait, SerializableResource,
+    SharedData, SharedDataRc,
 };
 use inox_serialize::{inox_serializable::SerializableRegistryRc, read_from_file};
 use inox_uid::generate_random_uid;
 
 use crate::{
-    platform::is_indirect_mode_enabled, BindingData, Commands, IndexFormat, LoadOperation,
-    RenderContext, RenderMode, RenderPassData, RenderPipeline, RenderTarget, StoreOperation,
-    Texture, TextureId,
+    BindingData, LoadOperation, RenderContext, RenderMode, RenderPassData, RenderPipeline,
+    RenderTarget, StoreOperation, Texture, TextureId,
 };
 
 pub type RenderPassId = ResourceId;
@@ -21,7 +20,12 @@ pub type RenderPassId = ResourceId;
 pub struct RenderPass {
     shared_data: SharedDataRc,
     message_hub: MessageHubRc,
-    data: RenderPassData,
+    name: String,
+    load_color: LoadOperation,
+    store_color: StoreOperation,
+    load_depth: LoadOperation,
+    store_depth: StoreOperation,
+    render_mode: RenderMode,
     pipelines: Vec<Resource<RenderPipeline>>,
     render_texture: Handle<Texture>,
     depth_texture: Handle<Texture>,
@@ -63,7 +67,12 @@ impl DataTypeResource for RenderPass {
         Self {
             shared_data: shared_data.clone(),
             message_hub: message_hub.clone(),
-            data: RenderPassData::default(),
+            name: String::new(),
+            load_color: LoadOperation::DontCare,
+            store_color: StoreOperation::DontCare,
+            load_depth: LoadOperation::DontCare,
+            store_depth: StoreOperation::DontCare,
+            render_mode: RenderMode::Indirect,
             pipelines: Vec::new(),
             render_texture: None,
             depth_texture: None,
@@ -89,38 +98,40 @@ impl DataTypeResource for RenderPass {
         shared_data: &SharedDataRc,
         message_hub: &MessageHubRc,
         _id: ResourceId,
-        data: Self::DataType,
+        data: &Self::DataType,
     ) -> Self
     where
         Self: Sized,
     {
-        let render_target = data.render_target;
-        let depth_target = data.depth_target;
-        let pipelines = data.pipelines.clone();
         let mut pass = Self {
             shared_data: shared_data.clone(),
             message_hub: message_hub.clone(),
-            data,
+            name: data.name.clone(),
+            load_color: data.load_color,
+            store_color: data.store_color,
+            load_depth: data.load_depth,
+            store_depth: data.store_depth,
+            render_mode: data.render_mode,
             pipelines: Vec::new(),
             render_texture: None,
             depth_texture: None,
             is_initialized: false,
         };
-        pass.render_target(render_target)
-            .depth_target(depth_target)
-            .set_pipelines(pipelines);
+        pass.render_target(data.render_target)
+            .depth_target(data.depth_target)
+            .set_pipelines(&data.pipelines);
         pass
     }
 }
 
 impl RenderPass {
-    pub fn data(&self) -> &RenderPassData {
-        &self.data
+    pub fn name(&self) -> &str {
+        &self.name
     }
     pub fn pipelines(&self) -> &[Resource<RenderPipeline>] {
         self.pipelines.as_slice()
     }
-    pub fn set_pipelines(&mut self, pipelines: Vec<PathBuf>) -> &mut Self {
+    pub fn set_pipelines(&mut self, pipelines: &[PathBuf]) -> &mut Self {
         self.pipelines.clear();
         pipelines.iter().for_each(|path| {
             if !path.as_os_str().is_empty() {
@@ -136,7 +147,6 @@ impl RenderPass {
         self
     }
     pub fn render_target(&mut self, render_target: RenderTarget) -> &mut Self {
-        self.data.render_target = render_target;
         self.render_texture = match render_target {
             RenderTarget::Texture {
                 width,
@@ -150,7 +160,7 @@ impl RenderPass {
                     &self.shared_data,
                     &self.message_hub,
                     texture_id,
-                    image_data,
+                    &image_data,
                 );
                 texture.on_create(&self.shared_data, &self.message_hub, &texture_id, None);
                 let texture = self
@@ -164,16 +174,10 @@ impl RenderPass {
         self
     }
     pub fn render_target_from_texture(&mut self, texture: &Resource<Texture>) -> &mut Self {
-        self.data.render_target = RenderTarget::Texture {
-            width: texture.get().width(),
-            height: texture.get().height(),
-            read_back: false,
-        };
         self.render_texture = Some(texture.clone());
         self
     }
     pub fn depth_target(&mut self, render_target: RenderTarget) -> &mut Self {
-        self.data.depth_target = render_target;
         self.depth_texture = match render_target {
             RenderTarget::Texture {
                 width,
@@ -187,7 +191,7 @@ impl RenderPass {
                     &self.shared_data,
                     &self.message_hub,
                     texture_id,
-                    image_data,
+                    &image_data,
                 );
                 texture.on_create(&self.shared_data, &self.message_hub, &texture_id, None);
                 let texture = self
@@ -200,11 +204,6 @@ impl RenderPass {
         self
     }
     pub fn depth_target_from_texture(&mut self, texture: &Resource<Texture>) -> &mut Self {
-        self.data.depth_target = RenderTarget::Texture {
-            width: texture.get().width(),
-            height: texture.get().height(),
-            read_back: false,
-        };
         self.depth_texture = Some(texture.clone());
         self
     }
@@ -271,21 +270,21 @@ impl RenderPass {
     }
     pub fn color_operations(&self) -> wgpu::Operations<wgpu::Color> {
         wgpu::Operations {
-            load: match &self.data.load_color {
+            load: match &self.load_color {
                 LoadOperation::Load => wgpu::LoadOp::Load,
                 _ => wgpu::LoadOp::Clear(wgpu::Color::BLACK),
             },
-            store: matches!(&self.data.store_color, StoreOperation::Store),
+            store: matches!(&self.store_color, StoreOperation::Store),
         }
     }
 
     pub fn depth_operations(&self) -> wgpu::Operations<f32> {
         wgpu::Operations {
-            load: match &self.data.load_depth {
+            load: match &self.load_depth {
                 LoadOperation::Load => wgpu::LoadOp::Load,
                 _ => wgpu::LoadOp::Clear(1.),
             },
-            store: matches!(&self.data.store_depth, StoreOperation::Store),
+            store: matches!(&self.store_depth, StoreOperation::Store),
         }
     }
 
@@ -305,7 +304,7 @@ impl RenderPass {
             depth_write_enabled |= pipeline.data().depth_write_enabled;
         });
 
-        let label = format!("RenderPass {}", self.data().name);
+        let label = format!("RenderPass {}", self.name);
         let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some(label.as_str()),
             color_attachments: &[wgpu::RenderPassColorAttachment {
@@ -338,8 +337,9 @@ impl RenderPass {
         render_pass
     }
 
-    fn prepare_command_buffer(&self, render_context: &RenderContext) {
-        if is_indirect_mode_enabled() && self.data().render_mode == RenderMode::Indirect {
+    fn prepare_command_buffer(&self, _render_context: &RenderContext) {
+        /*
+        if is_indirect_mode_enabled() && self.render_mode == RenderMode::Indirect {
             self.pipelines.iter().for_each(|pipeline| {
                 let pipeline_id = pipeline.id();
 
@@ -350,17 +350,18 @@ impl RenderPass {
                         let mut new_commands = Vec::new();
                         let data = buffer.read_from_gpu(&render_context.core);
                         if let Some(data) = data {
-                            let commands =
-                                from_u8_slice::<wgpu::util::DrawIndexedIndirect>(data.as_slice());
+                            let commands = to_slice(data.as_slice());
                             if commands.is_empty() {
                                 return;
                             }
                             new_commands.reserve(commands.len());
-                            commands.iter().for_each(|c| {
-                                if c.instance_count != 0 {
-                                    new_commands.push(*c);
-                                }
-                            });
+                            commands
+                                .iter()
+                                .for_each(|c: &wgpu::util::DrawIndexedIndirect| {
+                                    if c.instance_count != 0 {
+                                        new_commands.push(*c);
+                                    }
+                                });
                         }
                         if new_commands.is_empty() {
                             None
@@ -391,15 +392,16 @@ impl RenderPass {
                 }
             });
         }
+        */
     }
 
-    pub fn draw(&self, render_context: &RenderContext, render_pass: wgpu::RenderPass) {
+    pub fn draw(&self, render_context: &RenderContext, _render_pass: wgpu::RenderPass) {
         self.prepare_command_buffer(render_context);
+        /*
 
         let buffers = render_context.binding_data_buffer.buffers.read().unwrap();
         let pipelines = self.pipelines().iter().map(|h| h.get()).collect::<Vec<_>>();
         {
-            let graphics_data = render_context.graphics_data.get();
             let mut render_pass = render_pass;
             pipelines.iter().enumerate().for_each(|(i, pipeline)| {
                 let pipeline_id = self.pipelines[i].id();
@@ -418,9 +420,7 @@ impl RenderPass {
                     }
 
                     if graphics_data.index_count(pipeline_id) > 0 {
-                        if is_indirect_mode_enabled()
-                            && self.data().render_mode == RenderMode::Indirect
-                        {
+                        if is_indirect_mode_enabled() && self.render_mode == RenderMode::Indirect {
                             if let Some(buffer) = buffers.get(pipeline_id) {
                                 let commands_count = buffer.size()
                                     / std::mem::size_of::<wgpu::util::DrawIndexedIndirect>() as u64;
@@ -463,5 +463,6 @@ impl RenderPass {
                 }
             });
         }
+         */
     }
 }

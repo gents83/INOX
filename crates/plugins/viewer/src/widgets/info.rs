@@ -233,16 +233,14 @@ impl Info {
                         {
                             let renderer = data.params.renderer.read().unwrap();
                             let mut render_context = renderer.render_context().write().unwrap();
-                            if let Some(render_context) = render_context.as_mut() {
-                                if data.show_meshlets {
-                                    render_context
-                                        .constant_data
-                                        .add_flag(CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS);
-                                } else {
-                                    render_context
-                                        .constant_data
-                                        .remove_flag(CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS);
-                                }
+                            if data.show_meshlets {
+                                render_context
+                                    .constant_data
+                                    .add_flag(CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS);
+                            } else {
+                                render_context
+                                    .constant_data
+                                    .remove_flag(CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS);
                             }
                         }
                     });

@@ -153,7 +153,7 @@ impl DataTypeResource for Object {
         shared_data: &SharedDataRc,
         message_hub: &MessageHubRc,
         id: ObjectId,
-        object_data: Self::DataType,
+        object_data: &Self::DataType,
     ) -> Self {
         let mut object = Self::new(id, shared_data, message_hub);
         object.transform = object_data.transform;

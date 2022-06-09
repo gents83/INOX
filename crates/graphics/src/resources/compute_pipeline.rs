@@ -16,20 +16,17 @@ pub struct ComputePipeline {
     path: PathBuf,
     shared_data: SharedDataRc,
     message_hub: MessageHubRc,
-    data: ComputePipelineData,
     shader: Handle<Shader>,
     compute_pipeline: Option<wgpu::ComputePipeline>,
 }
 
 impl Clone for ComputePipeline {
     fn clone(&self) -> Self {
-        let shader = Self::load_shaders(&self.data, &self.shared_data, &self.message_hub);
         Self {
             path: self.path.clone(),
-            data: self.data.clone(),
             shared_data: self.shared_data.clone(),
             message_hub: self.message_hub.clone(),
-            shader: Some(shader),
+            shader: self.shader.clone(),
             compute_pipeline: None,
         }
     }
@@ -87,7 +84,6 @@ impl DataTypeResource for ComputePipeline {
             path: PathBuf::new(),
             shared_data: shared_data.clone(),
             message_hub: message_hub.clone(),
-            data: ComputePipelineData::default(),
             shader: None,
             compute_pipeline: None,
         }
@@ -98,7 +94,7 @@ impl DataTypeResource for ComputePipeline {
         self
     }
     fn is_initialized(&self) -> bool {
-        self.data.is_valid() && self.shader.is_some() && self.compute_pipeline.is_some()
+        self.shader.is_some() && self.compute_pipeline.is_some()
     }
     fn deserialize_data(
         path: &std::path::Path,
@@ -112,24 +108,20 @@ impl DataTypeResource for ComputePipeline {
         shared_data: &SharedDataRc,
         message_hub: &MessageHubRc,
         id: ResourceId,
-        data: Self::DataType,
+        data: &Self::DataType,
     ) -> Self
     where
         Self: Sized,
     {
         let data = data.canonicalize_paths();
         let mut pipeline = Self::new(id, shared_data, message_hub);
-        pipeline.data = data;
-        let shader = Self::load_shaders(&pipeline.data, shared_data, message_hub);
+        let shader = Self::load_shaders(&data, shared_data, message_hub);
         pipeline.shader = Some(shader);
         pipeline
     }
 }
 
 impl ComputePipeline {
-    pub fn data(&self) -> &ComputePipelineData {
-        &self.data
-    }
     pub fn compute_pipeline(&self) -> &wgpu::ComputePipeline {
         self.compute_pipeline.as_ref().unwrap()
     }
@@ -198,11 +190,13 @@ impl ComputePipeline {
     }
 
     pub fn check_shaders_to_reload(&mut self, path_as_string: String) {
-        if path_as_string.contains(self.data.shader.to_str().unwrap())
-            && !self.data.shader.to_str().unwrap().is_empty()
-        {
-            self.invalidate();
-            debug_log!("Compute Shader {:?} will be reloaded", path_as_string);
+        if let Some(shader) = &self.shader {
+            if path_as_string.contains(shader.get().path().to_str().unwrap())
+                && !shader.get().path().to_str().unwrap().is_empty()
+            {
+                self.invalidate();
+                debug_log!("Compute Shader {:?} will be reloaded", path_as_string);
+            }
         }
     }
 }

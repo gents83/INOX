@@ -1,12 +1,12 @@
 use std::path::PathBuf;
 
 use crate::{
-    AsBufferBinding, BindingData, BindingInfo, Commands, ComputePass, ComputePassData, DataBuffer,
-    Mesh, Pass, RenderContext, RenderCoreContext, RenderPipeline, ShaderStage, DEFAULT_PIPELINE,
+    AsBinding, BindingData, ComputePass, ComputePassData, GpuBuffer, Pass, RenderContext,
+    RenderCoreContext, RenderPipeline, DEFAULT_PIPELINE,
 };
 
 use inox_core::ContextRc;
-use inox_math::{normalize_plane, Mat4Ops, Matrix, Matrix4, Quat, Quaternion, Vector3};
+use inox_math::{normalize_plane, Matrix, Matrix4, Vector3};
 use inox_resources::{DataTypeResource, Resource, SerializableResource, SharedDataRc};
 use inox_uid::generate_random_uid;
 
@@ -30,7 +30,7 @@ struct Meshes {
     meshes: Vec<MeshData>,
 }
 
-impl AsBufferBinding for Meshes {
+impl AsBinding for Meshes {
     fn is_dirty(&self) -> bool {
         true
     }
@@ -39,7 +39,7 @@ impl AsBufferBinding for Meshes {
         (std::mem::size_of::<MeshData>() * self.meshes.len()) as _
     }
 
-    fn fill_buffer(&self, render_core_context: &RenderCoreContext, buffer: &mut DataBuffer) {
+    fn fill_buffer(&self, render_core_context: &RenderCoreContext, buffer: &mut GpuBuffer) {
         buffer.add_to_gpu_buffer(render_core_context, self.meshes.as_slice());
     }
 }
@@ -52,7 +52,7 @@ struct CullingPassData {
     frustum: [[f32; 4]; 4],
 }
 
-impl AsBufferBinding for CullingPassData {
+impl AsBinding for CullingPassData {
     fn is_dirty(&self) -> bool {
         self.is_dirty
     }
@@ -65,7 +65,7 @@ impl AsBufferBinding for CullingPassData {
             + std::mem::size_of_val(&self.frustum) as u64
     }
 
-    fn fill_buffer(&self, render_core_context: &RenderCoreContext, buffer: &mut DataBuffer) {
+    fn fill_buffer(&self, render_core_context: &RenderCoreContext, buffer: &mut GpuBuffer) {
         buffer.add_to_gpu_buffer(render_core_context, &[self.cam_pos]);
         buffer.add_to_gpu_buffer(render_core_context, &[self._padding]);
         buffer.add_to_gpu_buffer(render_core_context, &[self.frustum]);
@@ -74,10 +74,10 @@ impl AsBufferBinding for CullingPassData {
 
 pub struct CullingPass {
     compute_pass: Resource<ComputePass>,
-    default_pipeline: Resource<RenderPipeline>,
+    _default_pipeline: Resource<RenderPipeline>,
     data: CullingPassData,
     binding_data: BindingData,
-    shared_data: SharedDataRc,
+    _shared_data: SharedDataRc,
     num_meshlets: usize,
 }
 unsafe impl Send for CullingPass {}
@@ -104,8 +104,9 @@ impl Pass for CullingPass {
                 context.message_hub(),
                 generate_random_uid(),
                 data,
+                None,
             ),
-            default_pipeline: RenderPipeline::request_load(
+            _default_pipeline: RenderPipeline::request_load(
                 context.shared_data(),
                 context.message_hub(),
                 PathBuf::from(DEFAULT_PIPELINE).as_path(),
@@ -116,11 +117,12 @@ impl Pass for CullingPass {
                 ..Default::default()
             },
             binding_data: BindingData::default(),
-            shared_data: context.shared_data().clone(),
+            _shared_data: context.shared_data().clone(),
             num_meshlets: 0,
         }
     }
     fn init(&mut self, render_context: &mut RenderContext) {
+        /*
         let pipeline_id = self.default_pipeline.id();
         let vertex_format = self.default_pipeline.get().vertex_format();
         let mut meshes = Meshes::default();
@@ -230,7 +232,7 @@ impl Pass for CullingPass {
         if self.num_meshlets == 0 || meshes.meshes.is_empty() {
             return;
         }
-
+        */
         let mut pass = self.compute_pass.get_mut();
         pass.init(render_context, &self.binding_data);
     }

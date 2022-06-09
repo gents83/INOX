@@ -3,8 +3,6 @@
 use inox_messenger::MessageHubRc;
 use inox_resources::SharedDataRc;
 
-use crate::GraphicsData;
-
 pub use self::compute_pass::*;
 pub use self::compute_pipeline::*;
 pub use self::font::*;
@@ -30,7 +28,6 @@ pub mod texture;
 pub mod view;
 
 pub fn register_resource_types(shared_data: &SharedDataRc, message_hub: &MessageHubRc) {
-    shared_data.register_type::<GraphicsData>(message_hub);
     shared_data.register_type_serializable::<Font>(message_hub);
     shared_data.register_type_serializable::<Material>(message_hub);
     shared_data.register_type_serializable::<Mesh>(message_hub);
@@ -56,5 +53,4 @@ pub fn unregister_resource_types(shared_data: &SharedDataRc, message_hub: &Messa
     shared_data.unregister_type_serializable::<Mesh>(message_hub);
     shared_data.unregister_type_serializable::<Material>(message_hub);
     shared_data.unregister_type_serializable::<Font>(message_hub);
-    shared_data.unregister_type::<GraphicsData>(message_hub);
 }

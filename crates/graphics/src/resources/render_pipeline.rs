@@ -10,7 +10,7 @@ use inox_serialize::{inox_serializable::SerializableRegistryRc, read_from_file, 
 
 use crate::{
     BindingData, InstanceData, RenderContext, RenderPipelineData, Shader,
-    VertexBufferLayoutBuilder, VertexFormat, FRAGMENT_SHADER_ENTRY_POINT, SHADER_ENTRY_POINT,
+    VertexBufferLayoutBuilder, FRAGMENT_SHADER_ENTRY_POINT, SHADER_ENTRY_POINT,
     VERTEX_SHADER_ENTRY_POINT,
 };
 
@@ -110,11 +110,9 @@ impl DataTypeResource for RenderPipeline {
         self
     }
     fn is_initialized(&self) -> bool {
-        self.data.is_valid()
-            && self.vertex_shader.is_some()
+        self.vertex_shader.is_some()
             && self.fragment_shader.is_some()
             && self.render_pipeline.is_some()
-            && self.vertex_format() != 0
     }
     fn deserialize_data(
         path: &std::path::Path,
@@ -128,7 +126,7 @@ impl DataTypeResource for RenderPipeline {
         shared_data: &SharedDataRc,
         message_hub: &MessageHubRc,
         id: ResourceId,
-        data: Self::DataType,
+        data: &Self::DataType,
     ) -> Self
     where
         Self: Sized,
@@ -147,13 +145,6 @@ impl DataTypeResource for RenderPipeline {
 impl RenderPipeline {
     pub fn data(&self) -> &RenderPipelineData {
         &self.data
-    }
-    pub fn set_vertex_format(&mut self, format: Vec<VertexFormat>) -> &mut Self {
-        self.data.vertex_format = format;
-        self
-    }
-    pub fn vertex_format(&self) -> u32 {
-        VertexFormat::to_bits(self.data.vertex_format.as_slice())
     }
     pub fn render_pipeline(&self) -> &wgpu::RenderPipeline {
         self.render_pipeline.as_ref().unwrap()
@@ -224,8 +215,7 @@ impl RenderPipeline {
                     push_constant_ranges: &[],
                 });
 
-        let vertex_layout =
-            VertexBufferLayoutBuilder::create_from_vertex_data_attribute(&self.data.vertex_format);
+        let vertex_layout = VertexBufferLayoutBuilder::create_draw_vertex_format();
         let render_pipeline = {
             inox_profiler::scoped_profile!("render_pipeline::crate[{}]", self.name());
             context
