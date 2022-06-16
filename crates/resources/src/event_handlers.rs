@@ -3,8 +3,8 @@ use std::marker::PhantomData;
 use inox_messenger::{Listener, MessageHubRc};
 
 use crate::{
-    DataTypeResource, ResourceEvent, ResourceId, ResourceTrait, SerializableResource,
-    SerializableResourceEvent, SharedDataRc,
+    DataTypeResource, DataTypeResourceEvent, ResourceEvent, ResourceId, ResourceTrait,
+    SerializableResource, SerializableResourceEvent, SharedDataRc,
 };
 
 pub trait Function<T>:
@@ -72,6 +72,7 @@ where
 pub struct SerializableResourceEventHandler<T>
 where
     T: SerializableResource + 'static,
+    <T as DataTypeResource>::DataType: Send + Sync,
 {
     marker: PhantomData<T>,
     listener: Listener,
@@ -80,12 +81,16 @@ where
 impl<T> Drop for SerializableResourceEventHandler<T>
 where
     T: SerializableResource,
+    <T as DataTypeResource>::DataType: Send + Sync,
 {
     fn drop(&mut self) {
         self.listener.unregister::<SerializableResourceEvent<T>>();
         self.listener
             .message_hub()
             .unregister_type::<SerializableResourceEvent<T>>();
+        self.listener
+            .message_hub()
+            .unregister_type::<DataTypeResourceEvent<T>>();
         self.listener
             .message_hub()
             .unregister_type::<ResourceEvent<T>>();
@@ -95,10 +100,12 @@ where
 impl<T> SerializableResourceEventHandler<T>
 where
     T: SerializableResource,
+    <T as DataTypeResource>::DataType: Send + Sync,
 {
     pub fn new(message_hub: &MessageHubRc) -> Self {
         let listener = Listener::new(message_hub);
         message_hub.register_type::<ResourceEvent<T>>();
+        message_hub.register_type::<DataTypeResourceEvent<T>>();
         message_hub.register_type::<SerializableResourceEvent<T>>();
         listener.register::<SerializableResourceEvent<T>>();
         Self {

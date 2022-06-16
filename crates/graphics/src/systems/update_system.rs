@@ -54,6 +54,7 @@ impl UpdateSystem {
     }
 
     fn handle_events(&mut self, encoder: &mut wgpu::CommandEncoder) {
+        inox_profiler::scoped_profile!("update_system::handle_events");
         //REMINDER: message processing order is important - RenderPass must be processed before Texture
         self.listener
             .process_messages(|e: &WindowEvent| match e {

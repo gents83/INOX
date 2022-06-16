@@ -29,7 +29,7 @@ pub struct ViewerSystem {
     _camera_object: Resource<Object>,
     last_mouse_pos: Vector2,
     view_3d: Option<View3D>,
-    info: Info,
+    info: Option<Info>,
     last_frame: u64,
     camera_index: u32,
     update_culling_camera: Arc<AtomicBool>,
@@ -64,11 +64,6 @@ impl System for ViewerSystem {
             .register::<MouseEvent>()
             .register::<WindowEvent>()
             .register::<SerializableResourceEvent<Scene>>();
-
-        self.view_3d = Some(View3D::new(
-            self.context.shared_data(),
-            self.context.message_hub(),
-        ))
     }
 
     fn run(&mut self) -> bool {
@@ -76,7 +71,9 @@ impl System for ViewerSystem {
 
         self.update_events().update_view_from_camera();
 
-        self.info.update();
+        if let Some(info) = &mut self.info {
+            info.update();
+        }
 
         let timer = self.context.global_timer();
         let current_frame = timer.current_frame();
@@ -109,7 +106,7 @@ impl System for ViewerSystem {
 }
 
 impl ViewerSystem {
-    pub fn new(context: &ContextRc, renderer: &RendererRw) -> Self {
+    pub fn new(context: &ContextRc, renderer: &RendererRw, use_ui: bool) -> Self {
         let listener = Listener::new(context.message_hub());
         let shared_data = context.shared_data();
         let message_hub = context.message_hub();
@@ -142,11 +139,13 @@ impl ViewerSystem {
             .set_active(false);
 
         let update_culling_camera = Arc::new(AtomicBool::new(true));
-        Self {
-            renderer: renderer.clone(),
-            last_frame: u64::MAX,
-            view_3d: None,
-            info: Info::new(
+        let view_3d = if use_ui {
+            Some(View3D::new(shared_data, message_hub))
+        } else {
+            None
+        };
+        let info = if use_ui {
+            Some(Info::new(
                 context,
                 InfoParams {
                     is_active: true,
@@ -154,7 +153,15 @@ impl ViewerSystem {
                     renderer: renderer.clone(),
                     update_culling_camera: update_culling_camera.clone(),
                 },
-            ),
+            ))
+        } else {
+            None
+        };
+        Self {
+            renderer: renderer.clone(),
+            last_frame: u64::MAX,
+            view_3d,
+            info,
             context: context.clone(),
             listener,
             scene,
@@ -289,7 +296,9 @@ impl ViewerSystem {
                 PathBuf::from(filename).as_path(),
                 None,
             );
-            self.info.set_scene_id(self.scene.id());
+            if let Some(info) = &mut self.info {
+                info.set_scene_id(self.scene.id());
+            }
         }
     }
 
@@ -326,7 +335,10 @@ impl ViewerSystem {
                             PathBuf::from(scene_path).as_path(),
                             None,
                         );
-                        self.info.set_scene_id(self.scene.id());
+
+                        if let Some(info) = &mut self.info {
+                            info.set_scene_id(self.scene.id());
+                        }
                     }
                 }
             });
@@ -378,10 +390,12 @@ impl ViewerSystem {
     fn handle_keyboard_event(&mut self) {
         self.listener.process_messages(|event: &KeyEvent| {
             if event.code == Key::F1 && event.state == InputState::Released {
-                if self.info.is_active() {
-                    self.info.set_active(false);
-                } else {
-                    self.info.set_active(true);
+                if let Some(info) = &mut self.info {
+                    if info.is_active() {
+                        info.set_active(false);
+                    } else {
+                        info.set_active(true);
+                    }
                 }
             }
 

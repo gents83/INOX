@@ -22,7 +22,10 @@ use inox_graphics::{
     TextureType, MAX_TEXTURE_COORDS_SETS,
 };
 use inox_log::debug_log;
-use inox_math::{Mat4Ops, Matrix4, NewAngle, Parser, Radians, Vector2, Vector3, Vector4, Vector4h};
+use inox_math::{
+    pack_4_f32_to_unorm, Mat4Ops, Matrix4, NewAngle, Parser, Radians, Vector2, Vector3, Vector4,
+    Vector4h,
+};
 
 use inox_nodes::LogicData;
 use inox_resources::{to_slice, SharedDataRc};
@@ -250,7 +253,11 @@ impl GltfCompiler {
                         {
                             mesh_data.colors.extend_from_slice(
                                 col.iter()
-                                    .map(|&c| [c.x as f32, c.y as f32, c.z as f32, c.w as f32])
+                                    .map(|&c| {
+                                        pack_4_f32_to_unorm(
+                                            [c.x as f32, c.y as f32, c.z as f32, c.w as f32].into(),
+                                        )
+                                    })
                                     .collect::<Vec<_>>()
                                     .as_slice(),
                             );
@@ -268,7 +275,10 @@ impl GltfCompiler {
                         if let Some(col) = self.read_accessor_from_path::<Vector4>(path, &accessor)
                         {
                             mesh_data.colors.extend_from_slice(
-                                col.iter().map(|&c| c.into()).collect::<Vec<_>>().as_slice(),
+                                col.iter()
+                                    .map(|&c| pack_4_f32_to_unorm(c))
+                                    .collect::<Vec<_>>()
+                                    .as_slice(),
                             );
                             mesh_data.vertices.resize(col.len(), DrawVertex::default());
                             mesh_data

@@ -71,7 +71,7 @@ impl Pass for TransparentPass {
             .add_storage_data(
                 &render_context.core,
                 &render_context.binding_data_buffer,
-                render_context.render_buffers.vertices_mut(),
+                &mut render_context.render_buffers.vertices,
                 BindingInfo {
                     group_index: 0,
                     binding_index: 1,
@@ -104,6 +104,7 @@ impl Pass for TransparentPass {
 
         render_context.core.submit(encoder);
     }
+    fn handle_events(&mut self, _render_context: &mut RenderContext) {}
 }
 
 impl TransparentPass {

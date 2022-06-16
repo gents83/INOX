@@ -112,6 +112,8 @@ pub type RenderContextRw = Arc<RwLock<RenderContext>>;
 
 impl RenderContext {
     pub async fn create_render_context(handle: Handle, renderer: RendererRw) {
+        inox_profiler::scoped_profile!("render_context::create_render_context");
+
         let backend = wgpu::Backends::all();
         let instance = wgpu::Instance::new(backend);
         let surface = unsafe { instance.create_surface(&handle) };
@@ -172,6 +174,7 @@ impl RenderContext {
     }
 
     pub fn update_constant_data(&mut self, view: Matrix4, proj: Matrix4, screen_size: Vector2) {
+        inox_profiler::scoped_profile!("render_context::update_constant_data");
         let mut is_changed = false;
         is_changed |= self.constant_data.update(view, proj, screen_size);
         if self.core.config.format.describe().srgb {

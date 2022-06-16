@@ -138,3 +138,27 @@ struct Vertices {
     data: array<DrawVertex>,
 };
 
+struct Matrices {
+    data: array<mat4x4<f32>>,
+};
+
+struct Positions {
+    data: array<vec3<f32>>,
+};
+
+struct Colors {
+    data: array<u32>,
+};
+
+struct Normals {
+    data: array<vec3<f32>>,
+};
+
+struct Tangents {
+    data: array<vec4<f32>>,
+};
+
+struct UVs {
+    data: array<vec2<f32>>,
+};
+

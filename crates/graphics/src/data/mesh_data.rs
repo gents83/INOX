@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use inox_math::{is_point_in_triangle, VecBase, Vector2, Vector3, Vector4};
+use inox_math::{is_point_in_triangle, pack_4_f32_to_unorm, VecBase, Vector2, Vector3, Vector4};
 
 use inox_serialize::{Deserialize, Serialize, SerializeFile};
 
@@ -39,7 +39,7 @@ impl Default for MeshletData {
 #[serde(crate = "inox_serialize")]
 pub struct MeshData {
     pub positions: Vec<[f32; 3]>,
-    pub colors: Vec<[f32; 4]>,
+    pub colors: Vec<u32>,
     pub normals: Vec<[f32; 3]>,
     pub tangents: Vec<[f32; 4]>,
     pub uvs: [Vec<[f32; 2]>; MAX_TEXTURE_COORDS_SETS],
@@ -83,7 +83,7 @@ impl MeshData {
             ..Default::default()
         };
         self.positions.push(p.into());
-        self.colors.push(c.into());
+        self.colors.push(pack_4_f32_to_unorm(c));
         self.vertices.push(vertex);
         self.vertices.len() - 1
     }
@@ -95,7 +95,7 @@ impl MeshData {
             ..Default::default()
         };
         self.positions.push(p.into());
-        self.colors.push(c.into());
+        self.colors.push(pack_4_f32_to_unorm(c));
         self.normals.push(n.into());
         self.vertices.push(vertex);
         self.vertices.len() - 1
@@ -133,7 +133,7 @@ impl MeshData {
             ..Default::default()
         };
         self.positions.push(p.into());
-        self.colors.push(c.into());
+        self.colors.push(pack_4_f32_to_unorm(c));
         self.uvs.iter_mut().for_each(|uvs| {
             uvs.push(uv.into());
         });
@@ -161,7 +161,7 @@ impl MeshData {
             ..Default::default()
         };
         self.positions.push(p.into());
-        self.colors.push(c.into());
+        self.colors.push(pack_4_f32_to_unorm(c));
         self.normals.push(n.into());
         self.uvs.iter_mut().for_each(|uvs| {
             uvs.push(uv.into());
@@ -180,7 +180,7 @@ impl MeshData {
             indices_count: mesh_data.index_count() as _,
             ..Default::default()
         };
-        mesh_data.meshlets.push(meshlet);
+        self.meshlets.push(meshlet);
 
         self.positions.append(&mut mesh_data.positions);
         self.colors.append(&mut mesh_data.colors);
@@ -225,10 +225,9 @@ impl MeshData {
     }
 
     pub fn set_vertex_color(&mut self, color: Vector4) -> &mut Self {
-        for i in 0..self.colors.len() {
-            let c = &mut self.colors[i];
-            *c = color.into();
-        }
+        self.colors
+            .iter_mut()
+            .for_each(|c| *c = pack_4_f32_to_unorm(color));
         self
     }
 

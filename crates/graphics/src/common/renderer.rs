@@ -230,6 +230,7 @@ impl Renderer {
         let mut render_context = self.render_context.as_ref().unwrap().write().unwrap();
 
         self.passes.iter_mut().for_each(|pass| {
+            pass.handle_events(&mut render_context);
             pass.init(&mut render_context);
         });
 

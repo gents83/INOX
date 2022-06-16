@@ -10,62 +10,25 @@ use crate::{
 
 #[derive(Default)]
 pub struct RenderBuffers {
-    textures: HashBuffer<TextureId, TextureData, 0>,
-    lights: HashBuffer<LightId, LightData, 0>,
-    materials: HashBuffer<MaterialId, DrawMaterial, 0>,
-    meshes: HashBuffer<MeshId, DrawMesh, 0>,
-    matrix: HashBuffer<ResourceId, [[f32; 4]; 4], 0>,
-    meshlets: Buffer<DrawMeshlet>,      //MeshId <-> [DrawMeshlet]
-    vertices: Buffer<DrawVertex>,       //MeshId <-> [DrawVertex]
-    indices: Buffer<u32>,               //MeshId <-> [u32]
-    vertex_positions: Buffer<[f32; 3]>, //MeshId <-> [f32; 3]
-    vertex_colors: Buffer<u32>,         //MeshId <-> u32
-    vertex_normals: Buffer<[f32; 3]>,   //MeshId <-> [f32; 3]
-    vertex_tangents: Buffer<[f32; 4]>,  //MeshId <-> [f32; 4]
-    vertex_uvs: [Buffer<[f32; 2]>; MAX_TEXTURE_COORDS_SETS], //MeshId <-> [[f32; 2]; 4]
+    pub textures: HashBuffer<TextureId, TextureData, 0>,
+    pub lights: HashBuffer<LightId, LightData, 0>,
+    pub materials: HashBuffer<MaterialId, DrawMaterial, 0>,
+    pub meshes: HashBuffer<MeshId, DrawMesh, 0>,
+    pub matrix: HashBuffer<ResourceId, [[f32; 4]; 4], 0>,
+    pub meshlets: Buffer<DrawMeshlet>, //MeshId <-> [DrawMeshlet]
+    pub vertices: Buffer<DrawVertex>,  //MeshId <-> [DrawVertex]
+    pub indices: Buffer<u32>,          //MeshId <-> [u32]
+    pub vertex_positions: Buffer<[f32; 3]>, //MeshId <-> [f32; 3]
+    pub vertex_colors: Buffer<u32>,    //MeshId <-> u32
+    pub vertex_normals: Buffer<[f32; 3]>, //MeshId <-> [f32; 3]
+    pub vertex_tangents: Buffer<[f32; 4]>, //MeshId <-> [f32; 4]
+    pub vertex_uvs: [Buffer<[f32; 2]>; MAX_TEXTURE_COORDS_SETS], //MeshId <-> [[f32; 2]; 4]
 }
 
 impl RenderBuffers {
-    pub fn textures_mut(&mut self) -> &mut HashBuffer<TextureId, TextureData, 0> {
-        &mut self.textures
-    }
-    pub fn lights_mut(&mut self) -> &mut HashBuffer<LightId, LightData, 0> {
-        &mut self.lights
-    }
-    pub fn materials_mut(&mut self) -> &mut HashBuffer<MaterialId, DrawMaterial, 0> {
-        &mut self.materials
-    }
-    pub fn meshes_mut(&mut self) -> &mut HashBuffer<MeshId, DrawMesh, 0> {
-        &mut self.meshes
-    }
-    pub fn matrices_mut(&mut self) -> &mut HashBuffer<ResourceId, [[f32; 4]; 4], 0> {
-        &mut self.matrix
-    }
-    pub fn meshlets_mut(&mut self) -> &mut Buffer<DrawMeshlet> {
-        &mut self.meshlets
-    }
-    pub fn vertices_mut(&mut self) -> &mut Buffer<DrawVertex> {
-        &mut self.vertices
-    }
-    pub fn indices_mut(&mut self) -> &mut Buffer<u32> {
-        &mut self.indices
-    }
-    pub fn vertex_positions_mut(&mut self) -> &mut Buffer<[f32; 3]> {
-        &mut self.vertex_positions
-    }
-    pub fn vertex_colors_mut(&mut self) -> &mut Buffer<u32> {
-        &mut self.vertex_colors
-    }
-    pub fn vertex_normals_mut(&mut self) -> &mut Buffer<[f32; 3]> {
-        &mut self.vertex_normals
-    }
-    pub fn vertex_tangents_mut(&mut self) -> &mut Buffer<[f32; 4]> {
-        &mut self.vertex_tangents
-    }
-    pub fn vertex_uvs_mut(&mut self) -> &mut [Buffer<[f32; 2]>; MAX_TEXTURE_COORDS_SETS] {
-        &mut self.vertex_uvs
-    }
     fn extract_meshlets(mesh_data: &MeshData) -> Vec<DrawMeshlet> {
+        inox_profiler::scoped_profile!("render_buffers::extract_meshlets");
+
         let mut meshlets = Vec::new();
         mesh_data.meshlets.iter().for_each(|meshlet_data| {
             let meshlet = DrawMeshlet {
@@ -91,6 +54,8 @@ impl RenderBuffers {
         meshlets
     }
     fn add_vertex_data(&mut self, mesh_id: &MeshId, mesh_data: &MeshData) {
+        inox_profiler::scoped_profile!("render_buffers::add_vertex_data");
+
         if mesh_data.vertices.is_empty() {
             inox_log::debug_log!("No vertices for mesh {:?}", mesh_id);
             return;
@@ -123,6 +88,8 @@ impl RenderBuffers {
         }
     }
     pub fn add_mesh(&mut self, mesh_id: &MeshId, mesh_data: &MeshData) {
+        inox_profiler::scoped_profile!("render_buffers::add_mesh");
+
         self.add_vertex_data(mesh_id, mesh_data);
         let meshlets = Self::extract_meshlets(mesh_data);
         if meshlets.is_empty() {
@@ -132,7 +99,7 @@ impl RenderBuffers {
         let range = self.meshlets.allocate(mesh_id, meshlets.as_slice()).1;
         let draw_mesh = DrawMesh {
             meshlet_offset: range.start as _,
-            meshlet_count: range.len() as _,
+            meshlet_count: meshlets.len() as _,
             material_index: INVALID_INDEX,
             mesh_flags: MESH_FLAGS_NONE,
             matrix_index: self.add_matrix(mesh_id) as _,
@@ -140,8 +107,9 @@ impl RenderBuffers {
         self.meshes.insert(mesh_id, draw_mesh);
     }
     pub fn change_mesh(&mut self, mesh_id: &MeshId, mesh: &mut Mesh) {
+        inox_profiler::scoped_profile!("render_buffers::change_mesh");
+
         if let Some(m) = self.meshes.get_mut(mesh_id) {
-            m.mesh_flags = mesh.flags();
             if let Some(material) = mesh.material() {
                 if let Some(index) = self.materials.index(material.id()) {
                     m.material_index = index as _;
@@ -157,11 +125,14 @@ impl RenderBuffers {
                     }
                 }
             }
+            m.mesh_flags = mesh.flags();
 
             self.update_matrix(mesh_id, &mesh.matrix());
         }
     }
     pub fn remove_mesh(&mut self, mesh_id: &MeshId) {
+        inox_profiler::scoped_profile!("render_buffers::remove_mesh");
+
         self.remove_matrix(mesh_id);
         self.meshes.remove(mesh_id);
         self.meshlets.remove(mesh_id);
@@ -176,6 +147,8 @@ impl RenderBuffers {
         }
     }
     pub fn add_material(&mut self, material_id: &MaterialId, material: &mut Material) {
+        inox_profiler::scoped_profile!("render_buffers::add_material");
+
         let mut textures_indices = [INVALID_INDEX; TextureType::Count as _];
         material
             .textures()
@@ -196,6 +169,8 @@ impl RenderBuffers {
         material.set_material_index(index as _);
     }
     pub fn update_material(&mut self, material_id: &MaterialId, material_data: &MaterialData) {
+        inox_profiler::scoped_profile!("render_buffers::update_material");
+
         if let Some(material) = self.materials.get_mut(material_id) {
             let mut textures_coord_set: [u32; TextureType::Count as _] = Default::default();
             for (i, t) in material_data.texcoords_set.iter().enumerate() {
@@ -214,38 +189,56 @@ impl RenderBuffers {
         }
     }
     pub fn remove_material(&mut self, material_id: &MaterialId) {
+        inox_profiler::scoped_profile!("render_buffers::remove_material");
+
         self.materials.remove(material_id);
     }
 
     pub fn add_light(&mut self, light_id: &LightId, light: &mut Light) {
+        inox_profiler::scoped_profile!("render_buffers::add_light");
+
         let index = self.lights.insert(light_id, LightData::default());
         light.set_light_index(index as _);
     }
     pub fn update_light(&mut self, light_id: &LightId, light_data: &LightData) {
+        inox_profiler::scoped_profile!("render_buffers::update_light");
+
         if let Some(light) = self.lights.get_mut(light_id) {
             *light = *light_data;
         }
     }
     pub fn remove_light(&mut self, light_id: &LightId) {
+        inox_profiler::scoped_profile!("render_buffers::remove_light");
+
         self.lights.remove(light_id);
     }
 
     pub fn add_texture(&mut self, texture_id: &TextureId, texture_data: &TextureData) -> usize {
+        inox_profiler::scoped_profile!("render_buffers::add_texture");
+
         self.textures.insert(texture_id, *texture_data)
     }
     pub fn remove_texture(&mut self, texture_id: &TextureId) {
+        inox_profiler::scoped_profile!("render_buffers::remove_texture");
+
         self.textures.remove(texture_id);
     }
 
     pub fn add_matrix(&mut self, id: &ResourceId) -> usize {
+        inox_profiler::scoped_profile!("render_buffers::add_matrix");
+
         self.matrix.insert(id, Matrix4::default_identity().into())
     }
     pub fn update_matrix(&mut self, id: &ResourceId, matrix: &Matrix4) {
+        inox_profiler::scoped_profile!("render_buffers::update_matrix");
+
         if let Some(m) = self.matrix.get_mut(id) {
             *m = (*matrix).into();
         }
     }
     pub fn remove_matrix(&mut self, id: &ResourceId) {
+        inox_profiler::scoped_profile!("render_buffers::remove_matrix");
+
         self.matrix.remove(id);
     }
 }

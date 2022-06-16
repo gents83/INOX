@@ -15,6 +15,8 @@ use inox_ui::{UIPass, UISystem, UI_PASS_NAME};
 
 use crate::{config::Config, systems::viewer_system::ViewerSystem};
 
+const ONLY_OPAQUE_PASS: bool = true;
+
 pub struct Viewer {
     window: Option<Window>,
     renderer: RendererRw,
@@ -54,9 +56,8 @@ impl Plugin for Viewer {
 
         let rendering_draw_system = RenderingSystem::new(self.renderer.clone(), context);
         let debug_drawer_system = DebugDrawerSystem::new(context);
-        let ui_system = UISystem::new(context, self.renderer.clone());
 
-        let system = ViewerSystem::new(context, &self.renderer);
+        let system = ViewerSystem::new(context, &self.renderer, !ONLY_OPAQUE_PASS);
         let object_system = ObjectSystem::new(context.shared_data());
         let script_system = ScriptSystem::new(context);
 
@@ -80,13 +81,19 @@ impl Plugin for Viewer {
         );
 
         context.add_system(inox_core::Phases::Update, system, None);
-        context.add_system(inox_core::Phases::Update, ui_system, None);
+        if !ONLY_OPAQUE_PASS {
+            let ui_system = UISystem::new(context, self.renderer.clone());
+            context.add_system(inox_core::Phases::Update, ui_system, None);
+        }
         context.add_system(inox_core::Phases::Update, debug_drawer_system, None);
     }
 
     fn unprepare(&mut self, context: &ContextRc) {
         context.remove_system(inox_core::Phases::Update, &DebugDrawerSystem::system_id());
-        context.remove_system(inox_core::Phases::Update, &UISystem::system_id());
+
+        if !ONLY_OPAQUE_PASS {
+            context.remove_system(inox_core::Phases::Update, &UISystem::system_id());
+        }
         context.remove_system(inox_core::Phases::Update, &ViewerSystem::system_id());
 
         context.remove_system(inox_core::Phases::Update, &ScriptSystem::system_id());
@@ -127,7 +134,6 @@ impl Plugin for Viewer {
 
 impl Viewer {
     fn create_render_passes(context: &ContextRc, renderer: &RendererRw, width: u32, height: u32) {
-        const ONLY_OPAQUE_PASS: bool = true;
         if ONLY_OPAQUE_PASS {
             Self::create_opaque_pass(context, renderer);
         } else {
