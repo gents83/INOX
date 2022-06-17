@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use inox_math::{is_point_in_triangle, pack_4_f32_to_unorm, VecBase, Vector2, Vector3, Vector4};
+use inox_math::{is_point_in_triangle, VecBase, Vector2, Vector3, Vector4};
 
 use inox_serialize::{Deserialize, Serialize, SerializeFile};
 
@@ -38,11 +38,11 @@ impl Default for MeshletData {
 #[derive(Default, Serialize, Deserialize, Debug, PartialEq, Clone)]
 #[serde(crate = "inox_serialize")]
 pub struct MeshData {
-    pub positions: Vec<[f32; 3]>,
-    pub colors: Vec<u32>,
-    pub normals: Vec<[f32; 3]>,
-    pub tangents: Vec<[f32; 4]>,
-    pub uvs: [Vec<[f32; 2]>; MAX_TEXTURE_COORDS_SETS],
+    pub positions: Vec<Vector3>,
+    pub colors: Vec<Vector4>,
+    pub normals: Vec<Vector3>,
+    pub tangents: Vec<Vector4>,
+    pub uvs: [Vec<Vector2>; MAX_TEXTURE_COORDS_SETS],
     pub vertices: Vec<DrawVertex>,
     pub indices: Vec<u32>,
     pub material: PathBuf,
@@ -78,31 +78,29 @@ impl MeshData {
 
     pub fn add_vertex_pos_color(&mut self, p: Vector3, c: Vector4) -> usize {
         let vertex = DrawVertex {
-            position_offset: self.positions.len() as _,
-            color_offset: self.colors.len() as _,
+            position_and_color_offset: self.positions.len() as _,
             ..Default::default()
         };
-        self.positions.push(p.into());
-        self.colors.push(pack_4_f32_to_unorm(c));
+        self.positions.push(p);
+        self.colors.push(c);
         self.vertices.push(vertex);
         self.vertices.len() - 1
     }
     pub fn add_vertex_pos_color_normal(&mut self, p: Vector3, c: Vector4, n: Vector3) -> usize {
         let vertex = DrawVertex {
-            position_offset: self.positions.len() as _,
-            color_offset: self.colors.len() as _,
+            position_and_color_offset: self.positions.len() as _,
             normal_offset: self.normals.len() as _,
             ..Default::default()
         };
-        self.positions.push(p.into());
-        self.colors.push(pack_4_f32_to_unorm(c));
-        self.normals.push(n.into());
+        self.positions.push(p);
+        self.colors.push(c);
+        self.normals.push(n);
         self.vertices.push(vertex);
         self.vertices.len() - 1
     }
     pub fn add_vertex_pos_uv(&mut self, p: Vector3, uv: Vector2) -> usize {
         let vertex = DrawVertex {
-            position_offset: self.positions.len() as _,
+            position_and_color_offset: self.positions.len() as _,
             uv_offset: self
                 .uvs
                 .iter()
@@ -112,17 +110,16 @@ impl MeshData {
                 .unwrap(),
             ..Default::default()
         };
-        self.positions.push(p.into());
+        self.positions.push(p);
         self.uvs.iter_mut().for_each(|uvs| {
-            uvs.push(uv.into());
+            uvs.push(uv);
         });
         self.vertices.push(vertex);
         self.vertices.len() - 1
     }
     pub fn add_vertex_pos_color_uv(&mut self, p: Vector3, c: Vector4, uv: Vector2) -> usize {
         let vertex = DrawVertex {
-            position_offset: self.positions.len() as _,
-            color_offset: self.colors.len() as _,
+            position_and_color_offset: self.positions.len() as _,
             uv_offset: self
                 .uvs
                 .iter()
@@ -132,10 +129,10 @@ impl MeshData {
                 .unwrap(),
             ..Default::default()
         };
-        self.positions.push(p.into());
-        self.colors.push(pack_4_f32_to_unorm(c));
+        self.positions.push(p);
+        self.colors.push(c);
         self.uvs.iter_mut().for_each(|uvs| {
-            uvs.push(uv.into());
+            uvs.push(uv);
         });
         self.vertices.push(vertex);
         self.vertices.len() - 1
@@ -148,8 +145,7 @@ impl MeshData {
         uv: Vector2,
     ) -> usize {
         let vertex = DrawVertex {
-            position_offset: self.positions.len() as _,
-            color_offset: self.colors.len() as _,
+            position_and_color_offset: self.positions.len() as _,
             normal_offset: self.normals.len() as _,
             uv_offset: self
                 .uvs
@@ -160,11 +156,11 @@ impl MeshData {
                 .unwrap(),
             ..Default::default()
         };
-        self.positions.push(p.into());
-        self.colors.push(pack_4_f32_to_unorm(c));
-        self.normals.push(n.into());
+        self.positions.push(p);
+        self.colors.push(c);
+        self.normals.push(n);
         self.uvs.iter_mut().for_each(|uvs| {
-            uvs.push(uv.into());
+            uvs.push(uv);
         });
         self.vertices.push(vertex);
         self.vertices.len() - 1
@@ -225,9 +221,7 @@ impl MeshData {
     }
 
     pub fn set_vertex_color(&mut self, color: Vector4) -> &mut Self {
-        self.colors
-            .iter_mut()
-            .for_each(|c| *c = pack_4_f32_to_unorm(color));
+        self.colors.iter_mut().for_each(|c| *c = color);
         self
     }
 

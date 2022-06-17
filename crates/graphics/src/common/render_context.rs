@@ -41,13 +41,8 @@ impl BindingDataBuffer {
 
         let mut is_changed = false;
         if data.is_dirty() {
-            let typename = std::any::type_name::<T>()
-                .split(':')
-                .collect::<Vec<&str>>()
-                .last()
-                .unwrap()
-                .to_string();
-            let label = format!("{}[{}]", typename, id);
+            let typename = std::any::type_name::<T>();
+            let label = format!("{}[{}]", typename, data.id());
             is_changed |= buffer.init(render_core_context, data.size(), usage, label.as_str());
             data.fill_buffer(render_core_context, buffer);
             data.set_dirty(false);
@@ -64,7 +59,7 @@ impl BindingDataBuffer {
     where
         T: AsBinding,
     {
-        let id = T::id();
+        let id = data.id();
         let is_changed = self.bind_buffer_with_id(&id, data, usage, render_core_context);
         (id, is_changed)
     }

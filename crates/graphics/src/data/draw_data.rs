@@ -1,6 +1,6 @@
 use inox_serialize::{Deserialize, Serialize};
 
-use crate::{TextureType, INVALID_INDEX, MAX_TEXTURE_COORDS_SETS};
+use crate::{TextureType, VertexBufferLayoutBuilder, INVALID_INDEX, MAX_TEXTURE_COORDS_SETS};
 
 // Pipeline has a list of meshes to process
 // Meshes can switch pipeline at runtime
@@ -13,6 +13,17 @@ pub struct DrawInstance {
     pub mesh_index: u32,
     pub matrix_index: u32,
     pub draw_area_index: i32,
+}
+
+impl DrawInstance {
+    pub fn descriptor<'a>(starting_location: u32) -> VertexBufferLayoutBuilder<'a> {
+        let mut layout_builder = VertexBufferLayoutBuilder::instance();
+        layout_builder.starting_location(starting_location);
+        layout_builder.add_attribute::<u32>(wgpu::VertexFormat::Uint32);
+        layout_builder.add_attribute::<u32>(wgpu::VertexFormat::Uint32);
+        layout_builder.add_attribute::<i32>(wgpu::VertexFormat::Sint32);
+        layout_builder
+    }
 }
 
 #[derive(Default, Serialize, Deserialize, PartialEq, Clone, Copy, Debug)]
@@ -28,6 +39,8 @@ pub struct DrawCommand {
 #[derive(Serialize, Deserialize, PartialEq, Clone, Copy, Debug)]
 #[serde(crate = "inox_serialize")]
 pub struct DrawMesh {
+    pub vertex_offset: u32,
+    pub indices_offset: u32,
     pub meshlet_offset: u32,
     pub meshlet_count: u32,
     pub material_index: i32,
@@ -38,6 +51,8 @@ pub struct DrawMesh {
 impl Default for DrawMesh {
     fn default() -> Self {
         Self {
+            vertex_offset: 0,
+            indices_offset: 0,
             meshlet_offset: 0,
             meshlet_count: 0,
             material_index: INVALID_INDEX,
@@ -77,21 +92,36 @@ pub struct DrawMaterial {
 #[derive(Serialize, Deserialize, PartialEq, Clone, Copy, Debug)]
 #[serde(crate = "inox_serialize")]
 pub struct DrawVertex {
-    pub position_offset: u32,
-    pub color_offset: i32,
+    pub position_and_color_offset: u32,
     pub normal_offset: i32,
     pub tangent_offset: i32,
+    pub padding_offset: u32,
     pub uv_offset: [i32; MAX_TEXTURE_COORDS_SETS],
 }
 
 impl Default for DrawVertex {
     fn default() -> Self {
         Self {
-            position_offset: 0,
-            color_offset: INVALID_INDEX,
+            position_and_color_offset: 0,
             normal_offset: INVALID_INDEX,
             tangent_offset: INVALID_INDEX,
+            padding_offset: 0,
             uv_offset: [INVALID_INDEX; MAX_TEXTURE_COORDS_SETS],
         }
+    }
+}
+
+impl DrawVertex {
+    pub fn descriptor<'a>(starting_location: u32) -> VertexBufferLayoutBuilder<'a> {
+        let mut layout_builder = VertexBufferLayoutBuilder::vertex();
+        layout_builder.starting_location(starting_location);
+        layout_builder.add_attribute::<u32>(wgpu::VertexFormat::Uint32);
+        layout_builder.add_attribute::<i32>(wgpu::VertexFormat::Sint32);
+        layout_builder.add_attribute::<i32>(wgpu::VertexFormat::Sint32);
+        layout_builder.add_attribute::<u32>(wgpu::VertexFormat::Uint32);
+        for _ in 0..MAX_TEXTURE_COORDS_SETS {
+            layout_builder.add_attribute::<i32>(wgpu::VertexFormat::Sint32);
+        }
+        layout_builder
     }
 }

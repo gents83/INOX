@@ -300,7 +300,7 @@ pub fn create_arrow(position: Vector3, direction: Vector3, color: Vector4) -> Me
     let mut matrix = Matrix4::default_identity();
     matrix.look_towards(direction);
     shape_mesh_data.positions.iter_mut().for_each(|v| {
-        *v = (position + matrix.transform((*v).into())).into();
+        *v = position + matrix.transform(*v);
     });
     shape_mesh_data
 }
@@ -345,9 +345,10 @@ pub fn create_hammer(position: Vector3, direction: Vector3, color: Vector4) -> M
 
     let mut matrix = Matrix4::default_identity();
     matrix.look_towards(direction);
-    shape_mesh_data.positions.iter_mut().for_each(|v| {
-        *v = (position + matrix.transform((*v).into())).into();
-    });
+    shape_mesh_data
+        .positions
+        .iter_mut()
+        .for_each(|v| *v = position + matrix.transform(*v));
     shape_mesh_data
 }
 
@@ -419,7 +420,7 @@ pub fn create_torus(
     let mut matrix = Matrix4::default_identity();
     matrix.look_towards(direction);
     mesh_data.positions.iter_mut().for_each(|v| {
-        *v = (position + matrix.transform((*v).into())).into();
+        *v = position + matrix.transform(*v);
     });
     mesh_data
 }

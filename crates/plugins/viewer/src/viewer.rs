@@ -55,7 +55,6 @@ impl Plugin for Viewer {
         let render_update_system = UpdateSystem::new(self.renderer.clone(), context);
 
         let rendering_draw_system = RenderingSystem::new(self.renderer.clone(), context);
-        let debug_drawer_system = DebugDrawerSystem::new(context);
 
         let system = ViewerSystem::new(context, &self.renderer, !ONLY_OPAQUE_PASS);
         let object_system = ObjectSystem::new(context.shared_data());
@@ -84,14 +83,14 @@ impl Plugin for Viewer {
         if !ONLY_OPAQUE_PASS {
             let ui_system = UISystem::new(context, self.renderer.clone());
             context.add_system(inox_core::Phases::Update, ui_system, None);
+            let debug_drawer_system = DebugDrawerSystem::new(context);
+            context.add_system(inox_core::Phases::Update, debug_drawer_system, None);
         }
-        context.add_system(inox_core::Phases::Update, debug_drawer_system, None);
     }
 
     fn unprepare(&mut self, context: &ContextRc) {
-        context.remove_system(inox_core::Phases::Update, &DebugDrawerSystem::system_id());
-
         if !ONLY_OPAQUE_PASS {
+            context.remove_system(inox_core::Phases::Update, &DebugDrawerSystem::system_id());
             context.remove_system(inox_core::Phases::Update, &UISystem::system_id());
         }
         context.remove_system(inox_core::Phases::Update, &ViewerSystem::system_id());

@@ -35,7 +35,7 @@ pub struct ViewerSystem {
     update_culling_camera: Arc<AtomicBool>,
 }
 
-const FORCE_USE_DEFAULT_CAMERA: bool = false;
+const FORCE_USE_DEFAULT_CAMERA: bool = true;
 const CAMERA_SPEED: f32 = 50.;
 const CAMERA_ROTATION_SPEED: f32 = 100.;
 
@@ -230,6 +230,7 @@ impl ViewerSystem {
             let mut mesh_data = MeshData::default();
             let quad = create_quad([-10., -10., 10., 10.].into(), 0.);
             mesh_data.append_mesh_data_as_meshlet(quad);
+            mesh_data.set_vertex_color([0.0, 0.0, 1.0, 1.0].into());
 
             //println!("Quad Mesh {:?}", mesh.id());
 
@@ -275,6 +276,7 @@ impl ViewerSystem {
             let mut mesh_data = MeshData::default();
             let quad = create_quad([-10., -10., 10., 10.].into(), 0.);
             mesh_data.append_mesh_data_as_meshlet(quad);
+            mesh_data.set_vertex_color([1.0, 1.0, 0.0, 1.0].into());
 
             //println!("Wireframe Mesh {:?}", mesh.id());
 
@@ -353,7 +355,8 @@ impl ViewerSystem {
             .shared_data()
             .match_resource(|view: &View| view.view_index() == 0)
         {
-            if FORCE_USE_DEFAULT_CAMERA {
+            if FORCE_USE_DEFAULT_CAMERA || self.context.shared_data().num_resources::<Camera>() == 1
+            {
                 self.camera_index = 0;
             } else {
                 self.camera_index = 1;

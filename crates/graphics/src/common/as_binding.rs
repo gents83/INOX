@@ -1,20 +1,15 @@
 use inox_resources::{Buffer, HashBuffer};
-use inox_uid::{generate_uid_from_string, Uid};
+use inox_uid::Uid;
 
 use crate::{GpuBuffer, RenderCoreContext};
 
 pub trait AsBinding {
-    fn id() -> Uid
+    fn id(&self) -> Uid
     where
         Self: Sized,
     {
-        let typename = std::any::type_name::<Self>()
-            .split(':')
-            .collect::<Vec<&str>>()
-            .last()
-            .unwrap()
-            .to_string();
-        generate_uid_from_string(typename.as_str())
+        let address = unsafe { *(self as *const Self as *const u128) };
+        Uid::from_u128(address)
     }
     fn is_dirty(&self) -> bool;
     fn set_dirty(&mut self, is_dirty: bool);

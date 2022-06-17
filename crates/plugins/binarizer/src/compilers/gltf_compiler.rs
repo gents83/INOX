@@ -22,10 +22,7 @@ use inox_graphics::{
     TextureType, MAX_TEXTURE_COORDS_SETS,
 };
 use inox_log::debug_log;
-use inox_math::{
-    pack_4_f32_to_unorm, Mat4Ops, Matrix4, NewAngle, Parser, Radians, Vector2, Vector3, Vector4,
-    Vector4h,
-};
+use inox_math::{Mat4Ops, Matrix4, NewAngle, Parser, Radians, Vector2, Vector3, Vector4, Vector4h};
 
 use inox_nodes::LogicData;
 use inox_resources::{to_slice, SharedDataRc};
@@ -196,16 +193,14 @@ impl GltfCompiler {
                     let num_bytes = self.bytes_from_dimension(&accessor);
                     debug_assert!(num == 3 && num_bytes == 4);
                     if let Some(pos) = self.read_accessor_from_path::<Vector3>(path, &accessor) {
-                        mesh_data.positions.extend_from_slice(
-                            pos.iter().map(|&v| v.into()).collect::<Vec<_>>().as_slice(),
-                        );
+                        mesh_data.positions.extend_from_slice(pos.as_slice());
                         mesh_data.vertices.resize(pos.len(), DrawVertex::default());
                         mesh_data
                             .vertices
                             .iter_mut()
                             .enumerate()
                             .for_each(|(i, v)| {
-                                v.position_offset = i as _;
+                                v.position_and_color_offset = i as _;
                             });
                     }
                 }
@@ -214,12 +209,7 @@ impl GltfCompiler {
                     let num_bytes = self.bytes_from_dimension(&accessor);
                     debug_assert!(num == 3 && num_bytes == 4);
                     if let Some(norm) = self.read_accessor_from_path::<Vector3>(path, &accessor) {
-                        mesh_data.normals.extend_from_slice(
-                            norm.iter()
-                                .map(|&v| v.into())
-                                .collect::<Vec<_>>()
-                                .as_slice(),
-                        );
+                        mesh_data.normals.extend_from_slice(norm.as_slice());
                     }
                 }
                 Semantic::Tangents => {
@@ -227,12 +217,7 @@ impl GltfCompiler {
                     let num_bytes = self.bytes_from_dimension(&accessor);
                     debug_assert!(num == 4 && num_bytes == 4);
                     if let Some(tang) = self.read_accessor_from_path::<Vector4>(path, &accessor) {
-                        mesh_data.tangents.extend_from_slice(
-                            tang.iter()
-                                .map(|&v| v.into())
-                                .collect::<Vec<_>>()
-                                .as_slice(),
-                        );
+                        mesh_data.tangents.extend_from_slice(tang.as_slice());
                         mesh_data.vertices.resize(tang.len(), DrawVertex::default());
                         mesh_data
                             .vertices
@@ -254,9 +239,7 @@ impl GltfCompiler {
                             mesh_data.colors.extend_from_slice(
                                 col.iter()
                                     .map(|&c| {
-                                        pack_4_f32_to_unorm(
-                                            [c.x as f32, c.y as f32, c.z as f32, c.w as f32].into(),
-                                        )
+                                        [c.x as f32, c.y as f32, c.z as f32, c.w as f32].into()
                                     })
                                     .collect::<Vec<_>>()
                                     .as_slice(),
@@ -267,26 +250,21 @@ impl GltfCompiler {
                                 .iter_mut()
                                 .enumerate()
                                 .for_each(|(i, v)| {
-                                    v.color_offset = i as _;
+                                    v.position_and_color_offset = i as _;
                                 });
                         }
                     } else {
                         debug_assert!(num_bytes == 4);
                         if let Some(col) = self.read_accessor_from_path::<Vector4>(path, &accessor)
                         {
-                            mesh_data.colors.extend_from_slice(
-                                col.iter()
-                                    .map(|&c| pack_4_f32_to_unorm(c))
-                                    .collect::<Vec<_>>()
-                                    .as_slice(),
-                            );
+                            mesh_data.colors.extend_from_slice(col.as_slice());
                             mesh_data.vertices.resize(col.len(), DrawVertex::default());
                             mesh_data
                                 .vertices
                                 .iter_mut()
                                 .enumerate()
                                 .for_each(|(i, v)| {
-                                    v.color_offset = i as _;
+                                    v.position_and_color_offset = i as _;
                                 });
                         }
                     }
@@ -303,9 +281,7 @@ impl GltfCompiler {
                     let num_bytes = self.bytes_from_dimension(&accessor);
                     debug_assert!(num == 2 && num_bytes == 4);
                     if let Some(tex) = self.read_accessor_from_path::<Vector2>(path, &accessor) {
-                        mesh_data.uvs[texture_index as usize].extend_from_slice(
-                            tex.iter().map(|&v| v.into()).collect::<Vec<_>>().as_slice(),
-                        );
+                        mesh_data.uvs[texture_index as usize].extend_from_slice(tex.as_slice());
                         mesh_data.vertices.resize(tex.len(), DrawVertex::default());
                         mesh_data
                             .vertices

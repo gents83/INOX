@@ -1,4 +1,6 @@
-use inox_math::{MatBase, Matrix4};
+use std::ops::Range;
+
+use inox_math::{pack_4_f32_to_unorm, MatBase, Matrix4};
 use inox_resources::{Buffer, HashBuffer, ResourceId};
 
 use crate::{
@@ -8,6 +10,7 @@ use crate::{
     MESH_FLAGS_TRANSPARENT,
 };
 
+//Alignment should be 4, 8, 16 or 32 bytes
 #[derive(Default)]
 pub struct RenderBuffers {
     pub textures: HashBuffer<TextureId, TextureData, 0>,
@@ -18,9 +21,8 @@ pub struct RenderBuffers {
     pub meshlets: Buffer<DrawMeshlet>, //MeshId <-> [DrawMeshlet]
     pub vertices: Buffer<DrawVertex>,  //MeshId <-> [DrawVertex]
     pub indices: Buffer<u32>,          //MeshId <-> [u32]
-    pub vertex_positions: Buffer<[f32; 3]>, //MeshId <-> [f32; 3]
-    pub vertex_colors: Buffer<u32>,    //MeshId <-> u32
-    pub vertex_normals: Buffer<[f32; 3]>, //MeshId <-> [f32; 3]
+    pub vertex_positions_and_colors: Buffer<[f32; 4]>, //MeshId <-> [f32; 4]
+    pub vertex_normals_and_padding: Buffer<[f32; 4]>, //MeshId <-> [f32; 4]
     pub vertex_tangents: Buffer<[f32; 4]>, //MeshId <-> [f32; 4]
     pub vertex_uvs: [Buffer<[f32; 2]>; MAX_TEXTURE_COORDS_SETS], //MeshId <-> [[f32; 2]; 4]
 }
@@ -53,44 +55,93 @@ impl RenderBuffers {
         });
         meshlets
     }
-    fn add_vertex_data(&mut self, mesh_id: &MeshId, mesh_data: &MeshData) {
+    fn add_vertex_data(&mut self, mesh_id: &MeshId, mesh_data: &MeshData) -> (u32, u32) {
         inox_profiler::scoped_profile!("render_buffers::add_vertex_data");
 
         if mesh_data.vertices.is_empty() {
             inox_log::debug_log!("No vertices for mesh {:?}", mesh_id);
-            return;
+            return (0, 0);
         }
-        self.vertices
-            .allocate(mesh_id, mesh_data.vertices.as_slice());
-        if !mesh_data.positions.is_empty() {
-            self.vertex_positions
-                .allocate(mesh_id, mesh_data.positions.as_slice());
+        if mesh_data.indices.is_empty() {
+            inox_log::debug_log!("No indices for mesh {:?}", mesh_id);
+            return (0, 0);
         }
+
+        let mut vertex_positions_and_colors = Vec::new();
+        vertex_positions_and_colors.reserve(mesh_data.positions.len());
         if !mesh_data.colors.is_empty() {
-            self.vertex_colors
-                .allocate(mesh_id, mesh_data.colors.as_slice());
-        }
-        if !mesh_data.normals.is_empty() {
-            self.vertex_normals
-                .allocate(mesh_id, mesh_data.normals.as_slice());
-        }
-        if !mesh_data.tangents.is_empty() {
-            self.vertex_tangents
-                .allocate(mesh_id, mesh_data.tangents.as_slice());
-        }
-        for i in 0..MAX_TEXTURE_COORDS_SETS {
-            if !mesh_data.uvs[i].is_empty() {
-                self.vertex_uvs[i].allocate(mesh_id, mesh_data.uvs[i].as_slice());
+            debug_assert!(
+                mesh_data.positions.len() == mesh_data.colors.len(),
+                "MeshData positions and colors lengths are not equal"
+            );
+            for (i, position) in mesh_data.positions.iter().enumerate() {
+                vertex_positions_and_colors.push([
+                    position.x,
+                    position.y,
+                    position.z,
+                    pack_4_f32_to_unorm(mesh_data.colors[i]) as _,
+                ]);
+            }
+        } else {
+            for position in mesh_data.positions.iter() {
+                vertex_positions_and_colors.push([position.x, position.y, position.z, 255.]);
             }
         }
-        if !mesh_data.indices.is_empty() {
-            self.indices.allocate(mesh_id, mesh_data.indices.as_slice());
+        let position_range = self
+            .vertex_positions_and_colors
+            .allocate(mesh_id, vertex_positions_and_colors.as_slice())
+            .1;
+
+        let mut normal_range = Range::<usize>::default();
+        if !mesh_data.normals.is_empty() {
+            let mut vertex_normals_and_paddings = Vec::new();
+            vertex_normals_and_paddings.reserve(mesh_data.normals.len());
+            for normal in mesh_data.normals.iter() {
+                vertex_normals_and_paddings.push([normal.x, normal.y, normal.z, 1.]);
+            }
+            normal_range = self
+                .vertex_normals_and_padding
+                .allocate(mesh_id, vertex_normals_and_paddings.as_slice())
+                .1;
         }
+
+        let mut tangent_range = Range::<usize>::default();
+        if !mesh_data.tangents.is_empty() {
+            tangent_range = self
+                .vertex_tangents
+                .allocate(mesh_id, mesh_data.tangents.as_slice())
+                .1;
+        }
+        let mut uv_range = vec![Range::<usize>::default(); MAX_TEXTURE_COORDS_SETS];
+        (0..MAX_TEXTURE_COORDS_SETS).for_each(|i| {
+            if !mesh_data.uvs[i].is_empty() {
+                uv_range[i] = self.vertex_uvs[i]
+                    .allocate(mesh_id, mesh_data.uvs[i].as_slice())
+                    .1;
+            }
+        });
+
+        let mut vertices = mesh_data.vertices.clone();
+        vertices.iter_mut().for_each(|v| {
+            v.position_and_color_offset += position_range.start as u32;
+            v.normal_offset += normal_range.start as i32;
+            v.tangent_offset += tangent_range.start as i32;
+            (0..MAX_TEXTURE_COORDS_SETS).for_each(|i| {
+                v.uv_offset[i] += uv_range[i].start as i32;
+            });
+        });
+        let vertex_offset = self.vertices.allocate(mesh_id, vertices.as_slice()).1.start;
+        let indices_offset = self
+            .indices
+            .allocate(mesh_id, mesh_data.indices.as_slice())
+            .1
+            .start;
+        (vertex_offset as _, indices_offset as _)
     }
     pub fn add_mesh(&mut self, mesh_id: &MeshId, mesh_data: &MeshData) {
         inox_profiler::scoped_profile!("render_buffers::add_mesh");
 
-        self.add_vertex_data(mesh_id, mesh_data);
+        let (vertex_offset, indices_offset) = self.add_vertex_data(mesh_id, mesh_data);
         let meshlets = Self::extract_meshlets(mesh_data);
         if meshlets.is_empty() {
             inox_log::debug_log!("No meshlet data for mesh {:?}", mesh_id);
@@ -98,6 +149,8 @@ impl RenderBuffers {
         }
         let range = self.meshlets.allocate(mesh_id, meshlets.as_slice()).1;
         let draw_mesh = DrawMesh {
+            vertex_offset,
+            indices_offset,
             meshlet_offset: range.start as _,
             meshlet_count: meshlets.len() as _,
             material_index: INVALID_INDEX,
@@ -111,7 +164,7 @@ impl RenderBuffers {
 
         if let Some(m) = self.meshes.get_mut(mesh_id) {
             if let Some(material) = mesh.material() {
-                if let Some(index) = self.materials.index(material.id()) {
+                if let Some(index) = self.materials.index_of(material.id()) {
                     m.material_index = index as _;
                 }
                 if let Some(material) = self.materials.get_mut(material.id()) {
@@ -119,9 +172,6 @@ impl RenderBuffers {
                     if material.alpha_mode == blend_alpha_mode || material.base_color[3] < 1. {
                         mesh.remove_flag(MESH_FLAGS_OPAQUE);
                         mesh.add_flag(MESH_FLAGS_TRANSPARENT);
-                    } else {
-                        mesh.remove_flag(MESH_FLAGS_TRANSPARENT);
-                        mesh.add_flag(MESH_FLAGS_OPAQUE);
                     }
                 }
             }
@@ -138,9 +188,8 @@ impl RenderBuffers {
         self.meshlets.remove(mesh_id);
         self.vertices.remove(mesh_id);
         self.indices.remove(mesh_id);
-        self.vertex_positions.remove(mesh_id);
-        self.vertex_colors.remove(mesh_id);
-        self.vertex_normals.remove(mesh_id);
+        self.vertex_positions_and_colors.remove(mesh_id);
+        self.vertex_normals_and_padding.remove(mesh_id);
         self.vertex_tangents.remove(mesh_id);
         for i in 0..MAX_TEXTURE_COORDS_SETS {
             self.vertex_uvs[i].remove(mesh_id);

@@ -7,19 +7,6 @@ pub struct VertexBufferLayoutBuilder<'a> {
 }
 
 impl<'a> VertexBufferLayoutBuilder<'a> {
-    pub fn create_draw_vertex_format() -> Self {
-        let mut layout_builder = VertexBufferLayoutBuilder::vertex();
-        layout_builder.add_attribute::<u32>(wgpu::VertexFormat::Uint32);
-        layout_builder.add_attribute::<i32>(wgpu::VertexFormat::Sint32);
-        layout_builder.add_attribute::<i32>(wgpu::VertexFormat::Sint32);
-        layout_builder.add_attribute::<i32>(wgpu::VertexFormat::Sint32);
-        for _ in 0..MAX_TEXTURE_COORDS_SETS {
-            layout_builder.add_attribute::<u32>(wgpu::VertexFormat::Sint32);
-        }
-        layout_builder.layout.array_stride = layout_builder.offset;
-        layout_builder
-    }
-
     pub fn vertex() -> Self {
         Self {
             attributes: vec![],

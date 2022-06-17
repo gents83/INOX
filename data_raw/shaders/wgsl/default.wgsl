@@ -1,14 +1,6 @@
 #import "utils.wgsl"
 #import "common.wgsl"
 
-struct VertexInput {
-    @builtin(vertex_index) index: u32,
-};
-
-struct InstanceInput {
-    @builtin(instance_index) index: u32,
-};
-
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
     @location(1) color: vec4<f32>,
@@ -19,37 +11,28 @@ struct VertexOutput {
 var<uniform> constant_data: ConstantData;
 
 @group(0) @binding(1)
-var<storage, read> instances: Instances;
-@group(0) @binding(2)
 var<storage, read> meshes: Meshes;
+@group(0) @binding(2)
+var<storage, read> positions_and_colors: PositionsAndColors;
 @group(0) @binding(3)
-var<storage, read> vertices: Vertices;
-@group(0) @binding(4)
-var<storage, read> positions: Positions;
-@group(0) @binding(5)
-var<storage, read> colors: Colors;
-@group(0) @binding(6)
 var<storage, read> matrices: Matrices;
 
 @vertex
 fn vs_main(
-    v_in: VertexInput,
-    i_in: InstanceInput,
+    v_in: DrawVertex,
+    i_in: DrawInstance,
 ) -> VertexOutput {
 
-    let mesh_index = instances.data[i_in.index].mesh_index;
-    let matrix_index = meshes.data[mesh_index].matrix_index;
-    let vertex_data = vertices.data[v_in.index];
+    let matrix_index = meshes.data[i_in.mesh_index].matrix_index;
 
     let instance_matrix = matrices.data[matrix_index];
-    let position = positions.data[vertex_data.position_offset];
-    let color = colors.data[vertex_data.color_offset];
+    let position = positions_and_colors.data[v_in.position_and_color_offset].xyz;
+    let color = u32(positions_and_colors.data[v_in.position_and_color_offset].w);
 
-    let world_position = instance_matrix * vec4<f32>(position, 1.0);
-
+    let mvp = constant_data.proj * constant_data.view * instance_matrix;
     var vertex_out: VertexOutput;
-    vertex_out.clip_position = constant_data.proj * constant_data.view * world_position;
-    vertex_out.color = rgba_from_integer(color);
+    vertex_out.clip_position = mvp * vec4<f32>(position, 1.0);
+    vertex_out.color = unpack_unorm_to_4_f32(color);
 
     return vertex_out;
 }

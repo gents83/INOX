@@ -9,9 +9,8 @@ use inox_resources::{
 use inox_serialize::{inox_serializable::SerializableRegistryRc, read_from_file, SerializeFile};
 
 use crate::{
-    BindingData, InstanceData, RenderContext, RenderPipelineData, Shader,
-    VertexBufferLayoutBuilder, FRAGMENT_SHADER_ENTRY_POINT, SHADER_ENTRY_POINT,
-    VERTEX_SHADER_ENTRY_POINT,
+    BindingData, DrawInstance, DrawVertex, RenderContext, RenderPipelineData, Shader,
+    FRAGMENT_SHADER_ENTRY_POINT, SHADER_ENTRY_POINT, VERTEX_SHADER_ENTRY_POINT,
 };
 
 pub type RenderPipelineId = ResourceId;
@@ -215,7 +214,9 @@ impl RenderPipeline {
                     push_constant_ranges: &[],
                 });
 
-        let vertex_layout = VertexBufferLayoutBuilder::create_draw_vertex_format();
+        let vertex_layout = DrawVertex::descriptor(0);
+        let instance_layout = DrawInstance::descriptor(vertex_layout.location());
+
         let render_pipeline = {
             inox_profiler::scoped_profile!("render_pipeline::crate[{}]", self.name());
             context
@@ -241,10 +242,7 @@ impl RenderPipeline {
                         } else {
                             SHADER_ENTRY_POINT
                         },
-                        buffers: &[
-                            vertex_layout.build(),
-                            InstanceData::descriptor(vertex_layout.location() as _).build(),
-                        ],
+                        buffers: &[vertex_layout.build(), instance_layout.build()],
                     },
                     fragment: Some(wgpu::FragmentState {
                         module: self.fragment_shader.as_ref().unwrap().get().module(),

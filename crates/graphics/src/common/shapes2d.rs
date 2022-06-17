@@ -208,7 +208,7 @@ pub fn create_rounded_rect(
         corner_radius,
         num_slices,
     );
-    let center: Vector3 = mesh_data.positions[0].into();
+    let center: Vector3 = mesh_data.positions[0];
     for v in positions.iter() {
         let pos: Vector3 = [v.x, v.y, 0.].into();
 

@@ -177,6 +177,12 @@ impl UpdateSystem {
                     .render_buffers
                     .update_material(id, material_data);
             })
+            .process_messages(|e: &DataTypeResourceEvent<Mesh>| {
+                let DataTypeResourceEvent::Loaded(id, mesh_data) = e;
+                let renderer = self.renderer.read().unwrap();
+                let mut render_context = renderer.render_context().write().unwrap();
+                render_context.render_buffers.add_mesh(id, mesh_data);
+            })
             .process_messages(|e: &ResourceEvent<Mesh>| match e {
                 ResourceEvent::Changed(id) => {
                     if let Some(mesh) = self.shared_data.get_resource::<Mesh>(id) {
@@ -193,12 +199,6 @@ impl UpdateSystem {
                     render_context.render_buffers.remove_mesh(id);
                 }
                 _ => {}
-            })
-            .process_messages(|e: &DataTypeResourceEvent<Mesh>| {
-                let DataTypeResourceEvent::Loaded(id, mesh_data) = e;
-                let renderer = self.renderer.read().unwrap();
-                let mut render_context = renderer.render_context().write().unwrap();
-                render_context.render_buffers.add_mesh(id, mesh_data);
             });
     }
 }

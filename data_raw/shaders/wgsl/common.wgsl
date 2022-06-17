@@ -27,6 +27,25 @@ let CONSTANT_DATA_FLAGS_NONE: u32 = 0u;
 let CONSTANT_DATA_FLAGS_SUPPORT_SRGB: u32 = 1u;
 let CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS: u32 = 2u;
 
+struct DrawVertex {
+    @builtin(vertex_index) index: u32,
+    @location(0) position_and_color_offset: u32,
+    @location(1) normal_offset: i32,
+    @location(2) tangent_offset: i32,
+    @location(3) padding_offset: u32,
+    @location(4) uv_0: i32,
+    @location(5) uv_1: i32,
+    @location(6) uv_2: i32,
+    @location(7) uv_3: i32,
+};
+
+struct DrawInstance {
+    @builtin(instance_index) index: u32,
+    @location(8) mesh_index: u32,
+    @location(9) matrix_index: u32,
+    @location(10) draw_area_index: i32,
+};
+
 struct ConstantData {
     view: mat4x4<f32>,
     proj: mat4x4<f32>,
@@ -67,12 +86,6 @@ struct DrawMaterial {
     specular_color: vec4<f32>,
 };
 
-struct DrawInstance {
-    mesh_index: u32,
-    matrix_index: u32,
-    draw_area_index: i32,
-};
-
 struct DrawCommand {
     vertex_count: u32,
     instance_count: u32,
@@ -82,6 +95,8 @@ struct DrawCommand {
 };
 
 struct DrawMesh {
+    vertex_offset: u32,
+    indices_offset: u32,
     meshlet_offset: u32,
     meshlet_count: u32,
     material_index: i32,
@@ -96,14 +111,6 @@ struct DrawMeshlet {
     indices_count: u32,
     center_radius: vec4<f32>,
     cone_axis_cutoff: vec4<f32>,
-};
-
-struct DrawVertex {
-    position_offset: u32,
-    color_offset: i32,
-    normal_offset: i32,
-    tangent_offset: i32,
-    uv_offset: array<i32, 4>, //MAX_TEXTURE_COORDS_SET>,
 };
 
 struct Lights {
@@ -142,16 +149,12 @@ struct Matrices {
     data: array<mat4x4<f32>>,
 };
 
-struct Positions {
-    data: array<vec3<f32>>,
+struct PositionsAndColors {
+    data: array<vec4<f32>>,
 };
 
-struct Colors {
-    data: array<u32>,
-};
-
-struct Normals {
-    data: array<vec3<f32>>,
+struct NormalsAndPadding {
+    data: array<vec4<f32>>,
 };
 
 struct Tangents {

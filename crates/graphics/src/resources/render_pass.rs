@@ -337,66 +337,7 @@ impl RenderPass {
         render_pass
     }
 
-    fn prepare_command_buffer(&self, _render_context: &RenderContext) {
-        /*
-        if is_indirect_mode_enabled() && self.render_mode == RenderMode::Indirect {
-            self.pipelines.iter().for_each(|pipeline| {
-                let pipeline_id = pipeline.id();
-
-                let commands = {
-                    let buffers = render_context.binding_data_buffer.buffers.read().unwrap();
-
-                    if let Some(buffer) = buffers.get(pipeline_id) {
-                        let mut new_commands = Vec::new();
-                        let data = buffer.read_from_gpu(&render_context.core);
-                        if let Some(data) = data {
-                            let commands = to_slice(data.as_slice());
-                            if commands.is_empty() {
-                                return;
-                            }
-                            new_commands.reserve(commands.len());
-                            commands
-                                .iter()
-                                .for_each(|c: &wgpu::util::DrawIndexedIndirect| {
-                                    if c.instance_count != 0 {
-                                        new_commands.push(*c);
-                                    }
-                                });
-                        }
-                        if new_commands.is_empty() {
-                            None
-                        } else {
-                            Some(new_commands)
-                        }
-                    } else {
-                        let graphics_data = render_context.graphics_data.get();
-                        graphics_data.create_commands(pipeline_id)
-                    }
-                };
-                {
-                    let mut binding_buffers =
-                        render_context.binding_data_buffer.buffers.write().unwrap();
-                    binding_buffers.remove(pipeline_id);
-                }
-                if let Some(commands) = commands {
-                    let mut commands = Commands { commands };
-                    let usage = wgpu::BufferUsages::INDIRECT
-                        | wgpu::BufferUsages::STORAGE
-                        | wgpu::BufferUsages::COPY_DST;
-                    render_context.binding_data_buffer.bind_buffer_with_id(
-                        pipeline_id,
-                        &mut commands,
-                        usage,
-                        &render_context.core,
-                    );
-                }
-            });
-        }
-        */
-    }
-
-    pub fn draw(&self, render_context: &RenderContext, _render_pass: wgpu::RenderPass) {
-        self.prepare_command_buffer(render_context);
+    pub fn draw(&self, _render_context: &RenderContext, _render_pass: wgpu::RenderPass) {
         /*
 
         let buffers = render_context.binding_data_buffer.buffers.read().unwrap();

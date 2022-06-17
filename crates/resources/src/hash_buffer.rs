@@ -78,7 +78,7 @@ where
         if old_index != index {
             //inox_log::debug_log!("Trying to swap {} in {}", old_index, index);
             if old_index < self.buffer.len() {
-                if let Some(old_id) = self.id(index) {
+                if let Some(old_id) = self.id_at(index) {
                     self.map.insert(old_id, old_index);
                     //inox_log::debug_log!("Moving old [{:?}] = {} ", old_id, old_index);
                 }
@@ -103,10 +103,10 @@ where
         }
         None
     }
-    pub fn index(&self, id: &Id) -> Option<usize> {
+    pub fn index_of(&self, id: &Id) -> Option<usize> {
         self.map.get(id).copied()
     }
-    pub fn id(&self, index: usize) -> Option<Id> {
+    pub fn id_at(&self, index: usize) -> Option<Id> {
         self.map
             .iter()
             .find(|(_, i)| *i == &index)
@@ -117,6 +117,12 @@ where
     }
     pub fn get_mut(&mut self, id: &Id) -> Option<&mut Data> {
         self.map.get(id).map(|index| &mut self.buffer[*index])
+    }
+    pub fn at(&self, index: usize) -> &Data {
+        &self.buffer[index]
+    }
+    pub fn at_mut(&mut self, index: usize) -> &mut Data {
+        &mut self.buffer[index]
     }
     pub fn data(&self) -> &[Data] {
         self.buffer.as_slice()
@@ -152,10 +158,10 @@ fn test_resource_indexer<const SIZE: usize>() {
     let id2 = inox_uid::generate_random_uid();
     let id3 = inox_uid::generate_random_uid();
     indexer.insert(&id1, 100);
-    assert_eq!(indexer.index(&id1), Some(0));
+    assert_eq!(indexer.index_of(&id1), Some(0));
     assert_eq!(indexer.get(&id1), Some(&100));
     indexer.insert(&id2, 200);
-    assert_eq!(indexer.index(&id2), Some(1));
+    assert_eq!(indexer.index_of(&id2), Some(1));
     assert_eq!(indexer.get(&id2), Some(&200));
     assert_eq!(indexer.item_count(), 2);
     if SIZE == 0 {
@@ -164,8 +170,8 @@ fn test_resource_indexer<const SIZE: usize>() {
         assert_eq!(indexer.buffer_len(), 3);
     }
     indexer.move_to(&id2, 0);
-    assert_eq!(indexer.index(&id2), Some(0));
-    assert_eq!(indexer.index(&id1), Some(1));
+    assert_eq!(indexer.index_of(&id2), Some(0));
+    assert_eq!(indexer.index_of(&id1), Some(1));
     indexer.remove(&id1);
     assert_eq!(indexer.item_count(), 1);
     if SIZE == 0 {
@@ -174,24 +180,24 @@ fn test_resource_indexer<const SIZE: usize>() {
         assert_eq!(indexer.buffer_len(), 3);
     }
     indexer.move_to(&id2, 1);
-    assert_eq!(indexer.index(&id2), Some(1));
+    assert_eq!(indexer.index_of(&id2), Some(1));
     assert_eq!(indexer.get(&id2), Some(&200));
     indexer.insert(&id3, 300);
     indexer.insert(&id1, 100);
     assert_eq!(indexer.buffer_len(), 3);
     assert_eq!(indexer.item_count(), 3);
-    assert_eq!(indexer.index(&id2), Some(1));
-    assert_eq!(indexer.index(&id3), Some(0));
-    assert_eq!(indexer.index(&id1), Some(2));
+    assert_eq!(indexer.index_of(&id2), Some(1));
+    assert_eq!(indexer.index_of(&id3), Some(0));
+    assert_eq!(indexer.index_of(&id1), Some(2));
     assert_eq!(indexer.get(&id1), Some(&100));
     assert_eq!(indexer.get(&id2), Some(&200));
     assert_eq!(indexer.get(&id3), Some(&300));
     indexer.move_to(&id1, 0);
     indexer.move_to(&id2, 1);
     indexer.move_to(&id3, 2);
-    assert_eq!(indexer.index(&id1), Some(0));
-    assert_eq!(indexer.index(&id2), Some(1));
-    assert_eq!(indexer.index(&id3), Some(2));
+    assert_eq!(indexer.index_of(&id1), Some(0));
+    assert_eq!(indexer.index_of(&id2), Some(1));
+    assert_eq!(indexer.index_of(&id3), Some(2));
     assert_eq!(indexer.get(&id1), Some(&100));
     assert_eq!(indexer.get(&id2), Some(&200));
     assert_eq!(indexer.get(&id3), Some(&300));
