@@ -210,6 +210,14 @@ impl GltfCompiler {
                     debug_assert!(num == 3 && num_bytes == 4);
                     if let Some(norm) = self.read_accessor_from_path::<Vector3>(path, &accessor) {
                         mesh_data.normals.extend_from_slice(norm.as_slice());
+                        mesh_data.vertices.resize(norm.len(), DrawVertex::default());
+                        mesh_data
+                            .vertices
+                            .iter_mut()
+                            .enumerate()
+                            .for_each(|(i, v)| {
+                                v.normal_offset = i as _;
+                            });
                     }
                 }
                 Semantic::Tangents => {
@@ -299,7 +307,7 @@ impl GltfCompiler {
 
     fn optimize_mesh(&self, old_mesh_data: MeshData) -> MeshData {
         if self.optimize_meshes {
-            let mut mesh_data = MeshData::default();
+            let mut mesh_data = old_mesh_data.clone();
             let mut old_vertices = Vec::new();
             old_vertices.resize(old_mesh_data.vertex_count(), [0f32; 8]);
             old_vertices.iter_mut().enumerate().for_each(|(i, v)| {
@@ -356,7 +364,7 @@ impl GltfCompiler {
         }
     }
 
-    fn compute_meshlets(&self, mut mesh_data: MeshData) -> MeshData {
+    fn compute_meshlets(&self, mesh_data: &mut MeshData) {
         let vertices_bytes = to_slice(mesh_data.vertices.as_slice());
         let vertex_stride = size_of::<DrawVertex>();
         let vertex_data_adapter = meshopt::VertexDataAdapter::new(vertices_bytes, vertex_stride, 0);
@@ -397,7 +405,6 @@ impl GltfCompiler {
         }
         mesh_data.vertices = all_vertices;
         mesh_data.indices = all_indices;
-        mesh_data
     }
 
     fn process_mesh_data(
@@ -410,9 +417,9 @@ impl GltfCompiler {
         let mut mesh_data = MeshData::default();
         self.extract_mesh_data(path, primitive, &mut mesh_data);
         self.extract_indices(path, primitive, &mut mesh_data);
+        self.compute_meshlets(&mut mesh_data);
 
-        let mesh_data = self.optimize_mesh(mesh_data);
-        let mut mesh_data = self.compute_meshlets(mesh_data);
+        let mut mesh_data = self.optimize_mesh(mesh_data);
         mesh_data.material = material_path.to_path_buf();
 
         self.create_file(

@@ -26,6 +26,12 @@ pub enum MeshFlags {
     Ui = 1 << 4,
 }
 
+impl Default for MeshFlags {
+    fn default() -> Self {
+        MeshFlags::None
+    }
+}
+
 #[test]
 fn test_serialize() {
     let flags = MeshFlags::Visible | MeshFlags::Ui;
