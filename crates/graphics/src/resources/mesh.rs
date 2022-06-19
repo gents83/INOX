@@ -1,23 +1,38 @@
 use std::path::{Path, PathBuf};
 
 use crate::{Material, MeshData};
+
+use inox_bitmask::bitmask;
 use inox_math::{MatBase, Matrix4, Vector4};
 use inox_messenger::MessageHubRc;
 use inox_resources::{
     DataTypeResource, DataTypeResourceEvent, Handle, Resource, ResourceEvent, ResourceId,
     ResourceTrait, SerializableResource, SharedData, SharedDataRc,
 };
-use inox_serialize::{inox_serializable::SerializableRegistryRc, read_from_file, SerializeFile};
+use inox_serialize::{
+    inox_serializable::SerializableRegistryRc, read_from_file, Deserialize, Serialize,
+    SerializeFile,
+};
 
 pub type MeshId = ResourceId;
 
-pub const MESH_FLAGS_NONE: u32 = 0;
-pub const MESH_FLAGS_VISIBLE: u32 = 1;
-pub const MESH_FLAGS_OPAQUE: u32 = 1 << 1;
-pub const MESH_FLAGS_TRANSPARENT: u32 = 1 << 2;
-pub const MESH_FLAGS_WIREFRAME: u32 = 1 << 3;
-pub const MESH_FLAGS_DEBUG: u32 = 1 << 4;
-pub const MESH_FLAGS_UI: u32 = 1 << 5;
+#[bitmask]
+pub enum MeshFlags {
+    None = 0,
+    Visible = 1,
+    Opaque = 1 << 1,
+    Tranparent = 1 << 2,
+    Wireframe = 1 << 3,
+    Ui = 1 << 4,
+}
+
+#[test]
+fn test_serialize() {
+    let flags = MeshFlags::Visible | MeshFlags::Ui;
+    let registry = SerializableRegistryRc::default();
+    let s = inox_serialize::serialize(&flags, &registry);
+    println!("{}", s);
+}
 
 #[derive(Clone)]
 pub struct OnMeshCreateData {
@@ -33,7 +48,7 @@ pub struct Mesh {
     matrix: Matrix4,
     material: Handle<Material>,
     draw_area: Vector4, //pos (x,y) - size(z,w)
-    flags: u32,
+    flags: MeshFlags,
 }
 
 impl ResourceTrait for Mesh {
@@ -87,7 +102,7 @@ impl DataTypeResource for Mesh {
             matrix: Matrix4::default_identity(),
             material: None,
             draw_area: [0., 0., f32::MAX, f32::MAX].into(),
-            flags: MESH_FLAGS_VISIBLE | MESH_FLAGS_OPAQUE,
+            flags: MeshFlags::Visible | MeshFlags::Opaque,
         }
     }
     fn is_initialized(&self) -> bool {
@@ -166,32 +181,32 @@ impl Mesh {
             .send_event(DataTypeResourceEvent::<Self>::Loaded(self.id, mesh_data));
         self
     }
-    pub fn flags(&self) -> u32 {
+    pub fn flags(&self) -> MeshFlags {
         self.flags
     }
-    pub fn add_flag(&mut self, flag: u32) -> &mut Self {
+    pub fn add_flag(&mut self, flag: MeshFlags) -> &mut Self {
         if !self.has_flags(flag) {
             self.flags |= flag;
             self.mark_as_dirty();
         }
         self
     }
-    pub fn toggle_flag(&mut self, flag: u32) -> &mut Self {
+    pub fn toggle_flag(&mut self, flag: MeshFlags) -> &mut Self {
         self.flags ^= flag;
         self.mark_as_dirty();
         self
     }
-    pub fn remove_flag(&mut self, flag: u32) -> &mut Self {
+    pub fn remove_flag(&mut self, flag: MeshFlags) -> &mut Self {
         if self.has_flags(flag) {
             self.flags &= !flag;
             self.mark_as_dirty();
         }
         self
     }
-    pub fn has_flags(&self, flags: u32) -> bool {
-        self.flags & flags == flags
+    pub fn has_flags(&self, flags: MeshFlags) -> bool {
+        self.flags.contains(flags)
     }
-    pub fn set_flags(&mut self, flags: u32) -> &mut Self {
+    pub fn set_flags(&mut self, flags: MeshFlags) -> &mut Self {
         if self.flags != flags {
             self.flags = flags;
             self.mark_as_dirty();

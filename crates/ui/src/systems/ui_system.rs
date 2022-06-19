@@ -18,8 +18,8 @@ use inox_core::{
 };
 
 use inox_graphics::{
-    Material, MaterialData, Mesh, MeshData, MeshletData, RendererRw, Texture, TextureId,
-    TextureType, MESH_FLAGS_UI, MESH_FLAGS_VISIBLE,
+    Material, MaterialData, Mesh, MeshData, MeshFlags, MeshletData, RendererRw, Texture, TextureId,
+    TextureType,
 };
 
 use inox_log::debug_log;
@@ -114,14 +114,14 @@ impl UISystem {
                 MeshData::default(),
                 None,
             );
-            mesh.get_mut().set_flags(MESH_FLAGS_UI);
+            mesh.get_mut().set_flags(MeshFlags::Ui);
             mesh
         });
 
         for (i, clipped_mesh) in clipped_meshes.into_iter().enumerate() {
             if let Primitive::Mesh(mesh) = clipped_mesh.primitive {
                 if mesh.vertices.is_empty() || mesh.indices.is_empty() {
-                    self.ui_meshes[i].get_mut().remove_flag(MESH_FLAGS_VISIBLE);
+                    self.ui_meshes[i].get_mut().remove_flag(MeshFlags::Visible);
                     continue;
                 }
 
@@ -160,7 +160,7 @@ impl UISystem {
                                     clip_rect.max.x * ui_scale,
                                     clip_rect.max.y * ui_scale,
                                 ))
-                                .add_flag(MESH_FLAGS_VISIBLE);
+                                .add_flag(MeshFlags::Visible);
                         }
 
                         {

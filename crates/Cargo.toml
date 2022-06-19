@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "app",
+    "bitmask",
     "blender",
     "commands",
     "core",

@@ -11,5 +11,6 @@
     "color_blend_operation": "Add",
     "src_alpha_blend_factor": "One",
     "dst_alpha_blend_factor": "Zero",
-    "alpha_blend_operation": "Add"
+    "alpha_blend_operation": "Add",
+    "mesh_flags": { "bits":3 }
 }

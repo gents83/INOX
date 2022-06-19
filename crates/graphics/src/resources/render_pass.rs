@@ -9,9 +9,10 @@ use inox_resources::{
 use inox_serialize::{inox_serializable::SerializableRegistryRc, read_from_file};
 use inox_uid::generate_random_uid;
 
+use crate::common::as_binding::AsBinding;
 use crate::{
-    BindingData, LoadOperation, RenderContext, RenderMode, RenderPassData, RenderPipeline,
-    RenderTarget, StoreOperation, Texture, TextureId,
+    BindingData, LoadOperation, MeshFlags, RenderContext, RenderMode, RenderPassData,
+    RenderPipeline, RenderTarget, StoreOperation, Texture, TextureId,
 };
 
 pub type RenderPassId = ResourceId;
@@ -260,6 +261,29 @@ impl RenderPass {
         render_context: &mut RenderContext,
         binding_data: &BindingData,
     ) {
+        render_context.binding_data_buffer.bind_buffer(
+            &mut render_context.render_buffers.vertices,
+            wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::VERTEX,
+            &render_context.core,
+        );
+        render_context.binding_data_buffer.bind_buffer(
+            &mut render_context.render_buffers.indices,
+            wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::INDEX,
+            &render_context.core,
+        );
+        self.pipelines.iter().for_each(|pipeline| {
+            let mesh_flags = pipeline.get().data().mesh_flags;
+            if let Some(instances) = render_context.render_buffers.instances.get_mut(&mesh_flags) {
+                render_context.binding_data_buffer.bind_buffer(
+                    instances,
+                    wgpu::BufferUsages::COPY_DST
+                        | wgpu::BufferUsages::STORAGE
+                        | wgpu::BufferUsages::VERTEX,
+                    &render_context.core,
+                );
+            }
+        });
+
         let render_format = render_context.render_format(self);
         let depth_format = render_context.depth_format(self);
         self.pipelines.iter().for_each(|pipeline| {
@@ -337,31 +361,66 @@ impl RenderPass {
         render_pass
     }
 
-    pub fn draw(&self, _render_context: &RenderContext, _render_pass: wgpu::RenderPass) {
-        /*
-
-        let buffers = render_context.binding_data_buffer.buffers.read().unwrap();
+    pub fn draw(&self, render_context: &RenderContext, render_pass: wgpu::RenderPass) {
+        let binding_data_buffers = render_context.binding_data_buffer.buffers.read().unwrap();
         let pipelines = self.pipelines().iter().map(|h| h.get()).collect::<Vec<_>>();
         {
             let mut render_pass = render_pass;
-            pipelines.iter().enumerate().for_each(|(i, pipeline)| {
-                let pipeline_id = self.pipelines[i].id();
-                let instance_count = graphics_data.instance_count(pipeline_id);
-                if instance_count > 0 && pipeline.is_initialized() {
+            pipelines.iter().for_each(|pipeline| {
+                if !pipeline.is_initialized() {
+                    return;
+                }
+                if let Some(instances) = render_context
+                    .render_buffers
+                    .instances
+                    .get(&pipeline.data().mesh_flags)
+                {
                     render_pass.set_pipeline(pipeline.render_pipeline());
 
-                    if let Some(buffer_slice) = graphics_data.vertex_buffer(pipeline_id) {
-                        render_pass.set_vertex_buffer(0, buffer_slice);
-                    }
-                    if let Some(instance_buffer) = graphics_data.instance_buffer(pipeline_id) {
-                        render_pass.set_vertex_buffer(1, instance_buffer);
-                    }
-                    if let Some(buffer_slice) = graphics_data.index_buffer(pipeline_id) {
-                        render_pass.set_index_buffer(buffer_slice, IndexFormat::U32.into());
+                    let vertices_id = render_context.render_buffers.vertices.id();
+                    if let Some(buffer) = binding_data_buffers.get(&vertices_id) {
+                        render_pass.set_vertex_buffer(0, buffer.gpu_buffer().unwrap().slice(..));
                     }
 
-                    if graphics_data.index_count(pipeline_id) > 0 {
-                        if is_indirect_mode_enabled() && self.render_mode == RenderMode::Indirect {
+                    let instances_id = instances.id();
+                    if let Some(buffer) = binding_data_buffers.get(&instances_id) {
+                        render_pass.set_vertex_buffer(1, buffer.gpu_buffer().unwrap().slice(..));
+                    }
+
+                    let index_id = render_context.render_buffers.indices.id();
+                    if let Some(buffer) = binding_data_buffers.get(&index_id) {
+                        render_pass.set_index_buffer(
+                            buffer.gpu_buffer().unwrap().slice(..),
+                            crate::IndexFormat::U32.into(),
+                        );
+                    }
+
+                    let meshlets = render_context.render_buffers.meshlets.data();
+                    instances.for_each_item(|_id, index, instance| {
+                        let mesh = render_context
+                            .render_buffers
+                            .meshes
+                            .at(instance.mesh_index as _);
+                        let mesh_flags = MeshFlags::from(mesh.mesh_flags);
+                        if mesh_flags.contains(pipeline.data().mesh_flags) {
+                            for i in mesh.meshlet_offset..mesh.meshlet_offset + mesh.meshlet_count {
+                                let meshlet = &meshlets[i as usize];
+
+                                render_pass.draw_indexed(
+                                    (mesh.indices_offset + meshlet.indices_offset) as _
+                                        ..(mesh.indices_offset
+                                            + meshlet.indices_offset
+                                            + meshlet.indices_count)
+                                            as _,
+                                    mesh.vertex_offset as _,
+                                    index as _..(index as u32 + 1),
+                                );
+                            }
+                        }
+                    });
+                }
+                /*
+                 if is_indirect_mode_enabled() && self.render_mode == RenderMode::Indirect {
                             if let Some(buffer) = buffers.get(pipeline_id) {
                                 let commands_count = buffer.size()
                                     / std::mem::size_of::<wgpu::util::DrawIndexedIndirect>() as u64;
@@ -373,7 +432,10 @@ impl RenderPass {
                                     );
                                 }
                             }
-                        } else {
+                        }
+
+                    if graphics_data.index_count(pipeline_id) > 0 {
+                        else {
                             graphics_data.for_each_instance(
                                 pipeline_id,
                                 |_mesh_id, index, instance_data, vertices_range, indices_range| {
@@ -402,8 +464,8 @@ impl RenderPass {
                         );
                     }
                 }
+                 */
             });
         }
-         */
     }
 }

@@ -9,12 +9,9 @@ struct VertexOutput {
 
 @group(0) @binding(0)
 var<uniform> constant_data: ConstantData;
-
 @group(0) @binding(1)
-var<storage, read> meshes: Meshes;
-@group(0) @binding(2)
 var<storage, read> positions_and_colors: PositionsAndColors;
-@group(0) @binding(3)
+@group(0) @binding(2)
 var<storage, read> matrices: Matrices;
 
 @vertex
@@ -22,10 +19,7 @@ fn vs_main(
     v_in: DrawVertex,
     i_in: DrawInstance,
 ) -> VertexOutput {
-
-    let matrix_index = meshes.data[i_in.mesh_index].matrix_index;
-
-    let instance_matrix = matrices.data[matrix_index];
+    let instance_matrix = matrices.data[i_in.matrix_index];
     let position = positions_and_colors.data[v_in.position_and_color_offset].xyz;
     let color = u32(positions_and_colors.data[v_in.position_and_color_offset].w);
 

@@ -1,13 +1,12 @@
-use std::ops::Range;
+use std::{collections::HashMap, ops::Range};
 
 use inox_math::{pack_4_f32_to_unorm, MatBase, Matrix4};
 use inox_resources::{Buffer, HashBuffer, ResourceId};
 
 use crate::{
-    DrawMaterial, DrawMesh, DrawMeshlet, DrawVertex, Light, LightData, LightId, Material,
-    MaterialAlphaMode, MaterialData, MaterialId, Mesh, MeshData, MeshId, TextureData, TextureId,
-    TextureType, INVALID_INDEX, MAX_TEXTURE_COORDS_SETS, MESH_FLAGS_NONE, MESH_FLAGS_OPAQUE,
-    MESH_FLAGS_TRANSPARENT,
+    DrawInstance, DrawMaterial, DrawMesh, DrawMeshlet, DrawVertex, Light, LightData, LightId,
+    Material, MaterialAlphaMode, MaterialData, MaterialId, Mesh, MeshData, MeshFlags, MeshId,
+    TextureData, TextureId, TextureType, INVALID_INDEX, MAX_TEXTURE_COORDS_SETS,
 };
 
 //Alignment should be 4, 8, 16 or 32 bytes
@@ -16,6 +15,7 @@ pub struct RenderBuffers {
     pub textures: HashBuffer<TextureId, TextureData, 0>,
     pub lights: HashBuffer<LightId, LightData, 0>,
     pub materials: HashBuffer<MaterialId, DrawMaterial, 0>,
+    pub instances: HashMap<MeshFlags, HashBuffer<MeshId, DrawInstance, 0>>,
     pub meshes: HashBuffer<MeshId, DrawMesh, 0>,
     pub matrix: HashBuffer<ResourceId, [[f32; 4]; 4], 0>,
     pub meshlets: Buffer<DrawMeshlet>, //MeshId <-> [DrawMeshlet]
@@ -84,7 +84,12 @@ impl RenderBuffers {
             }
         } else {
             for position in mesh_data.positions.iter() {
-                vertex_positions_and_colors.push([position.x, position.y, position.z, 255.]);
+                vertex_positions_and_colors.push([
+                    position.x,
+                    position.y,
+                    position.z,
+                    u32::MAX as _,
+                ]);
             }
         }
         let position_range = self
@@ -154,13 +159,15 @@ impl RenderBuffers {
             meshlet_offset: range.start as _,
             meshlet_count: meshlets.len() as _,
             material_index: INVALID_INDEX,
-            mesh_flags: MESH_FLAGS_NONE,
+            mesh_flags: MeshFlags::None.into(),
             matrix_index: self.add_matrix(mesh_id) as _,
         };
         self.meshes.insert(mesh_id, draw_mesh);
     }
     pub fn change_mesh(&mut self, mesh_id: &MeshId, mesh: &mut Mesh) {
         inox_profiler::scoped_profile!("render_buffers::change_mesh");
+
+        self.update_matrix(mesh_id, &mesh.matrix());
 
         if let Some(m) = self.meshes.get_mut(mesh_id) {
             if let Some(material) = mesh.material() {
@@ -170,20 +177,43 @@ impl RenderBuffers {
                 if let Some(material) = self.materials.get_mut(material.id()) {
                     let blend_alpha_mode: u32 = MaterialAlphaMode::Blend.into();
                     if material.alpha_mode == blend_alpha_mode || material.base_color[3] < 1. {
-                        mesh.remove_flag(MESH_FLAGS_OPAQUE);
-                        mesh.add_flag(MESH_FLAGS_TRANSPARENT);
+                        mesh.remove_flag(MeshFlags::Opaque);
+                        mesh.add_flag(MeshFlags::Tranparent);
                     }
                 }
             }
-            m.mesh_flags = mesh.flags();
 
-            self.update_matrix(mesh_id, &mesh.matrix());
+            let mesh_flags = mesh.flags();
+            let flags = mesh_flags.into();
+            if m.mesh_flags != flags {
+                self.instances.iter_mut().for_each(|(_, buffer)| {
+                    buffer.remove(mesh_id);
+                });
+                m.mesh_flags = flags;
+                if mesh_flags.contains(MeshFlags::Visible) {
+                    let entry = self
+                        .instances
+                        .entry(mesh_flags)
+                        .or_insert_with(HashBuffer::default);
+                    entry.insert(
+                        mesh_id,
+                        DrawInstance {
+                            matrix_index: m.matrix_index as _,
+                            mesh_index: self.meshes.index_of(mesh_id).unwrap() as _,
+                            ..Default::default()
+                        },
+                    );
+                }
+            }
         }
     }
     pub fn remove_mesh(&mut self, mesh_id: &MeshId) {
         inox_profiler::scoped_profile!("render_buffers::remove_mesh");
 
         self.remove_matrix(mesh_id);
+        self.instances.iter_mut().for_each(|(_, buffer)| {
+            buffer.remove(mesh_id);
+        });
         self.meshes.remove(mesh_id);
         self.meshlets.remove(mesh_id);
         self.vertices.remove(mesh_id);

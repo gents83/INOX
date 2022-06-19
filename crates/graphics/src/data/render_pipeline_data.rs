@@ -5,6 +5,8 @@ use inox_filesystem::convert_from_local_path;
 use inox_resources::Data;
 use inox_serialize::{Deserialize, Serialize, SerializeFile};
 
+use crate::MeshFlags;
+
 #[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
 #[serde(crate = "inox_serialize")]
 pub enum PolygonMode {
@@ -177,6 +179,7 @@ pub struct RenderPipelineData {
     pub src_alpha_blend_factor: BlendFactor,
     pub dst_alpha_blend_factor: BlendFactor,
     pub alpha_blend_operation: BlendOperation,
+    pub mesh_flags: MeshFlags,
 }
 
 impl SerializeFile for RenderPipelineData {
@@ -201,6 +204,7 @@ impl Default for RenderPipelineData {
             src_alpha_blend_factor: BlendFactor::One,
             dst_alpha_blend_factor: BlendFactor::OneMinusSrcAlpha,
             alpha_blend_operation: BlendOperation::Add,
+            mesh_flags: MeshFlags::Visible | MeshFlags::Opaque,
         }
     }
 }

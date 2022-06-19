@@ -10,9 +10,9 @@ use inox_uid::Uid;
 
 use crate::{
     platform::{platform_limits, required_gpu_features},
-    AsBinding, ConstantData, GpuBuffer, MeshId, RenderBuffers, RenderPass, RenderPipelineId,
-    RendererRw, TextureData, TextureHandler, TextureId, CONSTANT_DATA_FLAGS_SUPPORT_SRGB,
-    DEFAULT_HEIGHT, DEFAULT_WIDTH,
+    AsBinding, ConstantData, GpuBuffer, MeshFlags, RenderBuffers, RenderPass, RendererRw,
+    TextureData, TextureHandler, TextureId, CONSTANT_DATA_FLAGS_SUPPORT_SRGB, DEFAULT_HEIGHT,
+    DEFAULT_WIDTH,
 };
 
 #[derive(Default)]
@@ -100,7 +100,6 @@ pub struct RenderContext {
     pub texture_handler: TextureHandler,
     pub binding_data_buffer: BindingDataBuffer,
     pub render_buffers: RenderBuffers,
-    pub pipeline_meshes: HashMap<RenderPipelineId, Vec<MeshId>>,
 }
 
 pub type RenderContextRw = Arc<RwLock<RenderContext>>;
@@ -164,7 +163,6 @@ impl RenderContext {
                 constant_data: ConstantData::default(),
                 binding_data_buffer: BindingDataBuffer::default(),
                 render_buffers: RenderBuffers::default(),
-                pipeline_meshes: HashMap::default(),
             })));
     }
 
@@ -184,6 +182,13 @@ impl RenderContext {
         if is_changed {
             self.constant_data.set_dirty(true);
         }
+    }
+
+    pub fn has_instances(&self, flags: MeshFlags) -> bool {
+        if let Some(instances) = self.render_buffers.instances.get(&flags) {
+            return !instances.is_empty();
+        }
+        false
     }
 
     pub fn resolution(&self) -> (u32, u32) {

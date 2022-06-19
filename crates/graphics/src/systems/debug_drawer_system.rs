@@ -2,8 +2,7 @@ use std::{any::type_name, path::PathBuf};
 
 use crate::{
     create_arrow, create_colored_quad, create_line, create_sphere, DrawEvent, Material,
-    MaterialData, Mesh, MeshData, RenderPipeline, MESH_FLAGS_OPAQUE, MESH_FLAGS_VISIBLE,
-    MESH_FLAGS_WIREFRAME,
+    MaterialData, Mesh, MeshData, MeshFlags, RenderPipeline,
 };
 
 use inox_core::{ContextRc, System, SystemId, SystemUID};
@@ -72,7 +71,7 @@ impl DebugDrawerSystem {
         mesh_instance
             .get_mut()
             .set_path(PathBuf::from("DebugDrawerMesh.debugdrawer").as_path())
-            .set_flags(MESH_FLAGS_VISIBLE | MESH_FLAGS_OPAQUE);
+            .set_flags(MeshFlags::Visible | MeshFlags::Opaque);
         //println!("DebugDrawerMesh {:?}", mesh_instance.id());
         let wireframe_mesh_instance = Mesh::new_resource(
             context.shared_data(),
@@ -84,7 +83,7 @@ impl DebugDrawerSystem {
         wireframe_mesh_instance
             .get_mut()
             .set_path(PathBuf::from("DebugDrawerWireframe.debugdrawer").as_path())
-            .set_flags(MESH_FLAGS_VISIBLE | MESH_FLAGS_WIREFRAME);
+            .set_flags(MeshFlags::Visible | MeshFlags::Wireframe);
         //println!("DebugDrawerWireframeMesh {:?}", wireframe_mesh_instance.id());
 
         let listener = Listener::new(context.message_hub());
@@ -248,19 +247,19 @@ impl DebugDrawerSystem {
             self.mesh_instance
                 .get_mut()
                 .set_mesh_data(opaque_mesh_data)
-                .add_flag(MESH_FLAGS_VISIBLE);
+                .add_flag(MeshFlags::Visible);
         } else {
-            self.mesh_instance.get_mut().remove_flag(MESH_FLAGS_VISIBLE);
+            self.mesh_instance.get_mut().remove_flag(MeshFlags::Visible);
         }
         if !wireframe_mesh_data.vertices.is_empty() {
             self.wireframe_mesh_instance
                 .get_mut()
                 .set_mesh_data(wireframe_mesh_data)
-                .add_flag(MESH_FLAGS_VISIBLE);
+                .add_flag(MeshFlags::Visible);
         } else {
             self.wireframe_mesh_instance
                 .get_mut()
-                .remove_flag(MESH_FLAGS_VISIBLE);
+                .remove_flag(MeshFlags::Visible);
         }
     }
 }

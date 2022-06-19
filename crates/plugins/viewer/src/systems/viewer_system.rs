@@ -1,8 +1,8 @@
 use inox_commands::CommandParser;
 use inox_core::{implement_unique_system_uid, ContextRc, System};
 use inox_graphics::{
-    create_quad, CullingPass, Material, MaterialData, Mesh, MeshData, RendererRw, Texture, View,
-    MESH_FLAGS_OPAQUE, MESH_FLAGS_VISIBLE, MESH_FLAGS_WIREFRAME,
+    create_quad, CullingPass, Material, MaterialData, Mesh, MeshData, MeshFlags, RendererRw,
+    Texture, View,
 };
 use inox_log::debug_log;
 use inox_math::{Mat4Ops, Matrix4, VecBase, Vector2, Vector3};
@@ -225,7 +225,7 @@ impl ViewerSystem {
                 .set_texture(inox_graphics::TextureType::BaseColor, &texture);
             mesh.get_mut()
                 .set_material(material)
-                .set_flags(MESH_FLAGS_VISIBLE | MESH_FLAGS_OPAQUE);
+                .set_flags(MeshFlags::Visible | MeshFlags::Opaque);
 
             let mut mesh_data = MeshData::default();
             let quad = create_quad([-10., -10., 10., 10.].into(), 0.);
@@ -271,7 +271,7 @@ impl ViewerSystem {
             wireframe_mesh
                 .get_mut()
                 .set_material(wireframe_material)
-                .set_flags(MESH_FLAGS_VISIBLE | MESH_FLAGS_WIREFRAME);
+                .set_flags(MeshFlags::Visible | MeshFlags::Wireframe);
 
             let mut mesh_data = MeshData::default();
             let quad = create_quad([-10., -10., 10., 10.].into(), 0.);

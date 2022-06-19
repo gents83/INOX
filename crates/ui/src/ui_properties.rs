@@ -2,7 +2,7 @@ use std::{any::TypeId, marker::PhantomData};
 
 use egui::{Checkbox, CollapsingHeader, DragValue, TextEdit, Ui, Widget};
 use inox_graphics::{
-    Font, Light, LightType, Material, Mesh, RenderPipeline, Texture, View, MESH_FLAGS_VISIBLE,
+    Font, Light, LightType, Material, Mesh, MeshFlags, RenderPipeline, Texture, View,
 };
 use inox_math::{Degrees, Matrix4, Vector2, Vector3, Vector4};
 use inox_resources::{
@@ -317,12 +317,12 @@ impl UIProperties for Mesh {
                     let mut path = self.path().to_str().unwrap().to_string();
                     TextEdit::singleline(&mut path).interactive(false).ui(ui);
                 });
-                let mut is_visible = self.has_flags(MESH_FLAGS_VISIBLE);
+                let mut is_visible = self.has_flags(MeshFlags::Visible);
                 Checkbox::new(&mut is_visible, "Visible").ui(ui);
                 if is_visible {
-                    self.add_flag(MESH_FLAGS_VISIBLE);
+                    self.add_flag(MeshFlags::Visible);
                 } else {
-                    self.remove_flag(MESH_FLAGS_VISIBLE);
+                    self.remove_flag(MeshFlags::Visible);
                 }
                 if let Some(material) = self.material() {
                     let id = material.id();
