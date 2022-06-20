@@ -186,24 +186,30 @@ impl RenderBuffers {
             let mesh_flags = mesh.flags();
             let flags = mesh_flags.into();
             if m.mesh_flags != flags {
-                self.instances.iter_mut().for_each(|(_, buffer)| {
-                    buffer.remove(mesh_id);
-                });
                 m.mesh_flags = flags;
-                if mesh_flags.contains(MeshFlags::Visible) {
-                    let entry = self
-                        .instances
-                        .entry(mesh_flags)
-                        .or_insert_with(HashBuffer::default);
-                    entry.insert(
-                        mesh_id,
-                        DrawInstance {
-                            matrix_index: m.matrix_index as _,
-                            mesh_index: self.meshes.index_of(mesh_id).unwrap() as _,
-                            ..Default::default()
-                        },
-                    );
-                }
+            }
+        }
+        self.update_instance(mesh_id);
+    }
+    fn update_instance(&mut self, mesh_id: &MeshId) {
+        if let Some(m) = self.meshes.get_mut(mesh_id) {
+            let mesh_flags: MeshFlags = m.mesh_flags.into();
+            self.instances.iter_mut().for_each(|(_, buffer)| {
+                buffer.remove(mesh_id);
+            });
+            if mesh_flags.contains(MeshFlags::Visible) {
+                let entry = self
+                    .instances
+                    .entry(mesh_flags)
+                    .or_insert_with(HashBuffer::default);
+                entry.insert(
+                    mesh_id,
+                    DrawInstance {
+                        matrix_index: m.matrix_index as _,
+                        mesh_index: self.meshes.index_of(mesh_id).unwrap() as _,
+                        ..Default::default()
+                    },
+                );
             }
         }
     }

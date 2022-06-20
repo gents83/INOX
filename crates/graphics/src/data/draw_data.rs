@@ -1,6 +1,9 @@
 use inox_serialize::{Deserialize, Serialize};
 
-use crate::{TextureType, VertexBufferLayoutBuilder, INVALID_INDEX, MAX_TEXTURE_COORDS_SETS};
+use crate::{
+    MaterialAlphaMode, TextureType, VertexBufferLayoutBuilder, INVALID_INDEX,
+    MAX_TEXTURE_COORDS_SETS,
+};
 
 // Pipeline has a list of meshes to process
 // Meshes can switch pipeline at runtime
@@ -73,7 +76,7 @@ pub struct DrawMeshlet {
     pub cone_axis_cutoff: [f32; 4],
 }
 
-#[derive(Default, Serialize, Deserialize, PartialEq, Clone, Copy, Debug)]
+#[derive(Serialize, Deserialize, PartialEq, Clone, Copy, Debug)]
 #[serde(crate = "inox_serialize")]
 pub struct DrawMaterial {
     pub textures_indices: [i32; TextureType::Count as _],
@@ -87,6 +90,24 @@ pub struct DrawMaterial {
     pub occlusion_strength: f32,
     pub diffuse_color: [f32; 4],
     pub specular_color: [f32; 4],
+}
+
+impl Default for DrawMaterial {
+    fn default() -> Self {
+        Self {
+            textures_indices: [INVALID_INDEX; TextureType::Count as _],
+            textures_coord_set: [0; TextureType::Count as _],
+            roughness_factor: 0.,
+            metallic_factor: 0.,
+            alpha_cutoff: 1.,
+            alpha_mode: MaterialAlphaMode::Opaque.into(),
+            base_color: [1.; 4],
+            emissive_color: [1.; 3],
+            occlusion_strength: 0.0,
+            diffuse_color: [1.; 4],
+            specular_color: [1.; 4],
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Clone, Copy, Debug)]
