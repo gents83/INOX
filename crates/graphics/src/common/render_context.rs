@@ -134,7 +134,11 @@ impl RenderContext {
 
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: surface.get_preferred_format(&adapter).unwrap(),
+            format: *surface
+                .get_supported_formats(&adapter)
+                .unwrap()
+                .first()
+                .unwrap(),
             width: DEFAULT_WIDTH,
             height: DEFAULT_HEIGHT,
             present_mode: wgpu::PresentMode::Mailbox,
