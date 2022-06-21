@@ -136,7 +136,6 @@ impl Pass for UIPass {
 
         render_context.core.submit(encoder);
     }
-    fn handle_events(&mut self, _render_context: &mut RenderContext) {}
 }
 
 impl UIPass {

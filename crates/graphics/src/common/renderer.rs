@@ -153,7 +153,7 @@ impl Renderer {
         );
     }
 
-    pub fn set_surface_size(&mut self, width: u32, height: u32) {
+    pub fn set_surface_size(&self, width: u32, height: u32) {
         let mut render_context = self.render_context().write().unwrap();
         render_context.core.set_surface_size(width, height);
         self.recreate();
@@ -207,7 +207,7 @@ impl Renderer {
         }
     }
 
-    pub fn obtain_surface_texture(&mut self) {
+    pub fn obtain_surface_texture(&self) -> bool {
         let surface_texture = {
             inox_profiler::scoped_profile!("wgpu::get_current_texture");
 
@@ -221,20 +221,21 @@ impl Renderer {
             let mut render_context = self.render_context().write().unwrap();
             render_context.surface_view = Some(screen_view);
             render_context.surface_texture = Some(output);
+            true
+        } else {
+            inox_log::debug_log!("Unable to retrieve surface texture");
+            false
         }
     }
 
-    pub fn send_to_gpu(&mut self, encoder: wgpu::CommandEncoder) {
+    pub fn init_passes(&mut self) {
         inox_profiler::scoped_profile!("renderer::send_to_gpu");
 
         let mut render_context = self.render_context.as_ref().unwrap().write().unwrap();
 
         self.passes.iter_mut().for_each(|pass| {
-            pass.handle_events(&mut render_context);
             pass.init(&mut render_context);
         });
-
-        render_context.core.submit(encoder);
     }
 
     pub fn update_passes(&mut self) {
@@ -244,15 +245,5 @@ impl Renderer {
         self.passes.iter_mut().for_each(|pass| {
             pass.update(&render_context);
         });
-    }
-
-    pub fn present(&self) {
-        inox_profiler::scoped_profile!("renderer::present");
-
-        let mut render_context = self.render_context().write().unwrap();
-        let surface_texture = render_context.surface_texture.take();
-        if let Some(surface_texture) = surface_texture {
-            surface_texture.present();
-        }
     }
 }

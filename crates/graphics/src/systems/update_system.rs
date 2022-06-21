@@ -28,6 +28,7 @@ pub struct UpdateSystem {
     scale_factor: f32,
     width: u32,
     height: u32,
+    resolution_changed: bool,
 }
 
 impl UpdateSystem {
@@ -47,6 +48,7 @@ impl UpdateSystem {
             shared_data: context.shared_data().clone(),
             message_hub: context.message_hub().clone(),
             listener,
+            resolution_changed: false,
             scale_factor: 1.0,
             width: DEFAULT_WIDTH,
             height: DEFAULT_HEIGHT,
@@ -61,19 +63,11 @@ impl UpdateSystem {
                 WindowEvent::SizeChanged(width, height) => {
                     self.width = *width;
                     self.height = *height;
-                    let mut renderer = self.renderer.write().unwrap();
-                    renderer.set_surface_size(
-                        (*width as f32 * self.scale_factor) as _,
-                        (*height as f32 * self.scale_factor) as _,
-                    );
+                    self.resolution_changed = true;
                 }
                 WindowEvent::ScaleFactorChanged(v) => {
                     self.scale_factor = *v;
-                    let mut renderer = self.renderer.write().unwrap();
-                    renderer.set_surface_size(
-                        (self.width as f32 * self.scale_factor) as _,
-                        (self.height as f32 * self.scale_factor) as _,
-                    );
+                    self.resolution_changed = true;
                 }
                 _ => {}
             })
@@ -251,9 +245,27 @@ impl System for UpdateSystem {
             }
             return true;
         }
+
+        if self.resolution_changed {
+            let renderer = self.renderer.read().unwrap();
+            renderer.set_surface_size(
+                (self.width as f32 * self.scale_factor) as _,
+                (self.height as f32 * self.scale_factor) as _,
+            );
+            self.resolution_changed = false;
+            //TODO: Give time to GPU to change resolution
+            return true;
+        }
+
+        {
+            let renderer = self.renderer.read().unwrap();
+            if !renderer.obtain_surface_texture() {
+                return true;
+            }
+        }
+
         let mut encoder = {
-            let mut renderer = self.renderer.write().unwrap();
-            renderer.change_state(RendererState::Preparing);
+            let renderer = self.renderer.read().unwrap();
             let render_context = renderer.render_context().read().unwrap();
             render_context.core.new_encoder()
         };
@@ -262,11 +274,10 @@ impl System for UpdateSystem {
 
         {
             let mut renderer = self.renderer.write().unwrap();
-            renderer.obtain_surface_texture();
+            renderer.change_state(RendererState::Preparing);
 
             {
-                let resolution = renderer.render_context().read().unwrap().resolution();
-                let screen_size = Vector2::new(resolution.0 as f32, resolution.1 as f32);
+                let screen_size = Vector2::new(self.width as _, self.height as _);
 
                 let mut render_context = renderer.render_context().write().unwrap();
                 render_context.update_constant_data(
@@ -276,7 +287,10 @@ impl System for UpdateSystem {
                 );
             }
 
-            renderer.send_to_gpu(encoder);
+            renderer.init_passes();
+
+            let render_context = renderer.render_context().read().unwrap();
+            render_context.core.submit(encoder);
         }
 
         {

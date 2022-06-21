@@ -139,19 +139,12 @@ impl Pass for OpaquePass {
             return;
         }
 
-        let pipeline = pipelines[0].get();
-        if !pipeline.is_initialized() {
-            return;
-        }
         let mut encoder = render_context.core.new_encoder();
-        {
-            let render_pass = pass.begin(render_context, &self.binding_data, &mut encoder);
-            pass.draw(render_context, render_pass);
-        }
+
+        let render_pass = pass.begin(render_context, &self.binding_data, &mut encoder);
+        pass.draw(render_context, render_pass);
+
         render_context.core.submit(encoder);
-    }
-    fn handle_events(&mut self, _render_context: &mut RenderContext) {
-        inox_profiler::scoped_profile!("opaque_pass::handle_events");
     }
 }
 

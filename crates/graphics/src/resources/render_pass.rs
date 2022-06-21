@@ -419,52 +419,6 @@ impl RenderPass {
                         }
                     });
                 }
-                /*
-                 if is_indirect_mode_enabled() && self.render_mode == RenderMode::Indirect {
-                            if let Some(buffer) = buffers.get(pipeline_id) {
-                                let commands_count = buffer.size()
-                                    / std::mem::size_of::<wgpu::util::DrawIndexedIndirect>() as u64;
-                                if commands_count > 0 {
-                                    render_pass.multi_draw_indexed_indirect(
-                                        buffer.gpu_buffer().unwrap(),
-                                        0,
-                                        commands_count as _,
-                                    );
-                                }
-                            }
-                        }
-
-                    if graphics_data.index_count(pipeline_id) > 0 {
-                        else {
-                            graphics_data.for_each_instance(
-                                pipeline_id,
-                                |_mesh_id, index, instance_data, vertices_range, indices_range| {
-                                    let x = (instance_data.draw_area[0] as u32)
-                                        .clamp(0, render_context.core.config.width);
-                                    let y = (instance_data.draw_area[1] as u32)
-                                        .clamp(0, render_context.core.config.height);
-                                    let width = (instance_data.draw_area[2] as u32)
-                                        .clamp(0, render_context.core.config.width - x);
-                                    let height = (instance_data.draw_area[3] as u32)
-                                        .clamp(0, render_context.core.config.height - y);
-
-                                    render_pass.set_scissor_rect(x, y, width, height);
-                                    render_pass.draw_indexed(
-                                        indices_range.start as _..(indices_range.end + 1) as _,
-                                        vertices_range.start as _,
-                                        index as _..(index as u32 + 1),
-                                    );
-                                },
-                            );
-                        }
-                    } else {
-                        render_pass.draw(
-                            0..(graphics_data.vertex_count(pipeline_id) + 1) as u32,
-                            0..instance_count as u32,
-                        );
-                    }
-                }
-                 */
             });
         }
     }
