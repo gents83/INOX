@@ -246,20 +246,15 @@ impl System for UpdateSystem {
             return true;
         }
 
-        if self.resolution_changed {
-            let renderer = self.renderer.read().unwrap();
-            renderer.set_surface_size(
-                (self.width as f32 * self.scale_factor) as _,
-                (self.height as f32 * self.scale_factor) as _,
-            );
-            self.resolution_changed = false;
-            //TODO: Give time to GPU to change resolution
-            return true;
-        }
-
         {
             let renderer = self.renderer.read().unwrap();
-            if !renderer.obtain_surface_texture() {
+            if self.resolution_changed || !renderer.obtain_surface_texture() {
+                renderer.set_surface_size(
+                    (self.width as f32 * self.scale_factor) as _,
+                    (self.height as f32 * self.scale_factor) as _,
+                );
+
+                self.resolution_changed = false;
                 return true;
             }
         }

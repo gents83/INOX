@@ -38,15 +38,7 @@ impl System for RenderingSystem {
             renderer.change_state(RendererState::Drawing);
             renderer.update_passes();
 
-            let surface_texture = {
-                let mut render_context = renderer.render_context().write().unwrap();
-                render_context.surface_view = None;
-                render_context.surface_texture.take()
-            };
-
-            if let Some(surface_texture) = surface_texture {
-                surface_texture.present();
-            }
+            renderer.present();
 
             renderer.change_state(RendererState::Submitted);
         };
