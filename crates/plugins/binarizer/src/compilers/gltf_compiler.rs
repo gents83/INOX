@@ -378,33 +378,33 @@ impl GltfCompiler {
             max_triangles,
             cone_weight,
         );
-
-        let mut all_vertices = Vec::new();
-        let mut all_indices = Vec::new();
-        mesh_data.meshlets.clear();
-        for m in meshlets.iter() {
-            let bounds = meshopt::compute_meshlet_bounds(m, vertex_data_adapter.as_ref().unwrap());
-            let vertices_offset = all_vertices.len();
-            let indices_offset = all_indices.len();
-            m.vertices.iter().for_each(|v| {
-                all_vertices.push(mesh_data.vertices[*v as usize]);
-            });
-            m.triangles.iter().for_each(|t| {
-                all_indices.push(vertices_offset as u32 + *t as u32);
-            });
-            mesh_data.meshlets.push(MeshletData {
-                vertices_count: m.vertices.len() as _,
-                vertices_offset: vertices_offset as _,
-                indices_count: m.triangles.len() as _,
-                indices_offset: indices_offset as _,
-                center: bounds.center.into(),
-                radius: bounds.radius,
-                cone_axis: bounds.cone_axis.into(),
-                cone_cutoff: bounds.cone_cutoff,
-            });
+        if !meshlets.meshlets.is_empty() {
+            let mut all_vertices = Vec::new();
+            let mut all_indices = Vec::new();
+            mesh_data.meshlets.clear();
+            for m in meshlets.iter() {
+                let bounds =
+                    meshopt::compute_meshlet_bounds(m, vertex_data_adapter.as_ref().unwrap());
+                let vertices_offset = all_vertices.len();
+                let indices_offset = all_indices.len();
+                m.vertices.iter().for_each(|v| {
+                    all_vertices.push(mesh_data.vertices[*v as usize]);
+                });
+                m.triangles.iter().for_each(|t| {
+                    all_indices.push(vertices_offset as u32 + *t as u32);
+                });
+                mesh_data.meshlets.push(MeshletData {
+                    vertices_count: m.vertices.len() as _,
+                    vertices_offset: vertices_offset as _,
+                    indices_count: m.triangles.len() as _,
+                    indices_offset: indices_offset as _,
+                    center: bounds.center.into(),
+                    radius: bounds.radius,
+                    cone_axis: bounds.cone_axis.into(),
+                    cone_cutoff: bounds.cone_cutoff,
+                });
+            }
         }
-        mesh_data.vertices = all_vertices;
-        mesh_data.indices = all_indices;
     }
 
     fn process_mesh_data(
