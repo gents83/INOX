@@ -3,9 +3,9 @@ use std::path::PathBuf;
 use inox_core::{define_plugin, ContextRc, Plugin, SystemUID, WindowSystem};
 
 use inox_graphics::{
-    rendering_system::RenderingSystem, update_system::UpdateSystem, CullingPass, DebugDrawerSystem,
-    OpaquePass, Pass, RenderPass, RenderTarget, Renderer, RendererRw, TransparentPass,
-    DEFAULT_HEIGHT, DEFAULT_WIDTH, OPAQUE_PASS_NAME,
+    rendering_system::RenderingSystem, update_system::UpdateSystem, DebugDrawerSystem, OpaquePass,
+    Pass, RenderPass, RenderTarget, Renderer, RendererRw, DEFAULT_HEIGHT, DEFAULT_WIDTH,
+    OPAQUE_PASS_NAME,
 };
 use inox_platform::Window;
 use inox_resources::ConfigBase;
@@ -15,7 +15,7 @@ use inox_ui::{UIPass, UISystem, UI_PASS_NAME};
 
 use crate::{config::Config, systems::viewer_system::ViewerSystem};
 
-const ONLY_OPAQUE_PASS: bool = true;
+const ADD_UI_PASS: bool = false;
 
 pub struct Viewer {
     window: Option<Window>,
@@ -53,10 +53,14 @@ impl Plugin for Viewer {
     fn prepare(&mut self, context: &ContextRc) {
         let window_system = WindowSystem::new(self.window.take().unwrap(), context);
         let render_update_system = UpdateSystem::new(self.renderer.clone(), context);
-
         let rendering_draw_system = RenderingSystem::new(self.renderer.clone(), context);
+        let mut ui_system = if ADD_UI_PASS {
+            Some(UISystem::new(context, self.renderer.clone()))
+        } else {
+            None
+        };
 
-        let system = ViewerSystem::new(context, &self.renderer, !ONLY_OPAQUE_PASS);
+        let system = ViewerSystem::new(context, &self.renderer, ADD_UI_PASS);
         let object_system = ObjectSystem::new(context.shared_data());
         let script_system = ScriptSystem::new(context);
 
@@ -80,17 +84,16 @@ impl Plugin for Viewer {
         );
 
         context.add_system(inox_core::Phases::Update, system, None);
-        if !ONLY_OPAQUE_PASS {
-            let ui_system = UISystem::new(context, self.renderer.clone());
+        if let Some(ui_system) = ui_system.take() {
             context.add_system(inox_core::Phases::Update, ui_system, None);
-            let debug_drawer_system = DebugDrawerSystem::new(context);
-            context.add_system(inox_core::Phases::Update, debug_drawer_system, None);
         }
+        let debug_drawer_system = DebugDrawerSystem::new(context);
+        context.add_system(inox_core::Phases::Update, debug_drawer_system, None);
     }
 
     fn unprepare(&mut self, context: &ContextRc) {
-        if !ONLY_OPAQUE_PASS {
-            context.remove_system(inox_core::Phases::Update, &DebugDrawerSystem::system_id());
+        context.remove_system(inox_core::Phases::Update, &DebugDrawerSystem::system_id());
+        if ADD_UI_PASS {
             context.remove_system(inox_core::Phases::Update, &UISystem::system_id());
         }
         context.remove_system(inox_core::Phases::Update, &ViewerSystem::system_id());
@@ -133,10 +136,9 @@ impl Plugin for Viewer {
 
 impl Viewer {
     fn create_render_passes(context: &ContextRc, renderer: &RendererRw, width: u32, height: u32) {
-        if ONLY_OPAQUE_PASS {
-            Self::create_opaque_pass(context, renderer);
-        } else {
-            Self::create_full_render_passes(context, renderer, width, height);
+        Self::create_opaque_pass(context, renderer);
+        if ADD_UI_PASS {
+            Self::create_ui_pass(context, renderer, width, height);
         }
     }
     fn create_opaque_pass(context: &ContextRc, renderer: &RendererRw) {
@@ -144,6 +146,23 @@ impl Viewer {
 
         renderer.write().unwrap().add_pass(opaque_pass);
     }
+    fn create_ui_pass(context: &ContextRc, renderer: &RendererRw, width: u32, height: u32) {
+        let ui_pass = UIPass::create(context);
+        if let Some(opaque_pass) = renderer.read().unwrap().pass::<OpaquePass>() {
+            let opaque_pass_render_target = RenderTarget::Texture {
+                width,
+                height,
+                read_back: false,
+            };
+            opaque_pass
+                .render_pass()
+                .get_mut()
+                .render_target(opaque_pass_render_target)
+                .depth_target(opaque_pass_render_target);
+        }
+        renderer.write().unwrap().add_pass(ui_pass);
+    }
+    /*
     fn create_full_render_passes(
         context: &ContextRc,
         renderer: &RendererRw,
@@ -192,5 +211,5 @@ impl Viewer {
             .add_pass(opaque_pass)
             .add_pass(transparent_pass)
             .add_pass(ui_pass);
-    }
+    }*/
 }
