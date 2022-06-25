@@ -4,6 +4,7 @@
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
     @location(0) color: vec4<f32>,
+    @location(1) tex_coords: vec3<f32>,
 };
 
 
@@ -66,8 +67,8 @@ var texture_16: texture_2d_array<f32>;
 #endif
 
 
-fn get_texture_color(material_index: u32, texture_type: u32, vertex_index: u32) -> vec4<f32> {
-    let texture_data_index = materials.data[material_index].textures_indices[texture_type];
+fn get_texture_color(tex_coords_and_texture_index: vec3<f32>) -> vec4<f32> {
+    let texture_data_index = i32(tex_coords_and_texture_index.z);
     var tex_coords = vec3<f32>(0.0, 0.0, 0.0);
     if (texture_data_index < 0) {
         return vec4<f32>(tex_coords, 0.);
@@ -75,9 +76,9 @@ fn get_texture_color(material_index: u32, texture_type: u32, vertex_index: u32) 
     let atlas_index = textures.data[texture_data_index].texture_index;
     let layer_index = i32(textures.data[texture_data_index].layer_index);
 
-    tex_coords.x = (textures.data[texture_data_index].area.x + 0.5 + uvs_0.data[vertex_index].x * textures.data[texture_data_index].area.z) / textures.data[texture_data_index].total_width;
-    tex_coords.y = (textures.data[texture_data_index].area.y + 0.5 + uvs_0.data[vertex_index].y * textures.data[texture_data_index].area.w) / textures.data[texture_data_index].total_height;
-    tex_coords.z = f32(textures.data[texture_data_index].layer_index);
+    tex_coords.x = (textures.data[texture_data_index].area.x + tex_coords_and_texture_index.x * textures.data[texture_data_index].area.z) / textures.data[texture_data_index].total_width;
+    tex_coords.y = (textures.data[texture_data_index].area.y + tex_coords_and_texture_index.y * textures.data[texture_data_index].area.w) / textures.data[texture_data_index].total_height;
+    tex_coords.z = f32(layer_index);
 
 #ifdef FEATURES_TEXTURE_BINDING_ARRAY
     return textureSampleLevel(texture_array[atlas_index], default_sampler, tex_coords.xy, layer_index, tex_coords.z);
@@ -129,15 +130,20 @@ fn vs_main(
 
     var vertex_out: VertexOutput;
     vertex_out.clip_position = vec4<f32>(2. * positions_and_colors.data[v_in.index].x * ui_scale / constant_data.screen_width - 1., 1. - 2. * positions_and_colors.data[v_in.index].y * ui_scale / constant_data.screen_height, 0., 1.);
-    let color = rgba_from_integer(u32(positions_and_colors.data[v_in.index].w));
-    let linear_color = vec4<f32>(linear_from_srgb(color.rgb), color.a / 255.);
+    let color = unpack_color(u32(positions_and_colors.data[v_in.index].w));
+    vertex_out.color = vec4<f32>(color.rgba / 255.0);
+
     let material_index = u32(meshes.data[i_in.mesh_index].material_index);
-    let texture_color = get_texture_color(material_index, TEXTURE_TYPE_BASE_COLOR, u32(v_in.uv_0));
-    vertex_out.color = linear_color * texture_color;
+    let vertex_index = u32(v_in.uv_0);
+    let texture_data_index = u32(materials.data[material_index].textures_indices[TEXTURE_TYPE_BASE_COLOR]);
+    vertex_out.tex_coords = vec3<f32>(uvs_0.data[vertex_index].xy, f32(texture_data_index));
+
     return vertex_out;
 }
 
 @fragment
 fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
-    return v_in.color;
+
+    let texture_color = get_texture_color(v_in.tex_coords);
+    return v_in.color * texture_color;
 }

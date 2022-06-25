@@ -39,12 +39,23 @@ where
     pub fn mark_as_unchanged(&mut self) {
         self.is_changed = false;
     }
+    pub fn collapse(&mut self) {
+        let old_map = self.map.clone();
+        self.map.clear();
+        let mut index = 0;
+        old_map.iter().for_each(|(id, &old_index)| {
+            self.map.insert(*id, index);
+            self.buffer.swap(index, old_index);
+            index += 1;
+        });
+        self.buffer.truncate(index);
+    }
     fn new_index(&self) -> usize {
         if self.map.is_empty() {
             return 0;
         }
         for i in 0..self.buffer.len() {
-            if self.map.iter().any(|(_, &j)| j == i) {
+            if self.map.iter().any(|(_id, &index)| index == i) {
                 continue;
             } else {
                 return i;
@@ -102,6 +113,12 @@ where
             return Some(&self.buffer[index]);
         }
         None
+    }
+    pub fn clear(&mut self) {
+        self.map.clear();
+        if MAX_COUNT == 0 {
+            self.buffer.clear();
+        }
     }
     pub fn index_of(&self, id: &Id) -> Option<usize> {
         self.map.get(id).copied()

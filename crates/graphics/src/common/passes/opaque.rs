@@ -124,7 +124,7 @@ impl Pass for OpaquePass {
 
         pass.init_pipelines(render_context, &self.binding_data);
     }
-    fn update(&mut self, render_context: &RenderContext) {
+    fn update(&mut self, render_context: &mut RenderContext) {
         inox_profiler::scoped_profile!("opaque_pass::update");
 
         if !render_context.has_instances(MeshFlags::Visible | MeshFlags::Opaque) {

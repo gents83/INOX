@@ -24,7 +24,7 @@ pub struct RenderBuffers {
     pub vertex_positions_and_colors: Buffer<[f32; 4]>, //MeshId <-> [f32; 4]
     pub vertex_normals_and_padding: Buffer<[f32; 4]>, //MeshId <-> [f32; 4]
     pub vertex_tangents: Buffer<[f32; 4]>, //MeshId <-> [f32; 4]
-    pub vertex_uvs: [Buffer<[f32; 2]>; MAX_TEXTURE_COORDS_SETS], //MeshId <-> [[f32; 2]; 4]
+    pub vertex_uvs: [Buffer<[f32; 4]>; MAX_TEXTURE_COORDS_SETS], //MeshId <-> [[f32; 2]; 4]
 }
 
 impl RenderBuffers {
@@ -120,9 +120,11 @@ impl RenderBuffers {
         let mut uv_range = vec![Range::<usize>::default(); MAX_TEXTURE_COORDS_SETS];
         (0..MAX_TEXTURE_COORDS_SETS).for_each(|i| {
             if !mesh_data.uvs[i].is_empty() {
-                uv_range[i] = self.vertex_uvs[i]
-                    .allocate(mesh_id, mesh_data.uvs[i].as_slice())
-                    .1;
+                let mut uvs = Vec::new();
+                mesh_data.uvs[i].iter().for_each(|uv| {
+                    uvs.push([uv.x, uv.y, 0., 1.]);
+                });
+                uv_range[i] = self.vertex_uvs[i].allocate(mesh_id, uvs.as_slice()).1;
             }
         });
 

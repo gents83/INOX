@@ -94,7 +94,7 @@ impl Pass for TransparentPass {
 
         pass.init_pipelines(render_context, &self.binding_data);
     }
-    fn update(&mut self, render_context: &RenderContext) {
+    fn update(&mut self, render_context: &mut RenderContext) {
         let pass = self.render_pass.get();
 
         let mut encoder = render_context.core.new_encoder();

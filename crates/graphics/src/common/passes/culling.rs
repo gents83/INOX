@@ -237,7 +237,7 @@ impl Pass for CullingPass {
         pass.init(render_context, &self.binding_data);
     }
 
-    fn update(&mut self, render_context: &RenderContext) {
+    fn update(&mut self, render_context: &mut RenderContext) {
         if self.num_meshlets == 0 {
             return;
         }

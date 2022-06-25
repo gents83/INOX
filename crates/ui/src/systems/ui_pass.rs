@@ -74,7 +74,9 @@ impl Pass for UIPass {
     fn init(&mut self, render_context: &mut RenderContext) {
         inox_profiler::scoped_profile!("ui_pass::init");
 
-        if !render_context.has_instances(MeshFlags::Visible | MeshFlags::Ui)
+        let mesh_flags = MeshFlags::Visible | MeshFlags::Ui;
+
+        if !render_context.has_instances(mesh_flags)
             || render_context
                 .render_buffers
                 .vertex_positions_and_colors
@@ -159,7 +161,7 @@ impl Pass for UIPass {
                 BindingInfo {
                     group_index: 0,
                     binding_index: 5,
-                    stage: ShaderStage::Vertex,
+                    stage: ShaderStage::VertexAndFragment,
                     read_only: true,
                     ..Default::default()
                 },
@@ -170,7 +172,7 @@ impl Pass for UIPass {
                 depth_texture,
                 BindingInfo {
                     group_index: 1,
-                    stage: ShaderStage::Vertex,
+                    stage: ShaderStage::Fragment,
                     ..Default::default()
                 },
             );
@@ -178,10 +180,11 @@ impl Pass for UIPass {
 
         pass.init_pipelines(render_context, &self.binding_data);
     }
-    fn update(&mut self, render_context: &RenderContext) {
+    fn update(&mut self, render_context: &mut RenderContext) {
         inox_profiler::scoped_profile!("ui_pass::update");
 
-        if !render_context.has_instances(MeshFlags::Visible | MeshFlags::Ui) {
+        let mesh_flags = MeshFlags::Visible | MeshFlags::Ui;
+        if !render_context.has_instances(mesh_flags) {
             return;
         }
 
@@ -192,6 +195,10 @@ impl Pass for UIPass {
         pass.draw(render_context, render_pass);
 
         render_context.core.submit(encoder);
+
+        if let Some(instances) = render_context.render_buffers.instances.get_mut(&mesh_flags) {
+            instances.clear();
+        }
     }
 }
 

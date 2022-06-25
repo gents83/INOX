@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     collections::{hash_map::Entry, HashMap},
     path::PathBuf,
     sync::{
@@ -29,7 +30,8 @@ use inox_platform::{
     InputState, KeyEvent, KeyTextEvent, MouseButton, MouseEvent, MouseState, WindowEvent,
 };
 use inox_resources::{
-    ConfigBase, ConfigEvent, DataTypeResource, Resource, SerializableResource, SharedDataRc,
+    to_slice, ConfigBase, ConfigEvent, DataTypeResource, Resource, SerializableResource,
+    SharedDataRc,
 };
 use inox_serialize::read_from_file;
 use inox_uid::generate_random_uid;
@@ -170,7 +172,7 @@ impl UISystem {
                             let mut mesh_data = MeshData::default();
                             mesh.vertices.iter().for_each(|v| {
                                 let p = [v.pos.x, v.pos.y, i as _];
-                                let color = v.color.to_srgba_unmultiplied();
+                                let color = v.color.to_array();
                                 let c = Vector4::new(
                                     color[0] as f32 / 255.,
                                     color[1] as f32 / 255.,
@@ -349,31 +351,25 @@ impl UISystem {
         }
 
         for (egui_texture_id, image_delta) in textures_delta.set {
-            let pixels: Vec<u8> = match &image_delta.image {
+            let color32 = match &image_delta.image {
                 egui::ImageData::Color(image) => {
                     assert_eq!(
                         image.width() * image.height(),
                         image.pixels.len(),
                         "Mismatch between texture size and texel count"
                     );
-                    image
-                        .pixels
-                        .iter()
-                        .flat_map(|color| color.to_srgba_unmultiplied().to_vec())
-                        .collect()
+                    Cow::Borrowed(&image.pixels)
                 }
                 egui::ImageData::Font(image) => {
                     let gamma = 1.0;
-                    image
-                        .srgba_pixels(gamma)
-                        .flat_map(|color| color.to_array().to_vec())
-                        .collect()
+                    Cow::Owned(image.srgba_pixels(gamma).collect())
                 }
             };
+            let pixels: &[u8] = to_slice(color32.as_slice());
             let image_data = RgbaImage::from_vec(
                 image_delta.image.width() as _,
                 image_delta.image.height() as _,
-                pixels,
+                pixels.to_vec(),
             );
             if let Some(texture) = self.ui_textures.get(&egui_texture_id) {
                 if let Some(material) = self.ui_materials.remove(texture.id()) {

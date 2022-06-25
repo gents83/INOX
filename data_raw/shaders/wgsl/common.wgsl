@@ -162,6 +162,6 @@ struct Tangents {
 };
 
 struct UVs {
-    data: array<vec2<f32>>,
+    data: array<vec4<f32>>,
 };
 
