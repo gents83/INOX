@@ -7,6 +7,7 @@ where
 {
     map: HashMap<Id, usize>,
     buffer: Vec<Data>,
+    is_empty: Vec<bool>,
     is_changed: bool,
 }
 
@@ -17,12 +18,15 @@ where
 {
     fn default() -> Self {
         let mut buffer = Vec::new();
+        let mut is_empty = Vec::new();
         for _ in 0..MAX_COUNT {
             buffer.push(Data::default());
+            is_empty.push(true);
         }
         Self {
             map: HashMap::new(),
             buffer,
+            is_empty,
             is_changed: false,
         }
     }
@@ -40,15 +44,20 @@ where
         self.is_changed = false;
     }
     pub fn collapse(&mut self) {
+        if MAX_COUNT != 0 {
+            return;
+        }
         let old_map = self.map.clone();
         self.map.clear();
         let mut index = 0;
         old_map.iter().for_each(|(id, &old_index)| {
             self.map.insert(*id, index);
             self.buffer.swap(index, old_index);
+            self.is_empty.swap(index, old_index);
             index += 1;
         });
         self.buffer.truncate(index);
+        self.is_empty.truncate(index);
     }
     fn new_index(&self) -> usize {
         if self.map.is_empty() {
@@ -69,6 +78,7 @@ where
             //inox_log::debug_log!("Trying to reinsert {:?} at {}", id, index);
             //inox_log::debug_log!("Buffer len is {}", self.buffer.len());
             self.buffer[*index] = data;
+            self.is_empty[*index] = false;
             *index
         } else {
             let index = self.new_index();
@@ -76,8 +86,10 @@ where
             //inox_log::debug_log!("Inserting [{:?}] = {} ", *id, index);
             if MAX_COUNT == 0 && index >= self.buffer.len() {
                 self.buffer.push(data);
+                self.is_empty.push(false);
             } else {
                 self.buffer[index] = data;
+                self.is_empty[index] = false;
             }
             //inox_log::debug_log!("Buffer len is {}", self.buffer.len());
 
@@ -101,6 +113,7 @@ where
             if old_index < self.buffer.len() && index < self.buffer.len() {
                 self.is_changed = true;
                 self.buffer.swap(old_index, index);
+                self.is_empty.swap(old_index, index);
             }
             //inox_log::debug_log!("Buffer len is {}", self.buffer.len());
         }
@@ -110,6 +123,7 @@ where
         //inox_log::debug_log!("Buffer len is {}", self.buffer.len());
         if let Some(index) = self.map.remove(id) {
             self.is_changed = true;
+            self.is_empty[index] = true;
             return Some(&self.buffer[index]);
         }
         None
@@ -118,6 +132,7 @@ where
         self.map.clear();
         if MAX_COUNT == 0 {
             self.buffer.clear();
+            self.is_empty.clear();
         }
     }
     pub fn index_of(&self, id: &Id) -> Option<usize> {
@@ -156,15 +171,17 @@ where
     pub fn is_empty(&self) -> bool {
         self.map.is_empty()
     }
-    pub fn for_each_item(&self, mut f: impl FnMut(&Id, usize, &Data)) {
+    pub fn for_each_id(&self, mut f: impl FnMut(&Id, usize, &Data)) {
         self.map
             .iter()
             .for_each(|(id, index)| f(id, *index, &self.buffer[*index]));
     }
-    pub fn for_each_item_mut(&mut self, mut f: impl FnMut(&Id, usize, &mut Data)) {
-        self.map
-            .iter()
-            .for_each(|(id, index)| f(id, *index, &mut self.buffer[*index]));
+    pub fn for_each_entry(&self, mut f: impl FnMut(usize, &Data)) {
+        self.buffer.iter().enumerate().for_each(|(i, d)| {
+            if !self.is_empty[i] {
+                f(i, d);
+            }
+        });
     }
 }
 

@@ -396,7 +396,7 @@ impl RenderPass {
                     }
 
                     let meshlets = render_context.render_buffers.meshlets.data();
-                    instances.for_each_item(|_id, index, instance| {
+                    instances.for_each_entry(|index, instance| {
                         let mesh = render_context
                             .render_buffers
                             .meshes
