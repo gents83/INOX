@@ -53,7 +53,7 @@ pub struct Mesh {
     path: PathBuf,
     matrix: Matrix4,
     material: Handle<Material>,
-    draw_area: Vector4, //pos (x,y) - size(z,w)
+    draw_area: Option<Vector4>, //pos (x,y) - size(z,w)
     flags: MeshFlags,
 }
 
@@ -107,7 +107,7 @@ impl DataTypeResource for Mesh {
             path: PathBuf::new(),
             matrix: Matrix4::default_identity(),
             material: None,
-            draw_area: [0., 0., f32::MAX, f32::MAX].into(),
+            draw_area: None,
             flags: MeshFlags::Visible | MeshFlags::Opaque,
         }
     }
@@ -158,9 +158,16 @@ impl Mesh {
     pub fn find_from_path(shared_data: &SharedDataRc, path: &Path) -> Handle<Self> {
         SharedData::match_resource(shared_data, |m: &Mesh| m.path() == path)
     }
+    pub fn reset_draw_area(&mut self) -> &mut Self {
+        if self.draw_area.is_some() {
+            self.draw_area = None;
+            self.mark_as_dirty();
+        }
+        self
+    }
     pub fn set_draw_area(&mut self, draw_area: Vector4) -> &mut Self {
-        if self.draw_area != draw_area {
-            self.draw_area = draw_area;
+        if self.draw_area.is_none() || self.draw_area.unwrap() != draw_area {
+            self.draw_area = Some(draw_area);
             self.mark_as_dirty();
         }
         self
@@ -223,7 +230,7 @@ impl Mesh {
     pub fn matrix(&self) -> Matrix4 {
         self.matrix
     }
-    pub fn draw_area(&self) -> Vector4 {
-        self.draw_area
+    pub fn draw_area(&self) -> Option<&Vector4> {
+        self.draw_area.as_ref()
     }
 }

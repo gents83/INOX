@@ -397,24 +397,41 @@ impl RenderPass {
 
                     let meshlets = render_context.render_buffers.meshlets.data();
                     instances.for_each_entry(|index, instance| {
-                        let mesh = render_context
+                        if let Some(mesh_id) = render_context
                             .render_buffers
                             .meshes
-                            .at(instance.mesh_index as _);
-                        let mesh_flags = MeshFlags::from(mesh.mesh_flags);
-                        if mesh_flags.contains(pipeline.data().mesh_flags) {
-                            for i in mesh.meshlet_offset..mesh.meshlet_offset + mesh.meshlet_count {
-                                let meshlet = &meshlets[i as usize];
-
-                                render_pass.draw_indexed(
-                                    (mesh.indices_offset + meshlet.indices_offset) as _
-                                        ..(mesh.indices_offset
-                                            + meshlet.indices_offset
-                                            + meshlet.indices_count)
-                                            as _,
-                                    mesh.vertex_offset as _,
-                                    index as _..(index as u32 + 1),
-                                );
+                            .id_at(instance.mesh_index as _)
+                        {
+                            let mesh = render_context
+                                .render_buffers
+                                .meshes
+                                .at(instance.mesh_index as _);
+                            let mesh_flags = MeshFlags::from(mesh.mesh_flags);
+                            if mesh_flags.contains(pipeline.data().mesh_flags) {
+                                for i in
+                                    mesh.meshlet_offset..mesh.meshlet_offset + mesh.meshlet_count
+                                {
+                                    let meshlet = &meshlets[i as usize];
+                                    if let Some(area) =
+                                        render_context.render_buffers.draw_area.get(&mesh_id)
+                                    {
+                                        render_pass.set_scissor_rect(
+                                            area[0] as _,
+                                            area[1] as _,
+                                            area[2] as _,
+                                            area[3] as _,
+                                        );
+                                    }
+                                    render_pass.draw_indexed(
+                                        (mesh.indices_offset + meshlet.indices_offset) as _
+                                            ..(mesh.indices_offset
+                                                + meshlet.indices_offset
+                                                + meshlet.indices_count)
+                                                as _,
+                                        mesh.vertex_offset as _,
+                                        index as _..(index as u32 + 1),
+                                    );
+                                }
                             }
                         }
                     });

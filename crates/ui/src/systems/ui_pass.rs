@@ -161,7 +161,7 @@ impl Pass for UIPass {
                 BindingInfo {
                     group_index: 0,
                     binding_index: 5,
-                    stage: ShaderStage::VertexAndFragment,
+                    stage: ShaderStage::Fragment,
                     read_only: true,
                     ..Default::default()
                 },
@@ -195,10 +195,6 @@ impl Pass for UIPass {
         pass.draw(render_context, render_pass);
 
         render_context.core.submit(encoder);
-
-        if let Some(instances) = render_context.render_buffers.instances.get_mut(&mesh_flags) {
-            instances.clear();
-        }
     }
 }
 

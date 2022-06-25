@@ -17,6 +17,7 @@ pub struct RenderBuffers {
     pub materials: HashBuffer<MaterialId, DrawMaterial, 0>,
     pub instances: HashMap<MeshFlags, HashBuffer<MeshId, DrawInstance, 0>>,
     pub meshes: HashBuffer<MeshId, DrawMesh, 0>,
+    pub draw_area: HashBuffer<MeshId, [f32; 4], 0>,
     pub matrix: HashBuffer<ResourceId, [[f32; 4]; 4], 0>,
     pub meshlets: Buffer<DrawMeshlet>, //MeshId <-> [DrawMeshlet]
     pub vertices: Buffer<DrawVertex>,  //MeshId <-> [DrawVertex]
@@ -120,7 +121,9 @@ impl RenderBuffers {
         let mut uv_range = vec![Range::<usize>::default(); MAX_TEXTURE_COORDS_SETS];
         (0..MAX_TEXTURE_COORDS_SETS).for_each(|i| {
             if !mesh_data.uvs[i].is_empty() {
-                uv_range[i] = self.vertex_uvs[i].allocate(mesh_id, mesh_data.uvs[i].as_slice()).1;
+                uv_range[i] = self.vertex_uvs[i]
+                    .allocate(mesh_id, mesh_data.uvs[i].as_slice())
+                    .1;
             }
         });
 
@@ -166,6 +169,15 @@ impl RenderBuffers {
         inox_profiler::scoped_profile!("render_buffers::change_mesh");
 
         self.update_matrix(mesh_id, &mesh.matrix());
+
+        if let Some(draw_area) = mesh.draw_area() {
+            self.draw_area.insert(
+                mesh_id,
+                [draw_area.x, draw_area.y, draw_area.z, draw_area.w],
+            );
+        } else {
+            self.draw_area.remove(mesh_id);
+        }
 
         if let Some(m) = self.meshes.get_mut(mesh_id) {
             if let Some(material) = mesh.material() {
@@ -215,6 +227,7 @@ impl RenderBuffers {
         inox_profiler::scoped_profile!("render_buffers::remove_mesh");
 
         self.remove_matrix(mesh_id);
+        self.draw_area.remove(mesh_id);
         self.instances.iter_mut().for_each(|(_, buffer)| {
             buffer.remove(mesh_id);
         });
