@@ -145,7 +145,7 @@ impl RenderBuffers {
     }
     pub fn add_mesh(&mut self, mesh_id: &MeshId, mesh_data: &MeshData) {
         inox_profiler::scoped_profile!("render_buffers::add_mesh");
-
+        self.meshes.remove(mesh_id);
         let (vertex_offset, indices_offset) = self.add_vertex_data(mesh_id, mesh_data);
         let meshlets = Self::extract_meshlets(mesh_data);
         if meshlets.is_empty() {

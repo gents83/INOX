@@ -122,6 +122,7 @@ where
         data: &[T],
         item_size: usize,
     ) -> (bool, Range<usize>) {
+        self.remove(id);
         self.collapse_free();
         let mut need_realloc = false;
         let size = data.len();

@@ -60,8 +60,6 @@ impl Pass for OpaquePass {
         inox_profiler::scoped_profile!("opaque_pass::init");
 
         if !render_context.has_instances(MeshFlags::Visible | MeshFlags::Opaque)
-            || render_context.render_buffers.meshes.is_empty()
-            || render_context.render_buffers.vertices.is_empty()
             || render_context
                 .render_buffers
                 .vertex_positions_and_colors
@@ -134,11 +132,6 @@ impl Pass for OpaquePass {
         }
 
         let pass = self.render_pass.get();
-        let pipelines = pass.pipelines();
-        if pipelines.is_empty() {
-            return;
-        }
-
         let mut encoder = render_context.core.new_encoder();
 
         let render_pass = pass.begin(render_context, &self.binding_data, &mut encoder);

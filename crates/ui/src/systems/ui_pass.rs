@@ -2,8 +2,8 @@ use std::path::PathBuf;
 
 use inox_core::ContextRc;
 use inox_graphics::{
-    AsBinding, BindingData, BindingInfo, GpuBuffer, Pass, RenderContext, RenderCoreContext,
-    RenderPass, RenderPassData, RenderTarget, ShaderStage, StoreOperation,
+    AsBinding, BindingData, BindingInfo, GpuBuffer, MeshFlags, Pass, RenderContext,
+    RenderCoreContext, RenderPass, RenderPassData, RenderTarget, ShaderStage, StoreOperation,
 };
 use inox_resources::{DataTypeResource, Resource};
 use inox_uid::generate_random_uid;
@@ -72,6 +72,22 @@ impl Pass for UIPass {
         }
     }
     fn init(&mut self, render_context: &mut RenderContext) {
+        inox_profiler::scoped_profile!("ui_pass::init");
+
+        if !render_context.has_instances(MeshFlags::Visible | MeshFlags::Ui)
+            || render_context
+                .render_buffers
+                .vertex_positions_and_colors
+                .is_empty()
+            || render_context.render_buffers.vertex_uvs.is_empty()
+            || render_context.render_buffers.vertex_uvs[0].is_empty()
+            || render_context.render_buffers.meshes.is_empty()
+            || render_context.render_buffers.materials.is_empty()
+            || render_context.render_buffers.textures.is_empty()
+        {
+            return;
+        }
+
         let mut pass = self.render_pass.get_mut();
         let render_texture = pass.render_texture_id();
         let depth_texture = pass.depth_texture_id();
@@ -84,7 +100,43 @@ impl Pass for UIPass {
                 BindingInfo {
                     group_index: 0,
                     binding_index: 0,
-                    stage: ShaderStage::VertexAndFragment,
+                    stage: ShaderStage::Vertex,
+                    ..Default::default()
+                },
+            )
+            .add_storage_data(
+                &render_context.core,
+                &render_context.binding_data_buffer,
+                &mut render_context.render_buffers.vertex_positions_and_colors,
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 1,
+                    stage: ShaderStage::Vertex,
+                    read_only: true,
+                    ..Default::default()
+                },
+            )
+            .add_storage_data(
+                &render_context.core,
+                &render_context.binding_data_buffer,
+                &mut render_context.render_buffers.vertex_uvs[0],
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 2,
+                    stage: ShaderStage::Vertex,
+                    read_only: true,
+                    ..Default::default()
+                },
+            )
+            .add_storage_data(
+                &render_context.core,
+                &render_context.binding_data_buffer,
+                &mut render_context.render_buffers.meshes,
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 3,
+                    stage: ShaderStage::Vertex,
+                    read_only: true,
                     ..Default::default()
                 },
             )
@@ -94,8 +146,20 @@ impl Pass for UIPass {
                 &mut render_context.render_buffers.materials,
                 BindingInfo {
                     group_index: 0,
-                    binding_index: 1,
-                    stage: ShaderStage::VertexAndFragment,
+                    binding_index: 4,
+                    stage: ShaderStage::Vertex,
+                    read_only: true,
+                    ..Default::default()
+                },
+            )
+            .add_storage_data(
+                &render_context.core,
+                &render_context.binding_data_buffer,
+                &mut render_context.render_buffers.textures,
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 5,
+                    stage: ShaderStage::Vertex,
                     read_only: true,
                     ..Default::default()
                 },
@@ -106,19 +170,7 @@ impl Pass for UIPass {
                 depth_texture,
                 BindingInfo {
                     group_index: 1,
-                    stage: ShaderStage::Fragment,
-                    ..Default::default()
-                },
-            )
-            .add_storage_data(
-                &render_context.core,
-                &render_context.binding_data_buffer,
-                &mut self.custom_data,
-                BindingInfo {
-                    group_index: 2,
-                    binding_index: 0,
-                    stage: ShaderStage::VertexAndFragment,
-                    read_only: true,
+                    stage: ShaderStage::Vertex,
                     ..Default::default()
                 },
             );
@@ -127,8 +179,13 @@ impl Pass for UIPass {
         pass.init_pipelines(render_context, &self.binding_data);
     }
     fn update(&mut self, render_context: &RenderContext) {
-        let pass = self.render_pass.get();
+        inox_profiler::scoped_profile!("ui_pass::update");
 
+        if !render_context.has_instances(MeshFlags::Visible | MeshFlags::Ui) {
+            return;
+        }
+
+        let pass = self.render_pass.get();
         let mut encoder = render_context.core.new_encoder();
 
         let render_pass = pass.begin(render_context, &self.binding_data, &mut encoder);

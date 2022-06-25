@@ -185,6 +185,7 @@ impl Mesh {
     pub fn set_mesh_data(&mut self, mesh_data: MeshData) -> &mut Self {
         self.message_hub
             .send_event(DataTypeResourceEvent::<Self>::Loaded(self.id, mesh_data));
+        self.mark_as_dirty();
         self
     }
     pub fn flags(&self) -> MeshFlags {

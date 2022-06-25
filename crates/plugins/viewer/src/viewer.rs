@@ -15,7 +15,7 @@ use inox_ui::{UIPass, UISystem, UI_PASS_NAME};
 
 use crate::{config::Config, systems::viewer_system::ViewerSystem};
 
-const ADD_UI_PASS: bool = false;
+const ADD_UI_PASS: bool = true;
 
 pub struct Viewer {
     window: Option<Window>,

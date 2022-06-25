@@ -99,6 +99,7 @@ impl MeshData {
         self.vertices.len() - 1
     }
     pub fn add_vertex_pos_uv(&mut self, p: Vector3, uv: Vector2) -> usize {
+        let uv_index = 0;
         let vertex = DrawVertex {
             position_and_color_offset: self.positions.len() as _,
             uv_offset: self
@@ -111,13 +112,12 @@ impl MeshData {
             ..Default::default()
         };
         self.positions.push(p);
-        self.uvs.iter_mut().for_each(|uvs| {
-            uvs.push(uv);
-        });
+        self.uvs[uv_index].push(uv);
         self.vertices.push(vertex);
         self.vertices.len() - 1
     }
     pub fn add_vertex_pos_color_uv(&mut self, p: Vector3, c: Vector4, uv: Vector2) -> usize {
+        let uv_index = 0;
         let vertex = DrawVertex {
             position_and_color_offset: self.positions.len() as _,
             uv_offset: self
@@ -131,9 +131,7 @@ impl MeshData {
         };
         self.positions.push(p);
         self.colors.push(c);
-        self.uvs.iter_mut().for_each(|uvs| {
-            uvs.push(uv);
-        });
+        self.uvs[uv_index].push(uv);
         self.vertices.push(vertex);
         self.vertices.len() - 1
     }
@@ -144,6 +142,7 @@ impl MeshData {
         n: Vector3,
         uv: Vector2,
     ) -> usize {
+        let uv_index = 0;
         let vertex = DrawVertex {
             position_and_color_offset: self.positions.len() as _,
             normal_offset: self.normals.len() as _,
@@ -159,9 +158,7 @@ impl MeshData {
         self.positions.push(p);
         self.colors.push(c);
         self.normals.push(n);
-        self.uvs.iter_mut().for_each(|uvs| {
-            uvs.push(uv);
-        });
+        self.uvs[uv_index].push(uv);
         self.vertices.push(vertex);
         self.vertices.len() - 1
     }

@@ -34,7 +34,7 @@ use inox_resources::{
 use inox_serialize::read_from_file;
 use inox_uid::generate_random_uid;
 
-use crate::{rgba_u8_to_u32, UIPass, UIWidget};
+use crate::{UIPass, UIWidget};
 
 use super::config::Config;
 
@@ -114,7 +114,7 @@ impl UISystem {
                 MeshData::default(),
                 None,
             );
-            mesh.get_mut().set_flags(MeshFlags::Ui);
+            mesh.get_mut().set_flags(MeshFlags::Visible | MeshFlags::Ui);
             mesh
         });
 
@@ -123,6 +123,8 @@ impl UISystem {
                 if mesh.vertices.is_empty() || mesh.indices.is_empty() {
                     self.ui_meshes[i].get_mut().remove_flag(MeshFlags::Visible);
                     continue;
+                } else {
+                    self.ui_meshes[i].get_mut().add_flag(MeshFlags::Visible);
                 }
 
                 let texture = match mesh.texture_id {
@@ -167,9 +169,16 @@ impl UISystem {
                             inox_profiler::scoped_profile!("ui_system::create_mesh_data");
                             let mut mesh_data = MeshData::default();
                             mesh.vertices.iter().for_each(|v| {
-                                let p = [v.pos.x, v.pos.y, rgba_u8_to_u32(v.color.to_array()) as _];
+                                let p = [v.pos.x, v.pos.y, i as _];
+                                let color = v.color.to_srgba_unmultiplied();
+                                let c = Vector4::new(
+                                    color[0] as f32 / 255.,
+                                    color[1] as f32 / 255.,
+                                    color[2] as f32 / 255.,
+                                    color[3] as f32 / 255.,
+                                );
                                 let uv = [v.uv.x, v.uv.y];
-                                mesh_data.add_vertex_pos_uv(p.into(), uv.into());
+                                mesh_data.add_vertex_pos_color_uv(p.into(), c, uv.into());
                             });
                             mesh_data.indices.extend_from_slice(&mesh.indices);
                             let meshlet = MeshletData {
