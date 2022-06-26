@@ -129,9 +129,10 @@ fn vs_main(
     let ui_scale = 2.;
 
     var vertex_out: VertexOutput;
-    vertex_out.clip_position = vec4<f32>(2. * positions_and_colors.data[v_in.index].x * ui_scale / constant_data.screen_width - 1., 1. - 2. * positions_and_colors.data[v_in.index].y * ui_scale / constant_data.screen_height, 0., 1.);
-    let color = unpack_color(u32(positions_and_colors.data[v_in.index].w));
-    vertex_out.color = vec4<f32>(color.rgba / 255.0);
+    vertex_out.clip_position = vec4<f32>(2. * positions_and_colors.data[v_in.index].x * ui_scale / constant_data.screen_width - 1., 1. - 2. * positions_and_colors.data[v_in.index].y * ui_scale / constant_data.screen_height, positions_and_colors.data[v_in.index].z, 1.);
+    let color = u32(positions_and_colors.data[v_in.index].w);
+    let c = unpack_color(color);
+    vertex_out.color = vec4<f32>(c.rgb / 255.0, f32((color / 255u) & 255u));
 
     let material_index = u32(meshes.data[i_in.mesh_index].material_index);
     let vertex_index = u32(v_in.uv_0);

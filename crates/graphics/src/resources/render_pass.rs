@@ -415,12 +415,15 @@ impl RenderPass {
                                     if let Some(area) =
                                         render_context.render_buffers.draw_area.get(&mesh_id)
                                     {
-                                        render_pass.set_scissor_rect(
-                                            area[0] as _,
-                                            area[1] as _,
-                                            area[2] as _,
-                                            area[3] as _,
-                                        );
+                                        let x = (area[0] as u32)
+                                            .clamp(0, render_context.core.config.width);
+                                        let y = (area[1] as u32)
+                                            .clamp(0, render_context.core.config.height);
+                                        let width = (area[2] as u32)
+                                            .clamp(0, render_context.core.config.width - x);
+                                        let height = (area[3] as u32)
+                                            .clamp(0, render_context.core.config.height - y);
+                                        render_pass.set_scissor_rect(x, y, width, height);
                                     }
                                     render_pass.draw_indexed(
                                         (mesh.indices_offset + meshlet.indices_offset) as _

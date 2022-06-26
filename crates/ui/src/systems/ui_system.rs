@@ -123,10 +123,16 @@ impl UISystem {
         for (i, clipped_mesh) in clipped_meshes.into_iter().enumerate() {
             if let Primitive::Mesh(mesh) = clipped_mesh.primitive {
                 if mesh.vertices.is_empty() || mesh.indices.is_empty() {
-                    self.ui_meshes[i].get_mut().remove_flag(MeshFlags::Visible);
+                    self.ui_meshes[i]
+                        .get_mut()
+                        .remove_flag(MeshFlags::Visible)
+                        .reset_draw_area();
                     continue;
                 } else {
-                    self.ui_meshes[i].get_mut().add_flag(MeshFlags::Visible);
+                    self.ui_meshes[i]
+                        .get_mut()
+                        .add_flag(MeshFlags::Visible)
+                        .reset_draw_area();
                 }
 
                 let texture = match mesh.texture_id {
@@ -171,7 +177,7 @@ impl UISystem {
                             inox_profiler::scoped_profile!("ui_system::create_mesh_data");
                             let mut mesh_data = MeshData::default();
                             mesh.vertices.iter().for_each(|v| {
-                                let p = [v.pos.x, v.pos.y, i as _];
+                                let p = [v.pos.x, v.pos.y, (1 / (1000 - i)) as _];
                                 let color = v.color.to_array();
                                 let c = Vector4::new(
                                     color[0] as f32 / 255.,
