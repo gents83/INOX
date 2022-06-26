@@ -27,7 +27,6 @@ pub fn to_slice<T: Sized, U: Sized>(a: &[T]) -> &[U] {
 pub struct BufferData {
     id: ResourceId,
     range: Range<usize>,
-    item_size: usize,
 }
 
 impl Default for BufferData {
@@ -35,17 +34,15 @@ impl Default for BufferData {
         Self {
             id: INVALID_UID,
             range: 0..0,
-            item_size: std::mem::size_of::<u8>(),
         }
     }
 }
 
 impl BufferData {
-    pub fn new(id: &ResourceId, start: usize, end: usize, item_size: usize) -> Self {
+    pub fn new(id: &ResourceId, start: usize, end: usize) -> Self {
         Self {
             id: *id,
             range: start..end,
-            item_size,
         }
     }
     #[inline]
@@ -74,11 +71,10 @@ impl BufferData {
         &self.range
     }
     pub fn item_range(&self) -> Range<usize> {
-        (self.range.start / self.item_size)
-            ..((self.range.start / self.item_size) + (self.range.len() / self.item_size))
+        self.range.start..self.range.start + self.range.len()
     }
     pub fn item_count(&self) -> usize {
-        self.range.len() / self.item_size
+        self.range.len()
     }
     pub fn total_len(&self) -> usize {
         self.range.len()
@@ -116,12 +112,7 @@ where
     pub fn mark_as_unchanged(&mut self) {
         self.is_changed = false;
     }
-    pub fn allocate_with_size(
-        &mut self,
-        id: &ResourceId,
-        data: &[T],
-        item_size: usize,
-    ) -> (bool, Range<usize>) {
+    pub fn allocate(&mut self, id: &ResourceId, data: &[T]) -> (bool, Range<usize>) {
         self.remove(id);
         self.collapse_free();
         let mut need_realloc = false;
@@ -138,20 +129,16 @@ where
                     &generate_random_uid(),
                     free_data.range.start + size,
                     free_data.range.end,
-                    item_size,
                 ));
             }
-            range = self.insert_at(id, free_data.range.start, data, item_size);
+            range = self.insert_at(id, free_data.range.start, data);
         } else {
-            range = self.insert(id, data, item_size);
+            range = self.insert(id, data);
             need_realloc = true;
         }
         (need_realloc, range)
     }
-    pub fn allocate<U>(&mut self, id: &ResourceId, data: &[U]) -> (bool, Range<usize>) {
-        self.allocate_with_size(id, to_slice(data), std::mem::size_of::<U>())
-    }
-    fn insert(&mut self, id: &ResourceId, data: &[T], item_size: usize) -> Range<usize> {
+    fn insert(&mut self, id: &ResourceId, data: &[T]) -> Range<usize> {
         let start = self.data.len();
         let size = data.len();
         let end = start + size - 1;
@@ -159,17 +146,10 @@ where
 
         self.is_changed = true;
         self.data.extend_from_slice(data);
-        self.occupied
-            .push(BufferData::new(id, start, end, item_size));
+        self.occupied.push(BufferData::new(id, start, end));
         start..end
     }
-    fn insert_at(
-        &mut self,
-        id: &ResourceId,
-        start: usize,
-        data: &[T],
-        item_size: usize,
-    ) -> Range<usize> {
+    fn insert_at(&mut self, id: &ResourceId, start: usize, data: &[T]) -> Range<usize> {
         debug_assert!(start <= self.data.len());
         let size = data.len();
         let end = start + size - 1;
@@ -181,14 +161,11 @@ where
             .iter()
             .position(|d| (d.range.end + 1) == start)
         {
-            self.occupied
-                .insert(i + 1, BufferData::new(id, start, end, item_size));
+            self.occupied.insert(i + 1, BufferData::new(id, start, end));
         } else if let Some(i) = self.occupied.iter().position(|d| d.range.start > end) {
-            self.occupied
-                .insert(i, BufferData::new(id, start, end, item_size));
+            self.occupied.insert(i, BufferData::new(id, start, end));
         } else {
-            self.occupied
-                .push(BufferData::new(id, start, end, item_size));
+            self.occupied.push(BufferData::new(id, start, end));
         }
         start..end
     }
@@ -217,7 +194,7 @@ where
     pub fn item_count(&self) -> usize {
         let mut count = 0;
         self.occupied.iter().for_each(|b| {
-            count += (b.range.end + 1 - b.range.start) / b.item_size;
+            count += b.range.end + 1 - b.range.start;
         });
         count
     }
@@ -382,7 +359,7 @@ fn test_buffer() {
     const NUM_VERTICES: u32 = 4;
     const NUM_MESHES: usize = 4;
 
-    let mut buffer = Buffer::<u8>::default();
+    let mut buffer = Buffer::<Data>::default();
 
     let mut meshes = Vec::new();
     let mut mesh = Mesh::new();
@@ -392,7 +369,9 @@ fn test_buffer() {
     let mut octo_mesh_2 = Mesh::new();
     octo_mesh_2.add(2 * NUM_VERTICES);
     for _ in 0..NUM_MESHES {
-        meshes.push(mesh.clone());
+        let mut mesh = Mesh::new();
+        mesh.add(NUM_VERTICES);
+        meshes.push(mesh);
     }
 
     assert!(buffer.is_empty(), "Allocator should be empty");
@@ -405,7 +384,7 @@ fn test_buffer() {
     );
     assert_eq!(
         buffer.total_len(),
-        NUM_VERTICES as usize * std::mem::size_of::<Data>(),
+        NUM_VERTICES as usize,
         "Allocator should hold a quad"
     );
 
@@ -414,7 +393,7 @@ fn test_buffer() {
     assert_eq!(buffer.item_count(), 0, "Allocator should be 0");
     assert_eq!(
         buffer.total_len(),
-        NUM_VERTICES as usize * std::mem::size_of::<Data>(),
+        NUM_VERTICES as usize,
         "Allocator should have an empty space for a quad"
     );
     assert!(buffer.is_empty(), "Allocator should be empty");
@@ -440,6 +419,13 @@ fn test_buffer() {
     );
 
     assert_eq!(
+        buffer.total_len(),
+        mesh.data.len() * NUM_MESHES,
+        "Allocator should hold {} quad",
+        NUM_MESHES
+    );
+
+    assert_eq!(
         buffer.total_data::<Data>().len(),
         mesh.data.len() * NUM_MESHES,
         "Allocator should hold {} quad",
@@ -451,29 +437,30 @@ fn test_buffer() {
 
     assert_eq!(
         buffer.total_len(),
-        mesh.data.len() * NUM_MESHES * std::mem::size_of::<Data>(),
+        mesh.data.len() * NUM_MESHES,
         "Allocator should hold anyway {} quad",
         NUM_MESHES
     );
     assert_eq!(
         buffer.item_count(),
-        mesh.data.len() * 2,
-        "Allocator should hold only 2 quad",
+        mesh.data.len() * (NUM_MESHES - 2),
+        "Allocator should hold only {} quad",
+        NUM_MESHES - 2,
     );
 
     buffer.allocate(&octo_mesh_1.id, &octo_mesh_1.data);
 
     assert_eq!(
         buffer.item_count(),
-        mesh.data.len() * 2 + octo_mesh_1.data.len(),
+        mesh.data.len() * (NUM_MESHES - 2) + octo_mesh_1.data.len(),
         "Allocator should hold anyway {} quads + 1 octo",
-        NUM_MESHES / 2
+        NUM_MESHES - 2
     );
     assert_eq!(
         buffer.total_len(),
-        (mesh.data.len() * (NUM_MESHES / 2) + octo_mesh_1.data.len()) * std::mem::size_of::<Data>(),
+        (mesh.data.len() * (NUM_MESHES - 2) + octo_mesh_1.data.len()),
         "Allocator should hold anyway {} quads + 1 octo",
-        NUM_MESHES / 2
+        NUM_MESHES - 2
     );
     assert!(buffer.is_full(), "Allocator should be full now");
 
@@ -481,9 +468,9 @@ fn test_buffer() {
 
     assert_eq!(
         buffer.total_len(),
-        (mesh.data.len() * (NUM_MESHES / 2) + octo_mesh_1.data.len()) * std::mem::size_of::<Data>(),
+        (mesh.data.len() * (NUM_MESHES - 2) + octo_mesh_1.data.len()),
         "Allocator should hold anyway {} quads + 1 octo",
-        NUM_MESHES / 2
+        NUM_MESHES - 2
     );
     assert_eq!(
         buffer.item_count(),
@@ -493,18 +480,13 @@ fn test_buffer() {
         mesh.data.len() + octo_mesh_1.data.len(),
     );
 
-    buffer.allocate_with_size(
-        &octo_mesh_2.id,
-        to_slice(&octo_mesh_2.data),
-        std::mem::size_of::<Data>(),
-    );
+    buffer.allocate(&octo_mesh_2.id, &octo_mesh_2.data);
 
     assert_eq!(
         buffer.total_len(),
-        (mesh.data.len() * NUM_MESHES / 2 + octo_mesh_1.data.len() + octo_mesh_2.data.len())
-            * std::mem::size_of::<Data>(),
+        (mesh.data.len() * (NUM_MESHES - 2) + octo_mesh_1.data.len() + octo_mesh_2.data.len()),
         "Allocator should hold anyway {} quads + 2 octos",
-        NUM_MESHES / 2
+        NUM_MESHES - 2
     );
     assert_eq!(
         buffer.item_count(),

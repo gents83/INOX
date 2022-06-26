@@ -1,7 +1,7 @@
 use std::{collections::HashMap, ops::Range};
 
 use inox_math::{pack_4_f32_to_unorm, MatBase, Matrix4};
-use inox_resources::{Buffer, HashBuffer, ResourceId};
+use inox_resources::{to_slice, Buffer, HashBuffer, ResourceId};
 
 use crate::{
     DrawInstance, DrawMaterial, DrawMesh, DrawMeshlet, DrawVertex, Light, LightData, LightId,
@@ -115,14 +115,14 @@ impl RenderBuffers {
         if !mesh_data.tangents.is_empty() {
             tangent_range = self
                 .vertex_tangents
-                .allocate(mesh_id, mesh_data.tangents.as_slice())
+                .allocate(mesh_id, to_slice(mesh_data.tangents.as_slice()))
                 .1;
         }
         let mut uv_range = vec![Range::<usize>::default(); MAX_TEXTURE_COORDS_SETS];
         (0..MAX_TEXTURE_COORDS_SETS).for_each(|i| {
             if !mesh_data.uvs[i].is_empty() {
                 uv_range[i] = self.vertex_uvs[i]
-                    .allocate(mesh_id, mesh_data.uvs[i].as_slice())
+                    .allocate(mesh_id, to_slice(mesh_data.uvs[i].as_slice()))
                     .1;
             }
         });
@@ -146,7 +146,7 @@ impl RenderBuffers {
     }
     pub fn add_mesh(&mut self, mesh_id: &MeshId, mesh_data: &MeshData) {
         inox_profiler::scoped_profile!("render_buffers::add_mesh");
-        self.meshes.remove(mesh_id);
+        self.remove_mesh(mesh_id);
         let (vertex_offset, indices_offset) = self.add_vertex_data(mesh_id, mesh_data);
         let meshlets = Self::extract_meshlets(mesh_data);
         if meshlets.is_empty() {
