@@ -179,18 +179,27 @@ impl Viewer {
                 .get_mut()
                 .render_target(opaque_pass_render_target)
                 .depth_target(opaque_pass_render_target);
-        }
-        if let Some(wireframe_pass) = renderer.read().unwrap().pass::<WireframePass>() {
-            let wireframe_pass_render_target = RenderTarget::Texture {
-                width,
-                height,
-                read_back: false,
-            };
-            wireframe_pass
-                .render_pass()
-                .get_mut()
-                .render_target(wireframe_pass_render_target)
-                .depth_target(wireframe_pass_render_target);
+            if let Some(wireframe_pass) = renderer.read().unwrap().pass::<WireframePass>() {
+                wireframe_pass
+                    .render_pass()
+                    .get_mut()
+                    .render_target_from_texture(
+                        opaque_pass
+                            .render_pass()
+                            .get()
+                            .render_texture()
+                            .as_ref()
+                            .unwrap(),
+                    )
+                    .depth_target_from_texture(
+                        opaque_pass
+                            .render_pass()
+                            .get()
+                            .depth_texture()
+                            .as_ref()
+                            .unwrap(),
+                    );
+            }
         }
         renderer.write().unwrap().add_pass(ui_pass);
     }

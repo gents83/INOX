@@ -3,7 +3,7 @@ use inox_graphics::{RenderPass, OPAQUE_PASS_NAME};
 use inox_messenger::MessageHubRc;
 use inox_resources::{Resource, SharedData, SharedDataRc};
 use inox_ui::{
-    implement_widget_data, CentralPanel, Frame, Image, LayerId, Sense, TextureId as eguiTextureId,
+    implement_widget_data, CentralPanel, Image, LayerId, Sense, TextureId as eguiTextureId,
     UIWidget, Widget,
 };
 
@@ -45,27 +45,23 @@ impl View3D {
     ) -> Resource<UIWidget> {
         UIWidget::register(shared_data, message_hub, data, |ui_data, ui_context| {
             if let Some(data) = ui_data.as_any_mut().downcast_mut::<View3DData>() {
-                CentralPanel::default()
-                    .frame(Frame::dark_canvas(ui_context.style().as_ref()))
-                    .show(ui_context, |ui| {
-                        let view_width = ui.max_rect().width() as u32;
-                        let view_height = ui.max_rect().height() as u32;
+                CentralPanel::default().show(ui_context, |ui| {
+                    let view_width = ui.max_rect().width() as u32;
+                    let view_height = ui.max_rect().height() as u32;
 
-                        let texture_uniform_index = Self::get_render_pass_texture_index(
-                            &data.shared_data,
-                            OPAQUE_PASS_NAME,
-                        );
+                    let texture_uniform_index =
+                        Self::get_render_pass_texture_index(&data.shared_data, OPAQUE_PASS_NAME);
 
-                        ui.with_layer_id(LayerId::background(), |ui| {
-                            let response = Image::new(
-                                eguiTextureId::User(texture_uniform_index as _),
-                                [view_width as _, view_height as _],
-                            )
-                            .sense(Sense::click_and_drag())
-                            .ui(ui);
-                            data.is_interacting = response.is_pointer_button_down_on();
-                        })
-                    });
+                    ui.with_layer_id(LayerId::background(), |ui| {
+                        let response = Image::new(
+                            eguiTextureId::User(texture_uniform_index as _),
+                            [view_width as _, view_height as _],
+                        )
+                        .sense(Sense::click_and_drag())
+                        .ui(ui);
+                        data.is_interacting = response.is_pointer_button_down_on();
+                    })
+                });
             }
         })
     }

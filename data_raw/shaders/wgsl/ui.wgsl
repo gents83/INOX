@@ -144,9 +144,9 @@ fn vs_main(
     );
     let color = u32(v_in.color);
     let c = unpack_color(color);
-    vertex_out.color = vec4<f32>(c.abgr / 255.0);
+    vertex_out.color = vec4<f32>(c / 255.);
     vertex_out.tex_coords = vec3<f32>(v_in.uv.xy, f32(i_in.texture_index));
-
+    
     return vertex_out;
 }
 
