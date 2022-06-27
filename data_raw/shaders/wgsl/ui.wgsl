@@ -129,7 +129,12 @@ fn vs_main(
     let ui_scale = 2.;
 
     var vertex_out: VertexOutput;
-    vertex_out.clip_position = vec4<f32>(2. * positions_and_colors.data[v_in.position_and_color_offset].x * ui_scale / constant_data.screen_width - 1., 1. - 2. * positions_and_colors.data[v_in.position_and_color_offset].y * ui_scale / constant_data.screen_height, positions_and_colors.data[v_in.position_and_color_offset].z, 1.);
+    vertex_out.clip_position = vec4<f32>(
+        2. * positions_and_colors.data[v_in.position_and_color_offset].x * ui_scale / constant_data.screen_width - 1.,
+        1. - 2. * positions_and_colors.data[v_in.position_and_color_offset].y * ui_scale / constant_data.screen_height,
+        positions_and_colors.data[v_in.position_and_color_offset].z,
+        1.
+    );
     let color = u32(positions_and_colors.data[v_in.position_and_color_offset].w);
     let c = unpack_color(color);
     vertex_out.color = vec4<f32>(c.rgb / 255.0, f32((color / 255u) & 255u));

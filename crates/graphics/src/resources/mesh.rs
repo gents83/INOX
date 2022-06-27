@@ -23,7 +23,7 @@ pub enum MeshFlags {
     Opaque = 1 << 1,
     Tranparent = 1 << 2,
     Wireframe = 1 << 3,
-    Ui = 1 << 4,
+    Custom = 1 << 4,
 }
 
 impl Default for MeshFlags {

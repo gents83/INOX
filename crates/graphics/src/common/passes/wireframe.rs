@@ -1,43 +1,45 @@
 use std::path::PathBuf;
 
 use crate::{
-    BindingData, BindingInfo, MeshFlags, Pass, RenderContext, RenderPass, RenderPassData,
-    RenderTarget, ShaderStage, StoreOperation,
+    BindingData, BindingInfo, LoadOperation, MeshFlags, Pass, RenderContext, RenderPass,
+    RenderPassData, RenderTarget, ShaderStage, StoreOperation,
 };
 
 use inox_core::ContextRc;
 use inox_resources::{DataTypeResource, Resource};
 use inox_uid::generate_random_uid;
 
-pub const DEFAULT_PIPELINE: &str = "pipelines/Default.render_pipeline";
-pub const OPAQUE_PASS_NAME: &str = "OpaquePass";
+pub const WIREFRAME_PIPELINE: &str = "pipelines/Wireframe.render_pipeline";
+pub const WIREFRAME_PASS_NAME: &str = "WireframePass";
 
-pub struct OpaquePass {
+pub struct WireframePass {
     render_pass: Resource<RenderPass>,
     binding_data: BindingData,
 }
-unsafe impl Send for OpaquePass {}
-unsafe impl Sync for OpaquePass {}
+unsafe impl Send for WireframePass {}
+unsafe impl Sync for WireframePass {}
 
-impl Pass for OpaquePass {
+impl Pass for WireframePass {
     fn name(&self) -> &str {
-        OPAQUE_PASS_NAME
+        WIREFRAME_PASS_NAME
     }
     fn static_name() -> &'static str {
-        OPAQUE_PASS_NAME
+        WIREFRAME_PASS_NAME
     }
     fn create(context: &ContextRc) -> Self
     where
         Self: Sized,
     {
-        inox_profiler::scoped_profile!("opaque_pass::create");
+        inox_profiler::scoped_profile!("wireframe_pass::create");
 
         let data = RenderPassData {
-            name: OPAQUE_PASS_NAME.to_string(),
+            name: WIREFRAME_PASS_NAME.to_string(),
+            load_color: LoadOperation::Load,
+            load_depth: LoadOperation::Load,
             store_color: StoreOperation::Store,
             store_depth: StoreOperation::Store,
             render_target: RenderTarget::Screen,
-            pipeline: PathBuf::from(DEFAULT_PIPELINE),
+            pipeline: PathBuf::from(WIREFRAME_PIPELINE),
             ..Default::default()
         };
 
@@ -53,9 +55,9 @@ impl Pass for OpaquePass {
         }
     }
     fn init(&mut self, render_context: &mut RenderContext) {
-        inox_profiler::scoped_profile!("opaque_pass::init");
+        inox_profiler::scoped_profile!("wireframe_pass::init");
 
-        let mesh_flags = MeshFlags::Visible | MeshFlags::Opaque;
+        let mesh_flags = MeshFlags::Visible | MeshFlags::Wireframe;
 
         if !render_context.has_instances(mesh_flags)
             || render_context
@@ -132,9 +134,9 @@ impl Pass for OpaquePass {
         pass.init_pipeline(render_context, &self.binding_data);
     }
     fn update(&mut self, render_context: &mut RenderContext) {
-        inox_profiler::scoped_profile!("opaque_pass::update");
+        inox_profiler::scoped_profile!("wireframe_pass::update");
 
-        if !render_context.has_instances(MeshFlags::Visible | MeshFlags::Opaque) {
+        if !render_context.has_instances(MeshFlags::Visible | MeshFlags::Wireframe) {
             return;
         }
 
@@ -148,7 +150,7 @@ impl Pass for OpaquePass {
     }
 }
 
-impl OpaquePass {
+impl WireframePass {
     pub fn render_pass(&self) -> &Resource<RenderPass> {
         &self.render_pass
     }

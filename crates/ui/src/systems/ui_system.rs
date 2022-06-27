@@ -108,32 +108,26 @@ impl UISystem {
         let shared_data = self.shared_data.clone();
         let message_hub = self.message_hub.clone();
 
-        self.ui_meshes.resize_with(clipped_meshes.len(), || {
-            let mesh = Mesh::new_resource(
-                &shared_data,
-                &message_hub,
-                generate_random_uid(),
-                MeshData::default(),
-                None,
-            );
-            mesh.get_mut().set_flags(MeshFlags::Visible | MeshFlags::Ui);
-            mesh
+        self.ui_meshes.iter().for_each(|m| {
+            m.get_mut().remove_flag(MeshFlags::Visible);
         });
+        self.ui_meshes.clear();
 
         for (i, clipped_mesh) in clipped_meshes.into_iter().enumerate() {
             if let Primitive::Mesh(mesh) = clipped_mesh.primitive {
                 if mesh.vertices.is_empty() || mesh.indices.is_empty() {
-                    self.ui_meshes[i]
-                        .get_mut()
-                        .remove_flag(MeshFlags::Visible)
-                        .reset_draw_area();
                     continue;
-                } else {
-                    self.ui_meshes[i]
-                        .get_mut()
-                        .add_flag(MeshFlags::Visible)
-                        .reset_draw_area();
                 }
+                let ui_mesh = Mesh::new_resource(
+                    &shared_data,
+                    &message_hub,
+                    generate_random_uid(),
+                    MeshData::default(),
+                    None,
+                );
+                ui_mesh
+                    .get_mut()
+                    .set_flags(MeshFlags::Visible | MeshFlags::Custom);
 
                 let texture = match mesh.texture_id {
                     eguiTextureId::Managed(_) => self.ui_textures[&mesh.texture_id].clone(),
@@ -149,57 +143,50 @@ impl UISystem {
                 };
 
                 let material = self.get_ui_material(texture);
-                let mesh_instance = self.ui_meshes[i].clone();
                 let ui_scale = self.ui_scale;
                 let clip_rect = clipped_mesh.clip_rect;
 
-                self.job_handler.add_job(
-                    &UISystem::system_id(),
-                    format!("ui_system::ui_mesh_{}_data", i).as_str(),
-                    JobPriority::Medium,
-                    move || {
-                        {
-                            inox_profiler::scoped_profile!("ui_system::set_mesh_properties");
-                            mesh_instance
-                                .get_mut()
-                                .set_path(PathBuf::from(format!("UI_Mesh[{}].ui", i)).as_path())
-                                .set_material(material)
-                                .set_draw_area(Vector4::new(
-                                    clip_rect.min.x * ui_scale,
-                                    clip_rect.min.y * ui_scale,
-                                    clip_rect.max.x * ui_scale,
-                                    clip_rect.max.y * ui_scale,
-                                ))
-                                .add_flag(MeshFlags::Visible);
-                        }
+                {
+                    inox_profiler::scoped_profile!("ui_system::set_mesh_properties");
+                    ui_mesh
+                        .get_mut()
+                        .set_path(PathBuf::from(format!("UI_Mesh[{}].ui", i)).as_path())
+                        .set_material(material)
+                        .set_draw_area(Vector4::new(
+                            clip_rect.min.x * ui_scale,
+                            clip_rect.min.y * ui_scale,
+                            clip_rect.max.x * ui_scale,
+                            clip_rect.max.y * ui_scale,
+                        ))
+                        .add_flag(MeshFlags::Visible);
+                }
 
-                        {
-                            inox_profiler::scoped_profile!("ui_system::create_mesh_data");
-                            let mut mesh_data = MeshData::default();
-                            mesh.vertices.iter().for_each(|v| {
-                                let p = [v.pos.x, v.pos.y, (1 / (1000 - i)) as _];
-                                let color = v.color.to_array();
-                                let c = Vector4::new(
-                                    color[0] as f32 / 255.,
-                                    color[1] as f32 / 255.,
-                                    color[2] as f32 / 255.,
-                                    color[3] as f32 / 255.,
-                                );
-                                let uv = [v.uv.x, v.uv.y];
-                                mesh_data.add_vertex_pos_color_uv(p.into(), c, uv.into());
-                            });
-                            mesh_data.indices.extend_from_slice(&mesh.indices);
-                            let meshlet = MeshletData {
-                                vertices_count: mesh_data.vertex_count() as _,
-                                indices_count: mesh_data.index_count() as _,
-                                ..Default::default()
-                            };
-                            mesh_data.meshlets.push(meshlet);
+                {
+                    inox_profiler::scoped_profile!("ui_system::create_mesh_data");
+                    let mut mesh_data = MeshData::default();
+                    mesh.vertices.iter().for_each(|v| {
+                        let p = [v.pos.x, v.pos.y, 0.001 * i as f32];
+                        let color = v.color.to_array();
+                        let c = Vector4::new(
+                            color[0] as f32 / 255.,
+                            color[1] as f32 / 255.,
+                            color[2] as f32 / 255.,
+                            color[3] as f32 / 255.,
+                        );
+                        let uv = [v.uv.x, v.uv.y];
+                        mesh_data.add_vertex_pos_color_uv(p.into(), c, uv.into());
+                    });
+                    mesh_data.indices.extend_from_slice(&mesh.indices);
+                    let meshlet = MeshletData {
+                        vertices_count: mesh_data.vertex_count() as _,
+                        indices_count: mesh_data.index_count() as _,
+                        ..Default::default()
+                    };
+                    mesh_data.meshlets.push(meshlet);
 
-                            mesh_instance.get_mut().set_mesh_data(mesh_data);
-                        }
-                    },
-                );
+                    ui_mesh.get_mut().set_mesh_data(mesh_data);
+                }
+                self.ui_meshes.push(ui_mesh);
             }
         }
     }

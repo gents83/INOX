@@ -4,8 +4,8 @@ use inox_core::{define_plugin, ContextRc, Plugin, SystemUID, WindowSystem};
 
 use inox_graphics::{
     rendering_system::RenderingSystem, update_system::UpdateSystem, DebugDrawerSystem, OpaquePass,
-    Pass, RenderPass, RenderTarget, Renderer, RendererRw, DEFAULT_HEIGHT, DEFAULT_WIDTH,
-    OPAQUE_PASS_NAME,
+    Pass, RenderPass, RenderTarget, Renderer, RendererRw, WireframePass, DEFAULT_HEIGHT,
+    DEFAULT_WIDTH, OPAQUE_PASS_NAME, WIREFRAME_PASS_NAME,
 };
 use inox_platform::Window;
 use inox_resources::ConfigBase;
@@ -15,7 +15,8 @@ use inox_ui::{UIPass, UISystem, UI_PASS_NAME};
 
 use crate::{config::Config, systems::viewer_system::ViewerSystem};
 
-const ADD_UI_PASS: bool = true;
+const ADD_WIREFRAME_PASS: bool = true;
+const ADD_UI_PASS: bool = false;
 
 pub struct Viewer {
     window: Option<Window>,
@@ -87,12 +88,16 @@ impl Plugin for Viewer {
         if let Some(ui_system) = ui_system.take() {
             context.add_system(inox_core::Phases::Update, ui_system, None);
         }
-        let debug_drawer_system = DebugDrawerSystem::new(context);
-        context.add_system(inox_core::Phases::Update, debug_drawer_system, None);
+        if ADD_WIREFRAME_PASS {
+            let debug_drawer_system = DebugDrawerSystem::new(context);
+            context.add_system(inox_core::Phases::Update, debug_drawer_system, None);
+        }
     }
 
     fn unprepare(&mut self, context: &ContextRc) {
-        context.remove_system(inox_core::Phases::Update, &DebugDrawerSystem::system_id());
+        if ADD_WIREFRAME_PASS {
+            context.remove_system(inox_core::Phases::Update, &DebugDrawerSystem::system_id());
+        }
         if ADD_UI_PASS {
             context.remove_system(inox_core::Phases::Update, &UISystem::system_id());
         }
@@ -120,14 +125,21 @@ impl Plugin for Viewer {
                 if let Some(ui_pass) =
                     shared_data.match_resource(|r: &RenderPass| r.name() == UI_PASS_NAME)
                 {
-                    ui_pass.get_mut().set_pipelines(&data.ui_pass_pipelines);
+                    ui_pass.get_mut().set_pipeline(&data.ui_pass_pipeline);
                 }
                 if let Some(opaque_pass) =
                     shared_data.match_resource(|r: &RenderPass| r.name() == OPAQUE_PASS_NAME)
                 {
                     opaque_pass
                         .get_mut()
-                        .set_pipelines(&data.opaque_pass_pipelines);
+                        .set_pipeline(&data.opaque_pass_pipeline);
+                }
+                if let Some(wireframe_pass) =
+                    shared_data.match_resource(|r: &RenderPass| r.name() == WIREFRAME_PASS_NAME)
+                {
+                    wireframe_pass
+                        .get_mut()
+                        .set_pipeline(&data.wireframe_pass_pipeline);
                 }
             }),
         );
@@ -137,6 +149,9 @@ impl Plugin for Viewer {
 impl Viewer {
     fn create_render_passes(context: &ContextRc, renderer: &RendererRw, width: u32, height: u32) {
         Self::create_opaque_pass(context, renderer);
+        if ADD_WIREFRAME_PASS {
+            Self::create_wireframe_pass(context, renderer);
+        }
         if ADD_UI_PASS {
             Self::create_ui_pass(context, renderer, width, height);
         }
@@ -145,6 +160,11 @@ impl Viewer {
         let opaque_pass = OpaquePass::create(context);
 
         renderer.write().unwrap().add_pass(opaque_pass);
+    }
+    fn create_wireframe_pass(context: &ContextRc, renderer: &RendererRw) {
+        let wireframe_pass = WireframePass::create(context);
+
+        renderer.write().unwrap().add_pass(wireframe_pass);
     }
     fn create_ui_pass(context: &ContextRc, renderer: &RendererRw, width: u32, height: u32) {
         let ui_pass = UIPass::create(context);
@@ -159,6 +179,18 @@ impl Viewer {
                 .get_mut()
                 .render_target(opaque_pass_render_target)
                 .depth_target(opaque_pass_render_target);
+        }
+        if let Some(wireframe_pass) = renderer.read().unwrap().pass::<WireframePass>() {
+            let wireframe_pass_render_target = RenderTarget::Texture {
+                width,
+                height,
+                read_back: false,
+            };
+            wireframe_pass
+                .render_pass()
+                .get_mut()
+                .render_target(wireframe_pass_render_target)
+                .depth_target(wireframe_pass_render_target);
         }
         renderer.write().unwrap().add_pass(ui_pass);
     }

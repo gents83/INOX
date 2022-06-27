@@ -60,7 +60,7 @@ pub struct RenderPassData {
     pub render_target: RenderTarget,
     pub depth_target: RenderTarget,
     pub render_mode: RenderMode,
-    pub pipelines: Vec<PathBuf>,
+    pub pipeline: PathBuf,
 }
 
 impl SerializeFile for RenderPassData {
@@ -83,7 +83,7 @@ impl Default for RenderPassData {
             render_target: RenderTarget::Screen,
             depth_target: RenderTarget::None,
             render_mode: RenderMode::Indirect,
-            pipelines: Vec::new(),
+            pipeline: PathBuf::new(),
         }
     }
 }

@@ -1,6 +1,7 @@
 use std::num::NonZeroU32;
 
-use inox_uid::Uid;
+use inox_resources::ResourceId;
+use inox_uid::{Uid, INVALID_UID};
 
 use crate::{
     platform::required_gpu_features, AsBinding, BindingDataBuffer, RenderContext,
@@ -42,12 +43,15 @@ enum BindingType {
     DepthSampler,
     TextureArray(Box<[TextureId; MAX_TEXTURE_ATLAS_COUNT as usize]>),
 }
+
 #[derive(Default)]
 pub struct BindingData {
     bind_group_layout: Vec<wgpu::BindGroupLayout>,
     bind_group: Vec<wgpu::BindGroup>,
     binding_types: Vec<Vec<BindingType>>,
     bind_group_layout_entries: Vec<Vec<wgpu::BindGroupLayoutEntry>>,
+    vertex_buffers: Vec<ResourceId>,
+    index_buffer: ResourceId,
     is_dirty: bool,
 }
 
@@ -68,6 +72,60 @@ impl BindingData {
             self.binding_types
                 .resize(group_index as usize + 1, Default::default());
         }
+    }
+    pub fn set_vertex_buffer<T>(
+        &mut self,
+        render_core_context: &RenderCoreContext,
+        binding_data_buffer: &BindingDataBuffer,
+        index: usize,
+        data: &mut T,
+    ) -> &mut Self
+    where
+        T: AsBinding,
+    {
+        let usage =
+            wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::VERTEX;
+        let (id, is_changed) = binding_data_buffer.bind_buffer(data, usage, render_core_context);
+
+        if index <= self.vertex_buffers.len() {
+            self.vertex_buffers.resize(index + 1, INVALID_UID);
+        }
+        self.vertex_buffers[index] = id;
+
+        if is_changed {
+            self.is_dirty = true;
+        }
+        self
+    }
+    pub fn set_index_buffer<T>(
+        &mut self,
+        render_core_context: &RenderCoreContext,
+        binding_data_buffer: &BindingDataBuffer,
+        data: &mut T,
+    ) -> &mut Self
+    where
+        T: AsBinding,
+    {
+        let usage =
+            wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::INDEX;
+        let (id, is_changed) = binding_data_buffer.bind_buffer(data, usage, render_core_context);
+
+        self.index_buffer = id;
+
+        if is_changed {
+            self.is_dirty = true;
+        }
+        self
+    }
+
+    pub fn vertex_buffers_count(&self) -> usize {
+        self.vertex_buffers.len()
+    }
+    pub fn vertex_buffer(&self, index: usize) -> &ResourceId {
+        &self.vertex_buffers[index]
+    }
+    pub fn index_buffer(&self) -> &ResourceId {
+        &self.index_buffer
     }
 
     pub fn add_uniform_data<T>(
@@ -298,7 +356,6 @@ impl BindingData {
 
         self
     }
-
     pub fn send_to_gpu(&mut self, render_context: &RenderContext) -> BindingState {
         inox_profiler::scoped_profile!("binding_data::send_to_gpu");
         if !self.is_dirty && !self.bind_group.is_empty() && !self.bind_group_layout.is_empty() {

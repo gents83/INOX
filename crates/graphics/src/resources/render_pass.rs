@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::Path;
 
 use image::DynamicImage;
 use inox_messenger::MessageHubRc;
@@ -9,7 +9,6 @@ use inox_resources::{
 use inox_serialize::{inox_serializable::SerializableRegistryRc, read_from_file};
 use inox_uid::generate_random_uid;
 
-use crate::common::as_binding::AsBinding;
 use crate::{
     BindingData, LoadOperation, RenderContext, RenderMode, RenderPassData, RenderPipeline,
     RenderTarget, StoreOperation, Texture, TextureId,
@@ -27,7 +26,7 @@ pub struct RenderPass {
     load_depth: LoadOperation,
     store_depth: StoreOperation,
     render_mode: RenderMode,
-    pipelines: Vec<Resource<RenderPipeline>>,
+    pipeline: Handle<RenderPipeline>,
     render_texture: Handle<Texture>,
     depth_texture: Handle<Texture>,
     is_initialized: bool,
@@ -74,7 +73,7 @@ impl DataTypeResource for RenderPass {
             load_depth: LoadOperation::DontCare,
             store_depth: StoreOperation::DontCare,
             render_mode: RenderMode::Indirect,
-            pipelines: Vec::new(),
+            pipeline: None,
             render_texture: None,
             depth_texture: None,
             is_initialized: false,
@@ -113,14 +112,14 @@ impl DataTypeResource for RenderPass {
             load_depth: data.load_depth,
             store_depth: data.store_depth,
             render_mode: data.render_mode,
-            pipelines: Vec::new(),
+            pipeline: None,
             render_texture: None,
             depth_texture: None,
             is_initialized: false,
         };
         pass.render_target(data.render_target)
             .depth_target(data.depth_target)
-            .set_pipelines(&data.pipelines);
+            .set_pipeline(&data.pipeline);
         pass
     }
 }
@@ -129,22 +128,15 @@ impl RenderPass {
     pub fn name(&self) -> &str {
         &self.name
     }
-    pub fn pipelines(&self) -> &[Resource<RenderPipeline>] {
-        self.pipelines.as_slice()
+    pub fn pipeline(&self) -> &Resource<RenderPipeline> {
+        self.pipeline.as_ref().unwrap()
     }
-    pub fn set_pipelines(&mut self, pipelines: &[PathBuf]) -> &mut Self {
-        self.pipelines.clear();
-        pipelines.iter().for_each(|path| {
-            if !path.as_os_str().is_empty() {
-                let pipeline = RenderPipeline::request_load(
-                    &self.shared_data,
-                    &self.message_hub,
-                    path.as_path(),
-                    None,
-                );
-                self.pipelines.push(pipeline);
-            };
-        });
+    pub fn set_pipeline(&mut self, path: &Path) -> &mut Self {
+        if !path.as_os_str().is_empty() {
+            let pipeline =
+                RenderPipeline::request_load(&self.shared_data, &self.message_hub, path, None);
+            self.pipeline = Some(pipeline);
+        };
         self
     }
     pub fn render_target(&mut self, render_target: RenderTarget) -> &mut Self {
@@ -272,41 +264,18 @@ impl RenderPass {
         }
     }
 
-    pub fn init_pipelines(
+    pub fn init_pipeline(
         &mut self,
         render_context: &mut RenderContext,
         binding_data: &BindingData,
     ) {
-        render_context.binding_data_buffer.bind_buffer(
-            &mut render_context.render_buffers.vertices,
-            wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::VERTEX,
-            &render_context.core,
-        );
-        render_context.binding_data_buffer.bind_buffer(
-            &mut render_context.render_buffers.indices,
-            wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::INDEX,
-            &render_context.core,
-        );
-        self.pipelines.iter().for_each(|pipeline| {
-            let mesh_flags = pipeline.get().data().mesh_flags;
-            if let Some(instances) = render_context.render_buffers.instances.get_mut(&mesh_flags) {
-                render_context.binding_data_buffer.bind_buffer(
-                    instances,
-                    wgpu::BufferUsages::COPY_DST
-                        | wgpu::BufferUsages::STORAGE
-                        | wgpu::BufferUsages::VERTEX,
-                    &render_context.core,
-                );
-            }
-        });
-
         let render_format = render_context.render_format(self);
         let depth_format = render_context.depth_format(self);
-        self.pipelines.iter().for_each(|pipeline| {
+        if let Some(pipeline) = &self.pipeline {
             pipeline
                 .get_mut()
                 .init(render_context, render_format, depth_format, binding_data);
-        });
+        }
     }
     pub fn color_operations(&self) -> wgpu::Operations<wgpu::Color> {
         wgpu::Operations {
@@ -338,11 +307,8 @@ impl RenderPass {
         let depth_target = render_context.depth_target(self);
 
         let color_operations = self.color_operations();
-        let mut depth_write_enabled = false;
-        let pipelines = self.pipelines().iter().map(|h| h.get()).collect::<Vec<_>>();
-        pipelines.iter().for_each(|pipeline| {
-            depth_write_enabled |= pipeline.data().depth_write_enabled;
-        });
+        let pipeline = self.pipeline().get();
+        let depth_write_enabled = pipeline.data().depth_write_enabled;
 
         let label = format!("RenderPass {}", self.name);
         let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -377,80 +343,85 @@ impl RenderPass {
         render_pass
     }
 
-    pub fn draw(&self, render_context: &RenderContext, render_pass: wgpu::RenderPass) {
-        let binding_data_buffers = render_context.binding_data_buffer.buffers.read().unwrap();
-        let pipelines = self.pipelines().iter().map(|h| h.get()).collect::<Vec<_>>();
+    pub fn draw(
+        &self,
+        render_context: &RenderContext,
+        binding_data: &BindingData,
+        render_pass: wgpu::RenderPass,
+    ) {
+        let buffers = render_context.binding_data_buffer.buffers.read().unwrap();
+        let pipeline = self.pipeline().get();
         {
             let mut render_pass = render_pass;
-            pipelines.iter().for_each(|pipeline| {
-                if !pipeline.is_initialized() {
-                    return;
+
+            if !pipeline.is_initialized() {
+                return;
+            }
+            if let Some(instances) = render_context
+                .render_buffers
+                .instances
+                .get(&pipeline.data().mesh_flags)
+            {
+                render_pass.set_pipeline(pipeline.render_pipeline());
+
+                let num_vertex_buffers = binding_data.vertex_buffers_count();
+                for i in 0..num_vertex_buffers {
+                    let id = binding_data.vertex_buffer(i);
+                    if let Some(buffer) = buffers.get(id) {
+                        render_pass
+                            .set_vertex_buffer(i as _, buffer.gpu_buffer().unwrap().slice(..));
+                    }
                 }
-                if let Some(instances) = render_context
+
+                let index_id = binding_data.index_buffer();
+                if let Some(buffer) = buffers.get(index_id) {
+                    render_pass.set_index_buffer(
+                        buffer.gpu_buffer().unwrap().slice(..),
+                        crate::IndexFormat::U32.into(),
+                    );
+                }
+
+                let meshlets = render_context.render_buffers.meshlets.data();
+                instances.for_each_entry(|index, instance| {
+                    /*if let Some(mesh_id) = render_context
                     .render_buffers
-                    .instances
-                    .get(&pipeline.data().mesh_flags)
-                {
-                    render_pass.set_pipeline(pipeline.render_pipeline());
-
-                    let vertices_id = render_context.render_buffers.vertices.id();
-                    if let Some(buffer) = binding_data_buffers.get(&vertices_id) {
-                        render_pass.set_vertex_buffer(0, buffer.gpu_buffer().unwrap().slice(..));
-                    }
-
-                    let instances_id = instances.id();
-                    if let Some(buffer) = binding_data_buffers.get(&instances_id) {
-                        render_pass.set_vertex_buffer(1, buffer.gpu_buffer().unwrap().slice(..));
-                    }
-
-                    let index_id = render_context.render_buffers.indices.id();
-                    if let Some(buffer) = binding_data_buffers.get(&index_id) {
-                        render_pass.set_index_buffer(
-                            buffer.gpu_buffer().unwrap().slice(..),
-                            crate::IndexFormat::U32.into(),
-                        );
-                    }
-
-                    let meshlets = render_context.render_buffers.meshlets.data();
-                    instances.for_each_entry(|index, instance| {
-                        if let Some(mesh_id) = render_context
+                    .meshes
+                    .id_at(instance.mesh_index as _)*/
+                    {
+                        let mesh = render_context
                             .render_buffers
                             .meshes
-                            .id_at(instance.mesh_index as _)
-                        {
-                            let mesh = render_context
-                                .render_buffers
-                                .meshes
-                                .at(instance.mesh_index as _);
-                            for i in mesh.meshlet_offset..mesh.meshlet_offset + mesh.meshlet_count {
-                                let meshlet = &meshlets[i as usize];
-                                if let Some(area) =
-                                    render_context.render_buffers.draw_area.get(&mesh_id)
-                                {
-                                    let x =
-                                        (area[0] as u32).clamp(0, render_context.core.config.width);
-                                    let y = (area[1] as u32)
-                                        .clamp(0, render_context.core.config.height);
-                                    let width = (area[2] as u32)
-                                        .clamp(0, render_context.core.config.width - x);
-                                    let height = (area[3] as u32)
-                                        .clamp(0, render_context.core.config.height - y);
-                                    render_pass.set_scissor_rect(x, y, width, height);
-                                }
-                                render_pass.draw_indexed(
-                                    (mesh.indices_offset + meshlet.indices_offset) as _
-                                        ..(mesh.indices_offset
-                                            + meshlet.indices_offset
-                                            + meshlet.indices_count)
-                                            as _,
-                                    mesh.vertex_offset as _,
-                                    index as _..(index as u32 + 1),
-                                );
+                            .at(instance.mesh_index as _);
+                        for i in mesh.meshlet_offset..mesh.meshlet_offset + mesh.meshlet_count {
+                            let meshlet = &meshlets[i as usize];
+                            /*
+                            if let Some(area) =
+                                render_context.render_buffers.draw_area.get(&mesh_id)
+                            {
+                                let x =
+                                    (area[0] as u32).clamp(0, render_context.core.config.width);
+                                let y = (area[1] as u32)
+                                    .clamp(0, render_context.core.config.height);
+                                let width = (x + area[2] as u32)
+                                    .clamp(0, render_context.core.config.width - x);
+                                let height = (y + area[3] as u32)
+                                    .clamp(0, render_context.core.config.height - y);
+                                render_pass.set_scissor_rect(x, y, width, height);
                             }
+                            */
+                            render_pass.draw_indexed(
+                                (mesh.indices_offset + meshlet.indices_offset) as _
+                                    ..(mesh.indices_offset
+                                        + meshlet.indices_offset
+                                        + meshlet.indices_count)
+                                        as _,
+                                mesh.vertex_offset as _,
+                                index as _..(index as u32 + 1),
+                            );
                         }
-                    });
-                }
-            });
+                    }
+                });
+            }
         }
     }
 }

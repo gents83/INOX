@@ -37,7 +37,7 @@ impl Pass for TransparentPass {
             load_depth: LoadOperation::Load,
             store_depth: StoreOperation::Store,
             render_target: RenderTarget::Screen,
-            pipelines: vec![PathBuf::from(TRANSPARENT_PIPELINE)],
+            pipeline: PathBuf::from(TRANSPARENT_PIPELINE),
             ..Default::default()
         };
         Self {
@@ -92,7 +92,7 @@ impl Pass for TransparentPass {
             );
         self.binding_data.send_to_gpu(render_context);
 
-        pass.init_pipelines(render_context, &self.binding_data);
+        pass.init_pipeline(render_context, &self.binding_data);
     }
     fn update(&mut self, render_context: &mut RenderContext) {
         let pass = self.render_pass.get();
@@ -100,7 +100,7 @@ impl Pass for TransparentPass {
         let mut encoder = render_context.core.new_encoder();
 
         let render_pass = pass.begin(render_context, &self.binding_data, &mut encoder);
-        pass.draw(render_context, render_pass);
+        pass.draw(render_context, &self.binding_data, render_pass);
 
         render_context.core.submit(encoder);
     }

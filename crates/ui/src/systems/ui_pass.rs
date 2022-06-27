@@ -56,7 +56,7 @@ impl Pass for UIPass {
             name: UI_PASS_NAME.to_string(),
             store_color: StoreOperation::Store,
             render_target: RenderTarget::Screen,
-            pipelines: vec![PathBuf::from(UI_PIPELINE)],
+            pipeline: PathBuf::from(UI_PIPELINE),
             ..Default::default()
         };
         Self {
@@ -74,7 +74,7 @@ impl Pass for UIPass {
     fn init(&mut self, render_context: &mut RenderContext) {
         inox_profiler::scoped_profile!("ui_pass::init");
 
-        let mesh_flags = MeshFlags::Visible | MeshFlags::Ui;
+        let mesh_flags = MeshFlags::Visible | MeshFlags::Custom;
 
         if !render_context.has_instances(mesh_flags)
             || render_context
@@ -93,6 +93,12 @@ impl Pass for UIPass {
         let mut pass = self.render_pass.get_mut();
         let render_texture = pass.render_texture_id();
         let depth_texture = pass.depth_texture_id();
+
+        let instances = render_context
+            .render_buffers
+            .instances
+            .get_mut(&mesh_flags)
+            .unwrap();
 
         self.binding_data
             .add_uniform_data(
@@ -175,15 +181,32 @@ impl Pass for UIPass {
                     stage: ShaderStage::Fragment,
                     ..Default::default()
                 },
+            )
+            .set_vertex_buffer(
+                &render_context.core,
+                &render_context.binding_data_buffer,
+                0,
+                &mut render_context.render_buffers.vertices,
+            )
+            .set_vertex_buffer(
+                &render_context.core,
+                &render_context.binding_data_buffer,
+                1,
+                instances,
+            )
+            .set_index_buffer(
+                &render_context.core,
+                &render_context.binding_data_buffer,
+                &mut render_context.render_buffers.indices,
             );
         self.binding_data.send_to_gpu(render_context);
 
-        pass.init_pipelines(render_context, &self.binding_data);
+        pass.init_pipeline(render_context, &self.binding_data);
     }
     fn update(&mut self, render_context: &mut RenderContext) {
         inox_profiler::scoped_profile!("ui_pass::update");
 
-        let mesh_flags = MeshFlags::Visible | MeshFlags::Ui;
+        let mesh_flags = MeshFlags::Visible | MeshFlags::Custom;
         if !render_context.has_instances(mesh_flags) {
             return;
         }
@@ -192,7 +215,7 @@ impl Pass for UIPass {
         let mut encoder = render_context.core.new_encoder();
 
         let render_pass = pass.begin(render_context, &self.binding_data, &mut encoder);
-        pass.draw(render_context, render_pass);
+        pass.draw(render_context, &self.binding_data, render_pass);
 
         render_context.core.submit(encoder);
     }
