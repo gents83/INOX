@@ -144,9 +144,10 @@ fn vs_main(
     );
     let color = u32(v_in.color);
     let c = unpack_color(color);
+    //vertex_out.color = vec4<f32>(linear_from_srgb(c.rgb), c.a / 255.0);
     vertex_out.color = vec4<f32>(c / 255.);
     vertex_out.tex_coords = vec3<f32>(v_in.uv.xy, f32(i_in.texture_index));
-    
+
     return vertex_out;
 }
 
@@ -154,5 +155,6 @@ fn vs_main(
 fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
 
     let texture_color = get_texture_color(v_in.tex_coords);
-    return v_in.color * texture_color;
+    let final_color = vec4<f32>(v_in.color .rgb * texture_color.rgb, v_in.color.a);
+    return final_color;
 }
