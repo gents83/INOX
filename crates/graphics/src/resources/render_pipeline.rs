@@ -9,7 +9,7 @@ use inox_resources::{
 use inox_serialize::{inox_serializable::SerializableRegistryRc, read_from_file, SerializeFile};
 
 use crate::{
-    BindingData, DrawInstance, DrawVertex, RenderContext, RenderPipelineData, Shader,
+    BindingData, RenderContext, RenderPipelineData, Shader, VertexBufferLayoutBuilder,
     FRAGMENT_SHADER_ENTRY_POINT, SHADER_ENTRY_POINT, VERTEX_SHADER_ENTRY_POINT,
 };
 
@@ -173,6 +173,8 @@ impl RenderPipeline {
         render_format: &wgpu::TextureFormat,
         depth_format: Option<&wgpu::TextureFormat>,
         binding_data: &BindingData,
+        vertex_layout: VertexBufferLayoutBuilder,
+        instance_layout: VertexBufferLayoutBuilder,
     ) -> bool {
         inox_profiler::scoped_profile!("render_pipeline::init");
         if self.vertex_shader.is_none() || self.fragment_shader.is_none() {
@@ -213,9 +215,6 @@ impl RenderPipeline {
                         .as_slice(),
                     push_constant_ranges: &[],
                 });
-
-        let vertex_layout = DrawVertex::descriptor(0);
-        let instance_layout = DrawInstance::descriptor(vertex_layout.location());
 
         let render_pipeline = {
             inox_profiler::scoped_profile!("render_pipeline::crate[{}]", self.name());

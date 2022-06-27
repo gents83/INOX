@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
 use crate::{
-    BindingData, BindingInfo, LoadOperation, MeshFlags, Pass, RenderContext, RenderPass,
-    RenderPassData, RenderTarget, ShaderStage, StoreOperation,
+    BindingData, BindingInfo, DrawInstance, DrawVertex, LoadOperation, MeshFlags, Pass,
+    RenderContext, RenderPass, RenderPassData, RenderTarget, ShaderStage, StoreOperation,
 };
 
 use inox_core::ContextRc;
@@ -131,7 +131,14 @@ impl Pass for WireframePass {
             );
         self.binding_data.send_to_gpu(render_context);
 
-        pass.init_pipeline(render_context, &self.binding_data);
+        let vertex_layout = DrawVertex::descriptor(0);
+        let instance_layout = DrawInstance::descriptor(vertex_layout.location());
+        pass.init_pipeline(
+            render_context,
+            &self.binding_data,
+            vertex_layout,
+            instance_layout,
+        );
     }
     fn update(&mut self, render_context: &mut RenderContext) {
         inox_profiler::scoped_profile!("wireframe_pass::update");
@@ -142,9 +149,20 @@ impl Pass for WireframePass {
 
         let pass = self.render_pass.get();
         let mut encoder = render_context.core.new_encoder();
+        let buffers = render_context.buffers();
+        let pipeline = pass.pipeline().get();
+        if !pipeline.is_initialized() {
+            return;
+        }
 
-        let render_pass = pass.begin(render_context, &self.binding_data, &mut encoder);
-        pass.draw(render_context, &self.binding_data, render_pass);
+        let render_pass = pass.begin(
+            render_context,
+            &self.binding_data,
+            &buffers,
+            &pipeline,
+            &mut encoder,
+        );
+        pass.draw_meshlets(render_context, render_pass);
 
         render_context.core.submit(encoder);
     }

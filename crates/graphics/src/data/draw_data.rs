@@ -1,7 +1,7 @@
 use inox_serialize::{Deserialize, Serialize};
 
 use crate::{
-    MaterialAlphaMode, TextureType, VertexBufferLayoutBuilder, INVALID_INDEX,
+    MaterialAlphaMode, TextureType, VertexBufferLayoutBuilder, VertexFormat, INVALID_INDEX,
     MAX_TEXTURE_COORDS_SETS,
 };
 
@@ -22,9 +22,9 @@ impl DrawInstance {
     pub fn descriptor<'a>(starting_location: u32) -> VertexBufferLayoutBuilder<'a> {
         let mut layout_builder = VertexBufferLayoutBuilder::instance();
         layout_builder.starting_location(starting_location);
-        layout_builder.add_attribute::<u32>(wgpu::VertexFormat::Uint32);
-        layout_builder.add_attribute::<u32>(wgpu::VertexFormat::Uint32);
-        layout_builder.add_attribute::<i32>(wgpu::VertexFormat::Sint32);
+        layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
+        layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
+        layout_builder.add_attribute::<i32>(VertexFormat::Sint32.into());
         layout_builder
     }
 }
@@ -136,12 +136,12 @@ impl DrawVertex {
     pub fn descriptor<'a>(starting_location: u32) -> VertexBufferLayoutBuilder<'a> {
         let mut layout_builder = VertexBufferLayoutBuilder::vertex();
         layout_builder.starting_location(starting_location);
-        layout_builder.add_attribute::<u32>(wgpu::VertexFormat::Uint32);
-        layout_builder.add_attribute::<i32>(wgpu::VertexFormat::Sint32);
-        layout_builder.add_attribute::<i32>(wgpu::VertexFormat::Sint32);
-        layout_builder.add_attribute::<u32>(wgpu::VertexFormat::Uint32);
+        layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
+        layout_builder.add_attribute::<i32>(VertexFormat::Sint32.into());
+        layout_builder.add_attribute::<i32>(VertexFormat::Sint32.into());
+        layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
         for _ in 0..MAX_TEXTURE_COORDS_SETS {
-            layout_builder.add_attribute::<i32>(wgpu::VertexFormat::Sint32);
+            layout_builder.add_attribute::<i32>(VertexFormat::Sint32.into());
         }
         layout_builder
     }

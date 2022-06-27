@@ -1,6 +1,22 @@
 #import "utils.wgsl"
 #import "common.wgsl"
 
+
+struct UIVertex {
+    @builtin(vertex_index) index: u32,
+    @location(0) position: vec2<f32>,
+    @location(1) uv: vec2<f32>,
+    @location(2) color: u32,
+};
+
+struct UIInstance {
+    @builtin(instance_index) index: u32,
+    @location(3) index_start: u32,
+    @location(4) index_count: u32,
+    @location(5) vertex_start: u32,
+    @location(6) texture_index: u32,
+};
+
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
     @location(0) color: vec4<f32>,
@@ -11,14 +27,6 @@ struct VertexOutput {
 @group(0) @binding(0)
 var<uniform> constant_data: ConstantData;
 @group(0) @binding(1)
-var<storage, read> positions_and_colors: PositionsAndColors;
-@group(0) @binding(2)
-var<storage, read> uvs_0: UVs;
-@group(0) @binding(3)
-var<storage, read> meshes: Meshes;
-@group(0) @binding(4)
-var<storage, read> materials: Materials;
-@group(0) @binding(5)
 var<storage, read> textures: Textures;
 
 
@@ -119,30 +127,25 @@ fn get_texture_color(tex_coords_and_texture_index: vec3<f32>) -> vec4<f32> {
 }
 
 
-
 @vertex
 fn vs_main(
-    v_in: DrawVertex,
-    i_in: DrawInstance,
+    v_in: UIVertex,
+    i_in: UIInstance,
 ) -> VertexOutput {
 
     let ui_scale = 2.;
 
     var vertex_out: VertexOutput;
     vertex_out.clip_position = vec4<f32>(
-        2. * positions_and_colors.data[v_in.position_and_color_offset].x * ui_scale / constant_data.screen_width - 1.,
-        1. - 2. * positions_and_colors.data[v_in.position_and_color_offset].y * ui_scale / constant_data.screen_height,
-        positions_and_colors.data[v_in.position_and_color_offset].z,
+        2. * v_in.position.x * ui_scale / constant_data.screen_width - 1.,
+        1. - 2. * v_in.position.y * ui_scale / constant_data.screen_height,
+        0.001 * f32(i_in.index),
         1.
     );
-    let color = u32(positions_and_colors.data[v_in.position_and_color_offset].w);
+    let color = u32(v_in.color);
     let c = unpack_color(color);
-    vertex_out.color = vec4<f32>(c.rgb / 255.0, f32((color / 255u) & 255u));
-
-    let material_index = u32(meshes.data[i_in.mesh_index].material_index);
-    let vertex_index = u32(v_in.uv_0);
-    let texture_data_index = u32(materials.data[material_index].textures_indices[TEXTURE_TYPE_BASE_COLOR]);
-    vertex_out.tex_coords = vec3<f32>(uvs_0.data[vertex_index].xy, f32(texture_data_index));
+    vertex_out.color = vec4<f32>(c.abgr / 255.0);
+    vertex_out.tex_coords = vec3<f32>(v_in.uv.xy, f32(i_in.texture_index));
 
     return vertex_out;
 }

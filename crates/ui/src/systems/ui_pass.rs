@@ -2,8 +2,9 @@ use std::path::PathBuf;
 
 use inox_core::ContextRc;
 use inox_graphics::{
-    AsBinding, BindingData, BindingInfo, GpuBuffer, MeshFlags, Pass, RenderContext,
-    RenderCoreContext, RenderPass, RenderPassData, RenderTarget, ShaderStage, StoreOperation,
+    AsBinding, BindingData, BindingInfo, GpuBuffer, Pass, RenderContext, RenderCoreContext,
+    RenderPass, RenderPassData, RenderTarget, ShaderStage, StoreOperation,
+    VertexBufferLayoutBuilder, VertexFormat,
 };
 use inox_resources::{DataTypeResource, Resource};
 use inox_uid::generate_random_uid;
@@ -33,10 +34,50 @@ impl AsBinding for UIPassData {
     }
 }
 
+#[derive(Default, Clone, Copy, PartialEq)]
+pub struct UIVertex {
+    pub position: [f32; 2],
+    pub uv: [f32; 2],
+    pub color: u32,
+}
+impl UIVertex {
+    pub fn descriptor<'a>(starting_location: u32) -> VertexBufferLayoutBuilder<'a> {
+        let mut layout_builder = VertexBufferLayoutBuilder::vertex();
+        layout_builder.starting_location(starting_location);
+        layout_builder.add_attribute::<[f32; 2]>(VertexFormat::Float32x2.into());
+        layout_builder.add_attribute::<[f32; 2]>(VertexFormat::Float32x2.into());
+        layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
+        layout_builder
+    }
+}
+
+#[derive(Default, Clone, Copy, PartialEq)]
+pub struct UIInstance {
+    pub index_start: u32,
+    pub index_count: u32,
+    pub vertex_start: u32,
+    pub texture_index: u32,
+}
+
+impl UIInstance {
+    pub fn descriptor<'a>(starting_location: u32) -> VertexBufferLayoutBuilder<'a> {
+        let mut layout_builder = VertexBufferLayoutBuilder::instance();
+        layout_builder.starting_location(starting_location);
+        layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
+        layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
+        layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
+        layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
+        layout_builder
+    }
+}
+
 pub struct UIPass {
     render_pass: Resource<RenderPass>,
     binding_data: BindingData,
     custom_data: UIPassData,
+    vertices: Vec<UIVertex>,
+    indices: Vec<u32>,
+    instances: Vec<UIInstance>,
 }
 unsafe impl Send for UIPass {}
 unsafe impl Sync for UIPass {}
@@ -69,22 +110,17 @@ impl Pass for UIPass {
             ),
             binding_data: BindingData::default(),
             custom_data: UIPassData::default(),
+            vertices: Vec::new(),
+            indices: Vec::new(),
+            instances: Vec::new(),
         }
     }
     fn init(&mut self, render_context: &mut RenderContext) {
         inox_profiler::scoped_profile!("ui_pass::init");
 
-        let mesh_flags = MeshFlags::Visible | MeshFlags::Custom;
-
-        if !render_context.has_instances(mesh_flags)
-            || render_context
-                .render_buffers
-                .vertex_positions_and_colors
-                .is_empty()
-            || render_context.render_buffers.vertex_uvs.is_empty()
-            || render_context.render_buffers.vertex_uvs[0].is_empty()
-            || render_context.render_buffers.meshes.is_empty()
-            || render_context.render_buffers.materials.is_empty()
+        if self.instances.is_empty()
+            || self.vertices.is_empty()
+            || self.instances.is_empty()
             || render_context.render_buffers.textures.is_empty()
         {
             return;
@@ -93,12 +129,6 @@ impl Pass for UIPass {
         let mut pass = self.render_pass.get_mut();
         let render_texture = pass.render_texture_id();
         let depth_texture = pass.depth_texture_id();
-
-        let instances = render_context
-            .render_buffers
-            .instances
-            .get_mut(&mesh_flags)
-            .unwrap();
 
         self.binding_data
             .add_uniform_data(
@@ -115,58 +145,10 @@ impl Pass for UIPass {
             .add_storage_data(
                 &render_context.core,
                 &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.vertex_positions_and_colors,
-                BindingInfo {
-                    group_index: 0,
-                    binding_index: 1,
-                    stage: ShaderStage::Vertex,
-                    read_only: true,
-                    ..Default::default()
-                },
-            )
-            .add_storage_data(
-                &render_context.core,
-                &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.vertex_uvs[0],
-                BindingInfo {
-                    group_index: 0,
-                    binding_index: 2,
-                    stage: ShaderStage::Vertex,
-                    read_only: true,
-                    ..Default::default()
-                },
-            )
-            .add_storage_data(
-                &render_context.core,
-                &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.meshes,
-                BindingInfo {
-                    group_index: 0,
-                    binding_index: 3,
-                    stage: ShaderStage::Vertex,
-                    read_only: true,
-                    ..Default::default()
-                },
-            )
-            .add_storage_data(
-                &render_context.core,
-                &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.materials,
-                BindingInfo {
-                    group_index: 0,
-                    binding_index: 4,
-                    stage: ShaderStage::Vertex,
-                    read_only: true,
-                    ..Default::default()
-                },
-            )
-            .add_storage_data(
-                &render_context.core,
-                &render_context.binding_data_buffer,
                 &mut render_context.render_buffers.textures,
                 BindingInfo {
                     group_index: 0,
-                    binding_index: 5,
+                    binding_index: 1,
                     stage: ShaderStage::Fragment,
                     read_only: true,
                     ..Default::default()
@@ -186,36 +168,57 @@ impl Pass for UIPass {
                 &render_context.core,
                 &render_context.binding_data_buffer,
                 0,
-                &mut render_context.render_buffers.vertices,
+                &mut self.vertices,
             )
             .set_vertex_buffer(
                 &render_context.core,
                 &render_context.binding_data_buffer,
                 1,
-                instances,
+                &mut self.instances,
             )
             .set_index_buffer(
                 &render_context.core,
                 &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.indices,
+                &mut self.indices,
             );
         self.binding_data.send_to_gpu(render_context);
 
-        pass.init_pipeline(render_context, &self.binding_data);
+        let vertex_layout = UIVertex::descriptor(0);
+        let instance_layout = UIInstance::descriptor(vertex_layout.location());
+        pass.init_pipeline(
+            render_context,
+            &self.binding_data,
+            vertex_layout,
+            instance_layout,
+        );
     }
     fn update(&mut self, render_context: &mut RenderContext) {
         inox_profiler::scoped_profile!("ui_pass::update");
 
-        let mesh_flags = MeshFlags::Visible | MeshFlags::Custom;
-        if !render_context.has_instances(mesh_flags) {
+        let pass = self.render_pass.get();
+        let mut encoder = render_context.core.new_encoder();
+        let buffers = render_context.buffers();
+        let pipeline = pass.pipeline().get();
+        if !pipeline.is_initialized() {
             return;
         }
 
-        let pass = self.render_pass.get();
-        let mut encoder = render_context.core.new_encoder();
-
-        let render_pass = pass.begin(render_context, &self.binding_data, &mut encoder);
-        pass.draw(render_context, &self.binding_data, render_pass);
+        {
+            let mut render_pass = pass.begin(
+                render_context,
+                &self.binding_data,
+                &buffers,
+                &pipeline,
+                &mut encoder,
+            );
+            self.instances.iter().enumerate().for_each(|(i, instance)| {
+                render_pass.draw_indexed(
+                    instance.index_start..instance.index_start + instance.index_count,
+                    instance.vertex_start as _,
+                    i as _..(i + 1) as _,
+                );
+            });
+        }
 
         render_context.core.submit(encoder);
     }
@@ -230,5 +233,20 @@ impl UIPass {
             self.custom_data.ui_scale = ui_scale;
             self.custom_data.is_dirty = true;
         }
+    }
+    pub fn clear_instances(&mut self) {
+        self.instances.clear();
+        self.vertices.clear();
+        self.indices.clear();
+    }
+    pub fn set_instances(
+        &mut self,
+        vertices: Vec<UIVertex>,
+        indices: Vec<u32>,
+        instances: Vec<UIInstance>,
+    ) {
+        self.vertices = vertices;
+        self.indices = indices;
+        self.instances = instances;
     }
 }

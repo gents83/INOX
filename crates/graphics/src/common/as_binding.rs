@@ -80,6 +80,29 @@ where
     }
 }
 
+impl<T> AsBinding for Vec<T>
+where
+    T: Sized + Clone,
+{
+    fn is_dirty(&self) -> bool {
+        true
+    }
+
+    fn set_dirty(&mut self, _is_dirty: bool) {}
+
+    fn size(&self) -> u64 {
+        self.len() as u64 * std::mem::size_of::<T>() as u64
+    }
+
+    fn fill_buffer(
+        &self,
+        render_core_context: &crate::RenderCoreContext,
+        buffer: &mut crate::GpuBuffer,
+    ) {
+        buffer.add_to_gpu_buffer(render_core_context, self.as_slice());
+    }
+}
+
 impl<T> AsBinding for Buffer<T>
 where
     T: Sized + Clone,

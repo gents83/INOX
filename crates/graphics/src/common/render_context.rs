@@ -1,11 +1,12 @@
 use std::{
     collections::HashMap,
-    sync::{Arc, RwLock},
+    sync::{Arc, RwLock, RwLockReadGuard},
 };
 
 use inox_math::{Matrix4, Vector2};
 use inox_platform::Handle;
 
+use inox_resources::ResourceId;
 use inox_uid::Uid;
 
 use crate::{
@@ -197,6 +198,10 @@ impl RenderContext {
 
     pub fn resolution(&self) -> (u32, u32) {
         (self.core.config.width, self.core.config.height)
+    }
+
+    pub fn buffers(&self) -> RwLockReadGuard<HashMap<ResourceId, GpuBuffer>> {
+        self.binding_data_buffer.buffers.read().unwrap()
     }
 
     pub fn render_target<'a>(&'a self, render_pass: &'a RenderPass) -> &'a wgpu::TextureView {

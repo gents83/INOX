@@ -1,7 +1,6 @@
 use std::{
     borrow::Cow,
-    collections::{hash_map::Entry, HashMap},
-    path::PathBuf,
+    collections::HashMap,
     sync::{
         atomic::{AtomicUsize, Ordering},
         Arc,
@@ -18,25 +17,18 @@ use inox_core::{
     SystemUID,
 };
 
-use inox_graphics::{
-    Material, MaterialData, Mesh, MeshData, MeshFlags, MeshletData, RendererRw, Texture, TextureId,
-    TextureType,
-};
+use inox_graphics::{RendererRw, Texture};
 
 use inox_log::debug_log;
-use inox_math::Vector4;
 use inox_messenger::{Listener, MessageHubRc};
 use inox_platform::{
     InputState, KeyEvent, KeyTextEvent, MouseButton, MouseEvent, MouseState, WindowEvent,
 };
-use inox_resources::{
-    to_slice, ConfigBase, ConfigEvent, DataTypeResource, Resource, SerializableResource,
-    SharedDataRc,
-};
+use inox_resources::{to_slice, ConfigBase, ConfigEvent, DataTypeResource, Resource, SharedDataRc};
 use inox_serialize::read_from_file;
 use inox_uid::generate_random_uid;
 
-use crate::{UIPass, UIWidget};
+use crate::{UIInstance, UIPass, UIVertex, UIWidget};
 
 use super::config::Config;
 
@@ -52,8 +44,6 @@ pub struct UISystem {
     ui_input: RawInput,
     ui_input_modifiers: Modifiers,
     ui_clipboard: Option<String>,
-    ui_materials: HashMap<TextureId, Resource<Material>>,
-    ui_meshes: Vec<Resource<Mesh>>,
     ui_scale: f32,
 }
 
@@ -75,118 +65,45 @@ impl UISystem {
             ui_input: RawInput::default(),
             ui_input_modifiers: Modifiers::default(),
             ui_clipboard: None,
-            ui_materials: HashMap::new(),
-            ui_meshes: Vec::new(),
             ui_scale: 2.,
         }
     }
 
-    fn get_ui_material(&mut self, texture: Resource<Texture>) -> Resource<Material> {
-        inox_profiler::scoped_profile!("ui_system::get_ui_material");
-
-        match self.ui_materials.entry(*texture.id()) {
-            Entry::Occupied(e) => e.get().clone(),
-            Entry::Vacant(e) => {
-                let material = Material::new_resource(
-                    &self.shared_data,
-                    &self.message_hub,
-                    generate_random_uid(),
-                    MaterialData::default(),
-                    None,
-                );
-                material
-                    .get_mut()
-                    .set_texture(TextureType::BaseColor, &texture);
-                e.insert(material.clone());
-                material
-            }
-        }
-    }
-
-    fn compute_mesh_data(&mut self, clipped_meshes: Vec<ClippedPrimitive>) {
+    fn compute_mesh_data(&mut self, primitives: Vec<ClippedPrimitive>) {
         inox_profiler::scoped_profile!("ui_system::compute_mesh_data");
-        let shared_data = self.shared_data.clone();
-        let message_hub = self.message_hub.clone();
+        let mut vertices: Vec<UIVertex> = Vec::new();
+        let mut indices: Vec<u32> = Vec::new();
+        let mut instances: Vec<UIInstance> = Vec::new();
 
-        self.ui_meshes.iter().for_each(|m| {
-            m.get_mut().remove_flag(MeshFlags::Visible);
-        });
-        self.ui_meshes.clear();
-
-        for (i, clipped_mesh) in clipped_meshes.into_iter().enumerate() {
-            if let Primitive::Mesh(mesh) = clipped_mesh.primitive {
+        for primitive in primitives.into_iter() {
+            if let Primitive::Mesh(mesh) = primitive.primitive {
                 if mesh.vertices.is_empty() || mesh.indices.is_empty() {
                     continue;
                 }
-                let ui_mesh = Mesh::new_resource(
-                    &shared_data,
-                    &message_hub,
-                    generate_random_uid(),
-                    MeshData::default(),
-                    None,
-                );
-                ui_mesh
-                    .get_mut()
-                    .set_flags(MeshFlags::Visible | MeshFlags::Custom);
+                inox_profiler::scoped_profile!("ui_system::create_mesh_data");
 
-                let texture = match mesh.texture_id {
-                    eguiTextureId::Managed(_) => self.ui_textures[&mesh.texture_id].clone(),
-                    eguiTextureId::User(texture_uniform_index) => {
-                        if let Some(texture) = self.shared_data.match_resource(|t: &Texture| {
-                            t.texture_index() as u64 == texture_uniform_index
-                        }) {
-                            texture.clone()
-                        } else {
-                            self.ui_textures.iter().next().unwrap().1.clone()
-                        }
+                let texture_index = match mesh.texture_id {
+                    eguiTextureId::Managed(_) => {
+                        self.ui_textures[&mesh.texture_id].get().texture_index()
                     }
+                    eguiTextureId::User(texture_uniform_index) => texture_uniform_index as _,
                 };
 
-                let material = self.get_ui_material(texture);
-                let ui_scale = self.ui_scale;
-                let clip_rect = clipped_mesh.clip_rect;
-
-                {
-                    inox_profiler::scoped_profile!("ui_system::set_mesh_properties");
-                    ui_mesh
-                        .get_mut()
-                        .set_path(PathBuf::from(format!("UI_Mesh[{}].ui", i)).as_path())
-                        .set_material(material)
-                        .set_draw_area(Vector4::new(
-                            clip_rect.min.x * ui_scale,
-                            clip_rect.min.y * ui_scale,
-                            clip_rect.max.x * ui_scale,
-                            clip_rect.max.y * ui_scale,
-                        ))
-                        .add_flag(MeshFlags::Visible);
-                }
-
-                {
-                    inox_profiler::scoped_profile!("ui_system::create_mesh_data");
-                    let mut mesh_data = MeshData::default();
-                    mesh.vertices.iter().for_each(|v| {
-                        let p = [v.pos.x, v.pos.y, 0.001 * i as f32];
-                        let color = v.color.to_array();
-                        let c = Vector4::new(
-                            color[0] as f32 / 255.,
-                            color[1] as f32 / 255.,
-                            color[2] as f32 / 255.,
-                            color[3] as f32 / 255.,
-                        );
-                        let uv = [v.uv.x, v.uv.y];
-                        mesh_data.add_vertex_pos_color_uv(p.into(), c, uv.into());
-                    });
-                    mesh_data.indices.extend_from_slice(&mesh.indices);
-                    let meshlet = MeshletData {
-                        vertices_count: mesh_data.vertex_count() as _,
-                        indices_count: mesh_data.index_count() as _,
-                        ..Default::default()
-                    };
-                    mesh_data.meshlets.push(meshlet);
-
-                    ui_mesh.get_mut().set_mesh_data(mesh_data);
-                }
-                self.ui_meshes.push(ui_mesh);
+                instances.push(UIInstance {
+                    index_start: indices.len() as _,
+                    index_count: mesh.indices.len() as _,
+                    vertex_start: vertices.len() as _,
+                    texture_index: texture_index as _,
+                });
+                vertices.extend_from_slice(to_slice(mesh.vertices.as_slice()));
+                indices.extend_from_slice(&mesh.indices);
+            }
+        }
+        let mut r = self.renderer.write().unwrap();
+        if let Some(ui_pass) = r.pass_mut::<UIPass>() {
+            ui_pass.clear_instances();
+            if !instances.is_empty() {
+                ui_pass.set_instances(vertices, indices, instances);
             }
         }
     }
@@ -364,11 +281,6 @@ impl UISystem {
                 image_delta.image.height() as _,
                 pixels.to_vec(),
             );
-            if let Some(texture) = self.ui_textures.get(&egui_texture_id) {
-                if let Some(material) = self.ui_materials.remove(texture.id()) {
-                    material.get_mut().remove_texture(TextureType::BaseColor);
-                }
-            }
             let texture = Texture::new_resource(
                 &self.shared_data,
                 &self.message_hub,
