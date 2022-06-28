@@ -169,6 +169,13 @@ impl BindingData {
         if info.binding_index >= self.binding_types[info.group_index].len() {
             self.binding_types[info.group_index].push(BindingType::Buffer(*id));
             self.is_dirty = true;
+        } else if let BindingType::Buffer(old_id) =
+            &mut self.binding_types[info.group_index][info.binding_index]
+        {
+            if *old_id != *id {
+                *old_id = *id;
+                self.is_dirty = true;
+            }
         }
         self
     }
@@ -226,6 +233,13 @@ impl BindingData {
         if info.binding_index >= self.binding_types[info.group_index].len() {
             self.binding_types[info.group_index].push(BindingType::Buffer(*id));
             self.is_dirty = true;
+        } else if let BindingType::Buffer(old_id) =
+            &mut self.binding_types[info.group_index][info.binding_index]
+        {
+            if *old_id != *id {
+                *old_id = *id;
+                self.is_dirty = true;
+            }
         }
         self
     }

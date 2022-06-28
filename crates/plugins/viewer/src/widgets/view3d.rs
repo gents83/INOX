@@ -45,14 +45,14 @@ impl View3D {
     ) -> Resource<UIWidget> {
         UIWidget::register(shared_data, message_hub, data, |ui_data, ui_context| {
             if let Some(data) = ui_data.as_any_mut().downcast_mut::<View3DData>() {
-                CentralPanel::default().show(ui_context, |ui| {
+                let response = CentralPanel::default().show(ui_context, |ui| {
                     let view_width = ui.max_rect().width() as u32;
                     let view_height = ui.max_rect().height() as u32;
 
                     let texture_uniform_index =
                         Self::get_render_pass_texture_index(&data.shared_data, OPAQUE_PASS_NAME);
 
-                    ui.with_layer_id(LayerId::background(), |ui| {
+                    let response = ui.with_layer_id(LayerId::background(), |ui| {
                         let response = Image::new(
                             eguiTextureId::User(texture_uniform_index as _),
                             [view_width as _, view_height as _],
@@ -60,8 +60,12 @@ impl View3D {
                         .sense(Sense::click_and_drag())
                         .ui(ui);
                         data.is_interacting = response.is_pointer_button_down_on();
-                    })
+                        response
+                    });
+                    data.is_interacting |= response.response.is_pointer_button_down_on();
+                    response
                 });
+                data.is_interacting |= response.response.is_pointer_button_down_on();
             }
         })
     }

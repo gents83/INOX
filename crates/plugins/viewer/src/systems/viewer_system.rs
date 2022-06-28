@@ -380,6 +380,7 @@ impl ViewerSystem {
                                     .set_camera_data(c.position(), proj_matrix * view_matrix);
                             }
                         }
+
                         view.get_mut()
                             .update_view(view_matrix)
                             .update_proj(proj_matrix);
