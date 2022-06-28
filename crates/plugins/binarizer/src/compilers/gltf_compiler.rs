@@ -344,8 +344,8 @@ impl GltfCompiler {
             );
             let mut new_indices =
                 meshopt::optimize_vertex_cache(new_indices.as_slice(), num_vertices);
-            let vertices_bytes = to_slice(new_vertices.as_slice());
-            let vertex_stride = size_of::<DrawVertex>();
+            let vertices_bytes = to_slice(old_mesh_data.positions.as_slice());
+            let vertex_stride = size_of::<Vector3>();
             let vertex_data_adapter =
                 meshopt::VertexDataAdapter::new(vertices_bytes, vertex_stride, 0);
             meshopt::optimize_overdraw_in_place(
@@ -365,8 +365,8 @@ impl GltfCompiler {
     }
 
     fn compute_meshlets(&self, mesh_data: &mut MeshData) {
-        let vertices_bytes = to_slice(mesh_data.vertices.as_slice());
-        let vertex_stride = size_of::<DrawVertex>();
+        let vertices_bytes = to_slice(mesh_data.positions.as_slice());
+        let vertex_stride = size_of::<Vector3>();
         let vertex_data_adapter = meshopt::VertexDataAdapter::new(vertices_bytes, vertex_stride, 0);
         let max_vertices = 64;
         let max_triangles = 124;
@@ -378,6 +378,7 @@ impl GltfCompiler {
             max_triangles,
             cone_weight,
         );
+
         if !meshlets.meshlets.is_empty() {
             let mut all_vertices = Vec::new();
             let mut all_indices = Vec::new();
