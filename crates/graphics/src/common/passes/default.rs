@@ -10,21 +10,21 @@ use inox_resources::{DataTypeResource, Resource};
 use inox_uid::generate_random_uid;
 
 pub const DEFAULT_PIPELINE: &str = "pipelines/Default.render_pipeline";
-pub const OPAQUE_PASS_NAME: &str = "OpaquePass";
+pub const DEFAULT_PASS_NAME: &str = "DefaultPass";
 
-pub struct OpaquePass {
+pub struct DefaultPass {
     render_pass: Resource<RenderPass>,
     binding_data: BindingData,
 }
-unsafe impl Send for OpaquePass {}
-unsafe impl Sync for OpaquePass {}
+unsafe impl Send for DefaultPass {}
+unsafe impl Sync for DefaultPass {}
 
-impl Pass for OpaquePass {
+impl Pass for DefaultPass {
     fn name(&self) -> &str {
-        OPAQUE_PASS_NAME
+        DEFAULT_PASS_NAME
     }
     fn static_name() -> &'static str {
-        OPAQUE_PASS_NAME
+        DEFAULT_PASS_NAME
     }
     fn create(context: &ContextRc) -> Self
     where
@@ -33,7 +33,7 @@ impl Pass for OpaquePass {
         inox_profiler::scoped_profile!("opaque_pass::create");
 
         let data = RenderPassData {
-            name: OPAQUE_PASS_NAME.to_string(),
+            name: DEFAULT_PASS_NAME.to_string(),
             store_color: StoreOperation::Store,
             store_depth: StoreOperation::Store,
             render_target: RenderTarget::Screen,
@@ -166,7 +166,7 @@ impl Pass for OpaquePass {
     }
 }
 
-impl OpaquePass {
+impl DefaultPass {
     pub fn render_pass(&self) -> &Resource<RenderPass> {
         &self.render_pass
     }

@@ -3,9 +3,9 @@ use std::path::PathBuf;
 use inox_core::{define_plugin, ContextRc, Plugin, SystemUID, WindowSystem};
 
 use inox_graphics::{
-    rendering_system::RenderingSystem, update_system::UpdateSystem, DebugDrawerSystem, OpaquePass,
+    rendering_system::RenderingSystem, update_system::UpdateSystem, DebugDrawerSystem, DefaultPass,
     Pass, RenderPass, RenderTarget, Renderer, RendererRw, WireframePass, DEFAULT_HEIGHT,
-    DEFAULT_WIDTH, OPAQUE_PASS_NAME, WIREFRAME_PASS_NAME,
+    DEFAULT_PASS_NAME, DEFAULT_WIDTH, WIREFRAME_PASS_NAME,
 };
 use inox_platform::Window;
 use inox_resources::ConfigBase;
@@ -128,7 +128,7 @@ impl Plugin for Viewer {
                     ui_pass.get_mut().set_pipeline(&data.ui_pass_pipeline);
                 }
                 if let Some(opaque_pass) =
-                    shared_data.match_resource(|r: &RenderPass| r.name() == OPAQUE_PASS_NAME)
+                    shared_data.match_resource(|r: &RenderPass| r.name() == DEFAULT_PASS_NAME)
                 {
                     opaque_pass
                         .get_mut()
@@ -157,7 +157,7 @@ impl Viewer {
         }
     }
     fn create_opaque_pass(context: &ContextRc, renderer: &RendererRw) {
-        let opaque_pass = OpaquePass::create(context);
+        let opaque_pass = DefaultPass::create(context);
 
         renderer.write().unwrap().add_pass(opaque_pass);
     }
@@ -168,7 +168,7 @@ impl Viewer {
     }
     fn create_ui_pass(context: &ContextRc, renderer: &RendererRw, width: u32, height: u32) {
         let ui_pass = UIPass::create(context);
-        if let Some(opaque_pass) = renderer.read().unwrap().pass::<OpaquePass>() {
+        if let Some(opaque_pass) = renderer.read().unwrap().pass::<DefaultPass>() {
             let opaque_pass_render_target = RenderTarget::Texture {
                 width,
                 height,
