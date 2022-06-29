@@ -1,6 +1,5 @@
 use std::{collections::HashMap, path::Path};
 
-use image::DynamicImage;
 use inox_messenger::MessageHubRc;
 use inox_resources::{
     DataTypeResource, Handle, Resource, ResourceId, ResourceTrait, SerializableResource,
@@ -11,7 +10,8 @@ use inox_uid::generate_random_uid;
 
 use crate::{
     BindingData, GpuBuffer, LoadOperation, RenderContext, RenderMode, RenderPassData,
-    RenderPipeline, RenderTarget, StoreOperation, Texture, TextureId, VertexBufferLayoutBuilder,
+    RenderPipeline, RenderTarget, StoreOperation, Texture, TextureData, TextureId,
+    VertexBufferLayoutBuilder,
 };
 
 pub type RenderPassId = ResourceId;
@@ -144,16 +144,21 @@ impl RenderPass {
             RenderTarget::Texture {
                 width,
                 height,
+                format,
                 read_back: _,
             } => {
                 let texture_id = generate_random_uid();
-                let image = DynamicImage::new_rgba8(width, height);
-                let image_data = image.to_rgba8();
+                let image_data = Texture::create_from_format(width, height, format);
                 let mut texture = Texture::create_from_data(
                     &self.shared_data,
                     &self.message_hub,
                     texture_id,
-                    &image_data,
+                    &TextureData {
+                        width,
+                        height,
+                        format,
+                        data: image_data,
+                    },
                 );
                 texture.on_create(&self.shared_data, &self.message_hub, &texture_id, None);
                 let texture = self
@@ -175,16 +180,21 @@ impl RenderPass {
             RenderTarget::Texture {
                 width,
                 height,
+                format,
                 read_back: _,
             } => {
                 let texture_id = generate_random_uid();
-                let image = DynamicImage::new_rgba8(width, height);
-                let image_data = image.to_rgba8();
+                let image_data = Texture::create_from_format(width, height, format);
                 let mut texture = Texture::create_from_data(
                     &self.shared_data,
                     &self.message_hub,
                     texture_id,
-                    &image_data,
+                    &TextureData {
+                        width,
+                        height,
+                        format,
+                        data: image_data,
+                    },
                 );
                 texture.on_create(&self.shared_data, &self.message_hub, &texture_id, None);
                 let texture = self

@@ -11,13 +11,13 @@ use egui::{
     epaint::Primitive, ClippedPrimitive, Context, Event, Modifiers, PlatformOutput, PointerButton,
     RawInput, Rect, TextureId as eguiTextureId, TexturesDelta,
 };
-use image::RgbaImage;
+
 use inox_core::{
     implement_unique_system_uid, ContextRc, JobHandlerRw, JobHandlerTrait, JobPriority, System,
     SystemUID,
 };
 
-use inox_graphics::{RendererRw, Texture};
+use inox_graphics::{RendererRw, Texture, TextureData, TextureFormat};
 
 use inox_log::debug_log;
 use inox_messenger::{Listener, MessageHubRc};
@@ -276,16 +276,16 @@ impl UISystem {
                 }
             };
             let pixels: &[u8] = to_slice(color32.as_slice());
-            let image_data = RgbaImage::from_vec(
-                image_delta.image.width() as _,
-                image_delta.image.height() as _,
-                pixels.to_vec(),
-            );
             let texture = Texture::new_resource(
                 &self.shared_data,
                 &self.message_hub,
                 generate_random_uid(),
-                image_data.unwrap(),
+                TextureData {
+                    width: image_delta.image.width() as _,
+                    height: image_delta.image.height() as _,
+                    data: pixels.to_vec(),
+                    format: TextureFormat::Rgba8Unorm,
+                },
                 None,
             );
             self.ui_textures.insert(egui_texture_id, texture);

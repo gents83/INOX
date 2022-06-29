@@ -12,7 +12,7 @@ use inox_uid::Uid;
 use crate::{
     platform::{platform_limits, required_gpu_features},
     AsBinding, ConstantData, GpuBuffer, MeshFlags, RenderBuffers, RenderPass, RendererRw,
-    TextureData, TextureHandler, TextureId, CONSTANT_DATA_FLAGS_SUPPORT_SRGB, DEFAULT_HEIGHT,
+    TextureHandler, TextureId, TextureInfo, CONSTANT_DATA_FLAGS_SUPPORT_SRGB, DEFAULT_HEIGHT,
     DEFAULT_WIDTH,
 };
 
@@ -247,7 +247,7 @@ impl RenderContext {
         texture_id: &TextureId,
         dimensions: (u32, u32),
         image_data: &[u8],
-    ) -> TextureData {
+    ) -> TextureInfo {
         self.texture_handler.add_image(
             &self.core.device,
             encoder,

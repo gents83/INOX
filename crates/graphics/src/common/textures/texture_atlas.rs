@@ -1,7 +1,7 @@
 use inox_log::debug_log;
 use inox_uid::generate_random_uid;
 
-use crate::{TextureData, TextureId};
+use crate::{TextureId, TextureInfo};
 
 use super::{
     area::{Area, AreaAllocator, DEFAULT_AREA_SIZE},
@@ -96,12 +96,12 @@ impl TextureAtlas {
         texture_index: u32,
         dimensions: (u32, u32),
         image_data: &[u8],
-    ) -> Option<TextureData> {
+    ) -> Option<TextureInfo> {
         for (layer_index, area_allocator) in self.allocators.iter_mut().enumerate() {
             if let Some(area) = area_allocator.allocate(id, dimensions.0, dimensions.1) {
                 self.texture
                     .send_to_gpu(device, encoder, layer_index as _, area, image_data);
-                return Some(TextureData {
+                return Some(TextureInfo {
                     texture_index: texture_index as _,
                     layer_index: layer_index as _,
                     area: area.into(),
@@ -117,10 +117,10 @@ impl TextureAtlas {
         &self,
         texture_index: u32,
         texture_id: &TextureId,
-    ) -> Option<TextureData> {
+    ) -> Option<TextureInfo> {
         for (layer_index, area_allocator) in self.allocators.iter().enumerate() {
             if let Some(area) = area_allocator.get_area(texture_id) {
-                return Some(TextureData {
+                return Some(TextureInfo {
                     texture_index: texture_index as _,
                     layer_index: layer_index as _,
                     area: area.into(),

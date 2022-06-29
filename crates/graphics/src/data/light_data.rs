@@ -2,8 +2,6 @@ use inox_serialize::{Deserialize, Serialize, SerializeFile};
 
 use crate::print_field_size;
 
-pub const MAX_NUM_LIGHTS: usize = 64;
-
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 #[serde(crate = "inox_serialize")]
 pub enum LightType {

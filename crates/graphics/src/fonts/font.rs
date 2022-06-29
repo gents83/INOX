@@ -122,7 +122,7 @@ impl FontData {
         }
     }
 
-    pub fn create_texture(&mut self) -> RgbaImage {
+    pub fn create_texture(&mut self) -> Vec<u8> {
         let size = DEFAULT_FONT_TEXTURE_SIZE;
 
         let mut image = DynamicImage::new_rgba8(size as _, size as _);
@@ -167,6 +167,6 @@ impl FontData {
             column += 1;
         }
 
-        image.to_rgba8()
+        image.into_bytes()
     }
 }

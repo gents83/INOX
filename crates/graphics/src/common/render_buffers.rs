@@ -6,13 +6,13 @@ use inox_resources::{to_slice, Buffer, HashBuffer, ResourceId};
 use crate::{
     DrawInstance, DrawMaterial, DrawMesh, DrawMeshlet, DrawVertex, Light, LightData, LightId,
     Material, MaterialAlphaMode, MaterialData, MaterialId, Mesh, MeshData, MeshFlags, MeshId,
-    TextureData, TextureId, TextureType, INVALID_INDEX, MAX_TEXTURE_COORDS_SETS,
+    TextureId, TextureInfo, TextureType, INVALID_INDEX, MAX_TEXTURE_COORDS_SETS,
 };
 
 //Alignment should be 4, 8, 16 or 32 bytes
 #[derive(Default)]
 pub struct RenderBuffers {
-    pub textures: HashBuffer<TextureId, TextureData, 0>,
+    pub textures: HashBuffer<TextureId, TextureInfo, 0>,
     pub lights: HashBuffer<LightId, LightData, 0>,
     pub materials: HashBuffer<MaterialId, DrawMaterial, 0>,
     pub instances: HashMap<MeshFlags, HashBuffer<MeshId, DrawInstance, 0>>,
@@ -309,7 +309,7 @@ impl RenderBuffers {
         self.lights.remove(light_id);
     }
 
-    pub fn add_texture(&mut self, texture_id: &TextureId, texture_data: &TextureData) -> usize {
+    pub fn add_texture(&mut self, texture_id: &TextureId, texture_data: &TextureInfo) -> usize {
         inox_profiler::scoped_profile!("render_buffers::add_texture");
 
         self.textures.insert(texture_id, *texture_data)

@@ -4,8 +4,8 @@ use inox_core::{define_plugin, ContextRc, Plugin, SystemUID, WindowSystem};
 
 use inox_graphics::{
     rendering_system::RenderingSystem, update_system::UpdateSystem, DebugDrawerSystem, DefaultPass,
-    Pass, RenderPass, RenderTarget, Renderer, RendererRw, WireframePass, DEFAULT_HEIGHT,
-    DEFAULT_PASS_NAME, DEFAULT_WIDTH, WIREFRAME_PASS_NAME,
+    Pass, RenderPass, RenderTarget, Renderer, RendererRw, TextureFormat, WireframePass,
+    DEFAULT_HEIGHT, DEFAULT_PASS_NAME, DEFAULT_WIDTH, WIREFRAME_PASS_NAME,
 };
 use inox_platform::Window;
 use inox_resources::ConfigBase;
@@ -169,16 +169,21 @@ impl Viewer {
     fn create_ui_pass(context: &ContextRc, renderer: &RendererRw, width: u32, height: u32) {
         let ui_pass = UIPass::create(context);
         if let Some(opaque_pass) = renderer.read().unwrap().pass::<DefaultPass>() {
-            let opaque_pass_render_target = RenderTarget::Texture {
-                width,
-                height,
-                read_back: false,
-            };
             opaque_pass
                 .render_pass()
                 .get_mut()
-                .render_target(opaque_pass_render_target)
-                .depth_target(opaque_pass_render_target);
+                .render_target(RenderTarget::Texture {
+                    width,
+                    height,
+                    format: TextureFormat::Rgba8Unorm,
+                    read_back: false,
+                })
+                .depth_target(RenderTarget::Texture {
+                    width,
+                    height,
+                    format: TextureFormat::Depth32Float,
+                    read_back: false,
+                });
             if let Some(wireframe_pass) = renderer.read().unwrap().pass::<WireframePass>() {
                 wireframe_pass
                     .render_pass()

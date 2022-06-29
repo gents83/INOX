@@ -2,7 +2,7 @@ use std::path::Path;
 
 use inox_log::debug_log;
 
-use crate::{TextureData, TextureId};
+use crate::{TextureId, TextureInfo};
 
 use super::texture_atlas::TextureAtlas;
 
@@ -121,7 +121,7 @@ impl TextureHandler {
         encoder: &mut wgpu::CommandEncoder,
         id: &TextureId,
         filepath: &Path,
-    ) -> TextureData {
+    ) -> TextureInfo {
         let image = image::open(filepath).unwrap();
         self.add_image(
             device,
@@ -139,7 +139,7 @@ impl TextureHandler {
         id: &TextureId,
         dimensions: (u32, u32),
         image_data: &[u8],
-    ) -> TextureData {
+    ) -> TextureInfo {
         for (texture_index, texture_atlas) in self.texture_atlas.iter_mut().enumerate() {
             if let Some(texture_data) = texture_atlas.allocate(
                 device,
@@ -158,7 +158,7 @@ impl TextureHandler {
         self.add_image(device, encoder, id, dimensions, image_data)
     }
 
-    pub fn get_texture_data(&self, id: &TextureId) -> Option<TextureData> {
+    pub fn get_texture_data(&self, id: &TextureId) -> Option<TextureInfo> {
         for (texture_index, texture_atlas) in self.texture_atlas.iter().enumerate() {
             if let Some(texture_data) = texture_atlas.get_texture_data(texture_index as _, id) {
                 return Some(texture_data);

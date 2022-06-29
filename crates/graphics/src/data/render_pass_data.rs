@@ -2,6 +2,8 @@ use std::path::PathBuf;
 
 use inox_serialize::{Deserialize, Serialize, SerializeFile};
 
+use crate::TextureFormat;
+
 #[derive(Serialize, Deserialize, Debug, PartialOrd, PartialEq, Copy, Clone)]
 #[serde(crate = "inox_serialize")]
 pub enum IndexFormat {
@@ -38,6 +40,7 @@ pub enum RenderTarget {
     Texture {
         width: u32,
         height: u32,
+        format: TextureFormat,
         read_back: bool,
     },
 }
