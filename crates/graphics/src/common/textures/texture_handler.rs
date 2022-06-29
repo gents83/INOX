@@ -9,6 +9,7 @@ use super::texture_atlas::TextureAtlas;
 pub struct TextureHandler {
     texture_atlas: Vec<TextureAtlas>,
     default_sampler: wgpu::Sampler,
+    unfiltered_sampler: wgpu::Sampler,
     depth_sampler: wgpu::Sampler,
 }
 
@@ -19,6 +20,15 @@ impl TextureHandler {
             address_mode_v: wgpu::AddressMode::Repeat,
             address_mode_w: wgpu::AddressMode::Repeat,
             mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Nearest,
+            mipmap_filter: wgpu::FilterMode::Nearest,
+            ..Default::default()
+        });
+        let unfiltered_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+            address_mode_u: wgpu::AddressMode::ClampToEdge,
+            address_mode_v: wgpu::AddressMode::ClampToEdge,
+            address_mode_w: wgpu::AddressMode::ClampToEdge,
+            mag_filter: wgpu::FilterMode::Nearest,
             min_filter: wgpu::FilterMode::Nearest,
             mipmap_filter: wgpu::FilterMode::Nearest,
             ..Default::default()
@@ -37,11 +47,15 @@ impl TextureHandler {
         Self {
             texture_atlas,
             default_sampler,
+            unfiltered_sampler,
             depth_sampler,
         }
     }
     pub fn default_sampler(&self) -> &wgpu::Sampler {
         &self.default_sampler
+    }
+    pub fn unfiltered_sampler(&self) -> &wgpu::Sampler {
+        &self.unfiltered_sampler
     }
     pub fn depth_sampler(&self) -> &wgpu::Sampler {
         &self.depth_sampler

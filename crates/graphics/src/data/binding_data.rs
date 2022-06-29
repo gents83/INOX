@@ -40,6 +40,7 @@ pub enum BindingState {
 enum BindingType {
     Buffer(Uid),
     DefaultSampler,
+    UnfilteredSampler,
     DepthSampler,
     TextureArray(Box<[TextureId; MAX_TEXTURE_ATLAS_COUNT as usize]>),
 }
@@ -266,6 +267,15 @@ impl BindingData {
             self.bind_group_layout_entries[info.group_index].push(wgpu::BindGroupLayoutEntry {
                 binding: 1,
                 visibility: info.stage.into(),
+                ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::NonFiltering),
+                count: None,
+            });
+            self.is_dirty = true;
+        }
+        if self.bind_group_layout_entries[info.group_index].len() < 3 {
+            self.bind_group_layout_entries[info.group_index].push(wgpu::BindGroupLayoutEntry {
+                binding: 2,
+                visibility: info.stage.into(),
                 ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Comparison),
                 count: None,
             });
@@ -276,13 +286,17 @@ impl BindingData {
             self.is_dirty = true;
         }
         if self.binding_types[info.group_index].len() < 2 {
+            self.binding_types[info.group_index].push(BindingType::UnfilteredSampler);
+            self.is_dirty = true;
+        }
+        if self.binding_types[info.group_index].len() < 3 {
             self.binding_types[info.group_index].push(BindingType::DepthSampler);
             self.is_dirty = true;
         }
 
-        let mut bind_group_layout_count = 2;
+        let mut bind_group_layout_count = 3;
         if required_gpu_features().contains(wgpu::Features::TEXTURE_BINDING_ARRAY) {
-            if self.bind_group_layout_entries[info.group_index].len() < 3 {
+            if self.bind_group_layout_entries[info.group_index].len() <= 3 {
                 self.bind_group_layout_entries[info.group_index].push(wgpu::BindGroupLayoutEntry {
                     binding: {
                         bind_group_layout_count += 1;
@@ -299,7 +313,7 @@ impl BindingData {
                 self.is_dirty = true;
             }
         } else if self.bind_group_layout_entries[info.group_index].len()
-            < (2 + MAX_TEXTURE_ATLAS_COUNT as usize)
+            <= (3 + MAX_TEXTURE_ATLAS_COUNT as usize)
         {
             (0..MAX_TEXTURE_ATLAS_COUNT).for_each(|_| {
                 self.bind_group_layout_entries[info.group_index].push(wgpu::BindGroupLayoutEntry {
@@ -350,12 +364,12 @@ impl BindingData {
             }
         }
 
-        if self.binding_types[info.group_index].len() < 3 {
+        if self.binding_types[info.group_index].len() <= 3 {
             self.binding_types[info.group_index]
                 .push(BindingType::TextureArray(Box::new(textures)));
             self.is_dirty = true;
         } else if let BindingType::TextureArray(old_textures) =
-            &self.binding_types[info.group_index][2]
+            &self.binding_types[info.group_index][3]
         {
             old_textures.iter().enumerate().for_each(|(index, id)| {
                 if textures[index] != *id {
@@ -363,7 +377,7 @@ impl BindingData {
                 }
             });
             if self.is_dirty {
-                self.binding_types[info.group_index][2] =
+                self.binding_types[info.group_index][3] =
                     BindingType::TextureArray(Box::new(textures));
             }
         }
@@ -448,6 +462,14 @@ impl BindingData {
                                 binding: index as _,
                                 resource: wgpu::BindingResource::Sampler(
                                     render_context.texture_handler.default_sampler(),
+                                ),
+                            });
+                        }
+                        BindingType::UnfilteredSampler => {
+                            bind_group.push(wgpu::BindGroupEntry {
+                                binding: index as _,
+                                resource: wgpu::BindingResource::Sampler(
+                                    render_context.texture_handler.unfiltered_sampler(),
                                 ),
                             });
                         }

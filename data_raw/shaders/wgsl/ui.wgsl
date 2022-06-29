@@ -34,43 +34,45 @@ var<storage, read> textures: Textures;
 @group(1) @binding(0)
 var default_sampler: sampler;
 @group(1) @binding(1)
+var unfiltered_sampler: sampler;
+@group(1) @binding(2)
 var depth_sampler: sampler_comparison;
 
 #ifdef FEATURES_TEXTURE_BINDING_ARRAY
-@group(1) @binding(2)
+@group(1) @binding(3)
 var texture_array: binding_array<texture_2d_array<f32>, 16>; //MAX_TEXTURE_ATLAS_COUNT
 #else
-@group(1) @binding(2)
-var texture_1: texture_2d_array<f32>;
 @group(1) @binding(3)
-var texture_2: texture_2d_array<f32>;
+var texture_1: texture_2d_array<f32>;
 @group(1) @binding(4)
-var texture_3: texture_2d_array<f32>;
+var texture_2: texture_2d_array<f32>;
 @group(1) @binding(5)
-var texture_4: texture_2d_array<f32>;
+var texture_3: texture_2d_array<f32>;
 @group(1) @binding(6)
-var texture_5: texture_2d_array<f32>;
+var texture_4: texture_2d_array<f32>;
 @group(1) @binding(7)
-var texture_6: texture_2d_array<f32>;
+var texture_5: texture_2d_array<f32>;
 @group(1) @binding(8)
-var texture_7: texture_2d_array<f32>;
+var texture_6: texture_2d_array<f32>;
 @group(1) @binding(9)
-var texture_8: texture_2d_array<f32>;
+var texture_7: texture_2d_array<f32>;
 @group(1) @binding(10)
-var texture_9: texture_2d_array<f32>;
+var texture_8: texture_2d_array<f32>;
 @group(1) @binding(11)
-var texture_10: texture_2d_array<f32>;
+var texture_9: texture_2d_array<f32>;
 @group(1) @binding(12)
-var texture_11: texture_2d_array<f32>;
+var texture_10: texture_2d_array<f32>;
 @group(1) @binding(13)
-var texture_12: texture_2d_array<f32>;
+var texture_11: texture_2d_array<f32>;
 @group(1) @binding(14)
-var texture_13: texture_2d_array<f32>;
+var texture_12: texture_2d_array<f32>;
 @group(1) @binding(15)
-var texture_14: texture_2d_array<f32>;
+var texture_13: texture_2d_array<f32>;
 @group(1) @binding(16)
-var texture_15: texture_2d_array<f32>;
+var texture_14: texture_2d_array<f32>;
 @group(1) @binding(17)
+var texture_15: texture_2d_array<f32>;
+@group(1) @binding(18)
 var texture_16: texture_2d_array<f32>;
 #endif
 
