@@ -175,7 +175,7 @@ impl Viewer {
                 .render_target(RenderTarget::Texture {
                     width,
                     height,
-                    format: TextureFormat::Rgba8Unorm,
+                    format: TextureFormat::Rgba32Float,
                     read_back: false,
                 })
                 .depth_target(RenderTarget::Texture {

@@ -86,18 +86,20 @@ impl Texture {
         //   BufferCopyView.layout.bytes_per_row % wgpu::COPY_BYTES_PER_ROW_ALIGNMENT == 0
         // So we calculate padded_width by rounding width up to the next
         // multiple of wgpu::COPY_BYTES_PER_ROW_ALIGNMENT.
+        let pixel_size = self.format.describe().block_size as u32;
         let align = wgpu::COPY_BYTES_PER_ROW_ALIGNMENT;
-        let padding = (align - (4 * area.width) % align) % align;
-        let padded_width = (4 * area.width + padding) as usize;
-        let padded_data_size = padded_width * area.height as usize;
+        let padding = (align - (pixel_size * area.width) % align) % align;
+        let padded_width = (pixel_size * area.width + padding) as usize;
+        let padded_data_size = (pixel_size * area.width * area.height) as usize;
 
         let mut padded_data = vec![0; padded_data_size];
 
         for row in 0..area.height as usize {
             let offset = row * padded_width;
 
-            padded_data[offset..offset + 4 * area.width as usize].copy_from_slice(
-                &data[row * 4 * area.width as usize..(row + 1) * 4 * area.width as usize],
+            padded_data[offset..offset + (pixel_size * area.width) as usize].copy_from_slice(
+                &data[row * (pixel_size * area.width) as usize
+                    ..(row + 1) * (pixel_size * area.width) as usize],
             )
         }
         let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -115,7 +117,7 @@ impl Texture {
                 buffer: &buffer,
                 layout: wgpu::ImageDataLayout {
                     offset: 0,
-                    bytes_per_row: NonZeroU32::new(4 * area.width + padding),
+                    bytes_per_row: NonZeroU32::new(pixel_size * area.width + padding),
                     rows_per_image: NonZeroU32::new(area.height),
                 },
             },
