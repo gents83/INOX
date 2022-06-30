@@ -11,8 +11,8 @@ use inox_serialize::read_from_file;
 use inox_uid::generate_random_uid;
 
 use crate::{
-    is_shader, ComputePipeline, Light, Material, Mesh, RenderPass, RenderPipeline, RendererRw,
-    RendererState, Texture, View, DEFAULT_HEIGHT, DEFAULT_WIDTH,
+    is_shader, CommandBuffer, ComputePipeline, Light, Material, Mesh, RenderPass, RenderPipeline,
+    RendererRw, RendererState, Texture, View, DEFAULT_HEIGHT, DEFAULT_WIDTH,
 };
 
 use super::config::Config;
@@ -55,7 +55,7 @@ impl UpdateSystem {
         }
     }
 
-    fn handle_events(&mut self, encoder: &mut wgpu::CommandEncoder) {
+    fn handle_events(&mut self, command_buffer: &mut CommandBuffer) {
         inox_profiler::scoped_profile!("update_system::handle_events");
         //REMINDER: message processing order is important - RenderPass must be processed before Texture
         self.listener
@@ -105,13 +105,13 @@ impl UpdateSystem {
                     self.renderer
                         .write()
                         .unwrap()
-                        .on_texture_changed(id, encoder);
+                        .on_texture_changed(id, &mut command_buffer.encoder);
                 }
                 ResourceEvent::Created(t) => {
                     self.renderer
                         .write()
                         .unwrap()
-                        .on_texture_changed(t.id(), encoder);
+                        .on_texture_changed(t.id(), &mut command_buffer.encoder);
                 }
                 ResourceEvent::Destroyed(id) => {
                     let renderer = self.renderer.read().unwrap();
@@ -259,13 +259,13 @@ impl System for UpdateSystem {
             }
         }
 
-        let mut encoder = {
+        let mut command_buffer = {
             let renderer = self.renderer.read().unwrap();
             let render_context = renderer.render_context().read().unwrap();
-            render_context.core.new_encoder()
+            render_context.core.new_command_buffer()
         };
 
-        self.handle_events(&mut encoder);
+        self.handle_events(&mut command_buffer);
 
         {
             let mut renderer = self.renderer.write().unwrap();
@@ -285,7 +285,7 @@ impl System for UpdateSystem {
             renderer.init_passes();
 
             let render_context = renderer.render_context().read().unwrap();
-            render_context.core.submit(encoder);
+            render_context.core.submit(command_buffer);
         }
 
         {

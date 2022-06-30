@@ -66,6 +66,10 @@ impl BindingDataBuffer {
     }
 }
 
+pub struct CommandBuffer {
+    pub encoder: wgpu::CommandEncoder,
+}
+
 pub struct RenderCoreContext {
     pub instance: wgpu::Instance,
     pub surface: wgpu::Surface,
@@ -76,14 +80,18 @@ pub struct RenderCoreContext {
 }
 
 impl RenderCoreContext {
-    pub fn new_encoder(&self) -> wgpu::CommandEncoder {
-        self.device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                label: Some("Command Encoder"),
-            })
+    pub fn new_command_buffer(&self) -> CommandBuffer {
+        CommandBuffer {
+            encoder: self
+                .device
+                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                    label: Some("Command Encoder"),
+                }),
+        }
     }
-    pub fn submit(&self, encoder: wgpu::CommandEncoder) {
-        self.queue.submit(std::iter::once(encoder.finish()));
+    pub fn submit(&self, command_buffer: CommandBuffer) {
+        self.queue
+            .submit(std::iter::once(command_buffer.encoder.finish()));
     }
     pub fn set_surface_size(&mut self, width: u32, height: u32) {
         self.config.width = width;
@@ -95,6 +103,7 @@ impl RenderCoreContext {
 
 pub struct RenderContext {
     pub core: RenderCoreContext,
+    pub frame_commands: Option<wgpu::CommandEncoder>,
     pub surface_texture: Option<wgpu::SurfaceTexture>,
     pub surface_view: Option<wgpu::TextureView>,
     pub constant_data: ConstantData,
@@ -163,6 +172,7 @@ impl RenderContext {
             .set_render_context(Arc::new(RwLock::new(RenderContext {
                 texture_handler: TextureHandler::create(&render_core_context.device),
                 core: render_core_context,
+                frame_commands: None,
                 surface_texture: None,
                 surface_view: None,
                 constant_data: ConstantData::default(),

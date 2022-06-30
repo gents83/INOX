@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
 use crate::{
-    BindingData, BindingInfo, DrawInstance, DrawVertex, LoadOperation, MeshFlags, Pass,
-    RenderContext, RenderPass, RenderPassData, RenderTarget, ShaderStage, StoreOperation,
+    BindingData, BindingInfo, CommandBuffer, DrawInstance, DrawVertex, LoadOperation, MeshFlags,
+    Pass, RenderContext, RenderPass, RenderPassData, RenderTarget, ShaderStage, StoreOperation,
 };
 
 use inox_core::ContextRc;
@@ -140,7 +140,7 @@ impl Pass for WireframePass {
             instance_layout,
         );
     }
-    fn update(&mut self, render_context: &mut RenderContext) {
+    fn update(&mut self, render_context: &mut RenderContext, command_buffer: &mut CommandBuffer) {
         inox_profiler::scoped_profile!("wireframe_pass::update");
 
         if !render_context.has_instances(MeshFlags::Visible | MeshFlags::Wireframe) {
@@ -148,7 +148,6 @@ impl Pass for WireframePass {
         }
 
         let pass = self.render_pass.get();
-        let mut encoder = render_context.core.new_encoder();
         let buffers = render_context.buffers();
         let pipeline = pass.pipeline().get();
         if !pipeline.is_initialized() {
@@ -160,11 +159,9 @@ impl Pass for WireframePass {
             &self.binding_data,
             &buffers,
             &pipeline,
-            &mut encoder,
+            command_buffer,
         );
         pass.draw_meshlets(render_context, render_pass);
-
-        render_context.core.submit(encoder);
     }
 }
 

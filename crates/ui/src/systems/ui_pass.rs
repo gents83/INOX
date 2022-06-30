@@ -2,8 +2,8 @@ use std::path::PathBuf;
 
 use inox_core::ContextRc;
 use inox_graphics::{
-    AsBinding, BindingData, BindingInfo, GpuBuffer, Pass, RenderContext, RenderCoreContext,
-    RenderPass, RenderPassData, RenderTarget, ShaderStage, StoreOperation,
+    AsBinding, BindingData, BindingInfo, CommandBuffer, GpuBuffer, Pass, RenderContext,
+    RenderCoreContext, RenderPass, RenderPassData, RenderTarget, ShaderStage, StoreOperation,
     VertexBufferLayoutBuilder, VertexFormat,
 };
 use inox_resources::{DataTypeResource, Resource};
@@ -192,11 +192,10 @@ impl Pass for UIPass {
             instance_layout,
         );
     }
-    fn update(&mut self, render_context: &mut RenderContext) {
+    fn update(&mut self, render_context: &mut RenderContext, command_buffer: &mut CommandBuffer) {
         inox_profiler::scoped_profile!("ui_pass::update");
 
         let pass = self.render_pass.get();
-        let mut encoder = render_context.core.new_encoder();
         let buffers = render_context.buffers();
         let pipeline = pass.pipeline().get();
         if !pipeline.is_initialized() {
@@ -209,7 +208,7 @@ impl Pass for UIPass {
                 &self.binding_data,
                 &buffers,
                 &pipeline,
-                &mut encoder,
+                command_buffer,
             );
             self.instances.iter().enumerate().for_each(|(i, instance)| {
                 render_pass.draw_indexed(
@@ -219,8 +218,6 @@ impl Pass for UIPass {
                 );
             });
         }
-
-        render_context.core.submit(encoder);
     }
 }
 

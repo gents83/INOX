@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
 use crate::{
-    BindingData, BindingInfo, DrawInstance, DrawVertex, MeshFlags, Pass, RenderContext, RenderPass,
-    RenderPassData, RenderTarget, ShaderStage, StoreOperation,
+    BindingData, BindingInfo, CommandBuffer, DrawInstance, DrawVertex, MeshFlags, Pass,
+    RenderContext, RenderPass, RenderPassData, RenderTarget, ShaderStage, StoreOperation,
 };
 
 use inox_core::ContextRc;
@@ -30,7 +30,7 @@ impl Pass for DefaultPass {
     where
         Self: Sized,
     {
-        inox_profiler::scoped_profile!("opaque_pass::create");
+        inox_profiler::scoped_profile!("default_pass::create");
 
         let data = RenderPassData {
             name: DEFAULT_PASS_NAME.to_string(),
@@ -53,7 +53,7 @@ impl Pass for DefaultPass {
         }
     }
     fn init(&mut self, render_context: &mut RenderContext) {
-        inox_profiler::scoped_profile!("opaque_pass::init");
+        inox_profiler::scoped_profile!("default_pass::init");
 
         let mesh_flags = MeshFlags::Visible | MeshFlags::Opaque;
 
@@ -138,15 +138,14 @@ impl Pass for DefaultPass {
             instance_layout,
         );
     }
-    fn update(&mut self, render_context: &mut RenderContext) {
-        inox_profiler::scoped_profile!("opaque_pass::update");
+    fn update(&mut self, render_context: &mut RenderContext, command_buffer: &mut CommandBuffer) {
+        inox_profiler::scoped_profile!("default_pass::update");
 
         if !render_context.has_instances(MeshFlags::Visible | MeshFlags::Opaque) {
             return;
         }
 
         let pass = self.render_pass.get();
-        let mut encoder = render_context.core.new_encoder();
         let buffers = render_context.buffers();
         let pipeline = pass.pipeline().get();
         if !pipeline.is_initialized() {
@@ -158,11 +157,9 @@ impl Pass for DefaultPass {
             &self.binding_data,
             &buffers,
             &pipeline,
-            &mut encoder,
+            command_buffer,
         );
         pass.draw_meshlets(render_context, render_pass);
-
-        render_context.core.submit(encoder);
     }
 }
 

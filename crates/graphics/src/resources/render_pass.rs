@@ -9,8 +9,8 @@ use inox_serialize::{inox_serializable::SerializableRegistryRc, read_from_file};
 use inox_uid::generate_random_uid;
 
 use crate::{
-    BindingData, GpuBuffer, LoadOperation, RenderContext, RenderMode, RenderPassData,
-    RenderPipeline, RenderTarget, StoreOperation, Texture, TextureData, TextureId,
+    BindingData, CommandBuffer, GpuBuffer, LoadOperation, RenderContext, RenderMode,
+    RenderPassData, RenderPipeline, RenderTarget, StoreOperation, Texture, TextureData, TextureId,
     VertexBufferLayoutBuilder,
 };
 
@@ -320,8 +320,10 @@ impl RenderPass {
         binding_data: &'a BindingData,
         buffers: &'a HashMap<ResourceId, GpuBuffer>,
         pipeline: &'a RenderPipeline,
-        encoder: &'a mut wgpu::CommandEncoder,
+        command_buffer: &'a mut CommandBuffer,
     ) -> wgpu::RenderPass<'a> {
+        inox_profiler::scoped_profile!("render_pass::begin");
+
         let render_target = render_context.render_target(self);
         let depth_target = render_context.depth_target(self);
 
@@ -329,32 +331,36 @@ impl RenderPass {
         let depth_write_enabled = pipeline.data().depth_write_enabled;
 
         let label = format!("RenderPass {}", self.name);
-        let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: Some(label.as_str()),
-            color_attachments: &[wgpu::RenderPassColorAttachment {
-                view: render_target,
-                resolve_target: None,
-                ops: color_operations,
-            }],
-            depth_stencil_attachment: depth_target.map(|depth_view| {
-                wgpu::RenderPassDepthStencilAttachment {
-                    view: depth_view,
-                    depth_ops: if depth_write_enabled {
-                        let depth_operations = self.depth_operations();
-                        Some(depth_operations)
-                    } else {
-                        None
-                    },
-                    stencil_ops: None,
-                }
-            }),
-        });
+        let mut render_pass =
+            command_buffer
+                .encoder
+                .begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: Some(label.as_str()),
+                    color_attachments: &[wgpu::RenderPassColorAttachment {
+                        view: render_target,
+                        resolve_target: None,
+                        ops: color_operations,
+                    }],
+                    depth_stencil_attachment: depth_target.map(|depth_view| {
+                        wgpu::RenderPassDepthStencilAttachment {
+                            view: depth_view,
+                            depth_ops: if depth_write_enabled {
+                                let depth_operations = self.depth_operations();
+                                Some(depth_operations)
+                            } else {
+                                None
+                            },
+                            stencil_ops: None,
+                        }
+                    }),
+                });
 
         binding_data
             .bind_groups()
             .iter()
             .enumerate()
             .for_each(|(index, bind_group)| {
+                inox_profiler::scoped_profile!("render_pass::bind_groups");
                 render_pass.set_bind_group(index as _, bind_group, &[]);
             });
 
@@ -362,6 +368,7 @@ impl RenderPass {
 
         let num_vertex_buffers = binding_data.vertex_buffers_count();
         for i in 0..num_vertex_buffers {
+            inox_profiler::scoped_profile!("render_pass::bind_vertex_buffer");
             let id = binding_data.vertex_buffer(i);
             if let Some(buffer) = buffers.get(id) {
                 render_pass.set_vertex_buffer(i as _, buffer.gpu_buffer().unwrap().slice(..));
@@ -370,6 +377,7 @@ impl RenderPass {
 
         let index_id = binding_data.index_buffer();
         if let Some(buffer) = buffers.get(index_id) {
+            inox_profiler::scoped_profile!("render_pass::bind_index_buffer");
             render_pass.set_index_buffer(
                 buffer.gpu_buffer().unwrap().slice(..),
                 crate::IndexFormat::U32.into(),
@@ -380,10 +388,12 @@ impl RenderPass {
     }
 
     pub fn draw_meshlets(&self, render_context: &RenderContext, mut render_pass: wgpu::RenderPass) {
+        inox_profiler::scoped_profile!("render_pass::draw_meshlets");
         let mesh_flags = self.pipeline().get().data().mesh_flags;
         if let Some(instances) = render_context.render_buffers.instances.get(&mesh_flags) {
             let meshlets = render_context.render_buffers.meshlets.data();
             instances.for_each_entry(|index, instance| {
+                inox_profiler::scoped_profile!("render_pass::draw_instance");
                 /*if let Some(mesh_id) = render_context
                 .render_buffers
                 .meshes
@@ -394,6 +404,7 @@ impl RenderPass {
                         .meshes
                         .at(instance.mesh_index as _);
                     for i in mesh.meshlet_offset..mesh.meshlet_offset + mesh.meshlet_count {
+                        inox_profiler::scoped_profile!("render_pass::draw_indexed");
                         let meshlet = &meshlets[i as usize];
                         /*
                         if let Some(area) =

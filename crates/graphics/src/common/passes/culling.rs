@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
 use crate::{
-    AsBinding, BindingData, ComputePass, ComputePassData, GpuBuffer, Pass, RenderContext,
-    RenderCoreContext, RenderPipeline, DEFAULT_PIPELINE,
+    AsBinding, BindingData, CommandBuffer, ComputePass, ComputePassData, GpuBuffer, Pass,
+    RenderContext, RenderCoreContext, RenderPipeline, DEFAULT_PIPELINE,
 };
 
 use inox_core::ContextRc;
@@ -237,20 +237,17 @@ impl Pass for CullingPass {
         pass.init(render_context, &self.binding_data);
     }
 
-    fn update(&mut self, render_context: &mut RenderContext) {
+    fn update(&mut self, _render_context: &mut RenderContext, command_buffer: &mut CommandBuffer) {
         if self.num_meshlets == 0 {
             return;
         }
 
         let pass = self.compute_pass.get();
 
-        let mut encoder = render_context.core.new_encoder();
-        let compute_pass = pass.begin(&self.binding_data, &mut encoder);
+        let compute_pass = pass.begin(&self.binding_data, command_buffer);
         let num_meshlet_per_group = 32;
         let count = (self.num_meshlets as u32 + num_meshlet_per_group - 1) / num_meshlet_per_group;
         pass.dispatch(compute_pass, count, 1, 1);
-
-        render_context.core.submit(encoder);
     }
 }
 

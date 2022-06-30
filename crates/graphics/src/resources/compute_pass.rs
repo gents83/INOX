@@ -7,7 +7,7 @@ use inox_resources::{
 };
 use inox_serialize::{inox_serializable::SerializableRegistryRc, read_from_file};
 
-use crate::{BindingData, ComputePassData, ComputePipeline, RenderContext};
+use crate::{BindingData, CommandBuffer, ComputePassData, ComputePipeline, RenderContext};
 
 pub type ComputePassId = ResourceId;
 
@@ -127,12 +127,15 @@ impl ComputePass {
     pub fn begin<'a>(
         &'a self,
         binding_data: &'a BindingData,
-        encoder: &'a mut wgpu::CommandEncoder,
+        command_buffer: &'a mut CommandBuffer,
     ) -> wgpu::ComputePass<'a> {
         let label = format!("ComputePass {}", self.name);
-        let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
-            label: Some(label.as_str()),
-        });
+        let mut compute_pass =
+            command_buffer
+                .encoder
+                .begin_compute_pass(&wgpu::ComputePassDescriptor {
+                    label: Some(label.as_str()),
+                });
 
         binding_data
             .bind_groups()

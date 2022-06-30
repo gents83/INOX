@@ -241,9 +241,11 @@ impl Renderer {
         inox_profiler::scoped_profile!("renderer::execute_passes");
 
         let mut render_context = self.render_context.as_ref().unwrap().write().unwrap();
+        let mut command_buffer = render_context.core.new_command_buffer();
         self.passes.iter_mut().for_each(|pass| {
-            pass.update(&mut render_context);
+            pass.update(&mut render_context, &mut command_buffer);
         });
+        render_context.core.submit(command_buffer);
     }
 
     pub fn present(&self) {
