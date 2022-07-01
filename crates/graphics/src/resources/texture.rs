@@ -115,6 +115,7 @@ impl DataTypeResource for Texture {
         let mut texture = Self::new(id, shared_data, message_hub);
         texture.width = data.width;
         texture.height = data.height;
+        texture.format = data.format;
         texture.data = Some(data.data.clone());
         texture
     }
@@ -180,6 +181,9 @@ impl Texture {
     }
     pub fn height(&self) -> u32 {
         self.height
+    }
+    pub fn format(&self) -> TextureFormat {
+        self.format
     }
     pub fn image_data(&self) -> &Option<Vec<u8>> {
         &self.data

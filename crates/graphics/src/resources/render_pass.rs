@@ -248,7 +248,7 @@ impl RenderPass {
                         texture.id(),
                         texture.get().width(),
                         texture.get().height(),
-                        wgpu::TextureFormat::Rgba8Unorm,
+                        texture.get().format().into(),
                         wgpu::TextureUsages::TEXTURE_BINDING
                             | wgpu::TextureUsages::COPY_DST
                             | wgpu::TextureUsages::RENDER_ATTACHMENT,
@@ -263,7 +263,7 @@ impl RenderPass {
                         texture.id(),
                         texture.get().width(),
                         texture.get().height(),
-                        wgpu::TextureFormat::Depth32Float,
+                        texture.get().format().into(),
                         wgpu::TextureUsages::TEXTURE_BINDING
                             | wgpu::TextureUsages::COPY_DST
                             | wgpu::TextureUsages::RENDER_ATTACHMENT,

@@ -43,6 +43,7 @@ enum BindingType {
     UnfilteredSampler,
     DepthSampler,
     TextureArray(Box<[TextureId; MAX_TEXTURE_ATLAS_COUNT as usize]>),
+    StorageTextures(Vec<TextureId>),
 }
 
 #[derive(Default)]
@@ -245,6 +246,60 @@ impl BindingData {
         self
     }
 
+    pub fn add_storage_textures(
+        &mut self,
+        texture_handler: &TextureHandler,
+        textures: &[&TextureId],
+        info: BindingInfo,
+    ) -> &mut Self {
+        self.create_group_and_binding_index(info.group_index);
+
+        if self.bind_group_layout_entries[info.group_index].len() < textures.len() {
+            textures.iter().enumerate().for_each(|(i, id)| {
+                self.bind_group_layout_entries[info.group_index].push(wgpu::BindGroupLayoutEntry {
+                    binding: i as _,
+                    visibility: info.stage.into(),
+                    ty: wgpu::BindingType::StorageTexture {
+                        access: if info.read_only {
+                            wgpu::StorageTextureAccess::ReadOnly
+                        } else {
+                            wgpu::StorageTextureAccess::ReadWrite
+                        },
+                        view_dimension: wgpu::TextureViewDimension::D2Array,
+                        format: if let Some(textures_atlas) = texture_handler.get_texture_atlas(id)
+                        {
+                            *textures_atlas.texture_format()
+                        } else {
+                            wgpu::TextureFormat::Rgba32Float
+                        },
+                    },
+                    count: None,
+                });
+            });
+            self.is_dirty = true;
+        }
+
+        if self.binding_types[info.group_index].len() <= info.binding_index {
+            self.binding_types[info.group_index].push(BindingType::StorageTextures(
+                textures.iter().map(|&id| *id).collect(),
+            ));
+            self.is_dirty = true;
+        } else if let BindingType::StorageTextures(old_textures) =
+            &self.binding_types[info.group_index][info.binding_index]
+        {
+            old_textures.iter().enumerate().for_each(|(index, id)| {
+                if textures[index] != id {
+                    self.is_dirty = true;
+                }
+            });
+            if self.is_dirty {
+                self.binding_types[info.group_index][info.binding_index] =
+                    BindingType::StorageTextures(textures.iter().map(|&id| *id).collect());
+            }
+        }
+        self
+    }
+
     pub fn add_textures_data(
         &mut self,
         texture_handler: &TextureHandler,
@@ -294,9 +349,12 @@ impl BindingData {
             self.is_dirty = true;
         }
 
-        let mut bind_group_layout_count = 3;
+        let textures_bind_group_layout_index = 3;
+        let mut bind_group_layout_count = textures_bind_group_layout_index;
         if required_gpu_features().contains(wgpu::Features::TEXTURE_BINDING_ARRAY) {
-            if self.bind_group_layout_entries[info.group_index].len() <= 3 {
+            if self.bind_group_layout_entries[info.group_index].len()
+                <= textures_bind_group_layout_index
+            {
                 self.bind_group_layout_entries[info.group_index].push(wgpu::BindGroupLayoutEntry {
                     binding: {
                         bind_group_layout_count += 1;
@@ -313,7 +371,7 @@ impl BindingData {
                 self.is_dirty = true;
             }
         } else if self.bind_group_layout_entries[info.group_index].len()
-            <= (3 + MAX_TEXTURE_ATLAS_COUNT as usize)
+            <= (textures_bind_group_layout_index + MAX_TEXTURE_ATLAS_COUNT as usize)
         {
             (0..MAX_TEXTURE_ATLAS_COUNT).for_each(|_| {
                 self.bind_group_layout_entries[info.group_index].push(wgpu::BindGroupLayoutEntry {
@@ -364,12 +422,12 @@ impl BindingData {
             }
         }
 
-        if self.binding_types[info.group_index].len() <= 3 {
+        if self.binding_types[info.group_index].len() <= textures_bind_group_layout_index {
             self.binding_types[info.group_index]
                 .push(BindingType::TextureArray(Box::new(textures)));
             self.is_dirty = true;
         } else if let BindingType::TextureArray(old_textures) =
-            &self.binding_types[info.group_index][3]
+            &self.binding_types[info.group_index][textures_bind_group_layout_index]
         {
             old_textures.iter().enumerate().for_each(|(index, id)| {
                 if textures[index] != *id {
@@ -377,7 +435,7 @@ impl BindingData {
                 }
             });
             if self.is_dirty {
-                self.binding_types[info.group_index][3] =
+                self.binding_types[info.group_index][textures_bind_group_layout_index] =
                     BindingType::TextureArray(Box::new(textures));
             }
         }
@@ -421,6 +479,7 @@ impl BindingData {
                 let label = format!("{} bind group {}", typename, group_index);
 
                 let mut textures_view = Vec::new();
+                let mut storage_textures = Vec::new();
                 binding_type_array.iter().for_each(|binding_type| {
                     if let BindingType::TextureArray(textures) = binding_type {
                         textures.iter().for_each(|id| {
@@ -428,6 +487,14 @@ impl BindingData {
                                 render_context.texture_handler.get_texture_atlas(id)
                             {
                                 textures_view.push(texture.texture());
+                            }
+                        });
+                    } else if let BindingType::StorageTextures(textures) = binding_type {
+                        textures.iter().for_each(|id| {
+                            if let Some(texture) =
+                                render_context.texture_handler.get_texture_atlas(id)
+                            {
+                                storage_textures.push(texture.texture());
                             }
                         });
                     }
@@ -501,6 +568,17 @@ impl BindingData {
                                     });
                                 });
                             }
+                        }
+                        BindingType::StorageTextures(_) => {
+                            storage_textures
+                                .iter()
+                                .enumerate()
+                                .for_each(|(i, &texture)| {
+                                    bind_group.push(wgpu::BindGroupEntry {
+                                        binding: index as u32 + i as u32,
+                                        resource: wgpu::BindingResource::TextureView(texture),
+                                    });
+                                });
                         }
                     });
                 let data_bind_group =

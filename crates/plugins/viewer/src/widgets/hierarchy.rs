@@ -102,7 +102,7 @@ impl Hierarchy {
         let is_child_recursive = object.get().is_child_recursive(selected_id);
         let has_children = object.get().has_children();
 
-        let _response = if has_children {
+        if has_children {
             let id = ui.make_persistent_id(object_name.as_str());
             CollapsingState::load_with_default_open(ui.ctx(), id, true)
                 .show_header(ui, |ui| {
@@ -131,6 +131,6 @@ impl Hierarchy {
                 */
         } else {
             ui.add(SelectableLabel::new(is_selected, object_name.as_str()));
-        };
+        }
     }
 }

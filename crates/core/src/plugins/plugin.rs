@@ -90,10 +90,10 @@ macro_rules! define_static_plugin {
         pub mod static_plugin {
             use $crate::Plugin;
 
-            pub(crate) static mut PLUGIN: Option<crate::$Type> = None;
+            pub(crate) static mut PLUGIN: Option<super::$Type> = None;
 
             pub fn create_plugin(context: &$crate::ContextRc) -> $crate::PluginHolder {
-                let plugin = unsafe { PLUGIN.get_or_insert(crate::$Type::create(context)) };
+                let plugin = unsafe { PLUGIN.get_or_insert(super::$Type::create(context)) };
                 $crate::PluginHolder::new(plugin.id(), plugin.name())
             }
 
