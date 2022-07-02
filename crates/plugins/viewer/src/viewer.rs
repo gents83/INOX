@@ -178,6 +178,12 @@ impl Viewer {
                     format: TextureFormat::Rgba32Float,
                     read_back: false,
                 })
+                .add_render_target(RenderTarget::Texture {
+                    width,
+                    height,
+                    format: TextureFormat::Rgba32Float,
+                    read_back: false,
+                })
                 .add_depth_target(RenderTarget::Texture {
                     width,
                     height,

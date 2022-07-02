@@ -27,9 +27,7 @@ where
     }
 
     fn set_dirty(&mut self, is_dirty: bool) {
-        if !is_dirty {
-            self.mark_as_unchanged();
-        }
+        self.mark_as_changed(is_dirty);
     }
 
     fn size(&self) -> u64 {
@@ -56,9 +54,7 @@ where
     }
 
     fn set_dirty(&mut self, is_dirty: bool) {
-        if !is_dirty {
-            self.iter_mut().for_each(|b| b.mark_as_unchanged());
-        }
+        self.iter_mut().for_each(|b| b.mark_as_changed(is_dirty));
     }
 
     fn size(&self) -> u64 {
@@ -112,9 +108,7 @@ where
     }
 
     fn set_dirty(&mut self, is_dirty: bool) {
-        if !is_dirty {
-            self.mark_as_unchanged();
-        }
+        self.mark_as_changed(is_dirty);
     }
 
     fn size(&self) -> u64 {
@@ -139,9 +133,7 @@ where
     }
 
     fn set_dirty(&mut self, is_dirty: bool) {
-        if !is_dirty {
-            self.iter_mut().for_each(|b| b.mark_as_unchanged());
-        }
+        self.iter_mut().for_each(|b| b.mark_as_changed(is_dirty));
     }
 
     fn size(&self) -> u64 {

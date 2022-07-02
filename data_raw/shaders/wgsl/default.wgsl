@@ -4,6 +4,12 @@
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
     @location(0) params: vec4<f32>,
+    @location(1) tex_coords: vec4<f32>,
+};
+
+struct FragmentOutput {
+    @location(0) albedo: vec4<f32>,
+    @location(1) material_params: vec4<f32>,
 };
 
 
@@ -164,8 +170,8 @@ fn vs_main(
     } else if (materials.data[material_id].textures_coord_set[TEXTURE_TYPE_BASE_COLOR] == 3u) {
         uv = uvs.data[v_in.uvs_offset.w].xy;
     }
-    let texture_coords = vec3<f32>(uv, f32(texture_id));
-    
+    let unused = 0.;
+    vertex_out.tex_coords =  vec4<f32>(uv.xy, f32(texture_id), unused);
 
     return vertex_out;
 }
@@ -173,11 +179,19 @@ fn vs_main(
 @fragment
 fn fs_main(
     v_in: VertexOutput,
-) -> @location(0) vec4<f32> {
+) -> FragmentOutput {    
+    var fragment_out: FragmentOutput;
+
     let display_meshlets = constant_data.flags & CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS;
     if (display_meshlets != 0u) {
         let h = hash(u32(v_in.params.b));
-        return vec4<f32>(vec3<f32>(f32(h & 255u), f32((h >> 8u) & 255u), f32((h >> 16u) & 255u)) / 255., 1.);
+        fragment_out.albedo = vec4<f32>(vec3<f32>(f32(h & 255u), f32((h >> 8u) & 255u), f32((h >> 16u) & 255u)) / 255., 1.);
+    } else {
+        let texture_color = get_texture_color(v_in.tex_coords.xyz);
+        let vertex_color = unpack_unorm_to_4_f32(u32(v_in.params.a));
+        let final_color = vec4<f32>(vertex_color.rgb * texture_color.rgb, vertex_color.a);
+        fragment_out.albedo = final_color;
     }
-    return v_in.params;
+    fragment_out.material_params = v_in.params;
+    return fragment_out;
 }

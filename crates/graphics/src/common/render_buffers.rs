@@ -4,9 +4,9 @@ use inox_math::{pack_4_f32_to_unorm, MatBase, Matrix4};
 use inox_resources::{to_slice, Buffer, HashBuffer, ResourceId};
 
 use crate::{
-    DrawInstance, DrawMaterial, DrawMesh, DrawMeshlet, DrawVertex, Light, LightData, LightId,
-    Material, MaterialAlphaMode, MaterialData, MaterialId, Mesh, MeshData, MeshFlags, MeshId,
-    TextureId, TextureInfo, TextureType, INVALID_INDEX, MAX_TEXTURE_COORDS_SETS,
+    AsBinding, DrawInstance, DrawMaterial, DrawMesh, DrawMeshlet, DrawVertex, Light, LightData,
+    LightId, Material, MaterialAlphaMode, MaterialData, MaterialId, Mesh, MeshData, MeshFlags,
+    MeshId, TextureId, TextureInfo, TextureType, INVALID_INDEX, MAX_TEXTURE_COORDS_SETS,
 };
 
 //Alignment should be 4, 8, 16 or 32 bytes
@@ -197,6 +197,7 @@ impl RenderBuffers {
             if m.mesh_flags != flags {
                 m.mesh_flags = flags;
             }
+            self.meshes.set_dirty(true);
         }
         self.update_instance(mesh_id);
     }
@@ -252,14 +253,19 @@ impl RenderBuffers {
                     textures_indices[i] = texture.get().texture_index() as _;
                 }
             });
-        let index = self.materials.insert(
-            material_id,
-            DrawMaterial {
-                textures_indices,
-                ..Default::default()
-            },
-        );
-        material.set_material_index(index as _);
+        if let Some(m) = self.materials.get_mut(material_id) {
+            m.textures_indices = textures_indices;
+            self.materials.set_dirty(true);
+        } else {
+            let index = self.materials.insert(
+                material_id,
+                DrawMaterial {
+                    textures_indices,
+                    ..Default::default()
+                },
+            );
+            material.set_material_index(index as _);
+        }
     }
     pub fn update_material(&mut self, material_id: &MaterialId, material_data: &MaterialData) {
         inox_profiler::scoped_profile!("render_buffers::update_material");
@@ -279,6 +285,7 @@ impl RenderBuffers {
             material.occlusion_strength = material_data.occlusion_strength;
             material.diffuse_color = material_data.diffuse_color.into();
             material.specular_color = material_data.specular_color.into();
+            self.materials.set_dirty(true);
         }
     }
     pub fn remove_material(&mut self, material_id: &MaterialId) {
@@ -298,6 +305,7 @@ impl RenderBuffers {
 
         if let Some(light) = self.lights.get_mut(light_id) {
             *light = *light_data;
+            self.lights.set_dirty(true);
         }
     }
     pub fn remove_light(&mut self, light_id: &LightId) {
@@ -327,6 +335,7 @@ impl RenderBuffers {
 
         if let Some(m) = self.matrix.get_mut(id) {
             *m = (*matrix).into();
+            self.matrix.set_dirty(true);
         }
     }
     pub fn remove_matrix(&mut self, id: &ResourceId) {

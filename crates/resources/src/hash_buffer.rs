@@ -40,8 +40,8 @@ where
     pub fn is_changed(&self) -> bool {
         self.is_changed
     }
-    pub fn mark_as_unchanged(&mut self) {
-        self.is_changed = false;
+    pub fn mark_as_changed(&mut self, is_changed: bool) {
+        self.is_changed = is_changed;
     }
     pub fn collapse(&mut self) {
         if MAX_COUNT != 0 {

@@ -156,12 +156,20 @@ impl UpdateSystem {
                         .render_buffers
                         .add_material(m.id(), &mut m.get_mut());
                 }
+                ResourceEvent::Changed(id) => {
+                    if let Some(m) = self.shared_data.get_resource::<Material>(id) {
+                        let renderer = self.renderer.read().unwrap();
+                        let mut render_context = renderer.render_context().write().unwrap();
+                        render_context
+                            .render_buffers
+                            .add_material(m.id(), &mut m.get_mut());
+                    }
+                }
                 ResourceEvent::Destroyed(id) => {
                     let renderer = self.renderer.read().unwrap();
                     let mut render_context = renderer.render_context().write().unwrap();
                     render_context.render_buffers.remove_material(id);
                 }
-                _ => {}
             })
             .process_messages(|e: &DataTypeResourceEvent<Material>| {
                 let DataTypeResourceEvent::Loaded(id, material_data) = e;
