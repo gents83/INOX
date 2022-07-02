@@ -140,9 +140,8 @@ impl DrawVertex {
         layout_builder.add_attribute::<i32>(VertexFormat::Sint32.into());
         layout_builder.add_attribute::<i32>(VertexFormat::Sint32.into());
         layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
-        for _ in 0..MAX_TEXTURE_COORDS_SETS {
-            layout_builder.add_attribute::<i32>(VertexFormat::Sint32.into());
-        }
+        layout_builder
+            .add_attribute::<[i32; MAX_TEXTURE_COORDS_SETS]>(VertexFormat::Sint32x4.into());
         layout_builder
     }
 }

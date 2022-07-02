@@ -33,17 +33,14 @@ struct DrawVertex {
     @location(1) normal_offset: i32,
     @location(2) tangent_offset: i32,
     @location(3) padding_offset: u32,
-    @location(4) uv_0: i32,
-    @location(5) uv_1: i32,
-    @location(6) uv_2: i32,
-    @location(7) uv_3: i32,
+    @location(4) uvs_offset: vec4<i32>,
 };
 
 struct DrawInstance {
     @builtin(instance_index) index: u32,
-    @location(8) mesh_index: u32,
-    @location(9) matrix_index: u32,
-    @location(10) draw_area_index: i32,
+    @location(5) mesh_index: u32,
+    @location(6) matrix_index: u32,
+    @location(7) draw_area_index: i32,
 };
 
 struct ConstantData {

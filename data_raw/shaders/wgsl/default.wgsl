@@ -156,13 +156,13 @@ fn vs_main(
     let texture_id = materials.data[material_id].textures_indices[TEXTURE_TYPE_BASE_COLOR];
     var uv = vec2<f32>(0., 0.);
     if (materials.data[material_id].textures_coord_set[TEXTURE_TYPE_BASE_COLOR] == 0u) {
-        uv = uvs.data[v_in.uv_0].xy;
+        uv = uvs.data[v_in.uvs_offset.x].xy;
     } else if (materials.data[material_id].textures_coord_set[TEXTURE_TYPE_BASE_COLOR] == 1u) {
-        uv = uvs.data[v_in.uv_1].xy;
+        uv = uvs.data[v_in.uvs_offset.y].xy;
     } else if (materials.data[material_id].textures_coord_set[TEXTURE_TYPE_BASE_COLOR] == 2u) {
-        uv = uvs.data[v_in.uv_2].xy;
+        uv = uvs.data[v_in.uvs_offset.z].xy;
     } else if (materials.data[material_id].textures_coord_set[TEXTURE_TYPE_BASE_COLOR] == 3u) {
-        uv = uvs.data[v_in.uv_3].xy;
+        uv = uvs.data[v_in.uvs_offset.w].xy;
     }
     let texture_coords = vec3<f32>(uv, f32(texture_id));
     
