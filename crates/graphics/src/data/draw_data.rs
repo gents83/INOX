@@ -116,7 +116,7 @@ pub struct DrawVertex {
     pub position_and_color_offset: u32,
     pub normal_offset: i32,
     pub tangent_offset: i32,
-    pub padding_offset: u32,
+    pub meshlet_index: u32,
     pub uv_offset: [i32; MAX_TEXTURE_COORDS_SETS],
 }
 
@@ -126,7 +126,7 @@ impl Default for DrawVertex {
             position_and_color_offset: 0,
             normal_offset: INVALID_INDEX,
             tangent_offset: INVALID_INDEX,
-            padding_offset: 0,
+            meshlet_index: 0,
             uv_offset: [INVALID_INDEX; MAX_TEXTURE_COORDS_SETS],
         }
     }

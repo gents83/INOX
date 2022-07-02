@@ -380,20 +380,12 @@ impl GltfCompiler {
         );
 
         if !meshlets.meshlets.is_empty() {
-            let mut all_vertices = Vec::new();
-            let mut all_indices = Vec::new();
+            let mut vertices_offset = 0;
+            let mut indices_offset = 0;
             mesh_data.meshlets.clear();
             for m in meshlets.iter() {
                 let bounds =
                     meshopt::compute_meshlet_bounds(m, vertex_data_adapter.as_ref().unwrap());
-                let vertices_offset = all_vertices.len();
-                let indices_offset = all_indices.len();
-                m.vertices.iter().for_each(|v| {
-                    all_vertices.push(mesh_data.vertices[*v as usize]);
-                });
-                m.triangles.iter().for_each(|t| {
-                    all_indices.push(vertices_offset as u32 + *t as u32);
-                });
                 mesh_data.meshlets.push(MeshletData {
                     vertices_count: m.vertices.len() as _,
                     vertices_offset: vertices_offset as _,
@@ -404,6 +396,8 @@ impl GltfCompiler {
                     cone_axis: bounds.cone_axis.into(),
                     cone_cutoff: bounds.cone_cutoff,
                 });
+                vertices_offset += m.vertices.len();
+                indices_offset += m.triangles.len();
             }
         }
     }
@@ -418,9 +412,9 @@ impl GltfCompiler {
         let mut mesh_data = MeshData::default();
         self.extract_mesh_data(path, primitive, &mut mesh_data);
         self.extract_indices(path, primitive, &mut mesh_data);
-        self.compute_meshlets(&mut mesh_data);
 
         let mut mesh_data = self.optimize_mesh(mesh_data);
+        self.compute_meshlets(&mut mesh_data);
         mesh_data.material = material_path.to_path_buf();
 
         self.create_file(
