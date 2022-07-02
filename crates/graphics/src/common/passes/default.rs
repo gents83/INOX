@@ -63,6 +63,8 @@ impl Pass for DefaultPass {
                 .vertex_positions_and_colors
                 .is_empty()
             || render_context.render_buffers.matrix.is_empty()
+            || render_context.render_buffers.meshes.is_empty()
+            || render_context.render_buffers.meshlets.is_empty()
         {
             return;
         }
@@ -82,7 +84,7 @@ impl Pass for DefaultPass {
                 BindingInfo {
                     group_index: 0,
                     binding_index: 0,
-                    stage: ShaderStage::Vertex,
+                    stage: ShaderStage::VertexAndFragment,
                     ..Default::default()
                 },
             )
@@ -105,6 +107,30 @@ impl Pass for DefaultPass {
                 BindingInfo {
                     group_index: 0,
                     binding_index: 2,
+                    stage: ShaderStage::Vertex,
+                    read_only: true,
+                    ..Default::default()
+                },
+            )
+            .add_storage_data(
+                &render_context.core,
+                &render_context.binding_data_buffer,
+                &mut render_context.render_buffers.meshes,
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 3,
+                    stage: ShaderStage::Vertex,
+                    read_only: true,
+                    ..Default::default()
+                },
+            )
+            .add_storage_data(
+                &render_context.core,
+                &render_context.binding_data_buffer,
+                &mut render_context.render_buffers.meshlets,
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 4,
                     stage: ShaderStage::Vertex,
                     read_only: true,
                     ..Default::default()
