@@ -27,7 +27,7 @@ pub struct RenderPass {
     store_depth: StoreOperation,
     render_mode: RenderMode,
     pipeline: Handle<RenderPipeline>,
-    render_texture: Handle<Texture>,
+    render_textures: Vec<Resource<Texture>>,
     depth_texture: Handle<Texture>,
     is_initialized: bool,
 }
@@ -74,7 +74,7 @@ impl DataTypeResource for RenderPass {
             store_depth: StoreOperation::DontCare,
             render_mode: RenderMode::Indirect,
             pipeline: None,
-            render_texture: None,
+            render_textures: Vec::new(),
             depth_texture: None,
             is_initialized: false,
         }
@@ -113,12 +113,12 @@ impl DataTypeResource for RenderPass {
             store_depth: data.store_depth,
             render_mode: data.render_mode,
             pipeline: None,
-            render_texture: None,
+            render_textures: Vec::new(),
             depth_texture: None,
             is_initialized: false,
         };
-        pass.render_target(data.render_target)
-            .depth_target(data.depth_target)
+        pass.add_render_target(data.render_target)
+            .add_depth_target(data.depth_target)
             .set_pipeline(&data.pipeline);
         pass
     }
@@ -139,43 +139,41 @@ impl RenderPass {
         };
         self
     }
-    pub fn render_target(&mut self, render_target: RenderTarget) -> &mut Self {
-        self.render_texture = match render_target {
-            RenderTarget::Texture {
-                width,
-                height,
-                format,
-                read_back: _,
-            } => {
-                let texture_id = generate_random_uid();
-                let image_data = Texture::create_from_format(width, height, format);
-                let mut texture = Texture::create_from_data(
-                    &self.shared_data,
-                    &self.message_hub,
-                    texture_id,
-                    &TextureData {
-                        width,
-                        height,
-                        format,
-                        data: image_data,
-                    },
-                );
-                texture.on_create(&self.shared_data, &self.message_hub, &texture_id, None);
-                let texture = self
-                    .shared_data
-                    .add_resource(&self.message_hub, texture_id, texture);
-                Some(texture)
-            }
-            _ => None,
-        };
+    pub fn add_render_target(&mut self, render_target: RenderTarget) -> &mut Self {
+        if let RenderTarget::Texture {
+            width,
+            height,
+            format,
+            read_back: _,
+        } = render_target
+        {
+            let texture_id = generate_random_uid();
+            let image_data = Texture::create_from_format(width, height, format);
+            let mut texture = Texture::create_from_data(
+                &self.shared_data,
+                &self.message_hub,
+                texture_id,
+                &TextureData {
+                    width,
+                    height,
+                    format,
+                    data: image_data,
+                },
+            );
+            texture.on_create(&self.shared_data, &self.message_hub, &texture_id, None);
+            let texture = self
+                .shared_data
+                .add_resource(&self.message_hub, texture_id, texture);
+            self.render_textures.push(texture)
+        }
 
         self
     }
-    pub fn render_target_from_texture(&mut self, texture: &Resource<Texture>) -> &mut Self {
-        self.render_texture = Some(texture.clone());
+    pub fn add_render_target_from_texture(&mut self, texture: &Resource<Texture>) -> &mut Self {
+        self.render_textures.push(texture.clone());
         self
     }
-    pub fn depth_target(&mut self, render_target: RenderTarget) -> &mut Self {
+    pub fn add_depth_target(&mut self, render_target: RenderTarget) -> &mut Self {
         self.depth_texture = match render_target {
             RenderTarget::Texture {
                 width,
@@ -206,18 +204,18 @@ impl RenderPass {
         };
         self
     }
-    pub fn depth_target_from_texture(&mut self, texture: &Resource<Texture>) -> &mut Self {
+    pub fn add_depth_target_from_texture(&mut self, texture: &Resource<Texture>) -> &mut Self {
         self.depth_texture = Some(texture.clone());
         self
     }
-    pub fn render_texture(&self) -> &Handle<Texture> {
-        &self.render_texture
+    pub fn render_textures(&self) -> &[Resource<Texture>] {
+        &self.render_textures
     }
     pub fn depth_texture(&self) -> &Handle<Texture> {
         &self.depth_texture
     }
-    pub fn render_texture_id(&self) -> Option<&TextureId> {
-        self.render_texture.as_ref().map(|t| t.id())
+    pub fn render_textures_id(&self) -> Vec<&TextureId> {
+        self.render_textures.iter().map(|t| t.id()).collect()
     }
     pub fn depth_texture_id(&self) -> Option<&TextureId> {
         self.depth_texture.as_ref().map(|t| t.id())
@@ -240,7 +238,7 @@ impl RenderPass {
     }
     pub fn init(&mut self, render_context: &mut RenderContext) {
         if !self.is_initialized {
-            if let Some(texture) = &self.render_texture {
+            self.render_textures.iter().for_each(|texture| {
                 let texture_handler = &mut render_context.texture_handler;
                 if texture_handler.get_texture_atlas(texture.id()).is_none() {
                     texture_handler.add_custom_texture(
@@ -254,7 +252,7 @@ impl RenderPass {
                             | wgpu::TextureUsages::RENDER_ATTACHMENT,
                     );
                 }
-            }
+            });
             if let Some(texture) = &self.depth_texture {
                 let texture_handler = &mut render_context.texture_handler;
                 if texture_handler.get_texture_atlas(texture.id()).is_none() {
@@ -281,12 +279,12 @@ impl RenderPass {
         vertex_layout: VertexBufferLayoutBuilder,
         instance_layout: VertexBufferLayoutBuilder,
     ) {
-        let render_format = render_context.render_format(self);
+        let render_formats = render_context.render_formats(self);
         let depth_format = render_context.depth_format(self);
         if let Some(pipeline) = &self.pipeline {
             pipeline.get_mut().init(
                 render_context,
-                render_format,
+                render_formats,
                 depth_format,
                 binding_data,
                 vertex_layout,
@@ -324,7 +322,7 @@ impl RenderPass {
     ) -> wgpu::RenderPass<'a> {
         inox_profiler::scoped_profile!("render_pass::begin");
 
-        let render_target = render_context.render_target(self);
+        let render_targets = render_context.render_targets(self);
         let depth_target = render_context.depth_target(self);
 
         let color_operations = self.color_operations();
@@ -336,11 +334,17 @@ impl RenderPass {
                 .encoder
                 .begin_render_pass(&wgpu::RenderPassDescriptor {
                     label: Some(label.as_str()),
-                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                        view: render_target,
-                        resolve_target: None,
-                        ops: color_operations,
-                    })],
+                    color_attachments: render_targets
+                        .iter()
+                        .map(|&render_target| {
+                            Some(wgpu::RenderPassColorAttachment {
+                                view: render_target,
+                                resolve_target: None,
+                                ops: color_operations,
+                            })
+                        })
+                        .collect::<Vec<_>>()
+                        .as_slice(),
                     depth_stencil_attachment: depth_target.map(|depth_view| {
                         wgpu::RenderPassDepthStencilAttachment {
                             view: depth_view,

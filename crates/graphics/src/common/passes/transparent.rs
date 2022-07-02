@@ -53,7 +53,7 @@ impl Pass for TransparentPass {
     }
     fn init(&mut self, render_context: &mut RenderContext) {
         let mut pass = self.render_pass.get_mut();
-        let render_texture = pass.render_texture_id();
+        let render_texture = pass.render_textures_id();
         let depth_texture = pass.depth_texture_id();
 
         self.binding_data

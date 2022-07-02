@@ -204,14 +204,20 @@ impl RenderContext {
         self.binding_data_buffer.buffers.read().unwrap()
     }
 
-    pub fn render_target<'a>(&'a self, render_pass: &'a RenderPass) -> &'a wgpu::TextureView {
-        if let Some(texture) = render_pass.render_texture() {
-            if let Some(atlas) = self.texture_handler.get_texture_atlas(texture.id()) {
-                return atlas.texture();
-            }
+    pub fn render_targets<'a>(&'a self, render_pass: &'a RenderPass) -> Vec<&'a wgpu::TextureView> {
+        let mut render_targets = Vec::new();
+        let render_textures = render_pass.render_textures_id();
+        if render_textures.is_empty() {
+            debug_assert!(self.surface_view.is_some());
+            render_targets.push(self.surface_view.as_ref().unwrap());
+        } else {
+            render_textures.iter().for_each(|&id| {
+                if let Some(atlas) = self.texture_handler.get_texture_atlas(id) {
+                    render_targets.push(atlas.texture());
+                }
+            });
         }
-        debug_assert!(self.surface_view.is_some());
-        self.surface_view.as_ref().unwrap()
+        render_targets
     }
 
     pub fn depth_target<'a>(
@@ -226,15 +232,19 @@ impl RenderContext {
         None
     }
 
-    pub fn render_format(&self, render_pass: &RenderPass) -> &wgpu::TextureFormat {
-        let mut render_format = &self.core.config.format;
-
-        if let Some(texture) = render_pass.render_texture() {
-            if let Some(atlas) = self.texture_handler.get_texture_atlas(texture.id()) {
-                render_format = atlas.texture_format();
-            }
+    pub fn render_formats(&self, render_pass: &RenderPass) -> Vec<&wgpu::TextureFormat> {
+        let mut render_formats = Vec::new();
+        let render_textures = render_pass.render_textures_id();
+        if render_textures.is_empty() {
+            render_formats.push(&self.core.config.format);
+        } else {
+            render_textures.iter().for_each(|&id| {
+                if let Some(atlas) = self.texture_handler.get_texture_atlas(id) {
+                    render_formats.push(atlas.texture_format());
+                }
+            });
         }
-        render_format
+        render_formats
     }
 
     pub fn depth_format(&self, render_pass: &RenderPass) -> Option<&wgpu::TextureFormat> {

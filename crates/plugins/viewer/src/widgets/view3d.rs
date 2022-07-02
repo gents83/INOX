@@ -49,8 +49,11 @@ impl View3D {
                     let view_width = ui.max_rect().width() as u32;
                     let view_height = ui.max_rect().height() as u32;
 
-                    let texture_uniform_index =
-                        Self::get_render_pass_texture_index(&data.shared_data, DEFAULT_PASS_NAME);
+                    let texture_uniform_index = Self::get_render_pass_texture_index(
+                        &data.shared_data,
+                        0,
+                        DEFAULT_PASS_NAME,
+                    );
 
                     let response = ui.with_layer_id(LayerId::background(), |ui| {
                         let response = Image::new(
@@ -70,12 +73,18 @@ impl View3D {
         })
     }
 
-    fn get_render_pass_texture_index(shared_data: &SharedDataRc, render_pass_name: &str) -> i32 {
+    fn get_render_pass_texture_index(
+        shared_data: &SharedDataRc,
+        render_target_index: usize,
+        render_pass_name: &str,
+    ) -> i32 {
         if let Some(render_pass) =
             SharedData::match_resource(shared_data, |r: &RenderPass| r.name() == render_pass_name)
         {
-            if let Some(texture) = render_pass.get().render_texture() {
-                return texture.get().texture_index();
+            let render_pass = render_pass.get();
+            let render_targets = render_pass.render_textures();
+            if render_target_index < render_targets.len() {
+                return render_targets[render_target_index].get().texture_index();
             }
         }
         0

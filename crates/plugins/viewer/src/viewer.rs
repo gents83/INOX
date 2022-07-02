@@ -172,38 +172,27 @@ impl Viewer {
             opaque_pass
                 .render_pass()
                 .get_mut()
-                .render_target(RenderTarget::Texture {
+                .add_render_target(RenderTarget::Texture {
                     width,
                     height,
                     format: TextureFormat::Rgba32Float,
                     read_back: false,
                 })
-                .depth_target(RenderTarget::Texture {
+                .add_depth_target(RenderTarget::Texture {
                     width,
                     height,
                     format: TextureFormat::Depth32Float,
                     read_back: false,
                 });
             if let Some(wireframe_pass) = renderer.read().unwrap().pass::<WireframePass>() {
-                wireframe_pass
-                    .render_pass()
-                    .get_mut()
-                    .render_target_from_texture(
-                        opaque_pass
-                            .render_pass()
-                            .get()
-                            .render_texture()
-                            .as_ref()
-                            .unwrap(),
-                    )
-                    .depth_target_from_texture(
-                        opaque_pass
-                            .render_pass()
-                            .get()
-                            .depth_texture()
-                            .as_ref()
-                            .unwrap(),
-                    );
+                let mut wireframe_pass = wireframe_pass.render_pass().get_mut();
+                let opaque_pass = opaque_pass.render_pass().get();
+                opaque_pass.render_textures().iter().for_each(|texture| {
+                    wireframe_pass.add_render_target_from_texture(texture);
+                });
+                if let Some(depth_target) = opaque_pass.depth_texture() {
+                    wireframe_pass.add_depth_target_from_texture(depth_target);
+                }
             }
         }
         renderer.write().unwrap().add_pass(ui_pass);

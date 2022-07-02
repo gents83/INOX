@@ -73,7 +73,7 @@ impl Pass for DefaultPass {
         }
 
         let mut pass = self.render_pass.get_mut();
-        let render_texture = pass.render_texture_id();
+        let render_textures = pass.render_textures_id();
         let depth_texture = pass.depth_texture_id();
         let instances = render_context
             .render_buffers
@@ -179,7 +179,7 @@ impl Pass for DefaultPass {
             )
             .add_textures_data(
                 &render_context.texture_handler,
-                render_texture,
+                render_textures,
                 depth_texture,
                 BindingInfo {
                     group_index: 2,

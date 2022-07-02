@@ -303,7 +303,7 @@ impl BindingData {
     pub fn add_textures_data(
         &mut self,
         texture_handler: &TextureHandler,
-        render_target: Option<&TextureId>,
+        render_targets: Vec<&TextureId>,
         depth_target: Option<&TextureId>,
         info: BindingInfo,
     ) -> &mut Self {
@@ -404,10 +404,11 @@ impl BindingData {
             if i >= num_textures {
                 use_default = true;
             } else {
-                if let Some(id) = render_target {
-                    if textures_atlas[i].texture_id() == id {
-                        use_default = true;
-                    }
+                if render_targets
+                    .iter()
+                    .any(|&id| textures_atlas[i].texture_id() == id)
+                {
+                    use_default = true;
                 }
                 if let Some(id) = depth_target {
                     if textures_atlas[i].texture_id() == id {
