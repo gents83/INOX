@@ -62,14 +62,19 @@ impl Pass for DefaultPass {
                 .render_buffers
                 .vertex_positions_and_colors
                 .is_empty()
+            || render_context.render_buffers.vertex_uvs.is_empty()
             || render_context.render_buffers.matrix.is_empty()
             || render_context.render_buffers.meshes.is_empty()
             || render_context.render_buffers.meshlets.is_empty()
+            || render_context.render_buffers.materials.is_empty()
+            || render_context.render_buffers.textures.is_empty()
         {
             return;
         }
 
         let mut pass = self.render_pass.get_mut();
+        let render_texture = pass.render_texture_id();
+        let depth_texture = pass.depth_texture_id();
         let instances = render_context
             .render_buffers
             .instances
@@ -103,7 +108,7 @@ impl Pass for DefaultPass {
             .add_storage_data(
                 &render_context.core,
                 &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.matrix,
+                &mut render_context.render_buffers.vertex_uvs,
                 BindingInfo {
                     group_index: 0,
                     binding_index: 2,
@@ -115,10 +120,22 @@ impl Pass for DefaultPass {
             .add_storage_data(
                 &render_context.core,
                 &render_context.binding_data_buffer,
+                &mut render_context.render_buffers.matrix,
+                BindingInfo {
+                    group_index: 1,
+                    binding_index: 0,
+                    stage: ShaderStage::Vertex,
+                    read_only: true,
+                    ..Default::default()
+                },
+            )
+            .add_storage_data(
+                &render_context.core,
+                &render_context.binding_data_buffer,
                 &mut render_context.render_buffers.meshes,
                 BindingInfo {
-                    group_index: 0,
-                    binding_index: 3,
+                    group_index: 1,
+                    binding_index: 1,
                     stage: ShaderStage::Vertex,
                     read_only: true,
                     ..Default::default()
@@ -129,10 +146,44 @@ impl Pass for DefaultPass {
                 &render_context.binding_data_buffer,
                 &mut render_context.render_buffers.meshlets,
                 BindingInfo {
-                    group_index: 0,
-                    binding_index: 4,
+                    group_index: 1,
+                    binding_index: 2,
                     stage: ShaderStage::Vertex,
                     read_only: true,
+                    ..Default::default()
+                },
+            )
+            .add_storage_data(
+                &render_context.core,
+                &render_context.binding_data_buffer,
+                &mut render_context.render_buffers.materials,
+                BindingInfo {
+                    group_index: 1,
+                    binding_index: 3,
+                    stage: ShaderStage::Vertex,
+                    read_only: true,
+                    ..Default::default()
+                },
+            )
+            .add_storage_data(
+                &render_context.core,
+                &render_context.binding_data_buffer,
+                &mut render_context.render_buffers.textures,
+                BindingInfo {
+                    group_index: 1,
+                    binding_index: 4,
+                    stage: ShaderStage::Fragment,
+                    read_only: true,
+                    ..Default::default()
+                },
+            )
+            .add_textures_data(
+                &render_context.texture_handler,
+                render_texture,
+                depth_texture,
+                BindingInfo {
+                    group_index: 2,
+                    stage: ShaderStage::Fragment,
                     ..Default::default()
                 },
             )

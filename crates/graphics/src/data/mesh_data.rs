@@ -42,7 +42,7 @@ pub struct MeshData {
     pub colors: Vec<Vector4>,
     pub normals: Vec<Vector3>,
     pub tangents: Vec<Vector4>,
-    pub uvs: [Vec<Vector2>; MAX_TEXTURE_COORDS_SETS],
+    pub uvs: Vec<Vector2>,
     pub vertices: Vec<DrawVertex>,
     pub indices: Vec<u32>,
     pub material: PathBuf,
@@ -68,9 +68,7 @@ impl MeshData {
         self.colors.clear();
         self.normals.clear();
         self.tangents.clear();
-        self.uvs.iter_mut().for_each(|uvs| {
-            uvs.clear();
-        });
+        self.uvs.clear();
         self.meshlets.clear();
         self.indices.clear();
         self
@@ -99,39 +97,25 @@ impl MeshData {
         self.vertices.len() - 1
     }
     pub fn add_vertex_pos_uv(&mut self, p: Vector3, uv: Vector2) -> usize {
-        let uv_index = 0;
         let vertex = DrawVertex {
             position_and_color_offset: self.positions.len() as _,
-            uv_offset: self
-                .uvs
-                .iter()
-                .map(|uvs| uvs.len() as _)
-                .collect::<Vec<i32>>()
-                .try_into()
-                .unwrap(),
+            uv_offset: [self.uvs.len() as _; MAX_TEXTURE_COORDS_SETS],
             ..Default::default()
         };
         self.positions.push(p);
-        self.uvs[uv_index].push(uv);
+        self.uvs.push(uv);
         self.vertices.push(vertex);
         self.vertices.len() - 1
     }
     pub fn add_vertex_pos_color_uv(&mut self, p: Vector3, c: Vector4, uv: Vector2) -> usize {
-        let uv_index = 0;
         let vertex = DrawVertex {
             position_and_color_offset: self.positions.len() as _,
-            uv_offset: self
-                .uvs
-                .iter()
-                .map(|uvs| uvs.len() as _)
-                .collect::<Vec<i32>>()
-                .try_into()
-                .unwrap(),
+            uv_offset: [self.uvs.len() as _; MAX_TEXTURE_COORDS_SETS],
             ..Default::default()
         };
         self.positions.push(p);
         self.colors.push(c);
-        self.uvs[uv_index].push(uv);
+        self.uvs.push(uv);
         self.vertices.push(vertex);
         self.vertices.len() - 1
     }
@@ -142,23 +126,16 @@ impl MeshData {
         n: Vector3,
         uv: Vector2,
     ) -> usize {
-        let uv_index = 0;
         let vertex = DrawVertex {
             position_and_color_offset: self.positions.len() as _,
             normal_offset: self.normals.len() as _,
-            uv_offset: self
-                .uvs
-                .iter()
-                .map(|uvs| uvs.len() as _)
-                .collect::<Vec<i32>>()
-                .try_into()
-                .unwrap(),
+            uv_offset: [self.uvs.len() as _; MAX_TEXTURE_COORDS_SETS],
             ..Default::default()
         };
         self.positions.push(p);
         self.colors.push(c);
         self.normals.push(n);
-        self.uvs[uv_index].push(uv);
+        self.uvs.push(uv);
         self.vertices.push(vertex);
         self.vertices.len() - 1
     }
@@ -179,12 +156,7 @@ impl MeshData {
         self.colors.append(&mut mesh_data.colors);
         self.normals.append(&mut mesh_data.normals);
         self.tangents.append(&mut mesh_data.tangents);
-        self.uvs
-            .iter_mut()
-            .zip(mesh_data.uvs.iter_mut())
-            .for_each(|(uvs, uv)| {
-                uvs.append(uv);
-            });
+        self.uvs.append(&mut mesh_data.uvs);
         self.vertices.append(&mut mesh_data.vertices);
         mesh_data
             .indices

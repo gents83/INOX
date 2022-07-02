@@ -25,7 +25,7 @@ pub struct RenderBuffers {
     pub vertex_positions_and_colors: Buffer<[f32; 4]>, //MeshId <-> [f32; 4]
     pub vertex_normals_and_padding: Buffer<[f32; 4]>, //MeshId <-> [f32; 4]
     pub vertex_tangents: Buffer<[f32; 4]>, //MeshId <-> [f32; 4]
-    pub vertex_uvs: [Buffer<[f32; 2]>; MAX_TEXTURE_COORDS_SETS], //MeshId <-> [[f32; 2]; 4]
+    pub vertex_uvs: Buffer<[f32; 2]>,  //MeshId <-> [[f32; 2]; 4]
 }
 
 impl RenderBuffers {
@@ -118,14 +118,13 @@ impl RenderBuffers {
                 .allocate(mesh_id, to_slice(mesh_data.tangents.as_slice()))
                 .1;
         }
-        let mut uv_range = vec![Range::<usize>::default(); MAX_TEXTURE_COORDS_SETS];
-        (0..MAX_TEXTURE_COORDS_SETS).for_each(|i| {
-            if !mesh_data.uvs[i].is_empty() {
-                uv_range[i] = self.vertex_uvs[i]
-                    .allocate(mesh_id, to_slice(mesh_data.uvs[i].as_slice()))
-                    .1;
-            }
-        });
+        let mut uv_range = Range::<usize>::default();
+        if !mesh_data.uvs.is_empty() {
+            uv_range = self
+                .vertex_uvs
+                .allocate(mesh_id, to_slice(mesh_data.uvs.as_slice()))
+                .1;
+        }
 
         let mut vertices = mesh_data.vertices.clone();
         vertices.iter_mut().for_each(|v| {
@@ -133,7 +132,7 @@ impl RenderBuffers {
             v.normal_offset += normal_range.start as i32;
             v.tangent_offset += tangent_range.start as i32;
             (0..MAX_TEXTURE_COORDS_SETS).for_each(|i| {
-                v.uv_offset[i] += uv_range[i].start as i32;
+                v.uv_offset[i] += uv_range.start as i32;
             });
         });
         let vertex_offset = self.vertices.allocate(mesh_id, vertices.as_slice()).1.start;
@@ -238,9 +237,7 @@ impl RenderBuffers {
         self.vertex_positions_and_colors.remove(mesh_id);
         self.vertex_normals_and_padding.remove(mesh_id);
         self.vertex_tangents.remove(mesh_id);
-        for i in 0..MAX_TEXTURE_COORDS_SETS {
-            self.vertex_uvs[i].remove(mesh_id);
-        }
+        self.vertex_uvs.remove(mesh_id);
     }
     pub fn add_material(&mut self, material_id: &MaterialId, material: &mut Material) {
         inox_profiler::scoped_profile!("render_buffers::add_material");

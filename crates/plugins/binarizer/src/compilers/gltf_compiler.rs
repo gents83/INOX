@@ -289,14 +289,15 @@ impl GltfCompiler {
                     let num_bytes = self.bytes_from_dimension(&accessor);
                     debug_assert!(num == 2 && num_bytes == 4);
                     if let Some(tex) = self.read_accessor_from_path::<Vector2>(path, &accessor) {
-                        mesh_data.uvs[texture_index as usize].extend_from_slice(tex.as_slice());
+                        let starting_index = mesh_data.uvs.len();
+                        mesh_data.uvs.extend_from_slice(tex.as_slice());
                         mesh_data.vertices.resize(tex.len(), DrawVertex::default());
                         mesh_data
                             .vertices
                             .iter_mut()
                             .enumerate()
                             .for_each(|(i, v)| {
-                                v.uv_offset[texture_index as usize] = i as _;
+                                v.uv_offset[texture_index as usize] = (starting_index + i) as _;
                             });
                     }
                 }
@@ -321,9 +322,9 @@ impl GltfCompiler {
                     v[4] = old_mesh_data.normals[i][1];
                     v[5] = old_mesh_data.normals[i][2];
                 }
-                if old_mesh_data.uvs[0].len() > i {
-                    v[6] = old_mesh_data.uvs[0][i][0];
-                    v[7] = old_mesh_data.uvs[0][i][1];
+                if old_mesh_data.uvs.len() > i {
+                    v[6] = old_mesh_data.uvs[i][0];
+                    v[7] = old_mesh_data.uvs[i][1];
                 }
             });
 
