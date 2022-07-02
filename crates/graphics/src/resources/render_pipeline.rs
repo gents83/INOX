@@ -250,7 +250,7 @@ impl RenderPipeline {
                         } else {
                             SHADER_ENTRY_POINT
                         },
-                        targets: &[wgpu::ColorTargetState {
+                        targets: &[Some(wgpu::ColorTargetState {
                             format: *render_format,
                             blend: Some(wgpu::BlendState {
                                 color: wgpu::BlendComponent {
@@ -265,7 +265,7 @@ impl RenderPipeline {
                                 },
                             }),
                             write_mask: wgpu::ColorWrites::ALL,
-                        }],
+                        })],
                     }),
                     primitive: wgpu::PrimitiveState {
                         topology: wgpu::PrimitiveTopology::TriangleList,

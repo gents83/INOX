@@ -336,11 +336,11 @@ impl RenderPass {
                 .encoder
                 .begin_render_pass(&wgpu::RenderPassDescriptor {
                     label: Some(label.as_str()),
-                    color_attachments: &[wgpu::RenderPassColorAttachment {
+                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                         view: render_target,
                         resolve_target: None,
                         ops: color_operations,
-                    }],
+                    })],
                     depth_stencil_attachment: depth_target.map(|depth_view| {
                         wgpu::RenderPassDepthStencilAttachment {
                             view: depth_view,

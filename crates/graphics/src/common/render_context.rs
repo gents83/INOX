@@ -144,14 +144,10 @@ impl RenderContext {
 
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: *surface
-                .get_supported_formats(&adapter)
-                .unwrap()
-                .first()
-                .unwrap(),
+            format: *surface.get_supported_formats(&adapter).first().unwrap(),
             width: DEFAULT_WIDTH,
             height: DEFAULT_HEIGHT,
-            present_mode: wgpu::PresentMode::Mailbox,
+            present_mode: wgpu::PresentMode::AutoNoVsync,
         };
 
         //debug_log!("Surface format: {:?}", config.format);

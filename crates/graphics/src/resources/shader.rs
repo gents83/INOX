@@ -186,7 +186,7 @@ impl Shader {
                     context
                         .core
                         .device
-                        .create_shader_module(&wgpu::ShaderModuleDescriptor {
+                        .create_shader_module(wgpu::ShaderModuleDescriptor {
                             label: Some(shader_name.as_str()),
                             source: wgpu::ShaderSource::SpirV(std::borrow::Cow::Borrowed(
                                 self.data.spirv_code.as_slice(),
@@ -198,7 +198,7 @@ impl Shader {
                     context
                         .core
                         .device
-                        .create_shader_module(&wgpu::ShaderModuleDescriptor {
+                        .create_shader_module(wgpu::ShaderModuleDescriptor {
                             label: Some(shader_name.as_str()),
                             source: wgpu::ShaderSource::Wgsl(self.data.wgsl_code.clone().into()),
                         });
