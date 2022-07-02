@@ -1,6 +1,6 @@
 {
-    "vertex_shader": "shaders/wgsl/default.shader",
-    "fragment_shader": "shaders/wgsl/default.shader",
+    "vertex_shader": "shaders/wgsl/wireframe.shader",
+    "fragment_shader": "shaders/wgsl/wireframe.shader",
     "front_face": "Clockwise",
     "culling": "None",
     "mode": "Line",
