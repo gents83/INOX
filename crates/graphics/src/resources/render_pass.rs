@@ -399,10 +399,6 @@ impl RenderPass {
             let meshlets = render_context.render_buffers.meshlets.data();
             instances.for_each_entry(|index, instance| {
                 inox_profiler::scoped_profile!("render_pass::draw_instance");
-                /*if let Some(mesh_id) = render_context
-                .render_buffers
-                .meshes
-                .id_at(instance.mesh_index as _)*/
                 {
                     let mesh = render_context
                         .render_buffers
@@ -411,21 +407,6 @@ impl RenderPass {
                     for i in mesh.meshlet_offset..mesh.meshlet_offset + mesh.meshlet_count {
                         inox_profiler::scoped_profile!("render_pass::draw_indexed");
                         let meshlet = &meshlets[i as usize];
-                        /*
-                        if let Some(area) =
-                            render_context.render_buffers.draw_area.get(&mesh_id)
-                        {
-                            let x =
-                                (area[0] as u32).clamp(0, render_context.core.config.width);
-                            let y = (area[1] as u32)
-                                .clamp(0, render_context.core.config.height);
-                            let width = (x + area[2] as u32)
-                                .clamp(0, render_context.core.config.width - x);
-                            let height = (y + area[3] as u32)
-                                .clamp(0, render_context.core.config.height - y);
-                            render_pass.set_scissor_rect(x, y, width, height);
-                        }
-                        */
                         render_pass.draw_indexed(
                             (mesh.indices_offset + meshlet.indices_offset) as _
                                 ..(mesh.indices_offset

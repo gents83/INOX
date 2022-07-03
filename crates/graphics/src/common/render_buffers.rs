@@ -17,7 +17,6 @@ pub struct RenderBuffers {
     pub materials: HashBuffer<MaterialId, DrawMaterial, 0>,
     pub instances: HashMap<MeshFlags, HashBuffer<MeshId, DrawInstance, 0>>,
     pub meshes: HashBuffer<MeshId, DrawMesh, 0>,
-    pub draw_area: HashBuffer<MeshId, [f32; 4], 0>,
     pub matrix: HashBuffer<ResourceId, [[f32; 4]; 4], 0>,
     pub meshlets: Buffer<DrawMeshlet>, //MeshId <-> [DrawMeshlet]
     pub vertices: Buffer<DrawVertex>,  //MeshId <-> [DrawVertex]
@@ -169,15 +168,6 @@ impl RenderBuffers {
 
         self.update_matrix(mesh_id, &mesh.matrix());
 
-        if let Some(draw_area) = mesh.draw_area() {
-            self.draw_area.insert(
-                mesh_id,
-                [draw_area.x, draw_area.y, draw_area.z, draw_area.w],
-            );
-        } else {
-            self.draw_area.remove(mesh_id);
-        }
-
         if let Some(m) = self.meshes.get_mut(mesh_id) {
             if let Some(material) = mesh.material() {
                 if let Some(index) = self.materials.index_of(material.id()) {
@@ -228,7 +218,6 @@ impl RenderBuffers {
         inox_profiler::scoped_profile!("render_buffers::remove_mesh");
 
         self.remove_matrix(mesh_id);
-        self.draw_area.remove(mesh_id);
         self.instances.iter_mut().for_each(|(_, buffer)| {
             buffer.remove(mesh_id);
         });
