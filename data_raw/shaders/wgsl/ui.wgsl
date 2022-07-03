@@ -83,11 +83,12 @@ fn get_texture_color(tex_coords_and_texture_index: vec3<f32>) -> vec4<f32> {
     if (texture_data_index < 0) {
         return vec4<f32>(tex_coords, 0.);
     }
-    let atlas_index = textures.data[texture_data_index].texture_index;
-    let layer_index = i32(textures.data[texture_data_index].layer_index);
+    let texture = &textures.data[texture_data_index];
+    let atlas_index = (*texture).texture_index;
+    let layer_index = i32((*texture).layer_index);
 
-    tex_coords.x = (textures.data[texture_data_index].area.x + tex_coords_and_texture_index.x * textures.data[texture_data_index].area.z) / textures.data[texture_data_index].total_width;
-    tex_coords.y = (textures.data[texture_data_index].area.y + tex_coords_and_texture_index.y * textures.data[texture_data_index].area.w) / textures.data[texture_data_index].total_height;
+    tex_coords.x = ((*texture).area.x + tex_coords_and_texture_index.x * (*texture).area.z) / (*texture).total_width;
+    tex_coords.y = ((*texture).area.y + tex_coords_and_texture_index.y * (*texture).area.w) / (*texture).total_height;
     tex_coords.z = f32(layer_index);
 
 #ifdef FEATURES_TEXTURE_BINDING_ARRAY

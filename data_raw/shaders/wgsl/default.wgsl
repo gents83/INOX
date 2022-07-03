@@ -86,11 +86,12 @@ fn get_texture_color(tex_coords_and_texture_index: vec3<f32>) -> vec4<f32> {
     if (texture_data_index < 0) {
         return vec4<f32>(tex_coords, 0.);
     }
-    let atlas_index = textures.data[texture_data_index].texture_index;
-    let layer_index = i32(textures.data[texture_data_index].layer_index);
+    let texture = &textures.data[texture_data_index];
+    let atlas_index = (*texture).texture_index;
+    let layer_index = i32((*texture).layer_index);
 
-    tex_coords.x = (textures.data[texture_data_index].area.x + tex_coords_and_texture_index.x * textures.data[texture_data_index].area.z) / textures.data[texture_data_index].total_width;
-    tex_coords.y = (textures.data[texture_data_index].area.y + tex_coords_and_texture_index.y * textures.data[texture_data_index].area.w) / textures.data[texture_data_index].total_height;
+    tex_coords.x = ((*texture).area.x + tex_coords_and_texture_index.x * (*texture).area.z) / (*texture).total_width;
+    tex_coords.y = ((*texture).area.y + tex_coords_and_texture_index.y * (*texture).area.w) / (*texture).total_height;
     tex_coords.z = f32(layer_index);
 
 #ifdef FEATURES_TEXTURE_BINDING_ARRAY
@@ -138,6 +139,7 @@ fn vs_main(
 ) -> VertexOutput {
     let instance_matrix = matrices.data[i_in.matrix_index];
     let position = positions_and_colors.data[v_in.position_and_color_offset].xyz;
+    let color = positions_and_colors.data[v_in.position_and_color_offset].w;
 
     let mvp = constant_data.proj * constant_data.view * instance_matrix;
     var vertex_out: VertexOutput;
@@ -145,29 +147,30 @@ fn vs_main(
 
     let instance_id = i_in.index;
     let mesh_id = i_in.mesh_index;
-    var i = meshes.data[mesh_id].meshlet_offset + meshes.data[mesh_id].meshlet_count - 1u;
+    let mesh = &meshes.data[mesh_id];
+    var i = (*mesh).meshlet_offset + (*mesh).meshlet_count - 1u;
     var meshlet_id = f32(i + 1u);
     while(i > 0u) {
-        if ((v_in.index - meshes.data[mesh_id].vertex_offset) > meshlets.data[i].vertex_offset) {
+        if ((v_in.index - (*mesh).vertex_offset) > meshlets.data[i].vertex_offset) {
             break;
         }
         meshlet_id = f32(i - 1u);
         i -= 1u;
     }
 
-    let color = positions_and_colors.data[v_in.position_and_color_offset].w;
     vertex_out.params = vec4<f32>(f32(instance_id), f32(mesh_id), f32(meshlet_id), color);
 
-    let material_id = meshes.data[mesh_id].material_index;
-    let texture_id = materials.data[material_id].textures_indices[TEXTURE_TYPE_BASE_COLOR];
+    let material_id = (*mesh).material_index;
+    let material = &materials.data[material_id];
+    let texture_id = (*material).textures_indices[TEXTURE_TYPE_BASE_COLOR];
     var uv = vec2<f32>(0., 0.);
-    if (materials.data[material_id].textures_coord_set[TEXTURE_TYPE_BASE_COLOR] == 0u) {
+    if ((*material).textures_coord_set[TEXTURE_TYPE_BASE_COLOR] == 0u) {
         uv = uvs.data[v_in.uvs_offset.x].xy;
-    } else if (materials.data[material_id].textures_coord_set[TEXTURE_TYPE_BASE_COLOR] == 1u) {
+    } else if ((*material).textures_coord_set[TEXTURE_TYPE_BASE_COLOR] == 1u) {
         uv = uvs.data[v_in.uvs_offset.y].xy;
-    } else if (materials.data[material_id].textures_coord_set[TEXTURE_TYPE_BASE_COLOR] == 2u) {
+    } else if ((*material).textures_coord_set[TEXTURE_TYPE_BASE_COLOR] == 2u) {
         uv = uvs.data[v_in.uvs_offset.z].xy;
-    } else if (materials.data[material_id].textures_coord_set[TEXTURE_TYPE_BASE_COLOR] == 3u) {
+    } else if ((*material).textures_coord_set[TEXTURE_TYPE_BASE_COLOR] == 3u) {
         uv = uvs.data[v_in.uvs_offset.w].xy;
     }
     let unused = 0.;
