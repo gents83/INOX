@@ -173,8 +173,8 @@ impl RenderPipeline {
         render_formats: Vec<&wgpu::TextureFormat>,
         depth_format: Option<&wgpu::TextureFormat>,
         binding_data: &BindingData,
-        vertex_layout: VertexBufferLayoutBuilder,
-        instance_layout: VertexBufferLayoutBuilder,
+        vertex_layout: Option<VertexBufferLayoutBuilder>,
+        instance_layout: Option<VertexBufferLayoutBuilder>,
     ) -> bool {
         inox_profiler::scoped_profile!("render_pipeline::init");
         if self.vertex_shader.is_none() || self.fragment_shader.is_none() {
@@ -222,6 +222,14 @@ impl RenderPipeline {
                     push_constant_ranges: &[],
                 });
 
+        let mut vertex_state_buffers = Vec::new();
+        if let Some(vertex_layout) = vertex_layout.as_ref() {
+            vertex_state_buffers.push(vertex_layout.build());
+        }
+        if let Some(instance_layout) = instance_layout.as_ref() {
+            vertex_state_buffers.push(instance_layout.build());
+        }
+
         let render_pipeline = {
             inox_profiler::scoped_profile!("render_pipeline::crate[{}]", self.name());
             context
@@ -247,7 +255,7 @@ impl RenderPipeline {
                         } else {
                             SHADER_ENTRY_POINT
                         },
-                        buffers: &[vertex_layout.build(), instance_layout.build()],
+                        buffers: vertex_state_buffers.as_slice(),
                     },
                     fragment: Some(wgpu::FragmentState {
                         module: self.fragment_shader.as_ref().unwrap().get().module(),

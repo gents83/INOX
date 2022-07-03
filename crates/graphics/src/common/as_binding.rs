@@ -1,15 +1,15 @@
 use inox_resources::{Buffer, HashBuffer};
-use inox_uid::Uid;
 
 use crate::{GpuBuffer, RenderCoreContext};
 
+pub type BufferId = u64;
+
 pub trait AsBinding {
-    fn id(&self) -> Uid
+    fn id(&self) -> BufferId
     where
         Self: Sized,
     {
-        let address = unsafe { *(self as *const Self as *const u128) };
-        Uid::from_u128(address)
+        unsafe { *(self as *const Self as *const BufferId) }
     }
     fn is_dirty(&self) -> bool;
     fn set_dirty(&mut self, is_dirty: bool);

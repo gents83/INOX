@@ -3,9 +3,9 @@ use std::path::PathBuf;
 use inox_core::{define_plugin, ContextRc, Plugin, SystemUID, WindowSystem};
 
 use inox_graphics::{
-    rendering_system::RenderingSystem, update_system::UpdateSystem, DebugDrawerSystem, DefaultPass,
-    Pass, RenderPass, RenderTarget, Renderer, RendererRw, TextureFormat, WireframePass,
-    DEFAULT_HEIGHT, DEFAULT_PASS_NAME, DEFAULT_WIDTH, WIREFRAME_PASS_NAME,
+    rendering_system::RenderingSystem, update_system::UpdateSystem, BlitPass, DebugDrawerSystem,
+    DefaultPass, Pass, RenderPass, RenderTarget, Renderer, RendererRw, TextureFormat,
+    WireframePass, DEFAULT_HEIGHT, DEFAULT_PASS_NAME, DEFAULT_WIDTH, WIREFRAME_PASS_NAME,
 };
 use inox_platform::Window;
 use inox_resources::ConfigBase;
@@ -127,10 +127,10 @@ impl Plugin for Viewer {
                 {
                     ui_pass.get_mut().set_pipeline(&data.ui_pass_pipeline);
                 }
-                if let Some(opaque_pass) =
+                if let Some(default_pass) =
                     shared_data.match_resource(|r: &RenderPass| r.name() == DEFAULT_PASS_NAME)
                 {
-                    opaque_pass
+                    default_pass
                         .get_mut()
                         .set_pipeline(&data.opaque_pass_pipeline);
                 }
@@ -148,58 +148,81 @@ impl Plugin for Viewer {
 
 impl Viewer {
     fn create_render_passes(context: &ContextRc, renderer: &RendererRw, width: u32, height: u32) {
-        Self::create_opaque_pass(context, renderer);
+        Self::create_default_pass(context, renderer, width, height);
         if ADD_WIREFRAME_PASS {
             Self::create_wireframe_pass(context, renderer);
         }
+        Self::create_blit_pass(context, renderer);
         if ADD_UI_PASS {
             Self::create_ui_pass(context, renderer, width, height);
         }
     }
-    fn create_opaque_pass(context: &ContextRc, renderer: &RendererRw) {
-        let opaque_pass = DefaultPass::create(context);
+    fn create_default_pass(context: &ContextRc, renderer: &RendererRw, width: u32, height: u32) {
+        let default_pass = DefaultPass::create(context);
 
-        renderer.write().unwrap().add_pass(opaque_pass);
+        default_pass
+            .render_pass()
+            .get_mut()
+            .add_render_target(RenderTarget::Texture {
+                width,
+                height,
+                format: TextureFormat::Rgba32Float,
+                read_back: false,
+            })
+            .add_render_target(RenderTarget::Texture {
+                width,
+                height,
+                format: TextureFormat::Rgba32Float,
+                read_back: false,
+            })
+            .add_depth_target(RenderTarget::Texture {
+                width,
+                height,
+                format: TextureFormat::Depth32Float,
+                read_back: false,
+            });
+
+        renderer.write().unwrap().add_pass(default_pass);
+    }
+    fn create_blit_pass(context: &ContextRc, renderer: &RendererRw) {
+        let mut blit_pass = BlitPass::create(context);
+
+        if let Some(default_pass) = renderer.read().unwrap().pass::<DefaultPass>() {
+            let default_pass = default_pass.render_pass().get();
+            let render_target_textures = default_pass.render_textures_id();
+            blit_pass.set_source(render_target_textures[0]);
+        }
+        renderer.write().unwrap().add_pass(blit_pass);
     }
     fn create_wireframe_pass(context: &ContextRc, renderer: &RendererRw) {
         let wireframe_pass = WireframePass::create(context);
 
+        if let Some(default_pass) = renderer.read().unwrap().pass::<DefaultPass>() {
+            if let Some(wireframe_pass) = renderer.read().unwrap().pass::<WireframePass>() {
+                let mut wireframe_pass = wireframe_pass.render_pass().get_mut();
+                let default_pass = default_pass.render_pass().get();
+                default_pass.render_textures().iter().for_each(|texture| {
+                    wireframe_pass.add_render_target_from_texture(texture);
+                });
+                if let Some(depth_target) = default_pass.depth_texture() {
+                    wireframe_pass.add_depth_target_from_texture(depth_target);
+                }
+            }
+        }
         renderer.write().unwrap().add_pass(wireframe_pass);
     }
     fn create_ui_pass(context: &ContextRc, renderer: &RendererRw, width: u32, height: u32) {
         let ui_pass = UIPass::create(context);
-        if let Some(opaque_pass) = renderer.read().unwrap().pass::<DefaultPass>() {
-            opaque_pass
+        if let Some(blit_pass) = renderer.read().unwrap().pass::<BlitPass>() {
+            blit_pass
                 .render_pass()
                 .get_mut()
                 .add_render_target(RenderTarget::Texture {
                     width,
                     height,
-                    format: TextureFormat::Rgba32Float,
-                    read_back: false,
-                })
-                .add_render_target(RenderTarget::Texture {
-                    width,
-                    height,
-                    format: TextureFormat::Rgba32Float,
-                    read_back: false,
-                })
-                .add_depth_target(RenderTarget::Texture {
-                    width,
-                    height,
-                    format: TextureFormat::Depth32Float,
+                    format: TextureFormat::Rgba8Unorm,
                     read_back: false,
                 });
-            if let Some(wireframe_pass) = renderer.read().unwrap().pass::<WireframePass>() {
-                let mut wireframe_pass = wireframe_pass.render_pass().get_mut();
-                let opaque_pass = opaque_pass.render_pass().get();
-                opaque_pass.render_textures().iter().for_each(|texture| {
-                    wireframe_pass.add_render_target_from_texture(texture);
-                });
-                if let Some(depth_target) = opaque_pass.depth_texture() {
-                    wireframe_pass.add_depth_target_from_texture(depth_target);
-                }
-            }
         }
         renderer.write().unwrap().add_pass(ui_pass);
     }

@@ -27,7 +27,7 @@ impl AsBinding for UIPassData {
         self.is_dirty = dirty;
     }
     fn size(&self) -> u64 {
-        std::mem::size_of::<Self>() as _
+        std::mem::size_of::<f32>() as _
     }
     fn fill_buffer(&self, render_core_context: &RenderCoreContext, buffer: &mut GpuBuffer) {
         buffer.add_to_gpu_buffer(render_core_context, &[self.ui_scale]);
@@ -188,8 +188,8 @@ impl Pass for UIPass {
         pass.init_pipeline(
             render_context,
             &self.binding_data,
-            vertex_layout,
-            instance_layout,
+            Some(vertex_layout),
+            Some(instance_layout),
         );
     }
     fn update(&mut self, render_context: &mut RenderContext, command_buffer: &mut CommandBuffer) {

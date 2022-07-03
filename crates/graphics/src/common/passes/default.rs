@@ -211,8 +211,8 @@ impl Pass for DefaultPass {
         pass.init_pipeline(
             render_context,
             &self.binding_data,
-            vertex_layout,
-            instance_layout,
+            Some(vertex_layout),
+            Some(instance_layout),
         );
     }
     fn update(&mut self, render_context: &mut RenderContext, command_buffer: &mut CommandBuffer) {

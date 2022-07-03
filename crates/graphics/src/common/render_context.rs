@@ -6,28 +6,25 @@ use std::{
 use inox_math::{Matrix4, Vector2};
 use inox_platform::Handle;
 
-use inox_resources::ResourceId;
-use inox_uid::Uid;
-
 use crate::{
     platform::{platform_limits, required_gpu_features},
-    AsBinding, ConstantData, GpuBuffer, MeshFlags, RenderBuffers, RenderPass, RendererRw,
+    AsBinding, BufferId, ConstantData, GpuBuffer, MeshFlags, RenderBuffers, RenderPass, RendererRw,
     TextureHandler, TextureId, TextureInfo, CONSTANT_DATA_FLAGS_SUPPORT_SRGB, DEFAULT_HEIGHT,
     DEFAULT_WIDTH,
 };
 
 #[derive(Default)]
 pub struct BindingDataBuffer {
-    pub buffers: RwLock<HashMap<Uid, GpuBuffer>>,
+    pub buffers: RwLock<HashMap<BufferId, GpuBuffer>>,
 }
 
 impl BindingDataBuffer {
-    pub fn has_buffer(&self, uid: &Uid) -> bool {
+    pub fn has_buffer(&self, uid: &BufferId) -> bool {
         self.buffers.read().unwrap().contains_key(uid)
     }
     pub fn bind_buffer_with_id<T>(
         &self,
-        id: &Uid,
+        id: BufferId,
         data: &mut T,
         usage: wgpu::BufferUsages,
         render_core_context: &RenderCoreContext,
@@ -37,7 +34,7 @@ impl BindingDataBuffer {
     {
         let mut bind_data_buffer = self.buffers.write().unwrap();
         let buffer = bind_data_buffer
-            .entry(*id)
+            .entry(id)
             .or_insert_with(GpuBuffer::default);
 
         let mut is_changed = false;
@@ -56,12 +53,12 @@ impl BindingDataBuffer {
         data: &mut T,
         usage: wgpu::BufferUsages,
         render_core_context: &RenderCoreContext,
-    ) -> (Uid, bool)
+    ) -> (BufferId, bool)
     where
         T: AsBinding,
     {
         let id = data.id();
-        let is_changed = self.bind_buffer_with_id(&id, data, usage, render_core_context);
+        let is_changed = self.bind_buffer_with_id(id, data, usage, render_core_context);
         (id, is_changed)
     }
 }
@@ -200,7 +197,7 @@ impl RenderContext {
         (self.core.config.width, self.core.config.height)
     }
 
-    pub fn buffers(&self) -> RwLockReadGuard<HashMap<ResourceId, GpuBuffer>> {
+    pub fn buffers(&self) -> RwLockReadGuard<HashMap<BufferId, GpuBuffer>> {
         self.binding_data_buffer.buffers.read().unwrap()
     }
 

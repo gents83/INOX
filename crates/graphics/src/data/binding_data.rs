@@ -1,10 +1,7 @@
 use std::num::NonZeroU32;
 
-use inox_resources::ResourceId;
-use inox_uid::{Uid, INVALID_UID};
-
 use crate::{
-    platform::required_gpu_features, AsBinding, BindingDataBuffer, RenderContext,
+    platform::required_gpu_features, AsBinding, BindingDataBuffer, BufferId, RenderContext,
     RenderCoreContext, ShaderStage, TextureHandler, TextureId, MAX_TEXTURE_ATLAS_COUNT,
 };
 pub struct BindingInfo {
@@ -38,7 +35,7 @@ pub enum BindingState {
 
 #[derive(Clone)]
 enum BindingType {
-    Buffer(Uid),
+    Buffer(BufferId),
     DefaultSampler,
     UnfilteredSampler,
     DepthSampler,
@@ -52,8 +49,8 @@ pub struct BindingData {
     bind_group: Vec<wgpu::BindGroup>,
     binding_types: Vec<Vec<BindingType>>,
     bind_group_layout_entries: Vec<Vec<wgpu::BindGroupLayoutEntry>>,
-    vertex_buffers: Vec<ResourceId>,
-    index_buffer: ResourceId,
+    vertex_buffers: Vec<BufferId>,
+    index_buffer: BufferId,
     is_dirty: bool,
 }
 
@@ -90,7 +87,7 @@ impl BindingData {
         let (id, is_changed) = binding_data_buffer.bind_buffer(data, usage, render_core_context);
 
         if index <= self.vertex_buffers.len() {
-            self.vertex_buffers.resize(index + 1, INVALID_UID);
+            self.vertex_buffers.resize(index + 1, BufferId::default());
         }
         self.vertex_buffers[index] = id;
 
@@ -123,10 +120,10 @@ impl BindingData {
     pub fn vertex_buffers_count(&self) -> usize {
         self.vertex_buffers.len()
     }
-    pub fn vertex_buffer(&self, index: usize) -> &ResourceId {
+    pub fn vertex_buffer(&self, index: usize) -> &BufferId {
         &self.vertex_buffers[index]
     }
-    pub fn index_buffer(&self) -> &ResourceId {
+    pub fn index_buffer(&self) -> &BufferId {
         &self.index_buffer
     }
 
@@ -150,7 +147,7 @@ impl BindingData {
         self
     }
 
-    pub fn bind_uniform_buffer(&mut self, id: &Uid, info: BindingInfo) -> &mut Self {
+    pub fn bind_uniform_buffer(&mut self, id: &BufferId, info: BindingInfo) -> &mut Self {
         self.create_group_and_binding_index(info.group_index);
 
         if info.binding_index >= self.bind_group_layout_entries[info.group_index].len() {
@@ -212,7 +209,7 @@ impl BindingData {
         self
     }
 
-    pub fn bind_storage_buffer(&mut self, id: &Uid, info: BindingInfo) -> &mut Self {
+    pub fn bind_storage_buffer(&mut self, id: &BufferId, info: BindingInfo) -> &mut Self {
         self.create_group_and_binding_index(info.group_index);
 
         if info.binding_index >= self.bind_group_layout_entries[info.group_index].len() {
@@ -510,7 +507,10 @@ impl BindingData {
                             if let Some(buffer) = bind_data_buffer.get(id) {
                                 debug_assert!(
                                     buffer.gpu_buffer().is_some(),
-                                    "Buffer is not uploaded to gpu already"
+                                    "Buffer {} at group {} index {} is not uploaded to gpu",
+                                    buffer.name(),
+                                    group_index,
+                                    index
                                 );
                                 debug_assert!(
                                     buffer.size() != 0,

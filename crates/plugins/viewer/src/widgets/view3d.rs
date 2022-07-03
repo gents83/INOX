@@ -1,4 +1,4 @@
-use inox_graphics::{RenderPass, DEFAULT_PASS_NAME};
+use inox_graphics::{RenderPass, BLIT_PASS_NAME};
 
 use inox_messenger::MessageHubRc;
 use inox_resources::{Resource, SharedData, SharedDataRc};
@@ -49,11 +49,8 @@ impl View3D {
                     let view_width = ui.max_rect().width() as u32;
                     let view_height = ui.max_rect().height() as u32;
 
-                    let texture_uniform_index = Self::get_render_pass_texture_index(
-                        &data.shared_data,
-                        0,
-                        DEFAULT_PASS_NAME,
-                    );
+                    let texture_uniform_index =
+                        Self::get_render_pass_texture_index(&data.shared_data, 0, BLIT_PASS_NAME);
 
                     let response = ui.with_layer_id(LayerId::background(), |ui| {
                         let response = Image::new(

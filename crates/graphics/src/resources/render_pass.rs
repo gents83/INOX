@@ -1,4 +1,4 @@
-use std::{collections::HashMap, path::Path};
+use std::{collections::HashMap, ops::Range, path::Path};
 
 use inox_messenger::MessageHubRc;
 use inox_resources::{
@@ -9,7 +9,7 @@ use inox_serialize::{inox_serializable::SerializableRegistryRc, read_from_file};
 use inox_uid::generate_random_uid;
 
 use crate::{
-    BindingData, CommandBuffer, GpuBuffer, LoadOperation, RenderContext, RenderMode,
+    BindingData, BufferId, CommandBuffer, GpuBuffer, LoadOperation, RenderContext, RenderMode,
     RenderPassData, RenderPipeline, RenderTarget, StoreOperation, Texture, TextureData, TextureId,
     VertexBufferLayoutBuilder,
 };
@@ -276,8 +276,8 @@ impl RenderPass {
         &mut self,
         render_context: &mut RenderContext,
         binding_data: &BindingData,
-        vertex_layout: VertexBufferLayoutBuilder,
-        instance_layout: VertexBufferLayoutBuilder,
+        vertex_layout: Option<VertexBufferLayoutBuilder>,
+        instance_layout: Option<VertexBufferLayoutBuilder>,
     ) {
         let render_formats = render_context.render_formats(self);
         let depth_format = render_context.depth_format(self);
@@ -316,7 +316,7 @@ impl RenderPass {
         &'a self,
         render_context: &'a RenderContext,
         binding_data: &'a BindingData,
-        buffers: &'a HashMap<ResourceId, GpuBuffer>,
+        buffers: &'a HashMap<BufferId, GpuBuffer>,
         pipeline: &'a RenderPipeline,
         command_buffer: &'a mut CommandBuffer,
     ) -> wgpu::RenderPass<'a> {
@@ -437,5 +437,15 @@ impl RenderPass {
                 }
             });
         }
+    }
+
+    pub fn draw(
+        &self,
+        mut render_pass: wgpu::RenderPass,
+        vertices: Range<u32>,
+        instances: Range<u32>,
+    ) {
+        inox_profiler::scoped_profile!("render_pass::draw");
+        render_pass.draw(vertices, instances);
     }
 }

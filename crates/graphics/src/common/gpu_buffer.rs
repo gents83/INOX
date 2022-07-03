@@ -9,6 +9,7 @@ pub struct GpuBuffer {
     gpu_buffer: Option<wgpu::Buffer>,
     offset: u64,
     size: u64,
+    name: String,
 }
 
 impl Drop for GpuBuffer {
@@ -20,6 +21,9 @@ impl Drop for GpuBuffer {
 impl GpuBuffer {
     pub fn size(&self) -> u64 {
         self.size
+    }
+    pub fn name(&self) -> &str {
+        self.name.as_str()
     }
     pub fn release(&mut self) {
         if let Some(buffer) = self.gpu_buffer.take() {
@@ -38,11 +42,12 @@ impl GpuBuffer {
         self.offset = 0;
         if !self.is_valid() || self.size != size {
             let label = format!("{} Buffer", buffer_name);
+            self.name = label;
             self.release();
             let data_buffer = render_core_context
                 .device
                 .create_buffer(&wgpu::BufferDescriptor {
-                    label: Some(label.as_str()),
+                    label: Some(self.name.as_str()),
                     size,
                     mapped_at_creation: false,
                     usage,
