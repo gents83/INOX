@@ -7,7 +7,7 @@ use inox_graphics::{
 use inox_log::debug_log;
 use inox_math::{Mat4Ops, Matrix4, VecBase, Vector2, Vector3};
 use inox_messenger::Listener;
-use inox_platform::{InputState, Key, KeyEvent, MouseEvent, WindowEvent};
+use inox_platform::{InputState, Key, KeyEvent, MouseEvent, MouseState, WindowEvent};
 use inox_resources::{DataTypeResource, Resource, SerializableResource, SerializableResourceEvent};
 use inox_scene::{Camera, Object, Scene};
 use inox_uid::generate_random_uid;
@@ -28,6 +28,7 @@ pub struct ViewerSystem {
     scene: Resource<Scene>,
     _camera_object: Resource<Object>,
     last_mouse_pos: Vector2,
+    is_on_view3d: bool,
     view_3d: Option<View3D>,
     info: Option<Info>,
     last_frame: u64,
@@ -106,7 +107,7 @@ impl System for ViewerSystem {
 }
 
 impl ViewerSystem {
-    pub fn new(context: &ContextRc, renderer: &RendererRw, use_ui: bool) -> Self {
+    pub fn new(context: &ContextRc, renderer: &RendererRw, use_3dview: bool) -> Self {
         let listener = Listener::new(context.message_hub());
         let shared_data = context.shared_data();
         let message_hub = context.message_hub();
@@ -139,27 +140,24 @@ impl ViewerSystem {
             .set_active(false);
 
         let update_culling_camera = Arc::new(AtomicBool::new(true));
-        let view_3d = if use_ui {
+        let view_3d = if use_3dview {
             Some(View3D::new(shared_data, message_hub))
         } else {
             None
         };
-        let info = if use_ui {
-            Some(Info::new(
-                context,
-                InfoParams {
-                    is_active: true,
-                    scene_id: *scene.id(),
-                    renderer: renderer.clone(),
-                    update_culling_camera: update_culling_camera.clone(),
-                },
-            ))
-        } else {
-            None
-        };
+        let info = Some(Info::new(
+            context,
+            InfoParams {
+                is_active: true,
+                scene_id: *scene.id(),
+                renderer: renderer.clone(),
+                update_culling_camera: update_culling_camera.clone(),
+            },
+        ));
         Self {
             renderer: renderer.clone(),
             last_frame: u64::MAX,
+            is_on_view3d: false,
             view_3d,
             info,
             context: context.clone(),
@@ -436,11 +434,14 @@ impl ViewerSystem {
 
     fn handle_mouse_event(&mut self) {
         self.listener.process_messages(|event: &MouseEvent| {
-            let mut is_on_view3d = false;
             if let Some(view_3d) = &self.view_3d {
-                is_on_view3d = view_3d.is_interacting();
+                self.is_on_view3d = view_3d.is_interacting();
+            } else if let MouseState::Down = event.state {
+                self.is_on_view3d = true;
+            } else if let MouseState::Up = event.state {
+                self.is_on_view3d = false;
             }
-            if is_on_view3d {
+            if self.is_on_view3d {
                 let mut rotation_angle = Vector3::default_zero();
 
                 rotation_angle.x = self.last_mouse_pos.y - event.normalized_y;

@@ -4,8 +4,9 @@ use inox_core::{define_plugin, ContextRc, Plugin, SystemUID, WindowSystem};
 
 use inox_graphics::{
     rendering_system::RenderingSystem, update_system::UpdateSystem, BlitPass, DebugDrawerSystem,
-    DefaultPass, Pass, RenderPass, RenderTarget, Renderer, RendererRw, TextureFormat,
-    WireframePass, DEFAULT_HEIGHT, DEFAULT_PASS_NAME, DEFAULT_WIDTH, WIREFRAME_PASS_NAME,
+    DefaultPass, LoadOperation, Pass, RenderPass, RenderTarget, Renderer, RendererRw,
+    TextureFormat, WireframePass, DEFAULT_HEIGHT, DEFAULT_PASS_NAME, DEFAULT_WIDTH,
+    WIREFRAME_PASS_NAME,
 };
 use inox_platform::Window;
 use inox_resources::ConfigBase;
@@ -17,6 +18,7 @@ use crate::{config::Config, systems::viewer_system::ViewerSystem};
 
 const ADD_WIREFRAME_PASS: bool = true;
 const ADD_UI_PASS: bool = true;
+const USE_3DVIEW: bool = false;
 
 pub struct Viewer {
     window: Option<Window>,
@@ -61,7 +63,7 @@ impl Plugin for Viewer {
             None
         };
 
-        let system = ViewerSystem::new(context, &self.renderer, ADD_UI_PASS);
+        let system = ViewerSystem::new(context, &self.renderer, USE_3DVIEW);
         let object_system = ObjectSystem::new(context.shared_data());
         let script_system = ScriptSystem::new(context);
 
@@ -212,16 +214,21 @@ impl Viewer {
     }
     fn create_ui_pass(context: &ContextRc, renderer: &RendererRw, width: u32, height: u32) {
         let ui_pass = UIPass::create(context);
-        if let Some(blit_pass) = renderer.read().unwrap().pass::<BlitPass>() {
-            blit_pass
-                .render_pass()
-                .get_mut()
-                .add_render_target(RenderTarget::Texture {
-                    width,
-                    height,
-                    format: TextureFormat::Rgba8Unorm,
-                    read_back: false,
-                });
+        if USE_3DVIEW {
+            if let Some(blit_pass) = renderer.read().unwrap().pass::<BlitPass>() {
+                blit_pass
+                    .render_pass()
+                    .get_mut()
+                    .add_render_target(RenderTarget::Texture {
+                        width,
+                        height,
+                        format: TextureFormat::Rgba8Unorm,
+                        read_back: false,
+                    });
+            }
+        } else {
+            let mut ui_pass = ui_pass.render_pass().get_mut();
+            ui_pass.set_load_color_operation(LoadOperation::Load);
         }
         renderer.write().unwrap().add_pass(ui_pass);
     }
