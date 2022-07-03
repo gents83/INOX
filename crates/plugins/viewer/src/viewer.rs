@@ -28,7 +28,7 @@ impl Plugin for Viewer {
     fn create(context: &ContextRc) -> Self {
         let window = {
             Window::create(
-                "SABI".to_string(),
+                "INOX Engine".to_string(),
                 0,
                 0,
                 DEFAULT_WIDTH,
@@ -189,8 +189,9 @@ impl Viewer {
 
         if let Some(default_pass) = renderer.read().unwrap().pass::<DefaultPass>() {
             let default_pass = default_pass.render_pass().get();
-            let render_target_textures = default_pass.render_textures_id();
-            blit_pass.set_source(render_target_textures[0]);
+            if let Some(albedo_texture) = default_pass.render_textures().first() {
+                blit_pass.set_source(albedo_texture.id());
+            }
         }
         renderer.write().unwrap().add_pass(blit_pass);
     }
@@ -198,15 +199,13 @@ impl Viewer {
         let wireframe_pass = WireframePass::create(context);
 
         if let Some(default_pass) = renderer.read().unwrap().pass::<DefaultPass>() {
-            if let Some(wireframe_pass) = renderer.read().unwrap().pass::<WireframePass>() {
-                let mut wireframe_pass = wireframe_pass.render_pass().get_mut();
-                let default_pass = default_pass.render_pass().get();
-                default_pass.render_textures().iter().for_each(|texture| {
-                    wireframe_pass.add_render_target_from_texture(texture);
-                });
-                if let Some(depth_target) = default_pass.depth_texture() {
-                    wireframe_pass.add_depth_target_from_texture(depth_target);
-                }
+            let default_pass = default_pass.render_pass().get();
+            let mut wireframe_pass = wireframe_pass.render_pass().get_mut();
+            default_pass.render_textures().iter().for_each(|texture| {
+                wireframe_pass.add_render_target_from_texture(texture);
+            });
+            if let Some(depth_target) = default_pass.depth_texture() {
+                wireframe_pass.add_depth_target_from_texture(depth_target);
             }
         }
         renderer.write().unwrap().add_pass(wireframe_pass);

@@ -267,6 +267,11 @@ impl System for UpdateSystem {
             }
         }
 
+        {
+            let mut renderer = self.renderer.write().unwrap();
+            renderer.change_state(RendererState::Preparing);
+        }
+
         let mut command_buffer = {
             let renderer = self.renderer.read().unwrap();
             let render_context = renderer.render_context().read().unwrap();
@@ -277,8 +282,6 @@ impl System for UpdateSystem {
 
         {
             let mut renderer = self.renderer.write().unwrap();
-            renderer.change_state(RendererState::Preparing);
-
             {
                 let screen_size = Vector2::new(self.width as _, self.height as _);
 

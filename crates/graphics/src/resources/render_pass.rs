@@ -379,13 +379,14 @@ impl RenderPass {
             }
         }
 
-        let index_id = binding_data.index_buffer();
-        if let Some(buffer) = buffers.get(index_id) {
-            inox_profiler::scoped_profile!("render_pass::bind_index_buffer");
-            render_pass.set_index_buffer(
-                buffer.gpu_buffer().unwrap().slice(..),
-                crate::IndexFormat::U32.into(),
-            );
+        if let Some(index_id) = binding_data.index_buffer() {
+            if let Some(buffer) = buffers.get(index_id) {
+                inox_profiler::scoped_profile!("render_pass::bind_index_buffer");
+                render_pass.set_index_buffer(
+                    buffer.gpu_buffer().unwrap().slice(..),
+                    crate::IndexFormat::U32.into(),
+                );
+            }
         }
 
         render_pass

@@ -220,6 +220,7 @@ impl RenderBuffers {
                         ..Default::default()
                     },
                 );
+                entry.set_dirty(true);
             }
         }
     }

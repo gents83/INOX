@@ -168,15 +168,18 @@ impl Renderer {
         let mut render_context = self.render_context.as_ref().unwrap().write().unwrap();
         if let Some(texture) = self.shared_data.get_resource::<Texture>(texture_id) {
             if !texture.get().is_initialized() {
-                if render_context.texture_handler.texture_index(texture_id) == None {
+                if render_context
+                    .texture_handler
+                    .texture_info(texture_id)
+                    .is_none()
+                {
                     let width = texture.get().width();
                     let height = texture.get().height();
                     if let Some(image_data) = texture.get().image_data() {
                         render_context.add_image(encoder, texture_id, (width, height), image_data);
                     }
                 }
-                if let Some(texture_data) =
-                    render_context.texture_handler.get_texture_data(texture_id)
+                if let Some(texture_data) = render_context.texture_handler.texture_info(texture_id)
                 {
                     let uniform_index = render_context
                         .render_buffers
@@ -258,5 +261,7 @@ impl Renderer {
         if let Some(surface_texture) = surface_texture {
             surface_texture.present();
         }
+        let render_context = self.render_context().read().unwrap();
+        render_context.core.device.poll(wgpu::MaintainBase::Wait);
     }
 }

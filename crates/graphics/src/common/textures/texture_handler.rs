@@ -79,18 +79,6 @@ impl TextureHandler {
         self.texture_atlas.as_slice()
     }
 
-    pub fn texture_index(&self, id: &TextureId) -> Option<usize> {
-        for (texture_index, texture_atlas) in self.texture_atlas.iter().enumerate() {
-            if texture_atlas
-                .get_texture_data(texture_index as _, id)
-                .is_some()
-            {
-                return Some(texture_index);
-            }
-        }
-        None
-    }
-
     pub fn get_texture_atlas(&self, id: &TextureId) -> Option<&TextureAtlas> {
         if let Some(index) = self.texture_atlas.iter().position(|t| t.texture_id() == id) {
             return Some(&self.texture_atlas[index]);
@@ -172,9 +160,9 @@ impl TextureHandler {
         self.add_image(device, encoder, id, dimensions, image_data)
     }
 
-    pub fn get_texture_data(&self, id: &TextureId) -> Option<TextureInfo> {
+    pub fn texture_info(&self, id: &TextureId) -> Option<TextureInfo> {
         for (texture_index, texture_atlas) in self.texture_atlas.iter().enumerate() {
-            if let Some(texture_data) = texture_atlas.get_texture_data(texture_index as _, id) {
+            if let Some(texture_data) = texture_atlas.texture_info(texture_index as _, id) {
                 return Some(texture_data);
             }
         }

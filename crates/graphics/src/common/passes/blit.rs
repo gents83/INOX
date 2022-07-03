@@ -14,10 +14,19 @@ pub const BLIT_PIPELINE: &str = "pipelines/Blit.render_pipeline";
 pub const BLIT_PASS_NAME: &str = "BlitPass";
 
 #[repr(C, align(16))]
-#[derive(Default, Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct BlitPassData {
     pub texture_index: usize,
     is_dirty: bool,
+}
+
+impl Default for BlitPassData {
+    fn default() -> Self {
+        Self {
+            texture_index: usize::MAX,
+            is_dirty: true,
+        }
+    }
 }
 
 impl AsBinding for BlitPassData {
@@ -75,10 +84,7 @@ impl Pass for BlitPass {
                 None,
             ),
             binding_data: BindingData::default(),
-            data: BlitPassData {
-                texture_index: 0,
-                is_dirty: true,
-            },
+            data: BlitPassData::default(),
             source_texture_id: INVALID_UID,
         }
     }
@@ -93,13 +99,16 @@ impl Pass for BlitPass {
         let render_textures = pass.render_textures_id();
 
         if let Some(texture_index) = render_context
-            .texture_handler
-            .texture_index(&self.source_texture_id)
+            .render_buffers
+            .textures
+            .index_of(&self.source_texture_id)
         {
             if self.data.texture_index != texture_index {
-                self.data.texture_index.clone_from(&texture_index);
+                self.data.texture_index = texture_index;
                 self.data.set_dirty(true);
             }
+        } else {
+            return;
         }
 
         self.binding_data
@@ -143,6 +152,10 @@ impl Pass for BlitPass {
     }
     fn update(&mut self, render_context: &mut RenderContext, command_buffer: &mut CommandBuffer) {
         inox_profiler::scoped_profile!("blit_pass::update");
+
+        if self.source_texture_id.is_nil() || render_context.render_buffers.textures.is_empty() {
+            return;
+        }
 
         let pass = self.render_pass.get();
         let buffers = render_context.buffers();

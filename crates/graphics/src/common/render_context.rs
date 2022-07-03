@@ -7,6 +7,7 @@ use inox_math::{Matrix4, Vector2};
 use inox_platform::Handle;
 
 use crate::{
+    generate_buffer_id,
     platform::{platform_limits, required_gpu_features},
     AsBinding, BufferId, ConstantData, GpuBuffer, MeshFlags, RenderBuffers, RenderPass, RendererRw,
     TextureHandler, TextureId, TextureInfo, CONSTANT_DATA_FLAGS_SUPPORT_SRGB, DEFAULT_HEIGHT,
@@ -22,13 +23,13 @@ impl BindingDataBuffer {
     pub fn has_buffer(&self, uid: &BufferId) -> bool {
         self.buffers.read().unwrap().contains_key(uid)
     }
-    pub fn bind_buffer_with_id<T>(
+    pub fn bind_buffer<T>(
         &self,
         id: BufferId,
         data: &mut T,
         usage: wgpu::BufferUsages,
         render_core_context: &RenderCoreContext,
-    ) -> bool
+    ) -> (bool, BufferId)
     where
         T: AsBinding,
     {
@@ -36,30 +37,20 @@ impl BindingDataBuffer {
         let buffer = bind_data_buffer
             .entry(id)
             .or_insert_with(GpuBuffer::default);
-
         let mut is_changed = false;
         if data.is_dirty() {
             let typename = std::any::type_name::<T>();
-            let label = format!("{}[{}]", typename, data.id());
+            let label = format!("{}[{}]", typename, id);
             is_changed |= buffer.init(render_core_context, data.size(), usage, label.as_str());
             data.fill_buffer(render_core_context, buffer);
             data.set_dirty(false);
         }
-
-        is_changed
-    }
-    pub fn bind_buffer<T>(
-        &self,
-        data: &mut T,
-        usage: wgpu::BufferUsages,
-        render_core_context: &RenderCoreContext,
-    ) -> (BufferId, bool)
-    where
-        T: AsBinding,
-    {
-        let id = data.id();
-        let is_changed = self.bind_buffer_with_id(id, data, usage, render_core_context);
-        (id, is_changed)
+        let buffer_id = if let Some(gpu_buffer) = buffer.gpu_buffer() {
+            generate_buffer_id(gpu_buffer)
+        } else {
+            id
+        };
+        (is_changed, buffer_id)
     }
 }
 
@@ -87,8 +78,8 @@ impl RenderCoreContext {
         }
     }
     pub fn submit(&self, command_buffer: CommandBuffer) {
-        self.queue
-            .submit(std::iter::once(command_buffer.encoder.finish()));
+        let command_buffer = command_buffer.encoder.finish();
+        self.queue.submit(std::iter::once(command_buffer));
     }
     pub fn set_surface_size(&mut self, width: u32, height: u32) {
         self.config.width = width;
@@ -144,7 +135,7 @@ impl RenderContext {
             format: *surface.get_supported_formats(&adapter).first().unwrap(),
             width: DEFAULT_WIDTH,
             height: DEFAULT_HEIGHT,
-            present_mode: wgpu::PresentMode::AutoNoVsync,
+            present_mode: wgpu::PresentMode::AutoVsync,
         };
 
         //debug_log!("Surface format: {:?}", config.format);

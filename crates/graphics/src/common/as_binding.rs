@@ -1,15 +1,18 @@
+use crate::{GpuBuffer, RenderCoreContext};
 use inox_resources::{Buffer, HashBuffer};
 
-use crate::{GpuBuffer, RenderCoreContext};
-
 pub type BufferId = u64;
+
+pub fn generate_buffer_id<T>(v: &T) -> BufferId {
+    unsafe { *(v as *const T as *const BufferId) }
+}
 
 pub trait AsBinding {
     fn id(&self) -> BufferId
     where
         Self: Sized,
     {
-        unsafe { *(self as *const Self as *const BufferId) }
+        generate_buffer_id(self)
     }
     fn is_dirty(&self) -> bool;
     fn set_dirty(&mut self, is_dirty: bool);

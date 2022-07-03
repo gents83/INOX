@@ -113,11 +113,7 @@ impl TextureAtlas {
         None
     }
 
-    pub fn get_texture_data(
-        &self,
-        texture_index: u32,
-        texture_id: &TextureId,
-    ) -> Option<TextureInfo> {
+    pub fn texture_info(&self, texture_index: u32, texture_id: &TextureId) -> Option<TextureInfo> {
         for (layer_index, area_allocator) in self.allocators.iter().enumerate() {
             if let Some(area) = area_allocator.get_area(texture_id) {
                 return Some(TextureInfo {
