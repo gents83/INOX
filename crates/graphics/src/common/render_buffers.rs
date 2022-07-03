@@ -4,9 +4,10 @@ use inox_math::{pack_4_f32_to_unorm, MatBase, Matrix4};
 use inox_resources::{to_slice, Buffer, HashBuffer, ResourceId};
 
 use crate::{
-    AsBinding, DrawInstance, DrawMaterial, DrawMesh, DrawMeshlet, DrawVertex, Light, LightData,
-    LightId, Material, MaterialAlphaMode, MaterialData, MaterialId, Mesh, MeshData, MeshFlags,
-    MeshId, TextureId, TextureInfo, TextureType, INVALID_INDEX, MAX_TEXTURE_COORDS_SETS,
+    AsBinding, BindingDataBuffer, DrawCommand, DrawInstance, DrawMaterial, DrawMesh, DrawMeshlet,
+    DrawVertex, Light, LightData, LightId, Material, MaterialAlphaMode, MaterialData, MaterialId,
+    Mesh, MeshData, MeshFlags, MeshId, RenderCoreContext, TextureId, TextureInfo, TextureType,
+    INVALID_INDEX, MAX_TEXTURE_COORDS_SETS,
 };
 
 //Alignment should be 4, 8, 16 or 32 bytes
@@ -15,6 +16,7 @@ pub struct RenderBuffers {
     pub textures: HashBuffer<TextureId, TextureInfo, 0>,
     pub lights: HashBuffer<LightId, LightData, 0>,
     pub materials: HashBuffer<MaterialId, DrawMaterial, 0>,
+    pub commands: HashMap<MeshFlags, Vec<DrawCommand>>,
     pub instances: HashMap<MeshFlags, HashBuffer<MeshId, DrawInstance, 0>>,
     pub meshes: HashBuffer<MeshId, DrawMesh, 0>,
     pub matrix: HashBuffer<ResourceId, [[f32; 4]; 4], 0>,
@@ -332,5 +334,55 @@ impl RenderBuffers {
         inox_profiler::scoped_profile!("render_buffers::remove_matrix");
 
         self.matrix.remove(id);
+    }
+
+    pub fn create_commands(
+        &mut self,
+        binding_data_buffer: &BindingDataBuffer,
+        render_core_context: &RenderCoreContext,
+    ) {
+        inox_profiler::scoped_profile!("create_commands");
+        let mut mesh_flags_type = Vec::new();
+        mesh_flags_type.resize(self.instances.len(), MeshFlags::default());
+        self.instances.iter().for_each(|(mesh_flags, _)| {
+            mesh_flags_type.push(*mesh_flags);
+        });
+        mesh_flags_type.iter().for_each(|mesh_flags| {
+            self.create_commands_for(mesh_flags, binding_data_buffer, render_core_context);
+        });
+    }
+    fn create_commands_for(
+        &mut self,
+        mesh_flags: &MeshFlags,
+        binding_data_buffer: &BindingDataBuffer,
+        render_core_context: &RenderCoreContext,
+    ) {
+        inox_profiler::scoped_profile!("create_commands_for");
+
+        let entry = self.commands.entry(*mesh_flags).or_default();
+        entry.clear();
+        if let Some(instances) = self.instances.get(mesh_flags) {
+            let meshlets = self.meshlets.data();
+            instances.for_each_entry(|index, instance| {
+                let mesh = self.meshes.at(instance.mesh_index as _);
+                for i in mesh.meshlet_offset..mesh.meshlet_offset + mesh.meshlet_count {
+                    let meshlet = &meshlets[i as usize];
+
+                    entry.push(DrawCommand {
+                        vertex_count: meshlet.indices_count as _,
+                        instance_count: 1,
+                        base_index: (mesh.indices_offset + meshlet.indices_offset) as _,
+                        vertex_offset: mesh.vertex_offset as _,
+                        base_instance: index as _,
+                    });
+                }
+            });
+        }
+        let commands_id = entry.id();
+        let usage = wgpu::BufferUsages::STORAGE
+            | wgpu::BufferUsages::COPY_SRC
+            | wgpu::BufferUsages::COPY_DST
+            | wgpu::BufferUsages::INDIRECT;
+        binding_data_buffer.bind_buffer(commands_id, entry, usage, render_core_context);
     }
 }

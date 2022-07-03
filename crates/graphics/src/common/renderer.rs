@@ -235,18 +235,24 @@ impl Renderer {
         inox_profiler::scoped_profile!("renderer::send_to_gpu");
 
         let mut render_context = self.render_context.as_ref().unwrap().write().unwrap();
+        let render_context: &mut RenderContext = &mut render_context;
         self.passes.iter_mut().for_each(|pass| {
-            pass.init(&mut render_context);
+            pass.init(render_context);
         });
+        let render_buffers = &mut render_context.render_buffers;
+        let render_core_context = &render_context.core;
+        let binding_data_buffer = &render_context.binding_data_buffer;
+        render_buffers.create_commands(binding_data_buffer, render_core_context);
     }
 
     pub fn update_passes(&mut self) {
         inox_profiler::scoped_profile!("renderer::execute_passes");
 
         let mut render_context = self.render_context.as_ref().unwrap().write().unwrap();
+        let render_context: &mut RenderContext = &mut render_context;
         let mut command_buffer = render_context.core.new_command_buffer();
         self.passes.iter_mut().for_each(|pass| {
-            pass.update(&mut render_context, &mut command_buffer);
+            pass.update(render_context, &mut command_buffer);
         });
         render_context.core.submit(command_buffer);
     }

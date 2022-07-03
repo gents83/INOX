@@ -2,7 +2,7 @@ use std::sync::atomic::AtomicBool;
 
 use inox_resources::to_slice;
 
-use crate::RenderCoreContext;
+use crate::{generate_buffer_id, AsBinding, BufferId, RenderCoreContext};
 
 #[derive(Default)]
 pub struct GpuBuffer {
@@ -30,7 +30,7 @@ impl GpuBuffer {
             buffer.destroy();
         }
     }
-    pub fn init(
+    fn init(
         &mut self,
         render_core_context: &RenderCoreContext,
         size: u64,
@@ -110,7 +110,6 @@ impl GpuBuffer {
             gpu_buffer.unmap();
         }
     }
-
     pub fn add_to_gpu_buffer<T>(&mut self, render_core_context: &RenderCoreContext, data: &[T]) {
         if data.is_empty() {
             return;
@@ -122,6 +121,34 @@ impl GpuBuffer {
             to_slice(data),
         );
         self.offset += data.len() as u64 * std::mem::size_of::<T>() as u64;
+    }
+
+    pub fn bind<T>(
+        &mut self,
+        id: BufferId,
+        data: &mut T,
+        usage: wgpu::BufferUsages,
+        render_core_context: &RenderCoreContext,
+    ) -> (bool, BufferId)
+    where
+        T: AsBinding,
+    {
+        inox_profiler::scoped_profile!("DataBuffer::bind");
+
+        let mut is_changed = false;
+        if data.is_dirty() {
+            let typename = std::any::type_name::<T>();
+            let label = format!("{}[{}]", typename, id);
+            is_changed |= self.init(render_core_context, data.size(), usage, label.as_str());
+            data.fill_buffer(render_core_context, self);
+            data.set_dirty(false);
+        }
+        let buffer_id = if let Some(gpu_buffer) = &self.gpu_buffer {
+            generate_buffer_id(gpu_buffer)
+        } else {
+            id
+        };
+        (is_changed, buffer_id)
     }
     pub fn read_from_gpu(&self, render_core_context: &RenderCoreContext) -> Option<Vec<u8>> {
         if self.size == 0 {

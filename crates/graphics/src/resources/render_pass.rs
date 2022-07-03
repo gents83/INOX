@@ -9,8 +9,9 @@ use inox_serialize::{inox_serializable::SerializableRegistryRc, read_from_file};
 use inox_uid::generate_random_uid;
 
 use crate::{
-    BindingData, BufferId, CommandBuffer, GpuBuffer, LoadOperation, RenderContext, RenderMode,
-    RenderPassData, RenderPipeline, RenderTarget, StoreOperation, Texture, TextureData, TextureId,
+    platform::is_indirect_mode_enabled, AsBinding, BindingData, BufferId, CommandBuffer,
+    DrawCommand, GpuBuffer, LoadOperation, RenderContext, RenderMode, RenderPassData,
+    RenderPipeline, RenderTarget, StoreOperation, Texture, TextureData, TextureId,
     VertexBufferLayoutBuilder,
 };
 
@@ -419,6 +420,31 @@ impl RenderPass {
                 }
             });
         }
+    }
+
+    pub fn indirect_draw<'a>(
+        &self,
+        render_context: &RenderContext,
+        buffers: &'a HashMap<BufferId, GpuBuffer>,
+        mut render_pass: wgpu::RenderPass<'a>,
+    ) {
+        if is_indirect_mode_enabled() && self.render_mode == RenderMode::Indirect {
+            let mesh_flags = self.pipeline().get().data().mesh_flags;
+            if let Some(commands) = render_context.render_buffers.commands.get(&mesh_flags) {
+                let commands_count = commands.size() / std::mem::size_of::<DrawCommand>() as u64;
+                let commands_id = commands.id();
+                if let Some(buffer) = buffers.get(&commands_id) {
+                    render_pass.multi_draw_indexed_indirect(
+                        buffer.gpu_buffer().unwrap(),
+                        0,
+                        commands_count as _,
+                    );
+                    return;
+                }
+            }
+        }
+        inox_log::debug_log!("Unable to use indirect_draw - using normal draw_indexed");
+        self.draw_meshlets(render_context, render_pass);
     }
 
     pub fn draw(

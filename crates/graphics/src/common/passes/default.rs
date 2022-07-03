@@ -236,7 +236,7 @@ impl Pass for DefaultPass {
             &pipeline,
             command_buffer,
         );
-        pass.draw_meshlets(render_context, render_pass);
+        pass.indirect_draw(render_context, &buffers, render_pass);
     }
 }
 

@@ -10,7 +10,7 @@ pub fn bitmask(attr: TokenStream, item: TokenStream) -> TokenStream {
     let (ident, idents, exprs) = enm(item);
 
     let enm = quote::quote! {
-        #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+        #[derive(Default, Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
         #[serde(crate = "inox_serialize")]
         #vis struct #ident {
             bits: #typ,

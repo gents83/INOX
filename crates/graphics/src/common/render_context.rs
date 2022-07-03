@@ -1,13 +1,12 @@
 use std::{
     collections::HashMap,
-    sync::{Arc, RwLock, RwLockReadGuard},
+    sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard},
 };
 
 use inox_math::{Matrix4, Vector2};
 use inox_platform::Handle;
 
 use crate::{
-    generate_buffer_id,
     platform::{platform_limits, required_gpu_features},
     AsBinding, BufferId, ConstantData, GpuBuffer, MeshFlags, RenderBuffers, RenderPass, RendererRw,
     TextureHandler, TextureId, TextureInfo, CONSTANT_DATA_FLAGS_SUPPORT_SRGB, DEFAULT_HEIGHT,
@@ -37,20 +36,7 @@ impl BindingDataBuffer {
         let buffer = bind_data_buffer
             .entry(id)
             .or_insert_with(GpuBuffer::default);
-        let mut is_changed = false;
-        if data.is_dirty() {
-            let typename = std::any::type_name::<T>();
-            let label = format!("{}[{}]", typename, id);
-            is_changed |= buffer.init(render_core_context, data.size(), usage, label.as_str());
-            data.fill_buffer(render_core_context, buffer);
-            data.set_dirty(false);
-        }
-        let buffer_id = if let Some(gpu_buffer) = buffer.gpu_buffer() {
-            generate_buffer_id(gpu_buffer)
-        } else {
-            id
-        };
-        (is_changed, buffer_id)
+        buffer.bind(id, data, usage, render_core_context)
     }
 }
 
@@ -190,6 +176,10 @@ impl RenderContext {
 
     pub fn buffers(&self) -> RwLockReadGuard<HashMap<BufferId, GpuBuffer>> {
         self.binding_data_buffer.buffers.read().unwrap()
+    }
+
+    pub fn buffers_mut(&mut self) -> RwLockWriteGuard<HashMap<BufferId, GpuBuffer>> {
+        self.binding_data_buffer.buffers.write().unwrap()
     }
 
     pub fn render_targets<'a>(&'a self, render_pass: &'a RenderPass) -> Vec<&'a wgpu::TextureView> {
