@@ -143,7 +143,7 @@ impl Meshes {
     ) -> Resource<UIWidget> {
         UIWidget::register(shared_data, message_hub, data, |ui_data, ui_context| {
             if let Some(data) = ui_data.as_any_mut().downcast_mut::<MeshesData>() {
-                Window::new("Meshes")
+                if let Some(response) = Window::new("Meshes")
                     .vscroll(true)
                     .title_bar(true)
                     .resizable(true)
@@ -214,8 +214,12 @@ impl Meshes {
                                 });
                             },
                         );
-                    });
+                    })
+                {
+                    return response.response.is_pointer_button_down_on();
+                }
             }
+            false
         })
     }
 }

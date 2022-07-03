@@ -215,9 +215,9 @@ impl Info {
         UIWidget::register(&shared_data, &message_hub, data, |ui_data, ui_context| {
             if let Some(data) = ui_data.as_any_mut().downcast_mut::<Data>() {
                 if !data.params.is_active {
-                    return;
+                    return false;
                 }
-                Window::new("Debug")
+                if let Some(response) = Window::new("Debug")
                     .vscroll(true)
                     .title_bar(true)
                     .resizable(true)
@@ -243,8 +243,12 @@ impl Info {
                                     .remove_flag(CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS);
                             }
                         }
-                    });
+                    })
+                {
+                    return response.response.is_pointer_button_down_on();
+                }
             }
+            false
         })
     }
 }

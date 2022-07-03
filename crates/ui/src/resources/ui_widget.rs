@@ -35,7 +35,8 @@ macro_rules! implement_widget_data {
 pub struct UIWidget {
     type_name: String,
     data: Box<dyn UIWidgetData>,
-    func: Box<dyn FnMut(&mut dyn UIWidgetData, &Context)>,
+    func: Box<dyn FnMut(&mut dyn UIWidgetData, &Context) -> bool>,
+    is_interacting: bool,
 }
 
 impl ResourceTrait for UIWidget {
@@ -103,12 +104,13 @@ impl UIWidget {
     ) -> Resource<Self>
     where
         D: UIWidgetData + Sized,
-        F: FnMut(&mut dyn UIWidgetData, &Context) + 'static,
+        F: FnMut(&mut dyn UIWidgetData, &Context) -> bool + 'static,
     {
         let ui_page = Self {
             type_name: type_name::<D>().to_string(),
             data: Box::new(data),
             func: Box::new(f),
+            is_interacting: false,
         };
         shared_data.add_resource::<UIWidget>(message_hub, generate_random_uid(), ui_page)
     }
@@ -129,6 +131,10 @@ impl UIWidget {
 
     pub fn execute(&mut self, ui_context: &Context) {
         inox_profiler::scoped_profile!("{} {:?}", "ui_widget::execute", self.type_name);
-        (self.func)(self.data.as_mut(), ui_context);
+        self.is_interacting = (self.func)(self.data.as_mut(), ui_context);
+        self.is_interacting |= ui_context.is_using_pointer();
+    }
+    pub fn is_interacting(&self) -> bool {
+        self.is_interacting
     }
 }

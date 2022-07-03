@@ -63,7 +63,7 @@ impl Plugin for Viewer {
             None
         };
 
-        let system = ViewerSystem::new(context, &self.renderer, USE_3DVIEW);
+        let viewer_system = ViewerSystem::new(context, &self.renderer, USE_3DVIEW);
         let object_system = ObjectSystem::new(context.shared_data());
         let script_system = ScriptSystem::new(context);
 
@@ -86,7 +86,6 @@ impl Plugin for Viewer {
             Some(&[ObjectSystem::system_id()]),
         );
 
-        context.add_system(inox_core::Phases::Update, system, None);
         if let Some(ui_system) = ui_system.take() {
             context.add_system(inox_core::Phases::Update, ui_system, None);
         }
@@ -94,16 +93,17 @@ impl Plugin for Viewer {
             let debug_drawer_system = DebugDrawerSystem::new(context);
             context.add_system(inox_core::Phases::Update, debug_drawer_system, None);
         }
+        context.add_system(inox_core::Phases::Update, viewer_system, None);
     }
 
     fn unprepare(&mut self, context: &ContextRc) {
+        context.remove_system(inox_core::Phases::Update, &ViewerSystem::system_id());
         if ADD_WIREFRAME_PASS {
             context.remove_system(inox_core::Phases::Update, &DebugDrawerSystem::system_id());
         }
         if ADD_UI_PASS {
             context.remove_system(inox_core::Phases::Update, &UISystem::system_id());
         }
-        context.remove_system(inox_core::Phases::Update, &ViewerSystem::system_id());
 
         context.remove_system(inox_core::Phases::Update, &ScriptSystem::system_id());
         context.remove_system(inox_core::Phases::Update, &ObjectSystem::system_id());

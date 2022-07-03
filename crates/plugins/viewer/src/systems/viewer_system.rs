@@ -10,6 +10,7 @@ use inox_messenger::Listener;
 use inox_platform::{InputState, Key, KeyEvent, MouseEvent, MouseState, WindowEvent};
 use inox_resources::{DataTypeResource, Resource, SerializableResource, SerializableResourceEvent};
 use inox_scene::{Camera, Object, Scene};
+use inox_ui::UIWidget;
 use inox_uid::generate_random_uid;
 use std::{
     path::PathBuf,
@@ -440,6 +441,14 @@ impl ViewerSystem {
                 self.is_on_view3d = true;
             } else if let MouseState::Up = event.state {
                 self.is_on_view3d = false;
+            } else {
+                self.context
+                    .shared_data()
+                    .for_each_resource(|_, w: &UIWidget| {
+                        if w.is_interacting() {
+                            self.is_on_view3d = false;
+                        }
+                    });
             }
             if self.is_on_view3d {
                 let mut rotation_angle = Vector3::default_zero();

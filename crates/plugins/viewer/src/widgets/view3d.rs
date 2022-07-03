@@ -66,7 +66,9 @@ impl View3D {
                     response
                 });
                 data.is_interacting |= response.response.is_pointer_button_down_on();
+                return data.is_interacting;
             }
+            false
         })
     }
 

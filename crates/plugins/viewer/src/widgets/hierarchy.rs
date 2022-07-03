@@ -55,7 +55,7 @@ impl Hierarchy {
     ) -> Resource<UIWidget> {
         UIWidget::register(shared_data, message_hub, data, |ui_data, ui_context| {
             if let Some(data) = ui_data.as_any_mut().downcast_mut::<HierarchyData>() {
-                Window::new("Hierarchy")
+                if let Some(response) = Window::new("Hierarchy")
                     .vscroll(true)
                     .title_bar(true)
                     .resizable(true)
@@ -77,10 +77,14 @@ impl Hierarchy {
                                             &data.message_hub,
                                         );
                                     });
-                                });
-                            });
-                    });
+                                })
+                            })
+                    })
+                {
+                    return response.response.is_pointer_button_down_on();
+                }
             }
+            false
         })
     }
 
