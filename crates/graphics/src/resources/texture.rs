@@ -5,10 +5,11 @@ use inox_filesystem::{convert_from_local_path, File};
 use inox_log::debug_log;
 use inox_messenger::MessageHubRc;
 use inox_resources::{
-    Data, DataTypeResource, Handle, ResourceEvent, ResourceId, ResourceTrait, SerializableResource,
-    SharedData, SharedDataRc,
+    Data, DataTypeResource, Handle, Resource, ResourceEvent, ResourceId, ResourceTrait,
+    SerializableResource, SharedData, SharedDataRc,
 };
 use inox_serialize::inox_serializable::SerializableRegistryRc;
+use inox_uid::generate_random_uid;
 
 use crate::{
     RenderContext, TextureData, TextureFormat, TextureHandler, INVALID_INDEX, TEXTURE_CHANNEL_COUNT,
@@ -224,7 +225,31 @@ impl Texture {
         self.mark_as_dirty();
     }
 
-    pub fn create_from_format(width: u32, height: u32, format: TextureFormat) -> Vec<u8> {
+    pub fn create_from_format(
+        shared_data: &SharedDataRc,
+        message_hub: &MessageHubRc,
+        width: u32,
+        height: u32,
+        format: TextureFormat,
+    ) -> Resource<Texture> {
+        let texture_id = generate_random_uid();
+        let image_data = Self::image_data_from_format(width, height, format);
+        let mut texture = Texture::create_from_data(
+            shared_data,
+            message_hub,
+            texture_id,
+            &TextureData {
+                width,
+                height,
+                format,
+                data: image_data,
+            },
+        );
+        texture.on_create(shared_data, message_hub, &texture_id, None);
+        shared_data.add_resource(message_hub, texture_id, texture)
+    }
+
+    fn image_data_from_format(width: u32, height: u32, format: TextureFormat) -> Vec<u8> {
         match format {
             crate::TextureFormat::R8Unorm
             | crate::TextureFormat::R8Uint

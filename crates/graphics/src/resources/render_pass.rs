@@ -6,13 +6,11 @@ use inox_resources::{
     SharedData, SharedDataRc,
 };
 use inox_serialize::{inox_serializable::SerializableRegistryRc, read_from_file};
-use inox_uid::generate_random_uid;
 
 use crate::{
     platform::is_indirect_mode_enabled, AsBinding, BindingData, BufferId, CommandBuffer,
     DrawCommand, GpuBuffer, LoadOperation, RenderContext, RenderMode, RenderPassData,
-    RenderPipeline, RenderTarget, StoreOperation, Texture, TextureData, TextureId,
-    VertexBufferLayoutBuilder,
+    RenderPipeline, RenderTarget, StoreOperation, Texture, TextureId, VertexBufferLayoutBuilder,
 };
 
 pub type RenderPassId = ResourceId;
@@ -148,23 +146,13 @@ impl RenderPass {
             read_back: _,
         } = render_target
         {
-            let texture_id = generate_random_uid();
-            let image_data = Texture::create_from_format(width, height, format);
-            let mut texture = Texture::create_from_data(
+            let texture = Texture::create_from_format(
                 &self.shared_data,
                 &self.message_hub,
-                texture_id,
-                &TextureData {
-                    width,
-                    height,
-                    format,
-                    data: image_data,
-                },
+                width,
+                height,
+                format,
             );
-            texture.on_create(&self.shared_data, &self.message_hub, &texture_id, None);
-            let texture = self
-                .shared_data
-                .add_resource(&self.message_hub, texture_id, texture);
             self.render_textures.push(texture)
         }
 
@@ -182,23 +170,13 @@ impl RenderPass {
                 format,
                 read_back: _,
             } => {
-                let texture_id = generate_random_uid();
-                let image_data = Texture::create_from_format(width, height, format);
-                let mut texture = Texture::create_from_data(
+                let texture = Texture::create_from_format(
                     &self.shared_data,
                     &self.message_hub,
-                    texture_id,
-                    &TextureData {
-                        width,
-                        height,
-                        format,
-                        data: image_data,
-                    },
+                    width,
+                    height,
+                    format,
                 );
-                texture.on_create(&self.shared_data, &self.message_hub, &texture_id, None);
-                let texture = self
-                    .shared_data
-                    .add_resource(&self.message_hub, texture_id, texture);
                 Some(texture)
             }
             _ => None,

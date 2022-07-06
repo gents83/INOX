@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use crate::{
     AsBinding, BindingData, CommandBuffer, ComputePass, ComputePassData, GpuBuffer, Pass,
-    RenderContext, RenderCoreContext, RenderPipeline, DEFAULT_PIPELINE,
+    RenderContext, RenderCoreContext, RenderPipeline, GBUFFER_PIPELINE,
 };
 
 use inox_core::ContextRc;
@@ -109,7 +109,7 @@ impl Pass for CullingPass {
             _default_pipeline: RenderPipeline::request_load(
                 context.shared_data(),
                 context.message_hub(),
-                PathBuf::from(DEFAULT_PIPELINE).as_path(),
+                PathBuf::from(GBUFFER_PIPELINE).as_path(),
                 None,
             ),
             data: CullingPassData {
@@ -200,7 +200,6 @@ impl Pass for CullingPass {
                         group_index: 0,
                         binding_index: 1,
                         stage: ShaderStage::Compute,
-                        read_only: true,
                         ..Default::default()
                     },
                 )
@@ -212,7 +211,6 @@ impl Pass for CullingPass {
                         group_index: 0,
                         binding_index: 2,
                         stage: ShaderStage::Compute,
-                        read_only: true,
                         ..Default::default()
                     },
                 )

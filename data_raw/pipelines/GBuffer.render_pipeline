@@ -1,6 +1,6 @@
 {
-    "vertex_shader": "shaders/wgsl/pbr.shader",
-    "fragment_shader": "shaders/wgsl/pbr.shader"
+    "vertex_shader": "shaders/wgsl/gbuffer.shader",
+    "fragment_shader": "shaders/wgsl/gbuffer.shader",
     "front_face": "Clockwise",
     "culling": "None",
     "mode": "Fill",
@@ -12,5 +12,5 @@
     "src_alpha_blend_factor": "One",
     "dst_alpha_blend_factor": "Zero",
     "alpha_blend_operation": "Add",
-    "mesh_flags":  { "bits":3 }
+    "mesh_flags": { "bits":3 }
 }

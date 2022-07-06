@@ -220,7 +220,8 @@ impl<const PLATFORM_TYPE: PlatformType> ShaderCompiler<PLATFORM_TYPE> {
                         let import_path = line[first + 1..end].to_string();
                         let import_path = PathBuf::from(path.parent().unwrap()).join(import_path);
                         let import_path = import_path.canonicalize().unwrap();
-                        let import_code = std::fs::read_to_string(import_path).unwrap();
+                        let shader_code = std::fs::read_to_string(import_path).unwrap();
+                        let import_code = self.preprocess_code(path, shader_code);
                         string.push_str(&import_code);
                         continue;
                     }

@@ -4,8 +4,8 @@ use inox_core::{define_plugin, ContextRc, Plugin, SystemUID, WindowSystem};
 
 use inox_graphics::{
     rendering_system::RenderingSystem, update_system::UpdateSystem, BlitPass, DebugDrawerSystem,
-    DefaultPass, LoadOperation, Pass, RenderPass, RenderTarget, Renderer, RendererRw,
-    TextureFormat, WireframePass, DEFAULT_HEIGHT, DEFAULT_PASS_NAME, DEFAULT_WIDTH,
+    GBufferPass, LoadOperation, Pass, PbrPass, RenderPass, RenderTarget, Renderer, RendererRw,
+    TextureFormat, WireframePass, DEFAULT_HEIGHT, DEFAULT_WIDTH, GBUFFER_PASS_NAME,
     WIREFRAME_PASS_NAME,
 };
 use inox_platform::Window;
@@ -41,7 +41,7 @@ impl Plugin for Viewer {
         };
         let renderer = Renderer::new(window.handle(), context, false);
 
-        Self::create_render_passes(context, &renderer, window.width(), window.height());
+        Self::create_render_passes(context, &renderer, DEFAULT_WIDTH, DEFAULT_HEIGHT);
 
         Viewer {
             window: Some(window),
@@ -130,7 +130,7 @@ impl Plugin for Viewer {
                     ui_pass.get_mut().set_pipeline(&data.ui_pass_pipeline);
                 }
                 if let Some(default_pass) =
-                    shared_data.match_resource(|r: &RenderPass| r.name() == DEFAULT_PASS_NAME)
+                    shared_data.match_resource(|r: &RenderPass| r.name() == GBUFFER_PASS_NAME)
                 {
                     default_pass
                         .get_mut()
@@ -150,25 +150,32 @@ impl Plugin for Viewer {
 
 impl Viewer {
     fn create_render_passes(context: &ContextRc, renderer: &RendererRw, width: u32, height: u32) {
-        Self::create_default_pass(context, renderer, width, height);
+        Self::create_gbuffer_pass(context, renderer, width, height);
         if ADD_WIREFRAME_PASS {
             Self::create_wireframe_pass(context, renderer);
         }
+        Self::create_pbr_pass(context, renderer, width, height);
         Self::create_blit_pass(context, renderer);
         if ADD_UI_PASS {
             Self::create_ui_pass(context, renderer, width, height);
         }
     }
-    fn create_default_pass(context: &ContextRc, renderer: &RendererRw, width: u32, height: u32) {
-        let default_pass = DefaultPass::create(context);
+    fn create_gbuffer_pass(context: &ContextRc, renderer: &RendererRw, width: u32, height: u32) {
+        let gbuffer_pass = GBufferPass::create(context);
 
-        default_pass
+        gbuffer_pass
             .render_pass()
             .get_mut()
             .add_render_target(RenderTarget::Texture {
                 width,
                 height,
                 format: TextureFormat::Rgba32Float,
+                read_back: false,
+            })
+            .add_render_target(RenderTarget::Texture {
+                width,
+                height,
+                format: TextureFormat::Rgba8Unorm,
                 read_back: false,
             })
             .add_render_target(RenderTarget::Texture {
@@ -184,29 +191,50 @@ impl Viewer {
                 read_back: false,
             });
 
-        renderer.write().unwrap().add_pass(default_pass);
+        renderer.write().unwrap().add_pass(gbuffer_pass);
     }
+    fn create_pbr_pass(context: &ContextRc, renderer: &RendererRw, width: u32, height: u32) {
+        let mut pbr_pass = PbrPass::create(context);
+        pbr_pass.resolution(width, height);
+
+        if let Some(gbuffer_pass) = renderer.read().unwrap().pass::<GBufferPass>() {
+            let gbuffer_pass = gbuffer_pass.render_pass().get();
+            if let Some(depth_id) = gbuffer_pass.depth_texture_id() {
+                pbr_pass.add_texture(depth_id);
+            }
+            gbuffer_pass.render_textures_id().iter().for_each(|&id| {
+                pbr_pass.add_texture(id);
+            });
+        }
+        renderer.write().unwrap().add_pass(pbr_pass);
+    }
+    #[allow(unused)]
     fn create_blit_pass(context: &ContextRc, renderer: &RendererRw) {
         let mut blit_pass = BlitPass::create(context);
+        if let Some(pbr_pass) = renderer.read().unwrap().pass::<PbrPass>() {
+            blit_pass.set_source(pbr_pass.render_target_id());
+        }
+        /*
 
-        if let Some(default_pass) = renderer.read().unwrap().pass::<DefaultPass>() {
-            let default_pass = default_pass.render_pass().get();
-            if let Some(albedo_texture) = default_pass.render_textures().first() {
+        if let Some(gbuffer_pass) = renderer.read().unwrap().pass::<GBufferPass>() {
+            let gbuffer_pass = gbuffer_pass.render_pass().get();
+            if let Some(albedo_texture) = gbuffer_pass.render_textures().first() {
                 blit_pass.set_source(albedo_texture.id());
             }
         }
+         */
         renderer.write().unwrap().add_pass(blit_pass);
     }
     fn create_wireframe_pass(context: &ContextRc, renderer: &RendererRw) {
         let wireframe_pass = WireframePass::create(context);
 
-        if let Some(default_pass) = renderer.read().unwrap().pass::<DefaultPass>() {
-            let default_pass = default_pass.render_pass().get();
+        if let Some(gbuffer_pass) = renderer.read().unwrap().pass::<GBufferPass>() {
+            let gbuffer_pass = gbuffer_pass.render_pass().get();
             let mut wireframe_pass = wireframe_pass.render_pass().get_mut();
-            default_pass.render_textures().iter().for_each(|texture| {
+            gbuffer_pass.render_textures().iter().for_each(|texture| {
                 wireframe_pass.add_render_target_from_texture(texture);
             });
-            if let Some(depth_target) = default_pass.depth_texture() {
+            if let Some(depth_target) = gbuffer_pass.depth_texture() {
                 wireframe_pass.add_depth_target_from_texture(depth_target);
             }
         }

@@ -14,33 +14,29 @@ pub const BLIT_PIPELINE: &str = "pipelines/Blit.render_pipeline";
 pub const BLIT_PASS_NAME: &str = "BlitPass";
 
 #[repr(C, align(16))]
-#[derive(Clone, Copy, PartialEq)]
-pub struct BlitPassData {
+#[derive(Default, Debug, Clone, Copy)]
+struct Data {
     pub texture_index: usize,
-    is_dirty: bool,
 }
 
-impl Default for BlitPassData {
-    fn default() -> Self {
-        Self {
-            texture_index: usize::MAX,
-            is_dirty: true,
-        }
-    }
+#[derive(Default, Clone, Copy)]
+pub struct BlitPassData {
+    is_dirty: bool,
+    data: Data,
 }
 
 impl AsBinding for BlitPassData {
     fn is_dirty(&self) -> bool {
         self.is_dirty
     }
-    fn set_dirty(&mut self, dirty: bool) {
-        self.is_dirty = dirty;
+    fn set_dirty(&mut self, is_dirty: bool) {
+        self.is_dirty = is_dirty;
     }
     fn size(&self) -> u64 {
-        std::mem::size_of::<usize>() as _
+        std::mem::size_of_val(&self.data) as u64
     }
     fn fill_buffer(&self, render_core_context: &RenderCoreContext, buffer: &mut GpuBuffer) {
-        buffer.add_to_gpu_buffer(render_core_context, &[self.texture_index]);
+        buffer.add_to_gpu_buffer(render_core_context, &[self.data]);
     }
 }
 
@@ -103,8 +99,8 @@ impl Pass for BlitPass {
             .textures
             .index_of(&self.source_texture_id)
         {
-            if self.data.texture_index != texture_index {
-                self.data.texture_index = texture_index;
+            if self.data.data.texture_index != texture_index {
+                self.data.data.texture_index += texture_index;
                 self.data.set_dirty(true);
             }
         } else {
@@ -112,7 +108,7 @@ impl Pass for BlitPass {
         }
 
         self.binding_data
-            .add_storage_data(
+            .add_uniform_buffer(
                 &render_context.core,
                 &render_context.binding_data_buffer,
                 &mut self.data,
@@ -120,11 +116,10 @@ impl Pass for BlitPass {
                     group_index: 0,
                     binding_index: 0,
                     stage: ShaderStage::Vertex,
-                    read_only: true,
                     ..Default::default()
                 },
             )
-            .add_storage_data(
+            .add_storage_buffer(
                 &render_context.core,
                 &render_context.binding_data_buffer,
                 &mut render_context.render_buffers.textures,
@@ -132,11 +127,10 @@ impl Pass for BlitPass {
                     group_index: 0,
                     binding_index: 1,
                     stage: ShaderStage::Fragment,
-                    read_only: true,
                     ..Default::default()
                 },
             )
-            .add_textures_data(
+            .add_textures(
                 &render_context.texture_handler,
                 render_textures,
                 None,
@@ -146,7 +140,8 @@ impl Pass for BlitPass {
                     ..Default::default()
                 },
             );
-        self.binding_data.send_to_gpu(render_context);
+        self.binding_data
+            .send_to_gpu(render_context, BLIT_PASS_NAME);
 
         pass.init_pipeline(render_context, &self.binding_data, None, None);
     }

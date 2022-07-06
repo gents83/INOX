@@ -1,4 +1,11 @@
 
+fn pack_normal(normal: vec3<f32>) -> vec2<f32> {
+    return vec2<f32>(normal.xy * 0.5 + 0.5);
+}
+fn unpack_normal(uv: vec2<f32>) -> vec3<f32> {
+    return vec3<f32>(uv.xy * 2. - 1., sqrt(1.-dot(uv.xy, uv.xy)));
+}
+
 fn unpack_unorm_to_4_f32(color: u32) -> vec4<f32> {
     return vec4<f32>(
         f32(((color >> 24u) / 255u) & 255u),

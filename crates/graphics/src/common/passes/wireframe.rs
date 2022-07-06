@@ -77,7 +77,7 @@ impl Pass for WireframePass {
             .unwrap();
 
         self.binding_data
-            .add_uniform_data(
+            .add_uniform_buffer(
                 &render_context.core,
                 &render_context.binding_data_buffer,
                 &mut render_context.constant_data,
@@ -88,7 +88,7 @@ impl Pass for WireframePass {
                     ..Default::default()
                 },
             )
-            .add_storage_data(
+            .add_storage_buffer(
                 &render_context.core,
                 &render_context.binding_data_buffer,
                 &mut render_context.render_buffers.vertex_positions_and_colors,
@@ -96,11 +96,11 @@ impl Pass for WireframePass {
                     group_index: 0,
                     binding_index: 1,
                     stage: ShaderStage::Vertex,
-                    read_only: true,
+
                     ..Default::default()
                 },
             )
-            .add_storage_data(
+            .add_storage_buffer(
                 &render_context.core,
                 &render_context.binding_data_buffer,
                 &mut render_context.render_buffers.matrix,
@@ -108,7 +108,7 @@ impl Pass for WireframePass {
                     group_index: 0,
                     binding_index: 2,
                     stage: ShaderStage::Vertex,
-                    read_only: true,
+
                     ..Default::default()
                 },
             )
@@ -129,7 +129,8 @@ impl Pass for WireframePass {
                 &render_context.binding_data_buffer,
                 &mut render_context.render_buffers.indices,
             );
-        self.binding_data.send_to_gpu(render_context);
+        self.binding_data
+            .send_to_gpu(render_context, WIREFRAME_PASS_NAME);
 
         let vertex_layout = DrawVertex::descriptor(0);
         let instance_layout = DrawInstance::descriptor(vertex_layout.location());

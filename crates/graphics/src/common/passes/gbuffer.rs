@@ -9,35 +9,35 @@ use inox_core::ContextRc;
 use inox_resources::{DataTypeResource, Resource};
 use inox_uid::generate_random_uid;
 
-pub const DEFAULT_PIPELINE: &str = "pipelines/Default.render_pipeline";
-pub const DEFAULT_PASS_NAME: &str = "DefaultPass";
+pub const GBUFFER_PIPELINE: &str = "pipelines/GBuffer.render_pipeline";
+pub const GBUFFER_PASS_NAME: &str = "GBufferPass";
 
-pub struct DefaultPass {
+pub struct GBufferPass {
     render_pass: Resource<RenderPass>,
     binding_data: BindingData,
 }
-unsafe impl Send for DefaultPass {}
-unsafe impl Sync for DefaultPass {}
+unsafe impl Send for GBufferPass {}
+unsafe impl Sync for GBufferPass {}
 
-impl Pass for DefaultPass {
+impl Pass for GBufferPass {
     fn name(&self) -> &str {
-        DEFAULT_PASS_NAME
+        GBUFFER_PASS_NAME
     }
     fn static_name() -> &'static str {
-        DEFAULT_PASS_NAME
+        GBUFFER_PASS_NAME
     }
     fn create(context: &ContextRc) -> Self
     where
         Self: Sized,
     {
-        inox_profiler::scoped_profile!("default_pass::create");
+        inox_profiler::scoped_profile!("gbuffer_pass::create");
 
         let data = RenderPassData {
-            name: DEFAULT_PASS_NAME.to_string(),
+            name: GBUFFER_PASS_NAME.to_string(),
             store_color: StoreOperation::Store,
             store_depth: StoreOperation::Store,
             render_target: RenderTarget::Screen,
-            pipeline: PathBuf::from(DEFAULT_PIPELINE),
+            pipeline: PathBuf::from(GBUFFER_PIPELINE),
             ..Default::default()
         };
 
@@ -53,7 +53,7 @@ impl Pass for DefaultPass {
         }
     }
     fn init(&mut self, render_context: &mut RenderContext) {
-        inox_profiler::scoped_profile!("default_pass::init");
+        inox_profiler::scoped_profile!("gbuffer_pass::init");
 
         let mesh_flags = MeshFlags::Visible | MeshFlags::Opaque;
 
@@ -61,6 +61,10 @@ impl Pass for DefaultPass {
             || render_context
                 .render_buffers
                 .vertex_positions_and_colors
+                .is_empty()
+            || render_context
+                .render_buffers
+                .vertex_normals_and_padding
                 .is_empty()
             || render_context.render_buffers.vertex_uvs.is_empty()
             || render_context.render_buffers.matrix.is_empty()
@@ -82,7 +86,7 @@ impl Pass for DefaultPass {
             .unwrap();
 
         self.binding_data
-            .add_uniform_data(
+            .add_uniform_buffer(
                 &render_context.core,
                 &render_context.binding_data_buffer,
                 &mut render_context.constant_data,
@@ -93,7 +97,7 @@ impl Pass for DefaultPass {
                     ..Default::default()
                 },
             )
-            .add_storage_data(
+            .add_storage_buffer(
                 &render_context.core,
                 &render_context.binding_data_buffer,
                 &mut render_context.render_buffers.vertex_positions_and_colors,
@@ -101,23 +105,35 @@ impl Pass for DefaultPass {
                     group_index: 0,
                     binding_index: 1,
                     stage: ShaderStage::Vertex,
-                    read_only: true,
+
                     ..Default::default()
                 },
             )
-            .add_storage_data(
+            .add_storage_buffer(
+                &render_context.core,
+                &render_context.binding_data_buffer,
+                &mut render_context.render_buffers.vertex_normals_and_padding,
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 2,
+                    stage: ShaderStage::Vertex,
+
+                    ..Default::default()
+                },
+            )
+            .add_storage_buffer(
                 &render_context.core,
                 &render_context.binding_data_buffer,
                 &mut render_context.render_buffers.vertex_uvs,
                 BindingInfo {
                     group_index: 0,
-                    binding_index: 2,
+                    binding_index: 3,
                     stage: ShaderStage::Vertex,
-                    read_only: true,
+
                     ..Default::default()
                 },
             )
-            .add_storage_data(
+            .add_storage_buffer(
                 &render_context.core,
                 &render_context.binding_data_buffer,
                 &mut render_context.render_buffers.matrix,
@@ -125,11 +141,11 @@ impl Pass for DefaultPass {
                     group_index: 1,
                     binding_index: 0,
                     stage: ShaderStage::Vertex,
-                    read_only: true,
+
                     ..Default::default()
                 },
             )
-            .add_storage_data(
+            .add_storage_buffer(
                 &render_context.core,
                 &render_context.binding_data_buffer,
                 &mut render_context.render_buffers.meshes,
@@ -137,11 +153,11 @@ impl Pass for DefaultPass {
                     group_index: 1,
                     binding_index: 1,
                     stage: ShaderStage::Vertex,
-                    read_only: true,
+
                     ..Default::default()
                 },
             )
-            .add_storage_data(
+            .add_storage_buffer(
                 &render_context.core,
                 &render_context.binding_data_buffer,
                 &mut render_context.render_buffers.meshlets,
@@ -149,11 +165,11 @@ impl Pass for DefaultPass {
                     group_index: 1,
                     binding_index: 2,
                     stage: ShaderStage::Vertex,
-                    read_only: true,
+
                     ..Default::default()
                 },
             )
-            .add_storage_data(
+            .add_storage_buffer(
                 &render_context.core,
                 &render_context.binding_data_buffer,
                 &mut render_context.render_buffers.materials,
@@ -161,11 +177,11 @@ impl Pass for DefaultPass {
                     group_index: 1,
                     binding_index: 3,
                     stage: ShaderStage::Vertex,
-                    read_only: true,
+
                     ..Default::default()
                 },
             )
-            .add_storage_data(
+            .add_storage_buffer(
                 &render_context.core,
                 &render_context.binding_data_buffer,
                 &mut render_context.render_buffers.textures,
@@ -173,11 +189,11 @@ impl Pass for DefaultPass {
                     group_index: 1,
                     binding_index: 4,
                     stage: ShaderStage::Fragment,
-                    read_only: true,
+
                     ..Default::default()
                 },
             )
-            .add_textures_data(
+            .add_textures(
                 &render_context.texture_handler,
                 render_textures,
                 depth_texture,
@@ -204,7 +220,8 @@ impl Pass for DefaultPass {
                 &render_context.binding_data_buffer,
                 &mut render_context.render_buffers.indices,
             );
-        self.binding_data.send_to_gpu(render_context);
+        self.binding_data
+            .send_to_gpu(render_context, GBUFFER_PASS_NAME);
 
         let vertex_layout = DrawVertex::descriptor(0);
         let instance_layout = DrawInstance::descriptor(vertex_layout.location());
@@ -216,7 +233,7 @@ impl Pass for DefaultPass {
         );
     }
     fn update(&mut self, render_context: &mut RenderContext, command_buffer: &mut CommandBuffer) {
-        inox_profiler::scoped_profile!("default_pass::update");
+        inox_profiler::scoped_profile!("gbuffer_pass::update");
 
         if !render_context.has_instances(MeshFlags::Visible | MeshFlags::Opaque) {
             return;
@@ -240,7 +257,7 @@ impl Pass for DefaultPass {
     }
 }
 
-impl DefaultPass {
+impl GBufferPass {
     pub fn render_pass(&self) -> &Resource<RenderPass> {
         &self.render_pass
     }

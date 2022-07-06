@@ -1,10 +1,13 @@
 use crate::{GpuBuffer, RenderCoreContext};
 use inox_resources::{Buffer, HashBuffer};
+use inox_uid::{generate_uid_from_string, Uid};
 
-pub type BufferId = u64;
+pub type BufferId = Uid;
 
 pub fn generate_buffer_id<T>(v: &T) -> BufferId {
-    unsafe { *(v as *const T as *const BufferId) }
+    let address = v as *const T;
+    let string = format!("{:p}", address);
+    generate_uid_from_string(string.as_str())
 }
 
 pub trait AsBinding {

@@ -40,23 +40,20 @@ impl GpuBuffer {
         inox_profiler::scoped_profile!("DataBuffer::init");
 
         self.offset = 0;
-        if !self.is_valid() || self.size != size {
-            let label = format!("{} Buffer", buffer_name);
-            self.name = label;
-            self.release();
-            let data_buffer = render_core_context
-                .device
-                .create_buffer(&wgpu::BufferDescriptor {
-                    label: Some(self.name.as_str()),
-                    size,
-                    mapped_at_creation: false,
-                    usage,
-                });
-            self.gpu_buffer = Some(data_buffer);
-            self.size = size;
-            return true;
-        }
-        false
+        let label = format!("{} Buffer", buffer_name);
+        self.name = label;
+        self.release();
+        let data_buffer = render_core_context
+            .device
+            .create_buffer(&wgpu::BufferDescriptor {
+                label: Some(self.name.as_str()),
+                size,
+                mapped_at_creation: false,
+                usage,
+            });
+        self.gpu_buffer = Some(data_buffer);
+        self.size = size;
+        true
     }
     pub fn init_from_type<T>(
         &mut self,
@@ -143,11 +140,7 @@ impl GpuBuffer {
             data.fill_buffer(render_core_context, self);
             data.set_dirty(false);
         }
-        let buffer_id = if let Some(gpu_buffer) = &self.gpu_buffer {
-            generate_buffer_id(gpu_buffer)
-        } else {
-            id
-        };
+        let buffer_id = generate_buffer_id(self);
         (is_changed, buffer_id)
     }
     pub fn read_from_gpu(&self, render_core_context: &RenderCoreContext) -> Option<Vec<u8>> {

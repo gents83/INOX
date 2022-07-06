@@ -131,7 +131,7 @@ impl Pass for UIPass {
         let depth_texture = pass.depth_texture_id();
 
         self.binding_data
-            .add_uniform_data(
+            .add_uniform_buffer(
                 &render_context.core,
                 &render_context.binding_data_buffer,
                 &mut render_context.constant_data,
@@ -142,7 +142,7 @@ impl Pass for UIPass {
                     ..Default::default()
                 },
             )
-            .add_storage_data(
+            .add_storage_buffer(
                 &render_context.core,
                 &render_context.binding_data_buffer,
                 &mut render_context.render_buffers.textures,
@@ -150,11 +150,11 @@ impl Pass for UIPass {
                     group_index: 0,
                     binding_index: 1,
                     stage: ShaderStage::Fragment,
-                    read_only: true,
+
                     ..Default::default()
                 },
             )
-            .add_textures_data(
+            .add_textures(
                 &render_context.texture_handler,
                 render_texture,
                 depth_texture,
@@ -181,7 +181,7 @@ impl Pass for UIPass {
                 &render_context.binding_data_buffer,
                 &mut self.indices,
             );
-        self.binding_data.send_to_gpu(render_context);
+        self.binding_data.send_to_gpu(render_context, UI_PASS_NAME);
 
         let vertex_layout = UIVertex::descriptor(0);
         let instance_layout = UIInstance::descriptor(vertex_layout.location());

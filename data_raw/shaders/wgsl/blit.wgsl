@@ -13,10 +13,13 @@ struct FragmentOutput {
 
 struct BlitPassData {
     source_texture_index: u32,
+    _padding1: u32,
+    _padding2: u32,
+    _padding3: u32,
 };
 
 @group(0) @binding(0)
-var<storage, read> data: BlitPassData;
+var<uniform> data: BlitPassData;
 @group(0) @binding(1)
 var<storage, read> textures: Textures;
 
