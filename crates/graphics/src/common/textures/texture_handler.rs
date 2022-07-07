@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use inox_log::debug_log;
 
 use crate::{TextureId, TextureInfo};
@@ -61,20 +59,6 @@ impl TextureHandler {
         &self.depth_sampler
     }
 
-    pub fn add_custom_texture(
-        &mut self,
-        device: &wgpu::Device,
-        id: &TextureId,
-        width: u32,
-        height: u32,
-        format: wgpu::TextureFormat,
-        usage: wgpu::TextureUsages,
-    ) {
-        self.texture_atlas.push(TextureAtlas::create_texture(
-            device, id, width, height, 1, format, usage,
-        ));
-    }
-
     pub fn textures_atlas(&self) -> &[TextureAtlas] {
         self.texture_atlas.as_slice()
     }
@@ -117,24 +101,28 @@ impl TextureHandler {
         });
     }
 
-    pub fn add_from_path(
+    pub fn add_new_texture_atlas(
         &mut self,
         device: &wgpu::Device,
-        encoder: &mut wgpu::CommandEncoder,
         id: &TextureId,
-        filepath: &Path,
+        width: u32,
+        height: u32,
+        format: wgpu::TextureFormat,
+        usage: wgpu::TextureUsages,
     ) -> TextureInfo {
-        let image = image::open(filepath).unwrap();
-        self.add_image(
-            device,
-            encoder,
-            id,
-            (image.width(), image.height()),
-            image.to_rgba8().as_raw().as_slice(),
-        )
+        self.texture_atlas.push(TextureAtlas::create_texture(
+            device, id, width, height, 1, format, usage,
+        ));
+        TextureInfo {
+            texture_index: (self.texture_atlas.len() - 1) as _,
+            layer_index: 0,
+            area: [0., 0., width as _, height as _],
+            total_width: width as _,
+            total_height: height as _,
+        }
     }
 
-    pub fn add_image(
+    pub fn add_image_to_texture_atlas(
         &mut self,
         device: &wgpu::Device,
         encoder: &mut wgpu::CommandEncoder,
@@ -157,7 +145,7 @@ impl TextureHandler {
         self.texture_atlas
             .push(TextureAtlas::create_default(device));
         inox_log::debug_log!("Adding new texture atlas");
-        self.add_image(device, encoder, id, dimensions, image_data)
+        self.add_image_to_texture_atlas(device, encoder, id, dimensions, image_data)
     }
 
     pub fn texture_info(&self, id: &TextureId) -> Option<TextureInfo> {

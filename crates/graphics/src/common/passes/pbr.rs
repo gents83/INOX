@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use crate::{
     AsBinding, BindingData, BindingInfo, CommandBuffer, ComputePass, ComputePassData, GpuBuffer,
     MeshFlags, Pass, RenderContext, RenderCoreContext, ShaderStage, Texture, TextureFormat,
-    TextureId, DEFAULT_HEIGHT, DEFAULT_WIDTH,
+    TextureId, TextureUsage, DEFAULT_HEIGHT, DEFAULT_WIDTH,
 };
 
 use inox_core::ContextRc;
@@ -91,26 +91,10 @@ impl Pass for PbrPass {
     fn init(&mut self, render_context: &mut RenderContext) {
         inox_profiler::scoped_profile!("default_pass::init");
 
-        if let Some(render_target) = &self.render_target {
-            let texture_handler = &mut render_context.texture_handler;
-            if texture_handler
-                .get_texture_atlas(render_target.id())
-                .is_none()
-            {
-                texture_handler.add_custom_texture(
-                    &render_context.core.device,
-                    render_target.id(),
-                    render_target.get().width(),
-                    render_target.get().height(),
-                    render_target.get().format().into(),
-                    wgpu::TextureUsages::TEXTURE_BINDING
-                        | wgpu::TextureUsages::COPY_DST
-                        | wgpu::TextureUsages::COPY_SRC
-                        | wgpu::TextureUsages::RENDER_ATTACHMENT
-                        | wgpu::TextureUsages::STORAGE_BINDING,
-                );
-            }
-        } else {
+        if self.render_target.is_none()
+            && (self.data.dimensions[0] != render_context.core.config.width
+                || self.data.dimensions[1] != render_context.core.config.height)
+        {
             self.data.dimensions = [
                 render_context.core.config.width,
                 render_context.core.config.height,
@@ -264,6 +248,11 @@ impl PbrPass {
             width,
             height,
             PBR_TEXTURE_FORMAT,
+            TextureUsage::TextureBinding
+                | TextureUsage::CopySrc
+                | TextureUsage::CopyDst
+                | TextureUsage::RenderAttachment
+                | TextureUsage::StorageBinding,
         ));
         self.data.dimensions = [width, height];
         self.data.set_dirty(true);

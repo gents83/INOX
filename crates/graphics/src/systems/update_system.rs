@@ -11,8 +11,8 @@ use inox_serialize::read_from_file;
 use inox_uid::generate_random_uid;
 
 use crate::{
-    is_shader, CommandBuffer, ComputePipeline, Light, Material, Mesh, RenderPass, RenderPipeline,
-    RendererRw, RendererState, Texture, View, DEFAULT_HEIGHT, DEFAULT_WIDTH,
+    is_shader, CommandBuffer, ComputePipeline, Light, Material, Mesh, RenderPipeline, RendererRw,
+    RendererState, Texture, View, DEFAULT_HEIGHT, DEFAULT_WIDTH,
 };
 
 use super::config::Config;
@@ -87,18 +87,6 @@ impl UpdateSystem {
                         },
                     );
                 }
-            })
-            .process_messages(|e: &ResourceEvent<RenderPass>| match e {
-                ResourceEvent::Changed(id) => {
-                    self.renderer.write().unwrap().on_render_pass_changed(id);
-                }
-                ResourceEvent::Created(r) => {
-                    self.renderer
-                        .write()
-                        .unwrap()
-                        .on_render_pass_changed(r.id());
-                }
-                _ => {}
             })
             .process_messages(|e: &ResourceEvent<Texture>| match e {
                 ResourceEvent::Changed(id) => {
@@ -238,7 +226,6 @@ impl System for UpdateSystem {
             .register::<SerializableResourceEvent<RenderPipeline>>()
             .register::<SerializableResourceEvent<ComputePipeline>>()
             .register::<SerializableResourceEvent<Texture>>()
-            .register::<ResourceEvent<RenderPass>>()
             .register::<ResourceEvent<Material>>()
             .register::<ResourceEvent<Texture>>()
             .register::<ResourceEvent<Light>>()
@@ -320,7 +307,6 @@ impl System for UpdateSystem {
             .unregister::<ResourceEvent<Light>>()
             .unregister::<ResourceEvent<Texture>>()
             .unregister::<ResourceEvent<Material>>()
-            .unregister::<ResourceEvent<RenderPass>>()
             .unregister::<ResourceEvent<Mesh>>();
     }
 }

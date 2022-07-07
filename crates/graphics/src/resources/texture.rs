@@ -12,7 +12,8 @@ use inox_serialize::inox_serializable::SerializableRegistryRc;
 use inox_uid::generate_random_uid;
 
 use crate::{
-    RenderContext, TextureData, TextureFormat, TextureHandler, INVALID_INDEX, TEXTURE_CHANNEL_COUNT,
+    RenderContext, TextureData, TextureFormat, TextureHandler, TextureUsage, INVALID_INDEX,
+    TEXTURE_CHANNEL_COUNT,
 };
 
 pub type TextureId = ResourceId;
@@ -28,6 +29,8 @@ pub struct Texture {
     width: u32,
     height: u32,
     format: TextureFormat,
+    usage: TextureUsage,
+    use_texture_atlas: bool,
     update_from_gpu: bool,
 }
 
@@ -72,7 +75,11 @@ impl DataTypeResource for Texture {
             width: 0,
             height: 0,
             format: TextureFormat::Rgba8Unorm,
+            usage: TextureUsage::TextureBinding
+                | TextureUsage::CopyDst
+                | TextureUsage::RenderAttachment,
             update_from_gpu: false,
+            use_texture_atlas: true,
         }
     }
 
@@ -100,6 +107,10 @@ impl DataTypeResource for Texture {
                 height: image_data.height(),
                 format: TextureFormat::Rgba8Unorm,
                 data: image_data.into_rgba8().to_vec(),
+                usage: TextureUsage::TextureBinding
+                    | TextureUsage::CopyDst
+                    | TextureUsage::RenderAttachment,
+                use_texture_atlas: true,
             });
         });
     }
@@ -117,6 +128,8 @@ impl DataTypeResource for Texture {
         texture.width = data.width;
         texture.height = data.height;
         texture.format = data.format;
+        texture.usage = data.usage;
+        texture.use_texture_atlas = data.use_texture_atlas;
         texture.data = Some(data.data.clone());
         texture
     }
@@ -186,6 +199,12 @@ impl Texture {
     pub fn format(&self) -> TextureFormat {
         self.format
     }
+    pub fn use_texture_atlas(&self) -> bool {
+        self.use_texture_atlas
+    }
+    pub fn usage(&self) -> TextureUsage {
+        self.usage
+    }
     pub fn image_data(&self) -> &Option<Vec<u8>> {
         &self.data
     }
@@ -231,6 +250,7 @@ impl Texture {
         width: u32,
         height: u32,
         format: TextureFormat,
+        usage: TextureUsage,
     ) -> Resource<Texture> {
         let texture_id = generate_random_uid();
         let image_data = Self::image_data_from_format(width, height, format);
@@ -243,6 +263,8 @@ impl Texture {
                 height,
                 format,
                 data: image_data,
+                use_texture_atlas: false,
+                usage,
             },
         );
         texture.on_create(shared_data, message_hub, &texture_id, None);

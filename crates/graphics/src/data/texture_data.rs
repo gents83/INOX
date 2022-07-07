@@ -1,16 +1,33 @@
 use crate::print_field_size;
 
+use inox_bitmask::bitmask;
 use inox_serialize::{Deserialize, Serialize};
+
+#[bitmask]
+pub enum TextureUsage {
+    CopySrc,
+    CopyDst,
+    TextureBinding,
+    StorageBinding,
+    RenderAttachment,
+}
+
+impl From<TextureUsage> for wgpu::TextureUsages {
+    fn from(v: TextureUsage) -> Self {
+        Self::from_bits(v.bits()).unwrap()
+    }
+}
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct TextureData {
     pub width: u32,
     pub height: u32,
     pub format: TextureFormat,
+    pub usage: TextureUsage,
     pub data: Vec<u8>,
+    pub use_texture_atlas: bool,
 }
 
-#[repr(C)]
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 #[serde(crate = "inox_serialize")]
 pub enum TextureType {

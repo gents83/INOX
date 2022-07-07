@@ -134,7 +134,7 @@ impl Pass for WireframePass {
 
         let vertex_layout = DrawVertex::descriptor(0);
         let instance_layout = DrawInstance::descriptor(vertex_layout.location());
-        pass.init_pipeline(
+        pass.init(
             render_context,
             &self.binding_data,
             Some(vertex_layout),

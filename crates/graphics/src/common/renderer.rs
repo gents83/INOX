@@ -1,6 +1,6 @@
 use crate::{
-    ComputePipeline, Material, Pass, RenderContext, RenderContextRw, RenderPass, RenderPassId,
-    RenderPipeline, Texture, TextureId,
+    ComputePipeline, Material, Pass, RenderContext, RenderContextRw, RenderPass, RenderPipeline,
+    Texture, TextureId,
 };
 use inox_core::ContextRc;
 
@@ -173,11 +173,7 @@ impl Renderer {
                     .texture_info(texture_id)
                     .is_none()
                 {
-                    let width = texture.get().width();
-                    let height = texture.get().height();
-                    if let Some(image_data) = texture.get().image_data() {
-                        render_context.add_image(encoder, texture_id, (width, height), image_data);
-                    }
+                    render_context.add_image(encoder, &texture);
                 }
                 if let Some(texture_data) = render_context.texture_handler.texture_info(texture_id)
                 {
@@ -196,16 +192,6 @@ impl Renderer {
                             }
                         });
                 }
-            }
-        }
-    }
-
-    pub fn on_render_pass_changed(&mut self, render_pass_id: &RenderPassId) {
-        inox_profiler::scoped_profile!("renderer::on_render_pass_changed");
-        let mut render_context = self.render_context().write().unwrap();
-        if let Some(render_pass) = self.shared_data.get_resource::<RenderPass>(render_pass_id) {
-            if !render_pass.get().is_initialized() {
-                render_pass.get_mut().init(&mut render_context);
             }
         }
     }

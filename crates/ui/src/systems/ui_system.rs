@@ -17,7 +17,7 @@ use inox_core::{
     SystemUID,
 };
 
-use inox_graphics::{RendererRw, Texture, TextureData, TextureFormat};
+use inox_graphics::{RendererRw, Texture, TextureData, TextureFormat, TextureUsage};
 
 use inox_log::debug_log;
 use inox_messenger::{Listener, MessageHubRc};
@@ -285,6 +285,10 @@ impl UISystem {
                     height: image_delta.image.height() as _,
                     data: pixels.to_vec(),
                     format: TextureFormat::Rgba8Unorm,
+                    use_texture_atlas: true,
+                    usage: TextureUsage::TextureBinding
+                        | TextureUsage::CopyDst
+                        | TextureUsage::RenderAttachment,
                 },
                 None,
             );

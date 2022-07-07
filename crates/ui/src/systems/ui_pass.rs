@@ -185,7 +185,7 @@ impl Pass for UIPass {
 
         let vertex_layout = UIVertex::descriptor(0);
         let instance_layout = UIInstance::descriptor(vertex_layout.location());
-        pass.init_pipeline(
+        pass.init(
             render_context,
             &self.binding_data,
             Some(vertex_layout),

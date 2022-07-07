@@ -10,7 +10,8 @@ use inox_serialize::{inox_serializable::SerializableRegistryRc, read_from_file};
 use crate::{
     platform::is_indirect_mode_enabled, AsBinding, BindingData, BufferId, CommandBuffer,
     DrawCommand, GpuBuffer, LoadOperation, RenderContext, RenderMode, RenderPassData,
-    RenderPipeline, RenderTarget, StoreOperation, Texture, TextureId, VertexBufferLayoutBuilder,
+    RenderPipeline, RenderTarget, StoreOperation, Texture, TextureId, TextureUsage,
+    VertexBufferLayoutBuilder,
 };
 
 pub type RenderPassId = ResourceId;
@@ -28,7 +29,6 @@ pub struct RenderPass {
     pipeline: Handle<RenderPipeline>,
     render_textures: Vec<Resource<Texture>>,
     depth_texture: Handle<Texture>,
-    is_initialized: bool,
 }
 
 impl ResourceTrait for RenderPass {
@@ -75,15 +75,13 @@ impl DataTypeResource for RenderPass {
             pipeline: None,
             render_textures: Vec::new(),
             depth_texture: None,
-            is_initialized: false,
         }
     }
     fn invalidate(&mut self) -> &mut Self {
-        self.is_initialized = false;
         self
     }
     fn is_initialized(&self) -> bool {
-        self.is_initialized
+        true
     }
     fn deserialize_data(
         path: &std::path::Path,
@@ -114,7 +112,6 @@ impl DataTypeResource for RenderPass {
             pipeline: None,
             render_textures: Vec::new(),
             depth_texture: None,
-            is_initialized: false,
         };
         pass.add_render_target(data.render_target)
             .add_depth_target(data.depth_target)
@@ -152,6 +149,9 @@ impl RenderPass {
                 width,
                 height,
                 format,
+                TextureUsage::TextureBinding
+                    | TextureUsage::CopyDst
+                    | TextureUsage::RenderAttachment,
             );
             self.render_textures.push(texture)
         }
@@ -176,6 +176,9 @@ impl RenderPass {
                     width,
                     height,
                     format,
+                    TextureUsage::TextureBinding
+                        | TextureUsage::CopyDst
+                        | TextureUsage::RenderAttachment,
                 );
                 Some(texture)
             }
@@ -215,43 +218,8 @@ impl RenderPass {
         self.store_depth = store_depth;
         self
     }
-    pub fn init(&mut self, render_context: &mut RenderContext) {
-        if !self.is_initialized {
-            self.render_textures.iter().for_each(|texture| {
-                let texture_handler = &mut render_context.texture_handler;
-                if texture_handler.get_texture_atlas(texture.id()).is_none() {
-                    texture_handler.add_custom_texture(
-                        &render_context.core.device,
-                        texture.id(),
-                        texture.get().width(),
-                        texture.get().height(),
-                        texture.get().format().into(),
-                        wgpu::TextureUsages::TEXTURE_BINDING
-                            | wgpu::TextureUsages::COPY_DST
-                            | wgpu::TextureUsages::RENDER_ATTACHMENT,
-                    );
-                }
-            });
-            if let Some(texture) = &self.depth_texture {
-                let texture_handler = &mut render_context.texture_handler;
-                if texture_handler.get_texture_atlas(texture.id()).is_none() {
-                    texture_handler.add_custom_texture(
-                        &render_context.core.device,
-                        texture.id(),
-                        texture.get().width(),
-                        texture.get().height(),
-                        texture.get().format().into(),
-                        wgpu::TextureUsages::TEXTURE_BINDING
-                            | wgpu::TextureUsages::COPY_DST
-                            | wgpu::TextureUsages::RENDER_ATTACHMENT,
-                    );
-                }
-            }
-            self.is_initialized = true;
-        }
-    }
 
-    pub fn init_pipeline(
+    pub fn init(
         &mut self,
         render_context: &mut RenderContext,
         binding_data: &BindingData,

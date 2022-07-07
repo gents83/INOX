@@ -1,4 +1,6 @@
-use crate::{FontData, Texture, TextureData, TextureFormat, DEFAULT_FONT_TEXTURE_SIZE};
+use crate::{
+    FontData, Texture, TextureData, TextureFormat, TextureUsage, DEFAULT_FONT_TEXTURE_SIZE,
+};
 
 use inox_math::Vector4;
 use inox_messenger::MessageHubRc;
@@ -71,6 +73,10 @@ impl DataTypeResource for Font {
                 height: DEFAULT_FONT_TEXTURE_SIZE as _,
                 data: font_data.create_texture(),
                 format: TextureFormat::Rgba8Unorm,
+                use_texture_atlas: true,
+                usage: TextureUsage::TextureBinding
+                    | TextureUsage::CopyDst
+                    | TextureUsage::RenderAttachment,
             },
             None,
         );

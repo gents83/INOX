@@ -143,7 +143,7 @@ impl Pass for BlitPass {
         self.binding_data
             .send_to_gpu(render_context, BLIT_PASS_NAME);
 
-        pass.init_pipeline(render_context, &self.binding_data, None, None);
+        pass.init(render_context, &self.binding_data, None, None);
     }
     fn update(&mut self, render_context: &mut RenderContext, command_buffer: &mut CommandBuffer) {
         inox_profiler::scoped_profile!("blit_pass::update");

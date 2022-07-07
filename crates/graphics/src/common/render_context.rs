@@ -5,12 +5,12 @@ use std::{
 
 use inox_math::{Matrix4, Vector2};
 use inox_platform::Handle;
+use inox_resources::Resource;
 
 use crate::{
     platform::{platform_limits, required_gpu_features},
     AsBinding, BufferId, ConstantData, GpuBuffer, MeshFlags, RenderBuffers, RenderPass, RendererRw,
-    TextureHandler, TextureId, TextureInfo, CONSTANT_DATA_FLAGS_SUPPORT_SRGB, DEFAULT_HEIGHT,
-    DEFAULT_WIDTH,
+    Texture, TextureHandler, CONSTANT_DATA_FLAGS_SUPPORT_SRGB, DEFAULT_HEIGHT, DEFAULT_WIDTH,
 };
 
 #[derive(Default)]
@@ -235,19 +235,30 @@ impl RenderContext {
         }
     }
 
-    pub fn add_image(
-        &mut self,
-        encoder: &mut wgpu::CommandEncoder,
-        texture_id: &TextureId,
-        dimensions: (u32, u32),
-        image_data: &[u8],
-    ) -> TextureInfo {
-        self.texture_handler.add_image(
-            &self.core.device,
-            encoder,
-            texture_id,
-            dimensions,
-            image_data,
-        )
+    pub fn add_image(&mut self, encoder: &mut wgpu::CommandEncoder, texture: &Resource<Texture>) {
+        if let Some(image_data) = texture.get().image_data() {
+            let texture_id = texture.id();
+            let width = texture.get().width();
+            let height = texture.get().height();
+            let use_texture_atlas = texture.get().use_texture_atlas();
+            if use_texture_atlas {
+                self.texture_handler.add_image_to_texture_atlas(
+                    &self.core.device,
+                    encoder,
+                    texture_id,
+                    (width, height),
+                    image_data,
+                );
+            } else {
+                self.texture_handler.add_new_texture_atlas(
+                    &self.core.device,
+                    texture_id,
+                    width,
+                    height,
+                    texture.get().format().into(),
+                    texture.get().usage().into(),
+                );
+            }
+        }
     }
 }
