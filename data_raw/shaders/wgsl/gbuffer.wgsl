@@ -119,7 +119,7 @@ fn fs_main(
         n = normalize(n);
     }
     let packed_normal = pack_normal(n);
-    fragment_out.gbuffer_2 = vec4<f32>(packed_normal.x, packed_normal.y, f32(v_in.mesh_and_meshlet_ids.x), f32(v_in.mesh_and_meshlet_ids.y));
+    fragment_out.gbuffer_2 = vec4<f32>(packed_normal.x, packed_normal.y, f32(mesh_id), f32(v_in.mesh_and_meshlet_ids.y));
     
     //let uv0 = pack2x16float(v_in.uv_0_1.xy);
     //let uv1 = pack2x16float(v_in.uv_0_1.zw);

@@ -116,7 +116,6 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
 
     let gbuffer_1 = sample_texture(vec3<f32>(v_in.uv.xy, f32(data.gbuffer1)));
     let gbuffer_2 = sample_texture(vec3<f32>(v_in.uv.xy, f32(data.gbuffer2)));
-    let gbuffer_3 = sample_texture(vec3<f32>(v_in.uv.xy, f32(data.gbuffer3)));
     let mesh_id = u32(gbuffer_2.z);
     let vertex_color = u32(gbuffer_1.w);
     if mesh_id == 0u && vertex_color == 1u {
@@ -134,6 +133,8 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
             1.
         );
     } else {
+     let gbuffer_3 = sample_texture(vec3<f32>(v_in.uv.xy, f32(data.gbuffer3)));
+
         let material_id = u32(meshes.data[mesh_id].material_index);
         let material = &materials.data[material_id];
         let texture_color = sample_material_texture(gbuffer_3, material_id, TEXTURE_TYPE_BASE_COLOR);
