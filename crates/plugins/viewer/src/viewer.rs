@@ -3,10 +3,10 @@ use std::path::PathBuf;
 use inox_core::{define_plugin, ContextRc, Plugin, SystemUID, WindowSystem};
 
 use inox_graphics::{
-    rendering_system::RenderingSystem, update_system::UpdateSystem, BlitPass, DebugDrawerSystem,
-    GBufferPass, LoadOperation, Pass, PbrPass, RenderPass, RenderTarget, Renderer, RendererRw,
-    TextureFormat, WireframePass, DEFAULT_HEIGHT, DEFAULT_WIDTH, GBUFFER_PASS_NAME,
-    WIREFRAME_PASS_NAME,
+    rendering_system::RenderingSystem, update_system::UpdateSystem, BlitPass, ComputePbrPass,
+    DebugDrawerSystem, GBufferPass, LoadOperation, PBRPass, Pass, RenderPass, RenderTarget,
+    Renderer, RendererRw, TextureFormat, WireframePass, DEFAULT_HEIGHT, DEFAULT_WIDTH,
+    GBUFFER_PASS_NAME, WIREFRAME_PASS_NAME,
 };
 use inox_platform::Window;
 use inox_resources::ConfigBase;
@@ -19,6 +19,7 @@ use crate::{config::Config, systems::viewer_system::ViewerSystem};
 const ADD_WIREFRAME_PASS: bool = true;
 const ADD_UI_PASS: bool = true;
 const USE_3DVIEW: bool = false;
+const USE_COMPUTE_RENDERING: bool = false;
 
 pub struct Viewer {
     window: Option<Window>,
@@ -154,8 +155,12 @@ impl Viewer {
         if ADD_WIREFRAME_PASS {
             Self::create_wireframe_pass(context, renderer);
         }
-        Self::create_pbr_pass(context, renderer, width, height);
-        Self::create_blit_pass(context, renderer);
+        if USE_COMPUTE_RENDERING {
+            Self::create_compute_pbr_pass(context, renderer, width, height);
+            Self::create_blit_pass(context, renderer);
+        } else {
+            Self::create_pbr_pass(context, renderer);
+        }
         if ADD_UI_PASS {
             Self::create_ui_pass(context, renderer, width, height);
         }
@@ -175,7 +180,7 @@ impl Viewer {
             .add_render_target(RenderTarget::Texture {
                 width,
                 height,
-                format: TextureFormat::Rgba8Unorm,
+                format: TextureFormat::Rgba32Float,
                 read_back: false,
             })
             .add_render_target(RenderTarget::Texture {
@@ -193,10 +198,14 @@ impl Viewer {
 
         renderer.write().unwrap().add_pass(gbuffer_pass);
     }
-    fn create_pbr_pass(context: &ContextRc, renderer: &RendererRw, width: u32, height: u32) {
-        let mut pbr_pass = PbrPass::create(context);
+    fn create_compute_pbr_pass(
+        context: &ContextRc,
+        renderer: &RendererRw,
+        width: u32,
+        height: u32,
+    ) {
+        let mut pbr_pass = ComputePbrPass::create(context);
         pbr_pass.resolution(width, height);
-
         if let Some(gbuffer_pass) = renderer.read().unwrap().pass::<GBufferPass>() {
             let gbuffer_pass = gbuffer_pass.render_pass().get();
             if let Some(depth_id) = gbuffer_pass.depth_texture_id() {
@@ -208,22 +217,26 @@ impl Viewer {
         }
         renderer.write().unwrap().add_pass(pbr_pass);
     }
-    #[allow(unused)]
     fn create_blit_pass(context: &ContextRc, renderer: &RendererRw) {
         let mut blit_pass = BlitPass::create(context);
-        if let Some(pbr_pass) = renderer.read().unwrap().pass::<PbrPass>() {
+        if let Some(pbr_pass) = renderer.read().unwrap().pass::<ComputePbrPass>() {
             blit_pass.set_source(pbr_pass.render_target_id());
         }
-        /*
+        renderer.write().unwrap().add_pass(blit_pass);
+    }
+    fn create_pbr_pass(context: &ContextRc, renderer: &RendererRw) {
+        let mut pbr_pass = PBRPass::create(context);
 
         if let Some(gbuffer_pass) = renderer.read().unwrap().pass::<GBufferPass>() {
-            let gbuffer_pass = gbuffer_pass.render_pass().get();
-            if let Some(albedo_texture) = gbuffer_pass.render_textures().first() {
-                blit_pass.set_source(albedo_texture.id());
-            }
+            pbr_pass.set_gbuffers_textures(
+                gbuffer_pass
+                    .render_pass()
+                    .get()
+                    .render_textures_id()
+                    .as_slice(),
+            );
         }
-         */
-        renderer.write().unwrap().add_pass(blit_pass);
+        renderer.write().unwrap().add_pass(pbr_pass);
     }
     fn create_wireframe_pass(context: &ContextRc, renderer: &RendererRw) {
         let wireframe_pass = WireframePass::create(context);

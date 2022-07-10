@@ -22,7 +22,9 @@ use inox_graphics::{
     TextureType, MAX_TEXTURE_COORDS_SETS,
 };
 use inox_log::debug_log;
-use inox_math::{Mat4Ops, Matrix4, NewAngle, Parser, Radians, Vector2, Vector3, Vector4, Vector4h};
+use inox_math::{
+    InnerSpace, Mat4Ops, Matrix4, NewAngle, Parser, Radians, Vector2, Vector3, Vector4, Vector4h,
+};
 
 use inox_nodes::LogicData;
 use inox_resources::{to_slice, SharedDataRc};
@@ -403,6 +405,66 @@ impl GltfCompiler {
         }
     }
 
+    fn compute_tangents(&self, mesh_data: &mut MeshData) {
+        let index_count = mesh_data.indices.len();
+        let mut i = 0;
+
+        while i < index_count {
+            let v1 = mesh_data.vertices[mesh_data.indices[i] as usize];
+            let v2 = mesh_data.vertices[mesh_data.indices[i + 1] as usize];
+            let v3 = mesh_data.vertices[mesh_data.indices[i + 2] as usize];
+
+            let p1 = mesh_data.positions[v1.position_and_color_offset as usize];
+            let p2 = mesh_data.positions[v2.position_and_color_offset as usize];
+            let p3 = mesh_data.positions[v3.position_and_color_offset as usize];
+
+            let n1 = mesh_data.normals[v1.normal_offset as usize];
+            let n2 = mesh_data.normals[v2.normal_offset as usize];
+            let n3 = mesh_data.normals[v3.normal_offset as usize];
+
+            let uv1 = mesh_data.uvs[v1.uv_offset[0] as usize];
+            let uv2 = mesh_data.uvs[v2.uv_offset[0] as usize];
+            let uv3 = mesh_data.uvs[v3.uv_offset[0] as usize];
+
+            let delta_pos1 = p2 - p1;
+            let delta_pos2 = p3 - p1;
+
+            let delta_uv1 = uv2 - uv1;
+            let delta_uv2 = uv3 - uv1;
+
+            let t = (delta_pos1 * delta_uv2.y - delta_pos2 * delta_uv1.y).normalize();
+            let b = (delta_pos2 * delta_uv1.x - delta_pos1 * delta_uv2.x).normalize();
+
+            // Gram-Schmidt orthogonalize + Calculate handedness
+            let t1 = (t - (n1 * n1.dot(t))).normalize();
+            let t1_sign = n1.cross(t).dot(b).signum();
+
+            let t2 = (t - (n2 * n2.dot(t))).normalize();
+            let t2_sign = n2.cross(t).dot(b).signum();
+
+            let t3 = (t - (n3 * n3.dot(t))).normalize();
+            let t3_sign = n3.cross(t).dot(b).signum();
+
+            if v1.tangent_offset < 0 {
+                mesh_data.tangents.push([t1.x, t1.y, t1.z, t1_sign].into());
+                let v1 = &mut mesh_data.vertices[mesh_data.indices[i] as usize];
+                v1.tangent_offset = (mesh_data.tangents.len() - 1) as _;
+            }
+            if v2.tangent_offset < 0 {
+                mesh_data.tangents.push([t2.x, t2.y, t2.z, t2_sign].into());
+                let v2 = &mut mesh_data.vertices[mesh_data.indices[i + 1] as usize];
+                v2.tangent_offset = (mesh_data.tangents.len() - 1) as _;
+            }
+            if v3.tangent_offset < 0 {
+                mesh_data.tangents.push([t3.x, t3.y, t3.z, t3_sign].into());
+                let v3 = &mut mesh_data.vertices[mesh_data.indices[i + 2] as usize];
+                v3.tangent_offset = (mesh_data.tangents.len() - 1) as _;
+            }
+
+            i += 3;
+        }
+    }
+
     fn process_mesh_data(
         &mut self,
         path: &Path,
@@ -415,6 +477,9 @@ impl GltfCompiler {
         self.extract_indices(path, primitive, &mut mesh_data);
 
         let mut mesh_data = self.optimize_mesh(mesh_data);
+        if mesh_data.tangents.is_empty() {
+            self.compute_tangents(&mut mesh_data);
+        }
         self.compute_meshlets(&mut mesh_data);
         mesh_data.material = material_path.to_path_buf();
 

@@ -37,7 +37,7 @@ pub struct ViewerSystem {
     update_culling_camera: Arc<AtomicBool>,
 }
 
-const FORCE_USE_DEFAULT_CAMERA: bool = true;
+const FORCE_USE_DEFAULT_CAMERA: bool = false;
 const CAMERA_SPEED: f32 = 50.;
 const CAMERA_ROTATION_SPEED: f32 = 100.;
 

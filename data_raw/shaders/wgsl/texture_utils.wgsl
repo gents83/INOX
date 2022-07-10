@@ -82,3 +82,36 @@ fn sample_texture(tex_coords_and_texture_index: vec3<f32>) -> vec4<f32> {
     return textureSampleLevel(texture_1, default_sampler, tex_coords.xy, layer_index, tex_coords.z);
 #endif
 }
+
+
+
+fn load_texture(tex_coords_and_texture_index: vec3<i32>) -> vec4<f32> {
+    let texture_data_index = i32(tex_coords_and_texture_index.z);
+    let texture = &textures.data[texture_data_index];
+    let atlas_index = (*texture).texture_index;
+    let layer_index = i32((*texture).layer_index);
+
+#ifdef FEATURES_TEXTURE_BINDING_ARRAY
+    return textureLoad(texture_array[atlas_index], tex_coords_and_texture_index.xy, layer_index, layer_index);
+#else
+    switch (atlas_index) {
+        case 0: return textureLoad(texture_1, tex_coords_and_texture_index.xy, layer_index, layer_index);
+        case 1: return textureLoad(texture_2, tex_coords_and_texture_index.xy, layer_index, layer_index);
+        case 2: return textureLoad(texture_3, tex_coords_and_texture_index.xy, layer_index, layer_index);
+        case 3: return textureLoad(texture_4, tex_coords_and_texture_index.xy, layer_index, layer_index);
+        case 4: return textureLoad(texture_5, tex_coords_and_texture_index.xy, layer_index, layer_index);
+        case 5: return textureLoad(texture_6, tex_coords_and_texture_index.xy, layer_index, layer_index);
+        case 6: return textureLoad(texture_7, tex_coords_and_texture_index.xy, layer_index, layer_index);
+        case 7: return textureLoad(texture_8, tex_coords_and_texture_index.xy, layer_index, layer_index);
+        case 8: return textureLoad(texture_9, tex_coords_and_texture_index.xy, layer_index, layer_index);
+        case 9: return textureLoad(texture_10, tex_coords_and_texture_index.xy, layer_index, layer_index);
+        case 10: return textureLoad(texture_11, tex_coords_and_texture_index.xy, layer_index, layer_index);
+        case 11: return textureLoad(texture_12, tex_coords_and_texture_index.xy, layer_index, layer_index);
+        case 12: return textureLoad(texture_13, tex_coords_and_texture_index.xy, layer_index, layer_index);
+        case 13: return textureLoad(texture_14, tex_coords_and_texture_index.xy, layer_index, layer_index);
+        case 14: return textureLoad(texture_15, tex_coords_and_texture_index.xy, layer_index, layer_index);
+        case 15: return textureLoad(texture_16, tex_coords_and_texture_index.xy, layer_index, layer_index);
+    }
+    return textureLoad(texture_1, tex_coords_and_texture_index.xy, layer_index, layer_index);
+#endif
+}

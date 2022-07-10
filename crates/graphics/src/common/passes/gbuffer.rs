@@ -11,6 +11,12 @@ use inox_uid::generate_random_uid;
 
 pub const GBUFFER_PIPELINE: &str = "pipelines/GBuffer.render_pipeline";
 pub const GBUFFER_PASS_NAME: &str = "GBufferPass";
+pub enum GBuffer {
+    Albedo = 0,
+    Normal = 1,
+    Params = 2,
+    Count = 3,
+}
 
 pub struct GBufferPass {
     render_pass: Resource<RenderPass>,
@@ -57,22 +63,7 @@ impl Pass for GBufferPass {
 
         let mesh_flags = MeshFlags::Visible | MeshFlags::Opaque;
 
-        if !render_context.has_instances(mesh_flags)
-            || render_context
-                .render_buffers
-                .vertex_positions_and_colors
-                .is_empty()
-            || render_context
-                .render_buffers
-                .vertex_normals_and_padding
-                .is_empty()
-            || render_context.render_buffers.vertex_uvs.is_empty()
-            || render_context.render_buffers.matrix.is_empty()
-            || render_context.render_buffers.meshes.is_empty()
-            || render_context.render_buffers.meshlets.is_empty()
-            || render_context.render_buffers.materials.is_empty()
-            || render_context.render_buffers.textures.is_empty()
-        {
+        if !render_context.has_instances(mesh_flags) {
             return;
         }
 
@@ -85,19 +76,23 @@ impl Pass for GBufferPass {
             .get_mut(&mesh_flags)
             .unwrap();
 
-        self.binding_data
-            .add_uniform_buffer(
-                &render_context.core,
-                &render_context.binding_data_buffer,
-                &mut render_context.constant_data,
-                BindingInfo {
-                    group_index: 0,
-                    binding_index: 0,
-                    stage: ShaderStage::VertexAndFragment,
-                    ..Default::default()
-                },
-            )
-            .add_storage_buffer(
+        self.binding_data.add_uniform_buffer(
+            &render_context.core,
+            &render_context.binding_data_buffer,
+            &mut render_context.constant_data,
+            BindingInfo {
+                group_index: 0,
+                binding_index: 0,
+                stage: ShaderStage::VertexAndFragment,
+                ..Default::default()
+            },
+        );
+        if !render_context
+            .render_buffers
+            .vertex_positions_and_colors
+            .is_empty()
+        {
+            self.binding_data.add_storage_buffer(
                 &render_context.core,
                 &render_context.binding_data_buffer,
                 &mut render_context.render_buffers.vertex_positions_and_colors,
@@ -108,8 +103,14 @@ impl Pass for GBufferPass {
 
                     ..Default::default()
                 },
-            )
-            .add_storage_buffer(
+            );
+        }
+        if !render_context
+            .render_buffers
+            .vertex_normals_and_padding
+            .is_empty()
+        {
+            self.binding_data.add_storage_buffer(
                 &render_context.core,
                 &render_context.binding_data_buffer,
                 &mut render_context.render_buffers.vertex_normals_and_padding,
@@ -120,11 +121,13 @@ impl Pass for GBufferPass {
 
                     ..Default::default()
                 },
-            )
-            .add_storage_buffer(
+            );
+        }
+        if !render_context.render_buffers.vertex_tangents.is_empty() {
+            self.binding_data.add_storage_buffer(
                 &render_context.core,
                 &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.vertex_uvs,
+                &mut render_context.render_buffers.vertex_tangents,
                 BindingInfo {
                     group_index: 0,
                     binding_index: 3,
@@ -132,8 +135,24 @@ impl Pass for GBufferPass {
 
                     ..Default::default()
                 },
-            )
-            .add_storage_buffer(
+            );
+        }
+        if !render_context.render_buffers.vertex_uvs.is_empty() {
+            self.binding_data.add_storage_buffer(
+                &render_context.core,
+                &render_context.binding_data_buffer,
+                &mut render_context.render_buffers.vertex_uvs,
+                BindingInfo {
+                    group_index: 0,
+                    binding_index: 4,
+                    stage: ShaderStage::Vertex,
+
+                    ..Default::default()
+                },
+            );
+        }
+        if !render_context.render_buffers.matrix.is_empty() {
+            self.binding_data.add_storage_buffer(
                 &render_context.core,
                 &render_context.binding_data_buffer,
                 &mut render_context.render_buffers.matrix,
@@ -144,55 +163,66 @@ impl Pass for GBufferPass {
 
                     ..Default::default()
                 },
-            )
-            .add_storage_buffer(
+            );
+        }
+        if !render_context.render_buffers.meshes.is_empty() {
+            self.binding_data.add_storage_buffer(
                 &render_context.core,
                 &render_context.binding_data_buffer,
                 &mut render_context.render_buffers.meshes,
                 BindingInfo {
                     group_index: 1,
                     binding_index: 1,
-                    stage: ShaderStage::Vertex,
+                    stage: ShaderStage::VertexAndFragment,
 
                     ..Default::default()
                 },
-            )
-            .add_storage_buffer(
-                &render_context.core,
-                &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.meshlets,
-                BindingInfo {
-                    group_index: 1,
-                    binding_index: 2,
-                    stage: ShaderStage::Vertex,
-
-                    ..Default::default()
-                },
-            )
-            .add_storage_buffer(
+            );
+        }
+        if !render_context.render_buffers.materials.is_empty() {
+            self.binding_data.add_storage_buffer(
                 &render_context.core,
                 &render_context.binding_data_buffer,
                 &mut render_context.render_buffers.materials,
                 BindingInfo {
                     group_index: 1,
-                    binding_index: 3,
-                    stage: ShaderStage::Vertex,
+                    binding_index: 2,
+                    stage: ShaderStage::Fragment,
 
                     ..Default::default()
                 },
-            )
-            .add_storage_buffer(
+            );
+        }
+        if !render_context.render_buffers.textures.is_empty() {
+            self.binding_data.add_storage_buffer(
                 &render_context.core,
                 &render_context.binding_data_buffer,
                 &mut render_context.render_buffers.textures,
                 BindingInfo {
                     group_index: 1,
-                    binding_index: 4,
+                    binding_index: 3,
                     stage: ShaderStage::Fragment,
 
                     ..Default::default()
                 },
-            )
+            );
+        }
+        if !render_context.render_buffers.meshlets.is_empty() {
+            self.binding_data.add_storage_buffer(
+                &render_context.core,
+                &render_context.binding_data_buffer,
+                &mut render_context.render_buffers.meshlets,
+                BindingInfo {
+                    group_index: 1,
+                    binding_index: 4,
+                    stage: ShaderStage::Vertex,
+
+                    ..Default::default()
+                },
+            );
+        }
+
+        self.binding_data
             .add_textures(
                 &render_context.texture_handler,
                 render_textures,

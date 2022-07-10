@@ -367,38 +367,6 @@ fn normal(v: VertexOutput) -> vec3<f32> {
 
     return n;
 }
-// Basic Lambertian diffuse
-// Implementation from Lambert's Photometria https://archive.org/details/lambertsphotome00lambgoog
-// See also [1], Equation 1
-fn diffuse(info: PBRInfo) -> vec3<f32> {
-    return info.diffuse_color / PI;
-}
-// The following equation models the Fresnel reflectance term of the spec equation (aka F())
-// Implementation of fresnel from [4], Equation 15
-fn specular_reflection(info: PBRInfo) -> vec3<f32> {
-    return info.reflectance0 + (info.reflectance90 - info.reflectance0) * pow(clamp(1.0 - info.VdotH, 0.0, 1.0), 5.0);
-}
-// This calculates the specular geometric attenuation (aka G()),
-// where rougher material will reflect less light back to the viewer.
-// This implementation is based on [1] Equation 4, and we adopt their modifications to
-// alphaRoughness as input as originally proposed in [2].
-fn geometric_occlusion(info: PBRInfo) -> f32 {
-    let r = info.alpha_roughness;
-
-    let attenuationL = 2.0 * info.NdotL / (info.NdotL + sqrt(r * r + (1.0 - r * r) * (info.NdotL * info.NdotL)));
-    let attenuationV = 2.0 * info.NdotV / (info.NdotV + sqrt(r * r + (1.0 - r * r) * (info.NdotV * info.NdotV)));
-    return attenuationL * attenuationV;
-}
-
-// The following equation(s) model the distribution of microfacet normals across the area being drawn (aka D())
-// Implementation from "Average Irregularity Representation of a Roughened Surface for Ray Reflection" by T. S. Trowbridge, and K. P. Reitz
-// Follows the distribution function recommended in the SIGGRAPH 2013 course notes from EPIC Games [1], Equation 3.
-fn microfacet_distribution(info: PBRInfo) -> f32 {
-    let roughnessSq = info.alpha_roughness * info.alpha_roughness;
-    let f = (info.NdotH * roughnessSq - info.NdotH) * info.NdotH + 1.0;
-    return roughnessSq / (PI * f * f);
-}
-
 
 @fragment
 fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {

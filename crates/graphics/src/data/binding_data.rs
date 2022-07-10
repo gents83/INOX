@@ -33,12 +33,12 @@ impl Default for BindingInfo {
 
 #[derive(Clone)]
 enum BindingType {
-    Buffer(BufferId, BufferId),
-    DefaultSampler,
-    UnfilteredSampler,
-    DepthSampler,
-    TextureArray(Box<[TextureId; MAX_TEXTURE_ATLAS_COUNT as usize]>),
-    StorageTextures(Vec<TextureId>),
+    Buffer(usize, BufferId, BufferId),
+    DefaultSampler(usize),
+    UnfilteredSampler(usize),
+    DepthSampler(usize),
+    TextureArray(usize, Box<[TextureId; MAX_TEXTURE_ATLAS_COUNT as usize]>),
+    StorageTextures(usize, Vec<TextureId>),
 }
 
 #[derive(Default)]
@@ -142,6 +142,9 @@ impl BindingData {
     where
         T: AsBinding,
     {
+        if data.size() == 0 {
+            return self;
+        }
         let data_id = data.id();
         let usage = wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST;
         let (is_changed, buffer_id) =
@@ -161,7 +164,7 @@ impl BindingData {
         self
     }
 
-    pub fn bind_uniform_buffer(
+    fn bind_uniform_buffer(
         &mut self,
         data_id: BufferId,
         buffer_id: &BufferId,
@@ -185,8 +188,12 @@ impl BindingData {
         }
 
         if info.binding_index >= self.binding_types[info.group_index].len() {
-            self.binding_types[info.group_index].push(BindingType::Buffer(data_id, *buffer_id));
-        } else if let BindingType::Buffer(old_data_id, old_buffer_id) =
+            self.binding_types[info.group_index].push(BindingType::Buffer(
+                info.binding_index,
+                data_id,
+                *buffer_id,
+            ));
+        } else if let BindingType::Buffer(_, old_data_id, old_buffer_id) =
             &mut self.binding_types[info.group_index][info.binding_index]
         {
             if *old_buffer_id != *buffer_id || *old_data_id != data_id {
@@ -207,6 +214,10 @@ impl BindingData {
     where
         T: AsBinding,
     {
+        if data.size() == 0 {
+            return self;
+        }
+
         let data_id = data.id();
         let mut usage = wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST;
         if !info.read_only {
@@ -236,7 +247,7 @@ impl BindingData {
         self
     }
 
-    pub fn bind_storage_buffer(
+    fn bind_storage_buffer(
         &mut self,
         data_id: BufferId,
         buffer_id: &BufferId,
@@ -262,8 +273,12 @@ impl BindingData {
         }
 
         if info.binding_index >= self.binding_types[info.group_index].len() {
-            self.binding_types[info.group_index].push(BindingType::Buffer(data_id, *buffer_id));
-        } else if let BindingType::Buffer(old_data_id, old_buffer_id) =
+            self.binding_types[info.group_index].push(BindingType::Buffer(
+                info.binding_index,
+                data_id,
+                *buffer_id,
+            ));
+        } else if let BindingType::Buffer(_, old_data_id, old_buffer_id) =
             &mut self.binding_types[info.group_index][info.binding_index]
         {
             if *old_buffer_id != *buffer_id || *old_data_id != data_id {
@@ -329,9 +344,10 @@ impl BindingData {
 
         if self.binding_types[info.group_index].len() <= info.binding_index {
             self.binding_types[info.group_index].push(BindingType::StorageTextures(
+                info.binding_index,
                 textures.iter().map(|t| *t.id()).collect(),
             ));
-        } else if let BindingType::StorageTextures(old_textures) =
+        } else if let BindingType::StorageTextures(_, old_textures) =
             &self.binding_types[info.group_index][info.binding_index]
         {
             if old_textures
@@ -340,7 +356,10 @@ impl BindingData {
                 .any(|(index, id)| textures[index].id() != id)
             {
                 self.binding_types[info.group_index][info.binding_index] =
-                    BindingType::StorageTextures(textures.iter().map(|&t| *t.id()).collect());
+                    BindingType::StorageTextures(
+                        info.binding_index,
+                        textures.iter().map(|&t| *t.id()).collect(),
+                    );
             }
         }
         self
@@ -383,13 +402,13 @@ impl BindingData {
             self.is_layout_changed = true;
         }
         if self.binding_types[info.group_index].is_empty() {
-            self.binding_types[info.group_index].push(BindingType::DefaultSampler);
+            self.binding_types[info.group_index].push(BindingType::DefaultSampler(0));
         }
         if self.binding_types[info.group_index].len() < 2 {
-            self.binding_types[info.group_index].push(BindingType::UnfilteredSampler);
+            self.binding_types[info.group_index].push(BindingType::UnfilteredSampler(1));
         }
         if self.binding_types[info.group_index].len() < 3 {
-            self.binding_types[info.group_index].push(BindingType::DepthSampler);
+            self.binding_types[info.group_index].push(BindingType::DepthSampler(2));
         }
 
         let textures_bind_group_layout_index = 3;
@@ -476,9 +495,11 @@ impl BindingData {
         }
 
         if self.binding_types[info.group_index].len() <= textures_bind_group_layout_index {
-            self.binding_types[info.group_index]
-                .push(BindingType::TextureArray(Box::new(textures)));
-        } else if let BindingType::TextureArray(old_textures) =
+            self.binding_types[info.group_index].push(BindingType::TextureArray(
+                textures_bind_group_layout_index,
+                Box::new(textures),
+            ));
+        } else if let BindingType::TextureArray(_, old_textures) =
             &self.binding_types[info.group_index][textures_bind_group_layout_index]
         {
             if old_textures
@@ -487,7 +508,7 @@ impl BindingData {
                 .any(|(index, id)| textures[index] != *id)
             {
                 self.binding_types[info.group_index][textures_bind_group_layout_index] =
-                    BindingType::TextureArray(Box::new(textures));
+                    BindingType::TextureArray(textures_bind_group_layout_index, Box::new(textures));
             }
         }
 
@@ -529,7 +550,7 @@ impl BindingData {
                 let mut textures_view = Vec::new();
                 let mut storage_textures = Vec::new();
                 binding_type_array.iter().for_each(|binding_type| {
-                    if let BindingType::TextureArray(textures) = binding_type {
+                    if let BindingType::TextureArray(_, textures) = binding_type {
                         textures.iter().for_each(|id| {
                             if let Some(texture) =
                                 render_context.texture_handler.get_texture_atlas(id)
@@ -537,7 +558,7 @@ impl BindingData {
                                 textures_view.push(texture.texture());
                             }
                         });
-                    } else if let BindingType::StorageTextures(textures) = binding_type {
+                    } else if let BindingType::StorageTextures(_, textures) = binding_type {
                         if textures.is_empty() {
                             storage_textures.push(render_context.surface_view.as_ref().unwrap());
                         } else {
@@ -555,77 +576,73 @@ impl BindingData {
                 let mut bind_group = Vec::new();
                 binding_type_array
                     .iter()
-                    .enumerate()
-                    .for_each(|(index, binding_type)| match binding_type {
-                        BindingType::Buffer(data_id, buffer_id) => {
+                    .for_each(|binding_type| match binding_type {
+                        BindingType::Buffer(binding_index, data_id, buffer_id) => {
                             if DEBUG_BINDINGS {
                                 inox_log::debug_log!(
                                     "Binding Buffer[{}][{}] = {:?} with {:?}",
                                     group_index,
-                                    index,
+                                    binding_index,
                                     data_id,
                                     buffer_id
                                 );
                             }
                             if let Some(buffer) = bind_data_buffer.get(data_id) {
-                                debug_assert!(
-                                    buffer.gpu_buffer().is_some(),
-                                    "Buffer {} at group {} index {} is not uploaded to gpu",
-                                    buffer.name(),
-                                    group_index,
-                                    index
-                                );
-                                debug_assert!(
-                                    buffer.size() != 0,
-                                    "Group {} Buffer {} has size 0",
-                                    group_index,
-                                    index
-                                );
-                                let entry = wgpu::BindGroupEntry {
-                                    binding: index as _,
-                                    resource: buffer.gpu_buffer().unwrap().as_entire_binding(),
-                                };
-                                bind_group.push(entry);
+                                if buffer.gpu_buffer().is_some() && buffer.size() != 0 {
+                                    let entry = wgpu::BindGroupEntry {
+                                        binding: *binding_index as _,
+                                        resource: buffer.gpu_buffer().unwrap().as_entire_binding(),
+                                    };
+                                    bind_group.push(entry);
+                                } else if DEBUG_BINDINGS {
+                                    inox_log::debug_log!(
+                                        "Binding Buffer[{}][{}] = {:?} with {:?} but buffer is empty",
+                                        group_index,
+                                        binding_index,
+                                        data_id,
+                                        buffer_id
+                                    );
+                                }
                             } else if DEBUG_BINDINGS {
                                 inox_log::debug_log!(
                                     "Binding Buffer[{}][{}] = {:?} with {:?} but buffer is not found",
                                     group_index,
-                                    index,
+                                    binding_index,
                                     data_id,
                                     buffer_id
                                 );
                             }
                         }
-                        BindingType::DefaultSampler => {
+                        BindingType::DefaultSampler(binding_index) => {
                             bind_group.push(wgpu::BindGroupEntry {
-                                binding: index as _,
+                                binding: *binding_index as _,
                                 resource: wgpu::BindingResource::Sampler(
                                     render_context.texture_handler.default_sampler(),
                                 ),
                             });
                         }
-                        BindingType::UnfilteredSampler => {
+                        BindingType::UnfilteredSampler(binding_index) => {
                             bind_group.push(wgpu::BindGroupEntry {
-                                binding: index as _,
+                                binding: *binding_index as _,
                                 resource: wgpu::BindingResource::Sampler(
                                     render_context.texture_handler.unfiltered_sampler(),
                                 ),
                             });
                         }
-                        BindingType::DepthSampler => {
+                        BindingType::DepthSampler(binding_index) => {
                             bind_group.push(wgpu::BindGroupEntry {
-                                binding: index as _,
+                                binding: *binding_index as _,
                                 resource: wgpu::BindingResource::Sampler(
                                     render_context.texture_handler.depth_sampler(),
                                 ),
                             });
                         }
-                        BindingType::TextureArray(_) => {
+                        BindingType::TextureArray(binding_index, _) => {
                             if DEBUG_BINDINGS {
                                 inox_log::debug_log!(
                                     "Binding Textures[{}][{}] - NumTexturesView {:?}",
                                     group_index,
-                                    index,
+                                    binding_index,
                                     textures_view.len()
                                 );
                             }
@@ -633,7 +650,7 @@ impl BindingData {
                                 .contains(wgpu::Features::TEXTURE_BINDING_ARRAY)
                             {
                                 bind_group.push(wgpu::BindGroupEntry {
-                                    binding: index as _,
+                                    binding: *binding_index as _,
                                     resource: wgpu::BindingResource::TextureViewArray({
                                         textures_view.as_slice()
                                     }),
@@ -641,7 +658,7 @@ impl BindingData {
                             } else {
                                 (0..MAX_TEXTURE_ATLAS_COUNT).for_each(|i| {
                                     bind_group.push(wgpu::BindGroupEntry {
-                                        binding: index as u32 + i,
+                                        binding: *binding_index as u32 + i,
                                         resource: wgpu::BindingResource::TextureView(
                                             textures_view[i as usize],
                                         ),
@@ -649,12 +666,12 @@ impl BindingData {
                                 });
                             }
                         }
-                        BindingType::StorageTextures(_) => {
+                        BindingType::StorageTextures(binding_index, _) => {
                             if DEBUG_BINDINGS {
                                 inox_log::debug_log!(
                                     "Binding StorageTextures[{}][{}] - NumTexturesView {:?}",
                                     group_index,
-                                    index,
+                                    binding_index,
                                     storage_textures.len()
                                 );
                             }
@@ -663,7 +680,7 @@ impl BindingData {
                                 .enumerate()
                                 .for_each(|(i, &texture)| {
                                     bind_group.push(wgpu::BindGroupEntry {
-                                        binding: index as u32 + i as u32,
+                                        binding: *binding_index as u32 + i as u32,
                                         resource: wgpu::BindingResource::TextureView(texture),
                                     });
                                 });
