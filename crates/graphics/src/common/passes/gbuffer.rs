@@ -123,20 +123,6 @@ impl Pass for GBufferPass {
                 },
             );
         }
-        if !render_context.render_buffers.vertex_tangents.is_empty() {
-            self.binding_data.add_storage_buffer(
-                &render_context.core,
-                &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.vertex_tangents,
-                BindingInfo {
-                    group_index: 0,
-                    binding_index: 3,
-                    stage: ShaderStage::Vertex,
-
-                    ..Default::default()
-                },
-            );
-        }
         if !render_context.render_buffers.vertex_uvs.is_empty() {
             self.binding_data.add_storage_buffer(
                 &render_context.core,
@@ -144,7 +130,7 @@ impl Pass for GBufferPass {
                 &mut render_context.render_buffers.vertex_uvs,
                 BindingInfo {
                     group_index: 0,
-                    binding_index: 4,
+                    binding_index: 3,
                     stage: ShaderStage::Vertex,
 
                     ..Default::default()

@@ -6,9 +6,8 @@ struct VertexOutput {
     @location(0) mesh_and_meshlet_ids: vec2<u32>,
     @location(1) world_pos_color: vec4<f32>,
     @location(2) normal: vec3<f32>,
-    @location(3) tangent: vec4<f32>,
-    @location(4) uv_0_1: vec4<f32>,
-    @location(5) uv_2_3: vec4<f32>,
+    @location(3) uv_0_1: vec4<f32>,
+    @location(4) uv_2_3: vec4<f32>,
 };
 
 struct FragmentOutput {
@@ -25,8 +24,6 @@ var<storage, read> positions_and_colors: PositionsAndColors;
 @group(0) @binding(2)
 var<storage, read> normals: NormalsAndPadding;
 @group(0) @binding(3)
-var<storage, read> tangents: Tangents;
-@group(0) @binding(4)
 var<storage, read> uvs: UVs;
 
 @group(1) @binding(0)
@@ -75,15 +72,15 @@ fn vs_main(
     vertex_out.world_pos_color = vec4<f32>(world_position.xyz, f32(color));
 
     vertex_out.normal = normals.data[v_in.normal_offset].xyz; 
-    vertex_out.tangent = tangents.data[v_in.tangent_offset].xyzw;
     vertex_out.uv_0_1 =  vec4<f32>(uvs.data[v_in.uvs_offset.x].xy, uvs.data[v_in.uvs_offset.y].xy);
     vertex_out.uv_2_3 =  vec4<f32>(uvs.data[v_in.uvs_offset.z].xy, uvs.data[v_in.uvs_offset.w].xy);
     
+
     return vertex_out;
 }
 
-fn sample_material_texture(material_index: u32, texture_type: u32, uv_0_1: vec4<f32>, uv_2_3: vec4<f32>) -> vec4<f32> {
-    let material = &materials.data[material_index];    
+fn compute_uvs(material_index: u32, texture_type: u32, uv_0_1: vec4<f32>, uv_2_3: vec4<f32>) -> vec3<f32> {
+   let material = &materials.data[material_index];    
     let texture_coords_set = (*material).textures_coord_set[texture_type];
     let texture_index = (*material).textures_indices[texture_type];
     var uv = uv_0_1.xy;
@@ -93,8 +90,8 @@ fn sample_material_texture(material_index: u32, texture_type: u32, uv_0_1: vec4<
         uv = uv_2_3.xy;
     } else if (texture_coords_set == 3u) {
         uv = uv_2_3.zw;
-    }
-    return sample_texture(vec3<f32>(uv, f32(texture_index)));
+    } 
+    return vec3<f32>(uv, f32(texture_index));
 }
 
 @fragment
@@ -110,11 +107,22 @@ fn fs_main(
     let material_id = u32((*mesh).material_index);
     // Retrieve the tangent space matrix
     var n = normalize(v_in.normal.xyz); 
-    if (has_texture(material_id, TEXTURE_TYPE_NORMAL)) {
-        var t = normalize(v_in.tangent.xyz - n * dot(v_in.tangent.xyz, n));
-        var b = cross(n, t) * v_in.tangent.w;
+    if (has_texture(material_id, TEXTURE_TYPE_NORMAL)) {    
+        let uv = compute_uvs(material_id, TEXTURE_TYPE_NORMAL, v_in.uv_0_1, v_in.uv_2_3);    
+        // get edge vectors of the pixel triangle 
+        let dp1 = dpdx( v_in.world_pos_color.xyz ); 
+        let dp2 = dpdy( v_in.world_pos_color.xyz ); 
+        let duv1 = dpdx( uv.xy ); 
+        let duv2 = dpdy( uv.xy );   
+        // solve the linear system 
+        let dp2perp = cross( dp2, n ); 
+        let dp1perp = cross( n, dp1 ); 
+        let tangent = dp2perp * duv1.x + dp1perp * duv2.x; 
+        let bitangent = dp2perp * duv1.y + dp1perp * duv2.y;
+        let t = normalize(tangent);
+        let b = normalize(bitangent); 
         let tbn = mat3x3<f32>(t, b, n);
-        let normal = sample_material_texture(material_id, TEXTURE_TYPE_NORMAL, v_in.uv_0_1, v_in.uv_2_3);
+        let normal = sample_texture(uv);
         n = tbn * (2.0 * normal.rgb - vec3<f32>(1.0));
         n = normalize(n);
     }

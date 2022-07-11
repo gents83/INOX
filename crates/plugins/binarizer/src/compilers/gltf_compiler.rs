@@ -404,7 +404,7 @@ impl GltfCompiler {
             }
         }
     }
-
+    #[allow(dead_code)]
     fn compute_tangents(&self, mesh_data: &mut MeshData) {
         let index_count = mesh_data.indices.len();
         let mut i = 0;
@@ -477,9 +477,6 @@ impl GltfCompiler {
         self.extract_indices(path, primitive, &mut mesh_data);
 
         let mut mesh_data = self.optimize_mesh(mesh_data);
-        if mesh_data.tangents.is_empty() {
-            self.compute_tangents(&mut mesh_data);
-        }
         self.compute_meshlets(&mut mesh_data);
         mesh_data.material = material_path.to_path_buf();
 
