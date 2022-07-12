@@ -48,6 +48,10 @@ impl Pass for CullingPass {
     fn init(&mut self, render_context: &mut RenderContext) {
         inox_profiler::scoped_profile!("pbr_pass::init");
 
+        if render_context.render_buffers.meshlets.is_empty() {
+            return;
+        }
+
         let mesh_flags = MeshFlags::Visible | MeshFlags::Opaque;
 
         if let Some(commands) = render_context.render_buffers.commands.get_mut(&mesh_flags) {
@@ -125,11 +129,18 @@ impl Pass for CullingPass {
             return;
         }
 
-        let pass = self.compute_pass.get();
+        let mesh_flags = MeshFlags::Visible | MeshFlags::Opaque;
 
-        let compute_pass = pass.begin(&self.binding_data, command_buffer);
-        let num_meshlet_per_group = 32;
-        let count = (num_meshlets as u32 + num_meshlet_per_group - 1) / num_meshlet_per_group;
-        pass.dispatch(compute_pass, count, 1, 1);
+        if let Some(_commands) = render_context.render_buffers.commands.get_mut(&mesh_flags) {
+            if let Some(_instances) = render_context.render_buffers.instances.get_mut(&mesh_flags) {
+                let pass = self.compute_pass.get();
+
+                let compute_pass = pass.begin(&self.binding_data, command_buffer);
+                let num_meshlet_per_group = 32;
+                let count =
+                    (num_meshlets as u32 + num_meshlet_per_group - 1) / num_meshlet_per_group;
+                pass.dispatch(compute_pass, count, 1, 1);
+            }
+        }
     }
 }

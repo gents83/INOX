@@ -43,7 +43,9 @@ var<storage, read> meshlets: Meshlets;
 
 @vertex
 fn vs_main(
+    @builtin(vertex_index) vertex_index: u32,
     v_in: DrawVertex,
+    @builtin(instance_index) instance_id: u32,
     i_in: DrawInstance,
 ) -> VertexOutput {
     let instance_matrix = matrices.data[i_in.matrix_index];
@@ -53,13 +55,12 @@ fn vs_main(
 
     let mvp = constant_data.proj * constant_data.view;
 
-    let instance_id = i_in.index;
     let mesh_id = i_in.mesh_index;
     let mesh = &meshes.data[mesh_id];
     var i = (*mesh).meshlet_offset + (*mesh).meshlet_count - 1u;
     var meshlet_id = f32(i + 1u);
     while(i > 0u) {
-        if ((v_in.index - (*mesh).vertex_offset) > meshlets.data[i].vertex_offset) {
+        if ((vertex_index - (*mesh).vertex_offset) > meshlets.data[i].vertex_offset) {
             break;
         }
         meshlet_id = f32(i - 1u);

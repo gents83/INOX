@@ -26,9 +26,10 @@ let MESH_FLAGS_UI: u32 = 32u; // 1 << 5
 let CONSTANT_DATA_FLAGS_NONE: u32 = 0u;
 let CONSTANT_DATA_FLAGS_SUPPORT_SRGB: u32 = 1u;
 let CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS: u32 = 2u;
+let CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_SPHERE: u32 = 4u;
+let CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX: u32 = 8u;
 
 struct DrawVertex {
-    @builtin(vertex_index) index: u32,
     @location(0) position_and_color_offset: u32,
     @location(1) normal_offset: i32,
     @location(2) tangent_offset: i32,
@@ -37,10 +38,8 @@ struct DrawVertex {
 };
 
 struct DrawInstance {
-    @builtin(instance_index) index: u32,
     @location(5) mesh_index: u32,
     @location(6) matrix_index: u32,
-    @location(7) draw_area_index: i32,
 };
 
 struct ConstantData {

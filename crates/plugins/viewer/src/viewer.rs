@@ -4,8 +4,8 @@ use inox_core::{define_plugin, ContextRc, Plugin, SystemUID, WindowSystem};
 
 use inox_graphics::{
     rendering_system::RenderingSystem, update_system::UpdateSystem, BlitPass, ComputePbrPass,
-    CullingPass, DebugDrawerSystem, GBufferPass, LoadOperation, PBRPass, Pass, RenderPass,
-    RenderTarget, Renderer, RendererRw, TextureFormat, WireframePass, DEFAULT_HEIGHT,
+    CullingPass, DebugDrawerSystem, DebugPass, GBufferPass, LoadOperation, PBRPass, Pass,
+    RenderPass, RenderTarget, Renderer, RendererRw, TextureFormat, WireframePass, DEFAULT_HEIGHT,
     DEFAULT_WIDTH, GBUFFER_PASS_NAME, WIREFRAME_PASS_NAME,
 };
 use inox_platform::Window;
@@ -17,6 +17,7 @@ use inox_ui::{UIPass, UISystem, UI_PASS_NAME};
 use crate::{config::Config, systems::viewer_system::ViewerSystem};
 
 const ADD_WIREFRAME_PASS: bool = true;
+const ADD_DEBUG_PASS: bool = false;
 const ADD_UI_PASS: bool = true;
 const USE_3DVIEW: bool = false;
 const USE_COMPUTE_RENDERING: bool = false;
@@ -153,14 +154,17 @@ impl Viewer {
     fn create_render_passes(context: &ContextRc, renderer: &RendererRw, width: u32, height: u32) {
         Self::create_culling_pass(context, renderer);
         Self::create_gbuffer_pass(context, renderer, width, height);
-        if ADD_WIREFRAME_PASS {
-            Self::create_wireframe_pass(context, renderer);
-        }
         if USE_COMPUTE_RENDERING {
             Self::create_compute_pbr_pass(context, renderer, width, height);
             Self::create_blit_pass(context, renderer);
         } else {
             Self::create_pbr_pass(context, renderer);
+        }
+        if ADD_WIREFRAME_PASS {
+            Self::create_wireframe_pass(context, renderer);
+        }
+        if ADD_DEBUG_PASS {
+            Self::create_debug_pass(context, renderer);
         }
         if ADD_UI_PASS {
             Self::create_ui_pass(context, renderer, width, height);
@@ -241,17 +245,6 @@ impl Viewer {
     }
     fn create_wireframe_pass(context: &ContextRc, renderer: &RendererRw) {
         let wireframe_pass = WireframePass::create(context);
-
-        if let Some(gbuffer_pass) = renderer.read().unwrap().pass::<GBufferPass>() {
-            let gbuffer_pass = gbuffer_pass.render_pass().get();
-            let mut wireframe_pass = wireframe_pass.render_pass().get_mut();
-            gbuffer_pass.render_textures().iter().for_each(|texture| {
-                wireframe_pass.add_render_target_from_texture(texture);
-            });
-            if let Some(depth_target) = gbuffer_pass.depth_texture() {
-                wireframe_pass.add_depth_target_from_texture(depth_target);
-            }
-        }
         renderer.write().unwrap().add_pass(wireframe_pass);
     }
     fn create_ui_pass(context: &ContextRc, renderer: &RendererRw, width: u32, height: u32) {
@@ -277,5 +270,9 @@ impl Viewer {
     fn create_culling_pass(context: &ContextRc, renderer: &RendererRw) {
         let culling_pass = CullingPass::create(context);
         renderer.write().unwrap().add_pass(culling_pass);
+    }
+    fn create_debug_pass(context: &ContextRc, renderer: &RendererRw) {
+        let debug_pass = DebugPass::create(context);
+        renderer.write().unwrap().add_pass(debug_pass);
     }
 }

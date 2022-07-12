@@ -1,9 +1,9 @@
 use std::path::PathBuf;
 
 use crate::{
-    AsBinding, BindingData, BindingInfo, CommandBuffer, GBuffer, GpuBuffer, MeshFlags, Pass,
-    RenderContext, RenderCoreContext, RenderPass, RenderPassData, RenderTarget, ShaderStage,
-    StoreOperation, TextureId,
+    AsBinding, BindingData, BindingInfo, CommandBuffer, GBuffer, GpuBuffer, Pass, RenderContext,
+    RenderCoreContext, RenderPass, RenderPassData, RenderTarget, ShaderStage, StoreOperation,
+    TextureId,
 };
 
 use inox_core::ContextRc;
@@ -89,14 +89,11 @@ impl Pass for PBRPass {
     fn init(&mut self, render_context: &mut RenderContext) {
         inox_profiler::scoped_profile!("pbr_pass::init");
 
-        let mesh_flags = MeshFlags::Visible | MeshFlags::Opaque;
-
-        if !render_context.has_instances(mesh_flags) {
-            return;
-        }
         if self.textures.iter().any(|t| t.is_nil())
             || self.textures.len() < GBuffer::Count as _
             || render_context.render_buffers.textures.is_empty()
+            || render_context.render_buffers.meshes.is_empty()
+            || render_context.render_buffers.meshlets.is_empty()
             || render_context.render_buffers.lights.is_empty()
         {
             return;
@@ -106,11 +103,6 @@ impl Pass for PBRPass {
 
         let mut pass = self.render_pass.get_mut();
         let render_textures = pass.render_textures_id();
-        let instances = render_context
-            .render_buffers
-            .instances
-            .get_mut(&mesh_flags)
-            .unwrap();
 
         self.binding_data
             .add_uniform_buffer(
@@ -138,7 +130,7 @@ impl Pass for PBRPass {
             .add_storage_buffer(
                 &render_context.core,
                 &render_context.binding_data_buffer,
-                instances,
+                &mut render_context.render_buffers.meshes,
                 BindingInfo {
                     group_index: 0,
                     binding_index: 2,
@@ -149,7 +141,7 @@ impl Pass for PBRPass {
             .add_storage_buffer(
                 &render_context.core,
                 &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.meshes,
+                &mut render_context.render_buffers.materials,
                 BindingInfo {
                     group_index: 0,
                     binding_index: 3,
@@ -160,7 +152,7 @@ impl Pass for PBRPass {
             .add_storage_buffer(
                 &render_context.core,
                 &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.matrix,
+                &mut render_context.render_buffers.textures,
                 BindingInfo {
                     group_index: 0,
                     binding_index: 4,
@@ -171,32 +163,10 @@ impl Pass for PBRPass {
             .add_storage_buffer(
                 &render_context.core,
                 &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.materials,
-                BindingInfo {
-                    group_index: 0,
-                    binding_index: 5,
-                    stage: ShaderStage::Fragment,
-                    ..Default::default()
-                },
-            )
-            .add_storage_buffer(
-                &render_context.core,
-                &render_context.binding_data_buffer,
-                &mut render_context.render_buffers.textures,
-                BindingInfo {
-                    group_index: 0,
-                    binding_index: 6,
-                    stage: ShaderStage::Fragment,
-                    ..Default::default()
-                },
-            )
-            .add_storage_buffer(
-                &render_context.core,
-                &render_context.binding_data_buffer,
                 &mut render_context.render_buffers.lights,
                 BindingInfo {
                     group_index: 0,
-                    binding_index: 7,
+                    binding_index: 5,
                     stage: ShaderStage::Fragment,
                     ..Default::default()
                 },
@@ -221,6 +191,8 @@ impl Pass for PBRPass {
         if self.textures.iter().any(|t| t.is_nil())
             || self.textures.len() < GBuffer::Count as _
             || render_context.render_buffers.textures.is_empty()
+            || render_context.render_buffers.meshes.is_empty()
+            || render_context.render_buffers.meshlets.is_empty()
         {
             return;
         }

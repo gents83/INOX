@@ -15,7 +15,6 @@ use crate::{
 pub struct DrawInstance {
     pub mesh_index: u32,
     pub matrix_index: u32,
-    pub draw_area_index: i32,
 }
 
 impl DrawInstance {
@@ -24,7 +23,6 @@ impl DrawInstance {
         layout_builder.starting_location(starting_location);
         layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
         layout_builder.add_attribute::<u32>(VertexFormat::Uint32.into());
-        layout_builder.add_attribute::<i32>(VertexFormat::Sint32.into());
         layout_builder
     }
 }

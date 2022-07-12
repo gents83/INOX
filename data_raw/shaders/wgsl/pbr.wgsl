@@ -23,16 +23,12 @@ var<uniform> constant_data: ConstantData;
 @group(0) @binding(1)
 var<uniform> data: PBRPassData;
 @group(0) @binding(2)
-var<storage, read> instances: Instances;
-@group(0) @binding(3)
 var<storage, read> meshes: Meshes;
-@group(0) @binding(4)
-var<storage, read> matrices: Matrices;
-@group(0) @binding(5)
+@group(0) @binding(3)
 var<storage, read> materials: Materials;
-@group(0) @binding(6)
+@group(0) @binding(4)
 var<storage, read> textures: Textures;
-@group(0) @binding(7)
+@group(0) @binding(5)
 var<storage, read> lights: Lights;
 
 #import "texture_utils.wgsl"

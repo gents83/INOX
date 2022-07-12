@@ -378,6 +378,9 @@ impl RenderBuffers {
                 }
             });
         }
+        if entry.is_empty() {
+            return;
+        }
         let commands_id = entry.id();
         let usage = wgpu::BufferUsages::STORAGE
             | wgpu::BufferUsages::COPY_SRC

@@ -1,7 +1,7 @@
 use inox_commands::CommandParser;
 use inox_core::{implement_unique_system_uid, ContextRc, System};
 use inox_graphics::{
-    create_quad, CullingPass, Material, MaterialData, Mesh, MeshData, MeshFlags, RendererRw,
+    create_quad, CullingPass, Light, Material, MaterialData, Mesh, MeshData, MeshFlags, RendererRw,
     Texture, View,
 };
 use inox_log::debug_log;
@@ -27,7 +27,6 @@ pub struct ViewerSystem {
     renderer: RendererRw,
     listener: Listener,
     scene: Resource<Scene>,
-    _camera_object: Resource<Object>,
     last_mouse_pos: Vector2,
     is_on_view3d: bool,
     view_3d: Option<View3D>,
@@ -122,24 +121,6 @@ impl ViewerSystem {
             Scene::new(scene_id, shared_data, message_hub),
         );
 
-        let camera_id = generate_random_uid();
-        let camera_object = shared_data.add_resource::<Object>(
-            message_hub,
-            camera_id,
-            Object::new(camera_id, shared_data, message_hub),
-        );
-        camera_object
-            .get_mut()
-            .set_position(Vector3::new(0.0, 0.0, -50.0));
-        camera_object.get_mut().look_at(Vector3::new(0.0, 0.0, 0.0));
-        let camera = camera_object
-            .get_mut()
-            .add_default_component::<Camera>(shared_data, message_hub);
-        camera
-            .get_mut()
-            .set_parent(&camera_object)
-            .set_active(false);
-
         let update_culling_camera = Arc::new(AtomicBool::new(true));
         let view_3d = if use_3dview {
             Some(View3D::new(shared_data, message_hub))
@@ -164,7 +145,6 @@ impl ViewerSystem {
             context: context.clone(),
             listener,
             scene,
-            _camera_object: camera_object,
             camera_index: 0,
             update_culling_camera,
             last_mouse_pos: Vector2::default_zero(),
@@ -286,6 +266,46 @@ impl ViewerSystem {
         };
         self.scene.get_mut().add_object(default_object);
         self.scene.get_mut().add_object(wireframe_object);
+
+        let camera_id = generate_random_uid();
+        let camera_object = self.context.shared_data().add_resource::<Object>(
+            self.context.message_hub(),
+            camera_id,
+            Object::new(
+                camera_id,
+                self.context.shared_data(),
+                self.context.message_hub(),
+            ),
+        );
+        camera_object
+            .get_mut()
+            .set_position(Vector3::new(0.0, 0.0, -50.0));
+        camera_object.get_mut().look_at(Vector3::new(0.0, 0.0, 0.0));
+        let camera = camera_object.get_mut().add_default_component::<Camera>(
+            self.context.shared_data(),
+            self.context.message_hub(),
+        );
+        camera
+            .get_mut()
+            .set_parent(&camera_object)
+            .set_active(false);
+        self.scene.get_mut().add_object(camera_object);
+
+        let light_id = generate_random_uid();
+        let light_object = self.context.shared_data().add_resource::<Object>(
+            self.context.message_hub(),
+            light_id,
+            Object::new(
+                light_id,
+                self.context.shared_data(),
+                self.context.message_hub(),
+            ),
+        );
+        let light = light_object
+            .get_mut()
+            .add_default_component::<Light>(self.context.shared_data(), self.context.message_hub());
+        light.get_mut().set_active(true);
+        self.scene.get_mut().add_object(light_object);
     }
 
     fn load_scene(&mut self, filename: &str) {
@@ -354,7 +374,7 @@ impl ViewerSystem {
             .shared_data()
             .match_resource(|view: &View| view.view_index() == 0)
         {
-            if FORCE_USE_DEFAULT_CAMERA || self.context.shared_data().num_resources::<Camera>() == 1
+            if FORCE_USE_DEFAULT_CAMERA || self.context.shared_data().num_resources::<Camera>() <= 1
             {
                 self.camera_index = 0;
             } else {
