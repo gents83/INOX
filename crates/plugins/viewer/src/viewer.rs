@@ -4,9 +4,9 @@ use inox_core::{define_plugin, ContextRc, Plugin, SystemUID, WindowSystem};
 
 use inox_graphics::{
     rendering_system::RenderingSystem, update_system::UpdateSystem, BlitPass, ComputePbrPass,
-    DebugDrawerSystem, GBufferPass, LoadOperation, PBRPass, Pass, RenderPass, RenderTarget,
-    Renderer, RendererRw, TextureFormat, WireframePass, DEFAULT_HEIGHT, DEFAULT_WIDTH,
-    GBUFFER_PASS_NAME, WIREFRAME_PASS_NAME,
+    CullingPass, DebugDrawerSystem, GBufferPass, LoadOperation, PBRPass, Pass, RenderPass,
+    RenderTarget, Renderer, RendererRw, TextureFormat, WireframePass, DEFAULT_HEIGHT,
+    DEFAULT_WIDTH, GBUFFER_PASS_NAME, WIREFRAME_PASS_NAME,
 };
 use inox_platform::Window;
 use inox_resources::ConfigBase;
@@ -151,6 +151,7 @@ impl Plugin for Viewer {
 
 impl Viewer {
     fn create_render_passes(context: &ContextRc, renderer: &RendererRw, width: u32, height: u32) {
+        Self::create_culling_pass(context, renderer);
         Self::create_gbuffer_pass(context, renderer, width, height);
         if ADD_WIREFRAME_PASS {
             Self::create_wireframe_pass(context, renderer);
@@ -273,54 +274,8 @@ impl Viewer {
         }
         renderer.write().unwrap().add_pass(ui_pass);
     }
-    /*
-    fn create_full_render_passes(
-        context: &ContextRc,
-        renderer: &RendererRw,
-        width: u32,
-        height: u32,
-    ) {
+    fn create_culling_pass(context: &ContextRc, renderer: &RendererRw) {
         let culling_pass = CullingPass::create(context);
-        let opaque_pass = OpaquePass::create(context);
-        let transparent_pass = TransparentPass::create(context);
-        let ui_pass = UIPass::create(context);
-
-        let opaque_pass_render_target = RenderTarget::Texture {
-            width,
-            height,
-            read_back: false,
-        };
-        opaque_pass
-            .render_pass()
-            .get_mut()
-            .render_target(opaque_pass_render_target)
-            .depth_target(opaque_pass_render_target);
-        transparent_pass
-            .render_pass()
-            .get_mut()
-            .render_target_from_texture(
-                opaque_pass
-                    .render_pass()
-                    .get()
-                    .render_texture()
-                    .as_ref()
-                    .unwrap(),
-            )
-            .depth_target_from_texture(
-                opaque_pass
-                    .render_pass()
-                    .get()
-                    .depth_texture()
-                    .as_ref()
-                    .unwrap(),
-            );
-
-        renderer
-            .write()
-            .unwrap()
-            .add_pass(culling_pass)
-            .add_pass(opaque_pass)
-            .add_pass(transparent_pass)
-            .add_pass(ui_pass);
-    }*/
+        renderer.write().unwrap().add_pass(culling_pass);
+    }
 }

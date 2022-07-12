@@ -16,6 +16,7 @@ pub struct BindingInfo {
     pub read_only: bool,
     pub cpu_accessible: bool,
     pub is_indirect: bool,
+    pub is_instance: bool,
 }
 
 impl Default for BindingInfo {
@@ -27,6 +28,7 @@ impl Default for BindingInfo {
             read_only: true,
             cpu_accessible: false,
             is_indirect: false,
+            is_instance: false,
         }
     }
 }
@@ -228,6 +230,9 @@ impl BindingData {
         }
         if info.is_indirect {
             usage |= wgpu::BufferUsages::INDIRECT;
+        }
+        if info.is_instance {
+            usage |= wgpu::BufferUsages::VERTEX;
         }
         let (is_changed, buffer_id) =
             binding_data_buffer.bind_buffer(data_id, data, usage, render_core_context);

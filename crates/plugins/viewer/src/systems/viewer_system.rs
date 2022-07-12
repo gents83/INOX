@@ -372,11 +372,11 @@ impl ViewerSystem {
                         let proj_matrix = c.proj_matrix();
 
                         if self.update_culling_camera.load(Ordering::SeqCst) {
-                            if let Some(culling_pass) =
+                            if let Some(_culling_pass) =
                                 self.renderer.write().unwrap().pass_mut::<CullingPass>()
                             {
-                                culling_pass
-                                    .set_camera_data(c.position(), proj_matrix * view_matrix);
+                                //culling_pass
+                                //    .set_camera_data(c.position(), proj_matrix * view_matrix);
                             }
                         }
 
