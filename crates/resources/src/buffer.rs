@@ -252,17 +252,17 @@ where
             f(&b.id, &b.range);
         });
     }
-    pub fn for_each_data<F, U>(&self, mut f: F)
+    pub fn for_each_data<F>(&self, mut f: F)
     where
-        F: FnMut(usize, &ResourceId, &U),
+        F: FnMut(usize, &ResourceId, &T),
     {
         self.occupied.iter().for_each(|b| {
             let func = &mut f;
             self.data[b.range.start..(b.range.end + 1)]
-                .chunks(std::mem::size_of::<U>())
+                .iter()
                 .enumerate()
                 .for_each(|(i, d)| {
-                    func(b.range.start + i, &b.id, to_slice(d)[0]);
+                    func(b.range.start + i, &b.id, d);
                 });
         });
     }

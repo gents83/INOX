@@ -5,10 +5,10 @@ use std::sync::{
 
 use inox_core::ContextRc;
 use inox_graphics::{
-    DrawEvent, RendererRw, CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS,
+    DrawEvent, MeshFlags, RendererRw, CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS,
     CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX, CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_SPHERE,
 };
-use inox_math::{compute_frustum, Degrees, Frustum, MatBase, Matrix4, NewAngle};
+use inox_math::{compute_frustum, Degrees, Frustum, Mat4Ops, MatBase, Matrix4, NewAngle};
 use inox_resources::Resource;
 use inox_scene::{Camera, SceneId};
 use inox_ui::{implement_widget_data, ComboBox, UIWidget, Window};
@@ -311,6 +311,30 @@ impl Info {
                                                 )
                                                 .add_flag(CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS)
                                                 .add_flag(CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_SPHERE);
+
+                                            let mesh_flags = MeshFlags::Visible | MeshFlags::Opaque;
+                                            if let Some(commands) = render_context.render_buffers.commands.get(&mesh_flags) {
+                                                if let Some(instances) = render_context.render_buffers.instances.get(&mesh_flags) {
+                                                    commands.iter().for_each(|c| {
+                                                        let instance = instances.at(c.base_instance as _);
+                                                        let mesh = render_context.render_buffers.meshes.at(instance.mesh_index as _);
+                                                        let matrix = render_context.render_buffers.matrix.at(instance.matrix_index as _);
+                                                        let matrix = Matrix4::from(*matrix);
+                                                        let scale = matrix.scale().z;
+                                                        let meshlets = render_context.render_buffers.meshlets.data();
+                                                        for i in mesh.meshlet_offset..mesh.meshlet_offset + mesh.meshlet_count {
+                                                            let meshlet = &meshlets[i as usize];
+                                                            let p = matrix.transform([meshlet.center_radius[0],meshlet.center_radius[1],meshlet.center_radius[2]].into());
+                                                            let r = meshlet.center_radius[3] * scale;
+                                                            data.context.message_hub().send_event(DrawEvent::Sphere(
+                                                                p, r,
+                                                                [1.0, 1.0, 0.0, 1.0].into(),
+                                                                true,
+                                                            ));
+                                                        }
+                                                    });
+                                                }
+                                            }
                                         }
                                         MeshletDebug::BoundingBox => {
                                             render_context

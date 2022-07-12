@@ -209,7 +209,6 @@ impl RenderBuffers {
                     DrawInstance {
                         matrix_index: m.matrix_index as _,
                         mesh_index: self.meshes.index_of(mesh_id).unwrap() as _,
-                        ..Default::default()
                     },
                 );
                 entry.set_dirty(true);
