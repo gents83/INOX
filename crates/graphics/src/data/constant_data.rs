@@ -7,6 +7,8 @@ use crate::{AsBinding, GpuBuffer, RenderCoreContext};
 pub const CONSTANT_DATA_FLAGS_NONE: u32 = 0;
 pub const CONSTANT_DATA_FLAGS_SUPPORT_SRGB: u32 = 1;
 pub const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS: u32 = 1 << 1;
+pub const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_SPHERE: u32 = 1 << 2;
+pub const CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX: u32 = 1 << 3;
 
 #[repr(C, align(16))]
 #[derive(Default, Debug, Clone, Copy)]
@@ -40,31 +42,31 @@ impl AsBinding for ConstantData {
 }
 
 impl ConstantData {
-    pub fn add_flag(&mut self, flag: u32) -> bool {
+    pub fn add_flag(&mut self, flag: u32) -> &mut Self {
         if self.data.flags & flag == 0 {
             self.data.flags |= flag;
             self.set_dirty(true);
         }
-        self.is_dirty()
+        self
     }
-    pub fn toggle_flag(&mut self, flag: u32) -> bool {
+    pub fn toggle_flag(&mut self, flag: u32) -> &mut Self {
         self.data.flags ^= flag;
         self.set_dirty(true);
-        true
+        self
     }
-    pub fn remove_flag(&mut self, flag: u32) -> bool {
+    pub fn remove_flag(&mut self, flag: u32) -> &mut Self {
         if self.data.flags & flag == flag {
             self.data.flags &= !flag;
             self.set_dirty(true);
         }
-        self.is_dirty()
+        self
     }
-    pub fn set_flags(&mut self, flags: u32) -> bool {
+    pub fn set_flags(&mut self, flags: u32) -> &mut Self {
         if self.data.flags != flags {
             self.data.flags = flags;
             self.set_dirty(true);
         }
-        self.is_dirty()
+        self
     }
     pub fn update(&mut self, view: Matrix4, proj: Matrix4, screen_size: Vector2) -> bool {
         let view = matrix4_to_array(view);

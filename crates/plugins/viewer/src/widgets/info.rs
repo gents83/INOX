@@ -4,11 +4,14 @@ use std::sync::{
 };
 
 use inox_core::ContextRc;
-use inox_graphics::{DrawEvent, RendererRw, CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS};
+use inox_graphics::{
+    DrawEvent, RendererRw, CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS,
+    CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX, CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_SPHERE,
+};
 use inox_math::{compute_frustum, Degrees, Frustum, MatBase, Matrix4, NewAngle};
 use inox_resources::Resource;
 use inox_scene::{Camera, SceneId};
-use inox_ui::{implement_widget_data, UIWidget, Window};
+use inox_ui::{implement_widget_data, ComboBox, UIWidget, Window};
 
 use super::{Hierarchy, Meshes};
 
@@ -19,6 +22,15 @@ pub struct InfoParams {
     pub update_culling_camera: Arc<AtomicBool>,
 }
 
+#[derive(Default, Debug, PartialEq, Eq)]
+enum MeshletDebug {
+    #[default]
+    None,
+    Color,
+    Sphere,
+    BoundingBox,
+}
+
 struct Data {
     context: ContextRc,
     params: InfoParams,
@@ -26,7 +38,7 @@ struct Data {
     meshes: (bool, Option<Meshes>),
     show_frustum: bool,
     freeze_culling_camera: bool,
-    show_meshlets: bool,
+    meshlet_debug: MeshletDebug,
     fps: u32,
     dt: u128,
     cam_matrix: Matrix4,
@@ -50,7 +62,7 @@ impl Info {
             meshes: (false, None),
             show_frustum: false,
             freeze_culling_camera: false,
-            show_meshlets: false,
+            meshlet_debug: MeshletDebug::None,
             fps: 0,
             dt: 0,
             cam_matrix: Matrix4::default_identity(),
@@ -227,22 +239,94 @@ impl Info {
                         ui.checkbox(&mut data.meshes.0, "Meshes");
                         ui.checkbox(&mut data.show_frustum, "Show Frustum");
                         ui.checkbox(&mut data.freeze_culling_camera, "Freeze Culling Camera");
-                        if ui
-                            .checkbox(&mut data.show_meshlets, "Show Meshlets")
-                            .changed()
-                        {
-                            let renderer = data.params.renderer.read().unwrap();
-                            let mut render_context = renderer.render_context().write().unwrap();
-                            if data.show_meshlets {
-                                render_context
-                                    .constant_data
-                                    .add_flag(CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS);
-                            } else {
-                                render_context
-                                    .constant_data
-                                    .remove_flag(CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS);
+                        ui.horizontal(|ui| {
+                            ui.label("Show Meshlets");
+                            let combo_box = ComboBox::from_id_source("Meshlet Debug")
+                                .selected_text(format!("{:?}", data.meshlet_debug))
+                                .show_ui(ui, |ui| {
+                                    let mut is_changed = false;
+                                    is_changed |= ui
+                                        .selectable_value(
+                                            &mut data.meshlet_debug,
+                                            MeshletDebug::None,
+                                            "None",
+                                        )
+                                        .changed();
+                                    is_changed |= ui
+                                        .selectable_value(
+                                            &mut data.meshlet_debug,
+                                            MeshletDebug::Color,
+                                            "Color",
+                                        )
+                                        .changed();
+                                    is_changed |= ui
+                                        .selectable_value(
+                                            &mut data.meshlet_debug,
+                                            MeshletDebug::Sphere,
+                                            "Sphere",
+                                        )
+                                        .changed();
+                                    is_changed |= ui
+                                        .selectable_value(
+                                            &mut data.meshlet_debug,
+                                            MeshletDebug::BoundingBox,
+                                            "Bounding Box",
+                                        )
+                                        .changed();
+                                    is_changed
+                                });
+                            if let Some(is_changed) = combo_box.inner {
+                                if is_changed {
+
+                                    let renderer = data.params.renderer.read().unwrap();
+                                    let mut render_context = renderer.render_context().write().unwrap();
+                                    match &data.meshlet_debug {
+                                        MeshletDebug::None => {
+                                            render_context
+                                                .constant_data
+                                                .remove_flag(CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS)
+                                                .remove_flag(
+                                                    CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_SPHERE,
+                                                )
+                                                .remove_flag(
+                                                    CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX,
+                                                );
+                                        }
+                                        MeshletDebug::Color => {
+                                            render_context
+                                                .constant_data
+                                                .remove_flag(
+                                                    CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_SPHERE,
+                                                )
+                                                .remove_flag(
+                                                    CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX,
+                                                )
+                                                .add_flag(CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS);
+                                        }
+                                        MeshletDebug::Sphere => {
+                                            render_context
+                                                .constant_data
+                                                .remove_flag(
+                                                    CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX,
+                                                )
+                                                .add_flag(CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS)
+                                                .add_flag(CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_SPHERE);
+                                        }
+                                        MeshletDebug::BoundingBox => {
+                                            render_context
+                                                .constant_data
+                                                .remove_flag(
+                                                    CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_SPHERE,
+                                                )
+                                                .add_flag(CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS)
+                                                .add_flag(
+                                                    CONSTANT_DATA_FLAGS_DISPLAY_MESHLETS_BOUNDING_BOX,
+                                                );
+                                        }
+                                    }
+                                }
                             }
-                        }
+                        });
                     })
                 {
                     return response.response.is_pointer_button_down_on();
