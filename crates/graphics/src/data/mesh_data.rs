@@ -142,6 +142,10 @@ impl MeshData {
     pub fn append_mesh_data_as_meshlet(&mut self, mut mesh_data: MeshData) {
         let vertex_offset = self.vertex_count() as u32;
         let index_offset = self.index_count() as u32;
+        let position_offset = self.positions.len() as u32;
+        let normals_offset = self.normals.len() as u32;
+        let tangents_offset = self.tangents.len() as u32;
+        let uvs_offset = self.uvs.len() as u32;
 
         let meshlet = MeshletData {
             vertices_offset: vertex_offset as _,
@@ -157,7 +161,15 @@ impl MeshData {
         self.normals.append(&mut mesh_data.normals);
         self.tangents.append(&mut mesh_data.tangents);
         self.uvs.append(&mut mesh_data.uvs);
-        self.vertices.append(&mut mesh_data.vertices);
+        mesh_data.vertices.iter_mut().for_each(|v| {
+            v.position_and_color_offset += position_offset;
+            v.normal_offset += normals_offset as i32;
+            v.tangent_offset += tangents_offset as i32;
+            v.uv_offset.iter_mut().for_each(|uv| {
+                *uv += uvs_offset as i32;
+            });
+            self.vertices.push(*v);
+        });
         mesh_data
             .indices
             .iter()

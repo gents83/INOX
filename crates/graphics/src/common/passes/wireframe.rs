@@ -58,14 +58,7 @@ impl Pass for WireframePass {
         inox_profiler::scoped_profile!("wireframe_pass::init");
 
         let mesh_flags = MeshFlags::Visible | MeshFlags::Wireframe;
-
-        if !render_context.has_instances(mesh_flags)
-            || render_context
-                .render_buffers
-                .vertex_positions_and_colors
-                .is_empty()
-            || render_context.render_buffers.matrix.is_empty()
-        {
+        if !render_context.has_instances(mesh_flags) {
             return;
         }
 
@@ -162,7 +155,7 @@ impl Pass for WireframePass {
             &pipeline,
             command_buffer,
         );
-        pass.draw_meshlets(render_context, render_pass);
+        pass.indirect_draw(render_context, &buffers, render_pass);
     }
 }
 

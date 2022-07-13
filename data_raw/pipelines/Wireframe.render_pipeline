@@ -6,7 +6,7 @@
     "mode": "Line",
     "depth_write_enabled": true,
     "depth_compare": "Less",
-    "src_color_blend_factor": "SrcColor",
+    "src_color_blend_factor": "SrcAlpha",
     "dst_color_blend_factor": "OneMinusSrcAlpha",
     "color_blend_operation": "Add",
     "src_alpha_blend_factor": "SrcAlpha",

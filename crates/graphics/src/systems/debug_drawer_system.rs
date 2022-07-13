@@ -248,12 +248,18 @@ impl DebugDrawerSystem {
                 .get_mut()
                 .set_mesh_data(opaque_mesh_data)
                 .add_flag(MeshFlags::Visible);
+        } else {
+            self.mesh_instance.get_mut().remove_flag(MeshFlags::Visible);
         }
         if !wireframe_mesh_data.vertices.is_empty() {
             self.wireframe_mesh_instance
                 .get_mut()
                 .add_flag(MeshFlags::Visible)
                 .set_mesh_data(wireframe_mesh_data);
+        } else {
+            self.wireframe_mesh_instance
+                .get_mut()
+                .remove_flag(MeshFlags::Visible);
         }
     }
 }
