@@ -192,7 +192,7 @@ impl Pass for UIPass {
             Some(instance_layout),
         );
     }
-    fn update(&mut self, render_context: &mut RenderContext, command_buffer: &mut CommandBuffer) {
+    fn update(&self, render_context: &mut RenderContext, command_buffer: &mut CommandBuffer) {
         inox_profiler::scoped_profile!("ui_pass::update");
 
         let pass = self.render_pass.get();

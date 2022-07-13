@@ -115,7 +115,7 @@ impl Pass for DebugPass {
         let mut pass = self.render_pass.get_mut();
         pass.init(render_context, &self.binding_data, None, None);
     }
-    fn update(&mut self, render_context: &mut RenderContext, command_buffer: &mut CommandBuffer) {
+    fn update(&self, render_context: &mut RenderContext, command_buffer: &mut CommandBuffer) {
         inox_profiler::scoped_profile!("debug_pass::update");
 
         if render_context.render_buffers.meshes.is_empty()

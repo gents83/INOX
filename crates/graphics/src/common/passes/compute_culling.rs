@@ -123,7 +123,7 @@ impl Pass for CullingPass {
         }
     }
 
-    fn update(&mut self, render_context: &mut RenderContext, command_buffer: &mut CommandBuffer) {
+    fn update(&self, render_context: &mut RenderContext, command_buffer: &mut CommandBuffer) {
         let num_meshlets = render_context.render_buffers.meshlets.item_count();
         if num_meshlets == 0 {
             return;

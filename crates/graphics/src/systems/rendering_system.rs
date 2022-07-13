@@ -1,4 +1,7 @@
-use inox_core::{implement_unique_system_uid, ContextRc, System};
+use inox_core::{
+    implement_unique_system_uid, ContextRc, JobHandlerRw, JobHandlerTrait, JobPriority, System,
+    INDEPENDENT_JOB_ID,
+};
 
 use crate::{RendererRw, RendererState};
 
@@ -6,11 +9,15 @@ pub const RENDERING_PHASE: &str = "RENDERING_PHASE";
 
 pub struct RenderingSystem {
     renderer: RendererRw,
+    job_handler: JobHandlerRw,
 }
 
 impl RenderingSystem {
-    pub fn new(renderer: RendererRw, _context: &ContextRc) -> Self {
-        Self { renderer }
+    pub fn new(renderer: RendererRw, context: &ContextRc) -> Self {
+        Self {
+            renderer,
+            job_handler: context.job_handler().clone(),
+        }
     }
 }
 
@@ -34,14 +41,29 @@ impl System for RenderingSystem {
 
         {
             let mut renderer = self.renderer.write().unwrap();
-
             renderer.change_state(RendererState::Drawing);
-            renderer.update_passes();
+        }
 
-            renderer.present();
-
-            renderer.change_state(RendererState::Submitted);
-        };
+        let renderer = self.renderer.clone();
+        self.job_handler.add_job(
+            &INDEPENDENT_JOB_ID,
+            "Render Draw",
+            JobPriority::High,
+            move || {
+                {
+                    let renderer = renderer.read().unwrap();
+                    renderer.update_passes();
+                }
+                {
+                    let mut renderer = renderer.write().unwrap();
+                    renderer.change_state(RendererState::Submitted);
+                }
+                {
+                    let renderer = renderer.read().unwrap();
+                    renderer.present();
+                }
+            },
+        );
         true
     }
     fn uninit(&mut self) {}

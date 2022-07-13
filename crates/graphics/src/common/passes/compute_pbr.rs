@@ -223,7 +223,7 @@ impl Pass for ComputePbrPass {
         pass.init(render_context, &self.binding_data);
     }
 
-    fn update(&mut self, _render_context: &mut RenderContext, command_buffer: &mut CommandBuffer) {
+    fn update(&self, _render_context: &mut RenderContext, command_buffer: &mut CommandBuffer) {
         inox_profiler::scoped_profile!("compute_pbr_pass::update");
 
         let pass = self.compute_pass.get();

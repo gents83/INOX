@@ -145,7 +145,7 @@ impl Pass for BlitPass {
 
         pass.init(render_context, &self.binding_data, None, None);
     }
-    fn update(&mut self, render_context: &mut RenderContext, command_buffer: &mut CommandBuffer) {
+    fn update(&self, render_context: &mut RenderContext, command_buffer: &mut CommandBuffer) {
         inox_profiler::scoped_profile!("blit_pass::update");
 
         if self.source_texture_id.is_nil() || render_context.render_buffers.textures.is_empty() {

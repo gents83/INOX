@@ -12,6 +12,6 @@ pub trait Pass: Downcast + Send + Sync + 'static {
     where
         Self: Sized;
     fn init(&mut self, render_context: &mut RenderContext);
-    fn update(&mut self, render_context: &mut RenderContext, command_buffer: &mut CommandBuffer);
+    fn update(&self, render_context: &mut RenderContext, command_buffer: &mut CommandBuffer);
 }
 impl_downcast!(Pass);

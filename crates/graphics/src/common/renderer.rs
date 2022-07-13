@@ -233,19 +233,21 @@ impl Renderer {
         });
     }
 
-    pub fn update_passes(&mut self) {
+    pub fn update_passes(&self) {
         inox_profiler::scoped_profile!("renderer::execute_passes");
 
-        let mut render_context = self.render_context.as_ref().unwrap().write().unwrap();
+        let mut render_context = self.render_context().write().unwrap();
         let render_context: &mut RenderContext = &mut render_context;
         let mut command_buffer = render_context.core.new_command_buffer();
-        self.passes.iter_mut().for_each(|pass| {
+        self.passes.iter().for_each(|pass| {
             pass.update(render_context, &mut command_buffer);
         });
         render_context.core.submit(command_buffer);
     }
 
     pub fn present(&self) {
+        inox_profiler::scoped_profile!("renderer::present");
+
         let surface_texture = {
             let mut render_context = self.render_context().write().unwrap();
             render_context.surface_view = None;
@@ -255,7 +257,5 @@ impl Renderer {
         if let Some(surface_texture) = surface_texture {
             surface_texture.present();
         }
-        let render_context = self.render_context().read().unwrap();
-        render_context.core.device.poll(wgpu::MaintainBase::Wait);
     }
 }

@@ -248,7 +248,7 @@ impl Pass for GBufferPass {
             Some(instance_layout),
         );
     }
-    fn update(&mut self, render_context: &mut RenderContext, command_buffer: &mut CommandBuffer) {
+    fn update(&self, render_context: &mut RenderContext, command_buffer: &mut CommandBuffer) {
         inox_profiler::scoped_profile!("gbuffer_pass::update");
 
         if !render_context.has_instances(MeshFlags::Visible | MeshFlags::Opaque) {

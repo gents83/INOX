@@ -185,7 +185,7 @@ impl Pass for PBRPass {
 
         pass.init(render_context, &self.binding_data, None, None);
     }
-    fn update(&mut self, render_context: &mut RenderContext, command_buffer: &mut CommandBuffer) {
+    fn update(&self, render_context: &mut RenderContext, command_buffer: &mut CommandBuffer) {
         inox_profiler::scoped_profile!("pbr_pass::update");
 
         if self.textures.iter().any(|t| t.is_nil())
