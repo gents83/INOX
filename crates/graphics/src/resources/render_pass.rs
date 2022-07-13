@@ -341,6 +341,7 @@ impl RenderPass {
 
     pub fn draw_meshlets(&self, render_context: &RenderContext, mut render_pass: wgpu::RenderPass) {
         inox_profiler::scoped_profile!("render_pass::draw_meshlets");
+
         let mesh_flags = self.pipeline().get().data().mesh_flags;
         if let Some(instances) = render_context.render_buffers.instances.get(&mesh_flags) {
             let meshlets = render_context.render_buffers.meshlets.data();
@@ -374,6 +375,8 @@ impl RenderPass {
         buffers: &'a HashMap<BufferId, GpuBuffer>,
         mut render_pass: wgpu::RenderPass<'a>,
     ) {
+        inox_profiler::scoped_profile!("render_pass::indirect_draw");
+
         if is_indirect_mode_enabled() && self.render_mode == RenderMode::Indirect {
             let mesh_flags = self.pipeline().get().data().mesh_flags;
             if let Some(commands) = render_context.render_buffers.commands.get(&mesh_flags) {
@@ -400,6 +403,7 @@ impl RenderPass {
         instances: Range<u32>,
     ) {
         inox_profiler::scoped_profile!("render_pass::draw");
+
         render_pass.draw(vertices, instances);
     }
 }
