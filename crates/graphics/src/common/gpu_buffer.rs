@@ -4,12 +4,24 @@ use inox_resources::to_slice;
 
 use crate::{generate_buffer_id, AsBinding, BufferId, RenderCoreContext};
 
-#[derive(Default)]
 pub struct GpuBuffer {
     gpu_buffer: Option<wgpu::Buffer>,
+    usage: wgpu::BufferUsages,
     offset: u64,
     size: u64,
     name: String,
+}
+
+impl Default for GpuBuffer {
+    fn default() -> Self {
+        Self {
+            gpu_buffer: None,
+            usage: wgpu::BufferUsages::STORAGE,
+            offset: 0,
+            size: 0,
+            name: String::new(),
+        }
+    }
 }
 
 impl Drop for GpuBuffer {
@@ -40,19 +52,22 @@ impl GpuBuffer {
         inox_profiler::scoped_profile!("DataBuffer::init");
 
         self.offset = 0;
-        let label = format!("{} Buffer", buffer_name);
-        self.name = label;
-        self.release();
-        let data_buffer = render_core_context
-            .device
-            .create_buffer(&wgpu::BufferDescriptor {
-                label: Some(self.name.as_str()),
-                size,
-                mapped_at_creation: false,
-                usage,
-            });
-        self.gpu_buffer = Some(data_buffer);
-        self.size = size;
+        if size > self.size || usage != self.usage {
+            let label = format!("{} Buffer", buffer_name);
+            self.name = label;
+            self.release();
+            let data_buffer = render_core_context
+                .device
+                .create_buffer(&wgpu::BufferDescriptor {
+                    label: Some(self.name.as_str()),
+                    size,
+                    mapped_at_creation: false,
+                    usage,
+                });
+            self.gpu_buffer = Some(data_buffer);
+            self.size = size;
+            self.usage = usage;
+        }
         true
     }
     pub fn init_from_type<T>(
