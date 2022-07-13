@@ -129,7 +129,7 @@ fn fs_main(v_in: VertexOutput) -> @location(0) vec4<f32> {
             1.
         );
     } else {
-     let gbuffer_3 = sample_texture(vec3<f32>(v_in.uv.xy, f32(data.gbuffer3)));
+        let gbuffer_3 = sample_texture(vec3<f32>(v_in.uv.xy, f32(data.gbuffer3)));
 
         let material_id = u32(meshes.data[mesh_id].material_index);
         let material = &materials.data[material_id];

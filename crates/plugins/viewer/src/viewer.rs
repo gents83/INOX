@@ -20,7 +20,7 @@ const ADD_WIREFRAME_PASS: bool = true;
 const ADD_DEBUG_PASS: bool = false;
 const ADD_UI_PASS: bool = true;
 const USE_3DVIEW: bool = false;
-const USE_COMPUTE_RENDERING: bool = false;
+const USE_COMPUTE_RENDERING: bool = true;
 
 pub struct Viewer {
     window: Option<Window>,
@@ -209,18 +209,18 @@ impl Viewer {
         width: u32,
         height: u32,
     ) {
-        let mut pbr_pass = ComputePbrPass::create(context);
-        pbr_pass.resolution(width, height);
+        let mut compute_pbr_pass = ComputePbrPass::create(context);
+        compute_pbr_pass.resolution(width, height);
         if let Some(gbuffer_pass) = renderer.read().unwrap().pass::<GBufferPass>() {
             let gbuffer_pass = gbuffer_pass.render_pass().get();
-            if let Some(depth_id) = gbuffer_pass.depth_texture_id() {
-                pbr_pass.add_texture(depth_id);
-            }
             gbuffer_pass.render_textures_id().iter().for_each(|&id| {
-                pbr_pass.add_texture(id);
+                compute_pbr_pass.add_texture(id);
             });
+            if let Some(depth_id) = gbuffer_pass.depth_texture_id() {
+                compute_pbr_pass.add_texture(depth_id);
+            }
         }
-        renderer.write().unwrap().add_pass(pbr_pass);
+        renderer.write().unwrap().add_pass(compute_pbr_pass);
     }
     fn create_blit_pass(context: &ContextRc, renderer: &RendererRw) {
         let mut blit_pass = BlitPass::create(context);

@@ -86,10 +86,8 @@ fn sample_texture(tex_coords_and_texture_index: vec3<f32>) -> vec4<f32> {
 
 
 fn load_texture(tex_coords_and_texture_index: vec3<i32>) -> vec4<f32> {
-    let texture_data_index = i32(tex_coords_and_texture_index.z);
-    let texture = &textures.data[texture_data_index];
-    let atlas_index = (*texture).texture_index;
-    let layer_index = i32((*texture).layer_index);
+    let atlas_index = tex_coords_and_texture_index.z;
+    let layer_index = 0;
 
 #ifdef FEATURES_TEXTURE_BINDING_ARRAY
     return textureLoad(texture_array[atlas_index], tex_coords_and_texture_index.xy, layer_index, layer_index);
